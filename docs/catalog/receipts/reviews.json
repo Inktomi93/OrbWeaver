@@ -65,16 +65,17 @@
     },
     {
       "path": "docs/reviews/misc/2026-08-14-refinery-custom-schema-drive.md",
-      "assignedSha256": "0550c02292111cb1e884631bb991d80310a2c9756798ca393db0f241b11ce09d",
+      "assignedSha256": "124162042c1289bc8d635af9b687dec32de39bab3521dceee61b233c0384eb3d",
       "disposition": "needs-owner",
       "authority": "review",
       "fullRead": true,
       "verifiedSha256": "124162042c1289bc8d635af9b687dec32de39bab3521dceee61b233c0384eb3d",
-      "verifiedCommit": "74fbbbd9160203f033ce168b1f91d55a874faef2",
-      "verifiedAt": "2026-08-14",
+      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/reviews/misc/2026-08-14-refinery-custom-schema-drive.md:1-182 full read against frozen foundation",
-        "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
+        "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14",
+        "docs/reviews/misc/2026-08-14-refinery-custom-schema-drive.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
       ],
       "summary": "Current review evidence; named remaining findings or an owner decision require GitHub work.",
       "claims": [
@@ -243,14 +244,18 @@
     },
     {
       "path": "docs/reviews/stickler/2026-08-23-interaction-systems-audit.md",
-      "assignedSha256": "70194e286618c4a6d11c27546ddc0c0d7ec2da1501d3558a0a1d11deb4ec8229",
+      "assignedSha256": "80f6b176f2d9ea87bdf0f06a8b0c2f14e5727d0d2e15fead57d1f523fdc757bd",
       "disposition": "superseded",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "70194e286618c4a6d11c27546ddc0c0d7ec2da1501d3558a0a1d11deb4ec8229",
-      "verifiedCommit": "dd1921de747e0604490b1b3bbe137861c1de6398",
-      "verifiedAt": "2026-08-24",
-      "evidence": ["docs/design/interaction-direction-spec.md:571-588 (§10) cites the 2026-08-23 lineage", "committed as provenance at dd1921de7"],
+      "verifiedSha256": "80f6b176f2d9ea87bdf0f06a8b0c2f14e5727d0d2e15fead57d1f523fdc757bd",
+      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedAt": "2026-08-30",
+      "evidence": [
+        "docs/design/interaction-direction-spec.md:571-588 (§10) cites the 2026-08-23 lineage",
+        "committed as provenance at dd1921de7",
+        "docs/reviews/stickler/2026-08-23-interaction-systems-audit.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
+      ],
       "summary": "Superseded lineage: the 2026-08-23 interaction systems audit; its findings were folded through the 2026-08-24 panel into the committed spec (spec §10). Kept as the argument record."
     },
     {
@@ -285,16 +290,17 @@
     },
     {
       "path": "docs/reviews/stickler/2026-08-24-final-interaction-specification.md",
-      "assignedSha256": "052aaa3ff2008f977110d1955b211b8d379d2c1710f375efb58d8fbf39029563",
+      "assignedSha256": "1181cca40e5ba1220265558799dad1aebd5fbf8c787efc3442dd23308cddcb2f",
       "disposition": "superseded",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "052aaa3ff2008f977110d1955b211b8d379d2c1710f375efb58d8fbf39029563",
-      "verifiedCommit": "dd1921de747e0604490b1b3bbe137861c1de6398",
-      "verifiedAt": "2026-08-24",
+      "verifiedSha256": "1181cca40e5ba1220265558799dad1aebd5fbf8c787efc3442dd23308cddcb2f",
+      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/design/interaction-direction-spec.md:571-575 (§10) names final-interaction-specification[-RULED] as consolidated provenance",
-        "committed as provenance at dd1921de7"
+        "committed as provenance at dd1921de7",
+        "docs/reviews/stickler/2026-08-24-final-interaction-specification.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
       ],
       "summary": "Provenance: the pre-RULED five-lens panel draft; superseded by the -RULED revision and then by the committed spec (spec §10)."
     },
@@ -312,17 +318,18 @@
     },
     {
       "path": "docs/reviews/stickler/2026-08-24-plugin-automation-juice.md",
-      "assignedSha256": "1fcecb62acec276120d6706c1cfc84ac75c7d056d9b8f8cb7e512153a5ba9358",
+      "assignedSha256": "13118c158824683d33a56ddd59c5cfe502a119a085fe748f4d1aa4fb4a24f174",
       "disposition": "superseded",
       "authority": "review",
       "fullRead": true,
       "verifiedSha256": "13118c158824683d33a56ddd59c5cfe502a119a085fe748f4d1aa4fb4a24f174",
-      "verifiedCommit": "79e89d2555dc2847e495a72160d807bf6cb886bd",
-      "verifiedAt": "2026-08-25",
+      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/design/interaction-direction-spec.md:579-581 (§10) names plugin-automation-juice.md and its round counts",
         "docs/design/interaction-direction-spec.md:439-444 (the graveyard) points at this doc for full arguments",
-        "committed as provenance at dd1921de7"
+        "committed as provenance at dd1921de7",
+        "docs/reviews/stickler/2026-08-24-plugin-automation-juice.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
       ],
       "summary": "Provenance: the preset-catalogue ideation corpus (three fable generations, two fun-honesty passes, a completed two-lens law/cost round — 16 findings, twelve survivors changed) behind the spec §4 catalogue and its graveyard."
     },
@@ -453,15 +460,16 @@
     },
     {
       "path": "docs/reviews/stickler/2026-08-28-stranded-branch-integration-manifest.md",
-      "assignedSha256": "1f1c650449b530c683f4d6e56a55215b3abb8c0343ba84b9f7622ca25c3fa0ac",
+      "assignedSha256": "3d4fa55e74fecff3e474bb7eac22f78313d633b6608adde91fd2d7e34b9d0c52",
       "disposition": "current",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "1f1c650449b530c683f4d6e56a55215b3abb8c0343ba84b9f7622ca25c3fa0ac",
-      "verifiedCommit": "fc48ca68b7a407dc9624884cfd774d24a6a324b8",
-      "verifiedAt": "2026-08-29",
+      "verifiedSha256": "3d4fa55e74fecff3e474bb7eac22f78313d633b6608adde91fd2d7e34b9d0c52",
+      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedAt": "2026-08-30",
       "evidence": [
-        "docs/reviews/stickler/2026-08-28-stranded-branch-integration-manifest.md:1 (full read; 11-branch stranded-work integration manifest vs main)"
+        "docs/reviews/stickler/2026-08-28-stranded-branch-integration-manifest.md:1 (full read; 11-branch stranded-work integration manifest vs main)",
+        "docs/reviews/stickler/2026-08-28-stranded-branch-integration-manifest.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
       ],
       "summary": "Stranded-branch integration manifest: 1 of 11 branches (the #751 caught-failure-ownership gate build) carries genuinely missing work; the other 10 are 100% superseded, most patch-id-identical to landed commits.",
       "claims": [

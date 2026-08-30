@@ -100,17 +100,18 @@
     },
     {
       "path": "docs/architecture/proposed/README.md",
-      "assignedSha256": "5972033043bbd2aa48e941e88d8168c2adc0d3f45f2c2793953e1b7fae68ea6d",
+      "assignedSha256": "1990e6da1f1ee0b681bb355ffdf552446a135321b3735808c455e51a43473a4a",
       "disposition": "current",
       "authority": "current-reference",
       "fullRead": true,
       "verifiedSha256": "1990e6da1f1ee0b681bb355ffdf552446a135321b3735808c455e51a43473a4a",
-      "verifiedCommit": "851be471910e85e93288ce613ac60ea47146e201",
-      "verifiedAt": "2026-08-14",
+      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/architecture/proposed/README.md:1 (full read; lifecycle/frontmatter evaluated)",
         "docs/architecture/proposed/INDEX.md:1 (parked/non-authoritative program routing)",
-        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
+        "docs/architecture/proposed/README.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
       ],
       "summary": "Current routing index for proposed-program lifecycle; it is non-authoritative for present implementation.",
       "claims": [
@@ -143,7 +144,7 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:17 (PARTIAL disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed PARTIAL proposed program (agent-principal); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1\u2013#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:17.",
+      "summary": "Committed PARTIAL proposed program (agent-principal); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:17.",
       "claims": [
         {
           "claim": "Committed agent-principal future-program inventory is tracked by #13; it is not current implementation authority and must be revalidated at activation.",
@@ -191,7 +192,7 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:17 (PARTIAL disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed PARTIAL proposed program (agent-principal); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1\u2013#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:17.",
+      "summary": "Committed PARTIAL proposed program (agent-principal); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:17.",
       "claims": [
         {
           "claim": "Committed agent-principal future-program inventory is tracked by #13; it is not current implementation authority and must be revalidated at activation.",
@@ -239,7 +240,7 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:17 (PARTIAL disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed PARTIAL proposed program (agent-principal); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1\u2013#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:17.",
+      "summary": "Committed PARTIAL proposed program (agent-principal); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:17.",
       "claims": [
         {
           "claim": "Committed agent-principal future-program inventory is tracked by #13; it is not current implementation authority and must be revalidated at activation.",
@@ -287,7 +288,7 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:17 (PARTIAL disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed PARTIAL proposed program (agent-principal); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1\u2013#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:17.",
+      "summary": "Committed PARTIAL proposed program (agent-principal); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:17.",
       "claims": [
         {
           "claim": "Committed agent-principal future-program inventory is tracked by #13; it is not current implementation authority and must be revalidated at activation.",
@@ -335,7 +336,7 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:17 (PARTIAL disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed PARTIAL proposed program (agent-principal); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1\u2013#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:17.",
+      "summary": "Committed PARTIAL proposed program (agent-principal); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:17.",
       "claims": [
         {
           "claim": "Committed agent-principal future-program inventory is tracked by #13; it is not current implementation authority and must be revalidated at activation.",
@@ -383,7 +384,7 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:17 (PARTIAL disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed PARTIAL proposed program (agent-principal); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1\u2013#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:17.",
+      "summary": "Committed PARTIAL proposed program (agent-principal); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:17.",
       "claims": [
         {
           "claim": "Committed agent-principal future-program inventory is tracked by #13; it is not current implementation authority and must be revalidated at activation.",
@@ -431,7 +432,7 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:17 (PARTIAL disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed PARTIAL proposed program (agent-principal); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1\u2013#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:17.",
+      "summary": "Committed PARTIAL proposed program (agent-principal); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:17.",
       "claims": [
         {
           "claim": "Committed agent-principal future-program inventory is tracked by #13; it is not current implementation authority and must be revalidated at activation.",
@@ -479,7 +480,7 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:17 (PARTIAL disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed PARTIAL proposed program (agent-principal); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1\u2013#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:17.",
+      "summary": "Committed PARTIAL proposed program (agent-principal); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:17.",
       "claims": [
         {
           "claim": "Committed agent-principal future-program inventory is tracked by #13; it is not current implementation authority and must be revalidated at activation.",
@@ -527,7 +528,7 @@
         "docs/architecture/proposed/INDEX.md:1 (parked/non-authoritative program routing)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
       ],
-      "summary": "Committed UNMAPPED proposed program (agent-tool-propose-spec); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1\u2013#12). Not represented in INDEX; owner must supply activation/disposition.",
+      "summary": "Committed UNMAPPED proposed program (agent-tool-propose-spec); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). Not represented in INDEX; owner must supply activation/disposition.",
       "claims": [
         {
           "claim": "Committed agent-tool proposal future-program inventory is tracked by #14; it is not current implementation authority and must be revalidated at activation.",
@@ -571,7 +572,7 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:23 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (automation); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1\u2013#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:23.",
+      "summary": "Committed FUTURE proposed program (automation); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:23.",
       "claims": [
         {
           "claim": "Committed automation future-program inventory is tracked by #15; it is not current implementation authority and must be revalidated at activation.",
@@ -623,7 +624,7 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:23 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (automation); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1\u2013#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:23.",
+      "summary": "Committed FUTURE proposed program (automation); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:23.",
       "claims": [
         {
           "claim": "Committed automation future-program inventory is tracked by #15; it is not current implementation authority and must be revalidated at activation.",
@@ -675,7 +676,7 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:23 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (automation); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1\u2013#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:23.",
+      "summary": "Committed FUTURE proposed program (automation); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:23.",
       "claims": [
         {
           "claim": "Committed automation future-program inventory is tracked by #15; it is not current implementation authority and must be revalidated at activation.",
@@ -727,7 +728,7 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:23 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (automation); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1\u2013#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:23.",
+      "summary": "Committed FUTURE proposed program (automation); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:23.",
       "claims": [
         {
           "claim": "Committed automation future-program inventory is tracked by #15; it is not current implementation authority and must be revalidated at activation.",
@@ -779,7 +780,7 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:23 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (automation); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1\u2013#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:23.",
+      "summary": "Committed FUTURE proposed program (automation); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:23.",
       "claims": [
         {
           "claim": "Committed automation future-program inventory is tracked by #15; it is not current implementation authority and must be revalidated at activation.",
@@ -831,7 +832,7 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:23 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (automation); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1\u2013#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:23.",
+      "summary": "Committed FUTURE proposed program (automation); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:23.",
       "claims": [
         {
           "claim": "Committed automation future-program inventory is tracked by #15; it is not current implementation authority and must be revalidated at activation.",
@@ -883,7 +884,7 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:23 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (automation); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1\u2013#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:23.",
+      "summary": "Committed FUTURE proposed program (automation); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:23.",
       "claims": [
         {
           "claim": "Committed automation future-program inventory is tracked by #15; it is not current implementation authority and must be revalidated at activation.",
@@ -935,7 +936,7 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:27 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (autosave-form); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1\u2013#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:27.",
+      "summary": "Committed FUTURE proposed program (autosave-form); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:27.",
       "claims": [
         {
           "claim": "Committed autosave-form future-program inventory is tracked by #16; it is not current implementation authority and must be revalidated at activation.",
@@ -979,7 +980,7 @@
         "docs/architecture/proposed/INDEX.md:1 (parked/non-authoritative program routing)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
       ],
-      "summary": "Committed UNMAPPED proposed program (bg-video-background-mini-spec); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1\u2013#12). Not represented in INDEX; owner must supply activation/disposition.",
+      "summary": "Committed UNMAPPED proposed program (bg-video-background-mini-spec); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). Not represented in INDEX; owner must supply activation/disposition.",
       "claims": [
         {
           "claim": "Committed background-video future-program inventory is tracked by #17; it is not current implementation authority and must be revalidated at activation.",
@@ -1031,7 +1032,7 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:25 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (chat-crew); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1\u2013#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:25.",
+      "summary": "Committed FUTURE proposed program (chat-crew); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:25.",
       "claims": [
         {
           "claim": "Committed chat-crew future-program inventory is tracked by #18; it is not current implementation authority and must be revalidated at activation.",
@@ -1075,7 +1076,7 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:25 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (chat-crew); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1\u2013#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:25.",
+      "summary": "Committed FUTURE proposed program (chat-crew); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:25.",
       "claims": [
         {
           "claim": "Committed chat-crew future-program inventory is tracked by #18; it is not current implementation authority and must be revalidated at activation.",
@@ -1119,7 +1120,7 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:25 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (chat-crew); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1\u2013#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:25.",
+      "summary": "Committed FUTURE proposed program (chat-crew); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:25.",
       "claims": [
         {
           "claim": "Committed chat-crew future-program inventory is tracked by #18; it is not current implementation authority and must be revalidated at activation.",
@@ -1163,7 +1164,7 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:25 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (chat-crew); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1\u2013#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:25.",
+      "summary": "Committed FUTURE proposed program (chat-crew); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:25.",
       "claims": [
         {
           "claim": "Committed chat-crew future-program inventory is tracked by #18; it is not current implementation authority and must be revalidated at activation.",
@@ -1207,7 +1208,7 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:25 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (chat-crew); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1\u2013#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:25.",
+      "summary": "Committed FUTURE proposed program (chat-crew); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:25.",
       "claims": [
         {
           "claim": "Committed chat-crew future-program inventory is tracked by #18; it is not current implementation authority and must be revalidated at activation.",
@@ -1251,7 +1252,7 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:25 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (chat-crew); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1\u2013#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:25.",
+      "summary": "Committed FUTURE proposed program (chat-crew); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:25.",
       "claims": [
         {
           "claim": "Committed chat-crew future-program inventory is tracked by #18; it is not current implementation authority and must be revalidated at activation.",
@@ -1295,7 +1296,7 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:25 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (chat-crew); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1\u2013#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:25.",
+      "summary": "Committed FUTURE proposed program (chat-crew); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:25.",
       "claims": [
         {
           "claim": "Committed chat-crew future-program inventory is tracked by #18; it is not current implementation authority and must be revalidated at activation.",
@@ -1339,7 +1340,7 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:25 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (chat-crew); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1\u2013#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:25.",
+      "summary": "Committed FUTURE proposed program (chat-crew); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:25.",
       "claims": [
         {
           "claim": "Committed chat-crew future-program inventory is tracked by #18; it is not current implementation authority and must be revalidated at activation.",
@@ -1383,7 +1384,7 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:25 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (chat-crew); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1\u2013#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:25.",
+      "summary": "Committed FUTURE proposed program (chat-crew); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:25.",
       "claims": [
         {
           "claim": "Committed chat-crew future-program inventory is tracked by #18; it is not current implementation authority and must be revalidated at activation.",
@@ -1555,7 +1556,7 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:22 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (databank); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1\u2013#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:22.",
+      "summary": "Committed FUTURE proposed program (databank); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:22.",
       "claims": [
         {
           "claim": "Committed databank future-program inventory is tracked by #19; it is not current implementation authority and must be revalidated at activation.",
@@ -1607,7 +1608,7 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:22 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (databank); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1\u2013#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:22.",
+      "summary": "Committed FUTURE proposed program (databank); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:22.",
       "claims": [
         {
           "claim": "Committed databank future-program inventory is tracked by #19; it is not current implementation authority and must be revalidated at activation.",
@@ -1659,7 +1660,7 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:22 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (databank); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1\u2013#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:22.",
+      "summary": "Committed FUTURE proposed program (databank); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:22.",
       "claims": [
         {
           "claim": "Committed databank future-program inventory is tracked by #19; it is not current implementation authority and must be revalidated at activation.",
@@ -1711,7 +1712,7 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:22 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (databank); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1\u2013#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:22.",
+      "summary": "Committed FUTURE proposed program (databank); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:22.",
       "claims": [
         {
           "claim": "Committed databank future-program inventory is tracked by #19; it is not current implementation authority and must be revalidated at activation.",
@@ -1763,7 +1764,7 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:22 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (databank); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1\u2013#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:22.",
+      "summary": "Committed FUTURE proposed program (databank); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:22.",
       "claims": [
         {
           "claim": "Committed databank future-program inventory is tracked by #19; it is not current implementation authority and must be revalidated at activation.",
@@ -1815,7 +1816,7 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:22 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (databank); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1\u2013#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:22.",
+      "summary": "Committed FUTURE proposed program (databank); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:22.",
       "claims": [
         {
           "claim": "Committed databank future-program inventory is tracked by #19; it is not current implementation authority and must be revalidated at activation.",
@@ -1867,7 +1868,7 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:22 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (databank); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1\u2013#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:22.",
+      "summary": "Committed FUTURE proposed program (databank); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:22.",
       "claims": [
         {
           "claim": "Committed databank future-program inventory is tracked by #19; it is not current implementation authority and must be revalidated at activation.",
@@ -1919,7 +1920,7 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:22 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (databank); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1\u2013#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:22.",
+      "summary": "Committed FUTURE proposed program (databank); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:22.",
       "claims": [
         {
           "claim": "Committed databank future-program inventory is tracked by #19; it is not current implementation authority and must be revalidated at activation.",
@@ -1971,7 +1972,7 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:22 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (databank); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1\u2013#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:22.",
+      "summary": "Committed FUTURE proposed program (databank); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:22.",
       "claims": [
         {
           "claim": "Committed databank future-program inventory is tracked by #19; it is not current implementation authority and must be revalidated at activation.",
@@ -2023,7 +2024,7 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:22 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (databank); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1\u2013#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:22.",
+      "summary": "Committed FUTURE proposed program (databank); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:22.",
       "claims": [
         {
           "claim": "Committed databank future-program inventory is tracked by #19; it is not current implementation authority and must be revalidated at activation.",
@@ -2075,7 +2076,7 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:21 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (expressions); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1\u2013#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:21.",
+      "summary": "Committed FUTURE proposed program (expressions); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:21.",
       "claims": [
         {
           "claim": "Committed expressions future-program inventory is tracked by #20; it is not current implementation authority and must be revalidated at activation.",
@@ -2119,7 +2120,7 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:21 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (expressions); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1\u2013#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:21.",
+      "summary": "Committed FUTURE proposed program (expressions); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:21.",
       "claims": [
         {
           "claim": "Committed expressions future-program inventory is tracked by #20; it is not current implementation authority and must be revalidated at activation.",
@@ -2163,7 +2164,7 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:21 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (expressions); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1\u2013#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:21.",
+      "summary": "Committed FUTURE proposed program (expressions); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:21.",
       "claims": [
         {
           "claim": "Committed expressions future-program inventory is tracked by #20; it is not current implementation authority and must be revalidated at activation.",
@@ -2207,7 +2208,7 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:21 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (expressions); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1\u2013#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:21.",
+      "summary": "Committed FUTURE proposed program (expressions); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:21.",
       "claims": [
         {
           "claim": "Committed expressions future-program inventory is tracked by #20; it is not current implementation authority and must be revalidated at activation.",
@@ -2251,7 +2252,7 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:21 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (expressions); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1\u2013#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:21.",
+      "summary": "Committed FUTURE proposed program (expressions); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:21.",
       "claims": [
         {
           "claim": "Committed expressions future-program inventory is tracked by #20; it is not current implementation authority and must be revalidated at activation.",
@@ -2295,7 +2296,7 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:21 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (expressions); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1\u2013#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:21.",
+      "summary": "Committed FUTURE proposed program (expressions); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:21.",
       "claims": [
         {
           "claim": "Committed expressions future-program inventory is tracked by #20; it is not current implementation authority and must be revalidated at activation.",
@@ -2339,7 +2340,7 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:21 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (expressions); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1\u2013#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:21.",
+      "summary": "Committed FUTURE proposed program (expressions); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:21.",
       "claims": [
         {
           "claim": "Committed expressions future-program inventory is tracked by #20; it is not current implementation authority and must be revalidated at activation.",
@@ -2371,19 +2372,20 @@
     },
     {
       "path": "docs/architecture/proposed/hub-browse-design/01-network-guard.md",
-      "assignedSha256": "477dfa4960be27540ec10ca46cca21b35b7f70a23fc36b5ae7d11424223f4573",
+      "assignedSha256": "f7b1d5793b8c5a20e05541385c0cf8800ab83080325fed637aeabc0d044523e3",
       "disposition": "needs-owner",
       "authority": "design",
       "fullRead": true,
       "verifiedSha256": "f7b1d5793b8c5a20e05541385c0cf8800ab83080325fed637aeabc0d044523e3",
-      "verifiedCommit": "b59d7fff93d0248e88402adfcea0cfd323b88c2f",
-      "verifiedAt": "2026-08-22",
+      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/architecture/proposed/hub-browse-design/01-network-guard.md:1 (full read; lifecycle/frontmatter evaluated)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
-        "docs/architecture/proposed/INDEX.md:19 (PARTIAL disposition and stated wake/dependencies)"
+        "docs/architecture/proposed/INDEX.md:19 (PARTIAL disposition and stated wake/dependencies)",
+        "docs/architecture/proposed/hub-browse-design/01-network-guard.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
       ],
-      "summary": "Committed PARTIAL proposed program (hub-browse); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1\u2013#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:19.",
+      "summary": "Committed PARTIAL proposed program (hub-browse); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:19.",
       "claims": [
         {
           "claim": "Committed hub-browse future-program inventory is tracked by #21; it is not current implementation authority and must be revalidated at activation.",
@@ -2431,7 +2433,7 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:19 (PARTIAL disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed PARTIAL proposed program (hub-browse); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1\u2013#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:19.",
+      "summary": "Committed PARTIAL proposed program (hub-browse); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:19.",
       "claims": [
         {
           "claim": "Committed hub-browse future-program inventory is tracked by #21; it is not current implementation authority and must be revalidated at activation.",
@@ -2479,7 +2481,7 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:19 (PARTIAL disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed PARTIAL proposed program (hub-browse); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1\u2013#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:19.",
+      "summary": "Committed PARTIAL proposed program (hub-browse); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:19.",
       "claims": [
         {
           "claim": "Committed hub-browse future-program inventory is tracked by #21; it is not current implementation authority and must be revalidated at activation.",
@@ -2527,7 +2529,7 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:19 (PARTIAL disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed PARTIAL proposed program (hub-browse); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1\u2013#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:19.",
+      "summary": "Committed PARTIAL proposed program (hub-browse); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:19.",
       "claims": [
         {
           "claim": "Committed hub-browse future-program inventory is tracked by #21; it is not current implementation authority and must be revalidated at activation.",
@@ -2575,7 +2577,7 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:20 (PARTIAL disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed PARTIAL proposed program (imagery); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1\u2013#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:20.",
+      "summary": "Committed PARTIAL proposed program (imagery); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:20.",
       "claims": [
         {
           "claim": "Committed imagery future-program inventory is tracked by #22; it is not current implementation authority and must be revalidated at activation.",
@@ -2623,7 +2625,7 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:20 (PARTIAL disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed PARTIAL proposed program (imagery); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1\u2013#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:20.",
+      "summary": "Committed PARTIAL proposed program (imagery); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:20.",
       "claims": [
         {
           "claim": "Committed imagery future-program inventory is tracked by #22; it is not current implementation authority and must be revalidated at activation.",
@@ -2671,7 +2673,7 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:20 (PARTIAL disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed PARTIAL proposed program (imagery); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1\u2013#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:20.",
+      "summary": "Committed PARTIAL proposed program (imagery); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:20.",
       "claims": [
         {
           "claim": "Committed imagery future-program inventory is tracked by #22; it is not current implementation authority and must be revalidated at activation.",
@@ -2719,7 +2721,7 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:20 (PARTIAL disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed PARTIAL proposed program (imagery); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1\u2013#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:20.",
+      "summary": "Committed PARTIAL proposed program (imagery); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:20.",
       "claims": [
         {
           "claim": "Committed imagery future-program inventory is tracked by #22; it is not current implementation authority and must be revalidated at activation.",
@@ -2767,7 +2769,7 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:20 (PARTIAL disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed PARTIAL proposed program (imagery); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1\u2013#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:20.",
+      "summary": "Committed PARTIAL proposed program (imagery); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:20.",
       "claims": [
         {
           "claim": "Committed imagery future-program inventory is tracked by #22; it is not current implementation authority and must be revalidated at activation.",
@@ -2815,7 +2817,7 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:20 (PARTIAL disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed PARTIAL proposed program (imagery); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1\u2013#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:20.",
+      "summary": "Committed PARTIAL proposed program (imagery); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:20.",
       "claims": [
         {
           "claim": "Committed imagery future-program inventory is tracked by #22; it is not current implementation authority and must be revalidated at activation.",
@@ -2863,7 +2865,7 @@
         "docs/architecture/proposed/INDEX.md:1 (parked/non-authoritative program routing)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
       ],
-      "summary": "Committed UNMAPPED proposed program (message-reactions-mini-spec); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1\u2013#12). Not represented in INDEX; owner must supply activation/disposition.",
+      "summary": "Committed UNMAPPED proposed program (message-reactions-mini-spec); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). Not represented in INDEX; owner must supply activation/disposition.",
       "claims": [
         {
           "claim": "Committed message-reactions future-program inventory is tracked by #23; it is not current implementation authority and must be revalidated at activation.",
@@ -2895,19 +2897,20 @@
     },
     {
       "path": "docs/architecture/proposed/plugin-design/01-runtime-and-membrane.md",
-      "assignedSha256": "af7fa059b8ca7f38987f0b981482ffbfa33892aac18ddcc28c05f41973df03cc",
+      "assignedSha256": "766ed206a1e59b1807c04b12345398a38986db9e99a45ca2dac036ff4e465958",
       "disposition": "needs-owner",
       "authority": "design",
       "fullRead": true,
       "verifiedSha256": "766ed206a1e59b1807c04b12345398a38986db9e99a45ca2dac036ff4e465958",
-      "verifiedCommit": "ecbe2f16a7c8864d6119ec9f4146c0ce8ab20949",
-      "verifiedAt": "2026-08-25",
+      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/architecture/proposed/plugin-design/01-runtime-and-membrane.md:1 (full read; lifecycle/frontmatter evaluated)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
-        "docs/architecture/proposed/INDEX.md:26 (FUTURE disposition and stated wake/dependencies)"
+        "docs/architecture/proposed/INDEX.md:26 (FUTURE disposition and stated wake/dependencies)",
+        "docs/architecture/proposed/plugin-design/01-runtime-and-membrane.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
       ],
-      "summary": "Committed FUTURE proposed program (plugin); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1\u2013#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:26.",
+      "summary": "Committed FUTURE proposed program (plugin); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:26.",
       "claims": [
         {
           "claim": "Committed plugin future-program inventory is tracked by #24; it is not current implementation authority and must be revalidated at activation.",
@@ -2947,19 +2950,20 @@
     },
     {
       "path": "docs/architecture/proposed/plugin-design/02-manifest-capabilities-lifecycle.md",
-      "assignedSha256": "5bbd0bbaf769edc1721cb0611042f53b330a3ac9b674ae07d6d4bada78f532dd",
+      "assignedSha256": "866857af94a8c10dbd81c8a11ea712770d1631cf29716f6ca216e88d228f91f2",
       "disposition": "needs-owner",
       "authority": "design",
       "fullRead": true,
       "verifiedSha256": "866857af94a8c10dbd81c8a11ea712770d1631cf29716f6ca216e88d228f91f2",
-      "verifiedCommit": "8340b7f876501aefbd82841b3c6ac37838c66ee7",
-      "verifiedAt": "2026-08-25",
+      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/architecture/proposed/plugin-design/02-manifest-capabilities-lifecycle.md:1 (full read; lifecycle/frontmatter evaluated)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
-        "docs/architecture/proposed/INDEX.md:26 (FUTURE disposition and stated wake/dependencies)"
+        "docs/architecture/proposed/INDEX.md:26 (FUTURE disposition and stated wake/dependencies)",
+        "docs/architecture/proposed/plugin-design/02-manifest-capabilities-lifecycle.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
       ],
-      "summary": "Committed FUTURE proposed program (plugin); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1\u2013#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:26.",
+      "summary": "Committed FUTURE proposed program (plugin); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:26.",
       "claims": [
         {
           "claim": "Committed plugin future-program inventory is tracked by #24; it is not current implementation authority and must be revalidated at activation.",
@@ -3011,7 +3015,7 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:26 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (plugin); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1\u2013#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:26.",
+      "summary": "Committed FUTURE proposed program (plugin); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:26.",
       "claims": [
         {
           "claim": "Committed plugin future-program inventory is tracked by #24; it is not current implementation authority and must be revalidated at activation.",
@@ -3051,19 +3055,20 @@
     },
     {
       "path": "docs/architecture/proposed/plugin-design/04-build-plan.md",
-      "assignedSha256": "7b4ea391de15333e4274e4e7dc7264309fa84fffe6f454550b4d3583fa4f43e0",
+      "assignedSha256": "f25b10e00c4aefc91ba53a58f9037d88c9334a4ee8b9dd90710aaf1f9a189bdb",
       "disposition": "needs-owner",
       "authority": "design",
       "fullRead": true,
       "verifiedSha256": "f25b10e00c4aefc91ba53a58f9037d88c9334a4ee8b9dd90710aaf1f9a189bdb",
-      "verifiedCommit": "8340b7f876501aefbd82841b3c6ac37838c66ee7",
-      "verifiedAt": "2026-08-25",
+      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/architecture/proposed/plugin-design/04-build-plan.md:1 (full read; lifecycle/frontmatter evaluated)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
-        "docs/architecture/proposed/INDEX.md:26 (FUTURE disposition and stated wake/dependencies)"
+        "docs/architecture/proposed/INDEX.md:26 (FUTURE disposition and stated wake/dependencies)",
+        "docs/architecture/proposed/plugin-design/04-build-plan.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
       ],
-      "summary": "Committed FUTURE proposed program (plugin); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1\u2013#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:26.",
+      "summary": "Committed FUTURE proposed program (plugin); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:26.",
       "claims": [
         {
           "claim": "Committed plugin future-program inventory is tracked by #24; it is not current implementation authority and must be revalidated at activation.",
@@ -3115,7 +3120,7 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:26 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (plugin); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1\u2013#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:26.",
+      "summary": "Committed FUTURE proposed program (plugin); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:26.",
       "claims": [
         {
           "claim": "Committed plugin future-program inventory is tracked by #24; it is not current implementation authority and must be revalidated at activation.",
@@ -3167,7 +3172,7 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:24 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (rpg); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1\u2013#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:24.",
+      "summary": "Committed FUTURE proposed program (rpg); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:24.",
       "claims": [
         {
           "claim": "Committed RPG future-program inventory is tracked by #25; it is not current implementation authority and must be revalidated at activation.",
@@ -3219,7 +3224,7 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:24 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (rpg); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1\u2013#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:24.",
+      "summary": "Committed FUTURE proposed program (rpg); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:24.",
       "claims": [
         {
           "claim": "Committed RPG future-program inventory is tracked by #25; it is not current implementation authority and must be revalidated at activation.",
@@ -3271,7 +3276,7 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:24 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (rpg); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1\u2013#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:24.",
+      "summary": "Committed FUTURE proposed program (rpg); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:24.",
       "claims": [
         {
           "claim": "Committed RPG future-program inventory is tracked by #25; it is not current implementation authority and must be revalidated at activation.",
@@ -3323,7 +3328,7 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:24 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (rpg); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1\u2013#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:24.",
+      "summary": "Committed FUTURE proposed program (rpg); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:24.",
       "claims": [
         {
           "claim": "Committed RPG future-program inventory is tracked by #25; it is not current implementation authority and must be revalidated at activation.",
@@ -3375,7 +3380,7 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:24 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (rpg); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1\u2013#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:24.",
+      "summary": "Committed FUTURE proposed program (rpg); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:24.",
       "claims": [
         {
           "claim": "Committed RPG future-program inventory is tracked by #25; it is not current implementation authority and must be revalidated at activation.",
@@ -3427,7 +3432,7 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:24 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (rpg); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1\u2013#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:24.",
+      "summary": "Committed FUTURE proposed program (rpg); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:24.",
       "claims": [
         {
           "claim": "Committed RPG future-program inventory is tracked by #25; it is not current implementation authority and must be revalidated at activation.",
@@ -3479,7 +3484,7 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:24 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (rpg); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1\u2013#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:24.",
+      "summary": "Committed FUTURE proposed program (rpg); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:24.",
       "claims": [
         {
           "claim": "Committed RPG future-program inventory is tracked by #25; it is not current implementation authority and must be revalidated at activation.",
@@ -3531,7 +3536,7 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:24 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (rpg); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1\u2013#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:24.",
+      "summary": "Committed FUTURE proposed program (rpg); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:24.",
       "claims": [
         {
           "claim": "Committed RPG future-program inventory is tracked by #25; it is not current implementation authority and must be revalidated at activation.",
@@ -3583,7 +3588,7 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:24 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (rpg); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1\u2013#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:24.",
+      "summary": "Committed FUTURE proposed program (rpg); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:24.",
       "claims": [
         {
           "claim": "Committed RPG future-program inventory is tracked by #25; it is not current implementation authority and must be revalidated at activation.",
@@ -3635,7 +3640,7 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:24 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (rpg); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1\u2013#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:24.",
+      "summary": "Committed FUTURE proposed program (rpg); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:24.",
       "claims": [
         {
           "claim": "Committed RPG future-program inventory is tracked by #25; it is not current implementation authority and must be revalidated at activation.",
@@ -3687,7 +3692,7 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:24 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (rpg); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1\u2013#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:24.",
+      "summary": "Committed FUTURE proposed program (rpg); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:24.",
       "claims": [
         {
           "claim": "Committed RPG future-program inventory is tracked by #25; it is not current implementation authority and must be revalidated at activation.",
@@ -3739,7 +3744,7 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:24 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (rpg); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1\u2013#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:24.",
+      "summary": "Committed FUTURE proposed program (rpg); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:24.",
       "claims": [
         {
           "claim": "Committed RPG future-program inventory is tracked by #25; it is not current implementation authority and must be revalidated at activation.",
@@ -3779,19 +3784,20 @@
     },
     {
       "path": "docs/architecture/proposed/rpg-design/13-lite-mode.md",
-      "assignedSha256": "789509d4ae596730d0763dd6aa1eaacef6ff869dd18e4450a8bede3dc7f7ed3f",
+      "assignedSha256": "e84a7ee6990ccf20f89b2bd8fd4a93dd95f93528d64bee30bac729edd94c1078",
       "disposition": "needs-owner",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "06c77a4851c9d9556e7435bfb82e3c2900daeea207aaa253543d04fdfc4047dc",
-      "verifiedCommit": "8b750ac2c3d9c2a72a281c0189ed2790e62e53b6",
-      "verifiedAt": "2026-08-23",
+      "verifiedSha256": "e84a7ee6990ccf20f89b2bd8fd4a93dd95f93528d64bee30bac729edd94c1078",
+      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/architecture/proposed/rpg-design/13-lite-mode.md:1 (full read; lifecycle/frontmatter evaluated)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
-        "docs/architecture/proposed/INDEX.md:24 (FUTURE disposition and stated wake/dependencies)"
+        "docs/architecture/proposed/INDEX.md:24 (FUTURE disposition and stated wake/dependencies)",
+        "docs/architecture/proposed/rpg-design/13-lite-mode.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
       ],
-      "summary": "Committed FUTURE proposed program (rpg); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1\u2013#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:24.",
+      "summary": "Committed FUTURE proposed program (rpg); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:24.",
       "claims": [
         {
           "claim": "Committed RPG future-program inventory is tracked by #25; it is not current implementation authority and must be revalidated at activation.",
@@ -3843,7 +3849,7 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:24 (FUTURE disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed FUTURE proposed program (rpg); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1\u2013#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:24.",
+      "summary": "Committed FUTURE proposed program (rpg); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:24.",
       "claims": [
         {
           "claim": "Committed RPG future-program inventory is tracked by #25; it is not current implementation authority and must be revalidated at activation.",
@@ -3895,7 +3901,7 @@
         "docs/architecture/proposed/INDEX.md:1 (parked/non-authoritative program routing)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
       ],
-      "summary": "Committed UNMAPPED proposed program (spatial-maps-design-capture); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1\u2013#12). Not represented in INDEX; owner must supply activation/disposition.",
+      "summary": "Committed UNMAPPED proposed program (spatial-maps-design-capture); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). Not represented in INDEX; owner must supply activation/disposition.",
       "claims": [
         {
           "claim": "Committed spatial-maps future-program inventory is tracked by #27; it is not current implementation authority and must be revalidated at activation.",
@@ -3939,7 +3945,7 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:16 (PARTIAL disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed PARTIAL proposed program (tool-use); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1\u2013#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:16.",
+      "summary": "Committed PARTIAL proposed program (tool-use); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:16.",
       "claims": [
         {
           "claim": "Committed tool-use future-program inventory is tracked by #28; it is not current implementation authority and must be revalidated at activation.",
@@ -3991,7 +3997,7 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:16 (PARTIAL disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed PARTIAL proposed program (tool-use); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1\u2013#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:16.",
+      "summary": "Committed PARTIAL proposed program (tool-use); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:16.",
       "claims": [
         {
           "claim": "Committed tool-use future-program inventory is tracked by #28; it is not current implementation authority and must be revalidated at activation.",
@@ -4043,7 +4049,7 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:16 (PARTIAL disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed PARTIAL proposed program (tool-use); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1\u2013#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:16.",
+      "summary": "Committed PARTIAL proposed program (tool-use); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:16.",
       "claims": [
         {
           "claim": "Committed tool-use future-program inventory is tracked by #28; it is not current implementation authority and must be revalidated at activation.",
@@ -4095,7 +4101,7 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:16 (PARTIAL disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed PARTIAL proposed program (tool-use); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1\u2013#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:16.",
+      "summary": "Committed PARTIAL proposed program (tool-use); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:16.",
       "claims": [
         {
           "claim": "Committed tool-use future-program inventory is tracked by #28; it is not current implementation authority and must be revalidated at activation.",
@@ -4147,7 +4153,7 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:16 (PARTIAL disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed PARTIAL proposed program (tool-use); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1\u2013#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:16.",
+      "summary": "Committed PARTIAL proposed program (tool-use); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:16.",
       "claims": [
         {
           "claim": "Committed tool-use future-program inventory is tracked by #28; it is not current implementation authority and must be revalidated at activation.",
@@ -4199,7 +4205,7 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:16 (PARTIAL disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed PARTIAL proposed program (tool-use); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1\u2013#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:16.",
+      "summary": "Committed PARTIAL proposed program (tool-use); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:16.",
       "claims": [
         {
           "claim": "Committed tool-use future-program inventory is tracked by #28; it is not current implementation authority and must be revalidated at activation.",
@@ -4251,7 +4257,7 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:16 (PARTIAL disposition and stated wake/dependencies)"
       ],
-      "summary": "Committed PARTIAL proposed program (tool-use); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1\u2013#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:16.",
+      "summary": "Committed PARTIAL proposed program (tool-use); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:16.",
       "claims": [
         {
           "claim": "Committed tool-use future-program inventory is tracked by #28; it is not current implementation authority and must be revalidated at activation.",
@@ -4302,7 +4308,7 @@
         "docs/architecture/proposed/ui-cohesion-north-star.md:1 (full read; lifecycle/frontmatter evaluated)",
         "docs/architecture/proposed/INDEX.md:1 (parked/non-authoritative program routing)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
-        "truth-repair 2026-08-18: chromeBacking line updated after #167 deleted RowSkin.chromeBacking (94636b0ed) \u2014 scrim now universal on nameRowFrame"
+        "truth-repair 2026-08-18: chromeBacking line updated after #167 deleted RowSkin.chromeBacking (94636b0ed) — scrim now universal on nameRowFrame"
       ],
       "summary": "Superseded by docs/retro-workboard.md per current core law; retained as historical design provenance."
     },
@@ -4320,7 +4326,7 @@
         "docs/architecture/proposed/INDEX.md:1 (parked/non-authoritative program routing)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
       ],
-      "summary": "Committed UNMAPPED proposed program (world-state-clips-trackers-spec); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1\u2013#12). Not represented in INDEX; owner must supply activation/disposition.",
+      "summary": "Committed UNMAPPED proposed program (world-state-clips-trackers-spec); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). Not represented in INDEX; owner must supply activation/disposition.",
       "claims": [
         {
           "claim": "Committed world-state-clips-trackers future-program inventory is tracked by #29; it is not current implementation authority and must be revalidated at activation.",

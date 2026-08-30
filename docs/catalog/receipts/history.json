@@ -5,17 +5,18 @@
   "entries": [
     {
       "path": "docs/history/README.md",
-      "assignedSha256": "8282f6544f3e6386bf8da5506fd4595a53b0924f26faf3788edc62560720aa0a",
-      "disposition": "current",
-      "authority": "current-reference",
+      "assignedSha256": "6d5eaadcd25003164bc87a03415864fe3d7ba899c1c0a216beddd72242edc2d3",
+      "disposition": "archive",
+      "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "6d4e690a0b32ac4060b8ed29e0a2344f8c96c273c1195aaaddafc4e7181b59e5",
-      "verifiedCommit": "68271889b1746b513defea44b0787bab7a89176f",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "6d5eaadcd25003164bc87a03415864fe3d7ba899c1c0a216beddd72242edc2d3",
+      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/history/README.md:1-29 full read; current index routes mutable work to Project 1 and dated snapshots to provenance only",
         "docs/architecture/core/Core-Path-Registry.md:527-533 (D140-D141 authority boundary)",
-        "git:68271889b1746b513defea44b0787bab7a89176f contains the exact current index blob"
+        "git:68271889b1746b513defea44b0787bab7a89176f contains the exact current index blob",
+        "docs/history/README.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
       ],
       "summary": "Current routing index for immutable history; it makes no present implementation or work-status claim.",
       "claims": [
@@ -93,31 +94,33 @@
     },
     {
       "path": "docs/history/design/rpg-lite-and-full-cohesion-brief.md",
-      "assignedSha256": "f70c49f14b0213bc2af3ea9cf1149fbd651eb9f4964f582c904ad195828cc5e2",
+      "assignedSha256": "95db9c27efe530546e65291cbba06d5d008ef51b90d4a361ac463a68f1d19601",
       "disposition": "archive",
       "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "f70c49f14b0213bc2af3ea9cf1149fbd651eb9f4964f582c904ad195828cc5e2",
-      "verifiedCommit": "ec39380b5f67efc767b2ce78d41f6e7c400b6ac0",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "95db9c27efe530546e65291cbba06d5d008ef51b90d4a361ac463a68f1d19601",
+      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/history/design/rpg-lite-and-full-cohesion-brief.md:1-159 full read; SHA-256 matches frozen manifest",
-        "docs/history/README.md:1-30 defines the corpus as landed records, reference-only and never live law"
+        "docs/history/README.md:1-30 defines the corpus as landed records, reference-only and never live law",
+        "docs/history/design/rpg-lite-and-full-cohesion-brief.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
       ],
       "summary": "Historical record retained intact as durable archaeology; its dated claims are not current work-state assertions."
     },
     {
       "path": "docs/history/design/rpg-lite-and-full-cohesion-game-plan.md",
-      "assignedSha256": "08076c8b6cd1da2281ca1cd9b694ed1b13657631cc2e720cfd20908db2746ff9",
+      "assignedSha256": "53769482080a893a37ccd2d3c05142c8429acedad4aa73cdc50d97cc44d0c290",
       "disposition": "archive",
       "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "08076c8b6cd1da2281ca1cd9b694ed1b13657631cc2e720cfd20908db2746ff9",
-      "verifiedCommit": "ec39380b5f67efc767b2ce78d41f6e7c400b6ac0",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "53769482080a893a37ccd2d3c05142c8429acedad4aa73cdc50d97cc44d0c290",
+      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/history/design/rpg-lite-and-full-cohesion-game-plan.md:1-624 full read; SHA-256 matches frozen manifest",
-        "docs/history/README.md:1-30 defines the corpus as landed records, reference-only and never live law"
+        "docs/history/README.md:1-30 defines the corpus as landed records, reference-only and never live law",
+        "docs/history/design/rpg-lite-and-full-cohesion-game-plan.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
       ],
       "summary": "Historical record retained intact as durable archaeology; its dated claims are not current work-state assertions."
     },
@@ -168,16 +171,17 @@
     },
     {
       "path": "docs/history/retro-workboard-2026-08-03.md",
-      "assignedSha256": "0787e021983fae0555450d1d30f4c7da1a683844c9e8b6cc7ecb30874c6aad03",
+      "assignedSha256": "fb1393e502d668fe5b872b55296fe4fd1eb9413fa62b36d5e7fa65b1373eda6d",
       "disposition": "archive",
       "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "0787e021983fae0555450d1d30f4c7da1a683844c9e8b6cc7ecb30874c6aad03",
-      "verifiedCommit": "ec39380b5f67efc767b2ce78d41f6e7c400b6ac0",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "fb1393e502d668fe5b872b55296fe4fd1eb9413fa62b36d5e7fa65b1373eda6d",
+      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/history/retro-workboard-2026-08-03.md:1-4071 full read; SHA-256 matches frozen manifest",
-        "docs/history/README.md:1-30 defines the corpus as landed records, reference-only and never live law"
+        "docs/history/README.md:1-30 defines the corpus as landed records, reference-only and never live law",
+        "docs/history/retro-workboard-2026-08-03.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
       ],
       "summary": "Historical record retained intact as durable archaeology; its dated claims are not current work-state assertions."
     },
@@ -198,16 +202,17 @@
     },
     {
       "path": "docs/history/retro-workboard-2026-08-08.md",
-      "assignedSha256": "dc9be7590b5c95d4e6c35cedb71479d59f613a7ac22b4aeb02ea5866aa2ce01b",
+      "assignedSha256": "87e9ef4844fa15e204827c9bbe91403802ec4417788c2a9ec2b9bc5a6e1a3ad7",
       "disposition": "archive",
       "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "dc9be7590b5c95d4e6c35cedb71479d59f613a7ac22b4aeb02ea5866aa2ce01b",
-      "verifiedCommit": "ec39380b5f67efc767b2ce78d41f6e7c400b6ac0",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "87e9ef4844fa15e204827c9bbe91403802ec4417788c2a9ec2b9bc5a6e1a3ad7",
+      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/history/retro-workboard-2026-08-08.md:1-2588 full read; SHA-256 matches frozen manifest",
-        "docs/history/README.md:1-30 defines the corpus as landed records, reference-only and never live law"
+        "docs/history/README.md:1-30 defines the corpus as landed records, reference-only and never live law",
+        "docs/history/retro-workboard-2026-08-08.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
       ],
       "summary": "Historical record retained intact as durable archaeology; its dated claims are not current work-state assertions."
     },
@@ -228,17 +233,18 @@
     },
     {
       "path": "docs/history/retro-workboard-2026-08-14.md",
-      "assignedSha256": "8645bdaff204a8b94f0b9f98c95a632f47c34841b0ef48593dc8ffa460d0c384",
+      "assignedSha256": "e57e940594934f881c71ece79637b3d11206505866318bc55689219943714389",
       "disposition": "archive",
       "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "8645bdaff204a8b94f0b9f98c95a632f47c34841b0ef48593dc8ffa460d0c384",
-      "verifiedCommit": "68271889b1746b513defea44b0787bab7a89176f",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "e57e940594934f881c71ece79637b3d11206505866318bc55689219943714389",
+      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/history/retro-workboard-2026-08-14.md:1-1816 full read; lifecycle banner and repaired relative links preserve the pre-split 1816-line address space",
         "docs/architecture/core/Core-Path-Registry.md:523-533 (D139-D141 provenance and authority boundary)",
-        "git:68271889b1746b513defea44b0787bab7a89176f contains the exact archived snapshot blob"
+        "git:68271889b1746b513defea44b0787bab7a89176f contains the exact archived snapshot blob",
+        "docs/history/retro-workboard-2026-08-14.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
       ],
       "summary": "Frozen pre-Project workboard retained as immutable provenance; its checkboxes and status prose are not executable current work."
     },
@@ -394,16 +400,17 @@
     },
     {
       "path": "docs/history/reviews/misc/2026-08-02-default-character-art-pack.md",
-      "assignedSha256": "c41a4d5c9ef0f36d561f70d37e66d9135236fe27ce2720cbd9bc8c3482095d69",
+      "assignedSha256": "d5d08e9399e246f7297bfa57339b11cb1c804fba8db8ea56606b89dfa435d040",
       "disposition": "archive",
       "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "c41a4d5c9ef0f36d561f70d37e66d9135236fe27ce2720cbd9bc8c3482095d69",
-      "verifiedCommit": "ec39380b5f67efc767b2ce78d41f6e7c400b6ac0",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "d5d08e9399e246f7297bfa57339b11cb1c804fba8db8ea56606b89dfa435d040",
+      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/history/reviews/misc/2026-08-02-default-character-art-pack.md:1-75 full read; SHA-256 matches frozen manifest",
-        "docs/history/README.md:1-30 defines the corpus as landed records, reference-only and never live law"
+        "docs/history/README.md:1-30 defines the corpus as landed records, reference-only and never live law",
+        "docs/history/reviews/misc/2026-08-02-default-character-art-pack.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
       ],
       "summary": "Historical record retained intact as durable archaeology; its dated claims are not current work-state assertions."
     },
@@ -454,31 +461,33 @@
     },
     {
       "path": "docs/history/reviews/misc/2026-08-03-archive-rescue-audit-tail.md",
-      "assignedSha256": "cbe933464d9c289db84a2fa86e8b4430393a8a598381ca32daf6af8c341c91fb",
+      "assignedSha256": "ee55768a86c424e4e3c959c5770b880eedb74027dab59adc22973024e0dca18b",
       "disposition": "archive",
       "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "cbe933464d9c289db84a2fa86e8b4430393a8a598381ca32daf6af8c341c91fb",
-      "verifiedCommit": "e1b891d46194b20b6cae9f25868872763bd9f4c8",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "ee55768a86c424e4e3c959c5770b880eedb74027dab59adc22973024e0dca18b",
+      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/history/reviews/misc/2026-08-03-archive-rescue-audit-tail.md:1-208 full read; SHA-256 matches frozen manifest",
-        "docs/history/README.md:1-30 defines the corpus as landed records, reference-only and never live law"
+        "docs/history/README.md:1-30 defines the corpus as landed records, reference-only and never live law",
+        "docs/history/reviews/misc/2026-08-03-archive-rescue-audit-tail.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
       ],
       "summary": "Historical record retained intact as durable archaeology; its dated claims are not current work-state assertions."
     },
     {
       "path": "docs/history/reviews/misc/2026-08-03-avatar-pack-v2.md",
-      "assignedSha256": "901d64fe77f6c8f75df5184ff5efb2573aa9b5205b00ac34f964428769675a8d",
+      "assignedSha256": "dc262b97dbda3f6412f8d18062772b8d4849caab9e251c570a28444d053e1e2c",
       "disposition": "archive",
       "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "901d64fe77f6c8f75df5184ff5efb2573aa9b5205b00ac34f964428769675a8d",
-      "verifiedCommit": "ec39380b5f67efc767b2ce78d41f6e7c400b6ac0",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "dc262b97dbda3f6412f8d18062772b8d4849caab9e251c570a28444d053e1e2c",
+      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/history/reviews/misc/2026-08-03-avatar-pack-v2.md:1-141 full read; SHA-256 matches frozen manifest",
-        "docs/history/README.md:1-30 defines the corpus as landed records, reference-only and never live law"
+        "docs/history/README.md:1-30 defines the corpus as landed records, reference-only and never live law",
+        "docs/history/reviews/misc/2026-08-03-avatar-pack-v2.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
       ],
       "summary": "Historical record retained intact as durable archaeology; its dated claims are not current work-state assertions."
     },
@@ -499,16 +508,17 @@
     },
     {
       "path": "docs/history/reviews/misc/2026-08-03-export-rot-dispositions.md",
-      "assignedSha256": "4ed722c4fa1ef9724039fd31512b50ecbb6f8b31654a251584f78266b67d3b70",
+      "assignedSha256": "4632147557e604c5b07a8f4efbea580641c76e04af2ace95f035f6603eaa8488",
       "disposition": "archive",
       "authority": "review",
       "fullRead": true,
       "verifiedSha256": "4632147557e604c5b07a8f4efbea580641c76e04af2ace95f035f6603eaa8488",
-      "verifiedCommit": "09cd25525a3460d3d19a409da327c5483e876863",
-      "verifiedAt": "2026-08-15",
+      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/reviews/misc/2026-08-03-export-rot-dispositions.md:1-261 full read against frozen foundation",
-        "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
+        "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14",
+        "docs/history/reviews/misc/2026-08-03-export-rot-dispositions.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
       ],
       "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
     },
@@ -679,19 +689,20 @@
     },
     {
       "path": "docs/history/reviews/misc/2026-08-19-lan-auth-unification.md",
-      "assignedSha256": "935d9748b39bd0752c9fb27fc5cc3b051c37a0278da4f2098fe23c5c42743411",
+      "assignedSha256": "a1403100d89342516647fa7a0032ffa2766bd2c5c7d84e88782f15dcac7072d1",
       "disposition": "archive",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "b695f52c891c13c63d07da77322032a2f79a1b57d716f1f9cf5017eab92d102e",
-      "verifiedCommit": "09cd25525a3460d3d19a409da327c5483e876863",
-      "verifiedAt": "2026-08-22",
+      "verifiedSha256": "a1403100d89342516647fa7a0032ffa2766bd2c5c7d84e88782f15dcac7072d1",
+      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/reviews/misc/2026-08-19-lan-auth-unification.md:1-260 read in full (line 1 to END), then every present-tense claim re-derived against the current tree rather than accepted from the prose",
         "SUPERSEDED BY THE IMPLEMENTATION, not by another document: commits 46a262793, 4a828a534, d6886c5ec and 621ac2218 (all ancestors of HEAD) shipped the doc's own recommended arm (f2) — packages/server/src/infra/auth/dispatch.ts now gates the un-credentialed owner fallback on the raw loopback TCP peer, and isLocalOrigin/TRUSTED_LOCAL_HOSTS no longer exist anywhere in packages/server/src",
         "Truth-repaired at f4733a44b BEFORE archiving (a stale security doc reads as live truth): a STATUS block naming what shipped, plus PRE-FIX markers on the three superseded sections (the bypass mechanism, the CSRF corollary, the TODAY matrix)",
         "Re-verified STILL TRUE and named as such in the repair: the OIDC-on-LAN blockers (the redirect-URI proto defaults to https in entry/http/auth-routes.ts; the session cookie is __Host- + Secure), so the analysis half of the document remains usable",
-        "GitHub issues #298 and #300 both CLOSED (checked 2026-08-22); the standing rule now lives in docs/architecture/core/Spine-Identity-and-Auth.md invariant #9 and the dispatch.ts file header, which is where a reader is sent"
+        "GitHub issues #298 and #300 both CLOSED (checked 2026-08-22); the standing rule now lives in docs/architecture/core/Spine-Identity-and-Auth.md invariant #9 and the dispatch.ts file header, which is where a reader is sent",
+        "docs/history/reviews/misc/2026-08-19-lan-auth-unification.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
       ],
       "summary": "Historical review evidence: the pre-fix LAN owner-bypass analysis whose recommended arm shipped on 2026-08-19. Truth-repaired and marked PRE-FIX before archiving; no mutable work state is duplicated in this archive receipt."
     },
@@ -802,20 +813,21 @@
     },
     {
       "path": "docs/history/reviews/security/2026-08-19-lan-auth-impl-review.md",
-      "assignedSha256": "d884d66054b0f936ec737fc2271ab9702b6ce4e6b4624688402e39104bea508f",
+      "assignedSha256": "60ea25d487fae28c9b173b2717911b27c800dd18eef1c849ab57b4fbebb84b9a",
       "disposition": "archive",
       "authority": "review",
       "fullRead": true,
       "verifiedSha256": "60ea25d487fae28c9b173b2717911b27c800dd18eef1c849ab57b4fbebb84b9a",
-      "verifiedCommit": "09cd25525a3460d3d19a409da327c5483e876863",
-      "verifiedAt": "2026-08-22",
+      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/reviews/security/2026-08-19-lan-auth-impl-review.md:1-284 read in full (line 1 to END); each of its three findings and its eight SOUND verdicts re-derived against the current tree",
         "P1 CLOSED: d6886c5ec (ancestor of HEAD) changed packages/server/src/entry/http/import.ts to gate the /api/import/bundle CSRF check on via !== \"header\", with a red-first via:\"fallback\" regression case in tests/server/entry/http/portability-routes.suite.int.test.ts",
         "P2 doc CLOSED: the same commit added the STOP/BYPASS-the-front-proxy instruction to the break-glass docblock in packages/server/src/entry/auth/seam.ts and to the Break-glass section of docs/design/containerize-prod-image-spec.md",
         "P2 hardening RULED, not built: the owner ruled on 2026-08-19 to keep NODE_ENV as the boot-guard discriminator and add no PUBLIC_DEPLOYMENT flag, accepting the hand-rolled-launch residual as documented risk — the ruling and its two rejected alternatives are the WHY block above the guard in packages/server/src/foundation/env/index.ts",
         "ONE VERDICT IN THE DOCUMENT WAS WRONG and is corrected in place at f4733a44b: its \"tRPC JSON forces preflight — SOUND\" section cleared a real hole. @trpc/server 11.18's getContentTypeHandler also accepts multipart/form-data (CORS-simple) and dispatches it as a mutation, so a cross-site form drove an input-less loopback-owner mutation; closed by 621ac2218's content-type belt in packages/server/src/entry/app.ts and pinned by the content-type-belt describe in tests/server/entry/app.test.ts",
-        "GitHub issues #298 and #300 both CLOSED (checked 2026-08-22); the standing rule is docs/architecture/core/Spine-Identity-and-Auth.md invariant #9, which already carries the corrected tRPC reasoning"
+        "GitHub issues #298 and #300 both CLOSED (checked 2026-08-22); the standing rule is docs/architecture/core/Spine-Identity-and-Auth.md invariant #9, which already carries the corrected tRPC reasoning",
+        "docs/history/reviews/security/2026-08-19-lan-auth-impl-review.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
       ],
       "summary": "Historical security-review evidence: all three findings closed (two fixed, one owner-ruled) and one of its own verdicts since REFUTED and corrected in the document before archiving; no mutable work state is duplicated in this archive receipt."
     },
@@ -1017,16 +1029,17 @@
     },
     {
       "path": "docs/history/reviews/stickler/2026-07-25-guided-generations-parity-audit.md",
-      "assignedSha256": "1d1c9a54ac7c769bcb389f9eb3d73363af83449be4ad1c98d97691552f15e914",
+      "assignedSha256": "dc417ddfc17348b0a434510e9d6c9212afbc087bc8134408df77706b1a25e7e7",
       "disposition": "archive",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "1d1c9a54ac7c769bcb389f9eb3d73363af83449be4ad1c98d97691552f15e914",
-      "verifiedCommit": "09cd25525a3460d3d19a409da327c5483e876863",
-      "verifiedAt": "2026-08-15",
+      "verifiedSha256": "dc417ddfc17348b0a434510e9d6c9212afbc087bc8134408df77706b1a25e7e7",
+      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/reviews/stickler/2026-07-25-guided-generations-parity-audit.md:1-265 full read against frozen foundation",
-        "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
+        "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14",
+        "docs/history/reviews/stickler/2026-07-25-guided-generations-parity-audit.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
       ],
       "summary": "Historical/completed review evidence; no mutable work state is duplicated in this archive receipt."
     },
@@ -1482,16 +1495,17 @@
     },
     {
       "path": "docs/history/reviews/misc/2026-08-03-archive-rescue-audit.md",
-      "assignedSha256": "926e1b5d15ef1624b77688cd9226b65ec369dec72609b9cbe6f409afe973ae5c",
-      "disposition": "needs-owner",
-      "authority": "review",
+      "assignedSha256": "c37fbfc8f748466e869e905d799223cd64d4813132b490c41e7fdcabf467d834",
+      "disposition": "archive",
+      "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "926e1b5d15ef1624b77688cd9226b65ec369dec72609b9cbe6f409afe973ae5c",
-      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "c37fbfc8f748466e869e905d799223cd64d4813132b490c41e7fdcabf467d834",
+      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/reviews/misc/2026-08-03-archive-rescue-audit.md:1-388 full read against frozen foundation",
-        "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
+        "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14",
+        "docs/history/reviews/misc/2026-08-03-archive-rescue-audit.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
       ],
       "summary": "Current review evidence; named remaining findings or an owner decision require GitHub work.",
       "claims": [
@@ -1512,16 +1526,17 @@
     },
     {
       "path": "docs/history/reviews/misc/2026-08-08-task-7-12-gap-rederivation.md",
-      "assignedSha256": "e67c7a008e63dce630d5be05d8788db9896df2b7715c0e02cba1bc16673d88ad",
-      "disposition": "needs-owner",
-      "authority": "review",
+      "assignedSha256": "1433a608365977acbd0e166abbaa30136b3e22b52bb8db39b38a3536ce0ce5c0",
+      "disposition": "archive",
+      "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "e67c7a008e63dce630d5be05d8788db9896df2b7715c0e02cba1bc16673d88ad",
-      "verifiedCommit": "260e9d660d3f4b254e1d7183b4f6e3a531469c87",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "1433a608365977acbd0e166abbaa30136b3e22b52bb8db39b38a3536ce0ce5c0",
+      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/reviews/misc/2026-08-08-task-7-12-gap-rederivation.md:1-347 full read; active review metadata verified",
-        "packages/server/src/domain/chat/verbs/turn.ts:848 and GitHub issue #7 (OPEN) checked on 2026-08-14"
+        "packages/server/src/domain/chat/verbs/turn.ts:848 and GitHub issue #7 (OPEN) checked on 2026-08-14",
+        "docs/history/reviews/misc/2026-08-08-task-7-12-gap-rederivation.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
       ],
       "summary": "Current review evidence; named remaining findings or an owner decision require GitHub work.",
       "claims": [
@@ -1542,16 +1557,17 @@
     },
     {
       "path": "docs/history/reviews/misc/2026-08-09-package-report-cards-worklist.md",
-      "assignedSha256": "6641f7351d162c33b96e570894397c0f14593b5fb2eae07c5c77bd675a61cdc8",
-      "disposition": "needs-owner",
-      "authority": "review",
+      "assignedSha256": "14574bc6a1aeb9e6879bb447a458be46620b650be51ccf2c391ffa30a8754f0a",
+      "disposition": "archive",
+      "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "6641f7351d162c33b96e570894397c0f14593b5fb2eae07c5c77bd675a61cdc8",
-      "verifiedCommit": "260e9d660d3f4b254e1d7183b4f6e3a531469c87",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "14574bc6a1aeb9e6879bb447a458be46620b650be51ccf2c391ffa30a8754f0a",
+      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/reviews/misc/2026-08-09-package-report-cards-worklist.md:1-203 full read; active review metadata verified",
-        "packages/db/src/kit/check-list.ts:1 and GitHub issue #8 (OPEN) checked on 2026-08-14"
+        "packages/db/src/kit/check-list.ts:1 and GitHub issue #8 (OPEN) checked on 2026-08-14",
+        "docs/history/reviews/misc/2026-08-09-package-report-cards-worklist.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
       ],
       "summary": "Current review evidence; named remaining findings or an owner decision require GitHub work.",
       "claims": [
@@ -1572,16 +1588,17 @@
     },
     {
       "path": "docs/history/reviews/misc/2026-08-14-dogfood-class-sweep.md",
-      "assignedSha256": "d40d796598963a18a3acea8a67f945aeb93b360e830b897b92831f42e0ca1868",
-      "disposition": "needs-owner",
-      "authority": "review",
+      "assignedSha256": "48ba51ec9b9f40c26ca4c7706410d6a840f7906a772ba90eb1e5386f23038a47",
+      "disposition": "archive",
+      "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "d40d796598963a18a3acea8a67f945aeb93b360e830b897b92831f42e0ca1868",
-      "verifiedCommit": "260e9d660d3f4b254e1d7183b4f6e3a531469c87",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "48ba51ec9b9f40c26ca4c7706410d6a840f7906a772ba90eb1e5386f23038a47",
+      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/reviews/misc/2026-08-14-dogfood-class-sweep.md:1-210 full read; active review metadata verified",
-        "packages/client/src/components/character-picker.tsx:1 and GitHub issue #45 (OPEN) checked on 2026-08-14"
+        "packages/client/src/components/character-picker.tsx:1 and GitHub issue #45 (OPEN) checked on 2026-08-14",
+        "docs/history/reviews/misc/2026-08-14-dogfood-class-sweep.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
       ],
       "summary": "Current review evidence; named remaining findings or an owner decision require GitHub work.",
       "claims": [
@@ -1602,16 +1619,17 @@
     },
     {
       "path": "docs/history/reviews/misc/2026-08-14-global-agents-proposed.md",
-      "assignedSha256": "1f8af45821055b8a07bb498f472454f1ae96102c44ba1fb4190c9ede43cce380",
-      "disposition": "needs-owner",
-      "authority": "review",
+      "assignedSha256": "b5dbbc1a08d30c93c3ba050f987166c891ba45df54ae91448b7b45d7d602f833",
+      "disposition": "archive",
+      "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "1f8af45821055b8a07bb498f472454f1ae96102c44ba1fb4190c9ede43cce380",
-      "verifiedCommit": "260e9d660d3f4b254e1d7183b4f6e3a531469c87",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "b5dbbc1a08d30c93c3ba050f987166c891ba45df54ae91448b7b45d7d602f833",
+      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/reviews/misc/2026-08-14-global-agents-proposed.md:1-205 full read; active review metadata verified",
-        "GitHub issue #52 remains the recorded mutable-resolution route; GitHub API rate-limited during refresh"
+        "GitHub issue #52 remains the recorded mutable-resolution route; GitHub API rate-limited during refresh",
+        "docs/history/reviews/misc/2026-08-14-global-agents-proposed.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
       ],
       "summary": "Current review evidence; named remaining findings or an owner decision require GitHub work.",
       "claims": [
@@ -1628,16 +1646,17 @@
     },
     {
       "path": "docs/history/reviews/misc/2026-08-18-reading-surface-forensics.md",
-      "assignedSha256": "fb678897f2cce5de18ca0f58379a066bc40f49a05e246cff0a1b68e89025d6c2",
-      "disposition": "needs-owner",
-      "authority": "review",
+      "assignedSha256": "797be6a573ef6b9fa10ea69b0c924fd6feb5da754d649a52a129e36b8a5319fa",
+      "disposition": "archive",
+      "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "fb678897f2cce5de18ca0f58379a066bc40f49a05e246cff0a1b68e89025d6c2",
-      "verifiedCommit": "04c131f6a191b1a0269551f7dd6eddefb7f15702",
-      "verifiedAt": "2026-08-18",
+      "verifiedSha256": "797be6a573ef6b9fa10ea69b0c924fd6feb5da754d649a52a129e36b8a5319fa",
+      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/reviews/misc/2026-08-18-reading-surface-forensics.md authored+full-read this session (lane reading-surface, #204 — the theme x wallpaper x skin x ink forensic map; the forge design's spec)",
-        "git log --oneline -1 -- docs/reviews/misc/2026-08-18-reading-surface-forensics.md: 0a0ee82f6"
+        "git log --oneline -1 -- docs/reviews/misc/2026-08-18-reading-surface-forensics.md: 0a0ee82f6",
+        "docs/history/reviews/misc/2026-08-18-reading-surface-forensics.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
       ],
       "summary": "Forensic map for the transcript reading-surface system defect: the scrim/ink divorce, the two-polarity paragraph split, the guillotine, the phantom-band mechanism, the pass-through ink law hole; F1-F3 + section 7a recommended; feeds the forge design lane.",
       "claims": [
@@ -1654,16 +1673,17 @@
     },
     {
       "path": "docs/history/reviews/misc/2026-08-19-lens-triage-210.md",
-      "assignedSha256": "31daba600cc8356ab862a3bd1903072330a2d60b87160e8081ad3ae7626f34b7",
-      "disposition": "current",
-      "authority": "review",
+      "assignedSha256": "c37c1de5cad31f77f76463d9ae272fb18eaec1cfd38611abee744c6a4f3807cc",
+      "disposition": "archive",
+      "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "31daba600cc8356ab862a3bd1903072330a2d60b87160e8081ad3ae7626f34b7",
-      "verifiedCommit": "8dbe777cf7e805935d29121e8c7fd4bf6e22577b",
-      "verifiedAt": "2026-08-19",
+      "verifiedSha256": "c37c1de5cad31f77f76463d9ae272fb18eaec1cfd38611abee744c6a4f3807cc",
+      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/reviews/misc/2026-08-19-lens-triage-210.md:1 (authored this session — lane lens-triage #210; 70 hits classified with path:line receipts)",
-        "pnpm check:docs (2026-08-19: green)"
+        "pnpm check:docs (2026-08-19: green)",
+        "docs/history/reviews/misc/2026-08-19-lens-triage-210.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
       ],
       "summary": "Contract-field-liveness lens triage: 57 live, 11 intentional-dormant, 2 defects (card serde import-fidelity), 0 dead; lens-improvement notes.",
       "claims": [
@@ -1702,16 +1722,17 @@
     },
     {
       "path": "docs/history/reviews/misc/marinara-engine-parser-macro-audit.md",
-      "assignedSha256": "ae01577ab3d9fbf674c6ad20679dd2185a52f2488e6cdc430f832e11706cd912",
-      "disposition": "needs-owner",
-      "authority": "review",
+      "assignedSha256": "1636d10b1f41f7b45cf6d89ba9cca87f5d6c7e95b9df0ab77ec99f294132d187",
+      "disposition": "archive",
+      "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "ae01577ab3d9fbf674c6ad20679dd2185a52f2488e6cdc430f832e11706cd912",
-      "verifiedCommit": "260e9d660d3f4b254e1d7183b4f6e3a531469c87",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "1636d10b1f41f7b45cf6d89ba9cca87f5d6c7e95b9df0ab77ec99f294132d187",
+      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/reviews/misc/marinara-engine-parser-macro-audit.md:1-279 full read; active review metadata verified",
-        "packages/kit/src/macro/engine.ts:1 and GitHub issue #28 (OPEN) checked on 2026-08-14"
+        "packages/kit/src/macro/engine.ts:1 and GitHub issue #28 (OPEN) checked on 2026-08-14",
+        "docs/history/reviews/misc/marinara-engine-parser-macro-audit.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
       ],
       "summary": "Current review evidence; named remaining findings or an owner decision require GitHub work.",
       "claims": [
@@ -1732,16 +1753,17 @@
     },
     {
       "path": "docs/history/reviews/misc/marinara-st-extension-lite-mode.md",
-      "assignedSha256": "74a9236c073f4d007a630d394b79f7672c7e2353cb3a54b5e92960579a9185a3",
-      "disposition": "needs-owner",
-      "authority": "review",
+      "assignedSha256": "b38b8bc3eb4cd81547cd3f19eb78b47d0df241fab58985170ba44a689a9ba18c",
+      "disposition": "archive",
+      "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "74a9236c073f4d007a630d394b79f7672c7e2353cb3a54b5e92960579a9185a3",
-      "verifiedCommit": "260e9d660d3f4b254e1d7183b4f6e3a531469c87",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "b38b8bc3eb4cd81547cd3f19eb78b47d0df241fab58985170ba44a689a9ba18c",
+      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/reviews/misc/marinara-st-extension-lite-mode.md:1-401 full read; active review metadata verified",
-        "GitHub issue #40 (OPEN) checked on 2026-08-14"
+        "GitHub issue #40 (OPEN) checked on 2026-08-14",
+        "docs/history/reviews/misc/marinara-st-extension-lite-mode.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
       ],
       "summary": "Current review evidence; named remaining findings or an owner decision require GitHub work.",
       "claims": [
@@ -1758,18 +1780,19 @@
     },
     {
       "path": "docs/history/reviews/performance/2026-08-20-chat-transcript-render-191.md",
-      "assignedSha256": "9f566bd9552deddb16fb258709c420de2f7705436932b1a6cd800a97ecf3dd63",
-      "disposition": "current",
-      "authority": "review",
+      "assignedSha256": "3bed3127a5d9a40955b9d375fab731c6565f687abee9b67e01a87e3b3470001c",
+      "disposition": "archive",
+      "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "9f566bd9552deddb16fb258709c420de2f7705436932b1a6cd800a97ecf3dd63",
-      "verifiedCommit": "2d7039d0e38389dced23ee6e4aeba4f652cde73a",
-      "verifiedAt": "2026-08-20",
+      "verifiedSha256": "3bed3127a5d9a40955b9d375fab731c6565f687abee9b67e01a87e3b3470001c",
+      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/reviews/performance/2026-08-20-chat-transcript-render-191.md:1-174 full read against exact reviewed ref 2895946d810415f85c5bb001d27af60d396660be",
         "exact 11-commit development reproduction attributed to one mount, two parent executions, and eight descendant/virtualizer settles",
         "longest real room measured at 222 messages with a bounded 3-8-row virtualized DOM window and clean warm production navigation",
-        "focused message-list component tests passed 44/44; GitHub issue #191 re-derived on 2026-08-20"
+        "focused message-list component tests passed 44/44; GitHub issue #191 re-derived on 2026-08-20",
+        "docs/history/reviews/performance/2026-08-20-chat-transcript-render-191.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
       ],
       "summary": "Exact-tree performance attribution accepts the transcript profiler count as designed instrumentation behavior; TanStack Virtual remains and production reopen thresholds are recorded.",
       "claims": [
@@ -1798,16 +1821,17 @@
     },
     {
       "path": "docs/history/reviews/security/2026-08-09-macro-engine-dos-audit.md",
-      "assignedSha256": "668f18f3cb2134adab01c9b410e93a0d515ba34bedc24553c2271c6140462948",
-      "disposition": "needs-owner",
-      "authority": "review",
+      "assignedSha256": "ccf920f6edec2a6a8a0c766f0c9415c81716e25e9a9adf53873b18999e20c4a1",
+      "disposition": "archive",
+      "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "668f18f3cb2134adab01c9b410e93a0d515ba34bedc24553c2271c6140462948",
-      "verifiedCommit": "260e9d660d3f4b254e1d7183b4f6e3a531469c87",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "ccf920f6edec2a6a8a0c766f0c9415c81716e25e9a9adf53873b18999e20c4a1",
+      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/reviews/security/2026-08-09-macro-engine-dos-audit.md:1-188 full read; active review metadata verified",
-        "packages/kit/src/macro/engine.ts:90-98 and GitHub issue #28 (OPEN) checked on 2026-08-14"
+        "packages/kit/src/macro/engine.ts:90-98 and GitHub issue #28 (OPEN) checked on 2026-08-14",
+        "docs/history/reviews/security/2026-08-09-macro-engine-dos-audit.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
       ],
       "summary": "Current review evidence; named remaining findings or an owner decision require GitHub work.",
       "claims": [
@@ -1828,16 +1852,17 @@
     },
     {
       "path": "docs/history/reviews/security/2026-08-09-pre-auth-attack-surface.md",
-      "assignedSha256": "91e0f3766a14b85fc1bb4fc97ddd9bd9e68c7e5c2ca9f1105c6529a311d595b7",
-      "disposition": "needs-owner",
-      "authority": "review",
+      "assignedSha256": "0f15af7492e7fd6b5962d492cfe13a702985c58ab000d1232de1e20d36dc09b3",
+      "disposition": "archive",
+      "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "91e0f3766a14b85fc1bb4fc97ddd9bd9e68c7e5c2ca9f1105c6529a311d595b7",
-      "verifiedCommit": "260e9d660d3f4b254e1d7183b4f6e3a531469c87",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "0f15af7492e7fd6b5962d492cfe13a702985c58ab000d1232de1e20d36dc09b3",
+      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/reviews/security/2026-08-09-pre-auth-attack-surface.md:1-360 full read; active review metadata verified",
-        "packages/client/vite.config.ts:260 and packages/server/src/entry/http/spa.ts:63-70 checked; GitHub issue #57 (OPEN) checked on 2026-08-14"
+        "packages/client/vite.config.ts:260 and packages/server/src/entry/http/spa.ts:63-70 checked; GitHub issue #57 (OPEN) checked on 2026-08-14",
+        "docs/history/reviews/security/2026-08-09-pre-auth-attack-surface.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
       ],
       "summary": "Current review evidence; named remaining findings or an owner decision require GitHub work.",
       "claims": [
@@ -1858,17 +1883,18 @@
     },
     {
       "path": "docs/history/reviews/security/2026-08-24-d46-membrane-review.md",
-      "assignedSha256": "d808f5a0e60970c313b4245b657bbf9e5f559f0e26add76004f49006e526560f",
-      "disposition": "current",
-      "authority": "review",
+      "assignedSha256": "e9af87eca2ddcbd0a7b737689f3739a5d89b0c89da45a5eb7a5d36b50d35c057",
+      "disposition": "archive",
+      "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "d808f5a0e60970c313b4245b657bbf9e5f559f0e26add76004f49006e526560f",
-      "verifiedCommit": "0dfb6c0b4047d5ead5809e9cbe9e9785ff70056f",
-      "verifiedAt": "2026-08-24",
+      "verifiedSha256": "e9af87eca2ddcbd0a7b737689f3739a5d89b0c89da45a5eb7a5d36b50d35c057",
+      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedAt": "2026-08-30",
       "evidence": [
         "cb-d46-secreview (security-executor, 2026-08-24, commit d3e29080d→merged 0dfb6c0b4): full-read exposure review of the BUILT plugin server stack (infra/plugin-host + domain/plugin + contracts/plugin + automation plugin-subscribers). Verdict NOT READY, 5 enumerable blockers, no re-architecture.",
         "isolation core verified load-bearing (not inherited): capability gate from one tsc-checked contract map; per-invocation CSPRNG opaque handles; inert marshalling; per-hop SSRF wall pinned to manifest allowlist (DNS-rebind closed); KV scoping in every WHERE; D16 delivery floor proven by breaking the belt (2 tests red, restored)",
-        "blockers: P1 never-settling guest promise hangs invocation forever (positive control: while(true) dies 5.018s, new Promise(()=>{}) never returns; member-reachable via runSnippet; bypasses 3-strike auto-disable); P1 plugin-tool PL-C ceiling uses caller roster (latent until turn-attach); P2 live performance.now() in guest realm (determinism law false, 3 no-ambient tests blind); P2 plugin lore raw-text macro-expands to durable setvar without grant; P2 notify lacks 60s floor"
+        "blockers: P1 never-settling guest promise hangs invocation forever (positive control: while(true) dies 5.018s, new Promise(()=>{}) never returns; member-reachable via runSnippet; bypasses 3-strike auto-disable); P1 plugin-tool PL-C ceiling uses caller roster (latent until turn-attach); P2 live performance.now() in guest realm (determinism law false, 3 no-ambient tests blind); P2 plugin lore raw-text macro-expands to durable setvar without grant; P2 notify lacks 60s floor",
+        "docs/history/reviews/security/2026-08-24-d46-membrane-review.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
       ],
       "summary": "cb-d46-secreview exposure review of the D46 plugin membrane: NOT READY, 5 enumerable blockers (2×P1 hang + PL-C roster, 3×P2 performance.now/lore-macro/notify-cooldown), isolation core sound and proven load-bearing; the #24 gate.",
       "claims": [
@@ -1889,19 +1915,20 @@
     },
     {
       "path": "docs/history/reviews/misc/server-usage-settlement-receipt-2026-08-20.md",
-      "assignedSha256": "d95547917058cca3d7b0ff5bf1bbb039a8d913e4a6d353e7e45221253359b114",
-      "disposition": "current",
-      "authority": "review",
+      "assignedSha256": "b52b0ffb032e7cb82f77b3dc1cb47d4385bcbc4099a02fdbdbf5f0141f8648db",
+      "disposition": "archive",
+      "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "d95547917058cca3d7b0ff5bf1bbb039a8d913e4a6d353e7e45221253359b114",
-      "verifiedCommit": "746d686e0d76efc1772edf3199243a559311d71c",
-      "verifiedAt": "2026-08-20",
+      "verifiedSha256": "b52b0ffb032e7cb82f77b3dc1cb47d4385bcbc4099a02fdbdbf5f0141f8648db",
+      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/reviews/server-usage-settlement-receipt-2026-08-20.md:1-119 full read against repair commit 746d686e0d76efc1772edf3199243a559311d71c",
         "git show --stat 746d686e0d76efc1772edf3199243a559311d71c",
         "stacked catalog commit 768af7dc0b8a2f72d0c0acdf8f846ea89b80027b passed the complete static pre-commit verifier",
         "scratch-real-corpus workload and live-source immutability receipts recorded in the reviewed document",
-        "GitHub issues #290 and #291 re-derived on 2026-08-20"
+        "GitHub issues #290 and #291 re-derived on 2026-08-20",
+        "docs/history/reviews/misc/server-usage-settlement-receipt-2026-08-20.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
       ],
       "summary": "Current verification receipt for #290 and #291: real-corpus scratch counts, idempotency, measured-wins CAS, nullable provider usage, live/rebuild parity, portable-state validation, bounded behavioral tests, and final static gates.",
       "claims": [
@@ -1930,18 +1957,19 @@
     },
     {
       "path": "docs/history/reviews/side-eye/2026-08-20-overlay-dialog-final-reverify.md",
-      "assignedSha256": "ffff093d70ce5048956cee242956d85e80c31313a08a9351cb819f5a819c66db",
-      "disposition": "current",
-      "authority": "review",
+      "assignedSha256": "bd8b3aef2ca046b9eec0d6e2f24fd102b617af390a963da5fb3bfbd2239b88d9",
+      "disposition": "archive",
+      "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "ffff093d70ce5048956cee242956d85e80c31313a08a9351cb819f5a819c66db",
-      "verifiedCommit": "c28bb87b38b1509a4c4bf16459aef240cf42b0ea",
-      "verifiedAt": "2026-08-20",
+      "verifiedSha256": "bd8b3aef2ca046b9eec0d6e2f24fd102b617af390a963da5fb3bfbd2239b88d9",
+      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/reviews/side-eye/2026-08-20-overlay-dialog-final-reverify.md:1-192 full read against exact reviewed ref 2895946d810415f85c5bb001d27af60d396660be",
         "240/240 appearance cells passed across six surfaces and five presets",
         "production Command controls recorded four clean 4x CPU opens with 2-8ms blocking and zero CLS/errors",
-        "GitHub issues #315 #359 #361 #363 #367 #368 and #369 re-derived on 2026-08-20"
+        "GitHub issues #315 #359 #361 #363 #367 #368 and #369 re-derived on 2026-08-20",
+        "docs/history/reviews/side-eye/2026-08-20-overlay-dialog-final-reverify.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
       ],
       "summary": "Exact-tree side-eye graduation of the overlay/dialog class after Command focus and Retry repairs plus the Settings Effects measure fix; the separate audit-integrity defect is tracked in #370.",
       "claims": [
@@ -1982,16 +2010,17 @@
     },
     {
       "path": "docs/history/reviews/side-eye/2026-08-22-colorization-evidence.md",
-      "assignedSha256": "29a1165da80b8736679ba7baad8695a332b85497094b71b83f98642a39597715",
-      "disposition": "current",
-      "authority": "review",
+      "assignedSha256": "e26e8312720b2e9fafbf62aa553175787540beae4991d96b9abcdbb6c2e24c8f",
+      "disposition": "archive",
+      "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "29a1165da80b8736679ba7baad8695a332b85497094b71b83f98642a39597715",
-      "verifiedCommit": "3762fc4a4260c28319cb6f944a7bc8e4d03483e1",
-      "verifiedAt": "2026-08-22",
+      "verifiedSha256": "e26e8312720b2e9fafbf62aa553175787540beae4991d96b9abcdbb6c2e24c8f",
+      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedAt": "2026-08-30",
       "evidence": [
         "full read 1-189 by the orchestrator (2026-08-22) before attestation",
-        "9 evidence pairs under reports/snaps/ce-* (gitignored); decode scripts reports/tmp-color-evidence/; no verdict offered by design — the owner rules"
+        "9 evidence pairs under reports/snaps/ce-* (gitignored); decode scripts reports/tmp-color-evidence/; no verdict offered by design — the owner rules",
+        "docs/history/reviews/side-eye/2026-08-22-colorization-evidence.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
       ],
       "summary": "Colorization-axis evidence for #431: the axis = two border tokens (alpha ×3.5, neutral→amber); chrome-only on every surface except the histogram/heatmap family (grid contrast +43% dark/+19% light; heatmap low-end IS the border token so ON collapses its hue ramp); no text contrast moves; design-audit blind to the axis; one independent defect found (charts don't repaint on toggle — #503).",
       "claims": [
@@ -2012,17 +2041,18 @@
     },
     {
       "path": "docs/history/reviews/side-eye/2026-08-22-rail-characters.md",
-      "assignedSha256": "441b144d3470544de92c49bdc59bbdd4b2939acc0756b75be28de4b3267de17f",
-      "disposition": "current",
-      "authority": "review",
+      "assignedSha256": "9e347955c423f8e367bba5170ebc800ff906d77c93aa46629b9d7e4f624522c7",
+      "disposition": "archive",
+      "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "441b144d3470544de92c49bdc59bbdd4b2939acc0756b75be28de4b3267de17f",
-      "verifiedCommit": "87c3578b889df84d5b809004c07b24dae009e6f4",
-      "verifiedAt": "2026-08-23",
+      "verifiedSha256": "9e347955c423f8e367bba5170ebc800ff906d77c93aa46629b9d7e4f624522c7",
+      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedAt": "2026-08-30",
       "evidence": [
         "full read 1-END by the orchestrator (2026-08-22) before attestation",
         "reports/ receipts gitignored, referenced by path; retractions published in-report",
-        "truth-repair re-read 2026-08-23 (#550): the --wait-for semantics claim corrected in place (bare prose = CSS type chain, text= is the text engine); no other claim moved"
+        "truth-repair re-read 2026-08-23 (#550): the --wait-for semantics claim corrected in place (bare prose = CSS type chain, text= is the text engine); no other claim moved",
+        "docs/history/reviews/side-eye/2026-08-22-rail-characters.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
       ],
       "summary": "Rail sweep 4/10 — Characters: SHIP WITH FIXES (25/40); 4 P1s (563 keyboard stops; Label-in-Name class w/ Lighthouse weight-0 false clean; filter block 34-42% of pane; stacked scrollers) + P2/P3s; 6 retractions incl. a void 400-row census; orphan placeholders/avatars/virtualizer verified excellent.",
       "claims": [
@@ -2055,17 +2085,18 @@
     },
     {
       "path": "docs/history/reviews/side-eye/2026-08-22-rail-chats.md",
-      "assignedSha256": "0c7e3d9a8a4ab860774fa748f7586f36920a9c558a8642678f9e33f12f77fed7",
-      "disposition": "current",
-      "authority": "review",
+      "assignedSha256": "9667e86f7cf3ff86a10c8b61026a3a1b162b399f6fb23c72daed4227ca38000d",
+      "disposition": "archive",
+      "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "0c7e3d9a8a4ab860774fa748f7586f36920a9c558a8642678f9e33f12f77fed7",
-      "verifiedCommit": "2a385fcfe36073c5eb09fc7766b2825a378dca1e",
-      "verifiedAt": "2026-08-22",
+      "verifiedSha256": "9667e86f7cf3ff86a10c8b61026a3a1b162b399f6fb23c72daed4227ca38000d",
+      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedAt": "2026-08-30",
       "evidence": [
         "full read 1-END by the orchestrator (2026-08-22) before attestation",
         "reports/ receipts gitignored, referenced by path; retractions published in-report",
-        "retraction block re-read 2026-08-22: the P1 arm table re-derived as a p50-glyph instrument artifact (#508, fixed in pixel-backdrop.ts); the BACKGROUND_DIM_MIN contract finding preserved as real (#487)"
+        "retraction block re-read 2026-08-22: the P1 arm table re-derived as a p50-glyph instrument artifact (#508, fixed in pixel-backdrop.ts); the BACKGROUND_DIM_MIN contract finding preserved as real (#487)",
+        "docs/history/reviews/side-eye/2026-08-22-rail-chats.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
       ],
       "summary": "Rail sweep 3/10 — Chats: SHIP WITH FIXES (22/40); 3 P1s (dialogue 4.25:1 over art w/ defeatable scrim; keyboard-unreachable tool-call disclosure; 579ms cold first-open) + P2/P3 clusters; 7 retractions incl. the reviewer's own pagination misread re-filed as the labelling defect; virtualizer at 896 rows and the reading measure verified excellent.",
       "claims": [
@@ -2098,16 +2129,17 @@
     },
     {
       "path": "docs/history/reviews/side-eye/2026-08-22-rail-home.md",
-      "assignedSha256": "35a336f60cd0263f694bae564159a6db756264b010fe15fe618947e33b40ea43",
-      "disposition": "current",
-      "authority": "review",
+      "assignedSha256": "1afc1152922de2a4495f023fd3c99aa1d61475b1de46a83901ce04c590f2dc0b",
+      "disposition": "archive",
+      "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "35a336f60cd0263f694bae564159a6db756264b010fe15fe618947e33b40ea43",
-      "verifiedCommit": "7c25eb4d52a0c36139d10956ff38b6330b4ac1e1",
-      "verifiedAt": "2026-08-22",
+      "verifiedSha256": "1afc1152922de2a4495f023fd3c99aa1d61475b1de46a83901ce04c590f2dc0b",
+      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedAt": "2026-08-30",
       "evidence": [
         "full read 1-477 by the orchestrator (2026-08-22) before attestation",
-        "receipts under reports/ (snaps, perf-meter, recordings, lighthouse — gitignored artifacts, referenced by path); 9 retractions published in-report"
+        "receipts under reports/ (snaps, perf-meter, recordings, lighthouse — gitignored artifacts, referenced by path); 9 retractions published in-report",
+        "docs/history/reviews/side-eye/2026-08-22-rail-home.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
       ],
       "summary": "Rail sweep 1/10 — home: SHIP WITH FIXES (32/40); a11y/contrast layers held (Lighthouse a11y 100 both devices, 13 contrast handles 0 FAIL); findings filed as #453 #454 #457 #458 with #455/#456 owner forks; empty/error states unreached read-only (seeded first-run pass recommended).",
       "claims": [
@@ -2144,16 +2176,17 @@
     },
     {
       "path": "docs/history/reviews/side-eye/2026-08-22-rail-presets.md",
-      "assignedSha256": "d8135fcc53bc4141c7e945d38649cf75ca25fe4a3966b4e5b5e1b93e300e9449",
-      "disposition": "current",
-      "authority": "review",
+      "assignedSha256": "12c44b1fe06eab26094bb107a6a6b82aebebaafb7889821eb2a2a2bf35b821d8",
+      "disposition": "archive",
+      "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "d8135fcc53bc4141c7e945d38649cf75ca25fe4a3966b4e5b5e1b93e300e9449",
-      "verifiedCommit": "db9de12944dc3cd33f3158281cb4beacb40f1b5b",
-      "verifiedAt": "2026-08-22",
+      "verifiedSha256": "12c44b1fe06eab26094bb107a6a6b82aebebaafb7889821eb2a2a2bf35b821d8",
+      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedAt": "2026-08-30",
       "evidence": [
         "full read 1-748 by the orchestrator (2026-08-22) before attestation",
-        "wedge-window receipts discarded and re-taken per the report's own timing section; 6 retractions published incl. the reviewer's own Light-theme misread"
+        "wedge-window receipts discarded and re-taken per the report's own timing section; 6 retractions published incl. the reviewer's own Light-theme misread",
+        "docs/history/reviews/side-eye/2026-08-22-rail-presets.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
       ],
       "summary": "Rail sweep 2/10 — Presets: SHIP WITH FIXES (29/40); P1 keyboard-activation hazard + 9 P2s incl. a re-opened header-width ruling; findings filed as #481-#484 with #485 the ListRow-accent owner fork; contrast/overflow/motion/perf layers all held under an 8-variant matrix.",
       "claims": [
@@ -2186,13 +2219,13 @@
     },
     {
       "path": "docs/history/reviews/side-eye/2026-08-22-switch-shape-and-glow-evidence.md",
-      "assignedSha256": "6712b63ef244e4cadf8354b895d93da77613485ac3fa124fd0b72cda1d506ebd",
-      "disposition": "current",
-      "authority": "review",
+      "assignedSha256": "a0ef034451b4c8d927b631131b2bef9a1aded686517035e691849ceb2ab5576f",
+      "disposition": "archive",
+      "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "6712b63ef244e4cadf8354b895d93da77613485ac3fa124fd0b72cda1d506ebd",
-      "verifiedCommit": "3343705939fe2bc48ed9bb45994e8513a596ed6f",
-      "verifiedAt": "2026-08-22",
+      "verifiedSha256": "a0ef034451b4c8d927b631131b2bef9a1aded686517035e691849ceb2ab5576f",
+      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedAt": "2026-08-30",
       "claims": [
         {
           "claim": "At pointer:coarse the shipped 48x44 Switch reads as a crescent, not a switch; the recommended arm is a coarse-only --spacing-switch-track widening (4rem) that keeps fine/unknown arms byte-identical and auto-scales travel to 32px; tracked as issue #420.",
@@ -2221,22 +2254,26 @@
           ]
         }
       ],
-      "evidence": ["full read 1-352 at re-attest (2026-08-22); screenshots under reports/snaps/se-visual-* (gitignored artifacts, referenced by path)"],
+      "evidence": [
+        "full read 1-352 at re-attest (2026-08-22); screenshots under reports/snaps/se-visual-* (gitignored artifacts, referenced by path)",
+        "docs/history/reviews/side-eye/2026-08-22-switch-shape-and-glow-evidence.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
+      ],
       "summary": "Side-eye verdicts: widen the coarse Switch track (do not ship the crescent); #285 evidence pairs delivered with the fork's premise contradicted on-tree."
     },
     {
       "path": "docs/history/reviews/side-eye/2026-08-22-verify-271-334.md",
-      "assignedSha256": "0356b91baa196ce5d4d5b5522c76167d823aa8074ca499f9bc91392e356138ea",
-      "disposition": "current",
-      "authority": "review",
+      "assignedSha256": "502f5debae1e286418291de19b9b7d013ce57c37ff50dcc1269691c330f3d837",
+      "disposition": "archive",
+      "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "0356b91baa196ce5d4d5b5522c76167d823aa8074ca499f9bc91392e356138ea",
-      "verifiedCommit": "87c3578b889df84d5b809004c07b24dae009e6f4",
-      "verifiedAt": "2026-08-23",
+      "verifiedSha256": "502f5debae1e286418291de19b9b7d013ce57c37ff50dcc1269691c330f3d837",
+      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedAt": "2026-08-30",
       "evidence": [
         "full read 1-385 by the orchestrator (2026-08-22) before attestation",
         "26 rendered receipts under reports/snaps/vv-* (gitignored snap artifacts); findings filed as board rows",
-        "truth-repair re-read 2026-08-23 (#550): the --wait-for semantics claim corrected in place (bare prose = CSS type chain, text= is the text engine); no other claim moved"
+        "truth-repair re-read 2026-08-23 (#550): the --wait-for semantics claim corrected in place (bare prose = CSS type chain, text= is the text engine); no other claim moved",
+        "docs/history/reviews/side-eye/2026-08-22-verify-271-334.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
       ],
       "summary": "side-eye verification of #271 + #334: both CONFIRMED fixed (Delete single-homed across 3 collections; picker Start footer real+D123 clean). 5 new findings: P1 mobile footer clip (introduced), P1 dead initial focus (pre-existing), P2 disabled-Start contrast, P2 WI Rename two homes, P3 duplicate kebab accnames; plus a negative-overflow instrument blind spot.",
       "claims": [
@@ -2277,17 +2314,18 @@
     },
     {
       "path": "docs/history/reviews/side-eye/2026-08-22-verify-chat-char-fixes.md",
-      "assignedSha256": "63955beaeb4e77ae97fe39c9f1c9203353a30a87895db8ebdefa6106f59b7eb1",
-      "disposition": "current",
-      "authority": "review",
+      "assignedSha256": "44c322f457d14d4d0deda5d2045ed6892f10eb472f4319bd61adb8aec3f05450",
+      "disposition": "archive",
+      "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "63955beaeb4e77ae97fe39c9f1c9203353a30a87895db8ebdefa6106f59b7eb1",
-      "verifiedCommit": "4c345cef36c68d294066292f5ca5266eea0cd0ac",
-      "verifiedAt": "2026-08-22",
+      "verifiedSha256": "44c322f457d14d4d0deda5d2045ed6892f10eb472f4319bd61adb8aec3f05450",
+      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/reviews/side-eye/2026-08-22-verify-chat-char-fixes.md:1-191 full read at 4c345cef3 (authoring 367a6a6df + frontmatter vocab fix) (orchestrator transcribed the se-verify-1 lane's inline report verbatim; per-item receipts are the lane's live-driven measurements)",
         "verdict SHIP: 7/7 chat items + #491/#493 CONFIRMED live; #492 half-refuted by documented design; 11 findings filed as GitHub issues #517-#525 (+#524 tooling)",
-        "GitHub issues #487 #490 #491 #492 #493 closed on this report's verdicts; residual rows #517-#525 carry the findings"
+        "GitHub issues #487 #490 #491 #492 #493 closed on this report's verdicts; residual rows #517-#525 carry the findings",
+        "docs/history/reviews/side-eye/2026-08-22-verify-chat-char-fixes.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
       ],
       "claims": [
         {
@@ -2308,19 +2346,20 @@
     },
     {
       "path": "docs/history/reviews/side-eye/2026-08-23-verify-wave3.md",
-      "assignedSha256": "dc891093a9a7e0467216793a158a7cc5fbb6eaab1241ed2c7321f9999e268af4",
-      "disposition": "current",
-      "authority": "review",
+      "assignedSha256": "58ffa8d508bce90c7bea0a15bdb24dcd417313a0d8201efe3eab2ad2a7e8fdc9",
+      "disposition": "archive",
+      "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "dc891093a9a7e0467216793a158a7cc5fbb6eaab1241ed2c7321f9999e268af4",
-      "verifiedCommit": "c5193881d29d849ddb37ce6387ea5218641583c3",
-      "verifiedAt": "2026-08-23",
+      "verifiedSha256": "58ffa8d508bce90c7bea0a15bdb24dcd417313a0d8201efe3eab2ad2a7e8fdc9",
+      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedAt": "2026-08-30",
       "summary": "se-verify-2 live verification of the wave-3 fix set: SHIP WITH FIXES — 11/12 confirmed, workloads item refuted by the 01:27 db reset; the load-bearing axe receipt reframes #512 as a list-row accname-contract decision; findings N1-N6 filed (#541 #542 + #512 riders).",
       "evidence": [
         "11/12 CONFIRMED with computed/pixel receipts (framebuffer decided #522 after a UA-shadow pseudo computed-style retraction)",
         "Lighthouse 13.4.1 axe receipt: label-content-name-mismatch fires on ALL rows (subtitle-in-button, aria-describedby) — pre-existing list-row condition, #517 strict improvement",
         "fixture caveat recorded: driven on the post-reset seed db (~100x smaller than lane measurements); Emily collision seeded to test #517",
-        "GitHub issues #501 #502 #511 #513 #517-#523 #525 closed on these verdicts; #512 reframed; #541 #542 filed"
+        "GitHub issues #501 #502 #511 #513 #517-#523 #525 closed on these verdicts; #512 reframed; #541 #542 filed",
+        "docs/history/reviews/side-eye/2026-08-23-verify-wave3.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
       ],
       "claims": [
         {
@@ -2336,16 +2375,17 @@
     },
     {
       "path": "docs/history/reviews/stickler/2026-08-14-staleness-diagnosis.md",
-      "assignedSha256": "449c44910c887265f569af68ed2504b73a527cc7e35916dee6c4b4c668b4720b",
-      "disposition": "needs-owner",
-      "authority": "review",
+      "assignedSha256": "fc8b08e866fa67b5db7d5142dd7941d78f61b8b2f27d7a06d49af2454ded9487",
+      "disposition": "archive",
+      "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "449c44910c887265f569af68ed2504b73a527cc7e35916dee6c4b4c668b4720b",
-      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "fc8b08e866fa67b5db7d5142dd7941d78f61b8b2f27d7a06d49af2454ded9487",
+      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/reviews/stickler/2026-08-14-staleness-diagnosis.md:1-100 full read against frozen foundation",
-        "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
+        "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14",
+        "docs/history/reviews/stickler/2026-08-14-staleness-diagnosis.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
       ],
       "summary": "Current review evidence; named remaining findings or an owner decision require GitHub work.",
       "claims": [
@@ -2366,16 +2406,17 @@
     },
     {
       "path": "docs/history/reviews/stickler/2026-08-18-reading-surface-d42d25a39.md",
-      "assignedSha256": "b42697dc7abaa5890a60bf7f513361d19c5f62caab38ebb4d78fd1de192d771a",
-      "disposition": "current",
-      "authority": "review",
+      "assignedSha256": "b15d79bc5eec9f34a2ba2b1078f5ceb31a26faabe2fbcef8839af79ae81b76f4",
+      "disposition": "archive",
+      "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "b42697dc7abaa5890a60bf7f513361d19c5f62caab38ebb4d78fd1de192d771a",
-      "verifiedCommit": "d0e0a6ce06ee42fbaf9c2536c4a11e90267e4115",
-      "verifiedAt": "2026-08-18",
+      "verifiedSha256": "b15d79bc5eec9f34a2ba2b1078f5ceb31a26faabe2fbcef8839af79ae81b76f4",
+      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/reviews/stickler/2026-08-18-reading-surface-d42d25a39.md:1-194 full read at merge",
-        "stickler F1 fixed at e0f8512f8 (opaque corrected ink, close-the-loop test); F2/F3 truth-repaired at 0f6b3eb4d; issue #204"
+        "stickler F1 fixed at e0f8512f8 (opaque corrected ink, close-the-loop test); F2/F3 truth-repaired at 0f6b3eb4d; issue #204",
+        "docs/history/reviews/stickler/2026-08-18-reading-surface-d42d25a39.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
       ],
       "summary": "Stickler review of the reading-surface derive-law commit d42d25a39: MERGEABLE, 4 findings (F1 alpha fixed-point P2, F2/F3 doc staleness, F4 claim accuracy) — all resolved at merge.",
       "claims": [
@@ -2405,18 +2446,19 @@
     },
     {
       "path": "docs/history/reviews/stickler/2026-08-20-server-usage-settlement-repair.md",
-      "assignedSha256": "f982d2a8fa37ad783b99b64a135992dcc0714f3add531f871891b3c701920b1e",
-      "disposition": "current",
-      "authority": "review",
+      "assignedSha256": "29ff36d8bd8ec6d032c3ba9975474b7f1133815cf45a7c967f8fef9647c1b360",
+      "disposition": "archive",
+      "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "f982d2a8fa37ad783b99b64a135992dcc0714f3add531f871891b3c701920b1e",
-      "verifiedCommit": "e3e4225b83b79fc0c9109ec7c33376e748d3bb1e",
-      "verifiedAt": "2026-08-20",
+      "verifiedSha256": "29ff36d8bd8ec6d032c3ba9975474b7f1133815cf45a7c967f8fef9647c1b360",
+      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/reviews/stickler/2026-08-20-server-usage-settlement-repair.md:1-194 full read against review commit e3e4225b83b79fc0c9109ec7c33376e748d3bb1e",
         "candidate 05734864dd5a7b8c661c1c42fd14b020f52f2845 replayed cleanly on main 2895946d810415f85c5bb001d27af60d396660be",
         "103 focused settlement tests passed; exact three-file CT matched current main at 304 passed with the same three baseline failures",
-        "GitHub issues #290 and #291 re-derived on 2026-08-20"
+        "GitHub issues #290 and #291 re-derived on 2026-08-20",
+        "docs/history/reviews/stickler/2026-08-20-server-usage-settlement-repair.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
       ],
       "summary": "Fresh-context verification of the repaired server usage settlement: all six prior HOLD findings are resolved with zero new findings; #291 still requires an external-key live OpenRouter receipt.",
       "claims": [
@@ -2445,14 +2487,17 @@
     },
     {
       "path": "docs/history/reviews/stickler/2026-08-21-codex-final-merge.md",
-      "assignedSha256": "cb9d92337442e3f0ece01e0ad8d6962625fb07d677a2a740193c25b4998c69a9",
-      "disposition": "current",
-      "authority": "review",
+      "assignedSha256": "637fa60f59b0a066d18efb9db05fef763f6bf59b738ac136d185baa08bc7f547",
+      "disposition": "archive",
+      "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "cb9d92337442e3f0ece01e0ad8d6962625fb07d677a2a740193c25b4998c69a9",
-      "verifiedCommit": "453ddf92309112b36fe3249d925eedd9f91f21da",
-      "verifiedAt": "2026-08-21",
-      "evidence": ["born-reviewed with the stickler lane's in-report receipts; follow-ups filed as #405"],
+      "verifiedSha256": "637fa60f59b0a066d18efb9db05fef763f6bf59b738ac136d185baa08bc7f547",
+      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedAt": "2026-08-30",
+      "evidence": [
+        "born-reviewed with the stickler lane's in-report receipts; follow-ups filed as #405",
+        "docs/history/reviews/stickler/2026-08-21-codex-final-merge.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
+      ],
       "summary": "Fresh-context stickler review of Codex's final merge 3cbb9602a..837e73853: sanctioned shape confirmed; 3 LOW findings routed to #405.",
       "claims": [
         {
@@ -2476,30 +2521,32 @@
     },
     {
       "path": "docs/history/reviews/stickler/2026-08-23-interaction-redesign-plan.md",
-      "assignedSha256": "2d3bbdc20196f4531495ae82db25d58c4cc9bdbb5dc166165ffaa0bb1145e107",
-      "disposition": "superseded",
-      "authority": "review",
+      "assignedSha256": "8bed20530a754429e914f40b62cbedcc4bc35a59e6fb74b961d264a884426fb7",
+      "disposition": "archive",
+      "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "2d3bbdc20196f4531495ae82db25d58c4cc9bdbb5dc166165ffaa0bb1145e107",
-      "verifiedCommit": "dd1921de747e0604490b1b3bbe137861c1de6398",
-      "verifiedAt": "2026-08-24",
+      "verifiedSha256": "8bed20530a754429e914f40b62cbedcc4bc35a59e6fb74b961d264a884426fb7",
+      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/design/interaction-direction-spec.md:571-588 (§10 PROVENANCE) cites the 2026-08-23 plan/audit lineage as superseded provenance",
-        "landed uncommitted from the 2026-08-23 stickler lanes; committed as provenance at dd1921de7"
+        "landed uncommitted from the 2026-08-23 stickler lanes; committed as provenance at dd1921de7",
+        "docs/history/reviews/stickler/2026-08-23-interaction-redesign-plan.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
       ],
       "summary": "Superseded lineage: the 2026-08-23 interaction redesign plan draft; consolidated into docs/design/interaction-direction-spec.md (spec §10 names it as provenance). Reading-material status: superseded by the spec; kept as the argument record."
     },
     {
       "path": "docs/history/reviews/stickler/2026-08-25-correctness-investigation-three-findings.md",
-      "assignedSha256": "81d110f09ae8d5146fa3b5f035bebb3c8915bee803aa5ced66f475dd269c4d15",
-      "disposition": "current",
-      "authority": "review",
+      "assignedSha256": "1bd6e161ff6b6c30d276646a7ff97e85c689d5beda087d50246fafe1f06f0ace",
+      "disposition": "archive",
+      "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "81d110f09ae8d5146fa3b5f035bebb3c8915bee803aa5ced66f475dd269c4d15",
-      "verifiedCommit": "5e00b582d6ab78d0cdaeebc5e90350cf4280acaf",
-      "verifiedAt": "2026-08-25",
+      "verifiedSha256": "1bd6e161ff6b6c30d276646a7ff97e85c689d5beda087d50246fafe1f06f0ace",
+      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedAt": "2026-08-30",
       "evidence": [
-        "cb-correctinvest investigation lane (2026-08-24/25, commit 5e00b582d): confirms three handed-down findings against the tree. #700 client card never retires on suggestion take/dismiss. #701 lying test-presence-client gate clause, FIXED same session (commit 4ef58f4888d). #702 image-edit resolve-step swallow."
+        "cb-correctinvest investigation lane (2026-08-24/25, commit 5e00b582d): confirms three handed-down findings against the tree. #700 client card never retires on suggestion take/dismiss. #701 lying test-presence-client gate clause, FIXED same session (commit 4ef58f4888d). #702 image-edit resolve-step swallow.",
+        "docs/history/reviews/stickler/2026-08-25-correctness-investigation-three-findings.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
       ],
       "summary": "cb-correctinvest confirms three handed-down findings: #700 P1 suggestion card never retires (no bus event, no invalidation), #701 lying test-presence-client gate clause fixed in-session, #702 P2 image-edit resolve-step error swallow.",
       "claims": [
@@ -2520,17 +2567,18 @@
     },
     {
       "path": "docs/history/reviews/stickler/2026-08-25-gate-hardening-final-review.md",
-      "assignedSha256": "ead32f53a8f1a0085ea287a822bf2962c2336a56b515084c1c61c4d8368386ec",
-      "disposition": "current",
-      "authority": "review",
+      "assignedSha256": "d7659a9bc6b8a046c60ea605f4dcaaa9eff85a6df3864a5ecf0e9213253a318d",
+      "disposition": "archive",
+      "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "1ae5d77f6f874c33226ff22ff7184ca1df4bc9875145d70091cbf2569a78df7d",
-      "verifiedCommit": "5cecf7154e00b3da1747420ede6450ce473a0a58",
-      "verifiedAt": "2026-08-25",
+      "verifiedSha256": "d7659a9bc6b8a046c60ea605f4dcaaa9eff85a6df3864a5ecf0e9213253a318d",
+      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/reviews/stickler/2026-08-25-gate-hardening-final-review.md:1-206 full read against target 59fed45ee; all 15 findings carry planted repros and exact mechanism receipts",
         "focused verification: 158 tests passed; adversarial probe suite reproduced 15 confirmed false-clean groups before remediation",
-        "post-review repair union: six P1 and nine P2 gate mechanisms received red-first controls; the CT taint law exposed 619 live findings partitioned and migrated to zero"
+        "post-review repair union: six P1 and nine P2 gate mechanisms received red-first controls; the CT taint law exposed 619 live findings partitioned and migrated to zero",
+        "docs/history/reviews/stickler/2026-08-25-gate-hardening-final-review.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
       ],
       "summary": "Fresh-context final review of the first gate-hardening union; it confirmed 15 semantic false-cleans, closed the candidate surface, and supplied the finite repair set consumed by the follow-up union.",
       "claims": [
@@ -2555,17 +2603,18 @@
     },
     {
       "path": "docs/history/reviews/stickler/2026-08-25-issue-712-gate-family.md",
-      "assignedSha256": "27a8d304992f15c3072f8f30ba57b13e911ff79206d12f96b4a354200726ee8a",
-      "disposition": "current",
-      "authority": "review",
+      "assignedSha256": "9dd957a0820f5ecd05dbd6b8fd10316d22731895bc1437b2da188cb27b75cbbc",
+      "disposition": "archive",
+      "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "27a8d304992f15c3072f8f30ba57b13e911ff79206d12f96b4a354200726ee8a",
-      "verifiedCommit": "7207e6bfbc9c16e6b2afd4ee0cc2850e9ef1f209",
-      "verifiedAt": "2026-08-25",
+      "verifiedSha256": "9dd957a0820f5ecd05dbd6b8fd10316d22731895bc1437b2da188cb27b75cbbc",
+      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/reviews/stickler/2026-08-25-issue-712-gate-family.md:1-254 full read; all eight findings carry executable counterexamples and exact mechanism receipts",
         "repair commit 767fc44cc adds red-first controls for every confirmed finding and reports zero live-tree findings with nonzero scan denominators",
-        "focused conformance, card-frame, and review-mirror suites passed 29/29; contracts, server, and tooling type programs passed"
+        "focused conformance, card-frame, and review-mirror suites passed 29/29; contracts, server, and tooling type programs passed",
+        "docs/history/reviews/stickler/2026-08-25-issue-712-gate-family.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
       ],
       "summary": "Fresh-context review and repair receipt for issue #712: eight relational gate and evidence false-cleans were reproduced, repaired, and pinned; E7 remains an explicit 34-row review-tier census rather than a universal static gate.",
       "claims": [
@@ -2590,17 +2639,18 @@
     },
     {
       "path": "docs/history/reviews/stickler/2026-08-26-issue-751-caught-failure-ownership.md",
-      "assignedSha256": "ef4bc94aa052339d892051f2f6729a50ad0e8f8aca413f59a7c4e5738efaf7cf",
-      "disposition": "current",
-      "authority": "review",
+      "assignedSha256": "00e57350f5d89b3bd8b54f4a4a0df19cc9e675ff72935aae56474065073af58f",
+      "disposition": "archive",
+      "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "ef4bc94aa052339d892051f2f6729a50ad0e8f8aca413f59a7c4e5738efaf7cf",
-      "verifiedCommit": "e3177c9b3f6b070438f9cb1d6fb72c17bed93707",
-      "verifiedAt": "2026-08-26",
+      "verifiedSha256": "00e57350f5d89b3bd8b54f4a4a0df19cc9e675ff72935aae56474065073af58f",
+      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/reviews/stickler/2026-08-26-issue-751-caught-failure-ownership.md:1-186 full read and exact-byte integration receipt",
         "runtime-only range 320e4d7a9..62461134d passed 65 client/server plus 69 tooling tests and 6 scoped CTs",
-        "three ts7 programs, scoped Biome/ESLint, doc catalog, diff-check, and clean-worktree proof passed"
+        "three ts7 programs, scoped Biome/ESLint, doc catalog, diff-check, and clean-worktree proof passed",
+        "docs/history/reviews/stickler/2026-08-26-issue-751-caught-failure-ownership.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
       ],
       "summary": "Independent bounded review of issue #751: approves the repaired runtime-only stack and rejects activation of the incomplete caught-failure gate and marker census.",
       "claims": [
@@ -2625,17 +2675,18 @@
     },
     {
       "path": "docs/history/reviews/stickler/2026-08-26-issue-753-async-ownership.md",
-      "assignedSha256": "94ea566e7fb9d1f2ba5050ba066250d68fc0838fe1835a0e41dc3cf4cce6370f",
-      "disposition": "current",
-      "authority": "review",
+      "assignedSha256": "a9d614f792025952a4b2de3f047162f8e72a79889087c311cf6998d435993771",
+      "disposition": "archive",
+      "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "94ea566e7fb9d1f2ba5050ba066250d68fc0838fe1835a0e41dc3cf4cce6370f",
-      "verifiedCommit": "1493486a7c61b0db449494d1c83008d4a3a62b5d",
-      "verifiedAt": "2026-08-26",
+      "verifiedSha256": "a9d614f792025952a4b2de3f047162f8e72a79889087c311cf6998d435993771",
+      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/reviews/stickler/2026-08-26-issue-753-async-ownership.md:1-262 full read and exact-byte integration receipt",
         "24 authored-source require-atomic-updates rows classified: 22 safe, one confirmed vLLM race, one OIDC decision",
-        "focused admission-lock CT 9/9 and preset autosave CT 6/6; supervisor suite 43/43 plus planted race reproduction"
+        "focused admission-lock CT 9/9 and preset autosave CT 6/6; supervisor suite 43/43 plus planted race reproduction",
+        "docs/history/reviews/stickler/2026-08-26-issue-753-async-ownership.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
       ],
       "summary": "Cold semantic ownership audit for issue #753, including the complete TS/TSX detector population, queue-versus-drop contracts, autosave primitive decision, and dependency verdict.",
       "claims": [
@@ -2660,19 +2711,20 @@
     },
     {
       "path": "docs/history/reviews/tooling/2026-08-20-design-audit-action-door-370.md",
-      "assignedSha256": "463afe42551db64b0aa62d84018b1ada8174db0cf239445f0af68879a0bb1516",
-      "disposition": "current",
-      "authority": "review",
+      "assignedSha256": "99d08f49e44b35be24f4dc5b277f9eee9e1924ad886914e62acd1d2bb6a64460",
+      "disposition": "archive",
+      "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "463afe42551db64b0aa62d84018b1ada8174db0cf239445f0af68879a0bb1516",
-      "verifiedCommit": "30a36c264c2ea055de71dc61ebf0deccaf0ce433",
-      "verifiedAt": "2026-08-21",
+      "verifiedSha256": "99d08f49e44b35be24f4dc5b277f9eee9e1924ad886914e62acd1d2bb6a64460",
+      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/reviews/tooling/2026-08-20-design-audit-action-door-370.md:1-79 full read against merged implementation 98244f811dfaea17e4b1ef607793d02152eaca06",
         "focused design-audit walker CT passed 26/26 and pure design-audit tests passed 80/80",
         "independent controls retained explicit-role native and offered tabindex doors while excluding only generic tabindex=-1 wrappers",
         "live Command Theme picker Theme builder and Settings audits reported zero duplicate-action-door findings",
-        "truth-repair 30a36c264: the 'explicit roles remain judged' sentence corrected in doc and walker comment (role=generic is also excluded, doorRole :737-738) — re-attested post-merge 0cecddf97"
+        "truth-repair 30a36c264: the 'explicit roles remain judged' sentence corrected in doc and walker comment (role=generic is also excluded, doorRole :737-738) — re-attested post-merge 0cecddf97",
+        "docs/history/reviews/tooling/2026-08-20-design-audit-action-door-370.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
       ],
       "summary": "Fresh-context verification of the #370 audit-integrity repair: programmatic generic focus wrappers remain censused without becoming action doors, and real duplicate actions remain detected.",
       "claims": [
@@ -2697,20 +2749,21 @@
     },
     {
       "path": "docs/history/reviews/tooling/2026-08-22-gate-stance-census.md",
-      "assignedSha256": "958b6b9501c10f71f09307a0a8f1670f625450637c1ca4d18131963bc5886624",
-      "disposition": "current",
-      "authority": "review",
+      "assignedSha256": "c3397c861b6ecf65ad6c7f71ebac1372b5b1424e469275b765a14bcdafbcd14d",
+      "disposition": "archive",
+      "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "958b6b9501c10f71f09307a0a8f1670f625450637c1ca4d18131963bc5886624",
-      "verifiedCommit": "a61b267bb9378563b362a421856c078df39690a0",
-      "verifiedAt": "2026-08-22",
+      "verifiedSha256": "c3397c861b6ecf65ad6c7f71ebac1372b5b1424e469275b765a14bcdafbcd14d",
+      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedAt": "2026-08-30",
       "evidence": [
         "derived mechanically from the real corpus: every `export const gate` descriptor in tooling/src/verify/gates/*.ts (219 files) read through ts-morph; every row carries a file:line receipt on the post-move tree",
         "the two ZEROES are graded in the document itself — a1 (no mustFlag/mustPass row lacks a `why`) is a strong zero because the check is a property of the object literal; a4 (finding-message pointers) is stated as WEAK because the scan only judges self-contained string literals, and that residual gap is filed as finding F1",
         "the scanRoot HOME-vs-ZONE split is an explicit curated set, not a regex, and every row prints its predicate verbatim so the classification can be re-derived rather than trusted",
         "dual-homed: verify-registry-parity's three standalone cases (tests/tooling/verify/ops/run.int.test.ts:532/:539/:555) duplicate its own fsBacked conformance rows (gates/verify-registry-parity.ts:141/:150/:174/:184)",
         "the __g_ staging recommendation is receipted against the eight live fences (.gitignore:99 + seven config mirrors) and against the anchor requirement every stale arm is guarded on (GATE-AUTHORING §4.5)",
-        "RE-ATTESTED 2026-08-22 by lane tool-verify (#417): the census's own remediation landed and the document now carries a LANDED RECORD section — 24 scanRoot conversions with before/after scan denominators, 23 exemption-table migrations, the F5 deletion, and the F1/F4/F6 dispositions (seven census rows REFUTED on re-derivation). Same authority, same full read; the flag-only census above is unchanged."
+        "RE-ATTESTED 2026-08-22 by lane tool-verify (#417): the census's own remediation landed and the document now carries a LANDED RECORD section — 24 scanRoot conversions with before/after scan denominators, 23 exemption-table migrations, the F5 deletion, and the F1/F4/F6 dispositions (seven census rows REFUTED on re-derivation). Same authority, same full read; the flag-only census above is unchanged.",
+        "docs/history/reviews/tooling/2026-08-22-gate-stance-census.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
       ],
       "summary": "FLAG-ONLY census of all 219 gates against the maximal stance: 27 sanctioned-home scanRoot exclusions, 29 legacy exemption-table spellings, 19 over-clause scanRoot predicates, 12 multi-mode descriptors, one genuine dual-homed test; clean on self-proof rationales, one-sided tables and warn-tier residue. Six findings routed for follow-up items; nothing changed by the census.",
       "claims": [
@@ -2782,13 +2835,13 @@
     },
     {
       "path": "docs/history/reviews/tooling/2026-08-22-research-zone-assessment.md",
-      "assignedSha256": "19e500dae25ed0ad8cbf53d407098daa80724472babfe3adbca772e2b367f1be",
-      "disposition": "current",
-      "authority": "review",
+      "assignedSha256": "b1dc67544399cbd7259c068b37117dc8810baa8ca543515c54873eca8b10cce6",
+      "disposition": "archive",
+      "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "19e500dae25ed0ad8cbf53d407098daa80724472babfe3adbca772e2b367f1be",
-      "verifiedCommit": "fa21fedf528e3d32d6927dd729845efacbbdbbdb",
-      "verifiedAt": "2026-08-22",
+      "verifiedSha256": "b1dc67544399cbd7259c068b37117dc8810baa8ca543515c54873eca8b10cce6",
+      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedAt": "2026-08-30",
       "claims": [
         {
           "claim": "The research zone's ranked tool candidates were parity-oracle (rank 1 — SUPERSEDED 2026-08-22 by the #428 neo-parity rip ruling before any build), st-parity's compare/capture pair, and a shared model-probe kit; rpg-extraction's harnesses are the delete shortlist (outputs gitignored, four files self-marked ARCHIVED, value in the one-call-spike doc).",
@@ -2805,7 +2858,8 @@
         }
       ],
       "evidence": [
-        "full read 1-323 at re-attest (2026-08-22); typecheck:graph exit 0 proves every scripts/*.ts compiles (tsconfig includes scripts); pnpm ast blind to scripts/ so liveness used scoped literal search"
+        "full read 1-323 at re-attest (2026-08-22); typecheck:graph exit 0 proves every scripts/*.ts compiles (tsconfig includes scripts); pnpm ast blind to scripts/ so liveness used scoped literal search",
+        "docs/history/reviews/tooling/2026-08-22-research-zone-assessment.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
       ],
       "summary": "Research-zone assessment: three tool candidates ranked with effort, rpg-extraction identified as the delete shortlist, three classification challenges to scripts/README."
     }

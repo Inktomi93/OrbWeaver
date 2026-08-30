@@ -28,17 +28,18 @@
     },
     {
       "path": "docs/Qwen_Offline_Investigation.md",
-      "assignedSha256": "47a8b149d1bcfa783a5fa9d4833e2afbdd1ee4ae128bd08ea673a1f4d789649c",
+      "assignedSha256": "d6fd2acdf31c065758f3e83d8d70cc36d9fb696e997abe380db9f8e9b4e9654d",
       "disposition": "archive",
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "d6fd2acdf31c065758f3e83d8d70cc36d9fb696e997abe380db9f8e9b4e9654d",
-      "verifiedCommit": "1f8d727c1417c732fa45eac0b54e424bfec8f6a9",
-      "verifiedAt": "2026-08-15",
+      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/Qwen_Offline_Investigation.md:1",
         "git log --oneline -5 -- docs",
-        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
+        "docs/Qwen_Offline_Investigation.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
       ],
       "summary": "Full-read historical operational artifact retained for provenance; not current build authority."
     },
@@ -72,34 +73,36 @@
     },
     {
       "path": "docs/orbweaver-card-debug-handoff.md",
-      "assignedSha256": "fcdb13fcbef21f9b417df00a6d98c95a74bf81eef2e35d1ae228517c231602be",
+      "assignedSha256": "9da1c5b32a6bcddfad7cef9c7a378ea8a4f22db3a2d76ca2cf1762ca2efa5cdb",
       "disposition": "archive",
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "9da1c5b32a6bcddfad7cef9c7a378ea8a4f22db3a2d76ca2cf1762ca2efa5cdb",
-      "verifiedCommit": "12a536adb24c3d34d0f259bf3d62b69cfaa92b1f",
-      "verifiedAt": "2026-08-22",
+      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/orbweaver-card-debug-handoff.md:1",
         "git log --oneline -5 -- docs",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
-        "re-attest 2026-08-22 (#325, bytes at 12a536adb): the removed `pnpm start` cites are repointed to the launcher that replaced them (`pnpm stack up prod` / `start-fg prod`), the refusal table's FALSE `start-fg prod` row is corrected against tooling/src/stack/lib/argv.ts:34+110 (only `_leader` is dev-only), and three stack-tool paths that moved to tooling/src/stack/ at P5 are repointed"
+        "re-attest 2026-08-22 (#325, bytes at 12a536adb): the removed `pnpm start` cites are repointed to the launcher that replaced them (`pnpm stack up prod` / `start-fg prod`), the refusal table's FALSE `start-fg prod` row is corrected against tooling/src/stack/lib/argv.ts:34+110 (only `_leader` is dev-only), and three stack-tool paths that moved to tooling/src/stack/ at P5 are repointed",
+        "docs/orbweaver-card-debug-handoff.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
       ],
       "summary": "Full-read historical operational artifact retained for provenance; not current build authority."
     },
     {
       "path": "docs/retro-workboard.md",
-      "assignedSha256": "9ab0932313eba3df5615580a8f97a189a7c11dc2464efbb667030247c1b2eeda",
+      "assignedSha256": "8cb62644f513c7570c0f9587b9f80a137159ce7f01eca28c379b41a449454b79",
       "disposition": "current",
       "authority": "operational",
       "fullRead": true,
-      "verifiedSha256": "9ab0932313eba3df5615580a8f97a189a7c11dc2464efbb667030247c1b2eeda",
-      "verifiedCommit": "c12dad3262328baca2a5559936b4e882a56a80c6",
-      "verifiedAt": "2026-08-21",
+      "verifiedSha256": "8cb62644f513c7570c0f9587b9f80a137159ce7f01eca28c379b41a449454b79",
+      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/retro-workboard.md:1-45 full read; recovery steps, authority map, hard stops, and direct Claude-rule import routing checked against D139-D140 and Project 1",
         "docs/architecture/proposed/INDEX.md:17-37 maps each unfinished committed program to its Project sprint",
-        "git:039e33ca3afee08a73754bd0a9ee3d5958d74fe4 contains the exact recovery-index blob"
+        "git:039e33ca3afee08a73754bd0a9ee3d5958d74fe4 contains the exact recovery-index blob",
+        "docs/retro-workboard.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
       ],
       "claims": [
         {
