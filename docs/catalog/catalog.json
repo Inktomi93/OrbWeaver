@@ -14528,8 +14528,8 @@
       "lane": "design",
       "issue": 5,
       "lines": 167,
-      "bytes": 11227,
-      "sha256": "c8a5cb511dccfbca4e8df518ee8eaf438b17d9b0aa099b67a24e4d4758b8b483",
+      "bytes": 11271,
+      "sha256": "d83bd2a2b777c9b526affd1117a62965cc764e6fd38452be74da4c88238f72c8",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -14542,13 +14542,13 @@
       },
       "receipt": {
         "path": "docs/design/web-weave-motion-fixes.md",
-        "assignedSha256": "2f374f70b7a30ea7a5fc64e5b57d4db3ba66eb791a8b9b47d75668408afa0bfd",
+        "assignedSha256": "d83bd2a2b777c9b526affd1117a62965cc764e6fd38452be74da4c88238f72c8",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "c8a5cb511dccfbca4e8df518ee8eaf438b17d9b0aa099b67a24e4d4758b8b483",
-        "verifiedCommit": "150dd4050cc0c5cca364c6e593602fde21b25d12",
-        "verifiedAt": "2026-08-18",
+        "verifiedSha256": "d83bd2a2b777c9b526affd1117a62965cc764e6fd38452be74da4c88238f72c8",
+        "verifiedCommit": "3ed6784ea0f7dd0a174eaaec91c78e47f93f7eb7",
+        "verifiedAt": "2026-08-30",
         "evidence": [
           "docs/design/web-weave-motion-fixes.md:1 (design; active)",
           "git log --oneline -1 -- docs/design/web-weave-motion-fixes.md: f688f56d4 fix(ui): WebWeave motion — connected tips, containment, spider pathing, per-segment glint",
