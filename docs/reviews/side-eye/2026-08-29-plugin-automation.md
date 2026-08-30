@@ -1,6 +1,6 @@
 ---
 kind: review
-status: active
+status: complete
 updated: 2026-08-29
 ---
 
@@ -201,3 +201,22 @@ and it's the single class of defect that repeats across the Plugins pane.
 | `motion-audit` / `perf-meter` | SKIPPED — no meaningful animation/interaction perf surface under review (modal panes; boot LoAF is the shell's, not these panes) |
 | `__orb.motion()` CLS | Observed via snap console (0.0221, virtualized 0) — home shell, not the panes |
 | Console triage | RAN — 0 console-errors / 0 page-errors across all runs; warnings are boot LoAF/drop on the shell logo animation (not these surfaces) |
+
+## Resolution (2026-08-29, post-landing — orchestrator pass, lane cb-plugins-polish receipts)
+
+Every finding above landed; the doc is `status: complete`. Live-verified on an isolated stage at
+430px-coarse and 1440px by lane cb-plugins-polish (#796, verify evidence on the issue):
+
+| Finding | Landed in | Receipt |
+| - | - | - |
+| P2 mobile header collision | `5e2d6b2e5` | `plugin-row.tsx:142-161` (`@max-md:flex-col` header, `flex-wrap` name row); CT `plugins-settings-surface.ct.tsx` "LONG status badge never collides" |
+| P2 grant checkbox 18px / label not clickable | `5e2d6b2e5` | `plugin-grant-list.tsx` `<label htmlFor>`; drive receipt: clicking the consequence text flips `aria-checked`; CT "clicking a capability's CONSEQUENCE text toggles its grant" (`6a9402e94`) |
+| P2 16px disclosures | `5e2d6b2e5` | `<CollapsibleTrigger size="control">` — 44px coarse / 32px fine |
+| P3 label-in-name | `5e2d6b2e5` | names read "What it's allowed to do — <Plugin>" / "Recent activity for <Plugin>" |
+| P3 run-on grant names | **`6a9402e94`** — the `5e2d6b2e5` fix was INERT (Base UI's generated `aria-labelledby` outranked its `aria-label`; `ariaSnapshot()` showed the whole label subtree); fixed with an explicit `aria-labelledby` = label + New mark, pinned `exact: true` | memory `aria-label-attribute-is-not-the-accname` |
+| P3 Extensions double empty-state | `5e2d6b2e5` | `extensions-page-surface.tsx:64-82` mirrors `EXTENSIONS_EMPTY_*`; CT `extensions-section.ct.tsx:146` |
+| P3 doubled "Card Atlas · Card Atlas" | `5e2d6b2e5` | `plugin-surface-shell.tsx:54` `showTitle = title !== pluginName`; CT `:84,160` |
+| Owner observation (enabled-but-inert) | pre-empted by `a4b008957`-era work | badge "On — nothing granted yet", CT-pinned |
+
+Still owed elsewhere: `design-audit --mobile` on the pane once #797 (the lying tap-target check)
+lands — the label-content-name class is covered by the `exact: true` accname pin meanwhile.
