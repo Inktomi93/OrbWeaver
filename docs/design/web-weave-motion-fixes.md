@@ -127,7 +127,7 @@ legs; the last-pose hold instead of null. FIX 4a-b: `web-weave-glint.ts` is per-
 
 **Rendered parity vs the reference.** The read-only reference (`mocks/fixed-weave-reference.js`, a
 self-registering `<fixed-web-weave>`) was hosted beside a symmetric host over the SHIPPED pure
-modules, same cells as `.design-sync/previews/WebWeave.tsx` (480×320 · WideShort 640×180 ·
+modules, same cells as the retired design-sync preview of `packages/ui/src/art/web-weave/web-weave.tsx` (480×320 · WideShort 640×180 ·
 TallNarrow 220×420), same live token values. **Verdict: equivalent.** Numerically, at 480×320 both
 give hub (240, 134.4), reach 190.88, 25 strands / 16 radii / 28 dew, and the silk-bound radius tips
 agree to the pixel ((401.83, 296.4), (157.64, 42.06), (195.4, 41.87), (246.65, 41.14)). Spiral points
