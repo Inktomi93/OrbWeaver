@@ -28,6 +28,7 @@ import {
   WalkerForwardingLabelStory,
   WalkerGradientBackdropStory,
   WalkerListRowCardStory,
+  WalkerListRowDoorStory,
   WalkerListRowSelectionStory,
   WalkerNeighbourButtonsStory,
   WalkerPaintLayerStory,
@@ -516,6 +517,35 @@ test("per-datum repeats and same-role-different-name controls are not duplicate 
     '"open"',
   );
   expect(values.join(" "), "a button whose name differs is a different door — the key is (role, NAME), never role alone").not.toContain('"import a card"');
+});
+
+// ── Sibling rows of one list are ONE home, however their subtrees diverge (issue #851) ────────────
+// The identical-path fingerprint above assumes per-datum rows render an identical chain. A row with a
+// conditional wrapper does not: measured live on the transcript at `--mobile`, two messages reached their
+// "More message actions" button through `theme-scope` and `message-content-column`, and the rule reported
+// two homes for a plain per-row action. Desktop hid it (only the hovered row's cluster is offered), so the
+// rule was set to fire on every virtualized list precisely at coarse pointer. The two controls in the same
+// mount are what keep the exclusion from being a blanket.
+test("three list rows whose subtrees diverge are one per-datum home, not a duplicate door", async ({ mount, page }) => {
+  await mount(<WalkerListRowDoorStory />);
+  const findings = collectFindings(await samplesOf(page));
+  const values = findings.filter((f) => f.rule === "duplicate-action-door").map((f) => f.value);
+
+  expect(
+    values.join(" "),
+    `one action cluster per message row is per-datum repetition however differently the rows are wrapped — got ${JSON.stringify(values)}`,
+  ).not.toContain('"more message actions"');
+});
+
+test("the sibling-row fold does not disarm the rule: one action twice in a row, and two homes outside the list, still fire", async ({ mount, page }) => {
+  await mount(<WalkerListRowDoorStory />);
+  const findings = collectFindings(await samplesOf(page));
+  const values = findings.filter((f) => f.rule === "duplicate-action-door").map((f) => f.value);
+
+  expect(values, 'a header AND a footer "Copy message" INSIDE one row are two homes — rows fold, doors within a row do not').toContain(
+    '2x button "copy message"',
+  );
+  expect(values, "a topbar and a tray door to one verb are untouched by any list reasoning").toContain('2x button "pin this chat"');
 });
 
 // ── Programmatic focus wrappers are census nodes, not action doors (issue #370) ───────────────────

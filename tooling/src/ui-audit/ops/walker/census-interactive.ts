@@ -102,6 +102,60 @@ export const WALKER_CENSUS_INTERACTIVE = `  // ── interactive elements: tap 
     }
     return parts.join("<");
   };
+  // SIBLING ROWS OF ONE LIST ARE ONE HOME, HOWEVER THEIR SUBTREES DIVERGE (issue #851). The path
+  // signature above assumes per-datum rows render an IDENTICAL chain, and a row that renders a
+  // conditional wrapper breaks that assumption: measured on the transcript at --mobile, two message rows
+  // reached their "More message actions" button through div@theme-scope and div@message-content-column
+  // respectively, and the Node side read the two paths as two homes. Desktop hid it only because the
+  // reveal cluster is hover-gated there, so exactly one row's door was ever offered at once — i.e. the
+  // rule was set to fire on every virtualized list the moment a coarse pointer made the rows' actions
+  // permanent, which is where the lens is most load-bearing.
+  //
+  // The discriminator is the LIST, not the path: a door reached through item I of container C is
+  // per-datum by construction, whatever shape I renders inside. So the walker publishes the identity of
+  // the (container, item) pair it found and lets lib/checks-quality.ts fold sibling items into one home
+  // while keeping two doors INSIDE one item distinct (an action offered twice in one card is a real
+  // finding). Identity, not signature: two sibling <li> have the same signature, and collapsing on that
+  // would fold two genuinely different lists that happen to look alike.
+  var LIST_ITEM_ROLES = { listitem: 1, option: 1, menuitem: 1, menuitemcheckbox: 1, menuitemradio: 1, row: 1, treeitem: 1, tab: 1, gridcell: 1 };
+  var LIST_ITEM_TAGS = { li: 1, tr: 1, option: 1 };
+  // A LIST ITEM by its own declaration only. data-index is the virtualizer's row stamp (@tanstack/virtual
+  // writes it on every rendered row), which is how a role-less virtualized list still resolves.
+  var isListItemEl = function (el) {
+    if (LIST_ITEM_ROLES[String(el.getAttribute("role") || "").trim().toLowerCase()]) return true;
+    if (LIST_ITEM_TAGS[el.tagName.toLowerCase()]) return true;
+    return el.hasAttribute("data-index");
+  };
+  // Per-run element identities. A small array + indexOf, not a Map: this runs a handful of times per door
+  // and the walker string stays ES5-shaped for the oldest engine that ever evaluates it.
+  var doorElementIds = [];
+  var doorElementId = function (el) {
+    var at = doorElementIds.indexOf(el);
+    if (at < 0) {
+      at = doorElementIds.length;
+      doorElementIds.push(el);
+    }
+    return "e" + at;
+  };
+  // Deeper than DOOR_PATH_MAX on purpose: the path signature is deliberately shallow (a fingerprint),
+  // but the list ancestor is a FACT about where the door lives and a transcript row nests further than 12.
+  var LIST_ANCESTOR_MAX = 32;
+  var doorListHome = function (el) {
+    var levels = 0;
+    for (var anc = el; anc && anc !== document.body && levels < LIST_ANCESTOR_MAX; anc = anc.parentElement, levels += 1) {
+      if (!isListItemEl(anc)) continue;
+      var parent = anc.parentElement;
+      if (!parent) continue;
+      // A list needs SIBLINGS: one lone <li> is not a repeated datum, and treating it as one would hand a
+      // genuine second home a free pass.
+      var siblingItems = 0;
+      for (var sib = 0; sib < parent.children.length; sib += 1) {
+        if (isListItemEl(parent.children[sib])) siblingItems += 1;
+      }
+      if (siblingItems >= 2) return { list: doorElementId(parent), item: doorElementId(anc) };
+    }
+    return null;
+  };
   // The accessible name as a COMPARISON KEY, not as a WCAG computation: case-folded, whitespace-collapsed,
   // and stripped of trailing punctuation, so "New chat" / "new chat" / "New chat…" are one door.
   var doorNameKey = function (name) {
@@ -269,11 +323,14 @@ export const WALKER_CENSUS_INTERACTIVE = `  // ── interactive elements: tap 
     var resolvedDoorRole = doorRole(iel);
     var programmaticGeneric = resolvedDoorRole === "generic" && String(iel.getAttribute("tabindex") || "").trim() === "-1";
     if (doorName.length > 0 && onScreen && !hiddenStub && !programmaticGeneric) {
+      var doorHome = doorListHome(iel);
       actionDoors.push({
         selector: describe(iel),
         role: resolvedDoorRole,
         name: doorName,
         path: doorPath(iel),
+        listKey: doorHome ? doorHome.list : null,
+        itemKey: doorHome ? doorHome.item : null,
       });
     }
   }

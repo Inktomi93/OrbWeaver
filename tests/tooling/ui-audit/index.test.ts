@@ -7,7 +7,7 @@
 // control — a green that cannot fail is not a fence.
 
 import type { Rgb } from "@orb/tooling/_shared/wcag";
-import type { AccentBorderInput, Backdrop, IconTileInput, RawSamples, TextStyleInput } from "../../../tooling/src/ui-audit/index.ts";
+import type { AccentBorderInput, ActionDoorInput, Backdrop, IconTileInput, RawSamples, TextStyleInput } from "../../../tooling/src/ui-audit/index.ts";
 import {
   checkAccentBorder,
   checkAccessibleName,
@@ -18,6 +18,7 @@ import {
   checkClippedOverflow,
   checkContrast,
   checkControlAspect,
+  checkDuplicateDoors,
   checkEdgeFlush,
   checkFontCensus,
   checkGlowShadow,
@@ -1087,6 +1088,57 @@ test("a compressed size spread fires flat-type-hierarchy; the real ramp spread p
   expect(flat.map((f) => f.rule)).toContain("flat-type-hierarchy");
   const ramp = checkFontCensus({ families: [], sizes: [10.5, 13, 15, 24] });
   expect(ramp).toEqual([]);
+});
+
+// ── duplicate-action-door: which repetitions are HOMES (#252 · #851) ─────────
+// The walker hands over one row per offered named control; this function decides how many HOMES they
+// amount to. Outside a list a home is a distinct structural path. Inside a list the ROWS answer instead
+// (#851): a transcript row that wraps its subtree conditionally (`theme-scope` on a themed speaker,
+// `message-content-column` otherwise) produced two paths for one per-row action, and the rule fired on
+// every virtualized list at coarse pointer — where every row's action cluster is permanent rather than
+// hover-revealed, so two rows' doors are on one plane at once.
+
+/** A door as the walker emits it; `list`/`item` default to the not-in-a-list case. */
+function door(selector: string, path: string, list: string | null = null, item: string | null = null): ActionDoorInput {
+  return { selector, role: "button", name: "more message actions", path, listKey: list, itemKey: item };
+}
+
+test("#851: sibling rows of one list are ONE home even when their subtrees diverge", () => {
+  // The live shape: three message rows of one <ol>, two reaching the button through `theme-scope` and one
+  // through `message-content-column`.
+  const findings = checkDuplicateDoors([
+    door("#a", "button<row<theme-scope<li", "list-1", "row-1"),
+    door("#b", "button<row<content-column<li", "list-1", "row-2"),
+    door("#c", "button<row<theme-scope<li", "list-1", "row-3"),
+  ]);
+
+  expect(findings, `one action cluster per row is per-datum repetition — got ${JSON.stringify(findings.map((f) => f.value))}`).toEqual([]);
+});
+
+test("#851: the fold is per LIST, not global — two homes in ONE row, and two doors outside any list, still fire", () => {
+  const insideOneRow = checkDuplicateDoors([
+    door("#header", "button<name-row<theme-scope<li", "list-1", "row-1"),
+    door("#footer", "button<footer-row<theme-scope<li", "list-1", "row-1"),
+    // A second row repeating the same pair adds rows, never homes.
+    door("#header-2", "button<name-row<content-column<li", "list-1", "row-2"),
+    door("#footer-2", "button<footer-row<content-column<li", "list-1", "row-2"),
+  ]);
+  expect(
+    insideOneRow.map((f) => f.value),
+    "one action offered twice inside a single card is a real duplicate door",
+  ).toEqual(['2x button "more message actions"']);
+
+  const twoLists = checkDuplicateDoors([door("#a", "button<row<li", "list-1", "row-1"), door("#b", "button<row<li", "list-2", "row-1")]);
+  expect(
+    twoLists.map((f) => f.value),
+    "identity, not signature: two different lists that look alike are two homes",
+  ).toEqual(['2x button "more message actions"']);
+
+  const free = checkDuplicateDoors([door("#topbar", "button<header"), door("#tray", "button<footer")]);
+  expect(
+    free.map((f) => f.value),
+    "a door outside any list is judged by its path exactly as before",
+  ).toEqual(['2x button "more message actions"']);
 });
 
 // ── measured-spill pass-throughs (impeccable) ────────────────────────────────
