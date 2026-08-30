@@ -4,7 +4,7 @@
 //
 // PROVENANCE (orbweaver): produced by the claude.ai/design motion review 2026-08-14
 // ("Orbweaver UI" project, templates/motion-review/fixed-weave.js), fetched verbatim.
-// REFERENCE ONLY — read-only evidence for docs/design/web-weave-motion-fixes.md; the real
+// REFERENCE ONLY — read-only evidence for docs/history/design/web-weave-motion-fixes.md; the real
 // fixes land in packages/ui/src/art/web-weave/ pure modules with their own tests. Never
 // import or vendor this file into product code.
 (() => {

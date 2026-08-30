@@ -181,3 +181,19 @@ mechanics are here.
   issue gets fixed or filed with a receipt; but do not score-chase perfection (no re-review loops
   hunting points; the finding list, not the number, is the deliverable). Findings → file-claim-fix per
   lifecycle; fixes verified by the side-eye lens before Done.
+
+## §7 Niggles minted 2026-08-30 (a 20-merge, 25-ruling owner-live session — each paid for once)
+
+1. **Pipe exit codes lied for four merges.** `pnpm check:ledgers-fresh | tail -2; echo $?` prints TAIL's exit; a STALE manifest sat on main for an hour. Spelling: `pnpm -s <cmd> > "$S/x.log" 2>&1; echo EXIT=$?` then read the log — or `echo "EXIT=${PIPESTATUS[0]}"`. Never `$?` after a pipe.
+2. **`pkill -f <pattern>` matches the shell issuing it** (exit 144, the merge never ran). Bracket the pattern: `pkill -f "verify/cli\.[t]s"`.
+3. **A merge under a running whole-tree check skews the check** (it reads the working tree). Per train: kill the check, merge, `ledgers-fresh` (real exit), restart the check on the new tip. A check that finished on an older tip is not the tip's verdict.
+4. **Claim at dispatch.** A row set Ready but never `claim`ed fails at `review` later ("must be Running") — the lifecycle is `ready → claim → review → verify → done`, `block/unblock` need `--by <n>`, `ready` refuses a Blocked row. Until #870 lands the one-shot verbs, chain them in ONE Bash call and never a lone board call (census: board choreography = 7.3% of orchestrator context; 49% of board calls carried one invocation).
+5. **`gh issue comment --body "…`sha`…"` executes the backtick.** Always `--body-file`.
+6. **Mocks are Claude Design canvases** (`/design` → `seed-canvas.mjs` → Artifact, contract 0.1.31, caps self+downloads), never forge-drawn HTML lanes (owner: "just use the artifact creation skill"). Commit the canvas SOURCE under `docs/design/mocks/<name>/` (build.mjs + *.dc.html + canvas.json + true-size renders + DESIGN.md + README row); the README edit needs its OWN re-attest. Render each board's default state and LOOK before publishing (box-sizing, z-order, glyph rules were all caught only on the render).
+7. **Every lane that edits a law doc costs a catalog re-attest at merge** (verifiedCommit = the merge sha) — batch them per train; a report a lane leaves uncommitted needs a FULL READ before its born-reviewed receipt (state its location in the bridge if the window can't afford the read).
+8. **Sentinels can belong to the other account.** A weekly-usage sentinel fired at 96% and 97% while the owner said claude-b was nowhere near max — confirm with the owner before switching to landing-only.
+9. **Four gate-heavy lanes is over the cap in practice:** two lanes hit `ORB-LOAD-KILL` / exit-143 on `check:structure` while a fourth ran. Three, plus browser/docs lanes.
+10. **The bridge inbox monitor pings on your own note edits** — write the bridge note in one shot, or stop the monitor while the other account is dark.
+11. **MEMORY.md hits its 25.6k cap in a long session** — compact labels (they are scan hints; recall keys off `description:`), and fold late lessons into hub files rather than minting new index lines.
+12. **Re-derive the law's premise, not just the row's:** the retirement procedure said "code does not cite docs"; the tree had ~250 comment citations and 8 lying pointers from the LAST pass. A brief that quotes a law step owes a grep of its premise.
+13. **Owner-live mode:** batches of ≤4 `AskUserQuestion`s with the recommended arm first worked (~25 rulings in one evening); keep a running RULINGS section in the bridge note so rulings survive compaction, and post each ruling on its issue the same turn.

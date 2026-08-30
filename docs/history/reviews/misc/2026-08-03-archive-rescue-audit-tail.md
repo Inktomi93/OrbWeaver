@@ -8,7 +8,7 @@ updated: 2026-08-03
 
 > **Charge (owner, 2026-08-03):** *"if it needs follow up it goes on the board, otherwise it gets
 > forgotten."* This is the second half of the job lane ARCHIVE could not finish — it read/verified
-> lines 1–2130 (report: `docs/reviews/misc/2026-08-03-archive-rescue-audit.md`) and explicitly owed
+> lines 1–2130 (report: `docs/history/reviews/misc/2026-08-03-archive-rescue-audit.md`) and explicitly owed
 > the tail. This pass covers **lines 2130–3515 (the final ~39%, 100% read line-by-line)** — the
 > 08-02-and-earlier archeology: two full compaction handoffs, the PRESET wave detail blocks, the
 > SSE S0–S5 / HUD-HOME / SET-SEAMS / WORKLOADS closeout ledgers, THE QUEUE, BUILD ITEMS QUEUED,

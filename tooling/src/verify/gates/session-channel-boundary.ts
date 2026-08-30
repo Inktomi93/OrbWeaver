@@ -20,7 +20,7 @@ const CTOR = "BroadcastChannel";
 
 const MESSAGE =
   "a BroadcastChannel constructed outside packages/client/src/lib/session-channel.ts. Cross-tab messaging " +
-  "has ONE typed home (docs/design/staleness-and-session-freshness.md §4.3): the channel carries SESSION LIFECYCLE and " +
+  "has ONE typed home (docs/history/design/staleness-and-session-freshness.md §4.3): the channel carries SESSION LIFECYCLE and " +
   "durable-local write pokes only, never server truth — a second channel is a second unversioned protocol " +
   "and the seam a data payload would use to fork the ONE invalidation router (§13). Add your message kind " +
   "to `SessionMessage` and post it through `postSessionMessage`.";
@@ -28,7 +28,7 @@ const MESSAGE =
 const BLIND_MESSAGE =
   `session-channel-boundary is BLIND: its home "${HOME}" constructs no ${CTOR}. Either the channel moved ` +
   "(re-point HOME) or it was deleted (delete this gate) — as written the fence would report clean forever. " +
-  "See tooling/src/verify/gates/session-channel-boundary.ts and docs/design/staleness-and-session-freshness.md §4.3.";
+  "See tooling/src/verify/gates/session-channel-boundary.ts and docs/history/design/staleness-and-session-freshness.md §4.3.";
 
 let homeConstructs = false;
 

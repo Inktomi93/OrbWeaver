@@ -35,7 +35,7 @@
     "why": "ratified by rule: lint/nursery/noComponentHookFactories×1 (tool-fp) — each rule's ruling/tool-FP reason lives in RATIFIED_RULES (tooling/src/verify/gates/suppressions.ts)",
     "cite": ["tooling/src/verify/gates/suppressions.ts"]
   },
-  "packages/client/src/features/app-shell/components/context-tabs-panel.tsx": {
+  "packages/client/src/features/app-shell/components/context-bracket.tsx": {
     "count": 1,
     "ratified": 1,
     "why": "ratified by rule: lint/correctness/useExhaustiveDependencies×1 (tool-fp) — each rule's ruling/tool-FP reason lives in RATIFIED_RULES (tooling/src/verify/gates/suppressions.ts)",

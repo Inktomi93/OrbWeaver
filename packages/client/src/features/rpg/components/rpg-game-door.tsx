@@ -1,24 +1,28 @@
-// The #40 RPG-overlay DOOR — the Game meta-tab body for a committed HOST chat whose overlay is not
-// LIVE. Owner model: rpg-lite is an OVERLAY on the roleplay, togglable on/off at ANY time — never a
-// game session with pause/resume framing. Two arms off the SAME `chat.getChat` pointer read the
-// takeover gate uses:
-//   • never enabled — the "Turn on RPG" empty-state CTA with the freeform|d20 profile pick
-//     (`createGame`, mode "lite"; freeform omits the profile — the create default).
-//   • overlay OFF (pointer `engaged:false`) — the game rows exist with ALL state preserved; the door
-//     offers "Turn the overlay on" (`updateConfig { engaged:true }` — reversible, never a re-create,
-//     never a profile re-pick).
-// A LIVE overlay never reaches this component (the section routes it to the GM console).
+// The #40/#862 GAME-MODE DOOR — the Game meta-tab body for a committed HOST chat whose game is not LIVE.
+// Owner model: a game is a MODE the roleplay runs in, togglable on/off at ANY time — never a session with
+// pause/resume framing. Two arms off the SAME `chat.getChat` pointer read the takeover gate uses:
+//   • never started — the "Turn on game mode" empty-state CTA. ONE button (#862, owner ruling 2026-08-30):
+//     the freeform|d20 pick that used to live here is a SETTING now (`ruleset`, on this same tab's host
+//     console, retunable additively at any time), so a game is born freeform in one click.
+//   • game OFF (pointer `engaged:false`) — the rows exist with ALL state preserved; the door offers
+//     "Turn game mode back on" (`updateConfig { engaged:true }` — reversible, never a re-create).
+// A LIVE game never reaches this component (the section routes it to the host console).
+//
+// BOTH DOORS SPEAK ONE NOUN AND REVEAL THEIR RESULT (#863): the labels + the announcements are the shared
+// `#state` game-mode transition seam, which the ⋯ menu's twin door reads too — one concept can't carry two
+// vocabularies (it carried three), and a start from EITHER door lands the panel on the game's Status tab.
 
-import { isRpgEngaged, RPG_PROFILE_D20 } from "@orb/contracts/rpg";
+import { isRpgEngaged } from "@orb/contracts/rpg";
 import type { ChatId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
-import { Crown, Icon, Play, Swords, WandSparkles } from "@orb/ui/icons";
+import { Crown, Icon, Play, Swords } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useRef } from "react";
 import { useInvalidation, useTRPC } from "#data";
+import { GAME_MODE_KEPT_LINE, GAME_MODE_OFF_KICKER, GAME_MODE_ON_LABEL, GAME_MODE_RESUME_LABEL, onGameModeStarted } from "#state";
 import { useCreateGame, useUpdateConfig } from "../hooks/use-rpg-mutations.ts";
 
 export interface RpgGameDoorProps {
@@ -36,16 +40,21 @@ export function RpgGameDoor({ chatId }: RpgGameDoorProps): ReactElement {
   const createAdmission = useRef(false);
   const engageAdmission = useRef(false);
 
-  const create = (profile?: typeof RPG_PROFILE_D20): void => {
+  const create = (): void => {
     if (createAdmission.current) {
       return;
     }
     createAdmission.current = true;
-    createGame.mutate(profile === undefined ? { chatId, mode: "lite" } : { chatId, mode: "lite", profile }, {
-      onSettled: (): void => {
-        createAdmission.current = false;
+    // No `ruleset` — a game is born freeform; the ruleset control below the door retunes it additively.
+    createGame.mutate(
+      { chatId, mode: "lite" },
+      {
+        onSuccess: onGameModeStarted,
+        onSettled: (): void => {
+          createAdmission.current = false;
+        },
       },
-    });
+    );
   };
 
   const engage = (): void => {
@@ -56,6 +65,7 @@ export function RpgGameDoor({ chatId }: RpgGameDoorProps): ReactElement {
     updateConfig.mutate(
       { chatId, patch: { engaged: true } },
       {
+        onSuccess: onGameModeStarted,
         onSettled: (): void => {
           engageAdmission.current = false;
         },
@@ -65,41 +75,36 @@ export function RpgGameDoor({ chatId }: RpgGameDoorProps): ReactElement {
 
   const pointer = chat.rpg ?? null;
   if (pointer !== null && !isRpgEngaged(pointer)) {
-    // Overlay OFF — the state is kept; turning it on restores the sheets/scene/quests as they were.
+    // Game mode OFF — the state is kept; turning it on restores the sheets/scene/quests as they were.
     return (
       <Stack gap="section" data-slot="rpg-game-door" align="start">
         <Row gap="field" align="center">
           <Icon icon={Crown} size="sm" className="text-highlight" />
           <Text voice="kicker" className="tracking-micro text-highlight">
-            RPG overlay off
+            {GAME_MODE_OFF_KICKER}
           </Text>
         </Row>
-        <Text>The RPG overlay is off — your sheets, scene, and quests are kept. Turn it on to pick up where you left off.</Text>
+        <Text>{`Game mode is off — ${GAME_MODE_KEPT_LINE.toLowerCase()} Turn it back on to pick up where you left off.`}</Text>
         <Button disabled={updateConfig.isPending} intent="primary" size="sm" onClick={engage}>
-          <Icon icon={Play} size="xs" /> Turn the overlay on
+          <Icon icon={Play} size="xs" /> {GAME_MODE_RESUME_LABEL}
         </Button>
       </Stack>
     );
   }
 
-  // The EMPTY-STATE arm — never enabled here: the first-ever "Turn on RPG" with the profile pick.
+  // The EMPTY-STATE arm — no game here yet: ONE start action (#862).
   return (
     <Stack gap="section" data-slot="rpg-game-door" align="start">
       <Row gap="field" align="center">
         <Icon icon={Crown} size="sm" className="text-highlight" />
         <Text voice="kicker" className="tracking-micro text-highlight">
-          Turn on RPG
+          Game mode
         </Text>
       </Row>
-      <Text>An overlay for your roleplay — tracked state, quests, and a scene the story keeps current.</Text>
-      <Row gap="field" className="flex-wrap">
-        <Button disabled={createGame.isPending} intent="primary" size="sm" onClick={(): void => create()}>
-          <Icon icon={WandSparkles} size="xs" /> Freeform story
-        </Button>
-        <Button disabled={createGame.isPending} intent="secondary" size="sm" onClick={(): void => create(RPG_PROFILE_D20)}>
-          <Icon icon={Swords} size="xs" /> D20 adventure
-        </Button>
-      </Row>
+      <Text>A game mode for your roleplay — tracked state, quests, and a scene the story keeps current. Pick a ruleset any time once it's on.</Text>
+      <Button disabled={createGame.isPending} intent="primary" size="sm" onClick={create}>
+        <Icon icon={Swords} size="xs" /> {GAME_MODE_ON_LABEL}
+      </Button>
     </Stack>
   );
 }

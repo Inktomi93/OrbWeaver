@@ -16,7 +16,7 @@ import type { GateIgnoreMarker } from "../contract/pass.ts";
  *  attempted marker — `parseGateIgnoreMarker` then judges it. A marker that only the suppressor knew
  *  about would be invisible to `gate-ignore-inventory`, which is the gate that reds bare/stale ones.
  *
- *  THE MENTION FENCE (docs/design/gate-ignore-mention-fence.md): a marker IS a `//` comment whose own
+ *  THE MENTION FENCE (docs/history/design/gate-ignore-mention-fence.md): a marker IS a `//` comment whose own
  *  text begins with the vocabulary. Marker-shaped text anywhere else — inside a string/template/JSX/regex
  *  literal, or embedded LATER in a comment's text (a backtick quotation in prose, a JSDoc example) — is a
  *  MENTION of the grammar, never a use of it. Both readers enforce the same fence: the suppressor anchors

@@ -11,6 +11,7 @@
 // the saved overrides' UNTOUCHED mainPrompt must be B's (absent), never A's frozen "A-prompt".
 
 import { expect, test } from "@playwright/experimental-ct-react";
+import { measureClamp } from "../../../../support/ct/measure-clamp.ts";
 import { touchFloorPx } from "../../../../support/ct/touch-floor.ts";
 import { RoomOverridesSwitchStory } from "../_ct-stories.tsx";
 
@@ -55,6 +56,29 @@ test("no author's-note field — the section is exactly the three text overrides
   // back as an @orb/ui NumberField (Base UI renders those as a TEXTBOX, never a spinbutton).
   await expect(component.getByLabel("Depth")).toHaveCount(0);
   await expect(component.getByRole("combobox", { name: "Role" })).toHaveCount(0);
+});
+
+// #847 — THE COLLAPSED CARD'S SNIPPET MUST END ON A LINE BOUNDARY. Same defect, same spelling, second
+// site (the mechanism is written out in full at the injections-manager pin): the one-line clamp and the
+// block padding sat on the SAME element, `overflow: hidden` clips at the padding box, so the clamped-away
+// line 2 painted into the ~11.9px of bottom padding. The oracle is the line grid (`measure-clamp.ts`),
+// and the value must be long enough to wrap at the story's 380px or the defect is unreachable.
+const LONG_SNIPPET =
+  "A rainy dock at the edge of the shipping district, lantern-lit and loud, where the night crews are still loading and nobody looks twice at a stranger.";
+
+test("#847: a long collapsed snippet is clamped to WHOLE lines — no second line sliced through its x-height", async ({ mount }) => {
+  const component = await mount(<RoomOverridesSwitchStory />);
+
+  // The snippet only exists on a SET field that is closed, so seed one: open Scenario, type, close it.
+  await component.getByRole("button", { name: "Scenario" }).click();
+  await component.getByRole("textbox", { name: "Scenario" }).fill(LONG_SNIPPET);
+  await component.getByRole("button", { name: "Scenario" }).click();
+
+  // The paragraph, NOT the textarea — the closing panel's textarea still holds the same string for the
+  // length of its exit, so a bare text match is a two-element strict-mode violation.
+  const snippet = component.getByRole("paragraph").filter({ hasText: LONG_SNIPPET });
+  await expect(snippet).toBeVisible();
+  expect(await measureClamp(snippet)).toMatchObject({ partialLinePx: 0, visibleLines: 1 });
 });
 
 // Full-row tap target (side-eye P2, WCAG 2.5.8): the block padding lives on the CollapsibleTrigger, not the

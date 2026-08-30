@@ -10,7 +10,7 @@ Owner ruling: the v1 art "gives me the ick". Owner authorised deriving the pack'
 own top-played SillyTavern cards (vibe/style only — no image was copied, referenced by URL, or fed to
 the model; the style spec below is a written characterisation).
 
-Contact sheet: `docs/reviews/misc/2026-08-03-avatar-pack-v2-contact-sheet.png`
+Contact sheet: `docs/history/reviews/misc/2026-08-03-avatar-pack-v2-contact-sheet.png`
 (row 1 = new v2 avatars, row 2 = the v1 avatars they replace, row 3 = the v2 set at 64 px).
 
 **Scope: `packages/server/src/entry/boot/seed-assets/avatars/*.png` only.** Backgrounds were ruled
@@ -78,7 +78,7 @@ Viewed full-size: Hikari, Ruby, Selene1, Azarael, Ayami, Bess, Bengal, Anika, Ri
 
 Model `google/gemini-3-pro-image` via OpenRouter, 1024×1024 output, downscaled to 512×512 PNG24
 (stripped metadata), overwritten in place. Character CONTENT came from each card's *Avatar art
-direction* paragraph in `docs/design/default-character-roster.md`; only the aesthetic changed.
+direction* paragraph in `docs/history/design/default-character-roster.md`; only the aesthetic changed.
 
 | Handle | Character | Shipped roll | Notes |
 | - | - | - | - |

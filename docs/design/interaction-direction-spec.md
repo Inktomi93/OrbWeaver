@@ -210,7 +210,7 @@ rider (2026-08-29, columns spelled `rule_preset_id` + `rule_preset_knobs` per th
 Rule-prefixed vocabulary ruling): stamped by `createRuleFromPreset` with the COMPLETE resolved bag,
 CLEARED by `updateRule`, projected on `RuleView` (the saved-cast capture reads it; the in-place knob
 EDITOR over it stays unbuilt — edit is still re-mint). As-built record:
-`saved-rosters-build-record.md` §6.
+`../history/design/saved-rosters-build-record.md` §6.
 
 **THE SCOPE AXIS, born whole (the platform ruling — bridge 011; "not in v1" only ever means
 UNWIRED-but-typed, never unshaped):**

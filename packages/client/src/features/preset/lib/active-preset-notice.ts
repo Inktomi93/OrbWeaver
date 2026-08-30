@@ -19,3 +19,24 @@ import { notify } from "#lib";
 export function notifyActivePreset(name: string): void {
   notify.success(`${name} is now the active preset`);
 }
+
+/** Announce the built-in's SILENT copy-on-write (side-eye 2026-08-30 P2-A, #856).
+ *
+ *  Editing the built-in mints an owned copy server-side, retargets the editor under the user and — when the
+ *  built-in was the active pick — moves the pick to the copy. Measured, every one of those happened with no
+ *  announcement at all, while the only status on screen read "Saved": three wrong beliefs in one act ("I
+ *  changed Default", "my change is in effect", and a preset in the library nobody created). This rides the
+ *  SAME `notify` seam as `notifyActivePreset` for the same reason it does — the toast viewport is
+ *  `aria-live="polite"`, so one mechanism serves the eye and AT, and the fork gets no live region of its own.
+ *
+ *  TWO ARMS, because the sentence must not claim an activation that did not happen: the pick moves only when
+ *  the built-in was what was active (`use-preset-autosave.ts`'s retarget owns that condition and reports it),
+ *  and a fork made while some OTHER preset is active leaves generation where it was. Both arms end on the
+ *  fact the user is most likely to have got wrong — the source is untouched. */
+export function notifyBuiltInFork(forkName: string, sourceName: string, inheritedActivePick: boolean): void {
+  notify.success(
+    inheritedActivePick
+      ? `Your edit created ${forkName} and it is now your active preset — ${sourceName} is unchanged.`
+      : `Your edit created ${forkName} — ${sourceName} is unchanged.`,
+  );
+}

@@ -1293,7 +1293,7 @@ bit once tonight already, fix = stack restart) → crunch-list strike pass → s
 (desktop+mobile) → close-out D-entry + graduation verifier. Lane F (density S6 + monogram voice + memory-noun rider) still building.
 CHARACTER program: recon DELIVERED (docs/reviews/misc/2026-08-02-default-character-recon.md);
 **ROSTER WRITTEN (Fable lane, owner-exempted tier): 10 characters @ its worktree
-docs/design/default-character-roster.md, commit `3c66f08f` — 5 derived/3 net-new/2 rebuilds;
+docs/history/design/default-character-roster.md, commit `3c66f08f` — 5 derived/3 net-new/2 rebuilds;
 4 taste forks RULED (JFC uncensored · Charlotte STAYS a spider · 10 stands · backtick device →
 one card); ORCHESTRATOR FULL LINE-READ + SIGN-OFF OWED next context window (then edit round →
 lane merges main → doc lands → avatar-gen + demo-chat + seed-wiring lanes). Lane HOLDING WARM.
@@ -1991,7 +1991,7 @@ suspect: bulk-imported demo chats never set the field resolveRoomTheme keys on) 
   snap mastery + record **+ 08-03: publish-retractions law + clean-scan-is-floor-not-verdict**;
   SendMessage granted to all executors.
   DONE-MERGED late-morning: AV2 avatar redo (`b1d9c098` — reference-school art, spider-isekai
-  Charlotte, $2.24, sheet in docs/reviews/misc/2026-08-03-avatar-pack-v2-contact-sheet.png).
+  Charlotte, $2.24, sheet in docs/history/reviews/misc/2026-08-03-avatar-pack-v2-contact-sheet.png).
   LIVE: FX · MIG (general 3-handle arm + name-counts-as-edit ruled) · PV (C1 + Traveler approved).
   **═══ OVERNIGHT RUN-STATE v2 (\~01:30) — ALL BUILD LANES DRAINED @ `f3c0ef20` ═══**
   MERGED TONIGHT (every one hook/gate-certified): preset wave A-F · focus-flag D · R4 · zod A-D +
@@ -2806,7 +2806,7 @@ or ruled-out writeup · ~~HUD H2+H3~~ MERGED (`bda7ae4b` + baseline regen 174/10
 selection echo; host-only crown \[NEEDS RATIFICATION: additive ContextTabDef.crown field — shaped
 like strip, decision-5 argument]; waystone compact DERIVED from clock===null \[no compact prop —
 gate-RED; meter unset variant instead, strictly stronger]; band 54.9% of chrome vs F6's 68%,
-chrome 28.7% of pane ≤30% rule; computed-value CTs throughout). H4 close-out remains. **PRESET REDESIGN DELIVERED** (spec docs/design/preset-surface-redesign.md + 3 mocks in
+chrome 28.7% of pane ≤30% rule; computed-value CTs throughout). H4 close-out remains. **PRESET REDESIGN DELIVERED** (spec docs/history/design/preset-surface-redesign.md + 3 mocks in
 docs/design/mocks/preset-redesign/ — landed; lane forgot to commit, orchestrator copied+committed).
 DIAGNOSIS: ST-crunchy = slider+editable-number-twin, zero nav depth, token counts, WYSIWYS; ours =
 2-level tabs (5 acts to temperature), unset knobs HIDE the datum, the quality→knobs→clamp funnel
@@ -3027,7 +3027,7 @@ tokenizer eating malformed opens (§4h) — F2a leniency + F2b example shipped.
    (same surfaces).
 4. **W-H FULL SIDE-EYE** — after multiplex S1-ish, needs a MODEL-POPULATED game (\[\[RV-15 posture|
    seeded-data-never-verification]]). The accumulated list: panel-beauty §4.2 · context-panel
-   fidelity re-verify (`docs/design/context-panel-fidelity-findings.md`) · CT-harness band/kicker
+   fidelity re-verify (`docs/history/design/context-panel-fidelity-findings.md`) · CT-harness band/kicker
    overlap vs the real shell · panel synthesizes `0/max` for UNSET meters (the panel is the lying
    surface now — reminder renders honest carriage) · STREAM-JANK (message box resizes during
    streaming) · inventory-grid tile design vs mock (owner eyeball) · QUOTE-1 hue taste check (new
@@ -3430,7 +3430,7 @@ activeSection persists). Fork: should an unsent draft (seed + typed composer tex
 reload? Persistence-design call, not a fix — the current behavior is by design.
 
 ☰ **LIST-PANE PROJECTION — RATIFIED (owner, 08-01 late): Arm A + Arm B approved, C rejected;
-the MOCKS' look is the approved target** (`docs/design/list-pane-projection-proposal.md` + mocks;
+the MOCKS' look is the approved target** (`docs/history/design/list-pane-projection-proposal.md` + mocks;
 remaining D2-D10 stand as recommended). Stickler resumed for §11 primitives inventory (the
 fugly-prevention list — what @orb/ui needs before building) + §12 row-action grammar (owner:
 "I REALLY hate having to click the three dots in list view" — inline/hover actions per row type,
@@ -3706,7 +3706,7 @@ crunchy-cluster, parity-plus (D109/D110).
   `ORB_TOOL_GUARD=off`. It has already corrected the orchestrator mid-session (bare `npx vitest`,
   `git add -A`, `--no-verify`).
 
-- **NODE 21→26 PROGRAM READ IN FULL** (`docs/design/node-26-adoption-program.md`). Verified against the
+- **NODE 21→26 PROGRAM READ IN FULL** (`docs/history/design/node-26-adoption-program.md`). Verified against the
   tree: `engines.ts:99` sleep ✓ · `digests.ts:255,260` sort sites ✓ · **all six workspace packages carry
   NO `engines` field** ✓ (the `>=26` floor is declarative-only). **STALE CLAIM — §7.4 says ONE `.mjs`
   outside the nets; there are 17** under `scripts/probes/` (two created today by my own lanes).
@@ -3779,7 +3779,7 @@ crunchy-cluster, parity-plus (D109/D110).
   tested against the real allowlist's glob semantics (`Bash(pnpm check *)` etc.); a wrong matcher denies
   everything. Own lane, fresh context.
 
-- **NEXT UP (node-26 program, `docs/design/node-26-adoption-program.md`):** W2-UNDICI (the untested SSRF
+- **NEXT UP (node-26 program, `docs/history/design/node-26-adoption-program.md`):** W2-UNDICI (the untested SSRF
   dispatcher contract + the 7.28→8.x pin drift — **highest risk in the doc**) · W1-TOOLCHAIN (lib delta +
   `platform.d.ts` + the engines wall; **all six packages carry NO `engines` field**) · then W3/W4/W5, §8
   gate LAST. Also queued: convert the **17** `.mjs` probes to `.ts` (§7.4 undercounts this as one file) —

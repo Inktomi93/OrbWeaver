@@ -101,6 +101,33 @@ test("a SINGLE variant renders no pager at all — no counter, no dead back-step
   await expect(component.getByRole("button", { name: "Next variant" })).toHaveCount(0);
 });
 
+// #849 — AND THAT ONE AFFORDANCE MUST SAY WHAT IT IS, ON SCREEN. Shipped, the single-variant arm was a
+// 34×34 transparent chevron with an empty `textContent` AND an empty parent text, floating over the room's
+// background art: the only affordance in the app whose visible label is the empty string, and a right
+// chevron reads as "next page" while this one costs a model call (side-eye 2026-08-30 P2).
+//
+// The pin asserts what a COLD READER can see — a non-empty visible label, and that the label is contained
+// in the accessible name (WCAG 2.5.3, which is why the visible word is the verb #570's accname already
+// opens with rather than a synonym). It does NOT re-assert the counter: "a pager needs pages" still holds
+// and no `1 / 1` comes back.
+test("#849: the single-variant generate control carries a VISIBLE label, not a bare chevron", async ({ mount }) => {
+  const component = await mount(<SwipeStripStory message={atIdx0Of1} />);
+
+  const generate = component.getByRole("button", { name: "Generate a variant" });
+  // Polled, not sampled: both halves are live DOM reads, and the pair is the whole property — a non-empty
+  // VISIBLE label, and that same rendered string contained in the accessible name (WCAG 2.5.3). Derived
+  // from what is on screen rather than restated, so a copy edit that breaks the containment reds here.
+  await expect
+    .poll(async () => {
+      const visible = ((await generate.textContent()) ?? "").trim();
+      const name = await generate.getAttribute("aria-label");
+      return { visible, containedInName: visible.length > 0 && name?.includes(visible) === true };
+    })
+    .toEqual({ visible: "Generate", containedInName: true });
+  // The counter stays gone — this arm is the verb alone (the "A PAGER NEEDS PAGES" ruling, untouched).
+  await expect(component.getByText("1 / 1")).toHaveCount(0);
+});
+
 test("COLD LOAD step-BACK: the left chevron reaches an earlier variant this mount has never rendered", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "chat.selectVariant": () => ({ ok: true }),

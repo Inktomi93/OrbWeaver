@@ -26,6 +26,9 @@ export function createGetGame(ctx: RpgContext): Pick<RpgService, "getGame"> {
       effectiveDelivery: deriveEffectiveDelivery(game.config.extractionMode, { trackersReadOnly, foldGuarded }),
       publicConfig: {
         statProfile: game.config.statProfile,
+        // #862 — the ruleset setting: member-safe AND member-needed (the dice-ask row above the composer
+        // publishes this ruleset's dice; a freeform game publishes none).
+        ruleset: game.config.ruleset,
         dateMode: game.config.dateMode, // #9 — the ambient-date display mode (member-safe)
         immersiveHtml: game.config.features.immersiveHtml,
         // P5 (§5.4/§6.4) — the wand's game affordance gates + the choice-click behavior (member-safe).

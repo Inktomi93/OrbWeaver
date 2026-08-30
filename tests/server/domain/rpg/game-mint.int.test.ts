@@ -27,14 +27,15 @@ describe("mintLiteGame", () => {
     expect(row?.config.statProfile).toEqual(RPG_PROFILE_FREEFORM);
   });
 
-  test("a supplied profile carries through the config schema instead of the freeform default", async () => {
+  test("a supplied RULESET derives the born vocabulary instead of the freeform default", async () => {
     const db = await freshDb();
     const h = makeRpgService(db);
     const chatId = await seedChat(db, "birth2");
 
-    const gameId = await mintLiteGame(h.ctx, { chatId, profile: RPG_PROFILE_D20 });
+    const gameId = await mintLiteGame(h.ctx, { chatId, ruleset: "d20" });
 
     const [row] = await db.select().from(rpgGames).where(eq(rpgGames.id, gameId));
+    expect(row?.config.ruleset).toBe("d20");
     expect(row?.config.statProfile).toEqual(RPG_PROFILE_D20);
     expect(row?.config.statProfile.defaultAttribute).toBe("str");
   });

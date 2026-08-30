@@ -77,9 +77,16 @@ export function HomeQuickPicksTileBody(): ReactElement {
     <Grid aria-label="Character quick-picks" cols="cellFixed" gap="row" role="list">
       {quickPicks.map((character) => {
         // The ladder is pitch → visible tag line → NOTHING (#119): the handle/slug is row IDENTITY, not
-        // caption copy — `CharacterSummary` carries no third honest fallback (no creator/kind field to
-        // fall back to), so a card with neither reads with one line instead of a lowercase slug. The name
+        // caption copy, so a card with neither reads with one line instead of a lowercase slug. The name
         // above already identifies the cell; an absent second line beats an invented one.
+        //
+        // TRUTH-REPAIR (2026-08-30, #864/#865): the reason this note used to give — "`CharacterSummary`
+        // carries no third honest fallback (no creator/kind field to fall back to)" — is FALSE since #865
+        // put a closed `provenance` verdict (`shipped | imported | authored`) on the list row. The RULING
+        // still stands and the ladder is unchanged: provenance answers "where did this come from", which
+        // is a fact about the FILE, not a description of the character — printing "imported" where a pitch
+        // belongs would be the invented second line the ladder refuses. It is not a missing fallback any
+        // more; it is a fallback that says the wrong kind of thing.
         const tagLine = character.tags
           .filter((tag) => !tag.isHiddenOnCard)
           .map((tag) => tag.name)

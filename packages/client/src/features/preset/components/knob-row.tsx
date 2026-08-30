@@ -113,8 +113,11 @@ export function KnobRow(props: KnobRowProps): ReactElement {
         const describedBy = gloss === undefined || gloss === null ? undefined : glossId;
         return (
           // THREE CELLS AND A GLOSS, straight into the parent KnobGrid's tracks (never wrapped — see the
-          // header). Wide: name · rail · value-cluster on one line, sharing a vertical center. Folded: each
-          // cell takes the whole width in turn, so the rail gets the pane and the twin lands under it.
+          // header). Wide: name · rail · value-cluster on one line, sharing a vertical center. Folded (two
+          // tracks, side-eye 2026-08-30 P2-C): name and value share the first line — so the values read down
+          // a right-hand column against the rail's own edge — and the rail takes the whole width beneath
+          // them. No cell names a ROW in either arm (they are all cells of ONE grid, so a row index would
+          // address every knob at once); the fold is the rail's `col-span-2` plus the grid's dense flow.
           <>
             <KnobLabel hint={hint} label={label} />
             <KnobControls
@@ -172,7 +175,13 @@ function KnobControls({
         // `min-w-0` is the GRID-ITEM floor override (a track's item is `min-width:auto` by default, which
         // is what lets a rail refuse to shrink and push the row wide). The old `flex-1` went with the flex
         // row this used to be — in a `1fr` track the rail already takes the middle.
-        className="min-w-0"
+        //
+        // FOLDED, THE RAIL TAKES ITS OWN LINE UNDER THE PAIR (side-eye 2026-08-30 P2-C). This span is the
+        // ONLY placement the folded arm states: it cannot fit beside the name in a two-track row, so it
+        // starts the line below — and the grid's dense flow then backfills the value cell into the hole it
+        // left beside the name (`@orb/ui`'s `knob` recipe carries the why). The DOM order is untouched in
+        // both arms, which is what keeps the reading order the eye's order.
+        className="min-w-0 @max-lg:col-span-2"
         largeStep={largeStep}
         max={max}
         min={min}
@@ -199,8 +208,23 @@ function KnobControls({
       />
 
       {/* The value cluster — ONE cell (see this function's note). `justify="end"` so a folded row's number
-          still reads down the same edge the rail ends at. */}
-      <Row align="center" gap="field" justify="end">
+          still reads down the same edge the rail ends at.
+          FOLDED, IT RIDES THE LABEL'S LINE (side-eye 2026-08-30 P2-C): row 1, second track, ending on the
+          RAIL'S edge — where a stacked cell of its own had only the row's whole width and floated 54px short
+          of everything. `me-slider-inset` is what makes that edge the rail's and not the row's: the Slider's
+          CONTROL is deliberately inset by half a thumb on both sides (its own `mx-slider-inset`, side-eye
+          2026-08-22 P2-8 — at the extremes the knob hangs half outside its box, and flush to a phone's edge
+          it sat on the OS swipe bezel). Matching that margin is what makes the column's outer edge and the
+          rail's outer edge the SAME x; the label needs no twin of it, since a track's start already sits at
+          the row's start. `data-slot` because the alignment IS the finding: the receipt is
+          `knob-value.right === slider-control.right`, and a cluster with no name cannot be measured.
+          AND THE RESET SITS ON THE NUMBER'S LEFT WHILE FOLDED. The column the eye tracks is the NUMBERS, and
+          the reset holds a reserved slot on every row whether or not it is visible (the no-jitter rule two
+          functions up) — so with the reset trailing, the numbers stopped ~54px short of the rail's end and
+          the finding survived its own fix. Reversed, the number is what ends on the rail's edge and the
+          reserved slot falls inboard, where it costs nothing and still never jitters. It is a CSS order, not
+          a DOM one: the reading order stays name → value → its reset, which is the order the pair means. */}
+      <Row align="center" data-slot="knob-value" gap="field" justify="end" className="@max-lg:me-slider-inset @max-lg:flex-row-reverse">
         <NumberField
           aria-describedby={describedBy}
           // THE TWIN IS NOT THE SLIDER (side-eye 2026-08-19 P1-2). Both modalities carried the IDENTICAL
@@ -241,13 +265,14 @@ function KnobControls({
  *  IT IS A GRID CELL PLACED IN THE RAIL'S COLUMN, not a row with a spacer box in front of it. The spacer was
  *  a second copy of the fixed label width, so it inherited every defect that width had: it stayed 152px wide
  *  while the name beside it grew, and at a narrow pane it ate the gloss's own line. `col-start-2` puts the
- *  line under the rail wherever the rail is, and in the folded arm it simply takes the row it is given. */
+ *  line under the rail wherever the rail is; folded it takes the whole width of the row BELOW the rail
+ *  (side-eye 2026-08-30 P2-C — the folded arm is two tracks now, so the row it is "given" has to be said). */
 function KnobGloss({ text, glossId }: { readonly text: string | null; readonly glossId: string }): ReactElement | null {
   if (text === null) {
     return null;
   }
   return (
-    <Text as="span" className="@lg:col-span-2 @lg:col-start-2" id={glossId} voice="gloss">
+    <Text as="span" className="@max-lg:col-span-2 @lg:col-span-2 @lg:col-start-2" id={glossId} voice="gloss">
       {text}
     </Text>
   );

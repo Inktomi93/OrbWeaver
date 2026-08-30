@@ -22,6 +22,7 @@ import { chatListResponder, makeChatSummary } from "../../chat/fixtures.ts";
 import { GrainDoublePaintFixture, OverArtGlassCensusFixture, ShellCascadeFixture } from "../_cascade-fixtures.tsx";
 import {
   AppShellChatsProjectionIntentStory,
+  AppShellChatTopbarIdentityStory,
   AppShellDropGuardStory,
   AppShellListPrimaryStory,
   AppShellMobileRuleStory,
@@ -1509,6 +1510,168 @@ test("#375 Reading derives the context crossover from the resolved pane geometry
   const topbarTitle = page.locator(".shell-topbar-title:visible");
   await expect(topbarTitle).toHaveText("Presets");
   await expect.poll(() => topbarTitle.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+});
+
+// ── #846 / #860: THE TOPBAR YIELDS THE ROOM'S IDENTITY TO THE DOCKED CONTEXT PANE ───────────────────────
+//
+// MEASURED on the live stack at 1280×800 with BOTH panes docked: the content column is 568px and the room
+// title rendered 104px of its 220px natural width, showing "Example — …" — the prefix every seeded room
+// shares — on the one row that names the room, in exactly the state where the user has opened the detail
+// panel to configure the room they can no longer identify. The owner ruled the fix by RELOCATION (#860):
+// the room's name lives in the context pane's HEAD BAND, so while that pane is DOCKED the topbar sheds its
+// title + the members chip + the recall chip (their home is on screen 300px away — one identity, one home)
+// and keeps the avatar cluster. A collapsed pane leaves the row as it was: chats default to a collapsed
+// pane, and a nameless room is the injury #846 describes.
+//
+// The pins read the RENDERED result through user-visible affordances (`offsetParent` — the yield is
+// `display: none`), so both arms compile and run against the pre-#860 source, where the first REDS: the
+// title and both chips were visible (and the title truncated) at dock+dock.
+
+/** The room this pin seats: a name long enough to have been crushed, and a four-seat roster so the member
+ *  chip renders at its real width. */
+const TOPBAR_IDENTITY_ROOM = {
+  title: "Example — The Ashen Spire",
+  temporary: false,
+  viewerIsHost: true,
+  participants: [
+    { id: "participant_host", kind: "human", role: "host", userId: "user_host", characterId: null, displayName: "Nate", avatarHash: null, leftSeq: null },
+    {
+      id: "participant_aria",
+      kind: "character",
+      role: "member",
+      userId: null,
+      characterId: "character_aria",
+      displayName: "Aria",
+      avatarHash: null,
+      leftSeq: null,
+    },
+    {
+      id: "participant_bolt",
+      kind: "character",
+      role: "member",
+      userId: null,
+      characterId: "character_bolt",
+      displayName: "Bolt",
+      avatarHash: null,
+      leftSeq: null,
+    },
+    {
+      id: "participant_cass",
+      kind: "character",
+      role: "member",
+      userId: null,
+      characterId: "character_cass",
+      displayName: "Cass",
+      avatarHash: null,
+      leftSeq: null,
+    },
+  ],
+};
+
+interface TopbarIdentityReadout {
+  readonly title: boolean;
+  readonly membersChip: boolean;
+  readonly recallChip: boolean;
+  readonly avatars: boolean;
+  /** The notifications bell — NOT a subject, a PREMISE: the `snap --isolated` stage renders the trail
+   *  WITHOUT it (183px vs live main's 225px), so a receipt taken there measures a row the production user
+   *  does not have. This pin refuses to read a bell-less row. */
+  readonly bell: boolean;
+  /** `clientWidth - scrollWidth` on the visible title, `NaN` when it is not rendered. */
+  readonly titleSlack: number;
+}
+
+/** Seat the notifications BELL in the trail by answering the capability it gates on at the network
+ *  boundary (`/api/auth/config.multiHumanCapable` — the honest source, the `chats-section.ct.tsx` idiom). */
+async function seatNotificationBell(page: Page): Promise<void> {
+  await page.route("**/api/auth/config", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        mode: "single",
+        requiresLogin: false,
+        localEnabled: false,
+        oidcEnabled: false,
+        discreetLogin: false,
+        defaultHandle: null,
+        multiHumanCapable: true,
+      }),
+    }),
+  );
+}
+
+/** Drive the context pane to `mode`, settle, and read the identity row in ONE in-page pass. Rendered
+ *  visibility is `offsetParent !== null` — the yield is `display: none`, which is exactly what that answers,
+ *  and it does not care that the identity arm is `display: contents`. */
+async function settledTopbarIdentity(page: Page, shell: Locator, mode: "docked" | "collapsed"): Promise<TopbarIdentityReadout> {
+  const contextPanel = page.locator('.shell-panel[data-panel-side="context"]');
+  const current = await contextPanel.getAttribute("data-panel-mode");
+  if (current !== mode) {
+    await shell.getByRole("button", { name: mode === "docked" ? "Show detail panel" : "Hide detail panel" }).click();
+  }
+  await expect(contextPanel).toHaveAttribute("data-panel-mode", mode);
+  await expect(page.locator('.shell-panel[data-panel-side="list"]')).toHaveAttribute("data-panel-mode", "docked");
+  await expect(page.locator(".shell-grid")).toHaveAttribute("data-context-mode", mode);
+  // BARRIER ON THE RESOLVED IDENTITY — the header renders a title-width skeleton (`aria-busy`) until the
+  // room's `getChat` lands; a row read before that measures the shape of an identity, not one.
+  await expect(page.locator('.shell-topbar-identity[data-identity="wide"] [aria-busy="true"]')).toHaveCount(0);
+  await expect(page.locator('.shell-topbar-identity[data-identity="wide"] [data-slot="avatar-stack-root"]')).toHaveCount(1);
+  return page.evaluate(() => {
+    const shown = (element: Element | null): boolean => element !== null && (element as HTMLElement).offsetParent !== null;
+    const title = document.querySelector<HTMLElement>('.shell-topbar-identity[data-identity="wide"] .shell-topbar-title');
+    return {
+      title: shown(title),
+      membersChip: shown(document.querySelector('[aria-label^="Members — "]')),
+      recallChip: shown(document.querySelector('[aria-label^="Memory — "]')),
+      avatars: shown(
+        document.querySelector(
+          '.shell-topbar-identity[data-identity="wide"] [data-slot="avatar-stack-root"], .shell-topbar-identity[data-identity="wide"] [data-slot="avatar-root"]',
+        ),
+      ),
+      bell: shown(document.querySelector('[aria-label="Notifications"]')),
+      titleSlack: title === null || !shown(title) ? Number.NaN : title.clientWidth - title.scrollWidth,
+    };
+  });
+}
+
+test("#846: at 1280 with BOTH panes docked the topbar yields the room's name + chips to the context band — the avatars stay", async ({ mount, page }) => {
+  // The bell brings its own inbox read into the tree — FED, not declared.
+  await routeTrpc(page, {
+    ...SHELL_AMBIENT_ROUTES,
+    "chat.getChat": () => TOPBAR_IDENTITY_ROOM,
+    "notifications.list": () => ({ items: [], nextCursor: null }),
+  });
+  await seatNotificationBell(page);
+  await page.setViewportSize({ width: 1280, height: 800 });
+  const shell = await mount(<AppShellChatTopbarIdentityStory />);
+
+  const readout = await settledTopbarIdentity(page, shell, "docked");
+  // The premise: the row carries the SAME trailing furniture a real account has.
+  expect(readout.bell).toBe(true);
+  // THE DEFECT PIN: nothing of the identity that the band now carries is on this row — no crushed title.
+  expect(readout).toMatchObject({ title: false, membersChip: false, recallChip: false, avatars: true });
+});
+
+test("#846: with the context pane COLLAPSED the topbar names the room WHOLE, chips and all — the yield buys room, it does not keep it", async ({
+  mount,
+  page,
+}) => {
+  await routeTrpc(page, {
+    ...SHELL_AMBIENT_ROUTES,
+    "chat.getChat": () => TOPBAR_IDENTITY_ROOM,
+    "notifications.list": () => ({ items: [], nextCursor: null }),
+  });
+  await seatNotificationBell(page);
+  await page.setViewportSize({ width: 1280, height: 800 });
+  const shell = await mount(<AppShellChatTopbarIdentityStory />);
+
+  const readout = await settledTopbarIdentity(page, shell, "collapsed");
+  expect(readout.bell).toBe(true);
+  expect(readout).toMatchObject({ title: true, membersChip: true, recallChip: true, avatars: true });
+  await expect(page.locator(".shell-topbar-title:visible")).toHaveText(TOPBAR_IDENTITY_ROOM.title);
+  // …and WHOLE: with the pane closed the column has the room, so no "Example — …".
+  expect(readout.titleSlack).toBeGreaterThanOrEqual(0);
 });
 
 test("#375 the context regime follows rendered shell geometry and releases its observer", async ({ mount, page }) => {

@@ -5,6 +5,7 @@
 // imported by RELATIVE path — the package `./*` map only resolves a directory front door, not a flat file.
 
 import type { CharacterListCursor } from "@orb/contracts/character";
+import { AUTHORED_CARD_CREATOR } from "@orb/contracts/character";
 import { characters, characterTags, tags } from "@orb/db";
 import type { CharacterHandle, CharacterId, Handle, TagId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -142,6 +143,74 @@ describe("persistence/queries", () => {
     // No summary/stats row → both denorms are null (LEFT JOIN miss).
     expect(byHandle.get(castId<CharacterHandle>("bare"))?.elevatorPitch).toBeNull();
     expect(byHandle.get(castId<CharacterHandle>("bare"))?.lastChattedAt).toBeNull();
+  });
+
+  // #865 — the two fields the Characters landing reads off a FACE. `chatCount` was already selected for the
+  // most/fewestChats keysets and thrown away in `summaryOf`; `provenance` is the closed verdict the Origin
+  // readout used to re-derive on the client. Both ride the page query's EXISTING joins/columns.
+  test("summaryOf projects chatCount off the stats join — 0, not null, when the row has never chatted (#865)", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const busy = await seedRawCharacter(db, { id: "character_busy", ownerId: owner, handle: castId<CharacterHandle>("busy") });
+    // A stats row that EXISTS but counts zero — distinct from having no stats row at all.
+    const idle = await seedRawCharacter(db, { id: "character_idle", ownerId: owner, handle: castId<CharacterHandle>("idle") });
+    await seedRawCharacter(db, { id: "character_nostats", ownerId: owner, handle: castId<CharacterHandle>("nostats") });
+    await seedCharacterStats(db, { characterId: busy, lastActivityAt: 1_800_000_000_000, chats: 7 });
+    await seedCharacterStats(db, { characterId: idle, lastActivityAt: null, chats: 0 });
+
+    const rows = await listOwnedCharactersWithAvatar(db, { ownerId: owner, limit: 10, sort: "recent", cursor: undefined });
+    const byHandle = new Map(rows.map((r) => [r.character.handle, summaryOf(r, [], NO_AMBIGUOUS_NAMES)]));
+    expect(byHandle.get(castId<CharacterHandle>("busy"))?.chatCount).toBe(7);
+    expect(byHandle.get(castId<CharacterHandle>("idle"))?.chatCount).toBe(0);
+    // THE JOIN MISS IS A COUNT OF ZERO, NOT AN UNKNOWN: "no stats row" and "a stats row saying 0" are the
+    // same fact to a reader ("no chats yet"), and the face prints a NUMBER — a nullable field there would
+    // push a three-state decision onto every consumer for a distinction the product does not make.
+    expect(byHandle.get(castId<CharacterHandle>("nostats"))?.chatCount).toBe(0);
+  });
+
+  test("summaryOf projects the closed provenance verdict — imported beats shipped beats authored (#865)", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    await seedRawCharacter(db, {
+      id: "character_imported",
+      ownerId: owner,
+      handle: castId<CharacterHandle>("imported"),
+      importedFrom: "https://example.test/card.png",
+      // Both signals at once — an imported card whose creator is the shipped marker is still IMPORTED.
+      creator: AUTHORED_CARD_CREATOR,
+    });
+    await seedRawCharacter(db, {
+      id: "character_shipped",
+      ownerId: owner,
+      handle: castId<CharacterHandle>("shipped"),
+      creator: AUTHORED_CARD_CREATOR,
+    });
+    await seedRawCharacter(db, { id: "character_mine", ownerId: owner, handle: castId<CharacterHandle>("mine"), creator: "nate" });
+
+    const rows = await listOwnedCharactersWithAvatar(db, { ownerId: owner, limit: 10, sort: "recent", cursor: undefined });
+    const byHandle = new Map(rows.map((r) => [r.character.handle, summaryOf(r, [], NO_AMBIGUOUS_NAMES)]));
+    expect(byHandle.get(castId<CharacterHandle>("imported"))?.provenance).toBe("imported");
+    expect(byHandle.get(castId<CharacterHandle>("shipped"))?.provenance).toBe("shipped");
+    expect(byHandle.get(castId<CharacterHandle>("mine"))?.provenance).toBe("authored");
+  });
+
+  test("detailOf projects the SAME provenance verdict as summaryOf (one derivation, two views) (#865)", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const id = await seedRawCharacter(db, {
+      id: "character_ship_detail",
+      ownerId: owner,
+      handle: castId<CharacterHandle>("ship-detail"),
+      creator: AUTHORED_CARD_CREATOR,
+    });
+    const withAvatar = await loadOwnedCharacterWithAvatar(db, owner, id);
+    if (withAvatar === undefined) {
+      throw new Error("expected the owned row");
+    }
+    expect(detailOf(withAvatar, []).provenance).toBe("shipped");
+    // …and the card's OWN `source` (the ST V3 provenance-URL list) is a different field with a different
+    // meaning, untouched by the verdict.
+    expect(detailOf(withAvatar, []).source).toBeNull();
   });
 
   test("findByOwnerHandle + listOwnerHandles resolve per-owner", async () => {

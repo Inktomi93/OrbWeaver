@@ -982,7 +982,7 @@
     {
       "siteId": "packages/client/src/features/preset/hooks/use-preset-autosave.ts::promise:run::1",
       "path": "packages/client/src/features/preset/hooks/use-preset-autosave.ts",
-      "line": 171,
+      "line": 205,
       "column": 24,
       "grammar": "promise",
       "position": "promise:run",
@@ -990,7 +990,7 @@
       "snippet": "chainRef.current = run.catch(() => undefined);",
       "verdict": "deliberate-absorb",
       "reason": "this .catch only resets the internal chain —",
-      "markerLine": 168
+      "markerLine": 202
     },
     {
       "siteId": "packages/client/src/features/preset/lib/custom-parameters-model.ts::default:catch::1",
@@ -1060,7 +1060,7 @@
     {
       "siteId": "packages/client/src/features/roster-preset/components/cast-picker.tsx::promise:startChat::1",
       "path": "packages/client/src/features/roster-preset/components/cast-picker.tsx",
-      "line": 243,
+      "line": 249,
       "column": 5,
       "grammar": "promise",
       "position": "promise:startChat",
@@ -1068,7 +1068,7 @@
       "snippet": "startChat({",
       "verdict": "deliberate-absorb",
       "reason": "startChat and apply.mutateAsync each carry their own errorToast (use-start-chat.ts, useApplyRosterPreset); the swallow only silences the unhandled-rejection warning, and the picked cast survives for retry. Ends if either mutation stops owning its failure copy.",
-      "markerLine": 242
+      "markerLine": 248
     },
     {
       "siteId": "packages/client/src/features/roster-preset/surfaces/cast-member-surface.tsx::promise:startChat::1",
@@ -1099,7 +1099,7 @@
     {
       "siteId": "packages/client/src/features/rpg/components/rpg-game-tab.tsx::empty:catch::1",
       "path": "packages/client/src/features/rpg/components/rpg-game-tab.tsx",
-      "line": 327,
+      "line": 328,
       "column": 7,
       "grammar": "empty",
       "position": "empty:catch",
@@ -1107,12 +1107,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "the failed mutation's own errorToast already",
-      "markerLine": 314
+      "markerLine": 315
     },
     {
       "siteId": "packages/client/src/features/rpg/components/rpg-game-tab.tsx::promise:onResync::1",
       "path": "packages/client/src/features/rpg/components/rpg-game-tab.tsx",
-      "line": 356,
+      "line": 357,
       "column": 13,
       "grammar": "promise",
       "position": "promise:onResync",
@@ -1120,7 +1120,7 @@
       "snippet": "onResync().catch(() => undefined); // The sequence owns and surfaces mutation failure.",
       "verdict": "deliberate-absorb",
       "reason": "onResync already catches its own",
-      "markerLine": 353
+      "markerLine": 354
     },
     {
       "siteId": "packages/client/src/features/rpg/components/rpg-populate-control.tsx::empty:catch::1",

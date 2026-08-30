@@ -24,6 +24,7 @@ import {
   __resetPresetSelection,
   __resetTagFilter,
   activeChatId,
+  announceStatus,
   COMPOSER_DRAFT_CAP,
   ConfigSectionRegistryProvider,
   chatDeletedFromList,
@@ -50,6 +51,8 @@ import {
   getContextTab,
   goToLanding,
   isCommitted,
+  onGameModeStarted,
+  onGameModeStopped,
   openConfigGroup,
   openConfigTo,
   openModal,
@@ -175,6 +178,7 @@ import {
   useSelectedWorldEntryId,
   useShowArchived,
   useSpoilerBlur,
+  useStatusAnnouncement,
   useTagFilter,
   useTagSortMode,
 } from "@orb/client/state";
@@ -1188,6 +1192,32 @@ export function ComposerFocusProbe(): ReactElement {
         request other
       </button>
       <output>{`nonce=${nonce} other=${other}`}</output>
+    </div>
+  );
+}
+
+/** GameModeTransitionProbe — drives the game-mode transition seam (#862/#863): the ONE home for what a
+ *  USER-INITIATED game-mode start/stop announces and reveals, shared by two doors that live in different
+ *  client features and may not import each other. A CT because both reads are reactive hooks (the live
+ *  region's message and the shell's context landing) — `useSyncExternalStore` needs a browser render, the
+ *  composer-focus-store.ct posture. The probe surfaces both as text so the CT proves what a screen reader
+ *  hears and where the panel lands, without reaching into store internals. */
+export function GameModeTransitionProbe(): ReactElement {
+  const announcement = useStatusAnnouncement();
+  const contextTab = useContextTab();
+  const panel = usePanelOverride(useActiveSection(), "context");
+  return (
+    <div>
+      <button type="button" onClick={onGameModeStarted}>
+        start game mode
+      </button>
+      <button type="button" onClick={onGameModeStopped}>
+        stop game mode
+      </button>
+      <button type="button" onClick={(): void => announceStatus("Loaded chat.")}>
+        announce route
+      </button>
+      <output>{`say=${announcement} tab=${contextTab ?? "none"} panel=${panel ?? "unset"}`}</output>
     </div>
   );
 }

@@ -1,5 +1,5 @@
 // schema/roster-preset — saved parties (producer: domain/roster-preset; D61 B6, build record:
-// docs/design/saved-rosters-build-record.md). A roster preset is a LIBRARY artifact — a named cast the
+// docs/history/design/saved-rosters-build-record.md). A roster preset is a LIBRARY artifact — a named cast the
 // owner drops into rooms — never a membership record: `chat_participants` stays the ONE runtime roster,
 // and a chat started from a preset carries NO back-reference (a preset is a stamp, not a live link).
 //

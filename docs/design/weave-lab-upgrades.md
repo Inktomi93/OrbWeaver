@@ -8,7 +8,7 @@ updated: 2026-08-14
 
 > Provenance: the claude.ai/design motion review's SECOND handoff ("Orbweaver UI" project,
 > `templates/weave-lab/HANDOFF.md`, fetched 2026-08-14). Extends — and in one place AMENDS —
-> [`web-weave-motion-fixes.md`](web-weave-motion-fixes.md); the design side's own sequencing is
+> [`../history/design/web-weave-motion-fixes.md`](../history/design/web-weave-motion-fixes.md); the design side's own sequencing is
 > "land the defect fixes first." Browser-verified references vendored read-only:
 > [`mocks/weave-lab-reference.js`](mocks/weave-lab-reference.js) (engine, `<weave-lab>`) and
 > [`mocks/weave-spinner-reference.js`](mocks/weave-spinner-reference.js) (loader). Same constants

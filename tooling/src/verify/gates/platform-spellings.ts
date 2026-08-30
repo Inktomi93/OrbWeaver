@@ -1,5 +1,5 @@
 // Gate: platform-spellings — the anti-backslide ratchet for the Node 21→26 maximal-adoption program §8
-// (docs/design/node-26-adoption-program.md). Each ACTIVE arm is a RULED ADOPT/AVOID whose modern spelling
+// (docs/history/design/node-26-adoption-program.md). Each ACTIVE arm is a RULED ADOPT/AVOID whose modern spelling
 // W4 already burned down; the gate keeps the old spelling from creeping back through a copy-paste or an
 // agent's pre-node-26 muscle memory. All FOUR arms land at ZERO on the tree — a LIVE-verified zero: the
 // arm inventory was established by RUNNING the gate (`pnpm check:structure`), not by ast-grep sweeps,
@@ -118,7 +118,7 @@ const MAX_RESOLVE_HOPS = 3;
 // prose carries every arm INCLUDING the distinction that keeps an author from "fixing" a non-violation: the
 // three shapes this gate deliberately never flags are the ones most likely to be mistaken for a hit.
 const GROUP_MESSAGE =
-  "a superseded pre-node-26 spelling — the node-26 maximal-adoption program (docs/design/" +
+  "a superseded pre-node-26 spelling — the node-26 maximal-adoption program (docs/history/design/" +
   "node-26-adoption-program.md §8) ruled the modern spelling is THE spelling and W4 burned the sites down. " +
   "Each occurrence's token names its arm. `sleep`: `new Promise((resolve) => setTimeout(resolve, ms))` → " +
   "`node:timers/promises` setTimeout (§4.1) — a timeout-REJECT race references reject in its body and is " +
@@ -406,7 +406,7 @@ function report(node: Node, token: string, ctx: GateRunCtx): void {
 
 export const gate: GateDescriptor = {
   name: "platform-spellings",
-  docRow: "Core-Enforcement-Active-Gates.md (Layer 3) — docs/design/node-26-adoption-program.md §8",
+  docRow: "Core-Enforcement-Active-Gates.md (Layer 3) — docs/history/design/node-26-adoption-program.md §8",
   status: "active",
   scopeSafety: "incremental-safe", // per-file, syntactic verdicts — no cross-file state
   message: GROUP_MESSAGE,

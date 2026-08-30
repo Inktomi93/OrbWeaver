@@ -31,9 +31,11 @@ Chats a committed `{kind: landing}` pane and Characters only a "teaching state" 
 `character.list` today: `name` · `handle` · `avatarHash`/`avatarAssetId` · `starred` · `archived` · `createdAt` ·
 `lastChattedAt` (the recent signal) · `tags` · `elevatorPitch`; server sorts `recent | starred | newest`
 (`packages/server/src/domain/character/verbs/list.ts`, `contract/views.ts:47-80`). Ruled onto the wire by
-#865: `chatCount` (already computed in `persistence/queries.ts:104`, dropped in `summaryOf`) and a closed
-`source` (shipped · imported · made here) — the faces show "· N chats" and the fresh-install shelf is named by
-`source`. The face tile is the Chats home tile's shelf (`features/chat/components/home-quick-picks-tile-body.tsx`:
+\#865: `chatCount` (already computed in `persistence/queries.ts:104`, dropped in `summaryOf`) and a closed
+`provenance` (`CharacterProvenance` = shipped · imported · authored) — the faces show "· N chats" and the
+fresh-install shelf is named by `provenance`. NOT `source`: that name is already the card's own ST V3
+provenance-URL list, and #865 landed the verdict as `CharacterSummary.provenance` (corrected here on the
+build, 2026-08-30). The face tile is the Chats home tile's shelf (`features/chat/components/home-quick-picks-tile-body.tsx`:
 `Grid cols="cellFixed"` + `Avatar` + `Text voice="promoted"` + gloss), not a new primitive.
 
 ## Fences the build honours

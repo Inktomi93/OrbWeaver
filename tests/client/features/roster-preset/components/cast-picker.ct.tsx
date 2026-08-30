@@ -92,7 +92,7 @@ function applyResult(over: Record<string, unknown> = {}): Record<string, unknown
 }
 
 test("renders the routed library: names, member counts, previews; chat-scoped affordances stay hidden with no room open", async ({ mount, page }) => {
-  await routeTrpc(page, { "rosterPreset.list": [CAST_A, CAST_B] });
+  await routeTrpc(page, { "rosterPreset.list": [CAST_A, CAST_B], "automation.listRulePresets": [PACING_PRESET], "automation.listRules": [] });
 
   await mount(<CastPickerStory />);
 
@@ -111,17 +111,46 @@ test("renders the routed library: names, member counts, previews; chat-scoped af
 });
 
 test("the empty library shows the designed empty state, not a bare list", async ({ mount, page }) => {
-  await routeTrpc(page, { "rosterPreset.list": [] });
+  await routeTrpc(page, { "rosterPreset.list": [], "automation.listRulePresets": [PACING_PRESET], "automation.listRules": [] });
 
   await mount(<CastPickerStory />);
 
   await expect(page.getByText("No saved casts yet")).toBeVisible();
+  // No room open ⇒ this viewer cannot save from here, so the empty state's CTA is honest and stays.
+  await expect(page.getByRole("button", { name: "Start a new chat" })).toBeVisible();
+});
+
+// #848 — THE EMPTY STATE MAY NOT SEND A HOST OUT OF THE ROOM THEY OPENED IT FROM. Shipped, the host's
+// empty arm led with an emphasised "Start a new chat" — which closes this modal AND abandons the room
+// being configured — while the only action the surface can complete, "Save current cast", sat below as a
+// dim ghost with nothing saying a name enables it (side-eye 2026-08-30 §Taste: "the hierarchy is
+// inverted"). The two halves are pinned together because either alone leaves the inversion standing.
+test("#848: a HOST's empty library offers no room-abandoning CTA, and says why Save is dim", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "rosterPreset.list": [],
+    "chat.getChat": HOST_CHAT,
+    "automation.listRules": [],
+    "automation.listRulePresets": [PACING_PRESET],
+  });
+
+  await mount(<CastPickerHostStory />);
+
+  await expect(page.getByText("No saved casts yet")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Start a new chat" })).toHaveCount(0);
+  // The dim Save now carries its reason, and the reason CLEARS the moment the condition does.
+  await expect(page.getByRole("button", { name: "Save current cast" })).toBeDisabled();
+  await expect(page.getByText("Name this cast to save it.")).toBeVisible();
+  await page.getByRole("textbox", { name: "New cast name" }).fill("Fresh cast");
+  await expect(page.getByText("Name this cast to save it.")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Save current cast" })).toBeEnabled();
 });
 
 test("delete rides the ConfirmDialog and fires the REAL remove wire call with the row's presetId", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "rosterPreset.list": [CAST_A],
     "rosterPreset.remove": {},
+    "automation.listRulePresets": [PACING_PRESET],
+    "automation.listRules": [],
   });
 
   await mount(<CastPickerStory />);
@@ -203,7 +232,7 @@ test.describe("the cast row under a COARSE pointer (the phone arm)", () => {
   test.use({ hasTouch: true });
 
   test("the CT context reports a coarse pointer (the emulation's own positive control)", async ({ mount, page }) => {
-    await routeTrpc(page, { "rosterPreset.list": [CAST_A] });
+    await routeTrpc(page, { "rosterPreset.list": [CAST_A], "automation.listRulePresets": [PACING_PRESET], "automation.listRules": [] });
     await mount(<CastPickerStory width={316} />);
 
     // ONESHOT-OK: the pointer media is a browser-CONTEXT option (`hasTouch`) fixed before this page existed — not mutable async state.
@@ -238,7 +267,7 @@ for (const width of [316, 480, 768]) {
 
 // ── #812 P2-1 — both counts ride the row controls' ACCESSIBLE NAMES ──────────────────────────────────
 test("the row's apply doors announce the member and rule counts; a rules-free cast says only its members", async ({ mount, page }) => {
-  await routeTrpc(page, { "rosterPreset.list": [CAST_A, CAST_B] });
+  await routeTrpc(page, { "rosterPreset.list": [CAST_A, CAST_B], "automation.listRulePresets": [PACING_PRESET], "automation.listRules": [] });
 
   await mount(<CastPickerStory />);
 
@@ -253,6 +282,7 @@ test("Start reports the rules it switched on plus each skipped rule's REASON, an
   const trpc = await routeTrpc(page, {
     "rosterPreset.list": [CAST_A],
     "automation.listRulePresets": [PACING_PRESET],
+    "automation.listRules": [],
     "chat.startChat": { chat: { ...HOST_CHAT, id: "chat_started_ct" } },
     "rosterPreset.applyToChat": applyResult({
       added: ["character_ct_1", "character_ct_2"],

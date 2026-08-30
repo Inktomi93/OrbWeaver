@@ -101,6 +101,26 @@ test("the Start affordance is a persistent, role=button control — disabled at 
   await expect(startAfter).toBeEnabled();
 });
 
+// #852 — THE START BUTTON HAS EXACTLY ONE NAME. side-eye 2026-08-30 reported the accessible name as the
+// DOUBLED `"Pick a characterPick a character to start"` and read it as an sr-only twin; there is no sr-only
+// span here — the two labels are the container-query arms (`@md:hidden` / `hidden @md:flex`), and the
+// hidden one is `display: none`, which is out of the accessibility tree. `toHaveAccessibleName` is EXACT by
+// default, so this pin is the two-sided proof: it reds on any spelling that concatenates the arms, and it
+// names the arm each width is supposed to speak.
+test("#852: the Start button's accessible name is the ONE arm its width shows — never both concatenated", async ({ mount, page }) => {
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, "character.list": charPage });
+
+  const wide = await mount(<NewChatPickerStory />);
+  await expect(wide.getByRole("button", { name: /Pick a character/u })).toHaveAccessibleName("Pick a character to start");
+});
+
+test("#852: the NARROW picker's Start button speaks the compact arm alone", async ({ mount, page }) => {
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, "character.list": charPage });
+
+  const narrow = await mount(<NarrowNewChatPickerStory />);
+  await expect(narrow.getByRole("button", { name: /Pick a character/u })).toHaveAccessibleName("Pick a character");
+});
+
 // ── #440 — ARRIVING IN THE PICKER PUTS THE CARET IN THE SEARCH BOX ───────────────────────────────
 //
 // The surface used to run `useFocusOnMount` on its own `<Stack tabIndex={-1} className="outline-none">`,

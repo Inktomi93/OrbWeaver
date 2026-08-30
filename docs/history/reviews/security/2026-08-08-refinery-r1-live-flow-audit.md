@@ -22,7 +22,7 @@ updated: 2026-08-08
 
 ## Method
 
-Read IN FULL: `docs/design/refinery-r0.md` §9, the R0 security pass, and every touched file — the 9 verbs,
+Read IN FULL: `docs/history/design/refinery-r0.md` §9, the R0 security pass, and every touched file — the 9 verbs,
 `persistence/queries.ts`, `substrate/{refine-prompt,stage-parse}.ts`, the tRPC router,
 `character/persistence/refinery-ops.ts`, `character/persistence/queries.ts` (heal + `cardOf`),
 `handoff-copy-write.ts`, `contracts/refinery/index.ts`, `contracts/character` (`updateCharacterSchema`),

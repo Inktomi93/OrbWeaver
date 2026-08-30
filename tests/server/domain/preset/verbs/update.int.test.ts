@@ -85,6 +85,30 @@ describe("update (copy-on-write of the system default)", () => {
     expect((await svc.list({ userId: owner })).length).toBe(2);
   });
 
+  // side-eye 2026-08-30 P2-B (#856): the fork copied the BASE row's kind, and the base is the system
+  // default, so a user's own fully-editable preset landed in the library wearing `system` — the exact word
+  // this surface uses for "locked, not yours, no Export, no Reset" — in the subtitle's leading position
+  // (`preset-row-view.ts`: the kind ALWAYS leads). `kind` describes what the preset IS; the provenance is
+  // already carried, correctly, by the `forked from Default` clause the same subtitle renders. Asserted on
+  // BOTH fork intents, because the two doors to a copy must not disagree.
+  test("a COW fork is an OWNED preset, so it mints the ordinary kind — never the built-in's `system`", async () => {
+    const db = await freshDb();
+    const svc = createPresetService(makeHarness(db).ctx);
+    const owner = await seedUser(db);
+    await ensureSystemDefaultPreset(db, () => FROZEN_AT);
+    const base = await svc.get({ userId: owner, id: SYSTEM_DEFAULT_PRESET_ID });
+    expect(base.kind, "the base this forks from is what used to leak into the fork").toBe("system");
+
+    const converged = await svc.update({ userId: owner, id: SYSTEM_DEFAULT_PRESET_ID, config: DEFAULT_PROMPT_CONFIG });
+    expect(converged.kind).toBe("generation");
+
+    const minted = await svc.update({ userId: owner, id: SYSTEM_DEFAULT_PRESET_ID, fork: { mode: "new", name: "Second fork" } });
+    expect(minted.kind).toBe("generation");
+    // An explicitly submitted kind still wins — the fork is not a place that overrides the caller.
+    const named = await svc.update({ userId: owner, id: SYSTEM_DEFAULT_PRESET_ID, kind: "roleplay", fork: { mode: "new", name: "Third fork" } });
+    expect(named.kind).toBe("roleplay");
+  });
+
   test("a COW with no submitted config forks from the system default's own config", async () => {
     const db = await freshDb();
     const svc = createPresetService(makeHarness(db).ctx);

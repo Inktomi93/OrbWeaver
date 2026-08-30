@@ -268,11 +268,17 @@ describe("read — listings (membership-scoped, D18)", () => {
     );
 
     const { listChats } = createRead(makeChatContext(db), makeDeps());
-    const byId = new Map((await listChats({ principal: principal(me) })).items.map((c) => [c.id, c.isGame]));
+    const rows = new Map((await listChats({ principal: principal(me) })).items.map((c) => [c.id, c]));
 
-    expect(byId.get(game)).toBe(true);
-    expect(byId.get(plain)).toBe(false);
-    expect(byId.get(off)).toBe(false);
+    expect(rows.get(game)?.isGame).toBe(true);
+    expect(rows.get(plain)?.isGame).toBe(false);
+    expect(rows.get(off)?.isGame).toBe(false);
+    // #863(f) — the PAUSED bit, off the SAME opaque pointer: it is the ONE row whose game exists but is
+    // switched off. `isGame` is untouched (a disengaged game still claims no panel and no live marker); the
+    // list gets a second, quieter fact so a host can find a sleeping game at all.
+    expect(rows.get(off)?.gamePaused).toBe(true);
+    expect(rows.get(game)?.gamePaused).toBe(false);
+    expect(rows.get(plain)?.gamePaused).toBe(false);
   });
 });
 

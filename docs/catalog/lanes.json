@@ -24,13 +24,12 @@
     {
       "id": "repository-audits",
       "issue": 6,
-      "patterns": ["docs/reviews/repository-audit-*/**/*.md"]
+      "patterns": ["docs/history/reviews/repository-audit-*/**/*.md"]
     },
     {
       "id": "reviews",
       "issue": 7,
-      "patterns": ["docs/reviews/**/*.md"],
-      "excludePatterns": ["docs/reviews/repository-audit-*/**/*.md"]
+      "patterns": ["docs/reviews/**/*.md"]
     },
     {
       "id": "root-operational",
@@ -40,7 +39,8 @@
     {
       "id": "history",
       "issue": 9,
-      "patterns": ["docs/history/**/*.md"]
+      "patterns": ["docs/history/**/*.md"],
+      "excludePatterns": ["docs/history/reviews/repository-audit-*/**/*.md"]
     },
     {
       "id": "vendor",

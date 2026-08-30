@@ -781,7 +781,7 @@ supersedes the separator claim above. There are TWO separate passes with DIFFERE
 > and says nothing about the final Claude wire, where the join is structural rather than textual (measured:
 > golden `custom_squash_claude_strict` carries the card and `"Hello!"` as two adjacent un-joined text blocks
 > in one user message). Full three-stage model, mode table, and receipts:
-> `docs/design/st-message-shaping-atlas.md` §Wire identity.
+> `docs/history/design/st-message-shaping-atlas.md` §Wire identity.
 
 Eight modes, one function, four booleans (`postProcessPrompt:79-102`, `PROMPT_PROCESSING_TYPE:15`):
 

@@ -24,8 +24,8 @@ export interface AuthConfig {
   jwtAudience?: string;
 }
 
-/** #762 — the injected OIDC issuer-discovery round-trip (`openid-client`'s `discovery(issuer, clientId,
- *  clientSecret)` at the composition root; a deterministic fake in tests). The single-flight cache that
+/** #762 — the injected OIDC issuer-discovery round-trip (`openid-client`'s `discovery()` with the issuer,
+ *  client id and secret, at the composition root; a deterministic fake in tests). The single-flight cache that
  *  consumes it is `./oidc-discovery.ts`; the type homes here because a domain-internal shape belongs in the
  *  slice's `contract/`, not beside its one consumer. */
 export type OidcDiscover = () => Promise<Configuration>;

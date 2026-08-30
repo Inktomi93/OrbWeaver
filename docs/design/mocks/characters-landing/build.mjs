@@ -145,7 +145,7 @@ writeFileSync("canvas.json", JSON.stringify({
     { file: "Phone.dc.html", x: 1000, y: 880, w: 430, h: 860, title: "Phone · list hidden" },
   ],
   annotations: [
-    { id: "material", x: 1000, y: 1780, w: 520, text: "Everything drawn exists on character.list today — name, handle, avatar, starred, lastChattedAt, createdAt, elevatorPitch, the recent / starred / newest sorts — plus two the owner ruled onto the wire (#865): the chat count on each face, and a closed source (shipped · imported · made here) that names the fresh-install shelf. Faces reuse the Chats home tile's shelf (Avatar + promoted name + gloss). One New door (#520): the band's when the list is docked, the landing's when it is collapsed. The library count stays in the list pane (#518)." },
+    { id: "material", x: 1000, y: 1780, w: 520, text: "Everything drawn exists on character.list today — name, handle, avatar, starred, lastChattedAt, createdAt, elevatorPitch, the recent / starred / newest sorts — plus two the owner ruled onto the wire (#865): the chat count on each face, and a closed provenance verdict (shipped · imported · authored) that names the fresh-install shelf. Faces reuse the Chats home tile's shelf (Avatar + promoted name + gloss). One New door (#520): the band's when the list is docked, the landing's when it is collapsed. The library count stays in the list pane (#518)." },
   ],
   launch: { view: "canvas" },
 }, null, 2));

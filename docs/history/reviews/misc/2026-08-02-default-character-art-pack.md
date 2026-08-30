@@ -6,7 +6,7 @@ updated: 2026-08-08
 
 # Default-character art pack — receipts, gallery candidates, wiring gaps (Lane AV, 2026-08-02)
 
-Contact sheet for owner review: `docs/reviews/misc/2026-08-02-default-character-art-pack-contact-sheet.png`
+Contact sheet for owner review: `docs/history/reviews/misc/2026-08-02-default-character-art-pack-contact-sheet.png`
 (row 1 = avatars, row 2 = backgrounds, one column per character). An identical throwaway copy sits at
 `reports/avatar-pack-contact-sheet.png`; `reports/` is gitignored, so the committed copy is this one.
 

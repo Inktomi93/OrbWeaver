@@ -1,9 +1,9 @@
 // The HUD's BAND body — resolves the takeover panel state and renders the scene banner + pool orbs. It is
-// mounted by the HUD's own band (`rpg-hud.tsx`), at the TOP of the pane the rpg feature claims:
-// pre-HUD this rode the shell's chrome band through a contributor slot rpg did not own; that channel is
-// deleted, and the band now belongs to the composition that draws it. Homed as its own component because it
-// calls a hook (`useRpgContextState`) and must therefore BE a component (rules-of-hooks). `null` from the
-// hook (a race where the pointer cleared mid-render) collapses to nothing.
+// mounted by the rpg band claim (`rpg-hud-band.tsx`), in the HEAD slot of the shell's context bracket on a
+// game chat (#860): pre-HUD this rode the shell's chrome band through a contributor slot rpg did not own;
+// now it is the one slot a contributor may take, and the bracket around it is the shell's. Homed as its own
+// component because it calls a hook (`useRpgContextState`) and must therefore BE a component
+// (rules-of-hooks). `null` from the hook (a race where the pointer cleared mid-render) collapses to nothing.
 
 import type { ChatId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";

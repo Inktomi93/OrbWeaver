@@ -492,7 +492,7 @@
   animation-delay: calc(var(--motion-breathe) / 3);
 }
 
-/* The streaming caret is OURS ALONE (#42, docs/design/streaming-reveal-42.md — the seal deliberately
+/* The streaming caret is OURS ALONE (#42, docs/history/design/streaming-reveal-42.md — the seal deliberately
  * does NOT pass Streamdown's `caret` prop): a 2px `--color-primary` blinking bar painted as an
  * `::after` on the LAST LEAF BLOCK of the streamed Markdown. Scoping to `ghost-stream-body` (the
  * wrapper around the streamed Markdown only) leaves settled rows (mode="static") and the ghost's
@@ -532,7 +532,7 @@
 }
 
 /* #42 — the streamed-word reveal fade (the render half of `ui/src/markdown/reveal-plugin.ts`; the
- * design + measurements: docs/design/streaming-reveal-42.md). Each newly revealed word arrives as a
+ * design + measurements: docs/history/design/streaming-reveal-42.md). Each newly revealed word arrives as a
  * `[data-orb-reveal]` span whose inline NEGATIVE `animation-delay` anchors fade progress to when the
  * word was first revealed — so a React node replacement mid-fade (remend emphasis repair, a dialogue
  * re-split) RESUMES at the right opacity instead of restarting or snapping. Opacity-only (compositor,
@@ -894,7 +894,7 @@
 }
 
 /* ── WebWeave + WebSpinner (art/web-weave · primitives/spinner/web-spinner — the brand loader system,
- * docs/design/login-loading-screen.md §9). Tokens + color-mix only; no raw motion values. ── */
+ * docs/history/design/login-loading-screen.md §9). Tokens + color-mix only; no raw motion values. ── */
 
 /* The web's ambient accent glow, centered on the hub. The component positions it via the two custom
  * props (a radial-gradient over color-mix'd tokens has no utility spelling, so it lives here — the

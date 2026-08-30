@@ -504,7 +504,7 @@ have native latency because they run in the page. The owner opened the dep budge
 - The interpreter lives in a **Web Worker** owned by `features/plugin` (one worker per enabled
   scripted plugin, created lazily when one of its surfaces is on screen, `terminate()`d on
   disable/unmount): main-thread jank isolation, and — the D46-review P1-A lesson inherited
-  (`docs/reviews/security/2026-08-24-d46-membrane-review.md:51-103`) — a WALL-CLOCK deadline the
+  (`docs/history/reviews/security/2026-08-24-d46-membrane-review.md:51-103`) — a WALL-CLOCK deadline the
   host enforces from OUTSIDE the guest: a hung guest is `terminate()`d and the surface collapses to
   null. Budgets mirror the server constants (`infra/plugin-host/budgets.ts`): interrupt deadline
   per event, memory cap per context, bounded pending calls.

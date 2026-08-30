@@ -41,7 +41,7 @@ export function createCreateGame(ctx: RpgContext): Pick<RpgService, "createGame"
 
     // The birth mechanics (row + pointer mirror + bus emit, no born snapshot) live in the ONE shared
     // mint (`game-mint.ts`) — the chat-ops draft-time `startGame` door births through the same code.
-    const gameId = await mintLiteGame(ctx, { chatId: params.chatId, profile: params.profile });
+    const gameId = await mintLiteGame(ctx, { chatId: params.chatId, ruleset: params.ruleset });
 
     const { trackersReadOnly } = await ctx.resolveStateDelivery(params.chatId);
     return { gameId, trackersReadOnly };

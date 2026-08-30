@@ -104,6 +104,8 @@ function stripConfigForForker(config: RpgGameConfig, readsHidden: boolean): RpgG
     // `extractionMode` is on `getGame`. The three extraction-DEPTH knobs are host-only but scalar (an enum and
     // two bounded numbers — no authored prose is representable, and blanking them re-tunes the fork's own game).
     engaged: config.engaged,
+    // `ruleset` (#862) is on `getGame`'s `publicConfig` — the dice row every member sees derives from it.
+    ruleset: config.ruleset,
     statProfile: config.statProfile,
     trackers: config.trackers,
     extractionMode: config.extractionMode,

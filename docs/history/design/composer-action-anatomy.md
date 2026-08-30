@@ -6,7 +6,7 @@ updated: 2026-08-20
 
 # Composer action anatomy (#206) — superseded record
 
-> Archived pre-grid design record. [`chat-visual-findings-364-366.md`](../../design/chat-visual-findings-364-366.md) supersedes its wrapping-row and three-group layout; current source and CT remain the behavior's one home.
+> Archived pre-grid design record. [`chat-visual-findings-364-366.md`](chat-visual-findings-364-366.md) supersedes its wrapping-row and three-group layout; current source and CT remain the behavior's one home.
 
 ## Superseded decision
 

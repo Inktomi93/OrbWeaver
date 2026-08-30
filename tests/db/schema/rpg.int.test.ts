@@ -42,6 +42,7 @@ const isConstraint = (e: unknown): boolean => isConstraintViolation(e) !== undef
 
 const CONFIG: RpgGameConfig = {
   engaged: true,
+  ruleset: "freeform",
   dateMode: "narrated",
   statProfile: RPG_PROFILE_FREEFORM,
   lite: { steeringNote: "" },

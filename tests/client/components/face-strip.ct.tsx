@@ -101,11 +101,12 @@ test("#365 a visible face-filter caption clears the 11px functional-label floor"
 
 test("#365 the visible overflow count inside its face-filter button clears the 11px functional-label floor", async ({ mount }) => {
   const component = await mount(<FaceStripFoldHarness />);
-  const tile = component.getByRole("button", { name: "More — Filter by another character", exact: true });
+  // #852 — the name carries the `+N` the tile prints, so both halves of the visible label are in it.
+  const tile = component.getByRole("button", { name: /^\+\d+ More — Filter by another character$/u });
   await expect(tile).toBeVisible();
   const count = tile.getByText(OVERFLOW_COUNT_TEXT_RE);
   await expect.poll(async () => await count.evaluate((element) => Number.parseFloat(getComputedStyle(element).fontSize))).toBeGreaterThanOrEqual(11);
-  await expect(tile).toHaveAccessibleName("More — Filter by another character");
+  await expect(tile).toHaveAccessibleName(/^\+\d+ More — Filter by another character$/u);
 });
 
 // #153 (owner, live 2026-08-18): "weird fucking spacing between portraits that is determined by the
@@ -262,8 +263,10 @@ test("the face's hit box is the avatar token square — content-sized, not a col
 
 // The harness is the CHATS posture, so the strip's ONE name is its printed kicker (#208).
 const FACE_ROW = '[aria-label="Filter by character"]';
-// LABEL IN NAME (#208): the captioned tile prints "More", so its accessible name LEADS with that word.
-const OVERFLOW_TILE = "More — Filter by another character";
+// LABEL IN NAME (#208): the captioned tile prints "More", so its accessible name LEADS with that word —
+// and (#852) with the `+N` printed above it, which is the other half of the visible label. A SHAPE, not a
+// fixed string: the count is what the fold decided at this width.
+const OVERFLOW_TILE = /^\+\d+ More — Filter by another character$/u;
 /** Every pane width a real LIST panel resolves to (`--dimension-panel` clamps 272px…416px, less the
  *  panel body's 8px inline padding either side) plus the margins around it — the fold's rules are
  *  properties of the strip, not of one lucky fixture width. */
@@ -285,7 +288,7 @@ interface StripReadout {
 // only the DRESS may. Both halves are pinned here so a fix to either cannot quietly undo the other.
 test("#521 the overflow tile does not wear a face's silhouette, and still takes a face's box", async ({ mount }) => {
   const component = await mount(<FaceStripFoldHarness />);
-  const tile = component.getByRole("button", { name: OVERFLOW_TILE, exact: true });
+  const tile = component.getByRole("button", { name: OVERFLOW_TILE });
   await expect(tile).toBeVisible();
 
   // THE POSITIVE CONTROL: read a real face's portrait dress off the same mount rather than hardcoding it,
@@ -310,7 +313,7 @@ test("#521 the overflow tile does not wear a face's silhouette, and still takes 
 
 test("the fold holds at EVERY pane width: one un-scrolled row, nothing clipped, and never a '+1 more' tile", async ({ mount }) => {
   const component = await mount(<FaceStripFoldHarness />);
-  await expect(component.getByRole("button", { name: OVERFLOW_TILE, exact: true })).toBeVisible();
+  await expect(component.getByRole("button", { name: OVERFLOW_TILE })).toBeVisible();
 
   const read = async (): Promise<StripReadout> =>
     await component.locator(FACE_ROW).evaluate((row) => {
@@ -361,7 +364,7 @@ test("the fold holds at EVERY pane width: one un-scrolled row, nothing clipped, 
 
 test("a face picked from the OVERFLOW picker is hoisted into the visible row — a pane is never scoped by an invisible face", async ({ mount }) => {
   const component = await mount(<FaceStripFoldHarness width={220} />);
-  const tile = component.getByRole("button", { name: OVERFLOW_TILE, exact: true });
+  const tile = component.getByRole("button", { name: OVERFLOW_TILE });
   await expect(tile).toBeVisible();
 
   // The LAST curated face is the one furthest beyond the fold — unreachable in the strip by construction.
@@ -420,7 +423,7 @@ test("a face picked from the OVERFLOW picker is hoisted into the visible row —
 test("a strip with NO overflow prop is untouched — it still scrolls, and grows no tile (the favorites-strip posture)", async ({ mount }) => {
   const component = await mount(<FaceStrip items={[AZARAEL, SERA]} label="Favorite characters" onSelect={(): void => undefined} selectedId={null} />);
 
-  await expect(component.getByRole("button", { name: OVERFLOW_TILE, exact: true })).toHaveCount(0);
+  await expect(component.getByRole("button", { name: OVERFLOW_TILE })).toHaveCount(0);
   await expect(component).toHaveCSS("overflow-x", "auto");
 });
 
@@ -452,7 +455,7 @@ test.describe("coarse pointer — the face meets the touch floor", () => {
   // user cannot work around by scrolling any more.
   test("the overflow tile rides the SAME coarse control box as the faces beside it", async ({ mount }) => {
     const component = await mount(<FaceStripFoldHarness width={240} />);
-    const tile = component.getByRole("button", { name: OVERFLOW_TILE, exact: true });
+    const tile = component.getByRole("button", { name: OVERFLOW_TILE });
     await expect(tile).toBeVisible();
     const controlMd = await tile.evaluate((el) => Number.parseFloat(getComputedStyle(el).getPropertyValue("--spacing-control-md")) * 16);
     const shortSide = async (): Promise<number> => {

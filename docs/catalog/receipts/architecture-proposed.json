@@ -36,13 +36,13 @@
     },
     {
       "path": "docs/architecture/Context-Panel-Program.md",
-      "assignedSha256": "59af53f96294020580bcb15ab8c82fd163226afa5b44ba15e8da4cd5037fdb64",
+      "assignedSha256": "0728153f0e4ec37f9b8d1e35d4228413f9a358ad2a2113b06dc2733126a32b74",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "378f1c22302aba0ab1940c8ae8890c158c8368004ed34bf54c59a618e846bdd7",
-      "verifiedCommit": "68271889b1746b513defea44b0787bab7a89176f",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "0728153f0e4ec37f9b8d1e35d4228413f9a358ad2a2113b06dc2733126a32b74",
+      "verifiedCommit": "c2d6548ab0490944557cd829ab56b78d7bd7cb9a",
+      "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/architecture/Context-Panel-Program.md:1 full read after the workboard split; changed routing/citations checked against Project 1, D139-D141, and current code/test evidence",
         "git:68271889b1746b513defea44b0787bab7a89176f contains the exact current document blob",
@@ -67,19 +67,20 @@
     },
     {
       "path": "docs/architecture/proposed/INDEX.md",
-      "assignedSha256": "0d81e2d65babd1fd82fdbdd6bb3e6bc2668789a7a4e1ab4237883d57643d6fce",
+      "assignedSha256": "c9d62549f71266525d77c836129e676a99592dadb1d0c1896d1c8d087dc0eb5a",
       "disposition": "current",
       "authority": "current-reference",
       "fullRead": true,
-      "verifiedSha256": "0d81e2d65babd1fd82fdbdd6bb3e6bc2668789a7a4e1ab4237883d57643d6fce",
-      "verifiedCommit": "d760c3bad13eb5428eb43991d623a33e7311760e",
-      "verifiedAt": "2026-08-28",
+      "verifiedSha256": "c9d62549f71266525d77c836129e676a99592dadb1d0c1896d1c8d087dc0eb5a",
+      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
+      "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/architecture/proposed/INDEX.md:1-37 full read; every unfinished program row maps to its live Project sprint and carries no duplicated implementation inventory",
         "GitHub issue #4 sub-issues re-derived: #13-#29 match the unfinished program rows",
         "2026-08-23 re-derivations: databank-design REALIZED (DB1-DB8 slice-by-slice tree receipts incl. DB6 byte-identity + DB5 scope-leak tests, #19 closed); automation-design PARTIAL (A1-A7 + transport symbol-verified built, A8 client surface unbuilt, #15 corrected, #592 filed); plugin-design PARTIAL (P1-P4+P6 built: infra/plugin-host membrane+realm+budgets, domain/plugin 8-slot, contracts/plugin host-v1, escape.suite.test.ts, entry/compose/automation-plugin.ts; client echo + manager UI absent)",
         "git:88022d21a85ea44894b3d23aa071caa224fe391e contains the exact program-index blob",
-        "re-attested after the #26 B10 reconciliation retired saved-rosters-design.md (row struck + repointed) at d760c3bad"
+        "re-attested after the #26 B10 reconciliation retired saved-rosters-design.md (row struck + repointed) at d760c3bad",
+        "docs/architecture/proposed/INDEX.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
       ],
       "summary": "Current three-column routing index for committed programs; code/tests own built state and Project owns mutable lifecycle.",
       "claims": [
@@ -100,17 +101,18 @@
     },
     {
       "path": "docs/architecture/proposed/README.md",
-      "assignedSha256": "5972033043bbd2aa48e941e88d8168c2adc0d3f45f2c2793953e1b7fae68ea6d",
+      "assignedSha256": "1990e6da1f1ee0b681bb355ffdf552446a135321b3735808c455e51a43473a4a",
       "disposition": "current",
       "authority": "current-reference",
       "fullRead": true,
       "verifiedSha256": "1990e6da1f1ee0b681bb355ffdf552446a135321b3735808c455e51a43473a4a",
-      "verifiedCommit": "851be471910e85e93288ce613ac60ea47146e201",
-      "verifiedAt": "2026-08-14",
+      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/architecture/proposed/README.md:1 (full read; lifecycle/frontmatter evaluated)",
         "docs/architecture/proposed/INDEX.md:1 (parked/non-authoritative program routing)",
-        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
+        "docs/architecture/proposed/README.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
       ],
       "summary": "Current routing index for proposed-program lifecycle; it is non-authoritative for present implementation.",
       "claims": [
@@ -2371,17 +2373,18 @@
     },
     {
       "path": "docs/architecture/proposed/hub-browse-design/01-network-guard.md",
-      "assignedSha256": "477dfa4960be27540ec10ca46cca21b35b7f70a23fc36b5ae7d11424223f4573",
+      "assignedSha256": "f7b1d5793b8c5a20e05541385c0cf8800ab83080325fed637aeabc0d044523e3",
       "disposition": "needs-owner",
       "authority": "design",
       "fullRead": true,
       "verifiedSha256": "f7b1d5793b8c5a20e05541385c0cf8800ab83080325fed637aeabc0d044523e3",
-      "verifiedCommit": "b59d7fff93d0248e88402adfcea0cfd323b88c2f",
-      "verifiedAt": "2026-08-22",
+      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/architecture/proposed/hub-browse-design/01-network-guard.md:1 (full read; lifecycle/frontmatter evaluated)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
-        "docs/architecture/proposed/INDEX.md:19 (PARTIAL disposition and stated wake/dependencies)"
+        "docs/architecture/proposed/INDEX.md:19 (PARTIAL disposition and stated wake/dependencies)",
+        "docs/architecture/proposed/hub-browse-design/01-network-guard.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
       ],
       "summary": "Committed PARTIAL proposed program (hub-browse); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: PARTIAL at docs/architecture/proposed/INDEX.md:19.",
       "claims": [
@@ -2895,17 +2898,18 @@
     },
     {
       "path": "docs/architecture/proposed/plugin-design/01-runtime-and-membrane.md",
-      "assignedSha256": "af7fa059b8ca7f38987f0b981482ffbfa33892aac18ddcc28c05f41973df03cc",
+      "assignedSha256": "766ed206a1e59b1807c04b12345398a38986db9e99a45ca2dac036ff4e465958",
       "disposition": "needs-owner",
       "authority": "design",
       "fullRead": true,
       "verifiedSha256": "766ed206a1e59b1807c04b12345398a38986db9e99a45ca2dac036ff4e465958",
-      "verifiedCommit": "ecbe2f16a7c8864d6119ec9f4146c0ce8ab20949",
-      "verifiedAt": "2026-08-25",
+      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/architecture/proposed/plugin-design/01-runtime-and-membrane.md:1 (full read; lifecycle/frontmatter evaluated)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
-        "docs/architecture/proposed/INDEX.md:26 (FUTURE disposition and stated wake/dependencies)"
+        "docs/architecture/proposed/INDEX.md:26 (FUTURE disposition and stated wake/dependencies)",
+        "docs/architecture/proposed/plugin-design/01-runtime-and-membrane.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
       ],
       "summary": "Committed FUTURE proposed program (plugin); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:26.",
       "claims": [
@@ -2947,17 +2951,18 @@
     },
     {
       "path": "docs/architecture/proposed/plugin-design/02-manifest-capabilities-lifecycle.md",
-      "assignedSha256": "5bbd0bbaf769edc1721cb0611042f53b330a3ac9b674ae07d6d4bada78f532dd",
+      "assignedSha256": "866857af94a8c10dbd81c8a11ea712770d1631cf29716f6ca216e88d228f91f2",
       "disposition": "needs-owner",
       "authority": "design",
       "fullRead": true,
       "verifiedSha256": "866857af94a8c10dbd81c8a11ea712770d1631cf29716f6ca216e88d228f91f2",
-      "verifiedCommit": "8340b7f876501aefbd82841b3c6ac37838c66ee7",
-      "verifiedAt": "2026-08-25",
+      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/architecture/proposed/plugin-design/02-manifest-capabilities-lifecycle.md:1 (full read; lifecycle/frontmatter evaluated)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
-        "docs/architecture/proposed/INDEX.md:26 (FUTURE disposition and stated wake/dependencies)"
+        "docs/architecture/proposed/INDEX.md:26 (FUTURE disposition and stated wake/dependencies)",
+        "docs/architecture/proposed/plugin-design/02-manifest-capabilities-lifecycle.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
       ],
       "summary": "Committed FUTURE proposed program (plugin); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:26.",
       "claims": [
@@ -3051,17 +3056,18 @@
     },
     {
       "path": "docs/architecture/proposed/plugin-design/04-build-plan.md",
-      "assignedSha256": "7b4ea391de15333e4274e4e7dc7264309fa84fffe6f454550b4d3583fa4f43e0",
+      "assignedSha256": "f25b10e00c4aefc91ba53a58f9037d88c9334a4ee8b9dd90710aaf1f9a189bdb",
       "disposition": "needs-owner",
       "authority": "design",
       "fullRead": true,
       "verifiedSha256": "f25b10e00c4aefc91ba53a58f9037d88c9334a4ee8b9dd90710aaf1f9a189bdb",
-      "verifiedCommit": "8340b7f876501aefbd82841b3c6ac37838c66ee7",
-      "verifiedAt": "2026-08-25",
+      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/architecture/proposed/plugin-design/04-build-plan.md:1 (full read; lifecycle/frontmatter evaluated)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
-        "docs/architecture/proposed/INDEX.md:26 (FUTURE disposition and stated wake/dependencies)"
+        "docs/architecture/proposed/INDEX.md:26 (FUTURE disposition and stated wake/dependencies)",
+        "docs/architecture/proposed/plugin-design/04-build-plan.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
       ],
       "summary": "Committed FUTURE proposed program (plugin); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:26.",
       "claims": [
@@ -3779,17 +3785,18 @@
     },
     {
       "path": "docs/architecture/proposed/rpg-design/13-lite-mode.md",
-      "assignedSha256": "789509d4ae596730d0763dd6aa1eaacef6ff869dd18e4450a8bede3dc7f7ed3f",
+      "assignedSha256": "e84a7ee6990ccf20f89b2bd8fd4a93dd95f93528d64bee30bac729edd94c1078",
       "disposition": "needs-owner",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "06c77a4851c9d9556e7435bfb82e3c2900daeea207aaa253543d04fdfc4047dc",
-      "verifiedCommit": "8b750ac2c3d9c2a72a281c0189ed2790e62e53b6",
-      "verifiedAt": "2026-08-23",
+      "verifiedSha256": "e84a7ee6990ccf20f89b2bd8fd4a93dd95f93528d64bee30bac729edd94c1078",
+      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/architecture/proposed/rpg-design/13-lite-mode.md:1 (full read; lifecycle/frontmatter evaluated)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
-        "docs/architecture/proposed/INDEX.md:24 (FUTURE disposition and stated wake/dependencies)"
+        "docs/architecture/proposed/INDEX.md:24 (FUTURE disposition and stated wake/dependencies)",
+        "docs/architecture/proposed/rpg-design/13-lite-mode.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
       ],
       "summary": "Committed FUTURE proposed program (rpg); non-authoritative until activation. Needs its own Project child issue/sprint; no existing child issue found in GitHub issue scan (#1–#12). INDEX disposition: FUTURE at docs/architecture/proposed/INDEX.md:24.",
       "claims": [

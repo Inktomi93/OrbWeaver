@@ -133,8 +133,18 @@ export function ChatHeaderSurface({ chatId }: ChatHeaderSurfaceProps): ReactElem
 
 /** The roster CHIP itself — the `Users` glyph + the seat count. Its
  *  accessible name carries the count (the visible digit is `aria-hidden`, so the name is the only place a
- *  screen reader learns the number). */
-function RosterChipButton({ count, onClick }: { readonly count: number; readonly onClick?: (() => void) | undefined }): ReactElement {
+ *  screen reader learns the number). Exported for the context BAND (`chat-context-band.tsx`, #860), which
+ *  prints the same chip with the word beside the digit — one chip, two mounts, one accessible name. */
+export function RosterChipButton({
+  count,
+  onClick,
+  wordy = false,
+}: {
+  readonly count: number;
+  readonly onClick?: (() => void) | undefined;
+  /** Print "N members" instead of the bare digit — the band has the room the topbar row does not. */
+  readonly wordy?: boolean;
+}): ReactElement {
   return (
     <Button
       type="button"
@@ -146,7 +156,7 @@ function RosterChipButton({ count, onClick }: { readonly count: number; readonly
     >
       <Icon icon={Users} size="sm" />
       <Text as="span" size="micro" tone="muted" transform="caps" aria-hidden={true}>
-        {count}
+        {wordy ? `${count} ${count === 1 ? "member" : "members"}` : String(count)}
       </Text>
     </Button>
   );

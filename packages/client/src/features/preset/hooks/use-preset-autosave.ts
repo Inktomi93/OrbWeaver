@@ -21,6 +21,14 @@
 // The swap costs one `preset.get` fetch on the new id (a brief editor fallback) — priming that cache from the
 // mutation response is imperative cache surgery, which `client-cache-surgery-only-in-data` correctly bans.
 //
+// …AND IT ANNOUNCES (side-eye 2026-08-30 P2-A, #856). "Silent" was true of the FEEDBACK too: a whole preset
+// appeared, the editor retargeted, the pick moved, and the one status on screen said "Saved" — so the user
+// could reasonably believe they had changed Default, that their change was in effect, and that nothing else
+// had happened, with all three false at once. The first fork keeps its lack of an INTERRUPTION (there is
+// nothing to forget yet, which is the ruling below); what it gains is a sentence afterwards, over the
+// `notify` seam activation already uses (`lib/active-preset-notice.ts`). The editor BODY carries the
+// forewarning half — `components/built-in-copy-on-write-notice.tsx`, stated where the edit happens.
+//
 // THE CHOICE (owner ruling): the copy-on-write is silent only while there is nothing to forget. Once the
 // owner already has a fork of the built-in, this is where the write is INTERCEPTED — the save chain parks on
 // a promise the dialog resolves, and nothing is written until they pick: keep editing the fork they have (the
@@ -36,6 +44,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 import { useInvalidation, useTRPC } from "#data";
 import { getSelectedPresetId, retargetPresetSectionDrill, selectPreset } from "#state";
+import { notifyBuiltInFork } from "../lib/active-preset-notice.ts";
 import { mergeOnSubmit } from "../lib/preset-editor-model.ts";
 import { findConvergenceFork, suggestForkName } from "../lib/preset-fork-choice.ts";
 import { useSetDefaultPreset, useUpdatePreset } from "./use-preset-mutations.ts";
@@ -92,13 +101,22 @@ export function usePresetAutosave({ presetId, server, activePresetId }: PresetAu
   const answerRef = useRef<((name: string | null) => void) | null>(null);
   const [forkChoice, setForkChoice] = useState<PresetForkChoicePrompt | null>(null);
 
-  /** Point every later save at `to`, and move the editor + the active-for-generation pick with it. */
-  const retarget = (from: PresetId, to: PresetId, ownerPresetId: PresetId): void => {
+  /** Point every later save at `to`, and move the editor + the active-for-generation pick with it.
+   *
+   *  Returns whether the ACTIVE pick moved — which is a fact only this function has (it owns both the
+   *  inheritance condition and the "is this editor still the one that asked" guard), and which the fork's
+   *  announcement must not guess at (side-eye 2026-08-30 P2-A: a sentence claiming an activation that did
+   *  not happen is the same class of defect as the silence it replaces). */
+  const retarget = (from: PresetId, to: PresetId, ownerPresetId: PresetId): boolean => {
     forkRef.current = { from, to };
     if (getSelectedPresetId() !== ownerPresetId) {
-      return;
+      return false;
     }
-    if (activePresetId === null || activePresetId === from) {
+    // OWNER RULING 2026-08-30 (#856): a fork made from the ACTIVE built-in INHERITS the pick — the edit takes
+    // effect as the user expects. `defaultPresetId === null` IS the built-in (the list row and the editor
+    // header read the same axis); an explicit pointer at the row we just forked is the other half.
+    const inheritsActivePick = activePresetId === null || activePresetId === from;
+    if (inheritsActivePick) {
       setDefault.mutate({ section: "seeds", patch: { defaultPresetId: to } });
     }
     selectPreset(to);
@@ -108,6 +126,7 @@ export function usePresetAutosave({ presetId, server, activePresetId }: PresetAu
     // the store's side a fork and "the user picked a different preset" are the same prop change, and only
     // this line knows which one just happened. A no-op when nothing is drilled.
     retargetPresetSectionDrill(to);
+    return inheritsActivePick;
   };
 
   /** The owner's answer, or `undefined` when nothing is being asked: `null` = keep editing, string = new fork. */
@@ -143,6 +162,26 @@ export function usePresetAutosave({ presetId, server, activePresetId }: PresetAu
     retarget(targetId, minted.id, choice.ownerPresetId);
   };
 
+  /** The unasked write: a plain patch of an owned row, or the SILENT copy-on-write of the built-in.
+   *
+   *  The COW arm is the ONE that owes an announcement (side-eye 2026-08-30 P2-A). The two `saveWithChoice`
+   *  arms already interrupted with a dialog naming the fork, so a toast behind one would restate an answer
+   *  the owner just gave; here a whole preset appears, the editor retargets and the active pick may move with
+   *  nobody told — while the only status on screen reads "Saved". `converged` is the honest hedge: the verb
+   *  lands on an EXISTING fork when the client's list cache missed one (the race the dialog normally
+   *  intercepts), and "created" would then be a lie, so the row has to be genuinely new to be announced. */
+  const saveDirect = async (targetId: PresetId, source: (typeof presets)[number] | undefined, choice: PresetChoiceSave): Promise<void> => {
+    const row = await update.mutateAsync({ id: targetId, config: choice.config });
+    if (row.id === targetId) {
+      return; // a plain patch of an owned row
+    }
+    const converged = presets.some((p) => p.id === row.id);
+    const inheritedActivePick = retarget(targetId, row.id, choice.ownerPresetId);
+    if (!converged && source !== undefined) {
+      notifyBuiltInFork(row.name, source.name, inheritedActivePick);
+    }
+  };
+
   const save = (values: PromptConfig): Promise<void> => {
     const ownerPresetId = presetId;
     const run = chainRef.current.then(async (): Promise<void> => {
@@ -156,12 +195,7 @@ export function usePresetAutosave({ presetId, server, activePresetId }: PresetAu
         await saveWithChoice(targetId, source.name, existing, { config, ownerPresetId });
         return;
       }
-
-      const row = await update.mutateAsync({ id: targetId, config });
-      if (row.id === targetId) {
-        return; // a plain patch of an owned row
-      }
-      retarget(targetId, row.id, ownerPresetId);
+      await saveDirect(targetId, source, { config, ownerPresetId });
     });
     // The queue must survive a rejected save (else every later save inherits the rejection); the caller still
     // gets the rejecting promise so the session's own error/retry lifecycle runs.

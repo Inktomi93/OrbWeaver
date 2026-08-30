@@ -34,6 +34,7 @@ import { actorKey } from "../lib/actor-key.ts";
 import type { ActorEdit } from "./rpg-actor-trackers.tsx";
 import { ActorMeters, ActorTrackerRows, ConditionChips, StatusLine } from "./rpg-actor-trackers.tsx";
 import { RpgCharacterDetail } from "./rpg-character-detail.tsx";
+import { RpgDoorwayLine } from "./rpg-doorway-line.tsx";
 import { RpgFieldLock } from "./rpg-field-lock.tsx";
 import { Kicker } from "./rpg-kicker.tsx";
 import { RpgVeiledSection } from "./rpg-veiled-section.tsx";
@@ -132,6 +133,14 @@ export function RpgStatusTab({ state }: RpgStatusTabProps): ReactElement {
       >
         Roster — {roster.length}
       </Kicker>
+      {/* THE ORIENTING LEAD (#863 P1). A just-started game lands here with a roster of cards that are all
+          em-dashes and `+ condition`, and nothing on the screen said a game had started or what would fill
+          it in — the cold 5-second test failed outright. The line shows only while the story has written
+          NOTHING (every actor's volatile plane is still null), so it teaches once and then gets out of the
+          way; an established game never carries it ([[empty-states-are-load-bearing]]). */}
+      {roster.length === 0 || roster.every((actor) => actor.volatile === null) ? (
+        <RpgDoorwayLine>The story fills this in as you play. Set up trackers in the Game tab.</RpgDoorwayLine>
+      ) : null}
       {roster.map((actor) => {
         const edit = editFor(actor);
         return <RpgStatusCard key={actorKey(actor)} actor={actor} onOpen={(): void => setOpenKey(actorKey(actor))} {...(edit === undefined ? {} : { edit })} />;

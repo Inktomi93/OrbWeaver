@@ -102,7 +102,7 @@ Rejected with receipts:
   roster/junction tables and belong at the composition root like the existing fan, not in transport.
 - **Deriving the user-bus emit from the domain event too ("a write emits ONE event" taken literally):**
   the `user-bus-coverage` ratchet quantifies emit literals in `server/src/{domain,transport}` and
-  deliberately EXCLUDES `entry/compose` (`docs/design/event-bus-coverage-survey.md` §1.2: a member whose
+  deliberately EXCLUDES `entry/compose` (`docs/history/design/event-bus-coverage-survey.md` §1.2: a member whose
   only emit is compose-side would false-MISSING) — moving 87 verb-side `emitUserEvent` calls behind the
   bridge would blind the gate for zero behavioral change. The frame's "{editor's devices} always" is
   satisfied verb-side, as today; the reach table owns ONLY the room plane.
@@ -447,7 +447,7 @@ Read IN FULL this session: `contracts/src/user-bus/index.ts` · `contracts/src/c
 `domain/chat/verbs/read.ts` (`getMemberCard`) · `domain/chat/verbs/chat-lifecycle.ts` (R1-4a) ·
 `substrate/auth/clamp.ts` · `substrate/member-visibility.ts` · `db/schema/chat.ts` ·
 `db/schema/world-info.ts` · `transport/trpc/stream/socket.ts` (cursor advance) ·
-`docs/design/event-bus-coverage-survey.md` (§0-1, §4-5) · the D-ledger rows D16/D18/D22/D60 +
+`docs/history/design/event-bus-coverage-survey.md` (§0-1, §4-5) · the D-ledger rows D16/D18/D22/D60 +
 `Core-0` §6-§8 sweeps (no existing ruling homes this seam; the workboard row is the mandate). NOT read:
 `chat/assembly/world-info/pool.ts` beyond its path (the WI resolver's gather-set mirror is a build-lane
 verification item, §3.5), `frame-queue.ts`/`room-registry.ts` internals, the automation watcher beyond

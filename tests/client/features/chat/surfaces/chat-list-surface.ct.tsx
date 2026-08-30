@@ -43,6 +43,10 @@ const GAME = makeChatSummary({
   lastMessagePreview: "The door gives way and the market noise floods in from the street beyond, louder than anything you have…",
   isGame: true,
 });
+// #863(f) — the PAUSED game row: the game exists, it is switched off, and the list is the only place a
+// host can see that a room has a game sleeping in it (the off-door lives behind a host-only tab in a pane
+// that ships closed).
+const PAUSED_GAME = makeChatSummary({ id: "chat_game_paused", title: "The dormant delve", isGame: false, gamePaused: true });
 // F7 state rows: the summary already carries starred/archived — the row must SHOW them.
 const STARRED = makeChatSummary({ id: "chat_starred", title: "A pinned thread", starred: true });
 const ARCHIVED = makeChatSummary({ id: "chat_archived", title: "A shelved thread", archived: true });
@@ -683,6 +687,22 @@ test.describe("P1 the trailing zone is split: markers on the title line, the CON
     expect((describedBy ?? "").split(" ")).toContain(markersId);
   });
 
+  // #863(f) — THE PAUSED MARKER. Turning game mode off used to erase every trace of the game from the list,
+  // leaving its existence visible only behind a host-only tab inside a pane that ships closed. The row now
+  // keeps a quieter mark that SAYS paused, so the live and the sleeping state are never one ambiguous glyph.
+  test("a room whose game is switched OFF keeps a quiet 'paused' marker, distinct from the live one", async ({ mount, page }) => {
+    await routeTrpc(page, { "chat.listChats": chatListResponder([GAME, PAUSED_GAME]), "character.list": CHARACTERS });
+    const component = await mount(<ChatListSurfaceStory width={PANE_WIDTH} />);
+    await expect(component.getByText("The dormant delve")).toBeVisible();
+
+    const pausedRow = component.locator(LIST_ROW_ROOT, { hasText: "The dormant delve" });
+    await expect(pausedRow.locator(MARKERS).getByLabel("Game chat — paused")).toBeVisible();
+    // It is NOT the live marker: the two states read differently to a screen reader and to the eye.
+    await expect(pausedRow.locator(MARKERS).getByLabel("Game chat", { exact: true })).toHaveCount(0);
+    const live = component.locator(LIST_ROW_ROOT, { hasText: "The Ashfell run" });
+    await expect(live.locator(MARKERS).getByLabel("Game chat", { exact: true })).toBeVisible();
+  });
+
   test("a starred row never paints TWO stars: the title-line marker yields to the revealed toggle", async ({ mount, page }) => {
     await routeTrpc(page, { "chat.listChats": chatListResponder([STARRED]), "character.list": CHARACTERS });
     const component = await mount(<ChatListSurfaceStory width={PANE_WIDTH} />);
@@ -885,7 +905,8 @@ const ROSTER_SIZE = 30;
 const FACE_ROW = '[aria-label="Filter by character"]';
 const FACE_ITEM = "[data-face-key]";
 // #208 label-in-name: the captioned tile prints "More", so its accessible name leads with that word.
-const OVERFLOW_TILE = "More — Filter by another character";
+// #852 — the tile's accessible name LEADS with its visible `+N`, so the pin is a shape, not a fixed string.
+const OVERFLOW_TILE = /^\+\d+ More — Filter by another character$/u;
 /** The one roster member the strip could never reach by scrolling — the picker's proof. */
 const FOLDED_NAME = "Zoltan the Unfathomable";
 
@@ -916,7 +937,7 @@ test("FACEFILT: 30 recent faces fit ONE unscrolled row at the narrowest real pan
 
   const component = await mount(<ChatListSurfaceStory width={NARROW_PANE_WIDTH} />);
   // Barrier on the SETTLED folded arm — the tile only exists once the strip has measured itself.
-  const tile = component.getByRole("button", { name: OVERFLOW_TILE, exact: true });
+  const tile = component.getByRole("button", { name: OVERFLOW_TILE });
   await expect(tile).toBeVisible();
 
   const readGeometryAtAssertion = async (): Promise<typeof geometry> =>
@@ -954,7 +975,7 @@ test("FACEFILT: a folded character picked from the roster scopes the pane AND ta
   await routeTrpc(page, { "chat.listChats": chatListResponder(rosterChats()), "character.list": rosterCharacters() });
 
   const component = await mount(<ChatListSurfaceStory width={NARROW_PANE_WIDTH} />);
-  const tile = component.getByRole("button", { name: OVERFLOW_TILE, exact: true });
+  const tile = component.getByRole("button", { name: OVERFLOW_TILE });
   await expect(tile).toBeVisible();
   // She is genuinely unreachable in the strip before the pick — that is what the tile is FOR.
   await expect(component.getByRole("button", { name: `Show chats with ${FOLDED_NAME}`, exact: true })).toHaveCount(0);
@@ -987,7 +1008,7 @@ test("FACEFILT: the picker tile is KEYBOARD reachable and lands focus in its sea
   await routeTrpc(page, { "chat.listChats": chatListResponder(rosterChats()), "character.list": rosterCharacters() });
 
   const component = await mount(<ChatListSurfaceStory width={NARROW_PANE_WIDTH} />);
-  const tile = component.getByRole("button", { name: OVERFLOW_TILE, exact: true });
+  const tile = component.getByRole("button", { name: OVERFLOW_TILE });
   await expect(tile).toBeVisible();
 
   // Tab from the last visible face reaches the tile — it is the strip's own trailing stop, not a
@@ -1011,7 +1032,7 @@ test("FACEFILT: a cast that already fits keeps every face and grows NO picker ti
   await expect(component.getByRole("button", { name: "Show chats with Sera", exact: true })).toBeVisible();
   await expect(component.getByRole("button", { name: "Show chats with Niko", exact: true })).toBeVisible();
 
-  await expect(component.getByRole("button", { name: OVERFLOW_TILE, exact: true })).toHaveCount(0);
+  await expect(component.getByRole("button", { name: OVERFLOW_TILE })).toHaveCount(0);
   const readGeometryAtAssertion = async (): Promise<typeof geometry> =>
     await component.locator(FACE_ROW).evaluate((row) => ({
       scrollWidth: Math.round(row.scrollWidth),
@@ -1031,7 +1052,7 @@ test("FACEFILT: no chats means NO strip at all — the picker tile never becomes
   await expect(component.getByText("No chats yet")).toBeVisible();
 
   await expect(component.locator(FACE_ROW)).toHaveCount(0);
-  await expect(component.getByRole("button", { name: OVERFLOW_TILE, exact: true })).toHaveCount(0);
+  await expect(component.getByRole("button", { name: OVERFLOW_TILE })).toHaveCount(0);
   await expect(component.getByText("Filter by character", { exact: true })).toHaveCount(0);
 });
 

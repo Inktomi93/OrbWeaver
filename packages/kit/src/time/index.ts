@@ -215,7 +215,10 @@ const MS_PER_DAY = 24 * MS_PER_HOUR;
 const RELATIVE_HORIZON_DAYS = 7;
 const RELATIVE_HORIZON_MS = RELATIVE_HORIZON_DAYS * MS_PER_DAY;
 const DAYS_PER_WEEK = 7;
-const MS_PER_WEEK = DAYS_PER_WEEK * MS_PER_DAY;
+/** A week in ms. EXPORTED because "within the last week" is a span a display surface asks about directly
+ *  (the Characters landing's week's-additions foot line, #864) and the alternative is every caller
+ *  re-spelling `7 * 24 * 60 * 60 * 1000` — the unit ladder has exactly one home, and this is it. */
+export const MS_PER_WEEK = DAYS_PER_WEEK * MS_PER_DAY;
 /** Weeks before a compact stamp switches to years — 52w is where "how many weeks?" stops being readable. */
 const COMPACT_WEEK_HORIZON = 52;
 const MS_PER_YEAR = COMPACT_WEEK_HORIZON * MS_PER_WEEK;

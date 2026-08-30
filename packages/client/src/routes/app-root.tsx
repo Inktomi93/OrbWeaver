@@ -13,7 +13,7 @@ import { useAuthConfig, useHuskReaper, useInvalidation, useOrbSocket, useRpgBus,
 import { AppShell } from "#features/app-shell";
 import { clearJoinParam, JoinInviteDialog, readJoinToken } from "#features/chat";
 import { FirstRunPersonaDialog } from "#features/persona";
-import { useActiveChatId, useActiveSection, useSelectedCharacterId } from "#state";
+import { announceStatus, useActiveChatId, useActiveSection, useSelectedCharacterId, useStatusAnnouncement } from "#state";
 import { AppRootSessionBoundary } from "./app-root-session-boundary/index.ts";
 
 export function AppRoot(): ReactElement {
@@ -98,9 +98,20 @@ function HydratedAppRoot({ multiHumanCapable, joinToken, setJoinToken }: Hydrate
     return "App loaded.";
   })();
 
+  // ONE LIVE REGION, TWO SOURCES, ONE CHANNEL (#863 P1). The route string above is AMBIENT — it changes
+  // only when the section/selection does, so a user-initiated MUTATION whose result lands off-screen (game
+  // mode on/off, measured) announced NOTHING at all. Both now speak through `announceStatus`: the route
+  // line re-announces on every navigation exactly as before, and an EVENT announcement holds the region
+  // until the next navigation replaces it. A second live region was the alternative and is the worse one —
+  // the same drive found an empty one already sitting in the tree.
+  const statusAnnouncement = useStatusAnnouncement();
+  useEffect(() => {
+    announceStatus(routeAnnouncement);
+  }, [routeAnnouncement]);
+
   return (
     <>
-      <AriaAnnouncer message={routeAnnouncement} />
+      <AriaAnnouncer message={statusAnnouncement} />
       <AppShell />
       {/* Renders nothing once the viewer owns a persona; forces the create flow on a fresh account. */}
       <FirstRunPersonaDialog />

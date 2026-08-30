@@ -18,7 +18,7 @@ type AvatarSize = NonNullable<AvatarProps["size"]>;
 // axis). `fill` is ZERO on purpose, not a placeholder: a cell-sized avatar has no px width of its own to
 // overlap BY — the layout track decided it — so a fixed offset would be an arbitrary bite out of an unknown
 // box. Stacking cell-sized portraits is a grid, not a stack; that arm degrades to a plain row.
-export const AVATAR_STACK_OVERLAP_PX: Record<AvatarSize, number> = { sm: 12, md: 14, lg: 18, hero: 28, fill: 0 };
+export const AVATAR_STACK_OVERLAP_PX: Record<AvatarSize, number> = { sm: 12, md: 14, lg: 18, hero: 28, fill: 0, fillPortrait: 0 };
 
 /** The display token each avatar size resolves its box from — the same `size-avatar-*` utilities the
  *  `Avatar` variants carry, as the custom properties they compile to. */
@@ -28,7 +28,9 @@ const AVATAR_SIZE_VAR: Record<AvatarSize, string | null> = {
   lg: "var(--spacing-avatar-lg)",
   hero: "var(--spacing-avatar-hero)",
   // "the cell is the size" — a `fill` avatar has no intrinsic width to reserve, so there is nothing to state.
+  // Its portrait twin is the same fact at a different aspect: the track decides the width either way.
   fill: null,
+  fillPortrait: null,
 };
 
 /**

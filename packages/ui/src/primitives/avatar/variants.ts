@@ -27,6 +27,13 @@ export const avatarVariants = tv({
       // (`ui-size-via-variant` exists for exactly this, and reds the call site). Only correct inside a track that HAS a width of its own —
       // in an auto-sized flow it collapses, which is the honest failure of "the cell is the size".
       fill: { root: "aspect-square h-auto w-full" },
+      // `fill`'s PORTRAIT twin (added 2026-08-30, #864 — the Characters landing face shelf). Same ruling
+      // ("the cell is the size", so the same only-inside-a-track-that-has-a-width limit), different aspect:
+      // the approved artboards draw a character's art at 3/4, which is the shape a character CARD is, and
+      // the `aspect` axis cannot express it here — `aspect="portrait"` is `aspect-portrait w-auto`, and its
+      // `w-auto` is precisely what defeats `fill`'s `w-full` when the two are combined (tailwind-merge
+      // resolves the width last-wins). One arm that states both halves is the only spelling that survives.
+      fillPortrait: { root: "aspect-portrait h-auto w-full" },
     },
     shape: {
       round: { root: "rounded-full" },

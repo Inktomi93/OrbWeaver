@@ -32,7 +32,7 @@ tree was never ported. This is a build-surface feature, not a wire.
 `packages/ui/src/primitives/icons/index.ts` (the seal). **Legacy audit (§2)** — every file of
 `legacy-main:packages/client/src/features/databank/**` plus `legacy-main:packages/client/src/data/upload-document.ts`,
 read via `git show` per file (never checkout/cp). Law read IN FULL: the constitution (`AGENTS.md`), the
-executor doctrine, `list-pane-projection-proposal.md` §11–§13 (the ratified row/action grammar),
+executor doctrine, `../history/design/list-pane-projection-proposal.md` §11–§13 (the ratified row/action grammar),
 `density-pass-spec.md` §3 (the tier map + the chrome diet), `home-section-spec.md` (the sibling rail
 program), `Core-Docs-Formatting-Law.md`, and the D85 citation set.
 
@@ -44,7 +44,7 @@ style per the `list-pane-projection/` set. **The mocks are drawings, never law**
 per the owner's steer they follow the ratified grammar + density tiers, NOT legacy's layout.
 
 **Sibling programs this composes with, never fights:** `home-section-spec.md` (adds an eighth rail
-section — §3.1's rail-population arithmetic counts it) · `list-pane-projection-proposal.md` (§12 is law
+section — §3.1's rail-population arithmetic counts it) · `../history/design/list-pane-projection-proposal.md` (§12 is law
 here) · `density-pass-spec.md` (§3.1 tiers) · SET-SEAMS (`docs/history/design/set-seams-spec.md` — owns the settings modal;
 the retrieval knobs already live there and this spec does NOT touch them).
 
@@ -313,7 +313,7 @@ Three UI consequences that fall straight out and are not negotiable:
 3. **The host's visibility toggle is a RETRIEVAL switch, not a delete** — hiding a doc leaves every
    junction row intact. Copy must not say "remove".
 
-## 6. The row + action grammar (`list-pane-projection-proposal.md` §12 conformance)
+## 6. The row + action grammar (`../history/design/list-pane-projection-proposal.md` §12 conformance)
 
 §12.2 is law for every list pane: ≤3 trailing things, in order — one state toggle (`RowToggleAction`,
 pressed = always visible / unpressed = `ROW_REVEAL`, `aria-pressed`) · one primary verb
@@ -391,7 +391,7 @@ Every element resolves to a landed primitive. New pieces:
 
 | piece | verdict |
 | - | - |
-| `RowToggleAction` | **already specced** by `list-pane-projection-proposal.md` §11 (tier-2 `components/row-toggle-action.tsx`). This spec is its THIRD consumer — if the list-pane lane has not landed it, whichever lane goes first mints it |
+| `RowToggleAction` | **already specced** by `../history/design/list-pane-projection-proposal.md` §11 (tier-2 `components/row-toggle-action.tsx`). This spec is its THIRD consumer — if the list-pane lane has not landed it, whichever lane goes first mints it |
 | icons `FileText` (document glyph), `Globe` (the Everywhere toggle) | **MINT into the `@orb/ui/icons` seal** — verified absent from `packages/ui/src/primitives/icons/index.ts`. Grow the allowlist; verify the lucide names on the way in |
 | icon `Database` | **MINT only under Arm A** (the rail glyph). Arm B reuses `BookOpen`/`Library` |
 | everything else | `ListRow` · `Badge` · `Button` · `Switch` · `Section` · `Stack`/`Row` · `EmptyState` · `FileDropzone` · `Input` · `RowActionsMenu` · `ConfirmDialog` · `FormDialog` · `LibrarySurfaceShell`/`LibraryListLayout` — all landed |

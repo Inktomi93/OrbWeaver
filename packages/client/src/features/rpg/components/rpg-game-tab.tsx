@@ -40,6 +40,7 @@ import { RpgGameMacros } from "./rpg-game-macros.tsx";
 import { RpgHintMapEditor } from "./rpg-hint-map-editor.tsx";
 import { HostConsoleScalars } from "./rpg-host-scalars.tsx";
 import { Kicker } from "./rpg-kicker.tsx";
+import { RpgRulesetControl } from "./rpg-ruleset-control.tsx";
 import { DEF_ROW_CLASS, RpgStatProfileEditor } from "./rpg-stat-profile-editor.tsx";
 
 /** The carrier-class label a def's `appliesTo` reads as. An explicit ref LIST reads as "chosen" and is not
@@ -381,12 +382,13 @@ function HostConsole({ state }: { readonly state: RpgPanelState }): ReactElement
           Host console — host only
         </Text>
       </Row>
-      {/* Section order: Stat profile (the sheet vocabulary) → TRACKERS (the unified def surface that absorbed
+      {/* Section order: RULESET (#862 — the setting that decides the vocabulary, so it leads) → Stat profile (the sheet vocabulary) → TRACKERS (the unified def surface that absorbed
           the Sheet tab's pool defs, the old cast-field schemas, and the band-pin section) → the two gloss maps
           (relationship labels, then journal types — same block, same gesture) → the scalar form (Play style →
           Immersive cards → Hidden channels → Prompt budget → Steering note → Delivery model → Extraction depth)
           → GAME MACROS (WAVE MU — the game half of the two authoring homes; its own autosave boundary because
           it owns a structural array). */}
+      <RpgRulesetControl chatId={state.chatId} config={config} />
       <RpgStatProfileEditor chatId={state.chatId} config={config} />
       <TrackersEditor chatId={state.chatId} config={config} />
       <RelationshipHintsEditor chatId={state.chatId} config={config} />

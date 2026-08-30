@@ -130,8 +130,8 @@ export const gate: GateDescriptor = {
   status: "active",
   scopeSafety: "whole-project",
   message:
-    "a mutating non-tRPC public route reads request-body data without a structural byte-cap proxy — an unauthenticated or authenticated caller can force unbounded buffering/work at the HTTP trust edge. See docs/design/issue-712-gate-family.md",
-  fix: "put `bodyLimit({ maxSize: ... })` or the house `bodyCap(...)` before the handler; streaming bundle intake may use the exact incremental `stageCapped(..., *_MAX_*_BYTES)` arm. See docs/design/issue-712-gate-family.md",
+    "a mutating non-tRPC public route reads request-body data without a structural byte-cap proxy — an unauthenticated or authenticated caller can force unbounded buffering/work at the HTTP trust edge. See docs/history/design/issue-712-gate-family.md",
+  fix: "put `bodyLimit({ maxSize: ... })` or the house `bodyCap(...)` before the handler; streaming bundle intake may use the exact incremental `stageCapped(..., *_MAX_*_BYTES)` arm. See docs/history/design/issue-712-gate-family.md",
   scanRoot: (path) => path.includes(HTTP_DIR),
   kinds: [SyntaxKind.CallExpression],
   begin: () => {
@@ -161,7 +161,7 @@ export const gate: GateDescriptor = {
         file: GATE_SELF,
         line: 1,
         column: 0,
-        message: `public-route-body-cap measured ${mutatingRoutes.toString()} mutating routes and ${bodyReadingRoutes.toString()} body readers — the route census is blind. See docs/design/issue-712-gate-family.md`,
+        message: `public-route-body-cap measured ${mutatingRoutes.toString()} mutating routes and ${bodyReadingRoutes.toString()} body readers — the route census is blind. See docs/history/design/issue-712-gate-family.md`,
       });
     }
   },

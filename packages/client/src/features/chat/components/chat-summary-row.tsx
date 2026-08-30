@@ -137,11 +137,11 @@ function rowMarkers({
   chat,
   interactive,
 }: {
-  readonly chat: Pick<ChatSummaryItem, "isGame" | "starred" | "archived">;
+  readonly chat: Pick<ChatSummaryItem, "isGame" | "gamePaused" | "starred" | "archived">;
   /** The caller owns the star mutation ⇒ a revealed toggle exists to swap against. */
   readonly interactive: boolean;
 }): ReactNode {
-  const marked = chat.isGame || chat.starred || chat.archived;
+  const marked = chat.isGame || chat.gamePaused || chat.starred || chat.archived;
   if (!marked) {
     return;
   }
@@ -150,6 +150,12 @@ function rowMarkers({
       {/* The GAME marker (`metadata.rpg` presence): the quiet twin of the star,
           labelled so the datum is TEXT for a screen reader, muted so it reads as a mark, not an action. */}
       {chat.isGame ? <Icon className="text-muted-foreground" icon={Swords} label="Game chat" size="sm" /> : null}
+      {/* THE PAUSED TWIN (#863, owner-ordered 2026-08-30): a game that is switched OFF keeps a quieter mark
+          so a host can see which rooms have a game sleeping in them. Before this, turning game mode off
+          erased every trace from the list, and the only surviving evidence was a host-only tab inside a pane
+          that ships closed. Same glyph at reduced emphasis, and it SAYS "paused" — the datum is text for a
+          screen reader, and the two states are never one ambiguous mark. */}
+      {chat.gamePaused && !chat.isGame ? <Icon className="text-muted-foreground/60" icon={Swords} label="Game chat — paused" size="sm" /> : null}
       {/* COARSE KEEPS THE MARKER (side-eye 2026-08-07 finding 6): the star TOGGLE collapses into the kebab
           at a coarse pointer, so the plain `ROW_REVEAL_SWAP` would have hidden the marker while the control
           carrying the same datum was also gone — a starred chat with no star anywhere on the row. The swap
