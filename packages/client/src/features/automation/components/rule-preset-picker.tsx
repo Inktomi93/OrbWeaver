@@ -28,6 +28,12 @@
 // would be a lie waiting to happen on a money surface. It rides the same trailing-sentence grammar as
 // "Asks before acting.", in both steps.
 //
+// THE PICKER OPENS ON ITS CATALOGUE, EVERY TIME (#814). The step is component state, and a MINT closes the
+// popover by setting the controlled `open` itself — which does NOT pass through Base UI's `onOpenChange`,
+// where the reset used to live. So the one exit a host reaches most kept the last preset selected, reopened
+// onto its knob form, and let a host mint a DUPLICATE while believing they had picked something else. Both
+// transitions now run through `setPickerOpen`.
+//
 // A typed mint refusal the form CANNOT pre-empt — a lorebook that stopped being attached to this chat
 // between the render and the press — rides `mintFailureToast` (`lib/rule-mutations.ts`), so a host reads
 // the reason instead of watching a card quietly do nothing.
@@ -209,18 +215,23 @@ export interface RulePresetPickerProps {
 export function RulePresetPicker({ chatId }: RulePresetPickerProps): ReactElement {
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<RulePresetView | null>(null);
+  /** EVERY open/close transition goes through here, and every one of them returns the picker to its
+   *  CATALOGUE — re-opening onto the knob form of whatever was picked last time is a surface remembering
+   *  a decision the host already walked away from.
+   *
+   *  ONE home for the transition, because the two exits are not symmetric (#814). The reset used to live
+   *  inside `onOpenChange`, which Base UI fires only for a USER-driven close (Escape, an outside press) —
+   *  a successful mint closes the popover by setting the controlled `open` ITSELF, so the reset never ran
+   *  for the close a host reaches most. Reopening landed on the previous preset's knob form with the
+   *  catalogue unreachable, and the single visible "Add rule" minted a DUPLICATE of the rule just added
+   *  while the host believed they had picked a different one. Clearing on OPEN as well as on close is what
+   *  makes "the picker opens on the catalogue" true for any future exit too, not just the two that exist. */
+  const setPickerOpen = (next: boolean): void => {
+    setOpen(next);
+    setSelected(null);
+  };
   return (
-    <Popover
-      open={open}
-      onOpenChange={(next): void => {
-        setOpen(next);
-        // Close returns the popover to its catalogue: re-opening onto the knob form of whatever was picked
-        // last time is a surface remembering a decision the host already walked away from.
-        if (!next) {
-          setSelected(null);
-        }
-      }}
-    >
+    <Popover open={open} onOpenChange={setPickerOpen}>
       <PopoverTrigger
         render={
           <Button intent="secondary" size="sm">
@@ -248,7 +259,7 @@ export function RulePresetPicker({ chatId }: RulePresetPickerProps): ReactElemen
           fallback={<SkeletonRows count={3} shape="line" />}
           renderError={(_error, retry): ReactElement => <QueryErrorState label="the rules you can add" onRetry={retry} />}
         >
-          <RulePresetPickerBody chatId={chatId} selected={selected} onSelect={setSelected} onDone={(): void => setOpen(false)} />
+          <RulePresetPickerBody chatId={chatId} selected={selected} onSelect={setSelected} onDone={(): void => setPickerOpen(false)} />
         </QueryBoundary>
       </PopoverPopup>
     </Popover>
