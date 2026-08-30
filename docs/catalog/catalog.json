@@ -11630,7 +11630,7 @@
           }
         ]
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/design/interaction-substrate-spec.md",
@@ -13659,7 +13659,7 @@
           }
         ]
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/design/server-usage-settlement-2026-08-20.md",
