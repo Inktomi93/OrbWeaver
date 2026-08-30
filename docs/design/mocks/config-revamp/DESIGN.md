@@ -73,3 +73,10 @@ The FULL Settings surface additionally exposes what the boards abbreviate: the l
 Edit · Duplicate · Export · Delete; the header doors = New · Import · From character; the editor adds
 the character-connection section (`listConnectedToCharacter` + connect/disconnect). Nothing else may
 be invented without a verb to back it.
+
+**Pinned vs current, on the quick surface (owner 2026-08-30).** The marker for pinned is a PIN glyph,
+never a crown — the crown already means host-only in this app (the rpg Game door), and one glyph keeps
+one meaning. Every switcher row carries an inline pin: solid on the pinned/default persona, faint on
+hover elsewhere, click-to-pin (updating the default is one click, no editor trip). `playing` stays the
+CURRENT marker; the two coincide outside a chat and diverge inside a room with a this-chat override —
+the only place the distinction exists, and exactly where the list makes it legible.
