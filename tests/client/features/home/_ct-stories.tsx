@@ -6,7 +6,7 @@
 import { SkeletonRows } from "@orb/client/data";
 import { chatAlsoOpenTile, chatMastheadTile, chatQuickPicksTile, chatRecentsTile, chatTempChatTile } from "@orb/client/features/chat";
 import { databankDocumentsTile } from "@orb/client/features/databank";
-import { buddyDormantTile, HomeSurface, makeSectionJumpTile } from "@orb/client/features/home";
+import { buddyDormantTile, HomeSurface, homeRoadmapTiles, makeSectionJumpTile } from "@orb/client/features/home";
 import { createContributorRegistry } from "@orb/client/lib";
 import type { HomeTileContribution } from "@orb/client/state";
 import { rememberSurfaceBox, useActiveSection } from "@orb/client/state";
@@ -100,9 +100,16 @@ function ActiveSectionProbe(): ReactElement {
 }
 
 /** The REAL registered doorway (buddy — automation's retired with B3) — the shipped tile, not a fake: proof
- *  the DORMANT arm survives the round trip through the door and the frame. */
+ *  the DORMANT arm survives the round trip through the door and the frame. Buddy ALONE, deliberately: the
+ *  tile's own contract is what this story serves, and the roadmap set has its own story below. */
 export function HomeRealDoorwaysStory(): ReactElement {
   return <Story tiles={[buddyDormantTile]} />;
+}
+
+/** THE SHIPPED "What's coming" SET (#834) — buddy plus the roadmap tuple, exactly as the door assembles
+ *  them, so the region's rendered contents ARE the curated list rather than a story's own invention. */
+export function HomeRoadmapStory(): ReactElement {
+  return <Story tiles={[buddyDormantTile, ...homeRoadmapTiles]} />;
 }
 
 // ── The THREE REGIONS (#102, the Hearth Room) ───────────────────────────────────────────────────────
@@ -273,6 +280,10 @@ const SHIPPED_TILES: readonly HomeTileContribution[] = [
   chatTempChatTile,
   databankDocumentsTile,
   buddyDormantTile,
+  // #834 — the roadmap doorways the door spreads after buddy. They are collapsed at rest (the panel is
+  // unmounted while the fold is closed), so what they add to a settled measurement is the band's count
+  // chip; including them is what keeps "the door's array, verbatim" true.
+  ...homeRoadmapTiles,
 ];
 
 // ── The COLUMN-BALANCE instrument (#226) ─────────────────────────────────────────────────────────────

@@ -18,6 +18,7 @@ import {
   HomeEmptyStory,
   HomeFoldStory,
   HomeRegionStory,
+  HomeRoadmapStory,
   HomeScrollCueFittingStory,
   HomeScrollCueStory,
   HomeShippedFirstBootStory,
@@ -136,6 +137,34 @@ test("#833 the doorway fold wears the sibling band (kicker register + hairline) 
   const rule = home.locator(`section[aria-label="${GROUP_LABEL}"] [data-slot="separator"]`);
   await expect(rule).toHaveCount(1);
   await expect(rule).toHaveAttribute("aria-hidden", "true");
+});
+
+// ── WHAT THE REGION LISTS (#834) ───────────────────────────────────────────────────────────────────
+// B3 retired automation's doorway and left this whole region delivering ONE dateless row, so the owner
+// ruled its SUBJECT rather than its existence: it lists the committed-but-unrealized programs of
+// `docs/architecture/proposed/INDEX.md` (FUTURE + PARTIAL), buddy among them. The tuple's parity with that
+// table is a node test (`tests/client/features/home/lib/roadmap.test.ts`); what only a browser can say is
+// that the curated list REACHES the surface — one named row each, in order, behind one press, with the
+// count the band advertises equal to what opens.
+/** The shipped set, in door order: buddy's 80 leads, then the roadmap tuple's own reading order. */
+const ROADMAP_ROW_NAMES = ["Buddy", "RPG mode", "Expressions", "Reactions", "World state", "Agents of their own", "World maps"];
+
+test("#834 the fold lists the committed roadmap — a derived count on the band, one named row per program", async ({ mount }) => {
+  const home = await mount(<HomeRoadmapStory />);
+  const region = home.locator(`section[aria-label="${GROUP_LABEL}"]`);
+
+  // The count is the band's TRAILING chip and it is DERIVED — asserted against the rows that actually
+  // open, so a tuple that grows while the chip does not (or the reverse) fails here rather than lying.
+  await expect(region.locator('[data-slot="badge"]')).toHaveText(String(ROADMAP_ROW_NAMES.length));
+  // …and the chip is BESIDE the trigger, never inside it: the accessible name is still exactly the group's
+  // one name, which is the string #482 and #833 both ruled on.
+  const trigger = home.getByRole("button", { exact: true, name: GROUP_LABEL });
+  await trigger.click();
+
+  // EXACT names, in order — a heading each, which is how a heading-navigating reader steps the list.
+  await expect(region.getByRole("heading", { level: 3 })).toHaveText(ROADMAP_ROW_NAMES);
+  // Every row is a DOORWAY, not an IOU with a control on it: the opened panel offers nothing to press.
+  await expect(region.locator('[data-slot="collapsible-panel"] button')).toHaveCount(0);
 });
 
 test("ZERO contributions renders the designed empty state with its action, never a blank grid", async ({ mount }) => {

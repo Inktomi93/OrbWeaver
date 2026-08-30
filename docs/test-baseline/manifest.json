@@ -264,6 +264,7 @@
     "tests/client/features/home/components/home-tile.ct.tsx",
     "tests/client/features/home/lib/buddy-tile.ct.tsx",
     "tests/client/features/home/lib/order-home-tiles.test.ts",
+    "tests/client/features/home/lib/roadmap.test.ts",
     "tests/client/features/home/lib/section-jump-tile.ct.tsx",
     "tests/client/features/home/surfaces/home-column-balance.suite.ct.tsx",
     "tests/client/features/home/surfaces/home-surface.ct.tsx",
