@@ -25,7 +25,10 @@ import { chatListResponder, makeSeatPortrait } from "../../chat/fixtures.ts";
 import { CharacterDetailContributorStory, CharacterEditorSurfaceStory, CharacterFacetInspectorStory } from "../_ct-stories.tsx";
 import { CHARACTER_EDITOR_AMBIENT_ROUTES, makeCharacterDetail, makeTagFixture } from "../fixtures.ts";
 
-const TOKEN_SPLIT_RE = /\d+ total · \d+ permanent/;
+// GROUPED DIGITS (#878 F13): the census prints `1,257 total · 1,017 permanent`, never a bare four-digit
+// run that reads as an id. The comma is OPTIONAL in the pattern only because a sub-1000 fixture is legal;
+// the grouping itself is asserted on a four-digit count in the F13 pin.
+const TOKEN_SPLIT_RE = /[\d,]+ total · [\d,]+ permanent/;
 const BLUR_CLASS_RE = /blur-md/;
 // Facet-row accessible names (the row's label-button wraps label + subtitle, so match by substring).
 const SYSTEM_PROMPT_ROW = /System prompt/;
@@ -514,6 +517,26 @@ test("#493 the editor header's token census glosses its own jargon", async ({ mo
 // the exact IA defect the card exists to avoid — and the context-panel program put every tab on a
 // persistent foot rail, so a preview of a control that is always on screen is chrome, not a glance. What
 // replaces them is the ruled Overview roster: ORIGIN + ACTIVITY + TAGS.
+// ── #878 F13: THE ACTIVITY ROW NAMES THE THREAD, AND THE CENSUS GROUPS ITS DIGITS ──────────────────────
+test("#878 F13: Last chat names the thread beside its recency", async ({ mount, page }) => {
+  // It printed a bare date (`Aug 2, 2026`) where the mock draws `Example — Midnight Run · 3h`: "which chat"
+  // is the fact a reader can act on. The name rides the row's own GLOSS slot (the Tags row's shape) and the
+  // value stays the recency through the ONE `timeLib` seam. (F13's other half — the GROUPED census — is
+  // pinned on `TOKEN_SPLIT_RE` above, which mounts the editor; this story is the context inspector and has
+  // no save bar.)
+  await routeTrpc(page, {
+    ...CHARACTER_EDITOR_AMBIENT_ROUTES,
+    "character.get": () => OVERVIEW_CARD,
+    "chat.listChats": chatListResponder(OVERVIEW_CHATS),
+  });
+  const component = await mount(<CharacterFacetInspectorStory />);
+
+  const row = component.locator('[data-slot="character-overview"] [data-slot="overview-row"]').filter({ hasText: "Last chat" });
+  await expect(row).toContainText("A rainy night");
+  // The RECENCY is still the datum — the name is the gloss beside it, not a replacement for it.
+  await expect(row).not.toHaveText("A rainy night");
+});
+
 test("F4/#513 the Overview tab rests on an overview card carrying what CONTENT does not", async ({ mount, page }) => {
   await routeTrpc(page, {
     ...CHARACTER_EDITOR_AMBIENT_ROUTES,

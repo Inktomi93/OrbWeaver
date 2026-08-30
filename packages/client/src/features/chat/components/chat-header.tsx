@@ -148,7 +148,12 @@ export function RosterChipButton({
   return (
     <Button
       type="button"
-      intent="ghost"
+      // THE ACTIONABLE CHIP WEARS THE DRAWN EDGE (#878 F12) — `outline` is `ghost`'s ink with `secondary`'s
+      // edge, and `pill` is the mock's one chip family. The band's inert datums stay soft `Badge`s, so the
+      // row stops marking the un-pressable things as the shaped ones. Both mounts take it: the topbar's
+      // trail is a control row, where a chip that reads as a control is right.
+      intent="outline"
+      shape="pill"
       size="sm"
       aria-label={`Members — ${count}`}
       className="shell-chat-member-chip whitespace-nowrap"

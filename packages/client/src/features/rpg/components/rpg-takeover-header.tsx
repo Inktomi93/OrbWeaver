@@ -31,20 +31,15 @@ import { clockTimeOfDay, rpgWeatherText } from "@orb/contracts/rpg";
 import { Badge } from "@orb/ui/badge";
 import { Icon, Lock } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
-import { CoinFigure, RingGauge, Waystone } from "@orb/ui/meter";
+import { Waystone } from "@orb/ui/meter";
 import { Heading, Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
-import { HIDE_AT_COARSE } from "#components";
-import { cn } from "#lib";
-import { resolveTrackerColor, trackColorProps } from "../lib/track-color.ts";
 import { RpgFreshnessIndicator } from "./rpg-freshness-indicator.tsx";
+import { RpgSatelliteRow } from "./rpg-satellite-row.tsx";
 
 // The band renders the SERVER-derived orb set (satellites): the host's PINNED trackers, envelope-capped
 // SERVER-SIDE (`trackerOrbs`, and each orb carries its own host-picked color). The client renders them all — no second cap (a client
 // slice would silently drop a pinned orb the host asked for, the orb-pinning bug).
-/** The 3-char uppercase tag the orb caption shows ("VIT"), the OSRS glanceable-vitals idiom. */
-const ORB_TAG_LEN = 3;
-
 /** Line 2's when/where caption from the ambient strip. `dateMode` (#9): `narrated` (the default) leads
  *  with the FREEFORM date string and drops the sequential `day N` counter (the model narrates the date;
  *  no forced day-count display); `structured` keeps the counter. Time-of-day + weather render in BOTH
@@ -108,22 +103,6 @@ function stoneClockOf(clock: RpgClockTime | null): { readonly hour: number; read
   return { hour: clock.hour, minute: clock.minute ?? 0 };
 }
 
-/** ONE pinned tracker as a band SATELLITE, on the eligibility rule at the top of this file: a CEILINGED pool
- *  wears the arc (`RingGauge` — value/max, with its 3-char glance tag); a max-less quantity wears the wallet's
- *  disc instead, because an arc with no domain can only ever draw itself full. Both keep the tracker's own
- *  resolved ramp colour, so the definition→orb→bar colour identity survives the shape fork. */
-function Satellite({ orb, ordinal }: { readonly orb: RpgTrackerOrb; readonly ordinal: number }): ReactElement {
-  const color = trackColorProps(resolveTrackerColor(orb.color, ordinal));
-  if (orb.max === null) {
-    // The disc is a QUANTITY figure — it carries no arc, so a host-picked free hex has nothing to paint;
-    // the ramp step is the honest colour channel it does have.
-    return <CoinFigure amount={orb.value} label={orb.label} color={color.color} showCaption={true} />;
-  }
-  return (
-    <RingGauge value={orb.value} max={orb.max} {...color} label={orb.label} showCaption={true} captionLabel={orb.label.slice(0, ORB_TAG_LEN).toUpperCase()} />
-  );
-}
-
 /** THE BAND'S FIRST LINE IS THE ROOM'S NAME, IN THE BAND'S OWN VOICE (#875 F3, side-eye 2026-08-30).
  *
  *  DESIGN.md rules the head band as "one slot, three contents — never a second head … the band owns the
@@ -145,16 +124,11 @@ function RoomName({ title }: { readonly title: string }): ReactElement {
   );
 }
 
-/** The viewer's primary wallet — the FIRST named amount (the ordinal rule); null when unfunded. */
-function primaryWallet(actors: RpgTrackerView["actors"], viewerUserId: string): { readonly name: string; readonly amount: number } | null {
-  const viewer = actors.find((a) => a.actorRef.kind === "user" && a.actorRef.userId === viewerUserId) ?? actors[0];
-  const first = viewer?.volatile?.wallet[0];
-  return first ?? null;
-}
-
 export interface RpgTakeoverHeaderProps {
   /** The ROOM's name — the band's first line, at the band's own heading voice (#875 F3). */
   readonly roomTitle: string;
+  /** Does the game tab's BODY hold the satellite row right now (#878 F7)? Then the band does not. */
+  readonly satellitesInBody: boolean;
   readonly ambient: RpgTrackerView["ambient"];
   readonly actors: RpgTrackerView["actors"];
   readonly trackerOrbs: readonly RpgTrackerOrb[];
@@ -189,6 +163,7 @@ export interface RpgTakeoverHeaderProps {
  *  different bands — only the arrangement forks, which is the same discipline the HUD applies to the pane. */
 export function RpgTakeoverHeader({
   roomTitle,
+  satellitesInBody,
   ambient,
   actors,
   trackerOrbs,
@@ -202,7 +177,6 @@ export function RpgTakeoverHeader({
   const stoneClock = stoneClockOf(ambient?.clock ?? null);
   const when = ambient === null ? "" : whenLine(ambient, dateMode);
   const location = ambient?.location ?? "";
-  const wallet = primaryWallet(actors, viewerUserId);
   // THE COMPRESSED ARM'S CONDITION: nothing to read. `when` already folds date + clock + weather into
   // one string, so an empty location AND an empty when-line is exactly "no ambient set" — the same absence
   // the copy below states, derived from the rendered text rather than re-walking the ambient shape.
@@ -223,43 +197,12 @@ export function RpgTakeoverHeader({
     </>
   );
 
-  // THE SATELLITE ROW IS FINE-POINTER CHROME (side-eye 2026-08-07 finding 2). MEASURED on the live stack at
-  // 320×568: the claimed pane is 464px tall, this row alone is 100 of it, and the whole HUD column left the
-  // active tabpanel EIGHTEEN pixels against a 558px body — Status, Inventory, Scene, Quests and Journal were
-  // all unreadable and the weather picker painted its chips entirely outside the visible strip. The band is
-  // the GLANCE and the tab bodies are the READING (this file's own framing): on a phone there is no room
-  // for both, and the READING is what the pane is for. `pointer-coarse`, not a width query: the constraint
-  // is the phone's vertical budget, which a container query cannot see.
-  //
-  // WHERE THE DROPPED FIGURES ACTUALLY GO (owner ruling 2026-08-07 — KEEP the drop, CORRECT this text). The
-  // original claim here was "every one of them is a tracker row in Status", and side-eye measured that to be
-  // broader than the truth. Per figure, on the seeded d20 shape:
-  //   · HP · Mana · Focus — YES, tracker rows on the Status roster card. One tap (Status is the rail's first
-  //     cell and the default selection), and the reclaimed height is what makes them readable there.
-  //   · The WALLET (gold) — NOT a Status row, and never was. It renders in the INVENTORY tab header (one
-  //     tap) and again in the character takeover (two). The "every one of them" claim never covered it.
-  // AND THE CLAIM IS SHAPE-SPECIFIC, not general: the orb set is derived server-side
-  // (`rpg/chat-ops/tracker-view.ts`) from the pinned METER trackers of the first actor with state, then the
-  // pinned GAME trackers — and a pinned game-level tracker is not an actor tracker row at all, while an orb
-  // from a `kind:"cast"` actor homes on SCENE (rpg-status-tab.tsx filters `kind !== "cast"` out of the
-  // roster by design). So it is true for the seeded d20 profile and not guaranteed in general.
-  // THE ACCEPTED COST: at coarse, on Scene/Quests/Journal/Map there are no vitals and no wallet on screen.
-  // The owner ruled that acceptable rather than spend a text line of the phone's budget re-stating them.
-  const satellites =
-    trackerOrbs.length === 0 && wallet === null ? null : (
-      // THE ROW DOES NOT WRAP — IT SCROLLS (#875 F14, side-eye 2026-08-30). Five figures in a 306px pane
-      // wrapped 4+1 and left `SILVER MARKS` alone at the far left of a second row with the whole right half
-      // empty — the same ragged-void shape #861 filed against the rail's 3+2 fold, in the band. The house
-      // answer to that is already written (`context-rail.tsx` `RAIL_TRACK_CLASSES`): only a set that folds
-      // EVENLY folds, everything else keeps its whole item and scrolls. The mock agrees — its `.sat` is a
-      // plain non-wrapping row. It also buys back the second row's height at the `reading` preset (F7).
-      <Row gap="block" align="start" className={cn("min-w-0 overflow-x-auto", HIDE_AT_COARSE) ?? ""} data-slot="rpg-band-satellites">
-        {trackerOrbs.map((orb, i) => (
-          <Satellite key={orb.key} orb={orb} ordinal={i} />
-        ))}
-        {wallet === null ? null : <CoinFigure amount={wallet.amount} label={wallet.name} showCaption={true} />}
-      </Row>
-    );
+  // THE SATELLITE ROW HAS TWO POSSIBLE HOMES, AND THE BAND IS ONLY ONE OF THEM (#878 F7, owner-ruled
+  // 2026-08-30). At a large type scale the row leaves this band for the game tab's own scroll region
+  // (`rpg-game-tab-body.tsx`); `satellitesInBody` is the ONE derivation of which home it is in
+  // (`use-rpg-context-state.ts`), so the two mounts can never both render it or both drop it. The row
+  // itself, its coarse drop and its no-wrap ruling all live in `rpg-satellite-row.tsx`.
+  const satellites = satellitesInBody ? null : <RpgSatelliteRow trackerOrbs={trackerOrbs} actors={actors} viewerUserId={viewerUserId} />;
 
   const stone = (
     <Waystone

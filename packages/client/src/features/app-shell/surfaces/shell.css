@@ -1078,6 +1078,18 @@
     inset-block-end: 0;
     padding-block-end: env(safe-area-inset-bottom);
   }
+
+  /* ONE EXIT FROM THE SHEET (#878 F16, side-eye 2026-08-30). With the context sheet OPEN at 430 the topbar's
+   * context toggle (y≈23) and the band's own `X` (y≈80) are two dismisses for one action, 45px apart. The
+   * band's is the right one by the 2026-08-06 P2 ruling the bracket already follows — "the close sits where
+   * the thing it closes is", which is why the X rides INSIDE the band's top-right corner rather than in a
+   * chrome row of its own. So the topbar's copy stands down WHILE THE SHEET IS OPEN, and only here: keyed on
+   * the mode, inside the phone arm, because with the sheet COLLAPSED this button is the only phone door onto
+   * it (`context-toggle.tsx` says so, and #846's own note calls it the sheet's one door). Not a width-keyed
+   * removal, not a deletion — a state-keyed shed, the same shape as the identity yield above. */
+  .shell-grid[data-context-mode="overlay"] .shell-context-toggle {
+    display: none;
+  }
   .shell-panel[data-panel-side="list"][data-panel-mode="collapsed"] {
     transform: translateX(-100%);
   }

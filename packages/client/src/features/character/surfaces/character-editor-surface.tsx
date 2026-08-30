@@ -12,6 +12,7 @@
 
 import { rendersTrustedHtml } from "@orb/contracts/chat";
 import type { CharacterId } from "@orb/kit/ids";
+import { groupThousands } from "@orb/kit/strings";
 import { Stack } from "@orb/ui/layout";
 import { SaveBar } from "@orb/ui/save-bar";
 import { Text } from "@orb/ui/text";
@@ -233,7 +234,11 @@ function CharacterEditorForm({ data, trpc, session, detailContributors, onReveal
                     title={`${permanentTokenCount(values)} permanent tokens are sent every turn; the rest ride the active greeting.`}
                     tone="muted"
                   >
-                    {totalTokenCount(values, activeGreetingIndex)} total · {permanentTokenCount(values)} permanent
+                    {/* GROUPED (#878 F13) — the same `@orb/kit/strings` grouper the context band's token
+                        chip prints through, so the editor and the pane cannot spell one number two ways.
+                        The `aria-label` above stays UNGROUPED on purpose: a screen reader groups the digits
+                        itself, and separators inside a spoken string are read out. */}
+                    {groupThousands(totalTokenCount(values, activeGreetingIndex))} total · {groupThousands(permanentTokenCount(values))} permanent
                   </Text>
                 )}
               </form.Subscribe>

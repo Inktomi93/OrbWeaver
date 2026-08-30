@@ -27,6 +27,13 @@ export function ContextToggle(): ReactElement {
   const collapsed = layout.contextMode === "collapsed";
   return (
     <TopbarIconButton
+      // THE PHONE'S ONE SHEET EXIT (#878 F16) — the marker `shell.css` sheds this control on, and ONLY
+      // while the sheet is open at ≤48rem. With the sheet OPEN this button and the band's own `X` are two
+      // dismisses 45px apart (measured at 430: toggle y≈23, X y≈80), and the band's is the right one — "the
+      // close sits where the thing it closes is" (the 2026-08-06 P2, and the build's own fork 3). With the
+      // sheet CLOSED this is still the only phone door onto it, which is why the shed is state-keyed and
+      // not a width-keyed removal.
+      marker="shell-context-toggle"
       label={contextToggleLabel(collapsed)}
       icon={collapsed ? PanelRightOpen : PanelRightClose}
       expanded={!collapsed}

@@ -200,7 +200,12 @@ test("#112: the rail is ONE tab stop with manual activation, and the viewport is
 
   // The viewport is a `region` whose accessible name is the current cell (no tabpanel — there is no tab).
   await expect(component.getByRole("tabpanel")).toHaveCount(0);
-  const panel = component.locator('[data-slot="tabs-panel"]:visible');
+  // BARRIER ON THE SETTLED PANEL, not on `:visible` (flaked twice — 2026-08-30, legs 1 and 2 of #875/#878).
+  // Base UI cross-fades the panels: for a few frames the OUTGOING one is still painted, marked `inert` with
+  // `data-ending-style`, so `:visible` legitimately matches TWO and the strict-mode read throws. The panel
+  // this test means is the one that is not on its way out, which is a state the DOM states directly.
+  const panel = component.locator('[data-slot="tabs-panel"]:visible:not([inert])');
+  await expect(panel).toHaveCount(1);
   await expect(panel).toHaveAttribute("role", "region");
   const labelledBy = await panel.getAttribute("aria-labelledby");
   await expect(component.locator(`[id="${labelledBy ?? ""}"]`)).toHaveAttribute("aria-current", "true");

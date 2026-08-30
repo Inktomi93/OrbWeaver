@@ -336,6 +336,10 @@ function stubTakeover(
      *  static arms above, so every existing caller is unchanged. */
     readonly liveTracker?: () => unknown;
     readonly patchSheet?: (input: unknown) => unknown;
+    /** #878 F7 — the viewer's TYPE SCALE. At `>= 1.25` (what the `reading` appearance preset sets) the
+     *  satellite row leaves the head band for the game tab's own scroll region. Default: the schema's born
+     *  1, so every other pin in this file keeps the orbs in the band. */
+    readonly fontScale?: number;
   } = {},
 ): ReturnType<typeof routeTrpc> {
   const readOnly = opts.readOnly ?? false;
@@ -373,6 +377,16 @@ function stubTakeover(
     "rpg.addJournalEntry": () => "rpg_journal_ct_new",
     "rpg.editJournalEntry": () => undefined,
     "rpg.deleteJournalEntry": () => undefined,
+    ...(opts.fontScale === undefined
+      ? {}
+      : {
+          "settings.getUserSettings": {
+            userId: "user_ct_rpg",
+            schemaVersion: 1,
+            config: { ...DEFAULT_USER_SETTINGS, appearance: { ...DEFAULT_USER_SETTINGS.appearance, fontScale: opts.fontScale } },
+            updatedAt: 0,
+          },
+        }),
     "rpg.getConfigView": () => opts.config ?? configView(),
     "rpg.revealHidden": () => opts.reveal ?? revealView(),
     // The chat panel's own reads (the meta strip's tabs suspend on these when opened) + the transcript
@@ -3022,6 +3036,38 @@ test("HUD-1 §7.3: with no ambient set the band COMPRESSES to one row — a smal
     )
     .toBeLessThan(stoneBox.y + stoneBox.height);
   expect(orbBox.y + orbBox.height).toBeLessThanOrEqual(headerBox.y + headerBox.height + 1);
+});
+
+// ── #878 F7: AT A LARGE TYPE SCALE THE ORBS LEAVE THE BAND FOR THE VIEWPORT ────────────────────────────
+// The `reading` preset measured band 299 + rails 256 of a 740px pane — 184px of viewport (24.9%). The
+// satellite row is the part of the band that is a GLANCE rather than the artifact's identity, so it moves
+// into the tab body and scrolls with the content. ONE derivation decides the home, and this pin drives BOTH
+// arms: a one-directional check passes on a row that is stuck in either place.
+const READING_FONT_SCALE = 1.25;
+
+test("#878 F7: the satellite row lives in the BAND at the default type scale and in the VIEWPORT at the reading scale", async ({ mount, page }) => {
+  await stubTakeover(page);
+  const component = await mount(<RpgTakeoverReferenceStory />);
+  const band = component.locator('[data-slot="rpg-hud-band"]');
+  await expect(band.locator('[data-slot="rpg-band-satellites"]')).toHaveCount(1);
+  // …and NOWHERE else — exactly one row on screen, never two homes for one glance.
+  await expect(component.locator('[data-slot="rpg-band-satellites"]')).toHaveCount(1);
+});
+
+test("#878 F7: at the reading type scale the row is in the tab body, the band sheds it, and the viewport grows", async ({ mount, page }) => {
+  await stubTakeover(page, { fontScale: READING_FONT_SCALE });
+  const component = await mount(<RpgTakeoverReferenceStory />);
+  const band = component.locator('[data-slot="rpg-hud-band"]');
+  const row = component.locator('[data-slot="rpg-band-satellites"]');
+  // STILL EXACTLY ONE — the move is a MOVE, not a second mount.
+  await expect(row).toHaveCount(1);
+  await expect(band.locator('[data-slot="rpg-band-satellites"]')).toHaveCount(0);
+  // …and it is inside the settled viewport panel, so it scrolls with the tab's content.
+  const panel = component.locator('[data-slot="tabs-panel"]:visible:not([inert])');
+  await expect(panel).toHaveCount(1);
+  await expect(panel.locator('[data-slot="rpg-band-satellites"]')).toHaveCount(1);
+  // The Waystone is UNCHANGED and still in the band — the ruling moved the orbs, nothing else.
+  await expect(band.locator('[data-slot="waystone"]')).toHaveCount(1);
 });
 
 test("HUD-1 §7.1: the HUD's chrome stays inside its vertical budget at the 30rem × 900px reference", async ({ mount, page }) => {

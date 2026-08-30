@@ -42,7 +42,7 @@ import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useTRPC } from "#data";
-import { timeLib } from "#lib";
+import { deriveChatTitle, timeLib } from "#lib";
 import { EMPTY_VALUE } from "../lib/empty-vocabulary.ts";
 
 const REFINERY_SCORE_DECIMALS = 2;
@@ -95,8 +95,20 @@ export function CharacterOverviewCard({ characterId }: CharacterOverviewCardProp
 
       <Stack gap="row">
         <Kicker>Activity</Kicker>
-        {/* RECENCY, NOT A CENSUS: the hero's "N chats ›" is the count, 300px away and always on screen. */}
-        <OverviewRow label="Last chat" value={lastMessageAt === null ? NEVER : timeLib.formatRelative(lastMessageAt)} mono={false} />
+        {/* RECENCY, NOT A CENSUS: the hero's "N chats ›" is the count, 300px away and always on screen.
+            AND IT NAMES THE THREAD (#878 F13, side-eye 2026-08-30). It printed a bare date (`Aug 2, 2026`)
+            where the mock draws `Example — Midnight Run · 3h`: "which chat" is the fact a reader can act
+            on, and "which day" is the one they cannot. The name rides the row grammar's own GLOSS slot —
+            the same shape the Tags row uses (datum on the right, names underneath) — and the value stays
+            the recency, through the ONE `timeLib` display seam (probe-mode-frozen, so a snapshot diff does
+            not churn every minute). `deriveChatTitle` is the ONE title derivation, so an untitled thread
+            falls back to her name here exactly as it does in the topbar and the band. */}
+        <OverviewRow
+          label="Last chat"
+          value={lastMessageAt === null ? NEVER : timeLib.formatRelative(lastMessageAt)}
+          {...(newest === undefined ? {} : { gloss: deriveChatTitle(newest.title, [data.name]) })}
+          mono={false}
+        />
       </Stack>
 
       <Stack gap="row">

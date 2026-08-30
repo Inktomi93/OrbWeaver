@@ -17,7 +17,7 @@ import type { BankHealthView, DocOrigin, DocumentView, IngestPhase } from "@orb/
 import { INGEST_PHASES, STALE_INGEST_MS } from "@orb/contracts/databank";
 // `formatBytes` moved to `@orb/kit/strings` when the per-chat rack became its THIRD consumer (it was
 // spelled here and, byte-identically, inside `@orb/ui/file-dropzone`). Same function, one home.
-import { formatBytes } from "@orb/kit/strings";
+import { formatBytes, groupThousands } from "@orb/kit/strings";
 import type { LucideIcon } from "@orb/ui/icons";
 import { AlertTriangle } from "@orb/ui/icons";
 
@@ -184,17 +184,6 @@ export function ingestStallHint(doc: Pick<DocumentView, "charCount" | "chunkCoun
  */
 export function ingestEmptyHint(doc: Pick<DocumentView, "charCount" | "chunkCount" | "embeddedCount">): string | null {
   return countedPhase(doc) === "empty" ? "No text could be extracted — re-upload a text PDF, or paste the text." : null;
-}
-
-const THOUSANDS_RE = /\B(?=(\d{3})+(?!\d))/gu;
-
-/** Group a count for display ("1170" → "1,170"). Hand-rolled because `.toLocaleString()` is banned repo-wide
- *  (`no-raw-intl-time` — un-memoized Intl by the back door), and a four-digit count with no grouping reads as
- *  an id. Same spelling as the assembly panel's own `formatCount`, deliberately not lifted into a shared home
- *  for two call sites in different features. It is this FILE's one number convention — the bank-health line,
- *  the passage tally and the character readout all print through it (side-eye 2026-08-19 N-3). */
-function groupThousands(value: number): string {
-  return String(value).replace(THOUSANDS_RE, ",");
 }
 
 /**

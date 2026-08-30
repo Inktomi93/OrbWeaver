@@ -19,6 +19,7 @@
 import { blobUrl } from "@orb/contracts/assets";
 import type { CharacterId } from "@orb/kit/ids";
 import { initialsFor } from "@orb/kit/initials";
+import { groupThousands } from "@orb/kit/strings";
 import { Avatar } from "@orb/ui/avatar";
 import { Badge } from "@orb/ui/badge";
 import { Row, Stack } from "@orb/ui/layout";
@@ -88,7 +89,11 @@ export function CharacterContextBand({ characterId }: CharacterContextBandProps)
             data-slot="character-context-band-tokens"
             title="Estimated tokens the card spends at its first greeting — the editor's own count"
           >
-            {`${tokens} tokens`}
+            {/* GROUPED (#878 F13): a four-digit run with no separator reads as an id, not a magnitude —
+                `1257 tokens` was the review's example. `groupThousands` is the ONE house grouper
+                (`@orb/kit/strings`; `.toLocaleString()` stays banned repo-wide), so this chip and the
+                editor's own save-bar census cannot print the same number two ways. */}
+            {`${groupThousands(tokens)} tokens`}
           </Badge>
         </Row>
       </Stack>
