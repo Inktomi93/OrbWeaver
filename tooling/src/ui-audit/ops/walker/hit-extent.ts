@@ -68,10 +68,11 @@ export const WALKER_HIT_EXTENT = `  // ── the compositor hit-extent probe �
   // because walking off its own box always landed back on the wrapper). Ancestor credit — via EITHER the
   // plain containment clause below OR sharedCompositeOwns — is legitimate for exactly two shapes, both of
   // which have NO paintable box of their own at the probed point, so the ancestor is the only thing that
-  // CAN answer:
+  // CAN answer (and #807 then narrows WHICH hit may answer — see hitForwards):
   //   · PSEUDO-CARRIED: an overflowing ::after/::before touch-target pseudo (the @orb/ui Button glyph
   //     ramp — packages/ui/src/primitives/button/variants.ts glyphBox, content-[''] + absolute
-  //     positioning) has no DOM node at all.
+  //     positioning) has no DOM node at all, and MEASURED (2026-08-30) elementFromPoint inside one does
+  //     NOT return the originating element either — it returns the wrapper underneath.
   //   · VISUALLY-HIDDEN: Base UI's native range input inside a Slider Thumb (isVisuallyHidden, core.ts —
   //     a collapsed clip-path) paints nothing; elementFromPoint on its own centre already resolves to
   //     the Thumb div that visually represents it (verified live: the input's own rect sits UNDER the
@@ -89,6 +90,30 @@ export const WALKER_HIT_EXTENT = `  // ── the compositor hit-extent probe �
   }
   function ancestorCreditAllowed(el) {
     return pseudoCarriesFloor(el) || isVisuallyHidden(el);
+  }
+  // ANOTHER ELEMENT'S TEXT IS NOT THIS CONTROL'S TARGET (owner ruling 2026-08-30, #807: credit only a
+  // FORWARDING ancestor). Measured live on Settings→Plugins at --mobile, the capability control's ring is
+  // ["self", "other:p.font-sans", "self", "ANCESTOR:div.relative"] — and the composite clause credited
+  // that PARAGRAPH, because the control is the row's only offered control. So design-audit published a
+  // 44x44 target for a row that does not toggle, on the one surface where the tap-target lens matters.
+  //
+  // The discriminator that survives contact with BOTH shapes is what the hit is MADE OF. The composite
+  // clause exists for a Slider's decorative track pieces ([data-slot=slider-indicator] — a sibling of the
+  // thumb, rendering no text, and a press on it genuinely moves the value): those forward. A run of PROSE
+  // in a layout row forwards nothing — clicking a capability's sentence does not grant it — and it is
+  // exactly what the plugins row put under the probe. A hit CONTAINING the control keeps its credit
+  // regardless: that is the wrapper whose box the control's own pseudo sits over, and refusing it undoes
+  // #662/#665 (measured: the isolated glyph collapses 44 → 22 the moment ancestors are refused, which is
+  // how this comment came to be written twice).
+  //
+  // NOT IMPLEMENTED, and why (the un-provable half of the ruling): "an ancestor carrying a click handler
+  // that toggles the control" needs the handler to be dispatched to, and React handlers are invisible to
+  // the DOM. The only proof is a real click — and this tool's contract is "read-only, never touches app
+  // settings" (cli.ts), which on the surface that named this issue means granting a plugin capability.
+  // Under-crediting such a hit is the safe direction: too small is a finding to dismiss, too large is a
+  // defect that never gets reported.
+  function hitForwards(el, hit) {
+    return hit.contains(el) || String(hit.textContent || "").trim().length === 0;
   }
   function sharedCompositeOwns(el, hit) {
     var scope = el.parentElement;
@@ -134,11 +159,18 @@ export const WALKER_HIT_EXTENT = `  // ── the compositor hit-extent probe �
     }
     return false;
   }
-  // DECLARED LIMIT: a lone control inside a larger non-interactive wrapper within COMPOSITE_WALK_MAX
-  // levels is STILL credited with the wrapper's extent when the control itself is pseudo-carried or
-  // visually-hidden (e.g. a glyph Button with no genuine composite siblings at all). That direction
-  // (crediting a control that is, rarely, genuinely alone) is the accepted trade against the measured FP
-  // class this file's probe exists to avoid — see THE HIT AREA IS NOT THE BOX above.
+  // DECLARED LIMIT (narrowed by #807): a lone pseudo-carried or visually-hidden control inside a larger
+  // non-interactive wrapper within COMPOSITE_WALK_MAX levels is STILL credited with that wrapper's
+  // extent — the wrapper has no content of its own at the probed point, so nothing else can answer, and
+  // that direction is the accepted trade against the FP class this probe exists for. What #807 removed is
+  // narrower and is the whole finding: the credit no longer reaches a hit that is another element's TEXT.
+  //
+  // DECLARED LIMIT (#807, the un-provable half of the ruling): an ancestor that forwards through a JS
+  // click handler rather than a <label> reads as UN-OWNED. React handlers are invisible to the DOM, the
+  // only proof is to dispatch a click and watch the control activate, and this tool is "read-only, never
+  // touches app settings" (cli.ts) — on the surface that named this issue such a click grants a plugin
+  // capability. Under-crediting a handler-forwarded row is the safe direction: it reports a target
+  // smaller than the truth, never larger.
   //
   // The coordinate guard is a FRAME guard, not an ownership verdict: callers must have cleared
   // probeFrameFits first, so a false here means "the compositor says another element owns this point",
@@ -150,6 +182,7 @@ export const WALKER_HIT_EXTENT = `  // ── the compositor hit-extent probe �
     if (hit === el || el.contains(hit)) return true;
     if (forwardingLabelOwns(el, hit)) return true;
     if (!ancestorCreditAllowed(el)) return false;
+    if (!hitForwards(el, hit)) return false;
     if (hit.contains(el)) return true;
     return sharedCompositeOwns(el, hit);
   }

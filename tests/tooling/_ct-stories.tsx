@@ -305,6 +305,41 @@ export function WalkerBoxCarriedIsolatedControlStory(): ReactElement {
  *  probe band) and inset from x=0 for the same reasons as the box-carried stage above — this stage is the
  *  one shape that MUST still measure the full floor once ancestor-credit is scoped to pseudo-carried
  *  controls only. */
+/** The #807 stage — the Settings→Plugins capability row, rebuilt from its measured ring.
+ *
+ *  Live at `--mobile`, the capability control's four-cardinal `elementFromPoint` ring reads
+ *  `["self", "other:p.font-sans", "self", "ANCESTOR:div.relative"]`: its own outward pseudo answers SELF
+ *  on two sides, and the third belongs to a PARAGRAPH. `sharedCompositeOwns` still handed it the whole
+ *  44x44 (the control is the row's only offered control), so design-audit published a target the row does
+ *  not toggle. Both arms are in one mount so the contrast is a single measurement, not two runs:
+ *
+ *   · ISOLATED — the same glyph with nothing beside it. Its pseudo is the only thing at those pixels, so
+ *     it keeps its full extent. Removing the ancestor credit must NOT touch this (it is #662/#665's
+ *     surviving half).
+ *   · ROW-WRAPPED — the same glyph with a prose column painted over its outward ring, exactly as the
+ *     capability row does. Nothing forwards: no label, no toggle. Its extent must now CAP at the pixels
+ *     it genuinely owns. */
+export function WalkerRowWrappedGlyphStory(): ReactElement {
+  return (
+    <div style={{ padding: 60, width: 460 }}>
+      <div style={{ marginBlockEnd: 80, marginInlineStart: 48 }}>
+        <Button aria-label="Regenerate" data-testid="glyph-alone" size="glyph-sm" />
+      </div>
+      {/* The prose is ABSOLUTELY placed at a known offset and raised, so "which element owns x=+22 from
+          the control's centre" is a fixed fact of this story rather than a flex-gap accident. */}
+      <div data-testid="capability-row" style={{ display: "flex", position: "relative", width: 360 }}>
+        <Button aria-label="Grant file access" data-testid="glyph-in-row" size="glyph-sm" />
+        <p
+          data-testid="capability-prose"
+          style={{ fontSize: 15, insetBlock: 0, insetInlineEnd: 0, insetInlineStart: 30, margin: 0, position: "absolute", zIndex: 1 }}
+        >
+          reads and writes your files
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export function WalkerPseudoCarriedIsolatedGlyphStory(): ReactElement {
   return (
     <div style={{ padding: 120, position: "static", width: 400 }}>
