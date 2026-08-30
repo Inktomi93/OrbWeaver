@@ -16,23 +16,16 @@
 // omitted for a member (`CommittedSettingsTab`), and every `automation.*` rule verb is host-gated
 // server-side anyway (a member's `listRules` collapses to a leak-free NOT_FOUND).
 
-import type { ReactElement } from "react";
-import { QueryBoundary, QueryErrorState, SkeletonRows } from "#data";
 import type { ChatSettingsSectionContribution } from "#lib";
-import { RulesSection } from "../components/rules-section.tsx";
+import { RulesSectionBody } from "../components/rules-section.tsx";
 
 /** The host-only "Rules" section inside the "This chat" tab — the rule list + enable toggle + Test /
- *  Run-now + preset picker + fire log. Suspends on `listRules`, so the body owns its `QueryBoundary`. */
+ *  Run-now + preset picker + fire log. Suspends on `listRules`, so the body owns its `QueryBoundary` —
+ *  which lives with the section's components (`RulesSectionBody`), because the fallback must be sized from
+ *  a hook and this file may export nothing but the contribution. */
 export const automationRulesSection: ChatSettingsSectionContribution = {
   id: "automationRules",
   anchor: "host-controls",
   kicker: "Rules",
-  body: (state) => (
-    <QueryBoundary
-      fallback={<SkeletonRows count={3} shape="line" />}
-      renderError={(_error, retry): ReactElement => <QueryErrorState label="this chat's rules" onRetry={retry} />}
-    >
-      <RulesSection chatId={state.chatId} />
-    </QueryBoundary>
-  ),
+  body: (state) => <RulesSectionBody chatId={state.chatId} />,
 };

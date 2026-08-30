@@ -82,7 +82,15 @@ function OverrideCollapseCard({ label, isSet, snippet, open, onOpenChange, onCle
     // proven by this component's own CT (the card's top edge must hit the trigger, not dead padding).
     <Card className={isSet ? "!p-0 border-l-2 border-l-primary" : "!p-0"}>
       <Collapsible open={open} onOpenChange={onOpenChange}>
-        <CollapsibleTrigger className="w-full p-block" aria-label={`${label}, ${isSet ? "overridden" : "inheriting"}`}>
+        {/* `size="control"` pins the pointer-conditional `--spacing-control-sm` floor (44px coarse / 32px
+            fine). MEASURED at 411×40 under a coarse pointer with `::after` resolving `inset: auto` — no
+            touch layer in play at all — and `elementFromPoint` ±3px outside the box resolving to something
+            else, i.e. a real 40px hit area against the 44px floor, on the tab's first three controls
+            (side-eye 2026-08-30 §5-P2, #822). The rule row's fire-log disclosure took the same arm for the
+            same reason; growing the floor on the VARIANT rather than with a call-site height is what keeps
+            it pointer-conditional (a fine pointer's 32px is under the shipped 40px, so the desktop box is
+            unchanged) and inside the `ui-size-via-variant` seal. */}
+        <CollapsibleTrigger className="w-full p-block" size="control" aria-label={`${label}, ${isSet ? "overridden" : "inheriting"}`}>
           <Row align="center" gap="field" justify="between" className="flex-1">
             <Text voice="label">{label}</Text>
             <Text voice="gloss">{isSet ? "overridden" : "inheriting"}</Text>

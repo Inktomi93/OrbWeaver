@@ -11,9 +11,14 @@
 // the saved overrides' UNTOUCHED mainPrompt must be B's (absent), never A's frozen "A-prompt".
 
 import { expect, test } from "@playwright/experimental-ct-react";
+import { touchFloorPx } from "../../../../support/ct/touch-floor.ts";
 import { RoomOverridesSwitchStory } from "../_ct-stories.tsx";
 
 const SAVED = '[data-testid="room-overrides-saved"]';
+
+/** WCAG 2.5.5's coarse-pointer target floor — asserted on the RESOLVED token before it is trusted, so a
+ *  fine-pointer run (where the token answers 28) cannot read as a pass. */
+const WCAG_TOUCH_FLOOR_PX = 44;
 
 test("SWITCH pin — switching chats reseeds the form on the new chat, never the previous chat's frozen overrides", async ({ mount }) => {
   const component = await mount(<RoomOverridesSwitchStory />);
@@ -78,4 +83,39 @@ test("full-row tap target — the trigger fills its row; the card's top edge hit
 
   await expect.poll(async () => (await readProbeAtAssertion()).inTrigger).toBe(true);
   expect(Math.abs(probe.triggerHeight - probe.cardHeight)).toBeLessThanOrEqual(2);
+});
+
+// ── #822: the Field-overrides triggers meet the coarse-pointer touch floor ────────────────────────────
+// MEASURED before the fix (side-eye 2026-08-30 §5-P2, live `--mobile` 430×932): 411×40 with
+// `getComputedStyle(el, "::after").inset === "auto"` — no touch pseudo in play at all — and
+// `elementFromPoint` ±3px outside the box resolving elsewhere, i.e. a real 40px target against the 44px
+// floor, on the tab's FIRST THREE controls. The fix is the `size="control"` variant (the rule row's
+// fire-log disclosure took the same arm at #655), which pins the pointer-CONDITIONAL
+// `--spacing-control-sm`: 44px coarse, 32px fine. So the desktop box is unchanged and only a finger sees
+// the growth — which is why this pin must run under an emulated coarse pointer. A narrow viewport alone
+// would not see it: pointer class is a browser-CONTEXT flag, and at a fine pointer the token answers 28.
+test.describe("#822: coarse pointer — the Field-overrides disclosures meet the touch floor", () => {
+  test.use({ hasTouch: true, viewport: { width: 430, height: 932 } });
+
+  test("each of the three override triggers is at least the resolved touch floor tall", async ({ mount, page }) => {
+    // Settled snapshot: pointer class is fixed when the browser context is created (`hasTouch` above), not
+    // page state — there is nothing async for a poll to wait out, and a poll would only mask a config miss.
+    await expect.poll(async () => await page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
+
+    const component = await mount(<RoomOverridesSwitchStory />);
+    // The floor is the RESOLVED token, never a hardcoded 44 — a literal both fails correct fixes and
+    // survives a token retune. Asserted against WCAG's number first, so a fine-pointer run (where the
+    // token answers 28) cannot read as a pass.
+    const floor = await touchFloorPx(page);
+    expect(floor).toBeGreaterThanOrEqual(WCAG_TOUCH_FLOOR_PX);
+
+    for (const label of ["Main prompt", "Post-history", "Scenario"]) {
+      const trigger = component.getByRole("button", { name: label });
+      await expect(trigger).toBeVisible();
+      // THE BOX, not a hit sweep: this trigger's floor is a real `min-height` on its own border box
+      // (`size="control"`), not an overflowing `::after`, so the box IS the target — and an ancestor sweep
+      // would credit the card's padding to it (the #662 hole).
+      await expect.poll(async () => (await trigger.boundingBox())?.height, { intervals: [20, 50, 100, 200] }).toBeGreaterThanOrEqual(floor);
+    }
+  });
 });

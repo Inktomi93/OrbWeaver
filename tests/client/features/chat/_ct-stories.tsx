@@ -134,7 +134,7 @@ import { GhostMessageRow } from "../../../../packages/client/src/features/chat/c
 import { GreetingSwipeStrip } from "../../../../packages/client/src/features/chat/components/greeting-swipe-strip.tsx";
 import { GroupConfigForm } from "../../../../packages/client/src/features/chat/components/group-config-form.tsx";
 import { ImageryTemplatesSection } from "../../../../packages/client/src/features/chat/components/imagery-templates-section.tsx";
-import { InjectionsManager } from "../../../../packages/client/src/features/chat/components/injections-manager.tsx";
+import { InjectionsManager, InjectionsSkeleton } from "../../../../packages/client/src/features/chat/components/injections-manager.tsx";
 import { InviteDialog } from "../../../../packages/client/src/features/chat/components/invite-dialog.tsx";
 import { MacroPicksSection } from "../../../../packages/client/src/features/chat/components/macro-picks-section.tsx";
 import { MemberCardViewer } from "../../../../packages/client/src/features/chat/components/member-card-viewer.tsx";
@@ -2899,6 +2899,31 @@ export function AssemblyPreviewPanelStory(): ReactElement {
  *  `injections` tab body — `InjectionsManager` is never mounted bare in production, only ever behind its
  *  own suspense/error boundary). The `.ct.tsx` drives add/edit/delete and asserts the MUTATION count
  *  (routeTrpc's recorder), never a UI reaction — the autosave form's own CT covers the save chrome. */
+/** #821: the RESERVE beside the thing it reserves for. The Injections boundary's fallback and the settled
+ *  section, at ONE width in ONE page, each in its own measurable box — so a CT can read both heights in a
+ *  single settled frame and assert the reserve is within 10% of what arrives, at 0/1/2/5 rows and at both
+ *  the desktop (367px) and mobile (411px) context-panel widths. Measuring them separately across two mounts
+ *  would compare two layout passes; measuring them together is the claim itself. */
+export function InjectionsReserveStory({ count, width }: { readonly count: number; readonly width: number }): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ width }}>
+        <div data-testid="injections-reserve">
+          <InjectionsSkeleton count={count} isHost={true} />
+        </div>
+        <div data-testid="injections-settled">
+          <QueryBoundary
+            fallback={<Text tone="muted">Loading injections…</Text>}
+            renderError={(_error, retry): ReactElement => <QueryErrorState label="injections" onRetry={retry} />}
+          >
+            <InjectionsManager chatId={CHAT_ID} isHost={true} />
+          </QueryBoundary>
+        </div>
+      </div>
+    </CtDataProviders>
+  );
+}
+
 export function InjectionsManagerStory({ isHost = true }: { readonly isHost?: boolean }): ReactElement {
   return (
     <CtDataProviders>
