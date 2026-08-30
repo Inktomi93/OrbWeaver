@@ -8,6 +8,15 @@
 // PER-SITE ESCAPE (#828): the shared `@orb-gate-ignore test-determinism: <reason>` marker on the line
 // IMMEDIATELY above the call — for a test whose SUBJECT is elapsed real time. Two-sided via
 // gate-ignore-inventory; comments are blanked, so the marker line can never itself match.
+// WIDENED SPELLINGS (#831): four real sites routed around the gate through spellings the old regex did
+// not recognise — process.hrtime()/process.hrtime.bigint() (an ambient monotonic clock; one member match
+// covers both call forms) and performance.timeOrigin (an ambient clock PROPERTY, not a call). All four
+// now carry the #828 marker. DECLARED LIMIT, unchanged by #831: a guest-realm probe that reaches a stub
+// via SUBSCRIPT/bracket access (`Date['now']()`, `performance['now']()`) still evades every regex in this
+// file by construction — the probe never spells the dotted member the regex matches on. That is
+// tests/server/infra/plugin-host/realm.test.ts's documented choice (its own header), not a gap this gate
+// closes; a future "flag bracket access too" would need to special-case away from EVERY legitimate bracket
+// property read, which is not this gate's job.
 
 import type { GateDescriptor } from "../contract/gate.ts";
 import { blankTsComments } from "../lib/comment-spans.ts";
@@ -34,6 +43,14 @@ const BANNED: readonly { readonly re: RegExp; readonly what: string }[] = [
     what: "randomUUID() — unseeded id; use the seeded ids (tests/support/ids.ts)",
   },
   { re: /\bperformance\.now\s*\(/u, what: "performance.now() — ambient clock" },
+  {
+    re: /\bprocess\.hrtime\b/u,
+    what: "process.hrtime()/process.hrtime.bigint() — ambient monotonic clock; mark it if the test's SUBJECT is elapsed real time (#828)",
+  },
+  {
+    re: /\bperformance\.timeOrigin\b/u,
+    what: "performance.timeOrigin — ambient clock property",
+  },
 ];
 
 function relPath(root: string, abs: string): string {
@@ -46,7 +63,7 @@ export const gate: GateDescriptor = {
   status: "active",
   scopeSafety: "whole-project",
   message:
-    "ambient nondeterminism in a test (Date.now/new Date()/Math.random/randomUUID/performance.now) — inject the frozen clock + seeded ids via the fixture seam (core/Spine-Testing.md §3).",
+    "ambient nondeterminism in a test (Date.now/new Date()/Math.random/randomUUID/performance.now/process.hrtime/performance.timeOrigin) — inject the frozen clock + seeded ids via the fixture seam (core/Spine-Testing.md §3).",
   fix: "inject the frozen clock (tests/support/clock.ts) + seeded ids (tests/support/ids.ts) through the composition seam production uses.",
   scanRoot: (p) => p.startsWith(TESTS_ROOT) && !UNSCANNED_ROOTS.some((root) => p.startsWith(root)),
   visitFile: (sf, ctx) => {
@@ -112,6 +129,21 @@ export const gate: GateDescriptor = {
       expect: { messageIncludes: "Date.now" },
       why: "DECLARED LIMIT (issue #132): only COMMENTS are blanked. A banned call spelled inside a STRING is code a test could evaluate, and two live suites (check-gates.int, gate-ignore-grammar.int) assemble their fixtures precisely to stay clean of this arm — keeping it proven stops a future 'blank strings too' from silently disarming them",
     },
+    {
+      files: { "tests/server/hrtime.test.ts": "export const t = process.hrtime();\n" },
+      expect: { messageIncludes: "process.hrtime" },
+      why: "#831 — process.hrtime() is an ambient monotonic clock the old regex did not recognise; four real sites routed around the gate through this spelling before the class was widened",
+    },
+    {
+      files: { "tests/server/hrtime-bigint.test.ts": "export const t = process.hrtime.bigint();\n" },
+      expect: { messageIncludes: "process.hrtime" },
+      why: "#831 — process.hrtime.bigint() is the same ambient clock family; one member match (\\bprocess\\.hrtime\\b) covers both call forms, no separate BANNED entry needed",
+    },
+    {
+      files: { "tests/server/time-origin.test.ts": "export const t = performance.timeOrigin;\n" },
+      expect: { messageIncludes: "performance.timeOrigin" },
+      why: "#831 — performance.timeOrigin is an ambient clock property (not a call); the old performance.now()-only regex missed it and a guest-realm probe string spelled it undetected",
+    },
   ],
   mustPass: [
     {
@@ -120,6 +152,13 @@ export const gate: GateDescriptor = {
           "// @orb-gate-ignore test-determinism: the SUBJECT is elapsed real time — ends when the assertion stops measuring wall-clock\nexport const p = performance.now();\n",
       },
       why: "#828 — the per-site escape this gate had no way to express: its findings go through the `Finding` overload, which honours a marker on the line IMMEDIATELY above. Before #828 a test whose subject IS elapsed real time had to contort or change instrument; the marker is two-sided (gate-ignore-inventory reds it the day the call goes away)",
+    },
+    {
+      files: {
+        "tests/server/marked-hrtime.test.ts":
+          "// @orb-gate-ignore test-determinism: monotonic elapsed-ms for a real-timer race; no frozen clock to inject\nexport const t = process.hrtime.bigint();\n",
+      },
+      why: "#831 — the same per-site escape for the newly-recognised process.hrtime family, proving the marker reaches it identically to performance.now()",
     },
     {
       files: { "tests/server/y.test.ts": "export const t = clock.now();\n" },
