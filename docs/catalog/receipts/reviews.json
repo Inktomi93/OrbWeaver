@@ -2333,6 +2333,35 @@
         }
       ],
       "summary": "#821 re-verify on 76ee75493: PASS — mobile 430×932 at 4× CPU, real click, zero paid layout-shift entries in two identical runs (last wave +275/+219ms vs +795ms pre-fix; §Injections 920→307px); desktop after-click 0.145→0.075 observed, 0 paid; the residual §Documents >0h0 mover is free first-wave mount churn at 0.017, judged not the defect; Lorebooks still below the fold (→ #830); the ❗8 dev badge is a stale checker worker."
+    },
+    {
+      "path": "docs/reviews/side-eye/2026-08-30-rail-home-delta.md",
+      "assignedSha256": "bb11cf319691d18dac0e62f000e050f3420994400f1146f824d5db42b2fd9d87",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "bb11cf319691d18dac0e62f000e050f3420994400f1146f824d5db42b2fd9d87",
+      "verifiedCommit": "37b7b2309306639cc21be7fa28fa41c57323d905",
+      "verifiedAt": "2026-08-30",
+      "evidence": [
+        "docs/reviews/side-eye/2026-08-30-rail-home-delta.md:1-341 read in full by the orchestrator (claude-b) before commit; lane cb-rail-home, the Ready-runs-dry HOME delta pass on :5173 (main d9f51ea10) as the seeded user, 31-instrument battery, six retractions published; findings filed as #832-#836; the P2 law line fixed by the orchestrator in the same train"
+      ],
+      "claims": [
+        {
+          "claim": "Every finding is tracked: the stale NINE-sections law line → #832 (fixed), the What's-coming kicker band → #833, the one-item roadmap fold → #834 (owner), the #453 boot-two premise → #835, the prod-build mobile CLS arm → #836; the four prior clusters (#453 #454 #457 #458) verified holding.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#832"
+            },
+            {
+              "kind": "issue",
+              "target": "#835"
+            }
+          ]
+        }
+      ],
+      "summary": "side-eye HOME delta pass (rail sweep re-run): SHIP 33/40 — #453/#454/#457/#458 landed and hold under re-measurement; zero console/page errors across ~25 runs; a stale core-law line (NINE rail sections vs the shipped ten) nearly minted a false P1; the #453 refusal premise does not reproduce under a true boot-two + planted control; Lighthouse mobile CLS 0.122 vs probes 0.0295 unreconcilable on the dev build; taste: top-heavy above 800px, six caps kickers + one unvoiced block."
     }
   ]
 }
