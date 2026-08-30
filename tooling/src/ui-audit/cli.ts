@@ -22,6 +22,12 @@
 // A zero node census, or a walk that threw, is EXIT.toolError naming what was absent (lib/evidence.ts),
 // and the RESULT line publishes `census=` so a clean verdict always shows its denominator.
 //
+// …AND A FRACTIONAL ONE IS THE SAME LIE (#808): a run that censused 22 of a surface's 1421 nodes printed
+// `census=22 reached=3 findings=2 nav=OK` and read clean, because `data-app-ready` is ONE-SHOT at boot and
+// says nothing about a route reached by an --actions click. So the census's own denominator is MEASURED —
+// the element population is read around the walk and watched until it holds — and growth past that window
+// is EXIT.toolError too. `dom-walk=` / `dom-settled=` ride the RESULT line beside `census=`.
+//
 // Exit: 0 clean (no finding at/above --fail-on) · 1 findings or a nav error (an audit that never loaded
 // the page has nothing to say) · EXIT.toolError when nothing was censused · EXIT.misuse on a bad CLI —
 // a typo'd flag silently scans the wrong surface and reports it clean, so it is a hard error, never an

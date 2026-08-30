@@ -10,10 +10,15 @@ import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { join } from "node:path";
 import process from "node:process";
+import { vi } from "vitest";
 import { livingChromiumIdentities, watchChromiumDescendants } from "../../support/chromium-processes.ts";
 import { expect, test } from "../../support/tool-fixtures.ts";
 
 const CLI_TIMEOUT_MS = 90_000;
+// Every test here boots a real headless chromium, so the SPAWN cap (above) is the meaningful ceiling —
+// vitest's 5s default was always the smaller of the two, and the census-stability window (#808, ~2s per
+// run) made that mismatch bite: a two-run case timed out at 5001ms while its CLI was still healthy.
+vi.setConfig({ testTimeout: CLI_TIMEOUT_MS, hookTimeout: CLI_TIMEOUT_MS });
 /** The RESULT line's node-census total — the denominator every "clean" verdict here rests on (#409). */
 const CENSUS_RE = /census=(\d+)/u;
 /** The REACH denominator (#653) — how many OFFERED controls the viewport-bound families measured. */
@@ -539,4 +544,56 @@ test("--upload refuses a path OUTSIDE the repo/scratchpad boundary — loudly, n
   expect(res.stdout).toContain("ACTION FAILED");
   expect(res.stdout).toContain("boundary");
   await expect(res).toExitWith(1);
+});
+
+// ── the THIN CENSUS: a FRACTION of the surface, printed as a verdict (#808) ─────────────────────────
+
+// @instrument-absence-proof: MEASURED 2026-08-29 on Settings → Plugins at 1280x2200 —
+// `census=22 reached=3 findings=2 nav=OK` printed as a clean-looking verdict; the identical next command
+// censused 1421 and reached 126. Every zero-arm passed it through: the app HAD published data-app-ready
+// (the flag is ONE-SHOT at boot, so a surface reached by an --actions click inherits the previous
+// surface's settle), 22 is not 0, and 3 reached is not 0. The discriminator has to be the surface's own
+// population, measured twice — which is what the fixture below reproduces without an app: a page that
+// renders a shell, then fills itself AFTER the walk has already censused it.
+function lateFillPage(fillDelayMs: number): string {
+  const fill =
+    fillDelayMs === 0
+      ? "document.getElementById('late').innerHTML = ROWS;"
+      : `setTimeout(() => { document.getElementById('late').innerHTML = ROWS; }, ${fillDelayMs});`;
+  return `<!doctype html>
+<html data-app-ready="settled"><head><meta charset="utf-8"><title>t</title></head>
+<body style="margin:0;background:#000;color:#fff"><main>
+<p style="font-size:16px;margin:24px">the shell that is up before the route's reads land</p>
+<div id="late"></div>
+</main>
+<script>
+const ROWS = Array.from({ length: 60 }, (_, i) => '<div style="padding:8px"><span style="font-size:16px">row ' + i + '</span></div>').join('');
+${fill}
+</script>
+</body></html>`;
+}
+
+test("a page that fills AFTER the walk is an INSTRUMENT ERROR, never a clean audit", async ({ runCli, scratch }) => {
+  // 1500ms lands past the default 500ms settle and the walk — exactly like a route whose reads resolve a
+  // beat after the boot readiness flag went up.
+  await writeFile(join(scratch, "late-fill.html"), lateFillPage(1500));
+  const res = await runCli("ui-audit", ["/late-fill.html", "--base", `file://${scratch}`], { timeoutMs: CLI_TIMEOUT_MS });
+  expect(res.stdout).toContain("INSTRUMENT ERROR");
+  expect(res.stdout, "the gap must name the census's completeness — not the readiness signal, which WAS up").toContain("completeness");
+  expect(res.stdout, "a reader must see BOTH populations to judge the refusal").toMatch(/element\(s\) while the walk censused it and \d+/u);
+  await expect(res).toExitWith(2);
+});
+
+test("the settled twin is a verdict — the refusal above is the plant, not a fence that reds every run", async ({ runCli, scratch }) => {
+  // The identical page filled inline instead of on a timer: same final DOM, same census, no growth after
+  // the walk. If this refused too, the arm would have deleted the instrument rather than fixed it.
+  await writeFile(join(scratch, "settled-fill.html"), lateFillPage(0));
+  const res = await runCli("ui-audit", ["/settled-fill.html", "--base", `file://${scratch}`], { timeoutMs: CLI_TIMEOUT_MS });
+  expect(res.stdout).not.toContain("INSTRUMENT ERROR");
+  await expect(res).toExitWith(0);
+  // …and the RESULT line publishes the stability denominator that verdict rests on.
+  const walked = Number(/dom-walk=(\d+)/u.exec(res.stdout)?.[1]);
+  const settled = Number(/dom-settled=(\d+)/u.exec(res.stdout)?.[1]);
+  expect(walked, "a page whose fill already landed must be censused whole").toBeGreaterThan(60);
+  expect(settled).toBe(walked);
 });

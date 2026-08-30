@@ -55,6 +55,18 @@ export interface Args {
   errors: string[];
 }
 
+/** What the page's ELEMENT POPULATION did around the walk (#808) — the census's own denominator check.
+ *  `duringWalk` is the most nodes that existed while the walk could have seen them (the max of a reading
+ *  taken before it and one taken after, so a virtualised list scrolled by the reveal sweep cannot
+ *  masquerade as late-arriving content); `settled` is the count once it stopped changing. Growth between
+ *  the two is content the census structurally MISSED. */
+export interface DomPopulation {
+  duringWalk: number;
+  settled: number;
+  /** False when the count was still moving at the ceiling — the settled figure is then a floor. */
+  stabilized: boolean;
+}
+
 export interface CaptureOutcome {
   navError: string | null;
   actionsFailed: number;
@@ -63,6 +75,8 @@ export interface CaptureOutcome {
    *  clean surface (lib/evidence.ts `readinessGap`, #678). */
   appReady: boolean;
   samples: RawSamples | null;
+  /** null when nothing was walked (a nav error, or a walk that threw) — those arms report as themselves. */
+  population: DomPopulation | null;
 }
 
 /** A text node the pixel sampler declined to judge, and why — printed + written, never silently dropped. */

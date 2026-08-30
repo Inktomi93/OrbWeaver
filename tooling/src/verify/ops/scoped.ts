@@ -85,7 +85,9 @@ interface Args {
   readonly changedPaths: readonly string[];
 }
 
-const USAGE = "usage: node tooling/src/verify/cli.ts scoped (--scope <folder-glob> | --package <name> | --changed [<paths…>|git])";
+/** This verb's usage line — ONE home, read by the UsageError below and by the front door's pre-dispatch
+ *  `--help` answer (cli.ts VERB_HELP, #809). */
+export const SCOPED_USAGE = "usage: node tooling/src/verify/cli.ts scoped (--scope <folder-glob> | --package <name> | --changed [<paths…>|git])";
 
 /** Reject a selector combination that isn't exactly one non-empty selector — the first failing rule's
  *  message, or undefined when the args are well-formed. */
@@ -184,7 +186,7 @@ function runScoped(gates: readonly GateDescriptor[], root: string, selection: Pi
 export async function runScopedCli(root: string, argv: readonly string[]): Promise<number> {
   const parsed = parseArgs(argv);
   if ("error" in parsed) {
-    throw new UsageError(`${parsed.error}\n${USAGE}`);
+    throw new UsageError(`${parsed.error}\n${SCOPED_USAGE}`);
   }
   const selection = selectionFor(parsed);
   const gates = await loadGates(root);

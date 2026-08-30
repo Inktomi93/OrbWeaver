@@ -32,7 +32,7 @@ export type {
   TextStyleInput,
   ZIndexInput,
 } from "./contract/samples.ts";
-export type { Args, AuditAction, BackdropRefusal, CaptureOutcome, PixelPass } from "./contract/types.ts";
+export type { Args, AuditAction, BackdropRefusal, CaptureOutcome, DomPopulation, PixelPass } from "./contract/types.ts";
 export { checkAccessibleName, checkControlAspect, checkHeadingOrder, checkMainLandmark, checkTabIndexSmell, checkTapTarget } from "./lib/checks-a11y.ts";
 export { checkContrast, checkGrayOnColor } from "./lib/checks-color.ts";
 export { checkAccentBorder, checkGlowShadow } from "./lib/checks-decor.ts";
@@ -42,7 +42,7 @@ export { checkClippedOverflow, checkDuplicateDoors, checkEdgeFlush, checkRepeate
 export { checkAnimatedImgHover, checkGradientText, checkNestedCard, checkZIndex } from "./lib/checks-structure.ts";
 export { checkCaveatHierarchy, checkFontCensus, checkTextStyle } from "./lib/checks-typography.ts";
 export { collectFindings } from "./lib/collect.ts";
-export { censusGap, censusTotal, reachGap, readinessGap } from "./lib/evidence.ts";
+export { censusGap, censusThinGap, censusTotal, reachGap, readinessGap } from "./lib/evidence.ts";
 export { INTERACTIVE_TEXT_FLOOR_PX, LEADING_FLOOR, RAMP_FONT_FACES, TEXT_MICRO_PX } from "./lib/ramp.ts";
 export { isAtOrAboveSeverity, isValidSeverity } from "./lib/severity.ts";
 export {

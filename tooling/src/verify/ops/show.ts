@@ -110,16 +110,19 @@ interface Filter {
   readonly limit: number;
 }
 
+/** This verb's usage text — ONE home, read by both this parse and the front door's pre-dispatch `--help`
+ *  answer (cli.ts VERB_HELP, #809). */
+export const SHOW_HELP =
+  "Usage: pnpm check:show [options]\n\n" +
+  "  --errors-only     Failing gate names + counts only, no per-site detail.\n" +
+  "  --gate <substr>   Filter to gates whose name contains <substr> (shows it even if clean).\n" +
+  "  --file <substr>   Filter violations whose file path contains <substr>.\n" +
+  '  --limit <N>       Sample violations per gate before an "…and N more" hint (default 10).\n' +
+  "  --help, -h        Show this message.";
+
 function parseArgs(argv: readonly string[]): Filter | "help" {
   if (argv.includes("--help") || argv.includes("-h")) {
-    print(
-      "Usage: pnpm check:show [options]\n\n" +
-        "  --errors-only     Failing gate names + counts only, no per-site detail.\n" +
-        "  --gate <substr>   Filter to gates whose name contains <substr> (shows it even if clean).\n" +
-        "  --file <substr>   Filter violations whose file path contains <substr>.\n" +
-        '  --limit <N>       Sample violations per gate before an "…and N more" hint (default 10).\n' +
-        "  --help, -h        Show this message.\n",
-    );
+    print(SHOW_HELP);
     return "help";
   }
   let errorsOnly = false;
