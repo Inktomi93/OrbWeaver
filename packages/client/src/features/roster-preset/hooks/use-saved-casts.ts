@@ -116,7 +116,7 @@ export function useCastRuleCapture(active: ActiveCastChat | null): CastRuleCaptu
   // `skipToken` keeps the key unbuilt for a non-host / no-room mount (the use-readout-binding gate idiom).
   const rulesQuery = useQuery(trpc.automation.listRules.queryOptions(hostChatId === null ? skipToken : { chatId: hostChatId }));
   const retry = (): void => {
-    void rulesQuery.refetch();
+    rulesQuery.refetch().catch(() => undefined); // the query's own error state carries the failure
   };
   if (rulesQuery.isError) {
     return { status: "error", rules: [], retry };

@@ -80,7 +80,7 @@ export function readinessGap(url: string, appReady: boolean): EvidenceGap | null
 
 /** THE THIN-CENSUS GAP (#808) — the arm every other one here is structurally blind to.
  *
- *  MEASURED 2026-08-29 on Settings -> Plugins at 1280x2200: `census=22 reached=3 findings=2 nav=OK`, a
+ *  MEASURED 2026-08-29 on Settings -\> Plugins at 1280x2200: `census=22 reached=3 findings=2 nav=OK`, a
  *  clean-looking verdict; the identical next command censused 1421 and reached 126. Nothing above fires on
  *  that run — the app HAD published `data-app-ready` (so `readinessGap` passes), 22 is not 0 (so
  *  `censusGap` passes) and 3 reached is not 0 (so `reachGap` passes). The false clean is not "nothing was
