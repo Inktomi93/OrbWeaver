@@ -38,7 +38,7 @@ import { Separator } from "@orb/ui/separator";
 import { TabsList, TabsTab } from "@orb/ui/tabs";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, RefObject } from "react";
-import { useCallback, useRef, useSyncExternalStore } from "react";
+import { useRef, useSyncExternalStore } from "react";
 import { CONTEXT_CELL_FLOOR_AT_COARSE, CONTEXT_RAIL_WRAP, CONTEXT_RAIL_WRAPPED_EDGE_BAR_OFF } from "#components";
 import type { ContextRegionView, ResolvedContextTab } from "#lib";
 import { cellDomId } from "../lib/context-cell-id.ts";
@@ -179,24 +179,23 @@ const NO_OVERFLOW: { readonly start: boolean; readonly end: boolean } = { start:
  *  nothing else is enumerated. */
 function useTrackOverflow(trackRef: RefObject<HTMLDivElement | null>, cellCount: number): { readonly start: boolean; readonly end: boolean } {
   const cache = useRef(NO_OVERFLOW);
-  const subscribe = useCallback(
-    (onStoreChange: () => void): (() => void) => {
-      void cellCount;
-      const track = trackRef.current;
-      if (track === null) {
-        return (): void => undefined;
-      }
-      const observer = new ResizeObserver(onStoreChange);
-      observer.observe(track);
-      track.addEventListener("scroll", onStoreChange, { passive: true });
-      return (): void => {
-        observer.disconnect();
-        track.removeEventListener("scroll", onStoreChange);
-      };
-    },
-    [trackRef, cellCount],
-  );
-  const getSnapshot = useCallback((): { readonly start: boolean; readonly end: boolean } => {
+  // The Compiler memoizes both closures keyed on what they read (no-manual-memo, D54 full-compile):
+  // `subscribe` reads `cellCount`, so a new tab set mints a new subscribe and uSES re-subscribes + re-measures.
+  const subscribe = (onStoreChange: () => void): (() => void) => {
+    void cellCount;
+    const track = trackRef.current;
+    if (track === null) {
+      return (): void => undefined;
+    }
+    const observer = new ResizeObserver(onStoreChange);
+    observer.observe(track);
+    track.addEventListener("scroll", onStoreChange, { passive: true });
+    return (): void => {
+      observer.disconnect();
+      track.removeEventListener("scroll", onStoreChange);
+    };
+  };
+  const getSnapshot = (): { readonly start: boolean; readonly end: boolean } => {
     const track = trackRef.current;
     const next = track === null ? NO_OVERFLOW : trackOverflow(track);
     const previous = cache.current;
@@ -204,7 +203,7 @@ function useTrackOverflow(trackRef: RefObject<HTMLDivElement | null>, cellCount:
       cache.current = next;
     }
     return cache.current;
-  }, [trackRef]);
+  };
   return useSyncExternalStore(subscribe, getSnapshot, (): { readonly start: boolean; readonly end: boolean } => NO_OVERFLOW);
 }
 

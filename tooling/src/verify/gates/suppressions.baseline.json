@@ -41,12 +41,6 @@
     "why": "ratified by rule: lint/correctness/useExhaustiveDependencies×1 (tool-fp) — each rule's ruling/tool-FP reason lives in RATIFIED_RULES (tooling/src/verify/gates/suppressions.ts)",
     "cite": ["tooling/src/verify/gates/suppressions.ts"]
   },
-  "packages/client/src/features/app-shell/components/context-rail.tsx": {
-    "count": 1,
-    "ratified": 1,
-    "why": "ratified by rule: lint/correctness/useExhaustiveDependencies×1 (tool-fp) — each rule's ruling/tool-FP reason lives in RATIFIED_RULES (tooling/src/verify/gates/suppressions.ts). Same shape and same ruling as the sibling row above: the rail's overflow effect re-runs on the CELL COUNT and reads the live track off a ref, so the dependency biome calls extra is the intentional re-run trigger. Row hand-added by lane cb-bracket-fix (#875 F7/F8) rather than regenerated — a whole-tree regen bakes in whatever else the tree carries.",
-    "cite": ["tooling/src/verify/gates/suppressions.ts"]
-  },
   "packages/client/src/features/character/components/character-facet-editor.tsx": {
     "count": 1,
     "ratified": 1,
