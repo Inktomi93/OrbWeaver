@@ -110,9 +110,19 @@ export const gate: GateDescriptor = {
     }
   },
   run: (ctx) => {
-    // The root-config rows' two-sided sweep, anchored on the real tree (a conformance mini-project
-    // never loads the anchor, so fixtures exercise the node arms only — the plumbing gate's posture).
-    if (!fileLoaded(ctx, "tooling/src/_shared/exit-contract.ts")) {
+    // The root-config rows' two-sided sweep. TWO guards, and both are load-bearing:
+    //
+    //  · WHOLE-RUN ONLY (contract/gate.ts `Scope`: "the field lets a gate's finalize self-guard its
+    //    stale/ratchet arm on scope.kind === 'project'"). The evidence below is collected by `visit`,
+    //    so it can only ever name consumers INSIDE the run's fileset — on a scoped run the row's real
+    //    consumer (`ast/ops/prodonly.ts`) is simply not visited and a LIVE row reports as stale. Measured
+    //    2026-08-30: `verify scoped --scope "tooling/src/_shared/**"` REDed the live knip.ts row while
+    //    the whole-tree `pnpm check` was green on the same commit (structure 233/233) — a false red every
+    //    scoped run reproduces, which is the instrument lying in the direction that costs a lane an hour.
+    //  · REAL TREE (§4.5): `scope.kind === "project"` is TRUE inside conformance's synthetic
+    //    mini-projects too, and their handful of files would "prove" the row dead. The anchor is a file
+    //    every real run loads and no fixture does.
+    if (ctx.scope.kind !== "project" || !fileLoaded(ctx, "tooling/src/_shared/exit-contract.ts")) {
       return;
     }
     for (const [target, why] of ROOT_CONFIG_IMPORTS) {
