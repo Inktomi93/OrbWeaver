@@ -1,7 +1,7 @@
 // The PERMANENT PIN for `tooling-front-door`'s ROOT_CONFIG_IMPORTS stale sweep — the two-sided arm that
 // REDs a row nothing imports any more.
 //
-// @instrument-proof: MEASURED 2026-08-30. `pnpm exec node tooling/src/verify/cli.ts scoped --scope
+// Red-first receipt (NOT an @instrument-proof marker — `verify` is the harness, not an INSTRUMENT_TOOLS member): MEASURED 2026-08-30. `pnpm exec node tooling/src/verify/cli.ts scoped --scope
 // "tooling/src/_shared/**"` reported the LIVE `knip.ts` row as stale ("no tooling module imports it any
 // more — delete the row") while the whole-tree `pnpm check` was green on the same commit (structure
 // 233/233), and `tooling/src/ast/ops/prodonly.ts:7` demonstrably carries
