@@ -5,19 +5,20 @@
   "entries": [
     {
       "path": "docs/architecture/core/AGENTS.md",
-      "assignedSha256": "ccae97094827d3fc3d5ff0cc30967f103ef82416efccee556e4ff529c335b172",
+      "assignedSha256": "bfe6dea4193f32c5a1c2f289534208733db6f64fce035e522032bfe06c58dd99",
       "disposition": "current",
       "authority": "normative",
       "fullRead": true,
-      "verifiedSha256": "ccae97094827d3fc3d5ff0cc30967f103ef82416efccee556e4ff529c335b172",
-      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedSha256": "bfe6dea4193f32c5a1c2f289534208733db6f64fce035e522032bfe06c58dd99",
+      "verifiedCommit": "1f5e25c00ec2ee921bc70591bf84e8268b255030",
       "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/architecture/core/AGENTS.md:1-352 full read; Project, recovery, proposed-program, lane authority, and direct Claude-rule import routing reconciled",
         "docs/architecture/proposed/INDEX.md:17-37 supplies the claimed program-to-sprint map",
         "git:039e33ca3afee08a73754bd0a9ee3d5958d74fe4 contains the exact constitution blob",
         "delta re-verify 2026-08-22 (P9 #393, the tooling program's law closeout): re-read in full at the P9 bytes commit; every changed line is a tooling-tree cite repoint or the new Core-0 §9 / constitution index rows, re-derived against the tree",
-        "docs/architecture/core/AGENTS.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
+        "docs/architecture/core/AGENTS.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)",
+        "docs/architecture/core/AGENTS.md: re-attested at 1f5e25c00ec2ee921bc70591bf84e8268b255030 — the #876/#873 citer sweep: doc-path repoints from the tooling-package → Core-Tooling-Law.md and density-pass-spec → UI-Density-Law.md relocations and the seven mock-set retirements. Comment/link lines only; no claim moved."
       ],
       "claims": [
         {
@@ -74,12 +75,12 @@
     },
     {
       "path": "docs/architecture/core/Core-0-Architecture-and-Structure.md",
-      "assignedSha256": "4dfc769003e8a8a7f0da52d7ff416246f061ccbc60b79f0246be11dac876d829",
+      "assignedSha256": "d513d237156e78286d25e9ea15be3f589f413d07885e045aca24d63d04280d9b",
       "disposition": "current",
       "authority": "current-reference",
       "fullRead": true,
-      "verifiedSha256": "4dfc769003e8a8a7f0da52d7ff416246f061ccbc60b79f0246be11dac876d829",
-      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedSha256": "d513d237156e78286d25e9ea15be3f589f413d07885e045aca24d63d04280d9b",
+      "verifiedCommit": "1f5e25c00ec2ee921bc70591bf84e8268b255030",
       "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/architecture/core/Core-0-Architecture-and-Structure.md:1 (full read; header/status evaluated)",
@@ -87,7 +88,8 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "delta re-verify 2026-08-22 (P9 #393, the tooling program's law closeout): re-read in full at the P9 bytes commit; every changed line is a tooling-tree cite repoint or the new Core-0 §9 / constitution index rows, re-derived against the tree",
         "delta re-verify 2026-08-22 (#428, the neo parity rip, commit bd1f126f6): re-read at the ripped bytes — §5's suffix taxonomy and the test-layout exemption list drop `.parity.test.ts`. No other claim in this document moved.",
-        "docs/architecture/core/Core-0-Architecture-and-Structure.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
+        "docs/architecture/core/Core-0-Architecture-and-Structure.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)",
+        "docs/architecture/core/Core-0-Architecture-and-Structure.md: re-attested at 1f5e25c00ec2ee921bc70591bf84e8268b255030 — the #876/#873 citer sweep: doc-path repoints from the tooling-package → Core-Tooling-Law.md and density-pass-spec → UI-Density-Law.md relocations and the seven mock-set retirements. Comment/link lines only; no claim moved."
       ],
       "claims": [
         {
@@ -151,12 +153,12 @@
     },
     {
       "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
-      "assignedSha256": "a0310ed96390cabc736c39e23fb3516f9560581b0643fc08f0ec0738055d372a",
+      "assignedSha256": "9be91927b572912a94e3bc89b727be09dc81f643bcfdb58b49e7ebb8842890ff",
       "disposition": "current",
       "authority": "operational",
       "fullRead": true,
-      "verifiedSha256": "a0310ed96390cabc736c39e23fb3516f9560581b0643fc08f0ec0738055d372a",
-      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
+      "verifiedSha256": "9be91927b572912a94e3bc89b727be09dc81f643bcfdb58b49e7ebb8842890ff",
+      "verifiedCommit": "1f5e25c00ec2ee921bc70591bf84e8268b255030",
       "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/architecture/core/Core-Enforcement-Active-Gates.md:1 (full read; header/status evaluated)",
@@ -188,7 +190,8 @@
         "delta re-verify 2026-08-28 (#751/#775): the new caught-failure-ownership ACTIVE row, the detached-work-traced row's bracket-link + position-disambiguation extension, and the 232->233 count line (enforcement-registry-parity reconciles it against loadGates(): 233 gate descriptors on the tree). Full read of the delta; scoped check:docs green",
         "delta re-verify 2026-08-28 (#751/#775, post-merge of main 46c356b62): the only change since the prior attestation is the frontmatter updated: date, resolved to 2026-08-28 at the merge (both sides edited it the same day). The caught-failure-ownership ACTIVE row, the detached-work-traced bracket-link + position-disambiguation extension and the 233 count line are unchanged and re-read; 233 gate descriptors on the tree; scoped check:docs green (104 files)",
         "delta re-verify 2026-08-30 (#773, commit 13712214a): re-read at the edited bytes. The `test-presence` Layer-3 row is the only line that moved — it now states the entry/transport TIER arm beside the domain arm and names both burn-down rows (772 + 773). The registered-gate COUNT is unchanged (no gate was added or removed; an arm was widened inside an existing descriptor).",
-        "docs/architecture/core/Core-Enforcement-Active-Gates.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
+        "docs/architecture/core/Core-Enforcement-Active-Gates.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)",
+        "docs/architecture/core/Core-Enforcement-Active-Gates.md: re-attested at 1f5e25c00ec2ee921bc70591bf84e8268b255030 — the #876/#873 citer sweep: doc-path repoints from the tooling-package → Core-Tooling-Law.md and density-pass-spec → UI-Density-Law.md relocations and the seven mock-set retirements. Comment/link lines only; no claim moved."
       ],
       "claims": [
         {
@@ -276,12 +279,12 @@
     },
     {
       "path": "docs/architecture/core/Core-Path-Registry.md",
-      "assignedSha256": "6286d02fbc94df5be63a54faa0ffe9a3fc39fbd8365fc6524d3c926a50d445ad",
+      "assignedSha256": "b75127170b4039c926de3e0c22a55ce7aaf2effb31c04aa0bf5f21a6bde0249a",
       "disposition": "current",
       "authority": "normative",
       "fullRead": true,
-      "verifiedSha256": "6286d02fbc94df5be63a54faa0ffe9a3fc39fbd8365fc6524d3c926a50d445ad",
-      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
+      "verifiedSha256": "b75127170b4039c926de3e0c22a55ce7aaf2effb31c04aa0bf5f21a6bde0249a",
+      "verifiedCommit": "1f5e25c00ec2ee921bc70591bf84e8268b255030",
       "verifiedAt": "2026-08-30",
       "evidence": [
         "delta re-verify 2026-08-25 (#689, commit 0a2789a00834abe892bfa92839e8dec3c30a97af): D147 clause (d) rewritten in place — the SERVER-WIDE install is BUILT as an admin-triggered fan-out of per-user rows, so the clause's two recorded open questions (consent over a shared install, whose principal it runs as) are DISSOLVED, not answered. Re-read at the amended bytes and re-derived against the tree it now describes: domain/plugin/verbs/{install,uninstall,apply}-*-users.ts + substrate/distribution.ts + persistence/distributed-plugins.ts, the admin_distributed_plugins DDL, and the pins the clause cites (tests/server/domain/plugin/verbs/*-users.int.test.ts, persistence/distributed-plugins.int.test.ts, the cross-tenant sweep's three EXEMPT rows, settings-shell-surface.ct.tsx's admin/plain-user Distribute pair). No other D-entry in this document moved.",
@@ -302,7 +305,8 @@
         "D144 #487 rider (BACKGROUND_DIM_MIN floor) delta re-derived against packages/contracts/src/settings/appearance.ts + tests/ui/content/theme-scope/palette-contrast.suite.test.ts; standing full-read receipt of 09cd25525 carried forward over the 4-line rider delta",
         "D145 (the S2 teaching seam, five clauses) delta read IN FULL against the merged lane 7acd88465 (contract/context.ts, substrate/teaching.ts, teaching-contribution.ts, the cruiser stanza + feature-structure allowlist); header range D106-D141 -> D106-D145 + mint trailer for D142-D145 are mechanical truth (entries pre-existed); standing full-read receipt carried forward over the delta (orchestrator re-attest at 4bf95cf8d)",
         "docs/architecture/core/Core-Path-Registry.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)",
-        "docs/architecture/core/Core-Path-Registry.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
+        "docs/architecture/core/Core-Path-Registry.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)",
+        "docs/architecture/core/Core-Path-Registry.md: re-attested at 1f5e25c00ec2ee921bc70591bf84e8268b255030 — the #876/#873 citer sweep: doc-path repoints from the tooling-package → Core-Tooling-Law.md and density-pass-spec → UI-Density-Law.md relocations and the seven mock-set retirements. Comment/link lines only; no claim moved."
       ],
       "claims": [
         {
@@ -416,20 +420,61 @@
       "summary": "Full-read historical artifact retained for provenance; relocated citations were semantically re-derived and it is not current work or implementation authority."
     },
     {
-      "path": "docs/architecture/core/Documentation-Law.md",
-      "assignedSha256": "79f86cd18a3544b63b233021c3d812ab86ee26744c109dc1e8adb65807aad51e",
+      "path": "docs/architecture/core/Core-Tooling-Law.md",
+      "assignedSha256": "93a75b7157374aa8cd06c869ebd0be286a8f87dcf9626e317ff21126871cb389",
       "disposition": "current",
       "authority": "normative",
       "fullRead": true,
-      "verifiedSha256": "79f86cd18a3544b63b233021c3d812ab86ee26744c109dc1e8adb65807aad51e",
-      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedSha256": "93a75b7157374aa8cd06c869ebd0be286a8f87dcf9626e317ff21126871cb389",
+      "verifiedCommit": "1f5e25c00ec2ee921bc70591bf84e8268b255030",
+      "verifiedAt": "2026-08-30",
+      "evidence": [
+        "delta re-verify 2026-08-22 (lane srv-data): three deferral rows closed in place — §2.6's stack row and §9's roster-row lesson record the #415 template move, §3.2a records the #408 `/tools/` clause deletion. Each was re-derived against the landed change, not copied from the issue text",
+        "docs/design/tooling-package.md:1 full read; P3 truth-repairs authored this session (§2.4 importer refresh + spawnNicedChild door, §2.6 five landed tool shapes, §2.7 record-promotion + EventSource decisions executed, §9.2a the P3 replay ledger, §9.3 the post-merge orchestrator ledger) against the same tree the P3 commit landed on",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
+        "single-pass clean on the P3 tree with all six INSTRUMENT_TOOLS members proof-carrying (reports/check-structure.json)",
+        "delta re-verify 2026-08-22 (P9 #393, the tooling program's law closeout): re-read in full at the P9 bytes commit; every changed line is a tooling-tree cite repoint or the new Core-0 §9 / constitution index rows, re-derived against the tree",
+        "delta re-verify 2026-08-22 (#428, the neo parity rip, commit bd1f126f6): re-read at the ripped bytes — the operator-one-offs roster drops `oracle-steady-clone.sh`. No other claim in this document moved.",
+        "docs/design/tooling-package.md: re-attested at 535266f00954e2c612036a2bee1825609c59be09 — citation repoint from the 2026-08-30 reviews retirement, re-attested after the main merge",
+        "docs/architecture/core/Core-Tooling-Law.md: RELOCATED + REWRITTEN (#876, owner ruling 2026-08-30: \"move to law but rewrite it so it actually reads as law\"). The program-record framing is gone (status banner, phase/done-bar table, the P2-P6 replay ledgers, the deferral roster); every ruling survives, and § numbers are PRESERVED because 60 citers — the constitution's §0.3 router, four cruiser stanzas, eleven gate descriptors and their messages — cite them by number. §6 is now the standing verification floor for a tooling change and §8 the gate-corpus census hazard; §9 keeps the move playbook with the per-phase ledgers folded into it."
+      ],
+      "summary": "@orb/tooling program design (issue #393): the tooling workspace package — five-slot template, _shared plumbing, the gates + cruiser stanzas, tool-fixtures test infrastructure, the re-derived coupled-site census, and the phase plan. Binding shape for P1-P9; §9 carries the coupled-site playbook with the P2 pilot and P3 fleet replay ledgers.",
+      "claims": [
+        {
+          "claim": "The coupled-site census and the @orb/x / @orb/client resolutions were re-derived on this tree; issue #393 tracks the program lifecycle.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "tooling/src/_shared/ts-workspace.ts:35"
+            },
+            {
+              "kind": "code",
+              "target": "tooling/src/verify/gates/test-presence-client.ts:268"
+            },
+            {
+              "kind": "issue",
+              "target": "#393"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/architecture/core/Documentation-Law.md",
+      "assignedSha256": "271e0c337aae588c13237c7f07102d972947a9c87820680ddbdf96d73ce3a37f",
+      "disposition": "current",
+      "authority": "normative",
+      "fullRead": true,
+      "verifiedSha256": "271e0c337aae588c13237c7f07102d972947a9c87820680ddbdf96d73ce3a37f",
+      "verifiedCommit": "1f5e25c00ec2ee921bc70591bf84e8268b255030",
       "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/architecture/core/Documentation-Law.md:1-217 full read; D139-D141 catalog, authority, code-as-truth, source-comment, and direct rule-import routing reconciled",
         "docs/architecture/core/Core-Path-Registry.md:523-533 carries the standing D139-D141 rulings",
         "git:039e33ca3afee08a73754bd0a9ee3d5958d74fe4 contains the exact law blob",
         "delta re-verify 2026-08-22 (P9 #393, the tooling program's law closeout): re-read in full at the P9 bytes commit; every changed line is a tooling-tree cite repoint or the new Core-0 §9 / constitution index rows, re-derived against the tree",
-        "docs/architecture/core/Documentation-Law.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
+        "docs/architecture/core/Documentation-Law.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)",
+        "docs/architecture/core/Documentation-Law.md: re-attested at 1f5e25c00ec2ee921bc70591bf84e8268b255030 — the #876/#873 citer sweep: doc-path repoints from the tooling-package → Core-Tooling-Law.md and density-pass-spec → UI-Density-Law.md relocations and the seven mock-set retirements. Comment/link lines only; no claim moved."
       ],
       "claims": [
         {
@@ -888,6 +933,43 @@
         }
       ],
       "summary": "Full-read current current-reference document reverified after the Project/workboard split; existing typed implementation evidence remains current."
+    },
+    {
+      "path": "docs/architecture/core/UI-Density-Law.md",
+      "assignedSha256": "0796c44b1278d45d5250487cd654e58c335fb2708fd5acfce692614021dd3cfd",
+      "disposition": "current",
+      "authority": "normative",
+      "fullRead": true,
+      "verifiedSha256": "0796c44b1278d45d5250487cd654e58c335fb2708fd5acfce692614021dd3cfd",
+      "verifiedCommit": "1f5e25c00ec2ee921bc70591bf84e8268b255030",
+      "verifiedAt": "2026-08-30",
+      "evidence": [
+        "docs/design/density-pass-spec.md:1 (spec; approved (owner-ruled 2026-08-01))",
+        "git log --oneline -1 -- docs/design/density-pass-spec.md: fb36e52c5 feat(chat,ui): density S6 — the transcript + composer on the tier map, baseline 290 → 244",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
+        "docs/design/density-pass-spec.md §2.3 voice table amended by the #102 home build (758bafd5a, owner-ruled variant C + CD3 re-rule): reading/masthead/focal voices added — orchestrator re-attested full read of the delta 2026-08-16",
+        "docs/design/density-pass-spec.md §2.3 back-filled the credit (861de3e58) + hero (2026-08-09) voice rows — stickler #130 F5; full read of the delta re-attested against 57de7e719 (2026-08-16)",
+        "docs/design/density-pass-spec.md sect 4.3 amended by the #102 characters build (51fe04719, owner-ruled variant B): Section kickerLayout, Button outline/chip/selection layer, Toggle outline+command/chip/shape, CHIP_BOX — orchestrator re-read the delta in full 2026-08-17; verifier-characters confirmed all four deltas exist as declared axes",
+        "delta re-verify 2026-08-22 (P9 #393, the tooling program's law closeout): re-read in full at the P9 bytes commit; every changed line is a tooling-tree cite repoint or the new Core-0 §9 / constitution index rows, re-derived against the tree",
+        "delta re-verify 2026-08-23 (#573): §2.3 gains the quiet + datumMono voice members (owner-ruled), re-derived against packages/ui text/variants.ts on the tree",
+        "docs/architecture/core/UI-Density-Law.md: RELOCATED + REWRITTEN (#876, owner re-ruling 2026-08-30 on a corrected premise). The original ruling promoted the tier map into the two UI docs and retired the rest to history; a citer census (7,466 files scanned) found ~90 LIVE sites spread across §2.1/§2.2/§2.3/§3/§4/§5 and D6/D7 — including the `density-tier` gate's own docRow and its still-shrinking baseline — so retiring the enforcement half would have pointed live gates at resolved archeology. The owner re-ruled: whole doc to core/, § numbers preserved, pure path swap. The sweep-order table and the per-amendment date archaeology are gone; §6 is now the coupled-site procedure for extending the map, and §2.3 states the voice tuple in text/variants.ts as the truth rather than re-spelling a 14-row table that had already drifted (interactiveKicker and promoted were missing from it)."
+      ],
+      "summary": "The density pass — tier map, mechanism, enforcement: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation.",
+      "claims": [
+        {
+          "claim": "The cited implementation context remains present; mutable follow-up is tracked in GitHub issue #45.",
+          "evidence": [
+            {
+              "kind": "gate",
+              "target": "tooling/src/verify/gates/density-tier.ts:1"
+            },
+            {
+              "kind": "issue",
+              "target": "#45"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/architecture/core/UI-Gates-and-Lessons.md",

@@ -165,17 +165,18 @@
     },
     {
       "path": "docs/architecture/history/FINAL-Persona-and-Immersive-Chat-Visuals.md",
-      "assignedSha256": "936352db7df9c8e05cc6f1d10994f951b8a0766f9baf1eac0e93bb785e854956",
+      "assignedSha256": "bc0fe9533c0aa148e58ab45f2a1a15434e547f941d5d7eedbb842668ee8070d0",
       "disposition": "archive",
       "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "936352db7df9c8e05cc6f1d10994f951b8a0766f9baf1eac0e93bb785e854956",
-      "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
-      "verifiedAt": "2026-08-15",
+      "verifiedSha256": "bc0fe9533c0aa148e58ab45f2a1a15434e547f941d5d7eedbb842668ee8070d0",
+      "verifiedCommit": "1f5e25c00ec2ee921bc70591bf84e8268b255030",
+      "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/architecture/history/FINAL-Persona-and-Immersive-Chat-Visuals.md:1 (full read; historical header/provenance evaluated)",
         "git log --oneline -5 -- docs/architecture/history (2026-08-14)",
-        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
+        "docs/architecture/history/FINAL-Persona-and-Immersive-Chat-Visuals.md: re-attested at 1f5e25c00ec2ee921bc70591bf84e8268b255030 — the #876/#873 citer sweep: doc-path repoints from the tooling-package → Core-Tooling-Law.md and density-pass-spec → UI-Density-Law.md relocations and the seven mock-set retirements. Comment/link lines only; no claim moved."
       ],
       "summary": "Historical architecture record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
     },
