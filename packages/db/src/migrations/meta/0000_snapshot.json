@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "da19a3fd-51c3-4eaa-a5b4-e495df9f3235",
+  "id": "8483d243-5266-44d9-893e-5f5981bd062c",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "assets": {
@@ -5183,6 +5183,14 @@
           "notNull": true,
           "autoincrement": false
         },
+        "bundle_path": {
+          "name": "bundle_path",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "''"
+        },
         "fetched_at": {
           "name": "fetched_at",
           "type": "integer",
@@ -5219,13 +5227,18 @@
         }
       },
       "compositePrimaryKeys": {
-        "plugin_assets_plugin_id_asset_id_pk": {
-          "columns": ["plugin_id", "asset_id"],
-          "name": "plugin_assets_plugin_id_asset_id_pk"
+        "plugin_assets_plugin_id_asset_id_bundle_path_pk": {
+          "columns": ["plugin_id", "asset_id", "bundle_path"],
+          "name": "plugin_assets_plugin_id_asset_id_bundle_path_pk"
         }
       },
       "uniqueConstraints": {},
-      "checkConstraints": {}
+      "checkConstraints": {
+        "plugin_assets_bundle_path_check": {
+          "name": "plugin_assets_bundle_path_check",
+          "value": "bundle_path = '' or bundle_path like 'ui/assets/%'"
+        }
+      }
     },
     "plugin_kv": {
       "name": "plugin_kv",

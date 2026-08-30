@@ -23,7 +23,7 @@ import { MediaTileGrid, MediaTileGridSkeleton } from "@orb/ui/media-tile-grid";
 import { MessageMedia } from "@orb/ui/message-media";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
-import { gridLoading, gridTiles, heroAssetId, resolveString } from "../lib/plugin-surface-bindings.ts";
+import { gridLoading, gridTiles, heroCoverKey, resolveString, tileCoverKey } from "../lib/plugin-surface-bindings.ts";
 
 /**
  * The MEDIA-FORWARD TILE GRID (§4.5b failure 1) — through the sealed `@orb/ui` `MediaTileGrid` composite, which
@@ -65,16 +65,21 @@ export function SurfaceGrid({
     // already speak this pattern. The plugin's `empty` line stays the copy; only its frame is promoted.
     return <EmptyState icon={<Icon icon={Images} size="lg" />} measure="default" title={node.empty ?? "Nothing here yet."} titleAs="p" />;
   }
-  const items = tiles.map((tile) => ({
-    id: tile.id,
-    title: resolveString(tile.title, state),
-    ...(tile.subtitle === undefined ? {} : { subtitle: resolveString(tile.subtitle, state) }),
-    ...(tile.badge === undefined ? {} : { badge: resolveString(tile.badge, state) }),
-    ...(tile.assetId === undefined ? {} : { imageUrl: imageUrls.get(tile.assetId) }),
-    ...(tile.alt === undefined ? {} : { alt: tile.alt }),
-    // Tag chips (hub v1.2) — deduped here because the chip is keyed by its text (untrusted state may repeat).
-    ...(tile.tags === undefined || tile.tags.length === 0 ? {} : { tags: [...new Set(tile.tags)] }),
-  }));
+  const items = tiles.map((tile) => {
+    // Declared id OR bundle path (#820) — `tileCoverKey` picks whichever arm the tile carries, and the url map
+    // is keyed by both spellings, so a bundle cover resolves exactly like an id and an unshipped path is a miss.
+    const coverKey = tileCoverKey(tile);
+    return {
+      id: tile.id,
+      title: resolveString(tile.title, state),
+      ...(tile.subtitle === undefined ? {} : { subtitle: resolveString(tile.subtitle, state) }),
+      ...(tile.badge === undefined ? {} : { badge: resolveString(tile.badge, state) }),
+      ...(coverKey === undefined ? {} : { imageUrl: imageUrls.get(coverKey) }),
+      ...(tile.alt === undefined ? {} : { alt: tile.alt }),
+      // Tag chips (hub v1.2) — deduped here because the chip is keyed by its text (untrusted state may repeat).
+      ...(tile.tags === undefined || tile.tags.length === 0 ? {} : { tags: [...new Set(tile.tags)] }),
+    };
+  });
   // The bound arm's ONE `tileAction` covers every tile; the declared arm is interactive only when EVERY tile
   // names an action — a grid where some tiles respond and others do not is a control that lies about itself.
   const allActionable = node.tileAction !== undefined || tiles.every((tile) => tile.actionId !== undefined);
@@ -125,11 +130,12 @@ export function MasterDetail({
   if (stage === undefined) {
     return null;
   }
-  // BOTH hero arms collapse through `heroAssetId` (#798): the declared id, or the `assetFrom` binding resolved
-  // against published state (format-gated in contracts). The resolved id then rides the SAME owner-scoped
-  // `imageUrls` map every declared cover does — a foreign id has no url and the hero renders nothing.
-  const heroId = stage.hero === undefined ? undefined : heroAssetId(stage.hero, state);
-  const heroUrl = heroId === undefined ? undefined : imageUrls.get(heroId);
+  // ALL hero arms collapse through `heroCoverKey` (#798/#820): the declared id, the `assetFrom` binding
+  // resolved against published state (format-gated in contracts), or the bundle path. The key then rides the
+  // SAME owner-scoped `imageUrls` map every declared cover does — a foreign id or an unshipped path has no
+  // url and the hero renders nothing.
+  const heroKey = stage.hero === undefined ? undefined : heroCoverKey(stage.hero, state);
+  const heroUrl = heroKey === undefined ? undefined : imageUrls.get(heroKey);
   const title = stage.title === undefined ? undefined : resolveString(stage.title, state);
   const body = renderNode(stage.body, depth + 1);
   if (stage.kind === "browse") {

@@ -203,6 +203,14 @@ export const pluginRouter = t.router({
   //    repeat crash rides the 3-strike auto-disable.
   listSurfaces: authedProcedure.query(({ ctx }) => ctx.services.plugin.listSurfaces({ caller: ctx.auth })),
 
+  // #820 seam 11 — the bundle-shipped image map for ONE owned plugin (`ui/assets/<name>` → CAS id), read by
+  // the renderer when a spec names a bundle path. It takes a FOREIGN pluginId, so it joins the PROBED sweep
+  // set beside `getSurfaceState`: the service's owner-scoped `getById` load is the gate, and a stranger
+  // holding owner A's real id gets the same leak-free NOT_FOUND every other per-row plugin read gives.
+  listBundleAssets: authedProcedure
+    .input(z.object({ pluginId: pluginIdSchema }))
+    .query(({ ctx, input }) => ctx.services.plugin.listBundleAssets({ caller: ctx.auth, pluginId: input.pluginId })),
+
   getSurfaceState: authedProcedure
     .input(z.object({ pluginId: pluginIdSchema, surfaceId: surfaceIdSchema, chatId: chatIdSchema.optional() }))
     .query(({ ctx, input }) =>

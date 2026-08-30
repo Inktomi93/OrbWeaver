@@ -10,9 +10,13 @@
 import type { PluginCapability, PluginManifest, PluginOrigin, PluginStatus } from "@orb/contracts/plugin";
 import type { Db } from "@orb/db";
 import { plugins } from "@orb/db";
+import type { AwaitableBatchStmt } from "@orb/db/kit";
+import { batchMany } from "@orb/db/kit";
 import type { AssetId, PluginId, UserId } from "@orb/kit/ids";
 import { and, desc, eq, sql } from "drizzle-orm";
+import type { PluginBundleAssetLink } from "../contract/bundle-assets.ts";
 import type { PluginView } from "../contract/results.ts";
+import { clearPluginBundleAssetsStatement, linkPluginBundleAssetStatement } from "./plugin-assets.ts";
 
 /** The stored `plugins` row. Homed as the db `$inferSelect` (the RuleRow precedent) — persistence's unit. */
 type PluginRow = typeof plugins.$inferSelect;
@@ -63,8 +67,24 @@ interface InsertPluginRow {
   readonly updatedAt: number;
 }
 
-export async function insertPlugin(db: Db, row: InsertPluginRow): Promise<void> {
-  await db.insert(plugins).values({
+/** Insert the row AND, atomically with it, the `plugin_assets` links for every image the bundle shipped
+ *  (#820). ONE `db.batch` and not two awaits: a row whose links half-landed would render permanent
+ *  placeholders for the missing paths while its blobs quietly aged into the GC's candidate set, and there is
+ *  no self-heal for that — nothing re-reads the zip after install. (`db.transaction()` is banned repo-wide —
+ *  the `:memory:` connection-replacement trap; `batchMany` is the sanctioned atomic write.)
+ *  `bundleAssets` is empty for every bundle that ships none, which is every bundle written before #820, and
+ *  the batch then carries exactly the one statement it always did. */
+export async function insertPlugin(db: Db, row: InsertPluginRow, bundleAssets: readonly PluginBundleAssetLink[] = []): Promise<void> {
+  const insertRow = buildInsertPluginStatement(db, row);
+  if (bundleAssets.length === 0) {
+    await insertRow;
+    return;
+  }
+  await db.batch(batchMany([insertRow, ...bundleAssets.map((link) => linkPluginBundleAssetStatement(db, row.id, link))]));
+}
+
+function buildInsertPluginStatement(db: Db, row: InsertPluginRow): AwaitableBatchStmt<unknown> {
+  return db.insert(plugins).values({
     id: row.id,
     ownerId: row.ownerId,
     slug: row.slug,
@@ -167,12 +187,29 @@ interface UpgradePluginRow {
   readonly updatedAt: number;
 }
 
+/** The upgrade write. See {@link buildApplyUpgradeStatement} for the owner-scope exemption — the unscoped
+ *  `update` moved there when this function became a batch (#820), and the marker moved with it. */
+export async function applyUpgrade(db: Db, pluginId: PluginId, row: UpgradePluginRow, bundleAssets: readonly PluginBundleAssetLink[] = []): Promise<void> {
+  // ONE atomic batch: the row swap, then the bundle-asset link set REPLACED wholesale (clear-then-insert,
+  // #820). Replacement rather than merge is the point — an upgrade that DROPPED a sprite must leave no
+  // resolvable path behind, and a merge would keep the old link alive as a reference the reap can never
+  // clear. The clear touches only `bundle_path <> ''`, so runtime-fetched covers (#802) are untouched by an
+  // upgrade, which is correct: they belong to the INSTALL, not to the bundle version.
+  await db.batch(
+    batchMany([
+      buildApplyUpgradeStatement(db, pluginId, row),
+      clearPluginBundleAssetsStatement(db, pluginId),
+      ...bundleAssets.map((link) => linkPluginBundleAssetStatement(db, pluginId, link)),
+    ]),
+  );
+}
+
 // @owner-scope-write-ok: the upgrade swap. The `plugins` row's owner is the installing principal;
 // every user-facing plugin verb (`set-enabled`/`upgrade`/`uninstall`) loads it through the owner-scoped
 // `getById(db, caller.userId, pluginId)` and throws `PluginNotFoundError` before any write. Ends the day a
 // pluginId reaches a plugin write without that load.
-export async function applyUpgrade(db: Db, pluginId: PluginId, row: UpgradePluginRow): Promise<void> {
-  await db
+function buildApplyUpgradeStatement(db: Db, pluginId: PluginId, row: UpgradePluginRow): AwaitableBatchStmt<unknown> {
+  return db
     .update(plugins)
     .set({
       name: row.name,

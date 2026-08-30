@@ -3,10 +3,10 @@
 // PLUGIN bundles. Lives in entry (not a domain) because the bytes are read from disk relative to this module;
 // domain seeders stay fs-unaware and take the read as an injected op.
 
-import { readFile } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { PLUGIN_MAIN_ENTRY, PLUGIN_MANIFEST_ENTRY, PLUGIN_UI_ENTRY } from "@orb/contracts/plugin";
+import { PLUGIN_MAIN_ENTRY, PLUGIN_MANIFEST_ENTRY, PLUGIN_UI_ASSETS_DIR, PLUGIN_UI_ENTRY } from "@orb/contracts/plugin";
 import type { CharacterHandle } from "@orb/kit/ids";
 import { zipSync } from "fflate";
 
@@ -113,7 +113,39 @@ export async function packSeedPluginBundle(slug: string): Promise<Uint8Array | n
   if (uiSource !== null) {
     entries[PLUGIN_UI_ENTRY] = [new Uint8Array(uiSource), { mtime: PLUGIN_BUNDLE_MTIME_MS }];
   }
+  for (const asset of await readBundleAssets(slug)) {
+    entries[asset.path] = [asset.bytes, { mtime: PLUGIN_BUNDLE_MTIME_MS }];
+  }
   return zipSync(entries);
+}
+
+/** Every file in an example's `ui/assets/` directory, as `ui/assets/<name>` zip entries (#820 seam 11), sorted
+ *  so the packed bytes stay a PURE function of the sources (the same reason the mtime is fixed).
+ *
+ *  IT PACKS WHAT IS THERE AND VALIDATES NOTHING, deliberately — `parseBundle` is the one authority on which
+ *  names and which formats are admissible, and a second opinion here would either drift from it or silently
+ *  drop a file the author meant to ship. A misnamed or non-image entry therefore fails LOUDLY at install/seed
+ *  with the funnel's own message, which is where an author can act on it.
+ *
+ *  ONE LEVEL, no recursion: the funnel admits `ui/assets/<name>` and nothing deeper, so walking subdirectories
+ *  would only build bundles it is going to refuse. */
+async function readBundleAssets(slug: string): Promise<{ path: string; bytes: Uint8Array }[]> {
+  const dir = join(HERE, "plugins", slug, PLUGIN_UI_ASSETS_DIR);
+  let names: string[];
+  // @orb-gate-ignore caught-failure-ownership(default:catch): optional-read-as-absent — an example with no
+  // `ui/assets/` directory ships no bundle assets, which is every example authored before #820. Ends if the
+  // directory becomes required rather than optional.
+  try {
+    names = (await readdir(dir, { withFileTypes: true })).filter((entry) => entry.isFile()).map((entry) => entry.name);
+  } catch {
+    return [];
+  }
+  names.sort();
+  const assets: { path: string; bytes: Uint8Array }[] = [];
+  for (const name of names) {
+    assets.push({ path: `${PLUGIN_UI_ASSETS_DIR}${name}`, bytes: new Uint8Array(await readFile(join(dir, name))) });
+  }
+  return assets;
 }
 
 /** One bundled EXAMPLE transcript's text, by its manifest `slug` — the VERBATIM bytes the real export verb

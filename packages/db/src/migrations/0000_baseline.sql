@@ -804,10 +804,12 @@ CREATE INDEX `admin_distributed_plugins_distributed_by_idx` ON `admin_distribute
 CREATE TABLE `plugin_assets` (
 	`plugin_id` text NOT NULL,
 	`asset_id` text NOT NULL,
+	`bundle_path` text DEFAULT '' NOT NULL,
 	`fetched_at` integer NOT NULL,
-	PRIMARY KEY(`plugin_id`, `asset_id`),
+	PRIMARY KEY(`plugin_id`, `asset_id`, `bundle_path`),
 	FOREIGN KEY (`plugin_id`) REFERENCES `plugins`(`id`) ON UPDATE no action ON DELETE cascade,
-	FOREIGN KEY (`asset_id`) REFERENCES `assets`(`id`) ON UPDATE no action ON DELETE cascade
+	FOREIGN KEY (`asset_id`) REFERENCES `assets`(`id`) ON UPDATE no action ON DELETE cascade,
+	CONSTRAINT "plugin_assets_bundle_path_check" CHECK(bundle_path = '' or bundle_path like 'ui/assets/%')
 );
 --> statement-breakpoint
 CREATE INDEX `plugin_assets_asset_idx` ON `plugin_assets` (`asset_id`);--> statement-breakpoint

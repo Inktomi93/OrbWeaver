@@ -8,6 +8,7 @@ import { ManifestInvalidError, PluginDowngradeRefusedError, PluginNotFoundError 
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
+import { magicBytes } from "../../../../support/magic-bytes.ts";
 import { makeBundle, makePluginHarness, ownerPrincipalFor, principalFor, seedUser } from "../_support.ts";
 
 test("upgrades the bundle: version bump, new bytes stored, old bundle reaped", async () => {
@@ -396,4 +397,86 @@ test("a stranger cannot upgrade another user's plugin — not a plain user, and 
   expect(row?.version).toBe("1.0.0"); // never swapped
   expect(row?.declaredCapabilities).toEqual([]); // the hostile manifest never landed
   expect(h.storedBytes.size).toBe(1); // and the stranger's bytes were never stored
+});
+
+// ── #820 seam 11 — the bundle-asset SET is REPLACED by an upgrade, not merged into. The three properties
+//    below are one rule seen from three sides: what the new bundle ships is what the plugin holds.
+describe("#820 the bundle-asset set across an upgrade", () => {
+  test("an unchanged image keeps its id and is NEVER reaped; a dropped one goes", async () => {
+    const db = await freshDb();
+    const h = makePluginHarness(db);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const installed = await h.service.install({
+      caller: ownerPrincipalFor(owner),
+      bundle: makeBundle({ id: "pp", version: "1.0.0" }, undefined, undefined, {
+        "ui/assets/keep.png": magicBytes("png"),
+        "ui/assets/drop.gif": magicBytes("gif"),
+      }),
+      grant: [],
+    });
+    const before = await h.service.listBundleAssets({ caller: ownerPrincipalFor(owner), pluginId: installed.id });
+    const keptId = before.find((entry) => entry.path === "ui/assets/keep.png")?.assetId;
+    const droppedId = before.find((entry) => entry.path === "ui/assets/drop.gif")?.assetId;
+    expect(keptId).toBeDefined();
+    expect(droppedId).toBeDefined();
+
+    // v1.1 re-ships `keep.png` VERBATIM and drops `drop.gif`. The harness CAS de-duplicates by (owner, hash)
+    // exactly as production does, so the re-shipped bytes come back with the SAME assetId — which is what
+    // makes `reapIfOrphan`'s reference re-check the whole diff.
+    await h.service.upgrade({
+      caller: ownerPrincipalFor(owner),
+      pluginId: installed.id,
+      bundle: makeBundle({ id: "pp", version: "1.1.0" }, undefined, undefined, { "ui/assets/keep.png": magicBytes("png") }),
+    });
+
+    const after = await h.service.listBundleAssets({ caller: ownerPrincipalFor(owner), pluginId: installed.id });
+    expect(after.map((entry) => entry.path)).toEqual(["ui/assets/keep.png"]);
+    // THE DROPPED path resolves to nothing — a node still naming it paints a placeholder rather than stale art.
+    expect(after.some((entry) => entry.path === "ui/assets/drop.gif")).toBe(false);
+    // …and the dropped blob is gone from the CAS, while the surviving link's asset is still there.
+    expect(h.storedBytes.has(droppedId as never)).toBe(false);
+    expect(h.storedBytes.has(after[0]?.assetId as never)).toBe(true);
+  });
+
+  test("upgrading to a bundle with NO images clears the whole set", async () => {
+    const db = await freshDb();
+    const h = makePluginHarness(db);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const installed = await h.service.install({
+      caller: ownerPrincipalFor(owner),
+      bundle: makeBundle({ id: "pp", version: "1.0.0" }, undefined, undefined, { "ui/assets/a.png": magicBytes("png") }),
+      grant: [],
+    });
+
+    await h.service.upgrade({ caller: ownerPrincipalFor(owner), pluginId: installed.id, bundle: makeBundle({ id: "pp", version: "1.1.0" }) });
+
+    expect(await h.service.listBundleAssets({ caller: ownerPrincipalFor(owner), pluginId: installed.id })).toEqual([]);
+  });
+
+  test("a REFUSED asset in the new bundle leaves the INSTALLED version and its images untouched", async () => {
+    // The trust edge again, on the swap path: `parseBundle` throws before the row is read for its prior links
+    // and before any CAS write, so a hostile v2 cannot half-replace a working install.
+    const db = await freshDb();
+    const h = makePluginHarness(db);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const installed = await h.service.install({
+      caller: ownerPrincipalFor(owner),
+      bundle: makeBundle({ id: "pp", version: "1.0.0" }, undefined, undefined, { "ui/assets/a.png": magicBytes("png") }),
+      grant: [],
+    });
+
+    await expect(
+      h.service.upgrade({
+        caller: ownerPrincipalFor(owner),
+        pluginId: installed.id,
+        bundle: makeBundle({ id: "pp", version: "2.0.0" }, undefined, undefined, { "ui/assets/evil.svg": magicBytes("svg") }),
+      }),
+    ).rejects.toBeInstanceOf(ManifestInvalidError);
+
+    const [row] = await h.service.list({ caller: ownerPrincipalFor(owner) });
+    expect(row?.version).toBe("1.0.0");
+    expect((await h.service.listBundleAssets({ caller: ownerPrincipalFor(owner), pluginId: installed.id })).map((entry) => entry.path)).toEqual([
+      "ui/assets/a.png",
+    ]);
+  });
 });

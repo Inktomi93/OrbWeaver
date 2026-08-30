@@ -3,11 +3,13 @@
 // / missing entries), the decompression-bomb caps, malformed manifest JSON / schema failures, and the
 // downgrade-refusal semver helper.
 
+import { PLUGIN_UI_ASSET_MAX_BYTES, PLUGIN_UI_ASSETS_MAX_COUNT, PLUGIN_UI_ASSETS_TOTAL_MAX_BYTES } from "@orb/contracts/plugin";
 import { strToU8, zipSync } from "fflate";
 import { describe } from "vitest";
 import { ManifestInvalidError } from "../../../../../packages/server/src/domain/plugin/contract/errors.ts";
 import { isVersionDowngrade, parseBundle } from "../../../../../packages/server/src/domain/plugin/substrate/manifest.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
+import { magicBytes } from "../../../../support/magic-bytes.ts";
 
 const VALID_MANIFEST = {
   id: "my-plugin",
@@ -120,6 +122,117 @@ describe("parseBundle — the OPTIONAL third entry (plugin-ui-plane #679 U4)", (
         }),
       ),
     ).toThrow(ManifestInvalidError);
+  });
+});
+
+describe("parseBundle — the ui/assets/ BUNDLE-ASSET class (#820 seam 11)", () => {
+  const assetsBundle = (assets: Record<string, Uint8Array>): Uint8Array =>
+    makeBundle({ "manifest.json": strToU8(JSON.stringify(VALID_MANIFEST)), "main.js": strToU8("const x = 1;"), ...assets });
+
+  test("the four sniffable raster formats are admitted, path-sorted, with the SNIFFED mime", () => {
+    const parsed = parseBundle(
+      assetsBundle({
+        "ui/assets/c.gif": magicBytes("gif"),
+        "ui/assets/a.png": magicBytes("png"),
+        "ui/assets/d.webp": magicBytes("webp"),
+        "ui/assets/b.jpg": magicBytes("jpeg"),
+      }),
+    );
+    expect(parsed.uiAssets.map((asset) => [asset.path, asset.mime])).toEqual([
+      ["ui/assets/a.png", "image/png"],
+      ["ui/assets/b.jpg", "image/jpeg"],
+      ["ui/assets/c.gif", "image/gif"],
+      ["ui/assets/d.webp", "image/webp"],
+    ]);
+  });
+
+  test("a bundle shipping NO assets parses unchanged with an EMPTY set — the class is additive", () => {
+    // Every plugin authored before #820 must install byte-for-byte the same way (the 01 §3 host-evolution law,
+    // the same receipt `ui.js` carries one describe up).
+    expect(parseBundle(validBundle("const x = 1;")).uiAssets).toEqual([]);
+  });
+
+  test("THE MIME IS THE BYTES, NEVER THE EXTENSION — a .png carrying GIF bytes is stored as image/gif", () => {
+    // The whole point of sniffing: if the extension decided, a plugin could name a file anything and have the
+    // CAS serve it under a mime the bytes do not support.
+    const parsed = parseBundle(assetsBundle({ "ui/assets/lying.png": magicBytes("gif") }));
+    expect(parsed.uiAssets[0]?.mime).toBe("image/gif");
+  });
+
+  test("SVG is REFUSED, by name, because it is a script carrier", () => {
+    // Not a taste call: a stored blob is served from the app's OWN origin, where an SVG's embedded script runs
+    // with the owner's cookies (#709). It carries no binary signature, so the sniff can never admit it — and
+    // the refusal says SVG out loud so nobody re-adds it as a convenience.
+    expect(() => parseBundle(assetsBundle({ "ui/assets/evil.svg": magicBytes("svg") }))).toThrow(/SVG is refused/u);
+  });
+
+  test("a nested ZIP, and text with no signature at all, are refused", () => {
+    expect(() => parseBundle(assetsBundle({ "ui/assets/nested.png": magicBytes("zip") }))).toThrow(ManifestInvalidError);
+    expect(() => parseBundle(assetsBundle({ "ui/assets/notes.png": strToU8("just some text") }))).toThrow(ManifestInvalidError);
+  });
+
+  test("every traversal / escape spelling of the path is REFUSED — the pattern cannot express one", () => {
+    // Each of these is a name a filter-the-bad-shapes wall would have to enumerate. The anchored, flat,
+    // alphanumeric-led regex makes them unspellable instead, so the refusal is structural.
+    const escapes = [
+      "ui/assets/../../etc/passwd",
+      "ui/assets/../main.js",
+      "ui/assets/..",
+      "/ui/assets/a.png",
+      "./ui/assets/a.png",
+      "ui/assets/sub/a.png",
+      "ui/assets/.hidden.png",
+      "ui/assets/", // the directory entry itself
+      "ui/assets/a b.png", // a space is outside the alphabet
+      "UI/assets/a.png", // the prefix is case-sensitive
+    ];
+    for (const name of escapes) {
+      expect(() => parseBundle(assetsBundle({ [name]: magicBytes("png") })), `expected "${name}" to be refused`).toThrow(ManifestInvalidError);
+    }
+  });
+
+  test("a Windows-separator path is refused (it is not a bundle-asset name at all)", () => {
+    expect(() => parseBundle(assetsBundle({ "ui\\assets\\a.png": magicBytes("png") }))).toThrow(ManifestInvalidError);
+  });
+
+  test("the ENTRY-COUNT cap bites — 65 assets is refused where 64 is admitted", () => {
+    const under: Record<string, Uint8Array> = {};
+    for (let i = 0; i < PLUGIN_UI_ASSETS_MAX_COUNT; i += 1) {
+      under[`ui/assets/s${i}.png`] = magicBytes("png");
+    }
+    expect(parseBundle(assetsBundle(under)).uiAssets).toHaveLength(PLUGIN_UI_ASSETS_MAX_COUNT);
+    expect(() => parseBundle(assetsBundle({ ...under, "ui/assets/one-too-many.png": magicBytes("png") }))).toThrow(ManifestInvalidError);
+  });
+
+  test("the PER-ENTRY decompressed cap bites — one over-cap asset is refused before it is inflated", () => {
+    // The classic bomb: ~2 MiB of zeros compresses to a few hundred bytes, so the COMPRESSED bundle sails
+    // under the 1 MiB input cap and only the entry's own header size stops it.
+    expect(() => parseBundle(assetsBundle({ "ui/assets/bomb.png": magicBytes("png", PLUGIN_UI_ASSET_MAX_BYTES + 1) }))).toThrow(ManifestInvalidError);
+  });
+
+  test("the AGGREGATE cap bites — assets that are each legal but together exceed the total budget", () => {
+    // The arm a per-entry cap alone cannot see, and the reason the aggregate exists: five entries at exactly
+    // the per-entry ceiling each pass their own check and sum to 10 MiB out of a 1 MiB upload.
+    const each = PLUGIN_UI_ASSET_MAX_BYTES;
+    const assets: Record<string, Uint8Array> = {};
+    for (let i = 0; i < 5; i += 1) {
+      assets[`ui/assets/big${i}.png`] = magicBytes("png", each);
+    }
+    expect(each * 5).toBeGreaterThan(PLUGIN_UI_ASSETS_TOTAL_MAX_BYTES);
+    expect(() => parseBundle(assetsBundle(assets))).toThrow(/total decompressed cap/u);
+  });
+
+  test("a NON-asset extra entry is still refused — the fourth class did not open the allow-list", () => {
+    expect(() => parseBundle(assetsBundle({ "ui/assets/a.png": magicBytes("png"), "evil.js": strToU8("steal()") }))).toThrow(ManifestInvalidError);
+  });
+
+  test("TWO paths with IDENTICAL bytes are both kept — the CAS will dedup the id, the paths must not collapse", () => {
+    // The shape that forced the `plugin_assets` PK to carry `bundle_path` (#820): content-addressed storage
+    // returns ONE assetId for both, so a key without the path would silently lose the second name and a node
+    // pointing at it would paint a placeholder forever.
+    const parsed = parseBundle(assetsBundle({ "ui/assets/happy.png": magicBytes("png"), "ui/assets/also-happy.png": magicBytes("png") }));
+    expect(parsed.uiAssets.map((asset) => asset.path)).toEqual(["ui/assets/also-happy.png", "ui/assets/happy.png"]);
+    expect(parsed.uiAssets[0]?.bytes).toEqual(parsed.uiAssets[1]?.bytes);
   });
 });
 

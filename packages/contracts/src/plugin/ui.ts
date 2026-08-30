@@ -21,6 +21,7 @@
 import type { AssetId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
+import { PLUGIN_UI_ASSET_ENTRY_RE } from "./manifest.ts";
 
 // ── Vocabulary axes (closed tuples; a member is a compile-tier fact) ─────────────────────────────────────────
 
@@ -339,9 +340,10 @@ export const PLUGIN_FOOTER_NODE_KIND_ALLOWED = {
 /** A frame body's HTML cap. The card frame's own proven bound (`contracts/chat/card-frame.ts`), reused rather than
  *  re-guessed: generous for self-contained interface code, and it bounds per-instance retention with the count cap
  *  below. STATED LIMIT: a bundle-shipped BINARY asset (a live2d/VRM model) does not fit here and is not meant to —
- *  large assets ride the bundle `ui/assets/` → installer-CAS route (seam 11), which is OPEN work tracked as
- *  #820 (the #788 residue: its READ half `assets.read` shipped, the install-time CAS WRITE half did not, so an
- *  `image`/`hero` node can still only name an assetId the installer already holds). */
+ *  large assets ride the bundle `ui/assets/` → installer-CAS route (seam 11), which LANDED with #820: install
+ *  and upgrade unpack the bundle's `ui/assets/` IMAGES into the installer's CAS and an `image`/`hero`/tile node
+ *  names one by path ({@link PluginImageNode.bundleAsset}). A live2d/VRM model still does not ride it — that
+ *  route admits the four raster image formats the magic-byte sniff can prove and refuses everything else. */
 export const PLUGIN_FRAME_HTML_MAX_CHARS = 64_000;
 /** A frame body's CSS cap — the card frame's bound, same reasoning. */
 export const PLUGIN_FRAME_CSS_MAX_CHARS = 16_000;
@@ -450,8 +452,8 @@ export interface PluginImageNode {
   readonly kind: "image";
   /** An asset in the INSTALLER's CAS ONLY — a well-formed asset id (the `typeIdSchema` rejects a URL: the
    *  seam-11 "no URL arm exists" wall). The FORMAT is validated here; the CAS OWNERSHIP resolve is server-side.
-   *  Exactly ONE of `assetId`/`assetFrom` (the spec-level belt enforces it): declared for an asset the SPEC
-   *  knows, bound for one the STATE carries. */
+   *  Exactly ONE of `assetId`/`assetFrom`/`bundleAsset` (the spec-level belt enforces it): declared for an
+   *  asset the SPEC knows, bound for one the STATE carries, bundle for one the plugin SHIPPED. */
   readonly assetId?: AssetId | undefined;
   /** THE BOUND ARM (#774 ARM C): resolve the asset id from published state (`{ $state: "path" }`) — for an
    *  image whose subject is DATA, not structure (a photo plugin's detail view; a generated cover). The
@@ -459,6 +461,23 @@ export interface PluginImageNode {
    *  nothing) and then rides the SAME owner-scoped server resolve every declared `assetId` rides — a foreign
    *  owner's id yields no ref and the node renders its placeholder, NEVER another user's blob. */
   readonly assetFrom?: PluginStateBinding | undefined;
+  /** THE BUNDLE ARM (#820 seam 11): art the plugin SHIPPED, named by its zip path (`ui/assets/happy.png`).
+   *  It exists because the other two arms structurally cannot express it — a sprite pack's ids are minted by
+   *  the CAS at INSTALL time, so the spec cannot know one and the guest is never told one.
+   *
+   *  IT IS A NAME, NEVER A LOCATION, and that is the whole security shape. The string is format-validated
+   *  here against the SAME anchored, flat, alphanumeric-led pattern the install funnel admitted the zip entry
+   *  under ({@link PLUGIN_UI_ASSET_ENTRY_RE}), so a URL, a traversal, a second path segment and an absolute
+   *  path are all unspellable rather than filtered. At render it is looked up in the plugin's OWN
+   *  install-time path→id map (`plugin.listBundleAssets`, gated by the owner-scoped `plugins` row load) and
+   *  the resulting id then rides the SAME owner-scoped `assets.resolveBlobRefs` a declared `assetId` rides.
+   *  So a path this plugin never shipped resolves to nothing and paints the placeholder — exactly like a
+   *  foreign `assetId` — and the arm adds a name lookup, never a new way to reach bytes.
+   *
+   *  DECLARED-ONLY, deliberately: there is no `bundleAssetFrom`. A bundle's contents are fixed at install, so
+   *  a path that came from published STATE would be untrusted input entering a namespace whose whole value is
+   *  that it is spec structure. A plugin whose image is genuinely data-driven has `assetFrom` already. */
+  readonly bundleAsset?: string | undefined;
   readonly alt?: string | undefined;
   /** Reserve a fixed RATIO box (U5) — a token-named ratio, never a pixel. See {@link PLUGIN_IMAGE_ASPECTS}. */
   readonly aspect?: PluginImageAspect | undefined;
@@ -611,6 +630,10 @@ export interface PluginGridTile {
   readonly badge?: PluginBoundString | undefined;
   /** The cover image — an asset in the INSTALLER's CAS (the `image` node's rule, one home for the wall). */
   readonly assetId?: AssetId | undefined;
+  /** …or an image the plugin's own bundle shipped, by zip path (#820 — the `image` node's bundle arm, same
+   *  rule and same wall). At most one of the two; neither is the shape-matched placeholder this genre wants
+   *  when a tile has no cover. */
+  readonly bundleAsset?: string | undefined;
   readonly alt?: string | undefined;
   /** The tile's tag/genre words (hub v1.2) — rendered as a clipped chip row under the subtitle, so a browse
    *  grid shows the vocabulary a person filters by. Plain strings on BOTH arms (a tag set is data, not a
@@ -690,17 +713,21 @@ export interface PluginPageStage {
   readonly body: PluginSurfaceNode;
 }
 
-/** A detail stage's hero art. Exactly ONE of `assetId`/`assetFrom` (the spec-level belt enforces it), the
- *  `image` node's rule one plane over: `assetId` is declared for art the SPEC knows, `assetFrom` (#774 ARM C /
- *  plugin-remote-image #798) BINDS the id from published state — for a hero whose subject is DATA (a hub cover
- *  a plugin just `net.fetchAsset`ed, a photo plugin's detail view). Both arms are asset-ID-ONLY: NO URL is ever
- *  spellable here (the seam-11 anti-exfil-pixel wall), and the bound arm's resolved value is UNTRUSTED STATE —
+/** A detail stage's hero art. Exactly ONE of `assetId`/`assetFrom`/`bundleAsset` (the spec-level belt enforces
+ *  it), the `image` node's rule one plane over: `assetId` is declared for art the SPEC knows, `assetFrom`
+ *  (#774 ARM C / plugin-remote-image #798) BINDS the id from published state — for a hero whose subject is
+ *  DATA (a hub cover a plugin just `net.fetchAsset`ed, a photo plugin's detail view) — and `bundleAsset`
+ *  (#820) names art the plugin SHIPPED. No arm is a LOCATION: NO URL is ever
+ *  spellable here (the anti-exfil-pixel wall), and the bound arm's resolved value is UNTRUSTED STATE —
  *  format-validated at resolve (a non-TypeID string paints nothing) and then owner-scope-resolved server-side
  *  exactly like a declared id, so a foreign owner's id yields no ref and the hero renders nothing, never
  *  another user's blob. */
 export interface PluginPageHero {
   readonly assetId?: AssetId | undefined;
   readonly assetFrom?: PluginStateBinding | undefined;
+  /** …or the THIRD arm, the `image` node's bundle path (#820 seam 11) — hero art the plugin shipped with its
+   *  own code. Same wall, same one-home rule: see {@link PluginImageNode.bundleAsset}. */
+  readonly bundleAsset?: string | undefined;
   readonly alt?: string | undefined;
 }
 
@@ -775,6 +802,12 @@ const boundBoolean: z.ZodType<PluginBoundBoolean> = z.union([z.boolean(), stateB
 const identSchema = z.string().regex(IDENT_RE);
 const labelSchema = z.string().min(1).max(LABEL_MAX);
 const gapSchema = z.enum(PLUGIN_GAP_TOKENS);
+/** A `bundleAsset` path (#820 seam 11) — the SAME anchored pattern the install funnel admitted the zip entry
+ *  under, imported from its ONE home rather than re-spelled. That identity is what makes the arm safe to
+ *  validate here at all: a path this schema accepts is, by construction, a path the funnel could have
+ *  admitted, so the resolve is a lookup that either hits the plugin's own map or paints nothing. A second,
+ *  looser spelling here would admit names the map can never contain and turn a wall into a shrug. */
+const bundleAssetPathSchema = z.string().regex(PLUGIN_UI_ASSET_ENTRY_RE);
 
 /** The node schema. Recursive via `z.lazy` (the container arms reference this const by the time the thunk
  *  runs); the explicit `z.ZodType<PluginSurfaceNode>` annotation breaks the circular inference and keeps the
@@ -800,6 +833,7 @@ export const pluginSurfaceNodeSchema: z.ZodType<PluginSurfaceNode> = z.lazy(() =
       kind: z.literal("image"),
       assetId: typeIdSchema(ID_PREFIX.asset).optional(),
       assetFrom: stateBindingSchema.optional(),
+      bundleAsset: bundleAssetPathSchema.optional(),
       alt: z.string().max(LABEL_MAX).optional(),
       aspect: z.enum(PLUGIN_IMAGE_ASPECTS).optional(),
     }),
@@ -862,6 +896,7 @@ export const pluginSurfaceNodeSchema: z.ZodType<PluginSurfaceNode> = z.lazy(() =
             subtitle: boundString(LABEL_MAX).optional(),
             badge: boundString(LABEL_MAX).optional(),
             assetId: typeIdSchema(ID_PREFIX.asset).optional(),
+            bundleAsset: bundleAssetPathSchema.optional(),
             alt: z.string().max(LABEL_MAX).optional(),
             tags: z.array(z.string().max(LABEL_MAX)).max(PLUGIN_TILE_TAGS_MAX).optional(),
             actionId: identSchema.optional(),
@@ -905,6 +940,7 @@ export const pluginSurfaceNodeSchema: z.ZodType<PluginSurfaceNode> = z.lazy(() =
               .object({
                 assetId: typeIdSchema(ID_PREFIX.asset).optional(),
                 assetFrom: stateBindingSchema.optional(),
+                bundleAsset: bundleAssetPathSchema.optional(),
                 alt: z.string().max(LABEL_MAX).optional(),
               })
               .optional(),
@@ -987,8 +1023,27 @@ function countSearchBars(node: PluginSurfaceNode): number {
  *  stays under the cognitive-complexity ceiling. One issue per offending hero, in stage order. */
 function collectHeroViolations(node: Extract<PluginSurfaceNode, { kind: "masterDetail" }>, out: string[]): void {
   for (const stage of node.stages) {
-    if (stage.hero !== undefined && (stage.hero.assetId === undefined) === (stage.hero.assetFrom === undefined)) {
-      out.push("a stage hero names exactly one of `assetId` (declared) or `assetFrom` (bound)");
+    if (stage.hero !== undefined && countImageSourceArms(stage.hero) !== 1) {
+      out.push("a stage hero names exactly one of `assetId` (declared), `assetFrom` (bound) or `bundleAsset` (shipped)");
+    }
+  }
+}
+
+/** How many of an image source's THREE arms are present. Counting rather than the old two-arm XOR because the
+ *  #820 bundle arm made "exactly one" a real arity question — an XOR pair silently readmits "all three", which
+ *  is a node describing one picture three ways and a renderer picking whichever it happens to check first. */
+function countImageSourceArms(node: { readonly assetId?: unknown; readonly assetFrom?: unknown; readonly bundleAsset?: unknown }): number {
+  return [node.assetId, node.assetFrom, node.bundleAsset].filter((arm) => arm !== undefined).length;
+}
+
+/** A DECLARED grid tile's cover arms (#820). AT MOST one, not exactly one: the browse genre's own rule is that
+ *  a coverless tile is a shape-matched placeholder rather than an error (see the grid schema's note), so zero
+ *  is legal here where it is not on an `image` node. Split out for the same cognitive-complexity reason
+ *  {@link collectHeroViolations} was. */
+function collectTileCoverViolations(node: Extract<PluginSurfaceNode, { kind: "grid" }>, out: string[]): void {
+  for (const tile of node.tiles ?? []) {
+    if (tile.assetId !== undefined && tile.bundleAsset !== undefined) {
+      out.push("a grid tile names at most one of `assetId` (declared) or `bundleAsset` (shipped)");
     }
   }
 }
@@ -1010,9 +1065,10 @@ function collectArmViolations(node: PluginSurfaceNode, out: string[]): void {
     if (node.tileAction !== undefined && node.tilesFrom === undefined) {
       out.push("`tileAction` belongs to the bound arm — a declared tile carries its own `actionId`");
     }
+    collectTileCoverViolations(node, out);
   }
-  if (node.kind === "image" && (node.assetId === undefined) === (node.assetFrom === undefined)) {
-    out.push("an image names exactly one of `assetId` (declared) or `assetFrom` (bound)");
+  if (node.kind === "image" && countImageSourceArms(node) !== 1) {
+    out.push("an image names exactly one of `assetId` (declared), `assetFrom` (bound) or `bundleAsset` (shipped)");
   }
   // The hub-v1.3 bound arms carry the identical exactly-one-of discipline: a node naming both is two
   // descriptions of one control, and a node naming neither renders nothing while claiming to be a control.

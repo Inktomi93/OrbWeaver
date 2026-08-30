@@ -34,6 +34,7 @@ import type {
   InstallPluginParams,
   InvokeUiActionParams,
   InvokeUiCommandParams,
+  ListBundleAssetsParams,
   ListCommandsParams,
   ListDisplayTransformsParams,
   ListDistributedPluginsParams,
@@ -55,6 +56,7 @@ import type {
 import type {
   DistributedPluginApplication,
   DistributedPluginView,
+  PluginBundleAssetView,
   PluginCommandView,
   PluginDisplayTransformView,
   PluginFanoutResult,
@@ -412,6 +414,10 @@ export interface PluginService {
   readonly listSurfaces: (params: ListSurfacesParams) => Promise<readonly PluginSurfaceView[]>;
   /** One owned surface's published state (`null` if nothing published). Owner-scoped on `pluginId` (leak-free). */
   readonly getSurfaceState: (params: GetSurfaceStateParams) => Promise<PluginSurfaceState | null>;
+  /** One owned plugin's BUNDLE-SHIPPED image map — `ui/assets/<name>` → the CAS id it was unpacked to (#820
+   *  seam 11). Owner-scoped on `pluginId` (leak-free NOT_FOUND); the renderer resolves a node's declared
+   *  bundle path through it and then rides the same owner-scoped blob resolve every `assetId` already rides. */
+  readonly listBundleAssets: (params: ListBundleAssetsParams) => Promise<readonly PluginBundleAssetView[]>;
   /** One owned `frame`-tier surface's DOCUMENT BYTES (plugin-ui-plane #679 U7). Owner-scoped on `pluginId`
    *  (leak-free NOT_FOUND) and re-gated per call on the row's live `ui.frame` grant. `null` for every other arm —
    *  disabled, no resident, unknown surface, wrong tier — so the doorway serves one identical miss. Its ONE

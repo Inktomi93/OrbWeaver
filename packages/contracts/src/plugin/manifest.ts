@@ -190,6 +190,37 @@ export const PLUGIN_MAIN_ENTRY = "main.js";
  *  ever admitted, so a name that drifts silently un-admits a real entry or admits an unintended one). */
 export const PLUGIN_UI_ENTRY = "ui.js";
 
+/** The zip's optional BUNDLE-ASSET directory (#820, seam 11) — the ONE prefix under which a bundle may ship
+ *  static IMAGE bytes (a sprite pack, decorative art) that `install`/`upgrade` extract into the INSTALLER's own
+ *  CAS. It is the FOURTH admitted entry class and the only one that is a PREFIX rather than an exact name, so
+ *  it is also the only place a path could ever be attacker-shaped — {@link PLUGIN_UI_ASSET_ENTRY_RE} is what
+ *  keeps that from being true (see its own note). */
+export const PLUGIN_UI_ASSETS_DIR = "ui/assets/";
+/** The ONE spelling an admitted asset entry may have: `ui/assets/<name>`, FLAT (no second level), with `<name>`
+ *  drawn from a conservative filename alphabet and starting on an alphanumeric.
+ *
+ *  THIS REGEX IS THE PATH-TRAVERSAL WALL, and it works by not being able to SPELL an escape rather than by
+ *  filtering known-bad shapes: `..` cannot match (the first character must be alphanumeric), `/` and `\` are
+ *  outside the alphabet so no second segment and no Windows separator is expressible, a leading `/` or `./`
+ *  fails the anchored `ui/assets/` prefix, and a NUL/newline/space/unicode-lookalike is simply not in the
+ *  class. There is nothing to normalize, because nothing that would need normalizing is admitted. */
+export const PLUGIN_UI_ASSET_ENTRY_RE = /^ui\/assets\/[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
+/** How many `ui/assets/` entries ONE bundle may ship. A sprite pack is the shape this exists for (ST's
+ *  expression sets top out around 28 emotions), so 64 is generous; the cap is here because an entry COUNT is a
+ *  bomb dimension the per-entry caps do not bound — 10 000 one-byte entries cost 10 000 CAS writes and 10 000
+ *  junction rows at install time. */
+export const PLUGIN_UI_ASSETS_MAX_COUNT = 64;
+/** The DECOMPRESSED cap on ONE bundle asset. A cover/sprite that needs more than this is a plugin shipping
+ *  something other than interface art. */
+export const PLUGIN_UI_ASSET_MAX_BYTES = 2_097_152;
+/** The DECOMPRESSED cap ACROSS every bundle asset — the aggregate the per-entry cap cannot express, and the
+ *  half of the bomb guard that matters once a bundle may carry many entries: `count × per-entry` is 128 MiB,
+ *  which is not a bound anyone wants a 1 MiB upload to be able to reach. Paired with the 1 MiB COMPRESSED input
+ *  cap (`MAX_BUNDLE_BYTES`, the substrate's), this states the amplification ceiling directly — 8:1 — which is a
+ *  stronger and simpler guard than a per-entry ratio, because a ratio computed per entry says nothing about
+ *  what the entries sum to. */
+export const PLUGIN_UI_ASSETS_TOTAL_MAX_BYTES = 8_388_608;
+
 /** The bundle manifest (`manifest.json` in the zip; the FULL validated copy is persisted for provenance and
  *  re-validated on load). `netHosts` ⟺ `net.fetch`: declaring the capability requires ≥ 1 host, and a
  *  host list is meaningless without the capability (the biconditional is the SSRF allowlist's integrity).

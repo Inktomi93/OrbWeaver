@@ -17,7 +17,10 @@
 //      VICTIM's private asset, so ids resolve through `assets.resolveBlobRefs` — the OWNER-SCOPED read
 //      (`resolve-owned-asset-refs.ts`: `ownerId` in the WHERE, a foreign id simply absent), keyed by the
 //      session owner = the installer (v1 viewer==installer). A foreign/unowned id yields no ref → the empty
-//      placeholder, NEVER another user's blob.
+//      placeholder, NEVER another user's blob. The #820 `bundleAsset` arm changes NONE of that: a bundle path
+//      is a NAME resolved against this plugin's own install-time map (`plugin.listBundleAssets`, gated by the
+//      owner-scoped row load) and the id it yields then rides the exact same owner-scoped resolve. A path the
+//      plugin never shipped resolves to nothing and paints the same placeholder.
 //
 // Actions round-trip through `invokeUiAction`; `host.ui.setState` publishes state whose `pluginSurfaceStateChanged`
 // bus poke (belt: the mutation's own invalidate) repaints this surface. Form field values are CLIENT-transient
@@ -34,7 +37,7 @@ import type { ReactElement, ReactNode } from "react";
 import { useState } from "react";
 import { useInvalidation, useTRPC } from "#data";
 import { useInvokeUiAction } from "../lib/plugin-mutations.ts";
-import { collectDefaults, collectImageAssetIds } from "../lib/plugin-surface-bindings.ts";
+import { collectDefaults, collectImageAssetIds, specNamesBundleAsset } from "../lib/plugin-surface-bindings.ts";
 import { applyPluginUiOutcome } from "../lib/plugin-ui-outcome.ts";
 import { MasterDetail, SurfaceSearchBar } from "./plugin-browse-nodes.tsx";
 import { SurfaceLeaf } from "./plugin-leaf-nodes.tsx";
@@ -49,7 +52,9 @@ interface RenderCtx {
    *  `tile` id — the round-trip has to say WHICH tile, and a tile is not a form field a person edits). */
   readonly submit: (actionId: string, extra?: Record<string, string>) => void;
   readonly submitting: boolean;
-  /** assetId → owner-scoped blob url. Absent = the installer does not own it (or it is gone) ⇒ placeholder. */
+  /** COVER KEY → owner-scoped blob url. The key is whichever spelling the node carries — an `asset_…` id, or a
+   *  `ui/assets/…` bundle path (#820), which the walk above aliases onto its resolved id's url. Absent = the
+   *  installer does not own it, it is gone, or the plugin never shipped that path ⇒ placeholder. */
   readonly imageUrls: ReadonlyMap<string, string>;
 }
 
@@ -119,12 +124,30 @@ export function PluginSurfaceRenderer({
   // The SAME effective state the render ctx binds against — one derivation, so the sweep and the renderer can
   // never disagree about which state a binding resolves in.
   const effectiveState = sink === undefined ? (state ?? {}) : sink.state;
+  // #820 — the plugin's own INSTALL-TIME `ui/assets/` map, read only when the spec actually names a bundle
+  // path (a surface that ships no bundle art pays for no query). It is a NAME lookup and nothing more: the
+  // ids it returns still ride the owner-scoped `resolveBlobRefs` below, so this adds no reach.
+  const wantsBundleAssets = parsed.success && specNamesBundleAsset(parsed.data);
+  const { data: bundleAssetRows } = useQuery({ ...trpc.plugin.listBundleAssets.queryOptions({ pluginId }), enabled: wantsBundleAssets });
+  const bundleAssets = new Map((bundleAssetRows ?? []).map((row) => [row.path, row.assetId] as const));
   const imageIds: AssetId[] = [];
   if (parsed.success) {
-    collectImageAssetIds(parsed.data, effectiveState, imageIds);
+    collectImageAssetIds(parsed.data, effectiveState, bundleAssets, imageIds);
   }
   const { data: refs } = useQuery({ ...trpc.assets.resolveBlobRefs.queryOptions({ assetIds: imageIds }), enabled: imageIds.length > 0 });
-  const imageUrls = new Map((refs ?? []).map((ref) => [ref.assetId, blobUrl(ref.hash)] as const));
+  // Keyed by BOTH spellings a node can name (#820): the resolved `asset_…` id, and — for every bundle path
+  // that mapped to a resolved id — the path itself. The leaves look their cover up by whichever key their
+  // node carries, so no renderer below this line has to know the bundle arm exists. A path whose id did not
+  // resolve (not owned, reaped, or never shipped) simply has no entry, which is the placeholder.
+  // `Map<string, string>` explicitly: the key space is COVER KEYS, not ids — inference would narrow it to
+  // `AssetId` off the refs alone and then refuse the bundle-path aliases the loop below adds.
+  const imageUrls = new Map<string, string>((refs ?? []).map((ref) => [ref.assetId, blobUrl(ref.hash)] as const));
+  for (const [path, assetId] of bundleAssets) {
+    const url = imageUrls.get(assetId);
+    if (url !== undefined) {
+      imageUrls.set(path, url);
+    }
+  }
   const [values, setValues] = useState<Record<string, string>>(() => {
     const out: Record<string, string> = {};
     if (parsed.success) {
