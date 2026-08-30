@@ -13,6 +13,7 @@
 //   check:db-baseline        → cli.ts db-baseline
 //   check:orphan-ratchet     → cli.ts orphan-ratchet [--update]
 //   check:boot-chunk         → cli.ts boot-chunk
+//   check:ledgers-fresh      → cli.ts ledgers-fresh  (the committed-ledger freshness tripwire, #817)
 //   debt                     → cli.ts debt [--gate substr] [--age]  (a LENS over the ratchet ledgers)
 //   test:ratchets            → cli.ts ratchet-gate  (the VITEST-tier train-gate aggregate, #667)
 import process from "node:process";
@@ -29,10 +30,12 @@ import {
   generateSuppressionsBaseline,
   generateTestBaselineManifest,
   generateTestPresenceBaseline,
+  LEDGER_CHECKS,
   parse,
   runBootChunkRatchet,
   runDbBaselineParity,
   runDebtWalk,
+  runLedgersFresh,
   runNewGate,
   runOrphanRatchet,
   runRatchetGateCli,
@@ -83,7 +86,7 @@ const VERB_HELP: Readonly<Record<VerifyVerb, string>> = {
   show: SHOW_HELP,
   scoped: SCOPED_USAGE,
   "new-gate": "usage: node tooling/src/verify/cli.ts new-gate <kebab-name>\n  Scaffolds a gate descriptor + its conformance proofs (GATE-AUTHORING.md).",
-  baseline: `usage: node tooling/src/verify/cli.ts baseline <${Object.keys(BASELINES).sort().join("|")}>\n  Regenerates a COMMITTED baseline — the single-writer door (GATE-AUTHORING §4.8). Never run on a shared tree mid-lane.`,
+  baseline: `usage: node tooling/src/verify/cli.ts baseline <${Object.keys(BASELINES).sort().join("|")}> [--check]\n  Regenerates a COMMITTED baseline — the single-writer door (GATE-AUTHORING §4.8). Never run on a shared tree mid-lane.\n  --check derives and DIFFS instead of writing (exit 1 on drift); available for ${Object.keys(LEDGER_CHECKS).sort().join(", ")}.`,
   "tests-membership":
     "usage: node tooling/src/verify/cli.ts tests-membership\n  Reconciles which test files each TYPE program compiles — reports the escapees.",
   "tests-execution-membership":
@@ -91,6 +94,8 @@ const VERB_HELP: Readonly<Record<VerifyVerb, string>> = {
   "db-baseline": "usage: node tooling/src/verify/cli.ts db-baseline\n  Compares the drizzle schema against the committed 0000_baseline.sql.",
   "orphan-ratchet": "usage: node tooling/src/verify/cli.ts orphan-ratchet [--update]\n  The orphan-export ratchet; --update rewrites its committed baseline.",
   "boot-chunk": "usage: node tooling/src/verify/cli.ts boot-chunk\n  Measures the client boot chunk against its committed ceiling.",
+  "ledgers-fresh":
+    "usage: node tooling/src/verify/cli.ts ledgers-fresh\n  Reds when a committed single-writer ledger (the caught-failure census, the test-baseline manifest) differs from a fresh derivation. Writes nothing; names the differing rows and the regen command.",
   debt: "usage: node tooling/src/verify/cli.ts debt [--gate <substr>] [--age]\n  A LENS over the ratchet ledgers — reports parked rows, oldest first with --age.",
   "ratchet-gate": "usage: node tooling/src/verify/cli.ts ratchet-gate\n  The vitest-tier train-gate aggregate over the ratchets (#667).",
 };
@@ -104,13 +109,25 @@ function helpRequested(rest: readonly string[]): boolean {
   return rest.some((arg) => arg === "--help" || arg === "-h");
 }
 
+/** `baseline <kind>` WRITES; `baseline <kind> --check` derives and DIFFS, writing nothing (#817). Only the
+ *  two line-number/fileset-coupled ledgers carry a `--check` arm — the rest have no reader that could go
+ *  stale between regens, and a `--check` for a kind that has none is misuse, never a silent write. */
 function runBaseline(root: string, rest: readonly string[]): number {
   const kind = rest[0];
   const generate = kind === undefined ? undefined : BASELINES[kind];
-  if (generate === undefined) {
+  if (kind === undefined || generate === undefined) {
     throw new UsageError(`baseline: unknown kind ${kind ?? "(none)"} — one of ${Object.keys(BASELINES).sort().join(", ")}`);
   }
-  return generate(root);
+  if (!rest.includes("--check")) {
+    return generate(root);
+  }
+  const verify = LEDGER_CHECKS[kind];
+  if (verify === undefined) {
+    throw new UsageError(
+      `baseline --check: ${kind} has no freshness arm — one of ${Object.keys(LEDGER_CHECKS).sort().join(", ")} (or drop --check to regenerate)`,
+    );
+  }
+  return verify(root);
 }
 
 async function dispatch(verb: string, root: string, rest: readonly string[]): Promise<number> {
@@ -142,6 +159,8 @@ async function dispatch(verb: string, root: string, rest: readonly string[]): Pr
       return runOrphanRatchet(root, rest);
     case "boot-chunk":
       return await runBootChunkRatchet(root);
+    case "ledgers-fresh":
+      return runLedgersFresh(root);
     case "debt":
       return runDebtWalk(root, rest);
     case "ratchet-gate":
