@@ -454,6 +454,71 @@ export function WalkerDuplicateDoorStory(): ReactElement {
   );
 }
 
+/** The VARIANT-ROW stage (issue #851) — the false-positive class the identical-path fingerprint could not
+ *  see, reproduced from the live transcript at `--mobile`. Three message rows of ONE `<ol>`, each offering
+ *  its own "More message actions"; two of them reach that button through `theme-scope` and one through
+ *  `message-content-column`, exactly as the room does when one speaker carries a theme. The old rule read
+ *  those two chains as two homes and minted a P3 on a plain per-row action — on desktop only the hovered
+ *  row's cluster is offered, so it took a coarse pointer (where every row's cluster is permanent) to
+ *  surface it, i.e. it was set to fire on every virtualized list at exactly the viewport where the
+ *  duplicate-door and tap-target lenses matter most.
+ *
+ *  Two controls ride along so the exclusion cannot be a blanket:
+ *   - ONE ACTION TWICE INSIDE ONE ROW: every row offers "Copy message" from both its header and its
+ *     footer. Rows fold together; two homes INSIDE a row are still two homes, so this must still fire.
+ *   - TWO GENUINE HOMES OUTSIDE THE LIST: a topbar and a footer "Pin this chat" — untouched by any list
+ *     reasoning, and the proof that the fold did not simply disarm the rule. */
+export function WalkerListRowDoorStory(): ReactElement {
+  const rows = [
+    { id: "vesper-1", speaker: "Vesper", themed: true },
+    { id: "you-1", speaker: "You", themed: false },
+    { id: "vesper-2", speaker: "Vesper", themed: true },
+  ];
+  return (
+    <div style={{ backgroundColor: "rgb(16, 16, 20)", color: "rgb(240, 240, 245)", padding: 16, width: 430 }}>
+      <header data-slot="topbar">
+        <button className="topbar-glyph" style={{ fontSize: 15, padding: 6 }} type="button">
+          Pin this chat
+        </button>
+      </header>
+      <ol data-slot="message-list-viewport" style={{ listStyle: "none", margin: 0, padding: 0 }}>
+        {rows.map((row, index) => (
+          <li data-index={index} data-slot="message-list-row" key={row.id}>
+            <div data-slot={row.themed ? "theme-scope" : "message-content-column"}>
+              <div data-slot="message-bubble">
+                <div data-slot="message-name-row">
+                  <span>{row.speaker}</span>
+                  <div data-slot="message-actions-slot">
+                    <div data-slot="message-actions-row">
+                      <button className="row-copy" style={{ fontSize: 13, padding: 4 }} type="button">
+                        Copy message
+                      </button>
+                      <button className="row-more" style={{ fontSize: 13, padding: 4 }} type="button">
+                        More message actions
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                <p style={{ fontSize: 15, margin: 0 }}>the row's prose</p>
+                <div data-slot="message-footer-row">
+                  <button className="row-copy-footer" style={{ fontSize: 13, padding: 4 }} type="button">
+                    Copy message
+                  </button>
+                </div>
+              </div>
+            </div>
+          </li>
+        ))}
+      </ol>
+      <footer data-slot="composer-tray" style={{ marginTop: 12 }}>
+        <button className="tray-button" style={{ fontSize: 15, padding: 6 }} type="button">
+          Pin this chat
+        </button>
+      </footer>
+    </div>
+  );
+}
+
 /** The PROGRAMMATIC-FOCUS stage (issue #370). The nested generic wrappers are focus-management
  *  containers, not user actions: both carry tabindex=-1 and inherit the same descendant text. The two
  *  native buttons are the positive control — genuinely distinct homes for one named action must remain

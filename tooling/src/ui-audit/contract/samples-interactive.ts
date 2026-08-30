@@ -63,8 +63,17 @@ export interface ActionDoorInput {
   readonly name: string;
   /** The chain of `tag@data-slot.classes` signatures from this control up to `<body>`, POSITION-FREE.
    *  Two doors sharing a path are one component rendered per datum; two doors with different paths are two
-   *  homes. */
+   *  homes — EXCEPT inside a list, where the rows own the answer (see `listKey`). */
   readonly path: string;
+  /** Per-run identity of the LIST CONTAINER this door lives in, or null for a door that is not inside a
+   *  repeated list item (#851). Two doors in the same container but different `itemKey`s are one
+   *  component rendered per datum however differently their rows are shaped — the path fingerprint alone
+   *  read a conditional row wrapper as a second home and fired on every virtualized list at coarse
+   *  pointer. */
+  readonly listKey: string | null;
+  /** Per-run identity of the LIST ITEM (the row) this door lives in, or null. Doors sharing an `itemKey`
+   *  are inside ONE row and stay judged by `path`: one action offered twice in one card is a real door. */
+  readonly itemKey: string | null;
 }
 
 // ── Control silhouette (orbweaver; #430, from the side-eye #420 receipts) ────────────────────────────

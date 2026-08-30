@@ -126,6 +126,57 @@ export function checkScriptErrors(pageErrors: readonly string[]): Finding[] {
  *  reporting it would be a false-positive factory rather than a finding. */
 const DOOR_GROUP_MAX = 6;
 
+/** THE HOMES ONE (role, name) IS OFFERED FROM — the whole judgement of this rule, in one fold.
+ *
+ *  Outside a list, a home is a distinct structural PATH: the same path is one component rendered per
+ *  datum, however many rows it has; distinct paths are distinct homes.
+ *
+ *  Inside a list the ROWS own that answer instead (#851). A path fingerprint assumes per-datum rows
+ *  render an identical chain, and a row with a conditional wrapper does not: two transcript messages
+ *  reached their "More message actions" button through `theme-scope` and `message-content-column`
+ *  respectively and were reported as two homes — on every virtualized list, at coarse pointer only,
+ *  because a permanent (rather than hover-revealed) action cluster is what puts two rows' doors on one
+ *  plane. So a container contributes the doors of its BUSIEST single item: sibling rows fold into one
+ *  home, while an action offered twice inside ONE row still counts twice and still fires. */
+function doorHomes(bucket: readonly ActionDoorInput[]): ActionDoorInput[] {
+  const free = new Map<string, ActionDoorInput>();
+  const lists = new Map<string, Map<string, Map<string, ActionDoorInput>>>();
+  for (const door of bucket) {
+    const home = door.listKey === null || door.itemKey === null ? free : nestedMap(nestedMap(lists, door.listKey), door.itemKey);
+    if (!home.has(door.path)) {
+      home.set(door.path, door);
+    }
+  }
+  const homes = [...free.values()];
+  for (const items of lists.values()) {
+    homes.push(...busiestItemDoors(items));
+  }
+  return homes;
+}
+
+/** get-or-create, so the two-level door bucketing reads as one expression. */
+function nestedMap<V>(parent: Map<string, Map<string, V>>, key: string): Map<string, V> {
+  const existing = parent.get(key);
+  if (existing !== undefined) {
+    return existing;
+  }
+  const fresh = new Map<string, V>();
+  parent.set(key, fresh);
+  return fresh;
+}
+
+/** A list container contributes the doors of its BUSIEST single row — the per-datum count, which is what
+ *  "how many homes does this list offer" means. Ties do not matter: the count is what the rule reads. */
+function busiestItemDoors(items: ReadonlyMap<string, Map<string, ActionDoorInput>>): ActionDoorInput[] {
+  let busiest: ActionDoorInput[] = [];
+  for (const paths of items.values()) {
+    if (paths.size > busiest.length) {
+      busiest = [...paths.values()];
+    }
+  }
+  return busiest;
+}
+
 export function checkDuplicateDoors(doors: readonly ActionDoorInput[]): Finding[] {
   const groups = new Map<string, ActionDoorInput[]>();
   for (const door of doors) {
@@ -139,25 +190,19 @@ export function checkDuplicateDoors(doors: readonly ActionDoorInput[]): Finding[
   }
   const findings: Finding[] = [];
   for (const [key, bucket] of [...groups].sort(([a], [b]) => a.localeCompare(b))) {
-    // ONE DOOR PER DISTINCT PATH: the same path is one component rendered per datum, however many rows it
-    // has. Distinct paths are distinct homes, which is the whole finding.
-    const homes = new Map<string, ActionDoorInput>();
-    for (const door of bucket) {
-      if (!homes.has(door.path)) {
-        homes.set(door.path, door);
-      }
-    }
-    if (homes.size < 2 || homes.size > DOOR_GROUP_MAX) {
+    // ONE DOOR PER DISTINCT PATH outside a list; inside one, per BUSIEST ROW (doorHomes).
+    const homes = doorHomes(bucket);
+    if (homes.length < 2 || homes.length > DOOR_GROUP_MAX) {
       continue;
     }
     const [role = "control", name = ""] = key.split("|");
-    const at = [...homes.values()].map((d) => d.selector);
+    const at = homes.map((d) => d.selector);
     findings.push({
       rule: "duplicate-action-door",
       severity: "P3",
       selector: at[0] ?? "page",
-      value: `${homes.size}x ${role} "${name}"`,
-      message: `the same action is offered from ${homes.size} structurally distinct places on one plane — a ${role} named "${name}" at ${at.join(
+      value: `${homes.length}x ${role} "${name}"`,
+      message: `the same action is offered from ${homes.length} structurally distinct places on one plane — a ${role} named "${name}" at ${at.join(
         " AND ",
       )}. One verb wants one home per plane (the more-than-one-home IA class, docs/architecture/core/client-architecture-lockdown.md §13); if a second door is ruled UX, the ruling is what makes it one`,
       origin: "orbweaver",
