@@ -2,15 +2,15 @@
 // entry-supplied ports, shared by the sync card-upload driver and the bundle/profile composition. Its whole
 // job is BINDING, and every binding it makes is a security decision the domain cannot re-make:
 //
-//   • OWNER SCOPE COMES FROM THE PRINCIPAL, NOT FROM THE ARGUMENT. Four of the domain-facing ops
-//     (`createCharacter` / `findByImportHash` / `findByHandle` / `storeAsset`) are declared with an
-//     `ownerId` in their args, and this wiring DROPS it in favour of `principal.userId`. That drop is the
-//     cross-tenant belt: an import driver (or a future caller) that put a foreign ownerId on the wire
-//     cannot make the character front door read or write another account's rows. Each is asserted here by
-//     passing a DIFFERENT ownerId in and proving the port still sees the principal's.
+//   • OWNER SCOPE COMES FROM THE PRINCIPAL, NOT FROM THE ARGUMENT. All five of the domain-facing ops
+//     (`createCharacter` / `findByImportHash` / `findByHandle` / `storeAsset` / `attachCardTag`) are
+//     declared with an `ownerId` in their args, and this wiring DROPS it in favour of `principal.userId`.
+//     That drop is the cross-tenant belt: an import driver (or a future caller) that put a foreign ownerId
+//     on the wire cannot make the character/tag front door read or write another account's rows. Each is
+//     asserted here by passing a DIFFERENT ownerId in and proving the port still sees the principal's.
 //   • THE CARD-TAG CARRY IS PINNED TO card/pending. Author-shipped tags are UNTRUSTED input; landing them
 //     as anything other than a staged suggestion would let a card's own metadata write accepted library
-//     labels. (This op is also the ONE that forwards its argument's ownerId — pinned as-is below.)
+//     labels.
 //   • THE AVATAR STORE IS enforceMagic:false, kind:"avatar". Deliberate (the card's own embedded avatar has
 //     already been parsed), and exactly the kind of default that must never flip silently in either
 //     direction — so it is asserted explicitly rather than left to the reader.
@@ -138,13 +138,13 @@ describe("buildImportContext — the author-shipped tag carry stays a STAGED sug
     expect(p.attachCardTag).toHaveBeenCalledWith({ ownerId: OWNER, characterId: CHARACTER, tagName: "fantasy", source: "card", status: "pending" });
   });
 
-  test("…and it is the ONE op that forwards the argument's ownerId (its callers pass ctx.ownerId)", async () => {
+  test("the tag carry is scoped to the principal (a foreign ownerId cannot attach onto another library)", async () => {
     const p = ports();
     const ctx = buildImportContext(wiring(p));
 
     await ctx.attachCardTag({ ownerId: FOREIGN, characterId: CHARACTER, tagName: "fantasy" });
 
-    expect(p.attachCardTag.mock.calls[0]?.[0]).toMatchObject({ ownerId: FOREIGN });
+    expect(p.attachCardTag).toHaveBeenCalledWith({ ownerId: OWNER, characterId: CHARACTER, tagName: "fantasy", source: "card", status: "pending" });
   });
 });
 
