@@ -147,13 +147,13 @@
     },
     {
       "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
-      "assignedSha256": "2def101a8d741978c33ca0197aef121026add1e8ea000d2537579d9feeffa584",
+      "assignedSha256": "1e68289f39cd313ff85f03140df708dbe6d6a13ea0c55d3d80424493c9727419",
       "disposition": "current",
       "authority": "operational",
       "fullRead": true,
-      "verifiedSha256": "2def101a8d741978c33ca0197aef121026add1e8ea000d2537579d9feeffa584",
-      "verifiedCommit": "13a3effb34ff77d44ea070ff4baf87f33b59084a",
-      "verifiedAt": "2026-08-28",
+      "verifiedSha256": "1e68289f39cd313ff85f03140df708dbe6d6a13ea0c55d3d80424493c9727419",
+      "verifiedCommit": "13712214a12b6216f5ca9a1482757379fef54470",
+      "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/architecture/core/Core-Enforcement-Active-Gates.md:1 (full read; header/status evaluated)",
         "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
@@ -182,7 +182,8 @@
         "delta re-attestation 2026-08-26 (#750, commit 92011ffcf): the suppressions row now matches the shared governed typed-source predicate, exact directive-token detector, foreign-runtime fence, derived classification, and both-ways controls. useTopLevelRegex was removed from Layer 1. The full document and descriptor were re-read; focused gate conformance passed 8/8, residual/config tests passed 19/19, and the standalone real gate scanned 3,645 governed files clean with 310 ratified sites.",
         "delta re-verify 2026-08-27 (#769, lane fix-e1-alias, content commit b287ab649): the owner-scoped-writes and owner-scoped-upserts rows changed only where the landed descriptors did — the writes row now states THREE biting shapes (the third being the unresolvable target and its chain-free declared limit) and the upserts row its second shape, and both record the full schema-ident denominator plus the declaration-kind-agnostic alias resolver. Every changed clause re-read against the descriptors; red-first against HEAD failed 8/8 on the let/var/unresolvable arms with their const controls passing, whole-corpus gate conformance passed 8/8 (30.1s, down from 45.5s at HEAD under comparable load), the two permanent pins passed 17/17, and both gates ran the real 1,394-file tree with ZERO findings before planted let/var/parameter bypasses produced four.",
         "delta re-verify 2026-08-28 (#751/#775): the new caught-failure-ownership ACTIVE row, the detached-work-traced row's bracket-link + position-disambiguation extension, and the 232->233 count line (enforcement-registry-parity reconciles it against loadGates(): 233 gate descriptors on the tree). Full read of the delta; scoped check:docs green",
-        "delta re-verify 2026-08-28 (#751/#775, post-merge of main 46c356b62): the only change since the prior attestation is the frontmatter updated: date, resolved to 2026-08-28 at the merge (both sides edited it the same day). The caught-failure-ownership ACTIVE row, the detached-work-traced bracket-link + position-disambiguation extension and the 233 count line are unchanged and re-read; 233 gate descriptors on the tree; scoped check:docs green (104 files)"
+        "delta re-verify 2026-08-28 (#751/#775, post-merge of main 46c356b62): the only change since the prior attestation is the frontmatter updated: date, resolved to 2026-08-28 at the merge (both sides edited it the same day). The caught-failure-ownership ACTIVE row, the detached-work-traced bracket-link + position-disambiguation extension and the 233 count line are unchanged and re-read; 233 gate descriptors on the tree; scoped check:docs green (104 files)",
+        "delta re-verify 2026-08-30 (#773, commit 13712214a): re-read at the edited bytes. The `test-presence` Layer-3 row is the only line that moved — it now states the entry/transport TIER arm beside the domain arm and names both burn-down rows (772 + 773). The registered-gate COUNT is unchanged (no gate was added or removed; an arm was widened inside an existing descriptor)."
       ],
       "claims": [
         {
@@ -590,20 +591,21 @@
     },
     {
       "path": "docs/architecture/core/Spine-Testing.md",
-      "assignedSha256": "69dc218ba22513ec0f06498c860c66fe9fcb68bd01dc57e35827c330963f58f9",
+      "assignedSha256": "4fa6cd16ae20f579f47e2aa2a2132258d70f1c7db9dd939b780eb79cf95d56ae",
       "disposition": "current",
       "authority": "current-reference",
       "fullRead": true,
-      "verifiedSha256": "816d54d473eafa460ba7304030813b7704c94c171cc1e5cd91b574ae4f3099f8",
-      "verifiedCommit": "b52fd38d4ab7bef2aa482e0c1c75505565d13c19",
-      "verifiedAt": "2026-08-26",
+      "verifiedSha256": "4fa6cd16ae20f579f47e2aa2a2132258d70f1c7db9dd939b780eb79cf95d56ae",
+      "verifiedCommit": "13712214a12b6216f5ca9a1482757379fef54470",
+      "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/architecture/core/Spine-Testing.md:1 (full read; header/status evaluated)",
         "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "delta re-verify 2026-08-22 (P9 #393, the tooling program's law closeout): re-read in full at the P9 bytes commit; every changed line is a tooling-tree cite repoint or the new Core-0 §9 / constitution index rows, re-derived against the tree",
         "delta re-verify 2026-08-22 (#428, the neo parity rip, commits bd1f126f6 + e92204f68): re-read at the ripped bytes — the `.parity` lane row, its tree entry, its two §1 bullets, the §6 obligation and the Esoterica bullet retired, and §2's test-layout sentence follows the gate's KIND removal in e92204f68. No other claim in this document moved.",
-        "delta re-verify 2026-08-26 (the arid-ignorer move + family (2), commit 6c01bf111): re-read at the edited bytes. The §mutation ARID paragraph is the only claim that moved — it now names tooling/src/mutation-arid/ (the plugin left the research zone), states the second unkillable family (compile-time-unreachable `never`-typed arms) with its measured guard.ts receipt, and adds the mutation-probe paragraph (a reported survivor is not ground truth: 184/230 were already killed). No other claim in this document moved."
+        "delta re-verify 2026-08-26 (the arid-ignorer move + family (2), commit 6c01bf111): re-read at the edited bytes. The §mutation ARID paragraph is the only claim that moved — it now names tooling/src/mutation-arid/ (the plugin left the research zone), states the second unkillable family (compile-time-unreachable `never`-typed arms) with its measured guard.ts receipt, and adds the mutation-probe paragraph (a reported survivor is not ground truth: 184/230 were already killed). No other claim in this document moved.",
+        "delta re-verify 2026-08-30 (#773, the test-presence entry/transport widening, commit 13712214a): re-read at the edited bytes. §5 is the only section that moved — one new demand row for `entry/**` + `transport/**` runtime logic, and the exemption paragraph now records the tier arm's three SHAPE exemptions (a `.d.ts`, a router shell with no callable export, and a PASS-THROUGH wiring file) with the Tier-5/Tier-4 invariants they are derived from. Each is bite-proved in both directions by tests/tooling/verify/gates/test-presence.int.test.ts. No other claim in this document moved."
       ],
       "claims": [
         {

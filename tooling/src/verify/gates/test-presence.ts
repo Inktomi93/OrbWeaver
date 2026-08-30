@@ -1,11 +1,13 @@
 // Gate: test-presence (core/Spine-Testing.md §5) — required tests on the surfaces where an untested change
-// silently breaks behavior. The DOMAIN arm is DEMAND-BY-DEFAULT (#767): any domain file with runtime logic
-// owes a mirror test unless its SHAPE exempts it (index/service/context/error-declaration/D58 stub), so a
-// slot the template grows is demanded the day it appears instead of being silently free. infra/ + foundation/
-// runtime logic and schema-bearing contracts files are demanded as before. Tests live at tests/<pkg>/<rest>.
+// silently breaks behavior. The DOMAIN arm is DEMAND-BY-DEFAULT (#767) and the entry/ + transport/ TIER arm
+// is the same shape (#773): a file with runtime logic owes a mirror test unless its SHAPE exempts it
+// (index/service/context/error-declaration/D58 stub in domain; a declaration file, a router shell with no
+// callable export, or a PASS-THROUGH wiring file in the tiers — `isPassThroughWiring`), so a slot the
+// template grows is demanded the day it appears. infra/ + foundation/ runtime logic and schema-bearing
+// contracts files are demanded as before. Tests live at tests/<pkg>/<rest>.
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import type { Project, SourceFile } from "ts-morph";
+import type { Expression, Project, SourceFile } from "ts-morph";
 import { Node } from "ts-morph";
 import type { RatchetAdmission, RatchetRow } from "../../_shared/ratchet-rows.ts";
 import { classNote, readBudgetRows, writeBudgetLedger } from "../../_shared/ratchet-rows.ts";
@@ -15,6 +17,9 @@ import { codeTextForScan } from "../lib/comment-spans.ts";
 import { fileLoaded } from "../lib/pass.ts";
 
 const DOMAIN_DIR = "/packages/server/src/domain/";
+/** The #773 arm's two tiers. Prefix-matched on the server-src-relative path (the `pushInfra` spelling). */
+const TIER_PREFIXES: readonly string[] = ["entry/", "transport/"];
+const DECLARATION_EXT = ".d.ts";
 const SERVER_SRC = "/packages/server/src/";
 const CONTRACTS_SRC = "/packages/contracts/src/";
 const EXT_RE = /\.tsx?$/u;
@@ -32,6 +37,10 @@ const STALE_BASELINE_PREFIX =
 const BLIND_DOMAIN =
   "BLINDNESS TRIPWIRE — the domain scan matched ZERO files with runtime logic. The demand derivation is keyed " +
   "on the `packages/server/src/domain/` path; if that tree moved, this gate reports ✓ over an unscanned corpus.";
+const BLIND_TIERS =
+  "BLINDNESS TRIPWIRE — the entry/transport scan matched ZERO files with runtime logic. The #773 demand " +
+  "derivation is keyed on the `entry/` + `transport/` prefixes under `packages/server/src/`; if either tier " +
+  "moved or was renamed, this gate reports ✓ over an unscanned corpus.";
 
 const MSG = {
   verb: "verb has no test — add a .test.ts or .int.test.ts at its mirror (core/Spine-Testing.md §5).",
@@ -44,7 +53,13 @@ const MSG = {
     "workloads runner with real logic has no test — add a .test.ts or .int.test.ts at its mirror (core/Spine-Testing.md §5). A D58 no-op stub (reports + returns `{ deferred: true }`, no `ctx.env` call) is exempt until it's filled in.",
   domain:
     "domain file with runtime logic has no test — every substrate/ helper, named subsystem and guard owes a .test.ts or .int.test.ts at its mirror (core/Spine-Testing.md §5). Exempt BY SHAPE: index.ts, the zero-logic service.ts + context.ts roots, and a contract/ file declaring only error classes.",
+  tier: "entry/transport file with runtime logic has no test — a boot step, composition seam, HTTP registrar, job driver, bus or ladder primitive owes a .test.ts or .int.test.ts at its mirror (core/Spine-Testing.md §5). Exempt BY SHAPE: index.ts barrels, a .d.ts declaration file, a tRPC router shell (no callable export — its logic is the domain verb's), and a PASS-THROUGH wiring file whose every exported callable is one delegating call or one DI-bundle object literal over its own parameters.",
 } as const;
+
+/** The demand-by-default arms whose residual population rides the shrink-only DEBT baseline. A finding from
+ *  any OTHER arm (verb/persistence/contract/runner/infra) is never budgetable — those surfaces were demanded
+ *  before the ledger existed and have no residual to burn down. */
+const BUDGETED_MESSAGES: ReadonlySet<string> = new Set([MSG.domain, MSG.tier]);
 
 function serverSrcRel(path: string): string | undefined {
   const parts = path.split(SERVER_SRC);
@@ -87,24 +102,7 @@ function isDeferredStubRunner(sf: SourceFile): boolean {
 // A file carries runtime LOGIC (vs only types/data) if it exports a function, a class, or a const bound
 // to an arrow/function expression. Pure type/interface files and pure data tuples need no behavioral test.
 function hasCallableExport(sf: SourceFile): boolean {
-  if (sf.getFunctions().some((f) => f.isExported())) {
-    return true;
-  }
-  if (sf.getClasses().some((c) => c.isExported())) {
-    return true;
-  }
-  for (const stmt of sf.getVariableStatements()) {
-    if (!stmt.isExported()) {
-      continue;
-    }
-    for (const decl of stmt.getDeclarations()) {
-      const init = decl.getInitializer();
-      if (init !== undefined && (Node.isArrowFunction(init) || Node.isFunctionExpression(init))) {
-        return true;
-      }
-    }
-  }
-  return false;
+  return exportedCallables(sf).length > 0;
 }
 
 function missing(pkg: string, rel: string, message: string): Violation {
@@ -195,6 +193,147 @@ function pushDomainResidual(root: string, rel: string, sf: SourceFile, out: Viol
   }
 }
 
+// ── THE #773 TIER ARM: entry/ + transport/, demand-by-default with a PASS-THROUGH exemption ────────────────
+// The tier law is the exemption's whole justification: `entry/` "owns no business logic — only wiring/boot/
+// HTTP-edge" (core/Tier-5-Entry.md invariant 1) and a transport router is "validate → call the verb → map the
+// error, zero business logic" (core/Tier-4-Transport.md). So the shape that must stay free here is WIRING, and
+// it is derived from the body, never from a path list or a basename: a file is exempt when EVERY exported
+// callable reduces to ONE expression that is a delegating call, a DI-bundle object literal, or a factory
+// returning one of those over its own parameters. Anything else — a branch, a second statement, a computed
+// argument, a try/catch, a loop, an inline schema — is behavior, and behavior is demanded. The moment a
+// pass-through grows a guard it loses the exemption, which is what a basename list could never do.
+//
+// The two other tier shapes need no predicate of their own: an `index.ts` barrel is skipped by the scan, and a
+// tRPC router shell (`export const chatRouter = router({...})`) has no callable export at all, so
+// `hasCallableExport` already leaves it alone — its procedures' logic lives in the domain verbs it calls.
+
+/** Peel the wrappers that never change whether an expression is plumbing. */
+function unwrapPlumbing(expr: Expression): Expression {
+  let cur: Expression = expr;
+  while (Node.isParenthesizedExpression(cur) || Node.isAwaitExpression(cur) || Node.isAsExpression(cur) || Node.isNonNullExpression(cur)) {
+    cur = cur.getExpression();
+  }
+  return cur;
+}
+
+/** A PLUMBING ATOM: a value moved, never computed — an identifier, a member chain rooted at one, or an object
+ *  literal whose every property is itself an atom or a wiring expression (the DI-bundle / context shape). */
+function isPlumbingAtom(expr: Expression): boolean {
+  const node = unwrapPlumbing(expr);
+  if (Node.isIdentifier(node)) {
+    return true;
+  }
+  if (Node.isPropertyAccessExpression(node) || Node.isElementAccessExpression(node)) {
+    return isPlumbingAtom(node.getExpression());
+  }
+  if (!Node.isObjectLiteralExpression(node)) {
+    return false;
+  }
+  return node.getProperties().every((prop) => {
+    if (Node.isShorthandPropertyAssignment(prop)) {
+      return true;
+    }
+    if (Node.isSpreadAssignment(prop)) {
+      return isPlumbingAtom(prop.getExpression());
+    }
+    if (!Node.isPropertyAssignment(prop)) {
+      return false;
+    }
+    const init = prop.getInitializer();
+    return init !== undefined && (isPlumbingAtom(init) || isWiringExpression(init));
+  });
+}
+
+/** A WIRING EXPRESSION: one delegating call whose callee and arguments are all plumbing, a DI bundle, or a
+ *  factory whose own body is one of those (the curried `minter(prefix)` shape). */
+function isWiringExpression(expr: Expression): boolean {
+  const node = unwrapPlumbing(expr);
+  if (Node.isArrowFunction(node) || Node.isFunctionExpression(node)) {
+    const inner = singleBodyExpression(node);
+    return inner !== undefined && (isPlumbingAtom(inner) || isWiringExpression(inner));
+  }
+  if (Node.isCallExpression(node)) {
+    return (
+      isPlumbingAtom(node.getExpression()) && node.getArguments().every((arg) => Node.isExpression(arg) && (isPlumbingAtom(arg) || isWiringExpression(arg)))
+    );
+  }
+  return Node.isObjectLiteralExpression(node) && isPlumbingAtom(node);
+}
+
+/** The ONE expression a BLOCK body reduces to — a single `return x;` / `x;` statement and nothing else. */
+function loneStatementExpression(body: Node): Expression | undefined {
+  if (!Node.isBlock(body)) {
+    return;
+  }
+  const statements = body.getStatements();
+  const only = statements.length === 1 ? statements[0] : undefined;
+  if (only === undefined || !(Node.isReturnStatement(only) || Node.isExpressionStatement(only))) {
+    return;
+  }
+  return only.getExpression();
+}
+
+/** The ONE expression a callable's body reduces to, or nothing when it has real statements. A concise arrow
+ *  body IS the expression; a block qualifies only when its single statement returns/evaluates one. */
+function singleBodyExpression(fn: Node): Expression | undefined {
+  if (!(Node.isArrowFunction(fn) || Node.isFunctionExpression(fn) || Node.isFunctionDeclaration(fn))) {
+    return;
+  }
+  const body = fn.getBody();
+  if (body === undefined) {
+    return;
+  }
+  if (Node.isBlock(body)) {
+    return loneStatementExpression(body);
+  }
+  return Node.isExpression(body) ? body : undefined;
+}
+
+/** `export const f = () => …` / `= function () {}` — the callable-bearing variable initializers. */
+function exportedCallableInitializers(sf: SourceFile): readonly Node[] {
+  const out: Node[] = [];
+  for (const stmt of sf.getVariableStatements()) {
+    if (!stmt.isExported()) {
+      continue;
+    }
+    for (const decl of stmt.getDeclarations()) {
+      const init = decl.getInitializer();
+      if (init !== undefined && (Node.isArrowFunction(init) || Node.isFunctionExpression(init))) {
+        out.push(init);
+      }
+    }
+  }
+  return out;
+}
+
+/** Every exported callable declaration in the file. ONE derivation: `hasCallableExport` is this list being
+ *  non-empty, and the pass-through predicate judges the same members — the two can never disagree. */
+function exportedCallables(sf: SourceFile): readonly Node[] {
+  return [...sf.getFunctions().filter((fn) => fn.isExported()), ...sf.getClasses().filter((cls) => cls.isExported()), ...exportedCallableInitializers(sf)];
+}
+
+/** The tier arm's exemption, by SHAPE: every exported callable is a pass-through. An exported CLASS is never
+ *  a pass-through (it carries state and methods), so one class drops the whole file's exemption. */
+function isPassThroughWiring(sf: SourceFile): boolean {
+  const callables = exportedCallables(sf);
+  if (callables.length === 0) {
+    return false;
+  }
+  return callables.every((fn) => {
+    const inner = singleBodyExpression(fn);
+    return inner !== undefined && (isPlumbingAtom(inner) || isWiringExpression(inner));
+  });
+}
+
+function pushTiers(root: string, rel: string, sf: SourceFile, out: Violation[]): void {
+  if (rel.endsWith(DECLARATION_EXT) || isPassThroughWiring(sf)) {
+    return;
+  }
+  if (hasCallableExport(sf) && !hasTest(root, "server", rel, [".test.ts", ".int.test.ts"])) {
+    out.push(missing("server", rel, MSG.tier));
+  }
+}
+
 function pushInfra(root: string, rel: string, sf: SourceFile, out: Violation[]): void {
   const inTier = rel.startsWith("infra/") || rel.startsWith("foundation/");
   if (inTier && hasCallableExport(sf) && !hasTest(root, "server", rel, [".test.ts", ".int.test.ts"])) {
@@ -213,27 +352,45 @@ interface PresenceScan {
   readonly violations: readonly Violation[];
   /** Domain files carrying runtime logic, exempt or not — the denominator of the demand-by-default arm. */
   readonly domainLogicFiles: number;
+  /** The same denominator for the #773 entry/ + transport/ arm. */
+  readonly tierLogicFiles: number;
+}
+
+/** One scan's mutable state: where findings land and the two demand-by-default denominators. */
+interface ScanState {
+  readonly root: string;
+  readonly violations: Violation[];
+  domainLogicFiles: number;
+  tierLogicFiles: number;
+}
+
+/** Route ONE server source file to its arm, tallying that arm's runtime-logic denominator as it goes. */
+function pushServer(state: ScanState, rel: string, sf: SourceFile): void {
+  const logic = hasCallableExport(sf) ? 1 : 0;
+  if (sf.getFilePath().includes(DOMAIN_DIR)) {
+    state.domainLogicFiles += logic;
+    pushDomain(state.root, rel, sf, state.violations);
+    return;
+  }
+  if (TIER_PREFIXES.some((prefix) => rel.startsWith(prefix))) {
+    state.tierLogicFiles += logic;
+    pushTiers(state.root, rel, sf, state.violations);
+    return;
+  }
+  pushInfra(state.root, rel, sf, state.violations);
 }
 
 /** The fs+AST scan shared by the `run` descriptor, the ratchet's stale arm and the baseline generator: each
  *  server/contracts source file's presence-gated surface must have its mirror test (existsSync). */
 function scanTestPresence(root: string, project: Project): PresenceScan {
-  const violations: Violation[] = [];
-  let domainLogicFiles = 0;
+  const state: ScanState = { root, violations: [], domainLogicFiles: 0, tierLogicFiles: 0 };
   for (const sf of project.getSourceFiles()) {
-    const isIndex = sf.getBaseName() === "index.ts";
     const serverRel = serverSrcRel(sf.getFilePath());
+    // Server barrels (domain/infra `index.ts`) are pure re-exports — exempt. A contracts `index.ts` is
+    // NOT a barrel (the domain's schemas co-locate there), so it is checked below.
     if (serverRel !== undefined) {
-      // Server barrels (domain/infra `index.ts`) are pure re-exports — exempt. A contracts `index.ts` is
-      // NOT a barrel (the domain's schemas co-locate there), so it is checked below.
-      if (isIndex) {
-        continue;
-      }
-      if (sf.getFilePath().includes(DOMAIN_DIR)) {
-        domainLogicFiles += hasCallableExport(sf) ? 1 : 0;
-        pushDomain(root, serverRel, sf, violations);
-      } else {
-        pushInfra(root, serverRel, sf, violations);
+      if (sf.getBaseName() !== "index.ts") {
+        pushServer(state, serverRel, sf);
       }
       continue;
     }
@@ -242,10 +399,10 @@ function scanTestPresence(root: string, project: Project): PresenceScan {
     // silently exempted whole domains. A pure-type/re-export `index.ts` carries no schema → still exempt.
     const contractsRel = contractsSrcRel(sf.getFilePath());
     if (contractsRel !== undefined) {
-      pushContracts(root, contractsRel, sf, violations);
+      pushContracts(root, contractsRel, sf, state.violations);
     }
   }
-  return { violations, domainLogicFiles };
+  return { violations: state.violations, domainLogicFiles: state.domainLogicFiles, tierLogicFiles: state.tierLogicFiles };
 }
 
 /** The residual arm's live census: subject (repo-relative file) → 1. The generator writes exactly this, and
@@ -253,7 +410,7 @@ function scanTestPresence(root: string, project: Project): PresenceScan {
 function residualCensus(violations: readonly Violation[]): Readonly<Record<string, number>> {
   const counts: Record<string, number> = {};
   for (const v of violations) {
-    if (v.message === MSG.domain) {
+    if (BUDGETED_MESSAGES.has(v.message)) {
       counts[v.file] = 1;
     }
   }
@@ -272,7 +429,7 @@ function judgeAdmission(ctx: GateRunCtx, violations: readonly Violation[], basel
   let admitted = 0;
   let ratified = 0;
   for (const v of violations) {
-    const row = v.message === MSG.domain ? baseline.get(v.file) : undefined;
+    const row = BUDGETED_MESSAGES.has(v.message) ? baseline.get(v.file) : undefined;
     if (row !== undefined && row.count > 0) {
       admitted += 1;
       ratified += row.ratified > 0 ? 1 : 0;
@@ -321,6 +478,10 @@ export const gate: GateDescriptor = {
     }
     if (scan.domainLogicFiles === 0) {
       ctx.report({ file: GATE_SELF, line: 1, column: 0, message: BLIND_DOMAIN });
+      return;
+    }
+    if (scan.tierLogicFiles === 0) {
+      ctx.report({ file: GATE_SELF, line: 1, column: 0, message: BLIND_TIERS });
       return;
     }
     judgeShrink(ctx, residualCensus(scan.violations), baseline);
@@ -398,6 +559,39 @@ export const gate: GateDescriptor = {
       expect: { messageIncludes: "domain file with runtime logic has no test" },
       why: "the `contract/`-without-schema hole (#767): `hasSchema` was never meant to exempt a contract file carrying REAL logic — this one derives the handoff copy's idempotency key, and the error-declaration exemption below does not cover it",
     },
+    {
+      files: {
+        "packages/server/src/entry/http/frame-handle-store.ts":
+          "export function take(id: string, owner: string): string | undefined {\n  const hit = STORE.get(id);\n  if (hit === undefined || hit.owner !== owner) {\n    return undefined;\n  }\n  return hit.doc;\n}\n",
+      },
+      expect: { messageIncludes: "entry/transport file with runtime logic has no test" },
+      why: "THE #773 SHAPE — an `entry/http/` unit that is NOT wiring: the opaque frame-handle store's owner check is a SECURITY primitive (a foreign owner must be indistinguishable from a miss) and it sat outside the demand set entirely, because the old arms only reached domain/ + infra/ + foundation/",
+    },
+    {
+      files: {
+        "packages/server/src/transport/jobs/workload-schedule-scheduler.ts":
+          "export function startWorkloadScheduleScheduler(deps: Deps): () => void {\n  const safeTick = (): void => {\n    tickWorkloadSchedules(deps).catch(() => undefined);\n  };\n  safeTick();\n  return deps.scheduleInterval(safeTick, deps.checkIntervalMs);\n}\n",
+      },
+      expect: { messageIncludes: "entry/transport file with runtime logic has no test" },
+      why: "the transport half: a job DRIVER decides WHEN to fire and isolates a failing tick — real behavior, more than one statement, so the pass-through exemption does not reach it",
+    },
+    {
+      files: {
+        "packages/server/src/entry/compose/gate.ts":
+          "export const decide = (deps: Deps, req: Req): Verdict => (req.anonymous ? deps.publicBucket(req.ip) : deps.authedBucket(req.userId));\n",
+      },
+      expect: { messageIncludes: "entry/transport file with runtime logic has no test" },
+      why: "THE PERMISSIVE DIRECTION of the pass-through exemption — a ONE-EXPRESSION body that still DECIDES. It looks like the exempt delegating-call shape and is not one: a conditional is neither a plumbing atom nor a wiring call, so policy written as a ternary stays demanded",
+    },
+    {
+      files: {
+        "packages/db/src/schema/index.ts": "export const schema = 1;\n",
+        "packages/server/src/domain/discovery/substrate/pca.ts": "export const projectPca = (rows: number[][]) => rows.map((r) => r[0] ?? 0);\n",
+        "tests/server/domain/discovery/substrate/pca.test.ts": "export const t = 1;\n",
+      },
+      expect: { messageIncludes: "the entry/transport scan matched ZERO files" },
+      why: "THE #773 ARM'S BLINDNESS TRIPWIRE (§4.6): a project that loads the real-tree anchor and a domain logic file but NO entry/transport file at all. The tier demand is keyed on two path prefixes, so a rename or a tier move would otherwise turn the whole arm into a silent ✓ over an unscanned corpus — this is the one example that reaches the tripwire, since a real run never has zero",
+    },
   ],
   mustPass: [
     {
@@ -444,6 +638,48 @@ export const gate: GateDescriptor = {
         "tests/server/domain/discovery/substrate/pca.test.ts": "export const t = 1;\n",
       },
       why: "the other direction of the #767 arm: the same substrate file WITH its mirror test passes — 91 substrate files were already tested and merely undemanded, so the widening must not accuse them",
+    },
+    {
+      files: {
+        "packages/server/src/entry/boot/seed-themes.ts":
+          "export async function seedThemes(deps: SeedThemesDeps): Promise<void> {\n  await ensureSeedThemes(deps.db, deps.now);\n}\n",
+      },
+      why: "DECLARED LIMIT of the #773 arm — THE PASS-THROUGH SHAPE: a boot step whose whole body forwards its own deps into ONE lower-tier call. The behavior is `ensureSeedThemes`'s and is demanded THERE (the domain arm); a test here could only assert that the forwarder forwards, which is the tautology this doc bans. It loses the exemption the day it grows a second statement",
+    },
+    {
+      files: {
+        "packages/server/src/transport/trpc/context.ts":
+          "export function createContext(parts: Parts): Context {\n  return { auth: parts.auth, services: parts.services, rateLimit: parts.rateLimit, clientIp: parts.clientIp };\n}\n",
+      },
+      why: 'DECLARED LIMIT — THE DI-BUNDLE SHAPE, the transport twin of the domain `context.ts` exemption, derived from the BODY rather than the basename: a packaging function that returns its own arguments (`core/Tier-4-Transport.md`: "Pure packaging: no db, no header parsing, no identity resolution")',
+    },
+    {
+      files: {
+        "packages/server/src/transport/trpc/routers/chat.ts":
+          "export const chatRouter = router({\n  send: authedProcedure.input(sendSchema).mutation(({ ctx, input }) => ctx.services.chat.send(input)),\n});\n",
+      },
+      why: "DECLARED LIMIT — THE ROUTER SHELL: `core/Tier-4-Transport.md` gives a router zero business logic (validate → call the verb → map the error), and it needs no predicate of its own because a `router({…})` call binds no callable export, so `hasCallableExport` already leaves it alone. The row exists so a future change to that helper cannot silently start demanding a test on all 24 shells",
+    },
+    {
+      files: {
+        "packages/server/src/entry/compose/minter.ts":
+          "export function minter<P extends string>(prefix: P): () => TypeIdOf<P> {\n  return (): TypeIdOf<P> => mintTypeId(prefix);\n}\n",
+      },
+      why: "DECLARED LIMIT — the CURRIED pass-through: a factory whose returned closure is itself one delegating call. The shape reduces through the arrow, so `minter` is wiring and stays exempt while a factory that computed anything before returning would not",
+    },
+    {
+      files: {
+        "packages/server/src/entry/boot/seed-assets/plugins/host-v1.d.ts": "export declare function hostV1(): void;\n",
+      },
+      why: "DECLARED LIMIT — a `.d.ts` DECLARATION file: it emits nothing at runtime, so there is no behavior a mirror test could assert. `hasCallableExport` counts an `export declare function`, which is exactly how a shipped typings asset (the plugin host contract lives under `entry/boot/seed-assets/`) would otherwise be accused",
+    },
+    {
+      files: {
+        "packages/server/src/entry/http/frame-handle-store.ts":
+          "export function take(id: string, owner: string): string | undefined {\n  const hit = STORE.get(id);\n  if (hit === undefined || hit.owner !== owner) {\n    return undefined;\n  }\n  return hit.doc;\n}\n",
+        "tests/server/entry/http/frame-handle-store.test.ts": "export const t = 1;\n",
+      },
+      why: "the other direction of the #773 arm: the same entry file WITH its mirror test passes — 65 of the tier's 94 logic files were already tested and merely undemanded, so the widening must not accuse them",
     },
   ],
 };
