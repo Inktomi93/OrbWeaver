@@ -173,6 +173,27 @@ test("snap --fill splits on the first '=', so a JS-literal value containing '=' 
   expect(fillAction).toMatchObject({ type: "step", action: { kind: "fill", selector: "[data-composer]", value: "const a = 1;" } });
 });
 
+// #816: THE #686 RULING SURVIVES — ITS INPUT CHANGED. First-'=' splitting assumed a selector never
+// carries one; an ATTRIBUTE selector does, so `[data-testid=x]=v` filled `[data-testid` and every
+// attribute selector was unusable (a live review had to tag its input via --eval first —
+// docs/reviews/side-eye/2026-08-29-saved-casts-rules.md §9). The split is bracket/quote aware now, which
+// keeps BOTH: the arm above (a JS-literal value with its own '=') and the two below.
+test("snap --fill splits AFTER an attribute selector, not inside it", () => {
+  const args = parseSnapArgs(["/", "--fill", '[data-testid="new-cast-name"]=Spire Trio']);
+
+  expect(args.errors).toEqual([]);
+  const fillAction = args.actions.find((a) => a.type === "step" && a.action.kind === "fill");
+  expect(fillAction).toMatchObject({ type: "step", action: { kind: "fill", selector: '[data-testid="new-cast-name"]', value: "Spire Trio" } });
+});
+
+test("snap --fill keeps both halves at once: an attribute selector AND a value carrying its own '='", () => {
+  const args = parseSnapArgs(["/", "--fill", "[data-slot=composer-input]=const a = 1;"]);
+
+  expect(args.errors).toEqual([]);
+  const fillAction = args.actions.find((a) => a.type === "step" && a.action.kind === "fill");
+  expect(fillAction).toMatchObject({ type: "step", action: { kind: "fill", selector: "[data-slot=composer-input]", value: "const a = 1;" } });
+});
+
 test("snap --fill with no '=' at all still refuses, naming the expected sel=value shape", () => {
   const args = parseSnapArgs(["/", "--fill", "input"]);
 

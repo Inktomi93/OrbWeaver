@@ -321,6 +321,48 @@ export interface EdgeFlushInput {
   readonly count: number;
 }
 
+// ── Truncated to NOTHING (#816 — the label present in the DOM and invisible) ──
+// The sibling of `TextOverflowInput`, and deliberately its own family: text-overflow is "more content
+// than box, and it SPILLS"; this is "the box collapsed to zero and the content is GONE". The walker's own
+// `isVisible` requires `rect.width > 0`, so a name squeezed to 0px by a shrink-0 neighbour was not merely
+// unjudged — it was invisible to EVERY family, which is how a review's P1 read as census 420 / 0 findings.
+export interface TruncatedTextInput {
+  readonly selector: string;
+  /** What the text would occupy unwrapped (`scrollWidth`) — the size of what the reader is missing. */
+  readonly naturalPx: number;
+  /** How much of that natural extent survives inside the nearest clipping ancestor's content box. */
+  readonly visiblePx: number;
+  /** The clipping box that cut it — a reader needs the container, not just the victim. */
+  readonly clipSelector: string;
+  /** The erased string, trimmed — the whole point is that nobody can read it on screen. */
+  readonly text: string;
+}
+
+// ── A painted element whose own centre belongs to a NEIGHBOUR (#816, the mis-tap signature) ──
+// Geometry alone cannot say this: deliberate stacking (a menu over a row, a scrim over the page) is
+// intersecting rects BY DESIGN. The discriminator is the COMPOSITOR's disagreement at the loser's own
+// centre, bounded to a LOCAL neighbour (a common ancestor within a few levels) so an overlay covering the
+// page is never mistaken for a row colliding with itself.
+export interface ObscuredTargetInput {
+  readonly selector: string;
+  /** What `elementFromPoint` returned at this element's centre instead. */
+  readonly hitSelector: string;
+  /** The intersection of the two border boxes on the worst axis, in px. */
+  readonly overlapPx: number;
+  /** Share of the loser's own box the winner covers, 0-1 — the size of the collision. */
+  readonly coveredRatio: number;
+  /** Does the loser offer an action itself (a control) or is it informative text (a badge/label)? */
+  readonly interactive: boolean;
+  readonly text: string;
+}
+
+/** The obscured census's own DENOMINATOR (#797's lesson restated for this family): a centre point outside
+ *  the viewport is UNASKABLE, not un-obscured, and a silent skip makes the family's silence unreadable. */
+export interface ObscuredScanInput {
+  readonly candidates: number;
+  readonly unaskable: number;
+}
+
 // ── Aggregation ──────────────────────────────────────────────────────────────
 export interface RawSamples {
   readonly texts: readonly ContrastInput[];
@@ -359,4 +401,13 @@ export interface RawSamples {
   readonly repeatedTexts: readonly RepeatedTextInput[];
   readonly clippedOverflows: readonly ClippedOverflowInput[];
   readonly edgeFlushCards: readonly EdgeFlushInput[];
+  /** Text collapsed to zero rendered width (#816). Optional: absent from the fixture sample sets that
+   *  predate it, where it reads as "no erased text censused". */
+  readonly truncatedTexts?: readonly TruncatedTextInput[];
+  /** Painted elements whose own centre hit-tests to a local neighbour (#816). Optional for the same
+   *  reason as above. */
+  readonly obscuredTargets?: readonly ObscuredTargetInput[];
+  /** The obscured census's denominator — absent means the sample set predates the family, which the
+   *  report prints as `unreported` rather than as a complete-looking zero. */
+  readonly obscuredScan?: ObscuredScanInput;
 }

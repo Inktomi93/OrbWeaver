@@ -24,7 +24,7 @@ import { isAtOrAboveSeverity } from "../lib/severity.ts";
 import { stageLabel } from "../lib/stage-request.ts";
 import { navigateAndReveal } from "./drive.ts";
 import { resolvePixelBackdrops } from "./pixels.ts";
-import { countBySeverity, navVerdict, printBackdropRefusals, printCensusReach, printFindingsTable } from "./report.ts";
+import { countBySeverity, navVerdict, printBackdropRefusals, printCensusReach, printFindingsTable, printObscuredScan } from "./report.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm design-audit");
 
@@ -159,6 +159,7 @@ export async function runUiAudit(opts: Args): Promise<number> {
     print(`report       ${outPath}`);
     print("");
     printCensusReach(reach);
+    printObscuredScan(pixels.samples?.obscuredScan);
     printBackdropRefusals(pixels.refusals);
     printFindingsTable(findings);
 
@@ -186,6 +187,10 @@ export async function runUiAudit(opts: Args): Promise<number> {
       // tap-target / action-door / silhouette families are viewport-bound, so `p1=0` means nothing until
       // a reader knows how many offered controls were measured and how many were skipped.
       ...reachRows(reach),
+      // The OBSCURED denominator (#816) beside the others: `obscured=0` is only a verdict when a reader
+      // can see how many elements were asked whether they still own their own centre.
+      ["obscured-scanned", pixels.samples?.obscuredScan?.candidates ?? -1],
+      ["obscured-unaskable", pixels.samples?.obscuredScan?.unaskable ?? -1],
       ["px-backdrops", pixels.sampled],
       ["no-verdict", pixels.refusals.length],
       ["nav", navVerdict(navError, actionsFailed)],

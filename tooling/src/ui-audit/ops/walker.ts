@@ -21,6 +21,7 @@
 // triage, the divergences, and the license statement.
 
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { WALKER_CENSUS_COLLISION } from "./walker/census-collision.ts";
 import { WALKER_CENSUS_DECOR } from "./walker/census-decor.ts";
 import { WALKER_CENSUS_INTERACTIVE } from "./walker/census-interactive.ts";
 import { WALKER_CENSUS_QUALITY } from "./walker/census-quality.ts";
@@ -33,4 +34,4 @@ import { WALKER_RETURNS } from "./walker/returns.ts";
 refuseDirectInvocation(import.meta.url, "pnpm design-audit");
 
 export const COLLECT_SAMPLES_JS = `(async () => {
-${WALKER_CORE}${WALKER_RESOLVE}${WALKER_CENSUS_TEXT}${WALKER_HIT_EXTENT}${WALKER_CENSUS_INTERACTIVE}${WALKER_CENSUS_DECOR}${WALKER_CENSUS_QUALITY}${WALKER_RETURNS}})()`;
+${WALKER_CORE}${WALKER_RESOLVE}${WALKER_CENSUS_TEXT}${WALKER_HIT_EXTENT}${WALKER_CENSUS_INTERACTIVE}${WALKER_CENSUS_DECOR}${WALKER_CENSUS_QUALITY}${WALKER_CENSUS_COLLISION}${WALKER_RETURNS}})()`;

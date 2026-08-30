@@ -772,3 +772,45 @@ export function WalkerForwardingLabelStory(): ReactElement {
     </div>
   );
 }
+
+/** THE #816 STAGE — the saved-casts picker row at its real mobile mount (366px dialog / 316px row,
+ *  docs/reviews/side-eye/2026-08-29-saved-casts-rules.md §3 P1-1), rebuilt from the two CSS mechanisms
+ *  that produced the review's P1:
+ *
+ *   · the NAME is `flex-1 min-w-0` + truncate, so a shrink-0 cluster beside it takes the whole row and
+ *     the name renders at 0px while its content is ~57px wide — present in the DOM, invisible on screen;
+ *   · the BADGE cluster shrinks below its own content while its badges do not, so the badges paint
+ *     OUTSIDE their wrapper and over the Start button. A press at the badge's own centre lands on the
+ *     button — the mis-tap the review found by hand and every instrument passed.
+ *
+ *  `badges` is the whole knob: 2 is the measured defect (the B10 rules badge is what tipped it), 0 is the
+ *  same row before the badge existed, which must stay clean. Nothing here is positioned or z-indexed —
+ *  the collision has to be judged INSIDE one paint layer, or the rule would be a deliberate-stacking
+ *  detector instead. */
+export function WalkerCastRowStory({ badges }: { badges: number }): ReactElement {
+  const dialog = { width: 366, padding: 25, boxSizing: "border-box", backgroundColor: "rgb(27, 27, 32)", color: "rgb(240, 240, 245)" } as const;
+  const row = { display: "flex", alignItems: "center", gap: 8, width: "100%" } as const;
+  const name = { flex: "1 1 0%", minWidth: 0, overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis", fontSize: 16 } as const;
+  const badgeWrap = { flex: "0 1 auto", minWidth: 0, display: "flex", gap: 4, overflow: "visible" } as const;
+  const badge = { flex: "0 0 auto", width: 110, height: 24, fontSize: 13, backgroundColor: "rgb(52, 52, 60)" } as const;
+  const start = { flex: "0 0 auto", width: 150, height: 28, fontSize: 14 } as const;
+  return (
+    <div data-testid="cast-dialog" style={dialog}>
+      <div data-testid="cast-row" style={row}>
+        <span data-testid="cast-name" style={name}>
+          Spire Trio
+        </span>
+        <span data-testid="cast-badges" style={badgeWrap}>
+          {["3 members", "2 rules"].slice(0, badges).map((label, i) => (
+            <span data-testid={`cast-badge-${i}`} key={label} style={badge}>
+              {label}
+            </span>
+          ))}
+        </span>
+        <button data-testid="cast-start" style={start} type="button">
+          Start a chat
+        </button>
+      </div>
+    </div>
+  );
+}

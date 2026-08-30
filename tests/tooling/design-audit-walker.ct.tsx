@@ -20,6 +20,7 @@ import {
   WalkerBelowTheFoldStory,
   WalkerBoxCarriedIsolatedControlStory,
   WalkerCapsTrackingStory,
+  WalkerCastRowStory,
   WalkerClippedInflowControlStory,
   WalkerDimmedContrastStory,
   WalkerDuplicateDoorStory,
@@ -753,4 +754,68 @@ test("the healthy twin produces no clipped-overflow finding — scroll panes, sr
     samples.clippedOverflows.filter((entry) => entry.selector.includes("healthy") || entry.childSelector.includes("healthy")),
     `a wrapping footer cuts nothing, a scroller SANCTIONS content outside its box (including the control scrolled out of view), an sr-only stub paints no pixels, and a badge in the padding is inside the clip — census: ${JSON.stringify(samples.clippedOverflows)}`,
   ).toEqual([]);
+});
+
+// ── #816: the two collision families, at the mount that produced them ─────────────────────────────
+// A whole mobile UX review passed clean over both (census 420, reached 21, zero P0/P1/P2) while a
+// screenshot caught them instantly: a cast NAME painted at 0px, and a rules badge whose own centre
+// hit-tests to the Start button 48px away. Both are BROWSER facts — `scrollWidth` against a collapsed
+// `clientWidth`, and `elementFromPoint` over real flex geometry — so this is the tier that can prove
+// them; the node suite pins the same families through the real CLI over file:// fixtures.
+
+/** Every finding the REAL walker + the REAL checks produce for the mounted page. */
+async function findingsFor(page: Page): Promise<readonly Finding[]> {
+  const samples = (await page.evaluate(COLLECT_SAMPLES_JS)) as RawSamples;
+  return collectFindings(samples);
+}
+
+test("#816: the 366px cast row erases its name and puts the badge on the Start button — both are findings", async ({ mount, page }) => {
+  await mount(<WalkerCastRowStory badges={2} />);
+  // GEOMETRY RECEIPT, not just a rule name: this is what the review measured by hand.
+  const geometry = await page.evaluate(() => {
+    const nameEl = document.querySelector('[data-testid="cast-name"]');
+    const badgeEl = document.querySelector('[data-testid="cast-badge-1"]');
+    if (!(nameEl instanceof HTMLElement && badgeEl instanceof HTMLElement)) {
+      return null;
+    }
+    const box = badgeEl.getBoundingClientRect();
+    const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+    return {
+      nameRendered: Math.round(nameEl.getBoundingClientRect().width),
+      nameNatural: nameEl.scrollWidth,
+      hitTestId: hit instanceof HTMLElement ? (hit.dataset["testid"] ?? hit.tagName.toLowerCase()) : null,
+    };
+  });
+  expect(geometry?.nameRendered, "the name is painted at zero width").toBeLessThanOrEqual(1);
+  expect(geometry?.nameNatural, "…while its content is a real string").toBeGreaterThan(20);
+  expect(geometry?.hitTestId, "and the badge's own centre belongs to the Start button").toBe("cast-start");
+
+  const findings = await findingsFor(page);
+
+  const erased = findings.filter((f) => f.rule === "truncated-to-nothing");
+  expect(erased, "the cast name renders at 0px with ~57px of content — the row cannot say which cast it is").toHaveLength(1);
+  expect(erased[0]?.value, "the finding must carry the erased string and the size of the loss").toContain("Spire Trio");
+  expect(erased[0]?.severity).toBe("P1");
+
+  const obscured = findings.filter((f) => f.rule === "obscured-target");
+  expect(obscured.length, "a badge painted over the Start button is a mis-tap, not a layout preference").toBeGreaterThan(0);
+  expect(
+    obscured.some((f) => f.value.includes("hits") && /button|cast-start/u.test(f.value)),
+    `the press must be reported as landing on the button: ${obscured.map((f) => f.value).join(" | ")}`,
+  ).toBe(true);
+});
+
+test("#816: the same row without the badges keeps its name and its hit test — neither rule fires on the healthy arm", async ({ mount, page }) => {
+  await mount(<WalkerCastRowStory badges={0} />);
+  const findings = await findingsFor(page);
+  expect(
+    findings.filter((f) => f.rule === "truncated-to-nothing"),
+    "the name has room here — flagging it would make the rule un-passable",
+  ).toEqual([]);
+  expect(
+    findings.filter((f) => f.rule === "obscured-target"),
+    "nothing is painted over anything",
+  ).toEqual([]);
+  const nameWidth = await page.evaluate(() => Math.round(document.querySelector('[data-testid="cast-name"]')?.getBoundingClientRect().width ?? 0));
+  expect(nameWidth, "the clean arm must actually render the name, or its silence proves nothing").toBeGreaterThan(20);
 });

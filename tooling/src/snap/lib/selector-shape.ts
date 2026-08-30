@@ -14,7 +14,7 @@
 // anything carrying CSS syntax (`.x`, `#x`, `[x]`, `:x`) and never on a custom element (hyphenated, per
 // the spec) — so `nav a`, `ul li` and every real selector pass untouched. A table short by one element
 // name would be a FALSE refusal, which is worse than the lie, so the table is the whole element census.
-import { splitFirstEq, splitLastEq } from "../../_shared/argv.ts";
+import { splitLastEq, splitSelectorEq } from "../../_shared/argv.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
@@ -166,7 +166,9 @@ function selectorOf(flag: string, raw: string): string | null {
     return null;
   }
   if (FIRST_EQ_HEAD_FLAGS.has(flag)) {
-    const split = splitFirstEq(raw);
+    // The same bracket-aware split the handler uses (#816) — two spellings here would refuse a
+    // selector the run then happily fills, or vice versa.
+    const split = splitSelectorEq(raw);
     return split === null ? null : split.head;
   }
   return splitLastEq(raw).head;

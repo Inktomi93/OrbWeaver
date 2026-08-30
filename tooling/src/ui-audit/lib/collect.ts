@@ -12,12 +12,20 @@
 // .claude/skills/side-eye-design-review/reference/impeccable-adoption.md
 import type { Finding } from "../contract/findings.ts";
 import type { RawSamples } from "../contract/samples.ts";
-import { checkAccessibleName, checkControlAspect, checkHeadingOrder, checkMainLandmark, checkTabIndexSmell, checkTapTarget } from "./checks-a11y.ts";
+import {
+  checkAccessibleName,
+  checkControlAspect,
+  checkHeadingOrder,
+  checkMainLandmark,
+  checkObscuredTarget,
+  checkTabIndexSmell,
+  checkTapTarget,
+} from "./checks-a11y.ts";
 import { checkContrast, checkGrayOnColor } from "./checks-color.ts";
 import { checkAccentBorder, checkGlowShadow } from "./checks-decor.ts";
 import { checkBrokenImage, checkImageDistortion } from "./checks-media.ts";
 import { checkBgPattern, checkIconTile, checkMotionStatic, checkRadialGlow } from "./checks-ornament.ts";
-import { checkClippedOverflow, checkDuplicateDoors, checkEdgeFlush, checkRepeatedText, checkTextOverflow } from "./checks-quality.ts";
+import { checkClippedOverflow, checkDuplicateDoors, checkEdgeFlush, checkRepeatedText, checkTextOverflow, checkTruncatedText } from "./checks-quality.ts";
 import { checkAnimatedImgHover, checkGradientText, checkNestedCard, checkZIndex } from "./checks-structure.ts";
 import { checkCaveatHierarchy, checkFontCensus, checkTextStyle } from "./checks-typography.ts";
 
@@ -73,5 +81,10 @@ export function collectFindings(samples: RawSamples): Finding[] {
   findings.push(...samples.repeatedTexts.map(checkRepeatedText));
   findings.push(...samples.clippedOverflows.map(checkClippedOverflow));
   findings.push(...samples.edgeFlushCards.map(checkEdgeFlush));
+  // The #816 collision families: text erased to zero width, and a painted element whose own centre
+  // belongs to a neighbour. Optional on the sample bundle — a pinned pre-#816 fixture set censused
+  // neither, and an absent family is silence about a question nobody asked, not a clean answer.
+  findings.push(...(samples.truncatedTexts ?? []).map(checkTruncatedText));
+  findings.push(...(samples.obscuredTargets ?? []).map(checkObscuredTarget));
   return findings;
 }

@@ -1,7 +1,7 @@
 // Argv → Args: the side-effect-free scan (unknown flags, value/type validation, page-suffix rules),
 // the parse loop over ops/flags-handlers.ts's table, mode cross-validation, and the ARG WARNING set.
 import { appearanceHelpBlock } from "../../_shared/appearance.ts";
-import { parseViewport, splitFirstEq, splitLastEq, splitPageSuffix } from "../../_shared/argv.ts";
+import { parseViewport, splitFirstEq, splitLastEq, splitPageSuffix, splitSelectorEq } from "../../_shared/argv.ts";
 import { DEFAULT_BASE, DEFAULT_DEBUG_TOKEN } from "../../_shared/browser.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { themeHelpBlock } from "../../_shared/theme.ts";
@@ -126,7 +126,7 @@ function validatePairFlagValue(flag: string, raw: string, errors: string[]): voi
   const split = splitLastEq(raw);
   // --fill splits on the FIRST '=' — its value is a JS literal that often contains '=' itself
   // (`--fill 'input=const a = 1;'`); LAST-'=' would misparse the selector and refuse.
-  if (flag === "--fill" && splitFirstEq(raw) === null) {
+  if (flag === "--fill" && splitSelectorEq(raw) === null) {
     errors.push(`--fill expects sel=value with a non-empty selector, got ${JSON.stringify(raw)}`);
   }
   // `--key Tab` (no '=') is the BARE-KEY form — a key name, not a selector. Only the pair form owes a
