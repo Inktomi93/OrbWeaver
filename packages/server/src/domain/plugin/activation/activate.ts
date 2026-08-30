@@ -101,7 +101,9 @@ export function createActivate(ctx: PluginContext, registry: PluginRegistry, cra
     // to say who is asking. The name is DERIVED from the re-validated manifest, never guest-runtime-supplied —
     // the same rule the slug and the netHosts allowlist follow.
     const bridge = buildPluginBridge(ctx.ops, input.caller.userId, { id: input.pluginId, name: displayName, slug }, ctx.belts);
-    const outcome = await ctx.host.createInstance({ mainJs, grants: input.grants, bridge, chat: null, ...(netHosts !== undefined ? { netHosts } : {}) });
+    // `label` = the slug: the tag every guest log line carries into the central log stream (file log +
+    // `/api/_debug/logs?q=<slug>`) — manifest-DERIVED like the slug and netHosts beside it, never guest-supplied.
+    const outcome = await ctx.host.createInstance({ mainJs, grants: input.grants, bridge, chat: null, label: slug, ...(netHosts !== undefined ? { netHosts } : {}) });
     if (!outcome.ok) {
       await setStatus(ctx.db, input.pluginId, { status: "errored", lastError: outcome.error, updatedAt: ctx.now() });
       return { ok: false, error: outcome.error };

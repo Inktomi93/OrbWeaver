@@ -21,6 +21,8 @@
 
 import type { ChatId } from "@orb/kit/ids";
 import type { QueryClient } from "@tanstack/react-query";
+import type { OrbAutomationFiresFilter, OrbPluginLogReader } from "./agent-plugin-bridge.ts";
+import { readAutomationFires } from "./agent-plugin-bridge.ts";
 import { bootReads } from "./boot-reads.ts";
 import type { BusEventRecord } from "./bus-devlog.ts";
 import { busEventRing, busLiveCount } from "./bus-devlog.ts";
@@ -217,6 +219,7 @@ export interface OrbAgentHandles {
   readonly nav: OrbNavHandle;
   readonly seed: OrbSeedHandle;
   readonly rpg: OrbRpgReader;
+  readonly pluginLog: OrbPluginLogReader;
   readonly durableLocalUserId: () => string | null;
 }
 
@@ -300,6 +303,15 @@ interface OrbDebugHandle {
   readonly seed: OrbSeedHandle;
   /** Active-game state, journal, and recorded folded calls through the production read APIs. */
   readonly rpg: OrbRpgReader;
+  /** The installed-plugin roster (no ref) or one plugin's RUNTIME host.log ring (ref = slug or id) through
+   *  the production `plugin.list` / `plugin.getLog` reads — the lines a floated hub-search continuation
+   *  logs included (#806). Loud refusal on no match / ambiguity. */
+  readonly pluginLog: OrbPluginLogReader;
+  /** The durable AUTOMATION FIRE LOG (`automation_fires`: every dispatch terminal with its per-arm `detail`),
+   *  newest-first across the deployment, via a same-origin read of `/api/_debug/automation/fires` —
+   *  `{chatId?, ruleId?, limit?}` narrow. The debug gate admits the dev admin session (or `x-debug-token`);
+   *  a refused read answers `{ok:false, reason}` with the HTTP status, never a throw. */
+  readonly automationFires: (filter?: OrbAutomationFiresFilter) => Promise<unknown>;
   /** The durable-local namespace's bound identity (`state/durable-local.ts`) — `null` before the viewer
    *  read binds it (the pre-adoption legacy world). The lens a test or this bridge asserts the
    *  per-user localStorage scoping through, without reaching into `localStorage` by hand. */
@@ -355,7 +367,7 @@ export function installAgentDebugHandle(queryClient: QueryClient, handles: OrbAg
   }
   installMotionObservers();
   installMotionFlaggers();
-  const { nav, seed, rpg, durableLocalUserId } = handles;
+  const { nav, seed, rpg, pluginLog, durableLocalUserId } = handles;
   const isReady = (): boolean => document.documentElement.hasAttribute(READY_ATTR);
   const shell = (): ShellSnapshot => ({
     section: document.querySelector('[aria-current="page"]')?.getAttribute("aria-label") ?? null,
@@ -422,10 +434,12 @@ export function installAgentDebugHandle(queryClient: QueryClient, handles: OrbAg
     nav,
     seed,
     rpg,
+    pluginLog,
+    automationFires: readAutomationFires,
     durableLocalUserId,
   };
   console.info(
-    "%c[orb]%c dev introspection ready → %cwindow.__orb%c.snap() · .rpg() · .queries() · .bus() · .perf() · .renders() · .motion() · .animations() · .flags()/.resetEvidence()/.motionFlaggersSettled()/.setMotionAuditDropTrackingPaused() · .shell() · .durableLocalUserId() · .nav.capabilities/section/openModal/openSettings/contextTab/openChat/openCharacter/closeModal · .seed.game({profile:'d20'|'freeform'})/richGame;  wait on %chtml[data-app-ready]%c.  Docs: packages/client/src/lib/agent-tools.README.md",
+    "%c[orb]%c dev introspection ready → %cwindow.__orb%c.snap() · .rpg() · .pluginLog(slug?) · .automationFires({chatId?}) · .queries() · .bus() · .perf() · .renders() · .motion() · .animations() · .flags()/.resetEvidence()/.motionFlaggersSettled()/.setMotionAuditDropTrackingPaused() · .shell() · .durableLocalUserId() · .nav.capabilities/section/openModal/openSettings/contextTab/openChat/openCharacter/closeModal · .seed.game({profile:'d20'|'freeform'})/richGame;  wait on %chtml[data-app-ready]%c.  Docs: packages/client/src/lib/agent-tools.README.md",
     "color:#e0a; font-weight:bold",
     "color:#888",
     "color:#0a7; font-weight:bold",

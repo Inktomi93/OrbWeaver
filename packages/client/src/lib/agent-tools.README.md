@@ -12,6 +12,8 @@ Read app state in ONE eval instead of scraping the DOM. Installed from `main.tsx
 | - | - |
 | `__orb.snap()` | cheap one-call overview: `{ ready, shell, bus, queries, perf, renders, motion, flags }`; motion summarizes recorded evidence without forcing a document-wide animation scan |
 | `await __orb.rpg()` | active chat's authoritative game + selected-lineage tracker view + journal + recorded folded tool calls; read-only, through the production tRPC APIs |
+| `await __orb.pluginLog(ref?)` | no ref: the installed-plugin roster `{ id, slug, name, version, status }[]`; a ref (slug or id): that plugin's RUNTIME host.log ring through `plugin.getLog` — including what a floated guest continuation logged between invocations (#806). `{ok:false, reason}` on no match / ambiguity |
+| `await __orb.automationFires({ chatId?, ruleId?, limit? })` | the durable automation fire log (`automation_fires`: every dispatch terminal + per-arm `detail`), newest-first, deployment-wide — a same-origin read of `/api/_debug/automation/fires` (admin session or `x-debug-token`); `{ok:false, reason}` carries a refused status |
 | `__orb.queries()` | the full TanStack Query cache: `{ key, status, fetch, stale, updatedAt }[]` |
 | `__orb.bus()` | chat-bus: `{ live, events }` — live subscription count + the recent canon-event ring |
 | `__orb.perf()` | the `orb:*` User Timing measures: `{ name, ms }[]` (app-ready; turn TTFT/latency when wired) |
