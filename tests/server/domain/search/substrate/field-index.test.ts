@@ -28,7 +28,7 @@ function card(id: string, name: string): CardDoc {
 
 describe("getOrBuildFieldIndex", () => {
   test("a fresh cache entry (within TTL) is a hit — load is never called again", async () => {
-    const owner = castId<UserId>(`user_${Math.random()}`);
+    const owner = castId<UserId>("user_field_index_fresh");
     const load = vi.fn(() => Promise.resolve([card("character_aria", "Aria")]));
 
     await getOrBuildFieldIndex(owner, 1000, load);
@@ -38,7 +38,7 @@ describe("getOrBuildFieldIndex", () => {
   });
 
   test("an entry past TTL rebuilds via load", async () => {
-    const owner = castId<UserId>(`user_${Math.random()}`);
+    const owner = castId<UserId>("user_field_index_stale");
     const load = vi.fn(() => Promise.resolve([card("character_aria", "Aria")]));
 
     await getOrBuildFieldIndex(owner, 1000, load);
@@ -50,7 +50,7 @@ describe("getOrBuildFieldIndex", () => {
 
 describe("queryFields / suggestFields", () => {
   test("queryFields respects topN and returns the higher-boosted name match first", async () => {
-    const owner = castId<UserId>(`user_${Math.random()}`);
+    const owner = castId<UserId>("user_field_index_query");
     const docs = [card("character_a", "Kestrel"), card("character_b", "Kestrel the Bold")];
     const index = await getOrBuildFieldIndex(owner, 0, () => Promise.resolve(docs));
 
@@ -61,7 +61,7 @@ describe("queryFields / suggestFields", () => {
   });
 
   test("suggestFields respects limit", async () => {
-    const owner = castId<UserId>(`user_${Math.random()}`);
+    const owner = castId<UserId>("user_field_index_suggest");
     const docs = [card("character_a", "Kestrel"), card("character_b", "Kestrina")];
     const index = await getOrBuildFieldIndex(owner, 0, () => Promise.resolve(docs));
 

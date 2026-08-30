@@ -17,6 +17,7 @@ describe("requireProfile", () => {
   test("returns the wired profile deps verbatim when present", () => {
     // FABRICATION-OK: an opaque profile-deps marker — requireProfile only checks presence/absence, never reads through it.
     const profile = {} as ImportProfileDeps;
+    // FABRICATION-OK: minimal ImportContext double — only `profile` is read by this assertion.
     const ctx = { profile } as unknown as ImportContext;
     expect(requireProfile(ctx)).toBe(profile);
   });

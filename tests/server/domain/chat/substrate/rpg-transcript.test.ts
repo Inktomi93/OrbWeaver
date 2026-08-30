@@ -22,6 +22,7 @@ function names(): HistoryMacroNames {
 }
 
 function row(overrides: Partial<MessageView>): MessageView {
+  // FABRICATION-OK: a minimal MessageView double — projectRpgTranscript/sliceCanonWindow read only the fields below; the remaining MessageView columns are irrelevant to this pure projection.
   return {
     id: castId<MessageId>("message_x"),
     variantId: castId<MessageVariantId>("variant_x"),
@@ -33,7 +34,6 @@ function row(overrides: Partial<MessageView>): MessageView {
     content: "text",
     createdAt: 0,
     ...overrides,
-    // FABRICATION-OK: a minimal MessageView double — projectRpgTranscript/sliceCanonWindow read only the fields above; the remaining MessageView columns are irrelevant to this pure projection.
   } as MessageView;
 }
 

@@ -70,6 +70,7 @@ describe("createDeactivate", () => {
     const { ctx, dispose } = makeCtx();
     const unregister = vi.fn();
     const instance = { marker: "x" };
+    // FABRICATION-OK: a minimal resident-plugin double — deactivate reads only .handles and .instance.
     const registry: PluginRegistry = new Map([[PLUGIN_ID, { instance, handles: [{ unregister }], invoke: vi.fn() }]]) as unknown as PluginRegistry;
     const deactivate = createDeactivate(ctx, registry);
 
