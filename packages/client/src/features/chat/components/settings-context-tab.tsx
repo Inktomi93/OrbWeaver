@@ -55,7 +55,7 @@ import { ChatBooksSection } from "./chat-books-section.tsx";
 import { ChatDocumentsSection } from "./chat-documents-section.tsx";
 import { CommittedGroupConfigTab } from "./group-config-form.tsx";
 import { HostDisplayScriptsControl } from "./host-display-scripts-control.tsx";
-import { InjectionsManager } from "./injections-manager.tsx";
+import { InjectionsManager, InjectionsSkeleton } from "./injections-manager.tsx";
 import { MacroPicksSection } from "./macro-picks-section.tsx";
 import { OfferChoicesControl } from "./offer-choices-control.tsx";
 import { CharactersCanReactControl, ReactionsEnabledControl } from "./reaction-toggles.tsx";
@@ -64,6 +64,10 @@ import { ToolRecurseControl } from "./tool-recurse-control.tsx";
 
 // The Group-behavior form's initially-visible control rows (reply-mode + 2 switches + Advanced trigger).
 const GROUP_SECTION_SKELETON_ROWS = 4;
+
+// The Macro-picks empty state's prose lines at the pane's width (#823) — see the fallback for why it is the
+// shape this section reserves for.
+const MACRO_PICKS_SKELETON_ROWS = 3;
 
 // A section-heading with an at-a-glance kicker-count chip — the label plus a small soft
 // badge when the count is non-zero (a "0" chip is noise). Rendered as the Section's `heading` ReactNode, so
@@ -93,13 +97,31 @@ function countSetOverrides(overrides: RoomOverrides): number {
   return set(overrides.mainPrompt) + set(overrides.postHistory) + set(overrides.scenario);
 }
 
-// The Injections heading's count reads the SAME `listChatInjections` query the section body suspends on, but
-// NON-suspending (shares the query cache — one fetch) so the heading paints immediately and the chip fills in
-// when the list lands (the chat-list-header count precedent). No chip until the read resolves / when empty.
-function InjectionsHeading({ chatId }: { readonly chatId: ChatId }): ReactNode {
+// The Injections section reads `listChatInjections` NON-suspending (the same query the body suspends on, so
+// one fetch serves both) and spends that one read TWICE: the heading's count chip paints immediately and
+// fills in when the list lands (the chat-list-header count precedent — no chip until it resolves / when
+// empty), and the boundary's fallback RESERVES that many collapsed rows.
+//
+// WHAT THE CACHED COUNT CAN AND CANNOT DO (#821 — the review's premise, re-derived against the tree). On a
+// RE-OPEN the count is genuinely free and the reserve is exact: react-query still holds the room's list, so
+// `data` is populated on the first paint of the fallback. On the room's FIRST open it is not — both
+// consumers of this key mount together and one batched request resolves them at the same instant, so `data`
+// is `undefined` and the reserve falls back to a single row. That is why the collapse in
+// `injections-manager.tsx` is the fix and this is the refinement: one collapsed row's worth of unreserved
+// height is ~70px, where one LINE's worth of it was ~830px.
+function InjectionsSection({ chatId, isHost }: { readonly chatId: ChatId; readonly isHost: boolean }): ReactElement {
   const trpc = useTRPC();
   const { data } = useQuery(trpc.chat.listChatInjections.queryOptions({ chatId }));
-  return <HeadingWithCount count={data?.length ?? 0} label="Injections" />;
+  return (
+    <Section kicker={<HeadingWithCount count={data?.length ?? 0} label="Injections" />}>
+      <QueryBoundary
+        fallback={<InjectionsSkeleton count={data?.length ?? 1} isHost={isHost} />}
+        renderError={(_error, retry): ReactElement => <QueryErrorState label="injections" onRetry={retry} />}
+      >
+        <InjectionsManager chatId={chatId} isHost={isHost} />
+      </QueryBoundary>
+    </Section>
+  );
 }
 
 // The Documents count, on the same non-suspending shared-cache idiom as Injections above. It counts the
@@ -142,14 +164,7 @@ export function CommittedSettingsTab({ chatId, roomOverrides, isHost, background
       <Section kicker={<HeadingWithCount count={countSetOverrides(roomOverrides)} label="Field overrides" unit=" set" />}>
         <RoomOverridesTab chatId={chatId} roomOverrides={roomOverrides} isHost={isHost} />
       </Section>
-      <Section kicker={<InjectionsHeading chatId={chatId} />}>
-        <QueryBoundary
-          fallback={<SkeletonRows count={1} shape="line" />}
-          renderError={(_error, retry): ReactElement => <QueryErrorState label="injections" onRetry={retry} />}
-        >
-          <InjectionsManager chatId={chatId} isHost={isHost} />
-        </QueryBoundary>
-      </Section>
+      <InjectionsSection chatId={chatId} isHost={isHost} />
       {/* Documents (D-4) — the per-chat databank rack, placed directly AFTER Injections because it is the
           same family ("extra content entering this room's prompt") and, unlike the host-only band below, it
           is member-READABLE: `listActiveForChat` is member-gated by design, so a member sees the rows and
@@ -181,7 +196,14 @@ export function CommittedSettingsTab({ chatId, roomOverrides, isHost, background
           sits with Field overrides/Injections rather than in the host-only band below. */}
       <Section kicker="Macro picks">
         <QueryBoundary
-          fallback={<SkeletonRows count={2} shape="line" />}
+          // A THREE-LINE PARAGRAPH IS WHAT THIS SECTION SETTLES TO (#823). Its production default is the
+          // empty state — no preset in the app declares a user-macro input or a ChoiceBlock until an author
+          // writes one — and that empty state is a 65px gloss paragraph, not rows of controls. Two
+          // `control-lg` bars reserved 137px desktop / 169px mobile for it, so the section SHRANK on settle
+          // and everything below jumped upward, which reads as a glitch rather than as loading (side-eye
+          // 2026-08-30 §5-P3). The `datum` arm is the text-height shape: three bars at a text line's height
+          // for three lines of prose.
+          fallback={<SkeletonRows count={MACRO_PICKS_SKELETON_ROWS} shape="datum" />}
           renderError={(_error, retry): ReactElement => <QueryErrorState label="the macro picks" onRetry={retry} />}
         >
           <MacroPicksSection chatId={chatId} />

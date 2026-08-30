@@ -24,6 +24,13 @@ const CHAT_DETAIL = { id: "chat_ct", viewerIsHost: true, toolRecurseLimit: 7, ho
 // would silently stop covering it. Empty declarations = the section's teaching empty state.
 const EMPTY_PICKS = { macros: [], values: {} };
 
+// The two injections the #821 fence releases — one at-depth, one before-prompt, both carrying content (so
+// both rows arrive COLLAPSED, which is the settled state the reserve is measured against).
+const HELD_INJECTIONS = [
+  { id: "injection_ct_1", position: "in_chat", depth: 2, role: "system", content: "The tavern is on fire." },
+  { id: "injection_ct_2", position: "before_prompt", depth: 0, role: "system", content: "Keep replies under 120 words." },
+];
+
 // The Macro-picks section's SECOND suspense read (`chat.getVariablePicks`, macro-picks-section.tsx:289 —
 // the pane is one section over TWO knob families, read in parallel by `useSuspenseQueries`). #629: this
 // file stubbed only the first, so the section threw on `null` in EVERY test here and sat in its
@@ -873,4 +880,111 @@ test("#640: a room with NO books attached says so rather than rendering an empty
   await expect(component.getByRole("heading", { name: "Lorebooks", exact: true, level: 3 })).toBeVisible();
   // …and the way out is still offered, which is the whole point of the row.
   await expect(component.getByRole("button", { name: "Attach a lorebook" })).toBeVisible();
+});
+
+// ── #821: THE GEOMETRIC FENCE — a section resolving must not move the sections above it ───────────────
+// The measured defect: Injections' one-line fallback stood in for ~830px of open editors, and because that
+// resolve arrives in a SECOND wave ~260ms after the rest of the tab has painted, Documents and Lorebooks —
+// already settled and already being read — were shoved bodily out of the viewport (0.30837 paid CLS at 4×
+// CPU on a phone, side-eye 2026-08-30 §3 row 9). The invariant that has to hold is not "the skeleton is
+// pretty", it is: when Injections lands, the sections around it do not move.
+//
+// `trpcHold` is the valve (the #815 technique, rules-section.ct.tsx): it holds the REQUEST, so the
+// boundary is provably in its fallback and `hold.requested` is a deterministic barrier — never a flash to
+// be caught. It holds the whole BATCH, so the sibling sections skeleton too.
+//
+// THE SUBJECT IS THE SECTION *BELOW*, and that choice is the whole test. Field overrides sits ABOVE
+// Injections, so it cannot move no matter how badly the reserve lies — a fence on it is un-failable by
+// construction. DOCUMENTS is the section the measured defect actually shoved off the viewport, and it
+// moves by exactly the reserve's error. ONE injection is released so the cold-cache reserve (a single
+// collapse row) is the honest comparison; on the pre-#821 source that same release moved Documents by
+// ~280px, because an 89px line stood in for a ~370px open editor.
+// THE BUDGET, and both of the terms inside it (measured in this test, 380px mount, one injection):
+//   ·  2.6px — the reserve's own error. The section BODY goes 188.25 → 202.75 while its heading grows
+//              17.1 (below), so the body itself SHRINKS ~2.6px on settle. That is the #821 term, and it
+//              agrees to the pixel with the 0/1/2/5-row reserve pins in injections-manager.ct.tsx.
+//   · 17.1px — THE COUNT CHIP. `HeadingWithCount`'s Badge more than doubles the kicker's own line box
+//              when it appears (13.125 → 30.25), and it appears on THREE sections (Injections, Documents,
+//              Lorebooks), each shifting everything below it by that much on settle. It is a separate
+//              defect from this one, in a shared heading component, and it is REPORTED rather than fixed
+//              here — but it must not be smuggled into this budget silently, so it is named.
+// Pre-#821 the first term alone was ~280px (an 89px line standing in for a ~370px open editor), so this
+// budget is failable by an order of magnitude on the source it was written against.
+const SETTLE_SHIFT_BUDGET_PX = 20;
+
+test("#821: resolving Injections does not move the sections around it", async ({ mount, page }) => {
+  const hold = trpcHold();
+  await routeTrpc(page, {
+    "chat.setRoomOverrides": () => ({}),
+    "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,
+    "worldInfo.listForChat": () => ROOM_BOOKS,
+    "chat.listChatInjections": hold,
+    "chat.getUserMacroPicks": () => EMPTY_PICKS,
+    "chat.getVariablePicks": () => VARIABLE_PICKS,
+    "settings.getUserSettings": () => USER_SETTINGS,
+    "chat.getChat": () => CHAT_DETAIL,
+  });
+
+  const component = await mount(<CommittedSettingsTabStory isHost={true} showGroup={false} />);
+  await hold.requested;
+
+  // The barrier: the Injections boundary is in its fallback (aria-busy is the loading region's own mark),
+  // so what follows reads a settled PENDING frame rather than racing a resolve.
+  const injections = component.locator("section").filter({ hasText: "Injections" }).first();
+  await expect(injections.locator('[aria-busy="true"]').first()).toBeVisible();
+
+  // DOCUMENT position, not the viewport's — a scroll is not a layout shift (the #815 lesson).
+  // Matched by PREFIX: the hold suspends the whole batch, so before the release the Documents heading is
+  // the bare kicker (no count chip — the chip needs the read) and after it is "Documents 1".
+  const documents = component.getByRole("heading", { name: /^Documents/u, level: 3 });
+  const fieldOverrides = component.getByRole("heading", { name: "Field overrides", level: 3 });
+  const documentTop = (locator: typeof documents): Promise<number> =>
+    locator.evaluate((element) => Math.round(element.getBoundingClientRect().top + window.scrollY));
+  const documentsBefore = await documentTop(documents);
+  const overridesBefore = await documentTop(fieldOverrides);
+
+  hold.release([HELD_INJECTIONS[0]]);
+
+  // The release must actually land — a fallback that never resolves would satisfy a position fence forever.
+  await expect(component.getByRole("heading", { name: "Injections 1", level: 3 })).toBeVisible();
+  await expect(injections.locator('[aria-busy="true"]')).toHaveCount(0);
+
+  // THE ASSERTION: the section BELOW moved by less than half a text line. Pre-#821 this is ~280px.
+  await expect.poll(async () => Math.abs((await documentTop(documents)) - documentsBefore)).toBeLessThanOrEqual(SETTLE_SHIFT_BUDGET_PX);
+  // …and the section ABOVE is pinned exactly. A FENCE, not a defect proof: content below a section cannot
+  // move it, so this is green on both sources — it REDs the day the reserve grows upward instead.
+  await expect.poll(async () => documentTop(fieldOverrides)).toBe(overridesBefore);
+});
+
+// The reserve is fed by the count the heading's own non-suspending read already holds. On a re-open that
+// count is in cache and the reserve is exact; this pin proves the WIRING — the fallback is the section's
+// own collapse-row skeleton (intro painted for real, cards below it), not a fixed one-line bar.
+test("#821: the Injections fallback is the section's own shape, not a line", async ({ mount, page }) => {
+  const hold = trpcHold();
+  await routeTrpc(page, {
+    "chat.setRoomOverrides": () => ({}),
+    "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,
+    "worldInfo.listForChat": () => ROOM_BOOKS,
+    "chat.listChatInjections": hold,
+    "chat.getUserMacroPicks": () => EMPTY_PICKS,
+    "chat.getVariablePicks": () => VARIABLE_PICKS,
+    "settings.getUserSettings": () => USER_SETTINGS,
+    "chat.getChat": () => CHAT_DETAIL,
+  });
+
+  const component = await mount(<CommittedSettingsTabStory isHost={true} showGroup={false} />);
+  await hold.requested;
+
+  const injections = component.locator("section").filter({ hasText: "Injections" }).first();
+  const busy = injections.locator('[aria-busy="true"]').first();
+  await expect(busy).toBeVisible();
+  // The section's OWN intro line is painted for real inside the fallback — it depends on no read, so
+  // reserving a placeholder for it would be one more thing to shift on arrival.
+  await expect(busy.getByText("Ad-hoc context spliced into this chat's prompt. Changes save automatically.")).toBeVisible();
+  // …and this is the LOADING arm, not the ERROR arm wearing its clothes (#629).
+  await expect(component.getByText("Couldn't load injections.")).toHaveCount(0);
+
+  hold.release(HELD_INJECTIONS);
+  await expect(component.getByRole("heading", { name: "Injections 2", level: 3 })).toBeVisible();
+  await expect(injections.locator('[aria-busy="true"]')).toHaveCount(0);
 });

@@ -23,14 +23,15 @@
 
 import type { StreamRoomRef } from "@orb/contracts/stream";
 import type { ChatId } from "@orb/kit/ids";
-import { Stack } from "@orb/ui/layout";
+import { Row, Stack } from "@orb/ui/layout";
 import { Separator } from "@orb/ui/separator";
+import { Skeleton } from "@orb/ui/skeleton";
 import { Text } from "@orb/ui/text";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import type { Trpc } from "#data";
-import { useBusRoom, useInvalidation, useTRPC } from "#data";
+import { QueryBoundary, QueryErrorState, useBusRoom, useInvalidation, useTRPC } from "#data";
 import { RulePresetPicker } from "./rule-preset-picker.tsx";
 import { RuleRow } from "./rule-row.tsx";
 
@@ -60,6 +61,76 @@ function useRuleFeedInvalidation(chatId: ChatId): void {
   });
 }
 
+/** The section's opening line — one gloss, painted in BOTH arms (settled and reserving) because it depends
+ *  on no read. Every sibling section in this pane opens with one. */
+const RULES_INTRO = "Rules watch this chat and act on their own.";
+
+interface RulesSkeletonProps {
+  /** How many rule rows to reserve — the cached `listRules` length where there is one. */
+  readonly count: number;
+}
+
+/**
+ * THE RULES SECTION'S RESERVED BOX (#821's second half). A `SkeletonRows count={3} shape="line"` reserved
+ * 185px desktop / 233px mobile for a section that settles at 704px / 1296px with three rules — a 519px /
+ * 1063px under-reserve that scored ~0 CLS only because the section sat at y≈2200, outside the viewport
+ * (side-eye 2026-08-30 §5-P3-Rules). Collapsing the injection rows above it moves it ~800px UP, which is
+ * precisely where that geometry accident stops protecting it — so the two land together.
+ *
+ * Shape-matched to `RuleRow` element for element: the name/gloss/last-run stack beside the shrink-0 control
+ * cluster, then the "Recent activity" disclosure at its own `control-sm` floor. The fire log is NOT
+ * reserved — it lives inside a panel that is closed on arrival, so it costs this box nothing (and its own
+ * skeleton mismatch is the term #815 fenced from the editing side and the owner deferred).
+ */
+function RulesSkeleton({ count }: RulesSkeletonProps): ReactElement {
+  const rows = Array.from({ length: Math.max(count, 1) }, (_row, index) => index);
+  return (
+    <Stack aria-busy={true} gap="section">
+      <Text voice="gloss">{RULES_INTRO}</Text>
+      <Stack gap="section">
+        {rows.map((index) => (
+          <Stack gap="block" key={index}>
+            <Row align="start" gap="block" justify="between">
+              <Stack className="min-w-0 flex-1" gap="tight">
+                <Skeleton className="h-4 w-2/3" />
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-1/2" />
+              </Stack>
+              <Skeleton className="h-control-sm shrink-0 basis-1/4" />
+            </Row>
+            <Row align="center" className="min-h-control-sm">
+              <Skeleton className="h-4 w-1/3" />
+            </Row>
+          </Stack>
+        ))}
+      </Stack>
+      <Skeleton className="h-control-sm w-1/3" />
+    </Stack>
+  );
+}
+
+export interface RulesSectionBodyProps {
+  readonly chatId: ChatId;
+}
+
+/** The "This chat" Rules section as the tab mounts it — the suspense boundary plus the reserved box, sized
+ *  from a NON-suspending read of the same `listRules` key the body below suspends on (one fetch, two
+ *  consumers — the `InjectionsSection` idiom). It lives here rather than in the §6c contribution because
+ *  that module may export nothing but the contribution itself (`useComponentExportOnlyModules`), and
+ *  because the box a fallback reserves is decided by the row's shape, which this file owns. */
+export function RulesSectionBody({ chatId }: RulesSectionBodyProps): ReactElement {
+  const trpc = useTRPC();
+  const { data } = useQuery(trpc.automation.listRules.queryOptions({ chatId }));
+  return (
+    <QueryBoundary
+      fallback={<RulesSkeleton count={data?.length ?? 1} />}
+      renderError={(_error, retry): ReactElement => <QueryErrorState label="this chat's rules" onRetry={retry} />}
+    >
+      <RulesSection chatId={chatId} />
+    </QueryBoundary>
+  );
+}
+
 export interface RulesSectionProps {
   readonly chatId: ChatId;
 }
@@ -77,7 +148,7 @@ export function RulesSection({ chatId }: RulesSectionProps): ReactElement {
           (side-eye #621 P2-5) — a permanent three-line paragraph over a list that already says what each
           rule does is spent attention. The one-line gloss stays in both arms, because every sibling
           section in this pane opens with one. */}
-      <Text voice="gloss">Rules watch this chat and act on their own.</Text>
+      <Text voice="gloss">{RULES_INTRO}</Text>
       {rules.length === 0 ? (
         <Text voice="gloss">
           Nothing is watching this chat yet. Add a rule — post an image, nudge the pacing, offer chips — and it starts off until you enable it.
