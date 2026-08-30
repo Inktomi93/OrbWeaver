@@ -105,9 +105,16 @@ function SuggestionChip({ name, onAccept, onReject }: { readonly name: string; r
     // touch box, so the badge's own `px-row py-field` was padding around padding — 14px of chip height and
     // 16px of width per chip, ×11, for a border the outline already draws.
     <Badge intent="neutral" tone="ghost" size="sm" className="px-0 py-0">
+      {/* THE LABEL RIDES THE `label` VOICE, NOT `gloss` (side-eye 2026-08-30 rail-characters P3, #843).
+          `gloss` is the MICRO step (10.5px) — correct for the `Suggested` kicker, which is a footnote, and
+          below the 11px functional floor for a CONTROL'S OWN LABEL. `design-audit` fired
+          `undersized-ui-text` six times here on both the desktop and the coarse arm, and the finding is
+          easy to mis-dismiss: the BUTTON computes 13px, the span inside it computed 10.5. The chip stays
+          the quietest thing on the editor by the means CD3 actually names — no fill, a hairline outline —
+          which this does not touch. */}
       <Button type="button" size="sm" intent="ghost" aria-label={`Accept ${name}`} className="min-w-0 max-w-full" onClick={onAccept}>
         <Icon icon={Check} size="xs" />
-        <Text as="span" voice="gloss" className="min-w-0 truncate">
+        <Text as="span" voice="label" className="min-w-0 truncate">
           {name}
         </Text>
       </Button>

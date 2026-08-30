@@ -25,10 +25,13 @@
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc.ts";
+import { hitExtent, touchFloorPx } from "../../../../support/ct/touch-floor.ts";
 import { CharacterCreateBandStory } from "../../../forms/_form-identity-stories.tsx";
 
 const HANDLE_CONFLICT_COPY = "You already have a character with that name. Pick a different name and try again.";
 const HANDLE_RESERVED_COPY = "That name is reserved for group rooms. Pick a different name and try again.";
+/** The band's import ghost — the #842 door (its accessible name is an `aria-label`; it renders a glyph). */
+const IMPORT_NAME = "Import a character card";
 
 /** Open the New dialog, fill both required fields, submit — then SETTLE on the attempt being over (the
  *  Create button re-enables when `isPending` drops), so every assertion below reads a resting dialog rather
@@ -108,6 +111,63 @@ test("#548 the refused Name field is marked invalid and points at the refusal, i
   await name.fill("Elara Vancey");
   await expect(page.getByRole("alert")).toHaveCount(0);
   await expect(name).not.toHaveAttribute("aria-invalid");
+});
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────────────
+// #842 — THE IMPORT DOOR, from the 2026-08-30 side-eye delta pass. Two defects on one 40px button.
+
+// THE DIALOG HAD NO VISIBLE EXIT. Its full contents were a heading, four paragraphs and a file input:
+// `[...dialog.querySelectorAll("button")]` → `[]`, on desktop AND on the 430px coarse arm. Escape worked
+// and a touch device has no Escape; backdrop dismissal was not verifiable with synthetic pointers, so it
+// could not be the remaining exit either. The sibling New-character dialog ends in `Cancel | Create`.
+//
+// The pin is a BUTTON CENSUS plus the exit actually working — a mere `getByRole("button", {name:"Cancel"})`
+// would pass on a Cancel that closes nothing.
+test("#842 the import dialog has a visible exit that closes it", async ({ mount, page }) => {
+  await routeTrpc(page, {});
+  const component = await mount(<CharacterCreateBandStory />);
+  await component.getByRole("button", { name: IMPORT_NAME }).click();
+
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toBeVisible();
+  // The census the review took, as an assertion: SOMETHING in here is pressable besides the file input.
+  await expect(dialog.getByRole("button")).not.toHaveCount(0);
+
+  await dialog.getByRole("button", { name: "Cancel" }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+});
+
+// …AND IT SAID ITS ONE FACT THREE TIMES — the description, the dropzone instruction and the dropzone hint
+// each named the accepted formats, in a 250px dialog with one control (`repeated-container-text`).
+test("#842 the import dialog states the accepted formats ONCE", async ({ mount, page }) => {
+  await routeTrpc(page, {});
+  const component = await mount(<CharacterCreateBandStory />);
+  await component.getByRole("button", { name: IMPORT_NAME }).click();
+
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toBeVisible();
+  await expect.poll(() => dialog.evaluate((el: HTMLElement) => (el.innerText.match(/PNG or JSON/gu) ?? []).length)).toBe(1);
+});
+
+test.describe("#842 the import button at a coarse pointer", () => {
+  test.use({ hasTouch: true });
+
+  // 40×44 — under the floor on its SHORT side, and not the phantom class: a four-cardinal
+  // `elementFromPoint` lost the point at ±21px horizontally, and `getComputedStyle(el,"::after").content`
+  // was `none`, so the 40px box WAS the target (an icon-only `sm` button is a control HEIGHT with
+  // `px-block` of width, and the `sm` step carries no hit-area pseudo). Measured through `hitExtent`, which
+  // is the instrument that can see both the box-carried and the pseudo-carried shapes.
+  test("owns the touch floor on BOTH axes", async ({ mount, page }) => {
+    await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
+    await routeTrpc(page, {});
+    const component = await mount(<CharacterCreateBandStory />);
+    const floor = await touchFloorPx(page);
+
+    const button = component.getByRole("button", { name: IMPORT_NAME });
+    await expect(button).toBeVisible();
+    expect(await hitExtent(button, "x"), "the axis the 40px box was short on").toBeGreaterThanOrEqual(floor);
+    expect(await hitExtent(button, "y")).toBeGreaterThanOrEqual(floor);
+  });
 });
 
 test("a genuine FAULT shows no field line — the toast owns a failure the user cannot fix", async ({ mount, page }) => {

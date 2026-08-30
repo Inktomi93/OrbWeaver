@@ -55,6 +55,18 @@ export interface FormDialogProps {
   readonly children: ReactNode;
   /** PROMPT-mode footer — renders a Cancel/Confirm Row below `children`. Omit for a form-body dialog. */
   readonly submit?: FormDialogSubmit;
+  /**
+   * The DISMISS-ONLY footer: one `DialogClose` button, for a dialog whose body IS its whole act and which
+   * therefore has no confirm to pair a Cancel with.
+   *
+   * EVERY DIALOG OWES A VISIBLE EXIT (side-eye 2026-08-30 rail-characters P2, #842). The card-import dialog
+   * shipped with ZERO buttons — a heading, four paragraphs and a file input — on desktop AND on a 430px
+   * coarse arm. `Escape` dismissed it, and a touch device has no Escape; backdrop dismissal was not
+   * verifiable with synthetic pointers and so cannot be the only exit either. Its sibling `New character`
+   * dialog ends in `Cancel | Create`, which is the house shape this restores. Ignored when `submit` is
+   * given (that footer already carries a Cancel).
+   */
+  readonly dismissLabel?: string;
 }
 
 /**
@@ -62,7 +74,7 @@ export interface FormDialogProps {
  * body, with an optional PROMPT-mode Cancel/Confirm footer. Form-body dialogs put their submit inside
  * `children` (FormSubmitButton); single-control prompts pass `submit`.
  */
-export function FormDialog({ open, onOpenChange, title, description, testKey, size, children, submit }: FormDialogProps): ReactElement {
+export function FormDialog({ open, onOpenChange, title, description, testKey, size, children, submit, dismissLabel }: FormDialogProps): ReactElement {
   return (
     <Dialog onOpenChange={onOpenChange} open={open}>
       <DialogPopup {...(size === undefined ? {} : { size })} {...(testKey === undefined ? {} : { "data-testid": testId(testKey) })}>
@@ -70,6 +82,11 @@ export function FormDialog({ open, onOpenChange, title, description, testKey, si
           <DialogTitle>{title}</DialogTitle>
           {description === undefined ? null : <DialogDescription>{description}</DialogDescription>}
           {submit === undefined ? children : <PromptBody submit={submit}>{children}</PromptBody>}
+          {submit === undefined && dismissLabel !== undefined ? (
+            <Row gap="field" justify="end">
+              <DialogClose render={<Button intent="ghost">{dismissLabel}</Button>} />
+            </Row>
+          ) : null}
         </Stack>
       </DialogPopup>
     </Dialog>

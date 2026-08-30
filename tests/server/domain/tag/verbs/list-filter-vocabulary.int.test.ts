@@ -65,6 +65,57 @@ describe("listTagFilterVocabulary", () => {
     expect(vocabulary.find((entry) => entry.name === "hidden")?.isHiddenOnCard).toBe(true);
   });
 
+  // ───────────────────────────────────────────────────────────────────────────────────────────────────
+  // #839 — THE COUNT IS THE PREDICATE THAT DECIDES WHETHER A FACET IS OFFERED, so it must count exactly
+  // what the library's filter can MATCH.
+  //
+  // MEASURED DEFECT (side-eye 2026-08-30 rail-characters P2): the FILTERS block offered 28 tag chips on a
+  // library whose group-by-tag returned one bucket — `UNCATEGORIZED 10`, every character untagged — and
+  // activating any of them answered `0 of 10 / No matches`. The mechanism is here, not in the rail: the
+  // chip rail already drops a zero-count entry (`tagVocabulary`: `tag.characters > 0`), so every one of
+  // those 28 reported a NON-ZERO count. This read counted `character_tags` rows regardless of `status`
+  // while `domain/character/persistence/queries.ts` filters and groups on `status = 'accepted'` — so a tag
+  // that exists only as UNACCEPTED SUGGESTIONS cleared the gate and rendered a chip that could never match.
+  //
+  // The two arms are the same tag in the two statuses, because either alone is satisfiable by a wrong fix
+  // (count nothing / count everything).
+  test("#839 counts ACCEPTED attachments only — a suggestion-only tag is not an offerable facet", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db);
+    const h = makeTagHarness(db);
+    const svc = createTagService(h.ctx);
+    const characterId = await seedCharacter(db, owner);
+    const staged = await seedTag(db, owner, { id: "tag_staged", name: "fantasy" });
+    const applied = await seedTag(db, owner, { id: "tag_applied", name: "rpg" });
+    await svc.attachTag({ principal: principal(owner), tagId: staged, targetType: "character", targetId: characterId, status: "pending" });
+    await svc.attachTag({ principal: principal(owner), tagId: applied, targetType: "character", targetId: characterId, status: "accepted" });
+
+    const vocabulary = await svc.listTagFilterVocabulary({ principal: principal(owner) });
+    // The row SURVIVES — the answer is still the referential authority (the test above), and a suggestion
+    // is a real row. What it may not do is CLAIM a character the filter cannot return.
+    expect(vocabulary.find((entry) => entry.name === "fantasy")?.characters).toBe(0);
+    // …and the accepted one still counts, so this is not "the count went to zero".
+    expect(vocabulary.find((entry) => entry.name === "rpg")?.characters).toBe(1);
+  });
+
+  test("#839 an ACCEPT flips the same tag from un-offerable to offerable", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db);
+    const h = makeTagHarness(db);
+    const svc = createTagService(h.ctx);
+    const characterId = await seedCharacter(db, owner);
+    const tagId = await seedTag(db, owner, { id: "tag_flip", name: "gothic" });
+    await svc.attachTag({ principal: principal(owner), tagId, targetType: "character", targetId: characterId, status: "pending" });
+    const staged = await svc.listTagFilterVocabulary({ principal: principal(owner) });
+    expect(staged.find((entry) => entry.name === "gothic")?.characters).toBe(0);
+
+    // The editor's Accept — re-attaching with `accepted` flips the pending row.
+    await svc.attachTag({ principal: principal(owner), tagId, targetType: "character", targetId: characterId, status: "accepted" });
+
+    const accepted = await svc.listTagFilterVocabulary({ principal: principal(owner) });
+    expect(accepted.find((entry) => entry.name === "gothic")?.characters).toBe(1);
+  });
+
   test("is owner-scoped — a foreign owner's tags are not in the vocabulary", async () => {
     const db = await freshDb();
     const owner = await seedUser(db);

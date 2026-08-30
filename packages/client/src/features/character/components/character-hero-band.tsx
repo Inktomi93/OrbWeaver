@@ -203,24 +203,38 @@ function AccentSwatch({ themeOverride }: { readonly themeOverride: ThemeOverride
   if (themeOverride === null || Object.keys(themeOverride).length === 0) {
     return null;
   }
-  // IT NAMES A TAB THAT EXISTS (side-eye 2026-08-18 P2-7). It used to point at "the Appearance tab" — there
-  // is none on Characters: the three CONTEXT tabs are Field / Links / **Options** (`characters-section.tsx`),
-  // and Options is where the per-character theme editor lives. Worse, the Settings modal DOES have an
-  // "Appearance" category, so anyone who followed this sentence landed in the wrong surface entirely. The
-  // tab was renamed; this string was the one user-facing site that never followed.
-  const label = "This card carries its own look — edit it in the Options tab.";
+  // IT NAMES A TAB THAT EXISTS (side-eye 2026-08-18 P2-7), AND IT KEEPS DOING SO. It used to point at "the
+  // Appearance tab" — there was none on Characters, while the Settings modal DOES have an "Appearance"
+  // category, so anyone who followed the sentence landed in the wrong surface entirely. That fixed name
+  // ("the Options tab") then aged out too when #841/#860 split Options into Look · History · Trust; the
+  // theme editor is the **Look** tab's. This string is the one user-facing site that has to follow the
+  // roster in `characters-section.tsx` — a pin reads it there, so a third rename cannot land silently.
+  // ITS NAME IS ITS VISIBLE TEXT, AND ITS GLOSS IS REACHABLE WITHOUT A MOUSE (side-eye 2026-08-30
+  // rail-characters P2, #840). Three defects in one element, all fixed here:
+  //   1. `role="img"` on a text badge — nothing here is an image; it is a status mark.
+  //   2. the accessible name was the whole SENTENCE while the visible text read `Own look`, so the name
+  //      did not contain the label — WCAG 2.5.3 Label-in-Name. (NOT covered by the #512 list-row ruling,
+  //      which is scoped to the row's `title + qualifier` contract.)
+  //   3. `tabIndex: -1` with `title: null` — the sentence reached a screen reader (as the img's name) and a
+  //      mouse (as the hover tooltip) and NOBODY ELSE. It is the only thing on the surface that says where
+  //      the character's look is edited, and a keyboard-only or touch user could never see it.
+  // A real focusable trigger fixes 3 outright: Base UI opens the tooltip on FOCUS as well as hover, so tab
+  // and tap both reach the gloss, and `@orb/ui`'s Tooltip seal already threads `aria-describedby` from the
+  // trigger to the popup — so the sentence is the DESCRIPTION and `Own look` is the NAME, which is the
+  // pairing the three defects above were each a symptom of missing.
+  const label = "This card carries its own look — edit it in the Look tab.";
   return (
     <Tooltip>
       <TooltipTrigger
         render={
-          <Row aria-label={label} gap="field" align="center" role="img">
+          <Button intent="ghost" size="inline" type="button" className="px-field">
             <ThemeScope className="size-4 shrink-0 rounded-full bg-primary ring-1 ring-border" tokens={themeOverride}>
               {null}
             </ThemeScope>
             {/* The kicker register at its own weight (#573): this mark was micro-caps-muted at REGULAR
                 weight — the same micro-caps tag `kicker` paints, one axis short of it. */}
             <Text voice="kicker">Own look</Text>
-          </Row>
+          </Button>
         }
       />
       <TooltipPopup side="bottom">{label}</TooltipPopup>
@@ -252,14 +266,14 @@ function HeroActions({
           <Icon icon={ChevronRight} size="sm" />
         </Button>
       ) : null}
-      <Button
-        type="button"
-        intent="ghost"
-        size="icon"
-        aria-label={spoilerBlur ? "Show spoilers" : "Hide spoilers"}
-        aria-pressed={spoilerBlur}
-        onClick={toggleSpoilerBlur}
-      >
+      {/* THE NAME IS STATIC AND `aria-pressed` CARRIES THE STATE (side-eye 2026-08-30 rail-characters P2,
+          #840). It used to flip BOTH — `Hide spoilers`/`false` → `Show spoilers`/`true` — so the ON state
+          announced as "Show spoilers, toggle button, PRESSED", i.e. "showing is on", while the spoilers
+          were in fact hidden. ARIA APG allows either half, never both: a flipping name describes the next
+          ACTION, `aria-pressed` describes the current STATE, and a control doing both inverts its meaning
+          in exactly one of its two states. `Select multiple` on this same surface is the correct model
+          (static name, `aria-pressed` false→true), which is what makes this a defect and not a style. */}
+      <Button type="button" intent="ghost" size="icon" aria-label="Hide spoilers" aria-pressed={spoilerBlur} onClick={toggleSpoilerBlur}>
         <Icon icon={spoilerBlur ? EyeOff : Eye} size="sm" />
       </Button>
     </Row>

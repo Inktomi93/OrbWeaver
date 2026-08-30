@@ -128,7 +128,9 @@ export interface TagFilterVocabularyEntry {
   name: string;
   /** ST is_hidden_on_character_card — the chip rail drops these (they still filter, so they stay KNOWN). */
   isHiddenOnCard: boolean;
-  /** How many of the owner's characters carry this tag, over the WHOLE library (never a loaded window). */
+  /** How many of the owner's characters carry this tag ACCEPTED, over the WHOLE library (never a loaded
+   *  window, and never a pending suggestion — #839: this number decides whether a facet is OFFERED, so it
+   *  must count exactly what the library's `status = 'accepted'` tag filter can MATCH). */
   characters: number;
 }
 

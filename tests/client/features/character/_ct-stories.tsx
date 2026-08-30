@@ -10,7 +10,6 @@
 import { useTRPC } from "@orb/client/data";
 import {
   CharacterActionsMenu,
-  CharacterAppearanceTab,
   CharacterBulkBar,
   CharacterCardTile,
   CharacterEditorSurface,
@@ -18,7 +17,8 @@ import {
   CharacterLibraryAnchor,
   CharacterLibrarySurface,
   CharacterLibraryWelcome,
-  CharacterOptionsTab,
+  CharacterLookTab,
+  CharacterTrustTab,
 } from "@orb/client/features/character";
 import type { CharacterDetailContribution } from "@orb/client/lib";
 import { createContributorRegistry } from "@orb/client/lib";
@@ -215,26 +215,38 @@ export function CharacterDetailContributorStory({ visible }: CharacterDetailCont
   );
 }
 
-/** The §8.1 CONTEXT Appearance tab over the real data layer (`character.get` + `character.update` stubbed
- *  by routeTrpc) — drives the per-character theme cluster's immediate-commit / reset / per-field-clear. */
-export function CharacterAppearanceTabStory(): ReactElement {
+/** The §8.1 CONTEXT **Look** tab over the real data layer (`character.get` + `character.update` stubbed by
+ *  routeTrpc) — drives the per-character theme cluster's immediate-commit / reset / per-field-clear, at a
+ *  wide mount where a colour row's label and control both have room. */
+export function CharacterLookTabStory(): ReactElement {
   return (
     <CtDataProviders>
       <div style={{ width: 720 }}>
-        <CharacterAppearanceTab characterId={castId<CharacterId>("char_ct_1")} />
+        <CharacterLookTab characterId={castId<CharacterId>("char_ct_1")} />
       </div>
     </CtDataProviders>
   );
 }
 
-/** The CONTEXT Options tab at the real context-panel width — the tab OWNS the field orientation for the
- *  theme cluster it re-homes, so the density contract is only observable through this mount, never
- *  through `CharacterAppearanceTabStory`. */
-export function CharacterOptionsTabStory(): ReactElement {
+/** The SAME Look tab at the real context-panel width — the tab OWNS the field orientation for the theme
+ *  cluster it hosts, so the density contract is only observable at a mount this narrow (it rode
+ *  `CharacterOptionsTabStory` until #841 folded that shell away with the merge it existed to hold). */
+export function CharacterLookTabPanelStory(): ReactElement {
   return (
     <CtDataProviders>
       <div style={{ width: 463 }}>
-        <CharacterOptionsTab characterId={castId<CharacterId>("char_ct_1")} />
+        <CharacterLookTab characterId={castId<CharacterId>("char_ct_1")} />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** The CONTEXT **Trust** tab — the render-posture controls (#841 split them out of the theme tab). */
+export function CharacterTrustTabStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ width: 463 }}>
+        <CharacterTrustTab characterId={castId<CharacterId>("char_ct_1")} />
       </div>
     </CtDataProviders>
   );

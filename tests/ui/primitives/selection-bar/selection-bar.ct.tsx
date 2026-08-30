@@ -1,6 +1,7 @@
 // CT: the selection-bar bulk-action chrome — the live-announcing count, Escape/clear firing
 // onClear, and the caller-owned actions slot (ui-package-design §12 Wave 3-C; work-order #21).
 
+import { Button } from "@orb/ui/button";
 import { SelectionBar } from "@orb/ui/selection-bar";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -81,4 +82,41 @@ test("the actions slot renders the caller's children", async ({ mount, page }) =
   );
   await expect(page.getByRole("button", { name: "Archive" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Delete" })).toBeVisible();
+});
+
+// #843 — `1 selected` BROKE MID-PHRASE in the characters LIST pane at its docked 290px: `1` on one line,
+// `selected` on the next. The count is one indivisible phrase (a number and one word); the ACTION cluster
+// is the thing that should give, and it reads fine on a second line. Measured as RENDERED height, at the
+// width the review measured at, against a single line of the same text — a class assertion would pass
+// while the pixels wrapped.
+test("#843 the count never breaks mid-phrase at the narrowest real pane", async ({ mount }) => {
+  // A FIXED-WIDTH host, not a narrow viewport: the CT mount root is CONTENT-sized, so a bar mounted bare
+  // sizes itself to its own contents and agrees with the bug. The characters LIST pane docks at 290px and
+  // carries exactly this action set (`character-bulk-bar.tsx`), which is where the break was measured.
+  const bar = await mount(
+    <div style={{ width: "290px", overflow: "visible" }}>
+      <SelectionBar count={1} onClear={(): void => undefined}>
+        {/* The REAL `@orb/ui` Buttons at the size the character bulk bar uses, not bare intrinsics: a plain
+            `<button>` is ~40% narrower than an `sm` control box, and with three of them the row does not
+            over-constrain at all — the defect is a WIDTH budget, so a cheaper stand-in cannot reproduce it. */}
+        <Button intent="secondary" size="sm">
+          Tag
+        </Button>
+        <Button intent="secondary" size="sm">
+          Archive
+        </Button>
+        <Button intent="destructive" size="sm">
+          Delete
+        </Button>
+      </SelectionBar>
+    </div>,
+  );
+
+  const count = bar.getByText("1 selected");
+  await expect(count).toBeVisible();
+  const lines = await count.evaluate((el: HTMLElement) => {
+    const style = globalThis.getComputedStyle(el);
+    return Math.round(el.getBoundingClientRect().height / Number.parseFloat(style.lineHeight));
+  });
+  expect(lines, "the count is one line").toBe(1);
 });

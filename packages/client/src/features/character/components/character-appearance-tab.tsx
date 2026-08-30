@@ -1,18 +1,17 @@
-// The Appearance tab — two immediate-commit clusters riding `character.update` (no save bar, no dirty
-// pill): the per-character theme override (an autosave form persisting the whole `themeOverride` blob on
-// change) and Trust (`forbidExternalMedia`/`trustHtml`, tri-state). `trustHtml` resolves `override ??
-// global`; `forbidExternalMedia` is TIGHTEN-ONLY over the deployment ceiling, so while the deployment
-// blocks external media the control renders locked (see the Trust section below).
+// The CONTEXT **Look** tab ({@link CharacterLookTab}) — this card's own APPEARANCE: the theme override (an
+// autosave form persisting the whole `themeOverride` blob on change) plus its carried Background. An
+// immediate-commit surface riding `character.update`: no save bar, no dirty pill.
 //
-// HTML rendering is ONE LADDER control, not two switches (owner ruling 2026-08-16, #111): Untrusted <
-// Render HTML < Interactive, plus Inherit for "no override". It writes the `trust_html` +
-// `interactive_html` pair through the contracts helper, so the incoherent "interactive but untrusted" pair
-// is unwritable here and unrepresentable in the resolved policy. Since leg 3's security pass the top rung
-// really does run card-authored scripts — but only when the deployment's `allowInteractiveCards` ceiling is
-// also up, so this surface reads that ceiling and says which of the two it is. It does NOT lock the control
-// the way the external-media row does: there EVERY value is inert under the ceiling, here only one of four.
+// IT USED TO CARRY TRUST TOO, AND THAT RULING SURVIVES — ITS INPUT CHANGED (#841/#860, owner 2026-08-30).
+// Trust and the theme editor shared a tab called "Options" because the strip was signed at THREE tabs and
+// neither cluster could afford one alone. The context-panel program re-rules the strip as a six-slot meta
+// rail (Overview · Chats · Links · Look · History · Trust), so the constraint that merged them is gone —
+// and the merge's measured cost was not: `clientHeight 693 · scrollHeight 2253`, 31% visible, four
+// concerns deep, with version history last. What is PRESERVED is the mechanism the merge established: both
+// halves stay immediate-commit, both keep their own headings, and neither was re-implemented — the split is
+// a re-home, exactly as the merge was. Trust's half now lives in `character-trust-tab.tsx`.
 //
-// The Theme cluster is also where the two THEME DOORS live — both projections of the ONE card-embeddable
+// This module is also where the two THEME DOORS live — both projections of the ONE card-embeddable
 // partition (`cardEmbeddableSubset`), run in opposite directions:
 //   • `Save as theme…` PROMOTES this card's authored look into the picker library (values COPIED, never
 //     referenced — there is no ref to keep, and a deleted theme must never strip N cards).
@@ -21,12 +20,11 @@
 // style + Density selects were struck as dead switches — nothing read what they wrote), and the subset
 // projection is what keeps a theme's `density` from riding back in through the inverse door.
 
-import type { HtmlTrustStep } from "@orb/contracts/chat";
-import { HTML_TRUST_STEPS, renderPolicyOverrideForStep, stepFromRenderPolicyOverride } from "@orb/contracts/chat";
 import type { Theme, ThemeBackground, ThemeOverride, ThemeRadius } from "@orb/contracts/theme";
 import { cardEmbeddableSubset, THEME_FONT_ALLOWLIST, THEME_RADII } from "@orb/contracts/theme";
 import type { CharacterId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
+import { FieldLayout } from "@orb/ui/field";
 import { Grid, Row, Section, Stack } from "@orb/ui/layout";
 import type { SelectItems } from "@orb/ui/select";
 import { Select } from "@orb/ui/select";
@@ -34,9 +32,8 @@ import { Text } from "@orb/ui/text";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { useId } from "react";
 import { BackgroundSourceField } from "#components";
-import { QueryBoundary, QueryErrorState, useExternalMediaBlocked, useInteractiveCardsAllowed, useInvalidation, useTRPC } from "#data";
+import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms";
 import { notify } from "#lib";
 import { useUpdateCharacter } from "../hooks/use-character-mutations.ts";
@@ -70,137 +67,38 @@ const RADIUS_ITEMS: SelectItems<string> = [INHERIT_ITEM, ...THEME_RADII.map((val
 
 const THEME_FIELD_NAMES = Object.keys(EMPTY_CHARACTER_THEME_FORM) as (keyof CharacterThemeFormValues)[];
 
-/** inherit / on / off ⇄ null / true / false (the tri-state wire encoding, shared by both Trust controls). */
-function tristateValue(flag: boolean | null): string {
-  if (flag === null) {
-    return "inherit";
-  }
-  return flag ? "on" : "off";
-}
-
-function tristateFlag(value: string): boolean | null {
-  if (value === "inherit") {
-    return null;
-  }
-  return value === "on";
-}
-
-/** The HTML-trust LADDER as one control (#111). `inherit` is the absence of an override, not a rung — it is
- *  spelled with the same sentinel the sibling tri-state uses, and it clears BOTH stored columns. The rungs
- *  are ordered weakest-first, matching `HTML_TRUST_STEPS`, so the menu reads as the ladder it is. */
-const INHERIT_STEP = "inherit";
-const HTML_TRUST_LABELS: Record<HtmlTrustStep, string> = {
-  untrusted: "Untrusted",
-  trusted: "Render HTML",
-  interactive: "Interactive",
-};
-const HTML_TRUST_ITEMS: SelectItems<string> = [
-  { value: INHERIT_STEP, label: "Inherit default" },
-  ...HTML_TRUST_STEPS.map((step) => ({ value: step, label: HTML_TRUST_LABELS[step] })),
-];
-
-/** One picked rung → the column pair to persist. `inherit` clears both; every other value goes through the
- *  contracts helper, which is the ONE home for "what does this step mean in storage" — so Interactive can
- *  never be written without the render trust it implies. */
-function htmlTrustEdit(value: string): { trustHtml: boolean | null; interactiveHtml: boolean | null } {
-  // Narrowed by MEMBERSHIP, never cast: the Select hands back a string, and anything that is not a rung
-  // (including the inherit sentinel) is the clear.
-  const step = HTML_TRUST_STEPS.find((candidate): boolean => candidate === value);
-  return step === undefined ? { trustHtml: null, interactiveHtml: null } : renderPolicyOverrideForStep(step);
-}
-
-export function CharacterAppearanceTab({ characterId }: CharacterAppearanceTabProps): ReactElement {
+/**
+ * The CONTEXT **Look** tab — this card's own theme override + its carried background.
+ *
+ * The FIELD ORIENTATION IS SET HERE, not inside the cluster: this component is the tab's only mount, and
+ * label-left/control-right is a property of the INSTRUMENT-tier context panel (density spec §3.1), not of
+ * the theme cluster. Vertical label-over-swatch turned eleven colour rows into a 54px-per-row ladder that
+ * exhausted the viewport before Background was reachable; horizontal halves it. Base UI's horizontal Field
+ * self-reverts to stacked below the `@md` container width, so a narrower panel still gets a readable label
+ * block. (It rode `character-options-tab.tsx` until #841 folded that shell away with the merge it existed
+ * to hold.)
+ */
+export function CharacterLookTab({ characterId }: CharacterAppearanceTabProps): ReactElement {
   return (
     <QueryBoundary
       fallback={<Text voice="quiet">Loading appearance…</Text>}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="appearance" onRetry={retry} />}
     >
-      <AppearanceTabBody characterId={characterId} />
+      <FieldLayout orientation="horizontal">
+        <LookTabBody characterId={characterId} />
+      </FieldLayout>
     </QueryBoundary>
   );
 }
 
-function AppearanceTabBody({ characterId }: CharacterAppearanceTabProps): ReactElement {
+function LookTabBody({ characterId }: CharacterAppearanceTabProps): ReactElement {
   const trpc = useTRPC();
-  const invalidation = useInvalidation();
   const { data } = useSuspenseQuery(trpc.character.get.queryOptions({ characterId }));
-  const update = useUpdateCharacter({ trpc, invalidation });
-  // The deployment ceiling (`/api/auth/config.forbidExternalMedia`) — the value the document CSP was built
-  // from. While it is on, EVERY value of this control resolves to blocked, so the control is inert: render
-  // it disabled + explained rather than as a dead switch (D107).
-  const externalMediaBlocked = useExternalMediaBlocked();
-  // The deployment half of the ladder's TOP rung (#111 leg 3). Unlike external media this does NOT lock the
-  // control — only ONE of the four values is inert while it is off, and disabling the whole select would
-  // take away three working choices. The rung stays pickable and the note below says what it will do.
-  const interactiveCardsAllowed = useInteractiveCardsAllowed();
-  const externalMediaLockId = useId();
-  const interactiveLockId = useId();
-
-  const commit = (input: { forbidExternalMedia?: boolean | null; trustHtml?: boolean | null; interactiveHtml?: boolean | null }): void => {
-    update.mutate({ characterId, input });
-  };
 
   return (
     <Stack gap="section">
       <ThemeControls characterId={characterId} characterName={data.name} serverValue={data.themeOverride} />
-
       <BackgroundControl characterId={characterId} serverValue={data.backgroundOverride} />
-
-      {/* The external-media row can only TIGHTEN: the deployment-wide setting is the ABSOLUTE ceiling —
-          enforced twice, by the tighten-only render-policy resolver (@orb/contracts/chat) and by the page's
-          Content-Security-Policy — and no per-character value can widen it. While the deployment blocks,
-          the control is LOCKED rather than offering an "Allow" that nothing honours. */}
-      <Section
-        heading="Trust"
-        hint="External media is capped by the deployment-wide “Block external media” setting — “Allow” here cannot load external media while that is on. Changes reach an open tab on reload."
-      >
-        <Row gap="field" className="flex-wrap">
-          {/* No control-has-associated-label suppression here (unlike its sibling): the conditional
-              aria-describedby SPREAD makes the rule bail on this element, so a directive would be an
-              unused-disable error. The `label` prop still renders the visible, associated label. */}
-          <Select
-            label="External media"
-            items={[
-              { value: "inherit", label: "Inherit default" },
-              { value: "off", label: "Allow" },
-              { value: "on", label: "Forbid" },
-            ]}
-            value={tristateValue(data.forbidExternalMedia)}
-            onValueChange={(value): void => commit({ forbidExternalMedia: tristateFlag(String(value)) })}
-            disabled={externalMediaBlocked}
-            {...(externalMediaBlocked ? { "aria-describedby": externalMediaLockId } : {})}
-          />
-          {/* ONE LADDER, not a second checkbox (owner ruling 2026-08-16, #111): Untrusted < Render HTML <
-              Interactive, in that order, with Inherit as the absence of an override rather than a rung.
-              The write direction is the contracts helper, so this control cannot store the incoherent
-              "interactive but untrusted" pair — the resolver would not be able to represent it either. */}
-          <Select
-            label="HTML rendering"
-            items={HTML_TRUST_ITEMS}
-            value={stepFromRenderPolicyOverride(data) ?? INHERIT_STEP}
-            onValueChange={(value): void => commit(htmlTrustEdit(String(value)))}
-            aria-describedby={interactiveLockId}
-          />
-        </Row>
-        {externalMediaBlocked ? (
-          <Text id={externalMediaLockId} voice="gloss">
-            External media is blocked deployment-wide, so this character's setting is locked — every value here resolves to blocked. An admin can lift it in
-            System settings → “Block external media”.
-          </Text>
-        ) : null}
-        <Text id={interactiveLockId} voice="gloss">
-          HTML rendering is a ladder: Untrusted keeps this character's messages as plain sanitized text, Render HTML lets them use rich HTML and card styling,
-          and Interactive is Render HTML plus cards that run their own scripts, in a locked-down frame that cannot reach your session, your data, or the rest of
-          the app.
-        </Text>
-        {interactiveCardsAllowed ? null : (
-          <Text voice="gloss">
-            Interactive is switched off deployment-wide, so picking it renders the same as Render HTML — this character's cards will not run scripts. An admin
-            can turn it on in System settings → “Let interactive cards run their own scripts”.
-          </Text>
-        )}
-        <Text voice="gloss">Trust settings apply the instant you change them — no save needed.</Text>
-      </Section>
     </Stack>
   );
 }
@@ -312,8 +210,11 @@ function ThemeControlsBody({ characterName, form }: ThemeControlsBodyProps): Rea
         </Row>
       </Row>
       <Text voice="gloss">
-        Colours and styles apply to this character's messages instantly — no save needed. A field reading Inherit follows your global theme; each field prints
-        its own value, so you can always tell which ones this card sets.
+        {/* The copy follows the READOUT (#841): a field's value text is `Inherit`, its hex, or `Custom` —
+            never the raw `oklch(…)` triple it used to print. The promise this line makes is unchanged
+            (you can tell set from inherited at a glance); what changed is that it is now legible. */}
+        Colours and styles apply to this character's messages instantly — no save needed. A field reading Inherit follows your global theme; every other field
+        names its own value, so you can always tell which ones this card sets.
       </Text>
 
       <Grid cols="wide" gap="gutter">

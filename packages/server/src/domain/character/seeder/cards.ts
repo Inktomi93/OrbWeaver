@@ -21,6 +21,7 @@
 // effect for a user the running process has not already seeded (restart, or a different user).
 
 import type { CreateCharacterInput } from "@orb/contracts/character";
+import { AUTHORED_CARD_CREATOR } from "@orb/contracts/character";
 import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { SeedCard } from "../contract/seeder.ts";
@@ -38,7 +39,9 @@ export const CARD_PACK_VERSION = 2;
  *  carried scripts/extensions/residual wire data, art attached by the seeder. */
 const AUTHORED_CARD_DEFAULTS = {
   systemPrompt: null,
-  creator: "orbweaver",
+  // The shared marker, not a local literal (#843): the client's Origin readout reads this exact value to
+  // say `Example — shipped with Orbweaver` instead of claiming a shipped card was `Made here`.
+  creator: AUTHORED_CARD_CREATOR,
   cardVersion: "1.0.0",
   source: null,
   creationDate: null,
