@@ -36,17 +36,36 @@ export interface HostSeams {
 const LOG_LEVELS = PLUGIN_LOG_LEVELS;
 type LogLevel = PluginLogLevel;
 
-/** Per-invocation log ring — bounded by line count AND volume; overflow drops silently
- *  (the guest cannot DoS the host log by flooding). Drained into the invocation outcome.
+/** A per-line mirror the host may attach to a ring (a structural-injection port, the `AssetInspector` shape):
+ *  `mirror` is called for every ACCEPTED (post-cap, post-clamp) line at PUSH time — the moment the guest writes
+ *  it, not the moment something drains it. This is how a guest line reaches the process-wide pino stream (file
+ *  log + the `/api/_debug/logs` ring) with no read in the path, including lines a floated continuation writes
+ *  between invocations (#806). Never throws back into the guest: the port's impl is a plain `getLog()` call. */
+export interface LogMirror {
+  readonly mirror: (level: LogLevel, message: string) => void;
+}
+
+/** The per-DRAIN log ring — bounded by line count AND volume; overflow drops silently (the guest cannot DoS
+ *  the host log by flooding). `drain()` is DESTRUCTIVE: it hands back every line pushed since the previous
+ *  drain and empties the ring (budget included), so an invocation's outcome carries its own lines and a
+ *  floated continuation's later lines wait for the NEXT drain instead of being thrown away — the old
+ *  `reset()` at invocation start destroyed exactly those (#806). There is no reset any more: every reader
+ *  is a drain, and every drained line is retained by `port`'s runtime ring.
  *
  *  The volume bound is HARD, including for one line: an oversized message is CLAMPED to what is left of the
  *  budget rather than admitted whole. The check-then-push-anything shape it replaces let a single guest line
  *  carry the whole 32 MiB instance heap past a ring documented as 16 KiB — harmless while every drain was
  *  discarded, but `port`'s runtime ring now RETAINS drained lines, and a retained 32 MiB line is exactly the
- *  unbounded per-instance allocation the in-flight cap repair closed elsewhere. */
+ *  unbounded per-instance allocation the in-flight cap repair closed elsewhere. The bound is therefore per
+ *  DRAIN INTERVAL: a chatty float between two invocations is capped like an invocation is. */
 export class LogRing {
   private readonly lines: string[] = [];
   private bytes = 0;
+  private readonly mirror: LogMirror | undefined;
+
+  constructor(mirror?: LogMirror) {
+    this.mirror = mirror;
+  }
 
   push(level: LogLevel, message: string): void {
     if (this.lines.length >= LOG_LINES_PER_INVOCATION || this.bytes >= LOG_BYTES_PER_INVOCATION) {
@@ -58,16 +77,18 @@ export class LogRing {
     const clamped = line.length <= LOG_BYTES_PER_INVOCATION - this.bytes ? line : line.slice(0, LOG_BYTES_PER_INVOCATION - this.bytes);
     this.bytes += clamped.length;
     this.lines.push(clamped);
+    // The mirror sees the SAME clamped text the ring keeps (never the raw message): what the central log
+    // shows is what the plugin log shows, and the ring's volume cap is the mirror's volume cap.
+    this.mirror?.mirror(level, clamped.slice(level.length + "[] ".length));
   }
 
+  /** Every line pushed since the last drain, oldest-first — and the ring is EMPTY afterwards (see the class
+   *  note: destructive by design, so a floated continuation's lines are attributed, never destroyed). */
   drain(): readonly string[] {
-    return [...this.lines];
-  }
-
-  /** Clear the ring for the next invocation (logs are per-invocation). */
-  reset(): void {
+    const lines = [...this.lines];
     this.lines.length = 0;
     this.bytes = 0;
+    return lines;
   }
 }
 
@@ -82,7 +103,12 @@ export class LogRing {
 // and kills the reading; `timeOrigin` is dropped with it. The realm allow-list pin in
 // tests/server/infra/plugin-host/realm.test.ts is what makes a FUTURE quickjs-ng bump that adds `crypto` /
 // `Temporal` / `Atomics` go red on arrival instead of shipping the same way.
-const AMBIENT_STUBS = `
+//
+// EXPORTED (2026-08-30, #805) so a realm-faithful GUEST harness can evaluate the SAME denial text in a bare
+// `node:vm` context: the card-atlas offline harness once "proved the adapters correct" against a stub realm
+// with a live `Date`, and `Date` was exactly the axis the real realm diverged on. One home for the denial —
+// a harness that imports it cannot drift from the realm it stands in for.
+export const AMBIENT_STUBS = `
   (() => {
     const die = (name) => () => {
       throw new Error(name + " is disabled in the plugin sandbox — use orb.host(1).clock / .random for deterministic time and entropy");
@@ -159,7 +185,9 @@ const SERVED_HOST_MAJORS = [1] as const;
 
 /** Turn a bare context into a guest realm: overwrite ambient non-determinism, install the frozen `orb`
  *  entry. After this the guest global holds exactly `orb` (+ the standard ECMAScript intrinsics minus
- *  Date/Math.random). Returns nothing — mutation is the effect. */
+ *  Date/Math.random). `log` is the instance's ONE ring — every `orb.host(1).log.*` call from any span of
+ *  guest execution (an invocation or a post-settle job pump) lands in it. Returns nothing — mutation is the
+ *  effect. */
 export function installRealm(ctx: QuickJSContext, seams: HostSeams, log: LogRing, membrane?: MembraneRuntime): void {
   const stubResult = ctx.evalCode(AMBIENT_STUBS);
   if (stubResult.error) {

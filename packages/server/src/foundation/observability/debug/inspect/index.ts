@@ -1,6 +1,7 @@
 // foundation/observability/debug/inspect — front door for the read-only DB probes (the dissolved `debug`
 // domain's persistence, folded into foundation; reads @orb/db DOWN — no DbInspector port, ledger).
 
+export { type AutomationFireFilter, type AutomationFireRow, automationFireRows } from "./automation-fires.ts";
 export {
   type AppSettingRow,
   appSettingRows,

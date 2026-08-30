@@ -309,10 +309,10 @@ module.exports = {
     {
       name: "client-composition-tier-door-only",
       comment:
-        "The composition-tier DIRECTORY MODULES (client/src/agent-handles/, agent-nav/, agent-rpg/, agent-seed/) are main.tsx's OWN glue: dev-only bridge implementations that must compose feature FRONT DOORS plus #state module actions — a privilege no tier below the door has (the lib/ floor that homes agent-bridge.ts may not import #state/#features/#data, which is why the impls live here and not there). Only main.tsx imports them — the client-nothing-imports-main mirror. Without this wall a feature could reach another feature's front door THROUGH one of them (features/x → agent-nav → features/chat) with every individual hop passing client-feature-front-door AND client-features-no-cross. A sibling composition-tier module may compose another (they are all door glue); nothing else may — which is how `agent-handles/` legally assembles the other three behind main.tsx's DEV-only dynamic import (#433). (client-architecture-lockdown.md §3/§7.)",
+        "The composition-tier DIRECTORY MODULES (client/src/agent-handles/, agent-nav/, agent-plugin/, agent-rpg/, agent-seed/) are main.tsx's OWN glue: dev-only bridge implementations that must compose feature FRONT DOORS plus #state module actions — a privilege no tier below the door has (the lib/ floor that homes agent-bridge.ts may not import #state/#features/#data, which is why the impls live here and not there). Only main.tsx imports them — the client-nothing-imports-main mirror. Without this wall a feature could reach another feature's front door THROUGH one of them (features/x → agent-nav → features/chat) with every individual hop passing client-feature-front-door AND client-features-no-cross. A sibling composition-tier module may compose another (they are all door glue); nothing else may — which is how `agent-handles/` legally assembles the other three behind main.tsx's DEV-only dynamic import (#433). (client-architecture-lockdown.md §3/§7.)",
       severity: "error",
-      from: { path: CLIENT, pathNot: [`${CLIENT}main\\.tsx$`, `${CLIENT}(agent-handles|agent-nav|agent-rpg|agent-seed)/`] },
-      to: { path: `${CLIENT}(agent-handles|agent-nav|agent-rpg|agent-seed)/` },
+      from: { path: CLIENT, pathNot: [`${CLIENT}main\\.tsx$`, `${CLIENT}(agent-handles|agent-nav|agent-plugin|agent-rpg|agent-seed)/`] },
+      to: { path: `${CLIENT}(agent-handles|agent-nav|agent-plugin|agent-rpg|agent-seed)/` },
     },
     {
       name: "client-compose-door-only",

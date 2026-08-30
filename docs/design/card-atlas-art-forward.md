@@ -57,7 +57,7 @@ Memory lessons consulted (by filename): `check-main-for-the-original-consumer`,
   **BUILD-TIME PREMISE CORRECTION (measured live, twice, then redesigned): ALL hub awaits must
   FLOAT.** The invocation SETTLEMENT WALL (`PLUGIN_INVOCATION_CPU_MS` 1000 + `HOST_FN_DEADLINE_MS`
   5000, `sandbox.ts` header — in no doc the phase-1 read covered) bounds a whole action handler at
-  ~6 s of real time. Round 1: a realm search + 24 fresh covers blew it (deadline kill + crash strike +
+  \~6 s of real time. Round 1: a realm search + 24 fresh covers blew it (deadline kill + crash strike +
   respawned session — a stranded "Searching…" status and a fresh `ready` log line); the batch was
   floated. Round 2 refuted the residual premise too: the hub's response BODY itself can stream past
   the wall (the host-fn deadline bounds connect+headers+redirects, not the body read — stage receipt:
@@ -72,7 +72,7 @@ Memory lessons consulted (by filename): `check-main-for-the-original-consumer`,
 - **The art cache is ONE kv key** (`art_cache`: `{ "<source>:<ref>": { a, t } }`, trimmed oldest-first
   at 300 entries, 24h TTL). Why: the 256-key budget already carries the `owned:` index (per-key would
   starve it); the egress belt is 120/hr SHARED with search — an uncached hub burns 25 calls/search
-  (~4 fresh searches/hour before ART STARVES SEARCH), so repeats must be free; the 24h TTL bounds the
+  (\~4 fresh searches/hour before ART STARVES SEARCH), so repeats must be free; the 24h TTL bounds the
   breakage window after an `assets-gc` pass reaps fetched covers (§4 gap).
 - **Detail hero**: `publishDetail` gains `detail.art` (assetId, "" when none); the `card` stage gains
   `hero: { assetFrom: { $state: "detail.art" }, alt: "Card cover art" }`. The hero paints INSTANTLY
@@ -106,7 +106,7 @@ Memory lessons consulted (by filename): `check-main-for-the-original-consumer`,
 
 - **F2 (reading measure)**: the `MasterDetail` DETAIL arm wraps hero + title + body in
   `max-w-(--reading-measure)` (the house token, the feature-precedented spelling). One wrap fixes the
-  150ch blurb AND the ~890px keyValue scan gap. The browse arm stays full-width (a grid wants it).
+  150ch blurb AND the \~890px keyValue scan gap. The browse arm stays full-width (a grid wants it).
 - **F4 (grid empty state)**: `SurfaceGrid`'s empty branch renders the house `EmptyState`
   (icon = `Images`, title = the plugin's own `empty` line ?? "Nothing here yet.", `measure="default"`,
   `titleAs="p"`) instead of one bare gloss line. The plugin's teaching text is unchanged — only its
@@ -120,10 +120,10 @@ Memory lessons consulted (by filename): `check-main-for-the-original-consumer`,
 ### 2c Manifest + docs
 
 - `manifest.json`: capabilities + `net.fetch_asset`; netHosts + `ct-cards.storage.character-tavern.com`
-  + `sv.risuai.xyz` (exact hosts, never a leading-dot wildcard: the narrowest reach that works);
-  version `1.0.0` → `1.1.0` (the upgrade verb refuses non-higher versions).
-  Widened reach ⇒ the upgrade lands disabled pending re-consent, BY DESIGN — the consent screen now
-  names the art hosts and the CAS-write capability.
+  - `sv.risuai.xyz` (exact hosts, never a leading-dot wildcard: the narrowest reach that works);
+    version `1.0.0` → `1.1.0` (the upgrade verb refuses non-higher versions).
+    Widened reach ⇒ the upgrade lands disabled pending re-consent, BY DESIGN — the consent screen now
+    names the art hosts and the CAS-write capability.
 - `main.js` header ("WHAT IT HONESTLY CANNOT DO") and `README.md` ("Honest gaps") rewritten: the
   no-remote-art wall FELL with #798 — they now teach the fetchAsset pattern, the shared egress
   budget arithmetic (why the cache exists), and the PNG-first summon ladder. F1's lying claim
@@ -147,8 +147,8 @@ Memory lessons consulted (by filename): `check-main-for-the-original-consumer`,
    One-key JSON map with LRU trim. Rejected per-key.
 7. **No art cache (refetch every search)** — the belt arithmetic kills it: 120/hr ÷ 25/search ≈ 4
    fresh searches, then ART STARVES SEARCH ITSELF (shared belt). Rejected; cache is load-bearing.
-8. **Full-resolution PNGs as grid covers** — ~640 KB × 24 per search (latency + CAS growth) for
-   tiles rendered ~200px wide; the 320w resize is 8× lighter and keeps the chara chunk anyway.
+8. **Full-resolution PNGs as grid covers** — \~640 KB × 24 per search (latency + CAS growth) for
+   tiles rendered \~200px wide; the 320w resize is 8× lighter and keeps the chara chunk anyway.
    Rejected; full PNG only at summon (where its bytes ARE the product).
 9. **Always-fetch a dedicated 640w hero before painting the detail stage** — blocks the decision
    surface on egress. Rejected for instant-cached-cover + progressive upgrade (Tavern only).
@@ -168,8 +168,8 @@ Memory lessons consulted (by filename): `check-main-for-the-original-consumer`,
   sweep feeding the live set) — db/assets/plugin junction, its own design. This lane's mitigation:
   the 24h cache TTL bounds the breakage window and a refetch self-heals.
 - **The egress belt was priced for text** (owner fork, stated default): an art hub honestly spends
-  ~25 calls/search; at `PLUGIN_EGRESS_PER_HOUR=120` a heavy first session hits the cliff at search
-  ~5 and search itself starts failing behind the art spend. Default shipped: live within 120 (cache +
+  \~25 calls/search; at `PLUGIN_EGRESS_PER_HOUR=120` a heavy first session hits the cliff at search
+  \~5 and search itself starts failing behind the art spend. Default shipped: live within 120 (cache +
   honest degrade + log). The alternative — a separate, higher `fetchAsset` belt or a bump — is a
   security-posture change (exfil-rate ceiling) and is the owner's call.
 - **No loading vocabulary** (#799, known): during a fresh search the grid sits on the previous
@@ -208,7 +208,7 @@ no-art wall.
   (plugin row upload) → re-consent (the widened-reach screen naming the new hosts + capability) →
   enable → drive: Tavern search (REAL covers in the grid), Realm search (same card shape, real
   covers), detail stage (hero art), sort=downloads receipt (top tile's count ≥ the next), summon
-  toast. Renders for the owner: populated grid + detail, desktop + ~390px, PER provider.
+  toast. Renders for the owner: populated grid + detail, desktop + \~390px, PER provider.
 - **Snap traps carried from the stickler recipe**: submit search via Enter on the input
   (`text=Search` hits the label); `--fill` selectors cannot contain `=`; the resident's published
   stage survives contexts (may open on detail — Back first).
@@ -242,7 +242,7 @@ degrade (#801, "no budget idgaf"). Base: `ff8ba2f7c` (v1.1.0).
   bound gloss `pageLabel` ("Page 2 of 139") · `button` "Next". Tavern: Next/Prev refetch server page
   N±1 (filters ride along, so `totalPages` is filter-aware). Realm: slice the held set 30/page
   (60-row set = 2 pages; include/exclude filter first, then slice, so its label is filter-aware too).
-  Both hubs show ~30 tiles/page (tavern's natural page; the 24-clamp died with the budget framing).
+  Both hubs show \~30 tiles/page (tavern's natural page; the 24-clamp died with the budget framing).
   Out-of-range clicks fold to the status line ("That's the last page."). The pager row is STRUCTURAL
   (the vocabulary has no `when` predicate — deferred phase, ui.ts header), so it renders pre-search
   too; its buttons answer honestly ("Search first.").
@@ -332,7 +332,7 @@ degrade (#801, "no budget idgaf"). Base: `ff8ba2f7c` (v1.1.0).
   scoped biome · scoped `pnpm check:docs`.
 - **Live drive** (the wire arms are live-only): pack 1.2.0 → isolated stage → real upgrade path →
   per provider: populated grid WITH tag chips (realm) → page 2 → an active include+exclude filter
-  changing the result set → detail with the Tags row → renders desktop + ~390px.
+  changing the result set → detail with the Tags row → renders desktop + \~390px.
 
 ### 7f Gaps found, filed not fixed
 
@@ -355,18 +355,18 @@ wire botbooru; attempt pygmalion/janitorai/datacat; richer detail. Base: `1be90f
 | Premise | Receipt |
 | - | - |
 | **PREMISE KILL — pygmalion is ALIVE.** The legacy "every server.pygmalion.chat connect-RPC path 404s" verdict (2026-07-18, `legacy-main:packages/contracts/src/hub/index.ts` header) is DEAD: unauthenticated `POST /galatea.v1.PublicCharacterService/CharacterSearch` returns 200 with `{totalItems:"4452", characters:[…]}`. Rows carry stars/views/downloads/chatCount/personalityTokenCount/createdAt/updatedAt/owner. `orderBy` honored for downloads·stars·views (distinct orders); created order is createdAt-monotonic-desc (verified on the data). `tagsNamesInclude:["fantasy"]`→0 hits (opaque taxonomy) and rows carry NO tags → tag filters not wired for pyg. Unauthenticated = SFW-curated only (`includeSensitive` needs a Bearer token — not a seeded plugin's to carry). Detail `POST /Character {characterMetaId}` carries `personality:{name,persona,greeting}` = the JSON import fold. Avatar `assets.pygmalion.chat` bare-GET 200 image/png (fetchAsset-compatible, no headers needed). | probe batch 1-3 |
-| **PREMISE KILL — realm HAS server sort + an nsfw param.** v1.2 wired realm sort plugin-side only; live: `__data.json?search=&sort=downloads` and `sort=trending` return distinct server-sorted sets (30 rows), and `nsfw=true` returns a different (NSFW-inclusive) set. The legacy adapter carried exactly these (`risurealm.ts` SORT_PARAM + `nsfw=true` when not excluding). | batch 1 |
+| **PREMISE KILL — realm HAS server sort + an nsfw param.** v1.2 wired realm sort plugin-side only; live: `__data.json?search=&sort=downloads` and `sort=trending` return distinct server-sorted sets (30 rows), and `nsfw=true` returns a different (NSFW-inclusive) set. The legacy adapter carried exactly these (`risurealm.ts` SORT\_PARAM + `nsfw=true` when not excluding). | batch 1 |
 | Tavern: no server sort — `sort=downloads:desc`/`sortBy=`/`order=` all byte-identical (third era of refutation). Rows also carry `likes`, `messages`, `hasLorebook`, `contentWarnings` beyond v1.2's fields. | batch 1 |
-| Chub: sorts REQUIRE `asc=false` (without it the order is not monotonic — v1.2's `star_count` wiring was silently relevance-ordered); with it: `star_count`·`n_favorites`·`rating`·`created_at`·`last_activity_at`·`trending_downloads` all verified monotonic/plausible on a query-less browse. With a TEXT query chub keeps relevance order regardless of `sort` (probed monotonicity refuted) — the plugin-side page re-sort makes the display promise true anyway. `download_count` returns the star_count order (nDownloads is dead on the wire) — not offered. `nsfw=true` works (5213 vs 559 hits). Rows carry rating/ratingCount/n_favorites/nChats/nMessages/forksCount/createdAt/lastActivityAt + `avatar_url`/`max_res_url`. | batches 1-3 |
+| Chub: sorts REQUIRE `asc=false` (without it the order is not monotonic — v1.2's `star_count` wiring was silently relevance-ordered); with it: `star_count`·`n_favorites`·`rating`·`created_at`·`last_activity_at`·`trending_downloads` all verified monotonic/plausible on a query-less browse. With a TEXT query chub keeps relevance order regardless of `sort` (probed monotonicity refuted) — the plugin-side page re-sort makes the display promise true anyway. `download_count` returns the star\_count order (nDownloads is dead on the wire) — not offered. `nsfw=true` works (5213 vs 559 hits). Rows carry rating/ratingCount/n\_favorites/nChats/nMessages/forksCount/createdAt/lastActivityAt + `avatar_url`/`max_res_url`. | batches 1-3 |
 | AICC `orderBy`: downloadCount ✓, ratingAvg ✓, createdAt ✓ (= the default, newest-first). Rows carry ratingAvg/ratingCount/aiScore/isAnimated/createdAt/language. | batch 1 |
-| CharaVault: `sort=newest` ✓ and `sort=oldest` ✓ (distinct orders); `rating`/`tokens` refuted (ignored). Rows carry avg_rating/rating_count/comment_count/file_size/has_lorebook/indexed_at. | batch 2 |
-| Wyvern: sort param ignored (re-confirmed); rows carry token_count/created_at/updated_at/likes + `entity_statistics.total_messages`; the stat rows look freshly minted on read (views=1 on an old card) so only tokens/dates/messages are displayed. | batches 1-2 |
-| BotBooru (`botbooru.com`): browse JSON gates on `X-Requested-With: XMLHttpRequest` (legacy fact holds). `total`+`posts`; posts carry downloads/favorite_count/views/comments_count/token_count/created_at/fork_count/tags-with-categories. Sorts verified: default=latest, `downloads` ✓, `favorites` ✓, `views` ✓; `curated`+`curated_sort` REFUTED (same order — the legacy top_rated/trending arms are dead), `rating`/`top_rated`/`trending` direct spellings refuted too. `sfw_only=true` ✓ (3163 vs 3178). The legacy `tags=` param REFUTED (ignored); `q=` matches tags/text (`q=elf`→38) but `-tag` negation refuted → tag filters run ROW-SIDE (rows carry tags). NO thumbnail variant exists (`images/<filename>` = the full ~1 MB card PNG; `?width` ignored) — the cover IS the card PNG, the CharaVault precedent. Card: `/download/json/<id>` native chara_card_v2 (no XHR header needed); a >1 MiB card body folds to the row-preview detail honestly. | batches 1-3 |
-| Datacat (`datacat.run` — the working JanitorAI mirror): `POST /api/liberator/identify {deviceToken:<uuid-shaped>}` mints an anonymous `sessionToken` (a FIXED uuid string works); browse `GET /api/characters/recent-public?limit=&offset=&summary=1&minTotalTokens=0&search=` with `X-Session-Token` ✓; `sortBy=chat_count` ✓ (distinct order); `nsfw=false` param REFUTED (rows still isNsfw:true) → SFW judges row-side via `isNsfw`. Rows carry stats.chat/stats.message/favoritesCount/totalTokens/isNsfw/creatorName/firstPublishedAt + `avatarVariantUrls` (thumb/card/original on `media.datacat.run`, bare-GET 200 webp 44 KB — fetchAsset-perfect) with `avatar` (an `ella.janitorai.com/bot-avatars/` path) as the legacy fallback. Detail `/api/characters/{id}` carries the definition fields (`chara_card_v2_json`, personality/scenario/first_message) — EMPTY on "DEGRADED"-recovery rows → the import fold answers an honest error there. **The `/download` route is Turnstile-walled** (`{turnstile, characterDownloadVerification}`) — not used. | batch 2-3 + marinara `bot-browser-datacat.routes.ts` |
+| CharaVault: `sort=newest` ✓ and `sort=oldest` ✓ (distinct orders); `rating`/`tokens` refuted (ignored). Rows carry avg\_rating/rating\_count/comment\_count/file\_size/has\_lorebook/indexed\_at. | batch 2 |
+| Wyvern: sort param ignored (re-confirmed); rows carry token\_count/created\_at/updated\_at/likes + `entity_statistics.total_messages`; the stat rows look freshly minted on read (views=1 on an old card) so only tokens/dates/messages are displayed. | batches 1-2 |
+| BotBooru (`botbooru.com`): browse JSON gates on `X-Requested-With: XMLHttpRequest` (legacy fact holds). `total`+`posts`; posts carry downloads/favorite\_count/views/comments\_count/token\_count/created\_at/fork\_count/tags-with-categories. Sorts verified: default=latest, `downloads` ✓, `favorites` ✓, `views` ✓; `curated`+`curated_sort` REFUTED (same order — the legacy top\_rated/trending arms are dead), `rating`/`top_rated`/`trending` direct spellings refuted too. `sfw_only=true` ✓ (3163 vs 3178). The legacy `tags=` param REFUTED (ignored); `q=` matches tags/text (`q=elf`→38) but `-tag` negation refuted → tag filters run ROW-SIDE (rows carry tags). NO thumbnail variant exists (`images/<filename>` = the full \~1 MB card PNG; `?width` ignored) — the cover IS the card PNG, the CharaVault precedent. Card: `/download/json/<id>` native chara\_card\_v2 (no XHR header needed); a >1 MiB card body folds to the row-preview detail honestly. | batches 1-3 |
+| Datacat (`datacat.run` — the working JanitorAI mirror): `POST /api/liberator/identify {deviceToken:<uuid-shaped>}` mints an anonymous `sessionToken` (a FIXED uuid string works); browse `GET /api/characters/recent-public?limit=&offset=&summary=1&minTotalTokens=0&search=` with `X-Session-Token` ✓; `sortBy=chat_count` ✓ (distinct order); `nsfw=false` param REFUTED (rows still isNsfw:true) → SFW judges row-side via `isNsfw`. Rows carry stats.chat/stats.message/favoritesCount/totalTokens/isNsfw/creatorName/firstPublishedAt + `avatarVariantUrls` (thumb/card/original on `media.datacat.run`, bare-GET 200 webp 44 KB — fetchAsset-perfect) with `avatar` (an `ella.janitorai.com/bot-avatars/` path) as the legacy fallback. Detail `/api/characters/{id}` carries the definition fields (`chara_card_v2_json`, personality/scenario/first\_message) — EMPTY on "DEGRADED"-recovery rows → the import fold answers an honest error there. **The `/download` route is Turnstile-walled** (`{turnstile, characterDownloadVerification}`) — not used. | batch 2-3 + marinara `bot-browser-datacat.routes.ts` |
 | JanitorAI proper: no public API; the jannyai mirror is the scrape-token + corsproxy pattern legacy REJECTED and the `no-raw-egress` gate bans. Datacat IS the janitor mirror that works. NOT WIRED — recorded here + README. | legacy `02-domain-and-adapters.md` §4 |
 | `net.fetch` honors POST + a string→string header map (Origin/Referer/X-Session-Token all pass); `fetchAsset` is HEADER-LESS by design — every wired art host was probed bare-GET. | `membrane.ts:1612-1630,1637` + probes |
 | `ui.register` collects into LIVE sandbox state (`state.surfaces.push`; `listSurfaces` reads `resident.instance.surfaces` per call) — a registration from a floated continuation lands; the seed-int test's listSurfaces/getSurfaceState-right-after-enable pins prove the pump drains it in CI. | `sandbox.ts:267-279,341` · `verbs/list-surfaces.ts:52` · int test :786-815 |
-| netHosts arithmetic: 10 + botbooru.com + server.pygmalion.chat + assets.pygmalion.chat + datacat.run + media.datacat.run + ella.janitorai.com = **16 = NET_HOSTS_MAX exactly** — no cap bump needed. | `manifest.ts:164` |
+| netHosts arithmetic: 10 + botbooru.com + server.pygmalion.chat + assets.pygmalion.chat + datacat.run + media.datacat.run + ella.janitorai.com = **16 = NET\_HOSTS\_MAX exactly** — no cap bump needed. | `manifest.ts:164` |
 
 Memory lessons consulted: `guest-job-pump-outside-the-interrupt-handler`, `check-main-for-the-original-consumer`
 (the marinara + legacy-adapter reads), `empty-states-are-load-bearing`, `isolated-snap-stage-boots-empty-db`,
@@ -437,14 +437,14 @@ filters, PNG-first import via `/download/png`, cover = the card PNG); pygmalion 
 `net.fetch`'s POST arm, JSON fold from `personality`, no tag filters, no PNG); datacat (module-held +
 kv-cached session token, one re-mint on 401/403, `search`+`sortBy=chat_count`, cover =
 `avatarVariantUrls.thumb`, hero = `.card`, JSON fold from detail `chara_card_v2_json` →
-personality/scenario/first_message → honest "this mirror only recovered the profile" error on
+personality/scenario/first\_message → honest "this mirror only recovered the profile" error on
 DEGRADED rows; the Turnstile-walled download route is not touched). JanitorAI proper: refused with
 the receipt above. Manifest: 1.3.0, +6 hosts (= 16, at cap), capabilities unchanged — widened reach ⇒
 re-consent, by design.
 
 ### 8c Rejected alternatives
 
-1. **A static superset Sort select** (all ~10 keys, unsupported ones folding) — shows modes a hub
+1. **A static superset Sort select** (all \~10 keys, unsupported ones folding) — shows modes a hub
    cannot answer; the owner asked for per-hub real vocabulary. Rejected for `optionsFrom`.
 2. **A fixed detail keyValue with "—" padding** — half-empty rows on sparse hubs is the exact
    "info in the right places" failure. Rejected for `rowsFrom`.
@@ -462,7 +462,7 @@ re-consent, by design.
 8. **BotBooru topRated/trending** (the legacy curated arms) — refuted live in five spellings. Not wired.
 9. **JanitorAI via jannyai scrape-mirror** — the corsproxy/scraped-token pattern is gate-banned
    (`no-raw-egress`); datacat delivers the same catalog through a real API. Refused.
-10. **A NET_HOSTS_MAX bump** — the roster lands at exactly 16; a speculative widening buys nothing.
+10. **A NET\_HOSTS\_MAX bump** — the roster lands at exactly 16; a speculative widening buys nothing.
 
 ### 8d Coupled sites (v1.3 fan-out)
 
@@ -497,7 +497,7 @@ through the same schema + leaves), `ui.test-d.ts` (no new kind), footer-allowed 
 - **Live drive** (the wire arms are live-only): pack 1.3.0 → `snap --isolated --ref <sha>` → the real
   upgrade verb → re-consent naming the six new hosts → enable → per hub: grid + a NON-DEFAULT sort
   receipt (top tile's stat ≥ the next) + the SFW toggle both states (a flagged hub's set shrinking) +
-  a detail with the full stat rows → renders desktop + ~390px for the owner.
+  a detail with the full stat rows → renders desktop + \~390px for the owner.
 
 ### 8f Live-drive record (2026-08-29 — what landed, what a HOST defect blocks, three defects found)
 
@@ -518,13 +518,21 @@ toggle ON (`· SFW only.` status, live-toggle-fired search), the detail stage (h
 sheet: Downloads/Likes/Messages/Tokens/Content — the v1.3 mined rows), the empty page, and the full
 desktop/mobile × light/dark matrix (the 3-control row wraps cleanly at mobile width).
 
+> **TRUTH REPAIR (2026-08-30, #805 closed by `plugin-host-float-visibility.md`):** the "host defect" below
+> was NOT a host defect. The five parked hubs were the five whose row builders fed an ISO date string to
+> `epochMs`, which called `Date.parse` — a throwing stub in the sandbox realm (D46). The float's `.catch`
+> logged the refusal and `runToSettlement`'s `log.reset()` (defect 2 below) destroyed the line before
+> `plugin.getLog` could show it. The host resumes a 195 KB float on the unmodified tree; the offline harness
+> "proved the adapters correct" because its stub realm had a live `Date`. The paragraph is kept as the
+> live-drive record it was; read it as the symptom, not the mechanism.
+
 **THE HOST DEFECT (filed for its own lane — plugin-host, P2):** on the live stage, a hub search whose
-response body is LARGE (wyvern ~202 KB; chub@30-with-definitions; aicc@30-with-descriptions) PARKS
+response body is LARGE (wyvern \~202 KB; chub\@30-with-definitions; aicc\@30-with-descriptions) PARKS
 FOREVER after the fetch: the host side completes wholly (instrumented stage receipts: impl enter →
 status 200 → body decoded → race resolved `alive=true` → `deferred` resolved → post-settle pump ran
 4 jobs, `failed=false`, `hasPendingJob()=false` after) yet the guest continuation never resumes —
 no throw, no `.catch`, no crash strike, no log. Small-bodied hubs (tavern 11 KB, realm 51 KB,
-pygmalion ~12 KB) complete on the same resident. The 1.3.1 `mapLimit` commit closed the SEPARATE
+pygmalion \~12 KB) complete on the same resident. The 1.3.1 `mapLimit` commit closed the SEPARATE
 `>32 concurrent host calls` kill (its own live receipt) but not this. Suspects recorded for the
 follow-up: the shared-runtime interrupt handler vs per-context CPU windows (`installCpuGuard` is
 per-context on ONE shared QuickJS runtime), and `executePendingJobs`' early-yield semantics. Probe
@@ -560,7 +568,7 @@ scrape+corsproxy pattern; datacat IS the janitor catalog through a real API).
   comma-joined `aria-label` ("World RP, rickrocka · 7.4k↓") — content-derived naming ran title and
   subtitle together. Pinned at the primitive CT.
 - **The 5 MiB asset byte cap** (`PLUGIN_ASSET_MAX_BYTES`, side-eye P3): RisuRealm serves full-size
-  ~2.6 MB covers with NO resize variant (`?width=` ignored, probed; its own site ships the same bare
+  \~2.6 MB covers with NO resize variant (`?width=` ignored, probed; its own site ships the same bare
   URLs), so the 1 MiB guard was rejecting most realm art. The cap is the belt split's size sibling:
   fetchAsset bytes never enter the guest, so the marshalling result cap that prices
   `PLUGIN_NET_MAX_BYTES` does not apply; the image guard's dimension/pixel caps still hold the bomb

@@ -142,19 +142,24 @@ export const HOST_FN_ARGS_MAX_BYTES = 1_048_576;
 export const PLUGIN_DUMP_DEPTH_GUARD = 64;
 export const PLUGIN_DUMP_NODE_GUARD = 65_536;
 
-/** `host.log` volume per invocation, ring-buffered per plugin (256 lines / 16 KiB). The byte budget is a HARD
- *  bound on the drained volume, including for a single line: `LogRing.push` CLAMPS an oversized message to what
- *  is left of the budget, because those drained lines are now RETAINED (see the runtime ring below) and a
+/** `host.log` volume per DRAIN INTERVAL — an invocation, or the stretch between two pickups when a floated
+ *  continuation logs between invocations — ring-buffered per plugin (256 lines / 16 KiB). The byte budget is a
+ *  HARD bound on the drained volume, including for a single line: `LogRing.push` CLAMPS an oversized message
+ *  to what is left of the budget, because those drained lines are RETAINED (see the runtime ring below) and a
  *  32 MiB single line would be an unbounded per-instance allocation. Accounting is in UTF-16 code units (a JS
- *  string's own unit, and ≥ 1 UTF-8 byte each) — the bound is on host memory, not on wire bytes. */
+ *  string's own unit, and ≥ 1 UTF-8 byte each) — the bound is on host memory, not on wire bytes. The names
+ *  keep their `_PER_INVOCATION` spelling: an invocation is still the common interval, and every consumer of the
+ *  numbers is the same. */
 export const LOG_LINES_PER_INVOCATION = 256;
 export const LOG_BYTES_PER_INVOCATION = 16_384;
 
-/** The RUNTIME log ring retained per RESIDENT instance — what `getPluginLog` reads. `LogRing` above is
- *  PER-INVOCATION (it resets every run); this is the rolling record across invocations, so a host can answer
- *  "what did this plugin just do?" instead of only "what did it print while starting up". Bounded on BOTH axes
- *  and evicted OLDEST-FIRST: an invocation may drain up to 256 lines, so a line bound alone would let one
- *  chatty run erase everything before it, and a char bound alone would let 16 KiB single-liners sit forever.
+/** The RUNTIME log ring retained per RESIDENT instance — what `getPluginLog` reads. `LogRing` above is the
+ *  per-drain staging ring (emptied by every drain — an invocation's, or the port's residue pickup of what a
+ *  floated continuation logged since, #806); this is the rolling record across all of them, so a host can
+ *  answer "what did this plugin just do?" instead of only "what did it print while starting up". Bounded on
+ *  BOTH axes and evicted OLDEST-FIRST: one drain may hand over up to 256 lines, so a line bound alone would
+ *  let one chatty run erase everything before it, and a char bound alone would let 16 KiB single-liners sit
+ *  forever.
  *
  *  DURABILITY POSTURE, stated so it is not mistaken for more (the notifyFloor / resident-registry precedent):
  *  the ring is IN-MEMORY and per resident instance, `ASSUMES(single-replica)`. A restart resets it, and so does
