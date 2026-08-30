@@ -34,7 +34,7 @@
 // group, a muted LABEL names each datum, the value is a mono/tabular DATUM, and the quiet second line is a
 // GLOSS.
 
-import { AUTHORED_CARD_CREATOR } from "@orb/contracts/character";
+import type { CharacterProvenance } from "@orb/contracts/character";
 import type { CharacterId } from "@orb/kit/ids";
 import { Row, Stack } from "@orb/ui/layout";
 import { Separator } from "@orb/ui/separator";
@@ -86,7 +86,8 @@ export function CharacterOverviewCard({ characterId }: CharacterOverviewCardProp
         {/* A kicker names a SECTION, never a datum (§2.3) — the character's own name is the footer's job. */}
         <Kicker>Origin</Kicker>
         <OverviewRow label="Added" value={timeLib.formatRelative(data.createdAt)} mono={false} />
-        <OverviewRow label="Source" value={sourceLabel(data)} mono={data.importedFrom !== null} />
+        {/* A URL reads as a measurement (mono); the two phrases read as prose — `OverviewRow`'s own rule. */}
+        <OverviewRow label="Source" value={sourceLabel(data)} mono={data.provenance === "imported"} />
         {data.refinery === null || data.refinery.score === null ? null : (
           <OverviewRow label="Card quality" value={data.refinery.score.toFixed(REFINERY_SCORE_DECIMALS)} mono={true} />
         )}
@@ -131,6 +132,10 @@ export function CharacterOverviewCard({ characterId }: CharacterOverviewCardProp
 const SHIPPED_SOURCE = "Example — shipped with Orbweaver";
 /** …and what a card the owner really did author here says. */
 const AUTHORED_SOURCE = "Made here";
+/** The `imported` arm's word when the URL is absent. `characterProvenanceOf` derives `imported` FROM a
+ *  non-null `importedFrom`, so the two are correlated — but that correlation lives in the derivation, not in
+ *  the type, so the arm still owes a string. */
+const IMPORTED_SOURCE = "Imported";
 
 /**
  * WHERE THIS CARD CAME FROM — the import URL if it was imported, `Example — shipped with Orbweaver` if it is
@@ -139,14 +144,30 @@ const AUTHORED_SOURCE = "Made here";
  * THE THIRD ARM IS THE FIX (side-eye 2026-08-30 rail-characters P3, #843). The row was
  * `importedFrom ?? "Made here"`, a two-arm claim on a three-arm fact — so on a FRESH INSTALL every one of
  * the ten shipped example characters told the user they had made it, on the one card whose entire job is
- * provenance, in the state every new user sees first. The seeded pack stamps `AUTHORED_CARD_CREATOR` on
- * `creator` and this reads it back; see that constant for the heuristic's honest limit.
+ * provenance, in the state every new user sees first.
+ *
+ * THAT RULING SURVIVES; ITS INPUT CHANGED (#865). The three arms are unchanged — what moved is WHO DECIDES
+ * which one applies. This function used to re-derive the verdict here from `creator` + `importedFrom`; the
+ * server now derives it ONCE (`characterProvenanceOf`, contracts) and projects `provenance` onto BOTH read
+ * models, because the library LIST row needed the same verdict and carried neither raw column. So this is a
+ * DISPATCH now, exhaustive over the closed union: a fourth provenance fails `tsc` here rather than falling
+ * out as a wrong label. The `imported` arm still prints the URL — that string is the answer when we have it.
  */
-function sourceLabel({ importedFrom, creator }: { readonly importedFrom: string | null; readonly creator: string | null }): string {
-  if (importedFrom !== null) {
-    return importedFrom;
+function sourceLabel({ provenance, importedFrom }: { readonly provenance: CharacterProvenance; readonly importedFrom: string | null }): string {
+  switch (provenance) {
+    case "imported":
+      return importedFrom ?? IMPORTED_SOURCE;
+    case "shipped":
+      return SHIPPED_SOURCE;
+    case "authored":
+      return AUTHORED_SOURCE;
+    default:
+      return assertNeverProvenance(provenance);
   }
-  return creator === AUTHORED_CARD_CREATOR ? SHIPPED_SOURCE : AUTHORED_SOURCE;
+}
+
+function assertNeverProvenance(provenance: never): never {
+  throw new Error(`unhandled character provenance: ${String(provenance)}`);
 }
 
 /** `rpg · noir · +3 more` — names the entries a glance can hold, counts the tail. */
