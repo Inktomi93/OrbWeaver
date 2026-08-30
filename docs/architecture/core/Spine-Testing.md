@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-08-28
+updated: 2026-08-30
 ---
 
 # Orbweaver — Spine: Testing (one centralized tree, suffix-selected lanes, Playwright for browser)
@@ -93,6 +93,7 @@ tests/
 | every `persistence/*.ts` | a `.int.test.ts` against `freshDb` (queries are only "correct" against a real db) |
 | **every OTHER `domain/**` file with runtime logic** — `substrate/`, a named subsystem (`engine/`, `assembly/`, `memory/`, `themes/`…), `guard.ts`, a sanctioned feature-root singleton, a `contract/` file carrying real logic | a `.test.ts` or `.int.test.ts` |
 | infra/foundation files with runtime logic | a `.test.ts` or `.int.test.ts` (security belts, adapters, dispatchers) |
+| **every `entry/**` + `transport/**` file with runtime logic** — a boot step, a composition seam, an HTTP registrar, a job driver, a bus, a ladder primitive | a `.test.ts` or `.int.test.ts` |
 
 The domain arm is DEMAND-BY-DEFAULT (#767, 2026-08-28): it was an enumerated slot list, the template outgrew
 it, and 127 files with runtime logic — 54 in `substrate/`, the second-largest slot in the tree — sat outside
@@ -101,10 +102,23 @@ grows is demanded the day it appears. The residual population that widening expo
 ratchet (`tooling/src/verify/gates/test-presence.baseline.json`, enumerable with `pnpm debt`); it is another
 lane's named burn-down, never a permanent pass.
 
+The `entry/` + `transport/` TIER arm (#773, 2026-08-30) is the same widening applied to the two tiers the old
+demand never reached: 94 of their files carry runtime logic, 65 were already tested and merely undemanded, and
+the residual included the opaque frame-handle store — a SECURITY primitive whose owner check is the whole
+no-existence-leak property — with no test at all. Its exemption is derived from what the tier law says these
+tiers may contain (`core/Tier-5-Entry.md` invariant 1: "`entry/` owns no business logic — only wiring/boot/
+HTTP-edge"; `core/Tier-4-Transport.md`: a router is "validate → call the verb → map the error, zero business
+logic"), so WIRING is exempt and behavior is not.
+
 Exempt by nature — all detected on SHAPE, never a path list, so a file that grows logic loses the exemption:
 `index.ts` barrels, the zero-logic `service.ts` composition root and `context.ts` DI bundle at a feature root,
 a `contract/` file declaring only error classes (and a pure-type one, which carries no runtime logic at all),
-and a D58 no-op stub runner. Browser lanes are not presence-gated.
+and a D58 no-op stub runner. In the tiers, additionally: a `.d.ts` declaration file (no runtime to assert), a
+tRPC router shell (a `router({…})` binding is no callable export, so it is exempt for free), and a
+PASS-THROUGH wiring file — every exported callable's body reducing to ONE expression that is a delegating
+call, a DI-bundle object literal over its own parameters, or a factory returning one of those. A second
+statement, a branch (including a ternary), or a computed argument is behavior and stays demanded. Browser
+lanes are not presence-gated.
 
 **`test-presence` checks EXISTENCE, not coverage:** it confirms a store's mirror `.ct.tsx` EXISTS — NOT
 that new actions are ASSERTED. Adding an action to an existing store passes presence WITHOUT covering it.
