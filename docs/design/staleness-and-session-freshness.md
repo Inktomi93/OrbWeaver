@@ -11,7 +11,7 @@ updated: 2026-08-22
 > localStorage + cache + cookies and reload before the character list rendered correctly) plus the AUTH
 > row ("stale login is silently tolerated — instead of refreshing the token/cookie it just lets you
 > continue") treated as ONE problem, designed for **multi-tab · multi-device · per-user · multi-human**.
-> Companion condensed defect list: `docs/reviews/stickler/2026-08-14-staleness-diagnosis.md`.
+> Companion condensed defect list: `docs/history/reviews/stickler/2026-08-14-staleness-diagnosis.md`.
 >
 > **Prior-law check (charge-mandated, done before designing):** `Core-0` partitioning table + the
 > D-ledger carry NO ruling on client session freshness or durable-local referential integrity — this is

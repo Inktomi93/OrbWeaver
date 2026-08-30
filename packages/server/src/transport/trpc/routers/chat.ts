@@ -6,7 +6,7 @@
 // attach syntheses — moved verbatim to `transport/trpc/stream/sources/chat.ts` (read its header for the
 // stream law). This router keeps exactly ONE subscription: `impersonateStream`, which is permanently exempt
 // from the fold (request-scoped, user-gesture-initiated, at most one at a time — its abort semantics ARE the
-// socket teardown; docs/design/sse-multiplex-spec.md §14 decision 2, enforced by the
+// socket teardown; docs/history/design/sse-multiplex-spec.md §14 decision 2, enforced by the
 // `single-stream-transport` gate).
 
 import { ASSET_LIST_LIMIT_MAX, assetIdSchema } from "@orb/contracts/assets";

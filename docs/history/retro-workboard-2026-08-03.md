@@ -1991,7 +1991,7 @@ suspect: bulk-imported demo chats never set the field resolveRoomTheme keys on) 
   snap mastery + record **+ 08-03: publish-retractions law + clean-scan-is-floor-not-verdict**;
   SendMessage granted to all executors.
   DONE-MERGED late-morning: AV2 avatar redo (`b1d9c098` — reference-school art, spider-isekai
-  Charlotte, $2.24, sheet in docs/reviews/misc/2026-08-03-avatar-pack-v2-contact-sheet.png).
+  Charlotte, $2.24, sheet in docs/history/reviews/misc/2026-08-03-avatar-pack-v2-contact-sheet.png).
   LIVE: FX · MIG (general 3-handle arm + name-counts-as-edit ruled) · PV (C1 + Traveler approved).
   **═══ OVERNIGHT RUN-STATE v2 (\~01:30) — ALL BUILD LANES DRAINED @ `f3c0ef20` ═══**
   MERGED TONIGHT (every one hook/gate-certified): preset wave A-F · focus-flag D · R4 · zod A-D +

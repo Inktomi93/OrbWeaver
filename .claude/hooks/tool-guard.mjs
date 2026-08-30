@@ -25,7 +25,7 @@
 // │   .trim().split('\n').map(JSON.parse); console.log(r.filter(x=>x.agent&&x.agent!=='main').slice(-10))"│
 // └──────────────────────────────────────────────────────────────────────────────────────────────┘
 //
-// WHY THIS EXISTS (measured, not guessed — docs/reviews/misc/2026-08-03-tool-use-antipattern-census.md,
+// WHY THIS EXISTS (measured, not guessed — docs/history/reviews/misc/2026-08-03-tool-use-antipattern-census.md,
 // mined from 3,138 transcripts / 133,631 Bash calls; 85.7% of them from subagents):
 //   · 87.3% of harness invocations (5,319/6,096) were piped into a swallower. `pnpm check` piped runs a
 //     median 64.1s vs 2.3s unpiped (28×); `pnpm verify`/`pnpm test` piped cluster at the ~120s Bash-tool
@@ -70,7 +70,7 @@
 //     string sitting in an argv can never be mistaken for a command. Until 2026-08-14 this was an
 //     unanchored MENTION of those filenames, tested BEFORE blanking and BEFORE the hard floor, so
 //     `git stash # tool-guard.mjs` emitted an explicit `allow` and every rule below was skipped
-//     (docs/reviews/repository-audit-2026-08-13/SECURITY-VALIDATION.md §AGENT-TOOLING-01, R5).
+//     (docs/history/reviews/repository-audit-2026-08-13/SECURITY-VALIDATION.md §AGENT-TOOLING-01, R5).
 //   · SCRIPT BODIES ARE CLASSIFIED — the same defect class as AGENT-TOOLING-01: visibility, not rule
 //     weakness. Lanes legitimately wrap work in a scratchpad `.sh` (logging + the 120s Bash ceiling), and
 //     `bash /tmp/…/lane-run.sh` used to pass as ONE opaque line — every rule below judged the wrapper, not

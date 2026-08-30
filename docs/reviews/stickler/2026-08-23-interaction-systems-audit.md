@@ -7,7 +7,7 @@ updated: 2026-08-23
 # Interaction plan × existing systems — the underuse audit (Q1) and the split & capability model (Q2)
 
 > **Provenance.** Owner-commissioned follow-up to the governing plan
-> (`docs/reviews/stickler/2026-08-23-interaction-redesign-plan.md`, forks F1–F5 pending). Authored
+> (`docs/history/reviews/stickler/2026-08-23-interaction-redesign-plan.md`, forks F1–F5 pending). Authored
 > by **claude-b**; every load-bearing claim symbol-verified this session (receipts inline; negatives
 > double-checked by literal grep). One stickler verification round run per the commission: 5
 > confirmed findings (1 verdict-level: the refinery TRAP's authority premise refuted — roster cards

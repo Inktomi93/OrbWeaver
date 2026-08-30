@@ -1,7 +1,7 @@
 ---
 kind: index
 status: active
-updated: 2026-08-14
+updated: 2026-08-30
 ---
 
 # docs/history — landed program records (reference only, never live law)
@@ -23,6 +23,12 @@ provenance, never executable backlog. Current mutable state belongs only to Proj
 **Never moves:** `docs/retro-workboard.md` (the recovery index) · `docs/Mission.md` ·
 `docs/architecture/core/**` and `docs/architecture/proposed/**` · any spec with an open ladder ·
 a live spec's mocks (mocks follow their spec).
+
+**Layout:** archived designs land in `design/`; archived reviews land in `reviews/<kind>/`, mirroring
+`docs/reviews/<kind>/`. `reviews/repository-audit-2026-08-13/` is the frozen truth snapshot of that dated
+campaign — its `assignment.txt`/`read-receipt.tsv`/`MANIFEST*.json` record the 2026-08-13 tree and are
+NEVER path-repointed. It keeps its own catalog lane (`repository-audits`, issue 6) rather than joining the
+`history` lane, which is why `lanes.json` carries the matching `excludePatterns`.
 
 Sibling archive: `docs/architecture/history/` holds the pre-retro architecture archaeology
 (the constitution's §7 "resolved archeology" row points there). This directory holds the same class

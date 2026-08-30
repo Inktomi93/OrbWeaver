@@ -63,7 +63,7 @@ upstream (owner posture).
 
 RITUAL DELTA (2026-08-21 evening, ~98% context): Stickler CLEARED Codex's final merge `837e73853`
 (verdict: sanctioned shape; 3 LOW findings → #405; report
-`docs/reviews/stickler/2026-08-21-codex-final-merge.md`, receipted). Owner decision batch RULED via
+`docs/history/reviews/stickler/2026-08-21-codex-final-merge.md`, receipted). Owner decision batch RULED via
 question tool, all four on recommended arms and closed Done: #397 gate the speak-as picker
 (executable half filed as #406, Ready, P2/Client), #399 keep luxon forever (`{{datetimeformat}}`
 grammar permanent), #401 ratify derive-not-refuse as standing parser policy, #402 accept sweep scope

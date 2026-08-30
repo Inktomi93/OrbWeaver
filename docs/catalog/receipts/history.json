@@ -688,7 +688,7 @@
       "verifiedAt": "2026-08-22",
       "evidence": [
         "docs/reviews/misc/2026-08-19-lan-auth-unification.md:1-260 read in full (line 1 to END), then every present-tense claim re-derived against the current tree rather than accepted from the prose",
-        "SUPERSEDED BY THE IMPLEMENTATION, not by another document: commits 46a262793, 4a828a534, d6886c5ec and 621ac2218 (all ancestors of HEAD) shipped the doc's own recommended arm (f2) \u2014 packages/server/src/infra/auth/dispatch.ts now gates the un-credentialed owner fallback on the raw loopback TCP peer, and isLocalOrigin/TRUSTED_LOCAL_HOSTS no longer exist anywhere in packages/server/src",
+        "SUPERSEDED BY THE IMPLEMENTATION, not by another document: commits 46a262793, 4a828a534, d6886c5ec and 621ac2218 (all ancestors of HEAD) shipped the doc's own recommended arm (f2) — packages/server/src/infra/auth/dispatch.ts now gates the un-credentialed owner fallback on the raw loopback TCP peer, and isLocalOrigin/TRUSTED_LOCAL_HOSTS no longer exist anywhere in packages/server/src",
         "Truth-repaired at f4733a44b BEFORE archiving (a stale security doc reads as live truth): a STATUS block naming what shipped, plus PRE-FIX markers on the three superseded sections (the bypass mechanism, the CSRF corollary, the TODAY matrix)",
         "Re-verified STILL TRUE and named as such in the repair: the OIDC-on-LAN blockers (the redirect-URI proto defaults to https in entry/http/auth-routes.ts; the session cookie is __Host- + Secure), so the analysis half of the document remains usable",
         "GitHub issues #298 and #300 both CLOSED (checked 2026-08-22); the standing rule now lives in docs/architecture/core/Spine-Identity-and-Auth.md invariant #9 and the dispatch.ts file header, which is where a reader is sent"
@@ -813,8 +813,8 @@
         "docs/reviews/security/2026-08-19-lan-auth-impl-review.md:1-284 read in full (line 1 to END); each of its three findings and its eight SOUND verdicts re-derived against the current tree",
         "P1 CLOSED: d6886c5ec (ancestor of HEAD) changed packages/server/src/entry/http/import.ts to gate the /api/import/bundle CSRF check on via !== \"header\", with a red-first via:\"fallback\" regression case in tests/server/entry/http/portability-routes.suite.int.test.ts",
         "P2 doc CLOSED: the same commit added the STOP/BYPASS-the-front-proxy instruction to the break-glass docblock in packages/server/src/entry/auth/seam.ts and to the Break-glass section of docs/design/containerize-prod-image-spec.md",
-        "P2 hardening RULED, not built: the owner ruled on 2026-08-19 to keep NODE_ENV as the boot-guard discriminator and add no PUBLIC_DEPLOYMENT flag, accepting the hand-rolled-launch residual as documented risk \u2014 the ruling and its two rejected alternatives are the WHY block above the guard in packages/server/src/foundation/env/index.ts",
-        "ONE VERDICT IN THE DOCUMENT WAS WRONG and is corrected in place at f4733a44b: its \"tRPC JSON forces preflight \u2014 SOUND\" section cleared a real hole. @trpc/server 11.18's getContentTypeHandler also accepts multipart/form-data (CORS-simple) and dispatches it as a mutation, so a cross-site form drove an input-less loopback-owner mutation; closed by 621ac2218's content-type belt in packages/server/src/entry/app.ts and pinned by the content-type-belt describe in tests/server/entry/app.test.ts",
+        "P2 hardening RULED, not built: the owner ruled on 2026-08-19 to keep NODE_ENV as the boot-guard discriminator and add no PUBLIC_DEPLOYMENT flag, accepting the hand-rolled-launch residual as documented risk — the ruling and its two rejected alternatives are the WHY block above the guard in packages/server/src/foundation/env/index.ts",
+        "ONE VERDICT IN THE DOCUMENT WAS WRONG and is corrected in place at f4733a44b: its \"tRPC JSON forces preflight — SOUND\" section cleared a real hole. @trpc/server 11.18's getContentTypeHandler also accepts multipart/form-data (CORS-simple) and dispatches it as a mutation, so a cross-site form drove an input-less loopback-owner mutation; closed by 621ac2218's content-type belt in packages/server/src/entry/app.ts and pinned by the content-type-belt describe in tests/server/entry/app.test.ts",
         "GitHub issues #298 and #300 both CLOSED (checked 2026-08-22); the standing rule is docs/architecture/core/Spine-Identity-and-Auth.md invariant #9, which already carries the corrected tRPC reasoning"
       ],
       "summary": "Historical security-review evidence: all three findings closed (two fixed, one owner-ruled) and one of its own verdicts since REFUTED and corrected in the document before archiving; no mutable work state is duplicated in this archive receipt."
@@ -965,7 +965,7 @@
       "verifiedAt": "2026-08-21",
       "evidence": [
         "full read 1-181 at recovery (2026-08-21); recovered untracked at the Codex decommission, #400",
-        "verdict + receipts are Codex's, captured on its 611754905 stage \u2014 receipt paths under reports/snaps/final-611-* are gitignored artifacts, not re-verified here",
+        "verdict + receipts are Codex's, captured on its 611754905 stage — receipt paths under reports/snaps/final-611-* are gitignored artifacts, not re-verified here",
         "#363 confirmed live on the board at recovery"
       ],
       "summary": "Codex's final integrated-shell side-eye graduation: seven non-chat surfaces SHIP visually on final ref 611754905; HOLD on #363 (advertised Cmd/Ctrl+K wired to nothing at app-shell.tsx:98-139); Chats withheld pending #206."
@@ -1479,6 +1479,1335 @@
         "git:3a3ffccba8013268f3ee5a9153f1dac4c6540b70 contains the exact review blob; reviewed commits are integrated as 4a6c54cdf and 6cdeb23df"
       ],
       "summary": "Completed point-in-time merge-train review: PanelChrome deferral and amended tooling instruments were mergeable with zero confirmed findings; exact integrated behavioral and static receipts are recorded in the report."
+    },
+    {
+      "path": "docs/history/reviews/misc/2026-08-03-archive-rescue-audit.md",
+      "assignedSha256": "926e1b5d15ef1624b77688cd9226b65ec369dec72609b9cbe6f409afe973ae5c",
+      "disposition": "needs-owner",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "926e1b5d15ef1624b77688cd9226b65ec369dec72609b9cbe6f409afe973ae5c",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/reviews/misc/2026-08-03-archive-rescue-audit.md:1-388 full read against frozen foundation",
+        "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
+      ],
+      "summary": "Current review evidence; named remaining findings or an owner decision require GitHub work.",
+      "claims": [
+        {
+          "claim": "The cited implementation context remains present; mutable follow-up is tracked in GitHub issue #3.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/client/src/state/shell-store.ts:79"
+            },
+            {
+              "kind": "issue",
+              "target": "#3"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/history/reviews/misc/2026-08-08-task-7-12-gap-rederivation.md",
+      "assignedSha256": "e67c7a008e63dce630d5be05d8788db9896df2b7715c0e02cba1bc16673d88ad",
+      "disposition": "needs-owner",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "e67c7a008e63dce630d5be05d8788db9896df2b7715c0e02cba1bc16673d88ad",
+      "verifiedCommit": "260e9d660d3f4b254e1d7183b4f6e3a531469c87",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/reviews/misc/2026-08-08-task-7-12-gap-rederivation.md:1-347 full read; active review metadata verified",
+        "packages/server/src/domain/chat/verbs/turn.ts:848 and GitHub issue #7 (OPEN) checked on 2026-08-14"
+      ],
+      "summary": "Current review evidence; named remaining findings or an owner decision require GitHub work.",
+      "claims": [
+        {
+          "claim": "The cited implementation context remains present; mutable follow-up is tracked in GitHub issue #7.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/chat/verbs/turn.ts:848"
+            },
+            {
+              "kind": "issue",
+              "target": "#7"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/history/reviews/misc/2026-08-09-package-report-cards-worklist.md",
+      "assignedSha256": "6641f7351d162c33b96e570894397c0f14593b5fb2eae07c5c77bd675a61cdc8",
+      "disposition": "needs-owner",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "6641f7351d162c33b96e570894397c0f14593b5fb2eae07c5c77bd675a61cdc8",
+      "verifiedCommit": "260e9d660d3f4b254e1d7183b4f6e3a531469c87",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/reviews/misc/2026-08-09-package-report-cards-worklist.md:1-203 full read; active review metadata verified",
+        "packages/db/src/kit/check-list.ts:1 and GitHub issue #8 (OPEN) checked on 2026-08-14"
+      ],
+      "summary": "Current review evidence; named remaining findings or an owner decision require GitHub work.",
+      "claims": [
+        {
+          "claim": "The cited implementation context remains present; mutable follow-up is tracked in GitHub issue #8.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/db/src/kit/check-list.ts:1"
+            },
+            {
+              "kind": "issue",
+              "target": "#8"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/history/reviews/misc/2026-08-14-dogfood-class-sweep.md",
+      "assignedSha256": "d40d796598963a18a3acea8a67f945aeb93b360e830b897b92831f42e0ca1868",
+      "disposition": "needs-owner",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "d40d796598963a18a3acea8a67f945aeb93b360e830b897b92831f42e0ca1868",
+      "verifiedCommit": "260e9d660d3f4b254e1d7183b4f6e3a531469c87",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/reviews/misc/2026-08-14-dogfood-class-sweep.md:1-210 full read; active review metadata verified",
+        "packages/client/src/components/character-picker.tsx:1 and GitHub issue #45 (OPEN) checked on 2026-08-14"
+      ],
+      "summary": "Current review evidence; named remaining findings or an owner decision require GitHub work.",
+      "claims": [
+        {
+          "claim": "The cited implementation context remains present; mutable follow-up is tracked in GitHub issue #45.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/client/src/components/character-picker.tsx:1"
+            },
+            {
+              "kind": "issue",
+              "target": "#45"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/history/reviews/misc/2026-08-14-global-agents-proposed.md",
+      "assignedSha256": "1f8af45821055b8a07bb498f472454f1ae96102c44ba1fb4190c9ede43cce380",
+      "disposition": "needs-owner",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "1f8af45821055b8a07bb498f472454f1ae96102c44ba1fb4190c9ede43cce380",
+      "verifiedCommit": "260e9d660d3f4b254e1d7183b4f6e3a531469c87",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/reviews/misc/2026-08-14-global-agents-proposed.md:1-205 full read; active review metadata verified",
+        "GitHub issue #52 remains the recorded mutable-resolution route; GitHub API rate-limited during refresh"
+      ],
+      "summary": "Current review evidence; named remaining findings or an owner decision require GitHub work.",
+      "claims": [
+        {
+          "claim": "Mutable resolution for this artifact is tracked in GitHub issue #52.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#52"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/history/reviews/misc/2026-08-18-reading-surface-forensics.md",
+      "assignedSha256": "fb678897f2cce5de18ca0f58379a066bc40f49a05e246cff0a1b68e89025d6c2",
+      "disposition": "needs-owner",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "fb678897f2cce5de18ca0f58379a066bc40f49a05e246cff0a1b68e89025d6c2",
+      "verifiedCommit": "04c131f6a191b1a0269551f7dd6eddefb7f15702",
+      "verifiedAt": "2026-08-18",
+      "evidence": [
+        "docs/reviews/misc/2026-08-18-reading-surface-forensics.md authored+full-read this session (lane reading-surface, #204 — the theme x wallpaper x skin x ink forensic map; the forge design's spec)",
+        "git log --oneline -1 -- docs/reviews/misc/2026-08-18-reading-surface-forensics.md: 0a0ee82f6"
+      ],
+      "summary": "Forensic map for the transcript reading-surface system defect: the scrim/ink divorce, the two-polarity paragraph split, the guillotine, the phantom-band mechanism, the pass-through ink law hole; F1-F3 + section 7a recommended; feeds the forge design lane.",
+      "claims": [
+        {
+          "claim": "Mutable follow-up tracked in GitHub issue #204 (the fix design+build).",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#204"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/history/reviews/misc/2026-08-19-lens-triage-210.md",
+      "assignedSha256": "31daba600cc8356ab862a3bd1903072330a2d60b87160e8081ad3ae7626f34b7",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "31daba600cc8356ab862a3bd1903072330a2d60b87160e8081ad3ae7626f34b7",
+      "verifiedCommit": "8dbe777cf7e805935d29121e8c7fd4bf6e22577b",
+      "verifiedAt": "2026-08-19",
+      "evidence": [
+        "docs/reviews/misc/2026-08-19-lens-triage-210.md:1 (authored this session — lane lens-triage #210; 70 hits classified with path:line receipts)",
+        "pnpm check:docs (2026-08-19: green)"
+      ],
+      "summary": "Contract-field-liveness lens triage: 57 live, 11 intentional-dormant, 2 defects (card serde import-fidelity), 0 dead; lens-improvement notes.",
+      "claims": [
+        {
+          "claim": "creator_notes_multilingual is promoted-then-never-folded: cardFromJson reads creator_notes only, so multilingual-only notes are destroyed on import.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/server/src/kit/serde/card/index.ts:216"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/kit/serde/card/index.ts:290"
+            }
+          ]
+        },
+        {
+          "claim": "use_regex is validated then discarded, and its justifying comment is false: world-info compiles keys with RegExp.escape (literal matching).",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/kit/src/world-info/index.ts:90"
+            }
+          ]
+        },
+        {
+          "claim": "The lens discards same-file readers via a whole-file path filter, producing 8 false \"only occurrence\" hits.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "tooling/src/ast/lib/fields.ts:146"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/history/reviews/misc/marinara-engine-parser-macro-audit.md",
+      "assignedSha256": "ae01577ab3d9fbf674c6ad20679dd2185a52f2488e6cdc430f832e11706cd912",
+      "disposition": "needs-owner",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "ae01577ab3d9fbf674c6ad20679dd2185a52f2488e6cdc430f832e11706cd912",
+      "verifiedCommit": "260e9d660d3f4b254e1d7183b4f6e3a531469c87",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/reviews/misc/marinara-engine-parser-macro-audit.md:1-279 full read; active review metadata verified",
+        "packages/kit/src/macro/engine.ts:1 and GitHub issue #28 (OPEN) checked on 2026-08-14"
+      ],
+      "summary": "Current review evidence; named remaining findings or an owner decision require GitHub work.",
+      "claims": [
+        {
+          "claim": "The cited implementation context remains present; mutable follow-up is tracked in GitHub issue #28.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/kit/src/macro/engine.ts:1"
+            },
+            {
+              "kind": "issue",
+              "target": "#28"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/history/reviews/misc/marinara-st-extension-lite-mode.md",
+      "assignedSha256": "74a9236c073f4d007a630d394b79f7672c7e2353cb3a54b5e92960579a9185a3",
+      "disposition": "needs-owner",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "74a9236c073f4d007a630d394b79f7672c7e2353cb3a54b5e92960579a9185a3",
+      "verifiedCommit": "260e9d660d3f4b254e1d7183b4f6e3a531469c87",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/reviews/misc/marinara-st-extension-lite-mode.md:1-401 full read; active review metadata verified",
+        "GitHub issue #40 (OPEN) checked on 2026-08-14"
+      ],
+      "summary": "Current review evidence; named remaining findings or an owner decision require GitHub work.",
+      "claims": [
+        {
+          "claim": "Mutable resolution for this artifact is tracked in GitHub issue #40.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#40"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/history/reviews/performance/2026-08-20-chat-transcript-render-191.md",
+      "assignedSha256": "9f566bd9552deddb16fb258709c420de2f7705436932b1a6cd800a97ecf3dd63",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "9f566bd9552deddb16fb258709c420de2f7705436932b1a6cd800a97ecf3dd63",
+      "verifiedCommit": "2d7039d0e38389dced23ee6e4aeba4f652cde73a",
+      "verifiedAt": "2026-08-20",
+      "evidence": [
+        "docs/reviews/performance/2026-08-20-chat-transcript-render-191.md:1-174 full read against exact reviewed ref 2895946d810415f85c5bb001d27af60d396660be",
+        "exact 11-commit development reproduction attributed to one mount, two parent executions, and eight descendant/virtualizer settles",
+        "longest real room measured at 222 messages with a bounded 3-8-row virtualized DOM window and clean warm production navigation",
+        "focused message-list component tests passed 44/44; GitHub issue #191 re-derived on 2026-08-20"
+      ],
+      "summary": "Exact-tree performance attribution accepts the transcript profiler count as designed instrumentation behavior; TanStack Virtual remains and production reopen thresholds are recorded.",
+      "claims": [
+        {
+          "claim": "The raw chat:transcript development commit count is not evidence of duplicate wire reads or full transcript rerenders, and representative production behavior remains bounded.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#191"
+            },
+            {
+              "kind": "code",
+              "target": "packages/client/src/features/chat/surfaces/message-list-surface.tsx:69"
+            },
+            {
+              "kind": "code",
+              "target": "packages/ui/src/primitives/message-list/message-list.tsx:181"
+            },
+            {
+              "kind": "test",
+              "target": "tests/ui/primitives/message-list/message-list.ct.tsx:59"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/history/reviews/security/2026-08-09-macro-engine-dos-audit.md",
+      "assignedSha256": "668f18f3cb2134adab01c9b410e93a0d515ba34bedc24553c2271c6140462948",
+      "disposition": "needs-owner",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "668f18f3cb2134adab01c9b410e93a0d515ba34bedc24553c2271c6140462948",
+      "verifiedCommit": "260e9d660d3f4b254e1d7183b4f6e3a531469c87",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/reviews/security/2026-08-09-macro-engine-dos-audit.md:1-188 full read; active review metadata verified",
+        "packages/kit/src/macro/engine.ts:90-98 and GitHub issue #28 (OPEN) checked on 2026-08-14"
+      ],
+      "summary": "Current review evidence; named remaining findings or an owner decision require GitHub work.",
+      "claims": [
+        {
+          "claim": "The cited implementation context remains present; mutable follow-up is tracked in GitHub issue #28.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/kit/src/macro/engine.ts:1"
+            },
+            {
+              "kind": "issue",
+              "target": "#28"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/history/reviews/security/2026-08-09-pre-auth-attack-surface.md",
+      "assignedSha256": "91e0f3766a14b85fc1bb4fc97ddd9bd9e68c7e5c2ca9f1105c6529a311d595b7",
+      "disposition": "needs-owner",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "91e0f3766a14b85fc1bb4fc97ddd9bd9e68c7e5c2ca9f1105c6529a311d595b7",
+      "verifiedCommit": "260e9d660d3f4b254e1d7183b4f6e3a531469c87",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/reviews/security/2026-08-09-pre-auth-attack-surface.md:1-360 full read; active review metadata verified",
+        "packages/client/vite.config.ts:260 and packages/server/src/entry/http/spa.ts:63-70 checked; GitHub issue #57 (OPEN) checked on 2026-08-14"
+      ],
+      "summary": "Current review evidence; named remaining findings or an owner decision require GitHub work.",
+      "claims": [
+        {
+          "claim": "The cited implementation context remains present; mutable follow-up is tracked in GitHub issue #57.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/client/vite.config.ts:255"
+            },
+            {
+              "kind": "issue",
+              "target": "#57"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/history/reviews/security/2026-08-24-d46-membrane-review.md",
+      "assignedSha256": "d808f5a0e60970c313b4245b657bbf9e5f559f0e26add76004f49006e526560f",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "d808f5a0e60970c313b4245b657bbf9e5f559f0e26add76004f49006e526560f",
+      "verifiedCommit": "0dfb6c0b4047d5ead5809e9cbe9e9785ff70056f",
+      "verifiedAt": "2026-08-24",
+      "evidence": [
+        "cb-d46-secreview (security-executor, 2026-08-24, commit d3e29080d→merged 0dfb6c0b4): full-read exposure review of the BUILT plugin server stack (infra/plugin-host + domain/plugin + contracts/plugin + automation plugin-subscribers). Verdict NOT READY, 5 enumerable blockers, no re-architecture.",
+        "isolation core verified load-bearing (not inherited): capability gate from one tsc-checked contract map; per-invocation CSPRNG opaque handles; inert marshalling; per-hop SSRF wall pinned to manifest allowlist (DNS-rebind closed); KV scoping in every WHERE; D16 delivery floor proven by breaking the belt (2 tests red, restored)",
+        "blockers: P1 never-settling guest promise hangs invocation forever (positive control: while(true) dies 5.018s, new Promise(()=>{}) never returns; member-reachable via runSnippet; bypasses 3-strike auto-disable); P1 plugin-tool PL-C ceiling uses caller roster (latent until turn-attach); P2 live performance.now() in guest realm (determinism law false, 3 no-ambient tests blind); P2 plugin lore raw-text macro-expands to durable setvar without grant; P2 notify lacks 60s floor"
+      ],
+      "summary": "cb-d46-secreview exposure review of the D46 plugin membrane: NOT READY, 5 enumerable blockers (2×P1 hang + PL-C roster, 3×P2 performance.now/lore-macro/notify-cooldown), isolation core sound and proven load-bearing; the #24 gate.",
+      "claims": [
+        {
+          "claim": "The built plugin membrane is NOT READY to expose: 5 enumerable blocking conditions, isolation core sound but the invocation-hang and PL-C-roster P1s are exploitable on exposure.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/server/src/infra/plugin-host/membrane.ts:445"
+            },
+            {
+              "kind": "issue",
+              "target": "#605"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/history/reviews/misc/server-usage-settlement-receipt-2026-08-20.md",
+      "assignedSha256": "d95547917058cca3d7b0ff5bf1bbb039a8d913e4a6d353e7e45221253359b114",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "d95547917058cca3d7b0ff5bf1bbb039a8d913e4a6d353e7e45221253359b114",
+      "verifiedCommit": "746d686e0d76efc1772edf3199243a559311d71c",
+      "verifiedAt": "2026-08-20",
+      "evidence": [
+        "docs/reviews/server-usage-settlement-receipt-2026-08-20.md:1-119 full read against repair commit 746d686e0d76efc1772edf3199243a559311d71c",
+        "git show --stat 746d686e0d76efc1772edf3199243a559311d71c",
+        "stacked catalog commit 768af7dc0b8a2f72d0c0acdf8f846ea89b80027b passed the complete static pre-commit verifier",
+        "scratch-real-corpus workload and live-source immutability receipts recorded in the reviewed document",
+        "GitHub issues #290 and #291 re-derived on 2026-08-20"
+      ],
+      "summary": "Current verification receipt for #290 and #291: real-corpus scratch counts, idempotency, measured-wins CAS, nullable provider usage, live/rebuild parity, portable-state validation, bounded behavioral tests, and final static gates.",
+      "claims": [
+        {
+          "claim": "The receipt verifies the delivered token-provenance and usage-cost settlement; mutable lifecycle remains tracked in issues #290 and #291.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/contracts/src/chat/messages.ts:22"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/import/verbs/backfill-token-usage.ts:1"
+            },
+            {
+              "kind": "issue",
+              "target": "#290"
+            },
+            {
+              "kind": "issue",
+              "target": "#291"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/history/reviews/side-eye/2026-08-20-overlay-dialog-final-reverify.md",
+      "assignedSha256": "ffff093d70ce5048956cee242956d85e80c31313a08a9351cb819f5a819c66db",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "ffff093d70ce5048956cee242956d85e80c31313a08a9351cb819f5a819c66db",
+      "verifiedCommit": "c28bb87b38b1509a4c4bf16459aef240cf42b0ea",
+      "verifiedAt": "2026-08-20",
+      "evidence": [
+        "docs/reviews/side-eye/2026-08-20-overlay-dialog-final-reverify.md:1-192 full read against exact reviewed ref 2895946d810415f85c5bb001d27af60d396660be",
+        "240/240 appearance cells passed across six surfaces and five presets",
+        "production Command controls recorded four clean 4x CPU opens with 2-8ms blocking and zero CLS/errors",
+        "GitHub issues #315 #359 #361 #363 #367 #368 and #369 re-derived on 2026-08-20"
+      ],
+      "summary": "Exact-tree side-eye graduation of the overlay/dialog class after Command focus and Retry repairs plus the Settings Effects measure fix; the separate audit-integrity defect is tracked in #370.",
+      "claims": [
+        {
+          "claim": "The overlay/dialog class graduates on the exact reviewed tree; all seven linked product findings pass their final rendered evidence matrix.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#315"
+            },
+            {
+              "kind": "issue",
+              "target": "#359"
+            },
+            {
+              "kind": "issue",
+              "target": "#361"
+            },
+            {
+              "kind": "issue",
+              "target": "#363"
+            },
+            {
+              "kind": "issue",
+              "target": "#367"
+            },
+            {
+              "kind": "issue",
+              "target": "#368"
+            },
+            {
+              "kind": "issue",
+              "target": "#369"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/history/reviews/side-eye/2026-08-22-colorization-evidence.md",
+      "assignedSha256": "29a1165da80b8736679ba7baad8695a332b85497094b71b83f98642a39597715",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "29a1165da80b8736679ba7baad8695a332b85497094b71b83f98642a39597715",
+      "verifiedCommit": "3762fc4a4260c28319cb6f944a7bc8e4d03483e1",
+      "verifiedAt": "2026-08-22",
+      "evidence": [
+        "full read 1-189 by the orchestrator (2026-08-22) before attestation",
+        "9 evidence pairs under reports/snaps/ce-* (gitignored); decode scripts reports/tmp-color-evidence/; no verdict offered by design — the owner rules"
+      ],
+      "summary": "Colorization-axis evidence for #431: the axis = two border tokens (alpha ×3.5, neutral→amber); chrome-only on every surface except the histogram/heatmap family (grid contrast +43% dark/+19% light; heatmap low-end IS the border token so ON collapses its hue ramp); no text contrast moves; design-audit blind to the axis; one independent defect found (charts don't repaint on toggle — #503).",
+      "claims": [
+        {
+          "claim": "The evidence is attached to the live decision row and the independent defect is tracked.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#431"
+            },
+            {
+              "kind": "issue",
+              "target": "#503"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/history/reviews/side-eye/2026-08-22-rail-characters.md",
+      "assignedSha256": "441b144d3470544de92c49bdc59bbdd4b2939acc0756b75be28de4b3267de17f",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "441b144d3470544de92c49bdc59bbdd4b2939acc0756b75be28de4b3267de17f",
+      "verifiedCommit": "87c3578b889df84d5b809004c07b24dae009e6f4",
+      "verifiedAt": "2026-08-23",
+      "evidence": [
+        "full read 1-END by the orchestrator (2026-08-22) before attestation",
+        "reports/ receipts gitignored, referenced by path; retractions published in-report",
+        "truth-repair re-read 2026-08-23 (#550): the --wait-for semantics claim corrected in place (bare prose = CSS type chain, text= is the text engine); no other claim moved"
+      ],
+      "summary": "Rail sweep 4/10 — Characters: SHIP WITH FIXES (25/40); 4 P1s (563 keyboard stops; Label-in-Name class w/ Lighthouse weight-0 false clean; filter block 34-42% of pane; stacked scrollers) + P2/P3s; 6 retractions incl. a void 400-row census; orphan placeholders/avatars/virtualizer verified excellent.",
+      "claims": [
+        {
+          "claim": "Every finding the review identifies is tracked as a live board row or an owner decision.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#491"
+            },
+            {
+              "kind": "issue",
+              "target": "#492"
+            },
+            {
+              "kind": "issue",
+              "target": "#493"
+            },
+            {
+              "kind": "issue",
+              "target": "#501"
+            },
+            {
+              "kind": "issue",
+              "target": "#502"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/history/reviews/side-eye/2026-08-22-rail-chats.md",
+      "assignedSha256": "0c7e3d9a8a4ab860774fa748f7586f36920a9c558a8642678f9e33f12f77fed7",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "0c7e3d9a8a4ab860774fa748f7586f36920a9c558a8642678f9e33f12f77fed7",
+      "verifiedCommit": "2a385fcfe36073c5eb09fc7766b2825a378dca1e",
+      "verifiedAt": "2026-08-22",
+      "evidence": [
+        "full read 1-END by the orchestrator (2026-08-22) before attestation",
+        "reports/ receipts gitignored, referenced by path; retractions published in-report",
+        "retraction block re-read 2026-08-22: the P1 arm table re-derived as a p50-glyph instrument artifact (#508, fixed in pixel-backdrop.ts); the BACKGROUND_DIM_MIN contract finding preserved as real (#487)"
+      ],
+      "summary": "Rail sweep 3/10 — Chats: SHIP WITH FIXES (22/40); 3 P1s (dialogue 4.25:1 over art w/ defeatable scrim; keyboard-unreachable tool-call disclosure; 579ms cold first-open) + P2/P3 clusters; 7 retractions incl. the reviewer's own pagination misread re-filed as the labelling defect; virtualizer at 896 rows and the reading measure verified excellent.",
+      "claims": [
+        {
+          "claim": "Every finding the review identifies is tracked as a live board row or an owner decision.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#487"
+            },
+            {
+              "kind": "issue",
+              "target": "#488"
+            },
+            {
+              "kind": "issue",
+              "target": "#489"
+            },
+            {
+              "kind": "issue",
+              "target": "#490"
+            },
+            {
+              "kind": "issue",
+              "target": "#500"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/history/reviews/side-eye/2026-08-22-rail-home.md",
+      "assignedSha256": "35a336f60cd0263f694bae564159a6db756264b010fe15fe618947e33b40ea43",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "35a336f60cd0263f694bae564159a6db756264b010fe15fe618947e33b40ea43",
+      "verifiedCommit": "7c25eb4d52a0c36139d10956ff38b6330b4ac1e1",
+      "verifiedAt": "2026-08-22",
+      "evidence": [
+        "full read 1-477 by the orchestrator (2026-08-22) before attestation",
+        "receipts under reports/ (snaps, perf-meter, recordings, lighthouse — gitignored artifacts, referenced by path); 9 retractions published in-report"
+      ],
+      "summary": "Rail sweep 1/10 — home: SHIP WITH FIXES (32/40); a11y/contrast layers held (Lighthouse a11y 100 both devices, 13 contrast handles 0 FAIL); findings filed as #453 #454 #457 #458 with #455/#456 owner forks; empty/error states unreached read-only (seeded first-run pass recommended).",
+      "claims": [
+        {
+          "claim": "Every finding the review identifies is tracked as a live board row or an owner decision, and the two coverage gaps (empty/first-run, error state) are stated in-report rather than papered over.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#453"
+            },
+            {
+              "kind": "issue",
+              "target": "#454"
+            },
+            {
+              "kind": "issue",
+              "target": "#455"
+            },
+            {
+              "kind": "issue",
+              "target": "#456"
+            },
+            {
+              "kind": "issue",
+              "target": "#457"
+            },
+            {
+              "kind": "issue",
+              "target": "#458"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/history/reviews/side-eye/2026-08-22-rail-presets.md",
+      "assignedSha256": "d8135fcc53bc4141c7e945d38649cf75ca25fe4a3966b4e5b5e1b93e300e9449",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "d8135fcc53bc4141c7e945d38649cf75ca25fe4a3966b4e5b5e1b93e300e9449",
+      "verifiedCommit": "db9de12944dc3cd33f3158281cb4beacb40f1b5b",
+      "verifiedAt": "2026-08-22",
+      "evidence": [
+        "full read 1-748 by the orchestrator (2026-08-22) before attestation",
+        "wedge-window receipts discarded and re-taken per the report's own timing section; 6 retractions published incl. the reviewer's own Light-theme misread"
+      ],
+      "summary": "Rail sweep 2/10 — Presets: SHIP WITH FIXES (29/40); P1 keyboard-activation hazard + 9 P2s incl. a re-opened header-width ruling; findings filed as #481-#484 with #485 the ListRow-accent owner fork; contrast/overflow/motion/perf layers all held under an 8-variant matrix.",
+      "claims": [
+        {
+          "claim": "Every finding is tracked as a live board row or an owner decision; the two axe/design-audit systemic questions are dispositioned (accent → #485; label-content-name FP → sweep-brief boilerplate).",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#481"
+            },
+            {
+              "kind": "issue",
+              "target": "#482"
+            },
+            {
+              "kind": "issue",
+              "target": "#483"
+            },
+            {
+              "kind": "issue",
+              "target": "#484"
+            },
+            {
+              "kind": "issue",
+              "target": "#485"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/history/reviews/side-eye/2026-08-22-switch-shape-and-glow-evidence.md",
+      "assignedSha256": "6712b63ef244e4cadf8354b895d93da77613485ac3fa124fd0b72cda1d506ebd",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "6712b63ef244e4cadf8354b895d93da77613485ac3fa124fd0b72cda1d506ebd",
+      "verifiedCommit": "3343705939fe2bc48ed9bb45994e8513a596ed6f",
+      "verifiedAt": "2026-08-22",
+      "claims": [
+        {
+          "claim": "At pointer:coarse the shipped 48x44 Switch reads as a crescent, not a switch; the recommended arm is a coarse-only --spacing-switch-track widening (4rem) that keeps fine/unknown arms byte-identical and auto-scales travel to 32px; tracked as issue #420.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#420"
+            },
+            {
+              "kind": "code",
+              "target": "packages/ui/src/styles/theme.css:183"
+            }
+          ]
+        },
+        {
+          "claim": "The #285 fork's premise is dead on the current tree: the ruled glow carrier landed in 73fda94b3 and renders on all three waiting surfaces; the glow axis is sub-perceptual everywhere (max 3/255 on the flagship carrier) and the visible maximal-preset delta is the colorization axis (0.51% vs glow 0.03%).",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#285"
+            },
+            {
+              "kind": "code",
+              "target": "packages/client/src/styles/globals.css:451"
+            }
+          ]
+        }
+      ],
+      "evidence": ["full read 1-352 at re-attest (2026-08-22); screenshots under reports/snaps/se-visual-* (gitignored artifacts, referenced by path)"],
+      "summary": "Side-eye verdicts: widen the coarse Switch track (do not ship the crescent); #285 evidence pairs delivered with the fork's premise contradicted on-tree."
+    },
+    {
+      "path": "docs/history/reviews/side-eye/2026-08-22-verify-271-334.md",
+      "assignedSha256": "0356b91baa196ce5d4d5b5522c76167d823aa8074ca499f9bc91392e356138ea",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "0356b91baa196ce5d4d5b5522c76167d823aa8074ca499f9bc91392e356138ea",
+      "verifiedCommit": "87c3578b889df84d5b809004c07b24dae009e6f4",
+      "verifiedAt": "2026-08-23",
+      "evidence": [
+        "full read 1-385 by the orchestrator (2026-08-22) before attestation",
+        "26 rendered receipts under reports/snaps/vv-* (gitignored snap artifacts); findings filed as board rows",
+        "truth-repair re-read 2026-08-23 (#550): the --wait-for semantics claim corrected in place (bare prose = CSS type chain, text= is the text engine); no other claim moved"
+      ],
+      "summary": "side-eye verification of #271 + #334: both CONFIRMED fixed (Delete single-homed across 3 collections; picker Start footer real+D123 clean). 5 new findings: P1 mobile footer clip (introduced), P1 dead initial focus (pre-existing), P2 disabled-Start contrast, P2 WI Rename two homes, P3 duplicate kebab accnames; plus a negative-overflow instrument blind spot.",
+      "claims": [
+        {
+          "claim": "Both verified rows are fixed on main and closed with this report as evidence, and every new finding is tracked as a live board row.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#439"
+            },
+            {
+              "kind": "issue",
+              "target": "#440"
+            },
+            {
+              "kind": "issue",
+              "target": "#441"
+            },
+            {
+              "kind": "issue",
+              "target": "#442"
+            },
+            {
+              "kind": "issue",
+              "target": "#443"
+            },
+            {
+              "kind": "issue",
+              "target": "#444"
+            },
+            {
+              "kind": "code",
+              "target": "packages/client/src/features/chat/surfaces/new-chat-picker-surface.tsx:118"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/history/reviews/side-eye/2026-08-22-verify-chat-char-fixes.md",
+      "assignedSha256": "63955beaeb4e77ae97fe39c9f1c9203353a30a87895db8ebdefa6106f59b7eb1",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "63955beaeb4e77ae97fe39c9f1c9203353a30a87895db8ebdefa6106f59b7eb1",
+      "verifiedCommit": "4c345cef36c68d294066292f5ca5266eea0cd0ac",
+      "verifiedAt": "2026-08-22",
+      "evidence": [
+        "docs/reviews/side-eye/2026-08-22-verify-chat-char-fixes.md:1-191 full read at 4c345cef3 (authoring 367a6a6df + frontmatter vocab fix) (orchestrator transcribed the se-verify-1 lane's inline report verbatim; per-item receipts are the lane's live-driven measurements)",
+        "verdict SHIP: 7/7 chat items + #491/#493 CONFIRMED live; #492 half-refuted by documented design; 11 findings filed as GitHub issues #517-#525 (+#524 tooling)",
+        "GitHub issues #487 #490 #491 #492 #493 closed on this report's verdicts; residual rows #517-#525 carry the findings"
+      ],
+      "claims": [
+        {
+          "claim": "The wave-1 rail-sweep fixes (#487 #490 #491 #492 #493) render as claimed on live main post-merge; the residual defects are enumerated as filed issues, not left implicit.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/client/src/features/chat/surfaces/chat-list-surface.tsx:81"
+            },
+            {
+              "kind": "code",
+              "target": "packages/contracts/src/settings/appearance.ts:59"
+            }
+          ]
+        }
+      ],
+      "summary": "se-verify-1 live verification of the wave-1 rail-sweep fix set (#487 #490 #491 #492 #493): SHIP — 7/7 chat items confirmed, #491/#493 confirmed with wording corrections, #492 half-refuted by documented design; 11 residual findings filed (#517-#525); also records the silent vite-watcher wedge (#524) cleared mid-pass."
+    },
+    {
+      "path": "docs/history/reviews/side-eye/2026-08-23-verify-wave3.md",
+      "assignedSha256": "dc891093a9a7e0467216793a158a7cc5fbb6eaab1241ed2c7321f9999e268af4",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "dc891093a9a7e0467216793a158a7cc5fbb6eaab1241ed2c7321f9999e268af4",
+      "verifiedCommit": "c5193881d29d849ddb37ce6387ea5218641583c3",
+      "verifiedAt": "2026-08-23",
+      "summary": "se-verify-2 live verification of the wave-3 fix set: SHIP WITH FIXES — 11/12 confirmed, workloads item refuted by the 01:27 db reset; the load-bearing axe receipt reframes #512 as a list-row accname-contract decision; findings N1-N6 filed (#541 #542 + #512 riders).",
+      "evidence": [
+        "11/12 CONFIRMED with computed/pixel receipts (framebuffer decided #522 after a UA-shadow pseudo computed-style retraction)",
+        "Lighthouse 13.4.1 axe receipt: label-content-name-mismatch fires on ALL rows (subtitle-in-button, aria-describedby) — pre-existing list-row condition, #517 strict improvement",
+        "fixture caveat recorded: driven on the post-reset seed db (~100x smaller than lane measurements); Emily collision seeded to test #517",
+        "GitHub issues #501 #502 #511 #513 #517-#523 #525 closed on these verdicts; #512 reframed; #541 #542 filed"
+      ],
+      "claims": [
+        {
+          "claim": "The report's verdicts and findings are receipted as written; its filed issues carry the mutable lifecycle.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "tooling/src/verify/gates/ui-primitive-structure.ts:1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/history/reviews/stickler/2026-08-14-staleness-diagnosis.md",
+      "assignedSha256": "449c44910c887265f569af68ed2504b73a527cc7e35916dee6c4b4c668b4720b",
+      "disposition": "needs-owner",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "449c44910c887265f569af68ed2504b73a527cc7e35916dee6c4b4c668b4720b",
+      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/reviews/stickler/2026-08-14-staleness-diagnosis.md:1-100 full read against frozen foundation",
+        "git log --oneline -5 -- docs/reviews re-derived on 2026-08-14"
+      ],
+      "summary": "Current review evidence; named remaining findings or an owner decision require GitHub work.",
+      "claims": [
+        {
+          "claim": "The cited implementation context remains present; mutable follow-up is tracked in GitHub issue #45.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/client/src/state/character-library-store.ts:68"
+            },
+            {
+              "kind": "issue",
+              "target": "#45"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/history/reviews/stickler/2026-08-18-reading-surface-d42d25a39.md",
+      "assignedSha256": "b42697dc7abaa5890a60bf7f513361d19c5f62caab38ebb4d78fd1de192d771a",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "b42697dc7abaa5890a60bf7f513361d19c5f62caab38ebb4d78fd1de192d771a",
+      "verifiedCommit": "d0e0a6ce06ee42fbaf9c2536c4a11e90267e4115",
+      "verifiedAt": "2026-08-18",
+      "evidence": [
+        "docs/reviews/stickler/2026-08-18-reading-surface-d42d25a39.md:1-194 full read at merge",
+        "stickler F1 fixed at e0f8512f8 (opaque corrected ink, close-the-loop test); F2/F3 truth-repaired at 0f6b3eb4d; issue #204"
+      ],
+      "summary": "Stickler review of the reading-surface derive-law commit d42d25a39: MERGEABLE, 4 findings (F1 alpha fixed-point P2, F2/F3 doc staleness, F4 claim accuracy) — all resolved at merge.",
+      "claims": [
+        {
+          "claim": "F1 (translucent-ink fixed point) is fixed: the corrected emission is opaque and re-judged.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/ui/src/content/theme-scope/clamp.ts:290"
+            },
+            {
+              "kind": "test",
+              "target": "tests/ui/content/theme-scope/clamp.test.ts:1"
+            }
+          ]
+        },
+        {
+          "claim": "F3 gate row scans bg-backdrop.",
+          "evidence": [
+            {
+              "kind": "gate",
+              "target": "tooling/src/verify/gates/ui-skin-fragment-purity.ts:35"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/history/reviews/stickler/2026-08-20-server-usage-settlement-repair.md",
+      "assignedSha256": "f982d2a8fa37ad783b99b64a135992dcc0714f3add531f871891b3c701920b1e",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "f982d2a8fa37ad783b99b64a135992dcc0714f3add531f871891b3c701920b1e",
+      "verifiedCommit": "e3e4225b83b79fc0c9109ec7c33376e748d3bb1e",
+      "verifiedAt": "2026-08-20",
+      "evidence": [
+        "docs/reviews/stickler/2026-08-20-server-usage-settlement-repair.md:1-194 full read against review commit e3e4225b83b79fc0c9109ec7c33376e748d3bb1e",
+        "candidate 05734864dd5a7b8c661c1c42fd14b020f52f2845 replayed cleanly on main 2895946d810415f85c5bb001d27af60d396660be",
+        "103 focused settlement tests passed; exact three-file CT matched current main at 304 passed with the same three baseline failures",
+        "GitHub issues #290 and #291 re-derived on 2026-08-20"
+      ],
+      "summary": "Fresh-context verification of the repaired server usage settlement: all six prior HOLD findings are resolved with zero new findings; #291 still requires an external-key live OpenRouter receipt.",
+      "claims": [
+        {
+          "claim": "The repaired settlement preserves optional provider usage, live/rebuild sample parity, compare-and-set safety, portable provenance validity, truthful CT provenance, and singular audit copy.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#290"
+            },
+            {
+              "kind": "issue",
+              "target": "#291"
+            },
+            {
+              "kind": "test",
+              "target": "tests/server/domain/chat/engine/engine-stats.suite.int.test.ts:451"
+            },
+            {
+              "kind": "test",
+              "target": "tests/server/domain/stats/write/drift-gate.suite.int.test.ts:275"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/history/reviews/stickler/2026-08-21-codex-final-merge.md",
+      "assignedSha256": "cb9d92337442e3f0ece01e0ad8d6962625fb07d677a2a740193c25b4998c69a9",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "cb9d92337442e3f0ece01e0ad8d6962625fb07d677a2a740193c25b4998c69a9",
+      "verifiedCommit": "453ddf92309112b36fe3249d925eedd9f91f21da",
+      "verifiedAt": "2026-08-21",
+      "evidence": ["born-reviewed with the stickler lane's in-report receipts; follow-ups filed as #405"],
+      "summary": "Fresh-context stickler review of Codex's final merge 3cbb9602a..837e73853: sanctioned shape confirmed; 3 LOW findings routed to #405.",
+      "claims": [
+        {
+          "claim": "The Select motion allowance in Codex's final merge is Select-only and structurally consumed-once, product motion is unchanged, and the three confirmed LOW findings are tracked as issue #405.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#405"
+            },
+            {
+              "kind": "code",
+              "target": "packages/client/src/lib/select-entrance-evidence.ts:34"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/chat/engine/engine.ts:1273"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/history/reviews/stickler/2026-08-23-interaction-redesign-plan.md",
+      "assignedSha256": "2d3bbdc20196f4531495ae82db25d58c4cc9bdbb5dc166165ffaa0bb1145e107",
+      "disposition": "superseded",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "2d3bbdc20196f4531495ae82db25d58c4cc9bdbb5dc166165ffaa0bb1145e107",
+      "verifiedCommit": "dd1921de747e0604490b1b3bbe137861c1de6398",
+      "verifiedAt": "2026-08-24",
+      "evidence": [
+        "docs/design/interaction-direction-spec.md:571-588 (§10 PROVENANCE) cites the 2026-08-23 plan/audit lineage as superseded provenance",
+        "landed uncommitted from the 2026-08-23 stickler lanes; committed as provenance at dd1921de7"
+      ],
+      "summary": "Superseded lineage: the 2026-08-23 interaction redesign plan draft; consolidated into docs/design/interaction-direction-spec.md (spec §10 names it as provenance). Reading-material status: superseded by the spec; kept as the argument record."
+    },
+    {
+      "path": "docs/history/reviews/stickler/2026-08-25-correctness-investigation-three-findings.md",
+      "assignedSha256": "81d110f09ae8d5146fa3b5f035bebb3c8915bee803aa5ced66f475dd269c4d15",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "81d110f09ae8d5146fa3b5f035bebb3c8915bee803aa5ced66f475dd269c4d15",
+      "verifiedCommit": "5e00b582d6ab78d0cdaeebc5e90350cf4280acaf",
+      "verifiedAt": "2026-08-25",
+      "evidence": [
+        "cb-correctinvest investigation lane (2026-08-24/25, commit 5e00b582d): confirms three handed-down findings against the tree. #700 client card never retires on suggestion take/dismiss. #701 lying test-presence-client gate clause, FIXED same session (commit 4ef58f4888d). #702 image-edit resolve-step swallow."
+      ],
+      "summary": "cb-correctinvest confirms three handed-down findings: #700 P1 suggestion card never retires (no bus event, no invalidation), #701 lying test-presence-client gate clause fixed in-session, #702 P2 image-edit resolve-step error swallow.",
+      "claims": [
+        {
+          "claim": "All three handed-down findings are CONFIRMED against the tree; #701 (the lying gate) was fixed in-session.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/client/src/features/automation/components/suggestion-card-mount.tsx:80"
+            },
+            {
+              "kind": "issue",
+              "target": "#700"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/history/reviews/stickler/2026-08-25-gate-hardening-final-review.md",
+      "assignedSha256": "ead32f53a8f1a0085ea287a822bf2962c2336a56b515084c1c61c4d8368386ec",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "1ae5d77f6f874c33226ff22ff7184ca1df4bc9875145d70091cbf2569a78df7d",
+      "verifiedCommit": "5cecf7154e00b3da1747420ede6450ce473a0a58",
+      "verifiedAt": "2026-08-25",
+      "evidence": [
+        "docs/reviews/stickler/2026-08-25-gate-hardening-final-review.md:1-206 full read against target 59fed45ee; all 15 findings carry planted repros and exact mechanism receipts",
+        "focused verification: 158 tests passed; adversarial probe suite reproduced 15 confirmed false-clean groups before remediation",
+        "post-review repair union: six P1 and nine P2 gate mechanisms received red-first controls; the CT taint law exposed 619 live findings partitioned and migrated to zero"
+      ],
+      "summary": "Fresh-context final review of the first gate-hardening union; it confirmed 15 semantic false-cleans, closed the candidate surface, and supplied the finite repair set consumed by the follow-up union.",
+      "claims": [
+        {
+          "claim": "The reviewed gate union still contained 15 independently reproduced false-cleans: six P1 relation/ownership failures and nine P2 structural or escape-hatch failures.",
+          "evidence": [
+            {
+              "kind": "gate",
+              "target": "tooling/src/verify/gates/chat-viewer-plane-canon-reads.ts:223"
+            },
+            {
+              "kind": "issue",
+              "target": "#713"
+            },
+            {
+              "kind": "issue",
+              "target": "#714"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/history/reviews/stickler/2026-08-25-issue-712-gate-family.md",
+      "assignedSha256": "27a8d304992f15c3072f8f30ba57b13e911ff79206d12f96b4a354200726ee8a",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "27a8d304992f15c3072f8f30ba57b13e911ff79206d12f96b4a354200726ee8a",
+      "verifiedCommit": "7207e6bfbc9c16e6b2afd4ee0cc2850e9ef1f209",
+      "verifiedAt": "2026-08-25",
+      "evidence": [
+        "docs/reviews/stickler/2026-08-25-issue-712-gate-family.md:1-254 full read; all eight findings carry executable counterexamples and exact mechanism receipts",
+        "repair commit 767fc44cc adds red-first controls for every confirmed finding and reports zero live-tree findings with nonzero scan denominators",
+        "focused conformance, card-frame, and review-mirror suites passed 29/29; contracts, server, and tooling type programs passed"
+      ],
+      "summary": "Fresh-context review and repair receipt for issue #712: eight relational gate and evidence false-cleans were reproduced, repaired, and pinned; E7 remains an explicit 34-row review-tier census rather than a universal static gate.",
+      "claims": [
+        {
+          "claim": "Every confirmed #712 counterexample is now bound to its canonical table, owner relation, route stream, plugin control-flow path, or exact UI control identity.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#712"
+            },
+            {
+              "kind": "gate",
+              "target": "tooling/src/verify/gates/public-route-body-cap.ts:1"
+            },
+            {
+              "kind": "gate",
+              "target": "tooling/src/verify/gates/plugin-dump-guard.ts:1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/history/reviews/stickler/2026-08-26-issue-751-caught-failure-ownership.md",
+      "assignedSha256": "ef4bc94aa052339d892051f2f6729a50ad0e8f8aca413f59a7c4e5738efaf7cf",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "ef4bc94aa052339d892051f2f6729a50ad0e8f8aca413f59a7c4e5738efaf7cf",
+      "verifiedCommit": "e3177c9b3f6b070438f9cb1d6fb72c17bed93707",
+      "verifiedAt": "2026-08-26",
+      "evidence": [
+        "docs/reviews/stickler/2026-08-26-issue-751-caught-failure-ownership.md:1-186 full read and exact-byte integration receipt",
+        "runtime-only range 320e4d7a9..62461134d passed 65 client/server plus 69 tooling tests and 6 scoped CTs",
+        "three ts7 programs, scoped Biome/ESLint, doc catalog, diff-check, and clean-worktree proof passed"
+      ],
+      "summary": "Independent bounded review of issue #751: approves the repaired runtime-only stack and rejects activation of the incomplete caught-failure gate and marker census.",
+      "claims": [
+        {
+          "claim": "The runtime-only repairs are integration-clean, while the incomplete caught-failure gate remains banked and #751 remains Running.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#751"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/infra/providers/vllm/engine/wake-gate.ts:156"
+            },
+            {
+              "kind": "test",
+              "target": "tests/server/infra/providers/vllm/engine/wake-gate.test.ts:89"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/history/reviews/stickler/2026-08-26-issue-753-async-ownership.md",
+      "assignedSha256": "94ea566e7fb9d1f2ba5050ba066250d68fc0838fe1835a0e41dc3cf4cce6370f",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "94ea566e7fb9d1f2ba5050ba066250d68fc0838fe1835a0e41dc3cf4cce6370f",
+      "verifiedCommit": "1493486a7c61b0db449494d1c83008d4a3a62b5d",
+      "verifiedAt": "2026-08-26",
+      "evidence": [
+        "docs/reviews/stickler/2026-08-26-issue-753-async-ownership.md:1-262 full read and exact-byte integration receipt",
+        "24 authored-source require-atomic-updates rows classified: 22 safe, one confirmed vLLM race, one OIDC decision",
+        "focused admission-lock CT 9/9 and preset autosave CT 6/6; supervisor suite 43/43 plus planted race reproduction"
+      ],
+      "summary": "Cold semantic ownership audit for issue #753, including the complete TS/TSX detector population, queue-versus-drop contracts, autosave primitive decision, and dependency verdict.",
+      "claims": [
+        {
+          "claim": "The complete authored-source population contains one confirmed vLLM queued-ownership race, one OIDC cache-contract decision, and 22 safe ownership protocols.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#753"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/infra/providers/vllm/engine/supervisor.ts:436"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/entry/lifecycle.ts:217"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/history/reviews/tooling/2026-08-20-design-audit-action-door-370.md",
+      "assignedSha256": "463afe42551db64b0aa62d84018b1ada8174db0cf239445f0af68879a0bb1516",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "463afe42551db64b0aa62d84018b1ada8174db0cf239445f0af68879a0bb1516",
+      "verifiedCommit": "30a36c264c2ea055de71dc61ebf0deccaf0ce433",
+      "verifiedAt": "2026-08-21",
+      "evidence": [
+        "docs/reviews/tooling/2026-08-20-design-audit-action-door-370.md:1-79 full read against merged implementation 98244f811dfaea17e4b1ef607793d02152eaca06",
+        "focused design-audit walker CT passed 26/26 and pure design-audit tests passed 80/80",
+        "independent controls retained explicit-role native and offered tabindex doors while excluding only generic tabindex=-1 wrappers",
+        "live Command Theme picker Theme builder and Settings audits reported zero duplicate-action-door findings",
+        "truth-repair 30a36c264: the 'explicit roles remain judged' sentence corrected in doc and walker comment (role=generic is also excluded, doorRole :737-738) — re-attested post-merge 0cecddf97"
+      ],
+      "summary": "Fresh-context verification of the #370 audit-integrity repair: programmatic generic focus wrappers remain censused without becoming action doors, and real duplicate actions remain detected.",
+      "claims": [
+        {
+          "claim": "The action-door census excludes only generic tabindex=-1 focus plumbing while preserving accessibility and tabindex census coverage plus true duplicate-action detection.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#370"
+            },
+            {
+              "kind": "code",
+              "target": "tooling/src/ui-audit/ops/walker/census-interactive.ts:187"
+            },
+            {
+              "kind": "test",
+              "target": "tests/tooling/design-audit-walker.ct.tsx:407"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/history/reviews/tooling/2026-08-22-gate-stance-census.md",
+      "assignedSha256": "958b6b9501c10f71f09307a0a8f1670f625450637c1ca4d18131963bc5886624",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "958b6b9501c10f71f09307a0a8f1670f625450637c1ca4d18131963bc5886624",
+      "verifiedCommit": "a61b267bb9378563b362a421856c078df39690a0",
+      "verifiedAt": "2026-08-22",
+      "evidence": [
+        "derived mechanically from the real corpus: every `export const gate` descriptor in tooling/src/verify/gates/*.ts (219 files) read through ts-morph; every row carries a file:line receipt on the post-move tree",
+        "the two ZEROES are graded in the document itself — a1 (no mustFlag/mustPass row lacks a `why`) is a strong zero because the check is a property of the object literal; a4 (finding-message pointers) is stated as WEAK because the scan only judges self-contained string literals, and that residual gap is filed as finding F1",
+        "the scanRoot HOME-vs-ZONE split is an explicit curated set, not a regex, and every row prints its predicate verbatim so the classification can be re-derived rather than trusted",
+        "dual-homed: verify-registry-parity's three standalone cases (tests/tooling/verify/ops/run.int.test.ts:532/:539/:555) duplicate its own fsBacked conformance rows (gates/verify-registry-parity.ts:141/:150/:174/:184)",
+        "the __g_ staging recommendation is receipted against the eight live fences (.gitignore:99 + seven config mirrors) and against the anchor requirement every stale arm is guarded on (GATE-AUTHORING §4.5)",
+        "RE-ATTESTED 2026-08-22 by lane tool-verify (#417): the census's own remediation landed and the document now carries a LANDED RECORD section — 24 scanRoot conversions with before/after scan denominators, 23 exemption-table migrations, the F5 deletion, and the F1/F4/F6 dispositions (seven census rows REFUTED on re-derivation). Same authority, same full read; the flag-only census above is unchanged."
+      ],
+      "summary": "FLAG-ONLY census of all 219 gates against the maximal stance: 27 sanctioned-home scanRoot exclusions, 29 legacy exemption-table spellings, 19 over-clause scanRoot predicates, 12 multi-mode descriptors, one genuine dual-homed test; clean on self-proof rationales, one-sided tables and warn-tier residue. Six findings routed for follow-up items; nothing changed by the census.",
+      "claims": [
+        {
+          "claim": "Every one of the 219 gates carries a `why` on every mustFlag/mustPass row — a strong zero, since the check is a property of the object literal and the loader enforces only the arrays' presence.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#393"
+            },
+            {
+              "kind": "code",
+              "target": "tooling/src/verify/lib/loader.ts:45"
+            },
+            {
+              "kind": "code",
+              "target": "tooling/src/verify/contract/gate.ts:158"
+            }
+          ]
+        },
+        {
+          "claim": "27 gates exclude a SANCTIONED HOME from scanRoot rather than scanning it and carrying a cited allowlist row — the §3 anti-pattern the law names, with `scrubber-home` cited in the law itself and still live.",
+          "evidence": [
+            {
+              "kind": "gate",
+              "target": "tooling/src/verify/gates/scrubber-home.ts:85"
+            },
+            {
+              "kind": "gate",
+              "target": "tooling/src/verify/gates/no-raw-intl-time.ts:32"
+            },
+            {
+              "kind": "gate",
+              "target": "tooling/src/verify/gates/own-tables-only.ts:355"
+            }
+          ]
+        },
+        {
+          "claim": "`verify-registry-parity` is the one genuine dual-home: its three standalone cases duplicate arms its own fsBacked conformance rows already drive.",
+          "evidence": [
+            {
+              "kind": "gate",
+              "target": "tooling/src/verify/gates/verify-registry-parity.ts:141"
+            },
+            {
+              "kind": "test",
+              "target": "tests/tooling/verify/ops/run.int.test.ts:532"
+            }
+          ]
+        },
+        {
+          "claim": "`__g_` fixture planting should stay IN-PLACE: a staging root is mechanically possible but every stale arm is guarded on a REAL sibling anchor, so a synthetic tree would make those guards pass for the wrong reason. The available win is per-suite sentinel segments.",
+          "evidence": [
+            {
+              "kind": "gate",
+              "target": "tooling/src/verify/gates/tooling-instrument-proof.ts:107"
+            },
+            {
+              "kind": "code",
+              "target": "tooling/src/verify/lib/pass.ts:331"
+            },
+            {
+              "kind": "test",
+              "target": "tests/tooling/verify/ops/structure.int.test.ts:57"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/history/reviews/tooling/2026-08-22-research-zone-assessment.md",
+      "assignedSha256": "19e500dae25ed0ad8cbf53d407098daa80724472babfe3adbca772e2b367f1be",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "19e500dae25ed0ad8cbf53d407098daa80724472babfe3adbca772e2b367f1be",
+      "verifiedCommit": "fa21fedf528e3d32d6927dd729845efacbbdbbdb",
+      "verifiedAt": "2026-08-22",
+      "claims": [
+        {
+          "claim": "The research zone's ranked tool candidates were parity-oracle (rank 1 — SUPERSEDED 2026-08-22 by the #428 neo-parity rip ruling before any build), st-parity's compare/capture pair, and a shared model-probe kit; rpg-extraction's harnesses are the delete shortlist (outputs gitignored, four files self-marked ARCHIVED, value in the one-call-spike doc).",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#428"
+            },
+            {
+              "kind": "issue",
+              "target": "#426"
+            }
+          ]
+        }
+      ],
+      "evidence": [
+        "full read 1-323 at re-attest (2026-08-22); typecheck:graph exit 0 proves every scripts/*.ts compiles (tsconfig includes scripts); pnpm ast blind to scripts/ so liveness used scoped literal search"
+      ],
+      "summary": "Research-zone assessment: three tool candidates ranked with effort, rpg-extraction identified as the delete shortlist, three classification challenges to scripts/README."
     }
   ]
 }

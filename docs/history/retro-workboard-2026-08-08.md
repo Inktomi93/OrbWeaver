@@ -1663,7 +1663,7 @@ what Caddy exposes, real response headers, whether `/api/_debug` answers from ou
 > forgotten.** Owner: *"if it needs follow up it goes on the board, otherwise it gets forgotten."*
 > My first pass used a GREP for one exact phrase and the owner correctly called it fragile — lane ARCHIVE
 > then READ all 25 docs archived since 2026-07-23 line by line and verified \~45 candidates against the tree.
-> Full report + per-document tables: **`docs/reviews/misc/2026-08-03-archive-rescue-audit.md`**.
+> Full report + per-document tables: **`docs/history/reviews/misc/2026-08-03-archive-rescue-audit.md`**.
 > **22 of 25 documents yielded ZERO still-open rows** — recorded there so nobody re-reads them.
 
 **⚠ THREE OF MY FIVE GREP-RESCUED ROWS WERE WRONG. Corrected:**

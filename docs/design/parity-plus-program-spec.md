@@ -17,7 +17,7 @@ updated: 2026-08-14
 > load-bearing tree claim was verified against the working tree this session by direct read.
 >
 > **Status: DESIGN v2.1 — owner-RATIFIED (v2, 2026-07-27); W4 COMMITTED (fc85f1c0).** v2.1 folds the
-> marinara-engine audit's curated STEAL/ADAPT verdicts (`docs/reviews/misc/marinara-engine-parser-macro-audit.md`,
+> marinara-engine audit's curated STEAL/ADAPT verdicts (`docs/history/reviews/misc/marinara-engine-parser-macro-audit.md`,
 > Opus, file:line-evidenced) — a DELTA FOLD onto the ratified v2 body, NOT a redesign (the audit validated
 > §12A: no design choice contradicted). House doc style: every non-obvious call carries its WHY + the
 > rejected alternative. Same completeness bar — zero build-time improvisation.

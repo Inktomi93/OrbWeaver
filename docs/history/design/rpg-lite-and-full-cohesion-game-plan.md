@@ -8,7 +8,7 @@ updated: 2026-08-01
 
 > **Deliverable of the max-effort design pass briefed in `docs/history/design/rpg-lite-and-full-cohesion-brief.md`
 > (2026-07-17).** Produced against the FULL reading set (constitution · the whole 13-doc
-> `rpg-design/` set · `docs/reviews/misc/marinara-st-extension-lite-mode.md` · ledger
+> `rpg-design/` set · `docs/history/reviews/misc/marinara-st-extension-lite-mode.md` · ledger
 > D18/D20/D24/D46/D48/D58/D79/D80) and the tree as of the uncommitted R4 vertical (post-`acda8ffe`),
 > every load-bearing claim below re-verified against the CODE with own eyes + `pnpm ast`. Status:
 > **RATIFIED — D86 MINTED 2026-07-17** (`Core-Path-Registry.md` D86, owner-directed) and the §10.2

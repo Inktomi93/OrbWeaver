@@ -10,7 +10,7 @@ Owner ruling: the v1 art "gives me the ick". Owner authorised deriving the pack'
 own top-played SillyTavern cards (vibe/style only — no image was copied, referenced by URL, or fed to
 the model; the style spec below is a written characterisation).
 
-Contact sheet: `docs/reviews/misc/2026-08-03-avatar-pack-v2-contact-sheet.png`
+Contact sheet: `docs/history/reviews/misc/2026-08-03-avatar-pack-v2-contact-sheet.png`
 (row 1 = new v2 avatars, row 2 = the v1 avatars they replace, row 3 = the v2 set at 64 px).
 
 **Scope: `packages/server/src/entry/boot/seed-assets/avatars/*.png` only.** Backgrounds were ruled

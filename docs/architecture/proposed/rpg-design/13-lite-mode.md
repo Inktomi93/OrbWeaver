@@ -28,7 +28,7 @@ updated: 2026-07-17
 > **\[SUPERSEDED — AS-BUILT D101: the lite tier IS built — L0 `3f6a57b2` + L1 `db60bd82` (server) +
 > L2/L3 in the wave-6 client close `4f5073ec`/`c469b9ca`.]**
 > The design record with every weighed alternative: `docs/history/design/rpg-lite-and-full-cohesion-game-plan.md`;
-> the prior-art evidence: `docs/reviews/misc/marinara-st-extension-lite-mode.md` (the Marinara ST
+> the prior-art evidence: `docs/history/reviews/misc/marinara-st-extension-lite-mode.md` (the Marinara ST
 > *extension* — schema-as-data trackers + the steering line; distinct from the marinara RPG corpus
 > docs 01–12 mined). This doc is AUTHORITATIVE for the mode axis and lite semantics; the stat-profile
 > SCHEMA is 03 §1.2/§4.1, its engine consumption is 04 §2/§10 — this doc consumes both, never

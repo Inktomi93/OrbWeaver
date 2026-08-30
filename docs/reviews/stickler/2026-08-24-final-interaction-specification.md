@@ -6,7 +6,7 @@ updated: 2026-08-24
 
 # THE INTERACTION DIRECTION — definitive specification and the path (claude-b, max-effort pass)
 
-> **SUPERSEDES** `docs/reviews/stickler/2026-08-23-interaction-redesign-plan.md` and
+> **SUPERSEDES** `docs/history/reviews/stickler/2026-08-23-interaction-redesign-plan.md` and
 > `docs/reviews/stickler/2026-08-23-interaction-systems-audit.md` (both untracked; left unedited —
 > this header is the supersession record). Their stickler-verified content is folded in, corrected
 > where the legacy dig refuted it. Iterated with the stickler role to convergence (round count in

@@ -267,7 +267,7 @@ describe("createOpenRouterBackend — summarize shaper", () => {
   // sends `tools:[…] + tool_choice:{function}` and reads the call's `arguments` — the vehicle the in-turn
   // folded round already proved on this wire (D112). The host `resyncFromStory` door died on exactly this.
   // CORRECTED 2026-08-09 (task #36, 23 live calls with the owner's key — receipts in
-  // `docs/reviews/misc/2026-08-09-openrouter-structured-output-probe.md`): the blanket "never
+  // `docs/history/reviews/misc/2026-08-09-openrouter-structured-output-probe.md`): the blanket "never
   // response_format" above is FALSE as stated. The variable is the schema SHAPE, not the field: the SAME
   // `response_format` is 200 on anthropic-, openai- AND google-family endpoints when the schema rides the
   // all-required shape with `strict:true` (openai's 400 above is literally the D126 knob's documented wall).

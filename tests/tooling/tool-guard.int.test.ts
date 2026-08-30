@@ -978,7 +978,7 @@ test("contract: a rewrite emits updatedInput, creates the log dir, and logs the 
   expect(logged.rewrittenTo).toContain("pnpm check >");
 });
 
-// AGENT-TOOLING-01 (docs/reviews/repository-audit-2026-08-13/SECURITY-VALIDATION.md), through the SAME
+// AGENT-TOOLING-01 (docs/history/reviews/repository-audit-2026-08-13/SECURITY-VALIDATION.md), through the SAME
 // wire protocol the audit used to prove it: `git stash # tool-guard.mjs` emitted
 // {"hookSpecificOutput":{"permissionDecision":"allow"}} because the self-exemption was an unanchored
 // raw-string match ahead of blanking and ahead of the hard floor. The payload strings below are
