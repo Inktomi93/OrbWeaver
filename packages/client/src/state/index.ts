@@ -74,6 +74,7 @@ export {
   useSelectedCharacterFacetId,
   useSelectedCharacterId,
 } from "./character-selection-store.ts";
+export { __resetChatContextSections, setChatContextSectionOpen, useChatContextSectionOpen } from "./chat-context-section-open-store.ts";
 export type { ActiveChatHandle, ChatHandle } from "./chat-handle.ts";
 export { committedChat, isCommitted, isLanding, landingChat } from "./chat-handle.ts";
 export type { ChatListCharacterFilter } from "./chat-list-filter-store.ts";

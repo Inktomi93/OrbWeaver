@@ -10,6 +10,7 @@
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
+import { HOST_BAND, openContextSections } from "../../../../support/ct/open-context-sections.ts";
 import type { TrpcRecorder } from "../../../../support/ct/route-trpc.ts";
 import { routeTrpc, trpcHold } from "../../../../support/ct/route-trpc.ts";
 import { setNumber } from "../../../../support/ct/set-number.ts";
@@ -111,6 +112,7 @@ test("committed host + group: BOTH sections render as h3 headings", async ({ mou
   });
 
   const component = await mount(<CommittedSettingsTabStory isHost={true} showGroup={true} />);
+  await openContextSections(component, HOST_BAND, "Macro picks");
 
   await expect(component.getByRole("heading", { name: "Field overrides", level: 3 })).toBeVisible();
   await expect(component.getByRole("heading", { name: "Injections", level: 3 })).toBeVisible();
@@ -149,6 +151,7 @@ for (const arm of [
     });
 
     const component = await mount(<CommittedSettingsTabStory isHost={arm.isHost} showGroup={arm.showGroup} />);
+    await openContextSections(component, "Injections", "Documents", "Lorebooks", "Macro picks", ...(arm.isHost ? [HOST_BAND] : []));
 
     // Barrier on a SETTLED body of the last-declared section in this arm, so the assertions below are not
     // read while boundaries are still in their skeleton fallback (a pending boundary shows neither the
@@ -198,6 +201,7 @@ test("committed host + group: the Group-behavior section shows a skeleton (never
   });
 
   const component = await mount(<CommittedSettingsTabStory isHost={true} showGroup={true} />);
+  await openContextSections(component, HOST_BAND);
 
   // The barrier: the request has REACHED the stub and is being held, so what follows reads a settled
   // pending state rather than racing a fallback that may already have resolved.
@@ -260,6 +264,7 @@ test("committed host + SOLO (non-group): Group behavior is ABSENT, Field overrid
   // A host of a NON-group chat: showGroup=false (resolveIsGroupChat is false at <2 cast) — the section is
   // omitted even though the viewer is host (the gate is host AND group, both required).
   const component = await mount(<CommittedSettingsTabStory isHost={true} showGroup={false} />);
+  await openContextSections(component, HOST_BAND);
 
   await expect(component.getByRole("heading", { name: "Field overrides", level: 3 })).toBeVisible();
   await expect(component.getByRole("heading", { name: "Group behavior", level: 3 })).toHaveCount(0);
@@ -290,6 +295,7 @@ function stubToolUse(page: Page): Promise<TrpcRecorder> {
 test("⑦ host: the Tool-use section renders the cap control seeded from getChat.toolRecurseLimit", async ({ mount, page }) => {
   await stubToolUse(page);
   const component = await mount(<CommittedSettingsTabStory isHost={true} showGroup={true} />);
+  await openContextSections(component, HOST_BAND);
   await expect(component.getByRole("heading", { name: "Tool use", level: 3 })).toBeVisible();
   await expect(component.getByRole("textbox", { name: "Tool rounds per turn" })).toHaveValue("7"); // CHAT_DETAIL.toolRecurseLimit
 });
@@ -297,6 +303,7 @@ test("⑦ host: the Tool-use section renders the cap control seeded from getChat
 test("⑦ host: editing the cap fires chat.setToolRecurseLimit with the new limit", async ({ mount, page }) => {
   const trpc = await stubToolUse(page);
   const component = await mount(<CommittedSettingsTabStory isHost={true} showGroup={true} />);
+  await openContextSections(component, HOST_BAND);
   await setNumber(component.getByRole("textbox", { name: "Tool rounds per turn" }), "10");
   await expect.poll(() => (trpc.lastInput(UPDATE_TOOL_LIMIT) as { limit?: number } | undefined)?.limit, { intervals: [20, 50, 100] }).toBe(10);
 });
@@ -340,12 +347,14 @@ function stubHostDisplayScripts(page: Page): Promise<TrpcRecorder> {
 test("host: the display-scripts switch renders seeded from getChat.hostDisplayScripts (off)", async ({ mount, page }) => {
   await stubHostDisplayScripts(page);
   const component = await mount(<CommittedSettingsTabStory isHost={true} showGroup={true} />);
+  await openContextSections(component, HOST_BAND);
   await expect(component.getByRole("switch", { name: "Show my display scripts to everyone" })).not.toBeChecked();
 });
 
 test("host: toggling the switch fires chat.setHostDisplayScripts with the new state", async ({ mount, page }) => {
   const trpc = await stubHostDisplayScripts(page);
   const component = await mount(<CommittedSettingsTabStory isHost={true} showGroup={true} />);
+  await openContextSections(component, HOST_BAND);
   await component.getByRole("switch", { name: "Show my display scripts to everyone" }).click();
   await expect.poll(() => (trpc.lastInput(UPDATE_HOST_DISPLAY_SCRIPTS) as { enabled?: boolean } | undefined)?.enabled, { intervals: [20, 50, 100] }).toBe(true);
 });
@@ -399,6 +408,7 @@ for (const arm of [
   test(`host: the offer-choices switch seats from room-over-default — ${arm.label}`, async ({ mount, page }) => {
     await stubOfferChoices(page, arm.room, arm.userDefault);
     const component = await mount(<CommittedSettingsTabStory isHost={true} showGroup={true} />);
+    await openContextSections(component, HOST_BAND);
     const control = component.getByRole("switch", OFFER_CHOICES_SWITCH);
     // Barrier on the SETTLED control before reading its state — a boundary still in its skeleton renders no
     // switch at all, and an unbarriered state read would be vacuous. `aria-checked` rather than a branched
@@ -411,6 +421,7 @@ for (const arm of [
 test("host: toggling the offer-choices switch fires chat.setOfferChoices with the new state", async ({ mount, page }) => {
   const trpc = await stubOfferChoices(page, false, false);
   const component = await mount(<CommittedSettingsTabStory isHost={true} showGroup={true} />);
+  await openContextSections(component, HOST_BAND);
   await component.getByRole("switch", OFFER_CHOICES_SWITCH).click();
   await expect.poll(() => (trpc.lastInput(UPDATE_OFFER_CHOICES) as { enabled?: boolean } | undefined)?.enabled, { intervals: [20, 50, 100] }).toBe(true);
 });
@@ -426,6 +437,7 @@ test("member: the offer-choices switch is ABSENT (host-only omit — this key st
     "settings.getUserSettings": () => USER_SETTINGS,
   });
   const component = await mount(<CommittedSettingsTabStory isHost={false} showGroup={false} />);
+  await openContextSections(component, "Lorebooks");
   // Barrier on the member tree's last settled section before the absence read (the #629 lesson).
   await expect(component.getByText("Ashfall Canon")).toBeVisible();
   await expect(component.getByRole("switch", OFFER_CHOICES_SWITCH)).toHaveCount(0);
@@ -492,6 +504,7 @@ for (const arm of [
   test(`host: the reaction switches seat from room-over-default — ${arm.label}`, async ({ mount, page }) => {
     await stubReactionToggles(page, { room: arm.room, userDefaults: arm.userDefaults });
     const component = await mount(<CommittedSettingsTabStory isHost={true} showGroup={true} />);
+    await openContextSections(component, HOST_BAND);
     const master = component.getByRole("switch", REACTIONS_SWITCH);
     await expect(master).toBeVisible();
     await expect(master).toHaveAttribute("aria-checked", String(arm.master));
@@ -505,6 +518,7 @@ test("host: each reaction switch fires ITS OWN verb with the new state", async (
     userDefaults: { reactionsEnabled: true, charactersCanReact: false },
   });
   const component = await mount(<CommittedSettingsTabStory isHost={true} showGroup={true} />);
+  await openContextSections(component, HOST_BAND);
   await component.getByRole("switch", REACTIONS_SWITCH).click();
   await expect.poll(() => (trpc.lastInput(UPDATE_REACTIONS_ENABLED) as { enabled?: boolean } | undefined)?.enabled, { intervals: [20, 50, 100] }).toBe(false);
   await component.getByRole("switch", CHAR_REACT_SWITCH).click();
@@ -522,6 +536,7 @@ test("member: NEITHER reaction switch exists (host-only omit — one gates their
     "settings.getUserSettings": () => USER_SETTINGS,
   });
   const component = await mount(<CommittedSettingsTabStory isHost={false} showGroup={false} />);
+  await openContextSections(component, "Lorebooks");
   // Barrier on the member tree's last settled section before the absence reads (the #629 lesson).
   await expect(component.getByText("Ashfall Canon")).toBeVisible();
   await expect(component.getByRole("switch", REACTIONS_SWITCH)).toHaveCount(0);
@@ -580,6 +595,14 @@ test("F8: the section names speak the INSTRUMENT tier's kicker voice, not the fo
   // beside rpg sections that all name themselves in micro-caps over a hairline. These shipped at the FORM
   // heading (16px/500), so one pane spoke two dialects. COMPUTED, not by class string: `voice` re-spells
   // every axis, so the only honest check is what the browser resolved.
+  //
+  // #830 — THE RULING SURVIVES, ITS INPUT CHANGED, and this pin moved with it. Every section name is now
+  // the visible label of a disclosure BUTTON, so it wears `interactiveKicker`: the same instrument register
+  // (uppercase, tracked, muted) at the readable LABEL step, because `kicker`'s 10.5px is under the 11px
+  // functional floor for interactive text and design-audit reds it (measured, six P2s). F8's claim is
+  // unchanged — this pane is not wearing the FORM tier's 16px/500 h3 — but the assertion now reads the
+  // element that actually PAINTS the name (the label inside the trigger) instead of the <h3> wrapper, whose
+  // own classes survive whatever sits inside it and would keep this pin green while the pixels moved.
   await routeTrpc(page, {
     "chat.setRoomOverrides": () => ({}),
     "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,
@@ -594,9 +617,9 @@ test("F8: the section names speak the INSTRUMENT tier's kicker voice, not the fo
   const heading = component.getByRole("heading", { name: "Field overrides", exact: true, level: 3 });
   await expect(heading).toBeVisible();
 
-  // The kicker step + the form-tier step, both RESOLVED from their tokens in this document — never px
-  // literals (a token retune must move the assertion with it, not break it).
-  const [micro, title] = await page.evaluate(() => {
+  // The interactive-kicker step and the form-tier step, both RESOLVED from their tokens in this document —
+  // never px literals (a token retune must move the assertion with it, not break it).
+  const [label, title] = await page.evaluate(() => {
     const probe = document.createElement("div");
     document.body.append(probe);
     const px = (value: string): string => {
@@ -604,25 +627,27 @@ test("F8: the section names speak the INSTRUMENT tier's kicker voice, not the fo
       return getComputedStyle(probe).fontSize;
     };
     const root = getComputedStyle(document.documentElement);
-    const out = [px(root.getPropertyValue("--text-micro").trim()), px(root.getPropertyValue("--text-title").trim())];
+    const out = [px(root.getPropertyValue("--text-label").trim()), px(root.getPropertyValue("--text-title").trim())];
     probe.remove();
     return out;
   });
+  const name = heading.locator('[data-slot="text"]').first();
   const style = (): Promise<{ readonly size: string; readonly transform: string; readonly tag: string }> =>
-    heading.evaluate((el) => {
+    name.evaluate((el) => {
       const computed = getComputedStyle(el);
       return { size: computed.fontSize, transform: computed.textTransform, tag: el.tagName };
     });
   // Polled: type resolution settles with the stylesheet, and a one-shot read samples whatever the first
   // frame had (the DEF-14 class).
-  await expect.poll(() => style().then((s) => s.size), { intervals: [20, 50, 100, 200] }).toBe(micro);
+  await expect.poll(() => style().then((s) => s.size), { intervals: [20, 50, 100, 200] }).toBe(label);
   // Settled snapshot: the poll above just proved this element's type resolution has SETTLED, and nothing in this
   // test mutates it afterwards — these are the same read, sampled once it is provably stable.
   const settled = await style();
   expect(settled.size).not.toBe(title);
   expect(settled.transform).toBe("uppercase");
-  // …and it is STILL a real h3 (the outline the settings idiom bought is not what was wrong).
-  expect(settled.tag).toBe("H3");
+  // …and the NAME is still carried by a real h3 (the outline the settings idiom bought is not what was
+  // wrong, and wrapping it in a disclosure button must not have cost it).
+  await expect(heading).toHaveJSProperty("tagName", "H3");
 });
 
 test("D-1: the host-ops trio sits under a 'Host controls' group — and a member sees neither the group nor its rows", async ({ mount, page }) => {
@@ -641,6 +666,7 @@ test("D-1: the host-ops trio sits under a 'Host controls' group — and a member
     "chat.getChat": () => CHAT_DETAIL,
   });
   const component = await mount(<CommittedSettingsTabStory isHost={true} showGroup={true} />);
+  await openContextSections(component, HOST_BAND);
 
   await expect(component.getByRole("heading", { name: "Host controls", exact: true, level: 3 })).toBeVisible();
   const group = component.locator("section").filter({ hasText: "Host controls" }).first();
@@ -679,6 +705,7 @@ test("BG-C: with no chat-set background, the Background row names the CARD-carri
     "chat.getChat": () => ({ ...CHAT_DETAIL, participants: SOLO_ROSTER_WITH_CARD_BG }),
   });
   const component = await mount(<CommittedSettingsTabStory isHost={true} showGroup={false} />);
+  await openContextSections(component, HOST_BAND);
 
   const group = component.locator("section").filter({ hasText: "Host controls" }).first();
   await expect(group.getByText("Hobby & Repair", { exact: false })).toBeVisible();
@@ -697,6 +724,7 @@ test("BG-C: a room with NO carried background gets no provenance gloss (never an
     "chat.getChat": () => CHAT_DETAIL,
   });
   const component = await mount(<CommittedSettingsTabStory isHost={true} showGroup={false} />);
+  await openContextSections(component, HOST_BAND);
 
   const group = component.locator("section").filter({ hasText: "Host controls" }).first();
   await expect(group.getByText("card", { exact: false })).toHaveCount(0);
@@ -758,6 +786,7 @@ test("D-4: a MEMBER gets the Documents section too (member-readable), with no ad
     "settings.getUserSettings": () => USER_SETTINGS,
   });
   const component = await mount(<CommittedSettingsTabStory isHost={false} showGroup={false} />);
+  await openContextSections(component, "Documents");
 
   await expect(component.getByRole("heading", { name: "Documents 1", level: 3 })).toBeVisible();
   await expect(component.getByText("The Crimson Court")).toBeVisible();
@@ -808,6 +837,7 @@ test("#640: the rack SAYS what attaching permits — write reach, not just a ref
   // here), so a host granting it has to read that in words. A quiet row would be the affordance lie.
   await stubLorebooks(page);
   const component = await mount(<CommittedSettingsTabStory isHost={true} showGroup={false} />);
+  await openContextSections(component, "Lorebooks");
 
   const section = component.locator("section").filter({ hasText: "Ashfall Canon" }).last();
   await expect(section.getByText("can write new entries into", { exact: false })).toBeVisible();
@@ -819,6 +849,7 @@ test("#640: the rack SAYS what attaching permits — write reach, not just a ref
 test("#640 host: attaching from the picker fires attachToChat with THAT book and this room", async ({ mount, page }) => {
   const trpc = await stubLorebooks(page);
   const component = await mount(<CommittedSettingsTabStory isHost={true} showGroup={false} />);
+  await openContextSections(component, "Lorebooks");
 
   await component.getByRole("button", { name: "Attach a lorebook" }).click();
   // The offer set is a real SUBTRACTION: the already-attached book is not offered back, the other one is.
@@ -833,6 +864,7 @@ test("#640 host: attaching from the picker fires attachToChat with THAT book and
 test("#640 host: the row's overflow menu detaches THIS book from THIS room", async ({ mount, page }) => {
   const trpc = await stubLorebooks(page);
   const component = await mount(<CommittedSettingsTabStory isHost={true} showGroup={false} />);
+  await openContextSections(component, "Lorebooks");
 
   await component.getByRole("button", { name: "Actions for Ashfall Canon" }).click();
   await page.getByRole("menuitem", { name: "Detach from this chat" }).click();
@@ -853,6 +885,7 @@ test("#640 member: the rows are visible, and there is NO attach and NO detach (p
     "settings.getUserSettings": () => USER_SETTINGS,
   });
   const component = await mount(<CommittedSettingsTabStory isHost={false} showGroup={false} />);
+  await openContextSections(component, "Lorebooks");
 
   await expect(component.getByRole("heading", { name: "Lorebooks 1", level: 3 })).toBeVisible();
   await expect(component.getByText("Ashfall Canon")).toBeVisible();
@@ -874,6 +907,7 @@ test("#640: a room with NO books attached says so rather than rendering an empty
     "chat.getChat": () => CHAT_DETAIL,
   });
   const component = await mount(<CommittedSettingsTabStory isHost={true} showGroup={false} />);
+  await openContextSections(component, "Lorebooks");
 
   await expect(component.getByText("No lorebooks are attached to this chat yet.")).toBeVisible();
   // A "0" chip would be noise — the heading stays the bare label (the count-chip rule).
@@ -930,6 +964,9 @@ test("#821: resolving Injections does not move the sections around it", async ({
   });
 
   const component = await mount(<CommittedSettingsTabStory isHost={true} showGroup={false} />);
+  // #830 — Injections is a disclosure that starts CLOSED (the pane opens as an index), so the press is
+  // what mounts its boundary and fires the held read. The barrier below is unchanged and still deterministic.
+  await openContextSections(component, "Injections");
   await hold.requested;
 
   // The barrier: the Injections boundary is in its fallback (aria-busy is the loading region's own mark),
@@ -944,7 +981,26 @@ test("#821: resolving Injections does not move the sections around it", async ({
   const fieldOverrides = component.getByRole("heading", { name: "Field overrides", level: 3 });
   const documentTop = (locator: typeof documents): Promise<number> =>
     locator.evaluate((element) => Math.round(element.getBoundingClientRect().top + window.scrollY));
-  const documentsBefore = await documentTop(documents);
+  // #830 — the press that mounts the boundary also FOLDS the section open, and that fold is an animation.
+  // A one-shot read here samples a mid-fold frame, and the fence would then measure the disclosure rather
+  // than the reserve (measured: a 160px "shift" that was entirely the fold still running). So settle first:
+  // the same top value twice in a row is the pending frame this fence is about.
+  const settledDocumentTop = async (): Promise<number> => {
+    let previous = -1;
+    await expect
+      .poll(
+        async () => {
+          const now = await documentTop(documents);
+          const stable = now === previous;
+          previous = now;
+          return stable;
+        },
+        { intervals: [60, 60, 60, 60, 120, 120] },
+      )
+      .toBe(true);
+    return previous;
+  };
+  const documentsBefore = await settledDocumentTop();
   const overridesBefore = await documentTop(fieldOverrides);
 
   hold.release([HELD_INJECTIONS[0]]);
@@ -977,6 +1033,9 @@ test("#821: the Injections fallback is the section's own shape, not a line", asy
   });
 
   const component = await mount(<CommittedSettingsTabStory isHost={true} showGroup={false} />);
+  // #830 — Injections is a disclosure that starts CLOSED (the pane opens as an index), so the press is
+  // what mounts its boundary and fires the held read. The barrier below is unchanged and still deterministic.
+  await openContextSections(component, "Injections");
   await hold.requested;
 
   const injections = component.locator("section").filter({ hasText: "Injections" }).first();
@@ -1012,6 +1071,9 @@ test("#829: the count chip's arrival does not resize the kicker's own line box",
   });
 
   const component = await mount(<CommittedSettingsTabStory isHost={true} showGroup={false} />);
+  // #830 — Injections is a disclosure that starts CLOSED (the pane opens as an index), so the press is
+  // what mounts its boundary and fires the held read. The barrier below is unchanged and still deterministic.
+  await openContextSections(component, "Injections");
   await hold.requested;
 
   const injectionsHeading = component.getByRole("heading", { name: "Injections", exact: true, level: 3 });
@@ -1026,4 +1088,131 @@ test("#829: the count chip's arrival does not resize the kicker's own line box",
 
   // THE ASSERTION: identical line box, count absent or present. Pre-fix this is 13.125 vs 30.25.
   expect(heightAfter).toBeCloseTo(heightBefore, 1);
+});
+
+// ── #830: THE PANE IS AN INDEX — every section is a disclosure with a remembered posture ──────────────
+// The #821 residue: with the injection rows collapsed the tab STILL settled at 2,836px desktop over
+// fourteen sections (Host controls' eight alone are 1,880px), so Documents and Lorebooks were still below
+// the fold and a host at the top of the pane had fourteen destinations and no map (side-eye
+// `docs/reviews/side-eye/2026-08-30-this-chat-cls.md` §7, re-verified §7 "Still below the fold": Lorebooks
+// settles at top 929 on a 932px mobile viewport). Each pin below asserts through the affordance a host
+// touches — the kicker's own button — never through the store.
+
+/** The tab's stubs for the disclosure pins: a document, two books, one injection, real macro picks. */
+function stubIndexPane(page: Page): Promise<TrpcRecorder> {
+  return routeTrpc(page, {
+    "chat.getGroupConfig": () => ({ ...DEFAULT_GROUP_CONFIG }),
+    "chat.setRoomOverrides": () => ({}),
+    "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,
+    "worldInfo.listForChat": () => ROOM_BOOKS,
+    "chat.listChatInjections": () => [HELD_INJECTIONS[0]],
+    "chat.getUserMacroPicks": () => EMPTY_PICKS,
+    "chat.getVariablePicks": () => VARIABLE_PICKS,
+    "settings.getUserSettings": () => USER_SETTINGS,
+    "chat.getChat": () => CHAT_DETAIL,
+  });
+}
+
+test("#830: the pane opens as an INDEX — every section is a disclosure and only Field overrides is expanded", async ({ mount, page }) => {
+  await stubIndexPane(page);
+  const component = await mount(<CommittedSettingsTabStory isHost={true} showGroup={true} />);
+
+  // Barrier on the SETTLED body of the one section that IS open, so the collapsed reads below belong to a
+  // settled frame rather than to a beat where nothing has painted yet.
+  await expect(component.getByRole("button", { name: "Main prompt, inheriting" })).toBeVisible();
+
+  // ① The map: every top-level section names itself as a real, pressable door, and the count chips ride
+  //    those names — which is what makes the CLOSED pane the section index the review asked for. Only the
+  //    pane's teaching opening is expanded: measured on the isolated stage, opening Injections too pushes
+  //    Documents and Lorebooks back below a 740px mobile fold, which is the #830 symptom by default.
+  for (const [kicker, expanded] of [
+    ["Field overrides", "true"],
+    ["Injections 1", "false"],
+    ["Documents 1", "false"],
+    ["Lorebooks 1", "false"],
+    ["Macro picks", "false"],
+    ["Host controls", "false"],
+  ] as const) {
+    await expect(component.getByRole("button", { name: kicker, exact: true })).toHaveAttribute("aria-expanded", expanded);
+  }
+
+  // ② …and CLOSED means the body is not on the page at all — the height the review measured is gone, not
+  //    merely scrolled past. (`Injection 1` is the injections rack's own collapsed row; `The Crimson Court`
+  //    is the Documents rack's; `Tool rounds per turn` is the deepest host-band control.)
+  await expect(component.getByRole("button", { name: "Injection 1" })).toHaveCount(0);
+  await expect(component.getByText("The Crimson Court")).toHaveCount(0);
+  await expect(component.getByLabel("Tool rounds per turn")).toHaveCount(0);
+});
+
+test("#830: pressing a kicker opens THAT section, and the posture survives a remount", async ({ mount, page }) => {
+  await stubIndexPane(page);
+  const component = await mount(<CommittedSettingsTabStory isHost={true} showGroup={true} />);
+  await expect(component.getByRole("button", { name: "Main prompt, inheriting" })).toBeVisible();
+
+  await openContextSections(component, "Documents");
+  await expect(component.getByText("The Crimson Court")).toBeVisible();
+  // Its NEIGHBOUR is untouched — a disclosure is per-section, never a mode.
+  await expect(component.getByRole("button", { name: "Lorebooks 1", exact: true })).toHaveAttribute("aria-expanded", "false");
+
+  // The remount is the claim: the posture is remembered for this device, so the rack the host opened is
+  // open the next time the pane mounts — no second press.
+  await component.unmount();
+  const again = await mount(<CommittedSettingsTabStory isHost={true} showGroup={true} />);
+  await expect(again.getByRole("button", { name: "Documents 1", exact: true })).toHaveAttribute("aria-expanded", "true");
+  await expect(again.getByText("The Crimson Court")).toBeVisible();
+  // …and the section the host never touched is still at ITS default, not at the one they set next door.
+  await expect(again.getByRole("button", { name: "Lorebooks 1", exact: true })).toHaveAttribute("aria-expanded", "false");
+});
+
+test("#830: the trigger IS the kicker — a real button, named by the kicker text, in the kicker's own voice", async ({ mount, page }) => {
+  await stubIndexPane(page);
+  const component = await mount(<CommittedSettingsTabStory isHost={true} showGroup={true} />);
+
+  // The button lives INSIDE the h3, so the document outline the settings idiom bought is unchanged and the
+  // accessible name computes from the same content the eye reads (WCAG 2.5.3) — chip included.
+  const heading = component.getByRole("heading", { name: "Documents 1", level: 3 });
+  await expect(heading).toBeVisible();
+  const trigger = heading.getByRole("button", { name: "Documents 1", exact: true });
+  await expect(trigger).toBeVisible();
+
+  // …and it still SPEAKS the band's instrument register, at the step an INTERACTIVE label owes: `kicker`'s
+  // 10.5px is under design-audit's 11px functional floor for interactive text (six P2s, measured), so a
+  // kicker that is a control wears `interactiveKicker` — same uppercase, same tracking, same muted tone, at
+  // the readable label step. Resolved from the token in this document, never a px literal.
+  const labelStep = await page.evaluate(() => {
+    const probe = document.createElement("div");
+    document.body.append(probe);
+    probe.style.fontSize = getComputedStyle(document.documentElement).getPropertyValue("--text-label").trim();
+    const resolved = getComputedStyle(probe).fontSize;
+    probe.remove();
+    return resolved;
+  });
+  const label = trigger.locator('[data-slot="text"]').first();
+  await expect.poll(() => label.evaluate((el) => getComputedStyle(el).fontSize), { intervals: [20, 50, 100, 200] }).toBe(labelStep);
+  await expect.poll(() => label.evaluate((el) => getComputedStyle(el).textTransform)).toBe("uppercase");
+});
+
+test("#830 member: the permission-OMIT layout is unchanged — five doors, and no host band", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "chat.setRoomOverrides": () => ({}),
+    "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,
+    "worldInfo.listForChat": () => ROOM_BOOKS,
+    "chat.listChatInjections": () => [],
+    "chat.getUserMacroPicks": () => EMPTY_PICKS,
+    "chat.getVariablePicks": () => VARIABLE_PICKS,
+    "settings.getUserSettings": () => USER_SETTINGS,
+  });
+  const component = await mount(<CommittedSettingsTabStory isHost={false} showGroup={false} />);
+
+  // Barrier on the member tree's own settled open section before the absence reads (the #629 lesson) —
+  // Field overrides is the one section that opens itself, and a member gets its read-only copy.
+  await expect(component.getByRole("button", { name: "Main prompt, inheriting" })).toBeVisible();
+
+  for (const kicker of ["Field overrides", "Injections", "Documents 1", "Lorebooks 1", "Macro picks"] as const) {
+    await expect(component.getByRole("button", { name: kicker, exact: true })).toBeVisible();
+  }
+  // The §8.1 permission-OMIT is untouched by the disclosure: a member's tab still ENDS after Macro picks —
+  // the band is absent, not a closed door they can press.
+  await expect(component.getByRole("button", { name: HOST_BAND, exact: true })).toHaveCount(0);
+  await expect(component.getByRole("heading", { name: HOST_BAND, exact: true, level: 3 })).toHaveCount(0);
 });

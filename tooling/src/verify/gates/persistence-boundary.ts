@@ -98,6 +98,14 @@ const DEVICE_LOCAL_REGISTRY: ExemptionTable = {
   "config-group-open": {
     why: "which Configuration-roster GROUPS are expanded — a per-device working posture (a wide screen holds two libraries open where a laptop holds one), never a preference a user expects to follow them across devices; the `character-library` browse-prefs precedent (§12.1). Groups start COLLAPSED by owner ruling, so an absent entry is the honest default, not a lost setting",
   },
+  "chat-context-sections": {
+    why:
+      "which sections of the 'This chat' CONTEXT tab are expanded (#830) — a per-device working posture " +
+      "on THIS screen, exactly the `config-group-open` precedent (§12.1): a phone's fold is 300px shorter " +
+      "than a desktop's, so 'Lorebooks open, Host controls closed' must not follow a user across devices. " +
+      "Sparse by construction (only sections the user explicitly toggled), so an absent entry is the " +
+      "section's own default, not a lost setting",
+  },
   "tag-library": {
     why:
       "the tag roster's SORT MODE (most-used / A–Z / manual) in the Configuration workspace — a browse " +

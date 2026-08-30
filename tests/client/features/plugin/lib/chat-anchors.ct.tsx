@@ -26,6 +26,7 @@ import type { PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
+import { HOST_BAND, openContextSections } from "../../../../support/ct/open-context-sections.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { CHAT_AMBIENT_ROUTES, makeMessagesPage, makeMessageView } from "../../chat/fixtures.ts";
 import { PluginChatFlankRoomStory, PluginChatSettingsSectionStory } from "../_ct-stories.tsx";
@@ -261,9 +262,15 @@ test("the grafted section paints NOTHING — not even its heading — when the c
 
   // The tab itself rendered (so the absence below is a real absence, not a dead mount).
   await expect(component.getByRole("heading", { name: "Host controls", level: 3 })).toBeVisible();
+  // #830 — the band is a DISCLOSURE now, so the absence has to be read with it OPEN: a closed band would
+  // satisfy this assertion by never mounting the graft at all, which is the vacuous arm. Opening it is
+  // also what puts the mechanism under test: the graft's panel is `keepMounted`, so its `display:contents`
+  // wrapper is on the page to be asked by `has-[…:empty]:hidden` even while the section itself is closed.
+  await openContextSections(component, HOST_BAND);
   // …and the plugin section is not there: the contribution mounts (its `when` cannot see the data) and
   // renders null, and the host's grafted <Section> collapses with it.
   await expect(component.getByRole("heading", { name: "Plugin panels" })).toHaveCount(0);
+  await expect(component.getByRole("button", { name: "Plugin panels" })).toHaveCount(0);
 });
 
 test("a chat-settings-section surface renders in the labelled shell, and its action repaints the published state", async ({ mount, page }) => {
@@ -282,6 +289,10 @@ test("a chat-settings-section surface renders in the labelled shell, and its act
   });
 
   const component = await mount(<PluginChatSettingsSectionStory />);
+
+  // #830 — the host band and the grafted section are both disclosures, and a graft starts CLOSED (its body
+  // is data-driven). Two presses is the host's real path to a plugin panel.
+  await openContextSections(component, HOST_BAND, "Plugin panels");
 
   await expect(component.getByRole("heading", { name: "Plugin panels" })).toBeVisible();
   await expect(component.getByRole("group", { name: `${PLUGIN_NAME} — Room readings` })).toBeVisible();

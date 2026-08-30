@@ -15,6 +15,7 @@ import {
   __migrateActiveChatForTest,
   __readComposerDraftsForTest,
   __resetAppearanceBootHint,
+  __resetChatContextSections,
   __resetCollectionGroupOpen,
   __resetComposerDrafts,
   __resetDeploymentBootHint,
@@ -83,6 +84,7 @@ import {
   setCharacterSearch,
   setCharacterSortMode,
   setCharacterViewMode,
+  setChatContextSectionOpen,
   setChatListCharacterFilter,
   setChatListMonth,
   setChatListSearch,
@@ -119,6 +121,7 @@ import {
   useCharacterSearch,
   useCharacterSortMode,
   useCharacterViewMode,
+  useChatContextSectionOpen,
   useChatListCharacterFilter,
   useChatListMonth,
   useChatListSearch,
@@ -740,6 +743,29 @@ export function ConfigSelectionProbe(): ReactElement {
       </button>
       <button type="button" onClick={(): void => goToCollection("tags")}>
         go to the tags collection
+      </button>
+    </div>
+  );
+}
+
+/** ChatContextSectionOpenProbe — the "This chat" tab's per-device SECTION disclosure memory (#830). The
+ *  property that is not visible from the pane's own CT: the stored map is SPARSE, so an untouched section
+ *  answers with ITS OWN default (which differs per section — the two write surfaces open, the racks and the
+ *  host band closed), and an explicit answer beats that default in BOTH directions. */
+export function ChatContextSectionOpenProbe(): ReactElement {
+  const injections = useChatContextSectionOpen("injections", true);
+  const documents = useChatContextSectionOpen("documents", false);
+  return (
+    <div>
+      <output>{`injections=${String(injections)} documents=${String(documents)}`}</output>
+      <button type="button" onClick={(): void => setChatContextSectionOpen("documents", true)}>
+        open documents section
+      </button>
+      <button type="button" onClick={(): void => setChatContextSectionOpen("injections", false)}>
+        close injections section
+      </button>
+      <button type="button" onClick={(): void => __resetChatContextSections()}>
+        reset chat context sections
       </button>
     </div>
   );
