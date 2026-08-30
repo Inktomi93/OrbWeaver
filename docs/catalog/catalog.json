@@ -13129,9 +13129,9 @@
       "path": "docs/design/plugin-ui-plane.md",
       "lane": "design",
       "issue": 5,
-      "lines": 889,
-      "bytes": 90939,
-      "sha256": "9ea6f70199f8bb34a865b95da8e9f2a5cd108b4f90af567a08917d2a9ba126c2",
+      "lines": 900,
+      "bytes": 92271,
+      "sha256": "29d00e999367ba48e00ab66bd76f91c84b1e62a65b0e9f991147c443708474f7",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -13144,12 +13144,12 @@
       },
       "receipt": {
         "path": "docs/design/plugin-ui-plane.md",
-        "assignedSha256": "9ea6f70199f8bb34a865b95da8e9f2a5cd108b4f90af567a08917d2a9ba126c2",
+        "assignedSha256": "29d00e999367ba48e00ab66bd76f91c84b1e62a65b0e9f991147c443708474f7",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "9ea6f70199f8bb34a865b95da8e9f2a5cd108b4f90af567a08917d2a9ba126c2",
-        "verifiedCommit": "72a7204ffd08f5b3168c8c6fe849c86c037814d4",
+        "verifiedSha256": "29d00e999367ba48e00ab66bd76f91c84b1e62a65b0e9f991147c443708474f7",
+        "verifiedCommit": "0c95f296479bfcb91ab5b7d531c14fe30eb6d23f",
         "verifiedAt": "2026-08-30",
         "evidence": [
           "born-reviewed by its authoring lane (cb-plugui-design, #679): every build-state claim tree-verified 2026-08-24 with path:line receipts before commit 766525006",
