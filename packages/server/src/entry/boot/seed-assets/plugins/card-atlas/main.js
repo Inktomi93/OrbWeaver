@@ -2124,7 +2124,11 @@ function registerAtlasPage(sfwOn) {
                 gap: "field",
                 children: [
                   { kind: "button", actionId: "back", label: "Back to results", variant: "outline" },
-                  { kind: "button", actionId: "add_to_library", label: "Add to library", variant: "neutral" },
+                  // The page's ONE primary (#818). This detail stage IS the decision surface, and until the
+                  // ruling admitted a per-anchor primary the decision and the way back carried equal weight
+                  // (stickler 2026-08-29 F3). One claimant in the whole spec, so the renderer's
+                  // first-in-document-order grant is unambiguous.
+                  { kind: "button", actionId: "add_to_library", label: "Add to library", variant: "primary" },
                 ],
               },
               { kind: "markdown", value: { $state: "detail.blurb" } },

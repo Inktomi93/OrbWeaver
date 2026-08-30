@@ -193,6 +193,7 @@ export function PluginAnchoredSurfaces({ anchor, chatId }: PluginAnchoredSurface
           <PluginSurfaceShell key={`${surface.pluginId}:${surface.surfaceId}`} pluginName={surface.pluginName} title={surface.title}>
             {surface.tier === "scripted" ? (
               <PluginScriptedSurface
+                anchor={anchor}
                 grants={surface.grants}
                 pluginId={surface.pluginId}
                 surfaceId={surface.surfaceId}
@@ -201,6 +202,7 @@ export function PluginAnchoredSurfaces({ anchor, chatId }: PluginAnchoredSurface
               />
             ) : (
               <PluginSurfaceRenderer
+                anchor={anchor}
                 pluginId={surface.pluginId}
                 spec={surface.spec}
                 surfaceId={surface.surfaceId}

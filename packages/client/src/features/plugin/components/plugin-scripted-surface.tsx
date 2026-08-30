@@ -20,7 +20,7 @@
 // crash also feeds the 3-strike policy, so a plugin that dies every mount disables itself rather than
 // flickering forever.
 
-import type { PluginCapability, PluginSurfaceSpec } from "@orb/contracts/plugin";
+import type { PluginCapability, PluginSurfaceAnchor, PluginSurfaceSpec } from "@orb/contracts/plugin";
 import type { ChatId, PluginId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
@@ -31,6 +31,9 @@ import { PluginSurfaceRenderer } from "./plugin-surface-renderer.tsx";
 
 export interface PluginScriptedSurfaceProps {
   readonly pluginId: PluginId;
+  /** WHERE this surface is mounted (#818) — passed straight through to the renderer, which needs it to
+   *  arbitrate a `primary` button. Tier C changes WHO COMPUTES the tree, never where it hangs. */
+  readonly anchor: PluginSurfaceAnchor;
   /** THIS surface's id. The guest may own several; only trees published for this one land here. */
   readonly surfaceId: string;
   /** Every scripted surface id this plugin registered — the guest's render allow-list (a `render` naming
@@ -43,7 +46,7 @@ export interface PluginScriptedSurfaceProps {
   readonly chatId?: ChatId;
 }
 
-export function PluginScriptedSurface({ pluginId, surfaceId, surfaceIds, grants, chatId }: PluginScriptedSurfaceProps): ReactElement | null {
+export function PluginScriptedSurface({ pluginId, anchor, surfaceId, surfaceIds, grants, chatId }: PluginScriptedSurfaceProps): ReactElement | null {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const reportCrash = useReportUiCrash({ trpc, invalidation });
@@ -141,6 +144,7 @@ export function PluginScriptedSurface({ pluginId, surfaceId, surfaceIds, grants,
   }
   return (
     <PluginSurfaceRenderer
+      anchor={anchor}
       pluginId={pluginId}
       sink={{
         state: {},

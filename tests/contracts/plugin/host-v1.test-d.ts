@@ -149,6 +149,36 @@ test("the closed vocabularies are EXACT, not merely assignable", () => {
   expectTypeOf<PluginCommandArgSpec["type"]>().toEqualTypeOf<ContractCommandArgSpec["type"]>();
 });
 
+/** One node kind's own slot type, brand-erased and `undefined`-stripped — the shape a per-leaf vocabulary pin
+ *  compares. Optional (`?`) slots carry `| undefined` on both sides, which would equate two DIFFERENT unions
+ *  as long as both were optional. */
+type NodeSlot<N, K extends string, S extends string> = NonNullable<Extract<N, { kind: K }>[Extract<S, keyof Extract<N, { kind: K }>>]>;
+
+test("the LEAF vocabularies inside the node union are EXACT too — completing the exact-pin list above", () => {
+  // #818 completed the exact-pin list. The test above pins six vocabularies BY NAME because "for a vocabulary
+  // assignable is weaker than equal" — but the slot vocabularies a node LEAF carries (a button's weight, a
+  // badge's intent, a text's voice…) were never on that list, and they are the ones a vocabulary change
+  // actually touches. The assignability pins DO catch a drift here (proven by planted control 2026-08-30:
+  // reverting the mirror's `PluginButtonVariant` to two members reds three tests in this file) — but they
+  // report it as a multi-megabyte structural diff of the whole `ui.register` signature, in which the one
+  // changed word is unfindable. These rows name the vocabulary that moved, in one line.
+  //
+  // PLANTED-CONTROL HAZARD, paid here: **vitest's typecheck run is cached against the TEST file only.**
+  // Editing a `/// <reference`d `.d.ts` and re-running this spec unchanged returns a STALE GREEN — two control
+  // runs reported "no errors" over a mirror that was provably neutered. Touch the spec (or run the whole
+  // `contract`/`types` project cold) or the control is not a control.
+  expectTypeOf<NodeSlot<PluginSurfaceNode, "button", "variant">>().toEqualTypeOf<NodeSlot<ContractNode, "button", "variant">>();
+  expectTypeOf<NodeSlot<PluginSurfaceNode, "badge", "intent">>().toEqualTypeOf<NodeSlot<ContractNode, "badge", "intent">>();
+  expectTypeOf<NodeSlot<PluginSurfaceNode, "text", "voice">>().toEqualTypeOf<NodeSlot<ContractNode, "text", "voice">>();
+  expectTypeOf<NodeSlot<PluginSurfaceNode, "stack", "gap">>().toEqualTypeOf<NodeSlot<ContractNode, "stack", "gap">>();
+  expectTypeOf<NodeSlot<PluginSurfaceNode, "icon", "name">>().toEqualTypeOf<NodeSlot<ContractNode, "icon", "name">>();
+  expectTypeOf<NodeSlot<PluginSurfaceNode, "image", "aspect">>().toEqualTypeOf<NodeSlot<ContractNode, "image", "aspect">>();
+  expectTypeOf<NodeSlot<PluginSurfaceNode, "grid", "aspect">>().toEqualTypeOf<NodeSlot<ContractNode, "grid", "aspect">>();
+  expectTypeOf<NodeSlot<PluginSurfaceNode, "masterDetail", "stages">[number]["kind"]>().toEqualTypeOf<
+    NodeSlot<ContractNode, "masterDetail", "stages">[number]["kind"]
+  >();
+});
+
 test("the node vocabulary round-trips whole (brands erased) — the mirror's specs are the contract's specs", () => {
   expectTypeOf<DeepUnbrand<ContractNode>>().toExtend<PluginSurfaceNode>();
   expectTypeOf<PluginSurfaceNode>().toExtend<DeepUnbrand<ContractNode>>();

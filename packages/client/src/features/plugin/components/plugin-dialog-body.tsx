@@ -64,7 +64,7 @@ export function PluginDialogBody(): ReactElement {
   }
   return (
     <PluginSurfaceShell pluginName={pluginName} title={surface.title}>
-      {surface.spec === undefined ? null : <PluginSurfaceRenderer pluginId={subject.pluginId} spec={surface.spec} surfaceId={surface.id} />}
+      {surface.spec === undefined ? null : <PluginSurfaceRenderer anchor="dialog" pluginId={subject.pluginId} spec={surface.spec} surfaceId={surface.id} />}
     </PluginSurfaceShell>
   );
 }

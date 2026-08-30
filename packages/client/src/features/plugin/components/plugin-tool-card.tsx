@@ -74,7 +74,7 @@ export function PluginToolCard({ record }: PluginToolCardProps): ReactElement {
   }
   return (
     <PluginSurfaceShell pluginName={pluginName} title={surface.title}>
-      <PluginSurfaceRenderer pluginId={surface.pluginId} spec={surface.spec} state={toolCardState(record)} surfaceId={surface.id} />
+      <PluginSurfaceRenderer anchor="tool-card" pluginId={surface.pluginId} spec={surface.spec} state={toolCardState(record)} surfaceId={surface.id} />
     </PluginSurfaceShell>
   );
 }

@@ -27,14 +27,14 @@
 // until an action submits the whole `values` bag.
 
 import { blobUrl } from "@orb/contracts/assets";
-import type { PluginSurfaceNode } from "@orb/contracts/plugin";
-import { PLUGIN_SPEC_MAX_DEPTH, pluginSurfaceSpecSchema } from "@orb/contracts/plugin";
+import type { PluginButtonNode, PluginPrimaryArbitration, PluginSurfaceAnchor, PluginSurfaceNode } from "@orb/contracts/plugin";
+import { PLUGIN_ANCHOR_PRIMARY_ALLOWED, PLUGIN_SPEC_MAX_DEPTH, pluginSurfaceSpecSchema, resolvePluginPrimaryButton } from "@orb/contracts/plugin";
 import type { AssetId, ChatId, PluginId } from "@orb/kit/ids";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useInvalidation, useTRPC } from "#data";
 import { useInvokeUiAction } from "../lib/plugin-mutations.ts";
 import { collectDefaults, collectImageAssetIds, specNamesBundleAsset } from "../lib/plugin-surface-bindings.ts";
@@ -56,7 +56,45 @@ interface RenderCtx {
    *  `ui/assets/…` bundle path (#820), which the walk above aliases onto its resolved id's url. Absent = the
    *  installer does not own it, it is gone, or the plugin never shipped that path ⇒ placeholder. */
   readonly imageUrls: ReadonlyMap<string, string>;
+  /** The ONE button this surface's anchor granted the house primary weight (#818), by NODE IDENTITY out of the
+   *  validated tree — `null` when the anchor refuses a primary or the spec claims none. Every other button,
+   *  including a second `primary`, renders neutral. Identity, not an id: a spec node has none. */
+  readonly primaryButton: PluginButtonNode | null;
 }
+
+// %c DevTools console styles (not UI theme tokens — the `[plugin]` channel's own voice, the `[bus]` precedent).
+const PLUGIN_PREFIX_STYLE = "color:#888;font-weight:bold";
+const PLUGIN_WARN_STYLE = "color:#c60;font-weight:bold";
+
+/** The console line for a `primary` button this anchor DEMOTED (#818), or `""` when nothing was refused.
+ *  PURE and a plain string on purpose: it is the effect's ONLY dependency below, so the warning fires when the
+ *  spec's claims actually change rather than on every repaint — no dependency the linter cannot see, and no
+ *  array identity to re-derive. All of a surface's refusals ride ONE line: they are one authoring mistake. */
+function primaryRefusalMessage(pluginId: PluginId, surfaceId: string, anchor: PluginSurfaceAnchor, refused: readonly PluginButtonNode[]): string {
+  if (refused.length === 0) {
+    return "";
+  }
+  const why = PLUGIN_ANCHOR_PRIMARY_ALLOWED[anchor]
+    ? "that anchor already granted its one primary"
+    : "that anchor keeps the one-primary clamp — only `page` and `dialog` grant one";
+  const labels = refused.map((node) => `"${node.label}"`).join(", ");
+  return `${pluginId}/${surfaceId} · anchor ${anchor} · ${labels} — ${why}; rendered at the neutral weight.`;
+}
+
+/** Write {@link primaryRefusalMessage}'s line, or nothing. Deliberately NOT `IS_DEV`-gated like the
+ *  `[bus]`/`[trpc]` instruments: this is not a host self-diagnostic, it is the ONLY channel a hierarchy mistake
+ *  in an INSTALLED plugin has — an author testing against a production build would otherwise see a silently
+ *  flat CTA with no reason given. Not a toast either: nothing is broken FOR THE PERSON (the button works, it is
+ *  only weighted), so it belongs in the authoring channel rather than in their attention. */
+function warnPrimaryRefused(message: string): void {
+  if (message !== "") {
+    console.warn(`%c[plugin]%c primary refused%c  ${message}`, PLUGIN_PREFIX_STYLE, PLUGIN_WARN_STYLE, "");
+  }
+}
+
+/** The arbitration an UNPARSEABLE spec gets — no grant, nothing to report. A named constant rather than a
+ *  second branch in the renderer: the caps fallback is the outcome there, not a primary decision. */
+const NO_PRIMARY: PluginPrimaryArbitration = { granted: null, refused: [] };
 
 /** The TIER-C SINK — where a scripted surface's interactions go instead of the server (plugin-ui-plane #679 U4).
  *  Absent (the Tier-S default) the renderer owns everything: it reads `getSurfaceState` for the `$state`
@@ -85,6 +123,7 @@ export function PluginSurfaceRenderer({
   pluginId,
   surfaceId,
   spec,
+  anchor,
   chatId,
   sink,
   state: boundState,
@@ -92,6 +131,10 @@ export function PluginSurfaceRenderer({
   readonly pluginId: PluginId;
   readonly surfaceId: string;
   readonly spec: PluginSurfaceNode;
+  /** WHERE this surface is mounted (#818). Required, and each of the seven mount sites names its own: the
+   *  anchor is what decides whether a `primary` button is honoured ({@link resolvePluginPrimaryButton}), and a
+   *  defaulted anchor would silently hand the chat band's attention budget away. */
+  readonly anchor: PluginSurfaceAnchor;
   /** The ROOM this surface is mounted in (row 777). Threaded into the state read and the action round-trip so a
    *  room-anchored surface sees its own room's publication and acts in the room a person is looking at. */
   readonly chatId?: ChatId;
@@ -148,6 +191,16 @@ export function PluginSurfaceRenderer({
       imageUrls.set(path, url);
     }
   }
+  // #818 — the per-anchor PRIMARY arbitration, decided ONCE over the validated tree and threaded down by node
+  // IDENTITY. It runs here, not in the button leaf, because the law is about the WHOLE surface at THIS anchor:
+  // a leaf can only see itself, and "the first one wins" is not a fact a leaf holds.
+  const arbitration = parsed.success ? resolvePluginPrimaryButton(parsed.data, anchor) : NO_PRIMARY;
+  const refusalMessage = primaryRefusalMessage(pluginId, surfaceId, anchor, arbitration.refused);
+  // The refusal reaches the plugin's AUTHOR in an effect (never in the render body): a console write during
+  // render fires on every repaint of a perfectly static defect. The message string is the whole dependency.
+  useEffect(() => {
+    warnPrimaryRefused(refusalMessage);
+  }, [refusalMessage]);
   const [values, setValues] = useState<Record<string, string>>(() => {
     const out: Record<string, string> = {};
     if (parsed.success) {
@@ -200,6 +253,7 @@ export function PluginSurfaceRenderer({
     // the guest's re-render IS the feedback.
     submitting: sink === undefined && invoke.isPending,
     imageUrls,
+    primaryButton: arbitration.granted,
   };
   return <SurfaceNode ctx={ctx} depth={1} node={parsed.data} />;
 }
@@ -268,6 +322,7 @@ function SurfaceNode({ node, depth, ctx }: { readonly node: PluginSurfaceNode; r
     <SurfaceLeaf
       imageUrls={ctx.imageUrls}
       node={node}
+      primaryButton={ctx.primaryButton}
       setValue={ctx.setValue}
       state={ctx.state}
       submit={ctx.submit}
