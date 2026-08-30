@@ -26288,6 +26288,58 @@
       "receiptCurrent": true
     },
     {
+      "path": "docs/reviews/side-eye/2026-08-30-rpg-start-exit.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 572,
+      "bytes": 42599,
+      "sha256": "69be16c25bed50e5bcaa477aaccad37306b4b7aa18ec45f0af744395d919cc0b",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "draft",
+          "updated": "2026-08-30"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/side-eye/2026-08-30-rpg-start-exit.md",
+        "assignedSha256": "69be16c25bed50e5bcaa477aaccad37306b4b7aa18ec45f0af744395d919cc0b",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "69be16c25bed50e5bcaa477aaccad37306b4b7aa18ec45f0af744395d919cc0b",
+        "verifiedCommit": "03582725b5c8235d07298357d9de177950b631b3",
+        "verifiedAt": "2026-08-30",
+        "evidence": [
+          "docs/reviews/side-eye/2026-08-30-rpg-start-exit.md:1-572 read in full by the orchestrator (claude-b) before commit; lane cb-rpg-startexit, the #863 cold drive of game start/exit on :5173 (three ways: mouse 1280×800, keyboard, 430 coarse) plus the #861 foot-of-rail arm; state changed with approval and restored (Midnight Run left with a freeform game, overlay OFF, as briefed; Ashen Spire re-engaged); 10 design-audit tap-target findings retracted as false positives by elementFromPoint probes"
+        ],
+        "claims": [
+          {
+            "claim": "Every finding is tracked: the three P1s (no announcement/invisible transitions; unconfirmed exit with tooltip-only reassurance; non-deterministic landing), the P2s (stale list marker, four names, 380ms toggle with no pending state) and the §4.1 fork are posted on #863; the four things #862 does not fix are posted on #862; the #861 re-explanation (receded rail: no fill, no aria-current, no floor, 3+2 wrap) is posted on #861 and routed to the bracket lane; the stumbled-on P3s (tooltip/accname mismatch, glyph-less item, asymmetric roster pseudo) are one row.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#863"
+              },
+              {
+                "kind": "issue",
+                "target": "#862"
+              },
+              {
+                "kind": "issue",
+                "target": "#861"
+              }
+            ]
+          }
+        ],
+        "summary": "side-eye RPG start/exit cold drive (#863): SHIP WITH FIXES — nothing broken, both transitions INVISIBLE (with the context pane closed the only on-screen change is four dice chips; no aria-live, no marker), exit wipes a populated game on one unconfirmed click with its reassurance in a title= tooltip that touch never shows, the first screen after starting depends on which door was used (worst case: an empty HOST CONSOLE schema form); §4.1 'no ceremony' survives for ARRIVAL, its input changes for a user-initiated mutation (announce + open the panel to rpg.status); #861 re-explained as the receded rail's missing fill/floor/current; 10 tap-target findings retracted as false positives."
+      },
+      "receiptCurrent": true
+    },
+    {
       "path": "docs/reviews/side-eye/2026-08-30-this-chat-cls-verify.md",
       "lane": "reviews",
       "issue": 7,
