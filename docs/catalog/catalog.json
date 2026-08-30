@@ -12342,9 +12342,9 @@
       "path": "docs/design/mocks/README.md",
       "lane": "design",
       "issue": 5,
-      "lines": 37,
-      "bytes": 4865,
-      "sha256": "f6b02e546b2ba9cc06b0fba7190d2ac08a808f807b81f2f9d86f2eb8bdc68970",
+      "lines": 38,
+      "bytes": 5201,
+      "sha256": "2ca0b1ff7bff744289da52d8629362a2ef3e17d81ca5d695fe0bef0c7c060427",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -12357,12 +12357,12 @@
       },
       "receipt": {
         "path": "docs/design/mocks/README.md",
-        "assignedSha256": "f6b02e546b2ba9cc06b0fba7190d2ac08a808f807b81f2f9d86f2eb8bdc68970",
+        "assignedSha256": "2ca0b1ff7bff744289da52d8629362a2ef3e17d81ca5d695fe0bef0c7c060427",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "f6b02e546b2ba9cc06b0fba7190d2ac08a808f807b81f2f9d86f2eb8bdc68970",
-        "verifiedCommit": "467378dd06ec9b9a85573132d632b71e9fc994ce",
+        "verifiedSha256": "2ca0b1ff7bff744289da52d8629362a2ef3e17d81ca5d695fe0bef0c7c060427",
+        "verifiedCommit": "9fb66b4039d74c3d4c134cc33305ad2bea95ec70",
         "verifiedAt": "2026-08-30",
         "evidence": [
           "docs/design/mocks/README.md:1 (design; unheaded)",
@@ -12370,6 +12370,54 @@
           "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
         ],
         "summary": "docs/design/mocks — frozen design drawings: full content read against frozen tree; landed-state record retained as historical evidence."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/design/mocks/characters-landing/DESIGN.md",
+      "lane": "design",
+      "issue": 5,
+      "lines": 50,
+      "bytes": 3573,
+      "sha256": "e136c8b3243ce5cb7dbb1283cf9ecfc5e89ad31e80697ecdf99d76f6c978e3e6",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "design",
+          "status": "active",
+          "updated": "2026-08-30"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/design/mocks/characters-landing/DESIGN.md",
+        "assignedSha256": "e136c8b3243ce5cb7dbb1283cf9ecfc5e89ad31e80697ecdf99d76f6c978e3e6",
+        "disposition": "current",
+        "authority": "design",
+        "fullRead": true,
+        "verifiedSha256": "e136c8b3243ce5cb7dbb1283cf9ecfc5e89ad31e80697ecdf99d76f6c978e3e6",
+        "verifiedCommit": "9fb66b4039d74c3d4c134cc33305ad2bea95ec70",
+        "verifiedAt": "2026-08-30",
+        "evidence": [
+          "Authored by the orchestrator (claude-b) from the owner's live ruling on #864 (2026-08-30, 'Yes — build to it'); the canvas artifact c0fcd1ff is the clickable form, these files are its repo source; the four true-size PNGs were rendered from the same artboards and read before commit (the v1 box-sizing overflow was caught on the render and fixed before publish)"
+        ],
+        "claims": [
+          {
+            "claim": "Every datum drawn is on character.list today or ruled onto it by #865 (chatCount, source); the four states honour #520/#532 (one New door), #518 (count stays in the list), #226 (single-column shelves) and D44 (Avatar primitive); the sequence is after cb-char-polish, the #860 Characters commit and #865.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#864"
+              },
+              {
+                "kind": "issue",
+                "target": "#865"
+              }
+            ]
+          }
+        ],
+        "summary": "Characters landing mock (#864): the CONTENT pane at rest as a library — recently chatted, starred, just added, a fresh-install 'Meet the cast', the list-collapsed arm that owns the doors, and the phone sheet — drawn only from what character.list carries plus the two fields #865 wires; canvas source + renders + the fences for the build lane."
       },
       "receiptCurrent": true
     },
