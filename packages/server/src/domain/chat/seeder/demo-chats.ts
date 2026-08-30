@@ -689,7 +689,7 @@ export const DEMO_CHATS: readonly DemoChat[] = [
       opening: "greet-all",
       background: seededBackground("morgatha-bg"),
     },
-    game: { profile: "d20", setup: ASHEN_SPIRE_SETUP },
+    game: { ruleset: "d20", setup: ASHEN_SPIRE_SETUP },
   },
 ];
 

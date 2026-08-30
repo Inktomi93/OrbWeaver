@@ -1,5 +1,6 @@
-// CT: the RPG game door's direct mutation ownership. A held first-ever create owns both mutually-exclusive
-// profile choices for this chat; the re-engage door owns itself. Failures release both doors for retry.
+// CT: the GAME-MODE door's direct mutation ownership. #862 collapsed the two profile buttons into ONE start
+// action (the ruleset is a Game-tab setting now), so the admission property is per-DOOR: a held create owns
+// the start button, the re-engage door owns itself, and a failure releases each for retry.
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
@@ -14,28 +15,32 @@ function stubChat(page: Page, rpg: unknown, mutation: string, responder: TrpcRes
   });
 }
 
-test("same-task opposite profile choices admit one create, and rejection releases retry", async ({ mount, page }) => {
+// #862 — ONE START ACTION. The door used to offer `Freeform story` | `D20 adventure`, two buttons that
+// minted the identical lite game and differed only by packaged profile; that pick is the Game tab's ruleset
+// SETTING now. The pins: the retired buttons are gone, the one that remains is `Turn on game mode`, and a
+// same-task double activation still admits exactly one create.
+test("the door offers ONE start action (no profile pick), admits one create per task, and releases on rejection", async ({ mount, page }) => {
   const held = trpcHold();
   const trpc = await stubChat(page, null, "rpg.createGame", held);
   await mount(<RpgGameDoorStory />);
 
-  const freeform = page.getByRole("button", { name: "Freeform story" });
-  const d20 = page.getByRole("button", { name: "D20 adventure" });
-  await freeform.evaluate((element) => {
-    const choices = element.parentElement?.querySelectorAll("button");
+  await expect(page.getByRole("button", { name: "Freeform story" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "D20 adventure" })).toHaveCount(0);
+  const start = page.getByRole("button", { name: "Turn on game mode" });
+  await start.evaluate((element) => {
     (element as HTMLElement).click();
-    (choices?.item(1) as HTMLElement | undefined)?.click();
+    (element as HTMLElement).click();
   });
   await held.requested;
 
-  await expect(freeform).toBeDisabled();
-  await expect(d20).toBeDisabled();
+  await expect(start).toBeDisabled();
   await expect.poll(() => trpc.count("rpg.createGame")).toBe(1);
+  // The create carries no vocabulary pick — a game is born freeform and retuned by the setting.
+  await expect.poll(() => trpc.lastInput("rpg.createGame")).not.toHaveProperty("ruleset");
 
   held.release(trpcError());
-  await expect(freeform).toBeEnabled();
-  await expect(d20).toBeEnabled();
-  await d20.click();
+  await expect(start).toBeEnabled();
+  await start.click();
   await expect.poll(() => trpc.count("rpg.createGame")).toBe(2);
 });
 
@@ -44,7 +49,7 @@ test("a same-task repeat admits one re-engage write, and rejection releases retr
   const trpc = await stubChat(page, { gameId: "rpg_game_ct", engaged: false }, "rpg.updateConfig", held);
   await mount(<RpgGameDoorStory />);
 
-  const engage = page.getByRole("button", { name: "Turn the overlay on" });
+  const engage = page.getByRole("button", { name: "Turn game mode back on" });
   await engage.evaluate((element) => {
     (element as HTMLElement).click();
     (element as HTMLElement).click();

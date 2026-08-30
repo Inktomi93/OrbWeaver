@@ -68,6 +68,7 @@ export function emptyState(): RpgSnapshotState {
 export function liteConfig(): RpgGameConfig {
   return {
     engaged: true,
+    ruleset: "freeform",
     statProfile: RPG_PROFILE_FREEFORM,
     lite: { steeringNote: "" },
     extractionMode: "folded", // the BORN default (owner ruling 2026-08-01) — the fixture mirrors a real game

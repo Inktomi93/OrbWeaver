@@ -85,8 +85,23 @@ export interface ChatSummary {
    *  opaque `metadata.rpg` pointer this row already carries — the SAME sync surface `ChatDetail.rpg` and every
    *  client rpg gate read, so the list marker can never disagree with the chat it opens (chat stays
    *  rpg-table-blind: no join, no cross-domain read; a detached/healed pointer, or a game toggled OFF, is
-   *  `false` — a disengaged game shows no panel, so it shows no marker). */
+   *  `false`).
+   *
+   *  RULING FORK, recorded (#863(f), 2026-08-30). This clause used to end "a disengaged game shows no panel,
+   *  so it shows no marker". The MECHANISM survives verbatim — `isGame` is still the one engagement
+   *  predicate, still pointer-only, and a disengaged game still shows no panel and no ⚔. What changed is its
+   *  INPUT: the drive found that once a game is off, its existence is visible ONLY behind a host-only tab in
+   *  a pane that ships closed, so a host cannot find the rooms with a sleeping game. The answer is a SECOND
+   *  bit ({@link ChatSummary.gamePaused}), not a widened `isGame`. */
   readonly isGame: boolean;
+  /** Does this chat carry a game that is currently OFF (#863(f), owner-ordered 2026-08-30)? The SECOND bit
+   *  off the SAME opaque pointer — `metadata.rpg` present AND `isRpgEngaged` false. It does NOT widen
+   *  `isGame` and it does NOT read the rpg tables (the rpg-table-blind mechanism above is untouched): it
+   *  exists because the ONLY surviving evidence of a paused game was a host-only tab inside a pane that
+   *  ships closed, so a host could not see which rooms had a game sleeping in them. The list row wears it as
+   *  a QUIET marker (`Game chat — paused`), never as the live ⚔ — the panel/assembly still see nothing, which
+   *  is what the `isGame` ruling actually protects. */
+  readonly gamePaused: boolean;
   /** The resolved present cast for the list card (names only — the heavy roster is `getChat`), PER-CALLER:
    *  the VIEWER'S OWN seat is suppressed while any other seat remains, so an untitled row reads "Niko", not
    *  "You, Niko" (side-eye NR4 — the viewer is in every chat they can list, so their own name is a constant

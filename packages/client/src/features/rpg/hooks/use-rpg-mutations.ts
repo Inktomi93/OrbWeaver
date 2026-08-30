@@ -224,6 +224,11 @@ export const useUpdateConfig = createEntityMutation<inferInput<Trpc["rpg"]["upda
     trpc.rpg.getConfigView.queryFilter({ chatId: vars.chatId }),
     trpc.rpg.getTrackerView.queryFilter({ chatId: vars.chatId }),
     trpc.chat.getChat.queryFilter({ chatId: vars.chatId }),
+    // …AND the chats LIST (#863 P2): its ⚔ marker is the same fact from a different read (`isGame` /
+    // `gamePaused`, derived server-side off the same pointer). Without this, turning a game off left the
+    // row claiming "Game chat" for the rest of the session while the room's own pane disagreed — measured
+    // at t+0 and t+2000 ms. An invalidation set is a UX surface: name EVERY read of the toggled fact.
+    trpc.chat.listChats.queryFilter(),
   ],
   errorToast: "Couldn't save the game settings.",
 });
@@ -232,7 +237,7 @@ export const useUpdateConfig = createEntityMutation<inferInput<Trpc["rpg"]["upda
  *  `chat.getChat` (the pointer the takeover gate reads) so the game tabs appear on the same commit. */
 export const useCreateGame = createEntityMutation<inferInput<Trpc["rpg"]["createGame"]>, unknown>({
   options: (trpc) => trpc.rpg.createGame.mutationOptions(),
-  invalidates: (trpc, vars) => [trpc.chat.getChat.queryFilter({ chatId: vars.chatId })],
+  invalidates: (trpc, vars) => [trpc.chat.getChat.queryFilter({ chatId: vars.chatId }), trpc.chat.listChats.queryFilter()],
   errorToast: "Couldn't start the game.",
 });
 

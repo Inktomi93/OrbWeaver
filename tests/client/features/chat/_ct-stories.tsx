@@ -75,7 +75,9 @@ import {
   useNewChatIntent,
   useOpenModal,
   useOpenOverlayPanel,
+  usePanelOverride,
   useSectionRegistry,
+  useStatusAnnouncement,
   useTurnPhase,
 } from "@orb/client/state";
 import type { QuickReplyMode } from "@orb/contracts/automation";
@@ -98,10 +100,11 @@ import type { ThemeChatStyle } from "@orb/contracts/theme";
 import type { AssetId, CharacterId, ChatId, DocumentId, MessageId, PersonaId, UserId, WorldBookId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
+import { AriaAnnouncer } from "@orb/ui/aria-announcer";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
 import { Text } from "@orb/ui/text";
 import { ThemeScope } from "@orb/ui/theme-scope";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { CSSProperties, ReactElement, ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { SectionContextHeader, SectionContextHost } from "../../../../packages/client/src/features/app-shell/components/section-context-host.tsx";
@@ -2408,6 +2411,48 @@ export function ChatOptionsMenuStory({ withCast = false }: ChatOptionsMenuStoryP
         <ChatOptionsMenu chatId={CHAT_ID} title="Test chat" characters={withCast ? CT_OPTIONS_CAST : []} />
       </div>
     </CtDataProviders>
+  );
+}
+
+/** The ⋯ menu WITH the two shell surfaces a game-mode transition writes into (#862/#863): the app's ONE
+ *  polite live region (mirroring `app-root`'s single-line wiring — the region is app-level, the menu is not)
+ *  and a plain readout of the context-panel landing the shell store holds. Both are the USER-VISIBLE result
+ *  of a transition, so the CT can assert what a screen-reader hears and where the panel lands without
+ *  reaching into store internals. */
+export function ChatGameModeMenuStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div>
+        <ChatOptionsMenu chatId={CHAT_ID} title="Test chat" characters={[]} />
+        <GameModeShellReadout />
+        <GameMarkerCensus />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** The chats LIST's half of the same fact (#863 P2): how many rows the list read currently marks as a game.
+ *  It is a SEPARATE tRPC read from the room's `chat.getChat`, which is exactly why a toggle that invalidates
+ *  only the room left this census stale for the whole session. */
+function GameMarkerCensus(): ReactElement {
+  const trpc = useTRPC();
+  const { data } = useQuery(trpc.chat.listChats.queryOptions({ limit: 20 }));
+  const marked = (data?.items ?? []).filter((item) => item.isGame).length;
+  return <p>{`Game rows: ${String(marked)}`}</p>;
+}
+
+function GameModeShellReadout(): ReactElement {
+  const announcement = useStatusAnnouncement();
+  const contextTab = useContextTab();
+  // The reveal writes the ACTIVE section's context-panel override (`revealContextPanel` writes both regime
+  // channels; the docked one is what a wide viewport resolves).
+  const contextPanel = usePanelOverride(useActiveSection(), "context");
+  return (
+    <>
+      <AriaAnnouncer message={announcement} />
+      <p>{`Landing: ${contextTab ?? "none"}`}</p>
+      <p>{`Context panel: ${contextPanel ?? "unset"}`}</p>
+    </>
   );
 }
 

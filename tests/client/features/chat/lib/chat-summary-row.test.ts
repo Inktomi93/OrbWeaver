@@ -19,6 +19,7 @@ function makeSummary(overrides: Partial<SummaryItem>): SummaryItem {
     title: null,
     starred: false,
     archived: false,
+    gamePaused: false,
     parentChatId: null,
     lastMessageAt: null,
     messageCount: 0,

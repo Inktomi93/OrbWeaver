@@ -14,6 +14,7 @@
 
 import type { CastEntry, GroupConfig } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
+import type { RpgRuleset } from "@orb/contracts/rpg";
 import type { MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -28,16 +29,17 @@ const CHIPS = '[data-slot="chat-control-chips"]';
  *  — the guided-cluster/choice CT precedent): the `publicConfig` slice those readers use. The dice source
  *  itself reads only `chat.getChat.rpg`, but the ROOM mounts game-aware chrome the moment the pointer engages,
  *  so an engaged mount must feed this or a suspending reader renders `QueryErrorState`. */
-function gameView(): unknown {
+function gameView(ruleset: RpgRuleset): unknown {
   return {
     id: "rpg_game_ct_dice",
     chatId: CHAT_ID,
     mode: "lite",
     status: "active",
     trackersReadOnly: false,
+    canPopulate: false,
     extractionMode: "cheap",
     effectiveDelivery: { path: "tool-round", fallbackReason: null },
-    publicConfig: { statProfile: { attributes: [] }, immersiveHtml: true, cyoa: false, cyoaChoiceBehavior: "compose", plotProgression: false },
+    publicConfig: { statProfile: { attributes: [] }, ruleset, immersiveHtml: true, cyoa: false, cyoaChoiceBehavior: "compose", plotProgression: false },
   };
 }
 
@@ -49,7 +51,11 @@ function rollOutcome(notation: string, rolls: readonly number[], total: number):
 
 /** The room floor (the band CT's own reads), plus the game-ness pointer the dice source gates on and the
  *  `rpg.rollDice` stub. `engaged` chooses whether `chat.getChat.rpg` presents a LIVE game. */
-function routeRoom(page: Page, engaged: boolean): Promise<{ readonly count: (p: string) => number; readonly lastInput: (p: string) => unknown }> {
+function routeRoom(
+  page: Page,
+  engaged: boolean,
+  ruleset: RpgRuleset = "d20",
+): Promise<{ readonly count: (p: string) => number; readonly lastInput: (p: string) => unknown }> {
   return routeTrpc(page, {
     ...CHAT_AMBIENT_ROUTES,
     "chat.previewContextFit": (): unknown => ({
@@ -77,7 +83,7 @@ function routeRoom(page: Page, engaged: boolean): Promise<{ readonly count: (p: 
     "chat.listMessages": (): unknown =>
       makeMessagesPage([makeMessageView({ id: castId<MessageId>("msg_dice_room"), role: "assistant", content: "The corridor forks.", seq: 1 })]),
     // The engaged room's game-aware chrome suspends on getGame; a plain chat never asks for it (no unfed read).
-    ...(engaged ? { "rpg.getGame": (): unknown => gameView() } : {}),
+    ...(engaged ? { "rpg.getGame": (): unknown => gameView(ruleset) } : {}),
     "rpg.rollDice": (): unknown => rollOutcome("d20", [14], 14),
     "chat.send": (): unknown => ({ ok: true }),
   });
@@ -125,5 +131,20 @@ test("a plain (non-game) chat surfaces NO dice chips — the game-arm acceptance
   await expect(component.getByText("The corridor forks.")).toBeVisible();
   await expect(component.getByRole("button", { name: "Run Roll d20" })).toHaveCount(0);
   // The whole control band collapses (no source published anything) — byte-identical to a build without S1.
+  await expect(component.locator(CHIPS)).toHaveCount(0);
+});
+
+// #862 — THE RULESET GATES THE ROW. A freeform game is a table with no dice, and its own start-door copy
+// promises prose steering; four d20-family chips over it were the measured contradiction (side-eye
+// 2026-08-30) AND the thing that would have made the new ruleset SETTING a dead toggle. This is the pin that
+// the setting has a visible consequence for every member, not just the host who flipped it.
+test("an engaged FREEFORM game surfaces NO dice chips — the ruleset gates the row (#862)", async ({ mount, page }) => {
+  await routeRoom(page, true, "freeform");
+
+  const component = await mount(<RpgDiceAskStory />);
+  // The room renders (the discriminator) — the absence below is a settled truth, not a pre-load flash.
+  await expect(component.getByText("The corridor forks.")).toBeVisible();
+  await expect(component.getByRole("button", { name: "Run Roll d20" })).toHaveCount(0);
+  // The whole band collapses: a freeform game publishes an EMPTY control set, not four dead chips.
   await expect(component.locator(CHIPS)).toHaveCount(0);
 });

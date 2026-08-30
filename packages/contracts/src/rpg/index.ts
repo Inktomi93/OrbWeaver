@@ -4,6 +4,8 @@
 //   • enums.ts    — the string-union tuples (mode/status/quest/journal/checkpoint/widget), CHECK-derived in db
 //   • mode.ts     — the `MODE_POLICY` exhaustive record + the mode capability axis (§2.2)
 //   • profile.ts  — `statProfile` as data + the three packaged profiles (§2.3)
+//   • ruleset.ts  — the RULESET axis (#862): the host setting that picks a game's vocabulary + dice, and the
+//                   ADDITIVE apply the write door commits (owner ruling 2026-08-30)
 //   • sheet.ts    — the per-actor identity sheet (§4.3)
 //   • actor.ts    — THE actor: ref + `actorRefKey` + the cast SLUG + the identity half + the volatile half
 //                   (wallet/inventory first-class, §2.6; the R2 one-row reshape)
@@ -218,6 +220,17 @@ export {
   rpgStatResolutionSchema,
 } from "./profile.ts";
 export { RPG_PROSE_SLOTS } from "./prose.ts";
+export type { RpgRuleset, RpgRulesetVocabulary } from "./ruleset.ts";
+export {
+  applyRulesetVocabulary,
+  RPG_RULESET_CONSEQUENCE,
+  RPG_RULESET_DEFAULT,
+  RPG_RULESET_DICE,
+  RPG_RULESET_LABEL,
+  RPG_RULESET_PROFILE,
+  RPG_RULESETS,
+  rpgRulesetSchema,
+} from "./ruleset.ts";
 export type { RpgSheet } from "./sheet.ts";
 export { rpgSheetSchema } from "./sheet.ts";
 export type { RpgFieldLocks, RpgPlot, RpgPlotAct, RpgQuest, RpgQuestObjective, RpgSnapshotState } from "./snapshot.ts";

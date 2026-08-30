@@ -13,97 +13,136 @@
 // owner's show-everything ruling is UNCHANGED and still binds: nothing here hides, it just no longer has a
 // phase to hide from.
 
-import { isRpgEngaged, RPG_PROFILE_D20 } from "@orb/contracts/rpg";
+import { isRpgEngaged } from "@orb/contracts/rpg";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { Icon, Images, MessagesSquare, Pencil, Swords, X } from "@orb/ui/icons";
+import { Stack } from "@orb/ui/layout";
 import { MenuItem, MenuPopup, MenuSeparator, MenuSubmenuRoot, MenuSubmenuTrigger } from "@orb/ui/menu";
+import { Text } from "@orb/ui/text";
 import type { inferInput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
-import { useState } from "react";
+import { useId, useRef, useState } from "react";
 import { RowActionsMenu } from "#components";
 import type { Trpc } from "#data";
 import { createEntityMutation, useGatedQuery, useInvalidation, useStartChat, useTRPC } from "#data";
-import { enterSelectionMode, goToLanding } from "#state";
+import { enterSelectionMode, GAME_MODE_KEPT_LINE, GAME_MODE_OFF_LABEL, GAME_MODE_ON_LABEL, goToLanding, onGameModeStarted, onGameModeStopped } from "#state";
 import { CharacterGalleryDialog } from "../anchors/character-gallery-dialog.tsx";
 import { useDeleteChat, useUpdateChatTitle } from "../hooks/use-chat-row-mutations.ts";
 import { RenameChatDialog } from "./rename-chat-dialog.tsx";
 
-// The #40 GAME front-door mutations — the ⋯ menu's start/pause/resume rides the rpg procs DIRECTLY
+// The #40 GAME front-door mutations — the ⋯ menu's start/stop rides the rpg procs DIRECTLY
 // (lockdown §12 — a feature rides another domain's tRPC procedure directly, never its client; the rpg
 // feature's own direct `trpc.chat.listMessages` read, `rpg-choice-echo.tsx`, is the live precedent). Both
-// repaint `chat.getChat` (the pointer MIRROR the takeover gate + this menu read).
+// repaint `chat.getChat` (the pointer MIRROR the takeover gate + this menu read) AND `chat.listChats`:
+// the LIST row renders the same fact from a different read (`isGame`/`gamePaused`, derived server-side off
+// the same pointer), so leaving it out left the ⚔ marker claiming "Game chat" for the rest of the session
+// while the room's own pane said otherwise — measured at t+0 and t+2000 ms (#863 P2). A mutation's
+// invalidation set is a UX surface: it must name EVERY read that renders the toggled fact.
 const useStartGame = createEntityMutation<inferInput<Trpc["rpg"]["createGame"]>, unknown>({
   options: (trpc) => trpc.rpg.createGame.mutationOptions(),
-  invalidates: (trpc, vars) => [trpc.chat.getChat.queryFilter({ chatId: vars.chatId })],
+  invalidates: (trpc, vars) => [trpc.chat.getChat.queryFilter({ chatId: vars.chatId }), trpc.chat.listChats.queryFilter()],
   errorToast: "Couldn't start the game.",
 });
 const useSetGameEngaged = createEntityMutation<inferInput<Trpc["rpg"]["updateConfig"]>, unknown>({
   options: (trpc) => trpc.rpg.updateConfig.mutationOptions(),
-  invalidates: (trpc, vars) => [trpc.chat.getChat.queryFilter({ chatId: vars.chatId })],
+  invalidates: (trpc, vars) => [trpc.chat.getChat.queryFilter({ chatId: vars.chatId }), trpc.chat.listChats.queryFilter()],
   errorToast: "Couldn't switch the game.",
 });
 
-// The overlay toggle labels — ONE easily-renamed home (owner naming may still move; never scatter).
-const RPG_OVERLAY_ON_LABEL = "Turn on RPG";
-const RPG_OVERLAY_OFF_LABEL = "Turn off RPG";
-
-/** The "turn on RPG" submenu — the profile pick behind a FIRST-ever enable (freeform | d20). */
-function TurnOnRpgSubmenu({ onPick }: { readonly onPick: (profile: "freeform" | "d20") => void }): ReactElement {
-  return (
-    <MenuSubmenuRoot>
-      <MenuSubmenuTrigger>
-        <Icon icon={Swords} size="sm" />
-        {RPG_OVERLAY_ON_LABEL}
-      </MenuSubmenuTrigger>
-      <MenuPopup>
-        <MenuItem onClick={(): void => onPick("freeform")}>Freeform story</MenuItem>
-        <MenuItem onClick={(): void => onPick("d20")}>D20 adventure</MenuItem>
-      </MenuPopup>
-    </MenuSubmenuRoot>
-  );
-}
-
-/** The #40 RPG-overlay section of the ⋯ menu — ONE on/off toggle, flippable at ANY time (owner model:
- *  rpg-lite is an OVERLAY on the roleplay, not a game session; there is no pause/resume). Host-only (a
- *  member sees nothing — the server verbs re-gate). Arms:
- *   • no game — "Turn on RPG" (profile pick) → createGame.
- *   • overlay ON — "Turn off RPG" (state kept; assembly + panel drop the overlay).
- *   • overlay OFF — "Turn on RPG" (no re-pick — the preserved state comes back as-is).
+/** The #40/#862 GAME-MODE section of the ⋯ menu — ONE toggle, flippable at ANY time (owner model: a game
+ *  is a mode the roleplay runs in, not a session with pause/resume). Host-only (a member sees nothing — the
+ *  server verbs re-gate). Arms:
+ *   • no game — "Turn on game mode" → `createGame` DIRECTLY (no pick).
+ *   • game ON — "Turn off game mode" + the kept-state line (state preserved; assembly + panel drop it).
+ *   • game OFF — "Turn on game mode" (the preserved state comes back as-is).
  *
- *  The pre-send STAGING arm is gone (R1): a draft used to stage `startAsGame` into the draft-config store so
- *  the first send could mint the lite game BEFORE the opening turn. The room exists first now, so the toggle
- *  calls `rpg.createGame` directly — which is still before the first turn, because the first turn is always
- *  later than creation. */
+ *  ONE ACTION, NOT A PICK (#862, owner ruling 2026-08-30). This item used to be a SUBMENU offering
+ *  `Freeform story | D20 adventure` — two buttons that minted the identical `lite` game and differed only
+ *  by packaged profile. That is a SETTING, and it lives on the Game tab's host console now (`ruleset`,
+ *  retunable additively at any time), so starting is one click from one item. The submenu's keyboard model
+ *  was CORRECT, not broken (measured: haspopup/expanded, ArrowRight-open, Escape-restores-focus,
+ *  `:focus-visible` at every stop) — what replaces it keeps that standard by being an ordinary MenuItem,
+ *  the same roving-focus surface with one less level.
+ *
+ *  THE COPY IS ON THE ITEM, NOT IN A TOOLTIP (#863 P1). The reassurance used to live in a native `title`:
+ *  dwell-gated on a pointer, absent on touch entirely, and only a DESCRIPTION to a screen reader. It is a
+ *  visible second line now, wired as the item's accessible description, with the accessible NAME pinned to
+ *  the first line by `aria-labelledby` (textContent would otherwise fold both lines into the name).
+ *
+ *  THE PENDING TREATMENT IS THE DOOR'S (#863 P2): a `createAdmission` ref admits ONE write per task and the
+ *  item disables while it is in flight — the menu used to close instantly with ~380 ms of work at 4× CPU
+ *  and nothing indicating it. A transient disable carries no reason (only persistent gates explain
+ *  themselves). */
 function GameMenuSection({ chatId }: { readonly chatId: ChatId }): ReactElement | null {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const startGame = useStartGame({ trpc, invalidation });
   const setEngaged = useSetGameEngaged({ trpc, invalidation });
   const detailQuery = useGatedQuery(chatId, (id) => trpc.chat.getChat.queryOptions({ chatId: id }));
+  const admission = useRef(false);
+  const labelId = useId();
+  const descriptionId = useId();
   // OPTIONAL-CHAINED throughout: the CT harness resolves UNLISTED procs to `{data:null}` by design (an
   // incidental read must never crash a surface) — a bare `.viewerIsHost` deref here blanked the menu.
   const detail = detailQuery.data;
   if (detail?.viewerIsHost === false) {
-    return null; // PERMISSION-omit: only the host flips the overlay (the server verbs re-gate).
+    return null; // PERMISSION-omit: only the host flips game mode (the server verbs re-gate).
   }
 
   const pointer = detail?.rpg ?? null;
-  if (pointer === null) {
-    // First-ever enable on a committed chat — the profile pick, then createGame.
+  const engaged = isRpgEngaged(pointer);
+  const pending = startGame.isPending || setEngaged.isPending;
+  // The admission ref is the door's own idiom: two same-task activations (double-click, Enter+click) must
+  // produce ONE write, and `isPending` alone cannot see the second one inside the same task.
+  const admit = (run: () => void): void => {
+    if (admission.current) {
+      return;
+    }
+    admission.current = true;
+    run();
+  };
+  const settled = (): void => {
+    admission.current = false;
+  };
+  const start = (): void =>
+    admit(() =>
+      // No `ruleset`: a game is born freeform and the host retunes the SETTING on the Game tab (#862). The
+      // reveal + announcement fire on the COMMIT, so nothing is claimed before the server agrees.
+      startGame.mutate({ chatId, mode: "lite" }, { onSuccess: onGameModeStarted, onSettled: settled }),
+    );
+  const setMode = (next: boolean): void =>
+    admit(() => setEngaged.mutate({ chatId, patch: { engaged: next } }, { onSuccess: next ? onGameModeStarted : onGameModeStopped, onSettled: settled }));
+
+  if (!engaged) {
     return (
-      <TurnOnRpgSubmenu onPick={(profile): void => startGame.mutate({ chatId, mode: "lite", ...(profile === "d20" ? { profile: RPG_PROFILE_D20 } : {}) })} />
+      <>
+        <MenuSeparator />
+        <MenuItem disabled={pending} onClick={(): void => (pointer === null ? start() : setMode(true))}>
+          <Icon icon={Swords} size="sm" />
+          {GAME_MODE_ON_LABEL}
+        </MenuItem>
+        <MenuSeparator />
+      </>
     );
   }
-  const engaged = isRpgEngaged(pointer);
-  const label = engaged ? RPG_OVERLAY_OFF_LABEL : RPG_OVERLAY_ON_LABEL;
   return (
-    <MenuItem
-      title={engaged ? "Turns the RPG overlay off — your sheets, scene, and quests are kept." : "Turns the RPG overlay back on — everything is as you left it."}
-      onClick={(): void => setEngaged.mutate({ chatId, patch: { engaged: !engaged } })}
-    >
-      <Icon icon={Swords} size="sm" />
-      {label}
-    </MenuItem>
+    <>
+      {/* Its OWN separator group (#863 P1): the toggle used to sit unseparated between two cosmetic items
+          while the strictly-less-surprising Delete got a separator, an icon and a confirm dialog. */}
+      <MenuSeparator />
+      <MenuItem aria-describedby={descriptionId} aria-labelledby={labelId} disabled={pending} onClick={(): void => setMode(false)}>
+        <Icon icon={Swords} size="sm" />
+        <Stack gap="tight">
+          <span id={labelId}>{GAME_MODE_OFF_LABEL}</span>
+          {/* The kept-state promise, at the moment of the decision — this is what makes the action read as
+              PAUSE rather than END, which is why no confirm dialog is offered (it is reversible). */}
+          <Text id={descriptionId} voice="gloss">
+            {GAME_MODE_KEPT_LINE}
+          </Text>
+        </Stack>
+      </MenuItem>
+      <MenuSeparator />
+    </>
   );
 }
 
@@ -187,7 +226,7 @@ export function ChatOptionsMenu({ chatId, title, characters }: ChatOptionsMenuPr
             </MenuPopup>
           </MenuSubmenuRoot>
         ) : null}
-        {/* The #40 RPG-overlay toggle — on/off at ANY time. */}
+        {/* The #40/#862 GAME-MODE toggle — on/off at ANY time, in its own separator group. */}
         <GameMenuSection chatId={chatId} />
 
         {/* #41 consolidation — Continue/Regenerate/Impersonate moved to the composer WAND (the
