@@ -113,9 +113,18 @@ interface OwnerIds {
   bookId: string;
   entryId: string;
   tagId: TagId;
+  // #795 — A's SECOND tag, seeded after `tagId` so A's tag order is a known [tagId, tagOrderBId]. The
+  // `tag.setTagOrder` probe sends the reversal; the post-sweep order re-read is the only witness (a
+  // single-tag order was un-reversible, so the old probe could not fail — the `regexGlobalOrder*` shape).
+  tagOrderBId: TagId;
   credentialId: string;
   themeId: ThemeId;
   workloadId: WorkloadId;
+  // #795 — a SECOND workload for A, seeded `queued`. `workloadId` above is `failed` so that `retry` is
+  // meaningful, but `markCancelling` is a NO-OP ON A TERMINAL ROW — so the `cancel` probe aimed at it could
+  // not mutate anything even with its owner belt REMOVED (measured: planted omission, suite stayed green).
+  // A cancellable target is what gives that probe's write arm teeth.
+  queuedWorkloadId: WorkloadId;
   scheduleId: string;
   snapshotId: string;
   chatId: ChatId;
@@ -186,6 +195,29 @@ async function leakVerdict(path: string, thunk: () => Promise<unknown>, requireN
   return leaked === undefined ? null : `${path}: a stranger's result leaked owner A's data ("${leaked}")`;
 }
 
+// ── #795 — THE REVERSE DETECTOR (write-IDOR). ───────────────────────────────────────────────────────────────
+// `leakVerdict` above asks "did A's data reach B?" — a READ-authority question. It is structurally BLIND to the
+// opposite failure: an UPDATE that overwrites A's field with the attacker's value, or a DELETE that returns
+// void, leaves the stranger's own result marker-free WHETHER THE WRITE WAS REFUSED OR SUCCEEDED (proven
+// 2026-08-29, #755: dropping `eq(presets.ownerId, userId)` from `updatePresetRow` left this whole suite GREEN
+// on a genuinely hijacked preset). The only witness is A's OWN world, re-read after the sweep.
+//
+// So this asks the mirror question — "did B's data reach A?" — and it is deliberately a CLASS belt rather than
+// one hand-written pin per verb: nearly every mutating probe above writes the same distinctive attacker text,
+// so ANY of them that silently lands is caught here, including probes added later by lanes that never read
+// this comment. It does NOT replace the per-field pins below: it is blind to exactly what the forward detector
+// is blind to — a boolean flipped, a number moved, an ORDER reversed, a row DELETED, a row ADDED — none of
+// which carry text. Both halves are required, and each states which arms it owns.
+const ATTACKER_TEXT = "hacked";
+
+/** Did the stranger's text land in one of owner A's post-sweep reads? Returns a finding, or `null` when clean.
+ *  Pure (the caller collects then asserts once), the `leakVerdict` posture. */
+function hijackVerdict(surface: string, ownerRead: unknown): string | null {
+  return (JSON.stringify(ownerRead) ?? "").includes(ATTACKER_TEXT)
+    ? `${surface}: owner A's own read carries the STRANGER's text ("${ATTACKER_TEXT}") — a cross-tenant WRITE landed`
+    : null;
+}
+
 /** Drain a subscription probe to a plain array (the gate runs on the first `.next()`), so a streaming probe
  *  reaches the participant chokepoint AND its yields land in the marker-leak check. A tRPC caller returns the
  *  subscription as a Promise<AsyncIterable>, so await it first. NOTE: the router's `withSubscriptionErrors`
@@ -229,6 +261,30 @@ const FAKE = {
 // projected the DDL default instead of the stored row would also fail these pins rather than pass them.
 const OWNER_BUDGET_A = 7;
 const OWNER_BUDGET_STRANGER = 99;
+
+// ── #795 — the write-IDOR completeness audit's distinguishability constants. ────────────────────────────────
+// EVERY one exists because the probe it belongs to was VACUOUS without it: a stranger's write whose payload
+// equals the field's DEFAULT is indistinguishable from a refused write on the post-sweep re-read, so the pin
+// passes whether the belt held or not. That is the `OWNER_BUDGET_A`/`OWNER_BUDGET_STRANGER` two-distinct-
+// numbers rule (C5) generalized — a re-read is only a witness if the seeded value and the attacker's value
+// differ. Each constant below is away from BOTH the schema default and the attacker's payload.
+
+/** A's per-CHAT fire ceiling. Distinct from `AUTOMATION_CHAT_BUDGET_DEFAULTS.maxFiresPerHour` (120) AND from
+ *  the stranger's `setBudgets` probe payload (`CHAT_BUDGET_HACK`), so the post-sweep re-read separates three
+ *  outcomes a single value could not: A's row intact, A's row overwritten, or a verb projecting the DDL
+ *  default instead of the stored row. */
+const CHAT_BUDGET_A = 11;
+/** What the stranger's `automation.setBudgets` probe writes at A's chat. */
+const CHAT_BUDGET_HACK = 5;
+/** A's preset's distinctive generation knob. `preset.resetToDefault` REPLACES the config while KEEPING the
+ *  name, so the existing `presetStill.name` pin is structurally blind to it — a default-configured preset
+ *  reads identical before and after a hijacked reset. This knob is the only witness. */
+const PRESET_TEMPERATURE_A = 0.42;
+/** The stranger's `chat.setRoomOverrides` payload. It used to be `{}` — byte-identical to
+ *  `DEFAULT_ROOM_OVERRIDES`, so a hijacked write left A's room reading exactly like an untouched one. This
+ *  string reaches the assembled PROMPT (`scenario` is a section override), which is what makes the arm worth
+ *  a real payload rather than an empty object. */
+const ROOM_OVERRIDE_HACK = "hacked-room-override";
 
 // A minimal schema that PASSES `refinerySchemaDocumentSchema` (liftable subset + the score stage's
 // well-known `overallScore` 1-10 core). Deliberately valid: it seeds A's library row AND rides the
@@ -588,7 +644,12 @@ const PROBES: readonly Probe[] = [
     path: "tag.bulkAttachTag",
     call: (c, i) => c.tag.bulkAttachTag({ tagIds: [i.tagId], targetType: "character", targetId: i.characterId }),
   },
-  { path: "tag.setTagOrder", call: (c, i) => c.tag.setTagOrder({ orderedIds: [i.tagId] }) },
+  // #795 — the tag EXECUTION-ORDER arm, the `regex.applyScopeOrder` global-scope shape one plane over. The old
+  // payload named A's ONE tag, so "reordered" and "refused" produced the identical single-element order and the
+  // probe could not fail. A seeds TWO tags in a known order [tagId, tagOrderBId]; the stranger sends the
+  // REVERSAL, and the post-sweep order re-read is the only witness (the verb answers void/a benign shape either
+  // way, so the marker detector is structurally blind here).
+  { path: "tag.setTagOrder", call: (c, i) => c.tag.setTagOrder({ orderedIds: [i.tagOrderBId, i.tagId] }) },
   // The `pending` review inbox narrowed by a characterId — owner-scoped via `characters.ownerId`
   // (list-pending-suggestions.ts), so a stranger passing A's characterId gets an empty list (leak-free).
   {
@@ -666,7 +727,10 @@ const PROBES: readonly Probe[] = [
   //    see a leak-free NOT_FOUND on a foreign workload (its `error` carries A's marker, so a broken gate that
   //    resolved A's row would leak it here). `list`/`start`/`subscribe` are EXEMPT (see below). ──
   { path: "workloads.get", call: (c, i) => c.workloads.get({ id: i.workloadId }) },
-  { path: "workloads.cancel", call: (c, i) => c.workloads.cancel({ id: i.workloadId }) },
+  // #795 — aimed at A's QUEUED row, not the failed one: `markCancelling` no-ops on a terminal row, so the old
+  // spelling could not fail even with the owner belt deleted (planted omission, suite green). Against a queued
+  // row a landed cancel moves `status` to `cancelled`, which the post-sweep pin reads.
+  { path: "workloads.cancel", call: (c, i) => c.workloads.cancel({ id: i.queuedWorkloadId }) },
   { path: "workloads.retry", call: (c, i) => c.workloads.retry({ id: i.workloadId }) },
   // ── workload SCHEDULES (F3 per-user owner-scoped; update/delete/setEnabled take a scheduleId) — a stranger
   //    must see leak-free NOT_FOUND on a foreign schedule (its `params` carries A's marker, so a broken gate
@@ -805,14 +869,21 @@ const PROBES: readonly Probe[] = [
   },
   { path: "chat.forkChat", call: (c, i) => c.chat.forkChat({ chatId: i.chatId }) },
   {
+    // #795 — the payload was `{}`, which is byte-identical to `DEFAULT_ROOM_OVERRIDES`: a hijacked write left
+    // A's room reading exactly like an untouched one, so the arm was un-witnessable by construction. A real
+    // `scenario` override is what a hijack would actually be worth (it reaches the assembled prompt), and the
+    // post-sweep `roomOverrides` re-read is its witness.
     path: "chat.setRoomOverrides",
-    call: (c, i) => c.chat.setRoomOverrides({ chatId: i.chatId, overrides: {} }),
+    call: (c, i) => c.chat.setRoomOverrides({ chatId: i.chatId, overrides: { scenario: ROOM_OVERRIDE_HACK } }),
   },
   {
     // D85 host-only databank visibility override — `requireHost` → `requireParticipant` miss on a stranger's
     // chatId is a leak-free NOT_FOUND (the setRoomOverrides shape) BEFORE any metadata write.
+    // #795: `hidden: []` was the DEFAULT, so the write was indistinguishable from a refusal. Naming A's real
+    // documentId makes a hijacked write observable — and is the hostile shape besides (hiding a room's canon
+    // from its own host).
     path: "chat.setChatDocumentVisibility",
-    call: (c, i) => c.chat.setChatDocumentVisibility({ chatId: i.chatId, visibility: { hidden: [] } }),
+    call: (c, i) => c.chat.setChatDocumentVisibility({ chatId: i.chatId, visibility: { hidden: [i.documentId] } }),
   },
   {
     // BG-C host-only per-chat background — `requireHost` → `requireParticipant` miss on a stranger's chatId
@@ -974,8 +1045,12 @@ const PROBES: readonly Probe[] = [
   },
   { path: "chat.getGroupConfig", call: (c, i) => c.chat.getGroupConfig({ chatId: i.chatId }) },
   {
+    // #795 — `personaId: null` IS the seeded default, so a hijacked write moved nothing observable. Aiming A's
+    // REAL personaId makes the arm two-foreign-id (A's room + A's persona) AND gives the post-sweep
+    // `anchorPersonaId` re-read something to see: a dropped host gate would re-point the `{{user}}` anchor
+    // every card-authored section in A's room resolves against.
     path: "chat.setChatAnchorPersona",
-    call: (c, i) => c.chat.setChatAnchorPersona({ chatId: i.chatId, personaId: null }),
+    call: (c, i) => c.chat.setChatAnchorPersona({ chatId: i.chatId, personaId: i.personaId }),
   },
   { path: "chat.abort", call: (c, i) => c.chat.abort({ chatId: i.chatId }) },
   { path: "chat.send", call: (c, i) => c.chat.send({ chatId: i.chatId, content: "hi" }) },
@@ -1154,7 +1229,12 @@ const PROBES: readonly Probe[] = [
   // → NOT_FOUND before any fire row is read. A no-id proc is NOT auto-exempt — it is PROBED because it takes
   // A's chatId, the foreign handle a leak would ride.
   { path: "automation.listChatActivity", call: (c, i) => c.automation.listChatActivity({ chatId: i.chatId }) },
-  { path: "automation.setBudgets", call: (c, i) => c.automation.setBudgets({ chatId: i.chatId, maxFiresPerHour: 5 }) },
+  // #795 — the per-CHAT rate belt, the owner-global `setOwnerBudgets` shape one scope down. Unlike its owner
+  // twin the stranger CANNOT name its own row here (the key is A's chatId), so a resolve is already a leak; but
+  // the verb answers void, so the write half needs the post-sweep number back. `CHAT_BUDGET_HACK` is away from
+  // both A's seeded `CHAT_BUDGET_A` and the 120 DDL default, so the re-read separates intact / overwritten /
+  // default-projected.
+  { path: "automation.setBudgets", call: (c, i) => c.automation.setBudgets({ chatId: i.chatId, maxFiresPerHour: CHAT_BUDGET_HACK }) },
   { path: "automation.getBudgets", call: (c, i) => c.automation.getBudgets({ chatId: i.chatId }) },
 
   // ── automation C5 — the OWNER-GLOBAL lane (cb8026bfc). These three take NO id, which is exactly why they
@@ -1753,7 +1833,16 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
     const persona = await owner.persona.create({
       input: { name: MARK.persona, description: "owned by A" },
     });
-    const preset = await owner.preset.create({ name: MARK.preset, kind: "chat" });
+    // #795 — the preset is born with a DISTINCTIVE generation knob, not the default config. `resetToDefault`
+    // replaces the config and KEEPS the name, so the `presetStill.name` pin below is structurally blind to it:
+    // a default-configured preset reads byte-identical whether the stranger's reset landed or was refused.
+    // `temperature` is the witness, and it rides the SAME `updatePresetRow` owner predicate #755 proved
+    // droppable (dropping it left the whole sweep green on a hijacked preset).
+    const preset = await owner.preset.create({
+      name: MARK.preset,
+      kind: "chat",
+      config: { sections: [], params: { temperature: PRESET_TEMPERATURE_A } },
+    });
     // #26 — A's saved party (front door): the NAME carries A's marker; its one member is A's marker
     // character, so a leaked view/summary betrays itself twice (name + member preview).
     const rosterPreset = await owner.rosterPreset.create({
@@ -1765,6 +1854,17 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
       input: { title: MARK.entry, content: "lore owned by A" },
     });
     const tag = await owner.tag.createTag({ input: { name: MARK.tag } });
+    // #795 — A's SECOND tag, so A's tag ORDER is [tag, tagOrderB] and the stranger's `setTagOrder` reversal has
+    // something to move. Deliberately marker-FREE: its job is positional, and a second marker name would only
+    // add noise to the leak detector.
+    const tagOrderB = await owner.tag.createTag({ input: { name: "alphaordertag" } });
+    // …and A commits a MANUAL order over them. This is load-bearing, not tidiness: `listOwnedTags` orders
+    // `sort_order IS NULL, sort_order, name`, so two never-ordered tags come back in NAME order — and A's
+    // manual order below is deliberately the ANTI-ALPHABETICAL one ([alphasecrettag, alphaordertag]). That
+    // separates three outcomes a name-ordered pair cannot: A's order intact, A's order REVERSED by the
+    // stranger's `setTagOrder` probe, and A's `sort_order` WIPED (both failures collapse to name order, which
+    // is the reversal here). Measured: without this call the pin reads name order and passes no matter what.
+    await owner.tag.setTagOrder({ orderedIds: [tag.id, tagOrderB.id] });
     const snapshot = await owner.character.snapshot({ characterId: character.id });
     // A refinery session on A's character (front door) — its NAME is A's marker; the anchor card inside
     // carries A's character marker too, so a leaked SessionView betrays itself twice.
@@ -1829,6 +1929,10 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
       actions: [{ type: "set_variable", scope: "global", key: "probe", op: "set", value: "1" }],
     });
     await owner.automation.setOwnerBudgets({ maxFiresPerHour: OWNER_BUDGET_A });
+    // #795 — A's per-CHAT rate ceiling, seeded AWAY from the 120 DDL default (the C5 owner-budget posture one
+    // scope down). Without a stored row the post-sweep pin would read the projected default and pass whether
+    // the stranger's `setBudgets` landed or not; with it, the three outcomes are separable.
+    await owner.automation.setBudgets({ chatId, maxFiresPerHour: CHAT_BUDGET_A });
 
     // A workload owned by A — a USER-scope kind, `failed` so `retry` is meaningful. Its `error` carries A's
     // marker (a leaked `get`/`retry` result would surface it), so the probe has teeth (F3 owner-scoping).
@@ -1841,6 +1945,27 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
       ownerId: OWNER_USER_ID,
       admissionSystem: false,
       error: MARK.workload,
+      scheduledAt: 1,
+      createdAt: 1,
+      updatedAt: 1,
+    });
+
+    // #795 — A's CANCELLABLE workload. `cancel` routes through `markCancelling`, which no-ops on a terminal
+    // row, so the probe above (aimed at the `failed` row) exercises only the READ collapse; this `queued` row
+    // is what makes its WRITE arm reachable. Proven necessary by a planted omission: with the owner belt
+    // deleted from cancel.ts the suite stayed GREEN against the failed row.
+    // Its KIND is deliberately NOT `reconcile-stats` (the failed row's kind): `insertWorkload` carries a
+    // single-ACTIVE partial unique index per kind, so a queued `reconcile-stats` here would make the
+    // `workloads.retry` clone collide and refuse — silently disarming the retry pin below. Measured: with
+    // both rows the same kind, retry's belt could be deleted and the clone-count pin still passed.
+    const queuedWorkloadId = castId<WorkloadId>("workload_alpha_queued");
+    await db.insert(workloads).values({
+      id: queuedWorkloadId,
+      kind: "compute-themes",
+      status: "queued",
+      mode: "singular",
+      ownerId: OWNER_USER_ID,
+      admissionSystem: false,
       scheduledAt: 1,
       createdAt: 1,
       updatedAt: 1,
@@ -2004,9 +2129,11 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
       bookId: book.id,
       entryId: entry.id,
       tagId: tag.id,
+      tagOrderBId: tagOrderB.id,
       credentialId,
       themeId,
       workloadId,
+      queuedWorkloadId,
       scheduleId,
       snapshotId: snapshot.id,
       chatId,
@@ -2156,5 +2283,204 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
     expect(bookAttachmentsStill.characters).toEqual([]);
     const tagStill = (await ownerCaller.tag.listTags()).find((t) => t.id === ids.tagId);
     expect(tagStill?.name).toBe(MARK.tag); // survived removeTag/mergeTags; untouched by updateTag
+
+    // ══ #795 — THE WRITE-IDOR COMPLETENESS AUDIT ═══════════════════════════════════════════════════════════
+    // #755 closed four families by hand (persona/preset/world-info/tag). This closes the REST: every remaining
+    // owner-scoped UPDATE or void-returning write probe above now has a witness, in one of two forms.
+    //
+    // FORM 1 — the REVERSE DETECTOR (see `hijackVerdict`): A's own reads must not carry the stranger's text.
+    // Growth-proof and class-wide.
+    // FORM 2 — a FIELD PIN, for the arms text cannot see: a boolean flipped, a number moved, an order
+    // reversed, a row deleted, a row added. Each is named with the probe it witnesses.
+    //
+    // The rule this establishes, and the one a future lane owes: A WRITE PROBE WITHOUT A WITNESS IS NOT A
+    // PROBE. It resolves leak-free whether the belt held or not, so it reports green forever.
+
+    // ── FORM 1: the reverse sweep. Owner A re-reads its world; none of it may carry the attacker's text. ──
+    // The POSITIVE CONTROL runs first and in the SAME invocation: a bare "no hijacks found" is "I could not
+    // measure" unless the detector is shown to fire on a known-hijacked value.
+    expect(
+      hijackVerdict("__control", { name: ATTACKER_TEXT }),
+      "the reverse detector must fire on a known hijack — a clean sweep from a blind detector is not evidence",
+    ).not.toBeNull();
+
+    const messagesStill = await ownerCaller.chat.listMessages({ chatId: ids.chatId });
+    const injectionsStill = await ownerCaller.chat.listChatInjections({ chatId: ids.chatId });
+    const themeStill = await ownerCaller.settings.getTheme({ id: ids.themeId });
+    const workloadStill = await ownerCaller.workloads.get({ id: ids.workloadId });
+    const schedulesStill = await ownerCaller.workloads.listSchedules();
+    const scheduleStill = schedulesStill.find((s) => s.id === ids.scheduleId);
+    const rpgTrackerAgain = await ownerCaller.rpg.getTrackerView({ chatId: ids.chatId });
+    const hijacks = [
+      hijackVerdict("chat.getChat (title/overrides/background)", chatStill),
+      hijackVerdict("chat.listMessages (canon content)", messagesStill), // chat.editMessage / setSeededGreeting
+      hijackVerdict("chat.listChatInjections", injectionsStill), // chat.setChatInjection
+      hijackVerdict("settings.getTheme", themeStill), // settings.updateTheme
+      hijackVerdict("workloads.get", workloadStill), // workloads.cancel / retry
+      hijackVerdict("workloads.listSchedules", schedulesStill), // workloads.updateSchedule / setScheduleEnabled
+      hijackVerdict("character.get", stillThere), // character.update / bulkAddCardTag
+      hijackVerdict("rpg.getTrackerView", rpgTrackerAgain), // rpg.editSnapshot / patchActor / patchSheet / upsertQuest
+      hijackVerdict("rpg.listJournal", rpgJournalStill), // rpg.addJournalEntry / editJournalEntry
+      hijackVerdict("rpg.listCheckpoints", rpgCheckpointsStill), // rpg.createCheckpoint
+      hijackVerdict("rpg.getConfigView", rpgConfigStill), // rpg.updateConfig
+      hijackVerdict("automation.listRules", rulesStill), // automation.createRule / updateRule
+      hijackVerdict("automation.listOwnerRules", ownerRulesStill), // the C5 owner-global updateRule arm
+      hijackVerdict("refinery.getSession", sessionStill), // refinery.updateSession / submitManualRewrite
+      hijackVerdict("refinery.listSchemas", schemasStill), // refinery.updateSchema
+      hijackVerdict("plugin.list", pluginStill), // plugin.upgrade (the hostile bundle's "Hijacked" name)
+      hijackVerdict("regex.getScript", regexScriptStill), // regex.updateScript
+      hijackVerdict("rosterPreset.get", partyStill), // rosterPreset.update
+      hijackVerdict("persona.get", personaStill), // persona.update
+      hijackVerdict("preset.get", presetStill), // preset.update
+      hijackVerdict("worldInfo.getBook", bookStill), // worldInfo.updateBook
+      hijackVerdict("worldInfo.getEntry", entryStill), // worldInfo.updateEntry
+      hijackVerdict("databank.get", docStill), // databank.rename
+      hijackVerdict("tag.listTags", tagStill), // tag.updateTag
+    ].filter((v): v is string => v !== null);
+    expect(hijacks, `cross-tenant WRITE-IDOR — the stranger's data landed in owner A's world (STOP-and-report):\n${hijacks.join("\n")}`).toEqual([]);
+
+    // ── FORM 2: the field pins the reverse detector is structurally blind to. ──
+
+    // settings/themes — NO witness existed before #795. `updateTheme` overwrites the marker field and
+    // `removeTheme` returns void, so both were indistinguishable from a refusal. The read THROWING would be
+    // the removeTheme tell; the name is the updateTheme tell (the reverse sweep covers the text half).
+    expect(themeStill.name).toBe(MARK.theme); // survived removeTheme; untouched by updateTheme
+
+    // ── WORKLOADS — NO witness existed, and getting one right took two corrections a planted omission forced.
+    //    Neither probe leaves TEXT behind, so the reverse detector is blind to both; and they fail DIFFERENTLY:
+    //      • `cancel` mutates IN PLACE — but `markCancelling` NO-OPS ON A TERMINAL ROW, so aimed at the seeded
+    //        `failed` workload it could not move anything even with its owner belt deleted (measured). It now
+    //        aims at A's `queued` row, where a landed cancel is visible as `cancelled`.
+    //      • `retry` does NOT mutate the original at all — it INSERTS A CLONE stamped `ownerId:
+    //        original.ownerId` (retry.ts:71), i.e. a new row in A's OWN queue. Re-reading the original is
+    //        structurally blind to it; the LIST COUNT is the witness.
+    expect(workloadStill.status).toBe("failed"); // A's retried-from row is itself unmoved
+    expect(workloadStill.error).toBe(MARK.workload);
+    const queuedStill = await ownerCaller.workloads.get({ id: ids.queuedWorkloadId });
+    expect(queuedStill.status).toBe("queued"); // the stranger's workloads.cancel never reached A's live row
+    expect(await ownerCaller.workloads.list()).toHaveLength(2); // workloads.retry enqueued no clone into A's queue
+
+    // workload SCHEDULES — NO witness existed for any of the three write probes, and each moves a DIFFERENT
+    // non-text field, which is why they are asserted separately: `deleteSchedule` (existence),
+    // `updateSchedule({cadence:"weekly"})` (cadence), `setScheduleEnabled({enabled:false})` (the flag).
+    expect(scheduleStill, "A's schedule survived the stranger's workloads.deleteSchedule probe").toBeDefined();
+    expect(scheduleStill?.cadence).toBe("daily"); // untouched by the stranger's updateSchedule({cadence:"weekly"})
+    expect(scheduleStill?.enabled).toBe(true); // the stranger's setScheduleEnabled({enabled:false}) never landed
+
+    // ── The CHAT ROOM-OPTION cluster. Thirteen host-gated write probes shared ONE witness (`chatStill.title`),
+    //    and title is moved by exactly one of them. Every field below is the seeded default and is moved by a
+    //    DIFFERENT probe — several of them reach the assembled PROMPT (roomOverrides / offerChoices /
+    //    anchorPersona), which is what a room hijack is actually worth. ──
+    expect(chatStill.starred).toBe(false); // chat.star({starred:true})
+    expect(chatStill.archived).toBe(false); // chat.archive({archived:true})
+    expect(chatStill.roomOverrides).toEqual({}); // chat.setRoomOverrides({scenario: ROOM_OVERRIDE_HACK}) — also a prompt reach
+    expect(chatStill.toolRecurseLimit).toBeNull(); // chat.setToolRecurseLimit({limit:5})
+    expect(chatStill.hostDisplayScripts).toBe(false); // chat.setHostDisplayScripts({enabled:true})
+    expect(chatStill.offerChoices).toBeNull(); // chat.setOfferChoices({enabled:true}) — reaches the prompt
+    expect(chatStill.charactersCanReact).toBeNull(); // chat.setCharactersCanReact({enabled:true}) — arms a tool in A's room
+    expect(chatStill.reactionsEnabled).toBeNull(); // chat.setReactionsEnabled({enabled:false}) — would silence A's room
+    expect(chatStill.background).toBeNull(); // chat.setChatBackground({kind:"none"})
+    expect(chatStill.anchorPersonaId).toBeNull(); // chat.setChatAnchorPersona(A's personaId) — would re-point {{user}}
+    expect(chatStill.pendingHostUserId).toBeNull(); // invites.nominateHostHandoff never nominated in A's room
+
+    // ── CHAT CANON. `editMessage`/`setSeededGreeting` overwrite content (reverse-swept above); these three
+    //    move NON-text state and had no witness: a deletion, a visibility flip, an attribution restamp. The
+    //    count also witnesses the stranger's `send`/`commitMessage`/`swipe` probes minting a row in A's room. ──
+    expect(messagesStill.messages).toHaveLength(1); // chat.deleteMessages never dropped A's row; send/commitMessage never added one
+    expect(messagesStill.messages[0]?.content).toBe(MARK.message); // untouched by chat.editMessage
+    expect(messagesStill.messages[0]?.excludedFromPrompt).toBe(false); // chat.setMessageHidden({hidden:true}) never landed
+    expect(messagesStill.messages[0]?.personaId).toBeNull(); // chat.reattributePersona never restamped A's row
+    expect(injectionsStill).toEqual([]); // chat.setChatInjection never spliced prompt content into A's room
+
+    // ── CHAT ROSTER + membership. `addCharacterToChat`/`removeCharacterFromChat`/`setSeatKnobs`/`kick`/
+    //    `rosterPreset.applyToChat` are all void-or-view writes on A's seat table with no witness before now.
+    //    `kick` is the sharpest: it would remove A from A's OWN room. (A kicked A would also make the
+    //    `getChat` above throw — but that is an accident of the read order, not a stated pin, so state it.) ──
+    expect(chatStill.participants).toHaveLength(1); // only A's host seat: no character seated, none removed
+    expect(chatStill.participants[0]?.userId).toBe(OWNER_USER_ID); // invites.kick never removed A from A's own chat
+    expect(chatStill.participants[0]?.role).toBe("host"); // invites.nominateHostHandoff/acceptHostHandoff never moved A's host role
+    expect(chatStill.participants[0]?.disabled).toBe(false); // chat.setSeatKnobs({disabled:true}) never muted A's seat
+    expect(await ownerCaller.invites.listInvites({ chatId: ids.chatId })).toEqual([]); // invites.createInvite minted no seat-grant into A's room
+
+    // ── The CHAT VARIABLE planes (member-gated writes, both void). `setVariables`/`setUserMacroValues` write
+    //    values a turn assembles against, and neither had a witness. ──
+    expect(await ownerCaller.chat.getRuntimeVariables({ chatId: ids.chatId })).toEqual({}); // chat.setVariables({mood:"grim"}) never landed
+
+    // ── AUTOMATION per-chat rate belt (the C5 owner-budget pin one scope down). `setBudgets` returns void, so
+    //    A's number is the only evidence; seeded away from BOTH the default and the attacker's payload. ──
+    const chatBudgetStill = await ownerCaller.automation.getBudgets({ chatId: ids.chatId });
+    expect(chatBudgetStill.maxFiresPerHour).toBe(CHAT_BUDGET_A); // not CHAT_BUDGET_HACK (hijacked) and not 120 (default projected)
+
+    // ── CHARACTER non-text state. `update`'s text arm is witnessed by the name; these two bulk arms move a
+    //    FLAG and a JUNCTION, and `snapshot` MINTS a row — none leaves text, so all three were unwitnessed. ──
+    expect(stillThere.archived).toBe(false); // character.bulkArchive({archived:true}) never landed
+    expect(stillThere.tags.map((t) => t.name)).not.toContain("x"); // character.bulkAddCardTag({tagName:"x"}) never tagged A's card
+    expect(stillThere.tags.map((t) => t.id)).not.toContain(ids.tagId); // tag.attachTag/bulkAttachTag never attached A's tag to A's card
+    expect(await ownerCaller.character.listSnapshots({ characterId: ids.characterId })).toHaveLength(1); // character.snapshot minted nothing on A's card
+
+    // ── PRESET config. `resetToDefault` REPLACES the config and KEEPS the name, so the `presetStill.name` pin
+    //    above is structurally blind to it — a default-configured preset reads identical hijacked or not.
+    //    This knob rides the same `updatePresetRow` owner predicate #755 proved droppable. ──
+    expect(presetStill.config.params.temperature).toBe(PRESET_TEMPERATURE_A); // preset.resetToDefault never wiped A's knobs
+
+    // ── WORLD-INFO book CONTENTS + the two junction planes. `createEntry` ADDS a row, `applyEntryOrder`
+    //    REORDERS, and attachToPersona/attachToChat write junctions — none carries text, none had a witness. ──
+    const entriesStill = await ownerCaller.worldInfo.listEntries({ bookId: ids.bookId });
+    expect(entriesStill).toHaveLength(1); // worldInfo.createEntry never appended lore to A's book
+    expect(entriesStill[0]?.id).toBe(ids.entryId); // …and applyEntryOrder never reordered it
+    expect(await ownerCaller.worldInfo.listForPersona({ personaId: ids.personaId })).toEqual([]); // worldInfo.attachToPersona never landed
+    expect(await ownerCaller.worldInfo.listForChat({ chatId: ids.chatId })).toEqual([]); // worldInfo.attachToChat never injected lore into A's room
+
+    // ── PERSONA↔CHARACTER junction (`connectToCharacter` returns void on A's two rows). ──
+    expect(await ownerCaller.persona.listConnectedToCharacter({ characterId: ids.characterId })).toEqual([]); // persona.connectToCharacter never landed
+
+    // ── TAG ORDER — the `regex.applyScopeOrder` global-scope shape one plane over. `setTagOrder` answers void
+    //    and the order is not text, so A's seeded [tag, tagOrderB] is the ONLY evidence the stranger's
+    //    reversal was refused. (The probe was un-failable before #795: it named A's single tag.) ──
+    const tagOrderStill = (await ownerCaller.tag.listTags()).map((t) => t.id);
+    expect(tagOrderStill).toEqual([ids.tagId, ids.tagOrderBId]); // tag.setTagOrder's reversal never reached A's tier
+
+    // ── DATABANK + REGEX attachment planes (junction writes, all void-returning). ──
+    expect(await ownerCaller.databank.listActiveForChat({ chatId: ids.chatId })).toEqual([]); // databank.attachToChat never fed A's room
+    expect(await ownerCaller.regex.listForChat({ chatId: ids.chatId })).toEqual([]); // regex.attachToChat never landed
+    expect(await ownerCaller.regex.listForCharacter({ characterId: ids.characterId })).toEqual([]); // regex.attachToCharacter never landed
+    expect(await ownerCaller.regex.listForPreset({ presetId: ids.presetId })).toEqual([]); // regex.attachToPreset never landed
+
+    // ── RPG residuals. The existing pins prove A's seeded rows SURVIVED (`toContain`); these prove nothing was
+    //    ADDED — a `toContain` passes with an attacker's row sitting beside A's, and `addJournalEntry` /
+    //    `createCheckpoint` / `upsertQuest` are exactly ADD-shaped writes. ──
+    expect(rpgJournalStill).toHaveLength(1); // rpg.addJournalEntry never appended to A's log
+    expect(rpgCheckpointsStill).toHaveLength(1); // rpg.createCheckpoint never appended to A's timeline
+    expect(rpgTrackerAgain.quests).toHaveLength(1); // rpg.upsertQuest minted no second quest in A's game
+    // A's game carries exactly ONE actor — A's OWN user seat, born with `createGame` (NOT an empty list; the
+    // first spelling of this pin asserted `[]` and was simply wrong about the domain). The COUNT is the
+    // witness: `patchActor`/`promoteActor`/`populateFromCharacter` are all ADD-shaped, so a second actor is
+    // what a landed write looks like. `promoteActor` is the sharpest of the three — its write reaches OUTSIDE
+    // the game (a character card into the room host's library plus a roster seat).
+    expect(rpgTrackerAgain.actors).toHaveLength(1); // no stranger actor minted into A's game
+    expect(rpgTrackerAgain.actors[0]?.actorRef).toEqual({ kind: "user", userId: OWNER_USER_ID }); // …and the one actor is still A's own seat
+    expect(rpgTrackerAgain.actors[0]?.sheet.className).toBe(""); // rpg.patchSheet({className:"hacked"}) never landed on A's sheet
+
+    // ── THE GLOBAL-TIER PLANES. An `attachGlobal` hijack lands in ONE of two places, and WHICH ONE depends on
+    //    whether the junction carries its own owner column — so a single direction is a false clean for half of
+    //    them. This was measured, not reasoned: the first spelling of this block pinned only the STRANGER's
+    //    tiers, and bypassing `worldInfo.attachGlobal`'s ownership gate left the suite GREEN.
+    //      • `global_books` (world-info) and `global_regex_scripts` have NO owner column — scope derives
+    //        through the entity's own ownership (D23). A hijacked attach therefore makes A's OWN book/script
+    //        global, in A'S tier. Only an A-SIDE read sees it.
+    //      • `global_documents` (databank) HAS `owner_id`. A hijacked attach inserts `(stranger, A's doc)`, so
+    //        the row lands in B'S tier and only a B-SIDE read sees it.
+    expect(await ownerCaller.worldInfo.listGlobal()).toEqual([]); // worldInfo.attachGlobal never made A's book fire in every one of A's rooms
+    expect(await otherCaller.worldInfo.listGlobal()).toEqual([]); // …and B's own tier stayed empty either way
+    expect(await otherCaller.regex.listGlobal()).toEqual([]); // (A's side is `regexGlobalStill` above — the no-owner-column shape)
+    expect(await otherCaller.databank.listGlobal()).toEqual([]); // databank.attachGlobal never parked A's document in B's owner-keyed tier
+    // The EXFILTRATION direction: `character.duplicate` and `refinery.applyAsCopy` do not write A's row at
+    // all — they MINT A COPY of A's card into the STRANGER's own library, which every A-side re-read is blind
+    // to (A's original is untouched, so `stillThere.name` passes). The stranger's library is the only witness.
+    // It is NOT empty — the `rosterPreset.applyToChat` scope-2 probe legitimately creates B's own character —
+    // so the pin is that nothing in it is A's, never a bare count of zero.
+    const strangerLibrary = await otherCaller.character.list();
+    expect(strangerLibrary.items.map((c) => c.name)).not.toContain(MARK.character); // no copy of A's card landed in B's library
+    expect(strangerLibrary.items.map((c) => c.id)).not.toContain(ids.characterId); // …and B never acquired A's row itself
   });
 });
