@@ -8,6 +8,7 @@ import type { LocalStorageSeed, ProbeLaunchOptions, ProbeSession } from "../../_
 import { closeProbeSession, closeProbeSessionAfterError, launchProbeSession } from "../../_shared/browser.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { Args } from "../contract/types.ts";
+import { NETWORK_PROFILES, NO_CPU_THROTTLE } from "../lib/throttle.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
@@ -100,5 +101,34 @@ export async function launchSnapSession(opts: Args, name: string, extras: Launch
       return await closeProbeSessionAfterError(session, error);
     }
   }
+  try {
+    await applyLoadEmulation(session, opts);
+  } catch (error) {
+    return await closeProbeSessionAfterError(session, error);
+  }
   return session;
+}
+
+// ── CDP load emulation (#826) ───────────────────────────────────────────────
+// EVERY page of EVERY context, BEFORE the first navigation — boot itself must be measured under the arm,
+// which is the whole point (the #819 finding was a settle wave slipping past the 500ms hadRecentInput
+// cliff only when the CPU was busy). Chromium-only by construction: `newCDPSession` throws on any other
+// engine, and the throw propagates as a tool error rather than a run that silently measured at 1× — a
+// throttle flag that no-ops is a false rest-state receipt.
+async function applyLoadEmulation(session: ProbeSession, opts: Args): Promise<void> {
+  if (opts.cpuThrottle === NO_CPU_THROTTLE && opts.network === null) {
+    return;
+  }
+  const conditions = opts.network === null ? null : NETWORK_PROFILES[opts.network];
+  for (const { context } of session.contexts) {
+    for (const page of context.pages()) {
+      const cdp = await context.newCDPSession(page);
+      if (opts.cpuThrottle !== NO_CPU_THROTTLE) {
+        await cdp.send("Emulation.setCPUThrottlingRate", { rate: opts.cpuThrottle });
+      }
+      if (conditions !== null) {
+        await cdp.send("Network.emulateNetworkConditions", { ...conditions });
+      }
+    }
+  }
 }

@@ -64,11 +64,41 @@ function spanEnd(raw: string, open: number): number {
   return raw.length;
 }
 
-/** Index of the first `=` outside every bracket, paren and quoted string — or null when there is none. */
+/** Playwright's built-in SELECTOR ENGINES. The `engine=body` form puts an `=` INSIDE the selector, so the
+ *  pair split must step over it — `--fill 'role=textbox[name="Content"]=hello'` is a selector plus a
+ *  value, not `role` plus everything else (#826: `ARG ERROR --fill selector "role" can never match`, on a
+ *  live review, whose only workaround was `:nth-match(textarea, 2)=value`).
+ *
+ *  A CLOSED SET, deliberately: the shape regex `^[A-Za-z_][\w-]*=` also matches `input=hello`, so a
+ *  prefix-shaped test would cut the ordinary CSS pair flag in half — the exact mirror of the bug. */
+const SELECTOR_ENGINES: ReadonlySet<string> = new Set([
+  "css",
+  "data-test",
+  "data-test-id",
+  "data-testid",
+  "id",
+  "nth",
+  "role",
+  "text",
+  "visible",
+  "xpath",
+  "_react",
+  "_vue",
+]);
+
+/** Whether the `=` at `at` is the one that ENDS an engine name — the head of the string, or a part of a
+ *  `>>` chain (`role=button >> nth=0`). Those belong to the selector; every other top-level `=` splits. */
+function isEngineNameEq(raw: string, at: number): boolean {
+  const name = /(?:^|\s|>>)\s*([A-Za-z_][\w-]*)$/u.exec(raw.slice(0, at))?.[1];
+  return name !== undefined && SELECTOR_ENGINES.has(name);
+}
+
+/** Index of the first `=` outside every bracket, paren, quoted string and engine prefix — or null when
+ *  there is none. */
 function topLevelEqIndex(raw: string): number | null {
   for (let i = 0; i < raw.length; i += 1) {
     const ch = raw[i] ?? "";
-    if (ch === "=") {
+    if (ch === "=" && !isEngineNameEq(raw, i)) {
       return i;
     }
     if (SPAN_CLOSERS[ch] !== undefined) {
@@ -87,6 +117,12 @@ function topLevelEqIndex(raw: string): number | null {
  *  an attribute selector does, so the plain first-`=` split cut `[data-testid` off from `cast-name]` and
  *  made every attribute selector unusable (paid live: a review had to tag its input through `--eval`
  *  first — docs/reviews/side-eye/2026-08-29-saved-casts-rules.md §9). Depth-aware, so both hold at once.
+ *
+ *  THE SAME RULING, ITS INPUT CHANGED AGAIN (#826): a Playwright ENGINE prefix (`role=`, `text=`, …) is
+ *  also part of the selector, so the scan steps over the `=` that ends an engine name. Consequence worth
+ *  knowing: `text=hello` with no second `=` now reads as a whole SELECTOR and returns null (the flag
+ *  refuses "expects sel=value"), which is what the caller meant — Playwright would have read it as the
+ *  text engine too.
  *
  *  Null when there is no top-level `=` or the selector would be empty — the caller's refusal, unchanged. */
 export function splitSelectorEq(raw: string): EqSplit | null {

@@ -7,6 +7,7 @@ import { DEFAULT_BASE } from "../../_shared/browser.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { applyThemeFlag, parseThemeFlag } from "../../_shared/theme.ts";
 import type { Args } from "../contract/types.ts";
+import { NO_CPU_THROTTLE, parseNetworkProfile } from "../lib/throttle.ts";
 import { STAGE_FLAG_HANDLERS } from "./flags-stage.ts";
 import {
   ariaFlag,
@@ -272,6 +273,15 @@ export const FLAG_HANDLERS: Record<string, FlagHandler> = {
   "--desktop": (a) => {
     a.viewport = DEFAULT_VIEWPORT;
     a.device = null;
+  },
+  // CDP load emulation (#826). Both are applied to EVERY page before it navigates, so boot itself is
+  // measured under the arm; both are refused at parse time on a bad value (an ignored throttle flag
+  // would report a load arm that never ran). The rate is validated in ops/parse.ts.
+  "--cpu-throttle": (a, rest) => {
+    a.cpuThrottle = Number(rest.shift() ?? NO_CPU_THROTTLE);
+  },
+  "--network": (a, rest) => {
+    a.network = parseNetworkProfile(rest.shift() ?? "");
   },
   "--eval": (a, rest, page) => {
     const expr = rest.shift();

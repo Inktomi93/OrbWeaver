@@ -11,11 +11,21 @@ export type {
   StageSweepEvidence,
   StageSweepVerdict,
 } from "./contract/stage.ts";
-export type { Args, OverflowEscape, OverflowProbe, OverflowSide, SnapAction, SnapFailureSummary } from "./contract/types.ts";
+export type {
+  Args,
+  NetworkConditions,
+  NetworkProfileName,
+  OverflowEscape,
+  OverflowProbe,
+  OverflowSide,
+  SnapAction,
+  SnapFailureSummary,
+} from "./contract/types.ts";
 export { capEvalText } from "./lib/eval-text.ts";
 export { variantOut } from "./lib/out-names.ts";
 export { overflowAssertionLine } from "./lib/overflow-line.ts";
 export { SELECTOR_VALUE_FLAGS, selectorRefusalForFlag, unmatchableSelectorRefusal } from "./lib/selector-shape.ts";
+export { NETWORK_PROFILES, NO_CPU_THROTTLE, parseNetworkProfile, throttleResultValue } from "./lib/throttle.ts";
 // The mode surface — the cli's dispatch targets, exported so a caller can drive snap programmatically
 // (and so cli.ts enters through THIS door, per the front-door gate).
 export { resolveContextsMode, snapContexts } from "./ops/contexts.ts";

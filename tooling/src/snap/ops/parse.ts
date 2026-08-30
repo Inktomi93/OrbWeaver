@@ -8,6 +8,7 @@ import { themeHelpBlock } from "../../_shared/theme.ts";
 import type { Args } from "../contract/types.ts";
 import { CROP_RE } from "../lib/out-names.ts";
 import { selectorRefusalForFlag } from "../lib/selector-shape.ts";
+import { NETWORK_PROFILE_SPELLINGS, NO_CPU_THROTTLE, parseNetworkProfile } from "../lib/throttle.ts";
 import { OPTIONAL_SELECTOR_FLAGS, PAGE_TARGET_FLAGS, REQUIRED_VALUE_FLAGS } from "./flags-classes.ts";
 import { FLAG_HANDLERS } from "./flags-handlers.ts";
 import { DEFAULT_VIEWPORT, MS_PER_SECOND } from "./flags-support.ts";
@@ -60,6 +61,16 @@ mid-chain runs mid-chain; --map/--aria/--contrast/--expect-* observe the settled
   Every selector is CSS unless prefixed: a bare phrase ("choose who speaks next") is a type-selector
   chain for tags that cannot exist, so snap REFUSES it. For rendered text write text=<phrase>.
 
+Load emulation (CDP; applied to EVERY page BEFORE it navigates, so boot is measured under the arm):
+  --cpu-throttle <n>      Emulation.setCPUThrottlingRate — 1 = off, 4 = the standard "under load" arm
+  --network <profile>     Network.emulateNetworkConditions with DevTools' own presets:
+                          ${NETWORK_PROFILE_SPELLINGS.join(" | ")}
+  WHY: a layout shift within 500ms of a real click carries hadRecentInput and is EXCLUDED from CLS, so
+  an unthrottled measurement of a "settles after you click it" surface reports 0.000 paid and says
+  nothing about the margin. 4x CPU is what reveals it.
+  MEASURED LIMIT: 4x CPU PLUS a 3G/4G profile never reaches data-app-ready on the DEV build within 60s
+  (~250 unbundled ESM resources) — throttle CPU alone here; the network arm is for a prod build.
+
 ${appearanceHelpBlock()}
 
 ${themeHelpBlock()}
@@ -107,6 +118,17 @@ function validateNumericFlag(flag: string, raw: string, errors: string[]): void 
     if (!Number.isFinite(value) || value < 0) {
       errors.push(`${flag} expects a non-negative number, got ${JSON.stringify(raw)}`);
     }
+  }
+}
+
+/** The load-emulation arms REFUSE on a bad value instead of falling back to "no throttle": a run whose
+ *  argv asked for 4× CPU and silently measured at 1× is a false rest-state receipt (#826). */
+function validateLoadFlagValue(flag: string, raw: string, errors: string[]): void {
+  if (flag === "--cpu-throttle" && !(Number.isFinite(Number(raw)) && Number(raw) >= NO_CPU_THROTTLE)) {
+    errors.push(`--cpu-throttle expects a rate >= ${NO_CPU_THROTTLE} (1 = off, 4 = the standard load arm), got ${JSON.stringify(raw)}`);
+  }
+  if (flag === "--network" && parseNetworkProfile(raw) === null) {
+    errors.push(`--network expects one of ${NETWORK_PROFILE_SPELLINGS.join(" | ")}, got ${JSON.stringify(raw)}`);
   }
 }
 
@@ -160,6 +182,7 @@ function validateFlagValue(flag: string, raw: string, errors: string[]): void {
     return;
   }
   validateNumericFlag(flag, raw, errors);
+  validateLoadFlagValue(flag, raw, errors);
   validateEvidenceFlagValue(flag, raw, errors);
   validatePairFlagValue(flag, raw, errors);
   validateSelectorFlagValue(flag, raw, errors);
@@ -338,6 +361,8 @@ export function parseSnapArgs(argv: string[]): Args {
     watchEveryMs: MS_PER_SECOND,
     out: null,
     viewport: DEFAULT_VIEWPORT,
+    cpuThrottle: NO_CPU_THROTTLE,
+    network: null,
     localStorage: [],
     probe: false,
     baseline: false,
