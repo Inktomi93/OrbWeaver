@@ -38,8 +38,16 @@ function rosterRow(id: string, status: string): unknown {
   };
 }
 
+/** The card detail the kebab reads (#838) — the archive verb needs the CURRENT state to wear the right
+ *  face, and the delete confirm names the card. Fed in every test in this file, never left to
+ *  routeTrpc's `null`. */
+function characterDetail(archived: boolean): unknown {
+  return { id: CHARACTER_ID, name: "Zephyrine Vale", archived };
+}
+
 function routes(roster: readonly unknown[]): TrpcRoutes {
   return {
+    "character.get": (): unknown => characterDetail(false),
     "refinery.listSessions": (): readonly unknown[] => roster,
     // A mint that WOULD SUCCEED, scripted on purpose: with it working, the only thing separating resume
     // from mint is WHICH session the jump opens, which is the claim.
@@ -81,4 +89,73 @@ test("the jump obeys the ONE resume-or-mint rule — a card with an open session
   await expect(page.getByTestId("active-section")).toHaveText("section=refinery");
   // ONESHOT-OK: the settled readout above is the barrier (see the sibling test).
   expect(trpc.count("refinery.startSession")).toBe(0);
+});
+
+// ── The OPEN character's action vocabulary (#838) ───────────────────────────────────────────────────
+//
+// One artifact, ONE vocabulary. This surface used to hold its own hand-spelled item list, disjoint from the
+// list row's and the bulk bar's — the three shared exactly `Delete`, and `Export card` lived only in the row
+// menu of the list the user had already left, so a person with the character OPEN had no path to export her
+// card at all (side-eye 2026-08-30 rail-characters-delta P1). These pins are LITERAL on purpose: an
+// expectation derived from the registry would pass even if the registry itself were wrong.
+//
+// D121 clause D is satisfied, not bypassed: band = Import, KEBAB = Export, and its negative clause names
+// "an editor surface or a chat room" — this is the CONTEXT pane's kebab, which is neither. Export renders
+// here from the SAME registry entry, over the SAME `/api/export/character/:id` route and the same
+// two-container submenu grammar. No second serialization path, no lifecycle chrome in the editor.
+
+/** The base routes with the card's archived state chosen — the only axis these pins vary. */
+function detailRoutes(archived: boolean): TrpcRoutes {
+  return { ...routes([]), "character.get": (): unknown => characterDetail(archived) };
+}
+
+const OPEN_SCOPE_ITEMS = ["Open in Refinery", "Archive", "Duplicate", "Export card", "Convert to persona", "Set as welcome greeter", "Delete"] as const;
+
+test("the OPEN character's kebab is the vocabulary's `open` slice, in order, destructive last", async ({ mount, page }) => {
+  await routeTrpc(page, detailRoutes(false));
+  await mount(<CharacterActionsMenuStory menuCharacterId={CHARACTER_ID} />);
+
+  await page.getByRole("button", { name: "Character actions" }).click();
+  const menu = page.getByRole("menu");
+  await expect(menu.getByRole("menuitem")).toHaveText([...OPEN_SCOPE_ITEMS]);
+});
+
+test("Export card is reachable from the OPEN character, and links BOTH containers to the owner-gated route", async ({ mount, page }) => {
+  await routeTrpc(page, detailRoutes(false));
+  await mount(<CharacterActionsMenuStory menuCharacterId={CHARACTER_ID} />);
+
+  await page.getByRole("button", { name: "Character actions" }).click();
+  await page.getByRole("menuitem", { name: "Export card", exact: true }).click();
+
+  const png = page.getByRole("menuitem", { name: "With avatar (.png)", exact: true });
+  await expect(png).toHaveAttribute("href", `/api/export/character/${CHARACTER_ID}`);
+  await expect(png).toHaveAttribute("download", "");
+  const json = page.getByRole("menuitem", { name: "Data only (.json)", exact: true });
+  await expect(json).toHaveAttribute("href", `/api/export/character/${CHARACTER_ID}?format=json`);
+  await expect(json).toHaveAttribute("download", "");
+});
+
+test("Archive is reachable from the OPEN character and fires the identity patch", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, {
+    ...detailRoutes(false),
+    "character.update": (): unknown => ({ id: CHARACTER_ID, name: "Zephyrine Vale", archived: true }),
+  });
+  await mount(<CharacterActionsMenuStory menuCharacterId={CHARACTER_ID} />);
+
+  await page.getByRole("button", { name: "Character actions" }).click();
+  await page.getByRole("menuitem", { name: "Archive", exact: true }).click();
+
+  await expect.poll(async () => trpc.count("character.update")).toBe(1);
+  // ONESHOT-OK: the settled count above is the barrier.
+  expect(trpc.lastInput("character.update")).toEqual({ characterId: CHARACTER_ID, input: { archived: true } });
+});
+
+test("the archive verb wears its second face on an already-archived character", async ({ mount, page }) => {
+  await routeTrpc(page, detailRoutes(true));
+  await mount(<CharacterActionsMenuStory menuCharacterId={CHARACTER_ID} />);
+
+  await page.getByRole("button", { name: "Character actions" }).click();
+  const menu = page.getByRole("menu");
+  await expect(menu.getByRole("menuitem", { name: "Unarchive", exact: true })).toBeVisible();
+  await expect(menu.getByRole("menuitem", { name: "Archive", exact: true })).toHaveCount(0);
 });

@@ -5,6 +5,11 @@
 // `bulkAddCardTag` takes a `tagName`, so the entry doubles as attach-existing or create-and-attach. Delete
 // is a hard, undo-less server verb (`bulk-remove`) → it is gated behind an AlertDialog confirm stating the
 // count (§13.8 R4 — destructive confirms are the one legal INTERRUPT modal).
+//
+// ITS LABELS ARE THE `bulk` SLICE OF ONE VOCABULARY (`../lib/character-actions.ts`, #838) — the same
+// registry the list row's kebab and the CONTEXT pane's `Character actions` read, so the three surfaces can
+// no longer drift into three names for one verb. This bar renders BUTTONS, not menu items, so it owns its
+// own chrome (no glyphs, `intent="destructive"` on the last one) and takes only the labels + order.
 
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -16,6 +21,11 @@ import { ConfirmDialog, TagPickerDialog } from "#components";
 import type { Trpc } from "#data";
 import { useInvalidation } from "#data";
 import { useBulkAddCardTag, useBulkArchiveCharacters, useBulkRemoveCharacters } from "../hooks/use-character-mutations.ts";
+import type { CHARACTER_ACTION_SCOPE_IDS } from "../lib/character-actions.ts";
+import { characterActionsForScope } from "../lib/character-actions.ts";
+
+/** File-local — exactly the verbs the `bulk` scope offers. */
+type BulkActionId = (typeof CHARACTER_ACTION_SCOPE_IDS)["bulk"][number];
 
 export interface CharacterBulkBarProps {
   readonly ids: readonly string[];
@@ -50,30 +60,32 @@ export function CharacterBulkBar({ ids, selectedCount, onClear, onRemoveSubmitte
       .catch(() => undefined);
   };
 
+  /** Every verb the `bulk` scope offers, wired — a verb added to that scope is a `tsc` error here until it
+   *  has a handler. Nothing is `null`: a selection bar has no destructive SLOT, so Delete is a button like
+   *  the others (its confirm is the AlertDialog below). */
+  const bulkHandlers: Readonly<Record<BulkActionId, () => void>> = {
+    tag: (): void => setTagOpen(true),
+    archive: (): void => {
+      void bulkArchive
+        .mutateAsync({ characterIds, archived: true })
+        .then(() => onRemoveSubmitted(characterIds))
+        .catch(() => undefined);
+    },
+    delete: (): void => setDeleteOpen(true),
+  };
+
   return (
     <>
       {/* `size="sm"` (the SelectionBar usage default) so count + the three actions + clear fit a narrow LIST
           panel without clipping the trailing Delete (the ~337px panel regression). */}
       <SelectionBar count={selectedCount} onClear={onClear}>
-        <Button disabled={isPending} intent="secondary" onClick={(): void => setTagOpen(true)} size="sm">
-          Tag
-        </Button>
-        <Button
-          intent="secondary"
-          disabled={isPending}
-          onClick={(): void => {
-            void bulkArchive
-              .mutateAsync({ characterIds, archived: true })
-              .then(() => onRemoveSubmitted(characterIds))
-              .catch(() => undefined);
-          }}
-          size="sm"
-        >
-          Archive
-        </Button>
-        <Button disabled={isPending} intent="destructive" onClick={(): void => setDeleteOpen(true)} size="sm">
-          Delete
-        </Button>
+        {characterActionsForScope("bulk").map((action) => (
+          // Bulk archive never toggles (it always archives), so the label is the verb's one name — never
+          // `characterActionLabel`'s toggled face.
+          <Button disabled={isPending} intent={action.destructive ? "destructive" : "secondary"} key={action.id} onClick={bulkHandlers[action.id]} size="sm">
+            {action.label}
+          </Button>
+        ))}
       </SelectionBar>
       <TagPickerDialog
         confirmLabel="Apply"

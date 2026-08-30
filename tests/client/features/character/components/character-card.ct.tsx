@@ -241,3 +241,22 @@ test("§12 the kebab's Export card submenu links BOTH formats to the owner-gated
   await expect(page.getByRole("menuitem", { name: "Duplicate" })).toBeVisible();
   await expect(page.getByRole("menuitem", { name: "Delete" })).toBeVisible();
 });
+
+// #838 — the row kebab is now the `row` SLICE of one vocabulary (`lib/character-actions.ts`), not its own
+// hand-spelled list. Its rendered items are unchanged by that move, and this pin is what says so: a literal
+// item census, so a registry edit that silently re-orders or re-labels this menu reds here.
+test("the row kebab is the vocabulary's `row` slice, in order, destructive last", async ({ mount, page }) => {
+  const component = await mount(<CharacterCardTileStory name="Aria Nightshade" />);
+  await component.locator('[data-slot="list-row-root"]').hover();
+  await component.getByRole("button", { name: "Actions for Aria Nightshade", exact: true }).click();
+
+  await expect(page.getByRole("menu").getByRole("menuitem")).toHaveText(["Archive", "Duplicate", "Export card", "Delete"]);
+});
+
+test("the row kebab's archive verb wears its second face on an archived row", async ({ mount, page }) => {
+  const component = await mount(<CharacterCardTileStory archived={true} name="Aria Nightshade" />);
+  await component.locator('[data-slot="list-row-root"]').hover();
+  await component.getByRole("button", { name: "Actions for Aria Nightshade", exact: true }).click();
+
+  await expect(page.getByRole("menu").getByRole("menuitem")).toHaveText(["Unarchive", "Duplicate", "Export card", "Delete"]);
+});
