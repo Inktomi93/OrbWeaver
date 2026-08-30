@@ -9,18 +9,9 @@ import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { buildNavScript } from "../../_shared/nav.ts";
 import { resolveFileInputLocator, resolveUploadPaths } from "../../_shared/upload.ts";
 import type { Args, EvalOutcome, NavAction, SnapAction, Step } from "../contract/types.ts";
-import {
-  HOVER_REVEAL_MS,
-  MOUNT_SETTLE_MS,
-  NAV_TIMEOUT_MS,
-  NETWORKIDLE_TIMEOUT_MS,
-  STAGE_NAV_TIMEOUT_MS,
-  STAGE_READY_TIMEOUT_MS,
-  STEP_SETTLE_MS,
-  STEP_TIMEOUT_MS,
-  WAIT_SELECTOR_TIMEOUT_MS,
-} from "../lib/budgets.ts";
+import { HOVER_REVEAL_MS, MOUNT_SETTLE_MS, NETWORKIDLE_TIMEOUT_MS, STEP_SETTLE_MS, STEP_TIMEOUT_MS, WAIT_SELECTOR_TIMEOUT_MS } from "../lib/budgets.ts";
 import { CHURN_LINE, isContextChurn } from "../lib/eval-text.ts";
+import { driveBudgets } from "../lib/throttle.ts";
 import { captureEvals } from "./evidence.ts";
 import { MS_PER_SECOND } from "./flags-support.ts";
 
@@ -72,7 +63,10 @@ const UNSETTLED_REASON: Record<Exclude<AppReadiness, "settled">, string> = {
 };
 
 export async function navigate(page: Page, opts: Args, url: string): Promise<string | null> {
-  const navTimeout = opts.isolated ? STAGE_NAV_TIMEOUT_MS : NAV_TIMEOUT_MS;
+  // The ceilings are a function of the STAGE (a cold vite) AND of the declared LOAD ARM (#836) — see
+  // lib/throttle.ts driveBudgets for why a throttled run cannot be held to the un-throttled budget.
+  const budgets = driveBudgets({ isolated: opts.isolated, cpuRate: opts.cpuThrottle, network: opts.network });
+  const navTimeout = budgets.nav;
   const resp = await page.goto(url, { waitUntil: "domcontentloaded", timeout: navTimeout });
   let navError: string | null = null;
   if (!resp) {
@@ -94,7 +88,7 @@ export async function navigate(page: Page, opts: Args, url: string): Promise<str
   // ceiling fires with reads still in flight. Either shape is a nav error on a route we are serving,
   // because the capture below is NOT of the settled app and every downstream assertion about it is void.
   if (opts.file === null) {
-    const readiness = await appReadiness(page, opts.isolated ? STAGE_READY_TIMEOUT_MS : WAIT_SELECTOR_TIMEOUT_MS);
+    const readiness = await appReadiness(page, budgets.ready);
     if (readiness !== "settled" && navError === null) {
       navError = UNSETTLED_REASON[readiness];
     }
