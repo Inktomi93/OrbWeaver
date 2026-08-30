@@ -27257,7 +27257,22 @@
         "evidence": [
           "docs/reviews/research/2026-08-30-ts-morph-speedups.md:1 read in full by the orchestrator (claude-b); measured on node v26.5.0 / ts-morph 28.0.0 / typescript 6.0.3 with the two scratch profilers named in its §6; NOT yet filed as build rows — the owner's build list did not include it (flagged to the owner instead)"
         ],
-        "summary": "ts-morph performance study: no faster drop-in exists (TS 7.0 ships no API; tsgo-wasm unreleased; Rust parsers have no type graph); structure:full's 290s is our gate code (bus-coverage lib 114.5s = 39%, token-kind getDescendantsOfKind 18s/4GB per sweep vs raw forEachChild 0.34s); ranked plan A-F puts the stage at 60-90s with no library change; watch list = ts-morph #1621 / tsgo-wasm / TS 7.1."
+        "summary": "ts-morph performance study: no faster drop-in exists (TS 7.0 ships no API; tsgo-wasm unreleased; Rust parsers have no type graph); structure:full's 290s is our gate code (bus-coverage lib 114.5s = 39%, token-kind getDescendantsOfKind 18s/4GB per sweep vs raw forEachChild 0.34s); ranked plan A-F puts the stage at 60-90s with no library change; watch list = ts-morph #1621 / tsgo-wasm / TS 7.1.",
+        "claims": [
+          {
+            "claim": "The 290s structure:full cost is gate-private code, not the library: the shared single-pass walk plus all 130 visit gates cost ~16s while the five bus-coverage-family gates' quadratic re-walks in the shared lib sum to 114.5s (39% of the stage); the ranked fixes (index the lib, memoize getDescendantsOfKind per pass, raw-node token sweeps, per-gate timing in the artifact) are not yet filed as build rows — flagged to the owner for pricing.",
+            "evidence": [
+              {
+                "kind": "code",
+                "target": "tooling/src/verify/lib/bus-coverage.ts:1"
+              },
+              {
+                "kind": "code",
+                "target": "tooling/src/verify/lib/pass.ts:1"
+              }
+            ]
+          }
+        ]
       },
       "receiptCurrent": true
     },
