@@ -7,7 +7,7 @@
 // micro-caps over a hairline, so the meta tabs wore settings-modal clothes in an instrument. `kicker` is the
 // same `<h3>` (the document outline is unchanged) in the tier's own voice.
 //
-// D-1 (owner ruling 2026-07-31, `docs/design/context-panel-fidelity-findings.md` §2/§4): the merge had
+// D-1 (owner ruling 2026-07-31, `docs/history/design/context-panel-fidelity-findings.md` §2/§4): the merge had
 // stacked FIVE unrelated concerns in one flat list ("a whole menu got garbled together"). The HOST-OPS trio
 // — Background · Group behavior · Tool use — now sits under its own "Host controls" group, which is also
 // exactly the permission line: everything above it any member may set, everything inside it is host-only.
