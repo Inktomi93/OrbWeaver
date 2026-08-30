@@ -535,3 +535,9 @@ landed. Design-system facts these verbs bind to: `reference/design-context.md`.
 Prescription grammar: `<verb>: <targets> — <receipt>`. Example: "quieter: the presets header band
 and both list-pane selection bars — receipt: design-audit glow/radial clean + before/after shots at
 the 358px mount." A verb without targets is a vibe; a verb without a receipt is a wish.
+
+> **Toolbar rails are not tablists (#112, 2026-08-16; re-paid 2026-08-30 as #845's dead premise).** The RPG HUD deals two
+> rails off ONE Tabs root with one shared selection, so its cells are `button`s in named `toolbar`s carrying
+> **`aria-current`**, with one tab stop + arrow keys inside (`rpg-context-section.ct.tsx:2286`); a `tablist` there would
+> announce with zero selected tabs. Before filing 'no current-view announcement / no arrow nav' on ANY strip, read
+> `aria-current` AND drive the arrow arm — `aria-selected` being null on a button is correct, not a finding.
