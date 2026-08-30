@@ -75,7 +75,7 @@ export type Assertion =
  *  names (`front_end/core/sdk/NetworkManager.ts`). "Fast 3G" is DevTools' retired name for "Slow 4G" and
  *  is accepted as an alias by the parser, never as a distinct profile — two spellings, one condition. The
  *  numbers live with the resolver in lib/throttle.ts. */
-export const NETWORK_PROFILE_NAMES = ["fast-4g", "offline", "slow-3g", "slow-4g"] as const;
+const NETWORK_PROFILE_NAMES = ["fast-4g", "offline", "slow-3g", "slow-4g"] as const;
 export type NetworkProfileName = (typeof NETWORK_PROFILE_NAMES)[number];
 
 /** One CDP `Network.emulateNetworkConditions` payload. */
