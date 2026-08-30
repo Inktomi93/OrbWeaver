@@ -40,14 +40,14 @@ modal, settings category, context tab, open chat — `state/shell-store.ts` + `s
 which may compose `#state`/`#features`/`#data` — the `lib/` floor may not) and injected into
 `installAgentDebugHandle`. Every call returns `{ok:true}` or `{ok:false, reason}` — a bad id is a LOUD
 refusal, never a silent no-op. ids validate against the canonical tuples (`SECTION_IDS`, `MODAL_SLOT_IDS`,
-`SETTINGS_CATEGORY_IDS`).
+`CONFIG_GROUP_IDS` — the settings-era `SETTINGS_CATEGORY_IDS`, re-keyed by the config revamp #866 S1).
 
 | Call | Effect |
 | - | - |
-| `__orb.nav.capabilities()` | return the exact canonical section, modal, settings, and chat-position vocabularies plus the context-tab ids published by the surface mounted right now |
+| `__orb.nav.capabilities()` | return the exact canonical section, modal, config-group, and chat-position vocabularies plus the context-tab ids published by the surface mounted right now |
 | `__orb.nav.section(id)` | switch the active rail section (`SECTION_IDS`) |
 | `__orb.nav.openModal(slot)` | open a rail modal (`MODAL_SLOT_IDS`) |
-| `__orb.nav.openSettings(category)` | open Settings at a category (`SETTINGS_CATEGORY_IDS`) |
+| `__orb.nav.openConfig(group, sub?)` | open the Settings section at a config group (`CONFIG_GROUP_IDS`), optionally scrolled to a subcategory — the settings-era `openSettings(category)`, re-keyed #866 S1 |
 | `__orb.nav.contextTab(name)` | *(async)* open the active surface's context panel on a tab named by stable id OR unique visible label. It WAITS for the panel's own publish before resolving (a tabbed surface publishes its ids from a mount effect, so the set is empty for a beat after every navigation — issue #656: validating against that empty set validated vacuously, and ONE call right after `--open-chat` returned `ok:true` while Members stayed mounted, so every one-call probe chain censused the wrong surface). Then it VERIFIES the tab the panel landed on. Five distinguishable refusals: empty name · ambiguous label · unknown name against a published set · no tabs published within 2s · a landing that disagrees with the request |
 | `__orb.nav.openChat(idOrTitle)` | *(async)* switch to the Chats section + make a chat active by chat id OR exact display title OR one of the sentinels in `capabilities().chatPositions`: `"first"`/`"latest"` (the LIST's top row = the most-recently-updated LISTED chat) and `"current"` (the ACTIVE room, read off the session pointer with no list query — the one to use right after CREATING a room, since a fresh room is an unlisted husk and `latest` would name a different chat). All three are reserved words: a chat literally titled one of them is reachable by id. The id/title arms resolve against the chat-list query cache, fetching it if cold. REFUSES (`ok:false`) on an AMBIGUOUS title matching >1 chat (pass the id), an empty list, or — for `"current"` — nothing open |
 | `__orb.nav.openCharacter(idOrName)` | *(async)* switch to the Characters section + select a character by id OR name — resolves against `character.list`, same store action a library-row click calls (`selectCharacter`). Same ambiguity refusal on a name matching >1 character |
