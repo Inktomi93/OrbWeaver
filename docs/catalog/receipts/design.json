@@ -32,19 +32,20 @@
     },
     {
       "path": "docs/design/config-rail-spec.md",
-      "assignedSha256": "a70621b2a4645673e1d7ab3cedeb3817d4e788076101a75890573cfcb192b08e",
+      "assignedSha256": "624e7f8982b9742265c3b44fc467134832967ed1ece44f39516239f100cc2d0a",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "a70621b2a4645673e1d7ab3cedeb3817d4e788076101a75890573cfcb192b08e",
-      "verifiedCommit": "535266f00954e2c612036a2bee1825609c59be09",
+      "verifiedSha256": "624e7f8982b9742265c3b44fc467134832967ed1ece44f39516239f100cc2d0a",
+      "verifiedCommit": "79871238bc0506fa74902bb1844f734fc9e32db3",
       "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/design/config-rail-spec.md:1 (spec; draft)",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
         "git log --oneline -1 -- docs/design/config-rail-spec.md: R3 truth-repair — presets stay standalone per owner ruling C5 (2026-08-08, frozen board row 100); full re-read this verification",
         "docs/design/config-rail-spec.md: re-attested at 535266f00954e2c612036a2bee1825609c59be09 — citation repoint from the 2026-08-30 reviews retirement, re-attested after the main merge",
-        "docs/design/config-rail-spec.md: disposition CORRECTED 2026-08-30 (#876, ruled as a class): the receipt read `archive`/`historical` while the document's own frontmatter reads draft/parked. FRONTMATTER IS TRUTH — the doc stays live in docs/design and the receipt now matches it."
+        "docs/design/config-rail-spec.md: disposition CORRECTED 2026-08-30 (#876, ruled as a class): the receipt read `archive`/`historical` while the document's own frontmatter reads draft/parked. FRONTMATTER IS TRUTH — the doc stays live in docs/design and the receipt now matches it.",
+        "docs/design/config-rail-spec.md: re-attested at 79871238bc0506fa74902bb1844f734fc9e32db3 — the #866 S1+S2 (6923f33cb) and #876/#873 docs-law (79871238b) merges both carry truth-repairs here; both deltas read by the orchestrator; the gate-count line resolved to 233 at the merge"
       ],
       "summary": "CONFIG RAIL — the Configuration workspace (R1 design set): full content read against frozen tree; landed-state record retained as historical evidence.",
       "claims": [
@@ -65,15 +66,16 @@
     },
     {
       "path": "docs/design/config-revamp-design.md",
-      "assignedSha256": "fb5900d5cf87d823949f4d9bc7aff8c607521a9727115419d8679a3dbcebcae7",
+      "assignedSha256": "794a8e4db9adf7926a8a72c2bec7a7bfdf9246dd752b00b6238d1b186d925530",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "fb5900d5cf87d823949f4d9bc7aff8c607521a9727115419d8679a3dbcebcae7",
-      "verifiedCommit": "94b06f86c9f1a6e29512a7d593a7c4132e005b86",
+      "verifiedSha256": "794a8e4db9adf7926a8a72c2bec7a7bfdf9246dd752b00b6238d1b186d925530",
+      "verifiedCommit": "79871238bc0506fa74902bb1844f734fc9e32db3",
       "verifiedAt": "2026-08-30",
       "evidence": [
-        "docs/design/config-revamp-design.md read in full by the orchestrator (claude-b) at merge (lane cb-config-research, stickler research + design for #866; 12 products + NN/g receipted via SearXNG→trafilatura, THIN rows marked; the house read against 9707b9672; the Settings-is-a-modal premise repair accepted mid-run); the nine owner forks are being ruled live; the four D-rows are labelled R-A..R-D, never forward-numbered"
+        "docs/design/config-revamp-design.md read in full by the orchestrator (claude-b) at merge (lane cb-config-research, stickler research + design for #866; 12 products + NN/g receipted via SearXNG→trafilatura, THIN rows marked; the house read against 9707b9672; the Settings-is-a-modal premise repair accepted mid-run); the nine owner forks are being ruled live; the four D-rows are labelled R-A..R-D, never forward-numbered",
+        "docs/design/config-revamp-design.md: re-attested at 79871238bc0506fa74902bb1844f734fc9e32db3 — the #866 S1+S2 (6923f33cb) and #876/#873 docs-law (79871238b) merges both carry truth-repairs here; both deltas read by the orchestrator; the gate-count line resolved to 233 at the merge"
       ],
       "claims": [
         {
@@ -751,12 +753,12 @@
     },
     {
       "path": "docs/design/plugin-ui-plane.md",
-      "assignedSha256": "f568bb536002d4998684cac5803b6f603d92e48da66238493a4be0974a5b4498",
+      "assignedSha256": "0eda401dad61953fb41e23cc2e67ab5553e0fec638a1b9bd0aa502e3b0fb390c",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "f568bb536002d4998684cac5803b6f603d92e48da66238493a4be0974a5b4498",
-      "verifiedCommit": "535266f00954e2c612036a2bee1825609c59be09",
+      "verifiedSha256": "0eda401dad61953fb41e23cc2e67ab5553e0fec638a1b9bd0aa502e3b0fb390c",
+      "verifiedCommit": "79871238bc0506fa74902bb1844f734fc9e32db3",
       "verifiedAt": "2026-08-30",
       "evidence": [
         "born-reviewed by its authoring lane (cb-plugui-design, #679): every build-state claim tree-verified 2026-08-24 with path:line receipts before commit 766525006",
@@ -768,7 +770,8 @@
         "U6 build + dated truth-repair (lane executor-u6-server-seams, #679): §7a records the seam-14 repair (the doc's \"applied at the render path\" asserted a SERVER-side render path that does not exist — renderMessageForDisplay is client-side and sync at packages/client/src/lib/message-render.ts:91; owner ruling 2026-08-28 approved the client-submits-rendered-text arm, and the recorded ordering member macros → member DISPLAY regex → plugin display transforms → markdown), the §5.15 macros mechanical correction (kit's MacroHandler is sync, so a plugin macro is a per-turn resolved VALUE and takes no arguments), the §5.5 + seam-14 rows marked BUILT, and the §2 ground-truth ToolRenderer row marked HISTORICAL (closed by U3, 03480da00 / 21ebaf174). Verified at this lane's own build commit 2c08ac420 (the commit that introduced the §7a repair; if the branch is rebased at merge this sha orphans and the entry needs a re-stamp — the known self-referencing-receipt hazard); the passages NOT touched by this lane were not re-read and their prior attestation stands.",
         "delta re-verify 2026-08-30 (60025ad149821df5f077acf5bd712a9c0168e091, #799 vocabulary reach merged by the orchestrator, who read the delta in full): two §4.3 table rows (icon over the curated PLUGIN_ICON_NAMES tuple; tabs as the house one-of-N radio strip), the three-states law paragraph inside grid (loading → empty → tiles, reachable at both tiers), and a frame-injection blockquote recording that the slice widened while the isSafeColor clamp did not (radius/mono ride the new styleTokens slot + clampCardFrameStyleTokens); no other line changed; typed claims unaffected",
         "delta re-verify 2026-08-30 (72a7204ffd08f5b3168c8c6fe849c86c037814d4, #820 seam 11 merged by the orchestrator, who read the delta in full): rows 30 and 11 flipped to BUILT/LANDED (the ui/assets/ bundle dir → installer CAS, one-home caps in contracts/plugin/manifest.ts), plus a dated §7a repair recording that row 30's '§7.11' pointer named a section that does not exist (it is row 11 of §7) and that plugin_assets' PK widened to (plugin_id, asset_id, bundle_path) because content-addressed CAS dedups two paths to one assetId; no other line changed; typed claims unaffected",
-        "docs/design/plugin-ui-plane.md: re-attested at 535266f00954e2c612036a2bee1825609c59be09 — citation repoint from the 2026-08-30 reviews retirement, re-attested after the main merge"
+        "docs/design/plugin-ui-plane.md: re-attested at 535266f00954e2c612036a2bee1825609c59be09 — citation repoint from the 2026-08-30 reviews retirement, re-attested after the main merge",
+        "docs/design/plugin-ui-plane.md: re-attested at 79871238bc0506fa74902bb1844f734fc9e32db3 — the #866 S1+S2 (6923f33cb) and #876/#873 docs-law (79871238b) merges both carry truth-repairs here; both deltas read by the orchestrator; the gate-count line resolved to 233 at the merge"
       ],
       "claims": [
         {

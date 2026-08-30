@@ -12,7 +12,7 @@
 | concern | authoritative source |
 | - | - |
 | every token (color / text / spacing / radius / motion / shadow) | `packages/ui/src/tokens/tokens.json` → GENERATED `theme.css` + `tokens/index.ts` (`TOKENS` map: `{ cssVar, value }`) — regen `pnpm --filter @orb/ui tokens:build` |
-| density assignment law (which step goes where; tiers; the chrome diet CD1–CD3) | `docs/design/density-pass-spec.md` (owner-ruled) |
+| density assignment law (which step goes where; tiers; the chrome diet CD1–CD3) | `docs/architecture/core/UI-Density-Law.md` (owner-ruled) |
 | theme pipeline (Hearth/Mocha/Light value-sets, ThemeScope clamp, derived chrome) | `docs/architecture/core/UI-Theming-and-Content.md` §12 (D71, D44) |
 | motion (3 duration tokens + 1 easing; the ten principles; the inventory) | `docs/architecture/core/motion-and-animation-guide.md` |
 | primitives + naming law | `docs/architecture/core/UI-Primitives-and-Reuse.md` §13 (esp. §13.7/§13.8/§13.10) |

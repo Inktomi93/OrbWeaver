@@ -153,12 +153,12 @@
     },
     {
       "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
-      "assignedSha256": "9be91927b572912a94e3bc89b727be09dc81f643bcfdb58b49e7ebb8842890ff",
+      "assignedSha256": "d1ec0caf0a0350d9eed12576134c324d58f0be9e4b36bf46346f9ed4f0debeee",
       "disposition": "current",
       "authority": "operational",
       "fullRead": true,
-      "verifiedSha256": "9be91927b572912a94e3bc89b727be09dc81f643bcfdb58b49e7ebb8842890ff",
-      "verifiedCommit": "1f5e25c00ec2ee921bc70591bf84e8268b255030",
+      "verifiedSha256": "d1ec0caf0a0350d9eed12576134c324d58f0be9e4b36bf46346f9ed4f0debeee",
+      "verifiedCommit": "79871238bc0506fa74902bb1844f734fc9e32db3",
       "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/architecture/core/Core-Enforcement-Active-Gates.md:1 (full read; header/status evaluated)",
@@ -191,7 +191,8 @@
         "delta re-verify 2026-08-28 (#751/#775, post-merge of main 46c356b62): the only change since the prior attestation is the frontmatter updated: date, resolved to 2026-08-28 at the merge (both sides edited it the same day). The caught-failure-ownership ACTIVE row, the detached-work-traced bracket-link + position-disambiguation extension and the 233 count line are unchanged and re-read; 233 gate descriptors on the tree; scoped check:docs green (104 files)",
         "delta re-verify 2026-08-30 (#773, commit 13712214a): re-read at the edited bytes. The `test-presence` Layer-3 row is the only line that moved — it now states the entry/transport TIER arm beside the domain arm and names both burn-down rows (772 + 773). The registered-gate COUNT is unchanged (no gate was added or removed; an arm was widened inside an existing descriptor).",
         "docs/architecture/core/Core-Enforcement-Active-Gates.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)",
-        "docs/architecture/core/Core-Enforcement-Active-Gates.md: re-attested at 1f5e25c00ec2ee921bc70591bf84e8268b255030 — the #876/#873 citer sweep: doc-path repoints from the tooling-package → Core-Tooling-Law.md and density-pass-spec → UI-Density-Law.md relocations and the seven mock-set retirements. Comment/link lines only; no claim moved."
+        "docs/architecture/core/Core-Enforcement-Active-Gates.md: re-attested at 1f5e25c00ec2ee921bc70591bf84e8268b255030 — the #876/#873 citer sweep: doc-path repoints from the tooling-package → Core-Tooling-Law.md and density-pass-spec → UI-Density-Law.md relocations and the seven mock-set retirements. Comment/link lines only; no claim moved.",
+        "docs/architecture/core/Core-Enforcement-Active-Gates.md: re-attested at 79871238bc0506fa74902bb1844f734fc9e32db3 — the #866 S1+S2 (6923f33cb) and #876/#873 docs-law (79871238b) merges both carry truth-repairs here; both deltas read by the orchestrator; the gate-count line resolved to 233 at the merge"
       ],
       "claims": [
         {
@@ -279,12 +280,12 @@
     },
     {
       "path": "docs/architecture/core/Core-Path-Registry.md",
-      "assignedSha256": "b75127170b4039c926de3e0c22a55ce7aaf2effb31c04aa0bf5f21a6bde0249a",
+      "assignedSha256": "3e0c21fc0e2f7b229ac956dffa78d0c99d0eb2b4e963d2969643742f81502aeb",
       "disposition": "current",
       "authority": "normative",
       "fullRead": true,
-      "verifiedSha256": "b75127170b4039c926de3e0c22a55ce7aaf2effb31c04aa0bf5f21a6bde0249a",
-      "verifiedCommit": "1f5e25c00ec2ee921bc70591bf84e8268b255030",
+      "verifiedSha256": "3e0c21fc0e2f7b229ac956dffa78d0c99d0eb2b4e963d2969643742f81502aeb",
+      "verifiedCommit": "79871238bc0506fa74902bb1844f734fc9e32db3",
       "verifiedAt": "2026-08-30",
       "evidence": [
         "delta re-verify 2026-08-25 (#689, commit 0a2789a00834abe892bfa92839e8dec3c30a97af): D147 clause (d) rewritten in place — the SERVER-WIDE install is BUILT as an admin-triggered fan-out of per-user rows, so the clause's two recorded open questions (consent over a shared install, whose principal it runs as) are DISSOLVED, not answered. Re-read at the amended bytes and re-derived against the tree it now describes: domain/plugin/verbs/{install,uninstall,apply}-*-users.ts + substrate/distribution.ts + persistence/distributed-plugins.ts, the admin_distributed_plugins DDL, and the pins the clause cites (tests/server/domain/plugin/verbs/*-users.int.test.ts, persistence/distributed-plugins.int.test.ts, the cross-tenant sweep's three EXEMPT rows, settings-shell-surface.ct.tsx's admin/plain-user Distribute pair). No other D-entry in this document moved.",
@@ -306,7 +307,8 @@
         "D145 (the S2 teaching seam, five clauses) delta read IN FULL against the merged lane 7acd88465 (contract/context.ts, substrate/teaching.ts, teaching-contribution.ts, the cruiser stanza + feature-structure allowlist); header range D106-D141 -> D106-D145 + mint trailer for D142-D145 are mechanical truth (entries pre-existed); standing full-read receipt carried forward over the delta (orchestrator re-attest at 4bf95cf8d)",
         "docs/architecture/core/Core-Path-Registry.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)",
         "docs/architecture/core/Core-Path-Registry.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)",
-        "docs/architecture/core/Core-Path-Registry.md: re-attested at 1f5e25c00ec2ee921bc70591bf84e8268b255030 — the #876/#873 citer sweep: doc-path repoints from the tooling-package → Core-Tooling-Law.md and density-pass-spec → UI-Density-Law.md relocations and the seven mock-set retirements. Comment/link lines only; no claim moved."
+        "docs/architecture/core/Core-Path-Registry.md: re-attested at 1f5e25c00ec2ee921bc70591bf84e8268b255030 — the #876/#873 citer sweep: doc-path repoints from the tooling-package → Core-Tooling-Law.md and density-pass-spec → UI-Density-Law.md relocations and the seven mock-set retirements. Comment/link lines only; no claim moved.",
+        "docs/architecture/core/Core-Path-Registry.md: re-attested at 79871238bc0506fa74902bb1844f734fc9e32db3 — the #866 S1+S2 (6923f33cb) and #876/#873 docs-law (79871238b) merges both carry truth-repairs here; both deltas read by the orchestrator; the gate-count line resolved to 233 at the merge"
       ],
       "claims": [
         {
@@ -908,18 +910,19 @@
     },
     {
       "path": "docs/architecture/core/UI-Architecture-and-Layout.md",
-      "assignedSha256": "daaccfa78c5c9b7a60e91a20e2d1091e4b421d6fd15917bbc02fe1358ed7d9a6",
+      "assignedSha256": "258a96e1090374539730afb4e3cb5fd308acd6c8eb7a7419e93db297d2b9b9dd",
       "disposition": "current",
       "authority": "current-reference",
       "fullRead": true,
-      "verifiedSha256": "daaccfa78c5c9b7a60e91a20e2d1091e4b421d6fd15917bbc02fe1358ed7d9a6",
-      "verifiedCommit": "3afbd7858276453f149c4db4148214f702b314f0",
+      "verifiedSha256": "258a96e1090374539730afb4e3cb5fd308acd6c8eb7a7419e93db297d2b9b9dd",
+      "verifiedCommit": "79871238bc0506fa74902bb1844f734fc9e32db3",
       "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/architecture/core/UI-Architecture-and-Layout.md:1 full read after the workboard split; changed routing/citations checked against Project 1, D139-D141, and current code/test evidence",
         "git:68271889b1746b513defea44b0787bab7a89176f contains the exact current document blob",
         "docs/architecture/core/Core-Path-Registry.md:523-533 (standing control-plane and comment-source rulings)",
-        "delta re-verify 2026-08-30 (3afbd7858276453f149c4db4148214f702b314f0, #832 by the orchestrator, who made the edit): the RAIL count line flips NINE → TEN with `extensions` added to the dated tally with its provenance (plugin-ui-plane U5, #679 §4.5b, 'beside config', never per-plugin) and the SECTION_IDS truth pointer moves from shell-store.ts to state/section-ids.ts (re-exported); no ceiling was re-ratified — the line is a running tally, not a D-row; no other line changed; typed claims unaffected"
+        "delta re-verify 2026-08-30 (3afbd7858276453f149c4db4148214f702b314f0, #832 by the orchestrator, who made the edit): the RAIL count line flips NINE → TEN with `extensions` added to the dated tally with its provenance (plugin-ui-plane U5, #679 §4.5b, 'beside config', never per-plugin) and the SECTION_IDS truth pointer moves from shell-store.ts to state/section-ids.ts (re-exported); no ceiling was re-ratified — the line is a running tally, not a D-row; no other line changed; typed claims unaffected",
+        "docs/architecture/core/UI-Architecture-and-Layout.md: re-attested at 79871238bc0506fa74902bb1844f734fc9e32db3 — the #866 S1+S2 (6923f33cb) and #876/#873 docs-law (79871238b) merges both carry truth-repairs here; both deltas read by the orchestrator; the gate-count line resolved to 233 at the merge"
       ],
       "claims": [
         {
@@ -1103,19 +1106,20 @@
     },
     {
       "path": "docs/architecture/core/client-architecture-lockdown.md",
-      "assignedSha256": "6da9a764531b59300763a54ff6209fdf6ac1791d3d20c77b8ebfedb25ca9b4f0",
+      "assignedSha256": "a54d344245349b101e9cd470753f52ca832bddcd6a4f582ed62204f9c89217fd",
       "disposition": "current",
       "authority": "current-reference",
       "fullRead": true,
-      "verifiedSha256": "6da9a764531b59300763a54ff6209fdf6ac1791d3d20c77b8ebfedb25ca9b4f0",
-      "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
+      "verifiedSha256": "a54d344245349b101e9cd470753f52ca832bddcd6a4f582ed62204f9c89217fd",
+      "verifiedCommit": "79871238bc0506fa74902bb1844f734fc9e32db3",
       "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/architecture/core/client-architecture-lockdown.md:1 (full read; header/status evaluated)",
         "git log -1 --format=%H -- docs/architecture/core/client-architecture-lockdown.md (2026-08-30; 0acef7a7f)",
         "pnpm check:docs (2026-08-30 re-attest after the plugin-host float-visibility build — §3 count four -> FIVE composition-tier dir modules with `agent-plugin/` (the `__orb.pluginLog` read impl) and §7's build list naming `buildAgentPlugin`; the dep-cruiser alternation widened in the same commit)",
         "pnpm check:docs (2026-08-22 re-attest after #433 — §3 count correction two -> FOUR composition-tier dir modules: the doc listed agent-nav/ and agent-seed/ only, agent-rpg/ was already unlisted and unwalled before this change, and agent-handles/ is the new DEV-only assembly; §7 gains the boot-chunk law for that arm and the kit/contracts/ui sideEffects declarations)",
-        "docs/architecture/core/client-architecture-lockdown.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
+        "docs/architecture/core/client-architecture-lockdown.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)",
+        "docs/architecture/core/client-architecture-lockdown.md: re-attested at 79871238bc0506fa74902bb1844f734fc9e32db3 — the #866 S1+S2 (6923f33cb) and #876/#873 docs-law (79871238b) merges both carry truth-repairs here; both deltas read by the orchestrator; the gate-count line resolved to 233 at the merge"
       ],
       "claims": [
         {
@@ -1191,18 +1195,19 @@
     },
     {
       "path": "docs/architecture/core/ui-package-design.md",
-      "assignedSha256": "e262c7f14d538409747b13bf382a33f69e7535aee9765fe4cf8735ca5e6dd27c",
+      "assignedSha256": "3c0323470f94d34a7131d8c49748b26076dce31fe84847cf135cbc0f2cadeb8e",
       "disposition": "current",
       "authority": "current-reference",
       "fullRead": true,
-      "verifiedSha256": "e262c7f14d538409747b13bf382a33f69e7535aee9765fe4cf8735ca5e6dd27c",
-      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedSha256": "3c0323470f94d34a7131d8c49748b26076dce31fe84847cf135cbc0f2cadeb8e",
+      "verifiedCommit": "79871238bc0506fa74902bb1844f734fc9e32db3",
       "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/architecture/core/ui-package-design.md:1 (full read; header/status evaluated)",
         "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
-        "docs/architecture/core/ui-package-design.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
+        "docs/architecture/core/ui-package-design.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)",
+        "docs/architecture/core/ui-package-design.md: re-attested at 79871238bc0506fa74902bb1844f734fc9e32db3 — the #866 S1+S2 (6923f33cb) and #876/#873 docs-law (79871238b) merges both carry truth-repairs here; both deltas read by the orchestrator; the gate-count line resolved to 233 at the merge"
       ],
       "claims": [
         {
