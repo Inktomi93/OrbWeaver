@@ -4,9 +4,16 @@ import type { Db } from "@orb/db";
 import { sessions, users } from "@orb/db";
 import type { ExternalId, Handle, SessionId, UserId } from "@orb/kit/ids";
 import { and, desc, eq, inArray, isNull } from "drizzle-orm";
+import type { Sealed } from "#infra/crypto";
 
 // domain/sessions/persistence/sessions — all `sessions`-table access (queries only). Every timestamp
 // arrives as a param (no ambient Date.now()); the token is never stored, lookups key on `tokenHash`.
+//
+// #141 — THE SEALED OIDC id_token COLUMNS ARE WRITE-MOSTLY, and this file is the whole census. They are
+// SET once at insert, NULLed by every revoke path, and READ by exactly one query (`revokeByTokenHash`'s
+// RETURNING, which is the logout consuming its own end-session hint). No projection here selects them —
+// `selectForValidation` and `listForUser` both enumerate their columns explicitly, so the blob cannot be
+// swept into a per-request read or the admin device list by a later `select()` widening.
 
 // A hard ceiling on the per-user session list (admin device view). Not a tunable — a DoS floor: without
 // it, an account that churned thousands of sessions makes the admin read pull (and serialize) every row.
@@ -21,6 +28,8 @@ interface SessionInsert {
   lastSeenAt: number;
   expiresAt: number;
   userAgent: string | null;
+  /** #141 — the sealed OIDC id_token (AAD = `id`), or null for every non-OIDC mint. */
+  oidcIdToken: Sealed | null;
 }
 
 interface SessionValidationRow {
@@ -36,8 +45,31 @@ interface SessionValidationRow {
 }
 
 export async function insertSession(db: Db, row: SessionInsert): Promise<void> {
-  await db.insert(sessions).values(row);
+  const { oidcIdToken, ...rest } = row;
+  await db.insert(sessions).values({
+    ...rest,
+    // The three columns are written together or not at all — a half-written seal is an unopenable blob.
+    oidcIdTokenCiphertext: oidcIdToken?.ciphertext ?? null,
+    oidcIdTokenIv: oidcIdToken?.iv ?? null,
+    oidcIdTokenTag: oidcIdToken?.tag ?? null,
+  });
 }
+
+/** #141 — reassemble the sealed blob from its three columns, or null when any part is absent (a non-OIDC
+ *  mint, a pre-#141 row, or an already-consumed hint). Partial ⇒ null: two thirds of a GCM seal is not a
+ *  seal, and returning it would only produce a decrypt throw one layer up. */
+function sealedIdTokenOf(row: { oidcIdTokenCiphertext: string | null; oidcIdTokenIv: string | null; oidcIdTokenTag: string | null }): Sealed | null {
+  const { oidcIdTokenCiphertext: ciphertext, oidcIdTokenIv: iv, oidcIdTokenTag: tag } = row;
+  if (ciphertext === null || iv === null || tag === null) {
+    return null;
+  }
+  return { ciphertext, iv, tag };
+}
+
+/** #141 — the columns every revoke path clears alongside `revokedAt`. A revoked session must not keep its
+ *  end-session hint at rest: the row is dead, nothing will ever send the hint again, and sessions are never
+ *  hard-deleted, so without this the blobs accumulate for the life of the deployment. */
+const CLEAR_OIDC_ID_TOKEN = { oidcIdTokenCiphertext: null, oidcIdTokenIv: null, oidcIdTokenTag: null } as const;
 
 export async function selectForValidation(db: Db, tokenHash: string): Promise<SessionValidationRow | undefined> {
   const rows = await db
@@ -64,14 +96,41 @@ export async function slideExpiry(db: Db, sessionId: SessionId, lastSeenAt: numb
   await db.update(sessions).set({ lastSeenAt, expiresAt }).where(eq(sessions.id, sessionId));
 }
 
-/** Flips revokedAt only on a still-live row, returning the owner so only the winning call audits. */
-export async function revokeByTokenHash(db: Db, tokenHash: string, revokedAt: number): Promise<{ id: SessionId; userId: UserId } | undefined> {
+/**
+ * Flips revokedAt only on a still-live row, returning the owner so only the winning call audits — plus the
+ * SEALED id_token that row was carrying (#141), which is the logout's end-session hint.
+ *
+ * THE CLEAR IS A SECOND STATEMENT ON PURPOSE, and it cannot be folded into the first: SQLite's `RETURNING`
+ * reports the POST-update values, so a single `SET revokedAt, <cols>=NULL … RETURNING <cols>` would hand
+ * back three NULLs and silently lose the hint. The atomicity that matters is unaffected — the
+ * `revokedAt IS NULL` guard means exactly one caller ever gets the row, and that one caller both reads and
+ * clears. A crash between the two leaves an encrypted blob on a dead row, which is inert.
+ */
+export async function revokeByTokenHash(
+  db: Db,
+  tokenHash: string,
+  revokedAt: number,
+): Promise<{ id: SessionId; userId: UserId; oidcIdToken: Sealed | null } | undefined> {
   const revoked = await db
     .update(sessions)
     .set({ revokedAt })
     .where(and(eq(sessions.tokenHash, tokenHash), isNull(sessions.revokedAt)))
-    .returning({ id: sessions.id, userId: sessions.userId });
-  return revoked.at(0);
+    .returning({
+      id: sessions.id,
+      userId: sessions.userId,
+      oidcIdTokenCiphertext: sessions.oidcIdTokenCiphertext,
+      oidcIdTokenIv: sessions.oidcIdTokenIv,
+      oidcIdTokenTag: sessions.oidcIdTokenTag,
+    });
+  const row = revoked.at(0);
+  if (row === undefined) {
+    return;
+  }
+  const oidcIdToken = sealedIdTokenOf(row);
+  if (oidcIdToken !== null) {
+    await db.update(sessions).set(CLEAR_OIDC_ID_TOKEN).where(eq(sessions.id, row.id));
+  }
+  return { id: row.id, userId: row.userId, oidcIdToken };
 }
 
 /** Flips revokedAt only on a still-live row, returning its OWNER (`undefined` = nothing to revoke) — the
@@ -79,7 +138,7 @@ export async function revokeByTokenHash(db: Db, tokenHash: string, revokedAt: nu
 export async function revokeById(db: Db, sessionId: SessionId, revokedAt: number): Promise<UserId | undefined> {
   const revoked = await db
     .update(sessions)
-    .set({ revokedAt })
+    .set({ revokedAt, ...CLEAR_OIDC_ID_TOKEN })
     .where(and(eq(sessions.id, sessionId), isNull(sessions.revokedAt)))
     .returning({ userId: sessions.userId });
   return revoked.at(0)?.userId;
@@ -88,7 +147,7 @@ export async function revokeById(db: Db, sessionId: SessionId, revokedAt: number
 export async function revokeAllForUser(db: Db, userId: UserId, revokedAt: number): Promise<SessionId[]> {
   const revoked = await db
     .update(sessions)
-    .set({ revokedAt })
+    .set({ revokedAt, ...CLEAR_OIDC_ID_TOKEN })
     .where(and(eq(sessions.userId, userId), isNull(sessions.revokedAt)))
     .returning({ id: sessions.id });
   return revoked.map((r) => r.id);
@@ -104,7 +163,7 @@ export async function revokeAllForUser(db: Db, userId: UserId, revokedAt: number
 export async function revokeAllForExternalId(db: Db, externalId: ExternalId, revokedAt: number): Promise<{ id: SessionId; userId: UserId }[]> {
   return await db
     .update(sessions)
-    .set({ revokedAt })
+    .set({ revokedAt, ...CLEAR_OIDC_ID_TOKEN })
     .where(and(inArray(sessions.userId, db.select({ id: users.id }).from(users).where(eq(users.externalId, externalId))), isNull(sessions.revokedAt)))
     .returning({ id: sessions.id, userId: sessions.userId });
 }

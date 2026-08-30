@@ -5,8 +5,17 @@ import type { ResolvedIdentity } from "@orb/contracts/identity";
 import type { SessionView } from "@orb/contracts/session";
 import type { Db } from "@orb/db";
 import type { ExternalId, Handle, SessionId, SessionToken, UserId } from "@orb/kit/ids";
+import type { Sealed } from "#infra/crypto";
 import type { CreateSessionParams, ProvisionIdentityOptions } from "./params.ts";
-import type { CreateSessionResult, LinkExternalIdResult, ProvisionResult, RevokedSessionsSummary, UserPrincipalFields, ValidatedSession } from "./results.ts";
+import type {
+  CreateSessionResult,
+  LinkExternalIdResult,
+  ProvisionResult,
+  RevokedSession,
+  RevokedSessionsSummary,
+  UserPrincipalFields,
+  ValidatedSession,
+} from "./results.ts";
 
 /** The DI bundle every verb closes over, wired at the composition root. */
 export interface SessionsContext {
@@ -26,6 +35,14 @@ export interface SessionsContext {
   /** Password verify, bound from the same `SESSION_SECRET` pepper as `hashToken`. Constant-time against a
    *  stored hash; a null/malformed stored value is a fast `false`. */
   verifyPassword: (plain: string, stored: string | null | undefined) => Promise<boolean>;
+  /** #141 — seal the OIDC `id_token` for at-rest storage on ITS OWN session row. The `sessionId` is the
+   *  GCM AAD, not a lookup key: sealing against row A and storing on row B produces a blob that can never
+   *  be opened. Key = HKDF over the same `SESSION_SECRET`, bound at `context.ts` (the one AAD site). */
+  sealIdToken: (idToken: string, sessionId: SessionId) => Sealed;
+  /** #141 — open a sealed id_token bound to `sessionId`. THROWS on a wrong key / lifted row / tampered tag
+   *  (GCM verifies before it returns a byte); `verbs/revoke` owns the degrade, because a logout must end
+   *  the session whether or not the end-session HINT survives. */
+  openIdToken: (sealed: Sealed, sessionId: SessionId) => string;
 }
 
 export interface SessionsService {
@@ -37,10 +54,12 @@ export interface SessionsService {
    *  revoke/role-change/disable propagates on the next request. Slides expiry on a throttle; `onSlide`
    *  fires with the new expiry so the route can refresh the cookie Max-Age. */
   validate: (token: SessionToken, onSlide?: (expiresAt: number) => void) => Promise<ValidatedSession | null>;
-  /** Revoke the session a token belongs to (logout); audits `AUTH_LOGOUT`. Returns WHICH session ended, or
-   *  `null` if it was already gone — the entry-tier logout route evicts that session's live sockets with it
-   *  (W7a; per-SESSION so signing out on the phone leaves the desktop connected). */
-  revokeByToken: (token: SessionToken) => Promise<SessionId | null>;
+  /** Revoke the session a token belongs to (logout); audits `AUTH_LOGOUT`. Returns WHICH session ended plus
+   *  its OIDC end-session hint, or `null` if it was already gone — the entry-tier logout route evicts that
+   *  session's live sockets with it (W7a; per-SESSION so signing out on the phone leaves the desktop
+   *  connected) and appends the hint to the IdP end-session URL (#141). The hint is CONSUMED here: the same
+   *  call that flips `revokedAt` clears the stored blob, so it is readable exactly once. */
+  revokeByToken: (token: SessionToken) => Promise<RevokedSession | null>;
   /** Revoke one session by id (admin: kick a specific device) → WHOSE it was, or `null` if it was already
    *  revoked. The owner is what the entry tier evicts live sockets by (W7a). @internal */
   revoke: (sessionId: SessionId) => Promise<UserId | null>;

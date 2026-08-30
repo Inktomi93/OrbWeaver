@@ -40,6 +40,26 @@ export const sessions = sqliteTable(
     revokedAt: integer("revoked_at"),
     // The User-Agent captured at mint; null when the mint carried no UA header.
     userAgent: text("user_agent"),
+    // ── The OIDC RP-initiated-logout hint (#141, owner ruling 2026-08-30) ────────────────────────────
+    // AES-256-GCM sealed OIDC `id_token`, held for ONE purpose: the `id_token_hint` on the end-session
+    // request, so authentik honours `post_logout_redirect_uri` and the user lands back on our /login
+    // instead of the IdP's page. Without the hint that param makes authentik 400 BEFORE its invalidation
+    // flow runs, which leaves the upstream SSO session alive (#437) — the two params are inseparable.
+    //
+    // WHAT THIS IS: a bearer-ish credential at rest. It is an ID token, not an access token — it grants
+    // no API authority — but it names the subject and, replayed as a hint, identifies the session to the
+    // IdP. So it is stored sealed, never in the clear:
+    //   • KEY — HKDF-SHA256 over the existing `SESSION_SECRET` with its own `info` label (owner ruling:
+    //     no new secret). The label is what keeps this key separate from the token-hash pepper's.
+    //   • AAD — the session ROW id (`sessions.id`), byte-identical. A blob lifted into another session's
+    //     row fails GCM tag verification LOUDLY instead of silently logging that session out elsewhere.
+    //   • LIFETIME — the row's. Every revoke path NULLs these three columns in the same statement that
+    //     sets `revoked_at`, so a dead session never keeps the hint at rest.
+    // It is NEVER projected: `SessionView` (the admin device list) does not carry it, `selectForValidation`
+    // does not select it, and the ONLY read is the logout revoke's own `RETURNING`.
+    oidcIdTokenCiphertext: text("oidc_id_token_ciphertext"),
+    oidcIdTokenIv: text("oidc_id_token_iv"),
+    oidcIdTokenTag: text("oidc_id_token_tag"),
     // Reserved for the future API-token surface (same table, same revoke/list machinery).
     label: text("label"),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),

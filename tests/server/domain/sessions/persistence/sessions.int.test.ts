@@ -37,6 +37,7 @@ async function seedSession(id: string, tokenHash: string, createdAt: number = T0
     lastSeenAt: createdAt,
     expiresAt: createdAt + TTL,
     userAgent: null,
+    oidcIdToken: null,
   });
   return sessionId;
 }
@@ -67,7 +68,8 @@ describe("persistence/sessions", () => {
   test("revokeByTokenHash is atomic — returns the owner ONCE, then nothing", async () => {
     const id = await seedSession("session_a", "hash-a");
     const first = await revokeByTokenHash(db, "hash-a", T0 + 1);
-    expect(first).toStrictEqual({ id, userId: USER_ID });
+    // #141 — the winner also reports the row's sealed OIDC end-session hint (null here: seedSession stores none).
+    expect(first).toStrictEqual({ id, userId: USER_ID, oidcIdToken: null });
     expect(await revokeByTokenHash(db, "hash-a", T0 + 2)).toBeUndefined();
   });
 

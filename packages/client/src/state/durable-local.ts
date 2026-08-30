@@ -16,10 +16,17 @@
 // `bindDurableLocalToUser` once the viewer read lands and the common case — the same human returning — is a
 // no-op with zero rehydrate and zero flash. Only a genuine identity CHANGE pays a rehydrate.
 //
-// THE HINT IS NOT IDENTITY. It is browser-writable, so all it may decide is which namespace the MINT reads;
-// only the session-verified viewer (`sessions.me`, threaded through `data/use-session-recovery.ts`) decides
-// whether that namespace stays live. Every skip below therefore compares against the VERIFIED id, and a
-// hint naming anyone else takes the full reset + rehydrate onto the verified viewer's namespace.
+// THE HINT IS NOT IDENTITY, AND SINCE #854 THE TYPES SAY SO. It is browser-writable, so all it may decide
+// is which namespace the MINT reads; only the session-verified viewer (`sessions.me`, threaded through
+// `data/use-session-recovery.ts`) decides whether that namespace stays live. Every skip below therefore
+// compares against the VERIFIED id, and a hint naming anyone else takes the full reset + rehydrate onto the
+// verified viewer's namespace. That property used to rest entirely on `bindDurableLocalToUser` HAPPENING to
+// have one caller: the module cannot inspect an id's provenance, so a future caller handing it a
+// client-derived one would make the skip honour a forged namespace. The entry point now takes a
+// `VerifiedUserId` (`@orb/kit/ids`), minted only at the session-recovery seam, and the two module-level
+// slots split along the same line — `activeUserId` is a plain `UserId` because it can come from the HINT,
+// while `readyUserId`/`desiredUserId` are `VerifiedUserId` because only a verified bind ever writes them.
+// A bare `UserId` reaching the write gate is now a tsc error rather than a review question.
 //
 // THE RESET IS IN-MEMORY, ALWAYS (`resetWithoutPersisting`). zustand's `persist` writes on every
 // `setState`, so dropping a projection through the store's own hook would overwrite whichever blob it is
@@ -36,7 +43,7 @@
 // The raw-`localStorage` reads/writes below are the POINTER only — the reason this file is on
 // `persistence-boundary`'s allowlist. Nothing else here touches browser storage directly.
 
-import type { UserId } from "@orb/kit/ids";
+import type { UserId, VerifiedUserId } from "@orb/kit/ids";
 
 /** Where the last-bound identity is recorded, so a cold boot mints on the right namespace (see the header). */
 const ACTIVE_USER_KEY = "orb:active-user";
@@ -97,9 +104,11 @@ let activeUserId: UserId | null = readBootHint();
  *  same human returning skip the rebind entirely. Distinct from `readyUserId` on purpose: this says whose
  *  bytes are loaded, never that a session verified them, so it must not be used to open the write gate. */
 let projectionUserId: UserId | null = activeUserId;
-/** The session-verified identity whose hydration currently owns the in-memory stores. */
-let readyUserId: UserId | null = null;
-let desiredUserId: UserId | null = null;
+/** The session-verified identity whose hydration currently owns the in-memory stores. `VerifiedUserId`, not
+ *  `UserId`: this is the slot the write gate opens on, and the ONLY writer is a verified bind. */
+let readyUserId: VerifiedUserId | null = null;
+/** The most recent verified bind request — what a queued bind checks it has not been superseded by. */
+let desiredUserId: VerifiedUserId | null = null;
 let adoptionUserId: UserId | null = readAdoptionHint();
 let bindTail: Promise<void> = Promise.resolve();
 
@@ -251,7 +260,7 @@ async function rebindRegisteredStores(adopting: boolean): Promise<void> {
   await Promise.all(rehydrates);
 }
 
-async function bindQueuedUser(userId: UserId): Promise<void> {
+async function bindQueuedUser(userId: VerifiedUserId): Promise<void> {
   if (desiredUserId !== userId) {
     return; // superseded before this queued bind began
   }
@@ -313,7 +322,7 @@ async function bindQueuedUser(userId: UserId): Promise<void> {
  *     this one's (or the store's defaults). This is the identity boundary: nothing crosses it.
  * Call once, from the composition route, as soon as the viewer identity resolves.
  */
-export function bindDurableLocalToUser(userId: UserId): Promise<void> {
+export function bindDurableLocalToUser(userId: VerifiedUserId): Promise<void> {
   desiredUserId = userId;
   const run = bindTail.then(() => bindQueuedUser(userId));
   // @orb-gate-ignore caught-failure-ownership(promise:run): bindTail recovers only the serialization queue; the original run is returned and rejects to AppRoot's visible retry boundary. Ends if callers receive bindTail instead of run.

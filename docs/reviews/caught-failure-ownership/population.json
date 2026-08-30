@@ -2,17 +2,17 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 408,
-    "enforced": 405,
+    "sites": 409,
+    "enforced": 406,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 405,
+      "deliberate-absorb": 406,
       "detached-owned": 3,
       "unproven": 0
     },
     "byGrammar": {
       "promise": 121,
-      "default": 118,
+      "default": 119,
       "empty": 169
     }
   },
@@ -345,7 +345,7 @@
     {
       "siteId": "packages/client/src/data/use-session-recovery.ts::promise:bindDurableLocalToUser::1",
       "path": "packages/client/src/data/use-session-recovery.ts",
-      "line": 84,
+      "line": 91,
       "column": 10,
       "grammar": "promise",
       "position": "promise:bindDurableLocalToUser",
@@ -353,7 +353,7 @@
       "snippet": "void bindDurableLocalToUser(userId)",
       "verdict": "deliberate-absorb",
       "reason": "rejection records failedBind; AppRoot renders Retry while durable writes remain gated. Ends if AppRoot stops owning failedBind.",
-      "markerLine": 83
+      "markerLine": 90
     },
     {
       "siteId": "packages/client/src/features/app-shell/hooks/use-is-mobile-viewport.ts::promise:promise::1",
@@ -1424,7 +1424,7 @@
     {
       "siteId": "packages/client/src/state/durable-local.ts::default:catch::1",
       "path": "packages/client/src/state/durable-local.ts",
-      "line": 115,
+      "line": 124,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -1432,12 +1432,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "refused browser storage has no durable bytes to isolate; null selects the storage-less legacy namespace. Ends if the boot hint becomes authoritative.",
-      "markerLine": 112
+      "markerLine": 121
     },
     {
       "siteId": "packages/client/src/state/durable-local.ts::default:catch::2",
       "path": "packages/client/src/state/durable-local.ts",
-      "line": 137,
+      "line": 146,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -1445,12 +1445,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "refused storage cannot hold legacy blobs or the pending pointer; module memory retains the owner for this page. Ends if storage refusal can coexist with readable durable blobs.",
-      "markerLine": 134
+      "markerLine": 143
     },
     {
       "siteId": "packages/client/src/state/durable-local.ts::empty:catch::1",
       "path": "packages/client/src/state/durable-local.ts",
-      "line": 127,
+      "line": 136,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -1458,12 +1458,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "refused storage costs only the no-flash boot hint; the verified bind still owns isolation. Ends if the hint becomes authoritative.",
-      "markerLine": 124
+      "markerLine": 133
     },
     {
       "siteId": "packages/client/src/state/durable-local.ts::empty:catch::2",
       "path": "packages/client/src/state/durable-local.ts",
-      "line": 156,
+      "line": 165,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -1471,12 +1471,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "a stale pending pointer only causes one safe target rehydrate on a later bind. Ends if adoption stops being idempotent.",
-      "markerLine": 153
+      "markerLine": 162
     },
     {
       "siteId": "packages/client/src/state/durable-local.ts::promise:run::1",
       "path": "packages/client/src/state/durable-local.ts",
-      "line": 320,
+      "line": 329,
       "column": 14,
       "grammar": "promise",
       "position": "promise:run",
@@ -1484,7 +1484,7 @@
       "snippet": "bindTail = run.catch(() => undefined);",
       "verdict": "deliberate-absorb",
       "reason": "bindTail recovers only the serialization queue; the original run is returned and rejects to AppRoot's visible retry boundary. Ends if callers receive bindTail instead of run.",
-      "markerLine": 319
+      "markerLine": 328
     },
     {
       "siteId": "packages/contracts/src/preset/index.ts::default:catch::1",
@@ -1528,7 +1528,7 @@
     {
       "siteId": "packages/kit/src/ids/index.ts::empty:err::1",
       "path": "packages/kit/src/ids/index.ts",
-      "line": 292,
+      "line": 322,
       "column": 7,
       "grammar": "empty",
       "position": "empty:err",
@@ -1536,7 +1536,7 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "zod transform pattern — fromString's throw is",
-      "markerLine": 286
+      "markerLine": 316
     },
     {
       "siteId": "packages/kit/src/json-schema/lift.ts::default:catch::1",
@@ -2436,6 +2436,19 @@
       "markerLine": 64
     },
     {
+      "siteId": "packages/server/src/domain/sessions/verbs/revoke.ts::default:catch::1",
+      "path": "packages/server/src/domain/sessions/verbs/revoke.ts",
+      "line": 37,
+      "column": 5,
+      "grammar": "default",
+      "position": "default:catch",
+      "ordinal": 1,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "the DOCUMENTED degrade above — the session is already revoked when this runs, so a failed open costs only the end-session redirect (the URL goes out bare, as it did before #141) and never the logout itself. The one reachable cause is a rotated SESSION_SECRET. Ends if the end-session hint becomes required for a correct logout.",
+      "markerLine": 34
+    },
+    {
       "siteId": "packages/server/src/domain/settings/context.ts::promise:next::1",
       "path": "packages/server/src/domain/settings/context.ts",
       "line": 25,
@@ -2906,7 +2919,7 @@
     {
       "siteId": "packages/server/src/entry/http/auth-routes.ts::default:catch::1",
       "path": "packages/server/src/entry/http/auth-routes.ts",
-      "line": 205,
+      "line": 269,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -2914,7 +2927,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "`null` is the DOCUMENTED degraded arm this function's JSDoc above describes — an unreachable IdP discovery means we send no end-session param and the user lands on our own `/login` instead of the IdP's logged-out page. The LOCAL logout has already happened either way, so this can only cost a redirect, never a session. Ends if end-session becomes required for correct logout.",
-      "markerLine": 201
+      "markerLine": 252
     },
     {
       "siteId": "packages/server/src/entry/http/blob.ts::empty:catch::1",

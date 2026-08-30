@@ -129,12 +129,22 @@ function hasOidcErrorCode(err: unknown): err is { readonly error: string } {
 }
 
 type OidcExchangeResult =
-  | { readonly ok: true; readonly claims: { readonly [claim: string]: unknown } | undefined }
+  | {
+      readonly ok: true;
+      readonly claims: { readonly [claim: string]: unknown } | undefined;
+      /** #141 — the RAW verified ID token, carried straight to `sessions.create` which seals it at rest.
+       *  It is a SECRET: it is never logged, never put in a response body, and never held past the mint. */
+      readonly idToken: string | null;
+    }
   | { readonly ok: false; readonly code: string };
 
 /** Run the JWKS-verified code→token exchange, converting every throw (replayed/expired code, issuer /
  *  nonce / state mismatch, or a transient IdP/network fault) into a fail-closed result — never a 500 that
- *  leaks a stack path through the observability onError. On the error path the caller mints no session. */
+ *  leaks a stack path through the observability onError. On the error path the caller mints no session.
+ *
+ *  The ID token is returned alongside the claims (#141) rather than re-derived later: `authorizationCodeGrant`
+ *  has already VERIFIED it (signature, issuer, audience, nonce, PKCE), and this is the only moment the raw
+ *  compact JWT exists in the process. */
 async function exchangeCodeForClaims(config: Configuration, callbackUrl: URL, tx: OidcTransaction): Promise<OidcExchangeResult> {
   try {
     const tokens = await authorizationCodeGrant(config, callbackUrl, {
@@ -142,7 +152,7 @@ async function exchangeCodeForClaims(config: Configuration, callbackUrl: URL, tx
       expectedNonce: tx.nonce,
       expectedState: tx.state,
     });
-    return { ok: true, claims: tokens.claims() };
+    return { ok: true, claims: tokens.claims(), idToken: tokens.id_token ?? null };
   } catch (err) {
     return { ok: false, code: sanitizeOidcErrorCode(hasOidcErrorCode(err) ? err.error : null) };
   }
@@ -171,37 +181,91 @@ export function serializeClearedSessionCookie(): string {
   return `${SESSION_COOKIE_NAME}=; Max-Age=0; ${COOKIE_ATTRS}`;
 }
 
+/** The OIDC RP-Initiated Logout query parameters. Wire-fixed snake_case (OIDC Core / RP-Initiated Logout
+ *  1.0) — these are the IdP's spelling, not ours. */
+const ID_TOKEN_HINT_PARAM = "id_token_hint";
+const POST_LOGOUT_REDIRECT_PARAM = "post_logout_redirect_uri";
+
 /**
- * A6 — the IdP end-session (RP-initiated logout) URL, read from the discovered openid-client Configuration
- * (`serverMetadata().end_session_endpoint`). The client navigates there after the local revoke so the
- * UPSTREAM SSO session ends too (else "sign out → Continue" logs straight back in). Best-effort: null when
- * there is no oidc config, discovery fails, or the issuer exposes no endpoint.
+ * #141 — the post-logout return target, derived from the ALREADY-VALIDATED OIDC callback origin.
  *
- * THE URL IS SENT BARE — no `post_logout_redirect_uri`, no `id_token_hint`. NEVER add one without the other:
- * OIDC RP-Initiated Logout pairs them, and an OP that receives a redirect URI with no hint is entitled to
- * refuse the whole request. Measured against THIS deployment's IdP (authentik 2026.5.5,
- * `providers/oauth2/views/end_session.py` `EndSessionView.validate`): when `post_logout_redirect_uri` is
- * present AND the provider has ANY registered post-logout URI, a missing `id_token_hint` raises
- * `invalid_request`/`id_token_hint_missing` → a 400 "Bad Request" page. That raise happens BEFORE the flow
- * planner, so the invalidation flow never runs: the IdP's access tokens are not deleted, the logout stage
- * never fires, and THE SSO SESSION SURVIVES — the exact state this function exists to prevent, plus an error
- * page instead of a logout. Sending the redirect URI alone is therefore strictly worse than sending nothing,
- * which is what #141's first attempt (8446a55ce, reverted here) shipped.
+ * This is an OPEN-REDIRECT-SHAPED parameter (we hand the IdP a URL and it navigates the user's browser
+ * there), so it is never built from a raw request header. `deriveRedirectUri` resolves the request's origin
+ * and returns it ONLY when it exact-matches the `OIDC_REDIRECT_URIS` allowlist — the same gate the login
+ * mint uses — and we then swap that allowlisted callback URL's PATH for `/login`. So the host/scheme can
+ * only ever be one the operator configured, and an off-allowlist / unresolvable origin yields `null`
+ * (no param at all), never a reflected one.
  *
- * We have no hint to thread: this deployment does not persist the OIDC id_token (the `sessions` table stores
- * only a token hash, by design). Restoring `post_logout_redirect_uri` REQUIRES persisting the id_token first —
- * a secret-at-rest decision, owner-gated, tracked on #141. Until then the accepted cost is the papercut #141
- * was filed against: the user lands on the IdP's own logged-out page rather than our `/login`. A registered
- * post-logout URI on the IdP side is inert while we send no param, so it needs no coordinated removal.
+ * THE OUTPUT IS BYTE-EXACT BY CONSTRUCTION, and it has to be: authentik matches this value STRICTLY against
+ * the URL registered on the provider (`redirect_uri_type: logout` — `https://orbweaver.inktomi.tech/login`
+ * is registered today), so a trailing slash or a stray query makes the OP reject the whole request.
+ * `new URL("/login", <allowlisted callback>)` yields exactly `<scheme>://<host>/login` — no trailing slash
+ * (URL only appends one for an origin-only path) and no query. Do not "normalise" it.
  */
-async function resolveEndSessionUrl(oidc: OidcRoutesDeps | undefined): Promise<string | null> {
+function postLogoutRedirectUri(headers: Headers, allowlist: readonly string[]): string | null {
+  const callbackUri = deriveRedirectUri(headers, allowlist);
+  if (callbackUri === null) {
+    return null;
+  }
+  return new URL(LOGIN_SURFACE_ROUTE, callbackUri).href;
+}
+
+/**
+ * A6/#141 — the IdP end-session (RP-initiated logout) URL, read from the discovered openid-client
+ * Configuration (`serverMetadata().end_session_endpoint`). The client navigates there after the local revoke
+ * so the UPSTREAM SSO session ends too (else "sign out → Continue" logs straight back in). Best-effort:
+ * null when there is no oidc config, discovery fails, or the issuer exposes no endpoint.
+ *
+ * THE TWO PARAMS ARE INSEPARABLE, AND THE ORDER OF THIS FUNCTION'S GUARDS IS THE CONTROL. OIDC RP-Initiated
+ * Logout pairs `id_token_hint` with `post_logout_redirect_uri`, and an OP that receives a redirect URI with
+ * no hint is entitled to refuse the whole request. Measured against THIS deployment's IdP (authentik
+ * 2026.5.5, `providers/oauth2/views/end_session.py` `EndSessionView.validate`): when
+ * `post_logout_redirect_uri` is present AND the provider has ANY registered post-logout URI, a missing
+ * `id_token_hint` raises `invalid_request`/`id_token_hint_missing` → a 400 page. That raise happens BEFORE
+ * the flow planner, so the invalidation flow never runs: the IdP's access tokens are not deleted, the logout
+ * stage never fires, and THE SSO SESSION SURVIVES (regression #437 — a redirect param alone is strictly
+ * WORSE than sending nothing, which is what #141's first attempt, 8446a55ce, shipped and why it was
+ * reverted).
+ *
+ * So there are exactly three shapes this returns, and no fourth is constructible here:
+ *   • HINT + REDIRECT — the session carried an id_token AND the request origin is allowlisted. The IdP
+ *     silently confirms and returns the browser to our `/login` (the owner-observed papercut, closed).
+ *   • HINT ONLY — the session carried an id_token but the origin did not resolve. Spec-legal and accepted
+ *     by the OP; the user lands on the IdP's own logged-out page, and the SSO session still ends.
+ *   • BARE — no hint (a local/first-run login, a pre-#141 session row, or a rotated `SESSION_SECRET` that
+ *     made the stored blob unopenable). The pre-#141 behaviour, deliberately preserved as the degrade.
+ * The redirect param is NEVER emitted without the hint. `hint === null` returns before it is even computed.
+ *
+ * WHERE THE HINT ENDS UP, stated plainly rather than implied. RP-Initiated Logout is a FRONT-CHANNEL
+ * protocol: the RP hands the browser a URL carrying `id_token_hint`, so the token necessarily reaches the
+ * user's own browser (address bar, history, the IdP's access log). That is the spec's design and it is not
+ * an escalation — an ID token is an identity ASSERTION ABOUT THAT USER, not an access or refresh token: it
+ * cannot mint an Orbweaver session (we never accept one as a credential), and it cannot call the IdP's API.
+ * The one thing a stolen hint buys is logging that user out. What this function still owes, and keeps: it
+ * never puts the hint in a LOG line, never returns it as a field of its own, and never lets it reach a
+ * DIFFERENT user's response — the hint comes from the row the caller's own cookie just revoked.
+ */
+async function resolveEndSessionUrl(oidc: OidcRoutesDeps | undefined, hint: string | null, headers: Headers): Promise<string | null> {
   if (oidc === undefined) {
     return null;
   }
   // @orb-gate-ignore caught-failure-ownership(default:catch): `null` is the DOCUMENTED degraded arm this function's JSDoc above describes — an unreachable IdP discovery means we send no end-session param and the user lands on our own `/login` instead of the IdP's logged-out page. The LOCAL logout has already happened either way, so this can only cost a redirect, never a session. Ends if end-session becomes required for correct logout.
   try {
     const endpoint = (await oidc.getConfig()).serverMetadata().end_session_endpoint;
-    return typeof endpoint === "string" && endpoint.length > 0 ? endpoint : null;
+    if (typeof endpoint !== "string" || endpoint.length === 0) {
+      return null;
+    }
+    if (hint === null) {
+      // No hint ⇒ BARE. Not "hint omitted, redirect kept" — that shape is the #437 regression.
+      return endpoint;
+    }
+    const url = new URL(endpoint);
+    url.searchParams.set(ID_TOKEN_HINT_PARAM, hint);
+    const returnTo = postLogoutRedirectUri(headers, oidc.redirectAllowlist);
+    if (returnTo !== null) {
+      url.searchParams.set(POST_LOGOUT_REDIRECT_PARAM, returnTo);
+    }
+    return url.href;
   } catch {
     return null;
   }
@@ -212,9 +276,13 @@ export interface AuthSessionsPort {
   readonly create: (params: {
     readonly userId: UserId;
     readonly userAgent?: string | null;
+    /** #141 — the verified OIDC id_token, supplied by the callback ONLY. The verb seals it at rest (AAD =
+     *  the new session row id); this route never reads it back. */
+    readonly oidcIdToken?: string | null;
   }) => Promise<{ readonly token: SessionToken; readonly expiresAt: number }>;
-  /** Returns WHICH session ended (`null` = already gone) so the route can evict that session's sockets. */
-  readonly revokeByToken: (token: SessionToken) => Promise<SessionId | null>;
+  /** Returns WHICH session ended plus that session's OIDC end-session hint (`null` = already gone) so the
+   *  route can evict that session's sockets and build the `id_token_hint` end-session URL (#141). */
+  readonly revokeByToken: (token: SessionToken) => Promise<{ readonly sessionId: SessionId; readonly oidcIdToken: string | null } | null>;
   /** `options` carries the caller-resolved admission decisions (A1 JIT gate / A2 approval). The OIDC callback
    *  passes them from env; the verb stays mode-agnostic. */
   readonly provisionIdentity: (
@@ -544,21 +612,29 @@ export function registerAuthRoutes(app: Hono, deps: AuthRoutesDeps): void {
     // The SAME reader the seam authenticates with (entry/auth/seam.ts) — a second copy here could revoke a
     // different token than the one that authenticated the request, leaving the live session un-killable.
     const token = readSessionCookie(c.req.raw.headers);
+    // #141 — the ended session's OIDC end-session hint, held ONLY long enough to build the URL below. It is
+    // scoped to this handler and reaches no log, no audit field, and no response field of its own.
+    let endSessionHint: string | null = null;
     if (token !== null) {
-      const endedSessionId = await deps.sessions.revokeByToken(token);
+      const ended = await deps.sessions.revokeByToken(token);
       // W7a — the revoke kills the COOKIE; this kills the STREAM the cookie already opened. Per SESSION (F4):
       // this device's sockets close and its reconnect 401s into the client recovery ladder, while the same
       // human's other devices keep theirs. `null` = the row was already revoked, so there is nothing here to
-      // have opened a socket that this call ends.
-      if (endedSessionId !== null) {
-        deps.sockets.evictSession(endedSessionId);
+      // have opened a socket that this call ends — and no hint either, since the winning revoke consumed it.
+      if (ended !== null) {
+        deps.sockets.evictSession(ended.sessionId);
+        endSessionHint = ended.oidcIdToken;
       }
     }
     c.header("Set-Cookie", serializeClearedSessionCookie());
+    // #141 — this body can now carry the session's `id_token_hint` inside the end-session URL, so it is a
+    // token-bearing response. POSTs are not cached by default, but say so explicitly rather than relying on
+    // that: no shared cache, no disk copy, no back-button replay of a hint the row no longer holds.
+    c.header("Cache-Control", "no-store");
     // A6 — surface the IdP end-session URL so the client can end the UPSTREAM SSO session after the local
     // revoke (else "sign out → Continue" logs straight back in). Best-effort + null when there is no oidc
     // config or the issuer exposes no end_session_endpoint. The local session is already dead regardless.
-    return c.json({ endSessionUrl: await resolveEndSessionUrl(deps.oidc) }, OK);
+    return c.json({ endSessionUrl: await resolveEndSessionUrl(deps.oidc, endSessionHint, c.req.raw.headers) }, OK);
   });
 
   const oidc = deps.oidc;
@@ -694,6 +770,9 @@ function registerOidcRoutes(app: Hono, deps: AuthRoutesDeps, oidc: OidcRoutesDep
     const session = await deps.sessions.create({
       userId: provisioned.userId,
       userAgent: c.req.header("user-agent") ?? null,
+      // #141 — the verified id_token rides into the session row (sealed by the verb) so THIS session's own
+      // logout can present it as `id_token_hint`. An IdP that omitted it degrades to a bare end-session URL.
+      oidcIdToken: exchange.idToken,
     });
     c.header("Set-Cookie", sessionCookieFor(session, deps.now()));
     return c.redirect("/", FOUND);

@@ -35,7 +35,7 @@ import {
   resolveEnginesPosture,
 } from "#foundation/env";
 import { getLog, initTracing, superviseDetached, wrapLibSqlClient } from "#foundation/observability";
-import { createBackchannelLogoutVerifier, createForwardJwtVerifier, createPasswordHasher, ownerFallbackAllowed } from "#infra/auth";
+import { createBackchannelLogoutVerifier, createForwardJwtVerifier, createOidcConfigCache, createPasswordHasher, ownerFallbackAllowed } from "#infra/auth";
 import { credentialsKeyFromEnv } from "#infra/crypto";
 import { installEgressFirewall } from "#infra/network";
 import { detectGpu } from "#infra/providers";
@@ -184,14 +184,18 @@ function buildLocalAuthDeps(sessions: SessionsService): {
 
 /** AUTH_MODE=oidc's route dependencies plus the store's GC sweeper, built together because the sweeper's
  *  subject IS the store these deps carry — returning the stop handle keeps the teardown's ownership with the
- *  thing that started it. The issuer discovery is lazy + memoized (a cold IdP must not fail boot). */
+ *  thing that started it. The issuer discovery is lazy + SINGLE-FLIGHT-memoized (a cold IdP must not fail
+ *  boot; the concurrency contract — one shared attempt, no cached rejection — is `infra/auth/oidc-discovery`
+ *  and is proven there, #762). */
 function buildOidcDeps(db: Db, now: () => number): { oidc: OidcRoutesDeps; stopOidcGc: () => void } {
-  let cachedConfig: Configuration | undefined;
   const issuerUrlStr = env.OIDC_ISSUER ?? "";
   const issuerUrl = issuerUrlStr.length > 0 ? new URL(issuerUrlStr) : new URL("http://localhost");
   const clientId = env.OIDC_CLIENT_ID ?? "";
   const clientSecret = env.OIDC_CLIENT_SECRET;
   const store = createOidcStore(db, now);
+  // #762 — ONE shared in-flight discovery per process; a rejection is never cached (the next caller
+  // retries). The cache module owns that contract; this root only supplies the round-trip.
+  const getConfig = createOidcConfigCache((): Promise<Configuration> => discovery(issuerUrl, clientId, clientSecret));
   return {
     oidc: {
       // The full callback URLs the per-request derived origin must exact-match.
@@ -213,10 +217,7 @@ function buildOidcDeps(db: Db, now: () => number): { oidc: OidcRoutesDeps; stopO
       allowJitProvision: env.OIDC_SIGNUP,
       requireApproval: env.OIDC_REQUIRE_APPROVAL,
       store,
-      getConfig: async (): Promise<Configuration> => {
-        cachedConfig ??= await discovery(issuerUrl, clientId, clientSecret);
-        return cachedConfig;
-      },
+      getConfig,
       // A5 — register the back-channel logout endpoint only when OIDC_BACKCHANNEL_LOGOUT=on. The verifier
       // is the sealed infra/auth JWKS checker; clientId is the required `aud` on the logout_token.
       ...(env.OIDC_BACKCHANNEL_LOGOUT ? { backchannelLogout: { verify: createBackchannelLogoutVerifier().verify, clientId } } : {}),
