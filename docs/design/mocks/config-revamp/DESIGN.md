@@ -21,8 +21,9 @@ with Settings' scroll-spy; the spy sits on Looks. The content pane is APPLY-NOT-
 1. **PICK** — the three shipped themes (Hearth · Mocha · Light) as FIXED cards, "Shipped · picking
    applies it". A closed set: this row never grows.
 2. **MANAGE** — "Your themes": imported + builder-made looks as LIST rows (swatch strip · name ·
-   provenance+age · ⋯ menu: Apply · Edit in builder · Export · Delete). Scales to any count;
-   searchable via the S2 index.
+   age · ⋯ menu: Apply · Edit in builder · Export · Delete). Scales to any count; searchable via
+   the S2 index. **No provenance word** (owner ruled 2026-08-30: the boards' "imported"/"built"
+   labels are dropped — no schema field exists and none is wanted; the age alone stands).
 3. **MAKE** — ONE builder door at the foot: "New theme from <current>…". Every color decision lives in
    the builder and SAVES AS A NAMED THEME of the user's. **There is NO freestanding accent knob** —
    a color tweak must mint a named theme, never silently fork the picked one (owner critique
