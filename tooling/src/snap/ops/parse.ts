@@ -75,6 +75,8 @@ Sessions:
   --contexts <N>          isolated fixture users (no watch/baseline/diff)
   --as <handle>           one named fixture user
   --isolated | --dirty    warm isolated stage from HEAD or working tree
+  --ref <sha|branch|tag>  pin the isolated stage to a commit instead of HEAD (survives a merge train)
+  --fresh                 force a full re-stage even when the stage is warm (implies --isolated)
   --stage-status          what holds the stage band, how long since it was used
   --stage-down [--force]  tear down the active stage; --force is required for a LIVE stage owned by
                           another checkout (it kills that checkout's run — measured, #447)
