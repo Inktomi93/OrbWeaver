@@ -118,7 +118,7 @@ const MAX_RESOLVE_HOPS = 3;
 // prose carries every arm INCLUDING the distinction that keeps an author from "fixing" a non-violation: the
 // three shapes this gate deliberately never flags are the ones most likely to be mistaken for a hit.
 const GROUP_MESSAGE =
-  "a superseded pre-node-26 spelling — the node-26 maximal-adoption program (docs/design/" +
+  "a superseded pre-node-26 spelling — the node-26 maximal-adoption program (docs/history/design/" +
   "node-26-adoption-program.md §8) ruled the modern spelling is THE spelling and W4 burned the sites down. " +
   "Each occurrence's token names its arm. `sleep`: `new Promise((resolve) => setTimeout(resolve, ms))` → " +
   "`node:timers/promises` setTimeout (§4.1) — a timeout-REJECT race references reject in its body and is " +
