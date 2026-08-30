@@ -26140,6 +26140,58 @@
       "receiptCurrent": true
     },
     {
+      "path": "docs/reviews/side-eye/2026-08-30-rail-presets-delta.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 565,
+      "bytes": 41261,
+      "sha256": "53badc6a84eb4c3f6307e6038490d0177a3041ad7acf7351a0d35e927f691677",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "draft",
+          "updated": "2026-08-30"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/side-eye/2026-08-30-rail-presets-delta.md",
+        "assignedSha256": "53badc6a84eb4c3f6307e6038490d0177a3041ad7acf7351a0d35e927f691677",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "53badc6a84eb4c3f6307e6038490d0177a3041ad7acf7351a0d35e927f691677",
+        "verifiedCommit": "7387b71ad6b2e7ea1f12a0cd04469fe5e3ba45d1",
+        "verifiedAt": "2026-08-30",
+        "evidence": [
+          "docs/reviews/side-eye/2026-08-30-rail-presets-delta.md:1-565 read in full by the orchestrator (claude-b) before commit; lane cb-rail-presets, the Ready-runs-dry PRESETS delta pass on :5173 (main 34a0e3c53) as Traveler against the fresh 1-preset corpus (created/forked/deleted with orchestrator approval, corpus restored to 1 row + Default active); Lighthouse mobile arm reported VOID and excluded; six retractions published incl. the owner-ruled #482 inset re-measured identical; findings filed as #855-#859"
+        ],
+        "claims": [
+          {
+            "claim": "Every finding is tracked: the built-in Used-by null-pick predicate → #855 (P1); the silent copy-on-write + kind=system fork (owner-ruled 2026-08-30: the fork of the active built-in inherits the active pick; observation O-1 recorded) → #856; mobile knob-row columns → #857; the 133ms open hitch → #858; the P3 cluster (list-pane drop, flat-type-hierarchy question, accent switches, void Data tab) → #859. Prior rows #481 #482 #483 #484 #486 #506 re-verified fixed live; O-2 re-derives the D58 no-chat-binding claim.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#855"
+              },
+              {
+                "kind": "issue",
+                "target": "#856"
+              },
+              {
+                "kind": "issue",
+                "target": "#859"
+              }
+            ]
+          }
+        ],
+        "summary": "side-eye PRESETS delta pass: SHIP WITH FIXES 31/40 (was 29) — thirteen of fourteen re-drivable 2026-08-22 arms fixed, #481 proven dead by mutation count (arrows: 0 settings writes; Space: exactly 1), 95 mapped controls with 0 DOM fallbacks, Lighthouse a11y 100; new P1: Used-by calls the active built-in unused (preset-usage.ts reads the null pick as a non-match); new P2s: silent un-announced copy-on-write that does not activate and forks as kind=system, mobile knob value cells aligned to nothing, a 133ms rAF gap opening a preset; six retractions; the Lighthouse mobile arm void."
+      },
+      "receiptCurrent": true
+    },
+    {
       "path": "docs/reviews/side-eye/2026-08-30-this-chat-cls-verify.md",
       "lane": "reviews",
       "issue": 7,
