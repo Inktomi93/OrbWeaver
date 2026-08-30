@@ -78,7 +78,7 @@ Viewed full-size: Hikari, Ruby, Selene1, Azarael, Ayami, Bess, Bengal, Anika, Ri
 
 Model `google/gemini-3-pro-image` via OpenRouter, 1024×1024 output, downscaled to 512×512 PNG24
 (stripped metadata), overwritten in place. Character CONTENT came from each card's *Avatar art
-direction* paragraph in `docs/design/default-character-roster.md`; only the aesthetic changed.
+direction* paragraph in `docs/history/design/default-character-roster.md`; only the aesthetic changed.
 
 | Handle | Character | Shipped roll | Notes |
 | - | - | - | - |

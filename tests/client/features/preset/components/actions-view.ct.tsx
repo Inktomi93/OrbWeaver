@@ -253,7 +253,7 @@ test("the list is a FIXED ENUM — no toggle, no grip, no Add anywhere (§16 row
   await expect(probe.getByRole("button", { name: ADD_CONTROL_RE })).toHaveCount(0);
 });
 
-// ── THE IA (docs/design/actions-tab-information-architecture.md) — bands, filter, labels, the fork ────────
+// ── THE IA (docs/history/design/actions-tab-information-architecture.md) — bands, filter, labels, the fork ────────
 
 test("IA — the extract clusters mount COLLAPSED; the band is the map and one click discloses", async ({ mount }) => {
   const probe = await mount(<ActionsStory />);

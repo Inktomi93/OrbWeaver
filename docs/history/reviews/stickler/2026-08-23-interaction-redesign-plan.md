@@ -7,7 +7,7 @@ updated: 2026-08-30
 # Interaction redesign + stack — the claude-b counter-plan (owner-commissioned, 2026-08-23)
 
 > **Provenance.** Commissioned as the second, independent pass on the same assignment the primary's
-> `docs/design/interaction-substrate-spec.md` answers. Authored by **claude-b** against the full
+> `docs/history/design/interaction-substrate-spec.md` answers. Authored by **claude-b** against the full
 > commissioned reading set (the primary's draft · `Agent-And-Composition-Pain-Points.md` ·
 > `lite-plus-guided-substrate-spec.md` · the routed proposed sets · D59/D109/D137/D80), with the
 > tree facts spot-checked at symbol level this session (receipts inline). Iterated with the
@@ -260,7 +260,7 @@ method's intent.
   argument; #13 stays parked on the owner's explicit want and is not a prerequisite of anything
   here.
 
-## §6 Explicit deltas vs the primary's draft (`docs/design/interaction-substrate-spec.md`)
+## §6 Explicit deltas vs the primary's draft (`docs/history/design/interaction-substrate-spec.md`)
 
 Numbered; each carries its receipt. AGREE rows are stated so the convergence is auditable.
 

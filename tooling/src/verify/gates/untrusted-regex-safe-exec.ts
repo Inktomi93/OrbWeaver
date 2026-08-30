@@ -33,8 +33,8 @@ export const gate: GateDescriptor = {
   status: "active",
   scopeSafety: "whole-project",
   message:
-    "the canonical world-info regex-key execution seam is not composed with `createRegexTest()` from `#kit/regex` — a user-authored key can execute on the server event loop without the node:vm deadline. See docs/design/issue-712-gate-family.md",
-  fix: "import `createRegexTest` from `#kit/regex` and compose `testRegexKey: createRegexTest()`; do not hand-roll native `.test` at this boundary. See docs/design/issue-712-gate-family.md",
+    "the canonical world-info regex-key execution seam is not composed with `createRegexTest()` from `#kit/regex` — a user-authored key can execute on the server event loop without the node:vm deadline. See docs/history/design/issue-712-gate-family.md",
+  fix: "import `createRegexTest` from `#kit/regex` and compose `testRegexKey: createRegexTest()`; do not hand-roll native `.test` at this boundary. See docs/history/design/issue-712-gate-family.md",
   scanRoot: (path) => path.includes(COMPOSE_DIR),
   kinds: [SyntaxKind.PropertyAssignment],
   begin: () => {
@@ -64,7 +64,7 @@ export const gate: GateDescriptor = {
         file: GATE_SELF,
         line: 1,
         column: 0,
-        message: `the canonical ${PROPERTY} composition property was not found — the gate has no execution boundary to judge. See docs/design/issue-712-gate-family.md`,
+        message: `the canonical ${PROPERTY} composition property was not found — the gate has no execution boundary to judge. See docs/history/design/issue-712-gate-family.md`,
       });
     }
   },

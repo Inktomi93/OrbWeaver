@@ -59,7 +59,7 @@ export function createSetRole(ctx: AdminContext): AdminService["setRole"] {
     // W7b — announce to the GRANTEE, not the granting owner. `sessions.me` projects `globalRole` straight off
     // the request Principal, and the QueryClient runs `staleTime: Infinity`, so before this a promoted user's
     // live tab kept rendering the pre-grant role until they happened to reload
-    // (docs/design/staleness-and-session-freshness.md §2.3.4). Unconditional on the WRITE, not on a
+    // (docs/history/design/staleness-and-session-freshness.md §2.3.4). Unconditional on the WRITE, not on a
     // role-difference check: the atomic UPDATE above already returned a row, and re-granting the same role is
     // one idempotent refetch, whereas skipping it on a "no change" guard would strand a client whose cached
     // read is stale for some OTHER reason.

@@ -433,7 +433,7 @@ Every piece of client state is exactly one of three classes — the blunt "cross
 Enforcer: `persistence-boundary` (raw-storage-outside-the-doors belt, §9) plus `state-files`/
 `persist-partialize-and-total-migrate`. Design of record + the as-built deltas (why store rebind reads a
 boot pointer rather than minting fresh, why legacy adoption goes through each store's own persist
-storage): `docs/design/staleness-and-session-freshness.md` §4.2, §5a.
+storage): `docs/history/design/staleness-and-session-freshness.md` §4.2, §5a.
 
 ## 11. The error-handling battery + the three-states law
 

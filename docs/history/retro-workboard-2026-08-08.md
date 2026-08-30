@@ -570,7 +570,7 @@ security lens.
   ratifying-gate-two-receipts) are DOCTRINE/memory, not gates: the existing gates + battery caught every
   real regression; the failures were judgment/process. \[\[shared-value-change-owes-a-battery-not-static]]
 - **✅ TOOLING-INVESTIGATE merged `b850dbb54`** (docs-only): populate-round prose census
-  (`docs/design/prose-1-populate-census.md` — 7 slot candidates, 3 host-toast excluded) + prod-CLS
+  (`docs/history/design/prose-1-populate-census.md` — 7 slot candidates, 3 host-toast excluded) + prod-CLS
   lead (`prod-build-cls-investigation.md` — prod launcher EXISTS but :8788 held by the live dev
   stack; blocked on a prod-build window, dev 0.134 stands). **gate-ignore scanRoot: RULED
   UN-EXTENDABLE** — probed live, extending to scripts/ yields 12 FALSE findings (gate doc-comments
@@ -581,7 +581,7 @@ security lens.
   prose stays red). Shipped the MENTION FENCE: a marker IS a `//` comment whose text BEGINS with the
   vocabulary; quotations/JSDoc are mentions (`pass.ts`, the one home, both sides). Also closed a LIVE
   suppression bypass (unanchored parse let a prose quote suppress a real finding). Plant matrix all 6
-  post-fix; packages/tests inventory byte-unchanged; 17/17+3/3+2/2. `docs/design/gate-ignore-mention-fence.md`.
+  post-fix; packages/tests inventory byte-unchanged; 17/17+3/3+2/2. `docs/history/design/gate-ignore-mention-fence.md`.
   VERIFIER dispatched on the load-bearing pass.ts change.)**
 - **⚑ NEW BOARDED ROW (POLISH-CLUSTER find): wire CapabilityGate to resolve-failure.ts.** The same
   wrong-confident-cause sentence ("routing problem, not a missing connection") is ALSO hardcoded at
@@ -695,7 +695,7 @@ security lens.
     / drop it — the in-place chips may already cover it).
   - **TOOLING-INVESTIGATE** (`a867e56c60b9c0c21`, mech): BUILD the scripts/ gate-ignore inventory gap
     (extend scanRoot + the literal-span exclusion) · INVESTIGATE the populate-round prose census
-    (→ docs/design/prose-1-populate-census.md, enumerate don't build) · INVESTIGATE the prod-build CLS
+    (→ docs/history/design/prose-1-populate-census.md, enumerate don't build) · INVESTIGATE the prod-build CLS
     lead (confirm/refute the 0.134 dev artifact against a prod build if cheap, else report blocked).
   - **HELD (not batched — need a quiet tree or an owner ruling):** the 135-name barrel amputation
     (per-symbol verdicts, contracts/rpg locked-shape data — a careful lane on a drained tree) ·
@@ -830,7 +830,7 @@ security lens.
     `__g_platspell` anti-drift fixture; gate-conformance 5/5 branch-side. **Two W4 sub-waves the program
     doc implied "merged" NEVER landed** — W4.5 withResolvers (7 live sites) + W4.2 toSorted (\~40 sites,
     type-judgment): arms DEFERRED pending-not-dropped, burn-down lane brief at
-    `docs/design/node-26-w4-residual-burndown.md`. Consolidated train check (incl. this + RPG-PROSE +
+    `docs/history/design/node-26-w4-residual-burndown.md`. Consolidated train check (incl. this + RPG-PROSE +
     the `984a1ece6` docs:format fixup for its Active-Gates edit): **PASS all stages**.
     **Verifier `a1cb70df920e07585`: 4/5 CONFIRMED, 1 REFUTED** — reach probe fired both arms (+2
     unclaimed shapes), carve-out exactly client/ui, zero-FP + all ex-FP sites genuinely legit, census
@@ -851,7 +851,7 @@ security lens.
     cohort verified GENUINELY independently typed; keep-on-omit proven incl. the `.prefault({})` leak
     probe; macro split matches old consumers; 866 tests across the whole rpg+prose surface green + a
     literal sweep for coupled fixtures (none missed). EXTRACTION seam = follow-on
-    (`docs/design/prose-1-rpg-extraction-followon.md`; row-27 owner-DEFERRED).
+    (`docs/history/design/prose-1-rpg-extraction-followon.md`; row-27 owner-DEFERRED).
     **Verifier F1 (routed to the live security lane):** comment at `fork-game.ts:118-119` FALSELY claims
     `getConfigView` reads prose — NO read door exists anywhere; security lane told to reason from code +
     truth-repair the comment in its commit.
@@ -875,7 +875,7 @@ security lens.
   object assembly already resolves); (3) slots STAY in `contracts/rpg/prose.ts` → they surface in the
   preset Templates tab like every domain (lane must VERIFY the tab enumerates rpg slots); (4) F2
   (prose read door) DIES — the preset editor is the read door; (5) truth-repair the S3 spec section +
-  `docs/design/prose-1-rpg-extraction-followon.md` to preset-home. Byte-identity guards (frozen
+  `docs/history/design/prose-1-rpg-extraction-followon.md` to preset-home. Byte-identity guards (frozen
   cohort, field-reachability) must stay green — the re-home changes the OVERRIDE SOURCE, never the
   defaults. Security lane's Item 2 (strip review + fork-game comment repair) DROPPED as moot.
 - **✅ W4-BURNDOWN GRADUATED, torn down.** Verifier `ad52e90d372a0b670` CONFIRMED all 4 claims:
@@ -999,7 +999,7 @@ security lens.
   `scripts/` is UNINVENTORIED (gate-ignore-inventory scanRoot is packages+tests by deliberate
   design; extending needs the literal-span exclusion extended to scripts/ — its own lane).
   **(CLOSED 2026-08-08 — the mention fence; see the TOOLING-INVESTIGATE row's closure note +
-  docs/design/gate-ignore-mention-fence.md.)**
+  docs/history/design/gate-ignore-mention-fence.md.)**
 - **⚑ PRIOR GATE-IGNORE ARC (for the record):** "FULLY CLOSED" REFUTED — a 4th leg is in flight.\*\* Verifier
   `a8fed8ee2276a7c1e` CONFIRMED the 14 converted gates (3 spot-checks incl. the over-exempt property
   at same-line granularity; kept-arms correctly §1-sanctioned; expect.token discriminates) but
@@ -1800,7 +1800,7 @@ what Caddy exposes, real response headers, whether `/api/_debug` answers from ou
   record, not a reference). Nothing to annotate.
 - [ ] **BARREL ROOT-FIX** (M) — 56 `export * from` remain across `packages/*/src`.
 - [x] ✅ **TSX-SHEDDING MIGRATION — DONE 2026-08-03, all four stages** (receipts in STATE above; the row
-  is kept for its rationale). Original text: (`docs/design/tsx-shedding-migration-spec.md`, adopted from the memoban
+  is kept for its rationale). Original text: (`docs/history/design/tsx-shedding-migration-spec.md`, adopted from the memoban
   session, probe-verified preconditions). **Owner has particular interest.** `tsx` is a RUNTIME dep in
   production — `start` runs `tsx …/entry/index.ts`, so the server's real module resolver is tsx's and
   any divergence from node is an invisible bug class. The whole migration is one hazard: **6,359
@@ -1960,7 +1960,7 @@ when coverage changes, not left to be contradicted by the section above it.**
   satisfies both — not a suppression of one to appease the other. One cited suppression survives, where
   biome's type lens wrongly believes `exec()` is non-nullable.
 
-- **📄 NODE 21→26 MAXIMAL-ADOPTION PROGRAM boarded** (`docs/design/node-26-adoption-program.md`, 336
+- **📄 NODE 21→26 MAXIMAL-ADOPTION PROGRAM boarded** (`docs/history/design/node-26-adoption-program.md`, 336
   lines, probe-verified + implementor-grade, from the same session). Pairs naturally with the
   **tsx-shedding migration** — both are "make the platform the runtime" work, and tsx-shedding's stage 4
   (`nodenext`) is the seam where they meet. Read them together before scheduling either.
@@ -2383,7 +2383,7 @@ neither deliverable has landed on the tree yet.
 - **B2 · Prompt-view section-drill fork-eject** (FORGE#1 finding (b), board `:582-583`). The Prompt view's
   section drill has the SAME local-drill-state fork-eject class the Actions-tab store-axis fix already
   solved; apply the store-axis fix. **Queued behind A3.**
-- **B3 · Populate-round prose migration** (`docs/design/prose-1-populate-census.md`). 7 model-facing slot
+- **B3 · Populate-round prose migration** (`docs/history/design/prose-1-populate-census.md`). 7 model-facing slot
   candidates (`POPULATE_SYSTEM_HEADER`, the inline identity clause, `POPULATE_DOCTRINE`, 4 `populateUserPrompt`
   labels) still hardcoded; all follow the existing `rpgProse(...)`/`spliceProseTokens` convention — new
   `RPG_PROSE_SLOTS` rows + call-site swaps, no new machinery. PROSE-1 class already ruled

@@ -1,7 +1,7 @@
 ---
 kind: design
 status: archived
-updated: 2026-08-14
+updated: 2026-08-30
 ---
 
 # docs/design/mocks — frozen design drawings
@@ -22,17 +22,21 @@ law, the `@orb/ui` primitive law, and the a11y gates apply to the BUILD, never t
 | `panel-redesign/` | the chat context-panel strip, per-tab + `all-tabs.html` (the full strip) + `DESIGN.md`. **`this-chat-overrides.html` (07-29) is NEWER and WINS over `all-tabs.html` on Settings/Injections** — the superseded panes in `all-tabs.html` carry visible banners. |
 | `home-section/home.html` | the HOME section — the tile grid, the glyph-as-affordance rail, the dormant doorways, the temp-chat launcher (`../../history/design/home-section-spec.md`). |
 | `databank-surface/` | `library.html` (the documents library — both HOME arms, the detail, the activation body) + `attach-rack.html` (the per-chat Documents section in the This-chat tab, host vs member) (`../databank-surface-spec.md`). |
-| `preset-redesign/` | the preset surface redesign — `params-deck.html` (the Params deck + its CONTEXT readout), `context-readouts.html` (all six per-view CONTEXT panels, spec §7), `prompt-rack.html` (the rack first-class — the section manager, spec §5.1), `actions-and-sections.html` (guided templates/nudges + the consolidated section editor), `list-pane.html` (the LIST projection with inline activate) (`../preset-surface-redesign.md`). |
+| `preset-redesign/` | the preset surface redesign — `params-deck.html` (the Params deck + its CONTEXT readout), `context-readouts.html` (all six per-view CONTEXT panels, spec §7), `prompt-rack.html` (the rack first-class — the section manager, spec §5.1), `actions-and-sections.html` (guided templates/nudges + the consolidated section editor), `list-pane.html` (the LIST projection with inline activate) (`../../history/design/preset-surface-redesign.md`). |
 | `config-rail/` | the Configuration workspace — `workspace.html` (the tri-pane + the host/contribution seam), `empty-states.html` (first-run · empty group · no-selection · no-context-arm), `rail-and-glyph.html` (the 9th-section glyph candidates + the rail arithmetic + the vacated settings categories), `mobile.html` (the You-sheet route + the roster + the member takeover) (`../config-rail-spec.md`). **MOCK PHASE — nothing built; presets are ABSENT by ruling.** |
 | `refinery/` | the Refinery section (R3, MOCK PHASE — nothing built) — `surface.html` (the LIST·CONTENT·CONTEXT shell: stage stepper, per-field assay, compare + accept, the analyze verdict incl. REGRESSION, the collapsed default), `apply-and-selection.html` (the selection scope with per-greeting indexes, the apply result with itemised drop reasons, the zero-write arm), `empty-states.html` (first run, a session with no runs, the 390px phone arms), `d62-deltas.html` (the three D62-vs-shell deltas drawn BOTH ways for the owner's ruling). Payload/field/enum names are copied from the SHIPPED contracts (`packages/contracts/src/refinery/`); the design texts are `../../reviews/stickler/2026-08-08-card-refinery-port-study.md` §5.4 + `…-nl-schema-design.md` §10. |
 | `crunchy-cluster-redesign/DESIGN.md` | the rpg state-round / tracker / wand / fork program — the spec home D111 cites. |
-| `login-loading/` | the login + boot-loading web-weave (BUILT — `../login-loading-screen.md` §9): `login-loading-mock.html` (the animated reference mock the canvas primitives were built to — every scene/mode/theme/reduced-motion arm) + the brand-A winners `orb-mark-a.svg` (display) / `orb-favicon-a.svg` (16px cut; now the shipped `packages/client/public/favicon.svg`). Directions B/C stayed in gitignored `reports/mocks/brand/` (losers are ephemera). |
-| `waystone/` | reference renders of the Waystone dial across time-of-day × weather × theme. |
-| `osrs-fixed-interface.png`, `osrs-tabs/` | the OSRS fixed-screen interface — the source anatomy for the panel strip (`Context-Panel-Program.md` §CP-4). |
+| `login-loading/` | the login + boot-loading web-weave (BUILT — `../../history/design/login-loading-screen.md` §9): `login-loading-mock.html` (the animated reference mock the canvas primitives were built to — every scene/mode/theme/reduced-motion arm) + the brand-A winners `orb-mark-a.svg` (display) / `orb-favicon-a.svg` (16px cut; now the shipped `packages/client/public/favicon.svg`). Directions B/C stayed in gitignored `reports/mocks/brand/` (losers are ephemera). |
+| `osrs-fixed-interface.png` | the OSRS fixed-screen interface — the source anatomy for the panel strip, embedded by `../../architecture/Context-Panel-Program.md` §CP-4. |
 | `characters-landing/` | the Characters CONTENT landing (#864, owner-ruled 2026-08-30) — `build.mjs` → four `*.dc.html` artboards + `canvas.json` (the Claude Design canvas source) + true-size `*.png` renders (docked · list collapsed · fresh install · phone); `DESIGN.md` carries the ruling, the material table and the fences. |
 | `context-bracket/` | the context panel as ONE head+foot chrome for chats, game rooms and characters (#860, owner-ruled 2026-08-30) — `build.mjs` → seven `*.dc.html` artboards + `canvas.json` (the Claude Design canvas source) + true-size default-state `*.png` renders; `DESIGN.md` carries the ruling, the slot table and the coupled sites. |
-| `rpg-shell-mockup.{html,png}` · `rpg-shell-mockup-v2.{html,png}` | the CP-4 shell; v2 is the SHARPENED one, v1 is kept as the pre-sharpening record. |
+| `rpg-shell-mockup.{html,png}` · `rpg-shell-mockup-v2.html` | the CP-4 shell; v2 is the SHARPENED one, v1 is kept as the pre-sharpening record (its `.png` is the one `Context-Panel-Program.md` embeds). |
 
-Rulings that override a drawing live in `../context-panel-fidelity-findings.md` and the D-ledger
+**Renders are kept only while something cites them (2026-08-30 retirement pass, issue #872).** The
+uncited render sets — `osrs-tabs/` (12 PNG, 9.8 MB), `waystone/` (35 PNG) and `rpg-shell-mockup-v2.png`
+— were removed; git history holds them. A set whose sources are `.html`/`.mjs` keeps its sources
+regardless: those are the drawing, not a snapshot of it.
+
+Rulings that override a drawing live in `../../history/design/context-panel-fidelity-findings.md` and the D-ledger
 (`../../architecture/core/Core-Path-Registry.md`). **A drawing is never law** — where a mock and a
 ruling disagree, the ruling wins, and the mock gets a SUPERSEDED banner rather than a deletion.

@@ -13,8 +13,8 @@ produced in this session.
 **Fences honoured:** `packages/client/src/features/character/**` (sibling lane in flight),
 `packages/server/src/infra/providers/vllm/**` (sibling lane), Codex audit files.
 **Prior art read first** and deliberately NOT re-reported:
-`docs/design/staleness-and-session-freshness.md` §2.1 (D1 tagFilter), §2.4 (D4 character ceiling),
-§4.2, §5.4–5.9; `docs/design/rpg-rewind-stuck-state.md` §2–§8.
+`docs/history/design/staleness-and-session-freshness.md` §2.1 (D1 tagFilter), §2.4 (D4 character ceiling),
+§4.2, §5.4–5.9; `docs/history/design/rpg-rewind-stuck-state.md` §2–§8.
 
 **Method note.** Absence claims carry two methods (literal `rg`/`grep` + `ast-grep scan` with a
 `scannedFileCount` receipt and a validated positive control). One instrument failure is recorded

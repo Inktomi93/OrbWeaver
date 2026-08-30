@@ -1,4 +1,4 @@
-// The login backdrop — the per-mode brand web behind the card (docs/design/login-loading-screen.md
+// The login backdrop — the per-mode brand web behind the card (docs/history/design/login-loading-screen.md
 // §3/§9.5). Pure decoration: the mode→web mapping lives in ../lib/login-weave.ts (shared inputs
 // with the surface's arm dispatch, so the two can never disagree); this component just reads the
 // config through the query layer, samples the navigation type (deep-link → weave-in), and mounts the

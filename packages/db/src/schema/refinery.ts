@@ -1,6 +1,6 @@
 // schema/refinery — card-refinery pipeline sessions + the append-only run log (producer: domain/refinery
 // — R1; rides the baseline as a BASELINE_RIDER until that domain lands, per the db-structure gate's
-// designed pre-producer mechanism). Design: docs/design/refinery-r0.md; the owner-signed port study is
+// designed pre-producer mechanism). Design: docs/history/design/refinery-r0.md; the owner-signed port study is
 // docs/history/reviews/stickler/2026-08-08-card-refinery-port-study.md §5.2/§6.
 //
 // OWNERSHIP IS DERIVED, NOT STAMPED (D23): a session is anchored by `character_id NOT NULL → characters`
@@ -143,7 +143,7 @@ export const refineryRuns = sqliteTable(
   ],
 );
 
-// The user-authored custom payload-schema library (R3/SF0 — docs/design/refinery-r3-build-plan.md §2;
+// The user-authored custom payload-schema library (R3/SF0 — docs/history/design/refinery-r3-build-plan.md §2;
 // the NL design §4.2's `presets`-shaped row). DIRECTLY owner-scoped (unlike sessions/runs, which derive
 // through the character join): a schema is library tooling, not per-character work product. `schema` is
 // LIFTABLE BY INVARIANT — every write parses `refinerySchemaDocumentSchema` (the contracts belt: lift +

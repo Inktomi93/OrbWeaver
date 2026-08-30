@@ -9,7 +9,7 @@ updated: 2026-08-30
 **Scope:** READ-ONLY audit of `/home/inktomi/inktomi-stack/development/neo-tavern/references/marinara-engine`,
 parser + macro + template/expression subsystems. Hunting for capabilities NOT already in our engine
 (`packages/kit/src/macro/` + `kit/cel`) or our proposed §12A parity workstream
-(`docs/design/parity-plus-program-spec.md §12A`).
+(`docs/history/design/parity-plus-program-spec.md §12A`).
 
 **Verdict up front:** Marinara has exactly **ONE** `{{macro}}` grammar (a SillyTavern-lineage flat/regex
 engine, no CST) — our engine + §12A already **exceed it** on grammar sophistication (we have a real AST +

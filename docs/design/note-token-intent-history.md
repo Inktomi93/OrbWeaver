@@ -95,7 +95,7 @@ because anyone assessed that a lost note is an acceptable outcome. At this point
 
 ### 2.2 The governing philosophy — §6, "required-macro lints, never blocks"
 
-`docs/design/prose-1-spec.md`:
+`docs/history/design/prose-1-spec.md`:
 
 - §6 intro, `:41`: "§6 is the mitigation (required-macro lints, never blocks) and is not optional."
 - §6.3 "Voice-lock drift guards", `:351-357`: "`requiredMacros` on the slot def, rendered as a WARN in
@@ -245,9 +245,9 @@ does not make it.
 | `{{note}}` = injection payload; total loss on drop | `packages/contracts/src/chat/prose.ts:33-39,257-282`; `spliceProseTokens` `packages/contracts/src/prose-slot/index.ts:299-308`; `resolveProseFrom` `:267-272`; `frameInjection` `packages/server/src/domain/chat/assembly/injections.ts:51-60` |
 | Frames fire on the DEFAULT path | `chat/prose.ts:268` (`TURNS_FLOOR` default); `injections.ts:80-121` |
 | `{{note}}` introduced, warn posture by `{{input}}` precedent | commit `49616a67b` 2026-08-01 14:12:15 -0600 (message quoted §2.1); only sha from `git log -S'{{note}}'` on those paths |
-| §6 philosophy "lints, never blocks" | `docs/design/prose-1-spec.md:41` |
-| §6.3 warn-never-block; voice-drift rationale; no `{{note}}` | `docs/design/prose-1-spec.md:351-357` |
-| `:::card`/`:::choices` = total-loss kept as warn | `docs/design/prose-1-spec.md:357` |
+| §6 philosophy "lints, never blocks" | `docs/history/design/prose-1-spec.md:41` |
+| §6.3 warn-never-block; voice-drift rationale; no `{{note}}` | `docs/history/design/prose-1-spec.md:351-357` |
+| `:::card`/`:::choices` = total-loss kept as warn | `docs/history/design/prose-1-spec.md:357` |
 | `{{entry}}` carrier block introduced; "requiredMacros stays a lint" | commit `5d71e287e` 2026-08-01 14:36:42 -0600 (owner ruling dated 2026-08-02; message quoted §3) |
 | Carrier reasoning: carriers DELETE, requiredMacros WEAKEN | `packages/contracts/src/preset/index.ts:716-730` |
 | Write guard iterates `formatStrings` only; `prose` blob unguarded | `packages/contracts/src/preset/index.ts:1736-1751`; `prose: proseOverridesSchema` `:1611` |

@@ -15,7 +15,7 @@ a plan: the seal's `rehypePlugins` arm is identity-gated on Streamdown's default
 the #42 reveal plugin already rides that same slot. Nothing here should be built without the owner
 seeing the ranking.
 
-Prior art this supersedes nothing of: [`streaming-reveal-42.md`](streaming-reveal-42.md) fixed the
+Prior art this supersedes nothing of: [`../history/design/streaming-reveal-42.md`](../history/design/streaming-reveal-42.md) fixed the
 per-word REVEAL (the "blam") and the caret depth. Churn is a different axis — REVEAL is about how a
 word appears, CHURN is about the block it appears in changing type underneath it. The 08-09
 `smoothStream` default→true ruling is also untouched by this: churn happens at both cadences (the
@@ -78,7 +78,7 @@ the loudest because the height and the column layout both jump.
 churned. It is also the natural home for a fix: it already owns "this prefix is not finished, render it
 as the thing it is becoming."
 
-**M3 — the tail block re-parses per commit at 12-30 commits/s** (`streaming-reveal-42.md` §D3/§D4).
+**M3 — the tail block re-parses per commit at 12-30 commits/s** (`../history/design/streaming-reveal-42.md` §D3/§D4).
 This does not by itself change shapes, but it sets how many frames a wrong shape is visible for and it
 is why the wrong shape is legible rather than a one-frame flash.
 

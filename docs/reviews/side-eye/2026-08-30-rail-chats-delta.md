@@ -6,7 +6,7 @@ updated: 2026-08-30
 
 # side-eye — CHATS rail DELTA sweep (2026-08-30)
 
-**Lane:** cb-rail-chats · **Mode:** FULL battery, DELTA framing against `2026-08-22-rail-chats.md` ·
+**Lane:** cb-rail-chats · **Mode:** FULL battery, DELTA framing against `../../history/reviews/side-eye/2026-08-22-rail-chats.md` ·
 **Stack:** live `:5173` / `:8788`, main `64447bd2a`, stack restarted 13:05 · **Principal:** every
 receipt below was taken as the single dev user **Traveler** (`Playing as Traveler` in the rail, host
 of every room driven). A per-user-scoped empty read here is a statement about Traveler.
@@ -215,7 +215,7 @@ background, empty `textContent`, and an empty parent `textContent`** (no "Varian
 `N / N` count). It floats over the raw background art in the gap between the transcript plate and
 the composer at every viewport (1280: 995,629 · 768: 618,814 · 430: 388,492).
 
-The #490-2 fix ("Variant" kicker + count, verified in `2026-08-22-verify-chat-char-fixes.md` §2) is
+The #490-2 fix ("Variant" kicker + count, verified in `../../history/reviews/side-eye/2026-08-22-verify-chat-char-fixes.md` §2) is
 real — but it only applies to the multi-variant strip. The single-variant case was never covered.
 
 **Why it hurts a user.** §7-6. A right-pointing chevron on a floating chip universally means "next" —

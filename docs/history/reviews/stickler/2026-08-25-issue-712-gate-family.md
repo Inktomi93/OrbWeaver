@@ -36,7 +36,7 @@ cross-tenant overwrite/delete/collision described by their registry rows remains
 Evidence produced this session: `pnpm tsx reports/stickler/scratch/issue-712-adversarial-probes.ts` ran the
 real descriptors through `verifyGateProofs`. The local-alias write and local-alias upsert probes each expected
 one finding and each got zero. This directly contradicts the authored design's promise to resolve aliased
-bindings through the TypeScript symbol (`docs/design/issue-712-gate-family.md:19`) and the active registry's
+bindings through the TypeScript symbol (`docs/history/design/issue-712-gate-family.md:19`) and the active registry's
 claim that the family derives the table relation (`docs/architecture/core/Core-Enforcement-Active-Gates.md:167-168`).
 `GATE-AUTHORING.md` requires coverage of every syntactic form and warns that a narrow identifier reader which
 returns `undefined` silently passes violations (`tooling/src/verify/gates/GATE-AUTHORING.md:347-359`).

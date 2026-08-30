@@ -9,7 +9,7 @@ updated: 2026-08-30
 ## Lane identity
 
 - Lane: `docs-history-n-z`
-- Semantic scope: `docs/history` records N–Z: archived workboard snapshots and dated review/audit provenance. Per [docs/history/README.md:7-12](../../../../../docs/history/README.md), these are reference-only records, never live law.
+- Semantic scope: `docs/history` records N–Z: archived workboard snapshots and dated review/audit provenance. Per [docs/history/README.md:7-12](../../../../README.md), these are reference-only records, never live law.
 - Snapshot commit: `41e18afe74afa570b67a3e670a1a38863c486a00` (assignment).
 - Working-tree basis: `dab3c8440f23ee23883897e446fe80e3838c9b29`; all owned paths matched their assigned SHA-256 before and after analysis.
 - Assigned files read: 45 / 45 (100%).
@@ -24,13 +24,13 @@ updated: 2026-08-30
 
 ## Architecture observed
 
-The corpus is deliberately provenance, not a specification surface: [docs/history/README.md:7-12](../../../../../docs/history/README.md) permits a document to move here only after every stage/finding is landed or explicitly superseded, and the active workboard points readers to the dated workboard snapshots as archeology ([docs/retro-workboard.md:13-15](../../../../../docs/retro-workboard.md)). The archived workboards themselves retain their former “live board” framing inside explicit archive headers ([docs/history/retro-workboard-2026-08-08.md:1-15](../../../../../docs/history/retro-workboard-2026-08-08.md); [docs/history/retro-workboard-2026-08-09.md:1-20](../../../../../docs/history/retro-workboard-2026-08-09.md)); that is correctly bounded by their paths/headers, not current implementation law.
+The corpus is deliberately provenance, not a specification surface: [docs/history/README.md:7-12](../../../../README.md) permits a document to move here only after every stage/finding is landed or explicitly superseded, and the active workboard points readers to the dated workboard snapshots as archeology ([docs/retro-workboard.md:13-15](../../../../../retro-workboard.md)). The archived workboards themselves retain their former “live board” framing inside explicit archive headers ([docs/history/retro-workboard-2026-08-08.md:1-15](../../../../retro-workboard-2026-08-08.md); [docs/history/retro-workboard-2026-08-09.md:1-20](../../../../retro-workboard-2026-08-09.md)); that is correctly bounded by their paths/headers, not current implementation law.
 
 ## Subsystem scorecards
 
 \| Subsystem | Implementation | Wiring | Verification | Enforcement | Operability | Confidence | Receipts |
 \| - | -: | -: | -: | -: | -: | - |
-\| History N–Z corpus (45 documents) | 3 | 1 | 1 | 1 | 1 | high | 45/45 full-read + hash receipt; 10 failed relative targets; 41/45 formatter failures; archive boundary at [docs/history/README.md:7-12](../../../../../docs/history/README.md). |
+\| History N–Z corpus (45 documents) | 3 | 1 | 1 | 1 | 1 | high | 45/45 full-read + hash receipt; 10 failed relative targets; 41/45 formatter failures; archive boundary at [docs/history/README.md:7-12](../../../../README.md). |
 
 ## Findings
 
@@ -41,7 +41,7 @@ The corpus is deliberately provenance, not a specification surface: [docs/histor
 - Confidence: high
 - Evidence rung: R1
 - Scope denominator: 45 owned Markdown files; every local Markdown target was resolved relative to its owning file. External URLs and fragment-only targets were excluded.
-- Receipts: [docs/history/retro-workboard-2026-08-08.md:14](../../../../../docs/history/retro-workboard-2026-08-08.md:14), [docs/history/retro-workboard-2026-08-08.md:122](../../../../../docs/history/retro-workboard-2026-08-08.md:122), [docs/history/retro-workboard-2026-08-08.md:1688](../../../../../docs/history/retro-workboard-2026-08-08.md:1688), and [docs/history/retro-workboard-2026-08-08.md:2297](../../../../../docs/history/retro-workboard-2026-08-08.md:2297) contain four misses; [docs/history/retro-workboard-2026-08-09.md:17-19](../../../../../docs/history/retro-workboard-2026-08-09.md:17), [docs/history/retro-workboard-2026-08-09.md:1093](../../../../../docs/history/retro-workboard-2026-08-09.md:1093), [docs/history/retro-workboard-2026-08-09.md:1095-1096](../../../../../docs/history/retro-workboard-2026-08-09.md:1095), and [docs/history/retro-workboard-2026-08-09.md:1098](../../../../../docs/history/retro-workboard-2026-08-09.md:1098) contain six. The resolver and direct `test -e` check both find the intended four files under `docs/history/` and none under `docs/history/history/` (commands receipt).
+- Receipts: [docs/history/retro-workboard-2026-08-08.md:14](../../../../retro-workboard-2026-08-08.md:14), [docs/history/retro-workboard-2026-08-08.md:122](../../../../retro-workboard-2026-08-08.md:122), [docs/history/retro-workboard-2026-08-08.md:1688](../../../../retro-workboard-2026-08-08.md:1688), and [docs/history/retro-workboard-2026-08-08.md:2297](../../../../retro-workboard-2026-08-08.md:2297) contain four misses; [docs/history/retro-workboard-2026-08-09.md:17-19](../../../../retro-workboard-2026-08-09.md:17), [docs/history/retro-workboard-2026-08-09.md:1093](../../../../retro-workboard-2026-08-09.md:1093), [docs/history/retro-workboard-2026-08-09.md:1095-1096](../../../../retro-workboard-2026-08-09.md:1095), and [docs/history/retro-workboard-2026-08-09.md:1098](../../../../retro-workboard-2026-08-09.md:1098) contain six. The resolver and direct `test -e` check both find the intended four files under `docs/history/` and none under `docs/history/history/` (commands receipt).
 - Established fact: The documents use `history/<file>.md` from within `docs/history/`, so Markdown resolves each to a nonexistent nested directory. The intended sibling files exist.
 - User or system impact: Readers following retained receipt/archeology links land on missing targets, breaking provenance navigation but not runtime behavior.
 - What remains unverified: Anchor validity and local links outside this assigned corpus.
@@ -54,7 +54,7 @@ The corpus is deliberately provenance, not a specification surface: [docs/histor
 - Confidence: high
 - Evidence rung: R1
 - Scope denominator: 45 owned documents; 4 review frontmatter status fields matched `active`.
-- Receipts: [docs/history/reviews/misc/2026-08-03-archive-rescue-audit-final.md:1-3](../../../../../docs/history/reviews/misc/2026-08-03-archive-rescue-audit-final.md:1), [docs/history/reviews/misc/2026-08-03-archive-rescue-audit-tail.md:1-3](../../../../../docs/history/reviews/misc/2026-08-03-archive-rescue-audit-tail.md:1), [docs/history/reviews/misc/2026-08-07-narrator-live-drive.md:1-3](../../../../../docs/history/reviews/misc/2026-08-07-narrator-live-drive.md:1), and [docs/history/reviews/stickler/2026-08-03-state-anchor-rows.md:1-3](../../../../../docs/history/reviews/stickler/2026-08-03-state-anchor-rows.md:1) say `status: active`; [docs/history/README.md:7-12](../../../../../docs/history/README.md:7) declares this directory reference-only and never live law.
+- Receipts: [docs/history/reviews/misc/2026-08-03-archive-rescue-audit-final.md:1-3](../../../misc/2026-08-03-archive-rescue-audit-final.md:1), [docs/history/reviews/misc/2026-08-03-archive-rescue-audit-tail.md:1-3](../../../misc/2026-08-03-archive-rescue-audit-tail.md:1), [docs/history/reviews/misc/2026-08-07-narrator-live-drive.md:1-3](../../../misc/2026-08-07-narrator-live-drive.md:1), and [docs/history/reviews/stickler/2026-08-03-state-anchor-rows.md:1-3](../../../stickler/2026-08-03-state-anchor-rows.md:1) say `status: active`; [docs/history/README.md:7-12](../../../../README.md:7) declares this directory reference-only and never live law.
 - Established fact: These four historical files carry metadata that conflicts with the archive directory’s current authority boundary. Their in-file date-specific claims remain historical; the defect is the current-looking metadata.
 - User or system impact: A cold reader or metadata consumer can mistake a dated review for an active governing record.
 - What remains unverified: Whether another consumer intentionally assigns a special non-authority meaning to `status: active`; no such definition was in this lane’s read set.
@@ -67,7 +67,7 @@ The corpus is deliberately provenance, not a specification surface: [docs/histor
 - Confidence: high
 - Evidence rung: R1
 - Scope denominator: 45 owned Markdown documents; `pnpm check:docs` accepted 4 and rejected 41.
-- Receipts: `pnpm check:docs <all 45 owned paths>` exited 1 and named 41 files, including all four dated workboards; its script declares the check advisory in [scripts/docs/format-md.ts:10-12](../../../../../scripts/docs/format-md.ts:10). The archive rule says moved records remain intact ([docs/history/README.md:9-12](../../../../../docs/history/README.md:9)).
+- Receipts: `pnpm check:docs <all 45 owned paths>` exited 1 and named 41 files, including all four dated workboards; its script declares the check advisory in [scripts/docs/format-md.ts:10-12](../../../../../scripts/docs/format-md.ts:10). The archive rule says moved records remain intact ([docs/history/README.md:9-12](../../../../README.md:9)).
 - Established fact: The corpus does not meet the repository’s current Markdown-format check. Because the archive also preserves past records intact, blindly applying the formatter would alter historical evidence; the two rules need an explicit reconciliation.
 - User or system impact: A scoped documentation-format check cannot pass over this corpus, while bulk formatting risks changing preserved provenance.
 - What remains unverified: Whether these files are intentionally excluded from any whole-repository documentation gate; this lane did not own verification-harness configuration.
@@ -81,7 +81,7 @@ None reached R4/R5. The full receipt establishes corpus integrity against the fr
 
 | Declared surface | Strongest evidence | Status |
 | - | - | - |
-| Archive-only authority boundary | R1: [docs/history/README.md:7-12](../../../../../docs/history/README.md:7) | Clearly declared; no behavioral enforcement was checked in this lane. |
+| Archive-only authority boundary | R1: [docs/history/README.md:7-12](../../../../README.md:7) | Clearly declared; no behavioral enforcement was checked in this lane. |
 | Archived workboard provenance navigation | R1: 10 local target misses | Incomplete: links cannot reach their intended siblings. |
 | Archived review metadata | R1: four `status: active` headers | Misleading against the archive boundary. |
 | Current Markdown-format compatibility | R1: scoped `pnpm check:docs` rejects 41/45 | Incomplete; preservation tradeoff remains unresolved. |

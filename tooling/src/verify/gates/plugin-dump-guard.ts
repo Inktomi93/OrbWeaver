@@ -98,8 +98,8 @@ export const gate: GateDescriptor = {
   status: "active",
   scopeSafety: "whole-project",
   message:
-    "a QuickJS membrane `ctx.dump` can materialize guest-controlled recursive structure without first passing the iterative handle depth/node guard — host-stack overflow can corrupt the shared WASM runtime. See docs/design/issue-712-gate-family.md",
-  fix: `route guest values through ${HELPER}; the helper must call handleSafeToDump before its one ctx.dump. See docs/design/issue-712-gate-family.md`,
+    "a QuickJS membrane `ctx.dump` can materialize guest-controlled recursive structure without first passing the iterative handle depth/node guard — host-stack overflow can corrupt the shared WASM runtime. See docs/history/design/issue-712-gate-family.md",
+  fix: `route guest values through ${HELPER}; the helper must call handleSafeToDump before its one ctx.dump. See docs/history/design/issue-712-gate-family.md`,
   scanRoot: (path) => path.includes(PLUGIN_HOST_DIR),
   kinds: [SyntaxKind.CallExpression],
   begin: () => {
@@ -120,7 +120,7 @@ export const gate: GateDescriptor = {
         file: GATE_SELF,
         line: 1,
         column: 0,
-        message: "plugin-dump-guard found zero membrane dump sites — the boundary moved or the gate is blind. See docs/design/issue-712-gate-family.md",
+        message: "plugin-dump-guard found zero membrane dump sites — the boundary moved or the gate is blind. See docs/history/design/issue-712-gate-family.md",
       });
     }
   },

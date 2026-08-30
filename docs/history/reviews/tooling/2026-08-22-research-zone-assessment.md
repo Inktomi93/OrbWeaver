@@ -173,7 +173,7 @@ resumable JSONL". `card-teach-probe.ts` independently re-derived the same shape.
 
 - All eight `.ts` + all seven `results/*.jsonl` are git-tracked. `RESULTS.md` (262 lines) carries
   seven dated verdicts with per-arm tables, and it is cited by
-  `docs/design/openrouter-provider-findings.md`.
+  `docs/history/design/openrouter-provider-findings.md`.
 - **It already earned its keep twice over.** OR-5b's verdict (5341 wasted cache-write tokens → 0) is
   the receipt behind the shipped fix, and `or5b-depth-invariance.ts:36-58` hand-MIRRORS
   `backends/kit/cache-control.ts:indexAtDepth` (alive, `:138`) so the probe agrees with the code it
@@ -205,7 +205,7 @@ resumable JSONL". `card-teach-probe.ts` independently re-derived the same shape.
 everything the rig generates (fixtures, both capture arms, the 500 MB ST install) is gitignored.
 
 - **Its findings were already promoted.** `README.md:3-6` opens by disclaiming itself — *"several of
-  its factual claims have been measured false … read `docs/design/st-message-shaping-atlas.md`;
+  its factual claims have been measured false … read `docs/history/design/st-message-shaping-atlas.md`;
   when this file and a script disagree, the script wins."* The atlas exists and is the durable home.
   So the rig's value today is REPRODUCTION, not record.
 - **`compare-runner.ts` already implements the tooling exit contract by hand.** `:130` and `:137`

@@ -1,5 +1,5 @@
 // WeaveGlyph — the brand mark, re-skinned to direction A "Open Orb" (owner ruling 2026-08-09;
-// docs/design/login-loading-screen.md §8/§9): eight spokes + one OPEN spiral + the hub + a single
+// docs/history/design/login-loading-screen.md §8/§9): eight spokes + one OPEN spiral + the hub + a single
 // dew drop — the deliberate asymmetries that make it a WEB instead of a snowflake, and literally the
 // weave loader's settled frame condensed ("one emblem, every scale": favicon = this, static;
 // WebSpinner = this + the silk pulse; the boot weave settles INTO this). RE-HOMED from app-shell to

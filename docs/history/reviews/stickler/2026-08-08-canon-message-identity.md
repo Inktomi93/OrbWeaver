@@ -32,7 +32,7 @@ midConversationSystem gates); `memory/build/{digests,segments}.ts` headers +
 projectBodyForSummary + excludedFromPrompt filter region); `db/schema/rpg.ts` l.280–340
 (rpg_turn_tool_calls whole table). Law read in full: `AGENTS.md`, `Core-Laws-and-Precedents.md`,
 `Core-0-Architecture-and-Structure.md` (incl. the §6 partitioning table), `Chat-Macro-Resolution.md`,
-`docs/design/st-message-shaping-atlas.md` (583 lines), the D-ledger registry pages covering
+`docs/history/design/st-message-shaping-atlas.md` (583 lines), the D-ledger registry pages covering
 D1–D128 (D26/D27/D28/D32/D34/D46/D48/D51/D53/D55/D56/D60/D64/D69/D106/D108–D128 read verbatim),
 `proposed/INDEX.md`, `agent-principal-design/02-participants-and-attribution.md` (l.1–80), the dogfood
 INJECT-NAMED-AS-PLAYER entry (l.640–830) + the ShapeTrace.rows lens entry (l.1660–1693), the

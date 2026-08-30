@@ -9,7 +9,7 @@ updated: 2026-08-28
 **Subject:** the three stacked commits `936501dfb` (feat) → `8ab3d67f4` (docs-catalog receipt) →
 `ad25c977f` (structure-gate fixes) in worktree `.claude/worktrees/agent-ae98e7893e22231db/`, based on
 `b281929cd`. New server domain + db schema (baseline squash) + contracts module + compose seam + tRPC
-router + client party-picker slice + design record `docs/design/saved-rosters-build-record.md`.
+router + client party-picker slice + design record `docs/history/design/saved-rosters-build-record.md`.
 
 **Verdict: MERGE-BLOCKED on one trivial gate red (F1). The security-sensitive `requireHost`-first
 delta is GENUINE, correctly homed, correctly ordered, and pinned — verified clean.** Beyond F1, the
@@ -69,7 +69,7 @@ deviation from the program doc (F6). None of F2–F6 leaks data across tenants o
 ### F3 — the `skipped` arm's documented mechanism is NOT implemented: a mid-loop character delete ABORTS the apply, contradicting the design record and the contract comment (low; race-window only)
 
 - **Where:** `packages/server/src/domain/roster-preset/verbs/apply-to-chat.ts:45-64` (no try/catch in
-  the member loop) vs `docs/design/saved-rosters-build-record.md` §2.4 ("a `DomainNotFoundError` from
+  the member loop) vs `docs/history/design/saved-rosters-build-record.md` §2.4 ("a `DomainNotFoundError` from
   `addCharacterToChat` is **collected, never rethrown**") vs
   `packages/contracts/src/roster-preset/index.ts:99-102` ("reported, **never thrown**").
 - **Reality:** `skipped` is fed only by the pre-loop `verifyCharactersOwned` re-verify (lines 35-48).
@@ -90,7 +90,7 @@ deviation from the program doc (F6). None of F2–F6 leaks data across tenants o
 
 ### F4 — design-record test-plan overclaim: "the all-present no-op probe returns nothing to a non-host (the §2.2 leak, pinned)" — no such fixture exists (low; the closure itself is real and pinned by other tests)
 
-- **Where:** `docs/design/saved-rosters-build-record.md` §5 (apply semantics bullet).
+- **Where:** `docs/history/design/saved-rosters-build-record.md` §5 (apply semantics bullet).
 - **Reality:** no test constructs all-preset-members-already-present + non-host. The harness
   refusing-arm test (`apply-to-chat.int.test.ts:88-112`) seeds ZERO present seats; the composed-real
   non-host test (`tests/server/entry/compose/roster-preset.int.test.ts:78-103`) probes with an ABSENT

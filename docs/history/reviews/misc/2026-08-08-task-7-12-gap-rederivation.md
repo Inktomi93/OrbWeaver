@@ -341,7 +341,7 @@ Two of this audit's own premises died on contact and are corrected here rather t
   only because no `VITE_*` key exists in `.env` (§1.0). Not re-checked after any future `.env` change.
 - Task #7: no probe was run of the e2e lane under a polluted shell (it costs three stack boots); §1.3's
   e2e paragraph is source-pinned mechanism, not a measured bite.
-- Task #12: the OR-5b/OR-7b PROBE scripts and `docs/design/openrouter-provider-findings.md` were read for
+- Task #12: the OR-5b/OR-7b PROBE scripts and `docs/history/design/openrouter-provider-findings.md` were read for
   intent only — their live-wire measurements were not re-run (they cost model credits).
 - Neither section re-audited the pre-existing code the two commits touched but did not change (assembly
   `shape.ts`'s own depth computation; the `smart-arbitrate` engine).

@@ -9,7 +9,7 @@ updated: 2026-08-30
 ## Scope and honesty boundary
 
 This receipt covers the variant-grain token provenance/import backfill and provider-cost settlement built
-from `docs/design/server-usage-settlement-2026-08-20.md`. No `OPENROUTER_API_KEY` was available. The
+from `docs/history/design/server-usage-settlement-2026-08-20.md`. No `OPENROUTER_API_KEY` was available. The
 OpenRouter evidence is therefore the deterministic production mapper → production bridge → real engine →
 canon/rollup integration fence; it is not described as an external live call.
 

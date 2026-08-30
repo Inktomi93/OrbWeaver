@@ -7,7 +7,7 @@ updated: 2026-08-30
 # Stickler — staleness + session-freshness diagnosis (condensed defect list)
 
 > LANE B, overnight 2026-08-13→14. Full diagnosis + design + game plan:
-> [`docs/design/staleness-and-session-freshness.md`](../../design/staleness-and-session-freshness.md)
+> [`docs/history/design/staleness-and-session-freshness.md`](../../design/staleness-and-session-freshness.md)
 > (work items W1–W10 referenced below). Every finding is CONFIRMED in code this session; the live-drive
 > apportionment probes are §6 of the design doc. Severity = consequence.
 

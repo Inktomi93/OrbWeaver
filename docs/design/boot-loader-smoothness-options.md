@@ -7,7 +7,7 @@ updated: 2026-08-14
 # Boot-loader smoothness — options matrix + recommendation
 
 Status: **research/synthesis, no code changed.** Answers the owner's ask ("look at React 19.2 and Base
-UI animation… get it super smooth") for `docs/design/login-loading-screen.md`'s `WebWeave`/`WeaveVeil`
+UI animation… get it super smooth") for `docs/history/design/login-loading-screen.md`'s `WebWeave`/`WeaveVeil`
 (as-built, §9). A live side-eye measured **\~30fps on retina desktop** (1440×900 DPR2, backing 2880×1800;
 median 33.3ms/frame) — pixel-fill-bound, caused by `shadowBlur` (CPU gaussian) + a full `clearRect` +
 re-stroke of every strand every frame (`web-weave-render.ts` — see receipts below). Mobile is \~55fps

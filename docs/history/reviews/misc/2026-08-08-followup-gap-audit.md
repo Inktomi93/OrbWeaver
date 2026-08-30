@@ -72,7 +72,7 @@ These recurred as candidates but ARE captured; not omissions:
   unbounded) — captured in `docs/design/parked-options-tag-contract.md` §2 (+ ac5d3f3534's "CONTRACT
   QUESTION" flag; geometry `maxRows` shipped, the schema cap left as a stated owner call).
 - **rpg extraction seam (census rows 11-36)** / **row-27 `RPG_STATE_TRACKING_GUIDE`** / **prose-1-spec
-  §9 stage-table over-claim** — captured in `docs/design/prose-1-rpg-extraction-followon.md` +
+  §9 stage-table over-claim** — captured in `docs/history/design/prose-1-rpg-extraction-followon.md` +
   board:239-248; extraction seam **built** by EXTRACTION (aeee9b9e).
 - **Base UI missing anatomy** (Toolbar Group/Link/Input, Combobox grouping, Field.Item, Textarea
   hand-respell) — tracked via the BUGATES surface manifest + anatomy-completeness gate's ruled
