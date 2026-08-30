@@ -17,6 +17,7 @@ import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
+import { HOST_BAND, openContextSections } from "../../../../support/ct/open-context-sections.ts";
 import type { TrpcRecorder, TrpcResponder } from "../../../../support/ct/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "../../../../support/ct/route-trpc.ts";
 import { hitExtent, touchFloorPx } from "../../../../support/ct/touch-floor.ts";
@@ -621,6 +622,11 @@ test("#616: the host's 'This chat' tab renders the grafted Rules section in the 
 
   const component = await mount(<RulesInThisChatTabStory chatId={CHAT} />);
 
+  // #830 — the host band and the grafted section are both disclosures now, and a graft starts CLOSED (its
+  // body is data-driven; Rules measured 704px desktop / 1,296px mobile with three rules). Two presses is
+  // the host's real path, and it is what makes the body assertion below non-vacuous.
+  await openContextSections(component, HOST_BAND, "Rules");
+
   // A real h3 in the pane's own kicker grammar — the host spells the Section, the contributor only names it.
   await expect(component.getByRole("heading", { name: "Rules", exact: true, level: 3 })).toBeVisible();
   const band = component.locator("section").filter({ hasText: "Host controls" }).first();
@@ -684,6 +690,10 @@ test("#640 END-TO-END: a room with no books → attach in Lorebooks → the auto
   });
 
   const before = await mount(<RulesInThisChatTabStory chatId={CHAT} />);
+  // #830 — both halves of this walk live behind disclosures now (Lorebooks is a closed rack, Rules a closed
+  // graft inside the closed host band). `openContextSections` is idempotent, so the same line is correct
+  // after the remount below, where the posture is already remembered.
+  await openContextSections(before, "Lorebooks", HOST_BAND, "Rules");
 
   // ① The dead end, as reported: no books, so the card says so — and now names the way out.
   await before.getByRole("button", { name: "Add a rule", exact: true }).click();
@@ -700,6 +710,7 @@ test("#640 END-TO-END: a room with no books → attach in Lorebooks → the auto
 
   // ③ The room now carries the book — and the card that was uncompletable can be completed.
   const after = await mount(<RulesInThisChatTabStory chatId={CHAT} />);
+  await openContextSections(after, "Lorebooks", HOST_BAND, "Rules");
   await expect(after.getByText(ATTACHABLE_BOOK_NAME, { exact: true }).first()).toBeVisible();
   await after.getByRole("button", { name: "Add a rule", exact: true }).click();
   await page.getByText("Auto-add lore entries").click();

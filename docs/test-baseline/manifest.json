@@ -461,6 +461,7 @@
     "tests/client/state/assemble-chrome.test.ts",
     "tests/client/state/character-library-store.ct.tsx",
     "tests/client/state/character-selection-store.ct.tsx",
+    "tests/client/state/chat-context-section-open-store.ct.tsx",
     "tests/client/state/chat-handle.test.ts",
     "tests/client/state/chat-list-filter-store.ct.tsx",
     "tests/client/state/chat-stream.test.ts",

@@ -46,11 +46,14 @@ import type { RoomOverrides } from "@orb/contracts/chat";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import type { ChatId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
+import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
 import { Section, Stack } from "@orb/ui/layout";
+import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
 import { QueryBoundary, QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import type { ChatSettingsSectionContribution, ChatSettingsSectionState, ContributorRegistry } from "#lib";
+import { setChatContextSectionOpen, useChatContextSectionOpen } from "#state";
 import { ChatBooksSection } from "./chat-books-section.tsx";
 import { ChatDocumentsSection } from "./chat-documents-section.tsx";
 import { CommittedGroupConfigTab } from "./group-config-form.tsx";
@@ -103,6 +106,97 @@ function countSetOverrides(overrides: RoomOverrides): number {
   return set(overrides.mainPrompt) + set(overrides.postHistory) + set(overrides.scenario);
 }
 
+// EVERY SECTION IN THIS PANE IS A DISCLOSURE, AND THE CLOSED PANE IS THE INDEX (#830 — the #821 residue).
+// With the injection rows collapsed the tab STILL settled at 2,836px desktop over fourteen sections (Host
+// controls' eight alone are 1,880px), so Documents and Lorebooks were still below the fold and a host at the
+// top of the pane had fourteen competing destinations and no map of them. The side-eye §7 verdict named the
+// two candidate affordances — "a section index or a collapse-all" — and this is the collapse-all arm,
+// because it is also the index: a closed section is its kicker, and the kicker already carries the count
+// chip, so "DOCUMENTS 1 / LOREBOOKS 2 / HOST CONTROLS" reads as the map WITHOUT spending a second navigation
+// element on a pane the same review praised as chrome-clean. Height becomes the host's choice, not the
+// pane's, which is the property an anchor list cannot buy.
+//
+// THE TRIGGER IS THE KICKER, NOT A ROW OF ITS OWN. It renders INSIDE the `<h3>` the `Section` kicker slot
+// already spells (the document outline and the `heading` role are unchanged), and its accessible name
+// COMPUTES from that same content — so it can never disagree with the visible label (WCAG 2.5.3) and a
+// section reads "Documents 1" to a screen reader exactly as it reads to an eye. `size="control"` pins the
+// pointer-conditional `--spacing-control-sm` floor (44px coarse / 32px fine), so fourteen new press targets
+// arrive at the tap floor rather than as text-height hairlines.
+//
+// THE LABEL WEARS `interactiveKicker`, NOT `kicker` — the voice minted for exactly this ("a kicker that is
+// itself the visible label of a control"). MEASURED, not assumed: shipping the trigger in the plain `kicker`
+// voice put SIX new `undersized-ui-text` P2s on the mobile design-audit — `kicker` is `text-micro` (10.5px)
+// and the rule's functional floor for INTERACTIVE text is 11px. `interactiveKicker` keeps the band's whole
+// instrument register (uppercase, tracked, muted) at the readable label step, so the pane's voice is
+// unchanged and the section names are legible as the controls they now are. The voice is spelled on a span
+// INSIDE the trigger rather than left to inherit, because the Badge's `size="inline"` arm deliberately
+// inherits its parent's type (#829) — an unspelled label would take `CollapsibleTrigger`'s own box type and
+// take the chip with it.
+//
+// WHICH SECTIONS OPEN THEMSELVES: exactly ONE — Field overrides. It is the pane's teaching opening (the
+// review's cold-read verdict: "Empty fields inherit from the character or preset. Saved automatically." is
+// what tells a first-timer what this pane is for), it is the idiom every section below it now wears, and
+// it is the only section whose height is FIXED — three rows, 202px desktop / 225px mobile, whatever the
+// room holds. Everything else is data-driven, and MEASURED (isolated stage, non-game room "Example —
+// Midnight Run", 2 content-bearing injections): opening Injections too puts its 309px desktop / 327px
+// mobile between the host and the map, which pushes Documents (762) and Lorebooks (830) back below a
+// 740px mobile fold — the exact #830 symptom, re-created by a default. A map whose own entries can be
+// shoved off-screen by one entry's contents is not a map, so the rule is: the index is always whole, and
+// every data-driven section — the racks, the host band, and every grafted §6c contribution — opens on
+// demand. The count chips carry what a closed section is worth knowing ("Injections 2", "Documents 1").
+//
+// The host band's own children are the exception INSIDE the exception: they open by default, so ONE press
+// on "Host controls" reaches all eight knobs rather than eight more doors behind a door.
+const OPEN_BY_DEFAULT = true;
+const CLOSED_BY_DEFAULT = false;
+
+interface DisclosureSectionProps {
+  /** The disclosure's STABLE key in the remembered-posture store — never the visible label, so a copy edit
+   *  cannot silently forget a host's posture. Grafted sections carry a `graft:` prefix so a contribution can
+   *  never collide with one of this file's own ids. */
+  readonly sectionId: string;
+  readonly kicker: ReactNode;
+  /** Expanded until this host answers for this section (`chat-context-section-open-store.ts`). */
+  readonly defaultOpen: boolean;
+  /** Keep the body in the DOM (hidden) while closed. Needed by the SILENT-CONTRIBUTOR COLLAPSE: the
+   *  `has-[…:empty]:hidden` selector below asks whether the graft's wrapper has element children, and an
+   *  unmounted wrapper answers "no wrapper", which would spend a kicker on a contributor that renders
+   *  nothing — the exact orphan heading that collapse exists to prevent. */
+  readonly keepMounted?: boolean;
+  readonly className?: string;
+  readonly children: ReactNode;
+}
+
+function DisclosureSection({ sectionId, kicker, defaultOpen, keepMounted = false, className, children }: DisclosureSectionProps): ReactElement {
+  const open = useChatContextSectionOpen(sectionId, defaultOpen);
+  return (
+    <Collapsible
+      open={open}
+      onOpenChange={(next: boolean): void => {
+        setChatContextSectionOpen(sectionId, next);
+      }}
+    >
+      <Section
+        className={className}
+        kicker={
+          <CollapsibleTrigger size="control">
+            <Text as="span" voice="interactiveKicker">
+              {kicker}
+            </Text>
+          </CollapsibleTrigger>
+        }
+      >
+        {/* `text-foreground` restores what the pane's body inherited before this wrapper existed — the
+            primitive's panel is spelled for a disclosure holding running PROSE (`text-muted-foreground`),
+            and a section body is controls. */}
+        <CollapsiblePanel className="text-foreground" keepMounted={keepMounted}>
+          {children}
+        </CollapsiblePanel>
+      </Section>
+    </Collapsible>
+  );
+}
+
 // The Injections section reads `listChatInjections` NON-suspending (the same query the body suspends on, so
 // one fetch serves both) and spends that one read TWICE: the heading's count chip paints immediately and
 // fills in when the list lands (the chat-list-header count precedent — no chip until it resolves / when
@@ -119,14 +213,14 @@ function InjectionsSection({ chatId, isHost }: { readonly chatId: ChatId; readon
   const trpc = useTRPC();
   const { data } = useQuery(trpc.chat.listChatInjections.queryOptions({ chatId }));
   return (
-    <Section kicker={<HeadingWithCount count={data?.length ?? 0} label="Injections" />}>
+    <DisclosureSection defaultOpen={CLOSED_BY_DEFAULT} kicker={<HeadingWithCount count={data?.length ?? 0} label="Injections" />} sectionId="injections">
       <QueryBoundary
         fallback={<InjectionsSkeleton count={data?.length ?? 1} isHost={isHost} />}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="injections" onRetry={retry} />}
       >
         <InjectionsManager chatId={chatId} isHost={isHost} />
       </QueryBoundary>
-    </Section>
+    </DisclosureSection>
   );
 }
 
@@ -167,40 +261,44 @@ export interface CommittedSettingsTabProps {
 export function CommittedSettingsTab({ chatId, roomOverrides, isHost, background, showGroup, sections }: CommittedSettingsTabProps): ReactElement {
   return (
     <Stack gap="section">
-      <Section kicker={<HeadingWithCount count={countSetOverrides(roomOverrides)} label="Field overrides" unit=" set" />}>
+      <DisclosureSection
+        defaultOpen={OPEN_BY_DEFAULT}
+        kicker={<HeadingWithCount count={countSetOverrides(roomOverrides)} label="Field overrides" unit=" set" />}
+        sectionId="field-overrides"
+      >
         <RoomOverridesTab chatId={chatId} roomOverrides={roomOverrides} isHost={isHost} />
-      </Section>
+      </DisclosureSection>
       <InjectionsSection chatId={chatId} isHost={isHost} />
       {/* Documents (D-4) — the per-chat databank rack, placed directly AFTER Injections because it is the
           same family ("extra content entering this room's prompt") and, unlike the host-only band below, it
           is member-READABLE: `listActiveForChat` is member-gated by design, so a member sees the rows and
           simply gets no visibility toggle, no detach and no add (the §8.1 permission-OMIT at ROW level). */}
-      <Section kicker={<DocumentsHeading chatId={chatId} />}>
+      <DisclosureSection defaultOpen={CLOSED_BY_DEFAULT} kicker={<DocumentsHeading chatId={chatId} />} sectionId="documents">
         <QueryBoundary
           fallback={<SkeletonRows count={2} shape="line" />}
           renderError={(_error, retry): ReactElement => <QueryErrorState label="this chat's documents" onRetry={retry} />}
         >
           <ChatDocumentsSection chatId={chatId} isHost={isHost} />
         </QueryBoundary>
-      </Section>
+      </DisclosureSection>
       {/* Lorebooks (#640) — the per-chat world-info rack, directly after Documents because it is the SAME
           family one step further ("extra content entering this room's prompt", here as keyword-fired
           entries) and, like Documents, member-READABLE: `worldInfo.listForChat` is `requireChatMember`, so a
           member sees the rows and simply gets no attach and no detach (the §8.1 permission-OMIT at ROW
           level). It is also the door the automation rule-preset lorebook picker points at: a rule may only
           write into a book attached HERE, so this is where a room with none goes to get one. */}
-      <Section kicker={<LorebooksHeading chatId={chatId} />}>
+      <DisclosureSection defaultOpen={CLOSED_BY_DEFAULT} kicker={<LorebooksHeading chatId={chatId} />} sectionId="lorebooks">
         <QueryBoundary
           fallback={<SkeletonRows count={2} shape="line" />}
           renderError={(_error, retry): ReactElement => <QueryErrorState label="this chat's lorebooks" onRetry={retry} />}
         >
           <ChatBooksSection chatId={chatId} isHost={isHost} />
         </QueryBoundary>
-      </Section>
+      </DisclosureSection>
       {/* Macro picks (#24) — the per-chat user-macro INPUT picks. NOT host-gated: the picks are room play
           state any member may set (`setUserMacroValues` is member-gated, the `setVariables` sibling), so it
           sits with Field overrides/Injections rather than in the host-only band below. */}
-      <Section kicker="Macro picks">
+      <DisclosureSection defaultOpen={CLOSED_BY_DEFAULT} kicker="Macro picks" sectionId="macro-picks">
         <QueryBoundary
           // A THREE-LINE PARAGRAPH IS WHAT THIS SECTION SETTLES TO (#823). Its production default is the
           // empty state — no preset in the app declares a user-macro input or a ChoiceBlock until an author
@@ -214,7 +312,7 @@ export function CommittedSettingsTab({ chatId, roomOverrides, isHost, background
         >
           <MacroPicksSection chatId={chatId} />
         </QueryBoundary>
-      </Section>
+      </DisclosureSection>
       {/* THE HOST-OPS GROUP (D-1). Rendered only for a host, so the group's own name is never an empty
           promise — and the three §8.1 permission-OMITs inside it keep their individual gates (Group behavior
           also needs a group chat). A member's tab simply ends after Macro picks. */}
@@ -241,13 +339,16 @@ function HostControls({
   // The §6c SECTION seam's projection — the committed room, resolved once for every contributor.
   const state: ChatSettingsSectionState = { chatId };
   return (
-    <Section kicker="Host controls">
+    // THE BAND IS THE PANE'S BIGGEST SINGLE TERM (1,880px across eight sections), so it is the one section
+    // whose default posture is CLOSED while its own children stay open: one press opens the host's knobs
+    // and every one of them is already there, rather than eight more doors behind the door (#830).
+    <DisclosureSection defaultOpen={CLOSED_BY_DEFAULT} kicker="Host controls" sectionId="host-controls">
       <Stack gap="section">
-        <Section kicker="Background">
+        <DisclosureSection defaultOpen={OPEN_BY_DEFAULT} kicker="Background" sectionId="background">
           <ChatBackgroundSection chatId={chatId} background={background} />
-        </Section>
+        </DisclosureSection>
         {showGroup ? (
-          <Section kicker="Group behavior">
+          <DisclosureSection defaultOpen={OPEN_BY_DEFAULT} kicker="Group behavior" sectionId="group-behavior">
             <QueryBoundary
               // Shape-matched skeleton for the Group-behavior form's initially-visible rows (the reply-mode
               // toggle-group, the two switch fields, the Advanced accordion trigger) — never a spinner/text
@@ -257,35 +358,35 @@ function HostControls({
             >
               <CommittedGroupConfigTab chatId={chatId} />
             </QueryBoundary>
-          </Section>
+          </DisclosureSection>
         ) : null}
         {/* Appearance — the room's display-tier broadcast switch (D121-E). Reads the same getChat this tab
             already loaded, so the QueryBoundary matches the tool-round control's exactly. */}
-        <Section kicker="Appearance">
+        <DisclosureSection defaultOpen={OPEN_BY_DEFAULT} kicker="Appearance" sectionId="appearance">
           <QueryBoundary
             fallback={<SkeletonRows count={1} shape="line" />}
             renderError={(_error, retry): ReactElement => <QueryErrorState label="the display-script setting" onRetry={retry} />}
           >
             <HostDisplayScriptsControl chatId={chatId} />
           </QueryBoundary>
-        </Section>
+        </DisclosureSection>
         {/* Storytelling (B1) — the room's standing offer-choices posture. Sits in the host band and NOT with
             Field overrides/Injections above it because, unlike those, it is not something a member may set:
             it changes what the model is told for everyone in the room. Reads the same getChat this tab
             already loaded plus the host's own settings default (the inherit seam), so the QueryBoundary
             matches its two neighbours' exactly. */}
-        <Section kicker="Storytelling">
+        <DisclosureSection defaultOpen={OPEN_BY_DEFAULT} kicker="Storytelling" sectionId="storytelling">
           <QueryBoundary
             fallback={<SkeletonRows count={1} shape="line" />}
             renderError={(_error, retry): ReactElement => <QueryErrorState label="the offer-choices setting" onRetry={retry} />}
           >
             <OfferChoicesControl chatId={chatId} />
           </QueryBoundary>
-        </Section>
+        </DisclosureSection>
         {/* Reactions (B7) — the plane's master switch + the react-tool opt-in, SIDE BY SIDE (owner ask:
             one place for both reactions knobs). Host band for the same reason as its neighbours: both
             reach every member (one gates their writes, one the room's prompt). */}
-        <Section kicker="Reactions">
+        <DisclosureSection defaultOpen={OPEN_BY_DEFAULT} kicker="Reactions" sectionId="reactions">
           <QueryBoundary
             fallback={<SkeletonRows count={2} shape="line" />}
             renderError={(_error, retry): ReactElement => <QueryErrorState label="the reaction settings" onRetry={retry} />}
@@ -293,17 +394,17 @@ function HostControls({
             <ReactionsEnabledControl chatId={chatId} />
             <CharactersCanReactControl chatId={chatId} />
           </QueryBoundary>
-        </Section>
+        </DisclosureSection>
         {/* Tool use — reads getChat (already loaded for this tab) for the current cap; the QueryBoundary
             matches the getChat suspense. */}
-        <Section kicker="Tool use">
+        <DisclosureSection defaultOpen={OPEN_BY_DEFAULT} kicker="Tool use" sectionId="tool-use">
           <QueryBoundary
             fallback={<SkeletonRows count={1} shape="line" />}
             renderError={(_error, retry): ReactElement => <QueryErrorState label="the tool round limit" onRetry={retry} />}
           >
             <ToolRecurseControl chatId={chatId} />
           </QueryBoundary>
-        </Section>
+        </DisclosureSection>
         {/* THE GRAFTED SECTIONS (§6c, #616) — a foreign feature's host-only section, rendered LAST so the
             band's own knobs keep their order and a contributor can never wedge itself between them. The
             HOST spells the `<Section kicker>`: a contribution carries a name and a body, never chrome, so
@@ -318,17 +419,32 @@ function HostControls({
             "Plugin panels" kicker over nothing. The body rides a `display:contents` wrapper, so it adds no
             box of its own and this pane's spacing is unchanged, and the Section hides itself when that
             wrapper has no element children. It cannot hide a live contribution: any rendered node makes the
-            wrapper non-empty. */}
+            wrapper non-empty.
+
+            SO A GRAFT'S PANEL IS `keepMounted` (#830). Every section here is now a disclosure, and a CLOSED
+            Base UI panel is REMOVED from the DOM — which would take the graft-body wrapper with it and leave
+            `has-[…:empty]` nothing to match, i.e. an orphan "Plugin panels" kicker on every room. Kept
+            mounted (hidden, zero height) the wrapper is still there to be asked, and the collapse still
+            hides the whole Section, trigger included. Grafted sections start CLOSED: a contribution's body
+            is data-driven (automation's Rules measured 704px desktop / 1,296px mobile with three rules —
+            the §5-P3 term that becomes payable the moment it rises into the viewport). */}
         {(sections?.list() ?? [])
           .filter((section) => section.when?.(state) ?? true)
           .map((section) => (
-            <Section className="has-[[data-slot=chat-settings-graft-body]:empty]:hidden" key={section.id} kicker={section.kicker}>
+            <DisclosureSection
+              className="has-[[data-slot=chat-settings-graft-body]:empty]:hidden"
+              defaultOpen={CLOSED_BY_DEFAULT}
+              keepMounted={true}
+              key={section.id}
+              kicker={section.kicker}
+              sectionId={`graft:${section.id}`}
+            >
               <Stack className="contents" data-slot="chat-settings-graft-body">
                 {section.body(state)}
               </Stack>
-            </Section>
+            </DisclosureSection>
           ))}
       </Stack>
-    </Section>
+    </DisclosureSection>
   );
 }
