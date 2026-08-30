@@ -2362,6 +2362,35 @@
         }
       ],
       "summary": "side-eye HOME delta pass (rail sweep re-run): SHIP 33/40 — #453/#454/#457/#458 landed and hold under re-measurement; zero console/page errors across ~25 runs; a stale core-law line (NINE rail sections vs the shipped ten) nearly minted a false P1; the #453 refusal premise does not reproduce under a true boot-two + planted control; Lighthouse mobile CLS 0.122 vs probes 0.0295 unreconcilable on the dev build; taste: top-heavy above 800px, six caps kickers + one unvoiced block."
+    },
+    {
+      "path": "docs/reviews/side-eye/2026-08-30-rail-characters-delta.md",
+      "assignedSha256": "710766b1af63a723f7e728a52a9e7a918883fde2577144784115b41011055046",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "710766b1af63a723f7e728a52a9e7a918883fde2577144784115b41011055046",
+      "verifiedCommit": "ca7e2f7f1d8724930b1a397034fcdb7b77b0b37d",
+      "verifiedAt": "2026-08-30",
+      "evidence": [
+        "docs/reviews/side-eye/2026-08-30-rail-characters-delta.md:1-726 read in full by the orchestrator (claude-b) before commit; lane cb-rail-characters, the Ready-runs-dry CHARACTERS delta pass on :5173 (main 8989aba35) as the seeded user, read-only, 10-character seed population (scale arms explicitly not re-tested); five retractions published incl. the third recorded Light-theme misread; findings filed as #838-#844"
+      ],
+      "claims": [
+        {
+          "claim": "Every finding is tracked: three disjoint action menus → #838 (P1); dead tag facets → #839; three self-mis-describing controls → #840; the Options junk-drawer + raw oklch values → #841; the exit-less Import dialog + 40px target → #842; the P3 polish cluster → #843; the hub-ingest + scale coverage gap → #844. Prior rows #501/#255/#518/#513/#502 verified fixed; #512 stays the accepted exception.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#838"
+            },
+            {
+              "kind": "issue",
+              "target": "#844"
+            }
+          ]
+        }
+      ],
+      "summary": "side-eye CHARACTERS delta pass: SHIP WITH FIXES 28/40 (was 25) — three of four 2026-08-22 P1s verifiably dead (keyboard 563→2 stops, filter chrome 272→180px and density-responsive, library stays docked); new P1: one character has three disjoint action menus and Export is unreachable from the open character; six P2s (28 dead tag facets, an inverted spoiler toggle, raw oklch values, an exit-less Import dialog, a mouse-only Own-look gloss, a 2253px Options tab burying History); five retractions incl. a Light-theme misread killed by a framebuffer decode; hub-ingest and scale arms not reachable on the seed db."
     }
   ]
 }
