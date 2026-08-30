@@ -1223,6 +1223,164 @@
         }
       ],
       "summary": "side-eye live drive of the #860 context bracket: SHIP WITH FIXES — one composition in all three sections, the best keyboard surface measured in the app, the ground/dead-zone contract kept (foot rail at y=717 on short and tall bodies, CLS 0); one WCAG fail (locked Map cell 3.54:1 on a deliberately-enabled control), #861 fixed structurally but not perceptually (receded fill 1.001:1, kicker step inverted), the game band's name voice forks from the other two, overlay states print the name twice, Characters duplicates its hero; Nielsen 28/40 scoped to the pane."
+    },
+    {
+      "path": "docs/reviews/research/2026-08-30-orchestrator-handoff.md",
+      "assignedSha256": "2f2d3605605a26779afa3aabd0b81fbff43e06a39400c0e7224a8f3ef11babe6",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "2f2d3605605a26779afa3aabd0b81fbff43e06a39400c0e7224a8f3ef11babe6",
+      "verifiedCommit": "4e7dcff17e6a06451a01c5d75b4a34e000d154ca",
+      "verifiedAt": "2026-08-30",
+      "evidence": [
+        "docs/reviews/research/2026-08-30-orchestrator-handoff.md:1 read in full by the orchestrator (claude-b); authored by the owner's research lane nate-research (worktree wt/nate-research, base 7f574337a); copied out of the worktree before landing per its own §0 instruction"
+      ],
+      "claims": [
+        {
+          "claim": "Every §1 class correction is posted on its issue (#622 #320 #321 #650 #471 #837 #674 #681 #690 #692 #693 #697 #850 #816 #825 #851 #871 #452 #550), and every §2 build item is filed: write-seam totality #879, viewgap lens #880, verdict door #881, rule registry #882, contrast sweep #883, touch defaults #884, boundary reservation (forge) #885, the C5 Injections collapse #886 (Needs owner); C6 rides #871's own done-bar; the two named don'ts (no contract-field-liveness ratchet, no default design-audit self-check) are recorded on #882.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#879"
+            },
+            {
+              "kind": "issue",
+              "target": "#880"
+            },
+            {
+              "kind": "issue",
+              "target": "#881"
+            },
+            {
+              "kind": "issue",
+              "target": "#882"
+            },
+            {
+              "kind": "issue",
+              "target": "#883"
+            },
+            {
+              "kind": "issue",
+              "target": "#884"
+            },
+            {
+              "kind": "issue",
+              "target": "#885"
+            },
+            {
+              "kind": "issue",
+              "target": "#886"
+            }
+          ]
+        }
+      ],
+      "summary": "Owner research hand-off (lane nate-research @ 7f574337a): §1 class corrections for 19 mis-attributed rows, §2 nineteen build items with enforcer/size/priority, §3 lane packaging, §4 per-lane hazards; the reports-must-land instruction (§0) is discharged by this landing."
+    },
+    {
+      "path": "docs/reviews/research/2026-08-30-brief-1-primitive-guarantee.md",
+      "assignedSha256": "6b5c14deddd418ff789dbc61331e1adf5f5c98880f9c4ac48d70e5f07a5cb2a2",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "6b5c14deddd418ff789dbc61331e1adf5f5c98880f9c4ac48d70e5f07a5cb2a2",
+      "verifiedCommit": "4e7dcff17e6a06451a01c5d75b4a34e000d154ca",
+      "verifiedAt": "2026-08-30",
+      "evidence": [
+        "docs/reviews/research/2026-08-30-brief-1-primitive-guarantee.md:1 read in full by the orchestrator (claude-b); every claim carries a path:line or command receipt from the research session; negatives carry scanned counts"
+      ],
+      "claims": [
+        {
+          "claim": "Its three moves are filed: the worst-art contrast sweep CT is #883, the touch-default inversion + pitch arm is #884, QueryBoundary.reserveKey is #885 (forge).",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#883"
+            },
+            {
+              "kind": "issue",
+              "target": "#884"
+            },
+            {
+              "kind": "issue",
+              "target": "#885"
+            }
+          ]
+        }
+      ],
+      "summary": "Brief 1 — the primitive guarantee: for contrast/touch/CLS the leaf primitive already guarantees what it can (plate gate 0% miss on its own class; floor in 24/54 ui dirs; measure-then-remember box store); recurrences are one level up (no-backing compositions, row pitch / opt-in floors, 129 literal-count boundaries vs 2 box-memory consumers), each with a named unrepresentability move and enforcer."
+    },
+    {
+      "path": "docs/reviews/research/2026-08-30-brief-2-absence-reads-as-clean.md",
+      "assignedSha256": "de1d99ad27497a522ee39d47e41cf309b43d7049cc0b846a97bbcb495572944a",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "de1d99ad27497a522ee39d47e41cf309b43d7049cc0b846a97bbcb495572944a",
+      "verifiedCommit": "4e7dcff17e6a06451a01c5d75b4a34e000d154ca",
+      "verifiedAt": "2026-08-30",
+      "evidence": [
+        "docs/reviews/research/2026-08-30-brief-2-absence-reads-as-clean.md:1 read in full by the orchestrator (claude-b); rule census 43 ids / 42 pinned / 0 neighbour plants taken in the research session"
+      ],
+      "claims": [
+        {
+          "claim": "Its four levers are filed: the verdict door + per-family liveness + review-mirror registration is #881, the rule registry + argv door is #882; the per-run self-check is recorded as a don't (opt-in at most).",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#881"
+            },
+            {
+              "kind": "issue",
+              "target": "#882"
+            }
+          ]
+        }
+      ],
+      "summary": "Brief 2 — absence reads as clean: the planted-control contract is machinery at three tiers already (EvidenceGap/exit honesty, tooling-instrument-proof over 8 instruments with 18 absence proofs, the #410 run manifest, the CT ACTIVE-marker ratchet); only two of the seven post-#410/#722 rows are that class; the fleet levers are contracts not plants — the shared verdict door, per-family liveness, the closed rule registry with a fires+neighbour pair, the strict argv door."
+    },
+    {
+      "path": "docs/reviews/research/2026-08-30-brief-3-unpaired-value.md",
+      "assignedSha256": "ec683c74e78bf21ee2c52aabf470c177b27573f1ec90524157988029e13de298",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "ec683c74e78bf21ee2c52aabf470c177b27573f1ec90524157988029e13de298",
+      "verifiedCommit": "4e7dcff17e6a06451a01c5d75b4a34e000d154ca",
+      "verifiedAt": "2026-08-30",
+      "evidence": [
+        "docs/reviews/research/2026-08-30-brief-3-unpaired-value.md:1 read in full by the orchestrator (claude-b); the tier-6 census is a scratch script's candidates, two corroborated by second method"
+      ],
+      "claims": [
+        {
+          "claim": "Its enforcers are filed: the json-column-write-parity dominance arm + RegisteredStore.reset sanctioned home + lens hygiene is #879, the viewgap lens + 24-field triage + dropped-hop stretch is #880; the one human read (stPresetSchema.character_id) rides #880's triage.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#879"
+            },
+            {
+              "kind": "issue",
+              "target": "#880"
+            }
+          ]
+        }
+      ],
+      "summary": "Brief 3 — the unpaired value: contract-field-liveness stays a lens (46 hits classify to 0 live defects, 45 permanent, 1 human question); the month's rows are four OTHER classes (partial producer on optional, dropped hop, server-View-field unread, degraded-read→persisted-write); the 14-tier write↔read pairing table names the 9 instrumented and 5 bare tiers; tier 6 measured at 24 candidates / 313 fields."
+    },
+    {
+      "path": "docs/reviews/research/2026-08-30-ts-morph-speedups.md",
+      "assignedSha256": "11433feb6980fa63ffa8bd6bc7950442c1d13622d7e8b8f8ba5c1dd4b62fd852",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "11433feb6980fa63ffa8bd6bc7950442c1d13622d7e8b8f8ba5c1dd4b62fd852",
+      "verifiedCommit": "4e7dcff17e6a06451a01c5d75b4a34e000d154ca",
+      "verifiedAt": "2026-08-30",
+      "evidence": [
+        "docs/reviews/research/2026-08-30-ts-morph-speedups.md:1 read in full by the orchestrator (claude-b); measured on node v26.5.0 / ts-morph 28.0.0 / typescript 6.0.3 with the two scratch profilers named in its §6; NOT yet filed as build rows — the owner's build list did not include it (flagged to the owner instead)"
+      ],
+      "summary": "ts-morph performance study: no faster drop-in exists (TS 7.0 ships no API; tsgo-wasm unreleased; Rust parsers have no type graph); structure:full's 290s is our gate code (bus-coverage lib 114.5s = 39%, token-kind getDescendantsOfKind 18s/4GB per sweep vs raw forEachChild 0.34s); ranked plan A-F puts the stage at 60-90s with no library change; watch list = ts-morph #1621 / tsgo-wasm / TS 7.1."
     }
   ]
 }
