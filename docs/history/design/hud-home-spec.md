@@ -25,7 +25,7 @@ planes, chat CONTENT, and every non-CONTEXT surface.
 (`docs/reviews/stickler/2026-08-01-visual-blech-audit.md` §F6 — four rendered legibility defects + the
 seam diagnosis at lines 121–134) · full-file code recon of the panel host chain (§2) · the CP-4 blueprint
 (`docs/architecture/Context-Panel-Program.md` §4) · the panel-redesign mock set
-(`docs/design/mocks/panel-redesign/DESIGN.md`).
+(`docs/history/design/mocks/panel-redesign/DESIGN.md`).
 **Sibling specs (written aware of each other):** `docs/design/density-pass-spec.md` (S3 covers these exact
 surfaces — coordination is §9.1) · `docs/design/tracked-field-unification.md` (TRK stages 1+2 SHIPPED;
 they rebuilt the tab BODIES, this spec rebuilds the CHROME around them) · `docs/history/design/sse-multiplex-spec.md`
@@ -518,7 +518,7 @@ pnpm snap --dirty --wide --open-chat "<a real game chat>" \
 pnpm snap --base http://localhost:5273 --eval '(document.querySelector("[data-context-region]").getBoundingClientRect().height)'
 ```
 
-Every stage ends with a `side-eye` pass against `docs/design/mocks/panel-redesign/` and all findings fixed
+Every stage ends with a `side-eye` pass against `docs/history/design/mocks/panel-redesign/` and all findings fixed
 before the stage closes.
 
 ---

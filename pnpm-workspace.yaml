@@ -1,6 +1,6 @@
 packages:
   - packages/*
-  # The tool fleet (@orb/tooling) — ABOVE the cake, never imported by packages/* (docs/design/tooling-package.md).
+  # The tool fleet (@orb/tooling) — ABOVE the cake, never imported by packages/* (docs/architecture/core/Core-Tooling-Law.md).
   - tooling
 
 # The node-26 floor is a WALL, not a wish (node-26 adoption program §1.3, 2026-08-03). All seven manifests

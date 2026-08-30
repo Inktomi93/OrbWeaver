@@ -1,11 +1,11 @@
-/* @orb/ui — the density tier map, made executable (density-pass-spec.md §4.2).
+/* @orb/ui — the density tier map, made executable (UI-Density-Law.md §4.2).
  *
  * HAND-AUTHORED (unlike theme.css): this file maps SLOT NAMES to token steps, and a slot name is not
  * token data. It is imported UNLAYERED beside theme.css, which is the whole mechanism: Tailwind v4 emits
  * every utility into `@layer utilities`, and an unlayered rule beats any layered rule regardless of
  * specificity. So a primitive's own utility default (`p-block` on Card) is the TIER-LESS fallback, and
  * these rules take over inside a `<Surface>`. Proven by computed value, never by reading the source:
- * tests/ui/density-tier.suite.ct.tsx (density-pass-spec.md §4.2 build step 0).
+ * tests/ui/density-tier.suite.ct.tsx (UI-Density-Law.md §4.2 build step 0).
  *
  * WHY THE INDIRECTION THROUGH A CUSTOM PROPERTY rather than the spec's illustrative
  * `[data-surface-tier="instrument"] [data-slot="card-root"] { padding: … }` pair: those two rules have
@@ -53,7 +53,7 @@
   border-radius: var(--orb-tier-island-radius);
 }
 
-/* ── THE LIST CLASS (density-pass-spec.md §3.1 "LIST panes") ────────────────────────────────────────
+/* ── THE LIST CLASS (UI-Density-Law.md §3.1 "LIST panes") ────────────────────────────────────────
  * A ListRow is the list-pane island, and its DENSITY-BEARING properties are mapped here — not spelled in
  * `list-row/variants.ts` — for the reason S5 proved the hard way: a retune written into the variants is
  * GLOBAL, so the dense list-pane type landed on every unswept form-tier surface too (the settings modal's
@@ -124,7 +124,7 @@
   line-height: var(--orb-tier-field-leading);
 }
 
-/* ELEVATED is the explicit opt-in that outranks the tier (density-pass-spec.md §2.1: `--radius-card` is
+/* ELEVATED is the explicit opt-in that outranks the tier (UI-Density-Law.md §2.1: `--radius-card` is
  * the floating-island step). It must be spelled HERE, unlayered, because a `rounded-card` utility on the
  * card would lose to the tier rule above. */
 [data-surface-tier] [data-slot="card-root"][data-elevated] {

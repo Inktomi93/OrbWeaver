@@ -84,7 +84,7 @@ export function LibraryListLayout({
   const rowsRef = useRef<HTMLDivElement>(null);
   useRovingRadioGroup(rowsRef);
   return (
-    // INSTRUMENT tier (density-pass-spec.md §3.1 LIST panes) — presets and world-info books are scanned
+    // INSTRUMENT tier (UI-Density-Law.md §3.1 LIST panes) — presets and world-info books are scanned
     // lists, not forms. Declared once here, so both consuming surfaces get identical density by
     // construction instead of each picking steps by taste.
     <Surface tier="instrument">

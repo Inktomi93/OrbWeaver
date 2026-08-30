@@ -29,7 +29,7 @@ export interface TextProps extends ComponentProps<"p">, VariantProps<typeof text
 /**
  * Token-driven typographic scale over the body intrinsics (p/span/div) — there is no Base UI text primitive.
  *
- * Feature code passes `voice` (density-pass-spec.md §2.3 — kicker · label · datum · gloss, plus `hero`
+ * Feature code passes `voice` (UI-Density-Law.md §2.3 — kicker · label · datum · gloss, plus `hero`
  * for THE number, `monogram` for a decorative display glyph, `reading` for the CONTENT prose itself,
  * `credit` for the cast/age line under a focal item, the two RECEDED voices `quiet` (a muted body line —
  * an empty state, a "Loading…") and `datumMono` (a mono readout at the code step — an id, a hash, a raw

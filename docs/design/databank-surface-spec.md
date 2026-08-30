@@ -33,7 +33,7 @@ tree was never ported. This is a build-surface feature, not a wire.
 `legacy-main:packages/client/src/features/databank/**` plus `legacy-main:packages/client/src/data/upload-document.ts`,
 read via `git show` per file (never checkout/cp). Law read IN FULL: the constitution (`AGENTS.md`), the
 executor doctrine, `../history/design/list-pane-projection-proposal.md` §11–§13 (the ratified row/action grammar),
-`density-pass-spec.md` §3 (the tier map + the chrome diet), `home-section-spec.md` (the sibling rail
+`UI-Density-Law.md` §3 (the tier map + the chrome diet), `home-section-spec.md` (the sibling rail
 program), `Core-Docs-Formatting-Law.md`, and the D85 citation set.
 
 **Mocks (the owner rules from pixels):** `docs/design/mocks/databank-surface/library.html` (the
@@ -45,7 +45,7 @@ per the owner's steer they follow the ratified grammar + density tiers, NOT lega
 
 **Sibling programs this composes with, never fights:** `home-section-spec.md` (adds an eighth rail
 section — §3.1's rail-population arithmetic counts it) · `../history/design/list-pane-projection-proposal.md` (§12 is law
-here) · `density-pass-spec.md` (§3.1 tiers) · SET-SEAMS (`docs/history/design/set-seams-spec.md` — owns the settings modal;
+here) · `UI-Density-Law.md` (§3.1 tiers) · SET-SEAMS (`docs/history/design/set-seams-spec.md` — owns the settings modal;
 the retrieval knobs already live there and this spec does NOT touch them).
 
 ---

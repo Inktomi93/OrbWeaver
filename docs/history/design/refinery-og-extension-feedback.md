@@ -51,4 +51,4 @@ updated: 2026-08-30
 Gap 1 (manual-rewrite arm) is the only one with a live sequencing claim: it shapes the R3 surface
 (the WIP edit area is a CONTENT state) and should be in the R3 build brief, not discovered after the
 surface ships. Gaps 2-4 fold into R4 planning. The accept-ergonomics rework (owner 2026-08-08,
-checkbox itch) is being mocked separately — `docs/design/mocks/refinery/accept-ergonomics.html`.
+checkbox itch) is being mocked separately — `docs/history/design/mocks/refinery/accept-ergonomics.html`.

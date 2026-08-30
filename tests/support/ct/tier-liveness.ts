@@ -1,4 +1,4 @@
-// The per-PANE half of the density-tier liveness probe (density-pass-spec.md §4.2/§5.3, side-eye P1-3).
+// The per-PANE half of the density-tier liveness probe (UI-Density-Law.md §4.2/§5.3, side-eye P1-3).
 //
 // `tests/ui/density-tier.suite.ct.tsx` proves the MECHANISM (strip `data-surface-tier` and every mapped
 // value moves). That says nothing about whether a real pane still DECLARES the tier — a deleted `<Surface>`

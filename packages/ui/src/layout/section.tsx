@@ -7,7 +7,7 @@ import { sectionVariants } from "./variants.ts";
 export interface SectionProps extends ComponentProps<"section"> {
   heading?: ReactNode;
   /**
-   * The INSTRUMENT-tier form of `heading` (density-pass-spec.md §2.3/§4.3): the section's name in the
+   * The INSTRUMENT-tier form of `heading` (UI-Density-Law.md §2.3/§4.3): the section's name in the
    * `kicker` voice — micro caps, muted — followed by a hairline rule to the edge. This is what a read-only
    * grouping gets INSTEAD of a border+radius+bg box (chrome diet CD1). Still a real `<h3>`, so the document
    * outline survives. Wins over `heading` if both are passed (they are two skins of one slot).

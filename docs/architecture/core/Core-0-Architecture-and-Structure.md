@@ -317,7 +317,7 @@ launcher shims, and operator scripts; KISS/YAGNI apply there and only there. It 
 rationale: `scripts/README.md`. A research script that becomes load-bearing for verification is promoted
 into `tooling/src/<tool>/` under the template, original deleted — never a compat stub.
 
-> The deep record is the program design `../../design/tooling-package.md` (the tool roster, the coupled-site
-> census, the per-phase move playbook) plus the code's own file headers. Gate authoring law:
+> The detail home is `Core-Tooling-Law.md` (the tool roster, the plumbing floor, the per-gate
+> contracts, the coupled-site census, the move playbook) plus the code's own file headers. Gate authoring law:
 > `../../../tooling/src/verify/gates/GATE-AUTHORING.md`. Live gate catalog:
 > `Core-Enforcement-Active-Gates.md`.

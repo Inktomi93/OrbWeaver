@@ -2807,7 +2807,7 @@ selection echo; host-only crown \[NEEDS RATIFICATION: additive ContextTabDef.cro
 like strip, decision-5 argument]; waystone compact DERIVED from clock===null \[no compact prop —
 gate-RED; meter unset variant instead, strictly stronger]; band 54.9% of chrome vs F6's 68%,
 chrome 28.7% of pane ≤30% rule; computed-value CTs throughout). H4 close-out remains. **PRESET REDESIGN DELIVERED** (spec docs/history/design/preset-surface-redesign.md + 3 mocks in
-docs/design/mocks/preset-redesign/ — landed; lane forgot to commit, orchestrator copied+committed).
+docs/history/design/mocks/preset-redesign/ — landed; lane forgot to commit, orchestrator copied+committed).
 DIAGNOSIS: ST-crunchy = slider+editable-number-twin, zero nav depth, token counts, WYSIWYS; ours =
 2-level tabs (5 acts to temperature), unset knobs HIDE the datum, the quality→knobs→clamp funnel
 resolves server-side UNSHOWN, SIX schema knobs have NO editor anywhere (stop, topA, maxBudgetUsd,

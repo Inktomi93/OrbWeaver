@@ -1,4 +1,4 @@
-// Gate: tooling-instrument-proof (docs/design/tooling-package.md §4.5) — an instrument-classed tool
+// Gate: tooling-instrument-proof (docs/architecture/core/Core-Tooling-Law.md §4.5) — an instrument-classed tool
 // (INSTRUMENT_TOOLS, tooling/src/_shared/instruments.ts) owes TWO proof classes in tests/tooling/<tool>/:
 // `@instrument-proof:` (a planted DEFECT must RED) and `@instrument-absence-proof:` (a removed apparatus /
 // empty population must NOT read clean). Arms per class: (B) a member with no marker; (C) a marker in a
@@ -106,12 +106,12 @@ function collectMarkers(sf: SourceFile, rel: string): void {
 
 export const gate: GateDescriptor = {
   name: "tooling-instrument-proof",
-  docRow: "Core-Enforcement-Active-Gates.md (docs/design/tooling-package.md §4.5)",
+  docRow: "Core-Enforcement-Active-Gates.md (docs/architecture/core/Core-Tooling-Law.md §4.5)",
   status: "active",
   scopeSafety: "whole-project",
   fsBacked: true,
   message:
-    "the instrument-proof contract is broken — every INSTRUMENT_TOOLS member owes BOTH a planted-defect proof (`@instrument-proof: <what is planted and what must red>`) AND an absence proof (`@instrument-absence-proof: <what apparatus/population is removed and what must NOT read clean>`) in tests/tooling/<tool>/, both vocabularies are two-sided, and the registry must stay readable (docs/design/tooling-package.md §4.5).",
+    "the instrument-proof contract is broken — every INSTRUMENT_TOOLS member owes BOTH a planted-defect proof (`@instrument-proof: <what is planted and what must red>`) AND an absence proof (`@instrument-absence-proof: <what apparatus/population is removed and what must NOT read clean>`) in tests/tooling/<tool>/, both vocabularies are two-sided, and the registry must stay readable (docs/architecture/core/Core-Tooling-Law.md §4.5).",
   fix: "add the missing marker-carrying proof test (plant the defect, or remove the apparatus and assert the run refuses to read clean), register the tool, or delete the stale/malformed marker.",
   scanRoot: (p) => p === REGISTRY || p.startsWith(TESTS_PREFIX),
   visitFile: (sf, _ctx) => {
@@ -137,7 +137,7 @@ export const gate: GateDescriptor = {
         line: 0,
         column: 0,
         message:
-          "INSTRUMENT_TOOLS could not be read — the registry moved/renamed and this gate is blind. Re-point the gate (docs/design/tooling-package.md §4.5).",
+          "INSTRUMENT_TOOLS could not be read — the registry moved/renamed and this gate is blind. Re-point the gate (docs/architecture/core/Core-Tooling-Law.md §4.5).",
       });
       return;
     }
@@ -148,7 +148,7 @@ export const gate: GateDescriptor = {
           file: m.file,
           line: m.line,
           column: 0,
-          message: `INSTRUMENT_TOOLS names "${m.name}" but tooling/src/${m.name}/ does not exist — a dead registry row is a loaded gun (docs/design/tooling-package.md §4.5).`,
+          message: `INSTRUMENT_TOOLS names "${m.name}" but tooling/src/${m.name}/ does not exist — a dead registry row is a loaded gun (docs/architecture/core/Core-Tooling-Law.md §4.5).`,
         });
         continue;
       }
@@ -159,7 +159,7 @@ export const gate: GateDescriptor = {
             file: `tests/tooling/${m.name}`,
             line: 0,
             column: 0,
-            message: `instrument "${m.name}" has no \`${PROOF_CLASSES[kind].marker}\` test — it owes ${PROOF_CLASSES[kind].owes}; without it a verdict tool ships a green that cannot fail (docs/design/tooling-package.md §4.5).`,
+            message: `instrument "${m.name}" has no \`${PROOF_CLASSES[kind].marker}\` test — it owes ${PROOF_CLASSES[kind].owes}; without it a verdict tool ships a green that cannot fail (docs/architecture/core/Core-Tooling-Law.md §4.5).`,
           });
         }
       }
@@ -170,14 +170,14 @@ export const gate: GateDescriptor = {
           file: h.file,
           line: h.line,
           column: 0,
-          message: `malformed \`${PROOF_CLASSES[h.kind].marker}\` marker — the reason (${PROOF_CLASSES[h.kind].owes}) is REQUIRED (docs/design/tooling-package.md §4.5).`,
+          message: `malformed \`${PROOF_CLASSES[h.kind].marker}\` marker — the reason (${PROOF_CLASSES[h.kind].owes}) is REQUIRED (docs/architecture/core/Core-Tooling-Law.md §4.5).`,
         });
       } else if (!memberNames.has(h.tool)) {
         ctx.report({
           file: h.file,
           line: h.line,
           column: 0,
-          message: `\`${PROOF_CLASSES[h.kind].marker}\` marker in "${h.tool}"'s tree, but "${h.tool}" is not in INSTRUMENT_TOOLS — register it or delete the marker (docs/design/tooling-package.md §4.5).`,
+          message: `\`${PROOF_CLASSES[h.kind].marker}\` marker in "${h.tool}"'s tree, but "${h.tool}" is not in INSTRUMENT_TOOLS — register it or delete the marker (docs/architecture/core/Core-Tooling-Law.md §4.5).`,
         });
       }
     }

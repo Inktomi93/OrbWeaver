@@ -79,7 +79,7 @@ export const PAGER_LABEL_QUIET_WHEN_TIGHT = "@max-[12rem]/pager:sr-only";
 export const PAGER_CHIP_COMPACT = "@max-[13rem]/pager:gap-tight";
 
 /** The counter, compacted on the SAME line as the gap. It keeps its text — `2 / 3`, the spelling
- *  `density-pass-spec.md` §2.3's datum voice was tuned with and the string every existing pin matches on —
+ *  `UI-Density-Law.md` §2.3's datum voice was tuned with and the string every existing pin matches on —
  *  and surrenders only the two spaces AROUND the slash, which is 15.64px of the 39.14px counter and the
  *  difference between a chip that fits a 128.58px room bubble and one that does not.
  *

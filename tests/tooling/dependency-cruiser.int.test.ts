@@ -227,7 +227,7 @@ function writeAllFixtures(): void {
   fx("packages/client/src/compose/__dc_t.ts", VAL);
   fx("packages/client/src/features/__dc_cfeat/compose-door.ts", `import "../../compose/__dc_t.ts";\n`);
 
-  // ── @orb/tooling (the tool fleet ABOVE the cake — tooling-package.md §4.6) ──
+  // ── @orb/tooling (the tool fleet ABOVE the cake — Core-Tooling-Law.md §4.6) ──
   fx("tooling/src/__dc_tb/ops/y.ts", VAL);
   fx("tooling/src/__dc_ta/x.ts", `import "../__dc_tb/ops/y.ts";\n`);
   // packages-no-tooling: the one-way glass — a cake package deep-relative-escaping into tooling.

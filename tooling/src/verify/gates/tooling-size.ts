@@ -1,4 +1,4 @@
-// Gate: tooling-size (docs/design/tooling-package.md §4.3) — the tooling twin of component-size: any
+// Gate: tooling-size (docs/architecture/core/Core-Tooling-Law.md §4.3) — the tooling twin of component-size: any
 // tooling/src file >450 lines is RED; a cli.ts >200 is RED (argv parse + dispatch ONLY — the cap is what
 // decomposes the monoliths BEFORE they land: snap 4,513 / ast 6,241 / codemod-kit 3,385 cannot move
 // un-split). DECLARED CARVE: `verify/gates/**` is cap-exempt after P6 — a gate file is a single-purpose
@@ -18,11 +18,11 @@ function relOf(abs: string): string | null {
 
 export const gate: GateDescriptor = {
   name: "tooling-size",
-  docRow: "Core-Enforcement-Active-Gates.md (docs/design/tooling-package.md §4.3)",
+  docRow: "Core-Enforcement-Active-Gates.md (docs/architecture/core/Core-Tooling-Law.md §4.3)",
   status: "active",
   scopeSafety: "incremental-safe",
   message:
-    "a @orb/tooling source file exceeds the hard line cap (default 450; cli.ts 200) — split into ops/ files or extract pure helpers to lib/; a monolith tool is the drawer this package exists to end (docs/design/tooling-package.md §4.3).",
+    "a @orb/tooling source file exceeds the hard line cap (default 450; cli.ts 200) — split into ops/ files or extract pure helpers to lib/; a monolith tool is the drawer this package exists to end (docs/architecture/core/Core-Tooling-Law.md §4.3).",
   fix: "decompose: one ops/ file per command family, pure logic to lib/, shapes to contract/; a cli.ts holds argv parse + dispatch only.",
   scanRoot: (p) => p.startsWith(TOOLING_PREFIX),
   visitFile: (sf, ctx) => {
@@ -35,7 +35,12 @@ export const gate: GateDescriptor = {
     const lines = sf.getFullText().replace(TRAILING_NL, "").split("\n").length;
     const cap = rel.endsWith("/cli.ts") ? CAP_CLI : CAP_DEFAULT;
     if (lines > cap) {
-      ctx.report({ file: rel, line: 0, column: 0, message: `${lines} lines (cap ${cap}) — decompose before it grows (docs/design/tooling-package.md §4.3)` });
+      ctx.report({
+        file: rel,
+        line: 0,
+        column: 0,
+        message: `${lines} lines (cap ${cap}) — decompose before it grows (docs/architecture/core/Core-Tooling-Law.md §4.3)`,
+      });
     }
   },
   mustFlag: [

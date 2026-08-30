@@ -223,7 +223,7 @@ function writeFixtures(): void {
   // anti-drift assertion below; its bite is proven by gate-conformance (its mustFlag).
   // test-layout: a test with no source mirror.
   fx("tests/server/__g_nomirror.test.ts", "export {};\n");
-  // ── @orb/tooling (docs/design/tooling-package.md §4) ──
+  // ── @orb/tooling (docs/architecture/core/Core-Tooling-Law.md §4) ──
   // tooling-slot-template: a tool dir with neither front door and a stray root file.
   fx("tooling/src/__g_badtool/stray.ts", "export const x = 1;\n");
   // tooling-front-door: a cross-tool deep import into a sibling's ops/ (the front-door law).
@@ -456,6 +456,10 @@ function writeFixtures(): void {
   // query-freshness-coverage: a consumed query key with no invalidation row and no registry cite — the
   // frozen-surface class (the read is keyed on a ghost router so it can never collide with a real proc).
   fx("packages/client/src/features/__g_qfresh/components/__g_qfresh.tsx", "export const g = trpc.__g_ghost.frozenRead.queryOptions({});\n");
+  // dangling-doc-cite: a source COMMENT naming a doc that does not exist. The path must be a `__g_` name so
+  // it can never collide with a real doc, and the cite must sit in a COMMENT — the same string in a literal
+  // is deliberately out of scope (that is what keeps every fixture map on the tree from self-flagging).
+  fx("packages/kit/src/__g_doccite.ts", "// See docs/design/__g_ghost-nowhere.md for the shape.\nexport const g = 1;\n");
   // dangling-refs arm 1: a gates-dir stub whose `gate` object cites a ghost doc. NOT exported — the loader
   // skips it as un-ported (the __g_diaglegi precedent); the arm-1 scanner reads the local `gate` variable.
   fx("tooling/src/verify/gates/__g_dangl.ts", 'const gate = { docRow: "__g_ghost-nowhere.md" };\nexport const stub = gate;\n');

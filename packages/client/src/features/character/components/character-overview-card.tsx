@@ -1,5 +1,5 @@
 // The CONTEXT Field tab's RESTING state — an overview instrument card, not an empty state. The context
-// panel is INSTRUMENT tier (density-pass-spec §3.1: "read-mostly, glanceable, many data per cm²"), and a
+// panel is INSTRUMENT tier (UI-Density-Law §3.1: "read-mostly, glanceable, many data per cm²"), and a
 // panel that opens to 480×1000px of "Open a field to inspect it" beside a data-rich editor fails its tier
 // (stickler 2026-08-01 F4).
 //

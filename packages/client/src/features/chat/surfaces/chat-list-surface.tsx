@@ -153,7 +153,7 @@ export function ChatListSurface({ onSelect, onNewChat, onDeletedChat }: ChatList
   useFocusOnMount(surfaceRef);
 
   return (
-    // INSTRUMENT tier (density-pass-spec.md §3.1 LIST panes): the pane is scanned, not operated, so its
+    // INSTRUMENT tier (UI-Density-Law.md §3.1 LIST panes): the pane is scanned, not operated, so its
     // islands resolve the dense steps. `<Surface>` is display:contents — it declares the tier for the
     // subtree without adding a box to the height chain.
     <Surface tier="instrument">

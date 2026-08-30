@@ -372,7 +372,7 @@ test("F2 the portrait trigger's box IS the portrait — no overflow past its own
   await expect.poll(async () => (await readTriggerBoxAtAssertion())?.y).toBeCloseTo(avatarBox?.y ?? 0, 0);
 });
 
-// F3 — twelve `intent="info"` pills were the loudest thing on the editor (density-pass-spec §3.2 CD3:
+// F3 — twelve `intent="info"` pills were the loudest thing on the editor (UI-Density-Law §3.2 CD3:
 // one focal element per surface). The strip is now GHOST chips: EVERY suggestion renders (owner ruling
 // 2026-08-01 — the read surface shows everything, D113 (4b)) and weight, not count, carries the quiet —
 // no fill at all, muted text. Fill stays reserved for the ACCEPTED tags in the row above.

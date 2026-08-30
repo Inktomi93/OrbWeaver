@@ -1,5 +1,5 @@
 // The demo-seeder smoke test (relocated from tests/tooling/seed-demo.int.test.ts at the #393 P5 move —
-// tooling-package.md §4.7 mirror). Runs the REAL `runFullSeed` core (the shared body
+// Core-Tooling-Law.md §4.7 mirror). Runs the REAL `runFullSeed` core (the shared body
 // of `pnpm seed:demo`) against an in-memory freshDb with the deterministic offline vLLM client, then
 // asserts the marquee shapes the owner verifies against every regen: both chats exist, both humans are
 // seated, every seeded character's avatar resolves through the FK chain, and the databank document ingested

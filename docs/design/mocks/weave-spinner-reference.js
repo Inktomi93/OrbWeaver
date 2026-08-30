@@ -4,7 +4,7 @@
 //
 // PROVENANCE (orbweaver): claude.ai/design motion review, second handoff 2026-08-14
 // ("Orbweaver UI" project, templates/weave-lab/weave-spinner.js), fetched verbatim.
-// REFERENCE ONLY for docs/design/weave-lab-upgrades.md §4 — never import into product code.
+// REFERENCE ONLY for docs/history/design/weave-lab-upgrades.md §4 — never import into product code.
 (() => {
 if (customElements.get('weave-spinner')) return;
 const TAU = Math.PI * 2, VB = 32, C = 16;

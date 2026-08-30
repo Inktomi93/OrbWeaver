@@ -147,7 +147,7 @@ export function SandboxFrame({
   if (!complete) {
     return (
       // The frame and its skeleton are GROUPED CONTENT inside the message bubble (the elevated island):
-      // `rounded-base`, never the floating `card` step (density-pass-spec.md §2.1 D6).
+      // `rounded-base`, never the floating `card` step (UI-Density-Law.md §2.1 D6).
       <div className="w-full animate-pulse rounded-base border border-border bg-muted" style={style} data-slot="sandbox-frame-skeleton" aria-hidden={true} />
     );
   }

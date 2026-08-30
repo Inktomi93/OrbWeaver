@@ -91,18 +91,19 @@
     },
     {
       "path": "docs/retro-workboard.md",
-      "assignedSha256": "8cb62644f513c7570c0f9587b9f80a137159ce7f01eca28c379b41a449454b79",
+      "assignedSha256": "89e916292c4ab636921e13d782c03c90d155084cf23961f002bee6559f2bc597",
       "disposition": "current",
       "authority": "operational",
       "fullRead": true,
-      "verifiedSha256": "8cb62644f513c7570c0f9587b9f80a137159ce7f01eca28c379b41a449454b79",
-      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedSha256": "89e916292c4ab636921e13d782c03c90d155084cf23961f002bee6559f2bc597",
+      "verifiedCommit": "1f5e25c00ec2ee921bc70591bf84e8268b255030",
       "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/retro-workboard.md:1-45 full read; recovery steps, authority map, hard stops, and direct Claude-rule import routing checked against D139-D140 and Project 1",
         "docs/architecture/proposed/INDEX.md:17-37 maps each unfinished committed program to its Project sprint",
         "git:039e33ca3afee08a73754bd0a9ee3d5958d74fe4 contains the exact recovery-index blob",
-        "docs/retro-workboard.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
+        "docs/retro-workboard.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)",
+        "docs/retro-workboard.md: re-attested at 1f5e25c00ec2ee921bc70591bf84e8268b255030 — the #876/#873 citer sweep: doc-path repoints from the tooling-package → Core-Tooling-Law.md and density-pass-spec → UI-Density-Law.md relocations and the seven mock-set retirements. Comment/link lines only; no claim moved."
       ],
       "claims": [
         {

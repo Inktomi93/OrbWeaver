@@ -148,7 +148,7 @@ carries over as designed UI.
 
 ### 3.3 Proof: the blessed built-in look is a derivation
 
-The R3 mock set (`docs/design/mocks/refinery/surface.html`, read in full) against the mapping + the
+The R3 mock set (`docs/history/design/mocks/refinery/surface.html`, read in full) against the mapping + the
 built-in hint set:
 
 | Mock element (blessed) | Derivation |
@@ -342,7 +342,7 @@ UI copy must teach it. **Fix for greeting ADD:** an explicit append arm — sele
 "allow new greetings (max N)" flag; the payload's `greetingIndex` may then equal `liveGreetingCount`
 (append-only, no sparse indexes); apply appends instead of dropping. Fork F-T1 (REC: yes — "split
 one greeting into two" is squarely the owner's split case).
-[**RULED IN + SHIPPED (R4, 2026-08-09).** Two details of the sketch above were OVERRULED by the build:
+\[**RULED IN + SHIPPED (R4, 2026-08-09).** Two details of the sketch above were OVERRULED by the build:
 (1) NO selection flag — belt 9 fences an append on the FIELD (`greetings ∈ selection.fields`); a
 `greetingIndexes` narrowing cannot gate a slot that has no index, and gating on it would make append
 unreachable in every narrowed session. (2) NO `greetingIndex === liveGreetingCount` convention — that
@@ -868,7 +868,7 @@ edits. Code comments get repaired in the SAME lane as their code change, never s
 - Gap 3 (apply-as-copy): *"a small R4 candidate"* → *"RULED IN 2026-08-08 (owner) — R3 scope;
   design: refinery-schema-renderer.md §17."* Gaps 1/2/4 unchanged.
 
-### 19.5 Mock note blocks — `docs/design/mocks/refinery/*.html`
+### 19.5 Mock note blocks — `docs/history/design/mocks/refinery/*.html`
 
 - `surface.html` Frame 2 (checkbox accept grammar): ALREADY superseded by
   `accept-ergonomics.html`'s RULED banner — no further edit; but its FORK C/D notes stay live.
@@ -945,7 +945,7 @@ Mapping, then the two edges it forces us to design properly:
 name their parents. Our run rows are a timestamp-ordered list: "which rewrite did this analyze
 judge?" is answerable only by "the latest at the time" — which BREAKS the moment §16.1's explicit
 `rewriteRunId` lets an analyze target round 1 while round 2 exists. **Add `source_run_id` (nullable
-text, no FK constraint needed beyond the session scope) to `refinery_runs` NOW** [OVERRULED: D24 —
+text, no FK constraint needed beyond the session scope) to `refinery_runs` NOW** \[OVERRULED: D24 —
 shipped as a self-FK (`.references(() => refineryRuns.id, { onDelete: "set null" })`,
 `packages/db/src/schema/refinery.ts`); boundaries are physics, so "no FK constraint needed" was
 rejected] (the P1-C baseline-squash window): analyze rows record the rewrite they judged; rewrite rows record the

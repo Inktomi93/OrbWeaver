@@ -50,7 +50,7 @@ function folderMatcher(glob: string): (rel: string) => boolean {
 function selectionFor(args: Args): ScopeSelection {
   if (args.package !== undefined) {
     const dir = packageDir(args.package);
-    // @orb/tooling is a ROOT-tree workspace package (docs/design/tooling-package.md §2.1), not packages/*.
+    // @orb/tooling is a ROOT-tree workspace package (docs/architecture/core/Core-Tooling-Law.md §2.1), not packages/*.
     const prefix = dir === "tooling" ? "tooling/" : `packages/${dir}/`;
     return {
       scope: { kind: "package", name: dir },

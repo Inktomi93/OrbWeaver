@@ -6,7 +6,7 @@
 //
 // PROVENANCE (orbweaver): claude.ai/design motion review, second handoff 2026-08-14
 // ("Orbweaver UI" project, templates/weave-lab/weave-lab.js), fetched verbatim.
-// REFERENCE ONLY for docs/design/weave-lab-upgrades.md — never import into product code.
+// REFERENCE ONLY for docs/history/design/weave-lab-upgrades.md — never import into product code.
 // NOTE the §amendment it carries: rayInfo splits frame-hit vs rect-hit; rect-bounded
 // radii OVERSHOOT (+14) past the edge instead of terminating inside the box.
 (() => {

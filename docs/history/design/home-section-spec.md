@@ -48,7 +48,7 @@ this mirrors) · `density-pass-spec.md` §2.3 (the four-voice grammar) + §3.1 (
 `packages/contracts/src/settings/index.ts` (`tempChatTtlHours`) · `packages/ui/src/primitives/icons/index.ts`.
 
 **Mock (authored with this spec — the owner rules from pixels):**
-`docs/design/mocks/home-section/home.html` — the tile grid with realistic content: Azarael's recents with
+`docs/history/design/mocks/home-section/home.html` — the tile grid with realistic content: Azarael's recents with
 snippets + markers, the character quick-picks, the temp-chat launcher, the section jump grid, buddy in its
 DORMANT state, and the automation doorway as the honest face of "future stuff".
 

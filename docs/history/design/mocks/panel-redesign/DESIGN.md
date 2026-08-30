@@ -8,7 +8,7 @@ updated: 2026-07-31
 
 Design deliverable, 2026-07-27. Gallery: `index.html` (open that one file). Mockups are standalone
 HTML, one per tab + the header band + a feature showcase, each with a desktop frame (the docked
-CONTEXT column at its token width) and a mobile ~390px sheet frame. Sample world held constant
+CONTEXT column at its token width) and a mobile \~390px sheet frame. Sample world held constant
 across every page — *The Rusted Lantern, day 3 · night · rain* — so the set reads as one instrument
 panel, not fourteen ideas.
 
@@ -16,14 +16,16 @@ Law obeyed throughout: `Context-Panel-Program.md` §4 (the bracket anatomy — h
 game strip · one scrolling viewport · bottom meta strip; two strips, ONE selection), `UI-Architecture-
 and-Layout.md` (container-driven responsiveness, CONTEXT is a fixed token column, D62 visual
 grammar), `client-architecture-lockdown.md` §6b/§6c (everything here mounts via `defineContextTabs`
-+ the contributor registry; the band rides the existing `header` slot), the motion guide (three
-duration tokens, transitions over keyframes, reduced-motion = REMOVE), and the D71 token system —
-**no new palette, no new type identity**. Every color in the mockups is a real Hearth `--color-*`
-value copied from the generated `theme.css`, or a `color-mix()` over one (the sanctioned tint idiom).
+
+- the contributor registry; the band rides the existing `header` slot), the motion guide (three
+  duration tokens, transitions over keyframes, reduced-motion = REMOVE), and the D71 token system —
+  **no new palette, no new type identity**. Every color in the mockups is a real Hearth `--color-*`
+  value copied from the generated `theme.css`, or a `color-mix()` over one (the sanctioned tint idiom).
 
 Owner corrections honored: **Quests and Journal are live LITE tabs** (real data planes — snapshot
 quests array; lineage-projected journal); only **Map** is PHASE-locked until MA-3. Top strip = 6 live
-+ 1 locked in both modes.
+
+- 1 locked in both modes.
 
 ---
 
@@ -82,7 +84,7 @@ Everything around the waystone is deliberately quiet so it stays the one bold th
 Four voices, rationed, held identically everywhere:
 
 | Voice | Token | Means | Appears |
-|---|---|---|---|
+| - | - | - | - |
 | **Ember** | `--color-primary` | the game's pulse | active tab, encounter block, current act, quest-bound dot, selection |
 | **Crown gold** | `--color-highlight` | host-only truth | Game tab, veiled ledger, reveal-eye, Preview's veiled line |
 | **Info blue** | `--color-info` | the story asking YOU | CYOA choice blocks (live + settled) |
@@ -104,6 +106,7 @@ mechanism, and it is why the parity-plus features look born here (see §6).
 ```
 
 ### Status (`status.html`) — the roster's game-state lens
+
 ```
 [ ENCOUNTER — round 2 | ▸Niko · Bandit×2 · Mara · You ]   (only when live)
 ROSTER — 3 ────────────────────────────
@@ -115,12 +118,14 @@ ROSTER — 3 ──────────────────────�
 VEILED — host only ────────────────────  (crown gold)
 [ 👁̸  Sera claims she never touched the key — truth: she pocketed it · t41 ]
 ```
+
 **Biggest change:** sparse name+bar list → portrait-led instrument cards (D44 portrait, relationship
 badge ON the name line, mood, meters, condition chips) + the encounter banner + the veiled ledger.
 **Why:** the roster IS the game state; identity (portrait) is what makes a glance land; the
 encounter is badged here per the CP-doc ruling, never a transient tab.
 
 ### Sheet (`sheet.html`) — the viewer's sheet
+
 ```
 [ You | Mara | Niko | JFC ]           ← member selector, self default
 [ ◙ Mara · Warden        Level 3 · ⛁128 ]
@@ -128,21 +133,25 @@ ATTRIBUTES ── 3-up stat-cell grid (16/STR idiom, hint on title)
 SKILLS ───── name · +bonus rows
 POOLS ────── meter rows + "Add meter" (member-own row)
 ```
+
 **Biggest change:** grid over list — six attributes in the space one used to take. Level (hand-only,
 nullable → renders nothing when null) and the wallet chip live on the identity line. Freeform games
 get the honest teaching state, doorway to Game.
 
 ### Inventory (`inventory.html`) — the pack
+
 ```
 [ ⛁ 128 gold · shared purse — 31 on Mara ]   ← pinned currency line (Q6a slot)
 PACK — 8 ── 5-col square grid: glyph, qty corner, name on title,
             quest-bound = ember dot, ONE dashed ghost socket
 [ ⟲ last change — t43 · dart bagged ]
 ```
+
 **Biggest change:** text list → the OSRS item grid. No encumbrance UI (not modeled): items + one
 ghost socket, never a fake 28-slot pack.
 
 ### Scene (`scene.html`) — the NOW window
+
 ```
 [ 📍 Location · Date · Time · Weather ]   ← ambient card, editable in place
 ON STAGE — 2 ── cast cards: name · relationship · mood · cast-field
@@ -152,59 +161,70 @@ GOALS ───────── goal lines + n/m clock segments
 [ widgets grouped by subjectName ]
 JUST NOW ────── freshest beats + newborn immersive cards
 ```
+
 **Biggest change:** the same ingredients the current tab strews as bare form fields become a
 composed NOW window, and the choice block gives CYOA its in-the-moment home. Scene = window,
 Journal = archive.
 
 ### Quests (`quests.html`) — live in lite AND full
+
 ```
 [ ACT II — THE BONE KEY   ●I ─ ◉II ─ ○III ]  ← the plot spine (ember = now)
 ACTIVE — 2 ── clock-ring cards (segments ARE the objectives) + checklist
 DONE — 1 ──── dimmed, struck, wrap line ("wrapped at t28 — …")
 ```
+
 **Biggest change:** quests get clocks and a spine. The segmented ring's segments are the
 objectives — never a decorative dial. Campaign-scale plot progression homes HERE (moment-scale
 choice is Scene's): one axis per tab.
 
 ### Journal (`journal.html`) — live in lite AND full
+
 ```
 [ All | Wraps | Cards ]
 DAY 3 — NIGHT ── beats · an archived immersive card (full chrome)
 DAY 3 — DUSK ─── session-wrap card (ember left edge)
 DAY 2 ────────── beats
 ```
+
 **Biggest change:** grouping by in-world day (free-text fantasy calendars welcome) — a campaign
 chronicle, not a flat log. Cards archive in the day they were born.
 
 ### Map (`map.html`) — the one PHASE-locked tab
+
 Locked: visible, `aria-disabled`, lock glyph, reason on title ("Maps unlock with the map arc
 (MA-3)") — the viewport shows the waystone enlarged over the region map at 14% opacity: the promise
 visible, the gate honest. Preview (MA-3): edge-to-edge region map, known places pinned, you-are-here
-= the ambient location in ember, roads dashed track-gold, unexplored fog labeled "the story clears
+\= the ambient location in ember, roads dashed track-gold, unexplored fog labeled "the story clears
 the fog."
 
 ### Members (`members.html`)
+
 Roster ADMINISTRATION — portrait rows, host crown, per-character talkativeness slider (was a bare
 "50%" text), humans slider-less, pending invites dim with revoke. Footer names the two-lens rule
 (Status = game state, Members = admin — one roster, no party system).
 
 ### Settings (`settings.html`)
+
 CP-1's consolidated body in takeover density: appearance overrides · group behavior · a new "This
 game" group for display-only game knobs (dice cues, beat notifications) so display prefs never leak
 into the GM console. Autosave status line, no Save buttons (D66 A4).
 
 ### Injections (`injections.html`)
+
 The steering channel's authoring home, grouped by class (guides — persistent · notes —
 depth-pinned), role/depth meta in mono. The cross-link card states the one-seam story: trackers ride
 this channel, authored here, glanced in the game tabs.
 
 ### Preview (`preview.html`, host)
+
 **Biggest change:** the context budget becomes a stacked bar whose slices are swatch-keyed to the
 assembly section list — "where did my context go" is one glance. The serialized game-state block is
 shown verbatim (mono), veiled line in crown gold: the panel and the prompt provably carry the same
 numbers.
 
 ### Game (`game.html`, host — the crown tab)
+
 The ONE game-admin home, crown-tinted: mode + session controls, stat-profile vocabulary, pool defs
 carrying their track-ramp swatch (definition and display visibly one system), cast-field schemas,
 relationship hints, the steering note, the delivery-model knob with its honest consequence line.
@@ -325,7 +345,7 @@ Ran the "is any part the generic default?" pass against the first plan; four rev
 > §12.5 for the glyph-resolution story.
 
 | Mock element | Builds as |
-|---|---|
+| - | - |
 | The waystone | a new kit-tier composite beside RingGauge (`charts/meter` family — pure SVG, data-viz allowlist), mounted in the `header` slot component |
 | Orbs / coin | `RingGauge` (exists) + a `CoinFigure` sibling |
 | Meter rows, stat cells, chips, cast cards, beats, ambient, goals | the shipped tracker-block kit (`components/tracker-blocks/`) — the mocks are its blocks, denser |
@@ -388,8 +408,7 @@ Round 1 already repeats primitives well; these are the remaining one-offs that g
    ACTIVE quests (same `RpgQuestView` rows, name + `n/m` from objectives). Stated rule: Quests tab
    is the quest plane's home; Scene shows a filtered echo (active only, compact row) built from
    the same primitive — one datum, two lenses, zero divergent state.
-9. **Mock-local CSS conveniences become tokens/variants once.** `--ember-tint/--ember-line/
-   --crown/--track-bg` are per-file custom props in the mocks; in build they live once (meter kit
+9. **Mock-local CSS conveniences become tokens/variants once.** `--ember-tint/--ember-line/ --crown/--track-bg` are per-file custom props in the mocks; in build they live once (meter kit
    `variants.ts` already owns the track background; the tints are `color-mix` recipes in ONE
    shared variants module), never re-derived per component.
 
@@ -481,6 +500,7 @@ The panel is editable-in-place (owner-sacred) and autosaving (D66 A4 — no Save
 editable datum follows ONE edit grammar; the ward has four tiers, ordered by preference:
 
 **Tier 0 — illegal input is unenterable (structure beats validation).**
+
 - Every closed vocab is a PICKER, never text: relationship kind (6-token enum), quest status,
   journal type, cast-field kind, time-of-day (the 6 `TIME_OF_DAY` labels — the panel NEVER
   exposes a raw hour field; the label→hour mapping is the contract's one home), extraction mode,
@@ -491,6 +511,7 @@ editable datum follows ONE edit grammar; the ward has four tiers, ordered by pre
   trim + length caps — prose is canon, the panel does not lint fiction.
 
 **Tier 1 — clamp-and-tell (recoverable slips).**
+
 - Pool/HP/meter VALUE: clamped to `≥ 0` on commit. Note the schema deliberately allows
   `value > max` (no upper CHECK) — overfull is representable fiction (overheal, borrowed
   resolve); the panel ACCEPTS it and renders it honestly: bar capped at 100%, the `34/30` text
@@ -578,7 +599,7 @@ lucide-react** (runtime-checked against `packages/ui/node_modules/lucide-react`,
    rope→Cable · ration/bread/food→Beef · oil/drop→Droplet · dart/needle/arrow→Crosshair ·
    torch/lantern→Flame(Lamp) · coin/purse→Coins · map/chart→Map · scroll/letter→Scroll ·
    book/tome→BookOpen · shield→Shield · armor→ShieldHalf · gem/jewel→Gem · herb→Leaf ·
-   bone→Bone · skull→Skull` — ~60 fantasy-floor keywords, grown by append. Deterministic token
+   bone→Bone · skull→Skull` — \~60 fantasy-floor keywords, grown by append. Deterministic token
    matching ONLY — no fuzzy-distance dependency (deps law), no LLM call, testable as a table.
 2. **Second chance on the taxonomy string.** Items carry a model-written `type` ("weapon",
    "consumable", "quest") — a smaller type→icon map catches what the name missed.

@@ -15,7 +15,7 @@
 // own the tabs; the SHELL owns the arrangement (the context bracket — band slot, rails, viewport, ground —
 // `app-shell/components/context-bracket.tsx`, #860) and rpg owns only the band's content.
 //
-// THE INSTRUMENT TIER RIDES THE BODIES (§7.4; density-pass-spec §3.1 names the game pane as this exact
+// THE INSTRUMENT TIER RIDES THE BODIES (§7.4; UI-Density-Law §3.1 names the game pane as this exact
 // surface): every game tab body is wrapped in `<Surface tier="instrument">` here — read-mostly, glanceable,
 // many data per cm² — and the band wraps itself (`rpg-hud-band.tsx`). NEVER the rails: those are the shell's
 // and must render identically in a normal room and a game room, which is the whole ruling.

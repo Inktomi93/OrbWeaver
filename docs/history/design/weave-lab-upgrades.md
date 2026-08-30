@@ -8,10 +8,10 @@ updated: 2026-08-14
 
 > Provenance: the claude.ai/design motion review's SECOND handoff ("Orbweaver UI" project,
 > `templates/weave-lab/HANDOFF.md`, fetched 2026-08-14). Extends — and in one place AMENDS —
-> [`../history/design/web-weave-motion-fixes.md`](../history/design/web-weave-motion-fixes.md); the design side's own sequencing is
+> [`../history/design/web-weave-motion-fixes.md`](web-weave-motion-fixes.md); the design side's own sequencing is
 > "land the defect fixes first." Browser-verified references vendored read-only:
-> [`mocks/weave-lab-reference.js`](mocks/weave-lab-reference.js) (engine, `<weave-lab>`) and
-> [`mocks/weave-spinner-reference.js`](mocks/weave-spinner-reference.js) (loader). Same constants
+> [`mocks/weave-lab-reference.js`](../../design/mocks/weave-lab-reference.js) (engine, `<weave-lab>`) and
+> [`mocks/weave-spinner-reference.js`](../../design/mocks/weave-spinner-reference.js) (loader). Same constants
 > and timeline as shipped. REFERENCE, never a vendoring source; every claim gets re-verified
 > against the live tree before implementing.
 
@@ -92,7 +92,7 @@ acceptance shape; 58 unit tests in `tests/ui/art/web-weave/` and 16 CTs. Where t
 
 1. **The scaffold seam DISSOLVED rather than moving.** §3's own thesis (no unattended silk) applies to
    the aux spiral too: the last radius left her at the hub while the scaffold began a free-zone radius
-   out, so she jumped ~100px and its first ring was spun by nobody. She now WALKS OUT over the first 8%
+   out, so she jumped \~100px and its first ring was spun by nobody. She now WALKS OUT over the first 8%
    of the scaffold beat, and the scaffold's birth times start when she arrives. The build's itinerary
    is now gap-free end to end (previously one pinned 104px seam).
 2. **`character` defaults to `calm`, and `calm.turnRate` is the SHIPPED 0.22, not the lab's 0.18.** The

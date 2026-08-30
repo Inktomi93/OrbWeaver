@@ -15,9 +15,9 @@ updated: 2026-08-22
 Codex subscription ENDED (not renewing); Claude is the sole agent system. The 2026-08-21 fix train
 (board #382-#387, all Done) merged and its drain `pnpm check` is GREEN on main; the behavioral
 battery run was aborted for load and is OWED. Since then merged: #390 host-seat unique index
-pending-merge check, #393 P0 design doc (`docs/design/tooling-package.md` — the tooling-package
+pending-merge check, #393 P0 design doc (`docs/architecture/core/Core-Tooling-Law.md` — the tooling-package
 program, owner review of its four open questions PENDING), #395 kit/time on Temporal (luxon residual
-= `{{datetimeformat}}` vocabulary, documented in macro/registry.ts header).
+\= `{{datetimeformat}}` vocabulary, documented in macro/registry.ts header).
 
 In flight (lanes resume via SendMessage; worktrees under `.claude/worktrees/`): stryker-v10 #394
 (items 1-5 committed `6ac24b8aa` on `wt/agent-a5802b358a89ffddc`; gate calibration at
@@ -30,8 +30,7 @@ idle awaiting owner P0 review; P1 = scaffold + gates + test infra continues in-l
 
 Standing rulings this day (also in `.claude/rules/orchestration.md` + session-anchor memory): dev DB
 is EXPENDABLE (wipes = ST-import exercises, no backup ceremony); heavy entrypoints run `nice -n 19`
-(package.json, `32691051c`); lanes use `pnpm test:scoped <paths> --maxWorkers=4` / `pnpm ct:scoped
-<paths> --workers=2` (`aac3b20bd`); calibrations are orchestrator-scheduled; the dev stack SELF-HEALS
+(package.json, `32691051c`); lanes use `pnpm test:scoped <paths> --maxWorkers=4` / `pnpm ct:scoped <paths> --workers=2` (`aac3b20bd`); calibrations are orchestrator-scheduled; the dev stack SELF-HEALS
 (vite prebundle law was stale — `db25e3d1d`); typecheck truth table corrected (`503f0d2c7` — only
 per-package sees `.ct.tsx`; also `@base-ui` ambients make `types:graph` blind to global-type
 questions).
@@ -53,7 +52,7 @@ in → dry-run → calibration at --concurrency 6; TS7 three-arm experiment runn
 mechanism found in typescript-checker's ts-native — conditional LOCAL pnpm patch + native flip ONLY if
 arm A fixes verdict AND speed; calibration must run on the shipping checker config). Codex's FINAL
 merge `837e73853` (its branch 3cbb9602a..837e73853: memory-retrieval teaching #331 + coarse widths
-#371 + Select motion calibration #374/#389, 44 files +3172) is UNDER REVIEW — stickler dispatched;
+\#371 + Select motion calibration #374/#389, 44 files +3172) is UNDER REVIEW — stickler dispatched;
 its verdict routes fixes before this merge is trusted. Codex residue cleanup = #400. LATE DELTA: the TS7 four-arm falsification
 CONFIRMED one bug caused both symptoms; a one-line typescript-checker patch landed, native checker ON
 in both configs (identical verdict to classic, faster); gate calibration running cold on the landed
@@ -61,21 +60,21 @@ config — its report brings the recommended break + non-comparability evidence 
 population. Two private patches now carried (core sandbox + checker path-normalization); NEVER filed
 upstream (owner posture).
 
-RITUAL DELTA (2026-08-21 evening, ~98% context): Stickler CLEARED Codex's final merge `837e73853`
+RITUAL DELTA (2026-08-21 evening, \~98% context): Stickler CLEARED Codex's final merge `837e73853`
 (verdict: sanctioned shape; 3 LOW findings → #405; report
 `docs/history/reviews/stickler/2026-08-21-codex-final-merge.md`, receipted). Owner decision batch RULED via
 question tool, all four on recommended arms and closed Done: #397 gate the speak-as picker
 (executable half filed as #406, Ready, P2/Client), #399 keep luxon forever (`{{datetimeformat}}`
 grammar permanent), #401 ratify derive-not-refuse as standing parser policy, #402 accept sweep scope
 as designed (ruling comment committed at the predicate, `7755e932c`). Needs-owner column EMPTY except
-#285 glow (needs rendered evidence, not a ruling). In flight: forge P1 tooling scaffold (agent
-af38fe8da3abc32df, worktree `.claude/worktrees/agent-af38fe8da3abc32df` — _shared promotion underway,
-argv test relocated to tests/tooling/_shared/, deletions-manifest row added; merges after report +
+\#285 glow (needs rendered evidence, not a ruling). In flight: forge P1 tooling scaffold (agent
+af38fe8da3abc32df, worktree `.claude/worktrees/agent-af38fe8da3abc32df` — \_shared promotion underway,
+argv test relocated to tests/tooling/\_shared/, deletions-manifest row added; merges after report +
 whole-tree check, then P2 snap pilot in-lane); stryker-v10 calibration (agent a5802b358a89ffddc,
 watching sv10-calib.log for EXIT — its report brings score + recommended `break` as commit 2, then
 orchestrator merges #394; evidence must record upstream-drafts-stay-local posture). Queued Ready:
-#388 #391 #392 #398 #400 #404 #405 #406. Plan of record for the tooling program: P0 doc
-`docs/design/tooling-package.md` (owner-APPROVED) + plan file `~/.claude/plans/jolly-churning-dove.md`
+\#388 #391 #392 #398 #400 #404 #405 #406. Plan of record for the tooling program: P0 doc
+`docs/architecture/core/Core-Tooling-Law.md` (owner-APPROVED) + plan file `~/.claude/plans/jolly-churning-dove.md`
 (P0-P9). Untracked residue (3 side-eye docs + .codex/config.toml) = #400's scope, leave in place.
 
 VACATION POSTURE (2026-08-22 → owner returns; supersedes earlier deltas): OVERNIGHT MODE IS STANDING
@@ -83,12 +82,12 @@ VACATION POSTURE (2026-08-22 → owner returns; supersedes earlier deltas): OVER
 drain Ready · lanes at cap · merge+barrier per train · file-claim-fix findings · Parked stays parked ·
 Needs-owner accumulates (#431 colorization reach awaits the owner's eye) · never merge under a live drive ·
 ready-dry fallback = side-eye every RAIL item + home screen (fix all identified, never score-chase) ·
-claude-b overflow ONLY on a WEEKLY ≥85% usage sentinel (CLAUDE_CONFIG_DIR=~/.claude-b claude -p, cold
+claude-b overflow ONLY on a WEEKLY ≥85% usage sentinel (CLAUDE\_CONFIG\_DIR=\~/.claude-b claude -p, cold
 briefs, verify receipts). Tooling program #393 COMPLETE (P0-P9). Neo parity RIPPED (#428). Recent Done:
-#376 #391 #392 #398 #400 #404-analysis #405 #406 #408 #409-#424 #426 #428 #291. Live lanes at this
+\#376 #391 #392 #398 #400 #404-analysis #405 #406 #408 #409-#424 #426 #428 #291. Live lanes at this
 snapshot: kill-assemble (#404 kill-tests), client-polish (#424+#429), audit-aspect (#430). Parked: #54
 demo-seeding (wake=owner) · #403 · #418 · #425-closed. Pre-push bar unchanged: full battery + verify
---push + FRESH owner word — never push origin.
+\--push + FRESH owner word — never push origin.
 
 This page is the cold-start entry point, not a backlog or a second source of status. Mutable work
 lives in [Orbweaver Project 1](https://github.com/users/Inktomi93/projects/1); repository documents

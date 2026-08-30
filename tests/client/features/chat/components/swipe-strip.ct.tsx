@@ -61,7 +61,7 @@ test("renders the n/m counter and fires swipe (generate) on the next chevron at 
   await expect.poll(() => trpc.count("chat.selectVariant")).toBe(0);
 });
 
-// DENSITY S6 (density-pass-spec.md §2.3): the n/m counter is a VALUE you read, so it speaks the `datum`
+// DENSITY S6 (UI-Density-Law.md §2.3): the n/m counter is a VALUE you read, so it speaks the `datum`
 // voice — mono + tabular figures, so the digits stop shifting the chevrons sideways as the count ticks.
 // Asserted by computed style, never by the class string.
 test("the n/m counter speaks the datum voice — mono, tabular figures (the digits don't jitter the chevrons)", async ({ mount, page }) => {

@@ -1,4 +1,4 @@
-// Gate: tooling-slot-template (docs/design/tooling-package.md §4.1) — the five-slot tool template.
+// Gate: tooling-slot-template (docs/architecture/core/Core-Tooling-Law.md §4.1) — the five-slot tool template.
 // Arms: (A) a loose file at tooling/src/ root; (B) a tool dir missing index.ts, or missing cli.ts
 // without a BASH_FRONTED_TOOLS row; (C) a tool-root entry outside {cli.ts,index.ts,contract/,ops/,lib/}
 // (+ *.sh for bash-fronted rows); (D) a subdir under _shared/ (the plumbing floor is FLAT by design);
@@ -27,7 +27,7 @@ const BASH_FRONTED_TOOLS: ExemptionTable = {
  *  which corpus is sanctioned, so a second stray dir under the same tool is still RED. */
 const CORPUS_SLOTS: ExemptionTable = {
   verify: {
-    why: "`gates/` is a 219-module DESCRIPTOR CORPUS the loader globs (it IS the registry) — not a command family (ops/) and not tool-internal helpers (lib/); docs/design/tooling-package.md §4.3 pre-declares the path as the size-cap carve. Ends if the corpus stops being fs-discovered (a hand-written registry would make the gates ordinary lib/ modules) or the dir moves.",
+    why: "`gates/` is a 219-module DESCRIPTOR CORPUS the loader globs (it IS the registry) — not a command family (ops/) and not tool-internal helpers (lib/); docs/architecture/core/Core-Tooling-Law.md §4.3 pre-declares the path as the size-cap carve. Ends if the corpus stops being fs-discovered (a hand-written registry would make the gates ordinary lib/ modules) or the dir moves.",
   },
 };
 
@@ -46,13 +46,13 @@ function toolDirViolations(root: string, tool: string): readonly FsViolation[] {
   if (!names.has("index.ts")) {
     out.push({
       file: rel,
-      message: `tool "${tool}" has no index.ts — the programmatic front door is mandatory (docs/design/tooling-package.md §4.1)`,
+      message: `tool "${tool}" has no index.ts — the programmatic front door is mandatory (docs/architecture/core/Core-Tooling-Law.md §4.1)`,
     });
   }
   if (!(names.has("cli.ts") || bashFronted)) {
     out.push({
       file: rel,
-      message: `tool "${tool}" has no cli.ts — the argv front door is mandatory, or a BASH_FRONTED_TOOLS row (docs/design/tooling-package.md §4.1)`,
+      message: `tool "${tool}" has no cli.ts — the argv front door is mandatory, or a BASH_FRONTED_TOOLS row (docs/architecture/core/Core-Tooling-Law.md §4.1)`,
     });
   }
   for (const e of entries) {
@@ -60,7 +60,7 @@ function toolDirViolations(root: string, tool: string): readonly FsViolation[] {
       if (!(TOOL_SLOT_DIRS.has(e.name) || CORPUS_SLOTS[tool] !== undefined)) {
         out.push({
           file: `${rel}/${e.name}`,
-          message: `"${e.name}/" is not a slot — a tool dir holds only contract/ ops/ lib/ (docs/design/tooling-package.md §4.1)`,
+          message: `"${e.name}/" is not a slot — a tool dir holds only contract/ ops/ lib/ (docs/architecture/core/Core-Tooling-Law.md §4.1)`,
         });
       }
       continue;
@@ -70,7 +70,7 @@ function toolDirViolations(root: string, tool: string): readonly FsViolation[] {
     }
     out.push({
       file: `${rel}/${e.name}`,
-      message: `stray tool-root file "${e.name}" — root holds only cli.ts + index.ts; code lives in ops/ or lib/, data beside its consumer (docs/design/tooling-package.md §4.1)`,
+      message: `stray tool-root file "${e.name}" — root holds only cli.ts + index.ts; code lives in ops/ or lib/, data beside its consumer (docs/architecture/core/Core-Tooling-Law.md §4.1)`,
     });
   }
   return out;
@@ -82,7 +82,7 @@ function scanTree(root: string, srcDir: string): readonly FsViolation[] {
     if (!entry.isDirectory()) {
       out.push({
         file: `${TOOLING_SRC}/${entry.name}`,
-        message: `loose file "${entry.name}" at tooling/src root — every entry is a tool DIRECTORY or _shared/ (docs/design/tooling-package.md §4.1)`,
+        message: `loose file "${entry.name}" at tooling/src root — every entry is a tool DIRECTORY or _shared/ (docs/architecture/core/Core-Tooling-Law.md §4.1)`,
       });
     } else if (entry.name === SHARED) {
       out.push(...sharedViolations(srcDir));
@@ -99,7 +99,7 @@ function sharedViolations(srcDir: string): readonly FsViolation[] {
     if (e.isDirectory()) {
       out.push({
         file: `${TOOLING_SRC}/${SHARED}/${e.name}`,
-        message: `"_shared/${e.name}/" — the plumbing floor is FLAT modules; a subdir is a hidden drawer (docs/design/tooling-package.md §2.4)`,
+        message: `"_shared/${e.name}/" — the plumbing floor is FLAT modules; a subdir is a hidden drawer (docs/architecture/core/Core-Tooling-Law.md §2.4)`,
       });
     }
   }
@@ -115,7 +115,7 @@ function staleCorpusRows(root: string): readonly FsViolation[] {
     if (!existsSync(dir)) {
       out.push({
         file: `${TOOLING_SRC}/${tool}`,
-        message: `stale CORPUS_SLOTS row "${tool}" — no such tool dir (row why: ${row.why}). Delete the row (docs/design/tooling-package.md §4.1).`,
+        message: `stale CORPUS_SLOTS row "${tool}" — no such tool dir (row why: ${row.why}). Delete the row (docs/architecture/core/Core-Tooling-Law.md §4.1).`,
       });
       continue;
     }
@@ -123,7 +123,7 @@ function staleCorpusRows(root: string): readonly FsViolation[] {
     if (extras.length === 0) {
       out.push({
         file: `${TOOLING_SRC}/${tool}`,
-        message: `stale CORPUS_SLOTS row "${tool}" — the tool carries no extra slot dir any more (row why: ${row.why}). Delete the row (docs/design/tooling-package.md §4.1).`,
+        message: `stale CORPUS_SLOTS row "${tool}" — the tool carries no extra slot dir any more (row why: ${row.why}). Delete the row (docs/architecture/core/Core-Tooling-Law.md §4.1).`,
       });
     }
   }
@@ -137,12 +137,12 @@ function staleBashRows(root: string): readonly FsViolation[] {
     if (!existsSync(dir)) {
       out.push({
         file: `${TOOLING_SRC}/${tool}`,
-        message: `stale BASH_FRONTED_TOOLS row "${tool}" — no such tool dir (row why: ${row.why}). Delete the row (docs/design/tooling-package.md §4.1).`,
+        message: `stale BASH_FRONTED_TOOLS row "${tool}" — no such tool dir (row why: ${row.why}). Delete the row (docs/architecture/core/Core-Tooling-Law.md §4.1).`,
       });
     } else if (existsSync(join(dir, "cli.ts"))) {
       out.push({
         file: `${TOOLING_SRC}/${tool}/cli.ts`,
-        message: `BASH_FRONTED_TOOLS row "${tool}" is stale — the tool has a cli.ts now. Delete the row (docs/design/tooling-package.md §4.1).`,
+        message: `BASH_FRONTED_TOOLS row "${tool}" is stale — the tool has a cli.ts now. Delete the row (docs/architecture/core/Core-Tooling-Law.md §4.1).`,
       });
     }
   }
@@ -151,12 +151,12 @@ function staleBashRows(root: string): readonly FsViolation[] {
 
 export const gate: GateDescriptor = {
   name: "tooling-slot-template",
-  docRow: "Core-Enforcement-Active-Gates.md (docs/design/tooling-package.md §4.1)",
+  docRow: "Core-Enforcement-Active-Gates.md (docs/architecture/core/Core-Tooling-Law.md §4.1)",
   status: "active",
   scopeSafety: "whole-project",
   fsBacked: true,
   message:
-    "a @orb/tooling tree entry violates the five-slot tool template — every tool is cli.ts + index.ts + {contract/,ops/,lib/}; _shared/ is flat plumbing; nothing else lives at a tool root (docs/design/tooling-package.md §2.5/§4.1).",
+    "a @orb/tooling tree entry violates the five-slot tool template — every tool is cli.ts + index.ts + {contract/,ops/,lib/}; _shared/ is flat plumbing; nothing else lives at a tool root (docs/architecture/core/Core-Tooling-Law.md §2.5/§4.1).",
   fix: "add the missing front door, move the stray into ops//lib/, or (bash-fronted) add the BASH_FRONTED_TOOLS row with its why.",
   run: (ctx) => {
     const srcDir = join(ctx.root, TOOLING_SRC);
@@ -217,7 +217,7 @@ export const gate: GateDescriptor = {
         "tooling/src/verify/index.ts": "export {};\n",
         "tooling/src/verify/gates/x.ts": "export const gate = 1;\n",
       },
-      why: "the CORPUS_SLOTS row: verify's gates/ is the sanctioned sixth slot (docs/design/tooling-package.md §4.3)",
+      why: "the CORPUS_SLOTS row: verify's gates/ is the sanctioned sixth slot (docs/architecture/core/Core-Tooling-Law.md §4.3)",
     },
   ],
 };
