@@ -23,6 +23,7 @@ import { Row, Section } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
+import { ConfigTeachScope, SettingRow } from "#components";
 import { createEntityMutation, QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms";
@@ -86,36 +87,21 @@ function MessageStyleBody({ sectionId, session }: { readonly sectionId: string; 
       heading={APPEARANCE_MESSAGE_STYLE_SUBCATEGORY.label}
       id={configAnchorId("appearance", APPEARANCE_MESSAGE_STYLE_SUBCATEGORY.id)}
     >
-      <FieldLayout orientation="horizontal">
-        <form.AppField name="chatStyle">
-          {(field): ReactElement => (
-            <field.SelectField
-              label="Chat display"
-              // The per-mode legend that used to live here moved INTO the option rows
-              // (`CHAT_STYLE_DESCRIPTIONS`): the popup covers this line the moment the select opens, so
-              // the explanation was invisible at exactly the moment it was needed (side-eye 2026-08-16).
-              description="How every message in the transcript is shaped."
-              items={CHAT_STYLE_ITEMS}
-            />
-          )}
-        </form.AppField>
-        <form.AppField name="colorQuotedSpeech">
-          {(field): ReactElement => (
-            <field.SwitchField
-              label="Color quoted speech"
-              description="Tint “quoted speech” with the theme’s dialogue color (SillyTavern-style) — a character’s own theme wins. Off renders quotes in the body color."
-            />
-          )}
-        </form.AppField>
-        <form.AppField name="autoFixMarkdown">
-          {(field): ReactElement => (
-            <field.SwitchField
-              label="Auto-fix unfinished formatting"
-              description="Close a dangling *italic*/**bold** on settled messages (SillyTavern-style). Off keeps a lone asterisk — e.g. a censored word — literal."
-            />
-          )}
-        </form.AppField>
-      </FieldLayout>
+      {/* THE TEACHER LAW (#866 S3): rows are label + control — the prose lives on each leaf's `teach`.
+          The per-mode legend stays INSIDE the option rows (`CHAT_STYLE_DESCRIPTIONS`, side-eye 2026-08-16). */}
+      <ConfigTeachScope value={{ group: "appearance", sub: APPEARANCE_MESSAGE_STYLE_SUBCATEGORY }}>
+        <FieldLayout orientation="horizontal">
+          <SettingRow settingId="chat-style">
+            <form.AppField name="chatStyle">{(field): ReactElement => <field.SelectField label="Chat display" items={CHAT_STYLE_ITEMS} />}</form.AppField>
+          </SettingRow>
+          <SettingRow settingId="color-quoted-speech">
+            <form.AppField name="colorQuotedSpeech">{(field): ReactElement => <field.SwitchField label="Color quoted speech" />}</form.AppField>
+          </SettingRow>
+          <SettingRow settingId="auto-fix-markdown">
+            <form.AppField name="autoFixMarkdown">{(field): ReactElement => <field.SwitchField label="Auto-fix unfinished formatting" />}</form.AppField>
+          </SettingRow>
+        </FieldLayout>
+      </ConfigTeachScope>
       <Row gap="field" align="center">
         <SectionSaveStatus id={sectionId} state={saveState} onRetry={retrySave} />
       </Row>

@@ -10,12 +10,43 @@ export const APPEARANCE_READING_SUBCATEGORY: ConfigSubcategory = {
   label: "Reading typography",
   keywords: ["text", "prose", "font"],
   settings: [
-    { id: "line-height", label: "Line height", keywords: ["leading", "spacing"] },
-    { id: "letter-spacing", label: "Letter spacing", keywords: ["tracking", "kerning"] },
-    { id: "paragraph-spacing", label: "Paragraph spacing" },
-    { id: "name-scale", label: "Speaker name size" },
-    { id: "body-scale", label: "Message text size" },
-    { id: "justify", label: "Justify message text", keywords: ["align", "manuscript"] },
+    {
+      id: "line-height",
+      label: "Line height",
+      keywords: ["leading", "spacing"],
+      teach: { summary: "Spacing between lines of message text.", affects: ["message body text in every chat"] },
+    },
+    {
+      id: "letter-spacing",
+      label: "Letter spacing",
+      keywords: ["tracking", "kerning"],
+      teach: { summary: "Tracking applied to message text, in em.", affects: ["message body text in every chat"] },
+    },
+    {
+      id: "paragraph-spacing",
+      label: "Paragraph spacing",
+      teach: { summary: "The gap between paragraphs inside one message, in rem.", affects: ["multi-paragraph messages in every chat"] },
+    },
+    {
+      id: "name-scale",
+      label: "Speaker name size",
+      teach: { summary: "A multiplier on the attribution name text above each message.", affects: ["speaker names in every chat"] },
+    },
+    {
+      id: "body-scale",
+      label: "Message text size",
+      teach: {
+        summary: "A multiplier on message body text, independent of the global text size.",
+        affects: ["message body text only — the rest of the app keeps the global size"],
+        related: [{ group: "appearance", sub: "sizing", setting: "font-scale" }],
+      },
+    },
+    {
+      id: "justify",
+      label: "Justify message text",
+      keywords: ["align", "manuscript"],
+      teach: { summary: "Aligns both edges of wrapped message text, manuscript style.", affects: ["paragraph edges in every chat"] },
+    },
   ],
 };
 

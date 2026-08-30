@@ -27,8 +27,8 @@ const ROWS: Readonly<Partial<Record<ConfigGroupId, readonly ConfigSubcategory[]>
       navLabel: "Chips",
       keywords: ["metadata"],
       settings: [
-        { id: "avatar-size", label: "Avatar size", keywords: ["scale"] },
-        { id: "debug-grid", label: "Layout debug grid", advanced: true },
+        { id: "avatar-size", label: "Avatar size", keywords: ["scale"], teach: { summary: "A fixture lesson.", affects: ["a fixture surface"] } },
+        { id: "debug-grid", label: "Layout debug grid", advanced: true, teach: { none: "a fixture leaf — the search axis is the subject" } },
       ],
     },
   ],

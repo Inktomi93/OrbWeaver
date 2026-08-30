@@ -14,9 +14,34 @@ export const APPEARANCE_MESSAGE_STYLE_SUBCATEGORY: ConfigSubcategory = {
   id: "message-style",
   label: "Message style",
   settings: [
-    { id: "chat-style", label: "Chat display", keywords: ["bubble", "flat", "document", "immersive", "echo", "whisper", "ripple"] },
-    { id: "color-quoted-speech", label: "Color quoted speech", keywords: ["dialogue", "quotes", "speech"] },
-    { id: "auto-fix-markdown", label: "Auto-fix unfinished formatting", keywords: ["markdown", "italic", "bold", "asterisk"] },
+    {
+      id: "chat-style",
+      label: "Chat display",
+      keywords: ["bubble", "flat", "document", "immersive", "echo", "whisper", "ripple"],
+      teach: {
+        summary: "How every message in the transcript is shaped — bubbles, flat rows, document flow, or the immersive skins.",
+        affects: ["the anatomy of every message row, in every chat"],
+      },
+    },
+    {
+      id: "color-quoted-speech",
+      label: "Color quoted speech",
+      keywords: ["dialogue", "quotes", "speech"],
+      teach: {
+        summary:
+          "Tints “quoted speech” with the theme's dialogue color (SillyTavern-style) — a character's own theme wins. Off renders quotes in the body color.",
+        affects: ["quoted dialogue in every message"],
+      },
+    },
+    {
+      id: "auto-fix-markdown",
+      label: "Auto-fix unfinished formatting",
+      keywords: ["markdown", "italic", "bold", "asterisk"],
+      teach: {
+        summary: "Closes a dangling *italic*/**bold** on settled messages (SillyTavern-style). Off keeps a lone asterisk — e.g. a censored word — literal.",
+        affects: ["how settled messages render", "never the stored text itself"],
+      },
+    },
   ],
 };
 

@@ -28,6 +28,25 @@ test("icon size (Section's anatomy): same locator, same accname/tooltip contract
   await expect(page.getByText("How the sampler shapes the distribution.")).toBeVisible();
 });
 
+test("an optional onClick fires on activation AND the tooltip still shows on hover (#866 S3 — the teacher's door)", async ({ mount, page }) => {
+  let clicks = 0;
+  await mount(
+    <HintTrigger
+      className="test-trigger"
+      hint="Opens the teacher"
+      onClick={(): void => {
+        clicks += 1;
+      }}
+      subject="Chat width"
+    />,
+  );
+  const button = page.getByRole("button", { name: "More info about Chat width" });
+  await button.hover();
+  await expect(page.getByText("Opens the teacher")).toBeVisible();
+  await button.click();
+  expect(clicks).toBe(1);
+});
+
 test("falls back to the bare name when subject is not a plain string", async ({ mount, page }) => {
   await mount(<HintTrigger className="test-trigger" hint="x" subject={<span>Notes</span>} />);
   await expect(page.getByRole("button", { name: "More info", exact: true })).toBeVisible();

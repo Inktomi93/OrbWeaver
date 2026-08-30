@@ -16,6 +16,7 @@ import { Row, Section } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
+import { ConfigTeachScope, SettingRow } from "#components";
 import { createEntityMutation, QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms";
@@ -82,49 +83,33 @@ function StreamingBody({ sectionId, session }: { readonly sectionId: string; rea
       heading={CHAT_STREAMING_SUBCATEGORY.label}
       id={configAnchorId("chat-behavior", CHAT_STREAMING_SUBCATEGORY.id)}
     >
-      <FieldLayout orientation="horizontal">
-        <form.AppField name="streamScrollMode">
-          {(field): ReactElement => (
-            <field.SelectField
-              label="While a reply streams"
-              description="Follow keeps the newest text in view. Pin scrolls your just-sent message to the top and holds it there while the reply grows below (ChatGPT-style)."
-              items={STREAM_SCROLL_MODE_ITEMS}
-            />
-          )}
-        </form.AppField>
-        <form.AppField name="smoothStream">
-          {(field): ReactElement => (
-            <field.SwitchField
-              label="Smooth streaming"
-              description="Reveal replies at a steady pace instead of raw network chunks. The reveal speeds up automatically when the model gets ahead."
-            />
-          )}
-        </form.AppField>
-        <form.Subscribe selector={(state): boolean => state.values.smoothStream}>
-          {(on): ReactElement | null =>
-            on ? (
-              <form.AppField name="smoothStreamCps">
-                {(field): ReactElement => (
-                  <field.SliderField
-                    label="Reveal speed (chars/sec)"
-                    description="The minimum reveal rate while the model is keeping pace."
-                    min={SMOOTH_STREAM_CPS_MIN}
-                    max={SMOOTH_STREAM_CPS_MAX}
-                  />
-                )}
-              </form.AppField>
-            ) : null
-          }
-        </form.Subscribe>
-        <form.AppField name="reasoningAutoCollapse">
-          {(field): ReactElement => (
-            <field.SwitchField
-              label="Auto-collapse reasoning"
-              description="Fold a reasoning-capable model's thinking trace to a 'Thought for Ns' summary the moment its answer starts. Off keeps the trace open until you close it."
-            />
-          )}
-        </form.AppField>
-      </FieldLayout>
+      {/* THE TEACHER LAW (#866 S3): rows are label + control — the prose lives on each leaf's `teach`. */}
+      <ConfigTeachScope value={{ group: "chat-behavior", sub: CHAT_STREAMING_SUBCATEGORY }}>
+        <FieldLayout orientation="horizontal">
+          <SettingRow settingId="stream-follow">
+            <form.AppField name="streamScrollMode">
+              {(field): ReactElement => <field.SelectField label="While a reply streams" items={STREAM_SCROLL_MODE_ITEMS} />}
+            </form.AppField>
+          </SettingRow>
+          <SettingRow settingId="smooth-stream">
+            <form.AppField name="smoothStream">{(field): ReactElement => <field.SwitchField label="Smooth streaming" />}</form.AppField>
+          </SettingRow>
+          <form.Subscribe selector={(state): boolean => state.values.smoothStream}>
+            {(on): ReactElement | null =>
+              on ? (
+                <SettingRow settingId="smooth-stream-cps">
+                  <form.AppField name="smoothStreamCps">
+                    {(field): ReactElement => <field.SliderField label="Reveal speed (chars/sec)" min={SMOOTH_STREAM_CPS_MIN} max={SMOOTH_STREAM_CPS_MAX} />}
+                  </form.AppField>
+                </SettingRow>
+              ) : null
+            }
+          </form.Subscribe>
+          <SettingRow settingId="reasoning-auto-collapse">
+            <form.AppField name="reasoningAutoCollapse">{(field): ReactElement => <field.SwitchField label="Auto-collapse reasoning" />}</form.AppField>
+          </SettingRow>
+        </FieldLayout>
+      </ConfigTeachScope>
       <Row gap="field" align="center">
         <SectionSaveStatus id={sectionId} state={saveState} onRetry={retrySave} />
       </Row>

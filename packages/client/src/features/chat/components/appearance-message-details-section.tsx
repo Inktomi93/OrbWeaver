@@ -15,6 +15,7 @@ import { Row, Section } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
+import { ConfigTeachScope, SettingRow } from "#components";
 import { createEntityMutation, QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms";
@@ -80,48 +81,38 @@ function MessageDetailsBody({ sectionId, session }: { readonly sectionId: string
       heading={APPEARANCE_MESSAGE_DETAILS_SUBCATEGORY.label}
       id={configAnchorId("appearance", APPEARANCE_MESSAGE_DETAILS_SUBCATEGORY.id)}
     >
-      <FieldLayout orientation="horizontal">
-        <form.AppField name="showTimestamps">
-          {(field): ReactElement => <field.SwitchField label="Show timestamps" description="A time chip on every message." />}
-        </form.AppField>
-        <form.AppField name="showMessageId">
-          {(field): ReactElement => <field.SwitchField label="Show message ID" description="The message's stable id, for scripting/reference." />}
-        </form.AppField>
-        <form.AppField name="showModelIcon">
-          {/* #167 — the credit moved from the metadata row into the message's hover/focus action cluster,
-              so the description says WHERE to look; a toggle whose effect is invisible at rest reads broken. */}
-          {(field): ReactElement => (
-            <field.SwitchField label="Show model" description="Credits the model that generated the message, in its actions row on hover." />
-          )}
-        </form.AppField>
-        <form.AppField name="showTokenCount">
-          {(field): ReactElement => <field.SwitchField label="Show token count" description="The message's token usage, when known." />}
-        </form.AppField>
-        <form.AppField name="showGenerationTimer">
-          {(field): ReactElement => (
-            <field.SwitchField label="Show generation time" description="How long the model took to generate the message, when known." />
-          )}
-        </form.AppField>
-        <form.AppField name="showGenerationCost">
-          {(field): ReactElement => (
-            <field.SwitchField label="Show generation cost" description="A click-to-reveal per-message cost, settled on demand against OpenRouter." />
-          )}
-        </form.AppField>
-        <form.AppField name="showLLMReasoningIcon">
-          {(field): ReactElement => (
-            <field.SwitchField label="Show reasoning icon" description="A small glyph on the reasoning disclosure, alongside its Thinking/Thought label." />
-          )}
-        </form.AppField>
-        <form.AppField name="messageActions">
-          {(field): ReactElement => (
-            <field.SelectField
-              label="Action cluster"
-              description="Edit/hide/fork/delete/copy, shown on hover (default) or always."
-              items={MESSAGE_ACTIONS_ITEMS}
-            />
-          )}
-        </form.AppField>
-      </FieldLayout>
+      {/* THE TEACHER LAW (#866 S3): rows are label + control — the prose lives on each leaf's `teach`
+          (incl. the #167 "where to look" line for Show model). */}
+      <ConfigTeachScope value={{ group: "appearance", sub: APPEARANCE_MESSAGE_DETAILS_SUBCATEGORY }}>
+        <FieldLayout orientation="horizontal">
+          <SettingRow settingId="show-timestamps">
+            <form.AppField name="showTimestamps">{(field): ReactElement => <field.SwitchField label="Show timestamps" />}</form.AppField>
+          </SettingRow>
+          <SettingRow settingId="show-message-id">
+            <form.AppField name="showMessageId">{(field): ReactElement => <field.SwitchField label="Show message ID" />}</form.AppField>
+          </SettingRow>
+          <SettingRow settingId="show-model">
+            <form.AppField name="showModelIcon">{(field): ReactElement => <field.SwitchField label="Show model" />}</form.AppField>
+          </SettingRow>
+          <SettingRow settingId="show-token-count">
+            <form.AppField name="showTokenCount">{(field): ReactElement => <field.SwitchField label="Show token count" />}</form.AppField>
+          </SettingRow>
+          <SettingRow settingId="show-generation-time">
+            <form.AppField name="showGenerationTimer">{(field): ReactElement => <field.SwitchField label="Show generation time" />}</form.AppField>
+          </SettingRow>
+          <SettingRow settingId="show-generation-cost">
+            <form.AppField name="showGenerationCost">{(field): ReactElement => <field.SwitchField label="Show generation cost" />}</form.AppField>
+          </SettingRow>
+          <SettingRow settingId="show-reasoning">
+            <form.AppField name="showLLMReasoningIcon">{(field): ReactElement => <field.SwitchField label="Show reasoning icon" />}</form.AppField>
+          </SettingRow>
+          <SettingRow settingId="message-actions">
+            <form.AppField name="messageActions">
+              {(field): ReactElement => <field.SelectField label="Action cluster" items={MESSAGE_ACTIONS_ITEMS} />}
+            </form.AppField>
+          </SettingRow>
+        </FieldLayout>
+      </ConfigTeachScope>
       <Row gap="field" align="center">
         <SectionSaveStatus id={sectionId} state={saveState} onRetry={retrySave} />
       </Row>

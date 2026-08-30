@@ -24,10 +24,10 @@ import { Settings } from "@orb/ui/icons";
 import { ListPaneHeader } from "#components";
 import type { ConfigGroupRegistry, SectionDefinition, SectionSelection } from "#state";
 import { clearActiveConfigGroup, collectionMemberSelection, getActiveConfigGroup, isPushingGroup, subscribeConfigNav } from "#state";
-import { ConfigContextBody, ConfigContextHeader } from "../components/config-context-body.tsx";
 import { ConfigContentSurface } from "../surfaces/config-content-surface.tsx";
 import { ConfigListSurface } from "../surfaces/config-list-surface.tsx";
-import { CONFIG_CONTEXT_EMPTY, CONFIG_SECTION_LABEL } from "./config-copy.ts";
+import { makeConfigContext } from "./config-context.tsx";
+import { CONFIG_SECTION_LABEL } from "./config-copy.ts";
 import { useConfigSelectionTitle } from "./config-selection-title.ts";
 
 /** The section's `SectionSelection` seam — the shell's mobile ONE-SHELL input, composed from the TWO facts
@@ -77,12 +77,9 @@ export function makeConfigSection(groups: ConfigGroupRegistry): SectionDefinitio
     selection: makeSelectionSeam(groups),
     useSelectionTitle: (): string | null => useConfigSelectionTitle(groups),
     content: () => <ConfigContentSurface groups={groups} />,
-    context: {
-      kind: "single",
-      body: () => <ConfigContextBody groups={groups} />,
-      // The band names what the pane answers for the OPEN member's collection, never the neutral "Details".
-      header: () => <ConfigContextHeader groups={groups} />,
-      empty: CONFIG_CONTEXT_EMPTY,
-    },
+    // The TEACHER (S3): the pane rides the #860 bracket as tabs over `ConfigContextState` — About ·
+    // Applies · Learn, fed by the focused-setting seam. The band names what the pane answers (never the
+    // neutral "Details"); the member arm carries each collection's own context contract forward.
+    context: makeConfigContext(groups),
   };
 }

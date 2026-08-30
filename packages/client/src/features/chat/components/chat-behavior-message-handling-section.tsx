@@ -17,6 +17,7 @@ import { Row, Section } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
+import { ConfigTeachScope, SettingRow } from "#components";
 import { createEntityMutation, QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms";
@@ -85,144 +86,80 @@ function MessageHandlingBody({ sectionId, session }: { readonly sectionId: strin
       heading={CHAT_MESSAGE_HANDLING_SUBCATEGORY.label}
       id={configAnchorId("chat-behavior", CHAT_MESSAGE_HANDLING_SUBCATEGORY.id)}
     >
-      <FieldLayout orientation="horizontal">
-        <form.AppField name="enterSends">
-          {(field): ReactElement => (
-            <field.SwitchField label="Enter to send" description="Off → Enter inserts a newline; ⌘/Ctrl+Enter always sends. Shift+Enter is always a newline." />
-          )}
-        </form.AppField>
-        <form.AppField name="continueOnSend">
-          {(field): ReactElement => (
-            <field.SwitchField
-              label="Send continues the reply"
-              description="With an empty composer and an assistant message last, Send extends that reply instead of doing nothing."
-            />
-          )}
-        </form.AppField>
-        <form.AppField name="generateOnEmptySend">
-          {(field): ReactElement => (
-            <field.SwitchField
-              label="Empty Enter generates a reply"
-              description="With an empty composer and no assistant message last (a fresh chat, or your own message last), Enter prompts a reply instead of doing nothing. The ▷ generate button does the same, always."
-            />
-          )}
-        </form.AppField>
-        <form.AppField name="autoContinue">
-          {(field): ReactElement => (
-            <field.SwitchField
-              label="Auto-continue"
-              description="When a reply stops at the length cap, fire follow-up continues automatically — as many as the round limit below. Syncs across your devices."
-            />
-          )}
-        </form.AppField>
-        {/* The bound the switch modulates: DISABLED rather than hidden when auto-continue is off, so the
-            coupling is visible and the stored value stays readable (the auto-swipe details below hide
-            instead — they are a whole sub-feature, this is one number the switch above governs). */}
-        <form.Subscribe selector={(state): boolean => state.values.autoContinue}>
-          {(on): ReactElement => (
-            <form.AppField name="autoContinueRounds">
+      {/* THE TEACHER LAW (#866 S3): rows are label + control — the prose (incl. the B1/B7 inherit-shape
+          caveats and the reapTemporaryChats copy) lives on each leaf's `teach`. */}
+      <ConfigTeachScope value={{ group: "chat-behavior", sub: CHAT_MESSAGE_HANDLING_SUBCATEGORY }}>
+        <FieldLayout orientation="horizontal">
+          <SettingRow settingId="enter-sends">
+            <form.AppField name="enterSends">{(field): ReactElement => <field.SwitchField label="Enter to send" />}</form.AppField>
+          </SettingRow>
+          <SettingRow settingId="continue-on-send">
+            <form.AppField name="continueOnSend">{(field): ReactElement => <field.SwitchField label="Send continues the reply" />}</form.AppField>
+          </SettingRow>
+          <SettingRow settingId="empty-enter-generates">
+            <form.AppField name="generateOnEmptySend">{(field): ReactElement => <field.SwitchField label="Empty Enter generates a reply" />}</form.AppField>
+          </SettingRow>
+          <SettingRow settingId="auto-continue">
+            <form.AppField name="autoContinue">{(field): ReactElement => <field.SwitchField label="Auto-continue" />}</form.AppField>
+          </SettingRow>
+          {/* The bound the switch modulates: DISABLED rather than hidden when auto-continue is off, so the
+              coupling is visible and the stored value stays readable (the auto-swipe details below hide
+              instead — they are a whole sub-feature, this is one number the switch above governs). */}
+          <form.Subscribe selector={(state): boolean => state.values.autoContinue}>
+            {(on): ReactElement => (
+              <SettingRow settingId="auto-continue-rounds">
+                <form.AppField name="autoContinueRounds">
+                  {(field): ReactElement => (
+                    <field.NumberField label="Auto-continue rounds" disabled={!on} max={AUTO_CONTINUE_ROUNDS_MAX} min={AUTO_CONTINUE_ROUNDS_MIN} />
+                  )}
+                </form.AppField>
+              </SettingRow>
+            )}
+          </form.Subscribe>
+          <SettingRow settingId="auto-swipe">
+            <form.AppField name="autoSwipeEnabled">{(field): ReactElement => <field.SwitchField label="Auto-swipe short replies" />}</form.AppField>
+          </SettingRow>
+          <form.Subscribe selector={(state): boolean => state.values.autoSwipeEnabled}>
+            {(enabled): ReactElement | null =>
+              enabled ? (
+                <>
+                  <SettingRow settingId="auto-swipe">
+                    <form.AppField name="autoSwipeMinLength">
+                      {(field): ReactElement => <field.NumberField label="Minimum reply length" min={AUTO_SWIPE_MIN_LENGTH_MIN} />}
+                    </form.AppField>
+                  </SettingRow>
+                  <SettingRow settingId="auto-swipe">
+                    <form.AppField name="autoSwipeBlacklist">
+                      {(field): ReactElement => <field.TextareaField label="Blacklisted phrases" placeholder="As an AI language model" rows={3} />}
+                    </form.AppField>
+                  </SettingRow>
+                </>
+              ) : null
+            }
+          </form.Subscribe>
+          <SettingRow settingId="custom-stopping-strings">
+            <form.AppField name="customStoppingStrings">
+              {(field): ReactElement => <field.TextareaField label="Custom stopping strings" placeholder="###" rows={3} />}
+            </form.AppField>
+          </SettingRow>
+          <SettingRow settingId="offer-choices">
+            <form.AppField name="offerChoices">{(field): ReactElement => <field.SwitchField label="Offer choices in new chats" />}</form.AppField>
+          </SettingRow>
+          <SettingRow settingId="reactions">
+            <form.AppField name="reactionsEnabled">{(field): ReactElement => <field.SwitchField label="Reactions in new chats" />}</form.AppField>
+          </SettingRow>
+          <SettingRow settingId="character-reactions">
+            <form.AppField name="charactersCanReact">{(field): ReactElement => <field.SwitchField label="Characters can react in new chats" />}</form.AppField>
+          </SettingRow>
+          <SettingRow settingId="temp-chat-ttl">
+            <form.AppField name="tempChatTtlHours">
               {(field): ReactElement => (
-                <field.NumberField
-                  label="Auto-continue rounds"
-                  description="The most follow-up continues one send may fire while the reply keeps stopping at the length cap. A model that always hits the cap wants a bigger reply limit, not more rounds."
-                  disabled={!on}
-                  max={AUTO_CONTINUE_ROUNDS_MAX}
-                  min={AUTO_CONTINUE_ROUNDS_MIN}
-                />
+                <field.NumberField label="Delete temp chats after (hours)" max={TEMP_CHAT_TTL_HOURS_MAX} min={TEMP_CHAT_TTL_HOURS_MIN} />
               )}
             </form.AppField>
-          )}
-        </form.Subscribe>
-        <form.AppField name="autoSwipeEnabled">
-          {(field): ReactElement => (
-            <field.SwitchField
-              label="Auto-swipe short replies"
-              description="When a reply is too short or hits a blacklisted phrase, regenerate it once automatically."
-            />
-          )}
-        </form.AppField>
-        <form.Subscribe selector={(state): boolean => state.values.autoSwipeEnabled}>
-          {(enabled): ReactElement | null =>
-            enabled ? (
-              <>
-                <form.AppField name="autoSwipeMinLength">
-                  {(field): ReactElement => (
-                    <field.NumberField
-                      label="Minimum reply length"
-                      description="Replies shorter than this many characters are auto-swiped. 0 disables the length check."
-                      min={AUTO_SWIPE_MIN_LENGTH_MIN}
-                    />
-                  )}
-                </form.AppField>
-                <form.AppField name="autoSwipeBlacklist">
-                  {(field): ReactElement => (
-                    <field.TextareaField
-                      label="Blacklisted phrases"
-                      description="One phrase per line. A reply containing any of these is auto-swiped."
-                      placeholder="As an AI language model"
-                      rows={3}
-                    />
-                  )}
-                </form.AppField>
-              </>
-            ) : null
-          }
-        </form.Subscribe>
-        <form.AppField name="customStoppingStrings">
-          {(field): ReactElement => (
-            <field.TextareaField
-              label="Custom stopping strings"
-              description="One per line. Generation stops as soon as the model emits any of these strings."
-              placeholder="###"
-              rows={3}
-            />
-          )}
-        </form.AppField>
-        {/* Copy states what the server actually does (`reapTemporaryChats`): a HARD delete, messages and
-            all (FK cascade), on a cutoff measured from the chat's CREATION — not last activity — and only
-            for chats you host. The sweep is the fire-and-forget call the Home temp-chat tile makes on
-            mount, so an expired room can outlive its TTL until you next open Home. */}
-        {/* B1 — the DEFAULT this user's new rooms inherit, not a switch that reaches any existing room: the
-            per-room value always wins, and a room that has been pinned either way ignores this. The copy has
-            to say so, or a host who flips it here and sees an old room unchanged reads it as broken. */}
-        <form.AppField name="offerChoices">
-          {(field): ReactElement => (
-            <field.SwitchField
-              label="Offer choices in new chats"
-              description="New chats start out asking the model to end replies with a few numbered options; clicking one puts it in your composer to edit before you send. Existing chats keep whatever they are set to — change one in its This chat tab."
-            />
-          )}
-        </form.AppField>
-        {/* B7 — the two reaction DEFAULTS, side by side (the offerChoices inherit shape: a room's own value
-            always wins; these seed rooms that never chose). Opposite default directions by design — see the
-            model's OWNS comment. */}
-        <form.AppField name="reactionsEnabled">
-          {(field): ReactElement => (
-            <field.SwitchField
-              label="Reactions in new chats"
-              description="New chats you host let members react to messages with emoji. Existing chats keep whatever they are set to — change one in its This chat tab."
-            />
-          )}
-        </form.AppField>
-        <form.AppField name="charactersCanReact">
-          {(field): ReactElement => (
-            <field.SwitchField
-              label="Characters can react in new chats"
-              description="New chats you host let the model drop an emoji reaction from a present character while it replies. Off by default — turning it on is the opt-in. Existing chats keep whatever they are set to."
-            />
-          )}
-        </form.AppField>
-        <form.AppField name="tempChatTtlHours">
-          {(field): ReactElement => (
-            <field.NumberField
-              label="Delete temp chats after (hours)"
-              description="A temporary chat is deleted this many hours after it was created — messages and all, whether or not you were still using it. Expired rooms are swept when you open Home."
-              max={TEMP_CHAT_TTL_HOURS_MAX}
-              min={TEMP_CHAT_TTL_HOURS_MIN}
-            />
-          )}
-        </form.AppField>
-      </FieldLayout>
+          </SettingRow>
+        </FieldLayout>
+      </ConfigTeachScope>
       <Row gap="field" align="center">
         <SectionSaveStatus id={sectionId} state={saveState} onRetry={retrySave} />
       </Row>

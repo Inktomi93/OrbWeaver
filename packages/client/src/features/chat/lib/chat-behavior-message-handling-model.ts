@@ -28,14 +28,112 @@ export const CHAT_MESSAGE_HANDLING_SUBCATEGORY: ConfigSubcategory = {
   navLabel: "Message handling",
   keywords: ["send", "continue", "keyboard", "temporary"],
   settings: [
-    { id: "enter-sends", label: "Enter to send", keywords: ["enter", "keyboard", "newline", "shortcut"] },
-    { id: "continue-on-send", label: "Send continues the reply", keywords: ["continue", "extend", "empty"] },
-    { id: "auto-continue", label: "Auto-continue", keywords: ["continue", "length", "cap", "follow-up"] },
-    { id: "auto-continue-rounds", label: "Auto-continue rounds", keywords: ["continue", "rounds", "limit", "follow-up", "cap"] },
-    { id: "auto-swipe", label: "Auto-swipe short replies", keywords: ["swipe", "regenerate", "retry", "blacklist"] },
-    { id: "custom-stopping-strings", label: "Custom stopping strings", keywords: ["stop", "stopping", "sequence", "generation"] },
-    { id: "temp-chat-ttl", label: "Delete temp chats after", keywords: ["temporary", "temp", "ttl", "expire", "delete", "retention"] },
-    { id: "offer-choices", label: "Offer choices in new chats", keywords: ["choices", "options", "cyoa", "branching", "interactive"] },
+    {
+      id: "enter-sends",
+      label: "Enter to send",
+      keywords: ["enter", "keyboard", "newline", "shortcut"],
+      teach: {
+        summary: "Off makes Enter insert a newline; ⌘/Ctrl+Enter always sends, and Shift+Enter is always a newline.",
+        affects: ["the composer's keyboard grammar, in every chat"],
+      },
+    },
+    {
+      id: "empty-enter-generates",
+      label: "Empty Enter generates a reply",
+      keywords: ["enter", "generate", "empty", "prompt"],
+      teach: {
+        summary:
+          "With an empty composer and no assistant message last (a fresh chat, or your own message last), Enter prompts a reply instead of doing nothing. The ▷ generate button does the same, always.",
+        affects: ["what an empty-composer Enter does"],
+      },
+    },
+    {
+      id: "continue-on-send",
+      label: "Send continues the reply",
+      keywords: ["continue", "extend", "empty"],
+      teach: {
+        summary: "With an empty composer and an assistant message last, Send extends that reply instead of doing nothing.",
+        affects: ["what an empty-composer Send does"],
+      },
+    },
+    {
+      id: "auto-continue",
+      label: "Auto-continue",
+      keywords: ["continue", "length", "cap", "follow-up"],
+      teach: {
+        summary: "When a reply stops at the length cap, fires follow-up continues automatically — as many as the round limit. Syncs across your devices.",
+        affects: ["every reply that stops at the length cap"],
+        related: [{ group: "chat-behavior", sub: "message-handling", setting: "auto-continue-rounds" }],
+      },
+    },
+    {
+      id: "auto-continue-rounds",
+      label: "Auto-continue rounds",
+      keywords: ["continue", "rounds", "limit", "follow-up", "cap"],
+      teach: {
+        summary:
+          "The most follow-up continues one send may fire while the reply keeps stopping at the length cap. A model that always hits the cap wants a bigger reply limit, not more rounds.",
+        affects: ["how far one send may chain continues"],
+      },
+    },
+    {
+      id: "auto-swipe",
+      label: "Auto-swipe short replies",
+      keywords: ["swipe", "regenerate", "retry", "blacklist", "minimum", "phrases"],
+      teach: {
+        summary:
+          "When a reply is too short or hits a blacklisted phrase, regenerates it once automatically. The minimum length and the phrase list live under this switch.",
+        affects: ["every incoming reply, once per send"],
+      },
+    },
+    {
+      id: "custom-stopping-strings",
+      label: "Custom stopping strings",
+      keywords: ["stop", "stopping", "sequence", "generation"],
+      teach: {
+        summary: "One per line. Generation stops as soon as the model emits any of these strings.",
+        affects: ["every generation, on every connection"],
+      },
+    },
+    {
+      id: "temp-chat-ttl",
+      label: "Delete temp chats after",
+      keywords: ["temporary", "temp", "ttl", "expire", "delete", "retention"],
+      teach: {
+        summary:
+          "A temporary chat is deleted this many hours after it was created — messages and all, whether or not you were still using it. Expired rooms are swept when you open Home.",
+        affects: ["temporary chats only — ordinary chats are never swept"],
+      },
+    },
+    {
+      id: "offer-choices",
+      label: "Offer choices in new chats",
+      keywords: ["choices", "options", "cyoa", "branching", "interactive"],
+      teach: {
+        summary:
+          "New chats start out asking the model to end replies with a few numbered options; clicking one puts it in your composer to edit before you send.",
+        affects: ["new chats' starting posture only"],
+      },
+    },
+    {
+      id: "reactions",
+      label: "Reactions in new chats",
+      keywords: ["reactions", "emoji"],
+      teach: {
+        summary: "New chats you host let members react to messages with emoji. Existing chats keep whatever they are set to — change one in its This chat tab.",
+        affects: ["new chats you host"],
+      },
+    },
+    {
+      id: "character-reactions",
+      label: "Characters can react in new chats",
+      keywords: ["reactions", "emoji", "character"],
+      teach: {
+        summary:
+          "New chats you host let the model drop an emoji reaction from a present character while it replies. Off by default — turning it on is the opt-in.",
+        affects: ["new chats you host"],
+      },
+    },
   ],
 };
 

@@ -26,7 +26,8 @@ import {
 import { TooltipProvider } from "@orb/ui/tooltip";
 import type { ReactElement, ReactNode } from "react";
 import { useState } from "react";
-import { ConfigContextBody, ConfigContextHeader } from "../../../../packages/client/src/features/config/components/config-context-body.tsx";
+import { SectionContextHost } from "../../../../packages/client/src/features/app-shell/components/section-context-host.tsx";
+import { makeConfigSection } from "../../../../packages/client/src/features/config/lib/config-section.tsx";
 import { ConfigContentSurface } from "../../../../packages/client/src/features/config/surfaces/config-content-surface.tsx";
 import { ConfigListSurface } from "../../../../packages/client/src/features/config/surfaces/config-list-surface.tsx";
 import { placeholderConfigGroups, realConfigGroups } from "../../../support/ct/ct-config-groups.ts";
@@ -274,16 +275,12 @@ export function ConfigWorkspaceStory(): ReactElement {
           <div style={{ flex: 1, overflow: "auto" }}>
             <ConfigContentSurface groups={groups} />
           </div>
-          {/* The CONTEXT pane as the SHELL assembles it: the definition's `header` in the band, its `body`
-              below. Mounting the body alone hid a defect only the PAIR shows — the band echoing the body's own
-              empty-state title, so one pane stated one fact twice. `header` may decline (render nothing), which
-              in production resolves to the shell's neutral band; the story keeps the slot so the pair is
-              addressable either way. */}
-          <div data-slot="ct-config-context-pane" style={{ overflow: "auto", width: 360 }}>
-            <div data-slot="ct-config-context-band">
-              <ConfigContextHeader groups={groups} />
-            </div>
-            <ConfigContextBody groups={groups} />
+          {/* The CONTEXT pane through the PRODUCTION resolve (#866 S3): the section definition's `tabs`
+              context — the teacher — rendered by the same `SectionContextHost` the shell mounts, so the
+              band, the foot rail and the tab bodies are the real bracket, never a hand-assembled pair (a
+              CT fixture hand-authoring a state the shell can't produce ratifies nothing). */}
+          <div data-slot="ct-config-context-pane" style={{ display: "flex", flexDirection: "column", minHeight: 0, overflow: "auto", width: 360 }}>
+            <SectionContextHost definition={makeConfigSection(groups)} />
           </div>
         </div>
       </CtRealConfigSectionRegistry>

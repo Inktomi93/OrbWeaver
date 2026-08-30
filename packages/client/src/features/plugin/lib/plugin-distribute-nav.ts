@@ -14,6 +14,10 @@ export const PLUGIN_DISTRIBUTE_SUBCATEGORY: ConfigSubcategory = {
       id: "published-plugins",
       label: "Plugins published to every account",
       keywords: ["published", "distributed", "server-wide", "withdraw", "remove for everyone"],
+      teach: {
+        summary: "Plugins published to every account on this deployment; withdrawing removes them for everyone.",
+        affects: ["every account on this deployment"],
+      },
     },
   ],
 };

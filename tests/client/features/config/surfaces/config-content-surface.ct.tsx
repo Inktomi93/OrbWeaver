@@ -243,8 +243,9 @@ test("clicking a section row marks it aria-current", async ({ mount, page }) => 
   await stub(page);
   const component = await mount(<ConfigHostStory target="appearance" />);
 
-  await component.getByRole("button", { name: "Avatars" }).click();
-  await expect(component.getByRole("button", { name: "Avatars" })).toHaveAttribute("aria-current", "true");
+  // exact: the S3 teach rows add 'More info about Show avatars in chat' buttons a loose name would also match.
+  await component.getByRole("button", { name: "Avatars", exact: true }).click();
+  await expect(component.getByRole("button", { name: "Avatars", exact: true })).toHaveAttribute("aria-current", "true");
 });
 
 test("switching to Automation shows ITS distinct content — the owner-global rules + the rate belt, as two anchored sections", async ({ mount, page }) => {
@@ -579,7 +580,7 @@ test("the jump flash hugs the section box and stays within the scroll container"
   const component = await mount(<ConfigHostStory target="appearance" />);
   await component.getByRole("heading", { name: "Message style" }).waitFor();
 
-  await component.getByRole("button", { name: "Avatars" }).click();
+  await component.getByRole("button", { name: "Avatars", exact: true }).click();
 
   // The flash is a TRANSIENT ring (rAF-polled + smooth scroll), so every read below is a retrying one over
   // the same in-page measurement, taken while the ring is present.

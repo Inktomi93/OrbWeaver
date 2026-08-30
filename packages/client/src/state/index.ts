@@ -118,6 +118,8 @@ export {
   useComposerDraft,
 } from "./composer-draft-store.ts";
 export { requestComposerFocus, useComposerFocusRequest } from "./composer-focus-store.ts";
+export type { ConfigFocus } from "./config-focus-store.ts";
+export { __resetConfigFocus, clearConfigFocus, setConfigFocus, useConfigFocus } from "./config-focus-store.ts";
 export type { ConfigGroupId, ConfigShelf } from "./config-group-ids.ts";
 export { CONFIG_GROUP_IDS, CONFIG_SHELVES, isConfigGroupId, isConfigShelf } from "./config-group-ids.ts";
 export { __resetConfigGroupOpen, openConfigGroup, toggleConfigGroup, useConfigGroupOpen } from "./config-group-open-store.ts";
@@ -129,10 +131,13 @@ export type {
   ConfigGroupRegistry,
   ConfigSearchRow,
   ConfigSettingLeaf,
+  ConfigSettingRef,
   ConfigSubcategory,
   SettingsViewerView,
+  SettingTeach,
+  SettingTeachDecl,
 } from "./config-group-registry.ts";
-export { configAnchorId, isCollectionGroup, isPushingGroup } from "./config-group-registry.ts";
+export { configAnchorId, isCollectionGroup, isPushingGroup, isTeachNone } from "./config-group-registry.ts";
 export type { ConfigTarget } from "./config-nav-store.ts";
 export {
   __resetConfigNav,
@@ -170,6 +175,7 @@ export {
   selectCollectionMemberFromList,
   useCollectionSelection,
 } from "./config-selection-store.ts";
+export { assertTeachHonesty } from "./config-teach.ts";
 export {
   compareCorpusPair,
   setCorpusCompareA,

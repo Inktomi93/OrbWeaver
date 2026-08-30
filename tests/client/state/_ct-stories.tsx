@@ -17,6 +17,7 @@ import {
   __resetAppearanceBootHint,
   __resetChatContextSections,
   __resetComposerDrafts,
+  __resetConfigFocus,
   __resetConfigGroupOpen,
   __resetConfigNav,
   __resetConfigSearch,
@@ -36,6 +37,7 @@ import {
   clearCharacterSelection,
   clearChatListCharacterFilter,
   clearCollectionSelection,
+  clearConfigFocus,
   clearConfigSearch,
   clearCorpusSelection,
   clearDatabankPhaseFilter,
@@ -99,6 +101,7 @@ import {
   setChatListMonth,
   setChatListSearch,
   setComposerDraft,
+  setConfigFocus,
   setConfigSearchMatch,
   setConfigSearchQuery,
   setContextTab,
@@ -144,6 +147,7 @@ import {
   useCollectionSelection,
   useComposerDraft,
   useComposerFocusRequest,
+  useConfigFocus,
   useConfigGroupOpen,
   useConfigSearchMatch,
   useConfigSearchQuery,
@@ -1465,6 +1469,38 @@ export function ConfigNavProbe(): ReactElement {
 /** ConfigSearchProbe — drives the config SEARCH store (#866 S2): the live query, the selected match, and the
  *  clear-empties-both rule (a mark whose query is gone would be unexplainable). A CT because the reads are
  *  reactive hooks. */
+/** The FOCUSED-SETTING seam (#866 S3): keep-last on writes, cleared by a NAVIGATION (the nav store's
+ *  land/clear both fire `clearConfigFocus` — a lesson about a row that left the screen would be a lie). */
+export function ConfigFocusProbe(): ReactElement {
+  const focus = useConfigFocus();
+  return (
+    <div>
+      <output>{`focus=${focus === null ? "none" : `${focus.group}/${focus.sub}/${focus.setting ?? "-"}`}`}</output>
+      <button type="button" onClick={(): void => setConfigFocus({ group: "appearance", sub: "sizing", setting: "density" })}>
+        focus density
+      </button>
+      <button type="button" onClick={(): void => setConfigFocus({ group: "appearance", sub: "sizing", setting: null })}>
+        focus the section
+      </button>
+      <button type="button" onClick={(): void => selectConfigGroup("connections", null)}>
+        navigate away
+      </button>
+      <button type="button" onClick={(): void => clearConfigFocus()}>
+        clear focus
+      </button>
+      <button
+        type="button"
+        onClick={(): void => {
+          __resetConfigFocus();
+          __resetConfigNav();
+        }}
+      >
+        reset focus
+      </button>
+    </div>
+  );
+}
+
 export function ConfigSearchProbe(): ReactElement {
   const query = useConfigSearchQuery();
   const match = useConfigSearchMatch();

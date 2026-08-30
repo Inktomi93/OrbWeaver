@@ -360,3 +360,38 @@ export type ChatContextTabId = (typeof CHAT_CONTEXT_TAB_IDS)[number];
 export interface AnalyticsContextState {
   readonly characterId: CharacterId | null;
 }
+
+/** One walkable door in the Config TEACHER (config-revamp-design.md §3.5/§7.2) — an "Applies"/"Related"
+ *  row the reader can activate. Pre-bound: the host resolved the address into the `openConfigTo` (or a
+ *  contribution's own) opener before it crossed this seam, so the tabs render state-blind. */
+export interface ConfigTeachDoor {
+  readonly label: string;
+  readonly open: () => void;
+}
+
+/** The RESOLVED lesson the Config context pane teaches (§7.2) — the focused leaf's teach, its section's,
+ *  or the group's own, already flattened to display data by the host (this file may not import `#state`,
+ *  so no registry vocabulary crosses; ids were resolved into doors before this shape exists). */
+export interface ConfigTeachView {
+  /** What the pane is about — the focused setting's label, the section's, or the group's. */
+  readonly title: string;
+  /** The breadcrumb under the title ("Appearance · Sizing & motion"), locating the subject on the map. */
+  readonly trail: string;
+  readonly summary: string;
+  readonly affects: readonly string[];
+  /** Where a narrower scope wins — the Applies tab's rows. Empty ⇒ the tab teaches "nothing overrides this". */
+  readonly applies: readonly ConfigTeachDoor[];
+  readonly related: readonly ConfigTeachDoor[];
+  /** The Learn tab's body; `null` ⇒ the tab is absent (APPLICABILITY, never hiding). */
+  readonly learn: (() => ReactNode) | null;
+}
+
+/** The Config CONTEXT-panel state projection (O5 strict — the `defineContextTabs<ConfigContextState>`
+ *  anchor, #866 S3). `member` is the OPEN collection member's arm: while present the Applies tab renders
+ *  it (a member's "where it's attached" IS its applies answer) and the head band names the member;
+ *  `teach` then carries the owning collection's lesson for About. `null` from `useContextState` = no
+ *  group active and nothing open — the section's `empty` arm renders. */
+export interface ConfigContextState {
+  readonly teach: ConfigTeachView;
+  readonly member: { readonly title: string; readonly body: () => ReactNode } | null;
+}

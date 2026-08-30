@@ -15,11 +15,52 @@ export const APPEARANCE_SIZING_SUBCATEGORY: ConfigSubcategory = {
   id: "sizing",
   label: "Sizing & motion",
   settings: [
-    { id: "chat-width", label: "Chat width", keywords: ["width", "column", "reading"] },
-    { id: "font-scale", label: "Text size", keywords: ["font", "scale", "zoom"] },
-    { id: "density", label: "Density", keywords: ["compact", "comfortable", "spacing"] },
-    { id: "elevation", label: "Surface elevation", keywords: ["layered", "depth", "shadow", "flat"] },
-    { id: "reduced-motion", label: "Reduce motion", keywords: ["animation", "transition", "accessibility", "motion"] },
+    {
+      id: "chat-width",
+      label: "Chat width",
+      keywords: ["width", "column", "reading"],
+      teach: {
+        summary: "How wide the reading column may grow on large screens. Narrower columns are easier to read; wider ones fit more of a long turn.",
+        affects: ["the chat reading column on large screens", "nothing below the width where the column already fills the pane"],
+      },
+    },
+    {
+      id: "font-scale",
+      label: "Text size",
+      keywords: ["font", "scale", "zoom"],
+      teach: {
+        summary: "A global multiplier for all text (1 = default) — the whole app scales together.",
+        affects: ["every piece of text in the app"],
+        related: [{ group: "appearance", sub: "reading-typography", setting: "body-scale" }],
+      },
+    },
+    {
+      id: "density",
+      label: "Density",
+      keywords: ["compact", "comfortable", "spacing"],
+      teach: {
+        summary: "Compact tightens spacing throughout the app; Comfortable keeps the default breathing room.",
+        affects: ["row heights and padding across every panel and list"],
+      },
+    },
+    {
+      id: "elevation",
+      label: "Surface elevation",
+      keywords: ["layered", "depth", "shadow", "flat"],
+      teach: {
+        summary: "Layered lifts the panels and content into a brightness ladder and drops the region borders; Flat keeps one tone with hairlines.",
+        affects: ["panel backgrounds and region borders app-wide"],
+      },
+    },
+    {
+      id: "reduced-motion",
+      label: "Reduce motion",
+      keywords: ["animation", "transition", "accessibility", "motion"],
+      teach: {
+        summary: "Freezes animations and transitions, beyond your system's own reduced-motion setting.",
+        affects: ["animations and transitions app-wide, including portals and the boot veil"],
+      },
+    },
   ],
 };
 
