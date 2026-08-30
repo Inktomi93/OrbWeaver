@@ -4,11 +4,12 @@
 // test shape (first page + nextCursor, a second page, empty, a bounded limit) plus the compound-cursor
 // tiebreak the `domain/assets` precedent exists for (a frozen clock stamps ties on `createdAt`).
 
+import { AUTHORED_CARD_CREATOR, CHARACTER_PROVENANCES } from "@orb/contracts/character";
 import { characterTags, tags } from "@orb/db";
 import type { CharacterHandle, CharacterId, Handle, TagId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createCharacterService, createStampRefinerySignals } from "@orb/server/domain/character";
-import { describe } from "vitest";
+import { describe, vi } from "vitest";
 import { cardTokenSize } from "../../../../../packages/server/src/domain/character/substrate/card-tokens.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
@@ -706,5 +707,89 @@ describe("list — canonical tags (the library tag filter)", () => {
     const bareRow = page.items.find((r) => r.id === bare.id);
     expect(taggedRow?.tags.map((t) => t.name)).toEqual(["fantasy"]);
     expect(bareRow?.tags).toEqual([]);
+  });
+});
+
+// ── #865 — the two landing fields, end to end on the `character.list` wire ─────────────────────────────
+// The Characters landing (#864) prints "N chats" on a FACE and names the fresh-install shelf by where a
+// card came from. Both had to be projected here rather than derived on the client: `chatCount` was already
+// selected for the most/fewestChats keysets and dropped in `summaryOf`, and the provenance verdict was
+// being re-derived in the Origin readout from two raw columns the LIST row never carried at all.
+describe("list — the landing projections (chatCount · provenance)", () => {
+  test("every row carries chatCount off the stats rollup and a closed provenance verdict", async () => {
+    const db = await freshDb();
+    const svc = createCharacterService(makeHarness(db).ctx);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+
+    // AUTHORED — through the real create door, which stamps no creator.
+    const mine = await svc.create({
+      principal: principal(owner),
+      input: { handle: castId<CharacterHandle>("mine"), name: "Mine", description: "d" },
+    });
+    // SHIPPED + IMPORTED are raw inserts: the CRUD wire cannot author an import provenance, and the seeded
+    // pack's creator stamp is the seeder's, not a user input.
+    const shipped = await seedRawCharacter(db, {
+      id: "character_shipped",
+      ownerId: owner,
+      handle: castId<CharacterHandle>("shipped"),
+      name: "Shipped",
+      creator: AUTHORED_CARD_CREATOR,
+    });
+    const imported = await seedRawCharacter(db, {
+      id: "character_imported",
+      ownerId: owner,
+      handle: castId<CharacterHandle>("imported"),
+      name: "Imported",
+      importedFrom: "https://example.test/card.png",
+    });
+    await seedCharacterStats(db, { characterId: mine.id, lastActivityAt: 1_800_000_000_000, chats: 4 });
+    await seedCharacterStats(db, { characterId: imported, lastActivityAt: null, chats: 0 });
+
+    const page = await svc.list({ principal: principal(owner), sort: "alpha" });
+    const byId = new Map(page.items.map((row) => [row.id, row]));
+    expect(byId.get(mine.id)?.chatCount).toBe(4);
+    expect(byId.get(imported)?.chatCount).toBe(0);
+    // No stats row at all → 0, the same fact a reader reads (see the persistence pin for why not null).
+    expect(byId.get(shipped)?.chatCount).toBe(0);
+
+    expect(byId.get(mine.id)?.provenance).toBe("authored");
+    expect(byId.get(shipped)?.provenance).toBe("shipped");
+    expect(byId.get(imported)?.provenance).toBe("imported");
+    // Every row answers — the field is total, never undefined on a row the landing has to shelve.
+    expect(page.items.every((row) => CHARACTER_PROVENANCES.includes(row.provenance))).toBe(true);
+  });
+
+  test("chatCount rides the EXISTING page join — the statement count does not grow with the page (#865 no N+1)", async () => {
+    const db = await freshDb();
+    const svc = createCharacterService(makeHarness(db).ctx);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const solo = await seedRawCharacter(db, { id: "character_solo", ownerId: owner, handle: castId<CharacterHandle>("solo"), name: "Solo" });
+    await seedCharacterStats(db, { characterId: solo, lastActivityAt: 1_800_000_000_000, chats: 3 });
+
+    // The instrument, proven on the ONE-row page first: a real, non-zero statement count.
+    const spy = vi.spyOn(db, "select");
+    const onePage = await svc.list({ principal: principal(owner) });
+    const forOneRow = spy.mock.calls.length;
+    expect(onePage.items).toHaveLength(1);
+    expect(forOneRow).toBeGreaterThan(0);
+
+    for (let at = 0; at < 6; at += 1) {
+      const id = await seedRawCharacter(db, {
+        id: `character_bulk_${String(at)}`,
+        ownerId: owner,
+        handle: castId<CharacterHandle>(`bulk-${String(at)}`),
+        name: `Bulk ${String(at)}`,
+      });
+      await seedCharacterStats(db, { characterId: id, lastActivityAt: null, chats: at });
+    }
+    spy.mockClear();
+    const bigPage = await svc.list({ principal: principal(owner) });
+    expect(bigPage.items).toHaveLength(7);
+    // Seven rows, each with its own chat count, and the SAME number of statements as one row: the count
+    // comes off the `character_stats` LEFT JOIN the page query already carried for the most/fewestChats
+    // keysets, never a per-row read.
+    expect(spy.mock.calls.length).toBe(forOneRow);
+    expect(bigPage.items.reduce((total, row) => total + row.chatCount, 0)).toBe(18);
+    spy.mockRestore();
   });
 });

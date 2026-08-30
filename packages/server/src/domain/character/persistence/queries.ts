@@ -4,7 +4,7 @@
 // (D121-E — they are library rows behind `character_regex_scripts`; only the serde boundary re-embeds them).
 
 import type { CharacterCard, CharacterListCursor, CharacterListSort } from "@orb/contracts/character";
-import { cardDepthPromptSchema, greetingsColumnSchema, refinerySignalsSchema } from "@orb/contracts/character";
+import { cardDepthPromptSchema, characterProvenanceOf, greetingsColumnSchema, refinerySignalsSchema } from "@orb/contracts/character";
 import type { TagView } from "@orb/contracts/tag";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import { canonicalBackgroundSource } from "@orb/contracts/theme";
@@ -618,6 +618,7 @@ export function detailOf({ character: row, avatar }: CharacterWithAvatar, canoni
     backgroundOverride: row.backgroundOverride,
     importedFrom: row.importedFrom,
     importHash: row.importHash,
+    provenance: characterProvenanceOf(row),
     contentHash: row.contentHash,
     createdAt: row.createdAt,
     avatarHash: avatar?.hash ?? null,
@@ -626,9 +627,12 @@ export function detailOf({ character: row, avatar }: CharacterWithAvatar, canoni
 }
 
 /** Row + joined avatar + denorms + accepted tags + the library-wide name-ambiguity verdict
- *  ({@link ambiguousNamesFor}) → the light library-list summary. */
+ *  ({@link ambiguousNamesFor}) → the light library-list summary.
+ *
+ *  `chatCount` COALESCES the join miss to 0 (#865): the sorts still read the raw null off the row and sink
+ *  it to their tail, but the projection a face prints is a count, and "no stats row" is a count of none. */
 export function summaryOf(
-  { character: row, avatar, elevatorPitch, lastChattedAt }: CharacterListRow,
+  { character: row, avatar, elevatorPitch, lastChattedAt, chatCount }: CharacterListRow,
   canonicalTags: readonly TagView[],
   ambiguousNames: ReadonlySet<string>,
 ): CharacterSummary {
@@ -650,6 +654,8 @@ export function summaryOf(
     tags: canonicalTags,
     elevatorPitch,
     lastChattedAt,
+    chatCount: chatCount ?? 0,
+    provenance: characterProvenanceOf(row),
     nameIsAmbiguous: ambiguousNames.has(row.name.toLowerCase()),
   };
 }

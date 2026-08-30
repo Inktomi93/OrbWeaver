@@ -1,3 +1,4 @@
+import type { CharacterProvenance } from "@orb/contracts/character";
 import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { slugifyHandle } from "@orb/kit/slug";
@@ -10,6 +11,10 @@ import { VIEWER_AMBIENT_ROUTES } from "../fixtures.ts";
 // support/factories DB-row builders" precedent `features/chat/fixtures.ts` documents.
 
 const FROZEN_AT = 1_750_000_000_000;
+
+/** #865 — what a card with no import URL and no shipped creator mark reads as. Named (rather than inlined)
+ *  so the widened-literal spread inside {@link makeCharacterSummary}'s `base` keeps the closed union. */
+const DEFAULT_PROVENANCE: CharacterProvenance = "authored";
 
 /**
  * THE AMBIENT READS OF A MOUNTED CHARACTER-EDITOR TREE (#649) — spread into every `routeTrpc` call in this
@@ -65,6 +70,12 @@ export interface CharacterSummaryFixture {
   readonly tags: readonly CharacterSummaryFixtureTag[];
   readonly elevatorPitch: string | null;
   readonly lastChattedAt: number | null;
+  /** #865 — the `character_stats.chats` rollup, projected onto the row (0 when the join misses; never null). */
+  readonly chatCount: number;
+  /** #865 — the CLOSED where-it-came-from verdict the server derives once (`characterProvenanceOf`). The
+   *  REAL union, not a loose string: the brands are what this file spells as plain strings (they are
+   *  compile-time only), and a closed wire vocabulary is a value a fixture must not be able to invent. */
+  readonly provenance: CharacterProvenance;
   /** #517 — does ANOTHER of this owner's characters carry the same name (case-insensitively)? The server
    *  answers it library-wide; {@link characterListResponder} recomputes it over the whole fixture library
    *  for the same reason the handle is derived from the name — a fixture whose shape the server cannot mint
@@ -124,6 +135,9 @@ export interface CharacterDetailFixture {
   readonly themeOverride: Record<string, unknown> | null;
   readonly importedFrom: string | null;
   readonly importHash: string | null;
+  /** #865 — the server-derived provenance verdict the Origin readout DISPATCHES on (it no longer re-derives
+   *  it from `importedFrom` + `creator`, so a story that wants the shipped arm states THIS, not the creator). */
+  readonly provenance: CharacterProvenance;
   readonly contentHash: string;
   readonly createdAt: number;
   readonly avatarHash: string | null;
@@ -161,6 +175,7 @@ export function makeCharacterDetail(overrides: Partial<CharacterDetailFixture> =
     themeOverride: null,
     importedFrom: null,
     importHash: null,
+    provenance: DEFAULT_PROVENANCE,
     contentHash: "hash_ct_1",
     createdAt: FROZEN_AT,
     avatarHash: null,
@@ -195,6 +210,8 @@ export function makeCharacterSummary(overrides: Partial<CharacterSummaryFixture>
     tags: [],
     elevatorPitch: null,
     lastChattedAt: null,
+    chatCount: 0,
+    provenance: DEFAULT_PROVENANCE,
     nameIsAmbiguous: false,
     ...overrides,
   };

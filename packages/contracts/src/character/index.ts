@@ -53,6 +53,41 @@ export type CardSpec = (typeof CARD_SPECS)[number];
  */
 export const AUTHORED_CARD_CREATOR = "orbweaver";
 
+/**
+ * WHERE A CHARACTER IN THE LIBRARY CAME FROM — the closed verdict both read models project (#865).
+ *
+ * `shipped` = one of the app's own default cards ({@link AUTHORED_CARD_CREATOR}) · `imported` = brought in
+ * from outside (the row carries an `importedFrom`) · `authored` = the owner made it here. Three arms, total
+ * over every row: the Characters landing shelves a fresh install by this, and a row with no answer is a row
+ * with no shelf.
+ *
+ * NOT to be confused with the CARD's own `source` field, which is the ST V3 `data.source` provenance-URL
+ * list carried verbatim through the serde — a different fact under a name the wire already owns.
+ */
+export const CHARACTER_PROVENANCES = ["shipped", "imported", "authored"] as const;
+export type CharacterProvenance = (typeof CHARACTER_PROVENANCES)[number];
+
+/**
+ * THE ONE DERIVATION of {@link CharacterProvenance}, from columns the `characters` row already carries — no
+ * provenance column, and no second derivation at either end.
+ *
+ * It lives in contracts for the same reason {@link AUTHORED_CARD_CREATOR} does: the server read seam calls
+ * it (`domain/character/persistence/queries.ts` — `summaryOf` and `detailOf`) and the client only DISPATCHES
+ * on the result, and neither package may import the other. Before #865 the Origin readout derived this
+ * itself from two raw columns, which is why the list row — carrying neither — could not answer at all.
+ *
+ * ORDER IS LOAD-BEARING: `imported` wins outright. A card imported FROM another Orbweaver install carries
+ * both signals, and what it IS to this library is an import. The shipped arm inherits
+ * {@link AUTHORED_CARD_CREATOR}'s honest limit — it reads card CONTENT, so a foreign card whose author typed
+ * `orbweaver` reads as shipped.
+ */
+export function characterProvenanceOf(row: { readonly importedFrom: string | null; readonly creator: string | null }): CharacterProvenance {
+  if (row.importedFrom !== null) {
+    return "imported";
+  }
+  return row.creator === AUTHORED_CARD_CREATOR ? "shipped" : "authored";
+}
+
 // V3 `data.assets[]` — the media manifest; each entry is `{type,uri,name,ext}` (the RisuAI/charx shape,
 // e.g. `{type:"icon",uri:"ccdefault:",name:"main",ext:"png"}` or an `embeded://…` charx-ZIP path). PARSED +
 // PRESERVED only. Resolving an asset URI — charx ZIP extraction, an `http(s)` fetch, `ccdefault:` — and

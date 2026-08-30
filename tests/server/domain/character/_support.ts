@@ -229,6 +229,9 @@ interface SeedRawCharacterOverrides {
   readonly synthetic?: boolean;
   readonly importedFrom?: string | null;
   readonly importHash?: string | null;
+  /** The card's `creator` — the SHIPPED-provenance marker (#865). The seeded pack stamps
+   *  `AUTHORED_CARD_CREATOR`; a raw insert is the only way to author that arm without running the seeder. */
+  readonly creator?: string | null;
   readonly contentHash?: string;
   readonly avatarAssetId?: AssetId | null;
   /** Overrides the default frozen instant — the `list` keyset-cursor tests pin exact `(createdAt, id)`
@@ -254,6 +257,7 @@ export async function seedRawCharacter(db: Db, overrides: SeedRawCharacterOverri
     synthetic: overrides.synthetic ?? false,
     importedFrom: overrides.importedFrom ?? null,
     importHash: overrides.importHash ?? null,
+    creator: overrides.creator ?? null,
     contentHash: overrides.contentHash ?? "seed_content_hash",
     avatarAssetId: overrides.avatarAssetId ?? null,
     createdAt: overrides.createdAt ?? FROZEN_AT,
