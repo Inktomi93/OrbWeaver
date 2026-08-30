@@ -1,11 +1,19 @@
 // infra/plugin-host/port — the sandbox-runtime seam impl (`PluginHostPort`). `createPluginHost` returns the
 // runtime the composition root injects UP into `domain/plugin`: boot a guest + install the membrane,
 // run `main.js` under the invocation budget, collect its tool registrations, keep the instance RESIDENT, invoke
-// a collected handler under the per-invocation budget, RETAIN each run's drained log in the instance's bounded
+// a collected handler under the per-invocation budget, RETAIN every drained log line in the instance's bounded
 // runtime ring (`readLog` — an operator's recent-activity view, in-memory and reset by a restart or a
 // deactivate→activate cycle; NOT an audit log of record), tear it down. Infra imports ZERO domain
 // (plugin-no-ambient): the returned object is STRUCTURALLY the domain's `PluginHostPort` (compose does the typed
 // assignment) and names only `@orb/contracts` + the local skeleton.
+//
+// TWO log paths, one ring (#806 + the owner's "register plugin logs centrally" ask): (1) the per-instance
+// `LogRing` is drained by every invocation AND — because a floated guest continuation logs in a post-settle
+// pump, between invocations — picked up as RESIDUE by the next `invoke` (before it runs) and by every `readLog`
+// (before it copies), so `plugin.getLog` tells the truth live; (2) every accepted line is ALSO mirrored at push
+// time into the process pino stream tagged `{ plugin: <label> }` when the domain supplied a `label` (the
+// manifest slug) — the file log and `/api/_debug/logs?q=<slug>` see it the moment the guest writes it, with no
+// read in the path. An unlabelled instance (a snippet) mirrors nothing: its lines go back to the caller's REPL.
 //
 // `createInstance` consumes the membrane wiring (grants + the authority-agnostic `PluginBridge` + the invocation
 // chat + the manifest `netHosts` allowlist) and `invoke` drives a resident guest handler — the FULL membrane
@@ -19,7 +27,7 @@
 
 import { randomUUID } from "node:crypto";
 import type { InvocationChat, PluginBridge, PluginCapability, PluginHandlerRef, PluginInstance, PluginInvokeArgs, PluginLogLevel } from "@orb/contracts/plugin";
-import { superviseDetached } from "#foundation/observability";
+import { getLog, superviseDetached } from "#foundation/observability";
 import {
   EVENT_QUEUE_DEPTH,
   PLUGIN_LOG_RING_CHARS,
@@ -29,7 +37,7 @@ import {
   SNIPPET_WALL_MS,
 } from "./budgets.ts";
 import { getPluginQuickJS } from "./module.ts";
-import type { HostSeams } from "./realm.ts";
+import type { HostSeams, LogMirror } from "./realm.ts";
 import { Sandbox } from "./sandbox.ts";
 
 /** The determinism seams every instance's realm binds (the guest's ONLY clock/entropy/id — `test-determinism`).
@@ -57,6 +65,11 @@ export interface CreateInstanceInputIn {
    *  grace above `cpuDeadlineMs` before an invocation is force-ENDED in real time; absent ⇒
    *  `HOST_FN_DEADLINE_MS`. */
   readonly budgets?: { readonly cpuDeadlineMs: number; readonly memoryLimitBytes: number; readonly settleGraceMs?: number };
+  /** The tag every guest log line carries into the CENTRAL pino stream (`{ plugin: label }`) — plain-string
+   *  DATA the domain forwards from the re-validated manifest (its slug; the `netHosts` posture — never
+   *  guest-supplied). Absent ⇒ no mirror at all (a snippet has no manifest and its lines go back to the caller);
+   *  a label is never invented here. */
+  readonly label?: string;
 }
 
 /** One log line as the domain reads it (structurally the domain's `PluginLogView`). */
@@ -201,6 +214,29 @@ interface SnippetRunOut {
   readonly errorLine?: number;
 }
 
+/** The push-time tap into the ONE pino stream (file log + the `/api/_debug/logs` ring) for a labelled instance:
+ *  the guest's `info`/`warn`/`error` are pino's own level names, so the line lands at the level the guest chose,
+ *  tagged `plugin` for `?q=` filtering. `getLog()` resolves the request-scoped child when the push happens inside
+ *  a request (a tool call) and the base logger when it happens in a detached pump (a float) — both the same
+ *  stream. */
+function centralLogMirror(label: string): LogMirror {
+  return {
+    mirror: (level, message): void => {
+      getLog()[level]({ plugin: label }, message);
+    },
+  };
+}
+
+/** The `Sandbox.create` options for a RESIDENT instance: the membrane wiring, the optional budget override, and
+ *  the central-log mirror iff the domain supplied a `label` (absent ⇒ no mirror, never an invented tag). */
+function residentSandboxOptions(input: CreateInstanceInputIn, grants: ReadonlySet<PluginCapability>): Parameters<typeof Sandbox.create>[1] {
+  return {
+    membrane: { grants, bridge: input.bridge, netHosts: input.netHosts ?? [] },
+    ...(input.budgets !== undefined ? { limits: input.budgets } : {}),
+    ...(input.label !== undefined ? { logMirror: centralLogMirror(input.label) } : {}),
+  };
+}
+
 /** Build the process runtime. One `QuickJSWASMModule` is shared (loaded lazily by `Sandbox.create`); each
  *  instance gets its own `QuickJSContext`. The returned shape is assigned to `PluginHostPort` at compose. */
 export function createPluginHost(seams: PluginHostSeamDeps): {
@@ -233,10 +269,7 @@ export function createPluginHost(seams: PluginHostSeamDeps): {
         // Keep the WASM-module load failure surface here rather than mid-eval.
         await getPluginQuickJS();
         const grants = new Set(input.grants);
-        sandbox = await Sandbox.create(hostSeams, {
-          membrane: { grants, bridge: input.bridge, netHosts: input.netHosts ?? [] },
-          ...(input.budgets !== undefined ? { limits: input.budgets } : {}),
-        });
+        sandbox = await Sandbox.create(hostSeams, residentSandboxOptions(input, grants));
         // The activation run's chat scope (the membrane resolves `current()` against it); `null` for an installed
         // plugin's registration-only `main.js`.
         sandbox.setInvocationChat(input.chat);
@@ -298,6 +331,10 @@ export function createPluginHost(seams: PluginHostSeamDeps): {
         // The token is minted HERE, inside the serialized queue slot, and consumed on the very next line — so an
         // args builder always sees the handle of the scope this invoke just set, never a neighbour's (the
         // per-instance FIFO is what makes that true; see the SERIALIZATION note above).
+        // RESIDUE FIRST (#806): whatever a floated continuation logged since the last pickup is retained BEFORE
+        // this invocation runs, so it reads in push order ahead of this run's own lines instead of being lost.
+        // Inside the serialized slot on purpose — the same ring the guest is about to push into.
+        retainLog(resident, resident.sandbox.drainLog(), seams.nowEpochMs());
         const chatHandle = resident.sandbox.setInvocationChat(chat ?? null);
         const outcome = await resident.sandbox.invokeHandler(handler, typeof argsJson === "string" ? argsJson : argsJson(chatHandle));
         // RETAIN this invocation's drained lines (both arms — a crashing handler's last words are the ones an
@@ -357,7 +394,19 @@ export function createPluginHost(seams: PluginHostSeamDeps): {
 
     // A COPY, not the live ring: the ring is mutated by every later invoke, and a caller holding the array
     // would silently watch its "snapshot" change under it (the domain's `getPluginLog` slices this result).
-    readLog: (instance): readonly PluginLogLineOut[] => [...(runtimes.get(instance)?.log ?? [])],
+    // The residue pickup FIRST (#806): the lines a float logged since the last pickup are retained here, so the
+    // read surfaces them with no later invocation needed. Stamped at pickup (the ring's `at` was always the
+    // drain clock, never the push clock — unchanged posture). A read racing a mid-flight invocation may retain
+    // that invocation's so-far lines itself; its outcome then carries only the rest — same resident ring either
+    // way, no loss and no duplication (drains are synchronous and destructive).
+    readLog: (instance): readonly PluginLogLineOut[] => {
+      const resident = runtimes.get(instance);
+      if (resident === undefined) {
+        return [];
+      }
+      retainLog(resident, resident.sandbox.drainLog(), seams.nowEpochMs());
+      return [...resident.log];
+    },
 
     dispose: (instance): void => {
       const resident = runtimes.get(instance);

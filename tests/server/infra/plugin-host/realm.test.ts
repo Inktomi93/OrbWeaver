@@ -3,7 +3,9 @@
 // no I/O globals are reachable (setTimeout / fetch / process / require absent), the guest global object is an
 // EXACT ALLOW-LIST whose only non-intrinsic entry is `orb`, the
 // version gate (`orb.host(1)` serves, `orb.host(2)` throws loudly — the D46 fail-on-V2 clause), the
-// injected seams are the guest's sole time/entropy/id sources, and the per-invocation log ring is bounded.
+// injected seams are the guest's sole time/entropy/id sources, and the per-drain log ring is bounded, drains
+// DESTRUCTIVELY (#806 — a drain hands over "everything since the last drain" and empties the ring; there is
+// no reset that could destroy a floated continuation's lines), and mirrors accepted lines at push time.
 //
 // THE ALLOW-LIST IS THE LESSON, not decoration: this file's ambient pins used to be a FIXED SIX-NAME probe
 // plus a test whose title claimed "the only non-standard global is orb" while its body asserted only
@@ -317,15 +319,37 @@ describe("installRealm — the P4b surface pin (determinism floor ONLY this slic
   });
 });
 
-describe("LogRing — per-invocation bounds", () => {
-  test("caps line count and resets", () => {
+describe("LogRing — per-drain bounds, destructive drain, the push-time mirror", () => {
+  test("caps line count; a drain EMPTIES the ring and re-arms the budget for the next interval (#806)", () => {
     const ring = new LogRing();
     for (let i = 0; i < 400; i++) {
       ring.push("info", `line ${i}`);
     }
     expect(ring.drain().length).toBeLessThanOrEqual(256);
-    ring.reset();
+    // Destructive: the second drain is empty, and the ring accepts a fresh interval's worth again — the lines a
+    // floated continuation pushes between two invocations are attributed to the next drain, never destroyed.
     expect(ring.drain()).toEqual([]);
+    ring.push("warn", "after");
+    expect(ring.drain()).toEqual(["[warn] after"]);
+  });
+
+  test("the mirror sees every ACCEPTED line at push time, as the ring keeps it (level + clamped text)", () => {
+    const seen: [string, string][] = [];
+    const ring = new LogRing({ mirror: (level, message) => void seen.push([level, message]) });
+    ring.push("warn", "search failed: boom");
+    ring.push("info", "x".repeat(20_000));
+    // Mirrored BEFORE any drain — a reader is not in the path.
+    expect(seen[0]).toEqual(["warn", "search failed: boom"]);
+    const [clampedLevel, clampedText] = seen[1] ?? ["", ""];
+    expect(clampedLevel).toBe("info");
+    expect(clampedText.length).toBeLessThan(20_000); // the clamp the ring applied, not the raw message
+    // Past the cap nothing is accepted — and nothing is mirrored (the ring's volume cap IS the mirror's).
+    ring.push("info", "dropped");
+    expect(seen).toHaveLength(2);
+    expect(ring.drain()[1]).toBe(`[info] ${clampedText}`);
+    // …and the drain re-armed the budget, so the NEXT interval's lines are accepted and mirrored again.
+    ring.push("info", "next interval");
+    expect(seen).toHaveLength(3);
   });
 
   test("caps byte volume regardless of line count", () => {
@@ -345,8 +369,9 @@ describe("LogRing — per-invocation bounds", () => {
   test("ONE oversized line cannot exceed the byte budget (it is clamped, not admitted whole)", () => {
     const ring = new LogRing();
     ring.push("info", "x".repeat(1_000_000));
-    const totalChars = ring.drain().reduce((sum, line) => sum + line.length, 0);
+    const drained = ring.drain(); // captured ONCE — a drain is destructive (#806)
+    const totalChars = drained.reduce((sum, line) => sum + line.length, 0);
     expect(totalChars).toBeLessThanOrEqual(16_384);
-    expect(ring.drain()).toHaveLength(1);
+    expect(drained).toHaveLength(1);
   });
 });

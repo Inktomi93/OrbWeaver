@@ -1881,6 +1881,131 @@ describe("readLog is a RUNTIME record, not an activation snapshot (#627)", () =>
   });
 });
 
+/** The #806 witness: a resident tool whose handler FLOATS a continuation (returns at once) that logs only
+ *  once a GATED `storage.get` settles — so the line is pushed into the per-invocation ring AFTER the
+ *  invocation drained, in a post-settle job pump, exactly where a hub-search continuation logs its failure. */
+const FLOAT_LOG_SRC = `
+  const h = orb.host(1);
+  h.tools.register({
+    name: "go", description: "float then log", parameters: { type: "object", properties: {} },
+    handler: (args) => {
+      void h.storage.get("gate").then(() => { h.log.warn("float:" + args.tag); });
+      h.log.info("scheduled:" + args.tag);
+      return "scheduled";
+    },
+  });
+  'ok';`;
+
+/** A bridge whose every `storage.get` blocks on ITS OWN gate; `open()` releases the oldest unopened one — so
+ *  the test decides exactly which invocation's float lands, and when (after that invocation drained). */
+function gatedStorageBridge(): { bridge: PluginBridge; open: () => void } {
+  const base = fakeBridge().bridge;
+  const gates: (() => void)[] = [];
+  const bridge: PluginBridge = {
+    ...base,
+    storage: {
+      ...base.storage,
+      get: () =>
+        new Promise<string | null>((resolve) => {
+          gates.push(() => resolve(null));
+        }),
+    },
+  };
+  return {
+    bridge,
+    open: (): void => {
+      const release = gates.shift();
+      if (release === undefined) {
+        throw new Error("test: no gated storage.get to open");
+      }
+      release();
+    },
+  };
+}
+
+async function floatingResident(
+  host: ReturnType<typeof createPluginHost>,
+  bridge: PluginBridge,
+  label?: string,
+): Promise<{ instance: PluginInstance; ref: PluginHandlerRef }> {
+  const outcome = await host.createInstance({
+    mainJs: FLOAT_LOG_SRC,
+    grants: ["tools.register", "storage.kv"],
+    bridge,
+    chat: noChat,
+    ...(label === undefined ? {} : { label }),
+  });
+  if (!outcome.ok) {
+    throw new Error(`activation failed: ${outcome.error}`);
+  }
+  const ref = outcome.instance.tools[0]?.handler;
+  if (ref === undefined) {
+    throw new Error("no handler ref");
+  }
+  return { instance: outcome.instance, ref };
+}
+
+describe("floated-continuation log lines SURVIVE and are attributed (#806) — and mirror into the central log", () => {
+  test("a line a float logs AFTER its invocation drained survives a LATER invocation and reads in push order", { timeout: LONG }, async () => {
+    const host = makeHost();
+    const { bridge, open } = gatedStorageBridge();
+    const { instance, ref } = await floatingResident(host, bridge);
+    expect(await host.invoke(instance, ref, JSON.stringify({ tag: 1 }), noChat)).toBe("scheduled");
+    // The scheduling invocation drained ("scheduled:1"); the float is still parked on the gate.
+    expect(host.readLog(instance).map((l) => l.message)).toEqual(["scheduled:1"]);
+    open();
+    await settleTicks();
+    // The next invocation must NOT destroy the residue: pre-fix, `runToSettlement`'s opening reset ate it.
+    // (Its own float stays gated, so the ring holds exactly the three lines in push order.)
+    await host.invoke(instance, ref, JSON.stringify({ tag: 2 }), noChat);
+    expect(host.readLog(instance).map((l) => l.message)).toEqual(["scheduled:1", "float:1", "scheduled:2"]);
+    host.dispose(instance);
+  });
+
+  test("readLog ALONE surfaces the float's line — no later invocation needed (plugin.getLog tells the truth live)", { timeout: LONG }, async () => {
+    const host = makeHost();
+    const { bridge, open } = gatedStorageBridge();
+    const { instance, ref } = await floatingResident(host, bridge);
+    await host.invoke(instance, ref, JSON.stringify({ tag: 1 }), noChat);
+    open();
+    await settleTicks();
+    const log = host.readLog(instance);
+    expect(log.map((l) => l.message)).toEqual(["scheduled:1", "float:1"]);
+    expect(log.find((l) => l.message === "float:1")?.level).toBe("warn");
+    // Picked up ONCE: a second read does not duplicate the residue.
+    expect(host.readLog(instance).map((l) => l.message)).toEqual(["scheduled:1", "float:1"]);
+    host.dispose(instance);
+  });
+
+  test("a labelled instance mirrors every accepted guest line into the ONE pino stream AT PUSH TIME, tagged `plugin`", { timeout: LONG }, async () => {
+    const infoSpy = vi.spyOn(logger, "info");
+    const warnSpy = vi.spyOn(logger, "warn");
+    const host = makeHost();
+    const { bridge, open } = gatedStorageBridge();
+    const { instance, ref } = await floatingResident(host, bridge, "card-atlas");
+    await host.invoke(instance, ref, JSON.stringify({ tag: 1 }), noChat);
+    // The invocation's own line mirrored as it was pushed (before any drain read it back).
+    expect(infoSpy).toHaveBeenCalledWith({ plugin: "card-atlas" }, "scheduled:1");
+    expect(warnSpy).not.toHaveBeenCalledWith({ plugin: "card-atlas" }, "float:1");
+    open();
+    await settleTicks();
+    // The FLOAT's line landed in the central stream with NO readLog and NO later invocation — the line the
+    // live stage could never show is now in `/api/_debug/logs?q=card-atlas` the moment the guest writes it.
+    expect(warnSpy).toHaveBeenCalledWith({ plugin: "card-atlas" }, "float:1");
+    host.dispose(instance);
+  });
+
+  test("an UNLABELLED instance mirrors nothing (the snippet posture — a label is never invented)", { timeout: LONG }, async () => {
+    const infoSpy = vi.spyOn(logger, "info");
+    const host = makeHost();
+    const { bridge } = gatedStorageBridge();
+    const { instance, ref } = await floatingResident(host, bridge);
+    await host.invoke(instance, ref, JSON.stringify({ tag: 1 }), noChat);
+    expect(infoSpy).not.toHaveBeenCalledWith(expect.objectContaining({ plugin: expect.anything() }), expect.anything());
+    host.dispose(instance);
+  });
+});
+
 describe("membrane — the INBOUND host-call args cap (the mirror of the 1 MiB result cap) (#628 P3-J)", () => {
   test("a guest argument over the inbound cap is refused LOUDLY — the bridge op never runs", { timeout: LONG }, async () => {
     const host = makeHost();
