@@ -18,6 +18,45 @@ export const WALKER_CENSUS_QUALITY = `  // ── heading order (impeccable skip
 
   // ── text overflow (impeccable text-overflow — block + inline arms) ───────
   var overflows = [];
+  // ── the TRUNCATION AFFORDANCE test (#825) ────────────────────────────────
+  // The rule is "truncated with NO ellipsis AND no full-value affordance" — never the raw
+  // scrollWidth > clientWidth, which is what every CORRECTLY truncating label in the app looks like.
+  // Measured cost of the raw form: a P1 against the topbar chat title (overflow:hidden;
+  // text-overflow:ellipsis; white-space:nowrap; scrollWidth 201 / clientWidth 116), i.e. the house
+  // idiom (docs/reviews/side-eye/2026-08-30-this-chat-cls.md §6 retraction 6 / §9-I1).
+  // text-overflow only paints where the box CLIPS, and the clipping box is often an ancestor (the
+  // <div class="truncate"><span>…</span></div> shape puts the ellipsis on the div and leaves the
+  // inline child with clientWidth 0 — the inline arm below), so the ellipsis is read off the nearest
+  // clipping ancestor-or-self. Where nothing ellipses, a title/aria-label carrying the FULL string is
+  // the other honest affordance: the value is one hover or one screen reader away.
+  // DECLARED LIMIT: a hover-only tooltip that renders no attribute until it opens is unreachable from
+  // a static walk and is NOT credited — such a label still reports, and the fix is the ellipsis.
+  // DISJOINT from truncated-to-nothing (#816, census-collision): that family is clientWidth ~ 0 — the
+  // string is GONE, and an ellipsis on a zero-width box paints nothing either, so it is never silenced
+  // here.
+  var clipOwnerStyleOf = function (el) {
+    for (var cp = el; cp; cp = cp.parentElement) {
+      var cs = getComputedStyle(cp);
+      if (clipsOverflow(cs)) return cs;
+    }
+    return null;
+  };
+  var fullValueAffordance = function (el) {
+    var full = (el.textContent || "").trim().replace(/\\s+/g, " ");
+    if (full === "") return false;
+    var levels = 0;
+    for (var ap = el; ap && levels < 4; ap = ap.parentElement) {
+      var carried = ((ap.getAttribute("title") || "") + " " + (ap.getAttribute("aria-label") || "")).replace(/\\s+/g, " ");
+      if (carried.indexOf(full) !== -1) return true;
+      levels += 1;
+    }
+    return false;
+  };
+  var truncationAffordance = function (el) {
+    var owner = clipOwnerStyleOf(el);
+    if (owner !== null && /ellipsis/.test(owner.textOverflow || "")) return true;
+    return fullValueAffordance(el);
+  };
   var OVERFLOW_SKIP_TAGS = { pre: 1, code: 1, textarea: 1, svg: 1, canvas: 1, select: 1, option: 1 };
   var isScrollRegion = function (s) {
     return /(auto|scroll)/.test(s.overflowX || "") || /(auto|scroll)/.test(s.overflow || "") || /(auto|scroll)/.test(s.overflowY || "");
@@ -49,7 +88,9 @@ export const WALKER_CENSUS_QUALITY = `  // ── heading order (impeccable skip
     if (scrollAnc) continue;
     var delta = ovel.scrollWidth - ovel.clientWidth;
     if (ovel.clientWidth > 0 && delta >= 16) {
-      overflows.push({ selector: describe(ovel), spillPx: Math.round(delta), mode: "block" });
+      if (!truncationAffordance(ovel)) {
+        overflows.push({ selector: describe(ovel), spillPx: Math.round(delta), mode: "block" });
+      }
       continue;
     }
     if (ovel.clientWidth === 0 && ovRect.width > 0) {
@@ -64,7 +105,7 @@ export const WALKER_CENSUS_QUALITY = `  // ── heading order (impeccable skip
       if (transformed) continue;
       var cRect = container.getBoundingClientRect();
       var spill = ovRect.right - (cRect.left + container.clientLeft + container.clientWidth);
-      if (spill >= 16) {
+      if (spill >= 16 && !truncationAffordance(ovel)) {
         overflows.push({ selector: describe(ovel), spillPx: Math.round(spill), mode: "inline" });
       }
     }
