@@ -11359,9 +11359,9 @@
       "path": "docs/design/mocks/config-revamp/DESIGN.md",
       "lane": "design",
       "issue": 5,
-      "lines": 82,
-      "bytes": 5883,
-      "sha256": "41e00935b7f6e94df19791f9f49c0862e24ae3c2745aa75b2ef84f692d956ac2",
+      "lines": 83,
+      "bytes": 6043,
+      "sha256": "95994e76cdf0447be7a2550737d3c10b9299738d74bd56f0058b407bc0ee6098",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -11374,15 +11374,16 @@
       },
       "receipt": {
         "path": "docs/design/mocks/config-revamp/DESIGN.md",
-        "assignedSha256": "41e00935b7f6e94df19791f9f49c0862e24ae3c2745aa75b2ef84f692d956ac2",
+        "assignedSha256": "95994e76cdf0447be7a2550737d3c10b9299738d74bd56f0058b407bc0ee6098",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "41e00935b7f6e94df19791f9f49c0862e24ae3c2745aa75b2ef84f692d956ac2",
-        "verifiedCommit": "c41bcfa25fbe49071aa47cc952f96fb80af3069f",
+        "verifiedSha256": "95994e76cdf0447be7a2550737d3c10b9299738d74bd56f0058b407bc0ee6098",
+        "verifiedCommit": "d36fa3853b5ec557b5335af4cf247e10e2abd47b",
         "verifiedAt": "2026-08-30",
         "evidence": [
-          "docs/design/mocks/config-revamp/DESIGN.md:1 authored by the orchestrator (claude-b) from the owner-approved canvas (artifact c612c440, v teacher-and-pin) across five live-ruling iterations 2026-08-30; the persona action inventory verified against domain/persona/verbs + the chat router before commitment"
+          "docs/design/mocks/config-revamp/DESIGN.md:1 authored by the orchestrator (claude-b) from the owner-approved canvas (artifact c612c440, v teacher-and-pin) across five live-ruling iterations 2026-08-30; the persona action inventory verified against domain/persona/verbs + the chat router before commitment",
+          "docs/design/mocks/config-revamp/DESIGN.md: re-attested at d36fa3853b5ec557b5335af4cf247e10e2abd47b — provenance-word ruling folded in"
         ],
         "claims": [
           {
