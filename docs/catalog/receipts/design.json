@@ -2216,8 +2216,11 @@
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedAt": "2026-08-29",
-      "evidence": ["docs/design/card-atlas-art-forward.md:1 (authored + built in the same lane; every §1/§7a premise live-probed or path:line-cited)"],
+      "verifiedAt": "2026-08-30",
+      "evidence": [
+        "docs/design/card-atlas-art-forward.md:1 (authored + built in the same lane; every §1/§7a premise live-probed or path:line-cited)",
+        "docs/design/card-atlas-art-forward.md:521 (re-attested 2026-08-30 after the §8f TRUTH REPAIR: the 'host defect' framing is superseded by plugin-host-float-visibility.md; the rest is the formatter's escapes)"
+      ],
       "summary": "Card Atlas design/build record, v1.1.0 art-forward (§1-§6) + hub v1.2 (§7): six-hub source seam (tavern/realm/chub/wyvern/aicc/charavault) with per-hub capability facts, one page control over server-paged and held-set hubs, include/exclude tag filters applied where each hub can answer, tile tag chips + detail Tags row, live Hub/Sort selects (select actionId arm), Summon→Add to library, the #801 belt split (fetchAsset 1200/hr, net.fetch 360/hr) + the 5 MiB asset byte cap, the tavern query= premise kill, NET_HOSTS_MAX 8→16; probes, rejected arms, coupled sites, roster skips with receipts (botbooru content posture; pygmalion/janitorai/datacat never built).",
       "claims": [
         {
@@ -2260,9 +2263,88 @@
           ]
         }
       ],
-      "assignedSha256": "8b4033f83a2ea5c954cb8cfad77c4277e0a0a7a559225e1c4e02d51ff6f87bb3",
-      "verifiedSha256": "8b4033f83a2ea5c954cb8cfad77c4277e0a0a7a559225e1c4e02d51ff6f87bb3",
-      "verifiedCommit": "a4b00895712d4ffc55f41b57f509d60d884c88ad"
+      "assignedSha256": "8d1ce805880983d504fa94a3c399b92bae5e9d030577040e24217144498f58d7",
+      "verifiedSha256": "8d1ce805880983d504fa94a3c399b92bae5e9d030577040e24217144498f58d7",
+      "verifiedCommit": "0acef7a7fd9e04ce436e63932fe8f97309d24f17"
+    },
+    {
+      "path": "docs/design/plugin-host-float-visibility.md",
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedAt": "2026-08-30",
+      "evidence": [
+        "docs/design/plugin-host-float-visibility.md:1 (designed by forge-plugin-float, re-verified + built by cb-plugin-float; §6 carries the premise receipts taken on the unmodified tree and the coupled sites the sweep missed)"
+      ],
+      "summary": "#805/#806 design + build record: the card-atlas 'large-body park' was the guest's `Date.parse` throwing inside the sandbox realm's ambient denial (D46), caught by the float's `.catch` and then destroyed by `runToSettlement`'s log reset; the fix is a pure-arithmetic guest date engine (manifest 1.3.2), a destructive `LogRing.drain()` with port-side residue pickup so floated log lines survive, and the observability wiring — a push-time mirror of labelled guest lines into the pino stream, the `/api/_debug/automation/fires` probe over the durable fire ledger, and the `__orb.pluginLog` / `__orb.automationFires` dev-bridge accessors; rejected arms (relaxing the realm's Date stubs, a host-side resume fix, a second debug route, an unhandled-rejection tracker the wrapper cannot expose), the realm-faithful node:vm harness over the realm's exported AMBIENT_STUBS, and the coupled-site inventory.",
+      "claims": [
+        {
+          "claim": "The five parked hubs fed an ISO string to `epochMs`, which called the realm's throwing `Date.parse` stub; the guest now parses the receipted wire shapes with pure civil arithmetic, and the realm-faithful suite drives the real main.js under the realm's own exported ambient denial.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/server/src/entry/boot/seed-assets/plugins/card-atlas/main.js:390"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/infra/plugin-host/realm.ts:111"
+            },
+            {
+              "kind": "test",
+              "target": "tests/server/entry/boot/seed-atlas-realm-dates.suite.test.ts:218"
+            },
+            {
+              "kind": "issue",
+              "target": "#805"
+            }
+          ]
+        },
+        {
+          "claim": "`LogRing.drain()` is destructive and the port picks residue up before each invoke and on every readLog, so a floated continuation's log lines survive and `plugin.getLog` surfaces them live.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/server/src/infra/plugin-host/realm.ts:87"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/infra/plugin-host/port.ts:407"
+            },
+            {
+              "kind": "test",
+              "target": "tests/server/infra/plugin-host/port.test.ts:1949"
+            },
+            {
+              "kind": "issue",
+              "target": "#806"
+            }
+          ]
+        },
+        {
+          "claim": "A labelled instance mirrors every accepted guest line at push time into the ONE pino stream tagged `{plugin: <slug>}`, and the automation fire ledger is served principal-blind behind the debug gate at /api/_debug/automation/fires.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/server/src/infra/plugin-host/port.ts:222"
+            },
+            {
+              "kind": "test",
+              "target": "tests/server/infra/plugin-host/port.test.ts:1980"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/foundation/observability/debug/routes.ts:489"
+            },
+            {
+              "kind": "test",
+              "target": "tests/server/foundation/observability/debug/routes.int.test.ts:168"
+            }
+          ]
+        }
+      ],
+      "assignedSha256": "59c275d744bfadcac65acc25415fbcfb7871b04370796893b32b78877f744832",
+      "verifiedSha256": "59c275d744bfadcac65acc25415fbcfb7871b04370796893b32b78877f744832",
+      "verifiedCommit": "0acef7a7fd9e04ce436e63932fe8f97309d24f17"
     }
   ]
 }

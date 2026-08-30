@@ -999,12 +999,13 @@
       "disposition": "current",
       "authority": "current-reference",
       "fullRead": true,
-      "verifiedSha256": "de8ba707410d93fd888b8f7d5dcb0e5ced1607e4aa45d0b1b5c0493668aae530",
-      "verifiedCommit": "09b8ead41eae4ca5f878202fbc1e5def32644949",
-      "verifiedAt": "2026-08-22",
+      "verifiedSha256": "97b7a5e3d14bc2543071b1d9b5c9d030152937aac37438b362312963b98a1942",
+      "verifiedCommit": "0acef7a7fd9e04ce436e63932fe8f97309d24f17",
+      "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/architecture/core/client-architecture-lockdown.md:1 (full read; header/status evaluated)",
-        "git log -1 --format=%H -- docs/architecture/core/client-architecture-lockdown.md (2026-08-22; 09b8ead41)",
+        "git log -1 --format=%H -- docs/architecture/core/client-architecture-lockdown.md (2026-08-30; 0acef7a7f)",
+        "pnpm check:docs (2026-08-30 re-attest after the plugin-host float-visibility build — §3 count four -> FIVE composition-tier dir modules with `agent-plugin/` (the `__orb.pluginLog` read impl) and §7's build list naming `buildAgentPlugin`; the dep-cruiser alternation widened in the same commit)",
         "pnpm check:docs (2026-08-22 re-attest after #433 — §3 count correction two -> FOUR composition-tier dir modules: the doc listed agent-nav/ and agent-seed/ only, agent-rpg/ was already unlisted and unwalled before this change, and agent-handles/ is the new DEV-only assembly; §7 gains the boot-chunk law for that arm and the kit/contracts/ui sideEffects declarations)"
       ],
       "claims": [
