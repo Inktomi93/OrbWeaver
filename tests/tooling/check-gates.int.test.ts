@@ -829,7 +829,7 @@ function writeFixtures(): void {
   // this file — its stale-marker arm scans the shared project, tests/ included, so a literal marker here
   // would make this suite's own source a permanent violation (the __g_det / __g_fab self-reference dodge).
   fx("packages/ui/src/__g_legacyreact/__g_legacyreact.ts", 'import { cloneElement } from "react";\nexport const c = cloneElement;\n');
-  // ── the baseui-* family (docs/design/baseui-crunch.md item 4) ─────────────────────────────────────
+  // ── the baseui-* family (docs/history/design/baseui-crunch.md item 4) ─────────────────────────────────────
   // All five fixturable baseui gates read the COMMITTED surface manifest, which is present on the real
   // tree — so a `__g_` seal that imports @base-ui/react as a value is enough to drive each of them.
   // baseui-derives-not-respells: ARM A — a seal FORWARDING a re-declared Base UI handler one argument

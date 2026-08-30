@@ -432,7 +432,7 @@ describe("agent-sdk env — bundled-runtime name parity (SDK-upgrade tripwire)",
 // again, and the agent-sdk child runs tools AS HOST. So a key added to the shim but not to the firewall
 // hands a fresh app secret to a tool-executing subprocess, and nothing else in the tree would notice:
 // the shim is a shell script no TypeScript instrument reads.
-// Found by the containerize security review (docs/reviews/security/2026-08-08-containerize-surface-review.md,
+// Found by the containerize security review (docs/history/reviews/security/2026-08-08-containerize-surface-review.md,
 // item 3b). Both sides carry a pointer comment; this is the assertion.
 // tests/server/infra/providers/backends/agent-sdk → repo root is six levels up.
 const REPO_ROOT = resolve(import.meta.dirname, "../../../../../..");
