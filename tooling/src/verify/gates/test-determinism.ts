@@ -5,6 +5,9 @@
 // names the banned call, and reading prose as code cost two CTs a reworded comment. DECLARED LIMIT: string
 // literals still scan (a fixture that spells the call is code the test could evaluate). Exempts support/ +
 // e2e/ via scanRoot, so a predicate that stops matching REDs on the zero-scan alarm instead of passing.
+// PER-SITE ESCAPE (#828): the shared `@orb-gate-ignore test-determinism: <reason>` marker on the line
+// IMMEDIATELY above the call — for a test whose SUBJECT is elapsed real time. Two-sided via
+// gate-ignore-inventory; comments are blanked, so the marker line can never itself match.
 
 import type { GateDescriptor } from "../contract/gate.ts";
 import { blankTsComments } from "../lib/comment-spans.ts";
@@ -58,8 +61,8 @@ export const gate: GateDescriptor = {
     }
     const file = relPath(ctx.root, sf.getFilePath());
     // Comments are TRIVIA to a value scan. Blanking is length-preserving (comment-spans.ts), so `index + 1`
-    // is still the real line — and the line stays the finding's ONLY position, which is what keeps this a
-    // genuinely file-level Finding overload (finding-overload-provenance: no ts-morph position API).
+    // is still the real line — and the line stays the finding's ONLY position (no ts-morph position API, so
+    // finding-overload-provenance is satisfied), which is also what makes the line-adjacent escape exact.
     for (const [index, line] of blankTsComments(sf).split("\n").entries()) {
       for (const { re, what } of BANNED) {
         if (re.test(line)) {
@@ -111,6 +114,13 @@ export const gate: GateDescriptor = {
     },
   ],
   mustPass: [
+    {
+      files: {
+        "tests/server/marked.test.ts":
+          "// @orb-gate-ignore test-determinism: the SUBJECT is elapsed real time — ends when the assertion stops measuring wall-clock\nexport const p = performance.now();\n",
+      },
+      why: "#828 — the per-site escape this gate had no way to express: its findings go through the `Finding` overload, which honours a marker on the line IMMEDIATELY above. Before #828 a test whose subject IS elapsed real time had to contort or change instrument; the marker is two-sided (gate-ignore-inventory reds it the day the call goes away)",
+    },
     {
       files: { "tests/server/y.test.ts": "export const t = clock.now();\n" },
       why: "the injected clock (clock.now()) — no ambient nondeterminism, passes",

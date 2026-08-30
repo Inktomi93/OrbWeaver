@@ -1,10 +1,14 @@
 // Gate: finding-overload-provenance — a NODE-ANCHORED finding may not reach `ctx.report` through the
-// explicit-`Finding` overload. That overload bypasses `hasGateIgnore` (GATE-AUTHORING.md §1), so every
-// `@orb-gate-ignore` on such a finding is INERT — and an author who writes the correct marker gets a DOUBLE
-// red (the gate still fires, and gate-ignore-inventory reds the marker as stale). Three closing sweeps each
-// missed members because they matched report CALL SITES by regex; this gate matches the FINDING LITERAL by
-// SHAPE, wherever it is built. Escape: a `finding-overload-ok: <reason>` comment marker (permanent,
-// two-sided — spelled with an `@` prefix, deliberately not written literally here per GATE-AUTHORING §5).
+// explicit-`Finding` overload. THE BAN SURVIVES #828, ITS REASON CHANGED: the overload no longer bypasses
+// suppression (a marker now binds LINE-ADJACENTLY there, so the old DOUBLE red is gone), but a Finding
+// literal's line is arithmetic the GATE computed, so an author's marker anchors to that arithmetic instead
+// of to the node's own trivia — no block scope, and no `token` at all unless the literal happens to carry
+// one, which is §4.3a unsatisfiable on a line with two guarded things. The node overload is the one whose
+// position and position-NAME the harness derives. Three closing sweeps each missed members because they
+// matched report CALL SITES by regex; this gate matches the FINDING LITERAL by SHAPE, wherever it is built.
+// Escape: a `finding-overload-ok: <reason>` comment marker (permanent, two-sided — spelled with an `@`
+// prefix, deliberately not written literally here per GATE-AUTHORING §5); this gate is `markerImmune`, so
+// the shared vocabulary can never absolve its own auditor.
 // BORN-COMPLIANT since 2026-08-23: the landing baseline (52 literals / 24 gates) reached `{}` and its
 // baseline + generator were DELETED per the declared terminal state (GATE-AUTHORING.md §4.8) — every
 // finding now reports directly, with no budget to hide behind. Registered in Core-Enforcement-Active-Gates.md.
@@ -51,8 +55,9 @@ const REAL_CORPUS_MIN = 40;
 type ArmToken = "column-derived" | "node-position-in-literal" | "node-position-in-scope";
 
 const MESSAGE =
-  "a NODE-ANCHORED finding is being built as an explicit `Finding` literal — and `ctx.report(finding)` " +
-  "BYPASSES `hasGateIgnore`, so every `// @orb-gate-ignore` on it is inert (tooling/src/verify/gates/GATE-AUTHORING.md §1). " +
+  "a NODE-ANCHORED finding is being built as an explicit `Finding` literal — and that overload's suppression " +
+  "is LINE-ADJACENT, so the marker an author writes binds to the line THIS GATE computed rather than to the " +
+  "node's own trivia: no block scope, and no position name unless the literal carries a token (tooling/src/verify/gates/GATE-AUTHORING.md §1). " +
   "A `column-derived` token: the finding claims an intra-line caret, which only a node/token position can " +
   "produce (`Finding.column` is 0 for a genuinely file-level finding — tooling/src/verify/contract/gate.ts). A " +
   "`node-position-in-literal` token: the literal itself calls a ts-morph position API. A " +
@@ -278,6 +283,10 @@ export const gate: GateDescriptor = {
   docRow: "Core-Enforcement-Active-Gates.md (Layer 3)",
   status: "active",
   scopeSafety: "whole-project", // the marker arms + the blindness tripwire are whole-corpus claims
+  // An auditor of an exemption vocabulary is never reachable by one (#828): its own escape is the separate
+  // `finding-overload-ok` marker, and letting the shared marker silence its stale/malformed arms would park
+  // a broken exemption forever. No live marker named this gate when the flag landed.
+  markerImmune: true,
   message: MESSAGE,
   fix: FIX,
   scanRoot: (p) => p.startsWith(GATES_DIR),

@@ -137,6 +137,13 @@ export interface GateDescriptor {
   readonly fix?: string;
   /** Which files this gate reads AT ALL — replaces file.ts's hand-kept GATE_SCOPES table. */
   readonly scanRoot?: (repoRelPath: string) => boolean;
+  /** TRUE only for a gate that AUDITS an exemption vocabulary: `pass.ts` then offers it NO suppression on
+   *  either arm. A marker gate must never be marker-suppressible — a marker written one line above the
+   *  report that indicts it would absolve exactly the finding the vocabulary's two-sidedness exists to
+   *  make. Occupants: `gate-ignore-inventory` (the `@orb-gate-ignore` auditor) and
+   *  `finding-overload-provenance` (whose own escape is the separate `finding-overload-ok` marker). It is
+   *  NOT a "this gate is important" flag — a gate that merely wants to be hard says so with a message. */
+  readonly markerImmune?: boolean;
 
   // ---- the NODE SUBSCRIPTION (per-node gates) --------------------------------
   /** SyntaxKinds this gate wants. The loader builds `Map<SyntaxKind, Gate[]>` from these.
