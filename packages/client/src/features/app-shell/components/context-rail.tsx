@@ -37,8 +37,8 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Separator } from "@orb/ui/separator";
 import { TabsList, TabsTab } from "@orb/ui/tabs";
 import { Text } from "@orb/ui/text";
-import type { ReactElement } from "react";
-import { useEffect, useRef, useState } from "react";
+import type { ReactElement, RefObject } from "react";
+import { useCallback, useRef, useSyncExternalStore } from "react";
 import { CONTEXT_CELL_FLOOR_AT_COARSE, CONTEXT_RAIL_WRAP, CONTEXT_RAIL_WRAPPED_EDGE_BAR_OFF } from "#components";
 import type { ContextRegionView, ResolvedContextTab } from "#lib";
 import { cellDomId } from "../lib/context-cell-id.ts";
@@ -74,7 +74,7 @@ const CELL_EDGE_CLASSES = `border-b-2 border-transparent data-active:border-prim
  *  under the receded cells (so nothing ends on the pane's edge — the "dangling section header" read #861
  *  filed), the foot rail's top HAIRLINE, and the ember active state which only the owning rail can wear.
  *  Stated as ONE map per axis so the two states can never be tuned apart, and pinned by a framebuffer
- *  decode (`context-bracket.ct.tsx` — band == owning > receded == pane) so a future alpha tweak that
+ *  decode (`context-bracket.ct.tsx` — band == owning above receded == pane) so a future alpha tweak that
  *  vanishes on screen cannot pass as a fix again. */
 const RAIL_OWNERSHIP_CLASSES: Readonly<Record<"owning" | "receded", string>> = {
   owning: "bg-surface-raised",
@@ -166,6 +166,48 @@ function trackOverflow(track: HTMLElement): { readonly start: boolean; readonly 
   return { start: travelled > OVERFLOW_EPSILON_PX, end: total - travelled > OVERFLOW_EPSILON_PX };
 }
 
+const NO_OVERFLOW: { readonly start: boolean; readonly end: boolean } = { start: false, end: false };
+
+/** The track's measured overflow, as an external-store subscription (ResizeObserver + scroll are the
+ *  store; layout is the state's real owner, so `useSyncExternalStore` is the honest shape — the eslint
+ *  no-external-store-subscription remedy, replacing the setState-in-effect this shipped as). The snapshot
+ *  CACHES elementwise: a ResizeObserver fires on every layout pass that touches the track — the pane
+ *  resizing, a scrollbar appearing, a modal opening over the shell — and a fresh object each time
+ *  re-renders the whole rail for a value that did not change (MEASURED: that churn raced the command
+ *  palette's focus restore and flaked `app-shell.ct.tsx`). `cellCount` keys the subscribe so a new tab
+ *  set re-subscribes and re-measures; every other input arrives through the observer, which is why
+ *  nothing else is enumerated. */
+function useTrackOverflow(trackRef: RefObject<HTMLDivElement | null>, cellCount: number): { readonly start: boolean; readonly end: boolean } {
+  const cache = useRef(NO_OVERFLOW);
+  const subscribe = useCallback(
+    (onStoreChange: () => void): (() => void) => {
+      void cellCount;
+      const track = trackRef.current;
+      if (track === null) {
+        return (): void => undefined;
+      }
+      const observer = new ResizeObserver(onStoreChange);
+      observer.observe(track);
+      track.addEventListener("scroll", onStoreChange, { passive: true });
+      return (): void => {
+        observer.disconnect();
+        track.removeEventListener("scroll", onStoreChange);
+      };
+    },
+    [trackRef, cellCount],
+  );
+  const getSnapshot = useCallback((): { readonly start: boolean; readonly end: boolean } => {
+    const track = trackRef.current;
+    const next = track === null ? NO_OVERFLOW : trackOverflow(track);
+    const previous = cache.current;
+    if (previous.start !== next.start || previous.end !== next.end) {
+      cache.current = next;
+    }
+    return cache.current;
+  }, [trackRef]);
+  return useSyncExternalStore(subscribe, getSnapshot, (): { readonly start: boolean; readonly end: boolean } => NO_OVERFLOW);
+}
+
 /** Sub-pixel track widths are routine (a fractional container width divided into `1fr` tracks), so the fit
  *  test needs a tolerance or every rail claims to overflow by 0.4px. */
 const OVERFLOW_EPSILON_PX = 1;
@@ -202,37 +244,8 @@ export interface ContextRailProps {
 export function ContextRail({ ariaLabel, tabs, activeTab, actions, edge, owns, kicker, selection }: ContextRailProps): ReactElement {
   const ownership = owns ? "owning" : "receded";
   const trackRef = useRef<HTMLDivElement | null>(null);
-  const [overflow, setOverflow] = useState<{ readonly start: boolean; readonly end: boolean }>({ start: false, end: false });
   const cellCount = tabs.length;
-
-  // THE FIT IS MEASURED, NOT COUNTED (see `RAIL_FADE_CLASSES`). Re-runs when the cell SET changes; every
-  // other input (the pane's width, a wrap, a font-size step from the appearance preset) arrives through the
-  // ResizeObserver, which is why the effect does not try to enumerate them.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: cellCount is the intentional re-run trigger (a new tab set re-measures) — the same shape, and the same reason, as the scroll effect in context-bracket.tsx; the body reads the live track off the ref, so nothing it touches is a dependency.
-  useEffect(() => {
-    const track = trackRef.current;
-    if (track === null) {
-      return;
-    }
-    // ELEMENTWISE GUARD, not a bare publish. A ResizeObserver fires on every layout pass that touches the
-    // track — the pane resizing, a scrollbar appearing, a modal opening over the shell — and a fresh object
-    // each time re-renders the whole rail for a value that did not change. MEASURED: that churn raced the
-    // command palette's focus RESTORE (`app-shell.ct.tsx` "Escape returns to the Jump trigger" went
-    // intermittently red), which is the cost of publishing an unchanged derived value.
-    const read = (): void =>
-      setOverflow((previous) => {
-        const next = trackOverflow(track);
-        return previous.start === next.start && previous.end === next.end ? previous : next;
-      });
-    read();
-    const observer = new ResizeObserver(read);
-    observer.observe(track);
-    track.addEventListener("scroll", read, { passive: true });
-    return (): void => {
-      observer.disconnect();
-      track.removeEventListener("scroll", read);
-    };
-  }, [cellCount]);
+  const overflow = useTrackOverflow(trackRef, cellCount);
 
   return (
     <Stack
