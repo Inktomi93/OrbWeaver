@@ -14,15 +14,19 @@
 // composition root (`createServices`, vLLM disabled — the `app`/`services` fixture).
 //
 // THE TRIPWIRE is the vitest default 5s per-test timeout: an unwired watchdog hangs the catastrophic backtrack
-// over REDOS_INPUT for MINUTES, so the run dies red. (No explicit elapsed assertion — Date.now/performance.now
-// are banned under tests/ by test-determinism, and the frozen fixture clock can't measure wall time.) Direct
-// timing evidence, from a standalone probe over the composed `createRegexApplyReplace()`: the guard THROWS in
+// over REDOS_INPUT for MINUTES, so the run dies red on that alone. #831 additionally restores an EXPLICIT
+// elapsed assertion (the sub-second ceiling below) so the test does not rely solely on the outer 5s timeout
+// to notice a slow-but-not-hung regression — Date.now/performance.now are banned under tests/ by
+// test-determinism and the frozen fixture clock can't measure wall time, so the assertion uses
+// `process.hrtime()` under the shared `@orb-gate-ignore test-determinism` marker (#828). Direct timing
+// evidence, from a standalone probe over the composed `createRegexApplyReplace()`: the guard THROWS in
 // ~52ms (`Script execution timed out after 50ms`, REGEX_APPLY_TIMEOUT_MS), while the native unguarded replace
 // over the SAME 40-`a` input never completes (killed at 90s) — that is exactly the hang the guard prevents.
 //
 // SECOND BLOCK (bottom of the file): the other composed-injection gap at this seam — `resolveSeatDeco`'s
 // tighten-only external-media combine, likewise stubbed everywhere else. Its own header explains the exploit.
 
+import process from "node:process";
 import type { Principal } from "@orb/contracts/identity";
 import type { RegexScriptRow } from "@orb/contracts/regex";
 import { regexScriptSchema } from "@orb/contracts/regex";
@@ -115,17 +119,25 @@ describe("D53 ReDoS watchdog — composed at the editMessage seam (real createSe
   test("the ReDoS pattern is interrupted by the composed watchdog: content UNCHANGED", async ({ db, services }) => {
     const { chatId, messageId, principal } = await seedEditTarget(db, services, [REDOS_SCRIPT()], "orig");
 
+    // @orb-gate-ignore test-determinism: the SUBJECT is elapsed real time — proving the watchdog actually FIRED (well under a second) rather than the call merely completing under vitest's outer 5s timeout (#831)
+    const started = process.hrtime();
     const view = await services.chat.editMessage({
       principal,
       chatId,
       messageId,
       content: REDOS_INPUT,
     });
+    // @orb-gate-ignore test-determinism: the SUBJECT is elapsed real time — reading the same monotonic start above; no frozen clock can measure a real wall-clock race (#831)
+    const [seconds] = process.hrtime(started);
 
     // The per-script catch skipped the timed-out rule → the edited content survives verbatim (the replace
     // never landed; `SHOULD_NOT_APPLY` is nowhere). If the guard were unwired this call would hang.
     expect(view.content).toBe(REDOS_INPUT);
     expect(view.content).not.toContain("SHOULD_NOT_APPLY");
+    // The watchdog throws at ~52ms (REGEX_APPLY_TIMEOUT_MS); a native unguarded replace over the same input
+    // never completes. 1s is generous slack over CI/host jitter while still refuting "it just finished in
+    // time" — an unwired guard hangs for MINUTES, not fractions of a second.
+    expect(seconds).toBeLessThan(1);
   });
 
   test("REVERSE pin: a benign runOnEdit USER_INPUT script DOES apply through the same composed path (seam is live)", async ({ db, services }) => {

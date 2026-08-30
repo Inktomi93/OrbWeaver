@@ -5,8 +5,9 @@
 // and `boundHostFn` (sync round-trip, async promise bridge, result cap, the self-bound deadline race that
 // owns the "interrupt doesn't preempt a host call" footgun).
 //
-// Elapsed time uses `process.hrtime.bigint()` (the test-determinism gate bans Date.now/performance.now);
-// injected seams are a fixed clock + seeded LCG + counter ids (no ambient anything).
+// Elapsed time uses `process.hrtime()`/`process.hrtime.bigint()` (the test-determinism gate bans Date.now/
+// performance.now/process.hrtime — #831); injected seams are a fixed clock + seeded LCG + counter ids (no
+// ambient anything). Each hrtime call site carries the shared `@orb-gate-ignore test-determinism` marker.
 
 import process from "node:process";
 import type { HostSeams } from "@orb/server/infra/plugin-host";
@@ -41,6 +42,7 @@ function makeSeams(seed = 1): HostSeams {
 }
 
 function elapsedMs(start: [number, number]): number {
+  // @orb-gate-ignore test-determinism: the SUBJECT is elapsed real time — the monotonic clock is the instrument here, no frozen clock could measure a real DoS-deadline race (#831)
   const [seconds, nanos] = process.hrtime(start);
   return seconds * MS_PER_SEC + nanos / NS_PER_MS;
 }
@@ -160,6 +162,7 @@ describe("Sandbox — DoS containment (the runtime pin)", () => {
   test("a busy loop dies at the deadline; the process stays healthy", async () => {
     const sandbox = await Sandbox.create(makeSeams(), { limits: { cpuDeadlineMs: 150 } });
     try {
+      // @orb-gate-ignore test-determinism: the SUBJECT is elapsed real time — proving the busy loop dies at a real deadline, no frozen clock to inject (#831)
       const start = process.hrtime();
       const outcome = await sandbox.evalGuest("while (true) {}");
       const took = elapsedMs(start);
@@ -218,6 +221,7 @@ describe("Sandbox — the invocation SETTLEMENT deadline (what the interrupt can
   test("a guest promise that never settles ENDS the invocation at the wall (not a hang)", async () => {
     const sandbox = await Sandbox.create(makeSeams(), { limits: { cpuDeadlineMs: 100, settleGraceMs: 150 } });
     try {
+      // @orb-gate-ignore test-determinism: the SUBJECT is elapsed real time — proving the settlement deadline ends the invocation at the wall, no frozen clock to inject (#831)
       const start = process.hrtime();
       const outcome = await sandbox.evalGuest("new Promise(() => {})");
       const took = elapsedMs(start);
@@ -391,6 +395,7 @@ describe("boundHostFn — the self-bounding membrane call", () => {
         throw new Error("gated guest failed to start");
       }
       started.value.dispose();
+      // @orb-gate-ignore test-determinism: the SUBJECT is elapsed real time — proving the post-release pump completes under the CPU ceiling on a real clock, no frozen clock to inject (#831)
       const startedAt = process.hrtime();
       release("ok");
       await vi.waitFor(() => expect(reached).toContain("resumed"), { timeout: 25_000, interval: 5 });
