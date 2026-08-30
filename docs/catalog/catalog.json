@@ -11272,9 +11272,9 @@
       "path": "docs/design/mocks/README.md",
       "lane": "design",
       "issue": 5,
-      "lines": 40,
-      "bytes": 3492,
-      "sha256": "d8bae00f42978319bcae3f968fdae7522b7f29d3b33a804923b703c3f5f1bdbc",
+      "lines": 41,
+      "bytes": 3715,
+      "sha256": "b83b79c02687e190319454701cc16357428c814a2d334868187fbf97c681272d",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -11287,19 +11287,20 @@
       },
       "receipt": {
         "path": "docs/design/mocks/README.md",
-        "assignedSha256": "d8bae00f42978319bcae3f968fdae7522b7f29d3b33a804923b703c3f5f1bdbc",
+        "assignedSha256": "b83b79c02687e190319454701cc16357428c814a2d334868187fbf97c681272d",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "d8bae00f42978319bcae3f968fdae7522b7f29d3b33a804923b703c3f5f1bdbc",
-        "verifiedCommit": "1f5e25c00ec2ee921bc70591bf84e8268b255030",
+        "verifiedSha256": "b83b79c02687e190319454701cc16357428c814a2d334868187fbf97c681272d",
+        "verifiedCommit": "c41bcfa25fbe49071aa47cc952f96fb80af3069f",
         "verifiedAt": "2026-08-30",
         "evidence": [
           "docs/design/mocks/README.md:1 (design; unheaded)",
           "git log --oneline -1 -- docs/design/mocks/README.md: a2fb3d950 docs(codex): the 58-finding documentation cleanup — 15 fixed, 33 archive-no-action, 10 needs-owner",
           "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
           "docs/design/mocks/README.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)",
-          "docs/design/mocks/README.md: re-attested at 1f5e25c00ec2ee921bc70591bf84e8268b255030 — the #876/#873 citer sweep: doc-path repoints from the tooling-package → Core-Tooling-Law.md and density-pass-spec → UI-Density-Law.md relocations and the seven mock-set retirements. Comment/link lines only; no claim moved."
+          "docs/design/mocks/README.md: re-attested at 1f5e25c00ec2ee921bc70591bf84e8268b255030 — the #876/#873 citer sweep: doc-path repoints from the tooling-package → Core-Tooling-Law.md and density-pass-spec → UI-Density-Law.md relocations and the seven mock-set retirements. Comment/link lines only; no claim moved.",
+          "docs/design/mocks/README.md: re-attested at c41bcfa25fbe49071aa47cc952f96fb80af3069f — config-revamp row appended"
         ],
         "summary": "docs/design/mocks — frozen design drawings: full content read against frozen tree; landed-state record retained as historical evidence."
       },
@@ -11351,6 +11352,58 @@
           }
         ],
         "summary": "Characters landing mock (#864): the CONTENT pane at rest as a library — recently chatted, starred, just added, a fresh-install 'Meet the cast', the list-collapsed arm that owns the doors, and the phone sheet — drawn only from what character.list carries plus the two fields #865 wires; canvas source + renders + the fences for the build lane."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/design/mocks/config-revamp/DESIGN.md",
+      "lane": "design",
+      "issue": 5,
+      "lines": 82,
+      "bytes": 5883,
+      "sha256": "41e00935b7f6e94df19791f9f49c0862e24ae3c2745aa75b2ef84f692d956ac2",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "design",
+          "status": "active",
+          "updated": "2026-08-30"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/design/mocks/config-revamp/DESIGN.md",
+        "assignedSha256": "41e00935b7f6e94df19791f9f49c0862e24ae3c2745aa75b2ef84f692d956ac2",
+        "disposition": "current",
+        "authority": "design",
+        "fullRead": true,
+        "verifiedSha256": "41e00935b7f6e94df19791f9f49c0862e24ae3c2745aa75b2ef84f692d956ac2",
+        "verifiedCommit": "c41bcfa25fbe49071aa47cc952f96fb80af3069f",
+        "verifiedAt": "2026-08-30",
+        "evidence": [
+          "docs/design/mocks/config-revamp/DESIGN.md:1 authored by the orchestrator (claude-b) from the owner-approved canvas (artifact c612c440, v teacher-and-pin) across five live-ruling iterations 2026-08-30; the persona action inventory verified against domain/persona/verbs + the chat router before commitment"
+        ],
+        "claims": [
+          {
+            "claim": "The canvas source beside this file is the S3/S4 spec of record for #866; the quick-surface actions map to existing verbs only (setActivePersona per-participant with the target-owned belt; chat.reattributePersona kind:mine).",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#866"
+              },
+              {
+                "kind": "code",
+                "target": "packages/server/src/domain/persona/verbs/set-active.ts:1"
+              },
+              {
+                "kind": "code",
+                "target": "packages/contracts/src/chat/messages.ts:246"
+              }
+            ]
+          }
+        ],
+        "summary": "The #866 S3/S4 canvas contract: apply-not-mode Looks in three frequency tiers (shipped cards / Your-themes list / one builder door, builder-only color), the full Personas migration with the pin/active mechanics as the one frozen thing, the rail-foot quick switcher (pin-not-crown, Applies scope, re-attribute) and the kept You sheet; content rows terse with the context pane as the About/Applies/Learn teacher."
       },
       "receiptCurrent": true
     },
