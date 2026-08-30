@@ -1396,6 +1396,52 @@
           ]
         }
       ]
+    },
+    {
+      "path": "docs/reviews/research/2026-08-30-tsmorph-verify.md",
+      "assignedSha256": "e5277c5d5f4ea84f411ca4cb2c5284cdb694e283df10f74f32901f28114b763b",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "e5277c5d5f4ea84f411ca4cb2c5284cdb694e283df10f74f32901f28114b763b",
+      "verifiedCommit": "b9468c2d70d9481cefdb8ab64dc2577a03f4f6ea",
+      "verifiedAt": "2026-08-30",
+      "evidence": [
+        "docs/reviews/research/2026-08-30-tsmorph-verify.md:1-442 read in full by the orchestrator (claude-b) before commit; lane cb-tsmorph-verify (verifier on Opus, #887) — independent re-derivation of the ts-morph study's profile (233/233 gates, 0 tool errors, three-pass findings+scan fingerprint diff with planted drop-an-element controls), the createSourceFile(overwrite) identity probes, the arm-B/arm-D identifier set difference, a live scoped run, verify-history medians over 25 runs"
+      ],
+      "claims": [
+        {
+          "claim": "The verification's outcomes are tracked: the corrected build plan (B' keyed on compilerNode, scoped migration gate, per-gate timing + budget alarm, lefthook truth-repair, A dropped, C demoted to per-gate stretch) is #888; the stage-parallelism measurement it surfaced is #889; the verified study is receipted at 2026-08-30-ts-morph-speedups.md.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#888"
+            },
+            {
+              "kind": "issue",
+              "target": "#889"
+            },
+            {
+              "kind": "issue",
+              "target": "#887"
+            }
+          ]
+        },
+        {
+          "claim": "The soundness refutation is anchored in code: createSourceFile(overwrite:true) reuses the SourceFile object at the two scratch-project doors while compilerNode identity is fresh — the memo key ruling every future cache in the harness must follow.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "tooling/src/verify/lib/config-static-read.ts:138"
+            },
+            {
+              "kind": "code",
+              "target": "tooling/src/verify/lib/comment-spans.ts:89"
+            }
+          ]
+        }
+      ],
+      "summary": "#887 verification of the ts-morph speedup study: diagnosis CONFIRMED (bus family 37.3% of the pass, quadratic quantified at a 97.79% repeat rate, token-kind routing verbatim from ts-morph source), plan RE-RANKED — B' alone (a (compilerNode,kind)-keyed getDescendantsOfKind memo) delivers item A's entire win with findings byte-identical across 233 gates; the study's WeakMap<SourceFile> key is refuted by the overwrite identity trap; item C is JSDoc-lossy (1,698 identifiers, permissive direction); the honest stage median is 257s of 385s; lefthook's ~30s pre-commit claim is a 13x lie; stage-level parallelism is the missed ~100s lever."
     }
   ]
 }
