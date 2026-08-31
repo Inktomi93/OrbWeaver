@@ -16,12 +16,72 @@ const HSL = /^hsla?\(\s*[0-9., %/deg]+\)$/iu;
 const OKL = /^okl(?:ch|ab)\(\s*[0-9.\-% /]+\)$/iu;
 // A letters-only SHAPE check, NOT a CSS named-color allowlist: it admits any 3–20 letter word (so
 // `isSafeColor("notacolorxx") === true`). That is intentional and safe — an unknown bare word is an
-// INVALID CSS color the browser simply ignores (it can carry no url/fetch/escape: no separators, no
-// parens, injection-guarded below). The point here is to reject payload SHAPES, not to enumerate the
+// INVALID CSS color the browser simply ignores (it can carry no url/fetch/escape: no separators or
+// parens). The point here is to reject payload SHAPES, not to enumerate the
 // ~150 CSS names; a browser-invalid word degrades to "property unset", never to a vector.
 const NAMED = /^[a-z]{3,20}$/iu; // transparent, currentColor, red, … AND any other bare letter-word.
-// Belt: reject anything carrying a CSS-escape or fetch vector even if it slipped a shape test.
-const INJECTION = /[;{}<>()\\]|url|expression|javascript:|@import|\/\*/iu;
+
+// Context-dependent colors do not denote one authored pixel: currentColor reads inherited ink, system
+// colors read the UA/platform palette, and CSS-wide values read the cascade. They remain SAFE for direct
+// paint and inherited-ink consumers, but a surface that derives ramps/foregrounds/contrast from its input
+// must reject them before parsing. This is deliberately a denylist of contextual semantics, NOT a named-
+// color allowlist: harmless invalid bare words retain the browser's ignore-and-inherit behavior.
+const NON_DETERMINISTIC_COLOR_KEYWORDS = new Set(
+  [
+    "currentColor",
+    // CSS Color 4 system colors.
+    "AccentColor",
+    "AccentColorText",
+    "ActiveText",
+    "ButtonBorder",
+    "ButtonFace",
+    "ButtonText",
+    "Canvas",
+    "CanvasText",
+    "Field",
+    "FieldText",
+    "GrayText",
+    "Highlight",
+    "HighlightText",
+    "LinkText",
+    "Mark",
+    "MarkText",
+    "SelectedItem",
+    "SelectedItemText",
+    "VisitedText",
+    // CSS-wide values. `revert-layer` is already outside NAMED's letters-only shape; keeping it here
+    // makes the semantic class complete if the general safe syntax ever grows.
+    "inherit",
+    "initial",
+    "revert",
+    "revert-layer",
+    "unset",
+    // CSS Color 3 deprecated system colors, still browser-recognized in compatibility modes.
+    "ActiveBorder",
+    "ActiveCaption",
+    "AppWorkspace",
+    "Background",
+    "ButtonHighlight",
+    "ButtonShadow",
+    "CaptionText",
+    "InactiveBorder",
+    "InactiveCaption",
+    "InactiveCaptionText",
+    "InfoBackground",
+    "InfoText",
+    "Menu",
+    "MenuText",
+    "Scrollbar",
+    "ThreeDDarkShadow",
+    "ThreeDFace",
+    "ThreeDHighlight",
+    "ThreeDLightShadow",
+    "ThreeDShadow",
+    "Window",
+    "WindowFrame",
+    "WindowText",
+  ].map((value) => value.toLowerCase()),
+);
 
 // A legit color value (oklch(...), #rrggbbaa, rgba(...)) is well under this; longer = a payload attempt.
 const MAX_COLOR_LEN = 64;
@@ -29,8 +89,8 @@ const MAX_COLOR_LEN = 64;
 /**
  * The D44 §12.1 color-safety predicate: a color must parse as one of the safe CSS color forms
  * (hex / rgb[a]() / hsl[a]() / oklch()/oklab() / a bare letter-word — see `NAMED`: a shape check, not a
- * named-color allowlist; an unknown word is browser-invalid, harmless) and never carry an
- * injection vector (`url()`, `expression()`, `javascript:`, `@import`, a `{`/`;` escape). The ONE
+ * named-color allowlist; an unknown word is browser-invalid, harmless). The anchored shapes exclude
+ * every injection vector (`url()`, `expression()`, `javascript:`, `@import`, a `{`/`;` escape). The ONE
  * clamp every raw-color acceptor shares (`ThemeScope`, `sandbox-frame`, `color-field`) — never
  * re-derive a color regex (UI-Primitives-and-Reuse.md §13.9).
  */
@@ -39,13 +99,22 @@ export function isSafeColor(raw: string): boolean {
   if (value.length === 0 || value.length > MAX_COLOR_LEN) {
     return false;
   }
-  // url()/expression() contain "(" so the INJECTION guard catches them; the shape guards below allow
-  // the "(" ONLY inside the known color-function forms, which the guard would also flag — so check the
-  // shape FIRST and only run the injection guard on the named/hex path (functional forms are exact).
+  // The exact anchored hex/word forms cannot carry syntax. In particular, checking the substring `url`
+  // here would falsely reject the standards color `burlywood`; a fetch requires punctuation NAMED forbids.
   if (HEX.test(value) || NAMED.test(value)) {
-    return !INJECTION.test(value);
+    return true;
   }
   return RGB.test(value) || HSL.test(value) || OKL.test(value);
+}
+
+/**
+ * A safe color whose painted pixel does not depend on inherited ink, the UA/platform system palette, or
+ * CSS-wide cascade semantics. Use this narrower predicate only for fills that become inputs to static
+ * ramp/foreground/contrast derivation; direct paints and inherited inks continue to use {@link isSafeColor}.
+ */
+export function isDeterministicColor(raw: string): boolean {
+  const value = raw.trim();
+  return isSafeColor(value) && !NON_DETERMINISTIC_COLOR_KEYWORDS.has(value.toLowerCase());
 }
 
 // ── STATIC sRGB parsing for the derive law's judgments (#204 / #939) ─────────────────────────────────
@@ -85,7 +154,7 @@ function parseStandardsColor(value: string): ColorParseOutcome {
 
 /**
  * Parse any standards-valid color admitted by {@link isSafeColor} into CSS-gamut-mapped sRGB channels
- * + alpha. Invalid safe bare words and context-dependent `currentColor` return null rather than guessing.
+ * + alpha. Invalid safe bare words and context-dependent colors return null rather than guessing.
  */
 export function parseCssColorToSrgb(raw: string): ParsedSrgbColor | null {
   const value = raw.trim();

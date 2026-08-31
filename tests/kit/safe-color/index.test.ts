@@ -5,9 +5,80 @@
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { resolve } from "node:path";
-import { hueDistance, isSafeColor, oklchHue, parseCssColorToSrgb } from "@orb/kit/safe-color";
+import { hueDistance, isDeterministicColor, isSafeColor, oklchHue, parseCssColorToSrgb } from "@orb/kit/safe-color";
 import { describe } from "vitest";
 import { expect, test } from "../../support/fixtures.ts";
+
+const MODERN_SYSTEM_COLORS = [
+  "AccentColor",
+  "AccentColorText",
+  "ActiveText",
+  "ButtonBorder",
+  "ButtonFace",
+  "ButtonText",
+  "Canvas",
+  "CanvasText",
+  "Field",
+  "FieldText",
+  "GrayText",
+  "Highlight",
+  "HighlightText",
+  "LinkText",
+  "Mark",
+  "MarkText",
+  "SelectedItem",
+  "SelectedItemText",
+  "VisitedText",
+] as const;
+
+const DEPRECATED_SYSTEM_COLORS = [
+  "ActiveBorder",
+  "ActiveCaption",
+  "AppWorkspace",
+  "Background",
+  "ButtonHighlight",
+  "ButtonShadow",
+  "CaptionText",
+  "InactiveBorder",
+  "InactiveCaption",
+  "InactiveCaptionText",
+  "InfoBackground",
+  "InfoText",
+  "Menu",
+  "MenuText",
+  "Scrollbar",
+  "ThreeDDarkShadow",
+  "ThreeDFace",
+  "ThreeDHighlight",
+  "ThreeDLightShadow",
+  "ThreeDShadow",
+  "Window",
+  "WindowFrame",
+  "WindowText",
+] as const;
+
+const CSS_WIDE_COLORS = ["inherit", "initial", "revert", "revert-layer", "unset"] as const;
+const CONTEXTUAL_COLORS = ["currentColor", ...MODERN_SYSTEM_COLORS, ...CSS_WIDE_COLORS, ...DEPRECATED_SYSTEM_COLORS] as const;
+
+// CSS Color 4's named-color table (ColorJS 0.5.2 resolves all 148). Kept explicit so this is an
+// independent compatibility control for the boundary rather than a reflection of its implementation.
+const STANDARD_NAMED_COLORS = `
+aliceblue antiquewhite aqua aquamarine azure beige bisque black blanchedalmond blue blueviolet brown burlywood
+cadetblue chartreuse chocolate coral cornflowerblue cornsilk crimson cyan darkblue darkcyan darkgoldenrod darkgray
+darkgreen darkgrey darkkhaki darkmagenta darkolivegreen darkorange darkorchid darkred darksalmon darkseagreen
+darkslateblue darkslategray darkslategrey darkturquoise darkviolet deeppink deepskyblue dimgray dimgrey dodgerblue
+firebrick floralwhite forestgreen fuchsia gainsboro ghostwhite gold goldenrod gray green greenyellow grey honeydew
+hotpink indianred indigo ivory khaki lavender lavenderblush lawngreen lemonchiffon lightblue lightcoral lightcyan
+lightgoldenrodyellow lightgray lightgreen lightgrey lightpink lightsalmon lightseagreen lightskyblue lightslategray
+lightslategrey lightsteelblue lightyellow lime limegreen linen magenta maroon mediumaquamarine mediumblue mediumorchid
+mediumpurple mediumseagreen mediumslateblue mediumspringgreen mediumturquoise mediumvioletred midnightblue mintcream
+mistyrose moccasin navajowhite navy oldlace olive olivedrab orange orangered orchid palegoldenrod palegreen paleturquoise
+palevioletred papayawhip peachpuff peru pink plum powderblue purple rebeccapurple red rosybrown royalblue saddlebrown
+salmon sandybrown seagreen seashell sienna silver skyblue slateblue slategray slategrey snow springgreen steelblue tan
+teal thistle tomato turquoise violet wheat white whitesmoke yellow yellowgreen
+`
+  .trim()
+  .split(/\s+/u);
 
 describe("isSafeColor", () => {
   test("accepts the whole permitted surface (hex / rgb / hsl / oklch / oklab / named)", () => {
@@ -37,10 +108,37 @@ describe("isSafeColor", () => {
     // so it is harmless. This is deliberate (no ~150-name allowlist to maintain); this test guards against a
     // future "tighten to an allowlist" change silently breaking the many legit CSS names it would then miss.
     expect(isSafeColor("notacolorxx")).toBe(true);
+    expect(isDeterministicColor("notacolorxx")).toBe(true);
     expect(isSafeColor("rebeccapurple")).toBe(true);
     // But a word with a separator/digit is NOT letters-only — it must match a functional form or be rejected.
     expect(isSafeColor("not-a-color")).toBe(false);
     expect(isSafeColor("color1")).toBe(false);
+  });
+
+  test("the general injection predicate keeps all 47 admitted contextual words for inherited/direct-paint consumers", () => {
+    const admitted = CONTEXTUAL_COLORS.filter((color) => color !== "revert-layer");
+    expect(admitted).toHaveLength(47);
+    for (const color of admitted) {
+      expect(isSafeColor(color), color).toBe(true);
+    }
+    // The hyphenated CSS-wide spelling was never part of the letters-only safe shape.
+    expect(isSafeColor("revert-layer")).toBe(false);
+  });
+
+  test("the deterministic boundary rejects every contextual/system/CSS-wide class case-insensitively", () => {
+    for (const color of CONTEXTUAL_COLORS) {
+      expect(isDeterministicColor(color), color).toBe(false);
+      expect(isDeterministicColor(color.toUpperCase()), color.toUpperCase()).toBe(false);
+    }
+  });
+
+  test("all 148 standards-resolvable named colors remain accepted, including burlywood", () => {
+    expect(STANDARD_NAMED_COLORS).toHaveLength(148);
+    for (const color of STANDARD_NAMED_COLORS) {
+      expect(isSafeColor(color), color).toBe(true);
+      expect(isDeterministicColor(color), color).toBe(true);
+      expect(parseCssColorToSrgb(color), color).not.toBeNull();
+    }
   });
 
   test("rejects every injection vector outright", () => {

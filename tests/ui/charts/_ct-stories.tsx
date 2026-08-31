@@ -128,6 +128,34 @@ export function CustomAcceptedChartCasesStory(): ReactElement {
   );
 }
 
+/** #939 cold-refutation matrix: each authored background is CSS-valid but context-dependent, so it is
+ * rejected before ThemeScope can derive a chart ramp from an unrelated ambient pixel. The outer `color`
+ * recreates the hostile host that made currentColor white and system links/active text browser-specific. */
+const REJECTED_CONTEXTUAL_CHART_CASES = [
+  ["current-color", "currentColor", "white"],
+  ["link-text", "LinkText", "LinkText"],
+  ["active-text", "ActiveText", "ActiveText"],
+] as const;
+
+export function RejectedContextualChartCasesStory(): ReactElement {
+  const [caseIndex, setCaseIndex] = useState(0);
+  const active = REJECTED_CONTEXTUAL_CHART_CASES[caseIndex] ?? REJECTED_CONTEXTUAL_CHART_CASES[0];
+  const [name, background, hostColor] = active;
+  return (
+    <div style={{ color: hostColor }}>
+      <ThemeScope tokens={{ background }} ambientBackground={TOKENS["color.background"].value}>
+        <div {...{ [LIVE_TOKEN_ROOT_ATTRIBUTE]: "" }} data-case={name} data-testid="contextual-chart-panel" style={{ backgroundColor: "var(--color-card)" }}>
+          <button onClick={(): void => setCaseIndex((current): number => (current + 1) % REJECTED_CONTEXTUAL_CHART_CASES.length)} type="button">
+            Next rejected theme
+          </button>
+          <ChartThemeAxisLineReadoutStory />
+          <BarList items={[{ id: name, label: name, value: 8 }]} label={`${name} chart`} />
+        </div>
+      </ThemeScope>
+    </div>
+  );
+}
+
 /** A momentum column at its production floor: `MomentumColumn` is `min-w-48` (192px) inside a wrapping Row,
  *  so ~240px is the width the owner's two-column Momentum band actually renders at on a laptop. */
 const NARROW_HOST_PX = 240;

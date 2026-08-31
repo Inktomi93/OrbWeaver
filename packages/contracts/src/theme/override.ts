@@ -10,7 +10,7 @@
 // Also home to the CARD-EMBEDDABLE partition (bottom of file): which of these keys a character card may
 // carry into a room, and which stay the viewer's.
 
-import { isSafeColor } from "@orb/kit/safe-color";
+import { isDeterministicColor, isSafeColor } from "@orb/kit/safe-color";
 import { z } from "zod";
 
 /** Fonts a user may pick — an allowlist; anything else drops. */
@@ -34,13 +34,18 @@ export type ThemeRadius = (typeof THEME_RADII)[number];
 
 // Lenient per-field: a failed parse yields `undefined` (field drops), never a thrown blob.
 const colorToken = z.string().refine(isSafeColor).optional().catch(undefined);
-const bubble = z.object({ bg: colorToken, fg: colorToken }).optional().catch(undefined);
+const deterministicColorToken = z.string().refine(isDeterministicColor).optional().catch(undefined);
+// A bubble bg is a FILL with a foreground derived from it; .fg is retained for wire/serde compatibility
+// but the renderer ignores it. Only the derivation input needs the narrower deterministic contract.
+const bubble = z.object({ bg: deterministicColorToken, fg: colorToken }).optional().catch(undefined);
 
 /** The curated token-override subset. Every field optional; per-field failures degrade to undefined.
  *  `background` is the base surface color the neutral ramp derives from — the only background field
  *  here (the decorative photo trio moved to the `appearance` namespace). */
 export const themeOverrideSchema = z.object({
-  accent: colorToken,
+  // Derived fills must denote one authored pixel before the UI computes a foreground/ramp/contrast.
+  // Contextual/system/CSS-wide colors remain legal below for inherited prose ink and direct borders.
+  accent: deterministicColorToken,
   userBubble: bubble,
   aiBubble: bubble,
   systemBubble: bubble,
@@ -51,7 +56,7 @@ export const themeOverrideSchema = z.object({
   bodyColor: colorToken,
   font: z.enum(THEME_FONT_ALLOWLIST).optional().catch(undefined),
   radius: z.enum(THEME_RADII).optional().catch(undefined),
-  background: colorToken,
+  background: deterministicColorToken,
   /** An explicit UI border color (ST parity). When set it WINS; when unset, `--color-border` derives
    *  from the base `background` surface (the ThemeScope clamp does the derivation). */
   borderColor: colorToken,
