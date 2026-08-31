@@ -1126,14 +1126,15 @@
     },
     {
       "path": "docs/architecture/core/client-architecture-lockdown.md",
-      "assignedSha256": "f5daadf584ea31655624ac464d791c6ce961dfe92dd663acdbc74720006e7854",
+      "assignedSha256": "ac39b5a3f8f036008b8cb4f2b3ec2248a306b84fea1b5f1b4fcca84cabc9f199",
       "disposition": "current",
       "authority": "current-reference",
       "fullRead": true,
-      "verifiedSha256": "f5daadf584ea31655624ac464d791c6ce961dfe92dd663acdbc74720006e7854",
-      "verifiedCommit": "0c0f2cf67ca61928baab879ea4dc89977693584a",
+      "verifiedSha256": "ac39b5a3f8f036008b8cb4f2b3ec2248a306b84fea1b5f1b4fcca84cabc9f199",
+      "verifiedCommit": "2dffcffc4c06429e3fc5d9f97f7e514d9fa7a23a",
       "verifiedAt": "2026-08-31",
       "evidence": [
+        "re-attested at 2dffcffc4 — the CT cascade-order cite resolves to the actual repository path playwright/index.css; dangling-refs failure from the one authoritative pnpm check is closed",
         "re-attested at 0c0f2cf67 after cold #930 verification — full §4.1-§4.7 doctrine restored, including zero authored @layer, the one polarity mechanism, the live feature-css-files descriptor, and a coherent bounded shell exception; packages/client/src/features/README.md now points here rather than restating the law",
         "re-attested at bbecbfc78 — full-file read under #930; §4 is the one six-home paint law, the shell exception is re-derived against the live FLIP/import order, and §4.7 separates enforced, known-unenforced, and reported-but-unread coverage",
         "docs/architecture/core/client-architecture-lockdown.md:1 (full read; header/status evaluated)",
