@@ -935,6 +935,9 @@ export function CustomThemeStyleStory({ css }: { readonly css: string }): ReactE
       <CustomThemeStyle css={css} />
       <div className="shell-rail" data-testid="rail-probe" style={{ width: 20, height: 20 }} />
       <div className="bg-primary" data-testid="primary-probe" style={{ width: 20, height: 20 }} />
+      <div className="text-reading-plate-foreground" data-testid="plate-ink-probe">
+        plate ink
+      </div>
     </div>
   );
 }

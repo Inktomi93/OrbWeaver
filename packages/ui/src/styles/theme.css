@@ -34,9 +34,11 @@
   --color-sidebar-foreground: oklch(0.92 0.004 75);
   --color-sidebar-primary: oklch(0.72 0.175 52);
   --color-sidebar-accent: oklch(0.235 0.008 60);
+  --color-sidebar-accent-foreground: oklch(0.92 0.004 75);
   --color-sidebar-border: oklch(0.99 0.005 60 / 0.07);
   --color-backdrop: oklch(0.12 0.006 60 / 0.6);
   --color-reading-plate: oklch(0.12 0.006 60 / 0.65);
+  --color-reading-plate-foreground: oklch(0.955 0.004 75);
   --color-reading-band: oklch(0.12 0.006 60);
   --color-sheen: oklch(1 0 0);
   --color-shadow-hairline: oklch(1 0 0 / 0.06);
@@ -237,9 +239,11 @@
   --color-sidebar: oklch(0.955 0.006 72);
   --color-sidebar-foreground: oklch(0.3 0.01 60);
   --color-sidebar-accent: oklch(0.9 0.012 70);
+  --color-sidebar-accent-foreground: oklch(0.3 0.01 60);
   --color-sidebar-border: oklch(0.2 0.01 60 / 0.1);
   --color-backdrop: oklch(0.3 0.01 60 / 0.4);
   --color-reading-plate: oklch(0.942 0.004 75 / 0.921);
+  --color-reading-plate-foreground: oklch(0.24 0.01 60);
   --color-reading-band: oklch(0.942 0.004 75);
   --color-shadow-hairline: oklch(0.2 0.01 75 / 0.14);
   --color-shadow-highlight: oklch(1 0 0 / 0);
@@ -281,9 +285,11 @@
   --color-sidebar: oklch(0.125 0.015 250);
   --color-sidebar-foreground: oklch(0.9 0.01 250);
   --color-sidebar-accent: oklch(0.24 0.02 250);
+  --color-sidebar-accent-foreground: oklch(0.9 0.01 250);
   --color-sidebar-border: oklch(0.99 0.01 250 / 0.08);
   --color-backdrop: oklch(0.1 0.015 250 / 0.6);
   --color-reading-plate: oklch(0.112 0.015 250 / 0.65);
+  --color-reading-plate-foreground: oklch(0.95 0.01 250);
   --color-reading-band: oklch(0.112 0.015 250);
   --color-shadow-hairline: oklch(1 0 0 / 0.06);
   --color-shadow-highlight: oklch(1 0 0 / 0.08);

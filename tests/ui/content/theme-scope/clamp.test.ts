@@ -251,7 +251,7 @@ test("#692 an inherited accent that FAILS against the carried room's card is re-
   expect(vars["--color-primary"]).toBe(`oklch(from ${HEARTH_ACCENT} 0.68 c h / 1)`);
   expect(vars["--color-ring"]).toBe(vars["--color-primary"]);
   // The label on the corrected fill derives off the SAME origin at the CORRECTED lightness — single-level,
-  // never nested off the emitted fill. 0.68 is still above the pivot, so the label stays near-black (0.22):
+  // never nested off the emitted fill. The 0.68 surface is measured light, so the label stays near-black (0.22):
   // the label must track the fill it lands on, not the fill the author picked.
   expect(vars["--color-primary-foreground"]).toBe(`oklch(from ${HEARTH_ACCENT} 0.22 0 h / 1)`);
 });
@@ -300,18 +300,17 @@ test("#692 the accent SOURCE rides the struct for the descendant chain, never th
 
 test("the hover/selected accent SURFACE + its foreground derive off the base (light-theme P2 fix)", () => {
   // --color-accent joins the neutral ramp so a selected row tracks the theme; --color-accent-foreground
-  // derives off the SAME shifted L (single-level off base, not a nested relative-color). (#16)
+  // is solved against that actual shifted surface and emitted single-level off the base. (#16/#969)
   // The SHIFT is the base's polarity arm (#682): a near-white base's selected row recedes (−0.05, the
   // Light seed's own 0.93) instead of the dark arm's +0.127, which clamped it to the same white as the
   // card it sits on. What this test pins is that BOTH tokens read the same delta, whichever arm it is.
   const { vars } = clampThemeTokens({ background: "oklch(0.98 0.004 75)" });
   expect(vars["--color-accent"]).toContain("oklch(from oklch(0.98 0.004 75) calc(l + -0.05)");
-  expect(vars["--color-accent-foreground"]).toContain("oklch(from oklch(0.98 0.004 75)");
-  expect(vars["--color-accent-foreground"]).toContain("l + -0.05");
+  expect(vars["--color-accent-foreground"]).toBe("oklch(from oklch(0.98 0.004 75) 0.22 0 h / 1)");
   // …and on a DARK base both still spell the pre-#682 rise, byte for byte.
   const dark = clampThemeTokens({ background: "oklch(0.158 0.006 60)" }).vars;
   expect(dark["--color-accent"]).toContain("oklch(from oklch(0.158 0.006 60) calc(l + 0.127)");
-  expect(dark["--color-accent-foreground"]).toContain("l + 0.127");
+  expect(dark["--color-accent-foreground"]).toBe("oklch(from oklch(0.158 0.006 60) 0.96 0 h / 1)");
 });
 
 // ── #682: THE RAMP'S DARK ARM IS BYTE-IDENTICAL — a FENCE, not a defect proof (it passed pre-fix too) ──
@@ -349,7 +348,7 @@ test("unknown keys are stripped and a non-object input yields an empty map", () 
   expect(vars).toEqual({
     "--color-primary": "#abc",
     "--color-ring": "#abc",
-    "--color-primary-foreground": "oklch(from #abc clamp(0.22, (0.62 - l) * 1000, 0.96) 0 h)",
+    "--color-primary-foreground": "oklch(from #abc 0.22 0 h / 1)",
   });
   expect(clampThemeTokens("nope").vars).toEqual({});
   expect(clampThemeTokens(null).vars).toEqual({});
@@ -360,14 +359,12 @@ test("an over-long value (payload attempt) is dropped even if it looks color-ish
   expect(clampThemeTokens({ accent: long }).vars["--color-primary"]).toBeUndefined();
 });
 
-test("colorScheme is DERIVED from the base oklch L polarity (light-dark arm + native controls)", () => {
-  // A light base (L above the FG pivot) ⇒ near-black derived text ⇒ a LIGHT surface ⇒ "light"; a dark
-  // base ⇒ "dark". The pivot is the SAME FG_PIVOT_L (0.62) the foreground flip uses, so scheme polarity
-  // and text polarity can never disagree.
+test("colorScheme is derived from measured base polarity (light-dark arm + native controls)", () => {
   expect(clampThemeTokens({ background: "oklch(0.98 0.004 75)" }).colorScheme).toBe("light");
   expect(clampThemeTokens({ background: "oklch(0.158 0.006 60)" }).colorScheme).toBe("dark");
-  // Boundary: strictly `> 0.62` is light, so the pivot itself resolves "dark" and one step over flips.
-  expect(clampThemeTokens({ background: "oklch(0.62 0.01 60)" }).colorScheme).toBe("dark");
+  expect(clampThemeTokens({ background: "oklch(0.55 0.01 60)" }).colorScheme).toBe("dark");
+  expect(clampThemeTokens({ background: "oklch(0.62 0.01 60)" }).colorScheme).toBe("light");
+  expect(clampThemeTokens({ background: "oklch(0.6201 0.01 60)" }).colorScheme).toBe("light");
   expect(clampThemeTokens({ background: "oklch(0.63 0.01 60)" }).colorScheme).toBe("light");
   // colorScheme is NOT a custom property — it never leaks into the vars emit surface.
   expect("colorScheme" in clampThemeTokens({ background: "oklch(0.98 0.004 75)" }).vars).toBe(false);
@@ -385,9 +382,18 @@ test("a picked background emits --color-reading-plate as base + readingPlate.del
     "oklch(from oklch(0.158 0.006 60) calc(l + -0.038) c h / 0.65)",
   );
   // Named colors are standards-resolved, so their plate gets the same polarity-derived alpha as numeric colors.
-  expect(clampThemeTokens({ background: "rebeccapurple" }).vars["--color-reading-plate"]).toBe("oklch(from rebeccapurple calc(l + -0.038) c h / 0.65)");
+  expect(clampThemeTokens({ background: "rebeccapurple" }).vars["--color-reading-plate"]).toBe("oklch(from rebeccapurple calc(l + -0.038) c h / 0.706)");
   // No base ⇒ no plate (the static token shows through) — the plate is a DERIVATION, never a default.
   expect(clampThemeTokens({ accent: "#abc" }).vars["--color-reading-plate"]).toBeUndefined();
+});
+
+test.each([
+  ["oklch(0.62 0.01 60)", "0.062"],
+  ["oklch(0.6201 0.01 60)", "0.063"],
+] as const)("#969 %s emits the dedicated reading-plate foreground", (background, inkL) => {
+  const { vars } = clampThemeTokens({ background });
+  expect(vars["--color-reading-plate"]).toBe(`oklch(from ${background} calc(l + -0.038) c h / 0.95)`);
+  expect(vars["--color-reading-plate-foreground"]).toBe(`oklch(from ${background} ${inkL} 0 h / 1)`);
 });
 
 // ── #241: the sticky attribution BAND emission — the plate's colour at alpha 1, and the CLOSE-THE-LOOP
@@ -459,12 +465,10 @@ test("#243 a DARK base emits the base recipe unchanged — the sacred dark rooms
   ]);
 });
 
-test("#243 the polarity flip rides the ONE pivot — the same base that flips color-scheme flips the elevation", () => {
-  // FG_PIVOT_L = 0.62, strictly above ⇒ light (colorSchemeFor's boundary). Elevation may not disagree
-  // with text polarity: a light-arm ring under dark-arm text is a palette wearing two polarities.
+test("#243 measured polarity selects both color-scheme and elevation", () => {
   for (const [background, scheme] of [
-    ["oklch(0.62 0.01 60)", "dark"],
-    ["oklch(0.63 0.01 60)", "light"],
+    ["oklch(0.55 0.01 60)", "dark"],
+    ["oklch(0.62 0.01 60)", "light"],
   ] as const) {
     const clamped = clampThemeTokens({ background });
     expect(clamped.colorScheme, background).toBe(scheme);

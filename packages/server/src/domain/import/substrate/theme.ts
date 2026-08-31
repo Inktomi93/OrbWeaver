@@ -21,16 +21,10 @@
 // `chat_tint_color` is CONSUMED but emits no token — it is the surface ST paints the message tints onto, so it
 // is the compositing backdrop (see `substrate/color.ts` for why every tint is flattened).
 //
-// THE CONVERSION GOES THROUGH ORB'S OWN DERIVATION, AND CAN REFUSE (owner ruling: "if we can do it safely").
-// orb never lets a foreground be PICKED — `@orb/ui` `content/theme-scope/clamp.ts` DERIVES one off the base
-// surface (and off each bubble tint) through a steep pivot flip, and the whole neutral chrome ramp follows.
-// So a converted palette is only as good as what that derivation produces from it, and this parser PREDICTS
-// it in node through the shared `@orb/kit/theme-derivation` constants — the SAME numbers the clamp spells
-// into CSS, now one-homed below both packages precisely so this file can ask the question. Three gates:
-//   • the BASE surface must be derivable — outside the pivot mid-band, where the flip yields a mid-tone
-//     foreground and every chrome pairing is inherently low-contrast. Not derivable ⇒ the whole theme is
-//     REFUSED with that reason (never imported into an illegible app).
-//   • each BUBBLE tint is kept only if the foreground orb derives for it clears WCAG AA on it.
+// THE CONVERSION ENTERS ORB'S TOTAL THEME DERIVATION (owner ruling: "if we can do it safely"). Orb never
+// lets a semantic foreground be picked: ThemeScope derives each one against its actual surface, and every
+// accepted base/bubble lightness is total. This importer therefore preserves the flattened base and bubble
+// intent instead of maintaining a narrower server-only acceptance band. One safety gate remains:
 //   • each AUTHORED TEXT colour is kept only if IT clears AA against the surface it will actually render on
 //     — the one place ST can hand orb an unsafe pair the derivation cannot fix, because ST painted that text
 //     over a background PHOTO orb does not reproduce.
@@ -46,7 +40,7 @@ import type { StDroppedField } from "@orb/contracts/preset";
 import type { ThemeOverride } from "@orb/contracts/theme";
 import { isPlainObject } from "@orb/kit/guards";
 import type { Oklch } from "@orb/kit/theme-derivation";
-import { AA_NORMAL_RATIO, derivedForeground, isDerivableBaseSurface, oklchToSrgb, wcagContrastRatio } from "@orb/kit/theme-derivation";
+import { AA_NORMAL_RATIO, oklchToSrgb, wcagContrastRatio } from "@orb/kit/theme-derivation";
 import type { SrgbColor, StThemeParse } from "../contract/views.ts";
 import { compositeOver, oklchLiteral, opaque, parseSrgb, toOklch } from "./color.ts";
 
@@ -153,23 +147,6 @@ function droppedKeys(raw: Record<string, unknown>): StDroppedField[] {
   return UNMAPPED_REASONS.filter(({ field }) => isMeaningful(raw[field]));
 }
 
-/** A bubble tint is keepable iff the foreground orb WOULD derive for it clears AA on it. An unsafe one is
- *  dropped WITH its measured ratio — never forced through as a raw value the app then can't read. */
-function safeBubble(bubble: Oklch | null, stKey: string, unmapped: StDroppedField[]): Oklch | null {
-  if (bubble === null) {
-    return null;
-  }
-  const ratio = wcagContrastRatio(oklchToSrgb(derivedForeground(bubble)), oklchToSrgb(bubble));
-  if (ratio >= AA_NORMAL_RATIO) {
-    return bubble;
-  }
-  unmapped.push({
-    field: stKey,
-    reason: `dropped as unsafe — the message text orb derives for this tint reaches only ${ratio.toFixed(RATIO_PRECISION)}:1 against it (WCAG AA needs ${AA_NORMAL_RATIO}:1)`,
-  });
-  return null;
-}
-
 /** An AUTHORED text colour is keepable iff it clears AA against the surface it will render on. Both sides
  *  are authored here, so the derivation cannot rescue the pair — the honest answer is to drop the token and
  *  let the base palette's own (derived, provably safe) text colour show through. */
@@ -206,23 +183,11 @@ export function stThemeFromJson(raw: unknown, stem: string): StThemeParse {
     return { ok: false, reason: `no base surface colour (neither \`${ST_SURFACE}\` nor \`${ST_CHAT_SURFACE}\` is a readable colour)` };
   }
   const background = toOklch(stack.surface);
-  // THE SAFETY GATE (owner ruling: convert only if we can do it SAFELY). orb never lets a foreground be
-  // PICKED — it DERIVES one off the base surface, and every neutral chrome pairing follows from that. The
-  // derivation is a step flip through `fgPivotL`, so a base sitting in the pivot's mid-band derives a
-  // mid-tone foreground and the whole palette is inherently low-contrast (the documented limitation in
-  // `tests/ui/content/theme-scope/palette-contrast.suite.test.ts`). No hand-authored orb palette lands
-  // there; a FOREIGN one can. Such a theme is refused rather than imported into an illegible app.
-  if (!isDerivableBaseSurface(background)) {
-    return {
-      ok: false,
-      reason: `its base surface (${oklchLiteral(background)}) sits in the theme derivation's pivot mid-band, where orb cannot derive a foreground that clears WCAG AA on the surface ramp`,
-    };
-  }
-
   const unmapped = droppedKeys(raw);
-  // Bubbles first: orb DERIVES each bubble's foreground, so a bubble is safe iff that derived pair clears AA.
-  const userBubbleBg = safeBubble(flatten(colorAt(raw, ST_USER_BUBBLE), stack.chatSurface), ST_USER_BUBBLE, unmapped);
-  const aiBubbleBg = safeBubble(flatten(colorAt(raw, ST_AI_BUBBLE), stack.chatSurface), ST_AI_BUBBLE, unmapped);
+  // Bubbles first: orb's total per-surface solver derives each bubble foreground, so every readable tint is
+  // preserved rather than narrowed by an importer-only lightness band.
+  const userBubbleBg = flatten(colorAt(raw, ST_USER_BUBBLE), stack.chatSurface);
+  const aiBubbleBg = flatten(colorAt(raw, ST_AI_BUBBLE), stack.chatSurface);
   // Then the AUTHORED text colours — the one place ST can hand orb an unsafe pair the derivation cannot fix,
   // because BOTH sides are authored. They are measured against the surface they will actually render on: the
   // AI bubble when one survived, else the base surface (the pairs `palette-contrast.suite.test.ts` asserts

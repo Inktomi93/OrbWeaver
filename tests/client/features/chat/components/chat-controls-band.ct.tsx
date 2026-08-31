@@ -132,6 +132,11 @@ const CONTRAST_WIDTHS = [
   { label: "mobile", width: 430, height: 932 },
 ] as const;
 
+const PIVOT_THEMES = [
+  { label: "dark", background: "oklch(0.62 0.01 60)", accent: "oklch(0.72 0.14 280)" },
+  { label: "light", background: "oklch(0.6201 0.01 60)", accent: "oklch(0.48 0.16 40)" },
+] as const;
+
 for (const { label, width, height } of CONTRAST_WIDTHS) {
   test(`#674 ${label} (${String(width)}px): both chip modes clear AA over worst-case art — the band owns a surface`, async ({ mount, page }) => {
     await page.setViewportSize({ width, height });
@@ -160,6 +165,26 @@ for (const { label, width, height } of CONTRAST_WIDTHS) {
     // not a class list. Pre-fix this resolved fully transparent, which is why the ratios above were ~1:1 —
     // but a computed-style assertion alone would also pass a 5%-alpha wash, so it never stands in for them.
     await expect(band).not.toHaveCSS("background-color", TRANSPARENT);
+  });
+}
+
+for (const theme of PIVOT_THEMES) {
+  test(`#969 ${theme.label} pivot: ordinary chip labels clear AA on the derived card surface`, async ({ mount, page }) => {
+    await routeRoom(page);
+
+    const component = await mount(<ChatControlsStory fixture="chips" />, {
+      hooksConfig: { theme: { background: theme.background, accent: theme.accent } },
+    });
+
+    await expect(component.getByText("The corridor forks.")).toBeVisible();
+    const chips = component.locator(`${CHIPS} button`);
+    await expect(chips).toHaveCount(2);
+    for (const mode of ["send", "compose"] as const) {
+      const label = component.locator(`${CHIPS} button[data-mode="${mode}"] [data-slot="text"]`);
+      await expect(label).toBeVisible();
+      const receipt = await pixelContrast(page, label);
+      expect(receipt.ratio, `${mode} label @ ${theme.label} pivot: ${receipt.describe}`).toBeGreaterThanOrEqual(AA_NORMAL);
+    }
   });
 }
 

@@ -21,6 +21,16 @@ Light/Mocha seed membership is exact; real-worktree Git history and synthetic fs
 separate honest arms. The problem statement below is the measured **pre-migration baseline**, not current
 source truth.
 
+**Post-program additive contract (#969, 2026-08-31).** The vault remains open to new portable semantics;
+conformance is not a frozen token count. `color.reading-plate-foreground` and
+`color.sidebar-accent-foreground` were added because those paint hosts cannot honestly share the base or
+sidebar foreground around an accepted custom palette's polarity crossover. Current source validates 187
+base tokens, 290 base/Light/Mocha entries, and 195 unique CSS targets. The three generated seed palettes
+gain only those two paired variables, with values equal to their former winning inks; runtime ThemeScope
+derives them against their actual surfaces. The authored base remains exact; only a derived shared-host ramp
+delta or input alpha retracts when its starting recipe makes a common AA ink mathematically impossible. The
+separately validated owner-CSS plane still wins later.
+
 ## 1. The problem in one paragraph
 
 `packages/ui/src/tokens/tokens.json` holds 178 tokens in DTCG-shaped syntax (`$value`/`$type`).
@@ -200,8 +210,8 @@ a background/foreground pairing matrix with MUST/NEVER rules and required contra
 **This repo's stated author is "a rotating cast of amnesiac agents." Guidance that lives in prose
 rots; guidance that lives in a schema-validated `$extensions` block is checked.** Adopt an
 `orb.llm` extension carrying `usage` and `rules`, and make the paint-doctrine pairing
-rules machine-readable rather than a doc an agent may not read. We already carry `$description` on
-141 of 178 tokens and `$extensions` on 5 — the mechanism exists and is unused.
+rules machine-readable rather than a doc an agent may not read. At the historical baseline we already
+carried `$description` on 141 of 178 tokens and `$extensions` on 5 — the mechanism existed and was unused.
 
 ### 4.8 Keep the canonical source strict JSON
 

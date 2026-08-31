@@ -29,7 +29,13 @@
 // dark smoke. A token names ONE polarity semantic.
 
 import { isDeterministicColor } from "@orb/kit/safe-color";
-import { accentFillLightness, derivedForegroundLightness, THEME_DERIVATION as KIT_THEME_DERIVATION, proseInkLightness } from "@orb/kit/theme-derivation";
+import {
+  accentFillLightness,
+  derivedForegroundLightness,
+  THEME_DERIVATION as KIT_THEME_DERIVATION,
+  proseInkLightness,
+  surfacePolarity,
+} from "@orb/kit/theme-derivation";
 import { z } from "zod";
 import { isSafeColor } from "#lib";
 import type { ParsedOklch } from "./color-parse.ts";
@@ -130,6 +136,7 @@ export const THEME_SCOPE_EMIT_VARS = [
   "--color-accent",
   "--color-accent-foreground",
   "--color-sidebar-accent",
+  "--color-sidebar-accent-foreground",
   "--color-secondary",
   "--color-secondary-foreground",
   "--color-muted",
@@ -137,6 +144,7 @@ export const THEME_SCOPE_EMIT_VARS = [
   // alpha (#217) — the one ramp member with its own alpha, because it composites over wallpaper art.
   // Never `--color-backdrop`.
   "--color-reading-plate",
+  "--color-reading-plate-foreground",
   // …and its OPAQUE sibling, the sticky attribution BAND (#241): the SAME derived colour at alpha 1, so
   // the band and the prose plate under it can never step apart. Emitted rather than left to the base
   // theme because it backs the CARRIED palette's own prose — the #204 two-polarity paragraph.
@@ -181,11 +189,9 @@ export const THEME_SCOPE_STATIC_SEED_VARS = ["--color-chart-1", "--color-chart-2
  * derived colors independently and proves every pairing clears WCAG AA against the real constants.
  *
  * ONE HOME, in `@orb/kit/theme-derivation` (2026-08-08). The numbers moved DOWN the cake because a second
- * consumer appeared that `@orb/ui` cannot reach and that cannot reach `@orb/ui`: the SillyTavern theme
- * importer (`@orb/server` `domain/import/substrate/theme.ts`) must PREDICT this derivation in node to decide
- * whether a foreign palette converts safely — a base surface whose derived pairs would not clear WCAG AA is
- * refused rather than imported. This alias keeps every existing consumer's name (`THEME_DERIVATION` off the
- * clamp) while the values have exactly one declaration.
+ * consumer appeared that `@orb/ui` cannot reach and that cannot reach `@orb/ui`: the SillyTavern importer
+ * persists into the same ThemeOverride contract. This alias keeps every existing consumer's name
+ * (`THEME_DERIVATION` off the clamp) while the total accepted-base solver has exactly one declaration.
  * @public Test-anchored module surface; focused tests pin this production-local behavior.
  */
 export const THEME_DERIVATION = KIT_THEME_DERIVATION;
@@ -196,13 +202,8 @@ export const THEME_DERIVATION = KIT_THEME_DERIVATION;
  * arm (a custom LIGHT theme needs the light arms, or intent text renders in its dark-arm tone and goes
  * illegible on the light surface), and (2) native controls/scrollbars match the surface polarity.
  *
- * The pivot MUST be `THEME_DERIVATION.fgPivotL` — the SAME threshold the derived foreground flips on
- * (`derive-vars.ts`) and the elevation arm flips on (`shadowIngredients`, #243) — so scheme
- * polarity and text polarity can never disagree: a surface lighter than the pivot already gets
- * near-black text (a LIGHT surface ⇒ "light"), darker gets near-white (⇒ "dark"). Boundary: strictly
- * ABOVE the pivot is light, so L of exactly 0.62 resolves "dark" (the pivot itself yields near-black
- * text but is treated as the dark arm's ceiling, matching the foreground clamp's `(pivot - l)` sign)
- * and one step over (0.63) flips to light. Every standards-readable spelling is normalized before this
+ * The decision is `surfacePolarity`, the SAME measured black-vs-white contrast comparison the foreground,
+ * ramp, elevation and chart derivations use. Every standards-readable spelling is normalized before this
  * decision; only a contextual/invalid value with no ambient omits the scheme rather than guessing.
  */
 /**
@@ -268,12 +269,15 @@ interface AccentEmission {
  * nested off the emitted fill — the shape every derived token in `derive-vars.ts` keeps.
  */
 function accentEmissionOn(picked: string | undefined, ambient: string | undefined, base: ParsedOklch | null): AccentEmission | undefined {
-  const passThrough = picked === undefined ? undefined : { fill: picked, foreground: foregroundOn(picked) };
   const source = picked ?? ambient;
-  if (source === undefined || base === null) {
-    return passThrough;
+  if (source === undefined) {
+    return;
   }
   const accent = toOklch(source);
+  const passThrough = picked === undefined || accent === null ? undefined : { fill: picked, foreground: foregroundOn(picked, accent) };
+  if (base === null) {
+    return passThrough;
+  }
   if (accent === null) {
     return passThrough;
   }
@@ -283,7 +287,7 @@ function accentEmissionOn(picked: string | undefined, ambient: string | undefine
   }
   return {
     fill: `oklch(from ${source} ${clampedL} c h / 1)`,
-    foreground: `oklch(from ${source} ${derivedForegroundLightness(clampedL)} 0 h / 1)`,
+    foreground: `oklch(from ${source} ${derivedForegroundLightness({ l: clampedL, c: accent.c, h: accent.h })} 0 h / 1)`,
   };
 }
 
@@ -306,7 +310,7 @@ function colorSchemeFor(base: ParsedOklch | null): "light" | "dark" | null {
   if (base === null) {
     return null;
   }
-  return base.l > KIT_THEME_DERIVATION.fgPivotL ? "light" : "dark";
+  return surfacePolarity(base);
 }
 
 /**
@@ -362,8 +366,11 @@ export function clampThemeTokens(raw: unknown, ambientBackground?: string, ambie
   put("--color-prose-body", proseInkOn(t.bodyColor, inkBase));
   // Bubbles: the picker sets each bubble's bg; the fg is always derived for contrast, never picked.
   const putBubble = (bg: string, bgVar: string, fgVar: string): void => {
+    const parsedBubble = toOklch(bg);
     vars[bgVar] = bg;
-    vars[fgVar] = foregroundOn(bg);
+    if (parsedBubble !== null) {
+      vars[fgVar] = foregroundOn(bg, parsedBubble);
+    }
   };
   if (t.userBubble?.bg !== undefined) {
     putBubble(t.userBubble.bg, "--color-user-bubble", "--color-user-bubble-foreground");

@@ -41,6 +41,14 @@ describe("resolveThemeScopeTokens", () => {
     expect(resolved.density).toBe("compact");
   });
 
+  test.each([
+    ["oklch(0.62 0.01 60)", "oklch(0.72 0.14 280)"],
+    ["oklch(0.6201 0.01 60)", "oklch(0.48 0.16 40)"],
+  ] as const)("an accepted pivot custom theme carries background %s to the runtime derivation unchanged", (background, accent) => {
+    const override = { background, accent };
+    expect(resolveThemeScopeTokens(theme({ isSeed: false, override }), "comfortable").tokens).toEqual(override);
+  });
+
   test("a CUSTOM theme without a density override falls back to the appearance density", () => {
     const resolved = resolveThemeScopeTokens(theme({ isSeed: false, override: { accent: "oklch(0.5 0.1 60)" } }), "compact");
     expect(resolved.density).toBe("compact");

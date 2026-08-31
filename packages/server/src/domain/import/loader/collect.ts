@@ -300,10 +300,10 @@ async function collectPresetDir(fs: ImportFsPort, profileDir: string, state: Col
   }
 }
 
-// ST saved UI THEMES: `<profileDir>/themes/*.json`. Each converts to the orb palette its colours SAFELY map
-// to — flattened, oklch-converted, and run through orb's own derivation-safety gate (`substrate/theme.ts`).
-// A refusal always carries its reason (unreadable, colour-less, or a base surface orb cannot derive a legible
-// foreground from), never a silent drop. A missing dir yields nothing.
+// ST saved UI THEMES: `<profileDir>/themes/*.json`. Each converts to the orb palette its colours safely map
+// to — flattened and oklch-converted before entering Orb's total ThemeScope derivation (`substrate/theme.ts`).
+// A refusal always carries its reason (unreadable or colour-less), never a silent drop. A missing dir yields
+// nothing.
 async function collectThemes(fs: ImportFsPort, profileDir: string, state: CollectState): Promise<void> {
   const dir = fs.join(profileDir, ST_THEME_DIR);
   for (const ent of await listDir(fs, dir)) {

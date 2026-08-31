@@ -835,7 +835,7 @@ provenance/vendor evidence. The 106 selectors that matched nothing on any drive 
 (hover · overlay panel mode · an open modal or menu · streaming · reduced motion · a loading skeleton · a
 wallpaper · the media grid · the boot veil), each with its writer named below.
 
-## 2.1 `packages/ui/src/styles/theme.css` (historical 285; current 303) — **SOURCE CONTRACT MIGRATED AND ENFORCED (#936)**
+## 2.1 `packages/ui/src/styles/theme.css` (historical 285; current 309) — **SOURCE CONTRACT MIGRATED AND ENFORCED (#936)**
 
 | rule group | verdict | reason |
 | - | - | - |
@@ -845,9 +845,10 @@ wallpaper · the media grid · the boot veil), each with its writer named below.
 | `[data-theme="light"]` (`:199-241`), `[data-theme="mocha"]` (`:243-285`) | correct-as-is | generated per D71; each self-complete and carrying its own `color-scheme` |
 | the intent family (`destructive/success/warning/info` ± foregrounds) and `--color-track-1..6` declared ONCE as `light-dark()`, never re-stated per theme | correct-as-is | D71 clause (3); this is the mechanism F3 says the chart ramp should join |
 | `--color-chart-1..5` polarity-aware, with carried-theme concrete derivation | **FIXED (#939)** | static seeds use `light-dark()` with byte-identical dark arms; custom ThemeScopes emit five host-judged concrete fills. Cold CT proved five real ECharts fills at ≥3:1 |
+| `--color-reading-plate-foreground` and `--color-sidebar-accent-foreground` | **FIXED (#969)** | portable semantic pairs added at the token home; seed values preserve the former winning inks, while custom ThemeScopes solve the over-art plate and sidebar hover fill against their actual pixels. Generated artifacts are additive-only |
 | `--color-sheen`, `--color-highlight` + foreground, `--color-sky-*` not overridden per theme | correct-as-is | deliberate polarity-FIXED values; `sheen` is used only at 0.02–0.04 alpha as a gradient foot, and the globals comment says so verbatim |
 
-**Token definitions:** 155 `--color-*:` declaration lines here vs **4** in `client/styles/globals.css` and 0
+**Token definitions:** 161 `--color-*:` declaration lines here vs **4** in `client/styles/globals.css` and 0
 elsewhere. (The dispatch survey's 144/4 used a different regex; the ratio and the conclusion are identical.)
 
 ## 2.2 `packages/ui/src/styles/globals.css` (historical 961; current 831) — **BASE VERDICTS PRESERVED; DARK VARIANT REMOVED (#954)**
@@ -1148,8 +1149,9 @@ alphas). *(§3.2a is the authoritative list; anything not on it wants a token.)*
 
 ## 4.6 Polarity has ONE mechanism
 
-`light-dark()` arms selected by `color-scheme`, which the clamp DERIVES from the palette's own base lightness
-(`colorSchemeFor`) so a user-authored light theme resolves the light arms and native controls follow. **There
+`light-dark()` arms selected by `color-scheme`, which the clamp DERIVES from the palette's measured
+black-vs-white surface contrast (`surfacePolarity`) so a user-authored light theme resolves the light arms
+and native controls follow. **There
 is no second polarity mechanism.** A `dark:` variant keyed on enumerated `[data-theme]` names structurally
 cannot see a custom theme's derived polarity and is therefore banned. *(Enforcer: delete the
 `@custom-variant dark` line, and a one-line lint rule banning a `dark:` prefix in a class string.)*
@@ -1542,7 +1544,7 @@ planted control.**
 | `tests/ui/styles/css-structure.suite.test.ts` | vitest | the five authored files, by literal assertion (theme enumeration · the unlayered floor · the light block's `color-scheme` · BLUR\_SURFACES sync · the reduce/contrast arms' source order and conditions · the 48rem four-way agreement · the reading-scale `, 1` fallbacks) | — | only what it enumerates; the dark-variant arm is **one-directional (F7)** |
 | `tests/ui/lib/class-merge.test.ts` + `css-merge-parity` | vitest/integration | every compiler-positive governed family plus TV ordinary/slot paths and bounded replay | 107/107 merge/token + 7/7 parity | does not claim browser cascade attribution |
 | `tests/ui/tokens/index.test.ts` | vitest | re-runs the codegen and diffs the committed artifacts | — | — |
-| `tests/ui/content/theme-scope/palette-contrast.suite.test.ts` | vitest | every seed value-set × polarity at the text/pill floors plus #939's seed/custom chart-host, spelling/alpha/gamut, planted-failure, and pair-distance matrices | — | rendered ECharts output is intentionally proved separately by `use-chart-theme.ct.tsx` |
+| `tests/ui/content/theme-scope/palette-contrast.suite.test.ts` + `tests/kit/theme-derivation/accepted-base-foreground.test.ts` | vitest | every seed value-set × polarity at the text/pill floors; #939's seed/custom chart-host, spelling/alpha/gamut, planted-failure, and pair-distance matrices; #969's actual per-surface foregrounds, input composites, reading plate over both art extremes, exact `.62`/`.6201` bases, and a 2,060-sample L/chroma/h matrix with nonzero unsafe-ramp/input controls | — | rendered ECharts and exact control pixels are intentionally proved separately in CT |
 | `tests/ui/touch-target-floor.suite.ct.tsx` | CT | coarse-emulated, per-pointer | — | — |
 | `snap --dead-css` | instrument | live DOM classList vs compiled CSSOM, per drive | — | **"does the VALUE resolve" and "which class won" (F10)**; and **no floor consults it** |
 | `motion-dead-class-flagger` (`[css]`) | instrument | live, MutationObserver-scoped, batched, confirm-before-report | — | same, plus **dev-only** — no watcher on the shipped build |
@@ -1688,6 +1690,14 @@ sixth sanctioned home.
 regular-file identity; #936 migrated and enforces the DTCG 2025.10 contract; #937 carries viewer density at
 the shared ThemeScope across grid and portals; #938 makes comfortable/compact symmetric; #939 makes every
 seed and accepted custom-theme chart ramp contrast-safe; #940 fixes and enforces the semantic z vocabulary.
+
+**#969 repair in this source revision:** accepted custom/carried bases have no refused lightness band.
+Foregrounds are solved against their actual paint hosts; reading-plate and sidebar-accent gained paired
+portable tokens; transparent action labels inherit the host ink; ST import no longer narrows the shared
+ThemeOverride domain. A shared-host ramp delta or input alpha retracts only when the unmodified derived value
+would make its documented foreground family mathematically infeasible; the authored base, dedicated accent
+ramps, and all three seed recipes remain exact. The current vault is 187 base tokens / 290 base-plus-seed
+entries / 195 exact targets, and generated seed artifacts differ only by the two additive paired variables.
 
 **Integrated, in Review; the grouped CSS-train barrier has not graduated:** #951 family ownership; #952
 custom-property resolution; #954/#961 single-polarity prevention on the shared static-class substrate; #955

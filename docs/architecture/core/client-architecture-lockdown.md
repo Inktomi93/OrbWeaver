@@ -152,7 +152,7 @@ Its structural literals are limited to viewport units, grid ratios and zero sent
 ### 4.6 Polarity has one mechanism
 
 `light-dark()` arms selected by `color-scheme` are the only sanctioned polarity mechanism. `ThemeScope` derives
-`color-scheme` from the palette's own base lightness through `colorSchemeFor`, so custom themes and native
+`color-scheme` from the palette's measured black-vs-white contrast through `surfacePolarity`, so custom themes and native
 controls resolve the same polarity without enumerating theme names. A `dark:` variant keyed to named
 `[data-theme]` values cannot see a custom theme's derived polarity and is therefore a defect, not a second
 supported path. #954 deleted the authored `@custom-variant dark` declaration. Its replacement gate consumes

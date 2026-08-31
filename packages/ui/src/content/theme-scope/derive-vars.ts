@@ -6,8 +6,20 @@
 // and any legal base format works — the numbers are `@orb/kit/theme-derivation`'s (the ONE home; the ST
 // theme importer predicts the same math in node). Two values cannot be spelled for the browser and are
 // solved in node instead: the reading plate's polarity-derived alpha (#217) and the elevation arm (#243).
-import type { RampDeltas, ShadowIngredients } from "@orb/kit/theme-derivation";
-import { chartRampForSurface, READING_BAND_ALPHA, rampDeltas, readingPlateAlpha, shadowIngredients, THEME_DERIVATION } from "@orb/kit/theme-derivation";
+import type { Oklch, RampDeltas, ShadowIngredients } from "@orb/kit/theme-derivation";
+import {
+  chartRampForSurface,
+  derivedForegroundLightness,
+  derivedForegroundLightnessForSurfaces,
+  derivedMutedForegroundPair,
+  READING_BAND_ALPHA,
+  rampDeltas,
+  rampSurface,
+  readingPlateAlpha,
+  readingPlateForeground,
+  shadowIngredients,
+  THEME_DERIVATION,
+} from "@orb/kit/theme-derivation";
 import type { ParsedOklch } from "./color-parse.ts";
 
 // The neutral surface ramp: each `--color-*` paired with the RampDeltas member that names its L shift,
@@ -25,45 +37,25 @@ const SURFACE_RAMP_VARS: ReadonlyArray<readonly [name: string, role: keyof RampD
   ["--color-muted", "muted"],
 ];
 
-// Contrast-safe foreground derivation: L flips light↔dark around a pivot with a steep step, so any
-// surface lighter than the pivot gets near-black text and darker gets near-white — a foreground is
-// never picked directly, only derived, so "set everything white" can't produce invisible text.
-const FG_PIVOT_L = THEME_DERIVATION.fgPivotL;
-const FG_STEEPNESS = THEME_DERIVATION.fgSteepness;
-const FG_L_MIN = THEME_DERIVATION.fgLMin;
-const FG_L_MAX = THEME_DERIVATION.fgLMax;
-const CONTRAST_L = `clamp(${FG_L_MIN}, (${FG_PIVOT_L} - l) * ${FG_STEEPNESS}, ${FG_L_MAX})`;
 const BORDER_ALPHA = THEME_DERIVATION.borderAlpha;
 const INPUT_ALPHA = THEME_DERIVATION.inputAlpha;
-// Muted foreground: same pivot flip, softer band, tuned to clear WCAG AA (>=4.5:1) against the
-// derived input fill on both light and dark bases.
-const MUTED_L_MIN = THEME_DERIVATION.mutedLMin;
-const MUTED_L_MAX = THEME_DERIVATION.mutedLMax;
-const MUTED_CONTRAST_L = `clamp(${MUTED_L_MIN}, (${FG_PIVOT_L} - l) * ${FG_STEEPNESS}, ${MUTED_L_MAX})`;
 
-/** A contrast-safe foreground for text sitting on `surface` (any validated color) — browser-computed.
+/** A contrast-safe foreground for text sitting on `surface` (a validated deterministic color).
  *  Exported because the clamp derives it for two PICKED colours too (the accent and each bubble bg),
  *  which are not part of the one-base cascade below. */
-export function foregroundOn(surface: string): string {
-  return `oklch(from ${surface} ${CONTRAST_L} 0 h)`;
+export function foregroundOn(surface: string, parsed: Oklch): string {
+  return `oklch(from ${surface} ${derivedForegroundLightness(parsed)} 0 h / 1)`;
 }
-// Computed single-level off the base (the pivot flip reads l + deltaL, never a nested relative-color
-// of an already-derived surface) so it stays the same shape as every other derived token.
-function foregroundOnShifted(base: string, deltaL: number): string {
-  const shiftedL = `clamp(${FG_L_MIN}, (${FG_PIVOT_L} - (l + ${deltaL})) * ${FG_STEEPNESS}, ${FG_L_MAX})`;
-  return `oklch(from ${base} ${shiftedL} 0 h)`;
-}
-/** A contrast-safe muted foreground (secondary text/placeholders) for `surface`. */
-function mutedForegroundOn(surface: string): string {
-  return `oklch(from ${surface} ${MUTED_CONTRAST_L} 0 h)`;
+function foregroundAt(base: string, lightness: number): string {
+  return `oklch(from ${base} ${lightness} 0 h / 1)`;
 }
 /** A subtle contrast border derived from `surface`. */
-function borderOn(surface: string): string {
-  return `oklch(from ${surface} ${CONTRAST_L} 0 h / ${BORDER_ALPHA})`;
+function borderOn(surface: string, base: Oklch): string {
+  return `oklch(from ${surface} ${derivedForegroundLightness(base)} 0 h / ${BORDER_ALPHA})`;
 }
 /** The input-field surface lift derived from `surface`, composited over any surface. */
-function inputSurfaceOn(surface: string): string {
-  return `oklch(from ${surface} ${CONTRAST_L} 0 h / ${INPUT_ALPHA})`;
+function inputSurfaceOn(surface: string, base: Oklch, alpha: number = INPUT_ALPHA): string {
+  return `oklch(from ${surface} ${derivedForegroundLightness(base)} 0 h / ${alpha})`;
 }
 /** A truly unjudgeable provider-less base gets an OPAQUE plate — see {@link readingPlateOn}. */
 const UNJUDGEABLE_PLATE_ALPHA = 1;
@@ -116,7 +108,7 @@ const SHADOW_INGREDIENT_VARS = {
 
 /**
  * The five ELEVATION INGREDIENTS for a picked base (#243) — `shadowIngredients` decides the polarity arm
- * off the base's L (the same `FG_PIVOT_L` the foreground flip and `color-scheme` ride), this spells it.
+ * from the base's measured polarity (the same decision foregrounds and `color-scheme` ride), this spells it.
  *
  * Emitted as relative colour so the HUE is the palette's own: only l/c/alpha come from the derivation,
  * exactly like every other derived token here. The alpha slot is spelled EXPLICITLY — relative-colour
@@ -169,18 +161,37 @@ export function surfaceVarsOn(background: string, base: ParsedOklch | null, deri
   }
   vars["--color-reading-plate"] = readingPlateOn(origin, base);
   vars["--color-reading-band"] = readingBandOn(origin);
-  // The accent's foreground reads the SAME arm's accent delta — a foreground derived off a shift the
-  // surface no longer takes is the polarity divorce this whole file exists to prevent.
-  vars["--color-accent-foreground"] = foregroundOnShifted(origin, deltas.accent);
-  const fg = foregroundOn(origin);
-  vars["--color-foreground"] = fg;
-  vars["--color-card-foreground"] = fg;
-  vars["--color-popover-foreground"] = fg;
-  vars["--color-sidebar-foreground"] = fg;
-  vars["--color-secondary-foreground"] = fg;
-  vars["--color-muted-foreground"] = mutedForegroundOn(origin);
-  vars["--color-border"] = borderOn(origin);
-  vars["--color-sidebar-border"] = borderOn(origin);
-  vars["--color-input"] = inputSurfaceOn(origin);
-  return base === null ? vars : { ...vars, ...shadowVarsOn(origin, base), ...chartVarsOn(base) };
+  if (base === null) {
+    return vars;
+  }
+
+  const opaqueBase: Oklch = { l: base.l, c: base.c, h: base.h };
+  const surfaces = {
+    raised: rampSurface(opaqueBase, deltas.surfaceRaised),
+    card: rampSurface(opaqueBase, deltas.card),
+    popover: rampSurface(opaqueBase, deltas.popover),
+    sidebar: rampSurface(opaqueBase, deltas.sidebar),
+    accent: rampSurface(opaqueBase, deltas.accent),
+    sidebarAccent: rampSurface(opaqueBase, deltas.sidebarAccent),
+    secondary: rampSurface(opaqueBase, deltas.secondary),
+    muted: rampSurface(opaqueBase, deltas.muted),
+  };
+  vars["--color-accent-foreground"] = foregroundAt(origin, derivedForegroundLightness(surfaces.accent));
+  vars["--color-foreground"] = foregroundAt(origin, derivedForegroundLightnessForSurfaces([opaqueBase, surfaces.raised, surfaces.card]));
+  vars["--color-card-foreground"] = foregroundAt(origin, derivedForegroundLightness(surfaces.card));
+  vars["--color-popover-foreground"] = foregroundAt(origin, derivedForegroundLightness(surfaces.popover));
+  vars["--color-sidebar-foreground"] = foregroundAt(origin, derivedForegroundLightness(surfaces.sidebar));
+  vars["--color-sidebar-accent-foreground"] = foregroundAt(origin, derivedForegroundLightness(surfaces.sidebarAccent));
+  vars["--color-secondary-foreground"] = foregroundAt(origin, derivedForegroundLightness(surfaces.secondary));
+  const mutedPair = derivedMutedForegroundPair(
+    opaqueBase,
+    [opaqueBase, surfaces.card, surfaces.popover, surfaces.sidebar, surfaces.secondary, surfaces.muted],
+    [opaqueBase, surfaces.card, surfaces.popover],
+  );
+  vars["--color-muted-foreground"] = foregroundAt(origin, mutedPair.lightness);
+  vars["--color-reading-plate-foreground"] = foregroundAt(origin, readingPlateForeground(opaqueBase).l);
+  vars["--color-border"] = borderOn(origin, opaqueBase);
+  vars["--color-sidebar-border"] = borderOn(origin, opaqueBase);
+  vars["--color-input"] = inputSurfaceOn(origin, opaqueBase, mutedPair.inputAlpha);
+  return { ...vars, ...shadowVarsOn(origin, base), ...chartVarsOn(base) };
 }

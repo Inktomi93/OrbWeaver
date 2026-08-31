@@ -1,3 +1,4 @@
+import { Button } from "@orb/ui/button";
 import { Dialog, DialogPopup, DialogTrigger } from "@orb/ui/dialog";
 import { Menu, MenuItem, MenuPopup, MenuTrigger } from "@orb/ui/menu";
 import { Meter } from "@orb/ui/meter";
@@ -5,6 +6,7 @@ import { Popover, PopoverPopup, PopoverTrigger } from "@orb/ui/popover";
 import { Select } from "@orb/ui/select";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import { expect, test } from "@playwright/experimental-ct-react";
+import { pixelContrast } from "../../../support/ct/pixel-contrast.ts";
 import { ThemedFloatScope } from "./float-theming.fixtures.tsx";
 
 test("a legal override lands as a scoped custom property", async ({ mount }) => {
@@ -85,6 +87,40 @@ test("derived accent-/primary-foreground RESOLVE to AA-legible colors under a li
   expect(await ratioOf("accent")).toBeGreaterThanOrEqual(4.5);
   expect(await ratioOf("primary")).toBeGreaterThanOrEqual(3);
 });
+
+for (const theme of [
+  { label: "dark", background: "oklch(0.62 0.01 60)", accent: "oklch(0.72 0.14 280)" },
+  { label: "light", background: "oklch(0.6201 0.01 60)", accent: "oklch(0.48 0.16 40)" },
+] as const) {
+  test(`#969 ${theme.label} pivot: transparent actions inherit each real host's solved ink`, async ({ mount, page }) => {
+    const cmp = await mount(
+      <div data-has-bg-image="" style={{ background: "white", padding: 24 }}>
+        <ThemeScope tokens={{ background: theme.background, accent: theme.accent }}>
+          <div data-testid="plate" style={{ background: "var(--color-reading-plate)", color: "var(--color-reading-plate-foreground)", padding: 16 }}>
+            <Button intent="ghost" size="sm">
+              Generate
+            </Button>
+          </div>
+          <div data-testid="card" style={{ background: "var(--color-card)", color: "var(--color-card-foreground)", padding: 16 }}>
+            <Button intent="secondary" size="sm">
+              Send
+            </Button>
+          </div>
+        </ThemeScope>
+      </div>,
+    );
+
+    const plate = cmp.getByTestId("plate");
+    await expect(plate).toBeVisible();
+    await expect.poll(() => plate.evaluate((el) => getComputedStyle(el).getPropertyValue("--color-reading-plate-foreground").trim())).not.toBe("");
+    for (const label of ["Generate", "Send"] as const) {
+      const action = cmp.getByRole("button", { name: label });
+      await expect(action).toBeVisible();
+      const receipt = await pixelContrast(page, action);
+      expect(receipt.ratio, `${label} @ ${theme.label}: ${receipt.describe}`).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+}
 
 // Any value at all — the assertion is that the attribute is ABSENT, not what it would hold.
 const ANY_VALUE = /.*/u;

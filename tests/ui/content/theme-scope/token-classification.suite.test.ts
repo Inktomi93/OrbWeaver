@@ -56,8 +56,8 @@ const EMITTED = new Set(
 //     `-cta-highlight`) were class 2 from #232 until #243 MOVED THEM TO CLASS 1. The stated limit that
 //     lived here — "a CUSTOM light theme keeps the base DARK ingredients, because the clamp does not
 //     derive them" — is retired, not restated: `kit/theme-derivation` `shadowIngredients` now derives all
-//     five off the picked base's polarity (the same `fgPivotL` the foreground flip and `color-scheme`
-//     ride) and the clamp emits them, so they classify EMITTED automatically through
+//     five off the picked base's measured polarity (the same `surfacePolarity` foregrounds and
+//     `color-scheme` ride) and the clamp emits them, so they classify EMITTED automatically through
 //     THEME_SCOPE_EMIT_VARS. The accent GLOW is deliberately in NO class list: it derives from
 //     `--color-primary` via relative colour, so it follows EVERY theme with no token of its own.
 const SEED_COVERED = new Set<string>(["color.backdrop"]);
