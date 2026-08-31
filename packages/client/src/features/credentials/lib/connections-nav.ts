@@ -15,16 +15,26 @@ export const CONNECTIONS_ROLES_SUBCATEGORY: ConfigSubcategory = {
       id: "chat-model",
       label: "Chat model",
       keywords: ["chat", "conversation", "source", "provider", "role-handling"],
+      teach: {
+        summary: "The connection every conversation resolves to by default \u2014 a room's own connection or a preset's routing can pick differently.",
+        affects: ["every new turn that does not name its own connection"],
+        related: [{ group: "connections", sub: "saved-keys", setting: "active-key" }],
+      },
     },
     {
       id: "embed-model",
       label: "Text embedding model",
       keywords: ["embed", "vector", "search", "memory", "dimension"],
+      teach: {
+        summary: "The model that turns text into vectors \u2014 memory recall, search and the corpus analyses all read from what it wrote.",
+        affects: ["memory recall, search and corpus analysis quality", "the whole index: changing it means re-embedding"],
+      },
     },
     {
       id: "image-embed-model",
       label: "Image embedding model",
       keywords: ["image", "clip", "multimodal", "caption", "cross-modal"],
+      teach: { summary: "The model that embeds images for visual similarity and gallery search.", affects: ["image search and similarity browsing"] },
     },
   ],
 };
@@ -44,11 +54,16 @@ export const CONNECTIONS_KEYS_SUBCATEGORY: ConfigSubcategory = {
       id: "add-key",
       label: "Add a provider key",
       keywords: ["credential", "api key", "add", "openrouter", "anthropic", "openai"],
+      teach: {
+        summary: "Store a provider API key once; every connection to that provider resolves its credential from here.",
+        affects: ["every connection to that provider"],
+      },
     },
     {
       id: "active-key",
       label: "Active credential per provider",
       keywords: ["active", "default", "credential", "switch", "test", "health", "remove"],
+      teach: { summary: "Which stored credential a provider uses when it holds more than one.", affects: ["every connection to that provider"] },
     },
   ],
 };

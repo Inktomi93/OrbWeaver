@@ -11,6 +11,7 @@
 //   • A debounced COLOUR edit still lands as one write carrying the picked colour.
 // The write is the WHOLE merged blob (raw + unmerged — resolution is a `<ThemeScope>` nesting concern).
 
+import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import type { TrpcRecorder } from "../../../../support/ct/route-trpc.ts";
@@ -49,6 +50,8 @@ function route(page: Page, themeOverride: Record<string, unknown> | null): Promi
     "character.get": () => card,
     "character.update": () => card,
     "settings.listThemes": () => THEME_LIST,
+    // The BG-C picker's grid reads the viewer's own backgroundLibrary (#866 S4) — fed empty, never inert.
+    "settings.getUserSettings": () => ({ userId: "user_ct_look", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 }),
   });
 }
 
@@ -122,6 +125,8 @@ test("Save as theme… promotes the LIVE override, defaulted to the character's 
     "character.get": () => card,
     "character.update": () => card,
     "settings.listThemes": () => THEME_LIST,
+    // The BG-C picker's grid reads the viewer's own backgroundLibrary (#866 S4) — fed empty, never inert.
+    "settings.getUserSettings": () => ({ userId: "user_ct_look", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 }),
     "settings.promoteTheme": () => ({ id: "theme_new", name: "Aria", override: { accent: "#00ff00" }, css: null, isSeed: false, createdAt: 0, updatedAt: 0 }),
   });
   await mount(<CharacterLookTabStory />);
@@ -135,6 +140,8 @@ test("Save as theme… is disabled while the card has nothing of its own to prom
     "character.get": () => makeCharacterDetail({ themeOverride: null }),
     "character.update": () => makeCharacterDetail({ themeOverride: null }),
     "settings.listThemes": () => THEME_LIST,
+    // The BG-C picker's grid reads the viewer's own backgroundLibrary (#866 S4) — fed empty, never inert.
+    "settings.getUserSettings": () => ({ userId: "user_ct_look", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 }),
   });
   await mount(<CharacterLookTabStory />);
   await expect(page.getByRole("button", { name: "Save as theme…" })).toBeDisabled();
@@ -145,11 +152,14 @@ test("Start from a theme… seeds the card from the theme's CARD-EMBEDDABLE subs
     "character.get": () => makeCharacterDetail({ themeOverride: null }),
     "character.update": () => makeCharacterDetail({ themeOverride: null }),
     "settings.listThemes": () => THEME_LIST,
+    // The BG-C picker's grid reads the viewer's own backgroundLibrary (#866 S4) — fed empty, never inert.
+    "settings.getUserSettings": () => ({ userId: "user_ct_look", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 }),
   });
   await mount(<CharacterLookTabStory />);
 
-  await page.getByRole("combobox", { name: "Start from a theme" }).click();
-  await page.getByRole("option", { name: "Mocha", exact: true }).click();
+  // The Looks-grammar menu (#866 S4): swatch-stripe rows in a Menu, never a name-only Select.
+  await page.getByRole("button", { name: "Start from a theme…" }).click();
+  await page.getByRole("menuitem", { name: "Mocha", exact: true }).click();
 
   // The theme's colours land as ordinary card values (no linkage); its `density` — viewer-sacred — does not.
   await expect
@@ -269,7 +279,12 @@ test("the lower rungs write the pair too — Render HTML is trusted-but-static, 
 test("Inherit clears BOTH columns — a cleared render step must not leave an interactive opt-in behind", async ({ mount, page }) => {
   await stubExternalMediaBlocked(page, false);
   const card = makeCharacterDetail({ trustHtml: true, interactiveHtml: true });
-  const trpc = await routeTrpc(page, { "character.get": () => card, "character.update": () => card, "settings.listThemes": () => THEME_LIST });
+  const trpc = await routeTrpc(page, {
+    "character.get": () => card,
+    "character.update": () => card,
+    "settings.listThemes": () => THEME_LIST,
+    "settings.getUserSettings": () => ({ userId: "user_ct_look", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 }),
+  });
   await mount(<CharacterTrustTabStory />);
 
   // It reads back at the top rung first — the stored value is shown, never invented.
@@ -355,6 +370,8 @@ test("no theme-cluster action clips the context panel's width", async ({ mount, 
     "character.update": () => makeCharacterDetail({ themeOverride: { accent: "#c98a5b" } }),
     "character.listSnapshots": () => [],
     "settings.listThemes": () => THEME_LIST,
+    // The BG-C picker's grid reads the viewer's own backgroundLibrary (#866 S4) — fed empty, never inert.
+    "settings.getUserSettings": () => ({ userId: "user_ct_look", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 }),
   });
   const component = await mount(<CharacterLookTabPanelStory />);
 
@@ -407,6 +424,8 @@ test("#841 a colour field's value reads as words, never as an oklch() triple", a
     "character.update": () => card,
     "character.listSnapshots": () => [],
     "settings.listThemes": () => THEME_LIST,
+    // The BG-C picker's grid reads the viewer's own backgroundLibrary (#866 S4) — fed empty, never inert.
+    "settings.getUserSettings": () => ({ userId: "user_ct_look", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 }),
   });
   const component = await mount(<CharacterLookTabPanelStory />);
 

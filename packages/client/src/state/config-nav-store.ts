@@ -19,6 +19,7 @@
 // row you are already on re-scrolls it into view) and the CONTENT host's effect keys on it, never on the
 // active group — a later user click can never re-fire a stale jump (#549's rule).
 
+import { clearConfigFocus } from "./config-focus-store.ts";
 import type { ConfigGroupId } from "./config-group-ids.ts";
 import { isConfigGroupId } from "./config-group-ids.ts";
 import { openConfigGroup } from "./config-group-open-store.ts";
@@ -53,6 +54,10 @@ let nonce = 0;
 function land(group: ConfigGroupId, sub: string | null, setting: string | null, action: string): void {
   nonce += 1;
   openConfigGroup(group);
+  // A navigation resets the TEACHER's focus (config-revamp-design.md §7.2 keep-last has a group horizon:
+  // a lesson about a row that just left the screen would be a lie). The landed target re-focuses when it
+  // names a setting.
+  clearConfigFocus();
   useConfigNavStore.setState({ activeGroup: group, activeSub: sub, target: { group, sub, setting, nonce } }, false, action);
 }
 
@@ -91,6 +96,7 @@ export function setActiveConfigSub(sub: string | null): void {
 /** Back to the welcome — the shell's mobile BACK affordance for a pushed group, and what a rail bounce leaves
  *  behind on the next arrival is untouched (transient store, no persist). */
 export function clearActiveConfigGroup(): void {
+  clearConfigFocus();
   useConfigNavStore.setState({ activeGroup: null, activeSub: null, target: null }, false, "configNav/clear");
 }
 

@@ -11,11 +11,35 @@ export const APPEARANCE_AVATARS_SUBCATEGORY: ConfigSubcategory = {
   label: "Avatars",
   keywords: ["portrait", "picture"],
   settings: [
-    { id: "show-avatars", label: "Show avatars in chat" },
-    { id: "avatar-size", label: "Avatar size" },
-    { id: "avatar-shape", label: "Avatar shape" },
-    { id: "avatar-aspect", label: "Avatar aspect" },
-    { id: "avatar-ring", label: "Avatar ring" },
+    {
+      id: "show-avatars",
+      label: "Show avatars in chat",
+      teach: { summary: "Hide to show only the speaker's name on each message.", affects: ["every message row, in every chat"] },
+    },
+    {
+      id: "avatar-size",
+      label: "Avatar size",
+      teach: { summary: "How large each speaker's avatar renders beside their messages.", affects: ["avatar boxes in every chat"] },
+    },
+    {
+      id: "avatar-shape",
+      label: "Avatar shape",
+      teach: { summary: "Round or square avatar frames.", affects: ["avatar frames in every chat"] },
+    },
+    {
+      id: "avatar-aspect",
+      label: "Avatar aspect",
+      teach: {
+        summary: "Portrait reserves a taller box — the immersive VN-style modes use it.",
+        affects: ["avatar boxes in every chat", "the immersive chat displays most of all"],
+        related: [{ group: "appearance", sub: "message-style", setting: "chat-style" }],
+      },
+    },
+    {
+      id: "avatar-ring",
+      label: "Avatar ring",
+      teach: { summary: "An accent ring around each avatar, or none.", affects: ["avatar frames in every chat"] },
+    },
   ],
 };
 

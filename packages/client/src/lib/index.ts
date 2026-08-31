@@ -7,7 +7,6 @@
 export type { SeededBackground } from "@orb/contracts/theme";
 export { listSeededBackgrounds, resolveSeededBackgroundUrl } from "@orb/contracts/theme";
 export { cn } from "@orb/ui/lib";
-export { BACKGROUND_KIND_ITEMS, BACKGROUND_KIND_LABELS } from "./background-kind-items.ts";
 export { setBootReadPending } from "./boot-reads.ts";
 export { busDupCheck, busInvalidate, busSubscribe, busUnsubscribe } from "./bus-devlog.ts";
 export { deriveChatTitle, UNTITLED_CHAT_TITLE } from "./chat-title.ts";
@@ -136,6 +135,9 @@ export type {
   ChatContextState,
   ChatContextTabId,
   CommittedChatContext,
+  ConfigContextState,
+  ConfigTeachDoor,
+  ConfigTeachView,
   ContextDefinition,
   ContextEmptyArm,
   ContextRegionDef,

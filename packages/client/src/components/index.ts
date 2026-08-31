@@ -32,6 +32,7 @@ export {
   HIDE_AT_COARSE,
   LABEL_TO_SR_ONLY_AT_COARSE,
   PICKER_GAP_AT_COARSE,
+  PIN_REVEAL,
   REVEAL_AT_COARSE,
 } from "./pointer-variants.ts";
 export type { RegexScopeOrderProps } from "./regex-scope-order.tsx";
@@ -46,6 +47,8 @@ export { ROW_ACTION_INLINE, ROW_ACTION_OVERFLOW, ROW_REVEAL, ROW_REVEAL_SWAP, RO
 export type { RowToggleActionFillProps, RowToggleActionProps } from "./row-toggle-action.tsx";
 export { RowToggleAction } from "./row-toggle-action.tsx";
 export { SettingCheckboxRow, SettingSwitchRow } from "./setting-switch-row.tsx";
+export type { ConfigTeachScopeValue, SettingRowProps } from "./setting-teach-row.tsx";
+export { ConfigTeachScope, SettingRow } from "./setting-teach-row.tsx";
 export type { TagPickerDialogProps } from "./tag-picker-dialog.tsx";
 export { TagPickerDialog } from "./tag-picker-dialog.tsx";
 export type {

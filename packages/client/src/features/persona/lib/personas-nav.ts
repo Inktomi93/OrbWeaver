@@ -22,6 +22,10 @@ export const PERSONA_NOTIFICATIONS_SUBCATEGORY: ConfigSubcategory = {
       id: "persona-notifications",
       label: "Persona change notifications",
       keywords: ["notify", "notification", "alert"],
+      teach: {
+        summary: "A confirming toast when your persona changes in a chat \u2014 switching who you play as, or a restamp landing.",
+        affects: ["persona-switch confirmations, on this account everywhere"],
+      },
     },
   ],
 };
@@ -35,6 +39,11 @@ export const PERSONA_ROSTER_SUBCATEGORY: ConfigSubcategory = {
       id: "editor",
       label: "Editing a persona",
       keywords: ["title", "description", "starred", "injection", "depth", "lore book", "duplicate", "export"],
+      teach: {
+        summary:
+          "A persona row expands into its editor: title, description and where it injects, plus its lore book. The description is what the model reads as you.",
+        affects: ["how the model sees you wherever this persona plays"],
+      },
     },
   ],
 };
@@ -48,6 +57,10 @@ export const PERSONA_THIS_CHAT_SUBCATEGORY: ConfigSubcategory = {
       id: "pinned",
       label: "Pinned as {{user}}",
       keywords: ["anchor", "pin", "re-pin", "card sees you as", "{{user}}"],
+      teach: {
+        summary: "The pinned persona is your default \u2014 what {{user}} resolves to unless a chat overrides it. One persona is pinned at a time.",
+        affects: ["every chat without a this-chat override"],
+      },
     },
   ],
 };

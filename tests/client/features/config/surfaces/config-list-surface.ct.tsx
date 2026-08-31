@@ -7,6 +7,7 @@
 // the owner's real library and every decision here — collapsed by default, the count-driven filter, the
 // windowed rows — exists for that size. A five-row toy would pass while the shipped surface stalled.
 
+import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import type { TrpcRecorder } from "../../../../support/ct/route-trpc.ts";
@@ -161,6 +162,15 @@ function stub(page: Page, tags: readonly unknown[] = MANY_TAGS): Promise<TrpcRec
   return routeTrpc(page, {
     // The fourth collection (casts) + the viewer projection the LIST's `when` gate reads (#866 S1).
     "rosterPreset.list": [],
+    // The workspace story now mounts the CONTEXT through the real resolve (#866 S3), and a selected
+    // group's skimmer sections read the settings blob — fed the real defaults, never an inert null.
+    "settings.getUserSettings": () => ({ userId: "user_ct_config", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 }),
+    // The Looks section (#866 S4) reads the theme library — three seeds, no owned rows.
+    "settings.listThemes": () => [
+      { id: "theme_00000000000000000000000001", name: "Hearth", override: {}, css: null, isSeed: true, createdAt: 0, updatedAt: 0 },
+      { id: "theme_00000000000000000000000002", name: "Mocha", override: {}, css: null, isSeed: true, createdAt: 0, updatedAt: 0 },
+      { id: "theme_00000000000000000000000003", name: "Light", override: {}, css: null, isSeed: true, createdAt: 0, updatedAt: 0 },
+    ],
     "sessions.me": { userId: "user_ct_config", handle: "ct_config", globalRole: "user" },
     "tag.listTagsWithUsage": () => tags,
     "tag.createTag": () => tagRow(TAG_COUNT),

@@ -179,6 +179,12 @@
     "why": "ratified by rule: lint/suspicious/noExplicitAny×1 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_RULES (tooling/src/verify/gates/suppressions.ts)",
     "cite": ["tooling/src/verify/gates/suppressions.ts"]
   },
+  "packages/client/src/features/config/lib/config-context.tsx": {
+    "count": 1,
+    "ratified": 1,
+    "why": "ratified by rule: lint/nursery/noComponentHookFactories×1 (tool-fp) — each rule's ruling/tool-FP reason lives in RATIFIED_RULES (tooling/src/verify/gates/suppressions.ts)",
+    "cite": ["tooling/src/verify/gates/suppressions.ts"]
+  },
   "packages/client/src/lib/registry-contracts.ts": {
     "count": 1,
     "ratified": 1,

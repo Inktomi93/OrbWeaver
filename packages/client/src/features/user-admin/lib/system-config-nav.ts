@@ -14,9 +14,30 @@ export const MEDIA_TRUST_SUBCATEGORY: ConfigSubcategory = {
   label: "Media & trust",
   keywords: ["security", "privacy", "safety"],
   settings: [
-    { id: "forbid-external-media", label: "Block external media", keywords: ["url", "image", "privacy", "ssrf", "tracking", "pixel"] },
-    { id: "trust-html", label: "Render rich HTML as trusted", keywords: ["html", "mermaid", "sanitize", "xss", "cards"] },
-    { id: "max-image-bytes", label: "Max generated-image size", keywords: ["download", "megabytes", "bytes", "imagine", "cap"] },
+    {
+      id: "forbid-external-media",
+      label: "Block external media",
+      keywords: ["url", "image", "privacy", "ssrf", "tracking", "pixel"],
+      teach: {
+        summary: "Blocks messages from loading media by external URL \u2014 no tracking pixels, no SSRF, no surprise fetches.",
+        affects: ["every account's message rendering, deployment-wide"],
+      },
+    },
+    {
+      id: "trust-html",
+      label: "Render rich HTML as trusted",
+      keywords: ["html", "mermaid", "sanitize", "xss", "cards"],
+      teach: {
+        summary: "Renders rich HTML cards as trusted instead of sanitized \u2014 only for deployments where every author is trusted.",
+        affects: ["every account's message rendering, deployment-wide"],
+      },
+    },
+    {
+      id: "max-image-bytes",
+      label: "Max generated-image size",
+      keywords: ["download", "megabytes", "bytes", "imagine", "cap"],
+      teach: { summary: "The size cap on a generated image the server will download and store.", affects: ["image generation, deployment-wide"] },
+    },
   ],
 };
 
@@ -25,8 +46,21 @@ export const COMPUTE_SUBCATEGORY: ConfigSubcategory = {
   label: "Compute",
   keywords: ["vllm", "gpu", "batch", "inference"],
   settings: [
-    { id: "vllm-embed-concurrency", label: "Embedding concurrency", keywords: ["vllm", "embed", "batch", "index"] },
-    { id: "vllm-summarize-concurrency", label: "Summarize concurrency", keywords: ["vllm", "summarize", "batch", "memory"] },
+    {
+      id: "vllm-embed-concurrency",
+      label: "Embedding concurrency",
+      keywords: ["vllm", "embed", "batch", "index"],
+      teach: {
+        summary: "How many embedding requests the local engine runs at once \u2014 higher is faster indexing and more VRAM pressure.",
+        affects: ["indexing throughput and local GPU load"],
+      },
+    },
+    {
+      id: "vllm-summarize-concurrency",
+      label: "Summarize concurrency",
+      keywords: ["vllm", "summarize", "batch", "memory"],
+      teach: { summary: "How many summarize requests the local engine runs at once.", affects: ["memory summarization throughput and local GPU load"] },
+    },
   ],
 };
 
@@ -35,9 +69,27 @@ export const SHARED_ACCESS_SUBCATEGORY: ConfigSubcategory = {
   label: "Shared access",
   keywords: ["members", "owner", "governance", "sharing"],
   settings: [
-    { id: "allow-non-owner-local", label: "Members may use shared local compute", keywords: ["local", "vllm", "onnx", "members", "share"] },
-    { id: "non-owner-local-budget", label: "Per-member local-compute budget", keywords: ["budget", "limit", "count", "quota"] },
-    { id: "allow-non-owner-max-pro-sub", label: "Members may use the hosted subscription", keywords: ["max", "pro", "subscription", "hosted", "claude"] },
+    {
+      id: "allow-non-owner-local",
+      label: "Members may use shared local compute",
+      keywords: ["local", "vllm", "onnx", "members", "share"],
+      teach: {
+        summary: "Lets member accounts run on the box's local compute (vLLM/ONNX), not just the owner.",
+        affects: ["members' access to shared local engines"],
+      },
+    },
+    {
+      id: "non-owner-local-budget",
+      label: "Per-member local-compute budget",
+      keywords: ["budget", "limit", "count", "quota"],
+      teach: { summary: "A per-member quota on shared local compute.", affects: ["how much local compute each member may use"] },
+    },
+    {
+      id: "allow-non-owner-max-pro-sub",
+      label: "Members may use the hosted subscription",
+      keywords: ["max", "pro", "subscription", "hosted", "claude"],
+      teach: { summary: "Lets member accounts ride the host's hosted subscription.", affects: ["members' access to the hosted subscription"] },
+    },
   ],
 };
 
@@ -46,8 +98,12 @@ export const MULTI_USER_SUBCATEGORY: ConfigSubcategory = {
   label: "Multi-user",
   keywords: ["auth", "login", "invite", "accounts", "humans", "discreet"],
   settings: [
-    { id: "local-multi-user", label: "Allow multiple humans (local mode)" },
-    { id: "discreet-login", label: "Discreet login" },
+    {
+      id: "local-multi-user",
+      label: "Allow multiple humans (local mode)",
+      teach: { summary: "Allows more than one human account in local mode.", affects: ["sign-up and rooms' member ceilings, deployment-wide"] },
+    },
+    { id: "discreet-login", label: "Discreet login", teach: { summary: "Hides account handles on the login screen.", affects: ["the login screen only"] } },
   ],
 };
 
@@ -56,7 +112,17 @@ export const OPERATIONS_SUBCATEGORY: ConfigSubcategory = {
   label: "Operations",
   keywords: ["jobs", "logging", "diagnostics"],
   settings: [
-    { id: "corpus-autoindex", label: "Background corpus indexing", keywords: ["index", "embeddings", "corpus", "background"] },
-    { id: "log-level", label: "Log level", keywords: ["logging", "verbosity", "debug", "trace"] },
+    {
+      id: "corpus-autoindex",
+      label: "Background corpus indexing",
+      keywords: ["index", "embeddings", "corpus", "background"],
+      teach: { summary: "Keeps the corpus index warm in the background as content changes.", affects: ["background indexing load and search freshness"] },
+    },
+    {
+      id: "log-level",
+      label: "Log level",
+      keywords: ["logging", "verbosity", "debug", "trace"],
+      teach: { summary: "How verbose the server log is.", affects: ["server logging only \u2014 never user data"] },
+    },
   ],
 };

@@ -13,9 +13,42 @@ export const CHAT_STREAMING_SUBCATEGORY: ConfigSubcategory = {
   label: "Streaming",
   keywords: ["stream", "reveal", "typing"],
   settings: [
-    { id: "smooth-stream", label: "Smooth streaming", keywords: ["smooth", "reveal", "pace", "fade", "typing"] },
-    { id: "smooth-stream-cps", label: "Reveal speed", keywords: ["speed", "cps", "rate", "characters"] },
-    { id: "reasoning-auto-collapse", label: "Auto-collapse reasoning", keywords: ["reasoning", "thinking", "collapse", "trace"] },
+    {
+      id: "stream-follow",
+      label: "While a reply streams",
+      keywords: ["follow", "pin", "scroll", "anchor"],
+      teach: {
+        summary:
+          "Follow keeps the newest text in view. Pin scrolls your just-sent message to the top and holds it there while the reply grows below (ChatGPT-style).",
+        affects: ["the transcript's scroll behavior while a reply streams"],
+      },
+    },
+    {
+      id: "smooth-stream",
+      label: "Smooth streaming",
+      keywords: ["smooth", "reveal", "pace", "fade", "typing"],
+      teach: {
+        summary: "Reveals replies at a steady pace instead of raw network chunks. The reveal speeds up automatically when the model gets ahead.",
+        affects: ["how streaming text paints — never what arrives"],
+        related: [{ group: "chat-behavior", sub: "streaming", setting: "smooth-stream-cps" }],
+      },
+    },
+    {
+      id: "smooth-stream-cps",
+      label: "Reveal speed",
+      keywords: ["speed", "cps", "rate", "characters"],
+      teach: { summary: "The minimum reveal rate (characters per second) while the model is keeping pace.", affects: ["smooth streaming's floor speed"] },
+    },
+    {
+      id: "reasoning-auto-collapse",
+      label: "Auto-collapse reasoning",
+      keywords: ["reasoning", "thinking", "collapse", "trace"],
+      teach: {
+        summary:
+          "Folds a reasoning-capable model's thinking trace to a 'Thought for Ns' summary the moment its answer starts. Off keeps the trace open until you close it.",
+        affects: ["reasoning-capable models' messages"],
+      },
+    },
   ],
 };
 

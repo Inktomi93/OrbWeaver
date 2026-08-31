@@ -72,7 +72,6 @@ export function ChatBackgroundSection({ chatId, background }: ChatBackgroundSect
   return (
     <Stack gap="field">
       <BackgroundSourceField
-        hideLabel={true}
         onChange={(next): void => {
           setBackground.mutate({ chatId, background: next });
         }}

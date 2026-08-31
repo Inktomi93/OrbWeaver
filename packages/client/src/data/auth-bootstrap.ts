@@ -7,6 +7,9 @@
 import type { UserRole } from "@orb/contracts/identity";
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import type { Handle } from "@orb/kit/ids";
+import type { UseQueryResult } from "@tanstack/react-query";
+import { queryOptions, useQuery } from "@tanstack/react-query";
+import { postSessionMessage } from "#lib";
 
 /** The `/api/auth/me` wire shape — THIS request's seam-resolved identity (public; never a 401). */
 export interface AuthMe {
@@ -37,6 +40,17 @@ async function getJson<T>(url: string): Promise<T> {
 /** Fetch THIS request's auth state. Never memoized — the guards want the live cookie verdict. */
 export function fetchAuthMe(): Promise<AuthMe> {
   return getJson<AuthMe>("/api/auth/me");
+}
+
+const authMeOptions = queryOptions({ queryKey: AUTH_ME_KEY, queryFn: fetchAuthMe });
+
+/** THIS session's auth state, as a shared react-query read (N mounted readers, one cache entry). Lived in
+ *  `features/auth/hooks` until #866 S4 — the rail persona switcher's account foot needs it, and a
+ *  cross-feature reach into auth is banned, so it moved to `#data` (the `useAuthConfig` precedent exactly).
+ *  The app QueryClient's `staleTime: Infinity` default applies — freshness is event-driven: login navigates
+ *  (a fresh guard fetch), sign-out hard-redirects (a full document reset), so a mounted reader never polls. */
+export function useAuthMe(): UseQueryResult<AuthMe> {
+  return useQuery(authMeOptions);
 }
 
 /** Local-mode login: POST the credential form → the server verifies (scrypt + dummy-hash floor) and
@@ -83,6 +97,19 @@ export async function firstRunSetup(password: string): Promise<void> {
  *  with no end_session_endpoint). */
 export interface LogoutResult {
   readonly endSessionUrl: string | null;
+}
+
+/** Sign out END-TO-END: revoke the session ({@link logout}), tell sibling TABS (they hold the same
+ *  now-revoked cookie and would keep rendering warm cache until something happened to fail — the cross-tab
+ *  channel makes one sign-out land everywhere at once), then hard-redirect (a full document load drops every
+ *  in-memory cache/store so a shared browser can't leak the prior user's data). Continues to the IdP
+ *  end-session URL when the deployment is OIDC (else clicking Continue signs straight back in). Re-homed
+ *  from the retired `account-surface.tsx` (#866 S4 — the account modal dissolved into the persona
+ *  switcher's foot); THROWS on failure — the calling control owns the toast. */
+export async function signOut(): Promise<void> {
+  const { endSessionUrl } = await logout();
+  postSessionMessage({ kind: "signed-out" });
+  globalThis.location.assign(endSessionUrl ?? "/login");
 }
 
 /** Revoke the session + clear the cookie (idempotent server-side). The caller owns the post-logout

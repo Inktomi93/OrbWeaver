@@ -11,6 +11,8 @@ const SECTION_ID = "appearance-reading";
 export const appearanceReadingSection: ConfigSectionContribution = {
   id: SECTION_ID,
   anchor: "appearance",
+  // Inside the Appearance group's "Customize this look" fold (#297's explicit custom arm, #866 S4).
+  advanced: true,
   nav: APPEARANCE_READING_SUBCATEGORY,
   owns: { tier: "user", section: "appearance", keys: APPEARANCE_READING_KEYS },
   body: () => <AppearanceReadingSection sectionId={SECTION_ID} />,

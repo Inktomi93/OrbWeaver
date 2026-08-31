@@ -19,6 +19,11 @@ export interface HintTriggerProps {
    *  the real button box to the touch floor. `"icon"` is a full control-size box.
    *  @defaultValue "inline" */
   readonly size?: "inline" | "icon";
+  /** An OPTIONAL activation beyond the tooltip (the config teacher's `i` opens the context pane —
+   *  config-revamp-design.md §7.2). The tooltip still shows on hover/focus either way; on touch, where a
+   *  tooltip cannot open, the click is the whole affordance (the NN/g pull-revelation door). Absent ⇒ the
+   *  trigger stays the hover/focus-only atom it always was. */
+  readonly onClick?: () => void;
 }
 
 /** The hint-tooltip anatomy shared by `<Field>`'s label hint and `<Section>`'s heading hint (§16,
@@ -27,7 +32,7 @@ export interface HintTriggerProps {
  *  descendant — nesting it inside would leak "More info" into the labeled element's accessible name
  *  via the W3C accname subtree-concatenation algorithm (both call sites' own layout enforces this;
  *  this component only owns the trigger+popup atom, not its position). */
-export function HintTrigger({ hint, subject, className, size = "inline" }: HintTriggerProps): ReactElement {
+export function HintTrigger({ hint, subject, className, size = "inline", onClick }: HintTriggerProps): ReactElement {
   const slots = hintTriggerVariants();
   let ariaLabel = "More info";
   if (typeof subject === "string" && subject.trim().length > 0) {
@@ -38,7 +43,15 @@ export function HintTrigger({ hint, subject, className, size = "inline" }: HintT
     <Tooltip>
       <TooltipTrigger
         render={
-          <Button aria-label={ariaLabel} className={cn(slots.trigger(), className) ?? ""} data-slot="hint-trigger" intent="ghost" size={size} type="button">
+          <Button
+            aria-label={ariaLabel}
+            className={cn(slots.trigger(), className) ?? ""}
+            data-slot="hint-trigger"
+            intent="ghost"
+            {...(onClick === undefined ? {} : { onClick })}
+            size={size}
+            type="button"
+          >
             <Icon icon={Info} size="xs" />
           </Button>
         }

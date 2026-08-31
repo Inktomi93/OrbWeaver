@@ -44,7 +44,7 @@ import {
 import { worldInfoSettingsSection } from "@orb/client/features/world-info";
 import { createContributorRegistry } from "@orb/client/lib";
 import type { ConfigSectionContribution } from "@orb/client/state";
-import { assertSettingsKeyPartition, UNCLAIMED_SETTINGS_KEYS } from "@orb/client/state";
+import { assertSettingsKeyPartition, assertTeachHonesty, UNCLAIMED_SETTINGS_KEYS } from "@orb/client/state";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { describe } from "vitest";
 import { expect, test } from "../../support/fixtures.ts";
@@ -187,11 +187,12 @@ describe("assertSettingsKeyPartition", () => {
   });
 });
 
-// The DOOR's own assertion, run against the REAL contributions + the REAL contract defaults. main.tsx calls
-// this at module init, so a violated partition is a white-screen at boot — this test is the pre-image of
-// that crash, and it fails HERE (with the offending key named) instead of in the browser.
-test("the real door's settings-section claims partition cleanly against DEFAULT_USER_SETTINGS", () => {
-  const registry = createContributorRegistry<ConfigSectionContribution>("config-sections", [
+// The DOOR's own assertions, run against the REAL contributions + the REAL contract defaults. main.tsx
+// calls them at module init, so a violation is a white-screen at boot — these tests are the pre-image of
+// that crash, and they fail HERE (with the offending key/leaf named) instead of in the browser. ONE
+// mirror list serves both (`test-presence-mirror-not-suite`: the mirror is the accepted live-door lens).
+function realDoorSections(): ReturnType<typeof createContributorRegistry<ConfigSectionContribution>> {
+  return createContributorRegistry<ConfigSectionContribution>("config-sections", [
     // The §6.8 conversions — persona claims `persona.showNotifications`, connections claims `routing.roleDefaults`.
     personaNotificationsSection,
     personaRosterSection,
@@ -237,5 +238,19 @@ test("the real door's settings-section claims partition cleanly against DEFAULT_
     appearanceEffectsSection,
     librarySettingsSection,
   ]);
-  expect(() => assertSettingsKeyPartition(registry, DEFAULT_USER_SETTINGS)).not.toThrow();
+}
+
+test("the real door's settings-section claims partition cleanly against DEFAULT_USER_SETTINGS", () => {
+  expect(() => assertSettingsKeyPartition(realDoorSections(), DEFAULT_USER_SETTINGS)).not.toThrow();
+});
+
+// R-TEACH's DERIVED-POPULATION arm (#866 S3, config-revamp-design.md §7.0): iterate the REAL registry's
+// leaves — never a hand list — and prove every one resolves an honest teach or a stated opt-out. The
+// planted per-arm RED fixtures live in `config-teach.test.ts`; this is the sweep over the population.
+test("every declared leaf of the real door carries an honest teach or a stated opt-out", () => {
+  const registry = realDoorSections();
+  expect(() => assertTeachHonesty(registry)).not.toThrow();
+  const leaves = registry.list().flatMap((c) => (c.nav.settings ?? []).map((leaf) => ({ at: `${c.anchor}/${c.nav.id}`, leaf })));
+  // The population floor: a refactor that silently empties the leaf set must be loud, not a vacuous pass.
+  expect(leaves.length).toBeGreaterThan(50);
 });

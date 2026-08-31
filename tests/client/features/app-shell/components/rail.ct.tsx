@@ -17,7 +17,8 @@ test("renders every section + footer action as a named button; active = aria-cur
   const rail = await mount(<RailStory />);
 
   await Promise.all(["Chats", "Characters", "Corpus", "Refinery", "Analytics"].map((name) => expect(rail.getByRole("button", { name })).toBeVisible()));
-  await expect(rail.getByRole("button", { name: "Switch theme" })).toBeVisible();
+  // The theme modal retired into Appearance (#866 S4) — the foot is Settings (a SECTION) + the widget.
+  await expect(rail.getByRole("button", { name: "Switch theme" })).toHaveCount(0);
   await expect(rail.getByRole("button", { name: "Settings" })).toBeVisible();
   await expect(rail.getByRole("button", { name: "Account" })).toBeVisible();
 

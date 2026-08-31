@@ -11,6 +11,8 @@ const SECTION_ID = "appearance-sizing";
 export const appearanceSizingSection: ConfigSectionContribution = {
   id: SECTION_ID,
   anchor: "appearance",
+  // Inside the Appearance group's "Customize this look" fold (#297's explicit custom arm, #866 S4).
+  advanced: true,
   nav: APPEARANCE_SIZING_SUBCATEGORY,
   owns: { tier: "user", section: "appearance", keys: APPEARANCE_SIZING_KEYS },
   body: () => <AppearanceSizingSection sectionId={SECTION_ID} />,

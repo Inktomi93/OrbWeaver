@@ -91,6 +91,14 @@ export const personaRouter = t.router({
     }),
   ),
 
+  // The junction read from the PERSONA side (#866 S4 — the editor's "Connected characters" section).
+  listConnectedCharacters: authedProcedure.input(z.object({ personaId: brandedId<PersonaId>() })).query(({ ctx, input }) =>
+    ctx.services.persona.listConnectedCharacters({
+      principal: ctx.auth,
+      personaId: input.personaId,
+    }),
+  ),
+
   // FINAL-Persona §A.6b gap #2/#3 — duplicate + the export/import backup round-trip.
   duplicate: authedProcedure
     .input(z.object({ personaId: brandedId<PersonaId>() }))
