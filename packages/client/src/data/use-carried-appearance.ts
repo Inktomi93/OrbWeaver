@@ -1,4 +1,4 @@
-// `useCarriedAppearanceCast` — the ONE client read of "whose card dresses this room".
+// `useCarriedAppearance` — the ONE client read of "whose card dresses this room".
 //
 // THE BUG IT EXISTS TO KILL (owner dogfood 2026-08-06 — "character backgrounds and avatars also dont show
 // up until the first message"): the carried look — the app-root background (BG-C) and the room-theme
@@ -20,8 +20,8 @@
 // NON-SUSPENDING: appearance is decoration. An unresolved or errored read reports `undefined`, which every
 // consumer maps to "the viewer's own chrome". It must never block or error a room, and never suspend a shell.
 
-import type { CarriedAppearanceCast } from "@orb/contracts/chat";
-import { carriedCastFromParticipants } from "@orb/contracts/chat";
+import type { CarriedAppearance } from "@orb/contracts/chat";
+import { carriedAppearanceFromParticipants } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
 import { useTRPC } from "./trpc.ts";
 import { useGatedQuery } from "./use-gated-query.ts";
@@ -33,8 +33,8 @@ import { useGatedQuery } from "./use-gated-query.ts";
  * @returns `undefined` while nothing is resolvable (landing, an unsettled or failed read) — the "viewer's
  *   own chrome" floor.
  */
-export function useCarriedAppearanceCast(chatId: ChatId | null): CarriedAppearanceCast | undefined {
+export function useCarriedAppearance(chatId: ChatId | null): CarriedAppearance | undefined {
   const trpc = useTRPC();
   const { data: chat } = useGatedQuery(chatId, (id) => trpc.chat.getChat.queryOptions({ chatId: id }));
-  return chat === undefined ? undefined : carriedCastFromParticipants(chat.participants);
+  return chat === undefined ? undefined : carriedAppearanceFromParticipants(chat.participants);
 }

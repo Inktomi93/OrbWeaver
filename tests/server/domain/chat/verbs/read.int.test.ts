@@ -752,7 +752,7 @@ describe("read — single reads", () => {
     expect(detail.group.output).toBe("per-speaker"); // DEFAULT_GROUP_CONFIG applied
     expect(detail.opening).toBeNull();
     // The participant-scoped cast producer (Chat-Macro-Resolution.md §1 / D137) covers the roster's character.
-    expect(detail.cast.some((e) => e.kind === "character" && e.name === "room_char")).toBe(true);
+    expect(detail.identities.some((e) => e.kind === "character" && e.name === "room_char")).toBe(true);
     // The viewer-scoped fields (host-of-this-room, no persona set yet).
     expect(detail.viewerUserId).toBe(me);
     expect(detail.viewerIsHost).toBe(true);
@@ -843,7 +843,7 @@ describe("read — single reads", () => {
     expect(page.messages.map((m) => m.content)).toEqual(["second"]);
   });
 
-  test("listMessages' cast covers the roster's character AND a message-stamped persona not on the roster (Chat-Macro-Resolution.md §1 / D137)", async () => {
+  test("listMessages' identities covers the roster's character AND a message-stamped persona not on the roster (Chat-Macro-Resolution.md §1 / D137)", async () => {
     const me = await seedUser(db, castId<Handle>("me"));
     const chatId = await seedRoom("room", me);
     const oldPersona = await seedPersona(db, me, "old_persona");
@@ -851,9 +851,9 @@ describe("read — single reads", () => {
     await seedMessage(db, chatId, 1, { role: "user", personaId: oldPersona, content: "hi" });
 
     const { listMessages } = createRead(makeChatContext(db), makeDeps());
-    const { cast } = await listMessages({ principal: principal(me), chatId });
-    expect(cast.some((e) => e.kind === "character" && e.name === "room_char")).toBe(true);
-    expect(cast.some((e) => e.kind === "persona" && e.id === oldPersona)).toBe(true);
+    const { identities } = await listMessages({ principal: principal(me), chatId });
+    expect(identities.some((e) => e.kind === "character" && e.name === "room_char")).toBe(true);
+    expect(identities.some((e) => e.kind === "persona" && e.id === oldPersona)).toBe(true);
   });
 
   test("listMessageVariants returns the full sibling set ordered by idx, no content", async () => {

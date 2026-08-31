@@ -67,19 +67,27 @@ test('resolveRowMacros: {{char}} falls back to the literal "Character" when noth
 
 // ── ruling B: a HUMAN-authored / narrator row (characterId === null) resolves {{char}} to the CAST ──
 
-test("resolveRowMacros: {{char}} in a user row resolves to the JOINED cast in a multi-character room", () => {
-  const out = resolveRowMacros("{{char}}, look here", { characterId: null, personaId: MARA_ID }, ctx({ cast: ["Aria", "Kai"], speakerCharName: "Aria" }));
+test("resolveRowMacros: {{char}} in a user row resolves to the JOINED character names in a multi-character room", () => {
+  const out = resolveRowMacros(
+    "{{char}}, look here",
+    { characterId: null, personaId: MARA_ID },
+    ctx({ characterNames: ["Aria", "Kai"], speakerCharName: "Aria" }),
+  );
   // A user's own {{char}} addresses the whole cast (== {{group}}), NOT the arbitrary current speaker.
   expect(out).toBe("Aria, Kai, look here");
 });
 
 test("resolveRowMacros: {{char}} in a user row resolves to the ONE character in a solo room", () => {
-  const out = resolveRowMacros("{{char}}, look here", { characterId: null, personaId: MARA_ID }, ctx({ cast: ["Aria"] }));
+  const out = resolveRowMacros("{{char}}, look here", { characterId: null, personaId: MARA_ID }, ctx({ characterNames: ["Aria"] }));
   expect(out).toBe("Aria, look here");
 });
 
-test("resolveRowMacros: a VOICED row with a DELETED character floors to Character, never the cast join", () => {
-  const out = resolveRowMacros("{{char}} nods", { characterId: castId<CharacterId>("character_gone"), personaId: null }, ctx({ cast: ["Aria", "Kai"] }));
+test("resolveRowMacros: a VOICED row with a DELETED character floors to Character, never the character-name join", () => {
+  const out = resolveRowMacros(
+    "{{char}} nods",
+    { characterId: castId<CharacterId>("character_gone"), personaId: null },
+    ctx({ characterNames: ["Aria", "Kai"] }),
+  );
   // A stamped-but-unresolvable character is a deleted-id FLOOR (not a user/narrator row) → "Character",
   // NOT the cast join — only a null characterId means "the cast".
   expect(out).toBe("Character nods");

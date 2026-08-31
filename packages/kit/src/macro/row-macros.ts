@@ -51,7 +51,7 @@ export interface RowMacroStamps {
 
 /** The per-chat name producer + the fallback subjects a caller supplies:
  *  `speakerCharName` — the turn's OWN `{{char}}` default (the SOLO character) used only when a
- *  characterId-carrying row's `characterId` doesn't resolve; `cast` — the full cast names (roster order),
+ *  characterId-carrying row's `characterId` doesn't resolve; `characterNames` — the present characters (roster order),
  *  the `{{char}}` subject for a HUMAN-authored / narrator row (`characterId === null`): the joined cast in
  *  a multi-character room (== `{{group}}`), the one character in solo — so a user's own `{{char}}`
  *  is the room's cast, resolved IDENTICALLY on server-assemble and client-display (never the arbitrary
@@ -64,7 +64,7 @@ export interface RowMacroNameContext {
   readonly characterNamesById: ReadonlyMap<CharacterId, RowCharacterName>;
   readonly personaNamesById: ReadonlyMap<PersonaId, RowPersonaName>;
   readonly speakerCharName?: string | undefined;
-  readonly cast?: readonly string[] | undefined;
+  readonly characterNames?: readonly string[] | undefined;
   readonly fallbackPersonaName?: string | undefined;
   readonly fallbackPersonaDescription?: string | undefined;
 }
@@ -79,12 +79,12 @@ const UNKNOWN_PERSONA_NAME = DEFAULT_PERSONA_NAME;
  *  multi-character room (== `{{group}}`), the one character in solo, else the caller's
  *  `speakerCharName` default, then the literal floor. Gated on cast SIZE (`length > 1`) — never an
  *  `isGroup` flag: a cast-of-one collapses to the one name, so solo and group are one code path. */
-function castChar(ctx: RowMacroNameContext): string {
-  const cast = ctx.cast;
-  if (cast !== undefined && cast.length > 1) {
-    return cast.join(", ");
+function charFromCharacterNames(ctx: RowMacroNameContext): string {
+  const characterNames = ctx.characterNames;
+  if (characterNames !== undefined && characterNames.length > 1) {
+    return characterNames.join(", ");
   }
-  return cast?.[0] ?? ctx.speakerCharName ?? UNKNOWN_CHARACTER_NAME;
+  return characterNames?.[0] ?? ctx.speakerCharName ?? UNKNOWN_CHARACTER_NAME;
 }
 
 /**
@@ -96,7 +96,7 @@ function castChar(ctx: RowMacroNameContext): string {
  *   `characterNamesById.get(stamps.characterId)?.name`, falling back to `ctx.speakerCharName`, then the
  *   literal floor (a past line by Aria stays Aria's even when a different character speaks the CURRENT
  *   turn). For a HUMAN-authored / narrator row (`characterId === null`): the room's CAST — the joined
- *   `ctx.cast` in a multi-character room (== `{{group}}`), or the one character in solo — so a
+ *   `ctx.characterNames` in a multi-character room (== `{{group}}`), or the one character in solo — so a
  *   user's own `{{char}}` addresses the whole cast, resolved identically on both consumers (never the
  *   arbitrary current speaker).
  * - `{{user}}` / `{{persona}}` → the ROW's own author: `personaNamesById.get(stamps.personaId)`, whose
@@ -114,7 +114,7 @@ export function resolveRowMacros(content: string, stamps: RowMacroStamps, ctx: R
   const character = stamps.characterId === null ? undefined : ctx.characterNamesById.get(stamps.characterId);
   const persona = stamps.personaId === null ? undefined : ctx.personaNamesById.get(stamps.personaId);
 
-  const char = stamps.characterId === null ? castChar(ctx) : (character?.name ?? ctx.speakerCharName ?? UNKNOWN_CHARACTER_NAME);
+  const char = stamps.characterId === null ? charFromCharacterNames(ctx) : (character?.name ?? ctx.speakerCharName ?? UNKNOWN_CHARACTER_NAME);
   const user = persona?.name ?? ctx.fallbackPersonaName ?? UNKNOWN_PERSONA_NAME;
   const personaDescription = persona?.description ?? ctx.fallbackPersonaDescription ?? "";
 

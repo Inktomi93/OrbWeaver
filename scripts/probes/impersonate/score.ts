@@ -114,9 +114,9 @@ function hitAt(body: string, re: RegExp): string | null {
   );
 }
 
-export function scoreBleed(text: string, castNames: readonly string[], personaName: string): Scored {
+export function scoreBleed(text: string, characterNames: readonly string[], personaName: string): Scored {
   const body = text.trim();
-  const others = castNames.filter((n) => n !== personaName);
+  const others = characterNames.filter((n) => n !== personaName);
   const hits: string[] = [];
   let charSelfLabel = false;
   let charNarration = false;
@@ -151,18 +151,18 @@ export function scoreBleed(text: string, castNames: readonly string[], personaNa
  *  so `cleanPerSpeakerContent` fell back to `output: "per-speaker"` with `speakerName = ctx.character.name`
  *  (the PRIMARY CHARACTER). That configuration strips a leading `Seren:` off a line SEREN wrote and hands
  *  the character's words to the composer as the user's own — the laundering this probe measured at 2/36. */
-export function applyLegacyClean(text: string, castNames: readonly string[]): string {
-  const primary = castNames[0] ?? "";
+export function applyLegacyClean(text: string, characterNames: readonly string[]): string {
+  const primary = characterNames[0] ?? "";
   return cleanPerSpeakerReply(
     text,
     primary,
-    castNames.filter((n) => n !== primary),
+    characterNames.filter((n) => n !== primary),
   );
 }
 
 /** Production's receive clean for an impersonate draft POST-IMP-1 (`engine/pipeline.ts`
  *  cleanPerSpeakerContent, the `kind === "impersonate"` arm): self is the PERSONA, and every cast member is
  *  foreign. */
-export function applyProductionClean(text: string, castNames: readonly string[], personaName: string): string {
-  return cleanPerSpeakerReply(text, personaName, castNames);
+export function applyProductionClean(text: string, characterNames: readonly string[], personaName: string): string {
+  return cleanPerSpeakerReply(text, personaName, characterNames);
 }

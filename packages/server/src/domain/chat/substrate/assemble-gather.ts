@@ -139,10 +139,10 @@ function p6Fields(
 async function loadCastCards(
   ctx: ChatContext,
   ownerId: UserId,
-  castCharacterIds: readonly CharacterId[],
+  characterIds: readonly CharacterId[],
 ): Promise<{ cards: CharacterCard[]; names: Map<CharacterId, string> }> {
   const loaded = await Promise.all(
-    castCharacterIds.map(async (characterId) => ({
+    characterIds.map(async (characterId) => ({
       characterId,
       card: await ctx.getCard({ ownerId, characterId }),
     })),
@@ -210,7 +210,7 @@ async function gatherMemory(
   args: {
     readonly chatId: ChatId;
     readonly runAsUserId: UserId;
-    readonly castCharacterIds: readonly CharacterId[];
+    readonly characterIds: readonly CharacterId[];
     readonly foreign: ForeignInputs;
     readonly recent: readonly MsgRow[];
     readonly names: ReadonlyMap<CharacterId, string>;
@@ -224,7 +224,7 @@ async function gatherMemory(
     ownerId: args.runAsUserId,
     chatId: args.chatId,
   });
-  const sharedCharId = group?.characterId ?? args.castCharacterIds[0] ?? null;
+  const sharedCharId = group?.characterId ?? args.characterIds[0] ?? null;
   if (sharedCharId === null) {
     if (out !== undefined) {
       out.memoryRecall = null;
@@ -247,7 +247,7 @@ async function gatherMemory(
     scope: {
       chatId: args.chatId,
       scopedCharacterId: sharedCharId,
-      isGroup: args.castCharacterIds.length > 1,
+      isGroup: args.characterIds.length > 1,
     },
     groupCharacterId: sharedCharId,
     // The recall live-window cutoff = the PREVIOUS turn's canon fit boundary (the newest assistant row's
@@ -301,10 +301,10 @@ export async function gatherAssembleContext(
     readonly chatId: ChatId;
     readonly runAsUserId: UserId;
     readonly model: string;
-    readonly castCharacterIds: readonly CharacterId[];
+    readonly characterIds: readonly CharacterId[];
     /** Present seated agents (D60), soul-resolved by `loadRoom`; threaded straight to the pure build core. */
 
-    /** The muted-seat `speakerKey`s from `loadRoom` (character + agent) — the `castNotMuted` producer. */
+    /** The muted-seat `speakerKey`s from `loadRoom` (character + agent) — the `unmutedCharacters` producer. */
     readonly mutedSpeakerKeys?: ReadonlySet<string> | undefined;
     readonly personaIds: readonly PersonaId[];
     /** The live human driving this turn — the identity behind `speakers.user`, carried onto the built ctx for
@@ -339,7 +339,7 @@ export async function gatherAssembleContext(
   foreign: ForeignInputs,
   out?: SendRegexSink,
 ): Promise<AssembleContext> {
-  const { chatId, runAsUserId, model, castCharacterIds, personaIds } = args;
+  const { chatId, runAsUserId, model, characterIds, personaIds } = args;
 
   const [chatRow, canon, injectionRows, storedVariables, variableDeltas, cast] = await Promise.all([
     loadChatRow(ctx.db, chatId),
@@ -347,7 +347,7 @@ export async function gatherAssembleContext(
     loadChatInjections(ctx.db, chatId),
     loadStoredVariables(ctx.db, chatId),
     loadVariableDeltas(ctx.db, chatId),
-    loadCastCards(ctx, runAsUserId, castCharacterIds),
+    loadCastCards(ctx, runAsUserId, characterIds),
   ]);
 
   // Two-plane env seed: resolve the config plane (ChoiceBlock picks → concrete map), then overlay the
@@ -388,7 +388,7 @@ export async function gatherAssembleContext(
       {
         chatId,
         runAsUserId,
-        castCharacterIds,
+        characterIds,
         foreign,
         recent: recallRecent,
         names: cast.names,
@@ -407,7 +407,7 @@ export async function gatherAssembleContext(
     await ctx.resolveRegexSources({
       ownerId: runAsUserId,
       presetId: foreign.presetId ?? null,
-      characterIds: castCharacterIds,
+      characterIds,
       chatId,
     }),
   );
@@ -428,7 +428,7 @@ export async function gatherAssembleContext(
     {
       chatId,
       ownerId: runAsUserId,
-      castCharacterIds,
+      characterIds,
 
       mutedSpeakerKeys: args.mutedSpeakerKeys,
       personaIds,

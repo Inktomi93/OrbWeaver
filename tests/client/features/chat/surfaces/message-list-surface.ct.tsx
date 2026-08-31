@@ -18,7 +18,7 @@
 // The owner-scoped `persona.list` read is GONE (the member-gated producer replaced it), so no stub for
 // it remains.
 
-import type { CastEntry, ChatBusEvent, GroupConfig } from "@orb/contracts/chat";
+import type { ChatBusEvent, ChatIdentity, GroupConfig } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import type { StreamFrame } from "@orb/contracts/stream";
 import type { MessageId } from "@orb/kit/ids";
@@ -83,12 +83,12 @@ const ROSTER_STUB = {
   "chat.getChat": (): {
     participants: never[];
     anchorPersonaId: null;
-    cast: readonly CastEntry[];
+    identities: readonly ChatIdentity[];
     group: GroupConfig;
   } => ({
     participants: [],
     anchorPersonaId: null,
-    cast: [],
+    identities: [],
     group: DEFAULT_GROUP_CONFIG,
   }),
 };

@@ -117,7 +117,7 @@ async function mergedInjections(args: {
       chatId: args.chatId,
       runAsUserId: args.host,
       model: "m",
-      castCharacterIds: [args.aria],
+      characterIds: [args.aria],
       personaIds: [],
       teachingInjections: teaching.injections,
     },

@@ -2,7 +2,7 @@
 // membership gestures (invite/kick/nominate/leave) and the per-character roster controls. The `chat`
 // slice + gates arrive already-resolved from the section's `ChatContextState` projection (no re-fetch).
 
-import type { CastEntry, ParticipantView, SeatKnobs } from "@orb/contracts/chat";
+import type { ChatIdentity, ParticipantView, SeatKnobs } from "@orb/contracts/chat";
 import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Icon, Users } from "@orb/ui/icons";
@@ -27,9 +27,9 @@ export interface CommittedMembersTabProps {
   readonly chatId: ChatId;
   readonly chat: {
     readonly participants: readonly ParticipantView[];
-    /** The room's member-gated CAST producer (`ChatDetail.cast`) — how a human seat's `activePersonaId`
-     *  becomes the name and portrait the row renders (see `toPersonRows`). */
-    readonly cast: readonly CastEntry[];
+    /** The room's member-gated CHAT IDENTITY producer (`ChatDetail.identities`) — how a human seat's
+     *  `activePersonaId` becomes the name and portrait the row renders (see `toPersonRows`). */
+    readonly identities: readonly ChatIdentity[];
     readonly viewerUserId: UserId;
     readonly pendingHostUserId: UserId | null;
   };
@@ -77,7 +77,7 @@ export function CommittedMembersTab({ chatId, chat, isHost, multiHumanCapable }:
   const respondingCharacterId = useTurnSpeakerCharacterId(chatId);
   const sources = {
     participants: chat.participants,
-    cast: chat.cast,
+    identities: chat.identities,
     viewerUserId: chat.viewerUserId,
     pendingHostUserId: chat.pendingHostUserId,
     respondingCharacterId,

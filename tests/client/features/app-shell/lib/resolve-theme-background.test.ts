@@ -1,7 +1,7 @@
 // Unit: the BG-C carried-background cascade + source resolvers (features/app-shell/lib/resolve-theme-background).
 // Pins the load-bearing DONE criteria: in a TRUE-SOLO room the carried source paints (chat-set > card-carried);
 // in ANY other composition the carried source is INERT (the viewer's own appearance wins). Composition is the
-// ONE shared `CarriedAppearanceCast` — the resolveRoomTheme twin — so these cases mirror attribution.test's
+// ONE shared `CarriedAppearance` — the resolveRoomTheme twin — so these cases mirror attribution.test's
 // Layer-2 cases by construction. Post-F-P0-2: carried sources are `asset` (an external URL is materialized to
 // an asset BEFORE it can be persisted/carried), and the URL resolver has NO `external` arm.
 //
@@ -11,8 +11,8 @@
 // background used to appear only after the first message.
 
 import { blobUrl } from "@orb/contracts/assets";
-import type { CarriedAppearanceCast } from "@orb/contracts/chat";
-import { carriedCastFromParticipants } from "@orb/contracts/chat";
+import type { CarriedAppearance } from "@orb/contracts/chat";
+import { carriedAppearanceFromParticipants } from "@orb/contracts/chat";
 import type { AppearanceSettings } from "@orb/contracts/settings";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import type { CharacterId } from "@orb/kit/ids";
@@ -49,16 +49,16 @@ const HUMAN = makeParticipant({ kind: "human", characterId: null, displayName: "
 const HUMAN2 = makeParticipant({ kind: "human", characterId: null, displayName: "Sam" });
 
 /** The COMMITTED-room arm: a `getChat` roster projected into the cast the resolver reads. */
-const cast = carriedCastFromParticipants;
+const cast = carriedAppearanceFromParticipants;
 
 /** A pre-send draft's human seats: the viewer, alone — nobody can be invited into a chat that does not
  *  exist yet, so a draft is single-human BY CONSTRUCTION. */
 const DRAFT_HUMAN_SEATS = 1;
 
-/** The DRAFT arm: the viewer's one seat + the founding CARDS — exactly what `useCarriedAppearanceCast`
+/** The DRAFT arm: the viewer's one seat + the founding CARDS — exactly what `useCarriedAppearance`
  *  builds before a chat row exists. A draft never carries a chat-set source (that column is written by a
  *  post-creation verb), so every draft case below passes `null` for it. */
-function draftCast(...backgroundOverrides: readonly (ThemeBackground | null)[]): CarriedAppearanceCast {
+function draftCast(...backgroundOverrides: readonly (ThemeBackground | null)[]): CarriedAppearance {
   return {
     humanCount: DRAFT_HUMAN_SEATS,
     characters: backgroundOverrides.map((backgroundOverride, index) => ({

@@ -245,13 +245,13 @@ export interface GlobalVarWrite {
 export interface MacroContext {
   char: string;
   user: string;
-  /** The character CAST member names (primary first), INCLUDING muted members. Drives `{{group}}`/
+  /** The present CHARACTER names (primary first), INCLUDING muted members. Drives `{{group}}`/
    *  `{{charIfNotGroup}}`/`{{notChar}}`. A solo chat is a cast-of-one, so `{{group}}` == `{{char}}` (byte-
    *  identical). Absent ⇒ treated as the cast-of-one `[char]`. */
-  cast?: readonly string[];
+  characterNames?: readonly string[];
   /** The ACTIVE (non-muted) character names — drives `{{groupNotMuted}}`, distinct from `{{group}}`
-   *  (which includes muted members for their lore). Absent ⇒ `{{groupNotMuted}}` falls back to `cast`. */
-  castNotMuted?: readonly string[];
+   *  (which includes muted members for their lore). Absent ⇒ `{{groupNotMuted}}` falls back to `characterNames`. */
+  unmutedCharacterNames?: readonly string[];
   persona: string;
   scenario: string;
   // Character-field shortcuts (legacy card-format compat). Undefined → the macro renders "".

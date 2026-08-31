@@ -303,7 +303,7 @@ const CREATED_CHAT_DETAIL = {
   title: null,
   participants: [],
   anchorPersonaId: null,
-  cast: [],
+  identities: [],
   group: DEFAULT_GROUP_CONFIG,
   temporary: false,
   viewerIsHost: true,
@@ -355,7 +355,7 @@ test("the Start click MINTS THE ROOM — the picker fires chat.startChat and lan
   await expect.poll(() => trpc.count("chat.startChat"), { intervals: [20, 50, 100] }).toBe(1);
 });
 
-test("the persistent Start button mints the room with the PICKED cast (#334)", async ({ mount, page }) => {
+test("the persistent Start button mints the room with the PICKED characters (#334)", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, CREATED_ROOM_ROUTES);
 
   const component = await mount(<CreateOnStartClickStory />);

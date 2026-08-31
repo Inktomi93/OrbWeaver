@@ -70,7 +70,7 @@ export type ParticipantRole = (typeof PARTICIPANT_ROLES)[number];
 
 /** The membership data chat feeds `can()` for a chat-resource decision. `can()` makes the verdict —
  *  chat never compares `role === 'host'` itself. */
-export interface ChatRoster {
+export interface ChatMembership {
   readonly role: ParticipantRole;
 }
 
@@ -78,10 +78,10 @@ export interface ChatRoster {
 export interface GlobalResource {
   readonly kind: "global";
 }
-/** CHAT scope — carries the {@link ChatRoster} chat loaded + fed in. */
+/** CHAT scope — carries the {@link ChatMembership} chat loaded + fed in. */
 export interface ChatResource {
   readonly kind: "chat";
-  readonly roster: ChatRoster;
+  readonly roster: ChatMembership;
 }
 export type ResourceRef = GlobalResource | ChatResource;
 

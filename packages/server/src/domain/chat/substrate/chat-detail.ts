@@ -4,7 +4,7 @@
 // row) + resolves its roster, then hands the pieces here. The viewer-relative fields (`viewerIsHost`,
 // `viewerActivePersonaId`) derive from the roster ⋈ `viewerUserId`.
 
-import type { CastEntry, ChatMetadata, ParticipantView } from "@orb/contracts/chat";
+import type { ChatIdentity, ChatMetadata, ParticipantView } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG, DEFAULT_ROOM_OVERRIDES } from "@orb/contracts/chat";
 import type { ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import type { ChatDetail } from "../contract/views.ts";
@@ -33,20 +33,20 @@ interface ChatDetailRow {
 interface ToChatDetailInput {
   readonly chat: ChatDetailRow;
   readonly participants: readonly ParticipantView[];
-  readonly cast: readonly CastEntry[];
+  readonly identities: readonly ChatIdentity[];
   readonly viewerUserId: UserId;
   /** The viewer's D16 join-history floor (`substrate/auth::resolveHistoryFloorSeq`). REQUIRED, not defaulted,
    *  so a new `ChatDetail` producer must state the viewer's clamp rather than inherit an open one. */
   readonly viewerHistoryFloorSeq: number;
 }
 
-/** Map a loaded chat row + its resolved roster + cast producer → `ChatDetail`.
+/** Map a loaded chat row + its resolved roster + chat-identity producer → `ChatDetail`.
  *
  *  The COMPACTION CHECKPOINT is D16-clamped here (the one home every detail producer shares): the summary is
  *  model-written prose covering canon from seq 1 through `compactedAtSeq`, so ANY clamped viewer
  *  (`viewerHistoryFloorSeq > 0`) would be reading a distillation of the transcript their floor withholds.
  *  Both fields drop together — a `compactedAtSeq` with no summary is a divider anchored to nothing. */
-export function toChatDetail({ chat, participants, cast, viewerUserId, viewerHistoryFloorSeq }: ToChatDetailInput): ChatDetail {
+export function toChatDetail({ chat, participants, identities, viewerUserId, viewerHistoryFloorSeq }: ToChatDetailInput): ChatDetail {
   const viewer = participants.find((p) => p.userId === viewerUserId);
   const checkpointVisible = viewerHistoryFloorSeq <= NO_HISTORY_FLOOR;
   return {
@@ -86,6 +86,6 @@ export function toChatDetail({ chat, participants, cast, viewerUserId, viewerHis
     compactedAtSeq: checkpointVisible ? chat.compactedAtSeq : null,
     createdAt: chat.createdAt,
     updatedAt: chat.updatedAt,
-    cast,
+    identities,
   };
 }

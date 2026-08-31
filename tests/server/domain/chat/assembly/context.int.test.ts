@@ -100,7 +100,7 @@ function inputOf(chatId: ChatId, ownerId: UserId, castIds: CharacterId[], over: 
   return {
     chatId: castId(chatId),
     ownerId,
-    castCharacterIds: castIds,
+    characterIds: castIds,
     personaIds: [],
     promptConfig: over.promptConfig ?? DEFAULT_PROMPT_CONFIG,
     personas: { anchor: null, active: null },
@@ -508,7 +508,7 @@ describe("buildAssembleContext — character depthPrompt (Character's Note @ Dep
     expect(out.authorsNoteSource).toBe("merged (present characters)");
   });
 
-  test("multiple notes at the SAME depth stack in cast order (primary first in the array)", async () => {
+  test("multiple notes at the SAME depth stack in roster order (primary first in the array)", async () => {
     const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     const ariaId = await seedCharacter(db, host, "aria");
@@ -578,11 +578,11 @@ describe("buildAssembleContext — character depthPrompt (Character's Note @ Dep
   });
 });
 
-// ── the muted-cast subset (`castNotMuted` → `{{groupNotMuted}}`, R1/F1): a muted seat (character OR agent)
+// ── the muted-cast subset (`unmutedCharacters` → `{{groupNotMuted}}`, R1/F1): a muted seat (character OR agent)
 //    stays in `cast` for its lore/soul but drops from the non-muted subset, keyed on the same seat `disabled`
 //    axis `loadRoom` derives `mutedSpeakerKeys` from. `{{group}}` renders all; `{{groupNotMuted}}` the survivors.
-describe("buildAssembleContext — castNotMuted / {{groupNotMuted}} (R1/F1)", () => {
-  test("a muted character drops from castNotMuted / {{groupNotMuted}} but stays in cast / {{group}}", async () => {
+describe("buildAssembleContext — unmutedCharacters / {{groupNotMuted}} (R1/F1)", () => {
+  test("a muted character drops from unmutedCharacters / {{groupNotMuted}} but stays in characters / {{group}}", async () => {
     const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     const ariaId = await seedCharacter(db, host, "aria");
@@ -593,13 +593,13 @@ describe("buildAssembleContext — castNotMuted / {{groupNotMuted}} (R1/F1)", ()
       inputOf(chatId, host, [ariaId, branId], { mutedSpeakerKeys: new Set([speakerKey({ kind: "character", characterId: branId })]) }),
     );
 
-    expect((out.cast ?? []).map((c) => c.name)).toEqual(["Aria", "Bran"]);
-    expect((out.castNotMuted ?? []).map((c) => c.name)).toEqual(["Aria"]);
+    expect((out.characters ?? []).map((c) => c.name)).toEqual(["Aria", "Bran"]);
+    expect((out.unmutedCharacters ?? []).map((c) => c.name)).toEqual(["Aria"]);
     expect(renderMacros("{{group}}", out, null)).toBe("Aria, Bran");
     expect(renderMacros("{{groupNotMuted}}", out, null)).toBe("Aria");
   });
 
-  test("no muted seats ⇒ castNotMuted equals the full cast (byte-identical fallback)", async () => {
+  test("no muted seats ⇒ unmutedCharacters equals the full character set (byte-identical fallback)", async () => {
     const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     const ariaId = await seedCharacter(db, host, "aria");
@@ -607,7 +607,7 @@ describe("buildAssembleContext — castNotMuted / {{groupNotMuted}} (R1/F1)", ()
     const ctx = ctxWithCards({ [ariaId]: cardOf("Aria"), [branId]: cardOf("Bran") });
     const out = await buildAssembleContext(ctx, inputOf(chatId, host, [ariaId, branId]));
 
-    expect((out.castNotMuted ?? []).map((c) => c.name)).toEqual(["Aria", "Bran"]);
+    expect((out.unmutedCharacters ?? []).map((c) => c.name)).toEqual(["Aria", "Bran"]);
     expect(renderMacros("{{groupNotMuted}}", out, null)).toBe(renderMacros("{{group}}", out, null));
   });
 });
@@ -637,7 +637,7 @@ describe("buildAssembleContext — the room author's-note override is GONE (owne
     expect(out.authorsNoteSource).toBeUndefined();
   });
 
-  test("room overrides no longer suppress the cast's card notes (the deleted branch)", async () => {
+  test("room overrides no longer suppress the character's card notes (the deleted branch)", async () => {
     const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     const ariaId = await seedCharacter(db, host, "aria");

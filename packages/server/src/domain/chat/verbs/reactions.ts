@@ -163,10 +163,10 @@ const NO_SPEAKER_TARGET: { readonly segment: StoredSegmentAnchor | null; readonl
  *  react is clear, its spelling of a name may not be, and a dropped reaction helps nobody. */
 function resolveToSpeakerAnchor(
   content: string,
-  castNames: readonly string[],
+  characterNames: readonly string[],
   speaker: string,
 ): { readonly segment: StoredSegmentAnchor | null; readonly target: string } {
-  const spans = parseSpeakerSpans(content, castNames);
+  const spans = parseSpeakerSpans(content, characterNames);
   const index = spans.findLastIndex((s) => s.speaker === speaker);
   const span = spans[index];
   if (index < 0 || span === undefined) {
@@ -183,10 +183,10 @@ function resolveToSpeakerAnchor(
  *  speaker's is a content/cast race, and refusing beats landing the click on somebody else's line. */
 function mintSegmentAnchor(
   content: string,
-  castNames: readonly string[],
+  characterNames: readonly string[],
   claim: { readonly index: number; readonly speaker: string | null },
 ): StoredSegmentAnchor {
-  const span = parseSpeakerSpans(content, castNames)[claim.index];
+  const span = parseSpeakerSpans(content, characterNames)[claim.index];
   if (span === undefined || span.speaker !== claim.speaker) {
     throw new ChatOperationError(CHAT_OP_CODES.invalidSegment, "That line has changed since you picked it — react again.");
   }
@@ -206,8 +206,8 @@ async function resolveSegmentClaim(
   if (claim.segmentIndex === undefined) {
     return null;
   }
-  const castNames = isNarratorVoiced(slot.kind) ? await loadPresentCastNames(ctx.db, chatId) : [];
-  return mintSegmentAnchor(slot.content, castNames, { index: claim.segmentIndex, speaker: claim.segmentSpeaker ?? null });
+  const characterNames = isNarratorVoiced(slot.kind) ? await loadPresentCastNames(ctx.db, chatId) : [];
+  return mintSegmentAnchor(slot.content, characterNames, { index: claim.segmentIndex, speaker: claim.segmentSpeaker ?? null });
 }
 
 /** The reaction slice of `ChatService` (both verbs share the gate + the seat resolution, so one factory). */

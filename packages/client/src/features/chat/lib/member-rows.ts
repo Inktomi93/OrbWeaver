@@ -11,8 +11,8 @@
 // `MemberPersonRow` therefore carries NO handle field at all: the resolution happens in {@link toPersonRows},
 // where the `ParticipantView` still exists, so no row shape a renderer can reach can duplicate one.
 
-import type { CastEntry, HandoffOffer, JoinHistoryVisibility, ParticipantView } from "@orb/contracts/chat";
-import { buildCastAvatarMaps, buildCastNameContext } from "@orb/contracts/chat";
+import type { ChatIdentity, HandoffOffer, JoinHistoryVisibility, ParticipantView } from "@orb/contracts/chat";
+import { buildIdentityAvatarMaps, buildIdentityNameContext } from "@orb/contracts/chat";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 
 /** A PEOPLE (human) row view — projected by {@link toPersonRows} from `ParticipantView`. */
@@ -101,12 +101,12 @@ export function rowAccessibleName(row: MemberPersonRow | MemberCharacterRow): st
   return `${row.displayName} — character${row.disabled ? ", muted" : ""}`;
 }
 
-/** What the committed roster hands the two projections below. `cast` is the chat's own member-gated CAST
- *  producer (`ChatDetail.cast`, D137) — the ONE place a client can resolve a seat's `activePersonaId` into
- *  the persona's name and portrait, with no second name-resolver invented here. */
+/** What the committed roster hands the two projections below. `identities` is the chat's own member-gated
+ *  CHAT IDENTITY producer (`ChatDetail.identities`, D137) — the ONE place a client can resolve a seat's
+ *  `activePersonaId` into the persona's name and portrait, with no second name-resolver invented here. */
 export interface MemberRowSources {
   readonly participants: readonly ParticipantView[];
-  readonly cast: readonly CastEntry[];
+  readonly identities: readonly ChatIdentity[];
   readonly viewerUserId: UserId | null;
   readonly pendingHostUserId: UserId | null;
   /** The live turn's voiced speaker (`turnStarted.speakerCharacterId`) — never a token read (§7.1). */
@@ -118,7 +118,7 @@ export interface MemberRowSources {
  *
  * The room renders the PERSONA, because that is what a human IS here (`Spine-Identity-and-Auth`: the pin is
  * the anchor `{{user}}`, the active persona is per-participant). The persona name is resolved from the seat's
- * own `activePersonaId` against the chat's cast producer — deliberately NOT from `ParticipantView.displayName`,
+ * own `activePersonaId` against the chat's identity producer — deliberately NOT from `ParticipantView.displayName`,
  * even though the server's rule already collapses persona-then-handle into that field: the collapsed value
  * cannot tell a caller WHICH arm it took, and the losing arm is a raw login handle.
  *
@@ -133,8 +133,8 @@ export interface MemberRowSources {
  * hand-off, history-visibility) addresses, so a row without one could render but never act.
  */
 export function toPersonRows(sources: MemberRowSources): MemberPersonRow[] {
-  const { personaNamesById } = buildCastNameContext(sources.cast);
-  const { personaAvatarsById } = buildCastAvatarMaps(sources.cast);
+  const { personaNamesById } = buildIdentityNameContext(sources.identities);
+  const { personaAvatarsById } = buildIdentityAvatarMaps(sources.identities);
   const rows: MemberPersonRow[] = [];
   // leftSeq === null is the present-and-contributing predicate — a kicked/left human keeps a historical row
   // but must not render as a room member.
@@ -151,8 +151,8 @@ export function toPersonRows(sources: MemberRowSources): MemberPersonRow[] {
       displayName: persona?.name ?? p.displayName,
       isHost: p.role === "host",
       isViewer: sources.viewerUserId !== null && p.userId === sources.viewerUserId,
-      // The persona's own portrait when they are playing one — the same `cast-only` precedence the transcript's
-      // user rows use (`CAST_KIND_POLICY.persona.avatar`); a persona has no participant avatar plane.
+      // The persona's own portrait when they are playing one — the same `identity-only` precedence the transcript's
+      // user rows use (`CHAT_IDENTITY_KIND_POLICY.persona.avatar`); a persona has no participant avatar plane.
       avatarHash: personaAvatar ?? p.avatarHash,
       pendingNominee: sources.pendingHostUserId !== null && p.userId === sources.pendingHostUserId,
       historyVisibility: p.joinHistoryVisibility,

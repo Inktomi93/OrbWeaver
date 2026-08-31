@@ -17,7 +17,7 @@ import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { ChatsSelectionTitleStory } from "../_ct-stories.tsx";
 
 test("the open room's stored title IS the mobile screen title", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.getChat": { title: "The Ashfall Road", participants: [], cast: [] } });
+  await routeTrpc(page, { "chat.getChat": { title: "The Ashfall Road", participants: [], identities: [] } });
 
   await mount(<ChatsSelectionTitleStory />);
 
@@ -28,7 +28,7 @@ test("the open room's stored title IS the mobile screen title", async ({ mount, 
 test("an UNTITLED room yields null — the shell prints the section label rather than an invented name", async ({ mount, page }) => {
   // Stored titles are "" until renamed; the mobile topbar must not print an empty string OR a fabricated
   // one. `null` is the honest answer, and the shell's own fallback takes it from there.
-  await routeTrpc(page, { "chat.getChat": { title: "", participants: [], cast: [] } });
+  await routeTrpc(page, { "chat.getChat": { title: "", participants: [], identities: [] } });
 
   await mount(<ChatsSelectionTitleStory />);
 

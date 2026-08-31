@@ -20,7 +20,7 @@ import type {
 } from "@orb/contracts/chat";
 import type { ChatSendAvailability, CredentialSource, ResolvedConnection, RouteChatAssignment } from "@orb/contracts/connection";
 import type { ResolvedCredential } from "@orb/contracts/credentials";
-import type { Can, ChatRoster, ParticipantRole, Principal } from "@orb/contracts/identity";
+import type { Can, ChatMembership, ParticipantRole, Principal } from "@orb/contracts/identity";
 import type { PromptTemplateMode } from "@orb/contracts/imagery";
 import type { NotificationEvent, PresenceView } from "@orb/contracts/notifications";
 import type { ChoiceBlockSpec, UserIntent, UserMacroSpec } from "@orb/contracts/preset";
@@ -108,7 +108,7 @@ export interface ChatToolExecFrame {
   readonly runAsUserId: UserId;
   readonly triggeredBy: UserId;
   readonly chatId: ChatId;
-  readonly roster: ChatRoster | null;
+  readonly roster: ChatMembership | null;
   /** The turn's ephemeral identity, minted once per `executeTurn` and threaded to the tool-exec context so a
    *  turn-scoped registrant correlates the turn's tool writes to its commit/abort flush (rpg-design/10 §R4). */
   readonly turnId: ChatTurnId;
@@ -1188,7 +1188,7 @@ export interface ChatContext {
   /** The world-info regex-KEY ReDoS watchdog (#710) — the assembler `.test`s a `use_regex` entry's user-authored
    *  key against the chat-history haystack under this per-call budget so a catastrophic key can't hang the turn. */
   readonly testRegexKey: TestRegexKeyOp;
-  /** D121-E: dereference the FOUR regex scope junctions (global / preset / cast / chat) into the host-tier
+  /** D121-E: dereference the FOUR regex scope junctions (global / preset / character / chat) into the host-tier
    *  sources. Injected from `domain/regex` at compose — chat owns the UNION (`substrate/regex-tier`), never
    *  the storage. Replaced the three embed-by-value carriers chat used to read off settings/preset/card
    *  blobs. Called with the turn's frozen `runAsUserId` (D19), so a member can never widen the set. */

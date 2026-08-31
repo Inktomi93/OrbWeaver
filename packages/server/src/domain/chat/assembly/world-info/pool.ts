@@ -18,7 +18,7 @@ interface WorldInfoPoolTarget {
   readonly chatId: ChatId;
   readonly ownerId: UserId;
   /** Every present AI cast member's identity; primary first. Empty ⇒ no character-scope books. */
-  readonly castCharacterIds: readonly CharacterId[];
+  readonly characterIds: readonly CharacterId[];
   /** The present humans' active personas. Empty ⇒ no persona-scope books. */
   readonly personaIds: readonly PersonaId[];
 }
@@ -83,7 +83,7 @@ function dedupeByEntryId(sources: readonly AssembleWorldEntry[][]): AssembleWorl
 /** Fetch the merged, deduped per-turn World-Info pool — four parallel SQL reads, one Map-based dedup. There
  *  is no master toggle; an empty result (no books attached) is the "no lore" path. */
 export async function loadWorldInfoPool(db: Db, target: WorldInfoPoolTarget): Promise<AssembleWorldEntry[]> {
-  const castIds = [...target.castCharacterIds];
+  const castIds = [...target.characterIds];
   const personaIds = [...target.personaIds];
 
   const [chatRows, characterRows, globalRows, personaRows] = await Promise.all([

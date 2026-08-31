@@ -31,7 +31,7 @@ import type {
   MessageView,
   ParticipantView,
 } from "@orb/contracts/chat";
-import { buildCastNameContext, CHAT_LIST_MAX_LIMIT, CHAT_MESSAGE_LIST_MAX_LIMIT, DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
+import { buildIdentityNameContext, CHAT_LIST_MAX_LIMIT, CHAT_MESSAGE_LIST_MAX_LIMIT, DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import type { ChatSendAvailability, ModelCapability, ResolvedConnection } from "@orb/contracts/connection";
 import type { ParticipantRole } from "@orb/contracts/identity";
 import type { GuidedActionKind, PromptConfig, TemplateDefId, UserMacroSpec } from "@orb/contracts/preset";
@@ -105,7 +105,7 @@ import type {
   VariantWireView,
 } from "../contract/views.ts";
 import { gateLineagePerAncestor, requireHost, requireParticipant } from "../guard.ts";
-import { loadChatCastProducer } from "../persistence/cast.ts";
+import { loadChatIdentityProducer } from "../persistence/identity.ts";
 import { classifyParticipant } from "../persistence/participant.ts";
 import {
   countMemberChats,
@@ -217,7 +217,7 @@ interface PreviewInputs {
   /** The resolved protocol axis — previewContextFit source-modes the divider boundary on it (agent-sdk → the
    *  marker coverage point; stateless → the fit boundary). */
   readonly api: ResolvedConnection["api"];
-  readonly castCharacterIds: readonly CharacterId[];
+  readonly characterIds: readonly CharacterId[];
   readonly personaIds: readonly PersonaId[];
   /** The room's effective GroupConfig — its `output` axis is the ONE the SHAPE peek resolves, so a preview
    *  renders the SAME cast/per-speaker shape the next turn will (`TurnSpeakerShape.output`), never a pinned
@@ -424,7 +424,7 @@ async function resolvePreviewInputs(
     const actor = classifyParticipant(r);
     return actor?.kind === "character" ? [actor.characterId] : [];
   });
-  const castCharacterIds =
+  const characterIds =
     speakerCharacterId !== null && speakerCharacterId !== undefined && castIds.includes(speakerCharacterId)
       ? [speakerCharacterId, ...castIds.filter((id) => id !== speakerCharacterId)]
       : castIds;
@@ -473,7 +473,7 @@ async function resolvePreviewInputs(
     model: connection.model,
     capability: connection.capability,
     api: connection.api,
-    castCharacterIds,
+    characterIds,
     personaIds,
     group,
     // The SAME row `group` came off — an absent row is a metadata-less room (⇒ every knob inherits).
@@ -594,7 +594,7 @@ async function buildPreviewContext(
       chatId,
       runAsUserId: inputs.hostUserId,
       model: inputs.model,
-      castCharacterIds: inputs.castCharacterIds,
+      characterIds: inputs.characterIds,
       personaIds: inputs.personaIds,
       // A preview is assembled AS the host, so the host is who `speakers.user` speaks for — SHAPE's
       // null-stamp guard needs that identity or the preview would floor the host's own unstamped rows
@@ -607,7 +607,7 @@ async function buildPreviewContext(
     },
     inputs.foreign,
   );
-  const primary = gathered.castMembers?.[0];
+  const primary = gathered.speakerRefs?.[0];
   // The room's OWN output axis — the same one `shapeNextTurn` threads below and a real turn reads off
   // `TurnSpeakerShape.output`: a NARRATOR room previews its cast shape (joined `{{char}}` + `[Character — …]`
   // framing), a per-speaker room renders the primary speaker's turn byte-identically to before. A preview has
@@ -711,11 +711,11 @@ function createGetChat(ctx: ChatContext, deps: ReadDeps): ChatService["getChat"]
   return async ({ principal, chatId }: GetChatParams): Promise<ChatDetail> => {
     const membership = await requireParticipant(ctx, principal, chatId);
     const participants = await deps.loadParticipantViews(chatId);
-    const cast = await loadChatCastProducer(ctx.db, { participants });
+    const identities = await loadChatIdentityProducer(ctx.db, { participants });
     return toChatDetail({
       chat: membership.chat,
       participants,
-      cast,
+      identities,
       viewerUserId: principal.userId,
       viewerHistoryFloorSeq: membership.historyFloorSeq,
     });
@@ -778,7 +778,7 @@ function cardRenderContext(clamped: MemberCardView, anchor: AssemblePersona | nu
   };
   return {
     character,
-    cast: [character],
+    characters: [character],
     speaker: { kind: "single", character },
     pinnedPersona: anchor,
     activePersona: anchor,
@@ -910,7 +910,7 @@ async function resolveAnchorPersona(
 const DEFAULT_LIMIT = 50;
 
 /** `listMessages` — a paged canon read (each slot joined to its selected variant), chronological, + the
- *  page's cast producer (`MessagesPage.cast`, D137). The `excludedFromPrompt` flag rides each `MessageView`.
+ *  page's identity producer (`MessagesPage.identities`, D137). The `excludedFromPrompt` flag rides each `MessageView`.
  *
  *  D16 join-history clamp: the window's floor is the CALLER's `historyFloorSeq` (stamped by the chokepoint) —
  *  a `from-join` member never receives a row below their own `joinSeq`. Pagination stays honest: a
@@ -934,8 +934,8 @@ function createListMessages(ctx: ChatContext, deps: ReadDeps): ChatService["list
     const reasoningHostOnly = readsHidden ? false : await resolveReasoningHostOnly(ctx, chatId);
     const messages = readsHidden ? chronological : chronological.map((v) => projectViewForMember(v, reasoningHostOnly));
     const participants = await deps.loadParticipantViews(chatId);
-    const cast = await loadChatCastProducer(ctx.db, { participants, messages });
-    return { messages, cast };
+    const identities = await loadChatIdentityProducer(ctx.db, { participants, messages });
+    return { messages, identities };
   };
 }
 
@@ -999,7 +999,7 @@ async function shapeNextTurn(
   // The per-chat macro name producer over the full canon — resolves each history row's own macro stamps
   // (client-display parity), exactly as the engine builds it for a real turn.
   const canon = await loadCanonHistory(ctx.db, chatId);
-  const historyMacroNames: HistoryMacroNames = buildCastNameContext(await loadChatCastProducer(ctx.db, { messages: canon }));
+  const historyMacroNames: HistoryMacroNames = buildIdentityNameContext(await loadChatIdentityProducer(ctx.db, { messages: canon }));
   const inChatInjections: ChatInjection[] = [...(assembleContext.chatInjections ?? []).filter((i) => i.position === "in_chat"), ...assembled.afterHistory];
   const turns = inputs.capability?.turns;
   const shaped = shapeTurn({

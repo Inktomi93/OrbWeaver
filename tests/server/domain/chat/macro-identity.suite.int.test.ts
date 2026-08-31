@@ -23,7 +23,7 @@
 // a PAIR against `[ideal, ideal]` — one `expect` proves the ideal AND server == client (the oracle).
 
 import type { AssembleContext, AssemblePersona, ParticipantView } from "@orb/contracts/chat";
-import { buildCastNameContext } from "@orb/contracts/chat";
+import { buildIdentityNameContext } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
 import { chats } from "@orb/db";
 import type { CharacterId, Handle, PersonaId } from "@orb/kit/ids";
@@ -34,7 +34,7 @@ import { eq } from "drizzle-orm";
 import { resolveMessageRenderContext } from "../../../../packages/client/src/features/chat/lib/message-render-context.ts";
 import { renderMessageForDisplay } from "../../../../packages/client/src/lib/message-render.ts";
 import { renderHistoryMacros } from "../../../../packages/server/src/domain/chat/assembly/macros.ts";
-import { loadChatCastProducer } from "../../../../packages/server/src/domain/chat/persistence/cast.ts";
+import { loadChatIdentityProducer } from "../../../../packages/server/src/domain/chat/persistence/identity.ts";
 import { freshDb } from "../../../support/db.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 import { seedCharacter, seedChat, seedParticipant, seedPersona, seedUser } from "./_support.ts";
@@ -143,7 +143,7 @@ async function seedScene(
   // FABRICATION-OK: `renderHistoryMacros`/`charForSpeaker` read ONLY these fields; a full 30+-field AssembleContext would be noise.
   const serverCtx = {
     character: primary,
-    cast: castNames.map((name) => ({ name })),
+    characters: castNames.map((name) => ({ name })),
     speaker: { kind: "single", character: primary },
     pinnedPersona: anchorPersona,
     activePersona: anchorPersona,
@@ -152,7 +152,7 @@ async function seedScene(
   const resolve = async (row: Row): Promise<{ server: string; client: string }> => {
     // The cast producer covers every participant id UNION the row's own stamps (a reattributed /
     // since-switched persona resolves to its OWN name even when no participant seats it).
-    const producerCast = await loadChatCastProducer(db, {
+    const producerCast = await loadChatIdentityProducer(db, {
       participants: [
         ...castNames.map((n) => ({ characterId: chars[n] ?? null, activePersonaId: null })),
         ...Object.values(personas).map((activePersonaId) => ({
@@ -162,7 +162,7 @@ async function seedScene(
       ],
       messages: [{ characterId: row.characterId, personaId: row.personaId }],
     });
-    const { characterNamesById, personaNamesById } = buildCastNameContext(producerCast);
+    const { characterNamesById, personaNamesById } = buildIdentityNameContext(producerCast);
     const stamps: RowMacroStamps = { characterId: row.characterId, personaId: row.personaId };
 
     // SERVER — mirror `toShapeCanon`: an assistant row passes the producer's card name as `speakerCharName`;
@@ -301,7 +301,7 @@ test("S1 solo: greeting {{user}} → the one human's persona (anchor == active b
 // THE FLIP: against the OLD code this diverged (server = the arbitrary current speaker; client = the
 // "Character" floor). Both now resolve to the room's cast.
 
-test("S2 group 1xN: a user's {{char}} → the JOINED cast (== {{group}}), server == client", async () => {
+test("S2 group 1xN: a user's {{char}} → the JOINED character names (== {{group}}), server == client", async () => {
   const db = await freshDb();
   const { scene, personas } = await seedScene(db, {
     key: "bs2",
@@ -319,7 +319,7 @@ test("S2 group 1xN: a user's {{char}} → the JOINED cast (== {{group}}), server
   expect([out.server, out.client]).toStrictEqual([ideal, ideal]);
 });
 
-test("S3 group MxN: a user's {{char}} → the full cast (three characters joined)", async () => {
+test("S3 group MxN: a user's {{char}} → the full character set (three characters joined)", async () => {
   const db = await freshDb();
   const { scene, personas } = await seedScene(db, {
     key: "bs3",
@@ -337,7 +337,7 @@ test("S3 group MxN: a user's {{char}} → the full cast (three characters joined
   expect([out.server, out.client]).toStrictEqual([ideal, ideal]);
 });
 
-test("S1 solo: a user's {{char}} → the ONE character (cast-of-one, no join)", async () => {
+test("S1 solo: a user's {{char}} → the ONE character (a set of one, no join)", async () => {
   const db = await freshDb();
   const { scene, personas } = await seedScene(db, {
     key: "bs1",
@@ -414,7 +414,7 @@ test("SAD deleted persona (stamped id absent from the store) → the anchor fall
   expect([out.server, out.client]).toStrictEqual(["saddp_zara left", "saddp_zara left"]);
 });
 
-test("SAD deleted character → the CLIENT display floors {{char}} to 'Character' (not the cast join)", async () => {
+test("SAD deleted character → the CLIENT display floors {{char}} to 'Character' (not the character-name join)", async () => {
   const db = await freshDb();
   const { scene } = await seedScene(db, {
     key: "saddc",

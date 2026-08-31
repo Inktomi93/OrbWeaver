@@ -66,7 +66,7 @@ test("variant: MIXED tagged + plain `Name:` — ANY tag makes the marker grammar
   expect(spans).toEqual([{ speaker: "Alice", text: "I saw him.\nBob: Did you." }]);
 });
 
-test("variant: TAGLESS cast-labelled lines — each line-start cast label opens a segment, label text KEPT", () => {
+test("variant: TAGLESS name-labelled lines — each line-start character-name label opens a segment, label text KEPT", () => {
   const spans = parseSpeakerSpans("Alice: Ready?\nBob: Always.", CAST);
   expect(spans).toEqual([
     { speaker: "Alice", text: "Alice: Ready?\n" },
@@ -74,7 +74,7 @@ test("variant: TAGLESS cast-labelled lines — each line-start cast label opens 
   ]);
 });
 
-test("variant: quoted dialogue, NO tags, NO cast match — a single null span (NO per-speaker anchor available)", () => {
+test("variant: quoted dialogue, NO tags, NO character-name match — a single null span (NO per-speaker anchor available)", () => {
   // Free narrator prose with quoted dialogue and no `<speaker>` tags / no line-start cast label yields
   // ONE whole-message span. This is the honest floor: for this shape there is NO segment to anchor to —
   // B7's "whole-message default" is the only target. Not a bug: there is no reliable per-speaker signal.
@@ -90,7 +90,7 @@ test("variant: empty body — the no-op single null span (index 0 exists, text e
   expect(parseSpeakerSpans("")).toEqual([{ speaker: null, text: "" }]);
 });
 
-test("variant: a cast name MID-LINE never splits — the label must open a line (no phantom segment)", () => {
+test("variant: a character name MID-LINE never splits — the label must open a line (no phantom segment)", () => {
   const content = "Alice turned to Bob: the door was open.";
   expect(parseSpeakerSpans(content, CAST)).toEqual([{ speaker: null, text: content }]);
 });
@@ -113,7 +113,7 @@ test("variant: consecutive SAME-speaker tags — two DISTINCT line segments (lin
   ]);
 });
 
-test("variant: a cast label inside a fenced code block does NOT split (segment count unaffected by code)", () => {
+test("variant: a character-name label inside a fenced code block does NOT split (segment count unaffected by code)", () => {
   const content = "Alice: look.\n\n```py\nBob: not_a_speaker = 1\n```";
   expect(parseSpeakerSpans(content, CAST)).toEqual([{ speaker: "Alice", text: content }]);
 });
@@ -121,24 +121,24 @@ test("variant: a cast label inside a fenced code block does NOT split (segment c
 // ══ GROUP 2 — RE-PARSE DETERMINISM (the cheapest stability floor) ══════════════════════════════════
 // A stored index is meaningless if two parses of the SAME bytes disagree. They must not.
 
-const CORPUS: readonly { readonly name: string; readonly content: string; readonly cast: readonly string[] }[] = [
-  { name: "tagged-multi", content: "<speaker>Alice</speaker>Hi.<speaker>Bob</speaker>Yo.", cast: [] },
-  { name: "tagged-preamble", content: "Quiet.\n<speaker>Alice</speaker>Hi.", cast: [] },
-  { name: "tagged-interleave", content: "<speaker>Alice</speaker>a\nnarr\n<speaker>Bob</speaker>b", cast: [] },
-  { name: "plain-cast", content: "Alice: one\nBob: two\nAlice: three", cast: CAST },
-  { name: "quoted-untagged", content: '"Hi" said Alice. "Bye" said Bob.', cast: CAST },
-  { name: "empty", content: "", cast: [] },
-  { name: "single", content: "<speaker>Alice</speaker>solo", cast: [] },
-  { name: "fenced", content: "Alice: x\n```\nBob: y\n```", cast: CAST },
+const CORPUS: readonly { readonly name: string; readonly content: string; readonly characterNames: readonly string[] }[] = [
+  { name: "tagged-multi", content: "<speaker>Alice</speaker>Hi.<speaker>Bob</speaker>Yo.", characterNames: [] },
+  { name: "tagged-preamble", content: "Quiet.\n<speaker>Alice</speaker>Hi.", characterNames: [] },
+  { name: "tagged-interleave", content: "<speaker>Alice</speaker>a\nnarr\n<speaker>Bob</speaker>b", characterNames: [] },
+  { name: "plain-cast", content: "Alice: one\nBob: two\nAlice: three", characterNames: CAST },
+  { name: "quoted-untagged", content: '"Hi" said Alice. "Bye" said Bob.', characterNames: CAST },
+  { name: "empty", content: "", characterNames: [] },
+  { name: "single", content: "<speaker>Alice</speaker>solo", characterNames: [] },
+  { name: "fenced", content: "Alice: x\n```\nBob: y\n```", characterNames: CAST },
 ];
 
 test("stability: re-parsing identical bytes is byte-for-byte identical (deterministic — pure)", () => {
-  for (const { content, cast } of CORPUS) {
-    expect(parseSpeakerSpans(content, cast)).toEqual(parseSpeakerSpans(content, cast));
+  for (const { content, characterNames } of CORPUS) {
+    expect(parseSpeakerSpans(content, characterNames)).toEqual(parseSpeakerSpans(content, characterNames));
   }
 });
 
-test("stability: passing the cast in a different ORDER does not change the segmentation (order-independent)", () => {
+test("stability: passing the character names in a different ORDER does not change the segmentation (order-independent)", () => {
   const forward = parseSpeakerSpans("Alice: one\nBob: two", ["Alice", "Bob"]);
   const reversed = parseSpeakerSpans("Alice: one\nBob: two", ["Bob", "Alice"]);
   expect(forward).toEqual(reversed);
@@ -193,7 +193,7 @@ test("stability HOLE: a SAME-SPEAKER structural insert defeats even (index, spea
   expect(after[0]?.text).not.toBe(before[0]?.text); // same anchor, different line — silent mis-target
 });
 
-test("stability FRAGILITY (plain path): editing NARRATION to contain a line-start cast label spawns a new segment", () => {
+test("stability FRAGILITY (plain path): editing NARRATION to contain a line-start character-name label spawns a new segment", () => {
   // The tagless cast-label grammar is more fragile than the tagged one: a pure text edit that happens to
   // start a line with a cast name creates a split that did not exist. Reactions on a cast-labelled
   // (untagged) body are more edit-sensitive than on a tagged body — MR3 should note the two grammars
@@ -209,8 +209,8 @@ test("stability FRAGILITY (plain path): editing NARRATION to contain a line-star
 // ══ GROUP 4 — INDEX-SPACE INVARIANTS the reaction schema can rely on ═══════════════════════════════
 
 test("invariant: every body yields at least ONE span (index 0 always exists — a reaction always has a target)", () => {
-  for (const { content, cast } of CORPUS) {
-    expect(parseSpeakerSpans(content, cast).length).toBeGreaterThanOrEqual(1);
+  for (const { content, characterNames } of CORPUS) {
+    expect(parseSpeakerSpans(content, characterNames).length).toBeGreaterThanOrEqual(1);
   }
 });
 

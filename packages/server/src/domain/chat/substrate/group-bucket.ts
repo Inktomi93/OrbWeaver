@@ -10,7 +10,7 @@
 // `ctx.mintSyntheticGroupCharacter`), so a merged-mode group that never minted a narrator author still gets a
 // stable, distinct shared bucket. RECALL keys the same bucket via `ctx.findSyntheticGroupCharacter`
 // (assemble-gather) — a READ must never mint; by the time recall surfaces anything a build has already minted
-// the row (recall's `?? castCharacterIds[0]` fallback only covers the pre-first-build empty pool).
+// the row (recall's `?? characterIds[0]` fallback only covers the pre-first-build empty pool).
 
 import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import type { ChatContext } from "../context.ts";

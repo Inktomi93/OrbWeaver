@@ -48,21 +48,21 @@ function script(label: string, over: Partial<RegexScriptRow> = {}): RegexScriptR
 const ids = (scripts: readonly RegexScriptRow[]): string[] => scripts.map((s) => s.name);
 
 describe("resolveHostTierRegexScripts", () => {
-  test("unions all four scopes (host-global ∪ chat-preset ∪ cast ∪ room)", () => {
+  test("unions all four scopes (host-global ∪ chat-preset ∪ character ∪ room)", () => {
     const result = resolveHostTierRegexScripts({
       hostGlobal: [script("g1")],
       preset: [script("p1")],
-      cast: [script("c1")],
+      character: [script("c1")],
       chat: [],
     });
     expect(ids(result)).toEqual(["g1", "p1", "c1"]);
   });
 
-  test("orders deterministically: global → preset → cast (roster order) → room, stored order within each", () => {
+  test("orders deterministically: global → preset → character (roster order) → room, stored order within each", () => {
     const result = resolveHostTierRegexScripts({
       hostGlobal: [script("g1"), script("g2")],
       preset: [script("p1"), script("p2")],
-      cast: [script("c1"), script("c2"), script("c3")],
+      character: [script("c1"), script("c2"), script("c3")],
       chat: [],
     });
     expect(ids(result)).toEqual(["g1", "g2", "p1", "p2", "c1", "c2", "c3"]);
@@ -73,7 +73,7 @@ describe("resolveHostTierRegexScripts", () => {
       // `dup` appears in all three tiers; the host-global instance (replaceString <g>) must be the one kept.
       hostGlobal: [script("dup", { replaceString: "<g>" }), script("g2")],
       preset: [script("dup", { replaceString: "<p>" }), script("p2")],
-      cast: [script("dup", { replaceString: "<c>" }), script("c2")],
+      character: [script("dup", { replaceString: "<c>" }), script("c2")],
       chat: [],
     });
     expect(ids(result)).toEqual(["dup", "g2", "p2", "c2"]);
@@ -84,7 +84,7 @@ describe("resolveHostTierRegexScripts", () => {
     const result = resolveHostTierRegexScripts({
       hostGlobal: [script("off", { enabled: false }), script("md", { markdownOnly: true }), script("po", { promptOnly: true, placement: ["AI_OUTPUT"] })],
       preset: [],
-      cast: [],
+      character: [],
       chat: [],
     });
     // Nothing is dropped or rewritten — flag/placement filtering belongs to executeRegexScripts.
@@ -94,7 +94,7 @@ describe("resolveHostTierRegexScripts", () => {
   });
 
   test("empty sources resolve to an empty set", () => {
-    expect(resolveHostTierRegexScripts({ hostGlobal: [], preset: [], cast: [], chat: [] })).toEqual([]);
+    expect(resolveHostTierRegexScripts({ hostGlobal: [], preset: [], character: [], chat: [] })).toEqual([]);
   });
 
   test("D19 host-tier scoping: a non-host member's scripts have no entry point and never appear", () => {
@@ -107,7 +107,7 @@ describe("resolveHostTierRegexScripts", () => {
     const result = resolveHostTierRegexScripts({
       hostGlobal: [script("g1")],
       preset: [script("p1")],
-      cast: [script("c1")],
+      character: [script("c1")],
       chat: [],
     });
     expect(ids(result)).toEqual(["g1", "p1", "c1"]);

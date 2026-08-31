@@ -99,7 +99,7 @@ export function createExtractQuiet(deps: ExtractQuietDeps): ExtractQuiet {
       user: "User",
       persona: "",
       scenario: "",
-      cast: charName.length > 0 ? [charName] : [],
+      characterNames: charName.length > 0 ? [charName] : [],
       env: {},
     };
     const instruction = processMacros(p.instruction, macroOptions, await resolveUserMacroRegistry(deps, p.chatId));

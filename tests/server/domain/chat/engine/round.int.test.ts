@@ -35,18 +35,18 @@ const ASSEMBLE_CTX: AssembleContext = {
   recentMessages: [],
 };
 
-/** A 2-character group ctx (cast + index-aligned castMembers) — feeds the per-speaker card-section shape so
+/** A 2-character group ctx (cast + index-aligned speakerRefs) — feeds the per-speaker card-section shape so
  *  each speaker renders THEIR OWN card as primary + the other as a co-speaker (chat.md §7). */
 const GROUP_CTX: AssembleContext = {
   character: { name: "Aria", description: "a bold knight" },
   promptConfig: DEFAULT_PROMPT_CONFIG,
   activePersona: { name: "Alex", description: "the user" },
   recentMessages: [],
-  cast: [
+  characters: [
     { name: "Aria", description: "a bold knight" },
     { name: "Bran", description: "a sly rogue" },
   ],
-  castMembers: [charRef("a"), charRef("b")],
+  speakerRefs: [charRef("a"), charRef("b")],
 };
 
 const PER_SPEAKER: GroupConfig = { ...DEFAULT_GROUP_CONFIG };
@@ -271,7 +271,7 @@ describe("driveRound — per-speaker round (ONE ctx, N speakers, per-speaker loc
   });
 });
 
-describe("driveRound — narrator round (one cast turn, group-character authored)", () => {
+describe("driveRound — narrator round (one turn for every character, group-character authored)", () => {
   test("commits ONE row authored by the synthetic group character", async () => {
     const chatId = await seedChat(db, "narr");
     const requests: TurnRequest[] = [];
@@ -312,7 +312,7 @@ describe("driveRound — narrator round (one cast turn, group-character authored
     expect(text).not.toContain("Write the next reply only as");
   });
 
-  test("speakerTags OFF drops the marker instruction but keeps the cast nudge (independent toggles)", async () => {
+  test("speakerTags OFF drops the marker instruction but keeps the group nudge (independent toggles)", async () => {
     const chatId = await seedChat(db, "narr-notags");
     const requests: TurnRequest[] = [];
     await driveRound({

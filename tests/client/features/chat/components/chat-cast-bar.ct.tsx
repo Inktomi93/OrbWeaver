@@ -6,7 +6,7 @@
 // The roster stub returns only what the bar reads (`participants` with kind/characterId/displayName/
 // disabled) — a partial `ChatDetail`, the same posture as chats-section.ct's stub.
 
-import type { CastEntry, GroupConfig } from "@orb/contracts/chat";
+import type { ChatIdentity, GroupConfig } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import type { ParticipantRole } from "@orb/contracts/identity";
 import type { CharacterId, MessageId } from "@orb/kit/ids";
@@ -243,10 +243,10 @@ const PHONE_ROOM_STUB = {
   }),
   "chat.listMessages": (): unknown =>
     makeMessagesPage([makeMessageView({ id: castId<MessageId>("msg_phone"), role: "assistant", content: "North, past the spire." })]),
-  "chat.getChat": (): { participants: readonly unknown[]; anchorPersonaId: null; cast: readonly CastEntry[]; group: GroupConfig } => ({
+  "chat.getChat": (): { participants: readonly unknown[]; anchorPersonaId: null; identities: readonly ChatIdentity[]; group: GroupConfig } => ({
     participants: CROWDED_ROSTER,
     anchorPersonaId: null,
-    cast: [],
+    identities: [],
     group: DEFAULT_GROUP_CONFIG,
   }),
 };

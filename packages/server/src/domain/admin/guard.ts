@@ -2,10 +2,10 @@
 // `role === 'host'` (chat resource-role) live here and nowhere else.
 //
 // Pure — no `Db`, no I/O. The decision is made over the immutable `Principal` + the resource data the
-// caller passes in (chat passes the {@link ChatRoster} it loaded — admin never reads chat's db).
+// caller passes in (chat passes the {@link ChatMembership} it loaded — admin never reads chat's db).
 // Authorization is re-evaluated per call; the decision is never cached back onto the Principal.
 
-import type { Can, ChatAction, ChatRoster, GlobalAction, Principal, ResourceRef, UserRole } from "@orb/contracts/identity";
+import type { Can, ChatAction, ChatMembership, GlobalAction, Principal, ResourceRef, UserRole } from "@orb/contracts/identity";
 import { DomainForbiddenError } from "@orb/kit/errors";
 import type { IsAdmin, RequireAdmin, RequireOwner } from "./contract/guard.ts";
 
@@ -25,7 +25,7 @@ function decideGlobal(principal: Principal, action: GlobalAction): void {
 
 /** The chat-scope decision — a pure verdict over the roster fed in. Exhaustive over `ChatAction`: a new
  *  action fails tsc at the `never`. */
-function decideChat(action: ChatAction, roster: ChatRoster): void {
+function decideChat(action: ChatAction, roster: ChatMembership): void {
   switch (action) {
     case "read":
       // Present membership is established by chat's `loadMemberChat` before `can()` is reached. Any present
