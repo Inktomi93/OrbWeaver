@@ -2,7 +2,7 @@
 // Given the ONE immutable turn ctx (the full resolved `cast` + its index-aligned
 // `castMembers` identities) and what this turn VOICES, pick the rendered character section
 // (`ctx.character`/`speaker`) and the co-speakers:
-//   • per-speaker × merged (default) → co-speakers = the OTHER present cast (the "[Also present — X]" block renders them).
+//   • per-speaker × merged (default) → co-speakers = the OTHER present characters (the "[Also present — X]" block renders them).
 //   • per-speaker × scoped           → co-speakers = [] (own card only; best isolation).
 //   • narrator                       → ONE call voices the WHOLE cast: the primary is the character section, EVERY
 //                                      other present member is a co-speaker, and `speaker` is the `cast` arm, which

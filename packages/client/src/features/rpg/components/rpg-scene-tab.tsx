@@ -179,7 +179,7 @@ function useSceneEdits(state: RpgPanelState): SceneEditCallbacks {
 /** Every lock path this tab can pin → the plane's name in the reader's words (side-eye 08-01: five pins on
  *  one tab all announced the same sentence). ONE map: a new lockable path fails `tsc` here, never ships mute. */
 const LOCK_PATH_NAME = {
-  presentCharacters: "the present cast",
+  presentCharacters: "the present characters",
   trackerValues: "the game trackers",
   location: "the location",
   calendarDate: "the date",
@@ -258,7 +258,7 @@ export function RpgSceneTab({ state }: RpgSceneTabProps): ReactElement {
 }
 
 /** The panel-doorway to the host resync (HOST-only — rides `canEditShared`, the same shared-plane gate the
- *  edits use). Offered only when the scene reads STALE/EMPTY (no present cast AND no location) — the exact "panel
+ *  edits use). Offered only when the scene reads STALE/EMPTY (no present characters AND no location) — the exact "panel
  *  out of sync?" state the escape hatch exists for. A member never sees it (the verb would refuse anyway; the gate
  *  keeps them from seeing a control that can't fire). The full control lives in the GM console; this is the
  *  discoverable inline pointer. */

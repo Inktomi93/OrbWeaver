@@ -686,7 +686,7 @@ function resolvePersonaDescriptionCandidates(
 }
 
 /** The seated cast's Character's-Note-\@-Depth (`card.depthPrompt`) → per-member in_chat injection
- *  candidates. Every present cast member with a non-empty note injects, with `{{char}}` bound to that
+ *  candidates. Every present characters member with a non-empty note injects, with `{{char}}` bound to that
  *  member; `{{user}}` routes to the card (anchor/pinned) persona, not the active speaker. Same-depth
  *  notes keep cast order (primary first) deterministically since neither side sets an explicit `order`. */
 function characterDepthNoteCandidates(
@@ -726,10 +726,10 @@ function characterDepthNoteCandidates(
   return { candidates, contributorNames };
 }
 
-/** The authorsNoteSource trace label: the single contributor's name, or "merged (present cast)" when
+/** The authorsNoteSource trace label: the single contributor's name, or "merged (present characters)" when
  *  2+ members contribute. */
 function depthNoteSource(contributorNames: readonly string[]): string {
-  return contributorNames.length === 1 ? `from ${contributorNames[0]}` : "merged (present cast)";
+  return contributorNames.length === 1 ? `from ${contributorNames[0]}` : "merged (present characters)";
 }
 
 /** The author's-note depth injections for this turn — the seated cast's card notes, and ONLY those. The
@@ -883,7 +883,7 @@ export async function buildAssembleContext(ctx: ChatContext, input: BuildAssembl
     pool,
     base,
     {
-      // The RESOLVED host-tier union (D53: host-global ∪ chat-preset ∪ present cast), i.e. the SAME set every
+      // The RESOLVED host-tier union (D53: host-global ∪ chat-preset ∪ present characters), i.e. the SAME set every
       // other shared leg runs — USER_INPUT above, AI_OUTPUT/REASONING in `engine/pipeline`. Reading the preset
       // slice alone dropped host-global + card scripts whose placement includes WORLD_INFO, and WORLD_INFO is
       // in the settings' default placement set, so those silently never fired. `assemble-gather` folds the

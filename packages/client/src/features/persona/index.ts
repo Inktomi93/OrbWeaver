@@ -12,7 +12,7 @@ export { FirstRunPersonaDialog } from "./anchors/first-run-persona-dialog.tsx";
 export type { PersonaPanelRowProps } from "./components/persona-panel-row.tsx";
 export { PersonaPanelRow } from "./components/persona-panel-row.tsx";
 export { personaChrome } from "./lib/persona-chrome.tsx";
+export { personaListSection } from "./lib/persona-list-section.tsx";
 export { personaNotificationsSection } from "./lib/persona-notifications-section.tsx";
-export { personaRosterSection } from "./lib/persona-roster-section.tsx";
 export { personaThisChatSection } from "./lib/persona-this-chat-section.tsx";
 export { personasGroup } from "./lib/personas-group.tsx";

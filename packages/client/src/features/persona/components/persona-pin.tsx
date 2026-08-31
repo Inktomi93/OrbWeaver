@@ -4,7 +4,7 @@
 // exists while you own a persona, so the solid pin has nothing to do and is honest as state); every other
 // row's pin is the "make this my default" BUTTON, faint-on-hover at fine pointers (rest-invisible — the
 // verb is secondary chrome) and always-faint at coarse (no hover exists; an invisible control would be an
-// unreachable one). Shared by the roster row and the rail switcher's rows so the two mounts cannot drift.
+// unreachable one). Shared by the list row and the rail switcher's rows so the two mounts cannot drift.
 
 import { Button } from "@orb/ui/button";
 import { Icon, Pin } from "@orb/ui/icons";
@@ -23,7 +23,7 @@ export interface PersonaPinProps {
   readonly subject: string;
   /** Writes `seeds.defaultPersonaId` to this row's persona. Unused by the marker arm. */
   readonly onPin: () => void;
-  /** Extra classes for the rendered element (both arms) — the roster row passes `relative shrink-0` to
+  /** Extra classes for the rendered element (both arms) — the list row passes `relative shrink-0` to
    *  layer above its stretched select target. */
   readonly className?: string;
 }

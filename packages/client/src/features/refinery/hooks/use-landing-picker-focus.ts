@@ -1,5 +1,5 @@
 // The refinery landing picker's focus-on-request hook (#307), the `use-composer-focus.ts` shape. On a
-// desktop landing the sessions roster's empty-state CTA bumps the landing-focus nonce
+// desktop landing the sessions list's empty-state CTA bumps the landing-focus nonce
 // (`requestRefineryLandingFocus`) INSTEAD of opening a second picker over the one CONTENT already mounts;
 // this hook reads the nonce (`useRefineryLandingFocusRequest`) and, on every bump, scrolls its container
 // into view and focuses the picker's search field. It returns the container ref `TeachingState` attaches

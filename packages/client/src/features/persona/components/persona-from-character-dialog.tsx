@@ -1,4 +1,4 @@
-// The roster band's "From character" door (#866 S4): a small dialog — the shared `CharacterPicker` + the
+// The list band's "From character" door (#866 S4): a small dialog — the shared `CharacterPicker` + the
 // "Swap {{char}}/{{user}}" switch — over `persona.createFromCharacter` (the server's non-lossy mint: it
 // copies name/description/avatar and stamps provenance; the swap inverts the description's POV macros,
 // because roles invert when a card becomes a persona). Picking a character IS the create (one activation,
@@ -21,11 +21,11 @@ const SWAP_LABEL = "Swap {{char}}/{{user}} in the copied description";
 export interface PersonaFromCharacterDialogProps {
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
-  /** Fired with the minted persona's id on success — the roster expands the fresh row (the New-door flow). */
+  /** Fired with the minted persona's id on success — the list expands the fresh row (the New-door flow). */
   readonly onCreated: (personaId: PersonaId) => void;
 }
 
-/** The From-character mint dialog. Controlled by the roster band (its trigger lives there). */
+/** The From-character mint dialog. Controlled by the list band (its trigger lives there). */
 export function PersonaFromCharacterDialog({ open, onOpenChange, onCreated }: PersonaFromCharacterDialogProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();

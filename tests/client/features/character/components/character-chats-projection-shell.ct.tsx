@@ -54,7 +54,7 @@ function chat(fields: { id: string; title: string; seats: readonly string[]; pre
 }
 
 // Server order = newest-updated first. "The Gilded Ember" is a room Azarael has SINCE LEFT: her seat id is
-// still on the row (the contract's departed-seat guarantee) while the present cast is someone else.
+// still on the row (the contract's departed-seat guarantee) while the present characters is someone else.
 const HER_NEWEST = chat({ id: "chat_ct_newest", title: "Winter court", seats: [AZARAEL], lastMessageAt: 300 });
 const HER_DEPARTED = chat({ id: "chat_ct_left", title: "The Gilded Ember", seats: [AZARAEL, SERA], present: [SERA], lastMessageAt: 200 });
 /** A room with TWO seats still IN it — the stack arm of D3. */

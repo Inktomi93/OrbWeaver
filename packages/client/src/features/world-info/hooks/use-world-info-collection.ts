@@ -20,7 +20,7 @@ export function useWorldInfoCount(): number | undefined {
 }
 
 /** One ranked row → the host-facing preview entry. The datum is `bookScent` VERBATIM — the same
- *  "42 entries · attached ×3" the roster row's subtitle carries — because a book's two facts do not change
+ *  "42 entries · attached ×3" the list row's subtitle carries — because a book's two facts do not change
  *  between the glance and the list, and a second spelling here is exactly the drift that single home exists
  *  to prevent (it also owns the `unattached` word and the entry singular). */
 function previewEntry(book: BookWithUsage): CollectionPreviewEntry {
@@ -30,7 +30,7 @@ function previewEntry(book: BookWithUsage): CollectionPreviewEntry {
 /** The welcome hero's chip wall (the `preview` seam): the most ATTACHED books.
  *
  *  ATTACHMENT IS THE RANK because it is the one thing that separates a book that is doing work from a book
- *  you wrote and never wired up — the state `bookScent` calls out as `unattached` on the roster row for the
+ *  you wrote and never wired up — the state `bookScent` calls out as `unattached` on the list row for the
  *  same reason. Size does not rank: a 200-entry book attached nowhere is not what the library is FOR.
  *  Sorted on a COPY: the query's array is react-query cache state.
  *

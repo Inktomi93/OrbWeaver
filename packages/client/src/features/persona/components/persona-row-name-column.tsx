@@ -75,7 +75,7 @@ export function PersonaRowNameColumn({
           which is only sound while the two are never both painted. `ROW_REVEAL` pins the action cluster
           permanently ON at coarse, so simply un-hiding the markers there would paint the crown and the heart
           UNDERNEATH the kebab. The title line is the ruled home for a rest-visible marker anyway
-          (`ROW_REVEAL_SWAP`'s own header; `ListRow.markers`; the chats roster's ★), and it is a cell the
+          (`ROW_REVEAL_SWAP`'s own header; `ListRow.markers`; the chats list's ★), and it is a cell the
           actions never occupy — so the swap stays honest at fine and the state stays legible at coarse. The
           "Playing as" kicker STAYS behind in the Layer on `ROW_REVEAL_SWAP`: its coarse drop is a deliberate
           ruling (see the collapse comment in the row) and this change does not touch it. */}

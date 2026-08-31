@@ -169,24 +169,31 @@ export const CHAT_PROSE_SLOTS = {
     requiredMacros: ["{{name}}"],
     requiredTokens: [],
     title: "Merged co-speaker heading",
-    fires: 'A `cardScope:"merged"` group turn, once per other present roster member.',
+    fires: 'A `cardScope:"merged"` group turn, once per other present character.',
   },
   "chat.group.castMember": {
     id: "chat.group.castMember",
     home: "preset",
-    version: 1,
+    version: 2,
     // The NARRATOR twin of `alsoPresent`, and a separate slot rather than a re-version of it for one reason:
     // the two frames say opposite things. On a per-speaker merged turn the other members ARE bystanders —
     // the model voices one of them and must not drift into the rest. On a NARRATOR turn the same cards are
     // the voices this single call is being asked to speak, so framing them as "also present" contradicts the
     // round's own nudge ("voicing the present characters (…)"). Re-versioning `alsoPresent` would also have
     // invalidated every host's existing merged override for a change that does not concern merged turns.
-    text: "[Cast — {{name}}]",
+    //
+    // v2 is a VOCABULARY fix on the `chat.arbiter.system` v2 / `chat.group.speakerTags` v2 precedent, not a
+    // behavior change: #901 Fork 1 retired "cast" for the room's seated characters, and this heading spent it.
+    // Owner-ruled 2026-08-30 to a direct swap ("[Character — {{name}}]") rather than dropping the label — the
+    // explicit "this block is a character" signal is what weaker local models lean on. Model-facing bytes are
+    // still bytes, so it rides the lawful re-version path (D132(A)/§4.4); a silent edit would strand every
+    // host's `baseVersion` stamp.
+    text: "[Character — {{name}}]",
     macros: "none",
     requiredMacros: ["{{name}}"],
     requiredTokens: [],
-    title: "Narrator cast-member heading",
-    fires: "A narrator round, once per cast member whose card rides beside the primary.",
+    title: "Narrator character heading",
+    fires: "A narrator round, once per character whose card rides beside the primary.",
   },
   "chat.group.scenarioHeading": {
     id: "chat.group.scenarioHeading",
@@ -244,7 +251,7 @@ export const CHAT_PROSE_SLOTS = {
     requiredMacros: ["{{names}}"],
     requiredTokens: [],
     title: "Narrator round nudge",
-    fires: "Every MULTI-member narrator round with the group nudge on (a cast-of-one round sends no nudge).",
+    fires: "Every MULTI-member narrator round with the group nudge on (a one-character round sends no nudge).",
   },
   "chat.group.speakerTags": {
     id: "chat.group.speakerTags",

@@ -102,7 +102,7 @@ export interface ChatSummary {
    *  a QUIET marker (`Game chat — paused`), never as the live ⚔ — the panel/assembly still see nothing, which
    *  is what the `isGame` ruling actually protects. */
   readonly gamePaused: boolean;
-  /** The resolved present cast for the list card (names only — the heavy roster is `getChat`), PER-CALLER:
+  /** The resolved present characters for the list card (names only — the heavy roster is `getChat`), PER-CALLER:
    *  the VIEWER'S OWN seat is suppressed while any other seat remains, so an untitled row reads "Niko", not
    *  "You, Niko" (side-eye NR4 — the viewer is in every chat they can list, so their own name is a constant
    *  prefix that carries nothing and costs title width). A solo/self chat keeps its name, so the row never

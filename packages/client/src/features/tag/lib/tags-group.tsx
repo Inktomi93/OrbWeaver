@@ -11,7 +11,7 @@ import { tagCollection } from "./tag-collection.tsx";
 
 import { TAG_COLLECTION_ID } from "./tags-model.ts";
 
-/** The members as SEARCH rows (§3.3) — the same cache-first read the roster already loaded, so the search
+/** The members as SEARCH rows (§3.3) — the same cache-first read the list already loaded, so the search
  *  costs no request. Non-suspense: an unresolved library simply contributes nothing yet. */
 function useTagSearchRows(): readonly ConfigSearchRow[] {
   const trpc = useTRPC();

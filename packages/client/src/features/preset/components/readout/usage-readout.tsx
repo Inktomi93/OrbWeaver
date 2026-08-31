@@ -9,7 +9,7 @@
 //
 // ── WHAT A BINDING IS, RE-DERIVED (the shape of this block IS the finding) ──────────────────────────
 // A CHAT DOES NOT CARRY A PRESET. There is no `chats.preset_id` and no preset in `chats.metadata`; a room
-// generates under its HOST's active pick. So the honest block is two rows, not the roster the issue
+// generates under its HOST's active pick. So the honest block is two rows, not the list the issue
 // imagined:
 //   • YOUR ACTIVE PRESET — the binding for ordinary rooms, and it is a SETTING, so it is stated as one.
 //     Listing "every chat you host" underneath would restate the chats list without adding a fact.
@@ -95,7 +95,7 @@ function GmRooms({ rooms }: { readonly rooms: readonly VisibleRoomRef[] }): Reac
 }
 
 /** Section first, then the room — the house spelling for a cross-section room door (`notification-bell`,
- *  the corpus omnibox, the databank Active-in roster), so CONTENT is already on chats when the id lands. */
+ *  the corpus omnibox, the databank Active-in list), so CONTENT is already on chats when the id lands. */
 function openChat(chatId: ChatId): void {
   setActiveSection("chats");
   selectChat(chatId);

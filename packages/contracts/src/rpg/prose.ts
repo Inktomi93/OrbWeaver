@@ -132,8 +132,8 @@ For example, a three-line sign is enough:
     macros: "none",
     requiredMacros: [],
     requiredTokens: [],
-    title: "Present-cast header",
-    fires: "The `Present:` header, only when a scene cast member carries a standing guide.",
+    title: "Present-characters header",
+    fires: "The `Present:` header, only when a present character carries a standing guide.",
   },
   "rpg.reminder.offstageHeader": {
     id: "rpg.reminder.offstageHeader",
@@ -143,8 +143,8 @@ For example, a three-line sign is enough:
     macros: "none",
     requiredMacros: [],
     requiredTokens: [],
-    title: "Offstage-cast header",
-    fires: "The `Known, offstage:` header, only when an established cast member is off stage.",
+    title: "Offstage-characters header",
+    fires: "The `Known, offstage:` header, only when an established character is off stage.",
   },
   "rpg.delta.changesHeading": {
     id: "rpg.delta.changesHeading",
@@ -342,7 +342,7 @@ For example, a three-line sign is enough:
     requiredMacros: [],
     requiredTokens: [],
     title: "Who is present",
-    fires: "The scene plane — the cast upsert/remove teaching, every extraction prompt.",
+    fires: "The scene plane — the present-characters upsert/remove teaching, every extraction prompt.",
   },
   "rpg.extract.scene.mood": {
     id: "rpg.extract.scene.mood",
@@ -356,7 +356,7 @@ For example, a three-line sign is enough:
     requiredMacros: [],
     requiredTokens: [],
     title: "Mood is short",
-    fires: "The scene plane — the length contract on the cast row's mood (taught, never schema-enforced).",
+    fires: "The scene plane — the length contract on the present-character row's mood (taught, never schema-enforced).",
   },
   "rpg.extract.scene.emoji": {
     id: "rpg.extract.scene.emoji",

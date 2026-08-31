@@ -157,7 +157,7 @@ export const TEMPLATE_KIND_UNBOUND_GLOSS: Record<TemplateKind, string> = {
   nudge: "Every macro here resolves in chat — open a chat and this readout binds to it, showing what the model actually receives.",
   format: "Macros here fill when the assembler applies this row to a real turn — a frame's {{note}} is the wrapped injection's own content.",
   group:
-    "The {{name}}/{{names}} tokens here are spliced from the round's roster per member when the assembler builds a group round — they are not chat macros.",
+    "The {{name}}/{{names}} tokens here are spliced from the round's characters per member when the assembler builds a group round — they are not chat macros.",
   teach: "{{user}} and {{char}} resolve through the chat's identity registry on each game turn — open a game chat and this readout binds to it.",
   extract:
     "Braced tokens here are spliced from the game's own data at the state round — they are not chat macros. Binding a chat resolves only the identity names.",

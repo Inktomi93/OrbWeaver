@@ -52,7 +52,7 @@ export interface ReactionPickerProps {
   readonly variantId: MessageVariantId;
   /** The variant's STORED canon body — the segment-target parse substrate (see the header). */
   readonly content: string;
-  /** The room's present cast names, already narrator-gated by the caller (`[]` on a non-narrator row). */
+  /** The room's present characters names, already narrator-gated by the caller (`[]` on a non-narrator row). */
   readonly castNames: readonly string[];
   /** The viewer's own seat, or `null` while the room read is in flight — a null seat simply means no cell
    *  reads as pressed yet; it never disables the picker, because the SERVER resolves the seat on the write. */

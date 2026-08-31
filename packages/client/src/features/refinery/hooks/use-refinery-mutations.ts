@@ -6,14 +6,14 @@
 // plane, so every write here carried its own `invalidates` and the reads carried cited STATIC rows in
 // `tooling/src/verify/gates/query-freshness-coverage.ts`. That was writer-local freshness: it reconciled the tab
 // that wrote and NOTHING else, so at `staleTime: Infinity` a second tab or device sat on the pre-write
-// roster/session/ledger forever. Every persisting refinery verb now emits the `refineryChanged` user-bus
+// list/session/ledger forever. Every persisting refinery verb now emits the `refineryChanged` user-bus
 // member (contracts `user-bus`), the seam maps it to `trpc.refinery` + `trpc.character.get`
 // (`data/invalidation.ts`), and the STATIC rows were deleted in the same commit (the ratchet REDs a cited key
 // that gains a row). So every write below is `busDriven: true` — the compile-time XOR in
 // `data/create-entity-mutation.ts` forbids carrying both, and doing both is the double-invalidate storm.
 //
 // WHAT THE SEAM ROW COVERS, so nothing here has to re-spell it:
-//   · THE REFINERY READS — roster, session view, run ledger, schema library, preflight — the whole router
+//   · THE REFINERY READS — list, session view, run ledger, schema library, preflight — the whole router
 //     root, which is why a coarse member is enough for a surface that opens one session at a time.
 //   · THE F6 SIGNAL STAMP, which is SILENT by design (`domain/character/persistence/refinery-ops.ts`: "no
 //     audit entry, no user-bus event"). A score/analyze run rewrites `characters.refinery.*` — exactly what
@@ -86,7 +86,7 @@ function codedRefusalAwareToast(fallback: string): (error: unknown) => string {
 
 // `useStartRefinerySession` USED TO LIVE HERE and moved to `data/use-open-refinery.ts` on 2026-08-17
 // (#157). It is not a plain write any more: the owner ruled ONE start-session-with-character flow behind
-// three doors — the roster header's `+`, the landing picker, and the CHARACTER section's "Open in
+// three doors — the list header's `+`, the landing picker, and the CHARACTER section's "Open in
 // Refinery" — and the third of those is a different FEATURE, which may never import this one. The
 // `use-start-chat.ts` precedent is the same move for the same reason, and the mutation went WITH the flow
 // rather than being called across the seam, because a launcher and its creation verb are one concept.
@@ -94,7 +94,7 @@ function codedRefusalAwareToast(fallback: string): (error: unknown) => string {
 /** The R2 write tier — the session patch (name · guidance · selection · stageConfig · status); consumed by the R3 surface. */
 export const useUpdateRefinerySession = createEntityMutation<inferInput<Trpc["refinery"]["updateSession"]>, inferOutput<Trpc["refinery"]["updateSession"]>>({
   options: (trpc) => trpc.refinery.updateSession.mutationOptions(),
-  // The patch moves the session view, two roster columns and the preflight arithmetic — all three live under
+  // The patch moves the session view, two list columns and the preflight arithmetic — all three live under
   // the `trpc.refinery` root the member path-invalidates.
   busDriven: true,
   errorToast: "Couldn't save the session.",
@@ -116,7 +116,7 @@ export const useDeleteRefinerySession = createEntityMutation<inferInput<Trpc["re
 /** The R2 write tier — one stage under the session's in-force config; consumed by the R3 surface. */
 export const useRunRefineryStage = createEntityMutation<inferInput<Trpc["refinery"]["runStage"]>, inferOutput<Trpc["refinery"]["runStage"]>>({
   options: (trpc) => trpc.refinery.runStage.mutationOptions(),
-  // A run APPENDS to the ledger, flips the session back to `active` with a fresh `updatedAt` (both roster
+  // A run APPENDS to the ledger, flips the session back to `active` with a fresh `updatedAt` (both list
   // columns), on score/analyze silently re-stamps the card's F6 signals, and a fresh rewrite changes the next
   // round's working overlay (the preflight arithmetic). The verb emits in a `finally`, so the tick survives a
   // stage that stamped and then threw — the same totality `onSettled` used to give this hook.
@@ -161,7 +161,7 @@ function applyRefusal(data: ApplyFieldsResult): string | null {
 export const useApplyRefineryFields = createEntityMutation<inferInput<Trpc["refinery"]["applyFields"]>, ApplyFieldsResult>({
   options: (trpc) => trpc.refinery.applyFields.mutationOptions(),
   // TWO events, both from the server, neither re-spelled here: `refineryChanged` for the completed session
-  // (`status`/`updatedAt`, both roster columns) and `charactersChanged` from the injected `character.update`
+  // (`status`/`updatedAt`, both list columns) and `charactersChanged` from the injected `character.update`
   // for the card. The TOTAL-DROP arm writes nothing and emits nothing — correct: no row moved, and the
   // refusal below is the whole outcome.
   busDriven: true,

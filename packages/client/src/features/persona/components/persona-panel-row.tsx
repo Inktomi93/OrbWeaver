@@ -191,7 +191,7 @@ export function PersonaPanelRow({
             the row's single shrinker. */}
         <Layer className="relative shrink-0" data-slot="persona-row-markers">
           <Row align="center" className={cn("pointer-events-none", ROW_REVEAL_SWAP) ?? ""} gap="field" justify="end">
-            {/* THE ROW IS THE ONE HOME FOR "PLAYING AS" (side-eye 2026-08-03 P2) — the band above the roster
+            {/* THE ROW IS THE ONE HOME FOR "PLAYING AS" (side-eye 2026-08-03 P2) — the band above the list
                 used to render the current persona a second time, with a different anatomy, 40px away. Words,
                 not just the selected tint + `aria-current`: a colour is not a statement. */}
             {/* THE PILL (#866 S4, the Personas board): "playing as" on the current row, "pinned · {{user}}"

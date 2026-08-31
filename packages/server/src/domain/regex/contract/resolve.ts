@@ -25,7 +25,7 @@ export interface ResolveRegexSourcesArgs {
   readonly ownerId: UserId;
   /** The chat's resolved active preset, or null when the system `DEFAULT_PROMPT_CONFIG` stood in. */
   readonly presetId: PresetId | null;
-  /** The present cast, IN ROSTER ORDER (the cast slice concatenates per character in this order). */
+  /** The present characters, IN ROSTER ORDER (the cast slice concatenates per character in this order). */
   readonly characterIds: readonly CharacterId[];
   /** The room. Room-public scope — not owner-filtered. */
   readonly chatId: ChatId;

@@ -13,7 +13,7 @@ import { Icon, Pin } from "@orb/ui/icons";
 import type { ReactElement } from "react";
 
 export interface RpgFieldLockProps {
-  /** WHAT this pin holds, in the caller's own words ("Vitality", "the cast", "the pack"). REQUIRED
+  /** WHAT this pin holds, in the caller's own words ("Vitality", "the present characters", "the pack"). REQUIRED
    *  (side-eye 08-01): the Scene tab alone renders five of these, and every one announced the identical
    *  "Pinned by hand — click to release to the model" — a name-navigating reader got five indistinguishable
    *  buttons and no way to tell which plane each one would hand back. The name is the caller's because only

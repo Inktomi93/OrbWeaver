@@ -14,7 +14,7 @@
 // rides, and the fixed enum cannot be "off", so turning Impersonate's template off would leave a button
 // firing nothing. The manageable list is the RACK, in the Prompt view. A manage affordance appearing here
 // is the §5.0 conflation rebuilt as a defect. (A cluster band's disclosure is NAVIGATION, not management —
-// the same chevron grammar the Configuration roster's collapsed groups speak.)
+// the same chevron grammar the Configuration list's collapsed groups speak.)
 //
 // FIRES-ON IS DESCRIPTIVE (owner, verbatim: "the triggers and fires-on for a template is just
 // informational — we wouldn't want to disable something we shouldn't; the actual trigger thingy is in
@@ -92,7 +92,7 @@ export function ActionsView({ form, onSelectSection }: ActionsViewProps): ReactE
   // fallback (side-eye 2026-08-08 P2), so at tab open row 1 is visibly selected rather than the readout
   // silently describing a row nothing on screen points at.
   const selectedId = inspectedTemplateRow(useSelectedPresetTemplateId()).def.id;
-  // The tab-level filter (IA §2.2 — 67 rows > COLLECTION_LARGE_GROUP, the config-roster precedent). Local
+  // The tab-level filter (IA §2.2 — 67 rows > COLLECTION_LARGE_GROUP, the config-list precedent). Local
   // on purpose: the drill swaps this component's RETURN, not its mount, so the filter survives a drill
   // round-trip; no sibling region reads it.
   const [filter, setFilter] = useState("");
@@ -300,8 +300,8 @@ function TemplateListRow({
             subtitlePlacement="column"
             // TWO LINES, NOT ONE (side-eye 2026-08-08 P2). `column` fixed WHERE the gloss starts; it still
             // truncated, and on the Group-rounds cluster all seven rows lost up to 38% of their text — with
-            // the DISCRIMINATING word inside the cut ("…once per other present roster member" vs "…once per
-            // cast member whose card rides beside the primary"), so the one cell that tells the rows apart
+            // the DISCRIMINATING word inside the cut ("…once per other present character" vs "…once per
+            // character whose card rides beside the primary"), so the one cell that tells the rows apart
             // was the cell being hidden. `subtitleWrap` is the house arm for a subtitle that is a SENTENCE:
             // clamp to two lines, raised leading. Titles fit — the name column is untouched.
             subtitleWrap={true}

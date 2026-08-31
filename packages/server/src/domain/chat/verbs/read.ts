@@ -221,7 +221,7 @@ interface PreviewInputs {
   readonly personaIds: readonly PersonaId[];
   /** The room's effective GroupConfig — its `output` axis is the ONE the SHAPE peek resolves, so a preview
    *  renders the SAME cast/per-speaker shape the next turn will (`TurnSpeakerShape.output`), never a pinned
-   *  guess. A narrator room previews its joined-cast `{{char}}` + `[Cast — …]` framing; per-speaker is
+   *  guess. A narrator room previews its joined-cast `{{char}}` + `[Character — …]` framing; per-speaker is
    *  byte-unchanged. `DEFAULT_GROUP_CONFIG` for a room carrying no group blob. */
   readonly group: GroupConfig;
   /** The room's parsed `metadata` blob — the B1 offer-choices knob's room half, so the host's Preview shows
@@ -572,7 +572,7 @@ async function buildPreviewContext(
 ): ReturnType<typeof gatherAssembleContext> {
   const participants = await opts.deps.loadParticipantViews(chatId);
   // The host `steeringNote`'s identity binding, resolved CHAT-SIDE exactly as the turn path does: `{{user}}` =
-  // the active persona; `{{char}}` = the Ruling-B joined present cast (a preview has no triggering speaker).
+  // the active persona; `{{char}}` = the Ruling-B joined present characters (a preview has no triggering speaker).
   const gatherFields = await previewGatherFields(ctx, {
     chatId,
     hostUserId: inputs.hostUserId,
@@ -609,7 +609,7 @@ async function buildPreviewContext(
   );
   const primary = gathered.castMembers?.[0];
   // The room's OWN output axis — the same one `shapeNextTurn` threads below and a real turn reads off
-  // `TurnSpeakerShape.output`: a NARRATOR room previews its cast shape (joined `{{char}}` + `[Cast — …]`
+  // `TurnSpeakerShape.output`: a NARRATOR room previews its cast shape (joined `{{char}}` + `[Character — …]`
   // framing), a per-speaker room renders the primary speaker's turn byte-identically to before. A preview has
   // no arbitrated round, so `cardScope` stays pinned `merged` (narrator is always merged; per-speaker's
   // scoped fold is a per-round selection a shapeless peek can't make) — only the output axis is now honest.
