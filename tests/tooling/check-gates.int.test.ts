@@ -1148,6 +1148,9 @@ function writeFixtures(): void {
 // ownership from the whole source graph. A `__g_` stylesheet is deliberately outside that closed set, while
 // mutating a canonical home would race every CSS/CT consumer. Its mustFlag/mustPass rows prove each wall,
 // including the fs-backed declaration census and both dependency directions.
+// css-selector-has-a-writer reads the same five exact homes and reconciles them against the whole source
+// graph plus installed vendor artifacts. Its dedicated fs-backed conformance pin drives historical inert
+// class/data spellings, exact-value drift, supported spreads, zero population, and both vendor stale arms.
 const UNFIXTURABLE_GATES = new Set([
   "biome-grant-liveness",
   "tsconfig-entry-liveness",
@@ -1168,6 +1171,7 @@ const UNFIXTURABLE_GATES = new Set([
   "message-kind-policy-coverage",
   "tokens-contract",
   "css-family-ownership",
+  "css-selector-has-a-writer",
   // The unit is the canonical production/CT front doors; a __g file cannot perturb their exact graph.
   "playwright-css-topology",
 ]);

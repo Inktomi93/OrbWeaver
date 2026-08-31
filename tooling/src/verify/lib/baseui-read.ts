@@ -34,11 +34,13 @@ const NON_COMPONENT_DIRS = new Set(["docs", "internals", "types", "utils", "floa
  *  later example — a self-proof that silently stops proving anything. */
 const projectByPkgDir = new Map<string, Project>();
 const surfaceByRoot = new Map<string, InstalledSurface>();
+const stateAttributesByRoot = new Map<string, ReadonlyMap<string, ReadonlySet<string>>>();
 
 /** Test seam: drop the process caches (a test that rewrites a tree in place needs this). */
 export function resetBaseUiSurfaceCache(): void {
   projectByPkgDir.clear();
   surfaceByRoot.clear();
+  stateAttributesByRoot.clear();
 }
 
 function surfaceProject(pkgDir: string): Project {
@@ -131,6 +133,43 @@ export function readInstalledSurface(root: string): InstalledSurface | undefined
   const surface: InstalledSurface = { version, components: sortKeys(components) };
   surfaceByRoot.set(root, surface);
   return surface;
+}
+
+/** Installed Base UI state attributes and their statically-declared string/number values. Empty values
+ * mean a presence-only boolean/state contract; exact CSS values are never guessed from the key alone. */
+export function readInstalledStateAttributeValues(root: string): ReadonlyMap<string, ReadonlySet<string>> {
+  const hit = stateAttributesByRoot.get(root);
+  if (hit !== undefined) {
+    return hit;
+  }
+  const pkgDir = join(root, BASE_UI_PKG_REL);
+  if (!existsSync(join(pkgDir, "package.json"))) {
+    return new Map();
+  }
+  const project = surfaceProject(pkgDir);
+  const mutable = new Map<string, Set<string>>();
+  for (const source of project.getSourceFiles()) {
+    for (const declaration of source.getInterfaces().filter((candidate) => candidate.getName().endsWith("State"))) {
+      recordStateInterface(mutable, declaration);
+    }
+  }
+  stateAttributesByRoot.set(root, mutable);
+  return mutable;
+}
+
+function recordStateInterface(mutable: Map<string, Set<string>>, declaration: import("ts-morph").InterfaceDeclaration): void {
+  for (const property of declaration.getProperties()) {
+    const name = `data-${property.getName().toLowerCase()}`;
+    const values = mutable.get(name) ?? new Set<string>();
+    const type = property.getType();
+    for (const part of type.isUnion() ? type.getUnionTypes() : [type]) {
+      const literal = part.getLiteralValue();
+      if (typeof literal === "string" || typeof literal === "number") {
+        values.add(String(literal));
+      }
+    }
+    mutable.set(name, values);
+  }
 }
 
 /** The READER'S OWN blindness tripwire (GATE-AUTHORING §4.6). A part whose Props type resolved to NEITHER a

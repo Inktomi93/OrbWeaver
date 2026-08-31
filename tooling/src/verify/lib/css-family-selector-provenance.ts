@@ -5,33 +5,54 @@ import { blankCssComments } from "./comment-spans.ts";
 import { KEYFRAME_STEP_RE } from "./css-family-census.ts";
 import { splitSelectorList } from "./css-rules.ts";
 
-interface SelectorAttribute {
+export interface SelectorAttributeHook {
   readonly close: number;
   readonly name: string;
+  readonly operator: "presence" | "=" | "^=" | "$=" | "*=" | "~=" | "|=";
   readonly value: string | undefined;
 }
 
-function selectorAttributeAt(selector: string, open: number): SelectorAttribute | undefined {
+function selectorAttributeAt(selector: string, open: number): SelectorAttributeHook | undefined {
   const close = matchingBracket(selector, open);
   if (close === -1) {
     return;
   }
   const content = selector.slice(open + 1, close);
-  const match = /^\s*([_a-zA-Z][\w-]*)(?:\s*[~|^$*]?=\s*(?:"([^"]*)"|'([^']*)'|([^\s]+)))?/u.exec(content);
+  const match = /^\s*([_a-zA-Z][\w-]*)(?:\s*([~|^$*]?=)\s*(?:"([^"]*)"|'([^']*)'|([^\s]+)))?/u.exec(content);
   const name = match?.[1];
   if (name === undefined) {
     return;
   }
-  return { close, name, value: match?.[2] ?? match?.[3] ?? match?.[4] };
+  const operator = (match?.[2] ?? "presence") as SelectorAttributeHook["operator"];
+  return { close, name, operator, value: match?.[3] ?? match?.[4] ?? match?.[5] };
 }
 
-function recordSelectorAttribute(hooks: Set<string>, attribute: SelectorAttribute): void {
+function recordSelectorAttribute(hooks: Set<string>, attribute: SelectorAttributeHook): void {
   if (attribute.name === "data-slot" && attribute.value !== undefined) {
     hooks.add(`slot:${attribute.value}`);
   }
   if (attribute.name.startsWith("data-shell-")) {
     hooks.add(`attr:${attribute.name}`);
   }
+}
+
+/** Every authored data-attribute selector identity. Attribute prose stays one lexical token. */
+export function selectorDataAttributes(selector: string): readonly SelectorAttributeHook[] {
+  const hooks: SelectorAttributeHook[] = [];
+  for (let index = 0; index < selector.length; index += 1) {
+    if (selector[index] !== "[") {
+      continue;
+    }
+    const attribute = selectorAttributeAt(selector, index);
+    if (attribute === undefined) {
+      break;
+    }
+    if (attribute.name.startsWith("data-")) {
+      hooks.push(attribute);
+    }
+    index = attribute.close;
+  }
+  return hooks;
 }
 
 function classNameAt(selector: string, dot: number): string | undefined {
