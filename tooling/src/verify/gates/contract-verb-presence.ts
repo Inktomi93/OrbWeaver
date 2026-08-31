@@ -177,17 +177,22 @@ function isAssembledServiceCall(call: CallExpression, service: InterfaceDeclarat
   return false;
 }
 
-function isCovered(files: readonly SourceFile[], service: InterfaceDeclaration, verb: string): boolean {
+/** Every call in a domain's test corpus, collected ONCE. `isCovered` runs per VERB, so sweeping the corpus
+ *  inside it re-walked every test file once per verb of that domain — the corpus is the same for all of
+ *  them (docs/reviews/research/2026-08-31-gate-pass-unified-walk.md §2). */
+function corpusCalls(files: readonly SourceFile[]): readonly CallExpression[] {
+  return files.flatMap((sf) => sf.getDescendantsOfKind(SyntaxKind.CallExpression));
+}
+
+function isCovered(calls: readonly CallExpression[], service: InterfaceDeclaration, verb: string): boolean {
   const factory = factoryName(verb);
-  return files.some((sf) =>
-    sf.getDescendantsOfKind(SyntaxKind.CallExpression).some((call) => {
-      const name = calledName(call);
-      if (name === factory) {
-        return true;
-      }
-      return name === verb && (isAssembledServiceCall(call, service, verb) || isFactoryBoundVerb(call, verb));
-    }),
-  );
+  return calls.some((call) => {
+    const name = calledName(call);
+    if (name === factory) {
+      return true;
+    }
+    return name === verb && (isAssembledServiceCall(call, service, verb) || isFactoryBoundVerb(call, verb));
+  });
 }
 
 /** A property member is verb-shaped when its type is a function type (`(…) => …`) — the codebase's
@@ -237,7 +242,7 @@ function reconcileContractVerbPresence(project: Project): Violation[] {
     if (domain === undefined) {
       continue;
     }
-    const corpus = domainTestFiles(domain, files);
+    const corpus = corpusCalls(domainTestFiles(domain, files));
     const file = `packages/server/src/domain/${domain}/contract/service.ts`;
     for (const { service, verb } of serviceVerbs(contract)) {
       const key = `${domain}.${verb}`;
