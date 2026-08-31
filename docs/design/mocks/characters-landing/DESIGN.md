@@ -23,7 +23,7 @@ Chats a committed `{kind: landing}` pane and Characters only a "teaching state" 
 | - | - | - |
 | `Main` | 917×750 — 1280 with the list DOCKED, context collapsed | "Pick up where you left off" · **Recently chatted** (sort `recent`, 4–5 faces) · **Starred** (sort `starred`, one row) · a foot line naming the week's additions. **No New door** — the LIST band owns it (#520); the lead names it by label. |
 | `ListCollapsed` | 1224×750 — list collapsed | The same shelves, wider cells, plus **Just added** (sort `newest`); the landing OWNS `New character` + `Import a card` because the band's door is off screen (#520's collapsed arm). |
-| `FreshInstall` | 917×750 — the seeded ten, nothing chatted, nothing starred | "Meet the cast" · one shelf **Shipped with Orbweaver · 10** with the elevator pitches · a hint that the shelves appear when they have something to show. Empty shelves are ABSENT (applicability), never empty rooms. |
+| `FreshInstall` | 917×750 — the seeded ten, nothing chatted, nothing starred | "Meet your characters" · one shelf **Shipped with Orbweaver · 10** with the elevator pitches · a hint that the shelves appear when they have something to show. Empty shelves are ABSENT (applicability), never empty rooms. |
 | `Phone` | 430×860 — reachable only with the list hidden (the section root is the LIST on a phone) | Lead, the doors, three-column faces, Recently chatted · Starred, a foot line with "Show the list". |
 
 ## Material — nothing drawn that the wire does not carry

@@ -242,7 +242,7 @@ ${body}
 const peopleCast = (mobile) => `
           <div class="sec"><div class="sec-h"><span class="eyebrow">People</span></div>
             <div class="row"><div class="av c">T</div><div><div class="nm">Traveler <span class="meta">· you · host</span></div></div><div class="glyphs"><span>♪</span></div></div></div>
-          <div class="sec"><div class="sec-h"><span class="eyebrow">Cast</span><span class="act"><button class="btn ghost" type="button">Saved casts…</button><button class="btn" type="button">+ Add</button></span></div>
+          <div class="sec"><div class="sec-h"><span class="eyebrow">Characters</span><span class="act"><button class="btn ghost" type="button">Saved rosters…</button><button class="btn" type="button">+ Add</button></span></div>
             <div class="row"><div class="av a">SV</div><div><div class="nm">Sabine Veyra</div><div class="talk"><i style="width: 50%"></i></div></div><div class="glyphs"><span>◌</span><span>›</span></div></div>
             <div class="row"><div class="av b">ET</div><div><div class="nm">Elias Thorn</div><div class="talk"><i style="width: 35%"></i></div></div><div class="glyphs"><span>◌</span><span>›</span></div></div></div>`;
 const thisChat = `
