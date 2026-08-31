@@ -109,12 +109,14 @@ const ECHO_SEPARATORS = [" — ", " – ", " - ", ": ", ", "] as const;
 /**
  * The location line WITHOUT the words the heading directly above it just said (#899 N5).
  *
- * MEASURED: the band renders `Example — The Ashen Spire` as its `h2` and, 28px beneath, `The Ashen Spire —
- * the throne hall, a fire built off the draft-line…`. F3's fix put the room's name in the heading; this is
- * its residue — the model writes the place into its own location string, so the two lines stutter.
+ * MEASURED: the band renders `Example — The Ashen Spire` as its `h2` and, 28px beneath,
+ * `The Ashen Spire — the throne hall, a fire built off the draft-line…`. F3's fix put the room's name in
+ * the heading; this is its residue — the model writes the place into its own location string, so the two
+ * lines stutter.
  *
- * IT IS A DE-DUP, NOT NEW COPY. The heading's own trailing segment is the room's name (`Example — The
- * Ashen Spire` → `The Ashen Spire`); when the location OPENS with that exact segment followed by a
+ * IT IS A DE-DUP, NOT NEW COPY. The heading's own trailing segment is the room's name
+ * (`Example — The Ashen Spire` → `The Ashen Spire`); when the location OPENS with that exact segment
+ * followed by a
  * separator, the echo and its separator are dropped and what remains is the elaboration the line is for.
  * REFUSES rather than mangling in the three cases where dropping would lie:
  *   · the location IS the name and nothing more (there is no elaboration to promote — the line would go
