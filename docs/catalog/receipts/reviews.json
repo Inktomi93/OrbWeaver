@@ -1691,9 +1691,7 @@
       "verifiedSha256": "814492d2e894699b2a402efa37454747863d8a96f89ded7c8ad428a686c4169d",
       "verifiedCommit": "2e5453747fc86f741c6bbfb9df0fd574b76c3fbc",
       "verifiedAt": "2026-08-31",
-      "evidence": [
-        "docs/reviews/stickler/2026-08-31-961-static-class-provenance.md:1 (full cold review of exact #961 commit 397e805f5)"
-      ],
+      "evidence": ["docs/reviews/stickler/2026-08-31-961-static-class-provenance.md:1 (full cold review of exact #961 commit 397e805f5)"],
       "summary": "Cold review refuting #961 for three P1 correctness defects in composer forwarding, namespace re-exports, and object-spread overwrite semantics; preserves focused receipts and the separate exact-tree citation blocker.",
       "claims": [
         {
@@ -1802,6 +1800,29 @@
             {
               "kind": "issue",
               "target": "#930"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/reviews/research/2026-08-31-gate-pass-unified-walk.md",
+      "assignedSha256": "5e0099e553035266025bbfcbb985793d47160f6555d3590a569644a2b3cc3592",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "5e0099e553035266025bbfcbb985793d47160f6555d3590a569644a2b3cc3592",
+      "verifiedCommit": "4ac9aca6b1099cc06d918a3372fc7bdf27c212f4",
+      "verifiedAt": "2026-08-31",
+      "evidence": ["docs/reviews/research/2026-08-31-gate-pass-unified-walk.md:1 (authored in this lane from its own measurements; full read)"],
+      "summary": "Measures the 236-gate structure pass and attributes its cost to the 110 gates that decline the shared single-pass walk (121s vs 8.8s for the 129 that ride it): dispatch is free, re-walking is not, so the documented unified model supersedes the memo B-prime proposes.",
+      "claims": [
+        {
+          "claim": "The gate-pass speedup program recorded here is owned by work item #888.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#888"
             }
           ]
         }
