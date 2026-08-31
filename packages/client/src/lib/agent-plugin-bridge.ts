@@ -13,7 +13,7 @@
 import type { AutomationRuleId, ChatId, PluginId } from "@orb/kit/ids";
 
 /** One installed plugin as `__orb.pluginLog()` lists it — the `plugin.list` row's identity + lifecycle columns. */
-export interface OrbPluginRosterEntry {
+export interface OrbPluginListEntry {
   readonly id: PluginId;
   readonly slug: string;
   readonly name: string;
@@ -28,14 +28,14 @@ interface OrbPluginLogLine {
   readonly at: number;
 }
 
-/** `__orb.pluginLog(ref?)`'s answer: the roster (no ref), one plugin's log (ref = slug or id), or a LOUD
- *  refusal (no match / ambiguous) — never a silent empty. */
+/** `__orb.pluginLog(ref?)`'s answer: the installed-plugin list (no ref), one plugin's log (ref = slug or id), or a
+ *  LOUD refusal (no match / ambiguous) — never a silent empty. */
 export type OrbPluginLogResult =
-  | { readonly ok: true; readonly roster: readonly OrbPluginRosterEntry[] }
-  | { readonly ok: true; readonly plugin: OrbPluginRosterEntry; readonly log: readonly OrbPluginLogLine[] }
+  | { readonly ok: true; readonly plugins: readonly OrbPluginListEntry[] }
+  | { readonly ok: true; readonly plugin: OrbPluginListEntry; readonly log: readonly OrbPluginLogLine[] }
   | { readonly ok: false; readonly reason: string };
 
-/** Dev-only plugin-log reader: the owner's installed-plugin roster and, per plugin, the RUNTIME host.log ring
+/** Dev-only plugin-log reader: the owner's installed-plugin list and, per plugin, the RUNTIME host.log ring
  *  `plugin.getLog` serves — which (#806) now includes what a floated guest continuation logged between
  *  invocations. Built at the composition tier (`client/src/agent-plugin/`) over the production tRPC reads. */
 export type OrbPluginLogReader = (ref?: string) => Promise<OrbPluginLogResult>;

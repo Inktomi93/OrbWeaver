@@ -89,7 +89,7 @@ import { publishAutomationEvent, publishNotification, publishUserEvent } from ".
 import { createAutomationOps } from "./automation-watcher.ts";
 import type { ChatComposeResult } from "./chat.ts";
 import { minter } from "./minter.ts";
-import { loadPluginMessages, loadPluginRoster } from "./plugin-chat-reads.ts";
+import { loadPluginCharacters, loadPluginMessages } from "./plugin-chat-reads.ts";
 
 // (The /autobg SYSTEM line moved to `domain/automation/engine/arm-executors.ts` when `summarizeQuiet`
 // generalized at C1 — the domain owns its prompt text; this seam owns only the wire.)
@@ -499,7 +499,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
       // #788 F11 — the present CHARACTER roster (id/name/avatar), the `loadPluginMessages` principal-free
       // precedent: the bridge resolves membership via `resolveViewerVisibility` and short-circuits a non-member
       // to `[]` BEFORE this read, so a plugin sees only the roster of a room it is in.
-      listRoster: (chatId) => loadPluginRoster(db, chatId),
+      listCharacters: (chatId) => loadPluginCharacters(db, chatId),
       getVariables: automationOps.chat.readVariables,
       applyVariableOps: automationOps.chat.applyVariableOps,
       // turn.trigger → chat's principal-free `requestTurn`. `initiator:"plugin"` is HARDCODED.

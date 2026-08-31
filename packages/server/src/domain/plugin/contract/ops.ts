@@ -98,12 +98,12 @@ export interface PluginHostOps {
      *  `{{getvar}}`), so it is NOT floor-clamped — the read-visibility ruling's activity plane. */
     readonly getVariables: (chatId: ChatId) => Promise<Record<string, string>>;
     /** The invocation chat's PRESENT CHARACTER roster, projected to the reduced `PluginCharacterView`
-     *  (`chat.listRoster`, capability `chat.read` — #788 F11). PRINCIPAL-FREE, the `listMessages` posture: the
+     *  (`chat.listCharacters`, capability `chat.read` — #788 F11). PRINCIPAL-FREE, the `listMessages` posture: the
      *  bridge resolves the installer's membership via `resolveViewerVisibility` FIRST and short-circuits a
      *  non-member to `[]`, so this read is reached only for a member of THIS room and carries no owner filter (a
      *  room's roster is the room's own member-visible state). Wired at compose to the principal-free
-     *  `loadPluginRoster` reader. Reduced to id/name/avatar — never a co-participant's full card. */
-    readonly listRoster: (chatId: ChatId) => Promise<readonly PluginCharacterView[]>;
+     *  `loadPluginCharacters` reader. Reduced to id/name/avatar — never a co-participant's full card. */
+    readonly listCharacters: (chatId: ChatId) => Promise<readonly PluginCharacterView[]>;
     /** The standalone runtime-variable write — the SAME delta seam automation's `set_variable` arm rides.
      *  `capability: chat.variables.write`. */
     readonly applyVariableOps: AutomationOps["chat"]["applyVariableOps"];
