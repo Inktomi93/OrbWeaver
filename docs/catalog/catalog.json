@@ -27533,6 +27533,54 @@
       "receiptCurrent": true
     },
     {
+      "path": "docs/reviews/research/2026-08-30-vocab-roster-cast.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 485,
+      "bytes": 36541,
+      "sha256": "21c32d118cbe612bc885588ff305a255f33a0903c3940d14d4d464342080db60",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "draft",
+          "updated": "2026-08-30"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/research/2026-08-30-vocab-roster-cast.md",
+        "assignedSha256": "21c32d118cbe612bc885588ff305a255f33a0903c3940d14d4d464342080db60",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "21c32d118cbe612bc885588ff305a255f33a0903c3940d14d4d464342080db60",
+        "verifiedCommit": "2e341aabb22da103fa2dd09a5514b58c0a6617da",
+        "verifiedAt": "2026-08-30",
+        "evidence": [
+          "docs/reviews/research/2026-08-30-vocab-roster-cast.md:1-486 read in full by the orchestrator (claude-b) before commit; lane cb-vocab-deep — the roster/cast/party census: 737 hit files enumerated, 19 read end-to-end, positive controls at scannedFileCount=2459 on every negative claim, declared limits stated in §6"
+        ],
+        "claims": [
+          {
+            "claim": "The census's castId price (347/110) was corrected by the downstream unification pass to 8,056/1,069 (a packages-only number reported under a packages+tests header) — the correction is recorded in the proposal's §6.1 and the census stands as input evidence with that one row superseded; renames are tracked as owner decision #901.",
+            "evidence": [
+              {
+                "kind": "code",
+                "target": "packages/kit/src/ids/index.ts:272"
+              },
+              {
+                "kind": "issue",
+                "target": "#901"
+              }
+            ]
+          }
+        ],
+        "summary": "Deep vocabulary census: five user-facing meanings across roster/cast/party, twelve code meanings, ranked muddles M1-M12 with per-fix site counts; sharpest defect the Members-tab Cast kicker beside the Add-cast… template-library door; recommends nothing — the naming call routed to the owner as #901."
+      },
+      "receiptCurrent": true
+    },
+    {
       "path": "docs/reviews/security/2026-08-09-authentik-provider-config-crosscheck.md",
       "lane": "reviews",
       "issue": 7,
@@ -28898,6 +28946,54 @@
           }
         ],
         "summary": "stickler frontier investigation into whether plugin surfaces (esp. card-atlas hub) can look genuinely good: node-based tiers inherit house visual styles by construction; the iframe/frame tier is limited to two color tokens + a font. Findings ranked with security tradeoffs for proposed additions."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/stickler/2026-08-30-vocab-unification.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 644,
+      "bytes": 45362,
+      "sha256": "11370c2594e6649b3e50c81e40331df5c58766ddc9dd9b6a2b13832b59063b38",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "draft",
+          "updated": "2026-08-30"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/stickler/2026-08-30-vocab-unification.md",
+        "assignedSha256": "11370c2594e6649b3e50c81e40331df5c58766ddc9dd9b6a2b13832b59063b38",
+        "disposition": "needs-owner",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "11370c2594e6649b3e50c81e40331df5c58766ddc9dd9b6a2b13832b59063b38",
+        "verifiedCommit": "2e341aabb22da103fa2dd09a5514b58c0a6617da",
+        "verifiedAt": "2026-08-30",
+        "evidence": [
+          "docs/reviews/stickler/2026-08-30-vocab-unification.md:1-645 read in full by the orchestrator (claude-b) before commit; lane cb-vocab-design (stickler, per-dispatch Opus override) — the top-down word→concept map, three priced options, eight owner forks, three census corrections each with re-derived counts"
+        ],
+        "claims": [
+          {
+            "claim": "Eight forks await the owner's ruling on #901; Option C is the recommendation (C1 client-only copy fix, C2 chat-contract seam dissolving the D137 comment fence, C3 fenced lanes incl. the merge-window rpg cast→npc with its stored-snapshot hazard).",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#901"
+              },
+              {
+                "kind": "code",
+                "target": "packages/server/src/domain/chat/persistence/cast.ts:18"
+              }
+            ]
+          }
+        ],
+        "summary": "Vocabulary unification proposal: derives every word from the owning tier (room seats = Characters, saved template = Roster, D137 producer = ChatIdentity, D60 drive axis = characters); recommends staged Option C; the D8 rpg cast:<slug> rename is merge-window class (RpgStateCorruptError on stale rows, no db-reset trigger); castId recommendation inverted to no-action on the corrected 8,056-site count."
       },
       "receiptCurrent": true
     },
