@@ -1100,9 +1100,10 @@ function writeFixtures(): void {
 // bus-payload-allowlist: scopes to 5 EXACT bus-contract file paths (BUS_FILES) — a __g_ sentinel path
 // can't match. Bite proven by gate-conformance's mustFlag + the D16 real-file backup-pattern proof
 // (apiKey planted on user-bus settingsChanged → RED → restored).
-// knob-wire-coverage (D107): a whole-corpus coverage ratchet over SINGLE-HOME member sources
-// (EffectiveAppConfig / USER_SETTINGS_SECTIONS / appSettingsSchema / DEFAULT_FORMAT_STRINGS /
-// chatMetadataSchema). Its MISSING arm needs an UNWIRED member added to one of those single-home sources —
+// knob-wire-coverage (D107): a whole-corpus coverage ratchet over its semantic member sources
+// (EffectiveAppConfig / USER_SETTINGS_SECTIONS / appSettingsSchema / imported Appearance schema /
+// DEFAULT_FORMAT_STRINGS / chatMetadataSchema). Its MISSING arm needs an UNWIRED member added to one of
+// those contract sources —
 // a throwaway `__g_` file can't add a member to the real union/interface/schema, and the STALE/ORPHAN arms
 // need a real registry edit. Its bite is proven by gate-conformance (per-arm mustFlag + STALE + the
 // paired-anchor tripwire mustFlag) + its live run on the real tree with the founding registry.
