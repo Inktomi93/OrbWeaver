@@ -5,6 +5,7 @@
     "tests/client/agent-plugin/index.test.ts",
     "tests/client/agent-rpg/index.test.ts",
     "tests/client/agent-seed/index.test.ts",
+    "tests/client/components/background-source-field.ct.tsx",
     "tests/client/components/character-picker.ct.tsx",
     "tests/client/components/confirm-dialog.ct.tsx",
     "tests/client/components/face-strip-fold.test.ts",
@@ -92,7 +93,6 @@
     "tests/client/features/auth/lib/reauth-modal.ct.tsx",
     "tests/client/features/auth/lib/route-guards.test.ts",
     "tests/client/features/auth/lib/sso-redirect.test.ts",
-    "tests/client/features/auth/surfaces/account-surface.ct.tsx",
     "tests/client/features/auth/surfaces/login-surface.ct.tsx",
     "tests/client/features/automation/components/clock-meter.ct.tsx",
     "tests/client/features/automation/components/needle-meter.ct.tsx",
@@ -225,10 +225,10 @@
     "tests/client/features/chat/surfaces/command-palette-surface.ct.tsx",
     "tests/client/features/chat/surfaces/message-list-surface.ct.tsx",
     "tests/client/features/chat/surfaces/new-chat-picker-surface.ct.tsx",
-    "tests/client/features/config/components/config-context-body.ct.tsx",
     "tests/client/features/config/components/config-group-placeholder.ct.tsx",
     "tests/client/features/config/components/config-save-footer.ct.tsx",
     "tests/client/features/config/components/config-search-input.ct.tsx",
+    "tests/client/features/config/components/config-teacher.ct.tsx",
     "tests/client/features/config/components/config-welcome.ct.tsx",
     "tests/client/features/config/lib/config-palette-source.ct.tsx",
     "tests/client/features/config/lib/config-search.test.ts",
@@ -281,6 +281,7 @@
     "tests/client/features/notifications/lib/notifications-chrome.ct.tsx",
     "tests/client/features/persona/components/persona-editor.ct.tsx",
     "tests/client/features/persona/components/persona-panel-row.ct.tsx",
+    "tests/client/features/persona/components/persona-roster.ct.tsx",
     "tests/client/features/persona/components/persona-this-chat-section.ct.tsx",
     "tests/client/features/persona/lib/persona-editor-model.test.ts",
     "tests/client/features/persona/surfaces/persona-panel-surface.ct.tsx",
@@ -368,10 +369,10 @@
     "tests/client/features/rpg/lib/dice-ask-source.ct.tsx",
     "tests/client/features/rpg/lib/dice-tool-renderer.ct.tsx",
     "tests/client/features/rpg/lib/rpg-context-section.ct.tsx",
+    "tests/client/features/settings/components/appearance-looks-section.ct.tsx",
     "tests/client/features/settings/lib/appearance-group.ct.tsx",
     "tests/client/features/settings/lib/chat-behavior-group.ct.tsx",
     "tests/client/features/settings/lib/theme-editor-model.test.ts",
-    "tests/client/features/settings/surfaces/theme-picker-surface.ct.tsx",
     "tests/client/features/stats/components/analytics-context-tabs.suite.ct.tsx",
     "tests/client/features/stats/components/analytics-models-tab.ct.tsx",
     "tests/client/features/stats/components/analytics-personas-tab.ct.tsx",
@@ -476,6 +477,7 @@
     "tests/client/state/composer-draft-store.ct.tsx",
     "tests/client/state/composer-draft-store.test.ts",
     "tests/client/state/composer-focus-store.ct.tsx",
+    "tests/client/state/config-focus-store.ct.tsx",
     "tests/client/state/config-group-ids.test.ts",
     "tests/client/state/config-group-open-store.ct.tsx",
     "tests/client/state/config-group-registry.test.ts",
@@ -485,6 +487,7 @@
     "tests/client/state/config-section-registry-context.ct.tsx",
     "tests/client/state/config-section-registry.test.ts",
     "tests/client/state/config-selection-store.ct.tsx",
+    "tests/client/state/config-teach.test.ts",
     "tests/client/state/corpus-compare-store.ct.tsx",
     "tests/client/state/corpus-search-store.ct.tsx",
     "tests/client/state/corpus-selection-store.ct.tsx",
@@ -1189,6 +1192,7 @@
     "tests/server/domain/persona/substrate/metadata.test.ts",
     "tests/server/domain/persona/verbs/connection/connect.int.test.ts",
     "tests/server/domain/persona/verbs/connection/disconnect.int.test.ts",
+    "tests/server/domain/persona/verbs/connection/list-connected-characters.int.test.ts",
     "tests/server/domain/persona/verbs/connection/list-connected.int.test.ts",
     "tests/server/domain/persona/verbs/create-from-character.int.test.ts",
     "tests/server/domain/persona/verbs/create.int.test.ts",
@@ -2086,6 +2090,7 @@
     "tests/ui/content/theme-scope/palette-contrast.suite.test.ts",
     "tests/ui/content/theme-scope/theme-scope.ct.tsx",
     "tests/ui/content/theme-scope/token-classification.suite.test.ts",
+    "tests/ui/content/theme-swatch/theme-swatch.ct.tsx",
     "tests/ui/density-tier.suite.ct.tsx",
     "tests/ui/diff/diff.ct.tsx",
     "tests/ui/fuzzy-search/index.test.ts",
@@ -2387,6 +2392,12 @@
     },
     "tests/client/state/settings-section-registry-context.ct.tsx": {
       "why": "MOVED — the config revamp (#866 S1, docs/design/config-revamp-design.md §6): the settings MODAL and its shell dissolved into the `config` SECTION, every settings-shaped group became a `sections` skimmer over the D120 contribution seam (§6.8), and the five `surface` panes decomposed into contributed sections. `settings-section-registry-context.ts` is `config-section-registry-context.ts`; the spec is tests/client/state/config-section-registry-context.ct.tsx."
+    },
+    "tests/client/features/config/components/config-context-body.ct.tsx": {
+      "why": "its SUBJECT was RETIRED: `features/config/components/config-context-body.tsx` (the Configuration `single`-context band/body pair) dissolved into the TEACHER (#866 S3, config-revamp-design.md §7.2) — the config context is `defineContextTabs<ConfigContextState>` now, rendered by the shell's own `SectionContextHost` → `ContextBracket`, so there is no band/body pair left to pin. Nothing was dropped: the say-it-once law it pinned (the no-selection copy stated ONCE; a none-collection's own copy stated ONCE; the pane names what it answers) is re-pinned against the production resolve in tests/client/features/config/components/config-teacher.ct.tsx, which also pins the S3 focused-setting seam. The band-voice computed-style arm retired WITH the band (the bracket owns the pane's head chrome and pins it in its own CT). Un-deletes only if config ever returns to a single-body context."
+    },
+    "tests/client/features/auth/surfaces/account-surface.ct.tsx": {
+      "why": "its SUBJECT was RETIRED: `features/auth/surfaces/account-surface.tsx` (the `account` modal's body) dissolved into the persona switcher's ACCOUNT FOOT (#866 S4, owner-ruled F-3 — one concept named \"account\"; D74 survives as You ⊃ Identity). Nothing was dropped: both arms it pinned (the cookie-mode identity facts + the ONE sign-out affordance; the forward-header proxy note with no logout button) are re-pinned against the foot's real mount in tests/client/features/persona/surfaces/persona-panel-surface.ct.tsx (the two mode arms at the bottom of that file), over the same stubbed /api/auth/config + /api/auth/me seams. Un-deletes only if a standalone account surface ever returns."
     }
   }
 }

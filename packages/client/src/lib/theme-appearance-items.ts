@@ -6,7 +6,7 @@
 // Homed at the `#lib` util floor (tier 4) rather than in any one of them: SET-SEAMS stage 1 split the
 // appearance pane into sections owned by their READERS, and a table three features render can have no
 // feature owner — `client-features-no-cross` forbids the sideways import, and `#lib` is the sanctioned
-// shared-vocabulary home (the `message-role-labels` / `BACKGROUND_KIND_LABELS` precedent). Its `value` is
+// shared-vocabulary home (the `message-role-labels` precedent). Its `value` is
 // pinned to the AppearanceSettings field union via a total `Record`, so a typo'd value is a tsc error, not
 // a silently-unselectable option. (`CHAT_STYLE_ITEMS` lived here too until its third reader — the theme
 // editor's Message-style select — was struck as a dead switch; it re-homed with chat, its one reader.)

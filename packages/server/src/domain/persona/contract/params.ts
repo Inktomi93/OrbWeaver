@@ -52,6 +52,10 @@ export interface ListConnectedParams extends PersonaActorParams {
   readonly characterId: CharacterId;
 }
 
+export interface ListConnectedCharactersParams extends PersonaActorParams {
+  readonly personaId: PersonaId;
+}
+
 export interface SetActivePersonaParams {
   readonly principal: Principal;
   readonly chatId: ChatId;

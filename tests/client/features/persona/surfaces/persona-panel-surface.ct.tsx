@@ -1,90 +1,53 @@
-// CT: the You sheet's persona list (`personaChrome.body("sheet")` → `PersonaPanelSurface`) — #458.
+// CT: the persona SWITCHER (#866 S4 — `PersonaPanelSurface`, both lenses). The rail slot carries only
+// what travels with a switch (the frequency law): who-head · switch rows (with the inline pin) · the
+// contextual in-chat block (bar lens, chat open) · the Manage door · the account foot (the retired
+// `account` modal's facts + Log out, owner-ruled F-3). The roster/editor/import/export moved to
+// Config → Personas — `persona-roster.ct.tsx` owns those pins now.
 //
-// THE DEFECT THIS PINS: two personas can legitimately carry the same name (the user names two "Traveler",
-// duplicates one, restores a backup beside its original), and the row's two name-embedding controls then
-// announce IDENTICAL accessible names — the census taken off the live mobile sheet read
-// `actionRows: ["Actions for Traveler","Actions for Traveler"]`. A screen-reader or agent walk of the list
-// cannot tell those rows apart, which is exactly the collision `rowQualifiers` exists to resolve (#443, the
-// regex roster's "New script" × 2). The qualifier is resolved with the WHOLE list in hand — a per-row
-// derivation cannot know that its name collided.
-//
-// WHAT THIS FILE DELIBERATELY DOES NOT PIN — the reported symptom's other half. The mobile sheet also showed
-// two rows both subtitled "Your default persona" with one crown. That subtitle is `persona.title`, which is
-// USER-EDITABLE PROSE (the seeder authors the string at
-// packages/server/src/entry/boot/seed-default-persona.ts); it is not derived from any flag, and no client
-// change can make prose agree with state without deleting what the user wrote. The crown alone is the
-// default's statement, and the last test here fences exactly that: N rows may CLAIM default in prose, only
-// the one the settings pointer names wears the crown.
+// The load-bearing wires proven here, red-first against the rebuilt surface:
+//   · the SCOPE routes the switch: Everywhere ⇒ the seed pointer (`settings.updateUserSettingsSection`),
+//     This chat ⇒ the per-participant slot (`persona.setActivePersona`) — two different verbs, one row.
+//   · the contextual block exists ONLY while a chat room is open.
+//   · re-attribute fires `chat.reattributePersona` with the server-resolved `{kind:"mine"}` scope.
+//   · the sheet lens is the same grammar MINUS the contextual block, and carries none of the roster's
+//     management controls.
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import type { ChatId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
+import type { TrpcRecorder, TrpcRoutes } from "../../../../support/ct/route-trpc.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
-import { PersonaYouSheetStory } from "../_ct-stories.tsx";
+import { PersonaSwitcherBarStory, PersonaYouSheetStory } from "../_ct-stories.tsx";
 
 const NOVA = "persona_nova";
-const TRAVELER_OLD = "persona_traveler_old";
-const TRAVELER_NEW = "persona_traveler_new";
+const ORION = "persona_orion";
+const CHAT_ID = castId<ChatId>("chat_switcher_ct");
 
-// The prose that CLAIMS default. It was the SEEDER's title until #462 (owner ruling 2026-08-22) replaced the
-// seeded copy with the descriptor "Your first persona" — precisely because a state sentence in user-editable
-// prose goes false and stays displayed. The literal stays HERE verbatim: this fence is about what the client
-// does when N rows claim default in prose, and a user can still type this sentence into any persona's title.
-const DEFAULT_CLAIMING_TITLE = "Your default persona";
-
-const ACTIONS_LABEL = /^Actions for /;
-const SWITCH_LABEL = /^Switch to /;
-const QUALIFIED_TRAVELER = /^Actions for "Traveler" · .+/;
-
-// THREE rows, two of them same-named — the shape the collision actually needs. A two-row list cannot show it
-// on the SELECT target: the surface's current-persona resolution (current → default → first) always makes
-// one of two rows the current one, and the current arm's label differs by construction. With a third row
-// holding "current", both Travelers are switch-targets and the collision is reachable on both controls.
-//
-// Both Travelers carry the default-CLAIMING title (the live receipt: two byte-identical seeded rows, seeded
-// before #462 retired that copy) so the crown fence below runs against the exact prose that contradicted it
-// on screen.
 const PERSONAS = [
-  {
-    id: NOVA,
-    name: "Nova",
-    title: "the navigator",
-    description: "",
-    starred: false,
-    avatarAssetId: null,
-    avatarHash: null,
-    metadata: null,
-    createdAt: 1,
-    updatedAt: 1,
-  },
-  {
-    id: TRAVELER_OLD,
-    name: "Traveler",
-    title: DEFAULT_CLAIMING_TITLE,
-    description: "",
-    starred: false,
-    avatarAssetId: null,
-    avatarHash: null,
-    metadata: null,
-    createdAt: 1_787_334_249_923,
-    updatedAt: 1_787_334_249_923,
-  },
-  {
-    id: TRAVELER_NEW,
-    name: "Traveler",
-    title: DEFAULT_CLAIMING_TITLE,
-    description: "",
-    starred: false,
-    avatarAssetId: null,
-    avatarHash: null,
-    metadata: null,
-    createdAt: 1_787_404_033_943,
-    updatedAt: 1_787_404_033_943,
-  },
+  { id: NOVA, name: "Nova", title: null, description: "", starred: false, avatarAssetId: null, avatarHash: null, metadata: null, createdAt: 1, updatedAt: 1 },
+  { id: ORION, name: "Orion", title: null, description: "", starred: false, avatarAssetId: null, avatarHash: null, metadata: null, createdAt: 2, updatedAt: 2 },
 ];
 
-/** Nova is BOTH the current and the default persona, so neither Traveler is current and neither is crowned. */
-function stub(page: Page): Promise<unknown> {
+/** The viewer's solo room, playing Nova in-chat. Shaped as `chat.getChat` returns it (the
+ *  persona-this-chat-section fixture's shape, title added — the contextual block renders it). */
+const CHAT = {
+  id: CHAT_ID,
+  title: "The Ashen Spire",
+  viewerUserId: "user_ct",
+  viewerActivePersonaId: NOVA,
+  anchorPersonaId: NOVA,
+  viewerIsHost: true,
+  participants: [],
+  cast: PERSONAS.map((p) => ({ kind: "persona", id: p.id, name: p.name, description: "", avatarHash: null })),
+};
+
+const SEED_PROC = "settings.updateUserSettingsSection";
+const ACTIVE_PROC = "persona.setActivePersona";
+const RESTAMP_PROC = "chat.reattributePersona";
+
+function stub(page: Page, extra: TrpcRoutes = {}): Promise<TrpcRecorder> {
   return routeTrpc(page, {
     "persona.list": () => PERSONAS,
     "settings.getUserSettings": () => ({
@@ -93,113 +56,165 @@ function stub(page: Page): Promise<unknown> {
       config: { ...DEFAULT_USER_SETTINGS, seeds: { ...DEFAULT_USER_SETTINGS.seeds, currentPersonaId: NOVA, defaultPersonaId: NOVA } },
       updatedAt: 0,
     }),
+    [SEED_PROC]: () => ({}),
+    [ACTIVE_PROC]: () => ({}),
+    [RESTAMP_PROC]: () => ({}),
+    ...extra,
   });
 }
 
-/** The accessible names of every control matching `pattern`, in DOM order. Read off `aria-label` because
- *  that IS the computed name for these icon-only / stretched controls, and the assertion is about the string
- *  a reader hears, not about a class or a prop. */
-async function labels(page: Page, pattern: RegExp): Promise<readonly string[]> {
-  const all = await page
-    .locator("button[aria-label]")
-    .evaluateAll((els: readonly Element[]): readonly string[] => els.map((el) => el.getAttribute("aria-label") ?? ""));
-  return all.filter((label) => pattern.test(label));
+/** The account foot's HTTP reads (they ride `page.route`, not the tRPC seam). */
+async function stubAuth(page: Page, mode = "local"): Promise<void> {
+  await page.route("**/api/auth/config", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        mode,
+        requiresLogin: mode !== "single-user",
+        localEnabled: mode === "local",
+        oidcEnabled: mode === "oidc",
+        discreetLogin: false,
+        defaultHandle: "owner",
+      }),
+    }),
+  );
+  await page.route("**/api/auth/me", (route) =>
+    route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ authenticated: true, handle: "owner", role: "owner" }) }),
+  );
 }
 
-/** Every `aria-label`-named control INSIDE a persona row, grouped by row, in DOM order. Scoped to the rows
- *  (each row is the `persona-row-name` column's parent) so the band's own verbs — New persona, Restore — are
- *  not mistaken for row controls. */
-function rowControlLabels(page: Page): Promise<readonly (readonly string[])[]> {
-  return page
-    .locator('[data-slot="persona-row-name"]')
-    .evaluateAll((els: readonly Element[]): readonly (readonly string[])[] =>
-      els.map((el) =>
-        Array.from((el.parentElement as HTMLElement).querySelectorAll("button[aria-label]")).map((button) => button.getAttribute("aria-label") ?? ""),
-      ),
-    );
+/** Open the bar lens's popover (the rail avatar chip). */
+async function openPopover(page: Page): Promise<void> {
+  await page.getByRole("button", { name: "Playing as Nova" }).click();
+  await expect(page.getByRole("dialog", { name: "Account & personas" })).toBeVisible();
 }
 
-// ── EVERY ROW CONTROL NAMES ITS ROW (#463) ──────────────────────────────────────────────────────────
-// #458 fixed the two controls that already embedded the name (the kebab + the stretched select target) and
-// left the other five GENERIC: "Rename persona", "Change avatar", "Favorite"/"Unfavorite", "Set as default",
-// "Show details" were byte-identical on EVERY row. That collision does not need two personas to share a name
-// — it exists between any two rows — so a reader tabbing the list hears the same five controls three times
-// and cannot tell which persona they act on. The fix is the #443 subject on every one of them, which is why
-// this pin is a set-size claim over the whole list rather than a per-label spelling.
-test("no two controls in the persona list share an accessible name — every row control names its row", async ({ mount, page }) => {
-  await stub(page);
-  await mount(<PersonaYouSheetStory />);
-  await expect(page.getByText("Nova", { exact: true })).toBeVisible();
+// ── The SHEET lens ──────────────────────────────────────────────────────────────────────────────────
 
-  const rows = await rowControlLabels(page);
-  expect(rows).toHaveLength(3);
-  const all = rows.flat();
-  // The receipt names the offenders rather than a bare count — the defect read
-  // ["Rename persona","Rename persona","Rename persona","Change avatar", …].
-  expect(all.filter((label, index) => all.indexOf(label) !== index)).toEqual([]);
+test("the sheet is the switcher grammar: who-head, switch rows with pins, account foot — no roster chrome", async ({ mount, page }) => {
+  await stub(page);
+  await stubAuth(page);
+  await mount(<PersonaYouSheetStory />);
+
+  // The who-head: current persona + the pinned wording (Nova is current AND default here).
+  await expect(page.getByText("Playing as · pinned — your default everywhere")).toBeVisible();
+  // The switch rows: the current row is named for its state; the other carries the verb + the faint pin.
+  await expect(page.getByRole("button", { name: "Nova — current persona" })).toHaveAttribute("aria-current", "true");
+  await expect(page.getByRole("button", { name: "Switch to Orion", exact: true })).toBeAttached();
+  await expect(page.getByRole("button", { name: "Pin Orion as your default", exact: true })).toBeAttached();
+  await expect(page.getByRole("img", { name: "Pinned — your default persona" })).toHaveCount(1);
+  // The account foot carries the identity facts + Log out (the retired modal's anatomy, F-3).
+  await expect(page.getByTestId("account-surface")).toContainText("owner");
+  await expect(page.getByTestId("account-logout")).toBeVisible();
+  // NONE of the roster's management chrome lives here any more (#866 S4 — it moved to Config → Personas).
+  await expect(page.getByRole("button", { name: /^Rename / })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /^Actions for / })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "New persona" })).toHaveCount(0);
+  // …and no contextual block: a phone switch is the Everywhere mechanism (the board draws none).
+  await expect(page.getByText("Applies")).toHaveCount(0);
 });
 
-// The mechanism behind the set-size claim, stated so a future "make them unique some other way" cannot pass:
-// what a row's controls carry is the row's own SUBJECT (the persona's name, plus the #458 qualifier where the
-// name itself collided) — never an opaque index or an id.
-test("each row's controls all embed that row's persona name", async ({ mount, page }) => {
-  await stub(page);
+test("a sheet switch writes the SEED pointer (Everywhere is the only sheet scope)", async ({ mount, page }) => {
+  const trpc = await stub(page);
+  await stubAuth(page);
   await mount(<PersonaYouSheetStory />);
-  await expect(page.getByText("Nova", { exact: true })).toBeVisible();
-
-  const [nova, ...travelers] = await rowControlLabels(page);
-  expect(nova?.length ?? 0).toBeGreaterThan(3);
-  expect((nova ?? []).filter((label) => !label.includes("Nova"))).toEqual([]);
-  for (const row of travelers) {
-    expect(row.filter((label) => !label.includes("Traveler"))).toEqual([]);
-  }
+  await page.getByRole("button", { name: "Switch to Orion", exact: true }).dispatchEvent("click");
+  await expect.poll(() => trpc.lastInput(SEED_PROC), { intervals: [20, 50, 100] }).toMatchObject({ section: "seeds", patch: { currentPersonaId: ORION } });
+  expect(trpc.count(ACTIVE_PROC)).toBe(0); // ONESHOT-OK: settled — the seed write above already resolved
 });
 
-test("two same-named personas get DISTINCT kebab names — the row's actions announce which row they belong to", async ({ mount, page }) => {
-  await stub(page);
+test("the pin writes defaultPersonaId — and never the current pointer", async ({ mount, page }) => {
+  const trpc = await stub(page);
+  await stubAuth(page);
   await mount(<PersonaYouSheetStory />);
-  await expect(page.getByText("Nova", { exact: true })).toBeVisible();
-
-  const actions = await labels(page, ACTIONS_LABEL);
-  expect(actions).toHaveLength(3);
-  // The defect: ["Actions for Traveler", "Actions for Traveler"] — one accessible name, two controls.
-  expect(new Set(actions).size).toBe(3);
-  // …and the escalation wears the HOUSE grammar (`rowActionSubject`: `"name" · qualifier`), not some
-  // row-local spelling. The qualifier itself is time-relative and ages, so the pin is its SHAPE.
-  expect(actions.filter((label) => QUALIFIED_TRAVELER.test(label))).toHaveLength(2);
+  await page.getByRole("button", { name: "Pin Orion as your default", exact: true }).dispatchEvent("click");
+  await expect.poll(() => trpc.lastInput(SEED_PROC), { intervals: [20, 50, 100] }).toMatchObject({ section: "seeds", patch: { defaultPersonaId: ORION } });
 });
 
-test("two same-named personas get DISTINCT switch-target names — the stretched select button too", async ({ mount, page }) => {
-  await stub(page);
-  await mount(<PersonaYouSheetStory />);
-  await expect(page.getByText("Nova", { exact: true })).toBeVisible();
+// ── The BAR lens (the rail popover) ─────────────────────────────────────────────────────────────────
 
-  const switches = await labels(page, SWITCH_LABEL);
-  expect(switches).toHaveLength(2); // Nova is current, so its row carries the current arm instead
-  expect(new Set(switches).size).toBe(2);
+test("with NO chat open the popover renders the switcher without the contextual block", async ({ mount, page }) => {
+  await stub(page);
+  await stubAuth(page);
+  await mount(<PersonaSwitcherBarStory />);
+  await openPopover(page);
+
+  await expect(page.getByRole("button", { name: "Switch to Orion", exact: true })).toBeAttached();
+  await expect(page.getByRole("button", { name: "Manage personas in Settings" })).toBeVisible();
+  // The contextual block is chat-scoped chrome — absent here, by derivation (useActiveChatId() === null).
+  await expect(page.getByText("Applies")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /^Re-attribute / })).toHaveCount(0);
 });
 
-// The qualifier is SPENT, not sprayed. A persona row shows no timestamp (unlike the chats/presets/regex rows
-// the lib was written for), so announcing a stamp on a row whose name is already unique would name a datum
-// that is nowhere on screen. Rows that are already distinct keep the bare name.
-test("a row whose name does NOT collide keeps its bare name — no qualifier is spent", async ({ mount, page }) => {
-  await stub(page);
-  await mount(<PersonaYouSheetStory />);
-  await expect(page.getByText("Nova", { exact: true })).toBeVisible();
+test("with a chat open the contextual block renders, and the DEFAULT scope still routes a switch to the seed pointer", async ({ mount, page }) => {
+  const trpc = await stub(page, { "chat.getChat": () => CHAT });
+  await stubAuth(page);
+  await mount(<PersonaSwitcherBarStory chatId={CHAT_ID} />);
+  await openPopover(page);
 
-  await expect(page.getByRole("button", { name: "Actions for Nova", exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Nova — current persona", exact: true })).toBeVisible();
+  await expect(page.getByText("In The Ashen Spire")).toBeVisible();
+  await expect(page.getByRole("group", { name: "Where the next switch applies" })).toBeVisible();
+
+  await page.getByRole("button", { name: "Switch to Orion", exact: true }).dispatchEvent("click");
+  await expect.poll(() => trpc.lastInput(SEED_PROC), { intervals: [20, 50, 100] }).toMatchObject({ section: "seeds", patch: { currentPersonaId: ORION } });
+  expect(trpc.count(ACTIVE_PROC)).toBe(0); // ONESHOT-OK: settled — the seed write above already resolved
 });
 
-// THE CROWN IS THE DEFAULT'S ONE STATEMENT (#458). Two rows here carry the seeded title "Your default
-// persona" as PROSE while neither is the default — the exact state the mobile sheet was screenshotted in.
-// The prose is the user's to edit and the client renders it verbatim; what must never drift is the marker
-// that is actually derived from `seeds.defaultPersonaId`.
-test("exactly ONE row wears the crown, however many rows CLAIM default in their subtitle prose", async ({ mount, page }) => {
-  await stub(page);
-  await mount(<PersonaYouSheetStory />);
-  await expect(page.getByText("Nova", { exact: true })).toBeVisible();
+test("flipping the scope to This chat routes the SAME row to persona.setActivePersona for THIS room", async ({ mount, page }) => {
+  const trpc = await stub(page, { "chat.getChat": () => CHAT });
+  await stubAuth(page);
+  await mount(<PersonaSwitcherBarStory chatId={CHAT_ID} />);
+  await openPopover(page);
 
-  await expect(page.getByText(DEFAULT_CLAIMING_TITLE)).toHaveCount(2);
-  await expect(page.getByRole("img", { name: "Your default" })).toHaveCount(1);
+  await page.getByRole("button", { name: "This chat" }).click();
+  await page.getByRole("button", { name: "Switch to Orion", exact: true }).dispatchEvent("click");
+  await expect.poll(() => trpc.lastInput(ACTIVE_PROC), { intervals: [20, 50, 100] }).toMatchObject({ chatId: CHAT_ID, personaId: ORION });
+  expect(trpc.count(SEED_PROC)).toBe(0); // ONESHOT-OK: settled — the setActivePersona write above already resolved
+});
+
+test("under the This-chat scope the MARKED row is the chat's active persona, not the global pointer", async ({ mount, page }) => {
+  // The chat plays ORION while the seed points at NOVA — the two lenses must disagree, visibly.
+  await stub(page, { "chat.getChat": () => ({ ...CHAT, viewerActivePersonaId: ORION }) });
+  await stubAuth(page);
+  await mount(<PersonaSwitcherBarStory chatId={CHAT_ID} />);
+  await openPopover(page);
+
+  await expect(page.getByRole("button", { name: "Nova — current persona" })).toBeAttached();
+  await page.getByRole("button", { name: "This chat" }).click();
+  await expect(page.getByRole("button", { name: "Orion — current persona" })).toBeAttached();
+  await expect(page.getByRole("button", { name: "Switch to Nova", exact: true })).toBeAttached();
+});
+
+test("re-attribute fires chat.reattributePersona with the server-resolved {kind:'mine'} scope", async ({ mount, page }) => {
+  const trpc = await stub(page, { "chat.getChat": () => CHAT });
+  await stubAuth(page);
+  await mount(<PersonaSwitcherBarStory chatId={CHAT_ID} />);
+  await openPopover(page);
+
+  await page.getByRole("button", { name: "Re-attribute your messages here → Nova" }).click();
+  await expect
+    .poll(() => trpc.lastInput(RESTAMP_PROC), { intervals: [20, 50, 100] })
+    .toMatchObject({ chatId: CHAT_ID, scope: { kind: "mine" }, personaId: NOVA });
+});
+
+// ── The account foot's mode arms (ported from the retired account-surface.ct.tsx — same anatomy, new home) ──
+
+test("the foot renders the viewer identity + Log out in a cookie mode (local)", async ({ mount, page }) => {
+  await stub(page);
+  await stubAuth(page, "local");
+  await mount(<PersonaYouSheetStory />);
+  const foot = page.getByTestId("account-surface");
+  await expect(foot).toContainText("owner");
+  await expect(foot).toContainText("local");
+  await expect(page.getByTestId("account-logout")).toBeVisible();
+});
+
+test("forward-header mode shows the proxy sign-out note instead of a Log out button (no cookie session)", async ({ mount, page }) => {
+  await stub(page);
+  await stubAuth(page, "forward-header");
+  await mount(<PersonaYouSheetStory />);
+  await expect(page.getByTestId("account-surface")).toBeVisible();
+  await expect(page.getByTestId("account-logout")).toHaveCount(0);
+  await expect(page.getByText("Sign out at your identity provider / reverse proxy.")).toBeVisible();
 });

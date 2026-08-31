@@ -32,6 +32,8 @@ const TAG = {
 const AMBIENT: Readonly<Record<string, unknown>> = {
   "sessions.me": { userId: USER_SETTINGS_VIEW.userId, handle: "ct_search", globalRole: "user" },
   "settings.getUserSettings": () => USER_SETTINGS_VIEW,
+  // The Looks section (#866 S4) reads the theme library the moment the appearance group mounts.
+  "settings.listThemes": () => [],
   "tag.listTagsWithUsage": [TAG],
   "regex.listScripts": [],
   "worldInfo.listBooksWithUsage": [],

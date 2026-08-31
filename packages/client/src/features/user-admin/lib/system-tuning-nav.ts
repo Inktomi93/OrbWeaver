@@ -31,5 +31,15 @@ export const SYSTEM_TUNING_SUBCATEGORY: ConfigSubcategory = {
     "anthropic",
     "claude",
   ],
-  settings: [{ id: "promptCacheMinDepth", label: "Prompt-cache depth floor", keywords: ["cache", "depth", "breakpoint", "anthropic", "claude", "cost"] }],
+  settings: [
+    {
+      id: "promptCacheMinDepth",
+      label: "Prompt-cache depth floor",
+      keywords: ["cache", "depth", "breakpoint", "anthropic", "claude", "cost"],
+      teach: {
+        summary: "The shallowest prompt depth a cache breakpoint may sit at \u2014 deeper floors trade cache hits for fewer billed cache writes.",
+        affects: ["prompt-cache cost and hit rate on Anthropic connections"],
+      },
+    },
+  ],
 };

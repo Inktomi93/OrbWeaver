@@ -24,6 +24,7 @@ import { PersonaForm } from "../hooks/use-persona-form.ts";
 import { useDuplicatePersona, useUpdatePersona } from "../hooks/use-persona-mutations.ts";
 import type { PersonaFormValues } from "../lib/persona-editor-model.ts";
 import { isPrefillCombo, personaFormFromEntity, personaInputFromForm } from "../lib/persona-editor-model.ts";
+import { PersonaConnectedCharacters } from "./persona-connected-characters.tsx";
 import { PersonaLoreBookField } from "./persona-world-books-section.tsx";
 
 type PersonaDetail = inferOutput<Trpc["persona"]["get"]>;
@@ -163,6 +164,9 @@ function PersonaEditorBody({ session, persona, onRequestDelete }: PersonaEditorB
       </Stack>
 
       <PersonaLoreBookField personaId={persona.id} />
+
+      {/* #866 S4 — the junction from the persona side (persona.listConnectedCharacters + connect/disconnect). */}
+      <PersonaConnectedCharacters personaId={persona.id} />
 
       <ProvenanceChip metadata={baseMetadata} />
 

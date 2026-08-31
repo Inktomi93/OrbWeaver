@@ -20,21 +20,32 @@ import { AppearanceGroupStory } from "../_ct-stories.tsx";
 const SETTINGS_VIEW = { userId: "user_ct_appearance_pane", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 };
 const UPDATE_PROC = "settings.updateUserSettingsSection";
 
-/** The pane's eight sections, in the door's declared order (main.tsx) — which IS the render order. */
+/** The anchors rendered AT REST, in door order (#866 S4): Looks leads (the theme fold), and the three
+ *  `advanced` sections (sizing & motion · reading typography · effects) live INSIDE the collapsed
+ *  "Customize this look" fold — their anchors only exist once the fold opens (asserted separately). */
 const ANCHOR_ORDER = [
+  "config-anchor-appearance-looks",
   "config-anchor-appearance-message-style",
   "config-anchor-appearance-avatars",
-  "config-anchor-appearance-sizing",
   "config-anchor-appearance-message-details",
   "config-anchor-appearance-background",
-  "config-anchor-appearance-reading-typography",
-  "config-anchor-appearance-effects",
   "config-anchor-appearance-library",
 ];
 
-/** The nav rows the pane DERIVES from its contributions, in door order — a section that declares a
- *  `navLabel` shows THAT here ("Message details & actions" stays the heading). */
-const NAV_LABELS = ["Message style", "Avatars", "Sizing & motion", "Message details", "Background", "Reading typography", "Effects", "Library"];
+/** The anchors the FOLD reveals, in door order — the fold panel renders AFTER the plain sections. */
+const FOLDED_ANCHORS = ["config-anchor-appearance-sizing", "config-anchor-appearance-reading-typography", "config-anchor-appearance-effects"];
+const EXPANDED_ANCHOR_ORDER = [...ANCHOR_ORDER, ...FOLDED_ANCHORS];
+
+/** The nav rows the pane DERIVES from its contributions, in door order — the FOLD never hides a row (the
+ *  LIST stays the map); a section that declares a `navLabel` shows THAT here. */
+const NAV_LABELS = ["Looks", "Message style", "Avatars", "Sizing & motion", "Message details", "Background", "Reading typography", "Effects", "Library"];
+
+/** The Looks section's theme reads (#866 S4) — three seeds, no owned rows. */
+const LOOKS_THEMES = [
+  { id: "theme_00000000000000000000000001", name: "Hearth", override: {}, css: null, isSeed: true, createdAt: 0, updatedAt: 0 },
+  { id: "theme_00000000000000000000000002", name: "Mocha", override: {}, css: null, isSeed: true, createdAt: 0, updatedAt: 0 },
+  { id: "theme_00000000000000000000000003", name: "Light", override: {}, css: null, isSeed: true, createdAt: 0, updatedAt: 0 },
+];
 
 function stub(page: Page, update: TrpcResponder = (): unknown => ({})): Promise<TrpcRecorder> {
   return routeTrpc(page, {
@@ -45,6 +56,7 @@ function stub(page: Page, update: TrpcResponder = (): unknown => ({})): Promise<
     "worldInfo.listBooksWithUsage": [],
     "rosterPreset.list": [],
     "settings.getUserSettings": () => SETTINGS_VIEW,
+    "settings.listThemes": () => LOOKS_THEMES,
     "sessions.me": () => ({ user: { id: SETTINGS_VIEW.userId, role: "user" } }),
     [UPDATE_PROC]: update,
   });
@@ -64,7 +76,7 @@ function patchCountFor(trpc: TrpcRecorder, key: string): number {
   return patches(trpc).filter((patch) => key in patch).length;
 }
 
-test("the skimmer renders all eight contributed sections, in the door's declared order", async ({ mount, page }) => {
+test("at rest the skimmer renders Looks + the plain sections in door order — the fold's three are CLOSED", async ({ mount, page }) => {
   await stub(page);
   await mount(<AppearanceGroupStory />);
   await page.getByRole("heading", { name: "Message style" }).waitFor();
@@ -85,6 +97,92 @@ test("subcategory sections are a single column, stacked in registry order", asyn
   expect(findSettingsColumnViolation(geometry, ANCHOR_ORDER.length)).toBeNull();
 });
 
+// #297's explicit custom arm (#866 S4): the fine-tuning knobs ride ONE collapsed disclosure. Opening it
+// reveals the three advanced sections in door order; at rest their anchors do not exist (the rest-state
+// half is the ANCHOR_ORDER assertion above).
+test("the Customize-this-look fold opens to the three advanced sections, in door order", async ({ mount, page }) => {
+  await stub(page);
+  await mount(<AppearanceGroupStory />);
+  await page.getByRole("heading", { name: "Message style" }).waitFor();
+
+  await page.getByRole("button", { name: /Customize this look/ }).click();
+  await expect
+    .poll(async () => await page.evaluate(() => [...document.querySelectorAll('[id^="config-anchor-appearance-"]')].map((el) => el.id)))
+    .toStrictEqual(EXPANDED_ANCHOR_ORDER);
+});
+
+// R-BG (#866 S4): the background is picked by THUMBNAIL — the kind DERIVES from the tapped tile and every
+// selection field rides ONE autosave patch (BG-D). Red-first: the pre-S4 surface had no grid at all.
+test("tapping a seeded background tile writes kind+id in ONE patch; the None tile clears", async ({ mount, page }) => {
+  const trpc = await stub(page);
+  await mount(<AppearanceGroupStory />);
+  await page.getByRole("heading", { name: "Message style" }).waitFor();
+
+  const grid = page.getByRole("grid", { name: "Background image" });
+  await grid.scrollIntoViewIfNeeded();
+  await grid.getByRole("gridcell", { name: "Misty highlands" }).click();
+  await expect
+    .poll(() => patches(trpc).find((patch) => patch["backgroundImageKind"] === "seeded")?.["backgroundSeededId"], { intervals: [50, 100, 200] })
+    .toBe("misty-highlands");
+
+  await grid.getByRole("gridcell", { name: "No background" }).click();
+  await expect.poll(() => patches(trpc).some((patch) => patch["backgroundImageKind"] === "none"), { intervals: [50, 100, 200] }).toBe(true);
+});
+
+// The DERIVED library population (R-BG): every `backgroundLibrary` entry is a tile, and removing the
+// SELECTED entry resets the selection to None in the SAME patch (never a dangling assetId).
+test("library entries render as tiles; Remove-from-library of the selected entry resets to None", async ({ mount, page }) => {
+  const entryA = { entryId: "e1", assetId: "asset_00000000000000000000000001", assetHash: "hashaaa", mime: "image/png", name: "My dock" };
+  const entryB = { entryId: "e2", assetId: "asset_00000000000000000000000002", assetHash: "hashbbb", mime: "image/png", name: "My forest" };
+  const withLibrary = {
+    ...SETTINGS_VIEW,
+    config: {
+      ...DEFAULT_USER_SETTINGS,
+      appearance: {
+        ...DEFAULT_USER_SETTINGS.appearance,
+        backgroundImageKind: "asset",
+        backgroundAssetId: entryA.assetId,
+        backgroundAssetHash: entryA.assetHash,
+        backgroundAssetMime: entryA.mime,
+        backgroundLibrary: [entryA, entryB],
+      },
+    },
+  };
+  const trpc = await routeTrpc(page, {
+    "tag.listTagsWithUsage": [],
+    "regex.listScripts": [],
+    "worldInfo.listBooksWithUsage": [],
+    "rosterPreset.list": [],
+    "settings.getUserSettings": () => withLibrary,
+    "settings.listThemes": () => LOOKS_THEMES,
+    "sessions.me": () => ({ user: { id: SETTINGS_VIEW.userId, role: "user" } }),
+    [UPDATE_PROC]: () => ({}),
+  });
+  await mount(<AppearanceGroupStory />);
+  await page.getByRole("heading", { name: "Message style" }).waitFor();
+
+  const grid = page.getByRole("grid", { name: "Background image" });
+  await grid.scrollIntoViewIfNeeded();
+  // Both entries are tiles (derived population, two planted), and the selected one wears aria-selected.
+  await expect(grid.getByRole("gridcell", { name: "My dock" })).toBeVisible();
+  await expect(grid.getByRole("gridcell", { name: "My forest" })).toBeVisible();
+  await expect(grid.getByRole("gridcell", { name: "My dock" })).toHaveAttribute("aria-selected", "true");
+
+  await page.getByRole("button", { name: "Actions for My dock" }).click();
+  await page.getByRole("menuitem", { name: "Remove from library" }).click();
+  await expect
+    .poll(
+      () => {
+        const patch = patches(trpc).find((p) => Array.isArray(p["backgroundLibrary"]) && (p["backgroundLibrary"] as unknown[]).length === 1);
+        return patch === undefined
+          ? null
+          : { kind: patch["backgroundImageKind"], rows: (patch["backgroundLibrary"] as { entryId: string }[]).map((r) => r.entryId) };
+      },
+      { intervals: [50, 100, 200] },
+    )
+    .toEqual({ kind: "none", rows: ["e2"] });
+});
+
 // P2 — SIBLING ISOLATION (SET-SEAMS §9). The whole reason patches are key-minimal: section A's debounced
 // save must not carry, re-seed, or stomp section B's state. Two sections of ONE namespace, edited in turn.
 test("a section's save carries none of its siblings' keys and never re-fires or resets them", async ({ mount, page }) => {
@@ -92,7 +190,24 @@ test("a section's save carries none of its siblings' keys and never re-fires or 
   await mount(<AppearanceGroupStory />);
   await page.getByRole("heading", { name: "Message style" }).waitFor();
 
-  // B: Effects — pick a texture, wait for ITS save.
+  // B: Effects — inside the Customize-this-look fold now (#866 S4): open it, BARRIER on the panel's
+  // height settling (the open animation moves the select trigger, and an anchored popup over a moving
+  // trigger is never "stable" — ct-collapsible height-stability), then pick a texture.
+  await page.getByRole("button", { name: /Customize this look/ }).click();
+  const effectsAnchor = page.locator("#config-anchor-appearance-effects");
+  await expect(effectsAnchor).toBeVisible();
+  let lastHeight = -1;
+  await expect
+    .poll(
+      async () => {
+        const box = await effectsAnchor.boundingBox();
+        const settled = box !== null && box.height === lastHeight;
+        lastHeight = box?.height ?? -1;
+        return settled;
+      },
+      { intervals: [100, 150, 200, 300] },
+    )
+    .toBe(true);
   await page.getByRole("combobox", { name: "Surface texture" }).click();
   await page.getByRole("option", { name: "Film grain" }).click();
   await expect.poll(() => patchCountFor(trpc, "surfaceTexture"), { intervals: [20, 50, 100] }).toBe(1);

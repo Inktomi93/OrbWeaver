@@ -7,7 +7,7 @@
 
 import type { PersonaContext } from "./context.ts";
 import type { PersonaService } from "./contract/service.ts";
-import { createConnect, createDisconnect, createListConnected } from "./verbs/connection/index.ts";
+import { createConnect, createDisconnect, createListConnected, createListConnectedCharacters } from "./verbs/connection/index.ts";
 import { createCreate } from "./verbs/create.ts";
 import { createCreateFromCharacter } from "./verbs/create-from-character.ts";
 import { createDuplicate } from "./verbs/duplicate.ts";
@@ -30,6 +30,7 @@ export function createPersonaService(ctx: PersonaContext): PersonaService {
     connectToCharacter: createConnect(ctx),
     disconnectFromCharacter: createDisconnect(ctx),
     listConnectedToCharacter: createListConnected(ctx),
+    listConnectedCharacters: createListConnectedCharacters(ctx),
     setActivePersona: createSetActive(ctx),
     duplicate: createDuplicate(ctx),
     export: createExport(ctx),

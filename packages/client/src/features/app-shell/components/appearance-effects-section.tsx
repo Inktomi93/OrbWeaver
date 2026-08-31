@@ -21,7 +21,7 @@ import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { SettingSwitchRow } from "#components";
+import { ConfigTeachScope, SettingRow, SettingSwitchRow } from "#components";
 import { createEntityMutation, QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms";
@@ -84,78 +84,67 @@ function EffectsBody({ sectionId, session }: { readonly sectionId: string; reado
       heading={APPEARANCE_EFFECTS_SUBCATEGORY.label}
       id={configAnchorId("appearance", APPEARANCE_EFFECTS_SUBCATEGORY.id)}
     >
-      <FieldLayout orientation="horizontal">
-        <Stack gap="field">
-          <Text voice="label">Frosted glass</Text>
-          <Text className="max-w-prose" voice="gloss">
-            Backdrop blur + a translucent fill on the surfaces you pick. Messages carry glass poorly (scrolling prose over blur), so they stay off unless you
-            opt in.
-          </Text>
-          <form.AppField name="blurSurfaces">
-            {(field): ReactElement => (
-              <Stack gap="field">
-                {BLUR_SURFACE_ITEMS.map((item) => {
-                  // item.value is a BlurSurface by construction (BLUR_SURFACE_ITEMS is built from
-                  // BLUR_SURFACES); the SelectOption shape widens it to string, so re-narrow at the toggle.
-                  const surface = item.value as BlurSurface;
-                  return (
-                    <SettingSwitchRow
-                      key={item.value}
-                      label={item.label}
-                      checked={field.state.value.includes(surface)}
-                      onBlur={field.handleBlur}
-                      onChange={(next): void =>
-                        field.handleChange(next ? [...field.state.value, surface] : field.state.value.filter((value) => value !== surface))
-                      }
-                    />
-                  );
-                })}
-              </Stack>
-            )}
-          </form.AppField>
-        </Stack>
-        <form.AppField name="blurStrength">
-          {(field): ReactElement => (
-            <field.SliderField
-              label="Glass blur radius"
-              description="How strong the frosted-glass blur is, for any surface enabled above."
-              min={BLUR_STRENGTH_MIN}
-              max={BLUR_STRENGTH_MAX}
-            />
-          )}
-        </form.AppField>
-        <form.AppField name="shadowEffects">
-          {(field): ReactElement => (
-            <SettingSwitchRow
-              label="Prose shadow"
-              description="A subtle readability halo on message text."
-              checked={field.state.value}
-              onBlur={field.handleBlur}
-              onChange={field.handleChange}
-            />
-          )}
-        </form.AppField>
-        <form.AppField name="surfaceTexture">
-          {(field): ReactElement => (
-            <field.SelectField
-              label="Surface texture"
-              description="A subtle film-grain overlay across the whole app that breaks up flat-color banding. Off by default; dropped automatically if your system asks for higher contrast."
-              items={SURFACE_TEXTURE_ITEMS}
-            />
-          )}
-        </form.AppField>
-        <form.AppField name="enableThemeColorization">
-          {(field): ReactElement => (
-            <SettingSwitchRow
-              label="Tint the UI with the accent color"
-              description="Retints borders and hairlines across panels, dialogs, and the composer from your accent color."
-              checked={field.state.value}
-              onBlur={field.handleBlur}
-              onChange={field.handleChange}
-            />
-          )}
-        </form.AppField>
-      </FieldLayout>
+      {/* THE TEACHER LAW (#866 S3): rows are label + control — the prose lives on each leaf's `teach`. */}
+      <ConfigTeachScope value={{ group: "appearance", sub: APPEARANCE_EFFECTS_SUBCATEGORY }}>
+        <FieldLayout orientation="horizontal">
+          <SettingRow settingId="frosted-glass">
+            <Stack gap="field">
+              <Text voice="label">Frosted glass</Text>
+              <form.AppField name="blurSurfaces">
+                {(field): ReactElement => (
+                  <Stack gap="field">
+                    {BLUR_SURFACE_ITEMS.map((item) => {
+                      // item.value is a BlurSurface by construction (BLUR_SURFACE_ITEMS is built from
+                      // BLUR_SURFACES); the SelectOption shape widens it to string, so re-narrow at the toggle.
+                      const surface = item.value as BlurSurface;
+                      return (
+                        <SettingSwitchRow
+                          key={item.value}
+                          label={item.label}
+                          checked={field.state.value.includes(surface)}
+                          onBlur={field.handleBlur}
+                          onChange={(next): void =>
+                            field.handleChange(next ? [...field.state.value, surface] : field.state.value.filter((value) => value !== surface))
+                          }
+                        />
+                      );
+                    })}
+                  </Stack>
+                )}
+              </form.AppField>
+            </Stack>
+          </SettingRow>
+          <SettingRow settingId="glass-blur">
+            <form.AppField name="blurStrength">
+              {(field): ReactElement => <field.SliderField label="Glass blur radius" min={BLUR_STRENGTH_MIN} max={BLUR_STRENGTH_MAX} />}
+            </form.AppField>
+          </SettingRow>
+          <SettingRow settingId="prose-shadow">
+            <form.AppField name="shadowEffects">
+              {(field): ReactElement => (
+                <SettingSwitchRow label="Prose shadow" checked={field.state.value} onBlur={field.handleBlur} onChange={field.handleChange} />
+              )}
+            </form.AppField>
+          </SettingRow>
+          <SettingRow settingId="surface-texture">
+            <form.AppField name="surfaceTexture">
+              {(field): ReactElement => <field.SelectField label="Surface texture" items={SURFACE_TEXTURE_ITEMS} />}
+            </form.AppField>
+          </SettingRow>
+          <SettingRow settingId="accent-tint">
+            <form.AppField name="enableThemeColorization">
+              {(field): ReactElement => (
+                <SettingSwitchRow
+                  label="Tint the UI with the accent color"
+                  checked={field.state.value}
+                  onBlur={field.handleBlur}
+                  onChange={field.handleChange}
+                />
+              )}
+            </form.AppField>
+          </SettingRow>
+        </FieldLayout>
+      </ConfigTeachScope>
       <Row gap="field" align="center">
         <SectionSaveStatus id={sectionId} state={saveState} onRetry={retrySave} />
       </Row>

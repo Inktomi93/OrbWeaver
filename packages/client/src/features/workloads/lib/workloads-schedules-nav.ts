@@ -13,6 +13,7 @@ export const WORKLOADS_SCHEDULES_SUBCATEGORY: ConfigSubcategory = {
       id: "create-schedule",
       label: "Create a schedule",
       keywords: ["recurring", "cadence", "nightly", "hourly", "weekly", "monthly", "automatic", "edit", "bulk", "system-wide", "maintenance"],
+      teach: { summary: "Run a job on a cadence \u2014 nightly, hourly, weekly \u2014 instead of by hand.", affects: ["your recurring background jobs"] },
     },
   ],
 };

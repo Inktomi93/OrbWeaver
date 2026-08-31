@@ -20,6 +20,12 @@ import { makeResolvedChatCapability } from "../../../../support/factories/resolv
 import { ConfigHostInScrollingHostStory, ConfigHostStory } from "../_ct-stories.tsx";
 
 /** The getUserSettings read-model the Appearance group suspends on — defaults are enough to render it. */
+// The Looks section (#866 S4) reads the theme library — three seeds, no owned rows.
+const LOOKS_THEMES = [
+  { id: "theme_00000000000000000000000001", name: "Hearth", override: {}, css: null, isSeed: true, createdAt: 0, updatedAt: 0 },
+  { id: "theme_00000000000000000000000002", name: "Mocha", override: {}, css: null, isSeed: true, createdAt: 0, updatedAt: 0 },
+  { id: "theme_00000000000000000000000003", name: "Light", override: {}, css: null, isSeed: true, createdAt: 0, updatedAt: 0 },
+];
 const USER_SETTINGS_VIEW = {
   userId: "user_ct_settings",
   schemaVersion: 1,
@@ -150,7 +156,7 @@ const HOST_AMBIENT_ROUTES: Readonly<Record<string, unknown>> = {
 };
 
 async function stub(page: Page, extra: Readonly<Record<string, unknown>> = {}): Promise<void> {
-  await routeTrpc(page, { ...HOST_AMBIENT_ROUTES, "settings.getUserSettings": () => USER_SETTINGS_VIEW, ...extra });
+  await routeTrpc(page, { ...HOST_AMBIENT_ROUTES, "settings.getUserSettings": () => USER_SETTINGS_VIEW, "settings.listThemes": () => LOOKS_THEMES, ...extra });
 }
 
 test("renders the four shelves as NAMED groups, labelled by their own kicker, with the group bands inside them", async ({ mount, page }) => {
@@ -201,7 +207,7 @@ test("an active band is a disclosure GROUP (aria-expanded) and only its FIRST se
   // group opens at its top.
   const list = component.getByRole("region", { name: LIST_REGION });
   await expect(list.locator('[aria-current="true"]')).toHaveCount(1);
-  await expect(component.getByRole("button", { name: "Message style" })).toHaveAttribute("aria-current", "true");
+  await expect(component.getByRole("button", { name: "Looks", exact: true })).toHaveAttribute("aria-current", "true");
 });
 
 test("a sectioned group is a disclosure group whose FIRST section is the one aria-current leaf (Automation)", async ({ mount, page }) => {
@@ -243,8 +249,9 @@ test("clicking a section row marks it aria-current", async ({ mount, page }) => 
   await stub(page);
   const component = await mount(<ConfigHostStory target="appearance" />);
 
-  await component.getByRole("button", { name: "Avatars" }).click();
-  await expect(component.getByRole("button", { name: "Avatars" })).toHaveAttribute("aria-current", "true");
+  // exact: the S3 teach rows add 'More info about Show avatars in chat' buttons a loose name would also match.
+  await component.getByRole("button", { name: "Avatars", exact: true }).click();
+  await expect(component.getByRole("button", { name: "Avatars", exact: true })).toHaveAttribute("aria-current", "true");
 });
 
 test("switching to Automation shows ITS distinct content — the owner-global rules + the rate belt, as two anchored sections", async ({ mount, page }) => {
@@ -579,7 +586,7 @@ test("the jump flash hugs the section box and stays within the scroll container"
   const component = await mount(<ConfigHostStory target="appearance" />);
   await component.getByRole("heading", { name: "Message style" }).waitFor();
 
-  await component.getByRole("button", { name: "Avatars" }).click();
+  await component.getByRole("button", { name: "Avatars", exact: true }).click();
 
   // The flash is a TRANSIENT ring (rAF-polled + smooth scroll), so every read below is a retrying one over
   // the same in-page measurement, taken while the ring is present.
@@ -624,7 +631,7 @@ test("a group that fits (no scroll) resolves the FIRST section, never the last",
     )
     .toBeLessThanOrEqual(2);
 
-  await expect(component.getByRole("button", { name: "Message style" })).toHaveAttribute("aria-current", "true");
+  await expect(component.getByRole("button", { name: "Looks", exact: true })).toHaveAttribute("aria-current", "true");
   await expect(component.getByRole("button", { name: "Effects" })).not.toHaveAttribute("aria-current", "true");
 });
 

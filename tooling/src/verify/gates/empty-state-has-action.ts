@@ -52,12 +52,12 @@ const ALLOWLIST: ExemptionTable = {
       "on screen; the tag/regex member-editor twins above, same species. (The retired World Info CONTENT " +
       "welcome's row died with the rail section at R2 — the workspace's own welcome is the config host's now.)",
   },
-  "packages/client/src/features/config/components/config-context-body.tsx": {
+  "packages/client/src/features/config/components/config-teacher.tsx": {
     why:
-      "the Configuration CONTEXT pane's two no-next-step arms: the no-selection state (the next step is picking a row in the " +
-      "sibling LIST, which is on screen whenever this is — the preset-section-inspector precedent) and a collection that " +
-      'declares `context: {kind:"none"}` ("Nothing to attach" — a tag applies wherever you put it; there is genuinely ' +
-      "nothing to manage here, and the copy is the COLLECTION's own, not a host generic).",
+      'the TEACHER\'s member arm for a collection that declares `context: {kind:"none"}` ("Nothing to attach" — a tag ' +
+      "applies wherever you put it; there is genuinely nothing to manage here, and the copy is the COLLECTION's own, not a " +
+      "host generic). Re-keyed from the retired config-context-body.tsx (#866 S3 — the single-context pane became the " +
+      "teacher's Applies tab); the old no-selection arm now rides the shell's own empty placeholder, not an EmptyState here.",
   },
   "packages/client/src/features/tag/surfaces/tag-member-surface.tsx": {
     why:

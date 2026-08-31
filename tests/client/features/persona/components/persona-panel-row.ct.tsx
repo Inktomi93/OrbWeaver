@@ -80,16 +80,40 @@ test("both trailing clusters occupy the same cell — the strip is as wide as th
 
 // The a11y half of the same finding: at rest the row announced "Favorited" (the marker) AND "Unfavorite"
 // (the always-mounted reveal button) — one fact, twice. The marker is now ornament; the verb is the one
-// statement. The DEFAULT crown keeps its name, because its verb disappears exactly when the state is true.
+// statement. The DEFAULT marker keeps its name, because its verb disappears exactly when the state is true
+// — and since #866 S4 that marker is the PIN (pin-not-crown: crowns mean HOST), a solid named glyph.
 //
 // THE RULING SURVIVES — ITS INPUT CHANGED (#463): the verb now names its row ("Unfavorite Traveler"), so the
 // pin spells the whole subject-bearing name with `exact` rather than a bare verb. What it proves is unchanged:
 // ONE telling of "favorited" per row, by the VERB at a fine pointer.
-test("a favorited row states 'favorited' ONCE; the default crown keeps its own name", async ({ mount }) => {
+test("a favorited row states 'favorited' ONCE; the default PIN keeps its own name", async ({ mount }) => {
   const component = await mount(<PersonaPanelRowDenseStory />);
   await expect(component.getByRole("button", { name: "Unfavorite Traveler", exact: true })).toBeAttached();
   await expect(component.getByRole("img", { name: "Favorited" })).toHaveCount(0);
-  await expect(component.getByRole("img", { name: "Your default" })).toBeVisible();
+  await expect(component.getByRole("img", { name: "Pinned — your default persona" })).toBeVisible();
+});
+
+// ── PIN-NOT-CROWN (#866 S4) ─────────────────────────────────────────────────────────────────────────
+// One glyph, one meaning: crowns mean HOST in the chat vocabulary, so the default marker is a Pin — and
+// the set-default VERB is the same element on non-default rows (faint click-to-pin), not a Star and not
+// a menu item. The negative control is the GLYPH CLASS: lucide stamps `lucide-crown`/`lucide-star` on
+// the svg, so a re-introduced crown or star in this row fails here by name.
+test("pin-not-crown: no crown or star glyph anywhere in the row; the default marker is the pin", async ({ mount }) => {
+  const component = await mount(<PersonaPanelRowDenseStory />);
+  await expect(component.getByRole("img", { name: "Pinned — your default persona" })).toBeVisible();
+  await expect(component.locator("svg.lucide-crown")).toHaveCount(0);
+  await expect(component.locator("svg.lucide-star")).toHaveCount(0);
+  await expect(component.locator("svg.lucide-pin")).toHaveCount(1);
+});
+
+test("the faint pin on a NON-default row is the set-default verb — clicking it fires onSetDefault only", async ({ mount }) => {
+  const component = await mount(<PersonaPanelRowStory />);
+  const pin = component.getByRole("button", { name: "Pin Nova as your default", exact: true });
+  await expect(pin).toBeAttached();
+  // The pin is opacity-revealed (never display-swapped), so it is hit-testable at rest — dispatchEvent
+  // keeps the assertion about the WIRING, same as the overlay test above.
+  await pin.dispatchEvent("click");
+  await expect(component.getByTestId("fired")).toHaveText("default");
 });
 
 // ── The select target's NAME is state-aware (side-eye 2026-08-07 P3a / §13.10 N3+N4) ────────────────
@@ -201,22 +225,24 @@ test("at the 320px You-sheet width the name lane and the marker cluster never ov
   expect((nameBox?.width ?? 0) / rowWidth).toBeGreaterThan(0.3);
 });
 
-// The row header claims the kicker truncates. It did not — `white-space: normal` wrapped "Playing as" to
-// two lines even at rest, which is part of what made the cluster wider and taller than the row budgeted
-// for. A claim in a header is a wish until something measures it.
-test("the 'Playing as' kicker renders on ONE line at 320px — the header's truncation claim is true", async ({ mount }) => {
+// The old kicker wrapped to two lines at rest (`white-space: normal`) and over-charged the cluster; the
+// marker is the "playing as" PILL now (#866 S4 — one pill max, current wins over pinned), and the claim
+// carries over: one line by CONSTRUCTION (nowrap) and nothing clipped at the narrow mount. (The old
+// height/line-height ratio probe can't serve a Badge — its box carries vertical padding — so the pin
+// reads the wrap rule + the overflow directly.)
+test("the 'playing as' pill is one unclipped line at 320px — the truncation claim is true", async ({ mount }) => {
   const component = await mount(<PersonaPanelRowDenseStory width={320} />);
-  const kicker = component.getByText("Playing as", { exact: true });
-  await expect(kicker).toBeVisible();
+  const pill = component.getByText("playing as", { exact: true });
+  await expect(pill).toBeVisible();
   await expect
     .poll(
       async () =>
-        await kicker.evaluate((el: HTMLElement) => {
-          const lineHeight = Number.parseFloat(getComputedStyle(el).lineHeight);
-          return el.getBoundingClientRect().height / (Number.isNaN(lineHeight) ? el.getBoundingClientRect().height : lineHeight);
-        }),
+        await pill.evaluate((el: HTMLElement) => ({
+          nowrap: getComputedStyle(el).whiteSpace === "nowrap",
+          clipped: el.scrollWidth > el.clientWidth + 1,
+        })),
     )
-    .toBeLessThan(1.5);
+    .toEqual({ nowrap: true, clipped: false });
 });
 
 test("at 320px the persona's whole name still renders — no ellipsis on a 8-char name", async ({ mount }) => {
@@ -281,10 +307,10 @@ test.describe("coarse pointer", () => {
     // fixed on the chats row (`ROW_REVEAL_SWAP_COARSE_KEEP`), not applied here.
     //
     // VISIBLE, not merely attached: the defect is `display:none`, which `toBeAttached` cannot see.
-    test(`@${width}: the DEFAULT crown and the FAVORITED heart survive the coarse collapse`, async ({ mount, page }) => {
+    test(`@${width}: the DEFAULT pin and the FAVORITED heart survive the coarse collapse`, async ({ mount, page }) => {
       await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
       const component = await mount(<PersonaPanelRowDenseStory width={width} />);
-      await expect(component.getByRole("img", { name: "Your default" })).toBeVisible();
+      await expect(component.getByRole("img", { name: "Pinned — your default persona" })).toBeVisible();
       await expect(component.getByRole("img", { name: "Favorited" })).toBeVisible();
     });
 

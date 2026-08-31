@@ -22,6 +22,7 @@ import { notify, rowQualifiers, timeLib } from "#lib";
 import { useSetPersonaSeed } from "../hooks/use-persona-identity.ts";
 import { useCreatePersona, useImportPersonaFile, useRemovePersona } from "../hooks/use-persona-mutations.ts";
 import { resolveCurrentPersona } from "../lib/persona-current.ts";
+import { PersonaFromCharacterDialog } from "./persona-from-character-dialog.tsx";
 import { PersonaPanelRow } from "./persona-panel-row.tsx";
 
 /** The roster: band + rows. */
@@ -36,6 +37,7 @@ export function PersonaRoster(): ReactElement {
   const { data: settings } = useSuspenseQuery(trpc.settings.getUserSettings.queryOptions());
 
   const [expandedId, setExpandedId] = useState<PersonaId | null>(null);
+  const [fromCharacterOpen, setFromCharacterOpen] = useState(false);
   const defaultId = settings.config.seeds.defaultPersonaId;
   const current = resolveCurrentPersona(personas, settings.config.seeds);
 
@@ -99,6 +101,7 @@ export function PersonaRoster(): ReactElement {
           and it already carries `aria-current` and the selected tint), so it now says "Playing as" in words
           and the band is what a band is: the collection's name and its two verbs. */}
       <PersonaHeader
+        onFromCharacter={(): void => setFromCharacterOpen(true)}
         onImport={(file): void => {
           onImportFile(file).catch(() => notify.error("Couldn't restore the persona."));
         }}
@@ -106,6 +109,9 @@ export function PersonaRoster(): ReactElement {
           onCreate().catch(() => notify.error("Couldn't create the persona."));
         }}
       />
+      {/* #866 S4 — the third band door: mint a persona from an owned character card (the picker IS the
+          create; the fresh row expands like the New door's). */}
+      <PersonaFromCharacterDialog onCreated={setExpandedId} onOpenChange={setFromCharacterOpen} open={fromCharacterOpen} />
       <Separator />
       <Stack gap="field">
         {personas.length === 0 ? (
@@ -147,19 +153,32 @@ export function PersonaRoster(): ReactElement {
   );
 }
 
-/** The roster's BAND — its name and its two verbs. The playing-as identity lives on the row (see above). */
+/** The roster's BAND — its name and its three verbs. The playing-as identity lives on the row (see above). */
 const IMPORT_LABEL = "Restore a persona from a backup file";
+const FROM_CHARACTER_LABEL = "New persona from a character";
 
-function PersonaHeader({ onNew, onImport }: { readonly onNew: () => void; readonly onImport: (file: File) => void }): ReactElement {
+function PersonaHeader({
+  onNew,
+  onImport,
+  onFromCharacter,
+}: {
+  readonly onNew: () => void;
+  readonly onImport: (file: File) => void;
+  readonly onFromCharacter: () => void;
+}): ReactElement {
   return (
     <Row gap="row" align="center" className="justify-between">
       {/* Converted #582 (the #573 near-kicker ruling: "takes semibold and becomes one"): a caps-micro
           band name, byte-identical to `kicker` once the weight axis is corrected regular→semibold. */}
       <Text voice="kicker">Your personas</Text>
-      {/* Exactly ONE primary (New); Import sits beside it as a ghost icon — the preset band's grammar.
-          `size="icon"` (not `sm`) so the icon-only trigger keeps the token-driven 44px coarse floor, and the
-          native `title` is the SAME string as the aria-label so tooltip and accessible name can't drift. */}
+      {/* Exactly ONE primary (New); Import and From-character (#866 S4) sit beside it as ghost icons — the
+          preset band's grammar. `size="icon"` (not `sm`) so the icon-only triggers keep the token-driven
+          44px coarse floor, and the native `title` is the SAME string as the aria-label so tooltip and
+          accessible name can't drift. */}
       <Row gap="field" align="center">
+        <Button aria-label={FROM_CHARACTER_LABEL} intent="ghost" onClick={onFromCharacter} size="icon" title={FROM_CHARACTER_LABEL}>
+          <Icon icon={Drama} size="sm" />
+        </Button>
         <FileTrigger
           accept="application/json"
           onFilesSelected={([file]): void => {

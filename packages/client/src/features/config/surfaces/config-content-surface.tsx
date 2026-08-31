@@ -16,10 +16,11 @@
 // so it runs the selection's landing — the spy's own initial compute against a still-mounting body used to
 // light the LAST section).
 
-import { Container, Stack } from "@orb/ui/layout";
+import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
+import { Container, Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
-import { Fragment, useEffect, useRef } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { QueryBoundary, QueryErrorState, useSettingsViewerView } from "#data";
 import { SaveStatusHostContext } from "#forms";
 import { useFocusOnMount } from "#lib";
@@ -30,6 +31,7 @@ import {
   isCollectionGroup,
   isPushingGroup,
   setActiveConfigSub,
+  setConfigFocus,
   useActiveConfigGroup,
   useCollectionSelection,
   useConfigSectionRegistry,
@@ -89,6 +91,11 @@ export function ConfigContentSurface({ groups }: ConfigContentSurfaceProps): Rea
       return;
     }
     scrollToAnchor(target.group, target.sub, contentRef, suppressSpyRef);
+    // A SETTING-level landing also teaches: the focused-row seam gets the leaf so the context pane opens
+    // on its lesson (VS Code's per-setting URL, #866 S3 — the search hit and `openConfigTo(g, s, leaf)`).
+    if (target.setting !== null) {
+      setConfigFocus({ group: target.group, sub: target.sub, setting: target.setting });
+    }
   }, [target, groups, sectionRegistry, viewer]);
 
   // THE SPY, keyed on the active group: the section crossing the spy line lights the LIST row.
@@ -211,6 +218,25 @@ function MemberBody({ group, memberId }: { readonly group: ConfigGroupDefinition
 function GroupBody({ group }: { readonly group: ConfigGroupDefinition }): ReactNode {
   const viewer = useSettingsViewerView();
   const sections = useConfigSections(group.id, viewer);
+  const target = useConfigTarget();
+  const fold = group.advancedFold;
+  const plain = fold === undefined ? sections : sections.filter((section) => !section.advanced);
+  const folded = fold === undefined ? [] : sections.filter((section) => section.advanced);
+  // The fold OPENS itself when a landing names one of its sections (a LIST click, a search hit, a deep
+  // link — a jump into a closed drawer would scroll to nothing). User toggles win afterwards; keyed on the
+  // target nonce so a later manual close is never re-fought by a stale landing. A LANDING open is
+  // `instant` (the panel's own auto-open contract): the jump scrolls to the revealed anchor in the same
+  // beat, and a height animation under a programmatic scroll moves the target every frame — the spy
+  // re-arms onto an intermediate section (measured: the Effects landing lit Sizing on the way).
+  const [foldOpen, setFoldOpen] = useState<{ readonly open: boolean; readonly instant: boolean }>({ open: false, instant: false });
+  const [seenNonce, setSeenNonce] = useState<number | null>(null);
+  const landingNonce = target !== null && target.group === group.id && folded.some((section) => section.nav.id === target.sub) ? target.nonce : null;
+  // Derived-state adjustment DURING render (the React-sanctioned setState-in-render form, never an
+  // effect): a fresh landing nonce opens the fold in the SAME commit the jump machinery will observe.
+  if (landingNonce !== null && landingNonce !== seenNonce) {
+    setSeenNonce(landingNonce);
+    setFoldOpen({ open: true, instant: true });
+  }
   if ("placeholder" in group.body) {
     return <ConfigGroupPlaceholder title={group.label} description={group.description} />;
   }
@@ -219,9 +245,30 @@ function GroupBody({ group }: { readonly group: ConfigGroupDefinition }): ReactN
   }
   return (
     <Stack gap="section">
-      {sections.map((section) => (
+      {plain.map((section) => (
         <Fragment key={section.id}>{section.node}</Fragment>
       ))}
+      {fold === undefined || folded.length === 0 ? null : (
+        <Collapsible onOpenChange={(open): void => setFoldOpen({ open, instant: false })} open={foldOpen.open}>
+          {/* #297's explicit custom arm: the fine-tuning knobs behind ONE named disclosure, collapsed by
+              default — the caption names what the knobs ride on ("your changes, on top of <look>"). */}
+          <CollapsibleTrigger size="control">
+            <Row align="center" gap="field" className="min-w-0">
+              <Text as="span" voice="kicker">
+                {fold.label}
+              </Text>
+              {fold.caption === undefined ? null : fold.caption()}
+            </Row>
+          </CollapsibleTrigger>
+          <CollapsiblePanel instant={foldOpen.instant}>
+            <Stack gap="section">
+              {folded.map((section) => (
+                <Fragment key={section.id}>{section.node}</Fragment>
+              ))}
+            </Stack>
+          </CollapsiblePanel>
+        </Collapsible>
+      )}
     </Stack>
   );
 }

@@ -25,7 +25,7 @@ import {
   fullscreenChrome,
   youModal,
 } from "@orb/client/features/app-shell";
-import { accountModal, reauthModal } from "@orb/client/features/auth";
+import { reauthModal } from "@orb/client/features/auth";
 import { automationBudgetSection, automationLibraryRulesSection } from "@orb/client/features/automation";
 import { librarySettingsSection, makeCharactersSection } from "@orb/client/features/character";
 import {
@@ -66,7 +66,7 @@ import {
 import { presetsSection } from "@orb/client/features/preset";
 import { refinerySection } from "@orb/client/features/refinery";
 import { savedCastsModal } from "@orb/client/features/roster-preset";
-import { themeModal } from "@orb/client/features/settings";
+import { appearanceLooksSection } from "@orb/client/features/settings";
 import { analyticsSection } from "@orb/client/features/stats";
 import {
   adminCatalogSection,
@@ -249,8 +249,6 @@ const realRegistry: SectionRegistry = createRegistry<SectionId, SectionDefinitio
 // The section-registry providers below nest it, so every shell CT gets both registries transparently.
 
 const REAL_MODALS: Record<ModalSlotId, ModalDefinition> = {
-  theme: themeModal,
-  account: accountModal,
   command: commandModal,
   newChat: newChatModal,
   addDocument: addDocumentModal,
@@ -313,6 +311,8 @@ const realSettingsSections: ContributorRegistry<ConfigSectionContribution> = cre
   workloadsSchedulesSection,
   workloadsTuningSection,
   // appearance ← the DECOMPOSED pane (SET-SEAMS stage 1), in the door's render order.
+  // LOOKS leads (#866 S4 — the theme fold into Appearance).
+  appearanceLooksSection,
   appearanceMessageStyleSection,
   appearanceAvatarsSection,
   appearanceSizingSection,

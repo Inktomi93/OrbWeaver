@@ -17,14 +17,55 @@ export const APPEARANCE_MESSAGE_DETAILS_SUBCATEGORY: ConfigSubcategory = {
   navLabel: "Message details",
   keywords: ["metadata"],
   settings: [
-    { id: "show-timestamps", label: "Show timestamps", keywords: ["time", "date"] },
-    { id: "show-message-id", label: "Show message ID" },
-    { id: "show-model", label: "Show model" },
-    { id: "show-token-count", label: "Show token count", keywords: ["tokens", "usage"] },
-    { id: "show-generation-time", label: "Show generation time", keywords: ["timer", "duration"] },
-    { id: "show-generation-cost", label: "Show generation cost", keywords: ["cost", "price", "spend"] },
-    { id: "show-reasoning", label: "Show reasoning icon", keywords: ["thinking", "reasoning"] },
-    { id: "message-actions", label: "Action cluster", keywords: ["edit", "delete", "fork", "copy", "hide", "hover"] },
+    {
+      id: "show-timestamps",
+      label: "Show timestamps",
+      keywords: ["time", "date"],
+      teach: { summary: "A time chip on every message.", affects: ["message chrome in every chat"] },
+    },
+    {
+      id: "show-message-id",
+      label: "Show message ID",
+      teach: { summary: "The message's stable id, for scripting and reference.", affects: ["message chrome in every chat"] },
+    },
+    {
+      id: "show-model",
+      label: "Show model",
+      teach: { summary: "Credits the model that generated the message, in its actions row on hover.", affects: ["assistant messages' hover chrome"] },
+    },
+    {
+      id: "show-token-count",
+      label: "Show token count",
+      keywords: ["tokens", "usage"],
+      teach: { summary: "The message's token usage, when known.", affects: ["message chrome in every chat"] },
+    },
+    {
+      id: "show-generation-time",
+      label: "Show generation time",
+      keywords: ["timer", "duration"],
+      teach: { summary: "How long the model took to generate the message, when known.", affects: ["assistant messages' chrome"] },
+    },
+    {
+      id: "show-generation-cost",
+      label: "Show generation cost",
+      keywords: ["cost", "price", "spend"],
+      teach: {
+        summary: "A click-to-reveal per-message cost, settled on demand against OpenRouter.",
+        affects: ["assistant messages' chrome, on OpenRouter connections"],
+      },
+    },
+    {
+      id: "show-reasoning",
+      label: "Show reasoning icon",
+      keywords: ["thinking", "reasoning"],
+      teach: { summary: "A small glyph on the reasoning disclosure, alongside its Thinking/Thought label.", affects: ["reasoning-capable models' messages"] },
+    },
+    {
+      id: "message-actions",
+      label: "Action cluster",
+      keywords: ["edit", "delete", "fork", "copy", "hide", "hover"],
+      teach: { summary: "Edit/hide/fork/delete/copy — shown on hover (default) or always.", affects: ["every message row's action affordances"] },
+    },
   ],
 };
 

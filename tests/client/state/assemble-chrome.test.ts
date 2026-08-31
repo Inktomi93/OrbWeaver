@@ -56,16 +56,16 @@ describe("assembleChrome", () => {
   });
 
   test("maps a rail.end modal to a rail.end modal entry", () => {
-    const entries = assembleChrome({ sections: [], modals: [modal("theme", "rail.end")], widgets: [] });
+    const entries = assembleChrome({ sections: [], modals: [modal("newChat", "rail.end")], widgets: [] });
     expect(entries).toHaveLength(1);
-    expect(entries[0]).toMatchObject({ id: "theme", zone: "rail.end", behavior: { kind: "modal", modalId: "theme" } });
+    expect(entries[0]).toMatchObject({ id: "newChat", zone: "rail.end", behavior: { kind: "modal", modalId: "newChat" } });
   });
 
   test("produces NO chrome entry for unmapped placements (topbar.trail/surface/mobile-tab)", () => {
     const entries = assembleChrome({
       sections: [],
-      // `surface` repeats (new-chat + account, §E-7) — an unmapped placement, so still zero chrome entries.
-      modals: [modal("command", "topbar.trail"), modal("account", "surface"), modal("newChat", "surface"), modal("you", "mobile-tab")],
+      // `surface` repeats (new-chat + add-document, §E-7) — an unmapped placement, so still zero chrome entries.
+      modals: [modal("command", "topbar.trail"), modal("addDocument", "surface"), modal("newChat", "surface"), modal("you", "mobile-tab")],
       widgets: [],
     });
     expect(entries).toHaveLength(0);
