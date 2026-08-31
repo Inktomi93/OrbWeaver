@@ -9,7 +9,7 @@
 
 import { Button } from "@orb/ui/button";
 import type { LucideIcon } from "@orb/ui/icons";
-import { Crown, Heart, Icon } from "@orb/ui/icons";
+import { Heart, Icon } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
@@ -38,12 +38,10 @@ type PersonaListItem = inferOutput<Trpc["persona"]["list"]>[number];
  */
 export function PersonaRowNameColumn({
   persona,
-  isDefault,
   onRename,
   subject,
 }: {
   readonly persona: PersonaListItem;
-  readonly isDefault: boolean;
   readonly onRename: (name: string) => void;
   /** The row's ANNOUNCED IDENTITY, resolved once by the row (`rowActionSubject`, #443/#458/#463) and passed
    *  in rather than re-derived here — a second derivation is how one row ends up announcing itself two ways.
@@ -128,8 +126,11 @@ export function PersonaRowNameColumn({
         )}
         {/* `shrink-0` + the name's `min-w-0`: the NAME is this line's single shrinker, exactly as it is the
             row's (the leg-4 "one shrinker, one reserver" rule, one level down). */}
+        {/* THE CROWN IS GONE (#866 S4, pin-not-crown): the default marker is the row's PIN — an interactive
+            in-flow sibling the parent row renders (`PersonaPin`), solid on the default row at every pointer
+            class. One glyph, one meaning: crowns mean HOST in the chat vocabulary; the title line keeps only
+            the favorited heart pair. */}
         <Row align="center" className={cn("shrink-0", ROW_REVEAL_SWAP_COARSE_KEEP) ?? ""} data-slot="persona-row-title-markers" gap="field" justify="end">
-          {isDefault ? <StatusGlyph className="text-warning" icon={Crown} label="Your default" /> : null}
           {/* THE HEART'S A11Y ARM IS POINTER-GATED, and for the same premise death one layer down. The marker
               is ORNAMENT (`aria-hidden`) because the reveal cluster's heart BUTTON is named for the state at
               all times ("Unfavorite" ⇒ favorited), so a named marker beside it announced one fact twice (the

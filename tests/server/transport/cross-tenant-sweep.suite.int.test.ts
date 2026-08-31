@@ -463,6 +463,10 @@ const PROBES: readonly Probe[] = [
     call: (c, i) => c.persona.listConnectedToCharacter({ characterId: i.characterId }),
   },
   {
+    path: "persona.listConnectedCharacters",
+    call: (c, i) => c.persona.listConnectedCharacters({ personaId: i.personaId }),
+  },
+  {
     path: "persona.setActivePersona",
     call: (c, i) => c.persona.setActivePersona({ chatId: i.chatId, personaId: i.personaId }),
   },

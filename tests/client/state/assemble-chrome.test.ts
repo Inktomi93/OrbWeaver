@@ -64,8 +64,8 @@ describe("assembleChrome", () => {
   test("produces NO chrome entry for unmapped placements (topbar.trail/surface/mobile-tab)", () => {
     const entries = assembleChrome({
       sections: [],
-      // `surface` repeats (new-chat + account, §E-7) — an unmapped placement, so still zero chrome entries.
-      modals: [modal("command", "topbar.trail"), modal("account", "surface"), modal("newChat", "surface"), modal("you", "mobile-tab")],
+      // `surface` repeats (new-chat + add-document, §E-7) — an unmapped placement, so still zero chrome entries.
+      modals: [modal("command", "topbar.trail"), modal("addDocument", "surface"), modal("newChat", "surface"), modal("you", "mobile-tab")],
       widgets: [],
     });
     expect(entries).toHaveLength(0);

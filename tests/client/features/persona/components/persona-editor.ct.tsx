@@ -33,6 +33,9 @@ const PERSONA_EDITOR_AMBIENT_ROUTES: Readonly<Record<string, unknown>> = {
   "worldInfo.listBooks": [],
   // The books already attached to THIS persona.
   "worldInfo.listForPersona": [],
+  // The Connected-characters section's read (#866 S4) — empty is the honest fresh-persona default; the
+  // section's own behavior is pinned below, this row just keeps every mount fed.
+  "persona.listConnectedCharacters": [],
 };
 
 test("a persona description completes against the ACTIVE PRESET's user macros, gloss and all", async ({ mount, page }) => {
@@ -72,6 +75,55 @@ test("with the BUILT-IN preset active there is no plane to read — the builtin 
   await expect(page.getByRole("option", { name: "{{persona}}" })).toBeVisible();
   await expect(page.getByRole("option", { name: USER_MACRO_ROW })).toHaveCount(0);
   await expect.poll(() => trpc.count("preset.get")).toBe(0);
+});
+
+// ── The Connected-characters section (#866 S4 — the junction from the persona side) ─────────────────
+// The read is `persona.listConnectedCharacters`; Disconnect fires the junction's write with BOTH ids.
+// The add door is the shared CharacterPicker (deliberately not RelationManagerSection's flat `available`
+// array — the character library pages; see the component header), proven by the picker mounting with the
+// already-connected id EXCLUDED and a pick firing `connectToCharacter`.
+
+const CONNECTED = [{ id: "character_ct_linked", name: "Captain Vale" }];
+
+test("Connected characters lists the junction read; Disconnect fires with both ids; the picker excludes the linked row and connects on pick", async ({
+  mount,
+  page,
+}) => {
+  const trpc = await routeTrpc(page, {
+    ...PERSONA_EDITOR_AMBIENT_ROUTES,
+    "persona.listConnectedCharacters": () => CONNECTED,
+    "settings.getUserSettings": () => ({ config: { seeds: { defaultPresetId: null } } }),
+    "persona.update": () => null,
+    "persona.connectToCharacter": () => null,
+    "persona.disconnectFromCharacter": () => ({ disconnected: true }),
+    "character.list": () => ({
+      items: [
+        { id: "character_ct_linked", name: "Captain Vale", avatarHash: null, starred: false },
+        { id: "character_ct_free", name: "The Cartographer", avatarHash: null, starred: false },
+      ],
+      nextCursor: null,
+      totalCount: 2,
+    }),
+  });
+  const component = await mount(<PersonaEditorMacroStory />);
+
+  await expect(component.getByText("Captain Vale")).toBeVisible();
+
+  // The add door: the picker lists ONLY unconnected characters (excludeIds carries the junction read).
+  await component.getByRole("button", { name: "Connect a character" }).click();
+  const dialog = page.getByRole("dialog", { name: "Connect a character" });
+  await expect(dialog.getByRole("option", { name: "The Cartographer" })).toBeVisible();
+  await expect(dialog.getByRole("option", { name: "Captain Vale" })).toHaveCount(0);
+  await dialog.getByRole("option", { name: "The Cartographer" }).click();
+  await expect
+    .poll(() => trpc.lastInput("persona.connectToCharacter"), { intervals: [20, 50, 100] })
+    .toMatchObject({ characterId: "character_ct_free", personaId: "persona_ct" });
+
+  // Disconnect names the junction row, not just the persona.
+  await component.getByRole("button", { name: "Disconnect" }).click();
+  await expect
+    .poll(() => trpc.lastInput("persona.disconnectFromCharacter"), { intervals: [20, 50, 100] })
+    .toMatchObject({ characterId: "character_ct_linked", personaId: "persona_ct" });
 });
 
 test("Duplicate admits one durable intent and rejection restores retry", async ({ mount, page }) => {

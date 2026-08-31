@@ -5,7 +5,7 @@
 // without a navigation harness.
 
 import { bindSessionRecovery, recoverIfUnauthorizedCode } from "@orb/client/data";
-import { AccountSurface, LoginShellAnchor } from "@orb/client/features/auth";
+import { LoginShellAnchor } from "@orb/client/features/auth";
 import { closeModal, openModal, useOpenModal } from "@orb/client/state";
 import type { ChatId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -21,19 +21,6 @@ import { LoginLocalForm } from "../../../../packages/client/src/features/auth/co
 import { reauthModal } from "../../../../packages/client/src/features/auth/lib/reauth-modal.tsx";
 import { LoginBody } from "../../../../packages/client/src/features/auth/surfaces/login-surface.tsx";
 import { CtDataProviders, CtRealSectionRegistry } from "../../../support/ct/ct-data-providers.tsx";
-
-/** The REAL `AccountSurface` (the modal body the desktop rail-foot Account entry opens via
- *  `openModal("account")`) inside the client data layer — the auth `/config` + `/me` reads are stubbed
- *  with `page.route`. Proves the desktop account entry reaches a real, wired surface (P1-c). */
-export function AccountSurfaceStory(): ReactElement {
-  return (
-    <CtDataProviders>
-      <div style={{ width: 360, padding: 16 }}>
-        <AccountSurface />
-      </div>
-    </CtDataProviders>
-  );
-}
 
 /** The per-mode login arm (LoginBody) — mounted router-free with a stub `onDone`, so the CT can prove
  *  each mode renders its arm (esp. the forward-header explainer an unauthenticated broken-proxy request

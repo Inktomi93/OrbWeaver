@@ -18,7 +18,7 @@
 
 import type { ReactElement } from "react";
 import { contextToggleChrome, fullscreenChrome, youModal } from "#features/app-shell";
-import { accountModal, reauthModal } from "#features/auth";
+import { reauthModal } from "#features/auth";
 import {
   automationActivityTab,
   automationClockMeterSurface,
@@ -296,7 +296,6 @@ const sections = createRegistry("sections", SECTION_IDS, {
 // The ONE modal assembly (§6d/G8): total over MODAL_SLOT_IDS by tsc; delivered as a context value so
 // ModalHost reads it without a #features import.
 const modals = createRegistry("modals", MODAL_SLOT_IDS, {
-  account: accountModal,
   command: commandModal,
   newChat: newChatModal,
   addDocument: addDocumentModal,

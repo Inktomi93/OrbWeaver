@@ -51,6 +51,12 @@ const ALLOWLIST: ExemptionTable = {
   "packages/client/src/features/rpg/components/rpg-scene-cards.tsx": {
     why: "the P4 card-archive VIEWER (parity-plus §4.7): opens an archived ImmersiveCard in a lightbox-style dialog — the readable-overlay content-display species, not a form/prompt; no bound fields.",
   },
+  "packages/client/src/features/persona/components/persona-from-character-dialog.tsx": {
+    why: "#866 S4 — a PICKER dialog, the species this gate's own header names first: the shared CharacterPicker (a Command listbox) + one leading switch, where SELECTING a row IS the act (persona.createFromCharacter fires on pick, no submit, no bound fields; the dialog dismisses itself on success). FormDialog's submit shell has nothing to own here.",
+  },
+  "packages/client/src/features/persona/components/persona-connected-characters.tsx": {
+    why: "#866 S4 — the Connected-characters ADD door: the same picker species (CharacterPicker body, pick = connectToCharacter, no submit, no bound fields). Deliberately NOT RelationManagerSection's built-in add dialog — its flat `available` array cannot honestly hold the keyset-paged character library (config-revamp-design.md §7.4 rider c).",
+  },
 };
 
 function rel(path: string): string {

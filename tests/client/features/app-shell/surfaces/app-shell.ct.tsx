@@ -1127,20 +1127,37 @@ test("mobile: the You tab opens the sheet; an overflow section routes and closes
       updatedAt: 0,
     }),
   });
+  // The sheet's ACCOUNT FOOT (#866 S4 — the retired account modal's facts + Log out live in the persona
+  // widget now) reads the auth `/config` + `/me` HTTP seams; stub them so the foot renders its facts.
+  await page.route("**/api/auth/config", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ mode: "local", requiresLogin: true, localEnabled: true, oidcEnabled: false, discreetLogin: false, defaultHandle: "owner" }),
+    }),
+  );
+  await page.route("**/api/auth/me", (route) =>
+    route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ authenticated: true, handle: "owner", role: "owner" }) }),
+  );
   const shell = await mount(<AppShellStory />);
   await shell.getByRole("button", { name: "You", exact: true }).click();
 
   // The sheet is a BLIND PROJECTION over the resolved chrome list: the rail.end Settings SECTION row
   // (the theme modal retired into its Appearance group, #866 S4), the persona identity widget's sheet
   // lens (Playing-as header — mobile persona switching lives HERE), and the overflow sections.
-  await expect(page.getByRole("button", { name: "Settings" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Settings", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Switch theme" })).toHaveCount(0);
-  await expect(page.getByText("Playing as")).toBeVisible();
+  // Exact: the who-head's gloss ("Playing as") and the current row's pill ("playing as") are BOTH real —
+  // the un-exact string matches case-insensitively and trips strict mode.
+  await expect(page.getByText("Playing as", { exact: true })).toBeVisible();
   // …and it is the CURRENT persona's row that says it (the row is the identity's ONE home, P2). The row's
   // select target is STATE-AWARE (side-eye 2026-08-07 P3a): on the persona you are already playing as it is
   // named for the state, not for a switch that would be a no-op — "Switch to X, current true" was the defect.
   await expect(page.getByRole("button", { name: `${SHEET_PERSONA.name} — current persona` })).toHaveAttribute("aria-current", "true");
-  await expect(page.getByRole("button", { name: "Account" })).toBeVisible();
+  // The ACCOUNT FOOT replaced the Account-modal strip (#866 S4, owner-ruled F-3): the sheet renders the
+  // identity facts + the mode-aware Log out inline — no modal handoff left to drive.
+  await expect(page.getByTestId("account-surface")).toContainText("owner");
+  await expect(page.getByTestId("account-logout")).toBeVisible();
   await expect(page.getByRole("button", { name: "Refinery" })).toBeVisible();
   // The sheet's own container is RENDERED (the close assertion below is then about a real disappearance).
   await expect(page.getByRole("dialog")).toBeVisible();
@@ -1150,7 +1167,7 @@ test("mobile: the You tab opens the sheet; an overflow section routes and closes
   await page.getByRole("button", { name: "Analytics" }).click();
   // GONE, not merely restyled: the sheet container leaves the tree and its rows go with it.
   await expect(page.getByRole("dialog")).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Settings" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Settings", exact: true })).toHaveCount(0);
   await expect(page.getByText("Charts over your corpus land here", { exact: false })).toBeVisible();
 });
 
@@ -1167,7 +1184,7 @@ test("mobile: the You sheet's Settings row switches to the config SECTION and cl
   // Settings is a rail-foot SECTION since #866 S1 (`config`, `rail.zone: "rail.end"`, `mobile: "sheet"`),
   // so its You-sheet row is a section row: tapping it switches the active section AND closes the sheet
   // (setActiveSection + closeModal), exactly like the overflow sections beside it — no modal, no handoff.
-  await page.getByRole("button", { name: "Settings" }).click();
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   // The shell-isolation registry injects no config LIST/CONTENT (its non-injected sections render their
   // placeholder), so the landing is read at the SHELL: the CONTENT landmark is the Settings section's and

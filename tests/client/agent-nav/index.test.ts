@@ -76,8 +76,6 @@ test("capabilities() exposes canonical targets and the mounted surface's publish
   expect(nav.capabilities()).toEqual({
     sections: ["home", "chats", "characters", "corpus", "config", "extensions", "databank", "presets", "refinery", "analytics"],
     modalSlots: [
-      "theme",
-      "account",
       "command",
       "newChat",
       "you",
@@ -140,8 +138,8 @@ test("openModal() dispatches the real openModal action; an unknown slot refuses 
   const spy = vi.spyOn(state, "openModal");
   const nav = buildAgentNav(fakeTrpc([], []), new RealQueryClient() as QueryClient);
 
-  expect(nav.openModal("theme")).toEqual({ ok: true });
-  expect(spy).toHaveBeenCalledExactlyOnceWith("theme");
+  expect(nav.openModal("newChat")).toEqual({ ok: true });
+  expect(spy).toHaveBeenCalledExactlyOnceWith("newChat");
 
   spy.mockClear();
   expect(nav.openModal("bogus-slot").ok).toBe(false);

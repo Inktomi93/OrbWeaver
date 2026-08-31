@@ -15,6 +15,7 @@ import { castId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { PersonaEditor } from "../../../../packages/client/src/features/persona/components/persona-editor.tsx";
+import { PersonaRoster } from "../../../../packages/client/src/features/persona/components/persona-roster.tsx";
 import { PersonaThisChatSection } from "../../../../packages/client/src/features/persona/components/persona-this-chat-section.tsx";
 import { CtDataProviders } from "../../../support/ct/ct-data-providers.tsx";
 
@@ -112,18 +113,51 @@ export function PersonaPanelRowDenseStory({ width = 358 }: { readonly width?: nu
   );
 }
 
-/** The MOBILE YOU SHEET's persona list — `personaChrome.body("sheet")`, which is the production projection
- *  (`shell-chrome-unification.md` §B: the You sheet inlines the SAME sections the desktop popover shows).
- *  Driven through the registered chrome entry rather than the surface module so the story mounts exactly what
- *  the sheet mounts, and imports it through the feature's front door (a relative reach into `packages/` would
- *  bind a different React context instance).
+/** The MOBILE YOU SHEET's persona SWITCHER — `personaChrome.body("sheet")`, which is the production
+ *  projection (`shell-chrome-unification.md` §B; since #866 S4 the sheet lens is the switcher grammar:
+ *  who-head · switch rows · account foot — the roster moved to Config → Personas). Driven through the
+ *  registered chrome entry rather than the surface module so the story mounts exactly what the sheet
+ *  mounts, and imports it through the feature's front door (a relative reach into `packages/` would bind
+ *  a different React context instance).
  *
- *  The list itself comes from the `.ct.tsx`'s `persona.list` + `settings.getUserSettings` stubs — this story
- *  supplies only the 320px sheet box, which is the narrowest real host for these rows (#458). */
+ *  The list itself comes from the `.ct.tsx`'s `persona.list` + `settings.getUserSettings` stubs — this
+ *  story supplies only the 320px sheet box, which is the narrowest real host for these rows (#458). */
 export function PersonaYouSheetStory(): ReactElement {
   return (
     <CtDataProviders>
       <div style={{ width: 320 }}>{personaChrome.behavior.kind === "widget" ? personaChrome.behavior.body("sheet") : null}</div>
+    </CtDataProviders>
+  );
+}
+
+/** The BAR lens — the rail switcher POPOVER (#866 S4), with a chat optionally seeded so the CT can drive
+ *  the contextual in-chat block (Applies scope · re-attribute). The `.ct.tsx` stubs `persona.list`,
+ *  `settings.getUserSettings` and (when a chat is seeded) `chat.getChat`; it owns the `castId` seam. */
+export function PersonaSwitcherBarStory({ chatId }: { readonly chatId?: ChatId }): ReactElement {
+  useState(() => {
+    if (chatId !== undefined) {
+      selectChat(chatId);
+    }
+    return null;
+  });
+  return (
+    <CtDataProviders>
+      <div style={{ width: 480, height: 640 }}>{personaChrome.behavior.kind === "widget" ? personaChrome.behavior.body("bar") : null}</div>
+    </CtDataProviders>
+  );
+}
+
+/** The ROSTER at its ONE remaining mount posture — the Config → Personas section body (#866 S4 moved it
+ *  out of the popover and the sheet). 360px stands in for the narrowest real content-pane column (a 430px
+ *  phone minus the pane padding); the #443/#458/#463 collision pins run against this mount now. */
+export function PersonaRosterStory({ width = 360 }: { readonly width?: number } = {}): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ width }}>
+        <QueryBoundary fallback={<p>Loading…</p>} renderError={(): ReactElement => <p>error</p>}>
+          <PersonaRoster />
+        </QueryBoundary>
+      </div>
     </CtDataProviders>
   );
 }
