@@ -38,6 +38,7 @@ import { Button } from "@orb/ui/button";
 import { FileDropzone } from "@orb/ui/file-dropzone";
 import { Crown, Drama, Eye, Flag, FlaskConical, Gauge, Icon, MessagesSquare, Settings, Users } from "@orb/ui/icons";
 import { Heading } from "@orb/ui/text";
+import { ThemeScope } from "@orb/ui/theme-scope";
 import { Toaster } from "@orb/ui/toast";
 import type { ReactElement, ReactNode } from "react";
 import { useEffect, useState } from "react";
@@ -372,7 +373,13 @@ export function AppShellWidthProbeStory(): ReactElement {
  *  `overflow: clip` lock + globals.css imported here) while the modal's own region absorbs the overflow.
  *  Registry-driven: the CT loops MODAL_SLOT_IDS, so a NEW modal is covered for free (registry-pairing
  *  keystone spirit). The tall body uses an inline height (a test story is not a compose-only feature). */
-export function ModalScrollStory({ modalId }: { readonly modalId: ModalSlotId }): ReactElement {
+export function ModalScrollStory({
+  modalId,
+  includeThemePreview = false,
+}: {
+  readonly modalId: ModalSlotId;
+  readonly includeThemePreview?: boolean;
+}): ReactElement {
   useEffect(() => {
     openModal(modalId);
   }, [modalId]);
@@ -395,6 +402,13 @@ export function ModalScrollStory({ modalId }: { readonly modalId: ModalSlotId })
                 data-testid="modal-stacking-probe"
                 style={{ background: "var(--color-destructive)", height: 48, position: "sticky", top: 0, zIndex: "var(--z-base)" }}
               />
+              {includeThemePreview ? (
+                <ThemeScope tokens={{ accent: "oklch(0.66 0.16 42)", background: "oklch(0.92 0.03 88)" }}>
+                  <div className="border border-border" data-testid="nested-theme-preview">
+                    nested theme preview
+                  </div>
+                </ThemeScope>
+              ) : null}
             </div>
           )}
         >

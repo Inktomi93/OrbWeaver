@@ -338,3 +338,24 @@ test("client globals.css: reading-scale calc()s carry a `, 1` fallback (unset-va
   expect(css).toContain("var(--reading-body-scale, 1)");
   expect(css).toContain("var(--reading-name-scale, 1)");
 });
+
+// #960: ThemeScope's inline custom palette sits above two siblings. A grid-only descendant arm makes
+// colorization work in the shell while every themed portal keeps the uncolorized border family. Keep the
+// provider-less seed arm and the paired custom-theme branches declaration-identical; the rendered app-shell
+// CT proves Dialog/Drawer values, custom CSS consumption, nested-scope isolation, and no-remount toggling.
+test("client globals.css: colorization pairs the shell grid and themed portal root below ThemeScope", () => {
+  const rules = readFileSync(CLIENT_GLOBALS_CSS_PATH, "utf8").replace(COMMENT_RE, "");
+  const rootAnchor = "html[data-theme-colorization] {";
+  const scopedAnchor = 'html[data-theme-colorization] :is(.shell-grid, [data-slot="portal-root"]) {';
+  const rootBlock = findAnchoredBlock(rules, rootAnchor, "provider-less colorization arm");
+  const scopedBlock = findAnchoredBlock(rules, scopedAnchor, "ThemeScope descendant colorization arms");
+  const declarations = (block: string): string =>
+    block
+      .slice(block.indexOf("{") + 1, -1)
+      .replace(/\s+/gu, " ")
+      .trim();
+
+  expect(declarations(scopedBlock), "seed/provider-less and custom-theme branches must derive the same token family").toBe(declarations(rootBlock));
+  expect(rules.match(/html\[data-theme-colorization\]/gu)?.length, "colorization has exactly one root arm and one paired descendant arm").toBe(2);
+  expect(rules, "the historical grid-only arm strands Dialog/Drawer portals").not.toContain("html[data-theme-colorization] .shell-grid {");
+});

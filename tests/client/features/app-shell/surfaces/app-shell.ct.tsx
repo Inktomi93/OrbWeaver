@@ -965,6 +965,121 @@ for (const modalId of MODAL_SLOT_IDS) {
   });
 }
 
+// ── #960: colorization follows the custom-theme carrier into real portal surfaces ───────────────
+// ThemeScope owns a custom palette inline on the common `display:contents` ancestor of `.shell-grid`
+// and `[data-slot="portal-root"]`. Colorization must therefore redeclare its derived border tokens below
+// that inline carrier on BOTH sibling branches. Drive one Dialog and the mobile-shaped Drawer, toggle the
+// real html appearance attribute without remounting, and prove the same popup node changes with the shell.
+function cssCustomProperty(locator: Locator, property: string): Promise<string> {
+  return locator.evaluate((element, name) => getComputedStyle(element).getPropertyValue(name).trim(), property);
+}
+
+const COLORIZATION_THEME_ID = mintTypeId(ID_PREFIX.theme);
+const COLORIZATION_ACCENT = "oklch(0.72 0.19 152)";
+const COLORIZATION_BACKGROUND = "oklch(0.24 0.06 272)";
+const COLORIZATION_CUSTOM_CSS = '[data-testid="tall-modal-body"] { outline: 2px solid var(--color-border); }';
+
+for (const modalId of ["command", "you"] as const) {
+  test(`#960 custom-theme colorization reaches the real "${modalId}" portal without a remount`, async ({ mount, page }) => {
+    await routeTrpc(page, {
+      ...SHELL_AMBIENT_ROUTES,
+      "settings.getUserSettings": {
+        userId: "user_ct_shell_colorization",
+        schemaVersion: 1,
+        config: {
+          ...DEFAULT_USER_SETTINGS,
+          appearance: { ...DEFAULT_USER_SETTINGS.appearance, enableThemeColorization: false },
+          theme: { ...DEFAULT_USER_SETTINGS.theme, selectedThemeId: COLORIZATION_THEME_ID },
+        },
+        updatedAt: 0,
+      },
+      "settings.getTheme": {
+        id: COLORIZATION_THEME_ID,
+        name: "Colorization CT",
+        override: { accent: COLORIZATION_ACCENT, background: COLORIZATION_BACKGROUND },
+        css: COLORIZATION_CUSTOM_CSS,
+        isSeed: false,
+        createdAt: 0,
+        updatedAt: 0,
+      },
+    });
+    await mount(<ModalScrollStory includeThemePreview={true} modalId={modalId} />);
+    await page.getByTestId("tall-modal-body").waitFor({ state: "attached" });
+
+    const themeScope = page.locator('[data-slot="theme-scope"]:has(.shell-grid)');
+    const grid = page.locator(".shell-grid");
+    const portalRoot = page.locator('[data-slot="portal-root"]');
+    const popup = page.locator('[data-slot="dialog-popup"], [data-slot="drawer-popup"]');
+    const header = page.locator(".shell-modal-header");
+    const customCssProbe = page.getByTestId("tall-modal-body");
+    const nestedThemePreview = page.getByTestId("nested-theme-preview");
+    await expect(popup).toBeVisible();
+    await expect(header).toBeVisible();
+    await expect(nestedThemePreview).toBeVisible();
+    await expect.poll(() => cssCustomProperty(themeScope, "--color-primary")).toBe(COLORIZATION_ACCENT);
+    await expect(page.locator("style[data-orb-theme-css]")).toHaveCount(1);
+    await popup.evaluate((element) => {
+      element.setAttribute("data-colorization-node", "same-node");
+    });
+
+    await page.evaluate(() => document.documentElement.removeAttribute("data-theme-colorization"));
+    const off = await Promise.all([
+      cssCustomProperty(grid, "--color-border"),
+      cssCustomProperty(portalRoot, "--color-border"),
+      cssCustomProperty(popup, "--color-border"),
+    ]);
+    expect(new Set(off).size, "the uncolorized custom border must share one inherited value").toBe(1);
+    const offHeaderBorder = await header.evaluate((element) => getComputedStyle(element).borderBlockEndColor);
+    const offCustomCssBorder = await customCssProbe.evaluate((element) => getComputedStyle(element).outlineColor);
+    const nestedThemeBorder = await cssCustomProperty(nestedThemePreview, "--color-border");
+    expect(offCustomCssBorder, "the selected theme's custom CSS must consume the inherited border token").toBe(offHeaderBorder);
+
+    await page.evaluate(() => document.documentElement.setAttribute("data-theme-colorization", ""));
+    await expect.poll(() => cssCustomProperty(grid, "--color-border")).not.toBe(off[0]);
+    const on = await Promise.all([
+      cssCustomProperty(grid, "--color-border"),
+      cssCustomProperty(portalRoot, "--color-border"),
+      cssCustomProperty(popup, "--color-border"),
+    ]);
+    expect(on[1], "the portal-root branch must carry the same derived border as the shell").toBe(on[0]);
+    expect(on[2], "the real popup must inherit the portal-root branch's derived border").toBe(on[0]);
+    await expect(popup).toHaveAttribute("data-colorization-node", "same-node");
+    await expect.poll(() => header.evaluate((element) => getComputedStyle(element).borderBlockEndColor)).not.toBe(offHeaderBorder);
+    await expect.poll(() => customCssProbe.evaluate((element) => getComputedStyle(element).outlineColor)).not.toBe(offCustomCssBorder);
+    expect(await customCssProbe.evaluate((element) => getComputedStyle(element).outlineColor), "custom CSS must follow the resolved portal token family").toBe(
+      await header.evaluate((element) => getComputedStyle(element).borderBlockEndColor),
+    );
+    expect(
+      await cssCustomProperty(nestedThemePreview, "--color-border"),
+      "an inline nested ThemeScope must remain isolated from the shell appearance axis",
+    ).toBe(nestedThemeBorder);
+
+    await page.evaluate(() => document.documentElement.removeAttribute("data-theme-colorization"));
+    await expect.poll(() => cssCustomProperty(popup, "--color-border")).toBe(off[0]);
+  });
+}
+
+test("#960 seed theme keeps byte-identical border tokens across root, shell, and portal in both colorization arms", async ({ mount, page }) => {
+  await routeTrpc(page, SHELL_AMBIENT_ROUTES);
+  await mount(<ModalScrollStory modalId="command" />);
+  await page.getByTestId("tall-modal-body").waitFor({ state: "attached" });
+
+  const surfaces = [page.locator("html"), page.locator(".shell-grid"), page.locator('[data-slot="portal-root"]'), page.locator('[data-slot="dialog-popup"]')];
+  const readBorders = (): Promise<readonly string[]> => Promise.all(surfaces.map((surface) => cssCustomProperty(surface, "--color-border")));
+
+  await page.evaluate(() => document.documentElement.removeAttribute("data-theme-colorization"));
+  const off = await readBorders();
+  expect(new Set(off).size, "the seed's uncolorized token must remain one inherited value").toBe(1);
+
+  await page.evaluate(() => document.documentElement.setAttribute("data-theme-colorization", ""));
+  await expect.poll(readBorders).not.toEqual(off);
+  const on = await readBorders();
+  expect(new Set(on).size, "the paired descendant arm must be byte-identical to the seed/root derivation").toBe(1);
+
+  await page.evaluate(() => document.documentElement.removeAttribute("data-theme-colorization"));
+  await expect.poll(readBorders).toEqual(off);
+});
+
 // ── #937: density belongs to the common ThemeScope carrier, not the shell grid ────────────────────
 // The portal root is a SIBLING of `.shell-grid`, so stamping density on the grid gives the shell compact
 // spacing while every Dialog/Drawer keeps the comfortable floor. Drive a real Dialog through AppShell's
