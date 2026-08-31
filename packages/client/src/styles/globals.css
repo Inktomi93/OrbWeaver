@@ -564,13 +564,14 @@ html[data-justify-body-text] [data-slot="message-bubble"] {
 /* appearance.enableThemeColorization: retints border/hairline chrome tokens from the accent color.
  * Mixed against --color-foreground, never self-referencing --color-border (an invalid computed-value
  * cycle). ThemeScope declares the active palette inline on its own `display:contents` wrapper ABOVE both
- * `.shell-grid` and the themed portal root. The descendant grid rule therefore re-declares the two tokens
- * below that inherited inline palette for shell descendants; the html rule is the seed/provider-less arm. */
+ * `.shell-grid` and the themed portal root. The two descendant arms therefore re-declare the tokens below
+ * that inherited inline palette for shell AND overlay descendants; the html rule is the seed/provider-less
+ * arm. Keep the siblings paired: an appearance mechanism that reaches only the grid strands every portal. */
 html[data-theme-colorization] {
   --color-border: color-mix(in oklab, var(--color-primary) 22%, var(--color-foreground) 6%);
   --color-sidebar-border: color-mix(in oklab, var(--color-primary) 22%, var(--color-sidebar-foreground) 6%);
 }
-html[data-theme-colorization] .shell-grid {
+html[data-theme-colorization] :is(.shell-grid, [data-slot="portal-root"]) {
   --color-border: color-mix(in oklab, var(--color-primary) 22%, var(--color-foreground) 6%);
   --color-sidebar-border: color-mix(in oklab, var(--color-primary) 22%, var(--color-sidebar-foreground) 6%);
 }

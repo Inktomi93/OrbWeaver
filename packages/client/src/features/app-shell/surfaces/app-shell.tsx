@@ -241,7 +241,8 @@ export function AppShell(): ReactElement {
           {/* The grid is the app's LIVE-TOKEN ROOT (#504): canvas + foreign-realm consumers (ECharts chrome,
               the sandbox card frame) resolve their concrete token values from HERE rather than from <html>,
               because a custom theme's palette is inline on <ThemeScope> above and the colorization rule
-              redeclares --color-border on the grid itself — neither of which a documentElement read sees. */}
+              redeclares --color-border on both the grid and its themed portal-root sibling below that inline
+              carrier — neither custom branch is visible to a documentElement read. */}
           <div
             ref={gridRef}
             className="shell-grid"

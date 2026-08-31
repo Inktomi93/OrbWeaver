@@ -10,9 +10,10 @@
 // IT RESOLVES FROM WHERE THE CONSUMER PAINTS, NOT FROM `<html>` (#504). Every consumer of this seam
 // renders INSIDE the app's content root, and a token that root sees is not necessarily a token
 // `documentElement` sees: a CUSTOM theme sets no `[data-theme]` at all — its palette rides `<ThemeScope>`'s
-// INLINE custom properties over the shell grid, and the colorization rule redeclares `--color-border` on
-// the grid itself — so a `documentElement` read painted every canvas in the BASE palette while the DOM
-// around it painted the custom one. The resolution root is therefore the element the app MARKS as its
+// INLINE custom properties over the shell grid and themed portal root, and the colorization rule
+// redeclares `--color-border` on BOTH sibling branches below that inline carrier — so a `documentElement`
+// read painted every canvas in the BASE palette while the DOM around it painted the custom one. The
+// resolution root is therefore the element the app MARKS as its
 // token root (`LIVE_TOKEN_ROOT_ATTRIBUTE`), falling back to `documentElement` where nothing marks one
 // (a CT mount, a preview, any surface outside the shell) — which is byte-identical to the old behaviour.
 //
@@ -68,9 +69,10 @@ const liveResolverGlobals = globalThis as unknown as LiveResolverGlobals;
  * consumer of this seam actually paints in. The app stamps it on the shell grid
  * (`client/features/app-shell/surfaces/app-shell.tsx`), which is the deepest element that is an ANCESTOR of
  * every chart and every sandbox frame while still carrying the whole active palette: `<ThemeScope>`'s inline
- * custom properties reach it by inheritance, and the two declarations that are written ON the grid rather
- * than on `<html>` (`html[data-theme-colorization] .shell-grid`, which exists precisely because ThemeScope's
- * inline `--color-border` shadows an html-level override) are seen here exactly as a descendant sees them.
+ * custom properties reach it by inheritance, and the two declarations written below ThemeScope rather than
+ * only on `<html>` (`html[data-theme-colorization] :is(.shell-grid, [data-slot="portal-root"])`) are seen
+ * here exactly as a grid descendant sees them. The portal sibling carries the same declarations for floats;
+ * canvases and foreign realms live under the marked grid, so the grid remains their correct read root.
  *
  * Marking is the APP'S call, not this module's: `@orb/ui` neither knows nor may know the shell's class
  * names, and a surface with no marked root (a CT mount, a preview, anything outside the shell) resolves
