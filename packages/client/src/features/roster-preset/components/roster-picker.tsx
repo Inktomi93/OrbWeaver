@@ -1,12 +1,12 @@
-// The Saved-casts modal body (RP2 — docs/history/design/saved-rosters-build-record.md §3): the owner's cast
+// The Saved-rosters modal body (RP2 — docs/history/design/saved-rosters-build-record.md §3): the owner's roster
 // library with the three affordance families the program doc's §6 sketches, in ONE surface:
-//   · per row — START a chat from the cast (members in position order + the anchor persona through the
+//   · per row — START a chat from the roster (members in position order + the anchor persona through the
 //     REAL `useStartChat`, then the `applyToChat` polish call for knobs + config: two calls is CORRECT,
 //     call 1 alone yields a fully valid room and the polish is idempotently retryable);
-//   · per row — ADD the cast to the OPEN room (additive `applyToChat`; result toast "Added N…"),
+//   · per row — ADD the roster to the OPEN room (additive `applyToChat`; result toast "Added N…"),
 //     rendered only when a room is open (the server's host gate refuses a non-host with chat's own
 //     leak-free error — the affordance itself stays capability-quiet rather than lying);
-//   · the header — SAVE the open room's CURRENT cast as a new saved cast (author-by-example: present
+//   · the header — SAVE the open room's CURRENT roster as a new saved roster (author-by-example: present
 //     character seats + their live knobs + the room's effective group config + the anchor persona +
 //     the room's ENABLED rule presets, B10's rules rider — capture derives from `listRules` mint
 //     provenance and the include-line shows what rides), rendered only when the viewer HOSTS the room.
@@ -32,14 +32,14 @@ import { useInvalidation, useStartChat, useTRPC } from "#data";
 import { notify } from "#lib";
 import { closeModal, openModal } from "#state";
 import { useApplyRosterPreset, useCreateRosterPreset, useRemoveRosterPreset } from "../hooks/use-roster-preset-mutations.ts";
-import type { CapturedCastRule, CastRuleCapture } from "../hooks/use-saved-casts.ts";
-import { useActiveCastChat, useCastRuleCapture, useRulePresetCatalogue, useSavedCasts } from "../hooks/use-saved-casts.ts";
-import { applyNotice, castCountsSuffix, castRuleLine } from "../lib/cast-copy.ts";
+import type { CapturedRosterRule, RosterRuleCapture } from "../hooks/use-saved-rosters.ts";
+import { useActiveRosterChat, useRosterRuleCapture, useRulePresetCatalogue, useSavedRosters } from "../hooks/use-saved-rosters.ts";
+import { applyNotice, rosterCountsSuffix, rosterRuleLine } from "../lib/roster-copy.ts";
 
 /** Derived, not re-minted (no-inline-types): the hook's own return shape. */
-type SavedCastSummary = RosterPresetSummary;
+type SavedRosterSummary = RosterPresetSummary;
 
-/** One cast row: name + member preview + the row actions. `canAddToChat` = a room is open AND the
+/** One roster row: name + member preview + the row actions. `canAddToChat` = a room is open AND the
  *  viewer HOSTS it (program doc §6 — the add door is capability-driven and HIDDEN for a non-host, the
  *  D16 precedent; the server's own host gate stays the enforcement, this is just not offering a
  *  dead-end).
@@ -55,24 +55,24 @@ type SavedCastSummary = RosterPresetSummary;
  *  because an element cannot query itself. The crossover sits between the two measured points: 316px was
  *  broken, 480px was clean, both pinned in the CT width matrix under both pointers.
  *
- *  THE COUNTS RIDE THE ACCESSIBLE NAMES (P2-1). Nine tab stops and not one said that applying this cast
+ *  THE COUNTS RIDE THE ACCESSIBLE NAMES (P2-1). Nine tab stops and not one said that applying this roster
  *  switches automation on in the room; the badges are visual-only (a `<span>` has no name to carry), so
  *  the consent information goes where the keyboard actually lands — the two APPLY doors' own names. The
  *  member count also moves into the subtitle beside the member NAMES, which is the one grammar the two
  *  badges never had: a bare digit read as decoration next to a labelled pill. */
-function CastRow(props: {
-  readonly cast: SavedCastSummary;
+function RosterRow(props: {
+  readonly cast: SavedRosterSummary;
   readonly canAddToChat: boolean;
   readonly busy: boolean;
-  readonly onStart: (cast: SavedCastSummary) => void;
-  readonly onAddToChat: (cast: SavedCastSummary) => void;
-  readonly onDelete: (cast: SavedCastSummary) => void;
+  readonly onStart: (cast: SavedRosterSummary) => void;
+  readonly onAddToChat: (cast: SavedRosterSummary) => void;
+  readonly onDelete: (cast: SavedRosterSummary) => void;
 }): ReactElement {
   const { cast, canAddToChat, busy, onStart, onAddToChat, onDelete } = props;
   const memberNames = cast.members.map((m) => m.name).join(", ");
-  const counts = castCountsSuffix(cast.memberCount, cast.rules.length);
+  const counts = rosterCountsSuffix(cast.memberCount, cast.rules.length);
   return (
-    <Stack gap="tight" padding="block" className="@container border-border border-b last:border-b-0" data-slot="cast-row">
+    <Stack gap="tight" padding="block" className="@container border-border border-b last:border-b-0" data-slot="roster-row">
       <Row align="center" gap="field" className="@max-md:flex-col @max-md:items-stretch">
         <Stack gap="tight" className="min-w-0 flex-1">
           <Row align="center" gap="field">
@@ -113,22 +113,22 @@ function CastRow(props: {
 
 /** The id the Save button points its `aria-describedby` at — the include-line IS the button's reason,
  *  both when it explains what will ride and when it explains why the button is waiting. */
-const INCLUDE_LINE_ID = "cast-rules-include";
+const INCLUDE_LINE_ID = "roster-rules-include";
 
 /** The include-line — the consent sentence, in ALL FOUR of its arms (side-eye P2-3). The wording of the
  *  populated arm is untouched and must stay: it says "rule" (never bare "preset" — the 2026-08-24
  *  vocabulary ruling), NAMES the rules rather than counting them, and appears BEFORE the save press. It
  *  rides `prose` — the LENGTH modifier, not a taste knob (`rule-preset-picker.tsx`'s precedent for exactly
- *  this class of sentence): this is the one line answering "what will this cast do to my room", it now
+ *  this class of sentence): this is the one line answering "what will this roster do to my room", it now
  *  carries knob values as well as titles, and at the 10.5px micro step it was the smallest text in the
  *  dialog — below the input's own placeholder. What
- *  it gains is its knob gloss (P2-2 — two casts carrying one preset at different knobs were byte-identical)
+ *  it gains is its knob gloss (P2-2 — two rosters carrying one preset at different knobs were byte-identical)
  *  and its three missing states: a room with no enabled rules used to render exactly the same nothing as a
  *  read still in flight and as a read that had FAILED — and since Save waits for the capture, a failed
  *  `automation.listRules` disabled it forever, silently and with no retry. */
-function CastRulesIncludeLine(props: {
-  readonly capture: CastRuleCapture;
-  readonly presetOf: (id: CapturedCastRule["rulePresetId"]) => RulePresetView | undefined;
+function RosterRulesIncludeLine(props: {
+  readonly capture: RosterRuleCapture;
+  readonly presetOf: (id: CapturedRosterRule["rulePresetId"]) => RulePresetView | undefined;
 }): ReactElement {
   const { capture, presetOf } = props;
   if (capture.status === "loading") {
@@ -160,21 +160,21 @@ function CastRulesIncludeLine(props: {
   return (
     <Text voice="gloss" prose={true} data-slot={INCLUDE_LINE_ID} id={INCLUDE_LINE_ID}>
       Includes {capture.rules.length} enabled rule{capture.rules.length === 1 ? "" : "s"}:{" "}
-      {capture.rules.map((rule) => castRuleLine(presetOf(rule.rulePresetId), rule.rulePresetId, rule.knobs)).join(", ")}
+      {capture.rules.map((rule) => rosterRuleLine(presetOf(rule.rulePresetId), rule.rulePresetId, rule.knobs)).join(", ")}
     </Text>
   );
 }
 
-/** The header's author-by-example door — snapshot the OPEN room's cast into a named cast. B10's rules
+/** The header's author-by-example door — snapshot the OPEN room's roster into a named roster. B10's rules
  *  rider: the room's enabled rule presets ride the save (capture-all — the same author-by-example
  *  semantics as the member snapshot: curate by configuring the room, then save), and the include-line
  *  SHOWS what rides so the later apply's consent is informed (build record §6.5). Save waits for the
- *  capture read — a cast silently missing its rules would be the worse failure — and now SAYS SO, through
+ *  capture read — a roster silently missing its rules would be the worse failure — and now SAYS SO, through
  *  the include-line it points `aria-describedby` at. */
-function SaveCurrentCast(props: {
+function SaveCurrentRoster(props: {
   readonly busy: boolean;
-  readonly capture: CastRuleCapture;
-  readonly presetOf: (id: CapturedCastRule["rulePresetId"]) => RulePresetView | undefined;
+  readonly capture: RosterRuleCapture;
+  readonly presetOf: (id: CapturedRosterRule["rulePresetId"]) => RulePresetView | undefined;
   readonly onSave: (name: string) => void;
 }): ReactElement {
   const [name, setName] = useState("");
@@ -211,15 +211,15 @@ function SaveCurrentCast(props: {
           the OTHER disabling condition (the rules capture still reading) is not the live one, so it can
           never claim the wrong reason. */}
       {trimmed.length === 0 && capture.status === "ready" ? <Text voice="gloss">Name this roster to save it.</Text> : null}
-      <CastRulesIncludeLine capture={capture} presetOf={presetOf} />
+      <RosterRulesIncludeLine capture={capture} presetOf={presetOf} />
     </Stack>
   );
 }
 
-export function CastPicker(): ReactElement {
-  const casts = useSavedCasts();
-  const active = useActiveCastChat();
-  const ruleCapture = useCastRuleCapture(active);
+export function RosterPicker(): ReactElement {
+  const casts = useSavedRosters();
+  const active = useActiveRosterChat();
+  const ruleCapture = useRosterRuleCapture(active);
   // The catalogue is a static CODE catalogue and every door in this surface needs it: the include-line's
   // knob gloss, and the apply report's naming of a REFUSED rule (which can happen from the library plane,
   // with no room open at all — so it is not gated on hosting the way the capture read is).
@@ -230,18 +230,18 @@ export function CastPicker(): ReactElement {
   const remove = useRemoveRosterPreset({ trpc, invalidation });
   const apply = useApplyRosterPreset({ trpc, invalidation });
   const { startChat, isPending: isStarting } = useStartChat();
-  const [confirmDelete, setConfirmDelete] = useState<SavedCastSummary | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<SavedRosterSummary | null>(null);
   const busy = isStarting || create.isPending || remove.isPending || apply.isPending;
 
-  /** The ONE apply report, said by every door (side-eye P1-2: the Start door applied a cast's rules in
+  /** The ONE apply report, said by every door (side-eye P1-2: the Start door applied a roster's rules in
    *  total silence, discarding the `rulesSkipped` REASONS the build record §6.4 requires be reported —
    *  and that is the exact click B10's own acceptance test names). */
-  const reportApply = (cast: SavedCastSummary, result: ApplyRosterPresetResult): void => {
+  const reportApply = (cast: SavedRosterSummary, result: ApplyRosterPresetResult): void => {
     const notice = applyNotice({ castName: cast.name, result, ruleTitleOf: catalogue.titleOf });
     notify[notice.channel](notice.line);
   };
 
-  const onStart = (cast: SavedCastSummary): void => {
+  const onStart = (cast: SavedRosterSummary): void => {
     if (isStarting) {
       return; // one creation at a time — a double-fire would mint two rooms for one intent.
     }
@@ -249,20 +249,20 @@ export function CastPicker(): ReactElement {
     startChat({
       characterIds: cast.members.map((m) => m.characterId),
       anchorPersonaId: cast.anchorPersonaId,
-      // The room is named after the cast it was started from (side-eye P3-4): the name was discarded the
+      // The room is named after the roster it was started from (side-eye P3-4): the name was discarded the
       // moment it was used, so a room born from "Spire Trio" showed as its character list.
       title: cast.name,
     })
       .then(async (chatId) => {
         closeModal();
         // The POLISH call — knobs + group config + the rules rider onto the fresh room. It REPORTS: a
-        // room that silently differs from the cast the host picked is the defect, not the noise.
+        // room that silently differs from the roster the host picked is the defect, not the noise.
         reportApply(cast, await apply.mutateAsync({ presetId: cast.id, chatId }));
       })
       .catch(() => undefined); // both mutations toast their own failures; the picked state survives for retry.
   };
 
-  const onAddToChat = (cast: SavedCastSummary): void => {
+  const onAddToChat = (cast: SavedRosterSummary): void => {
     if (active === null) {
       return;
     }
@@ -362,7 +362,7 @@ export function CastPicker(): ReactElement {
       ) : (
         <Stack gap="row">
           {casts.map((cast) => (
-            <CastRow
+            <RosterRow
               canAddToChat={active?.isHost === true}
               busy={busy}
               key={cast.id}
@@ -374,7 +374,7 @@ export function CastPicker(): ReactElement {
           ))}
         </Stack>
       )}
-      {active?.isHost === true ? <SaveCurrentCast busy={busy} capture={ruleCapture} presetOf={catalogue.presetOf} onSave={onSave} /> : null}
+      {active?.isHost === true ? <SaveCurrentRoster busy={busy} capture={ruleCapture} presetOf={catalogue.presetOf} onSave={onSave} /> : null}
       <ConfirmDialog
         open={confirmDelete !== null}
         onOpenChange={(open): void => {

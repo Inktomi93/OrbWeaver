@@ -1045,8 +1045,8 @@
       "markerLine": 152
     },
     {
-      "siteId": "packages/client/src/features/roster-preset/components/cast-picker.tsx::promise:startChat::1",
-      "path": "packages/client/src/features/roster-preset/components/cast-picker.tsx",
+      "siteId": "packages/client/src/features/roster-preset/components/roster-picker.tsx::promise:startChat::1",
+      "path": "packages/client/src/features/roster-preset/components/roster-picker.tsx",
       "line": 249,
       "column": 5,
       "grammar": "promise",
@@ -1058,8 +1058,8 @@
       "markerLine": 248
     },
     {
-      "siteId": "packages/client/src/features/roster-preset/surfaces/cast-member-surface.tsx::promise:startChat::1",
-      "path": "packages/client/src/features/roster-preset/surfaces/cast-member-surface.tsx",
+      "siteId": "packages/client/src/features/roster-preset/surfaces/roster-member-surface.tsx::promise:startChat::1",
+      "path": "packages/client/src/features/roster-preset/surfaces/roster-member-surface.tsx",
       "line": 119,
       "column": 5,
       "grammar": "promise",

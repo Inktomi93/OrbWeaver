@@ -63,7 +63,7 @@ import {
 import { presetsSection } from "#features/preset";
 import { refinerySection } from "#features/refinery";
 import { regexGroup } from "#features/regex";
-import { castGroup, savedRostersModal } from "#features/roster-preset";
+import { rosterGroup, savedRostersModal } from "#features/roster-preset";
 import { makeRpgContextTabs, makeRpgHudRegion, rpgDiceAskSource, rpgDiceToolRenderer, rpgTurnToolCallsSurface } from "#features/rpg";
 import { appearanceGroup, chatBehaviorGroup } from "#features/settings";
 import { analyticsSection } from "#features/stats";
@@ -261,7 +261,7 @@ const configGroups = createRegistry("config-groups", CONFIG_GROUP_IDS, {
   regex: regexGroup,
   worldInfo: worldInfoGroup,
   // #26/B10 — the saved-roster library's management surface (order 40, after world-info's 30).
-  rosterPreset: castGroup,
+  rosterPreset: rosterGroup,
   plugins: pluginsGroup,
 });
 // The ⌘K Settings source reads the door-held group registry through its bound module slot (§3.3 — the same

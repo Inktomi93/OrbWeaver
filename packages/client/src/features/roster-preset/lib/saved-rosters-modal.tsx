@@ -9,7 +9,7 @@ import { Users } from "@orb/ui/icons";
 import type { ReactElement } from "react";
 import { QueryBoundary, SkeletonRows } from "#data";
 import type { ModalDefinition } from "#state";
-import { CastPicker } from "../components/cast-picker.tsx";
+import { RosterPicker } from "../components/roster-picker.tsx";
 
 const SKELETON_ROW_COUNT = 4;
 
@@ -19,7 +19,7 @@ export const savedRostersModal: ModalDefinition = {
   trigger: { placement: "surface", label: "Saved rosters", icon: Users },
   body: (): ReactElement => (
     <QueryBoundary fallback={<SkeletonRows count={SKELETON_ROW_COUNT} shape="avatar-row" />}>
-      <CastPicker />
+      <RosterPicker />
     </QueryBoundary>
   ),
 };
