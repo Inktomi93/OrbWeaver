@@ -12,8 +12,8 @@
 // the SAME palette: derived foregrounds by the pivot flip, and the four author-picked prose inks
 // (`speaker`/`dialogueColor`/`narrationColor`/`bodyColor`) through the §7a conditional lightness clamp
 // below (pass-through byte-identical when the pairing already clears AA; L re-derived and the ink made
-// OPAQUE, hue+chroma kept, when it does not; fail-open when either side carries no statically-readable
-// value — a named color, `currentColor`, or any legal spelling neither reader parses).
+// OPAQUE, hue+chroma kept, when it does not; fail-open only when neither a standards-readable color nor
+// an ambient backing exists (`currentColor` or an invalid safe bare word in a provider-less mount).
 //
 // THE INK'S BASE IS THE CARRIED ONE, ELSE THE AMBIENT ONE (#236). An override that picks inks and NO
 // background is the ST-imported population (a 113-116 byte scope payload: three ink vars, no surface),
@@ -31,7 +31,7 @@ import { accentFillLightness, derivedForegroundLightness, THEME_DERIVATION as KI
 import { z } from "zod";
 import { isSafeColor } from "#lib";
 import type { ParsedOklch } from "./color-parse.ts";
-import { parseOklchL, toOklch } from "./color-parse.ts";
+import { compositedBase, serializeOpaqueOklch, toOklch } from "./color-parse.ts";
 import { foregroundOn, surfaceVarsOn } from "./derive-vars.ts";
 
 /** Fonts a user may pick — an allowlist; anything else is dropped. */
@@ -89,6 +89,8 @@ export interface ClampedTheme {
    * emitted fill is relative-colour syntax, which no static reader resolves.)
    */
   readonly accentSource?: string;
+  /** Opaque pixel this scope's authored background paints over its ambient; judging/context only. */
+  readonly resolvedBackground?: string;
 }
 
 function fontStack(font: ThemeFont): string {
@@ -193,17 +195,9 @@ export const THEME_DERIVATION = KIT_THEME_DERIVATION;
  * near-black text (a LIGHT surface ⇒ "light"), darker gets near-white (⇒ "dark"). Boundary: strictly
  * ABOVE the pivot is light, so L of exactly 0.62 resolves "dark" (the pivot itself yields near-black
  * text but is treated as the dark arm's ceiling, matching the foreground clamp's `(pivot - l)` sign)
- * and one step over (0.63) flips to light. Non-oklch bases omit the scheme (null) so it inherits — we
- * never guess a polarity we can't statically read.
+ * and one step over (0.63) flips to light. Every standards-readable spelling is normalized before this
+ * decision; only a contextual/invalid value with no ambient omits the scheme rather than guessing.
  */
-function colorSchemeFor(background: string): "light" | "dark" | null {
-  const l = parseOklchL(background);
-  if (l === null) {
-    return null;
-  }
-  return l > KIT_THEME_DERIVATION.fgPivotL ? "light" : "dark";
-}
-
 /**
  * ONE author-picked prose ink, judged against the base surface it will be painted on (`null` ⇒ nothing
  * statically readable to judge against ⇒ fail open, the pre-#204 pass-through).
@@ -288,8 +282,24 @@ function accentEmissionOn(picked: string | undefined, ambient: string | undefine
 
 /** The base the §7a ink clamp judges against: the CARRIED background, else the AMBIENT one (#236). */
 function inkBaseFor(carried: string | undefined, ambient: string | undefined): ParsedOklch | null {
-  const named = carried ?? ambient;
-  return named === undefined ? null : toOklch(named);
+  if (carried !== undefined) {
+    return compositedBase(carried, ambient);
+  }
+  return ambient === undefined ? null : toOklch(ambient);
+}
+
+function derivedOriginFor(background: string, authored: ParsedOklch | null, resolved: ParsedOklch | null): string {
+  if (authored !== null && authored.alpha >= 1 && authored.inGamut === true) {
+    return background;
+  }
+  return resolved === null ? background : serializeOpaqueOklch(resolved);
+}
+
+function colorSchemeFor(base: ParsedOklch | null): "light" | "dark" | null {
+  if (base === null) {
+    return null;
+  }
+  return base.l > KIT_THEME_DERIVATION.fgPivotL ? "light" : "dark";
 }
 
 /**
@@ -302,9 +312,9 @@ function inkBaseFor(carried: string | undefined, ambient: string | undefined): P
  * theme's (#236, threaded by `ThemeScope`). It is a JUDGING INPUT ONLY: it is parsed to numbers for
  * the §7a ink clamp and never emitted, never a fallback for `--color-background`, the surface ramp,
  * the reading plate or `colorScheme` — so the clamp stays a one-way boundary and an ambient value can
- * carry nothing into the DOM. A CARRIED background always wins outright (including when it is one
- * neither reader resolves: the card DID pick a surface, and an unjudgeable pick fails OPEN rather than
- * being judged against a surface it does not sit on).
+ * carry nothing into the DOM. A CARRIED background owns the emitted property; its resolved pixel is
+ * composited over ambient for judging/derivation. An invalid safe bare word paints nothing and therefore
+ * resolves to the ambient surface the browser actually leaves visible.
  */
 export function clampThemeTokens(raw: unknown, ambientBackground?: string, ambientAccent?: string): ClampedTheme {
   const parsed = themeScopeTokensSchema.safeParse(raw);
@@ -315,7 +325,7 @@ export function clampThemeTokens(raw: unknown, ambientBackground?: string, ambie
       vars[name] = value;
     }
   };
-  const carriedBase = t.background === undefined ? null : toOklch(t.background);
+  const carriedBase = t.background === undefined ? null : compositedBase(t.background, ambientBackground);
   // The accent is judged against the CARD a carried base derives (#692) — see `accentEmissionOn`. With no
   // carried background, or when the accent already clears, this is the pre-#692 pass-through: the picked
   // value byte-identical, or nothing at all.
@@ -328,8 +338,8 @@ export function clampThemeTokens(raw: unknown, ambientBackground?: string, ambie
   // The §7a prose-ink clamp (#204, see the header law): the four author-picked inks are judged against
   // the BASE surface they will be painted on — every reading plate now derives from it, so
   // base-legibility is plate-legibility. A sensible pairing passes through BYTE-IDENTICAL; a failing ink
-  // keeps its hue and chroma and gets the derived lightness at full opacity; a value neither reader
-  // resolves on either side ⇒ fail open (polarity not statically knowable — `colorSchemeFor`'s rule).
+  // keeps its hue and chroma and gets the derived lightness at full opacity; a contextual/invalid value
+  // with no readable ambient remains the one honest fail-open arm.
   //
   // THE BASE IS THE CARRIED ONE, ELSE THE AMBIENT ONE (#236). An override that picks inks and NO
   // background does not escape the judgement — it lands on the surface the app theme paints, which the
@@ -337,7 +347,7 @@ export function clampThemeTokens(raw: unknown, ambientBackground?: string, ambie
   // failed open, which is what put every ST-imported card's dark-authored inks raw on the Light seed's
   // `oklch(0.98 0.004 75)` at 2.11-2.43:1 (4/4 rooms probed, 67 desktop P1s). The premise was false: no
   // carried background is precisely the case where the composed surface IS knowable. The residual
-  // fail-open (neither side statically readable, or nothing named the ambient) stands unchanged.
+  // provider-less fail-open (neither side statically readable) stands unchanged.
   const inkBase = inkBaseFor(t.background, ambientBackground);
   put("--color-speaker", proseInkOn(t.speaker, inkBase));
   put("--color-dialogue", proseInkOn(t.dialogueColor, inkBase));
@@ -358,7 +368,9 @@ export function clampThemeTokens(raw: unknown, ambientBackground?: string, ambie
     putBubble(t.systemBubble.bg, "--color-system-bubble", "--color-system-bubble-foreground");
   }
   if (t.background !== undefined) {
-    Object.assign(vars, surfaceVarsOn(t.background, carriedBase));
+    const authoredBase = toOklch(t.background);
+    const derivedOrigin = derivedOriginFor(t.background, authoredBase, carriedBase);
+    Object.assign(vars, surfaceVarsOn(t.background, carriedBase, derivedOrigin));
   }
   // An explicit border color wins over the derived hairline, for both border scopes.
   put("--color-border", t.borderColor);
@@ -372,14 +384,16 @@ export function clampThemeTokens(raw: unknown, ambientBackground?: string, ambie
   if (t.radius !== undefined && t.radius !== "card") {
     vars["--radius-card"] = `var(--radius-${t.radius})`;
   }
-  // Derived from the picked base surface's polarity (never an input field) — drives the light-dark()
-  // intent arm + native controls. Omitted for a non-oklch base (fail open to the inherited scheme).
-  const colorScheme = t.background === undefined ? null : colorSchemeFor(t.background);
+  // Derived from the resolved base pixel's polarity (never an input field) — drives the light-dark()
+  // intent arm + native controls. Named/numeric spellings agree because both cross the same parser.
+  const colorScheme = colorSchemeFor(carriedBase);
   const accentSource = t.accent ?? ambientAccent;
+  const resolvedBackground = carriedBase === null ? undefined : serializeOpaqueOklch(carriedBase);
   return {
     vars,
     ...(t.density === undefined ? {} : { density: t.density }),
     ...(colorScheme === null ? {} : { colorScheme }),
     ...(accentSource === undefined ? {} : { accentSource }),
+    ...(resolvedBackground === undefined ? {} : { resolvedBackground }),
   };
 }

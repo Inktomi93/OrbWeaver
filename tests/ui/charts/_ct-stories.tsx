@@ -102,6 +102,32 @@ export function CustomMidlightChartRampStory(): ReactElement {
   );
 }
 
+/** #939 cold-verifier accepted-input matrix: standards named color, alpha-composited bases, and an
+ * extreme out-of-gamut OKLCH pick all mount through the real ThemeScope → token store → ECharts path. */
+const ACCEPTED_CHART_CASES = [
+  ["named", "red"],
+  ["transparent", "oklch(0.98 0.004 75 / 0)"],
+  ["partial-alpha", "oklch(0.98 0.004 75 / 0.35)"],
+  ["extreme-gamut", "oklch(0.2 3.6 225)"],
+] as const;
+
+export function CustomAcceptedChartCasesStory(): ReactElement {
+  const [caseIndex, setCaseIndex] = useState(0);
+  const active = ACCEPTED_CHART_CASES[caseIndex] ?? ACCEPTED_CHART_CASES[0];
+  const [name, background] = active;
+  return (
+    <ThemeScope tokens={{ background }} ambientBackground={TOKENS["color.background"].value}>
+      <div {...{ [LIVE_TOKEN_ROOT_ATTRIBUTE]: "" }} data-case={name} data-testid="accepted-chart-panel" style={{ backgroundColor: "var(--color-card)" }}>
+        <button onClick={(): void => setCaseIndex((current): number => (current + 1) % ACCEPTED_CHART_CASES.length)} type="button">
+          Next accepted theme
+        </button>
+        <ChartThemeAxisLineReadoutStory />
+        <BarList items={[{ id: name, label: name, value: 8 }]} label={`${name} chart`} />
+      </div>
+    </ThemeScope>
+  );
+}
+
 /** A momentum column at its production floor: `MomentumColumn` is `min-w-48` (192px) inside a wrapping Row,
  *  so ~240px is the width the owner's two-column Momentum band actually renders at on a laptop. */
 const NARROW_HOST_PX = 240;

@@ -12,8 +12,8 @@
 // clamp needs in order to judge a card that carries inks and no background of its own. A seed paints from
 // its generated block, so its base is that block's `--color-background` (SEED_THEME_VALUE_SETS, the ONE
 // source the block is generated from); Hearth and "no theme at all" paint the base `@theme` ramp, so
-// theirs is TOKENS' own background; a custom theme's is its picked background, falling back to the same
-// base ramp when it picked none (a custom theme sets NO `data-theme`, so the base block is what shows).
+// theirs is TOKENS' own background. A custom theme carries its pick in `tokens`; its ambient is the base
+// ramp physically underneath that pick, so ThemeScope can composite alpha before deriving chrome.
 // Without this the ST-imported library's inks landed unjudged on the Light seed at 2.11:1.
 
 import type { Theme, ThemeDensity, ThemeOverride } from "@orb/contracts/theme";
@@ -58,7 +58,9 @@ export function resolveThemeScopeTokens(theme: Theme | null, appearanceDensity: 
   return {
     tokens: theme.override,
     density: theme.override.density ?? appearanceDensity,
-    ambientBackground: theme.override.background ?? BASE_THEME_BACKGROUND,
+    // The custom pick is carried IN `tokens`; ambient is the opaque surface physically underneath it.
+    // ThemeScope composites alpha-bearing picks over this and passes the resolved pixel to nested scopes.
+    ambientBackground: BASE_THEME_BACKGROUND,
     ambientAccent: theme.override.accent ?? BASE_THEME_ACCENT,
   };
 }

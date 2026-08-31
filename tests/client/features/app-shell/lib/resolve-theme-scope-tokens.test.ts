@@ -55,7 +55,7 @@ describe("resolveThemeScopeTokens", () => {
   // #236 — the AMBIENT BASE: the surface the active theme actually paints, threaded to <ThemeScope> so an
   // ink-only card override is judged against it instead of failing open. Read off the SAME generated
   // sources the app paints from (SEED_THEME_VALUE_SETS / TOKENS), so a palette edit can never desync it.
-  test("the ambient base is the ACTIVE theme's painted surface — seed block, base ramp, or the custom pick", () => {
+  test("the ambient base is the opaque surface underneath ThemeScope's carried custom pick", () => {
     // A seed paints from its generated [data-theme] block: its base is that block's own background.
     expect(resolveThemeScopeTokens(theme({ isSeed: true, name: "Light", override: FULL_OVERRIDE }), "comfortable").ambientBackground).toBe(
       SEED_THEME_VALUE_SETS.light.vars["--color-background"],
@@ -66,8 +66,9 @@ describe("resolveThemeScopeTokens", () => {
     // Hearth IS the base `@theme` — no value-set, so it resolves to the base ramp, as does "no theme".
     expect(resolveThemeScopeTokens(theme({ isSeed: true, name: "Hearth" }), "comfortable").ambientBackground).toBe(TOKENS["color.background"].value);
     expect(resolveThemeScopeTokens(null, "comfortable").ambientBackground).toBe(TOKENS["color.background"].value);
-    // A custom theme's own picked base wins; one that picked none paints the base ramp (no data-theme).
-    expect(resolveThemeScopeTokens(theme({ override: FULL_OVERRIDE }), "comfortable").ambientBackground).toBe(FULL_OVERRIDE.background);
+    // A custom pick is carried in tokens; ambient names the base ramp physically underneath it so alpha
+    // can be composited before derivation. A custom theme with no pick paints that same base directly.
+    expect(resolveThemeScopeTokens(theme({ override: FULL_OVERRIDE }), "comfortable").ambientBackground).toBe(TOKENS["color.background"].value);
     expect(resolveThemeScopeTokens(theme({ override: { accent: "oklch(0.5 0.1 60)" } }), "comfortable").ambientBackground).toBe(
       TOKENS["color.background"].value,
     );

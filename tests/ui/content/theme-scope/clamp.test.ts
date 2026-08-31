@@ -89,6 +89,47 @@ test.each([0.62, 0.6201, 0.63] as const)("#939 a pivot-side base at L=%s emits f
   }
 });
 
+test.each([
+  ["named", "red"],
+  ["transparent", "oklch(0.98 0.004 75 / 0)"],
+  ["extreme-gamut", "oklch(0.2 3.6 225)"],
+] as const)("#939 an accepted %s background emits five concrete chart colors without throwing", (_spelling, background) => {
+  expect(() => clampThemeTokens({ background }, "oklch(0.158 0.006 60)")).not.toThrow();
+  const { vars } = clampThemeTokens({ background }, "oklch(0.158 0.006 60)");
+  expect([1, 2, 3, 4, 5].map((index) => vars[`--color-chart-${index}`])).toEqual([
+    expect.stringMatching(/^oklch\(/u),
+    expect.stringMatching(/^oklch\(/u),
+    expect.stringMatching(/^oklch\(/u),
+    expect.stringMatching(/^oklch\(/u),
+    expect.stringMatching(/^oklch\(/u),
+  ]);
+});
+
+test("#939 an invalid safe bare word preserves authored CSS but derives from ambient; nested alpha carries the resolved pixel", () => {
+  const ambient = "oklch(0.158 0.006 60)";
+  const inherited = clampThemeTokens({ background: "notacolorxx" }, ambient);
+  const ambientRamp = clampThemeTokens({ background: ambient }, ambient);
+  expect(inherited.vars["--color-background"]).toBe("notacolorxx");
+  expect([1, 2, 3, 4, 5].map((index) => inherited.vars[`--color-chart-${index}`])).toEqual(
+    [1, 2, 3, 4, 5].map((index) => ambientRamp.vars[`--color-chart-${index}`]),
+  );
+
+  const outer = clampThemeTokens({ background: "oklch(0.98 0.004 75 / 0.35)" }, ambient);
+  if (outer.resolvedBackground === undefined) {
+    throw new Error("partial-alpha outer scope did not resolve its painted backing");
+  }
+  const inner = clampThemeTokens({ background: "transparent" }, outer.resolvedBackground);
+  if (inner.resolvedBackground === undefined) {
+    throw new Error("transparent nested scope did not retain its ambient backing");
+  }
+  const pixel = (color: string): readonly number[] => {
+    const rgb = parseCssColorToSrgb(color);
+    return rgb === null ? [] : [Math.round(rgb.r), Math.round(rgb.g), Math.round(rgb.b)];
+  };
+  expect(pixel(inner.resolvedBackground)).toEqual(pixel(outer.resolvedBackground));
+  expect([1, 2, 3, 4, 5].map((index) => inner.vars[`--color-chart-${index}`])).toEqual([1, 2, 3, 4, 5].map((index) => outer.vars[`--color-chart-${index}`]));
+});
+
 test("hostile color values are DROPPED (url/expression/injection/js)", () => {
   // Assembled from fragments so no single literal reads as a high-entropy "secret" (noSecrets); each
   // is a CSS-injection / fetch / escape vector the clamp must reject.
@@ -250,10 +291,7 @@ test("#682 a DARK base emits the pre-#682 ramp byte-for-byte", () => {
   }
 });
 
-test("#682 an UNJUDGEABLE base keeps the dark arm — polarity is not guessed, and its bytes do not move", () => {
-  // A named colour resolves in the browser but neither reader parses it, so its polarity is unknowable
-  // (`colorSchemeFor`'s rule). The plate falls back to opaque and the elevation ingredients are skipped;
-  // the ramp cannot be skipped — it IS the chrome — so it keeps emitting exactly what it emitted before.
+test("#939 a named base is standards-resolved while its authored CSS spelling stays intact", () => {
   const { vars } = clampThemeTokens({ background: "rebeccapurple" });
   expect(vars["--color-card"]).toBe("oklch(from rebeccapurple calc(l + 0.047) c h)");
   expect(vars["--color-muted"]).toBe("oklch(from rebeccapurple calc(l + 0.097) c h)");
@@ -301,9 +339,8 @@ test("a picked background emits --color-reading-plate as base + readingPlate.del
   expect(clampThemeTokens({ background: "oklch(0.158 0.006 60)" }).vars["--color-reading-plate"]).toBe(
     "oklch(from oklch(0.158 0.006 60) calc(l + -0.038) c h / 0.65)",
   );
-  // A base NEITHER reader resolves (a named colour) still emits a plate — it just cannot be judged, so it
-  // is OPAQUE rather than a window onto art nothing has measured.
-  expect(clampThemeTokens({ background: "rebeccapurple" }).vars["--color-reading-plate"]).toBe("oklch(from rebeccapurple calc(l + -0.038) c h / 1)");
+  // Named colors are standards-resolved, so their plate gets the same polarity-derived alpha as numeric colors.
+  expect(clampThemeTokens({ background: "rebeccapurple" }).vars["--color-reading-plate"]).toBe("oklch(from rebeccapurple calc(l + -0.038) c h / 0.65)");
   // No base ⇒ no plate (the static token shows through) — the plate is a DERIVATION, never a default.
   expect(clampThemeTokens({ accent: "#abc" }).vars["--color-reading-plate"]).toBeUndefined();
 });
@@ -391,12 +428,11 @@ test("#243 the polarity flip rides the ONE pivot — the same base that flips co
   }
 });
 
-test("#243 an UNJUDGEABLE base emits NO ingredient — polarity is never guessed", () => {
-  // A named colour resolves in the browser but not in either static reader, so the polarity is unknown.
-  // The plate still emits (opaque — see above), but guessing an elevation arm is how a light palette
-  // would keep dark smoke; the scope inherits instead, the pre-#243 behaviour, and only for this arm.
+test("#243 a standards-resolved named base emits the matching elevation ingredients", () => {
   const named = clampThemeTokens({ background: "rebeccapurple" }).vars;
-  expect(SHADOW_VARS.map((name) => named[name])).toEqual([undefined, undefined, undefined, undefined, undefined]);
+  for (const name of SHADOW_VARS) {
+    expect(named[name]).toContain("oklch(from rebeccapurple");
+  }
   // No base at all ⇒ no ingredients either: they are a DERIVATION, never a default.
   const inkOnly = clampThemeTokens({ accent: "#abc" }).vars;
   expect(SHADOW_VARS.map((name) => inkOnly[name])).toEqual([undefined, undefined, undefined, undefined, undefined]);
@@ -561,28 +597,25 @@ test("the ambient base NEVER emits and NEVER overrides a CARRIED background (the
   expect(clampThemeTokens(carriedLight, "oklch(0.158 0.006 60)")).toStrictEqual(clampThemeTokens(carriedLight));
 });
 
-test("the TRUE fail-open survives: no ambient, an unreadable ambient, and an unreadable CARRIED base all pass through", () => {
+test("the TRUE fail-open survives only where no deterministic color or ambient exists", () => {
   // No ambient at all (a provider-less mount / a caller that cannot name the base) — the pre-#236 rule.
   expect(clampThemeTokens({ dialogueColor: "oklch(0.3 0.1 40)" }).vars["--color-dialogue"]).toBe("oklch(0.3 0.1 40)");
-  // An ambient no reader resolves (a named colour) is not a polarity — never guess one.
-  expect(clampThemeTokens({ dialogueColor: ST_DARK_INK }, "rebeccapurple").vars["--color-dialogue"]).toBe(ST_DARK_INK);
-  // A CARRIED-but-unreadable base is still the ink's own surface: the ambient must NOT sneak in behind it
-  // (the card DID pick a base; that it is unreadable is a fail-open, not an invitation to judge elsewhere).
-  expect(clampThemeTokens({ background: "rebeccapurple", dialogueColor: ST_DARK_INK }, LIGHT_SEED_BASE).vars["--color-dialogue"]).toBe(ST_DARK_INK);
-  // An ink no reader resolves stays untouched even with a readable ambient.
-  expect(clampThemeTokens({ narrationColor: "wheat" }, LIGHT_SEED_BASE).vars["--color-narration"]).toBe("wheat");
+  // Standards named colors are readable on both sides and therefore receive the same guarantee.
+  expect(clampThemeTokens({ dialogueColor: ST_DARK_INK }, "rebeccapurple").vars["--color-dialogue"]).toContain("oklch(from");
+  expect(clampThemeTokens({ background: "rebeccapurple", dialogueColor: ST_DARK_INK }, LIGHT_SEED_BASE).vars["--color-dialogue"]).toContain("oklch(from");
+  // An invalid safe bare word has no deterministic color and stays untouched.
+  expect(clampThemeTokens({ narrationColor: "notacolorxx" }, LIGHT_SEED_BASE).vars["--color-narration"]).toBe("notacolorxx");
 });
 
-test("colorScheme derives for every NUMERIC base format, and is omitted only where no static value exists", () => {
-  // A NAMED base is legal for the vars but has no statically-readable value — fail open to the
-  // inherited scheme rather than guess (kit's parser is numeric-only by design).
+test("colorScheme derives for every standards-readable base spelling", () => {
   const named = clampThemeTokens({ background: "ivory" });
   expect(named.vars["--color-background"]).toBe("ivory");
-  expect(named.colorScheme).toBeUndefined();
+  expect(named.colorScheme).toBe("light");
   // #204 format widening: rgb()/hex/hsl() bases resolve their polarity through kit's sRGB→OKLCH inverse.
   expect(clampThemeTokens({ background: "rgb(20, 20, 30)" }).colorScheme).toBe("dark");
   expect(clampThemeTokens({ background: "#f5f0e8" }).colorScheme).toBe("light");
   expect(clampThemeTokens({ background: "hsl(30, 40%, 10%)" }).colorScheme).toBe("dark");
+  expect(clampThemeTokens({ background: "notacolorxx" }, "oklch(0.158 0.006 60)").colorScheme).toBe("dark");
   // No base at all ⇒ nothing to derive from.
   expect(clampThemeTokens({ accent: "#abc" }).colorScheme).toBeUndefined();
 });

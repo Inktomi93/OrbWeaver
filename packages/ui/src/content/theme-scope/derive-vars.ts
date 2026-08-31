@@ -65,7 +65,7 @@ function borderOn(surface: string): string {
 function inputSurfaceOn(surface: string): string {
   return `oklch(from ${surface} ${CONTRAST_L} 0 h / ${INPUT_ALPHA})`;
 }
-/** An unjudgeable base gets an OPAQUE plate — see {@link readingPlateOn}. */
+/** A truly unjudgeable provider-less base gets an OPAQUE plate — see {@link readingPlateOn}. */
 const UNJUDGEABLE_PLATE_ALPHA = 1;
 /**
  * The over-art reading plate for a picked base: the same one-base L shift the ramp rides, but carrying
@@ -79,10 +79,8 @@ const UNJUDGEABLE_PLATE_ALPHA = 1;
  * measured 0.65 floor. It is the one derived number the browser CANNOT compute for us — relative-colour
  * syntax has no contrast operator — so it lands as a literal, judged off the parsed base.
  *
- * A base neither reader resolves (`base === null`: a named colour, modern unitless `hsl()`) cannot be
- * judged at all, so it gets an OPAQUE plate. Failing open on POLARITY is the safe direction
- * (`colorSchemeFor`); failing open on the READING FLOOR would ship the #217 defect on exactly the
- * palettes nothing can prove. Opacity costs the art, never the reader.
+ * `base === null` means neither the carried value nor an ambient backing resolved (a provider-less
+ * contextual/invalid value), so it gets an OPAQUE plate. Opacity costs the art, never the reader.
  */
 function readingPlateOn(background: string, base: ParsedOklch | null): string {
   const alpha = base === null ? UNJUDGEABLE_PLATE_ALPHA : readingPlateAlpha({ l: base.l, c: base.c, h: base.h });
@@ -101,7 +99,7 @@ function readingPlateOn(background: string, base: ParsedOklch | null): string {
  * the origin here is a background that may itself be translucent.
  *
  * It needs no `base` and no fail-open arm: unlike the plate's alpha there is nothing to solve, so an
- * unjudgeable base (a named colour) still gets a correct band.
+ * unjudgeable provider-less base still gets a correct band.
  */
 function readingBandOn(background: string): string {
   return `oklch(from ${background} calc(l + ${THEME_DERIVATION.readingPlate.deltaL}) c h / ${READING_BAND_ALPHA})`;
@@ -125,9 +123,8 @@ const SHADOW_INGREDIENT_VARS = {
  * syntax inherits the ORIGIN's alpha for an omitted slot, and the origin is a background that may be
  * translucent (the same trap the ink clamp and the reading band each name).
  *
- * A base neither reader resolves gets NOTHING (the caller's `base === null` arm): polarity is not
- * statically knowable, and guessing it is how a light palette would get dark-arm smoke — `colorSchemeFor`'s
- * rule. Failing open leaves the scope inheriting the app theme's ingredients, the pre-#243 behaviour.
+ * A base with neither a readable color nor ambient gets NOTHING (`base === null`): polarity is not
+ * statically knowable. Failing open leaves the scope inheriting the app theme's ingredients.
  */
 function shadowVarsOn(background: string, base: ParsedOklch): Readonly<Record<string, string>> {
   const derived = shadowIngredients({ l: base.l, c: base.c, h: base.h });
@@ -151,36 +148,39 @@ function chartVarsOn(base: ParsedOklch): Readonly<Record<string, string>> {
  * foreground, the border/input fills, and the elevation ingredients. One cascade, one entry point, so the
  * clamp itself stays a field-by-field pass over the override.
  *
- * `base` is the CARRIED background parsed (`null` when neither reader resolves it): the plate falls back
- * to opaque, and the elevation ingredients are skipped entirely — polarity is not statically knowable, and
- * guessing it is exactly how a light palette would keep dark-arm smoke (`colorSchemeFor`'s rule). Never the
- * AMBIENT base (#236): this runs only when a background IS carried, and these must answer THIS surface.
+ * `base` is the carried background's resolved opaque pixel (`null` only with no readable value/ambient):
+ * the plate falls back to opaque and elevation ingredients are skipped only in that provider-less arm.
  */
-export function surfaceVarsOn(background: string, base: ParsedOklch | null): Readonly<Record<string, string>> {
+export function surfaceVarsOn(background: string, base: ParsedOklch | null, derivedOrigin = background): Readonly<Record<string, string>> {
   // The ramp's POLARITY ARM (#682). An unjudgeable base keeps the DARK arm rather than emitting nothing:
   // unlike the plate's alpha and the elevation ingredients, the ramp IS the chrome — a scope that carried
   // a background but no surfaces would paint the app theme's panels inside a custom room. Failing open to
   // the pre-#682 block is the one choice that leaves such a scope byte-identical to what it emitted
-  // before, and polarity is exactly as unknowable here as it is for `colorSchemeFor`.
+  // before, and polarity is genuinely unknowable without either a parsed color or ambient.
   const deltas = base === null ? THEME_DERIVATION.ramp.dark : rampDeltas({ l: base.l, c: base.c, h: base.h });
+  // Alpha-bearing and out-of-gamut picks derive their chrome from the opaque pixel they actually paint
+  // over the ambient backing. The authored spelling still owns --color-background; only the derived
+  // family uses this normalized origin, so transparent custom themes inherit coherent Hearth/seed chrome.
+  const origin = derivedOrigin;
+  const opaqueSuffix = origin === background ? "" : " / 1";
   const vars: Record<string, string> = { "--color-background": background };
   for (const [name, role] of SURFACE_RAMP_VARS) {
-    vars[name] = `oklch(from ${background} calc(l + ${deltas[role]}) c h)`;
+    vars[name] = `oklch(from ${origin} calc(l + ${deltas[role]}) c h${opaqueSuffix})`;
   }
-  vars["--color-reading-plate"] = readingPlateOn(background, base);
-  vars["--color-reading-band"] = readingBandOn(background);
+  vars["--color-reading-plate"] = readingPlateOn(origin, base);
+  vars["--color-reading-band"] = readingBandOn(origin);
   // The accent's foreground reads the SAME arm's accent delta — a foreground derived off a shift the
   // surface no longer takes is the polarity divorce this whole file exists to prevent.
-  vars["--color-accent-foreground"] = foregroundOnShifted(background, deltas.accent);
-  const fg = foregroundOn(background);
+  vars["--color-accent-foreground"] = foregroundOnShifted(origin, deltas.accent);
+  const fg = foregroundOn(origin);
   vars["--color-foreground"] = fg;
   vars["--color-card-foreground"] = fg;
   vars["--color-popover-foreground"] = fg;
   vars["--color-sidebar-foreground"] = fg;
   vars["--color-secondary-foreground"] = fg;
-  vars["--color-muted-foreground"] = mutedForegroundOn(background);
-  vars["--color-border"] = borderOn(background);
-  vars["--color-sidebar-border"] = borderOn(background);
-  vars["--color-input"] = inputSurfaceOn(background);
-  return base === null ? vars : { ...vars, ...shadowVarsOn(background, base), ...chartVarsOn(base) };
+  vars["--color-muted-foreground"] = mutedForegroundOn(origin);
+  vars["--color-border"] = borderOn(origin);
+  vars["--color-sidebar-border"] = borderOn(origin);
+  vars["--color-input"] = inputSurfaceOn(origin);
+  return base === null ? vars : { ...vars, ...shadowVarsOn(origin, base), ...chartVarsOn(base) };
 }
