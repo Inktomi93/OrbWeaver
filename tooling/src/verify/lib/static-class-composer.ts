@@ -21,6 +21,9 @@ const MODULE_COMPOSERS: Readonly<Record<string, Readonly<Record<string, Composer
   "#lib": { cn: "join", tv: "tv" },
 };
 
+const RETURN_WRAPPERS = new Set(["ParenthesizedExpression", "AsExpression", "SatisfiesExpression", "NonNullExpression", "TypeAssertionExpression"]);
+const RETURN_BINARY_OPERATORS = new Set(["+", "||", "??"]);
+
 function moduleComposer(moduleName: string, exportName: string): Composer | undefined {
   return MODULE_COMPOSERS[moduleName]?.[exportName];
 }
@@ -58,11 +61,10 @@ export class ComposerResolver {
       return this.identifierComposer(node, path);
     }
     if (Node.isPropertyAccessExpression(node)) {
-      const moduleName = this.namespaceModule(node.getExpression());
-      return moduleName === undefined ? undefined : moduleComposer(moduleName, node.getName());
+      return this.namespaceMemberComposer(node.getExpression(), node.getName(), path);
     }
     if (Node.isElementAccessExpression(node)) {
-      return this.elementComposer(node);
+      return this.elementComposer(node, path);
     }
     if (Node.isCallExpression(node)) {
       return this.factoryResult(node.getExpression(), path);
@@ -83,11 +85,10 @@ export class ComposerResolver {
     return void 0;
   }
 
-  private elementComposer(node: import("ts-morph").ElementAccessExpression): Composer | undefined {
+  private elementComposer(node: import("ts-morph").ElementAccessExpression, path: Set<Node>): Composer | undefined {
     const argument = node.getArgumentExpression();
     const names = argument === undefined ? [] : this.staticScalars(argument, new Set());
-    const moduleName = this.namespaceModule(node.getExpression());
-    return moduleName === undefined || names.length !== 1 ? undefined : moduleComposer(moduleName, names[0] ?? "");
+    return names.length === 1 ? this.namespaceMemberComposer(node.getExpression(), names[0] ?? "", path) : undefined;
   }
 
   private factoryResult(expression: Node, path: Set<Node>): Composer | undefined {
@@ -131,7 +132,7 @@ export class ComposerResolver {
       return this.forwardedComposer(declaration, path);
     }
     if (Node.isBindingElement(declaration)) {
-      return this.bindingComposer(declaration);
+      return this.bindingComposer(declaration, path);
     }
     if (Node.isExportAssignment(declaration)) {
       return this.composerOf(declaration.getExpression(), path);
@@ -156,12 +157,11 @@ export class ComposerResolver {
     return importDeclaration === undefined ? undefined : moduleComposer(importDeclaration.getModuleSpecifierValue(), "default");
   }
 
-  private bindingComposer(binding: import("ts-morph").BindingElement): Composer | undefined {
+  private bindingComposer(binding: import("ts-morph").BindingElement, path: Set<Node>): Composer | undefined {
     const variable = binding.getFirstAncestor(Node.isVariableDeclaration);
     const initializer = variable?.getInitializer();
     const member = binding.getPropertyNameNode()?.getText() ?? binding.getNameNode().getText();
-    const moduleName = initializer === undefined ? undefined : this.namespaceModule(initializer);
-    return moduleName === undefined ? undefined : moduleComposer(moduleName, member);
+    return initializer === undefined ? undefined : this.namespaceMemberComposer(initializer, member, path);
   }
 
   private exportSpecifierComposer(specifier: import("ts-morph").ExportSpecifier, path: Set<Node>): Composer | undefined {
@@ -192,24 +192,50 @@ export class ComposerResolver {
     return void 0;
   }
 
-  private namespaceModule(raw: Node): string | undefined {
+  private namespaceMemberComposer(raw: Node, exportName: string, path: Set<Node>): Composer | undefined {
     const node = unwrap(raw);
     if (!Node.isIdentifier(node)) {
       return;
     }
     for (const declaration of this.identifierDeclarations(node)) {
-      if (Node.isNamespaceImport(declaration)) {
-        return declaration.getFirstAncestor(Node.isImportDeclaration)?.getModuleSpecifierValue();
-      }
-      if (Node.isVariableDeclaration(declaration)) {
-        const initializer = declaration.getInitializer();
-        const found = initializer === undefined ? undefined : this.namespaceModule(initializer);
-        if (found !== undefined) {
-          return found;
-        }
+      const composer = this.namespaceDeclarationComposer(declaration, exportName, path);
+      if (composer !== undefined) {
+        return composer;
       }
     }
     return void 0;
+  }
+
+  private namespaceDeclarationComposer(declaration: Node, exportName: string, path: Set<Node>): Composer | undefined {
+    if (Node.isNamespaceImport(declaration)) {
+      return this.namespaceImportComposer(declaration, exportName, path);
+    }
+    if (!Node.isVariableDeclaration(declaration) || path.has(declaration)) {
+      return;
+    }
+    const initializer = declaration.getInitializer();
+    if (initializer === undefined) {
+      return;
+    }
+    path.add(declaration);
+    try {
+      return this.namespaceMemberComposer(initializer, exportName, path);
+    } finally {
+      path.delete(declaration);
+    }
+  }
+
+  private namespaceImportComposer(declaration: import("ts-morph").NamespaceImport, exportName: string, path: Set<Node>): Composer | undefined {
+    const moduleName = declaration.getFirstAncestor(Node.isImportDeclaration)?.getModuleSpecifierValue();
+    if (moduleName === undefined) {
+      return;
+    }
+    const direct = moduleComposer(moduleName, exportName);
+    if (direct !== undefined) {
+      return direct;
+    }
+    const source = importedSource(this.project, declaration.getSourceFile(), moduleName);
+    return source === undefined ? undefined : this.firstDeclarationComposer(exportedDeclarations(this.project, source, exportName), path);
   }
 
   private staticScalars(raw: Node, path: Set<Node>): string[] {
@@ -248,7 +274,7 @@ export class ComposerResolver {
       return;
     }
     for (const call of fn.getDescendants().filter(Node.isCallExpression)) {
-      if (!this.isOwnedCall(call, fn)) {
+      if (!(this.isOwnedCall(call, fn) && this.isReturnedCall(call, fn))) {
         continue;
       }
       const composer = this.composerOf(call.getExpression(), path);
@@ -257,6 +283,39 @@ export class ComposerResolver {
       }
     }
     return void 0;
+  }
+
+  private isReturnedCall(call: import("ts-morph").CallExpression, fn: FunctionLike): boolean {
+    let current: Node = call;
+    let parent = current.getParent();
+    while (parent !== undefined) {
+      if (Node.isReturnStatement(parent)) {
+        return parent.getExpression() === current && parent.getFirstAncestor(this.isFunctionLike) === fn;
+      }
+      if (Node.isArrowFunction(parent)) {
+        return parent === fn && parent.getBody() === current;
+      }
+      if (!this.isTransparentReturnParent(parent, current)) {
+        return false;
+      }
+      current = parent;
+      parent = current.getParent();
+    }
+    return false;
+  }
+
+  private isTransparentReturnParent(parent: Node, child: Node): boolean {
+    if (RETURN_WRAPPERS.has(parent.getKindName()) && "getExpression" in parent) {
+      return (parent as Node & { getExpression: () => Node }).getExpression() === child;
+    }
+    if (Node.isBinaryExpression(parent)) {
+      return RETURN_BINARY_OPERATORS.has(parent.getOperatorToken().getText()) && (parent.getLeft() === child || parent.getRight() === child);
+    }
+    return Node.isConditionalExpression(parent) && (parent.getWhenTrue() === child || parent.getWhenFalse() === child);
+  }
+
+  private isFunctionLike(node: Node): node is FunctionLike {
+    return Node.isFunctionDeclaration(node) || Node.isFunctionExpression(node) || Node.isArrowFunction(node);
   }
 
   private isOwnedCall(call: import("ts-morph").CallExpression, fn: FunctionLike): boolean {

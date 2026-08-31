@@ -141,6 +141,13 @@ function resolveImportedObjects(host: CollectionHost, target: ImportedObjectTarg
 }
 
 export function evalObjectMember(host: CollectionHost, raw: Node, names: readonly string[] | undefined, path: Set<Node>): StaticValue[] {
+  if (names !== undefined) {
+    const properties = findObjectProperties(host, raw, new Set(names), path);
+    if (properties.length === 0) {
+      host.diagnose("opaque", raw, `static class member ${names.join("|")} is absent`);
+    }
+    return dedupeValues(properties.flatMap((property) => host.evalClass(property.value, path)));
+  }
   const objects = resolveObjects(host, raw, new Set(path));
   if (objects.length === 0) {
     host.diagnose("opaque", raw, names === undefined ? "runtime object under dynamic class index" : "runtime object under class member access");
@@ -201,6 +208,21 @@ export interface ResolvedObjectProperty {
   readonly value: Node;
 }
 
+interface SelectedPropertyDiagnostic {
+  readonly kind: "opaque" | "unresolved";
+  readonly node: Node;
+  readonly reason: string;
+}
+
+type SelectedPropertySlot = { readonly property: ResolvedObjectProperty } | { readonly diagnostic: SelectedPropertyDiagnostic };
+type SelectedPropertyState = Map<string, SelectedPropertySlot>;
+
+interface SelectedPropertyContext {
+  readonly host: CollectionHost;
+  readonly names: ReadonlySet<string>;
+  readonly path: Set<Node>;
+}
+
 /** Resolve selected object properties in runtime overwrite order; later direct/spread writes win. */
 export function findObjectProperties(host: CollectionHost, raw: Node, names: ReadonlySet<string>, path: Set<Node>): ResolvedObjectProperty[] {
   const objects = resolveObjects(host, raw, new Set(path));
@@ -215,48 +237,103 @@ export function findObjectProperties(host: CollectionHost, raw: Node, names: Rea
     }
     path.add(object);
     try {
-      return selectedProperties(host, object, names, path);
+      const properties = new Map<string, ResolvedObjectProperty>();
+      for (const state of selectedPropertyStates({ host, names, path }, object, new Map())) {
+        for (const [name, slot] of state) {
+          if ("property" in slot) {
+            const property = slot.property;
+            properties.set(`${name}:${property.node.getSourceFile().getFilePath()}:${property.node.getStart()}`, property);
+          } else {
+            host.diagnose(slot.diagnostic.kind, slot.diagnostic.node, slot.diagnostic.reason);
+          }
+        }
+      }
+      return [...properties.values()];
     } finally {
       path.delete(object);
     }
   });
 }
 
-function selectedProperties(
-  host: CollectionHost,
+function selectedPropertyStates(
+  context: SelectedPropertyContext,
   object: import("ts-morph").ObjectLiteralExpression,
-  names: ReadonlySet<string>,
-  path: Set<Node>,
-): ResolvedObjectProperty[] {
-  const selected = new Map<string, ResolvedObjectProperty>();
+  initial: SelectedPropertyState,
+): SelectedPropertyState[] {
+  let states: SelectedPropertyState[] = [new Map(initial)];
   for (const member of object.getProperties()) {
-    if (Node.isSpreadAssignment(member)) {
-      for (const property of findObjectProperties(host, member.getExpression(), names, path)) {
-        selected.set(property.name, property);
-      }
-      continue;
-    }
-    const property = selectedProperty(host, member, names, path);
-    if (property !== undefined) {
-      selected.set(property.name, property);
-    }
+    states = applySelectedPropertyMember(context, member, states);
   }
-  return [...selected.values()];
+  return states;
 }
 
-function selectedProperty(host: CollectionHost, member: Node, names: ReadonlySet<string>, path: Set<Node>): ResolvedObjectProperty | undefined {
+function applySelectedPropertyMember(context: SelectedPropertyContext, member: Node, states: SelectedPropertyState[]): SelectedPropertyState[] {
+  if (Node.isSpreadAssignment(member)) {
+    return applySelectedPropertySpread(context, member, states);
+  }
   if (Node.isShorthandPropertyAssignment(member)) {
     const name = member.getName();
-    return names.has(name) ? { name, node: member, value: member.getNameNode() } : undefined;
+    if (context.names.has(name)) {
+      overwriteWithProperty(states, { name, node: member, value: member.getNameNode() });
+    }
+    return states;
   }
   if (!Node.isPropertyAssignment(member)) {
-    return;
+    return states;
   }
-  const name = propertyName(host, member.getNameNode(), path);
+  const name = propertyName(context.host, member.getNameNode(), context.path);
   if (name === undefined) {
-    host.diagnose("unresolved", member.getNameNode(), "computed selected-property key is unresolved");
-    return;
+    overwriteWithDiagnostic(states, context.names, { kind: "unresolved", node: member.getNameNode(), reason: "computed selected-property key is unresolved" });
+    return states;
   }
   const initializer = member.getInitializer();
-  return names.has(name) && initializer !== undefined ? { name, node: member, value: initializer } : undefined;
+  if (context.names.has(name) && initializer !== undefined) {
+    overwriteWithProperty(states, { name, node: member, value: initializer });
+  }
+  return states;
+}
+
+function applySelectedPropertySpread(
+  context: SelectedPropertyContext,
+  member: import("ts-morph").SpreadAssignment,
+  states: readonly SelectedPropertyState[],
+): SelectedPropertyState[] {
+  const spreads = resolveObjects(context.host, member.getExpression(), new Set(context.path));
+  if (spreads.length === 0) {
+    overwriteWithDiagnostic(states, context.names, { kind: "opaque", node: member, reason: "runtime object spread under selected-property carrier" });
+    return [...states];
+  }
+  return states.flatMap((state) => spreads.flatMap((spread) => selectedSpreadStates(context, spread, state)));
+}
+
+function selectedSpreadStates(
+  context: SelectedPropertyContext,
+  spread: import("ts-morph").ObjectLiteralExpression,
+  state: SelectedPropertyState,
+): SelectedPropertyState[] {
+  if (context.path.has(spread)) {
+    const cycle = new Map(state);
+    overwriteWithDiagnostic([cycle], context.names, { kind: "unresolved", node: spread, reason: "static selected-property cycle" });
+    return [cycle];
+  }
+  context.path.add(spread);
+  try {
+    return selectedPropertyStates(context, spread, state);
+  } finally {
+    context.path.delete(spread);
+  }
+}
+
+function overwriteWithProperty(states: readonly SelectedPropertyState[], property: ResolvedObjectProperty): void {
+  for (const state of states) {
+    state.set(property.name, { property });
+  }
+}
+
+function overwriteWithDiagnostic(states: readonly SelectedPropertyState[], names: ReadonlySet<string>, diagnostic: SelectedPropertyDiagnostic): void {
+  for (const state of states) {
+    for (const name of names) {
+      state.set(name, { diagnostic });
+    }
+  }
 }
