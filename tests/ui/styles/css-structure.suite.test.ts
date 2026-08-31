@@ -13,22 +13,9 @@ const GLOBALS_CSS_PATH = join(import.meta.dirname, "../../../packages/ui/src/sty
 // The seed [data-theme] palettes + the base color-scheme are GENERATED into theme.css from
 // src/tokens/themes/*.json (W1) — the palette-block assertions read theme.css, not globals.css.
 const THEME_CSS_PATH = join(import.meta.dirname, "../../../packages/ui/src/styles/theme.css");
-const RESOLVER_JSON_PATH = join(import.meta.dirname, "../../../packages/ui/src/tokens/resolver.json");
 const SHELL_CSS_PATH = join(import.meta.dirname, "../../../packages/client/src/features/app-shell/surfaces/shell.css");
 // @orb/client's single stylesheet — home of the four hand-listed BLUR_SURFACES blocks (W5).
 const CLIENT_GLOBALS_CSS_PATH = join(import.meta.dirname, "../../../packages/client/src/styles/globals.css");
-
-/** IDs of every Resolver-declared seed value-set whose Orb metadata says it paints a light scheme. */
-function lightSeedThemeNames(): string[] {
-  const resolver = JSON.parse(readFileSync(RESOLVER_JSON_PATH, "utf8")) as {
-    sets: Record<string, { $extensions?: { "orb.theme"?: { id?: string; colorScheme?: string } } }>;
-  };
-  return Object.values(resolver.sets)
-    .map((set) => set.$extensions?.["orb.theme"])
-    .filter((theme): theme is { id: string; colorScheme: string } => theme?.id !== undefined && theme.colorScheme !== undefined)
-    .filter((theme) => theme.colorScheme === "light")
-    .map((theme) => theme.id);
-}
 
 /** Balanced-brace scan: returns the index of the `}` that closes the `{` at `openBraceIndex`. */
 function findBlockEnd(css: string, openBraceIndex: number): number {
@@ -85,24 +72,11 @@ test("globals.css: theme.css is imported", () => {
   expect(css).toContain('@import "./theme.css"');
 });
 
-// Multi-palette machinery (WS2, D44 §12.1) — the seed value-sets ship as [data-theme=…] custom-property
-// redefinitions + an enumerated `dark` variant. These are the WS0 css-structure footguns for the
-// multi-palette surface: a missing block silently means "the palette never applies", a missing
-// color-scheme flip on Light means native controls stay dark (footgun #3), and a naive "default = dark"
-// variant would apply dark-variant styles under Light.
-// The @custom-variant is the ONE hand-authored piece that stays in globals.css (the palette blocks
-// themselves are generated into theme.css). Strengthened past a bare `[data-theme="light"]` literal:
-// it must EXCLUDE every light seed value-set discovered in src/tokens/themes/*.json — so a NEW light
-// palette that isn't wired into the variant (dark-variant styles would leak under it) goes red here.
-test("globals.css: the @custom-variant dark is enumerated and excludes every light seed value-set", () => {
-  const css = readFileSync(GLOBALS_CSS_PATH, "utf8");
-  expect(css).toContain("@custom-variant dark");
-  const variantLine = css.split("\n").find((l) => l.includes("@custom-variant dark")) ?? "";
-  const lightThemes = lightSeedThemeNames();
-  expect(lightThemes.length, "expected at least one light seed value-set to enforce against").toBeGreaterThan(0);
-  for (const name of lightThemes) {
-    expect(variantLine, `the dark variant must exclude the "${name}" light palette`).toContain(`[data-theme="${name}"]`);
-  }
+// Polarity has ONE mechanism: generated color-scheme plus light-dark(). A named-theme Tailwind variant
+// cannot see custom-theme polarity and would create a second axis that can disagree with ThemeScope.
+test("globals.css: no named-theme dark custom variant exists", () => {
+  const css = readFileSync(GLOBALS_CSS_PATH, "utf8").replace(COMMENT_RE, "");
+  expect(css).not.toContain("@custom-variant dark");
 });
 
 test("globals.css: no [data-theme=…] palette block remains (the seed palettes moved to theme.css in W1)", () => {
