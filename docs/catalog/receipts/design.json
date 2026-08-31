@@ -1037,11 +1037,11 @@
       "authority": "design",
       "fullRead": true,
       "verifiedSha256": "472a6854182d92271154b241b8eeaec75912d774c5a4a38d3f394444dd6c1b57",
-      "verifiedCommit": "bb01b0e91dfb6e1d7f6df8f2dbc40ef79f19a5bd",
+      "verifiedCommit": "d296984fe71d72dbd1d5ed415cc74c2cb70808d3",
       "verifiedAt": "2026-08-31",
       "evidence": [
         "docs/design/theme-pivot-foreground-contract.md:1-241 read in full after the implementation rebase; alternatives, coupled sites, planted controls, accepted-base projection, semantic split, owner-CSS precedence, and final proof tiers are all recorded",
-        "bb01b0e91 implements the exact document blob and its named production/test/doc homes on main cc4c2aec7",
+        "d296984fe implements the exact document blob and its named production/test/doc homes on main 1ae9f38e7",
         "pnpm test:scoped on the 14 named #969 unit/integration files: 14 files, 272 tests, 0 failures, 0 type errors",
         "pnpm ct:scoped on ThemeScope, chat controls, custom-theme CSS, and Button: 4 files, 86 passed, 0 failed/flaky/skipped"
       ],

@@ -304,9 +304,9 @@
       "path": "docs/architecture/core/Core-0-Architecture-and-Structure.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 323,
-      "bytes": 23621,
-      "sha256": "d513d237156e78286d25e9ea15be3f589f413d07885e045aca24d63d04280d9b",
+      "lines": 327,
+      "bytes": 23935,
+      "sha256": "2bc566e40bd7caed1965fc8ef07d2f823f968392949a7a1741f065f35049d12d",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -348,7 +348,7 @@
         ],
         "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/architecture/core/Core-Audits-and-Debt.md",
@@ -439,9 +439,9 @@
       "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 379,
-      "bytes": 191972,
-      "sha256": "22e06b85adecc0aa9a25006cf62fa2970ff5b51848ffc9c20e0999c1e7e799b5",
+      "lines": 380,
+      "bytes": 192874,
+      "sha256": "48cd24b24530e038830fa14e64e9e3c0437188d57da5da1ee6427b8f7176d06a",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -525,7 +525,7 @@
         ],
         "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/architecture/core/Core-Enforcement-Deferred-Dropped.md",
@@ -670,10 +670,10 @@
         "authority": "normative",
         "fullRead": true,
         "verifiedSha256": "bf00ada58af091fe2e1211013c107542f78357107832338f417bb6331c034740",
-        "verifiedCommit": "bb01b0e91dfb6e1d7f6df8f2dbc40ef79f19a5bd",
+        "verifiedCommit": "d296984fe71d72dbd1d5ed415cc74c2cb70808d3",
         "verifiedAt": "2026-08-31",
         "evidence": [
-          "re-attested at bb01b0e91 under #969 — full 545-line read; the D71 rider replaces the rejected-mid-band premise with one total accepted-base foreground contract and points to the derivation, ThemeScope, DTCG, CT, and imported-theme proof homes",
+          "re-attested at d296984fe under #969 — full 545-line read; the D71 rider replaces the rejected-mid-band premise with one total accepted-base foreground contract and points to the derivation, ThemeScope, DTCG, CT, and imported-theme proof homes",
           "re-attested at bbecbfc78 — full-file read under #930; D70 now points to the one paint-law home and D150's shell-paint premise was re-derived against shell.css and the CSS census",
           "delta re-verify 2026-08-25 (#689, commit 0a2789a00834abe892bfa92839e8dec3c30a97af): D147 clause (d) rewritten in place — the SERVER-WIDE install is BUILT as an admin-triggered fan-out of per-user rows, so the clause's two recorded open questions (consent over a shared install, whose principal it runs as) are DISSOLVED, not answered. Re-read at the amended bytes and re-derived against the tree it now describes: domain/plugin/verbs/{install,uninstall,apply}-*-users.ts + substrate/distribution.ts + persistence/distributed-plugins.ts, the admin_distributed_plugins DDL, and the pins the clause cites (tests/server/domain/plugin/verbs/*-users.int.test.ts, persistence/distributed-plugins.int.test.ts, the cross-tenant sweep's three EXEMPT rows, settings-shell-surface.ct.tsx's admin/plain-user Distribute pair). No other D-entry in this document moved.",
           "docs/architecture/core/Core-Path-Registry.md D139-D140 re-derived against root AGENTS.md; the D140 direct-import routing delta preserves the standing work-control split",
@@ -914,9 +914,9 @@
       "path": "docs/architecture/core/Core-Tooling-Law.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 372,
-      "bytes": 38924,
-      "sha256": "93a75b7157374aa8cd06c869ebd0be286a8f87dcf9626e317ff21126871cb389",
+      "lines": 383,
+      "bytes": 39954,
+      "sha256": "9cd4a893488ed35d7b754ccf650b054af8538b6ef21ec8cee37b30f91aaa9536",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -967,7 +967,7 @@
           }
         ]
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/architecture/core/Documentation-Law.md",
@@ -1872,10 +1872,10 @@
         "authority": "current-reference",
         "fullRead": true,
         "verifiedSha256": "7a1e416ee33f8c66a3fc39eab7700ee3e010421fffe66da873bb1a6b1f0a7e73",
-        "verifiedCommit": "bb01b0e91dfb6e1d7f6df8f2dbc40ef79f19a5bd",
+        "verifiedCommit": "d296984fe71d72dbd1d5ed415cc74c2cb70808d3",
         "verifiedAt": "2026-08-31",
         "evidence": [
-          "re-attested at bb01b0e91 under #969 — full 126-line read; §12.1 now points to D71 and names the surface-specific foreground derivation, reading-plate foreground, and custom-CSS later-winner contract",
+          "re-attested at d296984fe under #969 — full 126-line read; §12.1 now points to D71 and names the surface-specific foreground derivation, reading-plate foreground, and custom-CSS later-winner contract",
           "docs/architecture/core/UI-Theming-and-Content.md:1 full read (123 lines) during the 2026-08-16 tier-B card-frame security pass (#91); §12.2 truth-repaired against the tree",
           "git:e3efc08baf7601f1be23694babcbb2eeba94bf32 contains the exact current document blob",
           "docs/architecture/core/Core-Path-Registry.md:523-533 (standing control-plane and comment-source rulings — carried from the 2026-08-14 verification)",
@@ -1986,10 +1986,10 @@
         "authority": "current-reference",
         "fullRead": true,
         "verifiedSha256": "8884c3aa8244f26b56343105699ebe6f285d3281fcf8e3e2e5a6ca011b399074",
-        "verifiedCommit": "bb01b0e91dfb6e1d7f6df8f2dbc40ef79f19a5bd",
+        "verifiedCommit": "d296984fe71d72dbd1d5ed415cc74c2cb70808d3",
         "verifiedAt": "2026-08-31",
         "evidence": [
-          "re-attested at bb01b0e91 under #969 — full 803-line read; §4 records surface-specific normal-text foreground obligations, reading-plate and sidebar-accent roles, total accepted-base projection, and custom-CSS precedence without adding a CSS home",
+          "re-attested at d296984fe under #969 — full 803-line read; §4 records surface-specific normal-text foreground obligations, reading-plate and sidebar-accent roles, total accepted-base projection, and custom-CSS precedence without adding a CSS home",
           "re-attested at 4bf9ed645 — §4.5 records the one shared production/CT CSS front door and §4.6 records the repaired provenance-backed polarity gate",
           "re-attested at 8f30fb690 — §4.7 now records css-var-defined as the static value-resolution wall and removes undefined custom-property references from the known-unenforced list",
           "re-attested at b8eb66f00 — §4 now records the implemented portable/nonportable token partition, density ownership move, singular product polarity mechanism, exact #936 contract, and the honest #951/#954 enforcement limits",
@@ -10019,9 +10019,9 @@
       "path": "docs/architecture/proposed/token-contract-program.md",
       "lane": "architecture-proposed",
       "issue": 4,
-      "lines": 285,
-      "bytes": 19207,
-      "sha256": "781f919a68a8336c1b046ee2714b8bbd232ec5ea12753f277e72a7a63bf19cdb",
+      "lines": 289,
+      "bytes": 19603,
+      "sha256": "1d43a3680f11c198ea6672bc5543086a57dba495a62d971af6b092afb5be0a23",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -10034,15 +10034,15 @@
       },
       "receipt": {
         "path": "docs/architecture/proposed/token-contract-program.md",
-        "assignedSha256": "781f919a68a8336c1b046ee2714b8bbd232ec5ea12753f277e72a7a63bf19cdb",
+        "assignedSha256": "1d43a3680f11c198ea6672bc5543086a57dba495a62d971af6b092afb5be0a23",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "781f919a68a8336c1b046ee2714b8bbd232ec5ea12753f277e72a7a63bf19cdb",
-        "verifiedCommit": "bb01b0e91dfb6e1d7f6df8f2dbc40ef79f19a5bd",
+        "verifiedSha256": "1d43a3680f11c198ea6672bc5543086a57dba495a62d971af6b092afb5be0a23",
+        "verifiedCommit": "d296984fe71d72dbd1d5ed415cc74c2cb70808d3",
         "verifiedAt": "2026-08-31",
         "evidence": [
-          "re-attested at bb01b0e91 under #969 — full 285-line read; the portable DTCG contract gains only reading-plate-foreground and sidebar-accent-foreground, while runtime-derived CSS remains in the existing ThemeScope output seam",
+          "re-attested at d296984fe under #969 — full 289-line read; the portable DTCG contract gains only reading-plate-foreground and sidebar-accent-foreground, while runtime-derived CSS remains in the existing ThemeScope output seam; the rebased #950 SDK-boundary delta was also read",
           "docs/architecture/proposed/token-contract-program.md:1 (full read; implemented #936 program and current durable token-contract shape)",
           "docs/reviews/stickler/2026-08-31-token-contract-936-cold-review.md:1 (#936 cold review and repair train evidence)"
         ],
@@ -11113,9 +11113,9 @@
       "path": "docs/design/css-merge-trace.md",
       "lane": "design",
       "issue": 5,
-      "lines": 98,
-      "bytes": 8846,
-      "sha256": "2070796581c3438a6c0b74e90dc3c9aec6eb21268cf97a0904bc1e707d73075a",
+      "lines": 100,
+      "bytes": 8944,
+      "sha256": "45f9fb5719a2e44eb9acdec96863145b88fbc164316b0ed74f376302ce734196",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -11156,7 +11156,7 @@
           }
         ]
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/design/databank-surface-spec.md",
@@ -12354,11 +12354,11 @@
         "authority": "design",
         "fullRead": true,
         "verifiedSha256": "472a6854182d92271154b241b8eeaec75912d774c5a4a38d3f394444dd6c1b57",
-        "verifiedCommit": "bb01b0e91dfb6e1d7f6df8f2dbc40ef79f19a5bd",
+        "verifiedCommit": "d296984fe71d72dbd1d5ed415cc74c2cb70808d3",
         "verifiedAt": "2026-08-31",
         "evidence": [
           "docs/design/theme-pivot-foreground-contract.md:1-241 read in full after the implementation rebase; alternatives, coupled sites, planted controls, accepted-base projection, semantic split, owner-CSS precedence, and final proof tiers are all recorded",
-          "bb01b0e91 implements the exact document blob and its named production/test/doc homes on main cc4c2aec7",
+          "d296984fe implements the exact document blob and its named production/test/doc homes on main 1ae9f38e7",
           "pnpm test:scoped on the 14 named #969 unit/integration files: 14 files, 272 tests, 0 failures, 0 type errors",
           "pnpm ct:scoped on ThemeScope, chat controls, custom-theme CSS, and Button: 4 files, 86 passed, 0 failed/flaky/skipped"
         ],
@@ -27946,8 +27946,8 @@
       "lane": "reviews",
       "issue": 7,
       "lines": 423,
-      "bytes": 25050,
-      "sha256": "61ba605d61701f62910e36fc43ea5956c32cbdceb9a7d7e3b88e010bfd1271d3",
+      "bytes": 25139,
+      "sha256": "b5fdea9d694633af6051044f7f29a3d1e92ce1b49be41fac5484d28f675c7b78",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -27981,15 +27981,15 @@
           }
         ]
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/reviews/research/2026-08-31-devtools-css-cascade-provenance.md",
       "lane": "reviews",
       "issue": 7,
-      "lines": 205,
-      "bytes": 17790,
-      "sha256": "be9540937030af4b5f7456e0fc0aa84a073bca2b5dddd4c21167c082aba8b9de",
+      "lines": 207,
+      "bytes": 18796,
+      "sha256": "fad32f2ee858fdbb0256a17402e99d37d80e95d703f815eafd09e2c00367cfa4",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -28025,7 +28025,7 @@
           }
         ]
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/reviews/research/2026-08-31-gate-pass-unified-walk.md",
@@ -29503,9 +29503,9 @@
       "path": "docs/reviews/stickler/2026-08-30-css-census-doctrine-and-enforcement.md",
       "lane": "reviews",
       "issue": 7,
-      "lines": 1711,
-      "bytes": 143439,
-      "sha256": "005387164393ed7c8c4bb05326ddf6fa94f6051dc24bd9ee790fdf67e217708b",
+      "lines": 1715,
+      "bytes": 143866,
+      "sha256": "80687ba6705f5764857a27383b9bf253c3c82dce30fba690d3f81a058e3c3394",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -29518,15 +29518,15 @@
       },
       "receipt": {
         "path": "docs/reviews/stickler/2026-08-30-css-census-doctrine-and-enforcement.md",
-        "assignedSha256": "005387164393ed7c8c4bb05326ddf6fa94f6051dc24bd9ee790fdf67e217708b",
+        "assignedSha256": "80687ba6705f5764857a27383b9bf253c3c82dce30fba690d3f81a058e3c3394",
         "disposition": "current",
         "authority": "review",
         "fullRead": true,
-        "verifiedSha256": "005387164393ed7c8c4bb05326ddf6fa94f6051dc24bd9ee790fdf67e217708b",
-        "verifiedCommit": "bb01b0e91dfb6e1d7f6df8f2dbc40ef79f19a5bd",
+        "verifiedSha256": "80687ba6705f5764857a27383b9bf253c3c82dce30fba690d3f81a058e3c3394",
+        "verifiedCommit": "d296984fe71d72dbd1d5ed415cc74c2cb70808d3",
         "verifiedAt": "2026-08-31",
         "evidence": [
-          "re-attested at bb01b0e91 under #969 — full 1,711-line read; the census records the pivot-dark/pivot-light framebuffer reds, total derivation repair, semantic foreground split, custom-CSS precedence, 2,060-sample pure proof, and focused CT green while retaining the grouped train barrier",
+          "re-attested at d296984fe under #969 — standing full 1,711-line read plus the exact four-line #950 rebase delta; the resulting 1,715-line census records the pivot-dark/pivot-light framebuffer reds, total derivation repair, semantic foreground split, custom-CSS precedence, 2,060-sample pure proof, and focused CT green while retaining the grouped train barrier",
           "re-attested at b682e9921 — the historical 28d526c99 measurements are separated from current main; #949/#965/#966 integrated receipts, #950's official DevTools SDK route, the five-stylesheet-plus-token home count, semantic selector limits, and the ungraduated grouped barrier are reconciled",
           "re-attested at 219e839b6 — #956's semantic selector-writer gate, exact 69-class/112-data identity scope, focused proof, vendor parity, and honest real-tree deferral are reconciled into the durable CSS program",
           "re-attested at ef75f9455 — #939's cold-confirmed seed/custom chart repair and #955's integrated shell-length/token wall are reconciled with exact focused and rendered receipts while the grouped train barrier remains pending",
@@ -29652,6 +29652,26 @@
       "receiptCurrent": true
     },
     {
+      "path": "docs/reviews/stickler/2026-08-31-css-review-train-f83aa7071.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 221,
+      "bytes": 18319,
+      "sha256": "433e76b53c432cbae165dd9ac74723692bf367eec2f685a2718fdd97b9e6d25c",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-31"
+        },
+        "errors": []
+      },
+      "receipt": null,
+      "receiptCurrent": false
+    },
+    {
       "path": "docs/reviews/stickler/2026-08-31-gate-member-discovery-rehome-audit.md",
       "lane": "reviews",
       "issue": 7,
@@ -29699,9 +29719,9 @@
       "path": "docs/reviews/stickler/2026-08-31-tailwind-style-dictionary-dtcg-api-audit.md",
       "lane": "reviews",
       "issue": 7,
-      "lines": 519,
-      "bytes": 47218,
-      "sha256": "57afccab1c56b5134171f1636c52f6fcf1c4573512954f93529a19679ef33b4b",
+      "lines": 521,
+      "bytes": 41429,
+      "sha256": "c12812d6921484184d7a932128a8f60b4ceec6697645a6364dfe506982ca729a",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -29735,7 +29755,7 @@
           }
         ]
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/reviews/stickler/2026-08-31-token-contract-936-cold-review.md",

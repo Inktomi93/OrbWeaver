@@ -3935,15 +3935,15 @@
     },
     {
       "path": "docs/architecture/proposed/token-contract-program.md",
-      "assignedSha256": "781f919a68a8336c1b046ee2714b8bbd232ec5ea12753f277e72a7a63bf19cdb",
+      "assignedSha256": "1d43a3680f11c198ea6672bc5543086a57dba495a62d971af6b092afb5be0a23",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "781f919a68a8336c1b046ee2714b8bbd232ec5ea12753f277e72a7a63bf19cdb",
-      "verifiedCommit": "bb01b0e91dfb6e1d7f6df8f2dbc40ef79f19a5bd",
+      "verifiedSha256": "1d43a3680f11c198ea6672bc5543086a57dba495a62d971af6b092afb5be0a23",
+      "verifiedCommit": "d296984fe71d72dbd1d5ed415cc74c2cb70808d3",
       "verifiedAt": "2026-08-31",
       "evidence": [
-        "re-attested at bb01b0e91 under #969 — full 285-line read; the portable DTCG contract gains only reading-plate-foreground and sidebar-accent-foreground, while runtime-derived CSS remains in the existing ThemeScope output seam",
+        "re-attested at d296984fe under #969 — full 289-line read; the portable DTCG contract gains only reading-plate-foreground and sidebar-accent-foreground, while runtime-derived CSS remains in the existing ThemeScope output seam; the rebased #950 SDK-boundary delta was also read",
         "docs/architecture/proposed/token-contract-program.md:1 (full read; implemented #936 program and current durable token-contract shape)",
         "docs/reviews/stickler/2026-08-31-token-contract-936-cold-review.md:1 (#936 cold review and repair train evidence)"
       ],
