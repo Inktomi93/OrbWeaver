@@ -4,22 +4,12 @@
 // initial reads (a stable wait target that never hangs on the never-idle SSE bus); installAgentDebugHandle
 // installs dev-only `globalThis.__orb`.
 //
-// `data-app-ready` is PRESENCE + VALUE: presence means "stop waiting" (every existing waiter selects on
-// presence alone and is unaffected); the value is `""` for a real settle and `"degraded"` when the ceiling
-// fired with reads still in flight. A waiter that only checks presence still never hangs; an INSTRUMENT is
-// obliged to read the value before calling its capture settled.
-//
-// READINESS IS JUDGED AGAINST ROUTE RESOLUTION, NOT THE CLOCK (issue #145). The settle check reads an idle
-// query cache, and an idle cache means THREE things, not two: the reads drained · they have not started ·
-// the component that owns them has not mounted at all. The third is the whole of #145 — `/`'s component is
-// `lazyRouteComponent(() => import("../compose/authed-app.tsx"))`, ~4.9 MB of feature graph, and on a cold
-// `snap --isolated` stage vite takes longer than the 3s grace to serve it. The grace fired against a router
-// still in its pending component, the flag went up SETTLED with an EMPTY query cache, and every instrument
-// screenshotted the boot glyph and reported a clean wait. So the no-reads-at-all arm is now gated on route
-// resolution AND its grace window STARTS at resolution: "this app has no initial reads" is only claimable
-// once the route that would have issued them is actually mounted.
+// `data-app-ready` is PRESENCE + VALUE: presence stops waiting; `""` means settled and `"degraded"`
+// means the ceiling fired with reads still in flight. Readiness is judged after route resolution because
+// an idle query cache can also mean the lazy route that owns the reads has not mounted yet (#145).
 
 import type { ChatId } from "@orb/kit/ids";
+import type { CssMergeTraceSnapshot } from "@orb/ui/lib";
 import type { QueryClient } from "@tanstack/react-query";
 import type { OrbAutomationFiresFilter, OrbPluginLogReader } from "./agent-plugin-bridge.ts";
 import { readAutomationFires } from "./agent-plugin-bridge.ts";
@@ -215,11 +205,17 @@ interface OrbRpgSnapshot {
 
 export type OrbRpgReader = () => Promise<OrbRpgSnapshot>;
 
+export interface OrbCssHandle {
+  readonly read: () => CssMergeTraceSnapshot;
+  readonly reset: () => void;
+}
+
 export interface OrbAgentHandles {
   readonly nav: OrbNavHandle;
   readonly seed: OrbSeedHandle;
   readonly rpg: OrbRpgReader;
   readonly pluginLog: OrbPluginLogReader;
+  readonly css: OrbCssHandle;
   readonly durableLocalUserId: () => string | null;
 }
 
@@ -307,6 +303,8 @@ interface OrbDebugHandle {
    *  the production `plugin.list` / `plugin.getLog` reads — the lines a floated hub-search continuation
    *  logs included (#806). Loud refusal on no match / ambiguity. */
   readonly pluginLog: OrbPluginLogReader;
+  /** Ordered configured-merge conflicts since the last checkpoint (#949). */
+  readonly css: OrbCssHandle;
   /** The durable AUTOMATION FIRE LOG (`automation_fires`: every dispatch terminal with its per-arm `detail`),
    *  newest-first across the deployment, via a same-origin read of `/api/_debug/automation/fires` —
    *  `{chatId?, ruleId?, limit?}` narrow. The debug gate admits the dev admin session (or `x-debug-token`);
@@ -367,7 +365,7 @@ export function installAgentDebugHandle(queryClient: QueryClient, handles: OrbAg
   }
   installMotionObservers();
   installMotionFlaggers();
-  const { nav, seed, rpg, pluginLog, durableLocalUserId } = handles;
+  const { nav, seed, rpg, pluginLog, css, durableLocalUserId } = handles;
   const isReady = (): boolean => document.documentElement.hasAttribute(READY_ATTR);
   const shell = (): ShellSnapshot => ({
     section: document.querySelector('[aria-current="page"]')?.getAttribute("aria-label") ?? null,
@@ -435,11 +433,12 @@ export function installAgentDebugHandle(queryClient: QueryClient, handles: OrbAg
     seed,
     rpg,
     pluginLog,
+    css,
     automationFires: readAutomationFires,
     durableLocalUserId,
   };
   console.info(
-    "%c[orb]%c dev introspection ready → %cwindow.__orb%c.snap() · .rpg() · .pluginLog(slug?) · .automationFires({chatId?}) · .queries() · .bus() · .perf() · .renders() · .motion() · .animations() · .flags()/.resetEvidence()/.motionFlaggersSettled()/.setMotionAuditDropTrackingPaused() · .shell() · .durableLocalUserId() · .nav.capabilities/section/openModal/openConfig/contextTab/openChat/openCharacter/closeModal · .seed.game({profile:'d20'|'freeform'})/richGame;  wait on %chtml[data-app-ready]%c.  Docs: packages/client/src/lib/agent-tools.README.md",
+    "%c[orb]%c dev introspection ready → %cwindow.__orb%c.snap() · .css.read()/.reset() · .rpg() · .pluginLog(slug?) · .automationFires({chatId?}) · .queries() · .bus() · .perf() · .renders() · .motion() · .animations() · .flags()/.resetEvidence()/.motionFlaggersSettled()/.setMotionAuditDropTrackingPaused() · .shell() · .durableLocalUserId() · .nav.capabilities/section/openModal/openConfig/contextTab/openChat/openCharacter/closeModal · .seed.game({profile:'d20'|'freeform'})/richGame;  wait on %chtml[data-app-ready]%c.  Docs: packages/client/src/lib/agent-tools.README.md",
     "color:#e0a; font-weight:bold",
     "color:#888",
     "color:#0a7; font-weight:bold",

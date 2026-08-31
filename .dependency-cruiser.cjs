@@ -196,13 +196,27 @@ module.exports = {
     {
       name: "ui-class-merge-seal",
       comment:
-        "tailwind-merge is sealed to packages/ui/src/lib/class-merge.ts — the ONE module that configures it (the custom --text-*/--leading-*/--tracking-* DTCG class groups) and the ONE home of `cn` + `tv`. A second construction site is a second config, and a merger built without those groups silently drops custom-token classes (2026-08-02 root-fix; the named-import twin — cn/cnMerge/tv from tailwind-variants — is biome noRestrictedImports).",
+        "tailwind-merge is sealed to packages/ui/src/lib/class-merge.ts — the ONE module that configures it and the ONE home of `cn` + `tv`. A second construction site is a second config, and a merger built without the governed token groups silently drops custom-token classes (2026-08-02 root-fix; #949 compiler-parity + merge-receipt arm).",
       severity: "error",
       from: {
         path: UI,
         pathNot: `${UI}lib/class-merge\\.ts$`,
       },
       to: { path: "node_modules/tailwind-merge/" },
+    },
+    {
+      name: "ui-tailwind-variants-runtime-seal",
+      comment:
+        "tailwind-variants runtime construction is sealed to packages/ui/src/lib/class-merge.ts, where createTV disables its internal merge and Orb performs exactly one configured final merge. Type-only VariantProps imports remain legal; any second runtime factory can bypass Orb's governed groups and __orb.css receipt (#949).",
+      severity: "error",
+      from: {
+        path: UI,
+        pathNot: `${UI}lib/class-merge\\.ts$`,
+      },
+      to: {
+        path: "node_modules/tailwind-variants/",
+        dependencyTypesNot: ["type-only"],
+      },
     },
     {
       name: "search-minisearch-seal",

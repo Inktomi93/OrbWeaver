@@ -7,9 +7,9 @@
 // happened to run a `tv({…})`. An unconfigured merger classifies our custom `--text-*` DTCG utilities
 // as text COLORS and drops the size class — the same source rendering in a different font size
 // depending on import order. The first test below is deliberately the FIRST statement to touch a
-// merger in this module graph (nothing here imports a variants module), so it exercises exactly the
-// cold-graph state that used to be wrong; the second proves a warm graph gives the same answer.
-import { cn } from "@orb/ui/lib";
+// merger in this module graph, so it exercises exactly the cold-graph state that used to be wrong.
+import type { CssMergeTraceSnapshot } from "@orb/ui/lib";
+import { CSS_MERGE_FAMILY_NAMES, CSS_MERGE_TRACE_INPUT_LIMIT, cn, cssMergeTrace, tv } from "@orb/ui/lib";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "../../support/fixtures.ts";
 
@@ -102,14 +102,16 @@ test.for(NAMESPACE_AXES)("cn resolves the custom radius/container/width namespac
   expect(merged, "the one it overrides must be DROPPED, not left to stylesheet order").not.toContain(first);
 });
 
-/** Namespace → a `<utility>-<token>` speller + the CORE class of the same axis it must defeat. One row
- *  per REGISTERED namespace; a namespace registered without a row here is caught by the count assertion
- *  in the completeness test below, so a new registration cannot land unproven. */
+/** Namespace → a `<utility>-<token>` speller + the CORE class of the same axis it must defeat. These are
+ *  the namespaces Orb registers with an explicit derived scale rather than tailwind-merge's broad defaults. */
 const REGISTERED_NAMESPACES = [
   { namespace: "spacing", utility: (token: string): string => `gap-${token}`, core: "gap-0" },
   { namespace: "radius", utility: (token: string): string => `rounded-${token}`, core: "rounded-none" },
   { namespace: "container", utility: (token: string): string => `max-w-${token}`, core: "max-w-0" },
   { namespace: "width", utility: (token: string): string => `w-${token}`, core: "w-0" },
+  { namespace: "aspect", utility: (token: string): string => `aspect-${token}`, core: "aspect-square" },
+  { namespace: "blur", utility: (token: string): string => `blur-${token}`, core: "blur-none" },
+  { namespace: "ease", utility: (token: string): string => `ease-${token}`, core: "ease-linear" },
 ] as const;
 
 test.for(REGISTERED_NAMESPACES)("every --$namespace-* token is registered — a new token cannot silently re-open the defect", ({ namespace, utility, core }) => {
@@ -140,4 +142,177 @@ test("the answer does not depend on import order — a warm graph (variants modu
   // call itself writes it). Imported by PATH, not by package subpath, to keep this file React-free.
   await import("../../../packages/ui/src/primitives/button/variants.ts");
   expect({ size: cn(...SIZE_VS_COLOR), leading: cn(...LEADING_OVERRIDE) }).toStrictEqual(cold);
+});
+
+const GOVERNED_FAMILY_AXES = [
+  { family: "color", pair: ["bg-primary", "bg-secondary"] },
+  { family: "spacing", pair: ["gap-block", "gap-tight"] },
+  { family: "radius", pair: ["rounded-base", "rounded-card"] },
+  { family: "aspect", pair: ["aspect-portrait", "aspect-banner"] },
+  { family: "shadow", pair: ["shadow-overlay", "shadow-glow"] },
+  { family: "blur", pair: ["blur-strength", "blur-fill-chrome"] },
+  { family: "border-width", pair: ["border-hairline", "border-control"] },
+  { family: "font", pair: ["font-sans", "font-mono"] },
+  { family: "text", pair: ["text-title", "text-body"] },
+  { family: "leading", pair: ["leading-title", "leading-body"] },
+  { family: "tracking", pair: ["tracking-micro", "tracking-wide"] },
+  { family: "container", pair: ["max-w-cq-sm", "max-w-cq-lg"] },
+  { family: "width", pair: ["w-dialog-sm", "w-dialog-lg"] },
+  { family: "ease", pair: ["ease-out-expo", "ease-linear"] },
+] as const;
+
+test("the later-wins matrix covers every governed family exactly once", () => {
+  expect(GOVERNED_FAMILY_AXES.map(({ family }) => family)).toStrictEqual([...CSS_MERGE_FAMILY_NAMES]);
+});
+
+test.for(GOVERNED_FAMILY_AXES)("$family obeys later-wins in both argument orders", ({ pair: [first, second] }) => {
+  expect(cn(first, second)).toBe(second);
+  expect(cn(second, first)).toBe(first);
+});
+
+test("modifier, important, postfix, and arbitrary candidates reach the configured merger", () => {
+  expect(cn("hover:p-2", "hover:p-4")).toBe("hover:p-4");
+  expect(cn("p-2!", "p-4!")).toBe("p-4!");
+  expect(cn("text-title/6", "text-body/7")).toBe("text-body/7");
+  expect(cn("w-[10px]", "w-[20px]")).toBe("w-[20px]");
+});
+
+function readOkTrace(): Extract<CssMergeTraceSnapshot, { status: "ok" }> {
+  const snapshot = cssMergeTrace.read();
+  if (snapshot.status !== "ok") {
+    throw new Error(snapshot.error);
+  }
+  return snapshot;
+}
+
+test("the trace is disabled until a dev/test caller explicitly opts in", () => {
+  expect(cssMergeTrace.read()).toMatchObject({ status: "instrument-error", error: expect.stringContaining("not enabled") });
+});
+
+test("the receipt preserves ordered occurrences and the exact custom-family loser to final winner", () => {
+  cssMergeTrace.enable();
+  expect(cn("aspect-portrait", "aspect-banner")).toBe("aspect-banner");
+  const snapshot = readOkTrace();
+  expect(snapshot.calls).toBe(1);
+  expect(snapshot.receipts).toStrictEqual([
+    {
+      input: [
+        { index: 0, className: "aspect-portrait" },
+        { index: 1, className: "aspect-banner" },
+      ],
+      conflicts: [
+        {
+          axis: "orb:aspect",
+          loser: { index: 0, className: "aspect-portrait" },
+          winner: { index: 1, className: "aspect-banner" },
+        },
+      ],
+      output: "aspect-banner",
+    },
+  ]);
+});
+
+test("reset clears an old conflict while retaining non-conflicting population", () => {
+  cssMergeTrace.enable();
+  cn("aspect-portrait", "aspect-banner");
+  expect(readOkTrace().receipts).toHaveLength(1);
+  cssMergeTrace.reset();
+  expect(cn("aspect-portrait", "block")).toBe("aspect-portrait block");
+  expect(readOkTrace()).toMatchObject({ calls: 1, conflictCalls: 0, receipts: [] });
+});
+
+test("duplicate receipts dedupe without erasing call and conflict population", () => {
+  cssMergeTrace.enable();
+  cn("p-2", "p-4");
+  cn("p-2", "p-4");
+  expect(readOkTrace()).toMatchObject({ calls: 2, conflictCalls: 2, deduplicatedConflictCalls: 1 });
+  expect(readOkTrace().receipts).toHaveLength(1);
+});
+
+test("occurrence replay distinguishes duplicates and asymmetric padding conflicts", () => {
+  cssMergeTrace.enable();
+  expect(cn("p-2", "p-2")).toBe("p-2");
+  expect(readOkTrace().receipts[0]?.conflicts[0]).toMatchObject({
+    loser: { index: 0, className: "p-2" },
+    winner: { index: 1, className: "p-2" },
+  });
+
+  cssMergeTrace.reset();
+  expect(cn("pr-4", "px-2")).toBe("px-2");
+  expect(readOkTrace().receipts[0]?.conflicts[0]).toMatchObject({
+    loser: { index: 0, className: "pr-4" },
+    winner: { index: 1, className: "px-2" },
+  });
+
+  cssMergeTrace.reset();
+  expect(cn("px-2", "pr-4")).toBe("px-2 pr-4");
+  expect(readOkTrace().receipts).toStrictEqual([]);
+});
+
+test("occurrence replay follows evictor chains to the final surviving winner", () => {
+  cssMergeTrace.enable();
+  expect(cn("p-2", "p-4", "p-6")).toBe("p-6");
+  expect(readOkTrace().receipts[0]?.conflicts).toMatchObject([
+    { loser: { index: 0, className: "p-2" }, winner: { index: 2, className: "p-6" } },
+    { loser: { index: 1, className: "p-4" }, winner: { index: 2, className: "p-6" } },
+  ]);
+});
+
+test("modifier and arbitrary conflicts retain occurrence-aware receipts", () => {
+  cssMergeTrace.enable();
+  expect(cn("hover:p-2", "hover:p-4")).toBe("hover:p-4");
+  expect(readOkTrace().receipts[0]?.conflicts[0]).toMatchObject({
+    axis: "tailwind-core",
+    loser: { index: 0, className: "hover:p-2" },
+    winner: { index: 1, className: "hover:p-4" },
+  });
+
+  cssMergeTrace.reset();
+  expect(cn("w-[10px]", "w-[20px]")).toBe("w-[20px]");
+  expect(readOkTrace().receipts[0]?.conflicts[0]).toMatchObject({
+    axis: "tailwind-core",
+    loser: { index: 0, className: "w-[10px]" },
+    winner: { index: 1, className: "w-[20px]" },
+  });
+});
+
+test("the trace fails loud when empty or beyond its occurrence replay bound", () => {
+  cssMergeTrace.enable();
+  expect(cssMergeTrace.read()).toMatchObject({ status: "instrument-error", error: expect.stringContaining("zero merge calls") });
+
+  const overbound = Array.from({ length: CSS_MERGE_TRACE_INPUT_LIMIT + 1 }, () => "p-2");
+  expect(cn(...overbound)).toBe("p-2");
+  expect(cssMergeTrace.read()).toMatchObject({ status: "instrument-error", error: expect.stringContaining("replay limit") });
+});
+
+test("TV ordinary and slot results each reach Orb exactly once with their raw candidates", () => {
+  const ordinary = tv({ base: "aspect-portrait", variants: { shape: { banner: "aspect-banner" } } });
+  cssMergeTrace.enable();
+  expect(ordinary({ shape: "banner" })).toBe("aspect-banner");
+  expect(readOkTrace()).toMatchObject({ calls: 1 });
+  expect(readOkTrace().receipts[0]?.input.map(({ className }) => className)).toStrictEqual(["aspect-portrait", "aspect-banner"]);
+
+  const slotted = tv({ slots: { root: "blur-strength", icon: "ease-out-expo" } });
+  const slots = slotted();
+  cssMergeTrace.enable();
+  expect(slots.root({ class: "blur-fill-chrome" })).toBe("blur-fill-chrome");
+  expect(readOkTrace()).toMatchObject({ calls: 1 });
+  expect(readOkTrace().receipts[0]?.input.map(({ className }) => className)).toStrictEqual(["blur-strength", "blur-fill-chrome"]);
+
+  cssMergeTrace.reset();
+  expect(slots.icon({ class: "ease-linear" })).toBe("ease-linear");
+  expect(readOkTrace()).toMatchObject({ calls: 1 });
+});
+
+test("TV extension metadata and composed ordinary semantics survive the final-merge wrapper", () => {
+  const parent = tv({ base: "p-2", variants: { tone: { warm: "aspect-portrait" } } });
+  cssMergeTrace.enable();
+  const child = tv({ extend: parent, base: "p-4", variants: { elevation: { glow: "shadow-glow" } } });
+  expect(child({ tone: "warm", elevation: "glow" })).toBe("p-4 shadow-glow aspect-portrait");
+  expect(readOkTrace()).toMatchObject({ calls: 1 });
+});
+
+test("TV preserves empty ordinary and slot return semantics", () => {
+  expect(tv({})()).toBeUndefined();
+  expect(tv({ slots: { root: "" } })().root()).toBeUndefined();
 });

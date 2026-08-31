@@ -188,6 +188,10 @@ function writeAllFixtures(): void {
   fx("packages/ui/src/__dc/minisearch-sealbreach.ts", `import MiniSearch from "minisearch";\nexport const m = MiniSearch;\n`);
   // ui-class-merge-seal: tailwind-merge belongs to lib/class-merge.ts only (the ONE configured merger).
   fx("packages/ui/src/__dc/twmerge-sealbreach.ts", `import { twMerge } from "tailwind-merge";\nexport const m = twMerge;\n`);
+  // ui-tailwind-variants-runtime-seal: every runtime factory belongs beside the ONE configured merger.
+  // Type-only VariantProps imports across components remain legal by construction.
+  fx("packages/ui/src/__dc/tv-factory-sealbreach.ts", `import { createTV } from "tailwind-variants";\nexport const v = createTV({ twMerge: false });\n`);
+  fx("packages/ui/src/__dc/tv-typeonly-ok.ts", `import type { VariantProps } from "tailwind-variants";\nexport type V = VariantProps<() => string>;\n`);
   // search-minisearch-seal: minisearch (server side) belongs to domain/search/substrate/field-index.ts only.
   fx("packages/server/src/domain/search/__dc/minisearch-sealbreach.ts", `import MiniSearch from "minisearch";\nexport const m = MiniSearch;\n`);
 
@@ -256,6 +260,8 @@ interface Violation {
   readonly rule: { readonly name: string };
 }
 
+let allViolations: readonly Violation[] = [];
+
 function runCruise(): Violation[] {
   let stdout: string;
   try {
@@ -284,6 +290,7 @@ beforeAll(() => {
   cleanFixtures();
   writeAllFixtures();
   const violations = runCruise();
+  allViolations = violations;
   firedRules = new Set(violations.map((v) => v.rule.name));
   fixtureFiles = new Set(violations.flatMap((v) => [v.from, v.to]).filter((p) => DC_FIXTURE_RE.test(p) || p === EMBEDDINGS));
   // 30s, matching the `integration-serial` project's `testTimeout` — vitest's hookTimeout is SEPARATE and
@@ -325,4 +332,10 @@ test("allows client→server TYPE-ONLY (the tRPC bridge) — no client-no-backen
   const all = [...fixtureFiles];
   expect(all.some((p) => p.includes("client/src/__dc/value.ts"))).toBe(true);
   expect(all.some((p) => p.includes("client/src/__dc/typeonly.ts"))).toBe(false);
+});
+
+test("the TV seal catches the planted runtime factory and preserves type-only VariantProps imports", () => {
+  const tvViolations = allViolations.filter((violation) => violation.rule.name === "ui-tailwind-variants-runtime-seal");
+  expect(tvViolations.some((violation) => violation.from.endsWith("ui/src/__dc/tv-factory-sealbreach.ts"))).toBe(true);
+  expect(tvViolations.some((violation) => violation.from.endsWith("ui/src/__dc/tv-typeonly-ok.ts"))).toBe(false);
 });
