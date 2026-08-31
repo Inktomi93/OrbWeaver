@@ -43,6 +43,8 @@ const SERIAL_INT = [
   // sentinel space check-gates.int owns, so the two MUST never run concurrently.
   "tests/tooling/gate-ignore-grammar.int.test.ts",
   "tests/tooling/dependency-cruiser.int.test.ts",
+  // #949 compiler parity: whole UI/client source graph → #961 provenance → Oxide → Tailwind compile.
+  "tests/tooling/css-merge-parity.int.test.ts",
   "tests/server/entry/lifecycle.int.test.ts",
   // 2. whole-tree scanners + heavy full-composition files (flaked on 5s timeout under fork contention)
   "tests/tooling/gate-conformance.int.test.ts",

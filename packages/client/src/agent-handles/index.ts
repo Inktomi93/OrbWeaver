@@ -22,6 +22,7 @@
 // compose/ sibling). Only `#state` readers are reached directly, which the composition tier may do.
 
 import type { AppRouter } from "@orb/server";
+import { cssMergeTrace } from "@orb/ui/lib";
 import type { QueryClient } from "@tanstack/react-query";
 import type { TRPCClient } from "@trpc/client";
 import type { Trpc } from "#data";
@@ -35,11 +36,13 @@ import { installAgentDebugHandle } from "../lib/agent-bridge.ts";
 /** Build the four `__orb` implementations and install the dev introspection handle. Dev-only by
  *  construction: main.tsx reaches this module through an `import.meta.env.DEV` dynamic import. */
 export function installAgentHandles(queryClient: QueryClient, trpcClient: TRPCClient<AppRouter>, trpcProxy: Trpc): void {
+  cssMergeTrace.enable();
   installAgentDebugHandle(queryClient, {
     nav: buildAgentNav(trpcProxy, queryClient),
     seed: buildAgentSeed(trpcClient),
     rpg: buildAgentRpg(trpcClient, activeChatId),
     pluginLog: buildAgentPlugin(trpcClient),
+    css: { read: cssMergeTrace.read, reset: cssMergeTrace.reset },
     durableLocalUserId: activeDurableLocalUserId,
   });
 }

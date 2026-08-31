@@ -1,6 +1,6 @@
-// The ONE tailwind-merge configuration in the repo, and BOTH seams that ride it: `cn` (the class
-// merger) and `tv` (the variant factory). They live in one module because they must share one config
-// object — the whole defect class below is what happens when they don't.
+// The ONE tailwind-merge configuration and the TWO seams that ride it: `cn` and `tv`. Tailwind
+// Variants composes raw ordinary/slot candidates with its internal merge disabled; Orb applies one
+// configured final merge so the receipt sees the same candidates that decide the rendered output.
 //
 // WHY THIS FILE EXISTS (2026-08-02 root-fix). `@orb/ui/lib` used to re-export tailwind-variants' own
 // `cn`, and configure the merger only through `createTV`. tailwind-variants keeps the twMerge config in
@@ -13,14 +13,29 @@
 // COLORS and drops the size as a conflict. Building `cn` on our OWN configured merger makes the
 // unconfigured one unrepresentable: there is no shared state left to lose a race with.
 //
-// Enforcers (a prose-only boundary is a wish — AGENTS §2.3): `tailwind-merge` is dep-cruiser-sealed to
-// this file (`ui-class-merge-seal`), and biome's `noRestrictedImports` bans the named imports
-// `cn`/`cnMerge`/`tv` from "tailwind-variants" repo-wide. `createTV` stays importable precisely so this
-// sanctioned home needs zero exemptions.
+// Enforcers (a prose-only boundary is a wish — AGENTS §2.3): dep-cruiser seals both tailwind-merge and
+// runtime tailwind-variants imports to this file. Type-only VariantProps imports remain legal.
 import { extendTailwindMerge } from "tailwind-merge";
-import type { CnOptions, CnReturn } from "tailwind-variants";
+import type { CnOptions, CnReturn, TV } from "tailwind-variants";
 import { createTV, cx } from "tailwind-variants";
 import { TOKENS } from "#tokens";
+
+export const CSS_MERGE_FAMILY_NAMES = [
+  "color",
+  "spacing",
+  "radius",
+  "aspect",
+  "shadow",
+  "blur",
+  "border-width",
+  "font",
+  "text",
+  "leading",
+  "tracking",
+  "container",
+  "width",
+  "ease",
+] as const;
 
 // The DTCG type-scale utilities are custom `--text-*`/`--leading-*`/`--tracking-*` namespaces, so
 // tailwind-merge cannot classify them: it reads `text-title` as a text COLOR (dropping the size beside
@@ -74,9 +89,45 @@ const CONTAINER_SCALE = scaleOf("container");
 // group it can conflict in is `w`, and it registers as a classGroup extension (which CONCATS onto the
 // built-in `w` group, `mergeArrayProperties`), still derived from the token map.
 const WIDTH_SCALE = scaleOf("width");
+const ASPECT_SCALE = scaleOf("aspect");
+const BLUR_SCALE = scaleOf("blur");
+const EASE_SCALE = scaleOf("ease");
 
 const CLASS_GROUPS = { ...CUSTOM_CLASS_GROUPS, w: [{ w: WIDTH_SCALE }] };
-const THEME = { spacing: SPACING_SCALE, radius: RADIUS_SCALE, container: CONTAINER_SCALE };
+const THEME = {
+  spacing: SPACING_SCALE,
+  radius: RADIUS_SCALE,
+  container: CONTAINER_SCALE,
+  aspect: ASPECT_SCALE,
+  blur: BLUR_SCALE,
+  ease: EASE_SCALE,
+};
+
+const FAMILY_TOKEN_NAMES = CSS_MERGE_FAMILY_NAMES.map((family) => ({ family, tokens: scaleOf(family) }));
+
+function hasFamilyToken(className: string, tokens: readonly string[]): boolean {
+  return tokens.some((token) => className.endsWith(`-${token}`));
+}
+
+function conflictAxis(loser: string, winner: string): string {
+  for (const family of FAMILY_TOKEN_NAMES) {
+    if (hasFamilyToken(loser, family.tokens) || hasFamilyToken(winner, family.tokens)) {
+      return `orb:${family.family}`;
+    }
+  }
+  return "tailwind-core";
+}
+
+type MergeClassList = (classList: string) => string;
+type ClassifyConflict = (loser: string, winner: string) => string;
+type CssMergeObserver = (classList: string, output: string, merge: MergeClassList, classify: ClassifyConflict) => void;
+
+let cssMergeObserver: CssMergeObserver | undefined;
+
+/** Dev/test instrumentation registers here; production keeps no trace implementation in its graph. */
+export function setCssMergeObserver(observer: CssMergeObserver): void {
+  cssMergeObserver = observer;
+}
 
 /** The configured tailwind-merge instance — built once, at module scope, from the customizations above. */
 const mergeClasses = extendTailwindMerge({
@@ -93,12 +144,38 @@ export function cn(...classes: CnOptions): CnReturn {
   if (joined === undefined) {
     return;
   }
+  const output = mergeClasses(joined);
+  cssMergeObserver?.(joined, output, mergeClasses, conflictAxis);
   // `|| undefined` not `??`: tailwind-merge returns "" for an all-dropped list, and the contract is
   // undefined-when-empty (a `className=""` attribute would otherwise appear where none did before).
-  return mergeClasses(joined) || undefined;
+  return output || undefined;
 }
 
-/** The variant factory — a `createTV`-CONFIGURED one, never tailwind-variants' bare `tv` export. */
-export const tv = createTV({
-  twMergeConfig: { extend: { classGroups: CLASS_GROUPS, theme: THEME } },
-});
+type RuntimeClassResult = string | undefined;
+type RuntimeSlots = Readonly<Record<string, (...args: unknown[]) => RuntimeClassResult>>;
+type RuntimeVariantResult = string | RuntimeSlots | undefined;
+type RuntimeVariantComponent = ((...args: unknown[]) => RuntimeVariantResult) & Readonly<Record<string, unknown>>;
+
+const composeVariants = createTV({ twMerge: false });
+
+function finalizeVariantResult(result: RuntimeVariantResult): RuntimeClassResult | RuntimeSlots {
+  if (typeof result === "string" || result === undefined) {
+    return cn(result);
+  }
+  const slots: Record<string, (...args: unknown[]) => RuntimeClassResult> = {};
+  for (const [slot, render] of Object.entries(result)) {
+    slots[slot] = (...args: unknown[]): RuntimeClassResult => cn(render(...args));
+  }
+  return slots;
+}
+
+function wrapVariantComponent(component: RuntimeVariantComponent): RuntimeVariantComponent {
+  const wrapped = (...args: unknown[]): RuntimeVariantResult => finalizeVariantResult(component(...args));
+  return Object.assign(wrapped, component);
+}
+
+/** Tailwind Variants composes raw candidates; every returned ordinary/slot string gets one Orb merge. */
+export const tv = ((...args: unknown[]): RuntimeVariantComponent => {
+  const component = (composeVariants as unknown as (...factoryArgs: unknown[]) => RuntimeVariantComponent)(...args);
+  return wrapVariantComponent(component);
+}) as TV;
