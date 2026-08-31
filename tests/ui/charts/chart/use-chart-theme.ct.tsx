@@ -19,6 +19,7 @@ import {
   CustomLightChartRampStory,
   CustomMidlightChartRampStory,
   CustomThemeChartAxisLineStory,
+  RejectedContextualChartCasesStory,
 } from "../_ct-stories.tsx";
 
 /** Each arm's SETTLED value, matched by the CSS function that only that arm can produce: the base
@@ -162,6 +163,47 @@ test("named, alpha-composited, and extreme accepted themes render five 3:1 EChar
       .toBeGreaterThanOrEqual(3);
     if (name !== "extreme-gamut") {
       await panel.getByRole("button", { name: "Next accepted theme" }).click();
+    }
+  }
+});
+
+test("contextual backgrounds are rejected before derivation and the rendered chart retains five 3:1 fills", async ({ mount }) => {
+  const scope = await mount(<RejectedContextualChartCasesStory />);
+  const themeScope = scope.locator('[data-slot="theme-scope"]');
+  const panel = scope.getByTestId("contextual-chart-panel");
+  for (const name of ["current-color", "link-text", "active-text"] as const) {
+    await expect(panel).toHaveAttribute("data-case", name);
+    await expect(panel.locator("canvas")).toBeVisible();
+    await expect.poll(async () => await themeScope.evaluate((element) => (element as HTMLElement).style.getPropertyValue("--color-background"))).toBe("");
+    await expect
+      .poll(async () => {
+        const palette = (await panel.locator("p[data-palette]").getAttribute("data-palette"))?.split("|") ?? [];
+        return await panel.evaluate((element, colors): number => {
+          const canvas = document.createElement("canvas");
+          canvas.width = 1;
+          canvas.height = 1;
+          const ctx = canvas.getContext("2d");
+          if (ctx === null || colors.length !== 5) {
+            return 0;
+          }
+          const luminance = (color: string): number => {
+            ctx.clearRect(0, 0, 1, 1);
+            ctx.fillStyle = color;
+            ctx.fillRect(0, 0, 1, 1);
+            const [r = 0, g = 0, b = 0] = ctx.getImageData(0, 0, 1, 1).data;
+            const [lr, lg, lb] = [r, g, b].map((value) => {
+              const channel = value / 255;
+              return channel <= 0.039_28 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+            });
+            return 0.2126 * (lr ?? 0) + 0.7152 * (lg ?? 0) + 0.0722 * (lb ?? 0);
+          };
+          const backing = luminance(getComputedStyle(element).backgroundColor);
+          return Math.min(...colors.map((color) => (Math.max(luminance(color), backing) + 0.05) / (Math.min(luminance(color), backing) + 0.05)));
+        }, palette);
+      })
+      .toBeGreaterThanOrEqual(3);
+    if (name !== "active-text") {
+      await panel.getByRole("button", { name: "Next rejected theme" }).click();
     }
   }
 });

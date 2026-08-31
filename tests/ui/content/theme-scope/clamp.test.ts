@@ -28,6 +28,23 @@ test("legal colors pass through to their custom properties", () => {
   expect(vars["--color-speaker"]).toBe("currentColor");
 });
 
+test.each([
+  ["background", { background: "currentColor" }, "--color-background"],
+  ["accent", { accent: "LinkText" }, "--color-primary"],
+  ["user bubble background", { userBubble: { bg: "ActiveText" } }, "--color-user-bubble"],
+] as const)("a contextual %s is rejected before any derived CSS reaches the DOM", (_field, tokens, emittedVar) => {
+  const { vars } = clampThemeTokens(tokens, "oklch(0.158 0.006 60)");
+  expect(vars[emittedVar]).toBeUndefined();
+});
+
+test("contextual inherited inks and direct borders retain the general safe-color contract", () => {
+  const { vars } = clampThemeTokens({ speaker: "currentColor", dialogueColor: "LinkText", borderColor: "ButtonText" });
+  expect(vars["--color-speaker"]).toBe("currentColor");
+  expect(vars["--color-dialogue"]).toBe("LinkText");
+  expect(vars["--color-border"]).toBe("ButtonText");
+  expect(vars["--color-sidebar-border"]).toBe("ButtonText");
+});
+
 test("a bubble/surface FOREGROUND is DERIVED from its bg for contrast, never taken from the picked .fg", () => {
   const { vars } = clampThemeTokens({
     userBubble: { bg: "#112233", fg: "rgba(255,255,255,0.9)" }, // .fg is IGNORED — the picker never sets fg
@@ -91,6 +108,7 @@ test.each([0.62, 0.6201, 0.63] as const)("#939 a pivot-side base at L=%s emits f
 
 test.each([
   ["named", "red"],
+  ["named containing url letters", "burlywood"],
   ["transparent", "oklch(0.98 0.004 75 / 0)"],
   ["extreme-gamut", "oklch(0.2 3.6 225)"],
 ] as const)("#939 an accepted %s background emits five concrete chart colors without throwing", (_spelling, background) => {

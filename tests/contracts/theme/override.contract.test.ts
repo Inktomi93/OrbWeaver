@@ -41,4 +41,38 @@ describe("themeOverrideSchema (the wire clamp)", () => {
     expect(parsed).toEqual({});
     expect(themeOverrideSchema.parse({})).toEqual({});
   });
+
+  test("derived fills reject contextual colors while inherited inks and direct borders keep them", () => {
+    const parsed = themeOverrideSchema.parse({
+      accent: "LinkText",
+      background: "currentColor",
+      userBubble: { bg: "ActiveText", fg: "currentColor" },
+      aiBubble: { bg: "notacolorxx", fg: "CanvasText" },
+      speaker: "currentColor",
+      dialogueColor: "LinkText",
+      narrationColor: "CanvasText",
+      bodyColor: "ActiveText",
+      borderColor: "ButtonText",
+    });
+
+    expect(parsed.accent).toBeUndefined();
+    expect(parsed.background).toBeUndefined();
+    expect(parsed.userBubble).toEqual({ bg: undefined, fg: "currentColor" });
+    expect(parsed.aiBubble).toEqual({ bg: "notacolorxx", fg: "CanvasText" });
+    expect(parsed.speaker).toBe("currentColor");
+    expect(parsed.dialogueColor).toBe("LinkText");
+    expect(parsed.narrationColor).toBe("CanvasText");
+    expect(parsed.bodyColor).toBe("ActiveText");
+    expect(parsed.borderColor).toBe("ButtonText");
+  });
+
+  test("standard named derived fills survive the wire clamp, including burlywood", () => {
+    expect(
+      themeOverrideSchema.parse({
+        accent: "burlywood",
+        background: "rebeccapurple",
+        userBubble: { bg: "papayawhip" },
+      }),
+    ).toEqual({ accent: "burlywood", background: "rebeccapurple", userBubble: { bg: "papayawhip" } });
+  });
 });

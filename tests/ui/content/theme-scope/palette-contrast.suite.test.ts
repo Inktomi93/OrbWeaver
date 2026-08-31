@@ -341,6 +341,7 @@ test("#939 every accepted OKLCH base emits a contrast-safe, distinguishable cust
 
 const ACCEPTED_CHART_BASES = [
   ["named", "red"],
+  ["named containing url letters", "burlywood"],
   ["transparent named", "transparent"],
   ["short hex alpha", "#f008"],
   ["long hex opaque", "#102030ff"],
