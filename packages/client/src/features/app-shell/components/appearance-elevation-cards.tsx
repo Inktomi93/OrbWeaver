@@ -22,37 +22,41 @@ import { ELEVATION_ITEMS } from "../lib/appearance-select-items.ts";
 
 type Elevation = AppearanceSettings["elevation"];
 
-/** FLAT — one tone, the seams KEPT. EXAGGERATED: 2px seams (a truthful hairline reads as nothing at
- *  this size); the seam COLOUR stays the shell's own border token. */
+/** FLAT — separation BY LINE: the shell's real base tones (rail + panel on `--color-sidebar`, main on
+ *  `--color-background` — shell.css:454/648, so even flat carries the base tone step) with the
+ *  `--color-sidebar-border` seams KEPT. EXAGGERATED: 2px seams — a truthful hairline reads as nothing
+ *  at this size. */
 function FlatDiagram(): ReactElement {
   return (
-    <Row className="h-10 overflow-hidden rounded-control border border-border bg-background">
+    <Row className="h-10 overflow-hidden rounded-control border border-border bg-sidebar">
       <Row className="flex-1" />
-      <Row className="flex-1 border-border border-l-2" />
-      <Row className="flex-[2] border-border border-l-2" />
+      <Row className="flex-1 border-l-2 border-sidebar-border" />
+      <Row className="flex-[2] border-l-2 border-sidebar-border bg-background" />
     </Row>
   );
 }
 
-/** RAMP — the brightness ladder, the seams GONE: rail darkest, panel lifts, content lifts again. The
- *  cells sit edge to edge with NO separators at all — the seamlessness IS the depiction. */
+/** RAMP — separation BY SHADE STEP, not merely a removed line: every seam comes off AND the palette
+ *  shifts (panels to `--color-surface-raised`, main to `--color-card` — shell.css:84-106). The cells
+ *  sit edge to edge with NO separators; the ladder itself is what tells the regions apart. */
 function RampDiagram(): ReactElement {
   return (
     <Row className="h-10 overflow-hidden rounded-control border border-border">
-      <Row className="flex-1 bg-background" />
+      <Row className="flex-1 bg-sidebar" />
       <Row className="flex-1 bg-surface-raised" />
       <Row className="flex-[2] bg-card" />
     </Row>
   );
 }
 
-/** GLOW — floating islands. EXAGGERATED: the cards sit visibly OFF the base (generous air, a shorter
- *  card, the shell's own `shadow-overlay` doing the lift) so the float reads instantly. */
+/** GLOW — separation BY LINE + LIFT: flat's seams STAY (shell.css keeps them under glow) and the
+ *  surfaces additionally float on the shell's own `shadow-overlay`. EXAGGERATED: visible air and a
+ *  shorter card make the lift read instantly; the hairline on each island keeps the LINE half true. */
 function GlowDiagram(): ReactElement {
   return (
     <Row className="h-10 items-center gap-row rounded-control border border-border bg-background p-row">
-      <Row className="h-3/4 flex-1 rounded-inset bg-card shadow-overlay" />
-      <Row className="h-3/4 flex-[2] rounded-inset bg-card shadow-overlay" />
+      <Row className="h-3/4 flex-1 rounded-inset border border-sidebar-border bg-sidebar shadow-overlay" />
+      <Row className="h-3/4 flex-[2] rounded-inset border border-sidebar-border bg-card shadow-overlay" />
     </Row>
   );
 }
