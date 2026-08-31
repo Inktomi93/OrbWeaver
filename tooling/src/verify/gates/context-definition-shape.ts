@@ -12,9 +12,8 @@
 // HUD-1 adds the REGION CLAIM's walls (hud-home-spec §8; the claim is a HEAD-BAND claim since the context
 // bracket, #860): (5) region-mint-only — a hand-rolled `{ claims, band }` def outside the mint's own file;
 // (6) ONE pane, ONE owner — at most a single `defineContextRegion(` call site project-wide; (7) no feature
-// paints shell chrome — the `shell-panel-header` / `ctx-tab-strip` class literals under `features/**`
-// outside app-shell (the strip class is retired, and a feature re-minting it is exactly the fork #860
-// ended); (8) ONE bracket — at most a single writer of the `data-context-bracket` probe attribute.
+// paints shell chrome — the live `shell-panel-header` class literal under `features/**` outside app-shell;
+// (8) ONE bracket — at most a single writer of the `data-context-bracket` probe attribute.
 //
 // Arms 6 and 8 are COUNT-based, not path-keyed: a path allowlist dies silently the day the file is renamed
 // ([[path-keyed-gates-die-on-rename]]), while "at most one" survives any rename and enforces the same
@@ -34,7 +33,7 @@ const REGISTRY_CONTRACTS_RE = /\/lib\/registry-contracts\.ts$/;
 const BODIES_RECORD_RE = /^(?:readonly\s+)?(?:Partial<\s*)?Record<\s*string\s*,\s*ReactNode\s*>>?$/;
 const FEATURES_RE = /\/packages\/client\/src\/features\//;
 const APP_SHELL_RE = /\/packages\/client\/src\/features\/app-shell\//;
-const SHELL_CHROME_CLASSES = ["shell-panel-header", "ctx-tab-strip"] as const;
+const SHELL_CHROME_CLASSES = ["shell-panel-header"] as const;
 const REGION_ATTR = "data-context-bracket";
 
 function rel(path: string): string {
@@ -214,8 +213,8 @@ function flagHandRolledRegionDef(obj: TsNode, out: (line: number, message: strin
   );
 }
 
-/** Arm 7 — a FEATURE painting shell chrome. The `.shell-panel-header` band and the `.ctx-tab-strip` are the
- *  shell's own vocabulary; a claimant composes its pane from primitives + token utilities instead. Only
+/** Arm 7 — a FEATURE painting shell chrome. The live `.shell-panel-header` band is the shell's own
+ *  vocabulary; a claimant composes its pane from primitives + token utilities instead. Only
  *  STRING/TEMPLATE literals are read, so a comment naming the class (this file, and the HUD's own header)
  *  is not a violation. */
 function checkNoFeatureShellChrome(sf: SourceFile, out: (line: number, message: string) => void): void {
@@ -237,7 +236,7 @@ function checkNoFeatureShellChrome(sf: SourceFile, out: (line: number, message: 
       out(
         literal.getStartLineNumber(),
         `the shell-chrome class \`${hit}\` in a feature outside \`features/app-shell/**\` — a feature never ` +
-          "paints the shell's band or tab strip; a pane claimant composes its own chrome from `@orb/ui` " +
+          "paints the shell's band; a pane claimant composes its own chrome from `@orb/ui` " +
           "primitives + token utilities (hud-home-spec §3.6 fence 2).",
       );
     }
@@ -396,12 +395,6 @@ export const gate: GateDescriptor = {
       why: "arm 6 — two claimants project-wide; one pane's head has one owner",
     },
     {
-      files: 'export const cell = <div className="ctx-tab-strip" />;\n',
-      at: "packages/client/src/features/rpg/components/rpg-hud.tsx",
-      expect: { messageIncludes: "ctx-tab-strip" },
-      why: "arm 7 — a feature painting the shell's tab strip (deep path)",
-    },
-    {
       files: 'export const band = <header className="shell-panel-header" />;\n',
       at: "packages/client/src/features/x/x-band.tsx",
       expect: { messageIncludes: "shell-panel-header" },
@@ -471,14 +464,9 @@ export const gate: GateDescriptor = {
       why: "arm 8 — the ONE bracket writing the probe attribute — passes",
     },
     {
-      files: "// the `.shell-panel-header` band and the `.ctx-tab-strip` are the shell's, not this feature's\nexport const x = 1;\n",
+      files: "// the `.shell-panel-header` band is the shell's, not this feature's\nexport const x = 1;\n",
       at: "packages/client/src/features/rpg/components/rpg-hud-band.tsx",
       why: "arm 7 false-positive check — a COMMENT naming the shell-chrome classes is not painting them, passes",
-    },
-    {
-      files: 'export const strip = <div className="ctx-tab-strip" />;\n',
-      at: "packages/client/src/features/app-shell/components/context-tabs-panel.tsx",
-      why: "arm 7 — app-shell IS the shell-tier painter; the (retired) class is legal there, passes",
     },
   ],
 };

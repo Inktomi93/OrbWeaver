@@ -563,9 +563,9 @@ html[data-justify-body-text] [data-slot="message-bubble"] {
 
 /* appearance.enableThemeColorization: retints border/hairline chrome tokens from the accent color.
  * Mixed against --color-foreground, never self-referencing --color-border (an invalid computed-value
- * cycle). Two rules needed: ThemeScope (app-shell.tsx) declares --color-border inline on .shell-grid,
- * which would shadow an html-only override for every descendant; the plain html rule still covers
- * Dialog/AlertDialog, which portal to document.body outside .shell-grid/ThemeScope. */
+ * cycle). ThemeScope declares the active palette inline on its own `display:contents` wrapper ABOVE both
+ * `.shell-grid` and the themed portal root. The descendant grid rule therefore re-declares the two tokens
+ * below that inherited inline palette for shell descendants; the html rule is the seed/provider-less arm. */
 html[data-theme-colorization] {
   --color-border: color-mix(in oklab, var(--color-primary) 22%, var(--color-foreground) 6%);
   --color-sidebar-border: color-mix(in oklab, var(--color-primary) 22%, var(--color-sidebar-foreground) 6%);
