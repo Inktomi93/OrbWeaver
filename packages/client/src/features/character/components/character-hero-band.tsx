@@ -15,6 +15,7 @@ import { blobUrl } from "@orb/contracts/assets";
 import { rendersTrustedHtml } from "@orb/contracts/chat";
 import type { TagView } from "@orb/contracts/tag";
 import type { ThemeOverride } from "@orb/contracts/theme";
+import { cardEmbeddableSubset } from "@orb/contracts/theme";
 import type { CharacterHandle, CharacterId } from "@orb/kit/ids";
 import { initialsFor } from "@orb/kit/initials";
 import { Avatar } from "@orb/ui/avatar";
@@ -220,7 +221,8 @@ const CONFIRM_MS = 1500;
  * act on.
  */
 export function OwnLookMark({ themeOverride }: { readonly themeOverride: ThemeOverride | null }): ReactElement | null {
-  if (themeOverride === null || Object.keys(themeOverride).length === 0) {
+  const cardTheme = themeOverride === null ? null : cardEmbeddableSubset(themeOverride);
+  if (cardTheme === null || Object.keys(cardTheme).length === 0) {
     return null;
   }
   // IT NAMES A TAB THAT EXISTS (side-eye 2026-08-18 P2-7), AND IT KEEPS DOING SO. It used to point at "the
@@ -255,7 +257,7 @@ export function OwnLookMark({ themeOverride }: { readonly themeOverride: ThemeOv
           // at rest and left the row marking `1 chat` and `1,257 tokens` — which you cannot press — as the
           // shaped items and this one as bare text.
           <Button intent="secondary" shape="pill" size="sm" type="button">
-            <ThemeScope className="size-4 shrink-0 rounded-full bg-primary ring-1 ring-border" tokens={themeOverride}>
+            <ThemeScope className="size-4 shrink-0 rounded-full bg-primary ring-1 ring-border" tokens={cardTheme}>
               {null}
             </ThemeScope>
             {/* The kicker register at its own weight (#573): this mark was micro-caps-muted at REGULAR

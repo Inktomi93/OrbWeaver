@@ -21,7 +21,7 @@
 import type { ChatBusEvent, ChatIdentity, GroupConfig } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import type { StreamFrame } from "@orb/contracts/stream";
-import type { MessageId } from "@orb/kit/ids";
+import type { CharacterId, MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { contrastRatio } from "@orb/tooling/_shared/wcag";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -283,6 +283,63 @@ const HEAD_DELTAS: ChatBusEvent[] = [
   { type: "delta", chatId: CHAT_ID, slotSeq: AI_VIEW.seq, delta: { chatId: CHAT_ID, kind: "text", text: "Hello " } },
   { type: "delta", chatId: CHAT_ID, slotSeq: AI_VIEW.seq, delta: { chatId: CHAT_ID, kind: "text", text: "world" } },
 ];
+
+// #937: the live ghost uses the same card-attribution resolver as a committed row. This is the rendered
+// streaming seam (SSE -> turn speaker -> roster card -> resolveRowAttribution -> GhostMessageRow), not an
+// isolated ghost handed test-authored tokens. A card may color the stream, but it cannot re-stamp the
+// viewer's density while the reply is arriving.
+const THEMED_STREAM_CHARACTER = castId<CharacterId>("char_stream_theme");
+const STREAM_ACCENT = "oklch(0.64 0.18 305)";
+const THEMED_STREAM_HEAD: ChatBusEvent[] = [
+  {
+    type: "turnStarted",
+    chatId: CHAT_ID,
+    intent: "send",
+    api: "chat-completions",
+    source: "openrouter",
+    model: "test-model",
+    speakerCharacterId: THEMED_STREAM_CHARACTER,
+    targetMessageId: null,
+  },
+  { type: "delta", chatId: CHAT_ID, slotSeq: AI_VIEW.seq, delta: { chatId: CHAT_ID, kind: "text", text: "The themed stream arrives. " } },
+];
+
+test("#937 a streaming card theme carries palette but inherits viewer density", async ({ mount, page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
+    ...PREVIEW_FIT_STUB,
+    "chat.listMessages": () => makeMessagesPage([USER_VIEW], [{ kind: "character", id: THEMED_STREAM_CHARACTER, name: "Aria", avatarHash: null }]),
+    "chat.getChat": () => ({
+      participants: [
+        {
+          id: "cp_stream_theme",
+          kind: "character",
+          characterId: THEMED_STREAM_CHARACTER,
+          displayName: "Aria",
+          leftSeq: null,
+          avatarHash: null,
+          role: "member",
+          themeOverride: { accent: STREAM_ACCENT, dialogueColor: "oklch(0.82 0.08 305)", density: "compact" },
+        },
+      ],
+      anchorPersonaId: null,
+      identities: [],
+      group: DEFAULT_GROUP_CONFIG,
+    }),
+  });
+  await routeOrbSocket(page, { frames: chatFrames(THEMED_STREAM_HEAD), awaitAttaches: 1 });
+
+  const component = await mount(<MessageListSurfaceStory />);
+  await component.evaluate((node) => node.setAttribute("data-density", "comfortable"));
+  const ghost = component.locator('[data-slot="ghost-message-row"]');
+  await expect(ghost).toContainText("The themed stream arrives.");
+  const scopes = ghost.locator('[data-slot="theme-scope"]');
+  await expect(scopes).toHaveCount(2);
+  await expect.poll(() => scopes.evaluateAll((nodes) => nodes.map((node) => node.getAttribute("data-density")))).toEqual([null, null]);
+  await expect.poll(() => ghost.evaluate((node) => node.closest("[data-density]")?.getAttribute("data-density"))).toBe("comfortable");
+  await expect.poll(() => scopes.first().evaluate((node) => getComputedStyle(node).getPropertyValue("--color-primary").trim())).toBe(STREAM_ACCENT);
+});
 
 // Bug 2 regression — "Stop flashes the reply away" (isLiveTurnPhase). The store keeps accumulated text
 // through `stopping` (appendDelta writes streaming||stopping), so the render side must keep the ghost
