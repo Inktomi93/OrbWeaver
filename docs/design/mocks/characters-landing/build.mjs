@@ -114,7 +114,7 @@ function fresh() {
   return doc(`
 <div class="root {{theme}}" style="width: 917px; height: 750px;">
   <div class="pane" style="width: 917px; height: 750px;">
-    <div class="lead"><div class="h">Meet the cast</div><div class="gloss">Ten characters shipped with Orbweaver to talk to, take apart, or use as a starting point. Star the ones you like and they gather here; <b>New</b> at the top of the list makes your own.</div></div>
+    <div class="lead"><div class="h">Meet your characters</div><div class="gloss">Ten characters shipped with Orbweaver to talk to, take apart, or use as a starting point. Star the ones you like and they gather here; <b>New</b> at the top of the list makes your own.</div></div>
     <div class="shelf"><div class="shelf-h"><span class="eyebrow">Shipped with Orbweaver · 10</span></div><div class="faces">${SEED.map((f) => face(f)).join("")}</div></div>
     <div class="hint">Once you've chatted with someone, <b>Recently chatted</b> takes this spot — the shelves appear when they have something to show, never as empty rooms.</div>
   </div>
