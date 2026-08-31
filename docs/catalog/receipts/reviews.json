@@ -1593,20 +1593,21 @@
     },
     {
       "path": "docs/reviews/stickler/2026-08-30-css-census-doctrine-and-enforcement.md",
-      "assignedSha256": "98e2ae09d08feb1731c38cb5704c1f4715a22edfd720af04023197dd2fdd8fe3",
-      "disposition": "needs-owner",
+      "assignedSha256": "aab0a4d500c06cf06c6687779fb3a4b63ba4e216768b1b7d86c17c301fa8e0e6",
+      "disposition": "current",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "98e2ae09d08feb1731c38cb5704c1f4715a22edfd720af04023197dd2fdd8fe3",
-      "verifiedCommit": "05a109eecbec92d771e039cf7319684bc76de808",
-      "verifiedAt": "2026-08-30",
+      "verifiedSha256": "aab0a4d500c06cf06c6687779fb3a4b63ba4e216768b1b7d86c17c301fa8e0e6",
+      "verifiedCommit": "b8eb66f009a1cbada867e8f00e93c95b67bc4a1c",
+      "verifiedAt": "2026-08-31",
       "evidence": [
+        "re-attested at b8eb66f00 after the 2026-08-31 reconciliation: issue-summary counts, #921 current state, #936 token contract, Tailwind compiler namespace correction, #951/#954 limits, and the exact #961 cold refutation are recorded in the durable program",
         "docs/reviews/stickler/2026-08-30-css-census-doctrine-and-enforcement.md:1-1405 read IN FULL by the orchestrator (claude-b) before the receipt — the gate refused a reviewed disposition at fullRead:false and was right to; lane cb-css-census (stickler, Opus override) read all 3,169 authored CSS lines end to end and drove 312 comment-stripped selectors against seven live surfaces",
         "three of the lane's claims were verified independently by the orchestrator before the read: the feature-css-files scanRoot gap by planted control, the D150 contradiction against client-architecture-lockdown §4, and the per-file colour/definition split"
       ],
       "claims": [
         {
-          "claim": "11 confirmed findings (ceiling P2) plus a six-home CSS doctrine, a four-wave game plan, exact before/after text for 12 doc changes, and a reach/bite/blind-spot table for 27 gates; the paint law's own boundary is unenforced outside features/** (#921) and D150's shell.css clause contradicts the authoritative §4 (#919).",
+          "claim": "13 confirmed findings (ceiling P1) plus the six-home CSS doctrine, ordered repair program, reconciled implementation status, and per-enforcer reach/bite/blind-spot evidence; #921 and #936 are closed while #951, #952, #954, and the refuted #961 substrate remain active repair work.",
           "evidence": [
             {
               "kind": "issue",

@@ -189,9 +189,9 @@
       "path": "docs/architecture/core/AGENTS.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 365,
-      "bytes": 33198,
-      "sha256": "933bcb3fa6a6909012820cf7c91b618df570410f9cd45989d9591af4e3c3dc34",
+      "lines": 369,
+      "bytes": 33340,
+      "sha256": "ed7edddadfbb7ca5912e1488421126beb7fe42eb034c36f7ed698cd0b5095008",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -204,14 +204,15 @@
       },
       "receipt": {
         "path": "docs/architecture/core/AGENTS.md",
-        "assignedSha256": "933bcb3fa6a6909012820cf7c91b618df570410f9cd45989d9591af4e3c3dc34",
+        "assignedSha256": "ed7edddadfbb7ca5912e1488421126beb7fe42eb034c36f7ed698cd0b5095008",
         "disposition": "current",
         "authority": "normative",
         "fullRead": true,
-        "verifiedSha256": "933bcb3fa6a6909012820cf7c91b618df570410f9cd45989d9591af4e3c3dc34",
-        "verifiedCommit": "bbecbfc78be417b6aab44609d3d4f0d484d8c87b",
+        "verifiedSha256": "ed7edddadfbb7ca5912e1488421126beb7fe42eb034c36f7ed698cd0b5095008",
+        "verifiedCommit": "b8eb66f009a1cbada867e8f00e93c95b67bc4a1c",
         "verifiedAt": "2026-08-31",
         "evidence": [
+          "re-attested at b8eb66f00 — the CSS constitution pointer now distinguishes portable DTCG values from validated runtime CSS outputs while keeping the exact six-home law in client-architecture-lockdown.md §4",
           "re-attested at bbecbfc78 — full-file read under #930; the added constitution line is a pointer to the path-closed six-home paint law and introduces no second wording",
           "docs/architecture/core/AGENTS.md:1-352 full read; Project, recovery, proposed-program, lane authority, and direct Claude-rule import routing reconciled",
           "docs/architecture/proposed/INDEX.md:17-37 supplies the claimed program-to-sprint map",
@@ -439,8 +440,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 374,
-      "bytes": 187645,
-      "sha256": "c2e3efcc88720d33ca00a73556bee3ca3ced3b991f4c532d12b4853451e829af",
+      "bytes": 188003,
+      "sha256": "4f95a48a952d93ac2eb7a73aede1b813c196f40e0152d6f1d826d35e350f213e",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -453,14 +454,15 @@
       },
       "receipt": {
         "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
-        "assignedSha256": "c2e3efcc88720d33ca00a73556bee3ca3ced3b991f4c532d12b4853451e829af",
+        "assignedSha256": "4f95a48a952d93ac2eb7a73aede1b813c196f40e0152d6f1d826d35e350f213e",
         "disposition": "current",
         "authority": "operational",
         "fullRead": true,
-        "verifiedSha256": "c2e3efcc88720d33ca00a73556bee3ca3ced3b991f4c532d12b4853451e829af",
-        "verifiedCommit": "214fa12004759dd975e0cb5f64d464c5c82b8453",
+        "verifiedSha256": "4f95a48a952d93ac2eb7a73aede1b813c196f40e0152d6f1d826d35e350f213e",
+        "verifiedCommit": "b8eb66f009a1cbada867e8f00e93c95b67bc4a1c",
         "verifiedAt": "2026-08-31",
         "evidence": [
+          "re-attested at b8eb66f00 — CSS family ownership and polarity rows now name their cold-refuted limits instead of presenting zero findings as complete enforcement; tokens-contract names the final #936 contract",
           "docs/architecture/core/Core-Enforcement-Active-Gates.md:1 (full read; header/status evaluated)",
           "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
           "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
@@ -1957,9 +1959,9 @@
       "path": "docs/architecture/core/client-architecture-lockdown.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 755,
-      "bytes": 135555,
-      "sha256": "1a1f8bb7a978af6323490e08f30d1d209faf68638d7b3fac90d29abc8c1aab3c",
+      "lines": 797,
+      "bytes": 137411,
+      "sha256": "45e0cc3240ffd1dd418d2c4d98a522063e8c023ef90fe87a6da86ec53e68f9cb",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -1972,14 +1974,15 @@
       },
       "receipt": {
         "path": "docs/architecture/core/client-architecture-lockdown.md",
-        "assignedSha256": "1a1f8bb7a978af6323490e08f30d1d209faf68638d7b3fac90d29abc8c1aab3c",
+        "assignedSha256": "45e0cc3240ffd1dd418d2c4d98a522063e8c023ef90fe87a6da86ec53e68f9cb",
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "1a1f8bb7a978af6323490e08f30d1d209faf68638d7b3fac90d29abc8c1aab3c",
-        "verifiedCommit": "9b0e6debb9562f654b58e20efdb86e4107ea62b4",
+        "verifiedSha256": "45e0cc3240ffd1dd418d2c4d98a522063e8c023ef90fe87a6da86ec53e68f9cb",
+        "verifiedCommit": "b8eb66f009a1cbada867e8f00e93c95b67bc4a1c",
         "verifiedAt": "2026-08-31",
         "evidence": [
+          "re-attested at b8eb66f00 — §4 now records the implemented portable/nonportable token partition, density ownership move, singular product polarity mechanism, exact #936 contract, and the honest #951/#954 enforcement limits",
           "re-attested at 2dffcffc4 — the CT cascade-order cite resolves to the actual repository path playwright/index.css; dangling-refs failure from the one authoritative pnpm check is closed",
           "re-attested at 0c0f2cf67 after cold #930 verification — full §4.1-§4.7 doctrine restored, including zero authored @layer, the one polarity mechanism, the live feature-css-files descriptor, and a coherent bounded shell exception; packages/client/src/features/README.md now points here rather than restating the law",
           "re-attested at bbecbfc78 — full-file read under #930; §4 is the one six-home paint law, the shell exception is re-derived against the live FLIP/import order, and §4.7 separates enforced, known-unenforced, and reported-but-unread coverage",
@@ -29204,35 +29207,36 @@
       "path": "docs/reviews/stickler/2026-08-30-css-census-doctrine-and-enforcement.md",
       "lane": "reviews",
       "issue": 7,
-      "lines": 1404,
-      "bytes": 111139,
-      "sha256": "98e2ae09d08feb1731c38cb5704c1f4715a22edfd720af04023197dd2fdd8fe3",
+      "lines": 1612,
+      "bytes": 133446,
+      "sha256": "aab0a4d500c06cf06c6687779fb3a4b63ba4e216768b1b7d86c17c301fa8e0e6",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "review",
           "status": "active",
-          "updated": "2026-08-30"
+          "updated": "2026-08-31"
         },
         "errors": []
       },
       "receipt": {
         "path": "docs/reviews/stickler/2026-08-30-css-census-doctrine-and-enforcement.md",
-        "assignedSha256": "98e2ae09d08feb1731c38cb5704c1f4715a22edfd720af04023197dd2fdd8fe3",
-        "disposition": "needs-owner",
+        "assignedSha256": "aab0a4d500c06cf06c6687779fb3a4b63ba4e216768b1b7d86c17c301fa8e0e6",
+        "disposition": "current",
         "authority": "review",
         "fullRead": true,
-        "verifiedSha256": "98e2ae09d08feb1731c38cb5704c1f4715a22edfd720af04023197dd2fdd8fe3",
-        "verifiedCommit": "05a109eecbec92d771e039cf7319684bc76de808",
-        "verifiedAt": "2026-08-30",
+        "verifiedSha256": "aab0a4d500c06cf06c6687779fb3a4b63ba4e216768b1b7d86c17c301fa8e0e6",
+        "verifiedCommit": "b8eb66f009a1cbada867e8f00e93c95b67bc4a1c",
+        "verifiedAt": "2026-08-31",
         "evidence": [
+          "re-attested at b8eb66f00 after the 2026-08-31 reconciliation: issue-summary counts, #921 current state, #936 token contract, Tailwind compiler namespace correction, #951/#954 limits, and the exact #961 cold refutation are recorded in the durable program",
           "docs/reviews/stickler/2026-08-30-css-census-doctrine-and-enforcement.md:1-1405 read IN FULL by the orchestrator (claude-b) before the receipt — the gate refused a reviewed disposition at fullRead:false and was right to; lane cb-css-census (stickler, Opus override) read all 3,169 authored CSS lines end to end and drove 312 comment-stripped selectors against seven live surfaces",
           "three of the lane's claims were verified independently by the orchestrator before the read: the feature-css-files scanRoot gap by planted control, the D150 contradiction against client-architecture-lockdown §4, and the per-file colour/definition split"
         ],
         "claims": [
           {
-            "claim": "11 confirmed findings (ceiling P2) plus a six-home CSS doctrine, a four-wave game plan, exact before/after text for 12 doc changes, and a reach/bite/blind-spot table for 27 gates; the paint law's own boundary is unenforced outside features/** (#921) and D150's shell.css clause contradicts the authoritative §4 (#919).",
+            "claim": "13 confirmed findings (ceiling P1) plus the six-home CSS doctrine, ordered repair program, reconciled implementation status, and per-enforcer reach/bite/blind-spot evidence; #921 and #936 are closed while #951, #952, #954, and the refuted #961 substrate remain active repair work.",
             "evidence": [
               {
                 "kind": "issue",
