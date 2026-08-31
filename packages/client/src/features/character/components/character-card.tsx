@@ -179,6 +179,13 @@ export function CharacterCardTile({
       onClick={(): void => (bulkMode ? onToggleBulk(character.id) : onSelect(character.id))}
       selected={bulkMode ? bulkSelected : selected}
       subtitle={subtitle}
+      // THE PITCH/TAG/HANDLE LINE IS FUNCTIONAL PROSE INSIDE A CLICKABLE ROW, SO IT TAKES THE LABEL STEP
+      // (#892, the readable-floor debt cb-bracket-fix surfaced closing #875 F6). Unset, `subtitle` rides
+      // `ListRow`'s instrument-tier micro gloss — 10.5px interactive text, under the 11px readable floor —
+      // and this row is `clickable={true}`, so it is the same shape `chat-summary-row.tsx` already fixed:
+      // `subtitleStep="label"` is the ratified lever ("functional prose inside a row owes the readable
+      // label floor", tiers.css), set on the row anatomy rather than invented here.
+      subtitleStep="label"
       title={character.name}
       {...(qualifier === undefined ? {} : { titleQualifier: qualifier })}
       // Not in bulk mode (the row is a checkbox target, no hover disclosure).
