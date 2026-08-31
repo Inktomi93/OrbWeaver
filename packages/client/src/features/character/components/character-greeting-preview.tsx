@@ -1,9 +1,11 @@
 // The live-themed greeting bubble. `greetings[0]` (or the active alternate) renders through
-// `@orb/ui/markdown` inside a `<ThemeScope>` painted with this character's own `themeOverride`. Alternates
+// `@orb/ui/markdown` inside a `<ThemeScope>` painted with the card-embeddable part of this character's
+// `themeOverride`. Alternates
 // are in-bubble pill-tabs. "Edit" swaps the read-only preview for a `MacroTextarea` on the same field.
 // The spoiler-blur eye toggle CSS-blurs the preview only — never the edit textarea.
 
 import type { ThemeOverride } from "@orb/contracts/theme";
+import { cardEmbeddableSubset } from "@orb/contracts/theme";
 import type { CharacterId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Icon, Pencil, Plus, Trash2, WandSparkles } from "@orb/ui/icons";
@@ -26,8 +28,8 @@ type CardForm = AppFormInstance<CharacterCardFormValues>;
 export interface CharacterGreetingPreviewProps {
   readonly characterId: CharacterId;
   readonly form: CardForm;
-  /** THIS character's raw theme override (immediate-commit — server truth) painting the preview scope;
-   *  `null` ⇒ inherit the ambient theme. */
+  /** THIS character's raw theme override (immediate-commit — server truth). The preview boundary projects
+   *  it to card-embeddable fields; `null` ⇒ inherit the ambient theme. */
   readonly themeOverride: ThemeOverride | null;
   /** The RESOLVED render-trust for this character's own content (§6.1 preview) — the deployment floor
    *  combined with this card's override (`usePreviewRenderPolicy`), never the raw `trustHtml` column: an
@@ -134,6 +136,7 @@ function GreetingBody({
   // MACU-2 — a greeting is assembled through the per-turn macro registry like any other card field, so the
   // completion catalog is the builtins UNION the active preset's user macros.
   const suggestions = usePromptMacroSuggestions();
+  const cardTheme = themeOverride === null ? {} : cardEmbeddableSubset(themeOverride);
   if (editing) {
     return (
       <Stack gap="field">
@@ -156,7 +159,7 @@ function GreetingBody({
   return (
     <form.Subscribe selector={(s): string => s.values.greetings[index]?.text ?? ""}>
       {(active): ReactElement => (
-        <ThemeScope tokens={themeOverride ?? {}}>
+        <ThemeScope tokens={cardTheme}>
           <Stack gap="row" className={cn("rounded-base bg-ai-bubble p-block", spoilerBlur && "select-none blur-md")} data-slot="character-greeting-bubble">
             {active.trim() === "" ? (
               <Text voice="quiet">No first message yet.</Text>

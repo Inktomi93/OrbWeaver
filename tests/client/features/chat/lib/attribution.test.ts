@@ -429,11 +429,13 @@ test("a character's narrator-span tint EQUALS their own row's tint (one hash inp
   expect(row.tokens).not.toEqual(colorForCharacter("Bob"));
 });
 
-// ── The card-embeddable partition at every card-sourced READ seam (TD §3) ──────────────────────────
-// A card supplies the room's LOOK, never the viewer's ergonomics. All three render planes project through
-// `cardEmbeddableSubset`, so a viewer-sacred key on the blob — a legacy write, or a hand-posted one —
-// paints nowhere. The tuple-driven assertions enumerate the complete partition: adding a key without
-// preserving its classified reach at each seam fails here.
+// ── The card-embeddable partition at every CHAT ATTRIBUTION producer (TD §3) ──────────────────────────────────
+// A card supplies the room's LOOK, never the viewer's ergonomics. These three chat projection producers
+// run through `cardEmbeddableSubset`, so a viewer-sacred key on the blob — a legacy write, or a hand-posted
+// one — cannot paint room, ordinary-row, narrator-span, or streaming-ghost attribution. Character-detail
+// surfaces have their own rendered boundary tests; this suite no longer overclaims every card render seam.
+// The tuple-driven assertions enumerate the complete partition: adding a key without preserving its
+// classified reach at each chat producer fails here.
 
 test("resolveRoomTheme carries every card-embeddable field and strips every viewer-sacred field", () => {
   const human = makeParticipant({ kind: "human", characterId: null, displayName: "Alex" });

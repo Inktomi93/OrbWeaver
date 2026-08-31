@@ -91,6 +91,60 @@ test("renders the hero (name · handle · New chat) and the live greeting bubble
   await expect(component.getByText("Hello, traveler. What brings you to my door?")).toBeVisible();
 });
 
+// #937: card data is an untrusted LOOK input, not viewer consent to change ergonomics. These are the two
+// character-detail render boundaries that escaped the chat-attribution projection: the greeting preview
+// and the hero's Own-look swatch. The explicit comfortable ancestor stands in for the root viewer
+// ThemeScope; a raw `density: compact` on either nested scope changes `p-block` and fails both nearest-
+// density assertions. Palette + prose fields are the control: projection must preserve the card's look.
+const CARD_ACCENT = "oklch(0.62 0.21 305)";
+const CARD_AI_BUBBLE = "oklch(0.24 0.04 305)";
+
+test("#937 greeting and hero card scopes inherit viewer density while carrying palette and prose", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    ...CHARACTER_EDITOR_AMBIENT_ROUTES,
+    "character.get": () => ({
+      ...CARD,
+      themeOverride: {
+        accent: CARD_ACCENT,
+        aiBubble: { bg: CARD_AI_BUBBLE },
+        dialogueColor: "oklch(0.82 0.08 305)",
+        font: "Georgia",
+        density: "compact",
+      },
+    }),
+    "chat.listChats": chatListResponder([]),
+    "character.update": () => CARD,
+  });
+  const component = await mount(<CharacterEditorSurfaceStory />);
+  await component.evaluate((node) => node.setAttribute("data-density", "comfortable"));
+
+  const bubble = component.locator('[data-slot="character-greeting-bubble"]');
+  await expect(bubble).toContainText(GREETING_0);
+  const greetingScope = bubble.locator("xpath=ancestor::*[@data-slot='theme-scope'][1]");
+  await expect(greetingScope).not.toHaveAttribute("data-density");
+  await expect.poll(() => bubble.evaluate((node) => node.closest("[data-density]")?.getAttribute("data-density"))).toBe("comfortable");
+  await expect.poll(() => greetingScope.evaluate((node) => getComputedStyle(node).getPropertyValue("--color-ai-bubble").trim())).toBe(CARD_AI_BUBBLE);
+  await expect.poll(() => greetingScope.evaluate((node) => getComputedStyle(node).getPropertyValue("--font-sans").trim())).toBe("Georgia, serif");
+
+  const look = component.getByRole("button", { name: "Own look" });
+  const lookScope = look.locator('[data-slot="theme-scope"]');
+  await expect(lookScope).not.toHaveAttribute("data-density");
+  await expect.poll(() => look.evaluate((node) => node.closest("[data-density]")?.getAttribute("data-density"))).toBe("comfortable");
+  await expect.poll(() => lookScope.evaluate((node) => getComputedStyle(node).getPropertyValue("--color-primary").trim())).toBe(CARD_ACCENT);
+});
+
+test("#937 a density-only card does not claim an Own look", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    ...CHARACTER_EDITOR_AMBIENT_ROUTES,
+    "character.get": () => ({ ...CARD, themeOverride: { density: "compact" } }),
+    "chat.listChats": chatListResponder([]),
+    "character.update": () => CARD,
+  });
+  const component = await mount(<CharacterEditorSurfaceStory />);
+
+  await expect(component.getByRole("button", { name: "Own look" })).toHaveCount(0);
+});
+
 // ── DRAFT-TRUST arm 1: the greeting preview resolves RENDER POLICY, it does not read the raw override ──
 // The editor has no server-resolved `renderPolicy` (there is no roster for a card you are editing), so it
 // used to render `trusted={card.trustHtml === true}` — the card's raw OVERRIDE column. That answers a
