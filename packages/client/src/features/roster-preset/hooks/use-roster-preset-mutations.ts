@@ -13,23 +13,23 @@ import { createEntityMutation } from "#data";
 export const useCreateRosterPreset = createEntityMutation<inferInput<Trpc["rosterPreset"]["create"]>, RosterPresetView>({
   options: (trpc) => trpc.rosterPreset.create.mutationOptions(),
   busDriven: true, // emits `rosterPresetsChanged` → USER_BUS_FILTERS covers rosterPreset.path.
-  errorToast: "Couldn't save the cast.",
+  errorToast: "Couldn't save the roster.",
 });
 
 export const useUpdateRosterPreset = createEntityMutation<inferInput<Trpc["rosterPreset"]["update"]>, RosterPresetView>({
   options: (trpc) => trpc.rosterPreset.update.mutationOptions(),
   busDriven: true, // emits `rosterPresetsChanged` → USER_BUS_FILTERS covers rosterPreset.path.
-  errorToast: "Couldn't save the cast.",
+  errorToast: "Couldn't save the roster.",
 });
 
 export const useRemoveRosterPreset = createEntityMutation<inferInput<Trpc["rosterPreset"]["remove"]>, unknown>({
   options: (trpc) => trpc.rosterPreset.remove.mutationOptions(),
   busDriven: true, // emits `rosterPresetsChanged` → USER_BUS_FILTERS covers rosterPreset.path.
-  errorToast: "Couldn't delete the cast.",
+  errorToast: "Couldn't delete the roster.",
 });
 
 export const useApplyRosterPreset = createEntityMutation<inferInput<Trpc["rosterPreset"]["applyToChat"]>, ApplyRosterPresetResult>({
   options: (trpc) => trpc.rosterPreset.applyToChat.mutationOptions(),
   busDriven: true, // the injected chat verbs fan `chatUpdated` — the room's own freshness plane.
-  errorToast: "Couldn't apply the cast to this chat.",
+  errorToast: "Couldn't apply the roster to this chat.",
 });

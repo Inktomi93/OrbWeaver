@@ -166,7 +166,7 @@ import { ChoiceSendContext } from "../../../../packages/client/src/features/chat
 import type { PendingAttachment } from "../../../../packages/client/src/features/chat/hooks/use-composer-attachments.ts";
 import { speakerThemesByName } from "../../../../packages/client/src/features/chat/lib/attribution.ts";
 import { useChatsSelectionTitle } from "../../../../packages/client/src/features/chat/lib/chats-selection-title.ts";
-import type { MemberCastRow, MemberPersonRow } from "../../../../packages/client/src/features/chat/lib/member-rows.ts";
+import type { MemberCharacterRow, MemberPersonRow } from "../../../../packages/client/src/features/chat/lib/member-rows.ts";
 import type { SlashArgOffer } from "../../../../packages/client/src/lib/contribution-contracts.ts";
 import { CtChatContributorSectionRegistry, CtDataProviders, CtRealSectionRegistry } from "../../../support/ct/ct-data-providers.tsx";
 import { CHAT_ID, COMPOSER_CHAT_ID, makeMessageView } from "./fixtures.ts";
@@ -2250,7 +2250,7 @@ export function MembersPanelStory({
         },
       ]
     : [];
-  const cast: MemberCastRow[] = [
+  const cast: MemberCharacterRow[] = [
     {
       kind: "cast",
       key: "participant_aria",
@@ -2349,7 +2349,7 @@ export function MembersKickFocusStory(): ReactElement {
     },
     ...(kicked ? [] : [kestrel]),
   ];
-  const cast: MemberCastRow[] = [
+  const cast: MemberCharacterRow[] = [
     {
       kind: "cast",
       key: "participant_aria",
@@ -2393,7 +2393,7 @@ export function InviteDialogStory(): ReactElement {
 }
 
 export interface ChatOptionsMenuStoryProps {
-  /** @defaultValue false — seed one cast member (enables "New chat with same cast" + the solo gallery). */
+  /** @defaultValue false — seed one cast member (enables "New chat with the same characters" + the solo gallery). */
   readonly withCast?: boolean;
 }
 
@@ -2553,7 +2553,7 @@ export function AddChatBookDialogStory({ attachedIds = [] }: { readonly attached
  *  AND the popover thumb snaps back after a failed write (the row is keyed by member id, so no remount). */
 export function MembersReseedStory(): ReactElement {
   const [ariaWeight, setAriaWeight] = useState(0.5);
-  const cast: MemberCastRow[] = [
+  const cast: MemberCharacterRow[] = [
     {
       kind: "cast",
       key: "participant_aria",
@@ -2577,7 +2577,7 @@ export function MembersReseedStory(): ReactElement {
   );
 }
 
-/** A committed room's cast SEAT, as the Members tab's projections read it (`toCastRows`). Only the fields
+/** A committed room's cast SEAT, as the Members tab's projections read it (`toCharacterRows`). Only the fields
  *  those projections touch vary per story; the rest is one shape so a seat added here can never disagree
  *  with the wire type. */
 function membersTabSeat(name: string, characterId: CharacterId): ParticipantView {

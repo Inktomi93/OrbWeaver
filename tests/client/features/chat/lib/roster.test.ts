@@ -8,7 +8,7 @@ import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import {
   buildParticipantsById,
-  castSectionVisible,
+  charactersSectionVisible,
   membersTabJustified,
   resolveHumanParticipants,
 } from "../../../../../packages/client/src/features/chat/lib/roster.ts";
@@ -73,7 +73,7 @@ test("resolveHumanParticipants returns [] for an all-character roster", () => {
   expect(resolveHumanParticipants([alice, bob])).toEqual([]);
 });
 
-// ── castSectionVisible / membersTabJustified (the Members-tab floor gate, chats-section.tsx's
+// ── charactersSectionVisible / membersTabJustified (the Members-tab floor gate, chats-section.tsx's
 // declarative members `when`) ──
 
 function humanParticipant(id: string): ReturnType<typeof makeParticipant> {
@@ -84,15 +84,15 @@ function humanParticipant(id: string): ReturnType<typeof makeParticipant> {
 // rendered a Members tab with NO cast section at all: no character rows, no per-character controls, and
 // (since the add-character door now lives in that section's header) no way to grow the cast from the tab.
 // "It used to show … the characters in the room, now it just shows my email."
-test("castSectionVisible: ANY character in the room earns the Cast list", () => {
+test("charactersSectionVisible: ANY character in the room earns the Cast list", () => {
   const alice = makeParticipant({ characterId: ALICE_ID });
   const bob = makeParticipant({ characterId: BOB_ID });
-  expect(castSectionVisible([])).toBe(false);
-  expect(castSectionVisible([alice])).toBe(true);
-  expect(castSectionVisible([alice, bob])).toBe(true);
+  expect(charactersSectionVisible([])).toBe(false);
+  expect(charactersSectionVisible([alice])).toBe(true);
+  expect(charactersSectionVisible([alice, bob])).toBe(true);
 });
 
-test("membersTabJustified: castSectionVisible alone justifies the tab, multiHumanCapable or not", () => {
+test("membersTabJustified: charactersSectionVisible alone justifies the tab, multiHumanCapable or not", () => {
   const alice = makeParticipant({ characterId: ALICE_ID });
   const bob = makeParticipant({ characterId: BOB_ID });
   expect(membersTabJustified([alice, bob], false)).toBe(true);

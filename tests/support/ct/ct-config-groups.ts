@@ -32,7 +32,7 @@ const REAL_CONFIG_GROUPS: Record<ConfigGroupId, ConfigGroupDefinition> = {
   tags: tagsGroup,
   regex: regexGroup,
   worldInfo: worldInfoGroup,
-  cast: castGroup,
+  rosterPreset: castGroup,
   plugins: pluginsGroup,
 };
 

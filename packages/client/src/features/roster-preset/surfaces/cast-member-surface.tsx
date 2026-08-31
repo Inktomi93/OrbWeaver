@@ -54,7 +54,7 @@ function ruleInputsOf(
 
 /** ONE stored rule as the editor shows it: what it is called, and — the whole point of the rider storing
  *  a bag rather than an id — the RESOLVED knobs, in the catalogue's own labels (side-eye P2-2). Without
- *  them the block told a host to "configure a room and save a new cast" to change values it never showed,
+ *  them the block told a host to "configure a room and save a new roster" to change values it never showed,
  *  and two casts carrying one preset at different knobs read byte-identically. */
 function CastRuleBlock(props: {
   readonly preset: RulePresetView | undefined;
@@ -136,10 +136,10 @@ export function CastMemberSurface({ view }: { readonly view: CollectionDetailVie
       <Stack className="max-w-prose outline-none" data-slot="cast-member-editor" gap="section" ref={surfaceRef} tabIndex={-1}>
         <Heading level={2}>{cast.name}</Heading>
         <Field label="Name">
-          <Input aria-label="Cast name" onChange={(e): void => setName(e.target.value)} value={name} />
+          <Input aria-label="Roster name" onChange={(e): void => setName(e.target.value)} value={name} />
         </Field>
         <Field label="Description">
-          <Input aria-label="Cast description" onChange={(e): void => setDescription(e.target.value)} value={description} />
+          <Input aria-label="Roster description" onChange={(e): void => setDescription(e.target.value)} value={description} />
         </Field>
         <Row align="center" gap="field">
           <Button disabled={busy || !dirty || name.trim().length === 0} intent="primary" size="sm" onClick={onSave}>
@@ -174,14 +174,16 @@ export function CastMemberSurface({ view }: { readonly view: CollectionDetailVie
               )}
             </Row>
           ))}
-          <Text voice="gloss">To re-compose the cast, arrange a room you host and save it as a new cast — the saved-casts door in Members.</Text>
+          <Text voice="gloss">To re-compose the roster, arrange a room you host and save it as a new roster — the saved-rosters door in Members.</Text>
         </Section>
         {cast.rules.length > 0 ? (
           <Section kicker="Rules" data-slot="cast-rules">
             {cast.rules.map((rule) => (
               <CastRuleBlock knobs={rule.knobs} key={rule.rulePresetId} preset={presetOf(rule.rulePresetId)} rulePresetId={rule.rulePresetId} />
             ))}
-            <Text voice="gloss">Applied with the cast — re-minted into the room and switched on. To change them, configure a room and save a new cast.</Text>
+            <Text voice="gloss">
+              Applied with the roster — re-minted into the room and switched on. To change them, configure a room and save a new roster.
+            </Text>
           </Section>
         ) : null}
       </Stack>
