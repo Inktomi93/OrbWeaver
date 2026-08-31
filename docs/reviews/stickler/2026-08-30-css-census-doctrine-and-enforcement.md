@@ -190,7 +190,7 @@ the 278-entry/187-target/19-`cssValues` contract.
 
 ---
 
-## F3 (P2) — the chart ramp is not polarity-aware, so every chart series measures below the WCAG 1.4.11 3:1 floor on the Light seed — while its sibling ramp, fixed for exactly this at #697, clears it
+## F3 (P2 — fixed and cold-confirmed as #939) — the chart ramp was not polarity-aware, so every chart series measured below the WCAG 1.4.11 3:1 floor on the Light seed
 
 `packages/ui/src/styles/theme.css:47-51` (generated) ← `packages/ui/src/tokens/tokens.json` · consumers `packages/ui/src/charts/chart/use-chart-theme.ts:36,39`, `packages/ui/src/charts/bar-list/option.ts:27`, `packages/ui/src/charts/heatmap/option.ts:4`
 
@@ -232,6 +232,18 @@ darkened to clear 3:1 against sidebar/surface-raised. Edit `tokens.json`, run
 `pnpm --filter @orb/ui tokens:build`. **Regression pin:** extend
 `tests/ui/content/theme-scope/palette-contrast.suite.test.ts` — it already sweeps every value-set per
 polarity, so the chart ramp joins the sweep it should always have been in.
+
+**Resolution (2026-08-31).** #939 landed on main as `c45d39ac7` plus the CT typing follow-up
+`fd31bf645`. The static seed ramp now emits polarity-aware `light-dark()` values with byte-identical dark
+arms, while a carried custom ThemeScope derives five concrete fills against its actual composited
+base/card/raised/sidebar hosts instead of inheriting a seed arm across the polarity pivot. The boundary
+rejects contextual/system/CSS-wide colours only where deterministic derivation is required, retains the
+general safe-colour contract elsewhere, and preserves valid sibling overrides when one field is dropped.
+Cold verification confirmed 55/55 focused Vitest and 7/7 rendered CT: five distinct real ECharts fills,
+five canvas-pixel matches, zero unresolved values, and minimum contrast at least 3:1. The permanent matrix
+now covers every seed/polarity host plus accepted named/numeric/alpha/extreme-gamut custom inputs and carries
+its own planted failing chart colour. #939 is closed; the grouped CSS-train barrier remains the one shared
+repo-wide pass.
 
 ---
 
@@ -769,7 +781,7 @@ wallpaper · the media grid · the boot veil), each with its writer named below.
 | `:root { color-scheme: dark }` (`:195-197`) | correct-as-is | the base polarity the `light-dark()` arms select on |
 | `[data-theme="light"]` (`:199-241`), `[data-theme="mocha"]` (`:243-285`) | correct-as-is | generated per D71; each self-complete and carrying its own `color-scheme` |
 | the intent family (`destructive/success/warning/info` ± foregrounds) and `--color-track-1..6` declared ONCE as `light-dark()`, never re-stated per theme | correct-as-is | D71 clause (3); this is the mechanism F3 says the chart ramp should join |
-| `--color-chart-1..5` fixed, not `light-dark()`, not overridden in the light block | **LAW-CONTRADICTING (F3)** | measured 1.95–2.97:1 on the Light seed against all three chrome surfaces, vs the track ramp's 4.30–4.96:1 |
+| `--color-chart-1..5` polarity-aware, with carried-theme concrete derivation | **FIXED (#939)** | static seeds use `light-dark()` with byte-identical dark arms; custom ThemeScopes emit five host-judged concrete fills. Cold CT proved five real ECharts fills at ≥3:1 |
 | `--color-sheen`, `--color-highlight` + foreground, `--color-sky-*` not overridden per theme | correct-as-is | deliberate polarity-FIXED values; `sheen` is used only at 0.02–0.04 alpha as a gradient foot, and the globals comment says so verbatim |
 
 **Token definitions:** 155 `--color-*:` declaration lines here vs **4** in `client/styles/globals.css` and 0
@@ -944,7 +956,7 @@ is a work item.
 | `:982` | `@media (max-width: 48rem)` | an `@media` condition cannot read a custom property. Sync-enforced against `--dimension-shell-breakpoint` and against `client/globals.css`'s complement by `css-structure.suite.test.ts:337` |
 | `:59`, `:355`, `:406`, `:433`, `:566` | the per-site alphas (`72%`, `14%`, `55%`, `0.45`, `0.03`) | the house rule the ring recipes state verbatim: *"the per-site alpha (the tuned ring weight) stays here; only the colour is the token's call"* |
 
-### 3.2b Genuinely off-token — a work item, small and mechanical
+### 3.2b Historical off-token residue — fixed and gate-enforced by #955
 
 | sites | value | the token that already exists |
 | - | - | - |
@@ -956,6 +968,17 @@ is a work item.
 | `:914` | `min(14rem, 30dvh)` | none |
 | `:1035` | `gap: 0.125rem` | none — off the bottom of the spacing scale |
 | `:47` | `text-shadow: 0 1px 3px …` offsets | none (`--shadow-prose` is a different recipe) |
+
+**Resolution (2026-08-31).** #955 landed as `e07b79b2d` after re-deriving the post-#938 file rather than
+copying this baseline table. It resolved 20 non-structural residues: existing `border-width.control` and
+`spacing.glyph-sm`; new portable `spacing.micro`, `dimension.shell-accent-edge`, and `leading.none`; and
+validated `orb.cssValues` outputs for the 6ch title floor, the `min(14rem, 30dvh)` notice cap, and the
+token-coloured shell text shadow. The combined `css-length-tokens` gate makes the residual structural set an
+authored, reasoned, count-pinned allowlist and consumes #961's shared static-class provenance rather than
+building another evaluator. Focused receipts are 8/8 gate conformance and 51/51 token-contract/index; four
+selected browser assertions passed, while their grep-filtered CT wrapper correctly refused a suite verdict
+because an unrelated routeTrpc population marker was absent. Final rendered/repo-wide judgment stays with the
+grouped train barrier, not an invented green for that wrapper.
 
 **Motion is clean.** Zero raw durations or easings in shell.css; every one is `var(--shell-motion)` /
 `var(--motion-*)` / `var(--ease-out-expo)`, which is what `motion-token-purity` enforces over
@@ -1121,10 +1144,10 @@ pre-launch removes the user risk, not the verification bar.**
 | - | - | - | - | - |
 | 2.1 | **F1 / #937 — CLOSED:** stamp viewer density on the root ThemeScope, remove the grid duplicate, and project viewer-sacred keys from every current card-sourced nested ThemeScope | root + chat/character shared card boundaries | code + unit/security + rendered + structural census | `c3fb373b2` + two cold-refutation follow-ups `80eb7ca0c`, `99e16df97`; independently confirmed |
 | 2.2 | **F2 / #938 — CLOSED:** owner chose symmetric Arm A and it landed after #936's structured-value emitter migration, never against the retired generator | token vault + generator + tiers | code + rendered CT on preview in BOTH directions | `f9dff3bb3`; cold detached verification passed 232/232 rendered CT, 92/92 focused Vitest, 8/8 ownership-gate integration, both typecheck tiers, and the 278-entry/187-target/19-`cssValues` contract |
-| 2.3 | **F3** — give `color.chart-1..5` the `light-dark()` shape `color.track-*` already has; regenerate | `tokens.json` + generated artifacts + every chart | tokens + `palette-contrast.suite.test.ts` extension | judgment on the light-arm values (must clear 3:1 against sidebar/surface-raised while staying mutually distinguishable) — the track ramp's #697 arm is the worked precedent |
+| 2.3 | **F3 / #939 — CLOSED:** static seeds use polarity-aware chart arms and carried custom ThemeScopes derive five concrete host-safe fills across the accepted deterministic colour domain | token/clamp contract + chart consumers | token/property matrix + real ECharts CT | `c45d39ac7` + `fd31bf645`; cold-confirmed 55/55 focused Vitest and 7/7 CT with five distinct pixel-matched fills at ≥3:1 |
 | 2.4 | **F7 / #954 — PRODUCT FIXED; #961 REPAIRED; GROUP REVIEW PENDING:** `214fa1200` deleted the named-theme variant, `6740e6705` made #954 a thin Oxide consumer, and `0952cc462` repaired return-position composer ownership, local namespace re-exports, and object-spread overwrite/opacity semantics from planted reds | repaired #961 provenance library + thin #954 consumer | code + shared tooling + gate + rendered | #961 focused 17/17 plus exact real probes; #954 focused 4/4 plus 13 mustFlag/5 mustPass; grouped CSS-train cold review/barrier remains |
 | 2.5 | **F8 corrected** — register only the compiler-positive missing aspect/blur/ease families; plant exact Tailwind 4.3.3 positive/negative set equality and later-wins controls. Do not register dimension/z merely because those token prefixes exist | `class-merge.ts` + compiler/merge pins | code + vitest | mechanical after compiler proof |
-| 2.6 | **§3.2b** — repoint the 8 `1px` hairlines to `var(--border-width-control)` and the divider's `1.25rem` to `var(--spacing-glyph-sm)`; leave §3.2a alone | 1 file, 9 lines | code | mechanical — but it is a *whole-shell* visual change, so it owes a per-region rendered receipt (rail · both panels · topbar · modal header · mobile bar) |
+| 2.6 | **§3.2b / #955 — IMPLEMENTED, GROUP BARRIER PENDING:** re-derived all 20 non-structural shell residues, reused existing tokens, added only the missing portable values/runtime outputs, and left the declared structural mechanisms alone | shell + token source/generated artifacts | code + gate + rendered | `e07b79b2d`; focused gate 8/8 and token contract/index 51/51; selected browser assertions 4/4, wrapper no-verdict; grouped rendered barrier remains |
 | 2.7 | **F11 a/b/c** — repair the three stale comments | 3 files, 3 comments | prose | mechanical |
 
 ### Wave 3 — the enforcement the doctrine promises but cannot yet keep
@@ -1132,7 +1155,7 @@ pre-launch removes the user risk, not the verification bar.**
 | # | step | blast radius | tier | mech/judgment |
 | - | - | - | - | - |
 | 3.0 | **#962 — eliminate file-wide Biome disables before more gate work lands.** Current exhaustive census: 70 files carry 74 `biome-ignore-all` directives across six rules; the suppression ratchet explicitly excludes `tests/**`, and a rejected #954 index briefly carried a whole-file complexity bypass. Migrate every directive to an exact line/range or centrally governed, stale-armed path grant; extend governance to tests; plant an index-vs-working-tree control | 70 files + suppression governance | lint + gate + affected behavioral suites | no baseline/allowlist increase; zero file-wide directives is the contract |
-| 3.1 | **G-NEW-4 `css-length-tokens`** — the LENGTH twin of `no-raw-color-in-css` over the six homes, with §3.2a as the DECLARED allowlist (each row carrying its reason) | 1 gate | **gate** | judgment: the allowlist IS the doctrine, so it must be authored from §3.2a and not discovered |
+| 3.1 | **#955 / `css-length-tokens` — IMPLEMENTED, GROUP BARRIER PENDING:** the LENGTH twin over shell declarations/queries plus #961-resolved static class carriers; structural rows are reasoned and count-pinned, missing shell fails loud, and populations print | 1 gate + planted integration arms | **gate** | `e07b79b2d`; 8/8 conformance, 51/51 token contract/index, no discovered-ignore list; grouped train barrier remains |
 | 3.2 | **Wire the reported-but-unread instruments into a floor.** Make a non-zero `deadcss`/`emptycss` a snap ASSERTION failure on the scenario runs (not on every ad-hoc probe), so the third category collapses into "enforced" | snap contract + the scenario floor | **instrument → floor** | judgment on which runs; a per-probe hard fail would be too noisy |
 | 3.3 | **Merge-precedence assertions per AXIS, not per call site** — extend `class-merge.test.ts` to assert, for every registered namespace derived from `TOKENS`, that two classes on one axis resolve to one. Bounded by the token vault, not by the app | 1 test file | vitest | mechanical once 2.5 lands |
 | 3.4 | **State the residual honestly in §4.7**: after 3.1–3.3, the remaining uncovered class is a runtime-ASSEMBLED class string, which no static tier can read. The named sweep that keeps it honest is the side-eye rendered pass | prose | **prose + a named sweep** | — this is the clause that must say out loud that it is prose |
@@ -1173,8 +1196,9 @@ pre-launch removes the user risk, not the verification bar.**
 
 ### What is a merge-window class (a quiet tree)
 
-- **2.3** (chart ramp) and **2.6** (hairline repoint) both regenerate or repaint shell-wide surfaces and owe
-  per-surface rendered receipts; neither should race a sibling lane's rendered work.
+- **2.3 / #939** and **2.6 / #955** were serialized as required. #939 is cold-confirmed and closed; #955's
+  focused browser assertions passed but its full per-surface judgment remains part of the grouped train
+  barrier. Future token/chart or shell-length work keeps the same quiet-tree rule.
 - **2.2 / #938 Arm A** landed after #936's emitter migration as required; the historical merge-window rule is
   retained because a future density-output change must not target a generator being replaced in the same train.
 
@@ -1423,6 +1447,7 @@ own control.**
 | `feature-css-files` (historical) → `sanctioned-css-homes` at `9b0e6debb` + `fee25f89b` | gate | old: `packages/client/src/features/**/*.css`; current: exact six homes + recursive package CSS inventory including dot paths | old gap reproduced; first commit cold-refuted; follow-up controls 8/8 green and independently confirmed; #921 closed | generated directories are excluded by exact name; symlink semantics remain outside the declared regular-file/path-identity contract |
 | `no-raw-color-in-css` | gate | `packages/{ui,client}/src/**/*.css` (`:70`) — the FULL CSS surface | mustFlag+mustPass | non-colour values; a colour whose `var()` chain resolves to nothing |
 | `motion-token-purity` | gate | `packages/{ui,client}/src/**/*.css` (`:101`) | mustFlag+mustPass | motion in TS/inline (covered by `no-off-token-inline-style`); `linear`/`0s` legal by design |
+| `css-length-tokens` (#955) | gate | `shell.css` declarations/queries + #961-resolved static class carriers across `packages/{client,ui}/src` | 4 mustFlag + 2 mustPass; focused conformance 8/8 | runtime-assembled class strings; declared viewport/query/ratio/measurement mechanics are count-pinned allowances rather than blind skips |
 | `no-color-literals` | gate | `packages/{client,ui}/src` (`:54`) | mustFlag+mustPass | runtime-ASSEMBLED class strings |
 | `no-arbitrary-tw-values` | gate | `packages/{client,ui}/src` (`:110`) | mustFlag+mustPass | token-driven bodies (`var()`/`calc()`) legal by design |
 | `no-off-token-radius-shadow` | gate | `packages/{client,ui}/src` (`:121`) | mustFlag+mustPass | `packages/client/src/features/preset/**` structurally excluded (declared) |
@@ -1446,7 +1471,7 @@ own control.**
 | `tests/ui/styles/css-structure.suite.test.ts` | vitest | the five authored files, by literal assertion (theme enumeration · the unlayered floor · the light block's `color-scheme` · BLUR\_SURFACES sync · the reduce/contrast arms' source order and conditions · the 48rem four-way agreement · the reading-scale `, 1` fallbacks) | — | only what it enumerates; the dark-variant arm is **one-directional (F7)** |
 | `tests/ui/lib/class-merge.test.ts` | vitest | the currently registered namespaces + type-scale axes, derived from `TOKENS` | — | **which namespaces Tailwind actually emits — no compiler-positive/negative set-equality proof exists (F8)** |
 | `tests/ui/tokens/index.test.ts` | vitest | re-runs the codegen and diffs the committed artifacts | — | — |
-| `tests/ui/content/theme-scope/palette-contrast.suite.test.ts` | vitest | every seed value-set × polarity, at the 4.5:1 text + pill floors | — | **the chart ramp is not in its sweep (F3)** |
+| `tests/ui/content/theme-scope/palette-contrast.suite.test.ts` | vitest | every seed value-set × polarity at the text/pill floors plus #939's seed/custom chart-host, spelling/alpha/gamut, planted-failure, and pair-distance matrices | — | rendered ECharts output is intentionally proved separately by `use-chart-theme.ct.tsx` |
 | `tests/ui/touch-target-floor.suite.ct.tsx` | CT | coarse-emulated, per-pointer | — | — |
 | `snap --dead-css` | instrument | live DOM classList vs compiled CSSOM, per drive | — | **"does the VALUE resolve" and "which class won" (F10)**; and **no floor consults it** |
 | `motion-dead-class-flagger` (`[css]`) | instrument | live, MutationObserver-scoped, batched, confirm-before-report | — | same, plus **dev-only** — no watcher on the shipped build |
@@ -1593,9 +1618,11 @@ key traced to a live writer, so there are **no orphan or dead selectors** in the
 baseline, `data-density` did not reach the portal layer; #937 has since closed the root carrier and every
 current card-sourced nested-scope bypass with cold verification. The density attribute still has no
 `comfortable` arm, so #866's live preview is inert in one direction
-(measured with a positive control); the chart ramp is not polarity-aware and measures 1.95–2.97:1 on the Light
-seed where its sibling track ramp — fixed for exactly this at #697 — measures 4.30–4.96:1 (canvas pixel
-receipts); at the census baseline, `z-(--z-sticky)` named a token that had never existed, so every modal's
+(measured with a positive control); at the census baseline the chart ramp was not polarity-aware and measured
+1.95–2.97:1 on the Light seed where its sibling track ramp measured 4.30–4.96:1 — #939 is now cold-confirmed
+and closed with static seed arms, custom-scope derivation, exhaustive property controls, and five real
+pixel-matched ECharts fills at ≥3:1; at the census baseline, `z-(--z-sticky)` named a token that had never
+existed, so every modal's
 sticky header shipped `z-index: auto` and the gate advertised the bad name — #940 has since closed that
 defect with vault parity, exported-carrier controls, and a live stacking receipt; and
 `client-architecture-lockdown.md` §4 — the authoritative paint law — justified shell.css's exception
