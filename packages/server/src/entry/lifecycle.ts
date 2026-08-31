@@ -16,7 +16,7 @@ import { createDb, preCloseHousekeeping } from "@orb/db";
 import type { ChatId, ChatTurnId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { Configuration } from "openid-client";
-import { discovery } from "openid-client";
+import { authorizationCodeGrant, discovery } from "openid-client";
 import { startAutomationWatcher } from "#domain/automation";
 import type { SessionsService } from "#domain/sessions";
 import { createOidcStore, createSessionsService, ownerHandles } from "#domain/sessions";
@@ -35,7 +35,14 @@ import {
   resolveEnginesPosture,
 } from "#foundation/env";
 import { getLog, initTracing, superviseDetached, wrapLibSqlClient } from "#foundation/observability";
-import { createBackchannelLogoutVerifier, createForwardJwtVerifier, createOidcConfigCache, createPasswordHasher, ownerFallbackAllowed } from "#infra/auth";
+import {
+  createBackchannelLogoutVerifier,
+  createForwardJwtVerifier,
+  createOidcConfigCache,
+  createOidcExchange,
+  createPasswordHasher,
+  ownerFallbackAllowed,
+} from "#infra/auth";
 import { credentialsKeyFromEnv } from "#infra/crypto";
 import { installEgressFirewall } from "#infra/network";
 import { detectGpu } from "#infra/providers";
@@ -198,6 +205,12 @@ function buildOidcDeps(db: Db, now: () => number): { oidc: OidcRoutesDeps; stopO
   const getConfig = createOidcConfigCache((): Promise<Configuration> => discovery(issuerUrl, clientId, clientSecret));
   return {
     oidc: {
+      // #867 — THE REAL code→token exchange. This is the ONE site that binds the callback to
+      // `openid-client`'s `authorizationCodeGrant`; the route and the adapter hold only types, which is what
+      // lets a test drive the whole callback (and the adapter's own checks mapping) with a deterministic
+      // fake and no IdP. Nothing here is env-switchable on purpose: a knob that could swap the exchange for
+      // a fake would be an authentication bypass wearing a test affordance.
+      exchange: createOidcExchange(authorizationCodeGrant),
       // The full callback URLs the per-request derived origin must exact-match.
       redirectAllowlist: (env.OIDC_REDIRECT_URIS ?? "")
         .split(",")
