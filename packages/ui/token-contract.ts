@@ -425,6 +425,7 @@ function validateOutputTargets(
   diagnostics: TokenContractDiagnostic[],
 ): ReadonlySet<string> {
   const targets = new Set<string>();
+  const baseByPath = new Map(baseTokens.map((token) => [token.pathString, token]));
   for (const token of baseTokens) {
     if (token.outputRole === "input") {
       continue;
@@ -444,16 +445,39 @@ function validateOutputTargets(
     }
     targets.add(target);
   }
-  validateCssValueOperands(cssValues, targets, diagnostics);
+  validateCssValueOperands(cssValues, targets, baseByPath, diagnostics);
   return targets;
 }
 
 function validateCssValueOperands(
   cssValues: Readonly<Record<string, CssValueEntry>>,
   targets: ReadonlySet<string>,
+  baseByPath: ReadonlyMap<string, ContractToken>,
   diagnostics: TokenContractDiagnostic[],
 ): void {
   for (const [target, entry] of Object.entries(cssValues)) {
+    const alias = ALIAS_RE.exec(entry.value)?.[1];
+    if (alias !== undefined) {
+      const source = baseByPath.get(alias);
+      if (source === undefined) {
+        diagnostics.push(
+          diagnostic(
+            `/$extensions/orb.cssValues/${target}/value`,
+            "orb.cssValues.alias.missing",
+            `portable-token alias ${JSON.stringify(alias)} does not exist`,
+          ),
+        );
+      } else if (source.outputRole === "input") {
+        diagnostics.push(
+          diagnostic(
+            `/$extensions/orb.cssValues/${target}/value`,
+            "orb.cssValues.alias.nonportable",
+            `portable-token alias ${JSON.stringify(alias)} names an input-only token with no CSS output`,
+          ),
+        );
+      }
+      continue;
+    }
     for (const match of entry.value.matchAll(CSS_VAR_RE)) {
       const operand = match[1];
       if (operand === undefined || targets.has(operand)) {

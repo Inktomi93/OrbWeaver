@@ -43,6 +43,7 @@ interface HookOwners {
 }
 
 const DENSITY_SPACING = new Set(["--spacing-field", "--spacing-row", "--spacing-block", "--spacing-section"]);
+const DENSITY_SELECTORS = new Set(['[data-density="comfortable"]', '[data-density="compact"]']);
 const CLIENT_BLUR_FILL = new Set(["--blur-fill-chrome", "--blur-fill-dense"]);
 const CLIENT_COLORIZATION = new Set(["--color-border", "--color-sidebar-border"]);
 const LOCAL_FADE_STOP_RE = /^--fade-(?:start|end|top|bottom)-stop$/u;
@@ -52,7 +53,7 @@ const DATA_SLOT_RE = /\[data-slot="([^"]+)"\]/gu;
 const KNOWN_DENSITY_FLOOR = '[data-slot="list-row-subtitle"][data-subtitle-step="label"]';
 const CLASS_TOKEN_RE = /^[A-Za-z_][\w-]*$/u;
 const EXPECTED_RUNTIME_WRITERS = {
-  density: DENSITY_SPACING.size,
+  density: DENSITY_SPACING.size * DENSITY_SELECTORS.size,
   blur: CLIENT_BLUR_FILL.size * 2,
   colorization: CLIENT_COLORIZATION.size * 2,
   fade: 12,
@@ -267,7 +268,7 @@ function isGeneratedFamily(prop: string, prefixes: ReadonlySet<string>): boolean
 }
 
 function runtimeWriter(rel: ProductStylesheet, selector: string, declaration: DirectDeclaration): "density" | "blur" | "colorization" | "fade" | undefined {
-  if (rel === TIERS && selector === '[data-density="compact"]' && DENSITY_SPACING.has(declaration.prop)) {
+  if (rel === TIERS && DENSITY_SELECTORS.has(selector) && DENSITY_SPACING.has(declaration.prop)) {
     return "density";
   }
   if (rel === CLIENT_GLOBALS && selector === ":root" && CLIENT_BLUR_FILL.has(declaration.prop)) {
@@ -285,7 +286,33 @@ function runtimeWriter(rel: ProductStylesheet, selector: string, declaration: Di
 }
 
 function isTierSelector(selector: string): boolean {
-  return selector.includes("[data-surface-tier") || selector === '[data-density="compact"]' || selector === KNOWN_DENSITY_FLOOR;
+  return selector.includes("[data-surface-tier") || DENSITY_SELECTORS.has(selector) || selector === KNOWN_DENSITY_FLOOR;
+}
+
+function reportDensityArmCompleteness(row: StylesheetCensus, ctx: GateRunCtx): void {
+  if (row.rel !== TIERS) {
+    return;
+  }
+  const densityRules = row.rules.filter((rule) => rule.selectors.some((selector) => DENSITY_SELECTORS.has(selector)));
+  if (densityRules.length === 0) {
+    return;
+  }
+  for (const selector of DENSITY_SELECTORS) {
+    const declarations = densityRules
+      .filter((rule) => rule.selectors.includes(selector))
+      .flatMap((rule) => rule.declarations)
+      .filter((declaration) => DENSITY_SPACING.has(declaration.prop));
+    if (declarations.length !== DENSITY_SPACING.size) {
+      ctx.report(
+        finding(
+          TIERS,
+          densityRules[0]?.line ?? 1,
+          `density-arm:${selector}`,
+          `${selector} must write all ${DENSITY_SPACING.size} density spacing intents; found ${declarations.length}`,
+        ),
+      );
+    }
+  }
 }
 
 function isKeyframeStep(selector: string): boolean {
@@ -501,6 +528,7 @@ function auditStylesheet(row: StylesheetCensus, audit: StylesheetAuditContext): 
   const { prefixes, owners, runtimeCounts, directClientCounts, ctx } = audit;
   reportAuthoredLayers(row, ctx);
   reportDensityPlacement(row, ctx);
+  reportDensityArmCompleteness(row, ctx);
   reportHomeGrammar(row, ctx);
   if (row.rel !== THEME) {
     reportGeneratedWriters(row, prefixes, runtimeCounts, ctx);
@@ -639,6 +667,11 @@ export const gate: GateDescriptor = {
       expect: { count: 1, token: "color-scheme" },
       why: "the one document-root declaration in shell is the view-transition reset, not a general global-mechanism door",
     },
+    {
+      files: { [TIERS]: '[data-density="compact"] { --spacing-field: 0.25rem; --spacing-row: 0.375rem; --spacing-block: 0.5rem; --spacing-section: 1rem; }\n' },
+      expect: { count: 1, token: 'density-arm:[data-density="comfortable"]' },
+      why: "one density arm without its symmetric counterpart is a stale runtime contract, not a valid partial map",
+    },
   ],
   mustPass: [
     {
@@ -653,8 +686,12 @@ export const gate: GateDescriptor = {
       why: "only direct @theme declarations mint generated namespaces; a nested declaration cannot widen the writer wall",
     },
     {
-      files: { [TIERS]: '[data-density="compact"] { --spacing-field: 0.25rem; --spacing-row: 0.375rem; --spacing-block: 0.5rem; --spacing-section: 1rem; }\n' },
-      why: "the exact compact density runtime writer belongs in tiers.css",
+      files: {
+        [TIERS]:
+          '[data-density="comfortable"] { --spacing-field: var(--orb-density-comfortable-field); --spacing-row: var(--orb-density-comfortable-row); --spacing-block: var(--orb-density-comfortable-block); --spacing-section: var(--orb-density-comfortable-section); }\n' +
+          '[data-density="compact"] { --spacing-field: var(--orb-density-compact-field); --spacing-row: var(--orb-density-compact-row); --spacing-block: var(--orb-density-compact-block); --spacing-section: var(--orb-density-compact-section); }\n',
+      },
+      why: "both symmetric density runtime writers belong in tiers.css and each maps all four intents",
     },
     {
       files: {

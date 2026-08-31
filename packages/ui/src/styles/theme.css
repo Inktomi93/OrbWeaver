@@ -82,6 +82,7 @@
   --spacing-row: 0.5rem;
   --spacing-block: 0.75rem;
   --spacing-section: 1.5rem;
+  --spacing-density-section-compact: 1rem;
   --spacing-gutter: 2rem;
   --spacing-touch-target: 2.75rem;
   --spacing-control-sm: 2.75rem;
@@ -180,6 +181,17 @@
   --shadow-overlay: 0 0 0 1px var(--color-shadow-hairline), inset 0 1px 0 0 var(--color-shadow-highlight), 0 2px 4px var(--color-shadow-ambient-near), 0 12px 32px var(--color-shadow-ambient-far);
   --shadow-cta: inset 0 1px 0 var(--color-shadow-cta-highlight);
   --shadow-cta-glow: inset 0 1px 0 var(--color-shadow-cta-highlight), 0 0 0 1px oklch(from var(--color-primary) l c h / 0.4), 0 0 18px oklch(from var(--color-primary) l c h / 0.18);
+}
+
+:root {
+  --orb-density-comfortable-field: 0.375rem;
+  --orb-density-comfortable-row: 0.5rem;
+  --orb-density-comfortable-block: 0.75rem;
+  --orb-density-comfortable-section: 1.5rem;
+  --orb-density-compact-field: 0.25rem;
+  --orb-density-compact-row: 0.375rem;
+  --orb-density-compact-block: 0.5rem;
+  --orb-density-compact-section: 1rem;
 }
 
 @media (pointer: fine) {

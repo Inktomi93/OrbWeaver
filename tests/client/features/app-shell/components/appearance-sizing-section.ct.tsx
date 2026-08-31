@@ -79,22 +79,34 @@ test("fontScale clamps at its own MIN/MAX and patches fontScale", async ({ mount
 
 test("the density segment patches density and nothing else — and the LIVE preview reads the DRAFT", async ({ mount, page }) => {
   const trpc = await stub(page);
-  await mount(<AppearanceSizingSectionStory />);
+  await mount(<AppearanceSizingSectionStory />, { hooksConfig: { theme: { density: "compact" } } });
   const preview = page.locator('[data-slot="density-preview"]');
   await expect(preview).toHaveAttribute("data-density", "comfortable");
 
+  const readSpacing = (): Promise<readonly string[]> =>
+    preview.evaluate((element) => {
+      const style = getComputedStyle(element);
+      return ["--spacing-field", "--spacing-row", "--spacing-block", "--spacing-section"].map((name) => style.getPropertyValue(name).trim());
+    });
+  const comfortable = await readSpacing();
+
   await page.getByRole("group", { name: "Density" }).getByRole("button", { name: "Compact" }).click();
 
-  // THE PREVIEW IS DRAFT-DRIVEN, and derived: its box re-scopes the SAME shell.css spacing tokens the
+  // THE PREVIEW IS DRAFT-DRIVEN, and derived: its box re-scopes the SAME tiers.css spacing intents the
   // shell grid reads (one definition, two consumers — the owner's derive-never-mirror rider), so the
   // attribute flip below IS the visual change, immediately, before any save lands.
   await expect(preview).toHaveAttribute("data-density", "compact");
   // …and the tokens actually re-scope: compact's row gap reads off the RENDERED box (the CSS hoist is
   // the mechanism under test — a preview that swapped an attribute nothing styles would be a fake).
-  await expect.poll(() => preview.evaluate((el: HTMLElement) => getComputedStyle(el).rowGap)).toBe("6px"); // 0.375rem — shell.css compact, the ONE home
-
+  await expect.poll(() => preview.evaluate((el: HTMLElement) => getComputedStyle(el).rowGap)).toBe("6px"); // compact row = the canonical field step
+  const compact = await readSpacing();
+  expect(compact).not.toEqual(comfortable);
   await expect.poll(() => lastPatch(trpc)?.["density"], { intervals: [20, 50, 100] }).toBe("compact");
   expect(Object.keys(lastPatch(trpc) ?? {}).sort()).toStrictEqual(OWNED_KEYS);
+
+  await page.getByRole("group", { name: "Density" }).getByRole("button", { name: "Comfortable" }).click();
+  await expect(preview).toHaveAttribute("data-density", "comfortable");
+  await expect.poll(readSpacing).toEqual(comfortable);
 });
 
 test("an elevation CARD patches elevation, key-minimally — and its diagram derives the shell's tokens", async ({ mount, page }) => {

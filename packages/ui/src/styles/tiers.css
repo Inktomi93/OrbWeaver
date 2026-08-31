@@ -20,15 +20,22 @@
 
 /* Density is an inherited VALUE axis over the same semantic spacing names every primitive already uses.
  * It lives beside the slot map so the common ThemeScope carrier reaches both the shell and portalled
- * overlays; shell.css owns frame geometry, not a preference axis. These four values are intentionally
- * direct: aliasing --spacing-row to --spacing-field inside this block would resolve against the block's
- * own compact redefinition and shift the scale twice. Computed through the real carrier in
- * tests/ui/density-tier.suite.ct.tsx. */
+ * overlays; shell.css owns frame geometry, not a preference axis. Both arms are explicit because a
+ * nested comfortable ThemeScope below a compact one must RESTORE the comfortable scale. The private
+ * aliases are generated from the canonical DTCG values at :root; this file only maps the density axis.
+ * Computed through the real carrier in tests/ui/density-tier.suite.ct.tsx. */
+[data-density="comfortable"] {
+  --spacing-field: var(--orb-density-comfortable-field);
+  --spacing-row: var(--orb-density-comfortable-row);
+  --spacing-block: var(--orb-density-comfortable-block);
+  --spacing-section: var(--orb-density-comfortable-section);
+}
+
 [data-density="compact"] {
-  --spacing-field: 0.25rem;
-  --spacing-row: 0.375rem;
-  --spacing-block: 0.5rem;
-  --spacing-section: 1rem;
+  --spacing-field: var(--orb-density-compact-field);
+  --spacing-row: var(--orb-density-compact-row);
+  --spacing-block: var(--orb-density-compact-block);
+  --spacing-section: var(--orb-density-compact-section);
 }
 
 [data-surface-tier="instrument"] {
