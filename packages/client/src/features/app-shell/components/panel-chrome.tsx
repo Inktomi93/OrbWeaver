@@ -11,6 +11,9 @@
 // open/close affordance is the registered `contextToggleChrome` topbar widget (the ONE detail-panel close
 // control, shell-chrome-unification.md §A); the LIST panel's is the topbar's intrinsic list toggle.
 //
+// A COLLAPSED BODY IS DEFERRED PAST THE BOOT COMMIT, AND ITS MOUNT DOES NOT RIDE THE OPEN'S CLICK FRAME
+// (#895) — see `bodyMounted` below for the measurement that split those into two different requirements.
+//
 // AN OVERLAY IS DIFFERENT AND CARRIES ITS OWN DISMISS (side-eye 2026-08-06 P2). A floating panel's only
 // exits were the scrim and Escape — and on a phone the panel is 100dvw, so the scrim it floats over has NO
 // reachable pixel and Escape needs a keyboard. That left the topbar toggle as the sole way out: a control
@@ -20,7 +23,7 @@
 import { Button } from "@orb/ui/button";
 import { Icon, X } from "@orb/ui/icons";
 import type { ReactElement, ReactNode } from "react";
-import { useState } from "react";
+import { startTransition, useEffect, useState } from "react";
 import { LIST_PANE_TITLE_ID } from "#lib";
 import type { PanelMode, PanelName } from "#state";
 
@@ -40,12 +43,28 @@ export interface PanelChromeProps {
 
 export function PanelChrome({ panel, label, header, mode, onDismiss, children }: PanelChromeProps): ReactElement {
   // A collapsed panel is translated out of the shell and inert, so its first body mount cannot be seen or
-  // reached. Delay that work until the panel has been visible once; thereafter keep it mounted so closing
-  // still preserves its state and the existing transform animation remains untouched.
-  const [hasBeenVisible, setHasBeenVisible] = useState(mode !== "collapsed");
-  if (mode !== "collapsed" && !hasBeenVisible) {
-    setHasBeenVisible(true);
-  }
+  // reached — it must not ride the boot commit (4a6c54cdf). THAT RULING SURVIVES; ITS INPUT CHANGED (#895).
+  // Latching the mount DURING RENDER (`if (mode !== "collapsed") setBodyMounted(true)`) satisfied it and
+  // then moved the entire cost into the OPEN's own frame, which is the one frame the user is watching:
+  // measured on the live stack at 4× CPU, the context pane's first open cost 127ms of blocking against a
+  // 50ms budget — `dispatchDiscreteEvent` → 150ms of react-dom script + 43ms of FORCED style/layout, all of
+  // it the query-backed panel body mounting synchronously inside the click's discrete-event task.
+  //
+  // "Not in the boot commit" and "in the click's commit" are two different requirements, and only the first
+  // was ever the ruling. So the latch moves out of render into an effect and rides a TRANSITION: the click
+  // commits the panel's CHROME (the aside flips `data-panel-mode`, shell.css starts the slide, the band
+  // paints) and React renders the body as interruptible work that lands during the slide instead of before
+  // it. That is the issue's own second option — "render the panel shell before the data" — and unlike
+  // warming on hover/focus it costs a reader who never opens the pane exactly nothing, which is what the
+  // original ruling was protecting. Once mounted the body stays mounted, so closing still preserves its
+  // state and the transform animation is untouched.
+  const [bodyMounted, setBodyMounted] = useState(mode !== "collapsed");
+  useEffect(() => {
+    if (mode === "collapsed" || bodyMounted) {
+      return;
+    }
+    startTransition(() => setBodyMounted(true));
+  }, [mode, bodyMounted]);
   return (
     <aside
       className="shell-panel"
@@ -87,7 +106,7 @@ export function PanelChrome({ panel, label, header, mode, onDismiss, children }:
           header
         )}
       </header>
-      <div className="shell-panel-body">{hasBeenVisible ? children : null}</div>
+      <div className="shell-panel-body">{bodyMounted ? children : null}</div>
     </aside>
   );
 }
