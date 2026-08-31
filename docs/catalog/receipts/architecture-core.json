@@ -284,12 +284,12 @@
     },
     {
       "path": "docs/architecture/core/Core-Path-Registry.md",
-      "assignedSha256": "2b9e0560fd75b48fbe0e1f012cc015cf4a4bf556587eca5ff26b8d62e48e8ba9",
+      "assignedSha256": "f6ff15f11f23c9729bded650d9acc291f8a2b77a3e1f6072af224f738ab3900a",
       "disposition": "current",
       "authority": "normative",
       "fullRead": true,
-      "verifiedSha256": "2b9e0560fd75b48fbe0e1f012cc015cf4a4bf556587eca5ff26b8d62e48e8ba9",
-      "verifiedCommit": "a5c589b04ad08bba7a0d1f1b8c40e1fac109be93",
+      "verifiedSha256": "f6ff15f11f23c9729bded650d9acc291f8a2b77a3e1f6072af224f738ab3900a",
+      "verifiedCommit": "7697952e291ae360f77a25cebe61e3a58753133a",
       "verifiedAt": "2026-08-30",
       "evidence": [
         "delta re-verify 2026-08-25 (#689, commit 0a2789a00834abe892bfa92839e8dec3c30a97af): D147 clause (d) rewritten in place \u2014 the SERVER-WIDE install is BUILT as an admin-triggered fan-out of per-user rows, so the clause's two recorded open questions (consent over a shared install, whose principal it runs as) are DISSOLVED, not answered. Re-read at the amended bytes and re-derived against the tree it now describes: domain/plugin/verbs/{install,uninstall,apply}-*-users.ts + substrate/distribution.ts + persistence/distributed-plugins.ts, the admin_distributed_plugins DDL, and the pins the clause cites (tests/server/domain/plugin/verbs/*-users.int.test.ts, persistence/distributed-plugins.int.test.ts, the cross-tenant sweep's three EXEMPT rows, settings-shell-surface.ct.tsx's admin/plain-user Distribute pair). No other D-entry in this document moved.",
@@ -313,7 +313,8 @@
         "docs/architecture/core/Core-Path-Registry.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a \u2014 retired to docs/history/design per Documentation-Law \u00a7Relocation & retirement (2026-08-30 retirement pass, #872)",
         "docs/architecture/core/Core-Path-Registry.md: re-attested at 1f5e25c00ec2ee921bc70591bf84e8268b255030 \u2014 the #876/#873 citer sweep: doc-path repoints from the tooling-package \u2192 Core-Tooling-Law.md and density-pass-spec \u2192 UI-Density-Law.md relocations and the seven mock-set retirements. Comment/link lines only; no claim moved.",
         "docs/architecture/core/Core-Path-Registry.md: re-attested at 79871238bc0506fa74902bb1844f734fc9e32db3 \u2014 the #866 S1+S2 (6923f33cb) and #876/#873 docs-law (79871238b) merges both carry truth-repairs here; both deltas read by the orchestrator; the gate-count line resolved to 233 at the merge",
-        "re-attested at the #907 law-mint merge (a5c589b04): lane cb-vocab-law's diff read in full by the orchestrator \u2014 D151 (the room's actor vocabulary is CLOSED) minted as next-free with the reserved-range note advanced to D152+, and the four-line register-boundary paragraph placed in AGENTS.md \u00a73; both provenance facts (archived+superseded source, not restated by the successor) verified on the tree before minting"
+        "re-attested at the #907 law-mint merge (a5c589b04): lane cb-vocab-law's diff read in full by the orchestrator \u2014 D151 (the room's actor vocabulary is CLOSED) minted as next-free with the reserved-range note advanced to D152+, and the four-line register-boundary paragraph placed in AGENTS.md \u00a73; both provenance facts (archived+superseded source, not restated by the successor) verified on the tree before minting",
+        "re-attested at 7697952e2 \u2014 D151's back-reference now names AGENTS.md \u00a73 and records why the register boundary is constitution-native with no D-number"
       ],
       "claims": [
         {
