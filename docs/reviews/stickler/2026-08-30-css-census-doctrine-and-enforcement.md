@@ -453,6 +453,17 @@ misclassifying their values as class tokens or building a second resolver. The s
 whole-project declaration provenance and may tokenize with Oxide only after semantic carrier resolution;
 raw-source Oxide scanning also tokenizes prose and is not a correctness gate.
 
+**Selector-writer closure (#956, grouped barrier pending).** `5a9a9ada3` turns the census's manually traced
+69 authored non-utility class identities and 112 data-selector identities into a dedicated semantic gate.
+Writers come from JSX attributes/spreads, declaration-proven DOM `setAttribute`/`toggleAttribute`, exact
+HAST element properties, #951/#961 class provenance, manifest-plus-installed Base UI state/value contracts,
+and a two-way Streamdown contract. Exact-value selectors require matching static/type-literal evidence; an
+arbitrary nonempty writer does not satisfy them, and mutating that rule makes the permanent `birdie` control
+fail. Focused proof is 18/18 with tooling ts7, scoped Biome, and loader discovery at 240 active gates. The
+real-tree writer/opaque/unresolved population waits for the grouped barrier because the shared #951 collector
+previously consumed 6m41s/6.7GB; its new pass cache prevents #951/#956 from paying twice in one pass but does
+not pretend the first collection is bounded.
+
 ---
 
 ## F8 (P2 — enforcement, corrected 2026-08-31) — the merge test proves its configured rows, not the complete Tailwind compiler-emitted namespace set
@@ -1136,7 +1147,7 @@ pre-launch removes the user risk, not the verification bar.**
 | 1.1 | **#921 — CLOSED:** `feature-css-files` became `sanctioned-css-homes` at `9b0e6debb`; `fee25f89b` made the package inventory dot-path-complete, required regular files, deleted the exposed `.ds-preview-*` seventh home, and planted both controls | 1 gate + its conformance arms | **gate** | full conformance 8/8 green; cold verification independently confirmed 6 red/3 green descriptors plus all required-home and escaped-path probes |
 | 1.2 | **#952 / G-NEW-2 `css-var-defined` — IMPLEMENTED, GROUP BARRIER PENDING:** `681d38afb` proves every static `var(--x)` in the product stylesheets and declaration-proven arbitrary-variable class resolves through a generated token, authored declaration, fallback, exact runtime writer, or installed Base UI contract | 1 gate + shared resolver | **gate** | focused real-tree zero findings over 1,587 sources/225 definitions/751 references; 49 Base UI docs/43 properties/13 live/19 executable memberships; six exact CSSProperties writers stale-armed; conformance/type/lint/depcruise green; final status waits for the grouped CSS-train barrier |
 | 1.3 | **#940 — CLOSED:** repoint F4 to existing `z-(--z-raised)`, correct the coupled comment, set-equality check the gate's seven-name vocabulary against the vault, reject unknown semantic z vars in JSX and exported recipes, and prove the stacking winner live | 2 product files + gate + CT | code + gate + rendered | `20d810344` + cold-refutation follow-up `a8a60ce20`; independently confirmed |
-| 1.4 | **G-NEW-3 `css-selector-has-a-writer`** — every `[data-*]` key and every non-utility class the six homes select on must have a live writer under `packages/*/src`. This is the gate that would have caught the #866 inert stamper AND F7's `birdie` | 1 gate | **gate** | judgment on the allowlist shape (vendor attributes like `data-streamdown`, Base UI state attributes) — the census in PART 2 is its starting inventory |
+| 1.4 | **#956 / `css-selector-has-a-writer` — IMPLEMENTED, GROUP BARRIER PENDING:** every authored non-utility class and `data-*` selector identity is reconciled against semantic JSX/DOM/HAST/#951 writers plus exact installed vendor contracts | 1 gate + shared provenance/cache | **gate** | `5a9a9ada3`; focused 18/18, ts7/Biome green, 240 active gates discovered; real-tree population intentionally deferred to the grouped barrier after the 6m41s/6.7GB collector incident |
 
 ### Wave 2 — close the measured defects (each lands alone; each owes a rendered receipt)
 
@@ -1448,6 +1459,7 @@ own control.**
 | `no-raw-color-in-css` | gate | `packages/{ui,client}/src/**/*.css` (`:70`) — the FULL CSS surface | mustFlag+mustPass | non-colour values; a colour whose `var()` chain resolves to nothing |
 | `motion-token-purity` | gate | `packages/{ui,client}/src/**/*.css` (`:101`) | mustFlag+mustPass | motion in TS/inline (covered by `no-off-token-inline-style`); `linear`/`0s` legal by design |
 | `css-length-tokens` (#955) | gate | `shell.css` declarations/queries + #961-resolved static class carriers across `packages/{client,ui}/src` | 4 mustFlag + 2 mustPass; focused conformance 8/8 | runtime-assembled class strings; declared viewport/query/ratio/measurement mechanics are count-pinned allowances rather than blind skips |
+| `css-selector-has-a-writer` (#956) | gate | the six authored sheets' 69 non-utility class + 112 data-selector identities against semantic writers and exact vendor contracts | focused 18/18; Base UI manifest/installed 75/75 with zero drift | opaque dynamic values cannot satisfy exact/prefix selectors; HAST evidence is limited to exact element records; full real-tree denominator waits for the grouped barrier |
 | `no-color-literals` | gate | `packages/{client,ui}/src` (`:54`) | mustFlag+mustPass | runtime-ASSEMBLED class strings |
 | `no-arbitrary-tw-values` | gate | `packages/{client,ui}/src` (`:110`) | mustFlag+mustPass | token-driven bodies (`var()`/`calc()`) legal by design |
 | `no-off-token-radius-shadow` | gate | `packages/{client,ui}/src` (`:121`) | mustFlag+mustPass | `packages/client/src/features/preset/**` structurally excluded (declared) |
