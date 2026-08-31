@@ -725,10 +725,21 @@
  * identical string 45px beneath it (measured: topbar y≈23, band y≈68 on `cbbe-chat-430.png`). That is the
  * #846 injury inverted, at the width where space is scarcest, and the argument for the docked arm is
  * STRONGER here, not weaker: an open sheet covers the very content the topbar row was describing. Only
- * `collapsed` — the state with no band on screen — keeps the row. */
-.shell-grid:is([data-context-mode="docked"], [data-context-mode="overlay"]) .shell-topbar-identity[data-identity="wide"] .shell-topbar-title,
-.shell-grid:is([data-context-mode="docked"], [data-context-mode="overlay"]) .shell-topbar-identity[data-identity="wide"] .shell-chat-member-chip,
-.shell-grid:is([data-context-mode="docked"], [data-context-mode="overlay"]) .shell-topbar-identity[data-identity="wide"] .shell-chat-recall-chip {
+ * `collapsed` — the state with no band on screen — keeps the row.
+ *
+ * AT EVERY IDENTITY VARIANT, NOT JUST THE WIDE ONE (#896, post-fix verification 2026-08-30). Widening
+ * `docked` → `docked|overlay` above fixed the desktop overlay widths and left the PHONE untouched, because
+ * the selector still carried its OTHER discriminator: `[data-identity="wide"]`. At ≤30rem the shed block
+ * below swaps the wide identity out and mounts the `narrow` one — which this rule could not reach.
+ * MEASURED at 430 coarse AND fine, chat room and Characters alike: two `.shell-topbar-title` nodes, the
+ * `wide` one `display:none` and the **`narrow` one `display:block` at y=13**, with the band's `h2` at y=65.
+ * That is the exact injury F4 filed, at the width F4 named FIRST, and the half-fix made it worse to
+ * diagnose than the original: one product rule, two behaviours, split by a viewport the user cannot see.
+ * The identity variant was never part of the rule's reason — the reason is "the band is on screen", which
+ * is true of both mounts — so the discriminator is dropped rather than duplicated. */
+.shell-grid:is([data-context-mode="docked"], [data-context-mode="overlay"]) .shell-topbar-identity .shell-topbar-title,
+.shell-grid:is([data-context-mode="docked"], [data-context-mode="overlay"]) .shell-topbar-identity .shell-chat-member-chip,
+.shell-grid:is([data-context-mode="docked"], [data-context-mode="overlay"]) .shell-topbar-identity .shell-chat-recall-chip {
   display: none;
 }
 
