@@ -7,7 +7,7 @@
 // model back every field the host had frozen — at the exact moment the host was rewarding the character. So
 // the survival test asserts all three at the db row through the real verb, not the verb's return value.
 //
-// The second class is the name COLLISION. The model addresses actors by NAME (`buildRosterRefIndex` is a
+// The second class is the name COLLISION. The model addresses actors by NAME (`buildActorRefIndex` is a
 // lowercased name→ref Map), so a second roster "Vesna" makes one of them unaddressable by every tool write.
 // That refusal is the reason promotion asks the host to rename first instead of quietly minting a shadow.
 

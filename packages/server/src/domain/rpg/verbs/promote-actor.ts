@@ -14,7 +14,7 @@
 // idempotent, so an interruption after card or seat creation resumes those same rows and reaches the re-key.
 // Inverting the order is not available: the re-key's target key IS the id (1) resolves or mints.
 //
-// THE NAME COLLISION IS A REFUSAL, NOT A SUFFIX. The model addresses actors by NAME, and `buildRosterRefIndex`
+// THE NAME COLLISION IS A REFUSAL, NOT A SUFFIX. The model addresses actors by NAME, and `buildActorRefIndex`
 // is a lowercased name→ref Map — two roster actors sharing a name means one of them silently shadows the other
 // and becomes unaddressable by every tool write. So a promotion that would mint the second "Vesna" refuses with
 // a sentence the host can act on (rename her first — `patchActor`'s `setIdentityText` is exactly that gesture,

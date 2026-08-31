@@ -17,7 +17,7 @@ export { actorCarrier } from "./chat-ops/tracker-view.ts";
 // The cheap-mode tools' two OUTWARD-crossing shapes (`entry/compose/rpg.ts` names both). Re-homed to the
 // domain's `contract/` on 2026-08-22 (#408) — they were declared in `tools/apply.ts` only because the
 // `no-inline-types` gate's `/tools/` clause exempted that subsystem by string accident.
-export type { ExtractionMints, RosterRefIndex } from "./contract/params.ts";
+export type { ActorRefIndex, ExtractionMints } from "./contract/params.ts";
 // PORTABILITY R6 — the chat-anchored campaign's read-whole/write-whole pair, wired at the composition root as
 // injected ops on the chat-bundle export/import verbs. A campaign was unportable BY CONSTRUCTION while the
 // bundle's chat arm was the ST jsonl interchange (F9); these are the fidelity arm's rpg half.
@@ -71,7 +71,7 @@ export { deriveTrackersReadOnly, hasStructuredWriter, hasToolWriter } from "./su
 // the same list (so a "dropped" warning can never disagree with what actually applied); `reachableActorRefs` is
 // the state-derived half of it — the target MENU, which the R1 fold logs as its write-nothing denominator
 // without re-resolving the whole per-call ref bundle at flush time.
-export { buildRosterRefIndex, extractionToStateDelta, ghostTargetRefs, reachableActorRefs } from "./tools/apply.ts";
+export { buildActorRefIndex, extractionToStateDelta, ghostTargetRefs, reachableActorRefs } from "./tools/apply.ts";
 // The 7 cheap-mode state tool defs (§4.5) — a factory closing over `RpgContext`; W1c-b registers them into the
 // ONE `toolUse` registry at compose (the imagery precedent).
 export { rpgToolDefinitions } from "./tools/index.ts";

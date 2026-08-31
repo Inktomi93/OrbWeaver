@@ -44,7 +44,7 @@ function isTypeHome(path: string): boolean {
   // the tree found `/tools/` matching EXACTLY two directories, `packages/server/src/domain/rpg/tools/` and
   // its already-exempt test mirror, so the clause had no legitimate remaining target: the tooling tree is
   // `tooling/src/<tool>/`, which rides the `_shared`/`contract/` clauses instead. Narrowing it would have
-  // been a no-op with a comment; the four types it was hiding (RosterRefIndex/ScenePatch/ExtractionMints in
+  // been a no-op with a comment; the four types it was hiding (ActorRefIndex/ScenePatch/ExtractionMints in
   // apply.ts, DiceRoll in dice.ts) now live in `domain/rpg/contract/`, where §7.4 puts a domain-internal
   // shape. Do NOT reintroduce a path clause for a subsystem — a tool subsystem is domain code.
   // @orb/tooling: `_shared/` is the plumbing floor (the tooling analog of kit) and `<tool>/contract/`

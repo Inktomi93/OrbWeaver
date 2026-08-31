@@ -64,7 +64,7 @@ import {
 } from "@orb/contracts/rpg";
 import type { UserId } from "@orb/kit/ids";
 import { projectJsonSchema } from "@orb/kit/json-schema";
-import { buildRosterRefIndex, extractionToStateDelta } from "../../../packages/server/src/domain/rpg/tools/apply.ts";
+import { buildActorRefIndex, extractionToStateDelta } from "../../../packages/server/src/domain/rpg/tools/apply.ts";
 import { buildLiteReminder } from "../../../packages/server/src/domain/rpg/substrate/reminder.ts";
 import { cleanJsonSchema } from "../../../packages/server/src/infra/providers/vllm/engine/chat-completion.ts";
 
@@ -636,7 +636,7 @@ async function runGame(arm: string, runIndex: number): Promise<{ turns: TurnRow[
   let state = seedState();
   const history: { role: string; text: string }[] = [];
   const turns: TurnRow[] = [];
-  const roster = buildRosterRefIndex(ROSTER);
+  const roster = buildActorRefIndex(ROSTER);
   let mint = 0;
   const mints = { item: () => `it${++mint}`, quest: () => `q${++mint}`, objective: () => `o${++mint}` } as unknown as Parameters<typeof extractionToStateDelta>[2];
 

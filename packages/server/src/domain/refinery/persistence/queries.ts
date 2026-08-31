@@ -70,7 +70,7 @@ export async function loadOwnedSessionRow(db: Db, ownerId: UserId, sessionId: Re
  *  here (it is what scopes the read); naming the card is two more selected columns on it, not a second
  *  query — and it is the only place that can name a card whose row sits past `character.list`'s 100-row
  *  page (the ceiling the client-side join could not clear; see `refinerySessionSummarySchema`). */
-interface RefinerySessionRosterRow {
+interface RefinerySessionListRow {
   readonly session: RefinerySessionRow;
   readonly characterName: string;
   readonly characterAvatarHash: string | null;
@@ -78,7 +78,7 @@ interface RefinerySessionRosterRow {
 
 /** Every session of the owner's characters, newest-updated first (the roster read), each carrying its
  *  card's name + avatar hash. `assets` is a LEFT join — an avatar-less card is a normal card. */
-export async function listOwnedSessionRows(db: Db, ownerId: UserId): Promise<RefinerySessionRosterRow[]> {
+export async function listOwnedSessionRows(db: Db, ownerId: UserId): Promise<RefinerySessionListRow[]> {
   const rows = await db
     .select({ session: refinerySessions, characterName: characters.name, characterAvatarHash: assets.hash })
     .from(refinerySessions)
@@ -177,7 +177,7 @@ export function sessionViewOf(row: RefinerySessionRow): RefinerySessionView {
 
 /** Roster row → the roster summary (verdict joined by the caller via {@link latestVerdictsOf}). Takes the
  *  JOINED row, not the bare session row: the card's name and avatar are display facts the wire carries. */
-export function sessionSummaryOf(rosterRow: RefinerySessionRosterRow, latestVerdict: RefineryVerdict | null): RefinerySessionSummary {
+export function sessionSummaryOf(rosterRow: RefinerySessionListRow, latestVerdict: RefineryVerdict | null): RefinerySessionSummary {
   const { session: row, characterName, characterAvatarHash } = rosterRow;
   return {
     id: row.id,
