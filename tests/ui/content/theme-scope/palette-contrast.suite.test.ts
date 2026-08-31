@@ -138,10 +138,9 @@ const rampOf = (base: Oklch): RampDeltas => rampDeltas(base);
 /** The contrast foreground for `surface` (chroma 0, base hue). */
 const foregroundRgb = (surface: Oklch): Rgb => oklchToRgb({ l: contrastToneL(surface.l), c: 0, h: surface.h });
 
-// Representative bases: dark themes sit at L ≤ 0.25 (Mocha 0.15, Hearth-projection 0.158), light at
-// L ≥ 0.90 (Light 0.98). The mid band (~0.28–0.62) is the DOCUMENTED pivot limitation — a mid-gray page
-// surface is inherently low-contrast for any sub-maximal tone (clamp.ts §muted-foreground), and no real
-// palette uses one — so it is deliberately outside the swept range, not a gap.
+// Representative bases for the prose/chrome guarantees below. The chart ramp has its own exhaustive
+// accepted-base sweep because categorical fills can be driven to either side of a mid-tone surface even
+// where the softer text/chrome derivations deliberately do not claim a floor.
 const DARK_BASES = ["oklch(0.10 0.01 60)", "oklch(0.15 0.015 250)", "oklch(0.158 0.006 60)", "oklch(0.20 0.02 300)", "oklch(0.25 0.02 300)"];
 const LIGHT_BASES = ["oklch(0.90 0.01 60)", "oklch(0.95 0.01 60)", "oklch(0.98 0.004 75)"];
 const REALISTIC_BASES = [...DARK_BASES, ...LIGHT_BASES];
@@ -273,15 +272,58 @@ test.each(PALETTES.map((palette) => [palette.name, palette] as const))("#939 cha
   }
 });
 
-test("#939 chart fills clear 3:1 on every realistic custom-light derived chart host", () => {
-  for (const baseStr of LIGHT_BASES) {
-    const base = parseOklch(baseStr);
-    const ramp = rampOf(base);
-    const panels = [base, rampSurface(base, ramp.card), rampSurface(base, ramp.surfaceRaised), rampSurface(base, ramp.sidebar)];
-    for (const fillPath of CHART_FILL_PATHS) {
-      const fill = oklchToRgb(parseOklch(resolveArm(TOKENS[fillPath].value, "light")));
-      for (const panel of panels) {
-        expect(worstContrast(fill, oklchToRgb(panel)), `${fillPath} on custom-light host @ ${baseStr}`).toBeGreaterThanOrEqual(UI_COMPONENT_MIN_RATIO);
+const CHART_BASE_LIGHTNESSES = [...Array.from({ length: 101 }, (_unused, index) => index / 100), 0.6199, 0.62, 0.6201];
+const CHART_BASE_CHROMAS = [0, 0.01, 0.1, 0.25, 0.4] as const;
+const CHART_BASE_HUES = [0, 60, 120, 180, 240, 300] as const;
+const CUSTOM_CHART_VARS = ["--color-chart-1", "--color-chart-2", "--color-chart-3", "--color-chart-4", "--color-chart-5"] as const;
+
+function chartPairDistances(colors: readonly Oklch[]): readonly [oklab: number, pixel: number] {
+  let oklab = Number.POSITIVE_INFINITY;
+  let pixel = Number.POSITIVE_INFINITY;
+  for (let left = 0; left < colors.length; left += 1) {
+    for (let right = left + 1; right < colors.length; right += 1) {
+      const a = colors[left];
+      const b = colors[right];
+      if (a === undefined || b === undefined) {
+        throw new Error("custom chart-ramp pair escaped the five-color matrix");
+      }
+      const ah = (a.h * Math.PI) / 180;
+      const bh = (b.h * Math.PI) / 180;
+      oklab = Math.min(oklab, Math.hypot(a.l - b.l, a.c * Math.cos(ah) - b.c * Math.cos(bh), a.c * Math.sin(ah) - b.c * Math.sin(bh)));
+      const ap = quantizeRgb(oklchToRgb(a));
+      const bp = quantizeRgb(oklchToRgb(b));
+      pixel = Math.min(pixel, Math.hypot(ap.r - bp.r, ap.g - bp.g, ap.b - bp.b));
+    }
+  }
+  return [oklab, pixel];
+}
+
+test("#939 every accepted OKLCH base emits a contrast-safe, distinguishable custom chart ramp", () => {
+  for (const l of CHART_BASE_LIGHTNESSES) {
+    for (const c of CHART_BASE_CHROMAS) {
+      for (const h of CHART_BASE_HUES) {
+        const baseStr = `oklch(${l} ${c} ${h})`;
+        const base = parseOklch(baseStr);
+        const ramp = rampOf(base);
+        const panels = [base, rampSurface(base, ramp.card), rampSurface(base, ramp.surfaceRaised), rampSurface(base, ramp.sidebar)];
+        const { vars } = clampThemeTokens({ background: baseStr });
+        const colors = CUSTOM_CHART_VARS.map((cssVar): Oklch => {
+          const emitted = vars[cssVar];
+          if (emitted === undefined) {
+            throw new Error(`${cssVar} was not emitted @ ${baseStr}`);
+          }
+          return parseOklch(emitted);
+        });
+        for (const [index, fill] of colors.entries()) {
+          for (const panel of panels) {
+            expect(worstContrast(oklchToRgb(fill), oklchToRgb(panel)), `${CUSTOM_CHART_VARS[index]} on custom host @ ${baseStr}`).toBeGreaterThanOrEqual(
+              UI_COMPONENT_MIN_RATIO,
+            );
+          }
+        }
+        const [oklab, pixel] = chartPairDistances(colors);
+        expect(oklab, `custom ramp minimum OKLab distance @ ${baseStr}`).toBeGreaterThanOrEqual(0.07);
+        expect(pixel, `custom ramp minimum quantized RGB distance @ ${baseStr}`).toBeGreaterThanOrEqual(30);
       }
     }
   }

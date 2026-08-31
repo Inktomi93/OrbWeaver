@@ -90,6 +90,18 @@ export function CustomLightChartRampStory(): ReactElement {
   );
 }
 
+/** #939 — the exact verifier counterexample, rendered as a real ECharts bar list on its derived card. */
+export function CustomMidlightChartRampStory(): ReactElement {
+  return (
+    <ThemeScope tokens={{ background: "oklch(0.63 0.01 60)" }} ambientBackground={TOKENS["color.background"].value}>
+      <div {...{ [LIVE_TOKEN_ROOT_ATTRIBUTE]: "" }} data-testid="midlight-chart-panel" style={{ backgroundColor: "var(--color-card)" }}>
+        <ChartThemeAxisLineReadoutStory />
+        <BarList items={[{ id: "one", label: "One", value: 8 }]} label="Midlight chart" />
+      </div>
+    </ThemeScope>
+  );
+}
+
 /** A momentum column at its production floor: `MomentumColumn` is `min-w-48` (192px) inside a wrapping Row,
  *  so ~240px is the width the owner's two-column Momentum band actually renders at on a laptop. */
 const NARROW_HOST_PX = 240;

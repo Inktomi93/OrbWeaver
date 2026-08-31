@@ -78,6 +78,17 @@ test("the input-field surface derives from the base so a themed field tracks the
   expect(themed.vars["--color-input"]).toContain("/ 0.12)");
 });
 
+test.each([0.62, 0.6201, 0.63] as const)("#939 a pivot-side base at L=%s emits five concrete custom chart colors", (l) => {
+  const { vars } = clampThemeTokens({ background: `oklch(${l} 0.01 60)` });
+  const chart = [1, 2, 3, 4, 5].map((index) => vars[`--color-chart-${index}`]);
+  expect(chart).toHaveLength(5);
+  for (const color of chart) {
+    expect(color).toMatch(/^oklch\([\d.]+ [\d.]+ [\d.]+\)$/u);
+    expect(color).not.toContain("light-dark(");
+    expect(color).not.toContain("var(");
+  }
+});
+
 test("hostile color values are DROPPED (url/expression/injection/js)", () => {
   // Assembled from fragments so no single literal reads as a high-entropy "secret" (noSecrets); each
   // is a CSS-injection / fetch / escape vector the clamp must reject.

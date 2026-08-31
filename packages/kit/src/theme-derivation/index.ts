@@ -553,6 +553,131 @@ export function rampDeltas(base: Oklch): RampDeltas {
   return base.l > THEME_DERIVATION.fgPivotL ? THEME_DERIVATION.ramp.light : THEME_DERIVATION.ramp.dark;
 }
 
+export type ChartRamp = readonly [Oklch, Oklch, Oklch, Oklch, Oklch];
+
+// The shipped dark ramp, byte-for-byte. A carried dark palette that already gives these colors 3:1 on
+// every chart host keeps them exactly; the search only takes over when that inherited ramp is illegible.
+const LEGACY_CHART_RAMP: ChartRamp = [
+  { l: 0.72, c: 0.175, h: 52 },
+  { l: 0.7, c: 0.1, h: 200 },
+  { l: 0.68, c: 0.12, h: 300 },
+  { l: 0.74, c: 0.11, h: 130 },
+  { l: 0.7, c: 0.12, h: 35 },
+];
+
+interface ChartRampSpec {
+  readonly c: number;
+  readonly h: number;
+  readonly brightTargetL: number;
+  readonly darkTargetL: number;
+}
+
+// Five separated hue sectors, with deliberately staggered target tones. The static seed arms remain the
+// authored palette; these are only the custom-palette fallback where one inherited arm cannot serve an
+// arbitrary surface. Staggering keeps adjacent warm categories distinct after sRGB gamut mapping.
+const CUSTOM_CHART_SPECS: readonly [ChartRampSpec, ChartRampSpec, ChartRampSpec, ChartRampSpec, ChartRampSpec] = [
+  { c: 0.14, h: 50, brightTargetL: 0.98, darkTargetL: 0.18 },
+  { c: 0.11, h: 200, brightTargetL: 0.82, darkTargetL: 0.36 },
+  { c: 0.12, h: 285, brightTargetL: 0.9, darkTargetL: 0.28 },
+  { c: 0.11, h: 125, brightTargetL: 0.86, darkTargetL: 0.32 },
+  { c: 0.13, h: 350, brightTargetL: 0.76, darkTargetL: 0.4 },
+];
+
+const CHART_L_STEP = 0.001;
+const CHART_PIXEL_DISTANCE_FLOOR = 30;
+
+function quantizedRgb(color: Oklch): Rgb {
+  const { r, g, b } = oklchToSrgb(color);
+  return { r: Math.round(r), g: Math.round(g), b: Math.round(b) };
+}
+
+function chartContrast(fill: Oklch, surfaces: readonly Oklch[]): number {
+  const floatFill = oklchToSrgb(fill);
+  const pixelFill = quantizedRgb(fill);
+  return Math.min(
+    ...surfaces.flatMap((surface) => {
+      const floatSurface = oklchToSrgb(surface);
+      return [wcagContrastRatio(floatFill, floatSurface), wcagContrastRatio(pixelFill, quantizedRgb(surface))];
+    }),
+  );
+}
+
+function chartPixelDistance(ramp: ChartRamp): number {
+  let minimum = Number.POSITIVE_INFINITY;
+  for (const [left, color] of ramp.entries()) {
+    for (const other of ramp.slice(left + 1)) {
+      const a = quantizedRgb(color);
+      const b = quantizedRgb(other);
+      minimum = Math.min(minimum, Math.hypot(a.r - b.r, a.g - b.g, a.b - b.b));
+    }
+  }
+  return minimum;
+}
+
+function chartColor(spec: ChartRampSpec, direction: "bright" | "dark", surfaces: readonly Oklch[]): Oklch | null {
+  const target = direction === "bright" ? spec.brightTargetL : spec.darkTargetL;
+  const targetStep = Math.round(target / CHART_L_STEP);
+  const limitStep = direction === "bright" ? Math.round(1 / CHART_L_STEP) : 0;
+  const increment = direction === "bright" ? 1 : -1;
+  for (let step = targetStep; direction === "bright" ? step <= limitStep : step >= limitStep; step += increment) {
+    const candidate = { l: step * CHART_L_STEP, c: spec.c, h: spec.h };
+    if (chartContrast(candidate, surfaces) >= AA_LARGE_RATIO) {
+      return candidate;
+    }
+  }
+  return null;
+}
+
+function chartFamily(direction: "bright" | "dark", surfaces: readonly Oklch[]): ChartRamp | null {
+  const colors = CUSTOM_CHART_SPECS.map((spec) => chartColor(spec, direction, surfaces));
+  const [one, two, three, four, five] = colors;
+  if (
+    one === null ||
+    one === undefined ||
+    two === null ||
+    two === undefined ||
+    three === null ||
+    three === undefined ||
+    four === null ||
+    four === undefined ||
+    five === null ||
+    five === undefined
+  ) {
+    return null;
+  }
+  const ramp: ChartRamp = [one, two, three, four, five];
+  return chartPixelDistance(ramp) >= CHART_PIXEL_DISTANCE_FLOOR ? ramp : null;
+}
+
+/**
+ * Five categorical fills for a carried custom surface (#939). The judge is the real chart-host family —
+ * base, card, raised surface and sidebar — at the worse of float and quantized sRGB contrast. A single
+ * light/dark token arm cannot cover the accepted mid-tone bases around the foreground pivot, so the clamp
+ * emits this concrete ramp instead of asking `color-scheme` to choose an arm that is known to fail there.
+ *
+ * The search is bounded and deterministic: 0.001 lightness steps, one coherent bright or dark family, and
+ * the polarity-preferred family first. If gamut mapping collapses two categories below the framebuffer
+ * distance floor, the opposite family is tried. The legacy dark colors are returned unchanged whenever
+ * they already clear all four hosts, preserving the sacred dark-room pixels by construction.
+ */
+export function chartRampForSurface(base: Oklch): ChartRamp {
+  const deltas = rampDeltas(base);
+  const surfaces = [base, rampSurface(base, deltas.card), rampSurface(base, deltas.surfaceRaised), rampSurface(base, deltas.sidebar)];
+  if (LEGACY_CHART_RAMP.every((color) => chartContrast(color, surfaces) >= AA_LARGE_RATIO)) {
+    return LEGACY_CHART_RAMP;
+  }
+  const preferred: readonly ["bright" | "dark", "bright" | "dark"] = base.l <= THEME_DERIVATION.fgPivotL ? ["bright", "dark"] : ["dark", "bright"];
+  for (const direction of preferred) {
+    const ramp = chartFamily(direction, surfaces);
+    if (ramp !== null) {
+      return ramp;
+    }
+  }
+  // Black or white must clear a bounded family of opaque surfaces; this is unreachable for a finite
+  // parsed base and kept loud because silently inheriting the failing static arm recreates the defect.
+  throw new Error("unable to derive a contrast-safe custom chart ramp");
+}
+
 /** The alpha grid the accent-fill search walks its LIGHTNESS on — the same 3-decimal precision the plate's
  *  alpha search uses, for the same reason: the number reaches a CSS literal. */
 const ACCENT_L_STEP = 0.001;

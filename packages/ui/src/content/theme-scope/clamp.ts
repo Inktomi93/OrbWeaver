@@ -142,6 +142,13 @@ export const THEME_SCOPE_EMIT_VARS = [
   "--color-border",
   "--color-sidebar-border",
   "--color-input",
+  // A carried palette cannot inherit one static polarity arm around the L=.62 pivot: derive five
+  // concrete categorical fills against its own base/card/raised/sidebar family (#939).
+  "--color-chart-1",
+  "--color-chart-2",
+  "--color-chart-3",
+  "--color-chart-4",
+  "--color-chart-5",
   // The five ELEVATION INGREDIENTS of `--shadow-overlay` / `--shadow-cta` (#243, closing #232's recorded
   // residual). Derived from the picked base's POLARITY, never picked: a custom light theme used to
   // inherit the base palette's dark smoke (a 1.00:1 white ring, a near-black halo). They are colours
@@ -155,6 +162,10 @@ export const THEME_SCOPE_EMIT_VARS = [
   "--font-sans",
   "--radius-card",
 ] as const;
+
+/** ThemeScope-emitted colors whose SEED form stays the canonical static polarity token. Seed themes use
+ * the generated light-dark() arms; only a carried custom base needs a per-surface concrete derivation. */
+export const THEME_SCOPE_STATIC_SEED_VARS = ["--color-chart-1", "--color-chart-2", "--color-chart-3", "--color-chart-4", "--color-chart-5"] as const;
 
 /**
  * The numeric derivation constants, exported so the seed-palette-contrast test recomputes the

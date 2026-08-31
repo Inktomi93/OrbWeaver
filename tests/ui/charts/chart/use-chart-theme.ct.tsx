@@ -13,7 +13,7 @@
 
 import { TOKEN_POLARITY_ARMS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { ChartThemeAxisLineReadoutStory, CustomLightChartRampStory, CustomThemeChartAxisLineStory } from "../_ct-stories.tsx";
+import { ChartThemeAxisLineReadoutStory, CustomLightChartRampStory, CustomMidlightChartRampStory, CustomThemeChartAxisLineStory } from "../_ct-stories.tsx";
 
 /** Each arm's SETTLED value, matched by the CSS function that only that arm can produce: the base
  *  `color.border` token is a bare `oklch()` (`packages/ui/src/tokens/index.ts`), while the shipped
@@ -72,19 +72,53 @@ test("resolves the polarity-aware chart ramp to five concrete Canvas colors on L
   expect(serialized).not.toContain("var(");
 });
 
-test("a custom light ThemeScope selects the concrete light chart arms", async ({ mount }) => {
+test("a custom light ThemeScope emits a concrete chart ramp", async ({ mount }) => {
   const scope = await mount(<CustomLightChartRampStory />);
   const readout = scope.locator("p[data-series]");
-  await expect(readout).toHaveAttribute("data-series", TOKEN_POLARITY_ARMS["color.chart-1"].light);
+  await expect(readout).toHaveAttribute("data-series", A_COLOR_FUNCTION);
+  await expect.poll(async () => (await readout.getAttribute("data-palette"))?.split("|").length ?? 0).toBe(5);
+});
+
+test("a custom midlight ThemeScope renders a real chart with five 3:1 categorical fills", async ({ mount }) => {
+  const scope = await mount(<CustomMidlightChartRampStory />);
+  const panel = scope.getByTestId("midlight-chart-panel");
+  await expect(panel.locator("canvas")).toBeVisible();
   await expect
-    .poll(async () => (await readout.getAttribute("data-palette"))?.split("|") ?? [])
-    .toEqual([
-      TOKEN_POLARITY_ARMS["color.chart-1"].light,
-      TOKEN_POLARITY_ARMS["color.chart-2"].light,
-      TOKEN_POLARITY_ARMS["color.chart-3"].light,
-      TOKEN_POLARITY_ARMS["color.chart-4"].light,
-      TOKEN_POLARITY_ARMS["color.chart-5"].light,
-    ]);
+    .poll(async () => {
+      const readout = panel.locator("p[data-palette]");
+      const palette = (await readout.getAttribute("data-palette"))?.split("|") ?? [];
+      return await panel.evaluate((element, colors): number => {
+        const canvas = document.createElement("canvas");
+        canvas.width = 1;
+        canvas.height = 1;
+        const ctx = canvas.getContext("2d");
+        if (ctx === null || colors.length !== 5) {
+          return 0;
+        }
+        const rgb = (color: string): readonly [number, number, number] => {
+          ctx.clearRect(0, 0, 1, 1);
+          ctx.fillStyle = color;
+          ctx.fillRect(0, 0, 1, 1);
+          const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
+          return [r ?? 0, g ?? 0, b ?? 0];
+        };
+        const luminance = (color: string): number => {
+          const channels = rgb(color).map((value) => {
+            const channel = value / 255;
+            return channel <= 0.039_28 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+          });
+          return 0.2126 * (channels[0] ?? 0) + 0.7152 * (channels[1] ?? 0) + 0.0722 * (channels[2] ?? 0);
+        };
+        const backing = luminance(getComputedStyle(element).backgroundColor);
+        return Math.min(
+          ...colors.map((color) => {
+            const fill = luminance(color);
+            return (Math.max(fill, backing) + 0.05) / (Math.min(fill, backing) + 0.05);
+          }),
+        );
+      }, palette);
+    })
+    .toBeGreaterThanOrEqual(3);
 });
 
 /** #504 — the marked-resolution-root contract. */
