@@ -438,9 +438,9 @@
       "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 371,
-      "bytes": 185838,
-      "sha256": "99666a76909fe9016e0460819a96cc93e7c1536a143594fbd13ac2bab336f25e",
+      "lines": 374,
+      "bytes": 187645,
+      "sha256": "c2e3efcc88720d33ca00a73556bee3ca3ced3b991f4c532d12b4853451e829af",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -453,13 +453,13 @@
       },
       "receipt": {
         "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
-        "assignedSha256": "99666a76909fe9016e0460819a96cc93e7c1536a143594fbd13ac2bab336f25e",
+        "assignedSha256": "c2e3efcc88720d33ca00a73556bee3ca3ced3b991f4c532d12b4853451e829af",
         "disposition": "current",
         "authority": "operational",
         "fullRead": true,
-        "verifiedSha256": "99666a76909fe9016e0460819a96cc93e7c1536a143594fbd13ac2bab336f25e",
-        "verifiedCommit": "32bf93f3e9f66740833d06ceeeb1c2eb6e67a28d",
-        "verifiedAt": "2026-08-30",
+        "verifiedSha256": "c2e3efcc88720d33ca00a73556bee3ca3ced3b991f4c532d12b4853451e829af",
+        "verifiedCommit": "214fa12004759dd975e0cb5f64d464c5c82b8453",
+        "verifiedAt": "2026-08-31",
         "evidence": [
           "docs/architecture/core/Core-Enforcement-Active-Gates.md:1 (full read; header/status evaluated)",
           "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
@@ -493,7 +493,8 @@
           "docs/architecture/core/Core-Enforcement-Active-Gates.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)",
           "docs/architecture/core/Core-Enforcement-Active-Gates.md: re-attested at 1f5e25c00ec2ee921bc70591bf84e8268b255030 — the #876/#873 citer sweep: doc-path repoints from the tooling-package → Core-Tooling-Law.md and density-pass-spec → UI-Density-Law.md relocations and the seven mock-set retirements. Comment/link lines only; no claim moved.",
           "docs/architecture/core/Core-Enforcement-Active-Gates.md: re-attested at 79871238bc0506fa74902bb1844f734fc9e32db3 — the #866 S1+S2 (6923f33cb) and #876/#873 docs-law (79871238b) merges both carry truth-repairs here; both deltas read by the orchestrator; the gate-count line resolved to 233 at the merge",
-          "re-attested at the #909 docs truth-repair merge (32bf93f3e): the lane's three-way rule applied per hit — concept prose takes the ruled word, every code symbol is quoted as it stands with its owning issue named, owner-sacred prose flagged not edited; verdict list read by the orchestrator"
+          "re-attested at the #909 docs truth-repair merge (32bf93f3e): the lane's three-way rule applied per hit — concept prose takes the ruled word, every code symbol is quoted as it stands with its owning issue named, owner-sacred prose flagged not edited; verdict list read by the orchestrator",
+          "re-attested at 214fa1200 after the CSS polarity gate registration: the new ACTIVE row and count delta were read with the landed descriptor; grouped CSS-train verification remains the runtime authority"
         ],
         "claims": [
           {
@@ -1957,8 +1958,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 755,
-      "bytes": 135494,
-      "sha256": "ac39b5a3f8f036008b8cb4f2b3ec2248a306b84fea1b5f1b4fcca84cabc9f199",
+      "bytes": 135555,
+      "sha256": "1a1f8bb7a978af6323490e08f30d1d209faf68638d7b3fac90d29abc8c1aab3c",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -1971,12 +1972,12 @@
       },
       "receipt": {
         "path": "docs/architecture/core/client-architecture-lockdown.md",
-        "assignedSha256": "ac39b5a3f8f036008b8cb4f2b3ec2248a306b84fea1b5f1b4fcca84cabc9f199",
+        "assignedSha256": "1a1f8bb7a978af6323490e08f30d1d209faf68638d7b3fac90d29abc8c1aab3c",
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "ac39b5a3f8f036008b8cb4f2b3ec2248a306b84fea1b5f1b4fcca84cabc9f199",
-        "verifiedCommit": "2dffcffc4c06429e3fc5d9f97f7e514d9fa7a23a",
+        "verifiedSha256": "1a1f8bb7a978af6323490e08f30d1d209faf68638d7b3fac90d29abc8c1aab3c",
+        "verifiedCommit": "9b0e6debb9562f654b58e20efdb86e4107ea62b4",
         "verifiedAt": "2026-08-31",
         "evidence": [
           "re-attested at 2dffcffc4 — the CT cascade-order cite resolves to the actual repository path playwright/index.css; dangling-refs failure from the one authoritative pnpm check is closed",
@@ -1988,7 +1989,8 @@
           "pnpm check:docs (2026-08-22 re-attest after #433 — §3 count correction two -> FOUR composition-tier dir modules: the doc listed agent-nav/ and agent-seed/ only, agent-rpg/ was already unlisted and unwalled before this change, and agent-handles/ is the new DEV-only assembly; §7 gains the boot-chunk law for that arm and the kit/contracts/ui sideEffects declarations)",
           "docs/architecture/core/client-architecture-lockdown.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)",
           "docs/architecture/core/client-architecture-lockdown.md: re-attested at 79871238bc0506fa74902bb1844f734fc9e32db3 — the #866 S1+S2 (6923f33cb) and #876/#873 docs-law (79871238b) merges both carry truth-repairs here; both deltas read by the orchestrator; the gate-count line resolved to 233 at the merge",
-          "docs/architecture/core/client-architecture-lockdown.md: re-attested at 4c3cfb6f4928f2b81db3b111b9db54a86ff44fb3 — formatter pass only (underscore escaping introduced by the 79871238b auto-merge)"
+          "docs/architecture/core/client-architecture-lockdown.md: re-attested at 4c3cfb6f4928f2b81db3b111b9db54a86ff44fb3 — formatter pass only (underscore escaping introduced by the 79871238b auto-merge)",
+          "re-attested at 9b0e6debb after #921: the sanctioned CSS homes citation now names the exact-six replacement gate rather than the deleted feature-only proxy"
         ],
         "claims": [
           {
@@ -9993,6 +9995,51 @@
               {
                 "kind": "ruling",
                 "target": "D139"
+              }
+            ]
+          }
+        ]
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/architecture/proposed/token-contract-program.md",
+      "lane": "architecture-proposed",
+      "issue": 4,
+      "lines": 275,
+      "bytes": 18301,
+      "sha256": "f2cae98ac7029b09706dcccac184e3817478c54ad3af90e8b0329209f20a18a5",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "spec",
+          "status": "active",
+          "updated": "2026-08-31"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/architecture/proposed/token-contract-program.md",
+        "assignedSha256": "f2cae98ac7029b09706dcccac184e3817478c54ad3af90e8b0329209f20a18a5",
+        "disposition": "current",
+        "authority": "design",
+        "fullRead": true,
+        "verifiedSha256": "f2cae98ac7029b09706dcccac184e3817478c54ad3af90e8b0329209f20a18a5",
+        "verifiedCommit": "7498b1b516af1742485f2c2600c918a0c2bfc1a2",
+        "verifiedAt": "2026-08-31",
+        "evidence": [
+          "docs/architecture/proposed/token-contract-program.md:1 (full read; implemented #936 program and current durable token-contract shape)",
+          "docs/reviews/stickler/2026-08-31-token-contract-936-cold-review.md:1 (#936 cold review and repair train evidence)"
+        ],
+        "summary": "Current implemented token-contract program: standard DTCG portable tokens, an explicit nonportable CSS output map, schema validation, removal/target ratchets, and byte-stable generated artifacts.",
+        "claims": [
+          {
+            "claim": "The durable token-contract program was implemented and closed through work item #936.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#936"
               }
             ]
           }
@@ -27682,6 +27729,48 @@
       "receiptCurrent": true
     },
     {
+      "path": "docs/reviews/research/2026-08-31-css-token-toolchain-research.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 423,
+      "bytes": 25050,
+      "sha256": "61ba605d61701f62910e36fc43ea5956c32cbdceb9a7d7e3b88e010bfd1271d3",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-31"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/research/2026-08-31-css-token-toolchain-research.md",
+        "assignedSha256": "61ba605d61701f62910e36fc43ea5956c32cbdceb9a7d7e3b88e010bfd1271d3",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "61ba605d61701f62910e36fc43ea5956c32cbdceb9a7d7e3b88e010bfd1271d3",
+        "verifiedCommit": "7498b1b516af1742485f2c2600c918a0c2bfc1a2",
+        "verifiedAt": "2026-08-31",
+        "evidence": ["docs/reviews/research/2026-08-31-css-token-toolchain-research.md:1 (full read; installed-package, DTCG, and token-source evidence)"],
+        "summary": "Primary-source and installed-package audit behind the token-contract program, including DTCG value-shape failures, Style Dictionary limits, and Tailwind integration boundaries.",
+        "claims": [
+          {
+            "claim": "This research is the evidence basis for the implemented token-contract work item #936.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#936"
+              }
+            ]
+          }
+        ]
+      },
+      "receiptCurrent": true
+    },
+    {
       "path": "docs/reviews/security/2026-08-09-authentik-provider-config-crosscheck.md",
       "lane": "reviews",
       "issue": 7,
@@ -29207,6 +29296,224 @@
           }
         ],
         "summary": "Vocabulary unification proposal: derives every word from the owning tier (room seats = Characters, saved template = Roster, D137 producer = ChatIdentity, D60 drive axis = characters); recommends staged Option C; the D8 rpg cast:<slug> rename is merge-window class (RpgStateCorruptError on stale rows, no db-reset trigger); castId recommendation inverted to no-action on the corrected 8,056-site count."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/stickler/2026-08-31-961-static-class-provenance.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 294,
+      "bytes": 16947,
+      "sha256": "814492d2e894699b2a402efa37454747863d8a96f89ded7c8ad428a686c4169d",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-31"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/stickler/2026-08-31-961-static-class-provenance.md",
+        "assignedSha256": "814492d2e894699b2a402efa37454747863d8a96f89ded7c8ad428a686c4169d",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "814492d2e894699b2a402efa37454747863d8a96f89ded7c8ad428a686c4169d",
+        "verifiedCommit": "2e5453747fc86f741c6bbfb9df0fd574b76c3fbc",
+        "verifiedAt": "2026-08-31",
+        "evidence": ["docs/reviews/stickler/2026-08-31-961-static-class-provenance.md:1 (full cold review of exact #961 commit 397e805f5)"],
+        "summary": "Cold review refuting #961 for three P1 correctness defects in composer forwarding, namespace re-exports, and object-spread overwrite semantics; preserves focused receipts and the separate exact-tree citation blocker.",
+        "claims": [
+          {
+            "claim": "This is the cold-review receipt refuting exact commit 397e805f5 for work item #961.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#961"
+              },
+              {
+                "kind": "provenance",
+                "target": "git:397e805f5226fbff6a8c91d36b9a1b5ac36788bb"
+              }
+            ]
+          }
+        ]
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/stickler/2026-08-31-gate-member-discovery-rehome-audit.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 237,
+      "bytes": 23858,
+      "sha256": "c5df1e7ffaddca63f68ade617805bf796f0fc944bbb552dffc7e626ed8acb277",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-31"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/stickler/2026-08-31-gate-member-discovery-rehome-audit.md",
+        "assignedSha256": "c5df1e7ffaddca63f68ade617805bf796f0fc944bbb552dffc7e626ed8acb277",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "c5df1e7ffaddca63f68ade617805bf796f0fc944bbb552dffc7e626ed8acb277",
+        "verifiedCommit": "7498b1b516af1742485f2c2600c918a0c2bfc1a2",
+        "verifiedAt": "2026-08-31",
+        "evidence": [
+          "docs/reviews/stickler/2026-08-31-gate-member-discovery-rehome-audit.md:1 (full read; current-state reconciliation and ranked semantic-member discovery gaps)"
+        ],
+        "summary": "Audit of gates whose hard-coded member sources can drift from semantic owners, with landed #934 reconciliation and ranked remaining work.",
+        "claims": [
+          {
+            "claim": "The imported Appearance-schema discovery defect documented here was repaired through work item #934.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#934"
+              }
+            ]
+          }
+        ]
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/stickler/2026-08-31-tailwind-style-dictionary-dtcg-api-audit.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 519,
+      "bytes": 47218,
+      "sha256": "57afccab1c56b5134171f1636c52f6fcf1c4573512954f93529a19679ef33b4b",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-31"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/stickler/2026-08-31-tailwind-style-dictionary-dtcg-api-audit.md",
+        "assignedSha256": "57afccab1c56b5134171f1636c52f6fcf1c4573512954f93529a19679ef33b4b",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "57afccab1c56b5134171f1636c52f6fcf1c4573512954f93529a19679ef33b4b",
+        "verifiedCommit": "7498b1b516af1742485f2c2600c918a0c2bfc1a2",
+        "verifiedAt": "2026-08-31",
+        "evidence": ["docs/reviews/stickler/2026-08-31-tailwind-style-dictionary-dtcg-api-audit.md:1 (full read; installed API and integration audit)"],
+        "summary": "Installed-source audit of Tailwind 4.3.3, tailwind-variants, tailwind-merge, Style Dictionary, and DTCG usage, including missing custom merge namespaces and trace limitations.",
+        "claims": [
+          {
+            "claim": "The DTCG and Style Dictionary defects established here were repaired through work item #936.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#936"
+              }
+            ]
+          }
+        ]
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/stickler/2026-08-31-token-contract-936-cold-review.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 317,
+      "bytes": 20208,
+      "sha256": "767286e7161ee42cb02338dec55d1bf244ba2409ec50f17328454b9bd16c8fd2",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-31"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/stickler/2026-08-31-token-contract-936-cold-review.md",
+        "assignedSha256": "767286e7161ee42cb02338dec55d1bf244ba2409ec50f17328454b9bd16c8fd2",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "767286e7161ee42cb02338dec55d1bf244ba2409ec50f17328454b9bd16c8fd2",
+        "verifiedCommit": "7498b1b516af1742485f2c2600c918a0c2bfc1a2",
+        "verifiedAt": "2026-08-31",
+        "evidence": ["docs/reviews/stickler/2026-08-31-token-contract-936-cold-review.md:1 (full read; #936 findings, repairs, and final confirmation)"],
+        "summary": "Cold review of the three-commit #936 token-contract train, recording the fs/Git proof split, output placement, exact target/removal ratchets, seed membership, and final green receipts.",
+        "claims": [
+          {
+            "claim": "This is the cold-review receipt for work item #936 and its repair commits.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#936"
+              }
+            ]
+          }
+        ]
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/stickler/2026-08-31-visual-client-issue-corpus-and-appearance-prevention.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 501,
+      "bytes": 46148,
+      "sha256": "628dccdef7840e5b0a258552da8515eb2a169309a85fd11cbf2dbb13751639e2",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-31"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/stickler/2026-08-31-visual-client-issue-corpus-and-appearance-prevention.md",
+        "assignedSha256": "628dccdef7840e5b0a258552da8515eb2a169309a85fd11cbf2dbb13751639e2",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "628dccdef7840e5b0a258552da8515eb2a169309a85fd11cbf2dbb13751639e2",
+        "verifiedCommit": "7498b1b516af1742485f2c2600c918a0c2bfc1a2",
+        "verifiedAt": "2026-08-31",
+        "evidence": [
+          "docs/reviews/stickler/2026-08-31-visual-client-issue-corpus-and-appearance-prevention.md:1 (full read; issue-corpus reconciliation and prevention program)"
+        ],
+        "summary": "Visual/client issue-corpus audit that derives the Appearance prevention program across schema liveness, carrier and DOM reach, geometry, contrast, pixels, and CSS ownership.",
+        "claims": [
+          {
+            "claim": "The CSS doctrine dependency recorded in this audit is owned by work item #930.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#930"
+              }
+            ]
+          }
+        ]
       },
       "receiptCurrent": true
     },

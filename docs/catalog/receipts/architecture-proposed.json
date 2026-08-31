@@ -66,73 +66,6 @@
       ]
     },
     {
-      "path": "docs/architecture/proposed/INDEX.md",
-      "assignedSha256": "4d1a2806e2443d8bf2795a0aea635e40b92cd5ef918051499031c0a3672263b2",
-      "disposition": "current",
-      "authority": "current-reference",
-      "fullRead": true,
-      "verifiedSha256": "4d1a2806e2443d8bf2795a0aea635e40b92cd5ef918051499031c0a3672263b2",
-      "verifiedCommit": "bbecbfc78be417b6aab44609d3d4f0d484d8c87b",
-      "verifiedAt": "2026-08-31",
-      "evidence": [
-        "re-attested at bbecbfc78 — full-file read under #930; the superseded D66 program row moved out of proposed with the document, leaving no duplicate lifecycle status",
-        "docs/architecture/proposed/INDEX.md:1-37 full read; every unfinished program row maps to its live Project sprint and carries no duplicated implementation inventory",
-        "GitHub issue #4 sub-issues re-derived: #13-#29 match the unfinished program rows",
-        "2026-08-23 re-derivations: databank-design REALIZED (DB1-DB8 slice-by-slice tree receipts incl. DB6 byte-identity + DB5 scope-leak tests, #19 closed); automation-design PARTIAL (A1-A7 + transport symbol-verified built, A8 client surface unbuilt, #15 corrected, #592 filed); plugin-design PARTIAL (P1-P4+P6 built: infra/plugin-host membrane+realm+budgets, domain/plugin 8-slot, contracts/plugin host-v1, escape.suite.test.ts, entry/compose/automation-plugin.ts; client echo + manager UI absent)",
-        "git:88022d21a85ea44894b3d23aa071caa224fe391e contains the exact program-index blob",
-        "re-attested after the #26 B10 reconciliation retired saved-rosters-design.md (row struck + repointed) at d760c3bad",
-        "docs/architecture/proposed/INDEX.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
-      ],
-      "summary": "Current three-column routing index for committed programs; code/tests own built state and Project owns mutable lifecycle.",
-      "claims": [
-        {
-          "claim": "Each unfinished committed proposed program has one owning sprint under GitHub issue #4; Project relations own mutable lifecycle and dependencies.",
-          "evidence": [
-            {
-              "kind": "issue",
-              "target": "#4"
-            },
-            {
-              "kind": "ruling",
-              "target": "D139"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "path": "docs/architecture/proposed/README.md",
-      "assignedSha256": "1990e6da1f1ee0b681bb355ffdf552446a135321b3735808c455e51a43473a4a",
-      "disposition": "current",
-      "authority": "current-reference",
-      "fullRead": true,
-      "verifiedSha256": "1990e6da1f1ee0b681bb355ffdf552446a135321b3735808c455e51a43473a4a",
-      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
-      "verifiedAt": "2026-08-30",
-      "evidence": [
-        "docs/architecture/proposed/README.md:1 (full read; lifecycle/frontmatter evaluated)",
-        "docs/architecture/proposed/INDEX.md:1 (parked/non-authoritative program routing)",
-        "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
-        "docs/architecture/proposed/README.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
-      ],
-      "summary": "Current routing index for proposed-program lifecycle; it is non-authoritative for present implementation.",
-      "claims": [
-        {
-          "claim": "This receipt is governed by D139: GitHub issue #4 owns the mutable migration work while the receipt records a hash-bound durable review result.",
-          "evidence": [
-            {
-              "kind": "issue",
-              "target": "#4"
-            },
-            {
-              "kind": "ruling",
-              "target": "D139"
-            }
-          ]
-        }
-      ]
-    },
-    {
       "path": "docs/architecture/proposed/agent-principal-design/01-identity-and-mint.md",
       "assignedSha256": "36e99c8f58fbef6874744405d110d9159275d22600ca15670cfaab35af4f636b",
       "disposition": "needs-owner",
@@ -821,16 +754,16 @@
       ]
     },
     {
-      "path": "docs/architecture/proposed/automation-design/README.md",
-      "assignedSha256": "da5d407864736ba906028c2689cd865e6d77e013acf96d7960afac96f2bbdab1",
+      "path": "docs/architecture/proposed/automation-design/automation.md",
+      "assignedSha256": "03ff610aa34a13d40a810f643b3734137e199eaeb6c79793de151b5986cdf73f",
       "disposition": "needs-owner",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "da5d407864736ba906028c2689cd865e6d77e013acf96d7960afac96f2bbdab1",
+      "verifiedSha256": "03ff610aa34a13d40a810f643b3734137e199eaeb6c79793de151b5986cdf73f",
       "verifiedCommit": "2d0807247befdd5e615711bf0abf2c177f534561",
       "verifiedAt": "2026-08-14",
       "evidence": [
-        "docs/architecture/proposed/automation-design/README.md:1 (full read; lifecycle/frontmatter evaluated)",
+        "docs/architecture/proposed/automation-design/automation.md:1 (full read; lifecycle/frontmatter evaluated)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:23 (FUTURE disposition and stated wake/dependencies)"
       ],
@@ -873,16 +806,16 @@
       ]
     },
     {
-      "path": "docs/architecture/proposed/automation-design/automation.md",
-      "assignedSha256": "03ff610aa34a13d40a810f643b3734137e199eaeb6c79793de151b5986cdf73f",
+      "path": "docs/architecture/proposed/automation-design/README.md",
+      "assignedSha256": "da5d407864736ba906028c2689cd865e6d77e013acf96d7960afac96f2bbdab1",
       "disposition": "needs-owner",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "03ff610aa34a13d40a810f643b3734137e199eaeb6c79793de151b5986cdf73f",
+      "verifiedSha256": "da5d407864736ba906028c2689cd865e6d77e013acf96d7960afac96f2bbdab1",
       "verifiedCommit": "2d0807247befdd5e615711bf0abf2c177f534561",
       "verifiedAt": "2026-08-14",
       "evidence": [
-        "docs/architecture/proposed/automation-design/automation.md:1 (full read; lifecycle/frontmatter evaluated)",
+        "docs/architecture/proposed/automation-design/README.md:1 (full read; lifecycle/frontmatter evaluated)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:23 (FUTURE disposition and stated wake/dependencies)"
       ],
@@ -1497,6 +1430,22 @@
       "summary": "REALIZED proposed program (connections) retained as historical provenance; INDEX disposition at docs/architecture/proposed/INDEX.md:11."
     },
     {
+      "path": "docs/architecture/proposed/connections/connection-capability-panel.md",
+      "assignedSha256": "e7681cf01ab5955aba340b8174d378e0c8472724b3412e6caf335b75ae5cb55f",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "e7681cf01ab5955aba340b8174d378e0c8472724b3412e6caf335b75ae5cb55f",
+      "verifiedCommit": "2d0807247befdd5e615711bf0abf2c177f534561",
+      "verifiedAt": "2026-08-14",
+      "evidence": [
+        "docs/architecture/proposed/connections/connection-capability-panel.md:1 (full read; lifecycle/frontmatter evaluated)",
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
+        "docs/architecture/proposed/INDEX.md:11 (REALIZED disposition and stated wake/dependencies)"
+      ],
+      "summary": "REALIZED proposed program (connections) retained as historical provenance; INDEX disposition at docs/architecture/proposed/INDEX.md:11."
+    },
+    {
       "path": "docs/architecture/proposed/connections/CONNECTIONS-BUILD-SPEC.md",
       "assignedSha256": "4d96abec603dc6e47ff74e4597542074389149010a70c3238c882a972a1f5ea4",
       "disposition": "archive",
@@ -1523,22 +1472,6 @@
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/architecture/proposed/connections/README.md:1 (full read; lifecycle/frontmatter evaluated)",
-        "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
-        "docs/architecture/proposed/INDEX.md:11 (REALIZED disposition and stated wake/dependencies)"
-      ],
-      "summary": "REALIZED proposed program (connections) retained as historical provenance; INDEX disposition at docs/architecture/proposed/INDEX.md:11."
-    },
-    {
-      "path": "docs/architecture/proposed/connections/connection-capability-panel.md",
-      "assignedSha256": "e7681cf01ab5955aba340b8174d378e0c8472724b3412e6caf335b75ae5cb55f",
-      "disposition": "archive",
-      "authority": "historical",
-      "fullRead": true,
-      "verifiedSha256": "e7681cf01ab5955aba340b8174d378e0c8472724b3412e6caf335b75ae5cb55f",
-      "verifiedCommit": "2d0807247befdd5e615711bf0abf2c177f534561",
-      "verifiedAt": "2026-08-14",
-      "evidence": [
-        "docs/architecture/proposed/connections/connection-capability-panel.md:1 (full read; lifecycle/frontmatter evaluated)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:11 (REALIZED disposition and stated wake/dependencies)"
       ],
@@ -1961,16 +1894,16 @@
       ]
     },
     {
-      "path": "docs/architecture/proposed/databank-design/README.md",
-      "assignedSha256": "3199da39191bb2891adfd010aaedf93253166ebf49930df27276fe69a6c70900",
+      "path": "docs/architecture/proposed/databank-design/databank.md",
+      "assignedSha256": "de526b163a444ec2851e52a26655e8edec5dcbf5f657a39c800f32b4db30cf6a",
       "disposition": "needs-owner",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "3199da39191bb2891adfd010aaedf93253166ebf49930df27276fe69a6c70900",
+      "verifiedSha256": "de526b163a444ec2851e52a26655e8edec5dcbf5f657a39c800f32b4db30cf6a",
       "verifiedCommit": "2d0807247befdd5e615711bf0abf2c177f534561",
       "verifiedAt": "2026-08-14",
       "evidence": [
-        "docs/architecture/proposed/databank-design/README.md:1 (full read; lifecycle/frontmatter evaluated)",
+        "docs/architecture/proposed/databank-design/databank.md:1 (full read; lifecycle/frontmatter evaluated)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:22 (FUTURE disposition and stated wake/dependencies)"
       ],
@@ -2013,16 +1946,16 @@
       ]
     },
     {
-      "path": "docs/architecture/proposed/databank-design/databank.md",
-      "assignedSha256": "de526b163a444ec2851e52a26655e8edec5dcbf5f657a39c800f32b4db30cf6a",
+      "path": "docs/architecture/proposed/databank-design/README.md",
+      "assignedSha256": "3199da39191bb2891adfd010aaedf93253166ebf49930df27276fe69a6c70900",
       "disposition": "needs-owner",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "de526b163a444ec2851e52a26655e8edec5dcbf5f657a39c800f32b4db30cf6a",
+      "verifiedSha256": "3199da39191bb2891adfd010aaedf93253166ebf49930df27276fe69a6c70900",
       "verifiedCommit": "2d0807247befdd5e615711bf0abf2c177f534561",
       "verifiedAt": "2026-08-14",
       "evidence": [
-        "docs/architecture/proposed/databank-design/databank.md:1 (full read; lifecycle/frontmatter evaluated)",
+        "docs/architecture/proposed/databank-design/README.md:1 (full read; lifecycle/frontmatter evaluated)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:22 (FUTURE disposition and stated wake/dependencies)"
       ],
@@ -2285,16 +2218,16 @@
       ]
     },
     {
-      "path": "docs/architecture/proposed/expressions-design/README.md",
-      "assignedSha256": "b39e1a86ba0616bf9fddae66faed983e4665c08077cd87425b4ea9d38f1bb78d",
+      "path": "docs/architecture/proposed/expressions-design/expressions.md",
+      "assignedSha256": "1ee9503fdb874964a4896b6aff4d34b9112609d66c06599a31c9881a13db963c",
       "disposition": "needs-owner",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "b39e1a86ba0616bf9fddae66faed983e4665c08077cd87425b4ea9d38f1bb78d",
+      "verifiedSha256": "1ee9503fdb874964a4896b6aff4d34b9112609d66c06599a31c9881a13db963c",
       "verifiedCommit": "2d0807247befdd5e615711bf0abf2c177f534561",
       "verifiedAt": "2026-08-14",
       "evidence": [
-        "docs/architecture/proposed/expressions-design/README.md:1 (full read; lifecycle/frontmatter evaluated)",
+        "docs/architecture/proposed/expressions-design/expressions.md:1 (full read; lifecycle/frontmatter evaluated)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:21 (FUTURE disposition and stated wake/dependencies)"
       ],
@@ -2329,16 +2262,16 @@
       ]
     },
     {
-      "path": "docs/architecture/proposed/expressions-design/expressions.md",
-      "assignedSha256": "1ee9503fdb874964a4896b6aff4d34b9112609d66c06599a31c9881a13db963c",
+      "path": "docs/architecture/proposed/expressions-design/README.md",
+      "assignedSha256": "b39e1a86ba0616bf9fddae66faed983e4665c08077cd87425b4ea9d38f1bb78d",
       "disposition": "needs-owner",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "1ee9503fdb874964a4896b6aff4d34b9112609d66c06599a31c9881a13db963c",
+      "verifiedSha256": "b39e1a86ba0616bf9fddae66faed983e4665c08077cd87425b4ea9d38f1bb78d",
       "verifiedCommit": "2d0807247befdd5e615711bf0abf2c177f534561",
       "verifiedAt": "2026-08-14",
       "evidence": [
-        "docs/architecture/proposed/expressions-design/expressions.md:1 (full read; lifecycle/frontmatter evaluated)",
+        "docs/architecture/proposed/expressions-design/README.md:1 (full read; lifecycle/frontmatter evaluated)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
         "docs/architecture/proposed/INDEX.md:21 (FUTURE disposition and stated wake/dependencies)"
       ],
@@ -2854,6 +2787,41 @@
       ]
     },
     {
+      "path": "docs/architecture/proposed/INDEX.md",
+      "assignedSha256": "4d1a2806e2443d8bf2795a0aea635e40b92cd5ef918051499031c0a3672263b2",
+      "disposition": "current",
+      "authority": "current-reference",
+      "fullRead": true,
+      "verifiedSha256": "4d1a2806e2443d8bf2795a0aea635e40b92cd5ef918051499031c0a3672263b2",
+      "verifiedCommit": "bbecbfc78be417b6aab44609d3d4f0d484d8c87b",
+      "verifiedAt": "2026-08-31",
+      "evidence": [
+        "re-attested at bbecbfc78 — full-file read under #930; the superseded D66 program row moved out of proposed with the document, leaving no duplicate lifecycle status",
+        "docs/architecture/proposed/INDEX.md:1-37 full read; every unfinished program row maps to its live Project sprint and carries no duplicated implementation inventory",
+        "GitHub issue #4 sub-issues re-derived: #13-#29 match the unfinished program rows",
+        "2026-08-23 re-derivations: databank-design REALIZED (DB1-DB8 slice-by-slice tree receipts incl. DB6 byte-identity + DB5 scope-leak tests, #19 closed); automation-design PARTIAL (A1-A7 + transport symbol-verified built, A8 client surface unbuilt, #15 corrected, #592 filed); plugin-design PARTIAL (P1-P4+P6 built: infra/plugin-host membrane+realm+budgets, domain/plugin 8-slot, contracts/plugin host-v1, escape.suite.test.ts, entry/compose/automation-plugin.ts; client echo + manager UI absent)",
+        "git:88022d21a85ea44894b3d23aa071caa224fe391e contains the exact program-index blob",
+        "re-attested after the #26 B10 reconciliation retired saved-rosters-design.md (row struck + repointed) at d760c3bad",
+        "docs/architecture/proposed/INDEX.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
+      ],
+      "summary": "Current three-column routing index for committed programs; code/tests own built state and Project owns mutable lifecycle.",
+      "claims": [
+        {
+          "claim": "Each unfinished committed proposed program has one owning sprint under GitHub issue #4; Project relations own mutable lifecycle and dependencies.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#4"
+            },
+            {
+              "kind": "ruling",
+              "target": "D139"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "path": "docs/architecture/proposed/message-reactions-mini-spec.md",
       "assignedSha256": "ac31da0ea593a84b62a9ef49102572fdbc3a3234e78478f7d066d1afa4237eef",
       "disposition": "needs-owner",
@@ -3155,6 +3123,38 @@
             {
               "kind": "test",
               "target": "tests/server/infra/plugin-host/port.test.ts:231"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/architecture/proposed/README.md",
+      "assignedSha256": "1990e6da1f1ee0b681bb355ffdf552446a135321b3735808c455e51a43473a4a",
+      "disposition": "current",
+      "authority": "current-reference",
+      "fullRead": true,
+      "verifiedSha256": "1990e6da1f1ee0b681bb355ffdf552446a135321b3735808c455e51a43473a4a",
+      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedAt": "2026-08-30",
+      "evidence": [
+        "docs/architecture/proposed/README.md:1 (full read; lifecycle/frontmatter evaluated)",
+        "docs/architecture/proposed/INDEX.md:1 (parked/non-authoritative program routing)",
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
+        "docs/architecture/proposed/README.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
+      ],
+      "summary": "Current routing index for proposed-program lifecycle; it is non-authoritative for present implementation.",
+      "claims": [
+        {
+          "claim": "This receipt is governed by D139: GitHub issue #4 owns the mutable migration work while the receipt records a hash-bound durable review result.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#4"
+            },
+            {
+              "kind": "ruling",
+              "target": "D139"
             }
           ]
         }
@@ -3928,6 +3928,32 @@
             {
               "kind": "ruling",
               "target": "D139"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/architecture/proposed/token-contract-program.md",
+      "assignedSha256": "f2cae98ac7029b09706dcccac184e3817478c54ad3af90e8b0329209f20a18a5",
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "f2cae98ac7029b09706dcccac184e3817478c54ad3af90e8b0329209f20a18a5",
+      "verifiedCommit": "7498b1b516af1742485f2c2600c918a0c2bfc1a2",
+      "verifiedAt": "2026-08-31",
+      "evidence": [
+        "docs/architecture/proposed/token-contract-program.md:1 (full read; implemented #936 program and current durable token-contract shape)",
+        "docs/reviews/stickler/2026-08-31-token-contract-936-cold-review.md:1 (#936 cold review and repair train evidence)"
+      ],
+      "summary": "Current implemented token-contract program: standard DTCG portable tokens, an explicit nonportable CSS output map, schema validation, removal/target ratchets, and byte-stable generated artifacts.",
+      "claims": [
+        {
+          "claim": "The durable token-contract program was implemented and closed through work item #936.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#936"
             }
           ]
         }
