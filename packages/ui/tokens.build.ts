@@ -20,7 +20,7 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 import StyleDictionary from "style-dictionary";
 import type { DesignTokens, TransformedToken } from "style-dictionary/types";
-import { THEME_SCOPE_EMIT_VARS } from "./src/content/theme-scope/clamp.ts";
+import { THEME_SCOPE_EMIT_VARS, THEME_SCOPE_STATIC_SEED_VARS } from "./src/content/theme-scope/clamp.ts";
 import type { ContractToken, CssValuePlacement, TokenContractResult } from "./token-contract.ts";
 import { assertTokenContract, REQUIRED_SEED_VALUE_SET_PATHS } from "./token-contract.ts";
 import { assertNoNearDuplicateColors } from "./tokens.near-duplicate.ts";
@@ -40,14 +40,18 @@ const CUBIC_BEZIER_COORDINATE_COUNT = 4;
 const DTCG_ALIAS_RE = /^\{([^{}]+)\}$/u;
 
 const SEED_VALUE_SET_PATHS: ReadonlySet<string> = new Set(REQUIRED_SEED_VALUE_SET_PATHS);
+const STATIC_SEED_EMIT_VARS: ReadonlySet<string> = new Set(THEME_SCOPE_STATIC_SEED_VARS);
 const THEME_SCOPE_SEED_PATHS = new Set(
-  THEME_SCOPE_EMIT_VARS.filter((value) => value.startsWith("--color-")).map((value) => `color.${value.slice("--color-".length)}`),
+  THEME_SCOPE_EMIT_VARS.filter((value) => value.startsWith("--color-") && !STATIC_SEED_EMIT_VARS.has(value)).map(
+    (value) => `color.${value.slice("--color-".length)}`,
+  ),
 );
+const staleStaticSeedVars = [...STATIC_SEED_EMIT_VARS].filter((value) => !THEME_SCOPE_EMIT_VARS.includes(value as (typeof THEME_SCOPE_EMIT_VARS)[number]));
 const missingFromContract = [...THEME_SCOPE_SEED_PATHS].filter((path) => !SEED_VALUE_SET_PATHS.has(path));
 const staleContractPaths = [...SEED_VALUE_SET_PATHS].filter((path) => path !== "color.backdrop" && !THEME_SCOPE_SEED_PATHS.has(path));
-if (missingFromContract.length > 0 || staleContractPaths.length > 0) {
+if (missingFromContract.length > 0 || staleContractPaths.length > 0 || staleStaticSeedVars.length > 0) {
   throw new Error(
-    `token contract seed surface and ThemeScope emit surface diverged — missing [${missingFromContract.join(", ")}], stale [${staleContractPaths.join(", ")}]`,
+    `token contract seed surface and ThemeScope emit surface diverged — missing [${missingFromContract.join(", ")}], stale [${staleContractPaths.join(", ")}], stale static-seed emit vars [${staleStaticSeedVars.join(", ")}]`,
   );
 }
 

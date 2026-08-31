@@ -11,6 +11,7 @@ import {
   AA_LARGE_RATIO,
   AA_NORMAL_RATIO,
   accentFillLightness,
+  chartRampForSurface,
   compositeSrgb,
   derivedForeground,
   derivedForegroundLightness,
@@ -144,6 +145,35 @@ describe("rampDeltas (#682 — the polarity-derived neutral surface ramp)", () =
     const { fgPivotL } = THEME_DERIVATION;
     expect(rampDeltas({ l: fgPivotL, c: 0.01, h: 60 })).toBe(THEME_DERIVATION.ramp.dark);
     expect(rampDeltas({ l: fgPivotL + 0.01, c: 0.01, h: 60 })).toBe(THEME_DERIVATION.ramp.light);
+  });
+});
+
+describe("chartRampForSurface (#939 — custom categorical fills)", () => {
+  test("a clearing dark room keeps the shipped ramp byte-for-byte", () => {
+    expect(chartRampForSurface({ l: 0.158, c: 0.006, h: 60 })).toEqual([
+      { l: 0.72, c: 0.175, h: 52 },
+      { l: 0.7, c: 0.1, h: 200 },
+      { l: 0.68, c: 0.12, h: 300 },
+      { l: 0.74, c: 0.11, h: 130 },
+      { l: 0.7, c: 0.12, h: 35 },
+    ]);
+  });
+
+  test.each([0.62, 0.6201, 0.63] as const)("L=%s derives one concrete five-color family instead of trusting a failing static arm", (l) => {
+    const base = { l, c: 0.01, h: 60 };
+    const surfaces = [
+      base,
+      rampSurface(base, rampDeltas(base).card),
+      rampSurface(base, rampDeltas(base).surfaceRaised),
+      rampSurface(base, rampDeltas(base).sidebar),
+    ];
+    const ramp = chartRampForSurface(base);
+    expect(ramp).toHaveLength(5);
+    for (const fill of ramp) {
+      for (const surface of surfaces) {
+        expect(wcagContrastRatio(oklchToSrgb(fill), oklchToSrgb(surface))).toBeGreaterThanOrEqual(AA_LARGE_RATIO);
+      }
+    }
   });
 });
 

@@ -7,18 +7,20 @@
 //   2. SEED_COVERED      — re-valued in every [data-theme] seed block AND acceptably static under a
 //                          custom `<ThemeScope>` theme because it never sits beside derived chrome where
 //                          the mismatch would read. Needs a written rationale (below).
-//   3. STATIC_RATIONALE  — semantic-intent (destructive/success/warning/info/highlight) or genuinely
+//   3. CUSTOM_DERIVED    — static polarity-aware seed token, but derived + emitted for a carried custom
+//                          base whose full accepted range cannot be served by either static arm.
+//   4. STATIC_RATIONALE  — semantic-intent (destructive/success/warning/info/highlight) or genuinely
 //                          theme-independent (data-viz categorical, an unused reserved alias). Rationale
 //                          below.
 //
-// The BOTH-WAYS ratchet: the three sets must PARTITION the whole `color.*` token namespace — a NEW token
+// The BOTH-WAYS ratchet: the four sets must PARTITION the whole `color.*` token namespace — a NEW token
 // (tokens.json) can't ship unclassified (the union check fails), and no token can be double-classified
 // (the disjoint check fails). This is the machine floor that keeps a future token from silently
 // reintroducing the "themes around it, stays Hearth" class the sidebar-accent/secondary/muted GAP fixes
 // just closed. Consumption-in-chrome is the WHY behind a token's class; classifying the full namespace
 // (not just swept consumers) is the stronger invariant — an unconsumed token is still forced to declare.
 import { TOKENS } from "@orb/ui/tokens";
-import { THEME_SCOPE_EMIT_VARS } from "../../../../packages/ui/src/content/theme-scope/clamp.ts";
+import { THEME_SCOPE_EMIT_VARS, THEME_SCOPE_STATIC_SEED_VARS } from "../../../../packages/ui/src/content/theme-scope/clamp.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
 type TokenPath = keyof typeof TOKENS;
@@ -31,8 +33,17 @@ function cssVarToTokenPath(cssVar: string): string {
   return `${stripped.slice(0, dashIndex)}.${stripped.slice(dashIndex + 1)}`;
 }
 
+// Class 3 — chart-1..5 are static polarity-aware tokens for seed themes and concrete derived emissions
+// for a carried custom base. Either static arm fails allowed pivot-adjacent surfaces, so the custom arm
+// is judged against its own base/card/raised/sidebar family while preserving categorical separation.
+const CUSTOM_DERIVED = new Set(THEME_SCOPE_STATIC_SEED_VARS.map(cssVarToTokenPath));
+
 // Class 1 — derived from the emit surface (single source: THEME_SCOPE_EMIT_VARS), scoped to colours.
-const EMITTED = new Set(THEME_SCOPE_EMIT_VARS.filter((v) => v.startsWith("--color-")).map(cssVarToTokenPath));
+const EMITTED = new Set(
+  THEME_SCOPE_EMIT_VARS.filter((v) => v.startsWith("--color-"))
+    .map(cssVarToTokenPath)
+    .filter((path) => !CUSTOM_DERIVED.has(path)),
+);
 
 // Class 2 — seed-covered, acceptably static under a custom theme, with rationale.
 //   • backdrop (was `scrim`, split at #204): a translucent DIMMING overlay (modal/sheet/rail-overlay
@@ -51,7 +62,7 @@ const EMITTED = new Set(THEME_SCOPE_EMIT_VARS.filter((v) => v.startsWith("--colo
 //     `--color-primary` via relative colour, so it follows EVERY theme with no token of its own.
 const SEED_COVERED = new Set<string>(["color.backdrop"]);
 
-// Class 3 — static with rationale (semantic-intent or theme-independent).
+// Class 4 — static with rationale (semantic-intent or theme-independent).
 //   • destructive/success/warning/info/highlight (+ their foregrounds): SEMANTIC-intent colours — a
 //     delete is red, a success green, a warning amber on EVERY palette (WCAG-legibility is the constraint,
 //     not palette-tracking). The seed value-sets deliberately do NOT re-author them; the 4 divergent
@@ -62,9 +73,6 @@ const SEED_COVERED = new Set<string>(["color.backdrop"]);
 //     floors per palette AND per polarity by the palette-contrast per-value-set sweep.
 //   • sidebar-primary: an unused reserved alias of `primary` (0 consumers — the rail active state reads
 //     `--color-primary` directly). No chrome renders it, so nothing to theme.
-//   • chart-1..5: a polarity-aware categorical data-viz ramp — the five hues are chosen for mutual
-//     DISTINGUISHABILITY, not to track the surface palette. color-scheme selects a contrast-safe arm;
-//     recolouring them off the base would collapse the categories.
 //   • track-1..6: the D71 track ramp (Context-Panel-Program §4.8) — a categorical ramp for
 //     pool/meter/clock FILLS, keyed by definition order for stable per-category color, meaning never
 //     rides color alone. STATIC (semantic, not palette-tracking) like chart-*, but since #697 it is
@@ -102,11 +110,6 @@ const STATIC_RATIONALE = new Set<string>([
   "color.highlight",
   "color.highlight-foreground",
   "color.sidebar-primary",
-  "color.chart-1",
-  "color.chart-2",
-  "color.chart-3",
-  "color.chart-4",
-  "color.chart-5",
   "color.track-1",
   "color.track-2",
   "color.track-3",
@@ -130,20 +133,23 @@ const STATIC_RATIONALE = new Set<string>([
 const ALL_COLOR_TOKENS = Object.keys(TOKENS).filter((k) => k.startsWith("color."));
 
 test("every classified token references a real token in the generated TOKENS map", () => {
-  for (const path of [...EMITTED, ...SEED_COVERED, ...STATIC_RATIONALE]) {
+  for (const path of [...EMITTED, ...SEED_COVERED, ...CUSTOM_DERIVED, ...STATIC_RATIONALE]) {
     expect(TOKENS[path as TokenPath], `${path} must exist in TOKENS`).toBeDefined();
   }
 });
 
-test("the three classes are pairwise DISJOINT (no token classified twice)", () => {
+test("the four classes are pairwise DISJOINT (no token classified twice)", () => {
   const overlap = (a: Set<string>, b: Set<string>): string[] => [...a].filter((x) => b.has(x));
   expect(overlap(EMITTED, SEED_COVERED)).toEqual([]);
+  expect(overlap(EMITTED, CUSTOM_DERIVED)).toEqual([]);
   expect(overlap(EMITTED, STATIC_RATIONALE)).toEqual([]);
+  expect(overlap(SEED_COVERED, CUSTOM_DERIVED)).toEqual([]);
   expect(overlap(SEED_COVERED, STATIC_RATIONALE)).toEqual([]);
+  expect(overlap(CUSTOM_DERIVED, STATIC_RATIONALE)).toEqual([]);
 });
 
-test("the three classes PARTITION every --color-* token (no unclassified token can ship)", () => {
-  const classified = new Set([...EMITTED, ...SEED_COVERED, ...STATIC_RATIONALE]);
+test("the four classes PARTITION every --color-* token (no unclassified token can ship)", () => {
+  const classified = new Set([...EMITTED, ...SEED_COVERED, ...CUSTOM_DERIVED, ...STATIC_RATIONALE]);
   // Every real colour token is classified (a new tokens.json colour fails here until it is placed).
   const unclassified = ALL_COLOR_TOKENS.filter((path) => !classified.has(path));
   expect(unclassified, "unclassified --color-* tokens — place each in a class in this file").toEqual([]);

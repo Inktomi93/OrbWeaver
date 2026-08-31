@@ -145,8 +145,22 @@ test("the official schemas are hash-pinned and a complete conformant fixture pas
 
 test("the real vault is conformant and preserves the exact generated target surface", () => {
   const result = validateTokenContractTexts(readTokenContractTexts(UI_ROOT));
+  const countTokens = (value: unknown): number => {
+    if (typeof value !== "object" || value === null) {
+      return 0;
+    }
+    const record = value as Record<string, unknown>;
+    return "$value" in record ? 1 : Object.values(record).reduce<number>((total, child) => total + countTokens(child), 0);
+  };
+  const texts = readTokenContractTexts(UI_ROOT);
+  const constituents = {
+    base: countTokens(JSON.parse(texts.base)),
+    light: countTokens(JSON.parse(texts.light)),
+    mocha: countTokens(JSON.parse(texts.mocha)),
+  };
   expect(result.diagnostics).toEqual([]);
-  expect(result.scannedTokens).toBe(278);
+  expect(constituents).toEqual({ base: 179, light: 59, mocha: 40 });
+  expect(result.scannedTokens).toBe(constituents.base + constituents.light + constituents.mocha);
   expect(result.cssTargets.size).toBe(187);
   expect(result.cssTargets).toEqual(BASELINE_TARGETS);
   expect(result.themes).toEqual([

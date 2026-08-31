@@ -7,7 +7,7 @@
 // theme importer predicts the same math in node). Two values cannot be spelled for the browser and are
 // solved in node instead: the reading plate's polarity-derived alpha (#217) and the elevation arm (#243).
 import type { RampDeltas, ShadowIngredients } from "@orb/kit/theme-derivation";
-import { READING_BAND_ALPHA, rampDeltas, readingPlateAlpha, shadowIngredients, THEME_DERIVATION } from "@orb/kit/theme-derivation";
+import { chartRampForSurface, READING_BAND_ALPHA, rampDeltas, readingPlateAlpha, shadowIngredients, THEME_DERIVATION } from "@orb/kit/theme-derivation";
 import type { ParsedOklch } from "./color-parse.ts";
 
 // The neutral surface ramp: each `--color-*` paired with the RampDeltas member that names its L shift,
@@ -139,6 +139,13 @@ function shadowVarsOn(background: string, base: ParsedOklch): Readonly<Record<st
   return out;
 }
 
+/** Concrete categorical fills for DOM and Canvas chart consumers. Unlike neutral chrome these cannot be
+ * relative-color expressions: ECharts needs the cascade to resolve each property into a paintable color. */
+function chartVarsOn(base: ParsedOklch): Readonly<Record<string, string>> {
+  const ramp = chartRampForSurface(base);
+  return Object.fromEntries(ramp.map((color, index) => [`--color-chart-${index + 1}`, `oklch(${color.l} ${color.c} ${color.h})`]));
+}
+
 /**
  * EVERYTHING one picked base surface derives — the neutral ramp, the over-art plate + band, every neutral
  * foreground, the border/input fills, and the elevation ingredients. One cascade, one entry point, so the
@@ -175,5 +182,5 @@ export function surfaceVarsOn(background: string, base: ParsedOklch | null): Rea
   vars["--color-border"] = borderOn(background);
   vars["--color-sidebar-border"] = borderOn(background);
   vars["--color-input"] = inputSurfaceOn(background);
-  return base === null ? vars : { ...vars, ...shadowVarsOn(background, base) };
+  return base === null ? vars : { ...vars, ...shadowVarsOn(background, base), ...chartVarsOn(base) };
 }
