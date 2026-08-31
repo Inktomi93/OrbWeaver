@@ -160,12 +160,12 @@
     },
     {
       "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
-      "assignedSha256": "7e4371721b25e9de3f1eddefcb73a5ba80bbfc61953305e8a4f4bbc428e371aa",
+      "assignedSha256": "22e06b85adecc0aa9a25006cf62fa2970ff5b51848ffc9c20e0999c1e7e799b5",
       "disposition": "current",
       "authority": "operational",
       "fullRead": true,
-      "verifiedSha256": "7e4371721b25e9de3f1eddefcb73a5ba80bbfc61953305e8a4f4bbc428e371aa",
-      "verifiedCommit": "5a9a9ada380b8ea5c9786456b28a499d10eda127",
+      "verifiedSha256": "22e06b85adecc0aa9a25006cf62fa2970ff5b51848ffc9c20e0999c1e7e799b5",
+      "verifiedCommit": "fce6b2b1a4a9f7126335208f63f49b571e9e1c9a",
       "verifiedAt": "2026-08-31",
       "evidence": [
         "re-attested at 5a9a9ada3 — css-selector-has-a-writer is registered with its semantic JSX/DOM/HAST/shared-provenance/vendor-contract reach and the discovered active count is 240; focused proof passed 18/18",
@@ -206,7 +206,8 @@
         "docs/architecture/core/Core-Enforcement-Active-Gates.md: re-attested at 1f5e25c00ec2ee921bc70591bf84e8268b255030 \u2014 the #876/#873 citer sweep: doc-path repoints from the tooling-package \u2192 Core-Tooling-Law.md and density-pass-spec \u2192 UI-Density-Law.md relocations and the seven mock-set retirements. Comment/link lines only; no claim moved.",
         "docs/architecture/core/Core-Enforcement-Active-Gates.md: re-attested at 79871238bc0506fa74902bb1844f734fc9e32db3 \u2014 the #866 S1+S2 (6923f33cb) and #876/#873 docs-law (79871238b) merges both carry truth-repairs here; both deltas read by the orchestrator; the gate-count line resolved to 233 at the merge",
         "re-attested at the #909 docs truth-repair merge (32bf93f3e): the lane's three-way rule applied per hit \u2014 concept prose takes the ruled word, every code symbol is quoted as it stands with its owning issue named, owner-sacred prose flagged not edited; verdict list read by the orchestrator",
-        "re-attested at 214fa1200 after the CSS polarity gate registration: the new ACTIVE row and count delta were read with the landed descriptor; grouped CSS-train verification remains the runtime authority"
+        "re-attested at 214fa1200 after the CSS polarity gate registration: the new ACTIVE row and count delta were read with the landed descriptor; grouped CSS-train verification remains the runtime authority",
+        "re-attested at fce6b2b1a (#935): appearance-carrier-contract records the schema/editor/live-consumer/portal/prepaint contract and the 241 active-gate count; focused conformance passed 4/4 and the real gate declared and scanned 41/41 keys with zero findings"
       ],
       "claims": [
         {
