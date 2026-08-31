@@ -29443,9 +29443,9 @@
       "path": "docs/reviews/stickler/2026-08-30-css-census-doctrine-and-enforcement.md",
       "lane": "reviews",
       "issue": 7,
-      "lines": 1660,
-      "bytes": 138870,
-      "sha256": "3ec5d1f250666e13d7fa47a13da47fa4dfaa43aeee0d010fb1a6a6db34a48e47",
+      "lines": 1701,
+      "bytes": 142081,
+      "sha256": "4ae356758952132f367972723ceb66ca33746dc0ea8453cb888d7bed2795b8de",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -29458,14 +29458,15 @@
       },
       "receipt": {
         "path": "docs/reviews/stickler/2026-08-30-css-census-doctrine-and-enforcement.md",
-        "assignedSha256": "3ec5d1f250666e13d7fa47a13da47fa4dfaa43aeee0d010fb1a6a6db34a48e47",
+        "assignedSha256": "4ae356758952132f367972723ceb66ca33746dc0ea8453cb888d7bed2795b8de",
         "disposition": "current",
         "authority": "review",
         "fullRead": true,
-        "verifiedSha256": "3ec5d1f250666e13d7fa47a13da47fa4dfaa43aeee0d010fb1a6a6db34a48e47",
-        "verifiedCommit": "219e839b6e166a783fc885c639bb8d5727c19df0",
+        "verifiedSha256": "4ae356758952132f367972723ceb66ca33746dc0ea8453cb888d7bed2795b8de",
+        "verifiedCommit": "b682e9921f9bf4e5d804285c82d3194ccdcb5b8a",
         "verifiedAt": "2026-08-31",
         "evidence": [
+          "re-attested at b682e9921 — the historical 28d526c99 measurements are separated from current main; #949/#965/#966 integrated receipts, #950's official DevTools SDK route, the five-stylesheet-plus-token home count, semantic selector limits, and the ungraduated grouped barrier are reconciled",
           "re-attested at 219e839b6 — #956's semantic selector-writer gate, exact 69-class/112-data identity scope, focused proof, vendor parity, and honest real-tree deferral are reconciled into the durable CSS program",
           "re-attested at ef75f9455 — #939's cold-confirmed seed/custom chart repair and #955's integrated shell-length/token wall are reconciled with exact focused and rendered receipts while the grouped train barrier remains pending",
           "re-attested at 4bf9ed645 — the #961 repair, integrated #954 focused matrix, and #959 shared production/CT topology are reconciled while the grouped train barrier remains pending",
@@ -29476,7 +29477,7 @@
         ],
         "claims": [
           {
-            "claim": "13 confirmed findings (ceiling P1) plus the six-home CSS doctrine, ordered repair program, reconciled implementation status, and per-enforcer reach/bite/blind-spot evidence; #939 is cold-confirmed and closed, #955/#956 are integrated pending the grouped train barrier, and #951/#952/#954/#949 remain in the active enforcement train.",
+            "claim": "13 historical confirmed findings (ceiling P1) plus the six-home CSS doctrine, ordered repair program, and per-enforcer reach/bite/blind-spot evidence; current main has five sanctioned stylesheets plus tokens.json, #949/#951/#952/#954-#957/#959/#961/#965/#966 are integrated in Review, #950 is Running on the revision-pinned official DevTools frontend SDK route, and the grouped train remains ungraduated.",
             "evidence": [
               {
                 "kind": "issue",
