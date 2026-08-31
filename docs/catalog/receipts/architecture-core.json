@@ -5,12 +5,12 @@
   "entries": [
     {
       "path": "docs/architecture/core/AGENTS.md",
-      "assignedSha256": "10112ecc37e5d875195d2fb71d04aec4ab7284b2654f90e36a7077416be519d3",
+      "assignedSha256": "7853470ffa6b617490fb5cd7dc722eb1519ff487b57bc22e78530bbd74b7ff07",
       "disposition": "current",
       "authority": "normative",
       "fullRead": true,
-      "verifiedSha256": "10112ecc37e5d875195d2fb71d04aec4ab7284b2654f90e36a7077416be519d3",
-      "verifiedCommit": "a5c589b04ad08bba7a0d1f1b8c40e1fac109be93",
+      "verifiedSha256": "7853470ffa6b617490fb5cd7dc722eb1519ff487b57bc22e78530bbd74b7ff07",
+      "verifiedCommit": "c5dd92e04c3718f488030607845a2608d078baaf",
       "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/architecture/core/AGENTS.md:1-352 full read; Project, recovery, proposed-program, lane authority, and direct Claude-rule import routing reconciled",
@@ -19,7 +19,8 @@
         "delta re-verify 2026-08-22 (P9 #393, the tooling program's law closeout): re-read in full at the P9 bytes commit; every changed line is a tooling-tree cite repoint or the new Core-0 \u00a79 / constitution index rows, re-derived against the tree",
         "docs/architecture/core/AGENTS.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d \u2014 retired to docs/history per Documentation-Law \u00a7Relocation & retirement (2026-08-30 retirement pass)",
         "docs/architecture/core/AGENTS.md: re-attested at 1f5e25c00ec2ee921bc70591bf84e8268b255030 \u2014 the #876/#873 citer sweep: doc-path repoints from the tooling-package \u2192 Core-Tooling-Law.md and density-pass-spec \u2192 UI-Density-Law.md relocations and the seven mock-set retirements. Comment/link lines only; no claim moved.",
-        "re-attested at the #907 law-mint merge (a5c589b04): lane cb-vocab-law's diff read in full by the orchestrator \u2014 D151 (the room's actor vocabulary is CLOSED) minted as next-free with the reserved-range note advanced to D152+, and the four-line register-boundary paragraph placed in AGENTS.md \u00a73; both provenance facts (archived+superseded source, not restated by the successor) verified on the tree before minting"
+        "re-attested at the #907 law-mint merge (a5c589b04): lane cb-vocab-law's diff read in full by the orchestrator \u2014 D151 (the room's actor vocabulary is CLOSED) minted as next-free with the reserved-range note advanced to D152+, and the four-line register-boundary paragraph placed in AGENTS.md \u00a73; both provenance facts (archived+superseded source, not restated by the successor) verified on the tree before minting",
+        "re-attested at c5dd92e04 \u2014 the register-boundary paragraph's mis-citation of D151 corrected; verified against D151's own text, which disclaims the rpg register"
       ],
       "claims": [
         {
