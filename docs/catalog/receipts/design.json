@@ -4,6 +4,36 @@
   "issue": 5,
   "entries": [
     {
+      "path": "docs/design/951-css-family-semantic-provenance.md",
+      "assignedSha256": "0ceecbfde36383977417f1ba15beaba7b7b6900feaaa45336c16260a55be7284",
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "0ceecbfde36383977417f1ba15beaba7b7b6900feaaa45336c16260a55be7284",
+      "verifiedCommit": "4fde7115f19215a66ba01248149b3c6d291c2880",
+      "verifiedAt": "2026-08-31",
+      "evidence": [
+        "docs/design/951-css-family-semantic-provenance.md:1 (full read; terminal-carrier architecture, module boundaries, red-first plan, and static declared limits)",
+        "git:4fde7115f19215a66ba01248149b3c6d291c2880 (integrated #951 design and implementation bytes)"
+      ],
+      "summary": "Active #951 design for declaration-level CSS-family provenance over the shared #961 evaluator, with exact rendered terminals, DOM declaration proof, module boundaries, planted controls, and explicit static limits.",
+      "claims": [
+        {
+          "claim": "CSS-family ownership is defined at proven rendered terminals over the shared #961 static evaluator, with counterfeit spellings and unsupported runtime shapes explicitly excluded.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#951"
+            },
+            {
+              "kind": "provenance",
+              "target": "git:4fde7115f19215a66ba01248149b3c6d291c2880"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "path": "docs/design/961-static-class-provenance-repair.md",
       "assignedSha256": "0078cc298da95842fca5f810ffc4e0c6b25e75b65cc2515a9d4397bc934d21a2",
       "disposition": "current",
@@ -12,9 +42,7 @@
       "verifiedSha256": "0078cc298da95842fca5f810ffc4e0c6b25e75b65cc2515a9d4397bc934d21a2",
       "verifiedCommit": "0952cc4623ea0bca4dd8b3b55984866d04ec6ca9",
       "verifiedAt": "2026-08-31",
-      "evidence": [
-        "docs/design/961-static-class-provenance-repair.md:1 (full read; red-first repair design and declared residual limits)"
-      ],
+      "evidence": ["docs/design/961-static-class-provenance-repair.md:1 (full read; red-first repair design and declared residual limits)"],
       "summary": "Implemented #961 repair design for return-position composer ownership, local namespace re-exports, and JavaScript-correct object-spread overwrite/opacity semantics.",
       "claims": [
         {

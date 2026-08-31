@@ -160,14 +160,15 @@
     },
     {
       "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
-      "assignedSha256": "b12d2ca79d4b0ca664fcde2ea6ecd798b21e2820ed001ae024e1f95c642411ef",
+      "assignedSha256": "363c24a9f88c16fbffb398987c8a0f65d4c51232f9b195822462b2483daf9104",
       "disposition": "current",
       "authority": "operational",
       "fullRead": true,
-      "verifiedSha256": "b12d2ca79d4b0ca664fcde2ea6ecd798b21e2820ed001ae024e1f95c642411ef",
-      "verifiedCommit": "4bf9ed645967f99b49c3f0d0b07cc5e9d7d7cb5b",
+      "verifiedSha256": "363c24a9f88c16fbffb398987c8a0f65d4c51232f9b195822462b2483daf9104",
+      "verifiedCommit": "e07b79b2dfe71cbba5335a74d84fa0355f046d62",
       "verifiedAt": "2026-08-31",
       "evidence": [
+        "re-attested at e07b79b2d — css-length-tokens is registered beside the exact shell declaration/query and #961 static-class reach it enforces; the discovered active count is 239 and focused conformance passed 8/8",
         "re-attested at 4bf9ed645 — playwright-css-topology and repaired no-tailwind-dark-variant are recorded beside css-var-defined; the discovered active count is 238",
         "re-attested at 8f30fb690 — css-var-defined is registered with its exact definition/reference/vendor/runtime denominators and the discovered active count is 237",
         "re-attested at b8eb66f00 — CSS family ownership and polarity rows now name their cold-refuted limits instead of presenting zero findings as complete enforcement; tokens-contract names the final #936 contract",

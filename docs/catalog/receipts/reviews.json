@@ -1593,14 +1593,15 @@
     },
     {
       "path": "docs/reviews/stickler/2026-08-30-css-census-doctrine-and-enforcement.md",
-      "assignedSha256": "03828ca01fb95e3774ed9364bc79fb5bff487caa5c3f87afbaec55e291ce5623",
+      "assignedSha256": "653f5a502f89cdd8e9d5affd054c5ef96cf70df803291053e067ce1c4a0859d1",
       "disposition": "current",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "03828ca01fb95e3774ed9364bc79fb5bff487caa5c3f87afbaec55e291ce5623",
-      "verifiedCommit": "4bf9ed645967f99b49c3f0d0b07cc5e9d7d7cb5b",
+      "verifiedSha256": "653f5a502f89cdd8e9d5affd054c5ef96cf70df803291053e067ce1c4a0859d1",
+      "verifiedCommit": "ef75f9455acf49825a7a2c8dd1eb35bf51218417",
       "verifiedAt": "2026-08-31",
       "evidence": [
+        "re-attested at ef75f9455 — #939's cold-confirmed seed/custom chart repair and #955's integrated shell-length/token wall are reconciled with exact focused and rendered receipts while the grouped train barrier remains pending",
         "re-attested at 4bf9ed645 — the #961 repair, integrated #954 focused matrix, and #959 shared production/CT topology are reconciled while the grouped train barrier remains pending",
         "re-attested at 8f30fb690 — #952 is recorded as implemented with exact source/definition/reference, Base UI, runtime-writer, and focused-proof receipts while the grouped CSS-train barrier remains pending",
         "re-attested at b8eb66f00 after the 2026-08-31 reconciliation: issue-summary counts, #921 current state, #936 token contract, Tailwind compiler namespace correction, #951/#954 limits, and the exact #961 cold refutation are recorded in the durable program",
@@ -1609,7 +1610,7 @@
       ],
       "claims": [
         {
-          "claim": "13 confirmed findings (ceiling P1) plus the six-home CSS doctrine, ordered repair program, reconciled implementation status, and per-enforcer reach/bite/blind-spot evidence; #921 and #936 are closed while #951, #952, #954, and the refuted #961 substrate remain active repair work.",
+          "claim": "13 confirmed findings (ceiling P1) plus the six-home CSS doctrine, ordered repair program, reconciled implementation status, and per-enforcer reach/bite/blind-spot evidence; #939 is cold-confirmed and closed, #955 is integrated pending the grouped train barrier, and #951/#952/#954/#956/#949 remain in the active enforcement train.",
           "evidence": [
             {
               "kind": "issue",
@@ -1622,7 +1623,7 @@
           ]
         }
       ],
-      "summary": "The CSS census, doctrine, game plan and enforcer sweep: no orphan selectors or dead classes across 3,169 lines, but data-density never reaches portalled overlays, the density attribute is a one-way switch with no comfortable arm, chart colours fall to 1.95:1 on Light, and a modal's sticky header names a z token that has never existed."
+      "summary": "The live CSS census, doctrine, repair program and enforcer sweep, reconciled through the cold-confirmed #939 chart repair and integrated #955 shell-length/token wall while the remaining selector, merge, cascade, and appearance-invariant work stays explicit."
     },
     {
       "path": "docs/reviews/stickler/2026-08-30-vocab-unification.md",
