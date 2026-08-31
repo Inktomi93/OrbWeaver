@@ -15,7 +15,7 @@ updated: 2026-08-30
 ## 0. TL;DR — the non-negotiables (one screen)
 
 1. **Five tiers, one direction:** `@orb/ui` → `components/` → `{data,forms,state}/` → `lib/` → `features/`; routes + `main.tsx` compose on top. A feature imports DOWN only; features never import each other at runtime (dep-cruiser).
-2. **Features touch ZERO CSS.** No `className`/`style` on a raw intrinsic element anywhere in client src (ESLint, LIVE); no `.css` file in a feature (gate G14). The six homes, their responsibilities, and the bounded shell exception live in §4; do not restate that vocabulary here.
+2. **Ordinary features touch ZERO CSS.** No `className`/`style` on a raw intrinsic element anywhere in client src (ESLint, LIVE), and no feature owns a stylesheet except the one enumerated shell-frame path (G14). The six homes, their responsibilities, and that bounded exception live in §4; do not restate the vocabulary here.
 3. **One registry primitive, no static maps.** A section / settings pane / modal / contributor is ONE co-located definition, assembled ONCE at the composition root. A second `Record<SectionId, …>`-style map anywhere else is RED (G2). "Derive, don't re-declare."
 4. **The `/` route is a thin mount.** No `sections={{…}}` god-map, no feature imports in a route body. The registration door is the ONLY place feature definitions/contributors are imported and assembled (G1/G8) — and since the #43 boot code-split the door is TWO modules: `main.tsx` (boot) + `client/src/compose/` (the assemblies, behind the `/` route's lazy boundary). §7 states the split and why.
 5. **Cross-feature needs have exactly one channel each** — the eleven-row decision table is §12: ephemeral client state (and navigation) → the `state/` commons; another feature's server data → `trpc.*` (cache-first — NOT a network round-trip when cached); **EXTENDING another feature's surface → a CONTRIBUTOR registry assembled at the door** (ten families live; this is the graft channel); shapes → contracts/type-only; composites → `components/`; a feature's own Content↔Context → its editor-bridge (INTRA-feature only). Anything else is a violation.
@@ -91,7 +91,11 @@ Above the tiers: `routes/` composes features (never the reverse — `client-feat
 
 ## 4. The paint law — who may write CSS, and WHY
 
+### 4.1 The rule
+
 **Every visual VALUE is a DTCG token; every component SKIN is a `tv()` variant; LAYOUT is an `@orb/ui` primitive. CSS is legal in exactly the six homes below, and a feature is not a seventh home.** This is a path-closed set: a CSS file outside these paths is a defect even when its declarations use tokens.
+
+### 4.2 The six homes — closed by path
 
 | Home | What it is | Hand-written? |
 | - | - | - |
@@ -104,7 +108,7 @@ Above the tiers: `routes/` composes features (never the reverse — `client-feat
 
 `packages/ui/src/**/variants.ts` is not a CSS home. It is the component-skin mechanism: `tv()` composes token utilities and may not mint values or stylesheets.
 
-### 4.1 Placement and literals
+### 4.3 Placement and literals
 
 Route by responsibility, not merely by path: values and palettes originate in the token vault; generated theme output only reflects those sources; ui globals own universal browser/CSS mechanisms; tiers map density semantics; client globals own client-wide appearance, reading, and capability treatments; shell owns the frame's geometry, structural paint, and coordinated motion; `variants.ts` owns component skins. An authored globals rule is an escape only when CSS itself is the mechanism and token/`tv()` composition cannot express it honestly; it carries a local WHY and a test or gate pin. The allowed path is not a dumping-ground license.
 
@@ -112,21 +116,27 @@ When a builder needs paint, add a token value in `tokens.json`, a semantic densi
 
 Owner-authored custom CSS is user data, not a seventh repository CSS home. It enters through `CustomThemeStyle` after `validateThemeCss`, is deliberately unlayered so the owner wins, and targets the stable `data-slot` and `.shell-*` API. The validator warns on `@import`, rejects `position: fixed`/`sticky`, and the contracts schema caps the field at `THEME_CSS_MAX`. The complete trust and validation contract lives in `UI-Theming-and-Content.md` §12; this exception never licenses raw literals or another authored stylesheet in source.
 
-### 4.2 Why `shell.css` is the exception
+### 4.4 Why `shell.css` is the exception
 
 Verified against the file on 2026-08-30, `shell.css` owns the shell's structural surfaces and layout algebra: rail/list/context track arithmetic and the zero-width sentinel, compact-density token repointing, co-motion variables, one viewport media query, and specificity-ordered elevation. Its panel motion uses FLIP because animating dynamic grid tracks produced a recorded `0.2774` layout shift; the transform path preserves the zero-layout-shift contract and the reduced-motion arm still settles transforms immediately.
 
 Its structural literals are limited to viewport units, grid ratios and zero sentinels, query conditions, and per-site alpha composition. Everything else wants a token. `shell.css` does contain colour declarations: all 56 are token-sourced and it contains zero raw colour literals. That paint is legal because it belongs to the shell's own region fills, seams, scrim, and elevation; a component's skin never lands there.
 
-### 4.3 Import order and cascade
+### 4.5 The two cascade mechanisms
 
-Production loads `shell.css` first through the app-shell import, then `packages/client/src/styles/globals.css` from `main.tsx`; client globals begins by importing `packages/ui/src/styles/globals.css`. Thus the effective source order is shell → ui globals → client globals. The ui and client document floors are deliberately unlayered, so they outrank layered Tailwind output without `!important`. `packages/ui/playwright/index.css` mirrors this order for component tests. Moving an import changes the cascade contract and requires an explicit law change.
+**Unlayered is the mechanism.** Tailwind v4 emits utilities into `@layer utilities`; an unlayered rule beats a layered utility regardless of specificity. That is how `theme.css` and `tiers.css` repoint a primitive's utility-backed defaults and how ui's document floors stay floors. There are zero `@layer` blocks in the authored CSS, and that count must remain zero. Owner-authored custom CSS is also deliberately unlayered so the owner wins within the validation boundary in §4.3.
+
+**Source order is load-bearing.** Production loads `shell.css` first through the app-shell import, then `packages/client/src/styles/globals.css` from `main.tsx`; client globals begins by importing `packages/ui/src/styles/globals.css`. Thus the effective source order is shell → ui globals → client globals. Client globals and shell contain overlapping selectors at identical specificity, so reversing them can silently change the winner. `packages/ui/playwright/index.css` mirrors this production order for component tests. Moving an import changes the cascade contract and requires an explicit law change.
+
+### 4.6 Polarity has one mechanism
+
+`light-dark()` arms selected by `color-scheme` are the only sanctioned polarity mechanism. `ThemeScope` derives `color-scheme` from the palette's own base lightness through `colorSchemeFor`, so custom themes and native controls resolve the same polarity without enumerating theme names. A `dark:` variant keyed to named `[data-theme]` values cannot see a custom theme's derived polarity and is therefore a defect, not a second supported path. The still-live `@custom-variant dark` declaration is named enforcement debt from the census; until its deletion and a class-string ban land, this law is not fully walled.
 
 ### 4.7 Enforcement and honest holes
 
 The enforcement ledger has three categories; never count one as another:
 
-- **ENFORCED TODAY:** the colour/value/motion gates constrain authored values; G14 (`no-css-outside-sanctioned-homes`) closes feature CSS to `shell.css`; compose-only keeps client intrinsic paint out of features; class-merge seals and tests preserve primitive ownership. The sanctioned homes are path permissions, not proof that every declaration inside them is correct.
+- **ENFORCED TODAY:** the colour/value/motion gates constrain authored values; G14 (`feature-css-files`) closes feature CSS to `shell.css`; compose-only keeps client intrinsic paint out of features; class-merge seals and tests preserve primitive ownership. The sanctioned homes are path permissions, not proof that every declaration inside them is correct.
 - **UNENFORCED, KNOWN:** CSS files outside `features/**` are not checked against this entire six-home table; undefined custom-property references and misspelled/unknown semantic utility names can silently drop; no gate proves the intended merge winner across shell, ui globals, and client globals.
 - **REPORTED BUT UNREAD:** `pnpm snap --dead-css` and the dev-only `motion-dead-class-flagger` emit dead/empty CSS findings, but no blocking floor consumes those warning reports today. An instrument nobody reads is not enforcement.
 
