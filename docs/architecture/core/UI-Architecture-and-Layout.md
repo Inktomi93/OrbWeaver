@@ -346,8 +346,8 @@ The client targets **React 19 + the React Compiler** (LIVE: the compiler runs fu
 
 | Axis | What varies | Tool | Where it's written |
 | - | - | - | - |
-| **1 — component layout** | a surface in a wide pane vs a narrow drawer | **`@container`** + container-query units (`cqi`) + `clamp()` | **features** (the ONLY responsive thing they write) |
-| **2 — macro structure** | rail+list+content+context desktop ⇄ single-column mobile; panels dock⇄overlay (the §11.1 clamp) | **`@media`** (viewport) | **SHELL only** (\~1 file; the sole legal `@media` site) |
+| **1 — component layout** | a surface in a wide pane vs a narrow drawer | container utilities and variants (`@container` at the `@orb/ui` primitive boundary) + container-query units (`cqi`) + `clamp()` | **`@orb/ui` primitives**; features compose their variants and never author CSS ([paint law §4](client-architecture-lockdown.md#4-the-paint-law--who-may-write-css-and-why)) |
+| **2 — macro structure** | rail+list+content+context desktop ⇄ single-column mobile; panels dock⇄overlay (the §11.1 clamp) | **`@media`** (viewport) | **the shell tier + the styles tier's exact complement** — `shell.css`'s `@media (max-width: 48rem)` and `client/styles/globals.css`'s `@media (width > 48rem)` glass block are one ruling in two order-proof halves (#135), sync-enforced by `tests/ui/styles/css-structure.suite.test.ts`; never a feature ([paint law §4](client-architecture-lockdown.md#4-the-paint-law--who-may-write-css-and-why)) |
 | **3 — device capability** | touch targets; hover affordances | **`@media (pointer/hover)`** + token sizing | **token/shell layer** (never features) |
 | **4 — mobile platform** | keyboard, safe-area, overscroll, viewport height | **CSS primitives** (`dvh`/`svh`, `env()`, viewport meta) | **shell + composer/scroll primitives** (once) |
 

@@ -45,7 +45,7 @@ function inClassCarrier(node: Node): boolean {
 }
 
 const MESSAGE =
-  "raw z-N in className — use a semantic z-index token (z-modal, z-popover, z-tooltip, z-overlay, z-toast, z-dropdown, z-sticky). See packages/ui/src/styles/theme.css §z-index tokens and docs/architecture/core/UI-Architecture-and-Layout.md.";
+  "raw z-N in className — use a semantic z-index token: z-(--z-base) · z-(--z-raised) · z-(--z-overlay) · z-(--z-modal) · z-(--z-popover) · z-(--z-toast) · z-(--z-tooltip). Those SEVEN are the whole vocabulary (packages/ui/src/tokens/tokens.json z.*); a name outside it resolves to an undefined custom property and the z-index declaration is silently dropped. See docs/architecture/core/client-architecture-lockdown.md §4.";
 
 const Z_INDEX_REGEX = /\bz-(?:\d+|\[\d+\])/u;
 
@@ -100,7 +100,7 @@ export const gate: GateDescriptor = {
       why: "THE ALLOWLIST ITSELF: the layout tier is now SCANNED, and its raw utility passes only because a cited SANCTIONED_HOMES row covers it",
     },
     {
-      files: 'const x = <div className="z-modal" />;',
+      files: 'const x = <div className="z-(--z-modal)" />;',
       at: "packages/client/src/test.tsx",
       why: "valid intent token",
     },

@@ -1,34 +1,39 @@
 ---
-kind: program
-status: active
-updated: 2026-08-18
+kind: history
+status: archived
+updated: 2026-08-30
 ---
 
-# UI Cohesion — North Star (ledger D66)
+# UI Cohesion — North Star (archived D66 program)
+
+> **ARCHIVED 2026-08-30 under D66.** This is the closed UI-cohesion program record, not current law or
+> lifecycle authority. Current UI law lives in the core `UI-*.md` set; CSS and paint law live in
+> `../core/client-architecture-lockdown.md` §4; GitHub Project 1 owns current work. Status, queue, and
+> "open" language below describe the program-era snapshot only.
 
 > **AS OF 2026-07-16 (end of the mechanism era):** §5 PP-lane ✅ · §4 chats lane N1–N5 ✅ (**the
 > gate is MET**, lane verifier-certified) · the shell-chrome program ✅ CLOSED (D73/D74;
-> `../history/shell-chrome-unification.md`) · the derive program ✅ CLOSED W1–W6 (gates 125→132,
-> jscpd ratcheted 5%→2%; `../history/derive-modernization-audit.md`) · the theme pipeline ✅ (D71).
+> `shell-chrome-unification.md`) · the derive program ✅ CLOSED W1–W6 (gates 125→132,
+> jscpd ratcheted 5%→2%; `derive-modernization-audit.md`) · the theme pipeline ✅ (D71).
 > **THE ONLY OPEN WORK IN THIS DOC IS §6 (the rollout, characters first) + §7 inside each stop**,
 > plus the deferred live side-eye lane pass (blocked on tree-quiet/HMR) and O4 (server tier).
 > Session lessons live in auto-memory; the queue below carries per-step landed records.
 
-**THE one active UI work doc.** Every UI/UX task dispatched after 2026-07-13 builds from THIS file.
+**This was the active UI work doc during its program era.** UI/UX tasks dispatched after 2026-07-13 built from this file.
 The prior program records (`ui-polish-punchlist.md`, `ux-flow-revamp.md`, `DESIGN-REVIEW-2026-07-01.md`)
 are ARCHIVED to `../history/` — they are history, not law; do not quote them as authority. Their open
-remainders are ported into §6 here. Unbuilt design sets are parked beside this doc — see `INDEX.md`
+remainders were ported into §6 here. Unbuilt design sets are parked in proposed — see `../proposed/INDEX.md`
 (`../proposed/README.md` has the map). **Precedence:** `Core-Laws-and-Precedents.md` (D-ledger,
 D66 = this program) → the core `UI-*.md` law set + `../core/ui-package-design.md` +
 `../core/motion-and-animation-guide.md` (promoted to core under D66; ui-package-design's §-numbers
 stay stable) → this doc. On any conflict, the higher tier wins.
 
 **Origin:** a 2026-07-13 Claude-Design review of the LIVE app (not mockups) found the four panes
-don't read as one frame: no shared chrome baseline, ember (accent) on ~everything, always-on action
+don't read as one frame: no shared chrome baseline, ember (accent) on \~everything, always-on action
 strips, triple-duplicated actions, token-count noise. Every visual complaint was verified real
 against the running app (`reports/snaps/home|chat-thread|chat-context|character-editor*|preset-*.png`,
 2026-07-13). Every code claim below was verified against source the same day — file anchors are real,
-and where the design review guessed wrong, the correction is stated inline and marked **[CORRECTED]**.
+and where the design review guessed wrong, the correction is stated inline and marked **\[CORRECTED]**.
 
 **Strategy (Nate, 2026-07-13):** nail ONE rail entry end-to-end first — **Chats** — so every other
 section copies a working example instead of re-interpreting prose. §4 is that lane. §5 (primitive
@@ -36,15 +41,15 @@ polish) is global and ships first. §6 is the rollout order for everything after
 
 **DE-ROT 2026-07-15:** the client lockdown (M0–M11, promoted to core law —
 `../core/client-architecture-lockdown.md`) and shell-chrome slice 1 landed AFTER this doc's 2026-07-13
-verification. Dead anchors are re-pointed and superseded bullets marked **[RE-ANCHORED]**/**[SUPERSEDED]**
+verification. Dead anchors are re-pointed and superseded bullets marked **\[RE-ANCHORED]**/**\[SUPERSEDED]**
 in place below; every correction re-verified against source 2026-07-15. The chrome MECHANISM
 (registry/zones/widgets) is now LAW in `../core/UI-Architecture-and-Layout.md` §4.x (standing rulings
-D73/D74; the program record is [`shell-chrome-unification.md`](../history/shell-chrome-unification.md),
+D73/D74; the program record is [`shell-chrome-unification.md`](shell-chrome-unification.md),
 history not law); this doc owns the PAINT (bands, ember budget, density, anatomy).
 
 **Sequencing (the game plan, updated 2026-07-16 — verified-open work only; the lockdown itself is
 CLOSED). Three programs, ONE ordered queue:** this doc's lanes (paint), shell-chrome §E (mechanism),
-and the derive-modernization program ([`derive-modernization-audit.md`](../history/derive-modernization-audit.md)
+and the derive-modernization program ([`derive-modernization-audit.md`](derive-modernization-audit.md)
 — mint → migrate → SEAL; gates G24–G29 + a G4 arm) interleave as follows:
 
 1. **UI-polish wave: PP1–PP5 (§5) + derive-W2 (ui skin-fragment tier) + gate G25** — ONE ui-package
@@ -168,8 +173,8 @@ Each action gets exactly ONE home; delete the copies. A hover-`⋯` MENU mirror 
 always-visible button is not.
 
 | Action | The ONE owner | Delete / demote from |
-|---|---|---|
-| Create (New chat / character / preset) | List header band, single `primary` button | any content-area "+" (the chat landing hero is ALREADY one primary via a mutually-exclusive ternary — see N5's [CORRECTED]; confirm, don't demote) |
+| - | - | - |
+| Create (New chat / character / preset) | List header band, single `primary` button | any content-area "+" (the chat landing hero is ALREADY one primary via a mutually-exclusive ternary — see N5's \[CORRECTED]; confirm, don't demote) |
 | Save / Discard | NOWHERE — autosave everywhere (§7); status text replaces buttons | `character-editor-surface.tsx` Discard/Save pair, `preset-editor-surface.tsx:187` Save preset (in the SaveBar block), per-field Set |
 | Per-entity manage (Duplicate · Archive · Export · Delete) | List-row `⋯` (hover-revealed) | Content-header duplicates; one Context-header `⋯` mirror allowed only when the row isn't visible |
 | Message actions (edit · fork · hide · copy · delete) | Message row hover cluster: `edit` + `fork` inline, rest under `⋯` | the always-on 5-icon strip |
@@ -248,7 +253,7 @@ The current UI is the LANDED D62 output; these pain points are what D62's ruling
 amends the following (recorded in `Core-Path-Registry.md`; grep the id for the decision record):
 
 | # | Old ruling (D62) | New ruling (D66) | Why |
-|---|---|---|---|
+| - | - | - | - |
 | A1 | UIP-202: LIST panel renders NO header band (list surface owns its title; "kill the triple title") | LIST panel gets a real `.shell-panel-header` band on the shared `--dimension-chrome-row` baseline; the surface's title/action move INTO it. The triple-title fix is PRESERVED — the band replaces the surface's own title row, never adds to it | The missing band breaks the P1 baseline: the List title floats above everyone else's horizon (verified: `home.png`) |
 | A2 | UIP-302: New-chat demoted to a compact GHOST `+` icon | The list-header **New** is the panel's ONE `primary` button (`size="sm"`, `Plus` + label) | P2: the list OWNS create; a ghost `+` next to an ember hero duplicate inverted the hierarchy (verified: landing hero is ember, list `+` is ghost) |
 | A3 | §B.1 dim-at-rest: action clusters rest at `opacity-40`, never hidden (`message-actions-reveal.ts`) | Rest state is HIDDEN (`opacity-0 pointer-events-none`), revealed on hover/`focus-within`; `pointer-coarse:opacity-100` STAYS; `messageActions=expanded` pref shows the collapsed cluster always | Dim-at-rest still renders 5 icons per turn × every turn = the dominant noise source (verified: `chat-thread.png`). The Wave-1 "opacity-0 in-flow starves a flex sibling" P0 was re-checked: the cluster keeps its box (opacity changes no layout) and the name-row has measured positive slack (`message-row.ct.tsx` geometry CT), so the hazard that ruling guarded is absent |
@@ -264,6 +269,7 @@ focus-ring cluster, micro-caps voice) stands unchanged.
 > Files relative to `packages/client/src`, `ui/` = `packages/ui/src`. Every anchor verified 2026-07-13.
 
 ### N1 · Chrome baseline — `features/app-shell/` — ✅ (four headers at y=48, zero drift, flat/ramp ± glass)
+
 Files: `surfaces/shell.css`, `components/panel-chrome.tsx`, `components/shell-topbar.tsx`,
 `components/rail.tsx`, `features/chat/components/chat-header.tsx`.
 
@@ -278,7 +284,7 @@ Files: `surfaces/shell.css`, `components/panel-chrome.tsx`, `components/shell-to
 - Confirm all four headers: `height: var(--dimension-chrome-row)`; `padding-inline: var(--spacing-block)`.
 - Elevation/glass compat: style the band ONLY via `.shell-panel-header` (the `ramp` border-drop rule
   at `shell.css:85` then covers it); NO opaque background (glass panels need the translucent fill).
-- Topbar cluster — **[MECHANISM SHIPPED 2026-07-15, SKIN OPEN]**: the trail is now a registry render
+- Topbar cluster — **\[MECHANISM SHIPPED 2026-07-15, SKIN OPEN]**: the trail is now a registry render
   of `topbar.trail` chrome widgets (shell-chrome slice 1; the doubled detail-panel close is gone).
   N1's remaining topbar work is the SKIN, applied to the widget bodies: one uniform ghost icon cluster
   (`size="icon"` `intent="ghost"`); the `⌘K jump` chip stays the one bordered element with a 1px×20px
@@ -292,13 +298,14 @@ Files: `surfaces/shell.css`, `components/panel-chrome.tsx`, `components/shell-to
   topbar reads as exactly two groups.
 
 ### N2 · Chats list — ✅ (band + ONE ember New; overflow root-caused IN the primitive — see the corrected bullet; ember selection retints)
+
 - "CHATS" micro-caps title + count into the N1 band; the band's only action is
   `Button intent="primary" size="sm"` **New** with `Plus` (A2). The current ghost `+`
   (`[aria-label="Start a new chat"]` header instance) is replaced; the two `intent="primary"`
   EmptyState News in the same file are fine as-is (empty state = its own surface).
 - Search row directly under the band, full width, `--spacing-block` inset. Row/group gaps come
   from the layout primitives' defaults — never override them per-surface.
-- **Horizontal scrollbar — RESOLVED at build (2026-07-16), and the [CORRECTED] hypothesis was
+- **Horizontal scrollbar — RESOLVED at build (2026-07-16), and the \[CORRECTED] hypothesis was
   itself corrected by live measurement:** the overflowing box WAS the primitive — list-row's `body`
   slot had `min-width: auto`, so its automatic minimum resolved to the title's full nowrap
   min-content (750px vs a 265px panel); the `min-w-24` content floor cannot enable truncation (a
@@ -313,6 +320,7 @@ Files: `surfaces/shell.css`, `components/panel-chrome.tsx`, `components/shell-to
   selection reads via the left bar; a custom light theme retints the tint (it rides `--color-primary`).
 
 ### N3 · Message row — ✅ (rest = name · inline time · fit bubble, ZERO always-on icons; `edit fork ⋯` on hover/focus; keyboard reveal verifier-proven)
+
 **✅ SHIPPED.** Highest-impact fix; repeats every turn. All changes landed in the SHARED pieces — all 8 skins inherit (geometry CT suite re-verified).
 
 - **Actions collapse (A3), respecting `messageActions`:** strip becomes `edit` + `fork` inline +
@@ -338,7 +346,7 @@ Files: `surfaces/shell.css`, `components/panel-chrome.tsx`, `components/shell-to
 
 ### N4 · Chat Context — ✅ (identity header via the §6b-posture `header` slot beside `actions`; ember top edge retints; Overrides = ONE helper line + ? hints)
 
-**[RE-ANCHORED 2026-07-15]** lockdown M3 DELETED `chat-context-panel-surface.tsx` +
+**\[RE-ANCHORED 2026-07-15]** lockdown M3 DELETED `chat-context-panel-surface.tsx` +
 `draft-context-panel-surface.tsx`. Chat context is now `CHAT_CONTEXT_TABS` minted via
 `defineContextTabs` (`chats-section.tsx`), rendered by the blind `SectionContextHost` → the
 generalized `ContextTabsPanel`. M3 also deleted the never-fed `contextHeader` channel ("no capability
@@ -366,6 +374,7 @@ per-section switch. That channel shape is N4's ONE design decision; G3 (mint-onl
   over glass and under a light custom theme.
 
 ### N5 · Chats ember sweep + landing — ✅ (census: 56 Buttons, ONE stray demoted; every applicable §9 line passed live)
+
 - Sweep `features/chat/**` with ast-grep for `<Button $$$>` (rule 0.9): survivors = list-header New,
   composer Send (`composer.tsx:256`), one primary per DIALOG. The landing hero is ALREADY one primary (a mutually-exclusive ternary — `:96` empty-library / `:101` New chat) and the browse affordance (`All characters →`, `:128`) is already `ghost` — N5's landing work is confirming the ember count, not demoting anything, `message-edit-textarea.tsx:117` save (inline editor → `secondary`),
   any others found.
@@ -384,7 +393,7 @@ per-section switch. That channel shape is N4's ONE design decision; G3 (mint-onl
 - **PP1 · Badge `soft` tone + real `info`** — `ui/primitives/badge/variants.ts` + `tokens.json`.
   Add `color.info-foreground` (AA ≥4.5:1 pair for the existing unused `color.info`; per D71 it
   ships as a `light-dark()` pair — mirror the success/warning arms; the per-palette
-  `palette-contrast` sweep will enforce both polarities) + regenerate. **[CORRECTED]** the
+  `palette-contrast` sweep will enforce both polarities) + regenerate. **\[CORRECTED]** the
   variants file's "there is no info color token" comment is STALE — `color.info` exists, unused; fix
   the comment. Add `tone: solid|soft` (soft = `color-mix` 15% tint + `text-<intent>` + optional 30%
   border) for every intent; point `info` at `bg-info text-info-foreground` / soft pair. Migrate
@@ -404,7 +413,7 @@ per-section switch. That channel shape is N4's ONE design decision; G3 (mint-onl
   chips); Ripple's `--immersive-ripple-portrait-width` is independent — untouched. Sanity-check
   message-row (`md`) and identity-header (`sm`) call sites.
 - **PP5 · Checkbox off the group-gap token** — `checkbox/variants.ts` box is `size-section`
-  (verified; `--spacing-section` = 24px group gap). **[CORRECTED — naming]:** tokens.json
+  (verified; `--spacing-section` = 24px group gap). **\[CORRECTED — naming]:** tokens.json
   `spacing.control-sm/md/lg` are the COARSE 44/48/56px values (D62 pointer-conditional model:
   fine-pointer 32/34/40 is a conditional retune) — an 18px `control-xs` inside that ramp would break
   the convention. Either mint `spacing.checkbox` (single-purpose, honest) or wire a proper
@@ -445,7 +454,7 @@ per-section switch. That channel shape is N4's ONE design decision; G3 (mint-onl
    chips group under one "Suggested" label and `Suggest tags` / `Manage tags` are `ghost`; the
    opening-message card keeps `+ Add opening` / `Edit` as `ghost` and `Back` is `ghost` with a
    leading chevron, top-LEFT (not bottom); Context Field empty state names the entity ("Pick a field
-   on **JFC**…"). **[CORRECTED]** the Options color swatches ALREADY use `field.ColorField` with
+   on **JFC**…"). **\[CORRECTED]** the Options color swatches ALREADY use `field.ColorField` with
    labels (`character-appearance-tab.tsx:240-258`) — verify rendered labels are visible, else a
    sizing fix only, not a rebuild.
 2. **Presets** — **✅ SHIPPED 2026-07-16** (commit `7e57ca0b`; lane verifier CONFIRMED; full static
@@ -483,7 +492,7 @@ per-section switch. That channel shape is N4's ONE design decision; G3 (mint-onl
    Section detail's bottom `Duplicate · Move below · Delete` row → one `⋯` in the Section header;
    `Every generation` stays the only ember toggle in the detail. Rack-row ember budget: revisit the
    per-row ember toggles + `custom` pill + `POST` pill against P2 during the lane (they were the
-   worst single-viewport ember count: ~15).
+   worst single-viewport ember count: \~15).
 3. **World Info / Corpus / Refinery / Analytics / Settings** — apply the north-star pattern
    (N1 band + P2 ownership + §7 autosave) per section. (Refinery is a DECLARED-PLANNED section —
    its stop applies when it's built, not before.)
@@ -499,7 +508,7 @@ per-section switch. That channel shape is N4's ONE design decision; G3 (mint-onl
    - **Streaming caret + typing dots.** OPEN, verified: `ghost-message-row.tsx` has neither the
      2px primary caret nor the typing dots today. Verify-live what streaming actually shows, then
      build the missing chrome (respecting `reducedMotion`). Fold into the N3/N4 chat lane.
-   - **Account — [SUPERSEDED 2026-07-15 by the shell-chrome §B ruling: You ⊃ Identity ⊃ Account;
+   - **Account — \[SUPERSEDED 2026-07-15 by the shell-chrome §B ruling: You ⊃ Identity ⊃ Account;
      RESOLVED 2026-07-16].** The declared-planned settings `account` pane is DELETED (shell-chrome §E-7 —
      file + front-door export + door registration + `SETTINGS_CATEGORY_IDS` member gone). Account stays the
      leaf MODAL (`auth/lib/account-modal.tsx` → `auth/surfaces/account-surface.tsx`, placement `surface`),
@@ -633,24 +642,24 @@ transparent) · `ghost` (muted) · `destructive`. Bare `<Button>` = primary (rul
 - [ ] Exactly one ember button per surface; nav/tab active + selection bar are the only other ember.
 - [ ] No action visible in two places at once (hover-`⋯` menu mirror excepted).
 - [ ] Message turn at rest = name · inline time · fit-content bubble; hover = `edit fork ⋯`;
-      `messageActions=expanded` shows the 3-cluster always; coarse pointer shows it always.
+  `messageActions=expanded` shows the 3-cluster always; coarse pointer shows it always.
 - [ ] No horizontal scrollbar in any List at any title length.
 - [ ] Token counts once per surface; timestamps have no pills/icons; metadata `data-slot`s preserved.
 - [ ] Context header carries the active entity + ember top edge; empty states name the entity.
 - [ ] Every field = `Field`; every list item = `ListRow`; no editor has Save/Set/Discard — one
-      `Saved/Saving…` status each, same position.
+  `Saved/Saving…` status each, same position.
 - [ ] Presets: exactly 4 primary tabs; section actions = one `⋯`.
 - [ ] No raw color/size literals in features; token changes = `tokens.json` diff + regenerated
-      `theme.css` only; new hand-CSS only in `shell.css`.
+  `theme.css` only; new hand-CSS only in `shell.css`.
 - [ ] `info` badge blue + distinct from `neutral`; `soft` tone exists; no hand-rolled pills;
-      `bg-accent` only on hover/interaction; focus ring shows no offset moat in popovers.
-- [ ] Avatar sm/md/lg visually distinct; checkbox ~18px, decoupled from `--spacing-section`,
-      touch-target intact.
+  `bg-accent` only on hover/interaction; focus ring shows no offset moat in popovers.
+- [ ] Avatar sm/md/lg visually distinct; checkbox \~18px, decoupled from `--spacing-section`,
+  touch-target intact.
 - [ ] **Appearance matrix:** 8 chatStyles hold signature geometry; elevations flat/ramp/glow hold the
-      baseline; glass frosts; bg-image keeps legible scrimmed chrome; every metadata toggle +
-      `messageActions` mode functions; `density=compact` + `chatWidthPct` cascade.
+  baseline; glass frosts; bg-image keeps legible scrimmed chrome; every metadata toggle +
+  `messageActions` mode functions; `density=compact` + `chatWidthPct` cascade.
 - [ ] **Custom-theme smoke:** a LIGHT theme retints all new chrome (band, selection tint, ember edge,
-      badges, kbd) with derived foregrounds flipping — nothing stays Hearth-colored.
+  badges, kbd) with derived foregrounds flipping — nothing stays Hearth-colored.
 - [ ] **Custom-CSS stability:** zero removed `data-slot=` values / `.shell-*` class names in the diff.
 
 **Verify loop:** `pnpm stack start` once, then `pnpm snap` per change. Established idioms for this

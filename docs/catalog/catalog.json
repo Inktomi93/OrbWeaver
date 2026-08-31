@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "stats": {
-    "pending": 0,
+    "pending": 1,
     "missingFrontmatter": 0,
     "invalidFrontmatter": 0,
     "malformedFrontmatter": 0
@@ -189,9 +189,9 @@
       "path": "docs/architecture/core/AGENTS.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 364,
-      "bytes": 32825,
-      "sha256": "6154a53f5826342d2e2c6fb62560f6b7e2866f26d84c1c49b79dcbb83a4aa019",
+      "lines": 365,
+      "bytes": 33198,
+      "sha256": "933bcb3fa6a6909012820cf7c91b618df570410f9cd45989d9591af4e3c3dc34",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -248,7 +248,7 @@
         ],
         "summary": "Normative constitution re-read against the split control plane, proposed-program sprint map, and existing package-layout enforcement."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/architecture/core/Chat-Macro-Resolution.md",
@@ -642,8 +642,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 524,
-      "bytes": 284469,
-      "sha256": "c0a01c6f4b4df444737455eed1299dca31e9f5e4a5f30c3db41c2ff1a29be17d",
+      "bytes": 284743,
+      "sha256": "e43f80fdf69b9798cce0b3e182f232e5f48eaac20d615048ba5d5fa511369443",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -716,7 +716,7 @@
         ],
         "summary": "Canonical D-ledger re-read through D144; D71 backdrop truth-repair; frozen assigned hash retained and current verified blob updated."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/architecture/core/Core-Planning-and-Checklists.md",
@@ -796,8 +796,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 36,
-      "bytes": 2567,
-      "sha256": "2a0729734af1c90761beee23cb7fb4d9c999050decd9195b0e033d9ab1743271",
+      "bytes": 2594,
+      "sha256": "cdbc3d0914c7c052ec6e2659bfc78ee325a58c96612890169f0e12863f500a62",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -825,7 +825,7 @@
         ],
         "summary": "Full-read historical artifact retained for provenance; relocated citations were semantically re-derived and it is not current work or implementation authority."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/architecture/core/Core-Shared-Dissolution.md",
@@ -1640,8 +1640,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 445,
-      "bytes": 57781,
-      "sha256": "409642a9cf1d01aeef3621e3f77697f8b712d76849678184e704ba10cb4927c6",
+      "bytes": 57969,
+      "sha256": "75a14ebcc808913f49fd8dfc805707ae627fd92def3e203ef17171dbc96c7906",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -1683,7 +1683,7 @@
         ],
         "summary": "Full-read current current-reference document reverified after the Project/workboard split; existing typed implementation evidence remains current."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/architecture/core/UI-Density-Law.md",
@@ -1952,9 +1952,9 @@
       "path": "docs/architecture/core/client-architecture-lockdown.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 721,
-      "bytes": 131804,
-      "sha256": "567130820a4acede9a325cd9b6317368c36e005dbab1084dfcec231a50fff570",
+      "lines": 741,
+      "bytes": 133942,
+      "sha256": "37d1e7e8f26922bf0ebc5d6b5a36c779cde2fe9da6fb17eecfb91adf916c3b47",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -1996,7 +1996,7 @@
         ],
         "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/architecture/core/motion-and-animation-guide.md",
@@ -4231,6 +4231,37 @@
       "receiptCurrent": true
     },
     {
+      "path": "docs/architecture/history/ui-cohesion-north-star.md",
+      "lane": "architecture-history",
+      "issue": 3,
+      "lines": 676,
+      "bytes": 56621,
+      "sha256": "a67374831598e23feca556335a447d81c912d437575a768086c8ab70020e8c3a",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "history",
+          "status": "archived",
+          "updated": "2026-08-30"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/architecture/history/ui-cohesion-north-star.md",
+        "assignedSha256": "a67374831598e23feca556335a447d81c912d437575a768086c8ab70020e8c3a",
+        "disposition": "pending",
+        "authority": "unclassified",
+        "fullRead": false,
+        "verifiedSha256": null,
+        "verifiedCommit": null,
+        "verifiedAt": null,
+        "evidence": [],
+        "summary": ""
+      },
+      "receiptCurrent": false
+    },
+    {
       "path": "docs/architecture/history/ui-gates-lessons-archaeology-record.md",
       "lane": "architecture-history",
       "issue": 3,
@@ -4479,16 +4510,16 @@
       "path": "docs/architecture/proposed/INDEX.md",
       "lane": "architecture-proposed",
       "issue": 4,
-      "lines": 37,
-      "bytes": 2629,
-      "sha256": "c9d62549f71266525d77c836129e676a99592dadb1d0c1896d1c8d087dc0eb5a",
+      "lines": 36,
+      "bytes": 2574,
+      "sha256": "4d1a2806e2443d8bf2795a0aea635e40b92cd5ef918051499031c0a3672263b2",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "index",
           "status": "active",
-          "updated": "2026-08-25"
+          "updated": "2026-08-30"
         },
         "errors": []
       },
@@ -4526,7 +4557,7 @@
           }
         ]
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/architecture/proposed/README.md",
@@ -10451,42 +10482,6 @@
             ]
           }
         ]
-      },
-      "receiptCurrent": true
-    },
-    {
-      "path": "docs/architecture/proposed/ui-cohesion-north-star.md",
-      "lane": "architecture-proposed",
-      "issue": 4,
-      "lines": 667,
-      "bytes": 56267,
-      "sha256": "7188f4560ecc94c9d5820c00efa3eb2d8d91eb28cee229a532259b2eacd220cc",
-      "frontmatter": {
-        "present": true,
-        "malformed": false,
-        "fields": {
-          "kind": "program",
-          "status": "active",
-          "updated": "2026-08-18"
-        },
-        "errors": []
-      },
-      "receipt": {
-        "path": "docs/architecture/proposed/ui-cohesion-north-star.md",
-        "assignedSha256": "7188f4560ecc94c9d5820c00efa3eb2d8d91eb28cee229a532259b2eacd220cc",
-        "disposition": "superseded",
-        "authority": "historical",
-        "fullRead": true,
-        "verifiedSha256": "7188f4560ecc94c9d5820c00efa3eb2d8d91eb28cee229a532259b2eacd220cc",
-        "verifiedCommit": "f07902dd0af62e190823c444379c2490dcd1199f",
-        "verifiedAt": "2026-08-18",
-        "evidence": [
-          "docs/architecture/proposed/ui-cohesion-north-star.md:1 (full read; lifecycle/frontmatter evaluated)",
-          "docs/architecture/proposed/INDEX.md:1 (parked/non-authoritative program routing)",
-          "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
-          "truth-repair 2026-08-18: chromeBacking line updated after #167 deleted RowSkin.chromeBacking (94636b0ed) — scrim now universal on nameRowFrame"
-        ],
-        "summary": "Superseded by docs/retro-workboard.md per current core law; retained as historical design provenance."
       },
       "receiptCurrent": true
     },

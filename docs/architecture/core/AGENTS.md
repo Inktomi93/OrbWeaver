@@ -45,6 +45,7 @@ updated: 2026-08-30
 - **A type/shape has exactly ONE home, by who needs it** (`Spine-TypeScript-and-Patterns.md`): DB row → `db` (`$inferSelect`); cross-boundary wire (server↔client, domain↔domain) → `contracts` (zod + inferred TS); pure primitive → `kit`; domain-internal → that domain's `contract/`. A hand-declared exported `type`/`interface`/`z.object` outside those four homes is gate-RED (`no-inline-types`) — never re-spell a shape a lower package already owns.
 - **`kit` = pure ISOMORPHIC primitives + engines ONLY** — no `node:*`, no domain, no `db`, no `contracts`, no I/O (isomorphic npm like zod/luxon is fine). Node-only-pure code → `@orb/server/kit`, NEVER `@orb/kit` (the browser imports kit).
 - **Tests are CENTRAL, never colocated.** The test for `packages/<pkg>/src/<path>.ts` lives at `tests/<pkg>/<path>.<kind>.test.ts` — a mechanical prefix-swap mirror (`packages/X/src/` ↔ `tests/X/`), kind by suffix (`.test` unit · `.int.test` db · `.contract.test` schema · `.test-d` types). A `.test.ts` dropped next to the source is RED (`test-layout` gate). Full policy: `Spine-Testing.md`.
+- **CSS has SIX homes and a feature is not one of them** — the token vault, generated theme, ui globals, density-tier map, client globals, and ONE structural shell file. Every visual VALUE is a DTCG token; every component SKIN is a `tv()` variant; every LAYOUT is an `@orb/ui` primitive. The closed set and the WHY for each live in `client-architecture-lockdown.md` §4.
 
 ### 0.3 Your reading set — find your task, read THOSE docs in full, skip the rest
 

@@ -1047,6 +1047,18 @@
       "summary": "Historical architecture record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
     },
     {
+      "path": "docs/architecture/history/ui-cohesion-north-star.md",
+      "assignedSha256": "a67374831598e23feca556335a447d81c912d437575a768086c8ab70020e8c3a",
+      "disposition": "pending",
+      "authority": "unclassified",
+      "fullRead": false,
+      "verifiedSha256": null,
+      "verifiedCommit": null,
+      "verifiedAt": null,
+      "evidence": [],
+      "summary": ""
+    },
+    {
       "path": "docs/architecture/history/ux-flow-revamp.md",
       "assignedSha256": "ef7045051715bab4b9dca8bd00ebf5bc4a7788754e612957b7614d15c9ef926e",
       "disposition": "archive",

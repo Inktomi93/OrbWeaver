@@ -4297,23 +4297,6 @@
       ]
     },
     {
-      "path": "docs/architecture/proposed/ui-cohesion-north-star.md",
-      "assignedSha256": "7188f4560ecc94c9d5820c00efa3eb2d8d91eb28cee229a532259b2eacd220cc",
-      "disposition": "superseded",
-      "authority": "historical",
-      "fullRead": true,
-      "verifiedSha256": "7188f4560ecc94c9d5820c00efa3eb2d8d91eb28cee229a532259b2eacd220cc",
-      "verifiedCommit": "f07902dd0af62e190823c444379c2490dcd1199f",
-      "verifiedAt": "2026-08-18",
-      "evidence": [
-        "docs/architecture/proposed/ui-cohesion-north-star.md:1 (full read; lifecycle/frontmatter evaluated)",
-        "docs/architecture/proposed/INDEX.md:1 (parked/non-authoritative program routing)",
-        "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
-        "truth-repair 2026-08-18: chromeBacking line updated after #167 deleted RowSkin.chromeBacking (94636b0ed) — scrim now universal on nameRowFrame"
-      ],
-      "summary": "Superseded by docs/retro-workboard.md per current core law; retained as historical design provenance."
-    },
-    {
       "path": "docs/architecture/proposed/world-state-clips-trackers-spec.md",
       "assignedSha256": "f3d94627dd6e22b56e7d6d1eca8b0c7f658821e757fcedd3eba349e19656a2dd",
       "disposition": "needs-owner",

@@ -18,8 +18,8 @@ Build was at Phase 6+ at this snapshot (see `../history/Core-BUILD-PLAN.md` for 
 BUILT** (verified corpus-wide 2026-07-13 — chat engine incl. the pending\_turns defer/drain lane,
 multiplayer, all six provider backends + the turn-shaping axis, search/discovery/stats, portability);
 what's unbuilt backend-side is the parked future programs + short tails, all mapped in
-`../proposed/INDEX.md`. **Current lane:** `../proposed/ui-cohesion-north-star.md` (D66 UI-cohesion
-program — the remaining work is predominantly frontend). **Ledger cursor: D106**
+`../proposed/INDEX.md`. **Historical lane at this snapshot:** `../history/ui-cohesion-north-star.md`
+(the D66 UI-cohesion program is superseded and has no current lifecycle authority). **Ledger cursor: D106**
 (`Core-Path-Registry.md` — D75 debug-surface read-only · D76 healthz minimal · D77 ingress XFF-only +
 empty-403 · D78 autosave-form factory session boundary · D106 chat read-visibility presence-interval
 clamp; D79–D105 RESERVED for main-era rulings pending re-mint, see `Core-Path-Registry.md`).
