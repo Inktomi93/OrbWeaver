@@ -747,7 +747,7 @@ function readGapOps(over: { readonly visibility?: Awaited<ReturnType<PluginHostO
         viewers.push(userId);
         return Promise.resolve(over.visibility ?? null);
       },
-      listRoster: (chatId) => {
+      listCharacters: (chatId) => {
         rosterChats.push(chatId);
         return Promise.resolve([{ id: "char_seat0000000000000000000", name: "Seat", avatarAssetId: null }]);
       },
@@ -785,11 +785,11 @@ function readGapOps(over: { readonly visibility?: Awaited<ReturnType<PluginHostO
 }
 
 describe("buildPluginBridge — #788 READ gaps are owner-scoped + leak-free", () => {
-  test("listRoster resolves the INSTALLER's own membership and short-circuits a NON-MEMBER to [] (the leak-free choke bites)", async () => {
+  test("listCharacters resolves the INSTALLER's own membership and short-circuits a NON-MEMBER to [] (the leak-free choke bites)", async () => {
     const rec = readGapOps({ visibility: null }); // not a present member
     const bridge = buildPluginBridge(rec.ops, INSTALLER, PLUGIN_REF, freeBelts());
 
-    const roster = await bridge.chat.listRoster(CHAT);
+    const roster = await bridge.chat.listCharacters(CHAT);
 
     expect(roster).toEqual([]);
     // The membership was resolved FOR THE INSTALLER (structural — never a guest-supplied id)…
@@ -799,22 +799,22 @@ describe("buildPluginBridge — #788 READ gaps are owner-scoped + leak-free", ()
     expect(rec.rosterChats).toEqual([]);
   });
 
-  test("listRoster for a MEMBER reads the invocation chat's roster (member-gated, this room only)", async () => {
+  test("listCharacters for a MEMBER reads the invocation chat's roster (member-gated, this room only)", async () => {
     const rec = readGapOps({ visibility: { role: "member", historyFloorSeq: historyFloor(0), readsHidden: false } });
     const bridge = buildPluginBridge(rec.ops, INSTALLER, PLUGIN_REF, freeBelts());
 
-    const roster = await bridge.chat.listRoster(CHAT);
+    const roster = await bridge.chat.listCharacters(CHAT);
 
     expect(roster).toEqual([{ id: "char_seat0000000000000000000", name: "Seat", avatarAssetId: null }]);
     expect(rec.viewers).toEqual([INSTALLER]);
     expect(rec.rosterChats).toEqual([CHAT]); // scoped to the ADMITTED invocation chat, no other
   });
 
-  test("listRoster's membership is resolved for whichever INSTALLER the bridge was built for (cross-owner is structural)", async () => {
+  test("listCharacters's membership is resolved for whichever INSTALLER the bridge was built for (cross-owner is structural)", async () => {
     const rec = readGapOps({ visibility: null });
     const otherBridge = buildPluginBridge(rec.ops, OTHER, PLUGIN_REF, freeBelts());
 
-    await otherBridge.chat.listRoster(CHAT);
+    await otherBridge.chat.listCharacters(CHAT);
 
     expect(rec.viewers).toEqual([OTHER]); // the guest has no lever on whose membership is checked
   });

@@ -722,16 +722,16 @@ function setChat(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneR
     },
   });
 
-  // listRoster(chat) — the present CHARACTER roster of the ADMITTED chat (#788 F11). The bridge resolves the
+  // listCharacters(chat) — the present CHARACTER roster of the ADMITTED chat (#788 F11). The bridge resolves the
   // installer's membership and returns `[]` for a non-member; a forged/stale handle fails `resolveChat` first.
   attachAsync(ctx, chat, {
-    name: "listRoster",
+    name: "listCharacters",
     inFlight: runtime.inFlight,
     pending: runtime.pending,
     impl: async (args) => {
-      requireCapability(runtime, "chat.listRoster");
+      requireCapability(runtime, "chat.listCharacters");
       const { chatId } = resolveChat(runtime, args[0]);
-      return await runtime.bridge.chat.listRoster(chatId);
+      return await runtime.bridge.chat.listCharacters(chatId);
     },
   });
 

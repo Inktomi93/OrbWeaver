@@ -215,7 +215,7 @@ pass on the owner-scoped assetId seam is the orchestrator's follow-up). Residual
 
 **#788 append, 2026-08-28 (post-merge of 569afb596):** the surface grew past this design's 20-capability
 snapshot — the axis is now 23 (`worldinfo.read`, `assets.read`, `search.query`) plus the FREE `tokens`
-namespace (`tokens.count`, both realms) and three gated members on existing namespaces (`chat.listRoster`,
+namespace (`tokens.count`, both realms) and three gated members on existing namespaces (`chat.listCharacters`,
 `worldInfo.listBooks`/`listEntries`). The pin tripped exactly as designed on the re-sync (5 ts7 errors
 naming every gap by namespace/member), and the mirror, pin rows, and authoring-guide capability table were
 extended to match, with fresh planted controls on the NEW rows (`tokens`, `search`) red in both directions.
