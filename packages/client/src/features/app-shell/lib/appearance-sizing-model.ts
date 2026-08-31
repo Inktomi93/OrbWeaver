@@ -17,6 +17,7 @@ export const APPEARANCE_SIZING_SUBCATEGORY: ConfigSubcategory = {
   settings: [
     {
       id: "chat-width",
+      key: "chatWidthPct",
       label: "Chat width",
       keywords: ["width", "column", "reading"],
       teach: {
@@ -26,6 +27,7 @@ export const APPEARANCE_SIZING_SUBCATEGORY: ConfigSubcategory = {
     },
     {
       id: "font-scale",
+      key: "fontScale",
       label: "Text size",
       keywords: ["font", "scale", "zoom"],
       teach: {
@@ -36,6 +38,7 @@ export const APPEARANCE_SIZING_SUBCATEGORY: ConfigSubcategory = {
     },
     {
       id: "density",
+      key: "density",
       label: "Density",
       keywords: ["compact", "comfortable", "spacing"],
       teach: {
@@ -45,6 +48,7 @@ export const APPEARANCE_SIZING_SUBCATEGORY: ConfigSubcategory = {
     },
     {
       id: "elevation",
+      key: "elevation",
       label: "Surface elevation",
       keywords: ["layered", "depth", "shadow", "flat"],
       teach: {
@@ -54,6 +58,7 @@ export const APPEARANCE_SIZING_SUBCATEGORY: ConfigSubcategory = {
     },
     {
       id: "reduced-motion",
+      key: "reducedMotion",
       label: "Reduce motion",
       keywords: ["animation", "transition", "accessibility", "motion"],
       teach: {

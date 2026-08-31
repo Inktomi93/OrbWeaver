@@ -19,34 +19,40 @@ export const APPEARANCE_MESSAGE_DETAILS_SUBCATEGORY: ConfigSubcategory = {
   settings: [
     {
       id: "show-timestamps",
+      key: "showTimestamps",
       label: "Show timestamps",
       keywords: ["time", "date"],
       teach: { summary: "A time chip on every message.", affects: ["message chrome in every chat"] },
     },
     {
       id: "show-message-id",
+      key: "showMessageId",
       label: "Show message ID",
       teach: { summary: "The message's stable id, for scripting and reference.", affects: ["message chrome in every chat"] },
     },
     {
       id: "show-model",
+      key: "showModelIcon",
       label: "Show model",
       teach: { summary: "Credits the model that generated the message, in its actions row on hover.", affects: ["assistant messages' hover chrome"] },
     },
     {
       id: "show-token-count",
+      key: "showTokenCount",
       label: "Show token count",
       keywords: ["tokens", "usage"],
       teach: { summary: "The message's token usage, when known.", affects: ["message chrome in every chat"] },
     },
     {
       id: "show-generation-time",
+      key: "showGenerationTimer",
       label: "Show generation time",
       keywords: ["timer", "duration"],
       teach: { summary: "How long the model took to generate the message, when known.", affects: ["assistant messages' chrome"] },
     },
     {
       id: "show-generation-cost",
+      key: "showGenerationCost",
       label: "Show generation cost",
       keywords: ["cost", "price", "spend"],
       teach: {
@@ -56,12 +62,14 @@ export const APPEARANCE_MESSAGE_DETAILS_SUBCATEGORY: ConfigSubcategory = {
     },
     {
       id: "show-reasoning",
+      key: "showLLMReasoningIcon",
       label: "Show reasoning icon",
       keywords: ["thinking", "reasoning"],
       teach: { summary: "A small glyph on the reasoning disclosure, alongside its Thinking/Thought label.", affects: ["reasoning-capable models' messages"] },
     },
     {
       id: "message-actions",
+      key: "messageActions",
       label: "Action cluster",
       keywords: ["edit", "delete", "fork", "copy", "hide", "hover"],
       teach: { summary: "Edit/hide/fork/delete/copy — shown on hover (default) or always.", affects: ["every message row's action affordances"] },

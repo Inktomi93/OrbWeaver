@@ -11,6 +11,7 @@ export const APPEARANCE_EFFECTS_SUBCATEGORY: ConfigSubcategory = {
   settings: [
     {
       id: "frosted-glass",
+      key: "blurSurfaces",
       label: "Frosted glass",
       keywords: ["blur", "glass", "backdrop"],
       teach: {
@@ -22,17 +23,20 @@ export const APPEARANCE_EFFECTS_SUBCATEGORY: ConfigSubcategory = {
     },
     {
       id: "glass-blur",
+      key: "blurStrength",
       label: "Glass blur radius",
       teach: { summary: "How strong the frosted-glass blur is, for any surface enabled above.", affects: ["every surface with Frosted glass on"] },
     },
     {
       id: "prose-shadow",
+      key: "shadowEffects",
       label: "Prose shadow",
       keywords: ["halo", "readability"],
       teach: { summary: "A subtle readability halo on message text.", affects: ["message text over busy or translucent backdrops"] },
     },
     {
       id: "surface-texture",
+      key: "surfaceTexture",
       label: "Surface texture",
       keywords: ["grain", "film", "noise"],
       teach: {
@@ -43,6 +47,7 @@ export const APPEARANCE_EFFECTS_SUBCATEGORY: ConfigSubcategory = {
     },
     {
       id: "accent-tint",
+      key: "enableThemeColorization",
       label: "Tint the UI with the accent color",
       keywords: ["accent", "color", "border", "hairline"],
       teach: {

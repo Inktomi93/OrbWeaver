@@ -137,6 +137,7 @@ export type {
   CommittedChatContext,
   ConfigContextState,
   ConfigTeachDoor,
+  ConfigTeachValue,
   ConfigTeachView,
   ContextDefinition,
   ContextEmptyArm,
@@ -156,6 +157,7 @@ export { DEPLOYMENT_FLOOR, resolveRowRenderPolicy, SAFE_FLOOR } from "./render-t
 export { rowActionSubject, rowQualifiers } from "./row-qualifiers.ts";
 export type { SessionMessage, SingleFlightOutcome } from "./session-channel.ts";
 export { onSessionMessage, postSessionMessage, runSessionRecoverySingleFlight } from "./session-channel.ts";
+export { settingsValueAtPath, settingsValueDiffers } from "./settings-path.ts";
 export type { ActiveTagFilterState, TagFilterEntry, TagFilterState } from "./tag-filter-state.ts";
 export { cycleTagFilterEntries, NEXT_TAG_FILTER_STATE, TAG_FILTER_STATES, tagFilterStateOf } from "./tag-filter-state.ts";
 export type { SortableTag, TagSortMode } from "./tag-sort.ts";
