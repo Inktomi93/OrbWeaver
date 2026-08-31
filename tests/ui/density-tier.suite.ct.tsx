@@ -23,6 +23,7 @@ import { ListRow } from "@orb/ui/list-row";
 import { MessageMedia } from "@orb/ui/message-media";
 import { SandboxFrame } from "@orb/ui/sandbox-frame";
 import { Text } from "@orb/ui/text";
+import { ThemeScope } from "@orb/ui/theme-scope";
 import { ToolCallBlock } from "@orb/ui/tool-call-block";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
@@ -139,23 +140,46 @@ test("outside every Surface the primitive keeps its own tier-less default (--spa
 });
 
 test("D9: the user-pref density axis re-binds the SAME spacing vars a tier step resolves through", async ({ mount }) => {
-  // The app-shell's `[data-density="compact"]` block re-binds --spacing-row/block on the shell root
-  // (client shell.css). That stylesheet is not in the CT page, so this proves the PHYSICS the shell relies
-  // on — an ancestor re-binding wins for the whole subtree, and the tier step follows it — rather than
-  // that one selector. The two axes are orthogonal by construction: tier picks WHICH var, the density
-  // pref sets its VALUE.
-  const surface = await mount(
-    <Surface tier="instrument">
-      <Card>Instrument island</Card>
-    </Surface>,
+  // Drive BOTH preference arms through the real ThemeScope carrier. The four variables live in tiers.css,
+  // so this proves the actual selector reaches any descendant (including a portal root) and that a tier
+  // still picks WHICH re-bound variable it consumes.
+  const density = await mount(
+    <div>
+      <ThemeScope tokens={{ density: "comfortable" }}>
+        <div data-testid="comfortable">
+          <Surface tier="instrument">
+            <Card>Comfortable instrument island</Card>
+          </Surface>
+        </div>
+      </ThemeScope>
+      <ThemeScope tokens={{ density: "compact" }}>
+        <div data-testid="compact">
+          <Surface tier="instrument">
+            <Card>Compact instrument island</Card>
+          </Surface>
+        </div>
+      </ThemeScope>
+    </div>,
   );
-  const card = surface.locator('[data-slot="card-root"]');
-  const before = await computedPx(card, "paddingTop");
-  await card.evaluate((node) => {
-    (node.parentElement as HTMLElement).style.setProperty("--spacing-row", "3px");
-  });
-  expect(await computedPx(card, "paddingTop")).toBe(3);
-  expect(before).not.toBe(3);
+  const intents = ["--spacing-field", "--spacing-row", "--spacing-block", "--spacing-section"] as const;
+  const read = (testId: string): Promise<readonly number[]> =>
+    density.getByTestId(testId).evaluate((node, names) => {
+      const probe = node.ownerDocument.createElement("div");
+      node.append(probe);
+      const resolved = names.map((name) => {
+        probe.style.padding = `var(${name})`;
+        return Number.parseFloat(getComputedStyle(probe).paddingTop);
+      });
+      probe.remove();
+      return resolved;
+    }, intents);
+  const comfortable = await read("comfortable");
+  const compact = await read("compact");
+  for (let index = 0; index < intents.length; index += 1) {
+    expect(compact[index]).toBeLessThan(comfortable[index] ?? 0);
+  }
+  const compactCard = density.getByTestId("compact").locator('[data-slot="card-root"]');
+  expect(await computedPx(compactCard, "paddingTop")).toBe(compact[1]);
 });
 
 test("VOICE: each of the four voices resolves its own type step, and BEATS the size default it overrides", async ({ mount }) => {
