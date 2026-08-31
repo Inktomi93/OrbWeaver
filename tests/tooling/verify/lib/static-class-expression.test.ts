@@ -81,6 +81,21 @@ test("resolves a composer imported through a cross-file re-export alias", () => 
   expect(valuesOf(p)).toEqual(["probe:reexported-composer"]);
 });
 
+test("resolves a composer through namespace access on a local re-export module", () => {
+  const p = project({
+    "packages/ui/src/composer.ts": 'export { clsx as join } from "clsx";\n',
+    "packages/ui/src/x.ts": `
+      import * as composer from "./composer.ts";
+      export const dot = composer.join("probe:namespace-reexport-dot");
+      export const bracket = composer["join"]("probe:namespace-reexport-bracket");
+    `,
+  });
+  const result = walkStaticClassExpressions(p, p.getSourceFiles());
+  expect(result.candidates.map((candidate) => candidate.value).sort()).toEqual(["probe:namespace-reexport-bracket", "probe:namespace-reexport-dot"]);
+  expect(result.opaque).toEqual([]);
+  expect(result.unresolved).toEqual([]);
+});
+
 test("keeps producer provenance through re-exports, templates, concatenation, and static/dynamic object indexing", () => {
   const producer = "packages/ui/src/classes.ts";
   const p = project({
@@ -174,6 +189,20 @@ test("counts opaque runtime leaves and fails loud on a static cycle while retain
 test("does not grant composer identity to an arbitrary local function named cn", () => {
   const p = project({
     "packages/ui/src/x.ts": 'function cn(value: string) { return value.length; }\nexport const inert = cn("probe:not-a-class");\n',
+  });
+  expect(valuesOf(p)).toEqual([]);
+});
+
+test("does not grant composer identity when a wrapper returns unrelated prose", () => {
+  const p = project({
+    "packages/ui/src/x.ts": `
+      import { clsx } from "clsx";
+      function notAComposer(value: string) {
+        clsx(value);
+        return "fixed prose";
+      }
+      export const inert = notAComposer("probe:not-a-class");
+    `,
   });
   expect(valuesOf(p)).toEqual([]);
 });
@@ -323,4 +352,51 @@ test("resolves exact spread properties through aliases and re-exports with overw
   expect(exact.unresolved).toEqual([]);
   expect(evaluateStaticObjectProperties(unresolvedSpread.getExpression(), unresolvedSpread, ["className"]).unresolved).not.toEqual([]);
   expect(evaluateStaticObjectProperties(opaqueSpread.getExpression(), opaqueSpread, ["className"]).opaque).not.toEqual([]);
+});
+
+test("applies spread overwrite order to member reads and invalidates values behind an unknown later spread", () => {
+  const p = project({
+    "packages/ui/src/x.ts": `
+      const newest = { className: "probe:new" };
+      const known = { className: "probe:old", ...newest };
+      declare const runtime: Record<string, string>;
+      const uncertain = { className: "probe:stale", ...runtime };
+      const restored = { ...runtime, className: "probe:restored" };
+      const nestedRuntime = { ...runtime };
+      const nestedUncertain = { className: "probe:nested-stale", ...nestedRuntime };
+      export const knownValue = known.className;
+      export const uncertainValue = uncertain.className;
+      export const restoredValue = restored.className;
+      export const nestedUncertainValue = nestedUncertain.className;
+    `,
+  });
+  const source = p.getSourceFileOrThrow(`${ROOT}/packages/ui/src/x.ts`);
+  const memberReads = new Map(
+    source
+      .getDescendantsOfKind(SyntaxKind.PropertyAccessExpression)
+      .filter((node) => node.getName() === "className")
+      .map((node) => [node.getExpression().getText(), node]),
+  );
+  const known = memberReads.get("known");
+  const uncertain = memberReads.get("uncertain");
+  const restored = memberReads.get("restored");
+  const nestedUncertain = memberReads.get("nestedUncertain");
+  if (known === undefined || uncertain === undefined || restored === undefined || nestedUncertain === undefined) {
+    throw new Error("test fixture lost one of its className member reads");
+  }
+  const knownResult = evaluateStaticClassExpression(known, known);
+  expect(knownResult.candidates.map((candidate) => candidate.value)).toEqual(["probe:new"]);
+  expect(knownResult.opaque).toEqual([]);
+
+  const uncertainResult = evaluateStaticClassExpression(uncertain, uncertain);
+  expect(uncertainResult.candidates).toEqual([]);
+  expect(uncertainResult.opaque.map((shape) => shape.reason)).toContain("runtime object spread under selected-property carrier");
+
+  const restoredResult = evaluateStaticClassExpression(restored, restored);
+  expect(restoredResult.candidates.map((candidate) => candidate.value)).toEqual(["probe:restored"]);
+  expect(restoredResult.opaque).toEqual([]);
+
+  const nestedUncertainResult = evaluateStaticClassExpression(nestedUncertain, nestedUncertain);
+  expect(nestedUncertainResult.candidates).toEqual([]);
+  expect(nestedUncertainResult.opaque.map((shape) => shape.reason)).toContain("runtime object spread under selected-property carrier");
 });
