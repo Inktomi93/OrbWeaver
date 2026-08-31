@@ -157,3 +157,70 @@ test("a member of a NONE collection renders that collection's copy, once", async
   await pane.getByRole("button", { name: "Applies" }).click();
   await expect(pane.getByText("Nothing to attach")).toHaveCount(1);
 });
+
+// ── ABOUT's default-vs-current block (§3.4 row chrome, #866 — the deferred leg): the COARSE pointer's
+// one Reset door, resolved through the SAME `useConfigLeaf` the row's stripe reads. Both arms planted:
+// at default the honest one-liner with NO button; modified, the pair + a Reset that fires the section's
+// exact wire.
+
+const QUOTED_DEFAULT_WORD = DEFAULT_USER_SETTINGS.appearance.colorQuotedSpeech ? "On" : "Off";
+const QUOTED_MODIFIED_WORD = DEFAULT_USER_SETTINGS.appearance.colorQuotedSpeech ? "Off" : "On";
+
+/** The `stub` twin with ONE planted difference — `chat.colorQuotedSpeech` flipped off its default. */
+function stubModified(page: Page): Promise<TrpcRecorder> {
+  return routeTrpc(page, {
+    "settings.getUserSettings": () => ({
+      ...SETTINGS_VIEW,
+      config: {
+        ...DEFAULT_USER_SETTINGS,
+        appearance: { ...DEFAULT_USER_SETTINGS.appearance, colorQuotedSpeech: !DEFAULT_USER_SETTINGS.appearance.colorQuotedSpeech },
+      },
+    }),
+    "settings.updateUserSettingsSection": () => ({}),
+    "settings.listThemes": () => [],
+    "rosterPreset.list": [],
+    "sessions.me": { userId: "user_ct_config", handle: "ct_config", globalRole: "user" },
+    "tag.listTagsWithUsage": () => [TAG],
+    "regex.listScripts": () => [SCRIPT],
+    "regex.listGlobal": () => [],
+    "regex.listScriptUsage": () => ({ presets: [], characters: [], rooms: [] }),
+    "worldInfo.listBooksWithUsage": () => [],
+    "persona.list": () => [],
+    "character.list": () => ({ items: [], nextCursor: null }),
+  });
+}
+
+test("About states 'Using the default' on an unmodified leaf — and offers NO Reset", async ({ mount, page }) => {
+  await stub(page);
+  const workspace = await mount(<ConfigWorkspaceStory />);
+  await workspace.getByRole("button", { name: "reset groups" }).click();
+  await workspace
+    .locator('[data-slot="config-roster"]')
+    .getByRole("button", { name: /Appearance/ })
+    .click();
+
+  await workspace.locator('[data-setting="color-quoted-speech"]').getByRole("switch").focus();
+  const pane = workspace.locator(CONTEXT_PANE);
+  await expect(pane.getByText(`Using the default — ${QUOTED_DEFAULT_WORD}.`)).toBeVisible();
+  await expect(pane.getByRole("button", { name: "Reset to default" })).toHaveCount(0);
+});
+
+test("About shows Current vs Default on a MODIFIED leaf, and its Reset fires the section's exact wire", async ({ mount, page }) => {
+  const trpc = await stubModified(page);
+  const workspace = await mount(<ConfigWorkspaceStory />);
+  await workspace.getByRole("button", { name: "reset groups" }).click();
+  await workspace
+    .locator('[data-slot="config-roster"]')
+    .getByRole("button", { name: /Appearance/ })
+    .click();
+
+  await workspace.locator('[data-setting="color-quoted-speech"]').getByRole("switch").focus();
+  const pane = workspace.locator(CONTEXT_PANE);
+  await expect(pane.getByText(`Current ${QUOTED_MODIFIED_WORD}`)).toBeVisible();
+  await expect(pane.getByText(`Default ${QUOTED_DEFAULT_WORD}`)).toBeVisible();
+
+  await pane.getByRole("button", { name: "Reset to default" }).click();
+  await expect
+    .poll(() => trpc.lastInput("settings.updateUserSettingsSection"), { intervals: [20, 50, 100] })
+    .toEqual({ section: "appearance", patch: { colorQuotedSpeech: DEFAULT_USER_SETTINGS.appearance.colorQuotedSpeech } });
+});

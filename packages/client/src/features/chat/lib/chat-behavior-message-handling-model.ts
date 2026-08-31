@@ -30,6 +30,7 @@ export const CHAT_MESSAGE_HANDLING_SUBCATEGORY: ConfigSubcategory = {
   settings: [
     {
       id: "enter-sends",
+      key: "enterSends",
       label: "Enter to send",
       keywords: ["enter", "keyboard", "newline", "shortcut"],
       teach: {
@@ -39,6 +40,7 @@ export const CHAT_MESSAGE_HANDLING_SUBCATEGORY: ConfigSubcategory = {
     },
     {
       id: "empty-enter-generates",
+      key: "generateOnEmptySend",
       label: "Empty Enter generates a reply",
       keywords: ["enter", "generate", "empty", "prompt"],
       teach: {
@@ -49,6 +51,7 @@ export const CHAT_MESSAGE_HANDLING_SUBCATEGORY: ConfigSubcategory = {
     },
     {
       id: "continue-on-send",
+      key: "continueOnSend",
       label: "Send continues the reply",
       keywords: ["continue", "extend", "empty"],
       teach: {
@@ -58,6 +61,7 @@ export const CHAT_MESSAGE_HANDLING_SUBCATEGORY: ConfigSubcategory = {
     },
     {
       id: "auto-continue",
+      key: "autoContinue",
       label: "Auto-continue",
       keywords: ["continue", "length", "cap", "follow-up"],
       teach: {
@@ -68,6 +72,7 @@ export const CHAT_MESSAGE_HANDLING_SUBCATEGORY: ConfigSubcategory = {
     },
     {
       id: "auto-continue-rounds",
+      key: "autoContinueRounds",
       label: "Auto-continue rounds",
       keywords: ["continue", "rounds", "limit", "follow-up", "cap"],
       teach: {
@@ -78,6 +83,7 @@ export const CHAT_MESSAGE_HANDLING_SUBCATEGORY: ConfigSubcategory = {
     },
     {
       id: "auto-swipe",
+      key: "autoSwipe",
       label: "Auto-swipe short replies",
       keywords: ["swipe", "regenerate", "retry", "blacklist", "minimum", "phrases"],
       teach: {
@@ -88,6 +94,7 @@ export const CHAT_MESSAGE_HANDLING_SUBCATEGORY: ConfigSubcategory = {
     },
     {
       id: "custom-stopping-strings",
+      key: "customStoppingStrings",
       label: "Custom stopping strings",
       keywords: ["stop", "stopping", "sequence", "generation"],
       teach: {
@@ -97,6 +104,7 @@ export const CHAT_MESSAGE_HANDLING_SUBCATEGORY: ConfigSubcategory = {
     },
     {
       id: "temp-chat-ttl",
+      key: "tempChatTtlHours",
       label: "Delete temp chats after",
       keywords: ["temporary", "temp", "ttl", "expire", "delete", "retention"],
       teach: {
@@ -107,6 +115,7 @@ export const CHAT_MESSAGE_HANDLING_SUBCATEGORY: ConfigSubcategory = {
     },
     {
       id: "offer-choices",
+      key: "offerChoices",
       label: "Offer choices in new chats",
       keywords: ["choices", "options", "cyoa", "branching", "interactive"],
       teach: {
@@ -117,6 +126,7 @@ export const CHAT_MESSAGE_HANDLING_SUBCATEGORY: ConfigSubcategory = {
     },
     {
       id: "reactions",
+      key: "reactionsEnabled",
       label: "Reactions in new chats",
       keywords: ["reactions", "emoji"],
       teach: {
@@ -126,6 +136,7 @@ export const CHAT_MESSAGE_HANDLING_SUBCATEGORY: ConfigSubcategory = {
     },
     {
       id: "character-reactions",
+      key: "charactersCanReact",
       label: "Characters can react in new chats",
       keywords: ["reactions", "emoji", "character"],
       teach: {

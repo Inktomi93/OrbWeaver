@@ -22,6 +22,7 @@ export const APPEARANCE_BACKGROUND_SUBCATEGORY: ConfigSubcategory = {
     },
     {
       id: "background-fit",
+      key: "backgroundFit",
       label: "Fit",
       keywords: ["cover", "contain", "stretch"],
       teach: {
@@ -31,6 +32,7 @@ export const APPEARANCE_BACKGROUND_SUBCATEGORY: ConfigSubcategory = {
     },
     {
       id: "background-dim",
+      key: "backgroundDim",
       label: "Scrim opacity",
       keywords: ["darken", "overlay"],
       teach: {
@@ -40,6 +42,7 @@ export const APPEARANCE_BACKGROUND_SUBCATEGORY: ConfigSubcategory = {
     },
     {
       id: "background-blur",
+      key: "backgroundBlur",
       label: "Image blur",
       teach: { summary: "Softens the photo itself; the darkening scrim above stays sharp.", affects: ["the background image only"] },
     },

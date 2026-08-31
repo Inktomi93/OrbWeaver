@@ -13,21 +13,25 @@ export const APPEARANCE_AVATARS_SUBCATEGORY: ConfigSubcategory = {
   settings: [
     {
       id: "show-avatars",
+      key: "showInChatAvatars",
       label: "Show avatars in chat",
       teach: { summary: "Hide to show only the speaker's name on each message.", affects: ["every message row, in every chat"] },
     },
     {
       id: "avatar-size",
+      key: "avatarSize",
       label: "Avatar size",
       teach: { summary: "How large each speaker's avatar renders beside their messages.", affects: ["avatar boxes in every chat"] },
     },
     {
       id: "avatar-shape",
+      key: "avatarShape",
       label: "Avatar shape",
       teach: { summary: "Round or square avatar frames.", affects: ["avatar frames in every chat"] },
     },
     {
       id: "avatar-aspect",
+      key: "avatarAspect",
       label: "Avatar aspect",
       teach: {
         summary: "Portrait reserves a taller box — the immersive VN-style modes use it.",
@@ -37,6 +41,7 @@ export const APPEARANCE_AVATARS_SUBCATEGORY: ConfigSubcategory = {
     },
     {
       id: "avatar-ring",
+      key: "avatarRing",
       label: "Avatar ring",
       teach: { summary: "An accent ring around each avatar, or none.", affects: ["avatar frames in every chat"] },
     },

@@ -14,12 +14,15 @@
 //   · nothing at all → the section's `empty` arm (never a blank pane).
 // Focus-follows-content over `contextTab`: a focus change swaps head + body and KEEPS the tab (CP-4 §4.1).
 
+import type { ConfigLeafAddress, ConfigLeafValue } from "#components";
+import { useConfigLeaf } from "#components";
 import { useSettingsViewerView } from "#data";
-import type { ConfigContextState, ConfigTeachDoor, ConfigTeachView, ContextDefinition } from "#lib";
+import type { ConfigContextState, ConfigTeachDoor, ConfigTeachValue, ConfigTeachView, ContextDefinition } from "#lib";
 import { defineContextTabs } from "#lib";
 import type {
   CollectionGroupDefinition,
   ConfigGroupDefinition,
+  ConfigGroupId,
   ConfigGroupRegistry,
   ConfigSectionContribution,
   ConfigSettingRef,
@@ -53,6 +56,7 @@ function groupLesson(group: ConfigGroupDefinition, subcategories: readonly Confi
     applies: [],
     related: subcategories.map((sub) => ({ label: sub.label, open: (): void => selectConfigSub(group.id, sub.id) })),
     learn: null,
+    value: null,
   };
 }
 
@@ -68,15 +72,21 @@ function relatedDoor(ref: ConfigSettingRef, sections: readonly ConfigSectionCont
   };
 }
 
-function teachView(teach: SettingTeach, title: string, trail: string, sections: readonly ConfigSectionContribution[]): ConfigTeachView {
+function teachView(
+  teach: SettingTeach,
+  subject: { readonly title: string; readonly trail: string },
+  sections: readonly ConfigSectionContribution[],
+  value: ConfigTeachValue | null = null,
+): ConfigTeachView {
   return {
-    title,
-    trail,
+    title: subject.title,
+    trail: subject.trail,
     summary: teach.summary,
     affects: teach.affects,
     applies: (teach.overriddenBy ?? []).map((door) => ({ label: door.label, open: door.open })),
     related: (teach.related ?? []).map((ref) => relatedDoor(ref, sections)),
     learn: teach.more ?? null,
+    value,
   };
 }
 
@@ -86,16 +96,24 @@ interface FocusSubject {
   readonly settingId: string | null;
 }
 
-/** The focused row's lesson via the §7.2 ladder: leaf → its section → the group's own (`fallback`). */
-function focusLesson(subject: FocusSubject, sections: readonly ConfigSectionContribution[], fallback: ConfigTeachView): ConfigTeachView {
+/** The focused row's lesson via the §7.2 ladder: leaf → its section → the group's own (`fallback`).
+ *  `leafValue` (the §3.4 default-vs-current seam, resolved by the host's `useConfigLeaf`) attaches ONLY
+ *  on the leaf arm — a section/group lesson's head names a different subject, and a value block under a
+ *  mismatched head would teach the wrong row. */
+function focusLesson(
+  subject: FocusSubject,
+  sections: readonly ConfigSectionContribution[],
+  fallback: ConfigTeachView,
+  leafValue: ConfigTeachValue | null,
+): ConfigTeachView {
   const { group, sub, settingId } = subject;
   const trail = `${CONFIG_SECTION_LABEL} · ${group.label}`;
   const leaf = settingId === null ? undefined : (sub.settings ?? []).find((s) => s.id === settingId);
   if (leaf !== undefined && !isTeachNone(leaf.teach)) {
-    return teachView(leaf.teach, leaf.label, `${trail} · ${sub.label}`, sections);
+    return teachView(leaf.teach, { title: leaf.label, trail: `${trail} · ${sub.label}` }, sections, leafValue);
   }
   if (sub.teach !== undefined) {
-    return teachView(sub.teach, sub.label, trail, sections);
+    return teachView(sub.teach, { title: sub.label, trail }, sections);
   }
   return fallback;
 }
@@ -110,6 +128,16 @@ function memberArm(group: CollectionGroupDefinition, memberId: string, title: st
   };
 }
 
+/** The focused leaf's address for `useConfigLeaf`, or null when no LEAF is focused. */
+function focusedLeafAddress(focus: { readonly group: ConfigGroupId; readonly sub: string; readonly setting: string | null } | null): ConfigLeafAddress | null {
+  return focus === null || focus.setting === null ? null : { group: focus.group, sub: focus.sub, setting: focus.setting };
+}
+
+/** Project the row hook's binding into the state-free teach shape (drop the chrome-only `resetPending`). */
+function projectLeafValue(binding: ConfigLeafValue | null): ConfigTeachValue | null {
+  return binding === null ? null : { current: binding.current, defaultValue: binding.defaultValue, modified: binding.modified, reset: binding.reset };
+}
+
 /** Mint the Settings context definition over a door-frozen groups registry. */
 export function makeConfigContext(groups: ConfigGroupRegistry): ContextDefinition {
   // biome-ignore lint/nursery/noComponentHookFactories: the D54 §13.1 mint pattern (registry-contracts.ts's own `useResolved` carve-out, the `makeCharactersSection` posture one level up) — `makeConfigContext` runs ONCE at the door, so this named hook has a stable identity; the closure is how the door-frozen groups registry reaches it without a second delivery channel.
@@ -121,6 +149,9 @@ export function makeConfigContext(groups: ConfigGroupRegistry): ContextDefinitio
     const activeGroup = useActiveConfigGroup();
     const selectionTitle = useConfigSelectionTitle(groups);
     const subcategoriesFor = useConfigSubcategories();
+    // The focused leaf's §3.4 value seam — the SAME hook the row chrome reads, so About's block and the
+    // row's stripe cannot disagree. Unconditional (rules of hooks); null wherever there is no bound leaf.
+    const leafValue = projectLeafValue(useConfigLeaf(focusedLeafAddress(focus)));
     if (activeGroup === null) {
       return null;
     }
@@ -136,7 +167,7 @@ export function makeConfigContext(groups: ConfigGroupRegistry): ContextDefinitio
     if (focus !== null && focus.group === group.id) {
       const sub = sections.find((c) => c.anchor === focus.group && c.nav.id === focus.sub)?.nav;
       if (sub !== undefined) {
-        return { teach: focusLesson({ group, sub, settingId: focus.setting }, sections, lesson), member: null };
+        return { teach: focusLesson({ group, sub, settingId: focus.setting }, sections, lesson, leafValue), member: null };
       }
     }
     return { teach: lesson, member: null };

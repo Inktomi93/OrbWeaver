@@ -15,6 +15,7 @@ export const CHAT_STREAMING_SUBCATEGORY: ConfigSubcategory = {
   settings: [
     {
       id: "stream-follow",
+      key: "streamScrollMode",
       label: "While a reply streams",
       keywords: ["follow", "pin", "scroll", "anchor"],
       teach: {
@@ -25,6 +26,7 @@ export const CHAT_STREAMING_SUBCATEGORY: ConfigSubcategory = {
     },
     {
       id: "smooth-stream",
+      key: "smoothStream",
       label: "Smooth streaming",
       keywords: ["smooth", "reveal", "pace", "fade", "typing"],
       teach: {
@@ -35,12 +37,14 @@ export const CHAT_STREAMING_SUBCATEGORY: ConfigSubcategory = {
     },
     {
       id: "smooth-stream-cps",
+      key: "smoothStreamCps",
       label: "Reveal speed",
       keywords: ["speed", "cps", "rate", "characters"],
       teach: { summary: "The minimum reveal rate (characters per second) while the model is keeping pace.", affects: ["smooth streaming's floor speed"] },
     },
     {
       id: "reasoning-auto-collapse",
+      key: "reasoningAutoCollapse",
       label: "Auto-collapse reasoning",
       keywords: ["reasoning", "thinking", "collapse", "trace"],
       teach: {

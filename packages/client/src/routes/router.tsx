@@ -1,6 +1,6 @@
 import { createRoute, createRouter, lazyRouteComponent, notFound, redirect } from "@tanstack/react-router";
 import { redirectIfAuthed, requireAuthed } from "#features/auth";
-import { resolveSectionPath, setActiveSection } from "#state";
+import { openConfigTo, parseConfigLink, resolveSectionPath, setActiveSection } from "#state";
 // Deep, not `#lib`: agent-bridge is OUT of the barrel (main.tsx imports it by path — a re-export would drag
 // the dev-only introspection handle into the prod bundle). Type-only, so nothing lands in the boot chunk.
 import type { RouteResolution } from "../lib/agent-bridge.ts";
@@ -56,12 +56,24 @@ const loginRoute = createRoute({
 const sectionAliasRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/$section",
-  beforeLoad: ({ params }): never => {
+  // THE CONFIG DEEP LINK rides the alias (#866 §3.4 row chrome — the row menu's "Copy link" mints
+  // `/config?to=<group>[.<sub>[.<setting>]]`, `state/config-link.ts` is the ONE grammar). Same story as
+  // the section itself: the param APPLIES state (`openConfigTo` = the exact landing a Related door
+  // performs) and the visitor still lands on `/` — the address bar never holds config state. A garbled
+  // `to` degrades to the bare Config section (the alias's own graceful arm), never a 404: the link's
+  // SECTION half is still true.
+  validateSearch: (search: Record<string, unknown>): { readonly to?: string } => (typeof search["to"] === "string" ? { to: search["to"] } : {}),
+  beforeLoad: ({ params, search }): never => {
     const section = resolveSectionPath(params.section);
     if (section === null) {
       throw notFound();
     }
-    setActiveSection(section);
+    const target = section === "config" && search.to !== undefined ? parseConfigLink(search.to) : null;
+    if (target === null) {
+      setActiveSection(section);
+    } else {
+      openConfigTo(target.group, target.sub, target.setting);
+    }
     throw redirect({ to: "/" });
   },
 });

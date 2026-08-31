@@ -47,8 +47,9 @@ export interface RowActionsMenuProps {
   readonly icon?: LucideIcon;
   /** Popup alignment. @defaultValue "end" */
   readonly align?: "center" | "end" | "start";
-  /** Trigger button size. @defaultValue "icon" */
-  readonly triggerSize?: "icon" | "sm";
+  /** Trigger button size. `"inline"` is the HintTrigger-parity box (the config setting row pairs the ⋯
+   *  with the tiny `i` and must not inflate the row). @defaultValue "icon" */
+  readonly triggerSize?: "icon" | "inline" | "sm";
   /** A3 hover-reveal on the trigger (rest hidden). @defaultValue false — pass true only where the row already hid its cluster. */
   readonly reveal?: boolean;
   /** Optional plain-language hover/focus explanation for an icon-only trigger. */

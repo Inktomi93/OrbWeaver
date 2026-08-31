@@ -74,6 +74,13 @@ export interface ConfigSettingLeaf {
   readonly advanced?: boolean;
   /** The teaching, LOCKED to the leaf so they cannot drift apart (R-TEACH). */
   readonly teach: SettingTeachDecl;
+  /** The settings KEY this leaf's control writes, inside the owning contribution's USER-tier `owns` claim
+   *  (§3.4 row chrome, #866): leaf ids are nav/search ids (`chat-width`), claim keys are wire keys
+   *  (`chatWidthPct`) — nothing mechanical binds them, so the binding is DECLARED here and the door's
+   *  `assertSettingsKeyPartition` proves every declared key is a member of its section's claim. Absent =
+   *  no per-leaf value chrome (a composite row, a CRUD list, an app-tier section) — the modified stripe,
+   *  the row menu's Reset, and About's default-vs-current all key on this. */
+  readonly key?: string;
 }
 
 /** A subcategory = one anchored section inside a group; each stamps a stable anchor node the spy reads and

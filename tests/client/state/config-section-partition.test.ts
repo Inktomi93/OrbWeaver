@@ -86,6 +86,19 @@ function claiming(id: string, sectionName: string, keys: readonly string[]): Con
   return { ...section(id), owns: { tier: "user", section: sectionName as never, keys } };
 }
 
+/** A claiming contribution whose nav carries ONE leaf, optionally key-bound (§3.4 row chrome, #866). */
+function claimingWithLeaf(
+  id: string,
+  claim: { readonly section?: string; readonly keys?: readonly string[] } | null,
+  leafKey?: string,
+): ConfigSectionContribution {
+  const base = claim === null ? section(id) : claiming(id, claim.section ?? "chat", claim.keys ?? ["one"]);
+  return {
+    ...base,
+    nav: { id, label: id, settings: [{ id: "leaf", label: "Leaf", teach: { none: "a fixture leaf" }, ...(leafKey === undefined ? {} : { key: leafKey }) }] },
+  };
+}
+
 describe("assertSettingsKeyPartition", () => {
   test("disjoint claims covering the namespace pass", () => {
     const registry = createContributorRegistry<ConfigSectionContribution>("t", [claiming("a", "chat", ["one"]), claiming("b", "chat", ["two"])]);
@@ -105,6 +118,36 @@ describe("assertSettingsKeyPartition", () => {
   test("a namespace NO section claims is not under the partition — still pane-owned (the migration state)", () => {
     const registry = createContributorRegistry<ConfigSectionContribution>("t", [claiming("a", "chat", ["one"])]);
     expect(() => assertSettingsKeyPartition(registry, defaults({ chat: { one: 1 }, appearance: { density: "x" } }), NO_CITES)).not.toThrow();
+  });
+
+  // ── The LEAF-KEY honesty arm (§3.4 row chrome, #866): a `ConfigSettingLeaf.key` outside its section's
+  // claim would let the row read and RESET a value the section does not own — planted RED both ways.
+  test("a leaf key that IS a member of its section's user-tier claim passes", () => {
+    const registry = createContributorRegistry<ConfigSectionContribution>("t", [claimingWithLeaf("a", { keys: ["one"] }, "one")]);
+    expect(() => assertSettingsKeyPartition(registry, defaults({ chat: { one: 1 } }), NO_CITES)).not.toThrow();
+  });
+
+  test("a leaf key OUTSIDE its section's claim throws — the row would reset a value it does not own", () => {
+    const registry = createContributorRegistry<ConfigSectionContribution>("t", [claimingWithLeaf("a", { keys: ["one"] }, "stolen")]);
+    expect(() => assertSettingsKeyPartition(registry, defaults({ chat: { one: 1 } }), NO_CITES)).toThrow(/NOT in the section's claim/);
+  });
+
+  test("a leaf key on a CLAIM-LESS contribution throws — a binding needs an owned per-user key", () => {
+    const registry = createContributorRegistry<ConfigSectionContribution>("t", [claimingWithLeaf("a", null, "one")]);
+    expect(() => assertSettingsKeyPartition(registry, defaults({}), NO_CITES)).toThrow(/no user-tier claim/);
+  });
+
+  test("a leaf with NO key on any contribution stays exempt — partial adoption is honest", () => {
+    const registry = createContributorRegistry<ConfigSectionContribution>("t", [claimingWithLeaf("a", { keys: ["one"] })]);
+    expect(() => assertSettingsKeyPartition(registry, defaults({ chat: { one: 1 } }), NO_CITES)).not.toThrow();
+  });
+
+  test("a bound key whose DEFAULT does not resolve from the one home throws — derived, never mirrored (owner rider)", () => {
+    // The claim covers the key but the contract defaults have no value at it: the stripe would read
+    // permanently modified and Reset would write a hole. The gap arm can't see this (`one` IS claimed);
+    // only the resolvability arm does — the planted control the rider asked for.
+    const registry = createContributorRegistry<ConfigSectionContribution>("t", [claimingWithLeaf("a", { keys: ["one"] }, "one")]);
+    expect(() => assertSettingsKeyPartition(registry, defaults({ chat: {} }), NO_CITES)).toThrow(/DEFAULT does not resolve/);
   });
 
   test("an APP-tier claim never collides with a same-named USER-tier key", () => {
