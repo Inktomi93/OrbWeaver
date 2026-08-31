@@ -1268,7 +1268,7 @@
     {
       "siteId": "packages/client/src/lib/agent-bridge.ts::promise:ready::1",
       "path": "packages/client/src/lib/agent-bridge.ts",
-      "line": 114,
+      "line": 104,
       "column": 3,
       "grammar": "promise",
       "position": "promise:ready",
@@ -1276,12 +1276,12 @@
       "snippet": "ready.then(unsubscribe, unsubscribe);",
       "verdict": "deliberate-absorb",
       "reason": "both arms only unsubscribe this listener; `ready`'s own settlement is owned by whichever caller awaits it elsewhere. Ends if this becomes the sole reader of `ready`.",
-      "markerLine": 113
+      "markerLine": 103
     },
     {
       "siteId": "packages/client/src/lib/agent-bridge.ts::promise:ready::2",
       "path": "packages/client/src/lib/agent-bridge.ts",
-      "line": 119,
+      "line": 109,
       "column": 3,
       "grammar": "promise",
       "position": "promise:ready",
@@ -1289,12 +1289,12 @@
       "snippet": "ready.then(unsubscribeBootReads, unsubscribeBootReads);",
       "verdict": "deliberate-absorb",
       "reason": "both arms only unsubscribe this listener; `ready`'s own settlement is owned by whichever caller awaits it elsewhere. Ends if this becomes the sole reader of `ready`.",
-      "markerLine": 118
+      "markerLine": 108
     },
     {
       "siteId": "packages/client/src/lib/agent-bridge.ts::promise:ready::3",
       "path": "packages/client/src/lib/agent-bridge.ts",
-      "line": 150,
+      "line": 140,
       "column": 3,
       "grammar": "promise",
       "position": "promise:ready",
@@ -1302,7 +1302,7 @@
       "snippet": "ready.then(unsubscribeRoute, unsubscribeRoute);",
       "verdict": "deliberate-absorb",
       "reason": "both arms only unsubscribe this listener; `ready`'s own settlement is owned by whichever caller awaits it elsewhere. Ends if this becomes the sole reader of `ready`.",
-      "markerLine": 149
+      "markerLine": 139
     },
     {
       "siteId": "packages/client/src/lib/error-boundary.tsx::empty:catch::1",
@@ -3933,7 +3933,7 @@
     {
       "siteId": "packages/ui/src/markdown/shiki-plugin.ts::promise:highlightAsync::1",
       "path": "packages/ui/src/markdown/shiki-plugin.ts",
-      "line": 175,
+      "line": 223,
       "column": 5,
       "grammar": "promise",
       "position": "promise:highlightAsync",
@@ -3941,7 +3941,7 @@
       "snippet": "highlightAsync(options.code, options.language)",
       "verdict": "deliberate-absorb",
       "reason": "documented below — a grammar",
-      "markerLine": 172
+      "markerLine": 220
     },
     {
       "siteId": "packages/ui/src/primitives/background-video/background-video.tsx::promise:play::1",
