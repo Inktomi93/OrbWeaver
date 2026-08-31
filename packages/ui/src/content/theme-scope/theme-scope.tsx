@@ -28,14 +28,13 @@ export interface ThemeScopeProps {
 }
 
 /**
- * The base surface a DESCENDANT scope will be painted on — this scope's own picked background when it
- * has one, else whatever it was itself handed (#236). `null` = nothing statically named the surface, so
+ * The opaque base pixel a DESCENDANT scope will be painted on — this scope's picked background composited
+ * over its ambient when needed, else whatever it was itself handed (#236). `null` = no known surface, so
  * the §7a ink clamp keeps its fail-open. A provider-less mount (a CT story, a preview) therefore behaves
  * exactly as it did pre-#236: an ink-only override passes through unjudged.
  *
- * The value handed down is the CLAMPED background — `vars["--color-background"]`, i.e. the value that
- * survived `isSafeColor`, never the raw prop — so a hostile override cannot re-enter the clamp through
- * the ambient door of the scopes nested inside it.
+ * The value handed down is `ClampedTheme.resolvedBackground`, never a raw prop — so alpha and invalid
+ * safe words cannot lie about the pixel nested scopes actually land on.
  */
 const AmbientBaseContext = createContext<string | null>(null);
 
@@ -63,7 +62,7 @@ export function ThemeScope({ tokens, children, className, ambientBackground, amb
   const style: CSSProperties =
     clamped.colorScheme === undefined ? (clamped.vars as CSSProperties) : { ...(clamped.vars as CSSProperties), colorScheme: clamped.colorScheme };
   return (
-    <AmbientBaseContext value={clamped.vars["--color-background"] ?? ambient}>
+    <AmbientBaseContext value={clamped.resolvedBackground ?? ambient}>
       <AmbientAccentContext value={clamped.accentSource ?? accentAmbient}>
         <div className={className} style={style} data-slot="theme-scope" {...(clamped.density === undefined ? {} : { "data-density": clamped.density })}>
           {children}

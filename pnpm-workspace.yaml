@@ -250,6 +250,8 @@ catalog:
   "remark-gfm": ^4.0.1
   # DTCG token codegen (docs said v4; current major is 5 — ESM/async, DTCG first-class).
   style-dictionary: ^5.5.0
+  # Standards CSS Color 4 parsing/gamut mapping for the isomorphic ThemeScope derivation boundary.
+  colorjs.io: 0.5.2
   # Tailwind v4 + the vite plugin (the @theme consumer; used by the CT harness + Phase-6 client).
   tailwindcss: ^4.3.3
   "@tailwindcss/vite": ^4.3.3

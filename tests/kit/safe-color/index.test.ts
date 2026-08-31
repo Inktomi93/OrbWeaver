@@ -2,6 +2,9 @@
 // vector rejects OUTRIGHT (never sanitized). Both the ui render clamps and the contracts wire
 // clamp ride this one function — these pins are the shared security floor.
 
+import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
+import { resolve } from "node:path";
 import { hueDistance, isSafeColor, oklchHue, parseCssColorToSrgb } from "@orb/kit/safe-color";
 import { describe } from "vitest";
 import { expect, test } from "../../support/fixtures.ts";
@@ -97,10 +100,18 @@ describe("hueDistance", () => {
   });
 });
 
-describe("parseCssColorToSrgb (#204 — the derive law's static reader for numeric CSS forms)", () => {
+describe("parseCssColorToSrgb (#204/#939 — standards color normalization after the safety gate)", () => {
+  test("ColorJS is a direct cataloged kit dependency and resolves from the kit package boundary", () => {
+    const kitManifest = JSON.parse(readFileSync(resolve("packages/kit/package.json"), "utf8")) as { dependencies?: Record<string, string> };
+    expect(kitManifest.dependencies?.["colorjs.io"]).toBe("catalog:");
+    expect(readFileSync(resolve("pnpm-workspace.yaml"), "utf8")).toContain("colorjs.io: 0.5.2");
+    expect(readFileSync(resolve("pnpm-lock.yaml"), "utf8")).toMatch(/packages\/kit:[\s\S]*?colorjs\.io:[\s\S]*?version: 0\.5\.2/u);
+    expect(createRequire(resolve("packages/kit/package.json")).resolve("colorjs.io")).toContain("colorjs.io@0.5.2");
+  });
+
   test("reads every hex arity, including alpha", () => {
-    expect(parseCssColorToSrgb("#fff")).toEqual({ r: 255, g: 255, b: 255, alpha: 1 });
-    expect(parseCssColorToSrgb("#102030")).toEqual({ r: 16, g: 32, b: 48, alpha: 1 });
+    expect(parseCssColorToSrgb("#fff")).toMatchObject({ r: 255, g: 255, b: 255, alpha: 1, inGamut: true });
+    expect(parseCssColorToSrgb("#102030")).toMatchObject({ r: 16, g: 32, b: 48, alpha: 1, inGamut: true });
     const short = parseCssColorToSrgb("#f008");
     expect(short?.r).toBe(255);
     expect(short?.alpha).toBeCloseTo(8 / 15, 4);
@@ -109,9 +120,9 @@ describe("parseCssColorToSrgb (#204 — the derive law's static reader for numer
   });
 
   test("reads rgb()/rgba() in comma AND space syntax, with % channels and alpha", () => {
-    expect(parseCssColorToSrgb("rgb(20, 20, 30)")).toEqual({ r: 20, g: 20, b: 30, alpha: 1 });
-    expect(parseCssColorToSrgb("rgb(20 20 30 / 0.5)")).toEqual({ r: 20, g: 20, b: 30, alpha: 0.5 });
-    expect(parseCssColorToSrgb("rgba(100%, 0%, 50%, 40%)")).toEqual({ r: 255, g: 0, b: 127.5, alpha: 0.4 });
+    expect(parseCssColorToSrgb("rgb(20, 20, 30)")).toMatchObject({ r: 20, g: 20, b: 30, alpha: 1, inGamut: true });
+    expect(parseCssColorToSrgb("rgb(20 20 30 / 0.5)")).toMatchObject({ r: 20, g: 20, b: 30, alpha: 0.5, inGamut: true });
+    expect(parseCssColorToSrgb("rgba(100%, 0%, 50%, 40%)")).toMatchObject({ r: 255, g: 0, b: 127.5, alpha: 0.4, inGamut: true });
   });
 
   test("reads hsl()/hsla() through the classic ramp (spot-checked against browser-resolved values)", () => {
@@ -127,10 +138,15 @@ describe("parseCssColorToSrgb (#204 — the derive law's static reader for numer
     expect(grey?.alpha).toBe(0.25);
   });
 
-  test("returns null for named colors and non-colors — the fail-open surface, kept honest", () => {
-    expect(parseCssColorToSrgb("ivory")).toBeNull();
+  test("resolves named/OKL colors, CSS-gamut-maps extremes, and keeps invalid/contextual values null", () => {
+    expect(parseCssColorToSrgb("red")).toMatchObject({ r: 255, g: 0, b: 0, alpha: 1, inGamut: true });
+    expect(parseCssColorToSrgb("transparent")).toMatchObject({ alpha: 0, inGamut: true });
+    expect(parseCssColorToSrgb("oklch(0.5 0.1 60)")).toMatchObject({ alpha: 1, inGamut: true });
+    const extreme = parseCssColorToSrgb("oklch(0.2 3.6 225)");
+    expect(extreme).toMatchObject({ alpha: 1, inGamut: false });
+    expect([extreme?.r, extreme?.g, extreme?.b].every((channel) => channel !== undefined && channel >= 0 && channel <= 255)).toBe(true);
+    expect(parseCssColorToSrgb("notacolorxx")).toBeNull();
     expect(parseCssColorToSrgb("currentColor")).toBeNull();
-    expect(parseCssColorToSrgb("oklch(0.5 0.1 60)")).toBeNull();
     expect(parseCssColorToSrgb("url(//x)")).toBeNull();
   });
 });

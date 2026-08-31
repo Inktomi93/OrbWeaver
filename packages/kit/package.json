@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@marcbachmann/cel-js": "catalog:",
+    "colorjs.io": "catalog:",
     "luxon": "catalog:",
     "typeid-js": "catalog:",
     "zod": "catalog:"

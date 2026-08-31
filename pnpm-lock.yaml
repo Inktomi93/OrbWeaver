@@ -165,6 +165,9 @@ catalogs:
     codemirror:
       specifier: ^6.0.2
       version: 6.0.2
+    colorjs.io:
+      specifier: 0.5.2
+      version: 0.5.2
     dependency-cruiser:
       specifier: ^18.1.0
       version: 18.1.0
@@ -628,6 +631,9 @@ importers:
       '@marcbachmann/cel-js':
         specifier: 'catalog:'
         version: 8.0.0
+      colorjs.io:
+        specifier: 'catalog:'
+        version: 0.5.2
       luxon:
         specifier: 'catalog:'
         version: 3.7.2

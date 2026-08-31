@@ -15,6 +15,7 @@ import type { Rgb } from "@orb/tooling/_shared/wcag";
 import { contrastRatio, LARGE_MIN_RATIO, NORMAL_MIN_RATIO, UI_COMPONENT_MIN_RATIO } from "@orb/tooling/_shared/wcag";
 import { SEED_THEME_VALUE_SETS, TOKENS } from "@orb/ui/tokens";
 import { clampThemeTokens, THEME_DERIVATION } from "../../../../packages/ui/src/content/theme-scope/clamp.ts";
+import { compositedBase } from "../../../../packages/ui/src/content/theme-scope/color-parse.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
 // ── House oklch → sRGB (0–255). Standard OKLab matrices; channels clamped to gamut (neutral/low-chroma
@@ -298,12 +299,21 @@ function chartPairDistances(colors: readonly Oklch[]): readonly [oklab: number, 
   return [oklab, pixel];
 }
 
+function requiredCompositedBase(background: string, ambient: string): Oklch {
+  const base = compositedBase(background, ambient);
+  if (base === null) {
+    throw new Error(`accepted base did not resolve @ ${background}`);
+  }
+  return base;
+}
+
 test("#939 every accepted OKLCH base emits a contrast-safe, distinguishable custom chart ramp", () => {
+  const ambient = TOKENS["color.background"].value;
   for (const l of CHART_BASE_LIGHTNESSES) {
     for (const c of CHART_BASE_CHROMAS) {
       for (const h of CHART_BASE_HUES) {
         const baseStr = `oklch(${l} ${c} ${h})`;
-        const base = parseOklch(baseStr);
+        const base = requiredCompositedBase(baseStr, ambient);
         const ramp = rampOf(base);
         const panels = [base, rampSurface(base, ramp.card), rampSurface(base, ramp.surfaceRaised), rampSurface(base, ramp.sidebar)];
         const { vars } = clampThemeTokens({ background: baseStr });
@@ -325,6 +335,56 @@ test("#939 every accepted OKLCH base emits a contrast-safe, distinguishable cust
         expect(oklab, `custom ramp minimum OKLab distance @ ${baseStr}`).toBeGreaterThanOrEqual(0.07);
         expect(pixel, `custom ramp minimum quantized RGB distance @ ${baseStr}`).toBeGreaterThanOrEqual(30);
       }
+    }
+  }
+});
+
+const ACCEPTED_CHART_BASES = [
+  ["named", "red"],
+  ["transparent named", "transparent"],
+  ["short hex alpha", "#f008"],
+  ["long hex opaque", "#102030ff"],
+  ["rgb comma", "rgb(20, 40, 60)"],
+  ["rgb space partial alpha", "rgb(95% 90% 80% / 35%)"],
+  ["hsl comma", "hsl(210, 50%, 40%)"],
+  ["hsl space transparent", "hsl(30 40% 20% / 0)"],
+  ["oklab", "oklab(0.7 -0.1 0.08 / 1)"],
+  ["pivot dark side", "oklch(0.62 0.01 60)"],
+  ["pivot light side", "oklch(0.6201 0.01 60)"],
+  ["extreme accepted gamut", "oklch(0.2 3.6 225)"],
+  ["invalid safe bare word", "notacolorxx"],
+] as const;
+
+const CHART_AMBIENTS = [
+  ["hearth", TOKENS["color.background"].value],
+  ["light", SEED_THEME_VALUE_SETS.light.vars["--color-background"]],
+  ["mocha", SEED_THEME_VALUE_SETS.mocha.vars["--color-background"]],
+] as const;
+
+test("#939 every accepted spelling/alpha/gamut class is total and clears every actual composited chart host", () => {
+  for (const [spelling, background] of ACCEPTED_CHART_BASES) {
+    for (const [ambientName, ambient] of CHART_AMBIENTS) {
+      expect(() => clampThemeTokens({ background }, ambient), `${spelling} over ${ambientName} must not throw`).not.toThrow();
+      const base = requiredCompositedBase(background, ambient);
+      const deltas = rampOf(base);
+      const panels = [base, rampSurface(base, deltas.card), rampSurface(base, deltas.surfaceRaised), rampSurface(base, deltas.sidebar)];
+      const { vars } = clampThemeTokens({ background }, ambient);
+      const colors = CUSTOM_CHART_VARS.map((cssVar): Oklch => {
+        const emitted = vars[cssVar];
+        if (emitted === undefined) {
+          throw new Error(`${cssVar} was not emitted for ${spelling} over ${ambientName}`);
+        }
+        return parseOklch(emitted);
+      });
+      for (const [index, fill] of colors.entries()) {
+        for (const panel of panels) {
+          expect(worstContrast(oklchToRgb(fill), oklchToRgb(panel)), `${CUSTOM_CHART_VARS[index]} on ${spelling}/${ambientName}`).toBeGreaterThanOrEqual(
+            UI_COMPONENT_MIN_RATIO,
+          );
+        }
+      }
+      const [, pixel] = chartPairDistances(colors);
+      expect(pixel, `${spelling}/${ambientName} quantized distinction`).toBeGreaterThanOrEqual(30);
     }
   }
 });
