@@ -175,7 +175,6 @@ export { isSilencedTurnAbort, TURN_LOCKED_COPY, TURN_STALE_ABORT_COPY, turnAbort
 export { oversizeUploadMessage } from "./upload-cap-check.ts";
 export { useDebouncedValue } from "./use-debounced-value.ts";
 export { useFocusOnMount, useFocusOnSwap } from "./use-focus-on-mount.ts";
-export { useScrollFadeX, useScrollFadeY } from "./use-scroll-fade.ts";
 export { motionIsReduced, withViewTransition } from "./view-transition.ts";
 export type { WeaveGlyphProps } from "./weave-glyph.tsx";
 export { WeaveGlyph } from "./weave-glyph.tsx";

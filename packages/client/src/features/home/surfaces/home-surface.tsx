@@ -88,12 +88,13 @@ import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/colla
 import { EmptyState } from "@orb/ui/empty-state";
 import { Icon, Plus } from "@orb/ui/icons";
 import { Container, Grid, Row, Section, Stack, Surface } from "@orb/ui/layout";
+import { SCROLL_FADE_Y_CLASS, useScrollFadeY } from "@orb/ui/lib";
 import { Separator } from "@orb/ui/separator";
 import { Heading, Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useRef } from "react";
 import type { ContributorRegistry } from "#lib";
-import { useFocusOnMount, useScrollFadeY, WeaveGlyph } from "#lib";
+import { useFocusOnMount, WeaveGlyph } from "#lib";
 import type { DormantDoorway, HomeTileContribution } from "#state";
 import { HomeDoorway, HomeTile } from "../components/home-tile.tsx";
 import { orderHomeTiles } from "../lib/order-home-tiles.ts";
@@ -160,7 +161,7 @@ export function HomeSurface({ tiles, onNewChat }: HomeSurfaceProps): ReactElemen
           down the sides and under the last block. `Stack padding="section"` would have run 24px all round
           and pulled the two columns tighter to the frame than the shelf's own rhythm. */}
       <Stack
-        className="scroll-fade-y relative h-full min-h-0 overflow-y-auto px-gutter pt-section pb-gutter outline-none"
+        className={`${SCROLL_FADE_Y_CLASS} relative h-full min-h-0 overflow-y-auto px-gutter pt-section pb-gutter outline-none`}
         gap="section"
         ref={surfaceRef}
         tabIndex={-1}

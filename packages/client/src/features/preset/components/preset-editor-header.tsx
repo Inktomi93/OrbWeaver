@@ -21,6 +21,7 @@ import { Button } from "@orb/ui/button";
 // `Download` is GONE with the header Export door (O-16★ — one home, the list-row kebab); `Container` is lane B's shared content-column ruling.
 import { Icon, Pencil, RotateCcw, Zap } from "@orb/ui/icons";
 import { Container, Row, Stack } from "@orb/ui/layout";
+import { SCROLL_FADE_X_CLASS, useScrollFadeX } from "@orb/ui/lib";
 import { TabsIndicator, TabsList, TabsTab } from "@orb/ui/tabs";
 import { Heading } from "@orb/ui/text";
 import type { ReactElement } from "react";
@@ -28,7 +29,6 @@ import { useRef, useState } from "react";
 import { ConfirmDialog } from "#components";
 import type { AutosaveSaveState } from "#forms";
 import { AutosaveStatus } from "#forms";
-import { useScrollFadeX } from "#lib";
 import { PRESET_EDITOR_VIEWS } from "../lib/preset-nav.ts";
 import { PresetRenameDialog } from "./preset-rename-dialog.tsx";
 
@@ -231,7 +231,7 @@ export function PresetEditorHeader({
                 that halo needs, paid once, here. `.scroll-fade-x` is `@orb/ui`'s own edge-fade recipe
                 (globals.css), driven by the hook per its stated consumer contract: an edge dissolves only
                 while it is actually hiding something. */}
-            <Row className="scroll-fade-x min-w-0 overflow-x-auto py-tight" ref={stripRef}>
+            <Row className={`${SCROLL_FADE_X_CLASS} min-w-0 overflow-x-auto py-tight`} ref={stripRef}>
               {/* THE STRIP NAMES ITSELF (side-eye 2026-08-22 P3-4). Without this the tablist's accessible
                   name computed from its own contents — `ParamsPromptActionsDataTransforms` — which was
                   the ONE element of 112 mapped controls on this surface that resolved to a DOM-path

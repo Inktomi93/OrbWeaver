@@ -1,13 +1,6 @@
-// The drivers for `@orb/ui`'s `.scroll-fade-x` / `.scroll-fade-y` recipes (ui styles/globals.css). The CSS
-// states the contract both satisfy verbatim: "each edge fades ONLY while content is actually scrolled past
-// it (the consumer toggles the data attributes on scroll/resize), so an unscrolled or fitting box renders
-// its edges fully opaque instead of dimming a flush item against nothing."
-//
-// ONE MODULE, TWO AXES (2026-08-22). The horizontal driver shipped at `features/preset/hooks/` because the
-// preset editor's five-view strip was the recipe's first consumer (side-eye 2026-08-19 P1-1); the vertical
-// half arrived with home's below-fold cue (rail-home P2-1) in a different feature, and a driver for a
-// sealed-package recipe that two unrelated features consume is `#lib` plumbing, not either feature's. The
-// preset call site is unchanged apart from its import.
+// The drivers for the universal `.scroll-fade-x` / `.scroll-fade-y` recipes in ui styles/globals.css.
+// Keeping the selectors and their state writer behind the same package boundary is the executable
+// ownership claim: clients consume the mechanism, but no client-specific module is required to operate it.
 //
 // ATTRIBUTES, NOT REACT STATE: the fade is paint, it changes on every scroll frame, and re-rendering a
 // surface per frame to move a mask stop is the wrong shape. The effect writes the attributes the stylesheet
@@ -19,14 +12,19 @@
 import type { RefObject } from "react";
 import { useEffect } from "react";
 
+/** The universal horizontal scroll-overflow recipe's selector contract. */
+export const SCROLL_FADE_X_CLASS = "scroll-fade-x";
+/** The universal vertical scroll-overflow recipe's selector contract. */
+export const SCROLL_FADE_Y_CLASS = "scroll-fade-y";
+
 /** Below this a "scrolled edge" is a sub-pixel rounding artifact, not content the reader is missing. The
- *  same epsilon `@orb/ui`'s own vertical driver uses (message-list/list-window.ts). */
+ *  same epsilon `@orb/ui`'s own MessageList driver uses (message-list/list-window.ts). */
 const EDGE_EPSILON_PX = 1;
 
 /**
  * Keep `data-fade-start` / `data-fade-end` on a horizontally scrolling box in sync with its scroll position.
  *
- * The element must carry the `scroll-fade-x` class; the hook only decides WHICH edges are currently hiding
+ * The element must carry `SCROLL_FADE_X_CLASS`; the hook only decides WHICH edges are currently hiding
  * something. Re-syncs on scroll AND on resize of the box itself (a pane that widens can un-hide the tail
  * without any scroll event ever firing — the case a scroll-only listener misses on every panel dock).
  */
@@ -54,12 +52,10 @@ export function useScrollFadeX(ref: RefObject<HTMLElement | null>): void {
 /**
  * Keep `data-fade-top` / `data-fade-bottom` on a vertically scrolling box in sync with its scroll position.
  *
- * The element must carry the `scroll-fade-y` class. It observes the SCROLLER **and its content child**, the
+ * The element must carry `SCROLL_FADE_Y_CLASS`. It observes the SCROLLER **and its content children**, the
  * same pair `@orb/ui`'s MessageList observes (`observer.observe(viewport); observer.observe(el)`), because
  * a child growing inside an `overflow-y: auto` box does NOT resize the box: a surface whose height is
- * decided by async children (home's tiles settle one query at a time) gains its overflow long after the
- * last resize the scroller itself ever sees, so a box-only observer would leave a settled-tall surface
- * showing no cue at all — the exact arm the finding was filed against.
+ * decided by async children gains its overflow long after the last resize the scroller itself ever sees.
  */
 export function useScrollFadeY(ref: RefObject<HTMLElement | null>): void {
   useEffect(() => {
