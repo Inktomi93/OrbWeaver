@@ -221,7 +221,7 @@ async function applyRunOnEditRegex(
   }
   const { chatId, hostUserId } = args;
   const model = args.slot.model ?? "";
-  const castCharacterIds = args.roster.flatMap((r) => {
+  const characterIds = args.roster.flatMap((r) => {
     const actor = classifyParticipant(r);
     return actor?.kind === "character" ? [actor.characterId] : [];
   });
@@ -245,12 +245,12 @@ async function applyRunOnEditRegex(
     trigger: { kind: "human", userId: args.editorUserId, personaId: args.editorPersonaId },
   });
   const scripts = resolveHostTierRegexScripts(
-    await ctx.resolveRegexSources({ ownerId: hostUserId, presetId: foreign.presetId ?? null, characterIds: castCharacterIds, chatId }),
+    await ctx.resolveRegexSources({ ownerId: hostUserId, presetId: foreign.presetId ?? null, characterIds, chatId }),
   ).filter((script) => script.runOnEdit === true);
   if (scripts.length === 0) {
     return args.content;
   }
-  const assembleContext = await gatherAssembleContext(ctx, { chatId, runAsUserId: hostUserId, model, castCharacterIds, personaIds }, foreign);
+  const assembleContext = await gatherAssembleContext(ctx, { chatId, runAsUserId: hostUserId, model, characterIds, personaIds }, foreign);
   return executeRegexScripts({
     text: args.content,
     scripts,
@@ -371,7 +371,7 @@ async function freezeSelectedVariant(
   const source = args.variant.rawContent ?? args.variant.content;
   const stored = macroFreezeRecordSchema.safeParse(args.variant.macroFreezes);
   const model = args.variant.model ?? "";
-  const castCharacterIds = args.roster.flatMap((r) => {
+  const characterIds = args.roster.flatMap((r) => {
     const actor = classifyParticipant(r);
     return actor?.kind === "character" ? [actor.characterId] : [];
   });
@@ -391,7 +391,7 @@ async function freezeSelectedVariant(
   });
   const assembleContext = await gatherAssembleContext(
     ctx,
-    { chatId: args.chatId, runAsUserId: hostUserId, model, castCharacterIds, personaIds: args.selectorPersonaId !== null ? [args.selectorPersonaId] : [] },
+    { chatId: args.chatId, runAsUserId: hostUserId, model, characterIds, personaIds: args.selectorPersonaId !== null ? [args.selectorPersonaId] : [] },
     foreign,
   );
   const freezes: MacroFreeze[] = [];

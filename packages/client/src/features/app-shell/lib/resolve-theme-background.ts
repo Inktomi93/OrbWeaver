@@ -8,8 +8,8 @@
 // (no async id→hash round-trip — the hash is persisted alongside `backgroundAssetId`, which GC roots).
 
 import { blobUrl } from "@orb/contracts/assets";
-import type { CarriedAppearanceCast } from "@orb/contracts/chat";
-import { resolveCarriedBackgroundForCast } from "@orb/contracts/chat";
+import type { CarriedAppearance } from "@orb/contracts/chat";
+import { resolveCarriedBackgroundForAppearance } from "@orb/contracts/chat";
 import type { AppearanceSettings } from "@orb/contracts/settings";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import { resolveSeededBackgroundUrl } from "#lib";
@@ -29,7 +29,7 @@ function resolveBackgroundUrl(a: Pick<AppearanceSettings, "backgroundImageKind" 
 }
 
 // ── BG-C: the carried (per-chat / card) background source cascade over the viewer's own appearance.
-// Keyed on the phase-independent `CarriedAppearanceCast`, so a pre-send DRAFT dresses the shell from its
+// Keyed on the phase-independent `CarriedAppearance`, so a pre-send DRAFT dresses the shell from its
 // founding cards exactly as the committed room it becomes will (owner dogfood 2026-08-06). ──
 
 /** The viewer's FLAT `appearance` background fields projected onto the nested carried `ThemeBackground`
@@ -64,12 +64,12 @@ export function resolveThemeBackgroundUrl(bg: ThemeBackground): string | null {
 
 /** The effective carried background SOURCE for the active chat OR the active pre-send draft (BG-C), or
  *  `undefined` when the viewer's own appearance should win. A thin projection of the ONE
- *  `resolveCarriedBackgroundForCast` cascade in `@orb/contracts/chat` — shared with the chat context panel's
+ *  `resolveCarriedBackgroundForAppearance` cascade in `@orb/contracts/chat` — shared with the chat context panel's
  *  Background row, so the painted pixels and the settings echo can never disagree (they are the same rules
- *  over the same phase-independent cast). The gate + cascade live in that resolver's header. */
+ *  over the same phase-independent composition). The gate + cascade live in that resolver's header. */
 export function resolveChatBackgroundSource(
-  cast: CarriedAppearanceCast | undefined,
+  appearance: CarriedAppearance | undefined,
   chatBackground: ThemeBackground | null | undefined,
 ): ThemeBackground | undefined {
-  return cast === undefined ? undefined : resolveCarriedBackgroundForCast(cast, chatBackground)?.source;
+  return appearance === undefined ? undefined : resolveCarriedBackgroundForAppearance(appearance, chatBackground)?.source;
 }

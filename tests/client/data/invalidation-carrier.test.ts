@@ -35,8 +35,8 @@ function view(id: MessageId, content: string): MessageView {
 }
 
 /** A `MessagesPage`-shaped cache value — the wire shape `chat.listMessages` serves. */
-function page(messages: readonly MessageView[]): { readonly messages: readonly MessageView[]; readonly cast: readonly never[] } {
-  return { messages, cast: [] };
+function page(messages: readonly MessageView[]): { readonly messages: readonly MessageView[]; readonly identities: readonly never[] } {
+  return { messages, identities: [] };
 }
 
 /** The rows in the cached page, id+content only (what the patch is allowed to move). */

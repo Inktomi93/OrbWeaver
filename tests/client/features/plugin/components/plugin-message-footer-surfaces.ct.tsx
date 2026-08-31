@@ -65,7 +65,7 @@ const BOUND_SPEC = { kind: "badge", text: { $state: "card" } };
 
 const ROOM_ROUTES: Readonly<Record<string, unknown>> = {
   "chat.listMessages": () => makeMessagesPage([makeMessageView({ content: "Hi Aria", role: "user", seq: 1 })]),
-  "chat.getChat": () => ({ participants: [], anchorPersonaId: null, cast: [], group: DEFAULT_GROUP_CONFIG }),
+  "chat.getChat": () => ({ participants: [], anchorPersonaId: null, identities: [], group: DEFAULT_GROUP_CONFIG }),
   "chat.previewContextFit": () => ({
     boundaryMessageId: null,
     usedTokens: 120,

@@ -822,7 +822,7 @@ const historyText = (req: TurnRequest): string =>
     .join("\n");
 
 /** Build the {@link HistoryMacroNames} producer `args.historyMacroNames` takes — the test-local stand-in
- *  for the engine's `loadChatCastProducer` + `buildCastNameContext` (Chat-Macro-Resolution.md §1 / D137). */
+ *  for the engine's `loadChatIdentityProducer` + `buildIdentityNameContext` (Chat-Macro-Resolution.md §1 / D137). */
 function macroNamesOf(
   chars: readonly { id: CharacterId; name: string }[] = [],
   personas: readonly { id: PersonaId; name: string; description?: string }[] = [],
@@ -839,7 +839,7 @@ const ZARA = castId<PersonaId>("persona_zara");
 describe("runTurnPipeline — history macro resolution", () => {
   test("a stored {{char}} in a history row resolves via the PRODUCER to that row's own speaker, not the current turn's", async () => {
     // Current turn speaker is Kai; a past assistant row STAMPED characterId=ARIA must resolve {{char}} to
-    // the producer's Aria — the row's own stamp, never the ctx's current speaker (`cast`/`castCharacterIds`
+    // the producer's Aria — the row's own stamp, never the ctx's current speaker (`cast`/`characterIds`
     // no longer drive this resolution; only the producer does).
     const ctx = ctxOf({ character: { name: "Kai", description: "the rogue" } });
     const { args } = baseArgs({
@@ -1426,11 +1426,11 @@ describe("runTurnPipeline — RECEIVE per-speaker canon clean (F1)", () => {
   const groupCtx = (): AssembleContext =>
     ctxOf({
       character: { name: "Kai", description: "a rogue" },
-      cast: [
+      characters: [
         { name: "Kai", description: "a rogue" },
         { name: "Aria", description: "a knight" },
       ],
-      castMembers: [
+      speakerRefs: [
         { kind: "character", characterId: KAI },
         { kind: "character", characterId: ARIA },
       ],
@@ -1446,7 +1446,7 @@ describe("runTurnPipeline — RECEIVE per-speaker canon clean (F1)", () => {
   test("a per-speaker turn that drifts into a castmate's line persists ONLY the own speaker's content", async () => {
     // The exact failure cleanPerSpeakerReply exists to fix: the model rolls Kai's turn on into Aria's line.
     const { args } = baseArgs({
-      runChatTurn: finalTurn("I attack the goblin.\nAria: I cast a shield."),
+      runChatTurn: finalTurn("I attack the goblin.\nAria: I characters a shield."),
       assembleContext: groupCtx(),
       shape: perSpeaker,
     });
@@ -1480,12 +1480,12 @@ describe("runTurnPipeline — RECEIVE per-speaker canon clean (F1)", () => {
 
   test("merged/narrator output is NOT cleaned — foreign labels are the intended transcript", async () => {
     const { args } = baseArgs({
-      runChatTurn: finalTurn("I attack the goblin.\nAria: I cast a shield."),
+      runChatTurn: finalTurn("I attack the goblin.\nAria: I characters a shield."),
       assembleContext: groupCtx(),
       shape: { ...perSpeaker, output: "narrator", speakerName: "Kai & Aria" },
     });
     const result = await runTurnPipeline(args);
-    expect(result.content).toBe("I attack the goblin.\nAria: I cast a shield.");
+    expect(result.content).toBe("I attack the goblin.\nAria: I characters a shield.");
   });
 
   test("a legitimate single-speaker reply with no drift is untouched", async () => {
@@ -1501,7 +1501,7 @@ describe("runTurnPipeline — RECEIVE per-speaker canon clean (F1)", () => {
   // IMP-1 layer 2b — an impersonate draft is the USER's line, so "self" is the PERSONA and the WHOLE cast is
   // foreign. An impersonate turn carries no `shape`, which is exactly why the pre-IMP-1 fallback (self = the
   // character) ran the inverted configuration on it.
-  describe("impersonate — self is the persona, every cast member is foreign", () => {
+  describe("impersonate — self is the persona, every character is foreign", () => {
     test("a leading CHARACTER label is NOT stripped — the composer must SEE the bleed, not receive it laundered", async () => {
       const { args } = baseArgs({
         runChatTurn: finalTurn('Kai: "You are paying, or you sleep outside."'),
@@ -1512,7 +1512,7 @@ describe("runTurnPipeline — RECEIVE per-speaker canon clean (F1)", () => {
       expect(result.content).toBe('Kai: "You are paying, or you sleep outside."');
     });
 
-    test("a draft that rolls on into ANY cast member's line is truncated — including the primary character", async () => {
+    test("a draft that rolls on into ANY other character's line is truncated — including the primary character", async () => {
       const { args } = baseArgs({
         runChatTurn: finalTurn("I drop the satchel by the fire.\nKai: I watch her do it."),
         assembleContext: groupCtx(),
@@ -2241,7 +2241,7 @@ describe("spanToWirePart — CONTENT_CLASS_POLICY binding", () => {
 });
 
 // NARRATOR ASSEMBLY — what an `output:"narrator"` round actually SENDS. A narrator round is ONE call voicing
-// the WHOLE cast, authored by the synthetic group character, which by construction is NOT in `castMembers`.
+// the WHOLE cast, authored by the synthetic group character, which by construction is NOT in `speakerRefs`.
 // These pin the two facts a live drive (2026-08-07, docs/history/reviews/misc/2026-08-07-narrator-live-drive.md)
 // found MISSING from the wire: the co-speakers' CARDS never reached the model (the system row named the
 // primary 7x and the co-speaker 0x), and `{{char}}` bound to the primary alone, so the shipped main-prompt
@@ -2262,8 +2262,8 @@ describe("runTurnPipeline — narrator round assembly", () => {
   function narratorCtx(): AssembleContext {
     return ctxOf({
       character: charlotte,
-      cast: [charlotte, jfc],
-      castMembers: [
+      characters: [charlotte, jfc],
+      speakerRefs: [
         { kind: "character", characterId: castId<CharacterId>("char_charlotte") },
         { kind: "character", characterId: castId<CharacterId>("char_jfc") },
       ],
@@ -2304,7 +2304,7 @@ describe("runTurnPipeline — narrator round assembly", () => {
     expect(system).not.toContain("Charlotte, JFC is a tired archivist");
   });
 
-  test("`{{char}}` binds to the WHOLE cast in the PRESET framing, which is the one place it should", async () => {
+  test("`{{char}}` binds to the WHOLE character set in the PRESET framing, which is the one place it should", async () => {
     const { args } = baseArgs({ assembleContext: narratorCtx(), shape: narratorShape });
     const result = await runTurnPipeline(args);
     // The narrator arm resolves NARRATOR_MAIN_PROMPT_TEMPLATE ("…voicing {{char}} and the world around
@@ -2315,12 +2315,12 @@ describe("runTurnPipeline — narrator round assembly", () => {
     expect(result.request.prompt.static).not.toContain("perspective only");
   });
 
-  test("an EMPTY-but-defined cast floors `{{char}}` to the primary instead of shipping an empty name", async () => {
-    // Reachable: `getCard` returning falsy for every seated id leaves `cast: []`/`castMembers: []` (both
+  test("an EMPTY-but-defined character set floors `{{char}}` to the primary instead of shipping an empty name", async () => {
+    // Reachable: `getCard` returning falsy for every seated id leaves `characters: []`/`speakerRefs: []` (both
     // DEFINED, so the absent-cast early return does not fire) while a narrator round still runs. An unfloored
     // members list joins to "" — the narrator framing would ship "voicing  and the world around them".
     const { args } = baseArgs({
-      assembleContext: ctxOf({ character: charlotte, cast: [], castMembers: [] }),
+      assembleContext: ctxOf({ character: charlotte, characters: [], speakerRefs: [] }),
       shape: narratorShape,
     });
     const system = (await runTurnPipeline(args)).request.prompt.static;

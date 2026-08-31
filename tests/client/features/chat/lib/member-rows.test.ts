@@ -7,7 +7,7 @@
 // `users` has no display-name column at all, so the server's `publics.displayName ?? handle` rule falls back
 // to it on EVERY row, and the seat read "inktomi93@gmail.com · inktomi93@gmail.com".
 
-import type { CastEntry } from "@orb/contracts/chat";
+import type { ChatIdentity } from "@orb/contracts/chat";
 import type { CharacterId, Handle, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { MemberRowSources } from "../../../../../packages/client/src/features/chat/lib/member-rows.ts";
@@ -24,10 +24,10 @@ const BOB_ID = castId<CharacterId>("char_bob");
  *  the server's `publics.displayName ?? handle` rule hands the client the email in BOTH fields. */
 const OIDC_EMAIL = "inktomi93@gmail.com";
 
-const NATE_CAST: CastEntry = { kind: "persona", id: NATE_PERSONA, name: "Alex", description: "", avatarHash: "persona-hash" };
+const NATE_CAST: ChatIdentity = { kind: "persona", id: NATE_PERSONA, name: "Alex", description: "", avatarHash: "persona-hash" };
 
 function sourcesOf(over: Partial<MemberRowSources> = {}): MemberRowSources {
-  return { participants: [], cast: [], viewerUserId: OWNER_ID, pendingHostUserId: null, respondingCharacterId: null, ...over };
+  return { participants: [], identities: [], viewerUserId: OWNER_ID, pendingHostUserId: null, respondingCharacterId: null, ...over };
 }
 
 /** One human seat as an OIDC install produces it: handle === displayName === the email. */
@@ -45,7 +45,7 @@ function oidcSeat(over: Parameters<typeof makeParticipant>[0] = {}): ReturnType<
 }
 
 test("a human seat renders the PERSONA it is playing — the handle appears nowhere on the row", () => {
-  const rows = toPersonRows(sourcesOf({ participants: [oidcSeat({ activePersonaId: NATE_PERSONA })], cast: [NATE_CAST] }));
+  const rows = toPersonRows(sourcesOf({ participants: [oidcSeat({ activePersonaId: NATE_PERSONA })], identities: [NATE_CAST] }));
 
   expect(rows.map((r) => r.displayName)).toEqual(["Alex"]);
   // The whole serialized row, so a future field cannot smuggle the handle back in beside the name — the
@@ -65,14 +65,14 @@ test("a persona-less seat falls back to the wire displayName, and still renders 
 });
 
 test("the persona's own portrait wins for the row avatar; the seat's own hash is the fallback", () => {
-  const playing = toPersonRows(sourcesOf({ participants: [oidcSeat({ activePersonaId: NATE_PERSONA })], cast: [NATE_CAST] }));
+  const playing = toPersonRows(sourcesOf({ participants: [oidcSeat({ activePersonaId: NATE_PERSONA })], identities: [NATE_CAST] }));
   expect(playing[0]?.avatarHash).toBe("persona-hash");
 
   const bare = toPersonRows(sourcesOf({ participants: [oidcSeat({ avatarHash: "account-hash" })] }));
   expect(bare[0]?.avatarHash).toBe("account-hash");
 });
 
-test("a persona the cast producer does not carry falls back to the wire name, never to a raw id", () => {
+test("a persona the identities producer does not carry falls back to the wire name, never to a raw id", () => {
   const rows = toPersonRows(sourcesOf({ participants: [oidcSeat({ activePersonaId: NATE_PERSONA })] }));
   expect(rows.map((r) => r.displayName)).toEqual([OIDC_EMAIL]);
   expect(rows.map((r) => r.displayName)).not.toContain(NATE_PERSONA);

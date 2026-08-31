@@ -41,7 +41,7 @@ import type { ForkResult } from "../contract/results.ts";
 import type { ChatService } from "../contract/service.ts";
 import { requireParticipant } from "../guard.ts";
 import { carriesAssetBackground, guardedChatId } from "../persistence/background-write.ts";
-import { loadChatCastProducer } from "../persistence/cast.ts";
+import { loadChatIdentityProducer } from "../persistence/identity.ts";
 import { classifyParticipant } from "../persistence/participant.ts";
 import {
   loadChatInjections,
@@ -725,12 +725,12 @@ function createForkChat(ctx: ChatContext, deps: ForkDeps): ChatService["forkChat
       throw new ChatNotFoundError(newChatId);
     }
     const participants = await deps.loadParticipantViews(newChatId);
-    const cast = await loadChatCastProducer(ctx.db, { participants });
+    const identities = await loadChatIdentityProducer(ctx.db, { participants });
     return {
       chat: toChatDetail({
         chat: forkRow,
         participants,
-        cast,
+        identities,
         viewerUserId: principal.userId,
         // The forker is the NEW room's born-here host (`joinSeq` 0) — unclamped in the fork, which already
         // carries only what their source-room floor allowed.

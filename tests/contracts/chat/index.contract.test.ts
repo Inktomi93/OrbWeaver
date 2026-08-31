@@ -1,5 +1,5 @@
-import type { CastEntry, ChatBusEvent, ChatDeltaEvent } from "@orb/contracts/chat";
-import { buildCastNameContext, CHAT_BUS_EVENT_TYPES, CHAT_WARNING_CODES, isChatBusEventType, LIVE_ONLY_CHAT_EVENT_TYPES } from "@orb/contracts/chat";
+import type { ChatBusEvent, ChatDeltaEvent, ChatIdentity } from "@orb/contracts/chat";
+import { buildIdentityNameContext, CHAT_BUS_EVENT_TYPES, CHAT_WARNING_CODES, isChatBusEventType, LIVE_ONLY_CHAT_EVENT_TYPES } from "@orb/contracts/chat";
 import type { PersonaId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { resolveRowMacros } from "@orb/kit/macro";
@@ -125,24 +125,24 @@ test("chatOpened + worldInfoActivated round-trip their id-only shapes (event-bus
 // ── §6 parity keystone (Chat-Macro-Resolution.md §6 / task #59 P1) ──────────────────────────────────
 // The doctrine's ONE shared fixture: anchor(pinned)=Nyx, active=Zara, a row stamped personaId=Mara,
 // content "{{user}} waves". Server ASSEMBLE (`engine/pipeline.ts`'s `toShapeCanon`, via `engine.ts`'s
-// `buildCastNameContext` call over the loaded cast producer) and client DISPLAY
+// `buildIdentityNameContext` call over the loaded cast producer) and client DISPLAY
 // (`message-list-surface.tsx`'s merge, via the SAME projection over the wire cast) each derive
-// their lookup maps from the identical `CastEntry[]` ARRAY shape (D137) — this is the ONE place both
+// their lookup maps from the identical `ChatIdentity[]` ARRAY shape (D137) — this is the ONE place both
 // "sides" import the SAME projection, so a fixture here proves the map-construction step itself can't
 // diverge (the atom-level parity — resolveRowMacros itself — is pinned separately in
 // tests/kit/macro/row-macros.test.ts; the projection's own routing/totality is pinned in
 // producers.contract.test.ts). Two independently-built map pairs from the SAME array, fed through
 // `resolveRowMacros`, must both resolve to Mara — never Zara (active) nor Nyx (the pinned anchor, a CARD-
 // only axis — never a history row's subject).
-test("§6 parity keystone: server-build and client-build of the SAME cast array both resolve a row's {{user}} to Mara, never the active nor the pinned anchor", () => {
+test("§6 parity keystone: server-build and client-build of the SAME identities array both resolve a row's {{user}} to Mara, never the active nor the pinned anchor", () => {
   const maraId = castId<PersonaId>(mintTypeId(ID_PREFIX.persona));
-  const cast: CastEntry[] = [{ kind: "persona", id: maraId, name: "Mara", description: "a wandering scholar", avatarHash: null }];
+  const identities: ChatIdentity[] = [{ kind: "persona", id: maraId, name: "Mara", description: "a wandering scholar", avatarHash: null }];
 
-  // "server ASSEMBLE"-side build — mirrors engine.ts's `buildCastNameContext(cast)` call.
-  const { characterNamesById: serverCharacterNamesById, personaNamesById: serverPersonaNamesById } = buildCastNameContext(cast);
+  // "server ASSEMBLE"-side build — mirrors engine.ts's `buildIdentityNameContext(cast)` call.
+  const { characterNamesById: serverCharacterNamesById, personaNamesById: serverPersonaNamesById } = buildIdentityNameContext(identities);
   // "client DISPLAY"-side build — mirrors message-list-surface.tsx's merge-then-project call (a fresh array
   // copy stands in for "the cast arrived over the wire", never the SAME in-memory reference).
-  const { characterNamesById: clientCharacterNamesById, personaNamesById: clientPersonaNamesById } = buildCastNameContext([...cast]);
+  const { characterNamesById: clientCharacterNamesById, personaNamesById: clientPersonaNamesById } = buildIdentityNameContext([...identities]);
 
   const rowStamps = { characterId: null, personaId: maraId };
   const serverOut = resolveRowMacros("{{user}} waves", rowStamps, {

@@ -19,7 +19,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
 import { Fragment, useRef } from "react";
 import type { ChatBusDeps } from "#data";
-import { useCarriedAppearanceCast, useTRPC } from "#data";
+import { useCarriedAppearance, useTRPC } from "#data";
 import type { ChatRoomSurfaceState, ChatSurfaceContribution, ContributorRegistry, ToolRenderer } from "#lib";
 import { cn, deriveChatTitle, useFocusOnMount } from "#lib";
 import type { ActiveChatHandle } from "#state";
@@ -64,7 +64,7 @@ export function ChatRoomSurface({ handle, busDeps, onChatForked, surfaceContribu
   // brand-new room wears its card's theme immediately instead of re-skinning itself later (the 2026-08-06
   // owner dogfood, now fixed by the row existing rather than by a second card-reading resolver).
   const { data: roomChat } = useQuery(trpc.chat.getChat.queryOptions({ chatId }));
-  const carriedCast = useCarriedAppearanceCast(chatId);
+  const carriedCast = useCarriedAppearance(chatId);
   const roomTheme = resolveRoomTheme(carriedCast);
   // Names the room's focus target (finding #2): the chat title, else "Chat room" (a not-yet-resolved room).
   // Without this explicit label the tabindex=-1 focus DIV's name falls to name-from-content — concatenating

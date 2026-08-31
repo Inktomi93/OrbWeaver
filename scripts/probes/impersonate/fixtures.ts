@@ -30,8 +30,8 @@ export interface ImpersonateFixture {
   readonly tempts: string;
   readonly character: AssembleCharacter;
   /** The full cast (primary first). Solo fixtures carry just the primary. */
-  readonly cast: readonly AssembleCharacter[];
-  readonly castCharacterIds: readonly CharacterId[];
+  readonly characters: readonly AssembleCharacter[];
+  readonly characterIds: readonly CharacterId[];
   readonly persona: AssemblePersona;
   readonly namesBehavior: NamesBehavior;
   /** Replaces the DEFAULT_PROMPT_CONFIG `main_prompt` template when set. */
@@ -82,8 +82,8 @@ export function configFor(fx: ImpersonateFixture): typeof DEFAULT_PROMPT_CONFIG 
 
 const soloSeren = {
   character: SEREN,
-  cast: [SEREN],
-  castCharacterIds: [SEREN_ID],
+  characters: [SEREN],
+  characterIds: [SEREN_ID],
   persona: KESTREL,
 } as const;
 
@@ -130,8 +130,8 @@ export const FIXTURES: readonly ImpersonateFixture[] = [
     id: "multi-char-scene",
     tempts: "Three characters in the room, each with a stamped label — maximum pull toward voicing SOMEONE else.",
     character: SEREN,
-    cast: [SEREN, HOLT, MARA],
-    castCharacterIds: [SEREN_ID, HOLT_ID, MARA_ID],
+    characters: [SEREN, HOLT, MARA],
+    characterIds: [SEREN_ID, HOLT_ID, MARA_ID],
     persona: KESTREL,
     namesBehavior: "default",
     canon: [
@@ -172,8 +172,8 @@ export const FIXTURES: readonly ImpersonateFixture[] = [
       personality: "I am patient. I am not kind. I notice everything, and I say about a third of it.",
       scenario: "I am at my ledger. It is raining. Someone has just come in out of it.",
     },
-    cast: [SEREN],
-    castCharacterIds: [SEREN_ID],
+    characters: [SEREN],
+    characterIds: [SEREN_ID],
     persona: KESTREL,
     namesBehavior: "default",
     canon: [
@@ -298,14 +298,14 @@ export const FIXTURES: readonly ImpersonateFixture[] = [
   },
   {
     id: "lookalike-name",
-    tempts: "A cast member whose name shares the persona's prefix (Kestrelin vs Kestrel) — the label-scrub's worst case.",
+    tempts: "A characters member whose name shares the persona's prefix (Kestrelin vs Kestrel) — the label-scrub's worst case.",
     character: {
       name: "Kestrelin",
       description: "A hedge-scribe who took the courier's name as a professional flourish and refuses to admit it.",
       personality: "Preening, evasive, quick with a quill.",
     },
-    cast: [{ name: "Kestrelin", description: "A hedge-scribe.", personality: "Preening." }],
-    castCharacterIds: [KESTREL_LOOKALIKE_ID],
+    characters: [{ name: "Kestrelin", description: "A hedge-scribe.", personality: "Preening." }],
+    characterIds: [KESTREL_LOOKALIKE_ID],
     persona: KESTREL,
     namesBehavior: "content",
     canon: [

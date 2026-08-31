@@ -14,8 +14,8 @@
 // historical portrait to bare initials. The live participant still WINS when present (its avatarHash can
 // carry a per-chat override the character-level producer doesn't).
 
-import type { CarriedAppearanceCast, CastKind, CastKindPolicy, MessageKind, ParticipantView } from "@orb/contracts/chat";
-import { CAST_KIND_POLICY, isNarratorVoiced, resolveCarriedTheme } from "@orb/contracts/chat";
+import type { CarriedAppearance, ChatIdentityKind, ChatIdentityKindPolicy, MessageKind, ParticipantView } from "@orb/contracts/chat";
+import { CHAT_IDENTITY_KIND_POLICY, isNarratorVoiced, resolveCarriedTheme } from "@orb/contracts/chat";
 import { cardEmbeddableSubset } from "@orb/contracts/theme";
 import type { AssetId, CharacterId, PersonaId, UserId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
@@ -28,7 +28,7 @@ import { colorForCharacter } from "./speaker-color.ts";
 export interface RowAttribution {
   /** `null` = render no attribution chrome. */
   readonly name: string | null;
-  /** Which side of the two-kind cast this row's identity resolved from; `null` only alongside
+  /** Which arm of the two-kind chat-identity axis this row resolved from; `null` only alongside
    *  `name === null`. Consumers stamp it as `data-*`, never branch JSX on it. */
   readonly kind: "character" | "persona" | null;
   readonly avatarAssetId: AssetId | null;
@@ -139,24 +139,24 @@ export interface ResolveRowAttributionInput {
  * re-export here trips `noBarrelFile`); this comment stays because it is the predicate's DESIGN record.
  */
 
-/** The per-kind avatar precedence — `CAST_KIND_POLICY`'s `avatar` column enacted (D137, its live reader):
+/** The per-kind avatar precedence — `CHAT_IDENTITY_KIND_POLICY`'s `avatar` column enacted (D137, its live reader):
  *  `participant-first` lets a live `ParticipantView`'s hash (which can carry a per-chat override) win over
- *  the cast entry's; `cast-only` reads the cast producer alone (a persona has no participant avatar plane).
+ *  the identity entry's; `identity-only` reads the identity producer alone (a persona has no participant avatar plane).
  *  Total over the policy verdict (`assertNever` tail — a third precedence cannot ship unread). */
-function avatarByPolicy(kind: CastKind, participantHash: string | null | undefined, castHash: string | null | undefined): string | null {
-  return applyAvatarPrecedence(CAST_KIND_POLICY[kind].avatar, participantHash, castHash);
+function avatarByPolicy(kind: ChatIdentityKind, participantHash: string | null | undefined, identityHash: string | null | undefined): string | null {
+  return applyAvatarPrecedence(CHAT_IDENTITY_KIND_POLICY[kind].avatar, participantHash, identityHash);
 }
 
 function applyAvatarPrecedence(
-  precedence: CastKindPolicy["avatar"],
+  precedence: ChatIdentityKindPolicy["avatar"],
   participantHash: string | null | undefined,
-  castHash: string | null | undefined,
+  identityHash: string | null | undefined,
 ): string | null {
   switch (precedence) {
     case "participant-first":
-      return participantHash ?? castHash ?? null;
-    case "cast-only":
-      return castHash ?? null;
+      return participantHash ?? identityHash ?? null;
+    case "identity-only":
+      return identityHash ?? null;
     default:
       return assertNeverAvatarPrecedence(precedence);
   }
@@ -212,8 +212,8 @@ function resolveAssistantAttribution(input: ResolveRowAttributionInput): RowAttr
   }
   const participant = input.participants?.get(input.characterId);
   const tokens = characterTint(input.characterId, participant?.themeOverride, false);
-  // participant-first (CAST_KIND_POLICY.character.avatar): the live participant wins (it can carry a
-  // per-chat avatar override); once removed it's absent, so the portrait falls back to the cast producer's
+  // participant-first (CHAT_IDENTITY_KIND_POLICY.character.avatar): the live participant wins (it can carry a
+  // per-chat avatar override); once removed it's absent, so the portrait falls back to the identity producer's
   // character entry — never straight to the initials fallback.
   const avatarHash = avatarByPolicy("character", participant?.avatarHash, input.characterAvatarsById?.get(input.characterId));
   return {
@@ -246,11 +246,11 @@ function isMultiCharacterRoom(participants: ReadonlyMap<CharacterId, Participant
 /** The room-theme takeover, typed for `<ThemeScope>`: in a true-solo room the character's authored
  *  themeOverride takes over the chat-root chrome; any other composition falls back to the viewer's own
  *  theme. Rule and composition are NOT re-spelled here — `resolveCarriedTheme` over the phase-independent
- *  {@link CarriedAppearanceCast} (contracts/chat) is the ONE home, shared with the card-carried arm of the
+ *  {@link CarriedAppearance} (contracts/chat) is the ONE home, shared with the card-carried arm of the
  *  background takeover, which is what lets a pre-send DRAFT wear its founding card's theme instead of
  *  waiting for a roster to exist. This function is only the `@orb/ui` type adapter. */
-export function resolveRoomTheme(cast: CarriedAppearanceCast | undefined): ThemeScopeTokens | undefined {
-  return cast === undefined ? undefined : resolveCarriedTheme(cast);
+export function resolveRoomTheme(appearance: CarriedAppearance | undefined): ThemeScopeTokens | undefined {
+  return appearance === undefined ? undefined : resolveCarriedTheme(appearance);
 }
 
 /** THE ONE per-character tint resolution — the authored `themeOverride` when it carries anything, else the

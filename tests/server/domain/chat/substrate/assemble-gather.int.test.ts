@@ -138,7 +138,7 @@ describe("gatherAssembleContext — the chat-internal merge", () => {
         chatId: castId(chatId),
         runAsUserId: host,
         model: "m",
-        castCharacterIds: [aria],
+        characterIds: [aria],
         personaIds: [],
       },
       foreignOf(),
@@ -168,11 +168,7 @@ describe("gatherAssembleContext — the chat-internal merge", () => {
     await db.update(messages).set({ createdAt: FROZEN_AT }).where(eq(messages.id, inflight.messageId));
     const ctx = makeChatContext(db, { getCard: () => Promise.resolve(cardOf("Aria")) });
 
-    const out = await gatherAssembleContext(
-      ctx,
-      { chatId: castId(chatId), runAsUserId: host, model: "m", castCharacterIds: [aria], personaIds: [] },
-      foreignOf(),
-    );
+    const out = await gatherAssembleContext(ctx, { chatId: castId(chatId), runAsUserId: host, model: "m", characterIds: [aria], personaIds: [] }, foreignOf());
     // The in-flight (seq 2, at now) is excluded ⇒ idle = now − prior(now−8min) = "8 minutes" (NOT ~0).
     expect(out.idleDuration).toBe("8 minutes");
   });
@@ -183,11 +179,7 @@ describe("gatherAssembleContext — the chat-internal merge", () => {
     await seedMessage(db, chatId, 1, { role: "user", authorUserId: host, content: "first" });
     const ctx = makeChatContext(db, { getCard: () => Promise.resolve(cardOf("Aria")) });
 
-    const out = await gatherAssembleContext(
-      ctx,
-      { chatId: castId(chatId), runAsUserId: host, model: "m", castCharacterIds: [aria], personaIds: [] },
-      foreignOf(),
-    );
+    const out = await gatherAssembleContext(ctx, { chatId: castId(chatId), runAsUserId: host, model: "m", characterIds: [aria], personaIds: [] }, foreignOf());
     expect(out.idleDuration).toBeUndefined();
   });
 
@@ -208,7 +200,7 @@ describe("gatherAssembleContext — the chat-internal merge", () => {
         chatId: castId(chatId),
         runAsUserId: host,
         model: "m",
-        castCharacterIds: [aria],
+        characterIds: [aria],
         personaIds: [],
       },
       foreignOf(),
@@ -243,7 +235,7 @@ describe("gatherAssembleContext — memory recall (the shared/merged bucket)", (
         chatId: castId(chatId),
         runAsUserId: host,
         model: "m",
-        castCharacterIds: [aria],
+        characterIds: [aria],
         personaIds: [],
       },
       foreignOf({ memoryConfig: { mode: "mixC" } }),
@@ -270,7 +262,7 @@ describe("gatherAssembleContext — memory recall (the shared/merged bucket)", (
 
     await gatherAssembleContext(
       ctx,
-      { chatId: castId(chatId), runAsUserId: host, model: "m", castCharacterIds: [aria], personaIds: [] },
+      { chatId: castId(chatId), runAsUserId: host, model: "m", characterIds: [aria], personaIds: [] },
       foreignOf({ memoryConfig: { mode: "mixC" } }),
       sink,
     );
@@ -299,7 +291,7 @@ describe("gatherAssembleContext — memory recall (the shared/merged bucket)", (
         chatId: castId(chatId),
         runAsUserId: host,
         model: "m",
-        castCharacterIds: [aria],
+        characterIds: [aria],
         personaIds: [],
         triggerUserId: host,
         pendingUserText: "where is the hidden relic",
@@ -332,7 +324,7 @@ describe("gatherAssembleContext — memory recall (the shared/merged bucket)", (
 
     const out = await gatherAssembleContext(
       ctx,
-      { chatId: castId(chatId), runAsUserId: host, model: "m", castCharacterIds: [aria], personaIds: [] },
+      { chatId: castId(chatId), runAsUserId: host, model: "m", characterIds: [aria], personaIds: [] },
       foreignOf({ memoryConfig: { mode: "mixB" } }),
     );
 
@@ -363,7 +355,7 @@ describe("gatherAssembleContext — memory recall (the shared/merged bucket)", (
         chatId: castId(chatId),
         runAsUserId: host,
         model: "m",
-        castCharacterIds: [aria],
+        characterIds: [aria],
         personaIds: [],
       },
       foreignOf({ memoryConfig: { mode: "off" } }),
@@ -382,7 +374,7 @@ describe("gatherAssembleContext — the {{databank}} slot GATHER (DB6)", () => {
 
     const out = await gatherAssembleContext(
       ctx,
-      { chatId: castId(chatId), runAsUserId: host, model: "m", castCharacterIds: [aria], personaIds: [], pendingUserText: "tell me more" },
+      { chatId: castId(chatId), runAsUserId: host, model: "m", characterIds: [aria], personaIds: [], pendingUserText: "tell me more" },
       foreignOf(),
     );
 
@@ -399,7 +391,7 @@ describe("gatherAssembleContext — the {{databank}} slot GATHER (DB6)", () => {
 
     const out = await gatherAssembleContext(
       ctx,
-      { chatId: castId(chatId), runAsUserId: host, model: "m", castCharacterIds: [aria], personaIds: [], pendingUserText: "tell me more" },
+      { chatId: castId(chatId), runAsUserId: host, model: "m", characterIds: [aria], personaIds: [], pendingUserText: "tell me more" },
       foreignOf(),
     );
 
@@ -421,7 +413,7 @@ describe("gatherAssembleContext — the {{databank}} slot GATHER (DB6)", () => {
 
     const out = await gatherAssembleContext(
       ctx,
-      { chatId: castId(chatId), runAsUserId: host, model: "m", castCharacterIds: [aria], personaIds: [], pendingUserText: "tell me more about that" },
+      { chatId: castId(chatId), runAsUserId: host, model: "m", characterIds: [aria], personaIds: [], pendingUserText: "tell me more about that" },
       foreignOf(),
     );
 
@@ -449,7 +441,7 @@ describe("gatherAssembleContext — the {{databank}} slot GATHER (DB6)", () => {
 
     await gatherAssembleContext(
       ctx,
-      { chatId: castId(chatId), runAsUserId: host, model: "m", castCharacterIds: [aria], personaIds: [], pendingUserText: "ask" },
+      { chatId: castId(chatId), runAsUserId: host, model: "m", characterIds: [aria], personaIds: [], pendingUserText: "ask" },
       foreignOf({ databankRetrieval: { k: 3, minScore: 0.4, rerank: true }, databankSlotTokenBudget: 2048 }),
     );
 
@@ -474,7 +466,7 @@ describe("gatherAssembleContext — the {{databank}} slot GATHER (DB6)", () => {
 
     await gatherAssembleContext(
       ctx,
-      { chatId: castId(chatId), runAsUserId: host, model: "m", castCharacterIds: [aria], personaIds: [], pendingUserText: "ask" },
+      { chatId: castId(chatId), runAsUserId: host, model: "m", characterIds: [aria], personaIds: [], pendingUserText: "ask" },
       foreignOf(),
     );
 
@@ -500,7 +492,7 @@ describe("gatherAssembleContext — the {{databank}} slot GATHER (DB6)", () => {
 
     const assembleCtx = await gatherAssembleContext(
       ctx,
-      { chatId: castId(chatId), runAsUserId: host, model: "m", castCharacterIds: [aria], personaIds: [], pendingUserText: "who runs the ferry?" },
+      { chatId: castId(chatId), runAsUserId: host, model: "m", characterIds: [aria], personaIds: [], pendingUserText: "who runs the ferry?" },
       foreignOf(),
     );
     const prompt = assemblePrompt(DEFAULT_PROMPT_CONFIG, assembleCtx);
@@ -515,7 +507,7 @@ describe("gatherAssembleContext — the host-tier regex union (D53 as amended by
   // injected `resolveRegexSources` op with the turn's frozen `runAsUserId`, the resolved preset, the roster's
   // cast, and the room, then unions what comes back. This test pins BOTH halves: that the gather passes the
   // right scope keys, and that it preserves the resolver's tier order end-to-end.
-  test("union = global ∪ preset ∪ cast ∪ room, in that order, from the injected scope resolver", async () => {
+  test("union = global ∪ preset ∪ character ∪ room, in that order, from the injected scope resolver", async () => {
     const { host, chatId, aria } = await seedRoom("regex");
     const seen: { ownerId?: string; chatId?: ChatId; characterIds?: readonly string[] } = {};
     const ctx = makeChatContext(db, {
@@ -526,7 +518,7 @@ describe("gatherAssembleContext — the host-tier regex union (D53 as amended by
         return Promise.resolve({
           hostGlobal: [regexScript("global", "x", "y", "WORLD_INFO")],
           preset: [regexScript("preset", "p", "q", "WORLD_INFO")],
-          cast: [regexScript("cast", "a", "b", "WORLD_INFO")],
+          character: [regexScript("cast", "a", "b", "WORLD_INFO")],
           chat: [regexScript("room", "r", "s", "WORLD_INFO")],
         });
       },
@@ -538,7 +530,7 @@ describe("gatherAssembleContext — the host-tier regex union (D53 as amended by
         chatId: castId(chatId),
         runAsUserId: host,
         model: "m",
-        castCharacterIds: [aria],
+        characterIds: [aria],
         personaIds: [],
       },
       foreignOf(),
@@ -566,7 +558,7 @@ describe("gatherAssembleContext — the FOREIGN injection budget is applied", ()
         chatId: castId(chatId),
         runAsUserId: host,
         model: "m",
-        castCharacterIds: [aria],
+        characterIds: [aria],
         personaIds: [],
       },
       foreignOf({ injectionTokenBudget: 2 }),
@@ -585,7 +577,7 @@ describe("gatherAssembleContext — SEND USER_INPUT regex flows through the gath
     const ctx = makeChatContext(db, {
       getCard: () => Promise.resolve(cardOf("Aria")),
       // The SEND leg's script arrives through the D121-E scope resolver, not a foreign blob.
-      resolveRegexSources: () => Promise.resolve({ hostGlobal: [regexScript("u", "wyrm", "dragon", "USER_INPUT")], preset: [], cast: [], chat: [] }),
+      resolveRegexSources: () => Promise.resolve({ hostGlobal: [regexScript("u", "wyrm", "dragon", "USER_INPUT")], preset: [], character: [], chat: [] }),
     });
     const sink: { sendUserText?: string } = {};
 
@@ -595,7 +587,7 @@ describe("gatherAssembleContext — SEND USER_INPUT regex flows through the gath
         chatId: castId(chatId),
         runAsUserId: host,
         model: "m",
-        castCharacterIds: [aria],
+        characterIds: [aria],
         personaIds: [],
         pendingUserText: "a wyrm appears",
       },

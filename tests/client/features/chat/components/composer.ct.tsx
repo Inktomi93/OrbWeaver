@@ -1266,7 +1266,7 @@ test("#376 paste: a clipboard carrying BOTH text and an image attaches the image
 const PHONE_ROOM_STUB = {
   ...CHAT_AMBIENT_ROUTES,
   ...CHAT_ROOM_ROUTES,
-  "chat.getChat": (): unknown => ({ title: "Council", participants: [], viewerIsHost: true, anchorPersonaId: null, cast: [] }),
+  "chat.getChat": (): unknown => ({ title: "Council", participants: [], viewerIsHost: true, anchorPersonaId: null, identities: [] }),
 };
 
 /** One settled read of the action bar: the four homes' geometry, the resolved gap, and the touch floor. */
@@ -1389,7 +1389,7 @@ const GROUP_PHONE_STUB = {
     title: "Council",
     viewerIsHost: true,
     anchorPersonaId: null,
-    cast: [],
+    identities: [],
     participants: [composerCharacter("aria", "Aria"), composerCharacter("bryn", "Bryn")],
   }),
 };

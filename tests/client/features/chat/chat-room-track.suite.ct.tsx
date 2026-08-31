@@ -21,7 +21,7 @@
 // +260 px between the transcript column and the composer. Mobile was clean at every state, so this stage is
 // desktop-only by design.
 
-import type { CastEntry, GroupConfig, ParticipantView } from "@orb/contracts/chat";
+import type { ChatIdentity, GroupConfig, ParticipantView } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { CharacterId, MessageId, UserId } from "@orb/kit/ids";
@@ -118,10 +118,10 @@ function routeRoom(page: Page, chatStyle: string, content: string = LONG_PROSE):
       config: { ...DEFAULT_USER_SETTINGS, appearance: { ...DEFAULT_USER_SETTINGS.appearance, chatStyle } },
       updatedAt: 0,
     }),
-    "chat.getChat": (): { participants: readonly ParticipantView[]; anchorPersonaId: null; cast: readonly CastEntry[]; group: GroupConfig } => ({
+    "chat.getChat": (): { participants: readonly ParticipantView[]; anchorPersonaId: null; identities: readonly ChatIdentity[]; group: GroupConfig } => ({
       participants: [seat()],
       anchorPersonaId: null,
-      cast: [{ kind: "character", id: AZAREAL_ID, name: "Azareal", avatarHash: "ct_cas_hash_track" }],
+      identities: [{ kind: "character", id: AZAREAL_ID, name: "Azareal", avatarHash: "ct_cas_hash_track" }],
       group: DEFAULT_GROUP_CONFIG,
     }),
     "chat.listMessages": (): unknown =>

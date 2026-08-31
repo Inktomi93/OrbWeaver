@@ -17,7 +17,7 @@ import { ReactionPicker } from "./reaction-picker.tsx";
 
 export interface RowReactionPickerProps {
   readonly message: MessageView;
-  readonly castNames: readonly string[];
+  readonly characterNames: readonly string[];
   readonly groups: Parameters<typeof ReactionPicker>[0]["groups"];
   readonly viewerSeatId: Parameters<typeof ReactionPicker>[0]["viewerSeatId"];
   readonly onOpenChange: (open: boolean) => void;
@@ -25,13 +25,13 @@ export interface RowReactionPickerProps {
 
 /** The picker wired to the row's message: a whole-message pick sends the bare toggle, a segment pick
  *  carries the CLAIM (index + the span's speaker) the server re-validates against its own canon parse. */
-export function RowReactionPicker({ message, castNames, groups, viewerSeatId, onOpenChange }: RowReactionPickerProps): ReactElement {
+export function RowReactionPicker({ message, characterNames, groups, viewerSeatId, onOpenChange }: RowReactionPickerProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const toggleReaction = useToggleReactionMutation({ trpc, invalidation });
   return (
     <ReactionPicker
-      castNames={isNarratorVoiced(message.kind) ? castNames : []}
+      characterNames={isNarratorVoiced(message.kind) ? characterNames : []}
       chatId={message.chatId}
       content={message.content}
       groups={groups}

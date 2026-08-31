@@ -185,7 +185,7 @@ function harness(
     // D121-E: the host-tier regex set reaches a turn through the injected four-scope resolver, not through
     // ForeignInputs. The harness feeds the override in as the GLOBAL slice — the same tier the old
     // `globalRegexScripts` field modelled, so the pins it carries keep asserting the same thing.
-    resolveRegexSources: () => Promise.resolve({ hostGlobal: over.hostTierRegexScripts ?? [], preset: [], cast: [], chat: [] }),
+    resolveRegexSources: () => Promise.resolve({ hostGlobal: over.hostTierRegexScripts ?? [], preset: [], character: [], chat: [] }),
     runChatTurn: (request) => {
       over.onChatRequest?.(request);
       if (over.runChatTurn !== undefined) {
@@ -560,7 +560,7 @@ describe("send — user-row seq collision retry (U1: the seq TOCTOU is allocated
   });
 });
 
-describe("send — presence cast-gating (PD-70)", () => {
+describe("send — presence character-gating (PD-70)", () => {
   /** Seed a host + an away member (each with a persona) + one character; return the ids + persona ids. */
   async function seedTwoHumanRoom(): Promise<{
     host: UserId;
@@ -963,7 +963,7 @@ describe("send — narrator output (group character authors the turn)", () => {
 describe("send — narrator × smart: the arbiter is short-circuited (its verdict governs nothing)", () => {
   const warnings = (events: readonly ChatBusEvent[]): readonly ChatBusEvent[] => events.filter((e) => e.type === "warning");
 
-  test("a narrator round makes ZERO side-LLM arbiter calls and still commits the cast turn", async () => {
+  test("a narrator round makes ZERO side-LLM arbiter calls and still commits the character turn", async () => {
     const { host, chatId, names } = await seedRoom("smart", ["aria", "bryn"], { output: "narrator" });
     const groupCharacterId = await seedCharacter(db, host, "group");
     let arbiterCalls = 0;
@@ -1220,7 +1220,7 @@ describe("send — PD-146 custom stopping strings + auto-behaviors", () => {
     expect(seenStop).toEqual(["<END>", ...chars.map((id) => `\n${names[id]}:`)]);
   });
 
-  test("a NON-impersonate turn gains no cast stops (byte-identical to pre-IMP-1)", async () => {
+  test("a NON-impersonate turn gains no character stops (byte-identical to pre-IMP-1)", async () => {
     const { host, chatId, names } = await seedRoom("natural", ["aria", "kai"]);
     let seenStop: readonly string[] | undefined = ["sentinel"];
     const h = harness(db, names, {
@@ -1752,7 +1752,7 @@ describe("generate — member-reachable speaker attribution is presence-gated (f
     expect((await loadCanonHistory(db, chatId)).filter((m) => m.role === "assistant")).toHaveLength(0);
   });
 
-  test("a member generating for a DEPARTED (leftSeq set) cast member is refused NOT_FOUND", async () => {
+  test("a member generating for a DEPARTED (leftSeq set) character member is refused NOT_FOUND", async () => {
     // Presence is the hard requirement: a character that LEFT still has cards/history but is no longer a
     // present characters seat, so it may not be voiced by a fresh generate (the leftSeq === null sibling of
     // forceCharacterTurn's presence check).
@@ -1774,7 +1774,7 @@ describe("generate — member-reachable speaker attribution is presence-gated (f
     expect((await loadCanonHistory(db, chatId)).filter((m) => m.role === "assistant")).toHaveLength(0);
   });
 
-  test("a member generating for a PRESENT cast character succeeds (regression: the legitimate path stays open)", async () => {
+  test("a member generating for a PRESENT character character succeeds (regression: the legitimate path stays open)", async () => {
     const { chatId, chars, names } = await seedRoom("natural", ["aria", "bryn"]);
     const member = await seedUser(db, castId<Handle>("member"));
     await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
@@ -1791,7 +1791,7 @@ describe("generate — member-reachable speaker attribution is presence-gated (f
     expect(outcome.messages[0]?.characterId).toBe(chars[1]);
   });
 
-  test("a member generating for a PRESENT-but-MUTED cast character succeeds (mute gates arbitration, not manual targeting)", async () => {
+  test("a member generating for a PRESENT-but-MUTED character character succeeds (mute gates arbitration, not manual targeting)", async () => {
     // Mute (`disabled`) governs auto-selection eligibility + `{{groupNotMuted}}`, NOT explicit speaker
     // targeting — a member manually generating a muted seat is legitimate (it does NOT inherit any host
     // bypass; the only host-only bypass is a LEFT seat, refused above). Documented at the generate check site.

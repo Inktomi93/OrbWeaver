@@ -569,10 +569,10 @@ export function toShapeCanon(
   promptHistory: PromptHistoryRegexEnv | null,
 ): readonly CanonRow[] {
   const nameById = new Map<CharacterId, string>();
-  const cast = ctx.cast ?? [];
-  const ids = ctx.castCharacterIds ?? [];
+  const characters = ctx.characters ?? [];
+  const ids = ctx.characterIds ?? [];
   ids.forEach((id, i) => {
-    const name = cast[i]?.name;
+    const name = characters[i]?.name;
     if (id !== null && name !== undefined) {
       nameById.set(id, name);
     }

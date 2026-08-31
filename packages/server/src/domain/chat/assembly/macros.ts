@@ -41,11 +41,12 @@ function charForSpeaker(ctx: AssembleContext): string {
   return ctx.character.name;
 }
 
-/** The CHARACTER-only slice of the assemble cast — the `{{group}}`/`{{groupNotMuted}}` name feed (owner
- *  ruling): an agent seat voices through the assemble cast but NEVER appears in these macro name lists.
- *  `castMembers` is index-aligned with `cast`; a hand-built ctx with no `castMembers` treats every slot as
- *  a character (solo/legacy degenerate). Muting is orthogonal — the caller passes `cast` or `castNotMuted`. */
-function characterCastNames(_ctx: AssembleContext, members: readonly AssembleCharacter[]): string[] {
+/** The CHARACTER-only slice of `AssembleContext.characters` — the `{{group}}`/`{{groupNotMuted}}` name feed
+ *  (owner ruling): an agent seat voices through `characters` but NEVER appears in these macro name lists.
+ *  `speakerRefs` is index-aligned with `characters`; a hand-built ctx with no `speakerRefs` treats every slot
+ *  as a character (solo/legacy degenerate). Muting is orthogonal — the caller passes `characters` or
+ *  `unmutedCharacters`. */
+function memberNames(_ctx: AssembleContext, members: readonly AssembleCharacter[]): string[] {
   return members.map((m) => m.name);
 }
 
@@ -76,7 +77,7 @@ interface MacroExtras {
 function macroOptionsFor(ctx: AssembleContext, persona: AssemblePersona | null | undefined, extras: MacroExtras = {}): ProcessMacroOptions {
   // {{group}} = every present CHARACTER (muted included, for lore); {{groupNotMuted}} = the pre-filtered
   // character-only-not-muted field, or the full character cast when unset (a hand-built ctx).
-  const characterCast = characterCastNames(ctx, ctx.cast ?? [ctx.character]);
+  const presentCharacterNames = memberNames(ctx, ctx.characters ?? [ctx.character]);
   const opts: ProcessMacroOptions = {
     char: charForSpeaker(ctx),
     // The unresolved-`{{user}}` floor — ONE spelling with the row-macro floor, the SHAPE name-stamp and
@@ -87,10 +88,10 @@ function macroOptionsFor(ctx: AssembleContext, persona: AssemblePersona | null |
     // {{scenario}} = the EFFECTIVE scenario (host room override > card > empty). `ctx.character.scenario`
     // stays intact so the section walk can still report which tier won (assemble.ts `scenario` marker).
     scenario: ctx.roomOverrides?.scenario ?? ctx.character.scenario ?? "",
-    // {{group}} = the CHARACTER cast (incl. muted, who still carry lore), agents excluded (owner ruling).
-    // {{groupNotMuted}} reads the pre-filtered character-only-not-muted field; absent ⇒ the full character cast.
-    cast: characterCast,
-    castNotMuted: ctx.castNotMuted !== undefined ? ctx.castNotMuted.map((c) => c.name) : characterCast,
+    // {{group}} = every present CHARACTER (incl. muted, who still carry lore), agents excluded (owner ruling).
+    // {{groupNotMuted}} reads the pre-filtered character-only-not-muted field; absent ⇒ every present character.
+    characterNames: presentCharacterNames,
+    unmutedCharacterNames: ctx.unmutedCharacters !== undefined ? ctx.unmutedCharacters.map((c) => c.name) : presentCharacterNames,
     description: ctx.character.description,
     personality: u(ctx.character.personality),
     exampleMessages: u(ctx.character.exampleMessages),
@@ -197,7 +198,7 @@ export function renderHistoryMacros(
     speakerCharName: args.speakerCharName ?? charForSpeaker(ctx),
     // Ruling B: a HUMAN-authored / narrator row's `{{char}}` resolves to the CAST (group in multi, one in
     // solo), NOT the arbitrary current speaker — so it matches client DISPLAY. The full cast in roster order.
-    cast: (ctx.cast ?? [ctx.character]).map((c) => c.name),
+    characterNames: (ctx.characters ?? [ctx.character]).map((c) => c.name),
     // Ruling A / the design principle: the null-stamp `{{user}}`/`{{persona}}` fallback is the chat ANCHOR
     // (`pinnedPersona` = anchor ?? active), NEVER a per-viewer active persona — a greeting/AI line then
     // addresses the SAME persona for the model (this call) and every human (client DISPLAY). A stamped row

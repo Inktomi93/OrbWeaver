@@ -79,7 +79,7 @@ describe("loadWorldInfoPool — the 4-scope union", () => {
     const pool = await loadWorldInfoPool(db, {
       chatId,
       ownerId: host,
-      castCharacterIds: [charId],
+      characterIds: [charId],
       personaIds: [personaId],
     });
     const contents = pool.map((e) => e.content).sort();
@@ -116,7 +116,7 @@ describe("loadWorldInfoPool — the 4-scope union", () => {
     const pool = await loadWorldInfoPool(db, {
       chatId,
       ownerId: host,
-      castCharacterIds: [charId],
+      characterIds: [charId],
       personaIds: [],
     });
     expect(pool.filter((e) => e.content === "shared lore")).toHaveLength(1);
@@ -128,7 +128,7 @@ describe("loadWorldInfoPool — the 4-scope union", () => {
     const pool = await loadWorldInfoPool(db, {
       chatId,
       ownerId: host,
-      castCharacterIds: [],
+      characterIds: [],
       personaIds: [],
     });
     expect(pool).toEqual([]);

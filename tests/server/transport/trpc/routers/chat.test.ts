@@ -7,7 +7,7 @@
 // are pinned on the room source at `tests/server/transport/trpc/stream/sources/chat.test.ts`. The one
 // subscription left on this router is `impersonateStream` (permanently unfolded, spec §14 decision 2).
 
-import type { CastEntry, ChatBusEvent, MessageView } from "@orb/contracts/chat";
+import type { ChatBusEvent, ChatIdentity, MessageView } from "@orb/contracts/chat";
 import { CHAT_LIST_MAX_LIMIT, DEFAULT_GROUP_CONFIG, DEFAULT_ROOM_OVERRIDES } from "@orb/contracts/chat";
 import type { CharacterId, ChatId, ChatInjectionId, ChatParticipantId, MessageVariantId, PresetId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -67,8 +67,8 @@ const MESSAGE: MessageView = {
 };
 
 // The empty cast fixture (Chat-Macro-Resolution.md §1 / D137) — this router test only proves the
-// wire-through, not the producer's own resolution (that's `persistence/cast.int.test.ts` + `read.int.test.ts`).
-const EMPTY_CAST: readonly CastEntry[] = [];
+// wire-through, not the producer's own resolution (that's `persistence/identity.int.test.ts` + `read.int.test.ts`).
+const EMPTY_CAST: readonly ChatIdentity[] = [];
 
 // The library page CEILING at the trust boundary (#101). The ruled shape is a REFUSAL, never a trim and never
 // a fallback: `character.list`'s precedent (`CHARACTER_LIST_MAX_LIMIT`) and the `bounded-list-limit` gate both
@@ -171,7 +171,7 @@ describe("chat.listMessages — the paged canon read (D26), member-gated", () =>
   test("a member pages messages: the parsed cursor/limit reach the verb with the resolved Principal", async () => {
     const listMessages = vi.fn<ChatService["listMessages"]>(async () => ({
       messages: [MESSAGE],
-      cast: EMPTY_CAST,
+      identities: EMPTY_CAST,
     }));
     const ctx = makeContext({
       auth: principal("user", { userId: MEMBER }),
@@ -188,7 +188,7 @@ describe("chat.listMessages — the paged canon read (D26), member-gated", () =>
     });
     expect(result).toEqual({
       messages: [MESSAGE],
-      cast: EMPTY_CAST,
+      identities: EMPTY_CAST,
     });
   });
 
@@ -694,7 +694,7 @@ describe("chat.forkChat — the deep-copy-into-a-new-chat verb (chat-surface lan
       compactedAtSeq: null,
       createdAt: 0,
       updatedAt: 0,
-      cast: EMPTY_CAST,
+      identities: EMPTY_CAST,
     },
   };
 

@@ -91,7 +91,7 @@ export function NarratorActionsDoorsStory(): ReactElement {
   return (
     <CtDataProviders>
       <div data-testid="actions-host" style={{ width: 320 }}>
-        <MessageActionsRow castNames={["Alice", "Bob"]} message={NARRATOR_STATE.message} messageActions="expanded" />
+        <MessageActionsRow characterNames={["Alice", "Bob"]} message={NARRATOR_STATE.message} messageActions="expanded" />
       </div>
     </CtDataProviders>
   );
@@ -102,7 +102,7 @@ export function StandardLabeledDoorsStory(): ReactElement {
   return (
     <CtDataProviders>
       <div data-testid="actions-host" style={{ width: 320 }}>
-        <MessageActionsRow castNames={["Alice", "Bob"]} message={STANDARD_LABELED_STATE.message} messageActions="expanded" />
+        <MessageActionsRow characterNames={["Alice", "Bob"]} message={STANDARD_LABELED_STATE.message} messageActions="expanded" />
       </div>
     </CtDataProviders>
   );
@@ -127,7 +127,7 @@ function ReactionPickerHarness(): ReactElement {
       </Button>
       {open ? (
         <ReactionPicker
-          castNames={[]}
+          characterNames={[]}
           chatId={chatId}
           content={FOOTER_STATE.message.content}
           groups={groups}

@@ -34,15 +34,15 @@ const ARIA = castId<CharacterId>("character_aria");
 
 const GROUP_CHAR = castId<CharacterId>("character_group");
 
-// The ctx MUST carry a real `cast`/`castMembers` or this whole suite is vacuous for the card-shape
+// The ctx MUST carry a real `cast`/`speakerRefs` or this whole suite is vacuous for the card-shape
 // (`shapeContextForSpeaker` returns the ctx UNTOUCHED when either is absent, so every posture would take
 // the same early return and the arms under test would never run). A roster of ONE is the D16 subject.
 const ASSEMBLE_CTX: AssembleContext = {
   character: { name: "Aria", description: "a bold knight" },
   promptConfig: DEFAULT_PROMPT_CONFIG,
   activePersona: { name: "Alex", description: "the user" },
-  cast: [{ name: "Aria", description: "a bold knight" }],
-  castMembers: [{ kind: "character", characterId: ARIA }],
+  characters: [{ name: "Aria", description: "a bold knight" }],
+  speakerRefs: [{ kind: "character", characterId: ARIA }],
   recentMessages: [],
 };
 
@@ -192,7 +192,7 @@ describe("D16 solo ≡ group-of-one (the byte-identical property)", () => {
     expect(historyText(solo.req)).toContain("well met, traveler");
   });
 
-  test("the group knobs are runtime-fenced, not mode-fenced: no nudge, no name-stamp at cast=1", async () => {
+  test("the group knobs are runtime-fenced, not mode-fenced: no nudge, no name-stamp at one character", async () => {
     const { req } = await makePosture(GROUP_OF_ONE);
 
     // groupNudge is ON in the config — fenced by `multi` (speakers.length > 1), so it never renders.
@@ -203,7 +203,7 @@ describe("D16 solo ≡ group-of-one (the byte-identical property)", () => {
   });
 
   // The NARRATOR arm at cast=1. Added 2026-08-07 after a verifier found this suite VACUOUS for the card
-  // shape: the shared ctx carried no `cast`/`castMembers`, so both postures took `shapeContextForSpeaker`'s
+  // shape: the shared ctx carried no `cast`/`speakerRefs`, so both postures took `shapeContextForSpeaker`'s
   // absent-cast early return and 3/3 green proved nothing about the arm. It now carries a real roster of one
   // and drives the branch that most plausibly breaks D16 — a whole-cast speaker arm and whole-cast card merge.
   //
@@ -228,7 +228,7 @@ describe("D16 solo ≡ group-of-one (the byte-identical property)", () => {
   //   4. This does NOT touch the cast≤1 nudge suppression below, and the two are not in tension: the NUDGE
   //      teaches multi-SPEAKER mechanics (size-relevant, so it vanishes at one), while the MARKER states the
   //      round's IDENTITY (mode-relevant, so it holds at any size). Do not flatten them into one rule.
-  test("the NARRATOR arm at cast=1 degrades to the solo shape — byte-identical but for the mode's own framing", async () => {
+  test("the NARRATOR arm at one character degrades to the solo shape — byte-identical but for the mode's own framing", async () => {
     const solo = await makePosture(DEFAULT_GROUP_CONFIG);
     const narrator = await makePosture(NARRATOR_OF_ONE);
 

@@ -78,7 +78,7 @@ const CREATED_CHAT = {
   title: null,
   participants: [],
   anchorPersonaId: null,
-  cast: [],
+  identities: [],
   group: { mode: "single" },
   temporary: false,
   viewerIsHost: true,

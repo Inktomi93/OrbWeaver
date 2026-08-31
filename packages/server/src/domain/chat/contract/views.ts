@@ -13,8 +13,8 @@ import type {
   AssembledPrompt,
   AssembleTrace,
   AssemblyBudgetPreview,
-  CastEntry,
   ChatBusEvent,
+  ChatIdentity,
   ChatInjection,
   ChatListCursor,
   GroupConfig,
@@ -238,26 +238,26 @@ export interface ChatDetail {
   readonly compactedAtSeq: number | null;
   readonly createdAt: number;
   readonly updatedAt: number;
-  /** The kind-polymorphic CAST producer (D137, Chat-Macro-Resolution.md §1), member-gated, covering every
-   *  participant's seat/active-persona id — the client derives `{{char}}`/`{{user}}`/`{{persona}}` history
-   *  names via `buildCastNameContext` → `@orb/kit/macro`'s `resolveRowMacros`, and the row attribution
-   *  avatars via `buildCastAvatarMaps` → `resolveRowAttribution` (incl. the removed-character portrait
-   *  floor: a character with no `ParticipantView` still resolves from this participant-independent entry).
-   *  Does NOT cover a loaded page's message-stamped ids beyond the roster (a since-switched persona) —
-   *  `listMessages`'s `MessagesPage.cast` covers that half; the client merges both as it paginates back
-   *  (detail ∪ pages, last-write-wins on `castKey`). */
-  readonly cast: readonly CastEntry[];
+  /** The kind-polymorphic CHAT IDENTITY producer (D137, Chat-Macro-Resolution.md §1), member-gated, covering
+   *  every participant's seat/active-persona id — the client derives `{{char}}`/`{{user}}`/`{{persona}}`
+   *  history names via `buildIdentityNameContext` → `@orb/kit/macro`'s `resolveRowMacros`, and the row
+   *  attribution avatars via `buildIdentityAvatarMaps` → `resolveRowAttribution` (incl. the removed-character
+   *  portrait floor: a character with no `ParticipantView` still resolves from this participant-independent
+   *  entry). Does NOT cover a loaded page's message-stamped ids beyond the roster (a since-switched persona) —
+   *  `listMessages`'s `MessagesPage.identities` covers that half; the client merges both as it paginates back
+   *  (detail ∪ pages, last-write-wins on `identityKey`). */
+  readonly identities: readonly ChatIdentity[];
 }
 
 /** The `listMessages` page result (Chat-Macro-Resolution.md §1/§3) — the chronological `MessageView[]`
- *  window + the page's CAST producer: participant-scoped coverage (the `ChatDetail.cast` floor) UNION this
- *  page's own loaded rows' `characterId`/`personaId` stamps (covers a since-switched persona whose id isn't
- *  any participant's CURRENT active persona but is still stamped on an older row in THIS page). The client
- *  merges casts across pages as it paginates backward, accumulating full coverage. */
+ *  window + the page's CHAT IDENTITY producer: participant-scoped coverage (the `ChatDetail.identities` floor)
+ *  UNION this page's own loaded rows' `characterId`/`personaId` stamps (covers a since-switched persona whose
+ *  id isn't any participant's CURRENT active persona but is still stamped on an older row in THIS page). The
+ *  client merges identity sets across pages as it paginates backward, accumulating full coverage. */
 export interface MessagesPage {
   readonly messages: readonly MessageView[];
-  /** This page's own loaded rows' stamp coverage — see {@link ChatDetail.cast}. */
-  readonly cast: readonly CastEntry[];
+  /** This page's own loaded rows' stamp coverage — see {@link ChatDetail.identities}. */
+  readonly identities: readonly ChatIdentity[];
 }
 
 /** The fork-lineage chain (getChatLineage) — the chat's ancestors then self, oldest-root first. Each ancestor

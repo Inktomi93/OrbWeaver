@@ -27,7 +27,7 @@ function startChatResult(id: string): { chat: Record<string, unknown>; opening: 
       title: "A new room",
       participants: [],
       anchorPersonaId: null,
-      cast: [],
+      identities: [],
       group: DEFAULT_GROUP_CONFIG,
       temporary: false,
       viewerIsHost: true,

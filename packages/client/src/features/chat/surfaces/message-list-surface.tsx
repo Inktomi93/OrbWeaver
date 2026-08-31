@@ -12,8 +12,8 @@
 // draft row had no `participants` plane, so its per-speaker tints differed from the committed room's) is not
 // fixed here — it is UNREACHABLE, which is the better outcome.
 
-import type { CastEntry, ContextFitPreview, MessageKind } from "@orb/contracts/chat";
-import { buildCastAvatarMaps, buildCastNameContext, castKey } from "@orb/contracts/chat";
+import type { ChatIdentity, ContextFitPreview, MessageKind } from "@orb/contracts/chat";
+import { buildIdentityAvatarMaps, buildIdentityNameContext, identityKey } from "@orb/contracts/chat";
 import { isRpgEngaged } from "@orb/contracts/rpg";
 import type { ChatId } from "@orb/kit/ids";
 import { Stack } from "@orb/ui/layout";
@@ -139,13 +139,13 @@ function ChatThread({ chatId, chatStyle, onChatForked, surfaceContributors, tool
   });
   const messages = messagesPage.messages;
   const participants = buildParticipantsById(chatDetail.participants);
-  // Merge the two CAST wire halves (D137: the chat-level participant floor ∪ this page's own stamped ids —
-  // the half that carries a REMOVED character's portrait / a since-switched persona), last-write-wins on
-  // `castKey` (the page's fresher entry wins). Both projections derive from the ONE merged cast.
-  const castById = new Map<string, CastEntry>([...chatDetail.cast, ...messagesPage.cast].map((e) => [castKey(e), e]));
-  const cast = [...castById.values()];
-  const { characterNamesById, personaNamesById } = buildCastNameContext(cast);
-  const { characterAvatarsById, personaAvatarsById } = buildCastAvatarMaps(cast);
+  // Merge the two CHAT IDENTITY wire halves (D137: the chat-level participant floor ∪ this page's own stamped
+  // ids — the half that carries a REMOVED character's portrait / a since-switched persona), last-write-wins on
+  // `identityKey` (the page's fresher entry wins). Both projections derive from the ONE merged identity set.
+  const identityByKey = new Map<string, ChatIdentity>([...chatDetail.identities, ...messagesPage.identities].map((e) => [identityKey(e), e]));
+  const identities = [...identityByKey.values()];
+  const { characterNamesById, personaNamesById } = buildIdentityNameContext(identities);
+  const { characterAvatarsById, personaAvatarsById } = buildIdentityAvatarMaps(identities);
   // Server-resolved from the principal (ChatDetail's own header: "so the client never has to
   // find-and-match its own userId in participants"). The roster-scan proxies these replaced returned the
   // FIRST PRESENT HUMAN — the host in any group room — so every viewer saw the host's identity as their
