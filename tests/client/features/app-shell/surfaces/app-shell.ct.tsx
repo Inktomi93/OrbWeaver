@@ -906,6 +906,33 @@ for (const modalId of MODAL_SLOT_IDS) {
   });
 }
 
+test("the drawer's sticky modal header resolves the raised stratum and paints above positioned content", async ({ mount, page }) => {
+  await page.setViewportSize({ width: 1024, height: 500 });
+  await mount(<ModalScrollStory modalId="you" />);
+  await page.getByTestId("tall-modal-body").waitFor({ state: "attached" });
+
+  const header = page.locator(".shell-modal-header");
+  await expect.poll(() => header.evaluate((element) => getComputedStyle(element).position)).toBe("sticky");
+  await expect.poll(() => header.evaluate((element) => getComputedStyle(element).zIndex)).toBe(TOKENS["z.raised"].value);
+  await scrollInteriorToBottom(page);
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const headerElement = document.querySelector<HTMLElement>(".shell-modal-header");
+        const probe = document.querySelector<HTMLElement>('[data-testid="modal-stacking-probe"]');
+        if (headerElement === null || probe === null) {
+          return "missing";
+        }
+        const headerRect = headerElement.getBoundingClientRect();
+        const probeRect = probe.getBoundingClientRect();
+        const boxesOverlap = probeRect.top < headerRect.bottom && probeRect.bottom > headerRect.top;
+        const winner = document.elementFromPoint(headerRect.left + headerRect.width / 2, headerRect.top + headerRect.height / 2);
+        return `${boxesOverlap ? "overlap" : "separate"}:${winner !== null && headerElement.contains(winner) ? "header" : "content"}`;
+      }),
+    )
+    .toBe("overlap:header");
+});
+
 // ── Escape closes the top layer (§4.3 rule 6) — registry-driven over the modal registry ───────────
 // Every modal (Dialog or the `you` Drawer) must dismiss on Escape — Base UI gives this for free, but a
 // body that swallows the key (a cmdk/combobox search) or an onOpenChange wiring gap can silently break it

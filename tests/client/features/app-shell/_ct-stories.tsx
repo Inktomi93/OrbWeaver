@@ -385,7 +385,19 @@ export function ModalScrollStory({ modalId }: { readonly modalId: ModalSlotId })
             `flexShrink: 0` so the drawer's flex-column scroll region can't shrink this EMPTY probe to fit
             (real drawer content has intrinsic height that resists shrink; an empty div would not) — we
             want it to genuinely overflow so the scroll assertion measures a real scroll region. */}
-        <CtFakeModalRegistry body={(): ReactElement => <div data-testid="tall-modal-body" style={{ height: 3000, flexShrink: 0 }} />}>
+        <CtFakeModalRegistry
+          body={(): ReactElement => (
+            <div data-testid="tall-modal-body" style={{ height: 3000, flexShrink: 0 }}>
+              {/* Positioned modal content is the stacking adversary for the drawer's sticky header. It
+                  stays pinned to the scrollport while the body moves, so the CT proves the header wins a
+                  real overlap rather than merely carrying a non-auto computed z-index. */}
+              <div
+                data-testid="modal-stacking-probe"
+                style={{ background: "var(--color-destructive)", height: 48, position: "sticky", top: 0, zIndex: "var(--z-base)" }}
+              />
+            </div>
+          )}
+        >
           <AppShell />
         </CtFakeModalRegistry>
       </CtFakeSectionRegistry>

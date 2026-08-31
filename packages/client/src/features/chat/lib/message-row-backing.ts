@@ -219,7 +219,7 @@ export const BG_PHOTO_ERROR_PLATE = "in-data-[has-bg-image]:bg-card in-data-[has
 // "lets some partial of the message you are on go above it"). It shipped as a 60%-alpha overlay fill —
 // so the prose running under the pinned band stayed VISIBLE THROUGH it, blurred and dimmed but legibly
 // moving. That is the whole defect: a pinned band that does not own its slice. An occluding sticky header
-// is the house recipe already (`modal-host.tsx`'s `sticky top-0 z-(--z-sticky) … bg-card`,
+// is the house recipe already (`modal-host.tsx`'s `sticky top-0 z-(--z-raised) … bg-card`,
 // `preset-editor-surface.tsx`'s `sticky top-0 z-(--z-raised) bg-card`), and an opaque fill makes
 // `backdrop-blur` dead paint, so the blur went with the translucency. That ruling is UNTOUCHED below —
 // what changed is WHICH opaque colour.
