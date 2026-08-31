@@ -505,7 +505,7 @@ describe("buildAssembleContext — character depthPrompt (Character's Note @ Dep
     const bran = (out.chatInjections ?? []).find((i) => i.content === "Bran owes a debt.");
     expect(aria).toMatchObject({ depth: 4, role: "system" });
     expect(bran).toMatchObject({ depth: 2, role: "user" });
-    expect(out.authorsNoteSource).toBe("merged (present cast)");
+    expect(out.authorsNoteSource).toBe("merged (present characters)");
   });
 
   test("multiple notes at the SAME depth stack in cast order (primary first in the array)", async () => {
@@ -659,7 +659,7 @@ describe("buildAssembleContext — the room author's-note override is GONE (owne
     expect(contents).toContain("The chat note.");
     expect(contents).toContain("Aria stays cryptic.");
     expect(contents).toContain("Bran owes a debt.");
-    expect(out.authorsNoteSource).toBe("merged (present cast)");
+    expect(out.authorsNoteSource).toBe("merged (present characters)");
   });
 
   test("REGRESSION PIN: a set room override leaves the card notes byte-identical to the bare build", async () => {
@@ -679,7 +679,7 @@ describe("buildAssembleContext — the room author's-note override is GONE (owne
 
     expect(withOverride.chatInjections).toStrictEqual(bare.chatInjections);
     expect(withOverride.authorsNoteSource).toBe(bare.authorsNoteSource);
-    expect(bare.authorsNoteSource).toBe("merged (present cast)");
+    expect(bare.authorsNoteSource).toBe("merged (present characters)");
   });
 });
 
@@ -704,7 +704,7 @@ describe("buildAssembleContext — WORLD_INFO regex runs through the watchdog (D
 
 // F2: the WORLD_INFO leg read `promptConfig.regexScripts` — the PRESET slice — while every other shared leg
 // (USER_INPUT here, AI_OUTPUT/REASONING in engine/pipeline) runs the RESOLVED host-tier union (D53:
-// host-global ∪ chat-preset ∪ present cast, `substrate/regex-tier`). A host-global or card script whose
+// host-global ∪ chat-preset ∪ present characters, `substrate/regex-tier`). A host-global or card script whose
 // placement includes WORLD_INFO (the settings default placement set INCLUDES it) therefore never fired.
 describe("buildAssembleContext — the WORLD_INFO leg runs the RESOLVED host-tier union (F2, D53)", () => {
   test("a host-tier WORLD_INFO script rewrites the entry content", async () => {

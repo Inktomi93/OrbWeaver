@@ -186,7 +186,7 @@ function cap(refs: SpeakerRef[], maxSpeakers: number | undefined): SpeakerRef[] 
 
 /**
  * Extract `@mention` targets from human-authored trigger text (the caller must pass a human post's body,
- * never an AI reply). Matches `@Name` against the present cast's display names (longest-name-first so
+ * never an AI reply). Matches `@Name` against the present characters' display names (longest-name-first so
  * `@Aria Stormborn` wins over `@Aria`), word-boundary-anchored, case-insensitive.
  */
 export function resolveMentions(triggerText: string, cast: readonly CastName[]): CharacterId[] {

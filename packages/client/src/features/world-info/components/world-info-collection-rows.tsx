@@ -2,7 +2,7 @@
 //
 // The row anatomy is the LANDED library row, re-homed: name · the Global marker on the title line · the
 // Duplicate/Export/Delete kebab. ONE thing changed, and the mock is why: the subtitle is now the
-// book's SCENT ("42 entries · attached ×3") instead of its description. A roster row's job is to let a
+// book's SCENT ("42 entries · attached ×3") instead of its description. A list row's job is to let a
 // reader pick a book without opening it, and "how much lore, switched on anywhere?" is what answers that;
 // the description is the book's own prose and it still leads the member editor.
 //
@@ -160,7 +160,7 @@ function WorldInfoCollectionRow({ book, selected, onSelect, onDelete, onDuplicat
       actions={{
         name: book.name,
         // No `onRename` — the Book details dialog is naming's one home (#442, see the header). `LibraryRow`
-        // omits the item when the handler is absent, the regex roster's own posture.
+        // omits the item when the handler is absent, the regex list's own posture.
         onDuplicate: (): void => onDuplicate(book.id),
         onDelete: (): void => onDelete(book.id),
         deleteDescription: "This permanently removes the book and every entry in it, and detaches it everywhere. This can't be undone.",

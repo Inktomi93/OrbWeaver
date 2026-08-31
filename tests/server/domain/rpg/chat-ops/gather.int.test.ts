@@ -345,7 +345,7 @@ test("hand-edit-as-source: a host patchActor surfaces as a delta on the next gat
 // ── the P6 macro × rpg FEED (parity-plus §12) — the gather populates rpgSceneState/rpgCast/rpgQuests + the `rpg`
 // CEL tree from the SAME tracker view the reminder reads (one projection, three consumers). A READ mirror.
 
-/** Seed a COMMITTED snapshot carrying a scene (location + present cast with a relationship + an active quest) —
+/** Seed a COMMITTED snapshot carrying a scene (location + present characters with a relationship + an active quest) —
  *  the populated-feed input. The tracker view resolves this current head; roster (party sheets) stays empty. */
 async function seedScene(db: Db, opts: { chatId: ChatId; gameId: RpgGameId; seq: number }): Promise<void> {
   const { variantId } = await seedMessage(db, opts.chatId, opts.seq, { role: "assistant" });

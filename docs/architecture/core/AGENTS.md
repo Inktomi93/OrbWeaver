@@ -123,6 +123,8 @@ D-row, D151 is the separate actor-vocabulary half and disclaims this one): game-
 inside the rpg domain and its surfaces, never naming a non-game concept; an rpg surface naming a chat
 concept uses the chat word instead. PROSE-ENFORCED by owner ruling — no gate — so the honesty mechanism
 is the comment/doc sweep: a crossed word is a drifted-comment defect, fixed on sight.
+**Which word names which concept is never decided locally and is not restated here — look it up in
+[`../../design/vocabulary-map.md`](../../design/vocabulary-map.md)**, its ONE living home (#914).
 
 ## 4. Build + verify protocol
 
@@ -304,6 +306,7 @@ the agent-principal design set (parked in `../proposed/`), or the built code. Li
 | the derived-data cluster boundary (embeddings/search/discovery/memory/stats) | `Knowledge-Cluster.md` |
 | authoring a structural gate (descriptor contract · the coupled sites · the exemption grammar · scanRoot formats · harness mechanics) | `../../../tooling/src/verify/gates/GATE-AUTHORING.md` (scaffold: `pnpm gate:new <name>`) |
 | the domain map | §6 above |
+| which WORD names which concept (user-facing copy · ids · testids · comments) | [`../../design/vocabulary-map.md`](../../design/vocabulary-map.md) — the one living home; D151 + §3 cite it and never restate it |
 | server tier law | `Tier-1-DB.md` · `Tier-2-Foundation.md` · `Tier-3-Infra.md` · `Tier-3b-Providers.md` · `Tier-4-Transport.md` · `Tier-5-Entry.md` |
 | UI law | `UI-Architecture-and-Layout.md` · `UI-Gates-and-Lessons.md` · `UI-Primitives-and-Reuse.md` · `UI-Theming-and-Content.md` · `ui-package-design.md` · `motion-and-animation-guide.md`; Project 1 + the linked proposed program own current work |
 | client composition / feature architecture (registries, five-tier ladder, the paint law, the event/sync spine) | `client-architecture-lockdown.md` (D70) |

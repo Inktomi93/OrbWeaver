@@ -655,7 +655,7 @@ async function resolveExtractionRefs(deps: RpgComposeDeps, chatId: ChatId, baseS
   //
   // RECONCILE (crunchy-cluster §1.3): on a reconcile beat / a resync, force EVERY scene field REQUIRED
   // UNCONDITIONALLY (not just the unset ones) — the establish-when-unset lever becomes the standing anti-drift
-  // mechanism, so the model re-states the whole scene + present cast even when the state already has them. The
+  // mechanism, so the model re-states the whole scene + present characters even when the state already has them. The
   // re-emission still merges through [merge-clear] + lock honoring, so a hand-pin survives a reconcile.
   const establishScene = reconcile
     ? { location: true, timeOfDay: true, presentCast: true }

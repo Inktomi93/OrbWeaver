@@ -33,7 +33,7 @@ export const useDuplicatePersona = createEntityMutation<inferInput<Trpc["persona
   errorToast: "Couldn't duplicate the persona.",
 });
 
-// #866 S4 — the roster band's "From character" door (a persona is often the mirror of a card you already
+// #866 S4 — the list band's "From character" door (a persona is often the mirror of a card you already
 // wrote). The character feature holds its own thin wrappers over the same wire verbs for the card-side
 // doors (`useCreatePersonaFromCharacter` etc.) — distinct names here on purpose, so a symbol search never
 // conflates the two call sites; each caller owns its toast copy, the server owns the mint.

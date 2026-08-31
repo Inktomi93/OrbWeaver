@@ -9,7 +9,7 @@ import { regexCollection } from "./regex-collection.tsx";
 
 import { REGEX_COLLECTION_ID } from "./regex-model.ts";
 
-/** The scripts as SEARCH rows (§3.3) — the roster's own cache-first read; non-suspense on purpose. */
+/** The scripts as SEARCH rows (§3.3) — the list's own cache-first read; non-suspense on purpose. */
 function useRegexSearchRows(): readonly ConfigSearchRow[] {
   const trpc = useTRPC();
   const { data } = useQuery(trpc.regex.listScripts.queryOptions());

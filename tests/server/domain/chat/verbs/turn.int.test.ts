@@ -1205,7 +1205,7 @@ describe("send — PD-146 custom stopping strings + auto-behaviors", () => {
   // 28% character-voice bleed on the local 8B (scripts/probes/impersonate). ST stops on every present
   // member's name for exactly this (script.js:3010-3029); the receive-side truncate is the fallback for
   // backends that ignore stops.
-  test("impersonate stops on EVERY present cast member's label, riding the host's own custom stops", async () => {
+  test("impersonate stops on EVERY present character's label, riding the host's own custom stops", async () => {
     const { host, chatId, chars, names } = await seedRoom("natural", ["aria", "kai"]);
     let seenStop: readonly string[] | undefined;
     const h = harness(db, names, {
@@ -1754,7 +1754,7 @@ describe("generate — member-reachable speaker attribution is presence-gated (f
 
   test("a member generating for a DEPARTED (leftSeq set) cast member is refused NOT_FOUND", async () => {
     // Presence is the hard requirement: a character that LEFT still has cards/history but is no longer a
-    // present cast seat, so it may not be voiced by a fresh generate (the leftSeq === null sibling of
+    // present characters seat, so it may not be voiced by a fresh generate (the leftSeq === null sibling of
     // forceCharacterTurn's presence check).
     const { host, chatId, names } = await seedRoom("natural", ["aria"]);
     const member = await seedUser(db, castId<Handle>("member"));

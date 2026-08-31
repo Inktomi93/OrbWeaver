@@ -129,7 +129,7 @@ async function runPosture(
     group,
     speakers: [{ ref: { kind: "character", characterId: ARIA }, name: "Aria" }],
     // A narrator round is authored by the synthetic group character (`roundSpeakers` THROWS on a null here);
-    // every other posture ignores it. `castName` is the joined present cast, which at cast=1 IS "Aria" — the
+    // every other posture ignores it. `castName` is the joined present characters, which at cast=1 IS "Aria" — the
     // same label the per-speaker postures stamp, which is exactly what makes the byte comparison meaningful.
     groupCharacterId: group.output === "narrator" ? GROUP_CHAR : null,
     castName: "Aria",
@@ -250,7 +250,7 @@ describe("D16 solo ≡ group-of-one (the byte-identical property)", () => {
     // Non-vacuous: the cast-of-one card actually rendered, and neither cast-of-one fence fired.
     expect(narrator.req.prompt.static).toContain("a bold knight");
     expect(historyText(narrator.req)).not.toContain("Continue the scene, voicing the present characters");
-    expect(narrator.req.prompt.static).not.toContain("[Cast — Aria]");
+    expect(narrator.req.prompt.static).not.toContain("[Character — Aria]");
   });
 
   test("the persisted canon row is identical across postures (role/author/content)", async () => {

@@ -195,7 +195,7 @@ test("ambient — a within-band minute tick is NOT a beat (no time delta line)",
   expect(buildDeltaBlock(prev, cur, ctx())).toBeNull();
 });
 
-test("present cast — joined and left the scene (presence keys; the NAME comes off the actor row)", () => {
+test("present characters — joined and left the scene (presence keys; the NAME comes off the actor row)", () => {
   const actors = [member("mari", "Mari"), member("zandik", "Zandik")];
   // Both actors are TRACKED throughout — only presence moves. That is the whole R2 semantic: a departure is
   // a presence drop, so Mari's row (stance, guides, pack) is still right there for her return.

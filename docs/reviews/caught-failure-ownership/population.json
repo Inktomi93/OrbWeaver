@@ -629,8 +629,8 @@
       "markerLine": 203
     },
     {
-      "siteId": "packages/client/src/features/persona/components/persona-roster.tsx::empty:catch::1",
-      "path": "packages/client/src/features/persona/components/persona-roster.tsx",
+      "siteId": "packages/client/src/features/persona/components/persona-list.tsx::empty:catch::1",
+      "path": "packages/client/src/features/persona/components/persona-list.tsx",
       "line": 52,
       "column": 7,
       "grammar": "empty",

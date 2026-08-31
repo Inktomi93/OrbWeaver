@@ -68,7 +68,7 @@ async function loadAllChatIds(ctx: ChatContext, hostUserId?: UserId | null): Pro
   return rows.map((r) => r.id);
 }
 
-/** A chat's present cast + its host + the projected macro-name context (the summarizer transcript labels
+/** A chat's present characters + its host + the projected macro-name context (the summarizer transcript labels
  *  resolve by character/persona name, not the raw id). One roster read serves all three. */
 async function loadCastAndHost(
   ctx: ChatContext,

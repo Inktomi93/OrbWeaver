@@ -8,23 +8,23 @@
 //
 // THE FOUR SCOPES, EACH IN ITS OWN VOICE (workspace.html's context column). The GLOBAL scope is a SWITCH:
 // it is a property of the script (`global_regex_scripts` PKs on the script id) and this library owns it, so
-// this pane decides it — and since 2026-08-19 it is the ONLY pane that does. The roster row carried a
+// this pane decides it — and since 2026-08-19 it is the ONLY pane that does. The list row carried a
 // second, live copy of this same switch (side-eye P2: two controls for one fact, ~990px apart on one
 // screen, no confirm, no undo — a reviewer flipped one by accident driving the pane), and the orchestrator
 // ruled that this pane keeps it. `regex-collection-rows.tsx`'s header records the row's side of that fork,
 // including why the "a row reserves what its list declares" ruling recorded there SURVIVES the change.
 // Do not restore a row-level attach control without re-opening that fork.
 //
-// The other three are ROSTERS: a preset, a character and a room each attach from the
+// The other three are LISTS: a preset, a character and a room each attach from the
 // thing they belong to, so this pane can only REPORT them — "Attached by presets · 2" over the two names.
 // The read behind them is `regex.listScriptUsage` (REGROSTER), the reverse of the forward `listFor*` lists;
 // until it existed the pane shipped an honest sentence pointing at the three carriers instead, because
 // faking the answer would have meant an N-query fan-out over every preset and character the owner has.
 //
-// A ROSTER ROW IS A NAME, NOT A LINK. There is no door from here to a preset/character/room member — the
+// A LIST ROW IS A NAME, NOT A LINK. There is no door from here to a preset/character/room member — the
 // existing `openConfigTo` intent only opens a config COLLECTION, and none of these three is one. A row
 // that looked clickable and wasn't would be worse than a row that reads as what it is: a statement of where
-// this script already runs. An EMPTY roster still renders (with its `· 0` and the line saying where to
+// this script already runs. An EMPTY list still renders (with its `· 0` and the line saying where to
 // attach one) — omitting it would read as "not built", not as "none yet".
 //
 // AND THE GLOBAL SCOPE'S RUN ORDER (REGORDER). Global is an ORDERED tier, not a set: the resolver hands
@@ -72,7 +72,7 @@ function RegexScopePanel({
   readonly globals: readonly RegexScriptRow[];
 }): ReactElement {
   const trpc = useTRPC();
-  // Keyed on the RESOLVED script id, so the rosters can never belong to the previously-selected row. Rides
+  // Keyed on the RESOLVED script id, so the lists can never belong to the previously-selected row. Rides
   // the `regexChanged` bus row (invalidation.ts path-invalidates the whole regex router), so an attach or
   // detach made anywhere — this device or another — repaints these lists.
   const { data: usage } = useSuspenseQuery(trpc.regex.listScriptUsage.queryOptions({ scriptId: script.id }));
@@ -134,10 +134,10 @@ function RegexScopePanel({
         rows={usage.characters}
       />
       <RoomList rooms={usage.rooms} />
-      {/* THE ROSTERS LEAD, THE ORDER FOLLOWS (side-eye 2026-08-03 P2 "panel burial"). The order editor used
+      {/* THE LISTS LEAD, THE ORDER FOLLOWS (side-eye 2026-08-03 P2 "panel burial"). The order editor used
           to sit directly under the global switch: at the owner's 34 global scripts its 34 rows pushed
           "Attached by presets / characters / rooms" ~1400px below the fold, in a panel whose entire stated
-          job is telling you where this script runs. The three rosters ARE that answer and they are bounded
+          job is telling you where this script runs. The three lists ARE that answer and they are bounded
           (a script is attached by a handful of carriers); the order list is unbounded in the library's size,
           so it goes last. Still gated: one global script has no run order, and a non-global script's pane
           has no business editing a tier it is not in. */}
@@ -158,7 +158,7 @@ function RegexScopePanel({
 }
 
 /**
- * ONE reverse roster — "Attached by <noun> · N" over the carrier names, or the honest none-yet line.
+ * ONE reverse list — "Attached by <noun> · N" over the carrier names, or the honest none-yet line.
  *
  * The COUNT rides in the kicker rather than a badge because the count IS part of the section's name here:
  * "Attached by rooms · 0" is a complete statement, where a bare "Attached by rooms" over an empty box asks
@@ -187,7 +187,7 @@ function AttachmentList({
         <Stack gap="tight">
           {rows.map((row) => (
             // `min-w-0` + `truncate`: this pane is the config rail's 320px context column, and a long
-            // preset name must clip inside it rather than push the roster past its own edge.
+            // preset name must clip inside it rather than push the list past its own edge.
             <Row align="center" className="min-w-0" gap="field" key={row.id}>
               <Icon icon={glyph} size="xs" />
               <Text as="span" className="truncate" title={row.name}>
@@ -202,13 +202,13 @@ function AttachmentList({
 }
 
 /**
- * THE ROOM ROSTER — the same roster, one rung richer, because a chat is not named the way a preset is.
+ * THE ROOM LIST — the same list, one rung richer, because a chat is not named the way a preset is.
  *
- * A preset and a character each HAVE a name. A room's title is a fallback CHAIN, and this roster used to
+ * A preset and a character each HAVE a name. A room's title is a fallback CHAIN, and this list used to
  * implement only two of its three rungs server-side: every room nobody had renamed read "Untitled chat",
  * which named nobody and, at three unnamed rooms, produced three identical rows. The chats list two panes
  * over calls the same rooms by their cast. `deriveChatTitle` is that chain's ONE home (it moved into `#lib`
- * for this), so the roster now runs it instead of receiving someone else's answer.
+ * for this), so the list now runs it instead of receiving someone else's answer.
  *
  * AND THE STAMP, for the reason titling by cast CREATES: "Nate, Niko" is a perfectly good title for three
  * different rooms. `rowQualifiers` is the house answer to exactly that collision on exactly this data (it

@@ -249,7 +249,7 @@ export interface MacroContext {
    *  `{{charIfNotGroup}}`/`{{notChar}}`. A solo chat is a cast-of-one, so `{{group}}` == `{{char}}` (byte-
    *  identical). Absent ⇒ treated as the cast-of-one `[char]`. */
   cast?: readonly string[];
-  /** The ACTIVE (non-muted) cast member names — drives `{{groupNotMuted}}`, distinct from `{{group}}`
+  /** The ACTIVE (non-muted) character names — drives `{{groupNotMuted}}`, distinct from `{{group}}`
    *  (which includes muted members for their lore). Absent ⇒ `{{groupNotMuted}}` falls back to `cast`. */
   castNotMuted?: readonly string[];
   persona: string;

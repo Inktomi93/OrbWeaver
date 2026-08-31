@@ -15,7 +15,7 @@ import { castId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { PersonaEditor } from "../../../../packages/client/src/features/persona/components/persona-editor.tsx";
-import { PersonaRoster } from "../../../../packages/client/src/features/persona/components/persona-roster.tsx";
+import { PersonaList } from "../../../../packages/client/src/features/persona/components/persona-list.tsx";
 import { PersonaThisChatSection } from "../../../../packages/client/src/features/persona/components/persona-this-chat-section.tsx";
 import { CtDataProviders } from "../../../support/ct/ct-data-providers.tsx";
 
@@ -115,7 +115,7 @@ export function PersonaPanelRowDenseStory({ width = 358 }: { readonly width?: nu
 
 /** The MOBILE YOU SHEET's persona SWITCHER — `personaChrome.body("sheet")`, which is the production
  *  projection (`shell-chrome-unification.md` §B; since #866 S4 the sheet lens is the switcher grammar:
- *  who-head · switch rows · account foot — the roster moved to Config → Personas). Driven through the
+ *  who-head · switch rows · account foot — the list moved to Config → Personas). Driven through the
  *  registered chrome entry rather than the surface module so the story mounts exactly what the sheet
  *  mounts, and imports it through the feature's front door (a relative reach into `packages/` would bind
  *  a different React context instance).
@@ -147,15 +147,15 @@ export function PersonaSwitcherBarStory({ chatId }: { readonly chatId?: ChatId }
   );
 }
 
-/** The ROSTER at its ONE remaining mount posture — the Config → Personas section body (#866 S4 moved it
+/** The LIST at its ONE remaining mount posture — the Config → Personas section body (#866 S4 moved it
  *  out of the popover and the sheet). 360px stands in for the narrowest real content-pane column (a 430px
  *  phone minus the pane padding); the #443/#458/#463 collision pins run against this mount now. */
-export function PersonaRosterStory({ width = 360 }: { readonly width?: number } = {}): ReactElement {
+export function PersonaListStory({ width = 360 }: { readonly width?: number } = {}): ReactElement {
   return (
     <CtDataProviders>
       <div style={{ width }}>
         <QueryBoundary fallback={<p>Loading…</p>} renderError={(): ReactElement => <p>error</p>}>
-          <PersonaRoster />
+          <PersonaList />
         </QueryBoundary>
       </div>
     </CtDataProviders>

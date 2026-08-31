@@ -38,7 +38,7 @@
 // still no hook called outside a fixed position: each collection gets TWO component instances, one per
 // column, each calling its own hooks unconditionally, and exactly one of them renders (the other returns
 // null on its own verdict). Two instances is not two reads — both are cache-first hooks over the SAME
-// query key the roster band already loaded, so the second instance costs a cache hit and no request.
+// query key the list band already loaded, so the second instance costs a cache hit and no request.
 // A parent `.map` calling `collection.useCount?.()` would have needed a rules-of-hooks lint suppression,
 // which is a banned escape hatch here; this shape needs none.
 //
@@ -46,7 +46,7 @@
 //
 // POPULATED (the lead column) is a LAUNCHER, promoted to a hero: icon + name + blurb + its real contents
 // + one door. It keeps shedding the count and the create verb (owner ruling 2026-08-08, C7 arm 2 — the
-// roster band carries both, beside the rows they act on). The 2026-08-08 trim is HONORED: this pane does
+// list band carries both, beside the rows they act on). The 2026-08-08 trim is HONORED: this pane does
 // not restate the band, and the promotion is paid for with `preview` — content the collapsed band does
 // NOT carry — rather than with a display-scale numeral.
 //
@@ -79,7 +79,7 @@
 // ═══ DEVIATIONS FROM THE MOCKUP, with receipts ══════════════════════════════════════════════════════
 //
 // NO `kicker-lead` "CONFIGURATION" over the masthead. The mock draws one (`config-c-hearth.html:194`),
-// and it is drawn beside a roster whose own head already says "Configuration" — measured on the approved
+// and it is drawn beside a list whose own head already says "Configuration" — measured on the approved
 // 1280×800 PNG the two sit on the same line, 328px apart, and the rail's active tooltip is a third. That
 // is the IA duplication the density spec excludes and #104 trimmed; the ramp does not need it (the micro
 // step is carried by the rail's kicker and the chip counts). The masthead keeps `level={2}`, unchanged —
@@ -183,7 +183,7 @@ export function ConfigWelcome({ groups }: ConfigWelcomeProps): ReactElement {
     <Surface tier="form">
       {/* NO PADDING OF ITS OWN: the CONTENT region pads itself (config-content-surface), and the welcome's
           old `p-block` was the reason the editors' missing inset read as deliberate. Pinned by a computed
-          four-side zero in the roster CT. */}
+          four-side zero in the list CT. */}
       <Stack className="w-full" data-slot="config-welcome" gap="section">
         <Stack gap="tight">
           {/* THE STRINGS ARE `config-copy`'s, not this file's, since the mobile LIST grew a teaching header

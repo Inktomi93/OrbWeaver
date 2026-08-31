@@ -57,7 +57,7 @@ function castBlock(view: RpgTrackerView, ctx: CastRenderCtx): string[] {
   return [castHeader(cast, ctx.prose), ...cast.map((a) => actorLine(a, ctx.statProfile.attributes, ctx.relationshipHints))];
 }
 
-/** `{{rpgSceneState}}` — the scene the world is in: ambient · plot · present cast · the GAME-subject tracker
+/** `{{rpgSceneState}}` — the scene the world is in: ambient · plot · present characters · the GAME-subject tracker
  *  readings (which belong to no actor, so they fall through the party/cast split unless this block carries
  *  them) · recent beats. The party sheets are `{{rpgCast}}`'s job. Empty planes are omitted; a wholly-empty
  *  scene returns "". */
@@ -86,7 +86,7 @@ function sceneStateString(view: RpgTrackerView, dateMode: RpgDateMode, ctx: Cast
 }
 
 /** `{{rpgCast}}` — the people: the party actors' whole lines (identity · attribute readings · carried trackers ·
- *  the volatile plane · the sheet's flavor continuation) + the present cast. The identity+volatile planes the
+ *  the volatile plane · the sheet's flavor continuation) + the present characters. The identity+volatile planes the
  *  panel's Party + Present tabs render. */
 function castString(view: RpgTrackerView, ctx: CastRenderCtx): string {
   const lines: string[] = [];

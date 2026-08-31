@@ -75,7 +75,7 @@ export function ConfigListSurface({ groups }: ConfigListSurfaceProps): ReactElem
       <Stack
         aria-label="Settings groups"
         className="relative h-full min-h-0 overflow-y-auto outline-none"
-        data-slot="config-roster"
+        data-slot="config-list"
         gap="section"
         ref={surfaceRef}
         role="region"

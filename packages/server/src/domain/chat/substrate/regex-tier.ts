@@ -1,5 +1,5 @@
 // domain/chat/substrate/regex-tier — the effective host-tier regex resolver (D53 as amended by D121-E).
-// Produces a chat's shared, server-side regex set = host-global ∪ chat-preset ∪ the present cast ∪ the
+// Produces a chat's shared, server-side regex set = host-global ∪ chat-preset ∪ the present characters ∪ the
 // room's own set, all resolved under the frozen `runAsUserId` (D19 — the host, never the calling member). A
 // non-host member has no parameter on this surface, so it contributes nothing to the shared prompt — the
 // exclusion is structural, not a runtime check.

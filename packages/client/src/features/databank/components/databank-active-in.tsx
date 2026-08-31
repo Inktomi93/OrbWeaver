@@ -1,11 +1,11 @@
 // The Databank CONTEXT panel's ACTIVE IN block — where this document is switched on, as DOORS.
 //
-// ── THE COUNT-VS-ROSTER FORK, AND WHY IT REOPENED (#276, 2026-08-19) ──────────────────────────────────
+// ── THE COUNT-VS-LIST FORK, AND WHY IT REOPENED (#276, 2026-08-19) ──────────────────────────────────
 // This block shipped as two integer Badges, and `databank-context-body.tsx`'s header recorded the ruling
 // behind them: chats carry no `ownerId` (D18) and `attachToChat` is host-gated, so a `chat_documents` row
 // OUTLIVES the attacher's seat and naming rooms straight off that wire would tell an ex-host that a room
 // they can no longer open still feeds on their document. That ruling is PRESERVED, not reversed — the same
-// note said the roster was "not refused, it is UNBUILT: it needs `listAttachments` to return names, which
+// note said the list was "not refused, it is UNBUILT: it needs `listAttachments` to return names, which
 // needs the leak-safe read chat already exposes to regex". That read is now shared
 // (`entry/compose/visible-rooms.ts` → `@orb/contracts/chat`'s `ResolveVisibleRoomsOp`) and injected into
 // databank, so the wire hands over PRESENT rooms only, already filtered. The names on this pane are
@@ -13,19 +13,19 @@
 //
 // AN UNRESOLVABLE ROOM LEAVES NO RESIDUE. There is no "…and 2 rooms you're no longer in": that sentence is
 // the same leak one integer smaller (it still tells an ex-member the room exists and still holds their
-// document). The regex roster's ruling — absent, not counted — is the one this matches, so the number the
+// document). The regex list's ruling — absent, not counted — is the one this matches, so the number the
 // reader sees IS the number of rooms they can act on.
 //
 // A ROW IS A DOOR because there is somewhere to land. This is the difference from the regex CONTEXT pane,
-// whose own header records "a roster row is a NAME, not a link" — that pane's rosters are presets and
+// whose own header records "a list row is a NAME, not a link" — that pane's lists are presets and
 // characters and rooms, and its rooms had no door because its rows are `openConfigTo` targets and a room
 // is not a config collection. Databank's two scopes both have a real destination (`openChat` /
 // `openCharacter`, the corpus omnibox's drill-door idiom, spelled section-then-selection exactly as the
 // notification bell spells it), and a thing becomes a door when there is somewhere to land.
 //
-// THE ROOM IS NAMED BY THE ONE CHAIN. `deriveChatTitle` (authored title → present cast → "Untitled chat")
+// THE ROOM IS NAMED BY THE ONE CHAIN. `deriveChatTitle` (authored title → present characters → "Untitled chat")
 // is the client's single home for that rule, and `rowQualifiers` disambiguates the rooms that legitimately
-// share a title — the same pairing the regex roster and the chats list use.
+// share a title — the same pairing the regex list and the chats list use.
 
 import type { VisibleRoomRef } from "@orb/contracts/chat";
 import type { CharacterId, ChatId, DocumentId } from "@orb/kit/ids";

@@ -2,7 +2,7 @@
 // registered section, shared by the contribution def and the section body's anchor stamp (the
 // workloads-jobs-nav precedent), so a LIST row can never address an anchor no section renders.
 //
-// FIVE reachable parts, THREE sections: the notification switch, the roster and the this-chat picker
+// FIVE reachable parts, THREE sections: the notification switch, the list and the this-chat picker
 // register as sections; the EDITOR (a row's own inline expansion — persona-panel-row.tsx) and the PINNED row
 // (one row inside the this-chat section) structurally cannot be sections without moving where a persona is
 // edited or re-anchored, which is owner-sacred. They are search LEAVES of the section that contains them: a

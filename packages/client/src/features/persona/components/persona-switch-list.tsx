@@ -1,12 +1,12 @@
 // The switcher's SWITCH ROWS (#866 S4 — the rail persona slot's frequency law: only what travels with a
 // switch). Lean radio-style rows: avatar · name · "playing" pill · the pin — NO rename, NO avatar upload,
-// NO kebab, NO editor (all of that lives in Config → Personas now; `PersonaRoster` is that mount). The
+// NO kebab, NO editor (all of that lives in Config → Personas now; `PersonaList` is that mount). The
 // row body is ONE stretched button that switches under the caller's SCOPE (Everywhere = the seed pointer,
 // This chat = the per-participant slot — the parent owns the routing); the pin is the one layered sibling.
 //
 // The #443/#458 grammar carries over: two personas may share a name, so the surface resolves qualifiers
 // with the whole list in hand and every named control embeds the row's SUBJECT — spent only on collision,
-// exactly the roster's "spent, not sprayed" arm (a switcher row shows no timestamp either).
+// exactly the list's "spent, not sprayed" arm (a switcher row shows no timestamp either).
 
 import { blobUrl } from "@orb/contracts/assets";
 import { initialsFor } from "@orb/kit/initials";
@@ -65,7 +65,7 @@ export function PersonaSwitchList({ personas, currentId, defaultId, onSwitch, on
   );
 }
 
-/** One switch row. The current row's stretched button keeps the roster's state-aware naming rule
+/** One switch row. The current row's stretched button keeps the list's state-aware naming rule
  *  (§13.10 N3/N4): identity leads in both arms, the verb exists only where there is something to do. */
 function SwitchRow({
   persona,
@@ -105,7 +105,7 @@ function SwitchRow({
       <Text as="span" className="pointer-events-none min-w-0 flex-1 truncate" weight="medium">
         {persona.name}
       </Text>
-      {/* ONE pill max (the roster row's rule): current wins; "pinned" on a non-current default row only —
+      {/* ONE pill max (the list row's rule): current wins; "pinned" on a non-current default row only —
           on the current+default row the solid pin beside it already states pinned. */}
       {isCurrent ? (
         <Badge className="pointer-events-none shrink-0" intent="primary" tone="soft">

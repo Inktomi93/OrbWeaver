@@ -212,7 +212,7 @@ function dedupeNonEmpty(parts: readonly string[]): string[] {
 }
 
 /** The room-override scope fallback: the value a room override inherits / `{{original}}` recovers, + whether
- *  it merged the present cast. Solo/scoped collapses to `activeValue`. Consumed only by the two
+ *  it merged the present characters. Solo/scoped collapses to `activeValue`. Consumed only by the two
  *  `{{original}}`-templated overridable markers, never the scenario marker (that would double-emit it). */
 function resolveScopeFallback(field: MemberField, ctx: AssembleContext, activeValue: string, registry: MacroRegistry): { value: string; merged: boolean } {
   const co = ctx.coSpeakers;
@@ -286,7 +286,7 @@ function recordOverrideSource(trace: AssembleTrace, field: keyof NonNullable<Ass
   trace.overrideSources[field] = source;
 }
 
-/** The label for a room-overrideable slot ("room override" / "merged (present cast)" / "from <name>" /
+/** The label for a room-overrideable slot ("room override" / "merged (present characters)" / "from <name>" /
  *  absent). */
 function resolveOverrideSource(args: {
   room: string | null | undefined;
@@ -299,7 +299,7 @@ function resolveOverrideSource(args: {
   if (overrideSet(args.room) && args.forbidRoomOverride !== true) {
     source = "room override";
   } else if (args.merged) {
-    source = "merged (present cast)";
+    source = "merged (present characters)";
   } else if (overrideSet(args.cardField)) {
     source = `from ${args.characterName}`;
   }

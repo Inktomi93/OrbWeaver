@@ -6,6 +6,13 @@ updated: 2026-08-30
 
 # Vocabulary unification proposal — roster / cast / party (lane cb-vocab-design)
 
+> **THIS IS THE FROZEN DERIVATION, NOT THE LIVE MAP.** The word→concept assignment now lives at
+> [`../../design/vocabulary-map.md`](../../design/vocabulary-map.md) (`status: active`, minted #914) —
+> **read your word off THAT file, never off §1/§3 below.** §3's tables SAMPLE, and three rename waves
+> each worked from a different slice of them; the union of the slices did not cover the tree, which is
+> the whole defect #914 exists to close. What survives here is the derivation, the pricing and the
+> eight owner forks.
+
 The word→concept assignment the owner rules on. Input: the census
 `docs/reviews/research/2026-08-30-vocab-roster-cast.md` (five user-facing meanings, twelve code
 meanings, the ranked muddle list). This document does what the census deliberately did not: it

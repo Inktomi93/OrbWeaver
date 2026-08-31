@@ -27,7 +27,7 @@
 // TERMINAL ACT (live 2026-08-09: content 3 981px in a 952px box, Apply unreachable by mouse, key or script).
 //
 // THE NO-SELECTION ARM IS ITS OWN MODULE (`components/refinery-start-pane.tsx`): the landing joins a
-// different read set than the pipeline does — the roster, for the #79 resume-or-mint decision a character
+// different read set than the pipeline does — the list, for the #79 resume-or-mint decision a character
 // pick resolves.
 
 import type { RefinerySelection, RefineryStage } from "@orb/contracts/refinery";

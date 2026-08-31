@@ -1,5 +1,5 @@
 // The card-refinery READ tier (R2) — the three query procs of the R1 router, every one of them
-// session-scoped: the owner's roster, ONE session's full view, and ONE session's append-only run ledger.
+// session-scoped: the owner's list, ONE session's full view, and ONE session's append-only run ledger.
 //
 // EACH HOOK RETURNS THE `UseQueryResult` WHOLE, deliberately. The R3 surface (board C15) owns its own
 // pending/error rendering — a hook that unwrapped `.data` here would force every consumer to invent a
@@ -23,7 +23,7 @@
 // FRESHNESS: the `refineryChanged` user-bus member drives all three (seam row in `data/invalidation.ts` —
 // it path-invalidates the whole `trpc.refinery` root). This REPLACED the writer-local `invalidates` rows the
 // write tier used to carry: those reconciled only the tab that wrote, so with `staleTime: Infinity` a second
-// tab or device sat on the pre-write roster forever (event-bus coverage survey H1).
+// tab or device sat on the pre-write list forever (event-bus coverage survey H1).
 
 import type { RefinerySessionId } from "@orb/kit/ids";
 import type { UseQueryResult } from "@tanstack/react-query";
@@ -37,7 +37,7 @@ type SessionView = inferOutput<Trpc["refinery"]["getSession"]>;
 type RunLedger = inferOutput<Trpc["refinery"]["listRuns"]>;
 
 /** The R2 read tier for the R3 refinery SURFACE — the owner's sessions, newest-updated first, with the
- *  roster's `latestVerdict` badge. */
+ *  list's `latestVerdict` badge. */
 export function useRefinerySessions(): UseQueryResult<SessionList, TrpcReadError> {
   const trpc = useTRPC();
   return useQuery(trpc.refinery.listSessions.queryOptions());

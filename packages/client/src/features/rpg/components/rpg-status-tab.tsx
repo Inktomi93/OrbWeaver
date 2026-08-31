@@ -1,20 +1,20 @@
 // The STATUS tab ("Status" + the tracked-field unification IA repair):
 // **the ONLY list of people**, and expanding an entry IS the sheet. Two states, one tab:
-//   • the ROSTER — portrait-led instrument cards (D44 portrait · name · relationship badge ON the name line,
-//     rendered ONLY when the roster character also stands in the scene cast — never a phantom
+//   • the CHARACTERS — portrait-led instrument cards (D44 portrait · name · relationship badge ON the name line,
+//     rendered ONLY when the character also stands in the scene cast — never a phantom
 //     "neutral") with the quick edits that belong on a glanceable row: the volatile `status` line, the
 //     tracker meters (value AND max click-to-edit), the lit condition chips;
-//   • the CHARACTER TAKEOVER (`RpgCharacterDetail`) — the whole character, breadcrumb back to the roster.
+//   • the CHARACTER TAKEOVER (`RpgCharacterDetail`) — the whole character, breadcrumb back to the list.
 // Sheet-the-tab dissolved into that second state (SETTLED, owner 2026-07-31): its title/level/wallet/
 // attribute planes live in the takeover, its tracker DEF rows moved to the Game tab's one def home.
 //
 // VEILED (P3) — the host-only standing-secrets ledger is a WIRED-WHEN-READY section shell
 // (`RpgVeiledSection`): the deception plane is being built by its own lane; until entries arrive the
 // shell renders NOTHING (the honest empty plane — no filler). The section + crown-gold grammar land here
-// because secrets are game-state about the ROSTER (the same lens this tab already is).
+// because secrets are game-state about the CHARACTERS (the same lens this tab already is).
 //
 // The per-actor edit callbacks (`ActorEdit`) are built ONCE here and handed to whichever state is showing —
-// the roster card and the takeover write through the same overlays, so a value edited in one place is the
+// the character card and the takeover write through the same overlays, so a value edited in one place is the
 // same write in the other.
 
 import { blobUrl } from "@orb/contracts/assets";
@@ -43,24 +43,24 @@ export interface RpgStatusTabProps {
   readonly state: RpgPanelState;
 }
 
-/** The Status tab — the roster, or the character takeover when an entry is open. */
+/** The Status tab — the character list, or the character takeover when an entry is open. */
 export function RpgStatusTab({ state }: RpgStatusTabProps): ReactElement {
   const { tracker, canEditShared, chatId, isHost } = state;
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const editSnapshot = useEditSnapshot({ trpc, invalidation });
   const patchActor = usePatchActor({ trpc, invalidation });
-  // The open character (the takeover) — null = the roster. Keyed by the stable roster selector key.
+  // The open character (the takeover) — null = the list. Keyed by the stable actor selector key.
   const [openKey, setOpenKey] = useState<string | null>(null);
 
-  // THE ROSTER, and only the roster (R2). `tracker.actors` now carries every actor the game tracks, cast NPCs
+  // THE CHARACTERS, and only the characters (R2). `tracker.actors` now carries every actor the game tracks, cast NPCs
   // included — one shape, so the filter is a partition, not a projection. Cast actors home on the SCENE tab
   // (on stage) and in its Known-characters disclosure (offstage); duplicating them here would give one person
   // two edit homes, which is the dual-homing rule this IA exists to obey.
-  const roster = tracker.actors.filter((a) => a.actorRef.kind !== "cast");
+  const characters = tracker.actors.filter((a) => a.actorRef.kind !== "cast");
 
-  if (roster.length === 0) {
-    return <Text>No one on the roster yet — add characters in Members.</Text>;
+  if (characters.length === 0) {
+    return <Text>No characters yet — add them in Members.</Text>;
   }
 
   // One op-and-mutate for a target actor's volatile: the panel names the OP it performed, the server applies
@@ -112,8 +112,8 @@ export function RpgStatusTab({ state }: RpgStatusTabProps): ReactElement {
     };
   };
 
-  // THE TAKEOVER: the open character replaces the roster in the viewport (one panel, one place at a time).
-  const openActor = roster.find((a) => actorKey(a) === openKey);
+  // THE TAKEOVER: the open character replaces the list in the viewport (one panel, one place at a time).
+  const openActor = characters.find((a) => actorKey(a) === openKey);
   if (openActor !== undefined) {
     const edit = editFor(openActor);
     return <RpgCharacterDetail state={state} actor={openActor} onBack={(): void => setOpenKey(null)} {...(edit === undefined ? {} : { edit })} />;
@@ -127,21 +127,21 @@ export function RpgStatusTab({ state }: RpgStatusTabProps): ReactElement {
       <Kicker
         trailing={
           canEditShared && tracker.lockedPaths.includes("actorState") ? (
-            <RpgFieldLock field="the roster" onRelease={(): void => editSnapshot.mutate({ chatId, patch: {}, releaseLocks: ["actorState"] })} />
+            <RpgFieldLock field="the characters" onRelease={(): void => editSnapshot.mutate({ chatId, patch: {}, releaseLocks: ["actorState"] })} />
           ) : null
         }
       >
-        Roster — {roster.length}
+        Characters — {characters.length}
       </Kicker>
-      {/* THE ORIENTING LEAD (#863 P1). A just-started game lands here with a roster of cards that are all
+      {/* THE ORIENTING LEAD (#863 P1). A just-started game lands here with a list of cards that are all
           em-dashes and `+ condition`, and nothing on the screen said a game had started or what would fill
           it in — the cold 5-second test failed outright. The line shows only while the story has written
           NOTHING (every actor's volatile plane is still null), so it teaches once and then gets out of the
           way; an established game never carries it ([[empty-states-are-load-bearing]]). */}
-      {roster.length === 0 || roster.every((actor) => actor.volatile === null) ? (
+      {characters.length === 0 || characters.every((actor) => actor.volatile === null) ? (
         <RpgDoorwayLine>The story fills this in as you play. Set up trackers in the Game tab.</RpgDoorwayLine>
       ) : null}
-      {roster.map((actor) => {
+      {characters.map((actor) => {
         const edit = editFor(actor);
         return <RpgStatusCard key={actorKey(actor)} actor={actor} onOpen={(): void => setOpenKey(actorKey(actor))} {...(edit === undefined ? {} : { edit })} />;
       })}
@@ -159,13 +159,13 @@ interface RpgStatusCardProps {
   readonly onOpen: () => void;
 }
 
-/** One roster instrument card: portrait+name as the DOOR into the character · title · status line · meters ·
+/** One character instrument card: portrait+name as the DOOR into the character · title · status line · meters ·
  *  condition chips. The name is a real button (the takeover's entry point); every other control on the card
  *  stays a sibling of it, never nested inside it.
  *
- *  There is no relationship badge here (R2). It joined a roster character to a scene-cast row by
+ *  There is no relationship badge here (R2). It joined a seated character to a scene-cast row by
  *  `presentCharacters[].characterId` — a field NO writer in the tree ever set, so the badge rendered for
- *  nobody. A stance is a CAST actor's datum (it lives on `identity`, and the Scene card is its home); a roster
+ *  nobody. A stance is a CAST actor's datum (it lives on `identity`, and the Scene card is its home); a seated
  *  member's relationship to the player is the story's, not a tracked plane's. */
 function RpgStatusCard({ actor, edit, onOpen }: RpgStatusCardProps): ReactElement {
   const volatile = actor.volatile;
