@@ -446,8 +446,8 @@
    * `@container` query inside the band (the rpg takeover's Waystone size steps) evaluated against nothing
    * and silently never matched. The PANEL is the box the band actually gets, so the panel is what the
    * band's steps interrogate. Costless: the panel's inline size comes from the grid track /
-   * `--panel-context-w`, never from its contents. Body descendants are unaffected — the region container
-   * is nearer, and so is `.ctx-tab-strip`. */
+   * `--panel-context-w`, never from its contents. Body descendants are unaffected because their region
+   * container is nearer. */
   container-type: inline-size;
 }
 .shell-panel[data-panel-side="list"] {
@@ -593,11 +593,6 @@
  * pane's head band lives inside the body now (the context bracket), and the 2px content↔context binding
  * (north-star §4 N4 / P4) is painted by the bracket ROOT itself from the theme's own primary token
  * (`border-primary/55`, `context-bracket.tsx`) — exactly as the rpg HUD's band painted it since HUD-1. */
-/* THE CONTEXT TAB STRIP IS GONE (#860, 2026-08-30). The `.ctx-tab-strip` block that lived here styled the
- * generic pane's single head `tablist` — the renderer the context bracket retired. Every tabs pane's rails
- * are the bracket's own (`context-rail.tsx`), composed from `@orb/ui` primitives + token utilities with no
- * shell CSS; the no-clip `minmax(max-content, 1fr)` tracks, the icon+caption cell (#208) and the ember
- * active fill all live there now, once, for every room. */
 
 .shell-panel-body {
   flex: 1 1 auto;

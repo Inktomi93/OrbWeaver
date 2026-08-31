@@ -12,9 +12,9 @@
  * rules LAST. shell.css and client globals both declare the BLUR_SURFACES selectors at identical
  * specificity, so flipping them silently changes which one wins — reproduce prod, don't improve on it.
  *
- * The shell's own CSS carries feature chrome rules a shell-component CT depends on to render prod pixels
- * — e.g. the CONTEXT tab strip's `.ctx-tab-strip` @container label-collapse (context-tabs-panel.tsx).
- * Without it a shell-component CT shows a DIFFERENT strip than prod (labels never collapse). */
+ * The shell's own CSS carries geometry a shell-component CT depends on to render prod pixels — e.g. the
+ * context panel's container, the childless generic-band collapse, and the full-bleed bracket body. Without
+ * it a bracket CT measures a different panel and edge geometry than production. */
 @import "../packages/client/src/features/app-shell/surfaces/shell.css";
 /* The CLIENT styles tier — the reading measure (`--reading-measure` cap on
  * [data-slot="message-content-column"]), reading typography, the glass/grain/colorization surface
