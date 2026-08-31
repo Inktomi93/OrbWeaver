@@ -439,9 +439,9 @@
       "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 377,
-      "bytes": 190110,
-      "sha256": "363c24a9f88c16fbffb398987c8a0f65d4c51232f9b195822462b2483daf9104",
+      "lines": 378,
+      "bytes": 190733,
+      "sha256": "7e4371721b25e9de3f1eddefcb73a5ba80bbfc61953305e8a4f4bbc428e371aa",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -454,14 +454,15 @@
       },
       "receipt": {
         "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
-        "assignedSha256": "363c24a9f88c16fbffb398987c8a0f65d4c51232f9b195822462b2483daf9104",
+        "assignedSha256": "7e4371721b25e9de3f1eddefcb73a5ba80bbfc61953305e8a4f4bbc428e371aa",
         "disposition": "current",
         "authority": "operational",
         "fullRead": true,
-        "verifiedSha256": "363c24a9f88c16fbffb398987c8a0f65d4c51232f9b195822462b2483daf9104",
-        "verifiedCommit": "e07b79b2dfe71cbba5335a74d84fa0355f046d62",
+        "verifiedSha256": "7e4371721b25e9de3f1eddefcb73a5ba80bbfc61953305e8a4f4bbc428e371aa",
+        "verifiedCommit": "5a9a9ada380b8ea5c9786456b28a499d10eda127",
         "verifiedAt": "2026-08-31",
         "evidence": [
+          "re-attested at 5a9a9ada3 — css-selector-has-a-writer is registered with its semantic JSX/DOM/HAST/shared-provenance/vendor-contract reach and the discovered active count is 240; focused proof passed 18/18",
           "re-attested at e07b79b2d — css-length-tokens is registered beside the exact shell declaration/query and #961 static-class reach it enforces; the discovered active count is 239 and focused conformance passed 8/8",
           "re-attested at 4bf9ed645 — playwright-css-topology and repaired no-tailwind-dark-variant are recorded beside css-var-defined; the discovered active count is 238",
           "re-attested at 8f30fb690 — css-var-defined is registered with its exact definition/reference/vendor/runtime denominators and the discovered active count is 237",
@@ -29307,9 +29308,9 @@
       "path": "docs/reviews/stickler/2026-08-30-css-census-doctrine-and-enforcement.md",
       "lane": "reviews",
       "issue": 7,
-      "lines": 1648,
-      "bytes": 137392,
-      "sha256": "653f5a502f89cdd8e9d5affd054c5ef96cf70df803291053e067ce1c4a0859d1",
+      "lines": 1660,
+      "bytes": 138870,
+      "sha256": "3ec5d1f250666e13d7fa47a13da47fa4dfaa43aeee0d010fb1a6a6db34a48e47",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -29322,14 +29323,15 @@
       },
       "receipt": {
         "path": "docs/reviews/stickler/2026-08-30-css-census-doctrine-and-enforcement.md",
-        "assignedSha256": "653f5a502f89cdd8e9d5affd054c5ef96cf70df803291053e067ce1c4a0859d1",
+        "assignedSha256": "3ec5d1f250666e13d7fa47a13da47fa4dfaa43aeee0d010fb1a6a6db34a48e47",
         "disposition": "current",
         "authority": "review",
         "fullRead": true,
-        "verifiedSha256": "653f5a502f89cdd8e9d5affd054c5ef96cf70df803291053e067ce1c4a0859d1",
-        "verifiedCommit": "ef75f9455acf49825a7a2c8dd1eb35bf51218417",
+        "verifiedSha256": "3ec5d1f250666e13d7fa47a13da47fa4dfaa43aeee0d010fb1a6a6db34a48e47",
+        "verifiedCommit": "219e839b6e166a783fc885c639bb8d5727c19df0",
         "verifiedAt": "2026-08-31",
         "evidence": [
+          "re-attested at 219e839b6 — #956's semantic selector-writer gate, exact 69-class/112-data identity scope, focused proof, vendor parity, and honest real-tree deferral are reconciled into the durable CSS program",
           "re-attested at ef75f9455 — #939's cold-confirmed seed/custom chart repair and #955's integrated shell-length/token wall are reconciled with exact focused and rendered receipts while the grouped train barrier remains pending",
           "re-attested at 4bf9ed645 — the #961 repair, integrated #954 focused matrix, and #959 shared production/CT topology are reconciled while the grouped train barrier remains pending",
           "re-attested at 8f30fb690 — #952 is recorded as implemented with exact source/definition/reference, Base UI, runtime-writer, and focused-proof receipts while the grouped CSS-train barrier remains pending",
@@ -29339,7 +29341,7 @@
         ],
         "claims": [
           {
-            "claim": "13 confirmed findings (ceiling P1) plus the six-home CSS doctrine, ordered repair program, reconciled implementation status, and per-enforcer reach/bite/blind-spot evidence; #939 is cold-confirmed and closed, #955 is integrated pending the grouped train barrier, and #951/#952/#954/#956/#949 remain in the active enforcement train.",
+            "claim": "13 confirmed findings (ceiling P1) plus the six-home CSS doctrine, ordered repair program, reconciled implementation status, and per-enforcer reach/bite/blind-spot evidence; #939 is cold-confirmed and closed, #955/#956 are integrated pending the grouped train barrier, and #951/#952/#954/#949 remain in the active enforcement train.",
             "evidence": [
               {
                 "kind": "issue",
@@ -29352,7 +29354,7 @@
             ]
           }
         ],
-        "summary": "The live CSS census, doctrine, repair program and enforcer sweep, reconciled through the cold-confirmed #939 chart repair and integrated #955 shell-length/token wall while the remaining selector, merge, cascade, and appearance-invariant work stays explicit."
+        "summary": "The live CSS census, doctrine, repair program and enforcer sweep, reconciled through #939's cold-confirmed chart repair and the integrated #955 length and #956 selector-writer walls while merge, cascade, and appearance-invariant work stays explicit."
       },
       "receiptCurrent": true
     },

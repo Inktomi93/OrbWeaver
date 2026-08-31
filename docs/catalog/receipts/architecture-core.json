@@ -160,14 +160,15 @@
     },
     {
       "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
-      "assignedSha256": "363c24a9f88c16fbffb398987c8a0f65d4c51232f9b195822462b2483daf9104",
+      "assignedSha256": "7e4371721b25e9de3f1eddefcb73a5ba80bbfc61953305e8a4f4bbc428e371aa",
       "disposition": "current",
       "authority": "operational",
       "fullRead": true,
-      "verifiedSha256": "363c24a9f88c16fbffb398987c8a0f65d4c51232f9b195822462b2483daf9104",
-      "verifiedCommit": "e07b79b2dfe71cbba5335a74d84fa0355f046d62",
+      "verifiedSha256": "7e4371721b25e9de3f1eddefcb73a5ba80bbfc61953305e8a4f4bbc428e371aa",
+      "verifiedCommit": "5a9a9ada380b8ea5c9786456b28a499d10eda127",
       "verifiedAt": "2026-08-31",
       "evidence": [
+        "re-attested at 5a9a9ada3 — css-selector-has-a-writer is registered with its semantic JSX/DOM/HAST/shared-provenance/vendor-contract reach and the discovered active count is 240; focused proof passed 18/18",
         "re-attested at e07b79b2d — css-length-tokens is registered beside the exact shell declaration/query and #961 static-class reach it enforces; the discovered active count is 239 and focused conformance passed 8/8",
         "re-attested at 4bf9ed645 — playwright-css-topology and repaired no-tailwind-dark-variant are recorded beside css-var-defined; the discovered active count is 238",
         "re-attested at 8f30fb690 — css-var-defined is registered with its exact definition/reference/vendor/runtime denominators and the discovered active count is 237",
