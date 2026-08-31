@@ -5,10 +5,10 @@
 // BLINDNESS (schema gone/renamed · 0 sites). Reaches `.set`/`.values`/`onConflictDoUpdate({set})` through table
 // identity by BINDING (import aliases, cross-module re-export renames, const aliases) and builder factories.
 // LIMIT (owes a mustPass row): `tests/**` is outside scanRoot — scanning it would red this gate's own proofs.
-import type { ObjectLiteralExpression, SourceFile } from "ts-morph";
+import type { FunctionDeclaration, ObjectLiteralExpression, SourceFile, VariableDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { GateDescriptor, GateRunCtx } from "../contract/gate.ts";
-import { readStringValue, unwrapExpression } from "../lib/ast-read.ts";
+import { declarationsNamed, readStringValue, unwrapExpression } from "../lib/ast-read.ts";
 import { codeTextForScan } from "../lib/comment-spans.ts";
 import { fileLoaded } from "../lib/pass.ts";
 
@@ -83,8 +83,12 @@ const RESOLUTION_PASSES = 4;
 /** The single same-file declaration named `name`, or undefined when there is none — or MORE THAN ONE, which is
  *  a shadowed name this reader must not guess at (fail closed, the caller marks the object unreadable). */
 function localValue(sf: SourceFile, name: string): Node | undefined {
-  const vars = sf.getDescendantsOfKind(SyntaxKind.VariableDeclaration).filter((d) => d.getName() === name);
-  const fns = sf.getDescendantsOfKind(SyntaxKind.FunctionDeclaration).filter((f) => f.getName() === name);
+  // `declarationsNamed` is a SUPERSET (it also indexes destructured element names); the `getName()`
+  // predicates below are the original ones, unchanged, so the result is identical to the whole-file walk
+  // this replaces. Reached per candidate per fixpoint pass, so the walk was the gate's dominant cost.
+  const named = declarationsNamed(sf, name);
+  const vars = named.filter((d): d is VariableDeclaration => Node.isVariableDeclaration(d) && d.getName() === name);
+  const fns = named.filter((f): f is FunctionDeclaration => Node.isFunctionDeclaration(f) && f.getName() === name);
   if (vars.length + fns.length !== 1) {
     return;
   }

@@ -11,11 +11,11 @@
 // event variables, and the chat stream's yielded frame. It deliberately does not chase arbitrary aliases or
 // cross-file dataflow; a new producer door must join the explicit contract below instead of becoming a
 // literal-shaped false clean.
-import type { CallExpression, Expression, ObjectLiteralExpression, Project, SourceFile, VariableDeclaration } from "ts-morph";
+import type { CallExpression, Expression, ObjectLiteralExpression, Project, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { Violation } from "../contract/harness.ts";
 import type { BusCoverageSpec } from "../contract/readers.ts";
-import { readStringValue, unwrapExpression } from "./ast-read.ts";
+import { declarationsNamed, readStringValue, unwrapExpression } from "./ast-read.ts";
 
 /** The DEFAULT server tiers where a bus event's discriminator must appear in an executable emitter call:
  *  the two tiers
@@ -104,62 +104,8 @@ function isCanonicalReceiver(expression: Expression): boolean {
   return CANONICAL_RECEIVERS.has(unwrapExpression(expression).getText());
 }
 
-/** Per-file `local name -> declarations that bind it`, in DOCUMENT ORDER, built once per SourceFile.
- *
- *  Both callers below ask the same question — "which declarations in this file bind the name X" — and both
- *  used to answer it by re-walking every `VariableDeclaration` in the file. `canonicalEmitterName` tries
- *  EVERY emitter name (7 for `CHAT_BUS_EVENT_TYPES`) against every candidate call, so that whole-file walk
- *  ran calls × emitters times per file: measured 2026-08-31 at 97.8% of the sweeps being repeats of one
- *  already performed, and the five gates sharing this lib were 96.4s of a 300.8s pass
- *  (docs/reviews/research/2026-08-31-gate-pass-unified-walk.md §2).
- *
- *  KEYED ON `sf.compilerNode`, NEVER ON THE `SourceFile` WRAPPER: `createSourceFile(…, {overwrite:true})`
- *  reuses the wrapper object and forgets its descendants, so a wrapper-keyed cache hands back forgotten
- *  nodes that THROW (GATE-AUTHORING.md §5, the overwrite-identity trap).
- *
- *  Declarations WITHOUT an initializer are indexed too: the callers apply their own initializer checks, and
- *  filtering here would change which declaration `objectExpressions` finds first. */
-const declarationsByLocalName = new WeakMap<object, ReadonlyMap<string, readonly VariableDeclaration[]>>();
-
-function bindingIndex(sf: SourceFile): ReadonlyMap<string, readonly VariableDeclaration[]> {
-  const key: object = sf.compilerNode;
-  const cached = declarationsByLocalName.get(key);
-  if (cached !== undefined) {
-    return cached;
-  }
-  const index = new Map<string, VariableDeclaration[]>();
-  const add = (name: string, declaration: VariableDeclaration): void => {
-    const list = index.get(name);
-    if (list === undefined) {
-      index.set(name, [declaration]);
-    } else {
-      list.push(declaration);
-    }
-  };
-  for (const declaration of sf.getDescendantsOfKind(SyntaxKind.VariableDeclaration)) {
-    const name = declaration.getNameNode();
-    if (Node.isIdentifier(name)) {
-      add(name.getText(), declaration);
-      continue;
-    }
-    if (Node.isObjectBindingPattern(name)) {
-      for (const element of name.getElements()) {
-        add(element.getName(), declaration);
-      }
-    }
-  }
-  declarationsByLocalName.set(key, index);
-  return index;
-}
-
-/** The declarations in `sf` that bind `localName`, document-ordered — the same sequence the old whole-file
- *  walk visited, minus every declaration that could not have matched. */
-function declarationsBinding(sf: SourceFile, localName: string): readonly VariableDeclaration[] {
-  return bindingIndex(sf).get(localName) ?? [];
-}
-
 function isCanonicalVariableBinding({ sf, localName, emitterName, spec, seen }: EmitterBindingQuery): boolean {
-  for (const declaration of declarationsBinding(sf, localName)) {
+  for (const declaration of declarationsNamed(sf, localName).filter(Node.isVariableDeclaration)) {
     const name = declaration.getNameNode();
     const initializer = declaration.getInitializer();
     if (initializer === undefined) {
@@ -237,7 +183,8 @@ function objectExpressions(expression: Expression): ObjectLiteralExpression[] {
     return [value];
   }
   if (Node.isIdentifier(value)) {
-    const initializer = declarationsBinding(value.getSourceFile(), value.getText())
+    const initializer = declarationsNamed(value.getSourceFile(), value.getText())
+      .filter(Node.isVariableDeclaration)
       .find((declaration) => declaration.getName() === value.getText())
       ?.getInitializer();
     if (initializer !== undefined) {
