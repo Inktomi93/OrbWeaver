@@ -12227,15 +12227,16 @@
       },
       "receipt": {
         "path": "docs/design/vocabulary-map.md",
-        "assignedSha256": "023f2134473af469575a1b74bfacf969248fde5f17e51965199d549da43d99ec",
+        "assignedSha256": "1f45dfae9536c9e337632b4e1187af1a4a0c0590aa039d5c137a7c665195bd83",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "023f2134473af469575a1b74bfacf969248fde5f17e51965199d549da43d99ec",
-        "verifiedCommit": "08a6571ea28212ab036e483a0b5caa231f736694",
+        "verifiedSha256": "1f45dfae9536c9e337632b4e1187af1a4a0c0590aa039d5c137a7c665195bd83",
+        "verifiedCommit": "106e855db8b5c8a68a2e1f870045ad8ed045c9f0",
         "verifiedAt": "2026-08-30",
         "evidence": [
-          "docs/design/vocabulary-map.md:1-72 read IN FULL by the orchestrator (claude-b) before the receipt; minted by lane cb-vocab-reconcile at the #914 merge as the ONE living home for the concept→word table, per the owner's ruling that the design doc is the source of truth and everything references it"
+          "docs/design/vocabulary-map.md:1-72 read IN FULL by the orchestrator (claude-b) before the receipt; minted by lane cb-vocab-reconcile at the #914 merge as the ONE living home for the concept→word table, per the owner's ruling that the design doc is the source of truth and everything references it",
+          "re-attested at 106e855db — row 4's status corrected from 'landed' to COPY-landed/CODE-not-landed after lane cb-vocab-c2 found ten files still spelling cast; the map's own status column is a tree claim and owes a receipt like any other (#922)"
         ],
         "claims": [
           {
@@ -12271,7 +12272,7 @@
         ],
         "summary": "The living concept→word map: room seats are Characters, the saved template is a Roster (code rosterPreset, conforming), roster is reserved and never spent as English for a list, the rpg register is fenced with the chat word winning at the boundary, and castId is deliberately no-action. Prose-enforced by owner ruling with no gate; the enforcement section records the wave-union defect that produced it."
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/history/README.md",
