@@ -3,6 +3,7 @@
 // so neither imports the other. The `(anchor, subId)` pair is byte-identical to the pre-split pane's own subcategory
 // (§7.1).
 
+import { APPEARANCE_OWNER_KEYS } from "#lib";
 import type { ConfigSubcategory } from "#state";
 
 export const APPEARANCE_READING_SUBCATEGORY: ConfigSubcategory = {
@@ -62,11 +63,4 @@ export const APPEARANCE_READING_SUBCATEGORY: ConfigSubcategory = {
  *  by construction, and the door's `assertSettingsKeyPartition` proves the namespace stays a partition.
  *  Lives beside the nav entry (both are this section's non-JSX identity data, shared by the def and the
  *  body without either importing the other). */
-export const APPEARANCE_READING_KEYS = [
-  "readingLineHeight",
-  "readingLetterSpacing",
-  "readingParagraphSpacing",
-  "readingNameScale",
-  "readingBodyScale",
-  "justifyBodyText",
-] as const;
+export const APPEARANCE_READING_KEYS = APPEARANCE_OWNER_KEYS.reading;

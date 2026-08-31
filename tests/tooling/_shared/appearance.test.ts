@@ -8,6 +8,7 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import {
+  appearanceBootHintPatch,
   appearancePresetNames,
   applyAppearanceFlag,
   applySettingsToBody,
@@ -53,6 +54,15 @@ test("repeated flags accumulate in argv order, so the LAST spelling of a key win
   const patch = mergeAppearancePatches(mergeAppearancePatches(null, FULL_MOTION_PATCH), { reducedMotion: true, density: "compact" });
 
   expect(patch).toEqual({ reducedMotion: true, density: "compact" });
+});
+
+test("the pre-navigation hint projects only the manifest's first-frame Appearance axes", () => {
+  expect(appearanceBootHintPatch({ reducedMotion: false, fontScale: 1.25, density: "compact", chatWidthPct: 90 })).toEqual({
+    reducedMotion: false,
+    fontScale: 1.25,
+    density: "compact",
+  });
+  expect(appearanceBootHintPatch({ chatWidthPct: 90 })).toEqual({});
 });
 
 test("the batched response element is picked by the procedure's position in the URL path", () => {
@@ -163,6 +173,7 @@ test("a failed real-response fallback rejects the appearance shim instead of rep
   // public constructor, so a shim test can only supply the ONE door the code under test opens
   // (`context.route`). Ends the day installSettingsShim's signature narrows to that structural surface.
   const context = {
+    addInitScript: () => Promise.resolve(),
     route: (_glob: string, registered: (route: Route) => Promise<void>) => {
       handler = registered;
       return Promise.resolve();

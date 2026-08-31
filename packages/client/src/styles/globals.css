@@ -561,6 +561,15 @@ html[data-justify-body-text] [data-slot="message-bubble"] {
   color: var(--color-foreground);
 }
 
+/* An INSIDE name row paints on the role bubble, not the wallpaper plate. Its metadata therefore rides
+ * that bubble's paired foreground exactly like the adjacent attribution; the generic over-art step-up
+ * above is for metadata whose own row/plate is exposed to art. Unlayered author CSS wins over Text's
+ * layered gloss utility, so this exception must live beside the rule it narrows rather than at the JSX
+ * call site. */
+[data-has-bg-image] [data-slot="message-name-row"][data-placement="inside"] [data-slot^="message-metadata-"] {
+  color: inherit;
+}
+
 /* appearance.enableThemeColorization: retints border/hairline chrome tokens from the accent color.
  * Mixed against --color-foreground, never self-referencing --color-border (an invalid computed-value
  * cycle). ThemeScope declares the active palette inline on its own `display:contents` wrapper ABOVE both

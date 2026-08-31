@@ -1059,6 +1059,47 @@ for (const modalId of ["command", "you"] as const) {
   });
 }
 
+test("#935 a requested custom-light theme proves its rendered palette and effective polarity through the real portal", async ({ mount, page }) => {
+  const background = "oklch(0.94 0.02 92)";
+  await routeTrpc(page, {
+    ...SHELL_AMBIENT_ROUTES,
+    "settings.getUserSettings": {
+      userId: "user_ct_theme_carrier",
+      schemaVersion: 1,
+      config: {
+        ...DEFAULT_USER_SETTINGS,
+        theme: { ...DEFAULT_USER_SETTINGS.theme, selectedThemeId: COLORIZATION_THEME_ID },
+      },
+      updatedAt: 0,
+    },
+    "settings.getTheme": {
+      id: COLORIZATION_THEME_ID,
+      name: "Carrier light CT",
+      override: { accent: COLORIZATION_ACCENT, background },
+      css: '[data-testid="tall-modal-body"] { outline: 2px solid var(--color-border); }',
+      isSeed: false,
+      createdAt: 0,
+      updatedAt: 0,
+    },
+  });
+  await mount(<ModalScrollStory modalId="command" />);
+  const scope = page.locator('[data-slot="theme-scope"]:has(.shell-grid)');
+  const portal = page.locator('[data-slot="portal-root"]');
+  const popup = page.locator('[data-slot="dialog-popup"]');
+  await expect(popup).toBeVisible();
+
+  // A custom theme has no generated seed selector. The painted token and derived color-scheme on the
+  // live ThemeScope are the proof of what won; the request/envelope receipt alone cannot establish this.
+  await expect(page.locator("html")).not.toHaveAttribute("data-theme");
+  await expect.poll(() => cssCustomProperty(scope, "--color-background")).toBe(background);
+  await expect.poll(() => cssCustomProperty(scope, "color-scheme")).toBe("light");
+  expect(await cssCustomProperty(portal, "--color-background")).toBe(background);
+  expect(await cssCustomProperty(portal, "color-scheme")).toBe("light");
+  expect(await cssCustomProperty(popup, "--color-background")).toBe(background);
+  expect(await cssCustomProperty(popup, "color-scheme")).toBe("light");
+  await expect(page.locator("style[data-orb-theme-css]")).toHaveCount(1);
+});
+
 test("#960 seed theme keeps byte-identical border tokens across root, shell, and portal in both colorization arms", async ({ mount, page }) => {
   await routeTrpc(page, SHELL_AMBIENT_ROUTES);
   await mount(<ModalScrollStory modalId="command" />);
