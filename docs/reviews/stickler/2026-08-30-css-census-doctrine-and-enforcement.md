@@ -30,8 +30,8 @@ measurements. Current main has five sanctioned stylesheets totalling **3,165 lin
 - **Integrated, in Review; grouped CSS-train barrier not yet run:** #949, #951, #952, #954–#957, #959, #961,
   \#965, and #966. These are implemented claims, not graduated-train claims. #966 has hoisted four repeated
   per-gate scans into shared pass indexes; this report does not claim its entire 110-gate inventory migrated.
-- **Running:** #950 implements browser cascade provenance from the revision-pinned official DevTools frontend
-  SDK proof.
+- **Integrated, in Review:** #950 implements browser cascade provenance from the revision-pinned official
+  DevTools frontend SDK proof; the grouped CSS-train barrier still governs graduation.
 
 \#949 now owns the one class-list merge and bounded `__orb.css` loser→winner replay. It does **not** explain
 the browser cascade. #950 is the separate browser tier: official `CSSMatchedStyles.propertyState` supplies
@@ -675,7 +675,8 @@ truth; the resolved computed style is.
   second tier is a bounded browser/CT computed-and-matched-style matrix, not an assertion at every call site.
   \#950's architecture is now proven: a revision-matched official DevTools frontend SDK reports
   `CSSMatchedStyles.propertyState` as `Active`/`Overloaded`. Raw-CDP inference, mutation, UI scraping, and a
-  local cascade evaluator are rejected. #950 is Running; no implementation landing is claimed here.
+  local cascade evaluator are rejected. #950 is integrated and in Review; the grouped CSS-train barrier has
+  not graduated it.
 
 **The flagger's own audit (asked for specifically):**
 
@@ -812,9 +813,10 @@ specificity, inline, inheritance, custom-property fallback/cycle/undefined, anim
 losing declaration. An empty trace is `INSTRUMENT ERROR`, never clean. `snap --dead-css` remains
 complementary: it answers whether a class/rule exists, not which valid declaration won.
 
-**Current status.** #949 is integrated and in Review at `5a5fda97f`; #950 is Running from the architecture
-proven in `../research/2026-08-31-devtools-css-cascade-provenance.md`. Browser-winner coverage is implemented
-in its lane but has not landed on main.
+**Current status.** #949 is integrated and in Review at `5a5fda97f`; #950 is integrated and in Review at
+`1ae9f38e7`, including the Git-tracked 477-resource closure repair. The architecture is proven in
+`../research/2026-08-31-devtools-css-cascade-provenance.md`; browser-winner coverage is on main, while the
+grouped CSS-train barrier still governs graduation.
 
 ---
 
@@ -1168,9 +1170,10 @@ Three tiers, and a fourth category that is neither:
   factory seal are integrated under #949.
 - **IMPLEMENTED, NOT YET TRAIN-GRADUATED:** #949, #951, #952, #954–#957, #959, #961, and #965 are in Review.
   Focused receipts prove their individual claims; only the grouped barrier may promote the combined tree.
-- **OPEN:** #950 is Running. Until it lands, no floor explains final browser cascade winners across layer,
+- **IMPLEMENTED, NOT YET TRAIN-GRADUATED:** #950 explains final browser cascade winners across layer,
   specificity, source order, inline style, inheritance, custom-property resolution, animation, and
-  transition. Its proved route is the revision-pinned official DevTools frontend SDK, not raw-CDP inference.
+  transition through the revision-pinned official DevTools frontend SDK, not raw-CDP inference. Focused
+  runtime and closure receipts are green; the grouped barrier remains.
 - **REPORTED BUT UNREAD:** `snap --dead-css` (`deadcss=`/`emptycss=` on every RESULT line) and its dev-only
   `motion-dead-class-flagger` twin still emit findings that no mandatory scenario floor consumes. They answer
   existence/parsing, not value resolution, class-list merge, or browser cascade.
@@ -1245,7 +1248,7 @@ pre-launch removes the user risk, not the verification bar.**
 | - | - | - | - | - |
 | 5.1 | **IMPLEMENTED #949, IN REVIEW:** compiler-positive/negative namespace set equality, aspect/blur/ease only, and sole `createTV` seal | merge front door + tests/gate | compiler/unit/gate | a package upgrade or new emitted family cannot silently outrun the merger |
 | 5.2 | **IMPLEMENTED #949, IN REVIEW:** one Orb merge plus bounded occurrence-aware loser→final-winner replay at dev/test `__orb.css` | merge instrumentation | unit + instrument controls | duplicate/asymmetric/modifier/arbitrary/custom-family cases; zero population is instrument error |
-| 5.3 | **RUNNING #950:** revision-pinned official DevTools frontend SDK cascade provenance for bounded property/selector queries | Snap/official SDK | rendered instrument | 477-resource path-closed asset set; layer, specificity, source order, inline, inheritance, custom-property fallback/cycle/undefined, animation, transition, and planted losers; no raw-CDP inference |
+| 5.3 | **IMPLEMENTED #950, IN REVIEW:** revision-pinned official DevTools frontend SDK cascade provenance for bounded property/selector queries | Snap/official SDK | rendered instrument | 477-resource Git-tracked path-closed asset set; layer, specificity, source order, inline, inheritance, custom-property fallback/cycle/undefined, animation, transition, and planted losers; no raw-CDP inference |
 | 5.4 | Prove the 41-key Appearance carrier graph and interaction arms across ThemeScope, grid, portals, background layers, message props, and mobile/desktop shell regimes | gate + Snap matrix | static carrier + rendered scenarios | every setting has a writer, carrier, consumer, visible state, and incompatible-arm rule |
 | 5.5 | Promote stable Snap measurements into rated floors (contrast, overflow/containment, cascade/merge, density, polarity, scrim/art, mobile geometry) while keeping exploratory matrices available | scenario/rating harness | preflight + scenario floor | catches interaction failures before manual side-eye; side-eye remains final taste/a11y verification |
 
@@ -1376,7 +1379,7 @@ and `variants.ts` rows:
 > the combined train and #921 is closed. #940 now checks the semantic z-variable family against the live
 > seven-token vault and closed the historical `z-(--z-sticky)` instance. #952 now proves static custom-
 > property references resolve through governed ownership, and #949 explains class-list merge losers/winners.
-> Final browser cascade attribution remains #950's separate Running work.
+> Final browser cascade attribution is implemented under #950 and remains inside the grouped train barrier.
 
 ## C-2 · `Core-Path-Registry.md` D150 — REPLACE the parenthetical — **CONFIDENT, apply as written** (closes #919)
 
@@ -1708,8 +1711,8 @@ root evaluations, 19.3s, 3.48 GB max RSS, 42/42 focused).
 
 **Merge versus cascade:** #949 is integrated/in Review with one Orb merge, exact Tailwind 4.3.3 compiler and
 production-Oxide family parity, aspect/blur/ease coverage, sole-`createTV` enforcement, and bounded dev/test
-`__orb.css` occurrence replay. It explains class-list losers and winners only. #950 is Running from the
-revision-pinned official DevTools frontend SDK proof: `CSSMatchedStyles.propertyState` supplies browser-owned
-`Active`/`Overloaded` cascade attribution. Raw-CDP winner inference, mutation, UI scraping, and a local cascade
-evaluator are rejected. `deadcss`/`emptycss` remain reported-but-unread by mandatory floors; rated scenario
-integration remains #935/#953. No combined-train or final browser-cascade graduation is claimed.
+`__orb.css` occurrence replay. It explains class-list losers and winners only. #950 is integrated/in Review
+with the revision-pinned official DevTools frontend SDK: `CSSMatchedStyles.propertyState` supplies
+browser-owned `Active`/`Overloaded` cascade attribution. Raw-CDP winner inference, mutation, UI scraping, and
+a local cascade evaluator are rejected. `deadcss`/`emptycss` remain reported-but-unread by mandatory floors;
+rated scenario integration remains #935/#953. No combined-train graduation is claimed.
