@@ -12,7 +12,7 @@
 import { BarList } from "@orb/ui/bar-list";
 import { LIVE_TOKEN_ROOT_ATTRIBUTE } from "@orb/ui/lib";
 import { ThemeScope } from "@orb/ui/theme-scope";
-import { TOKENS } from "@orb/ui/tokens";
+import { TOKEN_POLARITY_ARMS, TOKENS } from "@orb/ui/tokens";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { useChartTheme } from "../../../packages/ui/src/charts/chart/use-chart-theme.ts";
@@ -37,7 +37,13 @@ export function ChartThemeAxisLineReadoutStory(): ReactElement {
   // makes the cascade resolve a `light-dark()` intent token (#504 moved that probe's host into the marked
   // resolution root, so a green here is also the receipt that the probe still resolves where it now lands).
   return (
-    <p data-axis-line={colors.axisLine} data-mount-id={mountId} data-series-positive={colors.seriesPositive}>
+    <p
+      data-axis-line={colors.axisLine}
+      data-mount-id={mountId}
+      data-palette={colors.palette.join("|")}
+      data-series={colors.series}
+      data-series-positive={colors.seriesPositive}
+    >
       {colors.axisLine}
     </p>
   );
@@ -55,7 +61,7 @@ export function ChartThemeAxisLineReadoutStory(): ReactElement {
  * (`clamp.ts` puts it with no derivation), so each arm's expected value is exactly its token value — two
  * ramp stops nothing else in this story declares, standing in for a custom theme's picked hairline.
  */
-const CUSTOM_BORDER_ARMS = [TOKENS["color.chart-3"].value, TOKENS["color.chart-4"].value] as const;
+const CUSTOM_BORDER_ARMS = [TOKEN_POLARITY_ARMS["color.chart-3"].dark, TOKEN_POLARITY_ARMS["color.chart-4"].dark] as const;
 
 export function CustomThemeChartAxisLineStory(): ReactElement {
   const [arm, setArm] = useState(0);
@@ -66,6 +72,18 @@ export function CustomThemeChartAxisLineStory(): ReactElement {
         <button onClick={(): void => setArm((current): number => current + 1)} type="button">
           Next theme
         </button>
+        <ChartThemeAxisLineReadoutStory />
+      </div>
+    </ThemeScope>
+  );
+}
+
+/** #939 — a user-authored light base, not the Light seed. ThemeScope derives `color-scheme: light` from
+ * the carried background, and the chart hook must therefore resolve the same categorical light arms. */
+export function CustomLightChartRampStory(): ReactElement {
+  return (
+    <ThemeScope tokens={{ background: "oklch(0.9 0.01 60)" }} ambientBackground={TOKENS["color.background"].value}>
+      <div {...{ [LIVE_TOKEN_ROOT_ATTRIBUTE]: "" }}>
         <ChartThemeAxisLineReadoutStory />
       </div>
     </ThemeScope>

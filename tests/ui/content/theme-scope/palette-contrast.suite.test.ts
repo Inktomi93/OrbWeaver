@@ -259,6 +259,76 @@ test("#697 the track-ramp DARK arm is unchanged — still ≥3:1 on the dark pan
   }
 });
 
+// ── #939: THE CHART RAMP — categorical Canvas/DOM fills on every chart host ────────────────────────
+const CHART_FILL_PATHS = ["color.chart-1", "color.chart-2", "color.chart-3", "color.chart-4", "color.chart-5"] as const;
+const CHART_PANELS = ["color.background", "color.card", "color.surface-raised", "color.sidebar"] as const;
+const CHART_DARK_ARMS = ["oklch(0.72 0.175 52)", "oklch(0.7 0.1 200)", "oklch(0.68 0.12 300)", "oklch(0.74 0.11 130)", "oklch(0.7 0.12 35)"] as const;
+
+test.each(PALETTES.map((palette) => [palette.name, palette] as const))("#939 chart fills clear WCAG 1.4.11 3:1 on every %s chart host", (_name, palette) => {
+  for (const fillPath of CHART_FILL_PATHS) {
+    const fill = resolveTokenRgb(fillPath, palette);
+    for (const panel of CHART_PANELS) {
+      expect(worstContrast(fill, resolveTokenRgb(panel, palette)), `${fillPath} on ${panel} @ ${palette.name}`).toBeGreaterThanOrEqual(UI_COMPONENT_MIN_RATIO);
+    }
+  }
+});
+
+test("#939 chart fills clear 3:1 on every realistic custom-light derived chart host", () => {
+  for (const baseStr of LIGHT_BASES) {
+    const base = parseOklch(baseStr);
+    const ramp = rampOf(base);
+    const panels = [base, rampSurface(base, ramp.card), rampSurface(base, ramp.surfaceRaised), rampSurface(base, ramp.sidebar)];
+    for (const fillPath of CHART_FILL_PATHS) {
+      const fill = oklchToRgb(parseOklch(resolveArm(TOKENS[fillPath].value, "light")));
+      for (const panel of panels) {
+        expect(worstContrast(fill, oklchToRgb(panel)), `${fillPath} on custom-light host @ ${baseStr}`).toBeGreaterThanOrEqual(UI_COMPONENT_MIN_RATIO);
+      }
+    }
+  }
+});
+
+test("#939 chart-ramp contrast matrix has a planted failing color (non-vacuity control)", () => {
+  const light = PALETTES.find((palette) => palette.name === "light");
+  if (light === undefined) {
+    throw new Error("Light seed missing from generated value sets");
+  }
+  const plantedBadChartColor = resolveTokenRgb("color.card", light);
+  const failures = CHART_PANELS.filter((panel) => worstContrast(plantedBadChartColor, resolveTokenRgb(panel, light)) < UI_COMPONENT_MIN_RATIO);
+  expect(failures, "a chart color planted at the card tone must be caught").toContain("color.card");
+});
+
+test.each(
+  CHART_FILL_PATHS.map((path, index) => [path, CHART_DARK_ARMS[index]] as const),
+)("#939 %s keeps its sacred dark arm byte-identical", (path, darkArm) => {
+  expect(resolveArm(TOKENS[path].value, "dark")).toBe(darkArm);
+});
+
+test.each(["light", "dark"] as const)("#939 chart colors stay mutually distinguishable in the %s arm", (scheme) => {
+  const colors = CHART_FILL_PATHS.map((path) => parseOklch(resolveArm(TOKENS[path].value, scheme)));
+  let minimumOklabDistance = Number.POSITIVE_INFINITY;
+  let minimumPixelDistance = Number.POSITIVE_INFINITY;
+  for (let left = 0; left < colors.length; left++) {
+    for (let right = left + 1; right < colors.length; right++) {
+      const a = colors[left];
+      const b = colors[right];
+      if (a === undefined || b === undefined) {
+        throw new Error("chart-ramp pair escaped the five-color matrix");
+      }
+      const ah = (a.h * Math.PI) / 180;
+      const bh = (b.h * Math.PI) / 180;
+      minimumOklabDistance = Math.min(
+        minimumOklabDistance,
+        Math.hypot(a.l - b.l, a.c * Math.cos(ah) - b.c * Math.cos(bh), a.c * Math.sin(ah) - b.c * Math.sin(bh)),
+      );
+      const ap = quantizeRgb(oklchToRgb(a));
+      const bp = quantizeRgb(oklchToRgb(b));
+      minimumPixelDistance = Math.min(minimumPixelDistance, Math.hypot(ap.r - bp.r, ap.g - bp.g, ap.b - bp.b));
+    }
+  }
+  expect(minimumOklabDistance, `${scheme} arm minimum OKLab distance`).toBeGreaterThanOrEqual(0.07);
+  expect(minimumPixelDistance, `${scheme} arm minimum quantized RGB distance`).toBeGreaterThanOrEqual(67);
+});
+
 test("clamp DERIVED neutral chrome clears AA on every realistic light + dark base", () => {
   for (const baseStr of REALISTIC_BASES) {
     const base = parseOklch(baseStr);

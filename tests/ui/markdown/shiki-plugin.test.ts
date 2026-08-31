@@ -7,7 +7,7 @@
 // end-to-end through a real shiki highlighter (not the reconstructed-shape trap of asserting only the
 // plugin's declared themes).
 import { MARKDOWN_SHIKI_PLUGIN } from "../../../packages/ui/src/markdown/shiki-plugin.ts";
-import { TOKENS } from "../../../packages/ui/src/tokens/index.ts";
+import { SEED_THEME_VALUE_SETS, TOKEN_POLARITY_ARMS, TOKENS } from "../../../packages/ui/src/tokens/index.ts";
 import { expect, test } from "../../support/fixtures.ts";
 
 // Types are DERIVED off the plugin's own public signatures (streamdown's `ThemeInput`/`HighlightOptions`/
@@ -44,7 +44,7 @@ function asShikiTheme(theme: ThemeSlot): {
 const themePair = MARKDOWN_SHIKI_PLUGIN.getThemes();
 const light = asShikiTheme(themePair[0]);
 const dark = asShikiTheme(themePair[1]);
-const TOKEN_VALUES = new Set(Object.values(TOKENS).map((t) => t.value));
+const DARK_TOKEN_VALUES = new Set([...Object.values(TOKENS).map((t) => t.value), ...Object.values(TOKEN_POLARITY_ARMS).map((arms) => arms.dark)]);
 
 // `HighlightOptions["language"]` types as shiki's ~200-language `BundledLanguage` union; our own plugin
 // only ever loads from the curated `LANGUAGE_LOADERS` map, so a plain runtime string cast is the correct
@@ -72,14 +72,41 @@ test("the DARK theme surface (bg/fg) is sourced from the app palette tokens, not
   expect(dark.colors["editor.foreground"]).toBe(TOKENS["color.foreground"].value);
 });
 
-test("EVERY syntax-scope color in the DARK theme is a TOKENS value (no hardcoded hex/oklch)", () => {
+test("EVERY syntax-scope color in the DARK theme is a generated token value (no hardcoded hex/oklch)", () => {
   expect(dark.settings.length).toBeGreaterThan(0);
   for (const entry of dark.settings) {
     // The load-bearing R6/R7 assertion: a hand-typed color would not be in the generated token set.
-    expect(TOKEN_VALUES.has(entry.settings.foreground)).toBe(true);
+    expect(DARK_TOKEN_VALUES.has(entry.settings.foreground)).toBe(true);
   }
   const keyword = dark.settings.find((s) => s.scope.includes("keyword"));
   expect(keyword?.settings.foreground).toBe(TOKENS["color.primary"].value);
+});
+
+test("chart-backed Shiki scopes use distinct concrete polarity arms in Light and Dark", () => {
+  const foreground = (theme: typeof light, scope: string): string | undefined =>
+    theme.settings.find((setting) => setting.scope.includes(scope))?.settings.foreground;
+  const cases = [
+    ["string", "color.chart-4"],
+    ["constant.numeric", "color.chart-2"],
+    ["entity.name.function", "color.chart-3"],
+    ["entity.name.type", "color.chart-5"],
+  ] as const;
+  for (const [scope, path] of cases) {
+    expect(foreground(light, scope), `${scope} light arm`).toBe(TOKEN_POLARITY_ARMS[path].light);
+    expect(foreground(dark, scope), `${scope} dark arm`).toBe(TOKEN_POLARITY_ARMS[path].dark);
+    expect(foreground(light, scope), `${scope} must change across polarity`).not.toBe(foreground(dark, scope));
+  }
+});
+
+test("Shiki receives only concrete colors, never CSS functions it cannot resolve", () => {
+  for (const theme of [light, dark]) {
+    for (const entry of theme.settings) {
+      expect(entry.settings.foreground).not.toContain("light-dark(");
+      expect(entry.settings.foreground).not.toContain("var(");
+    }
+  }
+  const lightKeyword = light.settings.find((setting) => setting.scope.includes("keyword"));
+  expect(lightKeyword?.settings.foreground).toBe(SEED_THEME_VALUE_SETS.light.vars["--color-primary"]);
 });
 
 test("both theme slots are REAL and DISTINCT (the [light, dark] pair Streamdown requires)", () => {

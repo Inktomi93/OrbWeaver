@@ -60,6 +60,12 @@ export interface GeneratedCssValue {
   readonly placement: CssValuePlacement;
 }
 
+interface GeneratedPolarityArms {
+  readonly path: readonly string[];
+  readonly light: string;
+  readonly dark: string;
+}
+
 /** A pointer-conditional override: the token's fine-pointer value (DTCG `$extensions["orb.pointerFine"]`). */
 interface FineOverride {
   readonly path: readonly string[];
@@ -200,6 +206,23 @@ function renderPortableToken(token: TransformedToken, contractToken: ContractTok
   }
 }
 
+function generatedPolarityArms(token: TransformedToken, contractToken: ContractToken, lightToken: ContractToken | undefined): readonly GeneratedPolarityArms[] {
+  if (contractToken.outputRole !== "light-dark") {
+    return [];
+  }
+  const path = contractToken.pathString;
+  if (lightToken === undefined) {
+    throw new Error(`${path}: light-dark output has no Light arm`);
+  }
+  return [
+    {
+      path: token.path,
+      light: renderColor(lightToken.value, `${path}.light`),
+      dark: renderColor(resolvedValue(token), `${path}.dark`),
+    },
+  ];
+}
+
 function outputPath(target: string): readonly string[] {
   const [group, ...rest] = target.slice(2).split("-");
   if (group === undefined || rest.length === 0) {
@@ -264,13 +287,16 @@ function collectPointerFine(node: Record<string, unknown>, path: readonly string
   }
 }
 
-function renderTokensTs(tokens: readonly GeneratedCssValue[]): string {
+function renderTokensTs(tokens: readonly GeneratedCssValue[], polarityArms: readonly GeneratedPolarityArms[]): string {
   const entries = tokens.map((t) => {
     const key = t.path.join(".");
     return `  "${key}": { cssVar: "${cssVarName(t.path)}", value: ${JSON.stringify(t.value)} },`;
   });
   const varOpen = "`var(${";
   const varClose = "TOKENS[path].cssVar})`";
+  const armEntries = polarityArms.map(
+    (token) => `  ${JSON.stringify(token.path.join("."))}: { light: ${JSON.stringify(token.light)}, dark: ${JSON.stringify(token.dark)} },`,
+  );
   return [
     `/** ${HEADER} */`,
     "",
@@ -280,6 +306,13 @@ function renderTokensTs(tokens: readonly GeneratedCssValue[]): string {
     "} as const;",
     "",
     "export type TokenPath = keyof typeof TOKENS;",
+    "",
+    "/** Concrete arms for every polarity-aware token. CSS consumers use TOKENS[path].value; canvas/build-time consumers use this generated surface and never parse light-dark() serialization. */",
+    "export const TOKEN_POLARITY_ARMS = {",
+    ...armEntries,
+    "} as const;",
+    "",
+    "export type PolarityTokenPath = keyof typeof TOKEN_POLARITY_ARMS;",
     "",
     "/** `var(--…)` reference for a token — the ONE way runtime code names a token. */",
     "export function cssVar(path: TokenPath): string {",
@@ -301,7 +334,7 @@ interface SeedTheme {
 }
 
 /**
- * Select the two shipped seed palettes from the bounded Resolver result. Light also carries the 14
+ * Select the two shipped seed palettes from the bounded Resolver result. Light also carries the
  * polarity arms used to compose light-dark(); those are not `[data-theme]` overrides. Every other
  * value-set member must be exactly the ThemeScope emit surface plus color.backdrop.
  */
@@ -388,6 +421,7 @@ export async function generateArtifacts(): Promise<{ themeCss: string; tokensTs:
   const dictionary = await sd.getPlatformTokens("flat");
   const contractByPath = new Map(contract.baseTokens.map((token) => [token.pathString, token]));
   const flat: GeneratedCssValue[] = [];
+  const polarityArms: GeneratedPolarityArms[] = [];
   for (const token of dictionary.allTokens) {
     const path = token.path.join(".");
     const contractToken = contractByPath.get(path);
@@ -398,6 +432,7 @@ export async function generateArtifacts(): Promise<{ themeCss: string; tokensTs:
     if (value !== null) {
       flat.push({ path: token.path, value, placement: "theme" });
     }
+    polarityArms.push(...generatedPolarityArms(token, contractToken, contract.lightTokens.get(path)));
   }
   if (dictionary.allTokens.length !== contract.baseTokens.length) {
     throw new Error(`Style Dictionary token coverage ${dictionary.allTokens.length} != contract ${contract.baseTokens.length}`);
@@ -421,7 +456,7 @@ export async function generateArtifacts(): Promise<{ themeCss: string; tokensTs:
   const seedThemes = loadSeedThemes(contract);
   return {
     themeCss: renderGeneratedCss(flat) + renderPointerFineBlock(fine) + renderSeedThemesBlock(seedThemes),
-    tokensTs: renderTokensTs(flat),
+    tokensTs: renderTokensTs(flat, polarityArms),
     themesTs: renderSeedThemesTs(seedThemes),
   };
 }

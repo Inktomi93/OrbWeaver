@@ -300,6 +300,11 @@
         "components": [0.98, 0.01, 232]
       }
     },
+    "chart-1": { "$value": { "colorSpace": "oklch", "components": [0.49, 0.175, 52] } },
+    "chart-2": { "$value": { "colorSpace": "oklch", "components": [0.53, 0.1, 200] } },
+    "chart-3": { "$value": { "colorSpace": "oklch", "components": [0.53, 0.12, 300] } },
+    "chart-4": { "$value": { "colorSpace": "oklch", "components": [0.52, 0.11, 130] } },
+    "chart-5": { "$value": { "colorSpace": "oklch", "components": [0.55, 0.12, 35] } },
     "track-1": {
       "$value": {
         "colorSpace": "oklch",

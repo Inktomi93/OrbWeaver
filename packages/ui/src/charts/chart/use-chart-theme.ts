@@ -9,7 +9,7 @@
 // of baking a stale literal.
 import { useSyncExternalStore } from "react";
 import { createLiveTokenStore, resolveCssColor, resolveCssVar } from "#lib";
-import { TOKENS } from "#tokens";
+import { TOKEN_POLARITY_ARMS, TOKENS } from "#tokens";
 
 // Keyed by ROLE (not token name) so an option builder asks for what it's styling, not which token backs it.
 export interface ChartColors {
@@ -29,7 +29,8 @@ export interface ChartColors {
   /** Axis lines + grid split lines. */
   readonly axisLine: string;
   /** The 5-stop categorical ramp (`color.chart-1..5`) — scatter series color-by-category; the heatmap's
-   * VisualMap uses stop 0 as its high-intensity end. All resolve live, so a custom theme retints them. */
+   * VisualMap uses stop 0 as its high-intensity end. All resolve live, so a custom theme's derived
+   * color-scheme selects the correct arm without retinting the categorical hues. */
   readonly palette: readonly [string, string, string, string, string];
 }
 
@@ -54,7 +55,9 @@ function resolveColor(token: { readonly cssVar: string; readonly value: string }
 
 function resolveChartColors(): ChartColors {
   return {
-    series: resolveColor(CHROME_TOKENS.series),
+    // Chart tokens are polarity-aware too: Canvas needs the cascade-resolved concrete arm, never the
+    // raw light-dark() token stream returned by getPropertyValue.
+    series: resolveCssColor(CHROME_TOKENS.series.cssVar, CHROME_TOKENS.series.value),
     // Through the CASCADE, not through the custom property: these two are `light-dark()` tokens (D71), and
     // a raw `getPropertyValue` hands back the literal `light-dark(...)` string, which canvas cannot paint.
     seriesPositive: resolveCssColor(CHROME_TOKENS.seriesPositive.cssVar, CHROME_TOKENS.seriesPositive.value),
@@ -62,19 +65,25 @@ function resolveChartColors(): ChartColors {
     axisLabel: resolveColor(CHROME_TOKENS.axisLabel),
     axisLabelMuted: resolveColor(CHROME_TOKENS.axisLabelMuted),
     axisLine: resolveColor(CHROME_TOKENS.axisLine),
-    palette: resolveRamp(resolveColor),
+    palette: resolveRamp((token) => resolveCssColor(token.cssVar, token.value)),
   };
 }
 
 // Identity-stable, so useSyncExternalStore's server/no-DOM snapshot never spins a fresh object per render.
 const FALLBACK_COLORS: ChartColors = {
-  series: CHROME_TOKENS.series.value,
-  seriesPositive: CHROME_TOKENS.seriesPositive.value,
-  seriesNegative: CHROME_TOKENS.seriesNegative.value,
+  series: TOKEN_POLARITY_ARMS["color.chart-1"].dark,
+  seriesPositive: TOKEN_POLARITY_ARMS["color.success"].dark,
+  seriesNegative: TOKEN_POLARITY_ARMS["color.destructive"].dark,
   axisLabel: CHROME_TOKENS.axisLabel.value,
   axisLabelMuted: CHROME_TOKENS.axisLabelMuted.value,
   axisLine: CHROME_TOKENS.axisLine.value,
-  palette: resolveRamp((token) => token.value),
+  palette: [
+    TOKEN_POLARITY_ARMS["color.chart-1"].dark,
+    TOKEN_POLARITY_ARMS["color.chart-2"].dark,
+    TOKEN_POLARITY_ARMS["color.chart-3"].dark,
+    TOKEN_POLARITY_ARMS["color.chart-4"].dark,
+    TOKEN_POLARITY_ARMS["color.chart-5"].dark,
+  ],
 };
 
 const chartThemeStore = createLiveTokenStore(resolveChartColors, FALLBACK_COLORS);

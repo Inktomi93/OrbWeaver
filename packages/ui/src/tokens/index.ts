@@ -45,11 +45,11 @@ export const TOKENS = {
   "color.shadow-ambient-near": { cssVar: "--color-shadow-ambient-near", value: "oklch(0 0 0 / 0.4)" },
   "color.shadow-ambient-far": { cssVar: "--color-shadow-ambient-far", value: "oklch(0 0 0 / 0.5)" },
   "color.shadow-cta-highlight": { cssVar: "--color-shadow-cta-highlight", value: "oklch(1 0 0 / 0.15)" },
-  "color.chart-1": { cssVar: "--color-chart-1", value: "oklch(0.72 0.175 52)" },
-  "color.chart-2": { cssVar: "--color-chart-2", value: "oklch(0.7 0.1 200)" },
-  "color.chart-3": { cssVar: "--color-chart-3", value: "oklch(0.68 0.12 300)" },
-  "color.chart-4": { cssVar: "--color-chart-4", value: "oklch(0.74 0.11 130)" },
-  "color.chart-5": { cssVar: "--color-chart-5", value: "oklch(0.7 0.12 35)" },
+  "color.chart-1": { cssVar: "--color-chart-1", value: "light-dark(oklch(0.49 0.175 52), oklch(0.72 0.175 52))" },
+  "color.chart-2": { cssVar: "--color-chart-2", value: "light-dark(oklch(0.53 0.1 200), oklch(0.7 0.1 200))" },
+  "color.chart-3": { cssVar: "--color-chart-3", value: "light-dark(oklch(0.53 0.12 300), oklch(0.68 0.12 300))" },
+  "color.chart-4": { cssVar: "--color-chart-4", value: "light-dark(oklch(0.52 0.11 130), oklch(0.74 0.11 130))" },
+  "color.chart-5": { cssVar: "--color-chart-5", value: "light-dark(oklch(0.55 0.12 35), oklch(0.7 0.12 35))" },
   "color.track-1": { cssVar: "--color-track-1", value: "light-dark(oklch(0.53 0.13 145), oklch(0.68 0.13 145))" },
   "color.track-2": { cssVar: "--color-track-2", value: "light-dark(oklch(0.545 0.11 250), oklch(0.68 0.11 250))" },
   "color.track-3": { cssVar: "--color-track-3", value: "light-dark(oklch(0.545 0.11 90), oklch(0.76 0.12 90))" },
@@ -184,6 +184,31 @@ export const TOKENS = {
 } as const;
 
 export type TokenPath = keyof typeof TOKENS;
+
+/** Concrete arms for every polarity-aware token. CSS consumers use TOKENS[path].value; canvas/build-time consumers use this generated surface and never parse light-dark() serialization. */
+export const TOKEN_POLARITY_ARMS = {
+  "color.destructive": { light: "oklch(0.5 0.19 25)", dark: "oklch(0.65 0.19 25)" },
+  "color.destructive-foreground": { light: "oklch(0.98 0.01 25)", dark: "oklch(0.2 0.03 25)" },
+  "color.success": { light: "oklch(0.47 0.12 155)", dark: "oklch(0.72 0.13 155)" },
+  "color.success-foreground": { light: "oklch(0.97 0.01 150)", dark: "oklch(0.14 0.02 150)" },
+  "color.warning": { light: "oklch(0.5 0.11 75)", dark: "oklch(0.79 0.13 75)" },
+  "color.warning-foreground": { light: "oklch(0.98 0.01 85)", dark: "oklch(0.2 0.03 85)" },
+  "color.info": { light: "oklch(0.48 0.1 232)", dark: "oklch(0.7 0.1 232)" },
+  "color.info-foreground": { light: "oklch(0.98 0.01 232)", dark: "oklch(0.2 0.03 232)" },
+  "color.chart-1": { light: "oklch(0.49 0.175 52)", dark: "oklch(0.72 0.175 52)" },
+  "color.chart-2": { light: "oklch(0.53 0.1 200)", dark: "oklch(0.7 0.1 200)" },
+  "color.chart-3": { light: "oklch(0.53 0.12 300)", dark: "oklch(0.68 0.12 300)" },
+  "color.chart-4": { light: "oklch(0.52 0.11 130)", dark: "oklch(0.74 0.11 130)" },
+  "color.chart-5": { light: "oklch(0.55 0.12 35)", dark: "oklch(0.7 0.12 35)" },
+  "color.track-1": { light: "oklch(0.53 0.13 145)", dark: "oklch(0.68 0.13 145)" },
+  "color.track-2": { light: "oklch(0.545 0.11 250)", dark: "oklch(0.68 0.11 250)" },
+  "color.track-3": { light: "oklch(0.545 0.11 90)", dark: "oklch(0.76 0.12 90)" },
+  "color.track-4": { light: "oklch(0.555 0.12 310)", dark: "oklch(0.68 0.12 310)" },
+  "color.track-5": { light: "oklch(0.56 0.12 20)", dark: "oklch(0.7 0.12 20)" },
+  "color.track-6": { light: "oklch(0.535 0.09 200)", dark: "oklch(0.72 0.1 200)" },
+} as const;
+
+export type PolarityTokenPath = keyof typeof TOKEN_POLARITY_ARMS;
 
 /** `var(--…)` reference for a token — the ONE way runtime code names a token. */
 export function cssVar(path: TokenPath): string {

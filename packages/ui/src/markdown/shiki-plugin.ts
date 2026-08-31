@@ -15,7 +15,7 @@ import type { HighlighterCore } from "@shikijs/core";
 import { createHighlighterCore } from "@shikijs/core";
 import { createJavaScriptRegexEngine } from "@shikijs/engine-javascript";
 import type { CodeHighlighterPlugin, HighlightOptions, ThemeInput } from "streamdown";
-import { SEED_THEME_VALUE_SETS, TOKENS } from "#tokens";
+import { SEED_THEME_VALUE_SETS, TOKEN_POLARITY_ARMS, TOKENS } from "#tokens";
 
 // HighlightResult is declared in streamdown's .d.ts but not exported publicly — reconstructed here
 // structurally. TS still checks this against the real (unexported) interface at the
@@ -65,7 +65,25 @@ const LANGUAGE_LOADERS: Record<string, () => Promise<{ default: unknown }>> = {
 
 // Semantic scope → token, split light/dark. One entry per broad TextMate scope family so any grammar
 // in LANGUAGE_LOADERS lands a sensible color.
-function buildTheme(name: string, type: "light" | "dark", fg: string, bg: string): ThemeInput {
+interface SyntaxPalette {
+  readonly muted: string;
+  readonly primary: string;
+  readonly destructive: string;
+  readonly chart2: string;
+  readonly chart3: string;
+  readonly chart4: string;
+  readonly chart5: string;
+}
+
+interface ThemeSpec {
+  readonly name: string;
+  readonly type: "light" | "dark";
+  readonly fg: string;
+  readonly bg: string;
+  readonly palette: SyntaxPalette;
+}
+
+function buildTheme({ name, type, fg, bg, palette }: ThemeSpec): ThemeInput {
   return {
     name,
     type,
@@ -76,27 +94,27 @@ function buildTheme(name: string, type: "light" | "dark", fg: string, bg: string
       { scope: ["source", "text"], settings: { foreground: fg } },
       {
         scope: ["comment", "punctuation.definition.comment"],
-        settings: { foreground: TOKENS["color.muted-foreground"].value, fontStyle: "italic" },
+        settings: { foreground: palette.muted, fontStyle: "italic" },
       },
       {
         scope: ["string", "string.quoted", "constant.character", "punctuation.definition.string"],
-        settings: { foreground: TOKENS["color.chart-4"].value },
+        settings: { foreground: palette.chart4 },
       },
       {
         scope: ["constant.numeric", "constant.language", "constant.other", "keyword.other.unit"],
-        settings: { foreground: TOKENS["color.chart-2"].value },
+        settings: { foreground: palette.chart2 },
       },
       {
         scope: ["keyword", "storage", "storage.type", "keyword.control", "keyword.operator"],
-        settings: { foreground: TOKENS["color.primary"].value },
+        settings: { foreground: palette.primary },
       },
       {
         scope: ["entity.name.function", "support.function", "meta.function-call"],
-        settings: { foreground: TOKENS["color.chart-3"].value },
+        settings: { foreground: palette.chart3 },
       },
       {
         scope: ["entity.name.type", "entity.name.class", "support.type", "support.class"],
-        settings: { foreground: TOKENS["color.chart-5"].value },
+        settings: { foreground: palette.chart5 },
       },
       {
         scope: ["variable", "variable.other", "meta.definition.variable"],
@@ -104,15 +122,15 @@ function buildTheme(name: string, type: "light" | "dark", fg: string, bg: string
       },
       {
         scope: ["entity.name.tag", "meta.tag", "support.type.property-name"],
-        settings: { foreground: TOKENS["color.chart-5"].value },
+        settings: { foreground: palette.chart5 },
       },
       {
         scope: ["punctuation", "meta.brace", "punctuation.separator", "punctuation.terminator"],
-        settings: { foreground: TOKENS["color.muted-foreground"].value },
+        settings: { foreground: palette.muted },
       },
       {
         scope: ["invalid", "invalid.illegal"],
-        settings: { foreground: TOKENS["color.destructive"].value },
+        settings: { foreground: palette.destructive },
       },
     ],
   };
@@ -122,8 +140,38 @@ function buildTheme(name: string, type: "light" | "dark", fg: string, bg: string
 // SEED_THEME_VALUE_SETS.light — the same generated [data-theme="light"] override values (source:
 // src/tokens/themes/light.json), so a palette edit flows through the ONE seed home (no transcription drift).
 const LIGHT_VARS = SEED_THEME_VALUE_SETS.light.vars;
-const ORB_DARK = buildTheme("orbweaver-dark", "dark", TOKENS["color.foreground"].value, TOKENS["color.card"].value);
-const ORB_LIGHT = buildTheme("orbweaver-light", "light", LIGHT_VARS["--color-foreground"], LIGHT_VARS["--color-card"]);
+const DARK_SYNTAX = {
+  muted: TOKENS["color.muted-foreground"].value,
+  primary: TOKENS["color.primary"].value,
+  destructive: TOKEN_POLARITY_ARMS["color.destructive"].dark,
+  chart2: TOKEN_POLARITY_ARMS["color.chart-2"].dark,
+  chart3: TOKEN_POLARITY_ARMS["color.chart-3"].dark,
+  chart4: TOKEN_POLARITY_ARMS["color.chart-4"].dark,
+  chart5: TOKEN_POLARITY_ARMS["color.chart-5"].dark,
+} as const satisfies SyntaxPalette;
+const LIGHT_SYNTAX = {
+  muted: LIGHT_VARS["--color-muted-foreground"],
+  primary: LIGHT_VARS["--color-primary"],
+  destructive: TOKEN_POLARITY_ARMS["color.destructive"].light,
+  chart2: TOKEN_POLARITY_ARMS["color.chart-2"].light,
+  chart3: TOKEN_POLARITY_ARMS["color.chart-3"].light,
+  chart4: TOKEN_POLARITY_ARMS["color.chart-4"].light,
+  chart5: TOKEN_POLARITY_ARMS["color.chart-5"].light,
+} as const satisfies SyntaxPalette;
+const ORB_DARK = buildTheme({
+  name: "orbweaver-dark",
+  type: "dark",
+  fg: TOKENS["color.foreground"].value,
+  bg: TOKENS["color.card"].value,
+  palette: DARK_SYNTAX,
+});
+const ORB_LIGHT = buildTheme({
+  name: "orbweaver-light",
+  type: "light",
+  fg: LIGHT_VARS["--color-foreground"],
+  bg: LIGHT_VARS["--color-card"],
+  palette: LIGHT_SYNTAX,
+});
 
 const THEMES: [ThemeInput, ThemeInput] = [ORB_LIGHT, ORB_DARK];
 
