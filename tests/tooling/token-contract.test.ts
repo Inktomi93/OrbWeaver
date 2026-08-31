@@ -159,9 +159,9 @@ test("the real vault is conformant and preserves the exact generated target surf
     mocha: countTokens(JSON.parse(texts.mocha)),
   };
   expect(result.diagnostics).toEqual([]);
-  expect(constituents).toEqual({ base: 179, light: 59, mocha: 40 });
+  expect(constituents).toEqual({ base: 185, light: 59, mocha: 40 });
   expect(result.scannedTokens).toBe(constituents.base + constituents.light + constituents.mocha);
-  expect(result.cssTargets.size).toBe(187);
+  expect(result.cssTargets.size).toBe(193);
   expect(result.cssTargets).toEqual(BASELINE_TARGETS);
   expect(result.themes).toEqual([
     { id: "hearth", colorScheme: "dark", source: "base" },
@@ -326,7 +326,7 @@ describe("Orb semantic controls", () => {
       cssValues["--aspect-portrait-renamed"] = portrait;
     });
     const result = validateTokenContractTexts(swapped, REPO_ROOT);
-    expect(result.cssTargets.size).toBe(187);
+    expect(result.cssTargets.size).toBe(193);
     expect(result.diagnostics.map((item) => item.code)).toContain("removed.target.unrecorded");
 
     const avatar = readFileSync(join(UI_ROOT, "src/primitives/avatar/variants.ts"), "utf8");
@@ -361,7 +361,7 @@ describe("bounded Resolver controls", () => {
       colors["sky-day"] = background;
     });
     const result = validateTokenContractTexts(swapped);
-    expect(result.scannedTokens).toBe(278);
+    expect(result.scannedTokens).toBe(284);
     expect(result.diagnostics.map((item) => item.code)).toContain("seed.members");
   });
 

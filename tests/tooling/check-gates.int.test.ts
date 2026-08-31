@@ -901,7 +901,9 @@ function writeFixtures(): void {
   // carve-out does not exempt it. The other three arms (DEFERRED→withResolvers and SPREAD-SORT, both landed
   // by the W4.5/W4.2 burn-down; ESCAPE-MINT) are proven by conformance.
   fx(`${D}/hub/__g_platspell.ts`, "export const nap = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));\n");
-  // no-raw-container-widths: a raw content-width utility on a container element.
+  // no-raw-container-widths + css-length-tokens: a raw content-width utility on a container element. The
+  // latter consumes #961's class provenance, so this one producer-anchored fixture proves both gates are
+  // live without mutating the canonical shell.css home during a whole-tree fixture run.
   fx("packages/client/src/features/__g_containerw/components/__g_c.tsx", 'export const C = () => <div className="w-[600px]" />;\n');
   // no-raw-id: an Id field typed as raw z.string() (no brand).
   fx(`${D}/__g_rawid/x.ts`, 'import { z } from "zod";\nexport const s = z.object({ chatId: z.string() });\n');
