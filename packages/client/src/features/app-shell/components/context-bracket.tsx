@@ -62,21 +62,26 @@ function railSelection(active: ResolvedContextTab | null, strip: ResolvedContext
   return active !== null && active.strip === strip ? active.label : null;
 }
 
-/** THE CROWNED DOOR SEATS LAST (#875 F15, side-eye 2026-08-30). Live, the meta rail read
- *  `Members · This chat · Preview · Game · Activity` — the host-only crown wedged between two generic meta
- *  tabs, because a rail's order is its CONTRIBUTOR REGISTRATION order and rpg happens to register before
- *  automation. The mock seats `Game` last, and the taste argument is the same one the crown itself makes:
- *  an admin door is not a peer of the tabs it sits beside. Stated HERE, as a property of the rail, rather
- *  than by re-ordering two registries against each other — registration order is not a design surface, and
- *  a third contributor would silently break the arrangement again. Stable within each group (the meta tabs
- *  keep their declared order among themselves), so this only ever moves the crowns. */
-function seatCrownsLast(tabs: readonly ResolvedContextTab[]): readonly ResolvedContextTab[] {
-  return [...tabs.filter((tab) => !tab.crown), ...tabs.filter((tab) => tab.crown)];
-}
+// THE META RAIL RENDERS ITS TABS IN DECLARED ORDER, AND THAT IS THE ACCEPTED ORDER (#898, ruled
+// 2026-08-30 by the post-fix verification drive). A `seatCrownsLast` partition lived here for one day and
+// is DELETED, not repaired, because it was a no-op certified by a false pin:
+//   · #875 F15 asked for `Game` last, on the premise that it was "the crowned host-only door wedged
+//     between two GENERIC meta tabs". That premise is wrong on the tree — `Preview`
+//     (`chats-section.tsx:98`), `Game` (`rpg-context-section.tsx`) and `Activity`
+//     (`activity-context-tab.tsx:28`) ALL carry `crown: true`, verified live from `data-crown` in both
+//     rooms. The reviewer retracted the premise on the baseline's behalf.
+//   · So partitioning on the crown FLAG yielded `[Members, This chat] + [Preview, Game, Activity]` —
+//     byte-identical to the order it claimed to change. Only `Game`'s ICON is a literal crown; the flag is
+//     a host-only marker that three cells share, so no predicate over it can ever move `Game` alone.
+//   · Its CT went green solely because the story fixture crowned `Game` alone. A no-op plus a lying pin is
+//     the banned half-migration, and that pin would have certified an order the product never rendered for
+//     as long as it lived.
+// If the owner wants `Game` last it is an explicit ORDER field on the tab definition, decided on a later
+// word — never a predicate guessed from a flag that means something else.
 
 export function ContextBracket({ view, band, railLabel, dismissLabel, onDismiss }: ContextBracketProps): ReactElement {
   const gameTabs = view.tabs.filter((tab) => tab.strip === "game");
-  const metaTabs = seatCrownsLast(view.tabs.filter((tab) => tab.strip === "meta"));
+  const metaTabs = view.tabs.filter((tab) => tab.strip === "meta");
   // WHICH RAIL OWNS THE SELECTION — the one fact neither strip's renderer could know before (F6 defect 1).
   const active = view.tabs.find((tab) => tab.id === view.activeTab) ?? null;
   const activeStrip = active?.strip ?? null;

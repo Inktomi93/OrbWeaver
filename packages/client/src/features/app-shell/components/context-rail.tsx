@@ -295,17 +295,22 @@ export function ContextRail({ ariaLabel, tabs, activeTab, actions, edge, owns, k
         </TabsList>
         {actions !== undefined ? (
           <>
-            {/* THE TRAIL IS NOT A SEVENTH CELL (#878 F17, side-eye 2026-08-30). The host's kebab
-                ("Character actions", 34×34) sat INSIDE the rail's cell row with a glyph and no caption,
-                beside six captioned cells, in a rail whose law is "icon + caption, always" (#208) — so it
-                read as a cell that forgot its word, and as a second tab stop in a rail advertised as one.
-                It is not a cell and it must not take a caption (it is the rail's trail, not a view), so the
-                fix is the other arm the review offered: SEPARATE it. A hairline + a `row` inset is the
-                house's own "these are different kinds of thing" mark, and it costs the track nothing.
-                `aria-hidden` + `shrink-0`: it is a rule, not a control, and it may never absorb the
-                squeeze the cells need. */}
-            <Separator orientation="vertical" aria-hidden={true} className="ms-row h-control-sm shrink-0" />
-            <Row align="center" className="ms-row shrink-0">
+            {/* THE TRAIL IS NOT A SEVENTH CELL (#878 F17), AND SEPARATING IT COSTS THE TRACK NOTHING
+                (#897, post-fix verification 2026-08-30 — the first spelling of this fix was the finding).
+                The host's kebab ("Character actions", 34×34) sits INSIDE the rail's cell row with a glyph
+                and no caption, beside captioned cells, in a rail whose law is "icon + caption, always"
+                (#208) — so it read as a cell that forgot its word. It is not a cell and must not take a
+                caption, so it is SEPARATED instead.
+                THE RULE IS ABSOLUTELY POSITIONED, and that is the whole correction. Shipped as a flex
+                CHILD with two `ms-row` insets it cost the cell track ~19px — and MEASURED at 1280 docked
+                the six-cell Characters rail needs exactly that: `scrollWidth 319 / clientWidth 300`, with
+                `Trust` painting as `Tru`. Every "spend less when it does not fit" rule is self-referential
+                (stop spending → it fits → spend again), so the rule stops spending AT ALL: it paints in
+                the flex `gap-row` that already separated these two children before this mark existed, so
+                the track's budget is byte-identical to the pre-F17 geometry. `aria-hidden`: it is a rule,
+                not a control. */}
+            <Row align="center" className="relative shrink-0">
+              <Separator orientation="vertical" aria-hidden={true} className="-start-tight absolute inset-y-row w-px" />
               {actions}
             </Row>
           </>

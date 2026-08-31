@@ -814,19 +814,25 @@ export function ContextOwnershipStory({ paneWidth = 384, height = 700 }: { reado
 /** Wide enough that the ring/median sample is the surface and not its neighbours' edge pixels. */
 const PANE_PROBE_WIDTH = 24;
 
-/** The LIVE meta roster of a host's game room, in the order the CONTRIBUTOR REGISTRIES produce it —
- *  chat's own tabs, then rpg's crowned `Game` door, then automation's `Activity`. That order is the
- *  #875 F15 defect (the crown wedged between two generic meta tabs); the bracket seats crowns last, and
- *  the story hands it the WRONG order on purpose so the pin has something to fix. */
-const CTX_CROWN_ORDER_TABS: readonly ResolvedContextTab[] = [
+/** The LIVE meta roster of a host's game room, in the order the CONTRIBUTOR REGISTRIES produce it, and
+ *  with the CROWN SET THE PRODUCT ACTUALLY HAS (corrected #898, 2026-08-30).
+ *
+ *  IT USED TO CROWN `Game` ALONE, and that single wrong datum is what made a no-op fix look green: three
+ *  meta cells carry `crown: true` live — `Preview` (`chats-section.tsx:98`), `Game`
+ *  (`rpg-context-section.tsx`) and `Activity` (`activity-context-tab.tsx:28`) — so a partition on the flag
+ *  cannot move anything, while a fixture crowning one cell made it look like it could. THE DURABLE RULE:
+ *  a fixture's AXIS DATA (here, which cells are crowned) is not decoration — it is the thing under test,
+ *  and it must be derived from the live definitions or checked against them. Hand-declaring it is how a
+ *  green CT certifies an arrangement the product has never rendered. */
+const CTX_META_RAIL_TABS: readonly ResolvedContextTab[] = [
   resolvedTab({ id: "members", label: "Members", icon: Users, node: <div>members</div> }),
   resolvedTab({ id: "settings", label: "This chat", icon: Settings, node: <div>this chat</div> }),
-  resolvedTab({ id: "preview", label: "Preview", icon: Eye, node: <div>preview</div> }),
+  resolvedTab({ id: "preview", label: "Preview", icon: Eye, node: <div>preview</div>, crown: true }),
   resolvedTab({ id: "rpg.game", label: "Game", icon: Crown, node: <div>game</div>, crown: true }),
-  resolvedTab({ id: "activity", label: "Activity", icon: FlaskConical, node: <div>activity</div> }),
+  resolvedTab({ id: "activity", label: "Activity", icon: FlaskConical, node: <div>activity</div>, crown: true }),
 ];
 
-/** The meta rail with a CROWNED door mid-roster (#875 F15) — and at a width the five cells cannot fit,
+/** The meta rail at its live roster and crown set — and at a width the five cells cannot fit,
  *  so the same mount answers the OVERFLOW question (#875 F7/F8): does the rail SAY it is scrollable?
  *  `paneWidth` is a prop because a story hard-wired to one width measures the pane at every viewport
  *  ([[ct-viewport-under-48rem-hits-mobile-shell-arm]]) — the pin drives both ends of it. */
@@ -834,7 +840,7 @@ export function ContextMetaRailStory({ paneWidth = 291, withTrail = false }: { r
   return (
     <div style={{ width: paneWidth, height: 480 }} data-testid="ctx-strip-container">
       <ContextTabsPanel
-        tabs={CTX_CROWN_ORDER_TABS}
+        tabs={CTX_META_RAIL_TABS}
         railLabel="Chat"
         {...(withTrail
           ? {

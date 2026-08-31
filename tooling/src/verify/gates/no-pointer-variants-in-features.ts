@@ -69,7 +69,7 @@ const FIX =
   "compose a pointer-conditional TOKEN (e.g. `min-w-touch-target` / `min-h-touch-target`, 44px coarse · fine " +
   "narrower — no variant needed) or a shared component-layer const from `#components` " +
   "(`packages/client/src/components/pointer-variants.ts`: HIDE_AT_COARSE, REVEAL_AT_COARSE, " +
-  "FINE_INERT_UNTIL_HOVER, CHIP_TOUCH_FLOOR_AT_COARSE, PICKER_GAP_AT_COARSE, CONTEXT_RAIL_WRAP). app-shell is the " +
+  "FINE_INERT_UNTIL_HOVER, CHIP_TOUCH_FLOOR_AT_COARSE, PICKER_GAP_AT_COARSE, CONTEXT_RAIL_FOLD). app-shell is the " +
   "shell tier and is scoped out.";
 
 /** feature files this run actually SCANNED — the blindness arm's truth set (a features root that moved leaves

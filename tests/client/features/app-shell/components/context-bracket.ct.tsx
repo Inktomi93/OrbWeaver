@@ -164,20 +164,6 @@ for (const theme of SHIPPED_THEMES) {
   });
 }
 
-// ── #875 F15: THE CROWNED DOOR SEATS LAST ──────────────────────────────────────────────────────────────
-test("#875 F15: a crowned meta cell seats LAST however its contributor registered", async ({ mount }) => {
-  // Live, both rooms read `Members · This chat · Preview · Game · Activity` — the host-only crown wedged
-  // between two generic meta tabs, because a rail's order is its CONTRIBUTOR REGISTRATION order and rpg
-  // happens to register before automation. The story hands the bracket exactly that order.
-  const component = await mount(<ContextMetaRailStory />);
-  const cells = component.getByRole("toolbar", { name: "Chat" }).getByRole("button");
-  await expect(cells).toHaveCount(5);
-  // The crown is last; every other cell keeps its declared order among the rest (a sort, not a shuffle).
-  // `toHaveText` over the SET is the auto-retrying ordered read (`toHaveAccessibleName` takes one name).
-  await expect(cells).toHaveText(["Members", "This chat", "Preview", "Activity", "Game"]);
-  await expect(cells.last()).toHaveAttribute("data-crown", "true");
-});
-
 // ── #878 F17: THE RAIL'S TRAIL IS NOT A SEVENTH CELL ───────────────────────────────────────────────────
 test("#878 F17: the rail's trail actions are separated from the cell track by a rule", async ({ mount }) => {
   // The host kebab sat INSIDE the cell row — a 34×34 glyph with no caption, beside captioned cells, in a

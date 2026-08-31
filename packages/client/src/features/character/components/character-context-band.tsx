@@ -77,7 +77,13 @@ export function CharacterContextBand({ characterId }: CharacterContextBandProps)
         <Text voice="gloss" className="truncate font-mono" data-slot="character-context-band-handle">
           @{detail.handle}
         </Text>
-        <Row gap="field" align="center" className="flex-wrap">
+        {/* THE CHIP ROW DOES NOT WRAP — IT SCROLLS (#899 N4, post-fix verification 2026-08-30). At a 383px
+            pane it wrapped 2+1: `3 members` and `Memory — idle` on row one, `Built-in preset` alone on row
+            two with the whole right half empty — the exact ragged-void shape #875 F14 had just fixed for
+            the orb row, in the row directly above it. Same fix, same reason, and now the two rows of this
+            band behave alike: only a set that folds EVENLY folds, everything else keeps its whole item and
+            scrolls (`context-rail.tsx` `RAIL_TRACK_CLASSES`, the house ruling). */}
+        <Row gap="field" align="center" className="min-w-0 overflow-x-auto">
           <OwnLookMark themeOverride={detail.themeOverride} />
           <Badge tone="soft" size="sm" intent="neutral" data-slot="character-context-band-chats">
             {chatCount === 1 ? "1 chat" : `${chatCount} chats`}

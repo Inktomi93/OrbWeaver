@@ -1677,6 +1677,76 @@ test("#846: with the context pane COLLAPSED the topbar names the room WHOLE, chi
   expect(readout.titleSlack).toBeGreaterThanOrEqual(0);
 });
 
+// ── #896: THE YIELD REACHES EVERY IDENTITY VARIANT ────────────────────────────────────────────────────
+// The post-fix drive REFUTED F4 at the phone: widening the rule from `docked` to `docked|overlay` fixed the
+// desktop overlay widths and left `[data-identity="wide"]` in the selector, which the 430 shell's `narrow`
+// identity mount cannot match — so the room's name still printed TWICE there (topbar y=13 + the band's
+// `h2` at y=65) while 1024 and 768 printed once. One product rule, two behaviours, split by a viewport.
+//
+// WHY THIS COUNTS TOPBAR TITLES RATHER THAN ON-SCREEN NAME INSTANCES: this story mounts the shell with a
+// stubbed room and no chats-section context definition, so the BAND's `h2` never renders here — a
+// name-instance count would answer 0 in both arms and prove nothing. The band's own half is pinned where
+// the band actually mounts (`chats-section.ct.tsx`, the #860 band-title pin). What is provable HERE, and
+// what the refutation was actually about, is the rule I changed: at EVERY identity variant, an open pane
+// yields the title, and a closed one keeps it. The existing #846 pins are blind to this by construction —
+// they read the `wide` mount's own visibility and cannot see a second mount printing the same string.
+const TOPBAR_YIELD_ARMS = [
+  { width: 1280, height: 800, identity: "wide" },
+  { width: 430, height: 740, identity: "narrow" },
+] as const;
+
+/** Drive the context pane to open/closed by READING its resolved mode, never by assuming which label the
+ *  toggle currently carries (the story opens collapsed) or which mode "open" resolves to (docked at 1280,
+ *  overlay at 430 — the very split this pin exists for). */
+async function setContextPane(page: Page, shell: Locator, want: "open" | "collapsed"): Promise<void> {
+  const grid = page.locator(".shell-grid");
+  const collapsed = (await grid.getAttribute("data-context-mode")) === "collapsed";
+  if (collapsed !== (want === "collapsed")) {
+    await shell.getByRole("button", { name: collapsed ? "Show details" : "Hide details" }).click();
+  }
+  if (want === "collapsed") {
+    await expect(grid).toHaveAttribute("data-context-mode", "collapsed");
+  } else {
+    await expect(grid).not.toHaveAttribute("data-context-mode", "collapsed");
+  }
+}
+
+/** Every VISIBLE topbar title mount, at any identity — the count the wide-only readout could not take. */
+function visibleTopbarTitles(page: Page): Promise<number> {
+  return page.evaluate(() => [...document.querySelectorAll<HTMLElement>(".shell-topbar-title")].filter((el) => el.checkVisibility()).length);
+}
+
+for (const arm of TOPBAR_YIELD_ARMS) {
+  test(`#896 @${String(arm.width)} (${arm.identity} identity): an OPEN context pane yields the topbar title, a CLOSED one keeps it`, async ({
+    mount,
+    page,
+  }) => {
+    await routeTrpc(page, {
+      ...SHELL_AMBIENT_ROUTES,
+      "chat.getChat": () => TOPBAR_IDENTITY_ROOM,
+      "notifications.list": () => ({ items: [], nextCursor: null }),
+    });
+    await seatNotificationBell(page);
+    await page.setViewportSize({ width: arm.width, height: arm.height });
+    const shell = await mount(<AppShellChatTopbarIdentityStory />);
+
+    // THE PREMISE, asserted before anything is trusted: this width really does mount the identity variant
+    // the arm names. A green on an arm whose identity never mounted would prove nothing about the mount
+    // the refutation was about — which is exactly how the first fix passed its own review.
+    await expect(page.locator(`.shell-topbar-identity[data-identity="${arm.identity}"]`)).toHaveCount(1);
+
+    // CLOSED: the row names the room. The pane is driven by READING its mode and clicking only when it
+    // must change — the story opens collapsed, and `resolvePanelMode` answers `docked` at 1280 but
+    // `overlay` at 430, so neither the starting state nor the open state may be assumed.
+    await setContextPane(page, shell, "collapsed");
+    await expect.poll(() => visibleTopbarTitles(page)).toBe(1);
+
+    // OPEN: the band is on screen, so the row yields — at BOTH identities, which is the whole finding.
+    await setContextPane(page, shell, "open");
+    await expect.poll(() => visibleTopbarTitles(page)).toBe(0);
+  });
+}
+
 test("#375 the context regime follows rendered shell geometry and releases its observer", async ({ mount, page }) => {
   await page.evaluate(() => {
     document.documentElement.dataset["primacyObserveCount"] = "0";
