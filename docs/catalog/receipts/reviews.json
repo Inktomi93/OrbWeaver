@@ -1593,14 +1593,15 @@
     },
     {
       "path": "docs/reviews/stickler/2026-08-30-css-census-doctrine-and-enforcement.md",
-      "assignedSha256": "aab0a4d500c06cf06c6687779fb3a4b63ba4e216768b1b7d86c17c301fa8e0e6",
+      "assignedSha256": "ba9107f1f46847ac9fff5f4c8d44aa286eee6f84f59110c619bf5f3765dffb98",
       "disposition": "current",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "aab0a4d500c06cf06c6687779fb3a4b63ba4e216768b1b7d86c17c301fa8e0e6",
-      "verifiedCommit": "b8eb66f009a1cbada867e8f00e93c95b67bc4a1c",
+      "verifiedSha256": "ba9107f1f46847ac9fff5f4c8d44aa286eee6f84f59110c619bf5f3765dffb98",
+      "verifiedCommit": "8f30fb69044a85d687745fd39ab6f113c4f5f0cf",
       "verifiedAt": "2026-08-31",
       "evidence": [
+        "re-attested at 8f30fb690 — #952 is recorded as implemented with exact source/definition/reference, Base UI, runtime-writer, and focused-proof receipts while the grouped CSS-train barrier remains pending",
         "re-attested at b8eb66f00 after the 2026-08-31 reconciliation: issue-summary counts, #921 current state, #936 token contract, Tailwind compiler namespace correction, #951/#954 limits, and the exact #961 cold refutation are recorded in the durable program",
         "docs/reviews/stickler/2026-08-30-css-census-doctrine-and-enforcement.md:1-1405 read IN FULL by the orchestrator (claude-b) before the receipt — the gate refused a reviewed disposition at fullRead:false and was right to; lane cb-css-census (stickler, Opus override) read all 3,169 authored CSS lines end to end and drove 312 comment-stripped selectors against seven live surfaces",
         "three of the lane's claims were verified independently by the orchestrator before the read: the feature-css-files scanRoot gap by planted control, the D150 contradiction against client-architecture-lockdown §4, and the per-file colour/definition split"
