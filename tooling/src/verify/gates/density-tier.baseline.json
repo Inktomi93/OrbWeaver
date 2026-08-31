@@ -1,4 +1,10 @@
 {
+  "packages/client/src/features/app-shell/components/appearance-elevation-cards.tsx": {
+    "count": 2,
+    "ratified": 2,
+    "why": "the GLOW elevation ILLUSTRATION's two floating islands (#866 §7.8, owner-ruled diagram): bordered, rounded, filled cells INSIDE the bordered base frame — the nesting IS the depiction (glow separates by LINE + LIFT, so the island must be a bordered box floating over the base). CD2 fences real UI chrome from stacking boxes; a diagram's boxes are its ink, aria-hidden and pointer-inert.",
+    "cite": ["packages/client/src/features/app-shell/components/appearance-elevation-cards.tsx#L52-L61", "docs/design/config-revamp-design.md"]
+  },
   "packages/client/src/features/app-shell/components/rail-button.tsx": {
     "count": 1,
     "ratified": 1,
