@@ -433,7 +433,9 @@ UI (or `snap --goto`/`__orb.nav` if present; check `scripts/probes/snap.ts`'s he
 cache. To SEED a SMALL fixture, **drive the UI, never hand-roll tRPC mutations** — you are the UX
 reviewer and the create journey is itself review surface: `--goto chats` lands on the LANDING pane →
 click a character quick-pick → the draft room opens → send one message → the draft COMMITS. Group chats:
-add members via the cast-bar/roster affordances. For a HEAVY fixture the UI can't produce in reasonable
+add members via the Members-section affordances (the character bar + the add doors; the shipped
+strings still read "Cast"/"Saved casts" until #902 lands the #901 Fork-1/2 rename to
+Characters/Saved rosters — review against the RULED word, report the shipped one). For a HEAVY fixture the UI can't produce in reasonable
 calls (long transcripts / compaction / virtualization looks), run `tsx scripts/dev/seed-chat.ts
 --messages 120 --characters 3 [--title "…"]` — it writes N deterministic numbered rows through the
 canon-safe bulk seam (restart the stack or seed a fresh DB so the live connection sees it; see the

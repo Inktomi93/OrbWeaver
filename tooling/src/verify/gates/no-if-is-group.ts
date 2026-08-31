@@ -10,7 +10,7 @@ export const gate: GateDescriptor = {
   status: "active",
   scopeSafety: "incremental-safe",
   message:
-    "`isGroup`-style boolean branches on group-vs-solo identity — the design forbids it (solo is the degenerate case of group). Gate on explicit roster/cast size that NO-OPS at roster=1 (so byte-identity holds). See Core-Laws-and-Precedents.md §7 D16 (unified group chat).",
+    "`isGroup`-style boolean branches on group-vs-solo identity — the design forbids it (solo is the degenerate case of group). Gate on the explicit COUNT of the room's characters, NO-OPing at one (so byte-identity holds). See Core-Laws-and-Precedents.md §7 D16 (unified group chat).",
   scanRoot: (p) => !(p.includes("tests/") || p.includes("tools/") || p.includes("scripts/") || TEST_FILE_REGEX.test(p)),
   kinds: [SyntaxKind.VariableDeclaration, SyntaxKind.Identifier],
   visit(node, _sf, ctx): void {

@@ -24,7 +24,7 @@ pnpm snap / --goto presets --expect-visible 'role=button[name="New preset"]' --t
 State does not survive a snap call — the create, the act, and the read all ride one chain.
 `current` (not `latest`) names the room you just created: a fresh unsent room is unlisted until
 the chat-list query refetches. The new-chat picker is a two-stage affordance: `modal:newChat`
-opens a character picker; `Blank chat` / a cast pick + `Start chat with N` is the click that
+opens a character picker; `Blank chat` / a character pick + `Start chat with N` is the click that
 mints the room. Note the fill selector — the `composer` testid is on the footer WRAPPER; the
 editable is the `textarea` inside it.
 
