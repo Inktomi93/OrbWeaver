@@ -147,7 +147,7 @@ Its structural literals are limited to viewport units, grid ratios and zero sent
 
 **Unlayered is the mechanism.** Tailwind v4 emits utilities into `@layer utilities`; an unlayered rule beats a layered utility regardless of specificity. That is how `theme.css` and `tiers.css` repoint a primitive's utility-backed defaults and how ui's document floors stay floors. There are zero `@layer` blocks in the authored CSS, and that count must remain zero. Owner-authored custom CSS is also deliberately unlayered so the owner wins within the validation boundary in §4.3.
 
-**Source order is load-bearing.** Production loads `shell.css` first through the app-shell import, then `packages/client/src/styles/globals.css` from `main.tsx`; client globals begins by importing `packages/ui/src/styles/globals.css`. Thus the effective source order is shell → ui globals → client globals. Client globals and shell contain overlapping selectors at identical specificity, so reversing them can silently change the winner. `playwright/index.css` mirrors this production order for component tests. Moving an import changes the cascade contract and requires an explicit law change.
+**Source order is load-bearing.** Production and Playwright CT both import `packages/client/src/styles/index.ts`, the one CSS front door: it imports `shell.css` first, then client globals, whose first import is UI globals. Thus the effective source order is shell → UI globals → client globals. Client globals and shell contain overlapping selectors at identical specificity, so reversing them can silently change the winner. CT adds only its `tests/` Tailwind source root through `playwright/index.css`; it carries no product import or product source. `playwright-css-topology` derives and closes this graph from the shared front door. Moving an import changes the cascade contract and requires an explicit law change.
 
 ### 4.6 Polarity has one mechanism
 
@@ -163,7 +163,8 @@ the prevention claim is not yet fully walled.
 
 The enforcement ledger has three categories; never count one as another:
 
-- **ENFORCED TODAY:** the colour/value/motion gates constrain authored values; G14
+- **ENFORCED TODAY:** the colour/value/motion gates constrain authored values; `playwright-css-topology`
+  makes production and CT share the ordered product CSS graph while keeping the CT-only source explicit; G14
   (`sanctioned-css-homes`) path-closes repository-owned product CSS to the six-home table and fails on a
   missing home; compose-only keeps client intrinsic paint out of features; class-merge seals and tests
   preserve primitive ownership. The sanctioned homes are path permissions, not proof that every declaration

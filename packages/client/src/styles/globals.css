@@ -161,8 +161,8 @@ body {
  * small/low-power devices. That mobile-perf ruling is stated HERE, as the glass's own applicability,
  * because it cannot survive as an override anywhere else: shell.css's mobile arm used to re-declare
  * these five selectors with `backdrop-filter: none`, at IDENTICAL specificity (at-rules add none), and
- * the production bundle emits shell.css FIRST and this sheet LAST (measured off a dist bundle — see
- * playwright/index.css, which reproduces that order). Later-in-source wins, so the glass beat the
+ * the production bundle emits shell.css FIRST and this sheet LAST (measured off a dist bundle; the shared
+ * styles/index.ts front door gives production and CT that same order). Later-in-source wins, so the glass beat the
  * kill-switch and the ruling had never once taken effect. Not EMITTING the declarations is the only
  * form of it that is order-proof.
  *
@@ -486,10 +486,10 @@ html[data-shadow] [data-slot="message-bubble"] {
  * scale 1.5 would get a 50ch column.
  *
  * A CT COVERS THIS NOW (#114, 2026-08-16 — this paragraph previously said the opposite, and said "do not
- * go looking again"; that ruling was scoped to the harness as it then stood). `playwright/index.css` used
+ * go looking again"; that ruling was scoped to the harness as it then stood). The CT harness used
  * to import exactly TWO sheets (`@orb/ui/styles/globals.css` + `app-shell/surfaces/shell.css`), so every
  * rule in this file was structurally absent from every component test and a styles-tier regression could
- * not red one. The harness now loads this sheet too, in the production order, and the cap is pinned by
+ * not red one. The harness now enters through production's shared styles/index.ts, and the cap is pinned by
  * `tests/client/styles/reading-measure.suite.ct.tsx` (computed max-width vs `--reading-measure` resolved
  * in the column's own font, plus a cap-on/cap-off A/B). The rendered measurement on the isolated stage
  * (`pnpm snap --isolated`) remains the whole-app receipt.

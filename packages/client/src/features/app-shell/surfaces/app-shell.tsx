@@ -39,7 +39,6 @@ import { useShellLayout } from "../hooks/use-shell-layout.ts";
 import { useStrayFileDropGuard } from "../hooks/use-stray-file-drop-guard.ts";
 import { appearanceBackgroundSource, resolveThemeBackgroundUrl } from "../lib/resolve-theme-background.ts";
 import { resolveThemeScopeTokens } from "../lib/resolve-theme-scope-tokens.ts";
-import "./shell.css";
 
 /** Collapse whichever panels are currently AUTO-OVERLAYS (the scrim's dismiss, shared by its click and the
  *  Escape key). Module-scope + `layout`-taking so it is never an effect dependency (D54: no manual memo). */

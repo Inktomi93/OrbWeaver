@@ -36,7 +36,7 @@ import { stampAppearanceBootHint } from "#state";
 import { queryClient, trpcClient, trpcProxy } from "./compose/app-singletons.ts";
 import { installAppReadySignal } from "./lib/agent-bridge.ts";
 import { routeResolution, router } from "./routes/router.tsx";
-import "./styles/globals.css";
+import "./styles/index.ts";
 
 // EVERY dev-only instrument install, behind the literal import.meta.env.DEV the bundler constant-folds —
 // so none of these modules (nor anything only they reach) lands in the production output at all. Both are

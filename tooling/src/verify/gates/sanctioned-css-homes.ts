@@ -6,7 +6,7 @@ import { existsSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import type { GateDescriptor } from "../contract/gate.ts";
 
-const SANCTIONED_CSS_HOMES = [
+export const SANCTIONED_CSS_HOMES = [
   "packages/ui/src/tokens/tokens.json",
   "packages/ui/src/styles/theme.css",
   "packages/ui/src/styles/globals.css",
