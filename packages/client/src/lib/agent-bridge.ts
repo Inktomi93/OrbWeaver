@@ -205,7 +205,7 @@ interface OrbRpgSnapshot {
 
 export type OrbRpgReader = () => Promise<OrbRpgSnapshot>;
 
-export interface OrbCssHandle {
+interface OrbCssHandle {
   readonly read: () => CssMergeTraceSnapshot;
   readonly reset: () => void;
 }

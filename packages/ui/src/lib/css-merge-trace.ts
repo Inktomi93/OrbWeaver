@@ -6,7 +6,7 @@ export const CSS_MERGE_TRACE_INPUT_LIMIT = 128;
 const CSS_MERGE_TRACE_RECEIPT_LIMIT = 128;
 const INSTRUMENT_ERROR = "INSTRUMENT ERROR";
 
-export interface CssClassOccurrence {
+interface CssClassOccurrence {
   readonly index: number;
   readonly className: string;
 }

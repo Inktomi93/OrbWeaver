@@ -124,10 +124,11 @@ function contractThemeFamilies(): readonly string[] {
       continue;
     }
     const matches = FAMILY_PROBES.filter((probe) => target.startsWith(`--${probe.family}-`));
-    if (matches.length !== 1) {
+    const match = matches[0];
+    if (match === undefined || matches.length !== 1) {
       throw new Error(`INSTRUMENT ERROR: theme target ${target} maps to ${matches.length} compiler probe families`);
     }
-    families.add(matches[0].family);
+    families.add(match.family);
   }
   return [...families].sort();
 }
