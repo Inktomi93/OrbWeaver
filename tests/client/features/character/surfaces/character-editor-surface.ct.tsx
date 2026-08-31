@@ -23,7 +23,7 @@ import { touchFloorPx } from "../../../../support/ct/touch-floor.ts";
 import type { ChatSummaryFixture } from "../../chat/fixtures.ts";
 import { chatListResponder, makeSeatPortrait } from "../../chat/fixtures.ts";
 import { CharacterDetailContributorStory, CharacterEditorSurfaceStory, CharacterFacetInspectorStory } from "../_ct-stories.tsx";
-import { CHARACTER_EDITOR_AMBIENT_ROUTES, makeCharacterDetail, makeTagFixture } from "../fixtures.ts";
+import { CHARACTER_EDITOR_AMBIENT_ROUTES, characterListResponder, makeCharacterDetail, makeCharacterSummary, makeTagFixture } from "../fixtures.ts";
 
 // GROUPED DIGITS (#878 F13): the census prints `1,257 total · 1,017 permanent`, never a bare four-digit
 // run that reads as an id. The comma is OPTIONAL in the pattern only because a sub-1000 fixture is legal;
@@ -64,10 +64,18 @@ interface UpdateCall {
   readonly input?: { readonly name?: string; readonly greetings?: readonly { readonly text: string; readonly groupOnly?: boolean }[] };
 }
 
+/** The library this editor's character lives in. `CharacterDetailContributorStory` mounts the REAL
+ *  `characters` section, whose CONTENT pane is a designed landing at rest (#864) — it reads
+ *  `character.list` on the first commit, before the story's effect selects a character. Unfed, that read
+ *  answered `null` and the landing fell to its error arm on the way to the editor, so the landing pipeline
+ *  ran INERT in this file (the unfed-read ratchet). One row, and it is the same character the editor opens. */
+const EDITOR_LIBRARY = [makeCharacterSummary({ id: "char_ct_1", name: "Aria Nightshade", handle: castId<CharacterHandle>("aria") })];
+
 async function routeEditor(page: Page): Promise<void> {
   await routeTrpc(page, {
     ...CHARACTER_EDITOR_AMBIENT_ROUTES,
     "character.get": () => CARD,
+    "character.list": characterListResponder(EDITOR_LIBRARY),
     "chat.listChats": chatListResponder([]),
     "character.update": () => CARD,
   });

@@ -1,4 +1,5 @@
 import type { CharacterProvenance } from "@orb/contracts/character";
+import { characterProvenanceOf } from "@orb/contracts/character";
 import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { slugifyHandle } from "@orb/kit/slug";
@@ -144,9 +145,18 @@ export interface CharacterDetailFixture {
   readonly tags: readonly CharacterSummaryFixtureTag[];
 }
 
-/** A fully-valid `CharacterDetail` literal (the editor read). */
+/** A fully-valid `CharacterDetail` literal (the editor read).
+ *
+ *  PROVENANCE IS DERIVED FROM THE RESULTING ROW unless the caller pins one — the same rule the handle
+ *  below obeys, for the same reason. #865 moved the Origin readout off `importedFrom` onto the
+ *  server-derived `provenance`, and the detail fixture kept `provenance` as a plain default: a story
+ *  saying `importedFrom: "chub"` then produced a row carrying an import URL AND the `authored` verdict,
+ *  which `characterProvenanceOf` cannot mint (`imported` wins outright on a non-null `importedFrom`).
+ *  It rendered `Made here` and left the Overview pin red on main. Running the ONE derivation over the
+ *  finished row keeps every fixture a shape the server can produce; a story that wants an arm the raw
+ *  columns do not imply still states `provenance` and wins. */
 export function makeCharacterDetail(overrides: Partial<CharacterDetailFixture> = {}): CharacterDetailFixture {
-  return {
+  const row = {
     id: "char_ct_1",
     handle: castId<CharacterHandle>("char_ct_1"),
     name: "Aria",
@@ -175,13 +185,13 @@ export function makeCharacterDetail(overrides: Partial<CharacterDetailFixture> =
     themeOverride: null,
     importedFrom: null,
     importHash: null,
-    provenance: DEFAULT_PROVENANCE,
     contentHash: "hash_ct_1",
     createdAt: FROZEN_AT,
     avatarHash: null,
     tags: [],
     ...overrides,
   };
+  return { ...row, provenance: overrides.provenance ?? characterProvenanceOf(row) };
 }
 
 /** A fully-valid `CharacterSummary` literal (the client read model — the library-list row).
