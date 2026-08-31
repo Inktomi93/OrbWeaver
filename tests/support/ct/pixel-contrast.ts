@@ -39,6 +39,20 @@ export interface PixelContrastReceipt {
   readonly describe: string;
 }
 
+export interface TextContrastSubjectReceipt extends PixelContrastReceipt {
+  /** Stable within this audit only; identifies the owning element of one rendered text node. */
+  readonly subject: string;
+  readonly text: string;
+}
+
+export interface TextContrastAuditReceipt {
+  readonly declared: number;
+  readonly reached: number;
+  readonly sampled: number;
+  readonly minimum: number;
+  readonly subjects: readonly TextContrastSubjectReceipt[];
+}
+
 const show = ({ r, g, b }: Rgb): string => `${String(Math.round(r))},${String(Math.round(g))},${String(Math.round(b))}`;
 
 /** The element's resolved ink as sRGB bytes, RESOLVED BY THE BROWSER rather than by a regex here.
@@ -188,4 +202,133 @@ export async function pixelContrast(page: Page, target: Locator): Promise<PixelC
   const ink = dimmed ? compositeForeground(raw.color, backdrop, raw.opacity) : raw.color;
   const dimNote = dimmed ? ` · dimmed α${raw.opacity.toFixed(2)}` : "";
   return { ratio: contrastRatio(ink, backdrop), ink, backdrop, describe: `ink ${show(ink)} on backdrop ${show(backdrop)}${dimNote}` };
+}
+
+interface DeclaredTextSubject {
+  readonly owner: string;
+  readonly text: string;
+  readonly reached: boolean;
+  readonly reason: string | null;
+}
+
+/**
+ * Walk every visually rendered text node below `root`, then measure its owning element through
+ * {@link pixelContrast}. The population accounting is deliberately strict: an off-viewport or fully
+ * occluded subject remains DECLARED but cannot become REACHED, and any missing sample fails the audit.
+ * Intentional non-visual text (`aria-hidden`, `hidden`, and the house `sr-only` recipe) is outside the
+ * declared visual population.
+ */
+export async function auditRenderedTextContrast(
+  page: Page,
+  root: Locator,
+  options: { readonly floor: number; readonly label: string },
+): Promise<TextContrastAuditReceipt> {
+  const marker = `orb-contrast-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+  const subjects = await root.evaluate((element, auditMarker): readonly DeclaredTextSubject[] => {
+    const document = element.ownerDocument;
+    const viewport = { width: window.innerWidth, height: window.innerHeight };
+    const isIntentionallyHidden = (owner: Element): boolean => {
+      const style = getComputedStyle(owner);
+      return owner.closest('[aria-hidden="true"], [hidden], .sr-only') !== null || style.display === "none" || style.visibility === "hidden";
+    };
+    const pointReaches = (owner: Element, rawX: number, rawY: number): boolean => {
+      const x = Math.max(0, Math.min(viewport.width - 1, rawX));
+      const y = Math.max(0, Math.min(viewport.height - 1, rawY));
+      const hit = document.elementFromPoint(x, y);
+      return hit !== null && (hit === owner || owner.contains(hit) || hit.contains(owner));
+    };
+    const rectReaches = (owner: Element, rect: DOMRect): boolean => {
+      const points = [
+        [rect.left + rect.width / 2, rect.top + rect.height / 2],
+        [rect.left + 1, rect.top + rect.height / 2],
+        [rect.right - 1, rect.top + rect.height / 2],
+      ] as const;
+      return points.some(([x, y]) => pointReaches(owner, x, y));
+    };
+    const reachReason = (rectCount: number, inViewport: boolean, isReached: boolean): string | null => {
+      if (rectCount === 0) {
+        return "no rendered text rect";
+      }
+      if (!inViewport) {
+        return "off viewport";
+      }
+      return isReached ? null : "fully occluded";
+    };
+    const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+    const owners = new Map<Element, string>();
+    const declared: DeclaredTextSubject[] = [];
+    let nextOwner = 0;
+    for (let node = walker.nextNode(); node !== null; node = walker.nextNode()) {
+      const text = node.textContent?.replace(/\s+/gu, " ").trim() ?? "";
+      const owner = node.parentElement;
+      if (text === "" || owner === null) {
+        continue;
+      }
+      if (isIntentionallyHidden(owner)) {
+        continue;
+      }
+      let ownerId = owners.get(owner);
+      if (ownerId === undefined) {
+        ownerId = `${auditMarker}-${String(nextOwner)}`;
+        nextOwner += 1;
+        owners.set(owner, ownerId);
+        owner.setAttribute("data-orb-contrast-owner", ownerId);
+      }
+      const range = document.createRange();
+      range.selectNodeContents(node);
+      const rects = [...range.getClientRects()].filter((rect) => rect.width > 0 && rect.height > 0);
+      const inViewport = rects.some((rect) => rect.right > 0 && rect.bottom > 0 && rect.left < viewport.width && rect.top < viewport.height);
+      const reached = inViewport && rects.some((rect) => rectReaches(owner, rect));
+      declared.push({
+        owner: ownerId,
+        text,
+        reached,
+        reason: reachReason(rects.length, inViewport, reached),
+      });
+    }
+    return declared;
+  }, marker);
+
+  const reached = subjects.filter((subject) => subject.reached);
+  const measured: TextContrastSubjectReceipt[] = [];
+  try {
+    if (subjects.length === 0) {
+      throw new Error(`${options.label}: declared=0 reached=0 sampled=0 — no rendered text nodes`);
+    }
+    if (reached.length !== subjects.length) {
+      const missed = subjects.filter((subject) => !subject.reached).map((subject) => `${JSON.stringify(subject.text)} (${subject.reason ?? "unreached"})`);
+      throw new Error(`${options.label}: declared=${String(subjects.length)} reached=${String(reached.length)} sampled=0 — ${missed.join(", ")}`);
+    }
+    for (const subject of reached) {
+      const target = page.locator(`[data-orb-contrast-owner="${subject.owner}"]`);
+      try {
+        const receipt = await pixelContrast(page, target);
+        measured.push({ ...receipt, subject: subject.owner, text: subject.text });
+      } catch (error) {
+        const detail = error instanceof Error ? error.message : String(error);
+        throw new Error(
+          `${options.label}: declared=${String(subjects.length)} reached=${String(reached.length)} sampled=${String(measured.length)} — unmeasurable ${JSON.stringify(subject.text)}: ${detail}`,
+          { cause: error },
+        );
+      }
+    }
+    const minimum = Math.min(...measured.map((receipt) => receipt.ratio));
+    const population = `declared=${String(subjects.length)} reached=${String(reached.length)} sampled=${String(measured.length)} minimum=${minimum.toFixed(3)}`;
+    console.info(`[contrast-audit] ${options.label}: ${population}`);
+    const failed = measured.filter((receipt) => receipt.ratio < options.floor);
+    if (failed.length > 0) {
+      throw new Error(
+        `${options.label}: ${population}; below ${options.floor.toFixed(1)}: ${failed
+          .map((receipt) => `${JSON.stringify(receipt.text)} ${receipt.ratio.toFixed(3)} (${receipt.describe})`)
+          .join(", ")}`,
+      );
+    }
+    return { declared: subjects.length, reached: reached.length, sampled: measured.length, minimum, subjects: measured };
+  } finally {
+    await root.evaluate((element, auditMarker) => {
+      for (const owner of element.querySelectorAll(`[data-orb-contrast-owner^="${auditMarker}"]`)) {
+        owner.removeAttribute("data-orb-contrast-owner");
+      }
+    }, marker);
+  }
 }

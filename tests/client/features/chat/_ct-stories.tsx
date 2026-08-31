@@ -96,6 +96,7 @@ import type {
 import { buildIdentityAvatarMaps, buildIdentityNameContext, DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import type { RewriteToggleId } from "@orb/contracts/preset";
 import { REWRITE_TOGGLES } from "@orb/contracts/preset";
+import { BACKGROUND_DIM_MIN } from "@orb/contracts/settings";
 import type { ThemeChatStyle } from "@orb/contracts/theme";
 import type { AssetId, CharacterId, ChatId, DocumentId, MessageId, PersonaId, UserId, WorldBookId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -3230,6 +3231,8 @@ export interface ChatControlsStoryProps {
   readonly source?: "none" | "fake";
   /** @defaultValue "chips" */
   readonly fixture?: ChatControlsFixture;
+  /** #883 test-only worst art; stamps the shell flag on the REAL room only, excluding story drivers. */
+  readonly worstArt?: string;
 }
 
 const CT_CONTROL_SOURCE_ID = "ct-fake-control-source";
@@ -3379,18 +3382,37 @@ function CtControlSource({
 
 /** The room + the turn driver: `drive-turn-begin` opens a pending turn slot for this chat — the exact call
  *  the chat-bus reducer makes on `turnStarted` — so the send-mode busy arm is driven, never simulated. */
-function ChatControlsRoom({ surfaceContributors }: { readonly surfaceContributors: ContributorRegistry<ChatSurfaceContribution> }): ReactElement {
+function ChatControlsRoom({
+  surfaceContributors,
+  worstArt,
+}: {
+  readonly surfaceContributors: ContributorRegistry<ChatSurfaceContribution>;
+  readonly worstArt?: string;
+}): ReactElement {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const busDeps: ChatBusDeps = {
     stream: chatStream,
     invalidate: createInvalidation({ queryClient, trpc }).invalidate,
   };
-  return <ChatRoomSurface busDeps={busDeps} handle={committedChat(CHAT_ID)} surfaceContributors={surfaceContributors} toolRenderers={NO_TOOL_RENDERERS} />;
+  const room = (
+    <ChatRoomSurface busDeps={busDeps} handle={committedChat(CHAT_ID)} surfaceContributors={surfaceContributors} toolRenderers={NO_TOOL_RENDERERS} />
+  );
+  if (worstArt === undefined) {
+    return <div style={{ height: 480 }}>{room}</div>;
+  }
+  return (
+    <div data-has-bg-image="" style={{ background: worstArt, height: 480, isolation: "isolate", position: "relative" }}>
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-backdrop" style={{ opacity: BACKGROUND_DIM_MIN }} />
+      <div data-slot="worst-art-room" style={{ height: "100%", position: "relative" }}>
+        {room}
+      </div>
+    </div>
+  );
 }
 
 /** The room with the S1 band wired the door's way, plus the drivers and receipts the matrix reads. */
-export function ChatControlsStory({ source = "fake", fixture = "chips" }: ChatControlsStoryProps): ReactElement {
+export function ChatControlsStory({ source = "fake", fixture = "chips", worstArt }: ChatControlsStoryProps): ReactElement {
   const [ran, setRan] = useState(0);
   const [epoch, setEpoch] = useState(0);
   const [dismissed, setDismissed] = useState<readonly string[]>([]);
@@ -3419,9 +3441,7 @@ export function ChatControlsStory({ source = "fake", fixture = "chips" }: ChatCo
   return (
     <CtDataProviders>
       <SocketHost>
-        <div style={{ height: 480 }}>
-          <ChatControlsRoom surfaceContributors={surfaceContributors} />
-        </div>
+        <ChatControlsRoom surfaceContributors={surfaceContributors} {...(worstArt === undefined ? {} : { worstArt })} />
         {/* Receipts + drivers, OUTSIDE the room (a source mount renders null by contract). */}
         <div data-testid="ct-control-source-ran">{ran}</div>
         <button
