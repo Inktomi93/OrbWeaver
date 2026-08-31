@@ -709,6 +709,31 @@
       "summary": "Deep vocabulary census: five user-facing meanings across roster/cast/party, twelve code meanings, ranked muddles M1-M12 with per-fix site counts; sharpest defect the Members-tab Cast kicker beside the Add-cast… template-library door; recommends nothing — the naming call routed to the owner as #901."
     },
     {
+      "path": "docs/reviews/research/2026-08-31-devtools-css-cascade-provenance.md",
+      "assignedSha256": "be9540937030af4b5f7456e0fc0aa84a073bca2b5dddd4c21167c082aba8b9de",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "be9540937030af4b5f7456e0fc0aa84a073bca2b5dddd4c21167c082aba8b9de",
+      "verifiedCommit": "7daf6741307fb64eef7dd04f177f21f048e4012a",
+      "verifiedAt": "2026-08-31",
+      "evidence": [
+        "docs/reviews/research/2026-08-31-devtools-css-cascade-provenance.md:1-205 read in full in lane executor-956-selector-writers; exact Playwright/Chromium/DevTools pins, direct SDK Active/Overloaded matrix, 184-resource closure measurement, hermetic architecture, and rejected CDP/mutation alternatives"
+      ],
+      "summary": "Feasibility proof and durable implementation handoff for #950: exact CSS declaration-winner attribution is possible through Chromium M149's revision-matched DevTools frontend SDK, requiring a hermetic 184-resource official frontend closure, strict pin/license/update coupling, and fail-loud Snap/CT integration.",
+      "claims": [
+        {
+          "claim": "This research is the evidence basis and architecture constraint for CSS cascade trace work item #950.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#950"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "path": "docs/reviews/research/2026-08-31-css-token-toolchain-research.md",
       "assignedSha256": "61ba605d61701f62910e36fc43ea5956c32cbdceb9a7d7e3b88e010bfd1271d3",
       "disposition": "current",
