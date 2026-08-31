@@ -28,7 +28,7 @@
 // DECLARED BLIND SPOTS (the literal-shape reader's honest limits, same class as `ui-size-via-variant`'s):
 // a class string ASSEMBLED at runtime (`` `group-hover:${expr}` ``, a variant map keyed by prop) carries no
 // matchable token in its source, and a hover-keyed display swap written in hand-authored CSS
-// (`.x:hover { display: none }`) is out of scope — `feature-css-files` already bans feature CSS, and the
+// (`.x:hover { display: none }`) is out of scope — `sanctioned-css-homes` already path-closes product CSS, and the
 // ui/client stylesheets are `motion-token-purity`'s scan surface, not this one.
 import { SyntaxKind } from "ts-morph";
 import type { ExemptionTable, GateDescriptor } from "../contract/gate.ts";
