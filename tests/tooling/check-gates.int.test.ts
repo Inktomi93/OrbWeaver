@@ -739,10 +739,11 @@ function writeFixtures(): void {
   // fragment (the OVERLAY_ARROW diamond) by hand — the derive-W2 G25 seal. scanRoot covers ui/src sans
   // lib/, so a __g_ primitive variants file trips the real-tree scan.
   fx("packages/ui/src/primitives/__g_skinfrag/variants.ts", 'export const gArrow = "size-row rotate-45 border border-border bg-popover";\n');
-  // feature-css-files: a .css file under features/** outside the shell.css allowlist
-  // (client-architecture-lockdown.md §4/§16 G14). Reads via fs.globSync, not ts-morph, so the real-tree
-  // fixture is picked up regardless of tsconfig excludes.
+  // sanctioned-css-homes: both false-negative directions — a feature-local stylesheet and an extra
+  // stylesheet beside an approved UI home. Reads via fs.globSync, not ts-morph, so the real-tree fixtures
+  // are picked up regardless of tsconfig excludes.
   fx("packages/client/src/features/__g_featurecss/lib/__g_featurecss.css", ".g { color: red; }\n");
+  fx("packages/ui/src/styles/__g_extra_home.css", ".g { color: red; }\n");
   // feature-owns-definition: a features/* dir with only a non-definition file (no lib/*-{section,modal,
   // group,chrome}.tsx) — the O2 empty-dir rule (client-architecture-lockdown.md §3/§18 O2). Reads via
   // node:fs, not ts-morph, so the real-tree fixture is picked up regardless of tsconfig excludes.

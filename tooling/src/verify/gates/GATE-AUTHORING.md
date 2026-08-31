@@ -255,7 +255,7 @@ An exemption is a promise. This is how the promise is written.
    conformance-safety guard but it is IDENTICAL to "only judge a row if its file survived," which
    silences mode (B) by construction). `own-tables-only.ts`, `no-hover-display-swap.ts`,
    `no-raw-zustand-persist.ts`, `render-error-via-battery.ts`, `selection-store-via-factory.ts`,
-   `feature-css-files.ts`, `query-machine-seals.ts`, `wire-schema-vocab-one-home.ts` are gold standards —
+   `sanctioned-css-homes.ts`, `query-machine-seals.ts`, `wire-schema-vocab-one-home.ts` are gold standards —
    each either checks `!seen.has(key)` unconditionally or explicitly branches on `sf === undefined` /
    `!existsSync(...)` as its OWN stale flavour. Every gate carrying a path-keyed exemption owes a
    `mustFlag` proving mode (B): an example that loads the real-tree anchor but NONE of the table's paths.
