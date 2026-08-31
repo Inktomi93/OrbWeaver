@@ -180,6 +180,59 @@ export const APPEARANCE_CARRIER_MANIFEST = {
 
 export type AppearanceCarrierKey = keyof typeof APPEARANCE_CARRIER_MANIFEST;
 
+export type AppearanceCarrierObservable =
+  | { readonly kind: "attribute"; readonly selector: string; readonly signal: string }
+  | { readonly kind: "inline-style"; readonly selector: string; readonly signal: string }
+  | { readonly kind: "message-prop"; readonly selector: string; readonly signal: string };
+
+type AppearanceCarrierObservableManifest = {
+  readonly [K in AppearanceCarrierKey as (typeof APPEARANCE_CARRIER_MANIFEST)[K] extends { readonly requiredDistinctArms: readonly [unknown, unknown] }
+    ? K
+    : never]: AppearanceCarrierObservable;
+};
+
+/** The browser-readable outcome for every two-arm row. The focused carrier matrix applies both declared
+ * values through the real AppShell/message hooks and reads these signals; keeping the reader vocabulary
+ * here makes an armed row without an executable observation a type error and a structural-gate red. */
+export const APPEARANCE_CARRIER_OBSERVABLES = {
+  chatWidthPct: { kind: "inline-style", selector: ".shell-grid", signal: "--width-shell-content" },
+  fontScale: { kind: "inline-style", selector: "html", signal: "--font-scale" },
+  density: { kind: "attribute", selector: '[data-slot="theme-scope"]:has(.shell-grid)', signal: "data-density" },
+  elevation: { kind: "attribute", selector: ".shell-grid", signal: "data-elevation" },
+  reducedMotion: { kind: "attribute", selector: "html", signal: "data-reduced-motion" },
+  blurSurfaces: { kind: "attribute", selector: "html", signal: "data-blur-panels" },
+  blurStrength: { kind: "inline-style", selector: "html", signal: "--blur-strength" },
+  shadowEffects: { kind: "attribute", selector: "html", signal: "data-shadow" },
+  surfaceTexture: { kind: "attribute", selector: "html", signal: "data-texture" },
+  enableThemeColorization: { kind: "attribute", selector: "html", signal: "data-theme-colorization" },
+  backgroundImageKind: { kind: "attribute", selector: ".shell-grid", signal: "data-has-bg-image" },
+  backgroundFit: { kind: "inline-style", selector: '[data-slot="theme-background-layer"]', signal: "background-size" },
+  backgroundDim: { kind: "inline-style", selector: '[data-slot="theme-background-scrim"]', signal: "opacity" },
+  backgroundBlur: { kind: "inline-style", selector: '[data-slot="theme-background-layer"]', signal: "filter" },
+  readingLineHeight: { kind: "inline-style", selector: "html", signal: "--reading-line-height" },
+  readingLetterSpacing: { kind: "inline-style", selector: "html", signal: "--reading-letter-spacing" },
+  readingParagraphSpacing: { kind: "inline-style", selector: "html", signal: "--reading-paragraph-spacing" },
+  readingNameScale: { kind: "inline-style", selector: "html", signal: "--reading-name-scale" },
+  readingBodyScale: { kind: "inline-style", selector: "html", signal: "--reading-body-scale" },
+  justifyBodyText: { kind: "attribute", selector: "html", signal: "data-justify-body-text" },
+  showInChatAvatars: { kind: "message-prop", selector: '[data-testid="appearance-message-carrier"]', signal: "showInChatAvatars" },
+  avatarSize: { kind: "message-prop", selector: '[data-testid="appearance-message-carrier"]', signal: "avatarSize" },
+  avatarShape: { kind: "message-prop", selector: '[data-testid="appearance-message-carrier"]', signal: "avatarShape" },
+  avatarAspect: { kind: "message-prop", selector: '[data-testid="appearance-message-carrier"]', signal: "avatarAspect" },
+  avatarRing: { kind: "message-prop", selector: '[data-testid="appearance-message-carrier"]', signal: "avatarRing" },
+  chatStyle: { kind: "message-prop", selector: '[data-testid="appearance-message-carrier"]', signal: "chatStyle" },
+  colorQuotedSpeech: { kind: "message-prop", selector: '[data-testid="appearance-message-carrier"]', signal: "colorQuotedSpeech" },
+  autoFixMarkdown: { kind: "message-prop", selector: '[data-testid="appearance-message-carrier"]', signal: "autoFixMarkdown" },
+  showTimestamps: { kind: "message-prop", selector: '[data-testid="appearance-message-carrier"]', signal: "metadataVisibility.showTimestamps" },
+  showMessageId: { kind: "message-prop", selector: '[data-testid="appearance-message-carrier"]', signal: "metadataVisibility.showMessageId" },
+  showModelIcon: { kind: "message-prop", selector: '[data-testid="appearance-message-carrier"]', signal: "metadataVisibility.showModelIcon" },
+  showTokenCount: { kind: "message-prop", selector: '[data-testid="appearance-message-carrier"]', signal: "metadataVisibility.showTokenCount" },
+  showGenerationTimer: { kind: "message-prop", selector: '[data-testid="appearance-message-carrier"]', signal: "metadataVisibility.showGenerationTimer" },
+  showGenerationCost: { kind: "message-prop", selector: '[data-testid="appearance-message-carrier"]', signal: "metadataVisibility.showGenerationCost" },
+  showLLMReasoningIcon: { kind: "message-prop", selector: '[data-testid="appearance-message-carrier"]', signal: "showLLMReasoningIcon" },
+  messageActions: { kind: "message-prop", selector: '[data-testid="appearance-message-carrier"]', signal: "messageActions" },
+} as const satisfies AppearanceCarrierObservableManifest;
+
 /** Theme selection is adjacent to Appearance but is not one of its 41 schema leaves. These rendered
  * observables are what #953 must read after applying a theme request: an intercepted settings envelope
  * proves neither the palette that painted nor the polarity/custom-CSS planes that won. Nested scopes stay

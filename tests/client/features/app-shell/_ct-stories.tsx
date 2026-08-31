@@ -55,6 +55,8 @@ import { SectionContextHeader, SectionContextHost } from "../../../../packages/c
 // internal the front door does not re-export). Same absolute file the app resolves, so the React/provider
 // context is the one `CtDataProviders` mounts — the `tests/client/features/chat` stories reach it this way.
 import { ChatHeaderSurface } from "../../../../packages/client/src/features/chat/components/chat-header.tsx";
+import { useChatStyle } from "../../../../packages/client/src/features/chat/hooks/use-chat-style.ts";
+import { useMessageAppearance } from "../../../../packages/client/src/features/chat/hooks/use-message-appearance.ts";
 import type { ModalSlotId } from "../../../../packages/client/src/state/modal-slot-ids.ts";
 import { openModal, setActiveSection, useActiveSection, useContextTab } from "../../../../packages/client/src/state/shell-store.ts";
 import {
@@ -111,6 +113,32 @@ export function AppShellStory(): ReactElement {
         {/* The real "You" bottom-sheet body arrives via the modal registry (CtFakeSectionRegistry nests
             the real modal registry), so the mobile CT exercises the real sheet, not a placeholder. */}
         <AppShell />
+      </CtFakeSectionRegistry>
+    </CtDataProviders>
+  );
+}
+
+/** The message plane's real query consumers beside the real shell. The matrix reads this serialization;
+ * it does not restate how any key projects, so dropping a field from either hook makes that row disappear. */
+function AppearanceMessageCarrier(): ReactElement {
+  const message = useMessageAppearance();
+  const chatStyle = useChatStyle();
+  return (
+    <output data-testid="appearance-message-carrier" hidden={true}>
+      {JSON.stringify({ ...message, chatStyle })}
+    </output>
+  );
+}
+
+/** #935's composed carrier graph: real AppShell carriers plus the two prop-threading hooks that AppShell
+ * intentionally does not own. Both read the same settings query under one provider. */
+export function AppearanceCarrierStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <CtFakeSectionRegistry sections={{ chats: { content: <p>carrier matrix</p> } }}>
+        <LandOn section="chats" />
+        <AppShell />
+        <AppearanceMessageCarrier />
       </CtFakeSectionRegistry>
     </CtDataProviders>
   );

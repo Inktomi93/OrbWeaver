@@ -1083,6 +1083,13 @@ function writeFixtures(): void {
     "tests/client/features/__g_ctpoll/__g_ctpoll.ct.tsx",
     'import { expect, test } from "@playwright/experimental-ct-react";\nconst G_SCHEDULE = [50, 100, 250];\ntest("g", async () => {\n  await expect.poll(() => 1, { intervals: G_SCHEDULE, timeout: 10_000 }).toBe(1);\n});\n',
   );
+  // appearance-carrier-contract: the same manifest grammar as production, but with an old/broken row
+  // whose two declared arms collapse to one value. This drives the LIVE anti-drift pass; descriptor-only
+  // mustFlag examples cannot prove that report.ts actually loaded and ran the gate.
+  fx(
+    "packages/client/src/lib/__g_appearance-carrier-manifest.ts",
+    'const C={file:"packages/client/src/lib/__g_appearance-carrier-manifest.ts",symbol:"AppShell"};\nexport const APPEARANCE_CARRIER_MANIFEST={density:{owner:"sizing",carriers:["theme-scope"],consumer:C,lifecycle:"hydrated-from-prepaint-hint",portal:"shared-theme-scope-sibling",requiredDistinctArms:["compact","compact"]}};\nexport function AppShell(){ const density = "compact"; return density; }\n',
+  );
 }
 
 // Registered gates that CANNOT be driven by an injected `__g_` fixture — whole-corpus ratchets whose

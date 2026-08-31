@@ -12,6 +12,7 @@ import { Surface } from "@orb/ui/layout";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import type { ReactElement } from "react";
 import { useAppearanceRootEffects } from "../../../../packages/client/src/features/app-shell/hooks/use-appearance-root-effects.ts";
+import type { SeedThemeName } from "../../../../packages/client/src/state/appearance-boot-hint.ts";
 
 /** Roughly a production list panel (346px, reports/side-eye-138/L1.log) — see the probe comment below. */
 const PANEL_PROBE_WIDTH = "346px";
@@ -31,7 +32,7 @@ export interface ShellCascadeFixtureProps {
   /** `data-theme` on the root. The palette must be a variable in a cascade fixture: a per-surface tint
    *  assertion that only ever runs on the default palette cannot tell "mixes --color-popover" apart from
    *  "happens to equal the dark popover value" (#138's modal-tint pin runs on light too). */
-  readonly dataTheme?: string | null;
+  readonly dataTheme?: SeedThemeName | null;
   /**
    * Drops the `.shell-main` region (and the topbar / content / empty-state probes inside it).
    *
@@ -166,7 +167,7 @@ const CENSUS_PROBE = { position: "absolute", top: 0, width: "200px", height: "20
 
 /** Every glass surface over worst-case art, in one mount, at rects that do not overlap. `data-section` is a
  *  non-`chats` value so `.shell-main` takes its reading-surface backing (the `chats` arm is immersive). */
-export function OverArtGlassCensusFixture({ dataTheme = null }: { readonly dataTheme?: string | null }): ReactElement {
+export function OverArtGlassCensusFixture({ dataTheme = null }: { readonly dataTheme?: SeedThemeName | null }): ReactElement {
   useAppearanceRootEffects({
     fontScale: 1,
     dataTheme,
