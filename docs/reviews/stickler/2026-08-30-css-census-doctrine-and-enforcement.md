@@ -429,9 +429,12 @@ lint suppressions. `397e805f5` landed that substrate, but frontier cold review r
 semantics: a wrapper returning unrelated prose inherits composer authority; a namespace import through a
 local re-export disappears with zero opaque/unresolved accounting; and object spread evaluation returns
 overwritten or stale values instead of respecting later-spread uncertainty. The report is
-`2026-08-31-961-static-class-provenance.md`; #961 returned to Ready for repair. `6740e6705` has already made
-#954 a thin Oxide-tokenizing consumer with 13 red/5 green contract controls and 4 focused integration tests,
-but #954 remains blocked until the shared substrate survives those three adversarial cases. Live #951
+`2026-08-31-961-static-class-provenance.md`. `0952cc462` repaired all three from planted reds: composer
+wrappers require return-position ownership, local namespace re-exports resolve, and object spreads use
+last-write-wins with honest opacity for unknown overwrites. The focused suite is 17/17 and the real
+ContextToggle plus `data-has-bg-image` probes remain exact. `6740e6705` makes #954 a thin Oxide-tokenizing
+consumer with 13 red/5 green contract controls and 4 focused integration tests; all 22 focused arms pass on
+the integrated substrate. #951/#954/#961 now wait together for the grouped CSS-train review/barrier. Live #951
 integration added one bounded neutral surface to that announced contract: an exact object-property query
 over JSX/object spreads, so selector-writer gates can resolve spread-supplied `data-*` properties without
 misclassifying their values as class tokens or building a second resolver. The substrate must use
@@ -1044,11 +1047,13 @@ alphas). *(§3.2a is the authoritative list; anything not on it wants a token.)*
   beats any layered rule regardless of specificity. That is what lets `theme.css` and `tiers.css` win over a
   primitive's own utility default, and what makes the floors in home 3 floors. **There are zero `@layer`
   blocks in the authored CSS and there must stay zero.**
-- **SOURCE ORDER IS LOAD-BEARING, and the CT harness mirrors it.** The production bundle emits shell.css
-  first (it rides `app-shell.tsx:42`, imported before `main.tsx:39`'s stylesheet line), then ui's globals
-  (pulled by home 5's own first `@import`), then home 5's own rules. Home 5 and home 6 declare overlapping
-  selectors at identical specificity, so flipping the order silently changes which wins.
-  `playwright/index.css` reproduces that order deliberately. **Never "improve" the order; reproduce it.**
+- **SOURCE ORDER IS LOAD-BEARING, and production/CT share one front door.**
+  `packages/client/src/styles/index.ts` imports shell first and then client globals, whose first import is UI
+  globals; both production and Playwright CT import that same entry. Home 5 and home 6 declare overlapping
+  selectors at identical specificity, so flipping the order silently changes which wins. #959's
+  `playwright-css-topology` recursively derives and closes that graph. `playwright/index.css` adds only the
+  tests-only Tailwind source extension; it carries no product import or second product roster. **Never
+  "improve" the order; change the law explicitly.**
 
 ## 4.6 Polarity has ONE mechanism
 
@@ -1117,7 +1122,7 @@ pre-launch removes the user risk, not the verification bar.**
 | 2.1 | **F1 / #937 — CLOSED:** stamp viewer density on the root ThemeScope, remove the grid duplicate, and project viewer-sacred keys from every current card-sourced nested ThemeScope | root + chat/character shared card boundaries | code + unit/security + rendered + structural census | `c3fb373b2` + two cold-refutation follow-ups `80eb7ca0c`, `99e16df97`; independently confirmed |
 | 2.2 | **F2 / #938 — CLOSED:** owner chose symmetric Arm A and it landed after #936's structured-value emitter migration, never against the retired generator | token vault + generator + tiers | code + rendered CT on preview in BOTH directions | `f9dff3bb3`; cold detached verification passed 232/232 rendered CT, 92/92 focused Vitest, 8/8 ownership-gate integration, both typecheck tiers, and the 278-entry/187-target/19-`cssValues` contract |
 | 2.3 | **F3** — give `color.chart-1..5` the `light-dark()` shape `color.track-*` already has; regenerate | `tokens.json` + generated artifacts + every chart | tokens + `palette-contrast.suite.test.ts` extension | judgment on the light-arm values (must clear 3:1 against sidebar/surface-raised while staying mutually distinguishable) — the track ramp's #697 arm is the worked precedent |
-| 2.4 | **F7 / #954 — PRODUCT FIXED; #961 SHARED SUBSTRATE REFUTED/REPAIRING:** `214fa1200` deleted the named-theme variant and preserved the single polarity runtime; `6740e6705` made #954 a thin Oxide consumer, but exact cold review refuted `397e805f5` for non-returning wrapper authority, local-re-export namespace blindness, and object-spread overwrite semantics | repair #961's policy-neutral provenance library, then rerun #954's focused matrix | code + shared tooling + gate + rendered | #961 must add red-first controls for all three confirmed semantics while retaining declaration provenance, split modules below the file-length wall, zero blanket suppressions, and honest opaque counts; #954 contains only polarity policy and remains blocked until the substrate repair lands |
+| 2.4 | **F7 / #954 — PRODUCT FIXED; #961 REPAIRED; GROUP REVIEW PENDING:** `214fa1200` deleted the named-theme variant, `6740e6705` made #954 a thin Oxide consumer, and `0952cc462` repaired return-position composer ownership, local namespace re-exports, and object-spread overwrite/opacity semantics from planted reds | repaired #961 provenance library + thin #954 consumer | code + shared tooling + gate + rendered | #961 focused 17/17 plus exact real probes; #954 focused 4/4 plus 13 mustFlag/5 mustPass; grouped CSS-train cold review/barrier remains |
 | 2.5 | **F8 corrected** — register only the compiler-positive missing aspect/blur/ease families; plant exact Tailwind 4.3.3 positive/negative set equality and later-wins controls. Do not register dimension/z merely because those token prefixes exist | `class-merge.ts` + compiler/merge pins | code + vitest | mechanical after compiler proof |
 | 2.6 | **§3.2b** — repoint the 8 `1px` hairlines to `var(--border-width-control)` and the divider's `1.25rem` to `var(--spacing-glyph-sm)`; leave §3.2a alone | 1 file, 9 lines | code | mechanical — but it is a *whole-shell* visual change, so it owes a per-region rendered receipt (rail · both panels · topbar · modal header · mobile bar) |
 | 2.7 | **F11 a/b/c** — repair the three stale comments | 3 files, 3 comments | prose | mechanical |
@@ -1136,6 +1141,7 @@ pre-launch removes the user risk, not the verification bar.**
 
 | # | step | blast radius | tier | proof obligation |
 | - | - | - | - | - |
+| 5.0 | **DONE #959:** production and Playwright CT share one `@orb/client/styles` front door; `playwright-css-topology` derives its recursive sanctioned graph and keeps the sole tests-only Tailwind source extension explicit | production/CT CSS entry + topology gate | gate + build + rendered CT | gate conformance green, client build green, custom-theme CT 3/3, cascade-order assertion 1/1; grouped train barrier remains |
 | 4.1 | **DONE #936:** freeze theme.css/TS/seed outputs, exact 178-target set, ThemeScope/polarity/carried palettes, pointer-fine output, and owner custom-CSS behavior | token/theme matrix | behavioral + rendered goldens | final generated artifacts byte-identical |
 | 4.2 | **DONE #936:** pin/hash official 2025.10 Format + Resolver schemas; direct-declare Ajv/ajv-formats; strict schema + alias/font/inheritance/extension validation with planted controls and semantic counts | package + gate | static contract | 272 scanned entries; schema/hash/zero-population failures loud |
 | 4.3 | **DONE #936:** partition portable tokens from strict `orb.cssValues`; explicit `theme|root` placement; migrate base + seed families and bounded Resolver composition | canonical token source/value sets | contract + generated parity | 178 exact targets; full identity and seed-set ratchets |
