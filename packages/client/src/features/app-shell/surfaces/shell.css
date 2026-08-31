@@ -44,7 +44,7 @@
    * fence 2026-08-18), never a raw literal. OPEN QUESTION reported with #204: the ink this beds is the
    * theme-following --color-foreground, so under a LIGHT theme this is a dark smoke beneath dark ink —
    * if that ever measures as a defect, the polarity-following --color-reading-plate is the candidate. */
-  text-shadow: 0 1px 3px var(--color-backdrop);
+  text-shadow: var(--shadow-shell-over-art);
 }
 .shell-grid[data-has-bg-image] [data-slot="message-bubble"],
 .shell-grid[data-has-bg-image] [data-slot="composer"] {
@@ -300,7 +300,7 @@
   width: var(--rail-w);
   background: var(--color-sidebar);
   color: var(--color-sidebar-foreground);
-  border-inline-end: 1px solid var(--color-sidebar-border);
+  border-inline-end: var(--border-width-control) solid var(--color-sidebar-border);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -320,7 +320,7 @@
   justify-content: center;
   height: var(--dimension-chrome-row);
   padding-inline: var(--spacing-block);
-  border-block-end: 1px solid var(--color-sidebar-border);
+  border-block-end: var(--border-width-control) solid var(--color-sidebar-border);
   color: var(--color-muted-foreground);
 }
 /* When a section claims the `rail.brand` zone (home), the brand cell IS that section's rail button — the
@@ -348,9 +348,9 @@
   inset-block: var(--spacing-field);
   inset-inline-start: 0;
   /* A 2px accent bar — the hairline-plus rule, same species as the .shell-topbar-divider's 1px. */
-  width: 2px;
-  border-start-end-radius: 2px;
-  border-end-end-radius: 2px;
+  width: var(--dimension-shell-accent-edge);
+  border-start-end-radius: var(--dimension-shell-accent-edge);
+  border-end-end-radius: var(--dimension-shell-accent-edge);
   background: var(--color-primary);
 }
 .shell-rail-sections {
@@ -413,7 +413,7 @@
   inset: 0;
   z-index: 1;
   pointer-events: none;
-  border: 1px solid transparent;
+  border: var(--border-width-control) solid transparent;
   border-radius: inherit;
   background:
     linear-gradient(transparent, transparent) padding-box,
@@ -423,7 +423,7 @@
 /* The button's label rides under the icon on the mobile bar; on the desktop icon column the tooltip
  * carries it, so it's hidden here (but stays the accessible name via the button's aria-label). */
 .shell-rail-button-label {
-  line-height: 1;
+  line-height: var(--leading-none);
   display: none;
 }
 /* The mobile-only "You" overflow tab has no place on the desktop icon column. */
@@ -452,11 +452,11 @@
 }
 .shell-panel[data-panel-side="list"] {
   grid-column: 2;
-  border-inline-end: 1px solid var(--color-sidebar-border);
+  border-inline-end: var(--border-width-control) solid var(--color-sidebar-border);
 }
 .shell-panel[data-panel-side="context"] {
   grid-column: 4;
-  border-inline-start: 1px solid var(--color-sidebar-border);
+  border-inline-start: var(--border-width-control) solid var(--color-sidebar-border);
 }
 
 .shell-panel[data-panel-mode="docked"] {
@@ -539,7 +539,7 @@
   gap: var(--spacing-row);
   height: var(--dimension-chrome-row);
   padding-inline: var(--spacing-block);
-  border-block-end: 1px solid var(--color-sidebar-border);
+  border-block-end: var(--border-width-control) solid var(--color-sidebar-border);
 }
 /* Content↔Context binding (north-star §4 N4 / P4): the Context band carries a 2px ember top edge as an
  * INSET box-shadow (not a border) — identical over glass, and unaffected by ramp's `.shell-panel-header`
@@ -550,7 +550,7 @@
  * own. The takeover now CLAIMS the pane and paints its own band, so this one is a one-line label again and
  * keeps the D66 A1 chrome-row horizon it shares with the LIST band and the topbar. */
 .shell-panel[data-panel-side="context"] .shell-panel-header {
-  box-shadow: inset 0 2px 0 color-mix(in oklab, var(--color-primary) 55%, transparent);
+  box-shadow: inset 0 var(--dimension-shell-accent-edge) 0 color-mix(in oklab, var(--color-primary) 55%, transparent);
 }
 /* A CLAIMED context pane (HUD-1 §3.1 / §5.2 — D66 A1 SUSPENDED for this one case): the claimant owns the
  * pane's TOP EDGE, including the 2px ember binding, which it paints itself. `SectionContextHeader` returns
@@ -643,7 +643,7 @@
   height: var(--dimension-chrome-row);
   padding-inline: var(--spacing-block);
   padding-inline-end: max(var(--spacing-block), env(safe-area-inset-right));
-  border-block-end: 1px solid var(--color-border);
+  border-block-end: var(--border-width-control) solid var(--color-border);
   background: var(--color-background);
 }
 .shell-topbar-lead,
@@ -667,8 +667,8 @@
  * (group 2) so the topbar reads as exactly two groups (P1/N1). */
 .shell-topbar-divider {
   flex: none;
-  width: 1px;
-  height: 1.25rem;
+  width: var(--border-width-control);
+  height: var(--spacing-glyph-sm);
   background: var(--color-border);
 }
 
@@ -690,7 +690,7 @@
  * hard floor stops it collapsing to 0px when the avatar + member chip + trail claim the row — it always
  * shows a few chars + ellipsis rather than vanishing (the "graceful ellipsis, never 0 chars" floor). */
 .shell-topbar-title {
-  min-width: 6ch;
+  min-width: var(--dimension-shell-title-floor);
 }
 
 /* THE TOPBAR YIELDS THE ROOM'S IDENTITY TO THE PANE (#846 by relocation, #860 — owner-ruled 2026-08-30).
@@ -893,7 +893,7 @@
   /* One normal-flow notice budget: a burst must scroll inside the band rather than tax every section by
    * the full unbounded stack height. The viewport remains the live region; only its visual reading window
    * is capped. */
-  max-block-size: min(14rem, 30dvh);
+  max-block-size: var(--dimension-shell-notice-cap);
   overflow-y: auto;
   overscroll-behavior: contain;
   /* …AND THE CAP IS OPERABLE, which is not free (side-eye 2026-08-21 P3). The primitive's viewport opens
@@ -956,7 +956,7 @@
   justify-content: space-between;
   gap: var(--spacing-row);
   padding-block-end: var(--spacing-field);
-  border-block-end: 1px solid var(--color-border);
+  border-block-end: var(--border-width-control) solid var(--color-border);
   margin-block-end: var(--spacing-block);
 }
 
@@ -991,7 +991,7 @@
     grid-row: 2;
     width: auto;
     border-inline-end: none;
-    border-block-start: 1px solid var(--color-sidebar-border);
+    border-block-start: var(--border-width-control) solid var(--color-sidebar-border);
     flex-direction: row;
     align-items: stretch;
     justify-content: space-around;
@@ -1014,7 +1014,7 @@
     width: auto;
     height: var(--rail-w);
     flex-direction: column;
-    gap: 0.125rem;
+    gap: var(--spacing-micro);
     border-radius: 0;
     color: var(--color-muted-foreground);
   }
