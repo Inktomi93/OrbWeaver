@@ -6,6 +6,8 @@
 
 import type { ParticipantView } from "@orb/contracts/chat";
 import { carriedAppearanceFromParticipants, isNarratorVoiced, MESSAGE_KINDS } from "@orb/contracts/chat";
+import type { ThemeOverride } from "@orb/contracts/theme";
+import { CARD_EMBEDDABLE_THEME_KEYS, VIEWER_SACRED_THEME_KEYS } from "@orb/contracts/theme";
 import type { CharacterId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { initialsFor } from "@orb/kit/initials";
@@ -321,7 +323,34 @@ test("initials take the first letter of up to two words", () => {
 
 const HEARTH_TOKENS = { accent: "oklch(0.7 0.14 250)" };
 
-test("Layer 3: an assistant row uses the character's authored themeOverride when present", () => {
+const COMPLETE_CARD_THEME = {
+  accent: "oklch(0.70 0.14 250)",
+  userBubble: { bg: "oklch(0.25 0.04 250)", fg: "oklch(0.95 0.01 250)" },
+  aiBubble: { bg: "oklch(0.30 0.04 250)", fg: "oklch(0.94 0.01 250)" },
+  systemBubble: { bg: "oklch(0.35 0.03 250)", fg: "oklch(0.93 0.01 250)" },
+  speaker: "oklch(0.74 0.16 250)",
+  dialogueColor: "oklch(0.78 0.12 250)",
+  narrationColor: "oklch(0.82 0.05 250)",
+  bodyColor: "oklch(0.90 0.02 250)",
+  font: "Georgia",
+  radius: "full",
+  background: "oklch(0.18 0.03 250)",
+  borderColor: "oklch(0.48 0.07 250)",
+  density: "compact",
+} satisfies Required<ThemeOverride>;
+
+function expectCardProjection(tokens: ThemeOverride | null | undefined): void {
+  expect(tokens).not.toBeNull();
+  expect(tokens).not.toBeUndefined();
+  for (const key of CARD_EMBEDDABLE_THEME_KEYS) {
+    expect(tokens).toHaveProperty(key, COMPLETE_CARD_THEME[key]);
+  }
+  for (const key of VIEWER_SACRED_THEME_KEYS) {
+    expect(tokens).not.toHaveProperty(key);
+  }
+}
+
+test("Layer 3: an assistant row uses the card-embeddable part of the character's authored themeOverride", () => {
   const participants = new Map([[ALICE_ID, makeParticipant({ displayName: "Alice", themeOverride: HEARTH_TOKENS })]]);
   const characterNamesById = new Map<CharacterId, RowCharacterName>([[ALICE_ID, { name: "Alice" }]]);
   const result = resolveRowAttribution({
@@ -400,29 +429,44 @@ test("a character's narrator-span tint EQUALS their own row's tint (one hash inp
   expect(row.tokens).not.toEqual(colorForCharacter("Bob"));
 });
 
-// ── The card-embeddable partition at the two card-sourced READ seams (TD §3) ──────────────────────────
-// A card supplies the room's LOOK, never the viewer's ergonomics. Both takeover planes project through
+// ── The card-embeddable partition at every card-sourced READ seam (TD §3) ──────────────────────────
+// A card supplies the room's LOOK, never the viewer's ergonomics. All three render planes project through
 // `cardEmbeddableSubset`, so a viewer-sacred key on the blob — a legacy write, or a hand-posted one —
-// paints nowhere. Pinned at BOTH seams: they are two call sites of one rule, and a re-spelling of either
-// is exactly the drift the projection exists to prevent.
+// paints nowhere. The tuple-driven assertions enumerate the complete partition: adding a key without
+// preserving its classified reach at each seam fails here.
 
-test("resolveRoomTheme carries the card's LOOK and strips the viewer-sacred half", () => {
+test("resolveRoomTheme carries every card-embeddable field and strips every viewer-sacred field", () => {
   const human = makeParticipant({ kind: "human", characterId: null, displayName: "Alex" });
   const alice = makeParticipant({
     characterId: ALICE_ID,
     displayName: "Alice",
-    themeOverride: { ...HEARTH_TOKENS, density: "compact" },
+    themeOverride: COMPLETE_CARD_THEME,
   });
-  expect(resolveRoomTheme(carriedAppearanceFromParticipants([human, alice]))).toEqual(HEARTH_TOKENS);
+  const projected = resolveRoomTheme(carriedAppearanceFromParticipants([human, alice]));
+  expect(projected).toBeDefined();
+  expectCardProjection(projected);
 });
 
-test("speakerThemesByName strips the same half — and a card carrying ONLY a sacred key is omitted", () => {
+test("ordinary row attribution carries every card-embeddable field and strips every viewer-sacred field", () => {
+  const participants = new Map([[ALICE_ID, makeParticipant({ displayName: "Alice", themeOverride: COMPLETE_CARD_THEME })]]);
+  const result = resolveRowAttribution({
+    role: "assistant",
+    characterId: ALICE_ID,
+    personaId: null,
+    participants,
+    characterNamesById: new Map<CharacterId, RowCharacterName>([[ALICE_ID, { name: "Alice" }]]),
+  });
+  expect(result.tokens).not.toBeNull();
+  expectCardProjection(result.tokens);
+});
+
+test("speakerThemesByName carries the same subset — and a card carrying ONLY sacred fields falls back", () => {
   const participants = new Map([
-    [ALICE_ID, makeParticipant({ displayName: "Alice", themeOverride: { ...HEARTH_TOKENS, density: "compact" } })],
+    [ALICE_ID, makeParticipant({ displayName: "Alice", themeOverride: COMPLETE_CARD_THEME })],
     [BOB_ID, makeParticipant({ characterId: BOB_ID, displayName: "Bob", themeOverride: { density: "compact" } })],
   ]);
   const byName = speakerThemesByName(participants);
-  expect(byName.get("Alice")).toEqual(HEARTH_TOKENS);
+  expectCardProjection(byName.get("Alice"));
   // Nothing embeddable survived the projection → the span falls back to the same id-seeded hash tint.
   expect(byName.get("Bob")).toEqual(colorForCharacter(BOB_ID));
 });
