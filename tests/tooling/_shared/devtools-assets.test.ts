@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, readFile, rm, symlink, unlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -8,6 +9,8 @@ import { afterEach } from "vitest";
 import { expect, test } from "../../support/tool-fixtures.ts";
 
 const REAL_PIN = fileURLToPath(new URL("../../../tooling/src/snap/lib/devtools-frontend/pin.json", import.meta.url));
+const REPO_ROOT = fileURLToPath(new URL("../../..", import.meta.url));
+const ASSET_ROOT = "tooling/src/snap/lib/devtools-frontend";
 const roots: string[] = [];
 
 function sha256(value: Buffer | string): string {
@@ -16,6 +19,10 @@ function sha256(value: Buffer | string): string {
 
 function canonical(value: unknown): string {
   return `${JSON.stringify(value, null, 2)}\n`;
+}
+
+function untrackedManifestResources(resources: readonly { readonly file: string }[], tracked: ReadonlySet<string>): string[] {
+  return resources.map(({ file }) => `${ASSET_ROOT}/${file}`).filter((file) => !tracked.has(file));
 }
 
 async function syntheticRoot(): Promise<{ readonly root: string; readonly asset: string; readonly notice: string }> {
@@ -134,4 +141,20 @@ test("symlinks are forbidden even when their target is an ordinary file", async 
   const fixture = await syntheticRoot();
   await symlink(fixture.asset, join(fixture.root, "unexpected-link"));
   expect(() => verifyDevToolsAssets(fixture.root)).toThrow("symlink forbidden");
+});
+
+test("every real manifest resource is Git-tracked, including resources beneath ignored directory names", async () => {
+  const manifest = JSON.parse(
+    await readFile(fileURLToPath(new URL("../../../tooling/src/snap/lib/devtools-frontend/manifest.json", import.meta.url)), "utf8"),
+  ) as {
+    readonly resources: readonly { readonly file: string }[];
+  };
+  const tracked = new Set(execFileSync("git", ["ls-files", "--", ASSET_ROOT], { cwd: REPO_ROOT, encoding: "utf8" }).split("\n").filter(Boolean));
+  const ignoredCoverageResource = `${ASSET_ROOT}/assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/panels/coverage/coverage.js`;
+  const plantedMissing = new Set(tracked);
+  plantedMissing.delete(ignoredCoverageResource);
+
+  expect(manifest.resources).toHaveLength(477);
+  expect(untrackedManifestResources(manifest.resources, plantedMissing)).toContain(ignoredCoverageResource);
+  expect(untrackedManifestResources(manifest.resources, tracked)).toEqual([]);
 });
