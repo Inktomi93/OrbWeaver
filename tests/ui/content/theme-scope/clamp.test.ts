@@ -45,6 +45,33 @@ test("contextual inherited inks and direct borders retain the general safe-color
   expect(vars["--color-sidebar-border"]).toBe("ButtonText");
 });
 
+test("a rejected derived field drops alone while valid broad-color siblings survive", () => {
+  const { vars } = clampThemeTokens({
+    background: "CuRrEnTcOlOr",
+    speaker: "red",
+    borderColor: "ButtonText",
+    dialogueColor: "burlywood",
+  });
+  expect(vars["--color-background"]).toBeUndefined();
+  expect(vars["--color-speaker"]).toBe("red");
+  expect(vars["--color-border"]).toBe("ButtonText");
+  expect(vars["--color-sidebar-border"]).toBe("ButtonText");
+  expect(vars["--color-dialogue"]).toBe("burlywood");
+});
+
+test("invalid bubble children drop per field without discarding valid bubbles or direct siblings", () => {
+  const { vars } = clampThemeTokens({
+    userBubble: { bg: "ActiveText", fg: "red" },
+    aiBubble: { bg: "burlywood", fg: "LinkText" },
+    systemBubble: { bg: "red", fg: "expression(alert(1))" },
+    speaker: "ButtonText",
+  });
+  expect(vars["--color-user-bubble"]).toBeUndefined();
+  expect(vars["--color-ai-bubble"]).toBe("burlywood");
+  expect(vars["--color-system-bubble"]).toBe("red");
+  expect(vars["--color-speaker"]).toBe("ButtonText");
+});
+
 test("a bubble/surface FOREGROUND is DERIVED from its bg for contrast, never taken from the picked .fg", () => {
   const { vars } = clampThemeTokens({
     userBubble: { bg: "#112233", fg: "rgba(255,255,255,0.9)" }, // .fg is IGNORED — the picker never sets fg

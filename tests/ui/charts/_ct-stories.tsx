@@ -10,11 +10,13 @@
 // Components only — playwright-ct rewrites this module's named imports into generated component consts, so
 // a mixed import (component + constant) fails to parse in the consuming CT.
 import { BarList } from "@orb/ui/bar-list";
+import type { OrbChartOption, OrbEChartsInstance } from "@orb/ui/chart";
+import { Chart } from "@orb/ui/chart";
 import { LIVE_TOKEN_ROOT_ATTRIBUTE } from "@orb/ui/lib";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import { TOKEN_POLARITY_ARMS, TOKENS } from "@orb/ui/tokens";
 import type { ReactElement } from "react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useChartTheme } from "../../../packages/ui/src/charts/chart/use-chart-theme.ts";
 
 /** Distinguishes a RE-RENDER from a REMOUNT: the id is minted once per mounted instance, so a repaint
@@ -90,14 +92,54 @@ export function CustomLightChartRampStory(): ReactElement {
   );
 }
 
-/** #939 — the exact verifier counterexample, rendered as a real ECharts bar list on its derived card. */
+/** #939 — five categorical fills authored into, and read back from, one real ECharts option. */
+function MidlightFiveCategoryChart(): ReactElement {
+  const colors = useChartTheme();
+  const chartRef = useRef<OrbEChartsInstance | null>(null);
+  const [optionJson, setOptionJson] = useState("");
+  const option: OrbChartOption = {
+    grid: { bottom: 8, left: 8, right: 8, top: 8 },
+    xAxis: { max: 10, min: 0, show: false, type: "value" },
+    yAxis: { data: ["One", "Two", "Three", "Four", "Five"], show: false, type: "category" },
+    series: [
+      {
+        barWidth: 14,
+        data: colors.palette.map((color, index) => ({ itemStyle: { color }, value: index + 5 })),
+        type: "bar",
+      },
+    ],
+  };
+  const captureOption = (): void => {
+    const chart = chartRef.current;
+    if (chart !== null) {
+      setOptionJson(JSON.stringify(chart.getOption()));
+    }
+  };
+  return (
+    <div
+      {...{ [LIVE_TOKEN_ROOT_ATTRIBUTE]: "" }}
+      data-echarts-option={optionJson}
+      data-testid="midlight-chart-panel"
+      style={{ backgroundColor: "var(--color-card)" }}
+    >
+      <Chart
+        height={180}
+        label="Midlight five-category chart"
+        onChartReady={(instance): void => {
+          chartRef.current = instance;
+          setOptionJson(JSON.stringify(instance.getOption()));
+        }}
+        onEvents={{ finished: captureOption }}
+        option={option}
+      />
+    </div>
+  );
+}
+
 export function CustomMidlightChartRampStory(): ReactElement {
   return (
     <ThemeScope tokens={{ background: "oklch(0.63 0.01 60)" }} ambientBackground={TOKENS["color.background"].value}>
-      <div {...{ [LIVE_TOKEN_ROOT_ATTRIBUTE]: "" }} data-testid="midlight-chart-panel" style={{ backgroundColor: "var(--color-card)" }}>
-        <ChartThemeAxisLineReadoutStory />
-        <BarList items={[{ id: "one", label: "One", value: 8 }]} label="Midlight chart" />
-      </div>
+      <MidlightFiveCategoryChart />
     </ThemeScope>
   );
 }
