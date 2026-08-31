@@ -595,13 +595,16 @@ truth; the resolved computed style is.
   an authored CSS declaration, by a documented `var(--x, fallback)`, or by a declared allowlist of
   library-set runtime properties. The original session prototype took 1,590 files, returned 23 candidates
   and one real hit, but its claimed scratch file is absent from the workspace, Git index, and path history.
-  #952 must rebuild the implementation from current source. The committed Base UI v1.7.0 API tables declare
+  #952 rebuilt the implementation from current source. The committed Base UI v1.7.0 API tables declare
   43 unique properties across 17 components; an independent 1,594-source-file intersection finds exactly 13
   used by Orb today: accordion panel height, active-tab left/width, anchor width, available height/width,
   collapsible panel height, drawer snap/swipe x/y, toast swipe x/y, and transform origin. Cross-check those
   tables against exact installed `@base-ui/react@1.7.0` source/types and exact reference sites; example-local
-  variables are not vendor ownership. The three populations stale-arm each other on a version bump. This is
-  a gate, and it is the highest value-per-line item in the whole game plan. **It would have caught F4 at
+  variables are not vendor ownership. `681d38afb` now enforces the contract over 1,587 sources, 225
+  definitions, and 751 references; derives 49 Base UI docs, 43 properties, 13 live properties, and 19
+  executable memberships; and stale-arms six exact CSSProperties-backed runtime writers by property and
+  producer path. Focused conformance, the real-tree gate, TypeScript, Biome, ESLint, and dependency-cruiser
+  are green; the grouped CSS-train barrier remains deferred by policy. **This gate would have caught F4 at
   authoring time.**
 - **3b has two tiers.** The class-merge decision is recoverable without a browser: after disabling TV's
   earlier merge, record one ordered input at Orb's `cn()` and use occurrence-aware suffix/pair replay through
@@ -1103,7 +1106,7 @@ pre-launch removes the user risk, not the verification bar.**
 | # | step | blast radius | tier | mech/judgment |
 | - | - | - | - | - |
 | 1.1 | **#921 — CLOSED:** `feature-css-files` became `sanctioned-css-homes` at `9b0e6debb`; `fee25f89b` made the package inventory dot-path-complete, required regular files, deleted the exposed `.ds-preview-*` seventh home, and planted both controls | 1 gate + its conformance arms | **gate** | full conformance 8/8 green; cold verification independently confirmed 6 red/3 green descriptors plus all required-home and escaped-path probes |
-| 1.2 | **#952 / G-NEW-2 `css-var-defined`** — every `var(--x)` in the six homes and every `<util>-(--x)` arbitrary-variable class in `packages/{ui,client}/src` names a DEFINED property: the generated token map, an authored declaration, a `var(--x, fallback)`, or a declared allowlist of library-set runtime properties. Comment-stripped via the existing `blankCssComments`/`blankTsComments` helpers | 1 gate | **gate** | rebuild from current source; the previously cited scratch prototype does not exist. Derive vendor candidates from the committed Base UI v1.7.0 API tables, cross-check exact installed source/types + Orb references, stale-arm both directions, print populations, and plant both verdict arms |
+| 1.2 | **#952 / G-NEW-2 `css-var-defined` — IMPLEMENTED, GROUP BARRIER PENDING:** `681d38afb` proves every static `var(--x)` in the product stylesheets and declaration-proven arbitrary-variable class resolves through a generated token, authored declaration, fallback, exact runtime writer, or installed Base UI contract | 1 gate + shared resolver | **gate** | focused real-tree zero findings over 1,587 sources/225 definitions/751 references; 49 Base UI docs/43 properties/13 live/19 executable memberships; six exact CSSProperties writers stale-armed; conformance/type/lint/depcruise green; final status waits for the grouped CSS-train barrier |
 | 1.3 | **#940 — CLOSED:** repoint F4 to existing `z-(--z-raised)`, correct the coupled comment, set-equality check the gate's seven-name vocabulary against the vault, reject unknown semantic z vars in JSX and exported recipes, and prove the stacking winner live | 2 product files + gate + CT | code + gate + rendered | `20d810344` + cold-refutation follow-up `a8a60ce20`; independently confirmed |
 | 1.4 | **G-NEW-3 `css-selector-has-a-writer`** — every `[data-*]` key and every non-utility class the six homes select on must have a live writer under `packages/*/src`. This is the gate that would have caught the #866 inert stamper AND F7's `birdie` | 1 gate | **gate** | judgment on the allowlist shape (vendor attributes like `data-streamdown`, Base UI state attributes) — the census in PART 2 is its starting inventory |
 

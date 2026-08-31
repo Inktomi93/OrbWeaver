@@ -172,8 +172,13 @@ The enforcement ledger has three categories; never count one as another:
   Its current self-proof reports a complete declaration denominator, but cold controls proved carrier-name
   counterfeits, missed wrapper/spread forms, selector-text false positives, and unwritten `.shell-*` prefixes;
   it does not graduate until one provenance model survives those controls and independent verification.
-  Undefined custom-property references and misspelled/unknown semantic utility names can still silently drop;
-  no gate proves the intended merge winner across shell, ui globals, and client globals.
+  Misspelled/unknown semantic utility names can still silently drop; no gate proves the intended merge winner
+  across shell, ui globals, and client globals.
+- **ENFORCED TODAY:** `css-var-defined` rejects unresolved static `var(--x)` references and
+  declaration-proven arbitrary-variable utilities. Its definition set includes generated tokens, authored
+  declarations, explicit fallbacks, exact CSSProperties-backed runtime writers, and the installed Base UI
+  custom-property contract; all vendor/runtime rows are stale-armed in both directions and the gate prints
+  its definition/reference/source populations.
 - **ENFORCED TODAY:** `tokens-contract` validates the hash-pinned DTCG 2025.10 Format/Resolver schemas,
   structured portable values, exact Light/Mocha seed membership, bounded Hearth/Light/Mocha Resolver,
   explicit `orb.cssValues` output roles and `theme|root` placement, removed portable paths, and exact CSS
