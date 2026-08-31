@@ -323,7 +323,7 @@ export function constrainExtractionSchema<S extends Record<string, unknown>>(sch
     requireField(sceneNode, "timeOfDay");
   }
   if (refs.establishScene.presentCast) {
-    // Force a NON-EMPTY present cast on a fresh scene: an optional presentUpsert is skipped by a weak 8B (the
+    // Force a NON-EMPTY present-character set on a fresh scene: an optional presentUpsert is skipped by a weak 8B (the
     // "No one on stage" gap), so require the array AND minItems:1 (xgrammar enforces both — live-proven). The
     // model then lists each present character with mood/thoughts/relationship. Once the cast is set, unforced.
     requireField(clone, "scene");

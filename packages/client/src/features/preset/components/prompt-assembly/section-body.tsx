@@ -114,7 +114,7 @@ function TemplatedMarkerBody({ form, section, index }: SectionBodyProps): ReactE
 }
 
 /** The `templateNote`'s bytes behind a disclosure — the house band grammar (`aria-expanded` button +
- *  `hidden` body) the Actions cluster bands and the Configuration roster groups already speak, rather than
+ *  `hidden` body) the Actions cluster bands and the Configuration list groups already speak, rather than
  *  the Accordion primitive: this is ONE row of read-only text, not a set of alternating panels. */
 function TemplateNoteDetail({ detail }: { readonly detail: { readonly label: string; readonly text: string } }): ReactElement {
   const bodyId = useId();
@@ -147,7 +147,7 @@ function TemplateNoteDetail({ detail }: { readonly detail: { readonly label: str
 /** A PLAIN marker: the source-attribution panel (never editable, never blank) + world-info's shared
  *  entry wrapper. The nav link is the sanctioned cross-SURFACE navigation echo (§16 row 30) riding the
  *  standing `openConfigTo` intent — never a route fork. It carries the collection KIND, not just the
- *  section, because the Configuration roster's groups start collapsed: a bare section switch would land a
+ *  section, because the Configuration list's groups start collapsed: a bare section switch would land a
  *  reader who asked for world info on a closed door. */
 function CarrierBody({ form, section }: { readonly form: AssemblyForm; readonly section: PromptSection }): ReactElement | null {
   if (!isPlainMarkerSection(section)) {

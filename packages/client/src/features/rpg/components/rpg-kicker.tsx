@@ -1,5 +1,5 @@
 // The ONE section-header voice for every rpg takeover tab (the mock's `.kicker` — micro caps · semibold ·
-// micro tracking · muted, with the trailing hairline rule): Status "ROSTER — 3", Scene "ON STAGE — 2",
+// micro tracking · muted, with the trailing hairline rule): Status "CHARACTERS — 3", Scene "ON STAGE — 2",
 // Quests/Journal groups, the GM console sections. One anatomy ⇒ one type hierarchy across all tabs
 // (section header > card title > field label > value > meta), all on the theme type-scale tokens.
 // `crown` flips the crown-gold host-only voice; `trailing` hosts a section affordance (the

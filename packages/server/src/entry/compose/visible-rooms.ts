@@ -67,7 +67,7 @@ export function createResolveVisibleRooms(db: Db): ResolveVisibleRoomsOp {
 }
 
 /**
- * The present cast of each visible room, as the CHATS LIST spells it — one statement, no fan-out.
+ * The present characters of each visible room, as the CHATS LIST spells it — one statement, no fan-out.
  *
  * The per-seat display name is `domain/chat`'s ONE rule (`substrate/participant-name`): a character seat is
  * its live card name, a human seat is their ACTIVE PERSONA's name, else their handle, else the removed-member

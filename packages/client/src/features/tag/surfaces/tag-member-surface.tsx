@@ -127,7 +127,7 @@ function TagColorControls({ tag, patchStyle }: { readonly tag: TagWithUsage; rea
   // invisible to a screen reader — the sibling folder-type Select in this same pane was already doing it the
   // wired way. `description` renders through `BaseField.Description`, which registers its id on the Field's
   // labelable control, so the value IS the button's accessible description. The readout is UNKEYED here
-  // (`tagColorValueLabel`); the label 20px above carries the key, and only the roster's label-less swatch
+  // (`tagColorValueLabel`); the label 20px above carries the key, and only the list's label-less swatch
   // tooltip still spends `tagColorLabel`'s keyed form.
   return (
     <Row align="start" className="*:w-auto" gap="block">

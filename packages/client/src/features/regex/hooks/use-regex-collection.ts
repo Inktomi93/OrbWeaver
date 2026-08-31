@@ -19,15 +19,15 @@ export function useRegexCount(): number | undefined {
 }
 
 /** One ranked row → the host-facing preview entry. The datum is the EDIT STAMP, which is the same field
- *  X-16 put at the end of the roster row's scent and for the same reason: `Add script` mints every row named
+ *  X-16 put at the end of the list row's scent and for the same reason: `Add script` mints every row named
  *  "New script", so a wall of names is unreadable without the one datum that tells them apart.
  *
  *  NO PLACEMENT/CHANNEL GLYPH, deliberately (deviation from the 2026-08-19 brief, stated): no icon
  *  vocabulary for `RegexPlacement` exists anywhere on this tree — the editor's chips, the pipeline readout
- *  and the roster scent all name a stage with `REGEX_PLACEMENT_LABELS` — so minting one HERE would be a
+ *  and the list scent all name a stage with `REGEX_PLACEMENT_LABELS` — so minting one HERE would be a
  *  second vocabulary for one pipeline stage, which is the exact defect that map was created to end (side-eye
  *  F-23). A script bites on a SET of stages besides, so a single glyph would have to pick one and drop the
- *  rest silently. The stage phrase stays where it is legible: the roster row's subtitle. */
+ *  rest silently. The stage phrase stays where it is legible: the list row's subtitle. */
 function previewEntry(script: RegexScriptRow): CollectionPreviewEntry {
   return { id: script.id, label: regexScriptTitle(script), detail: timeLib.formatRelative(script.updatedAt) };
 }
@@ -36,7 +36,7 @@ function previewEntry(script: RegexScriptRow): CollectionPreviewEntry {
  *
  *  RECENCY IS THE HONEST RANK HERE, not usage. A script has no usage total that rides its list row (the
  *  "attached by" rollup is the queued REGROSTER read, and it is not on this key), and ranking a library you
- *  are actively authoring by what you touched last is what the roster's own newest-first order already does
+ *  are actively authoring by what you touched last is what the list's own newest-first order already does
  *  — this is that order, in a glance. Sorted on a COPY: the query's array is react-query cache state.
  *
  *  THE SAME CACHED LIST the census and the rows read, so this is a cache hit and never a second request. */

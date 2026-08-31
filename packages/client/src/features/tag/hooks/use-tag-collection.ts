@@ -29,7 +29,7 @@ function previewEntry(row: { readonly id: string; readonly name: string; readonl
 }
 
 /** The welcome hero's CHIP WALL (the `preview` seam): the most-used slice of the library, ranked by the
- *  ONE comparator the roster and the tag picker already rank by (`sortTagsBy(…, "used")` — a second
+ *  ONE comparator the list and the tag picker already rank by (`sortTagsBy(…, "used")` — a second
  *  spelling of "most used" here would be the drift that function exists to prevent).
  *
  *  THE SAME CACHED LIST the census and the rows read, so this is a cache hit and never a second request —

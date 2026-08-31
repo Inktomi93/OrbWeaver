@@ -405,7 +405,7 @@ export function HostConsoleScalars({ chatId, config }: { readonly chatId: ChatId
               {(field): ReactElement => (
                 <field.NumberField
                   label="Re-state everything every N beats"
-                  description={`Every Nth beat, the pass re-emits the whole scene and present cast instead of only what changed — so a long story's panel self-heals instead of drifting. 0 turns it off. That beat costs more; 1 would make every beat the expensive one. Range 0–${RPG_RECONCILE_EVERY_BEATS_MAX}, default ${RPG_RECONCILE_EVERY_BEATS_DEFAULT}.`}
+                  description={`Every Nth beat, the pass re-emits the whole scene and present characters instead of only what changed — so a long story's panel self-heals instead of drifting. 0 turns it off. That beat costs more; 1 would make every beat the expensive one. Range 0–${RPG_RECONCILE_EVERY_BEATS_MAX}, default ${RPG_RECONCILE_EVERY_BEATS_DEFAULT}.`}
                   placeholder={`${RPG_RECONCILE_EVERY_BEATS_DEFAULT} (default)`}
                   min={0}
                   max={RPG_RECONCILE_EVERY_BEATS_MAX}

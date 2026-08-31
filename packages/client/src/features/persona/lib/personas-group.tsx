@@ -11,8 +11,8 @@ import { useTRPC } from "#data";
 import type { ConfigGroupDefinition, ConfigSearchRow } from "#state";
 import { PERSONA_LIST_SUBCATEGORY } from "./personas-nav.ts";
 
-/** The persona NAMES as SEARCH rows (§3.3) — a hit lands on the roster section (a persona is edited in its
- *  row, not on a member page). The roster's own cache-first read; non-suspense on purpose. */
+/** The persona NAMES as SEARCH rows (§3.3) — a hit lands on the list section (a persona is edited in its
+ *  row, not on a member page). The list's own cache-first read; non-suspense on purpose. */
 function usePersonaSearchRows(): readonly ConfigSearchRow[] {
   const trpc = useTRPC();
   const { data } = useQuery(trpc.persona.list.queryOptions());

@@ -35,7 +35,7 @@ export const analyticsSection: SectionDefinition = {
   panelDefaults: { list: "collapsed", context: "collapsed" },
   placeholder: {
     title: "Analytics",
-    description: "Charts over your corpus land here — cast time, thread connections, drift.",
+    description: "Charts over your corpus land here — character time, thread connections, drift.",
   },
   list: () => (
     <AnalyticsListAnchor>

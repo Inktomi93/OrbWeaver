@@ -8,7 +8,7 @@
 // `config-search-input.ct.tsx` (the search is S2's ONE index over `@orb/ui/fuzzy-search`); the modal-chrome
 // divider/baseline test → gone with the `settings` modal (D62 rule 5); the "both columns fill the row"
 // and the 430px push-detail arm → the app-shell's one-shell rule owns pane geometry now (app-shell.ct.tsx;
-// `ConfigMobileRosterStory` pins the LIST-is-the-screen half).
+// `ConfigMobileListStory` pins the LIST-is-the-screen half).
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -541,7 +541,7 @@ test("a distant section-row click lands on the target, never an intermediate (sp
     // FABRICATION-OK: in-page globalThis scaffolding (a MutationObserver sample, not a domain value).
     const w = globalThis as unknown as { __seen: string[] };
     w.__seen = [];
-    const list = document.querySelector('[data-slot="config-roster"]');
+    const list = document.querySelector('[data-slot="config-list"]');
     if (list === null) {
       return;
     }
@@ -681,7 +681,7 @@ test("no section row clips at the LIST column, in ANY group", async ({ mount, pa
       .poll(
         async () =>
           await page.evaluate((): readonly string[] =>
-            [...document.querySelectorAll<HTMLElement>('[data-slot="config-roster"] [data-slot="list-row-title"]')]
+            [...document.querySelectorAll<HTMLElement>('[data-slot="config-list"] [data-slot="list-row-title"]')]
               .filter((el) => el.scrollWidth > el.clientWidth)
               .map((el) => el.textContent ?? ""),
           ),

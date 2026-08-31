@@ -104,7 +104,7 @@ export interface MessageContentProps {
   /** Retargets `{{user}}`/`{{persona}}` to this persona; ignored when renderContext is absent. */
   readonly rowPersonaId?: PersonaId | null | undefined;
   /** NAME -\> that character's tint (`speakerThemesByName`); absent ⇒ every span uses the hash fallback.
-   *  Its KEYS are also the present cast-name set the plain-label span grammar keys on. */
+   *  Its KEYS are also the present character-name set the plain-label span grammar keys on. */
   readonly speakerThemes?: ReadonlyMap<string, ThemeScopeTokens> | undefined;
   /** True only for a row this room voices through the NARRATOR grammar (one generation speaking the whole
    *  cast). It is the OUTER guard on the plain-`Name:` half of the span parse: in any other grammar a row

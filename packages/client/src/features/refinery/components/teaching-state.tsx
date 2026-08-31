@@ -10,13 +10,13 @@
 // conditional card BELOW all of it, so the primary act of the whole surface was two presses and a scroll
 // away. The picker is now first, mounted open, with the teaching material following it. What that costs,
 // stated rather than hidden: the reveal button is gone, so the landing always pays for the
-// `character.list` read — which the resume decision's roster read was already paying for on the same
+// `character.list` read — which the resume decision's list read was already paying for on the same
 // paint, and which is what makes the full-library browse (#157's scope add) reachable at all.
 //
-// THE PENDING GATE MOVED INTO THE DECISION, NOT ONTO A CONTROL. `starting` used to also carry "the roster
+// THE PENDING GATE MOVED INTO THE DECISION, NOT ONTO A CONTROL. `starting` used to also carry "the list
 // the resume-vs-mint check reads has not landed", which disabled the door in the pane's own first frames —
 // a dead-looking primary at cold open, i.e. the sibling of the defect #157 is about. `useOpenRefinery`
-// awaits that roster at CLICK time instead, so the only thing left to say here is that a start is already
+// awaits that list at CLICK time instead, so the only thing left to say here is that a start is already
 // in flight, and the pane says it in words rather than by greying its one affordance.
 //
 // ── NO 01/02/03 MARKERS — THE MOCK LOSES THIS ONE (owner ruling, board 2026-08-09) ───────────────────
@@ -82,7 +82,7 @@ const STEPS: readonly TeachingStep[] = [
 ];
 
 export function TeachingState({ onStart, starting }: TeachingStateProps): ReactElement {
-  // The desktop roster's empty-state CTA focuses THIS picker rather than opening a second one over it
+  // The desktop list's empty-state CTA focuses THIS picker rather than opening a second one over it
   // (#307). The ref rides the root; the hook focuses+scrolls the picker's search field when the CTA bumps
   // the landing-focus nonce. At mount the nonce is 0, so nothing is stolen on first paint.
   const focusRef = useLandingPickerFocusOnRequest();

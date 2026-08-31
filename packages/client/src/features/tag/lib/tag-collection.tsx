@@ -18,7 +18,7 @@ import { TagMemberSurface } from "../surfaces/tag-member-surface.tsx";
 export const tagCollection: CollectionContribution = {
   emptyText: "No tags yet.",
   useCount: useTagCount,
-  // The welcome hero's chip wall (program #102). Usage totals ride every row of the list the roster already
+  // The welcome hero's chip wall (program #102). Usage totals ride every row of the list the pane already
   // loaded, so the preview is a cache read of that same key. The kicker NAMES THE RANK ("Most used") rather
   // than letting the host assume one — regex and world-info rank by recency and by attachment.
   preview: { label: "Most used", useEntries: useTagPreview },

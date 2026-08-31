@@ -8,7 +8,7 @@ import type { Trpc } from "#data";
 import { createEntityMutation } from "#data";
 
 /** `persona.setActivePersona` scoped to THIS chat — `targetUserId` omitted (the verb defaults to the
- *  caller; the panel never targets someone else's persona — that's a host roster control, not built here). */
+ *  caller; the panel never targets someone else's persona — that's a host list control, not built here). */
 export interface SetChatActivePersonaVars {
   readonly chatId: ChatId;
   readonly personaId: PersonaId | null;

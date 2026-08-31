@@ -3,7 +3,7 @@
 //
 // THE ROW IS A SCENT NOW, NOT A CONTROL PANEL (F-11, owner-ruled). Every tag control used to live INSIDE
 // the settings row — rename, two colour pickers, a folder Select, a hide Switch, Merge and Delete, all on
-// one 330px-wide line. That anatomy cannot survive in a roster pane, and it was never good: the row is the
+// one 330px-wide line. That anatomy cannot survive in a list pane, and it was never good: the row is the
 // thing you SCAN (swatch · name · usage), and the controls are the thing you EDIT, which is now a mounted
 // member editor in CONTENT. No capability was dropped — every control moved, one pane over.
 //
@@ -23,7 +23,7 @@
 // affordance, and the two cannot compose (a windowed list has no stable drop target for an unrendered
 // row). FLAGGED for the owner as the one capability whose shape changes with library size.
 //
-// SORT MODE (tag-experience audit 2026-08-03): the roster reads in one of three orders — Most used
+// SORT MODE (tag-experience audit 2026-08-03): the list reads in one of three orders — Most used
 // (DEFAULT), A–Z, Manual order — persisted per device in the `tag-library` store. The counts are already in
 // every payload (`listOwnedTagsWithUsage` returns `usage.total`), so this is a client comparator and a
 // Select, with zero server cost.
@@ -33,13 +33,13 @@
 // screen never reflects, which is a control that lies. So the ≤30 arm forks again: manual → `SortableList`,
 // the two derived modes → the same rows without handles.
 //
-// …AND THE ROSTER SAYS ALL OF THAT OUT LOUD NOW (side-eye 2026-08-03 P1/P2). Three silences, one line and
+// …AND THE LIST SAYS ALL OF THAT OUT LOUD NOW (side-eye 2026-08-03 P1/P2). Three silences, one line and
 // one `disabled` between them: above the cap "Manual order" was a fully selectable mode with zero handles
 // whose output is pixel-identical to A–Z (every `sortOrder` is null, so the comparator tiebreaks on name)
 // and it PERSISTS, so a user could sit in it forever; below the cap nothing told anyone that dragging
 // existed at all, because it lives behind a third option in a right-aligned Select that reads as a view
 // preference; and the Select itself sat alone on its line with ~230px of dead space beside it. The hint
-// (`tagOrderHint`) is the roster's voice for the first two and the Select's row-mate for the third.
+// (`tagOrderHint`) is the list's voice for the first two and the Select's row-mate for the third.
 
 import type { TagWithUsage } from "@orb/contracts/tag";
 import type { TagId } from "@orb/kit/ids";
@@ -107,7 +107,7 @@ export function TagCollectionRows({ view }: { readonly view: CollectionListView 
           and only where there is an order to change — a one-tag library has none. */}
       {tags.length > 1 ? (
         // The Select SHARES this line with the order hint. Alone on it, right-aligned with ~230px of dead
-        // space beside it, it read as a leftover control (side-eye 2026-08-03 P2) — and the roster had no
+        // space beside it, it read as a leftover control (side-eye 2026-08-03 P2) — and the list had no
         // voice at all for the one thing the third mode is FOR.
         <Row align="center" gap="tight" justify="between">
           {orderHint === null ? null : (
@@ -238,10 +238,10 @@ function TagCollectionRow({
         //
         // AND THE VALUE DOES NOT BELONG ON THE ROW AT ALL (side-eye re-verify 2026-08-06). The first pass
         // routed it through `markers`, which is the row's `aria-describedby` channel — so a screen-reader
-        // user scanning a 32-row roster heard an 8-word colour disclaimer THIRTY-TWO TIMES, ahead of the
+        // user scanning a 32-row list heard an 8-word colour disclaimer THIRTY-TWO TIMES, ahead of the
         // census they were scanning for, and concatenated to it with no separator ("…theme default5 uses":
         // the adjacent-inline-node trap `chat-documents-section.tsx:172-175` guards with a literal space).
-        // A roster row is a SCAN line — swatch, name, usage. The colour's exact value is an EDITING fact and
+        // A list row is a SCAN line — swatch, name, usage. The colour's exact value is an EDITING fact and
         // it is stated once, in words, in the editor the row's own click mounts (`tag-member-surface.tsx`).
         <Row
           aria-hidden={true}

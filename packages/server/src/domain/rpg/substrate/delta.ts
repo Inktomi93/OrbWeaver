@@ -77,7 +77,7 @@ function volatileKey(row: ActorState[number]): string {
 
 /** A per-actor renderer's shared body: correlate prev↔cur volatile rows by actor key, name each actor, and let
  *  `lines` emit that actor's plane deltas. An actor present in only one snapshot is correlated against an
- *  `undefined` counterpart so a join/leave surfaces through the per-plane lines (the ambient `present cast`
+ *  `undefined` counterpart so a join/leave surfaces through the per-plane lines (the ambient `present characters`
  *  join/leave is its OWN renderer; this correlates the volatile PLANES within a persisting actor). */
 function perActor(
   cur: ActorState,

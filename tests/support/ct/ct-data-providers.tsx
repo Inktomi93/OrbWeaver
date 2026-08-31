@@ -53,7 +53,7 @@ import { corpusSection } from "@orb/client/features/discovery";
 import { buddyDormantTile, makeHomeSection, makeSectionJumpTile } from "@orb/client/features/home";
 import { imageDetailModal, imageEditModal, imagineModal } from "@orb/client/features/imagery";
 import { notificationsChrome } from "@orb/client/features/notifications";
-import { personaChrome, personaNotificationsSection, personaRosterSection, personaThisChatSection } from "@orb/client/features/persona";
+import { personaChrome, personaListSection, personaNotificationsSection, personaThisChatSection } from "@orb/client/features/persona";
 import {
   extensionsSection,
   pluginCommandArgsModal,
@@ -272,7 +272,7 @@ const realModalRegistry: ModalRegistry = createRegistry<ModalSlotId, ModalDefini
 const realSettingsSections: ContributorRegistry<ConfigSectionContribution> = createContributorRegistry<ConfigSectionContribution>("config-sections", [
   // personas · backup · connections · automation ← the §6.8 conversions, in the door's order.
   personaNotificationsSection,
-  personaRosterSection,
+  personaListSection,
   personaThisChatSection,
   backupExportSection,
   backupImportSection,

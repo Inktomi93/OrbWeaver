@@ -1419,10 +1419,10 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     expect(prompt.static).toMatch(JOINED_CAST_FRAMING);
     expect(prompt.static).not.toMatch(SINGLE_SPEAKER_FRAMING); // never the single-speaker binding
     expect(prompt.static).not.toContain("perspective only"); // …nor its single-perspective clause
-    // Both cast cards reach the wire, framed as the round's VOICES (narrator "[Cast — X]"), never bystanders.
+    // Both character cards reach the wire, framed as the round's VOICES (narrator "[Character — X]"), never bystanders.
     expect(prompt.static).toContain("Aria is a warden of the ford.");
     expect(prompt.static).toContain("Kai is a wandering bard.");
-    expect(prompt.static).toContain("[Cast — ");
+    expect(prompt.static).toContain("[Character — ");
     expect(prompt.static).not.toContain("[Also present —");
   });
 

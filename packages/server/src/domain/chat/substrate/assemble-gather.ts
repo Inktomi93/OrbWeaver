@@ -8,7 +8,7 @@
 // messages/last-message family from committed canon; user injections from `chat_injections`; room
 // overrides from chat metadata; WI is emergent (no on/off gate — the 4-scope pool decides); variable
 // values (the per-chat ChoiceBlock flush); compact summary; memory (`recallMemory`); host-tier regex
-// scripts (host-global ∪ chat-preset ∪ present cast).
+// scripts (host-global ∪ chat-preset ∪ present characters).
 //
 // The foreign DTO supplies promptConfig/personas/globalRegexScripts/scanDepth/injectionTokenBudget/
 // memoryConfig (settings/preset/persona reads chat must not perform).
@@ -134,7 +134,7 @@ function p6Fields(
   };
 }
 
-/** Resolve the present cast's live cards under the host's ownership — the regex-tier cast source + the
+/** Resolve the present characters' live cards under the host's ownership — the regex-tier cast source + the
  *  recall name map. A gone/mid-delete card (`null`) is skipped, never an error. */
 async function loadCastCards(
   ctx: ChatContext,

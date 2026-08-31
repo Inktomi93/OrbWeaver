@@ -17,8 +17,8 @@
 // shape" — and `max ?? value` was drawing exactly that lie, a permanently-full ring for a
 // tracker that has no full. That one rule answers both halves of the finding: a poolless tracker (Grit) is a
 // disc, not a missing orb; the wallet (Gold) is a disc for the same reason, not an exception.
-// The band stays the GLANCE and the roster/sheet stay the READING: the same numbers appear in both because
-// the band is persistent chrome across all seven tabs while a roster row is one tab's body (the OSRS orb
+// The band stays the GLANCE and the character list/sheet stay the READING: the same numbers appear in both because
+// the band is persistent chrome across all seven tabs while a character row is one tab's body (the OSRS orb
 // idiom the design set is built on). The design pins the orb's own text ("label + `value/max` text beneath —
 // text is the datum"), so the band does not drop its readout to de-duplicate against a body it cannot see.
 // Orb color rides the ONE `resolveTrackerColor` derivation (`def.color ?? trackColor(ordinal)` — the owner

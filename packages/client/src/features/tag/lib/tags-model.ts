@@ -37,7 +37,7 @@ const SORT_MODE_LABELS: Record<TagSortMode, string> = {
 /** The sort-mode Select options, derived from the canonical tuple.
  *
  *  `handlesAvailable` is the library-SIZE verdict, not a preference: above `COLLECTION_LARGE_GROUP`
- *  the roster virtualizes and drag handles cannot exist (a windowed list has no stable drop target for an
+ *  the list virtualizes and drag handles cannot exist (a windowed list has no stable drop target for an
  *  unrendered row), so "Manual order" up there is a mode with nothing behind it — measured at the owner's
  *  413-tag library as `{mode:"Manual order", handles:0}`, and because every `sortOrder` is null the
  *  comparator tiebreaks on name, making it pixel-identical to A–Z with nothing saying so (side-eye
@@ -53,10 +53,10 @@ export function tagSortItems(handlesAvailable: boolean): readonly SelectOption<T
   }));
 }
 
-/** The one-line gloss beside the sort control — the roster's own statement about DRAG, which is otherwise
+/** The one-line gloss beside the sort control — the list's own statement about DRAG, which is otherwise
  *  a capability with no scent at all (side-eye 2026-08-03 P1: landing on Most-used, nothing says reordering
  *  lives behind a third option in a right-aligned Select that reads as a view preference; a user wanting to
- *  reorder has no reason to open a SORT control looking for a CAPABILITY). `null` = the roster is already
+ *  reorder has no reason to open a SORT control looking for a CAPABILITY). `null` = the list is already
  *  showing handles, and a line saying "drag to reorder" over visible drag handles is noise.
  *
  *  It doubles as the sort control's row-mate: alone on its line the Select read as "a control that got left
@@ -113,13 +113,13 @@ export function tagColorValueLabel(value: string | null): string {
   return value ?? COLOR_UNSET_LABEL;
 }
 
-/** The same fact KEYED — the roster swatch's hover tooltip, which is the one place with no label to lean on:
+/** The same fact KEYED — the list swatch's hover tooltip, which is the one place with no label to lean on:
  *  a row is a bare chip, so the tooltip must name the slot itself. Lower-cased because here the sentence runs
  *  mid-phrase after the key, and there is exactly one home for its words.
  *
  *  IT IS NOT A ROW DATUM. The 2026-08-06 re-verify caught the first pass routing this through
  *  `ListRow.markers` — the row's `aria-describedby` channel — which made a screen reader recite the whole
- *  disclaimer once per row across a 400-tag library. A roster row is a scan line; this is an editing fact. */
+ *  disclaimer once per row across a 400-tag library. A list row is a scan line; this is an editing fact. */
 export function tagColorLabel(kind: "Background" | "Text", value: string | null): string {
   return value === null ? `${kind}: ${COLOR_UNSET_LABEL.toLowerCase()}` : `${kind}: ${value}`;
 }

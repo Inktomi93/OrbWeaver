@@ -25,7 +25,7 @@ export interface HostTierRegexSources {
   readonly hostGlobal: readonly RegexScriptRow[];
   /** The chat's active-preset set — the `preset_regex_scripts` junction. */
   readonly preset: readonly RegexScriptRow[];
-  /** The present cast's sets, concatenated IN ROSTER ORDER — the `character_regex_scripts` junction. */
+  /** The present characters' sets, concatenated IN ROSTER ORDER — the `character_regex_scripts` junction. */
   readonly cast: readonly RegexScriptRow[];
   /** The ROOM's own set — the `chat_regex_scripts` junction (host-set room state, the `chat_books` twin).
    *  Last tier: a room quirk layers OVER the library/preset/cast defaults rather than shadowing them. */

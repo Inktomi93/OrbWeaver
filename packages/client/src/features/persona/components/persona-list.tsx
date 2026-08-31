@@ -1,4 +1,4 @@
-// The persona ROSTER — the band (name + New + Import) and the rows with their inline editors — extracted from
+// The persona LIST — the band (name + New + Import) and the rows with their inline editors — extracted from
 // the panel surface so ONE component serves all three mounts (config-revamp-design.md §6.8.2): the desktop
 // rail popover and the mobile You sheet compose it inside `PersonaPanelSurface`; the Personas config group
 // renders it as the `your-personas` section's body. The editing model is unchanged: a row expands its own
@@ -25,8 +25,8 @@ import { resolveCurrentPersona } from "../lib/persona-current.ts";
 import { PersonaFromCharacterDialog } from "./persona-from-character-dialog.tsx";
 import { PersonaPanelRow } from "./persona-panel-row.tsx";
 
-/** The roster: band + rows. */
-export function PersonaRoster(): ReactElement {
+/** The list: band + rows. */
+export function PersonaList(): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const setSeed = useSetPersonaSeed({ trpc, invalidation });
@@ -73,7 +73,7 @@ export function PersonaRoster(): ReactElement {
   // derivation cannot see that, so the qualifier is resolved HERE, with the whole list in hand.
   //
   // SPENT, NOT SPRAYED — the one deviation from the chats/presets/regex call sites. `rowQualifiers` returns
-  // the stamp the row already SHOWS as its baseline, which is honest on those rosters and a lie on this one:
+  // the stamp the row already SHOWS as its baseline, which is honest on those lists and a lie on this one:
   // a persona row displays no timestamp at all, so naming one on a row whose name is already unique would put
   // a datum in the accessible name that is nowhere on screen. Only a COLLIDED name buys the escalation.
   const nameCounts = new Map<string, number>();
@@ -153,7 +153,7 @@ export function PersonaRoster(): ReactElement {
   );
 }
 
-/** The roster's BAND — its name and its three verbs. The playing-as identity lives on the row (see above). */
+/** The list's BAND — its name and its three verbs. The playing-as identity lives on the row (see above). */
 const IMPORT_LABEL = "Restore a persona from a backup file";
 const FROM_CHARACTER_LABEL = "New persona from a character";
 

@@ -47,7 +47,7 @@ const CAST: readonly ParticipantView[] = [participant(CHARLOTTE_ID, "Charlotte")
 // Verbatim in shape from the shipped narrator transcript: a scene-set preamble, then two labelled voices.
 const NARRATOR_BODY = "*a foreleg taps once against the thread*\n\nJFC: Four devices is not an answer.\n\nCharlotte: I'll take this one.";
 
-test("NARRATOR: a tagless body splits on plain `Name:` labels for the present cast", async ({ mount }) => {
+test("NARRATOR: a tagless body splits on plain `Name:` labels for the present characters", async ({ mount }) => {
   const component = await mount(<MessageContentSpansStory narratorVoiced={true} participants={CAST} content={NARRATOR_BODY} />);
   // Two attributed spans (JFC, Charlotte); the scene-set preamble stays un-themed.
   await expect(component.locator(THEME_SCOPE)).toHaveCount(2);

@@ -22,7 +22,7 @@
 // ForeignInputs exists outside the turn path, and chat never imports settings.
 //
 // THE SEGMENT ANCHOR (MR3) is server-derived, claim-validated: the wire carries an index + the client's
-// claimed speaker; this verb re-parses the variant's CANON with the room's present cast names
+// claimed speaker; this verb re-parses the variant's CANON with the room's present characters names
 // (`loadPresentCastNames` — the client mirror is `speakerThemesByName`'s key set) and stores ITS OWN
 // speaker + snippet from that parse. A claim the parse refutes is `invalid_segment` (a benign race —
 // refusing beats silently retargeting a member's click), and free text never crosses the wire into a

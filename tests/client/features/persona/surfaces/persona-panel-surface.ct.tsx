@@ -1,15 +1,15 @@
 // CT: the persona SWITCHER (#866 S4 — `PersonaPanelSurface`, both lenses). The rail slot carries only
 // what travels with a switch (the frequency law): who-head · switch rows (with the inline pin) · the
 // contextual in-chat block (bar lens, chat open) · the Manage door · the account foot (the retired
-// `account` modal's facts + Log out, owner-ruled F-3). The roster/editor/import/export moved to
-// Config → Personas — `persona-roster.ct.tsx` owns those pins now.
+// `account` modal's facts + Log out, owner-ruled F-3). The list/editor/import/export moved to
+// Config → Personas — `persona-list.ct.tsx` owns those pins now.
 //
 // The load-bearing wires proven here, red-first against the rebuilt surface:
 //   · the SCOPE routes the switch: Everywhere ⇒ the seed pointer (`settings.updateUserSettingsSection`),
 //     This chat ⇒ the per-participant slot (`persona.setActivePersona`) — two different verbs, one row.
 //   · the contextual block exists ONLY while a chat room is open.
 //   · re-attribute fires `chat.reattributePersona` with the server-resolved `{kind:"mine"}` scope.
-//   · the sheet lens is the same grammar MINUS the contextual block, and carries none of the roster's
+//   · the sheet lens is the same grammar MINUS the contextual block, and carries none of the list's
 //     management controls.
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
@@ -92,7 +92,7 @@ async function openPopover(page: Page): Promise<void> {
 
 // ── The SHEET lens ──────────────────────────────────────────────────────────────────────────────────
 
-test("the sheet is the switcher grammar: who-head, switch rows with pins, account foot — no roster chrome", async ({ mount, page }) => {
+test("the sheet is the switcher grammar: who-head, switch rows with pins, account foot — no list chrome", async ({ mount, page }) => {
   await stub(page);
   await stubAuth(page);
   await mount(<PersonaYouSheetStory />);
@@ -107,7 +107,7 @@ test("the sheet is the switcher grammar: who-head, switch rows with pins, accoun
   // The account foot carries the identity facts + Log out (the retired modal's anatomy, F-3).
   await expect(page.getByTestId("account-surface")).toContainText("owner");
   await expect(page.getByTestId("account-logout")).toBeVisible();
-  // NONE of the roster's management chrome lives here any more (#866 S4 — it moved to Config → Personas).
+  // NONE of the list's management chrome lives here any more (#866 S4 — it moved to Config → Personas).
   await expect(page.getByRole("button", { name: /^Rename / })).toHaveCount(0);
   await expect(page.getByRole("button", { name: /^Actions for / })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "New persona" })).toHaveCount(0);
