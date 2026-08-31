@@ -13,6 +13,7 @@ import type {
   StaticObjectPropertyEvaluation,
   StaticValue,
 } from "./static-class-expression-model.ts";
+import { evalLucideIconTerminal } from "./static-class-external-terminals.ts";
 import { JsxBindingResolver } from "./static-class-jsx.ts";
 import { findObjectProperties, propertyName } from "./static-class-object.ts";
 import type { StaticClassResolvers } from "./static-class-value.ts";
@@ -221,6 +222,11 @@ function propertyRoot(state: WalkState, node: import("ts-morph").PropertyAssignm
   if (propertyName(state.evaluator, node.getNameNode(), new Set()) !== "className") {
     return false;
   }
+  // Array-contained objects are not class carriers by themselves. Package-specific call terminals own
+  // the positional proof (for example IconNode tuple index 1); composer roots own their array configs.
+  if (node.getFirstAncestorByKind(SyntaxKind.ArrayLiteralExpression) !== undefined) {
+    return true;
+  }
   const initializer = node.getInitializer();
   if (initializer !== undefined) {
     state.roots += 1;
@@ -239,6 +245,16 @@ function composerRoot(state: WalkState, node: import("ts-morph").CallExpression)
   return true;
 }
 
+function externalTerminalRoot(state: WalkState, node: import("ts-morph").CallExpression): boolean {
+  const values = evalLucideIconTerminal(state.evaluator, node);
+  if (values === undefined) {
+    return false;
+  }
+  state.roots += 1;
+  evaluateRoot(state, node, () => values);
+  return true;
+}
+
 function walkNode(state: WalkState, node: Node): void {
   if (Node.isJsxAttribute(node) && jsxRoot(state, node)) {
     return;
@@ -251,11 +267,14 @@ function walkNode(state: WalkState, node: Node): void {
     return;
   }
   if (Node.isShorthandPropertyAssignment(node) && node.getName() === "className") {
+    if (node.getFirstAncestorByKind(SyntaxKind.ArrayLiteralExpression) !== undefined) {
+      return;
+    }
     state.roots += 1;
     evaluateRoot(state, node, () => state.evaluator.evalClass(node.getNameNode(), new Set()));
     return;
   }
-  if (Node.isCallExpression(node)) {
+  if (Node.isCallExpression(node) && !externalTerminalRoot(state, node)) {
     composerRoot(state, node);
   }
 }

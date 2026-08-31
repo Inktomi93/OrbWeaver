@@ -109,12 +109,10 @@ test("echo's art pane sits OUTSIDE the prose measure, is sized to the pane (neve
   expect(painted?.style?.backgroundImage).toContain("/api/blob/abababab?v=portrait&w=");
   // THE MEASURE FIX (#212-2): the bubble grows by the art pane's FIXED width, so the prose keeps the
   // band's floor. The old shape spent 55% of the box on padding and rendered 28 chars/line.
-  // The arithmetic moved into author CSS in 720b94c92 (`.orb-echo-box` in client/styles/globals.css — a
-  // `max-w-[calc…]` utility is what the width gate bans, and the inline no-space calc was silently
-  // invalid). This assertion still named the retired utility string; it names the class that carries the
-  // rule now, and the RENDERED width is pinned where it can be measured
-  // (tests/client/features/chat/chat-room-track.suite.ct.tsx, the echo min-measure test).
-  expect(painted?.className).toBe("orb-echo-box");
+  // One skin-owned CSSProperties value caps both the bubble and its containing column; equality prevents
+  // the two copies of this geometry from drifting. Rendered width stays pinned in chat-room-track CT.
+  expect(painted?.style?.maxWidth).toBeDefined();
+  expect(painted?.style?.maxWidth).toBe(echo.columnStyle?.maxWidth);
   expect(painted?.style?.paddingRight).toBe("var(--immersive-echo-art-width)");
   // THE CROP FIX (#212-3): the art layer is sized to the PANE and anchored to its top outer corner. Sized
   // `cover` against the whole bubble it was a 4.94x upscale cropped past the subject on a long turn.

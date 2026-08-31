@@ -211,18 +211,32 @@ test("counts opaque runtime leaves and fails loud on a static cycle while retain
   expect(result.runtimePrefixes.map((prefix) => prefix.prefix)).toContain("probe:");
 });
 
-test("models built-in string trimming without losing a complete class before a runtime tail", () => {
+test("models all zero-argument string trims across literal unions while preserving offsets and honest runtime prefixes", () => {
   const p = project({
     "packages/ui/src/x.tsx": `
       declare const tail: string | undefined;
+      const union: "  probe:union-a  " | "  probe:union-b  " = Math.random() ? "  probe:union-a  " : "  probe:union-b  ";
       export const Static = <div className={"  probe:trimmed  ".trim()} />;
+      export const Start = <div className={"  probe:start  ".trimStart()} />;
+      export const End = <div className={"  probe:end  ".trimEnd()} />;
+      export const Union = <div className={union.trim()} />;
       export const Mixed = <div className={\`  probe:prefix \${tail ?? ""}\`.trim()} />;
+      export const MixedEnd = <div className={\`probe:end-prefix \${tail ?? ""}\`.trimEnd()} />;
+      export const RuntimeFirst = <div className={\`\${tail ?? ""} probe:tail\`.trimStart()} />;
     `,
   });
 
   const result = walkStaticClassExpressions(p, p.getSourceFiles());
-  expect(result.candidates.map((candidate) => candidate.value)).toContain("probe:trimmed");
+  expect(result.candidates.map((candidate) => candidate.value)).toEqual(
+    expect.arrayContaining(["probe:trimmed", "probe:start  ", "  probe:end", "probe:union-a", "probe:union-b"]),
+  );
   expect(result.runtimePrefixes.map((prefix) => prefix.prefix)).toContain("probe:prefix ");
+  expect(result.runtimePrefixes.map((prefix) => prefix.prefix)).toContain("probe:end-prefix ");
+  expect(result.runtimePrefixes.map((prefix) => prefix.prefix)).not.toContain(" probe:tail");
+  const source = p.getSourceFileOrThrow(`${ROOT}/packages/ui/src/x.tsx`).getFullText();
+  const trimmed = result.candidates.find((candidate) => candidate.value === "probe:trimmed");
+  expect(trimmed?.segments).toHaveLength(1);
+  expect(source.slice(trimmed?.segments[0]?.sourceStart, (trimmed?.segments[0]?.sourceStart ?? 0) + "probe:trimmed".length)).toBe("probe:trimmed");
 });
 
 test("does not grant class provenance to an unrelated method named trim", () => {
@@ -233,6 +247,51 @@ test("does not grant class provenance to an unrelated method named trim", () => 
     `,
   });
   expect(valuesOf(p)).toEqual([]);
+});
+
+test("does not model string trim calls with arguments or receivers whose union contains a non-string", () => {
+  const p = project({
+    "packages/ui/src/x.tsx": `
+      declare const mixed: string | { trim(): string };
+      export const Argument = <div className={"probe:argument".trim("probe:not-zero-arg")} />;
+      export const Mixed = <div className={mixed.trim()} />;
+    `,
+  });
+  expect(valuesOf(p)).toEqual([]);
+});
+
+test("collects createLucideIcon IconNode className writers only through the exact lucide-react terminal", () => {
+  const p = project({
+    "packages/ui/src/icons.ts": `
+      import { createLucideIcon as makeIcon } from "lucide-react";
+      import * as Lucide from "lucide-react";
+      const base = [["path", { className: "orb:base", title: "orb:not-title" }], ["orb:not-tuple-attrs", { className: "orb:second" }, { className: "orb:not-index-two" }]] as const;
+      const nodes = base;
+      nodes.push(["circle", { className: "orb:pushed" }]);
+      export const A = makeIcon("orb:not-name", nodes);
+      export const B = Lucide["createLucideIcon"]("B", [["path", { className: "orb:namespace" }]]);
+    `,
+  });
+  const result = walkStaticClassExpressions(p, p.getSourceFiles());
+  expect(result.candidates.map((candidate) => candidate.value).sort()).toEqual(["orb:base", "orb:namespace", "orb:pushed", "orb:second"]);
+  expect(result.unresolved).toEqual([]);
+  expect(result.opaque).toEqual([]);
+});
+
+test("keeps counterfeit factories and uncertain lucide IconNode mutations opaque", () => {
+  const cases = [
+    'import { createLucideIcon } from "other"; createLucideIcon("X", [["path", { className: "orb:counterfeit" }]]);',
+    'import { createLucideIcon } from "lucide-react"; declare const runtime: unknown[]; const nodes = [["path", { className: "orb:spread-stale" }], ...runtime]; createLucideIcon("X", nodes);',
+    'import { createLucideIcon } from "lucide-react"; const nodes = [["path", { className: "orb:index-stale" }]]; nodes[0] = ["circle", { className: "orb:index-new" }]; createLucideIcon("X", nodes);',
+    'import { createLucideIcon } from "lucide-react"; const nodes = [["path", { className: "orb:alias-stale" }]]; consume(nodes); createLucideIcon("X", nodes); declare function consume(value: unknown): void;',
+    'import { createLucideIcon } from "lucide-react"; let nodes = [["path", { className: "orb:reassigned" }]]; createLucideIcon("X", nodes);',
+  ];
+  for (const [index, source] of cases.entries()) {
+    const p = project({ [`packages/ui/src/case-${index}.ts`]: source });
+    const result = walkStaticClassExpressions(p, p.getSourceFiles());
+    expect(result.candidates, `case ${index}`).toEqual([]);
+    expect(Math.min([...result.opaque, ...result.unresolved].length, 1), `case ${index}`).toBe(index === 0 ? 0 : 1);
+  }
 });
 
 test("does not grant composer identity to an arbitrary local function named cn", () => {

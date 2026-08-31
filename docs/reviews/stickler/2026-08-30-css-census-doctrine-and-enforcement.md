@@ -38,7 +38,7 @@ the browser cascade. #950 is the separate browser tier: official `CSSMatchedStyl
 `Active`/`Overloaded`; raw-CDP inference, source mutation, UI scraping, and a local cascade evaluator are
 rejected. #965 bounded the shared static provenance collection at 1,195 owners, 1,583 sources, 1,745
 evaluators, 68,517 dispatched nodes, and 2,331 root evaluations in 19.3s with 3.48 GB max RSS; its focused
-suite passed 42/42. The semantic population governed by #956 remains 69 non-utility class identities plus
+suite passed 42/42. The semantic population governed by #956 remains 68 non-utility class identities plus
 112 data-selector identities. Those current semantic counts are not interchangeable with the historical
 7,189-file textual reach sweep.
 
@@ -481,7 +481,7 @@ raw-source Oxide scanning also tokenizes prose and is not a correctness gate.
 \#954 and #961 are integrated and in Review; the grouped CSS-train barrier has not yet graduated them.
 
 **Selector-writer closure (#956, grouped barrier pending).** `5a9a9ada3` turns the census's manually traced
-69 authored non-utility class identities and 112 data-selector identities into a dedicated semantic gate.
+68 authored non-utility class identities and 112 data-selector identities into a dedicated semantic gate.
 Writers come from JSX attributes/spreads, declaration-proven DOM `setAttribute`/`toggleAttribute`, exact
 HAST element properties, #951/#961 class provenance, manifest-plus-installed Base UI state/value contracts,
 and a two-way Streamdown contract. Exact-value selectors require matching static/type-literal evidence; an
@@ -830,7 +830,7 @@ data-attribute was independently swept against 7,189 source/test/doc files
 
 **Historical textual result:** the sweep found no orphan selectors. Every class and every `data-*` key the
 five files selected on had a textual source writer. That was not semantic provenance. Current #956 governs
-69 non-utility class identities and 112 data-selector identities through semantic JSX/DOM/HAST/static-
+68 non-utility class identities and 112 data-selector identities through semantic JSX/DOM/HAST/static-
 provenance/vendor evidence. The 106 selectors that matched nothing on any drive were state-gated
 (hover · overlay panel mode · an open modal or menu · streaming · reduced motion · a loading skeleton · a
 wallpaper · the media grid · the boot veil), each with its writer named below.
@@ -911,7 +911,7 @@ and being unscoped is correct — it is a readability FLOOR that should also hol
 | `.shell-grid[data-elevation="glow"] [data-slot="surface-root"] > :first-child` | 524-530 | correct-as-is; verified live at `--wide` with glow (`cardRootGlow: 1`). Shares F1's grid-scoping, but weakly — a portalled Surface sits inside a popup that already carries `--shadow-overlay` |
 | message-list edge fade + the art opt-out | 553-570 | correct-as-is |
 | avatar hairline over art | 574-578 | correct-as-is |
-| `.orb-echo-box` / `.orb-echo-track` | 585-590 | correct-as-is (`message-row-variants.ts:182,187,197`) |
+| `.orb-echo-track` | 695-699 | correct-as-is — the track remains a selector mechanism; the deleted `.orb-echo-box` duplicated skin-owned inline geometry now shared by the bubble and column (`message-row-variants.ts`) |
 | the ThemeScope comment at `:461-463` | 461-463 at baseline | **FIXED (#957, integrated/in Review)** |
 
 ### The four stray `--color-*` definitions — VERDICT: correct outside the vault, and the duplication is required
@@ -1520,7 +1520,7 @@ planted control.**
 | `no-raw-color-in-css` | gate | `packages/{ui,client}/src/**/*.css` (`:70`) — the FULL CSS surface | mustFlag+mustPass | non-colour values; a colour whose `var()` chain resolves to nothing |
 | `motion-token-purity` | gate | `packages/{ui,client}/src/**/*.css` (`:101`) | mustFlag+mustPass | motion in TS/inline (covered by `no-off-token-inline-style`); `linear`/`0s` legal by design |
 | `css-length-tokens` (#955) | gate | `shell.css` declarations/queries + #961-resolved static class carriers across `packages/{client,ui}/src` | 4 mustFlag + 2 mustPass; focused conformance 8/8 | runtime-assembled class strings; declared viewport/query/ratio/measurement mechanics are count-pinned allowances rather than blind skips |
-| `css-selector-has-a-writer` (#956) | gate | the five sanctioned stylesheets' 69 non-utility class + 112 data-selector identities against semantic writers and exact vendor contracts | focused 18/18; Base UI manifest/installed 75/75 with zero drift; #965 bounded the shared collector at 19.3s/3.48 GB | opaque dynamic values cannot satisfy exact/prefix selectors; HAST evidence is limited to exact element records; grouped barrier pending |
+| `css-selector-has-a-writer` (#956) | gate | the five sanctioned stylesheets' 68 non-utility class + 112 data-selector identities against semantic writers and exact vendor contracts | focused 18/18; Base UI manifest/installed 75/75 with zero drift; #965 bounded the shared collector at 19.3s/3.48 GB | opaque dynamic values cannot satisfy exact/prefix selectors; HAST evidence is limited to exact element records; grouped barrier pending |
 | `no-color-literals` | gate | `packages/{client,ui}/src` (`:54`) | mustFlag+mustPass | runtime-ASSEMBLED class strings |
 | `no-arbitrary-tw-values` | gate | `packages/{client,ui}/src` (`:110`) | mustFlag+mustPass | token-driven bodies (`var()`/`calc()`) legal by design |
 | `no-off-token-radius-shadow` | gate | `packages/{client,ui}/src` (`:121`) | mustFlag+mustPass | `packages/client/src/features/preset/**` structurally excluded (declared) |
@@ -1574,7 +1574,7 @@ program doc, and F6/C-4 is about its status, not its content).
 
 **Selector reach — historical live drive plus textual source sweep:** 312 selectors extracted comment-
 stripped, 308 queryable, driven against seven surfaces; class and `data-*` names were textually traced across
-7,189 files. This supports the base audit only. Current semantic coverage is #956's 69 class and 112 data-
+7,189 files. This supports the base audit only. Current semantic coverage is #956's 68 class and 112 data-
 selector identities; it must not be replaced by the older “every writer” overclaim.
 
 **Colour:** zero raw colour literals in any of the four hand-authored files, verified two ways plus the gate.
@@ -1701,7 +1701,7 @@ entries / 195 exact targets, and generated seed artifacts differ only by the two
 
 **Integrated, in Review; the grouped CSS-train barrier has not graduated:** #951 family ownership; #952
 custom-property resolution; #954/#961 single-polarity prevention on the shared static-class substrate; #955
-length ownership; #956 semantic writers for 69 non-utility class identities and 112 data-selector identities;
+length ownership; #956 semantic writers for 68 non-utility class identities and 112 data-selector identities;
 \#957 stale-comment/coupled-residue repair; #959 production/Playwright CSS-topology derivation; #965 bounded
 static provenance collection (1,195 owners, 1,583 sources, 1,745 evaluators, 68,517 dispatched nodes, 2,331
 root evaluations, 19.3s, 3.48 GB max RSS, 42/42 focused).

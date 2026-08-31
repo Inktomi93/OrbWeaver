@@ -120,8 +120,7 @@ export function renderRowBubble(args: {
   readonly editing: boolean;
 }): ReactElement {
   // Hide-from-AI dims the row (still user-visible — the toggle holds it out of assembly only).
-  const bubbleClassName =
-    cn(args.skin.inner(args.role), args.editing && "w-full", args.message.excludedFromPrompt && "opacity-50", args.decoration?.className) ?? "";
+  const bubbleClassName = cn(args.skin.inner(args.role), args.editing && "w-full", args.message.excludedFromPrompt && "opacity-50") ?? "";
   const body =
     args.trainParagraphs === null ? (
       renderSingleBubble({

@@ -53,10 +53,10 @@ export const EXPECTED_DECLARATION_CENSUS: Readonly<Record<ProductStylesheet, num
   [THEME]: 281,
   [UI_GLOBALS]: 187,
   [TIERS]: 45,
-  [CLIENT_GLOBALS]: 112,
+  [CLIENT_GLOBALS]: 111,
   [SHELL]: 335,
 };
-export const EXPECTED_DECLARATION_TOTAL = 960;
+export const EXPECTED_DECLARATION_TOTAL = 959;
 export const EXPECTED_DIRECT_THEME_DECLARATIONS = 185;
 export const CENSUS_TOKEN: Readonly<Record<ProductStylesheet, string>> = {
   [THEME]: "census:theme",
