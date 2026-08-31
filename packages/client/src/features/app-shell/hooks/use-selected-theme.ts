@@ -22,14 +22,19 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { useGatedQuery, useTRPC } from "#data";
 import { setBootReadPending } from "#lib";
-import { rememberDataThemeHint, useAppearanceBootHint } from "#state";
+import type { SeedThemeName } from "#state";
+import { isSeedThemeName, rememberDataThemeHint, useAppearanceBootHint } from "#state";
 
 /** The boot-read key this hook owns (`boot-reads.ts`): the theme chain, held until it settles. */
 const THEME_BOOT_READ = "theme";
 
 /** The `[data-theme]` value for a resolved theme row: a SEED palette paints from its generated block. */
-function dataThemeOf(theme: Theme | null): string | null {
-  return theme?.isSeed === true ? theme.name.toLowerCase() : null;
+function dataThemeOf(theme: Theme | null): SeedThemeName | null {
+  if (theme?.isSeed !== true) {
+    return null;
+  }
+  const name = theme.name.toLowerCase();
+  return isSeedThemeName(name) ? name : null;
 }
 
 /**
@@ -39,7 +44,7 @@ function dataThemeOf(theme: Theme | null): string | null {
  * and correct), while the attribute degrades to this device's remembered answer, which is already on
  * `<html>` from the pre-createRoot replay.
  */
-export function useSelectedTheme(): { readonly theme: Theme | null; readonly dataTheme: string | null } {
+export function useSelectedTheme(): { readonly theme: Theme | null; readonly dataTheme: SeedThemeName | null } {
   const trpc = useTRPC();
   const settingsQuery = useQuery(trpc.settings.getUserSettings.queryOptions());
   const settings = settingsQuery.data;

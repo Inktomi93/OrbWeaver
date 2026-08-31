@@ -1,7 +1,7 @@
 // The non-rendered half of #935: exact schema/owner equality is enforced by the structural gate; these
 // assertions keep the executable manifest's populations and pair generator honest for focused CT/Snap use.
 
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import {
   APPEARANCE_CARRIER_MANIFEST,
   APPEARANCE_CARRIER_PLANES,
@@ -10,6 +10,7 @@ import {
   appearanceCarrierRowsFor,
   THEME_CARRIER_OBSERVABLES,
 } from "../../../packages/client/src/lib/appearance-carrier-manifest.ts";
+import { expect, test } from "../../support/fixtures.ts";
 
 describe("Appearance carrier manifest", () => {
   test("declares 41 unique keys across seven non-empty editor owners", () => {
@@ -37,13 +38,16 @@ describe("Appearance carrier manifest", () => {
 
   test("declared distinct arms are actually different and dependent source fields stay explicit", () => {
     const rows = Object.entries(APPEARANCE_CARRIER_MANIFEST);
-    const armed = rows.filter(([, row]) => "requiredDistinctArms" in row);
-
-    expect(armed).toHaveLength(36);
-    for (const [key, row] of armed) {
+    let armed = 0;
+    for (const [key, row] of rows) {
+      if (!("requiredDistinctArms" in row)) {
+        continue;
+      }
+      armed += 1;
       const [first, second] = row.requiredDistinctArms;
       expect(first, `${key} first arm`).not.toEqual(second);
     }
+    expect(armed).toBe(36);
     expect(APPEARANCE_CARRIER_MANIFEST.backgroundAssetHash.dependsOn).toContain("backgroundImageKind");
     expect(APPEARANCE_CARRIER_MANIFEST.backgroundLibrary.carriers).toEqual(["source-catalog"]);
   });

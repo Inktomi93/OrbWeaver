@@ -28,11 +28,12 @@ export {
   selectAnalyticsCharacter,
   useSelectedAnalyticsCharacterId,
 } from "./analytics-selection-store.ts";
-export type { AppearanceBootAxes, AppearanceBootHintState } from "./appearance-boot-hint.ts";
+export type { AppearanceBootAxes, AppearanceBootHintState, SeedThemeName } from "./appearance-boot-hint.ts";
 export {
   __resetAppearanceBootHint,
   DATA_THEME_ATTR,
   FONT_SCALE_VAR,
+  isSeedThemeName,
   REDUCED_MOTION_ATTR,
   rememberAppearanceBootHint,
   rememberDataThemeHint,
