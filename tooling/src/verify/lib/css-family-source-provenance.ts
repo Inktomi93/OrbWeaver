@@ -3,7 +3,7 @@
 import type { SourceFile, Type } from "ts-morph";
 import { Node } from "ts-morph";
 import type { GateRunCtx } from "../contract/gate.ts";
-import type { StaticClassCandidate, StaticClassEvaluation } from "../contract/static-class-expression.ts";
+import type { RuntimeClassPrefix, StaticClassCandidate, StaticClassEvaluation, StaticClassSegment } from "../contract/static-class-expression.ts";
 import { unwrapExpression } from "./ast-read.ts";
 import type { HookOwners } from "./css-family-census.ts";
 import { recordClassTokens, recordOwner, sourceOwner } from "./css-family-census.ts";
@@ -60,9 +60,9 @@ function ownerForPath(path: string): SourceOwner | undefined {
   return sourceOwner(packagesAt === -1 ? path : path.slice(packagesAt + 1));
 }
 
-function candidateOwners(candidate: StaticClassCandidate, terminalOwner: SourceOwner): ReadonlySet<SourceOwner> {
+function segmentOwners(segments: readonly StaticClassSegment[], terminalOwner: SourceOwner): ReadonlySet<SourceOwner> {
   const owners = new Set<SourceOwner>([terminalOwner]);
-  for (const segment of candidate.segments) {
+  for (const segment of segments) {
     const owner = ownerForPath(normalizedPath(segment.node));
     if (owner !== undefined) {
       owners.add(owner);
@@ -71,10 +71,57 @@ function candidateOwners(candidate: StaticClassCandidate, terminalOwner: SourceO
   return owners;
 }
 
+function candidateOwners(candidate: StaticClassCandidate, terminalOwner: SourceOwner): ReadonlySet<SourceOwner> {
+  return segmentOwners(candidate.segments, terminalOwner);
+}
+
+/** A runtime substitution invalidates its own token and everything after it, but whitespace-delimited
+ * tokens before that boundary remain exact class evidence. */
+function completeRuntimePrefix(prefix: string): string {
+  const lastWhitespace = prefix.search(/\s+\S*$/u);
+  return lastWhitespace === -1 ? "" : prefix.slice(0, lastWhitespace + 1);
+}
+
 function recordCandidates(map: Map<string, HookOwners>, evaluation: StaticClassEvaluation, terminalOwner: SourceOwner): void {
   for (const candidate of evaluation.candidates) {
     for (const owner of candidateOwners(candidate, terminalOwner)) {
       recordClassTokens(map, candidate.value, owner);
+    }
+  }
+  for (const prefix of evaluation.runtimePrefixes) {
+    const complete = completeRuntimePrefix(prefix.prefix);
+    for (const owner of segmentOwners(prefix.segments, terminalOwner)) {
+      recordClassTokens(map, complete, owner);
+    }
+  }
+}
+
+function classTerminalOwner(consumer: Node): SourceOwner | undefined {
+  const isTerminal = Node.isCallExpression(consumer) || (Node.isJsxAttribute(consumer) && consumer.getNameNode().getText() === "className");
+  return isTerminal ? ownerForPath(normalizedPath(consumer)) : undefined;
+}
+
+function recordWalkedCandidate(map: Map<string, HookOwners>, candidate: StaticClassCandidate): void {
+  for (const consumer of candidate.consumers) {
+    const owner = classTerminalOwner(consumer);
+    if (owner === undefined) {
+      continue;
+    }
+    for (const candidateOwner of candidateOwners(candidate, owner)) {
+      recordClassTokens(map, candidate.value, candidateOwner);
+    }
+  }
+}
+
+function recordWalkedPrefix(map: Map<string, HookOwners>, prefix: RuntimeClassPrefix): void {
+  for (const consumer of prefix.consumers) {
+    const owner = classTerminalOwner(consumer);
+    if (owner === undefined) {
+      continue;
+    }
+    const complete = completeRuntimePrefix(prefix.prefix);
+    for (const prefixOwner of segmentOwners(prefix.segments, owner)) {
+      recordClassTokens(map, complete, prefixOwner);
     }
   }
 }
@@ -82,18 +129,10 @@ function recordCandidates(map: Map<string, HookOwners>, evaluation: StaticClassE
 function recordWalkedClassCarriers(map: Map<string, HookOwners>, collector: StaticClassCollector): void {
   const walk = collector.walk();
   for (const candidate of walk.candidates) {
-    for (const consumer of candidate.consumers) {
-      if (!(Node.isCallExpression(consumer) || (Node.isJsxAttribute(consumer) && consumer.getNameNode().getText() === "className"))) {
-        continue;
-      }
-      const owner = ownerForPath(normalizedPath(consumer));
-      if (owner === undefined) {
-        continue;
-      }
-      for (const candidateOwner of candidateOwners(candidate, owner)) {
-        recordClassTokens(map, candidate.value, candidateOwner);
-      }
-    }
+    recordWalkedCandidate(map, candidate);
+  }
+  for (const prefix of walk.runtimePrefixes) {
+    recordWalkedPrefix(map, prefix);
   }
 }
 

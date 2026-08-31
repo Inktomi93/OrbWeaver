@@ -81,6 +81,31 @@ test("resolves a composer imported through a cross-file re-export alias", () => 
   expect(valuesOf(p)).toEqual(["probe:reexported-composer"]);
 });
 
+test("resolves workspace package aliases only to admitted source files", () => {
+  const sharedExpression = ["$", "{SHARED}"].join("");
+  const p = new Project({
+    useInMemoryFileSystem: true,
+    compilerOptions: {
+      module: ModuleKind.NodeNext,
+      moduleResolution: ModuleResolutionKind.NodeNext,
+      jsx: 4,
+      baseUrl: ROOT,
+      paths: { "@orb/ui/lib": ["packages/ui/src/lib/index.ts"] },
+    },
+  });
+  p.createSourceFile(`${ROOT}/packages/ui/src/lib/classes.ts`, 'export const SHARED = "probe:workspace-alias";\n');
+  p.createSourceFile(`${ROOT}/packages/ui/src/lib/index.ts`, 'export { SHARED } from "./classes.ts";\n');
+  p.createSourceFile(
+    `${ROOT}/packages/client/src/x.tsx`,
+    `import { SHARED } from "@orb/ui/lib";\nexport const X = <div className={\`${sharedExpression} probe:after-alias\`} />;\n`,
+    { scriptKind: ScriptKind.TSX },
+  );
+
+  const result = walkStaticClassExpressions(p, p.getSourceFiles());
+  expect(result.candidates.map((candidate) => candidate.value)).toEqual(["probe:workspace-alias probe:after-alias"]);
+  expect(result.opaque).toEqual([]);
+});
+
 test("resolves a composer through namespace access on a local re-export module", () => {
   const p = project({
     "packages/ui/src/composer.ts": 'export { clsx as join } from "clsx";\n',
@@ -184,6 +209,30 @@ test("counts opaque runtime leaves and fails loud on a static cycle while retain
   expect(result.unresolved.some((shape) => shape.reason.includes("cycle"))).toBe(true);
   expect(result.opaque.length).toBeGreaterThan(0);
   expect(result.runtimePrefixes.map((prefix) => prefix.prefix)).toContain("probe:");
+});
+
+test("models built-in string trimming without losing a complete class before a runtime tail", () => {
+  const p = project({
+    "packages/ui/src/x.tsx": `
+      declare const tail: string | undefined;
+      export const Static = <div className={"  probe:trimmed  ".trim()} />;
+      export const Mixed = <div className={\`  probe:prefix \${tail ?? ""}\`.trim()} />;
+    `,
+  });
+
+  const result = walkStaticClassExpressions(p, p.getSourceFiles());
+  expect(result.candidates.map((candidate) => candidate.value)).toContain("probe:trimmed");
+  expect(result.runtimePrefixes.map((prefix) => prefix.prefix)).toContain("probe:prefix ");
+});
+
+test("does not grant class provenance to an unrelated method named trim", () => {
+  const p = project({
+    "packages/ui/src/x.tsx": `
+      const custom = { trim: () => "probe:not-a-class" };
+      export const inert = custom.trim();
+    `,
+  });
+  expect(valuesOf(p)).toEqual([]);
 });
 
 test("does not grant composer identity to an arbitrary local function named cn", () => {
@@ -352,6 +401,22 @@ test("resolves exact spread properties through aliases and re-exports with overw
   expect(exact.unresolved).toEqual([]);
   expect(evaluateStaticObjectProperties(unresolvedSpread.getExpression(), unresolvedSpread, ["className"]).unresolved).not.toEqual([]);
   expect(evaluateStaticObjectProperties(opaqueSpread.getExpression(), opaqueSpread, ["className"]).opaque).not.toEqual([]);
+});
+
+test("an imported computed non-class key stays outside class selection while a runtime key remains unresolved", () => {
+  const p = project({
+    "packages/ui/src/attributes.ts": 'export const LIVE_ATTRIBUTE = "data-live-token-root";\n',
+    "packages/client/src/x.tsx": `
+      import { LIVE_ATTRIBUTE } from "../../ui/src/attributes.ts";
+      declare const runtimeKey: string;
+      export const exact = <div {...{ [LIVE_ATTRIBUTE]: "" }} />;
+      export const unknown = <div {...{ [runtimeKey]: "probe:unknown" }} />;
+    `,
+  });
+  const result = walkStaticClassExpressions(p, p.getSourceFiles());
+  expect(result.candidates).toEqual([]);
+  expect(result.unresolved).toHaveLength(1);
+  expect(result.unresolved[0]?.reason).toBe("computed selected-property key is unresolved");
 });
 
 test("applies spread overwrite order to member reads and invalidates values behind an unknown later spread", () => {

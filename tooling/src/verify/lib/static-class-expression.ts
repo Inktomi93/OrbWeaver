@@ -6,6 +6,7 @@ import { evalComposerCall } from "./static-class-collections.ts";
 import { ComposerResolver } from "./static-class-composer.ts";
 import type {
   Composer,
+  RuntimeClassPrefix,
   StaticClassCandidate,
   StaticClassEvaluation,
   StaticClassWalk,
@@ -29,6 +30,7 @@ export type {
 interface WalkState {
   readonly evaluator: StaticClassEvaluator;
   readonly candidateByKey: Map<string, { readonly value: string; readonly segments: StaticValue["segments"]; readonly consumers: Node[] }>;
+  readonly prefixByKey: Map<string, { readonly prefix: string; readonly segments: StaticValue["segments"]; readonly consumers: Node[] }>;
   roots: number;
 }
 
@@ -62,7 +64,7 @@ export class StaticClassCollector {
     this.sourceSet = new Set(files);
     this.passOwned = passOwned;
     this.resolvers = { composers: new ComposerResolver(project), jsxBindings: new JsxBindingResolver(project, files) };
-    this.state = { evaluator: this.evaluator(), candidateByKey: new Map(), roots: 0 };
+    this.state = { evaluator: this.evaluator(), candidateByKey: new Map(), prefixByKey: new Map(), roots: 0 };
   }
 
   get work(): StaticClassWork {
@@ -86,7 +88,7 @@ export class StaticClassCollector {
     this.walked = {
       roots: this.state.roots,
       candidates: [...this.state.candidateByKey.values()],
-      runtimePrefixes: this.state.evaluator.runtimePrefixes,
+      runtimePrefixes: [...this.state.prefixByKey.values()],
       unresolved: this.state.evaluator.unresolved,
       opaque: this.state.evaluator.opaque,
     };
@@ -129,7 +131,7 @@ export class StaticClassCollector {
   }
 }
 
-export function staticClassCollector(project: Project, files: readonly SourceFile[]): StaticClassCollector {
+function staticClassCollector(project: Project, files: readonly SourceFile[]): StaticClassCollector {
   return new StaticClassCollector(project, files);
 }
 
@@ -151,6 +153,11 @@ function candidateKey(value: StaticValue): string {
   return `${value.value}|${anchor?.node.getSourceFile().getFilePath() ?? ""}:${anchor?.sourceStart ?? -1}`;
 }
 
+function prefixKey(value: Omit<RuntimeClassPrefix, "consumers">): string {
+  const anchor = value.segments[0];
+  return `${value.prefix}|${anchor?.node.getSourceFile().getFilePath() ?? ""}:${anchor?.sourceStart ?? -1}`;
+}
+
 function addValues(state: WalkState, values: readonly StaticValue[], consumer: Node): void {
   for (const value of values) {
     const key = candidateKey(value);
@@ -161,6 +168,24 @@ function addValues(state: WalkState, values: readonly StaticValue[], consumer: N
       candidate.consumers.push(consumer);
     }
   }
+}
+
+function addPrefixes(state: WalkState, prefixes: readonly Omit<RuntimeClassPrefix, "consumers">[], consumer: Node): void {
+  for (const prefix of prefixes) {
+    const key = prefixKey(prefix);
+    const before = state.prefixByKey.get(key);
+    if (before === undefined) {
+      state.prefixByKey.set(key, { ...prefix, consumers: [consumer] });
+    } else if (!before.consumers.includes(consumer)) {
+      before.consumers.push(consumer);
+    }
+  }
+}
+
+function evaluateRoot(state: WalkState, consumer: Node, evaluate: () => readonly StaticValue[]): void {
+  const before = state.evaluator.runtimePrefixes.length;
+  addValues(state, evaluate(), consumer);
+  addPrefixes(state, state.evaluator.runtimePrefixes.slice(before), consumer);
 }
 
 function concreteComposer(composer: Composer | undefined): composer is Exclude<Composer, "tv-factory" | "join-factory"> {
@@ -178,7 +203,7 @@ function jsxRoot(state: WalkState, node: import("ts-morph").JsxAttribute): boole
   state.roots += 1;
   const value = Node.isJsxExpression(initializer) ? initializer.getExpression() : initializer;
   if (value !== undefined) {
-    addValues(state, state.evaluator.evalClass(value, new Set()), node);
+    evaluateRoot(state, node, () => state.evaluator.evalClass(value, new Set()));
   }
   return true;
 }
@@ -189,11 +214,7 @@ function spreadRoot(state: WalkState, node: import("ts-morph").JsxSpreadAttribut
     return;
   }
   state.roots += 1;
-  addValues(
-    state,
-    properties.flatMap((property) => state.evaluator.evalClass(property.value, new Set())),
-    node,
-  );
+  evaluateRoot(state, node, () => properties.flatMap((property) => state.evaluator.evalClass(property.value, new Set())));
 }
 
 function propertyRoot(state: WalkState, node: import("ts-morph").PropertyAssignment): boolean {
@@ -203,7 +224,7 @@ function propertyRoot(state: WalkState, node: import("ts-morph").PropertyAssignm
   const initializer = node.getInitializer();
   if (initializer !== undefined) {
     state.roots += 1;
-    addValues(state, state.evaluator.evalClass(initializer, new Set()), node);
+    evaluateRoot(state, node, () => state.evaluator.evalClass(initializer, new Set()));
   }
   return true;
 }
@@ -214,7 +235,7 @@ function composerRoot(state: WalkState, node: import("ts-morph").CallExpression)
     return false;
   }
   state.roots += 1;
-  addValues(state, evalComposerCall(state.evaluator, node, composer, new Set()), node);
+  evaluateRoot(state, node, () => evalComposerCall(state.evaluator, node, composer, new Set()));
   return true;
 }
 
@@ -231,7 +252,7 @@ function walkNode(state: WalkState, node: Node): void {
   }
   if (Node.isShorthandPropertyAssignment(node) && node.getName() === "className") {
     state.roots += 1;
-    addValues(state, state.evaluator.evalClass(node.getNameNode(), new Set()), node);
+    evaluateRoot(state, node, () => state.evaluator.evalClass(node.getNameNode(), new Set()));
     return;
   }
   if (Node.isCallExpression(node)) {
@@ -251,7 +272,7 @@ function evaluation(evaluator: StaticClassEvaluator, values: readonly StaticValu
   }
   return {
     candidates: [...candidates.values()],
-    runtimePrefixes: evaluator.runtimePrefixes,
+    runtimePrefixes: [...new Map(evaluator.runtimePrefixes.map((prefix) => [prefixKey(prefix), { ...prefix, consumers: [consumer] }])).values()],
     unresolved: evaluator.unresolved,
     opaque: evaluator.opaque,
   };

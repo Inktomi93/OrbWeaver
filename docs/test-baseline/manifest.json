@@ -2196,6 +2196,12 @@
     "tests/ui/touch-target-floor.suite.ct.tsx"
   ],
   "deletions": {
+    "tests/tooling/verify/lib/static-class-collection.test.ts": {
+      "why": "RELOCATED, not dropped: this is a corpus-level integration test for the shared static-class collection pass, not a mirror of one singular tooling/src/verify/lib/static-class-collection.ts module. Every assertion moved verbatim to tests/tooling/static-class-collection.int.test.ts, the tooling-package.md §4.7 endgame-flat home. Un-deletes if the suite becomes a single-module mirror."
+    },
+    "tests/tooling/verify/lib/static-class-consumers.int.test.ts": {
+      "why": "RELOCATED, not dropped: this is a cross-consumer integration test spanning multiple static-class gates, not a mirror of one singular tooling/src/verify/lib/static-class-consumers.ts module. Every assertion moved verbatim to tests/tooling/static-class-consumers.int.test.ts, the tooling-package.md §4.7 endgame-flat home. Un-deletes if the suite becomes a single-module mirror."
+    },
     "tests/client/features/app-shell/components/context-region-host.ct.tsx": {
       "why": "its SUBJECT was RETIRED: `features/app-shell/components/context-region-host.tsx` (the whole-pane region-claim host) was deleted with the context bracket (#860, owner-ruled 2026-08-30) — the region claim is a HEAD-BAND claim now, folded into the resolved `header` by `resolveContextTabs`, and the ONE host of every tabs pane is `ContextTabsPanel` → `ContextBracket`. Nothing was dropped: every arm this file pinned (a claiming region takes the pane's head, the full resolved set + the defaultTab landing, `selectTab` writes the SHARED store, a non-claiming contributor is ignored, the shell's band slot renders nothing) is re-pinned against the bracket in tests/client/features/app-shell/components/context-bracket.ct.tsx (the mirror of the new component). Un-deletes only if a whole-pane claim is ever reintroduced."
     },

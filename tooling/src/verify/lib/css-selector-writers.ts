@@ -11,7 +11,7 @@ import type { StaticClassCollector } from "./static-class-expression.ts";
 const DOM_LIB = "/typescript/lib/lib.dom.d.ts";
 const CLASS_PREFIX_LENGTH = "class:".length;
 
-export interface DataWriter {
+interface DataWriter {
   readonly values: ReadonlySet<string>;
   readonly sites: number;
 }

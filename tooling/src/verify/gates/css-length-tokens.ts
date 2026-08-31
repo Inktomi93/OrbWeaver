@@ -143,7 +143,7 @@ function reportStale(ctx: GateRunCtx, row: StaleCount): void {
     line: 1,
     column: 0,
     token: row.label,
-    message: `structural length allowlist row drifted: ${row.label} expected ${String(row.expected)}, saw ${String(row.actual)} — ${row.why}`,
+    message: `structural length allowlist row drifted: ${row.label} expected ${String(row.expected)}, saw ${String(row.actual)} — ${row.why} (tooling/src/verify/gates/css-length-tokens.ts)`,
   });
 }
 
@@ -225,7 +225,7 @@ function scanShell(ctx: GateRunCtx): void {
         line: 0,
         column: 0,
         token: "missing-shell",
-        message: "required sanctioned shell stylesheet is missing; the length census cannot be clean",
+        message: "required sanctioned shell stylesheet is missing; the length census cannot be clean (tooling/src/verify/gates/css-length-tokens.ts)",
       });
     }
     return;

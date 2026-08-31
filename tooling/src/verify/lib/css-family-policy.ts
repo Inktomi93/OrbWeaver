@@ -2,15 +2,15 @@
 // dedicated modules so this layer only decides whether a proven declaration/hook is in the right home.
 import { existsSync } from "node:fs";
 import { join } from "node:path";
+import type { ProductStylesheet } from "../contract/css-family.ts";
+import { AUTHORED_STYLESHEETS, CLIENT_GLOBALS, PRODUCT_STYLESHEETS, SHELL, THEME, TIERS, UI_GLOBALS } from "../contract/css-family.ts";
 import type { GateRunCtx } from "../contract/gate.ts";
 import { blankCssComments } from "./comment-spans.ts";
-import type { DirectDeclaration, HookOwners, ProductStylesheet, StylesheetCensus } from "./css-family-census.ts";
+import type { DirectDeclaration, HookOwners, StylesheetCensus } from "./css-family-census.ts";
 import {
-  AUTHORED_STYLESHEETS,
   CENSUS_TOKEN,
   CLIENT_BLUR_FILL,
   CLIENT_COLORIZATION,
-  CLIENT_GLOBALS,
   DENSITY_SELECTORS,
   DENSITY_SPACING,
   EXPECTED_DECLARATION_CENSUS,
@@ -22,14 +22,9 @@ import {
   KNOWN_DENSITY_FLOOR,
   LOCAL_FADE_STOP_RE,
   lineAt,
-  PRODUCT_STYLESHEETS,
   readCensus,
   reportDensityArmCompleteness,
-  SHELL,
-  THEME,
-  TIERS,
   themeFamilyPrefixes,
-  UI_GLOBALS,
 } from "./css-family-census.ts";
 import { actualLayerOffsets, hasClientMechanismCarrier, isShellSelector, selectorHooks } from "./css-family-selector-provenance.ts";
 import { collectHookOwners } from "./css-family-source-provenance.ts";

@@ -1,14 +1,9 @@
 import { ModuleKind, ModuleResolutionKind, Project, ScriptKind, SyntaxKind } from "ts-morph";
-import type { GateDescriptor, GateRunCtx } from "../../../../tooling/src/verify/contract/gate.ts";
-import {
-  beginHookOwnerCollection,
-  collectHookOwners,
-  hookOwnerWork,
-  visitHookOwnerNode,
-} from "../../../../tooling/src/verify/lib/css-family-source-provenance.ts";
-import { runPass } from "../../../../tooling/src/verify/lib/pass.ts";
-import { STATIC_CLASS_KINDS } from "../../../../tooling/src/verify/lib/static-class-expression.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
+import type { GateDescriptor, GateRunCtx } from "../../tooling/src/verify/contract/gate.ts";
+import { beginHookOwnerCollection, collectHookOwners, hookOwnerWork, visitHookOwnerNode } from "../../tooling/src/verify/lib/css-family-source-provenance.ts";
+import { runPass } from "../../tooling/src/verify/lib/pass.ts";
+import { STATIC_CLASS_KINDS } from "../../tooling/src/verify/lib/static-class-expression.ts";
+import { expect, test } from "../support/tool-fixtures.ts";
 
 const ROOT = "/repo";
 
@@ -84,10 +79,8 @@ test("bounds one pass to one source walk and no project-wide import-resolution a
       expect(owners.has(`class:${expected}`)).toBe(true);
     },
   });
-  const unfinished: GateDescriptor = {
-    ...gate("probe-static-class-unfinished"),
-    finalize: undefined,
-  };
+  const { finalize: omittedFinalize, ...unfinished } = gate("probe-static-class-unfinished");
+  expect(omittedFinalize).toEqual(expect.any(Function));
 
   const unfinishedPass = runPass([unfinished], base);
   expect(unfinishedPass.toolErrors).toEqual([]);

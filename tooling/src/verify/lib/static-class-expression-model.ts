@@ -41,12 +41,7 @@ export function importedSource(project: Project, from: SourceFile, moduleName: s
     candidates.add(raw.replace(/\.(?:[cm]?ts|tsx)$/u, ".ts"));
     candidates.add(raw.replace(/\.(?:[cm]?ts|tsx)$/u, ".tsx"));
   }
-  for (const candidate of candidates) {
-    const source = project.getSourceFile(candidate);
-    if (source !== undefined) {
-      return source;
-    }
-  }
+  return [...candidates].map((candidate) => project.getSourceFile(candidate)).find((source): source is SourceFile => source !== undefined);
 }
 
 function localImportDeclarations(source: SourceFile, name: string): Node[] {
@@ -140,6 +135,26 @@ function shiftSegments(segments: readonly StaticClassSegment[], by: number): Sta
 
 export function combine(left: StaticValue, right: StaticValue): StaticValue {
   return { value: `${left.value}${right.value}`, segments: [...left.segments, ...shiftSegments(right.segments, left.value.length)] };
+}
+
+/** Preserve producer coordinates while applying a built-in string slice to a proven static value. */
+export function sliceStaticValue(value: StaticValue, start: number, end: number): StaticValue {
+  const segments = value.segments.flatMap((segment): StaticClassSegment[] => {
+    const overlapStart = Math.max(segment.valueStart, start);
+    const overlapEnd = Math.min(segment.valueEnd, end);
+    if (overlapStart >= overlapEnd) {
+      return [];
+    }
+    return [
+      {
+        node: segment.node,
+        valueStart: overlapStart - start,
+        valueEnd: overlapEnd - start,
+        sourceStart: segment.sourceStart + overlapStart - segment.valueStart,
+      },
+    ];
+  });
+  return { value: value.value.slice(start, end), segments };
 }
 
 export function dedupeValues(values: readonly StaticValue[]): StaticValue[] {

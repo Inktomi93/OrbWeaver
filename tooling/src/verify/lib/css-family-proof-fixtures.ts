@@ -1,5 +1,5 @@
 // Shared builders for the gate's exact-census and shell-producer controls.
-import { CLIENT_GLOBALS, SHELL, THEME, TIERS, UI_GLOBALS } from "./css-family-census.ts";
+import { CLIENT_GLOBALS, SHELL, THEME, TIERS, UI_GLOBALS } from "../contract/css-family.ts";
 
 interface CensusControlCounts {
   readonly themeDirect: number;

@@ -1,7 +1,7 @@
 // Cycle-fenced static class VALUE evaluator. Exact values preserve producer segments; unsupported static
 // shapes are unresolved, while genuine runtime leaves are counted opaque and partial templates retain
 // the prefix proven before their first runtime substitution.
-import type { ImportDeclaration, Project } from "ts-morph";
+import type { ImportClause, ImportDeclaration, Project, SourceFile } from "ts-morph";
 import { Node, VariableDeclarationKind } from "ts-morph";
 import { evalComposerCall } from "./static-class-collections.ts";
 import { ComposerResolver } from "./static-class-composer.ts";
@@ -13,6 +13,7 @@ import {
   importedSource,
   literalValue,
   localDeclarations,
+  sliceStaticValue,
   uniqueNodes,
   unwrap,
 } from "./static-class-expression-model.ts";
@@ -33,7 +34,7 @@ export interface StaticClassResolvers {
 }
 
 export class StaticClassEvaluator implements CollectionHost {
-  readonly runtimePrefixes: RuntimeClassPrefix[] = [];
+  readonly runtimePrefixes: Omit<RuntimeClassPrefix, "consumers">[] = [];
   readonly unresolved: Array<{ readonly node: Node; readonly reason: string }> = [];
   readonly opaque: Array<{ readonly node: Node; readonly reason: string }> = [];
   readonly project: Project;
@@ -41,10 +42,12 @@ export class StaticClassEvaluator implements CollectionHost {
   readonly jsxBindings: JsxBindingResolver;
 
   private readonly diagnosticKeys = new Set<string>();
-  private readonly prefixKeys = new Set<string>();
+  private readonly sourceSet: ReadonlySet<SourceFile>;
+  private readonly importDefinitionCache = new Map<string, readonly Node[]>();
 
   constructor(project: Project, files: readonly import("ts-morph").SourceFile[] = project.getSourceFiles(), resolvers?: StaticClassResolvers) {
     this.project = project;
+    this.sourceSet = new Set(files);
     if (resolvers === undefined) {
       this.composers = new ComposerResolver(project);
       this.jsxBindings = new JsxBindingResolver(project, files);
@@ -148,8 +151,47 @@ export class StaticClassEvaluator implements CollectionHost {
     if (composer !== undefined && composer !== "tv-factory" && composer !== "join-factory") {
       return evalComposerCall(this, node, composer, path);
     }
+    const trimmed = this.evalStringTrim(node, path);
+    if (trimmed !== undefined) {
+      return trimmed;
+    }
     this.diagnose("opaque", node, "runtime call result");
     return [];
+  }
+
+  /** String trimming is value-preserving for class provenance. On a mixed runtime template only the
+   * leading edge is knowable; trailing whitespace may become an internal separator once the tail lands. */
+  private evalStringTrim(node: import("ts-morph").CallExpression, path: Set<Node>): StaticValue[] | undefined {
+    const expression = node.getExpression();
+    if (!Node.isPropertyAccessExpression(expression) || node.getArguments().length > 0) {
+      return;
+    }
+    const operation = expression.getName();
+    if (operation !== "trim" && operation !== "trimStart" && operation !== "trimEnd") {
+      return;
+    }
+    const receiver = expression.getExpression();
+    const type = receiver.getType();
+    if (!(type.isString() || type.isStringLiteral())) {
+      return;
+    }
+    const prefixStart = this.runtimePrefixes.length;
+    const values = this.evalClass(receiver, path);
+    for (let index = prefixStart; index < this.runtimePrefixes.length; index += 1) {
+      const prefix = this.runtimePrefixes[index];
+      if (prefix === undefined || operation === "trimEnd") {
+        continue;
+      }
+      const trimmedStart = prefix.prefix.trimStart();
+      const start = prefix.prefix.length - trimmedStart.length;
+      const sliced = sliceStaticValue({ value: prefix.prefix, segments: prefix.segments }, start, prefix.prefix.length);
+      this.runtimePrefixes[index] = { prefix: sliced.value, segments: sliced.segments };
+    }
+    return values.map((value) => {
+      const start = operation === "trimEnd" ? 0 : value.value.length - value.value.trimStart().length;
+      const end = operation === "trimStart" ? value.value.length : value.value.trimEnd().length;
+      return sliceStaticValue(value, start, end);
+    });
   }
 
   private evalTemplate(node: import("ts-morph").TemplateExpression, path: Set<Node>): StaticValue[] {
@@ -171,6 +213,11 @@ export class StaticClassEvaluator implements CollectionHost {
     const beforeUnresolved = this.unresolved.length;
     const substitutions = this.evalClass(expression, path);
     if (substitutions.length > 0) {
+      if (this.opaque.length > beforeOpaque) {
+        for (const prefix of prefixes) {
+          this.addRuntimePrefix(prefix);
+        }
+      }
       return substitutions;
     }
     if (this.opaque.length > beforeOpaque) {
@@ -197,12 +244,7 @@ export class StaticClassEvaluator implements CollectionHost {
     if (prefix.value.length === 0) {
       return;
     }
-    const anchor = prefix.segments[0];
-    const key = `${prefix.value}|${anchor?.node.getSourceFile().getFilePath() ?? ""}:${anchor?.sourceStart ?? -1}`;
-    if (!this.prefixKeys.has(key)) {
-      this.prefixKeys.add(key);
-      this.runtimePrefixes.push({ prefix: prefix.value, segments: prefix.segments });
-    }
+    this.runtimePrefixes.push({ prefix: prefix.value, segments: prefix.segments });
   }
 
   private product(left: readonly StaticValue[], right: readonly StaticValue[]): StaticValue[] {
@@ -305,16 +347,41 @@ export class StaticClassEvaluator implements CollectionHost {
 
   private evalImport(target: ImportTarget, path: Set<Node>): StaticValue[] {
     const source = importedSource(this.project, target.from, target.moduleName);
-    if (source === undefined) {
+    const declarations = source === undefined ? this.workspaceImportDeclarations(target.anchor) : exportedDeclarations(this.project, source, target.imported);
+    if (source === undefined && declarations.length === 0) {
       this.diagnose("opaque", target.anchor, `external class value import from ${target.moduleName}`);
       return [];
     }
-    const declarations = exportedDeclarations(this.project, source, target.imported);
     if (declarations.length === 0) {
       this.diagnose("unresolved", target.anchor, `imported class value ${target.imported} has no resolved export`);
       return [];
     }
     return dedupeValues(declarations.flatMap((declaration) => this.evalDeclaration(declaration, path)));
+  }
+
+  /** Resolve package-export and package-import aliases only when TypeScript lands on a source file in this
+   * collector's admitted workspace set. Third-party declarations remain opaque. */
+  private workspaceImportDeclarations(anchor: Node): readonly Node[] {
+    const key = `${anchor.getSourceFile().getFilePath()}:${anchor.getStart()}`;
+    const cached = this.importDefinitionCache.get(key);
+    if (cached !== undefined) {
+      return cached;
+    }
+    let identifier: import("ts-morph").Identifier | undefined;
+    if (Node.isImportSpecifier(anchor)) {
+      const name = anchor.getNameNode();
+      identifier = Node.isIdentifier(name) ? name : undefined;
+    } else if (anchor.getKindName() === "ImportClause") {
+      identifier = (anchor as ImportClause).getDefaultImport();
+    }
+    const declarations = uniqueNodes(
+      (identifier?.getDefinitions() ?? []).flatMap((definition) => {
+        const declaration = definition.getDeclarationNode();
+        return declaration !== undefined && this.sourceSet.has(declaration.getSourceFile()) ? [declaration] : [];
+      }),
+    );
+    this.importDefinitionCache.set(key, declarations);
+    return declarations;
   }
 
   private evalExportSpecifier(specifier: import("ts-morph").ExportSpecifier, path: Set<Node>): StaticValue[] {
