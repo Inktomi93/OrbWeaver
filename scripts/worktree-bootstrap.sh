@@ -23,7 +23,9 @@ pnpm install
 
 # 2. Provision .env from the main checkout if this worktree lacks one.
 if [ ! -e .env ]; then
-  MAIN="$(git worktree list --porcelain | awk '/^worktree /{print $2; exit}')"
+  # Consume the full inventory: an early awk exit closes the pipe while git may still be writing, and
+  # pipefail turns git's SIGPIPE into a bootstrap failure before .env and agent memory are provisioned.
+  MAIN="$(git worktree list --porcelain | awk '/^worktree / && !seen++ {print $2}')"
   if [ -n "${MAIN:-}" ] && [ "$MAIN" != "$ROOT" ] && [ -e "$MAIN/.env" ]; then
     ln -sfn "$MAIN/.env" .env
     echo "  ↳ linked .env → $MAIN/.env"
