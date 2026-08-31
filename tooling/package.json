@@ -29,5 +29,8 @@
     "remark-gfm": "catalog:",
     "sharp": "catalog:",
     "ts-morph": "catalog:"
+  },
+  "devDependencies": {
+    "@tailwindcss/oxide": "catalog:"
   }
 }

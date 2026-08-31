@@ -105,6 +105,9 @@ catalogs:
     '@stryker-mutator/vitest-runner':
       specifier: 10.0.0
       version: 10.0.0
+    '@tailwindcss/oxide':
+      specifier: ^4.3.3
+      version: 4.3.3
     '@tailwindcss/vite':
       specifier: ^4.3.3
       version: 4.3.3
@@ -897,6 +900,10 @@ importers:
       ts-morph:
         specifier: 'catalog:'
         version: 28.0.0
+    devDependencies:
+      '@tailwindcss/oxide':
+        specifier: 'catalog:'
+        version: 4.3.3
 
 packages:
 
