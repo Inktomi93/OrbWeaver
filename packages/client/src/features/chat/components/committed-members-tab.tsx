@@ -133,29 +133,36 @@ export function CommittedMembersTab({ chatId, chat, isHost, multiHumanCapable }:
         // capability that has nothing to do with the multi-human deployment flag.
         castAction={
           isHost ? (
-            <Row align="center" gap="tight">
-              {/* #26 — the saved-roster door (B10: apply-existing = Members "Rosters…"): the picker is the destination
+            // `flex-wrap` + `justify="end"`: at the narrowest real pane the two doors cannot share a line
+            // either, so they STACK — still trailing, still with their whole words. The panel's
+            // `SectionHeader` owns the outer wrap and the trailing edge (its `ms-auto`); this Row owns only
+            // the pair's own line-breaking.
+            <Row align="center" className="flex-wrap" gap="tight" justify="end">
+              {/* #26 — the saved-roster door (B10: apply-existing = Members "Saved rosters…"): the picker is the destination
                   (openModal, never a feature import); applying and "Save this room's roster" both live inside it, scoped to THIS open room.
 
-                  IT SAYS *SAVED* — via the dialog it opens, not the button (#899 N6, post-fix verification
-                  2026-08-30; retargeted to "roster" vocabulary #902 C1, and re-shortened here because
-                  `Saved rosters…` — one character longer than the retired `Saved casts…` — re-tripped this
-                  file's own 320px context-pane overflow pin). Beside it sits `AddMemberPopover`'s "Add a
-                  character", 4px away, and a cold reader could not tell the two apart before the vocabulary
-                  split: "cast" was insider vocabulary for a STORED GROUP, and next to "a character" it read
-                  as the same verb on a vaguer noun. The discriminator is what each door actually opens —
-                  this one applies a group you saved earlier, the other picks one existing character — so
-                  the visible words name the DESTINATION vs the OBJECT: this one opens the dialog titled
-                  "Saved rosters" (the button names the KIND, the dialog title carries the full "Saved"
-                  framing — the house's own "the picker is the destination" rule, at the width this pane
-                  actually has), the other picks one existing character. The accessible name is the visible
-                  text in both (no `aria-label` on either), so 2.5.3 holds by construction.
-                  `Rosters…`, not `Saved rosters…` or `Add a saved roster…`: both longer spellings push the
-                  two-door cluster past the 320px context-pane floor, and that file's own overflow pin
-                  caught it — a label a cold reader can parse is worth nothing if it escapes the pane. */}
+                  IT SAYS *SAVED* ON THE BUTTON (#899 N6; retargeted to "roster" vocabulary #902 C1). Beside
+                  it sits `AddMemberPopover`'s "Add a character", 4px away, and a cold reader could not tell
+                  the two apart before the vocabulary split: "cast" was insider vocabulary for a STORED
+                  GROUP, and next to "a character" it read as the same verb on a vaguer noun. The
+                  discriminator is what each door actually opens — this one applies a group you saved
+                  earlier, the other picks one existing character — so the visible words name the
+                  DESTINATION vs the OBJECT. The accessible name is the visible text in both (no
+                  `aria-label` on either), so 2.5.3 holds by construction.
+
+                  THE SHORT `Rosters…` SPELLING IS RETIRED, AND IT NEVER BOUGHT WHAT IT COST (#912, owner
+                  ruling 2026-08-30). #902 C1 shortened this label to clear a 320px overflow whose measured
+                  right edge was 329.75px; MEASURED on the shipped tree afterwards, the cluster's right edge
+                  at 320px was STILL 329.75px and this file's own pin was RED on main — the word was spent
+                  and the defect kept. The constraint was never the label, it was that the header Row could
+                  not wrap: the kicker and the two doors are one unbreakable line, so every mandated word
+                  one character longer re-opened the negotiation. `members-panel.tsx` now wraps that Row and
+                  this cluster wraps within it, which is what makes the honest spelling affordable at every
+                  width the pane can be. The budget the words are priced against is recorded in
+                  `members-panel.tsx`'s header — read it before changing either label. */}
               <Button type="button" intent="ghost" size="sm" onClick={(): void => openModal("savedRosters")}>
                 <Icon icon={Users} size="sm" />
-                Rosters…
+                Saved rosters…
               </Button>
               <AddMemberPopover chatId={chatId} existingCharacterIds={[...participantIdByCharacter.keys()]} />
             </Row>

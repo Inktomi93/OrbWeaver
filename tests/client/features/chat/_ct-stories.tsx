@@ -2609,9 +2609,14 @@ export interface CommittedMembersTabStoryProps {
   /** Seats the room's sole character ALREADY MUTED — the state a group room could leave behind, and the
    *  reason mute keeps an exit in a solo room (committed-members-tab.tsx). */
   readonly mutedSoloSeat?: boolean;
-  /** The mount's width. Defaults to 420; pass the 320px CONTEXT-PANE FLOOR (`--dimension-panel`'s low
-   *  clamp less the body's inline padding) to measure the CAST header's door cluster where it is
-   *  narrowest — a wide mount agrees with an overflow bug (#848). */
+  /** The mount's CONTENT-BOX width — what the members panel actually gets, i.e. the context pane's track
+   *  less the bracket body's `px-row`. Defaults to 420. The real range is **256…464**: 256 =
+   *  `--dimension-panel-context`'s 17rem clamp floor − 16, 464 = its 30rem ceiling − 16, and the phone
+   *  sheet (100dvw − 16) lands inside it. The `.ct.tsx` sweeps that MATRIX rather than one width — a wide
+   *  mount agrees with an overflow bug (#848) and a single width endorsed a label compression that did not
+   *  even clear the overflow it was spent on (#912). The earlier "320px = `--dimension-panel`'s low clamp
+   *  less padding" note here was arithmetically wrong twice over (that is the LIST pane's token, and its
+   *  low clamp is 272): 320 is inside the range, not an end of it. */
   readonly width?: number;
 }
 
