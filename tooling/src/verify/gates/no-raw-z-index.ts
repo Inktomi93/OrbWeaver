@@ -105,7 +105,7 @@ export const gate: GateDescriptor = {
           file: TOKEN_SOURCE,
           line: 0,
           column: 0,
-          message: `z-index vocabulary is unreadable at ${TOKEN_SOURCE}; the gate cannot prove that its recommended tokens exist.`,
+          message: `z-index vocabulary is unreadable at ${TOKEN_SOURCE}; the gate cannot prove that its recommended tokens exist. See packages/ui/src/tokens/tokens.json.`,
         });
       }
       return;
@@ -117,7 +117,7 @@ export const gate: GateDescriptor = {
         file: TOKEN_SOURCE,
         line: 0,
         column: 0,
-        message: `z-index vocabulary drift: gate recommends [${expected.join(", ")}], tokens.json defines [${live.join(", ")}]. Update the governed vocabulary and its controls together.`,
+        message: `z-index vocabulary drift: gate recommends [${expected.join(", ")}], tokens.json defines [${live.join(", ")}]. Update the governed vocabulary and its controls together at packages/ui/src/tokens/tokens.json.`,
       });
     }
   },
