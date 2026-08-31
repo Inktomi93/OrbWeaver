@@ -9,6 +9,7 @@ import type { BlurSurface, SurfaceTexture } from "@orb/contracts/settings";
 import type { ThemeDensity } from "@orb/contracts/theme";
 import type { MessageRole } from "@orb/kit/message-role";
 import { Surface } from "@orb/ui/layout";
+import { ThemeScope } from "@orb/ui/theme-scope";
 import type { ReactElement } from "react";
 import { useAppearanceRootEffects } from "../../../../packages/client/src/features/app-shell/hooks/use-appearance-root-effects.ts";
 
@@ -47,8 +48,8 @@ export interface ShellCascadeFixtureProps {
 /**
  * Stamps attrs exactly where production stamps them: `data-blur-*` on the DOCUMENT ROOT via the real
  * `useAppearanceRootEffects` hook (app-shell.tsx never stamps these itself — a modal popup is portalled
- * OUT of the grid, so a wrapper-scoped stamp could not reach it), `data-elevation`/`data-has-bg-image`/
- * `data-density` on the `.shell-grid` element (app-shell.tsx does this directly). The probes cover every
+ * OUT of the grid, so a wrapper-scoped stamp could not reach it), `data-elevation`/`data-has-bg-image` on
+ * `.shell-grid`, and density on the common ThemeScope ancestor of the grid and portal root. The probes cover every
  * surface named in the bug report: panel, main, topbar, composer, a message bubble (chrome vs "dense"
  * reading-surface fill), and the two dialog popup slots.
  *
@@ -90,12 +91,11 @@ export function ShellCascadeFixture({
     reducedMotion: false,
   });
   return (
-    <>
+    <ThemeScope tokens={{ density }} className="contents">
       <div
         className="shell-grid"
         data-testid="shell-grid"
         data-elevation={elevation}
-        data-density={density}
         {...(hasBgImage ? { "data-has-bg-image": "" } : {})}
         {...(section === undefined ? {} : { "data-section": section })}
       >
@@ -142,7 +142,7 @@ export function ShellCascadeFixture({
         <div data-slot="dialog-popup" data-testid="dialog-probe" />
         <div data-slot="alert-dialog-popup" data-testid="alert-dialog-probe" />
       </div>
-    </>
+    </ThemeScope>
   );
 }
 
@@ -179,8 +179,8 @@ export function OverArtGlassCensusFixture({ dataTheme = null }: { readonly dataT
     reducedMotion: false,
   });
   return (
-    <>
-      <div className="shell-grid" data-has-bg-image="" data-section="config" data-density="comfortable" data-elevation="flat">
+    <ThemeScope tokens={{ density: "comfortable" }} className="contents">
+      <div className="shell-grid" data-has-bg-image="" data-section="config" data-elevation="flat">
         <div className="shell-panel" data-panel-side="list" data-testid="census-panel" style={{ ...CENSUS_PROBE, left: 0 }} />
         <div className="shell-main" data-testid="census-main" style={{ ...CENSUS_PROBE, left: "220px" }} />
         <div data-slot="composer" data-testid="census-composer" style={{ ...CENSUS_PROBE, left: "440px" }} />
@@ -189,7 +189,7 @@ export function OverArtGlassCensusFixture({ dataTheme = null }: { readonly dataT
       <div className="contents" data-slot="portal-root">
         <div data-slot="dialog-popup" data-testid="census-dialog" style={{ ...CENSUS_PROBE, left: "660px" }} />
       </div>
-    </>
+    </ThemeScope>
   );
 }
 
@@ -202,10 +202,9 @@ const GRAIN_CARD_STYLE = { width: "200px", height: "200px", background: "#808080
 /**
  * The #435 double-paint fixture: ONE card inside `.shell-grid` and one OUTSIDE it, under `data-texture`.
  *
- * The outside card stands in for a PORTALLED one. Dialog/AlertDialog portal to `document.body`, so a
- * portalled card is simply not a `.shell-grid` descendant — which is the only property the grain
- * selectors discriminate on. A plain sibling of the grid reproduces that exactly, without a portal's
- * mount timing in the way.
+ * The outside card stands in for a PORTALLED one. Production portals land in a themed root that is a
+ * `.shell-grid` sibling, so a portalled card is not a grid descendant — the only property the grain
+ * selectors discriminate on. A plain sibling reproduces that exactly without portal mount timing.
  */
 export function GrainDoublePaintFixture({ surfaceTexture = "grain" }: { readonly surfaceTexture?: SurfaceTexture }): ReactElement {
   useAppearanceRootEffects({

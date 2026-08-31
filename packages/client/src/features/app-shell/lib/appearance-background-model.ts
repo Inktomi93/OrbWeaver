@@ -3,6 +3,7 @@
 // neither imports the other. The `(anchor, subId)` pair is byte-identical to the pre-split pane's own subcategory
 // (§7.1).
 
+import { APPEARANCE_OWNER_KEYS } from "#lib";
 import type { ConfigSubcategory } from "#state";
 
 export const APPEARANCE_BACKGROUND_SUBCATEGORY: ConfigSubcategory = {
@@ -55,14 +56,4 @@ export const APPEARANCE_BACKGROUND_SUBCATEGORY: ConfigSubcategory = {
  *  by construction, and the door's `assertSettingsKeyPartition` proves the namespace stays a partition.
  *  Lives beside the nav entry (both are this section's non-JSX identity data, shared by the def and the
  *  body without either importing the other). */
-export const APPEARANCE_BACKGROUND_KEYS = [
-  "backgroundImageKind",
-  "backgroundSeededId",
-  "backgroundAssetId",
-  "backgroundAssetHash",
-  "backgroundAssetMime",
-  "backgroundLibrary",
-  "backgroundFit",
-  "backgroundDim",
-  "backgroundBlur",
-] as const;
+export const APPEARANCE_BACKGROUND_KEYS = APPEARANCE_OWNER_KEYS.background;

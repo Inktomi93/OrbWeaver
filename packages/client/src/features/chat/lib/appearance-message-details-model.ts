@@ -7,6 +7,7 @@
 // behind it. The `message-details` anchor id is unchanged (§7.1); the absorbed sub's search LEAF (`message-actions`)
 // travels here intact (§7.2), so the fuzzy jump still lands on a real anchor.
 
+import { APPEARANCE_OWNER_KEYS } from "#lib";
 import type { ConfigSubcategory } from "#state";
 
 export const APPEARANCE_MESSAGE_DETAILS_SUBCATEGORY: ConfigSubcategory = {
@@ -83,13 +84,4 @@ export const APPEARANCE_MESSAGE_DETAILS_SUBCATEGORY: ConfigSubcategory = {
  *  by construction, and the door's `assertSettingsKeyPartition` proves the namespace stays a partition.
  *  Lives beside the nav entry (both are this section's non-JSX identity data, shared by the def and the
  *  body without either importing the other). */
-export const APPEARANCE_MESSAGE_DETAILS_KEYS = [
-  "showTimestamps",
-  "showMessageId",
-  "showModelIcon",
-  "showTokenCount",
-  "showGenerationTimer",
-  "showGenerationCost",
-  "showLLMReasoningIcon",
-  "messageActions",
-] as const;
+export const APPEARANCE_MESSAGE_DETAILS_KEYS = APPEARANCE_OWNER_KEYS["message-details"];

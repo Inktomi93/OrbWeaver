@@ -11,6 +11,7 @@ import { THEME_CHAT_STYLES } from "@orb/contracts/theme";
 import type { CharacterId, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
+import { ThemeScope } from "@orb/ui/theme-scope";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
@@ -1211,7 +1212,8 @@ test("#204 over art, metadata gloss steps up to the FULL foreground (the muted b
   // sits on the 0.65α reading plate, where the muted band mathematically cannot clear worst-case art on
   // either polarity (the last P1 of the #204 audit, 4.35:1). The `[data-slot^="message-metadata-"]`
   // step-up rule (client globals.css) lifts every metadata datum to the derived foreground — the ink the
-  // plate's alpha floor is proven for. Without art the quiet voice stays muted (asserted second).
+  // plate's alpha floor is proven for. The outside/tide header keeps the quiet voice without art; an
+  // inside header instead inherits its independently-picked role bubble ink (#935 custom-light receipt).
   const overArt = await mount(
     <div data-has-bg-image="">
       <MessageRowStory
@@ -1230,7 +1232,7 @@ test("#204 over art, metadata gloss steps up to the FULL foreground (the muted b
   await overArt.unmount();
   const plain = await mount(
     <MessageRowStory
-      chatStyle="bubble"
+      chatStyle="tide"
       messageRole="assistant"
       characterId={ALICE_ID}
       participants={[alice()]}
@@ -2064,6 +2066,61 @@ for (const theme of ["light", "mocha"] as const) {
       .toEqual(parseOklch(await cssVar(bubble, "--color-ai-bubble")));
   });
 }
+
+test("#935 custom-light inside headers inherit the role bubble's paired ink, not base/speaker ink", async ({ mount }) => {
+  const tokens = {
+    background: "oklch(0.97 0.004 80)",
+    userBubble: { bg: "oklch(0.18 0.02 40)" },
+    aiBubble: { bg: "oklch(0.21 0.02 250)" },
+    speaker: "oklch(0.24 0.02 40)",
+  } as const;
+  const cases = [
+    {
+      role: "user" as const,
+      row: (
+        <MessageRowStory
+          chatStyle="bubble"
+          messageRole="user"
+          personaId={NATE_PERSONA_ID}
+          personas={[{ id: NATE_PERSONA_ID, name: "Traveler" }]}
+          metadataVisibility={meta({ showTimestamps: true })}
+        />
+      ),
+    },
+    {
+      role: "assistant" as const,
+      row: (
+        <MessageRowStory
+          chatStyle="bubble"
+          messageRole="assistant"
+          characterId={ALICE_ID}
+          participants={[{ ...alice(), themeOverride: { speaker: tokens.speaker } }]}
+          metadataVisibility={meta({ showTimestamps: true })}
+        />
+      ),
+    },
+  ];
+
+  for (const arm of cases) {
+    // The real failing room carries wallpaper. That activates client globals' unlayered metadata step-up,
+    // which outranks layered utilities and must itself narrow back to the inside bubble's paired ink.
+    const component = await mount(
+      <div data-has-bg-image="">
+        <ThemeScope tokens={tokens}>{arm.row}</ThemeScope>
+      </div>,
+    );
+    const bubble = component.locator(BUBBLE).first();
+    // Assert the rendered carrier, not the relative-colour token's unresolved serialization. The bubble
+    // is the surface and its computed `color` is the role-paired ink every nested header datum must ride.
+    const expected = parseOklch(await bubble.evaluate((el) => getComputedStyle(el).color));
+    const name = component.locator(`${ATTRIBUTION} span`).last();
+    const timestamp = component.locator(TIMESTAMP);
+
+    await expect.poll(async () => parseOklch(await name.evaluate((el) => getComputedStyle(el).color))).toEqual(expected);
+    await expect.poll(async () => parseOklch(await timestamp.evaluate((el) => getComputedStyle(el).color))).toEqual(expected);
+    await component.unmount();
+  }
+});
 
 // ST's user-side header is MIRRORED (`datetime · name · actions`, packed to the trailing edge) — the
 // report's :219 MINOR row. Taken here rather than deferred, but as PAINT: the identity cluster reverses

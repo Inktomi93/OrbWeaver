@@ -4,6 +4,7 @@
 // owned-key tuple below). The `(anchor, subId)` pair is byte-identical to the pre-split pane's own subcategory
 // (§7.1).
 
+import { APPEARANCE_OWNER_KEYS } from "#lib";
 import type { ConfigSubcategory } from "#state";
 
 export const APPEARANCE_AVATARS_SUBCATEGORY: ConfigSubcategory = {
@@ -54,4 +55,4 @@ export const APPEARANCE_AVATARS_SUBCATEGORY: ConfigSubcategory = {
  *  by construction, and the door's `assertSettingsKeyPartition` proves the namespace stays a partition.
  *  Lives beside the nav entry (both are this section's non-JSX identity data, shared by the def and the
  *  body without either importing the other). */
-export const APPEARANCE_AVATARS_KEYS = ["showInChatAvatars", "avatarSize", "avatarShape", "avatarAspect", "avatarRing"] as const;
+export const APPEARANCE_AVATARS_KEYS = APPEARANCE_OWNER_KEYS.avatars;

@@ -9,6 +9,7 @@
 // id is unchanged (§7.1); every absorbed search LEAF travels here intact (§7.2), so a fuzzy jump for "reduce motion"
 // or "density" still lands on a real anchor.
 
+import { APPEARANCE_OWNER_KEYS } from "#lib";
 import type { ConfigSubcategory } from "#state";
 
 export const APPEARANCE_SIZING_SUBCATEGORY: ConfigSubcategory = {
@@ -75,4 +76,4 @@ export const APPEARANCE_SIZING_SUBCATEGORY: ConfigSubcategory = {
  *  by construction, and the door's `assertSettingsKeyPartition` proves the namespace stays a partition.
  *  Lives beside the nav entry (both are this section's non-JSX identity data, shared by the def and the
  *  body without either importing the other). */
-export const APPEARANCE_SIZING_KEYS = ["chatWidthPct", "fontScale", "density", "elevation", "reducedMotion"] as const;
+export const APPEARANCE_SIZING_KEYS = APPEARANCE_OWNER_KEYS.sizing;

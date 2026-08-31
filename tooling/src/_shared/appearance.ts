@@ -27,10 +27,10 @@
 // motion-audit/perf-meter already pass `reducedMotion:false` (the media query) and STILL measured a frozen
 // app, because the app setting said reduce. They compose; neither implies the other.
 //
-// BOOT PATH: today the app has no pre-createRoot device-local reduced-motion hint — `data-reduced-motion`
-// is stamped by `useAppearanceRootEffects` (a layout effect fed by THIS query, moved to <html> in
-// 110a43715), so intercepting the query is the whole story. If a localStorage boot hint is ever added, seed
-// it here alongside the interception (snap's `--ls` seeds run through the same context).
+// BOOT PATH: the app replays fontScale/reducedMotion before createRoot and seeds density into React's first
+// ThemeScope commit from `orb:appearance-boot`. Intercepting the query alone would therefore measure a
+// stale first frame. `installSettingsShim` seeds exactly those carried axes before navigation; the
+// appearance-carrier-contract gate keeps this copied browser boundary set-equal to the live manifest.
 import { readFileSync } from "node:fs";
 import type { BrowserContext, Route } from "@playwright/test";
 import { warn } from "./log.ts";
@@ -54,6 +54,49 @@ export type SettingsPatch = Readonly<Record<string, unknown>>;
 
 /** Parse outcome: a patch, or a stated reason (the caller turns it into an ARG ERROR — EXIT.misuse). */
 export type AppearanceParse = { readonly patch: AppearancePatch } | { readonly error: string };
+
+/** The appearance values remembered before React. `dataTheme` is a separate selected-theme axis. */
+export interface AppearanceBootHintPatch {
+  readonly reducedMotion?: unknown;
+  readonly fontScale?: unknown;
+  readonly density?: unknown;
+}
+
+const APPEARANCE_BOOT_HINT_KEY = "orb:appearance-boot";
+const APPEARANCE_BOOT_HINT_VERSION = 1;
+
+/** Project an arbitrary Snap patch onto the app's actual first-frame Appearance subset. */
+export function appearanceBootHintPatch(patch: AppearancePatch): AppearanceBootHintPatch {
+  return {
+    ...(Object.hasOwn(patch, "reducedMotion") ? { reducedMotion: patch["reducedMotion"] } : {}),
+    ...(Object.hasOwn(patch, "fontScale") ? { fontScale: patch["fontScale"] } : {}),
+    ...(Object.hasOwn(patch, "density") ? { density: patch["density"] } : {}),
+  };
+}
+
+async function seedAppearanceBootHint(context: BrowserContext, patch: AppearancePatch): Promise<void> {
+  const axes = appearanceBootHintPatch(patch);
+  if (Object.keys(axes).length === 0) {
+    return;
+  }
+  await context.addInitScript(
+    ({ axes: requested, key, version }) => {
+      let current: unknown;
+      // @orb-gate-ignore caught-failure-ownership(default:catch): a malformed optional device hint is replaced by the requested probe axes; the app re-validates the result through appearanceSettingsSchema. Ends if the hint becomes authoritative.
+      try {
+        current = JSON.parse(localStorage.getItem(key) ?? "null") as unknown;
+      } catch {
+        current = null;
+      }
+      const state =
+        typeof current === "object" && current !== null && "state" in current && typeof current.state === "object" && current.state !== null
+          ? current.state
+          : {};
+      localStorage.setItem(key, JSON.stringify({ state: { ...state, ...requested }, version }));
+    },
+    { axes, key: APPEARANCE_BOOT_HINT_KEY, version: APPEARANCE_BOOT_HINT_VERSION },
+  );
+}
 
 /** `--full-motion` is exactly this patch — the flag a motion sweep actually types. */
 export const FULL_MOTION_PATCH: AppearancePatch = { reducedMotion: false };
@@ -336,6 +379,9 @@ export async function installSettingsShim(context: BrowserContext, shim: Setting
   };
   if (shim.appearance === null && shim.theme === null) {
     return evidence;
+  }
+  if (shim.appearance !== null) {
+    await seedAppearanceBootHint(context, shim.appearance);
   }
   const resolveThemeId = shim.theme === null ? null : themeResolver(shim.theme);
   await context.route(TRPC_ROUTE_GLOB, async (route: Route) => {

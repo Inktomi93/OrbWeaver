@@ -19,6 +19,7 @@ import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import type { ReactElement, ReactNode } from "react";
+import { cn } from "#lib";
 import type { RowAttribution } from "../lib/attribution.ts";
 import { BG_PHOTO_CHROME_PLATE, STICKY_ATTRIBUTION_CHROME, STICKY_ATTRIBUTION_CHROME_INSIDE } from "../lib/message-row-backing.ts";
 import type { RowSkin } from "../lib/message-row-variants.ts";
@@ -144,7 +145,16 @@ function nameRowFrame(args: {
       data-slot="message-name-row"
       data-placement={args.placement}
       data-sticky={args.stickyAttribution ? "" : undefined}
-      className={headerBacking(args.placement, args.stickyAttribution)}
+      className={cn(
+        headerBacking(args.placement, args.stickyAttribution),
+        // At rest an inside header paints on the role bubble, so every datum must inherit that bubble's
+        // paired foreground. Speaker/gloss inks derive from the scope's BASE and are invalid on an
+        // independently-picked bubble fill. A sticky row paints its own reading band and keeps that
+        // band's base-derived ink instead.
+        args.placement === "inside" &&
+          !args.stickyAttribution &&
+          "[&_[data-slot=message-attribution]_*]:text-inherit [&_[data-slot=message-metadata-timestamp]]:text-inherit",
+      )}
     >
       {args.identity}
       {args.actions === null ? null : (

@@ -8,6 +8,7 @@
 // The `density`/`elevation` leaves moved OUT to the app-shell sizing section — app-shell reads those two knobs, and
 // ownership follows the reader (§6).
 
+import { APPEARANCE_OWNER_KEYS } from "#lib";
 import type { ConfigSubcategory } from "#state";
 
 export const APPEARANCE_MESSAGE_STYLE_SUBCATEGORY: ConfigSubcategory = {
@@ -54,4 +55,4 @@ export const APPEARANCE_MESSAGE_STYLE_SUBCATEGORY: ConfigSubcategory = {
  *  by construction, and the door's `assertSettingsKeyPartition` proves the namespace stays a partition.
  *  Lives beside the nav entry (both are this section's non-JSX identity data, shared by the def and the
  *  body without either importing the other). */
-export const APPEARANCE_MESSAGE_STYLE_KEYS = ["chatStyle", "colorQuotedSpeech", "autoFixMarkdown"] as const;
+export const APPEARANCE_MESSAGE_STYLE_KEYS = APPEARANCE_OWNER_KEYS["message-style"];

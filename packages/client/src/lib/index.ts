@@ -7,6 +7,22 @@
 export type { SeededBackground } from "@orb/contracts/theme";
 export { listSeededBackgrounds, resolveSeededBackgroundUrl } from "@orb/contracts/theme";
 export { cn } from "@orb/ui/lib";
+export type {
+  AppearanceCarrierKey,
+  AppearanceCarrierPlane,
+  AppearanceConsumerBinding,
+  AppearanceEditorOwner,
+  AppearanceLifecycle,
+  AppearancePortalObligation,
+} from "./appearance-carrier-manifest.ts";
+export {
+  APPEARANCE_CARRIER_MANIFEST,
+  APPEARANCE_CARRIER_PLANES,
+  APPEARANCE_EDITOR_OWNERS,
+  APPEARANCE_OWNER_KEYS,
+  appearanceCarrierRowsFor,
+  THEME_CARRIER_OBSERVABLES,
+} from "./appearance-carrier-manifest.ts";
 export { setBootReadPending } from "./boot-reads.ts";
 export { busDupCheck, busInvalidate, busSubscribe, busUnsubscribe } from "./bus-devlog.ts";
 export { deriveChatTitle, UNTITLED_CHAT_TITLE } from "./chat-title.ts";
