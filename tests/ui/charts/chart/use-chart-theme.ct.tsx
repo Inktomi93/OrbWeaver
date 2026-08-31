@@ -11,9 +11,9 @@
 // stayed BYTE-IDENTICAL — chart chrome was stale until the chart remounted. Hence the second assertion:
 // the mount id must be UNCHANGED, or a green here would only prove React threw the subtree away.
 
-import { TOKENS } from "@orb/ui/tokens";
+import { TOKEN_POLARITY_ARMS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { ChartThemeAxisLineReadoutStory, CustomThemeChartAxisLineStory } from "../_ct-stories.tsx";
+import { ChartThemeAxisLineReadoutStory, CustomLightChartRampStory, CustomThemeChartAxisLineStory } from "../_ct-stories.tsx";
 
 /** Each arm's SETTLED value, matched by the CSS function that only that arm can produce: the base
  *  `color.border` token is a bare `oklch()` (`packages/ui/src/tokens/index.ts`), while the shipped
@@ -43,14 +43,49 @@ test("re-resolves chart chrome when the colorization axis flips, with no remount
 
 /** The story's two custom arms — `borderColor` reaches `--color-border` byte-identically, so the readout
  *  must carry each arm's token value verbatim while that arm is in force (`_ct-stories.tsx`). */
-const CUSTOM_ARM_ONE = TOKENS["color.chart-3"].value;
-const CUSTOM_ARM_TWO = TOKENS["color.chart-4"].value;
+const CUSTOM_ARM_ONE = TOKEN_POLARITY_ARMS["color.chart-3"].dark;
+const CUSTOM_ARM_TWO = TOKEN_POLARITY_ARMS["color.chart-4"].dark;
 
 /** The two arms of the seam's OTHER read: a computed `color` is some colour FUNCTION, and specifically NOT
  *  the `light-dark(<light>, <dark>)` token stream a raw custom-property read hands back (which no canvas
  *  can paint — resolving it through the cascade is that path's whole job). */
 const A_COLOR_FUNCTION = /^[a-z-]+\(/;
 const UNRESOLVED_INTENT_TOKEN = /^light-dark\(/;
+
+test("resolves the polarity-aware chart ramp to five concrete Canvas colors on Light", async ({ mount, page }) => {
+  await page.evaluate((): void => {
+    document.documentElement.dataset["theme"] = "light";
+  });
+  const readout = await mount(<ChartThemeAxisLineReadoutStory />);
+  await expect(readout).toHaveAttribute("data-series", TOKEN_POLARITY_ARMS["color.chart-1"].light);
+  await expect
+    .poll(async () => (await readout.getAttribute("data-palette"))?.split("|") ?? [])
+    .toEqual([
+      TOKEN_POLARITY_ARMS["color.chart-1"].light,
+      TOKEN_POLARITY_ARMS["color.chart-2"].light,
+      TOKEN_POLARITY_ARMS["color.chart-3"].light,
+      TOKEN_POLARITY_ARMS["color.chart-4"].light,
+      TOKEN_POLARITY_ARMS["color.chart-5"].light,
+    ]);
+  const serialized = `${await readout.getAttribute("data-series")} ${await readout.getAttribute("data-palette")}`;
+  expect(serialized).not.toContain("light-dark(");
+  expect(serialized).not.toContain("var(");
+});
+
+test("a custom light ThemeScope selects the concrete light chart arms", async ({ mount }) => {
+  const scope = await mount(<CustomLightChartRampStory />);
+  const readout = scope.locator("p[data-series]");
+  await expect(readout).toHaveAttribute("data-series", TOKEN_POLARITY_ARMS["color.chart-1"].light);
+  await expect
+    .poll(async () => (await readout.getAttribute("data-palette"))?.split("|") ?? [])
+    .toEqual([
+      TOKEN_POLARITY_ARMS["color.chart-1"].light,
+      TOKEN_POLARITY_ARMS["color.chart-2"].light,
+      TOKEN_POLARITY_ARMS["color.chart-3"].light,
+      TOKEN_POLARITY_ARMS["color.chart-4"].light,
+      TOKEN_POLARITY_ARMS["color.chart-5"].light,
+    ]);
+});
 
 /** #504 — the marked-resolution-root contract. */
 test("resolves chart chrome from the marked token root, so a custom theme paints its own tokens", async ({ mount, page }) => {

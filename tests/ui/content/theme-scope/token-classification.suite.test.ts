@@ -62,8 +62,9 @@ const SEED_COVERED = new Set<string>(["color.backdrop"]);
 //     floors per palette AND per polarity by the palette-contrast per-value-set sweep.
 //   • sidebar-primary: an unused reserved alias of `primary` (0 consumers — the rail active state reads
 //     `--color-primary` directly). No chrome renders it, so nothing to theme.
-//   • chart-1..5: a categorical data-viz ramp — the five hues are chosen for mutual DISTINGUISHABILITY,
-//     not to track the surface palette; recolouring them off the base would collapse the categories.
+//   • chart-1..5: a polarity-aware categorical data-viz ramp — the five hues are chosen for mutual
+//     DISTINGUISHABILITY, not to track the surface palette. color-scheme selects a contrast-safe arm;
+//     recolouring them off the base would collapse the categories.
 //   • track-1..6: the D71 track ramp (Context-Panel-Program §4.8) — a categorical ramp for
 //     pool/meter/clock FILLS, keyed by definition order for stable per-category color, meaning never
 //     rides color alone. STATIC (semantic, not palette-tracking) like chart-*, but since #697 it is

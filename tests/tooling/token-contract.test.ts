@@ -146,7 +146,7 @@ test("the official schemas are hash-pinned and a complete conformant fixture pas
 test("the real vault is conformant and preserves the exact pre-migration 178-target surface", () => {
   const result = validateTokenContractTexts(readTokenContractTexts(UI_ROOT));
   expect(result.diagnostics).toEqual([]);
-  expect(result.scannedTokens).toBe(272);
+  expect(result.scannedTokens).toBe(278);
   expect(result.cssTargets.size).toBe(178);
   expect(result.cssTargets).toEqual(BASELINE_TARGETS);
   expect(result.themes).toEqual([
@@ -317,7 +317,7 @@ describe("bounded Resolver controls", () => {
       colors["sky-day"] = background;
     });
     const result = validateTokenContractTexts(swapped);
-    expect(result.scannedTokens).toBe(272);
+    expect(result.scannedTokens).toBe(278);
     expect(result.diagnostics.map((item) => item.code)).toContain("seed.members");
   });
 

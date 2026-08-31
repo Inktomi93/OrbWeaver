@@ -5,7 +5,7 @@
 // fails `pnpm test`.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { SEED_THEME_VALUE_SETS, TOKENS } from "@orb/ui/tokens";
+import { SEED_THEME_VALUE_SETS, TOKEN_POLARITY_ARMS, TOKENS } from "@orb/ui/tokens";
 import { AVATAR_HUE_STEPS } from "../../../packages/ui/src/primitives/avatar/hue.ts";
 import { generateArtifacts, renderGeneratedCss } from "../../../packages/ui/tokens.build.ts";
 import { expect, test } from "../../support/fixtures.ts";
@@ -137,7 +137,7 @@ function resolveArm(value: string, scheme: "light" | "dark"): string {
   return scheme === "light" ? (m[1] ?? value) : (m[2] ?? value);
 }
 
-const INTENT_LIGHT_DARK_TOKENS = [
+const LIGHT_DARK_TOKENS = [
   "color.destructive",
   "color.destructive-foreground",
   "color.success",
@@ -145,6 +145,11 @@ const INTENT_LIGHT_DARK_TOKENS = [
   "color.warning",
   "color.warning-foreground",
   "color.info",
+  "color.chart-1",
+  "color.chart-2",
+  "color.chart-3",
+  "color.chart-4",
+  "color.chart-5",
 ] as const;
 
 // highlight + its foreground are POLARITY-INDEPENDENT (a text-mark BACKGROUND, never text) — the former
@@ -152,12 +157,13 @@ const INTENT_LIGHT_DARK_TOKENS = [
 // deliberately NOT light-dark() like the 4 divergent intents above.
 const INTENT_PLAIN_TOKENS = ["color.highlight", "color.highlight-foreground"] as const;
 
-test.each(INTENT_LIGHT_DARK_TOKENS)("%s is a light-dark() token whose BOTH arms are real oklch literals (dark arm = the byte-identical original)", (path) => {
+test.each(LIGHT_DARK_TOKENS)("%s is a light-dark() token whose BOTH arms are real oklch literals (dark arm = the byte-identical original)", (path) => {
   const value = TOKENS[path].value;
   expect(value, `${path} must be a light-dark() value`).toMatch(LIGHT_DARK_RE);
   // Both arms must survive strict parseOklch (the value itself would throw — resolveArm unwraps first).
   expect(() => parseOklch(resolveArm(value, "light"))).not.toThrow();
   expect(() => parseOklch(resolveArm(value, "dark"))).not.toThrow();
+  expect(TOKEN_POLARITY_ARMS[path]).toEqual({ light: resolveArm(value, "light"), dark: resolveArm(value, "dark") });
   // resolveArm on a plain oklch (a surface token) is a pass-through.
   expect(resolveArm(TOKENS["color.card"].value, "light")).toBe(TOKENS["color.card"].value);
 });
