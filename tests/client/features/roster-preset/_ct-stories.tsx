@@ -8,7 +8,7 @@
 //     `width` is a real production mount, not a convenience: the saved-casts dialog measures 366px at
 //     430×932 and its rows 316px, and the row's narrow-width collapse (side-eye 2026-08-29 P1-1) is
 //     invisible at the 480px desktop story (a content-sized mount agrees with the bug).
-//   · `CastPickerHostStory` — a room open that the viewer HOSTS: "Save current cast" + its include-line
+//   · `CastPickerHostStory` — a room open that the viewer HOSTS: "Save this room's roster" + its include-line
 //     (whose loading/error/zero arms the `.ct.tsx` drives through `trpcHold`/`trpcError`) and the
 //     "Add to this chat" door's report.
 //   · `CastMemberEditorStory` — the library editor (`surfaces/cast-member-surface.tsx`).

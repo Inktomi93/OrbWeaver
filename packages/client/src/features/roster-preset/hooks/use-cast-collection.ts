@@ -26,6 +26,6 @@ export function useCastMemberTitle(memberId: string): string | undefined {
  *  authoring door rather than minting an empty row a min-1-member schema would refuse. */
 export function useCreateCastMember(): () => void {
   return (): void => {
-    openModal("savedCasts");
+    openModal("savedRosters");
   };
 }

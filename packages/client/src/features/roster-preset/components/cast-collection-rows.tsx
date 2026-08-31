@@ -34,7 +34,7 @@ function CastLibraryRow({
       actions={{
         name: cast.name,
         onDelete,
-        deleteDescription: "This removes the saved cast only — chats you started from it are untouched.",
+        deleteDescription: "This removes the saved roster only — chats you started from it are untouched.",
       }}
       markers={
         <Text as="span" voice="datum">

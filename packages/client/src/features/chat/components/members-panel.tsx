@@ -38,12 +38,12 @@ import { Text } from "@orb/ui/text";
 import type { KeyboardEvent, ReactElement } from "react";
 import { useEffect, useId, useRef, useState } from "react";
 import { testId } from "#lib";
-import type { MemberCastRow, MemberPersonRow, MemberRowActions } from "../lib/member-rows.ts";
+import type { MemberCharacterRow, MemberPersonRow, MemberRowActions } from "../lib/member-rows.ts";
 import { MemberRow } from "./member-row.tsx";
 
 export interface MembersPanelProps extends MemberRowActions {
   readonly people: readonly MemberPersonRow[];
-  readonly cast: readonly MemberCastRow[];
+  readonly cast: readonly MemberCharacterRow[];
   readonly onInvitePeople?: (() => void) | undefined;
   /** The CAST section header's add door — the character half of the roster's one add/invite affordance
    *  (#162: the tab offered a way to invite humans and no way to add a character, though "add more characters
@@ -75,7 +75,7 @@ function focusWithReassert(el: HTMLElement): void {
   }
 }
 
-type MembersRow = MemberPersonRow | MemberCastRow;
+type MembersRow = MemberPersonRow | MemberCharacterRow;
 
 /** The horizontal step, or 0 for any other key. (A `Record` keyed by the DOM key names would be the §5.5
  *  idiom, but `ArrowRight`/`ArrowLeft` are PascalCase literals the naming-convention rule rejects as object
@@ -247,7 +247,7 @@ export function MembersPanel(props: MembersPanelProps): ReactElement {
     };
   };
 
-  const rowProps = (row: MemberPersonRow | MemberCastRow): ReactElement => (
+  const rowProps = (row: MemberPersonRow | MemberCharacterRow): ReactElement => (
     <MemberRow
       key={row.key}
       row={row}
@@ -283,7 +283,7 @@ export function MembersPanel(props: MembersPanelProps): ReactElement {
             roving tabindex below has always BEHAVED as; until today it said nothing, so the arrow keys that
             are the only route to the Cast rows were undiscoverable by AT and by sighted keyboard users
             alike. The name is the one word the tab that owns this pane does not already say. */}
-        <Stack gap="section" role="toolbar" aria-orientation="vertical" aria-label="Members and cast" onKeyDownCapture={handleKeyDownCapture}>
+        <Stack gap="section" role="toolbar" aria-orientation="vertical" aria-label="Members and characters" onKeyDownCapture={handleKeyDownCapture}>
           {showPeople ? (
             // The section is a GROUP named by its OWN visible kicker (`aria-labelledby`, never a second
             // copy of the word) — "People" and "Cast" are the list's structure, not decoration.
@@ -307,11 +307,11 @@ export function MembersPanel(props: MembersPanelProps): ReactElement {
             <Stack gap="row" data-slot="members-cast" role="group" aria-labelledby={castLabelId}>
               <Row gap="field" align="center" justify="between">
                 <Text as="span" voice="kicker" id={castLabelId}>
-                  Cast
+                  Characters
                 </Text>
                 {props.castAction ?? null}
               </Row>
-              {cast.length === 0 ? <Text>No characters in this chat yet — add one to give the room a cast.</Text> : cast.map(rowProps)}
+              {cast.length === 0 ? <Text>No characters in this chat yet — add one.</Text> : cast.map(rowProps)}
             </Stack>
           ) : null}
         </Stack>

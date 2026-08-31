@@ -289,7 +289,7 @@ export async function renameFirstChatViaRowKebab(page: Page, title: string): Pro
 // only above 1 character, and the Members/Group CONTEXT tabs only when the room is a group (>1 character)
 // — so their PRESENCE is a behavioral assertion about the roster, never a layout claim. ──
 
-const CAST_BAR = '[aria-label="Cast"]';
+const CAST_BAR = '[aria-label="Characters"]';
 const CAST_CHIP = '[data-slot="cast-chip"]';
 
 /** Navigate to `/` and open the chat whose LIST row carries `title` (the row's accessible name leads with

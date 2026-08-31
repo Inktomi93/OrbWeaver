@@ -84,7 +84,7 @@ function human(role: ParticipantRole): Record<string, unknown> {
 }
 
 // A character seat — the fields `resolveIsGroupChat` AND the Members Cast rows read (the §7.1 merge
-// projects displayName/disabled/talkativeness/avatarHash into `MemberCastRow`s).
+// projects displayName/disabled/talkativeness/avatarHash into `MemberCharacterRow`s).
 function character(key: string): Record<string, unknown> {
   return {
     id: `participant_${key}`,

@@ -68,7 +68,7 @@ const PEOPLE_TAB_FLOOR = 2;
  *  before touching either: the roster is not a group affordance, the arbiter's knobs are.
  * @public Test-anchored module surface; focused tests pin this production-local behavior.
  */
-export function castSectionVisible(participants: readonly ParticipantView[]): boolean {
+export function charactersSectionVisible(participants: readonly ParticipantView[]): boolean {
   return filterCharacters(participants).length >= CAST_SECTION_FLOOR;
 }
 
@@ -95,5 +95,5 @@ export function membersTabJustified(participants: readonly ParticipantView[], mu
   const humans = resolveHumanParticipants(participants).length;
   const peopleJustifies = multiHumanCapable && (isHost || humans >= PEOPLE_TAB_FLOOR);
   // The HOST arm is unconditional: they can always add a character, which is the tab's own empty state.
-  return isHost || peopleJustifies || castSectionVisible(participants);
+  return isHost || peopleJustifies || charactersSectionVisible(participants);
 }

@@ -30,10 +30,10 @@ export const PERSONA_NOTIFICATIONS_SUBCATEGORY: ConfigSubcategory = {
   ],
 };
 
-export const PERSONA_ROSTER_SUBCATEGORY: ConfigSubcategory = {
+export const PERSONA_LIST_SUBCATEGORY: ConfigSubcategory = {
   id: "your-personas",
   label: "Your personas",
-  keywords: ["persona", "roster", "new persona", "import", "restore", "current", "default", "avatar"],
+  keywords: ["persona", "new persona", "import", "restore", "current", "default", "avatar"],
   settings: [
     {
       id: "editor",

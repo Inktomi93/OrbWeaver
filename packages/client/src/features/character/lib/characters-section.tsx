@@ -53,7 +53,7 @@ export function makeCharactersSection(
     panelDefaults: { list: "docked", context: "collapsed" },
     placeholder: {
       title: "Characters",
-      description: "Your cast lives here — browse the list, then open someone to see their card.",
+      description: "Your characters live here — browse the list, then open someone to see their card.",
     },
     // The LIBRARY, whatever is selected (#501) — the picker is the pane's ONE role.
     list: () => (
@@ -134,7 +134,7 @@ export function makeCharactersSection(
       empty: {
         title: "Nobody open",
         description:
-          "Open someone from your cast and this pane carries an overview of them, your chats together, their world books and personas, their look, their version history and how their cards are trusted.",
+          "Open someone from your characters and this pane carries an overview of them, your chats together, their world books and personas, their look, their version history and how their cards are trusted.",
       },
     }),
   };

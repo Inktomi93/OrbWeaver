@@ -160,7 +160,7 @@ test("#864 the FRESH INSTALL arm — cards exist, nothing chatted, nothing starr
   await routeTrpc(page, landingRoutes({ recent: SHIPPED, newest: SHIPPED }));
   const pane = await mount(<CharacterLibraryWelcomeListModeStory />);
 
-  await expect(pane.getByRole("heading", { name: "Meet the cast" })).toBeVisible();
+  await expect(pane.getByRole("heading", { name: "Meet your characters" })).toBeVisible();
   await expect(pane.getByRole("heading", { name: "Pick up where you left off" })).toHaveCount(0);
   // The count is the CENSUS — the whole library fits in the page, so it is a number the pane can prove.
   await expect(pane.getByRole("heading", { name: "Shipped with Orbweaver · 3" })).toBeVisible();

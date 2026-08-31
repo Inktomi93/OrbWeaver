@@ -211,7 +211,7 @@ test("every group starts COLLAPSED, showing its band, count and create verb — 
   // world info · casts, top-down on the Collections shelf.
   await expect
     .poll(() => roster.locator('[data-slot="config-group"][data-collection]').evaluateAll((groups) => groups.map((g) => g.getAttribute("data-collection"))))
-    .toEqual(["tags", "regex", "worldInfo", "cast"]);
+    .toEqual(["tags", "regex", "worldInfo", "rosterPreset"]);
   await expect(roster.getByRole("button", { name: WORLD_INFO_BAND })).toHaveAttribute("aria-expanded", "false");
   // …and not one of the 400 ROWS is mounted. Scoped to the roster (program #102): the claim is about the
   // collapsed group's rows, and the welcome's hero legitimately prints tag NAMES in its preview wall — an

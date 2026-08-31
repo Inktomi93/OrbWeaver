@@ -256,7 +256,7 @@ function KnownCharacterDoorways({ actor, edit }: { readonly actor: RpgActorView;
         <Button
           intent="ghost"
           size="sm"
-          aria-label={`Promote ${actor.name} to the roster`}
+          aria-label={`Promote ${actor.name} to the room's characters`}
           title={`Give ${actor.name} a character card and a seat in this room`}
           onClick={(): void => setPending("promote")}
         >

@@ -1,7 +1,7 @@
 // `useStartChat` — THE client seam for creating a chat (chat-creation-draft-mode-replacement.md §4.1).
 //
 // A chat row exists from the creation CLICK. Every launcher — the new-chat picker, the home quick-picks
-// tile, "New chat with same cast", the character library's Start-chat — fires THIS, awaits the real
+// tile, "New chat with the same characters", the character library's Start-chat — fires THIS, awaits the real
 // `chat.startChat`, and lands in the real room. There is no client-side draft plane behind any of them any
 // more, so there is no second commit path that has to stay byte-identical with this one.
 //
