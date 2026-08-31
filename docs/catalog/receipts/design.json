@@ -17,7 +17,7 @@
         "git log --oneline -1 -- docs/design/config-ia-the-junk-drawer-problem.md: fdcc9af0e docs(board+config-ia): #59 merged (main 6a319267c); templates-in-settings finding (imagery, not D132 leftover) + config-revamp/registry-lever intent recorded",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
-      "summary": "Config IA — the junk-drawer problem, and the tag model that falls out of it: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation.",
+      "summary": "Config IA \u2014 the junk-drawer problem, and the tag model that falls out of it: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation.",
       "claims": [
         {
           "claim": "Mutable resolution for this artifact is tracked in GitHub issue #38.",
@@ -42,12 +42,12 @@
       "evidence": [
         "docs/design/config-rail-spec.md:1 (spec; draft)",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
-        "git log --oneline -1 -- docs/design/config-rail-spec.md: R3 truth-repair — presets stay standalone per owner ruling C5 (2026-08-08, frozen board row 100); full re-read this verification",
-        "docs/design/config-rail-spec.md: re-attested at 535266f00954e2c612036a2bee1825609c59be09 — citation repoint from the 2026-08-30 reviews retirement, re-attested after the main merge",
-        "docs/design/config-rail-spec.md: disposition CORRECTED 2026-08-30 (#876, ruled as a class): the receipt read `archive`/`historical` while the document's own frontmatter reads draft/parked. FRONTMATTER IS TRUTH — the doc stays live in docs/design and the receipt now matches it.",
-        "docs/design/config-rail-spec.md: re-attested at 79871238bc0506fa74902bb1844f734fc9e32db3 — the #866 S1+S2 (6923f33cb) and #876/#873 docs-law (79871238b) merges both carry truth-repairs here; both deltas read by the orchestrator; the gate-count line resolved to 233 at the merge"
+        "git log --oneline -1 -- docs/design/config-rail-spec.md: R3 truth-repair \u2014 presets stay standalone per owner ruling C5 (2026-08-08, frozen board row 100); full re-read this verification",
+        "docs/design/config-rail-spec.md: re-attested at 535266f00954e2c612036a2bee1825609c59be09 \u2014 citation repoint from the 2026-08-30 reviews retirement, re-attested after the main merge",
+        "docs/design/config-rail-spec.md: disposition CORRECTED 2026-08-30 (#876, ruled as a class): the receipt read `archive`/`historical` while the document's own frontmatter reads draft/parked. FRONTMATTER IS TRUTH \u2014 the doc stays live in docs/design and the receipt now matches it.",
+        "docs/design/config-rail-spec.md: re-attested at 79871238bc0506fa74902bb1844f734fc9e32db3 \u2014 the #866 S1+S2 (6923f33cb) and #876/#873 docs-law (79871238b) merges both carry truth-repairs here; both deltas read by the orchestrator; the gate-count line resolved to 233 at the merge"
       ],
-      "summary": "CONFIG RAIL — the Configuration workspace (R1 design set): full content read against frozen tree; landed-state record retained as historical evidence.",
+      "summary": "CONFIG RAIL \u2014 the Configuration workspace (R1 design set): full content read against frozen tree; landed-state record retained as historical evidence.",
       "claims": [
         {
           "claim": "The document is LIVE, not archived: its own frontmatter reads `status: draft`, the config revamp it specifies has not landed (#866 S1 is unmerged), and its mock set stayed at docs/design/mocks/config-rail/.",
@@ -66,16 +66,17 @@
     },
     {
       "path": "docs/design/config-revamp-design.md",
-      "assignedSha256": "794a8e4db9adf7926a8a72c2bec7a7bfdf9246dd752b00b6238d1b186d925530",
+      "assignedSha256": "64fdcd018e64b39ba7556970b7ce26cd770de6eed47ff962c23377d7d356ce37",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "794a8e4db9adf7926a8a72c2bec7a7bfdf9246dd752b00b6238d1b186d925530",
-      "verifiedCommit": "79871238bc0506fa74902bb1844f734fc9e32db3",
+      "verifiedSha256": "64fdcd018e64b39ba7556970b7ce26cd770de6eed47ff962c23377d7d356ce37",
+      "verifiedCommit": "1f0e610da36fcb9e8c3301723de4072cfdf57bd6",
       "verifiedAt": "2026-08-30",
       "evidence": [
-        "docs/design/config-revamp-design.md read in full by the orchestrator (claude-b) at merge (lane cb-config-research, stickler research + design for #866; 12 products + NN/g receipted via SearXNG→trafilatura, THIN rows marked; the house read against 9707b9672; the Settings-is-a-modal premise repair accepted mid-run); the nine owner forks are being ruled live; the four D-rows are labelled R-A..R-D, never forward-numbered",
-        "docs/design/config-revamp-design.md: re-attested at 79871238bc0506fa74902bb1844f734fc9e32db3 — the #866 S1+S2 (6923f33cb) and #876/#873 docs-law (79871238b) merges both carry truth-repairs here; both deltas read by the orchestrator; the gate-count line resolved to 233 at the merge"
+        "docs/design/config-revamp-design.md read in full by the orchestrator (claude-b) at merge (lane cb-config-research, stickler research + design for #866; 12 products + NN/g receipted via SearXNG\u2192trafilatura, THIN rows marked; the house read against 9707b9672; the Settings-is-a-modal premise repair accepted mid-run); the nine owner forks are being ruled live; the four D-rows are labelled R-A..R-D, never forward-numbered",
+        "docs/design/config-revamp-design.md: re-attested at 79871238bc0506fa74902bb1844f734fc9e32db3 \u2014 the #866 S1+S2 (6923f33cb) and #876/#873 docs-law (79871238b) merges both carry truth-repairs here; both deltas read by the orchestrator; the gate-count line resolved to 233 at the merge",
+        "re-attested at the #866 S3+S4 merge (1f0e610da): lane cb-config-s3s4's +300-line riders (\u00a77.0-\u00a77.6 \u2014 R-TEACH/R-BG rulings, premises re-derived, as-built deviations a-e, coupled-site walk, red-first floor) read in full by the orchestrator from the merge diff before re-attest"
       ],
       "claims": [
         {
@@ -92,7 +93,7 @@
           ]
         }
       ],
-      "summary": "Config revamp design (#866): ONE closed config-group registry (four shelves You/App/Collections/Extensions; body arms sections|surface|collection|placeholder) that settings panes, collections, persona and Plugins register through; the shipped scroll-spy re-homed as the one spy; one search index with VS Code-style @modified/@shelf/@in/@ext/@advanced tokens, in-place highlights and a ⌘K source; openConfigTo replacing openSettingsTo + goToCollection; dense SettingRowFrame rows; the context pane as the TEACHER (About · Applies · Learn) over a focused-setting seam and per-leaf SettingTeach data; the rail persona slot as switcher · identity · log out; four client composites, no new primitives; nine owner forks with recommendations; sequence S1-S5."
+      "summary": "Config revamp design (#866): ONE closed config-group registry (four shelves You/App/Collections/Extensions; body arms sections|surface|collection|placeholder) that settings panes, collections, persona and Plugins register through; the shipped scroll-spy re-homed as the one spy; one search index with VS Code-style @modified/@shelf/@in/@ext/@advanced tokens, in-place highlights and a \u2318K source; openConfigTo replacing openSettingsTo + goToCollection; dense SettingRowFrame rows; the context pane as the TEACHER (About \u00b7 Applies \u00b7 Learn) over a focused-setting seam and per-leaf SettingTeach data; the rail persona slot as switcher \u00b7 identity \u00b7 log out; four client composites, no new primitives; nine owner forks with recommendations; sequence S1-S5."
     },
     {
       "path": "docs/design/containerize-build-plan.md",
@@ -105,14 +106,14 @@
       "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/design/containerize-build-plan.md:1 (design; active)",
-        "delta re-verify 2026-08-22 (#421, lane oneoff-rehome): re-read in full at the re-home commit; the ONE changed passage is the same §2.2 gpu-image coupled-site bullet — vllm-setup.sh re-homed scripts/dev/ → tooling/src/stack/, so the Dockerfile's separate scripts/dev COPY is gone and the shell rides the existing tooling/src/stack/ COPY (Dockerfile:187-190); engines.sh calls it as a sibling via $HERE (tooling/src/stack/engines.sh:86). Other cites re-derived: engines.sh's TSX line and the VLLM_STORE_ROOT venv check still hold. ONE STALE CLAIM FOUND AND LEFT (out of this lane's scope, reported to the orchestrator): §2.1 says `vllm-setup.sh:37 pins vllm>=0.22,<0.23`; line 37 is still the pin line but reads `vllm>=0.26,<0.27` today, so the dev pin and the image's baked `--torch-backend=cu130` install of 0.22 have diverged — that is a containerize decision, not a cite repoint",
-        "delta re-verify 2026-08-22 (#415, lane srv-data): the ONE changed passage is the gpu-image coupled-site bullet, re-derived against the tree — the three qwen3_*_serve.jinja templates moved to packages/server/src/infra/providers/vllm/engine/templates/ and the Dockerfile's per-template COPY line is gone (the app-files packages/server/src copy carries them)",
-        "git log --oneline -1 -- docs/design/containerize-build-plan.md: fd4ae9119 feat(deploy): production container — 2-profile Dockerfile + compose + the D2 external-engine code arms",
+        "delta re-verify 2026-08-22 (#421, lane oneoff-rehome): re-read in full at the re-home commit; the ONE changed passage is the same \u00a72.2 gpu-image coupled-site bullet \u2014 vllm-setup.sh re-homed scripts/dev/ \u2192 tooling/src/stack/, so the Dockerfile's separate scripts/dev COPY is gone and the shell rides the existing tooling/src/stack/ COPY (Dockerfile:187-190); engines.sh calls it as a sibling via $HERE (tooling/src/stack/engines.sh:86). Other cites re-derived: engines.sh's TSX line and the VLLM_STORE_ROOT venv check still hold. ONE STALE CLAIM FOUND AND LEFT (out of this lane's scope, reported to the orchestrator): \u00a72.1 says `vllm-setup.sh:37 pins vllm>=0.22,<0.23`; line 37 is still the pin line but reads `vllm>=0.26,<0.27` today, so the dev pin and the image's baked `--torch-backend=cu130` install of 0.22 have diverged \u2014 that is a containerize decision, not a cite repoint",
+        "delta re-verify 2026-08-22 (#415, lane srv-data): the ONE changed passage is the gpu-image coupled-site bullet, re-derived against the tree \u2014 the three qwen3_*_serve.jinja templates moved to packages/server/src/infra/providers/vllm/engine/templates/ and the Dockerfile's per-template COPY line is gone (the app-files packages/server/src copy carries them)",
+        "git log --oneline -1 -- docs/design/containerize-build-plan.md: fd4ae9119 feat(deploy): production container \u2014 2-profile Dockerfile + compose + the D2 external-engine code arms",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
-        "delta re-verify 2026-08-22 (P9 #393, the tooling program's law closeout): re-read in full at the P9 bytes commit; every changed line is a tooling-tree cite repoint or the new Core-0 §9 / constitution index rows, re-derived against the tree",
-        "docs/design/containerize-build-plan.md: re-attested at 535266f00954e2c612036a2bee1825609c59be09 — citation repoint from the 2026-08-30 reviews retirement, re-attested after the main merge"
+        "delta re-verify 2026-08-22 (P9 #393, the tooling program's law closeout): re-read in full at the P9 bytes commit; every changed line is a tooling-tree cite repoint or the new Core-0 \u00a79 / constitution index rows, re-derived against the tree",
+        "docs/design/containerize-build-plan.md: re-attested at 535266f00954e2c612036a2bee1825609c59be09 \u2014 citation repoint from the 2026-08-30 reviews retirement, re-attested after the main merge"
       ],
-      "summary": "Containerize — build plan (the forge lane's phase-1 artifact): full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation.",
+      "summary": "Containerize \u2014 build plan (the forge lane's phase-1 artifact): full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation.",
       "claims": [
         {
           "claim": "The cited implementation context remains present; mutable follow-up is tracked in GitHub issue #53.",
@@ -143,9 +144,9 @@
         "the auth/env/engine path:line receipts were re-derived against merged main (6ef448dd6) and the stale ones repaired in place",
         "REPAIRED at fd71a395d: single-user's fallback is peer-gated, not unconditional (3.1); LOCAL_INITIAL_PASSWORD is optional, not boot-fatal (3.2/3.5); the D2 external-engine code changes are already BUILT (3.6); the Host-spoof exploit narrative in 4/7/8 is obsolete",
         "OPEN for the owner: the 2026-08-08 ruled image default (single-user + AUTH_FALLBACK=owner) no longer yields a usable first run in a container, because a published port is not a loopback peer",
-        "delta re-verify 2026-08-22 (P9 #393, the tooling program's law closeout): re-read in full at the P9 bytes commit; every changed line is a tooling-tree cite repoint or the new Core-0 §9 / constitution index rows, re-derived against the tree",
-        "delta re-verify 2026-08-22 (#325, bytes at 12a536adb): §1 fact 1 and the `.env`-interaction paragraph cited the removed `pnpm start`/`pnpm dev` scripts — repointed to the real launcher (`pnpm stack up prod` / `start-fg prod`, spawn built at tooling/src/stack/lib/spawn-plan.ts); no other line changed and the typed claims below are unaffected",
-        "docs/design/containerize-prod-image-spec.md: re-attested at 535266f00954e2c612036a2bee1825609c59be09 — citation repoint from the 2026-08-30 reviews retirement, re-attested after the main merge"
+        "delta re-verify 2026-08-22 (P9 #393, the tooling program's law closeout): re-read in full at the P9 bytes commit; every changed line is a tooling-tree cite repoint or the new Core-0 \u00a79 / constitution index rows, re-derived against the tree",
+        "delta re-verify 2026-08-22 (#325, bytes at 12a536adb): \u00a71 fact 1 and the `.env`-interaction paragraph cited the removed `pnpm start`/`pnpm dev` scripts \u2014 repointed to the real launcher (`pnpm stack up prod` / `start-fg prod`, spawn built at tooling/src/stack/lib/spawn-plan.ts); no other line changed and the typed claims below are unaffected",
+        "docs/design/containerize-prod-image-spec.md: re-attested at 535266f00954e2c612036a2bee1825609c59be09 \u2014 citation repoint from the 2026-08-30 reviews retirement, re-attested after the main merge"
       ],
       "summary": "Production container image + deployment spec (all auth modes): full content read against frozen tree; unbuilt or owner-ruled design remains non-build authority pending its stated decision.",
       "claims": [
@@ -203,7 +204,7 @@
           ]
         }
       ],
-      "summary": "Context bracket build design (#860): the shell renders ONE column for every tabs context pane (head band → optional state rail → viewport → ground → meta rail at the foot); the rpg claim shrinks to a head-band claim; the generic Detail tablist and ContextRegionHost retire; rail model universal (#112); topbar yields to the band while docked (#846); the receded rail gets fill + floor (#861); six forks ruled; the #830 CT reds recorded as pre-existing."
+      "summary": "Context bracket build design (#860): the shell renders ONE column for every tabs context pane (head band \u2192 optional state rail \u2192 viewport \u2192 ground \u2192 meta rail at the foot); the rpg claim shrinks to a head-band claim; the generic Detail tablist and ContextRegionHost retire; rail model universal (#112); topbar yields to the band while docked (#846); the receded rail gets fill + floor (#861); six forks ruled; the #830 CT reds recorded as pre-existing."
     },
     {
       "path": "docs/design/databank-surface-spec.md",
@@ -216,12 +217,12 @@
       "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/design/databank-surface-spec.md:1 (spec; draft)",
-        "git log --oneline -1 -- docs/design/databank-surface-spec.md: e9a1a99d8 fix(lane-sm3): 6 smalls — dead gate wrapper, stale canAgent comments, databank rail count, typeonly-ok marker, content-class table dispatch, facet Record collapse",
+        "git log --oneline -1 -- docs/design/databank-surface-spec.md: e9a1a99d8 fix(lane-sm3): 6 smalls \u2014 dead gate wrapper, stale canAgent comments, databank rail count, typeonly-ok marker, content-class table dispatch, facet Record collapse",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
-        "docs/design/databank-surface-spec.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)",
-        "docs/design/databank-surface-spec.md: disposition CORRECTED 2026-08-30 (#876, ruled as a class): the receipt read `archive`/`historical` while the document's own frontmatter reads draft/parked. FRONTMATTER IS TRUTH — the doc stays live in docs/design and the receipt now matches it."
+        "docs/design/databank-surface-spec.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a \u2014 retired to docs/history/design per Documentation-Law \u00a7Relocation & retirement (2026-08-30 retirement pass, #872)",
+        "docs/design/databank-surface-spec.md: disposition CORRECTED 2026-08-30 (#876, ruled as a class): the receipt read `archive`/`historical` while the document's own frontmatter reads draft/parked. FRONTMATTER IS TRUTH \u2014 the doc stays live in docs/design and the receipt now matches it."
       ],
-      "summary": "DATABANK CLIENT SURFACE — the documents library, the per-chat rack, and the D85 visibility toggle: full content read against frozen tree; landed-state record retained as historical evidence.",
+      "summary": "DATABANK CLIENT SURFACE \u2014 the documents library, the per-chat rack, and the D85 visibility toggle: full content read against frozen tree; landed-state record retained as historical evidence.",
       "claims": [
         {
           "claim": "The document is LIVE, not archived: its own frontmatter reads `status: draft`, and its mock set is still on the tree at docs/design/mocks/databank-surface/ (a set follows its spec, so it did not retire with the 2026-08-30 pass).",
@@ -249,10 +250,10 @@
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/design/demo-seeding-rebuild.md:1 (design; draft)",
-        "git log --oneline -1 -- docs/design/demo-seeding-rebuild.md: e810841fa docs(design): demo-seeding rebuild — audit of the seeder jank + the rpg-in-export owner fork (lane #52 stopped-before-build)",
+        "git log --oneline -1 -- docs/design/demo-seeding-rebuild.md: e810841fa docs(design): demo-seeding rebuild \u2014 audit of the seeder jank + the rpg-in-export owner fork (lane #52 stopped-before-build)",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
-      "summary": "Demo seeding — the jank, and what \"the actual way\" costs: full content read against frozen tree; unbuilt or owner-ruled design remains non-build authority pending its stated decision.",
+      "summary": "Demo seeding \u2014 the jank, and what \"the actual way\" costs: full content read against frozen tree; unbuilt or owner-ruled design remains non-build authority pending its stated decision.",
       "claims": [
         {
           "claim": "Mutable resolution for this artifact is tracked in GitHub issue #54.",
@@ -276,10 +277,10 @@
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/design/docker-modern-practices-research.md:1 (research; draft)",
-        "git log --oneline -1 -- docs/design/docker-modern-practices-research.md: a7c550e3e docs(design): modern Docker practices research (2026, cited) — pnpm deploy --legacy gotcha, per-profile bases, compose/GPU/secrets/PID-1, anti-patterns",
+        "git log --oneline -1 -- docs/design/docker-modern-practices-research.md: a7c550e3e docs(design): modern Docker practices research (2026, cited) \u2014 pnpm deploy --legacy gotcha, per-profile bases, compose/GPU/secrets/PID-1, anti-patterns",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
-      "summary": "Modern Docker/BuildKit/Compose practices — builder brief for the two-profile prod image: full content read against frozen tree; unbuilt or owner-ruled design remains non-build authority pending its stated decision."
+      "summary": "Modern Docker/BuildKit/Compose practices \u2014 builder brief for the two-profile prod image: full content read against frozen tree; unbuilt or owner-ruled design remains non-build authority pending its stated decision."
     },
     {
       "path": "docs/design/entity-room-member-freshness-bridge.md",
@@ -294,14 +295,14 @@
         "docs/design/entity-room-member-freshness-bridge.md:1 full read; current edit is a provenance/lifecycle or repaired historical citation, not present implementation authority",
         "docs/architecture/core/Core-Path-Registry.md:523-533 (D139-D141 authority boundary)",
         "git:68271889b1746b513defea44b0787bab7a89176f contains the exact archived blob",
-        "docs/design/entity-room-member-freshness-bridge.md: re-attested at 535266f00954e2c612036a2bee1825609c59be09 — citation repoint from the 2026-08-30 reviews retirement, re-attested after the main merge",
-        "docs/design/entity-room-member-freshness-bridge.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)",
-        "docs/design/entity-room-member-freshness-bridge.md: disposition CORRECTED 2026-08-30 (#876, ruled as a class): the receipt read `archive`/`historical` while the document's own frontmatter reads draft/parked. FRONTMATTER IS TRUTH — the doc stays live in docs/design and the receipt now matches it."
+        "docs/design/entity-room-member-freshness-bridge.md: re-attested at 535266f00954e2c612036a2bee1825609c59be09 \u2014 citation repoint from the 2026-08-30 reviews retirement, re-attested after the main merge",
+        "docs/design/entity-room-member-freshness-bridge.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a \u2014 retired to docs/history/design per Documentation-Law \u00a7Relocation & retirement (2026-08-30 retirement pass, #872)",
+        "docs/design/entity-room-member-freshness-bridge.md: disposition CORRECTED 2026-08-30 (#876, ruled as a class): the receipt read `archive`/`historical` while the document's own frontmatter reads draft/parked. FRONTMATTER IS TRUTH \u2014 the doc stays live in docs/design and the receipt now matches it."
       ],
       "summary": "Full-read historical artifact retained for provenance; relocated citations were semantically re-derived and it is not current work or implementation authority.",
       "claims": [
         {
-          "claim": "The document is LIVE, not archived: its own frontmatter reads `status: draft` and it is the design of record for the entity→room member-freshness bridge.",
+          "claim": "The document is LIVE, not archived: its own frontmatter reads `status: draft` and it is the design of record for the entity\u2192room member-freshness bridge.",
           "evidence": [
             {
               "kind": "ruling",
@@ -325,7 +326,7 @@
       "verifiedCommit": "8dbe777cf7e805935d29121e8c7fd4bf6e22577b",
       "verifiedAt": "2026-08-19",
       "evidence": [
-        "docs/design/home-tile-promotion.md:1 (design; open — owner decision pending)",
+        "docs/design/home-tile-promotion.md:1 (design; open \u2014 owner decision pending)",
         "git log --oneline -1 -- docs/design/home-tile-promotion.md: 24f99e257 feat(databank): the bank is walkable past its first page",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
         "re-attested 2026-08-19 overnight: lane-diff review at merge (client-smalls truth-repairs; instruments gate rows); scoped check:docs green"
@@ -359,20 +360,20 @@
       "evidence": [
         "docs/design/interaction-direction-spec.md read in full by the orchestrator before commit (1a7f20ed3); the needle ruling folded at both sites by the orchestrator after the owner's 2026-08-24 call",
         "consolidation of five sources into one: the panel-verified RULED spec + the IA placement table + the platform-axes audit + the juice catalogue + the real adversarial A-round (16 findings, 12 of 15 survivors changed)",
-        "builder test (stickler, 4 sampled rows A1/B9/C5/preset-12): PASS-WITH-FOLDS, all six folds applied — a row is landable from this file alone",
-        "the four docs/reviews/stickler/ interaction docs are provenance only; §10 points at them for the argument, never for the conclusion",
-        "delta re-verify 2026-08-24 (bde3acca3): C7's row flipped from AFTER-the-review to UNBLOCKED (the D46 review #605 and all seven findings CLOSED and security-verified; #24 out of Parked), and gained §7-C7a — the integration seams folded in from docs/reviews/stickler/2026-08-24-automation-platform-axes.md §3, which was written against the BUILT membrane unlike the parked plugin set. Six clauses, each re-derived on the tree at fold time: run_tool as the zero-arm-growth extensibility shape (registerPluginTool wired at entry/compose/automation-plugin.ts), rules-reach vs turn-attach as two doors, pause-not-rot, the installer-not-caller ceiling (#610), reach-based upgrade re-consent (#615), and the standing membrane walls (#611/#613).",
-        "delta re-verify 2026-08-24 (9bc1cd142, lane cb-plugui-design — the spec was read IN FULL by this lane before the edit): the ONE changed passage is the new §7-C7b pointer block after §7-C7a — a one-home POINTER to docs/design/plugin-ui-plane.md (#679) naming its phases U0-U8, the six folded owner rulings, the §5a enablement price sheet, and two dated branch-side build-state receipts (D147 user-scoping 8340b7f87; seeded example plugins 79e89d255 — both verified NOT on local main at fold time via merge-base --is-ancestor); no other line changed and the typed claims are unaffected",
-        "truth-repair re-verify 2026-08-28 (2c970e0196bfa79c2aa65d8c874c9a3bcbec40dc, lane spec-truthrepair — receipts re-derived against the shipped tree per docs/reviews/stickler/2026-08-28-interaction-program-soundness.md): §7-C7a.1 corrected to state run_tool's deliberate builtin narrowing (arm-executors.ts:18-30, D146-d, verified against source); B4's phantom suggestOnRefusal knob corrected to the recorded-unbuilt per-rule opt-out (dispatch.ts:208-212); §4 row 20 and §7-C7b's build-state receipts flipped from in-flight/branch-pending to LANDED (C5; D147/#675 8340b7f87; the seeded plugins 79e89d255 — both confirmed on local main via git log); preset 6 annotated with its authoritative built name. No other line changed; typed claims above are unaffected",
-        "delta re-verify 2026-08-29 (17f2f60f157740c0d5968ac8b0b44275cdf71fbb, lane build-b7-finish — the WIP diff and §7-B7a read in full by the finishing lane): the ONE changed passage is the new §7-B7a B7 BUILD RECORD after the Phase B table — six decision clauses (segment anchor = parseSpeakerSpans line index over stored canon with the (index, speaker, snippet) trio and two partial uniques; MR4 attribution as an S2 contribution order 2; MR5 react tool via the S2 toolNames axis with createReactAsCharacter as a standalone factory; the two offerChoices-pattern toggles with opposite default directions; the merge-class correction to MERGE-WINDOW for the baseline squash), each verified against the shipped tree by the finishing lane's suites (verbs/persistence/teaching int tests, the CT segment/toggle arms, the regenerated 0000_baseline). No other line changed; prior typed claims are unaffected",
-        "delta re-verify 2026-08-29 (3ff8bfe4b169c9aa73e2e7a072e334d37efb82db, B10 rules rider merged by the orchestrator, who read the diff in full): the ONE changed passage is §3-S3's flip-shape sentence — 'recorded-unbuilt' flipped to LANDED with B10 (columns spelled rule_preset_id + rule_preset_knobs per the 2026-08-24 Rule-prefixed vocabulary ruling; stamped by createRuleFromPreset, cleared by updateRule, projected on RuleView; the in-place knob editor stays unbuilt) and points at saved-rosters-build-record.md §6. No other line changed; typed claims are unaffected",
-        "delta re-verify 2026-08-30 (e96afef17d8de6213d05d52df147b9e893a89346, #804 B4 per-rule opt-out merged by the orchestrator, who read the three hunks in full): §3-S4 bullet 2, the Phase B row B4, and §8 ruling F4 each flip 'recorded-unbuilt' to LANDED as automation_rules.suggest_on_refusal (NOT NULL DEFAULT true — the ruling's default is now the column's default), ANDed with the arm-shape derivation at the raise gate; no other line changed; typed claims unaffected",
-        "docs/design/interaction-direction-spec.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
+        "builder test (stickler, 4 sampled rows A1/B9/C5/preset-12): PASS-WITH-FOLDS, all six folds applied \u2014 a row is landable from this file alone",
+        "the four docs/reviews/stickler/ interaction docs are provenance only; \u00a710 points at them for the argument, never for the conclusion",
+        "delta re-verify 2026-08-24 (bde3acca3): C7's row flipped from AFTER-the-review to UNBLOCKED (the D46 review #605 and all seven findings CLOSED and security-verified; #24 out of Parked), and gained \u00a77-C7a \u2014 the integration seams folded in from docs/reviews/stickler/2026-08-24-automation-platform-axes.md \u00a73, which was written against the BUILT membrane unlike the parked plugin set. Six clauses, each re-derived on the tree at fold time: run_tool as the zero-arm-growth extensibility shape (registerPluginTool wired at entry/compose/automation-plugin.ts), rules-reach vs turn-attach as two doors, pause-not-rot, the installer-not-caller ceiling (#610), reach-based upgrade re-consent (#615), and the standing membrane walls (#611/#613).",
+        "delta re-verify 2026-08-24 (9bc1cd142, lane cb-plugui-design \u2014 the spec was read IN FULL by this lane before the edit): the ONE changed passage is the new \u00a77-C7b pointer block after \u00a77-C7a \u2014 a one-home POINTER to docs/design/plugin-ui-plane.md (#679) naming its phases U0-U8, the six folded owner rulings, the \u00a75a enablement price sheet, and two dated branch-side build-state receipts (D147 user-scoping 8340b7f87; seeded example plugins 79e89d255 \u2014 both verified NOT on local main at fold time via merge-base --is-ancestor); no other line changed and the typed claims are unaffected",
+        "truth-repair re-verify 2026-08-28 (2c970e0196bfa79c2aa65d8c874c9a3bcbec40dc, lane spec-truthrepair \u2014 receipts re-derived against the shipped tree per docs/reviews/stickler/2026-08-28-interaction-program-soundness.md): \u00a77-C7a.1 corrected to state run_tool's deliberate builtin narrowing (arm-executors.ts:18-30, D146-d, verified against source); B4's phantom suggestOnRefusal knob corrected to the recorded-unbuilt per-rule opt-out (dispatch.ts:208-212); \u00a74 row 20 and \u00a77-C7b's build-state receipts flipped from in-flight/branch-pending to LANDED (C5; D147/#675 8340b7f87; the seeded plugins 79e89d255 \u2014 both confirmed on local main via git log); preset 6 annotated with its authoritative built name. No other line changed; typed claims above are unaffected",
+        "delta re-verify 2026-08-29 (17f2f60f157740c0d5968ac8b0b44275cdf71fbb, lane build-b7-finish \u2014 the WIP diff and \u00a77-B7a read in full by the finishing lane): the ONE changed passage is the new \u00a77-B7a B7 BUILD RECORD after the Phase B table \u2014 six decision clauses (segment anchor = parseSpeakerSpans line index over stored canon with the (index, speaker, snippet) trio and two partial uniques; MR4 attribution as an S2 contribution order 2; MR5 react tool via the S2 toolNames axis with createReactAsCharacter as a standalone factory; the two offerChoices-pattern toggles with opposite default directions; the merge-class correction to MERGE-WINDOW for the baseline squash), each verified against the shipped tree by the finishing lane's suites (verbs/persistence/teaching int tests, the CT segment/toggle arms, the regenerated 0000_baseline). No other line changed; prior typed claims are unaffected",
+        "delta re-verify 2026-08-29 (3ff8bfe4b169c9aa73e2e7a072e334d37efb82db, B10 rules rider merged by the orchestrator, who read the diff in full): the ONE changed passage is \u00a73-S3's flip-shape sentence \u2014 'recorded-unbuilt' flipped to LANDED with B10 (columns spelled rule_preset_id + rule_preset_knobs per the 2026-08-24 Rule-prefixed vocabulary ruling; stamped by createRuleFromPreset, cleared by updateRule, projected on RuleView; the in-place knob editor stays unbuilt) and points at saved-rosters-build-record.md \u00a76. No other line changed; typed claims are unaffected",
+        "delta re-verify 2026-08-30 (e96afef17d8de6213d05d52df147b9e893a89346, #804 B4 per-rule opt-out merged by the orchestrator, who read the three hunks in full): \u00a73-S4 bullet 2, the Phase B row B4, and \u00a78 ruling F4 each flip 'recorded-unbuilt' to LANDED as automation_rules.suggest_on_refusal (NOT NULL DEFAULT true \u2014 the ruling's default is now the column's default), ANDed with the arm-shape derivation at the raise gate; no other line changed; typed claims unaffected",
+        "docs/design/interaction-direction-spec.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a \u2014 retired to docs/history/design per Documentation-Law \u00a7Relocation & retirement (2026-08-30 retirement pass, #872)"
       ],
-      "summary": "THE ONE build-from specification for the interaction direction: inside/outside taxonomy + class walls, the authority law and seven authoring laws, the S1-S7 substrate (control seam, teaching seam with tool-attach, presets, suggest/confirm, quiet-analysis arm, run_tool bridge, trigger batch), the 20-row preset catalogue, the A/B/C path with per-row test/merge-class/knobs/home, the purged-capability disposition table, revamps R1-R7, and every ruling. Zero open items. §7-C7b (added 2026-08-24) points at the one-homed plugin UI plane design (docs/design/plugin-ui-plane.md, #679) — pointer, phases and rulings only.",
+      "summary": "THE ONE build-from specification for the interaction direction: inside/outside taxonomy + class walls, the authority law and seven authoring laws, the S1-S7 substrate (control seam, teaching seam with tool-attach, presets, suggest/confirm, quiet-analysis arm, run_tool bridge, trigger batch), the 20-row preset catalogue, the A/B/C path with per-row test/merge-class/knobs/home, the purged-capability disposition table, revamps R1-R7, and every ruling. Zero open items. \u00a77-C7b (added 2026-08-24) points at the one-homed plugin UI plane design (docs/design/plugin-ui-plane.md, #679) \u2014 pointer, phases and rulings only.",
       "claims": [
         {
-          "claim": "All seven forks (F1-F7) and the host-handoff void-all call are owner-ruled and recorded in §8; no open items remain in the specification.",
+          "claim": "All seven forks (F1-F7) and the host-handoff void-all call are owner-ruled and recorded in \u00a78; no open items remain in the specification.",
           "evidence": [
             {
               "kind": "issue",
@@ -396,7 +397,7 @@
         "git log --oneline -1 -- docs/design/lite-plus-guided-substrate-spec.md: 0c2e52e65 chore(docs): move durable artifacts out of gitignored reports/ into tracked docs/",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
-      "summary": "LITE + GUIDED SUBSTRATE — the fresh-build carve spec: full content read against frozen tree; unbuilt or owner-ruled design remains non-build authority pending its stated decision.",
+      "summary": "LITE + GUIDED SUBSTRATE \u2014 the fresh-build carve spec: full content read against frozen tree; unbuilt or owner-ruled design remains non-build authority pending its stated decision.",
       "claims": [
         {
           "claim": "The cited implementation context remains present; mutable follow-up is tracked in GitHub issue #40.",
@@ -424,13 +425,13 @@
       "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/design/mocks/README.md:1 (design; unheaded)",
-        "git log --oneline -1 -- docs/design/mocks/README.md: a2fb3d950 docs(codex): the 58-finding documentation cleanup — 15 fixed, 33 archive-no-action, 10 needs-owner",
+        "git log --oneline -1 -- docs/design/mocks/README.md: a2fb3d950 docs(codex): the 58-finding documentation cleanup \u2014 15 fixed, 33 archive-no-action, 10 needs-owner",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
-        "docs/design/mocks/README.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)",
-        "docs/design/mocks/README.md: re-attested at 1f5e25c00ec2ee921bc70591bf84e8268b255030 — the #876/#873 citer sweep: doc-path repoints from the tooling-package → Core-Tooling-Law.md and density-pass-spec → UI-Density-Law.md relocations and the seven mock-set retirements. Comment/link lines only; no claim moved.",
-        "docs/design/mocks/README.md: re-attested at c41bcfa25fbe49071aa47cc952f96fb80af3069f — config-revamp row appended"
+        "docs/design/mocks/README.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a \u2014 retired to docs/history/design per Documentation-Law \u00a7Relocation & retirement (2026-08-30 retirement pass, #872)",
+        "docs/design/mocks/README.md: re-attested at 1f5e25c00ec2ee921bc70591bf84e8268b255030 \u2014 the #876/#873 citer sweep: doc-path repoints from the tooling-package \u2192 Core-Tooling-Law.md and density-pass-spec \u2192 UI-Density-Law.md relocations and the seven mock-set retirements. Comment/link lines only; no claim moved.",
+        "docs/design/mocks/README.md: re-attested at c41bcfa25fbe49071aa47cc952f96fb80af3069f \u2014 config-revamp row appended"
       ],
-      "summary": "docs/design/mocks — frozen design drawings: full content read against frozen tree; landed-state record retained as historical evidence."
+      "summary": "docs/design/mocks \u2014 frozen design drawings: full content read against frozen tree; landed-state record retained as historical evidence."
     },
     {
       "path": "docs/design/mocks/characters-landing/DESIGN.md",
@@ -442,8 +443,8 @@
       "verifiedCommit": "106d0d2d6db353d3446f45eb35aa34e6ccaa45ad",
       "verifiedAt": "2026-08-30",
       "evidence": [
-        "Authored by the orchestrator (claude-b) from the owner's live ruling on #864 (2026-08-30, 'Yes — build to it'); the canvas artifact c0fcd1ff is the clickable form, these files are its repo source; the four true-size PNGs were rendered from the same artboards and read before commit (the v1 box-sizing overflow was caught on the render and fixed before publish)",
-        "docs/design/mocks/characters-landing/DESIGN.md: re-attested at 106d0d2d6db353d3446f45eb35aa34e6ccaa45ad — build lane cb-char-landing (#864) corrected `source` → `provenance` (the card's `source` is the ST V3 provenance-URL list); delta read by the orchestrator (claude-b) at merge"
+        "Authored by the orchestrator (claude-b) from the owner's live ruling on #864 (2026-08-30, 'Yes \u2014 build to it'); the canvas artifact c0fcd1ff is the clickable form, these files are its repo source; the four true-size PNGs were rendered from the same artboards and read before commit (the v1 box-sizing overflow was caught on the render and fixed before publish)",
+        "docs/design/mocks/characters-landing/DESIGN.md: re-attested at 106d0d2d6db353d3446f45eb35aa34e6ccaa45ad \u2014 build lane cb-char-landing (#864) corrected `source` \u2192 `provenance` (the card's `source` is the ST V3 provenance-URL list); delta read by the orchestrator (claude-b) at merge"
       ],
       "claims": [
         {
@@ -460,7 +461,7 @@
           ]
         }
       ],
-      "summary": "Characters landing mock (#864): the CONTENT pane at rest as a library — recently chatted, starred, just added, a fresh-install 'Meet the cast', the list-collapsed arm that owns the doors, and the phone sheet — drawn only from what character.list carries plus the two fields #865 wires; canvas source + renders + the fences for the build lane."
+      "summary": "Characters landing mock (#864): the CONTENT pane at rest as a library \u2014 recently chatted, starred, just added, a fresh-install 'Meet the cast', the list-collapsed arm that owns the doors, and the phone sheet \u2014 drawn only from what character.list carries plus the two fields #865 wires; canvas source + renders + the fences for the build lane."
     },
     {
       "path": "docs/design/mocks/context-bracket/DESIGN.md",
@@ -473,11 +474,11 @@
       "verifiedAt": "2026-08-30",
       "evidence": [
         "Authored by the orchestrator (claude-b) from the owner's live ruling on #860 (2026-08-30, 'I'm good with the mockup'); the canvas artifact 8f56d796 is the clickable form, these files are its repo source; the seven default-state PNGs were rendered at true size from the same artboards and read before commit",
-        "docs/design/mocks/context-bracket/DESIGN.md: re-attested at 5d089a546ff369140528b8113200365b2a7d961e — lane cb-bracket-fix recorded the F3 deviation (game band takes the room name as h2, location demoted) in Coupled sites; delta read by the orchestrator at merge"
+        "docs/design/mocks/context-bracket/DESIGN.md: re-attested at 5d089a546ff369140528b8113200365b2a7d961e \u2014 lane cb-bracket-fix recorded the F3 deviation (game band takes the room name as h2, location demoted) in Coupled sites; delta read by the orchestrator at merge"
       ],
       "claims": [
         {
-          "claim": "The slot table and the surviving-rulings list match the canvas as ruled: head band (one slot, three contents) · optional top rail (applicability) · viewport · ground · foot rail with the kicker on top; §4.1, HUD-1 §5.1 and decision 6 survive with a changed input; #845 provenance, #846 relocation, #850/#861 fold in.",
+          "claim": "The slot table and the surviving-rulings list match the canvas as ruled: head band (one slot, three contents) \u00b7 optional top rail (applicability) \u00b7 viewport \u00b7 ground \u00b7 foot rail with the kicker on top; \u00a74.1, HUD-1 \u00a75.1 and decision 6 survive with a changed input; #845 provenance, #846 relocation, #850/#861 fold in.",
           "evidence": [
             {
               "kind": "issue",
@@ -490,7 +491,7 @@
           ]
         }
       ],
-      "summary": "Context bracket mock (#860): the context panel as ONE head+foot chrome for chats, game rooms and characters — the canvas source (build.mjs → seven .dc.html + canvas.json), true-size default-state renders, the ruling, the slot table, the rulings that survive with a changed input, and the coupled sites for the build lane."
+      "summary": "Context bracket mock (#860): the context panel as ONE head+foot chrome for chats, game rooms and characters \u2014 the canvas source (build.mjs \u2192 seven .dc.html + canvas.json), true-size default-state renders, the ruling, the slot table, the rulings that survive with a changed input, and the coupled sites for the build lane."
     },
     {
       "path": "docs/design/note-token-intent-history.md",
@@ -503,11 +504,11 @@
       "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/design/note-token-intent-history.md:1 (design; unheaded)",
-        "git log --oneline -1 -- docs/design/note-token-intent-history.md: be00fe738 docs(investigate): {{note}} intent history — warn-never-block was INHERITED not decided; divergence from {{entry}} is stale classification, one real counter-precedent (:::card)",
+        "git log --oneline -1 -- docs/design/note-token-intent-history.md: be00fe738 docs(investigate): {{note}} intent history \u2014 warn-never-block was INHERITED not decided; divergence from {{entry}} is stale classification, one real counter-precedent (:::card)",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
-        "docs/design/note-token-intent-history.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
+        "docs/design/note-token-intent-history.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a \u2014 retired to docs/history/design per Documentation-Law \u00a7Relocation & retirement (2026-08-30 retirement pass, #872)"
       ],
-      "summary": "`{{note}}` — original intent & classification archaeology: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation.",
+      "summary": "`{{note}}` \u2014 original intent & classification archaeology: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation.",
       "claims": [
         {
           "claim": "The cited implementation context remains present; mutable follow-up is tracked in GitHub issue #39.",
@@ -535,7 +536,7 @@
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/design/oidc-authentik-openwebui-study.md:1 (design; draft)",
-        "git log --oneline -1 -- docs/design/oidc-authentik-openwebui-study.md: 626e1985a docs(design): OIDC/Authentik study — Open WebUI mined vs our flow (owner-authorized out-of-band)",
+        "git log --oneline -1 -- docs/design/oidc-authentik-openwebui-study.md: 626e1985a docs(design): OIDC/Authentik study \u2014 Open WebUI mined vs our flow (owner-authorized out-of-band)",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
       "summary": "OIDC / Authentik: the Open WebUI integration, read against ours: full content read against frozen tree; unbuilt or owner-ruled design remains non-build authority pending its stated decision.",
@@ -566,10 +567,10 @@
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/design/openwebui-auth-methods-study.md:1 (design; draft)",
-        "git log --oneline -1 -- docs/design/openwebui-auth-methods-study.md: 3c944f854 docs(design): auth study III — first-run bootstrap + mode-switch (§7); MS-W1 non-owner orphan gap + B5 admin-link-SSO verb",
+        "git log --oneline -1 -- docs/design/openwebui-auth-methods-study.md: 3c944f854 docs(design): auth study III \u2014 first-run bootstrap + mode-switch (\u00a77); MS-W1 non-owner orphan gap + B5 admin-link-SSO verb",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
-      "summary": "Open WebUI's other login methods (local / LDAP / SCIM), read against ours — the unification study: full content read against frozen tree; unbuilt or owner-ruled design remains non-build authority pending its stated decision.",
+      "summary": "Open WebUI's other login methods (local / LDAP / SCIM), read against ours \u2014 the unification study: full content read against frozen tree; unbuilt or owner-ruled design remains non-build authority pending its stated decision.",
       "claims": [
         {
           "claim": "The cited implementation context remains present; mutable follow-up is tracked in GitHub issue #57.",
@@ -597,10 +598,10 @@
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/design/parked-options-config-port.md:1 (design-options; decision-input)",
-        "git log --oneline -1 -- docs/design/parked-options-config-port.md: c91162bfc docs(investigate): config-port parked-options — presets-into-rail is a seam migration not an array edit; JSON-card already server-built (client submenu only)",
+        "git log --oneline -1 -- docs/design/parked-options-config-port.md: c91162bfc docs(investigate): config-port parked-options \u2014 presets-into-rail is a seam migration not an array edit; JSON-card already server-built (client submenu only)",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
-      "summary": "Parked options — config-rail + portability: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation.",
+      "summary": "Parked options \u2014 config-rail + portability: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation.",
       "claims": [
         {
           "claim": "The cited implementation context remains present; mutable follow-up is tracked in GitHub issue #38.",
@@ -630,7 +631,7 @@
         "docs/design/parked-options-ops-posture.md:1 full read after the workboard split; changed routing/citations checked against Project 1, D139-D141, and current code/test evidence",
         "git:68271889b1746b513defea44b0787bab7a89176f contains the exact current document blob",
         "docs/architecture/core/Core-Path-Registry.md:523-533 (standing control-plane and comment-source rulings)",
-        "docs/design/parked-options-ops-posture.md: re-attested at 535266f00954e2c612036a2bee1825609c59be09 — citation repoint from the 2026-08-30 reviews retirement, re-attested after the main merge"
+        "docs/design/parked-options-ops-posture.md: re-attested at 535266f00954e2c612036a2bee1825609c59be09 \u2014 citation repoint from the 2026-08-30 reviews retirement, re-attested after the main merge"
       ],
       "summary": "Full-read current design document reverified after the Project/workboard split; existing typed implementation evidence remains current.",
       "claims": [
@@ -662,7 +663,7 @@
         "docs/design/parked-options-persona-prose.md:1 full read after the workboard split; changed routing/citations checked against Project 1, D139-D141, and current code/test evidence",
         "git:68271889b1746b513defea44b0787bab7a89176f contains the exact current document blob",
         "docs/architecture/core/Core-Path-Registry.md:523-533 (standing control-plane and comment-source rulings)",
-        "docs/design/parked-options-persona-prose.md: re-attested at 535266f00954e2c612036a2bee1825609c59be09 — citation repoint from the 2026-08-30 reviews retirement, re-attested after the main merge"
+        "docs/design/parked-options-persona-prose.md: re-attested at 535266f00954e2c612036a2bee1825609c59be09 \u2014 citation repoint from the 2026-08-30 reviews retirement, re-attested after the main merge"
       ],
       "summary": "Full-read current design document reverified after the Project/workboard split; existing typed implementation evidence remains current.",
       "claims": [
@@ -692,14 +693,14 @@
       "verifiedAt": "2026-08-15",
       "evidence": [
         "docs/design/parked-options-tag-contract.md:1 (design-options; draft)",
-        "git log --oneline -1 -- docs/design/parked-options-tag-contract.md: 91ebf56ce feat(#48): ruled smalls — smoothStream ON, ⋯ to the composer, tag folders OPEN, preview render policy",
+        "git log --oneline -1 -- docs/design/parked-options-tag-contract.md: 91ebf56ce feat(#48): ruled smalls \u2014 smoothStream ON, \u22ef to the composer, tag folders OPEN, preview render policy",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
-        "docs/design/parked-options-tag-contract.md: disposition CORRECTED 2026-08-30 (#876, ruled as a class): the receipt read `archive`/`historical` while the document's own frontmatter reads draft/parked. FRONTMATTER IS TRUTH — the doc stays live in docs/design and the receipt now matches it."
+        "docs/design/parked-options-tag-contract.md: disposition CORRECTED 2026-08-30 (#876, ruled as a class): the receipt read `archive`/`historical` while the document's own frontmatter reads draft/parked. FRONTMATTER IS TRUTH \u2014 the doc stays live in docs/design and the receipt now matches it."
       ],
       "summary": "Parked options: tag taste-calls + the guided-prompt contract cap: full content read against frozen tree; landed-state record retained as historical evidence.",
       "claims": [
         {
-          "claim": "The document is PARKED, not archived: its own frontmatter reads `status: parked` — a parked program is unscheduled and non-authoritative now, never abandoned, and is the one tier the archive disposition must not claim.",
+          "claim": "The document is PARKED, not archived: its own frontmatter reads `status: parked` \u2014 a parked program is unscheduled and non-authoritative now, never abandoned, and is the one tier the archive disposition must not claim.",
           "evidence": [
             {
               "kind": "ruling",
@@ -724,13 +725,13 @@
       "verifiedAt": "2026-08-28",
       "evidence": [
         "docs/design/plugin-showcase-set.md:1-224 (full read; #774 showcase design-of-record, status rows 1-11 built + suite-green, #788 surface-growth append reconciled)",
-        "git log --oneline -1 -- docs/design/plugin-showcase-set.md: 690d2c6ec feat(#774): mirror the #788 surface growth into the published SDK — 23 caps, tokens namespace, five reads",
-        "GitHub issue #774 (the showcase commission — nine seeded plugins as developer teaching material)"
+        "git log --oneline -1 -- docs/design/plugin-showcase-set.md: 690d2c6ec feat(#774): mirror the #788 surface growth into the published SDK \u2014 23 caps, tokens namespace, five reads",
+        "GitHub issue #774 (the showcase commission \u2014 nine seeded plugins as developer teaching material)"
       ],
-      "summary": "The plugin SHOWCASE set (#774): nine seeded example plugins collectively exercising the landed plugin capability/surface API as developer teaching material, plus the published host-v1.d.ts SDK types and its conformance pin. Design-of-record; rows 1-11 built and suite-green per §8, with the #788 surface-growth append reconciled. Born-reviewed at merge (full read 2026-08-28).",
+      "summary": "The plugin SHOWCASE set (#774): nine seeded example plugins collectively exercising the landed plugin capability/surface API as developer teaching material, plus the published host-v1.d.ts SDK types and its conformance pin. Design-of-record; rows 1-11 built and suite-green per \u00a78, with the #788 surface-growth append reconciled. Born-reviewed at merge (full read 2026-08-28).",
       "claims": [
         {
-          "claim": "The set's target capability vocabulary is the closed PLUGIN_CAPABILITIES tuple in contracts — the design's 20/20 coverage bar (grown to 23 by #788, reconciled in §8's append).",
+          "claim": "The set's target capability vocabulary is the closed PLUGIN_CAPABILITIES tuple in contracts \u2014 the design's 20/20 coverage bar (grown to 23 by #788, reconciled in \u00a78's append).",
           "evidence": [
             {
               "kind": "code",
@@ -743,7 +744,7 @@
           ]
         },
         {
-          "claim": "The developer-facing published SDK types (the U1 carry-forward — host-v1.d.ts declaring PluginUiV1) are built beside the seeded example plugins, as §4 specifies.",
+          "claim": "The developer-facing published SDK types (the U1 carry-forward \u2014 host-v1.d.ts declaring PluginUiV1) are built beside the seeded example plugins, as \u00a74 specifies.",
           "evidence": [
             {
               "kind": "code",
@@ -764,16 +765,16 @@
       "verifiedAt": "2026-08-30",
       "evidence": [
         "born-reviewed by its authoring lane (cb-plugui-design, #679): every build-state claim tree-verified 2026-08-24 with path:line receipts before commit 766525006",
-        "designed against the full commissioned reading set: plugin-design 01-04, the D46 security review (docs/reviews/security/2026-08-24-d46-membrane-review.md), client-architecture-lockdown (D70), interaction-direction-spec §1/§3/§7-C7a, plugin-automation-juice (A2-F5), contribution-contracts.ts, the card-frame substrate (kit + entry/http + ui sandbox-frame), and issues #675/#677/#124",
+        "designed against the full commissioned reading set: plugin-design 01-04, the D46 security review (docs/reviews/security/2026-08-24-d46-membrane-review.md), client-architecture-lockdown (D70), interaction-direction-spec \u00a71/\u00a73/\u00a77-C7a, plugin-automation-juice (A2-F5), contribution-contracts.ts, the card-frame substrate (kit + entry/http + ui sandbox-frame), and issues #675/#677/#124",
         "four owner steers folded verbatim (capability-first; ST-parity register; integrated-not-iframe primary; the open dep budget resolved to the live QuickJS family at infra/plugin-host/module.ts:12-14)",
-        "the ST parity register (§5) built from Core-SillyTavern-Feature-Map.md + Core-ST-Feature-Gap-Register.md plus the live ST extension-authoring docs fetched raw per the web-fetching rule 2026-08-24",
-        "revision 9bc1cd142 (same lane, same day): the full-parity ruling folded — every deferred parity row committed and phase-slotted (U5-U8), the ui.frame hatch committed as scheduled phase U7 (security-executor-gated), §6.1 arbitrary-pixels rows resolved to the hatch, §5a converted to the enablement price sheet per the follow-up steer ('some of those features I could be convinced to enable'), the five original open questions resolved against the ruling, residual owner ask reduced to TTS/STT (substrate)",
-        "addendum 2b09d3c00 (steer 7 + owner provenance correction): ui.page surface kind + the ONE house Extensions rail entry (§4.5b — the full §6a SECTION_IDS playbook priced as seam 16, empty state argued visible-with-teaching against hide-by-default), character.ingest joins U8 as databank.ingest's sibling (seam 17), and the hub-browser showcase — the prior hub verified as THIS repo's own house-UI section (built cc6b7db38/8d95cad08, purged f6c5c588e 2026-07-22, read from history this session) and mined for the four-item failure list that now constrains the page grammar (grid/masterDetail/searchBar browse-genre nodes)",
-        "U6 build + dated truth-repair (lane executor-u6-server-seams, #679): §7a records the seam-14 repair (the doc's \"applied at the render path\" asserted a SERVER-side render path that does not exist — renderMessageForDisplay is client-side and sync at packages/client/src/lib/message-render.ts:91; owner ruling 2026-08-28 approved the client-submits-rendered-text arm, and the recorded ordering member macros → member DISPLAY regex → plugin display transforms → markdown), the §5.15 macros mechanical correction (kit's MacroHandler is sync, so a plugin macro is a per-turn resolved VALUE and takes no arguments), the §5.5 + seam-14 rows marked BUILT, and the §2 ground-truth ToolRenderer row marked HISTORICAL (closed by U3, 03480da00 / 21ebaf174). Verified at this lane's own build commit 2c08ac420 (the commit that introduced the §7a repair; if the branch is rebased at merge this sha orphans and the entry needs a re-stamp — the known self-referencing-receipt hazard); the passages NOT touched by this lane were not re-read and their prior attestation stands.",
-        "delta re-verify 2026-08-30 (60025ad149821df5f077acf5bd712a9c0168e091, #799 vocabulary reach merged by the orchestrator, who read the delta in full): two §4.3 table rows (icon over the curated PLUGIN_ICON_NAMES tuple; tabs as the house one-of-N radio strip), the three-states law paragraph inside grid (loading → empty → tiles, reachable at both tiers), and a frame-injection blockquote recording that the slice widened while the isSafeColor clamp did not (radius/mono ride the new styleTokens slot + clampCardFrameStyleTokens); no other line changed; typed claims unaffected",
-        "delta re-verify 2026-08-30 (72a7204ffd08f5b3168c8c6fe849c86c037814d4, #820 seam 11 merged by the orchestrator, who read the delta in full): rows 30 and 11 flipped to BUILT/LANDED (the ui/assets/ bundle dir → installer CAS, one-home caps in contracts/plugin/manifest.ts), plus a dated §7a repair recording that row 30's '§7.11' pointer named a section that does not exist (it is row 11 of §7) and that plugin_assets' PK widened to (plugin_id, asset_id, bundle_path) because content-addressed CAS dedups two paths to one assetId; no other line changed; typed claims unaffected",
-        "docs/design/plugin-ui-plane.md: re-attested at 535266f00954e2c612036a2bee1825609c59be09 — citation repoint from the 2026-08-30 reviews retirement, re-attested after the main merge",
-        "docs/design/plugin-ui-plane.md: re-attested at 79871238bc0506fa74902bb1844f734fc9e32db3 — the #866 S1+S2 (6923f33cb) and #876/#873 docs-law (79871238b) merges both carry truth-repairs here; both deltas read by the orchestrator; the gate-count line resolved to 233 at the merge"
+        "the ST parity register (\u00a75) built from Core-SillyTavern-Feature-Map.md + Core-ST-Feature-Gap-Register.md plus the live ST extension-authoring docs fetched raw per the web-fetching rule 2026-08-24",
+        "revision 9bc1cd142 (same lane, same day): the full-parity ruling folded \u2014 every deferred parity row committed and phase-slotted (U5-U8), the ui.frame hatch committed as scheduled phase U7 (security-executor-gated), \u00a76.1 arbitrary-pixels rows resolved to the hatch, \u00a75a converted to the enablement price sheet per the follow-up steer ('some of those features I could be convinced to enable'), the five original open questions resolved against the ruling, residual owner ask reduced to TTS/STT (substrate)",
+        "addendum 2b09d3c00 (steer 7 + owner provenance correction): ui.page surface kind + the ONE house Extensions rail entry (\u00a74.5b \u2014 the full \u00a76a SECTION_IDS playbook priced as seam 16, empty state argued visible-with-teaching against hide-by-default), character.ingest joins U8 as databank.ingest's sibling (seam 17), and the hub-browser showcase \u2014 the prior hub verified as THIS repo's own house-UI section (built cc6b7db38/8d95cad08, purged f6c5c588e 2026-07-22, read from history this session) and mined for the four-item failure list that now constrains the page grammar (grid/masterDetail/searchBar browse-genre nodes)",
+        "U6 build + dated truth-repair (lane executor-u6-server-seams, #679): \u00a77a records the seam-14 repair (the doc's \"applied at the render path\" asserted a SERVER-side render path that does not exist \u2014 renderMessageForDisplay is client-side and sync at packages/client/src/lib/message-render.ts:91; owner ruling 2026-08-28 approved the client-submits-rendered-text arm, and the recorded ordering member macros \u2192 member DISPLAY regex \u2192 plugin display transforms \u2192 markdown), the \u00a75.15 macros mechanical correction (kit's MacroHandler is sync, so a plugin macro is a per-turn resolved VALUE and takes no arguments), the \u00a75.5 + seam-14 rows marked BUILT, and the \u00a72 ground-truth ToolRenderer row marked HISTORICAL (closed by U3, 03480da00 / 21ebaf174). Verified at this lane's own build commit 2c08ac420 (the commit that introduced the \u00a77a repair; if the branch is rebased at merge this sha orphans and the entry needs a re-stamp \u2014 the known self-referencing-receipt hazard); the passages NOT touched by this lane were not re-read and their prior attestation stands.",
+        "delta re-verify 2026-08-30 (60025ad149821df5f077acf5bd712a9c0168e091, #799 vocabulary reach merged by the orchestrator, who read the delta in full): two \u00a74.3 table rows (icon over the curated PLUGIN_ICON_NAMES tuple; tabs as the house one-of-N radio strip), the three-states law paragraph inside grid (loading \u2192 empty \u2192 tiles, reachable at both tiers), and a frame-injection blockquote recording that the slice widened while the isSafeColor clamp did not (radius/mono ride the new styleTokens slot + clampCardFrameStyleTokens); no other line changed; typed claims unaffected",
+        "delta re-verify 2026-08-30 (72a7204ffd08f5b3168c8c6fe849c86c037814d4, #820 seam 11 merged by the orchestrator, who read the delta in full): rows 30 and 11 flipped to BUILT/LANDED (the ui/assets/ bundle dir \u2192 installer CAS, one-home caps in contracts/plugin/manifest.ts), plus a dated \u00a77a repair recording that row 30's '\u00a77.11' pointer named a section that does not exist (it is row 11 of \u00a77) and that plugin_assets' PK widened to (plugin_id, asset_id, bundle_path) because content-addressed CAS dedups two paths to one assetId; no other line changed; typed claims unaffected",
+        "docs/design/plugin-ui-plane.md: re-attested at 535266f00954e2c612036a2bee1825609c59be09 \u2014 citation repoint from the 2026-08-30 reviews retirement, re-attested after the main merge",
+        "docs/design/plugin-ui-plane.md: re-attested at 79871238bc0506fa74902bb1844f734fc9e32db3 \u2014 the #866 S1+S2 (6923f33cb) and #876/#873 docs-law (79871238b) merges both carry truth-repairs here; both deltas read by the orchestrator; the gate-count line resolved to 233 at the merge"
       ],
       "claims": [
         {
@@ -799,7 +800,7 @@
           ]
         }
       ],
-      "summary": "The #679 design (full-parity revision): plugin UI as a declarative contribution tree over sealed @orb/ui, two tiers (static server-round-trip + client-side QuickJS-worker scripted) on one zod spec vocabulary; one new ui.surface capability; anchors settings/chat-flank/chat-settings-section/tool-card + the dialog surface and host toasts; the ST extension-ability parity register (35 rows — every former deferred row COMMITTED with a phase, U0-U8 stop-anywhere); the ui.frame hatch COMMITTED as phase U7 on the card-frame substrate; §5a = the enablement price sheet for the five default-refused walls (owner-purchasable, other-user walls marked); threat model with security-executor routing; residual owner ask: TTS/STT substrate only. Addendum: ui.page + the Extensions section (U5, browse-genre vocabulary constrained by the purged hub's mined failure list), character.ingest (U8), the hub-browser showcase."
+      "summary": "The #679 design (full-parity revision): plugin UI as a declarative contribution tree over sealed @orb/ui, two tiers (static server-round-trip + client-side QuickJS-worker scripted) on one zod spec vocabulary; one new ui.surface capability; anchors settings/chat-flank/chat-settings-section/tool-card + the dialog surface and host toasts; the ST extension-ability parity register (35 rows \u2014 every former deferred row COMMITTED with a phase, U0-U8 stop-anywhere); the ui.frame hatch COMMITTED as phase U7 on the card-frame substrate; \u00a75a = the enablement price sheet for the five default-refused walls (owner-purchasable, other-user walls marked); threat model with security-executor routing; residual owner ask: TTS/STT substrate only. Addendum: ui.page + the Extensions section (U5, browse-genre vocabulary constrained by the purged hub's mined failure list), character.ingest (U8), the hub-browser showcase."
     },
     {
       "path": "docs/design/prod-build-cls-investigation.md",
@@ -814,10 +815,10 @@
         "docs/design/prod-build-cls-investigation.md:1 (design; unheaded)",
         "git log --oneline -1 -- docs/design/prod-build-cls-investigation.md: a99e8f939 docs(investigate): populate-round prose census + prod-build CLS lead",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
-        "delta re-verify 2026-08-22 (P9 #393, the tooling program's law closeout): re-read in full at the P9 bytes commit; every changed line is a tooling-tree cite repoint or the new Core-0 §9 / constitution index rows, re-derived against the tree",
-        "docs/design/prod-build-cls-investigation.md: re-attested at 535266f00954e2c612036a2bee1825609c59be09 — citation repoint from the 2026-08-30 reviews retirement, re-attested after the main merge"
+        "delta re-verify 2026-08-22 (P9 #393, the tooling program's law closeout): re-read in full at the P9 bytes commit; every changed line is a tooling-tree cite repoint or the new Core-0 \u00a79 / constitution index rows, re-derived against the tree",
+        "docs/design/prod-build-cls-investigation.md: re-attested at 535266f00954e2c612036a2bee1825609c59be09 \u2014 citation repoint from the 2026-08-30 reviews retirement, re-attested after the main merge"
       ],
-      "summary": "Prod-build CLS lead — investigation only, no fix: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation.",
+      "summary": "Prod-build CLS lead \u2014 investigation only, no fix: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation.",
       "claims": [
         {
           "claim": "The cited implementation context remains present; mutable follow-up is tracked in GitHub issue #45.",
@@ -848,7 +849,7 @@
         "git log --oneline -1 -- docs/design/rpg-extraction-one-call-spike.md: a933ef4cf feat(rpg)!: delete the reliable extraction mode + build the RV-11 guide readers",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
-      "summary": "RPG state extraction — one-call-tools spike & recommendations: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation.",
+      "summary": "RPG state extraction \u2014 one-call-tools spike & recommendations: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation.",
       "claims": [
         {
           "claim": "The cited implementation context remains present; mutable follow-up is tracked in GitHub issue #25.",
@@ -875,12 +876,12 @@
       "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
       "verifiedAt": "2026-08-30",
       "evidence": [
-        "delta re-verify 2026-08-22 (#415, lane srv-data): the ONE changed line is the §7.5 chat-template cite, repointed from scripts/dev/ to packages/server/src/infra/providers/vllm/engine/templates/ — same file, same line numbers, verified against the moved template",
-        "docs/design/streaming-shape-churn.md:1 full read after the workboard split; changed routing/citations checked against Project 1, D139-D141, and current code/test evidence; 2026-08-21 delta is the §recipe invocation repoint (node scripts/probes/snap.ts -> the pnpm snap front door, #393 P2)",
+        "delta re-verify 2026-08-22 (#415, lane srv-data): the ONE changed line is the \u00a77.5 chat-template cite, repointed from scripts/dev/ to packages/server/src/infra/providers/vllm/engine/templates/ \u2014 same file, same line numbers, verified against the moved template",
+        "docs/design/streaming-shape-churn.md:1 full read after the workboard split; changed routing/citations checked against Project 1, D139-D141, and current code/test evidence; 2026-08-21 delta is the \u00a7recipe invocation repoint (node scripts/probes/snap.ts -> the pnpm snap front door, #393 P2)",
         "git:1c0c8df6ef45e867501bc70bf0811b447071030b contains the exact current document blob",
         "docs/architecture/core/Core-Path-Registry.md:523-533 (standing control-plane and comment-source rulings)",
-        "docs/design/streaming-shape-churn.md: re-attested at 535266f00954e2c612036a2bee1825609c59be09 — citation repoint from the 2026-08-30 reviews retirement, re-attested after the main merge",
-        "docs/design/streaming-shape-churn.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
+        "docs/design/streaming-shape-churn.md: re-attested at 535266f00954e2c612036a2bee1825609c59be09 \u2014 citation repoint from the 2026-08-30 reviews retirement, re-attested after the main merge",
+        "docs/design/streaming-shape-churn.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a \u2014 retired to docs/history/design per Documentation-Law \u00a7Relocation & retirement (2026-08-30 retirement pass, #872)"
       ],
       "summary": "Full-read current design document reverified after the Project/workboard split; existing typed implementation evidence remains current.",
       "claims": [
@@ -913,7 +914,7 @@
         "git log --oneline -1 -- docs/design/tracked-field-unification.md: cb5e426e5 fix(client): model-text wraps everywhere + hints ride hover (owner dogfood round)",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
-      "summary": "Tracked-field unification + panel IA repair — the pool/meter/cast-field untangle: full content read against frozen tree; unbuilt or owner-ruled design remains non-build authority pending its stated decision.",
+      "summary": "Tracked-field unification + panel IA repair \u2014 the pool/meter/cast-field untangle: full content read against frozen tree; unbuilt or owner-ruled design remains non-build authority pending its stated decision.",
       "claims": [
         {
           "claim": "Mutable resolution for this artifact is tracked in GitHub issue #56.",
@@ -940,7 +941,7 @@
         "git log --oneline -1 -- docs/design/v3-demo-transcripts-heal.md: 446668f88 docs(design): DRAFT-TRUST + v3-transcripts decision briefs (lane #51 scout reconstruction, receipts in-lane)",
         "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
       ],
-      "summary": "v3 demo-transcripts heal — decision brief: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation.",
+      "summary": "v3 demo-transcripts heal \u2014 decision brief: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation.",
       "claims": [
         {
           "claim": "Mutable resolution for this artifact is tracked in GitHub issue #54.",
@@ -964,7 +965,7 @@
       "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/design/mocks/config-revamp/DESIGN.md:1 authored by the orchestrator (claude-b) from the owner-approved canvas (artifact c612c440, v teacher-and-pin) across five live-ruling iterations 2026-08-30; the persona action inventory verified against domain/persona/verbs + the chat router before commitment",
-        "docs/design/mocks/config-revamp/DESIGN.md: re-attested at d36fa3853b5ec557b5335af4cf247e10e2abd47b — provenance-word ruling folded in"
+        "docs/design/mocks/config-revamp/DESIGN.md: re-attested at d36fa3853b5ec557b5335af4cf247e10e2abd47b \u2014 provenance-word ruling folded in"
       ],
       "claims": [
         {

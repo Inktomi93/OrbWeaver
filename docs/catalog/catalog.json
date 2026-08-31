@@ -10714,9 +10714,9 @@
       "path": "docs/design/config-revamp-design.md",
       "lane": "design",
       "issue": 5,
-      "lines": 309,
-      "bytes": 89620,
-      "sha256": "794a8e4db9adf7926a8a72c2bec7a7bfdf9246dd752b00b6238d1b186d925530",
+      "lines": 607,
+      "bytes": 116458,
+      "sha256": "64fdcd018e64b39ba7556970b7ce26cd770de6eed47ff962c23377d7d356ce37",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -10729,16 +10729,17 @@
       },
       "receipt": {
         "path": "docs/design/config-revamp-design.md",
-        "assignedSha256": "794a8e4db9adf7926a8a72c2bec7a7bfdf9246dd752b00b6238d1b186d925530",
+        "assignedSha256": "64fdcd018e64b39ba7556970b7ce26cd770de6eed47ff962c23377d7d356ce37",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "794a8e4db9adf7926a8a72c2bec7a7bfdf9246dd752b00b6238d1b186d925530",
-        "verifiedCommit": "79871238bc0506fa74902bb1844f734fc9e32db3",
+        "verifiedSha256": "64fdcd018e64b39ba7556970b7ce26cd770de6eed47ff962c23377d7d356ce37",
+        "verifiedCommit": "1f0e610da36fcb9e8c3301723de4072cfdf57bd6",
         "verifiedAt": "2026-08-30",
         "evidence": [
           "docs/design/config-revamp-design.md read in full by the orchestrator (claude-b) at merge (lane cb-config-research, stickler research + design for #866; 12 products + NN/g receipted via SearXNG→trafilatura, THIN rows marked; the house read against 9707b9672; the Settings-is-a-modal premise repair accepted mid-run); the nine owner forks are being ruled live; the four D-rows are labelled R-A..R-D, never forward-numbered",
-          "docs/design/config-revamp-design.md: re-attested at 79871238bc0506fa74902bb1844f734fc9e32db3 — the #866 S1+S2 (6923f33cb) and #876/#873 docs-law (79871238b) merges both carry truth-repairs here; both deltas read by the orchestrator; the gate-count line resolved to 233 at the merge"
+          "docs/design/config-revamp-design.md: re-attested at 79871238bc0506fa74902bb1844f734fc9e32db3 — the #866 S1+S2 (6923f33cb) and #876/#873 docs-law (79871238b) merges both carry truth-repairs here; both deltas read by the orchestrator; the gate-count line resolved to 233 at the merge",
+          "re-attested at the #866 S3+S4 merge (1f0e610da): lane cb-config-s3s4's +300-line riders (§7.0-§7.6 — R-TEACH/R-BG rulings, premises re-derived, as-built deviations a-e, coupled-site walk, red-first floor) read in full by the orchestrator from the merge diff before re-attest"
         ],
         "claims": [
           {
