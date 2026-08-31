@@ -70,7 +70,7 @@ function DrawerModal({ body, container, def, onOpenChange }: DrawerModalProps): 
     <Drawer open={true} onOpenChange={onDrawerOpenChange} side="bottom">
       <DrawerPopup side="bottom" container={container} finalFocus={resolveDrawerFinalFocus}>
         {/* sticky so the title + close stay in view as DrawerPopup's own scroll region scrolls. */}
-        <header className="shell-modal-header sticky top-0 z-(--z-sticky) shrink-0 bg-card">
+        <header className="shell-modal-header sticky top-0 z-(--z-raised) shrink-0 bg-card">
           <DrawerTitle>{def.title}</DrawerTitle>
           <DrawerClose
             render={
