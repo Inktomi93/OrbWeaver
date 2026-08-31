@@ -1264,7 +1264,7 @@ test("R5a: the LIVE active conditions bind party[].removeCondition to an enum (a
 // ── F10: a roster character literally named "Player" owns the `player` ref; the token is withheld ───────
 test("F10: a roster character named 'Player' is enum-able and the semantic 'player' token is withheld (no collision)", async ({ app, db }) => {
   const { chatId, hostId } = await seedHostGameChat(db, "f10-player-collision");
-  // A ROSTER character literally named "Player" — `buildRosterRefIndex` gives it precedence over the self-alias,
+  // A ROSTER character literally named "Player" — `buildActorRefIndex` gives it precedence over the self-alias,
   // so it OWNS the `player` ref. The enum must therefore offer "Player" (the char is targetable) and NOT the
   // bare `player` token (which would shadow the real roster entry — the F10 seam).
   const playerCharId = await seedCharacter(db, hostId, "Player");

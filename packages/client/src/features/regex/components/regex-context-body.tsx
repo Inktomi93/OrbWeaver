@@ -121,19 +121,19 @@ function RegexScopePanel({
           This script has no “Runs on” stream selected, so it will not run in any of these scopes. Pick one in the editor.
         </Text>
       ) : null}
-      <AttachmentRoster
+      <AttachmentList
         emptyText="No preset attaches this script yet. Open a preset's Regex tab to attach it there."
         glyph={SlidersHorizontal}
         noun="presets"
         rows={usage.presets}
       />
-      <AttachmentRoster
+      <AttachmentList
         emptyText="No character attaches this script yet. Open a character's Regex field to attach it there."
         glyph={Users}
         noun="characters"
         rows={usage.characters}
       />
-      <RoomRoster rooms={usage.rooms} />
+      <RoomList rooms={usage.rooms} />
       {/* THE ROSTERS LEAD, THE ORDER FOLLOWS (side-eye 2026-08-03 P2 "panel burial"). The order editor used
           to sit directly under the global switch: at the owner's 34 global scripts its 34 rows pushed
           "Attached by presets / characters / rooms" ~1400px below the fold, in a panel whose entire stated
@@ -168,7 +168,7 @@ function RegexScopePanel({
  * The glyph is `aria-hidden` (Icon's default): the noun is already in the section heading the row sits
  * under, so announcing it per row would say "presets" three times before each name.
  */
-function AttachmentRoster({
+function AttachmentList({
   noun,
   glyph,
   rows,
@@ -217,7 +217,7 @@ function AttachmentRoster({
  * are not, an ordinal when nothing on screen can tell them apart. So a room row here reads the way a chats
  * row does: who is in it, and when it last moved.
  */
-function RoomRoster({ rooms }: { readonly rooms: readonly VisibleRoomRef[] }): ReactElement {
+function RoomList({ rooms }: { readonly rooms: readonly VisibleRoomRef[] }): ReactElement {
   const stamps = rowQualifiers(
     rooms.map((room) => ({ name: deriveChatTitle(room.title, room.participantNames), at: room.at })),
     timeLib.formatRelativeCompact,

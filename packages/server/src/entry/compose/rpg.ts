@@ -79,8 +79,8 @@ import { parseChatMetadata } from "#domain/chat";
 import type { ConnectionService } from "#domain/connection";
 import { AgentModelHealError, ConnectionRoutingError } from "#domain/connection";
 import type {
+  ActorRefIndex,
   ImportRpgGame,
-  RosterRefIndex,
   RpgContext,
   RpgCopyPresetToUser,
   RpgResolvePresetOwned,
@@ -92,7 +92,7 @@ import type {
 } from "#domain/rpg";
 import {
   actorCarrier,
-  buildRosterRefIndex,
+  buildActorRefIndex,
   createImportRpgGame,
   createRpgChatOps,
   createRpgFlushBarrier,
@@ -565,7 +565,7 @@ async function extractViaStructured(deps: RpgComposeDeps, ctx: ExtractCtx): Prom
 /** The SEMANTIC self-ref the human player's actor always answers to — a STABLE token independent of the
  *  display name (owner ruling 2026-07-27: "You" is the no-persona fallback, a persona sets a real name, and
  *  the model reaching for "player" was the saner API). The wire vocabulary leads with this; the resolver
- *  (`buildRosterRefIndex` self-aliases) maps it to the user ref, and the snapshot keys on `user:<id>` (stable
+ *  (`buildActorRefIndex` self-aliases) maps it to the user ref, and the snapshot keys on `user:<id>` (stable
  *  across persona changes — verified, never orphaned by a display-name toggle). */
 const PLAYER_SEMANTIC_REF = "player";
 
@@ -582,7 +582,7 @@ interface ResolvedRefs {
 /** The valid per-call refs the schema constraint + the prompt enumerate. The set MIRRORS what `resolveActor`
  *  (`tools/apply.ts`) can actually resolve, so the enum offers exactly the resolvable targets:
  *   • the semantic `player` token — ADDED only when NO roster member already occupies the name "player"
- *     (`buildRosterRefIndex` gives an explicit roster name precedence over the self-alias; a roster char
+ *     (`buildActorRefIndex` gives an explicit roster name precedence over the self-alias; a roster char
  *     literally named "Player" therefore OWNS the `player` ref — stickler F10 — and the human is addressed by
  *     their own display name, kept below);
  *   • every roster member's display name (incl. a "Player"-named char and the user's persona name);
@@ -815,7 +815,7 @@ function buildRunExtraction(deps: RpgComposeDeps): RpgRunExtraction {
     logStrippedKeys({ chatId, model: conn.model, api: conn.api, vehicle: "structured extraction", event: "rpg.extraction.stripped", stripped });
     // The roster index resolves an extracted party/inventory target NAME to its roster ref (F2 — the same
     // first-class resolution the cheap-mode tools use; a structured write on a party member must render too).
-    const roster = buildRosterRefIndex(await deps.rpgChatOps.resolveRpgRoster(chatId));
+    const roster = buildActorRefIndex(await deps.rpgChatOps.resolveRpgRoster(chatId));
     const delta = extractionToStateDelta(baseState, extraction, { item: () => newId(), quest: () => newId(), objective: () => newId() }, roster);
     // R3 — visibility: an extraction that parsed but resolves to ZERO renderable writes (all phantom mints /
     // no-ops) is a SIGNAL (mis-target or an empty beat), not a silent nothing. Log it with the ref context so
@@ -843,7 +843,7 @@ function logExtractionOutcome(args: {
    *  derived from state it already holds — so it never re-resolves the ref bundle just to log. */
   readonly actorRefs: number;
   readonly base: RpgSnapshotState;
-  readonly roster: RosterRefIndex;
+  readonly roster: ActorRefIndex;
   readonly parsed: RpgExtraction;
   readonly delta: { readonly statePatch: Record<string, unknown>; readonly journal: readonly unknown[] };
 }): void {
@@ -1272,7 +1272,7 @@ function buildRunToolRound(deps: RpgComposeDeps): RpgRunToolRound {
     // dedicated round was the one vehicle that dropped silently).
     logToolCallLosses({ chatId, model: conn.model, api: conn.api, calls, vehicle: "cheap tool round" });
     const extraction = toolCallsToExtraction(calls);
-    const roster = buildRosterRefIndex(await deps.rpgChatOps.resolveRpgRoster(chatId));
+    const roster = buildActorRefIndex(await deps.rpgChatOps.resolveRpgRoster(chatId));
     const delta = extractionToStateDelta(baseState, extraction, { item: () => newId(), quest: () => newId(), objective: () => newId() }, roster);
     logExtractionOutcome({ chatId, model: conn.model, api: conn.api, actorRefs: refs.actorRefs.length, base: baseState, roster, parsed: extraction, delta });
     return { ...delta, recordedToolCalls: recordToolCalls(calls) };
@@ -1349,7 +1349,7 @@ function buildFoldTurnToolCalls(deps: RpgComposeDeps): RpgContext["foldTurnToolC
     // two more reads (the game row + a SECOND roster) whose only consumer is a log field. The roster index is
     // genuinely needed (it resolves target names to roster refs and backs the ghost guard), and the log's
     // target-menu denominator derives from state we already hold.
-    const roster = buildRosterRefIndex(await deps.rpgChatOps.resolveRpgRoster(chatId));
+    const roster = buildActorRefIndex(await deps.rpgChatOps.resolveRpgRoster(chatId));
     const delta = extractionToStateDelta(baseState, extraction, { item: () => newId(), quest: () => newId(), objective: () => newId() }, roster);
     logExtractionOutcome({
       chatId,
@@ -1457,7 +1457,7 @@ async function resyncViaToolRound(
     events: { unparseable: "rpg.resync.unparseable", stripped: "rpg.resync.stripped" },
   });
   const extraction = toolCallsToExtraction(calls);
-  const roster = buildRosterRefIndex(await deps.rpgChatOps.resolveRpgRoster(chatId));
+  const roster = buildActorRefIndex(await deps.rpgChatOps.resolveRpgRoster(chatId));
   const delta = extractionToStateDelta(baseState, extraction, { item: () => newId(), quest: () => newId(), objective: () => newId() }, roster);
   logExtractionOutcome({ chatId, model: conn.model, api: conn.api, actorRefs: refs.actorRefs.length, base: baseState, roster, parsed: extraction, delta });
   return { ok: true, delta };
@@ -1559,7 +1559,7 @@ async function resyncViaStructured(
     );
   }
   logStrippedKeys({ chatId, model: conn.model, api: conn.api, vehicle: "resync", event: "rpg.resync.stripped", stripped });
-  const roster = buildRosterRefIndex(await deps.rpgChatOps.resolveRpgRoster(chatId));
+  const roster = buildActorRefIndex(await deps.rpgChatOps.resolveRpgRoster(chatId));
   const delta = extractionToStateDelta(baseState, extraction, { item: () => newId(), quest: () => newId(), objective: () => newId() }, roster);
   logExtractionOutcome({ chatId, model: conn.model, api: conn.api, actorRefs: refs.actorRefs.length, base: baseState, roster, parsed: extraction, delta });
   return { ok: true, delta };
@@ -1703,7 +1703,7 @@ function buildRunPopulateExtraction(deps: RpgComposeDeps): RpgContext["runPopula
         "rpg populate: plane(s)/entry(ies) did not conform — DROPPED (the rest of the round still applies)",
       );
     }
-    const roster = buildRosterRefIndex(await deps.rpgChatOps.resolveRpgRoster(chatId));
+    const roster = buildActorRefIndex(await deps.rpgChatOps.resolveRpgRoster(chatId));
     const delta = extractionToStateDelta(baseState, extraction, { item: () => newId(), quest: () => newId(), objective: () => newId() }, roster);
     logExtractionOutcome({ chatId, model: conn.model, api: conn.api, actorRefs: refs.actorRefs.length, base: baseState, roster, parsed: extraction, delta });
     // The wire says `title`; the sheet stores `className` (the takeover has rendered it as the title since the

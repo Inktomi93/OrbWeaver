@@ -76,14 +76,14 @@ const PAYLOAD_TOO_LARGE = 413;
 
 const HTML_MIME = "text/html; charset=utf-8";
 
-/** The membership-gated roster read — the ONE authority for a card's render policy. Structural port so
- *  `entry/http` states exactly the slice it consumes (the `BlobAssetsPort` precedent). */
-export interface CardFrameRosterPort {
+/** The membership-gated participant read — the ONE authority for a card's render policy. Structural port
+ *  so `entry/http` states exactly the slice it consumes (the `BlobAssetsPort` precedent). */
+export interface CardFrameParticipantsPort {
   readonly listParticipants: (params: { readonly principal: Principal; readonly chatId: ChatId }) => Promise<readonly ParticipantView[]>;
 }
 
 export interface CardFrameDeps {
-  readonly roster: CardFrameRosterPort;
+  readonly participants: CardFrameParticipantsPort;
   /** The live app-tier external-media ceiling — the SAME read `securityHeaders` is built from. */
   readonly allowExternalMedia: () => boolean;
   /** The live app-tier INTERACTIVE-CARD ceiling (`effectiveConfig.allowInteractiveCards`, floor FALSE).
@@ -144,7 +144,7 @@ async function resolvePolicy(
   let participants: readonly ParticipantView[];
   // @orb-gate-ignore caught-failure-ownership(empty:catch): a LEAK-FREE COLLAPSE to the SAFE FLOOR, stated in the comment below — a non-participant throwing out of the membership gate and an unknown character must land on the identical restrictive policy, or the frame's permissiveness reveals chat membership. Every failure arm here tightens, never widens. Ends if the floor stops being the safe posture.
   try {
-    participants = await deps.roster.listParticipants({ principal, chatId: selector.chatId });
+    participants = await deps.participants.listParticipants({ principal, chatId: selector.chatId });
   } catch {
     // A non-participant throws out of the membership gate. A foreigner learns nothing from the difference
     // between "not a member" and "no such character" — both are the floor.

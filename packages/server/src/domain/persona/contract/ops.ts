@@ -21,7 +21,7 @@
 // resolving, so a stale anchor falls to the active persona instead of being copied or resurrected).
 
 import type { PersonaId, UserId } from "@orb/kit/ids";
-import type { PersonaRosterView } from "./views.ts";
+import type { PersonaListView } from "./views.ts";
 
 /** Resolve the presentation surface of personas a room's ROSTER consents to.
  *
@@ -32,4 +32,4 @@ import type { PersonaRosterView } from "./views.ts";
 export type ResolvePersonasForRoster = (args: {
   readonly personaIds: readonly PersonaId[];
   readonly allowedOwnerIds: readonly UserId[];
-}) => Promise<ReadonlyMap<PersonaId, PersonaRosterView>>;
+}) => Promise<ReadonlyMap<PersonaId, PersonaListView>>;

@@ -24,7 +24,7 @@ export interface PersonaDetail extends CardFace<string>, ResolvedCardFace<string
  *  `descriptionPlacement`, plus `ownerId` so a caller can attribute a resolved persona to the member
  *  playing it. NOT the persona row: `avatarAssetId`/`avatarHash`/`title`/`starred`/timestamps stay behind
  *  the owner-scoped verbs (playing a persona in a room consents to its presentation, never to the entity). */
-export interface PersonaRosterView {
+export interface PersonaListView {
   readonly id: PersonaId;
   readonly ownerId: UserId;
   readonly name: string;

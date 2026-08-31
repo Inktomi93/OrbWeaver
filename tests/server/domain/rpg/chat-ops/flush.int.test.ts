@@ -23,7 +23,7 @@ import { listJournalByVariant } from "../../../../../packages/server/src/domain/
 import { findSnapshotByVariant, listSnapshots } from "../../../../../packages/server/src/domain/rpg/persistence/snapshots.ts";
 import { findTurnToolCallsByVariant } from "../../../../../packages/server/src/domain/rpg/persistence/turn-tool-calls.ts";
 import { defaultSnapshotState } from "../../../../../packages/server/src/domain/rpg/substrate/default-state.ts";
-import { buildRosterRefIndex, extractionToStateDelta } from "../../../../../packages/server/src/domain/rpg/tools/apply.ts";
+import { buildActorRefIndex, extractionToStateDelta } from "../../../../../packages/server/src/domain/rpg/tools/apply.ts";
 import type { ToolExecutionContext } from "../../../../../packages/server/src/domain/tool-use/index.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { makeModelCapability, makeResolvedConnection } from "../../../../support/factories/resolved-connection.ts";
@@ -258,7 +258,7 @@ test("ROUND-TRIP (the exec's replayed output): extraction JSON → delta → flu
       journal: [{ type: "combat", content: "Wounded by the troll as it swung its club." }],
     },
     { item: () => "item_x", quest: () => castId<RpgQuestId>("q_x"), objective: () => "obj_x" },
-    buildRosterRefIndex([player]),
+    buildActorRefIndex([player]),
   );
   const { chatId, h } = await seedLiteGame(db, { roster: [player], toolRoundDelta });
   await pinExtractionMode(h, chatId, "cheap");

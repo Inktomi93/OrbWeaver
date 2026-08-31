@@ -13,7 +13,7 @@ import {
   applyUpdateParty,
   applyUpdateScene,
   applyUpsertQuest,
-  buildRosterRefIndex,
+  buildActorRefIndex,
   extractionToStateDelta,
   ghostTargetRefs,
   toStagedJournalEntry,
@@ -36,7 +36,7 @@ function castRow(
 
 /** The empty roster index — a target name that matches no roster member mints a `cast:<name>` (the non-roster
  *  scene-NPC path). Tests that exercise the roster resolution build a populated index instead. */
-const NO_ROSTER = buildRosterRefIndex([]);
+const NO_ROSTER = buildActorRefIndex([]);
 
 function emptyState(over: Partial<RpgSnapshotState> = {}): RpgSnapshotState {
   return {
@@ -98,7 +98,7 @@ test("update_party: a SET arm naming neither a value nor items is a no-op, never
 
 test("update_party on a ROSTER-member name mints under the roster ref, not a cast key (F2)", () => {
   const kaelId = castId<CharacterId>("character_kael");
-  const roster = buildRosterRefIndex([{ actorRef: { kind: "character", characterId: kaelId }, name: "Kael" }]);
+  const roster = buildActorRefIndex([{ actorRef: { kind: "character", characterId: kaelId }, name: "Kael" }]);
   const result = applyUpdateParty(emptyState(), { targetRef: "Kael", trackerDeltas: [{ key: "focus", delta: 7 }] }, roster);
   // The write lands under the roster CHARACTER ref — the key the tracker view + reminder read.
   expect(result.actorState[0]?.actorRef).toEqual({ kind: "character", characterId: kaelId });
@@ -273,7 +273,7 @@ test("a cast NPC is addressed by SLUG, so a re-spelled name patches ONE actor (n
 
 test("a presentUpsert naming a ROSTER member adds PRESENCE and writes no identity (one name home)", () => {
   const kaelId = castId<CharacterId>("character_kael");
-  const roster = buildRosterRefIndex([{ actorRef: { kind: "character", characterId: kaelId }, name: "Kael" }]);
+  const roster = buildActorRefIndex([{ actorRef: { kind: "character", characterId: kaelId }, name: "Kael" }]);
   const patch = applyUpdateScene(emptyState(), { presentUpsert: [{ name: "Kael", mood: "grim" }] }, roster);
   expect(patch.presentCharacters).toEqual([`character:${kaelId}`]);
   // Her name is the chat roster's and her standing prose is the sheet's — a second identity home is exactly
@@ -382,7 +382,7 @@ test("extractionToStateDelta does NOT derive a beat when the relationship is unc
 
 test("extractionToStateDelta DROPS a ghost-actor party arg and still applies the rest of the delta", () => {
   const userId = castId<UserId>("user_ghost");
-  const roster = buildRosterRefIndex([{ actorRef: { kind: "user", userId }, name: "You" }]);
+  const roster = buildActorRefIndex([{ actorRef: { kind: "user", userId }, name: "You" }]);
   const base = emptyState();
   const extraction = {
     // "Aldric Vane" is the measured failure: an actor from a STALE enum, in no live cast.
@@ -409,7 +409,7 @@ test("extractionToStateDelta DROPS a ghost-actor party arg and still applies the
 
 test("ghostTargetRefs names ONLY the unreachable targets (roster / tracked cast / scene cast are reachable)", () => {
   const userId = castId<UserId>("user_g2");
-  const roster = buildRosterRefIndex([{ actorRef: { kind: "user", userId }, name: "You" }]);
+  const roster = buildActorRefIndex([{ actorRef: { kind: "user", userId }, name: "You" }]);
   const base = emptyState({
     // A tracked cast actor answers to BOTH spellings since R2: her stable slug AND her display name (the
     // enum offers the display name, so a write coming back under it must not read as a ghost).
@@ -596,10 +596,10 @@ test("EXT-4b: the heal does NOT resurrect the custom label — a healed entry is
   expect(toStagedJournalEntry({ type: "custom", label: "ritual", content: "They lit the candles." }).label).toBe("ritual");
 });
 
-// ── buildRosterRefIndex — the player self-alias (R2, belt-and-suspenders with the schema enum constraint) ──
+// ── buildActorRefIndex — the player self-alias (R2, belt-and-suspenders with the schema enum constraint) ──
 test("the player (user-kind) actor answers to the universal self-aliases (player/you/self/me)", () => {
   const userId = castId<UserId>("user_nate");
-  const idx = buildRosterRefIndex([{ actorRef: { kind: "user", userId }, name: "Nate" }]);
+  const idx = buildActorRefIndex([{ actorRef: { kind: "user", userId }, name: "Nate" }]);
   // The roster name AND each self-alias resolve to the SAME user ref — never a phantom cast:player.
   for (const key of ["nate", "player", "you", "self", "me", "the player"]) {
     expect(idx.get(key)).toEqual({ kind: "user", userId });
@@ -608,7 +608,7 @@ test("the player (user-kind) actor answers to the universal self-aliases (player
 
 test('a "player" targetRef on a user-roster game lands on the user ref — NOT a cast:player phantom (R2)', () => {
   const userId = castId<UserId>("user_p");
-  const roster = buildRosterRefIndex([{ actorRef: { kind: "user", userId }, name: "You" }]);
+  const roster = buildActorRefIndex([{ actorRef: { kind: "user", userId }, name: "You" }]);
   const result = applyUpdateParty(emptyState(), { targetRef: "player", status: "wounded" }, roster);
   expect(result.actorState[0]?.actorRef).toEqual({ kind: "user", userId });
 });
@@ -617,7 +617,7 @@ test("an explicit roster name that collides with an alias WINS (aliases fill onl
   const userId = castId<UserId>("user_pl");
   const charId = castId<CharacterId>("character_you_npc");
   // A character literally named "You" — the roster mapping for "you" must stay the character, not the alias.
-  const idx = buildRosterRefIndex([
+  const idx = buildActorRefIndex([
     { actorRef: { kind: "character", characterId: charId }, name: "You" },
     { actorRef: { kind: "user", userId }, name: "Player One" },
   ]);
@@ -627,7 +627,7 @@ test("an explicit roster name that collides with an alias WINS (aliases fill onl
 
 test("no user-kind actor in the roster → no self-alias entries (a character-only game mints nothing phantom)", () => {
   const charId = castId<CharacterId>("character_only");
-  const idx = buildRosterRefIndex([{ actorRef: { kind: "character", characterId: charId }, name: "Kael" }]);
+  const idx = buildActorRefIndex([{ actorRef: { kind: "character", characterId: charId }, name: "Kael" }]);
   expect(idx.get("player")).toBeUndefined();
   expect(idx.get("you")).toBeUndefined();
 });
