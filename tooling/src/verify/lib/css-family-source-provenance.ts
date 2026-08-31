@@ -16,6 +16,15 @@ import {
 
 type SourceOwner = "ui" | "client";
 
+let passProject: Project | undefined;
+let passOwners: ReadonlyMap<string, HookOwners> | undefined;
+
+/** Reset the one-pass cache before the shared gate dispatcher begins a new project. */
+export function resetHookOwnerCache(): void {
+  passProject = undefined;
+  passOwners = undefined;
+}
+
 const CLASS_LIST_MUTATORS = new Set(["add", "remove", "toggle", "replace"]);
 const CLASS_NAME_ASSIGNMENT_OPERATORS = new Set(["=", "+=", "&&=", "||=", "??="]);
 const TYPESCRIPT_DOM_LIB = "/typescript/lib/lib.dom.d.ts";
@@ -216,6 +225,9 @@ function recordAssignment(map: Map<string, HookOwners>, binary: import("ts-morph
 
 /** Collect only hooks that reach JSX, a declaration-proven class composer, or a DOM class terminal. */
 export function collectHookOwners(ctx: GateRunCtx): ReadonlyMap<string, HookOwners> {
+  if (passProject === ctx.project && passOwners !== undefined) {
+    return passOwners;
+  }
   const owners = new Map<string, HookOwners>();
   const dataShellNames = dataShellPropertyNames(ctx.project);
   recordWalkedClassCarriers(owners, ctx.project);
@@ -237,5 +249,7 @@ export function collectHookOwners(ctx: GateRunCtx): ReadonlyMap<string, HookOwne
       recordAssignment(owners, binary, owner);
     }
   }
+  passProject = ctx.project;
+  passOwners = owners;
   return owners;
 }
