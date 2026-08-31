@@ -7,7 +7,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { SEED_THEME_VALUE_SETS, TOKENS } from "@orb/ui/tokens";
 import { AVATAR_HUE_STEPS } from "../../../packages/ui/src/primitives/avatar/hue.ts";
-import { generateArtifacts } from "../../../packages/ui/tokens.build.ts";
+import { generateArtifacts, renderGeneratedCss } from "../../../packages/ui/tokens.build.ts";
 import { expect, test } from "../../support/fixtures.ts";
 
 const UI_ROOT = join(import.meta.dirname, "../../../packages/ui");
@@ -22,6 +22,22 @@ test("theme.css, tokens/index.ts and tokens/themes.gen.ts are exactly what token
   // The seed value-sets are their OWN generated module (they outgrew the index's size cap) — freshness
   // covers it too, or a hand-edited palette would drift silently.
   expect(readFileSync(join(UI_ROOT, "src/tokens/themes.gen.ts"), "utf8")).toBe(themesTs);
+});
+
+test("runtime CSS placement emits Tailwind namespaces into @theme and private aliases into :root", () => {
+  const css = renderGeneratedCss([
+    { path: ["spacing", "control"], value: "2rem", placement: "theme" },
+    { path: ["orb", "density-control"], value: "var(--spacing-control)", placement: "root" },
+  ]);
+  const themeEnd = css.indexOf("}\n");
+  const themeBlock = css.slice(0, themeEnd);
+  const rootBlock = css.slice(themeEnd);
+
+  expect(themeBlock).toContain("--spacing-control: 2rem;");
+  expect(themeBlock).not.toContain("--orb-density-control");
+  expect(rootBlock).toContain(":root {");
+  expect(rootBlock).toContain("--orb-density-control: var(--spacing-control);");
+  expect(rootBlock).not.toContain("--spacing-control: 2rem;");
 });
 
 test("the touch floor holds PER-POINTER: coarse @theme meets ≥44px, fine override is 32/34/40 (D62 P1, gate touch-target-floor; control-sm raised to the 32px tap-target floor Task #76)", async () => {

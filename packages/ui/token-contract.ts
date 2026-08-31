@@ -53,6 +53,7 @@ type JsonObject = Record<string, unknown>;
 type AddFormats = (ajv: Ajv) => Ajv;
 export type TokenType = (typeof TOKEN_TYPES)[number];
 export type OutputRole = "input" | "light-dark" | "percentage";
+export type CssValuePlacement = "theme" | "root";
 
 export interface TokenContractDiagnostic {
   readonly path: string;
@@ -71,6 +72,7 @@ export interface ContractToken {
 
 export interface CssValueEntry {
   readonly value: string;
+  readonly placement: CssValuePlacement;
   readonly description: string;
   readonly provenance: readonly string[];
 }
@@ -109,7 +111,14 @@ const llmSchema = z
   .object({ usage: z.array(z.string().min(1)).min(1).optional(), rules: z.string().min(1).optional() })
   .strict()
   .refine((value) => value.usage !== undefined || value.rules !== undefined, "usage or rules is required");
-const cssValueEntrySchema = z.object({ value: z.string().min(1), description: z.string().min(1), provenance: z.array(z.string().min(1)).min(1) }).strict();
+const cssValueEntrySchema = z
+  .object({
+    value: z.string().min(1),
+    placement: z.enum(["theme", "root"]),
+    description: z.string().min(1),
+    provenance: z.array(z.string().min(1)).min(1),
+  })
+  .strict();
 const cssValuesSchema = z.record(z.string().regex(/^--[a-z0-9-]+$/u), cssValueEntrySchema);
 const themeMetaSchema = z.object({ id: z.enum(["hearth", "light", "mocha"]), colorScheme: z.enum(["light", "dark"]) }).strict();
 const removedSchema = z
