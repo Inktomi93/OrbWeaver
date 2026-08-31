@@ -10,6 +10,7 @@ import { DirtyPill, FormErrorBanner, SubmitButton } from "./bound-fields/form-ch
 import { MacroField } from "./bound-fields/macro-field.tsx";
 import { MultiToggleField } from "./bound-fields/multi-toggle-field.tsx";
 import { BoundNumberField } from "./bound-fields/number-field.tsx";
+import { SegmentField } from "./bound-fields/segment-field.tsx";
 import { SelectField } from "./bound-fields/select-field.tsx";
 import { BoundSliderField } from "./bound-fields/slider-field.tsx";
 import { SwitchField } from "./bound-fields/switch-field.tsx";
@@ -25,6 +26,7 @@ export const { useAppForm } = createFormHook({
     TextareaField,
     NumberField: BoundNumberField,
     SliderField: BoundSliderField,
+    SegmentField,
     SelectField,
     SwitchField,
     ColorField: BoundColorField,

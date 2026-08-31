@@ -73,6 +73,10 @@ test("the ⋯ is INVISIBLE at rest, fades in on hover, and the row does not move
 
   const row = page.locator(MODIFIED_ROW);
   const menu = row.locator(MENU);
+  // Scroll the row into view BEFORE the rest capture: `boundingBox()` is viewport-relative, and the
+  // §7.8 chat-style card grid pushed this row below the story fold — a `hover()`-triggered auto-scroll
+  // would read as a phantom "shift" (measured: y 739 → 277, pure scroll, zero layout change).
+  await row.scrollIntoViewIfNeeded();
   // REST: the slot is reserved (a real box — that is what makes the reveal shiftless) but paints nothing.
   await expect.poll(() => menu.evaluate((el: HTMLElement) => getComputedStyle(el).opacity)).toBe("0");
 

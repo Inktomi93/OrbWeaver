@@ -13,13 +13,15 @@
 
 import type { AppearanceSettings } from "@orb/contracts/settings";
 import { THEME_DENSITIES } from "@orb/contracts/theme";
-import type { SelectItems } from "@orb/ui/select";
+import type { SelectOption } from "@orb/ui/select";
 
 const DENSITY_LABELS: Record<AppearanceSettings["density"], string> = {
   comfortable: "Comfortable",
   compact: "Compact",
 };
-export const DENSITY_ITEMS: SelectItems<string> = THEME_DENSITIES.map((value) => ({
+// FLAT rows (not the `SelectItems` union): the density segment (`SegmentField`, #866 §7.8) renders the
+// same table the Selects did, and a segment has no grouped analogue.
+export const DENSITY_ITEMS: readonly SelectOption<string>[] = THEME_DENSITIES.map((value) => ({
   value,
   label: DENSITY_LABELS[value],
 }));

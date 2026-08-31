@@ -12,7 +12,9 @@ import type { AppearanceSettings } from "@orb/contracts/settings";
 import { APPEARANCE_BACKGROUND_FITS, BLUR_SURFACES } from "@orb/contracts/settings";
 import type { SelectItems, SelectOption } from "@orb/ui/select";
 
-export const ELEVATION_ITEMS: SelectItems<string> = [
+// FLAT rows typed to the UNION (#866 §7.8) — the illustrated elevation cards key their total diagram
+// map off `item.value`, so the table carries the real member type, not a widened string.
+export const ELEVATION_ITEMS: readonly SelectOption<AppearanceSettings["elevation"]>[] = [
   { value: "flat", label: "Flat" },
   { value: "ramp", label: "Layered" },
   { value: "glow", label: "Lifted (glow)" },

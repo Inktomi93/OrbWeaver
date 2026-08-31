@@ -684,11 +684,37 @@ layout shift on reveal, opacity-only fade on house motion tokens, the stripe a d
 Same aesthetic bar; each control changes, its PATCH does not (red-first pick→patch CTs pin the wire
 byte-identical). (a) **`chatStyle`** → preview CARDS on the Looks grammar (a skin is a visual anatomy):
 each of the 8 skins renders a mini message-pair preview in its own anatomy, `aria-pressed` current,
-picking writes the same `{section:"chat", patch:{chatStyle}}`. (b) **`density` + `elevation`** →
-labelled segments (`ToggleGroup`) with ONE live mini-preview panel that renders a small real-token
-mock (rows at the density's own tokens; surfaces at the elevation's own ladder) — the preview reads
-the DRAFT value, not the saved one. (c) **reading font family** → rows rendered IN the typeface
-(each option's label wears its own `font-family`), same Select→segment/list grammar as its section
-affords. (d) theme-editor token pickers: untouched. Any of the four that fights its section's anatomy
-is a stated fork with a default, never a compromised ship.
+picking writes the same `{section:"appearance", patch:{chatStyle,…}}` through the same bound field.
+(b) **`density` + `elevation`** → labelled segments (`ToggleGroup`) with ONE live mini-preview panel
+that renders a small real-token mock — the preview reads the DRAFT value, not the saved one.
+(c) **reading font family** → rows rendered IN the typeface (each option's label wears its own
+`font-family`), same Select→segment/list grammar as its section affords. (d) theme-editor token
+pickers: untouched. Any of the four that fights its section's anatomy is a stated fork with a
+default, never a compromised ship.
+
+**As built (2026-08-30):** (a) the card previews DERIVE their anatomy from `MESSAGE_ROW_SKINS [style].outer/inner` — the transcript's own dispatch table — with labels/glosses off `CHAT_STYLE_ITEMS`;
+immersive decorations (echo's portrait, whisper's banner) need a real avatar and stay out of the mini
+pair (the gloss carries them). (b) the density preview derives by SELECTOR HOIST: shell.css's compact
+token block moved from `.shell-grid[data-density]` to the bare `[data-density]` attribute (custom
+properties cascade, so the shell grid and the preview box read the ONE definition — no mirrored number;
+`CARD_EMBEDDABLE_THEME_KEYS` still excludes density, so no card path can stamp the attribute). The
+**elevation** control is ILLUSTRATED CARDS, ruled (owner, 2026-08-30, two refinements): elevation's
+meaning is *hairlines vanish across the whole chrome horizon* — a structural rewrite across seven
+anatomy selectors (shell.css:84-112) — so a faithful mini-PREVIEW is impossible (a nested box has no
+seams to lose, and shrinking the shell would misrepresent). **The general rule this minted: a control
+whose outcome is seen owes a VISUAL; when a faithful preview is impossible, the answer is an honest
+DIAGRAM, never a bare label.** A preview claims to BE the surface; an illustration depicts the
+DIFFERENCE between the options and is honest precisely because it is obviously a diagram — and it is
+ALLOWED TO EXAGGERATE (a truthful 1px seam reads as nothing at diagram size; an under-drawn diagram
+teaches nothing). The KIND of difference stays true (flat = seams kept; ramp = a seamless brightness
+ladder; glow = floating islands), the AMOUNT is scaled for instant reading; every colour/hairline/
+shadow derives from the shell's own tokens, and the diagram map is TOTAL over the option union (a new
+member is a tsc failure until depicted). This CORRECTS the §7.6 table's recommendation, which lumped
+the pair as "segment + live mini-preview": density earns a LIVE preview (custom properties cascade —
+the hoist), elevation earns an ILLUSTRATION — both visual, by different means. (c) built as a
+sealed-`Select` widening
+(`SelectOption.labelStyle` — the HintTrigger-onClick precedent) with `{fontFamily: value}` derived from
+the option's own value; `Select.Value` mirrors `ItemText`, so the closed trigger shows the chosen face
+too, deliberately. A new bound `SegmentField` (single-select ToggleGroup in a Field; empty-pick refused)
+joins the form kit for (b).
 Design landed at `docs/design/config-revamp-design.md` (draft, 2026-08-30). Premise repaired: Settings is the `settings` MODAL on `rail.end`, not a section — `SECTION_IDS` stays at ten; what retires is the modal, its gear, `settingsCategory`/`openSettingsTo`. The design: ONE closed config-group registry (`CONFIG_GROUP_IDS`, four shelves User/App/Collections/Extensions; body arms `sections` | `collection` | `placeholder` — `surface` retired by §6.8) that the nine settings panes, the three collections, the persona surface and the Plugins screen all register through, with the D120 section seam and key partition untouched and plugins riding the Extensions group's data rows; a LIST of shelves + group bands with the shipped `settings-scroll-spy.ts` re-homed as the one spy; ONE search index (groups · subcategories · leaves · collection members · persona names) over the sealed fuzzy-search hook with VS Code-style `@modified`/`@shelf:`/`@in:`/`@ext:`/`@advanced` tokens, in-place `HighlightedText` hits in both panes, a ⌘K `CommandPaletteSource`, and `openConfigTo(group, sub?, setting?)` replacing `openSettingsTo` + `goToCollection` (17 call sites); a dense CONTENT row frame (modified rail · gloss · control · reset/copy menu · scope chip); the CONTEXT pane as the TEACHER on the #860 bracket via `defineContextTabs<ConfigContextState>` (About · Applies · Learn) fed by a `configFocus` seam and per-leaf `SettingTeach` data; the rail persona slot as switcher · identity · log out. Zero new `@orb/ui` primitives; four client composites with CTs named. Nine owner forks with recommendations (closed tuple for collections; keep the Theme picker; retire the account modal; defer tags-as-facet; rename the label "Settings"). Sequence: S1 registry+surface and S2 search are dispatchable now; S3 teacher waits for #860; S4 rail slot after S1.

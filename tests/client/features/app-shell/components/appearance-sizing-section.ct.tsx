@@ -35,10 +35,16 @@ test("renders the sizing sliders AND the absorbed density/elevation/motion contr
     "aria-valuenow",
     String(DEFAULT_USER_SETTINGS.appearance.fontScale),
   );
-  // The absorbed controls survived the merge: density + elevation (from `message-style`) and reduce-motion
-  // (its own retired sub) are all here.
-  await expect(page.getByRole("combobox", { name: "Density" })).toContainText("Comfortable");
-  await expect(page.getByRole("combobox", { name: "Surface elevation" })).toContainText("Flat");
+  // The absorbed controls survived the merge — and density/elevation are SEGMENTS now (#866 §7.8, the
+  // seen-not-read rebuilds): every option visible at rest, the persisted value the pressed one.
+  const density = page.getByRole("group", { name: "Density" });
+  await expect(density.getByRole("button", { name: "Comfortable" })).toHaveAttribute("aria-pressed", "true");
+  await expect(density.getByRole("button", { name: "Compact" })).toHaveAttribute("aria-pressed", "false");
+  // …and elevation is ILLUSTRATED CARDS (the preview-vs-illustration ruling): diagram + label per
+  // option, the persisted value pressed.
+  const elevation = page.locator('[data-slot="elevation-cards"]');
+  await expect(elevation.getByRole("button", { name: "Flat" })).toHaveAttribute("aria-pressed", "true");
+  await expect(elevation.getByRole("button")).toHaveCount(3);
   await expect(page.getByRole("switch", { name: "Reduce motion" })).toBeVisible();
 });
 
@@ -71,12 +77,49 @@ test("fontScale clamps at its own MIN/MAX and patches fontScale", async ({ mount
   await expect.poll(() => lastPatch(trpc)?.["fontScale"], { intervals: [20, 50, 100] }).toBe(FONT_SCALE_MAX);
 });
 
-test("the density select patches density and nothing else", async ({ mount, page }) => {
+test("the density segment patches density and nothing else — and the LIVE preview reads the DRAFT", async ({ mount, page }) => {
   const trpc = await stub(page);
   await mount(<AppearanceSizingSectionStory />);
-  await page.getByRole("combobox", { name: "Density" }).click();
-  await page.getByRole("option", { name: "Compact" }).click();
+  const preview = page.locator('[data-slot="density-preview"]');
+  await expect(preview).toHaveAttribute("data-density", "comfortable");
+
+  await page.getByRole("group", { name: "Density" }).getByRole("button", { name: "Compact" }).click();
+
+  // THE PREVIEW IS DRAFT-DRIVEN, and derived: its box re-scopes the SAME shell.css spacing tokens the
+  // shell grid reads (one definition, two consumers — the owner's derive-never-mirror rider), so the
+  // attribute flip below IS the visual change, immediately, before any save lands.
+  await expect(preview).toHaveAttribute("data-density", "compact");
+  // …and the tokens actually re-scope: compact's row gap reads off the RENDERED box (the CSS hoist is
+  // the mechanism under test — a preview that swapped an attribute nothing styles would be a fake).
+  await expect.poll(() => preview.evaluate((el: HTMLElement) => getComputedStyle(el).rowGap)).toBe("6px"); // 0.375rem — shell.css compact, the ONE home
 
   await expect.poll(() => lastPatch(trpc)?.["density"], { intervals: [20, 50, 100] }).toBe("compact");
   expect(Object.keys(lastPatch(trpc) ?? {}).sort()).toStrictEqual(OWNED_KEYS);
+});
+
+test("an elevation CARD patches elevation, key-minimally — and its diagram derives the shell's tokens", async ({ mount, page }) => {
+  const trpc = await stub(page);
+  await mount(<AppearanceSizingSectionStory />);
+  const cards = page.locator('[data-slot="elevation-cards"]');
+  await cards.getByRole("button", { name: "Layered" }).click();
+
+  await expect.poll(() => lastPatch(trpc)?.["elevation"], { intervals: [20, 50, 100] }).toBe("ramp");
+  expect(Object.keys(lastPatch(trpc) ?? {}).sort()).toStrictEqual(OWNED_KEYS);
+
+  // The diagram is DERIVED, not drawn in hex: ramp's middle cell paints the shell's own
+  // `--color-surface-raised`, read off the rendered box against the live token (the derive rider's pin).
+  const rampMiddle = cards.getByRole("button", { name: "Layered" }).locator(".bg-surface-raised");
+  await expect(rampMiddle).toHaveCount(1);
+  await expect
+    .poll(() =>
+      rampMiddle.evaluate((el: HTMLElement): boolean => {
+        const probe = document.createElement("div");
+        probe.style.backgroundColor = "var(--color-surface-raised)";
+        document.body.appendChild(probe);
+        const tokenBg = getComputedStyle(probe).backgroundColor;
+        probe.remove();
+        return getComputedStyle(el).backgroundColor === tokenBg;
+      }),
+    )
+    .toBe(true);
 });
