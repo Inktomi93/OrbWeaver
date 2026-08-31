@@ -313,6 +313,6 @@ test("TV extension metadata and composed ordinary semantics survive the final-me
 });
 
 test("TV preserves empty ordinary and slot return semantics", () => {
-  expect(tv({})()).toBeUndefined();
-  expect(tv({ slots: { root: "" } })().root()).toBeUndefined();
+  expect(tv({})()).toBe("");
+  expect(tv({ slots: { root: "" } })().root()).toBe("");
 });

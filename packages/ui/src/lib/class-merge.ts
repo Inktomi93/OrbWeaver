@@ -151,7 +151,7 @@ export function cn(...classes: CnOptions): CnReturn {
   return output || undefined;
 }
 
-type RuntimeClassResult = string | undefined;
+type RuntimeClassResult = string;
 type RuntimeSlots = Readonly<Record<string, (...args: unknown[]) => RuntimeClassResult>>;
 type RuntimeVariantResult = string | RuntimeSlots | undefined;
 type RuntimeVariantComponent = ((...args: unknown[]) => RuntimeVariantResult) & Readonly<Record<string, unknown>>;
@@ -160,22 +160,32 @@ const composeVariants = createTV({ twMerge: false });
 
 function finalizeVariantResult(result: RuntimeVariantResult): RuntimeClassResult | RuntimeSlots {
   if (typeof result === "string" || result === undefined) {
-    return cn(result);
+    // Tailwind Variants' public TV contract returns `string`, including an empty recipe. `cn` keeps its
+    // own undefined-when-empty contract, so normalize only at this adapter boundary instead of lying to
+    // TypeScript about TV's return shape.
+    return cn(result) ?? "";
   }
   const slots: Record<string, (...args: unknown[]) => RuntimeClassResult> = {};
   for (const [slot, render] of Object.entries(result)) {
-    slots[slot] = (...args: unknown[]): RuntimeClassResult => cn(render(...args));
+    slots[slot] = (...args: unknown[]): RuntimeClassResult => cn(render(...args)) ?? "";
   }
   return slots;
 }
 
-function wrapVariantComponent(component: RuntimeVariantComponent): RuntimeVariantComponent {
-  const wrapped = (...args: unknown[]): RuntimeVariantResult => finalizeVariantResult(component(...args));
-  return Object.assign(wrapped, component);
+function wrapVariantComponent<Component extends RuntimeVariantComponent>(component: Component): Component {
+  // Proxy preserves Tailwind Variants' generic callable type and attached recipe metadata while routing
+  // every invocation through Orb's configured final merge. A cast here would erase the API mismatch that
+  // caught the old undefined return; the platform's Proxy type keeps Component exact.
+  return new Proxy(component, {
+    apply(target, thisArg, args): RuntimeVariantResult {
+      return finalizeVariantResult(Reflect.apply(target, thisArg, args));
+    },
+  });
 }
 
 /** Tailwind Variants composes raw candidates; every returned ordinary/slot string gets one Orb merge. */
-export const tv = ((...args: unknown[]): RuntimeVariantComponent => {
-  const component = (composeVariants as unknown as (...factoryArgs: unknown[]) => RuntimeVariantComponent)(...args);
-  return wrapVariantComponent(component);
-}) as TV;
+export const tv: TV = new Proxy(composeVariants, {
+  apply(target, thisArg, args): RuntimeVariantComponent {
+    return wrapVariantComponent(Reflect.apply(target, thisArg, args));
+  },
+});
