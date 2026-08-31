@@ -38,6 +38,9 @@ const CLIENT_EXCLUDE_FILES = ["data/trpc.ts"];
 // Non-primitive @orb/ui logic groups (primitives/ are covered by ui-primitive-structure's CT clause).
 const UI_LOGIC_GROUPS = ["charts/", "markdown/", "stream/", "content/", "code-editor/", "diff/", "fuzzy-search/"];
 const TEST_KINDS = [".test.ts", ".int.test.ts", ".test.tsx", ".ct.tsx"] as const;
+const REAL_TREE_ANCHOR = "packages/client/src/index.ts";
+const WORST_ART_ANCHOR = "packages/client/src/features/chat/surfaces/chat-room-surface.tsx";
+const WORST_ART_STANDING_CT = "tests/client/features/chat/surfaces/worst-legal-art-contrast.ct.tsx";
 
 const MSG_CLIENT =
   "client data/forms/state primitive has no test — add a .test.ts / .int.test.ts / .ct.tsx at its tests/client mirror. These seals are composed by every feature; an untested change breaks behavior downstream silently (Spine-Testing.md §5).";
@@ -51,6 +54,8 @@ const MSG_STATE_ACTION = (action: string): string =>
  *  nothing. Fires when clause A says a mirror exists but clause C read no corpus from it. */
 const MSG_STATE_UNREADABLE =
   "clause C could not read ANY corpus from this store's mirror, even though a mirror test EXISTS — so its actions went UNJUDGED and a ✓ here would be a lie about coverage this gate does not have (issue #619; tooling/src/verify/gates/GATE-AUTHORING.md §4.6). Either the mirror is empty, or it uses a test-kind suffix outside TEST_KINDS in tooling/src/verify/gates/test-presence-client.ts — widen that ONE vocabulary, never special-case it here.";
+const MSG_WORST_ART =
+  "the standing DOM-derived worst-legal-art contrast CT is missing — restore tests/client/features/chat/surfaces/worst-legal-art-contrast.ct.tsx. The room's rendered text population must stay sampled across shipped and custom theme polarities (issue #883).";
 
 function relAfter(path: string, marker: string): string | undefined {
   const idx = path.indexOf(marker);
@@ -241,11 +246,15 @@ function scanUiTier(root: string, uiRel: string, sf: SourceFile): Violation[] {
 /** The fs+AST scan shared by the legacy Check and the single-pass `run` descriptor. */
 function scanTestPresenceClient(root: string, project: Project): Violation[] {
   const out: Violation[] = [];
+  let hasRealTreeAnchor = false;
+  let hasWorstArtAnchor = false;
   for (const sf of project.getSourceFiles()) {
+    const path = sf.getFilePath();
+    hasRealTreeAnchor ||= path.endsWith(REAL_TREE_ANCHOR);
     if (sf.getBaseName() === "index.ts") {
       continue;
     }
-    const path = sf.getFilePath();
+    hasWorstArtAnchor ||= path.endsWith(WORST_ART_ANCHOR);
     const clientRel = relAfter(path, CLIENT_SRC);
     if (clientRel !== undefined) {
       out.push(...scanClientTier(root, clientRel, sf));
@@ -255,6 +264,9 @@ function scanTestPresenceClient(root: string, project: Project): Violation[] {
     if (uiRel !== undefined) {
       out.push(...scanUiTier(root, uiRel, sf));
     }
+  }
+  if ((hasRealTreeAnchor || hasWorstArtAnchor) && !existsSync(join(root, WORST_ART_STANDING_CT))) {
+    out.push({ file: WORST_ART_STANDING_CT, line: 0, message: MSG_WORST_ART });
   }
   return out;
 }
@@ -280,6 +292,18 @@ export const gate: GateDescriptor = {
         "packages/client/src/data/use-thing.ts": "export const useThing = () => 1;\n",
       },
       why: "a logic-bearing client data hook with no mirror test — an untested surface (§5)",
+    },
+    {
+      files: {
+        [WORST_ART_ANCHOR]: "export function ChatRoomSurface(): null { return null; }\n",
+      },
+      expect: { messageIncludes: "standing DOM-derived worst-legal-art contrast CT" },
+      why: "#883: the real room exists but its standing framebuffer contrast sweep is missing — presence must fail loud",
+    },
+    {
+      files: { [REAL_TREE_ANCHOR]: "export {};\n" },
+      expect: { messageIncludes: "standing DOM-derived worst-legal-art contrast CT" },
+      why: "#883 stale arm: the independent real-tree anchor survives while the room source and standing CT are both absent — a coupled rename/delete must still fail loud",
     },
     {
       // clause B: a ui-logic module with NO test anywhere in its mirror dir.
@@ -370,6 +394,13 @@ export const gate: GateDescriptor = {
       why: "the hook has its mirror .test.ts — presence satisfied, passes",
     },
     {
+      files: {
+        [WORST_ART_ANCHOR]: "export function ChatRoomSurface(): null { return null; }\n",
+        [WORST_ART_STANDING_CT]: "export {};\n",
+      },
+      why: "#883: the standing worst-art CT exists beside the real room — presence satisfied",
+    },
+    {
       // clause A: a file with no callable export (plain value / barrel) is naturally skipped.
       files: {
         "packages/client/src/data/constants.ts": "export const X = 1;\n",
@@ -421,6 +452,7 @@ export const gate: GateDescriptor = {
           'import { createGatedStore } from "./create-gated-store";\n' +
           'const useX = createGatedStore<{ n: number }>("g-prestpl", () => ({ n: 0 }));\n' +
           'export function gPresTplAction(): number {\n  useX.setState({ n: 1 }, false, "x/set");\n  return 1;\n}\n',
+        // biome-ignore lint/suspicious/noTemplateCurlyInString: the fixture must preserve a literal interpolation span for the string-blanking control.
         "tests/client/state/__g_gprestpl-store.test.ts": "export const t = `drove ${gPresTplAction()} write`;\ndeclare function gPresTplAction(): number;\n",
       },
       why: "STRING POSTURE limit: a real `gPresTplAction()` call interpolated inside a template literal is CODE — the blanking keeps interpolation spans, so clause C still counts it and passes",

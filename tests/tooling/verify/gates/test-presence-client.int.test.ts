@@ -15,6 +15,7 @@ import { Project } from "ts-morph";
 import { describe } from "vitest";
 import type { Finding, GateRunCtx } from "../../../../tooling/src/verify/contract/gate.ts";
 import { gate } from "../../../../tooling/src/verify/gates/test-presence-client.ts";
+import { verifyGateProofs } from "../../../../tooling/src/verify/ops/conformance.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const STORE_REL = "packages/client/src/state/probe-store.ts";
@@ -64,6 +65,10 @@ function plantStore(root: string, mirrorSuffix: string, body: string): void {
 
 const messages = (findings: readonly Finding[]): string => findings.map((f) => f.message ?? "").join("\n");
 const actionFindings = (findings: readonly Finding[]): readonly Finding[] => findings.filter((f) => (f.message ?? "").includes("store action"));
+
+test("test-presence-client retains every planted descriptor control", () => {
+  expect(verifyGateProofs([gate])).toEqual([]);
+});
 
 describe("test-presence-client clause C — the #619 silence, both directions, EVERY mirror kind", () => {
   for (const suffix of [".ct.tsx", ".test.ts", ".test.tsx", ".int.test.ts"]) {
