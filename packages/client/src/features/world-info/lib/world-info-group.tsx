@@ -11,7 +11,7 @@ import { worldInfoCollection } from "./world-info-collection.tsx";
 
 import { WORLD_INFO_COLLECTION_ID } from "./world-info-model.ts";
 
-/** The books as SEARCH rows (§3.3) — the roster's own cache-first read; non-suspense on purpose. */
+/** The books as SEARCH rows (§3.3) — the list's own cache-first read; non-suspense on purpose. */
 function useWorldInfoSearchRows(): readonly ConfigSearchRow[] {
   const trpc = useTRPC();
   const { data } = useQuery(trpc.worldInfo.listBooksWithUsage.queryOptions());

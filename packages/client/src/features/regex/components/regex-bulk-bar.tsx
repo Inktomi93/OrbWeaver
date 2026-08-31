@@ -13,7 +13,7 @@
 // verb whose target is a SET rather than a scalar, so it opens a chip picker (`RegexBulkPlacementDialog`)
 // rather than firing inline — which is why it rides the kebab, where an action that needs a dialog belongs.
 //
-// THE LAYOUT IS MEASURED, NOT CHOSEN. This bar's host is the config roster's 330px LIST column — narrower
+// THE LAYOUT IS MEASURED, NOT CHOSEN. This bar's host is the config list's 330px LIST column — narrower
 // than the ~337px panel whose clipped trailing Delete is written into `character-bulk-bar`'s own header, and
 // that bar carries THREE verbs. Two earlier shapes were verified BROKEN on the real 330px mount: five inline
 // verbs put "Run everywhere" through the pane edge mid-word and pushed two verbs AND the clear button
@@ -23,7 +23,7 @@
 // it is the same place the ROW's kebab already homes Delete, so the library has one grammar, and
 // `RowActionsMenu`'s `destructive` slot carries the AlertDialog confirm (§13.8 R4) with the count and the
 // CASCADE named — deleting a script detaches it from every preset, character and room, which is the
-// consequence a reader cannot see from the roster.
+// consequence a reader cannot see from the list.
 
 import type { RegexScriptId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

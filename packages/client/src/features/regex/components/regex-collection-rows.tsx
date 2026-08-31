@@ -21,7 +21,7 @@
 // ── THE GLOBAL SWITCH LEFT THIS ROW (side-eye 2026-08-19 P1/P2, orchestrator-ruled fork) ────────────────
 // It used to be the row's own trailing control, on the reasoning that "runs in every chat" is a property OF
 // THE ROW. Two measurements ended that. (a) The 48×32 switch and the kebab together were 42% of a 290px row
-// while the text column measured 133px at the both-open pane — 27 of 33 roster texts clipped, and the
+// while the text column measured 133px at the both-open pane — 27 of 33 list texts clipped, and the
 // pattern and edit stamp were unreachable at every width. (b) `regex-context-body.tsx` renders the SAME
 // setting under "Where it’s attached", so one screen carried two live switches for one fact, ~990px apart, with
 // no confirm and no undo — the duplicate-action-door lens confirmed it, and a reviewer flipped one by
@@ -42,7 +42,7 @@
 // Two render arms by size, the tag-collection shape: the sealed `VirtualList` in a bounded box past
 // COLLECTION_LARGE_GROUP (with the host's filter), a LABELLED list below it — `role="list"` + `listitem`
 // children, the tag collection's own small-arm spelling. It used to be a bare `Stack` of buttons, so the
-// one roster arm that is not a `VirtualList` announced no item count and no boundaries at all while its two
+// one list arm that is not a `VirtualList` announced no item count and no boundaries at all while its two
 // siblings did (side-eye 2026-08-19 P2).
 
 import type { RegexScriptRow } from "@orb/contracts/regex";
@@ -84,7 +84,7 @@ import {
 import { useDuplicateRegexScript, useRemoveRegexScript } from "../hooks/use-regex-library.ts";
 import { RegexBulkBar } from "./regex-bulk-bar.tsx";
 
-/** One row's height guess for the windowed arm — the MEASURED height at the real 290px roster mount (name +
+/** One row's height guess for the windowed arm — the MEASURED height at the real 290px list mount (name +
  *  scent subtitle + the reserved cluster). The virtualizer re-measures after mount; the guess only decides
  *  how many rows the first frame windows. */
 const ESTIMATED_ROW_PX = 52;

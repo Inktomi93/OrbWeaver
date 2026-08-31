@@ -1,4 +1,4 @@
-// The sessions ROSTER (delta 3 arm A, ruled: FLAT, newest first, the character as row identity — one
+// The sessions LIST (delta 3 arm A, ruled: FLAT, newest first, the character as row identity — one
 // selection axis, one row shape; "sessions for X" is a SEARCH, not a structure). A bounded owner list
 // fetched whole ⇒ `useSuspenseQuery` + `LibraryListLayout` (the lockdown §14 adjudication; the paginated
 // factory is for unbounded browses). The EMPTY state carries the start door — on a phone this pane IS
@@ -23,8 +23,8 @@
 // join this surface used to run had a hard ceiling: its only source was `character.list`, one cursor page
 // capped at 100 rows, so a session whose card sat past page one rendered UNNAMED and was unfindable by
 // the search box below — the paginating-a-list-breaks-resolve-by-find class, exactly. `characterName` and
-// `characterAvatarHash` now ride `refinerySessionSummarySchema`, joined on the ownership join the roster
-// read already performs, so the roster names EVERY session it lists and there is no second query here.
+// `characterAvatarHash` now ride `refinerySessionSummarySchema`, joined on the ownership join the list
+// read already performs, so the list names EVERY session it lists and there is no second query here.
 
 import { blobUrl } from "@orb/contracts/assets";
 import type { RenderHintTone } from "@orb/contracts/refinery";
@@ -71,7 +71,7 @@ interface ResolvedRow {
   readonly iterationCount: number;
   readonly latestVerdict: string | null;
   /** The session's start time — the subtitle's readout stamp AND the same-card distinguisher (see
-   *  `readoutSubtitleOf`). `updatedAt` is no longer read here: the roster arrives newest-updated first, so
+   *  `readoutSubtitleOf`). `updatedAt` is no longer read here: the list arrives newest-updated first, so
    *  freshness is positional and the start stamp is the fact that tells two sessions on one card apart. */
   readonly createdAt: number;
 }
@@ -99,7 +99,7 @@ function verdictChipOf(row: ResolvedRow): ReactElement | undefined {
  *  session on one card shares the character title and carries no name of its own, and `createdAt` is
  *  per-session, so an absolute start stamp differs the rows visually AND in the a11y tree (the ruled
  *  auto-label arm; no nameable-session affordance is added here). "Freshness" is already positional (the
- *  roster is newest-updated first), so WHEN-STARTED is the fact that actually tells six sessions apart. A
+ *  list is newest-updated first), so WHEN-STARTED is the fact that actually tells six sessions apart. A
  *  session that HAS a name leads with it. Rides `aria-describedby` with the verdict via the subtitle span.
  *  It also carries the NOT-ANALYZED state (finding c): a row with no verdict says so here, in the same
  *  quiet register as its iteration and stamp, instead of wearing a filled chip louder than its own name. */
@@ -120,7 +120,7 @@ function readoutSubtitleOf(row: ResolvedRow): string {
  * unconditional no-op and the shell was byte-identical before and after it. That is the SAME defect the
  * owner ruled on for the `+` (#157, recorded 60 lines below: "the primary action must not be a visible dead
  * control while the real affordance hides below the fold") — the fix landed on the `+` and left its twin
- * standing in the same file. On a phone it was worse than a no-op: the roster IS the screen there, the
+ * standing in the same file. On a phone it was worse than a no-op: the list IS the screen there, the
  * copy pointed at a "main pane" the viewport does not have, and the only working door was a 24px glyph in
  * the worst thumb corner. One door, two chromes, no dead arm.
  *
@@ -138,7 +138,7 @@ function StartSessionDoor({ trigger }: { readonly trigger: (busy: boolean) => Re
   return (
     <Popover onOpenChange={setPickerOpen} open={pickerOpen}>
       {/* The trigger is a FUNCTION of the in-flight state, not a fixed element: a start is a real await
-          (the flow resolves resume-vs-mint against the roster at CLICK time), and the control the user
+          (the flow resolves resume-vs-mint against the list at CLICK time), and the control the user
           pressed is the honest place to say so — which only the caller's own chrome can spell. */}
       <PopoverTrigger render={trigger(isPending)} />
       <PopoverPopup>
@@ -167,7 +167,7 @@ export function RefineryListSurface(): ReactElement {
   const isMobile = useMobileViewport();
   // The SAME condition the header's `+` reads (#307): with nothing selected on a desktop, CONTENT mounts
   // the full-library landing picker — so the empty-state CTA must focus THAT one, not open a second copy
-  // over it (the #284 duplicate-door's last mouth). On a phone CONTENT is not rendered (this roster is the
+  // over it (the #284 duplicate-door's last mouth). On a phone CONTENT is not rendered (this list is the
   // screen, `resolvePanelMode`'s `listIsScreen` arm) and with a session open CONTENT shows the pipeline, so
   // in both of those the CTA is the only door and stays the anchored picker popover.
   const contentShowsPicker = selectedId === null && !isMobile;
@@ -188,7 +188,7 @@ export function RefineryListSurface(): ReactElement {
     createdAt: session.createdAt,
   }));
 
-  // P1-5: the predicate matches the CHARACTER NAME as well as the session's own name — the roster's
+  // P1-5: the predicate matches the CHARACTER NAME as well as the session's own name — the list's
   // whole organising fact was previously unsearchable, and `session.name` is null on every row. Since
   // the name rides the summary, this now matches EVERY session, including one whose card sits past the
   // page `character.list` would have returned.
@@ -269,7 +269,7 @@ export function RefineryListSurface(): ReactElement {
 /**
  * The LIST chrome band (D66 A1/A2): the micro-caps title, the count, and — since P1-6 — the START DOOR.
  * Once a session is selected there was NO way back to "start another one" from anywhere in the feature
- * (and the phone roster, which IS the whole screen, never had one at all): the only door lived in
+ * (and the phone list, which IS the whole screen, never had one at all): the only door lived in
  * CONTENT's teaching state, which a selected session replaces.
  *
  * ── THE `+` IS A DOOR, NOT A SELECTION-CLEARER (owner ruling, 2026-08-17, #157) ──────────────────────
@@ -292,7 +292,7 @@ export function RefineryListSurface(): ReactElement {
  * two identical 100-row pickers on one plane, which the duplicate-door lens fires on and which makes the
  * glyph a worse copy of a control already on screen. So the `+` earns its keep only where the landing is
  * not: with a session open (the landing is replaced by the pipeline), or on a PHONE with nothing selected,
- * where the one-shell rule makes this roster the whole screen and CONTENT is not rendered at all
+ * where the one-shell rule makes this list the whole screen and CONTENT is not rendered at all
  * (`resolvePanelMode`'s `listIsScreen` arm) — there the glyph is the only door and hiding it would leave
  * the phone startable only from the empty state. Not `disabled`: that is the #157 defect itself.
  */

@@ -6,7 +6,7 @@
 // → the ACCOUNT FOOT (the retired account modal's facts + Log out, owner-ruled F-3). The bar lens adds
 // the CONTEXTUAL block while a chat room is open: an Applies scope (`Everywhere | This chat`) that routes
 // the next switch to the seed pointer vs the per-participant slot, plus the re-attribute escape hatch —
-// and the "Manage personas" door into Config (roster editing, import/export, lore books and the anchor
+// and the "Manage personas" door into Config (list editing, import/export, lore books and the anchor
 // re-pin all live THERE now, not here). All server state via trpc, zero Zustand beyond the shell doors.
 
 import { blobUrl } from "@orb/contracts/assets";
@@ -272,7 +272,7 @@ function ChatScopeBlock({
   );
 }
 
-/** The one door out to the full roster — Config → Personas (frequency law: management is not a switch). */
+/** The one door out to the full list — Config → Personas (frequency law: management is not a switch). */
 function ManageDoor({ presentation }: { readonly presentation: ChromePresentation }): ReactElement {
   const door = (
     <Button

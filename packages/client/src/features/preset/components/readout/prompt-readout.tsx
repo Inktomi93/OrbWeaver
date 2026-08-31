@@ -352,7 +352,7 @@ function keyRows(rows: readonly AssemblySectionRow[]): readonly KeyedSectionRow[
 
 /** THE MATERIALIZED ROWS (D121-G) — ST's inspect panel, with honest data: what the selected section ACTUALLY
  *  expanded into in the bound chat, and what each of those rows costs. The conversation splits per turn, a
- *  merged card section splits per roster member, and everything else is its own single row.
+ *  merged card section splits per character, and everything else is its own single row.
  *
  *  Renders only when a chat is bound AND that section contributed something — the unbound arm has no rows to
  *  show (that is exactly what `~—` says), and a bound section absent from the costs contributed nothing, which

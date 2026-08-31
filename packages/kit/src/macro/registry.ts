@@ -455,7 +455,7 @@ function castOf(ctx: MacroContext): readonly string[] {
   return ctx.cast && ctx.cast.length > 0 ? ctx.cast : [ctx.char];
 }
 
-// The ACTIVE (non-muted) cast — distinct from {{group}} (full cast, incl. muted).
+// The ACTIVE (non-muted) characters — distinct from {{group}} (every character, incl. muted).
 function castNotMutedOf(ctx: MacroContext): readonly string[] {
   return ctx.castNotMuted && ctx.castNotMuted.length > 0 ? ctx.castNotMuted : castOf(ctx);
 }
@@ -580,7 +580,7 @@ export function createDefaultRegistry(): MacroRegistry {
   registry.register("groupnotmuted", (_a, ctx) => castNotMutedOf(ctx).join(", "), {
     requires: "char",
   });
-  // The cast minus the current speaker; humans not included. Empty for solo.
+  // The room characters minus the current speaker; humans not included. Empty for solo.
   registry.register(
     "notchar",
     (_a, ctx) =>

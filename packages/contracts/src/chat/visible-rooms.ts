@@ -17,7 +17,7 @@
 // not an error, and not a "and 1 more" residue that would leak the count).
 //
 // IT RESOLVES THE NAMING INPUTS, IT DOES NOT NAME (owner pick 2026-08-09, REGROSTER's parked question). A
-// room's display title is a fallback CHAIN (authored title → the present cast's display names → "Untitled
+// room's display title is a fallback CHAIN (authored title → the present characters' display names → "Untitled
 // chat") whose ONE home is the client's `deriveChatTitle` — the chats list, the topbar, the palette and
 // every usage roster run it. A server-side name would be a second copy of that rule, and the two-of-three
 // rungs it actually implemented is what made every unnamed room read "Untitled chat" in a roster while the
@@ -37,7 +37,7 @@ export interface VisibleRoomRef {
   readonly id: ChatId;
   /** The AUTHORED title, raw and untrimmed — null or blank means "never renamed", which the chain answers. */
   readonly title: string | null;
-  /** The present cast's display names, in roster order, MINUS the caller's own seat (the chats list's own
+  /** The present characters' display names, in roster order, MINUS the caller's own seat (the chats list's own
    *  `summaryCast` rule: the viewer is in every room they can see, so their name carries no information). */
   readonly participantNames: readonly string[];
   /** Last activity (`chats.updatedAt`), epoch-ms. */

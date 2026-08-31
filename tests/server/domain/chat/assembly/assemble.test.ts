@@ -780,7 +780,7 @@ describe("assemblePrompt — the merged room-scope fallback", () => {
     expect(out.trace.overrideSources).toEqual({ mainPrompt: "from Aria" });
   });
 
-  test("an EMPTY present cast is not a merge — an empty roster must not read as 'merged (present cast)'", () => {
+  test("an EMPTY present-character set is not a merge — an empty roster must not read as 'merged (present characters)'", () => {
     const out = assemblePrompt(overridable(), ctxOf({ character: { name: "Aria", description: "", systemPrompt: "CARD" }, coSpeakers: [] }));
 
     expect(out.trace.staticCacheBusters).toEqual([]);
@@ -838,11 +838,11 @@ describe("assemblePrompt — the overridable slot's source label", () => {
     expect(assemblePrompt(locked, ctxOf({ character: carded })).static).toBe("PRESET");
   });
 
-  test("a merged present cast is labelled 'merged (present cast)' when no room override displaces it", () => {
+  test("a merged present-character set is labelled 'merged (present characters)' when no room override displaces it", () => {
     const out = assemblePrompt(openConfig(), ctxOf({ character: carded, coSpeakers: [{ name: "Kai", description: "d", systemPrompt: "KAI" }] }));
 
     expect(out.static).toBe("CARD\n\nKAI");
-    expect(out.trace.overrideSources).toEqual({ mainPrompt: "merged (present cast)" });
+    expect(out.trace.overrideSources).toEqual({ mainPrompt: "merged (present characters)" });
     expect(out.trace.staticCacheBusters).toEqual(["merged-present-cast"]);
   });
 

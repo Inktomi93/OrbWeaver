@@ -45,7 +45,7 @@ describe("compose/visible-rooms — the shared reverse-roster filter", () => {
     expect(payload).not.toContain(never);
   });
 
-  test("it resolves the NAMING INPUTS and never a name: raw title, present cast, caller suppressed", async () => {
+  test("it resolves the NAMING INPUTS and never a name: raw title, present characters, caller suppressed", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const friend = await seedUser(db, { handle: castId<Handle>("friend") });

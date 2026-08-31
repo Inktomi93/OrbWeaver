@@ -43,7 +43,7 @@ export function RunsTabBody({ state }: { state: RefineryContextState }): ReactEl
 type SessionView = NonNullable<ReturnType<typeof useRefinerySession>["data"]>;
 type SchemaSummaries = ReturnType<typeof useRefinerySchemas>["data"];
 
-/** A custom stage config's display name out of the library roster (or its missing-row honest state). */
+/** A custom stage config's display name out of the library list (or its missing-row honest state). */
 function customNameOf(config: SessionView["stageConfig"]["score"] | SessionView["stageConfig"]["analyze"], schemas: SchemaSummaries): string | null {
   if (config.kind !== "custom") {
     return null;
@@ -90,7 +90,7 @@ function stageModesLineOf(view: SessionView): string {
 // deleting the second home closes that for good rather than keeping the two in sync forever.
 
 /** The scope row's readout — the selected fields, with the greeting slots spelled out when the
- *  selection narrows them (the roster line the row previously did not carry at all).
+ *  selection narrows them (the list line the row previously did not carry at all).
  *
  *  ONE VOCABULARY (side-eye 2026-08-19 P2). This printed the RAW WIRE NAMES — a user was shown
  *  `exampleMessages` and `creatorNotes` — while the masthead's chips, four inches away and describing the

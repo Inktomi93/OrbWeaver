@@ -91,7 +91,7 @@ test("focusing a knob row teaches THAT setting — head and About swap, and the 
 
   // Open the Appearance group: with nothing focused the pane teaches the GROUP (its description).
   await workspace
-    .locator('[data-slot="config-roster"]')
+    .locator('[data-slot="config-list"]')
     .getByRole("button", { name: /Appearance/ })
     .click();
   const pane = workspace.locator(CONTEXT_PANE);
@@ -117,7 +117,7 @@ test("the foot tab KEEPS across a focus change — a reader on Applies stays on 
   const workspace = await mount(<ConfigWorkspaceStory />);
   await workspace.getByRole("button", { name: "reset groups" }).click();
   await workspace
-    .locator('[data-slot="config-roster"]')
+    .locator('[data-slot="config-list"]')
     .getByRole("button", { name: /Appearance/ })
     .click();
 
@@ -136,8 +136,8 @@ test("an open member turns Applies into the collection's own arm — stated ONCE
   const workspace = await mount(<ConfigWorkspaceStory />);
   await workspace.getByRole("button", { name: "reset groups" }).click();
 
-  await workspace.locator('[data-slot="config-roster"]').getByRole("button", { name: REGEX_BAND }).click();
-  await workspace.locator('[data-slot="config-roster"]').getByText("strip ooc").click();
+  await workspace.locator('[data-slot="config-list"]').getByRole("button", { name: REGEX_BAND }).click();
+  await workspace.locator('[data-slot="config-list"]').getByText("strip ooc").click();
 
   const pane = workspace.locator(CONTEXT_PANE);
   await pane.getByRole("button", { name: "Applies" }).click();
@@ -149,8 +149,8 @@ test("a member of a NONE collection renders that collection's copy, once", async
   const workspace = await mount(<ConfigWorkspaceStory />);
   await workspace.getByRole("button", { name: "reset groups" }).click();
 
-  await workspace.locator('[data-slot="config-roster"]').getByRole("button", { name: TAGS_BAND }).click();
-  await workspace.locator('[data-slot="config-roster"]').getByText("tag-000").click();
+  await workspace.locator('[data-slot="config-list"]').getByRole("button", { name: TAGS_BAND }).click();
+  await workspace.locator('[data-slot="config-list"]').getByText("tag-000").click();
   await expect(workspace.getByRole("heading", { name: "tag-000" })).toBeVisible();
 
   const pane = workspace.locator(CONTEXT_PANE);

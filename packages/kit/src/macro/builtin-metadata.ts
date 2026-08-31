@@ -42,10 +42,10 @@ export const BUILTIN_MACRO_METADATA = {
   username: meta("userName", "identity", "The active persona name (alias of user).", { aliases: ["user"] }),
   persona: meta("persona", "identity", "The active persona name."),
   scenario: meta("scenario", "identity", "The scenario text for the chat.", { aliases: ["charScenario"] }),
-  group: meta("group", "identity", "The full character cast (including muted), comma-joined.", { aliases: ["charIfNotGroup"] }),
-  charifnotgroup: meta("charIfNotGroup", "identity", "The full cast, comma-joined (char for a solo chat).", { aliases: ["group"] }),
-  groupnotmuted: meta("groupNotMuted", "identity", "The active (non-muted) cast, comma-joined."),
-  notchar: meta("notChar", "identity", "The cast minus the current speaker, comma-joined."),
+  group: meta("group", "identity", "Every character in the room (including muted), comma-joined.", { aliases: ["charIfNotGroup"] }),
+  charifnotgroup: meta("charIfNotGroup", "identity", "Every character in the room, comma-joined (char for a solo chat).", { aliases: ["group"] }),
+  groupnotmuted: meta("groupNotMuted", "identity", "The active (non-muted) characters, comma-joined."),
+  notchar: meta("notChar", "identity", "The room's characters minus the current speaker, comma-joined."),
 
   // ── card ──
   description: meta("description", "card", "The character's description field.", { aliases: ["charDescription"] }),

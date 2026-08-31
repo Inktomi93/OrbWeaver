@@ -57,7 +57,7 @@ import { presetRowSubtitle } from "../lib/preset-row-view.ts";
  *  spent on EVERY row ALWAYS (the file header's own "the cost is honest" note): measured at the docked 272px
  *  pane it left the NAME 109px and clipped four of six rows — while the verb it reserved for is a verbatim
  *  copy of the kebab's own Duplicate item, i.e. 40px of permanent width bought a second door to one act. The
- *  regex roster settled the same trade the same way (`library-row.tsx` — a 1-verb list stopped reserving
+ *  regex list settled the same trade the same way (`library-row.tsx` — a 1-verb list stopped reserving
  *  three). The kebab's item is the ONE home now; nothing about the fork workflow got harder, it moved one
  *  click into the menu that already offered it. */
 const PRESET_CLUSTER_SLOTS = 2;
@@ -196,7 +196,7 @@ export function PresetLibraryRow({
               // shows, on the very first thing a new user does, and on mobile the LIST is a closed sheet
               // so from the editor the name could not be changed at all. That door is the one home now;
               // this item was the second, and `LibraryRowActions.onRename` is optional for exactly this
-              // (the regex roster minted the omission). Nothing else about this row changes: Duplicate,
+              // (the regex list minted the omission). Nothing else about this row changes: Duplicate,
               // Delete and Export are lifecycle and stay list-side (O-16★).
               onDuplicate: (): void => onDuplicate(preset.id),
               onDelete: (): void => onDelete(preset.id),

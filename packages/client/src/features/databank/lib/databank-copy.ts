@@ -19,11 +19,11 @@ export const DATABANK_INGEST_GLOSS =
 /** CONTEXT with no document open. Names what the pane WILL show — never the word "Details" (the band
  *  already says that) and never a section-less "select something" (side-eye F-12).
  *
- *  THE PROMISE IS A ROSTER AGAIN — because the read landed (#276, 2026-08-19). The full arc, both halves
+ *  THE PROMISE IS A LIST AGAIN — because the read landed (#276, 2026-08-19). The full arc, both halves
  *  recorded: it originally promised "…to see WHICH chats and characters it already feeds" over a pane that
  *  rendered two dead count Badges, and side-eye 2026-08-19 P1 correctly downgraded it, because a promise of
  *  names paid in integers reads as a broken pane. That downgrade named its own wake condition — the wire was
- *  `{ global, chatIds, characterIds }` (ids, no names) and the roster was "blocked on a real read, not on
+ *  `{ global, chatIds, characterIds }` (ids, no names) and the list was "blocked on a real read, not on
  *  layout". `databank.listAttachments` now returns named rooms (through chat's leak-safe
  *  `resolveVisibleRooms`, so only rooms the reader may open) and named characters, each one a door. The
  *  sentence tracks the pane's real contract in BOTH directions; it never described a pane that could not

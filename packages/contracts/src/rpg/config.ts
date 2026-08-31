@@ -223,7 +223,7 @@ export const rpgGameConfigSchema = z.object({
     .max(RPG_EXTRACTION_WINDOW_TOKENS_MAX)
     .default(RPG_EXTRACTION_WINDOW_TOKENS_DEFAULT),
   // The RECONCILE CADENCE (§1.3) — every Nth flush FORCES a full re-emission of the refreshable planes
-  // (scene + present cast, via the establish-when-unset machinery applied unconditionally) so a deep story's
+  // (scene + present characters, via the establish-when-unset machinery applied unconditionally) so a deep story's
   // panel self-heals instead of decaying. `0` = off. DEFINED here (wired-on-arrival, D107) so the config
   // view + write door carry it; the cadence CONSUMPTION at `stageStateRound` lands with the reconcile lane.
   reconcileEveryBeats: z.number().int().min(0).max(RPG_RECONCILE_EVERY_BEATS_MAX).default(RPG_RECONCILE_EVERY_BEATS_DEFAULT),

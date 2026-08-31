@@ -4,7 +4,7 @@
 //   EVERYWHERE  — the ONE write this panel owns. Global attach is OWNER authority, so it lives on the
 //                 document; per-chat attach is HOST authority and lives in the chat panel. The write lives
 //                 where the authority lives (§2.1's carried rule — legacy's own file header states it).
-//   ACTIVE IN   — the named roster off `listAttachments`, each row a door (`databank-active-in.tsx`). It
+//   ACTIVE IN   — the named list off `listAttachments`, each row a door (`databank-active-in.tsx`). It
 //                 shipped as two integer COUNTS while the wire carried ids and no names; the scope
 //                 constraint that forced that (D18 — a `chat_documents` row outlives its attacher's seat)
 //                 is unchanged and is now enforced ON THE WIRE by the injected `resolveVisibleRooms`, so

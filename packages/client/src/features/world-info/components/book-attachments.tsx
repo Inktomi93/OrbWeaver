@@ -1,7 +1,7 @@
 // The book activation panel — where the open book is switched ON. Drives three of the four attach
 // scopes (global/character/persona) from the book's side. Global is
 // a clean book-centric toggle; character/persona writes are target-scoped, while the read is one
-// book-centric reverse index shared by both rosters. The character list still reveals on demand, but its
+// book-centric reverse index shared by both lists. The character list still reveals on demand, but its
 // rows no longer fan out one membership request apiece.
 //
 // THE FOURTH SCOPE IS NOT MISSING, IT LIVES IN THE ROOM (#640). `worldInfo.attachToChat` is host-gated on a
@@ -17,7 +17,7 @@
 // THE CHARACTER PICKER SEARCHES THE WHOLE LIBRARY, ON THE SERVER (2026-08-14 — the owner's paged-list-lens
 // ruling applied to a picker, the same treatment `add-chat-document-dialog` and `character-picker` took).
 // The reveal used to read `character.list` with NO params: one default page, so past the fiftieth card a
-// character was simply unattachable from here — the roster ended, silently, with nothing saying so and no
+// character was simply unattachable from here — the list ended, silently, with nothing saying so and no
 // affordance to reach further. `persona.list` needs none of this: it is unpaged, so its section still reads
 // the whole set. The term rides to the verb, so the target arrives on the first page of the SEARCHED read
 // however deep she sits, and the picker answers the same question the library does with the same predicate.
@@ -49,7 +49,7 @@ const PICKER_PAGE_LIMIT = 100;
 /** Keystroke→request damper — the library pane's value, so a picker and the pane behave alike. */
 const SEARCH_DEBOUNCE_MS = 250;
 
-/** The roster's shape-matched loading skeleton (house loading law — never a spinner/text void). */
+/** The list's shape-matched loading skeleton (house loading law — never a spinner/text void). */
 const PICKER_SKELETON_ROWS = 3;
 
 export interface BookAttachmentsProps {
@@ -138,7 +138,7 @@ function PersonasSection({ bookId, attachments, queryPending, queryError }: Atta
   const personasQuery = useQuery(trpc.persona.list.queryOptions());
   const personas = personasQuery.data ?? [];
 
-  // The regex arm's roster grammar: an ALL-CAPS kicker band carrying the count, because "Attached by
+  // The regex arm's list grammar: an ALL-CAPS kicker band carrying the count, because "Attached by
   // personas · 0" is a complete statement where a bare heading over an empty box asks whether it failed.
   return (
     <Section kicker={personasQuery.isPending || personasQuery.isError ? "Attached by personas" : `Attached by personas · ${personas.length}`}>
@@ -197,8 +197,8 @@ function CharactersSection({ bookId, attachments, queryPending, queryError }: At
   );
 }
 
-/** The revealed character picker — the search box plus the roster it narrows. The read lives HERE rather
- *  than in the section above so it is mounted-with-the-reveal: nothing is asked for until the roster is,
+/** The revealed character picker — the search box plus the list it narrows. The read lives HERE rather
+ *  than in the section above so it is mounted-with-the-reveal: nothing is asked for until the list is,
  *  and a close-then-reopen re-reads instead of holding a page from before the last attach. */
 function CharacterPicker(props: AttachmentSectionProps): ReactElement {
   const trpc = useTRPC();
@@ -225,7 +225,7 @@ function CharacterPicker(props: AttachmentSectionProps): ReactElement {
   );
 }
 
-/** The roster rows, or the honest nothing. Split out so the OPEN gate above stays a single ternary. */
+/** The list rows, or the honest nothing. Split out so the OPEN gate above stays a single ternary. */
 function CharacterList({
   bookId,
   characters,

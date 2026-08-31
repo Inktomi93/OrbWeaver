@@ -140,7 +140,7 @@ export function ConfigHostInScrollingHostStory({ target = "appearance" }: { read
  *  shared workspace story runs a roomier 330px and cannot see it. */
 const NARROW_ROSTER_PX = 271;
 
-export function ConfigRosterNarrowStory(): ReactElement {
+export function ConfigListNarrowStory(): ReactElement {
   return (
     <CtDataProviders>
       <CtRealConfigSectionRegistry>
@@ -157,7 +157,7 @@ export function ConfigRosterNarrowStory(): ReactElement {
  *  collapsed, LIST docked), measured on the live app at 307px. The narrow story above is the OTHER end of
  *  the range (both panes open); a row-width fix has to hold at BOTH, because a point measurement never
  *  proves a range property. */
-export function ConfigRosterDefaultStory(): ReactElement {
+export function ConfigListDefaultStory(): ReactElement {
   return (
     <CtDataProviders>
       <CtRealConfigSectionRegistry>
@@ -240,7 +240,7 @@ const PHONE_PX = 430;
  *  MOBILE. The regime is a store fact, not a media query — `useMobileViewport` reads what app-shell
  *  publishes at 48rem, and a CT has no app-shell — so the story ships the two buttons the `#state` CTs
  *  already use for this, and the spec drives the arm it means (the settled state, never a first frame). */
-export function ConfigMobileRosterStory(): ReactElement {
+export function ConfigMobileListStory(): ReactElement {
   return (
     <CtDataProviders>
       <CtRealConfigSectionRegistry>

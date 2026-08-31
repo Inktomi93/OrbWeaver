@@ -1,4 +1,4 @@
-// The TEACHER's tab roster (config-revamp-design.md §3.5/§7.2, #866 S3) — About · Applies · Learn on the
+// The TEACHER's tab list (config-revamp-design.md §3.5/§7.2, #866 S3) — About · Applies · Learn on the
 // #860 bracket's FOOT rail, ids namespaced `config.*` (the `rpg.*` posture: `contextTab` stays an opaque
 // shared string; this file is where the spelling lives). About is the `defaultTab`; Applies is ALWAYS
 // visible (a stable rail — its no-override arm is a sentence, and for an open member it is the
@@ -7,7 +7,7 @@
 //
 // The canvas boards' foot cells ("About · Preview · Activity") were extraction SCAFFOLD, not contract —
 // orchestrator ruling 2026-08-30 (§7.1): the boards' own head gloss and DESIGN.md's pane contract name
-// this roster.
+// this list.
 
 import { BookOpen, Info, MapPin } from "@orb/ui/icons";
 import type { ConfigContextState, ContextTabDef } from "#lib";

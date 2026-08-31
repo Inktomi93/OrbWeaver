@@ -26,7 +26,7 @@ import {
   proseSettingsSection,
 } from "#features/chat";
 import { connectionsHostClaudeSection, connectionsKeysSection, connectionsRolesSection } from "#features/credentials";
-import { personaNotificationsSection, personaRosterSection, personaThisChatSection } from "#features/persona";
+import { personaListSection, personaNotificationsSection, personaThisChatSection } from "#features/persona";
 import { pluginDistributeSection, pluginsInstalledSection, pluginsInstallSection } from "#features/plugin";
 import { appearanceLooksSection } from "#features/settings";
 import {
@@ -57,7 +57,7 @@ export const configSections = createContributorRegistry<ConfigSectionContributio
   // switch, the roster (the same component the rail popover and the You sheet render — the editor is its
   // search leaf), the this-chat picker (the pinned row is its leaf). Owner-sacred editing model untouched.
   personaNotificationsSection,
-  personaRosterSection,
+  personaListSection,
   personaThisChatSection,
   // backup ← the two halves of the portability system, export ahead of import (§6.8).
   backupExportSection,

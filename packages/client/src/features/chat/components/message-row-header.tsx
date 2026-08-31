@@ -235,7 +235,7 @@ export function renderRowActions(args: {
   /** #167 — the raw model identifier this reply is credited to, already gated by the `showModelIcon`
    *  appearance toggle upstream; null ⇒ no credit. The cluster derives its DISPLAY name. */
   readonly modelCredit: string | null;
-  /** B7 — the room's present cast names (the picker's segment-target parse; see `MessageActionsRowProps`). */
+  /** B7 — the room's present characters names (the picker's segment-target parse; see `MessageActionsRowProps`). */
   readonly castNames?: readonly string[] | undefined;
 }): ReactNode {
   if (args.editing || args.selecting) {

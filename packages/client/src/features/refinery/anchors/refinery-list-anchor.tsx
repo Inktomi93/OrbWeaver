@@ -1,4 +1,4 @@
-// The sessions roster's containment PROVIDER (UI-Arch §4): the LIST pane's named container — the surface
+// The sessions list's containment PROVIDER (UI-Arch §4): the LIST pane's named container — the surface
 // inside adapts to THIS box (docked side panel vs phone full-screen vs overlay), never the viewport.
 
 import { Container } from "@orb/ui/layout";

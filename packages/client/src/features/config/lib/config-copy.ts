@@ -9,7 +9,7 @@
  *
  * IT HOMES HERE BECAUSE IT IS SPOKEN TWICE BY CONSTRUCTION, exactly like the context-empty arm above: the
  * desktop WELCOME renders it over the launcher hearth (CONTENT), and the mobile LIST renders it as a header
- * over the roster — two panes, because on a phone CONTENT is unreachable until something is selected and
+ * over the list — two panes, because on a phone CONTENT is unreachable until something is selected and
  * the welcome was therefore structurally invisible to a cold reader (side-eye 2026-08-19 P2, "the teaching
  * frame never renders on a phone"). Two spellings of one frame is how the phone ends up taught something
  * the desktop is not.

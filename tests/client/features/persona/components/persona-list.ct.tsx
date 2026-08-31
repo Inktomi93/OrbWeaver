@@ -1,4 +1,4 @@
-// CT: `<PersonaRoster>` — the persona MANAGEMENT surface at its one remaining mount posture (#866 S4
+// CT: `<PersonaList>` — the persona MANAGEMENT surface at its one remaining mount posture (#866 S4
 // moved it out of the rail popover and the You sheet into Config → Personas; the switcher CT is
 // `persona-panel-surface.ct.tsx`). Two pin families live here:
 //
@@ -7,7 +7,7 @@
 //    row's name-embedding controls then announce IDENTICAL accessible names; the qualifier is resolved
 //    with the WHOLE list in hand, and it is SPENT (collision-only), never sprayed.
 //
-// 2) THE S4 ROSTER RESTRUCTURE: pin-not-crown (exactly ONE named pin marker however many rows CLAIM
+// 2) THE S4 LIST RESTRUCTURE: pin-not-crown (exactly ONE named pin marker however many rows CLAIM
 //    default in user prose), the ⋯ = Edit · Duplicate · Export · Delete inventory, and the band's third
 //    door (From character → `persona.createFromCharacter`, the picker IS the create).
 
@@ -16,7 +16,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import type { TrpcRecorder, TrpcRoutes } from "../../../../support/ct/route-trpc.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
-import { PersonaRosterStory } from "../_ct-stories.tsx";
+import { PersonaListStory } from "../_ct-stories.tsx";
 
 const NOVA = "persona_nova";
 const TRAVELER_OLD = "persona_traveler_old";
@@ -118,7 +118,7 @@ function rowControlLabels(page: Page): Promise<readonly (readonly string[])[]> {
 
 test("no two controls in the persona list share an accessible name — every row control names its row", async ({ mount, page }) => {
   await stub(page);
-  await mount(<PersonaRosterStory />);
+  await mount(<PersonaListStory />);
   await expect(page.getByText("Nova", { exact: true })).toBeVisible();
 
   const rows = await rowControlLabels(page);
@@ -130,7 +130,7 @@ test("no two controls in the persona list share an accessible name — every row
 
 test("each row's controls all embed that row's persona name", async ({ mount, page }) => {
   await stub(page);
-  await mount(<PersonaRosterStory />);
+  await mount(<PersonaListStory />);
   await expect(page.getByText("Nova", { exact: true })).toBeVisible();
 
   const [nova, ...travelers] = await rowControlLabels(page);
@@ -143,7 +143,7 @@ test("each row's controls all embed that row's persona name", async ({ mount, pa
 
 test("two same-named personas get DISTINCT kebab names — the row's actions announce which row they belong to", async ({ mount, page }) => {
   await stub(page);
-  await mount(<PersonaRosterStory />);
+  await mount(<PersonaListStory />);
   await expect(page.getByText("Nova", { exact: true })).toBeVisible();
 
   const actions = await labels(page, ACTIONS_LABEL);
@@ -155,7 +155,7 @@ test("two same-named personas get DISTINCT kebab names — the row's actions ann
 
 test("two same-named personas get DISTINCT switch-target names — the stretched select button too", async ({ mount, page }) => {
   await stub(page);
-  await mount(<PersonaRosterStory />);
+  await mount(<PersonaListStory />);
   await expect(page.getByText("Nova", { exact: true })).toBeVisible();
 
   const switches = await labels(page, SWITCH_LABEL);
@@ -165,7 +165,7 @@ test("two same-named personas get DISTINCT switch-target names — the stretched
 
 test("a row whose name does NOT collide keeps its bare name — no qualifier is spent", async ({ mount, page }) => {
   await stub(page);
-  await mount(<PersonaRosterStory />);
+  await mount(<PersonaListStory />);
 
   await expect(page.getByRole("button", { name: "Actions for Nova", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Nova — current persona", exact: true })).toBeVisible();
@@ -178,7 +178,7 @@ test("a row whose name does NOT collide keeps its bare name — no qualifier is 
 
 test("exactly ONE row wears the solid pin, however many rows CLAIM default in their subtitle prose — and no crown exists", async ({ mount, page }) => {
   await stub(page);
-  await mount(<PersonaRosterStory />);
+  await mount(<PersonaListStory />);
   await expect(page.getByText("Nova", { exact: true })).toBeVisible();
 
   await expect(page.getByText(DEFAULT_CLAIMING_TITLE)).toHaveCount(2);
@@ -189,7 +189,7 @@ test("exactly ONE row wears the solid pin, however many rows CLAIM default in th
 
 test("clicking a faint pin writes seeds.defaultPersonaId for THAT row's persona", async ({ mount, page }) => {
   const trpc = await stub(page, { "settings.updateUserSettingsSection": () => ({}) });
-  await mount(<PersonaRosterStory />);
+  await mount(<PersonaListStory />);
   await expect(page.getByText("Nova", { exact: true })).toBeVisible();
 
   const pins = await labels(page, /^Pin "Traveler" · .+ as your default$/);
@@ -204,7 +204,7 @@ test("clicking a faint pin writes seeds.defaultPersonaId for THAT row's persona"
 
 test("the row ⋯ carries Edit · Duplicate · Export · Delete; Edit expands the editor; Duplicate fires the verb", async ({ mount, page }) => {
   const trpc = await stub(page, { "persona.duplicate": () => PERSONAS[0] });
-  await mount(<PersonaRosterStory />);
+  await mount(<PersonaListStory />);
   await expect(page.getByText("Nova", { exact: true })).toBeVisible();
 
   // The fine-pointer kebab is hover-revealed; hovering the row's rename control is the real user path.
@@ -241,7 +241,7 @@ test("the From-character door opens the picker dialog; picking a character mints
     }),
     "persona.createFromCharacter": () => ({ ...PERSONAS[0], id: "persona_minted", name: "Captain Vale" }),
   });
-  await mount(<PersonaRosterStory />);
+  await mount(<PersonaListStory />);
   await expect(page.getByText("Nova", { exact: true })).toBeVisible();
 
   await page.getByRole("button", { name: "New persona from a character", exact: true }).click();
@@ -266,7 +266,7 @@ test("flipping the swap switch OFF is honored on the wire", async ({ mount, page
     }),
     "persona.createFromCharacter": () => ({ ...PERSONAS[0], id: "persona_minted", name: "Captain Vale" }),
   });
-  await mount(<PersonaRosterStory />);
+  await mount(<PersonaListStory />);
   await expect(page.getByText("Nova", { exact: true })).toBeVisible();
 
   await page.getByRole("button", { name: "New persona from a character", exact: true }).click();

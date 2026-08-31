@@ -158,7 +158,7 @@ export function makeChatsSection({ contextTabs, contextRegions, surfaces, toolRe
       railLabel: "Chat",
       // No rail-trail actions today: the add-member door lives in the cast bar + the Members tab, both of
       // which the room already renders. (It used to hold the DRAFT add-member popover — a rowless room's
-      // only way to grow its cast; the roster verb serves that now.)
+      // only way to add characters; the seat verb (`domain/chat/verbs/roster.ts`) serves that now.)
       contributors: contextTabs,
       // The HEAD-BAND CLAIM arm (HUD-1 §3.2 as re-shaped by #860): chat consumes it BLIND — a claiming
       // contributor (the rpg Waystone on an engaged game chat) supplies the band in place of `header`
@@ -168,7 +168,7 @@ export function makeChatsSection({ contextTabs, contextRegions, surfaces, toolRe
       // "Select something to see its details here." with two other sections.
       empty: {
         title: "No chat open",
-        description: "Open a thread and this pane carries its cast, its memory, and the knobs that apply to it.",
+        description: "Open a thread and this pane carries its characters, its memory, and the knobs that apply to it.",
       },
     }),
   };

@@ -1,7 +1,7 @@
 // The server-derived live-presence source. Presence is a ref-count per userId over the open SSE
 // connections (one per device), never a client-asserted heartbeat — a spoofable presence is a
 // prompt-composition attack. Injected into chat as the presence.read op for cast-gating; an offline
-// participant drops from the present cast for the next round.
+// participant drops from the present characters for the next round.
 //
 // Debounce (grace window): a brief disconnect must not flicker a participant offline mid-conversation.
 // The last device's disconnect stamps lastSeenAt; read() keeps online:true until the grace window elapses.

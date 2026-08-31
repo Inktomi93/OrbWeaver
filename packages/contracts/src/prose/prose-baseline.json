@@ -193,8 +193,8 @@
       "sha256": "16648e7e6eac3c2df2b7aa48bb7f743a6b0f470fa617129692fab71e315464a5"
     },
     "chat.group.castMember": {
-      "version": 1,
-      "sha256": "8781d4e05f6bf4e18dcfa6172fb003cb6ad819b5a2853e21faa940f92b796e92"
+      "version": 2,
+      "sha256": "6f67d5f57230d1cc1a889b8af0843454befc79a7d35a9f19cb696f675f818e49"
     },
     "chat.group.scenarioHeading": {
       "version": 1,
