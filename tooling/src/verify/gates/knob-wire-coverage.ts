@@ -6,15 +6,17 @@
 // (sanctioned-indefinite rebuild seam, cited) and DEFERRED (tracked debt, cited) — both self-cleaning in
 // BOTH directions (the D50 bus-coverage discipline): a member absent from both maps with no wire is
 // MISSING-RED; a member that GAINED its wire but still carries an entry is STALE-RED; an entry naming a
-// member that no longer exists is ORPHAN-RED. Every member source is found BY SYMBOL NAME project-wide
-// (never a file path — path-keyed-gates-die-on-rename), each with a paired-anchor rename tripwire that REDs
-// loudly instead of going vacuous-green. Whole-project ts-morph run; the founding registry + full spec:
+// member that no longer exists is ORPHAN-RED. Arm C derives inline leaves from the settings contract and
+// follows a precise imported semantic-source manifest for sanctioned sub-schema modules; missing bindings,
+// unsupported composition, cycles, and zero leaves fail loud, and the scan line prints the semantic counts.
+// The other member sources retain paired-anchor rename tripwires. Whole-project ts-morph run; full spec:
 // docs/history/reviews/stickler/2026-07-25-knob-drift-gates.md; ruling: Core-Path-Registry.md D107;
 // Spine-Config-and-Serialization.md §"Settings / config".
 import type { ObjectLiteralExpression, Project, SourceFile, Type } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { ExemptionTable, GateDescriptor, GateRunCtx } from "../contract/gate.ts";
 import type { Violation } from "../contract/harness.ts";
+import { unwrapExpression } from "../lib/ast-read.ts";
 
 // ── the two-map registry (keyed "<arm>:<member>") ───────────────────────────────────────────────────────
 // DOORWAY = a SANCTIONED, indefinitely-dormant rebuild seam a purged/future domain will graft onto (never
@@ -74,6 +76,13 @@ const APP_SETTINGS_SCHEMA = "appSettingsSchema";
 const USER_SETTINGS_SECTIONS = "USER_SETTINGS_SECTIONS";
 const DEFAULT_FORMAT_STRINGS = "DEFAULT_FORMAT_STRINGS";
 const CHAT_METADATA_SCHEMA = "chatMetadataSchema";
+const DIAGNOSTIC_PREVIEW_CHARS = 120;
+
+// Arm C's imported semantic sources. Each row is a contract-graph edge, not a second member list: the
+// resolver below proves that `userSettingsSchema.<section>` reaches the named exported z.object and derives
+// that object's top-level leaves. A rename, removed composition edge, cycle, or unsupported expression is a
+// tool error instead of a smaller denominator reported as clean.
+const IMPORTED_SETTINGS_SCHEMA_SOURCES = [{ section: "appearance", symbol: "appearanceSettingsSchema" }] as const;
 
 // Companion anchors (present ⇒ the member source MUST be findable, else the source was renamed away).
 const ANCHOR_GET_EFFECTIVE_CONFIG = "getEffectiveConfig";
@@ -169,6 +178,74 @@ function constObjectKeys(sf: SourceFile, varName: string): string[] {
     return [];
   }
   return obj.getProperties().flatMap((p) => (Node.isPropertyAssignment(p) ? [p.getName()] : []));
+}
+
+interface SchemaBinding {
+  readonly file: SourceFile;
+  readonly symbol: string;
+}
+
+function importedBinding(sf: SourceFile, localName: string): SchemaBinding | undefined {
+  const matches = sf.getImportDeclarations().flatMap((declaration) =>
+    declaration.getNamedImports().flatMap((specifier) => {
+      const local = specifier.getAliasNode()?.getText() ?? specifier.getName();
+      const target = declaration.getModuleSpecifierSourceFile();
+      return local === localName && target !== undefined ? [{ file: target, symbol: specifier.getName() }] : [];
+    }),
+  );
+  if (matches.length > 1) {
+    throw new Error(`knob-wire-coverage Arm C: ambiguous imported schema binding "${localName}" in ${sf.getFilePath()}`);
+  }
+  return matches[0];
+}
+
+function schemaObjectForBinding(binding: SchemaBinding, seen: ReadonlySet<string>): ObjectLiteralExpression {
+  const key = `${binding.file.getFilePath()}#${binding.symbol}`;
+  if (seen.has(key)) {
+    throw new Error(`knob-wire-coverage Arm C: settings schema composition cycle at ${key}`);
+  }
+  const declaration = binding.file.getVariableDeclaration(binding.symbol);
+  const initializer = declaration?.getInitializer();
+  if (initializer === undefined) {
+    throw new Error(`knob-wire-coverage Arm C: settings schema source ${key} is missing or has no initializer`);
+  }
+  return schemaObjectForExpression(initializer, binding.file, new Set([...seen, key]));
+}
+
+function schemaObjectForExpression(expression: Node, owner: SourceFile, seen: ReadonlySet<string>): ObjectLiteralExpression {
+  const node = unwrapExpression(expression);
+  if (Node.isIdentifier(node)) {
+    const imported = importedBinding(owner, node.getText());
+    if (imported !== undefined) {
+      return schemaObjectForBinding(imported, seen);
+    }
+    return schemaObjectForBinding({ file: owner, symbol: node.getText() }, seen);
+  }
+  if (Node.isCallExpression(node)) {
+    const object = zObjectArg(node);
+    if (object !== undefined) {
+      return object;
+    }
+    const callee = node.getExpression();
+    if (Node.isPropertyAccessExpression(callee)) {
+      return schemaObjectForExpression(callee.getExpression(), owner, seen);
+    }
+  }
+  throw new Error(
+    `knob-wire-coverage Arm C: unsupported settings schema expression in ${owner.getFilePath()}: ${node.getText().slice(0, DIAGNOSTIC_PREVIEW_CHARS)}`,
+  );
+}
+
+function propertyInitializer(object: ObjectLiteralExpression, name: string): Node {
+  const matches = object.getProperties().filter((property) => Node.isPropertyAssignment(property) && property.getName() === name);
+  if (matches.length !== 1 || !Node.isPropertyAssignment(matches[0])) {
+    throw new Error(`knob-wire-coverage Arm C: userSettingsSchema must compose exactly one "${name}" property`);
+  }
+  const initializer = matches[0].getInitializer();
+  if (initializer === undefined) {
+    throw new Error(`knob-wire-coverage Arm C: userSettingsSchema.${name} has no schema initializer`);
+  }
+  return initializer;
 }
 
 // ── reader corpora ──────────────────────────────────────────────────────────────────────────────────────
@@ -357,12 +434,16 @@ const SETTINGS_REPORT = "packages/contracts/src/settings/index.ts";
 const PRESET_REPORT = "packages/contracts/src/preset/index.ts";
 const METADATA_REPORT = "packages/server/src/domain/chat/contract/metadata.ts";
 
-/** Arms A/B/B2/C — all sourced from the settings contracts module. */
-function settingsArms(project: Project, settings: SourceFile): ArmResult & { readonly tripwires: readonly Violation[] } {
+/** Arms A/B/B2/C — rooted at the settings contract; Arm C also follows its declared imported sources. */
+function settingsArms(
+  project: Project,
+  settings: SourceFile,
+): ArmResult & { readonly tripwires: readonly Violation[]; readonly leafPopulation: SettingsLeafPopulation } {
   const fields = interfaceKeys(settings, EFFECTIVE_APP_CONFIG);
   const sections = tupleMembers(settings, USER_SETTINGS_SECTIONS);
   const appKeys = zObjectKeys(settings, APP_SETTINGS_SCHEMA);
-  const leaves = settingsLeaves(settings, new Set(sections));
+  const leafPopulation = settingsLeaves(settings, new Set(sections));
+  const leaves = leafPopulation.leaves;
 
   const consumed = typedReadNames(project, EFFECTIVE_APP_CONFIG, (fp) => SERVER_SRC.test(fp) && !isTest(fp));
   const written = sectionLiterals(project, (fp) => (CLIENT_SRC.test(fp) || ENTRY_SCOPE.test(fp)) && !isTest(fp));
@@ -413,7 +494,12 @@ function settingsArms(project: Project, settings: SourceFile): ArmResult & { rea
       report: SETTINGS_REPORT,
     }),
   ];
-  return { violations: arms.flatMap((a) => a.violations), liveKeys: arms.flatMap((a) => a.liveKeys), tripwires };
+  return {
+    violations: arms.flatMap((a) => a.violations),
+    liveKeys: arms.flatMap((a) => a.liveKeys),
+    tripwires,
+    leafPopulation,
+  };
 }
 
 /** Arm E — DEFAULT_FORMAT_STRINGS read coverage. */
@@ -470,7 +556,7 @@ function metadataArm(project: Project, metadata: SourceFile): ArmResult & { read
   };
 }
 
-function reconcile(ctx: Pick<GateRunCtx, "project">): Violation[] {
+function reconcile(ctx: Pick<GateRunCtx, "project" | "scan">): Violation[] {
   const project = ctx.project;
   const settings = findFile(project, SETTINGS_CONTRACTS);
   const preset = findFile(project, PRESET_CONTRACTS);
@@ -482,6 +568,11 @@ function reconcile(ctx: Pick<GateRunCtx, "project">): Violation[] {
 
   if (settings !== undefined) {
     const r = settingsArms(project, settings);
+    ctx.scan({
+      unit: `settings graph [contracts=1 sources=${r.leafPopulation.sourceCount} leaves=${r.leafPopulation.leaves.length} appearanceLeaves=${r.leafPopulation.importedLeafCounts["appearance"] ?? 0}]`,
+      candidates: r.leafPopulation.sourceCount,
+      scanned: r.leafPopulation.sourceCount,
+    });
     violations.push(...r.violations, ...r.tripwires);
     for (const k of r.liveKeys) {
       liveKeys.add(k);
@@ -511,9 +602,9 @@ function reconcile(ctx: Pick<GateRunCtx, "project">): Violation[] {
   return violations;
 }
 
-/** Arm C leaves: every `z.object({...})` PropertyAssignment name in the settings contracts module, minus
- *  the section names and `schemaVersion`. Name-keyed (documented lenience — a generic-named leaf passes on
- *  an unrelated read). */
+/** Arm C leaves: local `z.object({...})` PropertyAssignment names in the settings contract plus the
+ *  top-level leaves of each imported semantic source composed by `userSettingsSchema`, minus section names
+ *  and `schemaVersion`. Name-keyed (documented lenience — an unrelated read can satisfy a generic name). */
 /** The object literal a `z.object({...})` CallExpression declares, else undefined. */
 function zObjectArg(call: Node): ObjectLiteralExpression | undefined {
   const ex = Node.isCallExpression(call) ? call.getExpression() : undefined;
@@ -522,7 +613,13 @@ function zObjectArg(call: Node): ObjectLiteralExpression | undefined {
   return arg !== undefined && Node.isObjectLiteralExpression(arg) ? arg : undefined;
 }
 
-function settingsLeaves(settings: SourceFile, sections: ReadonlySet<string>): string[] {
+interface SettingsLeafPopulation {
+  readonly leaves: readonly string[];
+  readonly sourceCount: number;
+  readonly importedLeafCounts: Readonly<Record<string, number>>;
+}
+
+function localSettingsLeaves(settings: SourceFile, sections: ReadonlySet<string>): Set<string> {
   const leaves = new Set<string>();
   for (const call of settings.getDescendantsOfKind(SyntaxKind.CallExpression)) {
     const obj = zObjectArg(call);
@@ -536,7 +633,50 @@ function settingsLeaves(settings: SourceFile, sections: ReadonlySet<string>): st
       }
     }
   }
-  return [...leaves];
+  return leaves;
+}
+
+function importedSettingsLeaves(settings: SourceFile): { readonly leaves: Set<string>; readonly counts: Readonly<Record<string, number>> } {
+  const leaves = new Set<string>();
+  const importedLeafCounts: Record<string, number> = {};
+  const userSettings = schemaObjectForBinding({ file: settings, symbol: "userSettingsSchema" }, new Set());
+  for (const source of IMPORTED_SETTINGS_SCHEMA_SOURCES) {
+    const composed = propertyInitializer(userSettings, source.section);
+    const localName = unwrapExpression(composed);
+    if (!Node.isIdentifier(localName) || localName.getText() !== source.symbol) {
+      throw new Error(
+        `knob-wire-coverage Arm C: userSettingsSchema.${source.section} must compose the semantic source ${source.symbol}, got ${localName.getText()}`,
+      );
+    }
+    const object = schemaObjectForExpression(localName, settings, new Set());
+    const importedLeaves = object.getProperties().flatMap((property) => (Node.isPropertyAssignment(property) ? [property.getName()] : []));
+    if (importedLeaves.length === 0) {
+      throw new Error(`knob-wire-coverage Arm C: semantic source ${source.symbol} resolved to zero leaves`);
+    }
+    importedLeafCounts[source.section] = importedLeaves.length;
+    for (const leaf of importedLeaves) {
+      leaves.add(leaf);
+    }
+  }
+  return { leaves, counts: importedLeafCounts };
+}
+
+function settingsLeaves(settings: SourceFile, sections: ReadonlySet<string>): SettingsLeafPopulation {
+  const leaves = localSettingsLeaves(settings, sections);
+  if (settings.getVariableDeclaration("userSettingsSchema") === undefined) {
+    if (settings.getVariableDeclaration("DEFAULT_USER_SETTINGS") !== undefined) {
+      throw new Error("knob-wire-coverage Arm C: DEFAULT_USER_SETTINGS exists but userSettingsSchema is missing");
+    }
+    return { leaves: [...leaves], sourceCount: 1, importedLeafCounts: {} };
+  }
+  const imported = importedSettingsLeaves(settings);
+  for (const leaf of imported.leaves) {
+    leaves.add(leaf);
+  }
+  if (leaves.size === 0) {
+    throw new Error("knob-wire-coverage Arm C: settings semantic leaf population resolved to zero");
+  }
+  return { leaves: [...leaves], sourceCount: 1 + IMPORTED_SETTINGS_SCHEMA_SOURCES.length, importedLeafCounts: imported.counts };
 }
 
 export const gate: GateDescriptor = {
@@ -590,6 +730,18 @@ export const gate: GateDescriptor = {
       },
       expect: { messageIncludes: "dead from the schema down" },
       why: "arm C: a distinctively-named settings leaf with no read-shaped occurrence anywhere (the dupThreshold class)",
+    },
+    {
+      // Arm C: an imported settings sub-schema leaf read by nothing.
+      files: {
+        "packages/contracts/src/settings/index.ts":
+          'import { z } from "zod";\nimport { appearanceSettingsSchema } from "./appearance.ts";\nexport const USER_SETTINGS_SECTIONS = ["appearance"] as const;\nexport const userSettingsSchema = z.object({ schemaVersion: z.number(), appearance: appearanceSettingsSchema });\n',
+        "packages/contracts/src/settings/appearance.ts":
+          'import { z } from "zod";\nexport const appearanceSettingsSchema = z.object({ ghostAppearance: z.number() }).prefault({});\n',
+        "packages/client/src/features/x/x.tsx": 'export const updateUserSettingsSection = 1;\nexport const writer = { section: "appearance", patch: {} };\n',
+      },
+      expect: { messageIncludes: "ghostAppearance" },
+      why: "arm C imported-schema red: a leaf moved behind the sanctioned appearance module boundary remains in the semantic consumer-liveness denominator",
     },
     {
       // Arm E: a DEFAULT_FORMAT_STRINGS key read by no server behavior.
@@ -653,6 +805,18 @@ export const gate: GateDescriptor = {
         "packages/client/src/features/x/components/x.tsx": 'export const updateUserSettingsSection = 1;\nexport const w = { section: "wiredB", patch: {} };\n',
       },
       why: 'arm B: a client mutation writes section:"wiredB" — the write path exists, passes',
+    },
+    {
+      // Arm C: an imported settings sub-schema leaf with a production read → passes.
+      files: {
+        "packages/contracts/src/settings/index.ts":
+          'import { z } from "zod";\nimport { appearanceSettingsSchema } from "./appearance.ts";\nexport const USER_SETTINGS_SECTIONS = ["appearance"] as const;\nexport const userSettingsSchema = z.object({ schemaVersion: z.number(), appearance: appearanceSettingsSchema });\n',
+        "packages/contracts/src/settings/appearance.ts":
+          'import { z } from "zod";\nexport const appearanceSettingsSchema = z.object({ wiredAppearance: z.number() }).prefault({});\n',
+        "packages/client/src/features/x/x.tsx":
+          'export const updateUserSettingsSection = 1;\nexport const writer = { section: "appearance", patch: {} };\ndeclare const appearance: { wiredAppearance: number };\nexport const consumed = appearance.wiredAppearance;\n',
+      },
+      why: "arm C imported-schema green: a consumed leaf behind the sanctioned appearance module boundary remains live",
     },
     {
       // Arm E: the format string is read (PropertyAccess) → passes; the dynamic-key form also passes.
