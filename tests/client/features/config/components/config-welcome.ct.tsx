@@ -138,7 +138,7 @@ interface Corpus {
   readonly casts?: readonly unknown[];
 }
 
-/** One saved cast in the `rosterPreset.list` wire shape (the cast-picker CT's fixture, un-branded). */
+/** One saved roster in the `rosterPreset.list` wire shape (the roster-picker CT's fixture, un-branded). */
 const CAST = {
   id: "roster_preset_ct_welcome",
   name: "Adventuring Cast",
