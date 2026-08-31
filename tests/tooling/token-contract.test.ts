@@ -30,6 +30,7 @@ function validFixture(): TokenContractTexts {
       "orb.cssValues": {
         "--shadow-runtime": {
           value: "0 0 1rem var(--color-background)",
+          placement: "theme",
           description: "A runtime custom-property shadow.",
           provenance: ["dimension.runtime-blur"],
         },
@@ -132,6 +133,7 @@ test("the official schemas are hash-pinned and a complete conformant fixture pas
 test("the real vault is conformant and preserves the exact pre-migration 178-target surface", () => {
   const result = validateTokenContractTexts(readTokenContractTexts(UI_ROOT));
   expect(result.diagnostics).toEqual([]);
+  expect(result.scannedTokens).toBe(272);
   expect(result.cssTargets.size).toBe(178);
   expect(result.cssTargets).toEqual(BASELINE_TARGETS);
   expect(result.themes).toEqual([
@@ -195,7 +197,7 @@ describe("Orb semantic controls", () => {
 
     const duplicate = mutate(validFixture(), "base", (base) => {
       const css = (base["$extensions"] as Record<string, unknown>)["orb.cssValues"] as Record<string, unknown>;
-      css["--color-background"] = { value: "red", description: "plant", provenance: ["color.background"] };
+      css["--color-background"] = { value: "red", placement: "theme", description: "plant", provenance: ["color.background"] };
     });
     expect(codes(duplicate)).toContain("output.duplicate");
 
@@ -209,6 +211,36 @@ describe("Orb semantic controls", () => {
       ledger["removed"] = [{ path: "color.background", reason: "plant" }];
     });
     expect(codes(removed)).toContain("removed.stale");
+  });
+
+  test("every runtime CSS output declares whether Tailwind or :root owns its placement", () => {
+    const missing = mutate(validFixture(), "base", (base) => {
+      const css = (base["$extensions"] as Record<string, unknown>)["orb.cssValues"] as Record<string, Record<string, unknown>>;
+      const runtime = css["--shadow-runtime"];
+      if (runtime !== undefined) {
+        const { placement: _, ...withoutPlacement } = runtime;
+        css["--shadow-runtime"] = withoutPlacement;
+      }
+    });
+    expect(codes(missing)).toContain("orb.cssValues");
+
+    const invalid = mutate(validFixture(), "base", (base) => {
+      const css = (base["$extensions"] as Record<string, unknown>)["orb.cssValues"] as Record<string, Record<string, unknown>>;
+      const runtime = css["--shadow-runtime"];
+      if (runtime !== undefined) {
+        runtime["placement"] = "utility";
+      }
+    });
+    expect(codes(invalid)).toContain("orb.cssValues");
+
+    const root = mutate(validFixture(), "base", (base) => {
+      const css = (base["$extensions"] as Record<string, unknown>)["orb.cssValues"] as Record<string, Record<string, unknown>>;
+      const runtime = css["--shadow-runtime"];
+      if (runtime !== undefined) {
+        runtime["placement"] = "root";
+      }
+    });
+    expect(validateTokenContractTexts(root).diagnostics).toEqual([]);
   });
 
   test("the Git merge-base ratchet refuses a portable token deletion without a removed-ledger row", () => {
