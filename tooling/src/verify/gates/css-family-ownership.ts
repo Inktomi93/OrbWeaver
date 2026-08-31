@@ -7,10 +7,12 @@
 // property-keyword classifier: either would let an author bless the wrong rule with the right word.
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { SyntaxKind } from "ts-morph";
+import type { SourceFile } from "ts-morph";
+import { Node, SyntaxKind } from "ts-morph";
 import type { Finding, GateDescriptor, GateRunCtx } from "../contract/gate.ts";
+import { unwrapExpression } from "../lib/ast-read.ts";
 import { blankCssComments } from "../lib/comment-spans.ts";
-import { parseCssRules } from "../lib/css-rules.ts";
+import { parseCssRules, splitSelectorList } from "../lib/css-rules.ts";
 import { repoRel } from "../lib/pass.ts";
 
 const THEME = "packages/ui/src/styles/theme.css";
@@ -67,6 +69,25 @@ const SOURCE_OWNERS = [
   { prefix: "packages/ui/src/", owner: "ui" },
   { prefix: "packages/client/src/", owner: "client" },
 ] as const;
+const CLASS_COMPOSERS = new Set(["cn", "cx", "clsx", "cva", "tv", "twMerge", "twJoin"]);
+const CLASS_LIST_MUTATORS = new Set(["add", "remove", "toggle", "replace"]);
+const CLASS_PROPERTIES = new Set(["class", "className"]);
+const EXPECTED_DECLARATION_CENSUS: Readonly<Record<ProductStylesheet, number>> = {
+  [THEME]: 275,
+  [UI_GLOBALS]: 187,
+  [TIERS]: 45,
+  [CLIENT_GLOBALS]: 111,
+  [SHELL]: 335,
+};
+const EXPECTED_DECLARATION_TOTAL = 953;
+const EXPECTED_DIRECT_THEME_DECLARATIONS = 179;
+const CENSUS_TOKEN: Readonly<Record<ProductStylesheet, string>> = {
+  [THEME]: "census:theme",
+  [UI_GLOBALS]: "census:ui-globals",
+  [TIERS]: "census:tiers",
+  [CLIENT_GLOBALS]: "census:client-globals",
+  [SHELL]: "census:shell",
+};
 
 const MESSAGE =
   "a declaration is inside a sanctioned CSS path but belongs to another semantic family (#951 / client-architecture-lockdown.md §4.3): legal path is not responsibility";
@@ -184,11 +205,6 @@ function sourceOwner(rel: string): "ui" | "client" | undefined {
   return SOURCE_OWNERS.find((row) => rel.startsWith(row.prefix))?.owner;
 }
 
-function literalText(nodeText: string): string {
-  const quote = nodeText[0];
-  return (quote === '"' || quote === "'" || quote === "`") && nodeText.at(-1) === quote ? nodeText.slice(1, -1) : nodeText;
-}
-
 function recordOwner(map: Map<string, HookOwners>, hook: string, owner: "ui" | "client"): void {
   const before = map.get(hook) ?? { ui: false, client: false };
   map.set(hook, { ui: before.ui || owner === "ui", client: before.client || owner === "client" });
@@ -202,7 +218,413 @@ function recordClassTokens(map: Map<string, HookOwners>, text: string, owner: "u
   }
 }
 
-/** Literal producer direction. Comments/JSDoc never enter because only syntax nodes are visited. */
+function calleeTail(node: Node): string | undefined {
+  if (!Node.isCallExpression(node)) {
+    return;
+  }
+  return node.getExpression().getText().split(".").at(-1);
+}
+
+function resolveExportedVariable(sf: SourceFile, name: string, seen: Set<string>): Node | undefined {
+  const key = `${sf.getFilePath()}:${name}`;
+  if (seen.has(key)) {
+    return;
+  }
+  seen.add(key);
+  const local = sf.getVariableDeclaration(name);
+  if (local !== undefined) {
+    return local;
+  }
+  for (const declaration of sf.getExportDeclarations()) {
+    const target = declaration.getModuleSpecifierSourceFile();
+    if (target === undefined) {
+      continue;
+    }
+    const named = declaration.getNamedExports().find((candidate) => (candidate.getAliasNode() ?? candidate.getNameNode()).getText() === name);
+    if (named !== undefined) {
+      return resolveExportedVariable(target, named.getNameNode().getText(), seen);
+    }
+    if (declaration.getNamedExports().length === 0) {
+      const found = resolveExportedVariable(target, name, seen);
+      if (found !== undefined) {
+        return found;
+      }
+    }
+  }
+  return local;
+}
+
+function resolveName(sf: SourceFile, name: string): Node | undefined {
+  const local = sf.getVariableDeclaration(name);
+  if (local !== undefined) {
+    return local;
+  }
+  for (const declaration of sf.getImportDeclarations()) {
+    const named = declaration.getNamedImports().find((candidate) => (candidate.getAliasNode() ?? candidate.getNameNode()).getText() === name);
+    if (named === undefined) {
+      continue;
+    }
+    const target = declaration.getModuleSpecifierSourceFile();
+    const original = named.getNameNode().getText();
+    const found = target === undefined ? undefined : resolveExportedVariable(target, original, new Set());
+    if (found !== undefined) {
+      return found;
+    }
+  }
+  return local;
+}
+
+function ownersForNode(node: Node, inherited: ReadonlySet<"ui" | "client">): ReadonlySet<"ui" | "client"> {
+  const path = node.getSourceFile().getFilePath();
+  const packagesAt = path.indexOf("/packages/");
+  const declared = sourceOwner(packagesAt === -1 ? path : path.slice(packagesAt + 1));
+  return declared === undefined ? inherited : new Set([...inherited, declared]);
+}
+
+function recordTextForOwners(map: Map<string, HookOwners>, text: string, owners: ReadonlySet<"ui" | "client">): void {
+  for (const owner of owners) {
+    recordClassTokens(map, text, owner);
+  }
+}
+
+function recordPropertyKey(map: Map<string, HookOwners>, node: Node, owners: ReadonlySet<"ui" | "client">): void {
+  if (Node.isPropertyAssignment(node) || Node.isShorthandPropertyAssignment(node)) {
+    const name = node.getName().replace(/^['"]|['"]$/gu, "");
+    recordTextForOwners(map, name, owners);
+  }
+}
+
+/** Follow only values that are already inside an actual class-producing carrier. An identifier gains the
+ * owner of its definition as well as the owner of its live use, which is how an exported \@orb/ui class
+ * constant remains UI-owned when a client className composes it. */
+interface ClassValueContext {
+  readonly map: Map<string, HookOwners>;
+  readonly owners: ReadonlySet<"ui" | "client">;
+  readonly seen: Set<string>;
+}
+
+function collectLiteralClassValue(node: Node, context: ClassValueContext): boolean {
+  const { map, owners } = context;
+  if (Node.isStringLiteral(node) || Node.isNoSubstitutionTemplateLiteral(node)) {
+    recordTextForOwners(map, node.getLiteralText(), owners);
+    return true;
+  }
+  if (!Node.isTemplateExpression(node)) {
+    return false;
+  }
+  recordTextForOwners(map, node.getHead().getLiteralText(), owners);
+  for (const span of node.getTemplateSpans()) {
+    collectClassValue(span.getExpression(), context);
+    recordTextForOwners(map, span.getLiteral().getLiteralText(), owners);
+  }
+  return true;
+}
+
+function collectIdentifierClassValue(node: Node, context: ClassValueContext, objectKeysAreClasses: boolean): boolean {
+  if (!Node.isIdentifier(node)) {
+    return false;
+  }
+  const declaration = resolveName(node.getSourceFile(), node.getText());
+  if (!Node.isVariableDeclaration(declaration)) {
+    return true;
+  }
+  const key = `${declaration.getSourceFile().getFilePath()}:${declaration.getStart()}`;
+  const initializer = declaration.getInitializer();
+  if (context.seen.has(key) || initializer === undefined) {
+    return true;
+  }
+  context.seen.add(key);
+  collectClassValue(initializer, { ...context, owners: ownersForNode(declaration, context.owners) }, objectKeysAreClasses);
+  context.seen.delete(key);
+  return true;
+}
+
+function collectBranchClassValue(node: Node, context: ClassValueContext, objectKeysAreClasses: boolean): boolean {
+  if (Node.isConditionalExpression(node)) {
+    collectClassValue(node.getWhenTrue(), context, objectKeysAreClasses);
+    collectClassValue(node.getWhenFalse(), context, objectKeysAreClasses);
+    return true;
+  }
+  if (Node.isBinaryExpression(node)) {
+    collectClassValue(node.getLeft(), context, objectKeysAreClasses);
+    collectClassValue(node.getRight(), context, objectKeysAreClasses);
+    return true;
+  }
+  if (!Node.isArrayLiteralExpression(node)) {
+    return false;
+  }
+  for (const element of node.getElements()) {
+    collectClassValue(element, context, objectKeysAreClasses);
+  }
+  return true;
+}
+
+function classObjectPropertyValue(property: Node): Node | undefined {
+  if (Node.isPropertyAssignment(property)) {
+    return property.getInitializer();
+  }
+  if (Node.isShorthandPropertyAssignment(property)) {
+    return property.getNameNode();
+  }
+  return Node.isSpreadAssignment(property) ? property.getExpression() : undefined;
+}
+
+function collectObjectClassValue(node: Node, context: ClassValueContext, objectKeysAreClasses: boolean): boolean {
+  if (!Node.isObjectLiteralExpression(node)) {
+    return false;
+  }
+  const { map, owners, seen } = context;
+  for (const property of node.getProperties()) {
+    if (objectKeysAreClasses) {
+      recordPropertyKey(map, property, owners);
+    }
+    const value = classObjectPropertyValue(property);
+    if (value !== undefined) {
+      collectClassValue(value, { map, owners, seen }, Node.isSpreadAssignment(property) && objectKeysAreClasses);
+    }
+  }
+  return true;
+}
+
+function collectClassValue(candidate: Node, context: ClassValueContext, objectKeysAreClasses = false): void {
+  const node = unwrapExpression(candidate);
+  if (
+    collectLiteralClassValue(node, context) ||
+    collectIdentifierClassValue(node, context, objectKeysAreClasses) ||
+    collectBranchClassValue(node, context, objectKeysAreClasses) ||
+    collectObjectClassValue(node, context, objectKeysAreClasses)
+  ) {
+    return;
+  }
+  if (Node.isCallExpression(node) && CLASS_COMPOSERS.has(calleeTail(node) ?? "")) {
+    collectComposerCall(node, context);
+  }
+}
+
+function namedProperty(object: Node, name: string): Node | undefined {
+  if (!Node.isObjectLiteralExpression(object)) {
+    return;
+  }
+  const property = object.getProperty(name);
+  return Node.isPropertyAssignment(property) ? property.getInitializer() : undefined;
+}
+
+function collectObjectValues(object: Node, context: ClassValueContext): void {
+  if (!Node.isObjectLiteralExpression(object)) {
+    return;
+  }
+  for (const property of object.getProperties()) {
+    if (Node.isPropertyAssignment(property)) {
+      const initializer = property.getInitializer();
+      if (initializer !== undefined) {
+        collectClassValue(initializer, context);
+      }
+    } else if (Node.isShorthandPropertyAssignment(property)) {
+      collectClassValue(property.getNameNode(), context);
+    }
+  }
+}
+
+function collectNamedVariantValues(object: Node, context: ClassValueContext): void {
+  for (const key of ["base", "class", "className"]) {
+    const value = namedProperty(object, key);
+    if (value !== undefined) {
+      collectClassValue(value, context);
+    }
+  }
+  const slots = namedProperty(object, "slots");
+  if (slots !== undefined) {
+    collectObjectValues(unwrapExpression(slots), context);
+  }
+}
+
+function collectVariantAxes(object: Node, context: ClassValueContext): void {
+  const variants = namedProperty(object, "variants");
+  const variantsObject = variants === undefined ? undefined : unwrapExpression(variants);
+  if (!Node.isObjectLiteralExpression(variantsObject)) {
+    return;
+  }
+  for (const axis of variantsObject.getProperties()) {
+    const initializer = Node.isPropertyAssignment(axis) ? axis.getInitializer() : undefined;
+    if (initializer !== undefined) {
+      collectObjectValues(unwrapExpression(initializer), context);
+    }
+  }
+}
+
+function collectCompoundVariantGroups(object: Node, context: ClassValueContext): void {
+  for (const key of ["compoundVariants", "compoundSlots"]) {
+    const compound = namedProperty(object, key);
+    const compoundArray = compound === undefined ? undefined : unwrapExpression(compound);
+    if (!Node.isArrayLiteralExpression(compoundArray)) {
+      continue;
+    }
+    for (const entry of compoundArray.getElements()) {
+      const row = unwrapExpression(entry);
+      for (const classKey of ["class", "className"]) {
+        const value = namedProperty(row, classKey);
+        if (value !== undefined) {
+          collectClassValue(value, context);
+        }
+      }
+    }
+  }
+}
+
+function collectVariantConfig(config: Node, context: ClassValueContext): void {
+  const object = unwrapExpression(config);
+  if (!Node.isObjectLiteralExpression(object)) {
+    collectClassValue(object, context);
+    return;
+  }
+  collectNamedVariantValues(object, context);
+  collectVariantAxes(object, context);
+  collectCompoundVariantGroups(object, context);
+}
+
+function collectComposerCall(call: Node, context: ClassValueContext): void {
+  if (!Node.isCallExpression(call)) {
+    return;
+  }
+  const callee = calleeTail(call) ?? "";
+  if (callee === "tv") {
+    const config = call.getArguments()[0];
+    if (config !== undefined) {
+      collectVariantConfig(config, context);
+    }
+    return;
+  }
+  if (callee === "cva") {
+    const base = call.getArguments()[0];
+    const config = call.getArguments()[1];
+    if (base !== undefined) {
+      collectClassValue(base, context);
+    }
+    if (config !== undefined) {
+      collectVariantConfig(config, context);
+    }
+    return;
+  }
+  for (const argument of call.getArguments()) {
+    collectClassValue(argument, context, true);
+  }
+}
+
+function collectClassAttribute(map: Map<string, HookOwners>, attribute: Node, owner: "ui" | "client"): void {
+  if (!(Node.isJsxAttribute(attribute) && CLASS_PROPERTIES.has(attribute.getNameNode().getText()))) {
+    return;
+  }
+  const initializer = attribute.getInitializer();
+  if (initializer === undefined) {
+    return;
+  }
+  if (Node.isStringLiteral(initializer)) {
+    recordClassTokens(map, initializer.getLiteralText(), owner);
+    return;
+  }
+  const expression = Node.isJsxExpression(initializer) ? initializer.getExpression() : undefined;
+  if (expression !== undefined) {
+    collectClassValue(expression, { map, owners: new Set([owner]), seen: new Set() });
+  }
+}
+
+function literalValues(candidate: Node, seen: Set<string>): readonly string[] {
+  const node = unwrapExpression(candidate);
+  if (Node.isStringLiteral(node) || Node.isNoSubstitutionTemplateLiteral(node)) {
+    return [node.getLiteralText()];
+  }
+  if (Node.isIdentifier(node)) {
+    const declaration = resolveName(node.getSourceFile(), node.getText());
+    if (!Node.isVariableDeclaration(declaration)) {
+      return [];
+    }
+    const key = `${declaration.getSourceFile().getFilePath()}:${declaration.getStart()}`;
+    const initializer = declaration.getInitializer();
+    if (initializer === undefined || seen.has(key)) {
+      return [];
+    }
+    seen.add(key);
+    const values = literalValues(initializer, seen);
+    seen.delete(key);
+    return values;
+  }
+  if (Node.isConditionalExpression(node)) {
+    return [...literalValues(node.getWhenTrue(), seen), ...literalValues(node.getWhenFalse(), seen)];
+  }
+  return [];
+}
+
+function dataSlotValues(initializer: Node | undefined): readonly string[] {
+  if (initializer === undefined) {
+    return [];
+  }
+  if (Node.isStringLiteral(initializer)) {
+    return [initializer.getLiteralText()];
+  }
+  if (!Node.isJsxExpression(initializer)) {
+    return [];
+  }
+  const expression = initializer.getExpression();
+  return expression === undefined ? [] : literalValues(expression, new Set());
+}
+
+function collectDataSlotAttribute(map: Map<string, HookOwners>, attribute: Node, owner: "ui" | "client"): void {
+  if (!Node.isJsxAttribute(attribute) || attribute.getNameNode().getText() !== "data-slot") {
+    return;
+  }
+  const initializer = attribute.getInitializer();
+  for (const value of dataSlotValues(initializer)) {
+    recordOwner(map, `slot:${value}`, owner);
+  }
+}
+
+function collectClassMutation(map: Map<string, HookOwners>, call: Node, owner: "ui" | "client"): void {
+  if (!Node.isCallExpression(call)) {
+    return;
+  }
+  const expression = call.getExpression();
+  if (!Node.isPropertyAccessExpression(expression)) {
+    return;
+  }
+  const receiver = expression.getExpression();
+  if (!(CLASS_LIST_MUTATORS.has(expression.getName()) && Node.isPropertyAccessExpression(receiver) && receiver.getName() === "classList")) {
+    return;
+  }
+  for (const argument of call.getArguments()) {
+    collectClassValue(argument, { map, owners: new Set([owner]), seen: new Set() });
+  }
+}
+
+/** Producer direction from actual class-bearing syntax only: class/className attributes, the repo's class
+ * composers, and DOMTokenList mutations. Inert UI copy is deliberately invisible. */
+function collectHookAttributes(owners: Map<string, HookOwners>, sf: SourceFile, owner: "ui" | "client"): void {
+  for (const attribute of sf.getDescendantsOfKind(SyntaxKind.JsxAttribute)) {
+    collectClassAttribute(owners, attribute, owner);
+    collectDataSlotAttribute(owners, attribute, owner);
+  }
+}
+
+function collectHookProperties(owners: Map<string, HookOwners>, sf: SourceFile, owner: "ui" | "client"): void {
+  for (const property of sf.getDescendantsOfKind(SyntaxKind.PropertyAssignment)) {
+    if (!CLASS_PROPERTIES.has(property.getName().replace(/^['"]|['"]$/gu, ""))) {
+      continue;
+    }
+    const initializer = property.getInitializer();
+    if (initializer !== undefined) {
+      collectClassValue(initializer, { map: owners, owners: new Set([owner]), seen: new Set() });
+    }
+  }
+}
+
+function collectHookCalls(owners: Map<string, HookOwners>, sf: SourceFile, owner: "ui" | "client"): void {
+  for (const call of sf.getDescendantsOfKind(SyntaxKind.CallExpression)) {
+    if (CLASS_COMPOSERS.has(calleeTail(call) ?? "")) {
+      collectClassValue(call, { map: owners, owners: new Set([owner]), seen: new Set() });
+    }
+    collectClassMutation(owners, call, owner);
+  }
+}
+
 function collectHookOwners(ctx: GateRunCtx): ReadonlyMap<string, HookOwners> {
   const owners = new Map<string, HookOwners>();
   for (const sf of ctx.project.getSourceFiles()) {
@@ -210,18 +632,9 @@ function collectHookOwners(ctx: GateRunCtx): ReadonlyMap<string, HookOwners> {
     if (owner === undefined) {
       continue;
     }
-    for (const node of sf.getDescendantsOfKind(SyntaxKind.StringLiteral)) {
-      recordClassTokens(owners, literalText(node.getText()), owner);
-    }
-    for (const node of sf.getDescendantsOfKind(SyntaxKind.NoSubstitutionTemplateLiteral)) {
-      recordClassTokens(owners, literalText(node.getText()), owner);
-    }
-    for (const attribute of sf.getDescendantsOfKind(SyntaxKind.JsxAttribute)) {
-      const match = /^data-slot\s*=\s*["']([^"']+)["']$/u.exec(attribute.getText());
-      if (match?.[1] !== undefined) {
-        recordOwner(owners, `slot:${match[1]}`, owner);
-      }
-    }
+    collectHookAttributes(owners, sf, owner);
+    collectHookProperties(owners, sf, owner);
+    collectHookCalls(owners, sf, owner);
   }
   return owners;
 }
@@ -319,14 +732,155 @@ function isKeyframeStep(selector: string): boolean {
   return KEYFRAME_STEP_RE.test(selector);
 }
 
+interface SelectorFunction {
+  readonly name: string;
+  readonly argumentsText: string;
+  readonly open: number;
+  readonly close: number;
+}
+
+function matchingParen(text: string, open: number): number {
+  let depth = 0;
+  let quote = "";
+  for (let index = open + 1; index < text.length; index += 1) {
+    const char = text[index] ?? "";
+    const beforeQuote = quote;
+    quote = nextQuote(quote, char, text[index - 1] === "\\");
+    if (beforeQuote !== "" || quote !== "") {
+      continue;
+    }
+    if (char === "(") {
+      depth += 1;
+    } else if (char === ")") {
+      if (depth === 0) {
+        return index;
+      }
+      depth -= 1;
+    }
+  }
+  return -1;
+}
+
+interface SelectorLexState {
+  readonly depth: number;
+  readonly bracketDepth: number;
+  readonly quote: string;
+}
+
+function nextBracketDepth(depth: number, char: string): number {
+  if (char === "[") {
+    return depth + 1;
+  }
+  return char === "]" ? depth - 1 : depth;
+}
+
+function nextParenDepth(depth: number, char: string): number {
+  if (char === "(") {
+    return depth + 1;
+  }
+  return char === ")" ? depth - 1 : depth;
+}
+
+function selectorLexStep(state: SelectorLexState, char: string, escaped: boolean): { readonly next: SelectorLexState; readonly atTopLevel: boolean } {
+  const quote = nextQuote(state.quote, char, escaped);
+  if (state.quote !== "" || quote !== "") {
+    return { next: { ...state, quote }, atTopLevel: false };
+  }
+  const atTopLevel = state.depth === 0 && state.bracketDepth === 0;
+  const bracketDepth = nextBracketDepth(state.bracketDepth, char);
+  const depth = bracketDepth === 0 ? nextParenDepth(state.depth, char) : state.depth;
+  return { next: { depth, bracketDepth, quote }, atTopLevel };
+}
+
+function isSelectorCombinator(char: string): boolean {
+  return char === ">" || char === "+" || char === "~" || char === "|" || /\s/u.test(char);
+}
+
+function rootCompound(selector: string): { readonly compound: string; readonly hasSiblingCombinator: boolean } {
+  let state: SelectorLexState = { depth: 0, bracketDepth: 0, quote: "" };
+  let end = selector.length;
+  let hasSiblingCombinator = false;
+  for (let index = 0; index < selector.length; index += 1) {
+    const char = selector[index] ?? "";
+    const step = selectorLexStep(state, char, selector[index - 1] === "\\");
+    state = step.next;
+    if (!step.atTopLevel) {
+      continue;
+    }
+    if (char === "+" || char === "~" || char === "|") {
+      hasSiblingCombinator = true;
+    }
+    if (end === selector.length && isSelectorCombinator(char)) {
+      end = index;
+    }
+  }
+  return { compound: selector.slice(0, end), hasSiblingCombinator };
+}
+
+function selectorFunctionAt(compound: string, index: number): SelectorFunction | undefined {
+  const name = /^:([a-z-]+)\(/u.exec(compound.slice(index))?.[1];
+  if (name === undefined) {
+    return;
+  }
+  const open = index + name.length + 1;
+  const close = matchingParen(compound, open);
+  return close === -1 ? undefined : { name, argumentsText: compound.slice(open + 1, close), open, close };
+}
+
+function selectorFunctions(compound: string): readonly SelectorFunction[] {
+  const out: SelectorFunction[] = [];
+  let state: SelectorLexState = { depth: 0, bracketDepth: 0, quote: "" };
+  for (let index = 0; index < compound.length; index += 1) {
+    const char = compound[index] ?? "";
+    const step = selectorLexStep(state, char, compound[index - 1] === "\\");
+    state = step.next;
+    if (!(step.atTopLevel && char === ":")) {
+      continue;
+    }
+    const fn = selectorFunctionAt(compound, index);
+    if (fn === undefined) {
+      continue;
+    }
+    out.push(fn);
+    index = fn.close;
+  }
+  return out;
+}
+
+function blankFunctionArguments(compound: string): string {
+  const chars = [...compound];
+  for (const fn of selectorFunctions(compound)) {
+    for (let index = fn.open + 1; index < fn.close; index += 1) {
+      chars[index] = " ";
+    }
+  }
+  return chars.join("");
+}
+
+function compoundHasShellRoot(compound: string): boolean {
+  const direct = blankFunctionArguments(compound);
+  if (/\.shell-[\w-]*/u.test(direct) || /\[data-shell-[\w-]*/u.test(direct)) {
+    return true;
+  }
+  for (const fn of selectorFunctions(compound)) {
+    const branches = splitSelectorList(fn.argumentsText);
+    if ((fn.name === "is" || fn.name === "where") && branches.length > 0 && branches.every((branch) => isShellSelector(branch))) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function isShellSelector(selector: string): boolean {
-  return (
-    isKeyframeStep(selector) ||
-    selector === ":root" ||
-    selector.includes(".shell-") ||
-    selector.includes("[data-shell-") ||
-    selector.startsWith("::view-transition-")
-  );
+  const text = selector.trim();
+  if (isKeyframeStep(text) || text === ":root") {
+    return true;
+  }
+  const root = rootCompound(text);
+  if (text.startsWith("::view-transition-")) {
+    return !root.hasSiblingCombinator && root.compound === text;
+  }
+  return !root.hasSiblingCombinator && compoundHasShellRoot(root.compound);
 }
 
 function actualLayerOffsets(raw: string): readonly number[] {
@@ -427,24 +981,72 @@ function fullHomeSet(census: readonly StylesheetCensus[]): boolean {
   return census.length === PRODUCT_STYLESHEETS.length && PRODUCT_STYLESHEETS.every((rel) => census.some((row) => row.rel === rel));
 }
 
-function reportCensusHealth(census: readonly StylesheetCensus[], ctx: GateRunCtx): readonly DirectDeclaration[] {
-  const total = census.reduce((sum, row) => sum + row.declarations, 0);
-  ctx.scan({ unit: "declaration", candidates: total, scanned: total });
-  if (fullHomeSet(census)) {
-    for (const row of census) {
-      if (row.declarations === 0) {
-        ctx.report(finding(row.rel, 0, "zero-declarations", `${row.rel} produced a zero declaration census — ownership verdict would be vacuous`));
-      }
-    }
+function reportHomeCensus(row: StylesheetCensus, ctx: GateRunCtx): void {
+  if (row.declarations === 0) {
+    ctx.report(finding(row.rel, 0, "zero-declarations", `${row.rel} produced a zero declaration census — ownership verdict would be vacuous`));
   }
-  const theme = census.find((row) => row.rel === THEME);
+  const expected = EXPECTED_DECLARATION_CENSUS[row.rel];
+  if (row.declarations !== expected) {
+    ctx.report(
+      finding(
+        row.rel,
+        1,
+        CENSUS_TOKEN[row.rel],
+        `${row.rel} contains ${row.declarations} declarations; the law-backed responsibility manifest expects ${expected}. An intentional ownership change updates this manifest in the same commit`,
+      ),
+    );
+  }
+}
+
+function reportExactCensus(census: readonly StylesheetCensus[], total: number, ctx: GateRunCtx): void {
+  if (!fullHomeSet(census)) {
+    return;
+  }
+  for (const row of census) {
+    reportHomeCensus(row, ctx);
+  }
+  if (total !== EXPECTED_DECLARATION_TOTAL) {
+    ctx.report(
+      finding(
+        "tooling/src/verify/gates/css-family-ownership.ts",
+        1,
+        "census:total",
+        `the five product stylesheets contain ${total} declarations; the exact responsibility manifest expects ${EXPECTED_DECLARATION_TOTAL}`,
+      ),
+    );
+  }
+}
+
+function reportDirectThemeCensus(theme: StylesheetCensus | undefined, complete: boolean, ctx: GateRunCtx): readonly DirectDeclaration[] {
   const themeDirect = theme?.directTheme ?? [];
   if (theme !== undefined && themeDirect.length === 0) {
     ctx.report(
       finding(THEME, 0, "zero-theme-values", "the generated @theme block produced zero direct declarations — token-family ownership cannot be derived"),
     );
   }
+  if (complete && themeDirect.length !== EXPECTED_DIRECT_THEME_DECLARATIONS) {
+    ctx.report(
+      finding(
+        THEME,
+        1,
+        "census:theme-direct",
+        `the generated @theme block contains ${themeDirect.length} direct declarations; the generated-output manifest expects ${EXPECTED_DIRECT_THEME_DECLARATIONS}`,
+      ),
+    );
+  }
   return themeDirect;
+}
+
+function reportCensusHealth(census: readonly StylesheetCensus[], ctx: GateRunCtx): readonly DirectDeclaration[] {
+  const total = census.reduce((sum, row) => sum + row.declarations, 0);
+  const complete = fullHomeSet(census);
+  ctx.scan({ unit: "declaration", candidates: total, scanned: total });
+  reportExactCensus(census, total, ctx);
+  return reportDirectThemeCensus(
+    census.find((row) => row.rel === THEME),
+    complete,
+    ctx,
+  );
 }
 
 function reportAuthoredLayers(row: StylesheetCensus, ctx: GateRunCtx): void {
@@ -590,6 +1192,33 @@ function auditCssFamilies(ctx: GateRunCtx): void {
   reportClosedSeamDrift(census, runtimeCounts, directClientCounts, ctx);
 }
 
+interface CensusControlCounts {
+  readonly themeDirect: number;
+  readonly themeRules: number;
+  readonly ui: number;
+  readonly tiers: number;
+  readonly client: number;
+  readonly shell: number;
+}
+
+function controlDeclarations(prefix: string, count: number): string {
+  return Array.from({ length: count }, (_, index) => `  --${prefix}-${index}: 0;`).join("\n");
+}
+
+/** A complete five-home fixture with independently specified declaration counts. The controls below spell
+ * the production baseline as literals instead of deriving their oracle from the gate's manifest. */
+function censusControlFiles(counts: CensusControlCounts): Record<ProductStylesheet, string> {
+  return {
+    [THEME]:
+      `@theme {\n${controlDeclarations("theme-probe", counts.themeDirect)}\n}\n` +
+      `:root {\n${controlDeclarations("theme-rule-probe", counts.themeRules)}\n}\n`,
+    [UI_GLOBALS]: `:root {\n${controlDeclarations("ui-probe", counts.ui)}\n}\n`,
+    [TIERS]: `[data-surface-tier="base"] {\n${controlDeclarations("tier-probe", counts.tiers)}\n}\n`,
+    [CLIENT_GLOBALS]: `:root {\n${controlDeclarations("client-probe", counts.client)}\n}\n`,
+    [SHELL]: `.shell-grid {\n${controlDeclarations("shell-probe", counts.shell)}\n}\n`,
+  };
+}
+
 export const gate: GateDescriptor = {
   name: "css-family-ownership",
   docRow: "client-architecture-lockdown.md §4.3 / §4.7 (#951)",
@@ -663,6 +1292,60 @@ export const gate: GateDescriptor = {
       why: "a component skin planted in shell.css is not rooted in the shell frame",
     },
     {
+      files: { [SHELL]: ".shell-grid + .button { padding: 1rem; }\n" },
+      expect: { count: 1, token: ".shell-grid + .button" },
+      why: "a shell sibling does not root the subject painted after it",
+    },
+    {
+      files: { [SHELL]: ".button:has(.shell-grid) { padding: 1rem; }\n" },
+      expect: { count: 1, token: ".button:has(.shell-grid)" },
+      why: "a shell descendant inside :has() does not make the outer component a shell subject",
+    },
+    {
+      files: { [SHELL]: ":is(.shell-grid, .button) { padding: 1rem; }\n" },
+      expect: { count: 1, token: ":is(.shell-grid, .button)" },
+      why: "every :is() alternative used as the root must be shell-rooted",
+    },
+    {
+      files: { [SHELL]: ":where(.shell-grid, .button) { padding: 1rem; }\n" },
+      expect: { count: 1, token: ":where(.shell-grid, .button)" },
+      why: "every :where() alternative used as the root must be shell-rooted",
+    },
+    {
+      files: { [SHELL]: ".button:not(.shell-never), .shell-grid { padding: 1rem; }\n" },
+      expect: { count: 1, token: ".button:not(.shell-never)" },
+      why: "a negated shell class cannot launder one selector-list arm through a valid sibling arm",
+    },
+    {
+      files: censusControlFiles({ themeDirect: 179, themeRules: 96, ui: 188, tiers: 45, client: 111, shell: 335 }),
+      expect: { count: 2, token: "census:ui-globals" },
+      why: "adding one otherwise legal declaration makes both the UI-home and total ratchets stale",
+    },
+    {
+      files: censusControlFiles({ themeDirect: 179, themeRules: 96, ui: 187, tiers: 45, client: 111, shell: 334 }),
+      expect: { count: 2, token: "census:shell" },
+      why: "deleting one otherwise legal declaration makes both the shell-home and total ratchets stale",
+    },
+    {
+      files: censusControlFiles({ themeDirect: 179, themeRules: 96, ui: 186, tiers: 45, client: 112, shell: 335 }),
+      expect: { count: 2, token: "census:ui-globals" },
+      why: "moving one declaration preserves the total but makes both source and destination home ratchets stale",
+    },
+    {
+      files: censusControlFiles({ themeDirect: 178, themeRules: 97, ui: 187, tiers: 45, client: 111, shell: 335 }),
+      expect: { count: 1, token: "census:theme-direct" },
+      why: "moving one generated declaration out of direct @theme keeps every home total stable but trips the generated-output ratchet",
+    },
+    {
+      files: {
+        [UI_GLOBALS]: ".client-progress { overflow: hidden; }\n",
+        "packages/ui/src/content/copy.ts": 'export const copy = "client-progress";\n',
+        "packages/client/src/features/probe.ts": 'export const classes = cn("client-progress");\n',
+      },
+      expect: { count: 1, token: "class:client-progress" },
+      why: "an inert UI prose string cannot launder a class produced only by a real client class-composer call",
+    },
+    {
       files: { [SHELL]: ":root { color-scheme: dark; }\n" },
       expect: { count: 1, token: "color-scheme" },
       why: "the one document-root declaration in shell is the view-transition reset, not a general global-mechanism door",
@@ -697,9 +1380,11 @@ export const gate: GateDescriptor = {
       files: {
         [UI_GLOBALS]: ".scroll-fade-x { --fade-start-stop: 0%; }\n",
         "packages/ui/src/lib/scroll.ts": 'export const SCROLL_FADE_X_CLASS = "scroll-fade-x";\n',
-        "packages/client/src/feature.tsx": 'export const probe = <div className="scroll-fade-x" />;\n',
+        "packages/ui/src/lib/index.ts": 'export { SCROLL_FADE_X_CLASS } from "./scroll.ts";\n',
+        "packages/client/src/feature.tsx":
+          'import { SCROLL_FADE_X_CLASS } from "../../ui/src/lib/index.ts";\nexport const probe = <div className={SCROLL_FADE_X_CLASS} />;\n',
       },
-      why: "a universal UI mechanism with a UI-owned driver may also have client consumers",
+      why: "a live client className imported through the UI public barrel proves both producer directions without admitting an inert literal",
     },
     {
       files: {
@@ -711,6 +1396,20 @@ export const gate: GateDescriptor = {
     {
       files: { [SHELL]: ".shell-grid { display: grid; --rail-w: 3rem; }\n:root { view-transition-name: none; }\n" },
       why: "shell-rooted geometry and the exact view-transition reset remain in the shell home",
+    },
+    {
+      files: {
+        [SHELL]:
+          ".shell-grid > .button { padding: 1rem; }\n" +
+          ".shell-grid .button { margin: 0; }\n" +
+          ":is(.shell-grid, .shell-panel) .button { display: block; }\n" +
+          '.shell-grid:where([data-elevation="ramp"]) .button { color: inherit; }\n',
+      },
+      why: "shell subjects and ancestors remain valid through child/descendant combinators and all-shell :is() alternatives",
+    },
+    {
+      files: censusControlFiles({ themeDirect: 179, themeRules: 96, ui: 187, tiers: 45, client: 111, shell: 335 }),
+      why: "the exact post-#938 declaration manifest, including direct generated @theme declarations, is the clean control",
     },
     {
       files: { [UI_GLOBALS]: "/* @layer base { .fake { color: red; } } */\n:root { font-size: 100%; }\n" },
