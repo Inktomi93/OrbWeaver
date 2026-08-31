@@ -96,10 +96,28 @@ test("a custom midlight ThemeScope renders a real chart with five 3:1 categorica
       async () =>
         await panel.evaluate((element) => {
           const rawOption = element.getAttribute("data-echarts-option");
-          const option = rawOption === null ? {} : JSON.parse(rawOption);
-          const colors = (option.series ?? []).flatMap((series) =>
-            (series.data ?? []).flatMap((datum) => (typeof datum.itemStyle?.color === "string" ? [datum.itemStyle.color] : [])),
-          );
+          const option = rawOption === null ? null : JSON.parse(rawOption);
+          const hasProperty = <Key extends PropertyKey>(value: unknown, key: Key): value is { [Property in Key]: unknown } =>
+            typeof value === "object" && value !== null && key in value;
+          const seriesValues: unknown[] = hasProperty(option, "series") && Array.isArray(option.series) ? option.series : [];
+          const colors: string[] = seriesValues.flatMap((series: unknown) => {
+            if (!hasProperty(series, "data")) {
+              return [];
+            }
+            if (!Array.isArray(series.data)) {
+              return [];
+            }
+            return series.data.flatMap((datum: unknown) => {
+              if (!hasProperty(datum, "itemStyle")) {
+                return [];
+              }
+              if (!hasProperty(datum.itemStyle, "color")) {
+                return [];
+              }
+              const color = datum.itemStyle.color;
+              return typeof color === "string" ? [color] : [];
+            });
+          });
           const chartCanvas = element.querySelector("canvas");
           const parserCanvas = document.createElement("canvas");
           parserCanvas.width = 1;
