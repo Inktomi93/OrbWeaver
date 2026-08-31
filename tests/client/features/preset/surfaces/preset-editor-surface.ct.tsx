@@ -1293,12 +1293,21 @@ test("P1-1 the VIEW STRIP degrades to a scroller — every view reachable in a 3
   );
   // …and it is a SCROLLER, not a clipper: the tabs that do not fit are still reachable.
   expect(measured?.scrollable ?? 0, "the overflowing views are scrolled to, never cut off").toBeGreaterThan(0);
+  const scrollBox = component.locator(".scroll-fade-x");
+  // The driver and stylesheet are one @orb/ui mechanism: the hidden tail arms the trailing cue, while a
+  // never-scrolled leading edge stays fully opaque. The resolved mask pins the paint half as well as the
+  // data-attribute seam — either assertion alone can survive losing the other half of the recipe.
+  await expect(scrollBox).toHaveAttribute("data-fade-end", "");
+  await expect(scrollBox).not.toHaveAttribute("data-fade-start", "");
+  await expect.poll(() => scrollBox.evaluate((el) => globalThis.getComputedStyle(el).maskImage)).toMatch(/linear-gradient/u);
 
   // …and REACHABLE: the last view scrolls into the box and takes a real click.
   const last = component.getByRole("tab", { name: "Transforms" });
   await last.scrollIntoViewIfNeeded();
   await last.click();
   await expect(last).toHaveAttribute("aria-selected", "true");
+  await expect(scrollBox).toHaveAttribute("data-fade-start", "");
+  await expect(scrollBox).not.toHaveAttribute("data-fade-end", "");
 });
 
 test("P1-1 the header band shares the BODY's content column — capped and centered, not full-bleed", async ({ mount, page }) => {
