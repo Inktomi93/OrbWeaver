@@ -34,8 +34,8 @@ import type { Trpc } from "./trpc.ts";
 import { useTRPC } from "./trpc.ts";
 import { useInvalidation } from "./use-invalidation.ts";
 
-type SessionRoster = inferOutput<Trpc["refinery"]["listSessions"]>;
-type SessionSummaryView = SessionRoster[number];
+type SessionList = inferOutput<Trpc["refinery"]["listSessions"]>;
+type SessionSummaryView = SessionList[number];
 
 /** The session producer. `startSession` emits `refineryChanged` with the new session's id; the seam's row
  *  refetches the roster on every device, so the write carries no writer-local `invalidates`. */
@@ -95,7 +95,7 @@ export function useOpenRefinery(): UseOpenRefineryResult {
     openRefinery: async (characterId): Promise<RefinerySessionId> => {
       // The roster decides resume-vs-mint, so the decision waits for it (header). A failed read falls
       // through to the mint arm rather than refusing to open anything.
-      const roster = await queryClient.ensureQueryData(trpc.refinery.listSessions.queryOptions()).catch((): SessionRoster => []);
+      const roster = await queryClient.ensureQueryData(trpc.refinery.listSessions.queryOptions()).catch((): SessionList => []);
       const resumable = resumableSessionIdOf(roster, characterId);
       const sessionId = resumable ?? castId<RefinerySessionId>((await start.mutateAsync({ characterId })).id);
       selectRefinerySession(sessionId);

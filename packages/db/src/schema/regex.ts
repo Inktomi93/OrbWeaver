@@ -18,7 +18,7 @@
 //     (sort/filter/toggle) and the ones a picker reads without parsing a blob. The shape is still shedding
 //     ST fields, so a body change stays schema-bump-free.
 //   • ORDER IS DATA. `executeRegexScripts` applies its input list IN ORDER, so each junction carries a
-//     `position` within its scope; the tier order (global → preset → cast → chat) is the resolver's
+//     `position` within its scope; the tier order (global → preset → character → chat) is the resolver's
 //     (`domain/chat/substrate/regex-tier`), and a script attached at two scopes runs once, earliest tier.
 //
 // Timestamps are plain `integer("x_at")` epoch-MS NUMBERS, born at insert via `(unixepoch() * 1000)`.
@@ -73,7 +73,7 @@ export const regexScripts = sqliteTable(
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 // The four scope junctions. A script is attached at a scope by ONE row per (target, script); the host-tier
-// resolver unions global → preset → cast → chat and dedupes by script id (earliest tier wins). Every FK
+// resolver unions global → preset → character → chat and dedupes by script id (earliest tier wins). Every FK
 // CASCADEs both ways. No junction carries an `ownerId` (D23 — derive through the script/target).
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 

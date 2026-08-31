@@ -32,7 +32,7 @@ export interface ResolveRegexSourcesArgs {
 }
 
 /** The four resolved slices, each already ordered by its junction `position`. The consumer (chat's
- *  `resolveHostTierRegexScripts`) concatenates global → preset → cast → chat and dedupes by row id. */
+ *  `resolveHostTierRegexScripts`) concatenates global → preset → character → chat and dedupes by row id. */
 export interface ResolvedRegexSources {
   readonly hostGlobal: readonly RegexScriptRow[];
   readonly preset: readonly RegexScriptRow[];

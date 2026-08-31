@@ -1,4 +1,4 @@
-// transport/trpc/routers/roster-preset — the saved-party surface (core/Tier-4-Transport.md). authed;
+// transport/trpc/routers/roster-preset — the saved-roster surface (core/Tier-4-Transport.md). authed;
 // owner-scoped (ownership IS the gate — the persona router's posture); `applyToChat` additionally
 // host-gated INSIDE chat via the domain's injected guard. Thin: validate →
 // `ctx.services.rosterPreset.<verb>`. Input shapes derive from `@orb/contracts/roster-preset`.
@@ -16,7 +16,7 @@ export const rosterPresetRouter = t.router({
 
   update: authedProcedure
     // `update` is a FULL REPLACE of the same authored fields, member list included — ONE schema object,
-    // deliberately (a party is small enough that patch semantics would only buy drift).
+    // deliberately (a roster is small enough that patch semantics would only buy drift).
     .input(z.object({ presetId: brandedId<RosterPresetId>(), input: createRosterPresetSchema }))
     .mutation(({ ctx, input }) => ctx.services.rosterPreset.update({ principal: ctx.auth, presetId: input.presetId, input: input.input })),
 

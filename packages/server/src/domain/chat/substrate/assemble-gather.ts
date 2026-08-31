@@ -399,7 +399,7 @@ export async function gatherAssembleContext(
     gatherDatabank(ctx, { chatId, pendingUserText: args.pendingUserText, eligibleContent: eligible.map((m) => m.content), foreign }),
   ]);
 
-  // The host-tier regex union (global ∪ preset ∪ cast ∪ room), deterministically ordered/deduped. D121-E:
+  // The host-tier regex union (global ∪ preset ∪ character ∪ room), deterministically ordered/deduped. D121-E:
   // the four slices are LIBRARY ROWS dereferenced from their scope junctions by the injected regex op — the
   // three embed-by-value carriers this used to read (settings blob / preset blob / card column) are gone.
   // Resolved under `runAsUserId` (the frozen host, D19), so a member never widens the room's set.

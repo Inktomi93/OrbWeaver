@@ -9,7 +9,7 @@
 //
 // THE `TError` HALF IS `TrpcReadError`, NEVER `UseQueryResult`'s DEFAULT. That default is `Error`, which the
 // real client result does not satisfy: a tRPC error is `TRPCClientErrorLike`, an INTERFACE with no `name`
-// (measured here — `UseQueryResult<SessionRoster>` is tsc TS2322; the same measurement
+// (measured here — `UseQueryResult<SessionList>` is tsc TS2322; the same measurement
 // `features/preset/lib/resolve-failure.ts` records for its `ReadFailure` prop). The alias is derived off
 // `AppRouter` in `data/trpc.ts` precisely so a feature hook can satisfy `useExplicitReturnType` without
 // re-spelling the router's error shape here (§5.4 — one home, derive, never re-spell).
@@ -32,13 +32,13 @@ import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc, TrpcReadError } from "#data";
 import { useGatedQuery, useTRPC } from "#data";
 
-type SessionRoster = inferOutput<Trpc["refinery"]["listSessions"]>;
+type SessionList = inferOutput<Trpc["refinery"]["listSessions"]>;
 type SessionView = inferOutput<Trpc["refinery"]["getSession"]>;
 type RunLedger = inferOutput<Trpc["refinery"]["listRuns"]>;
 
 /** The R2 read tier for the R3 refinery SURFACE — the owner's sessions, newest-updated first, with the
  *  roster's `latestVerdict` badge. */
-export function useRefinerySessions(): UseQueryResult<SessionRoster, TrpcReadError> {
+export function useRefinerySessions(): UseQueryResult<SessionList, TrpcReadError> {
   const trpc = useTRPC();
   return useQuery(trpc.refinery.listSessions.queryOptions());
 }

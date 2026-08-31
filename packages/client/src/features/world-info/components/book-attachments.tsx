@@ -211,7 +211,7 @@ function CharacterPicker(props: AttachmentSectionProps): ReactElement {
       {/* The box stays mounted through every body state — including "No matches", whose only way out is to
           edit or clear the term that produced it. */}
       <Input aria-label="Search characters" onValueChange={setTerm} placeholder="Search characters" value={term} />
-      <CharacterRoster
+      <CharacterList
         bookId={props.bookId}
         attachments={props.attachments}
         queryPending={props.queryPending}
@@ -226,7 +226,7 @@ function CharacterPicker(props: AttachmentSectionProps): ReactElement {
 }
 
 /** The roster rows, or the honest nothing. Split out so the OPEN gate above stays a single ternary. */
-function CharacterRoster({
+function CharacterList({
   bookId,
   characters,
   isPending,

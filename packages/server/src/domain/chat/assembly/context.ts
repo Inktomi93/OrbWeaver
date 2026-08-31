@@ -365,7 +365,7 @@ interface BuildAssembleContextInput {
   readonly model: string;
   /** Per-turn injection token budget (0 = unbudgeted). */
   readonly injectionTokenBudget: number;
-  /** Effective host-tier regex set (global ∪ preset ∪ cast ∪ room), resolved by the verb/root; applied
+  /** Effective host-tier regex set (global ∪ preset ∪ character ∪ room), resolved by the verb/root; applied
    *  at SEND (USER_INPUT) and copied onto the returned AssembleContext for RECEIVE. */
   readonly hostTierRegexScripts?: readonly RegexScriptRow[] | undefined;
   /** The per-turn user-macro RENDER registry (WAVE MU) — every section/WI/persona/note render resolves

@@ -1,5 +1,5 @@
-// @orb/contracts/roster-preset — the saved-party wire (D61 B6; build record:
-// docs/history/design/saved-rosters-build-record.md). A roster preset is an owner's NAMED CAST — a library
+// @orb/contracts/roster-preset — the saved-roster wire (D61 B6; build record:
+// docs/history/design/saved-rosters-build-record.md). A roster preset is an owner's NAMED ROSTER — a library
 // artifact consumed at chat start (and additively via `applyToChat`), never read at turn time. The member
 // vocabulary is NOT minted here: every membership-template lifetime PROJECTS through chat's D80
 // `characterMemberSpecSchema` (contracts/chat/roster.ts — "nothing mints a flat characterId array beside
@@ -9,7 +9,7 @@
 // validates through `groupConfigSchema` (garbage refused at the boundary), the stored blob is what that
 // parse yields, and chat's `setGroupConfig` RE-parses at apply — so a stored blob that predates a
 // GroupConfig evolution degrades loudly at apply, never silently at assemble. NULL = the preset carries
-// cast only and never touches a room's config.
+// its roster only and never touches a room's config.
 
 import type { CharacterId, PersonaId, RosterPresetId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
@@ -19,7 +19,7 @@ import { RULE_PRESET_IDS, rulePresetIdSchema, rulePresetKnobValuesSchema } from 
 import type { GroupConfigInput } from "#chat";
 import { characterMemberSpecSchema, groupConfigSchema } from "#chat";
 
-/** Sanity rail on a party's size (the program doc's "lean: 25 — matches nothing structural"). */
+/** Sanity rail on a roster's size (the program doc's "lean: 25 — matches nothing structural"). */
 export const ROSTER_PRESET_MEMBER_MAX = 25;
 const NAME_MAX = 200;
 const DESCRIPTION_MAX = 2000;
@@ -36,7 +36,7 @@ export const rosterPresetMembersSchema = z
   .min(1)
   .max(ROSTER_PRESET_MEMBER_MAX)
   .refine((members) => new Set(members.map((m) => m.characterId)).size === members.length, {
-    message: "a party lists each character once",
+    message: "a roster lists each character once",
   });
 
 /** One captured automation rule preset on the wire (B10's rules rider — build record §6): the CLOSED
@@ -56,10 +56,10 @@ export const rosterPresetRulesSchema = z
   .array(rosterPresetRuleSchema)
   .max(RULE_PRESET_IDS.length)
   .refine((rules) => new Set(rules.map((r) => r.rulePresetId)).size === rules.length, {
-    message: "a cast lists each rule preset once",
+    message: "a roster lists each rule preset once",
   });
 
-/** `create` — the authored artifact: a name + the curated cast, plus the optional chat-open POV anchor
+/** `create` — the authored artifact: a name + the curated roster, plus the optional chat-open POV anchor
  *  and the optional room-behavior blob. `update` deliberately reuses this WHOLE shape (full replace,
  *  member list included) — a preset is small enough that patch semantics would only buy drift. */
 export const createRosterPresetSchema = z.object({
@@ -70,7 +70,7 @@ export const createRosterPresetSchema = z.object({
   anchorPersonaId: typeIdSchema(ID_PREFIX.persona).nullable().optional(),
   groupConfig: groupConfigSchema.nullable().optional(),
   members: rosterPresetMembersSchema,
-  /** B10's rules rider — the room's captured ENABLED rule presets. Defaulted `[]` (a cast without
+  /** B10's rules rider — the room's captured ENABLED rule presets. Defaulted `[]` (a roster without
    *  rules never touches a room's rules at apply); full-replace like every other field, so the
    *  library editor's rename ECHOES the stored list back verbatim. */
   rules: rosterPresetRulesSchema.default([]),
@@ -95,7 +95,7 @@ export interface RosterPresetMemberView {
   readonly avatarHash: string | null;
 }
 
-/** One stored cast rule (`get`/`list`) — the captured rule preset + its resolved knob bag, in stored
+/** One stored roster rule (`get`/`list`) — the captured rule preset + its resolved knob bag, in stored
  *  position order (the array carries the order; no explicit field). `rulePresetId` is projected
  *  verbatim: an id a later catalogue removal orphaned still displays (degraded, by the client's own
  *  catalogue join) and reports as skipped at apply. */
@@ -110,17 +110,17 @@ export interface RosterPresetView {
   readonly name: string;
   readonly description: string;
   readonly anchorPersonaId: PersonaId | null;
-  /** The stored room-behavior blob (lenient input — chat re-parses at apply). NULL = cast only. */
+  /** The stored room-behavior blob (lenient input — chat re-parses at apply). NULL = roster only. */
   readonly groupConfig: GroupConfigInput | null;
   readonly members: readonly RosterPresetMemberView[];
-  /** B10's rules rider — capture order (= apply order). Empty = the cast carries no rules. */
+  /** B10's rules rider — capture order (= apply order). Empty = the roster carries no rules. */
   readonly rules: readonly RosterPresetRuleView[];
   readonly createdAt: number;
   readonly updatedAt: number;
 }
 
 /** One row of the owner's library (`list`) — name-sorted; `members` is the position-ordered preview
- *  the picker renders as an avatar stack (a party caps at {@link ROSTER_PRESET_MEMBER_MAX}, so the
+ *  the picker renders as an avatar stack (a roster caps at {@link ROSTER_PRESET_MEMBER_MAX}, so the
  *  "preview" is simply all of them). */
 export interface RosterPresetSummary {
   readonly id: RosterPresetId;
@@ -130,7 +130,7 @@ export interface RosterPresetSummary {
   readonly members: readonly RosterPresetMemberView[];
   readonly anchorPersonaId: PersonaId | null;
   readonly hasGroupConfig: boolean;
-  /** B10's rules rider — the picker's "N rules" badge reads the length; a cast row caps at the
+  /** B10's rules rider — the picker's "N rules" badge reads the length; a roster row caps at the
    *  catalogue size, so the "preview" is simply all of them (the members posture). */
   readonly rules: readonly RosterPresetRuleView[];
   readonly updatedAt: number;
@@ -145,7 +145,7 @@ export interface RosterPresetSummary {
  *  window, or the room dying mid-apply) SURFACES and aborts the loop; it is NOT collected into
  *  `skipped`. That is safe by construction: the apply is additive and every landed seat is idempotent,
  *  so a retry converges (already-landed members classify `alreadyPresent`). */
-/** One cast rule the apply could not land — the EXPECTED per-preset refusal class (build record §6.4):
+/** One roster rule the apply could not land — the EXPECTED per-preset refusal class (build record §6.4):
  *  automation's own mint validation said no (the lore presets' book-attachment consent gate in a room
  *  without the book, a knob a catalogue evolution retired, a preset no longer offered). `reason` is
  *  automation's own host-vocabulary message, surfaced verbatim. */

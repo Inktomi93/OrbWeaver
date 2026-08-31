@@ -94,7 +94,7 @@ function harness(
 ): Harness {
   let actor: Principal | null = ALICE;
   const deps: CardFrameDeps = {
-    roster: { listParticipants: overrides.roster ?? ((): Promise<readonly ParticipantView[]> => Promise.resolve(ROSTER)) },
+    participants: { listParticipants: overrides.roster ?? ((): Promise<readonly ParticipantView[]> => Promise.resolve(ROSTER)) },
     allowExternalMedia: () => overrides.deployExternal ?? true,
     allowInteractiveCards: () => overrides.deployInteractive ?? true,
     now: () => 1_000_000,

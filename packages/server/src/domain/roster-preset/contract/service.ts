@@ -1,5 +1,5 @@
 // The typed API surface: RosterPresetContext (the DI bundle) and RosterPresetService (the verb
-// interface). Saved parties (D61 B6; build record: docs/history/design/saved-rosters-build-record.md) —
+// interface). Saved rosters (D61 B6; build record: docs/history/design/saved-rosters-build-record.md) —
 // owner-scoped library CRUD + the additive/idempotent `applyToChat` that drives chat's EXISTING roster
 // verbs by injection. Every CRUD surface gates on `principal.userId` (the persona posture — ownership IS
 // the gate, no guard slot); `applyToChat` additionally requires target-chat HOST authority, established
@@ -65,7 +65,7 @@ export interface RosterPresetChatOps extends Pick<ChatService, "addCharacterToCh
   readonly listPresentCharacterSeats: (chatId: ChatId) => Promise<readonly PresentCharacterSeat[]>;
 }
 
-/** One cast rule as the write verbs stamp it (B10's rules rider, build record §6) — wire order re-stamped
+/** One roster rule as the write verbs stamp it (B10's rules rider, build record §6) — wire order re-stamped
  *  dense 0..n-1, the knob bag RESOLVED through the injected automation belt (stored as OUTPUT — the
  *  `groupConfig` posture). The `MemberWrite` sibling. */
 export interface CastRuleWrite {
@@ -109,21 +109,21 @@ export interface RosterPresetContext {
 }
 
 export interface RosterPresetService {
-  /** Mint a saved party owned by the caller. Validates every member character (and the optional anchor
+  /** Mint a saved roster owned by the caller. Validates every member character (and the optional anchor
    *  persona) as the CALLER's own; refuses a duplicate `(owner, name)` with a typed conflict. */
   readonly create: (params: CreateRosterPresetParams) => Promise<RosterPresetView>;
   /** Full replace of the authored fields, member list included. Throws
    *  {@link RosterPresetNotFoundError} when the preset doesn't exist OR isn't the caller's (one answer —
    *  no foreign-existence leak). */
   readonly update: (params: UpdateRosterPresetParams) => Promise<RosterPresetView>;
-  /** Delete an owned party (members CASCADE; chats started from it are untouched — a preset is a stamp,
+  /** Delete an owned roster (members CASCADE; chats started from it are untouched — a preset is a stamp,
    *  not a live link). */
   readonly remove: (params: RemoveRosterPresetParams) => Promise<void>;
-  /** The caller's parties, name-sorted, each with its position-ordered member preview. */
+  /** The caller's rosters, name-sorted, each with its position-ordered member preview. */
   readonly list: (params: ListRosterPresetsParams) => Promise<RosterPresetSummary[]>;
-  /** One owned party, members in position order. */
+  /** One owned roster, members in position order. */
   readonly get: (params: GetRosterPresetParams) => Promise<RosterPresetView>;
-  /** Additively apply the party to an EXISTING chat the caller HOSTS — drives the injected chat verbs,
+  /** Additively apply the roster to an EXISTING chat the caller HOSTS — drives the injected chat verbs,
    *  never a second participant-insert path. Idempotent: re-apply mints nothing (chat's present-seat
    *  floor) and re-stamps the seat knobs. Never kicks. */
   readonly applyToChat: (params: ApplyRosterPresetParams) => Promise<ApplyRosterPresetResult>;

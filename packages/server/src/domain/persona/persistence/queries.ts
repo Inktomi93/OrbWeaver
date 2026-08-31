@@ -10,7 +10,7 @@ import { assets, characterPersonas, characters, personas } from "@orb/db";
 import type { AssetId, CharacterId, PersonaId, UserId } from "@orb/kit/ids";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { AssetNotFoundError, PersonaCharacterNotFoundError, PersonaNotFoundError } from "../contract/errors.ts";
-import type { ConnectedCharacterView, PersonaDetail, PersonaRosterView } from "../contract/views.ts";
+import type { ConnectedCharacterView, PersonaDetail, PersonaListView } from "../contract/views.ts";
 
 const LIMIT_ONE = 1;
 
@@ -48,7 +48,7 @@ export async function loadOwnedPersonaWithAvatar(db: Db, ownerId: UserId, person
  *  discipline as every owner-scoped read here, only the predicate is a SET (the room's present humans)
  *  instead of one caller. No avatar join: the roster view is the presentation surface (name/description/
  *  placement metadata), not the entity. Either list empty ⇒ no query (an empty result is the honest answer). */
-export async function loadPersonasForOwners(db: Db, personaIds: readonly PersonaId[], ownerIds: readonly UserId[]): Promise<PersonaRosterView[]> {
+export async function loadPersonasForOwners(db: Db, personaIds: readonly PersonaId[], ownerIds: readonly UserId[]): Promise<PersonaListView[]> {
   if (personaIds.length === 0 || ownerIds.length === 0) {
     return [];
   }
