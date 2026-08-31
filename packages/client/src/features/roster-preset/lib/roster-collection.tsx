@@ -1,32 +1,32 @@
-// The cast collection — B10's library-management surface, a Configuration-section
+// The roster collection — B10's library-management surface, a Configuration-section
 // `CollectionContribution` (the tag/regex/world-info door array; interaction-direction-spec.md B10:
-// "library management: a Configuration-section CollectionContribution"). The rows scan the saved-cast
+// "library management: a Configuration-section CollectionContribution"). The rows scan the saved-roster
 // library; the mounted member editor renames/describes/starts; authoring stays BY EXAMPLE through the
-// saved-casts modal (create opens that door — a from-scratch form would be a second composer for an
+// saved-rosters modal (create opens that door — a from-scratch form would be a second composer for an
 // artifact the room already composes).
 
 import type { ReactElement } from "react";
 import type { CollectionContribution, CollectionDetailView, CollectionListView } from "#lib";
-import { CastCollectionRows } from "../components/cast-collection-rows.tsx";
-import { useCastCount, useCastMemberTitle, useCreateCastMember } from "../hooks/use-cast-collection.ts";
-import { CastMemberSurface } from "../surfaces/cast-member-surface.tsx";
+import { RosterCollectionRows } from "../components/roster-collection-rows.tsx";
+import { useCreateRosterMember, useRosterCount, useRosterMemberTitle } from "../hooks/use-roster-collection.ts";
+import { RosterMemberSurface } from "../surfaces/roster-member-surface.tsx";
 
 /** The collection KIND — the `rosterPreset` config group id (registry key + the selection store's kind axis). */
-export const CAST_COLLECTION_ID = "rosterPreset";
+export const ROSTER_COLLECTION_ID = "rosterPreset";
 
 function renderList(view: CollectionListView): ReactElement {
-  return <CastCollectionRows view={view} />;
+  return <RosterCollectionRows view={view} />;
 }
 
 function renderDetail(view: CollectionDetailView): ReactElement {
-  return <CastMemberSurface view={view} />;
+  return <RosterMemberSurface view={view} />;
 }
 
-export const castCollection: CollectionContribution = {
+export const rosterCollection: CollectionContribution = {
   emptyText: "No saved rosters yet.",
-  useCount: useCastCount,
-  useMemberTitle: useCastMemberTitle,
-  create: { label: "New roster", useRun: useCreateCastMember },
+  useCount: useRosterCount,
+  useMemberTitle: useRosterMemberTitle,
+  create: { label: "New roster", useRun: useCreateRosterMember },
   list: renderList,
   detail: renderDetail,
   context: {

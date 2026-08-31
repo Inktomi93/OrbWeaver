@@ -1,4 +1,4 @@
-// The saved-cast picker's LIBRARY plane (RP2): rows render from the routed `rosterPreset.list` (name +
+// The saved-roster picker's LIBRARY plane (RP2): rows render from the routed `rosterPreset.list` (name +
 // count + member preview, name-sorted as served), the designed EMPTY state shows when the library is
 // bare, delete rides the ConfirmDialog and fires the real `rosterPreset.remove` wire call, and the
 // no-active-chat mount hides the chat-scoped affordances ("Add to chat" / "Save this room's roster"). The
@@ -9,7 +9,7 @@
 // never truncated to nothing and the rules badge never overlaps an action — a mis-tap that mints a room),
 // the row controls' accessible NAMES carrying both counts, the apply doors' REPORT (all three doors say
 // what landed, skip REASONS included, no "Added 0"), the include-line's four arms, and the started room
-// taking the cast's name.
+// taking the roster's name.
 
 import type { RulePresetView } from "@orb/contracts/automation";
 import type { RosterPresetSummary } from "@orb/contracts/roster-preset";
@@ -17,7 +17,7 @@ import type { CharacterId, RosterPresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { routeTrpc, trpcError, trpcHold } from "../../../../support/ct/route-trpc.ts";
-import { CastPickerHostStory, CastPickerStory } from "../_ct-stories.tsx";
+import { RosterPickerHostStory, RosterPickerStory } from "../_ct-stories.tsx";
 
 const CAST_A: RosterPresetSummary = {
   id: castId<RosterPresetId>("roster_preset_ct_a"),
@@ -50,9 +50,9 @@ const CAST_B: RosterPresetSummary = {
 };
 
 // The room's captured rule, at a NON-DEFAULT knob (`everyN: 12`; the catalogue default is 8) — the datum
-// that makes two casts carrying the same preset distinguishable, and the whole reason the rider stores a
+// that makes two rosters carrying the same preset distinguishable, and the whole reason the rider stores a
 // bag rather than an id. A partial `automation.listRules` row: the capture reads exactly these four fields
-// (`hooks/use-saved-casts.ts::deriveEnabledCastRules`).
+// (`hooks/use-saved-rosters.ts::deriveEnabledRosterRules`).
 const ROOM_RULE = {
   id: "rule_ct_pacing",
   name: "Periodic pacing nudge",
@@ -94,12 +94,12 @@ function applyResult(over: Record<string, unknown> = {}): Record<string, unknown
 test("renders the routed library: names, member counts, previews; chat-scoped affordances stay hidden with no room open", async ({ mount, page }) => {
   await routeTrpc(page, { "rosterPreset.list": [CAST_A, CAST_B], "automation.listRulePresets": [PACING_PRESET], "automation.listRules": [] });
 
-  await mount(<CastPickerStory />);
+  await mount(<RosterPickerStory />);
 
   await expect(page.getByText("Adventuring Cast")).toBeVisible();
   await expect(page.getByText("Book Club")).toBeVisible();
   await expect(page.getByText("Ash, Brook")).toBeVisible();
-  // B10's rules rider — the badge names the count on a ruled cast and is ABSENT on a rules-free one
+  // B10's rules rider — the badge names the count on a ruled roster and is ABSENT on a rules-free one
   // (copy says "rules", never bare "preset" — the 2026-08-24 vocabulary ruling).
   await expect(page.getByText("2 rules")).toBeVisible();
   await expect(page.getByText(/rule/).filter({ hasText: "0" })).toHaveCount(0);
@@ -113,7 +113,7 @@ test("renders the routed library: names, member counts, previews; chat-scoped af
 test("the empty library shows the designed empty state, not a bare list", async ({ mount, page }) => {
   await routeTrpc(page, { "rosterPreset.list": [], "automation.listRulePresets": [PACING_PRESET], "automation.listRules": [] });
 
-  await mount(<CastPickerStory />);
+  await mount(<RosterPickerStory />);
 
   await expect(page.getByText("No saved rosters yet")).toBeVisible();
   // No room open ⇒ this viewer cannot save from here, so the empty state's CTA is honest and stays.
@@ -133,7 +133,7 @@ test("#848: a HOST's empty library offers no room-abandoning CTA, and says why S
     "automation.listRulePresets": [PACING_PRESET],
   });
 
-  await mount(<CastPickerHostStory />);
+  await mount(<RosterPickerHostStory />);
 
   await expect(page.getByText("No saved rosters yet")).toBeVisible();
   await expect(page.getByRole("button", { name: "Start a new chat" })).toHaveCount(0);
@@ -153,7 +153,7 @@ test("delete rides the ConfirmDialog and fires the REAL remove wire call with th
     "automation.listRules": [],
   });
 
-  await mount(<CastPickerStory />);
+  await mount(<RosterPickerStory />);
 
   await page.getByRole("button", { name: "Delete Adventuring Cast" }).click();
   // The confirm ceremony — a destructive action never fires off the row click alone. The dialog's
@@ -228,12 +228,12 @@ async function expectRowIsLegible(page: import("@playwright/test").Page): Promis
     .toBe("not-a-button");
 }
 
-test.describe("the cast row under a COARSE pointer (the phone arm)", () => {
+test.describe("the roster row under a COARSE pointer (the phone arm)", () => {
   test.use({ hasTouch: true });
 
   test("the CT context reports a coarse pointer (the emulation's own positive control)", async ({ mount, page }) => {
     await routeTrpc(page, { "rosterPreset.list": [CAST_A], "automation.listRulePresets": [PACING_PRESET], "automation.listRules": [] });
-    await mount(<CastPickerStory width={316} />);
+    await mount(<RosterPickerStory width={316} />);
 
     // ONESHOT-OK: the pointer media is a browser-CONTEXT option (`hasTouch`) fixed before this page existed — not mutable async state.
     expect(await page.evaluate(() => globalThis.matchMedia("(pointer: coarse)").matches)).toBe(true);
@@ -243,7 +243,7 @@ test.describe("the cast row under a COARSE pointer (the phone arm)", () => {
     test(`keeps its name legible and its badges clear of the actions at ${width}px`, async ({ mount, page }) => {
       await routeTrpc(page, GEOMETRY_ROUTES);
 
-      await mount(<CastPickerHostStory width={width} />);
+      await mount(<RosterPickerHostStory width={width} />);
 
       // The settled barrier before any geometry read (a same-tick read of an unpainted row is a false
       // negative by construction); the width matrix's real assertions are in the helper.
@@ -254,10 +254,10 @@ test.describe("the cast row under a COARSE pointer (the phone arm)", () => {
 });
 
 for (const width of [316, 480, 768]) {
-  test(`the cast row keeps its name legible and its badges clear of the actions at ${width}px (fine pointer)`, async ({ mount, page }) => {
+  test(`the roster row keeps its name legible and its badges clear of the actions at ${width}px (fine pointer)`, async ({ mount, page }) => {
     await routeTrpc(page, GEOMETRY_ROUTES);
 
-    await mount(<CastPickerHostStory width={width} />);
+    await mount(<RosterPickerHostStory width={width} />);
 
     // The settled barrier before any geometry read; the matrix's real assertions are in the helper.
     await expect(page.getByRole("button", { name: /^Add Adventuring Cast to this chat/ })).toBeVisible();
@@ -266,10 +266,10 @@ for (const width of [316, 480, 768]) {
 }
 
 // ── #812 P2-1 — both counts ride the row controls' ACCESSIBLE NAMES ──────────────────────────────────
-test("the row's apply doors announce the member and rule counts; a rules-free cast says only its members", async ({ mount, page }) => {
+test("the row's apply doors announce the member and rule counts; a rules-free roster says only its members", async ({ mount, page }) => {
   await routeTrpc(page, { "rosterPreset.list": [CAST_A, CAST_B], "automation.listRulePresets": [PACING_PRESET], "automation.listRules": [] });
 
-  await mount(<CastPickerStory />);
+  await mount(<RosterPickerStory />);
 
   await expect(page.getByRole("button", { name: "Start a chat with Adventuring Cast — 2 members, 2 rules", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Start a chat with Book Club — 1 member", exact: true })).toBeVisible();
@@ -277,8 +277,8 @@ test("the row's apply doors announce the member and rule counts; a rules-free ca
   await expect(page.getByRole("button", { name: "Delete Adventuring Cast", exact: true })).toBeVisible();
 });
 
-// ── #811 — the Start door REPORTS, and the started room takes the cast's name (#813 P3-4) ────────────
-test("Start reports the rules it switched on plus each skipped rule's REASON, and names the room after the cast", async ({ mount, page }) => {
+// ── #811 — the Start door REPORTS, and the started room takes the roster's name (#813 P3-4) ────────────
+test("Start reports the rules it switched on plus each skipped rule's REASON, and names the room after the roster", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "rosterPreset.list": [CAST_A],
     "automation.listRulePresets": [PACING_PRESET],
@@ -291,7 +291,7 @@ test("Start reports the rules it switched on plus each skipped rule's REASON, an
     }),
   });
 
-  await mount(<CastPickerStory />);
+  await mount(<RosterPickerStory />);
   await page.getByRole("button", { name: /^Start a chat with Adventuring Cast/ }).click();
 
   const notice = page.getByTestId("cbcf-notice");
@@ -311,7 +311,7 @@ test("the add-to-chat door reports an idempotent re-apply without a leading 'Add
     "rosterPreset.applyToChat": applyResult({ alreadyPresent: ["character_ct_1", "character_ct_2"], rulesAlreadyPresent: ["pacingNudge"] }),
   });
 
-  await mount(<CastPickerHostStory />);
+  await mount(<RosterPickerHostStory />);
   await page.getByRole("button", { name: /^Add Adventuring Cast to this chat/ }).click();
 
   const notice = page.getByTestId("cbcf-notice");
@@ -327,12 +327,12 @@ test("the include-line names each rule WITH its resolved knobs", async ({ mount,
     "automation.listRulePresets": [PACING_PRESET],
   });
 
-  await mount(<CastPickerHostStory />);
+  await mount(<RosterPickerHostStory />);
 
-  const include = page.locator("[data-slot=cast-rules-include]");
+  const include = page.locator("[data-slot=roster-rules-include]");
   await expect(include).toContainText("Includes 1 enabled rule:");
   await expect(include).toContainText("Periodic pacing nudge");
-  // The knob bag is the entire reason the rider stores more than an id: two casts carrying this preset at
+  // The knob bag is the entire reason the rider stores more than an id: two rosters carrying this preset at
   // `everyN: 8` and `everyN: 12` rendered byte-identically before this.
   await expect(include).toContainText("Every N beats: 12");
 });
@@ -345,7 +345,7 @@ test("a room with no enabled rules says so instead of rendering nothing", async 
     "automation.listRulePresets": [PACING_PRESET],
   });
 
-  await mount(<CastPickerHostStory />);
+  await mount(<RosterPickerHostStory />);
 
   await expect(page.getByText("No enabled rules to include.")).toBeVisible();
   // The name is FILLED first, so the enabled/disabled reads below are about the CAPTURE and not about an
@@ -363,7 +363,7 @@ test("the capture's LOADING arm says it is checking, and Save waits", async ({ m
     "automation.listRulePresets": [PACING_PRESET],
   });
 
-  await mount(<CastPickerHostStory />);
+  await mount(<RosterPickerHostStory />);
   await hold.requested;
 
   // A held request is an indefinitely STABLE pending state — not a flash.
@@ -385,7 +385,7 @@ test("a FAILED capture says so and offers a retry, instead of disabling Save for
     "automation.listRulePresets": [PACING_PRESET],
   });
 
-  await mount(<CastPickerHostStory />);
+  await mount(<RosterPickerHostStory />);
 
   await expect(page.getByText("Couldn't check this room's rules.")).toBeVisible();
   await page.getByRole("button", { name: "Retry", exact: true }).click();

@@ -1,8 +1,8 @@
-// The saved-cast EDITOR (the library's content half) — the side-eye 2026-08-29 pins (#812/#813): the
+// The saved-roster EDITOR (the library's content half) — the side-eye 2026-08-29 pins (#812/#813): the
 // MEMBERS/RULES groupings are real headings (the editor had exactly ONE heading, so heading navigation
 // gave an SR user one stop in a two-section surface), a member's talkativeness is spelled the way the
 // ROOM's own Members tab spells it (`0.5` here vs "talks at level 50 of 100" there was one concept with
-// two scales and two vocabularies), each stored rule shows the resolved KNOBS that distinguish two casts
+// two scales and two vocabularies), each stored rule shows the resolved KNOBS that distinguish two rosters
 // carrying the same preset, and the editor's Start door reports what it applied + names the room.
 //
 // The write semantics (full-replace rename echoing members AND rules) are the server tier's —
@@ -11,7 +11,7 @@
 import type { RulePresetView } from "@orb/contracts/automation";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
-import { CastMemberEditorStory } from "../_ct-stories.tsx";
+import { RosterMemberEditorStory } from "../_ct-stories.tsx";
 
 /** `rosterPreset.get`'s view, narrowed to what the editor reads. The stored rule carries a NON-DEFAULT
  *  `everyN` (the catalogue default is 8) — the datum every surface used to collapse to "2 rules". */
@@ -46,7 +46,7 @@ const PACING_PRESET: RulePresetView = {
 test("the editor's groupings are real headings, its rules show their resolved knobs, and talkativeness is the room's own spelling", async ({ mount, page }) => {
   await routeTrpc(page, { "rosterPreset.get": CAST_VIEW, "automation.listRulePresets": [PACING_PRESET] });
 
-  await mount(<CastMemberEditorStory />);
+  await mount(<RosterMemberEditorStory />);
 
   // Heading navigation: the cast name (h2) plus one heading per grouping.
   await expect(page.getByRole("heading", { level: 2, name: "Adventuring Cast" })).toBeVisible();
@@ -63,7 +63,7 @@ test("the editor's groupings are real headings, its rules show their resolved kn
   await expect(page.getByText(/Every N beats: 12/)).toBeVisible();
 });
 
-test("the editor's Start door reports what it applied and names the room after the cast", async ({ mount, page }) => {
+test("the editor's Start door reports what it applied and names the room after the roster", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "rosterPreset.get": CAST_VIEW,
     "automation.listRulePresets": [PACING_PRESET],
@@ -79,7 +79,7 @@ test("the editor's Start door reports what it applied and names the room after t
     },
   });
 
-  await mount(<CastMemberEditorStory />);
+  await mount(<RosterMemberEditorStory />);
   await page.getByRole("button", { name: "Start chat", exact: true }).click();
 
   const notice = page.getByTestId("cbcf-notice");
