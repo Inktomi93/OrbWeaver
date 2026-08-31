@@ -343,6 +343,73 @@ test("the topbar toggle collapses the list panel to zero rendered width (clamp-o
   await expect(listPanel).toHaveAttribute("aria-hidden", "true");
 });
 
+// #895 — THE OPEN COMMITS THE PANEL'S CHROME; THE BODY FOLLOWS IN A LATER TASK. Latching the collapsed
+// body's mount DURING RENDER kept it out of the boot commit (4a6c54cdf) and put the whole query-backed
+// mount inside the open click's own discrete-event task instead: measured on the live stack at 4× CPU,
+// 127ms of blocking against a 50ms budget, the worst LoAF attributed to `dispatchDiscreteEvent` with 43ms
+// of forced style/layout in the click frame.
+//
+// THE OBSERVABLE IS TASK SEPARATION, NOT A CATCHABLE FLASH. A MutationObserver batches everything one task
+// mutated into ONE callback, so "the mode flip and the body's arrival are in the same callback" is exactly
+// "they are in the same task" — a durable structural property, not a state that only exists while something
+// is in flight. Frame counting would not do: the effect flush plus a sliced transition render can finish
+// inside one 16ms frame on a fast machine and the assertion would flake for a reason that is not the defect.
+test("opening a collapsed panel does not mount its body in the click's own task (#895)", async ({ mount, page }) => {
+  await page.setViewportSize(WIDE);
+  await mount(<AppShellStory />);
+  const contextPanel = page.locator('.shell-panel[data-panel-side="context"]');
+  await expect(contextPanel).toHaveAttribute("data-panel-mode", "collapsed");
+  await expect(contextPanel.locator(".shell-panel-body")).toBeEmpty();
+
+  // One observer over the panel: `data-panel-mode` changes on the aside AND child additions under its
+  // body. Each callback is one task's worth of mutations, so the callback INDEX that carried each event
+  // is the task identity we are asserting on.
+  await page.evaluate(() => {
+    const records: { tick: number; mode: boolean; body: boolean }[] = [];
+    Object.assign(globalThis, { __ctPanelTasks: records });
+    const aside = document.querySelector('.shell-panel[data-panel-side="context"]');
+    const body = aside?.querySelector(".shell-panel-body") ?? null;
+    if (aside === null || body === null) {
+      return;
+    }
+    let tick = 0;
+    const observer = new MutationObserver((mutations) => {
+      tick += 1;
+      const mode = mutations.some((m) => m.type === "attributes" && m.attributeName === "data-panel-mode");
+      const bodyGrew = mutations.some((m) => m.type === "childList" && m.target === body && m.addedNodes.length > 0);
+      if (mode || bodyGrew) {
+        records.push({ tick, mode, body: bodyGrew });
+      }
+    });
+    observer.observe(aside, { attributes: true, attributeFilter: ["data-panel-mode"], childList: true, subtree: true });
+  });
+
+  await page.getByRole("button", { name: CONTEXT_TOGGLE_RE }).click();
+  await expect.poll(async () => await contextPanel.evaluate((el) => el.textContent ?? ""), { intervals: [20, 50, 100] }).toContain("chats context pane");
+
+  // The verdict carries its OWN positive controls: a probe that never saw one of the two events reports
+  // that, and can never read as `deferred`. On the pre-fix source this settles on `same-task` (measured:
+  // both events arrived in observer callback 1).
+  await expect
+    .poll(
+      async () =>
+        await page.evaluate(() => {
+          const tasks = (globalThis as typeof globalThis & { __ctPanelTasks: { tick: number; mode: boolean; body: boolean }[] }).__ctPanelTasks;
+          const modeTick = tasks.find((t) => t.mode)?.tick ?? null;
+          const bodyTick = tasks.find((t) => t.body)?.tick ?? null;
+          if (modeTick === null) {
+            return "probe-blind:no-mode-flip";
+          }
+          if (bodyTick === null) {
+            return "probe-blind:no-body-mount";
+          }
+          return bodyTick > modeTick ? "deferred" : "same-task";
+        }),
+      { intervals: [20, 50, 100] },
+    )
+    .toBe("deferred");
+});
+
 test("a collapsed CONTEXT body mounts only when opened, then follows the active section (§4.2 rule 1)", async ({ mount, page }) => {
   await page.setViewportSize(WIDE);
   await mount(<AppShellStory />);
