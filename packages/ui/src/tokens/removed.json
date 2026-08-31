@@ -55,5 +55,6 @@
       "reason": "The runtime custom-property and relative-color expression moved to orb.cssValues.",
       "replacement": "color.shadow-cta-highlight and color.primary"
     }
-  ]
+  ],
+  "removedTargets": []
 }

@@ -4,8 +4,16 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { TokenContractTexts } from "@orb/ui/token-contract";
-import { FORMAT_SCHEMA_SHA256, RESOLVER_SCHEMA_SHA256, readTokenContractTexts, validateTokenContractTexts } from "@orb/ui/token-contract";
+import {
+  FORMAT_SCHEMA_SHA256,
+  REQUIRED_SEED_VALUE_SET_PATHS,
+  RESOLVER_SCHEMA_SHA256,
+  readTokenContractTexts,
+  validateTokenContractTexts,
+} from "@orb/ui/token-contract";
 import { describe } from "vitest";
+import { gate as tokensContractGate } from "../../tooling/src/verify/gates/tokens-contract.ts";
+import { verifyGateProofs } from "../../tooling/src/verify/index.ts";
 import { expect, test } from "../support/tool-fixtures.ts";
 
 const UI_ROOT = join(import.meta.dirname, "../../packages/ui");
@@ -24,6 +32,7 @@ const color = (l: number, c: number, h: number, alpha?: number): Record<string, 
 
 function validFixture(): TokenContractTexts {
   const official = readTokenContractTexts(UI_ROOT);
+  const requiredColors = Object.fromEntries(REQUIRED_SEED_VALUE_SET_PATHS.map((path) => [path.slice("color.".length), { $value: color(0.35, 0.01, 60) }]));
   const base = {
     $extensions: {
       "orb.llm": { usage: ["Use semantic tokens; do not author palette literals in components."] },
@@ -38,6 +47,7 @@ function validFixture(): TokenContractTexts {
     },
     color: {
       $type: "color",
+      ...requiredColors,
       background: { $value: color(0.2, 0.01, 60) },
       foreground: { $value: color(0.95, 0.01, 60) },
       alias: { $value: "{color.foreground}" },
@@ -73,7 +83,10 @@ function validFixture(): TokenContractTexts {
     ease: { $type: "cubicBezier", out: { $value: [0.16, 1, 0.3, 1] } },
   };
   const valueSet = (value: Record<string, unknown>): Record<string, unknown> => ({
-    color: { $type: "color", background: { $value: value } },
+    color: {
+      $type: "color",
+      ...Object.fromEntries(REQUIRED_SEED_VALUE_SET_PATHS.map((path) => [path.slice("color.".length), { $value: value }])),
+    },
   });
   const resolver = {
     version: "2025.10",
@@ -104,7 +117,7 @@ function validFixture(): TokenContractTexts {
     light: JSON.stringify(valueSet(color(0.98, 0.004, 75))),
     mocha: JSON.stringify(valueSet(color(0.15, 0.015, 250))),
     resolver: JSON.stringify(resolver),
-    removed: JSON.stringify({ removed: [] }),
+    removed: JSON.stringify({ removed: [], removedTargets: [] }),
     formatSchema: official.formatSchema,
     resolverSchema: official.resolverSchema,
   };
@@ -170,6 +183,10 @@ describe("official schema controls", () => {
 });
 
 describe("Orb semantic controls", () => {
+  test("the fs-backed canonical gate proof stays green without weakening the real-worktree removal ratchet", () => {
+    expect(verifyGateProofs([tokensContractGate])).toEqual([]);
+  });
+
   test("comma-packed font members, alias cycles, and terminal type mismatches are refused", () => {
     const font = mutate(validFixture(), "base", (base) => {
       ((base["font"] as Record<string, unknown>)["sans"] as Record<string, unknown>)["$value"] = ["Geist, system-ui"];
@@ -253,6 +270,27 @@ describe("Orb semantic controls", () => {
     expect(result.diagnostics.map((item) => item.message)).toContain("portable token motion.ambient was removed without a ledger row");
   });
 
+  test("the Git merge-base ratchet refuses a same-count runtime CSS target substitution", () => {
+    const current = readTokenContractTexts(UI_ROOT);
+    const swapped = mutate(current, "base", (base) => {
+      const cssValues = (base["$extensions"] as Record<string, unknown>)["orb.cssValues"] as Record<string, unknown>;
+      const portrait = cssValues["--aspect-portrait"];
+      if (portrait === undefined) {
+        throw new Error("fixture lost --aspect-portrait");
+      }
+      cssValues["--aspect-portrait"] = undefined;
+      cssValues["--aspect-portrait-renamed"] = portrait;
+    });
+    const result = validateTokenContractTexts(swapped, REPO_ROOT);
+    expect(result.cssTargets.size).toBe(178);
+    expect(result.diagnostics.map((item) => item.code)).toContain("removed.target.unrecorded");
+
+    const avatar = readFileSync(join(UI_ROOT, "src/primitives/avatar/variants.ts"), "utf8");
+    const media = readFileSync(join(UI_ROOT, "src/primitives/media-tile-grid/variants.ts"), "utf8");
+    expect(avatar).toContain("aspect-portrait");
+    expect(media).toContain("aspect-portrait");
+  });
+
   test("zero scanned tokens fails loud instead of reporting a blind clean", () => {
     const fixture = validFixture();
     const empty = { $extensions: { "orb.llm": { rules: "plant" }, "orb.cssValues": {} } };
@@ -267,6 +305,22 @@ describe("Orb semantic controls", () => {
 });
 
 describe("bounded Resolver controls", () => {
+  test("a same-count seed member substitution is refused before generation", () => {
+    const current = readTokenContractTexts(UI_ROOT);
+    const swapped = mutate(current, "light", (light) => {
+      const colors = light["color"] as Record<string, unknown>;
+      const background = colors["background"];
+      if (background === undefined) {
+        throw new Error("fixture lost Light color.background");
+      }
+      colors["background"] = undefined;
+      colors["sky-day"] = background;
+    });
+    const result = validateTokenContractTexts(swapped);
+    expect(result.scannedTokens).toBe(272);
+    expect(result.diagnostics.map((item) => item.code)).toContain("seed.members");
+  });
+
   test("missing sets, mispaired seed metadata, extra modifiers, and reversed source order are refused", () => {
     const missing = mutate(validFixture(), "resolver", (resolver) => {
       (resolver["sets"] as Record<string, unknown>)["mocha"] = undefined;
