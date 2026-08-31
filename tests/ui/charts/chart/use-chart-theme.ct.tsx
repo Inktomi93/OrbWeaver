@@ -90,42 +90,71 @@ test("a custom midlight ThemeScope renders a real chart with five 3:1 categorica
   const scope = await mount(<CustomMidlightChartRampStory />);
   const panel = scope.getByTestId("midlight-chart-panel");
   await expect(panel.locator("canvas")).toBeVisible();
+  await expect(panel).toHaveAttribute("data-echarts-option", /"series"/u);
   await expect
-    .poll(async () => {
-      const readout = panel.locator("p[data-palette]");
-      const palette = (await readout.getAttribute("data-palette"))?.split("|") ?? [];
-      return await panel.evaluate((element, colors): number => {
-        const canvas = document.createElement("canvas");
-        canvas.width = 1;
-        canvas.height = 1;
-        const ctx = canvas.getContext("2d");
-        if (ctx === null || colors.length !== 5) {
-          return 0;
-        }
-        const rgb = (color: string): readonly [number, number, number] => {
-          ctx.clearRect(0, 0, 1, 1);
-          ctx.fillStyle = color;
-          ctx.fillRect(0, 0, 1, 1);
-          const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
-          return [r ?? 0, g ?? 0, b ?? 0];
-        };
-        const luminance = (color: string): number => {
-          const channels = rgb(color).map((value) => {
-            const channel = value / 255;
-            return channel <= 0.039_28 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+    .poll(
+      async () =>
+        await panel.evaluate((element) => {
+          const rawOption = element.getAttribute("data-echarts-option");
+          const option = rawOption === null ? {} : JSON.parse(rawOption);
+          const colors = (option.series ?? []).flatMap((series) =>
+            (series.data ?? []).flatMap((datum) => (typeof datum.itemStyle?.color === "string" ? [datum.itemStyle.color] : [])),
+          );
+          const chartCanvas = element.querySelector("canvas");
+          const parserCanvas = document.createElement("canvas");
+          parserCanvas.width = 1;
+          parserCanvas.height = 1;
+          const parser = parserCanvas.getContext("2d");
+          const chart = chartCanvas?.getContext("2d") ?? null;
+          if (parser === null || chart === null) {
+            return { colorCount: colors.length, distinctColorCount: 0, minimumRatioClears: false, renderedColorCount: 0, unresolvedColorCount: 0 };
+          }
+          const rgb = (color: string): readonly [number, number, number] => {
+            parser.clearRect(0, 0, 1, 1);
+            parser.fillStyle = color;
+            parser.fillRect(0, 0, 1, 1);
+            const [r = 0, g = 0, b = 0] = parser.getImageData(0, 0, 1, 1).data;
+            return [r, g, b];
+          };
+          const luminance = ([r, g, b]: readonly [number, number, number]): number => {
+            const [lr, lg, lb] = [r, g, b].map((value) => {
+              const channel = value / 255;
+              return channel <= 0.039_28 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+            });
+            return 0.2126 * (lr ?? 0) + 0.7152 * (lg ?? 0) + 0.0722 * (lb ?? 0);
+          };
+          const backing = luminance(rgb(getComputedStyle(element).backgroundColor));
+          const chartPixels = chart.getImageData(0, 0, chartCanvas?.width ?? 0, chartCanvas?.height ?? 0).data;
+          const renderedMatches = colors.map((color) => {
+            const [expectedR, expectedG, expectedB] = rgb(color);
+            let matches = 0;
+            for (let index = 0; index < chartPixels.length; index += 4) {
+              const r = chartPixels[index] ?? 0;
+              const g = chartPixels[index + 1] ?? 0;
+              const b = chartPixels[index + 2] ?? 0;
+              const alpha = chartPixels[index + 3] ?? 0;
+              if (alpha > 250 && Math.abs(r - expectedR) <= 2 && Math.abs(g - expectedG) <= 2 && Math.abs(b - expectedB) <= 2) {
+                matches += 1;
+              }
+            }
+            return matches;
           });
-          return 0.2126 * (channels[0] ?? 0) + 0.7152 * (channels[1] ?? 0) + 0.0722 * (channels[2] ?? 0);
-        };
-        const backing = luminance(getComputedStyle(element).backgroundColor);
-        return Math.min(
-          ...colors.map((color) => {
-            const fill = luminance(color);
-            return (Math.max(fill, backing) + 0.05) / (Math.min(fill, backing) + 0.05);
-          }),
-        );
-      }, palette);
-    })
-    .toBeGreaterThanOrEqual(3);
+          const minRatio = Math.min(
+            ...colors.map((color) => {
+              const fill = luminance(rgb(color));
+              return (Math.max(fill, backing) + 0.05) / (Math.min(fill, backing) + 0.05);
+            }),
+          );
+          return {
+            colorCount: colors.length,
+            distinctColorCount: new Set(colors).size,
+            minimumRatioClears: colors.length === 5 && minRatio >= 3,
+            renderedColorCount: renderedMatches.filter((matches) => matches > 0).length,
+            unresolvedColorCount: colors.filter((color) => /(?:light-dark|var)\(/u.test(color)).length,
+          };
+        }),
+    )
+    .toEqual({ colorCount: 5, distinctColorCount: 5, minimumRatioClears: true, renderedColorCount: 5, unresolvedColorCount: 0 });
 });
 
 test("named, alpha-composited, and extreme accepted themes render five 3:1 ECharts fills", async ({ mount }) => {

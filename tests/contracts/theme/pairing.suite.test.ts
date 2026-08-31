@@ -35,11 +35,9 @@ describe("ThemeOverride wire ↔ ThemeScope render pairing (D44 §12.5)", () => 
   test("the clamps AGREE on a hostile value (both drop it; both keep the safe sibling)", () => {
     const hostile = { accent: "url(https://evil.example/x)", bodyColor: "red" };
     const wire = themeOverrideSchema.parse(hostile);
-    const render = themeScopeTokensSchema.safeParse(hostile);
+    const render = themeScopeTokensSchema.parse(hostile);
     expect(wire.accent).toBeUndefined();
     expect(wire.bodyColor).toBe("red");
-    // The render clamp is whole-parse (clampThemeTokens catches failure → {}); the wire clamp is
-    // per-field. Equivalent OUTCOME either way: the hostile value never reaches a custom property.
-    expect(render.success).toBe(false);
+    expect(render).toEqual(wire);
   });
 });
