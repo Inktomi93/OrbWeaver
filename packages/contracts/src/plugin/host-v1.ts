@@ -39,7 +39,7 @@ export interface PluginMessageView {
   readonly content: string;
 }
 
-/** A REDUCED roster projection (`chat.listRoster`, #788 F11 — the ST `context.characters` parity arm). The read
+/** A REDUCED roster projection (`chat.listCharacters`, #788 F11 — the ST `context.characters` parity arm). The read
  *  floor is what EVERY member already sees in the transcript: a character seat's id, its resolved display name,
  *  and its avatar asset id. Deliberately NOT the full card — a member plugin reading another participant's
  *  description/personality/scenario would be a leak of a co-participant's private character definition; the roster
@@ -209,7 +209,7 @@ export interface PluginHostV1 {
      *  this invocation was admitted to, never a global "all your characters" list and never a character from a
      *  chat the caller isn't in — a non-member resolves to `[]` (the `listMessages` viewer choke, member-gated).
      *  capability: chat.read */
-    listRoster: (chat: ChatHandle) => Promise<readonly PluginCharacterView[]>;
+    listCharacters: (chat: ChatHandle) => Promise<readonly PluginCharacterView[]>;
     /** Variable writes ride the SAME delta seam actions use — capability: chat.variables.write */
     applyVariableOps: (chat: ChatHandle, ops: readonly PluginVariableOp[]) => Promise<void>;
     /** Surface quick-reply chips (the automation bus event) — capability: chat.quick_reply */
@@ -657,7 +657,7 @@ export const HOST_FUNCTION_CAPABILITY = {
   // roster (id/name/avatar) is member-visible room state at the exact tier `listMessages`/`getVariables` read,
   // so it is not a distinct consent line (a reader agreeing to "read this room's messages" already agrees to see
   // who is in the room).
-  "chat.listRoster": "chat.read",
+  "chat.listCharacters": "chat.read",
   "chat.applyVariableOps": "chat.variables.write",
   "chat.surfaceQuickReply": "chat.quick_reply",
   "chat.requestTurn": "turn.trigger",
@@ -806,7 +806,7 @@ export const HOST_FUNCTION_CAPABILITY = {
  *     SERVER guests — neither is server-owned DATA a client guest lacks. A client UI guest holds `orb.ui(1)`, not
  *     `orb.host(1)`, and the private-event plane is a SERVER-guest composition primitive; relaying it would put a
  *     client guest into the installer's resident event graph, which is not what §4.6's read-latency purchase was.
- *   - `chat.listRoster` (#788 F11) — OUT, but the STRONGEST future proxy candidate: it is the same class as the
+ *   - `chat.listCharacters` (#788 F11) — OUT, but the STRONGEST future proxy candidate: it is the same class as the
  *     proxyable `chat.listMessages`/`getVariables` (a chat-scoped canon read a surface renders from, self-gating
  *     membership → `[]` for a non-member), and a scripted sprite/expression surface swapping art per speaker is
  *     exactly the local-immediate latency want §4.6 bought. It is OUT of THIS lane only because the tuple is an
@@ -815,7 +815,7 @@ export const HOST_FUNCTION_CAPABILITY = {
  *     a silent entry. Until then a scripted surface reads the roster through its server guest on an `actionId`
  *     round-trip, losing latency, nothing else.
  *   - `worldInfo.listBooks` / `worldInfo.listEntries` (#788 F12) — OUT. Chat-scoped reads that self-gate
- *     (attachment + membership), so like `listRoster` they COULD be proxied under the same membership-on-claimed-
+ *     (attachment + membership), so like `listCharacters` they COULD be proxied under the same membership-on-claimed-
  *     `chatId` shape `listMessages` already uses — but the lore-read consumer is the server-side indexing class,
  *     not a per-frame surface render, so the latency want is weak; a PRICED widening, not this lane's tuple edit.
  *   - `assets.read` (#788 seam-11) — OUT, the `character.getCardData` shape one plane over: it IS a read, but its

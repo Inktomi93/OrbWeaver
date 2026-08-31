@@ -42,12 +42,12 @@ export interface PluginBridge {
   readonly chat: {
     readonly listMessages: (chatId: ChatId, limit: number | undefined) => Promise<readonly PluginMessageView[]>;
     readonly getVariables: (chatId: ChatId) => Promise<Record<string, string>>;
-    /** The invocation chat's present CHARACTER roster (`chat.listRoster`, chat.read — #788 F11). The membrane
+    /** The invocation chat's present CHARACTER roster (`chat.listCharacters`, chat.read — #788 F11). The membrane
      *  passes the ALREADY-ADMITTED `chatId`; the domain builder resolves the installer's viewer visibility
      *  (membership) before the read and short-circuits a non-member to `[]` (the `listMessages` viewer choke), so
      *  a plugin sees only the roster of a room it is in. Reduced to id/name/avatar — never a co-participant's full
      *  card. */
-    readonly listRoster: (chatId: ChatId) => Promise<readonly PluginCharacterView[]>;
+    readonly listCharacters: (chatId: ChatId) => Promise<readonly PluginCharacterView[]>;
     readonly applyVariableOps: (chatId: ChatId, ops: readonly VarOp[]) => Promise<void>;
     /** Request an autonomous turn (`chat.requestTurn`, turn.trigger — SPEND). The membrane passes the
      *  ALREADY-ADMITTED `chatId` (the invocation-chat-context ran `can(installer,"host",chat)` → `canWrite`),

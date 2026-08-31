@@ -80,7 +80,7 @@ interface PluginMessageView {
   readonly content: string;
 }
 
-/** What `chat.listRoster` answers: the room's present CHARACTER seats (never humans, never full cards) —
+/** What `chat.listCharacters` answers: the room's present CHARACTER seats (never humans, never full cards) —
  *  id, resolved display name, avatar asset id. Member-visible room state only, this room only. */
 interface PluginCharacterView {
   readonly id: string;
@@ -596,7 +596,7 @@ interface PluginHostV1 {
     getVariables: (chat: ChatHandle) => Promise<Record<string, string>>;
     /** The room's present CHARACTER roster (never humans, never full cards) — this room only, member-gated:
      *  a room you are not in answers `[]`, not an error. capability: chat.read */
-    listRoster: (chat: ChatHandle) => Promise<readonly PluginCharacterView[]>;
+    listCharacters: (chat: ChatHandle) => Promise<readonly PluginCharacterView[]>;
     /** Room-state write, HOST AUTHORITY required (flat refusal elsewhere). capability: chat.variables.write */
     applyVariableOps: (chat: ChatHandle, ops: readonly PluginVariableOp[]) => Promise<void>;
     /** Quick-reply chips (≤ 4), always compose-mode, host authority required. capability: chat.quick_reply */

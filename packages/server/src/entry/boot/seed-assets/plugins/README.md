@@ -108,7 +108,7 @@ actually allowed — which can be narrower than what you declared. Feature-detec
 
 | Capability | Unlocks | Notes |
 | - | - | - |
-| `chat.read` | `chat.current()`, `chat.listMessages()`, `chat.getVariables()`, `chat.listRoster()` | Needed for `current()` even if all you want is the handle. Reads are clamped to what the INSTALLER may see. `listRoster` is the room's present CHARACTER seats (id/name/avatar) — never humans, never full cards. |
+| `chat.read` | `chat.current()`, `chat.listMessages()`, `chat.getVariables()`, `chat.listCharacters()` | Needed for `current()` even if all you want is the handle. Reads are clamped to what the INSTALLER may see. `listCharacters` is the room's present CHARACTER seats (id/name/avatar) — never humans, never full cards. |
 | `chat.variables.write` | `chat.applyVariableOps()` | The room's member-visible plane (macros/CEL/rules read it). Host authority required — flat refusal without it. |
 | `chat.quick_reply` | `chat.surfaceQuickReply()` | Host authority required. Always compose-mode. |
 | `chat.transform` | `transforms.register()`, `transforms.registerDisplay()`, `macros.register()` | One capability, three seams: prompt (250 ms, host-only rooms), display (your own screen), and value macros. |

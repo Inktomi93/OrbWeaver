@@ -1,4 +1,4 @@
-// Unit: `buildAgentPlugin` — the read-only `__orb.pluginLog(ref?)` impl. It must list the roster with no ref,
+// Unit: `buildAgentPlugin` — the read-only `__orb.pluginLog(ref?)` impl. It must list the installed plugins with no ref,
 // resolve a ref by slug OR id through the production `plugin.getLog` read, and REFUSE loudly (never a silent
 // empty) on no match or an ambiguous one — the same loud-refusal contract `__orb.nav` carries.
 
@@ -20,12 +20,12 @@ function fakeClient(plugins: readonly unknown[] = [ATLAS, DECK]): any {
   };
 }
 
-test("no ref lists the roster (id · slug · name · version · status) without reading any log", async () => {
+test("no ref lists the installed plugins (id · slug · name · version · status) without reading any log", async () => {
   const client = fakeClient();
   const read = buildAgentPlugin(client);
   await expect(read()).resolves.toEqual({
     ok: true,
-    roster: [
+    plugins: [
       { id: ATLAS.id, slug: "card-atlas", name: "Card Atlas", version: "1.3.2", status: "enabled" },
       { id: DECK.id, slug: "oracle-deck", name: "Oracle Deck", version: "1.0.0", status: "disabled" },
     ],
