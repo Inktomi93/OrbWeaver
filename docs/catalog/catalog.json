@@ -255,8 +255,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 155,
-      "bytes": 11755,
-      "sha256": "143b9988043165b46bd538ef190b12791c344888297c5b124b382867cff9d547",
+      "bytes": 11799,
+      "sha256": "ad44e4e06fa352fcaf7d42c876f332eae8ce6e843b40bfd4aa0b383abe54519f",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -269,18 +269,19 @@
       },
       "receipt": {
         "path": "docs/architecture/core/Chat-Macro-Resolution.md",
-        "assignedSha256": "143b9988043165b46bd538ef190b12791c344888297c5b124b382867cff9d547",
+        "assignedSha256": "ad44e4e06fa352fcaf7d42c876f332eae8ce6e843b40bfd4aa0b383abe54519f",
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "143b9988043165b46bd538ef190b12791c344888297c5b124b382867cff9d547",
-        "verifiedCommit": "32bf93f3e9f66740833d06ceeeb1c2eb6e67a28d",
+        "verifiedSha256": "ad44e4e06fa352fcaf7d42c876f332eae8ce6e843b40bfd4aa0b383abe54519f",
+        "verifiedCommit": "05a109eecbec92d771e039cf7319684bc76de808",
         "verifiedAt": "2026-08-30",
         "evidence": [
           "docs/architecture/core/Chat-Macro-Resolution.md:1 (full read; header/status evaluated)",
           "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
           "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
-          "re-attested at the #909 docs truth-repair merge (32bf93f3e): the lane's three-way rule applied per hit — concept prose takes the ruled word, every code symbol is quoted as it stands with its owning issue named, owner-sacred prose flagged not edited; verdict list read by the orchestrator"
+          "re-attested at the #909 docs truth-repair merge (32bf93f3e): the lane's three-way rule applied per hit — concept prose takes the ruled word, every code symbol is quoted as it stands with its owning issue named, owner-sacred prose flagged not edited; verdict list read by the orchestrator",
+          "re-attested at 05a109eec — the identity-directory names updated to the #903 C2 spellings"
         ],
         "claims": [
           {
@@ -640,9 +641,9 @@
       "path": "docs/architecture/core/Core-Path-Registry.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 515,
-      "bytes": 281635,
-      "sha256": "41fa363f55e4e3f3786d0977ce3116d00014583e421b1f055b3cc460a91b1764",
+      "lines": 524,
+      "bytes": 284469,
+      "sha256": "c0a01c6f4b4df444737455eed1299dca31e9f5e4a5f30c3db41c2ff1a29be17d",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -655,12 +656,12 @@
       },
       "receipt": {
         "path": "docs/architecture/core/Core-Path-Registry.md",
-        "assignedSha256": "41fa363f55e4e3f3786d0977ce3116d00014583e421b1f055b3cc460a91b1764",
+        "assignedSha256": "c0a01c6f4b4df444737455eed1299dca31e9f5e4a5f30c3db41c2ff1a29be17d",
         "disposition": "current",
         "authority": "normative",
         "fullRead": true,
-        "verifiedSha256": "41fa363f55e4e3f3786d0977ce3116d00014583e421b1f055b3cc460a91b1764",
-        "verifiedCommit": "08a6571ea28212ab036e483a0b5caa231f736694",
+        "verifiedSha256": "c0a01c6f4b4df444737455eed1299dca31e9f5e4a5f30c3db41c2ff1a29be17d",
+        "verifiedCommit": "05a109eecbec92d771e039cf7319684bc76de808",
         "verifiedAt": "2026-08-30",
         "evidence": [
           "delta re-verify 2026-08-25 (#689, commit 0a2789a00834abe892bfa92839e8dec3c30a97af): D147 clause (d) rewritten in place — the SERVER-WIDE install is BUILT as an admin-triggered fan-out of per-user rows, so the clause's two recorded open questions (consent over a shared install, whose principal it runs as) are DISSOLVED, not answered. Re-read at the amended bytes and re-derived against the tree it now describes: domain/plugin/verbs/{install,uninstall,apply}-*-users.ts + substrate/distribution.ts + persistence/distributed-plugins.ts, the admin_distributed_plugins DDL, and the pins the clause cites (tests/server/domain/plugin/verbs/*-users.int.test.ts, persistence/distributed-plugins.int.test.ts, the cross-tenant sweep's three EXEMPT rows, settings-shell-surface.ct.tsx's admin/plain-user Distribute pair). No other D-entry in this document moved.",
@@ -686,7 +687,8 @@
           "docs/architecture/core/Core-Path-Registry.md: re-attested at 79871238bc0506fa74902bb1844f734fc9e32db3 — the #866 S1+S2 (6923f33cb) and #876/#873 docs-law (79871238b) merges both carry truth-repairs here; both deltas read by the orchestrator; the gate-count line resolved to 233 at the merge",
           "re-attested at the #907 law-mint merge (a5c589b04): lane cb-vocab-law's diff read in full by the orchestrator — D151 (the room's actor vocabulary is CLOSED) minted as next-free with the reserved-range note advanced to D152+, and the four-line register-boundary paragraph placed in AGENTS.md §3; both provenance facts (archived+superseded source, not restated by the successor) verified on the tree before minting",
           "re-attested at 7697952e2 — D151's back-reference now names AGENTS.md §3 and records why the register boundary is constitution-native with no D-number",
-          "re-attested at the #914 reconciliation merge (08a6571ea): the map's citations landed here (AGENTS.md §3 + its §7 index row, D151's cite-not-copy line), the config design doc gained the §7.7/§7.8 as-built blocks incl. the preview-vs-illustration rule, and the review doc is banner-marked as the FROZEN derivation so no wave slices its sample tables again"
+          "re-attested at the #914 reconciliation merge (08a6571ea): the map's citations landed here (AGENTS.md §3 + its §7 index row, D151's cite-not-copy line), the config design doc gained the §7.7/§7.8 as-built blocks incl. the preview-vs-illustration rule, and the review doc is banner-marked as the FROZEN derivation so no wave slices its sample tables again",
+          "re-attested at 05a109eec — D137(F) rewritten: the fence's RULE is unchanged, its ENFORCER moved from prose to tsc; retired spellings recorded STRUCK because backticked dead symbols red the dangling-refs gate"
         ],
         "claims": [
           {
@@ -1128,8 +1130,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 149,
-      "bytes": 25328,
-      "sha256": "d82786dc27f7561141977d22e391ab9ccac629dd1405e2b3cf0404c6cceb7e2e",
+      "bytes": 25332,
+      "sha256": "aa89508b28769b853542d59cced40476ccc4ba4f111b5fd022853a70287beb61",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -1142,12 +1144,12 @@
       },
       "receipt": {
         "path": "docs/architecture/core/Spine-Identity-and-Auth.md",
-        "assignedSha256": "d82786dc27f7561141977d22e391ab9ccac629dd1405e2b3cf0404c6cceb7e2e",
+        "assignedSha256": "aa89508b28769b853542d59cced40476ccc4ba4f111b5fd022853a70287beb61",
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "d82786dc27f7561141977d22e391ab9ccac629dd1405e2b3cf0404c6cceb7e2e",
-        "verifiedCommit": "32bf93f3e9f66740833d06ceeeb1c2eb6e67a28d",
+        "verifiedSha256": "aa89508b28769b853542d59cced40476ccc4ba4f111b5fd022853a70287beb61",
+        "verifiedCommit": "05a109eecbec92d771e039cf7319684bc76de808",
         "verifiedAt": "2026-08-30",
         "evidence": [
           "docs/architecture/core/Spine-Identity-and-Auth.md:1 (full read, 2026-08-19; FRESH fact-check — not the authoring lane — after the tRPC content-type belt landed at 621ac2218 and rewrote invariant #9 open->closed; every claim re-derived against merged packages/server/src)",
@@ -1156,7 +1158,8 @@
           "invariants #4/#7/#8/#10 re-confirmed unchanged/accurate: MODE_RESOLVERS exhaustive over the four AuthModes, the loopback-peer owner fallback (#298 f2, infra/auth peer gate + entry/auth/seam.ts), the three enabled gates, and the two provisionIdentity callers (auth-routes.ts:642 oidc, seam.ts forward-header)",
           "OPEN finding from fd71a395d is now CLOSED in-doc: invariant #9's tRPC preflight premise (FALSE for @trpc/server 11.18) and the short-by-one multipart census are both resolved by the belt; the doc reads CLOSED and matches the tree",
           "docs/architecture/core/Spine-Identity-and-Auth.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)",
-          "re-attested at the #909 docs truth-repair merge (32bf93f3e): the lane's three-way rule applied per hit — concept prose takes the ruled word, every code symbol is quoted as it stands with its owning issue named, owner-sacred prose flagged not edited; verdict list read by the orchestrator"
+          "re-attested at the #909 docs truth-repair merge (32bf93f3e): the lane's three-way rule applied per hit — concept prose takes the ruled word, every code symbol is quoted as it stands with its owning issue named, owner-sacred prose flagged not edited; verdict list read by the orchestrator",
+          "re-attested at 05a109eec — ChatRoster to ChatMembership landed; the doc's roster disambiguator updated"
         ],
         "claims": [
           {
@@ -12212,9 +12215,9 @@
       "path": "docs/design/vocabulary-map.md",
       "lane": "design",
       "issue": 5,
-      "lines": 71,
-      "bytes": 6216,
-      "sha256": "1f45dfae9536c9e337632b4e1187af1a4a0c0590aa039d5c137a7c665195bd83",
+      "lines": 89,
+      "bytes": 9799,
+      "sha256": "e09949b4144599d5513f2cb8785dab563b75c5cd05611d4bfd8edf8a15d0036f",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -12227,16 +12230,17 @@
       },
       "receipt": {
         "path": "docs/design/vocabulary-map.md",
-        "assignedSha256": "1f45dfae9536c9e337632b4e1187af1a4a0c0590aa039d5c137a7c665195bd83",
+        "assignedSha256": "e09949b4144599d5513f2cb8785dab563b75c5cd05611d4bfd8edf8a15d0036f",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "1f45dfae9536c9e337632b4e1187af1a4a0c0590aa039d5c137a7c665195bd83",
-        "verifiedCommit": "106e855db8b5c8a68a2e1f870045ad8ed045c9f0",
+        "verifiedSha256": "e09949b4144599d5513f2cb8785dab563b75c5cd05611d4bfd8edf8a15d0036f",
+        "verifiedCommit": "05a109eecbec92d771e039cf7319684bc76de808",
         "verifiedAt": "2026-08-30",
         "evidence": [
           "docs/design/vocabulary-map.md:1-72 read IN FULL by the orchestrator (claude-b) before the receipt; minted by lane cb-vocab-reconcile at the #914 merge as the ONE living home for the concept→word table, per the owner's ruling that the design doc is the source of truth and everything references it",
-          "re-attested at 106e855db — row 4's status corrected from 'landed' to COPY-landed/CODE-not-landed after lane cb-vocab-c2 found ten files still spelling cast; the map's own status column is a tree claim and owes a receipt like any other (#922)"
+          "re-attested at 106e855db — row 4's status corrected from 'landed' to COPY-landed/CODE-not-landed after lane cb-vocab-c2 found ten files still spelling cast; the map's own status column is a tree claim and owes a receipt like any other (#922)",
+          "re-attested at 05a109eec — rows 5/6 flipped to landed with their Was-history, three new rows added (kit name axis, regex slice, CarriedAppearance), plus a new section listing four concepts still spelled cast that the map has NO word for; row 4 kept at the orchestrator's #922 truth repair (COPY landed / CODE not landed) — the union resolution at this merge"
         ],
         "claims": [
           {
@@ -28019,6 +28023,67 @@
       "receiptCurrent": true
     },
     {
+      "path": "docs/reviews/side-eye/2026-08-30-config-surface-live-drive.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 621,
+      "bytes": 47732,
+      "sha256": "b8ec5eb312d4525d49414f6808f420b79d5fd99c3cc596a4049b45beaa38835e",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "draft",
+          "updated": "2026-08-30"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/side-eye/2026-08-30-config-surface-live-drive.md",
+        "assignedSha256": "b8ec5eb312d4525d49414f6808f420b79d5fd99c3cc596a4049b45beaa38835e",
+        "disposition": "needs-owner",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "b8ec5eb312d4525d49414f6808f420b79d5fd99c3cc596a4049b45beaa38835e",
+        "verifiedCommit": "05a109eecbec92d771e039cf7319684bc76de808",
+        "verifiedAt": "2026-08-30",
+        "evidence": [
+          "docs/reviews/side-eye/2026-08-30-config-surface-live-drive.md read in full by the orchestrator (claude-b) before commit — lane cb-config-eye's live drive of the finished #866 surface on a freshly restarted vite, under four owner riders (full instrument battery, excellence bar, every nit, drive it as a user); ~35 driven runs with 0 page errors and 0 console errors"
+        ],
+        "claims": [
+          {
+            "claim": "Verdict is DO NOT SHIP AS IS: the mechanics are right (zero-shift hover reveal proven by byte-identical geometry, honest Reset, coarse contract honoured) and the coherence is not; the P0 is nine 16px config-group rows agreed by three independent instruments, and the biggest lever is capping the row measure and returning a one-line gloss.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#866"
+              },
+              {
+                "kind": "issue",
+                "target": "#926"
+              }
+            ]
+          },
+          {
+            "claim": "The report carries eight RETRACTIONS each with the receipt that killed it, and names its own single coverage gap (the compact/reading/maximal appearance-preset arms were not run).",
+            "evidence": [
+              {
+                "kind": "code",
+                "target": "packages/client/src/components/setting-teach-row.tsx:1"
+              },
+              {
+                "kind": "issue",
+                "target": "#929"
+              }
+            ]
+          }
+        ],
+        "summary": "Live side-eye of the finished Config surface: 36 defects (1 P0, 15 P1), 8 excellence rebuilds, 56 nits, 8 retractions, an instrument coverage table naming one gap, and a measured UX finding that 8 of 24 settings rows are self-explanatory at rest."
+      },
+      "receiptCurrent": true
+    },
+    {
       "path": "docs/reviews/side-eye/2026-08-30-context-bracket.md",
       "lane": "reviews",
       "issue": 7,
@@ -29040,6 +29105,55 @@
       "receiptCurrent": true
     },
     {
+      "path": "docs/reviews/stickler/2026-08-30-css-census-doctrine-and-enforcement.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 1404,
+      "bytes": 111139,
+      "sha256": "98e2ae09d08feb1731c38cb5704c1f4715a22edfd720af04023197dd2fdd8fe3",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-08-30"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/stickler/2026-08-30-css-census-doctrine-and-enforcement.md",
+        "assignedSha256": "98e2ae09d08feb1731c38cb5704c1f4715a22edfd720af04023197dd2fdd8fe3",
+        "disposition": "needs-owner",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "98e2ae09d08feb1731c38cb5704c1f4715a22edfd720af04023197dd2fdd8fe3",
+        "verifiedCommit": "05a109eecbec92d771e039cf7319684bc76de808",
+        "verifiedAt": "2026-08-30",
+        "evidence": [
+          "docs/reviews/stickler/2026-08-30-css-census-doctrine-and-enforcement.md:1-1405 read IN FULL by the orchestrator (claude-b) before the receipt — the gate refused a reviewed disposition at fullRead:false and was right to; lane cb-css-census (stickler, Opus override) read all 3,169 authored CSS lines end to end and drove 312 comment-stripped selectors against seven live surfaces",
+          "three of the lane's claims were verified independently by the orchestrator before the read: the feature-css-files scanRoot gap by planted control, the D150 contradiction against client-architecture-lockdown §4, and the per-file colour/definition split"
+        ],
+        "claims": [
+          {
+            "claim": "11 confirmed findings (ceiling P2) plus a six-home CSS doctrine, a four-wave game plan, exact before/after text for 12 doc changes, and a reach/bite/blind-spot table for 27 gates; the paint law's own boundary is unenforced outside features/** (#921) and D150's shell.css clause contradicts the authoritative §4 (#919).",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#918"
+              },
+              {
+                "kind": "issue",
+                "target": "#921"
+              }
+            ]
+          }
+        ],
+        "summary": "The CSS census, doctrine, game plan and enforcer sweep: no orphan selectors or dead classes across 3,169 lines, but data-density never reaches portalled overlays, the density attribute is a one-way switch with no comfortable arm, chart colours fall to 1.95:1 on Light, and a modal's sticky header names a z token that has never existed."
+      },
+      "receiptCurrent": true
+    },
+    {
       "path": "docs/reviews/stickler/2026-08-30-vocab-unification.md",
       "lane": "reviews",
       "issue": 7,
@@ -29063,11 +29177,12 @@
         "authority": "review",
         "fullRead": true,
         "verifiedSha256": "1f99872b640baf12f5ce0ec46c77cb8c7b7631d5605809be940509813ce0013c",
-        "verifiedCommit": "08a6571ea28212ab036e483a0b5caa231f736694",
+        "verifiedCommit": "05a109eecbec92d771e039cf7319684bc76de808",
         "verifiedAt": "2026-08-30",
         "evidence": [
           "docs/reviews/stickler/2026-08-30-vocab-unification.md:1-645 read in full by the orchestrator (claude-b) before commit; lane cb-vocab-design (stickler, per-dispatch Opus override) — the top-down word→concept map, three priced options, eight owner forks, three census corrections each with re-derived counts",
-          "re-attested at the #914 reconciliation merge (08a6571ea): the map's citations landed here (AGENTS.md §3 + its §7 index row, D151's cite-not-copy line), the config design doc gained the §7.7/§7.8 as-built blocks incl. the preview-vs-illustration rule, and the review doc is banner-marked as the FROZEN derivation so no wave slices its sample tables again"
+          "re-attested at the #914 reconciliation merge (08a6571ea): the map's citations landed here (AGENTS.md §3 + its §7 index row, D151's cite-not-copy line), the config design doc gained the §7.7/§7.8 as-built blocks incl. the preview-vs-illustration rule, and the review doc is banner-marked as the FROZEN derivation so no wave slices its sample tables again",
+          "re-attested at 05a109eec — its code cite followed the #903 C2 file move (persistence/cast.ts to persistence/identity.ts); the doc itself is the frozen derivation and is unchanged"
         ],
         "claims": [
           {
@@ -29079,7 +29194,7 @@
               },
               {
                 "kind": "code",
-                "target": "packages/server/src/domain/chat/persistence/cast.ts:18"
+                "target": "packages/server/src/domain/chat/persistence/identity.ts:1"
               }
             ]
           }
