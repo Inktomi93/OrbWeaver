@@ -41,7 +41,12 @@ export function importedSource(project: Project, from: SourceFile, moduleName: s
     candidates.add(raw.replace(/\.(?:[cm]?ts|tsx)$/u, ".ts"));
     candidates.add(raw.replace(/\.(?:[cm]?ts|tsx)$/u, ".tsx"));
   }
-  return project.getSourceFiles().find((source) => candidates.has(posix.normalize(source.getFilePath())));
+  for (const candidate of candidates) {
+    const source = project.getSourceFile(candidate);
+    if (source !== undefined) {
+      return source;
+    }
+  }
 }
 
 function localImportDeclarations(source: SourceFile, name: string): Node[] {

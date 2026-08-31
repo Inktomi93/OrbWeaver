@@ -109,6 +109,9 @@ export interface GateRunCtx {
   readonly project: Project; // the ONE shared workspace
   readonly scope: Scope; // §4 — what fileset this run covers
   readonly files: readonly SourceFile[]; // the scoped fileset the walk will visit
+  /** Exact dispatcher identity. Gate-owned shared accumulators key on this so an interrupted pass can
+   *  never leak unfinished state into a later run over the same Project and files array. */
+  readonly passIdentity?: object;
   /** Lazy — first access creates the Program/binder (pay once, shared by every gate that asks). */
   readonly checker: () => TypeChecker;
   /** The finding sink. Overload 1: node-anchored (line/column from the node). Overload 2: token-anchored

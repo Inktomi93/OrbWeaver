@@ -1,28 +1,50 @@
 // Declaration-level hook ownership. This module selects real rendering/DOM terminals; the neutral static
 // class evaluator owns value flow, composer identity, wrapper transparency, spreads, and overwrite order.
-import type { Project, Type } from "ts-morph";
-import { Node, SyntaxKind } from "ts-morph";
+import type { SourceFile, Type } from "ts-morph";
+import { Node } from "ts-morph";
 import type { GateRunCtx } from "../contract/gate.ts";
 import type { StaticClassCandidate, StaticClassEvaluation } from "../contract/static-class-expression.ts";
 import { unwrapExpression } from "./ast-read.ts";
 import type { HookOwners } from "./css-family-census.ts";
 import { recordClassTokens, recordOwner, sourceOwner } from "./css-family-census.ts";
-import {
-  evaluateStaticClassExpression,
-  evaluateStaticClassProperties,
-  evaluateStaticObjectProperties,
-  walkStaticClassExpressions,
-} from "./static-class-expression.ts";
+import type { StaticClassCollector } from "./static-class-expression.ts";
+import { StaticClassCollector as ClassCollector } from "./static-class-expression.ts";
 
 type SourceOwner = "ui" | "client";
 
-let passProject: Project | undefined;
-let passOwners: ReadonlyMap<string, HookOwners> | undefined;
+interface HookOwnerPass {
+  readonly passIdentity: object;
+  readonly project: GateRunCtx["project"];
+  readonly files: GateRunCtx["files"];
+  readonly collector: StaticClassCollector;
+  readonly owners: Map<string, HookOwners>;
+  readonly dataShellNames: Set<string>;
+  readonly spreads: Array<{ readonly spread: import("ts-morph").JsxSpreadAttribute; readonly owner: SourceOwner }>;
+  readonly visited: WeakSet<Node>;
+  result?: ReadonlyMap<string, HookOwners>;
+}
 
-/** Reset the one-pass cache before the shared gate dispatcher begins a new project. */
-export function resetHookOwnerCache(): void {
-  passProject = undefined;
-  passOwners = undefined;
+let hookPass: HookOwnerPass | undefined;
+
+/** Open one exact dispatcher lifecycle; the sibling CSS gate reuses the still-open state. */
+export function beginHookOwnerCollection(ctx: GateRunCtx): void {
+  if (ctx.passIdentity === undefined) {
+    throw new Error("hook-owner collection requires a dispatcher pass identity");
+  }
+  if (hookPass?.passIdentity === ctx.passIdentity && hookPass.project === ctx.project && hookPass.files === ctx.files) {
+    return;
+  }
+  const files = ctx.files.filter((source) => ownerForPath(source.getFilePath().replaceAll("\\", "/")) !== undefined);
+  hookPass = {
+    passIdentity: ctx.passIdentity,
+    project: ctx.project,
+    files: ctx.files,
+    collector: new ClassCollector(ctx.project, files, true),
+    owners: new Map(),
+    dataShellNames: new Set(),
+    spreads: [],
+    visited: new WeakSet(),
+  };
 }
 
 const CLASS_LIST_MUTATORS = new Set(["add", "remove", "toggle", "replace"]);
@@ -57,8 +79,8 @@ function recordCandidates(map: Map<string, HookOwners>, evaluation: StaticClassE
   }
 }
 
-function recordWalkedClassCarriers(map: Map<string, HookOwners>, project: Project): void {
-  const walk = walkStaticClassExpressions(project, project.getSourceFiles());
+function recordWalkedClassCarriers(map: Map<string, HookOwners>, collector: StaticClassCollector): void {
+  const walk = collector.walk();
   for (const candidate of walk.candidates) {
     for (const consumer of candidate.consumers) {
       if (!(Node.isCallExpression(consumer) || (Node.isJsxAttribute(consumer) && consumer.getNameNode().getText() === "className"))) {
@@ -102,30 +124,22 @@ function propertyName(node: Node): string | undefined {
   return Node.isStringLiteral(expression) || Node.isNoSubstitutionTemplateLiteral(expression) ? expression.getLiteralText() : undefined;
 }
 
-function dataShellPropertyNames(project: Project): readonly string[] {
-  const names = new Set<string>();
-  for (const source of project.getSourceFiles()) {
-    for (const property of source.getDescendantsOfKind(SyntaxKind.PropertyAssignment)) {
-      const name = propertyName(property.getNameNode());
-      if (name?.startsWith("data-shell-") === true) {
-        names.add(name);
-      }
-    }
-  }
-  return [...names];
-}
-
-function recordDirectJsxAttribute(map: Map<string, HookOwners>, attribute: import("ts-morph").JsxAttribute, owner: SourceOwner): void {
+function recordDirectJsxAttribute(
+  map: Map<string, HookOwners>,
+  attribute: import("ts-morph").JsxAttribute,
+  owner: SourceOwner,
+  collector: StaticClassCollector,
+): void {
   const name = attribute.getNameNode().getText();
   if (name === "class") {
     const value = jsxValue(attribute);
     if (value !== undefined) {
-      recordCandidates(map, evaluateStaticClassExpression(value, attribute), owner);
+      recordCandidates(map, collector.evaluate(value, attribute), owner);
     }
   } else if (name === "data-slot") {
     const value = jsxValue(attribute);
     if (value !== undefined) {
-      recordSlotCandidates(map, evaluateStaticClassExpression(value, attribute), owner);
+      recordSlotCandidates(map, collector.evaluate(value, attribute), owner);
     }
   } else if (name.startsWith("data-shell-")) {
     recordOwner(map, `attr:${name}`, owner);
@@ -143,16 +157,16 @@ function recordSpreadPropertyOwner(map: Map<string, HookOwners>, property: { rea
 function recordJsxSpread(
   map: Map<string, HookOwners>,
   spread: import("ts-morph").JsxSpreadAttribute,
-  owner: SourceOwner,
+  context: { readonly owner: SourceOwner; readonly collector: StaticClassCollector },
   dataShellNames: readonly string[],
 ): void {
-  recordCandidates(map, evaluateStaticClassProperties(spread.getExpression(), spread), owner);
-  const properties = evaluateStaticObjectProperties(spread.getExpression(), spread, ["data-slot", ...dataShellNames]).properties;
+  recordCandidates(map, context.collector.evaluateClassProperties(spread.getExpression(), spread), context.owner);
+  const properties = context.collector.evaluateObjectProperties(spread.getExpression(), spread, ["data-slot", ...dataShellNames]).properties;
   for (const property of properties) {
     if (property.name === "data-slot") {
-      recordSlotCandidates(map, evaluateStaticClassExpression(property.value, spread), owner);
+      recordSlotCandidates(map, context.collector.evaluate(property.value, spread), context.owner);
     } else if (property.name.startsWith("data-shell-")) {
-      recordSpreadPropertyOwner(map, property, owner);
+      recordSpreadPropertyOwner(map, property, context.owner);
     }
   }
 }
@@ -200,17 +214,22 @@ function isDomClassNameReceiver(node: Node): boolean {
   return types.length > 0 && types.every((type) => type.getProperty("className")?.getDeclarations().some(isDomDeclaration) === true);
 }
 
-function recordCall(map: Map<string, HookOwners>, call: import("ts-morph").CallExpression, owner: SourceOwner): void {
+function recordCall(map: Map<string, HookOwners>, call: import("ts-morph").CallExpression, owner: SourceOwner, collector: StaticClassCollector): void {
   const receiver = accessReceiver(call.getExpression());
   if (receiver === undefined || !CLASS_LIST_MUTATORS.has(accessedPropertyName(call.getExpression()) ?? "") || !isDomTokenListExpression(receiver)) {
     return;
   }
   for (const argument of call.getArguments()) {
-    recordCandidates(map, evaluateStaticClassExpression(argument, call), owner);
+    recordCandidates(map, collector.evaluate(argument, call), owner);
   }
 }
 
-function recordAssignment(map: Map<string, HookOwners>, binary: import("ts-morph").BinaryExpression, owner: SourceOwner): void {
+function recordAssignment(
+  map: Map<string, HookOwners>,
+  binary: import("ts-morph").BinaryExpression,
+  owner: SourceOwner,
+  collector: StaticClassCollector,
+): void {
   const left = unwrapExpression(binary.getLeft());
   const receiver = accessReceiver(left);
   if (
@@ -219,37 +238,71 @@ function recordAssignment(map: Map<string, HookOwners>, binary: import("ts-morph
     isDomClassNameReceiver(receiver) &&
     CLASS_NAME_ASSIGNMENT_OPERATORS.has(binary.getOperatorToken().getText())
   ) {
-    recordCandidates(map, evaluateStaticClassExpression(binary.getRight(), binary), owner);
+    recordCandidates(map, collector.evaluate(binary.getRight(), binary), owner);
+  }
+}
+
+/** Accumulate hook terminals during pass.ts's shared walk; spreads wait until every data-shell key is known. */
+export function visitHookOwnerNode(node: Node, source: SourceFile, ctx: GateRunCtx): void {
+  const state = hookPass;
+  if (state === undefined || state.passIdentity !== ctx.passIdentity || state.project !== ctx.project || state.files !== ctx.files) {
+    throw new Error("hook-owner visit ran outside its begin lifecycle");
+  }
+  state.collector.visit(node);
+  if (state.visited.has(node)) {
+    return;
+  }
+  state.visited.add(node);
+  const owner = ownerForPath(normalizedPath(source));
+  if (owner === undefined) {
+    return;
+  }
+  const collector = state.collector;
+  if (Node.isPropertyAssignment(node)) {
+    const name = propertyName(node.getNameNode());
+    if (name?.startsWith("data-shell-") === true) {
+      state.dataShellNames.add(name);
+    }
+  } else if (Node.isJsxAttribute(node)) {
+    recordDirectJsxAttribute(state.owners, node, owner, collector);
+  } else if (Node.isJsxSpreadAttribute(node)) {
+    state.spreads.push({ spread: node, owner });
+  } else if (Node.isCallExpression(node)) {
+    recordCall(state.owners, node, owner, collector);
+  } else if (Node.isBinaryExpression(node)) {
+    recordAssignment(state.owners, node, owner, collector);
   }
 }
 
 /** Collect only hooks that reach JSX, a declaration-proven class composer, or a DOM class terminal. */
 export function collectHookOwners(ctx: GateRunCtx): ReadonlyMap<string, HookOwners> {
-  if (passProject === ctx.project && passOwners !== undefined) {
-    return passOwners;
+  const state = hookPass;
+  if (state === undefined || state.passIdentity !== ctx.passIdentity || state.project !== ctx.project || state.files !== ctx.files) {
+    throw new Error("hook-owner reconciliation ran outside its begin lifecycle");
   }
-  const owners = new Map<string, HookOwners>();
-  const dataShellNames = dataShellPropertyNames(ctx.project);
-  recordWalkedClassCarriers(owners, ctx.project);
-  for (const source of ctx.project.getSourceFiles()) {
-    const owner = ownerForPath(normalizedPath(source));
-    if (owner === undefined) {
-      continue;
-    }
-    for (const attribute of source.getDescendantsOfKind(SyntaxKind.JsxAttribute)) {
-      recordDirectJsxAttribute(owners, attribute, owner);
-    }
-    for (const spread of source.getDescendantsOfKind(SyntaxKind.JsxSpreadAttribute)) {
-      recordJsxSpread(owners, spread, owner, dataShellNames);
-    }
-    for (const call of source.getDescendantsOfKind(SyntaxKind.CallExpression)) {
-      recordCall(owners, call, owner);
-    }
-    for (const binary of source.getDescendantsOfKind(SyntaxKind.BinaryExpression)) {
-      recordAssignment(owners, binary, owner);
-    }
+  if (state.result !== undefined) {
+    return state.result;
   }
-  passProject = ctx.project;
-  passOwners = owners;
-  return owners;
+  recordWalkedClassCarriers(state.owners, state.collector);
+  for (const { spread, owner } of state.spreads) {
+    recordJsxSpread(state.owners, spread, { owner, collector: state.collector }, [...state.dataShellNames]);
+  }
+  state.result = state.owners;
+  return state.result;
+}
+
+export function hookOwnerWork(ctx: GateRunCtx): StaticClassCollector["work"] {
+  const state = hookPass;
+  if (state === undefined || state.passIdentity !== ctx.passIdentity || state.project !== ctx.project || state.files !== ctx.files) {
+    throw new Error("hook-owner work receipt ran outside its begin lifecycle");
+  }
+  return state.collector.work;
+}
+
+export function hookOwnerCollector(ctx: GateRunCtx): StaticClassCollector {
+  const state = hookPass;
+  if (state === undefined || state.passIdentity !== ctx.passIdentity || state.project !== ctx.project || state.files !== ctx.files) {
+    throw new Error("hook-owner collector requested outside its begin lifecycle");
+  }
+  return state.collector;
 }
