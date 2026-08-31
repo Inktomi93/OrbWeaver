@@ -8,8 +8,8 @@ import { ModalRegistryProbe } from "./_ct-stories.tsx";
 test("useModalRegistry resolves the ordered modal list + get(id) inside the provider", async ({ mount }) => {
   const probe = await mount(<ModalRegistryProbe />);
   const out = probe.locator("output");
-  // list() preserves MODAL_SLOT_IDS order; get("theme") resolves the member's title.
+  // list() preserves MODAL_SLOT_IDS order; get("newChat") resolves the member's title.
   // No `settings` slot since #866 S1 — the settings modal retired into the `config` SECTION.
-  await expect(out).toContainText("ids=theme,account,command,newChat,you");
-  await expect(out).toContainText("theme=Theme");
+  await expect(out).toContainText("ids=account,command,newChat,you");
+  await expect(out).toContainText("newChat=New chat");
 });

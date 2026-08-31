@@ -18,15 +18,41 @@ const ANCHOR_WAIT_MS = 5000;
 const SPY_REARM_FALLBACK_MS = 700;
 
 /** Suppress the scroll-spy for the duration of a programmatic jump so smooth-scroll can't flicker the LIST.
- *  Re-arms on the container's `scrollend`, with a wall-clock fallback for a jump that never scrolls. */
+ *  Re-arms on the container's `scrollend` — but only one that FOLLOWS a real scroll event: a jump whose
+ *  smooth scroll starts a beat later (the fold-landing path waits for the panel's anchor to mount, #866
+ *  S4) can see a stray `scrollend` from a prior adjustment first, and re-arming on it hands the spy the
+ *  MID-FLIGHT frames it exists to skip (measured: an Effects landing lit "Sizing & motion" on the way).
+ *  The wall-clock fallback refreshes per scroll event, so it fires only after the motion truly stops. */
 function beginProgrammaticScroll(contentRef: RefObject<HTMLDivElement | null>, suppressSpyRef: RefObject<boolean>): void {
   suppressSpyRef.current = true;
   const container = contentRef.current;
+  let sawScroll = false;
+  let fallback: ReturnType<typeof globalThis.setTimeout> | undefined;
+  const cleanup = (): void => {
+    container?.removeEventListener("scroll", onScroll);
+    container?.removeEventListener("scrollend", onScrollEnd);
+    globalThis.clearTimeout(fallback);
+  };
   const rearm = (): void => {
     suppressSpyRef.current = false;
+    cleanup();
   };
-  container?.addEventListener("scrollend", rearm, { once: true });
-  globalThis.setTimeout(rearm, SPY_REARM_FALLBACK_MS);
+  const refreshFallback = (): void => {
+    globalThis.clearTimeout(fallback);
+    fallback = globalThis.setTimeout(rearm, SPY_REARM_FALLBACK_MS);
+  };
+  const onScroll = (): void => {
+    sawScroll = true;
+    refreshFallback();
+  };
+  const onScrollEnd = (): void => {
+    if (sawScroll) {
+      rearm();
+    }
+  };
+  container?.addEventListener("scroll", onScroll, { passive: true });
+  container?.addEventListener("scrollend", onScrollEnd);
+  refreshFallback();
 }
 
 /** Scroll the CONTENT scroller back to its top — deferred a frame like every other programmatic scroll here

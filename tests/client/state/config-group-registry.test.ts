@@ -30,11 +30,12 @@ const library: ConfigGroupDefinition = {
   description: "d",
   body: {
     kind: "collection",
+    // The LIVE contract's required arms, structurally (list · detail · context · create · emptyText).
     collection: {
-      emptyText: "No tags yet.",
+      emptyText: "none yet",
       list: () => null,
       detail: () => null,
-      context: { kind: "none", title: "t", description: "d" },
+      context: { kind: "none", title: "Nothing to attach", description: "d" },
       create: { label: "New tag", useRun: () => () => undefined },
     },
   },

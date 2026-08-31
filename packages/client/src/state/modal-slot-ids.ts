@@ -24,8 +24,10 @@
 // settings overlay was the standing "section content in a modal" exception, and it retired into the
 // Configuration SECTION (rail label "Settings", the foot slot). Nothing tombstones — the union is closed,
 // so tsc enumerated every `openModal("settings")` and each became `openConfigTo(group)`.
+// `theme` LEFT this tuple with S4 (#297/F-2, owner-ruled 2026-08-30): the picker + builder folded INTO
+// the Appearance group's Looks section (apply-not-mode), and the rail foot shrank to the Settings section
+// + the persona slot. tsc enumerated every `openModal("theme")`.
 export const MODAL_SLOT_IDS = [
-  "theme",
   "account",
   "command",
   "newChat",

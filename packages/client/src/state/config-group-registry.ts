@@ -153,6 +153,14 @@ export interface ConfigGroupBase {
    *  group — a collection's members over the same cache-first list query its roster already loaded, the
    *  persona names. Called unconditionally over the door-frozen registry (the `useCount` discipline). */
   readonly useSearchRows?: () => readonly ConfigSearchRow[];
+  /** The group's ADVANCED FOLD (#297's explicit custom arm — config-revamp-design.md §7.3): sections
+   *  contributed with `advanced: true` render inside ONE collapsed-by-default disclosure the host draws
+   *  with this label. `caption` is a RENDER (a component may read its own data — Appearance's names the
+   *  current look), never a hook the host would have to call conditionally. Declaring a fold with zero
+   *  advanced sections renders nothing; advanced sections without a fold render in plain order (the
+   *  declaration is the wall, not a runtime guess). LIST rows and search are UNTOUCHED — the fold is a
+   *  CONTENT posture, and a landing whose target names a folded section opens it first. */
+  readonly advancedFold?: { readonly label: string; readonly caption?: () => ReactNode };
 }
 
 /** A config group as ONE definition. `body` is the §3.1 union. */

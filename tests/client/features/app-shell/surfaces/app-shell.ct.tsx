@@ -377,18 +377,14 @@ test("a collapsed CONTEXT body mounts only when opened, then follows the active 
   expect(await panelText()).not.toContain("chats context pane");
 });
 
-test("a footer modal trigger (derived from the modal registry) opens its real body", async ({ mount, page }) => {
+test("the rail foot carries NO modal trigger — Settings routes as a SECTION (#866 S4)", async ({ mount, page }) => {
   const shell = await mount(<AppShellStory />);
-  // The rail.end "Switch theme" button DERIVES from the modal registry (themeModal.trigger) — the ONE
-  // rail-foot modal left once the settings modal retired into the `config` SECTION (#866 S1).
-  await shell.getByRole("button", { name: "Switch theme" }).click();
-  const dialog = page.getByRole("dialog");
-  await expect(dialog).toBeVisible();
-  // The registry-owned theme modal renders the real picker (title from the definition).
-  await expect(dialog).toContainText("Theme");
-  // Close returns to no dialog.
-  await page.getByRole("button", { name: "Close" }).click();
+  // The `theme` modal retired into the Appearance group's Looks section (#297/F-2): the foot is the
+  // Settings section button + the persona identity widget, and clicking Settings ROUTES — no dialog.
+  await expect(shell.getByRole("button", { name: "Switch theme" })).toHaveCount(0);
+  await shell.locator(".shell-rail").getByRole("button", { name: "Settings", exact: true }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(shell.locator(".shell-rail").getByRole("button", { name: "Settings", exact: true })).toHaveAttribute("aria-current", "page");
 });
 
 // finalFocus (§13.8 R1 · side-eye P3): the store-driven modal mounts already-open (no DialogTrigger), so
@@ -396,7 +392,7 @@ test("a footer modal trigger (derived from the modal registry) opens its real bo
 // returns to the theme control, not lost to <body>. A keyboard user's place is preserved.
 test("closing a modal returns focus to the control that opened it (finalFocus)", async ({ mount, page }) => {
   const shell = await mount(<AppShellStory />);
-  const trigger = shell.getByRole("button", { name: "Switch theme" });
+  const trigger = shell.getByRole("button", { name: "open new chat" });
   await trigger.focus();
   await trigger.press("Enter");
   await expect(page.getByRole("dialog")).toBeVisible();
@@ -535,18 +531,18 @@ test("rapid command shortcuts own one pending frame and unmount cancels it", asy
   expect(await readProbe()).toEqual({ canceled: 1, pending: 0, requested: 1 });
 });
 
-test("an open Theme modal owns the overlay and the command shortcut does nothing", async ({ mount, page }) => {
+test("an open New-chat modal owns the overlay and the command shortcut does nothing", async ({ mount, page }) => {
   const shell = await mount(<AppShellStory />);
-  await shell.getByRole("button", { name: "Switch theme" }).click();
+  await shell.getByRole("button", { name: "open new chat" }).click();
   const dialog = page.getByRole("dialog");
-  await expect(dialog).toContainText("Theme");
+  await expect(dialog).toContainText("New chat");
   const close = dialog.getByRole("button", { name: "Close" });
   await close.focus();
 
   expect(await dispatchCommandKey(page, { metaKey: true })).toBe(false);
   await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
 
-  await expect(dialog).toContainText("Theme");
+  await expect(dialog).toContainText("New chat");
   await expect(page.getByRole("dialog", { name: "Jump to…" })).toHaveCount(0);
   await expect(close).toBeFocused();
 });
@@ -594,10 +590,8 @@ test("the command keydown listener does not duplicate across rerenders and is re
   expect(await dispatchCommandKey(page, { metaKey: true })).toBe(false);
 });
 
-for (const handoff of [
-  { name: "Theme", trigger: "Switch theme" },
-  { name: "Jump", trigger: "Jump to…" },
-] as const) {
+// The Theme arm retired with the modal (#866 S4) — Jump is the sheet's surviving modal handoff.
+for (const handoff of [{ name: "Jump", trigger: "Jump to…" }] as const) {
   test(`MOBILE: You-sheet ${handoff.name} handoff returns focus to the durable You tab`, async ({ mount, page }) => {
     await page.setViewportSize(MOBILE);
     const shell = await mount(<AppShellStory />);
@@ -739,7 +733,7 @@ test("the command palette reserves a compact, stable result viewport while filte
 // control, and the first Enter must not close it.
 test("a modal opens with focus in its BODY, not on Close — Enter must not immediately dismiss it", async ({ mount, page }) => {
   const shell = await mount(<AppShellStory />);
-  await shell.getByRole("button", { name: "Switch theme" }).click();
+  await shell.getByRole("button", { name: "open new chat" }).click();
   const dialog = page.getByRole("dialog");
   await expect(dialog).toBeVisible();
 
@@ -1086,7 +1080,6 @@ test("mobile: the bottom bar is the curated four; overflow + footer affordances 
   await expect(page.getByRole("button", { name: "Corpus" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Refinery" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Analytics" })).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Switch theme" })).toHaveCount(0);
   // The ballooning guard: rendered mobile-bar buttons (`mobile: "tab"` sections + "You") must never
   // exceed the thumb-reach budget — a def flipping to `mobile: "tab"` must not silently balloon it. The
   // rail is now ONE DOM list (no `.shell-rail-mobile` twin); `getByRole` counts only the VISIBLE buttons,
@@ -1137,11 +1130,11 @@ test("mobile: the You tab opens the sheet; an overflow section routes and closes
   const shell = await mount(<AppShellStory />);
   await shell.getByRole("button", { name: "You", exact: true }).click();
 
-  // The sheet is a BLIND PROJECTION over the resolved chrome list: the rail.end footer modals (theme/
-  // settings, labelled by their trigger), the persona identity widget's sheet lens (Playing-as header +
-  // Account strip — mobile persona switching lives HERE), and the `mobile:"sheet"` overflow sections.
+  // The sheet is a BLIND PROJECTION over the resolved chrome list: the rail.end Settings SECTION row
+  // (the theme modal retired into its Appearance group, #866 S4), the persona identity widget's sheet
+  // lens (Playing-as header — mobile persona switching lives HERE), and the overflow sections.
   await expect(page.getByRole("button", { name: "Settings" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Switch theme" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Switch theme" })).toHaveCount(0);
   await expect(page.getByText("Playing as")).toBeVisible();
   // …and it is the CURRENT persona's row that says it (the row is the identity's ONE home, P2). The row's
   // select target is STATE-AWARE (side-eye 2026-08-07 P3a): on the persona you are already playing as it is
@@ -2307,7 +2300,7 @@ test("Escape closes an open modal without any panel-dismiss side effect (the yie
 
   // No panel overlay open; a modal IS open. scrimVisible is false here, so the shell's own listener is
   // not even attached (see the `!layout.scrimVisible` short-circuit) — Escape reaches Base UI untouched.
-  await shell.getByRole("button", { name: "Switch theme" }).click();
+  await shell.getByRole("button", { name: "open new chat" }).click();
   const dialog = page.getByRole("dialog");
   await expect(dialog).toBeVisible();
 

@@ -82,6 +82,6 @@ test("parseGotoTarget decodes settings:<group> to openConfig (the CLI keeps its 
 });
 
 test("parseGotoTarget decodes modal:<slot> to openModal", () => {
-  expect(parseGotoTarget("modal:theme")).toEqual({ method: "openModal", arg: "theme" });
-  expect(parseGotoTarget("modal:theme")).toEqual({ method: "openModal", arg: "theme" });
+  expect(parseGotoTarget("modal:you")).toEqual({ method: "openModal", arg: "you" });
+  expect(parseGotoTarget("modal:you")).toEqual({ method: "openModal", arg: "you" });
 });

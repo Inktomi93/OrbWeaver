@@ -28,6 +28,7 @@ import {
 import { connectionsHostClaudeSection, connectionsKeysSection, connectionsRolesSection } from "#features/credentials";
 import { personaNotificationsSection, personaRosterSection, personaThisChatSection } from "#features/persona";
 import { pluginDistributeSection, pluginsInstalledSection, pluginsInstallSection } from "#features/plugin";
+import { appearanceLooksSection } from "#features/settings";
 import {
   adminApprovalsSection,
   adminCatalogSection,
@@ -108,10 +109,13 @@ export const configSections = createContributorRegistry<ConfigSectionContributio
   workloadsJobsSection,
   workloadsSchedulesSection,
   workloadsTuningSection,
-  // appearance ← the DECOMPOSED appearance pane (SET-SEAMS stage 1). Order here IS render order down the
-  // pane, and it reproduces the pre-split pane exactly. Each section is owned by the feature that READS its
-  // knobs (§6): chat renders the message chrome, app-shell paints sizing/reading/effects/background, and
-  // character reads the library page size.
+  // appearance ← LOOKS leads (#866 S4/#297 — the first appearance decision; the theme picker + builder
+  // folded in from the retired `theme` modal), then the DECOMPOSED appearance pane (SET-SEAMS stage 1) in
+  // its pre-split order. Each section is owned by the feature that READS its knobs (§6): settings owns the
+  // theme (D114), chat renders the message chrome, app-shell paints sizing/reading/effects/background, and
+  // character reads the library page size. The `advanced` sections render inside the group's
+  // "Customize this look" fold (collapsed by default — the #297 explicit custom arm).
+  appearanceLooksSection,
   appearanceMessageStyleSection,
   appearanceAvatarsSection,
   appearanceSizingSection,

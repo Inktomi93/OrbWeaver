@@ -65,7 +65,7 @@ import { refinerySection } from "#features/refinery";
 import { regexGroup } from "#features/regex";
 import { castGroup, savedCastsModal } from "#features/roster-preset";
 import { makeRpgContextTabs, makeRpgHudRegion, rpgDiceAskSource, rpgDiceToolRenderer, rpgTurnToolCallsSurface } from "#features/rpg";
-import { appearanceGroup, chatBehaviorGroup, themeModal } from "#features/settings";
+import { appearanceGroup, chatBehaviorGroup } from "#features/settings";
 import { analyticsSection } from "#features/stats";
 import { tagsGroup } from "#features/tag";
 import { adminGroup } from "#features/user-admin";
@@ -296,7 +296,6 @@ const sections = createRegistry("sections", SECTION_IDS, {
 // The ONE modal assembly (§6d/G8): total over MODAL_SLOT_IDS by tsc; delivered as a context value so
 // ModalHost reads it without a #features import.
 const modals = createRegistry("modals", MODAL_SLOT_IDS, {
-  theme: themeModal,
   account: accountModal,
   command: commandModal,
   newChat: newChatModal,

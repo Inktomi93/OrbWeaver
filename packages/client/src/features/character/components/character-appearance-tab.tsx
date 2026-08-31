@@ -25,11 +25,13 @@ import { cardEmbeddableSubset, THEME_FONT_ALLOWLIST, THEME_RADII } from "@orb/co
 import type { CharacterId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { FieldLayout } from "@orb/ui/field";
+import { ChevronDown, Icon } from "@orb/ui/icons";
 import { Grid, Row, Section, Stack } from "@orb/ui/layout";
+import { Menu, MenuItem, MenuPopup, MenuTrigger } from "@orb/ui/menu";
 import type { SelectItems } from "@orb/ui/select";
-import { Select } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import { ThemeScope } from "@orb/ui/theme-scope";
+import { ThemeSwatchStrip } from "@orb/ui/theme-swatch";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { BackgroundSourceField } from "#components";
@@ -290,27 +292,39 @@ function SaveAsThemeButton({ characterName, override }: { readonly characterName
 
 /** Door 2 — the INVERSE: seed this card from a picker theme. A plain read (never suspending — the theme
  *  cluster must render even while the theme library read is slow or failing) whose value never sticks: the
- *  control is an ACTION, so it keeps showing its placeholder and each pick re-seeds the form. */
+ *  control is an ACTION, so each pick re-seeds the form and the trigger keeps its label. REBUILT on the
+ *  Looks grammar (#866 S4, owner addendum #3 — a theme is SEEN, so a name-only Select was the
+ *  seen-not-read shoehorn): each row is the shared swatch STRIPE + the name, the SAME derivation the
+ *  Looks cards paint with. Selecting SEEDS the override form — never applies a theme (line ~262's
+ *  "selecting is the picker's one applying act" contract holds exactly: this door applies nothing). */
 function StartFromThemeField({ onPick }: { readonly onPick: (theme: Theme) => void }): ReactElement {
   const trpc = useTRPC();
   const { data: themes } = useQuery(trpc.settings.listThemes.queryOptions());
-  const items: SelectItems<string> = (themes ?? []).map((theme) => ({ value: theme.id, label: theme.name }));
+  const rows = themes ?? [];
 
   return (
-    <Select
-      aria-label="Start from a theme"
-      disabled={items.length === 0}
-      items={items}
-      layout="inline"
-      placeholder="Start from a theme…"
-      value={null}
-      onValueChange={(value): void => {
-        const picked = themes?.find((theme) => theme.id === String(value));
-        if (picked !== undefined) {
-          onPick(picked);
+    <Menu>
+      <MenuTrigger
+        render={
+          <Button disabled={rows.length === 0} intent="secondary" size="sm">
+            Start from a theme…
+            <Icon icon={ChevronDown} size="xs" />
+          </Button>
         }
-      }}
-    />
+      />
+      <MenuPopup>
+        {rows.map((theme) => (
+          <MenuItem key={theme.id} onClick={(): void => onPick(theme)}>
+            <Row align="center" gap="field" className="min-w-0">
+              <ThemeSwatchStrip tokens={theme.override} />
+              <Text as="span" className="min-w-0 truncate">
+                {theme.name}
+              </Text>
+            </Row>
+          </MenuItem>
+        ))}
+      </MenuPopup>
+    </Menu>
   );
 }
 

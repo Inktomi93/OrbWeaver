@@ -21,7 +21,6 @@
     { "name": "settings-admin", "args": ["/", "--goto", "settings:admin"] },
     { "name": "settings-tags", "args": ["/", "--goto", "settings:tags"] },
     { "name": "settings-plugins", "args": ["/", "--goto", "settings:plugins"] },
-    { "name": "modal-theme", "args": ["/", "--goto", "modal:theme"] },
     { "name": "modal-account", "args": ["/", "--goto", "modal:account"] },
     { "name": "modal-command", "args": ["/", "--goto", "modal:command"] },
     { "name": "modal-new-chat", "args": ["/", "--goto", "modal:newChat"] },
