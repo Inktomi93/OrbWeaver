@@ -49,6 +49,8 @@ const CLIENT = "^packages/client/src/";
 const UI = "^packages/ui/src/";
 const SRV = "^packages/server/src/";
 const TEST_FILES = "\\.(test|int\\.test|contract\\.test|parity\\.test|spec|test-d|ct)\\.[jt]sx?$";
+const CLIENT_CSS_ENTRY = `${CLIENT}styles/index\\.ts$`;
+const CLIENT_SHELL_CSS = `${CLIENT}features/app-shell/surfaces/shell\\.css$`;
 
 /** Domain fixed-slot subdirs (the uniform 8-slot template, structure.md §4). Anything ELSE under a
  *  feature dir is a named SUBSYSTEM (engine/ assembly/ memory/ themes/ …) — substrate-mediated. */
@@ -123,12 +125,24 @@ module.exports = {
     {
       name: "client-feature-front-door",
       comment:
-        "Enter a client feature through its PUBLIC API (features/<name>/index.ts), not its internals — so a feature can refactor freely (UI-Arch §2.1). Callers outside features/ (routes/data/forms/lib/main) import the index only; the front-door mirror of the server's domain-feature-front-door.",
+        "Enter a client feature through its PUBLIC API (features/<name>/index.ts), not its internals — so a feature can refactor freely (UI-Arch §2.1). Callers outside features/ (routes/data/forms/lib/main) import the index only; the front-door mirror of the server's domain-feature-front-door. The exact styles/index.ts → app-shell/surfaces/shell.css stylesheet edge is governed together with client-css-front-door-shell-only because client-architecture-lockdown.md §4.5 mandates that source order.",
       severity: "error",
-      from: { path: CLIENT, pathNot: `${CLIENT}features/` },
+      from: { path: CLIENT, pathNot: [`${CLIENT}features/`, CLIENT_CSS_ENTRY] },
       to: {
         path: `${CLIENT}features/[^/]+/.+`,
         pathNot: `${CLIENT}features/[^/]+/index\\.ts$`,
+      },
+    },
+    {
+      name: "client-css-front-door-shell-only",
+      comment:
+        "The second half of the relational CSS-front-door exception: modules under client/styles may not import feature internals other than app-shell/surfaces/shell.css. Combined with client-feature-front-door (which exempts only styles/index.ts as a source), client-architecture-lockdown.md §4.5's exact styles/index.ts → shell.css edge is legal while every other source/target pairing remains forbidden (#959).",
+      severity: "error",
+      from: { path: `${CLIENT}styles/` },
+      to: {
+        path: `${CLIENT}features/[^/]+/.+`,
+        pathNot: CLIENT_SHELL_CSS,
+        dependencyTypes: ["import"],
       },
     },
     {

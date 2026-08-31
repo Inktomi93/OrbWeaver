@@ -99,6 +99,10 @@ function writeAllFixtures(): void {
   fx("packages/client/src/features/__dc_cfeat/cross.ts", `import "../__dc_cfeat2/index.ts";\n`);
   // client-feature-front-door: a non-feature caller (routes/) imports a feature INTERNAL, not its index.
   fx("packages/client/src/routes/__dc_frontdoor.ts", `import "../features/__dc_cfeat/internal.ts";\n`);
+  // The split rules grant only styles/index.ts → shell.css: the broad rule catches another caller of
+  // shell.css, while the styles-side rule catches another feature-internal target from styles/.
+  fx("packages/client/src/routes/__dc_shell_css_bypass.ts", `import "../features/app-shell/surfaces/shell.css";\nexport const bypass = true;\n`);
+  fx("packages/client/src/styles/__dc_css_frontdoor_bypass.ts", `import "../features/__dc_cfeat/internal.ts";\nexport const bypass = true;\n`);
   // confirm-uses-composite: a features/** module importing the raw @orb/ui/alert-dialog primitive
   // instead of the tier-2 ConfirmDialog composite (client-architecture-lockdown.md §16 G7).
   fx("packages/client/src/features/__dc_confirm/alert.ts", `import { AlertDialog } from "@orb/ui/alert-dialog";\nexport const g = AlertDialog;\n`);
@@ -338,4 +342,14 @@ test("the TV seal catches the planted runtime factory and preserves type-only Va
   const tvViolations = allViolations.filter((violation) => violation.rule.name === "ui-tailwind-variants-runtime-seal");
   expect(tvViolations.some((violation) => violation.from.endsWith("ui/src/__dc/tv-factory-sealbreach.ts"))).toBe(true);
   expect(tvViolations.some((violation) => violation.from.endsWith("ui/src/__dc/tv-typeonly-ok.ts"))).toBe(false);
+});
+
+test("the exact CSS front door may import shell.css while every other importer remains sealed", () => {
+  const frontDoorViolations = allViolations.filter((violation) => violation.rule.name === "client-feature-front-door");
+  expect(frontDoorViolations.some((violation) => violation.from.endsWith("client/src/styles/index.ts"))).toBe(false);
+  expect(frontDoorViolations.some((violation) => violation.from.endsWith("client/src/routes/__dc_shell_css_bypass.ts"))).toBe(true);
+
+  const cssFrontDoorViolations = allViolations.filter((violation) => violation.rule.name === "client-css-front-door-shell-only");
+  expect(cssFrontDoorViolations.some((violation) => violation.from.endsWith("client/src/styles/index.ts"))).toBe(false);
+  expect(cssFrontDoorViolations.some((violation) => violation.from.endsWith("client/src/styles/__dc_css_frontdoor_bypass.ts"))).toBe(true);
 });
