@@ -1,3 +1,4 @@
+import { readFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 import { defineConfig, devices } from "@playwright/experimental-ct-react";
@@ -9,15 +10,17 @@ import tailwindcss from "@tailwindcss/vite";
 // `pnpm test:ct --retries=2` after the vitest projects (merged 2026-07-17 — the split existed only for the
 // old single-thread constraint). Still NOT in `pnpm check` (browser suites never gate the static tier).
 //
-// The harness page (playwright/index.{html,tsx}) loads the client's REAL stylesheet stack in the
-// production load order — shell.css, then @orb/ui/styles/globals.css (tailwind v4 + the GENERATED
-// @theme), then packages/client/src/styles/globals.css — so token utilities AND the client styles tier
-// (reading measure, reading typography, glass/grain, the transcript edge-fade mask) resolve in-browser
-// exactly as in the client build. See playwright/index.css for why the order is load-bearing (#114).
+// The harness page imports the client's REAL production stylesheet front door — shell.css, then
+// @orb/ui/styles/globals.css (tailwind v4 + the GENERATED @theme), then client globals — so token
+// utilities AND the client styles tier resolve in-browser exactly as in the client build. The pre-plugin
+// below appends only the tests/ source root to that production Tailwind root; playwright/index.css owns no
+// product import/source. Moving a product import changes one shared cascade contract (#114/#959).
 // `#` subpath imports resolve via package.json `imports` (vite ≥6 reads them); cross-package
 // imports resolve through the workspace — no aliases needed.
 
 const CT_PORT = 3100;
+const CLIENT_GLOBALS_CSS = path.resolve(import.meta.dirname, "packages/client/src/styles/globals.css");
+const CT_CSS_EXTENSION = path.resolve(import.meta.dirname, "playwright/index.css");
 
 export default defineConfig({
   testDir: "tests",
@@ -75,7 +78,20 @@ export default defineConfig({
     ctViteConfig: {
       // CT applies its OWN @vitejs/plugin-react internally — adding a second one double-transforms.
       // Cast: @tailwindcss/vite resolves vite@8 types; CT viteConfig expects vite@6 — structurally compatible.
-      plugins: [tailwindcss() as never],
+      plugins: [
+        {
+          name: "orb:ct-css-source-extension",
+          enforce: "pre",
+          async transform(code, id) {
+            if (path.resolve(id.split("?", 1)[0] ?? id) !== CLIENT_GLOBALS_CSS) {
+              return;
+            }
+            this.addWatchFile(CT_CSS_EXTENSION);
+            return `${code}\n${await readFile(CT_CSS_EXTENSION, "utf8")}`;
+          },
+        },
+        tailwindcss() as never,
+      ],
       // The client's static assets, served at the same absolute paths the stylesheets author. Without
       // this the CT harness resolves `/grain.svg` (client globals.css's film-grain tile) to a 404, so the
       // grain overlay computes exactly as production while painting NOTHING — a computed-style assertion

@@ -13,10 +13,10 @@
 //
 // SHELL.CSS (L6/J12): the rail is now ONE DOM list that shell.css's `@media` reflows — the desktop icon
 // column vs the mobile bottom tab bar — with `[data-mobile="sheet"]` entries + the desktop-only chrome
-// hidden (`display:none`, which also removes them from the a11y tree). AppShell imports shell.css itself,
-// but the bare RailStory does not, so import it HERE too — otherwise the reflow rules are absent and the
-// desktop label spans render inline (doubling each section's visible text). At the CT's desktop viewport
-// (1280px > 48rem) the desktop icon column shows, matching production.
+// hidden (`display:none`, which also removes them from the a11y tree). The CT bootstrap imports the SAME
+// ordered CSS front door as production, so even bare RailStory mounts receive that rule without this story
+// maintaining an independent stylesheet roster. At the CT's desktop viewport (1280px > 48rem) the desktop
+// icon column shows, matching production.
 
 import { AppShell, YouSheet } from "@orb/client/features/app-shell";
 import type { ContextRegionDef, ContextTabDef, ContributorRegistry, ResolvedContextTab } from "@orb/client/lib";
@@ -55,10 +55,8 @@ import { SectionContextHeader, SectionContextHost } from "../../../../packages/c
 // internal the front door does not re-export). Same absolute file the app resolves, so the React/provider
 // context is the one `CtDataProviders` mounts — the `tests/client/features/chat` stories reach it this way.
 import { ChatHeaderSurface } from "../../../../packages/client/src/features/chat/components/chat-header.tsx";
-import "../../../../packages/client/src/features/app-shell/surfaces/shell.css";
 import type { ModalSlotId } from "../../../../packages/client/src/state/modal-slot-ids.ts";
 import { openModal, setActiveSection, useActiveSection, useContextTab } from "../../../../packages/client/src/state/shell-store.ts";
-import "../../../../packages/client/src/styles/globals.css";
 import {
   CtDataProviders,
   CtFakeModalRegistry,

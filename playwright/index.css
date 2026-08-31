@@ -1,29 +1,5 @@
-/* The CT harness stylesheet: @orb/ui's globals (tailwind + the generated @theme) + the explicit
- * source roots tailwind must scan for class usage (v4 auto-detection anchors at the css file's
- * package — the ui sources + the .ct.tsx specs live elsewhere). The client FEATURE sources are
- * scanned too: client-feature CTs mount real feature components, and a feature-only utility (e.g.
- * the Members panel's `pointer-fine:group-hover/member:flex` reveal) must compile into the CT
- * bundle or the CT renders different pixels than prod (caught 2026-07-13 — the inline-cluster
- * hover reveal was invisible in CT while fine in the app build). */
-/* LOAD ORDER MIRRORS THE PRODUCTION BUNDLE, and it is load-bearing (#114, 2026-08-16). Measured off a
- * real `pnpm build` output (packages/client/dist/assets/index-*.css): shell.css lands FIRST (it rides
- * app-shell.tsx, imported before main.tsx's stylesheet line), then @orb/ui's globals (theme + base +
- * tailwind utilities, pulled in by the client sheet's own first `@import`), then the client tier's own
- * rules LAST. shell.css and client globals both declare the BLUR_SURFACES selectors at identical
- * specificity, so flipping them silently changes which one wins — reproduce prod, don't improve on it.
- *
- * The shell's own CSS carries geometry a shell-component CT depends on to render prod pixels — e.g. the
- * context panel's container, the childless generic-band collapse, and the full-bleed bracket body. Without
- * it a bracket CT measures a different panel and edge geometry than production. */
-@import "../packages/client/src/features/app-shell/surfaces/shell.css";
-/* The CLIENT styles tier — the reading measure (`--reading-measure` cap on
- * [data-slot="message-content-column"]), reading typography, the glass/grain/colorization surface
- * treatments, and the transcript edge-fade mask. It `@import`s `@orb/ui/styles/globals.css` itself as its
- * first line, which is why this file no longer imports @orb/ui directly: a second `@import` of the same
- * sheet re-emits the whole tailwind layer after shell.css and flips that precedence. Before #114 the
- * harness loaded only the ui + shell sheets, so every rule in the client tier was structurally invisible
- * to every CT and a styles-tier regression could not red one. */
-@import "../packages/client/src/styles/globals.css";
-@source "../packages/ui/src";
-@source "../packages/client/src";
-@source "../tests";
+/* CT-only Tailwind scan extension. playwright-ct.config.ts appends this to the production Tailwind
+ * root before compilation; product imports and product @source roots come exclusively from the shared
+ * @orb/client/styles front door. The path is relative to packages/client/src/styles/globals.css, the
+ * injection target, not to this file. No product import/source belongs here. */
+@source "../../../../tests";

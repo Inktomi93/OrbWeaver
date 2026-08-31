@@ -1166,6 +1166,8 @@ const UNFIXTURABLE_GATES = new Set([
   "message-kind-policy-coverage",
   "tokens-contract",
   "css-family-ownership",
+  // The unit is the canonical production/CT front doors; a __g file cannot perturb their exact graph.
+  "playwright-css-topology",
 ]);
 
 let registry = new Set<string>();

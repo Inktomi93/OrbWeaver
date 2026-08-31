@@ -1,10 +1,9 @@
 // Cascade-contract fixtures (non-test module — Spine-Testing §7: CT mounts ONLY from a non-test
-// module). A bare `.shell-grid`-shaped DOM with shell.css + the client's globals.css (the glass
-// recipe) ACTUALLY IMPORTED, so computed-style assertions in shell-cascade.ct.tsx exercise the real
-// cascade rules — not a re-implementation of them. No AppShell data/query graph is needed: the bug
-// class this guards (specificity ties between unlayered plain-CSS rules) lives entirely in the CSS,
-// not in any component logic, so a minimal DOM with the same classes/attributes/slots reproduces it
-// exactly.
+// module). A bare `.shell-grid`-shaped DOM under the CT bootstrap's production CSS front door, so
+// computed-style assertions in shell-cascade.ct.tsx exercise the real cascade rules — not a
+// re-implementation or a fixture-local import roster. No AppShell data/query graph is needed: the bug
+// class this guards (specificity ties between unlayered plain-CSS rules) lives entirely in the CSS, not in
+// any component logic, so a minimal DOM with the same classes/attributes/slots reproduces it exactly.
 
 import type { BlurSurface, SurfaceTexture } from "@orb/contracts/settings";
 import type { ThemeDensity } from "@orb/contracts/theme";
@@ -12,8 +11,6 @@ import type { MessageRole } from "@orb/kit/message-role";
 import { Surface } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { useAppearanceRootEffects } from "../../../../packages/client/src/features/app-shell/hooks/use-appearance-root-effects.ts";
-import "../../../../packages/client/src/features/app-shell/surfaces/shell.css";
-import "../../../../packages/client/src/styles/globals.css";
 
 /** Roughly a production list panel (346px, reports/side-eye-138/L1.log) — see the probe comment below. */
 const PANEL_PROBE_WIDTH = "346px";

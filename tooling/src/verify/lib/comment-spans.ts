@@ -63,6 +63,14 @@ function blankTsCommentsUncached(sf: SourceFile): string {
 
 let scratchProject: Project | undefined;
 
+/** Comment-only twin for fs-read TypeScript/config files whose string literals remain semantic input
+ *  (imports, plugin names, paths). Uses the same parser-backed scratch door as the prose-blanking arm. */
+export function blankTsCommentsInText(text: string): string {
+  scratchProject ??= new Project({ useInMemoryFileSystem: true, skipFileDependencyResolution: true });
+  const sf = scratchProject.createSourceFile("comment-scan.tsx", text, { overwrite: true, scriptKind: ScriptKind.TSX });
+  return blankTsCommentsUncached(sf);
+}
+
 /** The string-prose token kinds: every span whose text is DATA, never a code reference. Template
  *  interpolation EXPRESSIONS are separate AST nodes and are deliberately not here — a real call inside
  *  a `${…}` is code and must survive the blanking. */
