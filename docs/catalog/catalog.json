@@ -439,9 +439,9 @@
       "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 375,
-      "bytes": 188767,
-      "sha256": "7b0ebfddd02d9a29c4cf984b5dde2d52dc651c1ca705795503e45654a63744b4",
+      "lines": 376,
+      "bytes": 189316,
+      "sha256": "b12d2ca79d4b0ca664fcde2ea6ecd798b21e2820ed001ae024e1f95c642411ef",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -454,14 +454,15 @@
       },
       "receipt": {
         "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
-        "assignedSha256": "7b0ebfddd02d9a29c4cf984b5dde2d52dc651c1ca705795503e45654a63744b4",
+        "assignedSha256": "b12d2ca79d4b0ca664fcde2ea6ecd798b21e2820ed001ae024e1f95c642411ef",
         "disposition": "current",
         "authority": "operational",
         "fullRead": true,
-        "verifiedSha256": "7b0ebfddd02d9a29c4cf984b5dde2d52dc651c1ca705795503e45654a63744b4",
-        "verifiedCommit": "8f30fb69044a85d687745fd39ab6f113c4f5f0cf",
+        "verifiedSha256": "b12d2ca79d4b0ca664fcde2ea6ecd798b21e2820ed001ae024e1f95c642411ef",
+        "verifiedCommit": "4bf9ed645967f99b49c3f0d0b07cc5e9d7d7cb5b",
         "verifiedAt": "2026-08-31",
         "evidence": [
+          "re-attested at 4bf9ed645 — playwright-css-topology and repaired no-tailwind-dark-variant are recorded beside css-var-defined; the discovered active count is 238",
           "re-attested at 8f30fb690 — css-var-defined is registered with its exact definition/reference/vendor/runtime denominators and the discovered active count is 237",
           "re-attested at b8eb66f00 — CSS family ownership and polarity rows now name their cold-refuted limits instead of presenting zero findings as complete enforcement; tokens-contract names the final #936 contract",
           "docs/architecture/core/Core-Enforcement-Active-Gates.md:1 (full read; header/status evaluated)",
@@ -1960,9 +1961,9 @@
       "path": "docs/architecture/core/client-architecture-lockdown.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 802,
-      "bytes": 137828,
-      "sha256": "c072697c8d514b44c87e2eff56e32b65acfd3dce3563209f6d59a49110283b78",
+      "lines": 803,
+      "bytes": 138147,
+      "sha256": "81aa33a915199da61223db4cbfd018da35163a26fbbca3d3f2c114948666f581",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -1975,14 +1976,15 @@
       },
       "receipt": {
         "path": "docs/architecture/core/client-architecture-lockdown.md",
-        "assignedSha256": "c072697c8d514b44c87e2eff56e32b65acfd3dce3563209f6d59a49110283b78",
+        "assignedSha256": "81aa33a915199da61223db4cbfd018da35163a26fbbca3d3f2c114948666f581",
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "c072697c8d514b44c87e2eff56e32b65acfd3dce3563209f6d59a49110283b78",
-        "verifiedCommit": "8f30fb69044a85d687745fd39ab6f113c4f5f0cf",
+        "verifiedSha256": "81aa33a915199da61223db4cbfd018da35163a26fbbca3d3f2c114948666f581",
+        "verifiedCommit": "4bf9ed645967f99b49c3f0d0b07cc5e9d7d7cb5b",
         "verifiedAt": "2026-08-31",
         "evidence": [
+          "re-attested at 4bf9ed645 — §4.5 records the one shared production/CT CSS front door and §4.6 records the repaired provenance-backed polarity gate",
           "re-attested at 8f30fb690 — §4.7 now records css-var-defined as the static value-resolution wall and removes undefined custom-property references from the known-unenforced list",
           "re-attested at b8eb66f00 — §4 now records the implemented portable/nonportable token partition, density ownership move, singular product polarity mechanism, exact #936 contract, and the honest #951/#954 enforcement limits",
           "re-attested at 2dffcffc4 — the CT cascade-order cite resolves to the actual repository path playwright/index.css; dangling-refs failure from the one authoritative pnpm check is closed",
@@ -10683,6 +10685,52 @@
           "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
         ],
         "summary": "Full-read historical operational artifact retained for provenance; not current build authority."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/design/961-static-class-provenance-repair.md",
+      "lane": "design",
+      "issue": 5,
+      "lines": 65,
+      "bytes": 5807,
+      "sha256": "0078cc298da95842fca5f810ffc4e0c6b25e75b65cc2515a9d4397bc934d21a2",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "design",
+          "status": "active",
+          "updated": "2026-08-31"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/design/961-static-class-provenance-repair.md",
+        "assignedSha256": "0078cc298da95842fca5f810ffc4e0c6b25e75b65cc2515a9d4397bc934d21a2",
+        "disposition": "current",
+        "authority": "design",
+        "fullRead": true,
+        "verifiedSha256": "0078cc298da95842fca5f810ffc4e0c6b25e75b65cc2515a9d4397bc934d21a2",
+        "verifiedCommit": "0952cc4623ea0bca4dd8b3b55984866d04ec6ca9",
+        "verifiedAt": "2026-08-31",
+        "evidence": ["docs/design/961-static-class-provenance-repair.md:1 (full read; red-first repair design and declared residual limits)"],
+        "summary": "Implemented #961 repair design for return-position composer ownership, local namespace re-exports, and JavaScript-correct object-spread overwrite/opacity semantics.",
+        "claims": [
+          {
+            "claim": "The three cold-refuted static-class semantics were repaired through work item #961.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#961"
+              },
+              {
+                "kind": "provenance",
+                "target": "git:0952cc4623ea0bca4dd8b3b55984866d04ec6ca9"
+              }
+            ]
+          }
+        ]
       },
       "receiptCurrent": true
     },
@@ -29209,9 +29257,9 @@
       "path": "docs/reviews/stickler/2026-08-30-css-census-doctrine-and-enforcement.md",
       "lane": "reviews",
       "issue": 7,
-      "lines": 1615,
-      "bytes": 133686,
-      "sha256": "ba9107f1f46847ac9fff5f4c8d44aa286eee6f84f59110c619bf5f3765dffb98",
+      "lines": 1621,
+      "bytes": 134332,
+      "sha256": "03828ca01fb95e3774ed9364bc79fb5bff487caa5c3f87afbaec55e291ce5623",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -29224,14 +29272,15 @@
       },
       "receipt": {
         "path": "docs/reviews/stickler/2026-08-30-css-census-doctrine-and-enforcement.md",
-        "assignedSha256": "ba9107f1f46847ac9fff5f4c8d44aa286eee6f84f59110c619bf5f3765dffb98",
+        "assignedSha256": "03828ca01fb95e3774ed9364bc79fb5bff487caa5c3f87afbaec55e291ce5623",
         "disposition": "current",
         "authority": "review",
         "fullRead": true,
-        "verifiedSha256": "ba9107f1f46847ac9fff5f4c8d44aa286eee6f84f59110c619bf5f3765dffb98",
-        "verifiedCommit": "8f30fb69044a85d687745fd39ab6f113c4f5f0cf",
+        "verifiedSha256": "03828ca01fb95e3774ed9364bc79fb5bff487caa5c3f87afbaec55e291ce5623",
+        "verifiedCommit": "4bf9ed645967f99b49c3f0d0b07cc5e9d7d7cb5b",
         "verifiedAt": "2026-08-31",
         "evidence": [
+          "re-attested at 4bf9ed645 — the #961 repair, integrated #954 focused matrix, and #959 shared production/CT topology are reconciled while the grouped train barrier remains pending",
           "re-attested at 8f30fb690 — #952 is recorded as implemented with exact source/definition/reference, Base UI, runtime-writer, and focused-proof receipts while the grouped CSS-train barrier remains pending",
           "re-attested at b8eb66f00 after the 2026-08-31 reconciliation: issue-summary counts, #921 current state, #936 token contract, Tailwind compiler namespace correction, #951/#954 limits, and the exact #961 cold refutation are recorded in the durable program",
           "docs/reviews/stickler/2026-08-30-css-census-doctrine-and-enforcement.md:1-1405 read IN FULL by the orchestrator (claude-b) before the receipt — the gate refused a reviewed disposition at fullRead:false and was right to; lane cb-css-census (stickler, Opus override) read all 3,169 authored CSS lines end to end and drove 312 comment-stripped selectors against seven live surfaces",
