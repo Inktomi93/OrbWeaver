@@ -31,6 +31,9 @@ export const FLAG_HANDLERS: Record<string, FlagHandler> = {
   "--help": (a) => {
     a.help = true;
   },
+  "--materialize-devtools-assets": (a) => {
+    a.materializeDevToolsAssets = true;
+  },
   "-h": (a) => {
     a.help = true;
   },
@@ -294,6 +297,10 @@ export const FLAG_HANDLERS: Record<string, FlagHandler> = {
     if (sel !== undefined && sel !== "") {
       a.contrast.push({ selector: sel, page });
     }
+  },
+  "--cascade": (a, rest, page) => {
+    const value = splitLastEq(rest.shift() ?? "");
+    a.cascade.push({ selector: value.head, property: value.tail, page });
   },
   "--contrast-pixel": (a) => {
     a.contrastPixel = true;

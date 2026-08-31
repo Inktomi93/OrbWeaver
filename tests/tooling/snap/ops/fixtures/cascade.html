@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Snap cascade provenance fixture</title>
+    <style>
+      @layer low { #layered { color: red; } }
+      #layered { color: blue; }
+      .specific { color: red; }
+      #specific { color: blue; }
+      #inline { color: red; }
+      #parent { color: purple; }
+      #custom { --tone: orange; color: var(--missing, var(--tone)); }
+      #cycle { --a: var(--b); --b: var(--a); color: var(--a, green); }
+      #undefined { color: var(--void, teal); }
+      @keyframes pulse { from { color: red; } to { color: blue; } }
+      #animation { color: black; animation: pulse 100s linear infinite; }
+      #transition { color: red; transition: color 100s linear; }
+      #transition.on { color: blue; }
+      #important { color: red !important; }
+      .important-loser { color: blue; }
+      #longhand { margin: 1px; margin-left: 4px; }
+      #owner-wins, #owner-loses { color: red; }
+      #owner-loses { color: red !important; }
+      #source-order { color: red; }
+      /*# sourceURL=/packages/ui/src/styles/globals.css */
+    </style>
+    <style>
+      #source-order { color: blue; }
+      /*# sourceURL=/packages/client/src/styles/globals.css */
+    </style>
+    <style data-orb-theme-css>
+      #owner-wins, #owner-loses { color: blue; }
+    </style>
+    <script>
+      globalThis.__orb = {
+        css: {
+          read: () => ({ status: "ok", enabled: true, calls: 1, conflictCalls: 0, deduplicatedConflictCalls: 0, receipts: [] }),
+          reset: () => {},
+        },
+      };
+    </script>
+  </head>
+  <body>
+    <main data-orb-cascade-fixture>
+      <div id="layered">layered</div>
+      <div id="specific" class="specific">specificity</div>
+      <div id="inline" style="color: lime">inline</div>
+      <div id="parent"><span id="inherited">inherited</span></div>
+      <div id="custom">custom fallback</div>
+      <div id="cycle">custom cycle</div>
+      <div id="undefined">undefined custom</div>
+      <div id="animation">animation</div>
+      <div id="transition">transition</div>
+      <div id="important" class="important-loser">important</div>
+      <div id="longhand">shorthand longhand</div>
+      <div id="owner-wins">owner wins</div>
+      <div id="owner-loses">owner loses</div>
+      <div id="source-order">source order</div>
+      <div id="computed-default">computed default</div>
+      <button id="user-agent" type="button">user agent</button>
+    </main>
+    <script>
+      requestAnimationFrame(() => requestAnimationFrame(() => document.querySelector("#transition").classList.add("on")));
+    </script>
+  </body>
+</html>

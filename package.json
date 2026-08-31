@@ -19,6 +19,7 @@
     "seed:demo": "node tooling/src/seed/cli.ts demo",
     "design-audit": "node tooling/src/ui-audit/cli.ts",
     "snap": "node tooling/src/snap/cli.ts",
+    "snap:devtools-assets": "node tooling/src/snap/cli.ts --materialize-devtools-assets",
     "ast": "node tooling/src/ast/cli.ts",
     "codemod": "node tooling/src/codemod/cli.ts",
     "knip": "knip --cache",

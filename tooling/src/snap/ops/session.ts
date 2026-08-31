@@ -3,9 +3,12 @@
 import { existsSync } from "node:fs";
 import { unlink } from "node:fs/promises";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { artifactDir } from "../../_shared/artifacts.ts";
 import type { LocalStorageSeed, ProbeLaunchOptions, ProbeSession } from "../../_shared/browser.ts";
 import { closeProbeSession, closeProbeSessionAfterError, launchProbeSession } from "../../_shared/browser.ts";
+import type { DevToolsCascadeRuntime } from "../../_shared/devtools-runtime.ts";
+import { prepareDevToolsCascadeRuntime } from "../../_shared/devtools-runtime.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { Args } from "../contract/types.ts";
 import { NETWORK_PROFILES, NO_CPU_THROTTLE } from "../lib/throttle.ts";
@@ -16,6 +19,8 @@ refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 // packages/client/src/lib/probe-mode.ts; the debug-token reader lands with its route.
 const PROBE_MODE_KEY = "orb:probe-mode";
 const DEBUG_TOKEN_KEY = "orb:debug-token";
+const DEVTOOLS_ASSET_ROOT = fileURLToPath(new URL("../lib/devtools-frontend", import.meta.url));
+const CASCADE_RUNTIMES = new WeakMap<ProbeSession, DevToolsCascadeRuntime>();
 // Harness-side determinism for --probe: floor every animation/transition and hide the
 // caret from FIRST PAINT (screenshot-time `animations:"disabled"` only rewinds at capture;
 // this kills mid-run flicker during steps too). Raw string — see _shared/browser.ts header.
@@ -81,19 +86,31 @@ type LaunchExtras = Partial<Pick<ProbeLaunchOptions, "pages" | "contexts" | "con
 
 export async function launchSnapSession(opts: Args, name: string, extras: LaunchExtras = {}): Promise<ProbeSession> {
   const traceDir = opts.failureEvidence ? await artifactDir("traces") : null;
-  const session = await launchProbeSession({
-    headless: !opts.vnc,
-    viewport: opts.viewport,
-    colorScheme: opts.colorScheme,
-    reducedMotion: opts.reducedMotion || opts.probe,
-    appearance: opts.appearance,
-    theme: opts.theme,
-    localStorage: buildSeeds(opts),
-    device: opts.device,
-    trace: opts.failureEvidence,
-    ...(traceDir === null ? {} : { harPathPrefix: join(traceDir, name) }),
-    ...extras,
-  });
+  const cascade = opts.cascade.length === 0 ? null : await prepareDevToolsCascadeRuntime(DEVTOOLS_ASSET_ROOT);
+  let launched: ProbeSession;
+  try {
+    launched = await launchProbeSession({
+      headless: !opts.vnc,
+      viewport: opts.viewport,
+      colorScheme: opts.colorScheme,
+      reducedMotion: opts.reducedMotion || opts.probe,
+      appearance: opts.appearance,
+      theme: opts.theme,
+      localStorage: buildSeeds(opts),
+      device: opts.device,
+      trace: opts.failureEvidence,
+      ...(traceDir === null ? {} : { harPathPrefix: join(traceDir, name) }),
+      ...(cascade === null ? {} : { persistentProfileDir: cascade.profileDir, browserArgs: cascade.browserArgs }),
+      ...extras,
+    });
+  } catch (error) {
+    await cascade?.close();
+    throw error;
+  }
+  const session: ProbeSession = cascade === null ? launched : { ...launched, cleanup: [cascade.close] };
+  if (cascade !== null) {
+    CASCADE_RUNTIMES.set(session, cascade);
+  }
   if (opts.probe) {
     try {
       await Promise.all(session.contexts.map(({ context }) => context.addInitScript({ content: PROBE_CSS_SCRIPT })));
@@ -107,6 +124,10 @@ export async function launchSnapSession(opts: Args, name: string, extras: Launch
     return await closeProbeSessionAfterError(session, error);
   }
   return session;
+}
+
+export function cascadeRuntimeFor(session: ProbeSession): DevToolsCascadeRuntime | null {
+  return CASCADE_RUNTIMES.get(session) ?? null;
 }
 
 // ── CDP load emulation (#826) ───────────────────────────────────────────────

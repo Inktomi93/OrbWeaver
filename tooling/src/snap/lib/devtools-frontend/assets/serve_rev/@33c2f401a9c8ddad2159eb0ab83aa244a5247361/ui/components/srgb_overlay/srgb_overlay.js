@@ -1,0 +1,9 @@
+var x=Object.defineProperty;var d=(i,e)=>{for(var o in e)x(i,o,{get:e[o],enumerable:!0})};var g={};d(g,{SrgbOverlay:()=>m});import*as l from"./../../../core/common/common.js";import*as f from"./../render_coordinator/render_coordinator.js";import{html as v,render as C}from"./../../lit/lit.js";var p=`:host{position:absolute;left:0;top:0;width:100%;height:100%}.gamut-line{stroke:color-mix(in srgb,var(--ref-palette-neutral100) 50%,transparent);fill:none}.label{position:absolute;bottom:3px;margin-right:5px;color:color-mix(in srgb,var(--ref-palette-neutral100) 50%,transparent)}
+/*# sourceURL=${import.meta.resolve("./srgbOverlay.css")} */`;var h=10,P=3,T=h+P,u=.001;function O(i){let e=l.Color.hsva2rgba([...i,1]),o=l.ColorConverter.ColorConverter.displayP3ToXyzd50(e[0],e[1],e[2]);return l.ColorConverter.ColorConverter.xyzd50ToSrgb(o[0],o[1],o[2]).every(t=>t+u>=0&&t-u<=1)}var m=class extends HTMLElement{#o=this.attachShadow({mode:"open"});#t({hue:e,width:o,height:n}){if(o===0||n===0)return null;let t=1/window.devicePixelRatio,r=[],s=0;for(let a=0;a<n;a+=t){let y=1-a/n;for(;s<o;s+=t){let b=s/o;if(!O([e,b,y])){r.push({x:s,y:a});break}}}if(r.length===0)return null;let c=r[r.length-1];return c.x<o&&r.push({y:c.y,x:o}),r}#r(e,o){let n=1/0,t=null;for(let r of e)Math.abs(o-r.y)<=n&&(n=Math.abs(o-r.y),t=r);return t}render({hue:e,width:o,height:n}){return f.write("Srgb Overlay render",()=>{let t=this.#t({hue:e,width:o,height:n});if(!t||t.length===0)return;let r=this.#r(t,n-T);r&&C(v`
+          <style>${p}</style>
+          <span class="label" style="right: ${o-r.x}px">sRGB</span>
+          <svg>
+            <polyline points=${t.map(s=>`${s.x.toFixed(2)},${s.y.toFixed(2)}`).join(" ")} class="gamut-line" />
+          </svg>
+        `,this.#o,{host:this})})}};customElements.define("devtools-spectrum-srgb-overlay",m);export{g as SrgbOverlay};
+//# sourceMappingURL=srgb_overlay.js.map

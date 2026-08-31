@@ -82,6 +82,11 @@ export interface ProbeLaunchOptions {
   readonly trace?: boolean;
   /** Prefix for per-context full HAR files. The caller removes green-run files after context close. */
   readonly harPathPrefix?: string;
+  /** Internal tooling-only persistent profile. Cascade provenance needs Chrome's ephemeral
+   *  `DevToolsActivePort`; ordinary probes leave this absent and retain `chromium.launch()`. */
+  readonly persistentProfileDir?: string;
+  /** Browser process args owned by a higher-level tooling lifecycle. Never populated from raw user argv. */
+  readonly browserArgs?: readonly string[];
 }
 
 export interface CapturedRequest {
@@ -132,11 +137,15 @@ export interface ProbeSession {
   /** Every context opened (`contexts[0]` mirrors the flat `context`/`page`/`pages` fields above — the
    *  single-context default is byte-identical). `--contexts N` populates N of these. */
   readonly contexts: readonly ProbeContext[];
+  /** Higher-level resources whose lifetime is coupled to this browser (for example a loopback asset
+   * server and its temporary profile). Closed after browser/context teardown on every path. */
+  readonly cleanup?: readonly (() => Promise<void>)[];
 }
 
 interface ProbeResourceOwner {
   readonly browser: { readonly close: () => Promise<void> };
   readonly contexts: readonly { readonly context: { readonly close: () => Promise<void> } }[];
+  readonly cleanup?: readonly (() => Promise<void>)[];
 }
 
 interface PageCapture {
@@ -203,17 +212,20 @@ interface BuildContextArgs {
   readonly sessionCookie: string | null;
   readonly contextIndex: number;
   readonly ownedContexts: { readonly context: BrowserContext }[];
+  readonly persistentContext?: BrowserContext;
 }
 
 async function openRecordedContext(args: BuildContextArgs): Promise<{ readonly context: BrowserContext; readonly harPath: string | null }> {
-  const { browser, opts, deviceDescriptor, contextIndex, ownedContexts } = args;
+  const { browser, opts, deviceDescriptor, contextIndex, ownedContexts, persistentContext } = args;
   const sizing = deviceDescriptor ?? { viewport: opts.viewport };
   const harPath = opts.harPathPrefix === undefined ? null : `${opts.harPathPrefix}${(opts.contexts ?? 1) > 1 ? `-u${contextIndex}` : ""}.har`;
-  const context = await browser.newContext({
-    ...sizing,
-    ...(opts.recordVideoDir === undefined ? {} : { recordVideo: { dir: opts.recordVideoDir, size: opts.viewport } }),
-    ...(harPath === null ? {} : { recordHar: { path: harPath, content: "omit" as const, mode: "full" as const } }),
-  });
+  const context =
+    persistentContext ??
+    (await browser.newContext({
+      ...sizing,
+      ...(opts.recordVideoDir === undefined ? {} : { recordVideo: { dir: opts.recordVideoDir, size: opts.viewport } }),
+      ...(harPath === null ? {} : { recordHar: { path: harPath, content: "omit" as const, mode: "full" as const } }),
+    }));
   // Register ownership immediately: tracing, init scripts, cookies, page creation, and media setup can
   // all throw before a complete ProbeContext exists, but the browser context is already live.
   ownedContexts.push({ context });
@@ -284,29 +296,71 @@ async function buildContext(args: BuildContextArgs): Promise<ProbeContext> {
   return { context, pages, consoleLines, consoleMessages, pageErrors, requests, harPath, settingsEvidence };
 }
 
+function resolveDeviceDescriptor(opts: ProbeLaunchOptions): (typeof devices)[string] | null {
+  if (opts.device === undefined || opts.device === null) {
+    return null;
+  }
+  const descriptor = devices[opts.device];
+  if (descriptor === undefined) {
+    throw new Error(`unknown Playwright device "${opts.device}" (see playwright devices registry)`);
+  }
+  return descriptor;
+}
+
+interface LaunchedBrowser {
+  readonly browser: Browser;
+  readonly persistentContext?: BrowserContext;
+}
+
+async function launchOwnedBrowser(opts: ProbeLaunchOptions, deviceDescriptor: (typeof devices)[string] | null): Promise<LaunchedBrowser> {
+  const browserArgs = opts.browserArgs === undefined ? undefined : [...opts.browserArgs];
+  if (opts.persistentProfileDir === undefined) {
+    return { browser: await chromium.launch({ headless: opts.headless, ...(browserArgs === undefined ? {} : { args: browserArgs }) }) };
+  }
+  const sizing = deviceDescriptor ?? { viewport: opts.viewport };
+  const harPath = opts.harPathPrefix === undefined ? null : `${opts.harPathPrefix}.har`;
+  const persistentContext = await chromium.launchPersistentContext(opts.persistentProfileDir, {
+    ...sizing,
+    headless: opts.headless,
+    ...(browserArgs === undefined ? {} : { args: browserArgs }),
+    ...(opts.recordVideoDir === undefined ? {} : { recordVideo: { dir: opts.recordVideoDir, size: opts.viewport } }),
+    ...(harPath === null ? {} : { recordHar: { path: harPath, content: "omit" as const, mode: "full" as const } }),
+  });
+  const browser = persistentContext.browser();
+  if (browser === null) {
+    await persistentContext.close();
+    throw new Error("persistent Playwright context has no browser owner");
+  }
+  await Promise.all(persistentContext.pages().map((page) => page.close()));
+  return { browser, persistentContext };
+}
+
 export async function launchProbeSession(opts: ProbeLaunchOptions): Promise<ProbeSession> {
   // A --mobile device descriptor carries its own viewport + userAgent + deviceScaleFactor + isMobile +
   // hasTouch — fold it into the context so touch/pointer:coarse/mobile-UA are REAL, not a bare viewport.
   // Look it up loudly: an unknown name must throw, never silently fall back to desktop.
-  let deviceDescriptor: (typeof devices)[string] | null = null;
-  if (opts.device !== undefined && opts.device !== null) {
-    const d = devices[opts.device];
-    if (d === undefined) {
-      throw new Error(`unknown Playwright device "${opts.device}" (see playwright devices registry)`);
-    }
-    deviceDescriptor = d;
-  }
-
-  const browser = await chromium.launch({ headless: opts.headless });
-
+  const deviceDescriptor = resolveDeviceDescriptor(opts);
   const contextCount = Math.max(1, opts.contexts ?? 1);
+  if (opts.persistentProfileDir !== undefined && contextCount !== 1) {
+    throw new Error("persistent browser probes support exactly one context");
+  }
+  const { browser, persistentContext } = await launchOwnedBrowser(opts, deviceDescriptor);
+
   const cookies = opts.contextCookies ?? [];
   const contexts: ProbeContext[] = [];
   const ownedContexts: { readonly context: BrowserContext }[] = [];
   // @orb-gate-ignore caught-failure-ownership(empty:error): closeProbeSessionAfterError is typed Promise<never> — it always rethrows the primary error (wrapped with any cleanup failure), never returns. Ends if that function stops rethrowing unconditionally.
   try {
     for (let i = 0; i < contextCount; i += 1) {
-      const built = await buildContext({ browser, opts, deviceDescriptor, sessionCookie: cookies[i] ?? null, contextIndex: i, ownedContexts });
+      const built = await buildContext({
+        browser,
+        opts,
+        deviceDescriptor,
+        sessionCookie: cookies[i] ?? null,
+        contextIndex: i,
+        ownedContexts,
+        ...(persistentContext === undefined ? {} : { persistentContext }),
+      });
       contexts.push(built);
     }
   } catch (error) {
@@ -337,6 +391,8 @@ export async function closeProbeSession(session: ProbeResourceOwner): Promise<vo
   } catch (error) {
     failures.push(error);
   }
+  const cleanupResults = await Promise.allSettled((session.cleanup ?? []).map((close) => close()));
+  failures.push(...cleanupResults.flatMap((result) => (result.status === "rejected" ? [result.reason] : [])));
   if (failures.length === 1) {
     throw failures[0];
   }

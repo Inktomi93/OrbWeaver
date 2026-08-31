@@ -1,0 +1,3821 @@
+{
+  "schemaVersion": 1,
+  "resources": [
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/application_tokens.css",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/application_tokens.css",
+      "bytes": 16981,
+      "sha256": "dbf23f68eb90737a9c78df4921ab880ceb84296dc7da83b988dec929c026b5c4",
+      "mimeType": "text/css",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/core/common/common.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/core/common/common.js",
+      "bytes": 102604,
+      "sha256": "d281c79b30fb45e0dbe6bde9046d656a35537a6fe37bd384fe3122936fbbfbad",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/core/host/host.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/core/host/host.js",
+      "bytes": 86126,
+      "sha256": "0d3eba9c3f29ba768f80b37a22479bdde4619a98e7a67639bef8e7ab284d0976",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/core/i18n/i18n.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/core/i18n/i18n.js",
+      "bytes": 7316,
+      "sha256": "a5a377a7a2928982b9576b05d310d66f988761eface2eac90bb224afb8640aac",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/core/i18n/locales/en-US.json",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/core/i18n/locales/en-US.json",
+      "bytes": 661453,
+      "sha256": "ab85f11fe6f1daf6d2d566b9ca963e6f98e2b36b6dfad3511c9cda6ef3f33ae6",
+      "mimeType": "application/json",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/core/platform/browser/browser.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/core/platform/browser/browser.js",
+      "bytes": 1066,
+      "sha256": "42b4c7552b88e04616376006a039359cb37a27b19fb36bd30f1c3f125aad7d84",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/core/platform/platform.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/core/platform/platform.js",
+      "bytes": 16047,
+      "sha256": "d21ebc9374c93745c9b5abf795c1f7ce28b642223802569a44eebfd457f9aa6a",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/core/protocol_client/protocol_client.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/core/protocol_client/protocol_client.js",
+      "bytes": 621057,
+      "sha256": "4bf3aca98b699cec73101726bfe71501533c526df0258b890a8a276fc4b3b5bb",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/core/root/root.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/core/root/root.js",
+      "bytes": 6245,
+      "sha256": "7fcd76f55fa77b067f56231735f880fc8be027bb91d5ddc1579efa14cb1631e4",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/core/sdk/sdk.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/core/sdk/sdk.js",
+      "bytes": 605419,
+      "sha256": "215cf3ef1873d00beecc66dff38dd8612125bebc2b1e3c8151562a97a435581d",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/design_system_tokens.css",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/design_system_tokens.css",
+      "bytes": 41098,
+      "sha256": "07b17c0c2d82f364c567358a201ddf243eef4a74c9cc0adeb9d3c646db676ad5",
+      "mimeType": "text/css",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/entrypoints/devtools_app/devtools_app.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/entrypoints/devtools_app/devtools_app.js",
+      "bytes": 66930,
+      "sha256": "372f67579b767b5bb470f46669a1679ec0af59758116e70420b29d77b3791816",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/entrypoints/inspector_main/inspector_main.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/entrypoints/inspector_main/inspector_main.js",
+      "bytes": 17259,
+      "sha256": "5566093adc6cc97628743ca93d0ed2cbafe701b1806cbf43c6d3619ac8bee181",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/entrypoints/inspector/inspector.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/entrypoints/inspector/inspector.js",
+      "bytes": 660,
+      "sha256": "1ae8d7c397f389b6599ff15269eb681d975b7b7a8d65a890ec71dda85dcd8bc1",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/entrypoints/lighthouse_worker/lighthouse_worker.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/entrypoints/lighthouse_worker/lighthouse_worker.js",
+      "bytes": 3116,
+      "sha256": "45e263c96d9d947b6dbaf6c12b2a9de729571d53285e89a435dbb617b8ab2eaa",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/entrypoints/main/main.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/entrypoints/main/main.js",
+      "bytes": 33870,
+      "sha256": "9a65637225075df2f2655b7f87d17da38d0fc5321144e74d0b648fccb099fcdd",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/entrypoints/shell/shell.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/entrypoints/shell/shell.js",
+      "bytes": 99767,
+      "sha256": "fb4902d780b0b43ce188cd85736ed2ff46063e008ab6c444b924a24de39a3cdc",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/entrypoints/wasmparser_worker/wasmparser_worker-entrypoint.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/entrypoints/wasmparser_worker/wasmparser_worker-entrypoint.js",
+      "bytes": 273,
+      "sha256": "05fabec52df4e8a3a5cad54a315b0e91898d081baabda8d755a808cf88090562",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/foundation/foundation.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/foundation/foundation.js",
+      "bytes": 1540,
+      "sha256": "ae4eca5fa4f0f990bd929ee55ee9fc67117d9bc4e387632a27666466101021fc",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/3d-center.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/3d-center.svg",
+      "bytes": 307,
+      "sha256": "6059dbd7dd5a0eba7f308046609c6ab1162078114ee52b04e9f2f4778699f5ec",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/3d-pan.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/3d-pan.svg",
+      "bytes": 387,
+      "sha256": "3a8182cfabb0ab3e5c178452da63a2acc947a04a1248586e0aa85d5090320589",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/3d-rotate.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/3d-rotate.svg",
+      "bytes": 426,
+      "sha256": "c80c02f24b5afb5adbbbf5727aae13cefffdb6b4f7aea36f4e2a7c464a06c979",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/accelerometer-back.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/accelerometer-back.svg",
+      "bytes": 878,
+      "sha256": "283656f39d4c327aa115c9127fb9102476c8e870dc090684709bcddf0d6a2cb5",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/accelerometer-bottom.png",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/accelerometer-bottom.png",
+      "bytes": 177,
+      "sha256": "e77f4703e27c28cf0c951f98c7cbf45bf8b2b86b82a5f7efe21cff027ce03b62",
+      "mimeType": "image/png",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/accelerometer-front.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/accelerometer-front.svg",
+      "bytes": 986,
+      "sha256": "17228ef24208612a6fac72df2fee2a33acf524cba17bab728b46bba36a90f3a1",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/accelerometer-left.png",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/accelerometer-left.png",
+      "bytes": 94,
+      "sha256": "06adf619a8eb510d1ca37ae00502a0d17551e2a6b973312962766ee44e096b80",
+      "mimeType": "image/png",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/accelerometer-right.png",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/accelerometer-right.png",
+      "bytes": 191,
+      "sha256": "f28ddc32e3bcc97df19dc12d30b5d02601b6e603480173aabd02192a3e95a4ef",
+      "mimeType": "image/png",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/accelerometer-top.png",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/accelerometer-top.png",
+      "bytes": 96,
+      "sha256": "75dd030fc65f3b8920693c74340f9247cbc0ca5a99c3f2ec2ee784e0c2818144",
+      "mimeType": "image/png",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/account-tree.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/account-tree.svg",
+      "bytes": 349,
+      "sha256": "f3ccc316df3cba6990c67de94a40ee06f1c7370a34e8b62d7b4f84a4bfe57390",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/add-photo.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/add-photo.svg",
+      "bytes": 314,
+      "sha256": "ba8125fe870ae108d6a9dd01b6399c8c05a2d147e3b0b8135c3536120ff0da38",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/ai-explorer-badge.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/ai-explorer-badge.svg",
+      "bytes": 9568,
+      "sha256": "a39b99929bb76fd5ba8fff53be8a53662835a6618bed16f72c33bd594a986681",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/align-content-center.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/align-content-center.svg",
+      "bytes": 212,
+      "sha256": "c5408bc6261852d2900c536bca1f9764e5dcc7d461f3060c0c369471119b60ca",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/align-content-end.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/align-content-end.svg",
+      "bytes": 209,
+      "sha256": "004bd495645f0b323039f6932306be428af3827f2769927ae3c3e6853e7b0a4c",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/align-content-space-around.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/align-content-space-around.svg",
+      "bytes": 224,
+      "sha256": "1d6a9a892e8fb1f8067eef15f5c2fdb0c31c94dba3ae42a7883936973157d5a6",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/align-content-space-between.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/align-content-space-between.svg",
+      "bytes": 155,
+      "sha256": "6312b6dcce2ab9e341e802854a869123893fced65a07b20913bb84b42c312ac3",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/align-content-space-evenly.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/align-content-space-evenly.svg",
+      "bytes": 224,
+      "sha256": "a22d03e4b12ba9a19669cfec0cd5d8c6ec54a95b1299af46bd7423c2b5b5e706",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/align-content-start.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/align-content-start.svg",
+      "bytes": 207,
+      "sha256": "194ce588246ec6b23299c487e0d2a4c5360ee97e9d05006eb2cb50bc9a1bd798",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/align-content-stretch.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/align-content-stretch.svg",
+      "bytes": 156,
+      "sha256": "5b8e81f04a21b4d74332f6415d48f5f0d4ed326705736b6e46caad52c31d12ee",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/align-items-baseline.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/align-items-baseline.svg",
+      "bytes": 280,
+      "sha256": "1cef9b5b24df92bb9bb76b8e2dc93edb3156895527d741e0535c2f96e1ff10e0",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/align-items-center.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/align-items-center.svg",
+      "bytes": 214,
+      "sha256": "a9e8d6fc1f4a407e63a9b820ff109c9e60778aaa030ccf328febe37138411d54",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/align-items-end.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/align-items-end.svg",
+      "bytes": 146,
+      "sha256": "ff89a5873640817409860e10ac5d8454bd5839a45fb9ca70af4e686f0a9d6598",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/align-items-start.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/align-items-start.svg",
+      "bytes": 144,
+      "sha256": "c218e423c616c9e2ba6ee6bf0c117f2c5c729983b7ae14fbf54b0c9886925d64",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/align-items-stretch.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/align-items-stretch.svg",
+      "bytes": 163,
+      "sha256": "ce9176d9d4985a42c412e19a5f456c6e8693976f5e61a793c80616c8675c4017",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/align-self-center.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/align-self-center.svg",
+      "bytes": 155,
+      "sha256": "5b80a0069199a260fcef23d85a1b095aeed5a0d1465e250caade1b2febb5b5a9",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/align-self-end.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/align-self-end.svg",
+      "bytes": 138,
+      "sha256": "585220992646724ee3f962379569ceda8a6b0413523a6c5dc79357f2b6a8b4d1",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/align-self-start.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/align-self-start.svg",
+      "bytes": 136,
+      "sha256": "8027d746530dbdff0d1df86f72da9bdd7aef56847186d28929658a24d1523efb",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/align-self-stretch.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/align-self-stretch.svg",
+      "bytes": 154,
+      "sha256": "05cb1d23eb95c9617684b6d942ce36c5c1357003dfff7ebaaa4d5c0759e64736",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/animation.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/animation.svg",
+      "bytes": 1515,
+      "sha256": "c2329c747ed4ffb67586685a5a76ef49a2b7a94182607a66641d80fdd4bcb0dc",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/arrow-back.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/arrow-back.svg",
+      "bytes": 197,
+      "sha256": "ac40ead34e2b37c227ac6a6e2118d35921e9e526b55fec67986d0673d963ee59",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/arrow-collapse.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/arrow-collapse.svg",
+      "bytes": 117,
+      "sha256": "94eff8527154bd997e75bf3383ddb5ab197dc229bdc7ef463ee07bcf540d9900",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/arrow-down.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/arrow-down.svg",
+      "bytes": 279,
+      "sha256": "8faad946b4e7051b967ad7ca353c42afff839bbb76350df62e9190125799dc13",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/arrow-drop-down-dark.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/arrow-drop-down-dark.svg",
+      "bytes": 121,
+      "sha256": "4d15edf5a6fcac2f78fa61e8e9aeffa884c56829940db833323ca1621442641f",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/arrow-drop-down-light.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/arrow-drop-down-light.svg",
+      "bytes": 121,
+      "sha256": "bad0e7c6f4214109550137ded26d9f0aa2ff401dbcf2c056c482aa89bc7a128d",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/arrow-drop-down.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/arrow-drop-down.svg",
+      "bytes": 118,
+      "sha256": "119a8037faf1162ff105a6a90196a2d04d3eb12344a207c5c4a0ab6440887df7",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/arrow-forward.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/arrow-forward.svg",
+      "bytes": 191,
+      "sha256": "f0072ca4f75593dcbaf9b0b45c2bd4e0d817d9a9834279c6a550f334e5a76879",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/arrow-right-circle.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/arrow-right-circle.svg",
+      "bytes": 609,
+      "sha256": "28be93caef3451e1eb1d412ed8b653f8481efd30706a5665aff82fe630c39d03",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/arrow-up-down-circle.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/arrow-up-down-circle.svg",
+      "bytes": 748,
+      "sha256": "e7aefe3fd377f220abf8088b966215890c9c0e4d80d62e25bec990cd12a4dc99",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/arrow-up-down.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/arrow-up-down.svg",
+      "bytes": 240,
+      "sha256": "18fd82834a232365c25a7ca3421a3c516cf0915271b19ad71655c78695917f46",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/arrow-up.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/arrow-up.svg",
+      "bytes": 278,
+      "sha256": "329debbdf456a3c105e81fa922c10ac6bd904056cd241998c42e0bf992ed75d0",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/attach-file.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/attach-file.svg",
+      "bytes": 507,
+      "sha256": "59b0940e07b80a09cee6b93cd486829b181aadf18ec1b5e44f2ca2dda367417d",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/baseline-high-availability.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/baseline-high-availability.svg",
+      "bytes": 396,
+      "sha256": "11fa61b438c7d45213fefea840352b02a9a23fefd6959b8b8d212a501e6fab05",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/baseline-limited-availability.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/baseline-limited-availability.svg",
+      "bytes": 506,
+      "sha256": "4f16c577359d8100abbd60fc5cdf835f78ad74d06de130148a80915f92b2ebc8",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/baseline-low-availability.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/baseline-low-availability.svg",
+      "bytes": 588,
+      "sha256": "573401a6da45707e2a17ac803b03407670906188bc3b4da9af01b564c6b17021",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/bell.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/bell.svg",
+      "bytes": 446,
+      "sha256": "1d8778eb5910cd570a62890ca857186e384ec3e65512e013b88ead60ad94a79f",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/bezier-curve-filled.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/bezier-curve-filled.svg",
+      "bytes": 510,
+      "sha256": "b7a091ab753f273a8ffda97e463ff18141d7c60bcd963b62892641343468ab2f",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/bin.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/bin.svg",
+      "bytes": 272,
+      "sha256": "9989c0ddc3079d26495eec054aefefbb1b6cdc421a357eba9ba799916d2f1b15",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/bottom-panel-close.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/bottom-panel-close.svg",
+      "bytes": 319,
+      "sha256": "dd6bedb76a2eb53075525fbd314ed3b62693f060ca68dcdf7da4f0dc255650d1",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/bottom-panel-open.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/bottom-panel-open.svg",
+      "bytes": 319,
+      "sha256": "b60aafaff41c7093377f131612c7cff3391a9c9354dc31d7b602da27171c2659",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/brackets.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/brackets.svg",
+      "bytes": 914,
+      "sha256": "04adee105471dc048bf45020d98c8c47933ec597654e6905c5dc7b615d18cb4f",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/breakpoint-circle.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/breakpoint-circle.svg",
+      "bytes": 729,
+      "sha256": "9e8e9ef44e4cc277eb4a60e8f96b86589ce23711bb564c200e84cb58c27926ad",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/breakpoint-crossed-filled.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/breakpoint-crossed-filled.svg",
+      "bytes": 289,
+      "sha256": "ad23cf3da0246f39348607ca931fd134affcae8d96ac7433b66b40fb9692e1f4",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/breakpoint-crossed.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/breakpoint-crossed.svg",
+      "bytes": 350,
+      "sha256": "bc8be35d397ceaa98ef367c31d79a74d7594306e08a0b0fc18393c1801915f79",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/brush-2.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/brush-2.svg",
+      "bytes": 645,
+      "sha256": "127e1c80b28a54bea4b29e3eb9eb9c26c089f4569dc1d7747e290ef5f7749edd",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/brush-filled.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/brush-filled.svg",
+      "bytes": 431,
+      "sha256": "f1796db5377cb7d107cb1cce329acfffc6fd87d6761db24f21285b307862a37b",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/brush.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/brush.svg",
+      "bytes": 446,
+      "sha256": "bf3b5d0ab34a9484ca6fae137c0b221a7c1a9a57796f13d6fabe87f6abab4453",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/bucket.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/bucket.svg",
+      "bytes": 380,
+      "sha256": "861b3622176f51bd415c212547fbd7bb57e72440811d415267ab731832ac9d63",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/bug.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/bug.svg",
+      "bytes": 645,
+      "sha256": "93338e1b6f985c4b1b37f988532b0eae5f4cdb3e5c2e6193328b9c5e23d1ba41",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/button-magic.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/button-magic.svg",
+      "bytes": 294,
+      "sha256": "30912981dc37177f3235e6f5e57b62f572ab2aea61e50ecc00faba4e79cbe528",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/calendar-today.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/calendar-today.svg",
+      "bytes": 326,
+      "sha256": "6eb5d4df1a96b3281737d36b33468134e47c5d048ee3501ba4926c7032677af5",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/center-focus-weak.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/center-focus-weak.svg",
+      "bytes": 650,
+      "sha256": "3fccb7099fcae84d0ea7ed7afe34afb66aec2c4fa1827f9d38a343163b065e2c",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/check-circle.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/check-circle.svg",
+      "bytes": 562,
+      "sha256": "71465d2abe07710706662b7daf8edbba4a72c7150e217c2057d86de2af8f5629",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/check-double.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/check-double.svg",
+      "bytes": 272,
+      "sha256": "ce1e36e22afe6bc40bcf93e72e664712c76597ab2e86064a146c159581a65cab",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/checker.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/checker.svg",
+      "bytes": 269,
+      "sha256": "2d0a26dd7aeb08ffcb990e7af1bf5e958cd5816e5040c993803a200e1c3509b7",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/checkmark.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/checkmark.svg",
+      "bytes": 171,
+      "sha256": "51fbd2f3605d6e037d8143d5817a4fb0ed45800fc4fa772f0363faa352ac1746",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/chevron-double-right.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/chevron-double-right.svg",
+      "bytes": 204,
+      "sha256": "a6ff6d3483f7fb34bff994fdc411f702fda994538c3955faad841218fc107281",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/chevron-down.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/chevron-down.svg",
+      "bytes": 156,
+      "sha256": "4d5a759a6ef0bb74a7e2c9f9a65acca87ac34e36433c23767b6c892630081dcd",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/chevron-left-dot.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/chevron-left-dot.svg",
+      "bytes": 205,
+      "sha256": "5bc25b81bcb1074ea4bee1b8880991cfc7d97370bd6bf097b543a5d2fbb3d75b",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/chevron-left.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/chevron-left.svg",
+      "bytes": 153,
+      "sha256": "f6a6452d79eb793d041579ea2829eb94b6f2386938fc17decb3775eaeb413dc2",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/chevron-right.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/chevron-right.svg",
+      "bytes": 153,
+      "sha256": "0f7911ea8cac15e12addd99710896043e5a57f6c3cab75453902324912def7c3",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/chevron-up.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/chevron-up.svg",
+      "bytes": 151,
+      "sha256": "649487e4e77a3441cee7fa3e233236f244b9fb81aca1cbf0cc9d2322f62b6d44",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/chromeLeft.avif",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/chromeLeft.avif",
+      "bytes": 6936,
+      "sha256": "0eee7df2971f4f56187d22f522a725ce9ee10d64692710d21778ab62b94a2ec9",
+      "mimeType": "image/avif",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/chromeMiddle.avif",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/chromeMiddle.avif",
+      "bytes": 435,
+      "sha256": "c935e3709c100b2ccb4c3a4c0fe29b687ad8dd55d32f57dfb57c3967885f7069",
+      "mimeType": "image/avif",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/chromeRight.avif",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/chromeRight.avif",
+      "bytes": 1916,
+      "sha256": "2c434a6aaccb6ee01558538596342f7c9c03ccef72f40c644c9cb62f44b5848f",
+      "mimeType": "image/avif",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/class.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/class.svg",
+      "bytes": 1030,
+      "sha256": "3d7184ca22ff220260e17db8d5b5cea67224d349553d6c273ddad750dfd4ed86",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/clear-list.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/clear-list.svg",
+      "bytes": 295,
+      "sha256": "ae0dbb84971f847a203e8a2ff8062d41426e202cbf752ecbb9ab9520c42eb50b",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/clear.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/clear.svg",
+      "bytes": 290,
+      "sha256": "918ef74cd72b000d3e4a35e578e0ca917fff53797682c70d48567f602d9acfd7",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/cloud.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/cloud.svg",
+      "bytes": 641,
+      "sha256": "2270692edb6dccc0285e1a10290f7f99c0b93c147b0bb76665442d58ee9418e8",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/code-circle.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/code-circle.svg",
+      "bytes": 678,
+      "sha256": "55c158463b5281bdc39c4d3e411486999c5b7089d1ef7f89b3592ffb94e57a8c",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/code-whisperer-badge.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/code-whisperer-badge.svg",
+      "bytes": 11175,
+      "sha256": "2d28643c2fc7e1613cb1924cb2315323d003b51f553a46800facc6350d52a9f6",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/code.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/code.svg",
+      "bytes": 201,
+      "sha256": "163bb6f5668d8087c9ac8bcbffd44bbaef2faa04f624202b2906cbc7190226e9",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/colon.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/colon.svg",
+      "bytes": 146,
+      "sha256": "f3a2738be938b64645983a5f1957389b54e6c6ebfc0006385281de517aef826f",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/color-picker-filled.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/color-picker-filled.svg",
+      "bytes": 362,
+      "sha256": "192f3ddb71392f7c08f5f534ea507b02d5121ce4ef49423d5e9f28f4c1cb0e27",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/color-picker.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/color-picker.svg",
+      "bytes": 409,
+      "sha256": "4e6208cc5a42d58795f8cf67d6349bae397a41a56553f10a83dc48945ee455ef",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/compress.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/compress.svg",
+      "bytes": 504,
+      "sha256": "394340a69b09808c5d03315b79bbfd18fbbb4ad2a04ecfc227833753405c6318",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/console-conditional-breakpoint.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/console-conditional-breakpoint.svg",
+      "bytes": 525,
+      "sha256": "bd24ff19096260ea3233458b300d3cc134a8f5de911208d1c8d0246975227b3c",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/console-logpoint.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/console-logpoint.svg",
+      "bytes": 408,
+      "sha256": "90f68eba19d54fdd2315d0f96bf9ddd56e12a14c1f07766bc9d832ae040bc4f8",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/container.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/container.svg",
+      "bytes": 505,
+      "sha256": "e9bf4517888c61f87bf59d1725eccdad486551f424d3681541f69e2d33c02fb0",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/cookie_off.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/cookie_off.svg",
+      "bytes": 1012,
+      "sha256": "6e3653709dd7dc743ef6780a224a4af5bc0d349d6f7418b604e6b15308f82158",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/cookie.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/cookie.svg",
+      "bytes": 1193,
+      "sha256": "2056f45b9a1b831e2717343302b23b6ab4dac003b9baa2e986edba41c347a5a9",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/copy.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/copy.svg",
+      "bytes": 358,
+      "sha256": "450e00b1738aab5e75df559b63355dcbc5804797d448748779e6f671b126949a",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/corporate-fare.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/corporate-fare.svg",
+      "bytes": 229,
+      "sha256": "601f92f57efa0d9322ae00c7530b66bcf12c16602662f147541e40091cdc43d6",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/credit-card.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/credit-card.svg",
+      "bytes": 321,
+      "sha256": "2b524f87dc999060a9ffe7a72296270af20c74f5ee78139c8a2e9b56ceca68e4",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/cross-circle-filled.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/cross-circle-filled.svg",
+      "bytes": 513,
+      "sha256": "fd5cc449119ec3733840427173f781ccaa9ec1b53ae7fd4aec06e7c22afdf966",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/cross-circle.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/cross-circle.svg",
+      "bytes": 606,
+      "sha256": "75f29a04def31968ed9feec906267852c66a47e53796998d5ea21a10058dff16",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/cross.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/cross.svg",
+      "bytes": 216,
+      "sha256": "064a3396cb0a5996a6aa1db8ba39d26ffa4e96a96dd4f6a96db92a003fdf6556",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/cssoverview_icons_2x.avif",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/cssoverview_icons_2x.avif",
+      "bytes": 3333,
+      "sha256": "561c57b18f5214bde6d003cc3a54f568f8c48959275e667d3e15605f8320bb6a",
+      "mimeType": "image/avif",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/custom-typography.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/custom-typography.svg",
+      "bytes": 257,
+      "sha256": "b76e41131088ff115a3f4507251e95f2813706a94f1ba9999f50ca7661cab63b",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/database-off.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/database-off.svg",
+      "bytes": 739,
+      "sha256": "3c94b9f606e0b02e44db92c9334fab9407ac4ca3a41a70db716592b6ade65017",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/database.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/database.svg",
+      "bytes": 992,
+      "sha256": "9255e19d7987723dedd7bfc197812d521102b9c64f3a4e78933bd7b21d555b33",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/deployed.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/deployed.svg",
+      "bytes": 452,
+      "sha256": "ee9ef4d8c9e267075d5356a5e92e962b4eabe55d413e14149e024520553fefb6",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/device-fold.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/device-fold.svg",
+      "bytes": 566,
+      "sha256": "68e15b55eef8ef1cb98959f3617a82c4fda8c713838152400d0b795b9411e258",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/devices.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/devices.svg",
+      "bytes": 352,
+      "sha256": "839640610cfd9e38fbb64454a88539c8c40c9a20c98bd4f615c86535d46cf3ec",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/devtools-thumbnail.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/devtools-thumbnail.svg",
+      "bytes": 2911,
+      "sha256": "3b258d26adeaa4006285dc70b9986507c765760ef0c1bf3a1b0bb2585ea707ea",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/devtools-tips.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/devtools-tips.svg",
+      "bytes": 4571,
+      "sha256": "52ddf38ef8a2ea97d355f762943854b0af6e3d2924760fcb8e0fb95ab5769140",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/devtools-user-badge.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/devtools-user-badge.svg",
+      "bytes": 10192,
+      "sha256": "25ad2979654bc10ee8db30d2fc59882b85f8efe3caf47f056f579e0273c5d646",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/devtools.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/devtools.svg",
+      "bytes": 605,
+      "sha256": "75c50d17150568daa2e970e1adfdb5c8e1b59fc7c0cb0cfaae9752d018286ecd",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/difference.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/difference.svg",
+      "bytes": 435,
+      "sha256": "218ea7ffbe4b6a6c6717e6cbc7724246e2bc171a22a40511160a60081837f473",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/dock-bottom.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/dock-bottom.svg",
+      "bytes": 300,
+      "sha256": "fca1301870a06670bf6e0fe4245b0cf4f89b8b9c14cb6f4630f8f3b12cad6106",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/dock-left.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/dock-left.svg",
+      "bytes": 300,
+      "sha256": "78ee1dfe271ae139b917ad97cb96178e82cf93816927c53eee6a53d535366474",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/dock-right.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/dock-right.svg",
+      "bytes": 303,
+      "sha256": "800088c218f5dfec2a717d2aad1a706d054afc63d61bde41638df882e38ea4c3",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/dock-window.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/dock-window.svg",
+      "bytes": 362,
+      "sha256": "1b69385917bd509bcdbd316a8f6fb59af0e53f02d3312dd9b052dded1a2a2c19",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/document.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/document.svg",
+      "bytes": 273,
+      "sha256": "755bc6bdb240a457d22ee509274dd2368b84a9d361130eaf5b4f9530d6bcdb61",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/dog-paw.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/dog-paw.svg",
+      "bytes": 1541,
+      "sha256": "38c7c2c2242da583743993311807deb4c7843fb851de34af78eb7f2c20aa4301",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/dom-detective-badge.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/dom-detective-badge.svg",
+      "bytes": 5646,
+      "sha256": "9f373232dd2bf028ec7f53f19933d096417cfc089b1b0144b947c67d097d03f0",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/domain.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/domain.svg",
+      "bytes": 364,
+      "sha256": "1c1ea8b71defbd5b78e4584b9944b5c7de91a9e5bd55012d021e99411d869cc2",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/dots-horizontal.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/dots-horizontal.svg",
+      "bytes": 580,
+      "sha256": "a523ccb86266ce831c60d1efb7abe038123093ecde8bc6d72198c87a66e59f2a",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/dots-vertical.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/dots-vertical.svg",
+      "bytes": 576,
+      "sha256": "5f54744575c042877762ca268e62fc69ef9947337e49ff49a3bfbc44047e07b8",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/download.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/download.svg",
+      "bytes": 284,
+      "sha256": "66babc1c111a8efd5d8ec4e3524a064d4025a53fc04637345acb0e7e7f1bc954",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/edit.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/edit.svg",
+      "bytes": 312,
+      "sha256": "3cb71f47a6d0c4c56be732a94739ace7ae0b1d0946c5739a15476257ec5eb575",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/empty.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/empty.svg",
+      "bytes": 76,
+      "sha256": "5c8c96a60207ac4c990c9915cca59de88e1a11d3c2ffb9ead63e7f1f8d9481bf",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/errorWave.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/errorWave.svg",
+      "bytes": 303,
+      "sha256": "6c92f302eb687144f44de4ccb1e73e00fe76512c8adb2be1992e5ed0b1682b21",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/exclamation.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/exclamation.svg",
+      "bytes": 139,
+      "sha256": "f38e55e68f6a924f950d0a2e4b6d1ba4f0064f4656032a7fc4013144031671a2",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/expand.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/expand.svg",
+      "bytes": 236,
+      "sha256": "d268a6d005bdd85c2c72e3f052ccd64a9ea02e630f24660c7f904004561e1372",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/experiment-check.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/experiment-check.svg",
+      "bytes": 502,
+      "sha256": "bc5ee7a6581ac942e1c79614b56f2852e43890404e9e3155110383f07ad9824f",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/experiment.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/experiment.svg",
+      "bytes": 393,
+      "sha256": "070453700b9cd5697845a69c74f3dab534250001a438f4b61153d0371226b291",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/extension.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/extension.svg",
+      "bytes": 613,
+      "sha256": "349b2970e9077abd1fddcf2238d4d66e4e3f8f0a989d91770884d51bb1fc106a",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/eye.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/eye.svg",
+      "bytes": 784,
+      "sha256": "960dd55fa109b7291dc8ea5579a3de93fa2c704f02f654739acbc48157c9ad67",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/file-document.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/file-document.svg",
+      "bytes": 342,
+      "sha256": "1553778eace92a8b4df5054c997d27b32020e9244fcb613dd19c2a21a22e92e7",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/file-fetch-xhr.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/file-fetch-xhr.svg",
+      "bytes": 251,
+      "sha256": "81b1a1c9f00915c6093d452d8ffed208a3846692362826cb405fb53706d301ec",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/file-font.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/file-font.svg",
+      "bytes": 352,
+      "sha256": "6b3ffe0d8aa8e230cfcd8b4d56529ffee3e636cb219e5451e703fb6bc4d29c47",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/file-generic.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/file-generic.svg",
+      "bytes": 297,
+      "sha256": "8ce7e711e6ec04664114eed676c3fde2ee706e6177a39bec703d9aeff4ef1bcc",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/file-image.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/file-image.svg",
+      "bytes": 324,
+      "sha256": "4c8125cf447ecda0ac3f01d78f399150e1dbf5faa02daecf95f01e36535d2ab9",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/file-json.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/file-json.svg",
+      "bytes": 950,
+      "sha256": "cb68d7fee40d72f58dd2e3c86921f07c94b83a2cb8eb6563e2a808008381bd1b",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/file-manifest.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/file-manifest.svg",
+      "bytes": 725,
+      "sha256": "7c81addf2cff549d5b910a1ab09d94cd9d4c75f728f0f84aba95a6b69b8a9176",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/file-media.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/file-media.svg",
+      "bytes": 319,
+      "sha256": "c6125d5c6744c1be84e30433130b451979a7a32be5a5660b2d185be941c4ef62",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/file-script.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/file-script.svg",
+      "bytes": 407,
+      "sha256": "2681df8a9fa9c2634b47c79b84b723926f622c42bf378d51532d8814b9e740b9",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/file-snippet.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/file-snippet.svg",
+      "bytes": 503,
+      "sha256": "9d89851746d22ad053ff4a11414deb151c1a60f20ac97b08f22defbfd9ea73f2",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/file-stylesheet.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/file-stylesheet.svg",
+      "bytes": 645,
+      "sha256": "be650ffe68274274c457e1c0f14478d009a737dce05bbd3bf840f615594f79f0",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/file-wasm.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/file-wasm.svg",
+      "bytes": 601,
+      "sha256": "04583bfb5e887e651973be3fa73f0206b27c747fe6a060cf98cffbb0196ef8ec",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/file-websocket.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/file-websocket.svg",
+      "bytes": 824,
+      "sha256": "d0e43dd5cd66ed1cb7cd6d13cae3cbffa901ed94ffa5a33aa5c851f53038d2c9",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/filter-clear.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/filter-clear.svg",
+      "bytes": 349,
+      "sha256": "8aab437073ab5b1748a1828fc3496cd10e645d4742abbc8513ff80e1b0ab29dd",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/filter-filled.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/filter-filled.svg",
+      "bytes": 316,
+      "sha256": "41c58a636eb497073e233a880016fb9965d6a20df2230bfb09c1a4c4f0503b9f",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/filter.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/filter.svg",
+      "bytes": 343,
+      "sha256": "cb01527a0c77ab191cba50fb708a44a3e221535e076218ba96833b4053a3e9c9",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/flex-direction.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/flex-direction.svg",
+      "bytes": 284,
+      "sha256": "c962c2c190883309cb075cc21e5b9a1ea0aa78ba3b1fc0cced27fca0e7439a17",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/flex-no-wrap.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/flex-no-wrap.svg",
+      "bytes": 314,
+      "sha256": "6636e267c5c7fb7d28f7e3ac2ad6f5f98128a82ade7118bbfd84eab512c3c2bb",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/flex-wrap.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/flex-wrap.svg",
+      "bytes": 499,
+      "sha256": "01b9a267fccdaf48727b5c7cd91d266a28c6f98c9f61f21cd2f4502396244c36",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/flow.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/flow.svg",
+      "bytes": 855,
+      "sha256": "6000bec550688bc6fb289fd70f9258d0b3b5605f478939d58cbc1fcdfb7f9780",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/flowsheet.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/flowsheet.svg",
+      "bytes": 753,
+      "sha256": "408f9fdcf76d485b64121b729564f50de3084c21de551071c924fc1da1bec9c2",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/fold-more.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/fold-more.svg",
+      "bytes": 233,
+      "sha256": "8e4324ecdce502f4f1f31e2440dc61bf883e829a8c3252a81a2068ceac698d5c",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/folder-asterisk.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/folder-asterisk.svg",
+      "bytes": 500,
+      "sha256": "5b84ec9f44ef53a5bbeb11842d94dae1eea7e0639bcb87eb7e93c926f95692f3",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/folder-off.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/folder-off.svg",
+      "bytes": 351,
+      "sha256": "9e9036c5319a8d602e859e7f7bd8bebf641677f9994c2d655cbf2512da83237f",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/folder.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/folder.svg",
+      "bytes": 301,
+      "sha256": "a48e7f581016858ac71fac91d9985a492b00bd3ccb992eeb556c39716cc76a70",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/frame-crossed.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/frame-crossed.svg",
+      "bytes": 403,
+      "sha256": "4a4ad5e75140aa94796b2b0fb76e1c356ca96a061aab42f0dc72853d4e89c9eb",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/frame-icon.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/frame-icon.svg",
+      "bytes": 329,
+      "sha256": "3cb1faedfe665dcbe7393c5a3415f1e51ef53074188d1944abbfcf3bdc538e0a",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/frame.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/frame.svg",
+      "bytes": 293,
+      "sha256": "04e1dedb310a7187aac0d37375f542f2ed362be489fe4c1575e2efe431536fcb",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/gdp-logo-dark.png",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/gdp-logo-dark.png",
+      "bytes": 6980,
+      "sha256": "5be2eb82a00c8a4db5fd486df032b293d7d2536052bf6f023c13281c8c0536cf",
+      "mimeType": "image/png",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/gdp-logo-light.png",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/gdp-logo-light.png",
+      "bytes": 7045,
+      "sha256": "00fb774f95570db173b3243adb1eb247aff3162634cb27c1a5c117697f323200",
+      "mimeType": "image/png",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/gear-filled.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/gear-filled.svg",
+      "bytes": 905,
+      "sha256": "8dcebaa266826cedee39ccd9f95c7d5470ba139952c4fc849162ee9a124bec81",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/gear.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/gear.svg",
+      "bytes": 1392,
+      "sha256": "14a4414f15a9d5a6a3914b01533c18d278ab4e844e00afb32e9fdb7b010c04aa",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/gears.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/gears.svg",
+      "bytes": 1186,
+      "sha256": "6bc26b1c581fa90e15d3546d8884d2901de0d6251abfe6e90af05a35a84e5882",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/geminiInDevTools_2x.png",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/geminiInDevTools_2x.png",
+      "bytes": 165291,
+      "sha256": "9713decf5fcbff8e073303c007469d4899f63e5c7eab1f5133bee580423cb595",
+      "mimeType": "image/png",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/geminiInDevTools.png",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/geminiInDevTools.png",
+      "bytes": 62540,
+      "sha256": "d257de4e49720437b979c85d79d3da076d89e998948c76260360323a0dc5aca7",
+      "mimeType": "image/png",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/global.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/global.svg",
+      "bytes": 404,
+      "sha256": "e8ad2766939b988804570a48141bfa4daeed4956c4a72852403d24543752d5d9",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/google.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/google.svg",
+      "bytes": 535,
+      "sha256": "1c43c7b0b221251e33eb5e1bd5c1f401e15bddeff0f7dd5873e84ace8f243169",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/goto-filled.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/goto-filled.svg",
+      "bytes": 176,
+      "sha256": "95a9aab5cda35a4e8b6ccba3a9e8af08b929f7cfe3686d240840b20d907be01c",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/grid-direction.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/grid-direction.svg",
+      "bytes": 217,
+      "sha256": "e3a4c70dc341f15702f8c9495bdefc0918f1af492494a68d55486f4f3a61fec9",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/grid-on.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/grid-on.svg",
+      "bytes": 621,
+      "sha256": "f179a5f0d6226d3acf348e6713b3f66ded8280fdce97c78592ac76fd8cac4552",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/group.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/group.svg",
+      "bytes": 1063,
+      "sha256": "a0c506d755c88daab7a5ed19ab0dc8d34724e5c1d2cedfe235dc1830d9f1f823",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/heap-snapshot.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/heap-snapshot.svg",
+      "bytes": 442,
+      "sha256": "ab91f9abff300e614f59596720776686b23ab58787a43db07c7fa88cd598e9ca",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/heap-snapshots.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/heap-snapshots.svg",
+      "bytes": 557,
+      "sha256": "adecc0f7f7ce1b20a03a67681aa2474dc1f4b22b45c95a93ca23dc0d7a0946bf",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/help.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/help.svg",
+      "bytes": 948,
+      "sha256": "561e3aacec77c83dd09d7aa28f01aacb117a5ddb5bdb98c59f0b8fd72a0b276a",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/history.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/history.svg",
+      "bytes": 553,
+      "sha256": "353bf90e2c2f9b91af9bd0596e4662e8f56193b33fe0a9ea9990fc465dc5d88d",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/home.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/home.svg",
+      "bytes": 183,
+      "sha256": "ef518cbfad9fb68e05e91eacaa7e1b47a4f0684261fc7e413f1d4fa54cd41024",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/hover.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/hover.svg",
+      "bytes": 714,
+      "sha256": "1ed67f2194ed4be9fb8665808c0fefac88c3b4367ca03c872a24d4f6a900bc58",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/iframe-crossed.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/iframe-crossed.svg",
+      "bytes": 438,
+      "sha256": "4f553e605e850b772be5c701968b161ea909bc54fba7e40fa28a1fc4e8d69e50",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/iframe.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/iframe.svg",
+      "bytes": 324,
+      "sha256": "e6b409641d6aeb77926a09b6e7c2c88b82e925a93ffe9264915e7e87799d6a3e",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/Images.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/Images.js",
+      "bytes": 43490,
+      "sha256": "c3f889847271d9f9c9363fdd796010e31e4c7d08054f0a334879e055b26b251b",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/import.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/import.svg",
+      "bytes": 285,
+      "sha256": "3042cbf37af89977f0c10154657f89a2bb8974d73489f5bea4b8de3b5a52f9fd",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/indeterminate-question-box.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/indeterminate-question-box.svg",
+      "bytes": 812,
+      "sha256": "45f368dd82f2a4817f882796f5450c2b7546fa8a64e774511614fe33d722894b",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/info-filled.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/info-filled.svg",
+      "bytes": 656,
+      "sha256": "3a3625d7b7917b24583ed5f0b19f938e015b7de9a6b9cd0a230e53669a25fdef",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/info.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/info.svg",
+      "bytes": 685,
+      "sha256": "1668aa87cf403549cc03fc7457cff2d83bac1095bc8ae4253487134baa4ad295",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/issue-cross-filled.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/issue-cross-filled.svg",
+      "bytes": 356,
+      "sha256": "7969d2edbe2c4b16aa47393b2473cd898bf28246204868bbf34fa334571692b8",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/issue-exclamation-filled.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/issue-exclamation-filled.svg",
+      "bytes": 356,
+      "sha256": "b9a589d8cc6ffc218c1fc9be2473346ffdf29db803c3fa8b112916ffb0e45819",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/issue-questionmark-filled.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/issue-questionmark-filled.svg",
+      "bytes": 748,
+      "sha256": "19dde7c72228db8661ab68dc56225106dd1f014d11d11ab94198bdbc847f7dd5",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/issue-text-filled.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/issue-text-filled.svg",
+      "bytes": 288,
+      "sha256": "357066a3c4bb14b4c387d8036c8dd06615703c4d6b8b0202450f7a1ea37bcb28",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/justify-content-center.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/justify-content-center.svg",
+      "bytes": 211,
+      "sha256": "64de6ca50374784b93df5b7e02bf6aa1f554fca6c3619f6aa8c31d002e014c73",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/justify-content-end.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/justify-content-end.svg",
+      "bytes": 145,
+      "sha256": "4a38c138f8f6095e90506eb8ee65c4981225c9192aaf535bdb916606aebb9019",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/justify-content-space-around.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/justify-content-space-around.svg",
+      "bytes": 161,
+      "sha256": "b95141394d5362884364eb610bfa048afb9993250cc1d63a9b9e1dcea3abe3f7",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/justify-content-space-between.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/justify-content-space-between.svg",
+      "bytes": 155,
+      "sha256": "48457e1fec3a1fb15f4654d565ad7e3920e8dbdcc5ba80e6934ff4ec241855d6",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/justify-content-space-evenly.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/justify-content-space-evenly.svg",
+      "bytes": 161,
+      "sha256": "0fc98d3264010b446920accb01df0e1b33396b74ba8f3f885febe96c9d8944a2",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/justify-content-start.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/justify-content-start.svg",
+      "bytes": 209,
+      "sha256": "db292bbb3e54f2565fd2a8f0bf5f35d6d47d9b75af2b26e986b3dbd08f96f4e3",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/justify-content-stretch.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/justify-content-stretch.svg",
+      "bytes": 158,
+      "sha256": "ce7796b0ea3ce8c93ce66ae191cf53c4174d2c8c0a0809504b2068362f39c3cf",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/justify-items-center.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/justify-items-center.svg",
+      "bytes": 236,
+      "sha256": "5c33aad97bb6901f71407f78bcec43f79b0f65f10624d553bdc197a60b6e6700",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/justify-items-end.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/justify-items-end.svg",
+      "bytes": 178,
+      "sha256": "329ac59fea6f616c67c469aa775978f8a63c742b57a6fff679e5021ac6639e44",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/justify-items-start.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/justify-items-start.svg",
+      "bytes": 178,
+      "sha256": "d93d257c81b2ba468b86a25bbc0d368571904bd1f378566551253cc21e21e8d4",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/justify-items-stretch.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/justify-items-stretch.svg",
+      "bytes": 180,
+      "sha256": "5868b840004450fd2fb1f43fef5af79322a10e0d9420f67127f9d296cdf16f0d",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/keyboard-arrow-right.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/keyboard-arrow-right.svg",
+      "bytes": 151,
+      "sha256": "7a3461ba6c46a45a5869da187025a0496a85e8c03b4a58b93b43ccd72528bf4d",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/keyboard-full.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/keyboard-full.svg",
+      "bytes": 398,
+      "sha256": "7a65c1b5e7fd092967c9ea13af932d208814699abacd0ed703184101184f3248",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/keyboard-pen.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/keyboard-pen.svg",
+      "bytes": 695,
+      "sha256": "f1c3d2052830ea3e517ce723721644968094ef9ffe1a08c92fad3ae758a7ebd1",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/keyboard.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/keyboard.svg",
+      "bytes": 508,
+      "sha256": "26d0391a3cab10c4ee8207525825f2e53f88296b18f3cf0f6a27e2c02c2bdc8c",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/label-auto.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/label-auto.svg",
+      "bytes": 640,
+      "sha256": "b6b3c34e96162c18661d71498a6445b703ce57f9d2a1126bd88dc38eefb6ba6c",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/label.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/label.svg",
+      "bytes": 438,
+      "sha256": "a852cc4222431f08d2d5c4852e54744d0055f4bf76d0af909067d10af3ed1f7f",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/large-arrow-right-filled.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/large-arrow-right-filled.svg",
+      "bytes": 138,
+      "sha256": "5b20839e0495cabdd59cc4b9175a49fd34d4d3d54e4dfcc9c1e844fc580ff944",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/layers-filled.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/layers-filled.svg",
+      "bytes": 181,
+      "sha256": "70e460debae4c53b7683da546925228a5ba81f622e4678a7e39a0c0b7fbdb81b",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/layers.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/layers.svg",
+      "bytes": 220,
+      "sha256": "2b3275a3cc0cd91ffaece778210bcfde939c0252a194bf5e1d6b1210e4259c6a",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/left-panel-close.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/left-panel-close.svg",
+      "bytes": 323,
+      "sha256": "53fda166fc290d8ac25673d94eb334db675260f150089d0c173df67996d54502",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/left-panel-open.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/left-panel-open.svg",
+      "bytes": 321,
+      "sha256": "ffc0079879213b81a6a9fdd94ce7f86485defb716c2a72050e6269b19ba05e06",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/lightbulb-spark.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/lightbulb-spark.svg",
+      "bytes": 623,
+      "sha256": "693d720cc24941d7bff412d720f302c0a5c65d81edd94cd3e1e54fbe7846d86f",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/lightbulb.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/lightbulb.svg",
+      "bytes": 541,
+      "sha256": "c09d459f82358d814a27bbd10de1b621fdafed83e0b125f4531a6419118d1516",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/lighthouse_logo.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/lighthouse_logo.svg",
+      "bytes": 10523,
+      "sha256": "6fc4566a72337d6764236e689558f07ba0643cf8f76d672eb7d00cf91578ec92",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/list.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/list.svg",
+      "bytes": 652,
+      "sha256": "ad20ae86d664c46bf6494a571e3dddf7189990d7c1243bf4d7ac1ed8b0f91cfc",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/location-on.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/location-on.svg",
+      "bytes": 851,
+      "sha256": "5aa006a69adb0308d954276303442653b081ec8d92181720c7d7d4f752699d58",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/lock-person.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/lock-person.svg",
+      "bytes": 753,
+      "sha256": "a06059af2ae4d1aa7a9e58ac9f6587879d1cac3602b40d401b5bb0667c66ffb1",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/lock.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/lock.svg",
+      "bytes": 590,
+      "sha256": "ca404fc1f1d4956640dc6761a944afd0dec8b3571a3d4e5bd0b26fe7b52160ed",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/mark-email-unread.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/mark-email-unread.svg",
+      "bytes": 580,
+      "sha256": "ed964d67ed7f636c1366dfa849b1abeecfa31be15f89a8d7abf093e962e7b1f4",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/match-case.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/match-case.svg",
+      "bytes": 738,
+      "sha256": "73288cae66b061926a9ffe95018edeed0c0e177499f66a5a851baff9e1843ed5",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/match-whole-word.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/match-whole-word.svg",
+      "bytes": 745,
+      "sha256": "ba2f656cc0f4ec395037207ca14a67c3b61dd43b2a9790bf4efcdef88a6ca89d",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/memory.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/memory.svg",
+      "bytes": 381,
+      "sha256": "3d21ff945142b68239dd90c35be728ea37c0a78c45e2dc47c77568b9c7c818de",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/minus.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/minus.svg",
+      "bytes": 126,
+      "sha256": "a98c1aa66ebbc09c73a3e89328dac9f4cfd92815188ec6eb939ba54a79d7f48a",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/mop.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/mop.svg",
+      "bytes": 865,
+      "sha256": "deefcbe7b88eb24c4b18a72bce4a3f5ba30738364adea23238ee114c3fcc1b6f",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/mouse.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/mouse.svg",
+      "bytes": 426,
+      "sha256": "4963286b9dde27fb715c7037ff71c74c55ba58fd2a70f7aeaf14c5f9a8434bab",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/navigationControls_2x.png",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/navigationControls_2x.png",
+      "bytes": 1518,
+      "sha256": "3f60c6b7d8222ed86d40cd9797ac76ad88f0e83871bccbccfeda4fc817d924d7",
+      "mimeType": "image/png",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/navigationControls.png",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/navigationControls.png",
+      "bytes": 723,
+      "sha256": "d9d9dd41bb69a46e15893328da234038835f4e3e5198fe672ad1c1cc61ff7db5",
+      "mimeType": "image/png",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/network-settings.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/network-settings.svg",
+      "bytes": 1231,
+      "sha256": "ebe4ac52c52484f7dedda22ec8a1aa41300919fb6820d852a6a448c6320d8140",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/node-stack-icon.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/node-stack-icon.svg",
+      "bytes": 6124,
+      "sha256": "4cabd509db897739cc6f445bda27d0f27979e9feb771b637fe20df837d29ff90",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/nodeIcon.avif",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/nodeIcon.avif",
+      "bytes": 1225,
+      "sha256": "427afecbe79eaf0b289537fe7627e434ca8a20ba0b7204964bc34bfde065f2a6",
+      "mimeType": "image/avif",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/open-externally.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/open-externally.svg",
+      "bytes": 316,
+      "sha256": "1e0d2ca5a78874e7f6eb9b8c6225ebf324596806e0cf29e2c042499315d7acc1",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/override.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/override.svg",
+      "bytes": 420,
+      "sha256": "388cfcd4fe2312ef8b6e4c85588e8d9305ab5b7e9d037b1881e902b90ece975b",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/palette.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/palette.svg",
+      "bytes": 1492,
+      "sha256": "42c80f321b61ccc5c6fde124f1cc783672bd26e662405e7c52ddd71f2c5dc4b9",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/pause-circle.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/pause-circle.svg",
+      "bytes": 611,
+      "sha256": "fe1cbca163c65fa3151cf01c068c3f4bb61a73c08a0ca97e8aec714471ce30b0",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/pause.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/pause.svg",
+      "bytes": 163,
+      "sha256": "1aafb287d9425364fae850f580ed1bfbec768de4a3e923dc4814b03704a07eab",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/pen-spark.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/pen-spark.svg",
+      "bytes": 486,
+      "sha256": "ec5858b11a5a4462382eb8066fab18482bb19c039b599fa4e290305b50689df7",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/performance-panel-delete-annotation.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/performance-panel-delete-annotation.svg",
+      "bytes": 8986,
+      "sha256": "4f5190c65a2ac37b6651c5240892ceb9a5836722651eb4fa5456c80816940283",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/performance-panel-diagram.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/performance-panel-diagram.svg",
+      "bytes": 1871,
+      "sha256": "f57fb7b0a4d09588e950c7c5e441b8aa13cc5d7aa6159c666cbecbfdd5f2d86e",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/performance-panel-entry-label.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/performance-panel-entry-label.svg",
+      "bytes": 3992,
+      "sha256": "72d9bfe285d0268501fa9232363a766fe8d4f1ccdad78e9083ddfd8306bf3a8f",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/performance-panel-time-range.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/performance-panel-time-range.svg",
+      "bytes": 2796,
+      "sha256": "094ef878668e7877bdc5bc93e221c91825533e7521f23ff067b6adc64a893a01",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/performance.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/performance.svg",
+      "bytes": 723,
+      "sha256": "636ccd42c961dc2dc5b657d35409695de72131f1ba25501959c309b072ad5d5f",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/person.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/person.svg",
+      "bytes": 471,
+      "sha256": "e71d2ddddf76a5ac240fb932a5dc67b57d122a82dc721a15105d5d87d9e609d3",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/photo-camera.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/photo-camera.svg",
+      "bytes": 672,
+      "sha256": "c637733681cc830750392c3646c12cd3179da24192069838ce31da75d99f944d",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/play.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/play.svg",
+      "bytes": 153,
+      "sha256": "4884898a87e74f73770b8c968dd182119c17ced0d38cf8fd73cc01ca5d66cec6",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/plus.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/plus.svg",
+      "bytes": 159,
+      "sha256": "7e7ffc20e25f440a0c8c18a36d0b063b1203acd1ebcb239d188a56813cb8f3cd",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/policy.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/policy.svg",
+      "bytes": 747,
+      "sha256": "3f87f1259e5a0c0b473b81240ec8df16a12e9a54c12ff7a55c62f8c1a2c60510",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/popoverArrows.png",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/popoverArrows.png",
+      "bytes": 353,
+      "sha256": "cc2ead1f7e9d24518afe40600d1d23ae1abcced0e63a1800a65f0c4fd006eedc",
+      "mimeType": "image/png",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/popup.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/popup.svg",
+      "bytes": 443,
+      "sha256": "24a7184813b851f8ea723bae535e1bc3f10245f0324d93f3ed75d65d13a38369",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/preview_feature_video_thumbnail.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/preview_feature_video_thumbnail.svg",
+      "bytes": 8080,
+      "sha256": "6786a3df46a33be1aa4e4774a522b22e509cf75d55a9f0936d917f19bcfbd729",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/profile.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/profile.svg",
+      "bytes": 1126,
+      "sha256": "b3758c8f3fcd7153f578703c0c9a840d90c02d9f1b5564aea50be5f0d032f187",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/psychiatry.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/psychiatry.svg",
+      "bytes": 742,
+      "sha256": "08dc38344256005e198c689e13590f8e66a9533d27acddd8a781a5339c99ef4e",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/record-start.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/record-start.svg",
+      "bytes": 268,
+      "sha256": "5f473c879fbeede279b94f7717595dc62d12890b85e95d138dd6df542f770c51",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/record-stop.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/record-stop.svg",
+      "bytes": 260,
+      "sha256": "54384e8a43d9ebf31fbc841e589c4ff76eac58c8cfe94ee774cb06b79bbef2d3",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/redo.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/redo.svg",
+      "bytes": 312,
+      "sha256": "940515f1b3f8957f2300570b2aa96d1cdb2d11f430ca27d85eeb3f2804cd4d3b",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/refresh.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/refresh.svg",
+      "bytes": 284,
+      "sha256": "7d5ef63d3316bf137c2d6269bb55ca9fb79dd634382ab9d237b167c0db10af83",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/regular-expression.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/regular-expression.svg",
+      "bytes": 738,
+      "sha256": "20323d0bc291594f5f02a3f761bfafd72350c3f6f24bf22de24e934dc0e782a1",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/replace.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/replace.svg",
+      "bytes": 815,
+      "sha256": "c14cff06c177286de6448875c3f9b2de87e6980fce643dbc0b753c97614cbd98",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/replay.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/replay.svg",
+      "bytes": 563,
+      "sha256": "391d97d3bffb2f2766106b07bf07e3515382e7f43b38d7862b30e3d7af37a32c",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/report.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/report.svg",
+      "bytes": 339,
+      "sha256": "680c5eae04f78c68f98f96cd4c08f1b2ec8f1809abc82407b0904bcf78507a24",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/resizeDiagonal.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/resizeDiagonal.svg",
+      "bytes": 395,
+      "sha256": "c168c3fbe9ae98c661472583493e64dc2716a41f4cdaaca8f3bb20ab571a0235",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/resizeHorizontal.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/resizeHorizontal.svg",
+      "bytes": 188,
+      "sha256": "d557d8820622a0ac1f9c2ee57cf1c83758d8a814fec59d0772da21acfd2171c0",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/resizeVertical.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/resizeVertical.svg",
+      "bytes": 188,
+      "sha256": "881e7c3988de8f097f0cdce173894658d578e89f9724bae1a7edb2290e4c3c2f",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/resume.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/resume.svg",
+      "bytes": 160,
+      "sha256": "eb9ba6a43dee8bd31a661addca0d9f2812d9d3d552857c31d010623ebb445709",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/review.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/review.svg",
+      "bytes": 416,
+      "sha256": "2357bd3e7d9490acab3b9967efb2788274b02145009f7feeb72d7705e2b6bb1a",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/right-panel-close.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/right-panel-close.svg",
+      "bytes": 323,
+      "sha256": "8c0e4eac96c073baeb66dd9e04737391a6601583fe6bc1634c9c4da01872517b",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/right-panel-open.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/right-panel-open.svg",
+      "bytes": 324,
+      "sha256": "d3b585741bf8988f2bf15cc13b42586a31f12a872b369154f77debf9f4b20e61",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/scissors.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/scissors.svg",
+      "bytes": 966,
+      "sha256": "4fc14856edabca3286a142c1aaa1352180cd88318fdc64e6c6212538a31f51fd",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/screen-rotation.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/screen-rotation.svg",
+      "bytes": 666,
+      "sha256": "8325c48f86107234957b962ffabbe721f207c28b1a30a2cb31f21b676b677d2a",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/search.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/search.svg",
+      "bytes": 488,
+      "sha256": "d668871d75538b1e7bb4f5eba2ed2a4a109fcc4fc1b903204c313343fa773f14",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/select-element.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/select-element.svg",
+      "bytes": 469,
+      "sha256": "8f38dbe9dc11dc23614fbef64450b751bbb2fa39bbaac98e46aacfacf66a3206",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/send.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/send.svg",
+      "bytes": 165,
+      "sha256": "5a44871962a6113060aa4cec0226f86bc33b075e39a025b36fee5f52077e4d5c",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/shadow.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/shadow.svg",
+      "bytes": 393,
+      "sha256": "bf7e95d163e73e509f72d9754d91c412e9d4e4ade2fd6c7c5e24dd7a427b46da",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/shield.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/shield.svg",
+      "bytes": 315,
+      "sha256": "3e13e923a33fee166b27ca991326a39e7bb87dce8f7411cd20f1bcc0f57b311b",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/small-status-dot.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/small-status-dot.svg",
+      "bytes": 124,
+      "sha256": "675e388874bc79a3ee04d8b0336c570ac9162e4387d46953944094ec72d2a931",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/smart-assistant.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/smart-assistant.svg",
+      "bytes": 593,
+      "sha256": "f400eec4dbc76f5c43df5605df5cadbe1618226b59d0e7a8801cdd3f618a945e",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/snippet.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/snippet.svg",
+      "bytes": 310,
+      "sha256": "6282d9ce31957a880fd1f7e03f566d27ac6a897ab0086bb490e93646dcaef21f",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/spark-info.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/spark-info.svg",
+      "bytes": 1315,
+      "sha256": "6ef72c57208f9d030c76238cfe9f46bb773ead0795d84995f5e466d6840e9e56",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/spark.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/spark.svg",
+      "bytes": 795,
+      "sha256": "9109bb70969dead4722a9ccb7f7ac38bebce2bfdfc656358e6ed9f5805f03616",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/speculative-loads.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/speculative-loads.svg",
+      "bytes": 196,
+      "sha256": "51b6a04fae24e6e22b636fbef073429c11e93d0338608486c36acd3c7ee19b50",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/speedster-badge.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/speedster-badge.svg",
+      "bytes": 13010,
+      "sha256": "4dda7c9726b68e471753231bad1a8f951a4c882a7ec5a2a6e50ce6b1d0f01423",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/star.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/star.svg",
+      "bytes": 302,
+      "sha256": "ced462fe60c845b80be4a50b30c897999dc492bce47bf466c32fb0e8a8e8aba1",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/step-into.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/step-into.svg",
+      "bytes": 354,
+      "sha256": "26141ee1887df0e90b71d31e3373580d0698e9c734d65adbbc77452dcf984ef0",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/step-out.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/step-out.svg",
+      "bytes": 358,
+      "sha256": "cc0b90d82860b109f54f245683e5daceaebf8163e43caa824e495956275d25ce",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/step-over.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/step-over.svg",
+      "bytes": 488,
+      "sha256": "3ea902b8193b05a5e12715685424f4963e6c9e2fb65fc0bade7903ce68d69afe",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/step.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/step.svg",
+      "bytes": 359,
+      "sha256": "95f5c7e0907fa5a5d29676c3523aa2f7d11757056117c66a38e6e46f56957537",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/stop.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/stop.svg",
+      "bytes": 144,
+      "sha256": "5d8d719ea98e6712f7ef0658831fee0f1084f1173544786806c17531bf6351fb",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/symbol.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/symbol.svg",
+      "bytes": 851,
+      "sha256": "519923cba6de0ef7b2d8c0e4d6579a285288751203d82da2785863cc3520a6f5",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/sync.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/sync.svg",
+      "bytes": 521,
+      "sha256": "22d83d3f0b107189a11839d9bd88dd826e1508406e3f20511e593450c3d6b1be",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/tab-move.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/tab-move.svg",
+      "bytes": 316,
+      "sha256": "f1ccd06f3567acf425c2c190c7d7040dd07ea22266f72d1ec2d4369cc0457755",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/table.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/table.svg",
+      "bytes": 373,
+      "sha256": "fcc2d1ca1343013c3f9df60f102558866f3ce61fa606a7016a68ef99dcbb8429",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/terminal.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/terminal.svg",
+      "bytes": 474,
+      "sha256": "8a8de902ed8f3349bf6f45f458e2e447b5a21094e99fdd67e2ea84830b758b46",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/text-analysis.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/text-analysis.svg",
+      "bytes": 500,
+      "sha256": "77e3e9cc816e9e3075f23dda27d0fe4a1c395274fa0ae9e0fb81002450ed9b8e",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/thumb-down-filled.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/thumb-down-filled.svg",
+      "bytes": 322,
+      "sha256": "b8c194717cd8ef5a6877a235366318c933f5100d54ed687e3545fc764c6a6160",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/thumb-down.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/thumb-down.svg",
+      "bytes": 407,
+      "sha256": "95687ac2df6cd9d50ecd4d0ded920b988b51ce45bf31e24b66f796e817dc1202",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/thumb-up-filled.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/thumb-up-filled.svg",
+      "bytes": 293,
+      "sha256": "79e80bd68f8077ff8f73bb21ea44147e1ba28c5c8a90bd293f5ab13e77e3db1a",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/thumb-up.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/thumb-up.svg",
+      "bytes": 378,
+      "sha256": "a754e67000052592613226f79c315af85700ad381ec1c665684ea8580743586d",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/tonality.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/tonality.svg",
+      "bytes": 981,
+      "sha256": "400f16491bb8c5241f0f402806ebca0b5e82369aa17ecb2c1221bb9ec5fc36ce",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/toolbarResizerVertical.png",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/toolbarResizerVertical.png",
+      "bytes": 84,
+      "sha256": "429108e47babea18face93d006c704b9ca1110b49e66ddf65575113c7039da2b",
+      "mimeType": "image/png",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/top-panel-close.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/top-panel-close.svg",
+      "bytes": 320,
+      "sha256": "d98e158f9cdaba4bff1e57c88953af5daa7aa5bb0474490260572d68d62a7375",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/top-panel-open.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/top-panel-open.svg",
+      "bytes": 321,
+      "sha256": "ff70d276a27a72ab7b595e4d353541229c2f9bfd4a4aaf9b173136cd7a8e141f",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/touch-app.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/touch-app.svg",
+      "bytes": 949,
+      "sha256": "7dfdbc69b9c7d8d4037f0fdf9fa5eeab604b6121e7d15a62c925af568f567c9b",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/touchCursor_2x.png",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/touchCursor_2x.png",
+      "bytes": 517,
+      "sha256": "c96da8ab5b30e17d46b0859b53d96f333e2c914a7a9f7279261309ec4dc40ada",
+      "mimeType": "image/png",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/touchCursor.png",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/touchCursor.png",
+      "bytes": 271,
+      "sha256": "5d70005733eaca9a32604bd6a0bb93e186aed7c53104d1d5f6b2c1d8e2cfde66",
+      "mimeType": "image/png",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/triangle-bottom-right.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/triangle-bottom-right.svg",
+      "bytes": 117,
+      "sha256": "53c60fa273af411b567180024daf81e2c9854fee64597ac33b3a7fdc3e42a69e",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/triangle-down.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/triangle-down.svg",
+      "bytes": 126,
+      "sha256": "f800303f5ca4e0a7d757f5737866a44f8eab83e53082818732d62978b405c61f",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/triangle-left.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/triangle-left.svg",
+      "bytes": 97,
+      "sha256": "7b862898f90b7a190e749b0ed8563637d36e1733ea9de5a15c026a5e31ed344c",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/triangle-right.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/triangle-right.svg",
+      "bytes": 127,
+      "sha256": "883aec115e0327b51ffea1b83078b19f986defd9f206f185c293800c2355463f",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/triangle-up.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/triangle-up.svg",
+      "bytes": 141,
+      "sha256": "e96f161fc26463ef03e4f836de551d46c8661614d2a1917fbd0414bf6055ce82",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/trophy.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/trophy.svg",
+      "bytes": 600,
+      "sha256": "86c6bf16697ac6bf2cf1fde2ef17dca6304bd08f10420b37d8e9b383a4ec4138",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/tune.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/tune.svg",
+      "bytes": 258,
+      "sha256": "dab2f0dd6231fcbbfd7a338fea34c145a0793e7c4173380108618383c6a8b3fe",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/undo.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/undo.svg",
+      "bytes": 331,
+      "sha256": "fd19f1a5bdb56791c5427b77a2f3206f900daa3754dc98dfe65bf918b691f804",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/warning-filled.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/warning-filled.svg",
+      "bytes": 220,
+      "sha256": "bf183c7206323a4eabeb0d06dbf710a299016f9891c1d696f8a4d2ed18464684",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/warning.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/warning.svg",
+      "bytes": 341,
+      "sha256": "46efebd77162fb1e9f058c9e11c1e81676ab47b06418bb8399a311ed46f57ae0",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/watch.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/watch.svg",
+      "bytes": 634,
+      "sha256": "d1153b11b2b382e07dd3475ce1bd1f2887e8d652c06d7831efd0b7cec5498eaf",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/whatsnew.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/whatsnew.svg",
+      "bytes": 3916,
+      "sha256": "cbb6e58db9806aeb3fc0258f54324d1f380cadb28c8b58fedac8ff410dd89d57",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/width.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/width.svg",
+      "bytes": 215,
+      "sha256": "0c2a1b8df7c4e4078062ccd705f2e8fded40633e5fffb87ccef67486c5f73e4c",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/zoom-in.svg",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/Images/zoom-in.svg",
+      "bytes": 538,
+      "sha256": "0779db73f55291162ebef9b57b56d696e8d59d666fda712363871da2733e6a01",
+      "mimeType": "image/svg+xml",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/inspector.html",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/inspector.html",
+      "bytes": 990,
+      "sha256": "e5ae9e7c4a5b1c29dd0576c42cbb17eebd6a2dab7a6e08438f8c424a71b9752a",
+      "mimeType": "text/html",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/ai_assistance/ai_assistance.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/ai_assistance/ai_assistance.js",
+      "bytes": 262154,
+      "sha256": "67644f62370d3f2f1a01d32a75ef53f799f6897422d1e959814b975384135330",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/ai_code_completion/ai_code_completion.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/ai_code_completion/ai_code_completion.js",
+      "bytes": 6904,
+      "sha256": "bbd08831fe45d4d5a090319764fb4e4a4336cf1a3ef1629e18fbb2878e0b81db",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/ai_code_generation/ai_code_generation.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/ai_code_generation/ai_code_generation.js",
+      "bytes": 4602,
+      "sha256": "53b2e4fe7075ed724012b5237c20eb5b3cd5677b8bfb91f2f56606c2409bc7e2",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/annotations/annotations.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/annotations/annotations.js",
+      "bytes": 3417,
+      "sha256": "6471e491e9dd84a9249d571e31c56160d510b388ffe39ff94b5e8cc2ee042c5c",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/autofill_manager/autofill_manager.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/autofill_manager/autofill_manager.js",
+      "bytes": 1858,
+      "sha256": "c44d03cead3e21c3619eefc22cc0dfe99605c3a5d5ecd06326cc6194cae972bb",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/badges/badges.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/badges/badges.js",
+      "bytes": 6251,
+      "sha256": "ed5a24370c14ea4560fe0d22bf6a2f3da6b6e8b173d1ed11790027dfd45d3252",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/bindings/bindings.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/bindings/bindings.js",
+      "bytes": 95053,
+      "sha256": "25c8c7615e2672234e342ed519bcf3121994c5bacd5e6e4b18ccdcc84b50767e",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/breakpoints/breakpoints.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/breakpoints/breakpoints.js",
+      "bytes": 18749,
+      "sha256": "6c44b987bc909df3330b38171f0a4b839a239580afaf7705b1e5c0d46a729826",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/computed_style/computed_style.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/computed_style/computed_style.js",
+      "bytes": 3597,
+      "sha256": "3120f39918002080d355dab65165a10e88f5d41b3406f0833832cd2dbda1e6de",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/cpu_profile/cpu_profile.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/cpu_profile/cpu_profile.js",
+      "bytes": 7046,
+      "sha256": "facf33dd7aefa874c0a5ee052905fdee6cd67a7d0bb99e5c860140e55523e6b9",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/crux-manager/crux-manager.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/crux-manager/crux-manager.js",
+      "bytes": 4926,
+      "sha256": "0d74ab0eb42d327438900330db30081bc56f88cad5c5f07f61c0dc3dd75b6313",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/elements/elements.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/elements/elements.js",
+      "bytes": 1038,
+      "sha256": "e9c3924e4f64e02721171f37a06cacf5f7053cc354e55d014f5961e0e1b239d2",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/emulation/emulation.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/emulation/emulation.js",
+      "bytes": 56816,
+      "sha256": "b03a9807d711225291c411af34312c6591ab8ad4a812bdbd5a8874729544e8f4",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/extensions/extensions.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/extensions/extensions.js",
+      "bytes": 22689,
+      "sha256": "68fc956eb17c276162285934db5b30a8c810537d4dd60806cf568cc116c54713",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/formatter/formatter.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/formatter/formatter.js",
+      "bytes": 4473,
+      "sha256": "e16b80ded5e4edda93f15e48d25394278d3fb34f809a692f6f6db78ac18f9b6f",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/geometry/geometry.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/geometry/geometry.js",
+      "bytes": 5575,
+      "sha256": "bb844f001b9f89b4f08e2156b5ec953d3b0d7fbc75d67ac538e77259ee795af7",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/greendev/greendev.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/greendev/greendev.js",
+      "bytes": 741,
+      "sha256": "88cc3e3669df9170705acd7655f9347349194b6f0c43d4d7c00046d4ffa72f8c",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/har/har.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/har/har.js",
+      "bytes": 24650,
+      "sha256": "f960c5bfc6f68207fb74e9ad565c162676ab5c7ecfde976c4a337702a4e2cfa5",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/issues_manager/issues_manager.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/issues_manager/issues_manager.js",
+      "bytes": 100492,
+      "sha256": "158262fbc81249afea5c63546f80938d686b7fa5086a93db0abe256a3bbda8a4",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/javascript_metadata/javascript_metadata.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/javascript_metadata/javascript_metadata.js",
+      "bytes": 177128,
+      "sha256": "4a0e514c3d1a4af95978e3dbd912fed678c425698110035de20170e3b6c6f698",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/live-metrics/live-metrics.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/live-metrics/live-metrics.js",
+      "bytes": 7583,
+      "sha256": "a583df1d607284fef0f7c156589c8e8bc4915eda44e4756ce4e9bdf8c84af088",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/live-metrics/web-vitals-injected/spec/spec.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/live-metrics/web-vitals-injected/spec/spec.js",
+      "bytes": 321,
+      "sha256": "ed944e4607d8adbe9e4f7856a0dce12b8225411dccbff2eadd40fa64fca527ef",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/live-metrics/web-vitals-injected/web-vitals-injected.generated.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/live-metrics/web-vitals-injected/web-vitals-injected.generated.js",
+      "bytes": 16269,
+      "sha256": "c9fb80f02a71c646de5bec8b482177f63510fadfe70589fc88d88c696107c4ae",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/logs/logs.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/logs/logs.js",
+      "bytes": 11169,
+      "sha256": "c26aed4df8bb7860c90d33a59723a1f97d979cbc8bf8bf150ef6545125d4163a",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/network_time_calculator/network_time_calculator.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/network_time_calculator/network_time_calculator.js",
+      "bytes": 5906,
+      "sha256": "125764c2548dab2443e696c4e3d6153ed54b0603fd27bc787a260aa84ca6a0b5",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/persistence/persistence.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/persistence/persistence.js",
+      "bytes": 61751,
+      "sha256": "fd4d4bea8c46926e9444e0835df3754194e005edab0ff8132f1caa12ba41bc27",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/project_settings/project_settings.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/project_settings/project_settings.js",
+      "bytes": 2574,
+      "sha256": "a83103eb97018abb71dc9df0cac73ea4bd5484f04aa296a62c856e50470ed143",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/source_map_scopes/source_map_scopes.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/source_map_scopes/source_map_scopes.js",
+      "bytes": 13273,
+      "sha256": "ffa64dde62cf8892ed17cbc2a93d40601a8a7d0e99f237978348451c86c89e33",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/stack_trace/stack_trace.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/stack_trace/stack_trace.js",
+      "bytes": 2333,
+      "sha256": "302680e5de1b0ebe74acd3032e7181bfbdc4a057dace8ecb0b44b2959c2f67f8",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/text_utils/text_utils.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/text_utils/text_utils.js",
+      "bytes": 15034,
+      "sha256": "b8cabc5b733040d8734aff59c471e94dc45e0f00b2f5800b77dcf39ea4b572bd",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/trace_source_maps_resolver/trace_source_maps_resolver.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/trace_source_maps_resolver/trace_source_maps_resolver.js",
+      "bytes": 3924,
+      "sha256": "4498c6229eaedf18411324b7f313adda72334d39c26ac7240cf11c5fdc3809db",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/trace/extras/extras.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/trace/extras/extras.js",
+      "bytes": 22690,
+      "sha256": "42288c5df569f2068f92b5101abc7826e6fcab64e043da07cbfeb15a89334f7b",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/trace/handlers/handlers.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/trace/handlers/handlers.js",
+      "bytes": 76106,
+      "sha256": "6ea7e5176e250f1756ee7f9306c2814070c0dff87deb79338a577ecc8b01016b",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/trace/helpers/helpers.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/trace/helpers/helpers.js",
+      "bytes": 21894,
+      "sha256": "2525d0dcb1574dbd205872642a8bea0735899822ab6b478f2ec5b51c90df576b",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/trace/insights/insights.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/trace/insights/insights.js",
+      "bytes": 73365,
+      "sha256": "befe4fa814c6481a2afe4b57467e1e170c4a89fa2b6f397994379b784562a1d6",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/trace/lantern/core/core.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/trace/lantern/core/core.js",
+      "bytes": 6000,
+      "sha256": "8aca6ba1201ea5ae65d83e16480b3d562250f812b9525c5a361cfbab483eb630",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/trace/lantern/graph/graph.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/trace/lantern/graph/graph.js",
+      "bytes": 12791,
+      "sha256": "9596914a18e96b3f8b48d95e2a784456ebb11a94601191b47c04595c4c2e6182",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/trace/lantern/lantern.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/trace/lantern/lantern.js",
+      "bytes": 293,
+      "sha256": "5630322710feea40b11792757ba36e16c660d37b253b20e9ad10604d38f48f8c",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/trace/lantern/metrics/metrics.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/trace/lantern/metrics/metrics.js",
+      "bytes": 9559,
+      "sha256": "633d2fe96c3e7a00393be805befb0c3ad403a19b91d5aaf5bcebb1561ad04e84",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/trace/lantern/simulation/simulation.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/trace/lantern/simulation/simulation.js",
+      "bytes": 15804,
+      "sha256": "77fa3de6905bfa6ab76f16cc75cc4d6cc8f03522e40ba806be3de08a24e93c60",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/trace/lantern/types/types.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/trace/lantern/types/types.js",
+      "bytes": 444,
+      "sha256": "9bba9812bdd12425feb3821af7ed9974bc91e840d9bda799af57a930f9039fa8",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/trace/trace.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/trace/trace.js",
+      "bytes": 34483,
+      "sha256": "f3364bfadfbd211c04fc305caddfae32df251a221b59792c3d857294b456411a",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/trace/types/types.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/trace/types/types.js",
+      "bytes": 17222,
+      "sha256": "e0146c2363f1d448f72592f0cf50c1db8f3bb491957e8bbc32afd36713fc9f6f",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/workspace_diff/workspace_diff.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/workspace_diff/workspace_diff.js",
+      "bytes": 4622,
+      "sha256": "49162fea1f21eff413e2c28a9845424280b972c8dbd46e9e0c2c07436979aaee",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/workspace/workspace.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/models/workspace/workspace.js",
+      "bytes": 26955,
+      "sha256": "99812c79022f374098f75cea781a4cb6d06cbeec4d14765b08a2b46002e040ab",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/panels/ai_assistance/ai_assistance.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/panels/ai_assistance/ai_assistance.js",
+      "bytes": 183138,
+      "sha256": "11440aec38a455012c027b89599231e4107172dfb8e38ff4c64ab28d131ea74b",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/panels/application/preloading/helper/helper.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/panels/application/preloading/helper/helper.js",
+      "bytes": 955,
+      "sha256": "a5171acf042c6e5c87027788b676e58985d635180a9e4cfee164c95de7799225",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/panels/changes/changes.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/panels/changes/changes.js",
+      "bytes": 13142,
+      "sha256": "3c6d6d5e5bc94d487609fc3ee57e0f15d33ff4bd81385662ed3fd1223832da95",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/panels/common/common.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/panels/common/common.js",
+      "bytes": 113386,
+      "sha256": "cecd2377fcc7ba5d4e6e82fb9a979ad7d541dd8ace4645f18537a732e318d703",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/panels/console_counters/console_counters.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/panels/console_counters/console_counters.js",
+      "bytes": 4377,
+      "sha256": "cb87191b7b1022cd1908dacfad26cd28949d0621d8ce83824c44951a1ff304f2",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/panels/console/console.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/panels/console/console.js",
+      "bytes": 182282,
+      "sha256": "481d1381068216f5997efcfe6fd2300dd0ada39fcc445d8ae91991fcae0b9505",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/panels/coverage/coverage.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/panels/coverage/coverage.js",
+      "bytes": 41852,
+      "sha256": "c6e3c0dffd72775f1d2191496d65d5eb963f820ca0c872fa0b49c8e04355ad59",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/panels/css_overview/css_overview.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/panels/css_overview/css_overview.js",
+      "bytes": 43584,
+      "sha256": "ab66f8063dcd7708cbf323b98580706e92087fcf2862783c7be008d38b5d8da4",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/panels/elements/components/components.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/panels/elements/components/components.js",
+      "bytes": 46112,
+      "sha256": "5167301e88d22eff780dc148df9e5fad4f97b0688a5be35826331d68c60f6cd9",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/panels/elements/elements.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/panels/elements/elements.js",
+      "bytes": 440794,
+      "sha256": "f959c673c1ef79b9f19a18a9f8d55c78389e61516442c0ed1ca128f3cfd1ce8c",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/panels/emulation/emulation.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/panels/emulation/emulation.js",
+      "bytes": 67231,
+      "sha256": "942c0843f321955c86c3affa2662355f328054cb0e61288d2ca91cc68a604557",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/panels/event_listeners/event_listeners.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/panels/event_listeners/event_listeners.js",
+      "bytes": 17126,
+      "sha256": "f2a9f5291ecb75a97be0bd53c55097162541c2b94bbc7f06e009613df01dd0fe",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/panels/layer_viewer/layer_viewer.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/panels/layer_viewer/layer_viewer.js",
+      "bytes": 52118,
+      "sha256": "a62c83c42f2bf6870827be981f85d9be5ad5423151d135337b5300cfbc25a2cf",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/panels/lighthouse/lighthouse.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/panels/lighthouse/lighthouse.js",
+      "bytes": 257098,
+      "sha256": "2282d3e2d14e1240f0a3960ad0d92eb34fd1458e39bb0e9209fe73cef3253bee",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/panels/linear_memory_inspector/components/components.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/panels/linear_memory_inspector/components/components.js",
+      "bytes": 37367,
+      "sha256": "bbeb470dcbe2f6e616a5b11d99f4140f37565a02d792b774b27c1029a898979f",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/panels/media/media.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/panels/media/media.js",
+      "bytes": 46713,
+      "sha256": "c00fcb87d66315e65581bf49ea5308e908ddb20cb856b977149574c0abfa9428",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/panels/mobile_throttling/mobile_throttling.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/panels/mobile_throttling/mobile_throttling.js",
+      "bytes": 42824,
+      "sha256": "b0bd3372fe30481bf561b6326890807ff7c3e1eba60a59c66f063ded209e3425",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/panels/network/components/components.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/panels/network/components/components.js",
+      "bytes": 44463,
+      "sha256": "cb46171d85029f8de64641bb6e8a0e934ba8cfd7e05ecc1a49407fb3e700a138",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/panels/network/forward/forward.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/panels/network/forward/forward.js",
+      "bytes": 1825,
+      "sha256": "2138aa4475fc10950f1b946ada0404ed3459219f4299ca89de9427eedf8d0f81",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/panels/network/network.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/panels/network/network.js",
+      "bytes": 316011,
+      "sha256": "b4d977ba39dd98e1826169ccf2ddb3e83ea9278cc1b38c99cc806fa1066f77f7",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/panels/screencast/screencast.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/panels/screencast/screencast.js",
+      "bytes": 26442,
+      "sha256": "87702f06a20f7ca813c1b0c296d7c9086dc5c86a0a548101bee1554d7c51d440",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/panels/search/search.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/panels/search/search.js",
+      "bytes": 18398,
+      "sha256": "8da8b3789212afc84e837cf035470b03f71afc0fe6d54ca65c7f92295f5e2ca1",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/panels/settings/emulation/components/components.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/panels/settings/emulation/components/components.js",
+      "bytes": 17687,
+      "sha256": "280be024813a8a12241d3d7d1dae13e99a848b3478526c8641be9776c09d1e27",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/panels/settings/emulation/utils/utils.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/panels/settings/emulation/utils/utils.js",
+      "bytes": 6729,
+      "sha256": "b9caf4bae21a201799965be4fb2f149ad08392e2b69121b6efb2149a7874ca29",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/panels/snippets/snippets.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/panels/snippets/snippets.js",
+      "bytes": 6191,
+      "sha256": "fcfd1de9b16fd4e506897bef2fe91cbc2a4665748c25e37d4198512b00ee1412",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/panels/sources/components/components.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/panels/sources/components/components.js",
+      "bytes": 10792,
+      "sha256": "9586003290c8d6e9f641b2d32f0371a586f9c0cc47d0fe2bda05a707e6958060",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/panels/sources/sources.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/panels/sources/sources.js",
+      "bytes": 321499,
+      "sha256": "c73f13a2c20821ff8516b462637a21dec49f2af2394f20e4c45461d6749c359d",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/panels/timeline/components/components.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/panels/timeline/components/components.js",
+      "bytes": 173103,
+      "sha256": "19f5b7ed400d5b30d1deee4a54580eb0dd6f47d71a1f527ce956172e222a35ff",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/panels/timeline/components/insights/insights.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/panels/timeline/components/insights/insights.js",
+      "bytes": 53694,
+      "sha256": "30a002cb7933c7df8967157bbc81e50525a136c5b1e5d80218aed023b4dfe164",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/panels/timeline/extensions/extensions.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/panels/timeline/extensions/extensions.js",
+      "bytes": 942,
+      "sha256": "acc0265c7c8662d0215b53990652688deada7a3f80f8094a8fea617c25fc0d87",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/panels/timeline/overlays/components/components.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/panels/timeline/overlays/components/components.js",
+      "bytes": 34509,
+      "sha256": "7fb790eb72698e7a98ea1585867e383a350c26594480a19aa114e53c1b7265d7",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/panels/timeline/overlays/overlays.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/panels/timeline/overlays/overlays.js",
+      "bytes": 22763,
+      "sha256": "ce48e1a7068bd4c5552b440a56fe85a8eed5fec2236048a14ed5c13c8102e03a",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/panels/timeline/timeline.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/panels/timeline/timeline.js",
+      "bytes": 356285,
+      "sha256": "8ee73ced8fc0294ef60e8d7a40dbec7710417553c4750990fdd7691d3e2a837a",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/panels/timeline/utils/utils.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/panels/timeline/utils/utils.js",
+      "bytes": 8989,
+      "sha256": "07bc8a90f82f760e76d6888759de1b5052f4779672c5d5d16d2afd425ca0871e",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/panels/utils/utils.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/panels/utils/utils.js",
+      "bytes": 6516,
+      "sha256": "f24be81272cd923b3f52fe0f8655d453b3eb0c6a5ee20e4531a9ecd24a81fb9d",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/panels/whats_new/resources/WNDT.md",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/panels/whats_new/resources/WNDT.md",
+      "bytes": 714,
+      "sha256": "ff7cc56f2ee06bc98b9e452b889768f0bd9b777f88623f4d555bb2f096e4df21",
+      "mimeType": "text/markdown",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/panels/whats_new/whats_new.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/panels/whats_new/whats_new.js",
+      "bytes": 7602,
+      "sha256": "c7c1dc646a2c3259a0244872ddd7fe352cdb4cf18c89fd2e6a2365dd33c61d08",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/services/trace_bounds/trace_bounds.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/services/trace_bounds/trace_bounds.js",
+      "bytes": 2276,
+      "sha256": "c4cbd4bc07d623c817070276c6659834bf21bb5da6fd7b7452d0d4e53ae9dd3b",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/services/tracing/tracing.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/services/tracing/tracing.js",
+      "bytes": 2991,
+      "sha256": "149c90387f4c4c1912499c1f67ee858eaa25dbff9302afc0100abc51b9990aa1",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/third_party/acorn/acorn.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/third_party/acorn/acorn.js",
+      "bytes": 114052,
+      "sha256": "3c7b1ceeb9cbe96945db8b79db4309c4e8f76a0e50bd13035667af09ad1c51e9",
+      "mimeType": "text/javascript",
+      "licenseFamily": "acorn"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/third_party/chromium/client-variations/client-variations.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/third_party/chromium/client-variations/client-variations.js",
+      "bytes": 37472,
+      "sha256": "bf786651cd0448e5fa01851bc64b8c46805cb39623d8b13e9649ff223311ef59",
+      "mimeType": "text/javascript",
+      "licenseFamily": "chromium-client-variations"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/third_party/codemirror.next/chunk/codemirror.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/third_party/codemirror.next/chunk/codemirror.js",
+      "bytes": 516111,
+      "sha256": "15054c8fbe332d29ea0ae40d916162dd027f96e1217f9bfd028ae7b5395338e1",
+      "mimeType": "text/javascript",
+      "licenseFamily": "codemirror.next"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/third_party/codemirror.next/codemirror.next.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/third_party/codemirror.next/codemirror.next.js",
+      "bytes": 2405,
+      "sha256": "9757daeef120e8f6ccdcdc9710aa0eb28a0102e159ae7db37269f2ceb0233459",
+      "mimeType": "text/javascript",
+      "licenseFamily": "codemirror.next"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/third_party/diff/diff.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/third_party/diff/diff.js",
+      "bytes": 19511,
+      "sha256": "6f4492f7e4f818553155d73deea2dbfc16abe3a008eeb5a4161b678bf0ca8747",
+      "mimeType": "text/javascript",
+      "licenseFamily": "diff"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/third_party/i18n/i18n.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/third_party/i18n/i18n.js",
+      "bytes": 2641,
+      "sha256": "78944b01a9da5265bd3c805fef0632961678ddb827607d9c482d9ca025895175",
+      "mimeType": "text/javascript",
+      "licenseFamily": "i18n"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/third_party/intl-messageformat/intl-messageformat.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/third_party/intl-messageformat/intl-messageformat.js",
+      "bytes": 33196,
+      "sha256": "a6e70762c784836bb57829b734d3b556e3203a812a6a099212100ce1fa221d6d",
+      "mimeType": "text/javascript",
+      "licenseFamily": "intl-messageformat"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/third_party/legacy-javascript/legacy-javascript.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/third_party/legacy-javascript/legacy-javascript.js",
+      "bytes": 14021,
+      "sha256": "69141f63427a8e5bf6d78cb1b11b0280d2e7dcf3b097999b74118e579f2d0fbc",
+      "mimeType": "text/javascript",
+      "licenseFamily": "legacy-javascript"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/third_party/lighthouse/report/report.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/third_party/lighthouse/report/report.js",
+      "bytes": 182819,
+      "sha256": "c35dd694cd5a70c0e9cefe72377e75cef87844e46b712a6b65a73f59a52608b0",
+      "mimeType": "text/javascript",
+      "licenseFamily": "lighthouse"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/third_party/lit/lit.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/third_party/lit/lit.js",
+      "bytes": 54979,
+      "sha256": "8d19ae768cc1e951c1e61552bfa9ea06dd528741bef6b672d7f6b0e4f8feb1bd",
+      "mimeType": "text/javascript",
+      "licenseFamily": "lit"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/third_party/marked/marked.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/third_party/marked/marked.js",
+      "bytes": 38481,
+      "sha256": "dba9f9e66987b8a39e6144055092be5482f5afa5f2a619fbccc4d2fd51aec159",
+      "mimeType": "text/javascript",
+      "licenseFamily": "marked"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/third_party/source-map-scopes-codec/source-map-scopes-codec.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/third_party/source-map-scopes-codec/source-map-scopes-codec.js",
+      "bytes": 18289,
+      "sha256": "9f45cfc5ccd3a4945746324272564799b5fb54234dc182a3d48648e92292bb36",
+      "mimeType": "text/javascript",
+      "licenseFamily": "source-map-scopes-codec"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/third_party/third-party-web/third-party-web.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/third_party/third-party-web/third-party-web.js",
+      "bytes": 192225,
+      "sha256": "18e3b55e1b8b163eeccfb40cc3080ba8440e98f4e035def8b64c6dfffdde532e",
+      "mimeType": "text/javascript",
+      "licenseFamily": "third-party-web"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/components/adorners/adorners.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/components/adorners/adorners.js",
+      "bytes": 2570,
+      "sha256": "3b68a23e110e0dff0272a13221075c9b2c8c7bf32a94b4a961045eb2d9ccd6fa",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/components/buttons/buttons.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/components/buttons/buttons.js",
+      "bytes": 18185,
+      "sha256": "72f914142734cd51e0c8387b666073d6d4e29642f04c0aa5b0edc7de71a4f9e8",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/components/code_highlighter/code_highlighter.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/components/code_highlighter/code_highlighter.js",
+      "bytes": 5769,
+      "sha256": "f49a700064826cf1f8865e6c0069e73b88b70c0326092be75fe1b3fe78933083",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/components/dialogs/dialogs.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/components/dialogs/dialogs.js",
+      "bytes": 17134,
+      "sha256": "78c21ac08f69e4b7cca0c5424bdb96a05c7458cb6ac45716cfa541bb9b5c7a8f",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/components/diff_view/diff_view.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/components/diff_view/diff_view.js",
+      "bytes": 6052,
+      "sha256": "73c863bac00024243da299905df4886dd71be73576dd9d3a117861b8e5204e6c",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/components/helpers/helpers.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/components/helpers/helpers.js",
+      "bytes": 1253,
+      "sha256": "d4f4ae13348e702b5427f7a0cd7f83fcf3871f5474eea6a7ecd499131a21ef50",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/components/highlighting/highlighting.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/components/highlighting/highlighting.js",
+      "bytes": 5261,
+      "sha256": "a2bbd63b402af9cbb58235543e256348afea162d488df57358c29ea5714522fa",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/components/icon_button/icon_button.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/components/icon_button/icon_button.js",
+      "bytes": 4540,
+      "sha256": "94c6bc69a2fee20b619d5150337725587c7a21d383b9c9cdfc1e0b21e073cfe7",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/components/input/input.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/components/input/input.js",
+      "bytes": 1503,
+      "sha256": "0495e7acb1bd21165bcd69e657262ec6530235cb0324584196f1f405e9c1fe16",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/components/issue_counter/issue_counter.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/components/issue_counter/issue_counter.js",
+      "bytes": 6469,
+      "sha256": "d5d9da985e932afb6974b1a3ea3e82b461a3066bc3268d016afebaff7d5b34ea",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/components/linkifier/linkifier.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/components/linkifier/linkifier.js",
+      "bytes": 1879,
+      "sha256": "eaaf0a7d32fcd0e151e2778b39e32e454853235ef0aee5970767f42d656337bc",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/components/markdown_view/markdown_view.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/components/markdown_view/markdown_view.js",
+      "bytes": 19938,
+      "sha256": "f401e0ccd9d1d125e19a10f6b8681f255982eaabdac17f0a6b0b0f43130ee44a",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/components/menus/menus.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/components/menus/menus.js",
+      "bytes": 19269,
+      "sha256": "8c63c2f5727854b89cc1fd7db127786c88705c56a60e7f2f81687d0a8bec94c9",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/components/node_text/node_text.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/components/node_text/node_text.js",
+      "bytes": 1659,
+      "sha256": "575d193e6e77b30e0c40a2787194fcfebe0213216410c1dc25b926438f7bd01f",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/components/panel_feedback/panel_feedback.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/components/panel_feedback/panel_feedback.js",
+      "bytes": 6624,
+      "sha256": "a1fb32060a09ba53be46057f9364da7829ca3223307f0b5573ab6510f11505b1",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/components/panel_introduction_steps/panel_introduction_steps.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/components/panel_introduction_steps/panel_introduction_steps.js",
+      "bytes": 1843,
+      "sha256": "ab7229140fd4b8b33a1191df7cca91fdd3f4d6b3fe697fc742e771320e959d2b",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/components/render_coordinator/render_coordinator.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/components/render_coordinator/render_coordinator.js",
+      "bytes": 2879,
+      "sha256": "9b351a4c4932550757d7d5d0f05ebb14061b8b432d5f9af203cb029eedeaf096",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/components/report_view/report_view.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/components/report_view/report_view.js",
+      "bytes": 4780,
+      "sha256": "97b6006af4d95d14a3352336f9aa6dc04535057692e17513ca5b8d7c6e13e362",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/components/request_link_icon/request_link_icon.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/components/request_link_icon/request_link_icon.js",
+      "bytes": 3753,
+      "sha256": "131ba134384392768198da42b531963469e32c7dd264be5738ee651481541672",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/components/settings/settings.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/components/settings/settings.js",
+      "bytes": 4685,
+      "sha256": "09f2c86fb9c9e851f51ebf439595398e99dc73c10773b3ed32dee38cf970724c",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/components/snackbars/snackbars.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/components/snackbars/snackbars.js",
+      "bytes": 4643,
+      "sha256": "4eb494d50d8567a1ea57c19ca51130bf4bbdc5a13a52c5a1a282039b2b64c1d0",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/components/spinners/spinners.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/components/spinners/spinners.js",
+      "bytes": 3431,
+      "sha256": "54132efd1c87bcc21c54d4eac1abb65883f8c023cc349d012ee7b2a3acb802f2",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/components/srgb_overlay/srgb_overlay.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/components/srgb_overlay/srgb_overlay.js",
+      "bytes": 1894,
+      "sha256": "21008a29010512581d38f1bb8829421c07fb61e425381d93f03f5d814c7fcbf6",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/components/switch/switch.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/components/switch/switch.js",
+      "bytes": 3184,
+      "sha256": "7bd1d6220520291bca28ec9eca801fe51be3a48ff7858047df03d00ad092da46",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/components/text_editor/text_editor.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/components/text_editor/text_editor.js",
+      "bytes": 56110,
+      "sha256": "3b23e416ff241063104866327148789dcaaede69061bb0f4a491a7083579b55d",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/components/text_prompt/text_prompt.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/components/text_prompt/text_prompt.js",
+      "bytes": 2972,
+      "sha256": "c704b66bda4bc6e0ac34d7cd5de6c60ec8e37812f7e3ddaa6496afceb9cc843e",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/components/tooltips/tooltips.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/components/tooltips/tooltips.js",
+      "bytes": 11618,
+      "sha256": "e125af1785fa713a65421dd9ba3427919af2491f306f459cc3fa94d9de40a53c",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/components/tree_outline/tree_outline.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/components/tree_outline/tree_outline.js",
+      "bytes": 11241,
+      "sha256": "eb3965e4955aa3d14192def0f80b8adb37ac3efbec11a6a4129b1a7420fc2401",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/dom_extension/dom_extension.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/dom_extension/dom_extension.js",
+      "bytes": 6611,
+      "sha256": "86d691fc35af07c57c6c11504b90421a9a320e71c3913b0d0b8f27fd8f7fc273",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/helpers/helpers.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/helpers/helpers.js",
+      "bytes": 1062,
+      "sha256": "1e0313ac8ca2dc3ae3f706d001e7789f87a0d5dbe8dd334536121bfa5f19e713",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/i18n/i18n.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/i18n/i18n.js",
+      "bytes": 748,
+      "sha256": "a82d4c9579dcd6d80a12a992d96609b0ad9e275be81d60213fdc7ebfc6f40d06",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/kit/kit.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/kit/kit.js",
+      "bytes": 6924,
+      "sha256": "7d49060de4d8ab2c689bc3bd72da294cc49490154f95cc7c0c212ec99f27c9c0",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/legacy/components/color_picker/color_picker.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/legacy/components/color_picker/color_picker.js",
+      "bytes": 68086,
+      "sha256": "06e777c9923861358abd8df9770bf498953351f66ac7cd257b66ae29bf5329a2",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/legacy/components/cookie_table/cookie_table.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/legacy/components/cookie_table/cookie_table.js",
+      "bytes": 12366,
+      "sha256": "ee555b85186459ec562817e19516a622ad21c714477f21e55ec1b679a65cfafd",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/legacy/components/data_grid/data_grid.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/legacy/components/data_grid/data_grid.js",
+      "bytes": 67564,
+      "sha256": "6cae4e90b4a09ec5196f8ba840199d16228150ad8097ccc472983c7b8153ee11",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/legacy/components/inline_editor/inline_editor.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/legacy/components/inline_editor/inline_editor.js",
+      "bytes": 81664,
+      "sha256": "300c5ff9d0ba604c1f351331908e899117544c2f1e27cd27149cc70604aeb335",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/legacy/components/object_ui/object_ui.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/legacy/components/object_ui/object_ui.js",
+      "bytes": 52955,
+      "sha256": "7528cf29469b6ee03832bdfeecbf8914f70add47814a29e6108b26e3aa62d6f6",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/legacy/components/perf_ui/perf_ui.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/legacy/components/perf_ui/perf_ui.js",
+      "bytes": 135617,
+      "sha256": "8c85737c643d079ee4c15bd85f190d92c41f90d0565bb69e404a3e745cc7ee76",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/legacy/components/quick_open/quick_open.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/legacy/components/quick_open/quick_open.js",
+      "bytes": 24154,
+      "sha256": "1cc97146af60a92bb72e11cc3ce93cae0d09ea12627f78b26bdca8ed8f22d023",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/legacy/components/settings_ui/settings_ui.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/legacy/components/settings_ui/settings_ui.js",
+      "bytes": 2951,
+      "sha256": "20d6b8a04d69d1a1b9894c179c74a7850cd3ccd944ab53f52751cb6effa116ea",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/legacy/components/source_frame/source_frame.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/legacy/components/source_frame/source_frame.js",
+      "bytes": 51344,
+      "sha256": "69c851f64e1efa0d8eef9c4720d4ba970716224e7b404fb95954ec00440e1125",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/legacy/components/utils/utils.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/legacy/components/utils/utils.js",
+      "bytes": 33438,
+      "sha256": "830883601d549934dd7cb32deb4505dd024dc09a8bceed1ebdfb8a3f0c009b95",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/legacy/legacy.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/legacy/legacy.js",
+      "bytes": 407228,
+      "sha256": "b7c557d550ee840eb73760c0c389efff36999cf1a47da7343081d669e5748246",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/legacy/theme_support/theme_support.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/legacy/theme_support/theme_support.js",
+      "bytes": 3366,
+      "sha256": "7a86188148025e6c685284c5af9c815ca71ef8ccddf25cb8973ba15c5ca29acb",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/lit/lit.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/lit/lit.js",
+      "bytes": 1968,
+      "sha256": "5c9536b136a78fd79684e874502d9639c37c25384c0cb33d817482a81921d3ce",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/visual_logging/visual_logging.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/ui/visual_logging/visual_logging.js",
+      "bytes": 123618,
+      "sha256": "c2d42c1555f9c7946261a55f4184ae247f94eddbdb78aef220e12c0f20bc9deb",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    }
+  ]
+}

@@ -10,6 +10,7 @@ import { runTool } from "../_shared/run-tool.ts";
 import type { Args } from "./index.ts";
 import {
   configureStage,
+  materializeDevToolsAssets,
   parseSnapArgs,
   refuseFileMode,
   resolveContextsMode,
@@ -66,6 +67,9 @@ export async function main(opts: Args): Promise<number> {
   const cliExit = printCliPreamble(opts);
   if (cliExit !== null) {
     return cliExit;
+  }
+  if (opts.materializeDevToolsAssets) {
+    return await materializeDevToolsAssets();
   }
   const fileRefusal = refuseFileMode(opts);
   if (fileRefusal !== null) {

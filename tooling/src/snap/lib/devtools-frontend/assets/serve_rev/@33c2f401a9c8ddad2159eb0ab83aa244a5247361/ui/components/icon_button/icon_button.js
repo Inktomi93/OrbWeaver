@@ -1,0 +1,22 @@
+var m=Object.defineProperty;var l=(c,t)=>{for(var e in t)m(c,e,{get:t[e],enumerable:!0})};var h={};l(h,{FileSourceIcon:()=>n});import"./../../kit/kit.js";import{Directives as v,html as g,render as f}from"./../../lit/lit.js";var a=`:host{height:var(--sys-size-9);width:var(--sys-size-9);devtools-icon{height:100%;width:100%}devtools-icon.document{color:var(--override-file-source-icon-color,var(--icon-default))}devtools-icon.script,
+  devtools-icon.sm-script,
+  devtools-icon.snippet{color:var(--override-file-source-icon-color,var(--icon-file-script))}devtools-icon.stylesheet,
+  devtools-icon.sm-stylesheet{color:var(--override-file-source-icon-color,var(--icon-file-styles))}devtools-icon.image,
+  devtools-icon.font{color:var(--override-file-source-icon-color,var(--icon-file-image))}devtools-icon.dot::before{content:var(--image-file-empty);width:35%;height:35%;border-radius:50%;outline:var(--sys-size-1) solid var(--icon-gap-focus-selected);top:60%;left:55%;position:absolute;z-index:1}devtools-icon.purple.dot::before{background-color:var(--sys-color-purple-bright)}devtools-icon.green.dot::before{background-color:var(--sys-color-green-bright)}}
+/*# sourceURL=${import.meta.resolve("./fileSourceIcon.css")} */`;var{classMap:b}=v,n=class extends HTMLElement{#n=this.attachShadow({mode:"open"});#o;#i;#t;#e;set data(t){this.#i=t.contentType,this.#t=t.hasDotBadge,this.#e=t.isDotPurple,this.#o=t.iconType,this.#s()}get data(){return{iconType:this.#o,contentType:this.#i,hasDotBadge:this.#t,isDotPurple:this.#e}}connectedCallback(){this.#s()}#s(){let t=b({dot:!!this.#t,purple:!!(this.#t&&this.#e),green:!!(this.#t&&!this.#e),...this.#i?{[this.#i]:this.#i}:null});f(g`
+      <style>${a}</style>
+      <devtools-icon .name=${this.#o??null} class=${t}></devtools-icon>`,this.#n,{host:this})}};customElements.define("devtools-file-source-icon",n);var p={};l(p,{IconButton:()=>r});import"./../../kit/kit.js";import*as o from"./../../lit/lit.js";var d=`:host{white-space:normal;display:inline-block;margin-right:var(--sys-size-1);margin-left:var(--sys-size-1)}.icon-button{border:none;margin-right:2px;margin-top:4px;display:inline-flex;align-items:center;color:inherit;font-size:inherit;font-family:inherit;background-color:inherit;cursor:inherit}.icon-button.with-click-handler{padding:0;margin:0;height:18px;border-radius:var(--sys-shape-corner-extra-small)}.icon-button.with-click-handler:hover{background-color:var(--sys-color-state-hover-on-subtle)}.icon-button:focus-visible{outline:var(--sys-size-2) solid var(--sys-color-state-focus-ring)}.compact .icon-button-title{display:none}.icon-button-title{margin-right:var(--sys-size-2);+ devtools-icon{margin-left:var(--sys-size-3)}}.status-icon{margin-right:var(--sys-size-1);margin-left:var(--sys-size-2)}@media (forced-colors: active){.icon-button{forced-color-adjust:none;background-color:ButtonFace}.icon-button:focus-visible,
+  .icon-button.with-click-handler:hover{background-color:Highlight;color:HighlightText}}
+/*# sourceURL=${import.meta.resolve("./iconButton.css")} */`;var{html:s}=o,r=class extends HTMLElement{#n=this.attachShadow({mode:"open"});#o;#i=[];#t=!1;#e="";#s="";#r;set data(t){this.#i=t.groups.map(e=>({...e})),this.#o=t.clickHandler,this.#s=t.trailingText??"",this.#e=t.leadingText??"",this.#r=t.accessibleName,this.#t=!!t.compact,this.#l()}get data(){return{groups:this.#i.map(t=>({...t})),accessibleName:this.#r,clickHandler:this.#o,leadingText:this.#e,trailingText:this.#s,compact:this.#t}}#c(t){this.#o&&(t.preventDefault(),this.#o())}#l(){let t=o.Directives.classMap({"icon-button":!0,"with-click-handler":!!this.#o,compact:this.#t}),e=this.#i.filter(i=>i.text!==void 0).filter((i,u)=>this.#t?u===0:!0);o.render(s`
+      <style>${d}</style>
+      <button class=${t} @click=${this.#c} aria-label=${o.Directives.ifDefined(this.#r)}>
+      ${!this.#t&&this.#e?s`<span class="icon-button-title">${this.#e}</span>`:o.nothing}
+      ${e.map(i=>s`
+      <devtools-icon class="status-icon" name=${i.iconName} style="color: ${i.iconColor}; width: ${i.iconWidth||"var(--sys-size-7)"}; height: ${i.iconHeight||"var(--sys-size-7)"}">
+      </devtools-icon>
+      ${this.#t?s`<!-- Force line-height for this element --><span>&#8203;</span>`:o.nothing}
+      <span class="icon-button-title">${i.text}</span>`)}
+      </button>
+      ${!this.#t&&this.#s?s`<span class="icon-button-title">${this.#s}</span>`:o.nothing}
+    `,this.#n,{host:this})}};customElements.define("icon-button",r);export{h as FileSourceIcon,p as IconButton};
+//# sourceMappingURL=icon_button.js.map

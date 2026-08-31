@@ -65,6 +65,7 @@ export async function capture(page: Page, opts: Args, plan: PagePlan, evidence: 
     mapError: null,
     assertions: [],
     perf: null,
+    cssEvidence: null,
     evidenceRange: null,
   };
   const out = planOut(plan, pageIndex, totalPages);

@@ -164,6 +164,7 @@ function scenarioFailureSummary(
     assertions: outcomes.reduce((count, outcome) => count + outcome.assertions.filter((entry) => entry.failed).length, 0),
     consoleErrors: consoleFailures.errors,
     consoleWarnings: consoleFailures.warnings,
+    css: outcomes.filter((outcome) => outcome.cssEvidence?.status === "instrument-error").length,
   };
 }
 

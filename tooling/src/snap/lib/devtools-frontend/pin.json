@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "playwrightVersion": "1.61.1",
+  "browserVersion": "149.0.7827.55",
+  "chromiumRevision": "3188f8a607ae7e067593be8aab7f02d2451fec07",
+  "devtoolsFrontendRevision": "33c2f401a9c8ddad2159eb0ab83aa244a5247361",
+  "protocolVersion": "1.3",
+  "resourceCount": 477,
+  "decodedBytes": 9759320,
+  "manifestSha256": "ab90b731a9c6b0ad29b906c7ab39cf8094fb356c6875dad54175758d9f579ee8"
+}
