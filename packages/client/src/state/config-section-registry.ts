@@ -61,15 +61,21 @@ export interface ConfigSectionContribution {
   readonly when?: (viewer: SettingsViewerView) => boolean;
   /** The write claim (§2.3) — the keys this section, and only this section, patches. */
   readonly owns?: SettingsKeyClaim;
+  /** Renders inside the host group's `advancedFold` disclosure (#297's explicit custom arm — collapsed by
+   *  default; config-revamp-design.md §7.3). LIST/search citizenship is unchanged — a landing on a folded
+   *  section opens the fold. Absent = a plain section. */
+  readonly advanced?: boolean;
   /** The contributed `<Section>` node. Anchored via `configAnchorId(anchor, nav.id)` by the section. */
   readonly body: () => ReactNode;
 }
 
-/** A resolved contributed section — the node plus its nav, in declared registry order. */
+/** A resolved contributed section — the node plus its nav, in declared registry order. `advanced` rides
+ *  through so the host can split the fold without a second registry read. */
 export interface ResolvedConfigSection {
   readonly id: string;
   readonly nav: ConfigSubcategory;
   readonly node: ReactNode;
+  readonly advanced: boolean;
 }
 
 /** Group every VISIBLE contribution by its own `anchor` into a total `Record<anchor, contributions[]>`, in
@@ -97,7 +103,7 @@ export function resolveConfigSections(
   anchor: ConfigGroupId,
   viewer: SettingsViewerView,
 ): readonly ResolvedConfigSection[] {
-  return groupByAnchor(registry, viewer)[anchor].map((c) => ({ id: c.id, nav: c.nav, node: c.body() }));
+  return groupByAnchor(registry, viewer)[anchor].map((c) => ({ id: c.id, nav: c.nav, node: c.body(), advanced: c.advanced ?? false }));
 }
 
 /** The `nav` entries the host merges into a group's subcategory list, for one anchor — same grouping, same

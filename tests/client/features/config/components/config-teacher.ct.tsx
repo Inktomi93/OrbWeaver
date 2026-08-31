@@ -58,6 +58,12 @@ function stub(page: Page): Promise<TrpcRecorder> {
     // The Appearance skimmer's sections all read the settings blob — fed the real defaults so the knob
     // rows (the SettingRow seam under test) mount for real instead of suspending forever.
     "settings.getUserSettings": () => SETTINGS_VIEW,
+    // The Looks section (#866 S4) reads the theme library — three seeds, no owned rows.
+    "settings.listThemes": () => [
+      { id: "theme_00000000000000000000000001", name: "Hearth", override: {}, css: null, isSeed: true, createdAt: 0, updatedAt: 0 },
+      { id: "theme_00000000000000000000000002", name: "Mocha", override: {}, css: null, isSeed: true, createdAt: 0, updatedAt: 0 },
+      { id: "theme_00000000000000000000000003", name: "Light", override: {}, css: null, isSeed: true, createdAt: 0, updatedAt: 0 },
+    ],
     "rosterPreset.list": [],
     "sessions.me": { userId: "user_ct_config", handle: "ct_config", globalRole: "user" },
     "tag.listTagsWithUsage": () => [TAG],
@@ -91,12 +97,16 @@ test("focusing a knob row teaches THAT setting — head and About swap, and the 
   const pane = workspace.locator(CONTEXT_PANE);
   await expect(pane.getByRole("button", { name: "About" })).toBeVisible();
 
-  // Focus the Chat-width row through the real SettingRow seam (a click inside the row publishes focus).
-  const row = workspace.locator('[data-setting="chat-width"]');
-  await row.getByText("Chat width (%)").click();
-  await expect(pane.getByText("How wide the reading column may grow on large screens", { exact: false })).toBeVisible();
+  // Focus the Chat-display row through the real SettingRow seam (a click inside the row publishes
+  // focus). A PLAIN section's row on purpose — the folded sections' rows are behind the collapsed
+  // "Customize this look" arm and have their own landing pins.
+  const row = workspace.locator('[data-setting="chat-style"]');
+  // FOCUS the control (the focus-within seam) — clicking the LABEL would forward to the Select trigger
+  // and open its popup, whose Base UI inert backdrop then swallows every later click.
+  await row.getByRole("combobox").focus();
+  await expect(pane.getByText("How every message in the transcript is shaped", { exact: false })).toBeVisible();
   // The `i` carries the row's accessible subject — the teacher's pull-revelation door.
-  await expect(row.getByRole("button", { name: "More info about Chat width" })).toBeVisible();
+  await expect(row.getByRole("button", { name: "More info about Chat display" })).toBeVisible();
 
   // Learn is ABSENT: no appearance leaf supplies `more`.
   await expect(pane.getByRole("button", { name: "Learn" })).toHaveCount(0);
@@ -112,12 +122,12 @@ test("the foot tab KEEPS across a focus change — a reader on Applies stays on 
     .click();
 
   const pane = workspace.locator(CONTEXT_PANE);
-  await workspace.locator('[data-setting="chat-width"]').getByText("Chat width (%)").click();
+  await workspace.locator('[data-setting="chat-style"]').getByRole("combobox").focus();
   await pane.getByRole("button", { name: "Applies" }).click();
   await expect(pane.getByRole("button", { name: "Applies" })).toHaveAttribute("aria-current", "true");
 
-  // Move focus to a different row: the head/body swap, the TAB does not.
-  await workspace.locator('[data-setting="density"]').getByText("Density").click();
+  // Move focus to a different row (the focus-within seam): the head/body swap, the TAB does not.
+  await workspace.locator('[data-setting="color-quoted-speech"]').getByRole("switch").focus();
   await expect(pane.getByRole("button", { name: "Applies" })).toHaveAttribute("aria-current", "true");
 });
 

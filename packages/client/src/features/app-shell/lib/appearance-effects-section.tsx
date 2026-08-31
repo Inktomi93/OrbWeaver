@@ -11,6 +11,8 @@ const SECTION_ID = "appearance-effects";
 export const appearanceEffectsSection: ConfigSectionContribution = {
   id: SECTION_ID,
   anchor: "appearance",
+  // Inside the Appearance group's "Customize this look" fold (#297's explicit custom arm, #866 S4).
+  advanced: true,
   nav: APPEARANCE_EFFECTS_SUBCATEGORY,
   owns: { tier: "user", section: "appearance", keys: APPEARANCE_EFFECTS_KEYS },
   body: () => <AppearanceEffectsSection sectionId={SECTION_ID} />,

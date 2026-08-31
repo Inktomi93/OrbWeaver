@@ -20,6 +20,12 @@ import { makeResolvedChatCapability } from "../../../../support/factories/resolv
 import { ConfigHostInScrollingHostStory, ConfigHostStory } from "../_ct-stories.tsx";
 
 /** The getUserSettings read-model the Appearance group suspends on — defaults are enough to render it. */
+// The Looks section (#866 S4) reads the theme library — three seeds, no owned rows.
+const LOOKS_THEMES = [
+  { id: "theme_00000000000000000000000001", name: "Hearth", override: {}, css: null, isSeed: true, createdAt: 0, updatedAt: 0 },
+  { id: "theme_00000000000000000000000002", name: "Mocha", override: {}, css: null, isSeed: true, createdAt: 0, updatedAt: 0 },
+  { id: "theme_00000000000000000000000003", name: "Light", override: {}, css: null, isSeed: true, createdAt: 0, updatedAt: 0 },
+];
 const USER_SETTINGS_VIEW = {
   userId: "user_ct_settings",
   schemaVersion: 1,
@@ -150,7 +156,7 @@ const HOST_AMBIENT_ROUTES: Readonly<Record<string, unknown>> = {
 };
 
 async function stub(page: Page, extra: Readonly<Record<string, unknown>> = {}): Promise<void> {
-  await routeTrpc(page, { ...HOST_AMBIENT_ROUTES, "settings.getUserSettings": () => USER_SETTINGS_VIEW, ...extra });
+  await routeTrpc(page, { ...HOST_AMBIENT_ROUTES, "settings.getUserSettings": () => USER_SETTINGS_VIEW, "settings.listThemes": () => LOOKS_THEMES, ...extra });
 }
 
 test("renders the four shelves as NAMED groups, labelled by their own kicker, with the group bands inside them", async ({ mount, page }) => {
@@ -201,7 +207,7 @@ test("an active band is a disclosure GROUP (aria-expanded) and only its FIRST se
   // group opens at its top.
   const list = component.getByRole("region", { name: LIST_REGION });
   await expect(list.locator('[aria-current="true"]')).toHaveCount(1);
-  await expect(component.getByRole("button", { name: "Message style" })).toHaveAttribute("aria-current", "true");
+  await expect(component.getByRole("button", { name: "Looks", exact: true })).toHaveAttribute("aria-current", "true");
 });
 
 test("a sectioned group is a disclosure group whose FIRST section is the one aria-current leaf (Automation)", async ({ mount, page }) => {
@@ -625,7 +631,7 @@ test("a group that fits (no scroll) resolves the FIRST section, never the last",
     )
     .toBeLessThanOrEqual(2);
 
-  await expect(component.getByRole("button", { name: "Message style" })).toHaveAttribute("aria-current", "true");
+  await expect(component.getByRole("button", { name: "Looks", exact: true })).toHaveAttribute("aria-current", "true");
   await expect(component.getByRole("button", { name: "Effects" })).not.toHaveAttribute("aria-current", "true");
 });
 

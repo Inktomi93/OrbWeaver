@@ -359,8 +359,8 @@ function ShellStoreProbeBody(): ReactElement {
       <button type="button" onClick={(): void => setPanelMode("list", "docked")}>
         dock list
       </button>
-      <button type="button" onClick={(): void => openModal("theme")}>
-        open theme
+      <button type="button" onClick={(): void => openModal("newChat")}>
+        open a modal
       </button>
       <button type="button" onClick={(): void => openConfigTo("personas")}>
         open settings to personas
@@ -993,7 +993,7 @@ function ModalRegistryReader(): ReactElement {
     .join(",");
   return (
     <div>
-      <output>{`ids=${ids} theme=${registry.get("theme").title}`}</output>
+      <output>{`ids=${ids} newChat=${registry.get("newChat").title}`}</output>
     </div>
   );
 }

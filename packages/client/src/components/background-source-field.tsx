@@ -3,45 +3,49 @@
 // host-only per-chat) and the character card editor (Control B, the card's own carried background). Both
 // call sites are DISCRETE immediate-write controls (pick → mutate) — this field owns ONLY the picker body;
 // it never renders a save/discard affordance and never binds into an autosave FORM session (the D78
-// boundary stays with the caller, if any — this field sits beside it like a switch).
+// boundary stays with the caller).
 //
-// The asset (library) branch reads the viewer's OWN `appearance.backgroundLibrary` via `trpc.settings.
-// getUserSettings` — the sanctioned cross-feature READ seam (`UI-Architecture-and-Layout.md` §2.1: "cross-
-// feature reads ONLY via trpc.*") — rather than importing the settings feature's upload-and-manage
-// component (that component is FORM-bound to the appearance autosave session; this is a bare picker, own
-// row markup, no upload). The kind vocabulary rides the shared `#lib` table (`BACKGROUND_KIND_ITEMS`) —
-// the SAME one the Appearance settings surface's `backgroundImageKind` select uses (one home, no 2nd
-// spelling of the label text — the `message-role-labels.ts` precedent).
+// REBUILT ON THE LOOKS GRAMMAR (#866 S4, owner R-BG addendum — the kind Select + name Selects were a
+// seen-not-read shoehorn): ONE thumbnail grid — a None tile · the seeded plates · the viewer's own
+// `backgroundLibrary` entries — where the KIND derives from the tapped tile and is never a control. The
+// grid is the house `MediaGrid` cell family (selected wears the aria-selected ring). NO upload/manage
+// here: the Add affordance is the LINK to Settings → Appearance → Background (the existing "points users
+// here to add one" contract). The external-URL arm keeps its DISCRETE draft → Apply commit (F-P0-2: the
+// server materializes a fetched URL into an owned CAS asset; committing per keystroke would fetch per
+// character), behind a "From a URL…" door instead of a kind option.
+//
+// The asset branch reads the viewer's OWN library via `trpc.settings.getUserSettings` — the sanctioned
+// cross-feature READ seam (UI-Architecture-and-Layout.md §2.1).
 
 import { blobUrl } from "@orb/contracts/assets";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import { themeBackgroundSchema } from "@orb/contracts/theme";
-import type { AssetId } from "@orb/kit/ids";
-import { Avatar } from "@orb/ui/avatar";
 import { Button } from "@orb/ui/button";
-import { Check, Icon, Play } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
 import { Row, Stack } from "@orb/ui/layout";
-import type { SelectItems } from "@orb/ui/select";
-import { Select } from "@orb/ui/select";
+import type { MediaGridItem } from "@orb/ui/media-grid";
+import { MediaGrid } from "@orb/ui/media-grid";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { QueryBoundary, QueryErrorState, useTRPC } from "#data";
-import { BACKGROUND_KIND_ITEMS, listSeededBackgrounds } from "#lib";
+import { listSeededBackgrounds } from "#lib";
+import { openConfigTo } from "#state";
 
 /** The all-blank "no background" source — every non-active field heals to "" (the `themeBackgroundSchema`
- *  fault-isolation defaults), so a kind switch always rewrites the WHOLE object rather than leaking a
- *  stale field from a previously-picked kind. */
+ *  fault-isolation defaults), so a pick always rewrites the WHOLE object rather than leaking a stale
+ *  field from a previously-picked kind. */
 const EMPTY_BACKGROUND: ThemeBackground = themeBackgroundSchema.parse({});
 
-const SEEDED_BACKGROUND_ITEMS: SelectItems<string> = listSeededBackgrounds().map((bg) => ({
-  value: bg.id,
-  label: bg.label,
-}));
-
 const THUMB_WIDTH = 96;
+const NONE_TILE_ID = "none";
+const SEEDED_PREFIX = "seeded:";
+const ASSET_PREFIX = "asset:";
+
+interface BackgroundTile extends MediaGridItem {
+  readonly pick: ThemeBackground;
+}
 
 export interface BackgroundSourceFieldProps {
   /** `null` = no source carried yet (the server's "unset" state) — rendered as kind `none`. */
@@ -50,33 +54,30 @@ export interface BackgroundSourceFieldProps {
   readonly onChange: (value: ThemeBackground) => void;
   /** Non-host / read-only viewers get the picker rendered inert (chat Control A's member branch). */
   readonly readOnly?: boolean;
-  /** Drop the primary select's VISIBLE "Background" label when the field sits under a titled Section that
-   *  already reads "Background" (the chat context tab) — otherwise "Background" is announced twice. The
-   *  `aria-label` stays (a nameless combobox is a WCAG 4.1.2 fail); only the visible duplicate is removed. */
-  readonly hideLabel?: boolean;
 }
 
-export function BackgroundSourceField({ value, onChange, readOnly = false, hideLabel = false }: BackgroundSourceFieldProps): ReactElement {
+/** The tile the CURRENT value lights — the kind is storage detail; the grid speaks in tiles. */
+function currentTileId(current: ThemeBackground): string | null {
+  if (current.kind === "none") {
+    return NONE_TILE_ID;
+  }
+  if (current.kind === "seeded") {
+    return `${SEEDED_PREFIX}${current.seededId}`;
+  }
+  if (current.kind === "asset") {
+    return `${ASSET_PREFIX}${current.assetId}`;
+  }
+  return null; // external — materializing server-side; no tile until the server rewrites it to `asset`.
+}
+
+export function BackgroundSourceField({ value, onChange, readOnly = false }: BackgroundSourceFieldProps): ReactElement {
   const current = value ?? EMPTY_BACKGROUND;
   const commit = (patch: Partial<ThemeBackground>): void => onChange({ ...EMPTY_BACKGROUND, ...patch });
 
-  // External URL entry is a DISCRETE apply, never a per-keystroke write (F-P0-2): the caller mutates on every
-  // onChange, and the server MATERIALIZES a `kind:"external"` source (fetch → magic-belt → CAS). Committing
-  // per keystroke would fire a fetch-and-store on every character AND materialize an empty URL the instant the
-  // kind switches to "external". So the URL lives in local draft state and only commits (once) on "Apply".
+  // External URL entry is a DISCRETE apply, never a per-keystroke write (F-P0-2) — see the header.
   const [externalDraft, setExternalDraft] = useState<string | null>(null);
+  const draftValue = externalDraft ?? (current.kind === "external" ? current.externalUrl : "");
   const inExternalMode = externalDraft !== null || current.kind === "external";
-  const draftValue = externalDraft ?? current.externalUrl;
-
-  const onKindChange = (kind: ThemeBackground["kind"]): void => {
-    if (kind === "external") {
-      // Enter external-entry mode WITHOUT committing (an empty URL would materialize to nothing / clear).
-      setExternalDraft(current.kind === "external" ? current.externalUrl : "");
-      return;
-    }
-    setExternalDraft(null);
-    commit({ kind });
-  };
 
   const applyExternal = (): void => {
     const url = draftValue.trim();
@@ -89,105 +90,84 @@ export function BackgroundSourceField({ value, onChange, readOnly = false, hideL
 
   return (
     <Stack gap="field">
-      <Select
-        aria-label="Background"
-        disabled={readOnly}
-        items={BACKGROUND_KIND_ITEMS}
-        onValueChange={(kind): void => onKindChange(kind as ThemeBackground["kind"])}
-        value={inExternalMode ? "external" : current.kind}
-        {...(hideLabel ? {} : { label: "Background" })}
-      />
-      {current.kind === "seeded" && !inExternalMode && (
-        <Select
-          aria-label="Seeded image"
-          disabled={readOnly}
-          items={SEEDED_BACKGROUND_ITEMS}
-          label="Seeded image"
-          onValueChange={(seededId): void => commit({ kind: "seeded", seededId: seededId as string })}
-          placeholder="Choose a background"
-          value={current.seededId}
-        />
+      <QueryBoundary
+        fallback={<Text tone="muted">Loading your background library…</Text>}
+        renderError={(_error, retry): ReactElement => <QueryErrorState label="your background library" onRetry={retry} />}
+      >
+        <BackgroundTileGrid current={current} onPick={readOnly ? null : commit} />
+      </QueryBoundary>
+      {/* Two FLAT arms (no nested ternary): the doors row at rest, the URL entry while drafting. */}
+      {readOnly || inExternalMode ? null : (
+        <Row align="center" gap="field" className="justify-between">
+          <Button intent="ghost" onClick={(): void => setExternalDraft("")} size="sm" type="button">
+            From a URL…
+          </Button>
+          {/* The ADD door — upload/manage lives in ONE place (BG-D's atomic library writes). */}
+          <Button intent="ghost" onClick={(): void => openConfigTo("appearance", "background")} size="sm" type="button">
+            Add your own in Settings
+          </Button>
+        </Row>
       )}
-      {inExternalMode ? (
+      {!readOnly && inExternalMode ? (
         <Row align="end" gap="field">
-          <Input
-            aria-label="Background image URL"
-            className="flex-1"
-            disabled={readOnly}
-            onValueChange={setExternalDraft}
-            placeholder="https://…"
-            value={draftValue}
-          />
-          <Button disabled={readOnly ? true : draftValue.trim().length === 0} intent="secondary" onClick={applyExternal} type="button">
+          <Input aria-label="Background image URL" className="flex-1" onValueChange={setExternalDraft} placeholder="https://…" value={draftValue} />
+          <Button disabled={draftValue.trim().length === 0} intent="secondary" onClick={applyExternal} type="button">
             Apply
           </Button>
         </Row>
       ) : null}
-      {current.kind === "asset" && !inExternalMode && !readOnly && (
-        <QueryBoundary
-          fallback={<Text tone="muted">Loading your background library…</Text>}
-          renderError={(_error, retry): ReactElement => <QueryErrorState label="your background library" onRetry={retry} />}
-        >
-          <BackgroundAssetPicker current={current} onPick={(entry): void => commit({ kind: "asset", ...entry })} />
-        </QueryBoundary>
-      )}
     </Stack>
   );
 }
 
-interface AssetPick {
-  readonly assetId: AssetId;
-  readonly assetHash: string;
-  readonly mime: string;
-}
-
-interface BackgroundAssetPickerProps {
+interface BackgroundTileGridProps {
   readonly current: ThemeBackground;
-  readonly onPick: (entry: AssetPick) => void;
+  /** `null` = read-only (the grid still shows which tile is in use, but a tap does nothing). */
+  readonly onPick: ((patch: Partial<ThemeBackground>) => void) | null;
 }
 
-/** The asset (library) branch body — the viewer's saved `appearance.backgroundLibrary` entries, pick-only
- *  (no upload/rename/delete here; that management lives on the Appearance settings surface). */
-function BackgroundAssetPicker({ current, onPick }: BackgroundAssetPickerProps): ReactElement {
+/** The ONE tile population: None · the seeded plates · the viewer's own library (BG-D). */
+function BackgroundTileGrid({ current, onPick }: BackgroundTileGridProps): ReactElement {
   const trpc = useTRPC();
   const { data } = useSuspenseQuery(trpc.settings.getUserSettings.queryOptions());
   const library = data.config.appearance.backgroundLibrary;
 
-  if (library.length === 0) {
-    return (
-      <Text size="micro" tone="muted">
-        No saved backgrounds yet — add one from Settings → Appearance.
-      </Text>
-    );
-  }
+  const tiles: readonly BackgroundTile[] = [
+    { id: NONE_TILE_ID, alt: "No background", pick: { ...EMPTY_BACKGROUND, kind: "none" } },
+    ...listSeededBackgrounds().map(
+      (bg): BackgroundTile => ({ id: `${SEEDED_PREFIX}${bg.id}`, alt: bg.label, url: bg.url, pick: { ...EMPTY_BACKGROUND, kind: "seeded", seededId: bg.id } }),
+    ),
+    ...library.map(
+      (entry): BackgroundTile => ({
+        id: `${ASSET_PREFIX}${entry.assetId}`,
+        alt: entry.name,
+        // A video entry renders the placeholder box (an <img> of a video is a broken glyph); the name
+        // still names it.
+        ...(entry.mime.startsWith("video/") ? {} : { thumbUrl: `${blobUrl(entry.assetHash)}?w=${THUMB_WIDTH}` }),
+        pick: { ...EMPTY_BACKGROUND, kind: "asset", assetId: entry.assetId, assetHash: entry.assetHash, mime: entry.mime },
+      }),
+    ),
+  ];
+  const selectedId = currentTileId(current);
 
   return (
-    <Stack gap="row">
-      {library.map((entry) => {
-        const selected = current.kind === "asset" && current.assetId === entry.assetId;
-        const video = entry.mime.startsWith("video/");
-        return (
-          <Row align="center" gap="row" justify="between" key={entry.assetId}>
-            <Row align="center" gap="row">
-              <Avatar fallbackDelay={0} shape="square" size="sm" {...(video ? {} : { src: `${blobUrl(entry.assetHash)}?w=${THUMB_WIDTH}` })}>
-                <Icon icon={video ? Play : Check} size="sm" />
-              </Avatar>
-              <Text as="span" className="min-w-0 flex-1 truncate">
-                {entry.name}
-              </Text>
-            </Row>
-            <Button
-              aria-label={selected ? `${entry.name} in use` : `Use ${entry.name}`}
-              disabled={selected}
-              intent={selected ? "primary" : "secondary"}
-              onClick={(): void => onPick({ assetId: entry.assetId, assetHash: entry.assetHash, mime: entry.mime })}
-              size="sm"
-            >
-              {selected ? "In use" : "Use"}
-            </Button>
-          </Row>
-        );
-      })}
-    </Stack>
+    <MediaGrid
+      ariaLabel="Background"
+      className="max-h-64 w-full"
+      items={tiles}
+      minCellWidth={THUMB_WIDTH}
+      selection={{
+        selectedIds: new Set(selectedId === null ? [] : [selectedId]),
+        onToggle: (id): void => {
+          if (onPick === null) {
+            return;
+          }
+          const tile = tiles.find((candidate) => candidate.id === id);
+          if (tile !== undefined) {
+            onPick(tile.pick);
+          }
+        },
+      }}
+    />
   );
 }

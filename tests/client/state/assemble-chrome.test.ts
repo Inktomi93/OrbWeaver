@@ -56,9 +56,9 @@ describe("assembleChrome", () => {
   });
 
   test("maps a rail.end modal to a rail.end modal entry", () => {
-    const entries = assembleChrome({ sections: [], modals: [modal("theme", "rail.end")], widgets: [] });
+    const entries = assembleChrome({ sections: [], modals: [modal("newChat", "rail.end")], widgets: [] });
     expect(entries).toHaveLength(1);
-    expect(entries[0]).toMatchObject({ id: "theme", zone: "rail.end", behavior: { kind: "modal", modalId: "theme" } });
+    expect(entries[0]).toMatchObject({ id: "newChat", zone: "rail.end", behavior: { kind: "modal", modalId: "newChat" } });
   });
 
   test("produces NO chrome entry for unmapped placements (topbar.trail/surface/mobile-tab)", () => {

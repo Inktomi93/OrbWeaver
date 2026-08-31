@@ -10,9 +10,7 @@
 
 import type { AppearanceSettings } from "@orb/contracts/settings";
 import { APPEARANCE_BACKGROUND_FITS, BLUR_SURFACES } from "@orb/contracts/settings";
-import { BACKGROUND_IMAGE_KINDS } from "@orb/contracts/theme";
 import type { SelectItems, SelectOption } from "@orb/ui/select";
-import { BACKGROUND_KIND_LABELS, listSeededBackgrounds } from "#lib";
 
 export const ELEVATION_ITEMS: SelectItems<string> = [
   { value: "flat", label: "Flat" },
@@ -42,14 +40,9 @@ export const BLUR_SURFACE_ITEMS: readonly SelectOption<string>[] = BLUR_SURFACES
   label: BLUR_SURFACE_LABELS[value],
 }));
 
-// `external` is a transient INPUT-only kind (the picker's URL-entry branch), never a persisted paintable
-// state (BG-C invariant, contracts/settings) — so it is excluded from the selectable background-kind
-// options here. The labels themselves ride the shared `#lib` table (one home with the carried-background
-// picker, which DOES offer the URL branch — its writes materialize server-side).
-export const BACKGROUND_KIND_ITEMS: SelectItems<string> = BACKGROUND_IMAGE_KINDS.filter((value) => value !== "external").map((value) => ({
-  value,
-  label: BACKGROUND_KIND_LABELS[value],
-}));
+// The `backgroundImageKind` Select RETIRED with the R-BG thumbnail grid (#866 S4): the kind derives from
+// the tapped tile and is storage detail, so no items table exists for it any more (recorded in
+// config-revamp-design.md §7.3's rider — no dead table left behind).
 const BACKGROUND_FIT_LABELS: Record<AppearanceSettings["backgroundFit"], string> = {
   cover: "Cover (fill, crop edges)",
   contain: "Contain (fit, may letterbox)",
@@ -59,8 +52,4 @@ const BACKGROUND_FIT_LABELS: Record<AppearanceSettings["backgroundFit"], string>
 export const BACKGROUND_FIT_ITEMS: SelectItems<string> = APPEARANCE_BACKGROUND_FITS.map((value) => ({
   value,
   label: BACKGROUND_FIT_LABELS[value],
-}));
-export const SEEDED_BACKGROUND_ITEMS: SelectItems<string> = listSeededBackgrounds().map((bg) => ({
-  value: bg.id,
-  label: bg.label,
 }));

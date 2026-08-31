@@ -10,13 +10,18 @@
 
 import { SunMoon } from "@orb/ui/icons";
 import type { ConfigGroupDefinition } from "#state";
+import { LooksFoldCaption } from "../components/looks-fold-caption.tsx";
 
-/** The appearance pane — a `sections` skimmer. Section ORDER is the door array's order (main.tsx). */
+/** The appearance pane — a `sections` skimmer. Section ORDER is the door array's order (main.tsx).
+ *  `advancedFold` is #297's explicit custom arm (#866 S4): the fine-tuning knob sections (sizing & motion ·
+ *  reading typography · effects) ride ONE collapsed "Customize this look" disclosure under the Looks
+ *  picker — your changes, on top of the look you applied. */
 export const appearanceGroup: ConfigGroupDefinition = {
   id: "appearance",
   shelf: "user",
   label: "Appearance",
   icon: SunMoon,
-  description: "Theme, message style, and display density.",
+  description: "Your look — the applied theme — plus message style and the fine-tuning knobs on top of it.",
+  advancedFold: { label: "Customize this look", caption: () => <LooksFoldCaption /> },
   body: { kind: "sections" },
 };

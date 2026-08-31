@@ -22,7 +22,6 @@ import { getAppearanceTheme, listThemes, updateSettingsSection } from "./support
 
 const SETTINGS_SAVE = "/api/trpc/settings.updateUserSettingsSection";
 const SEED_THEME_NAME = "Mocha"; // a seed theme → paints a `[data-theme="mocha"]` block (app-shell.tsx)
-const SEEDED_BG_LABEL = "Seeded image"; // the SelectField that appears once kind = "seeded"
 const SEEDED_BG_OPTION = "Misty highlands"; // a REAL seeded background (list-seeded-backgrounds.ts catalog)
 const SEEDED_BG_ID = "misty-highlands"; // that option's stored id (backgroundSeededId), for the server-truth poll
 
@@ -69,45 +68,22 @@ test.describe("settings render-truth (no-clear-needed) — #16", () => {
 
     const savesTotal = installSaveCounter(page);
 
-    // ── 1. Change the THEME through the real theme picker. ──
-    await page.getByRole("button", { name: "Switch theme" }).click();
-    const themeDialog = page.getByRole("dialog", { name: "Theme" });
-    await expect(themeDialog).toBeVisible({ timeout: 10_000 });
-    // Each theme is a clickable ListRow whose accessible name is the theme name. Target the row control,
-    // not its nested title text, so Base UI receives the click consistently under the full worker load.
-    await themeDialog.getByRole("button", { name: SEED_THEME_NAME, exact: true }).click();
+    // ── 1. Change the THEME through the real Looks section (#866 S4 — the theme modal retired into the
+    //       Appearance group; the rail "Settings" is a SECTION now; picking a card APPLIES, #297). ──
+    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await page.getByRole("button", { name: "Appearance" }).click();
+    // The shipped looks render as CARDS; picking one applies it (the `selectedThemeId` patch).
+    await page.getByRole("button", { name: SEED_THEME_NAME }).click();
     // The active theme applies globally — the shell paints a `[data-theme="mocha"]` scope IMMEDIATELY
     // (server truth flows through the getUserSettings query invalidation the mutation drives).
     await expect(page.locator('[data-theme="mocha"]').first()).toBeVisible({ timeout: 10_000 });
-    // Close the theme modal (Escape — Base UI dialog owns it).
-    await page.keyboard.press("Escape");
-    await expect(themeDialog).toHaveCount(0, { timeout: 10_000 });
 
-    // ── 2. Change the BACKGROUND through the real appearance settings. ──
-    await page.getByRole("button", { name: "Settings", exact: true }).click();
-    const settingsDialog = page.getByRole("dialog", { name: "Settings" });
-    await expect(settingsDialog).toBeVisible({ timeout: 10_000 });
-    // Navigate to Appearance (the settings nav lists categories by label).
-    await settingsDialog.getByRole("button", { name: "Appearance" }).click();
-
-    // Set the background image kind to "Seeded", then pick a seeded image. The `Image` SelectField's
-    // trigger carries its label as accessible name; options are `role="option"` inside a `role="listbox"`
-    // popup. The sanctioned Base UI select idiom (ui select CT): click trigger → WAIT for the listbox to be
-    // visible (the popup's open animation settles) → click the option BY NAME. Clicking the option before
-    // the listbox settles races the open animation ("not stable → not visible"); identity-by-name beats a
-    // positional `.first()` (house rule).
-    await settingsDialog.getByRole("combobox", { name: "Image" }).click();
-    await expect(page.getByRole("listbox")).toBeVisible({ timeout: 10_000 });
-    await page.getByRole("option", { name: "Seeded" }).click();
-    await expect(page.getByRole("listbox")).toBeHidden({ timeout: 10_000 });
-    // The seeded-image picker appears once kind = seeded.
-    const seededTrigger = settingsDialog.getByRole("combobox", { name: SEEDED_BG_LABEL });
-    await expect(seededTrigger).toBeVisible({ timeout: 10_000 });
-    await seededTrigger.click();
-    await expect(page.getByRole("listbox")).toBeVisible({ timeout: 10_000 });
-    // Pick a REAL seeded background by name (the static catalog's first entry, list-seeded-backgrounds.ts).
-    await page.getByRole("option", { name: SEEDED_BG_OPTION }).click();
-    await expect(page.getByRole("listbox")).toBeHidden({ timeout: 10_000 });
+    // ── 2. Change the BACKGROUND through the real appearance settings — the R-BG thumbnail grid (#866
+    //       S4): one gridcell per plate, named by its label; the KIND derives from the tapped tile. ──
+    const backgroundGrid = page.getByRole("grid", { name: "Background image" });
+    await backgroundGrid.scrollIntoViewIfNeeded();
+    await expect(backgroundGrid).toBeVisible({ timeout: 10_000 });
+    await backgroundGrid.getByRole("gridcell", { name: SEEDED_BG_OPTION }).click();
 
     // The appearance autosave debounces (500ms) then commits; the shell repaints when the settingsChanged
     // bus event refetches getUserSettings. First confirm the save actually reached the SERVER (the seeded id
@@ -127,9 +103,8 @@ test.describe("settings render-truth (no-clear-needed) — #16", () => {
     expect(bgImage).not.toBe("none");
     expect(bgImage).toContain("url(");
 
-    // Close settings — let any debounced autosave settle.
-    await page.keyboard.press("Escape");
-    await expect(settingsDialog).toHaveCount(0, { timeout: 10_000 });
+    // Leave Settings for Home — let any debounced autosave settle with the pane unmounted.
+    await page.getByRole("button", { name: "Home", exact: true }).click();
 
     // ── 3. The saves are the user's exactly — no self-triggered tail. Two user actions (theme select +
     // the background patch) each fire ONE save. The appearance field edits (kind + seeded id) both ride
@@ -167,12 +142,10 @@ test.describe("settings render-truth (no-clear-needed) — #16", () => {
     // ── 5. The #11 save-circuit-breaker never tripped (no autosave "error" surfaced). The AutosaveStatus
     // affordance renders a Retry control only in the error state — its absence is the breaker-silent proof. ──
     await page.getByRole("button", { name: "Settings", exact: true }).click();
-    const reSettings = page.getByRole("dialog", { name: "Settings" });
-    await expect(reSettings).toBeVisible({ timeout: 10_000 });
-    await reSettings.getByRole("button", { name: "Appearance" }).click();
+    await page.getByRole("button", { name: "Appearance" }).click();
     // The appearance autosave status shows the owner-ruled honest "Saved" readout when clean; a tripped
     // breaker would instead surface a Retry button. Assert the healthy status is present and no Retry.
-    await expect(reSettings.getByText("Saved", { exact: true })).toBeVisible({ timeout: 10_000 });
-    await expect(reSettings.getByRole("button", { name: "Retry" })).toHaveCount(0);
+    await expect(page.getByText("Saved", { exact: true }).first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("button", { name: "Retry" })).toHaveCount(0);
   });
 });

@@ -92,6 +92,12 @@ export function AppShellStory(): ReactElement {
               <>
                 <p>chats content pane</p>
                 <button type="button">content control</button>
+                {/* A CONTENT-placed modal opener (the newChat trigger placement is "surface"): the rail
+                    foot carries no modal trigger since the theme modal retired (#866 S4), so the shell's
+                    modal-behavior CTs drive this door instead. */}
+                <button onClick={(): void => openModal("newChat")} type="button">
+                  open new chat
+                </button>
               </>
             ),
             context: <p>chats context pane</p>,

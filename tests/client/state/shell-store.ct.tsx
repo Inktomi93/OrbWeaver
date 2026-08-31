@@ -51,8 +51,8 @@ test("openModal / closeModal drive the open-modal read", async ({ mount }) => {
   const state = probe.locator("output");
   await expect(state).toContainText("modal=none");
 
-  await probe.getByRole("button", { name: "open theme", exact: true }).click();
-  await expect(state).toContainText("modal=theme");
+  await probe.getByRole("button", { name: "open a modal", exact: true }).click();
+  await expect(state).toContainText("modal=newChat");
 
   await probe.getByRole("button", { name: "close modal" }).click();
   await expect(state).toContainText("modal=none");
@@ -73,8 +73,8 @@ test("openConfigTo switches the section through the shell store and leaves the m
   await expect(state).toContainText("settingsTarget=personas");
 
   // A modal opening and closing over the section leaves the section's own navigation fact standing.
-  await probe.getByRole("button", { name: "open theme", exact: true }).click();
-  await expect(state).toContainText("modal=theme");
+  await probe.getByRole("button", { name: "open a modal", exact: true }).click();
+  await expect(state).toContainText("modal=newChat");
   await probe.getByRole("button", { name: "close modal" }).click();
   await expect(state).toContainText("modal=none");
   await expect(state).toContainText("settingsTarget=personas");
