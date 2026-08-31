@@ -269,12 +269,40 @@ function typedReadNames(project: Project, typeName: string, inScope: (fp: string
   return out;
 }
 
+/** Wrap a per-file collector so each file's contribution is derived ONCE.
+ *
+ *  The collectors below are pure per-file derivations, but the call sites differ only in SCOPE:
+ *  `readShapedNames` runs three times and `anyNameOccurrences` twice, over overlapping file sets (two of
+ *  the read scopes are both SERVER_SRC with different exclusions). Without this, a file in two scopes was
+ *  walked once per scope for an answer that cannot differ
+ *  (docs/reviews/research/2026-08-31-gate-pass-unified-walk.md §2).
+ *
+ *  Keyed on `sf.compilerNode`, never the `SourceFile` wrapper, which is reused across
+ *  `createSourceFile(…, {overwrite:true})` (GATE-AUTHORING.md §5). That also makes the module-level cache
+ *  safe across the many `runPass` calls conformance makes: a new project means new compiler nodes. */
+function perFileNames(per: (sf: SourceFile, out: Set<string>) => void): (sf: SourceFile) => ReadonlySet<string> {
+  const cache = new WeakMap<object, ReadonlySet<string>>();
+  return (sf: SourceFile): ReadonlySet<string> => {
+    const key: object = sf.compilerNode;
+    const hit = cache.get(key);
+    if (hit !== undefined) {
+      return hit;
+    }
+    const out = new Set<string>();
+    per(sf, out);
+    cache.set(key, out);
+    return out;
+  };
+}
+
 /** Accumulate names one file contributes, per a per-file collector, over the files `inScope` accepts. */
-function collectNames(project: Project, inScope: (fp: string) => boolean, per: (sf: SourceFile, out: Set<string>) => void): Set<string> {
+function collectNames(project: Project, inScope: (fp: string) => boolean, of: (sf: SourceFile) => ReadonlySet<string>): Set<string> {
   const out = new Set<string>();
   for (const sf of project.getSourceFiles()) {
     if (inScope(sf.getFilePath())) {
-      per(sf, out);
+      for (const name of of(sf)) {
+        out.add(name);
+      }
     }
   }
   return out;
@@ -308,9 +336,11 @@ function collectReadShaped(sf: SourceFile, out: Set<string>): void {
   }
 }
 
+const readShapedOf = perFileNames(collectReadShaped);
+
 /** Read-shaped name occurrences (name-keyed, documented lenience — bus-coverage/arm-C posture). */
 function readShapedNames(project: Project, inScope: (fp: string) => boolean): Set<string> {
-  return collectNames(project, inScope, collectReadShaped);
+  return collectNames(project, inScope, readShapedOf);
 }
 
 /** The `section:` literal a `section`-named PropertyAssignment (`section: "x"`) or PropertySignature
@@ -328,28 +358,32 @@ function sectionLiteralOf(node: Node): string | undefined {
 }
 
 /** Every `section: "<x>"` literal in the scope (arm B write-path corpus). */
-function sectionLiterals(project: Project, inScope: (fp: string) => boolean): Set<string> {
-  return collectNames(project, inScope, (sf, out) => {
-    for (const node of [...sf.getDescendantsOfKind(SyntaxKind.PropertyAssignment), ...sf.getDescendantsOfKind(SyntaxKind.PropertySignature)]) {
-      const s = sectionLiteralOf(node);
-      if (s !== undefined) {
-        out.add(s);
-      }
+const sectionLiteralsOf = perFileNames((sf, out) => {
+  for (const node of [...sf.getDescendantsOfKind(SyntaxKind.PropertyAssignment), ...sf.getDescendantsOfKind(SyntaxKind.PropertySignature)]) {
+    const s = sectionLiteralOf(node);
+    if (s !== undefined) {
+      out.add(s);
     }
-  });
+  }
+});
+
+function sectionLiterals(project: Project, inScope: (fp: string) => boolean): Set<string> {
+  return collectNames(project, inScope, sectionLiteralsOf);
 }
 
 /** Any occurrence of a name (identifier or string literal) in the scope — arm B2 write presence + arm F
  *  write/read presence (name-keyed presence, the contract-verb-presence posture). */
+const anyNamesOf = perFileNames((sf, out) => {
+  for (const id of sf.getDescendantsOfKind(SyntaxKind.Identifier)) {
+    out.add(id.getText());
+  }
+  for (const lit of sf.getDescendantsOfKind(SyntaxKind.StringLiteral)) {
+    out.add(lit.getLiteralText());
+  }
+});
+
 function anyNameOccurrences(project: Project, inScope: (fp: string) => boolean): Set<string> {
-  return collectNames(project, inScope, (sf, out) => {
-    for (const id of sf.getDescendantsOfKind(SyntaxKind.Identifier)) {
-      out.add(id.getText());
-    }
-    for (const lit of sf.getDescendantsOfKind(SyntaxKind.StringLiteral)) {
-      out.add(lit.getLiteralText());
-    }
-  });
+  return collectNames(project, inScope, anyNamesOf);
 }
 
 // ── the per-arm reconcile ───────────────────────────────────────────────────────────────────────────────
