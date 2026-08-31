@@ -1,12 +1,13 @@
 // Gate: tokens-contract (#936) — the canonical token vault, shipped value sets, Resolver manifest,
 // vendored official schemas, Orb extensions, and removed-token ledger are one fail-closed contract.
 // fsBacked is required because JSON and schema bytes are outside the shared ts-morph walk.
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import type { TokenContractTexts } from "@orb/ui/token-contract";
 import { readTokenContractTexts, validateTokenContract } from "@orb/ui/token-contract";
 import type { GateDescriptor } from "../contract/gate.ts";
 
 const UI_ROOT = join(import.meta.dirname, "../../../../packages/ui");
+const REPO_ROOT = resolve(UI_ROOT, "../..");
 const CANONICAL = readTokenContractTexts(UI_ROOT);
 
 function fixtureFiles(texts: TokenContractTexts): Readonly<Record<string, string>> {
@@ -50,7 +51,10 @@ export const gate: GateDescriptor = {
     "the token vault violates the pinned DTCG 2025.10 Format/Resolver contract or Orb's closed semantic extensions; invalid token data must never reach Style Dictionary or generated CSS. See packages/ui/token-contract.ts",
   fix: "repair the reported token/schema/Resolver/extension/ledger violation, then run `pnpm --filter @orb/ui tokens:build`; contract: packages/ui/token-contract.ts",
   run: (ctx) => {
-    const result = validateTokenContract(join(ctx.root, "packages/ui"), ctx.root);
+    // Conformance fixtures are complete filesystem corpora but intentionally are not Git worktrees.
+    // The real gate invocation retains the history ratchet; the fixture arm proves the static contract.
+    const historyRoot = resolve(ctx.root) === REPO_ROOT ? ctx.root : undefined;
+    const result = validateTokenContract(join(ctx.root, "packages/ui"), historyRoot);
     ctx.scan({ unit: "token", candidates: result.scannedTokens, scanned: result.scannedTokens });
     for (const item of result.diagnostics) {
       ctx.report({
@@ -72,7 +76,7 @@ export const gate: GateDescriptor = {
   mustPass: [
     {
       files: fixtureFiles(CANONICAL),
-      why: "the complete canonical vault, official schemas, bounded Resolver, and removed ledger pass together",
+      why: "the complete canonical filesystem corpus passes; the real-worktree invocation separately applies the Git removal ratchet",
     },
   ],
 };

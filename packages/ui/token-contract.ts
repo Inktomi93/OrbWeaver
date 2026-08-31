@@ -18,6 +18,49 @@ export const RESOLVER_SCHEMA_SOURCE = "https://www.designtokens.org/schemas/2025
 export const FORMAT_SCHEMA_SHA256 = "02d3362a3127834fd2fdd4e4d86748eaa4623054fabf369db8a410526b12646f";
 export const RESOLVER_SCHEMA_SHA256 = "2286caca56d683066475b93bca78fd73a9a337f20981bf98ea8ee8d60f8fd40b";
 export const TOKEN_REMOVAL_BASE_REF = "origin/main";
+export const REQUIRED_SEED_VALUE_SET_PATHS: readonly string[] = Object.freeze([
+  "color.primary",
+  "color.ring",
+  "color.primary-foreground",
+  "color.user-bubble",
+  "color.user-bubble-foreground",
+  "color.ai-bubble",
+  "color.ai-bubble-foreground",
+  "color.system-bubble",
+  "color.system-bubble-foreground",
+  "color.speaker",
+  "color.dialogue",
+  "color.narration",
+  "color.prose-body",
+  "color.background",
+  "color.sidebar",
+  "color.surface-raised",
+  "color.card",
+  "color.popover",
+  "color.accent",
+  "color.accent-foreground",
+  "color.sidebar-accent",
+  "color.secondary",
+  "color.secondary-foreground",
+  "color.muted",
+  "color.reading-plate",
+  "color.reading-band",
+  "color.foreground",
+  "color.card-foreground",
+  "color.popover-foreground",
+  "color.sidebar-foreground",
+  "color.muted-foreground",
+  "color.border",
+  "color.sidebar-border",
+  "color.input",
+  "color.shadow-hairline",
+  "color.shadow-highlight",
+  "color.shadow-ambient-near",
+  "color.shadow-ambient-far",
+  "color.shadow-cta-highlight",
+  // Backdrop is palette-specific dimming smoke, but is not derived by a custom ThemeScope.
+  "color.backdrop",
+]);
 
 export const TOKEN_FILES = {
   base: "src/tokens/tokens.json",
@@ -124,6 +167,9 @@ const themeMetaSchema = z.object({ id: z.enum(["hearth", "light", "mocha"]), col
 const removedSchema = z
   .object({
     removed: z.array(z.object({ path: z.string().min(1), reason: z.string().min(1), replacement: z.string().min(1).optional() }).strict()),
+    removedTargets: z.array(
+      z.object({ target: z.string().regex(/^--[a-z0-9-]+$/u), reason: z.string().min(1), replacement: z.string().min(1).optional() }).strict(),
+    ),
   })
   .strict();
 
@@ -424,7 +470,28 @@ function asTokenMap(tokens: readonly ContractToken[]): ReadonlyMap<string, Contr
   return new Map(tokens.map((token) => [token.pathString, token]));
 }
 
-function validateSeedTokens(name: string, tokens: readonly ContractToken[], basePaths: ReadonlySet<string>, diagnostics: TokenContractDiagnostic[]): void {
+interface SeedValidationContext {
+  readonly name: string;
+  readonly tokens: readonly ContractToken[];
+  readonly basePaths: ReadonlySet<string>;
+  readonly requiredPaths: ReadonlySet<string>;
+  readonly diagnostics: TokenContractDiagnostic[];
+}
+
+function validateSeedTokens(context: SeedValidationContext): void {
+  const { name, tokens, basePaths, requiredPaths, diagnostics } = context;
+  const presentPaths = new Set(tokens.map((token) => token.pathString));
+  const missing = [...requiredPaths].filter((path) => !presentPaths.has(path));
+  const extra = [...presentPaths].filter((path) => !requiredPaths.has(path));
+  if (missing.length > 0 || extra.length > 0) {
+    diagnostics.push(
+      diagnostic(
+        "/",
+        "seed.members",
+        `${name} value-set must contain its exact required token set — missing [${missing.join(", ")}], extra [${extra.join(", ")}]`,
+      ),
+    );
+  }
   for (const token of tokens) {
     if (token.type !== "color") {
       diagnostics.push(diagnostic(`/${token.path.join("/")}`, "seed.type", `${name} value-set token must inherit or declare color`));
@@ -534,23 +601,62 @@ function tokenPathsFromLegacy(value: unknown): ReadonlySet<string> {
   return new Set(tokens.map((token) => token.pathString));
 }
 
-function validateRemovedLedger(removed: unknown, currentPaths: ReadonlySet<string>, diagnostics: TokenContractDiagnostic[]): ReadonlySet<string> {
+interface RemovedLedger {
+  readonly paths: ReadonlySet<string>;
+  readonly targets: ReadonlySet<string>;
+}
+
+function tokenTargetsFromLegacy(value: unknown): ReadonlySet<string> {
+  if (!isObject(value)) {
+    return new Set();
+  }
+  const tokens: ContractToken[] = [];
+  collectTokens(value, [], null, { diagnostics: [], tokens });
+  const targets = new Set(tokens.filter((token) => token.outputRole !== "input").map(cssVarFor));
+  const extensions = value["$extensions"];
+  const cssValues = isObject(extensions) ? extensions["orb.cssValues"] : undefined;
+  if (isObject(cssValues)) {
+    for (const target of Object.keys(cssValues)) {
+      if (/^--[a-z0-9-]+$/u.test(target)) {
+        targets.add(target);
+      }
+    }
+  }
+  return targets;
+}
+
+function validateRemovedLedger(
+  removed: unknown,
+  currentPaths: ReadonlySet<string>,
+  currentTargets: ReadonlySet<string>,
+  diagnostics: TokenContractDiagnostic[],
+): RemovedLedger {
   const parsed = removedSchema.safeParse(removed);
   diagnostics.push(...zodDiagnostics("/removed", "removed.schema", parsed));
   if (!parsed.success) {
-    return new Set();
+    return { paths: new Set(), targets: new Set() };
   }
-  const seen = new Set<string>();
+  const paths = new Set<string>();
   for (const entry of parsed.data.removed) {
-    if (seen.has(entry.path)) {
+    if (paths.has(entry.path)) {
       diagnostics.push(diagnostic("/removed", "removed.duplicate", `duplicate removed-token row ${entry.path}`));
     }
-    seen.add(entry.path);
+    paths.add(entry.path);
     if (currentPaths.has(entry.path)) {
       diagnostics.push(diagnostic("/removed", "removed.stale", `removed-token row ${entry.path} names a live portable token`));
     }
   }
-  return seen;
+  const targets = new Set<string>();
+  for (const entry of parsed.data.removedTargets) {
+    if (targets.has(entry.target)) {
+      diagnostics.push(diagnostic("/removedTargets", "removed.target.duplicate", `duplicate removed-target row ${entry.target}`));
+    }
+    targets.add(entry.target);
+    if (currentTargets.has(entry.target)) {
+      diagnostics.push(diagnostic("/removedTargets", "removed.target.stale", `removed-target row ${entry.target} names a live CSS output`));
+    }
+  }
+  return { paths, targets };
 }
 
 function previousTokenDocument(repoRoot: string, baseRef: string, diagnostics: TokenContractDiagnostic[]): unknown | null {
@@ -584,19 +690,25 @@ interface RemovedDiffContext {
   readonly repoRoot: string;
   readonly baseRef: string;
   readonly currentPaths: ReadonlySet<string>;
-  readonly ledger: ReadonlySet<string>;
+  readonly currentTargets: ReadonlySet<string>;
+  readonly ledger: RemovedLedger;
   readonly diagnostics: TokenContractDiagnostic[];
 }
 
 function validateRemovedDiff(context: RemovedDiffContext): void {
-  const { repoRoot, baseRef, currentPaths, ledger, diagnostics } = context;
+  const { repoRoot, baseRef, currentPaths, currentTargets, ledger, diagnostics } = context;
   const previous = previousTokenDocument(repoRoot, baseRef, diagnostics);
   if (previous === null) {
     return;
   }
   for (const path of tokenPathsFromLegacy(previous)) {
-    if (!(currentPaths.has(path) || ledger.has(path))) {
+    if (!(currentPaths.has(path) || ledger.paths.has(path))) {
       diagnostics.push(diagnostic("/removed", "removed.unrecorded", `portable token ${path} was removed without a ledger row`));
+    }
+  }
+  for (const target of tokenTargetsFromLegacy(previous)) {
+    if (!(currentTargets.has(target) || ledger.targets.has(target))) {
+      diagnostics.push(diagnostic("/removedTargets", "removed.target.unrecorded", `CSS output ${target} was removed without a removedTargets ledger row`));
     }
   }
 }
@@ -657,16 +769,21 @@ export function validateTokenContractTexts(texts: TokenContractTexts, repoRoot?:
   validateInheritedValues(lightTokenList, formatValidate, diagnostics);
   validateInheritedValues(mochaTokenList, formatValidate, diagnostics);
   const basePaths = new Set(baseTokens.map((token) => token.pathString));
-  validateSeedTokens("Light", lightTokenList, basePaths, diagnostics);
-  validateSeedTokens("Mocha", mochaTokenList, basePaths, diagnostics);
+  const requiredSeedPaths = new Set(REQUIRED_SEED_VALUE_SET_PATHS);
+  const requiredLightPaths = new Set([
+    ...requiredSeedPaths,
+    ...baseTokens.filter((token) => token.outputRole === "light-dark").map((token) => token.pathString),
+  ]);
+  validateSeedTokens({ name: "Light", tokens: lightTokenList, basePaths, requiredPaths: requiredLightPaths, diagnostics });
+  validateSeedTokens({ name: "Mocha", tokens: mochaTokenList, basePaths, requiredPaths: requiredSeedPaths, diagnostics });
   const cssValues = isObject(base) ? parseRootExtensions(base, basePaths, diagnostics) : {};
   const lightTokens = asTokenMap(lightTokenList);
   const mochaTokens = asTokenMap(mochaTokenList);
   const cssTargets = validateOutputTargets(baseTokens, lightTokens, cssValues, diagnostics);
   const themes = isObject(resolver) ? validateResolverSubset(resolver, diagnostics) : [];
-  const ledger = validateRemovedLedger(removed, basePaths, diagnostics);
+  const ledger = validateRemovedLedger(removed, basePaths, cssTargets, diagnostics);
   if (repoRoot !== undefined) {
-    validateRemovedDiff({ repoRoot, baseRef, currentPaths: basePaths, ledger, diagnostics });
+    validateRemovedDiff({ repoRoot, baseRef, currentPaths: basePaths, currentTargets: cssTargets, ledger, diagnostics });
   }
   return {
     diagnostics,
