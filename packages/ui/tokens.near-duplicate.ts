@@ -50,39 +50,64 @@ export const ALLOWED_NEAR_PAIRS: Readonly<Record<string, string>> = {};
 const DEGREES_PER_RADIAN = 180;
 /** ΔE decimals in the diagnostic: four is enough to distinguish 0.0010 drift from the 0.0100 elevation step. */
 const DELTA_E_DECIMALS = 4;
-
-const OKLCH_RE = /^oklch\(\s*([\d.]+)\s+([\d.]+)\s+([\d.]+)\s*(?:\/\s*([\d.]+)\s*)?\)$/u;
-const LIGHT_DARK_RE = /^light-dark\(\s*(.+?)\s*,\s*(.+)\s*\)$/u;
+const OKLCH_COMPONENT_COUNT = 3;
 
 /** An oklch literal as an Oklab point + alpha: `[L, a, b, alpha]`, all comparable on one scale. */
-function oklabPoint(value: string): readonly [number, number, number, number] | null {
-  const m = OKLCH_RE.exec(value.trim());
-  if (m === null) {
+function oklabPoint(value: unknown): readonly [number, number, number, number] | null {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
     return null;
   }
-  const [, l, c, h, alpha] = m;
-  const hueRad = (Number(h) * Math.PI) / DEGREES_PER_RADIAN;
-  return [Number(l), Number(c) * Math.cos(hueRad), Number(c) * Math.sin(hueRad), alpha === undefined ? 1 : Number(alpha)];
+  const color = value as Record<string, unknown>;
+  if (color["colorSpace"] !== "oklch" || !Array.isArray(color["components"]) || color["components"].length !== OKLCH_COMPONENT_COUNT) {
+    return null;
+  }
+  const [l, c, h] = color["components"];
+  if (typeof l !== "number" || typeof c !== "number" || typeof h !== "number") {
+    return null;
+  }
+  const alpha = color["alpha"] ?? 1;
+  if (typeof alpha !== "number") {
+    return null;
+  }
+  const hueRad = (h * Math.PI) / DEGREES_PER_RADIAN;
+  return [l, c * Math.cos(hueRad), c * Math.sin(hueRad), alpha];
 }
 
-/**
- * A colour value as the points that must ALL be near for two tokens to be one colour: one point for a
- * plain `oklch(…)`, two for a polarity-aware `light-dark(<light>, <dark>)` (a pair is a duplicate only
- * if BOTH arms coincide). `null` = not a comparable colour (a shadow recipe, a dimension, a reference).
- * The arity doubles as the value-space key — a plain value and a light-dark value are never compared.
- */
-function colorPoints(value: unknown): ReadonlyArray<readonly [number, number, number, number]> | null {
-  if (typeof value !== "string") {
+function renderColor(value: unknown): string {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return JSON.stringify(value);
+  }
+  const color = value as Record<string, unknown>;
+  if (color["colorSpace"] !== "oklch" || !Array.isArray(color["components"])) {
+    return JSON.stringify(value);
+  }
+  return `oklch(${color["components"].join(" ")}${color["alpha"] === undefined ? "" : ` / ${String(color["alpha"])}`})`;
+}
+
+function tokenValues(node: RawNode, path: readonly string[], out: Map<string, unknown>): void {
+  if ("$value" in node) {
+    out.set(path.join("."), node["$value"]);
+    return;
+  }
+  for (const [key, child] of Object.entries(node)) {
+    if (key.startsWith("$") || typeof child !== "object" || child === null || Array.isArray(child)) {
+      continue;
+    }
+    tokenValues(child as RawNode, [...path, key], out);
+  }
+}
+
+function outputRole(node: RawNode): string | null {
+  const extensions = node["$extensions"];
+  if (typeof extensions !== "object" || extensions === null || Array.isArray(extensions)) {
     return null;
   }
-  const arms = LIGHT_DARK_RE.exec(value.trim());
-  if (arms !== null) {
-    const light = oklabPoint(arms[1] ?? "");
-    const dark = oklabPoint(arms[2] ?? "");
-    return light === null || dark === null ? null : [light, dark];
+  const role = (extensions as Record<string, unknown>)["orb.output"];
+  if (typeof role !== "object" || role === null || Array.isArray(role)) {
+    return null;
   }
-  const plain = oklabPoint(value);
-  return plain === null ? null : [plain];
+  const kind = (role as Record<string, unknown>)["kind"];
+  return typeof kind === "string" ? kind : null;
 }
 
 /** Oklab ΔE between two colour values of the same arity — the WORST arm, so a light-dark pair must coincide in both polarities to count. */
@@ -105,14 +130,25 @@ interface LiteralColor {
   readonly points: ReadonlyArray<readonly [number, number, number, number]>;
 }
 
-function collectLiteralColors(node: RawNode, path: readonly string[], out: LiteralColor[]): void {
+function collectLiteralColors(node: RawNode, path: readonly string[], lightValues: ReadonlyMap<string, unknown>, out: LiteralColor[]): void {
   if ("$value" in node) {
     const raw = node["$value"];
-    if (typeof raw === "string" && !raw.startsWith("{")) {
-      const points = colorPoints(raw);
-      if (points !== null) {
-        out.push({ path: path.join("."), raw, points });
+    if (typeof raw === "string") {
+      return;
+    }
+    const dark = oklabPoint(raw);
+    if (dark === null) {
+      return;
+    }
+    const pathString = path.join(".");
+    if (outputRole(node) === "light-dark") {
+      const lightValue = lightValues.get(pathString);
+      const light = oklabPoint(lightValue);
+      if (light !== null) {
+        out.push({ path: pathString, raw: `light-dark(${renderColor(lightValue)}, ${renderColor(raw)})`, points: [light, dark] });
       }
+    } else {
+      out.push({ path: pathString, raw: renderColor(raw), points: [dark] });
     }
     return;
   }
@@ -120,8 +156,13 @@ function collectLiteralColors(node: RawNode, path: readonly string[], out: Liter
     if (key.startsWith("$") || typeof child !== "object" || child === null) {
       continue;
     }
-    collectLiteralColors(child as RawNode, [...path, key], out);
+    collectLiteralColors(child as RawNode, [...path, key], lightValues, out);
   }
+}
+
+export interface NearDuplicateOptions {
+  readonly lightSource?: RawNode;
+  readonly allowed?: Readonly<Record<string, string>>;
 }
 
 /**
@@ -131,9 +172,14 @@ function collectLiteralColors(node: RawNode, path: readonly string[], out: Liter
  * `allowed` is injectable ONLY so the lint's own suite can exercise the sanctioned-exception path
  * without shipping a fake entry in ALLOWED_NEAR_PAIRS; the build never passes it.
  */
-export function assertNoNearDuplicateColors(source: RawNode, allowed: Readonly<Record<string, string>> = ALLOWED_NEAR_PAIRS): void {
+export function assertNoNearDuplicateColors(source: RawNode, options: NearDuplicateOptions = {}): void {
+  const lightValues = new Map<string, unknown>();
+  if (options.lightSource !== undefined) {
+    tokenValues(options.lightSource, [], lightValues);
+  }
+  const allowed = options.allowed ?? ALLOWED_NEAR_PAIRS;
   const colors: LiteralColor[] = [];
-  collectLiteralColors(source, [], colors);
+  collectLiteralColors(source, [], lightValues, colors);
   const violations: string[] = [];
   for (const [i, a] of colors.entries()) {
     for (const b of colors.slice(i + 1)) {

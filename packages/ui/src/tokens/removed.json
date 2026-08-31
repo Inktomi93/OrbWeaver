@@ -1,0 +1,59 @@
+{
+  "removed": [
+    {
+      "path": "aspect.portrait",
+      "reason": "The generated ratio is CSS serialization, not a portable DTCG token value.",
+      "replacement": "aspect.portrait-width and aspect.portrait-height"
+    },
+    {
+      "path": "aspect.banner",
+      "reason": "The generated ratio is CSS serialization, not a portable DTCG token value.",
+      "replacement": "aspect.banner-width and aspect.banner-height"
+    },
+    {
+      "path": "dimension.panel",
+      "reason": "The clamp expression moved to orb.cssValues; its decisions remain portable inputs.",
+      "replacement": "dimension.panel-floor, dimension.panel-fluid, and dimension.panel-cap"
+    },
+    {
+      "path": "dimension.panel-context",
+      "reason": "The clamp expression moved to orb.cssValues; its decisions remain portable inputs.",
+      "replacement": "dimension.panel-floor, dimension.panel-context-fluid, and dimension.panel-context-cap"
+    },
+    {
+      "path": "reading.measure",
+      "reason": "DTCG dimensions cannot use ch; the CSS target moved to orb.cssValues.",
+      "replacement": "reading.measure-ch"
+    },
+    {
+      "path": "reading.measure-min",
+      "reason": "DTCG dimensions cannot use ch; the CSS target moved to orb.cssValues.",
+      "replacement": "reading.measure-min-ch"
+    },
+    {
+      "path": "tracking.micro",
+      "reason": "DTCG dimensions cannot use em; the CSS target moved to orb.cssValues.",
+      "replacement": "tracking.micro-em"
+    },
+    {
+      "path": "shadow.glow",
+      "reason": "The runtime relative-color expression moved to orb.cssValues.",
+      "replacement": "color.primary"
+    },
+    {
+      "path": "shadow.overlay",
+      "reason": "The runtime custom-property expression moved to orb.cssValues.",
+      "replacement": "color.shadow-hairline, color.shadow-highlight, color.shadow-ambient-near, and color.shadow-ambient-far"
+    },
+    {
+      "path": "shadow.cta",
+      "reason": "The runtime custom-property expression moved to orb.cssValues.",
+      "replacement": "color.shadow-cta-highlight"
+    },
+    {
+      "path": "shadow.cta-glow",
+      "reason": "The runtime custom-property and relative-color expression moved to orb.cssValues.",
+      "replacement": "color.shadow-cta-highlight and color.primary"
+    }
+  ]
+}

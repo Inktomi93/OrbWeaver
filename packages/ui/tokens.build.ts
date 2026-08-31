@@ -12,20 +12,21 @@
 // name (`*.gen.ts` — the same convention as client's routeTree.gen.ts, already exempted by BOTH size
 // gates' SKIP_RE and by biome's files.includes). index.ts re-exports it, so no consumer import moves.
 //
-// Style Dictionary v5 (docs said v4 — delta recorded in proposed/ui-package-design.md §3/§10; the
-// v5 API used here: `new StyleDictionary(config)` + `exportPlatform()` for reference resolution).
-import { readdirSync, readFileSync, writeFileSync } from "node:fs";
+// Style Dictionary v5 supplies the resolved token dictionary; Orb's contract owns validation and the
+// explicit type-directed CSS serialization. Runtime-only values stay concrete in orb.cssValues.
+import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 import StyleDictionary from "style-dictionary";
-import type { DesignTokens } from "style-dictionary/types";
+import type { DesignTokens, TransformedToken } from "style-dictionary/types";
 import { THEME_SCOPE_EMIT_VARS } from "./src/content/theme-scope/clamp.ts";
+import type { ContractToken, TokenContractResult } from "./token-contract.ts";
+import { assertTokenContract } from "./token-contract.ts";
 import { assertNoNearDuplicateColors } from "./tokens.near-duplicate.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const TOKENS_JSON = join(HERE, "src/tokens/tokens.json");
-const THEMES_DIR = join(HERE, "src/tokens/themes");
 const THEME_CSS = join(HERE, "src/styles/theme.css");
 const TOKENS_TS = join(HERE, "src/tokens/index.ts");
 const THEMES_TS = join(HERE, "src/tokens/themes.gen.ts");
@@ -34,6 +35,8 @@ const THEMES_TS = join(HERE, "src/tokens/themes.gen.ts");
 // bare form a compile error (tsx-shedding stages 1/4). The GENERATOR owns this string, so a regen
 // must keep it — that is why it is fixed here and not only in the emitted file.
 const THEMES_MODULE = "./themes.gen.ts";
+const OKLCH_COMPONENT_COUNT = 3;
+const CUBIC_BEZIER_COORDINATE_COUNT = 4;
 
 /**
  * SEED-COVERED, but NOT ThemeScope-emitted: colour paths a seed value-set tunes even though the clamp
@@ -65,7 +68,7 @@ const HEADER =
 
 interface FlatToken {
   readonly path: readonly string[];
-  readonly value: unknown;
+  readonly value: string;
 }
 
 /** A pointer-conditional override: the token's fine-pointer value (DTCG `$extensions["orb.pointerFine"]`). */
@@ -74,21 +77,150 @@ interface FineOverride {
   readonly value: string;
 }
 
-/** A DTCG value → its CSS string (cubicBezier arrays become cubic-bezier(); numbers stringify). */
-function renderValue(value: unknown): string {
-  if (Array.isArray(value)) {
-    return `cubic-bezier(${value.join(", ")})`;
-  }
-  return String(value);
-}
-
 /** `["color","user-bubble"]` → `--color-user-bubble` (group name IS the Tailwind v4 namespace). */
 function cssVarName(path: readonly string[]): string {
   return `--${path.join("-")}`;
 }
 
+function objectValue(value: unknown, path: string): Record<string, unknown> {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new Error(`${path}: expected a structured DTCG value`);
+  }
+  return value as Record<string, unknown>;
+}
+
+function finiteNumber(value: unknown, path: string): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    throw new Error(`${path}: expected a finite number`);
+  }
+  return value;
+}
+
+function renderColor(value: unknown, path: string): string {
+  const color = objectValue(value, path);
+  if (color["colorSpace"] !== "oklch" || !Array.isArray(color["components"]) || color["components"].length !== OKLCH_COMPONENT_COUNT) {
+    throw new Error(`${path}: Orb's CSS emitter supports only contract-valid OKLCH colors`);
+  }
+  const components = color["components"].map((component, index) => finiteNumber(component, `${path}.components[${index}]`));
+  const alpha = color["alpha"] === undefined ? "" : ` / ${finiteNumber(color["alpha"], `${path}.alpha`)}`;
+  return `oklch(${components.join(" ")}${alpha})`;
+}
+
+function renderDimension(value: unknown, path: string, unitlessZero = false): string {
+  const dimension = objectValue(value, path);
+  const amount = finiteNumber(dimension["value"], `${path}.value`);
+  if (dimension["unit"] !== "px" && dimension["unit"] !== "rem") {
+    throw new Error(`${path}: unsupported dimension unit ${JSON.stringify(dimension["unit"])}`);
+  }
+  return unitlessZero && amount === 0 ? "0" : `${amount}${dimension["unit"]}`;
+}
+
+function renderDuration(value: unknown, path: string): string {
+  const duration = objectValue(value, path);
+  const amount = finiteNumber(duration["value"], `${path}.value`);
+  if (duration["unit"] !== "ms" && duration["unit"] !== "s") {
+    throw new Error(`${path}: unsupported duration unit ${JSON.stringify(duration["unit"])}`);
+  }
+  return `${amount}${duration["unit"]}`;
+}
+
+function renderFontFamily(value: unknown, path: string): string {
+  const members = Array.isArray(value) ? value : [value];
+  return members
+    .map((member, index) => {
+      if (typeof member !== "string") {
+        throw new Error(`${path}[${index}]: expected one font-family name`);
+      }
+      return /\s/u.test(member) ? `'${member}'` : member;
+    })
+    .join(", ");
+}
+
+function renderCubicBezier(value: unknown, path: string): string {
+  if (!Array.isArray(value) || value.length !== CUBIC_BEZIER_COORDINATE_COUNT) {
+    throw new Error(`${path}: expected four cubic-bezier coordinates`);
+  }
+  return `cubic-bezier(${value.map((coordinate, index) => finiteNumber(coordinate, `${path}[${index}]`)).join(", ")})`;
+}
+
+function renderShadow(value: unknown, path: string): string {
+  const layers = Array.isArray(value) ? value : [value];
+  return layers
+    .map((layerValue, index) => {
+      const layerPath = `${path}[${index}]`;
+      const layer = objectValue(layerValue, layerPath);
+      const parts = [
+        layer["inset"] === true ? "inset" : "",
+        renderDimension(layer["offsetX"], `${layerPath}.offsetX`, true),
+        renderDimension(layer["offsetY"], `${layerPath}.offsetY`, true),
+        renderDimension(layer["blur"], `${layerPath}.blur`, true),
+      ];
+      const spread = renderDimension(layer["spread"], `${layerPath}.spread`, true);
+      if (spread !== "0") {
+        parts.push(spread);
+      }
+      parts.push(renderColor(layer["color"], `${layerPath}.color`));
+      return parts.filter(Boolean).join(" ");
+    })
+    .join(", ");
+}
+
+function resolvedValue(token: TransformedToken): unknown {
+  return token.$value ?? token.value;
+}
+
+function renderPortableToken(token: TransformedToken, contractToken: ContractToken, lightToken: ContractToken | undefined): string | null {
+  const path = contractToken.pathString;
+  switch (contractToken.outputRole) {
+    case "input":
+      return null;
+    case "percentage":
+      return `${finiteNumber(resolvedValue(token), path)}%`;
+    case "light-dark":
+      if (lightToken === undefined) {
+        throw new Error(`${path}: light-dark output has no Light arm`);
+      }
+      return `light-dark(${renderColor(lightToken.value, `${path}.light`)}, ${renderColor(resolvedValue(token), `${path}.dark`)})`;
+    case null:
+      break;
+  }
+  switch (contractToken.type) {
+    case "color":
+      return renderColor(resolvedValue(token), path);
+    case "dimension":
+      return renderDimension(resolvedValue(token), path);
+    case "duration":
+      return renderDuration(resolvedValue(token), path);
+    case "fontFamily":
+      return renderFontFamily(resolvedValue(token), path);
+    case "shadow":
+      return renderShadow(resolvedValue(token), path);
+    case "cubicBezier":
+      return renderCubicBezier(resolvedValue(token), path);
+    case "number":
+      return `${finiteNumber(resolvedValue(token), path)}`;
+    case "fontWeight":
+    case "strokeStyle":
+    case "border":
+    case "transition":
+    case "gradient":
+    case "typography":
+      throw new Error(`${path}: standard type ${contractToken.type} has no Orb CSS serialization arm`);
+    case null:
+      throw new Error(`${path}: token escaped contract type validation`);
+  }
+}
+
+function outputPath(target: string): readonly string[] {
+  const [group, ...rest] = target.slice(2).split("-");
+  if (group === undefined || rest.length === 0) {
+    throw new Error(`orb.cssValues target ${target} cannot map to an Orb token path`);
+  }
+  return [group, rest.join("-")];
+}
+
 function renderThemeCss(tokens: readonly FlatToken[]): string {
-  const lines = tokens.map((t) => `  ${cssVarName(t.path)}: ${renderValue(t.value)};`);
+  const lines = tokens.map((t) => `  ${cssVarName(t.path)}: ${t.value};`);
   return `/* ${HEADER}\n */\n@theme {\n${lines.join("\n")}\n}\n`;
 }
 
@@ -109,13 +241,17 @@ function renderPointerFineBlock(overrides: readonly FineOverride[]): string {
   return `\n@media (pointer: fine) {\n  :root {\n${lines.join("\n")}\n  }\n}\n`;
 }
 
-/** Collect `$extensions["orb.pointerFine"]` fine-pointer values from the RAW DTCG source (literal
- *  dimensions — no `{references}` to resolve, so the un-transformed source is the right input). */
+/** Collect the contract-validated pointer-fine dimensions from the raw DTCG source. */
 function collectPointerFine(node: Record<string, unknown>, path: readonly string[], out: FineOverride[]): void {
   if ("$value" in node) {
     const ext = (node["$extensions"] as Record<string, unknown> | undefined)?.["orb.pointerFine"];
-    if (typeof ext === "string") {
-      out.push({ path, value: ext });
+    if (typeof ext === "object" && ext !== null) {
+      const value = (ext as Record<string, unknown>)["value"];
+      const unit = (ext as Record<string, unknown>)["unit"];
+      if (typeof value !== "number" || (unit !== "px" && unit !== "rem")) {
+        throw new Error(`orb.pointerFine at ${path.join(".")} escaped contract validation`);
+      }
+      out.push({ path, value: `${value}${unit}` });
     }
     return;
   }
@@ -130,8 +266,7 @@ function collectPointerFine(node: Record<string, unknown>, path: readonly string
 function renderTokensTs(tokens: readonly FlatToken[]): string {
   const entries = tokens.map((t) => {
     const key = t.path.join(".");
-    const value = renderValue(t.value);
-    return `  "${key}": { cssVar: "${cssVarName(t.path)}", value: ${JSON.stringify(value)} },`;
+    return `  "${key}": { cssVar: "${cssVarName(t.path)}", value: ${JSON.stringify(t.value)} },`;
   });
   const varOpen = "`var(${";
   const varClose = "TOKENS[path].cssVar})`";
@@ -164,64 +299,37 @@ interface SeedTheme {
   readonly vars: ReadonlyArray<readonly [name: string, value: string]>;
 }
 
-/** Flatten a value-set's `color` group into `{ "color.x": "$value" }` in insertion (key) order. */
-function flattenValueSet(node: Record<string, unknown>, path: readonly string[], out: Map<string, string>): void {
-  if ("$value" in node) {
-    out.set(path.join("."), String(node["$value"]));
-    return;
-  }
-  for (const [key, child] of Object.entries(node)) {
-    if (key.startsWith("$") || typeof child !== "object" || child === null) {
-      continue;
-    }
-    flattenValueSet(child as Record<string, unknown>, [...path, key], out);
-  }
-}
-
 /**
- * Load + VALIDATE every `src/tokens/themes/*.json` seed value-set (deterministic filename order),
- * failing the build with a precise message on any violation: (a) `$colorScheme` ∈ {light,dark};
- * (b) the token-path set is EXACTLY SEED_VALUE_SET_PATHS (no missing, no extra); (c) every path exists
- * in the base tokens.json; (d) every `$value` is an `oklch(` literal (the house seed-color format).
- * `basePaths` is the flat set of resolved base-token paths — the value-set can only re-value a token
- * the base already declares.
+ * Select the two shipped seed palettes from the bounded Resolver result. Light also carries the 14
+ * polarity arms used to compose light-dark(); those are not `[data-theme]` overrides. Every other
+ * value-set member must be exactly the ThemeScope emit surface plus color.backdrop.
  */
-function loadSeedThemes(basePaths: ReadonlySet<string>): SeedTheme[] {
-  const files = readdirSync(THEMES_DIR)
-    .filter((f) => f.endsWith(".json"))
-    .sort();
-  return files.map((file) => {
-    const name = file.slice(0, -".json".length);
-    const fail = (msg: string): never => {
-      throw new Error(`seed value-set src/tokens/themes/${file}: ${msg}`);
-    };
-    const raw = JSON.parse(readFileSync(join(THEMES_DIR, file), "utf8")) as Record<string, unknown>;
-    const colorScheme = raw["$colorScheme"];
-    if (colorScheme !== "light" && colorScheme !== "dark") {
-      fail(`$colorScheme must be "light" or "dark" (got ${JSON.stringify(colorScheme)})`);
-    }
-    const flat = new Map<string, string>();
-    flattenValueSet(raw, [], flat);
-    const present = new Set(flat.keys());
-    const missing = [...SEED_VALUE_SET_PATHS].filter((p) => !present.has(p));
-    const extra = [...present].filter((p) => !SEED_VALUE_SET_PATHS.has(p));
-    if (missing.length > 0 || extra.length > 0) {
-      fail(`token paths must be EXACTLY the EMITTED colors + color.backdrop — missing [${missing.join(", ")}], extra [${extra.join(", ")}]`);
-    }
-    for (const [path, value] of flat) {
-      if (!basePaths.has(path)) {
-        fail(`${path} is not a token in tokens.json`);
+function loadSeedThemes(contract: TokenContractResult): SeedTheme[] {
+  const baseByPath = new Map(contract.baseTokens.map((token) => [token.pathString, token]));
+  return contract.themes
+    .filter((theme) => theme.source !== "base")
+    .map((theme) => {
+      const tokens = theme.source === "light" ? contract.lightTokens : contract.mochaTokens;
+      const present = new Set([...tokens.keys()].filter((path) => SEED_VALUE_SET_PATHS.has(path)));
+      const missing = [...SEED_VALUE_SET_PATHS].filter((path) => !present.has(path));
+      const extra = [...tokens.keys()].filter(
+        (path) => !(SEED_VALUE_SET_PATHS.has(path) || (theme.source === "light" && baseByPath.get(path)?.outputRole === "light-dark")),
+      );
+      if (missing.length > 0 || extra.length > 0) {
+        throw new Error(
+          `seed value-set ${theme.source}: token paths must be exactly the emitted colors + color.backdrop (plus Light polarity arms) — missing [${missing.join(
+            ", ",
+          )}], extra [${extra.join(", ")}]`,
+        );
       }
-      if (!value.startsWith("oklch(")) {
-        fail(`${path} must be an oklch(…) literal (got ${JSON.stringify(value)})`);
-      }
-    }
-    return {
-      name,
-      colorScheme: colorScheme as "light" | "dark",
-      vars: [...flat].map(([path, value]) => [`--${path.replace(".", "-")}`, value] as const),
-    };
-  });
+      return {
+        name: theme.id,
+        colorScheme: theme.colorScheme,
+        vars: [...tokens]
+          .filter(([path]) => SEED_VALUE_SET_PATHS.has(path))
+          .map(([path, token]) => [`--${path.replace(".", "-")}`, renderColor(token.value, path)] as const),
+      };
+    });
 }
 
 /**
@@ -265,34 +373,51 @@ function renderSeedThemesTs(themes: readonly SeedTheme[]): string {
 
 export async function generateArtifacts(): Promise<{ themeCss: string; tokensTs: string; themesTs: string }> {
   const source = JSON.parse(readFileSync(TOKENS_JSON, "utf8")) as DesignTokens;
-  // Runs on the RAW source, BEFORE resolution: a `{color.x}` reference is the one-token answer, and a
-  // resolved dictionary can no longer tell a reference from a hand-authored twin (tokens.near-duplicate.ts).
-  assertNoNearDuplicateColors(source as unknown as Record<string, unknown>);
+  const lightSource = JSON.parse(readFileSync(join(HERE, "src/tokens/themes/light.json"), "utf8")) as Record<string, unknown>;
+  const contract = assertTokenContract(HERE, join(HERE, "../.."));
+  // Runs on RAW sources, before resolution: references remain distinguishable from independent literals,
+  // and the split polarity values can still be judged as one two-arm decision.
+  assertNoNearDuplicateColors(source as unknown as Record<string, unknown>, { lightSource });
   const sd = new StyleDictionary({
     tokens: source,
     usesDtcg: true,
     log: { verbosity: "silent" },
     platforms: { flat: { files: [] } },
   });
-  // exportPlatform resolves {references} against the raw values (no transforms registered).
-  const dictionary = await sd.exportPlatform("flat");
+  const dictionary = await sd.getPlatformTokens("flat");
+  const contractByPath = new Map(contract.baseTokens.map((token) => [token.pathString, token]));
   const flat: FlatToken[] = [];
-  const walk = (node: Record<string, unknown>, path: readonly string[]): void => {
-    if ("$value" in node) {
-      flat.push({ path, value: node["$value"] });
-      return;
+  for (const token of dictionary.allTokens) {
+    const path = token.path.join(".");
+    const contractToken = contractByPath.get(path);
+    if (contractToken === undefined) {
+      throw new Error(`Style Dictionary emitted undeclared token ${path}`);
     }
-    for (const [key, child] of Object.entries(node)) {
-      if (key.startsWith("$") || typeof child !== "object" || child === null) {
-        continue;
-      }
-      walk(child as Record<string, unknown>, [...path, key]);
+    const value = renderPortableToken(token, contractToken, contract.lightTokens.get(path));
+    if (value !== null) {
+      flat.push({ path: token.path, value });
     }
-  };
-  walk(dictionary as Record<string, unknown>, []);
+  }
+  if (dictionary.allTokens.length !== contract.baseTokens.length) {
+    throw new Error(`Style Dictionary token coverage ${dictionary.allTokens.length} != contract ${contract.baseTokens.length}`);
+  }
+  for (const [target, entry] of Object.entries(contract.cssValues)) {
+    flat.push({ path: outputPath(target), value: entry.value });
+  }
+  const emittedTargets = new Set(flat.map((token) => cssVarName(token.path)));
+  if (emittedTargets.size !== flat.length || emittedTargets.size !== contract.cssTargets.size) {
+    throw new Error(`emitter target coverage ${emittedTargets.size}/${flat.length} != contract ${contract.cssTargets.size}`);
+  }
+  const missing = [...contract.cssTargets].filter((target) => !emittedTargets.has(target));
+  if (missing.length > 0) {
+    throw new Error(`emitter omitted contract targets: ${missing.join(", ")}`);
+  }
+  if (flat.some((token) => token.value.includes("[object Object]"))) {
+    throw new Error("type-directed token emission produced [object Object]");
+  }
   const fine: FineOverride[] = [];
   collectPointerFine(source as unknown as Record<string, unknown>, [], fine);
-  const seedThemes = loadSeedThemes(new Set(flat.map((t) => t.path.join("."))));
+  const seedThemes = loadSeedThemes(contract);
   return {
     themeCss: renderThemeCss(flat) + renderPointerFineBlock(fine) + renderSeedThemesBlock(seedThemes),
     tokensTs: renderTokensTs(flat),

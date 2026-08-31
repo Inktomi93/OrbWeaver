@@ -1,0 +1,264 @@
+// The token VAULT contract: official DTCG 2025.10 schemas first, Orb semantic checks second. These
+// fixtures exercise the instrument in both directions; the real corpus assertion pins the shipped
+// 178-target surface and the deliberately bounded Hearth/Light/Mocha Resolver composition.
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import type { TokenContractTexts } from "@orb/ui/token-contract";
+import { FORMAT_SCHEMA_SHA256, RESOLVER_SCHEMA_SHA256, readTokenContractTexts, validateTokenContractTexts } from "@orb/ui/token-contract";
+import { describe } from "vitest";
+import { expect, test } from "../support/tool-fixtures.ts";
+
+const UI_ROOT = join(import.meta.dirname, "../../packages/ui");
+const REPO_ROOT = join(import.meta.dirname, "../..");
+const BASELINE_TARGETS = new Set(
+  readFileSync(join(import.meta.dirname, "../../packages/ui/src/tokens/index.ts"), "utf8")
+    .matchAll(/cssVar: "(--[a-z0-9-]+)"/gu)
+    .map((match) => match[1] ?? ""),
+);
+
+const color = (l: number, c: number, h: number, alpha?: number): Record<string, unknown> => ({
+  colorSpace: "oklch",
+  components: [l, c, h],
+  ...(alpha === undefined ? {} : { alpha }),
+});
+
+function validFixture(): TokenContractTexts {
+  const official = readTokenContractTexts(UI_ROOT);
+  const base = {
+    $extensions: {
+      "orb.llm": { usage: ["Use semantic tokens; do not author palette literals in components."] },
+      "orb.cssValues": {
+        "--shadow-runtime": {
+          value: "0 0 1rem var(--color-background)",
+          description: "A runtime custom-property shadow.",
+          provenance: ["dimension.runtime-blur"],
+        },
+      },
+    },
+    color: {
+      $type: "color",
+      background: { $value: color(0.2, 0.01, 60) },
+      foreground: { $value: color(0.95, 0.01, 60) },
+      alias: { $value: "{color.foreground}" },
+    },
+    dimension: {
+      $type: "dimension",
+      gap: { $value: { value: 1, unit: "rem" } },
+      "runtime-blur": { $value: { value: 1, unit: "rem" }, $extensions: { "orb.output": { kind: "input" } } },
+      control: {
+        $value: { value: 2.75, unit: "rem" },
+        $extensions: { "orb.pointerFine": { value: 2, unit: "rem" } },
+      },
+    },
+    duration: { $type: "duration", fast: { $value: { value: 130, unit: "ms" } } },
+    font: { $type: "fontFamily", sans: { $value: ["Geist", "system-ui", "sans-serif"] } },
+    number: {
+      $type: "number",
+      scalar: { $value: 1.4 },
+      fill: { $value: 70, $extensions: { "orb.output": { kind: "percentage" } } },
+    },
+    shadow: {
+      $type: "shadow",
+      prose: {
+        $value: {
+          color: color(0, 0, 0, 0.45),
+          offsetX: { value: 0, unit: "px" },
+          offsetY: { value: 1, unit: "px" },
+          blur: { value: 2, unit: "px" },
+          spread: { value: 0, unit: "px" },
+        },
+      },
+    },
+    ease: { $type: "cubicBezier", out: { $value: [0.16, 1, 0.3, 1] } },
+  };
+  const valueSet = (value: Record<string, unknown>): Record<string, unknown> => ({
+    color: { $type: "color", background: { $value: value } },
+  });
+  const resolver = {
+    version: "2025.10",
+    sets: {
+      base: {
+        sources: [{ $ref: "./tokens.json" }],
+        $extensions: { "orb.theme": { id: "hearth", colorScheme: "dark" } },
+      },
+      light: {
+        sources: [{ $ref: "./themes/light.json" }],
+        $extensions: { "orb.theme": { id: "light", colorScheme: "light" } },
+      },
+      mocha: {
+        sources: [{ $ref: "./themes/mocha.json" }],
+        $extensions: { "orb.theme": { id: "mocha", colorScheme: "dark" } },
+      },
+    },
+    modifiers: {
+      theme: {
+        default: "hearth",
+        contexts: { hearth: [], light: [{ $ref: "#/sets/light" }], mocha: [{ $ref: "#/sets/mocha" }] },
+      },
+    },
+    resolutionOrder: [{ $ref: "#/sets/base" }, { $ref: "#/modifiers/theme" }],
+  };
+  return {
+    base: JSON.stringify(base),
+    light: JSON.stringify(valueSet(color(0.98, 0.004, 75))),
+    mocha: JSON.stringify(valueSet(color(0.15, 0.015, 250))),
+    resolver: JSON.stringify(resolver),
+    removed: JSON.stringify({ removed: [] }),
+    formatSchema: official.formatSchema,
+    resolverSchema: official.resolverSchema,
+  };
+}
+
+function mutate(
+  texts: TokenContractTexts,
+  file: "base" | "light" | "mocha" | "resolver" | "removed",
+  change: (value: Record<string, unknown>) => void,
+): TokenContractTexts {
+  const value = JSON.parse(texts[file]) as Record<string, unknown>;
+  change(value);
+  return { ...texts, [file]: JSON.stringify(value) };
+}
+
+function codes(texts: TokenContractTexts): Set<string> {
+  return new Set(validateTokenContractTexts(texts).diagnostics.map((item) => item.code));
+}
+
+test("the official schemas are hash-pinned and a complete conformant fixture passes", () => {
+  expect(FORMAT_SCHEMA_SHA256).toHaveLength(64);
+  expect(RESOLVER_SCHEMA_SHA256).toHaveLength(64);
+  expect(validateTokenContractTexts(validFixture()).diagnostics).toEqual([]);
+});
+
+test("the real vault is conformant and preserves the exact pre-migration 178-target surface", () => {
+  const result = validateTokenContractTexts(readTokenContractTexts(UI_ROOT));
+  expect(result.diagnostics).toEqual([]);
+  expect(result.cssTargets.size).toBe(178);
+  expect(result.cssTargets).toEqual(BASELINE_TARGETS);
+  expect(result.themes).toEqual([
+    { id: "hearth", colorScheme: "dark", source: "base" },
+    { id: "light", colorScheme: "light", source: "light" },
+    { id: "mocha", colorScheme: "dark", source: "mocha" },
+  ]);
+});
+
+describe("official schema controls", () => {
+  test("a changed official schema byte fails its pinned hash", () => {
+    const fixture = validFixture();
+    expect(codes({ ...fixture, formatSchema: `${fixture.formatSchema}\n` })).toContain("schema.hash");
+  });
+
+  test("unknown type, invalid unit, and wrong color component count are refused", () => {
+    const unknown = mutate(validFixture(), "base", (base) => {
+      (base["number"] as Record<string, unknown>)["$type"] = "string";
+    });
+    expect(codes(unknown)).toContain("token.type.unknown");
+
+    const unit = mutate(validFixture(), "base", (base) => {
+      (((base["dimension"] as Record<string, unknown>)["gap"] as Record<string, unknown>)["$value"] as Record<string, unknown>)["unit"] = "ch";
+    });
+    expect(codes(unit)).toContain("format.schema");
+
+    const components = mutate(validFixture(), "base", (base) => {
+      ((((base["color"] as Record<string, unknown>)["background"] as Record<string, unknown>)["$value"] as Record<string, unknown>)[
+        "components"
+      ] as unknown[]) = [0.2, 0.01];
+    });
+    expect(codes(components)).toContain("format.schema");
+  });
+});
+
+describe("Orb semantic controls", () => {
+  test("comma-packed font members, alias cycles, and terminal type mismatches are refused", () => {
+    const font = mutate(validFixture(), "base", (base) => {
+      ((base["font"] as Record<string, unknown>)["sans"] as Record<string, unknown>)["$value"] = ["Geist, system-ui"];
+    });
+    expect(codes(font)).toContain("fontFamily.member");
+
+    const cycle = mutate(validFixture(), "base", (base) => {
+      const group = base["color"] as Record<string, unknown>;
+      group["a"] = { $value: "{color.b}" };
+      group["b"] = { $value: "{color.a}" };
+    });
+    expect(codes(cycle)).toContain("alias.cycle");
+
+    const wrongType = mutate(validFixture(), "base", (base) => {
+      ((base["color"] as Record<string, unknown>)["alias"] as Record<string, unknown>)["$value"] = "{number.scalar}";
+    });
+    expect(codes(wrongType)).toContain("alias.type");
+  });
+
+  test("closed extensions, duplicate outputs, missing var operands, and stale removed rows are refused", () => {
+    const extension = mutate(validFixture(), "base", (base) => {
+      (base["$extensions"] as Record<string, unknown>)["orb.unknown"] = {};
+    });
+    expect(codes(extension)).toContain("orb.extension.unknown");
+
+    const duplicate = mutate(validFixture(), "base", (base) => {
+      const css = (base["$extensions"] as Record<string, unknown>)["orb.cssValues"] as Record<string, unknown>;
+      css["--color-background"] = { value: "red", description: "plant", provenance: ["color.background"] };
+    });
+    expect(codes(duplicate)).toContain("output.duplicate");
+
+    const operand = mutate(validFixture(), "base", (base) => {
+      const css = (base["$extensions"] as Record<string, unknown>)["orb.cssValues"] as Record<string, unknown>;
+      (css["--shadow-runtime"] as Record<string, unknown>)["value"] = "0 0 1rem var(--missing)";
+    });
+    expect(codes(operand)).toContain("orb.cssValues.var");
+
+    const removed = mutate(validFixture(), "removed", (ledger) => {
+      ledger["removed"] = [{ path: "color.background", reason: "plant" }];
+    });
+    expect(codes(removed)).toContain("removed.stale");
+  });
+
+  test("the Git merge-base ratchet refuses a portable token deletion without a removed-ledger row", () => {
+    const current = readTokenContractTexts(UI_ROOT);
+    const deleted = mutate(current, "base", (base) => {
+      (base["motion"] as Record<string, unknown>)["ambient"] = undefined;
+    });
+    const result = validateTokenContractTexts(deleted, REPO_ROOT);
+    expect(result.diagnostics.map((item) => item.code)).toContain("removed.unrecorded");
+    expect(result.diagnostics.map((item) => item.message)).toContain("portable token motion.ambient was removed without a ledger row");
+  });
+
+  test("zero scanned tokens fails loud instead of reporting a blind clean", () => {
+    const fixture = validFixture();
+    const empty = { $extensions: { "orb.llm": { rules: "plant" }, "orb.cssValues": {} } };
+    const texts = {
+      ...fixture,
+      base: JSON.stringify(empty),
+      light: JSON.stringify({}),
+      mocha: JSON.stringify({}),
+    };
+    expect(codes(texts)).toContain("token.scan.empty");
+  });
+});
+
+describe("bounded Resolver controls", () => {
+  test("missing sets, mispaired seed metadata, extra modifiers, and reversed source order are refused", () => {
+    const missing = mutate(validFixture(), "resolver", (resolver) => {
+      (resolver["sets"] as Record<string, unknown>)["mocha"] = undefined;
+    });
+    expect(codes(missing)).toContain("resolver.sets");
+
+    const mispaired = mutate(validFixture(), "resolver", (resolver) => {
+      const light = (resolver["sets"] as Record<string, Record<string, unknown>>)["light"];
+      const extensions = light?.["$extensions"] as Record<string, Record<string, unknown>>;
+      (extensions["orb.theme"] ?? {})["id"] = "hearth";
+    });
+    expect(codes(mispaired)).toContain("resolver.theme");
+
+    const modifier = mutate(validFixture(), "resolver", (resolver) => {
+      (resolver["modifiers"] as Record<string, unknown>)["density"] = {
+        default: "comfortable",
+        contexts: { comfortable: [], compact: [] },
+      };
+    });
+    expect(codes(modifier)).toContain("resolver.modifiers");
+
+    const order = mutate(validFixture(), "resolver", (resolver) => {
+      (resolver["resolutionOrder"] as unknown[]).reverse();
+    });
+    expect(codes(order)).toContain("resolver.order");
+  });
+});
