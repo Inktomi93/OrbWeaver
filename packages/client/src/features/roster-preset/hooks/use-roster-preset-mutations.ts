@@ -1,4 +1,4 @@
-// The saved-cast mutations — one createEntityMutation instance per verb (the persona-hooks shape).
+// The saved-roster mutations — one createEntityMutation instance per verb (the persona-hooks shape).
 // create/remove emit `rosterPresetsChanged`, invalidated by the always-on user-bus subscription, so both
 // are busDriven (a self-invalidates would double-refetch). `applyToChat` mutates the CHAT, not the
 // library: its covering event is the chat bus's `chatUpdated` (the injected chat verbs fan it), so it is

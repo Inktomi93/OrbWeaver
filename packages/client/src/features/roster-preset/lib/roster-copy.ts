@@ -1,16 +1,16 @@
-// The saved-cast surfaces' host-facing COPY — one home, because the same two translations were being
+// The saved-roster surfaces' host-facing COPY — one home, because the same two translations were being
 // spelled (or skipped) in three places at once (side-eye 2026-08-29, #811/#812):
 //
-//   · THE APPLY REPORT. Three doors apply a cast — the picker's "Start a chat with…", the picker's "Add to
+//   · THE APPLY REPORT. Three doors apply a roster — the picker's "Start a chat with…", the picker's "Add to
 //     this chat", and the editor's "Start chat" — and they reported at three different levels: a toast, a
 //     member-skips-only line, and total silence on the headline path B10's own acceptance test names
-//     ("save a cast + rules; one click into a new chat"). The build record §6.4 requires that a refused
+//     ("save a roster + rules; one click into a new chat"). The build record §6.4 requires that a refused
 //     rule be REPORTED WITH ITS REASON (the lore presets' book-attachment consent gate refuses in a room
 //     without the book); on two of the three doors the reason and the count were both discarded. And the
 //     sentence led unconditionally with "Added N", so the idempotency the feature is proud of announced
 //     itself as "Added 0" — a success that reads like a failure.
-//   · THE KNOB GLOSS. A cast's rules stored a RESOLVED knob bag per rule and every surface collapsed it to
-//     a title (or to a count), so two casts carrying "Periodic pacing nudge" at `everyN: 8` and `everyN:
+//   · THE KNOB GLOSS. A roster's rules stored a RESOLVED knob bag per rule and every surface collapsed it to
+//     a title (or to a count), so two rosters carrying "Periodic pacing nudge" at `everyN: 8` and `everyN:
 //     12` rendered byte-identically. The bag is the entire reason the rider stores more than an id.
 //
 // VOCABULARY (owner ruling, #599): bare "preset" means a GENERATION preset in this app, so nothing here
@@ -27,7 +27,7 @@ import type { ApplyRosterPresetResult } from "@orb/contracts/roster-preset";
 
 /** A stored knob bag as either surface holds it — the view's RESOLVED bag or the wire INPUT bag (whose
  *  `string[]` arm assigns into this readonly one). */
-type CastKnobBag = Readonly<Record<string, RulePresetKnobValue | undefined>>;
+type RosterKnobBag = Readonly<Record<string, RulePresetKnobValue | undefined>>;
 
 /** How long a free-text knob value may run inside a one-line gloss before it stops being a gloss. */
 const TEXT_KNOB_EXCERPT = 32;
@@ -49,7 +49,7 @@ function knobValueText(knob: RulePresetKnobView, value: RulePresetKnobValue): st
       return `“${text.length > TEXT_KNOB_EXCERPT ? `${text.slice(0, TEXT_KNOB_EXCERPT).trimEnd()}…` : text}”`;
     }
     case "entityRef":
-      // The stored value IS an id and the cast surfaces hold no chooser to resolve it — degraded but
+      // The stored value IS an id and the roster surfaces hold no chooser to resolve it — degraded but
       // visible (the same posture the editor takes for an unknown rule preset), never silently dropped.
       return String(value);
     default: {
@@ -61,7 +61,7 @@ function knobValueText(knob: RulePresetKnobView, value: RulePresetKnobValue): st
 
 /** One saved rule's resolved knobs as a one-line gloss ("Every N beats: 12 · Nudge: “Take stock…”"), or
  *  `null` when the catalogue cannot say what the bag means (an unknown preset, or a knobless one). */
-export function castRuleKnobGloss(preset: RulePresetView | undefined, knobs: CastKnobBag): string | null {
+export function rosterRuleKnobGloss(preset: RulePresetView | undefined, knobs: RosterKnobBag): string | null {
   if (preset === undefined) {
     return null;
   }
@@ -78,13 +78,13 @@ export function castRuleKnobGloss(preset: RulePresetView | undefined, knobs: Cas
 
 /** A saved rule as ONE line — title plus its knobs in parentheses. The picker's include-line renders this
  *  inline; the editor splits the two halves across two type steps. */
-export function castRuleLine(preset: RulePresetView | undefined, rulePresetId: RulePresetId, knobs: CastKnobBag): string {
+export function rosterRuleLine(preset: RulePresetView | undefined, rulePresetId: RulePresetId, knobs: RosterKnobBag): string {
   const title = preset?.title ?? rulePresetId;
-  const gloss = castRuleKnobGloss(preset, knobs);
+  const gloss = rosterRuleKnobGloss(preset, knobs);
   return gloss === null ? title : `${title} (${gloss})`;
 }
 
-/** The apply outcome as ONE sentence, led by the cast's name so a fast hand with several casts can tell
+/** The apply outcome as ONE sentence, led by the roster's name so a fast hand with several rosters can tell
  *  which one answered. Every door says this same sentence.
  *
  *  The "Added N" clause is DROPPED at zero rather than printed: nothing landing is the idempotent re-apply
@@ -118,7 +118,7 @@ function applySentence(args: {
 
 /** THE apply report — every one of the three doors says this and nothing else. The CHANNEL rides with the
  *  sentence (the `runOutcomeNotice` precedent in the automation feature's `rule-copy.ts`): `warn` is the
- *  honest degrade — the apply worked, but not all of what the cast promised landed — and a skipped member
+ *  honest degrade — the apply worked, but not all of what the roster promised landed — and a skipped member
  *  or a refused rule announced on the SUCCESS channel is the same under-report in a friendlier colour. */
 export function applyNotice(args: {
   readonly castName: string;
@@ -130,8 +130,8 @@ export function applyNotice(args: {
 }
 
 /** The row controls' accessible names carry what the badges only SHOW (side-eye P2-1: nine tab stops and
- *  not one announced that applying this cast switches automation on in the room). */
-export function castCountsSuffix(memberCount: number, ruleCount: number): string {
+ *  not one announced that applying this roster switches automation on in the room). */
+export function rosterCountsSuffix(memberCount: number, ruleCount: number): string {
   const members = `${memberCount} member${memberCount === 1 ? "" : "s"}`;
   return ruleCount === 0 ? ` — ${members}` : ` — ${members}, ${ruleCount} rule${ruleCount === 1 ? "" : "s"}`;
 }

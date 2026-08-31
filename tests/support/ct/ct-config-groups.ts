@@ -10,7 +10,7 @@ import { connectionsGroup } from "@orb/client/features/credentials";
 import { personasGroup } from "@orb/client/features/persona";
 import { pluginsGroup } from "@orb/client/features/plugin";
 import { regexGroup } from "@orb/client/features/regex";
-import { castGroup } from "@orb/client/features/roster-preset";
+import { rosterGroup } from "@orb/client/features/roster-preset";
 import { appearanceGroup, chatBehaviorGroup } from "@orb/client/features/settings";
 import { tagsGroup } from "@orb/client/features/tag";
 import { adminGroup } from "@orb/client/features/user-admin";
@@ -32,7 +32,7 @@ const REAL_CONFIG_GROUPS: Record<ConfigGroupId, ConfigGroupDefinition> = {
   tags: tagsGroup,
   regex: regexGroup,
   worldInfo: worldInfoGroup,
-  rosterPreset: castGroup,
+  rosterPreset: rosterGroup,
   plugins: pluginsGroup,
 };
 

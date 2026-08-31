@@ -1,9 +1,9 @@
-// The cast collection's ROWS — the OWNER half of the config-rail seam (B10's library-management
+// The roster collection's ROWS — the OWNER half of the config-rail seam (B10's library-management
 // surface; the tag-collection anatomy). A row is a SCAN line: name · member count · the member-name
 // gloss; Delete is the row's kebab (the house per-row destructive affordance — LibraryRow.actions →
 // RowActionsMenu confirm, the #271 convergence home), and EDITING lives in the mounted member editor
-// (`surfaces/cast-member-surface.tsx`). No windowed arm: a cast library is picked by name and bounded
-// in practice (the 25-member cap bounds the rows' own height, not their count — but a saved-cast
+// (`surfaces/roster-member-surface.tsx`). No windowed arm: a roster library is picked by name and bounded
+// in practice (the 25-member cap bounds the rows' own height, not their count — but a saved-roster
 // roster measured in hundreds is not a real library; revisit with the tag rows' virtual arm if it
 // ever is).
 
@@ -18,7 +18,7 @@ import type { CollectionListView } from "#lib";
 import { clearCollectionSelection } from "#state";
 import { useRemoveRosterPreset } from "../hooks/use-roster-preset-mutations.ts";
 
-function CastLibraryRow({
+function RosterLibraryRow({
   cast,
   selected,
   onSelect,
@@ -51,7 +51,7 @@ function CastLibraryRow({
   );
 }
 
-export function CastCollectionRows({ view }: { readonly view: CollectionListView }): ReactElement {
+export function RosterCollectionRows({ view }: { readonly view: CollectionListView }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const { data: casts } = useSuspenseQuery(trpc.rosterPreset.list.queryOptions());
@@ -63,7 +63,7 @@ export function CastCollectionRows({ view }: { readonly view: CollectionListView
   return (
     <Stack gap="tight">
       {shown.map((cast) => (
-        <CastLibraryRow
+        <RosterLibraryRow
           cast={cast}
           key={cast.id}
           onDelete={(): void => {

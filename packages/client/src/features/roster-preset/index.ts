@@ -3,6 +3,6 @@
 // definition (G23); its openers live in the surfaces that own the intent and reach it by
 // `openModal("savedRosters")`, never by importing this feature.
 
-export { castCollection } from "./lib/cast-collection.tsx";
-export { castGroup } from "./lib/cast-group.tsx";
-export { savedRostersModal } from "./lib/saved-casts-modal.tsx";
+export { rosterCollection } from "./lib/roster-collection.tsx";
+export { rosterGroup } from "./lib/roster-group.tsx";
+export { savedRostersModal } from "./lib/saved-rosters-modal.tsx";

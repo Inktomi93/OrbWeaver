@@ -1,7 +1,7 @@
-// The cast MEMBER editor — the collection's CONTENT half (config-rail C-7: the editor is MOUNTED, one
+// The roster MEMBER editor — the collection's CONTENT half (config-rail C-7: the editor is MOUNTED, one
 // click from the row; B10's library-management surface). Scope, deliberately: rename + description +
 // the read-only member roster + Start-chat. Member RE-COMPOSITION stays author-by-example (save the
-// re-arranged room as a new cast — D61's authoring path); an in-editor character multi-select would be
+// re-arranged room as a new roster — D61's authoring path); an in-editor character multi-select would be
 // a second composer for the same artifact. The server's update verb is a FULL REPLACE, so a rename
 // resends the stored members verbatim (the view carries them, knobs included).
 
@@ -22,8 +22,8 @@ import { useInvalidation, useStartChat, useTRPC } from "#data";
 import type { CollectionDetailView } from "#lib";
 import { notify, talkativenessLevel, useFocusOnMount } from "#lib";
 import { useApplyRosterPreset, useUpdateRosterPreset } from "../hooks/use-roster-preset-mutations.ts";
-import { useRulePresetCatalogue } from "../hooks/use-saved-casts.ts";
-import { applyNotice, castRuleKnobGloss } from "../lib/cast-copy.ts";
+import { useRulePresetCatalogue } from "../hooks/use-saved-rosters.ts";
+import { applyNotice, rosterRuleKnobGloss } from "../lib/roster-copy.ts";
 
 /** The stored seats, resent VERBATIM on a rename (the update verb is a full replace). The view's ids
  *  stay BRANDED end to end (`CharacterId` — brand-in-name-position; the wire's `z.input` accepts them). */
@@ -43,8 +43,8 @@ function memberInputsOf(view: RosterPresetView): {
   }));
 }
 
-/** The stored cast RULES, resent VERBATIM on a rename (B10's rules rider — the update verb full-replaces
- *  them like every other field; without this echo a rename would silently WIPE the cast's rules). The
+/** The stored roster RULES, resent VERBATIM on a rename (B10's rules rider — the update verb full-replaces
+ *  them like every other field; without this echo a rename would silently WIPE the roster's rules). The
  *  view's resolved bag re-spells as the wire INPUT bag through the one contracts adapter. */
 function ruleInputsOf(
   view: RosterPresetView,
@@ -55,14 +55,14 @@ function ruleInputsOf(
 /** ONE stored rule as the editor shows it: what it is called, and — the whole point of the rider storing
  *  a bag rather than an id — the RESOLVED knobs, in the catalogue's own labels (side-eye P2-2). Without
  *  them the block told a host to "configure a room and save a new roster" to change values it never showed,
- *  and two casts carrying one preset at different knobs read byte-identically. */
-function CastRuleBlock(props: {
+ *  and two rosters carrying one preset at different knobs read byte-identically. */
+function RosterRuleBlock(props: {
   readonly preset: RulePresetView | undefined;
   readonly rulePresetId: RosterPresetView["rules"][number]["rulePresetId"];
   readonly knobs: RosterPresetView["rules"][number]["knobs"];
 }): ReactElement {
   const { preset, rulePresetId, knobs } = props;
-  const gloss = castRuleKnobGloss(preset, knobs);
+  const gloss = rosterRuleKnobGloss(preset, knobs);
   return (
     <Stack gap="tight">
       <Text voice="label" className="truncate">
@@ -73,7 +73,7 @@ function CastRuleBlock(props: {
   );
 }
 
-export function CastMemberSurface({ view }: { readonly view: CollectionDetailView }): ReactElement {
+export function RosterMemberSurface({ view }: { readonly view: CollectionDetailView }): ReactElement {
   // The stamped-id posture: the seam's memberId is opaque; the owner re-brands through its own id space.
   const presetId = castId<RosterPresetId>(view.memberId);
   const trpc = useTRPC();
@@ -81,8 +81,8 @@ export function CastMemberSurface({ view }: { readonly view: CollectionDetailVie
   const { data: cast } = useSuspenseQuery(trpc.rosterPreset.get.queryOptions({ presetId }));
   // B10's rules rider — the catalogue row behind each captured rule preset: its TITLE, and the knob
   // LABELS the stored bag's gloss is built from. Shared with the picker through the one hook (the query is
-  // gated off a rules-free cast, but the Start door below can report a REFUSED rule by name whatever this
-  // cast carries, so the gate is `true` once either use needs it). A stored id the catalogue no longer
+  // gated off a rules-free roster, but the Start door below can report a REFUSED rule by name whatever this
+  // roster carries, so the gate is `true` once either use needs it). A stored id the catalogue no longer
   // offers falls back to the raw id — degraded but visible, matching the apply's reported skip.
   const { presetOf, titleOf } = useRulePresetCatalogue(true);
   const update = useUpdateRosterPreset({ trpc, invalidation });
@@ -119,7 +119,7 @@ export function CastMemberSurface({ view }: { readonly view: CollectionDetailVie
     startChat({
       characterIds: cast.members.map((m) => m.characterId),
       anchorPersonaId: cast.anchorPersonaId,
-      // The room is named after the cast it was started from (side-eye P3-4).
+      // The room is named after the roster it was started from (side-eye P3-4).
       title: cast.name,
     })
       .then(async (chatId) => {
@@ -133,7 +133,7 @@ export function CastMemberSurface({ view }: { readonly view: CollectionDetailVie
 
   return (
     <Container>
-      <Stack className="max-w-prose outline-none" data-slot="cast-member-editor" gap="section" ref={surfaceRef} tabIndex={-1}>
+      <Stack className="max-w-prose outline-none" data-slot="roster-member-editor" gap="section" ref={surfaceRef} tabIndex={-1}>
         <Heading level={2}>{cast.name}</Heading>
         <Field label="Name">
           <Input aria-label="Roster name" onChange={(e): void => setName(e.target.value)} value={name} />
@@ -150,7 +150,7 @@ export function CastMemberSurface({ view }: { readonly view: CollectionDetailVie
           </Button>
         </Row>
         {/* `Section kicker` renders the SAME caps-micro band the two groupings had as bare spans — and a
-            real <h3> under it (side-eye P2-5: the editor's only heading was the cast name, so heading
+            real <h3> under it (side-eye P2-5: the editor's only heading was the roster name, so heading
             navigation gave a screen-reader user one stop in a two-section surface, while the sibling
             "This chat" pane names every section at level 3). */}
         <Section kicker="Members">
@@ -166,7 +166,7 @@ export function CastMemberSurface({ view }: { readonly view: CollectionDetailVie
               ) : (
                 // ONE talkativeness spelling with the room's own Members tab (P2-5): the 0–100 dial, the
                 // word "Talks", no percent sign. The scale + wording live in `#lib` (a feature may not
-                // import another feature), so the cast can never drift from the room again. A seat that
+                // import another feature), so the roster can never drift from the room again. A seat that
                 // never had the knob touched carries `null` — the room's own default weight.
                 <Text as="span" voice="gloss">
                   {member.talkativeness === null ? "Talks by default" : `Talks ${talkativenessLevel(member.talkativeness)}`}
@@ -177,9 +177,9 @@ export function CastMemberSurface({ view }: { readonly view: CollectionDetailVie
           <Text voice="gloss">To re-compose the roster, arrange a room you host and save it as a new roster — the saved-rosters door in Members.</Text>
         </Section>
         {cast.rules.length > 0 ? (
-          <Section kicker="Rules" data-slot="cast-rules">
+          <Section kicker="Rules" data-slot="roster-rules">
             {cast.rules.map((rule) => (
-              <CastRuleBlock knobs={rule.knobs} key={rule.rulePresetId} preset={presetOf(rule.rulePresetId)} rulePresetId={rule.rulePresetId} />
+              <RosterRuleBlock knobs={rule.knobs} key={rule.rulePresetId} preset={presetOf(rule.rulePresetId)} rulePresetId={rule.rulePresetId} />
             ))}
             <Text voice="gloss">
               Applied with the roster — re-minted into the room and switched on. To change them, configure a room and save a new roster.
