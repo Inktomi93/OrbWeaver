@@ -1,7 +1,7 @@
 ---
 kind: design
 status: parked
-updated: 2026-08-14
+updated: 2026-08-30
 ---
 
 # Parked options — persona / prose cluster (I-8)
@@ -152,6 +152,12 @@ The owner has veto on the wording; these ship LIVE today (defaults, so every une
 > exactly as it is spelled in the cast — never a nickname, a pronoun or a title. Leave narration, scene
 > description and anything not attributable to one character OUTSIDE the tags. Never write lines for the user.]`
 
+- **VOCABULARY FLAG (#901, 2026-08-30) — owner's call, deliberately NOT swept.** The quoted default says
+  *"exactly as it is spelled in the cast"*, and #901 Fork 1 retired "cast" for the room's seated
+  characters (now **Characters**). This is a PROSE-1 slot: owner-editable DATA with owner veto on wording,
+  so a vocabulary sweep does not get to rewrite it — the model-facing phrasing is a product decision, not
+  doc rot. Recorded here so the retired word is not mistaken for a missed site. #902 (vocab C1) is
+  client-only and does not reach `contracts/chat/prose.ts`.
 - Fires: every MULTI-member narrator round with "Label each speaker" on (default-on in narrator mode, `:255`).
 - `requiredTokens: ["<speaker>", "</speaker>"]` — these are the RENDERER's parse contract; the split-and-tint
   producer keys on them (`:239-244`). No name token.
@@ -197,8 +203,9 @@ The workboard framing (`:1319-1320`): "`{{user}}` is deliberately absent (`macro
 
 So the token mechanism already exists and is proven (`spliceProseTokens`, `prose-slot/index.ts:299-308` — a
 plain string replace, NOT the macro engine, so it can't double-resolve already-macro'd text). The open plumbing
-question is narrow: **should `speakerTags` gain a token** (e.g. `{{names}}` so the instruction can name the cast
-it's tagging)? It reads fine WITHOUT one — the tag names come from the cast the model already has — so this is a
+question is narrow: **should `speakerTags` gain a token** (e.g. `{{names}}` so the instruction can name the
+characters it's tagging)? It reads fine WITHOUT one — the tag names come from the character list the model
+already has — so this is a
 nice-to-have, not a gap.
 
 ### 2.5 RECOMMENDATION (item 2)
@@ -208,7 +215,7 @@ version-bumped, measured against weak local models per their headers, and they r
 The forward-thinking arm here is restraint: they are owner-editable DATA now (PROSE-1 slots), so any host who
 wants different words has the editor — there is no reason to pre-optimize the defaults or add plumbing the
 default doesn't need. The one thing I'd surface for the owner's eye: `roundNudge` and `narratorNudge` use
-`{{name}}` vs `{{names}}` respectively — that asymmetry is CORRECT (one speaker vs the whole cast) but is exactly
+`{{name}}` vs `{{names}}` respectively — that asymmetry is CORRECT (one speaker vs every character) but is exactly
 the kind of thing that reads like a typo; leave it, it's right. **All three remain his veto — this is a
 recommendation to release, not a release.**
 

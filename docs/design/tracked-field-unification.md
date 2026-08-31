@@ -1,7 +1,7 @@
 ---
 kind: design
 status: draft
-updated: 2026-08-14
+updated: 2026-08-30
 ---
 
 # Tracked-field unification + panel IA repair — the pool/meter/cast-field untangle
@@ -78,7 +78,7 @@ placeholder). Axes, not siblings:
 
 | Axis | Values | Today's concepts it absorbs |
 | - | - | - |
-| `subject` | applicability model (SETTLED, owner 2026-07-31): def-level default `appliesTo: all \| [actors]` **+ per-actor `grants` + per-actor `revokes`**; effective carriers = (all ? whole ROSTER : list) + grants − revokes. Covers column fields (everyone), personal fields (named actors), and one-off ad-hoc grants (the act-3 demon's "Bound Will") with ONE mechanism. Game-scoped widgets = `subject: game` (no carrier resolution). **Vocabulary ruling (owner): the people-group is the ROSTER — "cast" is not canon anywhere in the new surface.** | pools (per-actor) vs "cast fields" (per-game, legacy name) vs widgets (game-scoped) |
+| `subject` | applicability model (SETTLED, owner 2026-07-31): def-level default `appliesTo: all \| [actors]` **+ per-actor `grants` + per-actor `revokes`**; effective carriers = (all ? every actor in the room : list) + grants − revokes. Covers column fields (everyone), personal fields (named actors), and one-off ad-hoc grants (the act-3 demon's "Bound Will") with ONE mechanism. Game-scoped widgets = `subject: game` (no carrier resolution). **Vocabulary ruling (owner, 2026-07-31, VERBATIM): "the people-group is the ROSTER — 'cast' is not canon anywhere in the new surface."** — **the ruling survives; its INPUT changed (owner, #901, 2026-08-30).** The half that stands is the half it was minted for: *"cast" is not canon here.* The word it reached for is now spoken for — #901 Fork 2 assigns **Roster** to the SAVED seats+knobs+rules template, and Fork 1 assigns **Characters** to the room's seated characters. So the people-group in this surface is the room's **characters** (or, inside the game register this spec otherwise speaks, `party`/`npcs`/`everyone` — ratified, unaffected). Never "the roster" for a set of people, and never "cast". | pools (per-actor) vs "cast fields" (per-game, legacy name) vs widgets (game-scoped) |
 | `shape` | meter (value/max) · text · list | meter fields, text fields, widget lists |
 | `write` | **delta** (spend/restore — a resource) vs **set** (observe — a state) | poolDeltas vs set-value; KEEP THIS LOUD — it drives the tool arg shape, the model's mental model, and the panel read (bar you drain vs gauge that tracks) |
 | `hint` | the gloss — REQUIRED-encouraged (steering lever per §4d of the spike; R4b class) | pool hint, cast-field hint, attribute hint |

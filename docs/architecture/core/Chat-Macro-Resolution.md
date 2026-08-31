@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-07-13
+updated: 2026-08-30
 ---
 
 # Chat macro/persona resolution — the one home
@@ -40,9 +40,18 @@ updated: 2026-07-13
 - **Producer, not hard-link.** The row carries only IDS. Names are DERIVED from a per-chat name
   **producer**, never denormalized onto the row (that is the neo hard-link we do not carry).
 
-## 1. The producer (the membership-gated kind-polymorphic cast, D137)
+## 1. The producer (the membership-gated kind-polymorphic identity directory, D137)
 
-A chat read yields the CAST producer (`CastEntry[]`, `@orb/contracts/chat/producers.ts`) — ONE
+> **Vocabulary (owner rulings, #901, 2026-08-30 — read this before you copy a word out of this doc).**
+> The room's seated characters are **Characters**; the saved seats+knobs+rules template is a **Roster**.
+> The word "cast" is retired for BOTH concepts. It survives here only as the *code* spelling of the D137
+> producer (`CastEntry`, `loadChatCastProducer`, `ctx.cast`, `castKey`, `CAST_KIND_POLICY`) — issue #903
+> (vocab C2) renames that seam to **`ChatIdentity`** with the drive axis **`characters`**, and it has NOT
+> landed. So: code identifiers below are quoted as they are on the tree TODAY; the prose around them uses
+> the ruled words. Do not "restore" cast prose, and do not write the #903 names as if they exist.
+
+A chat read yields the identity-directory producer (`CastEntry[]`,
+`@orb/contracts/chat/producers.ts`) — ONE
 kind-discriminated entry per identity the chat references, **member-gated** (any member may read it),
 loaded via `loadChatCastProducer` (`domain/chat/persistence/cast.ts`):
 
@@ -80,8 +89,9 @@ resolveRowMacros(
 - `{{char}}` → for a VOICED row (`characterId` set): `characterNamesById.get(row.characterId)?.name ??
   ctx.speakerCharName ?? "Character"` (the ROW's own speaker, never the current turn's speaker — a past line
   by Aria stays Aria even when Kai speaks now). For a HUMAN-authored / narrator row (`characterId === null`):
-  the **CAST** — the joined `ctx.cast` in a multi-character room (== `{{group}}`; ruling B), the one character
-  in solo — so a human's own `{{char}}` addresses the whole cast, resolved identically on both consumers.
+  the room's **CHARACTERS** — the joined `ctx.cast` in a multi-character room (== `{{group}}`; ruling B),
+  the one character in solo — so a human's own `{{char}}` addresses every seated character, resolved
+  identically on both consumers.
 - `{{user}}` / `{{persona}}` → `personaNamesById.get(row.personaId)?.{name,description}` (the ROW's authoring
   persona) — falling back for a null/legacy/greeting/AI stamp to the chat **ANCHOR**
   (`ctx.fallbackPersonaName`/`fallbackPersonaDescription` = `pinnedPersona`), NEVER the reader's own active
@@ -97,8 +107,8 @@ resolveRowMacros(
 
 | Context | Home | `{{user}}` subject | `{{char}}` subject |
 | - | - | - | - |
-| **DISPLAY** (viewer) | client `message-render` → the atom | row `personaId`; null-stamp → the ANCHOR | row `characterId`; null (human/narrator) → the CAST |
-| **ASSEMBLE** (model) | server `toShapeCanon` → the atom | row `personaId`; null-stamp → the ANCHOR | row `characterId`; null (human/narrator) → the CAST |
+| **DISPLAY** (viewer) | client `message-render` → the atom | row `personaId`; null-stamp → the ANCHOR | row `characterId`; null (human/narrator) → the CHARACTERS |
+| **ASSEMBLE** (model) | server `toShapeCanon` → the atom | row `personaId`; null-stamp → the ANCHOR | row `characterId`; null (human/narrator) → the CHARACTERS |
 | **SEND** | stores RAW; stamps `personaId` (PD-100) | — | — |
 | CARD sections | server `assemble.ts` | `ctx.pinnedPersona` (anchor, FROZEN at open) | the section's character |
 | prompt-config sections | server `assemble.ts` | `ctx.activePersona` = the TRIGGERING human's persona | the section's character |
@@ -106,7 +116,7 @@ resolveRowMacros(
 DISPLAY and ASSEMBLE resolve history identically (same atom + same producer semantics) ⇒ **viewer ==
 model by construction** — including the null-stamp fallback, which is the chat ANCHOR (a chat invariant,
 never the per-viewer active persona; ruling A), so a greeting / AI line addresses one persona for the model
-and every human. A human-authored row's `{{char}}` is the CAST (ruling B). Card and prompt-config sections
+and every human. A human-authored row's `{{char}}` is the room's CHARACTERS (ruling B). Card and prompt-config sections
 are NOT history — they keep the two-persona doctrine (`context.ts`: `pinnedPersona = anchor ?? active`;
 `activePersona` = the triggerer's persona), the prompt-config `active` bound to whose turn it is (not
 `personaIds[0]`).
@@ -121,9 +131,10 @@ are NOT history — they keep the two-persona doctrine (`context.ts`: `pinnedPer
 - **row `personaId`** — the per-message author stamp. HISTORY/message `{{user}}` when set. Changed ONLY by
   reattribution — a live persona switch never silently relabels old lines.
 
-**`{{char}}` cast axis (ruling B):** a VOICED row's `{{char}}` is its own `characterId`; a HUMAN-authored /
-narrator row's `{{char}}` (`characterId === null`) is the CAST — the joined cast in a multi-character room
-(== `{{group}}`), the one character in solo. Gated on cast SIZE (`length > 1`), never an `isGroup` flag (D16).
+**`{{char}}` characters axis (ruling B):** a VOICED row's `{{char}}` is its own `characterId`; a HUMAN-authored /
+narrator row's `{{char}}` (`characterId === null`) is the room's CHARACTERS — the joined names in a
+multi-character room (== `{{group}}`), the one character in solo. Gated on the SIZE of that set
+(`length > 1`), never an `isGroup` flag (D16).
 
 ## 5. Reattribution (the only writer of a stamp)
 

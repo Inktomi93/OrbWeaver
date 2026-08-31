@@ -1,7 +1,7 @@
 ---
 kind: design
 status: active
-updated: 2026-08-14
+updated: 2026-08-30
 ---
 
 # RPG state extraction — one-call-tools spike & recommendations
@@ -11,6 +11,13 @@ updated: 2026-08-14
 **Evidence:** live spikes against `anthropic/claude-sonnet-5` via OpenRouter + the Anthropic native
 Messages API (\~$3.6 total spend, 8 harnesses). Raw artifacts under `scripts/probes/rpg-extraction/` — see
 Appendix B. Results directories are gitignored; **this document is the durable record.**
+
+> **Vocabulary rider (#901 Fork 3, 2026-08-30 — SCHEDULED, NOT LANDED).** Everywhere below, "cast" /
+> "the cast enum" / "cast field" name rpg's SCENE-ONLY extras and their per-game field defs. The owner
+> ruled that concept is an **npc**: the actor-ref arm becomes `npc:<slug>` and `castFields` follows,
+> under issue **#906** (merge-window class — `cast:<slug>` lives in JSON snapshot values). The
+> measurements, tool names and enum spellings below are the RECORD of what was run and stay verbatim;
+> read the concept as "npc" and do not respell a captured tool arg to match.
 
 > **OUTCOME 2026-08-01 (owner ruling): the `reliable` MODE IS DELETED.** §4f–§4h measured it WORST on the exact
 > field its structured-output guardrail existed to secure (`hpDelta` 0/12 — a field-routing failure), so the
