@@ -1,0 +1,221 @@
+{
+  "schemaVersion": 1,
+  "families": [
+    {
+      "family": "devtools-frontend",
+      "assetPrefix": "",
+      "notices": [
+        {
+          "file": "licenses/devtools-frontend/LICENSE",
+          "source": "https://chromium.googlesource.com/devtools/devtools-frontend/+/33c2f401a9c8ddad2159eb0ab83aa244a5247361/LICENSE",
+          "bytes": 1537,
+          "sha256": "ff11d445fb41a1087c7630e120ab15f1a2cb67c1b707173cb494141805fca35e"
+        }
+      ]
+    },
+    {
+      "family": "acorn",
+      "assetPrefix": "third_party/acorn/",
+      "notices": [
+        {
+          "file": "licenses/acorn/README.chromium",
+          "source": "https://chromium.googlesource.com/devtools/devtools-frontend/+/33c2f401a9c8ddad2159eb0ab83aa244a5247361/front_end/third_party/acorn/README.chromium",
+          "bytes": 448,
+          "sha256": "10d556e45715215057f2054ea6205f6570ff847136b68137d1a3ba9f64f0fee3"
+        }
+      ]
+    },
+    {
+      "family": "chromium-client-variations",
+      "assetPrefix": "third_party/chromium/client-variations/",
+      "notices": [
+        {
+          "file": "licenses/chromium-client-variations/README.chromium",
+          "source": "https://chromium.googlesource.com/devtools/devtools-frontend/+/33c2f401a9c8ddad2159eb0ab83aa244a5247361/front_end/third_party/chromium/README.chromium",
+          "bytes": 782,
+          "sha256": "4134ca5c0076d438ca1faa9929190a6fe9e09cfc60b0233c25e8a1ddf17a051f"
+        }
+      ]
+    },
+    {
+      "family": "codemirror.next",
+      "assetPrefix": "third_party/codemirror.next/",
+      "notices": [
+        {
+          "file": "licenses/codemirror.next/LICENSE",
+          "source": "https://chromium.googlesource.com/devtools/devtools-frontend/+/33c2f401a9c8ddad2159eb0ab83aa244a5247361/front_end/third_party/codemirror.next/LICENSE",
+          "bytes": 1112,
+          "sha256": "aa8f65819a471c1a25fb3c0816c5a75e45f009b7899d292ee3cc70d9dbdd8f7e"
+        },
+        {
+          "file": "licenses/codemirror.next/README.chromium",
+          "source": "https://chromium.googlesource.com/devtools/devtools-frontend/+/33c2f401a9c8ddad2159eb0ab83aa244a5247361/front_end/third_party/codemirror.next/README.chromium",
+          "bytes": 840,
+          "sha256": "85ecc00cf8d9073a9012554cd805941f8f0d16bc3e7fe837cc43730124fdd4e2"
+        }
+      ]
+    },
+    {
+      "family": "diff",
+      "assetPrefix": "third_party/diff/",
+      "notices": [
+        {
+          "file": "licenses/diff/LICENSE",
+          "source": "https://chromium.googlesource.com/devtools/devtools-frontend/+/33c2f401a9c8ddad2159eb0ab83aa244a5247361/front_end/third_party/diff/LICENSE",
+          "bytes": 11357,
+          "sha256": "58d1e17ffe5109a7ae296caafcadfdbe6a7d176f0bc4ab01e12a689b0499d8bd"
+        },
+        {
+          "file": "licenses/diff/README.chromium",
+          "source": "https://chromium.googlesource.com/devtools/devtools-frontend/+/33c2f401a9c8ddad2159eb0ab83aa244a5247361/front_end/third_party/diff/README.chromium",
+          "bytes": 576,
+          "sha256": "e385a7303ef3740e74a8e0d4b7d6855d4abea0ed7cbb0aba755c5ca8e87f6406"
+        }
+      ]
+    },
+    {
+      "family": "i18n",
+      "assetPrefix": "third_party/i18n/",
+      "notices": [
+        {
+          "file": "licenses/i18n/LICENSE",
+          "source": "https://chromium.googlesource.com/devtools/devtools-frontend/+/33c2f401a9c8ddad2159eb0ab83aa244a5247361/front_end/third_party/i18n/LICENSE",
+          "bytes": 11342,
+          "sha256": "7ec9661a8afafab1eee3523d6f1a193eff76314a5ab10b4ce96aefd87621b0c3"
+        },
+        {
+          "file": "licenses/i18n/README.chromium",
+          "source": "https://chromium.googlesource.com/devtools/devtools-frontend/+/33c2f401a9c8ddad2159eb0ab83aa244a5247361/front_end/third_party/i18n/README.chromium",
+          "bytes": 482,
+          "sha256": "efbd54add3edd39e176f0aec6ace5f841991f382627c4843de5b8e4839bf8422"
+        }
+      ]
+    },
+    {
+      "family": "intl-messageformat",
+      "assetPrefix": "third_party/intl-messageformat/",
+      "notices": [
+        {
+          "file": "licenses/intl-messageformat/LICENSE",
+          "source": "https://chromium.googlesource.com/devtools/devtools-frontend/+/33c2f401a9c8ddad2159eb0ab83aa244a5247361/front_end/third_party/intl-messageformat/LICENSE",
+          "bytes": 1560,
+          "sha256": "0212e9ffd60f4c2e05426ac172b91266256b9ff4c0f0156e85b761a1d6f5e17f"
+        },
+        {
+          "file": "licenses/intl-messageformat/README.chromium",
+          "source": "https://chromium.googlesource.com/devtools/devtools-frontend/+/33c2f401a9c8ddad2159eb0ab83aa244a5247361/front_end/third_party/intl-messageformat/README.chromium",
+          "bytes": 982,
+          "sha256": "976452d2017b2dc3cd52cc6cc5d7e346f495b5b743630de2d0bd3fb4a428abb0"
+        }
+      ]
+    },
+    {
+      "family": "legacy-javascript",
+      "assetPrefix": "third_party/legacy-javascript/",
+      "notices": [
+        {
+          "file": "licenses/legacy-javascript/LICENSE",
+          "source": "https://chromium.googlesource.com/devtools/devtools-frontend/+/33c2f401a9c8ddad2159eb0ab83aa244a5247361/front_end/third_party/legacy-javascript/LICENSE",
+          "bytes": 11358,
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+        },
+        {
+          "file": "licenses/legacy-javascript/README.chromium",
+          "source": "https://chromium.googlesource.com/devtools/devtools-frontend/+/33c2f401a9c8ddad2159eb0ab83aa244a5247361/front_end/third_party/legacy-javascript/README.chromium",
+          "bytes": 368,
+          "sha256": "e443e0d2d49358e5b66bd3f7cb5f80671eb7ebec5dba2ae18341cef6e75b1f25"
+        }
+      ]
+    },
+    {
+      "family": "lighthouse",
+      "assetPrefix": "third_party/lighthouse/",
+      "notices": [
+        {
+          "file": "licenses/lighthouse/LICENSE",
+          "source": "https://chromium.googlesource.com/devtools/devtools-frontend/+/33c2f401a9c8ddad2159eb0ab83aa244a5247361/front_end/third_party/lighthouse/LICENSE",
+          "bytes": 11342,
+          "sha256": "7ec9661a8afafab1eee3523d6f1a193eff76314a5ab10b4ce96aefd87621b0c3"
+        },
+        {
+          "file": "licenses/lighthouse/README.chromium",
+          "source": "https://chromium.googlesource.com/devtools/devtools-frontend/+/33c2f401a9c8ddad2159eb0ab83aa244a5247361/front_end/third_party/lighthouse/README.chromium",
+          "bytes": 538,
+          "sha256": "8c7a45ead7132d20336ff3bb8b320ec9e88f49bf123f46c1eaeaf330c448ec25"
+        }
+      ]
+    },
+    {
+      "family": "lit",
+      "assetPrefix": "third_party/lit/",
+      "notices": [
+        {
+          "file": "licenses/lit/LICENSE",
+          "source": "https://chromium.googlesource.com/devtools/devtools-frontend/+/33c2f401a9c8ddad2159eb0ab83aa244a5247361/front_end/third_party/lit/LICENSE",
+          "bytes": 1517,
+          "sha256": "45d31799d0db956cc3eb5469346abbd9b7025babc5ff29fab10d7095da992ef1"
+        },
+        {
+          "file": "licenses/lit/README.chromium",
+          "source": "https://chromium.googlesource.com/devtools/devtools-frontend/+/33c2f401a9c8ddad2159eb0ab83aa244a5247361/front_end/third_party/lit/README.chromium",
+          "bytes": 848,
+          "sha256": "f8e3c14566f4f364100cfd7afb0308194f8d36698d3a312ea8670a0ecb9f6e30"
+        }
+      ]
+    },
+    {
+      "family": "marked",
+      "assetPrefix": "third_party/marked/",
+      "notices": [
+        {
+          "file": "licenses/marked/LICENSE",
+          "source": "https://chromium.googlesource.com/devtools/devtools-frontend/+/33c2f401a9c8ddad2159eb0ab83aa244a5247361/front_end/third_party/marked/LICENSE",
+          "bytes": 2618,
+          "sha256": "91968bf678e8c3d94ebf8596e98ca9cb5fca1c6555b53f721a940cb50f1b3d66"
+        },
+        {
+          "file": "licenses/marked/README.chromium",
+          "source": "https://chromium.googlesource.com/devtools/devtools-frontend/+/33c2f401a9c8ddad2159eb0ab83aa244a5247361/front_end/third_party/marked/README.chromium",
+          "bytes": 590,
+          "sha256": "e7b47dc32ede1d371696f347ff853f0402255e6e5ba2f065a6fcb0842c722d06"
+        }
+      ]
+    },
+    {
+      "family": "source-map-scopes-codec",
+      "assetPrefix": "third_party/source-map-scopes-codec/",
+      "notices": [
+        {
+          "file": "licenses/source-map-scopes-codec/LICENSE",
+          "source": "https://chromium.googlesource.com/devtools/devtools-frontend/+/33c2f401a9c8ddad2159eb0ab83aa244a5247361/front_end/third_party/source-map-scopes-codec/LICENSE",
+          "bytes": 1479,
+          "sha256": "53b4475d1cda8c46465bbaff85432631f0830cc2c0a4b28234b7e4d12d862e7b"
+        },
+        {
+          "file": "licenses/source-map-scopes-codec/README.chromium",
+          "source": "https://chromium.googlesource.com/devtools/devtools-frontend/+/33c2f401a9c8ddad2159eb0ab83aa244a5247361/front_end/third_party/source-map-scopes-codec/README.chromium",
+          "bytes": 733,
+          "sha256": "008bcee455e2c38b8b9a2a9220d8505c8b194ce50b69021e6e5db86226304ed3"
+        }
+      ]
+    },
+    {
+      "family": "third-party-web",
+      "assetPrefix": "third_party/third-party-web/",
+      "notices": [
+        {
+          "file": "licenses/third-party-web/LICENSE",
+          "source": "https://chromium.googlesource.com/devtools/devtools-frontend/+/33c2f401a9c8ddad2159eb0ab83aa244a5247361/front_end/third_party/third-party-web/LICENSE",
+          "bytes": 1079,
+          "sha256": "e1f2a92813d0a7160c8bb0e27da66ec2f6599f2832ae5b4d9f95c108e60af5e6"
+        },
+        {
+          "file": "licenses/third-party-web/README.chromium",
+          "source": "https://chromium.googlesource.com/devtools/devtools-frontend/+/33c2f401a9c8ddad2159eb0ab83aa244a5247361/front_end/third_party/third-party-web/README.chromium",
+          "bytes": 337,
+          "sha256": "147552f01c7b56e8cd3c4a347790d1d477e3d359049736e5fe13a655513f2daf"
+        }
+      ]
+    }
+  ]
+}

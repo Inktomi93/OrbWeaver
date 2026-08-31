@@ -93,5 +93,6 @@ export function buildFailureSummary(input: FailureSummaryInput): SnapFailureSumm
     assertions: totals.assertions,
     consoleErrors: console.errors,
     consoleWarnings: console.warnings,
+    css: input.outcomes.filter((outcome) => outcome.cssEvidence?.status === "instrument-error").length,
   };
 }

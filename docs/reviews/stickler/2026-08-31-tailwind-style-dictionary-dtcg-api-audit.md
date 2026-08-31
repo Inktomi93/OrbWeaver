@@ -39,17 +39,17 @@ Do not add Terrazzo, a separate “DTCG” package, or a class/cascade tracer.
 
 `packages/ui/src/tokens/tokens.json:1-2` declares the file the DTCG single source, but its value inventory is:
 
-| declared family           |   total |                   direct DTCG-valid |               direct invalid |                      effective invalid after alias resolution |
-| ------------------------- | ------: | ----------------------------------: | ---------------------------: | ------------------------------------------------------------: |
-| `color`                   |      75 |                          15 aliases |               60 CSS strings | 75, because all 15 aliases terminate at invalid string colors |
-| `dimension`               |      67 |                                   0 |               67 CSS strings |                                                            67 |
-| `duration`                |       8 |                                   0 |                8 CSS strings |                                                             8 |
-| `shadow`                  |       5 |                                   0 |                5 CSS strings |                                                             5 |
-| invalid `$type: "string"` |       6 |                                   0 |                            6 |                                                             6 |
-| `fontFamily`              |       2 |                       0 normatively | 2 comma-delimited CSS stacks |                                                             2 |
-| `cubicBezier`             |       1 |                                   1 |                            0 |                                                             0 |
-| `number`                  |      14 |                                  14 |                            0 |                                                             0 |
-| **total**                 | **178** | **30 schema-direct / 15 effective** |               **148 direct** |                                             **163 effective** |
+| declared family | total | direct DTCG-valid | direct invalid | effective invalid after alias resolution |
+| - | -: | -: | -: | -: |
+| `color` | 75 | 15 aliases | 60 CSS strings | 75, because all 15 aliases terminate at invalid string colors |
+| `dimension` | 67 | 0 | 67 CSS strings | 67 |
+| `duration` | 8 | 0 | 8 CSS strings | 8 |
+| `shadow` | 5 | 0 | 5 CSS strings | 5 |
+| invalid `$type: "string"` | 6 | 0 | 6 | 6 |
+| `fontFamily` | 2 | 0 normatively | 2 comma-delimited CSS stacks | 2 |
+| `cubicBezier` | 1 | 1 | 0 | 0 |
+| `number` | 14 | 14 | 0 | 0 |
+| **total** | **178** | **30 schema-direct / 15 effective** | **148 direct** | **163 effective** |
 
 The superficially plausible `155 invalid` count is wrong. So is a simple `161 = 75 + 67 + 8 + 5 + 6`:
 that treats 15 alias strings as invalid before resolution, but omits the two comma-delimited font-family
@@ -113,22 +113,22 @@ The current merger derives spacing, radius, container, width, typography leading
 aspect, blur, or easing family (`packages/ui/src/lib/class-merge.ts:31-84`). Exact Tailwind 4.3.3 compilation
 over the generated `@theme` produced named utilities for 14 custom namespace families:
 
-| compiler-positive namespace | planted candidates               | current merge result  |
-| --------------------------- | -------------------------------- | --------------------- |
-| color                       | `bg-primary bg-secondary`        | one survivor, correct |
-| spacing                     | `gap-field gap-tight`            | one survivor, correct |
-| radius                      | `rounded-base rounded-card`      | one survivor, correct |
-| aspect                      | `aspect-portrait aspect-banner`  | **both survive**      |
-| shadow                      | `shadow-glow shadow-overlay`     | one survivor, correct |
-| blur                        | `blur-strength blur-fill-chrome` | **both survive**      |
-| border width                | `border-hairline border-control` | one survivor, correct |
-| font family                 | `font-sans font-mono`            | one survivor, correct |
-| text size                   | `text-title text-body`           | one survivor, correct |
-| leading                     | `leading-title leading-body`     | one survivor, correct |
-| tracking                    | `tracking-micro tracking-wide`   | one survivor, correct |
-| container                   | `max-w-cq-sm max-w-cq-lg`        | one survivor, correct |
-| width                       | `w-dialog-sm w-dialog-lg`        | one survivor, correct |
-| easing                      | `ease-out-expo ease-linear`      | **both survive**      |
+| compiler-positive namespace | planted candidates | current merge result |
+| - | - | - |
+| color | `bg-primary bg-secondary` | one survivor, correct |
+| spacing | `gap-field gap-tight` | one survivor, correct |
+| radius | `rounded-base rounded-card` | one survivor, correct |
+| aspect | `aspect-portrait aspect-banner` | **both survive** |
+| shadow | `shadow-glow shadow-overlay` | one survivor, correct |
+| blur | `blur-strength blur-fill-chrome` | **both survive** |
+| border width | `border-hairline border-control` | one survivor, correct |
+| font family | `font-sans font-mono` | one survivor, correct |
+| text size | `text-title text-body` | one survivor, correct |
+| leading | `leading-title leading-body` | one survivor, correct |
+| tracking | `tracking-micro tracking-wide` | one survivor, correct |
+| container | `max-w-cq-sm max-w-cq-lg` | one survivor, correct |
+| width | `w-dialog-sm w-dialog-lg` | one survivor, correct |
+| easing | `ease-out-expo ease-linear` | **both survive** |
 
 The same compiler probe proved six negative namespaces: `dimension` (`w-rail`, `w-panel`), `immersive`,
 `reading`, `fade`, `z`, and `motion` emit no corresponding named utilities. `w-(--dimension-rail)` does
@@ -186,15 +186,17 @@ test. It is not an acceptable correctness dependency or a loser/winner source.
 No audited package observes final stylesheet/layer/specificity/inline/inheritance decisions. Tailwind's
 `compile`, `compileAst`, and unstable design-system loader can compile candidate CSS
 (`packages/ui/node_modules/tailwindcss/dist/lib.d.mts:325-376`), but they cannot identify the declaration a
-browser selected on a live element. Orb already has Playwright 1.61.1 and a Snap CDP session; the protocol
-supports `CSS.getMatchedStylesForNode`.
+browser selected on a live element. The protocol's `CSS.getMatchedStylesForNode` returns the inputs but no
+activity verdict; #950 therefore uses the revision-matched official DevTools frontend SDK's
+`CSSMatchedStyles.propertyState` through Snap.
 
 Failure scenario: a correct class merge trace reports one utility while an unlayered rule, inline custom
 property, inherited value, or later owner CSS wins in the browser. Extend Snap/`__orb.css` with a bounded
-CDP-backed matched-style probe: selector/element, property, winner and losing declarations, stylesheet
-source, layer/source order, specificity/importance/inline/inherited state, and computed value. Plant a
-fixture that exercises layer, specificity, inline, custom-property resolution, and a losing declaration;
-empty CSSOM/CDP population is `INSTRUMENT ERROR`, not clean. No dependency is justified.
+official-SDK probe: selector/element, property, winner and losing declarations, stylesheet source,
+layer/source order, importance/inline/inherited state, and computed value. Plant a fixture that exercises
+layer, specificity, inline, custom-property resolution, animation, transition, and a losing declaration;
+empty CSSOM/SDK population is `INSTRUMENT ERROR`, not clean. No package dependency is justified; the exact
+official frontend closure is committed as tooling-only assets and verified before serving.
 
 ### P3 — the import seal permits a second `createTV`, which would mutate tailwind-variants' global merge cache
 
@@ -226,13 +228,13 @@ only reintroduce it with a real consumer and derivation from the actual value-se
 
 The lock/catalog and package-local manifests resolve the relevant stack to:
 
-| package             | exact installed version | capability Orb should treat as public                                                                                  |
-| ------------------- | ----------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `tailwindcss`       | 4.3.3                   | CSS-first `@import`, `@theme`, utilities/variants; `compile`, `compileAst`; unstable design-system introspection       |
-| `@tailwindcss/vite` | 4.3.3                   | Vite integration over the CSS entry                                                                                    |
-| `tailwind-variants` | 3.2.2                   | `tv`, `createTV`, slots, variants, compounds, extension, `cx`/`cnMerge`; configurable merge-off composition            |
-| `tailwind-merge`    | 3.6.0                   | `twMerge`, `extendTailwindMerge`, `createTailwindMerge`, default config and validators; parser override only, no trace |
-| `style-dictionary`  | 5.5.0                   | async constructor/config, DTCG spelling detection, aliases, transforms/formats, `getPlatformTokens()` dictionary       |
+| package | exact installed version | capability Orb should treat as public |
+| - | - | - |
+| `tailwindcss` | 4.3.3 | CSS-first `@import`, `@theme`, utilities/variants; `compile`, `compileAst`; unstable design-system introspection |
+| `@tailwindcss/vite` | 4.3.3 | Vite integration over the CSS entry |
+| `tailwind-variants` | 3.2.2 | `tv`, `createTV`, slots, variants, compounds, extension, `cx`/`cnMerge`; configurable merge-off composition |
+| `tailwind-merge` | 3.6.0 | `twMerge`, `extendTailwindMerge`, `createTailwindMerge`, default config and validators; parser override only, no trace |
+| `style-dictionary` | 5.5.0 | async constructor/config, DTCG spelling detection, aliases, transforms/formats, `getPlatformTokens()` dictionary |
 
 Receipts: `pnpm-workspace.yaml:185-192,251-255`, `packages/ui/package.json:107-148`, and each installed
 package's own `package.json`. There is **no separate DTCG npm package installed**. Orb uses Style Dictionary
@@ -329,22 +331,22 @@ are not a conformant escape. `$extensions` is the specified vendor-extension mec
 
 ### Family inventory and output implications
 
-| family/current population                            | canonical migration                                                                                           | transform/output requirement                                                               |
-| ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| 46 plain literal colors                              | `{colorSpace:"oklch", components:[l,c,h], alpha?}`                                                            | Style Dictionary `color/oklch`; byte/parity test browser round-trip                        |
-| 14 `light-dark()` colors                             | two conformant color values in light/dark value sets                                                          | resolver-set composition; generator emits the existing `light-dark(light,dark)` CSS value  |
-| 15 color aliases                                     | keep `{path}` aliases                                                                                         | validate terminal type/value and cycles after resolution                                   |
-| 80 seed color values                                 | conformant color objects with inherited/declared `color`                                                      | emit identical `[data-theme]` vars; move `$colorScheme` to resolver context/Orb extension  |
-| 61 `px`/`rem` dimensions plus zero-valued `0em`      | structured `{value, unit}` using only `px` or `rem`; normalize zero to `0rem`                                 | Style Dictionary `size/rem` or a unit-preserving local formatter; computed-output parity   |
-| 2 `clamp()` dimensions                               | portable floor/cap/percentage inputs plus `cssValues` output expression                                       | preserve raw formula; check referenced vars and exact target ownership                     |
-| 3 nonportable unit values (`0.08em`, `75ch`, `65ch`) | portable numeric inputs where the number is design data; raw unit formula in `cssValues`                      | do not lie with DTCG `dimension`, whose stable units are px/rem; preserve rendered formula |
-| 8 durations                                          | structured `{value, unit}` using `ms` or `s`                                                                  | local duration formatter; Style Dictionary 5.5.0 has no correct standalone transform       |
-| 5 shadows                                            | prose as structured DTCG shadow; four dynamic layered shadows as `cssValues` using portable color ingredients | native transform for the portable one; preserve runtime `var()`/relative-color behavior    |
-| 6 `$type:string` values                              | two aspect ratios to raw `cssValues`; four percentages to numbers with a local percentage output role         | type-directed local output, no custom type                                                 |
-| 2 font families                                      | arrays of individual family strings                                                                           | `fontFamily/css`; preserve quoting/fallback order                                          |
-| 1 cubic bezier                                       | already conformant array                                                                                      | `cubicBezier/css`                                                                          |
-| 14 numbers                                           | already conformant                                                                                            | identity formatter                                                                         |
-| 5 pointer-fine extension strings                     | structured vendor-extension dimensions                                                                        | local conditional formatter                                                                |
+| family/current population | canonical migration | transform/output requirement |
+| - | - | - |
+| 46 plain literal colors | `{colorSpace:"oklch", components:[l,c,h], alpha?}` | Style Dictionary `color/oklch`; byte/parity test browser round-trip |
+| 14 `light-dark()` colors | two conformant color values in light/dark value sets | resolver-set composition; generator emits the existing `light-dark(light,dark)` CSS value |
+| 15 color aliases | keep `{path}` aliases | validate terminal type/value and cycles after resolution |
+| 80 seed color values | conformant color objects with inherited/declared `color` | emit identical `[data-theme]` vars; move `$colorScheme` to resolver context/Orb extension |
+| 61 `px`/`rem` dimensions plus zero-valued `0em` | structured `{value, unit}` using only `px` or `rem`; normalize zero to `0rem` | Style Dictionary `size/rem` or a unit-preserving local formatter; computed-output parity |
+| 2 `clamp()` dimensions | portable floor/cap/percentage inputs plus `cssValues` output expression | preserve raw formula; check referenced vars and exact target ownership |
+| 3 nonportable unit values (`0.08em`, `75ch`, `65ch`) | portable numeric inputs where the number is design data; raw unit formula in `cssValues` | do not lie with DTCG `dimension`, whose stable units are px/rem; preserve rendered formula |
+| 8 durations | structured `{value, unit}` using `ms` or `s` | local duration formatter; Style Dictionary 5.5.0 has no correct standalone transform |
+| 5 shadows | prose as structured DTCG shadow; four dynamic layered shadows as `cssValues` using portable color ingredients | native transform for the portable one; preserve runtime `var()`/relative-color behavior |
+| 6 `$type:string` values | two aspect ratios to raw `cssValues`; four percentages to numbers with a local percentage output role | type-directed local output, no custom type |
+| 2 font families | arrays of individual family strings | `fontFamily/css`; preserve quoting/fallback order |
+| 1 cubic bezier | already conformant array | `cubicBezier/css` |
+| 14 numbers | already conformant | identity formatter |
+| 5 pointer-fine extension strings | structured vendor-extension dimensions | local conditional formatter |
 
 Four of five current shadows are genuinely runtime CSS expressions (`shadow.glow`, `overlay`, `cta`, and
 `cta-glow`) because they use theme-scoped custom properties/relative colors. They are not portable DTCG
@@ -402,16 +404,16 @@ missing set, bad modifier, and ordering controls.
 
 ## Dependency decision table
 
-| gap                                                                      | decision                                                              | why / planted control capability                                                                                                                                                                  |
-| ------------------------------------------------------------------------ | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| stable Format + Resolver JSON validation                                 | **justified direct dev dependencies: Ajv 8.20.0 + ajv-formats 3.0.1** | official schemas compile under strict/all-errors; both already transitively resolved in this lock; direct ownership is auditable; schema/hash and per-family planted fixtures are straightforward |
-| DTCG semantic gaps (font strings, alias terminal shape, extension rules) | **small local mechanism**                                             | normative checks are Orb-sized and not expressible in the official JSON Schema; run after Ajv and Style Dictionary resolution                                                                     |
-| DTCG duration/CSS and dynamic CSS output                                 | **small local mechanism**                                             | Style Dictionary lacks the exact transforms; type-directed formatters and `cssValues` keep scope bounded                                                                                          |
-| class loser → winner                                                     | **small local mechanism**                                             | package has no trace callback; replay the exact configured merger rather than reimplementing its groups                                                                                           |
-| browser cascade winner                                                   | **installed API suffices**                                            | existing Playwright/CDP can call CSS matched-style APIs; no JS package can replace browser cascade truth                                                                                          |
-| compiler namespace coverage                                              | **installed API suffices**                                            | Tailwind 4.3.3 stable `compile()` provides exact positive/negative evidence                                                                                                                       |
-| TV raw variant composition                                               | **installed API suffices**                                            | `createTV({twMerge:false})` is public and tested in 3.2.2                                                                                                                                         |
-| second standards oracle                                                  | **do not add Terrazzo**                                               | parser accepts a broader Terrazzo dialect and normalizes legacy values; it cannot be strict DTCG authority                                                                                        |
+| gap | decision | why / planted control capability |
+| - | - | - |
+| stable Format + Resolver JSON validation | **justified direct dev dependencies: Ajv 8.20.0 + ajv-formats 3.0.1** | official schemas compile under strict/all-errors; both already transitively resolved in this lock; direct ownership is auditable; schema/hash and per-family planted fixtures are straightforward |
+| DTCG semantic gaps (font strings, alias terminal shape, extension rules) | **small local mechanism** | normative checks are Orb-sized and not expressible in the official JSON Schema; run after Ajv and Style Dictionary resolution |
+| DTCG duration/CSS and dynamic CSS output | **small local mechanism** | Style Dictionary lacks the exact transforms; type-directed formatters and `cssValues` keep scope bounded |
+| class loser → winner | **small local mechanism** | package has no trace callback; replay the exact configured merger rather than reimplementing its groups |
+| browser cascade winner | **official tooling asset suffices** | revision-matched DevTools frontend SDK returns `Active`/`Overloaded`; raw CDP inputs cannot replace the browser's cascade implementation |
+| compiler namespace coverage | **installed API suffices** | Tailwind 4.3.3 stable `compile()` provides exact positive/negative evidence |
+| TV raw variant composition | **installed API suffices** | `createTV({twMerge:false})` is public and tested in 3.2.2 |
+| second standards oracle | **do not add Terrazzo** | parser accepts a broader Terrazzo dialect and normalizes legacy values; it cannot be strict DTCG authority |
 
 No-new-dependency fallback: check in the two official schemas and hand-write validators for every currently
 used family plus alias traversal. This can work, but it duplicates a large evolving schema and is inferior

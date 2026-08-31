@@ -26,6 +26,7 @@ Cheap evidence:
   --map [selector]        interactive roles, names, and selectors
   --eval <expression>     in-page JSON result (repeatable)
   --contrast <selector>   rendered WCAG contrast check (repeatable)
+  --cascade <selector=property>  Chromium's computed value + official Active/Overloaded declarations
 
 Assertions and reports:
   --expect-visible <selector>       require a rendered, visible element
@@ -99,6 +100,10 @@ Sessions:
   --scenario <json>       sequential checkpoints in one browser lifetime
   --matrix                desktop/mobile × light/dark × motion/reduced motion
 
+Maintainers:
+  --materialize-devtools-assets   regenerate the pinned official DevTools cascade SDK closure; networked
+                                  update operation, never used by normal Snap/CT runs
+
 Failure evidence:
   Red runs retain a Playwright trace under reports/traces/. Use
   --no-failure-evidence only when the trace cost is explicitly unwanted.
@@ -168,6 +173,16 @@ function validatePairFlagValue(flag: string, raw: string, errors: string[]): voi
   }
   if (flag === "--upload" && (!raw.includes("=") || split.head === "" || split.tail.trim() === "")) {
     errors.push(`--upload expects selector=path[,path...] with a non-empty selector and at least one path, got ${JSON.stringify(raw)}`);
+  }
+  validateCascadePair(flag, raw, split, errors);
+}
+
+function validateCascadePair(flag: string, raw: string, split: { readonly head: string; readonly tail: string }, errors: string[]): void {
+  if (flag !== "--cascade") {
+    return;
+  }
+  if (!raw.includes("=") || split.head === "" || !/^(?:--[A-Za-z0-9_-]+|-?[A-Za-z][A-Za-z0-9-]*)$/u.test(split.tail)) {
+    errors.push(`--cascade expects selector=css-property, got ${JSON.stringify(raw)}`);
   }
 }
 
@@ -259,6 +274,7 @@ function targetedPages(args: Args): number[] {
     ...args.actions.map((entry) => entry.action.page),
     ...args.eval.map((entry) => entry.page),
     ...args.contrast.map((entry) => entry.page),
+    ...args.cascade.map((entry) => entry.page),
     ...args.assertions.map((assertion) => assertion.page),
     ...(args.aria ? [args.ariaPage] : []),
     ...(args.map ? [args.mapPage] : []),
@@ -285,6 +301,7 @@ function sessionValidationPairs(args: Args, contextsMode: boolean): ValidationPa
     [args.contexts > 1 && args.as !== null, "--as cannot be combined with --contexts greater than 1"],
     [contextsMode && args.isolated, "--contexts/--as use the fixture stack and cannot be combined with --isolated/--dirty/--ref"],
     [contextsMode && (args.watchMs > 0 || args.baseline || args.diff), "--contexts/--as do not support --watch, --baseline, or --diff"],
+    [contextsMode && args.cascade.length > 0, "--cascade does not combine with --contexts/--as (one ephemeral debugging profile owns one context)"],
     // The three stage-admin modes each print and exit; two of them in one argv is an ambiguous ask, not a
     // sequence, and silently honouring the first would hide the half the caller also meant.
     [[args.stageDown, args.stageStatus, args.stageSweep].filter(Boolean).length > 1, "--stage-down, --stage-status and --stage-sweep are mutually exclusive"],
@@ -337,6 +354,7 @@ export function parseSnapArgs(argv: string[]): Args {
   const errors = scanArgv(argv);
   const args: Args = {
     help: false,
+    materializeDevToolsAssets: false,
     errors,
     warnings: [],
     scenario: null,
@@ -387,6 +405,7 @@ export function parseSnapArgs(argv: string[]): Args {
     theme: null,
     idle: false,
     eval: [],
+    cascade: [],
     contrast: [],
     contrastPixel: false,
     assertions: [],

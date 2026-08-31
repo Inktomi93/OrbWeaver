@@ -8,6 +8,7 @@ import type { Args, ReportCtx, ShotPlan } from "../contract/types.ts";
 import { pageOut, shouldProduceShot } from "../lib/out-names.ts";
 import { throttleResultValue } from "../lib/throttle.ts";
 import { capturePages } from "./capture.ts";
+import { captureCssEvidence } from "./cascade.ts";
 import { runBaselineOrDiff } from "./diff.ts";
 import { snapDestination } from "./guards.ts";
 import { appliedAcrossContexts, writeManifestIfRequested } from "./manifest.ts";
@@ -46,6 +47,7 @@ export async function snap(opts: Args): Promise<number> {
   try {
     const plan: ShotPlan = { url, out, produceShot };
     const outcomes = await capturePages(session, opts, plan);
+    await captureCssEvidence(session, opts, outcomes);
     const evidenceSession = sessionForEvidence(session, outcomes);
     // --watch: a timed series on PAGE 0 after everything settled (a streaming turn reflow, transient states).
     const watchTicks = opts.watchMs > 0 ? await runWatchSeries(session.pages[0] as Page, opts, pageOut(out, 0, totalPages)) : [];
@@ -133,6 +135,7 @@ export async function snap(opts: Args): Promise<number> {
       ["eval-fails", evidenceFailures.eval],
       ["contrast-fails", totals.contrast],
       ["assertion-fails", totals.assertions],
+      ["css-fails", failureSummary.css],
       ["console-errors", failureSummary.consoleErrors],
       ["sandbox-trace-noise", session.consoleMessages.filter(isSandboxTraceNoise).length],
       ["console-warnings", evidenceSession.consoleMessages.filter((entry) => entry.type === "warning").length],

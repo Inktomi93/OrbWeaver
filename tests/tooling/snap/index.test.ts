@@ -37,6 +37,7 @@ const CLEAN_FAILURES: SnapFailureSummary = {
   assertions: 0,
   consoleErrors: 0,
   consoleWarnings: 0,
+  css: 0,
 };
 
 function runSnap(args: readonly string[]): ReturnType<typeof spawnSync> {
@@ -60,6 +61,20 @@ test("snap parses one multi-page evidence run without losing page targets", () =
   expect(args.eval).toEqual([{ expr: "document.title", page: 0 }]);
   expect(args.ariaSelector).toBe("main");
   expect(args.ariaPage).toBe(1);
+});
+
+test("--cascade preserves selector/property pairs and page targets, and refuses unsupported contexts", () => {
+  const args = parseSnapArgs(["/", "--pages", "2", "--cascade", "#layered=color", "--cascade@1", "[data-card]=--color-surface"]);
+
+  expect(args.errors).toEqual([]);
+  expect(args.cascade).toEqual([
+    { selector: "#layered", property: "color", page: 0 },
+    { selector: "[data-card]", property: "--color-surface", page: 1 },
+  ]);
+  expect(parseSnapArgs(["/", "--cascade", "broken"]).errors).toContain('--cascade expects selector=css-property, got "broken"');
+  expect(parseSnapArgs(["/", "--contexts", "2", "--cascade", "main=color"]).errors).toContain(
+    "--cascade does not combine with --contexts/--as (one ephemeral debugging profile owns one context)",
+  );
 });
 
 test("--eval joins the ONE queue, so an eval written before a step observes the PRE-step state", () => {

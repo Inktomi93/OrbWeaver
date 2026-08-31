@@ -803,14 +803,18 @@ file because the package keeps module-global merge configuration state.
 
 That still cannot explain why a browser declaration won. Layer, specificity, source order, inline styles,
 inheritance, and custom-property resolution belong to the live CSSOM. The original raw-CDP prescription was
-refuted: protocol matched styles do not expose the declaration activity verdict. #950 instead uses a
-revision-matched official DevTools frontend SDK whose `CSSMatchedStyles.propertyState` returns
-`Active`/`Overloaded`; mutation, UI scraping, and a local cascade evaluator are rejected. An empty trace is
-`INSTRUMENT ERROR`, never clean. `snap --dead-css` remains complementary: it answers whether a class/rule
-exists, not which valid declaration won.
+refuted: protocol matched styles do not expose the declaration activity verdict. #950 therefore embeds a
+revision-matched, path-closed official DevTools frontend SDK and asks
+`CSSMatchedStyles.propertyState` for `Active`/`Overloaded`; raw CDP matched-style data is transport input,
+not a safe cascade oracle. The measured 477-resource, 9,759,320-byte closure includes conditional official
+module asset edges and is hash/license/revision verified before use. Planted controls cover layer,
+specificity, inline, inheritance, custom-property fallback/cycle/undefined, animation, transition, and a
+losing declaration. An empty trace is `INSTRUMENT ERROR`, never clean. `snap --dead-css` remains
+complementary: it answers whether a class/rule exists, not which valid declaration won.
 
 **Current status.** #949 is integrated and in Review at `5a5fda97f`; #950 is Running from the architecture
-proven in `../research/2026-08-31-devtools-css-cascade-provenance.md`. Browser-winner coverage has not landed.
+proven in `../research/2026-08-31-devtools-css-cascade-provenance.md`. Browser-winner coverage is implemented
+in its lane but has not landed on main.
 
 ---
 
@@ -1239,7 +1243,7 @@ pre-launch removes the user risk, not the verification bar.**
 | - | - | - | - | - |
 | 5.1 | **IMPLEMENTED #949, IN REVIEW:** compiler-positive/negative namespace set equality, aspect/blur/ease only, and sole `createTV` seal | merge front door + tests/gate | compiler/unit/gate | a package upgrade or new emitted family cannot silently outrun the merger |
 | 5.2 | **IMPLEMENTED #949, IN REVIEW:** one Orb merge plus bounded occurrence-aware loser→final-winner replay at dev/test `__orb.css` | merge instrumentation | unit + instrument controls | duplicate/asymmetric/modifier/arbitrary/custom-family cases; zero population is instrument error |
-| 5.3 | **RUNNING #950:** revision-pinned official DevTools frontend SDK cascade provenance for bounded property/selector queries | Snap/official SDK | rendered instrument | layer, specificity, source order, inline, inheritance, custom property, animation, transition, and planted losers; no raw-CDP inference |
+| 5.3 | **RUNNING #950:** revision-pinned official DevTools frontend SDK cascade provenance for bounded property/selector queries | Snap/official SDK | rendered instrument | 477-resource path-closed asset set; layer, specificity, source order, inline, inheritance, custom-property fallback/cycle/undefined, animation, transition, and planted losers; no raw-CDP inference |
 | 5.4 | Prove the 41-key Appearance carrier graph and interaction arms across ThemeScope, grid, portals, background layers, message props, and mobile/desktop shell regimes | gate + Snap matrix | static carrier + rendered scenarios | every setting has a writer, carrier, consumer, visible state, and incompatible-arm rule |
 | 5.5 | Promote stable Snap measurements into rated floors (contrast, overflow/containment, cascade/merge, density, polarity, scrim/art, mobile geometry) while keeping exploratory matrices available | scenario/rating harness | preflight + scenario floor | catches interaction failures before manual side-eye; side-eye remains final taste/a11y verification |
 

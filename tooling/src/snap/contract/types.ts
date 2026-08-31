@@ -5,6 +5,7 @@ import type { ResultPair } from "../../_shared/artifacts.ts";
 import type { CapturedConsole, CapturedRequest, LocalStorageSeed } from "../../_shared/browser.ts";
 import type { NavMethod } from "../../_shared/nav.ts";
 import type { ThemeRequest } from "../../_shared/theme.ts";
+import type { CssCascadeQuery, CssEvidenceReceipt } from "./cascade.ts";
 
 // `page` = the target page index for --pages multi-tab mode (0 when unprefixed / single-page). Every
 // step/capture carries it so one flat argv-ordered list can drive N tabs in one shared context.
@@ -102,6 +103,8 @@ export interface DriveBudgets {
 export interface Args {
   /** Print the operator cookbook and exit without touching a browser or stage. */
   help: boolean;
+  /** Maintainer-only exact-revision DevTools asset refresh; exits without driving a product surface. */
+  materializeDevToolsAssets: boolean;
   /** Parse/validation failures collected without side effects; any entry is CLI misuse. */
   errors: string[];
   /** Combinations that RUN but quietly do less than the argv asked for. Printed as `ARG WARNING` before
@@ -226,6 +229,9 @@ export interface Args {
   /** Raw JS run in-page post-settle (repeatable, argv order). JSON-printed, capped. `@<idx>` targets a
    *  --pages tab (default page 0). Also re-run every --watch tick. */
   eval: PagedExpr[];
+  /** Official Chromium/DevTools declaration-state queries (`--cascade selector=property`). The result
+   * joins #949's unchanged merge receipt under one machine-readable `cssEvidence` manifest member. */
+  cascade: CssCascadeQuery[];
   /** Selectors WCAG-contrast-checked post-settle (repeatable): text color vs effective
    *  ancestor background of the FIRST match. `@<idx>` targets a --pages tab (default page 0). */
   contrast: PagedSelector[];
@@ -300,6 +306,8 @@ export interface CaptureOutcome {
   mapError: string | null;
   assertions: AssertionOutcome[];
   perf: PerfEvidence | null;
+  /** Null when no --cascade query targeted this page. */
+  cssEvidence: CssEvidenceReceipt | null;
   /** Indices into this capture's ProbeSession arrays when --checkpoint owns the verdict window. */
   evidenceRange: EvidenceRange | null;
 }
@@ -438,4 +446,5 @@ export interface SnapFailureSummary {
   readonly assertions: number;
   readonly consoleErrors: number;
   readonly consoleWarnings: number;
+  readonly css: number;
 }

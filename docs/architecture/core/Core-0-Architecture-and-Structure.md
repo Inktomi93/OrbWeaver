@@ -292,6 +292,10 @@ corpus is neither a command family nor tool-internal helpers, and it is cap-exem
 (`stack/`) carries its `.sh` entrypoints at the tool root under a typed exemption row, and its node half is
 an `ops/*-entry.ts`, never a second `cli.ts`.
 
+Revisioned non-TS runtime data lives under the owning tool's `ops/` or `lib/`, never at the tool root.
+The exact DevTools frontend exception is `tooling/src/snap/lib/devtools-frontend/`: generated official
+runtime bytes plus a closed hash/MIME/license manifest, owned and updated by Snap's maintainer subcommand.
+
 **Every tool is reached by its pnpm script name, never by path** — the script names are the front door and
 did not change when the fleet moved.
 

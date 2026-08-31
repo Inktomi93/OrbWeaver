@@ -243,12 +243,12 @@ before it runs.
 **C. The merge/cascade receipt.** Disable tailwind-variants' internal merge, make Orb's `cn()` the
 sole merge point, and recover loser/winner chains with bounded replay through the actual configured
 merger. `experimentalParseClassName` may enrich syntax display but cannot supply classification or
-decisions. For true browser cascade provenance —
-which rule actually won in the rendered page — the surface is CDP `CSS.getMatchedStylesForNode`,
-which returns matched rules with origin and specificity. That is what DevTools' own Styles pane
-calls. We already have the Chrome MCP and `snap`, so this is reachable without a new dependency;
-computed style alone cannot answer it (it reports the winner's value, never the losers or the
-reason).
+decisions. For true browser cascade provenance — which declaration actually won in the rendered page —
+raw CDP matched styles are insufficient because protocol `CSSProperty` has no activity verdict. #950
+therefore uses the revision-matched official DevTools frontend SDK's
+`CSSMatchedStyles.propertyState` through `TargetManager`, `DOMModel`, and `CSSModel.getMatchedStyles`.
+The SDK bytes are a committed path-closed, hash/license/revision-verified tooling asset set; computed
+style alone still cannot answer the loser or reason.
 
 ## 8. Follow-up audit settlements
 

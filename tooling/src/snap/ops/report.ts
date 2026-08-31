@@ -4,6 +4,7 @@
 import { print } from "../../_shared/artifacts.ts";
 import type { CapturedConsole, CapturedRequest, ProbeSession } from "../../_shared/browser.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import type { CssEvidenceReceipt } from "../contract/cascade.ts";
 import type {
   Args,
   AssertionOutcome,
@@ -26,6 +27,8 @@ const MAP_NAME_MAX_LENGTH = 80;
 const CONSOLE_REPORT_CAP = 200;
 // Cap on DEADCSS/EMPTYCSS lines echoed (the counts always print in full).
 const CSS_FINDINGS_CAP = 15;
+const CASCADE_STATE_PAD = 10;
+const CASCADE_SOURCE_PAD = 18;
 
 // --eval block header: the expr itself, truncated so a long one-liner doesn't wrap the report.
 const EVAL_LABEL_CAP = 80;
@@ -283,6 +286,31 @@ function printCssFindings(outcome: CaptureOutcome): void {
   }
 }
 
+function printCascadeReceipt(receipt: CssEvidenceReceipt | null): void {
+  if (receipt === null) {
+    return;
+  }
+  print(`\n--- CSS CASCADE (${receipt.cascade.length} query, ${receipt.repositoryDeclarations} repository declarations) ---`);
+  if (receipt.error !== null) {
+    print(`  INSTRUMENT ERROR: ${receipt.error}`);
+  }
+  for (const query of receipt.cascade) {
+    if (query.status === "instrument-error") {
+      print(`  ${query.selector} ${query.property}: INSTRUMENT ERROR — ${query.error}`);
+      continue;
+    }
+    print(`  ${query.selector} ${query.property} = ${query.computedValue}${query.computedDefault ? " [computed default]" : ""}`);
+    for (const declaration of query.declarations.slice(0, CSS_FINDINGS_CAP)) {
+      print(
+        `    ${declaration.state.padEnd(CASCADE_STATE_PAD)} ${declaration.source.padEnd(CASCADE_SOURCE_PAD)} ${declaration.selector ?? "(inline/dynamic)"}  ${declaration.value}`,
+      );
+    }
+    if (query.declarations.length > CSS_FINDINGS_CAP) {
+      print(`    … +${query.declarations.length - CSS_FINDINGS_CAP} declarations (use --json)`);
+    }
+  }
+}
+
 /** Where `--crop` actually landed — the PATH when a crop was written, else why it wasn't. The RESULT
  *  line carries this too (`crop=…`): a reviewer greps RESULT, and a crop reported only in the body read
  *  as a no-op (2026-08-16, an audit believed --crop did nothing). One derivation, two printers. */
@@ -366,4 +394,5 @@ export function printPageReport(session: SessionCounts, outcome: CaptureOutcome,
   printMapBlock(opts, outcome.mapResult, outcome.mapError);
   printAssertionBlock(outcome.assertions);
   printCssFindings(outcome);
+  printCascadeReceipt(outcome.cssEvidence);
 }

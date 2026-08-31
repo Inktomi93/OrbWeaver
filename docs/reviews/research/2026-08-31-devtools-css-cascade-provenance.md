@@ -95,24 +95,26 @@ The custom-cycle result is important: declaration activity and computed custom-p
 
 ## 3. Closure and cost
 
-The normalized proof manifest contained **184 HTTP resources**, **9,279,321 decoded bytes**, and **2,413,138 compressed transfer bytes**. The JSON manifest itself was **47,079 bytes** with SHA-256 `0b2c9c64110fefb480ea1c1546a1006a1dc5c77a241eab642a5acdb5d6e1fa25`. That hash describes the scratch manifest, not a committed artifact; the implementation must reproduce and commit its own canonical manifest and checksum.
+The original scratch response manifest contained **184 HTTP resources** and **9,279,321 decoded bytes**. Implementation proved that was a response sample, not a path closure: resolving stylesheet owner nodes and then inspecting a page with a console/request error caused the already-loaded official frontend to request `Images/triangle-down.svg` and `Images/cross-circle-filled.svg`, neither of which the scratch matrix happened to paint. `Images/Images.js` carries 313 conditional literal `new URL(..., import.meta.url)` asset edges, so page state changed whether the alleged closure worked.
+
+The durable materializer now exercises the full owner-node/source-mapping bridge and closes every literal module-asset edge reachable from the response-loaded official modules. The reproduced committed closure is **477 HTTP resources** and **9,759,320 decoded bytes**. Its canonical manifest is **189,881 bytes** with SHA-256 `ab90b731a9c6b0ad29b906c7ab39cf8094fb356c6875dad54175758d9f579ee8`. The 293-resource delta is 290 official `Images/` assets, two conditionally referenced entrypoint workers, and one panel module; it adds 479,999 decoded bytes. This corrects the research instrument rather than preserving a known false-closed count.
 
 | closure root | resource count |
 | - | -: |
+| `Images/` | 314 |
 | `ui/` | 46 |
 | `models/` | 45 |
-| `panels/` | 36 |
-| `Images/` | 24 |
+| `panels/` | 37 |
 | `third_party/` | 13 |
 | `core/` | 9 |
-| `entrypoints/` | 5 |
+| `entrypoints/` | 7 |
 | `services/` | 2 |
 | `inspector.html` | 1 |
 | `foundation/` | 1 |
 | `application_tokens.css` | 1 |
 | `design_system_tokens.css` | 1 |
 
-This is the full response closure observed while loading the SDK and extracting the nine-case receipt, not an assumed hand-picked import list. The durable fetch/build tool must start from the exact revision, record URL/path, decoded byte length, SHA-256, MIME type, and license owner for every asset, then serve only manifest members. Redirects, missing members, extra network requests, hash drift, duplicate normalized paths, or a zero-resource manifest are hard failures.
+The 184-resource scratch set was the full response set observed while loading the SDK and extracting the nine-case receipt, but it was not closed over conditional official module assets. The durable fetch/build tool must start from the exact revision, exercise the same owner mapping as runtime, close literal `new URL(..., import.meta.url)` edges, record URL/path, decoded byte length, SHA-256, MIME type, and license owner for every asset, then serve only manifest members. Redirects, missing members, extra network requests, hash drift, duplicate normalized paths, or a zero-resource manifest are hard failures.
 
 ### License and provenance inventory
 
@@ -202,4 +204,4 @@ Remote assets are non-hermetic, network-dependent, and entangle private-network 
 
 ## 7. Hard conclusion
 
-\#950 can preserve exact declaration-winner attribution without vendoring the full DevTools source graph and without implementing the cascade. The price is a roughly 9.3 MB decoded, 184-resource, revision-pinned official frontend closure plus strict update/license/runtime machinery. That is the minimum honest modern option found. If the asset-root law or the frozen #949 transport rejects that cost, the correct result is to block #950; it is not permission to fall back to raw-CDP guesses or mutation.
+\#950 can preserve exact declaration-winner attribution without vendoring the full DevTools source graph and without implementing the cascade. The price is a roughly 9.8 MB decoded, 477-resource, revision-pinned official frontend closure plus strict update/license/runtime machinery. That is the minimum honest modern option after correcting the scratch response-set blind spot. If the asset-root law or the frozen #949 transport rejects that cost, the correct result is to block #950; it is not permission to fall back to raw-CDP guesses or mutation.

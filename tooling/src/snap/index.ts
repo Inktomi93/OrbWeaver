@@ -33,6 +33,7 @@ export { splitTrailingEvals } from "./ops/drive.ts";
 export { resolveFixtureTarget } from "./ops/fixture.ts";
 export { OPTIONAL_SELECTOR_FLAGS } from "./ops/flags-classes.ts";
 export { configureStage, refuseFileMode } from "./ops/guards.ts";
+export { materializeDevToolsAssets } from "./ops/materialize-devtools.ts";
 export { snapMatrix } from "./ops/matrix.ts";
 export { isSandboxTraceNoise, isViteDepChurn, partitionFailedRequests, SANDBOX_TRACE_NOISE_RE } from "./ops/noise.ts";
 // The in-page sweep is exported so a browser test can run the SHIPPED body over a mounted frame.

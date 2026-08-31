@@ -54,7 +54,9 @@ No CSS generator, theme engine, token source, custom-theme carrier, selector gat
 ## Semantic limits
 
 - Replay is diagnostic only and bounded to 128 input occurrences per merge; an over-bound call is an instrument error while the production merge result remains unchanged.
-- The receipt explains class-list merge winners, not browser cascade winners. Layer, specificity, source order, inline style, inheritance, and resolved custom properties remain the separate browser/CDP tier.
+- The receipt explains class-list merge winners, not browser cascade winners. Layer, specificity, source
+  order, inline style, inheritance, and resolved custom properties remain the separate revision-matched
+  official DevTools frontend SDK tier; direct CDP inference is not an equivalent cascade oracle.
 - A namespace label is emitted only when the Orb registry can identify a custom token suffix. `tailwind-core` is deliberate for modifier/arbitrary/core conflicts that Orb does not own; winner correctness never depends on the label.
 
 ## Verification receipt

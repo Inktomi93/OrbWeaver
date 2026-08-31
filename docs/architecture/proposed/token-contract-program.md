@@ -240,8 +240,12 @@ not part of this program.
 and tailwind-variants currently performs an earlier merge that can destroy evidence before Orb sees it.
 The tracked #933 solution is to disable TV's internal merge, make `cn()` the sole merge front door, and
 identify losers with bounded occurrence/suffix/pair replay through Orb's actual configured merger. Browser
-cascade provenance belongs to CDP `CSS.getMatchedStylesForNode`, reachable through the existing Playwright/
-Snap session. Both remain outside this token migration.
+cascade provenance belongs to the revision-matched official DevTools frontend SDK: Snap asks
+`CSSMatchedStyles.propertyState` for `Active`/`Overloaded` through `TargetManager`, `DOMModel`, and
+`CSSModel.getMatchedStyles`. The committed path-closed SDK asset set is hash/license/revision verified;
+direct CDP matched-style inference would be a second partial cascade implementation and remains forbidden.
+Both instruments remain outside this token migration; #950 and
+`../../reviews/research/2026-08-31-devtools-css-cascade-provenance.md` own the cascade tier.
 
 ## 6. Done-criteria
 
