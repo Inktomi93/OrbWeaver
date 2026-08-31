@@ -392,6 +392,8 @@ function writeFixtures(): void {
   fx("packages/client/src/features/__g_hoverswap/components/__g_hoverswap.tsx", 'export const G = <div className="group-hover/row:hidden" />;\n');
   // no-tailwind-dark-variant: polarity is derived by ThemeScope; a named-theme class variant is a second axis.
   fx("packages/client/src/features/__g_darkvariant/components/__g_darkvariant.tsx", 'export const G = <div className="dark:bg-card" />;\n');
+  // css-var-defined: an exact arbitrary-variable carrier names no generated, authored, or runtime property.
+  fx("packages/client/src/features/__g_cssvar/components/__g_cssvar.tsx", 'export const G = <div className="z-(--definitely-undefined)" />;\n');
   // density-tier: `rounded-card` outside the ELEVATED family, in a file with no baseline budget (A1). The
   // fixture path is deliberately NOT in the committed density-tier.baseline.json, so its budget is 0.
   fx(
