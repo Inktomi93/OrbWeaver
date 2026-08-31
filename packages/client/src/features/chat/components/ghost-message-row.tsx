@@ -122,7 +122,7 @@ function ghostSegment(
 
 // The bubble's streamed body: typing dots before the first token, else the paced Markdown. Extracted to
 // module scope so `GhostMessageRow` stays under the cognitive-complexity ceiling. The streaming caret is
-// SEAL-OWNED CSS (#42 — ui globals.css paints a 2px `--color-primary` blinking bar as an `::after` on
+// CLIENT-OWNED CSS (#42 — client globals.css paints a 2px `--color-primary` blinking bar as an `::after` on
 // the last LEAF block within the `ghost-stream-body` scope; Streamdown's own `caret` prop is unused —
 // its ::after attached to the per-block dir wrapper and dropped the bar to a new line). The wrapper is
 // a data-slot marker only (no className — feature paint law).

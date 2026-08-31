@@ -80,7 +80,7 @@ class MarkdownErrorBoundary extends Component<BoundaryProps, BoundaryState> {
  * `mode`s, the token-sourced Shiki `code` plugin, the KaTeX `math` + token-styled `mermaid`
  * plugins, `controls`, `linkSafety`, and (#42) the seal-owned streamed-word reveal fade
  * (`reveal-plugin.ts` + the `[data-orb-reveal]` CSS in ui globals) with the seal-owned caret
- * (globals.css `ghost-stream-body` scope — Streamdown's `caret`/`animated` props are deliberately
+ * (the client's `ghost-stream-body` scope — Streamdown's `caret`/`animated` props are deliberately
  * unused, see the render comments). Two trust policies, untrusted by default: `untrusted` applies
  * the Tier-A element allowlist + url gate, drops `<speaker>`, and withholds Mermaid; `trusted`
  * restores Streamdown's permissive defaults (and, having no streaming consumer, gets no reveal
@@ -205,8 +205,8 @@ export function Markdown({ trust, mode, children, className, colorQuotes = false
         // The word-reveal fade + the caret are OURS (#42): `animated`/`isAnimating` are deliberately NOT
         // passed (dead knob, see above — and their absence routes streaming block updates through
         // Streamdown's useTransition arm), and the `caret` prop is dropped because its `::after` attaches
-        // to the per-block `dir` wrapper and renders on a fresh line below the text; globals.css paints
-        // the caret on the true leaf block instead (`ghost-stream-body` scope).
+        // to the per-block `dir` wrapper and renders on a fresh line below the text; the client ghost's
+        // `ghost-stream-body` scope paints the caret on the true leaf block instead.
         {...revealProp}
         {...(untrusted
           ? { allowedElements: TIER_A_UNTRUSTED_ELEMENTS, urlTransform: untrustedUrlTransform }

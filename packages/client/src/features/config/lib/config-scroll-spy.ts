@@ -6,7 +6,7 @@
 import { prefersReducedMotionNow, scrollBehavior } from "@orb/ui/lib";
 
 // The flash ring is an inset box-shadow (not outline) so it clips to the section's border-box; applied
-// via a class toggle (not inline style) so the token radius/transition still apply.
+// via the class contract in client styles/globals.css (not inline style) so tokens remain the value source.
 const FLASH_MS = 1200;
 const FLASH_BASE_CLASS = "settings-flash-anchor";
 const FLASH_LIT_CLASS = "settings-flash-anchor--lit";
@@ -70,7 +70,7 @@ export function flashAnchor(el: HTMLElement): void {
   el.classList.add(FLASH_BASE_CLASS, FLASH_LIT_CLASS);
   globalThis.setTimeout(() => {
     el.classList.remove(FLASH_LIT_CLASS);
-    // Reduced motion REMOVES the transition (the globals.css floor sets `transition-property: none`),
+    // Reduced motion REMOVES the transition (the imported UI globals floor sets `transition-property: none`),
     // so `transitionend` never arrives — and the base class carries the ring's padding/margin pair, so
     // leaving it on would permanently re-pad the section. Drop it with the light instead.
     if (prefersReducedMotionNow()) {
