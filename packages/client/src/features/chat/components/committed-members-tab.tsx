@@ -134,11 +134,24 @@ export function CommittedMembersTab({ chatId, chat, isHost, multiHumanCapable }:
         castAction={
           isHost ? (
             <Row align="center" gap="tight">
-              {/* #26 — the saved-cast door (B10: apply-existing = Members “Add cast…”): the picker is the destination (openModal, never a feature
-                  import); "Add cast…"/"Save current cast" both live inside it, scoped to THIS open room. */}
+              {/* #26 — the saved-cast door (B10: apply-existing = Members “Add a saved cast…”): the picker is the destination
+                  (openModal, never a feature import); applying and "Save current cast" both live inside it, scoped to THIS open room.
+
+                  IT SAYS *SAVED* NOW (#899 N6, post-fix verification 2026-08-30). Beside it sits
+                  `AddMemberPopover`'s "Add a character", 4px away, and a cold reader could not tell the two
+                  apart: "cast" is insider vocabulary for a STORED GROUP, and next to "a character" it reads
+                  as the same verb on a vaguer noun. The discriminator is what each door actually opens —
+                  this one applies a group you saved earlier, the other picks one existing character — so
+                  the visible words name the DESTINATION vs the OBJECT: this one opens the dialog titled
+                  "Saved casts" (its label IS that destination — the house's own "the picker is the
+                  destination" rule), the other picks one existing character. The accessible name is the
+                  visible text in both (no `aria-label` on either), so 2.5.3 holds by construction.
+                  `Saved casts…` and not `Add a saved cast…`: the longer spelling pushed the two-door
+                  cluster past the 320px context-pane floor, and that file's own overflow pin caught it —
+                  a label a cold reader can parse is worth nothing if it escapes the pane. */}
               <Button type="button" intent="ghost" size="sm" onClick={(): void => openModal("savedCasts")}>
                 <Icon icon={Users} size="sm" />
-                Add cast…
+                Saved casts…
               </Button>
               <AddMemberPopover chatId={chatId} existingCharacterIds={[...participantIdByCharacter.keys()]} />
             </Row>

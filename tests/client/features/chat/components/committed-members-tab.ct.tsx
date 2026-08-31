@@ -77,17 +77,26 @@ test("a solo room whose seat is ALREADY muted keeps the unmute (and only the unm
 // person-glyph affordances in one row, one of them mute, after #490-8 had established exactly ONE
 // add-character door (side-eye 2026-08-30 P2). Both tap targets already passed; the defect is that a cold
 // reader cannot tell them apart. The discriminator is a VISIBLE noun on each — "cast" vs "character".
-test("#848: both CAST add-doors carry a visible word, and the two words are different nouns", async ({ mount }) => {
+//
+// A NOUN WAS NOT ENOUGH (#899 N6, the post-fix drive): "cast" is insider vocabulary for a STORED GROUP,
+// and beside "a character" it reads as the same verb on a vaguer noun — the reviewer's own cold read was
+// that one of them "creates a new one", which NEITHER door does. So the group door names what it opens: a
+// cast you SAVED earlier. Both doors' accessible names are still their visible text.
+test("#848/#899 N6: both CAST add-doors carry a visible word, and each says what it opens", async ({ mount }) => {
   const component = await mount(<CommittedMembersTabStory soloCast={true} />);
   const cast = component.locator(CAST);
 
-  const groupDoor = cast.getByRole("button", { name: "Add cast…" });
+  const groupDoor = cast.getByRole("button", { name: "Saved casts…" });
   const characterDoor = cast.getByRole("button", { name: "Add a character" });
   // VISIBLE text, not the accessible name — the empty string was the whole defect on the second door.
-  await expect(groupDoor).toHaveText(/cast/iu);
+  await expect(groupDoor).toHaveText(/saved casts/iu);
   await expect(characterDoor).toHaveText(/character/iu);
-  // …and the accessible name still CONTAINS the visible label (WCAG 2.5.3) on the door that gained one.
+  // …and the accessible name IS the visible label on both (WCAG 2.5.3 by construction, no `aria-label`).
   await expect(characterDoor).toHaveAccessibleName("Add a character");
+  await expect(groupDoor).toHaveAccessibleName("Saved casts…");
+  // The two words a cold reader compares are DIFFERENT — neither is a prefix of the other, which the old
+  // pair ("Add cast…" / "Add a character") failed on the noun alone.
+  await expect(groupDoor).not.toHaveText(/^Add a character$/u);
 });
 
 // A wide mount agrees with an overflow bug, so the door cluster is measured at the CONTEXT-PANE FLOOR

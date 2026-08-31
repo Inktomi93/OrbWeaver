@@ -1647,7 +1647,10 @@ test("#846: at 1280 with BOTH panes docked the topbar yields the room's name + c
   });
   await seatNotificationBell(page);
   await page.setViewportSize({ width: 1280, height: 800 });
-  const shell = await mount(<AppShellChatTopbarIdentityStory />);
+  // WITH THE BAND: the shed's condition is that the band NAMES the room (`shell.css` keys on it with
+  // `:has()`), so a story whose context pane has no band would assert the yield in a state production
+  // never has — which is exactly what this pin did until #896 put the condition in the selector.
+  const shell = await mount(<AppShellChatTopbarIdentityStory withBand={true} />);
 
   const readout = await settledTopbarIdentity(page, shell, "docked");
   // The premise: the row carries the SAME trailing furniture a real account has.
@@ -1704,11 +1707,9 @@ async function setContextPane(page: Page, shell: Locator, want: "open" | "collap
   if (collapsed !== (want === "collapsed")) {
     await shell.getByRole("button", { name: collapsed ? "Show details" : "Hide details" }).click();
   }
-  if (want === "collapsed") {
-    await expect(grid).toHaveAttribute("data-context-mode", "collapsed");
-  } else {
-    await expect(grid).not.toHaveAttribute("data-context-mode", "collapsed");
-  }
+  // ONE assertion for both directions — a branch here is a conditional `expect`, and the thing being
+  // asserted is the same fact either way: the pane's collapsed-ness is what was asked for.
+  await expect.poll(async () => (await grid.getAttribute("data-context-mode")) === "collapsed").toBe(want === "collapsed");
 }
 
 /** Every VISIBLE topbar title mount, at any identity — the count the wide-only readout could not take. */
@@ -1728,7 +1729,7 @@ for (const arm of TOPBAR_YIELD_ARMS) {
     });
     await seatNotificationBell(page);
     await page.setViewportSize({ width: arm.width, height: arm.height });
-    const shell = await mount(<AppShellChatTopbarIdentityStory />);
+    const shell = await mount(<AppShellChatTopbarIdentityStory withBand={true} />);
 
     // THE PREMISE, asserted before anything is trusted: this width really does mount the identity variant
     // the arm names. A green on an arm whose identity never mounted would prove nothing about the mount

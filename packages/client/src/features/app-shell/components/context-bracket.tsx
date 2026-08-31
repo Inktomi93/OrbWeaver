@@ -185,6 +185,22 @@ export function ContextBracket({ view, band, railLabel, dismissLabel, onDismiss 
           {tab.node}
         </TabsPanel>
       ))}
+      {/* THE PHONE'S GROUND IS A RULED, ACCEPTED VOID (#899 N8, owner-ruled 2026-08-30). The post-fix drive
+          measured ~250-300px of empty ground under both the chat and character panes at 430, and the
+          ruling is: the sheet KEEPS full height and the pinned foot rail — the ground/foot-stability
+          contract holds on every viewport, and the sheet is never content-sized. A pane MAY claim its
+          ground with real, applicability-gated, per-artifact content, under the #864 furniture ban
+          verbatim: an arm with nothing honest to show renders NOTHING, and a QUIET VOID IS AN ACCEPTED
+          OUTCOME — never padding, never a decorative shelf.
+          BOTH PANES WERE ASSESSED AND BOTH ARMS CLOSED AS "quiet void accepted". Receipts: neither tab body
+          withholds anything at a phone width (zero width/pointer conditionals in
+          `character-overview-card.tsx` or `committed-members-tab.tsx` — the 430 void is not hidden content,
+          it is the residual), and neither pane holds a query whose LOADED data could earn the space —
+          Characters has `character.get` (already fully rendered as Origin · Activity · Tags) and a
+          page-of-ONE `chat.listChats` (only `totalCount` + the newest thread, both already spent), so more
+          threads would be a SECOND REQUEST, which the ruling bans (reuse what the pane already has — the
+          `CollectionContribution.preview` discipline, a second reader of a loaded list, never a second
+          fetch). Re-open this only when a pane gains a read whose data is already loaded and unspent. */}
       {/* THE GROUND — the residual span between a short body and the pinned foot rail (§7.1's "HUD ground",
           re-decided on real screenshots: bare background read as truncation, not as a floor). It is the pane's
           floor, so it is treated as one — the surface tint gathering toward the foot, nothing to read, no border

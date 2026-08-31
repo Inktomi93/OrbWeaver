@@ -103,6 +103,48 @@ function stoneClockOf(clock: RpgClockTime | null): { readonly hour: number; read
   return { hour: clock.hour, minute: clock.minute ?? 0 };
 }
 
+/** THE SEPARATORS A NAME AND ITS ELABORATION ARE JOINED BY, in the order a longest-match wants them. */
+const ECHO_SEPARATORS = [" — ", " – ", " - ", ": ", ", "] as const;
+
+/**
+ * The location line WITHOUT the words the heading directly above it just said (#899 N5).
+ *
+ * MEASURED: the band renders `Example — The Ashen Spire` as its `h2` and, 28px beneath, `The Ashen Spire —
+ * the throne hall, a fire built off the draft-line…`. F3's fix put the room's name in the heading; this is
+ * its residue — the model writes the place into its own location string, so the two lines stutter.
+ *
+ * IT IS A DE-DUP, NOT NEW COPY. The heading's own trailing segment is the room's name (`Example — The
+ * Ashen Spire` → `The Ashen Spire`); when the location OPENS with that exact segment followed by a
+ * separator, the echo and its separator are dropped and what remains is the elaboration the line is for.
+ * REFUSES rather than mangling in the three cases where dropping would lie:
+ *   · the location IS the name and nothing more (there is no elaboration to promote — the line would go
+ *     empty, and an empty when-line is worse than a repeated one);
+ *   · the echo is not at the START (a place named mid-sentence is prose, not a stutter);
+ *   · the match is not on a whole segment (a room called "The Ash" must not eat "The Ashen Spire").
+ * Case-insensitive because the model's casing is its own; the comparison is trimmed for the same reason.
+ */
+function withoutHeadingEcho(location: string, heading: string): string {
+  const name = ECHO_SEPARATORS.reduce((tail, candidate) => {
+    const at = tail.lastIndexOf(candidate);
+    return at === -1 ? tail : tail.slice(at + candidate.length);
+  }, heading.trim());
+  if (name === "") {
+    return location;
+  }
+  const lower = location.trim().toLowerCase();
+  const prefix = name.toLowerCase();
+  if (!lower.startsWith(prefix)) {
+    return location;
+  }
+  const rest = location.trim().slice(name.length);
+  const joiner = ECHO_SEPARATORS.find((candidate) => rest.startsWith(candidate));
+  if (joiner === undefined) {
+    return location;
+  }
+  const elaboration = rest.slice(joiner.length).trim();
+  return elaboration === "" ? location : elaboration;
+}
+
 /** THE BAND'S FIRST LINE IS THE ROOM'S NAME, IN THE BAND'S OWN VOICE (#875 F3, side-eye 2026-08-30).
  *
  *  DESIGN.md rules the head band as "one slot, three contents — never a second head … the band owns the
@@ -251,7 +293,7 @@ export function RpgTakeoverHeader({
               name — a whole narrated sentence, hard-ellipsised at 383px. It keeps the WHEN-line's voice
               directly above the when-line it belongs with, and gets two lines before it clips. */}
           <Text as="span" voice="gloss" className="line-clamp-2">
-            {location || "No location set"}
+            {withoutHeadingEcho(location, roomTitle) || "No location set"}
           </Text>
           {when === "" ? null : (
             <Text as="span" voice="gloss" className="truncate tabular-nums">
