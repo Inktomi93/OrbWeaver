@@ -292,11 +292,11 @@ const SHIPPED_TILES: readonly HomeTileContribution[] = [
 // has to be measured across a width × appearance MATRIX rather than at one pane. This story is the
 // shipped registry with its pane width DRIVEN from the spec: one mount, twelve layouts, no re-settle.
 //
-// `.shell-grid` is the real class the density override (`shell.css` `.shell-grid[data-density="compact"]`)
-// selects on, so the compact arm here resolves the SAME four spacing tokens the app does instead of a
-// second copy of those numbers in a test. The class's own shell box (grid, 100dvh, clip) is overridden
-// inline — only its custom-property block is wanted. The spec drives `data-density`, `--font-scale` and
-// the pane's inline size; nothing here hardcodes a state.
+// The density override is the bare-attribute `[data-density="compact"]` block since the #866 §7.8 hoist
+// (was `.shell-grid[data-density]`), so the compact arm here resolves the SAME four spacing tokens the
+// app does off the attribute alone. `.shell-grid` stays on the story for the class's OTHER shell rules;
+// its own shell box (grid, 100dvh, clip) is overridden inline. The spec drives `data-density`,
+// `--font-scale` and the pane's inline size; nothing here hardcodes a state.
 
 /** The shipped home in a pane whose width the spec drives — the #226 width × appearance matrix. */
 export function HomeBalanceStory(): ReactElement {

@@ -14,7 +14,7 @@ import type { AppearanceSettings } from "@orb/contracts/settings";
 import { DEFAULT_APPEARANCE_SETTINGS } from "@orb/contracts/settings";
 import { pickKeys } from "@orb/kit/objects";
 import { FieldLayout } from "@orb/ui/field";
-import { Row, Section } from "@orb/ui/layout";
+import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
@@ -25,8 +25,8 @@ import { createAutosaveEntityForm, SectionSaveStatus } from "#forms";
 import { DENSITY_ITEMS } from "#lib";
 import { configAnchorId } from "#state";
 import { CHAT_WIDTH_MAX, CHAT_WIDTH_MIN, FONT_SCALE_MAX, FONT_SCALE_MIN, FONT_SCALE_STEP } from "../lib/appearance-bounds.ts";
-import { ELEVATION_ITEMS } from "../lib/appearance-select-items.ts";
 import { APPEARANCE_SIZING_KEYS, APPEARANCE_SIZING_SUBCATEGORY } from "../lib/appearance-sizing-model.ts";
+import { ElevationCards } from "./appearance-elevation-cards.tsx";
 
 type SizingForm = Pick<AppearanceSettings, (typeof APPEARANCE_SIZING_KEYS)[number]>;
 
@@ -73,6 +73,30 @@ function SizingFormBody({ sectionId }: { readonly sectionId: string }): ReactEle
   );
 }
 
+/** The density LIVE mini-preview (#866 §7.8): three mock rows inside a box carrying `data-density` off
+ *  the DRAFT value — shell.css's bare-attribute density rule re-scopes the spacing tokens for this
+ *  subtree exactly as it does for the shell grid, so the gaps/padding here ARE the definition, never a
+ *  copy. Ornament (`aria-hidden`): the segment above is the control; this is what the pick looks like. */
+function DensityPreview({ draft }: { readonly draft: SizingForm["density"] }): ReactElement {
+  return (
+    <Stack
+      aria-hidden={true}
+      className="rounded-control border border-border p-block transition-all duration-(--motion-fast) ease-out-expo"
+      data-density={draft}
+      data-slot="density-preview"
+      gap="row"
+    >
+      {["The first row", "A second row", "And a third"].map((line) => (
+        <Row key={line} align="center" className="rounded-control bg-accent p-field" gap="field">
+          <Text as="span" voice="gloss">
+            {line}
+          </Text>
+        </Row>
+      ))}
+    </Stack>
+  );
+}
+
 function SizingBody({ sectionId, session }: { readonly sectionId: string; readonly session: AutosaveSession<SizingForm> }): ReactElement {
   const { form, saveState, retrySave } = session;
   return (
@@ -98,11 +122,32 @@ function SizingBody({ sectionId, session }: { readonly sectionId: string; readon
               {(field): ReactElement => <field.SliderField label="Text size" min={FONT_SCALE_MIN} max={FONT_SCALE_MAX} step={FONT_SCALE_STEP} />}
             </form.AppField>
           </SettingRow>
+          {/* SEEN, NOT READ (#866 §7.8, owner-acked): density/elevation OUTCOMES are spatial, so the
+              Selects became labelled SEGMENTS — every option visible at rest — and density carries the
+              LIVE mini-preview reading the DRAFT value. The preview derives everything: its box wears
+              `data-density`, and shell.css's bare-attribute rule re-scopes the four spacing tokens (one
+              definition, two consumers — never a mirrored number). */}
           <SettingRow settingId="density">
-            <form.AppField name="density">{(field): ReactElement => <field.SelectField label="Density" items={DENSITY_ITEMS} />}</form.AppField>
+            <Stack className="min-w-0" gap="field">
+              <form.AppField name="density">{(field): ReactElement => <field.SegmentField label="Density" items={DENSITY_ITEMS} />}</form.AppField>
+              <form.Subscribe selector={(state): SizingForm["density"] => state.values.density}>
+                {(draft): ReactElement => <DensityPreview draft={draft} />}
+              </form.Subscribe>
+            </Stack>
           </SettingRow>
+          {/* Elevation gets ILLUSTRATED CARDS, not a preview (#866 §7.8 owner ruling — the
+              preview-vs-illustration distinction): its meaning is the ABSENCE of seams across the shell,
+              which no nested box can preview honestly; the diagram depicts the difference between the
+              options with every colour/hairline/shadow DERIVED from the shell's own tokens. */}
           <SettingRow settingId="elevation">
-            <form.AppField name="elevation">{(field): ReactElement => <field.SelectField label="Surface elevation" items={ELEVATION_ITEMS} />}</form.AppField>
+            <Stack className="min-w-0" gap="field">
+              <Text as="span" voice="label">
+                Surface elevation
+              </Text>
+              <form.AppField name="elevation">
+                {(field): ReactElement => <ElevationCards onPick={field.handleChange} value={field.state.value} />}
+              </form.AppField>
+            </Stack>
           </SettingRow>
           <SettingRow settingId="reduced-motion">
             <form.AppField name="reducedMotion">{(field): ReactElement => <field.SwitchField label="Reduce motion" />}</form.AppField>

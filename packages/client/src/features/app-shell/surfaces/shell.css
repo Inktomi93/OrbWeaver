@@ -71,8 +71,13 @@
   text-shadow: none;
 }
 
-/* Density: compact tightens the four spacing intent tokens app-wide; comfortable is the token-floor default. */
-.shell-grid[data-density="compact"] {
+/* Density: compact tightens the four spacing intent tokens app-wide; comfortable is the token-floor default.
+ * BARE-ATTRIBUTE selector on purpose (#866 §7.8 — was `.shell-grid[data-density="compact"]`): the values
+ * live HERE and only here, and custom properties cascade, so any box carrying `data-density` re-scopes
+ * them — the shell grid AND the sizing section's live density preview (`DensityPreview`), one definition,
+ * two consumers, zero mirrored numbers (the owner's derive-never-mirror rider). Specificity dropped
+ * 0,2,0 → 0,1,0; nothing else writes these four tokens below the @theme floor. */
+[data-density="compact"] {
   --spacing-field: 0.25rem;
   --spacing-row: 0.375rem;
   --spacing-block: 0.5rem;
