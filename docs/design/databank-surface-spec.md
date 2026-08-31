@@ -1,7 +1,7 @@
 ---
 kind: spec
 status: draft
-updated: 2026-08-01
+updated: 2026-08-30
 ---
 
 # DATABANK CLIENT SURFACE — the documents library, the per-chat rack, and the D85 visibility toggle
@@ -81,7 +81,7 @@ D85 comment says per-folder visibility is deferred on a collection primitive tha
 spec designs no folders.
 
 **Scope semantics** (`persistence/scope.ts`): a chat's ACTIVE set = every PRESENT human member's GLOBAL
-documents ∪ the chat's directly-attached documents ∪ the PRESENT roster characters' attached documents,
+documents ∪ the chat's directly-attached documents ∪ the room's PRESENT characters' attached documents,
 MINUS the host's hidden set. A member's PRIVATE (unattached) documents can never leak — they have no
 junction row to union.
 
@@ -367,7 +367,7 @@ the stall hint when it fires) → **Source text** (reveal → a read-only scroll
 | - | - | - |
 | leading | **nothing** (§6.1's phase-chip ruling holds here too) | same |
 | title / subtitle | name / the chip row + byte size. **Chunk counts are library detail, not room detail** — the rack answers "what feeds this room", so it drops them | same |
-| **source chip** | `Everywhere` (a member's global doc) · `This chat` (chat-attached) · `via Azarael` (a roster character's) — a `Badge size="sm" tone="soft"`, first on the subtitle line, preceded by the non-ready phase chip when one fires | same |
+| **source chip** | `Everywhere` (a member's global doc) · `This chat` (chat-attached) · `via Azarael` (one of the room's characters') — a `Badge size="sm" tone="soft"`, first on the subtitle line, preceded by the non-ready phase chip when one fires | same |
 | **state toggle** | **the D85 visibility switch** — `RowToggleAction` with `Eye`/`EyeOff`, `aria-pressed`, `rest:"always"` (retrieval state is what the eye scans for). OFF = `hidden`; the row additionally takes the muted/`opacity` skin legacy used | **absent** (permission-OMIT — the control does not render; the server never sent a hidden row anyway) |
 | kebab | **Detach from this chat** — ONLY when the source chip is `This chat` (the only junction the host owns here). Absent otherwise | absent |
 | section action | **Add from your bank** — opens a picker (see below) | absent |
@@ -411,7 +411,7 @@ nothing. So every new read's freshness must be named explicitly.
 | `databank.get` | rename / reindex | `invalidates: [..., databank.get.pathFilter()]` |
 | `databank.listAttachments` | attach/detach global + character | `invalidates: [databank.listAttachments.pathFilter()]` |
 | `databank.listActiveForChat` | attach/detach chat, and the D85 visibility write | `invalidates: [databank.listActiveForChat.pathFilter()]` on all three |
-| **`databank.listActiveForChat` on a ROSTER change** | **NEW ROW — nothing covers this today.** The union is membership-derived: a member joining/leaving, or a character joining/leaving the roster, CHANGES which documents feed the room (`persistence/scope.ts:92-104`) | add `trpc.databank.listActiveForChat.pathFilter()` to the `chatUpdated` arm of `BUS_FILTERS` in `data/invalidation.ts`. `chatUpdated` is documented as the roster/handoff event, so it is the correct driver. Costs nothing when the panel is closed (`invalidateQueries` is a no-op for a key with no cache entry) |
+| **`databank.listActiveForChat` on a MEMBERSHIP change** | **NEW ROW — nothing covers this today.** The union is membership-derived: a member joining/leaving, or a character joining/leaving the room, CHANGES which documents feed the room (`persistence/scope.ts:92-104`) | add `trpc.databank.listActiveForChat.pathFilter()` to the `chatUpdated` arm of `BUS_FILTERS` in `data/invalidation.ts`. `chatUpdated` is documented as the membership/handoff event (the code spells that seam `roster`, `chat/verbs/roster.ts` — unchanged by #901), so it is the correct driver. Costs nothing when the panel is closed (`invalidateQueries` is a no-op for a key with no cache entry) |
 | **ingest progress** (`chunkCount`/`embeddedCount` → the phase badge) | **NO PUSH EXISTS.** `UploadResult` does not carry the ingest `workloadId`, so the client cannot tail `workloads.subscribe` | **§11 D-3.** Recommended: surface `workloadId` on `UploadResult` and mount the `BundleWorkloadTracker` pattern (`features/workloads/components/bundle-workload-tracker.tsx` — an existing render-nothing subscription that lifts progress + terminal outcome). Fallback with zero server change: a bounded `refetchInterval` on `databank.list` **only while a row is in an in-flight phase**, cleared when none is |
 | cross-user union drift | another member toggling THEIR global doc changes MY room's union, and no event crosses users | **ACCEPTED STALENESS, stated.** `listActiveForChat` refetches on tab mount; the panel is not a live instrument. Do not invent a per-user broadcast for it |
 

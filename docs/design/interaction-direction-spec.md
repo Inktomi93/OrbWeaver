@@ -1,7 +1,7 @@
 ---
 kind: design
 status: active
-updated: 2026-08-29
+updated: 2026-08-30
 ---
 
 # THE INTERACTION DIRECTION — the one specification (substrate · platform · path · catalogue)
@@ -208,7 +208,7 @@ create→fire int test through the real engine. v1 knob-edit path: re-mint from 
 post-mint knob-editing flip shape — provenance on `automation_rules` — LANDED with B10's rules
 rider (2026-08-29, columns spelled `rule_preset_id` + `rule_preset_knobs` per the 2026-08-24
 Rule-prefixed vocabulary ruling): stamped by `createRuleFromPreset` with the COMPLETE resolved bag,
-CLEARED by `updateRule`, projected on `RuleView` (the saved-cast capture reads it; the in-place knob
+CLEARED by `updateRule`, projected on `RuleView` (the saved-roster capture reads it; the in-place knob
 EDITOR over it stays unbuilt — edit is still re-mint). As-built record:
 `../history/design/saved-rosters-build-record.md` §6.
 
@@ -527,7 +527,7 @@ Preview (host-only, crown)** — `features/chat/lib/chats-section.tsx:54-88`.
 | B7 | reactions MR3–MR5 + the first tool-attach | 2-conc (character via tool) | the speaker-span parser (`packages/kit/src/speaker-label/index.ts:64`; grouping fitness = MR3's first task) + A1's attach axis + a `react` tool in the ONE registry | react to one speaker's line; the model acknowledges; a character reacts back | segment targeting: the same cluster, whole-message default at coarse | ordinary | attribution caps (K + content) |
 | B8 | checks | ask=S1; result=canon | S1 + the `rollDice` verb (member-gated CSPRNG bake-once) | chip → server roll → narration reacts | ask: the S1 mount (game arm); result: a `tool-renderers` contribution in-thread | ordinary | game config |
 | B9 | clocks | 1 | the clock preset (two-rule) + `SegmentedClock` over `vars` + **the vars read proc (priced at S5's `setVariable`; B9 consumes it)** | clock fills; the arm fires; host resets via the Rules row (mechanism: R7 over a preset-minted reset rule, decided at build) | widget: a `thread-flank` contribution (stacks below the thread <512px by the seam's own law); config: the Rules section | ordinary | N; the fired arm |
-| B10 | saved casts (#26) | — | `rosterMemberSpecSchema`/`seatKnobsSchema` (`contracts/chat/roster.ts:76-99` — pre-cut; D80 `setSeatKnobs`) + the room's enabled PRESET IDS + KNOB VALUES re-minted on apply (the accrual travels; doubles as B2's provenance flip-shape record) | save a cast + rules; one click into a new chat | save: Members tab host action; apply-new: the `newChat` picker modal gains "Start from saved cast"; apply-existing: Members "Add cast…"; library management: a Configuration-section `CollectionContribution` | **merge-window** (schema) | seat knobs + preset ids |
+| B10 | saved rosters (#26 — the ruled word, #901 Fork 2; SHIPPED strings still say "cast" until #902) | — | `rosterMemberSpecSchema`/`seatKnobsSchema` (`contracts/chat/roster.ts:76-99` — pre-cut; D80 `setSeatKnobs`) + the room's enabled PRESET IDS + KNOB VALUES re-minted on apply (the accrual travels; doubles as B2's provenance flip-shape record) | save a roster + rules; one click into a new chat | save: Members tab host action; apply-new: the `newChat` picker modal gains a start-from-saved-roster door (shipped label today: "Start from saved cast"); apply-existing: the Members add door (shipped label today: "Saved casts…" — the spec's "Add cast…" never shipped, `committed-members-tab.tsx:146-154` records why); library management: a Configuration-section `CollectionContribution` | **merge-window** (schema) | seat knobs + preset ids |
 | B11 | room Activity tab + inbox doorway (#687; owner-placed 2026-08-24) | — | the EXISTING durable stores read cross-source: the automation fire log (confirmed-suggestion executions carry the confirmer stamp), notices, plugin invocations for this chat — ONE-HOME: no second store, the tab is a READ of what the Rules-section fire log already consumes; (digest) B6's reactions plane when it lands | open the Activity tab: this room's fires/cards/plugin actions listed; the shell badge opens the inbox | tab: a CONTEXT-strip sibling of Members/"This chat"/Preview (CONTEXT→sheet mobile); cross-room stays the EXISTING notifications inbox — the top-bar/room-list spot is a BADGE/entry to it, never a second feed (the #227 reachability fix rides this) | ordinary | none new. Rides the B6 wave (the reactions-while-away digest pairs). Pending S4 cards stay F1 in-RAM: the feed = live-pending + durable history; "missed cards" = the recorded R5 durable-row flip, priced separately |
 
 **§7-B7a — THE B7 BUILD RECORD (2026-08-28, the B7 lane; design-first, decisions + rejected arms).**
@@ -535,14 +535,14 @@ B7 = MR3 (segment targeting) + MR4 (the bounded attribution loop) + MR5 (the `re
 owner-required per-chat toggles. The MA-2 mini-spec (`../architecture/proposed/message-reactions-mini-spec.md`)
 is REFERENCE; where it and this record differ, this record is what was built.
 
-1. **Segment anchor = a `parseSpeakerSpans` LINE index over STORED CANON, cast = present CHARACTER
-   seats' names.** The fitness suite (`tests/kit/speaker-label/anchoring.suite.test.ts`, df18b191f)
+1. **Segment anchor = a `parseSpeakerSpans` LINE index over STORED CANON; the name set = present
+   CHARACTER seats' names.** The fitness suite (`tests/kit/speaker-label/anchoring.suite.test.ts`, df18b191f)
    ruled the parser FIT with no grouping layer — line-level spans ARE the index space (narration
    occupies indices; consecutive same-speaker lines are distinct targets). *(Rejected: the mini-spec's
    `@orb/kit/speaker-segments` port — a second recognizer over the ONE parser.)* The anchor substrate
    is canon bytes, NEVER display text: the client renderer parses `renderMessageForDisplay` output
    (`message-content.tsx:135-140`), which regex/macros/plugins can reshape, so display indices are not
-   shared truth. Cast mirror: `speakerThemesByName` keys client-side (`lib/attribution.ts:286` —
+   shared truth. Character-name mirror: `speakerThemesByName` keys client-side (`lib/attribution.ts:286` —
    character seats only) = `loadPresentCastNames` server-side.
 2. **The row stores `(segmentIndex, segmentSpeaker, segmentSnippet)`; a stale trio DEGRADES to
    whole-message.** The suite's sharpest finding: `(index, speaker)` alone is defeated by a

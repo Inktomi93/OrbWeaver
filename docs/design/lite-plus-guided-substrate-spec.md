@@ -1,7 +1,7 @@
 ---
 kind: design
 status: draft
-updated: 2026-08-14
+updated: 2026-08-30
 ---
 
 # LITE + GUIDED SUBSTRATE — the fresh-build carve spec
@@ -110,12 +110,17 @@ baseline regen; the synthesized default is byte-pinned by a no-drift identity te
    ops. The one chat-side add: a `setRpgPointer` op (§3.1).
 3. **The line between lite and full is ENGINES vs DATA** (the amendment, sharpened): lite includes
    every steering DATA plane — sheets/attributes over a statProfile, pools-as-meters, wallet +
-   inventory first-class on EVERY actor, scene cast + per-NPC fields, ambient
+   inventory first-class on EVERY actor, scene npcs + per-NPC fields, ambient
    (location/date/time/weather as data), custom widgets, **quests (objectives as data)**, **journal
    (the beats archive)** — all model-writable through the built D48 `domain/tool-use` registry and
    hand-editable in place. Lite excludes the MACHINERY: d20 checks, encounters, clocks mechanics,
    session wraps, maps, NPC entities, morale/perception/loot, the time/weather engine, the GM seat.
-4. **No party system** (CP §3.1 owner ruling, global): the roster is the ONE membership. Legacy's
+4. **No party system** (CP §3.1 owner ruling, global): the room's chat membership is the ONE
+   membership — there is no game-side membership plane. (The ruling's own word was "the roster",
+   meaning `chat_participants`, which is still the live CODE spelling: `verbs/roster.ts`,
+   `roster-humans.ts`, `can({kind:"chat", roster})`. Since #901 Fork 2, USER-FACING "Roster" names
+   the saved seats+knobs+rules template instead — so read "roster" below as the code word for the
+   room's membership, never as the saved template.) Legacy's
    `rpg_party` membership shadow is NOT rebuilt — sheets live in `rpg_sheets`, a pure per-actor DATA
    plane derived against the roster at read time (§4.3).
 5. **The graft rule** (ruling 3, made structural): full-mode arrival ADDS siblings — 7 tables, a set
@@ -387,8 +392,16 @@ ships anyway (display + full's equip/filter future), minus any wallet coupling. 
 wallet rides the volatile plane like everything else (the bake-once posture — a granted amount is a
 stamped fact on the variant's snapshot).
 
-**Actor-ref arms:** `character`/`user` address roster identities directly (no membership shadow —
-§4.3); `cast` addresses scene-only NPCs by their stable `key` (normalized name, minted at first
+> **Vocabulary rider (owner, #901 Fork 3, 2026-08-30 — SCHEDULED, NOT LANDED).** rpg's scene-only
+> extra is an **npc**, and the `cast` arm becomes `npc:<slug>`; the reserved unbuilt cross-game
+> library arm named `{kind:"npc"}` below is renamed FIRST (the `libraryNpc`/`npcRow` class) so the
+> word is free. That is issue **#906** — merge-window class, because `cast:<slug>` lives in JSON
+> snapshot VALUES (no pre-launch db reset covers it) and `snapshots.ts` throws `RpgStateCorruptError`
+> on a stale row. Until #906 lands, the wire literal `{kind:"cast", castKey}` in the block above is
+> the tree; the PROSE below says "npc" for the concept. Do not pre-emptively respell the literal.
+
+**Actor-ref arms:** `character`/`user` address room-membership identities directly (no membership
+shadow — §4.3); `cast` addresses scene-only npcs by their stable `key` (normalized name, minted at first
 upsert; a rename is a new actor — hand-edit merges; accepted simplification, recorded). Full ADDS
 the `npc` arm when `rpg_npcs` lands — an additive union member every `assertNever` consumer is
 compile-forced to handle (the D86 `resolution`-discriminant growth pattern). *Rejected:* shipping
@@ -530,7 +543,7 @@ way down:
   drift — the roster change needs no rpg listener. A sheet row whose actor LEFT the roster is
   retained but not projected (their data survives a re-invite; the \[stamped-id write-boundary]
   posture: presence gates the WRITE, the read derives).
-- Full-mode encounters/checks later read the same projection (roster-as-cast + sheets) — the graft
+- Full-mode encounters/checks later read the same projection (the room's actors + sheets) — the graft
   adds engines, not a membership plane. If full ever needs "active adventurers ⊂ roster", that is a
   FLAG on the projection (an ADD), never a membership table.
 
