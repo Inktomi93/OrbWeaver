@@ -189,27 +189,27 @@
       "path": "docs/architecture/core/AGENTS.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 354,
-      "bytes": 31859,
-      "sha256": "bfe6dea4193f32c5a1c2f289534208733db6f64fce035e522032bfe06c58dd99",
+      "lines": 359,
+      "bytes": 32256,
+      "sha256": "10112ecc37e5d875195d2fb71d04aec4ab7284b2654f90e36a7077416be519d3",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "law",
           "status": "active",
-          "updated": "2026-08-22"
+          "updated": "2026-08-30"
         },
         "errors": []
       },
       "receipt": {
         "path": "docs/architecture/core/AGENTS.md",
-        "assignedSha256": "bfe6dea4193f32c5a1c2f289534208733db6f64fce035e522032bfe06c58dd99",
+        "assignedSha256": "10112ecc37e5d875195d2fb71d04aec4ab7284b2654f90e36a7077416be519d3",
         "disposition": "current",
         "authority": "normative",
         "fullRead": true,
-        "verifiedSha256": "bfe6dea4193f32c5a1c2f289534208733db6f64fce035e522032bfe06c58dd99",
-        "verifiedCommit": "1f5e25c00ec2ee921bc70591bf84e8268b255030",
+        "verifiedSha256": "10112ecc37e5d875195d2fb71d04aec4ab7284b2654f90e36a7077416be519d3",
+        "verifiedCommit": "a5c589b04ad08bba7a0d1f1b8c40e1fac109be93",
         "verifiedAt": "2026-08-30",
         "evidence": [
           "docs/architecture/core/AGENTS.md:1-352 full read; Project, recovery, proposed-program, lane authority, and direct Claude-rule import routing reconciled",
@@ -217,7 +217,8 @@
           "git:039e33ca3afee08a73754bd0a9ee3d5958d74fe4 contains the exact constitution blob",
           "delta re-verify 2026-08-22 (P9 #393, the tooling program's law closeout): re-read in full at the P9 bytes commit; every changed line is a tooling-tree cite repoint or the new Core-0 §9 / constitution index rows, re-derived against the tree",
           "docs/architecture/core/AGENTS.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)",
-          "docs/architecture/core/AGENTS.md: re-attested at 1f5e25c00ec2ee921bc70591bf84e8268b255030 — the #876/#873 citer sweep: doc-path repoints from the tooling-package → Core-Tooling-Law.md and density-pass-spec → UI-Density-Law.md relocations and the seven mock-set retirements. Comment/link lines only; no claim moved."
+          "docs/architecture/core/AGENTS.md: re-attested at 1f5e25c00ec2ee921bc70591bf84e8268b255030 — the #876/#873 citer sweep: doc-path repoints from the tooling-package → Core-Tooling-Law.md and density-pass-spec → UI-Density-Law.md relocations and the seven mock-set retirements. Comment/link lines only; no claim moved.",
+          "re-attested at the #907 law-mint merge (a5c589b04): lane cb-vocab-law's diff read in full by the orchestrator — D151 (the room's actor vocabulary is CLOSED) minted as next-free with the reserved-range note advanced to D152+, and the four-line register-boundary paragraph placed in AGENTS.md §3; both provenance facts (archived+superseded source, not restated by the successor) verified on the tree before minting"
         ],
         "claims": [
           {
@@ -635,9 +636,9 @@
       "path": "docs/architecture/core/Core-Path-Registry.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 513,
-      "bytes": 280346,
-      "sha256": "3e0c21fc0e2f7b229ac956dffa78d0c99d0eb2b4e963d2969643742f81502aeb",
+      "lines": 515,
+      "bytes": 281184,
+      "sha256": "2b9e0560fd75b48fbe0e1f012cc015cf4a4bf556587eca5ff26b8d62e48e8ba9",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -650,12 +651,12 @@
       },
       "receipt": {
         "path": "docs/architecture/core/Core-Path-Registry.md",
-        "assignedSha256": "3e0c21fc0e2f7b229ac956dffa78d0c99d0eb2b4e963d2969643742f81502aeb",
+        "assignedSha256": "2b9e0560fd75b48fbe0e1f012cc015cf4a4bf556587eca5ff26b8d62e48e8ba9",
         "disposition": "current",
         "authority": "normative",
         "fullRead": true,
-        "verifiedSha256": "3e0c21fc0e2f7b229ac956dffa78d0c99d0eb2b4e963d2969643742f81502aeb",
-        "verifiedCommit": "79871238bc0506fa74902bb1844f734fc9e32db3",
+        "verifiedSha256": "2b9e0560fd75b48fbe0e1f012cc015cf4a4bf556587eca5ff26b8d62e48e8ba9",
+        "verifiedCommit": "a5c589b04ad08bba7a0d1f1b8c40e1fac109be93",
         "verifiedAt": "2026-08-30",
         "evidence": [
           "delta re-verify 2026-08-25 (#689, commit 0a2789a00834abe892bfa92839e8dec3c30a97af): D147 clause (d) rewritten in place — the SERVER-WIDE install is BUILT as an admin-triggered fan-out of per-user rows, so the clause's two recorded open questions (consent over a shared install, whose principal it runs as) are DISSOLVED, not answered. Re-read at the amended bytes and re-derived against the tree it now describes: domain/plugin/verbs/{install,uninstall,apply}-*-users.ts + substrate/distribution.ts + persistence/distributed-plugins.ts, the admin_distributed_plugins DDL, and the pins the clause cites (tests/server/domain/plugin/verbs/*-users.int.test.ts, persistence/distributed-plugins.int.test.ts, the cross-tenant sweep's three EXEMPT rows, settings-shell-surface.ct.tsx's admin/plain-user Distribute pair). No other D-entry in this document moved.",
@@ -678,7 +679,8 @@
           "docs/architecture/core/Core-Path-Registry.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)",
           "docs/architecture/core/Core-Path-Registry.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)",
           "docs/architecture/core/Core-Path-Registry.md: re-attested at 1f5e25c00ec2ee921bc70591bf84e8268b255030 — the #876/#873 citer sweep: doc-path repoints from the tooling-package → Core-Tooling-Law.md and density-pass-spec → UI-Density-Law.md relocations and the seven mock-set retirements. Comment/link lines only; no claim moved.",
-          "docs/architecture/core/Core-Path-Registry.md: re-attested at 79871238bc0506fa74902bb1844f734fc9e32db3 — the #866 S1+S2 (6923f33cb) and #876/#873 docs-law (79871238b) merges both carry truth-repairs here; both deltas read by the orchestrator; the gate-count line resolved to 233 at the merge"
+          "docs/architecture/core/Core-Path-Registry.md: re-attested at 79871238bc0506fa74902bb1844f734fc9e32db3 — the #866 S1+S2 (6923f33cb) and #876/#873 docs-law (79871238b) merges both carry truth-repairs here; both deltas read by the orchestrator; the gate-count line resolved to 233 at the merge",
+          "re-attested at the #907 law-mint merge (a5c589b04): lane cb-vocab-law's diff read in full by the orchestrator — D151 (the room's actor vocabulary is CLOSED) minted as next-free with the reserved-range note advanced to D152+, and the four-line register-boundary paragraph placed in AGENTS.md §3; both provenance facts (archived+superseded source, not restated by the successor) verified on the tree before minting"
         ],
         "claims": [
           {
@@ -11817,8 +11819,8 @@
       "lane": "design",
       "issue": 5,
       "lines": 224,
-      "bytes": 20830,
-      "sha256": "a7e33eb3a51530563d093963fec369d0c3246e06f72b94190ab265952a02ef1d",
+      "bytes": 20834,
+      "sha256": "c5d99e0217681ba0e26d7ab91dac02524ff3ffe587084fbd107e8bccb3697ec9",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -11831,17 +11833,18 @@
       },
       "receipt": {
         "path": "docs/design/plugin-showcase-set.md",
-        "assignedSha256": "a7e33eb3a51530563d093963fec369d0c3246e06f72b94190ab265952a02ef1d",
+        "assignedSha256": "c5d99e0217681ba0e26d7ab91dac02524ff3ffe587084fbd107e8bccb3697ec9",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "a7e33eb3a51530563d093963fec369d0c3246e06f72b94190ab265952a02ef1d",
-        "verifiedCommit": "690d2c6ecc73c992c9e7f9eee6a9481a88a14d94",
-        "verifiedAt": "2026-08-28",
+        "verifiedSha256": "c5d99e0217681ba0e26d7ab91dac02524ff3ffe587084fbd107e8bccb3697ec9",
+        "verifiedCommit": "9b35fa21e76dc74e7158ed7256454d74357d4a0c",
+        "verifiedAt": "2026-08-30",
         "evidence": [
           "docs/design/plugin-showcase-set.md:1-224 (full read; #774 showcase design-of-record, status rows 1-11 built + suite-green, #788 surface-growth append reconciled)",
           "git log --oneline -1 -- docs/design/plugin-showcase-set.md: 690d2c6ec feat(#774): mirror the #788 surface growth into the published SDK — 23 caps, tokens namespace, five reads",
-          "GitHub issue #774 (the showcase commission — nine seeded plugins as developer teaching material)"
+          "GitHub issue #774 (the showcase commission — nine seeded plugins as developer teaching material)",
+          "re-attested at the #904 C3a merge (9b35fa21e): the doc's #788 append names the plugin capability members, so the ruled chat.listRoster to chat.listCharacters rename propagated into its prose; content change is that one member name, verified by the orchestrator against the merge diff"
         ],
         "summary": "The plugin SHOWCASE set (#774): nine seeded example plugins collectively exercising the landed plugin capability/surface API as developer teaching material, plus the published host-v1.d.ts SDK types and its conformance pin. Design-of-record; rows 1-11 built and suite-green per §8, with the #788 surface-growth append reconciled. Born-reviewed at merge (full read 2026-08-28).",
         "claims": [

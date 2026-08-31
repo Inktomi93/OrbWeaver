@@ -716,17 +716,18 @@
     },
     {
       "path": "docs/design/plugin-showcase-set.md",
-      "assignedSha256": "a7e33eb3a51530563d093963fec369d0c3246e06f72b94190ab265952a02ef1d",
+      "assignedSha256": "c5d99e0217681ba0e26d7ab91dac02524ff3ffe587084fbd107e8bccb3697ec9",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "a7e33eb3a51530563d093963fec369d0c3246e06f72b94190ab265952a02ef1d",
-      "verifiedCommit": "690d2c6ecc73c992c9e7f9eee6a9481a88a14d94",
-      "verifiedAt": "2026-08-28",
+      "verifiedSha256": "c5d99e0217681ba0e26d7ab91dac02524ff3ffe587084fbd107e8bccb3697ec9",
+      "verifiedCommit": "9b35fa21e76dc74e7158ed7256454d74357d4a0c",
+      "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/design/plugin-showcase-set.md:1-224 (full read; #774 showcase design-of-record, status rows 1-11 built + suite-green, #788 surface-growth append reconciled)",
         "git log --oneline -1 -- docs/design/plugin-showcase-set.md: 690d2c6ec feat(#774): mirror the #788 surface growth into the published SDK \u2014 23 caps, tokens namespace, five reads",
-        "GitHub issue #774 (the showcase commission \u2014 nine seeded plugins as developer teaching material)"
+        "GitHub issue #774 (the showcase commission \u2014 nine seeded plugins as developer teaching material)",
+        "re-attested at the #904 C3a merge (9b35fa21e): the doc's #788 append names the plugin capability members, so the ruled chat.listRoster to chat.listCharacters rename propagated into its prose; content change is that one member name, verified by the orchestrator against the merge diff"
       ],
       "summary": "The plugin SHOWCASE set (#774): nine seeded example plugins collectively exercising the landed plugin capability/surface API as developer teaching material, plus the published host-v1.d.ts SDK types and its conformance pin. Design-of-record; rows 1-11 built and suite-green per \u00a78, with the #788 surface-growth append reconciled. Born-reviewed at merge (full read 2026-08-28).",
       "claims": [
