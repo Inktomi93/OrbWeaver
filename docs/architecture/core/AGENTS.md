@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-08-22
+updated: 2026-08-30
 ---
 
 # Orbweaver — Constitution (AGENTS)
@@ -116,6 +116,11 @@ I/O adapter → `infra` · env/config/observability → `foundation` · business
 domain (8-slot template) · two homes for one concept = merge · insider-knowledge name = rename · one
 folder, two jobs = split. Full outcome table + the per-concept partitioning table: `Core-0` §6; the
 concept→domain map: §6 below.
+
+**Register boundary (D151):** game-register words (`party`, `npcs`, `quest`, `encounter`) live only
+inside the rpg domain and its surfaces, never naming a non-game concept; an rpg surface naming a chat
+concept uses the chat word instead. PROSE-ENFORCED by owner ruling — no gate — so the honesty mechanism
+is the comment/doc sweep: a crossed word is a drifted-comment defect, fixed on sight.
 
 ## 4. Build + verify protocol
 
