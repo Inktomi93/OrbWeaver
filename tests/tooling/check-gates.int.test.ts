@@ -390,6 +390,8 @@ function writeFixtures(): void {
   fx("packages/client/src/features/__g_offtoken/components/__g_offtoken.tsx", 'export const G = <div className="rounded-lg shadow-md" />;\n');
   // no-hover-display-swap: a hover-keyed DISPLAY utility (the P0 hit-test oscillator), not in ALLOWLIST.
   fx("packages/client/src/features/__g_hoverswap/components/__g_hoverswap.tsx", 'export const G = <div className="group-hover/row:hidden" />;\n');
+  // no-tailwind-dark-variant: polarity is derived by ThemeScope; a named-theme class variant is a second axis.
+  fx("packages/client/src/features/__g_darkvariant/components/__g_darkvariant.tsx", 'export const G = <div className="dark:bg-card" />;\n');
   // density-tier: `rounded-card` outside the ELEVATED family, in a file with no baseline budget (A1). The
   // fixture path is deliberately NOT in the committed density-tier.baseline.json, so its budget is 0.
   fx(
