@@ -29,6 +29,28 @@
 // What did NOT change, deliberately: the roving index is still ONE index over People+Cast, so ArrowUp/Down
 // still cross the section boundary (§7.1), and the post-kick focus restore still lands on whatever row took
 // the removed index — including a cast row.
+//
+// ── THE SECTION-HEADER WIDTH BUDGET (#912, owner-ruled 2026-08-30) ──────────────────────────────────
+// PRICE A WORD HERE BEFORE YOU WRITE IT. A section header is a kicker plus that section's door(s), and
+// until #912 it was ONE UNBREAKABLE LINE — so the pane's narrowest width, not the meaning of a control,
+// decided how long a label was allowed to be. That is backwards, and it was paid for once already: #902
+// C1's ruled rename grew the Characters kicker from "Cast" to "Characters" and the lane bought the
+// deficit back by SHORTENING a neighbour's door to "Rosters…". MEASURED here afterwards, that trade did
+// not even work — the deficit was the KICKER's (29.2px → 75.7px, +46.5) and the whole word "Saved " it
+// removed was worth only 36.8px, so the cluster still escaped a 320px pane by 9.75px and this panel's own
+// overflow pin sat RED on main. `SectionHeader` below WRAPS instead, and the doors keep their full
+// spellings at every width the pane can be.
+//
+// The budget, MEASURED at the default theme in the CT browser (both pointer classes give the SAME widths
+// here — the two doors are text buttons already past the coarse touch floor, so coarse costs HEIGHT, not
+// width; the pins are `committed-members-tab.ct.tsx`):
+//   · "Characters" kicker 75.7 · gap-field 6 · "Saved rosters…" 138.9 · gap-tight 4 · "Add a character" 142.0
+//   · ONE LINE needs ≥ 366.6px of content box · TWO LINES (kicker / both doors) ≥ 284.9 · below that the
+//     two doors stack, and NOTHING overflows until the content box is narrower than the widest single
+//     door (142.0) — which no real pane is: the narrowest is ~256 (`--dimension-panel-context`'s 17rem
+//     clamp floor less the bracket's `px-row`), and the phone sheet is 100dvw − that padding (~304).
+// So a new word costs a line at a narrower width, never a truncation and never a neighbour's label. If a
+// change would push a single door past ~256px, THAT is the point to come back and re-decide.
 
 import { Button } from "@orb/ui/button";
 import { Icon, UserPlus } from "@orb/ui/icons";
@@ -156,6 +178,44 @@ function typeaheadTarget(rows: readonly MembersRow[], buffer: string, start: num
     }
   }
   return null;
+}
+
+/** ONE section header: the kicker LEADS, the section's door(s) TRAIL, and the line WRAPS when the two
+ *  cannot share it (#912 — the width budget is in this file's header). Both sections render through this
+ *  one function so a word-length change is priced once, not per section.
+ *
+ *  `ms-auto` on the action cell, NOT `justify="between"` on the Row: `justify-content` resolves PER FLEX
+ *  LINE, so once the row wraps, the door cluster is the only item on its line and `between` lands it at
+ *  flex-START — the doors would change edge partway down the width range (measured: trailing at 368,
+ *  leading at 320, trailing again at 256 once the cluster wrapped internally). An auto inline-start margin
+ *  trails them on a shared line AND on their own, at every width.
+ *
+ *  The action is WRAPPED rather than given the margin directly because the cast door is a consumer-owned
+ *  SLOT (`castAction`) — a panel invariant that depended on the slot remembering a class would be a
+ *  prose-only boundary, which is not a placement. */
+function SectionHeader({
+  labelId,
+  kicker,
+  action,
+}: {
+  readonly labelId: string;
+  readonly kicker: string;
+  readonly action?: ReactElement | undefined;
+}): ReactElement {
+  return (
+    // `data-slot`: the header's LINE COUNT and its doors' trailing edge are the properties the budget above
+    // is about, so they need a handle a CT can measure (committed-members-tab.ct.tsx, the matrix-end pins).
+    <Row gap="field" align="center" className="flex-wrap" data-slot="members-section-header">
+      <Text as="span" voice="kicker" id={labelId}>
+        {kicker}
+      </Text>
+      {action === undefined ? null : (
+        <Row align="center" className="ms-auto" data-slot="members-section-doors">
+          {action}
+        </Row>
+      )}
+    </Row>
+  );
 }
 
 export function MembersPanel(props: MembersPanelProps): ReactElement {
@@ -288,29 +348,25 @@ export function MembersPanel(props: MembersPanelProps): ReactElement {
             // The section is a GROUP named by its OWN visible kicker (`aria-labelledby`, never a second
             // copy of the word) — "People" and "Cast" are the list's structure, not decoration.
             <Stack gap="row" data-slot="members-people" role="group" aria-labelledby={peopleLabelId}>
-              <Row gap="field" align="center" justify="between">
-                <Text as="span" voice="kicker" id={peopleLabelId}>
-                  People
-                </Text>
-                {onInvitePeople === undefined ? null : (
-                  <Button type="button" intent="ghost" size="sm" ref={inviteRef} onClick={onInvitePeople} data-testid={testId("invitePeopleButton")}>
-                    <Icon icon={UserPlus} size="sm" />
-                    Invite people
-                  </Button>
-                )}
-              </Row>
+              <SectionHeader
+                labelId={peopleLabelId}
+                kicker="People"
+                action={
+                  onInvitePeople === undefined ? undefined : (
+                    <Button type="button" intent="ghost" size="sm" ref={inviteRef} onClick={onInvitePeople} data-testid={testId("invitePeopleButton")}>
+                      <Icon icon={UserPlus} size="sm" />
+                      Invite people
+                    </Button>
+                  )
+                }
+              />
               {people.length === 0 ? <Text>No one else is here yet — share an invite.</Text> : people.map(rowProps)}
             </Stack>
           ) : null}
 
           {showCast ? (
             <Stack gap="row" data-slot="members-cast" role="group" aria-labelledby={castLabelId}>
-              <Row gap="field" align="center" justify="between">
-                <Text as="span" voice="kicker" id={castLabelId}>
-                  Characters
-                </Text>
-                {props.castAction ?? null}
-              </Row>
+              <SectionHeader labelId={castLabelId} kicker="Characters" action={props.castAction} />
               {cast.length === 0 ? <Text>No characters in this chat yet — add one.</Text> : cast.map(rowProps)}
             </Stack>
           ) : null}

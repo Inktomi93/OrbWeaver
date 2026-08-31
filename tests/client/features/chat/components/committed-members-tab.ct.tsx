@@ -10,6 +10,7 @@
 // Remove from chat) stays — that half is #162's ruling and these tests pin it so the narrowing can't creep.
 
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { Locator } from "@playwright/test";
 import { CommittedMembersTabStory } from "../_ct-stories.tsx";
 
 const CAST = '[data-slot="members-cast"]';
@@ -83,35 +84,141 @@ test("a solo room whose seat is ALREADY muted keeps the unmute (and only the unm
 // vaguer noun — the reviewer's own cold read was that one of them "creates a new one", which NEITHER door
 // does. So the group door names what it opens: a roster you SAVED earlier. Both doors' accessible names
 // are still their visible text.
+//
+// AND IT SAYS "SAVED" ON THE BUTTON AGAIN (#912, owner-ruled 2026-08-30). #902 C1 compressed this label to
+// "Rosters…" to buy back a 320px overflow; see the width block below for why that trade was void. The pin
+// is deliberately on the FULL spelling: re-compressing it must red here, not pass quietly.
 test("#848/#899 N6: both CHARACTERS add-doors carry a visible word, and each says what it opens", async ({ mount }) => {
   const component = await mount(<CommittedMembersTabStory soloCast={true} />);
   const cast = component.locator(CAST);
 
-  const groupDoor = cast.getByRole("button", { name: "Rosters…" });
+  const groupDoor = cast.getByRole("button", { name: "Saved rosters…" });
   const characterDoor = cast.getByRole("button", { name: "Add a character" });
   // VISIBLE text, not the accessible name — the empty string was the whole defect on the second door.
-  await expect(groupDoor).toHaveText(/rosters/iu);
+  await expect(groupDoor).toHaveText(/saved rosters/iu);
   await expect(characterDoor).toHaveText(/character/iu);
   // …and the accessible name IS the visible label on both (WCAG 2.5.3 by construction, no `aria-label`).
   await expect(characterDoor).toHaveAccessibleName("Add a character");
-  await expect(groupDoor).toHaveAccessibleName("Rosters…");
+  await expect(groupDoor).toHaveAccessibleName("Saved rosters…");
   // The two words a cold reader compares are DIFFERENT — neither is a prefix of the other, which the old
   // pair ("Add cast…" / "Add a character") failed on the noun alone.
   await expect(groupDoor).not.toHaveText(/^Add a character$/u);
 });
 
-// A wide mount agrees with an overflow bug, so the door cluster is measured at the CONTEXT-PANE FLOOR
-// (320px). Two labelled buttons plus the "Characters" kicker have to share that row without either escaping the
-// pane — the failure mode a second visible label is most likely to introduce.
-test("#848: at the 320px pane floor both doors stay inside the pane", async ({ mount }) => {
-  const component = await mount(<CommittedMembersTabStory soloCast={true} width={320} />);
-  const cast = component.locator(CAST);
+// ── THE HEADER'S WIDTH MATRIX (#912, owner-ruled 2026-08-30) ─────────────────────────────────────────
+//
+// A POINT MEASUREMENT NEVER PROVED THIS. The pin that stood here ran at ONE width (320) and its comment
+// explained a label compression: #902 C1 grew the kicker "Cast"→"Characters" and paid the deficit by
+// shortening the saved-roster door to "Rosters…". MEASURED: the deficit was the KICKER's (29.2→75.7px,
+// +46.5) and the removed word "Saved " was worth 36.8px, so the cluster STILL escaped a 320px pane by
+// 9.75px — this very test was RED on main at 79e8ffb1f while the issue that caused it was recorded closed.
+// The label was spent for nothing; the constraint was that the header could not WRAP.
+//
+// So the pins run at the MATRIX ENDS and at both crossovers, at BOTH pointer classes, and they assert the
+// two properties that actually matter: nothing escapes the pane, and the doors keep their whole words.
+// The measured budget lives in `members-panel.tsx`'s header — read it before changing either label.
+//
+// The ends are the real content box of the pane this panel lives in (the context bracket's `px-row` off
+// the pane track): 256px = `--dimension-panel-context`'s 17rem clamp floor; 464px = its 30rem ceiling.
+// The phone sheet (100dvw) lands inside that range, so the coarse arm reuses the same widths.
+const MATRIX = [256, 288, 320, 368, 464] as const;
 
-  const overflow = await cast.evaluate((section: HTMLElement) => {
+/** Every control's overflow past the section box, plus the header's line structure and its doors' edge. */
+async function headerGeometry(component: Locator): Promise<{
+  readonly escaped: number;
+  readonly lines: number;
+  readonly doorsTrailBy: number;
+  readonly kickerClipped: boolean;
+}> {
+  return await component.locator(CAST).evaluate((section: HTMLElement) => {
     const bounds = section.getBoundingClientRect();
-    return [...section.querySelectorAll("button")]
-      .map((el) => el.getBoundingClientRect())
-      .filter((box) => box.right > bounds.right + 0.5 || box.left < bounds.left - 0.5).length;
+    const header = section.querySelector('[data-slot="members-section-header"]') as HTMLElement;
+    const doors = section.querySelector('[data-slot="members-section-doors"]') as HTMLElement;
+    const kicker = header.querySelector("span") as HTMLElement;
+    // LINE COUNT FROM VERTICAL CENTRES, not tops: every flex line here is `align="center"`, so items
+    // SHARING a line share a centre while their tops differ by their own heights (the kicker's line box is
+    // 13px, a control's is 32-48). Clustered with a 2px tolerance so sub-pixel layout never splits a line.
+    const centres = [kicker, ...doors.querySelectorAll("button")].map((el) => {
+      const box = el.getBoundingClientRect();
+      return (box.top + box.bottom) / 2;
+    });
+    const distinct: number[] = [];
+    for (const centre of centres) {
+      if (!distinct.some((c) => Math.abs(c - centre) < 2)) {
+        distinct.push(centre);
+      }
+    }
+    return {
+      escaped: [...section.querySelectorAll("button")]
+        .map((el) => el.getBoundingClientRect())
+        .filter((box) => box.right > bounds.right + 0.5 || box.left < bounds.left - 0.5).length,
+      lines: distinct.length,
+      doorsTrailBy: bounds.right - doors.getBoundingClientRect().right,
+      kickerClipped: kicker.scrollWidth > kicker.clientWidth + 1,
+    };
   });
-  expect(overflow, "no CAST-header control escapes the pane at its narrowest real width").toBe(0);
+}
+
+for (const width of MATRIX) {
+  test(`#912 @${width}: nothing escapes the pane, the doors trail it, and both keep their whole words`, async ({ mount }) => {
+    const component = await mount(<CommittedMembersTabStory soloCast={true} width={width} />);
+    const cast = component.locator(CAST);
+
+    // The words are the point of the fix — assert them AT each width, not once at a wide mount.
+    await expect(cast.getByRole("button", { name: "Saved rosters…" })).toBeVisible();
+    await expect(cast.getByRole("button", { name: "Add a character" })).toBeVisible();
+
+    const geometry = await headerGeometry(component);
+    expect(geometry.escaped, "no CHARACTERS-header control escapes the pane").toBe(0);
+    // TRUNCATION IS A GEOMETRY FACT — the ruled kicker must never be the thing that gives.
+    expect(geometry.kickerClipped, "the 'Characters' kicker is never clipped").toBe(false);
+    // The doors TRAIL at every width. This is the `ms-auto` in `SectionHeader`: with `justify="between"`
+    // instead, a wrapped door line has one item and lands at flex-START, so the cluster changed edge
+    // partway down this matrix. Sub-pixel tolerance only.
+    expect(geometry.doorsTrailBy, "the door cluster sits at the section's trailing edge").toBeLessThan(1);
+  });
+}
+
+// THE CROSSOVERS, stated as line counts so the budget in `members-panel.tsx` is enforced and not merely
+// written down. ONE line needs ≥366.6px, TWO ≥284.9, and below that the two doors stack — a label change
+// that moves a threshold reds HERE, at the price, instead of as an overflow one width later.
+const CROSSOVERS = [
+  { width: 464, lines: 1 },
+  { width: 368, lines: 1 },
+  { width: 320, lines: 2 },
+  { width: 288, lines: 2 },
+  { width: 256, lines: 3 },
+] as const;
+
+for (const { width, lines } of CROSSOVERS) {
+  test(`#912 @${width}: the header takes exactly ${lines} line(s)`, async ({ mount }) => {
+    const component = await mount(<CommittedMembersTabStory soloCast={true} width={width} />);
+    expect((await headerGeometry(component)).lines).toBe(lines);
+  });
+}
+
+// THE COARSE ARM. Every assertion above is a FINE-pointer assertion, and a narrow viewport renders a
+// layout no phone produces. `hasTouch: true` is what flips `matchMedia("(pointer: coarse)")` in chromium
+// (the persona-panel-row.ct.tsx precedent); `page.emulateMedia` has no `pointer` feature and cannot drive
+// it. MEASURED: the coarse touch floor costs this header HEIGHT (a control row grows 32→48px), not WIDTH —
+// both doors are text buttons already past the 44px floor — so the crossovers are the same widths. That is
+// a measurement, not an assumption, which is why the ends are re-run here rather than reasoned about.
+test.describe("coarse pointer", () => {
+  test.use({ hasTouch: true });
+
+  for (const width of [256, 464] as const) {
+    test(`#912 @${width} coarse: nothing escapes the pane and both doors keep their whole words`, async ({ mount, page }) => {
+      await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
+      const component = await mount(<CommittedMembersTabStory soloCast={true} width={width} />);
+      const cast = component.locator(CAST);
+
+      await expect(cast.getByRole("button", { name: "Saved rosters…" })).toBeVisible();
+      await expect(cast.getByRole("button", { name: "Add a character" })).toBeVisible();
+
+      const geometry = await headerGeometry(component);
+      expect(geometry.escaped, "no CHARACTERS-header control escapes the pane at a coarse pointer").toBe(0);
+      expect(geometry.kickerClipped).toBe(false);
+      expect(geometry.doorsTrailBy).toBeLessThan(1);
+    });
+  }
 });
