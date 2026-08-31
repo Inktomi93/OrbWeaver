@@ -142,7 +142,7 @@ export function parseCssRules(rawText: string): readonly CssRule[] {
 }
 
 /** Split at top-level commas only — `:not(a, b)` and `[attr="x,y"]` keep their commas. */
-function splitSelectorList(prelude: string): readonly string[] {
+export function splitSelectorList(prelude: string): readonly string[] {
   return splitTopLevel(prelude, ",")
     .map(collapse)
     .filter((s) => s !== "");
