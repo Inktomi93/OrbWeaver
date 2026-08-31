@@ -37,6 +37,7 @@ const THEMES_TS = join(HERE, "src/tokens/themes.gen.ts");
 const THEMES_MODULE = "./themes.gen.ts";
 const OKLCH_COMPONENT_COUNT = 3;
 const CUBIC_BEZIER_COORDINATE_COUNT = 4;
+const DTCG_ALIAS_RE = /^\{([^{}]+)\}$/u;
 
 const SEED_VALUE_SET_PATHS: ReadonlySet<string> = new Set(REQUIRED_SEED_VALUE_SET_PATHS);
 const THEME_SCOPE_SEED_PATHS = new Set(
@@ -229,6 +230,18 @@ function outputPath(target: string): readonly string[] {
     throw new Error(`orb.cssValues target ${target} cannot map to an Orb token path`);
   }
   return [group, rest.join("-")];
+}
+
+function resolveCssValue(value: string, portableByPath: ReadonlyMap<string, string>): string {
+  const alias = DTCG_ALIAS_RE.exec(value)?.[1];
+  if (alias === undefined) {
+    return value;
+  }
+  const resolved = portableByPath.get(alias);
+  if (resolved === undefined) {
+    throw new Error(`orb.cssValues alias ${JSON.stringify(alias)} escaped contract portability validation`);
+  }
+  return resolved;
 }
 
 function renderThemeCss(tokens: readonly GeneratedCssValue[]): string {
@@ -437,8 +450,9 @@ export async function generateArtifacts(): Promise<{ themeCss: string; tokensTs:
   if (dictionary.allTokens.length !== contract.baseTokens.length) {
     throw new Error(`Style Dictionary token coverage ${dictionary.allTokens.length} != contract ${contract.baseTokens.length}`);
   }
+  const portableByPath = new Map(flat.map((token) => [token.path.join("."), token.value]));
   for (const [target, entry] of Object.entries(contract.cssValues)) {
-    flat.push({ path: outputPath(target), value: entry.value, placement: entry.placement });
+    flat.push({ path: outputPath(target), value: resolveCssValue(entry.value, portableByPath), placement: entry.placement });
   }
   const emittedTargets = new Set(flat.map((token) => cssVarName(token.path)));
   if (emittedTargets.size !== flat.length || emittedTargets.size !== contract.cssTargets.size) {

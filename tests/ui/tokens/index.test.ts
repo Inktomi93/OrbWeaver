@@ -40,6 +40,27 @@ test("runtime CSS placement emits Tailwind namespaces into @theme and private al
   expect(rootBlock).not.toContain("--spacing-control: 2rem;");
 });
 
+test("the eight density aliases resolve canonical DTCG values into concrete :root outputs", async () => {
+  const { themeCss } = await generateArtifacts();
+  const expected = [
+    ["--orb-density-comfortable-field", TOKENS["spacing.field"].value],
+    ["--orb-density-comfortable-row", TOKENS["spacing.row"].value],
+    ["--orb-density-comfortable-block", TOKENS["spacing.block"].value],
+    ["--orb-density-comfortable-section", TOKENS["spacing.section"].value],
+    ["--orb-density-compact-field", TOKENS["spacing.tight"].value],
+    ["--orb-density-compact-row", TOKENS["spacing.field"].value],
+    ["--orb-density-compact-block", TOKENS["spacing.row"].value],
+    ["--orb-density-compact-section", TOKENS["spacing.density-section-compact"].value],
+  ] as const;
+  const rootBlock = themeCss.slice(themeCss.indexOf("\n:root {\n"), themeCss.indexOf("\n@media (pointer: fine)"));
+
+  expect(rootBlock).not.toContain("var(--spacing-");
+  expect(rootBlock).not.toContain("{spacing.");
+  for (const [target, value] of expected) {
+    expect(rootBlock).toContain(`${target}: ${value};`);
+  }
+});
+
 test("the touch floor holds PER-POINTER: coarse @theme meets ≥44px, fine override is 32/34/40 (D62 P1, gate touch-target-floor; control-sm raised to the 32px tap-target floor Task #76)", async () => {
   const { themeCss, tokensTs } = await generateArtifacts();
 

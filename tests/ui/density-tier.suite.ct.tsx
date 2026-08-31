@@ -42,6 +42,18 @@ function resolveToken(el: Locator, token: string): Promise<number> {
   }, token);
 }
 
+/** Resolve a token inside the locator's inherited scope rather than at the document root. */
+function resolveInheritedToken(el: Locator, token: string): Promise<number> {
+  return el.evaluate((node, name) => {
+    const probe = node.ownerDocument.createElement("div");
+    probe.style.padding = `var(${name})`;
+    node.append(probe);
+    const px = Number.parseFloat(getComputedStyle(probe).paddingTop);
+    probe.remove();
+    return px;
+  }, token);
+}
+
 /** The computed px of one longhand on one element. */
 function computedPx(el: Locator, property: "paddingTop" | "borderTopLeftRadius"): Promise<number> {
   return el.evaluate((node, prop) => Number.parseFloat(getComputedStyle(node)[prop]), property);
@@ -180,6 +192,52 @@ test("D9: the user-pref density axis re-binds the SAME spacing vars a tier step 
   }
   const compactCard = density.getByTestId("compact").locator('[data-slot="card-root"]');
   expect(await computedPx(compactCard, "paddingTop")).toBe(compact[1]);
+});
+
+test("#938: nested density scopes restore all four intents in both directions", async ({ mount }) => {
+  const density = await mount(
+    <div>
+      <ThemeScope tokens={{ density: "compact" }}>
+        <div data-testid="outer-compact">
+          <ThemeScope tokens={{ density: "comfortable" }}>
+            <Surface tier="instrument">
+              <Card data-testid="inner-comfortable">Comfortable below compact</Card>
+            </Surface>
+          </ThemeScope>
+        </div>
+      </ThemeScope>
+      <ThemeScope tokens={{ density: "comfortable" }}>
+        <div data-testid="outer-comfortable">
+          <ThemeScope tokens={{ density: "compact" }}>
+            <Surface tier="instrument">
+              <Card data-testid="inner-compact">Compact below comfortable</Card>
+            </Surface>
+          </ThemeScope>
+        </div>
+      </ThemeScope>
+    </div>,
+  );
+  const intents = ["--spacing-field", "--spacing-row", "--spacing-block", "--spacing-section"] as const;
+  const read = (testId: string): Promise<readonly string[]> =>
+    density.getByTestId(testId).evaluate((node, names) => {
+      const style = getComputedStyle(node);
+      return names.map((name) => style.getPropertyValue(name).trim());
+    }, intents);
+
+  const [outerCompact, innerComfortable, outerComfortable, innerCompact] = await Promise.all([
+    read("outer-compact"),
+    read("inner-comfortable"),
+    read("outer-comfortable"),
+    read("inner-compact"),
+  ]);
+  expect(innerComfortable).toEqual(outerComfortable);
+  expect(innerCompact).toEqual(outerCompact);
+  expect(innerComfortable).not.toEqual(innerCompact);
+
+  const comfortableCard = density.getByTestId("inner-comfortable");
+  const compactCard = density.getByTestId("inner-compact");
+  expect(await computedPx(comfortableCard, "paddingTop")).toBe(await resolveInheritedToken(comfortableCard, "--spacing-row"));
+  expect(await computedPx(compactCard, "paddingTop")).toBe(await resolveInheritedToken(compactCard, "--spacing-row"));
 });
 
 test("VOICE: each of the four voices resolves its own type step, and BEATS the size default it overrides", async ({ mount }) => {

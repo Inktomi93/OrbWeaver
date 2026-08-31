@@ -74,9 +74,9 @@ function SizingFormBody({ sectionId }: { readonly sectionId: string }): ReactEle
 }
 
 /** The density LIVE mini-preview (#866 §7.8): three mock rows inside a box carrying `data-density` off
- *  the DRAFT value — shell.css's bare-attribute density rule re-scopes the spacing tokens for this
- *  subtree exactly as it does for the shell grid, so the gaps/padding here ARE the definition, never a
- *  copy. Ornament (`aria-hidden`): the segment above is the control; this is what the pick looks like. */
+ *  the DRAFT value — tiers.css's symmetric density map re-scopes the spacing tokens for this subtree
+ *  exactly as it does for the shell carrier, so the gaps/padding here ARE the definition, never a copy.
+ *  Ornament (`aria-hidden`): the segment above is the control; this is what the pick looks like. */
 function DensityPreview({ draft }: { readonly draft: SizingForm["density"] }): ReactElement {
   return (
     <Stack
@@ -125,7 +125,7 @@ function SizingBody({ sectionId, session }: { readonly sectionId: string; readon
           {/* SEEN, NOT READ (#866 §7.8, owner-acked): density/elevation OUTCOMES are spatial, so the
               Selects became labelled SEGMENTS — every option visible at rest — and density carries the
               LIVE mini-preview reading the DRAFT value. The preview derives everything: its box wears
-              `data-density`, and shell.css's bare-attribute rule re-scopes the four spacing tokens (one
+              `data-density`, and tiers.css's symmetric map re-scopes the four spacing tokens (one
               definition, two consumers — never a mirrored number). */}
           <SettingRow settingId="density">
             <Stack className="min-w-0" gap="field">

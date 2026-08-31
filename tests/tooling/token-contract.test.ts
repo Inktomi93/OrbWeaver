@@ -1,6 +1,6 @@
 // The token VAULT contract: official DTCG 2025.10 schemas first, Orb semantic checks second. These
 // fixtures exercise the instrument in both directions; the real corpus assertion pins the shipped
-// 178-target surface and the deliberately bounded Hearth/Light/Mocha Resolver composition.
+// exact target surface and the deliberately bounded Hearth/Light/Mocha Resolver composition.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { TokenContractTexts } from "@orb/ui/token-contract";
@@ -143,11 +143,11 @@ test("the official schemas are hash-pinned and a complete conformant fixture pas
   expect(validateTokenContractTexts(validFixture()).diagnostics).toEqual([]);
 });
 
-test("the real vault is conformant and preserves the exact pre-migration 178-target surface", () => {
+test("the real vault is conformant and preserves the exact generated target surface", () => {
   const result = validateTokenContractTexts(readTokenContractTexts(UI_ROOT));
   expect(result.diagnostics).toEqual([]);
   expect(result.scannedTokens).toBe(278);
-  expect(result.cssTargets.size).toBe(178);
+  expect(result.cssTargets.size).toBe(187);
   expect(result.cssTargets).toEqual(BASELINE_TARGETS);
   expect(result.themes).toEqual([
     { id: "hearth", colorScheme: "dark", source: "base" },
@@ -260,6 +260,36 @@ describe("Orb semantic controls", () => {
     expect(validateTokenContractTexts(root).diagnostics).toEqual([]);
   });
 
+  test("runtime CSS may derive a concrete output only from a portable DTCG alias", () => {
+    const portable = mutate(validFixture(), "base", (base) => {
+      const css = (base["$extensions"] as Record<string, unknown>)["orb.cssValues"] as Record<string, Record<string, unknown>>;
+      const runtime = css["--shadow-runtime"];
+      if (runtime !== undefined) {
+        runtime["value"] = "{dimension.gap}";
+        runtime["placement"] = "root";
+      }
+    });
+    expect(validateTokenContractTexts(portable).diagnostics).toEqual([]);
+
+    const missing = mutate(portable, "base", (base) => {
+      const css = (base["$extensions"] as Record<string, unknown>)["orb.cssValues"] as Record<string, Record<string, unknown>>;
+      const runtime = css["--shadow-runtime"];
+      if (runtime !== undefined) {
+        runtime["value"] = "{dimension.missing}";
+      }
+    });
+    expect(codes(missing)).toContain("orb.cssValues.alias.missing");
+
+    const inputOnly = mutate(portable, "base", (base) => {
+      const css = (base["$extensions"] as Record<string, unknown>)["orb.cssValues"] as Record<string, Record<string, unknown>>;
+      const runtime = css["--shadow-runtime"];
+      if (runtime !== undefined) {
+        runtime["value"] = "{dimension.runtime-blur}";
+      }
+    });
+    expect(codes(inputOnly)).toContain("orb.cssValues.alias.nonportable");
+  });
+
   test("the Git merge-base ratchet refuses a portable token deletion without a removed-ledger row", () => {
     const current = readTokenContractTexts(UI_ROOT);
     const deleted = mutate(current, "base", (base) => {
@@ -282,7 +312,7 @@ describe("Orb semantic controls", () => {
       cssValues["--aspect-portrait-renamed"] = portrait;
     });
     const result = validateTokenContractTexts(swapped, REPO_ROOT);
-    expect(result.cssTargets.size).toBe(178);
+    expect(result.cssTargets.size).toBe(187);
     expect(result.diagnostics.map((item) => item.code)).toContain("removed.target.unrecorded");
 
     const avatar = readFileSync(join(UI_ROOT, "src/primitives/avatar/variants.ts"), "utf8");

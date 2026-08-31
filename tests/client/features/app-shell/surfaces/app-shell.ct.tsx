@@ -1026,6 +1026,58 @@ for (const density of ["comfortable", "compact"] as const) {
   });
 }
 
+const DENSITY_THEME_ID = mintTypeId(ID_PREFIX.theme);
+const DENSITY_THEME_CASES = [
+  { name: "Light seed", isSeed: true, expectedDensity: "comfortable", themeDensity: "compact", outerDensity: "compact" },
+  { name: "custom", isSeed: false, expectedDensity: "compact", themeDensity: "compact", outerDensity: "comfortable" },
+] as const;
+
+for (const densityCase of DENSITY_THEME_CASES) {
+  test(`#938 ${densityCase.name}: resolved density wins symmetrically in the shell and its portal root`, async ({ mount, page }) => {
+    await routeTrpc(page, {
+      ...SHELL_AMBIENT_ROUTES,
+      "character.list": [],
+      "settings.getUserSettings": () => ({
+        userId: `user_ct_shell_density_${densityCase.isSeed ? "seed" : "custom"}`,
+        schemaVersion: 1,
+        config: {
+          ...DEFAULT_USER_SETTINGS,
+          appearance: { ...DEFAULT_USER_SETTINGS.appearance, density: "comfortable" },
+          theme: { ...DEFAULT_USER_SETTINGS.theme, selectedThemeId: DENSITY_THEME_ID },
+        },
+        updatedAt: 0,
+      }),
+      "settings.getTheme": {
+        id: DENSITY_THEME_ID,
+        name: densityCase.isSeed ? "Light" : "Custom",
+        override: { density: densityCase.themeDensity },
+        css: null,
+        isSeed: densityCase.isSeed,
+        createdAt: 0,
+        updatedAt: 0,
+      },
+    });
+    const shell = await mount(<AppShellStory />, { hooksConfig: { theme: { density: densityCase.outerDensity } } });
+    const themeScope = page.locator('[data-slot="theme-scope"]:has(.shell-grid)').last();
+    await expect(themeScope).toHaveAttribute("data-density", densityCase.expectedDensity);
+
+    await shell.getByRole("button", { name: "open new chat" }).click();
+    const popup = page.locator('[data-slot="dialog-popup"]');
+    await expect(popup).toBeVisible();
+    const canonical = await page.evaluate((density) => {
+      const probe = document.createElement("div");
+      probe.setAttribute("data-density", density);
+      document.body.append(probe);
+      const style = getComputedStyle(probe);
+      const values = ["--spacing-field", "--spacing-row", "--spacing-block", "--spacing-section"].map((name) => style.getPropertyValue(name).trim());
+      probe.remove();
+      return values;
+    }, densityCase.expectedDensity);
+    await expect.poll(() => densitySpacingIntents(popup)).toEqual(canonical);
+    await expect(page.locator('[data-slot="portal-root"] [data-slot="dialog-popup"]')).toHaveCount(1);
+  });
+}
+
 // ── MOBILE (L6/J12 · D62 P3) — the bottom-tab-bar reflow ─────────────────────────────────────────
 
 test("landmark uniqueness: exactly ONE main, distinct complementary labels, one nav", async ({ mount, page }) => {
