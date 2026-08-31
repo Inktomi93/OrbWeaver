@@ -92,7 +92,14 @@ export function CharacterFacetRow({ facet, selected, filled, preview, fillSummar
         <Text as="span" aria-hidden={true} size="body" weight="medium" className="shrink-0">
           {facet.label}
         </Text>
-        <Text as="span" aria-hidden={showsPreview ? true : undefined} id={previewId} voice="gloss" className="truncate">
+        {/* SENTENCE-LENGTH GLOSS INSIDE A BUTTON TAKES `prose` (#892, the readable-floor debt cb-bracket-fix
+            surfaced closing #875 F6). `gloss` alone is the instrument-tier MICRO step (10.5px) — under the
+            11px readable floor for text inside a clickable control, and both arms of this line qualify:
+            the empty-row `facet.subtitle` ("Injected after history, just before the reply.") is a sentence,
+            not a caption, so `interactiveKicker` (caps + tracked) is the wrong register for it; `prose`
+            is the ratified lever for exactly this ("this text is sentences, not a label" — `variants.ts`),
+            lifting the step to `label` (13px) while `gloss` keeps the family/weight/tracking/color. */}
+        <Text as="span" aria-hidden={showsPreview ? true : undefined} id={previewId} voice="gloss" prose={true} className="truncate">
           {showsPreview ? preview : facet.subtitle}
         </Text>
       </Button>
