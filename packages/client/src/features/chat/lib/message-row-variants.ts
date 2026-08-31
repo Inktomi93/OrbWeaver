@@ -79,9 +79,8 @@ export interface BubbleDecorationArgs {
   readonly showInChatAvatars: boolean;
 }
 
-/** Extra className/style for the bubble box — merged onto the existing `skin.inner(role)` classes. */
+/** Extra inline paint for the bubble box, layered over the existing `skin.inner(role)` skin. */
 export interface BubbleDecoration {
-  readonly className?: string;
   readonly style?: CSSProperties;
   /** Whisper's header-art band, rendered as a real block-level child above the bubble text (never a
    *  background layer, which would let text sit on bright art). `initial` set only on the no-image fallback. */
@@ -177,15 +176,11 @@ const ECHO_PORTRAIT_REQUEST_WIDTH = 400;
 // and its stop is now the same art width — the art is fully dissolved exactly where the text may start.
 // The box is CONTENT + the art pane + the bubble's own inner inset on the text side (`px-block`, which
 // `box-sizing: border-box` counts inside a max-width) — so what survives for prose is exactly the floor.
-// The SAME arithmetic caps echo's content column (`ECHO_COLUMN_STYLE`): without that, the styles tier's
+// The SAME arithmetic caps echo's content column (`ECHO_MAX_WIDTH_STYLE`): without that, the styles tier's
 // prose-only measure fenced the bubble first and the art went back to eating the line.
-// The calc lives in globals.css (`.orb-echo-box` / `.orb-echo-track`) — unlayered author CSS, which both
-// outranks the layered utilities (the reason the column cap is inline-tier) AND keeps the width gate's
-// no-raw-widths rule honest (a `max-w-[calc…]` utility spelling is exactly what it bans). NOTE: CSS calc
-// requires spaces around `+` — the utility form only worked because Tailwind inserts them; the inline
-// no-space spelling was silently invalid.
-const ECHO_BOX = "orb-echo-box";
-const ECHO_COLUMN_STYLE: CSSProperties = { maxWidth: "calc(var(--reading-measure-min) + var(--immersive-echo-art-width) + var(--spacing-block))" };
+// The box and column share one inline CSSProperties value because they consume the same skin-owned
+// geometry. The track remains authored CSS: unlike these two component styles, it is a selector mechanism.
+const ECHO_MAX_WIDTH_STYLE: CSSProperties = { maxWidth: "calc(var(--reading-measure-min) + var(--immersive-echo-art-width) + var(--spacing-block))" };
 
 // ECHO'S TRACK IS THE SHARED TRACK PLUS ITS ART PANE. A max-width only ALLOWS width — the column is a flex
 // child, so what it can actually occupy is what the track hands the row. Inside the plain track the art
@@ -219,8 +214,7 @@ function echoDecoration(args: BubbleDecorationArgs): BubbleDecoration | null {
   const fade = `linear-gradient(to ${side === "left" ? "right" : "left"}, transparent, var(--color-ai-bubble) ${ECHO_ART_WIDTH})`;
   if (args.avatarHash === null) {
     return {
-      className: ECHO_BOX,
-      style: padding,
+      style: { ...ECHO_MAX_WIDTH_STYLE, ...padding },
       edgeTile: {
         initial: args.initial,
         side,
@@ -233,8 +227,8 @@ function echoDecoration(args: BubbleDecorationArgs): BubbleDecoration | null {
   }
   const portraitUrl = blobPortraitUrl(args.avatarHash, ECHO_PORTRAIT_REQUEST_WIDTH);
   return {
-    className: ECHO_BOX,
     style: {
+      ...ECHO_MAX_WIDTH_STYLE,
       ...padding,
       backgroundImage: `${fade}, url("${portraitUrl}")`,
       // The art layer is sized to the PANE (width, natural height) instead of `cover` over the whole
@@ -325,7 +319,7 @@ export const MESSAGE_ROW_SKINS: Record<ThemeChatStyle, RowSkin> = {
     avatarTreatment: iconLeftTreatment,
     bubbleDecoration: echoDecoration,
     bubbleLayout: "single",
-    columnStyle: ECHO_COLUMN_STYLE,
+    columnStyle: ECHO_MAX_WIDTH_STYLE,
     // DELIBERATE DIVERGENCE FROM ECHO'S OWN REFERENCE (skin-parity-2026-08-18.md:138 rates ST's
     // name-above-the-card as MINOR against ours). Echo is a FILLED container, so leaving its header
     // outside would keep exactly the two-object read #288 exists to kill; the owner's attachment ruling

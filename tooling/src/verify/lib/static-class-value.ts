@@ -42,6 +42,8 @@ export class StaticClassEvaluator implements CollectionHost {
   readonly jsxBindings: JsxBindingResolver;
 
   private readonly diagnosticKeys = new Set<string>();
+  private opaqueEvents = 0;
+  private unresolvedEvents = 0;
   private readonly sourceSet: ReadonlySet<SourceFile>;
   private readonly importDefinitionCache = new Map<string, readonly Node[]>();
 
@@ -58,6 +60,11 @@ export class StaticClassEvaluator implements CollectionHost {
   }
 
   diagnose = (kind: "unresolved" | "opaque", node: Node, reason: string): void => {
+    if (kind === "opaque") {
+      this.opaqueEvents += 1;
+    } else {
+      this.unresolvedEvents += 1;
+    }
     const key = `${kind}|${node.getSourceFile().getFilePath()}:${node.getStart()}:${reason}`;
     if (this.diagnosticKeys.has(key)) {
       return;
@@ -172,7 +179,9 @@ export class StaticClassEvaluator implements CollectionHost {
     }
     const receiver = expression.getExpression();
     const type = receiver.getType();
-    if (!(type.isString() || type.isStringLiteral())) {
+    const stringReceiver =
+      type.isString() || type.isStringLiteral() || (type.isUnion() && type.getUnionTypes().every((member) => member.isString() || member.isStringLiteral()));
+    if (!stringReceiver) {
       return;
     }
     const prefixStart = this.runtimePrefixes.length;
@@ -209,22 +218,22 @@ export class StaticClassEvaluator implements CollectionHost {
   }
 
   private templateSubstitutions(expression: Node, path: Set<Node>, prefixes: readonly StaticValue[]): StaticValue[] {
-    const beforeOpaque = this.opaque.length;
-    const beforeUnresolved = this.unresolved.length;
+    const beforeOpaque = this.opaqueEvents;
+    const beforeUnresolved = this.unresolvedEvents;
     const substitutions = this.evalClass(expression, path);
     if (substitutions.length > 0) {
-      if (this.opaque.length > beforeOpaque) {
+      if (this.opaqueEvents > beforeOpaque) {
         for (const prefix of prefixes) {
           this.addRuntimePrefix(prefix);
         }
       }
       return substitutions;
     }
-    if (this.opaque.length > beforeOpaque) {
+    if (this.opaqueEvents > beforeOpaque) {
       for (const prefix of prefixes) {
         this.addRuntimePrefix(prefix);
       }
-    } else if (this.unresolved.length === beforeUnresolved) {
+    } else if (this.unresolvedEvents === beforeUnresolved) {
       this.diagnose("opaque", expression, "runtime template substitution");
       for (const prefix of prefixes) {
         this.addRuntimePrefix(prefix);
