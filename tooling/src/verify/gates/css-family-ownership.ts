@@ -7,7 +7,7 @@
 // property-keyword classifier: either would let an author bless the wrong rule with the right word.
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import type { SourceFile } from "ts-morph";
+import type { Symbol as MorphSymbol, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { Finding, GateDescriptor, GateRunCtx } from "../contract/gate.ts";
 import { unwrapExpression } from "../lib/ast-read.ts";
@@ -69,9 +69,10 @@ const SOURCE_OWNERS = [
   { prefix: "packages/ui/src/", owner: "ui" },
   { prefix: "packages/client/src/", owner: "client" },
 ] as const;
-const CLASS_COMPOSERS = new Set(["cn", "cx", "clsx", "cva", "tv", "twMerge", "twJoin"]);
 const CLASS_LIST_MUTATORS = new Set(["add", "remove", "toggle", "replace"]);
 const CLASS_PROPERTIES = new Set(["class", "className"]);
+const CLASS_NAME_ASSIGNMENT_OPERATORS = new Set(["=", "+=", "&&=", "||=", "??="]);
+const CLASS_PRODUCER_MODULE = "/packages/ui/src/lib/class-merge.ts";
 const EXPECTED_DECLARATION_CENSUS: Readonly<Record<ProductStylesheet, number>> = {
   [THEME]: 275,
   [UI_GLOBALS]: 187,
@@ -218,13 +219,6 @@ function recordClassTokens(map: Map<string, HookOwners>, text: string, owner: "u
   }
 }
 
-function calleeTail(node: Node): string | undefined {
-  if (!Node.isCallExpression(node)) {
-    return;
-  }
-  return node.getExpression().getText().split(".").at(-1);
-}
-
 function resolveExportedVariable(sf: SourceFile, name: string, seen: Set<string>): Node | undefined {
   const key = `${sf.getFilePath()}:${name}`;
   if (seen.has(key)) {
@@ -272,6 +266,119 @@ function resolveName(sf: SourceFile, name: string): Node | undefined {
     }
   }
   return local;
+}
+
+type ClassProducer = "cn" | "tv";
+
+function normalizedSourcePath(node: Node): string {
+  return node.getSourceFile().getFilePath().replaceAll("\\", "/");
+}
+
+function declaredName(node: Node): string | undefined {
+  return Node.isFunctionDeclaration(node) || Node.isVariableDeclaration(node) ? node.getName() : undefined;
+}
+
+function canonicalProducer(node: Node): ClassProducer | undefined {
+  if (!normalizedSourcePath(node).endsWith(CLASS_PRODUCER_MODULE)) {
+    return;
+  }
+  const name = declaredName(node);
+  return name === "cn" || name === "tv" ? name : undefined;
+}
+
+function producerFromForwardedValue(candidate: Node, seen: Set<string>): ClassProducer | undefined {
+  const node = unwrapExpression(candidate);
+  const fromCall = Node.isCallExpression(node) ? producerForExpression(node.getExpression(), seen) : undefined;
+  const operator = Node.isBinaryExpression(node) ? node.getOperatorToken().getText() : undefined;
+  const fromFallback =
+    Node.isBinaryExpression(node) && (operator === "??" || operator === "||")
+      ? (producerFromForwardedValue(node.getLeft(), seen) ?? producerFromForwardedValue(node.getRight(), seen))
+      : undefined;
+  return fromCall ?? fromFallback;
+}
+
+function producerFromForwarder(node: Node | undefined, seen: Set<string>): ClassProducer | undefined {
+  if (!Node.isArrowFunction(node)) {
+    return;
+  }
+  const body = node.getBody();
+  return Node.isBlock(body) ? undefined : producerFromForwardedValue(body, seen);
+}
+
+function symbolKey(symbol: MorphSymbol): string {
+  const declarations = symbol.getDeclarations();
+  return `${symbol.getName()}:${declarations.map((node) => `${normalizedSourcePath(node)}:${node.getStart()}`).join("|")}`;
+}
+
+function producerFromDeclaration(node: Node, seen: Set<string>): ClassProducer | undefined {
+  const direct = canonicalProducer(node);
+  const initializer = Node.isVariableDeclaration(node) ? node.getInitializer() : undefined;
+  const fromVariable = initializer === undefined ? undefined : (producerForExpression(initializer, seen) ?? producerFromForwarder(initializer, seen));
+  const fromExport = Node.isExportSpecifier(node)
+    ? node
+        .getLocalTargetDeclarations()
+        .map((target) => producerFromDeclaration(target, seen))
+        .find((producer) => producer !== undefined)
+    : undefined;
+  return direct ?? fromVariable ?? fromExport;
+}
+
+function producerFromSymbol(symbol: MorphSymbol | undefined, seen: Set<string>): ClassProducer | undefined {
+  if (symbol === undefined) {
+    return;
+  }
+  const key = symbolKey(symbol);
+  if (seen.has(key)) {
+    return;
+  }
+  seen.add(key);
+  const aliased = symbol.getAliasedSymbol();
+  const fromAlias = aliased === undefined ? undefined : producerFromSymbol(aliased, seen);
+  return (
+    fromAlias ??
+    symbol
+      .getDeclarations()
+      .map((declaration) => producerFromDeclaration(declaration, seen))
+      .find((producer) => producer !== undefined)
+  );
+}
+
+function producerFromIdentifier(node: Node, seen: Set<string>): ClassProducer | undefined {
+  if (!Node.isIdentifier(node)) {
+    return;
+  }
+  const bySymbol = producerFromSymbol(node.getSymbol(), seen);
+  if (bySymbol !== undefined) {
+    return bySymbol;
+  }
+  return node
+    .getDefinitionNodes()
+    .map((definition) => producerFromDeclaration(definition, seen))
+    .find((producer) => producer !== undefined);
+}
+
+function producerFromPropertyAccess(node: Node, seen: Set<string>): ClassProducer | undefined {
+  return Node.isPropertyAccessExpression(node) ? producerFromSymbol(node.getNameNode().getSymbol() ?? node.getSymbol(), seen) : undefined;
+}
+
+function producerFromElementAccess(node: Node, seen: Set<string>): ClassProducer | undefined {
+  if (!Node.isElementAccessExpression(node)) {
+    return;
+  }
+  const candidateArgument = node.getArgumentExpression();
+  if (candidateArgument === undefined) {
+    return;
+  }
+  const argument = unwrapExpression(candidateArgument);
+  if (!(Node.isStringLiteral(argument) || Node.isNoSubstitutionTemplateLiteral(argument))) {
+    return;
+  }
+  return producerFromSymbol(argument.getSymbol() ?? node.getExpression().getType().getProperty(argument.getLiteralText()), seen);
+}
+
+function producerForExpression(candidate: Node, seen = new Set<string>()): ClassProducer | undefined {
+  const node = unwrapExpression(candidate);
+  return producerFromIdentifier(node, seen) ?? producerFromPropertyAccess(node, seen) ?? producerFromElementAccess(node, seen);
 }
 
 function ownersForNode(node: Node, inherited: ReadonlySet<"ui" | "client">): ReadonlySet<"ui" | "client"> {
@@ -396,8 +503,11 @@ function collectClassValue(candidate: Node, context: ClassValueContext, objectKe
   ) {
     return;
   }
-  if (Node.isCallExpression(node) && CLASS_COMPOSERS.has(calleeTail(node) ?? "")) {
-    collectComposerCall(node, context);
+  if (Node.isCallExpression(node)) {
+    const producer = producerForExpression(node.getExpression());
+    if (producer !== undefined) {
+      collectComposerCall(node, producer, context);
+    }
   }
 }
 
@@ -482,24 +592,12 @@ function collectVariantConfig(config: Node, context: ClassValueContext): void {
   collectCompoundVariantGroups(object, context);
 }
 
-function collectComposerCall(call: Node, context: ClassValueContext): void {
+function collectComposerCall(call: Node, producer: ClassProducer, context: ClassValueContext): void {
   if (!Node.isCallExpression(call)) {
     return;
   }
-  const callee = calleeTail(call) ?? "";
-  if (callee === "tv") {
+  if (producer === "tv") {
     const config = call.getArguments()[0];
-    if (config !== undefined) {
-      collectVariantConfig(config, context);
-    }
-    return;
-  }
-  if (callee === "cva") {
-    const base = call.getArguments()[0];
-    const config = call.getArguments()[1];
-    if (base !== undefined) {
-      collectClassValue(base, context);
-    }
     if (config !== undefined) {
       collectVariantConfig(config, context);
     }
@@ -578,21 +676,48 @@ function collectDataSlotAttribute(map: Map<string, HookOwners>, attribute: Node,
   }
 }
 
+function accessedPropertyName(node: Node): string | undefined {
+  if (Node.isPropertyAccessExpression(node)) {
+    return node.getName();
+  }
+  if (!Node.isElementAccessExpression(node)) {
+    return;
+  }
+  const candidateArgument = node.getArgumentExpression();
+  if (candidateArgument === undefined) {
+    return;
+  }
+  const argument = unwrapExpression(candidateArgument);
+  return Node.isStringLiteral(argument) || Node.isNoSubstitutionTemplateLiteral(argument) ? argument.getLiteralText() : undefined;
+}
+
+function accessReceiver(node: Node): Node | undefined {
+  return Node.isPropertyAccessExpression(node) || Node.isElementAccessExpression(node) ? node.getExpression() : undefined;
+}
+
 function collectClassMutation(map: Map<string, HookOwners>, call: Node, owner: "ui" | "client"): void {
   if (!Node.isCallExpression(call)) {
     return;
   }
   const expression = call.getExpression();
-  if (!Node.isPropertyAccessExpression(expression)) {
-    return;
-  }
-  const receiver = expression.getExpression();
-  if (!(CLASS_LIST_MUTATORS.has(expression.getName()) && Node.isPropertyAccessExpression(receiver) && receiver.getName() === "classList")) {
+  const receiver = accessReceiver(expression);
+  if (receiver === undefined || !CLASS_LIST_MUTATORS.has(accessedPropertyName(expression) ?? "") || accessedPropertyName(receiver) !== "classList") {
     return;
   }
   for (const argument of call.getArguments()) {
     collectClassValue(argument, { map, owners: new Set([owner]), seen: new Set() });
   }
+}
+
+function collectClassAssignment(map: Map<string, HookOwners>, binary: Node, owner: "ui" | "client"): void {
+  if (
+    !Node.isBinaryExpression(binary) ||
+    accessedPropertyName(unwrapExpression(binary.getLeft())) !== "className" ||
+    !CLASS_NAME_ASSIGNMENT_OPERATORS.has(binary.getOperatorToken().getText())
+  ) {
+    return;
+  }
+  collectClassValue(binary.getRight(), { map, owners: new Set([owner]), seen: new Set() });
 }
 
 /** Producer direction from actual class-bearing syntax only: class/className attributes, the repo's class
@@ -618,10 +743,17 @@ function collectHookProperties(owners: Map<string, HookOwners>, sf: SourceFile, 
 
 function collectHookCalls(owners: Map<string, HookOwners>, sf: SourceFile, owner: "ui" | "client"): void {
   for (const call of sf.getDescendantsOfKind(SyntaxKind.CallExpression)) {
-    if (CLASS_COMPOSERS.has(calleeTail(call) ?? "")) {
-      collectClassValue(call, { map: owners, owners: new Set([owner]), seen: new Set() });
+    const producer = producerForExpression(call.getExpression());
+    if (producer !== undefined) {
+      collectComposerCall(call, producer, { map: owners, owners: new Set([owner]), seen: new Set() });
     }
     collectClassMutation(owners, call, owner);
+  }
+}
+
+function collectHookAssignments(owners: Map<string, HookOwners>, sf: SourceFile, owner: "ui" | "client"): void {
+  for (const binary of sf.getDescendantsOfKind(SyntaxKind.BinaryExpression)) {
+    collectClassAssignment(owners, binary, owner);
   }
 }
 
@@ -635,6 +767,7 @@ function collectHookOwners(ctx: GateRunCtx): ReadonlyMap<string, HookOwners> {
     collectHookAttributes(owners, sf, owner);
     collectHookProperties(owners, sf, owner);
     collectHookCalls(owners, sf, owner);
+    collectHookAssignments(owners, sf, owner);
   }
   return owners;
 }
@@ -732,6 +865,14 @@ function isKeyframeStep(selector: string): boolean {
   return KEYFRAME_STEP_RE.test(selector);
 }
 
+function isEscaped(text: string, index: number): boolean {
+  let slashes = 0;
+  for (let cursor = index - 1; cursor >= 0 && text[cursor] === "\\"; cursor -= 1) {
+    slashes += 1;
+  }
+  return slashes % 2 === 1;
+}
+
 interface SelectorFunction {
   readonly name: string;
   readonly argumentsText: string;
@@ -739,24 +880,15 @@ interface SelectorFunction {
   readonly close: number;
 }
 
-function matchingParen(text: string, open: number): number {
-  let depth = 0;
-  let quote = "";
+function matchingSelectorClose(text: string, open: number, close: ")" | "]"): number {
+  let state: SelectorLexState = { depth: 0, bracketDepth: 0, quote: "" };
   for (let index = open + 1; index < text.length; index += 1) {
     const char = text[index] ?? "";
-    const beforeQuote = quote;
-    quote = nextQuote(quote, char, text[index - 1] === "\\");
-    if (beforeQuote !== "" || quote !== "") {
-      continue;
+    const step = selectorLexStep(state, char, isEscaped(text, index));
+    if (step.atTopLevel && char === close) {
+      return index;
     }
-    if (char === "(") {
-      depth += 1;
-    } else if (char === ")") {
-      if (depth === 0) {
-        return index;
-      }
-      depth -= 1;
-    }
+    state = step.next;
   }
   return -1;
 }
@@ -792,29 +924,70 @@ function selectorLexStep(state: SelectorLexState, char: string, escaped: boolean
   return { next: { depth, bracketDepth, quote }, atTopLevel };
 }
 
-function isSelectorCombinator(char: string): boolean {
-  return char === ">" || char === "+" || char === "~" || char === "|" || /\s/u.test(char);
+type SelectorCombinator = "descendant" | "child" | "sibling";
+
+interface SelectorChain {
+  readonly compounds: readonly string[];
+  readonly combinators: readonly SelectorCombinator[];
 }
 
-function rootCompound(selector: string): { readonly compound: string; readonly hasSiblingCombinator: boolean } {
+interface SelectorBoundary {
+  readonly combinator: SelectorCombinator;
+  readonly width: number;
+}
+
+function selectorBoundary(selector: string, index: number): SelectorBoundary | undefined {
+  const char = selector[index] ?? "";
+  if (/\s/u.test(char)) {
+    return { combinator: "descendant", width: 1 };
+  }
+  if (char === ">") {
+    return { combinator: "child", width: 1 };
+  }
+  if (char === "+" || char === "~") {
+    return { combinator: "sibling", width: 1 };
+  }
+  return char === "|" && selector[index + 1] === "|" ? { combinator: "sibling", width: 2 } : undefined;
+}
+
+function selectorChain(selector: string): SelectorChain {
+  const compounds: string[] = [];
+  const combinators: SelectorCombinator[] = [];
   let state: SelectorLexState = { depth: 0, bracketDepth: 0, quote: "" };
-  let end = selector.length;
-  let hasSiblingCombinator = false;
+  let current = "";
+  let pending: SelectorCombinator | undefined;
+
+  function pushCurrent(): void {
+    const compound = current.trim();
+    current = "";
+    if (compound === "") {
+      return;
+    }
+    if (compounds.length > 0) {
+      combinators.push(pending ?? "descendant");
+    }
+    compounds.push(compound);
+    pending = undefined;
+  }
+
   for (let index = 0; index < selector.length; index += 1) {
     const char = selector[index] ?? "";
-    const step = selectorLexStep(state, char, selector[index - 1] === "\\");
+    const escaped = isEscaped(selector, index);
+    const step = selectorLexStep(state, char, escaped);
     state = step.next;
-    if (!step.atTopLevel) {
+    const boundary = step.atTopLevel && !escaped ? selectorBoundary(selector, index) : undefined;
+    if (boundary === undefined) {
+      current += char;
       continue;
     }
-    if (char === "+" || char === "~" || char === "|") {
-      hasSiblingCombinator = true;
+    pushCurrent();
+    if (boundary.combinator !== "descendant" || pending === undefined) {
+      pending = boundary.combinator;
     }
-    if (end === selector.length && isSelectorCombinator(char)) {
-      end = index;
-    }
+    index += boundary.width - 1;
   }
-  return { compound: selector.slice(0, end), hasSiblingCombinator };
+  pushCurrent();
+  return { compounds, combinators };
 }
 
 function selectorFunctionAt(compound: string, index: number): SelectorFunction | undefined {
@@ -823,48 +996,62 @@ function selectorFunctionAt(compound: string, index: number): SelectorFunction |
     return;
   }
   const open = index + name.length + 1;
-  const close = matchingParen(compound, open);
+  const close = matchingSelectorClose(compound, open, ")");
   return close === -1 ? undefined : { name, argumentsText: compound.slice(open + 1, close), open, close };
 }
 
-function selectorFunctions(compound: string): readonly SelectorFunction[] {
-  const out: SelectorFunction[] = [];
-  let state: SelectorLexState = { depth: 0, bracketDepth: 0, quote: "" };
-  for (let index = 0; index < compound.length; index += 1) {
-    const char = compound[index] ?? "";
-    const step = selectorLexStep(state, char, compound[index - 1] === "\\");
-    state = step.next;
-    if (!(step.atTopLevel && char === ":")) {
-      continue;
-    }
-    const fn = selectorFunctionAt(compound, index);
-    if (fn === undefined) {
-      continue;
-    }
-    out.push(fn);
-    index = fn.close;
-  }
-  return out;
+function matchingBracket(text: string, open: number): number {
+  return matchingSelectorClose(text, open, "]");
 }
 
-function blankFunctionArguments(compound: string): string {
-  const chars = [...compound];
-  for (const fn of selectorFunctions(compound)) {
-    for (let index = fn.open + 1; index < fn.close; index += 1) {
-      chars[index] = " ";
-    }
+function attributeName(compound: string, open: number, close: number): string | undefined {
+  return /^\s*([_a-zA-Z][\w-]*)/u.exec(compound.slice(open + 1, close))?.[1];
+}
+
+interface ShellCompoundToken {
+  readonly close: number;
+  readonly rooted: boolean;
+}
+
+function shellAttributeAt(compound: string, index: number): ShellCompoundToken | undefined {
+  if (compound[index] !== "[") {
+    return;
   }
-  return chars.join("");
+  const close = matchingBracket(compound, index);
+  return { close, rooted: close !== -1 && attributeName(compound, index, close)?.startsWith("data-shell-") === true };
+}
+
+function shellFunctionAt(compound: string, index: number): ShellCompoundToken | undefined {
+  if (compound[index] !== ":") {
+    return;
+  }
+  const fn = selectorFunctionAt(compound, index);
+  if (fn === undefined) {
+    return;
+  }
+  const branches = splitSelectorList(fn.argumentsText);
+  const rooted = (fn.name === "is" || fn.name === "where") && branches.length > 0 && branches.every((branch) => isShellSelector(branch));
+  return { close: fn.close, rooted };
+}
+
+function shellClassAt(compound: string, index: number): boolean {
+  return compound[index] === "." && /^\.shell-[\w-]+/u.test(compound.slice(index));
 }
 
 function compoundHasShellRoot(compound: string): boolean {
-  const direct = blankFunctionArguments(compound);
-  if (/\.shell-[\w-]*/u.test(direct) || /\[data-shell-[\w-]*/u.test(direct)) {
-    return true;
-  }
-  for (const fn of selectorFunctions(compound)) {
-    const branches = splitSelectorList(fn.argumentsText);
-    if ((fn.name === "is" || fn.name === "where") && branches.length > 0 && branches.every((branch) => isShellSelector(branch))) {
+  for (let index = 0; index < compound.length; index += 1) {
+    if (isEscaped(compound, index)) {
+      continue;
+    }
+    const token = shellAttributeAt(compound, index) ?? shellFunctionAt(compound, index);
+    if (token !== undefined) {
+      if (token.rooted) {
+        return true;
+      }
+      index = token.close === -1 ? compound.length : token.close;
+      continue;
+    }
+    if (shellClassAt(compound, index)) {
       return true;
     }
   }
@@ -876,11 +1063,20 @@ function isShellSelector(selector: string): boolean {
   if (isKeyframeStep(text) || text === ":root") {
     return true;
   }
-  const root = rootCompound(text);
+  const chain = selectorChain(text);
   if (text.startsWith("::view-transition-")) {
-    return !root.hasSiblingCombinator && root.compound === text;
+    return chain.compounds.length === 1 && chain.compounds[0] === text;
   }
-  return !root.hasSiblingCombinator && compoundHasShellRoot(root.compound);
+  for (let index = chain.compounds.length - 1; index >= 0; index -= 1) {
+    const compound = chain.compounds[index];
+    if (compound !== undefined && compoundHasShellRoot(compound)) {
+      return true;
+    }
+    if (index > 0 && chain.combinators[index - 1] === "sibling") {
+      return false;
+    }
+  }
+  return false;
 }
 
 function actualLayerOffsets(raw: string): readonly number[] {
@@ -1317,6 +1513,21 @@ export const gate: GateDescriptor = {
       why: "a negated shell class cannot launder one selector-list arm through a valid sibling arm",
     },
     {
+      files: { [SHELL]: '[data-probe=".shell-grid"] .button { padding: 1rem; }\n' },
+      expect: { count: 1, token: '[data-probe=".shell-grid"] .button' },
+      why: "attribute value text that looks like a shell class is not a shell subject or ancestor",
+    },
+    {
+      files: { [SHELL]: ':is([data-probe=".shell-grid"], .shell-panel) .button { padding: 1rem; }\n' },
+      expect: { count: 1, token: ':is([data-probe=".shell-grid"], .shell-panel) .button' },
+      why: "an attribute value cannot counterfeit the shell ancestry of one :is() branch",
+    },
+    {
+      files: { [SHELL]: ':where([data-probe=".shell-grid"]) .button { padding: 1rem; }\n' },
+      expect: { count: 1, token: ':where([data-probe=".shell-grid"]) .button' },
+      why: "an attribute value cannot counterfeit shell ancestry inside :where()",
+    },
+    {
       files: censusControlFiles({ themeDirect: 179, themeRules: 96, ui: 188, tiers: 45, client: 111, shell: 335 }),
       expect: { count: 2, token: "census:ui-globals" },
       why: "adding one otherwise legal declaration makes both the UI-home and total ratchets stale",
@@ -1340,10 +1551,54 @@ export const gate: GateDescriptor = {
       files: {
         [UI_GLOBALS]: ".client-progress { overflow: hidden; }\n",
         "packages/ui/src/content/copy.ts": 'export const copy = "client-progress";\n',
-        "packages/client/src/features/probe.ts": 'export const classes = cn("client-progress");\n',
+        "packages/ui/src/lib/class-merge.ts": 'export function cn(...values: unknown[]): string { return String(values[0] ?? ""); }\n',
+        "packages/client/src/features/probe.ts": 'import { cn } from "../../../ui/src/lib/class-merge.ts";\nexport const classes = cn("client-progress");\n',
       },
       expect: { count: 1, token: "class:client-progress" },
       why: "an inert UI prose string cannot launder a class produced only by a real client class-composer call",
+    },
+    {
+      files: {
+        [UI_GLOBALS]: ".client-helper-class { overflow: hidden; }\n",
+        "packages/ui/src/helpers/probe.ts":
+          'const helper = { cn: (...values: string[]) => values.join(" ") };\nexport const classes = helper.cn("client-helper-class");\n',
+        "packages/client/src/features/probe.tsx": 'export const probe = <div className="client-helper-class" />;\n',
+      },
+      expect: { count: 1, token: "class:client-helper-class" },
+      why: "an unrelated helper.cn call is not provenance for an @orb/ui class producer",
+    },
+    {
+      files: {
+        [UI_GLOBALS]: ".client-direct-name { overflow: hidden; }\n",
+        "packages/client/src/features/probe.ts": 'declare const element: HTMLElement;\nelement.className = "client-direct-name";\n',
+      },
+      expect: { count: 1, token: "class:client-direct-name" },
+      why: "direct className assignment is a live client class producer",
+    },
+    {
+      files: {
+        [UI_GLOBALS]: ".client-computed-name { overflow: hidden; }\n",
+        "packages/client/src/features/probe.ts": 'declare const element: HTMLElement;\nelement["className"] = "client-computed-name";\n',
+      },
+      expect: { count: 1, token: "class:client-computed-name" },
+      why: "computed className assignment is a live client class producer",
+    },
+    {
+      files: {
+        [UI_GLOBALS]: ".client-bracket-add { overflow: hidden; }\n",
+        "packages/client/src/features/probe.ts": 'declare const element: HTMLElement;\nelement.classList["add"]("client-bracket-add");\n',
+      },
+      expect: { count: 1, token: "class:client-bracket-add" },
+      why: "bracketed DOMTokenList mutation is a live client class producer",
+    },
+    {
+      files: {
+        [UI_GLOBALS]: ".client-optional-toggle { overflow: hidden; }\n",
+        "packages/client/src/features/probe.ts":
+          'declare const element: HTMLElement | undefined;\nelement?.["classList"]?.["toggle"]?.("client-optional-toggle");\n',
+      },
+      expect: { count: 1, token: "class:client-optional-toggle" },
+      why: "optional computed DOMTokenList mutation is a live client class producer",
     },
     {
       files: { [SHELL]: ":root { color-scheme: dark; }\n" },
@@ -1406,6 +1661,26 @@ export const gate: GateDescriptor = {
           '.shell-grid:where([data-elevation="ramp"]) .button { color: inherit; }\n',
       },
       why: "shell subjects and ancestors remain valid through child/descendant combinators and all-shell :is() alternatives",
+    },
+    {
+      files: {
+        [UI_GLOBALS]:
+          ".shared-cn { overflow: hidden; }\n.shared-tv { display: block; }\n.shared-namespace-cn { opacity: 1; }\n.shared-wrapper { visibility: visible; }\n",
+        "packages/ui/src/lib/class-merge.ts":
+          'export function cn(...values: unknown[]): string { return String(values[0] ?? ""); }\n' +
+          "export const tv = (config: unknown): unknown => config;\n",
+        "packages/ui/src/lib/index.ts": 'export { cn as mergeClasses, tv as defineVariant } from "./class-merge.ts";\n',
+        "packages/ui/src/components/probe.ts":
+          'import { defineVariant, mergeClasses } from "../lib/index.ts";\n' +
+          'import * as styles from "../lib/index.ts";\n' +
+          'export const sharedClass = mergeClasses("shared-cn");\n' +
+          'export const sharedVariant = defineVariant({ base: "shared-tv" });\n' +
+          'export const sharedNamespace = styles["mergeClasses"]("shared-namespace-cn");\n' +
+          "const wrapped = (...values: unknown[]): string => mergeClasses(...values);\n" +
+          'export const sharedWrapper = wrapped("shared-wrapper");\n',
+        "packages/client/src/features/probe.tsx": 'export const probe = <div className="shared-cn shared-tv shared-namespace-cn shared-wrapper" />;\n',
+      },
+      why: "canonical @orb/ui cn/tv producers remain UI-owned through a barrel, named aliases, namespace-computed access, and a forwarding wrapper",
     },
     {
       files: censusControlFiles({ themeDirect: 179, themeRules: 96, ui: 187, tiers: 45, client: 111, shell: 335 }),
