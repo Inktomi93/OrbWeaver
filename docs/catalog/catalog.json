@@ -210,7 +210,7 @@
         "fullRead": true,
         "verifiedSha256": "933bcb3fa6a6909012820cf7c91b618df570410f9cd45989d9591af4e3c3dc34",
         "verifiedCommit": "bbecbfc78be417b6aab44609d3d4f0d484d8c87b",
-        "verifiedAt": "2026-08-30",
+        "verifiedAt": "2026-08-31",
         "evidence": [
           "re-attested at bbecbfc78 — full-file read under #930; the added constitution line is a pointer to the path-closed six-home paint law and introduces no second wording",
           "docs/architecture/core/AGENTS.md:1-352 full read; Project, recovery, proposed-program, lane authority, and direct Claude-rule import routing reconciled",
@@ -663,7 +663,7 @@
         "fullRead": true,
         "verifiedSha256": "b040d93c08d0d36b8f622b5d1c057de9a36a83b405e973277c4f4356c41b602d",
         "verifiedCommit": "bbecbfc78be417b6aab44609d3d4f0d484d8c87b",
-        "verifiedAt": "2026-08-30",
+        "verifiedAt": "2026-08-31",
         "evidence": [
           "re-attested at bbecbfc78 — full-file read under #930; D70 now points to the one paint-law home and D150's shell-paint premise was re-derived against shell.css and the CSS census",
           "delta re-verify 2026-08-25 (#689, commit 0a2789a00834abe892bfa92839e8dec3c30a97af): D147 clause (d) rewritten in place — the SERVER-WIDE install is BUILT as an admin-triggered fan-out of per-user rows, so the clause's two recorded open questions (consent over a shared install, whose principal it runs as) are DISSOLVED, not answered. Re-read at the amended bytes and re-derived against the tree it now describes: domain/plugin/verbs/{install,uninstall,apply}-*-users.ts + substrate/distribution.ts + persistence/distributed-plugins.ts, the admin_distributed_plugins DDL, and the pins the clause cites (tests/server/domain/plugin/verbs/*-users.int.test.ts, persistence/distributed-plugins.int.test.ts, the cross-tenant sweep's three EXEMPT rows, settings-shell-surface.ct.tsx's admin/plain-user Distribute pair). No other D-entry in this document moved.",
@@ -818,7 +818,7 @@
         "fullRead": true,
         "verifiedSha256": "cdbc3d0914c7c052ec6e2659bfc78ee325a58c96612890169f0e12863f500a62",
         "verifiedCommit": "bbecbfc78be417b6aab44609d3d4f0d484d8c87b",
-        "verifiedAt": "2026-08-30",
+        "verifiedAt": "2026-08-31",
         "evidence": [
           "re-attested at bbecbfc78 — full-file read under #930; the D66 program reference is explicitly historical and carries no current lifecycle authority",
           "docs/architecture/core/Core-STATUS.md:1 full read; current edit is a provenance/lifecycle or repaired historical citation, not present implementation authority",
@@ -1663,7 +1663,7 @@
         "fullRead": true,
         "verifiedSha256": "6cb639e87b360513990016fdc29bdcd84cd76b967db6e4b3487d9da8d622ae7a",
         "verifiedCommit": "bbecbfc78be417b6aab44609d3d4f0d484d8c87b",
-        "verifiedAt": "2026-08-30",
+        "verifiedAt": "2026-08-31",
         "evidence": [
           "re-attested at bbecbfc78 — full-file read under #930; the responsive-axis table now names the measured shell/client-globals complement and points to the one paint-law home",
           "docs/architecture/core/UI-Architecture-and-Layout.md:1 full read after the workboard split; changed routing/citations checked against Project 1, D139-D141, and current code/test evidence",
@@ -1956,9 +1956,9 @@
       "path": "docs/architecture/core/client-architecture-lockdown.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 745,
-      "bytes": 134225,
-      "sha256": "fb4971688b7a2260b7d6de673459929b457d9a78292d7a26ea9aacea04321f79",
+      "lines": 755,
+      "bytes": 135506,
+      "sha256": "f5daadf584ea31655624ac464d791c6ce961dfe92dd663acdbc74720006e7854",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -1971,14 +1971,15 @@
       },
       "receipt": {
         "path": "docs/architecture/core/client-architecture-lockdown.md",
-        "assignedSha256": "fb4971688b7a2260b7d6de673459929b457d9a78292d7a26ea9aacea04321f79",
+        "assignedSha256": "f5daadf584ea31655624ac464d791c6ce961dfe92dd663acdbc74720006e7854",
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "fb4971688b7a2260b7d6de673459929b457d9a78292d7a26ea9aacea04321f79",
-        "verifiedCommit": "bbecbfc78be417b6aab44609d3d4f0d484d8c87b",
-        "verifiedAt": "2026-08-30",
+        "verifiedSha256": "f5daadf584ea31655624ac464d791c6ce961dfe92dd663acdbc74720006e7854",
+        "verifiedCommit": "0c0f2cf67ca61928baab879ea4dc89977693584a",
+        "verifiedAt": "2026-08-31",
         "evidence": [
+          "re-attested at 0c0f2cf67 after cold #930 verification — full §4.1-§4.7 doctrine restored, including zero authored @layer, the one polarity mechanism, the live feature-css-files descriptor, and a coherent bounded shell exception; packages/client/src/features/README.md now points here rather than restating the law",
           "re-attested at bbecbfc78 — full-file read under #930; §4 is the one six-home paint law, the shell exception is re-derived against the live FLIP/import order, and §4.7 separates enforced, known-unenforced, and reported-but-unread coverage",
           "docs/architecture/core/client-architecture-lockdown.md:1 (full read; header/status evaluated)",
           "git log -1 --format=%H -- docs/architecture/core/client-architecture-lockdown.md (2026-08-30; 0acef7a7f)",
@@ -4260,7 +4261,7 @@
         "fullRead": true,
         "verifiedSha256": "a67374831598e23feca556335a447d81c912d437575a768086c8ab70020e8c3a",
         "verifiedCommit": "bbecbfc78be417b6aab44609d3d4f0d484d8c87b",
-        "verifiedAt": "2026-08-30",
+        "verifiedAt": "2026-08-31",
         "evidence": [
           "docs/architecture/history/ui-cohesion-north-star.md:1-676 full read under #930; frontmatter and banner make the D66 program a historical snapshot, current CSS law points to client-architecture-lockdown.md §4, and Project 1 owns mutable work",
           "docs/architecture/core/Core-Path-Registry.md D66 and docs/architecture/core/Core-STATUS.md explicitly deny this archived program current lifecycle authority",
@@ -4540,7 +4541,7 @@
         "fullRead": true,
         "verifiedSha256": "4d1a2806e2443d8bf2795a0aea635e40b92cd5ef918051499031c0a3672263b2",
         "verifiedCommit": "bbecbfc78be417b6aab44609d3d4f0d484d8c87b",
-        "verifiedAt": "2026-08-30",
+        "verifiedAt": "2026-08-31",
         "evidence": [
           "re-attested at bbecbfc78 — full-file read under #930; the superseded D66 program row moved out of proposed with the document, leaving no duplicate lifecycle status",
           "docs/architecture/proposed/INDEX.md:1-37 full read; every unfinished program row maps to its live Project sprint and carries no duplicated implementation inventory",

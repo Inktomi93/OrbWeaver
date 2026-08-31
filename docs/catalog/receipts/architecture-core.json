@@ -1126,14 +1126,15 @@
     },
     {
       "path": "docs/architecture/core/client-architecture-lockdown.md",
-      "assignedSha256": "fb4971688b7a2260b7d6de673459929b457d9a78292d7a26ea9aacea04321f79",
+      "assignedSha256": "f5daadf584ea31655624ac464d791c6ce961dfe92dd663acdbc74720006e7854",
       "disposition": "current",
       "authority": "current-reference",
       "fullRead": true,
-      "verifiedSha256": "fb4971688b7a2260b7d6de673459929b457d9a78292d7a26ea9aacea04321f79",
-      "verifiedCommit": "bbecbfc78be417b6aab44609d3d4f0d484d8c87b",
+      "verifiedSha256": "f5daadf584ea31655624ac464d791c6ce961dfe92dd663acdbc74720006e7854",
+      "verifiedCommit": "0c0f2cf67ca61928baab879ea4dc89977693584a",
       "verifiedAt": "2026-08-31",
       "evidence": [
+        "re-attested at 0c0f2cf67 after cold #930 verification — full §4.1-§4.7 doctrine restored, including zero authored @layer, the one polarity mechanism, the live feature-css-files descriptor, and a coherent bounded shell exception; packages/client/src/features/README.md now points here rather than restating the law",
         "re-attested at bbecbfc78 — full-file read under #930; §4 is the one six-home paint law, the shell exception is re-derived against the live FLIP/import order, and §4.7 separates enforced, known-unenforced, and reported-but-unread coverage",
         "docs/architecture/core/client-architecture-lockdown.md:1 (full read; header/status evaluated)",
         "git log -1 --format=%H -- docs/architecture/core/client-architecture-lockdown.md (2026-08-30; 0acef7a7f)",
