@@ -252,32 +252,33 @@
       "path": "docs/architecture/core/Chat-Macro-Resolution.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 144,
-      "bytes": 10915,
-      "sha256": "d5d40e8b8dd51d59f3d3befe17e401814bfa66584f4f4dd3364e570c6ce24252",
+      "lines": 155,
+      "bytes": 11755,
+      "sha256": "143b9988043165b46bd538ef190b12791c344888297c5b124b382867cff9d547",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "law",
           "status": "active",
-          "updated": "2026-07-13"
+          "updated": "2026-08-30"
         },
         "errors": []
       },
       "receipt": {
         "path": "docs/architecture/core/Chat-Macro-Resolution.md",
-        "assignedSha256": "d5d40e8b8dd51d59f3d3befe17e401814bfa66584f4f4dd3364e570c6ce24252",
+        "assignedSha256": "143b9988043165b46bd538ef190b12791c344888297c5b124b382867cff9d547",
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "d5d40e8b8dd51d59f3d3befe17e401814bfa66584f4f4dd3364e570c6ce24252",
-        "verifiedCommit": "851be471910e85e93288ce613ac60ea47146e201",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "143b9988043165b46bd538ef190b12791c344888297c5b124b382867cff9d547",
+        "verifiedCommit": "32bf93f3e9f66740833d06ceeeb1c2eb6e67a28d",
+        "verifiedAt": "2026-08-30",
         "evidence": [
           "docs/architecture/core/Chat-Macro-Resolution.md:1 (full read; header/status evaluated)",
           "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
-          "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+          "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
+          "re-attested at the #909 docs truth-repair merge (32bf93f3e): the lane's three-way rule applied per hit — concept prose takes the ruled word, every code symbol is quoted as it stands with its owning issue named, owner-sacred prose flagged not edited; verdict list read by the orchestrator"
         ],
         "claims": [
           {
@@ -434,8 +435,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 371,
-      "bytes": 185827,
-      "sha256": "d1ec0caf0a0350d9eed12576134c324d58f0be9e4b36bf46346f9ed4f0debeee",
+      "bytes": 185838,
+      "sha256": "99666a76909fe9016e0460819a96cc93e7c1536a143594fbd13ac2bab336f25e",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -448,12 +449,12 @@
       },
       "receipt": {
         "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
-        "assignedSha256": "d1ec0caf0a0350d9eed12576134c324d58f0be9e4b36bf46346f9ed4f0debeee",
+        "assignedSha256": "99666a76909fe9016e0460819a96cc93e7c1536a143594fbd13ac2bab336f25e",
         "disposition": "current",
         "authority": "operational",
         "fullRead": true,
-        "verifiedSha256": "d1ec0caf0a0350d9eed12576134c324d58f0be9e4b36bf46346f9ed4f0debeee",
-        "verifiedCommit": "79871238bc0506fa74902bb1844f734fc9e32db3",
+        "verifiedSha256": "99666a76909fe9016e0460819a96cc93e7c1536a143594fbd13ac2bab336f25e",
+        "verifiedCommit": "32bf93f3e9f66740833d06ceeeb1c2eb6e67a28d",
         "verifiedAt": "2026-08-30",
         "evidence": [
           "docs/architecture/core/Core-Enforcement-Active-Gates.md:1 (full read; header/status evaluated)",
@@ -487,7 +488,8 @@
           "delta re-verify 2026-08-30 (#773, commit 13712214a): re-read at the edited bytes. The `test-presence` Layer-3 row is the only line that moved — it now states the entry/transport TIER arm beside the domain arm and names both burn-down rows (772 + 773). The registered-gate COUNT is unchanged (no gate was added or removed; an arm was widened inside an existing descriptor).",
           "docs/architecture/core/Core-Enforcement-Active-Gates.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)",
           "docs/architecture/core/Core-Enforcement-Active-Gates.md: re-attested at 1f5e25c00ec2ee921bc70591bf84e8268b255030 — the #876/#873 citer sweep: doc-path repoints from the tooling-package → Core-Tooling-Law.md and density-pass-spec → UI-Density-Law.md relocations and the seven mock-set retirements. Comment/link lines only; no claim moved.",
-          "docs/architecture/core/Core-Enforcement-Active-Gates.md: re-attested at 79871238bc0506fa74902bb1844f734fc9e32db3 — the #866 S1+S2 (6923f33cb) and #876/#873 docs-law (79871238b) merges both carry truth-repairs here; both deltas read by the orchestrator; the gate-count line resolved to 233 at the merge"
+          "docs/architecture/core/Core-Enforcement-Active-Gates.md: re-attested at 79871238bc0506fa74902bb1844f734fc9e32db3 — the #866 S1+S2 (6923f33cb) and #876/#873 docs-law (79871238b) merges both carry truth-repairs here; both deltas read by the orchestrator; the gate-count line resolved to 233 at the merge",
+          "re-attested at the #909 docs truth-repair merge (32bf93f3e): the lane's three-way rule applied per hit — concept prose takes the ruled word, every code symbol is quoted as it stands with its owning issue named, owner-sacred prose flagged not edited; verdict list read by the orchestrator"
         ],
         "claims": [
           {
@@ -1122,26 +1124,26 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 149,
-      "bytes": 24871,
-      "sha256": "8f032c39f2157d3d06e028be042f032bca4d8b641638d434d1678cb22ac7532e",
+      "bytes": 25328,
+      "sha256": "d82786dc27f7561141977d22e391ab9ccac629dd1405e2b3cf0404c6cceb7e2e",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "law",
           "status": "active",
-          "updated": "2026-08-19"
+          "updated": "2026-08-30"
         },
         "errors": []
       },
       "receipt": {
         "path": "docs/architecture/core/Spine-Identity-and-Auth.md",
-        "assignedSha256": "8f032c39f2157d3d06e028be042f032bca4d8b641638d434d1678cb22ac7532e",
+        "assignedSha256": "d82786dc27f7561141977d22e391ab9ccac629dd1405e2b3cf0404c6cceb7e2e",
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "8f032c39f2157d3d06e028be042f032bca4d8b641638d434d1678cb22ac7532e",
-        "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+        "verifiedSha256": "d82786dc27f7561141977d22e391ab9ccac629dd1405e2b3cf0404c6cceb7e2e",
+        "verifiedCommit": "32bf93f3e9f66740833d06ceeeb1c2eb6e67a28d",
         "verifiedAt": "2026-08-30",
         "evidence": [
           "docs/architecture/core/Spine-Identity-and-Auth.md:1 (full read, 2026-08-19; FRESH fact-check — not the authoring lane — after the tRPC content-type belt landed at 621ac2218 and rewrote invariant #9 open->closed; every claim re-derived against merged packages/server/src)",
@@ -1149,7 +1151,8 @@
           "ENFORCER verified live: tests/server/entry/app.test.ts — 'the tRPC mount refuses a non-JSON mutation (CSRF content-type belt)' describe (multipart/form-data + application/octet-stream POST on the via:fallback arm -> 415, resolver never runs; the pre-belt tag.pruneUnusedTags 200 is the recorded proof)",
           "invariants #4/#7/#8/#10 re-confirmed unchanged/accurate: MODE_RESOLVERS exhaustive over the four AuthModes, the loopback-peer owner fallback (#298 f2, infra/auth peer gate + entry/auth/seam.ts), the three enabled gates, and the two provisionIdentity callers (auth-routes.ts:642 oidc, seam.ts forward-header)",
           "OPEN finding from fd71a395d is now CLOSED in-doc: invariant #9's tRPC preflight premise (FALSE for @trpc/server 11.18) and the short-by-one multipart census are both resolved by the belt; the doc reads CLOSED and matches the tree",
-          "docs/architecture/core/Spine-Identity-and-Auth.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
+          "docs/architecture/core/Spine-Identity-and-Auth.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)",
+          "re-attested at the #909 docs truth-repair merge (32bf93f3e): the lane's three-way rule applied per hit — concept prose takes the ruled word, every code symbol is quoted as it stands with its owning issue named, owner-sacred prose flagged not edited; verdict list read by the orchestrator"
         ],
         "claims": [
           {
@@ -1536,32 +1539,33 @@
       "path": "docs/architecture/core/Tier-4-Transport.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 80,
-      "bytes": 18563,
-      "sha256": "e72592ffb91688e5da5ac3b3154ecae3353fa1827f44f94c16df715bf97ad572",
+      "lines": 81,
+      "bytes": 18693,
+      "sha256": "339cd0ef28e9054078efc8a444df0570b8f21bf973c8b0342c6067d63b94f539",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "law",
           "status": "active",
-          "updated": "2026-07-13"
+          "updated": "2026-08-30"
         },
         "errors": []
       },
       "receipt": {
         "path": "docs/architecture/core/Tier-4-Transport.md",
-        "assignedSha256": "e72592ffb91688e5da5ac3b3154ecae3353fa1827f44f94c16df715bf97ad572",
+        "assignedSha256": "339cd0ef28e9054078efc8a444df0570b8f21bf973c8b0342c6067d63b94f539",
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "e72592ffb91688e5da5ac3b3154ecae3353fa1827f44f94c16df715bf97ad572",
-        "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "339cd0ef28e9054078efc8a444df0570b8f21bf973c8b0342c6067d63b94f539",
+        "verifiedCommit": "32bf93f3e9f66740833d06ceeeb1c2eb6e67a28d",
+        "verifiedAt": "2026-08-30",
         "evidence": [
           "docs/architecture/core/Tier-4-Transport.md:1 (full read; header/status evaluated)",
           "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
-          "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+          "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
+          "re-attested at the #909 docs truth-repair merge (32bf93f3e): the lane's three-way rule applied per hit — concept prose takes the ruled word, every code symbol is quoted as it stands with its owning issue named, owner-sacred prose flagged not edited; verdict list read by the orchestrator"
         ],
         "claims": [
           {
@@ -1629,8 +1633,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 445,
-      "bytes": 57514,
-      "sha256": "258a96e1090374539730afb4e3cb5fd308acd6c8eb7a7419e93db297d2b9b9dd",
+      "bytes": 57739,
+      "sha256": "5cffae561a5aca991667e0f6e06fa049a72b922f3a7e6ef89c74773aa3e27dfa",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -1643,19 +1647,20 @@
       },
       "receipt": {
         "path": "docs/architecture/core/UI-Architecture-and-Layout.md",
-        "assignedSha256": "258a96e1090374539730afb4e3cb5fd308acd6c8eb7a7419e93db297d2b9b9dd",
+        "assignedSha256": "5cffae561a5aca991667e0f6e06fa049a72b922f3a7e6ef89c74773aa3e27dfa",
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "258a96e1090374539730afb4e3cb5fd308acd6c8eb7a7419e93db297d2b9b9dd",
-        "verifiedCommit": "79871238bc0506fa74902bb1844f734fc9e32db3",
+        "verifiedSha256": "5cffae561a5aca991667e0f6e06fa049a72b922f3a7e6ef89c74773aa3e27dfa",
+        "verifiedCommit": "32bf93f3e9f66740833d06ceeeb1c2eb6e67a28d",
         "verifiedAt": "2026-08-30",
         "evidence": [
           "docs/architecture/core/UI-Architecture-and-Layout.md:1 full read after the workboard split; changed routing/citations checked against Project 1, D139-D141, and current code/test evidence",
           "git:68271889b1746b513defea44b0787bab7a89176f contains the exact current document blob",
           "docs/architecture/core/Core-Path-Registry.md:523-533 (standing control-plane and comment-source rulings)",
           "delta re-verify 2026-08-30 (3afbd7858276453f149c4db4148214f702b314f0, #832 by the orchestrator, who made the edit): the RAIL count line flips NINE → TEN with `extensions` added to the dated tally with its provenance (plugin-ui-plane U5, #679 §4.5b, 'beside config', never per-plugin) and the SECTION_IDS truth pointer moves from shell-store.ts to state/section-ids.ts (re-exported); no ceiling was re-ratified — the line is a running tally, not a D-row; no other line changed; typed claims unaffected",
-          "docs/architecture/core/UI-Architecture-and-Layout.md: re-attested at 79871238bc0506fa74902bb1844f734fc9e32db3 — the #866 S1+S2 (6923f33cb) and #876/#873 docs-law (79871238b) merges both carry truth-repairs here; both deltas read by the orchestrator; the gate-count line resolved to 233 at the merge"
+          "docs/architecture/core/UI-Architecture-and-Layout.md: re-attested at 79871238bc0506fa74902bb1844f734fc9e32db3 — the #866 S1+S2 (6923f33cb) and #876/#873 docs-law (79871238b) merges both carry truth-repairs here; both deltas read by the orchestrator; the gate-count line resolved to 233 at the merge",
+          "re-attested at the #909 docs truth-repair merge (32bf93f3e): the lane's three-way rule applied per hit — concept prose takes the ruled word, every code symbol is quoted as it stands with its owning issue named, owner-sacred prose flagged not edited; verdict list read by the orchestrator"
         ],
         "claims": [
           {
@@ -1826,35 +1831,36 @@
       "path": "docs/architecture/core/UI-Theming-and-Content.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 125,
-      "bytes": 25834,
-      "sha256": "d30b7445852153a94e4e584de49c0af34e8deab32a45d1256c6b750ffc3bda5b",
+      "lines": 126,
+      "bytes": 25937,
+      "sha256": "4fc7cffb35b190cbe57a96d5d8951e9ee25661d3fdfb8462c586b50700499a6d",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "law",
           "status": "active",
-          "updated": "2026-08-24"
+          "updated": "2026-08-30"
         },
         "errors": []
       },
       "receipt": {
         "path": "docs/architecture/core/UI-Theming-and-Content.md",
-        "assignedSha256": "d30b7445852153a94e4e584de49c0af34e8deab32a45d1256c6b750ffc3bda5b",
+        "assignedSha256": "4fc7cffb35b190cbe57a96d5d8951e9ee25661d3fdfb8462c586b50700499a6d",
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "d30b7445852153a94e4e584de49c0af34e8deab32a45d1256c6b750ffc3bda5b",
-        "verifiedCommit": "35da5e0d0e61ab2bd4b7377455d6e295b1558e77",
-        "verifiedAt": "2026-08-24",
+        "verifiedSha256": "4fc7cffb35b190cbe57a96d5d8951e9ee25661d3fdfb8462c586b50700499a6d",
+        "verifiedCommit": "32bf93f3e9f66740833d06ceeeb1c2eb6e67a28d",
+        "verifiedAt": "2026-08-30",
         "evidence": [
           "docs/architecture/core/UI-Theming-and-Content.md:1 full read (123 lines) during the 2026-08-16 tier-B card-frame security pass (#91); §12.2 truth-repaired against the tree",
           "git:e3efc08baf7601f1be23694babcbb2eeba94bf32 contains the exact current document blob",
           "docs/architecture/core/Core-Path-Registry.md:523-533 (standing control-plane and comment-source rulings — carried from the 2026-08-14 verification)",
           "packages/kit/src/card-frame/index.ts:45 the sandbox/CSP engine §12.2 now cites (the grant moved out of srcdoc.ts)",
           "tests/ui/content/sandbox-frame/sandbox-frame.ct.tsx:156 browser receipt that a card-authored script is refused by hash",
-          "delta re-verify 2026-08-24 (#626, lane cb-plate-gate, merged 1d628e149): the over-art plate law written down for the first time (UI-Theming §12.1 bullet) + its gate row (§12.6) and the Layer-3 ACTIVE row, count 225->226. Gate lands status:active with a 5-row SHRINK-ONLY ratchet (arm B, chosen because 5 live lanes run check:structure in their floors); population machine-surveyed by a real CSS rule parser: 9 rules under html[data-blur-*] carrying a background-color, keyed by (selector SUBJECT, tint token) so #623's portal-sibling companion pairs with its descendant-selector base. 3 keys compliant, 5 failing (2 MEASURED at 3.30:1 and 3.69:1, 3 STRUCTURAL and explicitly PENDING MEASUREMENT with the provenance phrase pinned so nobody mistakes a flag for a measurement). Both ratification receipts: real-tree planted probe reds then rm'd clean, and an 11-test committed pin."
+          "delta re-verify 2026-08-24 (#626, lane cb-plate-gate, merged 1d628e149): the over-art plate law written down for the first time (UI-Theming §12.1 bullet) + its gate row (§12.6) and the Layer-3 ACTIVE row, count 225->226. Gate lands status:active with a 5-row SHRINK-ONLY ratchet (arm B, chosen because 5 live lanes run check:structure in their floors); population machine-surveyed by a real CSS rule parser: 9 rules under html[data-blur-*] carrying a background-color, keyed by (selector SUBJECT, tint token) so #623's portal-sibling companion pairs with its descendant-selector base. 3 keys compliant, 5 failing (2 MEASURED at 3.30:1 and 3.69:1, 3 STRUCTURAL and explicitly PENDING MEASUREMENT with the provenance phrase pinned so nobody mistakes a flag for a measurement). Both ratification receipts: real-tree planted probe reds then rm'd clean, and an 11-test committed pin.",
+          "re-attested at the #909 docs truth-repair merge (32bf93f3e): the lane's three-way rule applied per hit — concept prose takes the ruled word, every code symbol is quoted as it stands with its owning issue named, owner-sacred prose flagged not edited; verdict list read by the orchestrator"
         ],
         "claims": [
           {
@@ -10717,8 +10723,8 @@
       "lane": "design",
       "issue": 5,
       "lines": 607,
-      "bytes": 116458,
-      "sha256": "64fdcd018e64b39ba7556970b7ce26cd770de6eed47ff962c23377d7d356ce37",
+      "bytes": 117337,
+      "sha256": "6cb9665b79a8269288a69e0b33ac9c96953371a1bd9d1a7ca44d6b522b36d879",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -10731,17 +10737,18 @@
       },
       "receipt": {
         "path": "docs/design/config-revamp-design.md",
-        "assignedSha256": "64fdcd018e64b39ba7556970b7ce26cd770de6eed47ff962c23377d7d356ce37",
+        "assignedSha256": "6cb9665b79a8269288a69e0b33ac9c96953371a1bd9d1a7ca44d6b522b36d879",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "64fdcd018e64b39ba7556970b7ce26cd770de6eed47ff962c23377d7d356ce37",
-        "verifiedCommit": "1f0e610da36fcb9e8c3301723de4072cfdf57bd6",
+        "verifiedSha256": "6cb9665b79a8269288a69e0b33ac9c96953371a1bd9d1a7ca44d6b522b36d879",
+        "verifiedCommit": "32bf93f3e9f66740833d06ceeeb1c2eb6e67a28d",
         "verifiedAt": "2026-08-30",
         "evidence": [
           "docs/design/config-revamp-design.md read in full by the orchestrator (claude-b) at merge (lane cb-config-research, stickler research + design for #866; 12 products + NN/g receipted via SearXNG→trafilatura, THIN rows marked; the house read against 9707b9672; the Settings-is-a-modal premise repair accepted mid-run); the nine owner forks are being ruled live; the four D-rows are labelled R-A..R-D, never forward-numbered",
           "docs/design/config-revamp-design.md: re-attested at 79871238bc0506fa74902bb1844f734fc9e32db3 — the #866 S1+S2 (6923f33cb) and #876/#873 docs-law (79871238b) merges both carry truth-repairs here; both deltas read by the orchestrator; the gate-count line resolved to 233 at the merge",
-          "re-attested at the #866 S3+S4 merge (1f0e610da): lane cb-config-s3s4's +300-line riders (§7.0-§7.6 — R-TEACH/R-BG rulings, premises re-derived, as-built deviations a-e, coupled-site walk, red-first floor) read in full by the orchestrator from the merge diff before re-attest"
+          "re-attested at the #866 S3+S4 merge (1f0e610da): lane cb-config-s3s4's +300-line riders (§7.0-§7.6 — R-TEACH/R-BG rulings, premises re-derived, as-built deviations a-e, coupled-site walk, red-first floor) read in full by the orchestrator from the merge diff before re-attest",
+          "re-attested at the #909 docs truth-repair merge (32bf93f3e): the lane's three-way rule applied per hit — concept prose takes the ruled word, every code symbol is quoted as it stands with its owning issue named, owner-sacred prose flagged not edited; verdict list read by the orchestrator"
         ],
         "claims": [
           {
@@ -10935,33 +10942,34 @@
       "lane": "design",
       "issue": 5,
       "lines": 491,
-      "bytes": 46421,
-      "sha256": "58ced6c4a4215223001627c0778533e32026da951b68768cff2e1ff22d46bdd1",
+      "bytes": 46519,
+      "sha256": "d71b7b7a20e14721e0dd793e3ab58d29d45f02cf9304b7fd7997e62ec1fa298c",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "spec",
           "status": "draft",
-          "updated": "2026-08-01"
+          "updated": "2026-08-30"
         },
         "errors": []
       },
       "receipt": {
         "path": "docs/design/databank-surface-spec.md",
-        "assignedSha256": "58ced6c4a4215223001627c0778533e32026da951b68768cff2e1ff22d46bdd1",
+        "assignedSha256": "d71b7b7a20e14721e0dd793e3ab58d29d45f02cf9304b7fd7997e62ec1fa298c",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "58ced6c4a4215223001627c0778533e32026da951b68768cff2e1ff22d46bdd1",
-        "verifiedCommit": "1f5e25c00ec2ee921bc70591bf84e8268b255030",
+        "verifiedSha256": "d71b7b7a20e14721e0dd793e3ab58d29d45f02cf9304b7fd7997e62ec1fa298c",
+        "verifiedCommit": "32bf93f3e9f66740833d06ceeeb1c2eb6e67a28d",
         "verifiedAt": "2026-08-30",
         "evidence": [
           "docs/design/databank-surface-spec.md:1 (spec; draft)",
           "git log --oneline -1 -- docs/design/databank-surface-spec.md: e9a1a99d8 fix(lane-sm3): 6 smalls — dead gate wrapper, stale canAgent comments, databank rail count, typeonly-ok marker, content-class table dispatch, facet Record collapse",
           "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
           "docs/design/databank-surface-spec.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)",
-          "docs/design/databank-surface-spec.md: disposition CORRECTED 2026-08-30 (#876, ruled as a class): the receipt read `archive`/`historical` while the document's own frontmatter reads draft/parked. FRONTMATTER IS TRUTH — the doc stays live in docs/design and the receipt now matches it."
+          "docs/design/databank-surface-spec.md: disposition CORRECTED 2026-08-30 (#876, ruled as a class): the receipt read `archive`/`historical` while the document's own frontmatter reads draft/parked. FRONTMATTER IS TRUTH — the doc stays live in docs/design and the receipt now matches it.",
+          "re-attested at the #909 docs truth-repair merge (32bf93f3e): the lane's three-way rule applied per hit — concept prose takes the ruled word, every code symbol is quoted as it stands with its owning issue named, owner-sacred prose flagged not edited; verdict list read by the orchestrator"
         ],
         "summary": "DATABANK CLIENT SURFACE — the documents library, the per-chat rack, and the D85 visibility toggle: full content read against frozen tree; landed-state record retained as historical evidence.",
         "claims": [
@@ -11172,26 +11180,26 @@
       "lane": "design",
       "issue": 5,
       "lines": 713,
-      "bytes": 74045,
-      "sha256": "53ba7ebd6d098aa84ef6db18a084314c5ad05ebc3dbc082fab0bd7c7bbd4db44",
+      "bytes": 74331,
+      "sha256": "b3adde87080b9d3c2bc8ecec3384848ae01bfd20b099562ed77e337ffc0c6561",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "design",
           "status": "active",
-          "updated": "2026-08-29"
+          "updated": "2026-08-30"
         },
         "errors": []
       },
       "receipt": {
         "path": "docs/design/interaction-direction-spec.md",
-        "assignedSha256": "53ba7ebd6d098aa84ef6db18a084314c5ad05ebc3dbc082fab0bd7c7bbd4db44",
+        "assignedSha256": "b3adde87080b9d3c2bc8ecec3384848ae01bfd20b099562ed77e337ffc0c6561",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "53ba7ebd6d098aa84ef6db18a084314c5ad05ebc3dbc082fab0bd7c7bbd4db44",
-        "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
+        "verifiedSha256": "b3adde87080b9d3c2bc8ecec3384848ae01bfd20b099562ed77e337ffc0c6561",
+        "verifiedCommit": "32bf93f3e9f66740833d06ceeeb1c2eb6e67a28d",
         "verifiedAt": "2026-08-30",
         "evidence": [
           "docs/design/interaction-direction-spec.md read in full by the orchestrator before commit (1a7f20ed3); the needle ruling folded at both sites by the orchestrator after the owner's 2026-08-24 call",
@@ -11204,7 +11212,8 @@
           "delta re-verify 2026-08-29 (17f2f60f157740c0d5968ac8b0b44275cdf71fbb, lane build-b7-finish — the WIP diff and §7-B7a read in full by the finishing lane): the ONE changed passage is the new §7-B7a B7 BUILD RECORD after the Phase B table — six decision clauses (segment anchor = parseSpeakerSpans line index over stored canon with the (index, speaker, snippet) trio and two partial uniques; MR4 attribution as an S2 contribution order 2; MR5 react tool via the S2 toolNames axis with createReactAsCharacter as a standalone factory; the two offerChoices-pattern toggles with opposite default directions; the merge-class correction to MERGE-WINDOW for the baseline squash), each verified against the shipped tree by the finishing lane's suites (verbs/persistence/teaching int tests, the CT segment/toggle arms, the regenerated 0000_baseline). No other line changed; prior typed claims are unaffected",
           "delta re-verify 2026-08-29 (3ff8bfe4b169c9aa73e2e7a072e334d37efb82db, B10 rules rider merged by the orchestrator, who read the diff in full): the ONE changed passage is §3-S3's flip-shape sentence — 'recorded-unbuilt' flipped to LANDED with B10 (columns spelled rule_preset_id + rule_preset_knobs per the 2026-08-24 Rule-prefixed vocabulary ruling; stamped by createRuleFromPreset, cleared by updateRule, projected on RuleView; the in-place knob editor stays unbuilt) and points at saved-rosters-build-record.md §6. No other line changed; typed claims are unaffected",
           "delta re-verify 2026-08-30 (e96afef17d8de6213d05d52df147b9e893a89346, #804 B4 per-rule opt-out merged by the orchestrator, who read the three hunks in full): §3-S4 bullet 2, the Phase B row B4, and §8 ruling F4 each flip 'recorded-unbuilt' to LANDED as automation_rules.suggest_on_refusal (NOT NULL DEFAULT true — the ruling's default is now the column's default), ANDed with the arm-shape derivation at the raise gate; no other line changed; typed claims unaffected",
-          "docs/design/interaction-direction-spec.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)"
+          "docs/design/interaction-direction-spec.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)",
+          "re-attested at the #909 docs truth-repair merge (32bf93f3e): the lane's three-way rule applied per hit — concept prose takes the ruled word, every code symbol is quoted as it stands with its owning issue named, owner-sacred prose flagged not edited; verdict list read by the orchestrator"
         ],
         "summary": "THE ONE build-from specification for the interaction direction: inside/outside taxonomy + class walls, the authority law and seven authoring laws, the S1-S7 substrate (control seam, teaching seam with tool-attach, presets, suggest/confirm, quiet-analysis arm, run_tool bridge, trigger batch), the 20-row preset catalogue, the A/B/C path with per-row test/merge-class/knobs/home, the purged-capability disposition table, revamps R1-R7, and every ruling. Zero open items. §7-C7b (added 2026-08-24) points at the one-homed plugin UI plane design (docs/design/plugin-ui-plane.md, #679) — pointer, phases and rulings only.",
         "claims": [
@@ -11225,32 +11234,33 @@
       "path": "docs/design/lite-plus-guided-substrate-spec.md",
       "lane": "design",
       "issue": 5,
-      "lines": 922,
-      "bytes": 76233,
-      "sha256": "bb8fbf9f11016305cf06ab84c7d3cf938773e9943160a3723cb42995b1e3af09",
+      "lines": 935,
+      "bytes": 77384,
+      "sha256": "bf2b887ec309aa71306c26f1ff315f6170e908db7eb54af96666873bd613083e",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "design",
           "status": "draft",
-          "updated": "2026-08-14"
+          "updated": "2026-08-30"
         },
         "errors": []
       },
       "receipt": {
         "path": "docs/design/lite-plus-guided-substrate-spec.md",
-        "assignedSha256": "bb8fbf9f11016305cf06ab84c7d3cf938773e9943160a3723cb42995b1e3af09",
+        "assignedSha256": "bf2b887ec309aa71306c26f1ff315f6170e908db7eb54af96666873bd613083e",
         "disposition": "needs-owner",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "bb8fbf9f11016305cf06ab84c7d3cf938773e9943160a3723cb42995b1e3af09",
-        "verifiedCommit": "d41ad3f8e3c869255788ae8c0258f98c6ef75315",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "bf2b887ec309aa71306c26f1ff315f6170e908db7eb54af96666873bd613083e",
+        "verifiedCommit": "32bf93f3e9f66740833d06ceeeb1c2eb6e67a28d",
+        "verifiedAt": "2026-08-30",
         "evidence": [
           "docs/design/lite-plus-guided-substrate-spec.md:1 (design; unheaded)",
           "git log --oneline -1 -- docs/design/lite-plus-guided-substrate-spec.md: 0c2e52e65 chore(docs): move durable artifacts out of gitignored reports/ into tracked docs/",
-          "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+          "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
+          "re-attested at the #909 docs truth-repair merge (32bf93f3e): the lane's three-way rule applied per hit — concept prose takes the ruled word, every code symbol is quoted as it stands with its owning issue named, owner-sacred prose flagged not edited; verdict list read by the orchestrator"
         ],
         "summary": "LITE + GUIDED SUBSTRATE — the fresh-build carve spec: full content read against frozen tree; unbuilt or owner-ruled design remains non-build authority pending its stated decision.",
         "claims": [
@@ -11314,8 +11324,8 @@
       "lane": "design",
       "issue": 5,
       "lines": 52,
-      "bytes": 3786,
-      "sha256": "0db1e4b0fb26f63e3e7704bc70cebeaa7565c466bfdedf0b2df00158c41158a9",
+      "bytes": 3793,
+      "sha256": "5dff52c976078ed15ed41fdaca17c00ebd0135fe91647e99ebd786cf1eb99f5e",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -11328,16 +11338,17 @@
       },
       "receipt": {
         "path": "docs/design/mocks/characters-landing/DESIGN.md",
-        "assignedSha256": "0db1e4b0fb26f63e3e7704bc70cebeaa7565c466bfdedf0b2df00158c41158a9",
+        "assignedSha256": "5dff52c976078ed15ed41fdaca17c00ebd0135fe91647e99ebd786cf1eb99f5e",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "0db1e4b0fb26f63e3e7704bc70cebeaa7565c466bfdedf0b2df00158c41158a9",
-        "verifiedCommit": "106d0d2d6db353d3446f45eb35aa34e6ccaa45ad",
+        "verifiedSha256": "5dff52c976078ed15ed41fdaca17c00ebd0135fe91647e99ebd786cf1eb99f5e",
+        "verifiedCommit": "4067972696ca52a6af79c8551bb287148921b25e",
         "verifiedAt": "2026-08-30",
         "evidence": [
           "Authored by the orchestrator (claude-b) from the owner's live ruling on #864 (2026-08-30, 'Yes — build to it'); the canvas artifact c0fcd1ff is the clickable form, these files are its repo source; the four true-size PNGs were rendered from the same artboards and read before commit (the v1 box-sizing overflow was caught on the render and fixed before publish)",
-          "docs/design/mocks/characters-landing/DESIGN.md: re-attested at 106d0d2d6db353d3446f45eb35aa34e6ccaa45ad — build lane cb-char-landing (#864) corrected `source` → `provenance` (the card's `source` is the ST V3 provenance-URL list); delta read by the orchestrator (claude-b) at merge"
+          "docs/design/mocks/characters-landing/DESIGN.md: re-attested at 106d0d2d6db353d3446f45eb35aa34e6ccaa45ad — build lane cb-char-landing (#864) corrected `source` → `provenance` (the card's `source` is the ST V3 provenance-URL list); delta read by the orchestrator (claude-b) at merge",
+          "re-attested at the #913 mock-copy merge (406797269): the states table's 'Meet the cast' row updated to the shipped 'Meet your characters' (character-library-welcome.tsx:277), copy derived from the tree not from the issue's list"
         ],
         "claims": [
           {
@@ -11716,33 +11727,34 @@
       "path": "docs/design/parked-options-persona-prose.md",
       "lane": "design",
       "issue": 5,
-      "lines": 313,
-      "bytes": 21964,
-      "sha256": "3a48d5d3d9ea44ad95863471ae1722165f8c6f8510448a0c1e219ff94b67bbe8",
+      "lines": 322,
+      "bytes": 22794,
+      "sha256": "72e0f21197cd5b9825e08ed2256ba687d7c01b9af6a6b226bd587d7c14b9f7dd",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "design",
           "status": "parked",
-          "updated": "2026-08-14"
+          "updated": "2026-08-30"
         },
         "errors": []
       },
       "receipt": {
         "path": "docs/design/parked-options-persona-prose.md",
-        "assignedSha256": "3a48d5d3d9ea44ad95863471ae1722165f8c6f8510448a0c1e219ff94b67bbe8",
+        "assignedSha256": "72e0f21197cd5b9825e08ed2256ba687d7c01b9af6a6b226bd587d7c14b9f7dd",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "3a48d5d3d9ea44ad95863471ae1722165f8c6f8510448a0c1e219ff94b67bbe8",
-        "verifiedCommit": "535266f00954e2c612036a2bee1825609c59be09",
+        "verifiedSha256": "72e0f21197cd5b9825e08ed2256ba687d7c01b9af6a6b226bd587d7c14b9f7dd",
+        "verifiedCommit": "79e8ffb1f3ae551fbf605c42fb5d583e147ef6bd",
         "verifiedAt": "2026-08-30",
         "evidence": [
           "docs/design/parked-options-persona-prose.md:1 full read after the workboard split; changed routing/citations checked against Project 1, D139-D141, and current code/test evidence",
           "git:68271889b1746b513defea44b0787bab7a89176f contains the exact current document blob",
           "docs/architecture/core/Core-Path-Registry.md:523-533 (standing control-plane and comment-source rulings)",
-          "docs/design/parked-options-persona-prose.md: re-attested at 535266f00954e2c612036a2bee1825609c59be09 — citation repoint from the 2026-08-30 reviews retirement, re-attested after the main merge"
+          "docs/design/parked-options-persona-prose.md: re-attested at 535266f00954e2c612036a2bee1825609c59be09 — citation repoint from the 2026-08-30 reviews retirement, re-attested after the main merge",
+          "re-attested at 79e8ffb1f — the #901 owner ruling on the PROSE-1 speaker-tag wording landed in this doc after the #909 truth-repair merge, so the receipt names the commit that last changed it"
         ],
         "summary": "Full-read current design document reverified after the Project/workboard split; existing typed implementation evidence remains current.",
         "claims": [
@@ -11997,32 +12009,33 @@
       "path": "docs/design/rpg-extraction-one-call-spike.md",
       "lane": "design",
       "issue": 5,
-      "lines": 1257,
-      "bytes": 91497,
-      "sha256": "e00c38e10d8a93f25600535d59a469d31bcd1e1ce73e41ff13dbc34aa88b1523",
+      "lines": 1264,
+      "bytes": 92081,
+      "sha256": "24415bab04f5848bbf5d14a05d85120aa3330d72b8525bf12cb32a2fb34453b3",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "design",
           "status": "active",
-          "updated": "2026-08-14"
+          "updated": "2026-08-30"
         },
         "errors": []
       },
       "receipt": {
         "path": "docs/design/rpg-extraction-one-call-spike.md",
-        "assignedSha256": "e00c38e10d8a93f25600535d59a469d31bcd1e1ce73e41ff13dbc34aa88b1523",
+        "assignedSha256": "24415bab04f5848bbf5d14a05d85120aa3330d72b8525bf12cb32a2fb34453b3",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "e00c38e10d8a93f25600535d59a469d31bcd1e1ce73e41ff13dbc34aa88b1523",
-        "verifiedCommit": "d41ad3f8e3c869255788ae8c0258f98c6ef75315",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "24415bab04f5848bbf5d14a05d85120aa3330d72b8525bf12cb32a2fb34453b3",
+        "verifiedCommit": "32bf93f3e9f66740833d06ceeeb1c2eb6e67a28d",
+        "verifiedAt": "2026-08-30",
         "evidence": [
           "docs/design/rpg-extraction-one-call-spike.md:1 (design; unheaded)",
           "git log --oneline -1 -- docs/design/rpg-extraction-one-call-spike.md: a933ef4cf feat(rpg)!: delete the reliable extraction mode + build the RV-11 guide readers",
-          "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+          "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
+          "re-attested at the #909 docs truth-repair merge (32bf93f3e): the lane's three-way rule applied per hit — concept prose takes the ruled word, every code symbol is quoted as it stands with its owning issue named, owner-sacred prose flagged not edited; verdict list read by the orchestrator"
         ],
         "summary": "RPG state extraction — one-call-tools spike & recommendations: full content read against frozen tree; active design/reference retained; code and ledger remain authoritative for implementation.",
         "claims": [
@@ -12101,31 +12114,32 @@
       "lane": "design",
       "issue": 5,
       "lines": 227,
-      "bytes": 16521,
-      "sha256": "e0b4ca9535c50fd08f21e6a0925d2ce56bd7362c62bbbf387545f94a00eaa2ee",
+      "bytes": 17129,
+      "sha256": "48a435e133655419d4fa799f85ba34d2bd736b912ea39e043986b797e829208e",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "design",
           "status": "draft",
-          "updated": "2026-08-14"
+          "updated": "2026-08-30"
         },
         "errors": []
       },
       "receipt": {
         "path": "docs/design/tracked-field-unification.md",
-        "assignedSha256": "e0b4ca9535c50fd08f21e6a0925d2ce56bd7362c62bbbf387545f94a00eaa2ee",
+        "assignedSha256": "48a435e133655419d4fa799f85ba34d2bd736b912ea39e043986b797e829208e",
         "disposition": "needs-owner",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "e0b4ca9535c50fd08f21e6a0925d2ce56bd7362c62bbbf387545f94a00eaa2ee",
-        "verifiedCommit": "d41ad3f8e3c869255788ae8c0258f98c6ef75315",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "48a435e133655419d4fa799f85ba34d2bd736b912ea39e043986b797e829208e",
+        "verifiedCommit": "32bf93f3e9f66740833d06ceeeb1c2eb6e67a28d",
+        "verifiedAt": "2026-08-30",
         "evidence": [
           "docs/design/tracked-field-unification.md:1 (design; unheaded)",
           "git log --oneline -1 -- docs/design/tracked-field-unification.md: cb5e426e5 fix(client): model-text wraps everywhere + hints ride hover (owner dogfood round)",
-          "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"
+          "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
+          "re-attested at the #909 docs truth-repair merge (32bf93f3e): the lane's three-way rule applied per hit — concept prose takes the ruled word, every code symbol is quoted as it stands with its owning issue named, owner-sacred prose flagged not edited; verdict list read by the orchestrator"
         ],
         "summary": "Tracked-field unification + panel IA repair — the pool/meter/cast-field untangle: full content read against frozen tree; unbuilt or owner-ruled design remains non-build authority pending its stated decision.",
         "claims": [

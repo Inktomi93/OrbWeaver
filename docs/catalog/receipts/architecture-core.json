@@ -49,17 +49,18 @@
     },
     {
       "path": "docs/architecture/core/Chat-Macro-Resolution.md",
-      "assignedSha256": "d5d40e8b8dd51d59f3d3befe17e401814bfa66584f4f4dd3364e570c6ce24252",
+      "assignedSha256": "143b9988043165b46bd538ef190b12791c344888297c5b124b382867cff9d547",
       "disposition": "current",
       "authority": "current-reference",
       "fullRead": true,
-      "verifiedSha256": "d5d40e8b8dd51d59f3d3befe17e401814bfa66584f4f4dd3364e570c6ce24252",
-      "verifiedCommit": "851be471910e85e93288ce613ac60ea47146e201",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "143b9988043165b46bd538ef190b12791c344888297c5b124b382867cff9d547",
+      "verifiedCommit": "32bf93f3e9f66740833d06ceeeb1c2eb6e67a28d",
+      "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/architecture/core/Chat-Macro-Resolution.md:1 (full read; header/status evaluated)",
         "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
-        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
+        "re-attested at the #909 docs truth-repair merge (32bf93f3e): the lane's three-way rule applied per hit \u2014 concept prose takes the ruled word, every code symbol is quoted as it stands with its owning issue named, owner-sacred prose flagged not edited; verdict list read by the orchestrator"
       ],
       "claims": [
         {
@@ -154,12 +155,12 @@
     },
     {
       "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
-      "assignedSha256": "d1ec0caf0a0350d9eed12576134c324d58f0be9e4b36bf46346f9ed4f0debeee",
+      "assignedSha256": "99666a76909fe9016e0460819a96cc93e7c1536a143594fbd13ac2bab336f25e",
       "disposition": "current",
       "authority": "operational",
       "fullRead": true,
-      "verifiedSha256": "d1ec0caf0a0350d9eed12576134c324d58f0be9e4b36bf46346f9ed4f0debeee",
-      "verifiedCommit": "79871238bc0506fa74902bb1844f734fc9e32db3",
+      "verifiedSha256": "99666a76909fe9016e0460819a96cc93e7c1536a143594fbd13ac2bab336f25e",
+      "verifiedCommit": "32bf93f3e9f66740833d06ceeeb1c2eb6e67a28d",
       "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/architecture/core/Core-Enforcement-Active-Gates.md:1 (full read; header/status evaluated)",
@@ -193,7 +194,8 @@
         "delta re-verify 2026-08-30 (#773, commit 13712214a): re-read at the edited bytes. The `test-presence` Layer-3 row is the only line that moved \u2014 it now states the entry/transport TIER arm beside the domain arm and names both burn-down rows (772 + 773). The registered-gate COUNT is unchanged (no gate was added or removed; an arm was widened inside an existing descriptor).",
         "docs/architecture/core/Core-Enforcement-Active-Gates.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a \u2014 retired to docs/history/design per Documentation-Law \u00a7Relocation & retirement (2026-08-30 retirement pass, #872)",
         "docs/architecture/core/Core-Enforcement-Active-Gates.md: re-attested at 1f5e25c00ec2ee921bc70591bf84e8268b255030 \u2014 the #876/#873 citer sweep: doc-path repoints from the tooling-package \u2192 Core-Tooling-Law.md and density-pass-spec \u2192 UI-Density-Law.md relocations and the seven mock-set retirements. Comment/link lines only; no claim moved.",
-        "docs/architecture/core/Core-Enforcement-Active-Gates.md: re-attested at 79871238bc0506fa74902bb1844f734fc9e32db3 \u2014 the #866 S1+S2 (6923f33cb) and #876/#873 docs-law (79871238b) merges both carry truth-repairs here; both deltas read by the orchestrator; the gate-count line resolved to 233 at the merge"
+        "docs/architecture/core/Core-Enforcement-Active-Gates.md: re-attested at 79871238bc0506fa74902bb1844f734fc9e32db3 \u2014 the #866 S1+S2 (6923f33cb) and #876/#873 docs-law (79871238b) merges both carry truth-repairs here; both deltas read by the orchestrator; the gate-count line resolved to 233 at the merge",
+        "re-attested at the #909 docs truth-repair merge (32bf93f3e): the lane's three-way rule applied per hit \u2014 concept prose takes the ruled word, every code symbol is quoted as it stands with its owning issue named, owner-sacred prose flagged not edited; verdict list read by the orchestrator"
       ],
       "claims": [
         {
@@ -576,12 +578,12 @@
     },
     {
       "path": "docs/architecture/core/Spine-Identity-and-Auth.md",
-      "assignedSha256": "8f032c39f2157d3d06e028be042f032bca4d8b641638d434d1678cb22ac7532e",
+      "assignedSha256": "d82786dc27f7561141977d22e391ab9ccac629dd1405e2b3cf0404c6cceb7e2e",
       "disposition": "current",
       "authority": "current-reference",
       "fullRead": true,
-      "verifiedSha256": "8f032c39f2157d3d06e028be042f032bca4d8b641638d434d1678cb22ac7532e",
-      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+      "verifiedSha256": "d82786dc27f7561141977d22e391ab9ccac629dd1405e2b3cf0404c6cceb7e2e",
+      "verifiedCommit": "32bf93f3e9f66740833d06ceeeb1c2eb6e67a28d",
       "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/architecture/core/Spine-Identity-and-Auth.md:1 (full read, 2026-08-19; FRESH fact-check \u2014 not the authoring lane \u2014 after the tRPC content-type belt landed at 621ac2218 and rewrote invariant #9 open->closed; every claim re-derived against merged packages/server/src)",
@@ -589,7 +591,8 @@
         "ENFORCER verified live: tests/server/entry/app.test.ts \u2014 'the tRPC mount refuses a non-JSON mutation (CSRF content-type belt)' describe (multipart/form-data + application/octet-stream POST on the via:fallback arm -> 415, resolver never runs; the pre-belt tag.pruneUnusedTags 200 is the recorded proof)",
         "invariants #4/#7/#8/#10 re-confirmed unchanged/accurate: MODE_RESOLVERS exhaustive over the four AuthModes, the loopback-peer owner fallback (#298 f2, infra/auth peer gate + entry/auth/seam.ts), the three enabled gates, and the two provisionIdentity callers (auth-routes.ts:642 oidc, seam.ts forward-header)",
         "OPEN finding from fd71a395d is now CLOSED in-doc: invariant #9's tRPC preflight premise (FALSE for @trpc/server 11.18) and the short-by-one multipart census are both resolved by the belt; the doc reads CLOSED and matches the tree",
-        "docs/architecture/core/Spine-Identity-and-Auth.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d \u2014 retired to docs/history per Documentation-Law \u00a7Relocation & retirement (2026-08-30 retirement pass)"
+        "docs/architecture/core/Spine-Identity-and-Auth.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d \u2014 retired to docs/history per Documentation-Law \u00a7Relocation & retirement (2026-08-30 retirement pass)",
+        "re-attested at the #909 docs truth-repair merge (32bf93f3e): the lane's three-way rule applied per hit \u2014 concept prose takes the ruled word, every code symbol is quoted as it stands with its owning issue named, owner-sacred prose flagged not edited; verdict list read by the orchestrator"
       ],
       "claims": [
         {
@@ -858,17 +861,18 @@
     },
     {
       "path": "docs/architecture/core/Tier-4-Transport.md",
-      "assignedSha256": "e72592ffb91688e5da5ac3b3154ecae3353fa1827f44f94c16df715bf97ad572",
+      "assignedSha256": "339cd0ef28e9054078efc8a444df0570b8f21bf973c8b0342c6067d63b94f539",
       "disposition": "current",
       "authority": "current-reference",
       "fullRead": true,
-      "verifiedSha256": "e72592ffb91688e5da5ac3b3154ecae3353fa1827f44f94c16df715bf97ad572",
-      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "339cd0ef28e9054078efc8a444df0570b8f21bf973c8b0342c6067d63b94f539",
+      "verifiedCommit": "32bf93f3e9f66740833d06ceeeb1c2eb6e67a28d",
+      "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/architecture/core/Tier-4-Transport.md:1 (full read; header/status evaluated)",
         "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
-        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
+        "re-attested at the #909 docs truth-repair merge (32bf93f3e): the lane's three-way rule applied per hit \u2014 concept prose takes the ruled word, every code symbol is quoted as it stands with its owning issue named, owner-sacred prose flagged not edited; verdict list read by the orchestrator"
       ],
       "claims": [
         {
@@ -912,19 +916,20 @@
     },
     {
       "path": "docs/architecture/core/UI-Architecture-and-Layout.md",
-      "assignedSha256": "258a96e1090374539730afb4e3cb5fd308acd6c8eb7a7419e93db297d2b9b9dd",
+      "assignedSha256": "5cffae561a5aca991667e0f6e06fa049a72b922f3a7e6ef89c74773aa3e27dfa",
       "disposition": "current",
       "authority": "current-reference",
       "fullRead": true,
-      "verifiedSha256": "258a96e1090374539730afb4e3cb5fd308acd6c8eb7a7419e93db297d2b9b9dd",
-      "verifiedCommit": "79871238bc0506fa74902bb1844f734fc9e32db3",
+      "verifiedSha256": "5cffae561a5aca991667e0f6e06fa049a72b922f3a7e6ef89c74773aa3e27dfa",
+      "verifiedCommit": "32bf93f3e9f66740833d06ceeeb1c2eb6e67a28d",
       "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/architecture/core/UI-Architecture-and-Layout.md:1 full read after the workboard split; changed routing/citations checked against Project 1, D139-D141, and current code/test evidence",
         "git:68271889b1746b513defea44b0787bab7a89176f contains the exact current document blob",
         "docs/architecture/core/Core-Path-Registry.md:523-533 (standing control-plane and comment-source rulings)",
         "delta re-verify 2026-08-30 (3afbd7858276453f149c4db4148214f702b314f0, #832 by the orchestrator, who made the edit): the RAIL count line flips NINE \u2192 TEN with `extensions` added to the dated tally with its provenance (plugin-ui-plane U5, #679 \u00a74.5b, 'beside config', never per-plugin) and the SECTION_IDS truth pointer moves from shell-store.ts to state/section-ids.ts (re-exported); no ceiling was re-ratified \u2014 the line is a running tally, not a D-row; no other line changed; typed claims unaffected",
-        "docs/architecture/core/UI-Architecture-and-Layout.md: re-attested at 79871238bc0506fa74902bb1844f734fc9e32db3 \u2014 the #866 S1+S2 (6923f33cb) and #876/#873 docs-law (79871238b) merges both carry truth-repairs here; both deltas read by the orchestrator; the gate-count line resolved to 233 at the merge"
+        "docs/architecture/core/UI-Architecture-and-Layout.md: re-attested at 79871238bc0506fa74902bb1844f734fc9e32db3 \u2014 the #866 S1+S2 (6923f33cb) and #876/#873 docs-law (79871238b) merges both carry truth-repairs here; both deltas read by the orchestrator; the gate-count line resolved to 233 at the merge",
+        "re-attested at the #909 docs truth-repair merge (32bf93f3e): the lane's three-way rule applied per hit \u2014 concept prose takes the ruled word, every code symbol is quoted as it stands with its owning issue named, owner-sacred prose flagged not edited; verdict list read by the orchestrator"
       ],
       "claims": [
         {
@@ -1034,20 +1039,21 @@
     },
     {
       "path": "docs/architecture/core/UI-Theming-and-Content.md",
-      "assignedSha256": "d30b7445852153a94e4e584de49c0af34e8deab32a45d1256c6b750ffc3bda5b",
+      "assignedSha256": "4fc7cffb35b190cbe57a96d5d8951e9ee25661d3fdfb8462c586b50700499a6d",
       "disposition": "current",
       "authority": "current-reference",
       "fullRead": true,
-      "verifiedSha256": "d30b7445852153a94e4e584de49c0af34e8deab32a45d1256c6b750ffc3bda5b",
-      "verifiedCommit": "35da5e0d0e61ab2bd4b7377455d6e295b1558e77",
-      "verifiedAt": "2026-08-24",
+      "verifiedSha256": "4fc7cffb35b190cbe57a96d5d8951e9ee25661d3fdfb8462c586b50700499a6d",
+      "verifiedCommit": "32bf93f3e9f66740833d06ceeeb1c2eb6e67a28d",
+      "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/architecture/core/UI-Theming-and-Content.md:1 full read (123 lines) during the 2026-08-16 tier-B card-frame security pass (#91); \u00a712.2 truth-repaired against the tree",
         "git:e3efc08baf7601f1be23694babcbb2eeba94bf32 contains the exact current document blob",
         "docs/architecture/core/Core-Path-Registry.md:523-533 (standing control-plane and comment-source rulings \u2014 carried from the 2026-08-14 verification)",
         "packages/kit/src/card-frame/index.ts:45 the sandbox/CSP engine \u00a712.2 now cites (the grant moved out of srcdoc.ts)",
         "tests/ui/content/sandbox-frame/sandbox-frame.ct.tsx:156 browser receipt that a card-authored script is refused by hash",
-        "delta re-verify 2026-08-24 (#626, lane cb-plate-gate, merged 1d628e149): the over-art plate law written down for the first time (UI-Theming \u00a712.1 bullet) + its gate row (\u00a712.6) and the Layer-3 ACTIVE row, count 225->226. Gate lands status:active with a 5-row SHRINK-ONLY ratchet (arm B, chosen because 5 live lanes run check:structure in their floors); population machine-surveyed by a real CSS rule parser: 9 rules under html[data-blur-*] carrying a background-color, keyed by (selector SUBJECT, tint token) so #623's portal-sibling companion pairs with its descendant-selector base. 3 keys compliant, 5 failing (2 MEASURED at 3.30:1 and 3.69:1, 3 STRUCTURAL and explicitly PENDING MEASUREMENT with the provenance phrase pinned so nobody mistakes a flag for a measurement). Both ratification receipts: real-tree planted probe reds then rm'd clean, and an 11-test committed pin."
+        "delta re-verify 2026-08-24 (#626, lane cb-plate-gate, merged 1d628e149): the over-art plate law written down for the first time (UI-Theming \u00a712.1 bullet) + its gate row (\u00a712.6) and the Layer-3 ACTIVE row, count 225->226. Gate lands status:active with a 5-row SHRINK-ONLY ratchet (arm B, chosen because 5 live lanes run check:structure in their floors); population machine-surveyed by a real CSS rule parser: 9 rules under html[data-blur-*] carrying a background-color, keyed by (selector SUBJECT, tint token) so #623's portal-sibling companion pairs with its descendant-selector base. 3 keys compliant, 5 failing (2 MEASURED at 3.30:1 and 3.69:1, 3 STRUCTURAL and explicitly PENDING MEASUREMENT with the provenance phrase pinned so nobody mistakes a flag for a measurement). Both ratification receipts: real-tree planted probe reds then rm'd clean, and an 11-test committed pin.",
+        "re-attested at the #909 docs truth-repair merge (32bf93f3e): the lane's three-way rule applied per hit \u2014 concept prose takes the ruled word, every code symbol is quoted as it stands with its owning issue named, owner-sacred prose flagged not edited; verdict list read by the orchestrator"
       ],
       "claims": [
         {
