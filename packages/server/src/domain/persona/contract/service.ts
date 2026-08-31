@@ -17,6 +17,7 @@ import type {
   ExportPersonaParams,
   GetPersonaParams,
   ImportPersonaParams,
+  ListConnectedCharactersParams,
   ListConnectedParams,
   ListPersonasParams,
   RemovePersonaParams,
@@ -24,7 +25,7 @@ import type {
   UpdatePersonaParams,
 } from "./params.ts";
 import type { DisconnectResult, PersonaImportOutcome, PersonaPortableFile, RemovePersonaResult } from "./results.ts";
-import type { PersonaDetail } from "./views.ts";
+import type { ConnectedCharacterView, PersonaDetail } from "./views.ts";
 
 /** The DI bundle every persona verb closes over, wired at the composition root. */
 export interface PersonaContext {
@@ -82,6 +83,9 @@ export interface PersonaService {
   readonly disconnectFromCharacter: (params: DisconnectParams) => Promise<DisconnectResult>;
   /** Personas connected to this character, owner-scoped, newest first. */
   readonly listConnectedToCharacter: (params: ListConnectedParams) => Promise<PersonaDetail[]>;
+  /** Characters connected to this persona — the junction read from the OTHER side (#866 S4, the persona
+   *  editor's "Connected characters" section). Owner-scoped through the persona gate; summary views only. */
+  readonly listConnectedCharacters: (params: ListConnectedCharactersParams) => Promise<ConnectedCharacterView[]>;
   /** Set the active persona for a participant in a chat (host-or-self scoped). */
   readonly setActivePersona: (params: SetActivePersonaParams) => Promise<void>;
   /** Clone an owned persona into a fresh row (FINAL-Persona §A.6b gap #2) — name suffixed " (copy)",

@@ -33,6 +33,30 @@ export const useDuplicatePersona = createEntityMutation<inferInput<Trpc["persona
   errorToast: "Couldn't duplicate the persona.",
 });
 
+// #866 S4 — the roster band's "From character" door (a persona is often the mirror of a card you already
+// wrote). The character feature holds its own thin wrappers over the same wire verbs for the card-side
+// doors (`useCreatePersonaFromCharacter` etc.) — distinct names here on purpose, so a symbol search never
+// conflates the two call sites; each caller owns its toast copy, the server owns the mint.
+export const usePersonaFromCharacter = createEntityMutation<inferInput<Trpc["persona"]["createFromCharacter"]>, PersonaDetail>({
+  options: (trpc) => trpc.persona.createFromCharacter.mutationOptions(),
+  busDriven: true, // emits `personasChanged` → USER_BUS_FILTERS covers persona.path (list + get).
+  errorToast: "Couldn't create the persona from that character.",
+});
+
+// #866 S4 — the editor's "Connected characters" section (the junction from the persona side; the
+// character editor's relations tab drives the same junction from the other end).
+export const useConnectCharacter = createEntityMutation<inferInput<Trpc["persona"]["connectToCharacter"]>, unknown>({
+  options: (trpc) => trpc.persona.connectToCharacter.mutationOptions(),
+  busDriven: true, // emits `personasChanged` → USER_BUS_FILTERS covers persona.path (list + get).
+  errorToast: "Couldn't connect the character.",
+});
+
+export const useDisconnectCharacter = createEntityMutation<inferInput<Trpc["persona"]["disconnectFromCharacter"]>, unknown>({
+  options: (trpc) => trpc.persona.disconnectFromCharacter.mutationOptions(),
+  busDriven: true, // emits `personasChanged` → USER_BUS_FILTERS covers persona.path (list + get).
+  errorToast: "Couldn't disconnect the character.",
+});
+
 // F3 — the ruled lifecycle anatomy (band=Import, kebab=Export, editors carry zero lifecycle chrome).
 // Import used to live in a SETTINGS surface and Export inside the persona EDITOR: four families, three
 // placements. Both doors now live where the anatomy puts them, over the FILE-shaped tRPC procs (the same

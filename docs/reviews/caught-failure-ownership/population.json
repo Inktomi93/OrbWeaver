@@ -2,16 +2,16 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 409,
-    "enforced": 406,
+    "sites": 408,
+    "enforced": 405,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 406,
+      "deliberate-absorb": 405,
       "detached-owned": 3,
       "unproven": 0
     },
     "byGrammar": {
-      "promise": 121,
+      "promise": 120,
       "default": 119,
       "empty": 169
     }
@@ -111,7 +111,7 @@
     {
       "siteId": "packages/client/src/data/auth-bootstrap.ts::promise:json::1",
       "path": "packages/client/src/data/auth-bootstrap.ts",
-      "line": 57,
+      "line": 71,
       "column": 27,
       "grammar": "promise",
       "position": "promise:json",
@@ -119,12 +119,12 @@
       "snippet": "const parsed = (await res.json().catch(() => ({}))) as { readonly error?: string };",
       "verdict": "deliberate-absorb",
       "reason": "a malformed/absent error body degrades to the empty object, and the subsequent `??` falls back to a generic status-line message — the throw always happens. Ends if the fallback message is removed.",
-      "markerLine": 56
+      "markerLine": 70
     },
     {
       "siteId": "packages/client/src/data/auth-bootstrap.ts::promise:json::2",
       "path": "packages/client/src/data/auth-bootstrap.ts",
-      "line": 77,
+      "line": 91,
       "column": 27,
       "grammar": "promise",
       "position": "promise:json",
@@ -132,12 +132,12 @@
       "snippet": "const parsed = (await res.json().catch(() => ({}))) as { readonly error?: string };",
       "verdict": "deliberate-absorb",
       "reason": "a malformed/absent error body degrades to the empty object, and the subsequent `??` falls back to a generic status-line message — the throw always happens. Ends if the fallback message is removed.",
-      "markerLine": 76
+      "markerLine": 90
     },
     {
       "siteId": "packages/client/src/data/auth-bootstrap.ts::promise:json::3",
       "path": "packages/client/src/data/auth-bootstrap.ts",
-      "line": 105,
+      "line": 132,
       "column": 25,
       "grammar": "promise",
       "position": "promise:json",
@@ -145,7 +145,7 @@
       "snippet": "const parsed = (await res.json().catch(() => ({}))) as { readonly endSessionUrl?: string | null };",
       "verdict": "deliberate-absorb",
       "reason": "`res.ok` already confirmed the response succeeded; a malformed/absent body is a best-effort optional read that degrades to the documented null fallback (non-oidc / no end-session endpoint). Ends if endSessionUrl becomes a required field.",
-      "markerLine": 104
+      "markerLine": 131
     },
     {
       "siteId": "packages/client/src/data/bus/room-registry.ts::promise:attach::1",
@@ -380,19 +380,6 @@
       "verdict": "deliberate-absorb",
       "reason": "a thrown read returns null after the retry window",
       "markerLine": 29
-    },
-    {
-      "siteId": "packages/client/src/features/auth/surfaces/account-surface.tsx::promise:signOut::1",
-      "path": "packages/client/src/features/auth/surfaces/account-surface.tsx",
-      "line": 72,
-      "column": 13,
-      "grammar": "promise",
-      "position": "promise:signOut",
-      "ordinal": 1,
-      "snippet": "signOut().then(",
-      "verdict": "deliberate-absorb",
-      "reason": "signOut() already catches internally and",
-      "markerLine": 69
     },
     {
       "siteId": "packages/client/src/features/character/components/character-actions-menu.tsx::promise:openRefinery::1",
@@ -644,7 +631,7 @@
     {
       "siteId": "packages/client/src/features/persona/components/persona-roster.tsx::empty:catch::1",
       "path": "packages/client/src/features/persona/components/persona-roster.tsx",
-      "line": 50,
+      "line": 52,
       "column": 7,
       "grammar": "empty",
       "position": "empty:catch",
@@ -652,7 +639,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "createEntityMutation's own errorToast already surfaced the failure — nothing to expand. Ends if useCreatePersona drops its errorToast.",
-      "markerLine": 46
+      "markerLine": 48
     },
     {
       "siteId": "packages/client/src/features/plugin/components/plugin-distribute-section.tsx::promise:mutateAsync::1",

@@ -25,7 +25,7 @@ import {
   fullscreenChrome,
   youModal,
 } from "@orb/client/features/app-shell";
-import { accountModal, reauthModal } from "@orb/client/features/auth";
+import { reauthModal } from "@orb/client/features/auth";
 import { automationBudgetSection, automationLibraryRulesSection } from "@orb/client/features/automation";
 import { librarySettingsSection, makeCharactersSection } from "@orb/client/features/character";
 import {
@@ -249,7 +249,6 @@ const realRegistry: SectionRegistry = createRegistry<SectionId, SectionDefinitio
 // The section-registry providers below nest it, so every shell CT gets both registries transparently.
 
 const REAL_MODALS: Record<ModalSlotId, ModalDefinition> = {
-  account: accountModal,
   command: commandModal,
   newChat: newChatModal,
   addDocument: addDocumentModal,

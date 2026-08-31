@@ -32,6 +32,7 @@ export {
   HIDE_AT_COARSE,
   LABEL_TO_SR_ONLY_AT_COARSE,
   PICKER_GAP_AT_COARSE,
+  PIN_REVEAL,
   REVEAL_AT_COARSE,
 } from "./pointer-variants.ts";
 export type { RegexScopeOrderProps } from "./regex-scope-order.tsx";

@@ -23,16 +23,6 @@
     "why": "RATIFIED raw axes (#582, the #573 precedent): the SEMANTIC destructive tone IS the message — no voice carries a semantic color (every voice is foreground/muted/prose-ink by construction). The file's own comment states the ruling.",
     "cite": ["packages/client/src/features/auth/components/login-local-form.tsx#L63-L65"]
   },
-  "packages/client/src/features/auth/surfaces/account-surface.tsx": {
-    "count": 3,
-    "ratified": 3,
-    "why": "line56's `weight=\"semibold\"` mono account handle does not byte-match `datumMono` (regular weight) — adopting it would change the rendered weight, not just the vocabulary. line75's `size=\"label\" tone=\"muted\"` is a label+muted pair with no exact voice, explicitly named in the density-pass judgment-call set (spec §2.3, tranche reports #567/#581/#582).",
-    "cite": [
-      "packages/client/src/features/auth/surfaces/account-surface.tsx#L56",
-      "packages/client/src/features/auth/surfaces/account-surface.tsx#L75",
-      "docs/architecture/core/UI-Density-Law.md#§2.3"
-    ]
-  },
   "packages/client/src/features/auth/surfaces/login-surface.tsx": {
     "count": 8,
     "ratified": 8,
@@ -131,11 +121,27 @@
       "docs/architecture/core/UI-Density-Law.md#§2.3"
     ]
   },
+  "packages/client/src/features/persona/components/persona-account-foot.tsx": {
+    "count": 3,
+    "ratified": 3,
+    "why": "the retired account-surface's two ratified rows, moved WITH the anatomy (#866 S4 — the modal's facts became the switcher's foot): the `weight=\"semibold\"` mono account handle does not byte-match `datumMono` (regular weight) — adopting it would change the rendered weight, not just the vocabulary; the `size=\"label\" tone=\"muted\"` mode note is a label+muted pair with no exact voice, explicitly in the density-pass judgment-call set (spec §2.3, tranche reports #567/#581/#582).",
+    "cite": [
+      "packages/client/src/features/persona/components/persona-account-foot.tsx#L36",
+      "packages/client/src/features/persona/components/persona-account-foot.tsx#L62",
+      "docs/architecture/core/UI-Density-Law.md#§2.3"
+    ]
+  },
+  "packages/client/src/features/persona/components/persona-switch-list.tsx": {
+    "count": 1,
+    "ratified": 1,
+    "why": "RATIFIED raw axes (#582, the character-facet-row precedent): a switch row's own NAME is a directory entry, one step under `promoted` — body step at medium, deliberately (the persona-row-name-column ruling, same list one mount over).",
+    "cite": ["packages/client/src/features/persona/components/persona-switch-list.tsx#L105"]
+  },
   "packages/client/src/features/persona/surfaces/persona-panel-surface.tsx": {
     "count": 1,
     "ratified": 1,
-    "why": "RATIFIED raw axes (#582, the character-facet-row precedent): the account strip's own name, one step under `promoted` — body step at medium, deliberately. The file's own comment states the ruling.",
-    "cite": ["packages/client/src/features/persona/surfaces/persona-panel-surface.tsx#L242-L244"]
+    "why": "the who-head's identity line (`weight=\"semibold\"`) is the switcher's ONE promoted datum — the persona you are playing as — semibold at body step, the account-handle judgment class (#866 S4; spec §2.3's promoted definition reserves the `promoted` voice for a shelf item among siblings, which a head strip is not).",
+    "cite": ["packages/client/src/features/persona/surfaces/persona-panel-surface.tsx#L198"]
   },
   "packages/client/src/features/preset/components/macro-browser.tsx": {
     "count": 2,

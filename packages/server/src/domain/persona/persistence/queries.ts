@@ -10,7 +10,7 @@ import { assets, characterPersonas, characters, personas } from "@orb/db";
 import type { AssetId, CharacterId, PersonaId, UserId } from "@orb/kit/ids";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { AssetNotFoundError, PersonaCharacterNotFoundError, PersonaNotFoundError } from "../contract/errors.ts";
-import type { PersonaDetail, PersonaRosterView } from "../contract/views.ts";
+import type { ConnectedCharacterView, PersonaDetail, PersonaRosterView } from "../contract/views.ts";
 
 const LIMIT_ONE = 1;
 
@@ -99,6 +99,20 @@ export async function listConnectedPersonasWithAvatar(db: Db, ownerId: UserId, c
     .where(and(eq(characterPersonas.characterId, characterId), eq(personas.ownerId, ownerId)))
     .orderBy(desc(personas.createdAt));
   return rows;
+}
+
+/** Characters connected to a persona (via `character_personas`) — the junction read from the persona side
+ *  (#866 S4). Owner-scoped in the WHERE (both endpoints are the caller's by construction — the junction is
+ *  only ever written between owned rows — but the predicate rides anyway, per the file rule). Summary
+ *  columns only ({@link ConnectedCharacterView}); newest connection's character first, mirroring
+ *  {@link listConnectedPersonasWithAvatar}. */
+export async function listConnectedCharactersOf(db: Db, ownerId: UserId, personaId: PersonaId): Promise<ConnectedCharacterView[]> {
+  return await db
+    .select({ id: characters.id, name: characters.name })
+    .from(characterPersonas)
+    .innerJoin(characters, eq(characters.id, characterPersonas.characterId))
+    .where(and(eq(characterPersonas.personaId, personaId), eq(characters.ownerId, ownerId)))
+    .orderBy(desc(characters.createdAt));
 }
 
 /** Gate: the character must belong to the caller. A foreign/absent character collapses to

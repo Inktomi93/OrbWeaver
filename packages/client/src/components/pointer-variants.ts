@@ -107,3 +107,14 @@ export const CONTEXT_RAIL_WRAPPED_EDGE_BAR_OFF = "pointer-fine:@max-xs:data-acti
  *  PRIMARY navigation under a thumb and takes the taller step. Fine pointers are untouched (the seal's
  *  32px, under a content-sized two-line cell). CT: tests/client/features/app-shell/components/context-tabs-panel.ct.tsx. */
 export const CONTEXT_CELL_FLOOR_AT_COARSE = "pointer-coarse:min-h-control-lg";
+
+/** The persona PIN's faint reveal (#866 S4, pin-not-crown — `persona-pin.tsx`, both its mounts): the
+ *  click-to-pin verb is secondary chrome, rest-invisible at a fine pointer and revealed FAINT on the
+ *  row's hover/focus-within; at coarse (no hover exists) it is ALWAYS faint — an invisible control would
+ *  be an unreachable one, and the row budgets its touch box for it. Opacity only (the `ROW_REVEAL` law —
+ *  display/visibility swaps under a hover key are hit-test oscillators), keyed on the row's `group` like
+ *  the action cluster; direct hover/focus restore full strength so nobody aims at a 40%-opacity target.
+ *  Pointer-keyed, so it is homed here and not in the feature (`no-pointer-variants-in-features`).
+ *  CT: tests/client/features/persona/components/persona-panel-row.ct.tsx (the pin arms). */
+export const PIN_REVEAL =
+  "opacity-0 transition-opacity duration-(--motion-fast) ease-out-expo group-hover:opacity-60 group-focus-within:opacity-60 hover:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-40";

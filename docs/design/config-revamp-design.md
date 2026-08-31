@@ -447,15 +447,17 @@ summary/affects/related without the "default vs current + Reset door" block unti
   `selectedThemeId === null` ⇒ Hearth) — picking calls `useSelectTheme` (the D71 pipeline, apply-not-mode);
   the row is closed (seeds are ownerless and non-deletable). Tier 2 MANAGE: "Your themes" = the non-seed
   rows as `ListRow`s (swatch · name · built/edited age · ⋯ = Apply · Edit in builder · Export · Delete
-  [confirm-gated, the `ThemeRowMenu` lineage]) + an Import file door. Tier 3 MAKE: ONE builder door "New
+  \[confirm-gated, the `ThemeRowMenu` lineage]) + an Import file door. Tier 3 MAKE: ONE builder door "New
   theme from <current>…" = the picker's draft/mint machinery verbatim (`duplicateTheme` of the current
   theme at first real edit — nothing minted on the click); the builder (`ThemeEditor`) mounts INLINE as
   the section's editing state with "← Back" (the ThemeManager swap, re-homed). NO freestanding accent
   knob anywhere; every color decision saves as a named theme.
+
 - **The `theme` modal RETIRES**: `themeModal` def + `MODAL_SLOT_IDS` member + the rail-foot "Switch theme"
   trigger die; `theme-picker-surface.tsx` dissolves into the Looks section (the draft/mint/swatch pieces
   re-homed); the rail foot becomes Settings (gear) · persona slot, per the RailSwitcher board. Gates/tests
   that key on it re-key with planted-RED receipts (§7.5).
+
 - **The "Customize this look" fold.** `ConfigSectionContribution.advanced?: boolean` +
   `ConfigGroupBase.advancedFold?: { label: string; useCaption?: () => string | null }`: the skimmer
   renders plain sections, then ONE `Collapsible` (trigger `size="control"`, collapsed by default) labelled
@@ -467,6 +469,7 @@ summary/affects/related without the "default vs current + Reset door" block unti
   untouched (folded ≠ hidden — `@advanced` stays a leaf axis). *Rejected:* a Looks-local fold (any group
   may need the D107 axis; the host owning disclosure keeps LIST/jump/spy honest) and marking folded
   sections' search entries `advanced` (that would hide Reading/Density from default search).
+
 - **The background grid (R-BG).** `appearance-background-section.tsx` rebuilds its body: PICK = one
   `media-grid` (the selectable house cell family — `selectedIds`/`aria-selected` built in): a None tile ·
   `listSeededBackgrounds()` thumbnails (their `public/` urls) · every `backgroundLibrary` entry
@@ -479,6 +482,7 @@ summary/affects/related without the "default vs current + Reset door" block unti
   append+select). Fit/Scrim/Blur rows stay below (rendered while kind ≠ none). The `Image` kind Select
   and the seeded-name Select DIE (`BACKGROUND_KIND_ITEMS`/`SEEDED_BACKGROUND_ITEMS` retire with their
   consumers swept).
+
 - **`background-source-field.tsx` rides the SAME grid grammar (owner addendum to R-BG, 2026-08-30).** The
   BG-C carried-background picker (tier-2 shared; the room-overrides Control A + the character-card
   Control B) rebuilds as the grid variant with its own constraints kept: a DISCRETE immediate-write picker
@@ -538,6 +542,21 @@ summary/affects/related without the "default vs current + Reset door" block unti
   disappears by derivation). DEVIATION: the board draws the account foot BELOW "Go to"; the derive-only
   sheet renders the widget as one block, so the foot sits above "Go to" — recorded, not silently fixed
   (re-ordering would need a new chrome lens vocabulary; priced and declined).
+- **As-built riders (2026-08-30, the S4b leg):** (a) the roster row's PIN sits between the action Layer
+  and the chevron, not before the ⋯ as the board draws — the markers⇄actions pair share ONE Layer cell
+  (the 2026-08-06 P1 width ruling) and a rest-visible pin can ride inside neither paint-swap half;
+  (b) ONE pill max per row (current wins; "pinned · {{user}}" renders only on a non-current default row) —
+  two pills on the your-only-persona row re-buy the width collapse the row's 320px fences exist to
+  prevent, and "pinned" is already the solid pin's statement one cell over; (c) the editor's Connected
+  characters section is NOT `RelationManagerSection`: its add-picker enumerates a flat `available` array,
+  honest for bounded persona lists and a lie for the keyset-paged character library (cards past page one
+  would silently vanish from the picker) — the shared `CharacterPicker` is the add door instead, summary
+  rows + Disconnect keep the section grammar; (d) `chat.reattributePersona` returns `void` on the wire
+  (verified at `domain/chat/contract/service.ts:342`), so there is no affected-rows count to toast — the
+  confirming notify names the persona and rides `persona.showNotifications`, as the this-chat section's
+  did; (e) `useAuthMe` moved to `#data` (the `useAuthConfig` precedent verbatim) so the persona foot
+  reads identity without a cross-feature reach; `signOut` moved beside `logout` and THROWS — the calling
+  control owns the toast.
 
 ### 7.5 Coupled sites (walked) and the test plan
 
@@ -585,4 +604,4 @@ Select — the strongest sibling; a skin is a visual anatomy), `density`/`elevat
 is spatial; a labelled `OptionStrip`/segment with a live mini-preview is the honest control), the reading
 font family Select (a typeface is seen), the theme-editor's token pickers (already visual — no change).
 No rebuild beyond background in this lane.
- Design landed at `docs/design/config-revamp-design.md` (draft, 2026-08-30). Premise repaired: Settings is the `settings` MODAL on `rail.end`, not a section — `SECTION_IDS` stays at ten; what retires is the modal, its gear, `settingsCategory`/`openSettingsTo`. The design: ONE closed config-group registry (`CONFIG_GROUP_IDS`, four shelves User/App/Collections/Extensions; body arms `sections` | `collection` | `placeholder` — `surface` retired by §6.8) that the nine settings panes, the three collections, the persona surface and the Plugins screen all register through, with the D120 section seam and key partition untouched and plugins riding the Extensions group's data rows; a LIST of shelves + group bands with the shipped `settings-scroll-spy.ts` re-homed as the one spy; ONE search index (groups · subcategories · leaves · collection members · persona names) over the sealed fuzzy-search hook with VS Code-style `@modified`/`@shelf:`/`@in:`/`@ext:`/`@advanced` tokens, in-place `HighlightedText` hits in both panes, a ⌘K `CommandPaletteSource`, and `openConfigTo(group, sub?, setting?)` replacing `openSettingsTo` + `goToCollection` (17 call sites); a dense CONTENT row frame (modified rail · gloss · control · reset/copy menu · scope chip); the CONTEXT pane as the TEACHER on the #860 bracket via `defineContextTabs<ConfigContextState>` (About · Applies · Learn) fed by a `configFocus` seam and per-leaf `SettingTeach` data; the rail persona slot as switcher · identity · log out. Zero new `@orb/ui` primitives; four client composites with CTs named. Nine owner forks with recommendations (closed tuple for collections; keep the Theme picker; retire the account modal; defer tags-as-facet; rename the label "Settings"). Sequence: S1 registry+surface and S2 search are dispatchable now; S3 teacher waits for #860; S4 rail slot after S1.
+Design landed at `docs/design/config-revamp-design.md` (draft, 2026-08-30). Premise repaired: Settings is the `settings` MODAL on `rail.end`, not a section — `SECTION_IDS` stays at ten; what retires is the modal, its gear, `settingsCategory`/`openSettingsTo`. The design: ONE closed config-group registry (`CONFIG_GROUP_IDS`, four shelves User/App/Collections/Extensions; body arms `sections` | `collection` | `placeholder` — `surface` retired by §6.8) that the nine settings panes, the three collections, the persona surface and the Plugins screen all register through, with the D120 section seam and key partition untouched and plugins riding the Extensions group's data rows; a LIST of shelves + group bands with the shipped `settings-scroll-spy.ts` re-homed as the one spy; ONE search index (groups · subcategories · leaves · collection members · persona names) over the sealed fuzzy-search hook with VS Code-style `@modified`/`@shelf:`/`@in:`/`@ext:`/`@advanced` tokens, in-place `HighlightedText` hits in both panes, a ⌘K `CommandPaletteSource`, and `openConfigTo(group, sub?, setting?)` replacing `openSettingsTo` + `goToCollection` (17 call sites); a dense CONTENT row frame (modified rail · gloss · control · reset/copy menu · scope chip); the CONTEXT pane as the TEACHER on the #860 bracket via `defineContextTabs<ConfigContextState>` (About · Applies · Learn) fed by a `configFocus` seam and per-leaf `SettingTeach` data; the rail persona slot as switcher · identity · log out. Zero new `@orb/ui` primitives; four client composites with CTs named. Nine owner forks with recommendations (closed tuple for collections; keep the Theme picker; retire the account modal; defer tags-as-facet; rename the label "Settings"). Sequence: S1 registry+surface and S2 search are dispatchable now; S3 teacher waits for #860; S4 rail slot after S1.

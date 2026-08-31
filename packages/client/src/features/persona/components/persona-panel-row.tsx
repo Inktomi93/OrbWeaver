@@ -6,14 +6,14 @@
 import { blobUrl } from "@orb/contracts/assets";
 import { initialsFor } from "@orb/kit/initials";
 import { Avatar } from "@orb/ui/avatar";
+import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { Collapsible, CollapsiblePanel } from "@orb/ui/collapsible";
 import { FileTrigger } from "@orb/ui/file-trigger";
 import type { LucideIcon } from "@orb/ui/icons";
-import { ChevronDown, ChevronRight, Download, Heart, Icon, Star } from "@orb/ui/icons";
+import { ChevronDown, ChevronRight, Copy, Download, Heart, Icon, Pencil } from "@orb/ui/icons";
 import { Layer, Row, Stack } from "@orb/ui/layout";
 import { MenuItem } from "@orb/ui/menu";
-import { Text } from "@orb/ui/text";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
@@ -22,8 +22,9 @@ import { ConfirmDialog, FINE_INERT_UNTIL_HOVER, ROW_ACTION_INLINE, ROW_ACTION_OV
 import type { Trpc } from "#data";
 import { useInvalidation, useTRPC, useTRPCClient, useUploadAsset, useUploadCaps } from "#data";
 import { cn, downloadTextFile, notify, oversizeUploadMessage, rowActionSubject } from "#lib";
-import { useUpdatePersona } from "../hooks/use-persona-mutations.ts";
+import { useDuplicatePersona, useUpdatePersona } from "../hooks/use-persona-mutations.ts";
 import { PersonaEditor } from "./persona-editor.tsx";
+import { PersonaPin } from "./persona-pin.tsx";
 import { PersonaRowNameColumn } from "./persona-row-name-column.tsx";
 
 type PersonaListItem = inferOutput<Trpc["persona"]["list"]>[number];
@@ -103,6 +104,15 @@ export function PersonaPanelRow({
     update.mutate({ personaId: persona.id, input: { starred: !persona.starred } });
   };
 
+  // Row-level Duplicate (#866 S4 — was editor-only). The same double-fire guard as the editor's button:
+  // a menu item can be activated twice before the first mutate settles.
+  const duplicate = useDuplicatePersona({ trpc, invalidation });
+  const onDuplicate = (): void => {
+    if (!duplicate.isPending) {
+      duplicate.mutate({ personaId: persona.id });
+    }
+  };
+
   // F3: EXPORT is a kebab item on the ROW (the ruled anatomy), not a button inside the editor. The bytes
   // are the SERVER's — the same file the backup bundle carries — so a shared persona and a restored one
   // can't diverge.
@@ -161,12 +171,7 @@ export function PersonaPanelRow({
             name ran under the orange "PLAYING AS"). A floor on one side of a two-item row is a squeeze on
             the other. What actually bounds this row is the MARKERS reserving their content (below) while the
             name shrinks and truncates — one shrinker, one reserver. */}
-        <PersonaRowNameColumn
-          isDefault={isDefault}
-          onRename={(name): void => update.mutate({ personaId: persona.id, input: { name } })}
-          persona={persona}
-          subject={subject}
-        />
+        <PersonaRowNameColumn onRename={(name): void => update.mutate({ personaId: persona.id, input: { name } })} persona={persona} subject={subject} />
 
         {/* MARKERS ⇄ ACTIONS is a PAINT swap, never a display swap: both clusters are permanently in flow, so
             the row's geometry is byte-identical at rest and on hover. A `hidden`/`flex` swap here reflowed the
@@ -189,17 +194,15 @@ export function PersonaPanelRow({
             {/* THE ROW IS THE ONE HOME FOR "PLAYING AS" (side-eye 2026-08-03 P2) — the band above the roster
                 used to render the current persona a second time, with a different anatomy, 40px away. Words,
                 not just the selected tint + `aria-current`: a colour is not a statement. */}
-            {isCurrent ? (
-              // TRUNCATES, and now that is TRUE (side-eye leg-4 P2 — the header claimed it while the kicker
-              // was `white-space: normal` and wrapped to two lines even at rest, which is what made the
-              // cluster taller and wider than the row budgeted for).
-              <Text as="span" className="min-w-0 truncate text-primary" voice="kicker">
-                Playing as
-              </Text>
-            ) : null}
-            {/* THE CROWN AND THE HEART MOVED TO THE TITLE LINE (side-eye 2026-08-07 §① P1 — see the block
-                comment there). What is left in this cell is the kicker alone, which is why the cell keeps
-                plain `ROW_REVEAL_SWAP`: the words are the one marker whose coarse drop is DELIBERATE. */}
+            {/* THE PILL (#866 S4, the Personas board): "playing as" on the current row, "pinned · {{user}}"
+                on the default row — words at rest on a fine pointer, exactly where the old kicker lived.
+                ONE pill max: on a row that is BOTH (your only persona), current wins — "pinned" is already
+                the solid pin's statement one cell over, and two pills re-buy the width collapse this row's
+                fences exist to prevent. The cell keeps plain `ROW_REVEAL_SWAP`: the coarse drop is
+                DELIBERATE (a narrow row cannot afford pills), and at coarse the states survive as the
+                stretched button's state-aware NAME + `aria-current` (current) and the always-in-flow PIN
+                (default). */}
+            <RowPill isCurrent={isCurrent} isDefault={isDefault} />
           </Row>
 
           {/* INERT AT REST, and that is a CONSEQUENCE of sharing the cell (`ROW_REVEAL`'s own carve-out: an
@@ -233,25 +236,35 @@ export function PersonaPanelRow({
                 label={persona.starred ? `Unfavorite ${subject}` : `Favorite ${subject}`}
                 onClick={onToggleFavorite}
               />
-              {/* ONE FACT, ONE PLACE (side-eye 2026-08-03 P2). "Your default" used to be said three times on
-                  one row: the crown MARKER at rest, this control's label, and — on the seeded persona — the
-                  subtitle. The reveal cluster is for VERBS; a disabled button whose name is a STATE is neither
-                  a verb nor a state a reader can act on, and it was the third telling. The crown marker (in the
-                  a11y tree, tooltipped) keeps the state; the verb only exists while it is available. */}
-              {isDefault ? null : <IconAction icon={Star} label={`Set ${subject} as default`} onClick={onSetDefault} />}
+              {/* THE SET-DEFAULT STAR IS GONE (#866 S4, pin-not-crown): the verb AND the state are ONE pin
+                  now — the in-flow `PersonaPin` sibling after this Layer, solid on the default row, the
+                  faint click-to-pin elsewhere. One glyph, one meaning; one fact, one place (the 2026-08-03
+                  P2 rule, finally with one element). The heart pair above is unchanged. */}
             </Row>
             <PersonaRowMenu
-              isDefault={isDefault}
               name={persona.name}
               onDelete={onDelete}
+              onDuplicate={onDuplicate}
+              onEdit={(): void => {
+                if (!expanded) {
+                  onToggleExpand();
+                }
+              }}
               onExport={onExport}
-              onSetDefault={onSetDefault}
               onToggleFavorite={onToggleFavorite}
               starred={persona.starred}
               subject={subject}
             />
           </Row>
         </Layer>
+
+        {/* THE PIN (#866 S4, pin-not-crown) — an always-in-flow sibling, NOT a member of either paint-swap
+            half: the solid default marker must be rest-visible at every pointer class (the crown's coarse
+            bug), and the faint click-to-pin carries its own opacity reveal. Sits between the action Layer
+            and the chevron — the board draws pin before ⋯, but the markers⇄actions pair share ONE Layer
+            cell by the 2026-08-06 P1 ruling and the pin can ride inside neither half (deviation recorded
+            in the design doc). */}
+        <PersonaPin className="relative shrink-0" isDefault={isDefault} onPin={onSetDefault} subject={subject} />
 
         <IconAction
           className="relative shrink-0"
@@ -296,28 +309,34 @@ export function PersonaPanelRow({
  * become the double-telling this row's own rulings ban.
  */
 function PersonaRowMenu({
-  isDefault,
   name,
   onDelete,
+  onDuplicate,
+  onEdit,
   onExport,
-  onSetDefault,
   onToggleFavorite,
   starred,
   subject,
 }: {
-  readonly isDefault: boolean;
   /** The persona's own name — the destructive confirm quotes it, and a confirm body speaks to a reader who
    *  can SEE which row they opened, so it never wants the disambiguator. */
   readonly name: string;
   readonly onDelete: () => void;
+  /** Expands the row's editor (#866 S4 — the ⋯ names what the chevron does, for the reader who opens a
+   *  menu looking for a verb; the editing model's HOME is unchanged, it is the expansion). */
+  readonly onEdit: () => void;
+  /** `persona.duplicate` — was editor-only; the row menu is the ruled lifecycle home (§12.2). */
+  readonly onDuplicate: () => void;
   readonly onExport: () => Promise<void>;
-  readonly onSetDefault: () => void;
   readonly onToggleFavorite: () => void;
   readonly starred: boolean;
   /** The row's announced identity (`rowActionSubject`) — what the TRIGGER's accessible name embeds, so two
    *  same-named rows can't hand one list two controls called "Actions for Traveler" (#443/#458). */
   readonly subject: string;
 }): ReactElement {
+  // Set-as-default LEFT this menu with #866 S4 (pin-not-crown): the pin is an always-in-flow row control
+  // at BOTH pointer classes, so a coarse-overflow twin here would be the double-telling the collapse
+  // rule exists to prevent. The Favorite twin stays — its inline heart still stands down at coarse.
   return (
     <RowActionsMenu
       destructive={{
@@ -331,12 +350,14 @@ function PersonaRowMenu({
         <Icon icon={Heart} size="sm" />
         {starred ? "Unfavorite" : "Favorite"}
       </MenuItem>
-      {isDefault ? null : (
-        <MenuItem className={ROW_ACTION_OVERFLOW} onClick={onSetDefault}>
-          <Icon icon={Star} size="sm" />
-          Set as default
-        </MenuItem>
-      )}
+      <MenuItem onClick={onEdit}>
+        <Icon icon={Pencil} size="sm" />
+        Edit
+      </MenuItem>
+      <MenuItem onClick={onDuplicate}>
+        <Icon icon={Copy} size="sm" />
+        Duplicate
+      </MenuItem>
       <MenuItem
         onClick={(): void => {
           onExport().catch(() => notify.error("Couldn't export the persona."));
@@ -347,6 +368,27 @@ function PersonaRowMenu({
       </MenuItem>
     </RowActionsMenu>
   );
+}
+
+/** The title-line pill — ONE max (current wins; see the markers-cell comment). Plain text to a reader:
+ *  the STATES are already announced by `aria-current` + the state-aware select name (current) and the
+ *  named pin (default); the pill is the fine-pointer rest-glance telling. */
+function RowPill({ isCurrent, isDefault }: { readonly isCurrent: boolean; readonly isDefault: boolean }): ReactElement | null {
+  if (isCurrent) {
+    return (
+      <Badge className="min-w-0 truncate" intent="primary" tone="soft">
+        playing as
+      </Badge>
+    );
+  }
+  if (isDefault) {
+    return (
+      <Badge className="min-w-0 truncate" tone="soft">
+        pinned · {"{{user}}"}
+      </Badge>
+    );
+  }
+  return null;
 }
 
 /** The stretched select target's accessible name — STATE-AWARE (side-eye 2026-08-07 P3a).
