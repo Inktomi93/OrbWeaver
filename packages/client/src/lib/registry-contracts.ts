@@ -369,6 +369,18 @@ export interface ConfigTeachDoor {
   readonly open: () => void;
 }
 
+/** The focused LEAF's value seam, projected for the About tab (§3.4 row chrome, #866): raw stored values
+ *  (`unknown` — the teacher formats), the `@modified` verdict at leaf grain, and the pre-bound Reset —
+ *  the COARSE pointer's one path to it (the row menu is fine-pointer chrome). `null` on the view ⇒ the
+ *  focused subject has no per-leaf binding (a section, a group, a composite row) and About teaches
+ *  without the block. */
+export interface ConfigTeachValue {
+  readonly current: unknown;
+  readonly defaultValue: unknown;
+  readonly modified: boolean;
+  readonly reset: () => void;
+}
+
 /** The RESOLVED lesson the Config context pane teaches (§7.2) — the focused leaf's teach, its section's,
  *  or the group's own, already flattened to display data by the host (this file may not import `#state`,
  *  so no registry vocabulary crosses; ids were resolved into doors before this shape exists). */
@@ -384,6 +396,8 @@ export interface ConfigTeachView {
   readonly related: readonly ConfigTeachDoor[];
   /** The Learn tab's body; `null` ⇒ the tab is absent (APPLICABILITY, never hiding). */
   readonly learn: (() => ReactNode) | null;
+  /** The focused leaf's default-vs-current block (About renders it; `null` = no binding). */
+  readonly value: ConfigTeachValue | null;
 }
 
 /** The Config CONTEXT-panel state projection (O5 strict — the `defineContextTabs<ConfigContextState>`

@@ -12,28 +12,33 @@ export const APPEARANCE_READING_SUBCATEGORY: ConfigSubcategory = {
   settings: [
     {
       id: "line-height",
+      key: "readingLineHeight",
       label: "Line height",
       keywords: ["leading", "spacing"],
       teach: { summary: "Spacing between lines of message text.", affects: ["message body text in every chat"] },
     },
     {
       id: "letter-spacing",
+      key: "readingLetterSpacing",
       label: "Letter spacing",
       keywords: ["tracking", "kerning"],
       teach: { summary: "Tracking applied to message text, in em.", affects: ["message body text in every chat"] },
     },
     {
       id: "paragraph-spacing",
+      key: "readingParagraphSpacing",
       label: "Paragraph spacing",
       teach: { summary: "The gap between paragraphs inside one message, in rem.", affects: ["multi-paragraph messages in every chat"] },
     },
     {
       id: "name-scale",
+      key: "readingNameScale",
       label: "Speaker name size",
       teach: { summary: "A multiplier on the attribution name text above each message.", affects: ["speaker names in every chat"] },
     },
     {
       id: "body-scale",
+      key: "readingBodyScale",
       label: "Message text size",
       teach: {
         summary: "A multiplier on message body text, independent of the global text size.",
@@ -43,6 +48,7 @@ export const APPEARANCE_READING_SUBCATEGORY: ConfigSubcategory = {
     },
     {
       id: "justify",
+      key: "justifyBodyText",
       label: "Justify message text",
       keywords: ["align", "manuscript"],
       teach: { summary: "Aligns both edges of wrapped message text, manuscript style.", affects: ["paragraph edges in every chat"] },

@@ -78,6 +78,37 @@ test("§8.1 per-field clear — picking Inherit OMITS that field, the others sur
   await expect.poll(() => lastThemeOverride(trpc), { intervals: [20, 50, 100] }).toEqual({ radius: "card" });
 });
 
+// SEEN, NOT READ (#866 §7.8): a typeface is seen, so each font OPTION renders IN its own face — the
+// style DERIVES from the option's value (`labelStyle: { fontFamily: value }`), never a second table.
+// Computed-style read, WHOLE value (the sliced-string lesson): the family list must LEAD with the value.
+test("font options render in their own typeface — derived from the value", async ({ mount, page }) => {
+  await route(page, {});
+  await mount(<CharacterLookTabStory />);
+
+  await page.getByRole("combobox", { name: "Font" }).click();
+  const georgia = page.getByRole("option", { name: "Georgia", exact: true });
+  await expect(georgia).toBeVisible();
+  await expect
+    .poll(() =>
+      georgia
+        .locator('[data-slot="select-item-body"] > *')
+        .first()
+        .evaluate((el: HTMLElement) => getComputedStyle(el).fontFamily),
+    )
+    .toContain("Georgia");
+  // Inherit carries NO face of its own — it is not a typeface, and styling it would be a lie.
+  const inherit = page.getByRole("option", { name: "Inherit", exact: true });
+  const bodyFace = await page.evaluate(() => getComputedStyle(document.body).fontFamily);
+  await expect
+    .poll(() =>
+      inherit
+        .locator('[data-slot="select-item-body"] > *')
+        .first()
+        .evaluate((el: HTMLElement) => getComputedStyle(el).fontFamily),
+    )
+    .toBe(bodyFace);
+});
+
 test("§8.1 Reset to global sends themeOverride: null", async ({ mount, page }) => {
   const trpc = await route(page, { radius: "card" });
   await mount(<CharacterLookTabStory />);
@@ -103,10 +134,11 @@ test("§8.1 a colour edit debounces into one write carrying the picked colour", 
 });
 
 // ── The card-embeddable partition: a card carries IDENTITY, never the viewer's ERGONOMICS (TD §3) ─────
-// `chatStyle` and `density` are VIEWER-SACRED: the row skin reads `appearance.chatStyle` only and the
-// single `[data-density]` selector is the shell grid's (a nested scope's attribute matches nothing), so a
-// card control for either governed NOTHING — the D107 dead-switch class. The controls are struck; the
-// partition (`CARD_EMBEDDABLE_THEME_KEYS`) is what keeps them from coming back.
+// `chatStyle` and `density` are VIEWER-SACRED: the row skin reads `appearance.chatStyle` only, and no
+// card path stamps `data-density` (`CARD_EMBEDDABLE_THEME_KEYS` excludes it — since the #866 §7.8 hoist
+// the density rule is a bare-attribute selector any box COULD re-scope, so the partition is the one
+// enforcement, not the selector's shell scoping). A card control for either governed NOTHING — the D107
+// dead-switch class. The controls are struck; the partition is what keeps them from coming back.
 
 test("the card cannot force viewer ergonomics — no Message style / Density control (D107)", async ({ mount, page }) => {
   await route(page, { radius: "card" });

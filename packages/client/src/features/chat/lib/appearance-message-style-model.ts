@@ -16,6 +16,7 @@ export const APPEARANCE_MESSAGE_STYLE_SUBCATEGORY: ConfigSubcategory = {
   settings: [
     {
       id: "chat-style",
+      key: "chatStyle",
       label: "Chat display",
       keywords: ["bubble", "flat", "document", "immersive", "echo", "whisper", "ripple"],
       teach: {
@@ -25,6 +26,7 @@ export const APPEARANCE_MESSAGE_STYLE_SUBCATEGORY: ConfigSubcategory = {
     },
     {
       id: "color-quoted-speech",
+      key: "colorQuotedSpeech",
       label: "Color quoted speech",
       keywords: ["dialogue", "quotes", "speech"],
       teach: {
@@ -35,6 +37,7 @@ export const APPEARANCE_MESSAGE_STYLE_SUBCATEGORY: ConfigSubcategory = {
     },
     {
       id: "auto-fix-markdown",
+      key: "autoFixMarkdown",
       label: "Auto-fix unfinished formatting",
       keywords: ["markdown", "italic", "bold", "asterisk"],
       teach: {

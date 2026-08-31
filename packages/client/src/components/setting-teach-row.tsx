@@ -14,11 +14,14 @@
 
 import { HintTrigger } from "@orb/ui/hint-trigger";
 import { Row, Stack } from "@orb/ui/layout";
+import { Text } from "@orb/ui/text";
 import type { PointerEvent, ReactElement, ReactNode } from "react";
 import { createContext, use, useEffect, useRef } from "react";
 import { cn } from "#lib";
 import type { ConfigGroupId, ConfigSubcategory } from "#state";
 import { isTeachNone, revealContextPanel, setConfigFocus, useConfigSearchMatch } from "#state";
+import { SettingRowMenu } from "./setting-row-menu.tsx";
+import { useConfigLeaf } from "./use-config-leaf.ts";
 
 /** How long a fine pointer RESTS on a row before the hover counts as "looking at it" (F-8) — long enough
  *  that a travel-through never teaches, short enough that a genuine pause does. */
@@ -54,6 +57,9 @@ export function SettingRow({ settingId, children }: SettingRowProps): ReactEleme
   const scope = use(TeachScopeContext);
   const match = useConfigSearchMatch();
   const hoverTimer = useRef<ReturnType<typeof globalThis.setTimeout> | null>(null);
+  // The per-leaf value seam (§3.4 row chrome, #866): null outside a scope, without a provider, or on a
+  // leaf that declares no `key` — every null means "no value chrome", never an error.
+  const binding = useConfigLeaf(scope === null ? null : { group: scope.group, sub: scope.sub.id, setting: settingId });
   // A dismount mid-delay must not teach a row that is gone.
   useEffect(
     () => (): void => {
@@ -85,13 +91,18 @@ export function SettingRow({ settingId, children }: SettingRowProps): ReactEleme
     }
   };
   const isMatch = match !== null && match.group === group && match.sub === sub.id && match.setting === settingId;
+  const modified = binding?.modified === true;
   return (
     // The handlers are a PASSIVE observation surface — they publish which setting the pane teaches, never
     // an action; the interactive elements inside (the control, the `i`) keep their own semantics, and the
     // keyboard path is the focus-within capture.
+    // `group/setting` (NAMED — a bare `group` would key the menu's reveal on any ancestor's hover) +
+    // `relative` for the modified rail, which is ABSOLUTE (out of flow — the rest row is byte-identical
+    // whether or not a rail exists; the owner's zero-shift bar).
     <Row
       align="start"
-      className={cn("min-w-0", isMatch ? "rounded-control bg-accent" : undefined) ?? ""}
+      className={cn("group/setting relative min-w-0", isMatch ? "rounded-control bg-accent" : undefined) ?? ""}
+      data-modified={modified ? "" : undefined}
       data-search-match={isMatch ? "" : undefined}
       data-setting={settingId}
       data-slot="setting-row"
@@ -101,7 +112,17 @@ export function SettingRow({ settingId, children }: SettingRowProps): ReactEleme
       onPointerEnter={onPointerEnter}
       onPointerLeave={onPointerLeave}
     >
+      {/* THE MODIFIED RAIL (§3.4 — the VS Code left bar, a designed mark): paint only (`aria-hidden`);
+          the a11y telling is the sr-only text below. Vertically inset + rounded so it reads as a mark,
+          not a border; `-left-2` sits it in the section's gutter, off the label's ink. */}
+      {modified ? <Row aria-hidden={true} className="-left-2 absolute inset-y-1 border-l-2 border-l-primary/60" data-slot="setting-modified-rail" /> : null}
+      {modified ? (
+        <Text as="span" className="sr-only">
+          Modified from its default.
+        </Text>
+      ) : null}
       <Stack className="min-w-0 flex-1">{children}</Stack>
+      {leaf === undefined ? null : <SettingRowMenu address={{ group, sub: sub.id, setting: settingId }} binding={binding} label={leaf.label} />}
       {teach === null ? null : (
         <HintTrigger
           className="mt-tight shrink-0"

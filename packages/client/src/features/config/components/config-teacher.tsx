@@ -5,14 +5,15 @@
 // collection's own context arm (its "where it's attached" answer, unchanged contract); Learn renders only
 // when a contribution supplied one (APPLICABILITY — the tab's `when` lives in `config-teacher-tabs.tsx`).
 
+import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
 import type { LucideIcon } from "@orb/ui/icons";
-import { Icon } from "@orb/ui/icons";
+import { Icon, RotateCcw } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
-import type { CollectionContribution, ConfigContextState, ConfigTeachDoor } from "#lib";
+import type { CollectionContribution, ConfigContextState, ConfigTeachDoor, ConfigTeachValue } from "#lib";
 
 export interface TeacherProps {
   readonly state: ConfigContextState;
@@ -57,12 +58,60 @@ function KickerBlock({ kicker, children }: { readonly kicker: string; readonly c
   );
 }
 
+/** Format a stored settings value for the About block — booleans as words, scalars as their text; an
+ *  enum wire value renders its raw spelling (mapping to a Select's display labels would drag every items
+ *  table into the teacher — recorded §7.7 limitation). */
+function formatLeafValue(value: unknown): string {
+  if (typeof value === "boolean") {
+    return value ? "On" : "Off";
+  }
+  if (value === null || value === undefined) {
+    return "None";
+  }
+  return typeof value === "object" ? JSON.stringify(value) : String(value);
+}
+
+/** ABOUT's default-vs-current block (§3.4, the row-chrome leg) — the COARSE pointer's one Reset door
+ *  (the row's ⋯ is fine-pointer chrome). Modified ⇒ the pair + Reset; at default ⇒ the honest one-liner,
+ *  NO button (a verb only where there is something to do — the pin-not-crown rule). */
+function TeacherValueBlock({ value }: { readonly value: ConfigTeachValue }): ReactElement {
+  if (!value.modified) {
+    return (
+      <Text voice="gloss" data-slot="teacher-value-default">
+        Using the default — {formatLeafValue(value.defaultValue)}.
+      </Text>
+    );
+  }
+  return (
+    <Stack gap="tight" data-slot="teacher-value">
+      <Row align="center" gap="field" className="min-w-0">
+        <Text as="span" voice="label" className="min-w-0 truncate">
+          Current {formatLeafValue(value.current)}
+        </Text>
+        <Text as="span" voice="gloss" aria-hidden={true}>
+          ·
+        </Text>
+        <Text as="span" voice="gloss" className="min-w-0 truncate">
+          Default {formatLeafValue(value.defaultValue)}
+        </Text>
+      </Row>
+      <Row>
+        <Button intent="ghost" size="sm" onClick={value.reset}>
+          <Icon icon={RotateCcw} size="sm" />
+          Reset to default
+        </Button>
+      </Row>
+    </Stack>
+  );
+}
+
 /** ABOUT — the definition, what moves when it moves, and the knobs it interacts with. */
 export function TeacherAbout({ state }: TeacherProps): ReactElement {
   const { teach } = state;
   return (
     <Stack gap="block" data-slot="teacher-about">
       <Text>{teach.summary}</Text>
+      {teach.value === null ? null : <TeacherValueBlock value={teach.value} />}
       {teach.affects.length === 0 ? null : (
         <KickerBlock kicker="Affects">
           <Stack gap="tight">

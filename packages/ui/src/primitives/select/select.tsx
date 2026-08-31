@@ -44,6 +44,14 @@ export interface SelectOption<Value = string> {
    * (side-eye 2026-08-16, the chat-display modes).
    */
   description?: string;
+  /**
+   * Inline style for the option's LABEL text (`ItemText`) — the "seen, not read" slot (#866 §7.8): a
+   * FONT option renders its label in its own typeface (`{ fontFamily: value }`), so the choice is seen
+   * at the moment of choosing. Because `Select.Value` mirrors `ItemText`, the closed trigger inherits
+   * the picked option's style too — deliberate (the chosen font shows itself). Style, not a className:
+   * the value IS the datum (a derived `fontFamily`), never a second vocabulary.
+   */
+  labelStyle?: CSSProperties;
 }
 
 /** A labeled group of options — renders a `Select.GroupLabel` above its items. */
@@ -87,7 +95,7 @@ function renderOption<Value>(option: SelectOption<Value>, idPrefix: string): Rea
       value={option.value}
     >
       <span className={slots.itemBody()} data-slot="select-item-body">
-        <BaseSelect.ItemText>{option.label}</BaseSelect.ItemText>
+        <BaseSelect.ItemText {...(option.labelStyle === undefined ? {} : { style: option.labelStyle })}>{option.label}</BaseSelect.ItemText>
         {option.description === undefined ? null : (
           <span aria-hidden="true" className={slots.itemDescription()} data-slot="select-item-description" id={describedBy}>
             {option.description}

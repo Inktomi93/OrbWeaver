@@ -604,4 +604,117 @@ Select — the strongest sibling; a skin is a visual anatomy), `density`/`elevat
 is spatial; a labelled `OptionStrip`/segment with a live mini-preview is the honest control), the reading
 font family Select (a typeface is seen), the theme-editor's token pickers (already visual — no change).
 No rebuild beyond background in this lane.
+**Superseded 2026-08-30 (owner ack via orchestrator): the candidates are ACKED FOR BUILD — §7.8.**
+
+### 7.7 The §3.4 row-chrome leg, as built (2026-08-30, the deferred leg un-deferred — owner live ask)
+
+Scope = the rider verbatim (stripe + revealed menu + `useConfigLeaf` defaults plumbing + About's
+default-vs-current/Reset; NO scope chip), plus the owner's aesthetic bar: rest byte-identical, ZERO
+layout shift on reveal, opacity-only fade on house motion tokens, the stripe a designed mark.
+
+- **The leaf↔key binding is DECLARED, not derived.** `ConfigSettingLeaf` gains `key?: string` — the
+  settings key this leaf's control writes, inside the owning contribution's USER-tier `owns` claim.
+  Leaf ids are nav/search ids (kebab: `chat-width`) while claim keys are wire keys (camel:
+  `chatWidthPct`); nothing mechanical binds them (counted: sizing is 5:5 by coincidence, background is
+  not), so an inferred binding would be a lie. Absent `key` = no per-leaf chrome (composite rows like
+  the background grid, CRUD lists, app-tier sections) — partial adoption is honest, never a false
+  stripe. *Rejected:* leaf id === key (would force wire spellings into search ids and break every
+  existing anchor); a per-row `settingsKey` prop (the teacher could never resolve it — the binding must
+  live in the REGISTRY both readers already share). The door's `assertSettingsKeyPartition` gains the
+  honesty arm: every declared `key` must be a member of its contribution's user-tier claim (planted-RED
+  tested) — a leaf can never claim a key its section does not own.
+- **`useConfigLeaf` homes in `#components`** (`components/use-config-leaf.ts`), NOT `#data` as §3.4
+  originally sketched: it resolves the leaf through the config-section REGISTRY (a `#state` context,
+  which `#data` may not import), and its two consumers are the tier-2 `SettingRow` and the config
+  feature's teacher — `#components` is the highest common floor. Null-tolerant (`use(Context)` direct,
+  the sanctioned nullable read — `useRegistry()` throws) so a `SettingRow` outside config stays inert.
+  Returns `{ current, defaultValue, modified, reset, resetPending }`; `current` =
+  `getUserSettings().config[claim.section][key]` (non-suspense — the `use-modified-sections` posture),
+  default = `DEFAULT_USER_SETTINGS` at the same path, `modified` = the SAME structural compare
+  `@modified` uses — `atPath`/`differs` HOIST from `use-modified-sections.ts` into `#lib`
+  (`lib/settings-path.ts`) so "the same read" is literal, not parallel.
+- **Reset is ONE direct write** — `updateUserSettingsSection({section, patch: {[key]: default}})` via a
+  shared `createEntityMutation` (busDriven). DEVIATION from §3.4's "the frame gets `onReset` from the
+  section": (a) the owner's re-ruling already collapsed every row write to per-user
+  `updateUserSettingsSection` (what cut the scope chip); (b) the About tab's Reset door — the COARSE
+  path — structurally cannot reach a section's form session; two reset paths would be the two-writer
+  drift trap, one hook serving both doors cannot drift; (c) the autosave boundary's clean server-echo
+  reseed (`create-autosave-entity-form.tsx` §5, two-device freshness) ADOPTS the round-tripped value
+  into the live controls, so a direct write renders correctly; a dirty form keeps the in-flight edit
+  (last-writer-wins — you were editing, your edit outranks the racing reset, Reset stays available).
+- **The row chrome** (`setting-teach-row.tsx`): the row wears a NAMED group (`group/setting` — bare
+  `group` keys on ANY ancestor `.group:hover` and an outer container would reveal every row at once) and
+  a permanently-reserved 2px left rail (`border-l-2`, transparent at rest → `border-primary/60` when
+  modified — reservation is what makes the mark shiftless; the flank-anchor lesson) + an `sr-only`
+  "Modified from its default" text (the rail itself is paint). The trailing `⋯` (`RowActionsMenu`,
+  `Actions for <leaf label>` — #443) sits in a RESERVED slot beside the `i`, `opacity-0` at rest,
+  fading in on the row's hover/focus-within (`SETTING_ROW_REVEAL`, a named-group cousin in
+  `row-reveal.ts`; `has-[[data-popup-open]]` pins it while the menu is open) and `pointer-coarse:hidden`
+  entirely (the rider: touch reaches Reset through About). Items: **Reset to default** (disabled +
+  titled while unmodified — a verb only where there is something to do) · **Copy setting id**
+  (`group.sub.setting` — the `openConfigTo` address vocabulary, not the wire key) · **Copy link**.
+- **The config deep link is MINTED** (Copy link must copy something true): `state/config-link.ts` —
+  `formatConfigLink(group, sub?, setting?)` → `/config?to=<group>[.<sub>[.<setting>]]` and
+  `parseConfigLink(to)` (validated against `CONFIG_GROUP_IDS`); the `/$section` alias route reads a
+  `to` search param when the section is `config`, calls `openConfigTo(...)`, and redirects to `/`
+  exactly as the alias already does — the "URL stays pinned at `/`" ruling is preserved (the address
+  bar never holds state; the link APPLIES state and lands home). *Rejected:* shipping Copy link without
+  a grammar (a copied link that drops the setting is a lying verb) and a real `/config/$group/...`
+  route tree (nine routes' worth of surface for a one-shot landing).
+- **About's value block** (`config-teacher.tsx`): `ConfigTeachView` gains
+  `value: { current, defaultValue, modified, reset } | null` (raw `unknown`s across the state-free
+  projection; the teacher formats — booleans as On/Off, scalars as text; enum wire values render as
+  their raw spelling, recorded limitation: mapping to Select labels would drag every items table into
+  the teacher). Modified ⇒ "Current … · Default …" + the Reset door (the coarse path); unmodified ⇒
+  "Using the default — …", no button.
+- **The key sweep**: `key` declared on every leaf whose row is a 1:1 `SettingRow` over a user-tier
+  claim key (app-shell sizing ×5, reading, effects, background's fit/dim/blur; chat message-style,
+  avatars, message-details, message-handling, streaming; library-settings where 1:1). Looks' leaves
+  stay unbound (applying a theme is a verb, not a key write).
+- **Red-first CT floor:** NEW `tests/client/components/setting-teach-row.ct.tsx` (rest: rail
+  transparent, `⋯` opacity 0, row geometry byte-stable across hover — the zero-shift pin measures
+  boundingBoxes before/during hover; modified: rail painted + sr-only text; Reset fires the exact
+  `{section, patch}` wire; Copy id/link land the exact strings on the clipboard; coarse: the menu
+  display-gone) · `config-teacher.ct.tsx` gains the About value arms (modified/unmodified, Reset wire)
+  · the partition planted-RED (`key` outside the claim throws) · `config-link` unit test (round-trip +
+  refusals) · the touched section CTs re-run.
+
+### 7.8 The seen-not-read rebuilds (owner-ACKED, the §7.6 table graduates to build)
+
+Same aesthetic bar; each control changes, its PATCH does not (red-first pick→patch CTs pin the wire
+byte-identical). (a) **`chatStyle`** → preview CARDS on the Looks grammar (a skin is a visual anatomy):
+each of the 8 skins renders a mini message-pair preview in its own anatomy, `aria-pressed` current,
+picking writes the same `{section:"appearance", patch:{chatStyle,…}}` through the same bound field.
+(b) **`density` + `elevation`** → labelled segments (`ToggleGroup`) with ONE live mini-preview panel
+that renders a small real-token mock — the preview reads the DRAFT value, not the saved one.
+(c) **reading font family** → rows rendered IN the typeface (each option's label wears its own
+`font-family`), same Select→segment/list grammar as its section affords. (d) theme-editor token
+pickers: untouched. Any of the four that fights its section's anatomy is a stated fork with a
+default, never a compromised ship.
+
+**As built (2026-08-30):** (a) the card previews DERIVE their anatomy from `MESSAGE_ROW_SKINS [style].outer/inner` — the transcript's own dispatch table — with labels/glosses off `CHAT_STYLE_ITEMS`;
+immersive decorations (echo's portrait, whisper's banner) need a real avatar and stay out of the mini
+pair (the gloss carries them). (b) the density preview derives by SELECTOR HOIST: shell.css's compact
+token block moved from `.shell-grid[data-density]` to the bare `[data-density]` attribute (custom
+properties cascade, so the shell grid and the preview box read the ONE definition — no mirrored number;
+`CARD_EMBEDDABLE_THEME_KEYS` still excludes density, so no card path can stamp the attribute). The
+**elevation** control is ILLUSTRATED CARDS, ruled (owner, 2026-08-30, two refinements): elevation's
+meaning is *hairlines vanish across the whole chrome horizon* — a structural rewrite across seven
+anatomy selectors (shell.css:84-112) — so a faithful mini-PREVIEW is impossible (a nested box has no
+seams to lose, and shrinking the shell would misrepresent). **The general rule this minted: a control
+whose outcome is seen owes a VISUAL; when a faithful preview is impossible, the answer is an honest
+DIAGRAM, never a bare label.** A preview claims to BE the surface; an illustration depicts the
+DIFFERENCE between the options and is honest precisely because it is obviously a diagram — and it is
+ALLOWED TO EXAGGERATE (a truthful 1px seam reads as nothing at diagram size; an under-drawn diagram
+teaches nothing). The KIND of difference stays true (flat = seams kept; ramp = a seamless brightness
+ladder; glow = floating islands), the AMOUNT is scaled for instant reading; every colour/hairline/
+shadow derives from the shell's own tokens, and the diagram map is TOTAL over the option union (a new
+member is a tsc failure until depicted). This CORRECTS the §7.6 table's recommendation, which lumped
+the pair as "segment + live mini-preview": density earns a LIVE preview (custom properties cascade —
+the hoist), elevation earns an ILLUSTRATION — both visual, by different means. (c) built as a
+sealed-`Select` widening
+(`SelectOption.labelStyle` — the HintTrigger-onClick precedent) with `{fontFamily: value}` derived from
+the option's own value; `Select.Value` mirrors `ItemText`, so the closed trigger shows the chosen face
+too, deliberately. A new bound `SegmentField` (single-select ToggleGroup in a Field; empty-pick refused)
+joins the form kit for (b).
 Design landed at `docs/design/config-revamp-design.md` (draft, 2026-08-30). Premise repaired: Settings is the `settings` MODAL on `rail.end`, not a section — `SECTION_IDS` stays at ten; what retires is the modal, its gear, `settingsCategory`/`openSettingsTo`. The design: ONE closed config-group registry (`CONFIG_GROUP_IDS`, four shelves User/App/Collections/Extensions; body arms `sections` | `collection` | `placeholder` — `surface` retired by §6.8) that the nine settings panes, the three collections, the persona surface and the Plugins screen all register through, with the D120 section seam and key partition untouched and plugins riding the Extensions group's data rows; a LIST of shelves + group bands with the shipped `settings-scroll-spy.ts` re-homed as the one spy; ONE search index (groups · subcategories · leaves · collection members · persona names) over the sealed fuzzy-search hook with VS Code-style `@modified`/`@shelf:`/`@in:`/`@ext:`/`@advanced` tokens, in-place `HighlightedText` hits in both panes, a ⌘K `CommandPaletteSource`, and `openConfigTo(group, sub?, setting?)` replacing `openSettingsTo` + `goToCollection` (17 call sites); a dense CONTENT row frame (modified rail · gloss · control · reset/copy menu · scope chip); the CONTEXT pane as the TEACHER on the #860 bracket via `defineContextTabs<ConfigContextState>` (About · Applies · Learn) fed by a `configFocus` seam and per-leaf `SettingTeach` data; the rail persona slot as switcher · identity · log out. Zero new `@orb/ui` primitives; four client composites with CTs named. Nine owner forks with recommendations (closed tuple for collections; keep the Theme picker; retire the account modal; defer tags-as-facet; rename the label "Settings"). Sequence: S1 registry+surface and S2 search are dispatchable now; S3 teacher waits for #860; S4 rail slot after S1.

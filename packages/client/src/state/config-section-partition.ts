@@ -20,6 +20,7 @@
 
 import type { UserSettings, UserSettingsSection } from "@orb/contracts/settings";
 import type { ContributorRegistry } from "#lib";
+import { settingsValueAtPath } from "#lib";
 import type { ConfigSectionContribution } from "./config-section-registry.ts";
 
 /** One cited exemption from the gap arm — a key inside a CLAIMED namespace that has no client editor.
@@ -115,6 +116,49 @@ export function assertSettingsKeyPartition(
   }
   const cited = validateCites(exemptions, owners, claimedSections, defaults);
   assertNoGaps(claimedSections, defaults, owners, cited);
+  assertLeafKeyBindings(registry, defaults);
+}
+
+/** The LEAF-KEY honesty arm (§3.4 row chrome, #866): a `ConfigSettingLeaf.key` binds the row's chrome —
+ *  the modified stripe, Reset, About's default-vs-current — to a settings key, so a key OUTSIDE the
+ *  owning contribution's user-tier claim would make the row read (and RESET) a value its section does not
+ *  own. Declared bindings must be members of the claim; a leaf on a claim-less or app-tier contribution
+ *  may not declare one at all (the app tier resets by clearing overrides — a different verb this chrome
+ *  deliberately does not carry). And every bound key's DEFAULT must RESOLVE from the contract defaults —
+ *  the ONE home (owner rider 2026-08-30: defaults are DERIVED, never mirrored; a key whose default
+ *  resolves `undefined` would read as permanently modified and reset to a hole). */
+function assertLeafKeyBindings(registry: ContributorRegistry<ConfigSectionContribution>, defaults: UserSettings): void {
+  for (const contribution of registry.list()) {
+    for (const leaf of contribution.nav.settings ?? []) {
+      if (leaf.key !== undefined) {
+        assertOneLeafKeyBinding(contribution, { leafId: leaf.id, key: leaf.key }, defaults);
+      }
+    }
+  }
+}
+
+function assertOneLeafKeyBinding(
+  contribution: ConfigSectionContribution,
+  bound: { readonly leafId: string; readonly key: string },
+  defaults: UserSettings,
+): void {
+  const at = `leaf "${contribution.nav.id}.${bound.leafId}" (section "${contribution.id}")`;
+  const claim = contribution.owns;
+  if (claim === undefined || claim.tier !== "user") {
+    throw new Error(
+      `assertSettingsKeyPartition: ${at} declares key "${bound.key}" but the contribution has no user-tier claim — a leaf binding needs an owned per-user key (config-revamp-design.md §7.7).`,
+    );
+  }
+  if (!claim.keys.includes(bound.key)) {
+    throw new Error(
+      `assertSettingsKeyPartition: ${at} declares key "${bound.key}", which is NOT in the section's claim [${claim.keys.join(", ")}] — the row would read and RESET a value its section does not own (config-revamp-design.md §7.7).`,
+    );
+  }
+  if (settingsValueAtPath(defaults, `${claim.section}.${bound.key}`) === undefined) {
+    throw new Error(
+      `assertSettingsKeyPartition: ${at} binds key "${claim.section}.${bound.key}", whose DEFAULT does not resolve from the contract defaults — the one home (config-revamp-design.md §7.7). The stripe would read permanently modified and Reset would write a hole; fix the key or the schema, never mirror a literal.`,
+    );
+  }
 }
 
 /** The STALE-CITE arms — a cite that is now claimed, sits in an unclaimed (still group-owned) namespace, or

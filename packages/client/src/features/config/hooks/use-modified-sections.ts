@@ -12,32 +12,19 @@
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { useQuery } from "@tanstack/react-query";
 import { useSettingsViewerView, useTRPC } from "#data";
+// The ONE "modified" derivation, shared with the per-leaf row chrome (`use-config-leaf.ts`) — hoisted to
+// `#lib` by the §3.4 row-chrome leg so a row's stripe and its section's `@modified` badge cannot disagree.
+import { settingsValueAtPath, settingsValueDiffers } from "#lib";
 import type { ConfigGroupId, ModifiedSubIds, SettingsKeyClaim } from "#state";
 import { useConfigSectionRegistry } from "#state";
 
-/** Loose read of a nested record path ("a" or "a.b") — the claim grammar's two depths. */
-function atPath(bag: unknown, path: string): unknown {
-  let node: unknown = bag;
-  for (const step of path.split(".")) {
-    if (typeof node !== "object" || node === null) {
-      return;
-    }
-    node = (node as Record<string, unknown>)[step];
-  }
-  return node;
-}
-
-/** Structural comparison over settings values — small JSON blobs, so the stringify form is exact enough
- *  (key order is stable: both sides come from the same schema's parse). */
-function differs(a: unknown, b: unknown): boolean {
-  return JSON.stringify(a) !== JSON.stringify(b);
-}
-
 function claimModified(claim: SettingsKeyClaim, userConfig: unknown, appOverrides: unknown): boolean {
   if (claim.tier === "user") {
-    return claim.keys.some((key) => differs(atPath(userConfig, `${claim.section}.${key}`), atPath(DEFAULT_USER_SETTINGS, `${claim.section}.${key}`)));
+    return claim.keys.some((key) =>
+      settingsValueDiffers(settingsValueAtPath(userConfig, `${claim.section}.${key}`), settingsValueAtPath(DEFAULT_USER_SETTINGS, `${claim.section}.${key}`)),
+    );
   }
-  return claim.keys.some((key) => atPath(appOverrides, key) !== undefined);
+  return claim.keys.some((key) => settingsValueAtPath(appOverrides, key) !== undefined);
 }
 
 /** Per group, the sub ids whose owned keys differ from default — the `@modified` filter's whole input. */

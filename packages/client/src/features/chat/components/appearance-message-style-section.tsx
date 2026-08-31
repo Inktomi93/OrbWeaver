@@ -19,7 +19,7 @@ import type { AppearanceSettings } from "@orb/contracts/settings";
 import { DEFAULT_APPEARANCE_SETTINGS } from "@orb/contracts/settings";
 import { pickKeys } from "@orb/kit/objects";
 import { FieldLayout } from "@orb/ui/field";
-import { Row, Section } from "@orb/ui/layout";
+import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
@@ -29,7 +29,7 @@ import type { AutosaveSession } from "#forms";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms";
 import { configAnchorId } from "#state";
 import { APPEARANCE_MESSAGE_STYLE_KEYS, APPEARANCE_MESSAGE_STYLE_SUBCATEGORY } from "../lib/appearance-message-style-model.ts";
-import { CHAT_STYLE_ITEMS } from "../lib/appearance-select-items.ts";
+import { ChatStyleCards } from "./appearance-chat-style-cards.tsx";
 
 type MessageStyleForm = Pick<AppearanceSettings, (typeof APPEARANCE_MESSAGE_STYLE_KEYS)[number]>;
 
@@ -91,8 +91,19 @@ function MessageStyleBody({ sectionId, session }: { readonly sectionId: string; 
           The per-mode legend stays INSIDE the option rows (`CHAT_STYLE_DESCRIPTIONS`, side-eye 2026-08-16). */}
       <ConfigTeachScope value={{ group: "appearance", sub: APPEARANCE_MESSAGE_STYLE_SUBCATEGORY }}>
         <FieldLayout orientation="horizontal">
+          {/* SEEN, NOT READ (#866 §7.8, owner-acked): a skin is a visual anatomy, so the Select became
+              PREVIEW CARDS deriving each mini pair from `MESSAGE_ROW_SKINS` — the same bound field, the
+              same patch shape. The group keeps its visible name (the label line) and each card is a real
+              `aria-pressed` button named for its mode. */}
           <SettingRow settingId="chat-style">
-            <form.AppField name="chatStyle">{(field): ReactElement => <field.SelectField label="Chat display" items={CHAT_STYLE_ITEMS} />}</form.AppField>
+            <Stack className="min-w-0" gap="field">
+              <Text as="span" voice="label">
+                Chat display
+              </Text>
+              <form.AppField name="chatStyle">
+                {(field): ReactElement => <ChatStyleCards onPick={field.handleChange} value={field.state.value} />}
+              </form.AppField>
+            </Stack>
           </SettingRow>
           <SettingRow settingId="color-quoted-speech">
             <form.AppField name="colorQuotedSpeech">{(field): ReactElement => <field.SwitchField label="Color quoted speech" />}</form.AppField>

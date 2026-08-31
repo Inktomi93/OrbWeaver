@@ -45,9 +45,12 @@ const CodeEditor = lazy(async () => {
   return { default: mod.CodeEditor };
 }) as (props: CodeEditorProps) => ReactElement;
 
+// `labelStyle` — the "seen, not read" slot (#866 §7.8): each font option renders in its OWN typeface,
+// derived from the value itself (never a second table).
 const FONT_ITEMS: SelectItems<string> = THEME_FONT_ALLOWLIST.map((value) => ({
   value,
   label: value,
+  labelStyle: { fontFamily: value },
 }));
 const RADIUS_LABELS: Record<ThemeRadius, string> = {
   base: "Base",

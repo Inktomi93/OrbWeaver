@@ -138,6 +138,8 @@ export type {
   SettingTeachDecl,
 } from "./config-group-registry.ts";
 export { configAnchorId, isCollectionGroup, isPushingGroup, isTeachNone } from "./config-group-registry.ts";
+export type { ConfigLinkTarget } from "./config-link.ts";
+export { formatConfigLink, parseConfigLink } from "./config-link.ts";
 export type { ConfigTarget } from "./config-nav-store.ts";
 export {
   __resetConfigNav,
@@ -166,7 +168,9 @@ export { assertSettingsKeyPartition, UNCLAIMED_SETTINGS_KEYS } from "./config-se
 export type { AppSettingsClaimPath, ConfigSectionContribution, ResolvedConfigSection, SettingsKeyClaim } from "./config-section-registry.ts";
 export { configSectionNavs, resolveConfigSections } from "./config-section-registry.ts";
 export type { ConfigSectionRegistry } from "./config-section-registry-context.ts";
-export { useConfigSectionRegistry, useConfigSections } from "./config-section-registry-context.ts";
+// The bare context rides out beside the throwing hook for the SANCTIONED nullable read (`use(Context)`,
+// create-registry-context.tsx's own carve-out) — `useConfigLeaf` stays inert without a provider.
+export { configSectionRegistryContext, useConfigSectionRegistry, useConfigSections } from "./config-section-registry-context.ts";
 export { ConfigSectionRegistryProvider } from "./config-section-registry-provider.tsx";
 export {
   clearCollectionSelection,
