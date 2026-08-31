@@ -938,6 +938,67 @@ for (const modalId of MODAL_SLOT_IDS) {
   });
 }
 
+// ── #937: density belongs to the common ThemeScope carrier, not the shell grid ────────────────────
+// The portal root is a SIBLING of `.shell-grid`, so stamping density on the grid gives the shell compact
+// spacing while every Dialog/Drawer keeps the comfortable floor. Drive a real Dialog through AppShell's
+// modal registry and compare the four resolved spacing intents at the two rendered surfaces. The locator
+// used as the settle barrier admits the old grid carrier and the new ThemeScope carrier, so the compact
+// arm reaches the mismatch against the old source instead of failing early on the new mechanism.
+const DENSITY_SPACING_INTENTS = ["--spacing-field", "--spacing-row", "--spacing-block", "--spacing-section"] as const;
+
+function densitySpacingIntents(locator: Locator): Promise<readonly string[]> {
+  return locator.evaluate((element, properties) => {
+    const style = getComputedStyle(element);
+    return properties.map((property) => style.getPropertyValue(property).trim());
+  }, DENSITY_SPACING_INTENTS);
+}
+
+for (const density of ["comfortable", "compact"] as const) {
+  test(`#937 ${density}: a real portalled dialog inherits the shell's resolved density`, async ({ mount, page }) => {
+    await routeTrpc(page, {
+      ...SHELL_AMBIENT_ROUTES,
+      "character.list": [],
+      "settings.getUserSettings": () => ({
+        userId: `user_ct_shell_density_${density}`,
+        schemaVersion: 1,
+        config: {
+          ...DEFAULT_USER_SETTINGS,
+          appearance: { ...DEFAULT_USER_SETTINGS.appearance, density },
+        },
+        updatedAt: 0,
+      }),
+    });
+    const shell = await mount(<AppShellStory />);
+    const themeScope = page.locator('[data-slot="theme-scope"]:has(.shell-grid)');
+    const grid = page.locator(".shell-grid");
+    const portalRoot = page.locator('[data-slot="portal-root"]');
+
+    // SETTLED rendered density, expressed so this proof compiles and runs against both carrier shapes.
+    await expect(page.locator(`.shell-grid[data-density="${density}"], [data-slot="theme-scope"][data-density="${density}"]:has(.shell-grid)`)).toHaveCount(1);
+
+    await shell.getByRole("button", { name: "open new chat" }).click();
+    const popup = page.locator('[data-slot="dialog-popup"]');
+    await expect(popup).toBeVisible();
+
+    const [shellSpacing, overlaySpacing] = await Promise.all([densitySpacingIntents(grid), densitySpacingIntents(popup)]);
+    expect(overlaySpacing, `the ${density} portal spacing must match the shell`).toEqual(shellSpacing);
+
+    // One carrier owns both branches: the grid and portal root are direct siblings under ThemeScope.
+    await expect
+      .poll(() =>
+        themeScope.evaluate((scope) => {
+          const shellGrid = scope.querySelector(":scope > .shell-grid");
+          const portal = scope.querySelector(':scope > [data-slot="portal-root"]');
+          return shellGrid !== null && portal !== null;
+        }),
+      )
+      .toBe(true);
+    await expect(themeScope).toHaveAttribute("data-density", density);
+    await expect(grid).not.toHaveAttribute("data-density");
+    await expect(portalRoot.locator('[data-slot="dialog-popup"]')).toHaveCount(1);
+  });
+}
+
 // ── MOBILE (L6/J12 · D62 P3) — the bottom-tab-bar reflow ─────────────────────────────────────────
 
 test("landmark uniqueness: exactly ONE main, distinct complementary labels, one nav", async ({ mount, page }) => {
@@ -4581,8 +4642,9 @@ test("#231 a remembered fontScale survives the shell's first commit while getUse
   await expect
     .poll(async () => page.evaluate((v) => document.documentElement.style.getPropertyValue(v), FONT_SCALE_VAR), { intervals: [20, 50, 100] })
     .toBe("1.25");
-  // …and the grid it painted is already the remembered DENSITY, so it does not reflow into it either.
-  await expect(page.locator(".shell-grid")).toHaveAttribute("data-density", "compact");
+  // …and the common shell/portal carrier already has the remembered DENSITY, so neither branch reflows
+  // into it later.
+  await expect(page.locator('[data-slot="theme-scope"]:has(.shell-grid)')).toHaveAttribute("data-density", "compact");
 });
 
 test("#231 a remembered theme survives it too — a Light user never cold-boots the dark palette", async ({ mount, page }) => {

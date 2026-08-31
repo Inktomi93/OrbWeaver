@@ -14,7 +14,7 @@
 //     dimension is rem-derived, so the setting's arrival RESIZES THE WHOLE SHELL — html 16→20px, rail
 //     56→70px, topbar 48→60px — for a non-virtualized boot CLS of 0.1963–0.3398 on the reading arm
 //     (2–3.4× the budget), landing 209ms AFTER `data-app-ready`, i.e. after the boot veil has already
-//     lifted. Density is the same class one layer in (`[data-density]` on `.shell-grid`).
+//     lifted. Density is the same class one layer in (`[data-density]` on the shell's `ThemeScope`).
 //   • theme (#231): `data-theme` arrives from a chained query, so a Light user cold-loads the DARK
 //     palette and then swaps — a colour transition on `color`/`background-color`/`border-*-color` with
 //     measured 100–167ms frame gaps, on the first screen of every visit.
@@ -147,9 +147,9 @@ export function stampAppearanceBootHint(): void {
   if (dataTheme !== null) {
     root.setAttribute(DATA_THEME_ATTR, dataTheme);
   }
-  // `density` is deliberately NOT stamped here: it is rendered as `[data-density]` on `.shell-grid`, an
-  // element that does not exist until React commits. Its hint exists for the PENDING ARM (useAppearance),
-  // so the first grid React paints already carries the right density instead of reflowing into it.
+  // `density` is deliberately NOT stamped here: it is rendered as `[data-density]` on the shell's
+  // `ThemeScope`, which does not exist until React commits. Its hint exists for the PENDING ARM
+  // (useAppearance), so the first shell and portal carrier React paints already has the right density.
 }
 
 /** Test seam: forget the remembered answers (a CT/unit run must not inherit another test's device). */

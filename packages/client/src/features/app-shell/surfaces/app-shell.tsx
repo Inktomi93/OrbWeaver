@@ -149,6 +149,10 @@ export function AppShell(): ReactElement {
   // is its #692 sibling — the accent the active theme paints, so a carried palette that picks a background
   // and no accent gets its inherited fill judged against the card that palette derives.
   const { tokens: scopeTokens, density, ambientBackground, ambientAccent } = resolveThemeScopeTokens(theme, appearance.density);
+  // Density is orthogonal to a theme's palette source, but it belongs on the same carrier: the shell grid
+  // and every portal root are siblings below ThemeScope. Compose the already-resolved value here so seed
+  // themes still withhold their stored palette override while both branches inherit one density contract.
+  const resolvedScopeTokens = { ...scopeTokens, density };
   // BG-C: the active chat's carried background (per-chat > card-carried) wins over the viewer's own appearance
   // ONLY in a true-solo room; `undefined` (any other composition, landing, an unresolved read) ⇒ the viewer's
   // appearance source. fit/dim/blur always stay the viewer's own treatment (source-only carry).
@@ -232,7 +236,7 @@ export function AppShell(): ReactElement {
       ) : (
         <ThemeBackgroundLayer url={bgUrl} fit={appearance.backgroundFit} dim={appearance.backgroundDim} blur={appearance.backgroundBlur} />
       )}
-      <ThemeScope tokens={scopeTokens} className="contents" ambientBackground={ambientBackground} ambientAccent={ambientAccent}>
+      <ThemeScope tokens={resolvedScopeTokens} className="contents" ambientBackground={ambientBackground} ambientAccent={ambientAccent}>
         <PortalContainerContext value={portalRootRef}>
           {/* The grid is the app's LIVE-TOKEN ROOT (#504): canvas + foreign-realm consumers (ECharts chrome,
               the sandbox card frame) resolve their concrete token values from HERE rather than from <html>,
@@ -246,7 +250,6 @@ export function AppShell(): ReactElement {
             data-list-mode={layout.listMode}
             data-context-mode={layout.contextMode}
             data-focus-mode={layout.focusMode}
-            data-density={density}
             data-elevation={appearance.elevation}
             {...(hasBgImage ? { "data-has-bg-image": true } : {})}
             style={shellVars}
