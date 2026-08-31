@@ -37,7 +37,7 @@ export interface RowAttribution {
   /** Stable per-entity seed for the deterministic fallback hue — the same id the library card / chat
    *  header seed with, so one entity resolves to one color everywhere. */
   readonly hueSeed: string;
-  /** Per-speaker theme tokens for the row's bubble; `null` for user rows and unresolved rows. */
+  /** Card-embeddable per-speaker theme tokens for the row's bubble; `null` for user rows and unresolved rows. */
   readonly tokens: ThemeScopeTokens | null;
 }
 
@@ -211,7 +211,7 @@ function resolveAssistantAttribution(input: ResolveRowAttributionInput): RowAttr
     return NO_ATTRIBUTION;
   }
   const participant = input.participants?.get(input.characterId);
-  const tokens = characterTint(input.characterId, participant?.themeOverride, false);
+  const tokens = characterTint(input.characterId, participant?.themeOverride);
   // participant-first (CHAT_IDENTITY_KIND_POLICY.character.avatar): the live participant wins (it can carry a
   // per-chat avatar override); once removed it's absent, so the portrait falls back to the identity producer's
   // character entry — never straight to the initials fallback.
@@ -253,18 +253,18 @@ export function resolveRoomTheme(appearance: CarriedAppearance | undefined): The
   return appearance === undefined ? undefined : resolveCarriedTheme(appearance);
 }
 
-/** THE ONE per-character tint resolution — the authored `themeOverride` when it carries anything, else the
- *  deterministic hash. The hash is ALWAYS seeded by the CHARACTER ID, never the display name: a name-seeded
- *  hash forked one character into TWO colors (their own per-speaker row hashed the id, their span inside a
- *  merged-narrator row hashed the name), which is exactly the "coloring is wrong" a reader sees. Both the
- *  row-level attribution above and the narrator-span map below resolve through here, so that class of fork
- *  cannot come back. `projected` runs the override through the CARD-EMBEDDABLE subset — true for a span
- *  INSIDE a bubble (a card supplies look, never the viewer's ergonomics, TD §3), false for the row itself. */
-function characterTint(characterId: CharacterId, override: ThemeScopeTokens | null | undefined, projected: boolean): ThemeScopeTokens {
+/** THE ONE per-character tint resolution — the card-embeddable part of an authored `themeOverride` when
+ *  it carries anything, else the deterministic hash. Every caller supplies a participant/card override,
+ *  so projection is unconditional: a card supplies look, never the viewer's ergonomics (TD §3). The hash
+ *  is ALWAYS seeded by the CHARACTER ID, never the display name: a name-seeded hash forked one character
+ *  into TWO colors (their own per-speaker row hashed the id, their span inside a merged-narrator row hashed
+ *  the name), which is exactly the "coloring is wrong" a reader sees. Both the row-level attribution above
+ *  and the narrator-span map below resolve through here, so neither class of fork can come back. */
+function characterTint(characterId: CharacterId, override: ThemeScopeTokens | null | undefined): ThemeScopeTokens {
   if (override === null || override === undefined) {
     return colorForCharacter(characterId);
   }
-  const carried = projected ? cardEmbeddableSubset(override) : override;
+  const carried = cardEmbeddableSubset(override);
   return Object.keys(carried).length > 0 ? carried : colorForCharacter(characterId);
 }
 
@@ -282,7 +282,7 @@ export function speakerThemesByName(participants: ReadonlyMap<CharacterId, Parti
     if (participant.kind !== "character" || participant.characterId === null) {
       continue;
     }
-    const tint = characterTint(participant.characterId, participant.themeOverride, true);
+    const tint = characterTint(participant.characterId, participant.themeOverride);
     const resolved = deCollideDialogueHue(participant.characterId, tint, claimedHues);
     const hue = resolved.dialogueColor === undefined ? null : oklchHue(resolved.dialogueColor);
     if (hue !== null) {

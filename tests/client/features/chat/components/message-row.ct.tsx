@@ -1349,10 +1349,11 @@ test("the settled disclosure names the CHANNEL, never a fabricated duration (a c
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────
 // QUOTED-SPEECH TINTING × the per-character theme. The tint span consumes `--color-dialogue`, which the
-// row's own `<ThemeScope>` re-binds from the speaker's authored `themeOverride` — so an authored
-// dialogueColor wins over the palette default WITHOUT the tinting code knowing anything about
-// attribution. That is the whole per-character claim; a hardcoded color (or a tint mounted OUTSIDE the
-// scope) fails it. Asserted on the COMPUTED color, never the class string (the Waystone lesson).
+// row's own `<ThemeScope>` re-binds from the card-embeddable part of the speaker's authored
+// `themeOverride` — so an authored dialogueColor wins over the palette default WITHOUT the tinting code
+// knowing anything about attribution. That is the whole per-character claim; a hardcoded color (or a tint
+// mounted OUTSIDE the scope) fails it. Asserted on the COMPUTED color, never the class string (the Waystone
+// lesson).
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────
 const AUTHORED_DIALOGUE_COLOR = "oklch(0.72 0.19 25)";
 const DIALOGUE_SPAN = '[data-slot="dialogue"]';
@@ -1384,6 +1385,32 @@ test("the speaker's AUTHORED dialogueColor paints the quoted run (the theme scop
   }, AUTHORED_DIALOGUE_COLOR);
   expect(tint).toBe(authored);
   expect(tint).not.toBe(narration);
+});
+
+test("#937 a card theme cannot stamp density through the ordinary row ThemeScopes", async ({ mount }) => {
+  const component = await mount(
+    <div data-testid="viewer-density" data-density="comfortable">
+      <MessageRowStory
+        chatStyle="bubble"
+        messageRole="assistant"
+        content={QUOTED_BODY}
+        characterId={ALICE_ID}
+        participants={[{ ...aliceWithDialogueTheme(), themeOverride: { dialogueColor: AUTHORED_DIALOGUE_COLOR, density: "compact" } }]}
+      />
+    </div>,
+  );
+
+  const viewer = component;
+  await expect(viewer).toHaveAttribute("data-density", "comfortable");
+  const rowScopes = viewer.locator(THEME_SCOPE);
+  await expect(rowScopes).toHaveCount(2);
+  await expect(viewer.locator(`${THEME_SCOPE}[data-density]`)).toHaveCount(0);
+  await expect
+    .poll(async () => rowScopes.evaluateAll((scopes) => scopes.map((scope) => scope.closest("[data-density]")?.getAttribute("data-density"))))
+    .toEqual(["comfortable", "comfortable"]);
+
+  // Projection removes viewer ergonomics, not the card's authored prose palette.
+  await expect.poll(async () => parseOklch(await cssVar(viewer.locator(BUBBLE), "--color-dialogue"))).toEqual(parseOklch(AUTHORED_DIALOGUE_COLOR));
 });
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────
