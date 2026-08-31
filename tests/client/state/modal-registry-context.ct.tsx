@@ -9,7 +9,8 @@ test("useModalRegistry resolves the ordered modal list + get(id) inside the prov
   const probe = await mount(<ModalRegistryProbe />);
   const out = probe.locator("output");
   // list() preserves MODAL_SLOT_IDS order; get("newChat") resolves the member's title.
-  // No `settings` slot since #866 S1 — the settings modal retired into the `config` SECTION.
-  await expect(out).toContainText("ids=account,command,newChat,you");
+  // No `settings` slot since #866 S1 (retired into the `config` SECTION) and no `account` since S4
+  // (its facts live in the persona switcher's foot, owner-ruled F-3).
+  await expect(out).toContainText("ids=command,newChat,you");
   await expect(out).toContainText("newChat=New chat");
 });
