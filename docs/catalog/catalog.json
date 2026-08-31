@@ -1637,8 +1637,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 445,
-      "bytes": 57739,
-      "sha256": "5cffae561a5aca991667e0f6e06fa049a72b922f3a7e6ef89c74773aa3e27dfa",
+      "bytes": 57781,
+      "sha256": "409642a9cf1d01aeef3621e3f77697f8b712d76849678184e704ba10cb4927c6",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -1651,12 +1651,12 @@
       },
       "receipt": {
         "path": "docs/architecture/core/UI-Architecture-and-Layout.md",
-        "assignedSha256": "5cffae561a5aca991667e0f6e06fa049a72b922f3a7e6ef89c74773aa3e27dfa",
+        "assignedSha256": "409642a9cf1d01aeef3621e3f77697f8b712d76849678184e704ba10cb4927c6",
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "5cffae561a5aca991667e0f6e06fa049a72b922f3a7e6ef89c74773aa3e27dfa",
-        "verifiedCommit": "32bf93f3e9f66740833d06ceeeb1c2eb6e67a28d",
+        "verifiedSha256": "409642a9cf1d01aeef3621e3f77697f8b712d76849678184e704ba10cb4927c6",
+        "verifiedCommit": "4032663cc23f883f69b06c9b381ee43aea9a2f05",
         "verifiedAt": "2026-08-30",
         "evidence": [
           "docs/architecture/core/UI-Architecture-and-Layout.md:1 full read after the workboard split; changed routing/citations checked against Project 1, D139-D141, and current code/test evidence",
@@ -1664,7 +1664,8 @@
           "docs/architecture/core/Core-Path-Registry.md:523-533 (standing control-plane and comment-source rulings)",
           "delta re-verify 2026-08-30 (3afbd7858276453f149c4db4148214f702b314f0, #832 by the orchestrator, who made the edit): the RAIL count line flips NINE → TEN with `extensions` added to the dated tally with its provenance (plugin-ui-plane U5, #679 §4.5b, 'beside config', never per-plugin) and the SECTION_IDS truth pointer moves from shell-store.ts to state/section-ids.ts (re-exported); no ceiling was re-ratified — the line is a running tally, not a D-row; no other line changed; typed claims unaffected",
           "docs/architecture/core/UI-Architecture-and-Layout.md: re-attested at 79871238bc0506fa74902bb1844f734fc9e32db3 — the #866 S1+S2 (6923f33cb) and #876/#873 docs-law (79871238b) merges both carry truth-repairs here; both deltas read by the orchestrator; the gate-count line resolved to 233 at the merge",
-          "re-attested at the #909 docs truth-repair merge (32bf93f3e): the lane's three-way rule applied per hit — concept prose takes the ruled word, every code symbol is quoted as it stands with its owning issue named, owner-sacred prose flagged not edited; verdict list read by the orchestrator"
+          "re-attested at the #909 docs truth-repair merge (32bf93f3e): the lane's three-way rule applied per hit — concept prose takes the ruled word, every code symbol is quoted as it stands with its owning issue named, owner-sacred prose flagged not edited; verdict list read by the orchestrator",
+          "re-attested at 4032663cc — the COLLECTIONS shelf row's 'until #902 lands the rename' caveat was stale on both counts (#902 shipped the copy, #916 took the files/symbols/ids); corrected to name ROSTER_COLLECTION_ID"
         ],
         "claims": [
           {
@@ -12212,8 +12213,8 @@
       "lane": "design",
       "issue": 5,
       "lines": 71,
-      "bytes": 5912,
-      "sha256": "023f2134473af469575a1b74bfacf969248fde5f17e51965199d549da43d99ec",
+      "bytes": 6216,
+      "sha256": "1f45dfae9536c9e337632b4e1187af1a4a0c0590aa039d5c137a7c665195bd83",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -12270,7 +12271,7 @@
         ],
         "summary": "The living concept→word map: room seats are Characters, the saved template is a Roster (code rosterPreset, conforming), roster is reserved and never spent as English for a list, the rpg register is fenced with the chat word winning at the boundary, and castId is deliberately no-action. Prose-enforced by owner ruling with no gate; the enforcement section records the wave-union defect that produced it."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/history/README.md",
