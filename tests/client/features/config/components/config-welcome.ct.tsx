@@ -379,7 +379,7 @@ test("with NOTHING built the invitations take the whole pane — no empty lead t
   await settled(pane, 0, 4);
 
   const welcome = await box(pane.locator(WELCOME));
-  const slots = await Promise.all(["tags", "regex", "worldInfo", "cast"].map(async (id) => box(pane.locator(`[data-config-unbuilt="${id}"]`))));
+  const slots = await Promise.all(["tags", "regex", "worldInfo", "rosterPreset"].map(async (id) => box(pane.locator(`[data-config-unbuilt="${id}"]`))));
   const spanned = Math.max(...slots.map((slot) => slot.x + slot.width)) - Math.min(...slots.map((slot) => slot.x));
   expect(spanned, "the invitations span the surface instead of a leftover rail").toBeCloseTo(welcome.width, 0);
 

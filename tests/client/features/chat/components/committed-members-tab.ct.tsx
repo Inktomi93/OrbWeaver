@@ -70,37 +70,38 @@ test("a solo room whose seat is ALREADY muted keeps the unmute (and only the unm
   await expect(menu.getByRole("menuitem", { name: "Make Aria speak next" })).toHaveCount(0);
 });
 
-// ── #848: the CAST header's two add-doors are DISCRIMINABLE without hover ─────────────────────────────
+// ── #848: the CHARACTERS header's two add-doors are DISCRIMINABLE without hover ────────────────────────
 //
 // Shipped, the header offered "Add cast…" (108×32, opens a dialog titled "Saved casts") and, 4px away, an
 // UNLABELLED person-plus glyph (34×34, `aria-label="Add a character"`) that adds one character — two
 // person-glyph affordances in one row, one of them mute, after #490-8 had established exactly ONE
 // add-character door (side-eye 2026-08-30 P2). Both tap targets already passed; the defect is that a cold
-// reader cannot tell them apart. The discriminator is a VISIBLE noun on each — "cast" vs "character".
+// reader cannot tell them apart. The discriminator is a VISIBLE noun on each — "roster" vs "character".
 //
-// A NOUN WAS NOT ENOUGH (#899 N6, the post-fix drive): "cast" is insider vocabulary for a STORED GROUP,
-// and beside "a character" it reads as the same verb on a vaguer noun — the reviewer's own cold read was
-// that one of them "creates a new one", which NEITHER door does. So the group door names what it opens: a
-// cast you SAVED earlier. Both doors' accessible names are still their visible text.
-test("#848/#899 N6: both CAST add-doors carry a visible word, and each says what it opens", async ({ mount }) => {
+// A NOUN WAS NOT ENOUGH (#899 N6, the post-fix drive; retargeted to "roster" vocabulary #902 C1): "cast"
+// was insider vocabulary for a STORED GROUP, and beside "a character" it read as the same verb on a
+// vaguer noun — the reviewer's own cold read was that one of them "creates a new one", which NEITHER door
+// does. So the group door names what it opens: a roster you SAVED earlier. Both doors' accessible names
+// are still their visible text.
+test("#848/#899 N6: both CHARACTERS add-doors carry a visible word, and each says what it opens", async ({ mount }) => {
   const component = await mount(<CommittedMembersTabStory soloCast={true} />);
   const cast = component.locator(CAST);
 
-  const groupDoor = cast.getByRole("button", { name: "Saved casts…" });
+  const groupDoor = cast.getByRole("button", { name: "Rosters…" });
   const characterDoor = cast.getByRole("button", { name: "Add a character" });
   // VISIBLE text, not the accessible name — the empty string was the whole defect on the second door.
-  await expect(groupDoor).toHaveText(/saved casts/iu);
+  await expect(groupDoor).toHaveText(/rosters/iu);
   await expect(characterDoor).toHaveText(/character/iu);
   // …and the accessible name IS the visible label on both (WCAG 2.5.3 by construction, no `aria-label`).
   await expect(characterDoor).toHaveAccessibleName("Add a character");
-  await expect(groupDoor).toHaveAccessibleName("Saved casts…");
+  await expect(groupDoor).toHaveAccessibleName("Rosters…");
   // The two words a cold reader compares are DIFFERENT — neither is a prefix of the other, which the old
   // pair ("Add cast…" / "Add a character") failed on the noun alone.
   await expect(groupDoor).not.toHaveText(/^Add a character$/u);
 });
 
 // A wide mount agrees with an overflow bug, so the door cluster is measured at the CONTEXT-PANE FLOOR
-// (320px). Two labelled buttons plus the "Cast" kicker have to share that row without either escaping the
+// (320px). Two labelled buttons plus the "Characters" kicker have to share that row without either escaping the
 // pane — the failure mode a second visible label is most likely to introduce.
 test("#848: at the 320px pane floor both doors stay inside the pane", async ({ mount }) => {
   const component = await mount(<CommittedMembersTabStory soloCast={true} width={320} />);

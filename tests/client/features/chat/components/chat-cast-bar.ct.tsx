@@ -90,7 +90,7 @@ test("a 2+ roster renders a chip per character", async ({ mount, page }) => {
   const component = await mount(<ChatCastBarStory />);
 
   await expect(component.getByTestId("chat-cast-bar")).toBeVisible();
-  await expect(component.getByRole("group", { name: "Cast" })).toBeVisible();
+  await expect(component.getByRole("group", { name: "Characters" })).toBeVisible();
   await expect(component.getByText("Aria")).toBeVisible();
   await expect(component.getByText("Bryn")).toBeVisible();
 });

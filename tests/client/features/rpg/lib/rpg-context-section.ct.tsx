@@ -754,7 +754,10 @@ test("R2: an OFFSTAGE cast actor is listed, editable and dismissable — never o
 // (trackers, pack, purse, conditions, status), the scene presence and the hand pins all follow her across the
 // re-key; her MOOD and her RELATIONSHIP stance do not, because a roster member has no home for them (R2: a
 // stance is a cast actor's datum). A host who learns that after the fact learns it as a bug.
-test("R4: an offstage cast actor can be PROMOTED to the roster — two-step, named by whose it is, and honest about the stance", async ({ mount, page }) => {
+test("R4: an offstage cast actor can be PROMOTED to the room's characters — two-step, named by whose it is, and honest about the stance", async ({
+  mount,
+  page,
+}) => {
   const base = trackerView(false) as { actors: Record<string, unknown>[]; cast: readonly string[] };
   const sera = base.actors.find((a) => a["name"] === "Sera") as Record<string, unknown>;
   const trpc = await stubTakeover(page, {
@@ -778,7 +781,7 @@ test("R4: an offstage cast actor can be PROMOTED to the roster — two-step, nam
   const section = component.locator('[data-slot="rpg-known-characters"]');
   await section.getByRole("button", { name: "Show known characters" }).click();
 
-  await section.getByRole("button", { name: "Promote Sister Vesna to the roster" }).click();
+  await section.getByRole("button", { name: "Promote Sister Vesna to the room's characters" }).click();
   // The confirm NAMES what survives and what does not — the whole reason this gesture asks twice.
   await expect(section).toContainText("Sister Vesna");
   await expect(section).toContainText("mood");
@@ -1509,7 +1512,7 @@ test("Status: expanding a roster entry TAKES OVER the panel with the character �
   await expect(detail.getByText("poisoned")).toBeVisible();
 
   // The breadcrumb is the way back — and it lands on the roster, not on a blank panel.
-  await detail.getByRole("button", { name: "Back to the roster" }).click();
+  await detail.getByRole("button", { name: "Back to the characters" }).click();
   await expect(component.locator('[data-slot="rpg-status-tab"]')).toBeVisible();
   await expect(component.locator('[data-slot="rpg-character-detail"]')).toHaveCount(0);
 });
@@ -1559,7 +1562,7 @@ test.describe("the takeover at mobile width", () => {
 
     const detail = component.locator('[data-slot="rpg-character-detail"]');
     await expect(detail).toBeVisible();
-    const back = detail.getByRole("button", { name: "Back to the roster" });
+    const back = detail.getByRole("button", { name: "Back to the characters" });
     const box = await back.boundingBox();
     expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
     await back.click();

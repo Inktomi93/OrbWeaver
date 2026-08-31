@@ -28,7 +28,7 @@ import type { ReactElement } from "react";
 import { useId, useRef, useState } from "react";
 import { ConfirmDialog, HIDE_AT_COARSE, ROW_REVEAL, SettingCheckboxRow } from "#components";
 import { cn } from "#lib";
-import type { MEMBER_ROW_CONFIRMS, MemberCastRow, MemberPersonRow, MemberRowActions, MemberRowFocusProps } from "../lib/member-rows.ts";
+import type { MEMBER_ROW_CONFIRMS, MemberCharacterRow, MemberPersonRow, MemberRowActions, MemberRowFocusProps } from "../lib/member-rows.ts";
 import { rowAccessibleName } from "../lib/member-rows.ts";
 import { buildMenuItems } from "./member-row-menu.tsx";
 import { TalkativenessPopover } from "./talkativeness-popover.tsx";
@@ -39,7 +39,7 @@ import { TalkativenessPopover } from "./talkativeness-popover.tsx";
 type MemberRowConfirm = (typeof MEMBER_ROW_CONFIRMS)[number];
 
 export interface MemberRowProps extends MemberRowFocusProps, MemberRowActions {
-  readonly row: MemberPersonRow | MemberCastRow;
+  readonly row: MemberPersonRow | MemberCharacterRow;
 }
 
 /** One Members row: the focusable body (menu trigger) · fine-pointer inline shortcuts · weight chip ·
@@ -150,7 +150,7 @@ export function MemberRow(props: MemberRowProps): ReactElement {
 }
 
 /** The quiet state chips beside the name: host crown · "you" · pending nomination · muted. */
-function RowStateBadges({ row }: { readonly row: MemberPersonRow | MemberCastRow }): ReactElement | null {
+function RowStateBadges({ row }: { readonly row: MemberPersonRow | MemberCharacterRow }): ReactElement | null {
   if (row.kind === "cast") {
     return row.disabled ? (
       <Badge size="sm" intent="neutral" tone="soft">
@@ -189,7 +189,7 @@ function RowStateBadges({ row }: { readonly row: MemberPersonRow | MemberCastRow
 
 /** Fine-pointer inline shortcut cluster (mute · force-turn) — duplicates two Menu items with identical
  *  labels/icons; NEVER rendered at a coarse pointer (§7.1: row tap opens the Menu there). */
-function CastInlineCluster({ row, actions }: { readonly row: MemberCastRow; readonly actions: MemberRowActions }): ReactElement | null {
+function CastInlineCluster({ row, actions }: { readonly row: MemberCharacterRow; readonly actions: MemberRowActions }): ReactElement | null {
   if (actions.onSetDisabled === undefined) {
     return null;
   }

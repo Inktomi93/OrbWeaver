@@ -10,7 +10,7 @@
 // APPLICABILITY, NEVER EMPTY ROOMS. A shelf with nothing in it renders NOTHING — no header, no skeleton, no
 // "no starred characters yet" box. The three arms below are the three honest things this pane can be:
 //   · SOMETHING TO RESUME  — the lead + whichever shelves have faces.
-//   · A FRESH INSTALL      — nothing chatted and nothing starred, but cards exist: "Meet the cast" over the
+//   · A FRESH INSTALL      — nothing chatted and nothing starred, but cards exist: "Meet your characters" over the
 //                            shipped roster, plus one hint that says the other shelves are coming.
 //   · GENUINELY EMPTY      — no cards at all. One line and the door; a shelf grid would be furniture.
 //
@@ -163,8 +163,8 @@ function faceOf(character: CharacterRow, stamp: string | null, caption: string |
 export function CharacterLibraryWelcome(): ReactElement {
   return (
     <QueryBoundary
-      fallback={<Text voice="quiet">Loading your cast…</Text>}
-      renderError={(_error, retry): ReactElement => <QueryErrorState label="your cast" onRetry={retry} />}
+      fallback={<Text voice="quiet">Loading your characters…</Text>}
+      renderError={(_error, retry): ReactElement => <QueryErrorState label="your characters" onRetry={retry} />}
     >
       <CharacterLandingBody />
     </QueryBoundary>
@@ -274,7 +274,7 @@ function FreshInstallArm({ listOffScreen, newest }: { readonly listOffScreen: bo
   // it. Past that the honest label is the bare noun: an un-computable number is never badged.
   const label = newest.totalCount <= newest.items.length ? `Shipped with Orbweaver · ${String(shippedFaces.length)}` : "Shipped with Orbweaver";
   return (
-    <LandingFrame doors={doorsFor(listOffScreen)} gloss={listOffScreen ? FRESH_GLOSS_COLLAPSED : FRESH_GLOSS_DOCKED} title="Meet the cast">
+    <LandingFrame doors={doorsFor(listOffScreen)} gloss={listOffScreen ? FRESH_GLOSS_COLLAPSED : FRESH_GLOSS_DOCKED} title="Meet your characters">
       <Stack gap="section">
         {shippedFaces.length === 0 ? null : <CharacterShelf faces={shippedFaces} label={label} legend={null} onOpen={selectCharacter} />}
         <Text className="max-w-(--reading-measure) rounded-base border border-border border-dashed p-row" voice="quiet">

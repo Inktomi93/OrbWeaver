@@ -26,7 +26,7 @@ export function useSavedCasts(): readonly RosterPresetSummary[] {
 }
 
 /** The open room the picker's chat-scoped affordances act on — `null` when nothing is open. Carries the
- *  full detail (participants + group + anchor) because "Save current cast" snapshots exactly those.
+ *  full detail (participants + group + anchor) because "Save this room's roster" snapshots exactly those.
  *  NOT exported as a named type — derive `NonNullable<ReturnType<typeof useActiveCastChat>>`. */
 interface ActiveCastChat {
   readonly chatId: ChatDetail["id"];
@@ -47,7 +47,7 @@ export function useActiveCastChat(): ActiveCastChat | null {
   return { chatId, isHost: chatQuery.data.viewerIsHost === true, detail: chatQuery.data };
 }
 
-/** One captured rule as "Save current cast" sends it — the wire spec (id + the knob INPUT bag). */
+/** One captured rule as "Save this room's roster" sends it — the wire spec (id + the knob INPUT bag). */
 export interface CapturedCastRule {
   readonly rulePresetId: RulePresetId;
   readonly knobs: RulePresetKnobValueInputs;
@@ -101,7 +101,7 @@ export function useRulePresetCatalogue(enabled: boolean): {
  *  THE THREE ARMS ARE NAMED, not collapsed into a nullable (side-eye 2026-08-29 P2-3). `rules === null` for
  *  any un-settled read meant "loading", "this room has no rules" and "the read FAILED" rendered the same
  *  nothing — and since Save waits for the capture (a cast silently missing its rules is the worse failure),
- *  a failed `listRules` disabled "Save current cast" forever with no reason and no retry. `retry` is the
+ *  a failed `listRules` disabled "Save this room's roster" forever with no reason and no retry. `retry` is the
  *  affordance that arm owes. */
 export interface CastRuleCapture {
   readonly status: "loading" | "error" | "ready";

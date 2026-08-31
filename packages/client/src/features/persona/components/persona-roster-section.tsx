@@ -10,12 +10,12 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { QueryBoundary, QueryErrorState } from "#data";
 import { configAnchorId } from "#state";
-import { PERSONA_ROSTER_SUBCATEGORY } from "../lib/personas-nav.ts";
+import { PERSONA_LIST_SUBCATEGORY } from "../lib/personas-nav.ts";
 import { PersonaRoster } from "./persona-roster.tsx";
 
 export function PersonaRosterSection(): ReactElement {
   return (
-    <Stack gap="row" id={configAnchorId("personas", PERSONA_ROSTER_SUBCATEGORY.id)}>
+    <Stack gap="row" id={configAnchorId("personas", PERSONA_LIST_SUBCATEGORY.id)}>
       <QueryBoundary
         fallback={<Text voice="gloss">Loading your personas…</Text>}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="your personas" onRetry={retry} />}

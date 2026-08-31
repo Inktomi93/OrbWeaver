@@ -34,14 +34,15 @@ test("renders the character rows + the Blank chat escape hatch", async ({ mount,
   await expect(component.getByText("Aria")).toBeVisible();
   await expect(component.getByText("Bolt")).toBeVisible();
   await expect(page.getByText("Blank chat")).toBeVisible();
-  // #26 — the ambient default is an EMPTY saved-cast library, so the "Start from saved cast" door stays hidden
-  // (the program doc's empty-library rule: the AFFORDANCE hides, the modal keeps its own empty state).
-  await expect(page.getByRole("button", { name: "Start from saved cast" })).toHaveCount(0);
+  // #26 — the ambient default is an EMPTY saved-roster library, so the "Start from a saved roster" door
+  // stays hidden (the program doc's empty-library rule: the AFFORDANCE hides, the modal keeps its own
+  // empty state).
+  await expect(page.getByRole("button", { name: "Start from a saved roster" })).toHaveCount(0);
 });
 
-// #26 — the saved-cast door appears exactly when the library HAS parties (override after the spread —
+// #26 — the saved-roster door appears exactly when the library HAS rosters (override after the spread —
 // the CHAT_AMBIENT_ROUTES posture). The row is the two-sided pin for the ambient-empty assertion above.
-test("a non-empty saved-cast library reveals the 'Start from saved cast' door", async ({ mount, page }) => {
+test("a non-empty saved-roster library reveals the 'Start from a saved roster' door", async ({ mount, page }) => {
   await routeTrpc(page, {
     ...CHAT_AMBIENT_ROUTES,
     "character.list": charPage,
@@ -62,7 +63,7 @@ test("a non-empty saved-cast library reveals the 'Start from saved cast' door", 
 
   await mount(<NewChatPickerStory />);
 
-  await expect(page.getByRole("button", { name: "Start from saved cast" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Start from a saved roster" })).toBeVisible();
 });
 
 test("the confirm item's label reflects the multi-select count", async ({ mount, page }) => {

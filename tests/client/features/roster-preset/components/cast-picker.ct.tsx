@@ -1,7 +1,7 @@
 // The saved-cast picker's LIBRARY plane (RP2): rows render from the routed `rosterPreset.list` (name +
 // count + member preview, name-sorted as served), the designed EMPTY state shows when the library is
 // bare, delete rides the ConfirmDialog and fires the real `rosterPreset.remove` wire call, and the
-// no-active-chat mount hides the chat-scoped affordances ("Add to chat" / "Save current cast"). The
+// no-active-chat mount hides the chat-scoped affordances ("Add to chat" / "Save this room's roster"). The
 // in-room semantics (apply/knobs/config/host gate) are the composed-real int tier's —
 // tests/server/entry/compose/roster-preset.int.test.ts — a CT fixture cannot honestly reach them.
 //
@@ -107,7 +107,7 @@ test("renders the routed library: names, member counts, previews; chat-scoped af
   await expect(page.getByRole("button", { name: "Start a chat with Adventuring Cast" })).toBeEnabled();
   // …while the chat-scoped affordances are ABSENT (no room open): no add-to-chat, no save-current.
   await expect(page.getByRole("button", { name: /Add .* to this chat/ })).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Save current cast" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Save this room's roster" })).toHaveCount(0);
 });
 
 test("the empty library shows the designed empty state, not a bare list", async ({ mount, page }) => {
@@ -115,14 +115,14 @@ test("the empty library shows the designed empty state, not a bare list", async 
 
   await mount(<CastPickerStory />);
 
-  await expect(page.getByText("No saved casts yet")).toBeVisible();
+  await expect(page.getByText("No saved rosters yet")).toBeVisible();
   // No room open ⇒ this viewer cannot save from here, so the empty state's CTA is honest and stays.
   await expect(page.getByRole("button", { name: "Start a new chat" })).toBeVisible();
 });
 
 // #848 — THE EMPTY STATE MAY NOT SEND A HOST OUT OF THE ROOM THEY OPENED IT FROM. Shipped, the host's
 // empty arm led with an emphasised "Start a new chat" — which closes this modal AND abandons the room
-// being configured — while the only action the surface can complete, "Save current cast", sat below as a
+// being configured — while the only action the surface can complete, "Save this room's roster", sat below as a
 // dim ghost with nothing saying a name enables it (side-eye 2026-08-30 §Taste: "the hierarchy is
 // inverted"). The two halves are pinned together because either alone leaves the inversion standing.
 test("#848: a HOST's empty library offers no room-abandoning CTA, and says why Save is dim", async ({ mount, page }) => {
@@ -135,14 +135,14 @@ test("#848: a HOST's empty library offers no room-abandoning CTA, and says why S
 
   await mount(<CastPickerHostStory />);
 
-  await expect(page.getByText("No saved casts yet")).toBeVisible();
+  await expect(page.getByText("No saved rosters yet")).toBeVisible();
   await expect(page.getByRole("button", { name: "Start a new chat" })).toHaveCount(0);
   // The dim Save now carries its reason, and the reason CLEARS the moment the condition does.
-  await expect(page.getByRole("button", { name: "Save current cast" })).toBeDisabled();
-  await expect(page.getByText("Name this cast to save it.")).toBeVisible();
-  await page.getByRole("textbox", { name: "New cast name" }).fill("Fresh cast");
-  await expect(page.getByText("Name this cast to save it.")).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Save current cast" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Save this room's roster" })).toBeDisabled();
+  await expect(page.getByText("Name this roster to save it.")).toBeVisible();
+  await page.getByRole("textbox", { name: "New roster name" }).fill("Fresh cast");
+  await expect(page.getByText("Name this roster to save it.")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Save this room's roster" })).toBeEnabled();
 });
 
 test("delete rides the ConfirmDialog and fires the REAL remove wire call with the row's presetId", async ({ mount, page }) => {
@@ -159,7 +159,7 @@ test("delete rides the ConfirmDialog and fires the REAL remove wire call with th
   // The confirm ceremony — a destructive action never fires off the row click alone. The dialog's
   // visibility is the settled barrier; the zero read is retrying-form for the oneshot gate, and the
   // ==1 transition below is what gives it teeth (a fired-early remove can never come back to 0).
-  await expect(page.getByText("Delete this cast?")).toBeVisible();
+  await expect(page.getByText("Delete this roster?")).toBeVisible();
   await expect.poll(() => trpc.count("rosterPreset.remove")).toBe(0);
   await page.getByRole("button", { name: "Delete", exact: true }).click();
 
@@ -350,8 +350,8 @@ test("a room with no enabled rules says so instead of rendering nothing", async 
   await expect(page.getByText("No enabled rules to include.")).toBeVisible();
   // The name is FILLED first, so the enabled/disabled reads below are about the CAPTURE and not about an
   // empty input (which disables Save for its own reason and would make both arms pass vacuously).
-  await page.getByRole("textbox", { name: "New cast name" }).fill("Fresh cast");
-  await expect(page.getByRole("button", { name: "Save current cast" })).toBeEnabled();
+  await page.getByRole("textbox", { name: "New roster name" }).fill("Fresh cast");
+  await expect(page.getByRole("button", { name: "Save this room's roster" })).toBeEnabled();
 });
 
 test("the capture's LOADING arm says it is checking, and Save waits", async ({ mount, page }) => {
@@ -369,8 +369,8 @@ test("the capture's LOADING arm says it is checking, and Save waits", async ({ m
   // A held request is an indefinitely STABLE pending state — not a flash.
   await expect(page.getByText("Checking this room's rules…")).toBeVisible();
   // Named first, so Save being disabled can only be the capture (an empty name disables it anyway).
-  await page.getByRole("textbox", { name: "New cast name" }).fill("Fresh cast");
-  await expect(page.getByRole("button", { name: "Save current cast" })).toBeDisabled();
+  await page.getByRole("textbox", { name: "New roster name" }).fill("Fresh cast");
+  await expect(page.getByRole("button", { name: "Save this room's roster" })).toBeDisabled();
 
   hold.release([]);
   await expect(page.getByText("No enabled rules to include.")).toBeVisible();

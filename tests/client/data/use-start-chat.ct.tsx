@@ -1,6 +1,6 @@
 // CT: `useStartChat` — the ONE client creation seam (chat-creation-draft-mode-replacement.md §4.1, R1).
 //
-// Every launcher in the app — the new-chat picker, the home quick-picks tile, "New chat with same cast",
+// Every launcher in the app — the new-chat picker, the home quick-picks tile, "New chat with the same characters",
 // the character library's Chat-with CTA — fires THIS. Its three jobs are each pinned below, because each is
 // silent when it breaks: the WIRE SHAPE it sends (creation intent only, never the nine-field draft carry
 // that used to ride along), the NAVIGATION it performs, and the CACHE SEED that makes the room's first

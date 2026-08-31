@@ -31,7 +31,7 @@ export const CONFIG_GROUP_IDS = [
   "tags",
   "regex",
   "worldInfo",
-  "cast",
+  "rosterPreset",
   // ── extensions ──
   "plugins",
 ] as const;

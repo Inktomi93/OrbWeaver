@@ -11,7 +11,7 @@
 import { CircleUser, Crown, Eye, EyeOff, Icon, LogOut, UserX, Volume2, VolumeX, Zap } from "@orb/ui/icons";
 import { MenuItem, MenuSeparator } from "@orb/ui/menu";
 import type { ReactNode } from "react";
-import type { MEMBER_ROW_CONFIRMS, MemberCastRow, MemberPersonRow, MemberRowActions } from "../lib/member-rows.ts";
+import type { MEMBER_ROW_CONFIRMS, MemberCharacterRow, MemberPersonRow, MemberRowActions } from "../lib/member-rows.ts";
 
 /** Which of a person row's dialogs is open — DERIVED from the one homed tuple, never re-spelled (a fourth
  *  arm must break every consumer at compile time). Local per file: an exported client alias would have to
@@ -27,11 +27,11 @@ export interface MemberMenuControls {
 
 /** The per-row Menu items — ALL of a row's actions (rule 10); destructive rows LAST. Empty array ⇒
  *  the row renders no menu (a member viewing another human). */
-export function buildMenuItems(props: MemberRowActions & { readonly row: MemberPersonRow | MemberCastRow }, controls: MemberMenuControls): ReactNode[] {
+export function buildMenuItems(props: MemberRowActions & { readonly row: MemberPersonRow | MemberCharacterRow }, controls: MemberMenuControls): ReactNode[] {
   return props.row.kind === "cast" ? castMenuItems(props.row, props, controls.openWeight) : personMenuItems(props.row, props, controls.setConfirm);
 }
 
-function castMenuItems(row: MemberCastRow, actions: MemberRowActions, openWeight: () => void): ReactNode[] {
+function castMenuItems(row: MemberCharacterRow, actions: MemberRowActions, openWeight: () => void): ReactNode[] {
   const items: ReactNode[] = [];
   if (actions.onSetDisabled !== undefined) {
     items.push(

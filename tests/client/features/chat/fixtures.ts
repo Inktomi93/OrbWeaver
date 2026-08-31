@@ -120,7 +120,7 @@ export const CHAT_AMBIENT_ROUTES: Readonly<Record<string, unknown>> = {
   // assumes; a null previously reached the same rendering through `!verdict`, which is why the gate's own
   // resolve path never ran.
   "chat.checkSendAvailability": { available: true },
-  // The saved-cast library (#26) — the new-chat picker's "Start from saved cast" gate reads it. EMPTY is the
+  // The saved-roster library (#26) — the new-chat picker's "Start from a saved roster" gate reads it. EMPTY is the
   // honest default (a fresh viewer owns no saved casts → the opener hides); the opener's own CT overrides it
   // after the spread with a populated list.
   "rosterPreset.list": [],

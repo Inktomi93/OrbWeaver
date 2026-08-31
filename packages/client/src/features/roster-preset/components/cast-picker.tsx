@@ -184,8 +184,8 @@ function SaveCurrentCast(props: {
     <Stack gap="tight">
       <Row align="center" gap="field">
         <Input
-          aria-label="New cast name"
-          placeholder="Name this cast…"
+          aria-label="New roster name"
+          placeholder="Name this roster…"
           value={name}
           onChange={(e): void => setName(e.target.value)}
           className="min-w-0 flex-1"
@@ -202,15 +202,15 @@ function SaveCurrentCast(props: {
           }}
         >
           <Icon icon={Users} size="sm" />
-          Save current cast
+          Save this room's roster
         </Button>
       </Row>
-      {/* WHY THE BUTTON IS DIM, SAID OUT LOUD (#848). "Save current cast" is disabled until the field
+      {/* WHY THE BUTTON IS DIM, SAID OUT LOUD (#848). "Save this room's roster" is disabled until the field
           carries a name, and nothing on screen said so — a host read a permanently-dead control beside an
           empty box (side-eye 2026-08-30). The line appears only in the state it explains, and only when
           the OTHER disabling condition (the rules capture still reading) is not the live one, so it can
           never claim the wrong reason. */}
-      {trimmed.length === 0 && capture.status === "ready" ? <Text voice="gloss">Name this cast to save it.</Text> : null}
+      {trimmed.length === 0 && capture.status === "ready" ? <Text voice="gloss">Name this roster to save it.</Text> : null}
       <CastRulesIncludeLine capture={capture} presetOf={presetOf} />
     </Stack>
   );
@@ -288,7 +288,7 @@ export function CastPicker(): ReactElement {
         : [],
     );
     if (seats.length === 0) {
-      notify.warn("This room has no character cast to save yet.");
+      notify.warn("This room has no characters to save yet.");
       return;
     }
     create
@@ -319,25 +319,25 @@ export function CastPicker(): ReactElement {
   };
 
   // THE LIBRARY LEADS, THE SAVE DOOR FOLLOWS (side-eye P3-1). The door into this surface is the Members
-  // toolbar's "Add cast…" — an APPLY verb — and it opened onto a name field, so a host who came to add was
-  // met with a form for the opposite action. The label is the spec's own (interaction-direction-spec B10),
-  // so the ORDER moves rather than the word: the casts you can add are what an "Add cast…" click owes you,
-  // and saving the current room stays one glance below (it is authoring, not the errand).
+  // toolbar's "Saved rosters…" — an APPLY verb — and it opened onto a name field, so a host who came to add
+  // was met with a form for the opposite action. The label is the spec's own (interaction-direction-spec B10),
+  // so the ORDER moves rather than the word: the rosters you can add are what a "Saved rosters…" click owes
+  // you, and saving the current room stays one glance below (it is authoring, not the errand).
   return (
     <Stack gap="section">
       {casts.length === 0 ? (
         <EmptyState
           icon={<Icon icon={Users} size="lg" />}
-          title="No saved casts yet"
+          title="No saved rosters yet"
           description={
             active?.isHost === true
-              ? "Save this room's cast below, and it becomes a cast you can drop into any new chat."
-              : "Open a chat you host and save it as a cast — then start new rooms from it in one pick."
+              ? "Save this room's roster below, and it becomes a roster you can drop into any new chat."
+              : "Open a chat you host and save it as a roster — then start new rooms from it in one pick."
           }
           // THE EMPTY STATE'S CTA MAY NOT ABANDON THE ROOM IT WAS OPENED FROM (#848). "Start a new chat"
           // was the emphasised action in EVERY empty arm — including the host's, where it closes this
           // modal, closes the room the host is configuring, and offers a different errand entirely, while
-          // the thing they CAN do here ("Save current cast", one glance below) sat as a dim ghost. A host
+          // the thing they CAN do here ("Save this room's roster", one glance below) sat as a dim ghost. A host
           // gets no competing CTA: the description already routes them to the save row below, which is the
           // only action this surface can complete. The NON-host arm keeps it, because there the CTA is
           // honest — saving needs a room you host, and starting one is how you get one.
@@ -382,7 +382,7 @@ export function CastPicker(): ReactElement {
             setConfirmDelete(null);
           }
         }}
-        title="Delete this cast?"
+        title="Delete this roster?"
         description={confirmDelete === null ? "" : `“${confirmDelete.name}” is a saved template — chats you started from it are untouched.`}
         confirmLabel="Delete"
         onConfirm={(): void => {

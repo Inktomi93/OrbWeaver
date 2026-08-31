@@ -63,7 +63,7 @@ import {
 import { presetsSection } from "#features/preset";
 import { refinerySection } from "#features/refinery";
 import { regexGroup } from "#features/regex";
-import { castGroup, savedCastsModal } from "#features/roster-preset";
+import { castGroup, savedRostersModal } from "#features/roster-preset";
 import { makeRpgContextTabs, makeRpgHudRegion, rpgDiceAskSource, rpgDiceToolRenderer, rpgTurnToolCallsSurface } from "#features/rpg";
 import { appearanceGroup, chatBehaviorGroup } from "#features/settings";
 import { analyticsSection } from "#features/stats";
@@ -260,8 +260,8 @@ const configGroups = createRegistry("config-groups", CONFIG_GROUP_IDS, {
   tags: tagsGroup,
   regex: regexGroup,
   worldInfo: worldInfoGroup,
-  // #26/B10 — the saved-cast library's management surface (order 40, after world-info's 30).
-  cast: castGroup,
+  // #26/B10 — the saved-roster library's management surface (order 40, after world-info's 30).
+  rosterPreset: castGroup,
   plugins: pluginsGroup,
 });
 // The ⌘K Settings source reads the door-held group registry through its bound module slot (§3.3 — the same
@@ -314,9 +314,9 @@ const modals = createRegistry("modals", MODAL_SLOT_IDS, {
   // #791: the ONE house modal that collects a plugin command's DECLARED typed args when it is picked from the
   // command palette — opened by `openPluginCommandArgs` (the palette source's row `run`), never an affordance.
   pluginCommandArgs: pluginCommandArgsModal,
-  // #26 (D61 B6): the saved-cast picker — opened from the new-chat picker's "Start from saved cast" and the
-  // members panel's host action via `openModal("savedCasts")` (all `placement:"surface"`).
-  savedCasts: savedCastsModal,
+  // #26 (D61 B6): the saved-roster picker — opened from the new-chat picker's "Start from a saved roster" and
+  // the members panel's host action via `openModal("savedRosters")` (all `placement:"surface"`).
+  savedRosters: savedRostersModal,
 });
 
 // The ONE chrome assembly (shell-chrome-unification.md §A/§D/§E-2, G8): `assembleChrome` DERIVES the rail

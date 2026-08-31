@@ -36,7 +36,7 @@ export interface MemberPersonRow {
 }
 
 /** A CAST (character) row view — source-agnostic (committed roster OR draft founding cards). */
-export interface MemberCastRow {
+export interface MemberCharacterRow {
   readonly kind: "cast";
   readonly key: string;
   readonly characterId: CharacterId;
@@ -89,7 +89,7 @@ export interface MemberRowActions {
 
 /** Identity + state — the row's accessible NAME (§7.1 examples: "Aria — character, muted" ·
  *  "Riley — host" · "you"). */
-export function rowAccessibleName(row: MemberPersonRow | MemberCastRow): string {
+export function rowAccessibleName(row: MemberPersonRow | MemberCharacterRow): string {
   if (row.kind === "person") {
     const role = row.isHost ? "host" : "member";
     const you = row.isViewer ? ", you" : "";
@@ -162,8 +162,8 @@ export function toPersonRows(sources: MemberRowSources): MemberPersonRow[] {
 }
 
 /** THE CHARACTER-SEAT PROJECTION — the room's cast, in roster order. */
-export function toCastRows(sources: MemberRowSources): MemberCastRow[] {
-  const rows: MemberCastRow[] = [];
+export function toCharacterRows(sources: MemberRowSources): MemberCharacterRow[] {
+  const rows: MemberCharacterRow[] = [];
   for (const p of sources.participants) {
     if (p.kind !== "character" || p.characterId === null) {
       continue;

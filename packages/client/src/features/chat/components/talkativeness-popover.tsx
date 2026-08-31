@@ -13,7 +13,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement, RefObject } from "react";
 import { useRef, useState } from "react";
 import { talkativenessAccessibleName, talkativenessLevel } from "#lib";
-import type { MemberCastRow } from "../lib/member-rows.ts";
+import type { MemberCharacterRow } from "../lib/member-rows.ts";
 
 // THE NUMBER IS A RELATIVE WEIGHT, AND IT MUST NOT WEAR A PERCENT SIGN (#490) — the dial's scale, its
 // rounding and its spelled-out accessible name now live in ONE home, `#lib`'s `talkativeness.ts`, because
@@ -33,7 +33,7 @@ export function TalkativenessPopover({
   onOpenChange,
   onSetTalkativeness,
 }: {
-  readonly row: MemberCastRow;
+  readonly row: MemberCharacterRow;
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
   readonly onSetTalkativeness: (characterId: CharacterId, talkativeness: number) => void;
