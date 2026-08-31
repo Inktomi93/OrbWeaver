@@ -32,7 +32,7 @@
 // but the pane's edge), and its hairline rule is the seam between the word and the cells.
 
 import { Badge } from "@orb/ui/badge";
-import { Icon, Lock } from "@orb/ui/icons";
+import { ChevronLeft, ChevronRight, Icon, Lock } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Separator } from "@orb/ui/separator";
 import { TabsList, TabsTab } from "@orb/ui/tabs";
@@ -317,20 +317,44 @@ export function ContextRail({ ariaLabel, tabs, activeTab, actions, edge, owns, k
         ) : null}
         {/* The overflow marks. Purely presentational and never in the way of a tap — a `Stack` because a
             feature does not paint a raw element, `aria-hidden` because the fact they carry is already true
-            of the scroll container an AT reader drives with the arrow keys. */}
+            of the scroll container an AT reader drives with the arrow keys.
+
+            A GRADIENT ALONE WAS CORRECT AND UNREADABLE (#899 N9, post-fix verification 2026-08-30). It
+            fired exactly when the rail overflowed and it was a real 30×71 element — but it fades the rail's
+            OWN fill into transparent, so by construction it has almost no contrast against the thing it
+            sits on, and the first read at both firing sites was still a chopped word (`Acti` at the reading
+            preset, `Tru` at 1280 Characters): 30px of pane-coloured gradient reads as "the panel's edge",
+            not as "there is more". So each mark now carries a CHEVRON — an inked glyph pointing the way the
+            hidden cells lie, which is a mark a reader can recognise and an instrument can measure (its
+            contrast against the rail fill is pinned in `context-bracket.ct.tsx`; a gradient's could never
+            be). The fade widens with it, so the chevron sits on ground the caption has already left. */}
         {overflow.start ? (
           <Stack
+            align="center"
+            justify="center"
             aria-hidden={true}
             data-slot="context-rail-fade"
-            className={`pointer-events-none absolute inset-y-0 start-0 w-section bg-linear-to-r ${RAIL_FADE_CLASSES[ownership]} to-transparent`}
-          />
+            data-edge="start"
+            className={`pointer-events-none absolute inset-y-0 start-0 w-gutter bg-linear-to-r ${RAIL_FADE_CLASSES[ownership]} via-60% to-transparent`}
+          >
+            <Stack data-slot="context-rail-more" className="text-muted-foreground">
+              <Icon icon={ChevronLeft} size="xs" />
+            </Stack>
+          </Stack>
         ) : null}
         {overflow.end ? (
           <Stack
+            align="center"
+            justify="center"
             aria-hidden={true}
             data-slot="context-rail-fade"
-            className={`pointer-events-none absolute inset-y-0 end-0 w-section bg-linear-to-l ${RAIL_FADE_CLASSES[ownership]} to-transparent`}
-          />
+            data-edge="end"
+            className={`pointer-events-none absolute inset-y-0 end-0 w-gutter bg-linear-to-l ${RAIL_FADE_CLASSES[ownership]} via-60% to-transparent`}
+          >
+            <Stack data-slot="context-rail-more" className="text-muted-foreground">
+              <Icon icon={ChevronRight} size="xs" />
+            </Stack>
+          </Stack>
         ) : null}
       </Row>
     </Stack>

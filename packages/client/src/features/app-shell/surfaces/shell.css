@@ -735,11 +735,21 @@
  * `wide` one `display:none` and the **`narrow` one `display:block` at y=13**, with the band's `h2` at y=65.
  * That is the exact injury F4 filed, at the width F4 named FIRST, and the half-fix made it worse to
  * diagnose than the original: one product rule, two behaviours, split by a viewport the user cannot see.
- * The identity variant was never part of the rule's reason — the reason is "the band is on screen", which
- * is true of both mounts — so the discriminator is dropped rather than duplicated. */
-.shell-grid:is([data-context-mode="docked"], [data-context-mode="overlay"]) .shell-topbar-identity .shell-topbar-title,
-.shell-grid:is([data-context-mode="docked"], [data-context-mode="overlay"]) .shell-topbar-identity .shell-chat-member-chip,
-.shell-grid:is([data-context-mode="docked"], [data-context-mode="overlay"]) .shell-topbar-identity .shell-chat-recall-chip {
+ * The identity variant was never part of the rule's reason — so the selector states the REAL reason
+ * instead: yield when the band is on screen AND IS NAMING THE ARTIFACT, which is exactly "the band carries
+ * a heading". Dropping the identity discriminator alone over-reached in the other direction and the tree
+ * said so within one run: `app-shell.ct.tsx`'s #375 Reading arm went red because a section whose band has
+ * NO heading (Presets) lost its topbar title too — nameless, the #846 injury itself. `:has()` puts the
+ * condition where the reason is, so a pane that does not name the artifact never takes the row's name
+ * away, at ANY identity or width. */
+.shell-grid:is([data-context-mode="docked"], [data-context-mode="overlay"]):has([data-slot="context-bracket-band"] :is(h1, h2, h3)) .shell-topbar-identity
+  .shell-topbar-title,
+.shell-grid:is([data-context-mode="docked"], [data-context-mode="overlay"]):has([data-slot="context-bracket-band"] :is(h1, h2, h3))
+  .shell-topbar-identity
+  .shell-chat-member-chip,
+.shell-grid:is([data-context-mode="docked"], [data-context-mode="overlay"]):has([data-slot="context-bracket-band"] :is(h1, h2, h3))
+  .shell-topbar-identity
+  .shell-chat-recall-chip {
   display: none;
 }
 

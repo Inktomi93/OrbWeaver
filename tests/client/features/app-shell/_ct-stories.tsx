@@ -37,6 +37,7 @@ import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { FileDropzone } from "@orb/ui/file-dropzone";
 import { Crown, Drama, Eye, Flag, FlaskConical, Gauge, Icon, MessagesSquare, Settings, Users } from "@orb/ui/icons";
+import { Heading } from "@orb/ui/text";
 import { Toaster } from "@orb/ui/toast";
 import type { ReactElement, ReactNode } from "react";
 import { useEffect, useState } from "react";
@@ -113,6 +114,10 @@ export function AppShellStory(): ReactElement {
 /** The chat id the topbar-identity story seats. MINTED, never a hand-written literal — `typeIdSchema`
  *  validates the 26-char suffix at runtime, so a made-up string fails inside the real header's query key. */
 const TOPBAR_IDENTITY_CHAT_ID = mintTypeId(ID_PREFIX.chat);
+/** What the band prints as the room's name. NOT compared by any pin — the yield rule's condition is that a
+ *  heading EXISTS in the band (`:has(… h2)`), not what it says — so this deliberately does not reach for the
+ *  CT file's `TOPBAR_IDENTITY_ROOM.title` and mint a second spelling of one string to keep in sync. */
+const TOPBAR_IDENTITY_ROOM_TITLE = "the room's name, as the band prints it";
 
 /** THE TOPBAR YIELDS THE ROOM'S IDENTITY TO THE DOCKED CONTEXT PANE (#846 by relocation, #860) — the REAL
  *  chats identity cluster riding the shell's topbar LEAD, with both panes available so the CT can drive the
@@ -120,7 +125,28 @@ const TOPBAR_IDENTITY_CHAT_ID = mintTypeId(ID_PREFIX.chat);
  *  that re-spells its class names (a fixture that can agree with the bug). Its roster arrives from the
  *  `.ct.tsx`'s own `chat.getChat` route stub, and the `.ct.tsx` also seats the notifications bell — the
  *  `snap --isolated` stage renders the trail without it, 42px lighter than a real account's row. */
-export function AppShellChatTopbarIdentityStory(): ReactElement {
+/** The REAL bracket as the context pane, carrying a band that NAMES the room — the condition the #846/#896
+ *  topbar yield keys on (`shell.css`: `:has([data-slot="context-bracket-band"] h2)`). Opt-in, because this
+ *  story backs ~200 other pins whose subject is the frame, not the band, and a `<p>` pane is the cheaper
+ *  mount for them (swapping it wholesale broke 87 of them in one run). The band SLOT comes from the real
+ *  `ContextBracket`, never a hand-written `data-slot`; only the heading is the story's, which is
+ *  production's own shape (a section hands the bracket a `header`, and chat's renders an `h2`).
+ *  A FUNCTION, not a const: its fixtures are declared further down this module. */
+function bracketContextPane(): ReactElement {
+  return (
+    <ContextTabsPanel
+      tabs={CTX_STRIP_TABS}
+      railLabel="Chat"
+      header={
+        <Heading level={2} className="line-clamp-2">
+          {TOPBAR_IDENTITY_ROOM_TITLE}
+        </Heading>
+      }
+    />
+  );
+}
+
+export function AppShellChatTopbarIdentityStory({ withBand = false }: { readonly withBand?: boolean } = {}): ReactElement {
   useEffect(() => {
     selectChat(TOPBAR_IDENTITY_CHAT_ID);
   }, []);
@@ -131,7 +157,7 @@ export function AppShellChatTopbarIdentityStory(): ReactElement {
           chats: {
             list: <p>chats list pane</p>,
             content: <p>chats content pane</p>,
-            context: <p>chats context pane</p>,
+            context: withBand ? bracketContextPane() : <p>chats context pane</p>,
             header: <ChatHeaderSurface chatId={TOPBAR_IDENTITY_CHAT_ID} />,
           },
         }}

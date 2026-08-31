@@ -214,6 +214,33 @@ test("#875 F7/F8: the meta rail marks the edge it is hiding content behind — a
   await expect(wideRail.locator(RAIL_FADE)).toHaveCount(0);
 });
 
+// ── #899 N9: THE OVERFLOW MARK IS READABLE AS A MARK, NOT AS THE PANEL'S EDGE ──────────────────────────
+// The gradient half was correct and unreadable BY CONSTRUCTION: it fades the rail's own fill into
+// transparent, so it can have no contrast against the surface it sits on, and at both firing sites the
+// first read was still a chopped word. The chevron is the part a reader recognises — and the part an
+// instrument can measure, which is exactly why the receipt asks for its contrast against the rail fill.
+for (const theme of SHIPPED_THEMES) {
+  test(`${theme}: the overflow mark carries a CHEVRON whose ink clears the UI-graphic floor against the rail fill`, async ({ mount, page }) => {
+    const component = await mount(
+      <div {...themeAttr(theme)}>
+        <ContextMetaRailStory />
+      </div>,
+    );
+    const rail = component.locator('[data-slot="context-rail"][data-edge="bottom"]');
+    await expect(rail).toHaveAttribute("data-overflow-end", "true");
+    const chevron = rail.locator('[data-slot="context-rail-more"]');
+    await expect(chevron).toHaveCount(1);
+    // WCAG 1.4.11 — a non-text graphic that carries meaning owes 3:1 against its adjacent colour, which
+    // here IS the rail fill the fade blends into. Composited, not computed: the mark sits ON the gradient.
+    await expect
+      .poll(async () => (await pixelContrast(page, chevron)).ratio, { message: `${theme} overflow chevron vs the rail fill` })
+      .toBeGreaterThanOrEqual(UI_GRAPHIC_MIN);
+  });
+}
+
+/** WCAG 1.4.11 Non-text Contrast — the floor a meaningful graphic owes its adjacent colour. */
+const UI_GRAPHIC_MIN = 3;
+
 /** The story's cell census (4 game + 2 meta) — stated so a story edit that drops a cell cannot quietly
  *  shrink the caption sweep to a green zero. */
 const CTX_STATE_STORY_CELLS = 6;
