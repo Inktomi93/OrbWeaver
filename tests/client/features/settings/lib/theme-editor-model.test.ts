@@ -19,6 +19,14 @@ test("a fully-populated form maps every token into the override", () => {
   expect(o.radius).toBe(DEFAULT_THEME_FORM.radius);
 });
 
+test.each([
+  ["oklch(0.62 0.01 60)", "oklch(0.72 0.14 280)"],
+  ["oklch(0.6201 0.01 60)", "oklch(0.48 0.16 40)"],
+] as const)("an accepted pivot palette passes through the editor model byte-for-byte", (background, accent) => {
+  const override = themeOverrideFromForm({ ...DEFAULT_THEME_FORM, background, accent });
+  expect(override).toMatchObject({ background, accent });
+});
+
 test("a cleared color field ('') is OMITTED — the token inherits/derives via <ThemeScope>", () => {
   const o = themeOverrideFromForm({
     ...DEFAULT_THEME_FORM,

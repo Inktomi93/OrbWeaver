@@ -10,7 +10,16 @@
 // generated TOKENS map and the derivation constants from clamp.ts, so both are drift-free single sources.
 import { BACKGROUND_DIM_MIN } from "@orb/contracts/settings/appearance";
 import type { RampDeltas } from "@orb/kit/theme-derivation";
-import { READING_BAND_ALPHA, rampDeltas, readingBandSurface, readingPlateAlpha, shadowIngredients } from "@orb/kit/theme-derivation";
+import {
+  derivedForegroundLightness,
+  READING_BAND_ALPHA,
+  rampDeltas,
+  readingBandSurface,
+  readingPlateAlpha,
+  readingPlateForeground,
+  shadowIngredients,
+  surfacePolarity,
+} from "@orb/kit/theme-derivation";
 import type { Rgb } from "@orb/tooling/_shared/wcag";
 import { contrastRatio, LARGE_MIN_RATIO, NORMAL_MIN_RATIO, UI_COMPONENT_MIN_RATIO } from "@orb/tooling/_shared/wcag";
 import { SEED_THEME_VALUE_SETS, TOKENS } from "@orb/ui/tokens";
@@ -116,34 +125,24 @@ const INTENT_PILL_PAIRS = [
   ["color.highlight", "color.highlight-foreground"],
 ] as const;
 
-// ── The clamp.ts derivation, recomputed numerically from the SHARED constants (THEME_DERIVATION). ──
-// DELIBERATE formula mirror, NOT a call into clamp.ts: this suite tests a PROPERTY (WCAG contrast of the
-// derived fg over every representative surface) that needs the numeric tone to compare against, so it
-// re-spells the L-derivation. Drift between this mirror and the real derivation is fenced elsewhere —
-// clamp.test.ts byte-pins clamp.ts's exact output — so the two can't silently diverge. Do NOT collapse this
-// into `clamp.ts` (it would couple the property test to the impl and lose the independent cross-check).
+// ── The clamp.ts derivation, measured from its emitted product. ─────────────────────────────────────
 const D = THEME_DERIVATION;
-const clampN = (min: number, v: number, max: number): number => Math.max(min, Math.min(max, v));
-const contrastToneL = (surfaceL: number): number => clampN(D.fgLMin, (D.fgPivotL - surfaceL) * D.fgSteepness, D.fgLMax);
-const mutedToneL = (surfaceL: number): number => clampN(D.mutedLMin, (D.fgPivotL - surfaceL) * D.fgSteepness, D.mutedLMax);
 /** A derived surface = the base with its L shifted by a ramp delta (chroma/hue kept, L clamped). */
 const rampSurface = (base: Oklch, deltaL: number): Oklch => ({
   ...base,
   l: clamp01(base.l + deltaL),
 });
-/** The ramp deltas for a base — CALLED, not mirrored (#682), for the same reason `readingPlateAlpha` and
- *  `shadowIngredients` are: the arm is a polarity SELECTION off `fgPivotL`, not a formula, and a second
- *  copy of the two blocks here would be the impl pasted rather than an independent cross-check. What the
- *  mirrors above test is the L math this then feeds. */
+/** The ramp deltas for a base — CALLED, not mirrored (#682), because a second copy of the polarity
+ *  selection would be the implementation pasted into its own test. */
 const rampOf = (base: Oklch): RampDeltas => rampDeltas(base);
 /** The contrast foreground for `surface` (chroma 0, base hue). */
-const foregroundRgb = (surface: Oklch): Rgb => oklchToRgb({ l: contrastToneL(surface.l), c: 0, h: surface.h });
+const foregroundRgb = (surface: Oklch): Rgb => oklchToRgb({ l: derivedForegroundLightness(surface), c: 0, h: surface.h });
 
 // Representative bases for the prose/chrome guarantees below. The chart ramp has its own exhaustive
 // accepted-base sweep because categorical fills can be driven to either side of a mid-tone surface even
 // where the softer text/chrome derivations deliberately do not claim a floor.
 const DARK_BASES = ["oklch(0.10 0.01 60)", "oklch(0.15 0.015 250)", "oklch(0.158 0.006 60)", "oklch(0.20 0.02 300)", "oklch(0.25 0.02 300)"];
-const LIGHT_BASES = ["oklch(0.90 0.01 60)", "oklch(0.95 0.01 60)", "oklch(0.98 0.004 75)"];
+const LIGHT_BASES = ["oklch(0.62 0.01 60)", "oklch(0.6201 0.01 60)", "oklch(0.90 0.01 60)", "oklch(0.95 0.01 60)", "oklch(0.98 0.004 75)"];
 const REALISTIC_BASES = [...DARK_BASES, ...LIGHT_BASES];
 
 // Real-world accents a user might pick (saturated, mid-high L — never a pivot-adjacent mid-gray): the
@@ -160,6 +159,8 @@ test("static seed tokens (theme.css :root) — every body-text pairing clears WC
     ["color.secondary-foreground", "color.secondary"],
     ["color.accent-foreground", "color.accent"],
     ["color.sidebar-foreground", "color.sidebar"],
+    ["color.sidebar-accent-foreground", "color.sidebar-accent"],
+    ["color.reading-plate-foreground", "color.reading-band"],
     ["color.muted-foreground", "color.card"],
     ["color.muted-foreground", "color.muted"],
     ["color.system-bubble-foreground", "color.system-bubble"],
@@ -432,31 +433,50 @@ test.each(["light", "dark"] as const)("#939 chart colors stay mutually distingui
   expect(minimumPixelDistance, `${scheme} arm minimum quantized RGB distance`).toBeGreaterThanOrEqual(67);
 });
 
+const RELATIVE_FOREGROUND_RE = /^oklch\(from .+? ([\d.]+) 0 h \/ 1\)$/u;
+function emittedForegroundRgb(vars: Readonly<Record<string, string>>, cssVar: string, base: Oklch): Rgb {
+  const emitted = vars[cssVar];
+  const match = RELATIVE_FOREGROUND_RE.exec(emitted ?? "");
+  if (match === null) {
+    throw new Error(`not an emitted neutral foreground: ${cssVar} = ${String(emitted)}`);
+  }
+  return oklchToRgb({ l: Number(match[1]), c: 0, h: base.h });
+}
+
 test("clamp DERIVED neutral chrome clears AA on every realistic light + dark base", () => {
   for (const baseStr of REALISTIC_BASES) {
     const base = parseOklch(baseStr);
-    const fg = foregroundRgb(base); // the one derived --color-foreground, used on every neutral surface
-    // Every neutral ramp surface whose text is the plain derived foreground: card/popover/sidebar/
-    // secondary (secondary-foreground = foreground) + sidebar-accent (its text is sidebar-foreground =
-    // foreground; the rail-hover pairing, owner defect #2). All must clear AA on any realistic base.
     const ramp = rampOf(base);
     const surfaces = {
       background: base,
+      raised: rampSurface(base, ramp.surfaceRaised),
       card: rampSurface(base, ramp.card),
       popover: rampSurface(base, ramp.popover),
       sidebar: rampSurface(base, ramp.sidebar),
       secondary: rampSurface(base, ramp.secondary),
       "sidebar-accent": rampSurface(base, ramp.sidebarAccent),
     };
-    for (const [name, surface] of Object.entries(surfaces)) {
-      const ratio = contrastRatio(fg, oklchToRgb(surface));
-      expect(ratio, `derived foreground on ${name} @ ${baseStr}`).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
+    const { vars } = clampThemeTokens({ background: baseStr });
+    const foreground = emittedForegroundRgb(vars, "--color-foreground", base);
+    for (const [name, surface] of Object.entries({ background: surfaces.background, raised: surfaces.raised, card: surfaces.card })) {
+      expect(contrastRatio(foreground, oklchToRgb(surface)), `derived foreground on ${name} @ ${baseStr}`).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
+    }
+    for (const [cssVar, name, surface] of [
+      ["--color-card-foreground", "card", surfaces.card],
+      ["--color-popover-foreground", "popover", surfaces.popover],
+      ["--color-sidebar-foreground", "sidebar", surfaces.sidebar],
+      ["--color-secondary-foreground", "secondary", surfaces.secondary],
+      ["--color-sidebar-accent-foreground", "sidebar-accent", surfaces["sidebar-accent"]],
+    ] as const) {
+      expect(contrastRatio(emittedForegroundRgb(vars, cssVar, base), oklchToRgb(surface)), `${cssVar} on ${name} @ ${baseStr}`).toBeGreaterThanOrEqual(
+        NORMAL_MIN_RATIO,
+      );
     }
     // Muted foreground over the derived input fill (contrast tone at inputAlpha) composited over the
     // lightest (popover) and base surfaces — the worst realistic backdrops — PLUS the opaque derived
     // `muted` surface it labels directly (badges/skeleton text). All clear the normal-text floor.
-    const inputFill: Oklch = { l: contrastToneL(base.l), c: 0, h: base.h, alpha: D.inputAlpha };
-    const muted = oklchToRgb({ l: mutedToneL(base.l), c: 0, h: base.h });
+    const inputFill: Oklch = { l: derivedForegroundLightness(base), c: 0, h: base.h, alpha: D.inputAlpha };
+    const muted = emittedForegroundRgb(vars, "--color-muted-foreground", base);
     for (const [name, surface] of [
       ["popover", surfaces.popover],
       ["background", base],
@@ -483,7 +503,7 @@ test("clamp DERIVED accent (hover/selected) surface + its foreground clear AA on
     const base = parseOklch(baseStr);
     const accentDl = rampOf(base).accent;
     const accent = rampSurface(base, accentDl);
-    const accentFg = oklchToRgb({ l: contrastToneL(base.l + accentDl), c: 0, h: base.h });
+    const accentFg = emittedForegroundRgb(clampThemeTokens({ background: baseStr }).vars, "--color-accent-foreground", base);
     const ratio = contrastRatio(accentFg, oklchToRgb(accent));
     expect(ratio, `derived accent-foreground on accent @ ${baseStr}`).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
   }
@@ -553,8 +573,8 @@ test.each(PALETTES.map((p) => [p.name, p] as const))("#204 %s: the reading-plate
 // plate, a constant ΔL ≈ 0.085 step down one column. Two properties, and the first is the ruling:
 //   1. every shipped palette's band literal IS the plate's colour (readingBandSurface(background)) — so
 //      the step is not "matched", it cannot exist;
-//   2. the band's paired ink (the base's derived foreground, `text-foreground`) clears AA on it — the
-//      band is opaque, so unlike the plate there is no art in this composite and no alpha to solve.
+//   2. the band's paired reading-plate ink clears AA on it — the band is opaque, so unlike the plate
+//      there is no art in this composite and no alpha to solve.
 const READING_BAND_PATH = "color.reading-band" as const;
 
 test.each(PALETTES.map((p) => [p.name, p] as const))("#241 %s: the reading-band literal IS the plate's colour at alpha 1", (_name, palette) => {
@@ -575,18 +595,19 @@ test.each(PALETTES.map((p) => [p.name, p] as const))("#241 %s: the reading-band 
   expect(plate.alpha, "…and the plate is not (or there was no step to kill)").toBeLessThan(READING_BAND_ALPHA);
 });
 
-test("#241 the band's paired ink (the derived foreground) clears AA on the band, every realistic base", () => {
+test("#241 the band's paired reading-plate ink clears AA on the band, every realistic base", () => {
   for (const baseStr of REALISTIC_BASES) {
     const base = parseOklch(baseStr);
-    const ratio = contrastRatio(foregroundRgb(base), oklchToRgb(readingBandSurface(base)));
-    expect(ratio, `derived foreground on the band @ ${baseStr}`).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
+    const ink = oklchToRgb(readingPlateForeground(base));
+    const ratio = contrastRatio(ink, oklchToRgb(readingBandSurface(base)));
+    expect(ratio, `reading-plate foreground on the band @ ${baseStr}`).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
   }
 });
 
-test("#204 the plate alpha FLOORS AA for the derived foreground over worst-case art on every realistic base", () => {
+test("#204 the plate alpha FLOORS AA for the paired reading ink over worst-case art on every realistic base", () => {
   for (const baseStr of REALISTIC_BASES) {
     const base = parseOklch(baseStr);
-    const fg = foregroundRgb(base);
+    const fg = oklchToRgb(readingPlateForeground(base));
     const plate = derivedPlate(base);
     for (const [artName, art] of WORST_ART) {
       const ratio = contrastRatio(fg, compositeOver(plate, art));
@@ -755,7 +776,7 @@ test("#243 the derived hairline ring falls on the CORRECT side of the base — l
     // border on a light one. The pre-#243 inherited dark recipe is a WHITE ring on a light base — the
     // 1.29:1 ghost #232 measured — so this assertion is the defect, stated directionally.
     const brighter = contrastRatio(ring, baseRgb) > 1 && ring.r > baseRgb.r;
-    expect(brighter, `hairline ring lighter than the base @ ${baseStr}`).toBe(base.l <= D.fgPivotL);
+    expect(brighter, `hairline ring lighter than the base @ ${baseStr}`).toBe(surfacePolarity(base) === "dark");
   }
 });
 

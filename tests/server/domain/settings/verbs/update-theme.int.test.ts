@@ -21,10 +21,10 @@ describe("updateTheme", () => {
     const updated = await h.svc.updateTheme({
       principal: principal(a, "user"),
       id: created.id,
-      input: { name: "Renamed", override: { accent: "oklch(0.7 0.14 250)" } },
+      input: { name: "Renamed", override: { background: "oklch(0.6201 0.01 60)", accent: "oklch(0.48 0.16 40)" } },
     });
     expect(updated.name).toBe("Renamed");
-    expect(updated.override).toEqual({ accent: "oklch(0.7 0.14 250)" });
+    expect(updated.override).toEqual({ background: "oklch(0.6201 0.01 60)", accent: "oklch(0.48 0.16 40)" });
   });
 
   test("a seed id 404s (never editable in place)", async () => {

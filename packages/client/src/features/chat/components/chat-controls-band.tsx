@@ -211,7 +211,7 @@ function ControlActionButton({ action, consumer, as }: ControlActionButtonProps)
                 mode reads as the chip's register mark, not as a second label competing with the copy. No
                 `data-slot` override (Text owns `data-slot=text`, which tiers.css reads): the word is
                 addressable as the chip's own rendered text, which is the channel under test anyway. */}
-            <Text as="span" voice="interactiveKicker">
+            <Text as="span" voice="interactiveKicker" ink="inherit">
               {CONTROL_MODE_WORD[action.mode]}
             </Text>
           </>

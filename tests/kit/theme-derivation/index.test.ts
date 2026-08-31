@@ -1,11 +1,10 @@
 // Mirror test for kit/theme-derivation — the D71 derivation numbers + the node-side prediction of them.
 //
 // The point of this module is that TWO packages that cannot see each other must agree about one derivation:
-// `@orb/ui`'s clamp emits the CSS a browser evaluates, and `@orb/server`'s ST theme importer predicts the
-// result to decide whether a foreign palette converts safely. So the tests pin (1) that the ui clamp really
-// reads these numbers rather than carrying its own copy — the whole reason they moved down the cake — and
-// (2) that the safety predicate DISCRIMINATES, with a positive and a negative control on each side of the
-// documented pivot mid-band.
+// `@orb/ui`'s clamp emits the CSS a browser evaluates, and `@orb/server` imports foreign palettes into the
+// same total contract. So the tests pin (1) that the ui clamp really reads these numbers rather than carrying
+// its own copy — the whole reason they moved down the cake — and
+// (2) that every accepted base produces semantic surface/foreground pairs that clear the text floor.
 
 import {
   AA_LARGE_RATIO,
@@ -15,7 +14,9 @@ import {
   compositeSrgb,
   derivedForeground,
   derivedForegroundLightness,
-  isDerivableBaseSurface,
+  derivedForegroundLightnessForSurfaces,
+  derivedMutedForegroundLightness,
+  inputCompositeSurface,
   oklabToOklch,
   oklchToSrgb,
   proseInkLightness,
@@ -24,8 +25,10 @@ import {
   rampSurface,
   readingBandSurface,
   readingPlateAlpha,
+  readingPlateForeground,
   shadowIngredients,
   srgbToOklch,
+  surfacePolarity,
   THEME_DERIVATION,
   wcagContrastRatio,
 } from "@orb/kit/theme-derivation";
@@ -87,12 +90,9 @@ describe("shadowIngredients (#243 — the polarity-derived elevation recipe)", (
     }
   });
 
-  test("the polarity flip rides fgPivotL — the SAME threshold as the foreground and color-scheme", () => {
-    const { fgPivotL } = THEME_DERIVATION;
-    // Strictly above the pivot is light (colorSchemeFor's boundary), so the pivot itself is the dark
-    // arm's ceiling — text polarity and elevation polarity can never disagree about one base.
-    expect(shadowIngredients({ l: fgPivotL, c: 0.01, h: 60 }).highlight.alpha).toBe(THEME_DERIVATION.shadow.dark.highlight.alpha);
-    expect(shadowIngredients({ l: fgPivotL + 0.01, c: 0.01, h: 60 }).highlight.alpha).toBe(THEME_DERIVATION.shadow.light.highlight.alpha);
+  test("the elevation arm rides the measured surface polarity", () => {
+    expect(shadowIngredients({ l: 0.55, c: 0.01, h: 60 }).highlight.alpha).toBe(THEME_DERIVATION.shadow.dark.highlight.alpha);
+    expect(shadowIngredients({ l: 0.57, c: 0.01, h: 60 }).highlight.alpha).toBe(THEME_DERIVATION.shadow.light.highlight.alpha);
   });
 });
 
@@ -141,10 +141,18 @@ describe("rampDeltas (#682 — the polarity-derived neutral surface ramp)", () =
     expect(light.card).not.toBe(light.muted);
   });
 
-  test("the polarity flip rides fgPivotL — the SAME threshold as the foreground, color-scheme and elevation", () => {
-    const { fgPivotL } = THEME_DERIVATION;
-    expect(rampDeltas({ l: fgPivotL, c: 0.01, h: 60 })).toBe(THEME_DERIVATION.ramp.dark);
-    expect(rampDeltas({ l: fgPivotL + 0.01, c: 0.01, h: 60 })).toBe(THEME_DERIVATION.ramp.light);
+  test("the ramp arm rides measured polarity, retracting only a shared-host delta that crosses it", () => {
+    const dark = rampDeltas({ l: 0.55, c: 0.01, h: 60 });
+    const light = rampDeltas({ l: 0.57, c: 0.01, h: 60 });
+    expect(surfacePolarity({ l: 0.55, c: 0.01, h: 60 })).toBe("dark");
+    expect(surfacePolarity({ l: 0.57, c: 0.01, h: 60 })).toBe("light");
+    expect(dark.sidebar).toBe(THEME_DERIVATION.ramp.dark.sidebar);
+    expect(dark.card).toBeLessThan(THEME_DERIVATION.ramp.dark.card);
+    expect(light.card).toBe(THEME_DERIVATION.ramp.light.card);
+    expect(light.sidebar).toBeGreaterThan(THEME_DERIVATION.ramp.light.sidebar);
+    // Dedicated foreground roles remove any reason to project these authored hover-surface deltas.
+    expect(dark.accent).toBe(THEME_DERIVATION.ramp.dark.accent);
+    expect(light.sidebarAccent).toBe(THEME_DERIVATION.ramp.light.sidebarAccent);
   });
 });
 
@@ -178,14 +186,14 @@ describe("chartRampForSurface (#939 — custom categorical fills)", () => {
 });
 
 describe("derivedForegroundLightness", () => {
-  test("flips light↔dark around the pivot, clamped to the readable band", () => {
-    const { fgPivotL, fgLMin, fgLMax } = THEME_DERIVATION;
-    // A dark surface gets near-white text…
-    expect(derivedForegroundLightness(0.15)).toBe(fgLMax);
-    // …a light surface gets near-black…
-    expect(derivedForegroundLightness(0.95)).toBe(fgLMin);
-    // …and the pivot itself resolves to the dark arm's ceiling (the `(pivot - l)` sign, matching clamp.ts).
-    expect(derivedForegroundLightness(fgPivotL)).toBe(fgLMin);
+  test("preserves the shipped endpoints where they clear and solves the legal pivot bases", () => {
+    expect(derivedForegroundLightness({ l: 0.15, c: 0.015, h: 250 })).toBe(THEME_DERIVATION.fgLMax);
+    expect(derivedForegroundLightness({ l: 0.95, c: 0.01, h: 60 })).toBe(THEME_DERIVATION.fgLMin);
+    for (const l of [0.62, 0.6201]) {
+      const surface = { l, c: 0.01, h: 60 };
+      const ink = { l: derivedForegroundLightness(surface), c: 0, h: surface.h };
+      expect(wcagContrastRatio(oklchToSrgb(ink), oklchToSrgb(surface)), `pivot L=${l}`).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
+    }
   });
 });
 
@@ -208,50 +216,82 @@ describe("oklchToSrgb", () => {
   });
 });
 
-describe("isDerivableBaseSurface", () => {
-  test("accepts the realistic dark + light bases orb's own palettes use", () => {
-    // The same representative bases the ui palette-contrast suite sweeps (Mocha/Hearth-dark and Light).
-    for (const l of [0.1, 0.15, 0.158, 0.2, 0.25]) {
-      expect(isDerivableBaseSurface({ l, c: 0.015, h: 250 }), `dark base L=${l}`).toBe(true);
+describe("#969 accepted-base foreground contract", () => {
+  test.each([0.62, 0.6201] as const)("L=%s derives each semantic ink against the surface it paints", (l) => {
+    const base = { l, c: 0.01, h: 60 };
+    const deltas = rampDeltas(base);
+    const raised = rampSurface(base, deltas.surfaceRaised);
+    const card = rampSurface(base, deltas.card);
+    const popover = rampSurface(base, deltas.popover);
+    const sidebar = rampSurface(base, deltas.sidebar);
+    const sidebarAccent = rampSurface(base, deltas.sidebarAccent);
+    const secondary = rampSurface(base, deltas.secondary);
+    const muted = rampSurface(base, deltas.muted);
+    const pairs = [
+      [{ l: derivedForegroundLightnessForSurfaces([base, raised, card]), c: 0, h: base.h }, base, "foreground/background"],
+      [derivedForeground(card), card, "card-foreground/card"],
+      [derivedForeground(popover), popover, "popover-foreground/popover"],
+      [derivedForeground(sidebar), sidebar, "sidebar-foreground/sidebar"],
+      [derivedForeground(sidebarAccent), sidebarAccent, "sidebar-accent-foreground/sidebar-accent"],
+      [derivedForeground(secondary), secondary, "secondary-foreground/secondary"],
+      [
+        {
+          l: derivedMutedForegroundLightness([
+            base,
+            card,
+            popover,
+            sidebar,
+            secondary,
+            muted,
+            inputCompositeSurface(base, base),
+            inputCompositeSurface(base, card),
+            inputCompositeSurface(base, popover),
+          ]),
+          c: 0,
+          h: base.h,
+        },
+        muted,
+        "muted-foreground/muted",
+      ],
+    ] as const;
+    for (const [ink, surface, label] of pairs) {
+      expect(wcagContrastRatio(oklchToSrgb(ink), oklchToSrgb(surface)), label).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
     }
-    for (const l of [0.9, 0.95, 0.98]) {
-      expect(isDerivableBaseSurface({ l, c: 0.01, h: 60 }), `light base L=${l}`).toBe(true);
+    const mutedInk = pairs.at(-1)?.[0];
+    if (mutedInk === undefined) {
+      throw new Error("muted foreground pair missing");
     }
+    for (const [surface, label] of [
+      [inputCompositeSurface(base, base), "input/background"],
+      [inputCompositeSurface(base, card), "input/card"],
+      [inputCompositeSurface(base, popover), "input/popover"],
+    ] as const) {
+      expect(wcagContrastRatio(oklchToSrgb(mutedInk), oklchToSrgb(surface)), label).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
+    }
+    expect(surfacePolarity(base)).toBe("light");
   });
 
-  test("REFUSES the pivot mid-band — the documented limitation, which a foreign palette CAN hit", () => {
-    // PLANTED POSITIVE CONTROL. No hand-authored orb palette lands here, so without this the predicate would
-    // be a fence nobody has ever seen bite. A mid-grey page surface is inherently low-contrast for any
-    // sub-maximal derived tone; the SillyTavern importer refuses such a theme rather than importing it.
-    // The band is MEASURED (see the boundary test below), not assumed from the prose approximation.
-    for (const l of [0.45, 0.5, 0.55, 0.6, 0.62, 0.63, 0.65, 0.68]) {
-      expect(isDerivableBaseSurface({ l, c: 0.01, h: 250 }), `mid-band base L=${l}`).toBe(false);
+  test("the old shared muted endpoint is a planted failing control at both pivot fixtures", () => {
+    const failures = [0.62, 0.6201].filter((l) => {
+      const base = { l, c: 0.01, h: 60 };
+      return (
+        wcagContrastRatio(oklchToSrgb({ l: THEME_DERIVATION.mutedLMin, c: 0, h: 60 }), oklchToSrgb(rampSurface(base, rampDeltas(base).card))) < AA_NORMAL_RATIO
+      );
+    });
+    expect(failures).toHaveLength(2);
+  });
+
+  test.each([0.62, 0.6201] as const)("L=%s derives a plate pair that clears black and white art", (l) => {
+    const base = { l, c: 0.01, h: 60 };
+    const plate = oklchToSrgb(rampSurface(base, THEME_DERIVATION.readingPlate.deltaL));
+    const ink = oklchToSrgb(readingPlateForeground(base));
+    const alpha = readingPlateAlpha(base);
+    for (const art of [
+      { r: 0, g: 0, b: 0 },
+      { r: 255, g: 255, b: 255 },
+    ]) {
+      expect(wcagContrastRatio(ink, compositeSrgb(plate, alpha, art))).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
     }
-  });
-
-  test("the refused band's EDGES are where the measurement puts them (0.443 … 0.686)", () => {
-    // NEGATIVE CONTROLS either side. This is the number the ST importer's refusal reason describes, and it
-    // is narrower than `palette-contrast.suite.test.ts`'s prose approximation ("~0.28–0.62") — that comment
-    // is a rough exclusion range for a sweep, not a measured boundary, so it is not the authority here.
-    //
-    // THE UPPER EDGE MOVED 0.63 → 0.686 WITH #682, and that is the two-arm ramp being honest rather than a
-    // regression. Above the pivot the chrome now RECEDES from the base instead of saturating at white, so a
-    // base sitting just over the pivot derives a sidebar-accent at L−0.08 that its near-black text reads at
-    // 3.56:1 — sub-AA. The old arm hid that by clamping every surface toward white; the palettes in the
-    // widened slice were never legible, they were unmeasured. The lower edge is untouched: the dark arm did
-    // not move a digit.
-    expect(isDerivableBaseSurface({ l: 0.44, c: 0.01, h: 250 }), "just below the band").toBe(true);
-    expect(isDerivableBaseSurface({ l: 0.69, c: 0.01, h: 250 }), "just above the band").toBe(true);
-  });
-
-  test("its verdict AGREES with a direct contrast measurement of the worst ramp pairing", () => {
-    // Not a tautology: it re-derives the same judgement from the primitive parts, so a bug in the surface
-    // LIST inside the predicate (a missing ramp member) would show up as a disagreement here.
-    const base = { l: 0.5, c: 0.01, h: 250 };
-    const worst = rampSurface(base, rampDeltas(base).popover);
-    const ratio = wcagContrastRatio(oklchToSrgb(derivedForeground(base)), oklchToSrgb(worst));
-    expect(ratio).toBeLessThan(AA_NORMAL_RATIO);
-    expect(isDerivableBaseSurface(base)).toBe(false);
   });
 });
 
@@ -412,9 +452,8 @@ describe("readingPlateAlpha (#217 — the polarity-aware plate alpha)", () => {
   test("a DARK base keeps the measured 0.65 floor — D144(d)'s sacred dark rooms do not move", () => {
     expect(readingPlateAlpha(darkBase)).toBe(floor);
     expect(readingPlateAlpha({ l: 0.15, c: 0.015, h: 250 })).toBe(floor);
-    // The pivot itself is the DARK arm's ceiling (the same boundary `colorSchemeFor` uses).
-    expect(readingPlateAlpha({ l: THEME_DERIVATION.fgPivotL, c: 0.01, h: 60 })).toBe(floor);
-    expect(readingPlateAlpha({ l: THEME_DERIVATION.fgPivotL + 0.01, c: 0.01, h: 60 })).toBeGreaterThan(floor);
+    expect(readingPlateAlpha({ l: 0.62, c: 0.01, h: 60 })).toBeGreaterThan(floor);
+    expect(readingPlateAlpha({ l: 0.6201, c: 0.01, h: 60 })).toBeGreaterThan(floor);
   });
 
   test("a LIGHT base is raised until the reference ink clears AA over the plate over BLACK art", () => {

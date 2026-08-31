@@ -113,7 +113,7 @@ export const BG_PHOTO_READING_PLATE = "in-data-[has-bg-image]:bg-reading-plate i
 //
 // Self-gated on `in-data-[has-bg-image]` like its sibling, so a plain-background theme is byte-identical.
 export const BG_PHOTO_CHROME_PLATE =
-  "in-data-[has-bg-image]:bg-reading-plate in-data-[has-bg-image]:backdrop-blur-sm in-data-[has-bg-image]:rounded-card in-data-[has-bg-image]:px-field in-data-[has-bg-image]:py-row in-data-[has-bg-image]:text-foreground";
+  "in-data-[has-bg-image]:bg-reading-plate in-data-[has-bg-image]:backdrop-blur-sm in-data-[has-bg-image]:rounded-card in-data-[has-bg-image]:px-field in-data-[has-bg-image]:py-row in-data-[has-bg-image]:text-reading-plate-foreground";
 
 // BAND backing (#229/#237) — the SAME over-art question as the chip above, answered for a full-bleed
 // STRIP rather than a floating chip. The cast bar sits above the transcript inside `.shell-main`, which
@@ -130,7 +130,8 @@ export const BG_PHOTO_CHROME_PLATE =
 // no longer appearing whole in the source.
 //
 // Self-gated on `in-data-[has-bg-image]` like both siblings, so a plain background is byte-identical.
-export const BG_PHOTO_BAND_PLATE = "in-data-[has-bg-image]:bg-reading-plate in-data-[has-bg-image]:backdrop-blur-sm in-data-[has-bg-image]:text-foreground";
+export const BG_PHOTO_BAND_PLATE =
+  "in-data-[has-bg-image]:bg-reading-plate in-data-[has-bg-image]:backdrop-blur-sm in-data-[has-bg-image]:text-reading-plate-foreground";
 
 // LOADING backing (#468) — the same over-art question as the three plates above, answered for the state
 // that comes BEFORE any of them: the transcript's suspense fallback.
@@ -291,7 +292,8 @@ export const BG_PHOTO_ERROR_PLATE = "in-data-[has-bg-image]:bg-card in-data-[has
 // non-`auto` z-index / `opacity < 1` on the bubble subtree) would paint in its own layer and could still
 // cover the band. No such sibling exists on the tree today (measured — see the #168 note above), and the
 // fence that keeps it that way is the hit-test CT, never a per-skin class.
-export const STICKY_ATTRIBUTION_CHROME = "not-in-data-[has-bg-image]:-my-row sticky top-0 z-(--z-raised) rounded-card bg-reading-band py-row text-foreground";
+export const STICKY_ATTRIBUTION_CHROME =
+  "not-in-data-[has-bg-image]:-my-row sticky top-0 z-(--z-raised) rounded-card bg-reading-band py-row text-reading-plate-foreground";
 
 // THE SAME PIN, FOR A HEADER THAT LIVES INSIDE ITS CONTAINER (#288). Everything #113/#168/#241 ruled is
 // carried over verbatim — the pin, the RAISE, the OPAQUE `bg-reading-band` fill (an occluding band is the
@@ -316,4 +318,4 @@ export const STICKY_ATTRIBUTION_CHROME = "not-in-data-[has-bg-image]:-my-row sti
 // own to cancel, and the wallpaper gate would now be the thing that breaks layout neutrality. Same
 // invariant ("going sticky changes NO box"), restored to its pre-#167 spelling because the reason for the
 // gate went away with the chip.
-export const STICKY_ATTRIBUTION_CHROME_INSIDE = "-my-row sticky top-0 z-(--z-raised) bg-reading-band py-row text-foreground";
+export const STICKY_ATTRIBUTION_CHROME_INSIDE = "-my-row sticky top-0 z-(--z-raised) bg-reading-band py-row text-reading-plate-foreground";

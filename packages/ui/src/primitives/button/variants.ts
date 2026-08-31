@@ -38,20 +38,20 @@ export const buttonVariants = tv({
   variants: {
     intent: {
       primary: "bg-primary text-primary-foreground shadow-cta hover:bg-primary/90 hover:shadow-cta-glow active:bg-primary/80",
-      secondary: `border border-border bg-transparent text-foreground ${ACCENT_HOVER} active:bg-accent/80`,
-      ghost: `text-muted-foreground ${ACCENT_HOVER} active:bg-accent/80`,
+      secondary: `border border-border bg-transparent text-current ${ACCENT_HOVER} active:bg-accent/80`,
+      ghost: `text-current ${ACCENT_HOVER} active:bg-accent/80`,
       destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90 active:bg-destructive/80",
       // THE RESTING HAIRLINE (added 2026-08-17, program #102 variant B) — `ghost`'s ink with `secondary`'s
       // edge, which is the one combination the intent axis could not spell and the one a FILTER CHIP needs.
       //
-      // Why it is not either neighbour: `secondary` is a real secondary ACTION, so it paints `foreground`
-      // ink and reads as a button you press — wrong for twenty-eight words out of a tag dictionary that
-      // must recede. `ghost` recedes correctly and draws NO edge at all, and an edge is exactly what was
-      // missing: the characters pane's chips already sat at a ratified radius and nobody could tell,
+      // Why it is not either neighbour: `secondary` is a real secondary ACTION, so its border reads as a
+      // button you press — wrong for twenty-eight words out of a tag dictionary that must recede. `ghost`
+      // draws NO edge at all, and an edge is exactly what was missing: the characters pane's chips already
+      // sat at a ratified radius and nobody could tell,
       // because at rest they were transparent with a ZERO-width border (measured 2026-08-17,
       // reports/design/characters-mockups/RATIONALE.md §1). A radius differentiates nothing unless
       // something paints it, so the shape axis only starts working once the pill is drawn.
-      outline: `border border-border bg-transparent text-muted-foreground ${ACCENT_HOVER} active:bg-accent/80`,
+      outline: `border border-border bg-transparent text-current ${ACCENT_HOVER} active:bg-accent/80`,
     },
     size: {
       ...CONTROL_SIZE,

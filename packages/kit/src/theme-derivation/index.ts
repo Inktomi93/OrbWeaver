@@ -2,34 +2,23 @@
 //
 // Kit-homed for the same reason `safe-color` is: its consumers span the CAKE. `@orb/ui`
 // `content/theme-scope/clamp.ts` emits the CSS that USES these numbers (via relative-colour syntax, so the
-// browser does the arithmetic); `@orb/server` `domain/import` must PREDICT the same arithmetic in node, to
-// decide whether a foreign palette can be converted into an orb theme SAFELY — a colour whose derived pair
-// would not clear WCAG AA is not importable, it is unmappable. ui and server cannot import each other, and
-// neither may own a number the other must agree with, so the numbers live below both.
+// browser does the arithmetic); `@orb/server` imports foreign palettes into the same ThemeOverride contract.
+// ui and server cannot import each other, so the total derivation and colour math live below both.
 //
 // WHAT THE DERIVATION IS (clamp.ts owns the CSS spelling; this file owns the meaning):
-//   • a FOREGROUND is never picked, only derived — its lightness flips light↔dark around `fgPivotL` with a
-//     steep step, so any surface lighter than the pivot gets near-black text and darker gets near-white;
+//   • a FOREGROUND is never picked, only derived — polarity comes from whichever of black/white has more
+//     contrast against the actual gamut-mapped surface, then the existing endpoint moves in 0.001-L steps
+//     toward that extreme until both float and quantized pixels clear WCAG AA;
 //   • the neutral surface RAMP is the base with only L shifted (hue + chroma held) — by a delta from the
-//     TWO-ARM `ramp` block, selected off the same pivot (#682): a dark base's chrome rises off it, a
+//     TWO-ARM `ramp` block, selected by the same measured polarity (#682): a dark base's chrome rises off it, a
 //     light base's recedes, because above L ≈ 0.95 "lighter" has no headroom left and the whole family
 //     collapses into one white;
-//   • `color-scheme` derives from the base's L against the SAME pivot, so text polarity and scheme polarity
-//     can never disagree.
+//   • `color-scheme`, ramps, elevation, charts and reading plates derive from that SAME measured polarity,
+//     so native controls and generated colors cannot disagree with the ink direction.
 //
-// THE PIVOT MID-BAND IS THE SAFETY GATE. Because the flip is a step function through `fgPivotL`, a base
-// surface sitting NEAR the pivot derives a foreground that is neither near-black nor near-white, and the pair
-// is inherently low-contrast. `tests/ui/content/theme-scope/palette-contrast.suite.test.ts` documents this
-// explicitly and deliberately sweeps only bases OUTSIDE the band ("a mid-gray page surface is inherently
-// low-contrast for any sub-maximal tone, and no real palette uses one"). A hand-authored orb palette never
-// lands there; a FOREIGN palette can, which is exactly why the importer needs to ask.
-// The band is MEASURED, not declared: `isDerivableBaseSurface` runs the real pairings, and the boundary that
-// falls out is L ∈ [0.443, 0.686] (pinned in this module's test). That suite's "~0.28–0.62" is a deliberately
-// generous exclusion range for a sweep — a prose approximation, not the boundary — so nothing here derives
-// from it. The UPPER edge was 0.63 until #682 (2026-08-24) gave the surface ramp its polarity arm: above the
-// pivot the chrome now recedes from the base instead of saturating toward white, so a base just over the
-// pivot derives a sidebar-accent its own near-black text reads at 3.56:1. The widened slice is measurement,
-// not regression — those palettes were never legible, they were clamped out of view.
+// ACCEPTED BASES ARE TOTAL. There is no refused lightness band: each semantic ink is judged against the
+// surface it actually paints. A shared token is allowed only for a documented family that one ink can cover;
+// distinct surfaces own distinct foreground roles (including sidebar accent and the over-art reading plate).
 
 /** The numeric derivation constants — the ONE declaration. `@orb/ui`'s clamp re-exports these as
  *  `THEME_DERIVATION` (its own consumers' name) and spells them into CSS; nothing re-derives them.
@@ -60,7 +49,7 @@
  *  sticker — so the ring inverts to a dark hairline and the drop lifts to L 0.35 at a third of the alpha.
  *  Only `l`/`c`/`alpha` live here: the HUE is the palette's own (see the function).
  *
- *  `ramp` is the neutral SURFACE ramp, and it is two-armed for the same reason and off the same pivot
+ *  `ramp` is the neutral SURFACE ramp, and it is two-armed for the same reason and measured polarity
  *  (#682, the #243 move applied to the surfaces): the arms are lightness DELTAS off the picked base that
  *  {@link rampDeltas} selects between. Neither arm is invented — `dark` is the pre-#682 single additive
  *  block digit-for-digit, and `light` is the shipped Light seed's own measured block promoted from a
@@ -72,8 +61,6 @@
  *  bar all disappear. On a light surface a raised tone is not a lighter one (there is no headroom); it is
  *  a RECESSED one, which is exactly what the Light seed always spelled by hand. */
 export const THEME_DERIVATION = {
-  fgPivotL: 0.62,
-  fgSteepness: 1000,
   fgLMin: 0.22,
   fgLMax: 0.96,
   mutedLMin: 0.34,
@@ -293,8 +280,8 @@ export function compositeSrgb(top: Rgb, alpha: number, under: Rgb): Rgb {
  * (post-#204 every reading plate derives from that one base, so base-legibility is plate-legibility):
  *   • `null`  — the authored ink already clears AA against the base: keep it BYTE-IDENTICAL
  *     (the no-op-where-the-card-was-sensible guarantee; the dark-art rooms do not move a pixel);
- *   • a number — the ink fails AA there: the LIGHTNESS to re-derive it at (the same steep pivot flip
- *     as every derived foreground), keeping the author's hue and chroma.
+ *   • a number — the ink fails AA there: the LIGHTNESS to re-derive it at, keeping the author's hue and
+ *     chroma and using the same measured polarity/AA solver as every derived foreground.
  * `inkAlpha < 1` composites the ink over the base first — a naive ratio on a translucent ink lies. (The
  * comparison stays INSIDE the backticks: tsdoc reads a bare `<` followed by a space as a malformed HTML
  * element and the eslint tsdoc/syntax rule reds the file.)
@@ -305,25 +292,147 @@ export function proseInkLightness(ink: Oklch, inkAlpha: number, base: Oklch): nu
   if (wcagContrastRatio(inkRgb, baseRgb) >= AA_NORMAL_RATIO) {
     return null;
   }
-  return derivedForegroundLightness(base.l);
+  return derivedForegroundLightness(base);
 }
 
-/** The LIGHTNESS orb derives for text sitting on a surface of lightness `surfaceL` — the steep pivot flip
- *  clamp.ts spells as `clamp(fgLMin, (fgPivotL - l) * fgSteepness, fgLMax)`. */
-export function derivedForegroundLightness(surfaceL: number): number {
-  const D = THEME_DERIVATION;
-  return Math.max(D.fgLMin, Math.min(D.fgLMax, (D.fgPivotL - surfaceL) * D.fgSteepness));
+export type SurfacePolarity = "dark" | "light";
+
+const FOREGROUND_L_STEP = 0.001;
+const FOREGROUND_L_DECIMALS = 3;
+
+function quantized({ r, g, b }: Rgb): Rgb {
+  return { r: Math.round(r), g: Math.round(g), b: Math.round(b) };
+}
+
+function worstTextContrast(ink: Rgb, surfaces: readonly Rgb[]): number {
+  return Math.min(...surfaces.flatMap((surface) => [wcagContrastRatio(ink, surface), wcagContrastRatio(quantized(ink), quantized(surface))]));
+}
+
+function tryNeutralInkLightness(polarity: SurfacePolarity, surfaces: readonly Rgb[], initial: number): number | null {
+  const increment = polarity === "light" ? -FOREGROUND_L_STEP : FOREGROUND_L_STEP;
+  const limit = polarity === "light" ? 0 : 1;
+  const clears = (l: number): boolean => worstTextContrast(oklchToSrgb({ l, c: 0, h: 0 }), surfaces) >= AA_NORMAL_RATIO;
+  if (clears(initial)) {
+    return initial;
+  }
+  const steps = Math.round(Math.abs(limit - initial) / FOREGROUND_L_STEP);
+  if (!clears(limit)) {
+    return null;
+  }
+  let low = 1;
+  let high = steps;
+  while (low < high) {
+    const middle = Math.floor((low + high) / 2);
+    const candidate = Math.round((initial + increment * middle) / FOREGROUND_L_STEP) * FOREGROUND_L_STEP;
+    if (clears(candidate)) {
+      high = middle;
+    } else {
+      low = middle + 1;
+    }
+  }
+  return Math.round((initial + increment * low) / FOREGROUND_L_STEP) * FOREGROUND_L_STEP;
+}
+
+function neutralInkLightness(polarity: SurfacePolarity, surfaces: readonly Rgb[], initial: number): number {
+  const lightness = tryNeutralInkLightness(polarity, surfaces, initial);
+  if (lightness === null) {
+    throw new Error("unable to derive a contrast-safe neutral foreground");
+  }
+  return lightness;
+}
+
+/** Whether a surface is light or dark, decided from the stronger of Orb's existing dark/light ink
+ * endpoints against the actual gamut-mapped pixel. This is the single polarity decision for foregrounds,
+ * ramp/elevation arms, native `color-scheme`, chart preference, and plate alpha. */
+export function surfacePolarity(surface: Oklch): SurfacePolarity {
+  const surfaceRgb = oklchToSrgb(surface);
+  const dark = worstTextContrast(oklchToSrgb({ l: 0, c: 0, h: surface.h }), [surfaceRgb]);
+  const light = worstTextContrast(oklchToSrgb({ l: 1, c: 0, h: surface.h }), [surfaceRgb]);
+  return dark >= light ? "light" : "dark";
+}
+
+/** The smallest movement from Orb's existing foreground endpoint that clears AA against `surface`.
+ * Existing dark/light themes keep their endpoint exactly; pivot-adjacent surfaces continue toward
+ * black/white in deterministic 0.001-L steps until both float and framebuffer-quantized colors clear. */
+export function derivedForegroundLightness(surface: Oklch): number {
+  const polarity = surfacePolarity(surface);
+  const initial = polarity === "light" ? THEME_DERIVATION.fgLMin : THEME_DERIVATION.fgLMax;
+  return neutralInkLightness(polarity, [oklchToSrgb(surface)], initial);
+}
+
+/** A shared foreground for a documented family of nearby hosts (background/card/raised). */
+export function derivedForegroundLightnessForSurfaces(surfaces: readonly Oklch[]): number {
+  const anchor = surfaces[0];
+  if (anchor === undefined) {
+    throw new Error("foreground requires at least one surface");
+  }
+  const polarity = surfacePolarity(anchor);
+  const initial = polarity === "light" ? THEME_DERIVATION.fgLMin : THEME_DERIVATION.fgLMax;
+  return neutralInkLightness(
+    polarity,
+    surfaces.map((surface) => oklchToSrgb(surface)),
+    initial,
+  );
+}
+
+/** One global low-emphasis ink judged against the actual neutral hosts it is documented to paint on.
+ * It stays in the softer band where that band clears and firms toward black/white only when necessary. */
+export function derivedMutedForegroundLightness(surfaces: readonly Oklch[]): number {
+  const anchor = surfaces[0];
+  if (anchor === undefined) {
+    throw new Error("muted foreground requires at least one surface");
+  }
+  const polarity = surfacePolarity(anchor);
+  const initial = polarity === "light" ? THEME_DERIVATION.mutedLMin : THEME_DERIVATION.mutedLMax;
+  return neutralInkLightness(
+    polarity,
+    surfaces.map((surface) => oklchToSrgb(surface)),
+    initial,
+  );
 }
 
 /** The foreground orb WOULD derive for `surface` — chroma 0 at the surface's own hue, exactly as
  *  `foregroundOn()` emits `oklch(from <surface> <CONTRAST_L> 0 h)`. */
 export function derivedForeground(surface: Oklch): Oklch {
-  return { l: derivedForegroundLightness(surface.l), c: 0, h: surface.h };
+  return { l: derivedForegroundLightness(surface), c: 0, h: surface.h };
 }
 
 /** One neutral ramp surface: the base with only L shifted (hue + chroma held), as the clamp emits. */
 export function rampSurface(base: Oklch, deltaL: number): Oklch {
   return { l: clamp01(base.l + deltaL), c: base.c, h: base.h };
+}
+
+/** The opaque pixel painted by the translucent input fill over one of its actual backing surfaces. */
+export function inputCompositeSurface(base: Oklch, backing: Oklch, alpha: number = THEME_DERIVATION.inputAlpha): Oklch {
+  const inputInk = { l: derivedForegroundLightness(base), c: 0, h: base.h };
+  return srgbToOklch(compositeSrgb(oklchToSrgb(inputInk), alpha, oklchToSrgb(backing)));
+}
+
+export interface MutedForegroundPair {
+  readonly lightness: number;
+  readonly inputAlpha: number;
+}
+
+/** The shared low-emphasis ink plus the translucent input alpha it must clear. The authored base and
+ * opaque ramp stay fixed; only the derived fill alpha steps toward transparent when its legacy 0.12 would
+ * pull an input across the family's contrast-safe polarity. */
+export function derivedMutedForegroundPair(base: Oklch, opaqueSurfaces: readonly Oklch[], inputBackings: readonly Oklch[]): MutedForegroundPair {
+  const polarity = surfacePolarity(base);
+  const initial = polarity === "light" ? THEME_DERIVATION.mutedLMin : THEME_DERIVATION.mutedLMax;
+  const alphaSteps = Math.round(THEME_DERIVATION.inputAlpha / FOREGROUND_L_STEP);
+  for (let step = alphaSteps; step >= 0; step -= 1) {
+    const inputAlpha = Number((step * FOREGROUND_L_STEP).toFixed(FOREGROUND_L_DECIMALS));
+    const surfaces = [...opaqueSurfaces, ...inputBackings.map((backing) => inputCompositeSurface(base, backing, inputAlpha))];
+    const lightness = tryNeutralInkLightness(
+      polarity,
+      surfaces.map((surface) => oklchToSrgb(surface)),
+      initial,
+    );
+    if (lightness !== null) {
+      return { lightness, inputAlpha };
+    }
+  }
+  throw new Error("unable to derive a contrast-safe muted/input pair");
 }
 
 /** The sRGB grey whose WCAG relative luminance is `target` — the inverse of {@link relativeLuminance} for a
@@ -339,6 +448,7 @@ function greyWithLuminance(target: number): Rgb {
 
 /** The alpha grid the emitted plate snaps to — three decimals, the precision a CSS alpha slot needs. */
 const PLATE_ALPHA_STEP = 0.001;
+const PLATE_ALPHA_DECIMALS = 3;
 const PLATE_ALPHA_STEPS = Math.round((1 - THEME_DERIVATION.readingPlate.alpha) / PLATE_ALPHA_STEP);
 
 /**
@@ -391,12 +501,11 @@ const PLATE_ALPHA_STEPS = Math.round((1 - THEME_DERIVATION.readingPlate.alpha) /
  * Returns a 3-decimal alpha in `[readingPlate.alpha, 1]`: the smallest one at which the reference ink
  * clears AA_NORMAL over the plate composited on the worst legal art. No art is ever sampled (#106).
  */
-export function readingPlateAlpha(base: Oklch): number {
+function referencePlateAlpha(base: Oklch, plate: Rgb): number {
   const plateAlphaFloor = THEME_DERIVATION.readingPlate.alpha;
-  if (base.l <= THEME_DERIVATION.fgPivotL) {
+  if (surfacePolarity(base) === "dark") {
     return plateAlphaFloor;
   }
-  const plate = oklchToSrgb(rampSurface(base, THEME_DERIVATION.readingPlate.deltaL));
   const baseLuminance = relativeLuminance(oklchToSrgb(base));
   // A light base ⇒ the reference ink is the DARK one `inkReferenceRatio` below it, and the worst art is
   // black. (The dark arm returned above; it would mirror both.)
@@ -404,12 +513,46 @@ export function readingPlateAlpha(base: Oklch): number {
   const worstArt: Rgb = { r: 0, g: 0, b: 0 };
   for (let step = 0; step < PLATE_ALPHA_STEPS; step += 1) {
     const alpha = plateAlphaFloor + step * PLATE_ALPHA_STEP;
-    if (wcagContrastRatio(referenceInk, compositeSrgb(plate, alpha, worstArt)) >= AA_NORMAL_RATIO) {
+    if (worstTextContrast(referenceInk, [compositeSrgb(plate, alpha, worstArt)]) >= AA_NORMAL_RATIO) {
       // Re-round: 0.65 + n×0.001 accumulates binary-float dust that would reach the CSS literal.
-      return Math.round(alpha / PLATE_ALPHA_STEP) * PLATE_ALPHA_STEP;
+      return Number((Math.round(alpha / PLATE_ALPHA_STEP) * PLATE_ALPHA_STEP).toFixed(PLATE_ALPHA_DECIMALS));
     }
   }
   return 1;
+}
+
+interface ReadingPlatePair {
+  readonly alpha: number;
+  readonly foreground: Oklch;
+}
+
+function readingPlatePair(base: Oklch): ReadingPlatePair {
+  const plateSurface = rampSurface(base, THEME_DERIVATION.readingPlate.deltaL);
+  const plate = oklchToSrgb(plateSurface);
+  const startAlpha = referencePlateAlpha(base, plate);
+  const polarity = surfacePolarity(plateSurface);
+  const initial = polarity === "light" ? THEME_DERIVATION.fgLMin : THEME_DERIVATION.fgLMax;
+  const steps = Math.round((1 - startAlpha) / PLATE_ALPHA_STEP);
+  for (let step = 0; step <= steps; step += 1) {
+    const alpha = Number((Math.round((startAlpha + step * PLATE_ALPHA_STEP) / PLATE_ALPHA_STEP) * PLATE_ALPHA_STEP).toFixed(PLATE_ALPHA_DECIMALS));
+    const surfaces = [compositeSrgb(plate, alpha, { r: 0, g: 0, b: 0 }), compositeSrgb(plate, alpha, { r: 255, g: 255, b: 255 })];
+    const lightness = tryNeutralInkLightness(polarity, surfaces, initial);
+    if (lightness !== null) {
+      return { alpha, foreground: { l: lightness, c: 0, h: base.h } };
+    }
+  }
+  throw new Error("unable to derive a contrast-safe reading plate pair");
+}
+
+export function readingPlateAlpha(base: Oklch): number {
+  return readingPlatePair(base).alpha;
+}
+
+/** The neutral ink paired with the translucent reading plate and its opaque reading-band sibling.
+ * The judge is the actual plate composite over both black and white art at the derived alpha. A base
+ * foreground is not this pairing: around the old pivot it can clear the base while failing the plate. */
+export function readingPlateForeground(base: Oklch): Oklch {
+  return readingPlatePair(base).foreground;
 }
 
 /**
@@ -437,7 +580,7 @@ export const READING_BAND_ALPHA = 1;
  *
  * The band is judged for legibility exactly like the plate's own surface: it is the plate composited on
  * an OPAQUE backing, so it is never darker/lighter than the plate over any art, and the ink it pairs
- * with is the base's derived foreground (`--color-foreground`), which
+ * with is the plate's own derived foreground (`--color-reading-plate-foreground`), which
  * `palette-contrast.suite.test.ts` floors against this surface.
  */
 export function readingBandSurface(base: Oklch): Oklch {
@@ -480,9 +623,8 @@ export interface ShadowIngredients {
  * seed) while the near-black far-ambient hit 3.73-3.93:1, a hard halo ~14px past the card box. The light
  * arm turns those into 1.32-1.34:1 and 1.26-1.27:1 — a ring you can see and a drop you cannot.
  *
- * THE POLARITY PIVOT IS `fgPivotL`, the SAME one the foreground flip and `color-scheme` ride, so a
- * palette can never get light-arm elevation with dark-arm text. Strictly ABOVE the pivot is light,
- * matching `colorSchemeFor`'s boundary exactly.
+ * THE POLARITY IS {@link surfacePolarity}, the SAME measured decision foregrounds and `color-scheme` ride,
+ * so a palette can never get light-arm elevation with dark-arm text.
  *
  * THE DARK ARM DOES NOT MOVE, by construction: its numbers ARE the base `@theme` recipe, and every one
  * carries chroma 0, so the emitted `oklch(from <base> l 0 h / a)` is the same white/black the token
@@ -491,7 +633,7 @@ export interface ShadowIngredients {
  * sub-quantization (max 0.25/255 per channel across the shipped light base, composited).
  */
 export function shadowIngredients(base: Oklch): ShadowIngredients {
-  const arm = base.l > THEME_DERIVATION.fgPivotL ? THEME_DERIVATION.shadow.light : THEME_DERIVATION.shadow.dark;
+  const arm = surfacePolarity(base) === "light" ? THEME_DERIVATION.shadow.light : THEME_DERIVATION.shadow.dark;
   const at = ({ l, c, alpha }: { readonly l: number; readonly c: number; readonly alpha: number }): ShadowIngredient => ({ l, c, h: base.h, alpha });
   return {
     hairline: at(arm.hairline),
@@ -535,22 +677,54 @@ export interface RampDeltas {
  * block, promoted; the dark arm IS the pre-#682 block. Neither is invented, exactly as #243 did for
  * elevation.
  *
- * THE POLARITY PIVOT IS `fgPivotL`, the same one the foreground flip, `color-scheme` and the elevation
- * arm ride, so a palette can never get light-arm surfaces with dark-arm text. Strictly ABOVE the pivot is
- * light, matching `colorSchemeFor`'s boundary exactly.
+ * THE POLARITY IS {@link surfacePolarity}, the same measured decision foregrounds, `color-scheme` and the
+ * elevation arm ride, so a palette can never get light-arm surfaces with dark-arm text.
  *
- * THE DARK ARM DOES NOT MOVE: for any base at or below the pivot this returns the pre-#682 numbers
- * unchanged, and a base whose polarity is not statically knowable keeps the dark arm too (the caller's
- * `base === null` fail-open — `@orb/ui` `derive-vars.ts`), so every dark room and every unjudgeable
- * palette emits the identical CSS byte-for-byte.
+ * THE SHIPPED DARK ARM DOES NOT MOVE: a proposed ramp surface that stays in the base's contrast-safe
+ * polarity returns the pre-#682 number exactly. If an arbitrary accepted base would let a proposed member
+ * cross that boundary, only that DERIVED delta retracts toward zero on a 0.001 grid until the base's
+ * black/white endpoint clears it. Accent and sidebar-accent are exempt because each owns a dedicated
+ * surface foreground; projecting those would erase authored ramp intent for no shared-ink obligation. The
+ * authored base is never projected; the three seeds never trigger the retraction; and every semantic
+ * foreground therefore has a clearing endpoint without an importer-only refusal band.
  *
- * THE MEASURED CONSEQUENCE, stated rather than hidden: because the light arm derives DOWN, a base just
- * above the pivot now produces sub-AA chrome, so {@link isDerivableBaseSurface}'s refused band widens at
- * the top (its test pins the new boundary). That is the predicate doing its job — those palettes really
- * cannot carry legible chrome — not a regression it papers over.
+ * Foregrounds are solved separately against each ramp member; ramp direction therefore never narrows the
+ * accepted base domain.
  */
+function contrastSafeRampDelta(base: Oklch, desired: number, polarity: SurfacePolarity): number {
+  const endpoint = oklchToSrgb({ l: polarity === "light" ? 0 : 1, c: 0, h: base.h });
+  const clears = (delta: number): boolean => worstTextContrast(endpoint, [oklchToSrgb(rampSurface(base, delta))]) >= AA_NORMAL_RATIO;
+  if (clears(desired)) {
+    return desired;
+  }
+  const sign = Math.sign(desired);
+  let safeSteps = 0;
+  let unsafeSteps = Math.round(Math.abs(desired) / FOREGROUND_L_STEP);
+  while (unsafeSteps - safeSteps > 1) {
+    const middle = Math.floor((safeSteps + unsafeSteps) / 2);
+    if (clears(sign * middle * FOREGROUND_L_STEP)) {
+      safeSteps = middle;
+    } else {
+      unsafeSteps = middle;
+    }
+  }
+  return Number((sign * safeSteps * FOREGROUND_L_STEP).toFixed(FOREGROUND_L_DECIMALS));
+}
+
 export function rampDeltas(base: Oklch): RampDeltas {
-  return base.l > THEME_DERIVATION.fgPivotL ? THEME_DERIVATION.ramp.light : THEME_DERIVATION.ramp.dark;
+  const polarity = surfacePolarity(base);
+  const arm = polarity === "light" ? THEME_DERIVATION.ramp.light : THEME_DERIVATION.ramp.dark;
+  const projected: RampDeltas = {
+    sidebar: contrastSafeRampDelta(base, arm.sidebar, polarity),
+    surfaceRaised: contrastSafeRampDelta(base, arm.surfaceRaised, polarity),
+    card: contrastSafeRampDelta(base, arm.card, polarity),
+    popover: contrastSafeRampDelta(base, arm.popover, polarity),
+    accent: arm.accent,
+    sidebarAccent: arm.sidebarAccent,
+    secondary: contrastSafeRampDelta(base, arm.secondary, polarity),
+    muted: contrastSafeRampDelta(base, arm.muted, polarity),
+  };
+  return Object.entries(projected).every(([role, delta]) => delta === arm[role as keyof RampDeltas]) ? arm : projected;
 }
 
 export type ChartRamp = readonly [Oklch, Oklch, Oklch, Oklch, Oklch];
@@ -666,7 +840,7 @@ export function chartRampForSurface(base: Oklch): ChartRamp {
   if (LEGACY_CHART_RAMP.every((color) => chartContrast(color, surfaces) >= AA_LARGE_RATIO)) {
     return LEGACY_CHART_RAMP;
   }
-  const preferred: readonly ["bright" | "dark", "bright" | "dark"] = base.l <= THEME_DERIVATION.fgPivotL ? ["bright", "dark"] : ["dark", "bright"];
+  const preferred: readonly ["bright" | "dark", "bright" | "dark"] = surfacePolarity(base) === "dark" ? ["bright", "dark"] : ["dark", "bright"];
   for (const direction of preferred) {
     const ramp = chartFamily(direction, surfaces);
     if (ramp !== null) {
@@ -694,7 +868,6 @@ const ACCENT_L_STEP = 0.001;
  * at a step whose true colour is still under it. Taking the minimum is the only conservative reading.
  */
 function fillVsCardRatio(fill: Rgb, card: Rgb): number {
-  const quantized = ({ r, g, b }: Rgb): Rgb => ({ r: Math.round(r), g: Math.round(g), b: Math.round(b) });
   return Math.min(wcagContrastRatio(fill, card), wcagContrastRatio(quantized(fill), quantized(card)));
 }
 
@@ -718,8 +891,8 @@ function fillVsCardRatio(fill: Rgb, card: Rgb): number {
  * arc, a ring gauge's fill, a track bar) is painted on a panel, and the card is the ramp member panels
  * take. The floor is {@link AA_LARGE_RATIO} (3:1) because a fill IS a non-text graphical object.
  *
- * THE DIRECTION IS THE PIVOT'S, so this can never fight the foreground flip: above the pivot the card is
- * light and the accent must go DARKER; at or below it, lighter. The search walks `ACCENT_L_STEP` at a time
+ * THE DIRECTION IS THE CARD'S measured polarity, so this can never fight its foreground: on a light card
+ * the accent must go DARKER; on a dark card, lighter. The search walks `ACCENT_L_STEP` at a time
  * and stops at the FIRST clearing lightness — the smallest move that buys legibility, so an author's pick
  * is nudged rather than replaced. A translucent accent is composited over the card before judging (a naive
  * ratio on a translucent fill lies, `proseInkLightness`'s own trap) and the caller re-emits it OPAQUE.
@@ -737,7 +910,7 @@ export function accentFillLightness(accent: Oklch, accentAlpha: number, base: Ok
   if (fillVsCardRatio(at(accent.l), card) >= AA_LARGE_RATIO) {
     return null;
   }
-  const towardDark = base.l > THEME_DERIVATION.fgPivotL;
+  const towardDark = surfacePolarity(base) === "light";
   const limit = towardDark ? THEME_DERIVATION.fgLMin : THEME_DERIVATION.fgLMax;
   const steps = Math.round(Math.abs(accent.l - limit) / ACCENT_L_STEP);
   for (let step = 1; step <= steps; step += 1) {
@@ -750,25 +923,4 @@ export function accentFillLightness(accent: Oklch, accentAlpha: number, base: Ok
     }
   }
   return null;
-}
-
-/**
- * Can orb DERIVE an acceptable palette from this base surface? False inside the pivot mid-band, where the
- * step flip produces a mid-tone foreground and the pair is inherently low-contrast (see the module header).
- * Measured, not asserted: it derives the foreground for the base AND for every ramp surface a plain derived
- * foreground is painted on, and requires each pairing to clear AA-NORMAL — the exact property the
- * `palette-contrast` suite enforces for orb's own palettes.
- */
-export function isDerivableBaseSurface(base: Oklch): boolean {
-  const foreground = oklchToSrgb(derivedForeground(base));
-  const deltas = rampDeltas(base);
-  const surfaces = [
-    base,
-    rampSurface(base, deltas.card),
-    rampSurface(base, deltas.popover),
-    rampSurface(base, deltas.sidebar),
-    rampSurface(base, deltas.secondary),
-    rampSurface(base, deltas.sidebarAccent),
-  ];
-  return surfaces.every((surface) => wcagContrastRatio(foreground, oklchToSrgb(surface)) >= AA_NORMAL_RATIO);
 }

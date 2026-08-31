@@ -107,14 +107,11 @@ describe("stThemeFromJson — the mapping", () => {
 });
 
 describe("stThemeFromJson — the SAFETY GATE (planted positive controls)", () => {
-  test("REFUSES a theme whose base surface sits in the derivation's pivot mid-band", () => {
-    // PLANTED CONTROL: L≈0.62 is exactly the pivot the derived-foreground flip turns on, so orb would derive
-    // a mid-tone foreground and every chrome pairing would be low-contrast. rgb(128,128,128) lands there.
-    const reason = refusedBecause({ name: "Mid grey", blur_tint_color: "rgb(128,128,128)", main_text_color: "rgb(255,255,255)" }, "mid");
-    expect(reason).toContain("pivot mid-band");
-    // NEGATIVE CONTROL: the same fixture one step darker converts — proving the gate discriminates rather
-    // than refusing everything.
-    expect(stThemeFromJson({ name: "Dark", blur_tint_color: "rgb(30,30,30)", main_text_color: "rgb(255,255,255)" }, "dark").ok).toBe(true);
+  test("ACCEPTS a mid-grey base now that foregrounds are solved per paint surface", () => {
+    const parsed = converted({ name: "Mid grey", blur_tint_color: "rgb(128,128,128)", main_text_color: "rgb(255,255,255)" }, "mid") as {
+      override: { background: string };
+    };
+    expect(parsed.override.background).toBe("oklch(0.5999 0.0000 0.00)");
   });
 
   test("DROPS an authored text colour that would be illegible on the surface it renders on", () => {
@@ -136,18 +133,16 @@ describe("stThemeFromJson — the SAFETY GATE (planted positive controls)", () =
     expect(note?.reason).toMatch(MEASURED_RATIO);
   });
 
-  test("DROPS a bubble tint whose DERIVED foreground could not clear AA on it", () => {
-    // PLANTED CONTROL: a bubble sitting on the pivot — the foreground orb derives for it is mid-tone.
+  test("ACCEPTS a mid-grey bubble because its foreground is solved against that bubble", () => {
     const parsed = converted({
       name: "Mid bubble",
       blur_tint_color: "rgb(20,20,20)",
       user_mes_blur_tint_color: "rgb(128,128,128)",
       bot_mes_blur_tint_color: "rgb(30,30,30)",
     }) as { override: Record<string, unknown>; unmapped: readonly { field: string; reason: string }[] };
-    expect(parsed.override["userBubble"]).toBeUndefined();
-    // NEGATIVE CONTROL inside the same fixture: the dark AI bubble survives.
+    expect(parsed.override["userBubble"]).toBeDefined();
     expect(parsed.override["aiBubble"]).toBeDefined();
-    expect(parsed.unmapped.find((u) => u.field === "user_mes_blur_tint_color")?.reason).toContain("dropped as unsafe");
+    expect(parsed.unmapped.find((u) => u.field === "user_mes_blur_tint_color")).toBeUndefined();
   });
 });
 

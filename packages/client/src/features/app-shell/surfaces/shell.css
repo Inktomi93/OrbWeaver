@@ -336,7 +336,7 @@
 }
 .shell-rail-brand-button:hover {
   background: var(--color-sidebar-accent);
-  color: var(--color-sidebar-foreground);
+  color: var(--color-sidebar-accent-foreground);
 }
 .shell-rail-brand-button[data-active] {
   background: color-mix(in oklab, var(--color-primary) 14%, transparent);
@@ -387,7 +387,7 @@
 }
 .shell-rail .shell-rail-button:hover {
   background: var(--color-sidebar-accent);
-  color: var(--color-sidebar-foreground);
+  color: var(--color-sidebar-accent-foreground);
 }
 .shell-rail .shell-rail-button[data-active] {
   background: color-mix(in oklab, var(--color-primary) 14%, transparent);

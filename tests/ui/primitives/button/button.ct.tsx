@@ -514,10 +514,16 @@ test("hover swaps the ghost intent to the accent token", async ({ mount, page })
   await expect(button).toHaveCSS("background-color", TOKENS["color.accent"].value);
 });
 
-test("ghost defaults to the muted-foreground text token at rest (D62 P5)", async ({ mount }) => {
-  const button = await mount(<Button intent="ghost">Save</Button>);
-  await expect(button).toHaveCSS("color", TOKENS["color.muted-foreground"].value);
-});
+for (const intent of ["secondary", "ghost", "outline"] as const) {
+  test(`${intent} inherits its transparent host's paired ink at rest (#969)`, async ({ mount }) => {
+    const component = await mount(
+      <div style={{ color: "rgb(12, 34, 56)" }}>
+        <Button intent={intent}>Save</Button>
+      </div>,
+    );
+    await expect(component.getByRole("button", { name: "Save" })).toHaveCSS("color", "rgb(12, 34, 56)");
+  });
+}
 
 test("secondary is BORDERED — a border-token outline over a transparent surface (D62 P5)", async ({ mount }) => {
   const button = await mount(<Button intent="secondary">Cancel</Button>);

@@ -577,7 +577,7 @@ function reportFrom({ collected, scanned, changed, skippedCards, waves }: Report
     missingGroupChats: collected.missingGroupChats,
     ...waves,
     // ONE "did not import" list per plane, whichever stage refused: the CONVERTER's refusals (collect-time —
-    // unreadable / colour-less / a base surface the derivation cannot make legible; a non-media background
+    // unreadable / colour-less; a non-media background
     // file) joined with the WRITE stage's (the settings domain refused the theme; the CAS refused the blob).
     skippedThemes: [...collected.refusedThemes, ...waves.skippedThemes],
     skippedBackgrounds: [...collected.skippedBackgrounds, ...waves.skippedBackgrounds],

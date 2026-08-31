@@ -129,6 +129,12 @@
         "components": [0.24, 0.02, 250]
       }
     },
+    "sidebar-accent-foreground": {
+      "$value": {
+        "colorSpace": "oklch",
+        "components": [0.9, 0.01, 250]
+      }
+    },
     "sidebar-border": {
       "$value": {
         "colorSpace": "oklch",
@@ -148,6 +154,12 @@
         "colorSpace": "oklch",
         "components": [0.112, 0.015, 250],
         "alpha": 0.65
+      }
+    },
+    "reading-plate-foreground": {
+      "$value": {
+        "colorSpace": "oklch",
+        "components": [0.95, 0.01, 250]
       }
     },
     "reading-band": {

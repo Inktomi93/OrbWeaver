@@ -165,9 +165,8 @@ export interface SrgbColor {
   readonly a: number;
 }
 
-/** One ST theme file's parse: the converted palette, or the REASON it could not convert safely. A refusal
- *  always carries its reason — "unreadable JSON", "no base surface colour", or the derivation verdict (a base
- *  surface orb cannot derive a legible foreground from). The report prints the reason verbatim. */
+/** One ST theme file's parse: the converted palette, or the REASON it could not convert. A refusal always
+ *  carries its reason — "unreadable JSON" or "no base surface colour". The report prints it verbatim. */
 export type StThemeParse = { readonly ok: true; readonly parsed: ParsedStTheme } | { readonly ok: false; readonly reason: string };
 
 /** One collected ST theme + the `themes/<file>` path the report names. */
@@ -247,8 +246,8 @@ export interface CollectResult {
   readonly unreadableWorlds: string[];
   /** An `OpenAI Settings/*.json` that did not parse as an ST chat-completion preset (recorded, never silent). */
   readonly unreadablePresets: string[];
-  /** A `themes/*.json` the converter REFUSED, with its reason (unreadable, colour-less, or a base surface
-   *  orb's derivation cannot make legible). Recorded, never silent. */
+  /** A `themes/*.json` the converter REFUSED, with its reason (unreadable or colour-less). Recorded, never
+   *  silent. */
   readonly refusedThemes: { readonly file: string; readonly reason: string }[];
   /** A `backgrounds/*` entry that is not importable media, with the reason (recorded, never silent). */
   readonly skippedBackgrounds: { readonly file: string; readonly reason: string }[];
@@ -348,8 +347,7 @@ export interface ImportReport {
   /** The net-new subset of {@link themesImported} — the only part `changed` counts. */
   readonly themesCreated: number;
   /** A `themes/*.json` that did NOT become an orb theme, with the reason — both the converter's refusals
-   *  (unreadable / colour-less / a base surface the derivation cannot make legible) and the settings
-   *  domain's (per-theme isolation). */
+   *  (unreadable / colour-less) and the settings domain's (per-theme isolation). */
   readonly skippedThemes: readonly ImportSkippedCard[];
   /** Per-imported-theme: which ST keys had no orb THEME seat, INCLUDING any individual colour dropped as
    *  unsafe with its measured contrast ratio. The honest half of "themes convert now". */

@@ -15,11 +15,11 @@ describe("createTheme", () => {
     const a = await seedUser(db, { id: "user_a" });
     const view = await h.svc.createTheme({
       principal: principal(a, "user"),
-      input: { name: "Mine", override: { accent: "oklch(0.7 0.14 250)" } },
+      input: { name: "Mine", override: { background: "oklch(0.62 0.01 60)", accent: "oklch(0.72 0.14 280)" } },
     });
     expect(view.name).toBe("Mine");
     expect(view.isSeed).toBe(false);
-    expect(view.override).toEqual({ accent: "oklch(0.7 0.14 250)" });
+    expect(view.override).toEqual({ background: "oklch(0.62 0.01 60)", accent: "oklch(0.72 0.14 280)" });
     expect(h.audits.some((a2) => a2.entry.action === "theme.create")).toBe(true);
   });
 
