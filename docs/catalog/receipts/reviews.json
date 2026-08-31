@@ -715,7 +715,7 @@
       "authority": "review",
       "fullRead": true,
       "verifiedSha256": "be9540937030af4b5f7456e0fc0aa84a073bca2b5dddd4c21167c082aba8b9de",
-      "verifiedCommit": "7daf6741307fb64eef7dd04f177f21f048e4012a",
+      "verifiedCommit": "fb35c74ef336fdf5ca9265e2c447f7eb2aa7807b",
       "verifiedAt": "2026-08-31",
       "evidence": [
         "docs/reviews/research/2026-08-31-devtools-css-cascade-provenance.md:1-205 read in full in lane executor-956-selector-writers; exact Playwright/Chromium/DevTools pins, direct SDK Active/Overloaded matrix, 184-resource closure measurement, hermetic architecture, and rejected CDP/mutation alternatives"
