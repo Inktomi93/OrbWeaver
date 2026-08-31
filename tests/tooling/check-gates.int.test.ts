@@ -1138,6 +1138,10 @@ function writeFixtures(): void {
 // absent + unparseable config · zero-rows) and by their own permanent pins under tests/tooling/verify/gates/.
 // tokens-contract reads seven exact canonical JSON/schema paths. A throwaway `__g_` file cannot perturb
 // them without mutating the live vault; its invalid-unit mustFlag and full-corpus mustPass are fs-backed.
+// css-family-ownership reads the five exact sanctioned product stylesheets and derives live TS/TSX hook
+// ownership from the whole source graph. A `__g_` stylesheet is deliberately outside that closed set, while
+// mutating a canonical home would race every CSS/CT consumer. Its mustFlag/mustPass rows prove each wall,
+// including the fs-backed declaration census and both dependency directions.
 const UNFIXTURABLE_GATES = new Set([
   "biome-grant-liveness",
   "tsconfig-entry-liveness",
@@ -1157,6 +1161,7 @@ const UNFIXTURABLE_GATES = new Set([
   "knob-wire-coverage",
   "message-kind-policy-coverage",
   "tokens-contract",
+  "css-family-ownership",
 ]);
 
 let registry = new Set<string>();
