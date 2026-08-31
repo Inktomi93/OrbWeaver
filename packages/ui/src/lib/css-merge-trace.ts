@@ -75,15 +75,18 @@ function firstEvictor(input: readonly CssClassOccurrence[], loserIndex: number, 
   if (loser === undefined) {
     return;
   }
+  let evictor: number | undefined;
   for (const candidate of input.slice(loserIndex + 1)) {
     const pair = [
       { index: 0, className: loser.className },
       { index: 1, className: candidate.className },
     ];
     if (!survivorIndices(pair, merge(`${loser.className} ${candidate.className}`)).has(0)) {
-      return candidate.index;
+      evictor = candidate.index;
+      break;
     }
   }
+  return evictor;
 }
 
 function finalWinner(input: readonly CssClassOccurrence[], loserIndex: number, survivors: ReadonlySet<number>, merge: MergeClassList): number | undefined {
