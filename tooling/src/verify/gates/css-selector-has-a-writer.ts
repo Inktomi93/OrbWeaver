@@ -1,8 +1,10 @@
 // Gate: css-selector-has-a-writer (#956 / client-architecture-lockdown.md §4.7).
 import type { GateDescriptor } from "../contract/gate.ts";
 import { CLIENT_GLOBALS, SHELL, THEME, TIERS, UI_GLOBALS } from "../lib/css-family-census.ts";
-import { resetHookOwnerCache } from "../lib/css-family-source-provenance.ts";
+import { beginHookOwnerCollection } from "../lib/css-family-source-provenance.ts";
 import { auditCssSelectorWriters } from "../lib/css-selector-writer-policy.ts";
+import { beginSelectorWriterCollection, visitSelectorWriterNode } from "../lib/css-selector-writers.ts";
+import { STATIC_CLASS_KINDS } from "../lib/static-class-expression.ts";
 
 const EMPTY_HOMES = { [THEME]: "", [UI_GLOBALS]: "", [TIERS]: "", [CLIENT_GLOBALS]: "", [SHELL]: "" } as const;
 const SOURCE = "packages/client/src/features/probe.tsx";
@@ -16,8 +18,13 @@ export const gate: GateDescriptor = {
   fsBacked: true,
   message: "an authored product-CSS selector hook has no semantic producer/writer; inert text cannot counterfeit DOM ownership",
   fix: "write the exact hook from a rendering/DOM terminal, remove the dead selector, or update the narrow vendor contract in both directions",
-  begin: resetHookOwnerCache,
-  run: auditCssSelectorWriters,
+  begin: (ctx) => {
+    beginHookOwnerCollection(ctx);
+    beginSelectorWriterCollection(ctx);
+  },
+  kinds: STATIC_CLASS_KINDS,
+  visit: visitSelectorWriterNode,
+  finalize: auditCssSelectorWriters,
   mustFlag: [
     {
       files: {

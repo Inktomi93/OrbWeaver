@@ -27,6 +27,11 @@ interface ImportTarget {
   readonly anchor: Node;
 }
 
+export interface StaticClassResolvers {
+  readonly composers: ComposerResolver;
+  readonly jsxBindings: JsxBindingResolver;
+}
+
 export class StaticClassEvaluator implements CollectionHost {
   readonly runtimePrefixes: RuntimeClassPrefix[] = [];
   readonly unresolved: Array<{ readonly node: Node; readonly reason: string }> = [];
@@ -38,10 +43,15 @@ export class StaticClassEvaluator implements CollectionHost {
   private readonly diagnosticKeys = new Set<string>();
   private readonly prefixKeys = new Set<string>();
 
-  constructor(project: Project, files: readonly import("ts-morph").SourceFile[] = project.getSourceFiles()) {
+  constructor(project: Project, files: readonly import("ts-morph").SourceFile[] = project.getSourceFiles(), resolvers?: StaticClassResolvers) {
     this.project = project;
-    this.composers = new ComposerResolver(project);
-    this.jsxBindings = new JsxBindingResolver(project, files);
+    if (resolvers === undefined) {
+      this.composers = new ComposerResolver(project);
+      this.jsxBindings = new JsxBindingResolver(project, files);
+    } else {
+      this.composers = resolvers.composers;
+      this.jsxBindings = resolvers.jsxBindings;
+    }
   }
 
   diagnose = (kind: "unresolved" | "opaque", node: Node, reason: string): void => {

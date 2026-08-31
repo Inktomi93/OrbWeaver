@@ -194,7 +194,7 @@ export function gateIgnoreSuppressedInFinalize(): boolean {
   return gateIgnoreLateUse;
 }
 
-function makeGateRun(gate: GateDescriptor, ctxBase: Omit<GateRunCtx, "report" | "scan">): GateRun {
+function makeGateRun(gate: GateDescriptor, ctxBase: Omit<GateRunCtx, "report" | "scan">, passIdentity: object): GateRun {
   const sink: Finding[] = [];
   const scan: ScanState = {
     scanned: 0,
@@ -253,7 +253,7 @@ function makeGateRun(gate: GateDescriptor, ctxBase: Omit<GateRunCtx, "report" | 
   const declare = (counts: GateScanDeclaration): void => {
     acceptDeclaration(scan, counts);
   };
-  return { gate, sink, scan, ctx: { ...ctxBase, report: report as GateRunCtx["report"], scan: declare } };
+  return { gate, sink, scan, ctx: { ...ctxBase, passIdentity, report: report as GateRunCtx["report"], scan: declare } };
 }
 
 function guard(gate: string, phase: ToolError["phase"], errors: ToolError[], fn: () => void): void {
@@ -353,7 +353,8 @@ function runVisit(run: GateRun, node: Node, sf: SourceFile): void {
 export function runPass(gates: readonly GateDescriptor[], ctxBase: Omit<GateRunCtx, "report" | "scan">): PassResult {
   gateIgnoreUses.clear();
   gateIgnoreLateUse = false;
-  const runs: readonly GateRun[] = gates.filter((g) => g.status === "active").map((g) => makeGateRun(g, ctxBase));
+  const passIdentity = {};
+  const runs: readonly GateRun[] = gates.filter((g) => g.status === "active").map((g) => makeGateRun(g, ctxBase, passIdentity));
   const errors: ToolError[] = [];
 
   for (const run of runs) {

@@ -1,12 +1,12 @@
 // Semantic selector writers. The shared static-class evaluator owns value flow; this module only chooses
 // rendering/DOM terminals and records their exact data-attribute identities.
 import type { Type } from "ts-morph";
-import { Node, SyntaxKind } from "ts-morph";
+import { Node } from "ts-morph";
 import type { GateRunCtx } from "../contract/gate.ts";
 import { unwrapExpression } from "./ast-read.ts";
 import { readInstalledStateAttributeValues, readInstalledSurface, readManifest } from "./baseui-read.ts";
-import { collectHookOwners } from "./css-family-source-provenance.ts";
-import { evaluateStaticClassExpression, evaluateStaticObjectProperties } from "./static-class-expression.ts";
+import { collectHookOwners, hookOwnerCollector, visitHookOwnerNode } from "./css-family-source-provenance.ts";
+import type { StaticClassCollector } from "./static-class-expression.ts";
 
 const DOM_LIB = "/typescript/lib/lib.dom.d.ts";
 const CLASS_PREFIX_LENGTH = "class:".length;
@@ -57,8 +57,12 @@ function stringLiteralTypes(type: Type): readonly string[] {
   });
 }
 
-function valuesAt(node: Node, consumer: Node): { readonly values: readonly string[]; readonly opaque: number; readonly unresolved: number } {
-  const evaluated = evaluateStaticClassExpression(node, consumer);
+function valuesAt(
+  node: Node,
+  consumer: Node,
+  collector: StaticClassCollector,
+): { readonly values: readonly string[]; readonly opaque: number; readonly unresolved: number } {
+  const evaluated = collector.evaluate(node, consumer);
   const values = new Set(evaluated.candidates.map((candidate) => candidate.value));
   for (const value of stringLiteralTypes(node.getType())) {
     values.add(value);
@@ -137,6 +141,38 @@ interface WriterAccumulator {
   unresolved: number;
 }
 
+interface WriterContext {
+  readonly state: WriterAccumulator;
+  readonly collector: StaticClassCollector;
+}
+
+interface SelectorWriterPass {
+  readonly passIdentity: object;
+  readonly project: GateRunCtx["project"];
+  readonly files: GateRunCtx["files"];
+  readonly state: WriterAccumulator;
+  readonly spreads: import("ts-morph").JsxSpreadAttribute[];
+  readonly visited: WeakSet<Node>;
+  processedSpreads: boolean;
+}
+
+let writerPass: SelectorWriterPass | undefined;
+
+export function beginSelectorWriterCollection(ctx: GateRunCtx): void {
+  if (ctx.passIdentity === undefined) {
+    throw new Error("selector-writer collection requires a dispatcher pass identity");
+  }
+  writerPass = {
+    passIdentity: ctx.passIdentity,
+    project: ctx.project,
+    files: ctx.files,
+    state: { data: new Map(), opaque: 0, unresolved: 0 },
+    spreads: [],
+    visited: new WeakSet(),
+    processedSpreads: false,
+  };
+}
+
 function record(state: WriterAccumulator, name: string, values: readonly string[]): void {
   const before = state.data.get(name) ?? { values: new Set<string>(), sites: 0 };
   for (const value of values) {
@@ -146,63 +182,57 @@ function record(state: WriterAccumulator, name: string, values: readonly string[
   state.data.set(name, before);
 }
 
-function recordValue(state: WriterAccumulator, name: string, value: Node | undefined, consumer: Node): void {
+function recordValue(context: WriterContext, name: string, value: Node | undefined, consumer: Node): void {
   if (value === undefined) {
-    record(state, name, ["true"]);
+    record(context.state, name, ["true"]);
     return;
   }
-  const result = valuesAt(value, consumer);
-  record(state, name, result.values);
-  state.opaque += result.opaque;
-  state.unresolved += result.unresolved;
+  const result = valuesAt(value, consumer, context.collector);
+  record(context.state, name, result.values);
+  context.state.opaque += result.opaque;
+  context.state.unresolved += result.unresolved;
 }
 
-function recordJsxAttributes(source: import("ts-morph").SourceFile, state: WriterAccumulator): void {
-  for (const attribute of source.getDescendantsOfKind(SyntaxKind.JsxAttribute)) {
-    const name = attribute.getNameNode().getText();
-    if (name.startsWith("data-")) {
-      recordValue(state, name, jsxValue(attribute), attribute);
+function recordJsxAttribute(attribute: import("ts-morph").JsxAttribute, context: WriterContext): void {
+  const name = attribute.getNameNode().getText();
+  if (name.startsWith("data-")) {
+    recordValue(context, name, jsxValue(attribute), attribute);
+  }
+}
+
+function recordJsxSpread(spread: import("ts-morph").JsxSpreadAttribute, context: WriterContext, dataNames: readonly string[]): void {
+  const evaluation = context.collector.evaluateObjectProperties(spread.getExpression(), spread, dataNames);
+  context.state.opaque += evaluation.opaque.length;
+  context.state.unresolved += evaluation.unresolved.length;
+  for (const property of evaluation.properties) {
+    recordValue(context, property.name, property.value, spread);
+  }
+}
+
+function recordDomCall(call: import("ts-morph").CallExpression, context: WriterContext): void {
+  const expression = call.getExpression();
+  const receiver = accessReceiver(expression);
+  const method = accessedName(expression);
+  if (receiver === undefined || !isDomAttributeReceiver(receiver) || (method !== "setAttribute" && method !== "toggleAttribute")) {
+    return;
+  }
+  const [nameNode, valueNode] = call.getArguments();
+  if (nameNode === undefined) {
+    return;
+  }
+  const names = valuesAt(nameNode, call, context.collector);
+  context.state.opaque += names.opaque;
+  context.state.unresolved += names.unresolved;
+  for (const name of names.values.filter((candidate) => candidate.startsWith("data-"))) {
+    if (method === "toggleAttribute") {
+      record(context.state, name, ["true", "false"]);
+    } else {
+      recordValue(context, name, valueNode, call);
     }
   }
 }
 
-function recordJsxSpreads(source: import("ts-morph").SourceFile, state: WriterAccumulator, dataNames: readonly string[]): void {
-  for (const spread of source.getDescendantsOfKind(SyntaxKind.JsxSpreadAttribute)) {
-    const evaluation = evaluateStaticObjectProperties(spread.getExpression(), spread, dataNames);
-    state.opaque += evaluation.opaque.length;
-    state.unresolved += evaluation.unresolved.length;
-    for (const property of evaluation.properties) {
-      recordValue(state, property.name, property.value, spread);
-    }
-  }
-}
-
-function recordDomCalls(source: import("ts-morph").SourceFile, state: WriterAccumulator): void {
-  for (const call of source.getDescendantsOfKind(SyntaxKind.CallExpression)) {
-    const expression = call.getExpression();
-    const receiver = accessReceiver(expression);
-    const method = accessedName(expression);
-    if (receiver === undefined || !isDomAttributeReceiver(receiver) || (method !== "setAttribute" && method !== "toggleAttribute")) {
-      continue;
-    }
-    const [nameNode, valueNode] = call.getArguments();
-    if (nameNode === undefined) {
-      continue;
-    }
-    const names = valuesAt(nameNode, call);
-    state.opaque += names.opaque;
-    state.unresolved += names.unresolved;
-    for (const name of names.values.filter((candidate) => candidate.startsWith("data-"))) {
-      if (method === "toggleAttribute") {
-        record(state, name, ["true", "false"]);
-      } else {
-        recordValue(state, name, valueNode, call);
-      }
-    }
-  }
-}
-
-function recordHastObject(property: import("ts-morph").PropertyAssignment, state: WriterAccumulator): void {
+function recordHastObject(property: import("ts-morph").PropertyAssignment, context: WriterContext): void {
   const parent = property.getParent();
   if (!Node.isObjectLiteralExpression(parent)) {
     return;
@@ -230,16 +260,36 @@ function recordHastObject(property: import("ts-morph").PropertyAssignment, state
     }
     const name = propertyName(child.getNameNode());
     if (name?.startsWith("data-") === true) {
-      recordValue(state, name, child.getInitializer(), child);
+      recordValue(context, name, child.getInitializer(), child);
     }
   }
 }
 
-function recordHastProperties(source: import("ts-morph").SourceFile, state: WriterAccumulator): void {
-  for (const property of source.getDescendantsOfKind(SyntaxKind.PropertyAssignment)) {
-    if (propertyName(property.getNameNode()) === "properties") {
-      recordHastObject(property, state);
-    }
+function recordHastProperty(property: import("ts-morph").PropertyAssignment, context: WriterContext): void {
+  if (propertyName(property.getNameNode()) === "properties") {
+    recordHastObject(property, context);
+  }
+}
+
+export function visitSelectorWriterNode(node: Node, source: import("ts-morph").SourceFile, ctx: GateRunCtx): void {
+  visitHookOwnerNode(node, source, ctx);
+  const state = writerPass;
+  if (state === undefined || state.passIdentity !== ctx.passIdentity || state.project !== ctx.project || state.files !== ctx.files) {
+    throw new Error("selector-writer visit ran outside its begin lifecycle");
+  }
+  if (!isProductSource(source) || state.visited.has(node)) {
+    return;
+  }
+  state.visited.add(node);
+  const context = { state: state.state, collector: hookOwnerCollector(ctx) };
+  if (Node.isJsxAttribute(node)) {
+    recordJsxAttribute(node, context);
+  } else if (Node.isJsxSpreadAttribute(node)) {
+    state.spreads.push(node);
+  } else if (Node.isCallExpression(node)) {
+    recordDomCall(node, context);
+  } else if (Node.isPropertyAssignment(node)) {
+    recordHastProperty(node, context);
   }
 }
 
@@ -247,26 +297,25 @@ function recordHastProperties(source: import("ts-morph").SourceFile, state: Writ
 export function collectSelectorWriters(ctx: GateRunCtx, dataNames: readonly string[]): SelectorWriterCensus {
   const classOwners = collectHookOwners(ctx);
   const classes = new Set([...classOwners.keys()].filter((hook) => hook.startsWith("class:")).map((hook) => hook.slice(CLASS_PREFIX_LENGTH)));
-  const state: WriterAccumulator = { data: new Map(), opaque: 0, unresolved: 0 };
-
-  for (const source of ctx.project.getSourceFiles()) {
-    if (!isProductSource(source)) {
-      continue;
+  const pass = writerPass;
+  if (pass === undefined || pass.passIdentity !== ctx.passIdentity || pass.project !== ctx.project || pass.files !== ctx.files) {
+    throw new Error("selector-writer reconciliation ran outside its begin lifecycle");
+  }
+  if (!pass.processedSpreads) {
+    const context = { state: pass.state, collector: hookOwnerCollector(ctx) };
+    for (const spread of pass.spreads) {
+      recordJsxSpread(spread, context, dataNames);
     }
-    recordJsxAttributes(source, state);
-    recordJsxSpreads(source, state, dataNames);
-    recordDomCalls(source, state);
-    // HAST element properties are a rendered DOM terminal, but a freestanding object with the same key is not.
-    recordHastProperties(source, state);
+    pass.processedSpreads = true;
   }
   const manifestAttributes = stateAttributes(readManifest(ctx.root));
   const installedAttributes = stateAttributes(readInstalledSurface(ctx.root));
   const installedValues = readInstalledStateAttributeValues(ctx.root);
   return {
     classes,
-    data: state.data,
-    opaque: state.opaque,
-    unresolved: state.unresolved,
+    data: pass.state.data,
+    opaque: pass.state.opaque,
+    unresolved: pass.state.unresolved,
     baseUiAttributes: new Map(
       [...manifestAttributes].filter((name) => installedAttributes.has(name)).map((name) => [name, installedValues.get(name) ?? new Set<string>()]),
     ),

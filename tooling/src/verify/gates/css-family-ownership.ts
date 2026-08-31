@@ -5,7 +5,8 @@ import type { GateDescriptor } from "../contract/gate.ts";
 import { CLIENT_GLOBALS, MESSAGE, SHELL, THEME, TIERS, UI_GLOBALS } from "../lib/css-family-census.ts";
 import { auditCssFamilies } from "../lib/css-family-policy.ts";
 import { censusControlFiles, shellClassProducer } from "../lib/css-family-proof-fixtures.ts";
-import { resetHookOwnerCache } from "../lib/css-family-source-provenance.ts";
+import { beginHookOwnerCollection, visitHookOwnerNode } from "../lib/css-family-source-provenance.ts";
+import { STATIC_CLASS_KINDS } from "../lib/static-class-expression.ts";
 
 export const gate: GateDescriptor = {
   name: "css-family-ownership",
@@ -15,8 +16,10 @@ export const gate: GateDescriptor = {
   fsBacked: true,
   message: MESSAGE,
   fix: "move the declaration to its semantic home; do not relabel it, add an allowlist, change source order, or narrow theme/custom-CSS behavior",
-  begin: resetHookOwnerCache,
-  run: auditCssFamilies,
+  begin: beginHookOwnerCollection,
+  kinds: STATIC_CLASS_KINDS,
+  visit: visitHookOwnerNode,
+  finalize: auditCssFamilies,
   mustFlag: [
     {
       files: { [UI_GLOBALS]: '[data-density="compact"] { --spacing-row: 0.5rem; }\n' },
