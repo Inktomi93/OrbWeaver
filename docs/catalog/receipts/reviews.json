@@ -1528,15 +1528,16 @@
     },
     {
       "path": "docs/reviews/stickler/2026-08-30-vocab-unification.md",
-      "assignedSha256": "11370c2594e6649b3e50c81e40331df5c58766ddc9dd9b6a2b13832b59063b38",
+      "assignedSha256": "1f99872b640baf12f5ce0ec46c77cb8c7b7631d5605809be940509813ce0013c",
       "disposition": "needs-owner",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "11370c2594e6649b3e50c81e40331df5c58766ddc9dd9b6a2b13832b59063b38",
-      "verifiedCommit": "2e341aabb22da103fa2dd09a5514b58c0a6617da",
+      "verifiedSha256": "1f99872b640baf12f5ce0ec46c77cb8c7b7631d5605809be940509813ce0013c",
+      "verifiedCommit": "08a6571ea28212ab036e483a0b5caa231f736694",
       "verifiedAt": "2026-08-30",
       "evidence": [
-        "docs/reviews/stickler/2026-08-30-vocab-unification.md:1-645 read in full by the orchestrator (claude-b) before commit; lane cb-vocab-design (stickler, per-dispatch Opus override) \u2014 the top-down word\u2192concept map, three priced options, eight owner forks, three census corrections each with re-derived counts"
+        "docs/reviews/stickler/2026-08-30-vocab-unification.md:1-645 read in full by the orchestrator (claude-b) before commit; lane cb-vocab-design (stickler, per-dispatch Opus override) \u2014 the top-down word\u2192concept map, three priced options, eight owner forks, three census corrections each with re-derived counts",
+        "re-attested at the #914 reconciliation merge (08a6571ea): the map's citations landed here (AGENTS.md \u00a73 + its \u00a77 index row, D151's cite-not-copy line), the config design doc gained the \u00a77.7/\u00a77.8 as-built blocks incl. the preview-vs-illustration rule, and the review doc is banner-marked as the FROZEN derivation so no wave slices its sample tables again"
       ],
       "claims": [
         {

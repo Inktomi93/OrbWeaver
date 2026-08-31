@@ -66,18 +66,19 @@
     },
     {
       "path": "docs/design/config-revamp-design.md",
-      "assignedSha256": "6cb9665b79a8269288a69e0b33ac9c96953371a1bd9d1a7ca44d6b522b36d879",
+      "assignedSha256": "751ba4eff3055561cc91b8b0c5b682319aac39234a50f10d2f4700f381a27ffa",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "6cb9665b79a8269288a69e0b33ac9c96953371a1bd9d1a7ca44d6b522b36d879",
-      "verifiedCommit": "32bf93f3e9f66740833d06ceeeb1c2eb6e67a28d",
+      "verifiedSha256": "751ba4eff3055561cc91b8b0c5b682319aac39234a50f10d2f4700f381a27ffa",
+      "verifiedCommit": "08a6571ea28212ab036e483a0b5caa231f736694",
       "verifiedAt": "2026-08-30",
       "evidence": [
         "docs/design/config-revamp-design.md read in full by the orchestrator (claude-b) at merge (lane cb-config-research, stickler research + design for #866; 12 products + NN/g receipted via SearXNG\u2192trafilatura, THIN rows marked; the house read against 9707b9672; the Settings-is-a-modal premise repair accepted mid-run); the nine owner forks are being ruled live; the four D-rows are labelled R-A..R-D, never forward-numbered",
         "docs/design/config-revamp-design.md: re-attested at 79871238bc0506fa74902bb1844f734fc9e32db3 \u2014 the #866 S1+S2 (6923f33cb) and #876/#873 docs-law (79871238b) merges both carry truth-repairs here; both deltas read by the orchestrator; the gate-count line resolved to 233 at the merge",
         "re-attested at the #866 S3+S4 merge (1f0e610da): lane cb-config-s3s4's +300-line riders (\u00a77.0-\u00a77.6 \u2014 R-TEACH/R-BG rulings, premises re-derived, as-built deviations a-e, coupled-site walk, red-first floor) read in full by the orchestrator from the merge diff before re-attest",
-        "re-attested at the #909 docs truth-repair merge (32bf93f3e): the lane's three-way rule applied per hit \u2014 concept prose takes the ruled word, every code symbol is quoted as it stands with its owning issue named, owner-sacred prose flagged not edited; verdict list read by the orchestrator"
+        "re-attested at the #909 docs truth-repair merge (32bf93f3e): the lane's three-way rule applied per hit \u2014 concept prose takes the ruled word, every code symbol is quoted as it stands with its owning issue named, owner-sacred prose flagged not edited; verdict list read by the orchestrator",
+        "re-attested at the #914 reconciliation merge (08a6571ea): the map's citations landed here (AGENTS.md \u00a73 + its \u00a77 index row, D151's cite-not-copy line), the config design doc gained the \u00a77.7/\u00a77.8 as-built blocks incl. the preview-vs-illustration rule, and the review doc is banner-marked as the FROZEN derivation so no wave slices its sample tables again"
       ],
       "claims": [
         {
@@ -996,6 +997,52 @@
         }
       ],
       "summary": "The #866 S3/S4 canvas contract: apply-not-mode Looks in three frequency tiers (shipped cards / Your-themes list / one builder door, builder-only color), the full Personas migration with the pin/active mechanics as the one frozen thing, the rail-foot quick switcher (pin-not-crown, Applies scope, re-attribute) and the kept You sheet; content rows terse with the context pane as the About/Applies/Learn teacher."
+    },
+    {
+      "path": "docs/design/vocabulary-map.md",
+      "assignedSha256": "023f2134473af469575a1b74bfacf969248fde5f17e51965199d549da43d99ec",
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "023f2134473af469575a1b74bfacf969248fde5f17e51965199d549da43d99ec",
+      "verifiedCommit": "08a6571ea28212ab036e483a0b5caa231f736694",
+      "verifiedAt": "2026-08-30",
+      "evidence": [
+        "docs/design/vocabulary-map.md:1-72 read IN FULL by the orchestrator (claude-b) before the receipt; minted by lane cb-vocab-reconcile at the #914 merge as the ONE living home for the concept\u2192word table, per the owner's ruling that the design doc is the source of truth and everything references it"
+      ],
+      "claims": [
+        {
+          "claim": "The map is CITED and never copied: AGENTS.md \u00a73, its \u00a77 index and D151 point at this file, and the 2026-08-30 review doc is banner-marked as the frozen derivation \u2014 slicing that review's sample tables is what produced #914.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#914"
+            },
+            {
+              "kind": "issue",
+              "target": "#901"
+            }
+          ]
+        },
+        {
+          "claim": "Every not-yet-landed rename names its owning issue rather than asserting a done state: the chat identity seam and drive axis to #903, the rpg scene NPC to #906, and the server participants axis is recorded DIVERGENT and unscheduled rather than left as a hole.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#903"
+            },
+            {
+              "kind": "issue",
+              "target": "#906"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/chat/persistence/roster.ts:1"
+            }
+          ]
+        }
+      ],
+      "summary": "The living concept\u2192word map: room seats are Characters, the saved template is a Roster (code rosterPreset, conforming), roster is reserved and never spent as English for a list, the rpg register is fenced with the chat word winning at the boundary, and castId is deliberately no-action. Prose-enforced by owner ruling with no gate; the enforcement section records the wave-union defect that produced it."
     }
   ]
 }
