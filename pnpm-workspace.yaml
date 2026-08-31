@@ -254,6 +254,7 @@ catalog:
   colorjs.io: 0.5.2
   # Tailwind v4 + the vite plugin (the @theme consumer; used by the CT harness + Phase-6 client).
   tailwindcss: ^4.3.3
+  "@tailwindcss/oxide": ^4.3.3
   "@tailwindcss/vite": ^4.3.3
   # CT harness (playwright-ct bundles components via vite+react). Also the client build's react plugin.
   "@vitejs/plugin-react": ^6.0.3
