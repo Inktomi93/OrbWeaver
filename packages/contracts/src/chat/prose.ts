@@ -249,7 +249,13 @@ export const CHAT_PROSE_SLOTS = {
   "chat.group.speakerTags": {
     id: "chat.group.speakerTags",
     home: "preset",
-    version: 1,
+    version: 2,
+    // v2 is a VOCABULARY fix on the `chat.arbiter.system` v2 precedent, not a behavior change: the default
+    // said "as it is spelled in the cast" and #901 Fork 1 retired "cast" for the room's seated characters.
+    // Owner-ruled 2026-08-30 to read "in the room" rather than "in the character list" — the string is read
+    // by a MODEL, never shown as chrome, so it owes unambiguity, not agreement with a UI label. Model-facing
+    // bytes are still bytes, so it rides the lawful re-version path (D132(A)/§4.4) instead of a silent edit
+    // that would strand every host's `baseVersion` stamp.
     // The PRODUCE half of per-speaker color in a merged bubble: the renderer splits a narrator body on
     // `<speaker>NAME</speaker>` markers and tints each span with that character's theme, so the markers
     // have to be ASKED FOR. The `<speaker>`/`</speaker>` literals are the renderer's parse contract, hence
@@ -259,7 +265,7 @@ export const CHAT_PROSE_SLOTS = {
     text:
       "[Wrap each character's spoken lines and actions in <speaker>Name</speaker> tags: put the character's " +
       "exact name between the tags, then what they say and do. Open a new tag every time the speaker " +
-      "changes. Use the name exactly as it is spelled in the cast — never a nickname, a pronoun or a title. " +
+      "changes. Use the name exactly as it is spelled in the room — never a nickname, a pronoun or a title. " +
       "Leave narration, scene description and anything not attributable to one character OUTSIDE the tags. " +
       "Never write lines for the user.]",
     macros: "none",

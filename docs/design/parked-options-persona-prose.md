@@ -152,12 +152,14 @@ The owner has veto on the wording; these ship LIVE today (defaults, so every une
 > exactly as it is spelled in the cast — never a nickname, a pronoun or a title. Leave narration, scene
 > description and anything not attributable to one character OUTSIDE the tags. Never write lines for the user.]`
 
-- **VOCABULARY FLAG (#901, 2026-08-30) — owner's call, deliberately NOT swept.** The quoted default says
-  *"exactly as it is spelled in the cast"*, and #901 Fork 1 retired "cast" for the room's seated
-  characters (now **Characters**). This is a PROSE-1 slot: owner-editable DATA with owner veto on wording,
-  so a vocabulary sweep does not get to rewrite it — the model-facing phrasing is a product decision, not
-  doc rot. Recorded here so the retired word is not mistaken for a missed site. #902 (vocab C1) is
-  client-only and does not reach `contracts/chat/prose.ts`.
+- **VOCABULARY FLAG (#901, 2026-08-30) — RAISED by the truth-repair lane, RULED by the owner the same
+  day.** The default said *"exactly as it is spelled in the cast"*, and #901 Fork 1 retired "cast" for the
+  room's seated characters (now **Characters**). Because this is a PROSE-1 slot — owner-editable DATA with
+  owner veto on wording — the sweep correctly refused to rewrite it and flagged it instead; the
+  model-facing phrasing is a product decision, not doc rot. **Owner ruling: it reads "spelled in the
+  room".** Not "in the character list": the string is read by a MODEL, not shown as chrome, so it owes
+  unambiguity rather than agreement with a UI label. Landed in `contracts/chat/prose.ts` (the quote above
+  carries the retired word and is left verbatim as the record of what was ruled on).
 - Fires: every MULTI-member narrator round with "Label each speaker" on (default-on in narrator mode, `:255`).
 - `requiredTokens: ["<speaker>", "</speaker>"]` — these are the RENDERER's parse contract; the split-and-tint
   producer keys on them (`:239-244`). No name token.

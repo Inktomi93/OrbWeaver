@@ -213,8 +213,8 @@
       "sha256": "37f7638c988c71068977d48d5c30fc4bab5d654406953d02a15a852e2ff8d35a"
     },
     "chat.group.speakerTags": {
-      "version": 1,
-      "sha256": "ee27f0d7d74bab78236bb33f732177cfcc003c054d55dac8edd1f78135873aa8"
+      "version": 2,
+      "sha256": "2a79415d20cd3676a63aa6641ee8170d59d1f9cf50a2908aa212d1cc2e30bb00"
     },
     "chat.injection.systemNote": {
       "version": 1,
