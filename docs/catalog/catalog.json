@@ -11105,6 +11105,55 @@
       "receiptCurrent": true
     },
     {
+      "path": "docs/design/css-merge-trace.md",
+      "lane": "design",
+      "issue": 5,
+      "lines": 98,
+      "bytes": 8846,
+      "sha256": "2070796581c3438a6c0b74e90dc3c9aec6eb21268cf97a0904bc1e707d73075a",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "design",
+          "status": "active",
+          "updated": "2026-08-31"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/design/css-merge-trace.md",
+        "assignedSha256": "2070796581c3438a6c0b74e90dc3c9aec6eb21268cf97a0904bc1e707d73075a",
+        "disposition": "current",
+        "authority": "design",
+        "fullRead": true,
+        "verifiedSha256": "2070796581c3438a6c0b74e90dc3c9aec6eb21268cf97a0904bc1e707d73075a",
+        "verifiedCommit": "5a5fda97fcd9fe247563462ecceb6e3375487c04",
+        "verifiedAt": "2026-08-31",
+        "evidence": [
+          "docs/design/css-merge-trace.md:1-98 read in full on integrated main; one configured merge, compiler-derived family parity, occurrence-aware loser/winner replay, dev-only transport, production exclusion, and focused verification receipt",
+          "git:5a5fda97fcd9fe247563462ecceb6e3375487c04 (integrated #949 design and implementation bytes)"
+        ],
+        "summary": "Implemented #949 design for one Tailwind/TV merge, compiler-positive custom-family parity, occurrence-aware loser-to-winner replay, and a bounded dev/test-only __orb.css receipt whose implementation is absent from production assets.",
+        "claims": [
+          {
+            "claim": "Orbweaver routes Tailwind Variants candidates through one configured final merger and can report bounded class-list loser/winner chains without copying tailwind-merge's classifier.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#949"
+              },
+              {
+                "kind": "provenance",
+                "target": "git:5a5fda97fcd9fe247563462ecceb6e3375487c04"
+              }
+            ]
+          }
+        ]
+      },
+      "receiptCurrent": true
+    },
+    {
       "path": "docs/design/databank-surface-spec.md",
       "lane": "design",
       "issue": 5,

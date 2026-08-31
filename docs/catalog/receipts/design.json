@@ -61,6 +61,36 @@
       ]
     },
     {
+      "path": "docs/design/css-merge-trace.md",
+      "assignedSha256": "2070796581c3438a6c0b74e90dc3c9aec6eb21268cf97a0904bc1e707d73075a",
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "2070796581c3438a6c0b74e90dc3c9aec6eb21268cf97a0904bc1e707d73075a",
+      "verifiedCommit": "5a5fda97fcd9fe247563462ecceb6e3375487c04",
+      "verifiedAt": "2026-08-31",
+      "evidence": [
+        "docs/design/css-merge-trace.md:1-98 read in full on integrated main; one configured merge, compiler-derived family parity, occurrence-aware loser/winner replay, dev-only transport, production exclusion, and focused verification receipt",
+        "git:5a5fda97fcd9fe247563462ecceb6e3375487c04 (integrated #949 design and implementation bytes)"
+      ],
+      "summary": "Implemented #949 design for one Tailwind/TV merge, compiler-positive custom-family parity, occurrence-aware loser-to-winner replay, and a bounded dev/test-only __orb.css receipt whose implementation is absent from production assets.",
+      "claims": [
+        {
+          "claim": "Orbweaver routes Tailwind Variants candidates through one configured final merger and can report bounded class-list loser/winner chains without copying tailwind-merge's classifier.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#949"
+            },
+            {
+              "kind": "provenance",
+              "target": "git:5a5fda97fcd9fe247563462ecceb6e3375487c04"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "path": "docs/design/config-ia-the-junk-drawer-problem.md",
       "assignedSha256": "ad6b4f4d21b85a86f705cde02b87668ca1cd8acbc13dbee2b8462298db627cd5",
       "disposition": "current",
