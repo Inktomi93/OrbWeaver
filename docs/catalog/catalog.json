@@ -319,14 +319,15 @@
       },
       "receipt": {
         "path": "docs/architecture/core/Core-0-Architecture-and-Structure.md",
-        "assignedSha256": "d513d237156e78286d25e9ea15be3f589f413d07885e045aca24d63d04280d9b",
+        "assignedSha256": "2bc566e40bd7caed1965fc8ef07d2f823f968392949a7a1741f065f35049d12d",
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "d513d237156e78286d25e9ea15be3f589f413d07885e045aca24d63d04280d9b",
-        "verifiedCommit": "1f5e25c00ec2ee921bc70591bf84e8268b255030",
+        "verifiedSha256": "2bc566e40bd7caed1965fc8ef07d2f823f968392949a7a1741f065f35049d12d",
+        "verifiedCommit": "7b7eb54b2dc770527b246a3918b027c97956e333",
         "verifiedAt": "2026-08-30",
         "evidence": [
+          "re-attested at 7b7eb54b2 under #950 — full-file/delta read; the one sanctioned revisioned non-TS runtime-data exception is Snap's manifest-closed official DevTools frontend asset root",
           "docs/architecture/core/Core-0-Architecture-and-Structure.md:1 (full read; header/status evaluated)",
           "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
           "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
@@ -348,7 +349,7 @@
         ],
         "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/architecture/core/Core-Audits-and-Debt.md",
@@ -454,14 +455,15 @@
       },
       "receipt": {
         "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
-        "assignedSha256": "22e06b85adecc0aa9a25006cf62fa2970ff5b51848ffc9c20e0999c1e7e799b5",
+        "assignedSha256": "48cd24b24530e038830fa14e64e9e3c0437188d57da5da1ee6427b8f7176d06a",
         "disposition": "current",
         "authority": "operational",
         "fullRead": true,
-        "verifiedSha256": "22e06b85adecc0aa9a25006cf62fa2970ff5b51848ffc9c20e0999c1e7e799b5",
-        "verifiedCommit": "a3c51c5dfc11a22e12b3996dc2b01cb027aa25fa",
+        "verifiedSha256": "48cd24b24530e038830fa14e64e9e3c0437188d57da5da1ee6427b8f7176d06a",
+        "verifiedCommit": "7b7eb54b2dc770527b246a3918b027c97956e333",
         "verifiedAt": "2026-08-31",
         "evidence": [
+          "re-attested at 7b7eb54b2 under #950 — devtools-frontend-assets records the exact tuple/hash/MIME/license/inventory/path closure and the discovered active count is 242",
           "re-attested at 5a9a9ada3 — css-selector-has-a-writer is registered with its semantic JSX/DOM/HAST/shared-provenance/vendor-contract reach and the discovered active count is 240; focused proof passed 18/18",
           "re-attested at e07b79b2d — css-length-tokens is registered beside the exact shell declaration/query and #961 static-class reach it enforces; the discovered active count is 239 and focused conformance passed 8/8",
           "re-attested at 4bf9ed645 — playwright-css-topology and repaired no-tailwind-dark-variant are recorded beside css-var-defined; the discovered active count is 238",
@@ -525,7 +527,7 @@
         ],
         "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/architecture/core/Core-Enforcement-Deferred-Dropped.md",
@@ -670,10 +672,10 @@
         "authority": "normative",
         "fullRead": true,
         "verifiedSha256": "bf00ada58af091fe2e1211013c107542f78357107832338f417bb6331c034740",
-        "verifiedCommit": "d296984fe71d72dbd1d5ed415cc74c2cb70808d3",
+        "verifiedCommit": "242bfaecb0924c7cba3e5d2028ceadf6546dd661",
         "verifiedAt": "2026-08-31",
         "evidence": [
-          "re-attested at d296984fe under #969 — full 545-line read; the D71 rider replaces the rejected-mid-band premise with one total accepted-base foreground contract and points to the derivation, ThemeScope, DTCG, CT, and imported-theme proof homes",
+          "re-attested at 242bfaecb under #969 — full 545-line read; the D71 rider replaces the rejected-mid-band premise with one total accepted-base foreground contract and points to the derivation, ThemeScope, DTCG, CT, and imported-theme proof homes",
           "re-attested at bbecbfc78 — full-file read under #930; D70 now points to the one paint-law home and D150's shell-paint premise was re-derived against shell.css and the CSS census",
           "delta re-verify 2026-08-25 (#689, commit 0a2789a00834abe892bfa92839e8dec3c30a97af): D147 clause (d) rewritten in place — the SERVER-WIDE install is BUILT as an admin-triggered fan-out of per-user rows, so the clause's two recorded open questions (consent over a shared install, whose principal it runs as) are DISSOLVED, not answered. Re-read at the amended bytes and re-derived against the tree it now describes: domain/plugin/verbs/{install,uninstall,apply}-*-users.ts + substrate/distribution.ts + persistence/distributed-plugins.ts, the admin_distributed_plugins DDL, and the pins the clause cites (tests/server/domain/plugin/verbs/*-users.int.test.ts, persistence/distributed-plugins.int.test.ts, the cross-tenant sweep's three EXEMPT rows, settings-shell-surface.ct.tsx's admin/plain-user Distribute pair). No other D-entry in this document moved.",
           "docs/architecture/core/Core-Path-Registry.md D139-D140 re-derived against root AGENTS.md; the D140 direct-import routing delta preserves the standing work-control split",
@@ -929,14 +931,15 @@
       },
       "receipt": {
         "path": "docs/architecture/core/Core-Tooling-Law.md",
-        "assignedSha256": "93a75b7157374aa8cd06c869ebd0be286a8f87dcf9626e317ff21126871cb389",
+        "assignedSha256": "9cd4a893488ed35d7b754ccf650b054af8538b6ef21ec8cee37b30f91aaa9536",
         "disposition": "current",
         "authority": "normative",
         "fullRead": true,
-        "verifiedSha256": "93a75b7157374aa8cd06c869ebd0be286a8f87dcf9626e317ff21126871cb389",
-        "verifiedCommit": "1f5e25c00ec2ee921bc70591bf84e8268b255030",
+        "verifiedSha256": "9cd4a893488ed35d7b754ccf650b054af8538b6ef21ec8cee37b30f91aaa9536",
+        "verifiedCommit": "7b7eb54b2dc770527b246a3918b027c97956e333",
         "verifiedAt": "2026-08-30",
         "evidence": [
+          "re-attested at 7b7eb54b2 under #950 — full-file/delta read; the shared-tooling table and revisioned-runtime section bind the verified offline DevTools asset server/runtime to Snap's one sanctioned asset root",
           "delta re-verify 2026-08-22 (lane srv-data): three deferral rows closed in place — §2.6's stack row and §9's roster-row lesson record the #415 template move, §3.2a records the #408 `/tools/` clause deletion. Each was re-derived against the landed change, not copied from the issue text",
           "docs/design/tooling-package.md:1 full read; P3 truth-repairs authored this session (§2.4 importer refresh + spawnNicedChild door, §2.6 five landed tool shapes, §2.7 record-promotion + EventSource decisions executed, §9.2a the P3 replay ledger, §9.3 the post-merge orchestrator ledger) against the same tree the P3 commit landed on",
           "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
@@ -967,7 +970,7 @@
           }
         ]
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/architecture/core/Documentation-Law.md",
@@ -1872,10 +1875,10 @@
         "authority": "current-reference",
         "fullRead": true,
         "verifiedSha256": "7a1e416ee33f8c66a3fc39eab7700ee3e010421fffe66da873bb1a6b1f0a7e73",
-        "verifiedCommit": "d296984fe71d72dbd1d5ed415cc74c2cb70808d3",
+        "verifiedCommit": "242bfaecb0924c7cba3e5d2028ceadf6546dd661",
         "verifiedAt": "2026-08-31",
         "evidence": [
-          "re-attested at d296984fe under #969 — full 126-line read; §12.1 now points to D71 and names the surface-specific foreground derivation, reading-plate foreground, and custom-CSS later-winner contract",
+          "re-attested at 242bfaecb under #969 — full 126-line read; §12.1 now points to D71 and names the surface-specific foreground derivation, reading-plate foreground, and custom-CSS later-winner contract",
           "docs/architecture/core/UI-Theming-and-Content.md:1 full read (123 lines) during the 2026-08-16 tier-B card-frame security pass (#91); §12.2 truth-repaired against the tree",
           "git:e3efc08baf7601f1be23694babcbb2eeba94bf32 contains the exact current document blob",
           "docs/architecture/core/Core-Path-Registry.md:523-533 (standing control-plane and comment-source rulings — carried from the 2026-08-14 verification)",
@@ -1986,10 +1989,10 @@
         "authority": "current-reference",
         "fullRead": true,
         "verifiedSha256": "8884c3aa8244f26b56343105699ebe6f285d3281fcf8e3e2e5a6ca011b399074",
-        "verifiedCommit": "d296984fe71d72dbd1d5ed415cc74c2cb70808d3",
+        "verifiedCommit": "242bfaecb0924c7cba3e5d2028ceadf6546dd661",
         "verifiedAt": "2026-08-31",
         "evidence": [
-          "re-attested at d296984fe under #969 — full 803-line read; §4 records surface-specific normal-text foreground obligations, reading-plate and sidebar-accent roles, total accepted-base projection, and custom-CSS precedence without adding a CSS home",
+          "re-attested at 242bfaecb under #969 — full 803-line read; §4 records surface-specific normal-text foreground obligations, reading-plate and sidebar-accent roles, total accepted-base projection, and custom-CSS precedence without adding a CSS home",
           "re-attested at 4bf9ed645 — §4.5 records the one shared production/CT CSS front door and §4.6 records the repaired provenance-backed polarity gate",
           "re-attested at 8f30fb690 — §4.7 now records css-var-defined as the static value-resolution wall and removes undefined custom-property references from the known-unenforced list",
           "re-attested at b8eb66f00 — §4 now records the implemented portable/nonportable token partition, density ownership move, singular product polarity mechanism, exact #936 contract, and the honest #951/#954 enforcement limits",
@@ -10039,10 +10042,10 @@
         "authority": "design",
         "fullRead": true,
         "verifiedSha256": "1d43a3680f11c198ea6672bc5543086a57dba495a62d971af6b092afb5be0a23",
-        "verifiedCommit": "d296984fe71d72dbd1d5ed415cc74c2cb70808d3",
+        "verifiedCommit": "242bfaecb0924c7cba3e5d2028ceadf6546dd661",
         "verifiedAt": "2026-08-31",
         "evidence": [
-          "re-attested at d296984fe under #969 — full 289-line read; the portable DTCG contract gains only reading-plate-foreground and sidebar-accent-foreground, while runtime-derived CSS remains in the existing ThemeScope output seam; the rebased #950 SDK-boundary delta was also read",
+          "re-attested at 242bfaecb under #969 — full 289-line read; the portable DTCG contract gains only reading-plate-foreground and sidebar-accent-foreground, while runtime-derived CSS remains in the existing ThemeScope output seam; the rebased #950 SDK-boundary delta was also read",
           "docs/architecture/proposed/token-contract-program.md:1 (full read; implemented #936 program and current durable token-contract shape)",
           "docs/reviews/stickler/2026-08-31-token-contract-936-cold-review.md:1 (#936 cold review and repair train evidence)"
         ],
@@ -11128,14 +11131,15 @@
       },
       "receipt": {
         "path": "docs/design/css-merge-trace.md",
-        "assignedSha256": "2070796581c3438a6c0b74e90dc3c9aec6eb21268cf97a0904bc1e707d73075a",
+        "assignedSha256": "45f9fb5719a2e44eb9acdec96863145b88fbc164316b0ed74f376302ce734196",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "2070796581c3438a6c0b74e90dc3c9aec6eb21268cf97a0904bc1e707d73075a",
-        "verifiedCommit": "5a5fda97fcd9fe247563462ecceb6e3375487c04",
+        "verifiedSha256": "45f9fb5719a2e44eb9acdec96863145b88fbc164316b0ed74f376302ce734196",
+        "verifiedCommit": "7b7eb54b2dc770527b246a3918b027c97956e333",
         "verifiedAt": "2026-08-31",
         "evidence": [
+          "re-attested at 7b7eb54b2 under #950 — the full design/delta keeps class-list merge separate from the revision-matched official DevTools frontend SDK browser-cascade tier and rejects direct CDP inference",
           "docs/design/css-merge-trace.md:1-98 read in full on integrated main; one configured merge, compiler-derived family parity, occurrence-aware loser/winner replay, dev-only transport, production exclusion, and focused verification receipt",
           "git:5a5fda97fcd9fe247563462ecceb6e3375487c04 (integrated #949 design and implementation bytes)"
         ],
@@ -11156,7 +11160,7 @@
           }
         ]
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/design/databank-surface-spec.md",
@@ -12354,11 +12358,11 @@
         "authority": "design",
         "fullRead": true,
         "verifiedSha256": "472a6854182d92271154b241b8eeaec75912d774c5a4a38d3f394444dd6c1b57",
-        "verifiedCommit": "d296984fe71d72dbd1d5ed415cc74c2cb70808d3",
+        "verifiedCommit": "242bfaecb0924c7cba3e5d2028ceadf6546dd661",
         "verifiedAt": "2026-08-31",
         "evidence": [
           "docs/design/theme-pivot-foreground-contract.md:1-241 read in full after the implementation rebase; alternatives, coupled sites, planted controls, accepted-base projection, semantic split, owner-CSS precedence, and final proof tiers are all recorded",
-          "d296984fe implements the exact document blob and its named production/test/doc homes on main 1ae9f38e7",
+          "242bfaecb implements the exact document blob and its named production/test/doc homes on main 1ae9f38e7",
           "pnpm test:scoped on the 14 named #969 unit/integration files: 14 files, 272 tests, 0 failures, 0 type errors",
           "pnpm ct:scoped on ThemeScope, chat controls, custom-theme CSS, and Button: 4 files, 86 passed, 0 failed/flaky/skipped"
         ],
@@ -27960,14 +27964,17 @@
       },
       "receipt": {
         "path": "docs/reviews/research/2026-08-31-css-token-toolchain-research.md",
-        "assignedSha256": "61ba605d61701f62910e36fc43ea5956c32cbdceb9a7d7e3b88e010bfd1271d3",
+        "assignedSha256": "b5fdea9d694633af6051044f7f29a3d1e92ce1b49be41fac5484d28f675c7b78",
         "disposition": "current",
         "authority": "review",
         "fullRead": true,
-        "verifiedSha256": "61ba605d61701f62910e36fc43ea5956c32cbdceb9a7d7e3b88e010bfd1271d3",
-        "verifiedCommit": "7498b1b516af1742485f2c2600c918a0c2bfc1a2",
+        "verifiedSha256": "b5fdea9d694633af6051044f7f29a3d1e92ce1b49be41fac5484d28f675c7b78",
+        "verifiedCommit": "7b7eb54b2dc770527b246a3918b027c97956e333",
         "verifiedAt": "2026-08-31",
-        "evidence": ["docs/reviews/research/2026-08-31-css-token-toolchain-research.md:1 (full read; installed-package, DTCG, and token-source evidence)"],
+        "evidence": [
+          "re-attested at 7b7eb54b2 under #950 — full research/delta read; raw CDP matched styles are recorded as insufficient and the revision-matched official DevTools frontend SDK owns browser declaration activity",
+          "docs/reviews/research/2026-08-31-css-token-toolchain-research.md:1 (full read; installed-package, DTCG, and token-source evidence)"
+        ],
         "summary": "Primary-source and installed-package audit behind the token-contract program, including DTCG value-shape failures, Style Dictionary limits, and Tailwind integration boundaries.",
         "claims": [
           {
@@ -27981,7 +27988,7 @@
           }
         ]
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/reviews/research/2026-08-31-devtools-css-cascade-provenance.md",
@@ -28002,14 +28009,15 @@
       },
       "receipt": {
         "path": "docs/reviews/research/2026-08-31-devtools-css-cascade-provenance.md",
-        "assignedSha256": "be9540937030af4b5f7456e0fc0aa84a073bca2b5dddd4c21167c082aba8b9de",
+        "assignedSha256": "fad32f2ee858fdbb0256a17402e99d37d80e95d703f815eafd09e2c00367cfa4",
         "disposition": "current",
         "authority": "review",
         "fullRead": true,
-        "verifiedSha256": "be9540937030af4b5f7456e0fc0aa84a073bca2b5dddd4c21167c082aba8b9de",
-        "verifiedCommit": "fb35c74ef336fdf5ca9265e2c447f7eb2aa7807b",
+        "verifiedSha256": "fad32f2ee858fdbb0256a17402e99d37d80e95d703f815eafd09e2c00367cfa4",
+        "verifiedCommit": "7b7eb54b2dc770527b246a3918b027c97956e333",
         "verifiedAt": "2026-08-31",
         "evidence": [
+          "re-attested at 7b7eb54b2 under #950 — full research/delta read; the scratch 184-response sample is corrected to the committed 477-resource conditional-edge closure and the Active/Overloaded SDK boundary remains exact",
           "docs/reviews/research/2026-08-31-devtools-css-cascade-provenance.md:1-205 read in full in lane executor-956-selector-writers; exact Playwright/Chromium/DevTools pins, direct SDK Active/Overloaded matrix, 184-resource closure measurement, hermetic architecture, and rejected CDP/mutation alternatives"
         ],
         "summary": "Feasibility proof and durable implementation handoff for #950: exact CSS declaration-winner attribution is possible through Chromium M149's revision-matched DevTools frontend SDK, requiring a hermetic 184-resource official frontend closure, strict pin/license/update coupling, and fail-loud Snap/CT integration.",
@@ -28025,7 +28033,7 @@
           }
         ]
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/reviews/research/2026-08-31-gate-pass-unified-walk.md",
@@ -29503,9 +29511,9 @@
       "path": "docs/reviews/stickler/2026-08-30-css-census-doctrine-and-enforcement.md",
       "lane": "reviews",
       "issue": 7,
-      "lines": 1715,
-      "bytes": 143982,
-      "sha256": "1a7f71c004f52812675a8452d7b95a41f2f3fa881e1cd512eef71fc1eff29931",
+      "lines": 1718,
+      "bytes": 144289,
+      "sha256": "ac60d8faadb075628d47279e86d07e8f2c4f5da98df441450622222e32d2dcc1",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -29518,16 +29526,17 @@
       },
       "receipt": {
         "path": "docs/reviews/stickler/2026-08-30-css-census-doctrine-and-enforcement.md",
-        "assignedSha256": "1a7f71c004f52812675a8452d7b95a41f2f3fa881e1cd512eef71fc1eff29931",
+        "assignedSha256": "ac60d8faadb075628d47279e86d07e8f2c4f5da98df441450622222e32d2dcc1",
         "disposition": "current",
         "authority": "review",
         "fullRead": true,
-        "verifiedSha256": "1a7f71c004f52812675a8452d7b95a41f2f3fa881e1cd512eef71fc1eff29931",
-        "verifiedCommit": "7fc2c422df590b7a6c9fc1668417567e0abaa9c3",
+        "verifiedSha256": "ac60d8faadb075628d47279e86d07e8f2c4f5da98df441450622222e32d2dcc1",
+        "verifiedCommit": "d13b7f1759c07eaa803085828164fa78c1dff6af",
         "verifiedAt": "2026-08-31",
         "evidence": [
+          "re-attested at d13b7f175 after #950 integration — every stale Running/not-landed clause now records the official SDK cascade instrument as integrated/in Review with its Git-tracked 477-resource closure, while the grouped train barrier remains explicit",
           "re-attested at 7fc2c422d — the retired orb-echo-box writer and declaration are removed, the live semantic population is 68 classes/112 data identities, and the client/total declaration ratchets are 111/959",
-          "re-attested at d296984fe under #969 — standing full 1,711-line read plus the exact four-line #950 rebase delta; the resulting 1,715-line census records the pivot-dark/pivot-light framebuffer reds, total derivation repair, semantic foreground split, custom-CSS precedence, 2,060-sample pure proof, and focused CT green while retaining the grouped train barrier",
+          "re-attested at 242bfaecb under #969 — standing full 1,711-line read plus the exact four-line #950 rebase delta; the resulting 1,715-line census records the pivot-dark/pivot-light framebuffer reds, total derivation repair, semantic foreground split, custom-CSS precedence, 2,060-sample pure proof, and focused CT green while retaining the grouped train barrier",
           "re-attested at b682e9921 — the historical 28d526c99 measurements are separated from current main; #949/#965/#966 integrated receipts, #950's official DevTools SDK route, the five-stylesheet-plus-token home count, semantic selector limits, and the ungraduated grouped barrier are reconciled",
           "re-attested at 219e839b6 — #956's semantic selector-writer gate, exact 69-class/112-data identity scope, focused proof, vendor parity, and honest real-tree deferral are reconciled into the durable CSS program",
           "re-attested at ef75f9455 — #939's cold-confirmed seed/custom chart repair and #955's integrated shell-length/token wall are reconciled with exact focused and rendered receipts while the grouped train barrier remains pending",
@@ -29669,8 +29678,36 @@
         },
         "errors": []
       },
-      "receipt": null,
-      "receiptCurrent": false
+      "receipt": {
+        "path": "docs/reviews/stickler/2026-08-31-css-review-train-f83aa7071.md",
+        "assignedSha256": "433e76b53c432cbae165dd9ac74723692bf367eec2f685a2718fdd97b9e6d25c",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "433e76b53c432cbae165dd9ac74723692bf367eec2f685a2718fdd97b9e6d25c",
+        "verifiedCommit": "d6e73f399f6cc4f15319444b075b1783f779bda0",
+        "verifiedAt": "2026-08-31",
+        "evidence": [
+          "docs/reviews/stickler/2026-08-31-css-review-train-f83aa7071.md:1-221 read in full after integration; its f83aa7071 verdict remains a cold historical receipt, #957's confirmed closure is preserved, and every refuted row is explicitly scoped to that stable SHA rather than presented as current main"
+        ],
+        "summary": "Cold grouped CSS-train verification at f83aa7071: #957 confirmed; eleven rows refuted with exact repair obligations and complete test/scan receipts. Retained as stable-SHA review evidence, not current-main status.",
+        "claims": [
+          {
+            "claim": "At stable SHA f83aa7071, the cold grouped review confirmed #957 and refuted the other eleven reviewed CSS-train rows with item-specific evidence.",
+            "evidence": [
+              {
+                "kind": "provenance",
+                "target": "git:f83aa70717c5dc6b92eef95f6e8d671c1623773d"
+              },
+              {
+                "kind": "issue",
+                "target": "#957"
+              }
+            ]
+          }
+        ]
+      },
+      "receiptCurrent": true
     },
     {
       "path": "docs/reviews/stickler/2026-08-31-gate-member-discovery-rehome-audit.md",
@@ -29735,14 +29772,17 @@
       },
       "receipt": {
         "path": "docs/reviews/stickler/2026-08-31-tailwind-style-dictionary-dtcg-api-audit.md",
-        "assignedSha256": "57afccab1c56b5134171f1636c52f6fcf1c4573512954f93529a19679ef33b4b",
+        "assignedSha256": "c12812d6921484184d7a932128a8f60b4ceec6697645a6364dfe506982ca729a",
         "disposition": "current",
         "authority": "review",
         "fullRead": true,
-        "verifiedSha256": "57afccab1c56b5134171f1636c52f6fcf1c4573512954f93529a19679ef33b4b",
-        "verifiedCommit": "7498b1b516af1742485f2c2600c918a0c2bfc1a2",
+        "verifiedSha256": "c12812d6921484184d7a932128a8f60b4ceec6697645a6364dfe506982ca729a",
+        "verifiedCommit": "7b7eb54b2dc770527b246a3918b027c97956e333",
         "verifiedAt": "2026-08-31",
-        "evidence": ["docs/reviews/stickler/2026-08-31-tailwind-style-dictionary-dtcg-api-audit.md:1 (full read; installed API and integration audit)"],
+        "evidence": [
+          "re-attested at 7b7eb54b2 under #950 — full audit/delta read; the browser-winner row now names the official SDK activity verdict, committed tooling-only closure, and exact no-new-package boundary while preserving installed Tailwind/DTCG findings",
+          "docs/reviews/stickler/2026-08-31-tailwind-style-dictionary-dtcg-api-audit.md:1 (full read; installed API and integration audit)"
+        ],
         "summary": "Installed-source audit of Tailwind 4.3.3, tailwind-variants, tailwind-merge, Style Dictionary, and DTCG usage, including missing custom merge namespaces and trace limitations.",
         "claims": [
           {
@@ -29756,7 +29796,7 @@
           }
         ]
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/reviews/stickler/2026-08-31-token-contract-936-cold-review.md",

@@ -709,15 +709,42 @@
       "summary": "Deep vocabulary census: five user-facing meanings across roster/cast/party, twelve code meanings, ranked muddles M1-M12 with per-fix site counts; sharpest defect the Members-tab Cast kicker beside the Add-cast… template-library door; recommends nothing — the naming call routed to the owner as #901."
     },
     {
-      "path": "docs/reviews/research/2026-08-31-devtools-css-cascade-provenance.md",
-      "assignedSha256": "be9540937030af4b5f7456e0fc0aa84a073bca2b5dddd4c21167c082aba8b9de",
+      "path": "docs/reviews/research/2026-08-31-css-token-toolchain-research.md",
+      "assignedSha256": "b5fdea9d694633af6051044f7f29a3d1e92ce1b49be41fac5484d28f675c7b78",
       "disposition": "current",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "be9540937030af4b5f7456e0fc0aa84a073bca2b5dddd4c21167c082aba8b9de",
-      "verifiedCommit": "fb35c74ef336fdf5ca9265e2c447f7eb2aa7807b",
+      "verifiedSha256": "b5fdea9d694633af6051044f7f29a3d1e92ce1b49be41fac5484d28f675c7b78",
+      "verifiedCommit": "7b7eb54b2dc770527b246a3918b027c97956e333",
       "verifiedAt": "2026-08-31",
       "evidence": [
+        "re-attested at 7b7eb54b2 under #950 — full research/delta read; raw CDP matched styles are recorded as insufficient and the revision-matched official DevTools frontend SDK owns browser declaration activity",
+        "docs/reviews/research/2026-08-31-css-token-toolchain-research.md:1 (full read; installed-package, DTCG, and token-source evidence)"
+      ],
+      "summary": "Primary-source and installed-package audit behind the token-contract program, including DTCG value-shape failures, Style Dictionary limits, and Tailwind integration boundaries.",
+      "claims": [
+        {
+          "claim": "This research is the evidence basis for the implemented token-contract work item #936.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#936"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/reviews/research/2026-08-31-devtools-css-cascade-provenance.md",
+      "assignedSha256": "fad32f2ee858fdbb0256a17402e99d37d80e95d703f815eafd09e2c00367cfa4",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "fad32f2ee858fdbb0256a17402e99d37d80e95d703f815eafd09e2c00367cfa4",
+      "verifiedCommit": "7b7eb54b2dc770527b246a3918b027c97956e333",
+      "verifiedAt": "2026-08-31",
+      "evidence": [
+        "re-attested at 7b7eb54b2 under #950 — full research/delta read; the scratch 184-response sample is corrected to the committed 477-resource conditional-edge closure and the Active/Overloaded SDK boundary remains exact",
         "docs/reviews/research/2026-08-31-devtools-css-cascade-provenance.md:1-205 read in full in lane executor-956-selector-writers; exact Playwright/Chromium/DevTools pins, direct SDK Active/Overloaded matrix, 184-resource closure measurement, hermetic architecture, and rejected CDP/mutation alternatives"
       ],
       "summary": "Feasibility proof and durable implementation handoff for #950: exact CSS declaration-winner attribution is possible through Chromium M149's revision-matched DevTools frontend SDK, requiring a hermetic 184-resource official frontend closure, strict pin/license/update coupling, and fail-loud Snap/CT integration.",
@@ -734,23 +761,23 @@
       ]
     },
     {
-      "path": "docs/reviews/research/2026-08-31-css-token-toolchain-research.md",
-      "assignedSha256": "61ba605d61701f62910e36fc43ea5956c32cbdceb9a7d7e3b88e010bfd1271d3",
+      "path": "docs/reviews/research/2026-08-31-gate-pass-unified-walk.md",
+      "assignedSha256": "5e0099e553035266025bbfcbb985793d47160f6555d3590a569644a2b3cc3592",
       "disposition": "current",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "61ba605d61701f62910e36fc43ea5956c32cbdceb9a7d7e3b88e010bfd1271d3",
-      "verifiedCommit": "7498b1b516af1742485f2c2600c918a0c2bfc1a2",
+      "verifiedSha256": "5e0099e553035266025bbfcbb985793d47160f6555d3590a569644a2b3cc3592",
+      "verifiedCommit": "a5c28aae4d37abba2b9ad3706b0a734eac42f6e1",
       "verifiedAt": "2026-08-31",
-      "evidence": ["docs/reviews/research/2026-08-31-css-token-toolchain-research.md:1 (full read; installed-package, DTCG, and token-source evidence)"],
-      "summary": "Primary-source and installed-package audit behind the token-contract program, including DTCG value-shape failures, Style Dictionary limits, and Tailwind integration boundaries.",
+      "evidence": ["docs/reviews/research/2026-08-31-gate-pass-unified-walk.md:1 (authored in this lane from its own measurements; full read)"],
+      "summary": "Measures the 236-gate structure pass and attributes its cost to the 110 gates that decline the shared single-pass walk (121s vs 8.8s for the 129 that ride it): dispatch is free, re-walking is not, so the documented unified model supersedes the memo B-prime proposes.",
       "claims": [
         {
-          "claim": "This research is the evidence basis for the implemented token-contract work item #936.",
+          "claim": "The gate-pass speedup program recorded here is owned by work item #888.",
           "evidence": [
             {
               "kind": "issue",
-              "target": "#936"
+              "target": "#888"
             }
           ]
         }
@@ -1618,16 +1645,17 @@
     },
     {
       "path": "docs/reviews/stickler/2026-08-30-css-census-doctrine-and-enforcement.md",
-      "assignedSha256": "1a7f71c004f52812675a8452d7b95a41f2f3fa881e1cd512eef71fc1eff29931",
+      "assignedSha256": "ac60d8faadb075628d47279e86d07e8f2c4f5da98df441450622222e32d2dcc1",
       "disposition": "current",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "1a7f71c004f52812675a8452d7b95a41f2f3fa881e1cd512eef71fc1eff29931",
-      "verifiedCommit": "7fc2c422df590b7a6c9fc1668417567e0abaa9c3",
+      "verifiedSha256": "ac60d8faadb075628d47279e86d07e8f2c4f5da98df441450622222e32d2dcc1",
+      "verifiedCommit": "d13b7f1759c07eaa803085828164fa78c1dff6af",
       "verifiedAt": "2026-08-31",
       "evidence": [
+        "re-attested at d13b7f175 after #950 integration — every stale Running/not-landed clause now records the official SDK cascade instrument as integrated/in Review with its Git-tracked 477-resource closure, while the grouped train barrier remains explicit",
         "re-attested at 7fc2c422d — the retired orb-echo-box writer and declaration are removed, the live semantic population is 68 classes/112 data identities, and the client/total declaration ratchets are 111/959",
-        "re-attested at d296984fe under #969 — standing full 1,711-line read plus the exact four-line #950 rebase delta; the resulting 1,715-line census records the pivot-dark/pivot-light framebuffer reds, total derivation repair, semantic foreground split, custom-CSS precedence, 2,060-sample pure proof, and focused CT green while retaining the grouped train barrier",
+        "re-attested at 242bfaecb under #969 — standing full 1,711-line read plus the exact four-line #950 rebase delta; the resulting 1,715-line census records the pivot-dark/pivot-light framebuffer reds, total derivation repair, semantic foreground split, custom-CSS precedence, 2,060-sample pure proof, and focused CT green while retaining the grouped train barrier",
         "re-attested at b682e9921 — the historical 28d526c99 measurements are separated from current main; #949/#965/#966 integrated receipts, #950's official DevTools SDK route, the five-stylesheet-plus-token home count, semantic selector limits, and the ungraduated grouped barrier are reconciled",
         "re-attested at 219e839b6 — #956's semantic selector-writer gate, exact 69-class/112-data identity scope, focused proof, vendor parity, and honest real-tree deferral are reconciled into the durable CSS program",
         "re-attested at ef75f9455 — #939's cold-confirmed seed/custom chart repair and #955's integrated shell-length/token wall are reconciled with exact focused and rendered receipts while the grouped train barrier remains pending",
@@ -1713,6 +1741,35 @@
       ]
     },
     {
+      "path": "docs/reviews/stickler/2026-08-31-css-review-train-f83aa7071.md",
+      "assignedSha256": "433e76b53c432cbae165dd9ac74723692bf367eec2f685a2718fdd97b9e6d25c",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "433e76b53c432cbae165dd9ac74723692bf367eec2f685a2718fdd97b9e6d25c",
+      "verifiedCommit": "d6e73f399f6cc4f15319444b075b1783f779bda0",
+      "verifiedAt": "2026-08-31",
+      "evidence": [
+        "docs/reviews/stickler/2026-08-31-css-review-train-f83aa7071.md:1-221 read in full after integration; its f83aa7071 verdict remains a cold historical receipt, #957's confirmed closure is preserved, and every refuted row is explicitly scoped to that stable SHA rather than presented as current main"
+      ],
+      "summary": "Cold grouped CSS-train verification at f83aa7071: #957 confirmed; eleven rows refuted with exact repair obligations and complete test/scan receipts. Retained as stable-SHA review evidence, not current-main status.",
+      "claims": [
+        {
+          "claim": "At stable SHA f83aa7071, the cold grouped review confirmed #957 and refuted the other eleven reviewed CSS-train rows with item-specific evidence.",
+          "evidence": [
+            {
+              "kind": "provenance",
+              "target": "git:f83aa70717c5dc6b92eef95f6e8d671c1623773d"
+            },
+            {
+              "kind": "issue",
+              "target": "#957"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "path": "docs/reviews/stickler/2026-08-31-gate-member-discovery-rehome-audit.md",
       "assignedSha256": "c5df1e7ffaddca63f68ade617805bf796f0fc944bbb552dffc7e626ed8acb277",
       "disposition": "current",
@@ -1739,14 +1796,17 @@
     },
     {
       "path": "docs/reviews/stickler/2026-08-31-tailwind-style-dictionary-dtcg-api-audit.md",
-      "assignedSha256": "57afccab1c56b5134171f1636c52f6fcf1c4573512954f93529a19679ef33b4b",
+      "assignedSha256": "c12812d6921484184d7a932128a8f60b4ceec6697645a6364dfe506982ca729a",
       "disposition": "current",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "57afccab1c56b5134171f1636c52f6fcf1c4573512954f93529a19679ef33b4b",
-      "verifiedCommit": "7498b1b516af1742485f2c2600c918a0c2bfc1a2",
+      "verifiedSha256": "c12812d6921484184d7a932128a8f60b4ceec6697645a6364dfe506982ca729a",
+      "verifiedCommit": "7b7eb54b2dc770527b246a3918b027c97956e333",
       "verifiedAt": "2026-08-31",
-      "evidence": ["docs/reviews/stickler/2026-08-31-tailwind-style-dictionary-dtcg-api-audit.md:1 (full read; installed API and integration audit)"],
+      "evidence": [
+        "re-attested at 7b7eb54b2 under #950 — full audit/delta read; the browser-winner row now names the official SDK activity verdict, committed tooling-only closure, and exact no-new-package boundary while preserving installed Tailwind/DTCG findings",
+        "docs/reviews/stickler/2026-08-31-tailwind-style-dictionary-dtcg-api-audit.md:1 (full read; installed API and integration audit)"
+      ],
       "summary": "Installed-source audit of Tailwind 4.3.3, tailwind-variants, tailwind-merge, Style Dictionary, and DTCG usage, including missing custom merge namespaces and trace limitations.",
       "claims": [
         {
@@ -1803,29 +1863,6 @@
             {
               "kind": "issue",
               "target": "#930"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "path": "docs/reviews/research/2026-08-31-gate-pass-unified-walk.md",
-      "assignedSha256": "5e0099e553035266025bbfcbb985793d47160f6555d3590a569644a2b3cc3592",
-      "disposition": "current",
-      "authority": "review",
-      "fullRead": true,
-      "verifiedSha256": "5e0099e553035266025bbfcbb985793d47160f6555d3590a569644a2b3cc3592",
-      "verifiedCommit": "a5c28aae4d37abba2b9ad3706b0a734eac42f6e1",
-      "verifiedAt": "2026-08-31",
-      "evidence": ["docs/reviews/research/2026-08-31-gate-pass-unified-walk.md:1 (authored in this lane from its own measurements; full read)"],
-      "summary": "Measures the 236-gate structure pass and attributes its cost to the 110 gates that decline the shared single-pass walk (121s vs 8.8s for the 129 that ride it): dispatch is free, re-walking is not, so the documented unified model supersedes the memo B-prime proposes.",
-      "claims": [
-        {
-          "claim": "The gate-pass speedup program recorded here is owned by work item #888.",
-          "evidence": [
-            {
-              "kind": "issue",
-              "target": "#888"
             }
           ]
         }

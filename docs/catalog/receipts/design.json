@@ -267,14 +267,15 @@
     },
     {
       "path": "docs/design/css-merge-trace.md",
-      "assignedSha256": "2070796581c3438a6c0b74e90dc3c9aec6eb21268cf97a0904bc1e707d73075a",
+      "assignedSha256": "45f9fb5719a2e44eb9acdec96863145b88fbc164316b0ed74f376302ce734196",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "2070796581c3438a6c0b74e90dc3c9aec6eb21268cf97a0904bc1e707d73075a",
-      "verifiedCommit": "5a5fda97fcd9fe247563462ecceb6e3375487c04",
+      "verifiedSha256": "45f9fb5719a2e44eb9acdec96863145b88fbc164316b0ed74f376302ce734196",
+      "verifiedCommit": "7b7eb54b2dc770527b246a3918b027c97956e333",
       "verifiedAt": "2026-08-31",
       "evidence": [
+        "re-attested at 7b7eb54b2 under #950 — the full design/delta keeps class-list merge separate from the revision-matched official DevTools frontend SDK browser-cascade tier and rejects direct CDP inference",
         "docs/design/css-merge-trace.md:1-98 read in full on integrated main; one configured merge, compiler-derived family parity, occurrence-aware loser/winner replay, dev-only transport, production exclusion, and focused verification receipt",
         "git:5a5fda97fcd9fe247563462ecceb6e3375487c04 (integrated #949 design and implementation bytes)"
       ],
@@ -1037,11 +1038,11 @@
       "authority": "design",
       "fullRead": true,
       "verifiedSha256": "472a6854182d92271154b241b8eeaec75912d774c5a4a38d3f394444dd6c1b57",
-      "verifiedCommit": "d296984fe71d72dbd1d5ed415cc74c2cb70808d3",
+      "verifiedCommit": "242bfaecb0924c7cba3e5d2028ceadf6546dd661",
       "verifiedAt": "2026-08-31",
       "evidence": [
         "docs/design/theme-pivot-foreground-contract.md:1-241 read in full after the implementation rebase; alternatives, coupled sites, planted controls, accepted-base projection, semantic split, owner-CSS precedence, and final proof tiers are all recorded",
-        "d296984fe implements the exact document blob and its named production/test/doc homes on main 1ae9f38e7",
+        "242bfaecb implements the exact document blob and its named production/test/doc homes on main 1ae9f38e7",
         "pnpm test:scoped on the 14 named #969 unit/integration files: 14 files, 272 tests, 0 failures, 0 type errors",
         "pnpm ct:scoped on ThemeScope, chat controls, custom-theme CSS, and Button: 4 files, 86 passed, 0 failed/flaky/skipped"
       ],
