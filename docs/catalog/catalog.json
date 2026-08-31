@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "stats": {
-    "pending": 1,
+    "pending": 0,
     "missingFrontmatter": 0,
     "invalidFrontmatter": 0,
     "malformedFrontmatter": 0
@@ -204,14 +204,15 @@
       },
       "receipt": {
         "path": "docs/architecture/core/AGENTS.md",
-        "assignedSha256": "6154a53f5826342d2e2c6fb62560f6b7e2866f26d84c1c49b79dcbb83a4aa019",
+        "assignedSha256": "933bcb3fa6a6909012820cf7c91b618df570410f9cd45989d9591af4e3c3dc34",
         "disposition": "current",
         "authority": "normative",
         "fullRead": true,
-        "verifiedSha256": "6154a53f5826342d2e2c6fb62560f6b7e2866f26d84c1c49b79dcbb83a4aa019",
-        "verifiedCommit": "08a6571ea28212ab036e483a0b5caa231f736694",
+        "verifiedSha256": "933bcb3fa6a6909012820cf7c91b618df570410f9cd45989d9591af4e3c3dc34",
+        "verifiedCommit": "bbecbfc78be417b6aab44609d3d4f0d484d8c87b",
         "verifiedAt": "2026-08-30",
         "evidence": [
+          "re-attested at bbecbfc78 — full-file read under #930; the added constitution line is a pointer to the path-closed six-home paint law and introduces no second wording",
           "docs/architecture/core/AGENTS.md:1-352 full read; Project, recovery, proposed-program, lane authority, and direct Claude-rule import routing reconciled",
           "docs/architecture/proposed/INDEX.md:17-37 supplies the claimed program-to-sprint map",
           "git:039e33ca3afee08a73754bd0a9ee3d5958d74fe4 contains the exact constitution blob",
@@ -248,7 +249,7 @@
         ],
         "summary": "Normative constitution re-read against the split control plane, proposed-program sprint map, and existing package-layout enforcement."
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/architecture/core/Chat-Macro-Resolution.md",
@@ -642,8 +643,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 524,
-      "bytes": 284743,
-      "sha256": "e43f80fdf69b9798cce0b3e182f232e5f48eaac20d615048ba5d5fa511369443",
+      "bytes": 284774,
+      "sha256": "b040d93c08d0d36b8f622b5d1c057de9a36a83b405e973277c4f4356c41b602d",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -656,14 +657,15 @@
       },
       "receipt": {
         "path": "docs/architecture/core/Core-Path-Registry.md",
-        "assignedSha256": "c0a01c6f4b4df444737455eed1299dca31e9f5e4a5f30c3db41c2ff1a29be17d",
+        "assignedSha256": "b040d93c08d0d36b8f622b5d1c057de9a36a83b405e973277c4f4356c41b602d",
         "disposition": "current",
         "authority": "normative",
         "fullRead": true,
-        "verifiedSha256": "c0a01c6f4b4df444737455eed1299dca31e9f5e4a5f30c3db41c2ff1a29be17d",
-        "verifiedCommit": "05a109eecbec92d771e039cf7319684bc76de808",
+        "verifiedSha256": "b040d93c08d0d36b8f622b5d1c057de9a36a83b405e973277c4f4356c41b602d",
+        "verifiedCommit": "bbecbfc78be417b6aab44609d3d4f0d484d8c87b",
         "verifiedAt": "2026-08-30",
         "evidence": [
+          "re-attested at bbecbfc78 — full-file read under #930; D70 now points to the one paint-law home and D150's shell-paint premise was re-derived against shell.css and the CSS census",
           "delta re-verify 2026-08-25 (#689, commit 0a2789a00834abe892bfa92839e8dec3c30a97af): D147 clause (d) rewritten in place — the SERVER-WIDE install is BUILT as an admin-triggered fan-out of per-user rows, so the clause's two recorded open questions (consent over a shared install, whose principal it runs as) are DISSOLVED, not answered. Re-read at the amended bytes and re-derived against the tree it now describes: domain/plugin/verbs/{install,uninstall,apply}-*-users.ts + substrate/distribution.ts + persistence/distributed-plugins.ts, the admin_distributed_plugins DDL, and the pins the clause cites (tests/server/domain/plugin/verbs/*-users.int.test.ts, persistence/distributed-plugins.int.test.ts, the cross-tenant sweep's three EXEMPT rows, settings-shell-surface.ct.tsx's admin/plain-user Distribute pair). No other D-entry in this document moved.",
           "docs/architecture/core/Core-Path-Registry.md D139-D140 re-derived against root AGENTS.md; the D140 direct-import routing delta preserves the standing work-control split",
           "D61 B5a safeFetch clause truth-repaired 2026-08-23 (examine-media-forms lane receipt: infra/network/egress.ts self-enforcing pin built + no-raw-egress gate armed + three live consumer classes; the not-yet-built clause was false on the tree)",
@@ -716,7 +718,7 @@
         ],
         "summary": "Canonical D-ledger re-read through D144; D71 backdrop truth-repair; frozen assigned hash retained and current verified blob updated."
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/architecture/core/Core-Planning-and-Checklists.md",
@@ -810,14 +812,15 @@
       },
       "receipt": {
         "path": "docs/architecture/core/Core-STATUS.md",
-        "assignedSha256": "2a0729734af1c90761beee23cb7fb4d9c999050decd9195b0e033d9ab1743271",
+        "assignedSha256": "cdbc3d0914c7c052ec6e2659bfc78ee325a58c96612890169f0e12863f500a62",
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "2a0729734af1c90761beee23cb7fb4d9c999050decd9195b0e033d9ab1743271",
-        "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
+        "verifiedSha256": "cdbc3d0914c7c052ec6e2659bfc78ee325a58c96612890169f0e12863f500a62",
+        "verifiedCommit": "bbecbfc78be417b6aab44609d3d4f0d484d8c87b",
         "verifiedAt": "2026-08-30",
         "evidence": [
+          "re-attested at bbecbfc78 — full-file read under #930; the D66 program reference is explicitly historical and carries no current lifecycle authority",
           "docs/architecture/core/Core-STATUS.md:1 full read; current edit is a provenance/lifecycle or repaired historical citation, not present implementation authority",
           "docs/architecture/core/Core-Path-Registry.md:523-533 (D139-D141 authority boundary)",
           "git:68271889b1746b513defea44b0787bab7a89176f contains the exact archived blob",
@@ -825,7 +828,7 @@
         ],
         "summary": "Full-read historical artifact retained for provenance; relocated citations were semantically re-derived and it is not current work or implementation authority."
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/architecture/core/Core-Shared-Dissolution.md",
@@ -1640,8 +1643,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 445,
-      "bytes": 57969,
-      "sha256": "75a14ebcc808913f49fd8dfc805707ae627fd92def3e203ef17171dbc96c7906",
+      "bytes": 58309,
+      "sha256": "6cb639e87b360513990016fdc29bdcd84cd76b967db6e4b3487d9da8d622ae7a",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -1654,14 +1657,15 @@
       },
       "receipt": {
         "path": "docs/architecture/core/UI-Architecture-and-Layout.md",
-        "assignedSha256": "409642a9cf1d01aeef3621e3f77697f8b712d76849678184e704ba10cb4927c6",
+        "assignedSha256": "6cb639e87b360513990016fdc29bdcd84cd76b967db6e4b3487d9da8d622ae7a",
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "409642a9cf1d01aeef3621e3f77697f8b712d76849678184e704ba10cb4927c6",
-        "verifiedCommit": "4032663cc23f883f69b06c9b381ee43aea9a2f05",
+        "verifiedSha256": "6cb639e87b360513990016fdc29bdcd84cd76b967db6e4b3487d9da8d622ae7a",
+        "verifiedCommit": "bbecbfc78be417b6aab44609d3d4f0d484d8c87b",
         "verifiedAt": "2026-08-30",
         "evidence": [
+          "re-attested at bbecbfc78 — full-file read under #930; the responsive-axis table now names the measured shell/client-globals complement and points to the one paint-law home",
           "docs/architecture/core/UI-Architecture-and-Layout.md:1 full read after the workboard split; changed routing/citations checked against Project 1, D139-D141, and current code/test evidence",
           "git:68271889b1746b513defea44b0787bab7a89176f contains the exact current document blob",
           "docs/architecture/core/Core-Path-Registry.md:523-533 (standing control-plane and comment-source rulings)",
@@ -1683,7 +1687,7 @@
         ],
         "summary": "Full-read current current-reference document reverified after the Project/workboard split; existing typed implementation evidence remains current."
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/architecture/core/UI-Density-Law.md",
@@ -1952,9 +1956,9 @@
       "path": "docs/architecture/core/client-architecture-lockdown.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 741,
-      "bytes": 133942,
-      "sha256": "37d1e7e8f26922bf0ebc5d6b5a36c779cde2fe9da6fb17eecfb91adf916c3b47",
+      "lines": 745,
+      "bytes": 134225,
+      "sha256": "fb4971688b7a2260b7d6de673459929b457d9a78292d7a26ea9aacea04321f79",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -1967,14 +1971,15 @@
       },
       "receipt": {
         "path": "docs/architecture/core/client-architecture-lockdown.md",
-        "assignedSha256": "567130820a4acede9a325cd9b6317368c36e005dbab1084dfcec231a50fff570",
+        "assignedSha256": "fb4971688b7a2260b7d6de673459929b457d9a78292d7a26ea9aacea04321f79",
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "567130820a4acede9a325cd9b6317368c36e005dbab1084dfcec231a50fff570",
-        "verifiedCommit": "4c3cfb6f4928f2b81db3b111b9db54a86ff44fb3",
+        "verifiedSha256": "fb4971688b7a2260b7d6de673459929b457d9a78292d7a26ea9aacea04321f79",
+        "verifiedCommit": "bbecbfc78be417b6aab44609d3d4f0d484d8c87b",
         "verifiedAt": "2026-08-30",
         "evidence": [
+          "re-attested at bbecbfc78 — full-file read under #930; §4 is the one six-home paint law, the shell exception is re-derived against the live FLIP/import order, and §4.7 separates enforced, known-unenforced, and reported-but-unread coverage",
           "docs/architecture/core/client-architecture-lockdown.md:1 (full read; header/status evaluated)",
           "git log -1 --format=%H -- docs/architecture/core/client-architecture-lockdown.md (2026-08-30; 0acef7a7f)",
           "pnpm check:docs (2026-08-30 re-attest after the plugin-host float-visibility build — §3 count four -> FIVE composition-tier dir modules with `agent-plugin/` (the `__orb.pluginLog` read impl) and §7's build list naming `buildAgentPlugin`; the dep-cruiser alternation widened in the same commit)",
@@ -1996,7 +2001,7 @@
         ],
         "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/architecture/core/motion-and-animation-guide.md",
@@ -4250,16 +4255,20 @@
       "receipt": {
         "path": "docs/architecture/history/ui-cohesion-north-star.md",
         "assignedSha256": "a67374831598e23feca556335a447d81c912d437575a768086c8ab70020e8c3a",
-        "disposition": "pending",
-        "authority": "unclassified",
-        "fullRead": false,
-        "verifiedSha256": null,
-        "verifiedCommit": null,
-        "verifiedAt": null,
-        "evidence": [],
-        "summary": ""
+        "disposition": "archive",
+        "authority": "historical",
+        "fullRead": true,
+        "verifiedSha256": "a67374831598e23feca556335a447d81c912d437575a768086c8ab70020e8c3a",
+        "verifiedCommit": "bbecbfc78be417b6aab44609d3d4f0d484d8c87b",
+        "verifiedAt": "2026-08-30",
+        "evidence": [
+          "docs/architecture/history/ui-cohesion-north-star.md:1-676 full read under #930; frontmatter and banner make the D66 program a historical snapshot, current CSS law points to client-architecture-lockdown.md §4, and Project 1 owns mutable work",
+          "docs/architecture/core/Core-Path-Registry.md D66 and docs/architecture/core/Core-STATUS.md explicitly deny this archived program current lifecycle authority",
+          "git:bbecbfc78be417b6aab44609d3d4f0d484d8c87b contains the exact archived blob"
+        ],
+        "summary": "Full-read D66 UI-cohesion program archive retained for provenance; current law and lifecycle route to core docs and Project 1."
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/architecture/history/ui-gates-lessons-archaeology-record.md",
@@ -4525,14 +4534,15 @@
       },
       "receipt": {
         "path": "docs/architecture/proposed/INDEX.md",
-        "assignedSha256": "c9d62549f71266525d77c836129e676a99592dadb1d0c1896d1c8d087dc0eb5a",
+        "assignedSha256": "4d1a2806e2443d8bf2795a0aea635e40b92cd5ef918051499031c0a3672263b2",
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "c9d62549f71266525d77c836129e676a99592dadb1d0c1896d1c8d087dc0eb5a",
-        "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
+        "verifiedSha256": "4d1a2806e2443d8bf2795a0aea635e40b92cd5ef918051499031c0a3672263b2",
+        "verifiedCommit": "bbecbfc78be417b6aab44609d3d4f0d484d8c87b",
         "verifiedAt": "2026-08-30",
         "evidence": [
+          "re-attested at bbecbfc78 — full-file read under #930; the superseded D66 program row moved out of proposed with the document, leaving no duplicate lifecycle status",
           "docs/architecture/proposed/INDEX.md:1-37 full read; every unfinished program row maps to its live Project sprint and carries no duplicated implementation inventory",
           "GitHub issue #4 sub-issues re-derived: #13-#29 match the unfinished program rows",
           "2026-08-23 re-derivations: databank-design REALIZED (DB1-DB8 slice-by-slice tree receipts incl. DB6 byte-identity + DB5 scope-leak tests, #19 closed); automation-design PARTIAL (A1-A7 + transport symbol-verified built, A8 client surface unbuilt, #15 corrected, #592 filed); plugin-design PARTIAL (P1-P4+P6 built: infra/plugin-host membrane+realm+budgets, domain/plugin 8-slot, contracts/plugin host-v1, escape.suite.test.ts, entry/compose/automation-plugin.ts; client echo + manager UI absent)",
@@ -4557,7 +4567,7 @@
           }
         ]
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/architecture/proposed/README.md",

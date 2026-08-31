@@ -1049,14 +1049,18 @@
     {
       "path": "docs/architecture/history/ui-cohesion-north-star.md",
       "assignedSha256": "a67374831598e23feca556335a447d81c912d437575a768086c8ab70020e8c3a",
-      "disposition": "pending",
-      "authority": "unclassified",
-      "fullRead": false,
-      "verifiedSha256": null,
-      "verifiedCommit": null,
-      "verifiedAt": null,
-      "evidence": [],
-      "summary": ""
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "a67374831598e23feca556335a447d81c912d437575a768086c8ab70020e8c3a",
+      "verifiedCommit": "bbecbfc78be417b6aab44609d3d4f0d484d8c87b",
+      "verifiedAt": "2026-08-31",
+      "evidence": [
+        "docs/architecture/history/ui-cohesion-north-star.md:1-676 full read under #930; frontmatter and banner make the D66 program a historical snapshot, current CSS law points to client-architecture-lockdown.md §4, and Project 1 owns mutable work",
+        "docs/architecture/core/Core-Path-Registry.md D66 and docs/architecture/core/Core-STATUS.md explicitly deny this archived program current lifecycle authority",
+        "git:bbecbfc78be417b6aab44609d3d4f0d484d8c87b contains the exact archived blob"
+      ],
+      "summary": "Full-read D66 UI-cohesion program archive retained for provenance; current law and lifecycle route to core docs and Project 1."
     },
     {
       "path": "docs/architecture/history/ux-flow-revamp.md",
