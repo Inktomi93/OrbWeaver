@@ -55,7 +55,7 @@ inside a host's region, so all of it is `components/`. That is correct, not an o
 | Settings-section anatomy | four files, two buckets: def `lib/<x>-section.tsx` + nav `lib/<x>-nav.ts` + model `lib/<x>-model.ts` + body `components/<x>-section.tsx`. The def and its body deliberately share a basename across buckets. UNIFORM: every settings-section def on the tree delegates to a `components/` body — none inlines one |
 | `-section.tsx` means two things | `lib/chats-section.tsx` is a `SectionDefinition` (a RAIL section); `lib/appearance-avatars-section.tsx` is a `SettingsSectionContribution` (a settings-pane section). The filename does not distinguish them — the exported TYPE does. G23 accepts both as "owns a definition" |
 | Feature-local store? | No such thing. EVERY store lives in the central `state/` commons, minted through one of the three doors — so a pointer another feature must read is never trapped behind a feature boundary (lockdown §9) |
-| A new `.css` file for my feature? | Never. G14: the only `.css` under `features/**` is `app-shell/surfaces/shell.css` (the layout engine). Values are DTCG tokens, skins are `@orb/ui` variants |
+| A new `.css` file for my feature? | Never. The path-closed six-home paint law and the one bounded shell-frame exception live only in `docs/architecture/core/client-architecture-lockdown.md` §4; do not restate or widen them here |
 
 ## 3. Cross-feature needs — pick the channel, don't invent one
 
