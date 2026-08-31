@@ -21,7 +21,7 @@ import {
   serializeSessionCookie,
 } from "@orb/server/entry/http";
 import { logger } from "@orb/server/foundation/observability";
-import type { OidcTransaction } from "@orb/server/infra/auth";
+import type { OidcTransaction, OidcVerifiedTokens } from "@orb/server/infra/auth";
 import { describe, vi } from "vitest";
 import { expect, test } from "../../../support/fixtures.ts";
 
@@ -110,11 +110,27 @@ function fakeConfig(meta: { issuer: string; jwks_uri?: string; end_session_endpo
   return { serverMetadata: () => meta } as unknown as OidcConfig;
 }
 
+/** #867 — the injected code→token exchange, as a test alias. A fake that RESOLVES stands in for a grant
+ *  `openid-client` already verified (signature, issuer, audience, nonce, PKCE); one that REJECTS stands in
+ *  for a replayed/expired code, a mismatch, or a transient IdP fault. */
+type Exchange = OidcRoutesDeps["exchange"];
+
+/** An exchange that must NEVER be reached on the path under test. It records the breach AND rejects, so a
+ *  regression that let a request through to the IdP fails the call-count assertion instead of silently
+ *  proceeding on a fake's happy path. */
+function neverExchange(onCall: () => void): Exchange {
+  return (): Promise<never> => {
+    onCall();
+    return Promise.reject(new Error("the token exchange must not run on this path"));
+  };
+}
+
 /** A fully-typed `OidcRoutesDeps` stub (no double-cast) for the route tests that don't run the IdP round-trip.
  *  `getConfig` rejects by default; override it (with {@link fakeConfig}) for the logout / back-channel paths. */
 function fakeOidcDeps(over: Partial<OidcRoutesDeps> = {}): OidcRoutesDeps {
   return {
     getConfig: () => Promise.reject(new Error("getConfig not stubbed")),
+    exchange: neverExchange(() => undefined),
     redirectAllowlist: ["https://app.example/api/auth/oidc/callback"],
     scope: "openid profile email",
     claims: { usernameClaim: "preferred_username", uidClaim: "sub", groupsClaim: "groups", emailClaim: "email" },
@@ -917,6 +933,8 @@ describe("OIDC login — the redirect_uri allowlist gate", () => {
       deps: {
         // Must NOT run on an off-allowlist login (the 400 short-circuits before any IdP round-trip).
         getConfig: (): Promise<never> => Promise.reject(new Error("getConfig must not run on an off-allowlist login")),
+        // The authorize leg never exchanges anything; an off-allowlist login must not reach the IdP at all.
+        exchange: neverExchange(() => undefined),
         redirectAllowlist: allowlist,
         scope: "openid profile email",
         claims: {
@@ -957,15 +975,16 @@ describe("OIDC login — the redirect_uri allowlist gate", () => {
 });
 
 // R7 — OIDC CALLBACK state/replay gate. The callback consumes the single-use PKCE transaction by the
-// returned `state` BEFORE any token work; a null consume (forged / replayed / TTL-expired state) 401s and
-// NEVER reaches the IdP token exchange. This is the one callback branch unit-testable without a live IdP:
-// the TOKEN-EXCHANGE side (authorizationCodeGrant → JWKS signature + issuer-mismatch + nonce/state checks)
-// is a module-level `openid-client` import, not an injected dep, and verifying it needs a real signed
-// ID-token + JWKS endpoint (a full IdP) or a banned module mock — so JWKS/issuer verification is
-// deliberately delegated to the audited `openid-client` primitive and asserted only up to this gate.
-// Downstream provisioning (denied → 401 / disabled → 403 / provisioned → mint) sits AFTER that exchange
-// and is likewise unreachable here without exercising the real grant. Flagged for a route-level int test
-// (real IdP fixture) if that coverage is wanted.
+// returned `state` BEFORE any token work; a null consume (forged / replayed / TTL-expired state) redirects
+// and NEVER reaches the IdP token exchange.
+//
+// Since #867 the exchange is an INJECTED dep (`OidcRoutesDeps.exchange`), so "never reaches it" is asserted
+// directly — a `neverExchange` counter — instead of by proxy through `getConfig`. The rest of the callback
+// (the exchange itself and everything downstream: the #699 subject gate, the provisioning arms, the #141
+// id_token hop) is proven in the "injected code→token exchange" describe below. What stays delegated to
+// `openid-client` and is NOT re-asserted anywhere: the CRYPTOGRAPHY of the grant — JWKS signature, issuer
+// and audience validation, nonce/PKCE binding. That is the audited primitive's job; this seam proves we
+// present it the right inputs and fail closed on everything it rejects.
 describe("OIDC callback — single-use state consume (replay/forgery/TTL gate)", () => {
   const CALLBACK_BASE = "https://app.example/api/auth/oidc/callback";
   // Build a callback URL with a query so no long literal trips the noSecrets entropy heuristic.
@@ -980,10 +999,12 @@ describe("OIDC callback — single-use state consume (replay/forgery/TTL gate)",
   function callbackDeps(consume: (state: string) => Promise<OidcTransaction | null>): {
     deps: AuthRoutesDeps;
     getConfigCalls: () => number;
+    exchangeCalls: () => number;
     session: SessionRecorder;
     consumedWith: () => string | null;
   } {
     let getConfigCalls = 0;
+    let exchangeCalls = 0;
     let consumedWith: string | null = null;
     const session = recordingSessions();
     const deps: AuthRoutesDeps = {
@@ -993,11 +1014,16 @@ describe("OIDC callback — single-use state consume (replay/forgery/TTL gate)",
       db: STUB_DB,
       resolveLoginLimit: (): number => 10,
       oidc: {
-        // Must NOT run when the state consume fails — the 401 short-circuits before the token exchange.
+        // Must NOT run when the state consume fails — the redirect short-circuits before the token exchange.
         getConfig: (): Promise<never> => {
           getConfigCalls += 1;
           return Promise.reject(new Error("getConfig must not run on a failed state consume"));
         },
+        // #867 — the direct assertion the pre-injection version could only make by proxy: a forged state
+        // must not put a request on the wire to the IdP's token endpoint at all.
+        exchange: neverExchange(() => {
+          exchangeCalls += 1;
+        }),
         redirectAllowlist: [CALLBACK_BASE],
         scope: "openid profile email",
         claims: {
@@ -1021,6 +1047,7 @@ describe("OIDC callback — single-use state consume (replay/forgery/TTL gate)",
     return {
       deps,
       getConfigCalls: () => getConfigCalls,
+      exchangeCalls: () => exchangeCalls,
       session,
       consumedWith: () => consumedWith,
     };
@@ -1034,6 +1061,7 @@ describe("OIDC callback — single-use state consume (replay/forgery/TTL gate)",
     expect(res.status).toBe(302);
     expect(res.headers.get("location")).toBe("/login?authError=invalid_state");
     expect(h.getConfigCalls()).toBe(0); // never reached the IdP token exchange
+    expect(h.exchangeCalls()).toBe(0); // #867 — asserted at the seam itself, not by proxy
     expect(h.session.createdFor).toBeNull(); // no session minted
   });
 
@@ -1044,16 +1072,15 @@ describe("OIDC callback — single-use state consume (replay/forgery/TTL gate)",
     expect(res.headers.get("location")).toBe("/login?authError=invalid_state");
     expect(h.consumedWith()).toBe(""); // no `state` query → the empty-string consume key → null → redirect
     expect(h.getConfigCalls()).toBe(0);
+    expect(h.exchangeCalls()).toBe(0);
   });
 });
 
-// The callback fails GRACEFULLY (4xx, no session) — not 500 — when the IdP redirects back with a standard
-// `?error=` (declined consent / access_denied). The txn is consumed FIRST (single-use preserved), THEN the
-// IdP error short-circuits BEFORE the token exchange, so `getConfig` is never reached and no cookie mints.
-// The token-exchange THROW path (replayed/expired code, transient IdP fault) can't be unit-tested here —
-// `authorizationCodeGrant` is a module-level `openid-client` import, not an injected dep (see the R7 note
-// above); it shares the SAME fail-closed handler as this `?error=` branch (both route through
-// exchangeCodeForClaims / the 401 `oidc login failed:` response).
+// The callback fails GRACEFULLY (a redirect, no session) — not 500 — when the IdP redirects back with a
+// standard `?error=` (declined consent / access_denied). The txn is consumed FIRST (single-use preserved),
+// THEN the IdP error short-circuits BEFORE the token exchange, so neither `getConfig` nor `exchange` is
+// reached and no cookie mints. The token-exchange THROW path (replayed/expired code, mismatch, transient
+// IdP fault) shares the SAME fail-closed handler and is pinned directly in the #867 describe below.
 describe("OIDC callback — IdP error param fails closed (declined consent / access_denied)", () => {
   const CALLBACK_BASE = "https://app.example/api/auth/oidc/callback";
   const tx: OidcTransaction = { state: "s1", codeVerifier: "cv1", nonce: "n1", redirectUri: CALLBACK_BASE, createdAt: NOW };
@@ -1065,8 +1092,15 @@ describe("OIDC callback — IdP error param fails closed (declined consent / acc
     return u.href;
   };
 
-  function errorCallbackDeps(): { deps: AuthRoutesDeps; session: SessionRecorder; getConfigCalls: () => number; consumed: () => number } {
+  function errorCallbackDeps(): {
+    deps: AuthRoutesDeps;
+    session: SessionRecorder;
+    getConfigCalls: () => number;
+    exchangeCalls: () => number;
+    consumed: () => number;
+  } {
     let getConfigCalls = 0;
+    let exchangeCalls = 0;
     let consumed = 0;
     const session = recordingSessions();
     const deps: AuthRoutesDeps = {
@@ -1076,11 +1110,14 @@ describe("OIDC callback — IdP error param fails closed (declined consent / acc
       db: STUB_DB,
       resolveLoginLimit: (): number => 10,
       oidc: {
-        // Must NOT run on an IdP-error callback — the 401 short-circuits before the token exchange.
+        // Must NOT run on an IdP-error callback — the redirect short-circuits before the token exchange.
         getConfig: (): Promise<never> => {
           getConfigCalls += 1;
           return Promise.reject(new Error("getConfig must not run on an IdP-error callback"));
         },
+        exchange: neverExchange(() => {
+          exchangeCalls += 1;
+        }),
         redirectAllowlist: [CALLBACK_BASE],
         scope: "openid profile email",
         claims: { usernameClaim: "preferred_username", uidClaim: "sub", groupsClaim: "groups", emailClaim: "email" },
@@ -1097,7 +1134,7 @@ describe("OIDC callback — IdP error param fails closed (declined consent / acc
         },
       },
     };
-    return { deps, session, getConfigCalls: () => getConfigCalls, consumed: () => consumed };
+    return { deps, session, getConfigCalls: () => getConfigCalls, exchangeCalls: () => exchangeCalls, consumed: () => consumed };
   }
 
   test("valid state + `?error=access_denied` → 302 /login?authError=access_denied (not 500), txn consumed, no token exchange, no session", async () => {
@@ -1107,6 +1144,7 @@ describe("OIDC callback — IdP error param fails closed (declined consent / acc
     expect(res.headers.get("location")).toBe("/login?authError=access_denied"); // the sanitized standard code
     expect(h.consumed()).toBe(1); // single-use txn consume STILL happened (not replayable)
     expect(h.getConfigCalls()).toBe(0); // never reached the token exchange
+    expect(h.exchangeCalls()).toBe(0); // #867 — and the exchange seam itself was never invoked
     expect(h.session.createdFor).toBeNull(); // no session minted
     expect(res.headers.get("set-cookie")).toBeNull(); // no partial cookie on the error path
   });
@@ -1119,6 +1157,226 @@ describe("OIDC callback — IdP error param fails closed (declined consent / acc
     const location = res.headers.get("location") ?? "";
     expect(location).not.toContain("<script>");
     expect(location).toBe("/login?authError=token_exchange_failed"); // the generic fallback marker
+  });
+});
+
+// ── #867 — THE TOKEN-EXCHANGE SEAM AND EVERYTHING DOWNSTREAM OF IT ───────────────────────────────────
+//
+// Until the exchange was injected, this whole half of the callback was undrivable in-process: the grant was
+// a module-level `openid-client` import, the package resolves only under `packages/server/node_modules` (so
+// a `vi.mock("openid-client")` from `tests/` never binds — the real library runs and every arm reports
+// `token_exchange_failed` while LOOKING wired), and the path-form mock that WOULD bind is correctly RED
+// under `test-mock-doctrine`. So the callback's happy path, the #141 `idToken → sessions.create` hop, the
+// #699 subject refusal at the route, and all three provisioning outcomes were asserted nowhere.
+//
+// With `OidcRoutesDeps.exchange` they are ordinary injected-dep tests. What each arm is FOR:
+//   • the mint arm is the #141 hop — the raw id_token the IdP returned must arrive at `sessions.create`
+//     VERBATIM (the domain seals it there; a route that dropped it degrades every later logout to a bare
+//     end-session URL and silently resurrects the #437 papercut).
+//   • the failure arms are the FAIL-CLOSED contract: a throwing exchange must mint no session and set no
+//     cookie, must not 500, and must never reflect IdP- or exception-supplied text into the Location.
+//   • the refusal arms (#699 no-subject, denied, account-exists, disabled) are reachable end-to-end here
+//     for the first time — each must land on its own authError code with no session.
+// NOT re-asserted, deliberately: the grant's CRYPTOGRAPHY (JWKS signature, issuer/audience, nonce/PKCE
+// binding). That is `openid-client`'s job; ours is to hand it the right inputs and fail closed.
+describe("OIDC callback — the injected code→token exchange (#867)", () => {
+  const CALLBACK_BASE = "https://app.example/api/auth/oidc/callback";
+  /** The URL the request actually arrives on behind a proxy — a DIFFERENT origin from the allowlisted one
+   *  the transaction stored. The exchange must be presented the STORED one (see the mint-arm test). */
+  const PROXY_CALLBACK = "https://proxy.internal/api/auth/oidc/callback";
+  const TX: OidcTransaction = { state: "s1", codeVerifier: "cv1", nonce: "n1", redirectUri: CALLBACK_BASE, createdAt: NOW };
+  /** A verified-claims stand-in: a usable username AND the stable subject `oidcSessionIdentity` requires. */
+  const CLAIMS: Record<string, unknown> = { preferred_username: "alice", sub: "sub-alice", email: "alice@corp.example", groups: ["staff"] };
+  const AUTHED_USER = castId<UserId>("usr_x");
+
+  const arriveAt = (base: string, query: Record<string, string>): string => {
+    const u = new URL(base);
+    for (const [k, v] of Object.entries(query)) {
+      u.searchParams.set(k, v);
+    }
+    return u.href;
+  };
+
+  interface ExchangeHarness {
+    readonly deps: AuthRoutesDeps;
+    readonly session: SessionRecorder;
+    /** What the route handed the exchange — the reconstructed URL and the transaction it consumed. */
+    readonly seen: () => { url: URL; tx: OidcTransaction } | null;
+    readonly consumed: () => number;
+  }
+
+  function harness(exchange: Exchange, provisionIdentity?: AuthSessionsPort["provisionIdentity"]): ExchangeHarness {
+    let seen: { url: URL; tx: OidcTransaction } | null = null;
+    let consumed = 0;
+    const session = recordingSessions();
+    const sessions: AuthSessionsPort = provisionIdentity === undefined ? session.sessions : { ...session.sessions, provisionIdentity };
+    const deps: AuthRoutesDeps = {
+      sessions,
+      sockets: session.sockets,
+      now: (): number => NOW,
+      db: STUB_DB,
+      resolveLoginLimit: (): number => 10,
+      oidc: fakeOidcDeps({
+        getConfig: (): Promise<OidcConfig> => Promise.resolve(fakeConfig({ issuer: "https://idp.example" })),
+        redirectAllowlist: [CALLBACK_BASE],
+        exchange: (config: OidcConfig, url: URL, tx: OidcTransaction): Promise<OidcVerifiedTokens> => {
+          seen = { url, tx };
+          return exchange(config, url, tx);
+        },
+        store: {
+          mint: (): Promise<void> => Promise.resolve(),
+          consume: (): Promise<OidcTransaction | null> => {
+            consumed += 1;
+            return Promise.resolve(TX);
+          },
+        },
+      }),
+    };
+    return { deps, session, seen: (): { url: URL; tx: OidcTransaction } | null => seen, consumed: (): number => consumed };
+  }
+
+  /** An exchange that succeeds with the given claims + id_token — the shape `authorizationCodeGrant`
+   *  narrows to once it has verified the response. */
+  const grants =
+    (claims: Record<string, unknown> | undefined, idToken: string | null): Exchange =>
+    (): Promise<OidcVerifiedTokens> =>
+      Promise.resolve({ claims, idToken });
+
+  /** An exchange that rejects — the replayed/expired code, mismatch and transient-fault class. */
+  const rejects =
+    (err: unknown): Exchange =>
+    (): Promise<never> =>
+      Promise.reject(err);
+
+  const drive = async (h: ExchangeHarness, url: string): Promise<Response> => await handlerFor(h.deps, "GET /api/auth/oidc/callback")(makeCtx({ url }));
+
+  // THE #141 HOP. This is the assertion the whole seam exists for: `createdIdToken` is what
+  // `sessions.create` was handed, and the domain seals exactly that value against the new row id.
+  test("a verified grant mints the session and threads the id_token to sessions.create VERBATIM", async () => {
+    const h = harness(grants(CLAIMS, ID_TOKEN));
+    const res = await drive(h, arriveAt(CALLBACK_BASE, { state: "s1", code: "grant" }));
+
+    expect(res.status).toBe(302);
+    expect(res.headers.get("location")).toBe("/");
+    expect(res.headers.get("set-cookie")).toContain(`${COOKIE}=tok-123`);
+    expect(h.session.createdFor).toBe(AUTHED_USER);
+    expect(h.session.createdIdToken).toBe(ID_TOKEN); // #141 — the hop that had no pin before #867
+    expect(h.consumed()).toBe(1); // the PKCE txn is still spent exactly once
+  });
+
+  // The redirect_uri presented at the exchange must be the ALLOWLIST-VALIDATED one stored in the
+  // transaction, never the origin the request happened to arrive on — otherwise a proxy (or an attacker
+  // who can influence the arrival URL) changes the value the IdP is asked to match.
+  test("the exchange is handed the STORED redirect_uri (not the arrival origin) and the consumed transaction", async () => {
+    const h = harness(grants(CLAIMS, ID_TOKEN));
+    await drive(h, arriveAt(PROXY_CALLBACK, { state: "s1", code: "grant" }));
+
+    const seen = h.seen();
+    expect(seen).not.toBeNull();
+    expect(`${seen?.url.origin}${seen?.url.pathname}`).toBe(CALLBACK_BASE);
+    expect(seen?.url.href).not.toContain("proxy.internal");
+    expect(seen?.url.searchParams.get("code")).toBe("grant"); // the incoming query still rides
+    // The whole transaction crosses the seam, so the PKCE verifier + nonce + state are all presented.
+    expect(seen?.tx).toEqual(TX);
+  });
+
+  // An IdP that returns no ID token must still log the user in — the DEGRADE #141 documents (that
+  // session's logout gets a bare end-session URL) — and must store nothing rather than sealing "".
+  test("a grant with no id_token still mints the session, carrying null (the documented #141 degrade)", async () => {
+    const h = harness(grants(CLAIMS, null));
+    const res = await drive(h, arriveAt(CALLBACK_BASE, { state: "s1", code: "grant" }));
+
+    expect(res.status).toBe(302);
+    expect(res.headers.get("location")).toBe("/");
+    expect(h.session.createdFor).toBe(AUTHED_USER);
+    expect(h.session.createdIdToken).toBeNull();
+  });
+
+  test("a THROWING exchange (replayed/expired code) mints no session, sets no cookie, and 302s with the sanitized code", async () => {
+    const h = harness(rejects({ error: "invalid_grant" }));
+    const res = await drive(h, arriveAt(CALLBACK_BASE, { state: "s1", code: "replayed" }));
+
+    expect(res.status).toBe(302); // fail-closed, not a 500 leaking a stack through onError
+    expect(res.headers.get("location")).toBe("/login?authError=invalid_grant");
+    expect(res.headers.get("set-cookie")).toBeNull();
+    expect(h.session.createdFor).toBeNull();
+    expect(h.consumed()).toBe(1); // and the txn stays spent — a failed exchange leaves nothing replayable
+  });
+
+  test("an exchange error carrying FREE TEXT is not reflected — the generic marker rides instead", async () => {
+    const h = harness(rejects({ error: "<script>alert(1)</script>" }));
+    const res = await drive(h, arriveAt(CALLBACK_BASE, { state: "s1", code: "grant" }));
+
+    const location = res.headers.get("location") ?? "";
+    expect(location).not.toContain("<script>");
+    expect(location).toBe("/login?authError=token_exchange_failed");
+    expect(h.session.createdFor).toBeNull();
+  });
+
+  // A thrown exception's MESSAGE is attacker-influenceable in the general case (an HTTP client happily
+  // quotes a response body into it) and, worse, can carry our own secrets. Neither the Location nor the
+  // body may echo it.
+  test("nothing from the thrown error's message reaches the redirect or the body", async () => {
+    const h = harness(rejects(new Error(`token endpoint said: ${ID_TOKEN}`)));
+    const res = await drive(h, arriveAt(CALLBACK_BASE, { state: "s1", code: "grant" }));
+
+    expect(res.status).toBe(302);
+    expect(res.headers.get("location")).toBe("/login?authError=token_exchange_failed");
+    expect(res.headers.get("location") ?? "").not.toContain(ID_TOKEN);
+    expect(await res.text()).not.toContain(ID_TOKEN);
+    expect(h.session.createdFor).toBeNull();
+  });
+
+  // #699 — reachable END-TO-END for the first time: a verified grant whose claims carry no stable subject
+  // (OIDC_UID_CLAIM names a claim this IdP does not emit) is refused at the callback, not walked onto
+  // whatever row holds that handle.
+  test("a verified grant with NO stable subject is refused fail-closed — no session (#699)", async () => {
+    const h = harness(grants({ preferred_username: "alice" }, ID_TOKEN));
+    const res = await drive(h, arriveAt(CALLBACK_BASE, { state: "s1", code: "grant" }));
+
+    expect(res.status).toBe(302);
+    expect(res.headers.get("location")).toBe("/login?authError=no_identity");
+    expect(res.headers.get("set-cookie")).toBeNull();
+    expect(h.session.createdFor).toBeNull();
+  });
+
+  test("a grant with NO usable username is refused too (the pre-existing null-identity arm)", async () => {
+    const h = harness(grants({ sub: "sub-only" }, ID_TOKEN));
+    const res = await drive(h, arriveAt(CALLBACK_BASE, { state: "s1", code: "grant" }));
+
+    expect(res.headers.get("location")).toBe("/login?authError=no_identity");
+    expect(h.session.createdFor).toBeNull();
+  });
+
+  test("a DENIED provision (login gate refused) mints nothing — generic not_authorized", async () => {
+    const h = harness(grants(CLAIMS, ID_TOKEN), () => Promise.resolve({ outcome: "denied" as const }));
+    const res = await drive(h, arriveAt(CALLBACK_BASE, { state: "s1", code: "grant" }));
+
+    expect(res.headers.get("location")).toBe("/login?authError=not_authorized");
+    expect(res.headers.get("set-cookie")).toBeNull();
+    expect(h.session.createdFor).toBeNull();
+  });
+
+  // MS-W1 — the collision hard-deny gets its OWN operator-actionable code so the login surface can say
+  // "ask an admin to link the account" instead of the generic refusal.
+  test("an ACCOUNT-EXISTS collision deny surfaces its distinct code, still with no session", async () => {
+    const h = harness(grants(CLAIMS, ID_TOKEN), () => Promise.resolve({ outcome: "denied" as const, reason: "account-exists" as const }));
+    const res = await drive(h, arriveAt(CALLBACK_BASE, { state: "s1", code: "grant" }));
+
+    expect(res.headers.get("location")).toBe("/login?authError=account_exists");
+    expect(h.session.createdFor).toBeNull();
+  });
+
+  // A2 — provisioned-but-awaiting-approval (or admin-disabled). Provisioning SUCCEEDS; the mint must not.
+  test("a provisioned but DISABLED account mints no session", async () => {
+    const h = harness(grants(CLAIMS, ID_TOKEN), () =>
+      Promise.resolve({ outcome: "provisioned" as const, userId: AUTHED_USER, enabled: false, role: "user" as const, identityChanged: false }),
+    );
+    const res = await drive(h, arriveAt(CALLBACK_BASE, { state: "s1", code: "grant" }));
+
+    expect(res.headers.get("location")).toBe("/login?authError=account_disabled");
+    expect(res.headers.get("set-cookie")).toBeNull();
+    expect(h.session.createdFor).toBeNull();
   });
 });
 

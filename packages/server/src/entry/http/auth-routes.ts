@@ -6,8 +6,10 @@
 // Registered only when the op is provided (fail-closed in non-local modes).
 //
 // OIDC login: openid-client v6 flow — discovery → PKCE + state + nonce → buildAuthorizationUrl (redirect)
-// → callback: consume the PKCE txn → authorizationCodeGrant → claims → provisionIdentity → mint cookie.
-// Registered only when `OidcRoutesDeps` is supplied.
+// → callback: consume the PKCE txn → the injected code→token `exchange` → claims → provisionIdentity →
+// mint cookie. Registered only when `OidcRoutesDeps` is supplied. The two I/O round-trips (discovery and
+// the token exchange) both arrive as INJECTED deps (#762 / #867) — this file performs no HTTP to the IdP
+// itself, which is what makes the whole callback drivable in-process by a test.
 //
 // Origin-flexible callback: the redirect_uri is derived per-request from the origin and accepted only if
 // it exact-matches the OIDC_REDIRECT_URIS allowlist — never reflects an attacker-supplied origin
@@ -22,11 +24,11 @@ import { castId } from "@orb/kit/ids";
 import type { Context, Hono, MiddlewareHandler } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import type { Configuration } from "openid-client";
-import { authorizationCodeGrant, buildAuthorizationUrl, calculatePKCECodeChallenge, randomNonce, randomPKCECodeVerifier, randomState } from "openid-client";
+import { buildAuthorizationUrl, calculatePKCECodeChallenge, randomNonce, randomPKCECodeVerifier, randomState } from "openid-client";
 import type { RevokedSessionsSummary } from "#domain/sessions";
 import { groupRoleGovernanceActive } from "#domain/sessions";
 import { getLog, groupsLogFields, securityEvent } from "#foundation/observability";
-import type { BackchannelLogoutVerifier, OidcTransaction } from "#infra/auth";
+import type { BackchannelLogoutVerifier, OidcExchange, OidcTransaction } from "#infra/auth";
 import { hasCsrfHeader, MIN_PASSWORD_LENGTH, SESSION_COOKIE_NAME } from "#infra/auth";
 import { clientIp, peerIp } from "#infra/network";
 import type { RateLimiter } from "../../transport/rate-limit.ts";
@@ -142,17 +144,19 @@ type OidcExchangeResult =
  *  nonce / state mismatch, or a transient IdP/network fault) into a fail-closed result — never a 500 that
  *  leaks a stack path through the observability onError. On the error path the caller mints no session.
  *
- *  The ID token is returned alongside the claims (#141) rather than re-derived later: `authorizationCodeGrant`
- *  has already VERIFIED it (signature, issuer, audience, nonce, PKCE), and this is the only moment the raw
+ *  #867 — THE EXCHANGE ITSELF IS INJECTED (`OidcRoutesDeps.exchange`, wired to the real `openid-client`
+ *  `authorizationCodeGrant` at the composition root). THIS function keeps the fail-closed conversion and the
+ *  sanitizer, so a test's fake exchange cannot route around either: whatever it throws lands in the same
+ *  catch, and whatever code it carries is sanitized by the same `[a-z_]{1,64}` gate before it can reach a
+ *  Location header.
+ *
+ *  The ID token comes back alongside the claims (#141) rather than being re-derived later: the exchange has
+ *  already VERIFIED it (signature, issuer, audience, nonce, PKCE), and this is the only moment the raw
  *  compact JWT exists in the process. */
-async function exchangeCodeForClaims(config: Configuration, callbackUrl: URL, tx: OidcTransaction): Promise<OidcExchangeResult> {
+async function exchangeCodeForClaims(exchange: OidcExchange, config: Configuration, callbackUrl: URL, tx: OidcTransaction): Promise<OidcExchangeResult> {
   try {
-    const tokens = await authorizationCodeGrant(config, callbackUrl, {
-      pkceCodeVerifier: tx.codeVerifier,
-      expectedNonce: tx.nonce,
-      expectedState: tx.state,
-    });
-    return { ok: true, claims: tokens.claims(), idToken: tokens.id_token ?? null };
+    const tokens = await exchange(config, callbackUrl, tx);
+    return { ok: true, claims: tokens.claims, idToken: tokens.idToken };
   } catch (err) {
     return { ok: false, code: sanitizeOidcErrorCode(hasOidcErrorCode(err) ? err.error : null) };
   }
@@ -372,6 +376,12 @@ export interface OidcClaimMap {
 
 export interface OidcRoutesDeps {
   readonly getConfig: () => Promise<Configuration>;
+  /** #867 — the code→token exchange, injected so the callback's happy path is drivable without an IdP.
+   *  Production wires `infra/auth`'s `createOidcExchange(authorizationCodeGrant)` — the real grant — at
+   *  `entry/lifecycle.ts`. REQUIRED, deliberately: an optional dep would make "no exchange configured"
+   *  a silently loginless OIDC box, and a defaulted one would let a mis-wired root fall back to
+   *  something the operator never chose. */
+  readonly exchange: OidcExchange;
   /** Empty ⇒ every login 400s (fail-closed: no origin is permitted). */
   readonly redirectAllowlist: readonly string[];
   readonly scope: string;
@@ -739,7 +749,7 @@ function registerOidcRoutes(app: Hono, deps: AuthRoutesDeps, oidc: OidcRoutesDep
     // token-exchange redirect_uri matches what the IdP received even behind a proxy.
     const callbackUrl = new URL(tx.redirectUri);
     callbackUrl.search = incoming.search;
-    const exchange = await exchangeCodeForClaims(config, callbackUrl, tx);
+    const exchange = await exchangeCodeForClaims(oidc.exchange, config, callbackUrl, tx);
     if (!exchange.ok) {
       securityEvent(
         "oidc_token_exchange_failed",

@@ -4,7 +4,9 @@
 
 import type { AuthMode, ResolvedIdentity } from "@orb/contracts/identity";
 import type { ExternalId, Handle } from "@orb/kit/ids";
-import type { Configuration } from "openid-client";
+// `authorizationCodeGrant` is imported TYPE-ONLY (it is named solely in a `typeof` position for
+// {@link OidcCodeGrant}) so this contract module stays value-free and pulls no library code into a type import.
+import type { authorizationCodeGrant, Configuration } from "openid-client";
 
 /** Parsed auth config, passed explicitly so unit tests can vary mode/fallback without re-parsing env. */
 export interface AuthConfig {
@@ -43,6 +45,43 @@ export interface OidcTransaction {
 export interface OidcTransactionStore {
   consume: (state: string) => Promise<OidcTransaction | null>;
 }
+
+/** #867 — what a SUCCESSFUL code→token exchange yields, narrowed to the two values the OIDC callback
+ *  actually consumes. Deliberately NOT openid-client's `TokenEndpointResponse`: the access/refresh tokens
+ *  are the RP's business with the IdP and nothing above this seam may reach them, so they do not cross it. */
+export interface OidcVerifiedTokens {
+  /** The VERIFIED ID-token claims (`tokens.claims()`), or `undefined` when the response carried no ID
+   *  token. Still untrusted DATA — every field is shape-checked by `identityFromClaims` before use. */
+  readonly claims: { readonly [claim: string]: unknown } | undefined;
+  /** #141 — the RAW verified ID token, carried to `sessions.create`, which seals it at rest. It is a
+   *  SECRET: never logged, never put in a response body, never held past the mint. */
+  readonly idToken: string | null;
+}
+
+/**
+ * #867 — the injected OIDC authorization-code exchange (`openid-client`'s `authorizationCodeGrant`, wired
+ * at the composition root; a deterministic fake in tests). The adapter that performs it is
+ * `./oidc-exchange.ts`; the type homes here beside {@link OidcDiscover} because a slice-internal shape
+ * belongs in the slice's contract, not beside its one consumer.
+ *
+ * THE WHOLE TRANSACTION IS THE THIRD PARAMETER, not three loose check values. `pkceCodeVerifier`,
+ * `expectedNonce` and `expectedState` are the code-injection / replay / CSRF defences of the code flow,
+ * and a call site that assembled them by hand could silently omit one and still type-check. Passing the
+ * consumed {@link OidcTransaction} makes that omission unconstructible: there is exactly one place that
+ * maps a transaction onto the grant's checks, and it is the adapter.
+ *
+ * IT THROWS, AND THAT IS THE CONTRACT. A replayed/expired code, an issuer/audience/nonce/state mismatch,
+ * a bad signature, or a transient IdP fault all reject — the route's fail-closed handler converts the
+ * throw into a sanitized error code and mints no session. An implementation that swallowed a failure into
+ * a resolved value would move the fail-closed decision out of the route that owns it.
+ */
+export type OidcExchange = (config: Configuration, callbackUrl: URL, tx: OidcTransaction) => Promise<OidcVerifiedTokens>;
+
+/** #867 — the raw `openid-client` grant `createOidcExchange` closes over. Named as a type so the ONE value
+ *  binding to the library lives at the composition root (`entry/lifecycle.ts`) and the adapter's
+ *  transaction→checks mapping is provable without an IdP — the same shape `createOidcConfigCache(discover)`
+ *  already uses for discovery. */
+export type OidcCodeGrant = typeof authorizationCodeGrant;
 
 export interface ForwardJwtClaims {
   handle: Handle | undefined;

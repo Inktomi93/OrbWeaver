@@ -1719,6 +1719,7 @@
     "tests/server/infra/auth/modes/oidc.test.ts",
     "tests/server/infra/auth/modes/single-user.test.ts",
     "tests/server/infra/auth/oidc-discovery.test.ts",
+    "tests/server/infra/auth/oidc-exchange.test.ts",
     "tests/server/infra/auth/password.test.ts",
     "tests/server/infra/crypto/key.test.ts",
     "tests/server/infra/crypto/secrets.test.ts",

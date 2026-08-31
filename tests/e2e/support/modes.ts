@@ -258,11 +258,19 @@ const FORWARD_HEADER: ModeProject = {
   clientWarmup: "shell",
 };
 
-// ── oidc — DEFERRED (owner decision). No mock IdP exists yet; the planned increment is a route-level fake
-// IdP (openid-client discovery + a signed id_token), NOT built here. Left as a documented ABSENCE, not a
+// ── oidc — DEFERRED (owner decision). No mock IdP exists yet. Left as a documented ABSENCE, not a
 // half-built project: adding an unbacked `oidc` project would boot a stack no spec can authenticate against.
 // When built: mirror LOCAL/FORWARD_HEADER's shape with OIDC_ISSUER/CLIENT_ID/SECRET/REDIRECT_URIS pointed at
-// the fake IdP, and an `actorViaOidc(claims)` constructor in actors.ts.
+// a REAL mock IdP process (discovery document + JWKS + a signed id_token), and an `actorViaOidc(claims)`
+// constructor in actors.ts.
+//
+// #867 DID NOT DISCHARGE THIS, and the reason is a fence, not a caveat. Injecting the code→token exchange
+// (`OidcRoutesDeps.exchange`) made the whole OIDC callback drivable IN-PROCESS — that coverage now lives in
+// `tests/server/entry/http/auth-routes.test.ts` and `tests/server/entry/oidc-logout-roundtrip.suite.int.test.ts`
+// — but e2e boots the REAL server, whose composition root binds the REAL `openid-client` grant on purpose.
+// The only way a fake exchange could reach an e2e stack is an env-selectable substitute for the token
+// exchange, which is an authentication bypass wearing a test affordance. So this project stays deferred
+// until a mock IdP exists that the real grant can actually talk to.
 
 /** Every mode project the config builds a project + webServer for (oidc excluded — deferred). */
 export const MODE_PROJECTS: readonly ModeProject[] = [SINGLE_USER, LOCAL, FORWARD_HEADER];

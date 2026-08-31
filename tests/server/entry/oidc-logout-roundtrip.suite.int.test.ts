@@ -15,27 +15,35 @@
 // service, a REAL database and the REAL logout route, and asserts the id_token that went in is the one that
 // comes back out in the end-session URL:
 //
-//   domain/sessions verbs/create (seals, AAD = row id) → the sessions row
-//     → entry/http/auth-routes logout → domain/sessions verbs/revoke (opens + consumes) → the URL
+//   entry/http/auth-routes callback → the injected code→token exchange (#867)
+//     → domain/sessions verbs/create (seals, AAD = row id) → the sessions row
+//       → entry/http/auth-routes logout → domain/sessions verbs/revoke (opens + consumes) → the URL
 //
-// THE ONE HOP IT DOES NOT COVER, stated rather than faked: the OIDC CALLBACK's own
-// `exchange.idToken → sessions.create({ oidcIdToken })` thread. `authorizationCodeGrant` is a module-level
-// `openid-client` import in `auth-routes.ts` rather than an injected dep, so the callback's happy path has
-// never been drivable in-process — the same documented absence `http/auth-routes.test.ts` carries above its
-// callback describe, and `tests/e2e/support/modes.ts:262` carries for e2e. Faking it would mean `vi.mock`
-// against a relative path into `packages/server/node_modules`, which `test-mock-doctrine` correctly REDs:
-// the doctrine's answer is to inject the exchange at the composition root, which is a change to the
-// token-exchange seam and outside this lane's ruling. Filed as a follow-up instead.
+// #867 CLOSED THE FIRST HOP. It used to read "the one hop this cannot cover": `authorizationCodeGrant` was
+// a module-level `openid-client` import in `auth-routes.ts`, the package resolves only under
+// `packages/server/node_modules` (so a `vi.mock("openid-client")` from `tests/` never binds — the real
+// library runs and the callback reports `token_exchange_failed` while LOOKING wired), and the path-form
+// mock that would bind is correctly RED under `test-mock-doctrine`. The doctrine's own answer — inject at
+// the composition root — is now what `OidcRoutesDeps.exchange` is, so the FULL login→logout thread is
+// driven here end to end: a fake exchange hands the callback a known id_token, the REAL callback threads it
+// into the REAL create verb, the row is checked to hold no plaintext, the minted cookie is checked to
+// AUTHENTICATE (`sessions.validate` — the read `sessions.me` projects), and the REAL logout spends the hint.
+//
+// STILL NOT COVERED HERE, and it belongs elsewhere: the grant's CRYPTOGRAPHY (JWKS signature, issuer and
+// audience validation, nonce/PKCE binding) is `openid-client`'s, and an e2e OIDC mode against a mock IdP
+// (`tests/e2e/support/modes.ts`) remains deferred — injecting the seam does not give the e2e stack a fake
+// IdP, because that stack boots the real server, which wires the real grant by design.
 
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { sessions as sessionsTable, users } from "@orb/db";
-import type { Handle, UserId } from "@orb/kit/ids";
+import type { ExternalId, Handle, SessionToken, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { SessionsService } from "@orb/server/domain/sessions";
 import { createSessionsService } from "@orb/server/domain/sessions";
 import type { AuthRoutesDeps, OidcRoutesDeps } from "@orb/server/entry/http";
 import { registerAuthRoutes } from "@orb/server/entry/http";
+import type { OidcTransaction, OidcVerifiedTokens } from "@orb/server/infra/auth";
 import { Hono } from "hono";
 import { beforeEach, describe } from "vitest";
 import { freshDb } from "../../support/db.ts";
@@ -54,6 +62,14 @@ const END_SESSION = "https://idp.example/application/o/orb/end-session/";
 const PEPPER = "test-session-secret-at-least-32-chars-long";
 const USER_ID = castId<UserId>("user_alice");
 const ALLOWLISTED_ORIGIN = { "x-forwarded-proto": "https", "x-forwarded-host": APP_HOST };
+/** #867 — the PKCE/state transaction the authorize leg minted; the callback consumes it single-use. Its
+ *  `redirectUri` is the allowlisted callback the exchange must be presented, whatever origin the request
+ *  arrives on. */
+const TX: OidcTransaction = { state: "st-1", codeVerifier: "cv-1", nonce: "nonce-1", redirectUri: CALLBACK_URI, createdAt: NOW };
+/** The claims the fake exchange yields — a usable username AND the stable subject `oidcSessionIdentity`
+ *  requires. `alice` is the seeded row, so provisioning binds the subject onto it. */
+// biome-ignore lint/style/useNamingConvention: OIDC claim names are wire-fixed snake_case (OIDC Core).
+const CALLBACK_CLAIMS: Record<string, unknown> = { preferred_username: "alice", sub: "sub-alice" };
 
 let db: Db;
 let sessions: SessionsService;
@@ -78,7 +94,11 @@ function fakeConfig(): OidcConfig {
 
 beforeEach(async () => {
   db = await freshDb();
-  await db.insert(users).values({ id: USER_ID, handle: castId<Handle>("alice") });
+  // Already BOUND to the subject the callback's claims carry — the returning-SSO-user shape, so
+  // provisioning takes the subject-match update path. (Seeding it UNBOUND makes the MS-W1 collision
+  // hard-deny fire instead, which is that control working: a subject-bearing login may never auto-link
+  // onto an existing unbound account by handle.)
+  await db.insert(users).values({ id: USER_ID, handle: castId<Handle>("alice"), externalId: castId<ExternalId>("sub-alice") });
   sessions = createSessionsService({ db, now: (): number => NOW, sessionSecret: PEPPER });
   app = new Hono();
   const deps: AuthRoutesDeps = {
@@ -95,7 +115,11 @@ beforeEach(async () => {
       groupsSeparator: ";",
       allowJitProvision: true,
       requireApproval: false,
-      store: { mint: (): Promise<void> => Promise.resolve(), consume: (): Promise<null> => Promise.resolve(null) },
+      // #867 — the real callback needs a real-shaped exchange. The deterministic fake stands in for a
+      // grant `openid-client` has already verified; the SEAM under test is what the route does with it.
+      exchange: (): Promise<OidcVerifiedTokens> => Promise.resolve({ claims: CALLBACK_CLAIMS, idToken: ID_TOKEN }),
+      // The transaction the authorize leg minted, returned single-use by the callback's consume.
+      store: { mint: (): Promise<void> => Promise.resolve(), consume: (): Promise<OidcTransaction | null> => Promise.resolve(TX) },
     },
   };
   registerAuthRoutes(app, deps);
@@ -116,6 +140,48 @@ async function signOut(token: string, origin: Record<string, string>): Promise<s
   expect(res.status).toBe(200);
   return ((await res.json()) as { endSessionUrl: string | null }).endSessionUrl;
 }
+
+/** Drive the REAL OIDC callback and return the `__Host-orb_session` token it minted. Nothing is stubbed
+ *  between the exchange and the database: the route provisions through the real verb, mints through the
+ *  real create verb, and the cookie is whatever the route actually wrote. */
+async function signInViaCallback(): Promise<SessionToken> {
+  const res = await app.request(`/api/auth/oidc/callback?state=${TX.state}&code=auth-code`, { headers: ALLOWLISTED_ORIGIN });
+  expect(res.status).toBe(302);
+  expect(res.headers.get("location")).toBe("/");
+  const setCookie = res.headers.get("set-cookie") ?? "";
+  const token = /__Host-orb_session=([^;]+)/u.exec(setCookie)?.[1];
+  expect(token).toBeDefined();
+  return castId<SessionToken>(token ?? "");
+}
+
+// #867 — THE HOP THAT HAD NO PIN. Every assertion below was unreachable while the exchange was a
+// module-level import: this is the callback's own `exchange.idToken → sessions.create({ oidcIdToken })`
+// thread, proven against a real database rather than a stubbed sessions port.
+describe("#867 — the OIDC CALLBACK is the writer: exchange → sessions.create (sealed) → a usable session", () => {
+  test("the callback mints a session that AUTHENTICATES, with the id_token sealed at rest and no plaintext in the row", async () => {
+    const token = await signInViaCallback();
+
+    // The cookie the callback wrote is a real credential — this is the read `sessions.me` projects.
+    const validated = await sessions.validate(token);
+    expect(validated?.userId).toBe(USER_ID);
+
+    // …and the id_token the IdP returned is in the row SEALED, never in the clear. Both halves matter: a
+    // row with no ciphertext means the callback dropped the token; a row containing the plaintext means
+    // the seal was bypassed.
+    const rows = await db.select().from(sessionsTable);
+    expect(rows[0]?.oidcIdTokenCiphertext).not.toBeNull();
+    expect(JSON.stringify(rows[0])).not.toContain(ID_TOKEN);
+  });
+
+  test("the callback's id_token is the one the LOGOUT spends — the full login→logout thread", async () => {
+    const token = await signInViaCallback();
+    const url = new URL((await signOut(token, ALLOWLISTED_ORIGIN)) ?? "");
+
+    // Byte-identical from the exchange, through the seal, out of the revoke, into the IdP's hint param.
+    expect(url.searchParams.get("id_token_hint")).toBe(ID_TOKEN);
+    expect(url.searchParams.get("post_logout_redirect_uri")).toBe(`https://${APP_HOST}/login`);
+  });
+});
 
 describe("#141 — the id_token round-trips from the session row into the end-session URL", () => {
   test("the hint reaches the URL byte-identical, paired with our own /login as the return target", async () => {

@@ -2919,7 +2919,7 @@
     {
       "siteId": "packages/server/src/entry/http/auth-routes.ts::default:catch::1",
       "path": "packages/server/src/entry/http/auth-routes.ts",
-      "line": 269,
+      "line": 273,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -2927,7 +2927,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "`null` is the DOCUMENTED degraded arm this function's JSDoc above describes — an unreachable IdP discovery means we send no end-session param and the user lands on our own `/login` instead of the IdP's logged-out page. The LOCAL logout has already happened either way, so this can only cost a redirect, never a session. Ends if end-session becomes required for correct logout.",
-      "markerLine": 252
+      "markerLine": 256
     },
     {
       "siteId": "packages/server/src/entry/http/blob.ts::empty:catch::1",

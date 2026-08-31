@@ -88,9 +88,12 @@ export type {
   ForwardJwtVerifier,
   ForwardJwtVerifyArgs,
   IdentityResolution,
+  OidcCodeGrant,
   OidcDiscover,
+  OidcExchange,
   OidcTransaction,
   OidcTransactionStore,
+  OidcVerifiedTokens,
   ResolveDeps,
 } from "./contract.ts";
 export { hasCsrfHeader } from "./csrf.ts";
@@ -99,6 +102,7 @@ export { normalizeHost } from "./host.ts";
 export { createForwardJwtVerifier, jwksCacheSize, jwksFor, resetJwksCache } from "./jwks.ts";
 export { SESSION_COOKIE_NAME } from "./modes/cookie-session.ts";
 export { createOidcConfigCache } from "./oidc-discovery.ts";
+export { createOidcExchange } from "./oidc-exchange.ts";
 export {
   createPasswordHasher,
   DUMMY_PASSWORD_HASH,
