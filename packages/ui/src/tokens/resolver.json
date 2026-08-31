@@ -1,0 +1,36 @@
+{
+  "$schema": "./schemas/resolver-2025.10.schema.json",
+  "name": "Orbweaver shipped theme composition",
+  "version": "2025.10",
+  "sets": {
+    "base": {
+      "sources": [{ "$ref": "./tokens.json" }],
+      "$extensions": {
+        "orb.theme": { "id": "hearth", "colorScheme": "dark" }
+      }
+    },
+    "light": {
+      "sources": [{ "$ref": "./themes/light.json" }],
+      "$extensions": {
+        "orb.theme": { "id": "light", "colorScheme": "light" }
+      }
+    },
+    "mocha": {
+      "sources": [{ "$ref": "./themes/mocha.json" }],
+      "$extensions": {
+        "orb.theme": { "id": "mocha", "colorScheme": "dark" }
+      }
+    }
+  },
+  "modifiers": {
+    "theme": {
+      "default": "hearth",
+      "contexts": {
+        "hearth": [],
+        "light": [{ "$ref": "#/sets/light" }],
+        "mocha": [{ "$ref": "#/sets/mocha" }]
+      }
+    }
+  },
+  "resolutionOrder": [{ "$ref": "#/sets/base" }, { "$ref": "#/modifiers/theme" }]
+}

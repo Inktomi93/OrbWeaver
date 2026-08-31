@@ -1136,6 +1136,8 @@ function writeFixtures(): void {
 // un-plantable without perturbing the live lint/import-law config for every concurrent consumer. Their bite
 // is proven by conformance (dead row · the const/spread/template CODE shapes · unreadable-shape refusal ·
 // absent + unparseable config · zero-rows) and by their own permanent pins under tests/tooling/verify/gates/.
+// tokens-contract reads seven exact canonical JSON/schema paths. A throwaway `__g_` file cannot perturb
+// them without mutating the live vault; its invalid-unit mustFlag and full-corpus mustPass are fs-backed.
 const UNFIXTURABLE_GATES = new Set([
   "biome-grant-liveness",
   "tsconfig-entry-liveness",
@@ -1154,6 +1156,7 @@ const UNFIXTURABLE_GATES = new Set([
   "bus-payload-allowlist",
   "knob-wire-coverage",
   "message-kind-policy-coverage",
+  "tokens-contract",
 ]);
 
 let registry = new Set<string>();

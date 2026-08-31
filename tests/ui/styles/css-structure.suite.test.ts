@@ -4,7 +4,7 @@
 //      reduced-motion floor stays UNLAYERED, color-scheme is declared, and theme.css is imported.
 //   2. shell.css's structural geometry (rail/chrome-row/panel) consumes ONLY the DTCG dimension.*
 //      tokens (WS0) — no raw rem/px literal reintroduced into the tracked properties.
-import { readdirSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { BLUR_SURFACES } from "@orb/contracts/settings";
 import { expect, test } from "../../support/fixtures.ts";
@@ -13,17 +13,21 @@ const GLOBALS_CSS_PATH = join(import.meta.dirname, "../../../packages/ui/src/sty
 // The seed [data-theme] palettes + the base color-scheme are GENERATED into theme.css from
 // src/tokens/themes/*.json (W1) — the palette-block assertions read theme.css, not globals.css.
 const THEME_CSS_PATH = join(import.meta.dirname, "../../../packages/ui/src/styles/theme.css");
-const THEMES_DIR = join(import.meta.dirname, "../../../packages/ui/src/tokens/themes");
+const RESOLVER_JSON_PATH = join(import.meta.dirname, "../../../packages/ui/src/tokens/resolver.json");
 const SHELL_CSS_PATH = join(import.meta.dirname, "../../../packages/client/src/features/app-shell/surfaces/shell.css");
 // @orb/client's single stylesheet — home of the four hand-listed BLUR_SURFACES blocks (W5).
 const CLIENT_GLOBALS_CSS_PATH = join(import.meta.dirname, "../../../packages/client/src/styles/globals.css");
 
-/** Basenames of every seed value-set whose `$colorScheme` is "light" (drives the dark-variant exclusion). */
+/** IDs of every Resolver-declared seed value-set whose Orb metadata says it paints a light scheme. */
 function lightSeedThemeNames(): string[] {
-  return readdirSync(THEMES_DIR)
-    .filter((f) => f.endsWith(".json"))
-    .filter((f) => (JSON.parse(readFileSync(join(THEMES_DIR, f), "utf8")) as { $colorScheme?: string }).$colorScheme === "light")
-    .map((f) => f.slice(0, -".json".length));
+  const resolver = JSON.parse(readFileSync(RESOLVER_JSON_PATH, "utf8")) as {
+    sets: Record<string, { $extensions?: { "orb.theme"?: { id?: string; colorScheme?: string } } }>;
+  };
+  return Object.values(resolver.sets)
+    .map((set) => set.$extensions?.["orb.theme"])
+    .filter((theme): theme is { id: string; colorScheme: string } => theme?.id !== undefined && theme.colorScheme !== undefined)
+    .filter((theme) => theme.colorScheme === "light")
+    .map((theme) => theme.id);
 }
 
 /** Balanced-brace scan: returns the index of the `}` that closes the `{` at `openBraceIndex`. */
@@ -335,9 +339,12 @@ const TOKENS_JSON_PATH = join(import.meta.dirname, "../../../packages/ui/src/tok
 const REM_LITERAL_RE = /^\d+(?:\.\d+)?rem$/u;
 
 test("the shell breakpoint literal agrees across shell.css, the glass block's complement, the matchMedia twin, and its token", () => {
-  const breakpoint = (JSON.parse(readFileSync(TOKENS_JSON_PATH, "utf8")) as { dimension: { "shell-breakpoint": { $value: string } } }).dimension[
-    "shell-breakpoint"
-  ].$value;
+  const value = (
+    JSON.parse(readFileSync(TOKENS_JSON_PATH, "utf8")) as {
+      dimension: { "shell-breakpoint": { $value: { value: number; unit: "px" | "rem" } } };
+    }
+  ).dimension["shell-breakpoint"].$value;
+  const breakpoint = `${value.value}${value.unit}`;
   expect(breakpoint, "dimension.shell-breakpoint must carry a rem literal").toMatch(REM_LITERAL_RE);
 
   // shell.css's mobile arm — the one viewport @media in the layout engine.

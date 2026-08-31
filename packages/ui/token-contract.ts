@@ -1,0 +1,701 @@
+// Stable DTCG 2025.10 is the token VAULT contract; Style Dictionary is only the emitter. The official
+// schemas are vendored and hash-pinned here, then Orb adds the semantic checks JSON Schema cannot express:
+// inherited types, terminal aliases, closed extensions/output roles, bounded Resolver composition, and
+// removed-token review. Runtime CSS remains concrete data in `orb.cssValues`, never a private token type.
+import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import type { ErrorObject, ValidateFunction } from "ajv";
+import { Ajv } from "ajv";
+// biome-ignore lint/performance/noNamespaceImport: ajv-formats is CommonJS; this module is compiled under both Bundler and NodeNext resolution.
+import * as addFormatsModule from "ajv-formats";
+import { z } from "zod";
+
+export const DTCG_VERSION = "2025.10";
+export const FORMAT_SCHEMA_SOURCE = "https://www.designtokens.org/schemas/2025.10/format.json";
+export const RESOLVER_SCHEMA_SOURCE = "https://www.designtokens.org/schemas/2025.10/resolver.json";
+export const FORMAT_SCHEMA_SHA256 = "02d3362a3127834fd2fdd4e4d86748eaa4623054fabf369db8a410526b12646f";
+export const RESOLVER_SCHEMA_SHA256 = "2286caca56d683066475b93bca78fd73a9a337f20981bf98ea8ee8d60f8fd40b";
+export const TOKEN_REMOVAL_BASE_REF = "origin/main";
+
+export const TOKEN_FILES = {
+  base: "src/tokens/tokens.json",
+  light: "src/tokens/themes/light.json",
+  mocha: "src/tokens/themes/mocha.json",
+  resolver: "src/tokens/resolver.json",
+  removed: "src/tokens/removed.json",
+  formatSchema: "src/tokens/schemas/format-2025.10.schema.json",
+  resolverSchema: "src/tokens/schemas/resolver-2025.10.schema.json",
+} as const;
+
+const TOKEN_TYPES = [
+  "color",
+  "dimension",
+  "fontFamily",
+  "fontWeight",
+  "duration",
+  "cubicBezier",
+  "number",
+  "strokeStyle",
+  "border",
+  "transition",
+  "shadow",
+  "gradient",
+  "typography",
+] as const;
+const TOKEN_TYPE_SET: ReadonlySet<string> = new Set(TOKEN_TYPES);
+const TOKEN_REPO_PATH = "packages/ui/src/tokens/tokens.json";
+const ALIAS_RE = /^\{([^{}]+)\}$/u;
+const CSS_VAR_RE = /var\((--[a-z0-9-]+)(?:\s*,[^)]*)?\)/gu;
+
+type JsonObject = Record<string, unknown>;
+type AddFormats = (ajv: Ajv) => Ajv;
+export type TokenType = (typeof TOKEN_TYPES)[number];
+export type OutputRole = "input" | "light-dark" | "percentage";
+
+export interface TokenContractDiagnostic {
+  readonly path: string;
+  readonly message: string;
+  readonly code: string;
+}
+
+export interface ContractToken {
+  readonly path: readonly string[];
+  readonly pathString: string;
+  readonly node: JsonObject;
+  readonly type: TokenType | null;
+  readonly value: unknown;
+  readonly outputRole: OutputRole | null;
+}
+
+export interface CssValueEntry {
+  readonly value: string;
+  readonly description: string;
+  readonly provenance: readonly string[];
+}
+
+export interface ThemeSet {
+  readonly id: "hearth" | "light" | "mocha";
+  readonly colorScheme: "light" | "dark";
+  readonly source: "base" | "light" | "mocha";
+}
+
+export interface TokenContractResult {
+  readonly diagnostics: readonly TokenContractDiagnostic[];
+  readonly scannedTokens: number;
+  readonly baseTokens: readonly ContractToken[];
+  readonly lightTokens: ReadonlyMap<string, ContractToken>;
+  readonly mochaTokens: ReadonlyMap<string, ContractToken>;
+  readonly cssValues: Readonly<Record<string, CssValueEntry>>;
+  readonly cssTargets: ReadonlySet<string>;
+  readonly themes: readonly ThemeSet[];
+}
+
+export interface TokenContractTexts {
+  readonly base: string;
+  readonly light: string;
+  readonly mocha: string;
+  readonly resolver: string;
+  readonly removed: string;
+  readonly formatSchema: string;
+  readonly resolverSchema: string;
+}
+
+const dimensionSchema = z.object({ value: z.number(), unit: z.enum(["px", "rem"]) }).strict();
+const pointerFineSchema = dimensionSchema;
+const outputSchema = z.object({ kind: z.enum(["input", "light-dark", "percentage"]) }).strict();
+const llmSchema = z
+  .object({ usage: z.array(z.string().min(1)).min(1).optional(), rules: z.string().min(1).optional() })
+  .strict()
+  .refine((value) => value.usage !== undefined || value.rules !== undefined, "usage or rules is required");
+const cssValueEntrySchema = z.object({ value: z.string().min(1), description: z.string().min(1), provenance: z.array(z.string().min(1)).min(1) }).strict();
+const cssValuesSchema = z.record(z.string().regex(/^--[a-z0-9-]+$/u), cssValueEntrySchema);
+const themeMetaSchema = z.object({ id: z.enum(["hearth", "light", "mocha"]), colorScheme: z.enum(["light", "dark"]) }).strict();
+const removedSchema = z
+  .object({
+    removed: z.array(z.object({ path: z.string().min(1), reason: z.string().min(1), replacement: z.string().min(1).optional() }).strict()),
+  })
+  .strict();
+
+function isObject(value: unknown): value is JsonObject {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function diagnostic(path: string, code: string, message: string): TokenContractDiagnostic {
+  return { path, code, message };
+}
+
+function sha256(text: string): string {
+  return createHash("sha256").update(text).digest("hex");
+}
+
+function parseJson(text: string, path: string, diagnostics: TokenContractDiagnostic[]): unknown {
+  try {
+    return JSON.parse(text) as unknown;
+  } catch (error) {
+    diagnostics.push(diagnostic(path, "json.parse", error instanceof Error ? error.message : String(error)));
+    return null;
+  }
+}
+
+function zodDiagnostics(path: string, code: string, result: z.ZodSafeParseResult<unknown>): TokenContractDiagnostic[] {
+  if (!("error" in result)) {
+    return [];
+  }
+  return result.error.issues.map((issue) => diagnostic(`${path}${issue.path.length > 0 ? `/${issue.path.join("/")}` : ""}`, code, issue.message));
+}
+
+function ajvDiagnostics(path: string, code: string, validate: ValidateFunction, value: unknown): TokenContractDiagnostic[] {
+  if (validate(value)) {
+    return [];
+  }
+  return (validate.errors ?? []).map((error: ErrorObject) =>
+    diagnostic(`${path}${error.instancePath}`, code, `${error.message ?? "schema violation"}${error.params ? ` (${JSON.stringify(error.params)})` : ""}`),
+  );
+}
+
+function compileSchema(schema: unknown): ValidateFunction {
+  const ajv = new Ajv({ allErrors: true, strict: true });
+  const formatsExport = addFormatsModule.default as AddFormats | { default: AddFormats };
+  const addFormats = typeof formatsExport === "function" ? formatsExport : formatsExport.default;
+  addFormats(ajv);
+  return ajv.compile(schema as object);
+}
+
+function tokenType(value: unknown): TokenType | null {
+  return typeof value === "string" && TOKEN_TYPE_SET.has(value) ? (value as TokenType) : null;
+}
+
+function outputRole(node: JsonObject, path: string, diagnostics: TokenContractDiagnostic[]): OutputRole | null {
+  const extensions = node["$extensions"];
+  if (!isObject(extensions) || extensions["orb.output"] === undefined) {
+    return null;
+  }
+  const parsed = outputSchema.safeParse(extensions["orb.output"]);
+  diagnostics.push(...zodDiagnostics(`${path}/$extensions/orb.output`, "orb.output", parsed));
+  return parsed.success ? parsed.data.kind : null;
+}
+
+function validateOrbExtensionNames(extensions: JsonObject, allowed: ReadonlySet<string>, path: string, diagnostics: TokenContractDiagnostic[]): void {
+  for (const key of Object.keys(extensions)) {
+    if (key.startsWith("orb.") && !allowed.has(key)) {
+      diagnostics.push(diagnostic(`${path}/${key}`, "orb.extension.unknown", `unknown Orb extension ${JSON.stringify(key)}`));
+    }
+  }
+}
+
+interface TokenCollector {
+  readonly diagnostics: TokenContractDiagnostic[];
+  readonly tokens: ContractToken[];
+}
+
+function effectiveTokenType(
+  node: JsonObject,
+  path: readonly string[],
+  inheritedType: TokenType | null,
+  diagnostics: TokenContractDiagnostic[],
+): TokenType | null {
+  const declared = node["$type"];
+  const ownType = tokenType(declared);
+  if (declared !== undefined && ownType === null) {
+    diagnostics.push(diagnostic(`/${path.join("/")}/$type`, "token.type.unknown", `unknown token type ${JSON.stringify(declared)}`));
+  }
+  return ownType ?? inheritedType;
+}
+
+function collectTokenNode(node: JsonObject, path: readonly string[], effectiveType: TokenType | null, collector: TokenCollector): void {
+  const pathString = path.join(".");
+  const jsonPath = `/${path.join("/")}`;
+  const extensions = node["$extensions"];
+  if (isObject(extensions)) {
+    validateOrbExtensionNames(extensions, new Set(["orb.pointerFine", "orb.output"]), `${jsonPath}/$extensions`, collector.diagnostics);
+  }
+  const role = outputRole(node, jsonPath, collector.diagnostics);
+  if (effectiveType === null) {
+    collector.diagnostics.push(diagnostic(jsonPath, "token.type.missing", "token has no declared or inherited standard $type"));
+  }
+  if (isObject(extensions) && extensions["orb.pointerFine"] !== undefined) {
+    collector.diagnostics.push(
+      ...zodDiagnostics(`${jsonPath}/$extensions/orb.pointerFine`, "orb.pointerFine", pointerFineSchema.safeParse(extensions["orb.pointerFine"])),
+    );
+    if (effectiveType !== "dimension") {
+      collector.diagnostics.push(diagnostic(jsonPath, "orb.pointerFine.type", "orb.pointerFine is valid only on a dimension token"));
+    }
+  }
+  if (role === "percentage" && effectiveType !== "number") {
+    collector.diagnostics.push(diagnostic(jsonPath, "orb.output.type", "percentage output requires a number token"));
+  }
+  if (role === "light-dark" && effectiveType !== "color") {
+    collector.diagnostics.push(diagnostic(jsonPath, "orb.output.type", "light-dark output requires a color token"));
+  }
+  collector.tokens.push({ path, pathString, node, type: effectiveType, value: node["$value"] ?? node["$ref"], outputRole: role });
+}
+
+function collectTokens(node: JsonObject, path: readonly string[], inheritedType: TokenType | null, collector: TokenCollector): void {
+  const effectiveType = effectiveTokenType(node, path, inheritedType, collector.diagnostics);
+  if ("$value" in node || "$ref" in node) {
+    collectTokenNode(node, path, effectiveType, collector);
+    return;
+  }
+  const extensions = node["$extensions"];
+  if (path.length > 0 && isObject(extensions)) {
+    validateOrbExtensionNames(extensions, new Set(), `/${path.join("/")}/$extensions`, collector.diagnostics);
+  }
+  for (const [key, child] of Object.entries(node)) {
+    if (key.startsWith("$") || !isObject(child)) {
+      continue;
+    }
+    collectTokens(child, [...path, key], effectiveType, collector);
+  }
+}
+
+function aliasTarget(token: ContractToken): string | null {
+  if (typeof token.node["$ref"] === "string") {
+    const ref = token.node["$ref"];
+    if (!ref.startsWith("#/")) {
+      return null;
+    }
+    const parts = ref
+      .slice(2)
+      .split("/")
+      .map((part) => part.replaceAll("~1", "/").replaceAll("~0", "~"))
+      .filter((part) => part !== "$value");
+    return parts.join(".");
+  }
+  if (typeof token.value !== "string") {
+    return null;
+  }
+  return ALIAS_RE.exec(token.value)?.[1] ?? null;
+}
+
+function validateAliases(tokens: readonly ContractToken[], diagnostics: TokenContractDiagnostic[]): void {
+  const byPath = new Map(tokens.map((token) => [token.pathString, token]));
+  const resolve = (token: ContractToken, chain: readonly string[]): ContractToken | null => {
+    const targetPath = aliasTarget(token);
+    if (targetPath === null) {
+      return token;
+    }
+    if (chain.includes(targetPath)) {
+      diagnostics.push(diagnostic(`/${token.path.join("/")}/$value`, "alias.cycle", `alias cycle: ${[...chain, targetPath].join(" -> ")}`));
+      return null;
+    }
+    const target = byPath.get(targetPath);
+    if (target === undefined) {
+      diagnostics.push(diagnostic(`/${token.path.join("/")}/$value`, "alias.missing", `alias target ${JSON.stringify(targetPath)} does not exist`));
+      return null;
+    }
+    return resolve(target, [...chain, targetPath]);
+  };
+  for (const token of tokens) {
+    if (aliasTarget(token) === null) {
+      continue;
+    }
+    const terminal = resolve(token, [token.pathString]);
+    if (terminal !== null && token.type !== terminal.type) {
+      diagnostics.push(
+        diagnostic(
+          `/${token.path.join("/")}/$value`,
+          "alias.type",
+          `alias type ${token.type ?? "missing"} does not match terminal ${terminal.pathString} type ${terminal.type ?? "missing"}`,
+        ),
+      );
+    }
+  }
+}
+
+function validateFonts(tokens: readonly ContractToken[], diagnostics: TokenContractDiagnostic[]): void {
+  for (const token of tokens) {
+    if (token.type !== "fontFamily" || aliasTarget(token) !== null) {
+      continue;
+    }
+    const members = Array.isArray(token.value) ? token.value : [token.value];
+    for (const [index, member] of members.entries()) {
+      if (typeof member === "string" && member.includes(",")) {
+        diagnostics.push(diagnostic(`/${token.path.join("/")}/$value/${index}`, "fontFamily.member", "each fontFamily member must name exactly one family"));
+      }
+    }
+  }
+}
+
+function validateInheritedValues(tokens: readonly ContractToken[], formatValidate: ValidateFunction, diagnostics: TokenContractDiagnostic[]): void {
+  for (const token of tokens) {
+    if (token.type === null || token.node["$type"] !== undefined) {
+      continue;
+    }
+    const explicit = { token: { ...token.node, $type: token.type } };
+    const inheritedDiagnostics = ajvDiagnostics(`/${token.path.join("/")}`, "format.inherited", formatValidate, explicit);
+    diagnostics.push(...inheritedDiagnostics);
+  }
+}
+
+function parseRootExtensions(base: JsonObject, tokenPaths: ReadonlySet<string>, diagnostics: TokenContractDiagnostic[]): Record<string, CssValueEntry> {
+  const extensions = base["$extensions"];
+  if (!isObject(extensions)) {
+    diagnostics.push(diagnostic("/$extensions", "orb.extensions.missing", "root $extensions must declare orb.llm and orb.cssValues"));
+    return {};
+  }
+  validateOrbExtensionNames(extensions, new Set(["orb.llm", "orb.cssValues"]), "/$extensions", diagnostics);
+  const llm = llmSchema.safeParse(extensions["orb.llm"]);
+  diagnostics.push(...zodDiagnostics("/$extensions/orb.llm", "orb.llm", llm));
+  const cssValues = cssValuesSchema.safeParse(extensions["orb.cssValues"]);
+  diagnostics.push(...zodDiagnostics("/$extensions/orb.cssValues", "orb.cssValues", cssValues));
+  if (!cssValues.success) {
+    return {};
+  }
+  for (const [target, entry] of Object.entries(cssValues.data)) {
+    for (const provenance of entry.provenance) {
+      if (!tokenPaths.has(provenance)) {
+        diagnostics.push(
+          diagnostic(
+            `/$extensions/orb.cssValues/${target}/provenance`,
+            "orb.cssValues.provenance",
+            `provenance token ${JSON.stringify(provenance)} does not exist`,
+          ),
+        );
+      }
+    }
+  }
+  return cssValues.data;
+}
+
+function cssVarFor(token: ContractToken): string {
+  return `--${token.path.join("-")}`;
+}
+
+function validateOutputTargets(
+  baseTokens: readonly ContractToken[],
+  lightTokens: ReadonlyMap<string, ContractToken>,
+  cssValues: Readonly<Record<string, CssValueEntry>>,
+  diagnostics: TokenContractDiagnostic[],
+): ReadonlySet<string> {
+  const targets = new Set<string>();
+  for (const token of baseTokens) {
+    if (token.outputRole === "input") {
+      continue;
+    }
+    const target = cssVarFor(token);
+    if (targets.has(target)) {
+      diagnostics.push(diagnostic(`/${token.path.join("/")}`, "output.duplicate", `duplicate generated target ${target}`));
+    }
+    targets.add(target);
+    if (token.outputRole === "light-dark" && !lightTokens.has(token.pathString)) {
+      diagnostics.push(diagnostic(`/${token.path.join("/")}`, "output.light-dark.missing", "light-dark output has no matching Light value-set token"));
+    }
+  }
+  for (const target of Object.keys(cssValues)) {
+    if (targets.has(target)) {
+      diagnostics.push(diagnostic(`/$extensions/orb.cssValues/${target}`, "output.duplicate", `target ${target} is also emitted by a portable token`));
+    }
+    targets.add(target);
+  }
+  validateCssValueOperands(cssValues, targets, diagnostics);
+  return targets;
+}
+
+function validateCssValueOperands(
+  cssValues: Readonly<Record<string, CssValueEntry>>,
+  targets: ReadonlySet<string>,
+  diagnostics: TokenContractDiagnostic[],
+): void {
+  for (const [target, entry] of Object.entries(cssValues)) {
+    for (const match of entry.value.matchAll(CSS_VAR_RE)) {
+      const operand = match[1];
+      if (operand === undefined || targets.has(operand)) {
+        continue;
+      }
+      diagnostics.push(
+        diagnostic(`/$extensions/orb.cssValues/${target}/value`, "orb.cssValues.var", `custom-property operand ${operand} is not a generated target`),
+      );
+    }
+  }
+}
+
+function asTokenMap(tokens: readonly ContractToken[]): ReadonlyMap<string, ContractToken> {
+  return new Map(tokens.map((token) => [token.pathString, token]));
+}
+
+function validateSeedTokens(name: string, tokens: readonly ContractToken[], basePaths: ReadonlySet<string>, diagnostics: TokenContractDiagnostic[]): void {
+  for (const token of tokens) {
+    if (token.type !== "color") {
+      diagnostics.push(diagnostic(`/${token.path.join("/")}`, "seed.type", `${name} value-set token must inherit or declare color`));
+    }
+    if (!basePaths.has(token.pathString)) {
+      diagnostics.push(diagnostic(`/${token.path.join("/")}`, "seed.extra", `${name} value-set path is absent from the base token vault`));
+    }
+  }
+}
+
+function refValue(value: unknown): string | null {
+  return isObject(value) && typeof value["$ref"] === "string" ? value["$ref"] : null;
+}
+
+const EXPECTED_THEME_META = {
+  base: { id: "hearth", colorScheme: "dark" },
+  light: { id: "light", colorScheme: "light" },
+  mocha: { id: "mocha", colorScheme: "dark" },
+} as const;
+
+function validateThemeMeta(source: keyof typeof EXPECTED_THEME_META, extensions: JsonObject, diagnostics: TokenContractDiagnostic[]): ThemeSet | null {
+  const meta = themeMetaSchema.safeParse(extensions["orb.theme"]);
+  diagnostics.push(...zodDiagnostics(`/sets/${source}/$extensions/orb.theme`, "orb.theme", meta));
+  if (!meta.success) {
+    return null;
+  }
+  const expected = EXPECTED_THEME_META[source];
+  if (meta.data.id !== expected.id || meta.data.colorScheme !== expected.colorScheme) {
+    diagnostics.push(
+      diagnostic(
+        `/sets/${source}/$extensions/orb.theme`,
+        "resolver.theme",
+        `set ${source} must identify seed ${expected.id} with ${expected.colorScheme} color-scheme`,
+      ),
+    );
+  }
+  return { ...meta.data, source };
+}
+
+function validateResolverSets(sets: JsonObject, diagnostics: TokenContractDiagnostic[]): readonly ThemeSet[] {
+  const expectedSets = ["base", "light", "mocha"] as const;
+  const expectedSetRefs = { base: "./tokens.json", light: "./themes/light.json", mocha: "./themes/mocha.json" } as const;
+  const themes: ThemeSet[] = [];
+  if (JSON.stringify(Object.keys(sets).sort()) !== JSON.stringify([...expectedSets].sort())) {
+    diagnostics.push(diagnostic("/sets", "resolver.sets", "bounded Resolver supports exactly base, light, and mocha sets"));
+  }
+  for (const key of expectedSets) {
+    const set = sets[key];
+    if (!isObject(set)) {
+      continue;
+    }
+    const sources = Array.isArray(set["sources"]) ? set["sources"] : [];
+    if (sources.length !== 1 || refValue(sources[0]) !== expectedSetRefs[key]) {
+      diagnostics.push(diagnostic(`/sets/${key}/sources`, "resolver.source", `set ${key} must reference only ${expectedSetRefs[key]}`));
+    }
+    const extensions = isObject(set["$extensions"]) ? set["$extensions"] : {};
+    validateOrbExtensionNames(extensions, new Set(["orb.theme"]), `/sets/${key}/$extensions`, diagnostics);
+    const theme = validateThemeMeta(key, extensions, diagnostics);
+    if (theme !== null) {
+      themes.push(theme);
+    }
+  }
+  return themes;
+}
+
+function validateThemeModifier(modifiers: JsonObject, diagnostics: TokenContractDiagnostic[]): void {
+  if (JSON.stringify(Object.keys(modifiers)) !== JSON.stringify(["theme"])) {
+    diagnostics.push(diagnostic("/modifiers", "resolver.modifiers", "bounded Resolver supports exactly one theme modifier"));
+  }
+  const modifier = isObject(modifiers["theme"]) ? modifiers["theme"] : {};
+  const contexts = isObject(modifier["contexts"]) ? modifier["contexts"] : {};
+  const expectedContexts: Readonly<Record<string, string | null>> = { hearth: null, light: "#/sets/light", mocha: "#/sets/mocha" };
+  if (modifier["default"] !== "hearth") {
+    diagnostics.push(diagnostic("/modifiers/theme/default", "resolver.default", "theme modifier default must be hearth"));
+  }
+  if (JSON.stringify(Object.keys(contexts).sort()) !== JSON.stringify(Object.keys(expectedContexts).sort())) {
+    diagnostics.push(diagnostic("/modifiers/theme/contexts", "resolver.contexts", "theme contexts must be exactly hearth, light, and mocha"));
+  }
+  for (const [context, expectedRef] of Object.entries(expectedContexts)) {
+    const sources = Array.isArray(contexts[context]) ? contexts[context] : [];
+    const valid = expectedRef === null ? sources.length === 0 : sources.length === 1 && refValue(sources[0]) === expectedRef;
+    if (!valid) {
+      diagnostics.push(diagnostic(`/modifiers/theme/contexts/${context}`, "resolver.context", `unsupported source order for ${context}`));
+    }
+  }
+}
+
+function validateResolverSubset(resolver: JsonObject, diagnostics: TokenContractDiagnostic[]): readonly ThemeSet[] {
+  const sets = isObject(resolver["sets"]) ? resolver["sets"] : {};
+  const modifiers = isObject(resolver["modifiers"]) ? resolver["modifiers"] : {};
+  const themes = validateResolverSets(sets, diagnostics);
+  validateThemeModifier(modifiers, diagnostics);
+  const order = Array.isArray(resolver["resolutionOrder"]) ? resolver["resolutionOrder"] : [];
+  const orderRefs = order.map(refValue);
+  if (JSON.stringify(orderRefs) !== JSON.stringify(["#/sets/base", "#/modifiers/theme"])) {
+    diagnostics.push(diagnostic("/resolutionOrder", "resolver.order", "resolutionOrder must be base, then theme modifier"));
+  }
+  return themes;
+}
+
+function tokenPathsFromLegacy(value: unknown): ReadonlySet<string> {
+  if (!isObject(value)) {
+    return new Set();
+  }
+  const tokens: ContractToken[] = [];
+  collectTokens(value, [], null, { diagnostics: [], tokens });
+  return new Set(tokens.map((token) => token.pathString));
+}
+
+function validateRemovedLedger(removed: unknown, currentPaths: ReadonlySet<string>, diagnostics: TokenContractDiagnostic[]): ReadonlySet<string> {
+  const parsed = removedSchema.safeParse(removed);
+  diagnostics.push(...zodDiagnostics("/removed", "removed.schema", parsed));
+  if (!parsed.success) {
+    return new Set();
+  }
+  const seen = new Set<string>();
+  for (const entry of parsed.data.removed) {
+    if (seen.has(entry.path)) {
+      diagnostics.push(diagnostic("/removed", "removed.duplicate", `duplicate removed-token row ${entry.path}`));
+    }
+    seen.add(entry.path);
+    if (currentPaths.has(entry.path)) {
+      diagnostics.push(diagnostic("/removed", "removed.stale", `removed-token row ${entry.path} names a live portable token`));
+    }
+  }
+  return seen;
+}
+
+function previousTokenDocument(repoRoot: string, baseRef: string, diagnostics: TokenContractDiagnostic[]): unknown | null {
+  if (!existsSync(join(repoRoot, ".git"))) {
+    diagnostics.push(diagnostic("/removed", "removed.baseline", `cannot inspect token history: ${repoRoot} is not a Git worktree`));
+    return null;
+  }
+  try {
+    const mergeBase = execFileSync("git", ["merge-base", "HEAD", baseRef], { cwd: repoRoot, encoding: "utf8" }).trim();
+    const treePaths = execFileSync("git", ["ls-tree", "-r", "--name-only", mergeBase, "--", TOKEN_REPO_PATH], {
+      cwd: repoRoot,
+      encoding: "utf8",
+    })
+      .split("\n")
+      .filter(Boolean);
+    if (!treePaths.includes(TOKEN_REPO_PATH)) {
+      diagnostics.push(diagnostic("/removed", "removed.baseline", `${TOKEN_REPO_PATH} is absent from merge base ${mergeBase}`));
+      return null;
+    }
+    const text = execFileSync("git", ["show", `${mergeBase}:${TOKEN_REPO_PATH}`], { cwd: repoRoot, encoding: "utf8" });
+    return JSON.parse(text) as unknown;
+  } catch (error) {
+    diagnostics.push(
+      diagnostic("/removed", "removed.baseline", `cannot inspect token history against ${baseRef}: ${error instanceof Error ? error.message : String(error)}`),
+    );
+    return null;
+  }
+}
+
+interface RemovedDiffContext {
+  readonly repoRoot: string;
+  readonly baseRef: string;
+  readonly currentPaths: ReadonlySet<string>;
+  readonly ledger: ReadonlySet<string>;
+  readonly diagnostics: TokenContractDiagnostic[];
+}
+
+function validateRemovedDiff(context: RemovedDiffContext): void {
+  const { repoRoot, baseRef, currentPaths, ledger, diagnostics } = context;
+  const previous = previousTokenDocument(repoRoot, baseRef, diagnostics);
+  if (previous === null) {
+    return;
+  }
+  for (const path of tokenPathsFromLegacy(previous)) {
+    if (!(currentPaths.has(path) || ledger.has(path))) {
+      diagnostics.push(diagnostic("/removed", "removed.unrecorded", `portable token ${path} was removed without a ledger row`));
+    }
+  }
+}
+
+export function validateTokenContractTexts(texts: TokenContractTexts, repoRoot?: string, baseRef = TOKEN_REMOVAL_BASE_REF): TokenContractResult {
+  const diagnostics: TokenContractDiagnostic[] = [];
+  const formatHash = sha256(texts.formatSchema);
+  const resolverHash = sha256(texts.resolverSchema);
+  if (formatHash !== FORMAT_SCHEMA_SHA256) {
+    diagnostics.push(diagnostic(TOKEN_FILES.formatSchema, "schema.hash", `official Format schema hash ${formatHash} does not match ${FORMAT_SCHEMA_SHA256}`));
+  }
+  if (resolverHash !== RESOLVER_SCHEMA_SHA256) {
+    diagnostics.push(
+      diagnostic(TOKEN_FILES.resolverSchema, "schema.hash", `official Resolver schema hash ${resolverHash} does not match ${RESOLVER_SCHEMA_SHA256}`),
+    );
+  }
+  const formatSchema = parseJson(texts.formatSchema, TOKEN_FILES.formatSchema, diagnostics);
+  const resolverSchema = parseJson(texts.resolverSchema, TOKEN_FILES.resolverSchema, diagnostics);
+  const base = parseJson(texts.base, TOKEN_FILES.base, diagnostics);
+  const light = parseJson(texts.light, TOKEN_FILES.light, diagnostics);
+  const mocha = parseJson(texts.mocha, TOKEN_FILES.mocha, diagnostics);
+  const resolver = parseJson(texts.resolver, TOKEN_FILES.resolver, diagnostics);
+  const removed = parseJson(texts.removed, TOKEN_FILES.removed, diagnostics);
+  if (![formatSchema, resolverSchema, base, light, mocha, resolver, removed].every((value) => value !== null)) {
+    return { diagnostics, scannedTokens: 0, baseTokens: [], lightTokens: new Map(), mochaTokens: new Map(), cssValues: {}, cssTargets: new Set(), themes: [] };
+  }
+  let formatValidate: ValidateFunction;
+  let resolverValidate: ValidateFunction;
+  try {
+    formatValidate = compileSchema(formatSchema);
+    resolverValidate = compileSchema(resolverSchema);
+  } catch (error) {
+    diagnostics.push(diagnostic("schemas", "schema.compile", error instanceof Error ? error.message : String(error)));
+    return { diagnostics, scannedTokens: 0, baseTokens: [], lightTokens: new Map(), mochaTokens: new Map(), cssValues: {}, cssTargets: new Set(), themes: [] };
+  }
+  diagnostics.push(...ajvDiagnostics(TOKEN_FILES.base, "format.schema", formatValidate, base));
+  diagnostics.push(...ajvDiagnostics(TOKEN_FILES.light, "format.schema", formatValidate, light));
+  diagnostics.push(...ajvDiagnostics(TOKEN_FILES.mocha, "format.schema", formatValidate, mocha));
+  diagnostics.push(...ajvDiagnostics(TOKEN_FILES.resolver, "resolver.schema", resolverValidate, resolver));
+  const baseTokens: ContractToken[] = [];
+  const lightTokenList: ContractToken[] = [];
+  const mochaTokenList: ContractToken[] = [];
+  if (isObject(base)) {
+    collectTokens(base, [], null, { diagnostics, tokens: baseTokens });
+  }
+  if (isObject(light)) {
+    collectTokens(light, [], null, { diagnostics, tokens: lightTokenList });
+  }
+  if (isObject(mocha)) {
+    collectTokens(mocha, [], null, { diagnostics, tokens: mochaTokenList });
+  }
+  if (baseTokens.length + lightTokenList.length + mochaTokenList.length === 0) {
+    diagnostics.push(diagnostic(TOKEN_FILES.base, "token.scan.empty", "token contract scanned zero tokens; clean output would be blind"));
+  }
+  validateAliases(baseTokens, diagnostics);
+  validateFonts(baseTokens, diagnostics);
+  validateInheritedValues(baseTokens, formatValidate, diagnostics);
+  validateInheritedValues(lightTokenList, formatValidate, diagnostics);
+  validateInheritedValues(mochaTokenList, formatValidate, diagnostics);
+  const basePaths = new Set(baseTokens.map((token) => token.pathString));
+  validateSeedTokens("Light", lightTokenList, basePaths, diagnostics);
+  validateSeedTokens("Mocha", mochaTokenList, basePaths, diagnostics);
+  const cssValues = isObject(base) ? parseRootExtensions(base, basePaths, diagnostics) : {};
+  const lightTokens = asTokenMap(lightTokenList);
+  const mochaTokens = asTokenMap(mochaTokenList);
+  const cssTargets = validateOutputTargets(baseTokens, lightTokens, cssValues, diagnostics);
+  const themes = isObject(resolver) ? validateResolverSubset(resolver, diagnostics) : [];
+  const ledger = validateRemovedLedger(removed, basePaths, diagnostics);
+  if (repoRoot !== undefined) {
+    validateRemovedDiff({ repoRoot, baseRef, currentPaths: basePaths, ledger, diagnostics });
+  }
+  return {
+    diagnostics,
+    scannedTokens: baseTokens.length + lightTokenList.length + mochaTokenList.length,
+    baseTokens,
+    lightTokens,
+    mochaTokens,
+    cssValues,
+    cssTargets,
+    themes,
+  };
+}
+
+export function readTokenContractTexts(uiRoot = import.meta.dirname): TokenContractTexts {
+  const read = (path: string): string => readFileSync(join(uiRoot, path), "utf8");
+  return {
+    base: read(TOKEN_FILES.base),
+    light: read(TOKEN_FILES.light),
+    mocha: read(TOKEN_FILES.mocha),
+    resolver: read(TOKEN_FILES.resolver),
+    removed: read(TOKEN_FILES.removed),
+    formatSchema: read(TOKEN_FILES.formatSchema),
+    resolverSchema: read(TOKEN_FILES.resolverSchema),
+  };
+}
+
+export function validateTokenContract(uiRoot = import.meta.dirname, repoRoot?: string): TokenContractResult {
+  return validateTokenContractTexts(readTokenContractTexts(uiRoot), repoRoot);
+}
+
+export function assertTokenContract(uiRoot = import.meta.dirname, repoRoot?: string): TokenContractResult {
+  const result = validateTokenContract(uiRoot, repoRoot);
+  if (result.diagnostics.length > 0) {
+    throw new Error(
+      `token contract failed (${result.diagnostics.length} finding(s), scanned ${result.scannedTokens} tokens):\n${result.diagnostics
+        .map((item) => `${item.path} [${item.code}] ${item.message}`)
+        .join("\n")}`,
+    );
+  }
+  return result;
+}
