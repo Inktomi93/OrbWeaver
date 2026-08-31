@@ -97,7 +97,7 @@ function CastBarStrip({ cast, humans }: { readonly cast: readonly CastSeat[]; re
       align="center"
       className={cn("flex-wrap px-block py-row", BG_PHOTO_BAND_PLATE)}
       data-testid={testId("chatCastBar")}
-      aria-label="Cast"
+      aria-label="Characters"
       role="group"
     >
       {(cast.length > 1 ? cast : []).map((member) => (

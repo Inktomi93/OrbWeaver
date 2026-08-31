@@ -76,15 +76,15 @@ test("roving tabindex: one tab stop; arrows cross the People→Cast boundary; Ho
 // arrow handler, so they answered to a POINTER ONLY. Both assert through user-visible affordances (roles,
 // accessible names, focus) so they red on the pre-fix source rather than failing to compile against it.
 
-test("#208: the roster announces as a vertical toolbar, with People and Cast as named groups", async ({ mount }) => {
+test("#208: the roster announces as a vertical toolbar, with People and Characters as named groups", async ({ mount }) => {
   const component = await mount(<MembersPanelStory withPeople={true} />);
 
-  const toolbar = component.getByRole("toolbar", { name: "Members and cast" });
+  const toolbar = component.getByRole("toolbar", { name: "Members and characters" });
   await expect(toolbar).toBeVisible();
   await expect(toolbar).toHaveAttribute("aria-orientation", "vertical");
   // Each section's group NAME is its own on-screen kicker — no second copy of the word to drift.
   await expect(component.getByRole("group", { name: "People" })).toBeVisible();
-  await expect(component.getByRole("group", { name: "Cast" })).toBeVisible();
+  await expect(component.getByRole("group", { name: "Characters" })).toBeVisible();
   // The rows are still the ONE roving tab stop (§7.1 unchanged — the mechanism was right, the silence was not).
   await expect(component.locator('[data-slot="member-row"] button[tabindex="0"]')).toHaveCount(1);
 });

@@ -44,7 +44,7 @@ const LIST_REGION = "Settings groups";
 const BAND = '[data-slot="config-band"]';
 /** The four collection groups: their bands disclose MEMBER rows, not section rows, so the sweep that expects
  *  "exactly one current section row" skips them. */
-const COLLECTION_GROUPS = new Set(["tags", "regex", "worldInfo", "cast"]);
+const COLLECTION_GROUPS = new Set(["tags", "regex", "worldInfo", "rosterPreset"]);
 
 /** A REAL, installable bundle (the two entries the funnel admits) for the distribute flow — built with the
  *  same `fflate` the surface reads it back with, so the confirm step's capability list comes from a genuine

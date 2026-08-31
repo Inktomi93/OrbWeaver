@@ -154,7 +154,7 @@ interface ChatOptionsCastMember {
 export interface ChatOptionsMenuProps {
   readonly chatId: ChatId;
   readonly title: string | null;
-  /** Seeds "New chat with same cast" and the per-character gallery entries. */
+  /** Seeds "New chat with the same characters" and the per-character gallery entries. */
   readonly characters: readonly ChatOptionsCastMember[];
 }
 
@@ -163,7 +163,7 @@ export function ChatOptionsMenu({ chatId, title, characters }: ChatOptionsMenuPr
   const invalidation = useInvalidation();
   const updateTitle = useUpdateChatTitle({ trpc, invalidation });
   const deleteChat = useDeleteChat({ trpc, invalidation });
-  // "New chat with same cast" is a CREATION, and creation is one shared client seam (`#data`), never a
+  // "New chat with the same characters" is a CREATION, and creation is one shared client seam (`#data`), never a
   // store write that hands a rowless room to the chat surface.
   const { startChat } = useStartChat();
   const [renameOpen, setRenameOpen] = useState(false);
@@ -202,7 +202,7 @@ export function ChatOptionsMenu({ chatId, title, characters }: ChatOptionsMenuPr
         {characterIds.length > 0 ? (
           <MenuItem onClick={(): void => void startChat({ characterIds })}>
             <Icon icon={MessagesSquare} size="sm" />
-            New chat with same cast
+            New chat with the same characters
           </MenuItem>
         ) : null}
         {soloCharacter !== undefined ? (

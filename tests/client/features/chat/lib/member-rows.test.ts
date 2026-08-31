@@ -11,7 +11,7 @@ import type { CastEntry } from "@orb/contracts/chat";
 import type { CharacterId, Handle, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { MemberRowSources } from "../../../../../packages/client/src/features/chat/lib/member-rows.ts";
-import { toCastRows, toPersonRows } from "../../../../../packages/client/src/features/chat/lib/member-rows.ts";
+import { toCharacterRows, toPersonRows } from "../../../../../packages/client/src/features/chat/lib/member-rows.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeParticipant } from "./_support.ts";
 
@@ -93,10 +93,10 @@ test("a human seat with no userId is skipped — every membership action address
   expect(toPersonRows(sourcesOf({ participants: [oidcSeat({ userId: null })] }))).toEqual([]);
 });
 
-test("toCastRows projects every character seat in roster order, marking the live speaker", () => {
+test("toCharacterRows projects every character seat in roster order, marking the live speaker", () => {
   const alice = makeParticipant({ id: castId("participant_alice"), characterId: ALICE_ID, displayName: "Alice", disabled: true });
   const bob = makeParticipant({ id: castId("participant_bob"), characterId: BOB_ID, displayName: "Bob", talkativeness: 0.5 });
-  const rows = toCastRows(sourcesOf({ participants: [oidcSeat(), alice, bob], respondingCharacterId: BOB_ID }));
+  const rows = toCharacterRows(sourcesOf({ participants: [oidcSeat(), alice, bob], respondingCharacterId: BOB_ID }));
 
   expect(rows.map((r) => [r.displayName, r.disabled, r.responding])).toEqual([
     ["Alice", true, false],

@@ -14,7 +14,7 @@ import { goToLanding, openModal, useTurnSpeakerCharacterId } from "#state";
 import { useKickMember, useNominateHostHandoff, useSelfLeave, useSetMemberHistoryVisibility } from "../hooks/use-membership-mutations.ts";
 import { useForceCharacterTurn, useRemoveCharacterFromChat, useSetSeatKnobs } from "../hooks/use-roster-mutations.ts";
 import type { MemberRowActions } from "../lib/member-rows.ts";
-import { toCastRows, toPersonRows } from "../lib/member-rows.ts";
+import { toCharacterRows, toPersonRows } from "../lib/member-rows.ts";
 import { filterCharacters, resolveIsGroupChat } from "../lib/roster.ts";
 import { AddMemberPopover } from "./add-member-popover.tsx";
 import { InviteDialog } from "./invite-dialog.tsx";
@@ -86,7 +86,7 @@ export function CommittedMembersTab({ chatId, chat, isHost, multiHumanCapable }:
   // No display floor on the cast: the room's characters ARE the roster, and a "worth its own list" threshold
   // here hid every 1:1 room's whole cast plus its per-character controls (#162). The panel drops the section
   // entirely when there is nothing to show AND nothing this viewer can add.
-  const cast = toCastRows(sources);
+  const cast = toCharacterRows(sources);
   const hostMembership = isHost && multiHumanCapable;
   // ARBITRATION APPLICABILITY (#182 — "some group stuff is showing up even when not in group", owner live
   // report 2026-08-18). Mute, Talkativeness and "Make X speak next" are not per-character preferences: all
@@ -134,24 +134,28 @@ export function CommittedMembersTab({ chatId, chat, isHost, multiHumanCapable }:
         castAction={
           isHost ? (
             <Row align="center" gap="tight">
-              {/* #26 — the saved-cast door (B10: apply-existing = Members “Add a saved cast…”): the picker is the destination
-                  (openModal, never a feature import); applying and "Save current cast" both live inside it, scoped to THIS open room.
+              {/* #26 — the saved-roster door (B10: apply-existing = Members "Rosters…"): the picker is the destination
+                  (openModal, never a feature import); applying and "Save this room's roster" both live inside it, scoped to THIS open room.
 
-                  IT SAYS *SAVED* NOW (#899 N6, post-fix verification 2026-08-30). Beside it sits
-                  `AddMemberPopover`'s "Add a character", 4px away, and a cold reader could not tell the two
-                  apart: "cast" is insider vocabulary for a STORED GROUP, and next to "a character" it reads
+                  IT SAYS *SAVED* — via the dialog it opens, not the button (#899 N6, post-fix verification
+                  2026-08-30; retargeted to "roster" vocabulary #902 C1, and re-shortened here because
+                  `Saved rosters…` — one character longer than the retired `Saved casts…` — re-tripped this
+                  file's own 320px context-pane overflow pin). Beside it sits `AddMemberPopover`'s "Add a
+                  character", 4px away, and a cold reader could not tell the two apart before the vocabulary
+                  split: "cast" was insider vocabulary for a STORED GROUP, and next to "a character" it read
                   as the same verb on a vaguer noun. The discriminator is what each door actually opens —
                   this one applies a group you saved earlier, the other picks one existing character — so
                   the visible words name the DESTINATION vs the OBJECT: this one opens the dialog titled
-                  "Saved casts" (its label IS that destination — the house's own "the picker is the
-                  destination" rule), the other picks one existing character. The accessible name is the
-                  visible text in both (no `aria-label` on either), so 2.5.3 holds by construction.
-                  `Saved casts…` and not `Add a saved cast…`: the longer spelling pushed the two-door
-                  cluster past the 320px context-pane floor, and that file's own overflow pin caught it —
-                  a label a cold reader can parse is worth nothing if it escapes the pane. */}
-              <Button type="button" intent="ghost" size="sm" onClick={(): void => openModal("savedCasts")}>
+                  "Saved rosters" (the button names the KIND, the dialog title carries the full "Saved"
+                  framing — the house's own "the picker is the destination" rule, at the width this pane
+                  actually has), the other picks one existing character. The accessible name is the visible
+                  text in both (no `aria-label` on either), so 2.5.3 holds by construction.
+                  `Rosters…`, not `Saved rosters…` or `Add a saved roster…`: both longer spellings push the
+                  two-door cluster past the 320px context-pane floor, and that file's own overflow pin
+                  caught it — a label a cold reader can parse is worth nothing if it escapes the pane. */}
+              <Button type="button" intent="ghost" size="sm" onClick={(): void => openModal("savedRosters")}>
                 <Icon icon={Users} size="sm" />
-                Saved casts…
+                Rosters…
               </Button>
               <AddMemberPopover chatId={chatId} existingCharacterIds={[...participantIdByCharacter.keys()]} />
             </Row>

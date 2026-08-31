@@ -283,7 +283,7 @@ export interface RpgCharacterDetailProps {
   readonly actor: RpgActorView;
   /** The volatile-plane callbacks (host) — the SAME set the collapsed roster row uses. */
   readonly edit?: ActorEdit;
-  /** Back to the roster (the breadcrumb) — the takeover's only exit. */
+  /** Back to the characters (the breadcrumb) — the takeover's only exit. */
   readonly onBack: () => void;
 }
 
@@ -345,7 +345,7 @@ export function RpgCharacterDetail({ state, actor, edit, onBack }: RpgCharacterD
       {/* The breadcrumb — a real button (keyboard-reachable, ≥44px on a coarse pointer through the shared
           control tokens), naming where it goes. The roster is one step away from every character. */}
       <Row gap="field" align="center">
-        <Button intent="ghost" size="sm" onClick={onBack} aria-label="Back to the roster">
+        <Button intent="ghost" size="sm" onClick={onBack} aria-label="Back to the characters">
           <Icon icon={ChevronLeft} size="xs" />
           Roster
         </Button>

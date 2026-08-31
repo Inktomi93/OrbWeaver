@@ -95,7 +95,7 @@ export function GroupConfigForm({ entityId, config, save }: GroupConfigFormProps
           <form.AppField name="output">
             {(field): ReactElement => (
               <Stack gap="field">
-                <Text voice="label">How the cast replies</Text>
+                <Text voice="label">How the characters reply</Text>
                 <ToggleGroup
                   value={[field.state.value]}
                   onValueChange={(value): void => {
@@ -106,7 +106,7 @@ export function GroupConfigForm({ entityId, config, save }: GroupConfigFormProps
                       form.setFieldValue("speakerTags", defaultSpeakerTags(output));
                     }
                   }}
-                  aria-label="How the cast replies"
+                  aria-label="How the characters reply"
                 >
                   <Toggle value="per-speaker">Per-speaker</Toggle>
                   <Toggle value="narrator">Narrator</Toggle>

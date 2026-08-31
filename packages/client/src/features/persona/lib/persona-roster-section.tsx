@@ -6,11 +6,11 @@
 
 import type { ConfigSectionContribution } from "#state";
 import { PersonaRosterSection } from "../components/persona-roster-section.tsx";
-import { PERSONA_ROSTER_SUBCATEGORY } from "./personas-nav.ts";
+import { PERSONA_LIST_SUBCATEGORY } from "./personas-nav.ts";
 
 export const personaRosterSection: ConfigSectionContribution = {
   id: "persona-roster",
   anchor: "personas",
-  nav: PERSONA_ROSTER_SUBCATEGORY,
+  nav: PERSONA_LIST_SUBCATEGORY,
   body: () => <PersonaRosterSection />,
 };

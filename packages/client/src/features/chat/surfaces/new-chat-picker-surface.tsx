@@ -138,11 +138,11 @@ export function NewChatPicker(): ReactElement {
   const intent = useNewChatIntent();
   const { startChat, isPending } = useStartChat();
   const trpc = useTRPC();
-  // #26 — the "Start from saved cast" door, shown only when the library HAS saved casts (the program doc's
-  // empty-library rule: the AFFORDANCE hides; the modal itself keeps its designed empty state). Cache-first
-  // at staleTime:Infinity, bus-driven fresh via `rosterPresetsChanged`.
-  const { data: parties } = useQuery(trpc.rosterPreset.list.queryOptions());
-  const hasParties = (parties?.length ?? 0) > 0;
+  // #26 — the "Start from a saved roster" door, shown only when the library HAS saved rosters (the program
+  // doc's empty-library rule: the AFFORDANCE hides; the modal itself keeps its designed empty state).
+  // Cache-first at staleTime:Infinity, bus-driven fresh via `rosterPresetsChanged`.
+  const { data: rosters } = useQuery(trpc.rosterPreset.list.queryOptions());
+  const hasRosters = (rosters?.length ?? 0) > 0;
 
   const dismiss = (): void => {
     clearNewChatIntent();
@@ -198,21 +198,21 @@ export function NewChatPicker(): ReactElement {
           </Text>
         </Row>
       ) : null}
-      {hasParties ? (
+      {hasRosters ? (
         <Row justify="end" padding="block">
-          {/* #26 — hop to the saved-cast picker (the slot is the destination — no feature import). The
-              intent is cleared like any dismiss: a party start carries its own creation parameters. */}
+          {/* #26 — hop to the saved-roster picker (the slot is the destination — no feature import). The
+              intent is cleared like any dismiss: a roster start carries its own creation parameters. */}
           <Button
             intent="ghost"
             size="sm"
             onClick={(): void => {
               clearNewChatIntent();
               closeModal();
-              openModal("savedCasts");
+              openModal("savedRosters");
             }}
           >
             <Icon icon={Users} size="sm" />
-            Start from saved cast
+            Start from a saved roster
           </Button>
         </Row>
       ) : null}
