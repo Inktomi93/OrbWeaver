@@ -123,6 +123,4 @@ scratch/
 # how to read one is documented in packages/client/vite.config.ts's header.
 *.cpuprofile
 
-packages/ui/.ds-preview-tokens.css
 .claude/apisurface-*.txt
-packages/ui/.ds-preview-fonts/
