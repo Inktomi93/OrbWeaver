@@ -315,7 +315,7 @@ export function makeInertOps(): PluginHostOps {
       // visibility verdict sees an empty read rather than a silently-unclamped one.
       resolveViewerVisibility: () => Promise.resolve(null),
       getVariables: () => Promise.resolve({}),
-      listRoster: () => Promise.resolve([]),
+      listCharacters: () => Promise.resolve([]),
       applyVariableOps: () => Promise.resolve(),
       requestTurn: () => Promise.resolve(),
     },

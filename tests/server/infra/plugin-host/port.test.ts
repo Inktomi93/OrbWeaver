@@ -337,7 +337,7 @@ function fakeBridge(): {
         turns.args = [chatId, automationDepth, p];
         return Promise.resolve();
       },
-      listRoster: () => Promise.resolve([]),
+      listCharacters: () => Promise.resolve([]),
     },
     worldInfo: {
       upsertEntry: (chatId) => {

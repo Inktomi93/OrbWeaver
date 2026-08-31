@@ -124,7 +124,7 @@ function fakeBridge(opts: { readonly egressRefusal?: string } = {}): {
       listMessages: () => Promise.resolve([]),
       getVariables: () => Promise.resolve({ tension: "4" }),
       // #788 F11 — a canned roster so the gate + forward path is observable; a `null` avatar keeps it minimal.
-      listRoster: () => Promise.resolve([{ id: "char_seat0000000000000000000", name: "Seat", avatarAssetId: null }]),
+      listCharacters: () => Promise.resolve([{ id: "char_seat0000000000000000000", name: "Seat", avatarAssetId: null }]),
       applyVariableOps: () => {
         writes.count += 1;
         return Promise.resolve();
@@ -452,18 +452,18 @@ describe("attachMembrane — #788 READ gaps are gated on the CORRECT capability 
     });
   });
 
-  test("chat.listRoster WITHOUT chat.read is refused (the same grant its sibling reads ride)", async () => {
+  test("chat.listCharacters WITHOUT chat.read is refused (the same grant its sibling reads ride)", async () => {
     const { bridge } = fakeBridge();
     await withHost(allBut("chat.read"), true, bridge, async (ctx) => {
-      const out = await runAsync(ctx, "(async () => { try { await host.chat.listRoster('any'); return 'NO-THROW' } catch (e) { return e.name } })()");
+      const out = await runAsync(ctx, "(async () => { try { await host.chat.listCharacters('any'); return 'NO-THROW' } catch (e) { return e.name } })()");
       expect(out).toBe("PluginCapabilityError");
     });
   });
 
-  test("chat.listRoster WITH chat.read returns the invocation chat's roster", async () => {
+  test("chat.listCharacters WITH chat.read returns the invocation chat's roster", async () => {
     const { bridge } = fakeBridge();
     await withHost(["chat.read"], false, bridge, async (ctx) => {
-      const out = await runAsync(ctx, "(async () => String((await host.chat.listRoster(host.chat.current())).length))()");
+      const out = await runAsync(ctx, "(async () => String((await host.chat.listCharacters(host.chat.current())).length))()");
       expect(out).toBe("1");
     });
   });

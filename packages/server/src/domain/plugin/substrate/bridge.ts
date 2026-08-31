@@ -114,13 +114,13 @@ export function buildPluginBridge(ops: PluginHostOps, installerUserId: UserId, p
       // membership FIRST; a non-member (a chat that raced a kick/leave between admission and this call) ⇒ `[]`,
       // never a read of a room the caller is no longer in. Membership confirmed, the read is the room's own
       // present character seats (reduced to id/name/avatar) — the room's member-visible state, so no owner filter
-      // is needed past membership. The op is principal-free (`loadPluginRoster`); this file owns the gate.
-      listRoster: async (chatId): Promise<readonly PluginCharacterView[]> => {
+      // is needed past membership. The op is principal-free (`loadPluginCharacters`); this file owns the gate.
+      listCharacters: async (chatId): Promise<readonly PluginCharacterView[]> => {
         const visibility = await ops.chat.resolveViewerVisibility(chatId, installerUserId);
         if (visibility === null) {
           return [];
         }
-        return await ops.chat.listRoster(chatId);
+        return await ops.chat.listCharacters(chatId);
       },
       applyVariableOps: (chatId, varOps) => ops.chat.applyVariableOps(chatId, varOps),
       // The FUNDER is closed over the installer (never infra/guest-supplied) — the membrane passes only the

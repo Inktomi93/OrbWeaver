@@ -31,7 +31,7 @@ test("HOST_FUNCTION_CAPABILITY maps 40 gated functions, every value a real capab
   // 33 → 35 at U8 D148: `character.setCardData` + `character.getCardData`, both keyed to the ONE
   // `character.card_state` grant (symmetric like `pubsub` — "store its own data on your characters" covers reading
   // it back). Two functions, one capability: the same 1:many the coverage loop below tolerates.
-  // 35 → 39 at #788 (the READ gaps): `chat.listRoster` rides the EXISTING `chat.read` grant (member-visible room
+  // 35 → 39 at #788 (the READ gaps): `chat.listCharacters` rides the EXISTING `chat.read` grant (member-visible room
   // state, no new consent line — the `getVariables` posture); `worldInfo.listBooks` + `worldInfo.listEntries`
   // both key to the ONE NEW `worldinfo.read` grant (a symmetric "read your lore" line, distinct from the write);
   // `assets.read` keys to the ONE NEW `assets.read` grant. Four functions, two new capabilities — the read

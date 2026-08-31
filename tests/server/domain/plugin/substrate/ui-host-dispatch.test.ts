@@ -41,7 +41,7 @@ function makeBridge(): PluginBridge {
       applyVariableOps: notProxied("chat.applyVariableOps"),
       requestTurn: notProxied("chat.requestTurn"),
       // #788 F11 — the roster read is NOT proxyable (excluded, a priced widening), so a Tier-C dispatch must throw.
-      listRoster: notProxied("chat.listRoster"),
+      listCharacters: notProxied("chat.listCharacters"),
     },
     // #788 F12 — the world-info reads are NOT proxyable (excluded), so a Tier-C dispatch of either must throw.
     worldInfo: {

@@ -89,7 +89,7 @@ export async function loadPluginMessages(
  * `getCharacters` surface is the character cast) and `left_seq IS NULL` (a departed seat is not present roster).
  * `avatarAssetId` crosses as inert text a guest may hand to an `image` node or `assets.read`.
  */
-export async function loadPluginRoster(db: Db, chatId: ChatId): Promise<readonly PluginCharacterView[]> {
+export async function loadPluginCharacters(db: Db, chatId: ChatId): Promise<readonly PluginCharacterView[]> {
   const rows = await db
     .select({
       characterId: chatParticipants.characterId,
