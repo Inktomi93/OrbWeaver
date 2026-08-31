@@ -10,7 +10,7 @@ import {
   createEntityMutation,
   QueryBoundary,
   sessionFreshnessAgeMs,
-  useCarriedAppearanceCast,
+  useCarriedAppearance,
   useColorQuotedSpeech,
   useDisplayScripts,
   useGatedQuery,
@@ -818,7 +818,7 @@ export function CarriedAppearanceCastStory({ chatId }: { readonly chatId: ChatId
 }
 
 function CarriedAppearanceCastReader({ chatId }: { readonly chatId: ChatId | null }): ReactElement {
-  const cast = useCarriedAppearanceCast(chatId);
+  const cast = useCarriedAppearance(chatId);
   const readout = cast === undefined ? "pending" : `humans=${cast.humanCount} cards=${cast.characters.map((member) => member.displayName).join("+")}`;
   return <output data-testid="carried-cast">{readout}</output>;
 }

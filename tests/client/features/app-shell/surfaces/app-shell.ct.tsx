@@ -1320,7 +1320,7 @@ const WIDE = { width: 1280, height: 900 }; // >64rem
 /** The active room's id — MINTED, never a hand-written literal: the persisted active-chat store parses it
  *  through `typeIdSchema` on rehydrate and drops anything that fails. */
 const ROOM_CHAT_ID = mintTypeId(ID_PREFIX.chat);
-/** ONE human seat and no other — the BG-C gate (`isSingleHumanCast`): with a second human on the roster
+/** ONE human seat and no other — the BG-C gate (`isSingleHumanRoom`): with a second human on the roster
  *  the carried source is inert for everyone and the test would pass against a broken shell. */
 const ROOM_HUMAN_SEAT = {
   id: "participant_ct_bg",

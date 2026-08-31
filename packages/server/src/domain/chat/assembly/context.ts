@@ -305,14 +305,14 @@ function toAssembleCharacter(card: CharacterCard): AssembleCharacter {
 interface BuildAssembleContextInput {
   readonly chatId: ChatId;
   readonly ownerId: UserId;
-  readonly castCharacterIds: readonly CharacterId[];
+  readonly characterIds: readonly CharacterId[];
   /** The present SEATED agents (D60), soul-resolved by `loadRoom` via the compose-root speaker registry.
-   *  Appended to `cast`/`castMembers` AFTER the characters (index-aligned) so the per-speaker SHAPE renders
+   *  Appended to `characters`/`speakerRefs` AFTER the characters (index-aligned) so the per-speaker SHAPE renders
    *  an agent's soul as its own card. Empty (the overwhelming case) ⇒ byte-identical to a character-only room.
-   *  NOT folded into `castCharacterIds` — agents have no character id / world-info / memory bucket. */
+   *  NOT folded into `characterIds` — agents have no character id / world-info / memory bucket. */
 
   /** The `speakerKey`s of the present MUTED seats (character + agent), from `loadRoom`'s candidate `disabled`
-   *  axis — the producer of `castNotMuted`. Absent ⇒ nothing muted (or a hand-built ctx) ⇒ full cast. */
+   *  axis — the producer of `unmutedCharacters`. Absent ⇒ nothing muted (or a hand-built ctx) ⇒ full cast. */
   readonly mutedSpeakerKeys?: ReadonlySet<string> | undefined;
   readonly personaIds: readonly PersonaId[];
   readonly promptConfig: PromptConfig;
@@ -409,24 +409,24 @@ function setIf<K extends keyof AssembleContext>(target: AssembleContext, key: K,
  *  before BUILD wires the injections. */
 function buildBaseContext(
   character: AssembleCharacter,
-  cast: AssembleCharacter[],
-  castMembers: SpeakerRef[],
+  characters: AssembleCharacter[],
+  speakerRefs: SpeakerRef[],
   input: BuildAssembleContextInput,
 ): AssembleContext {
   const base: AssembleContext = {
     character,
     promptConfig: input.promptConfig,
-    cast,
-    // Derived from castMembers so it stays index-aligned with `cast` even once agents append (agent seats
-    // carry no characterId → null). A character-only room is byte-identical to `[...input.castCharacterIds]`.
-    castCharacterIds: castMembers.map((m) => m.characterId),
-    castMembers,
+    characters,
+    // Derived from speakerRefs so it stays index-aligned with `characters` even once agents append (agent seats
+    // carry no characterId → null). A character-only room is byte-identical to `[...input.characterIds]`.
+    characterIds: speakerRefs.map((m) => m.characterId),
+    speakerRefs,
     // The non-muted CHARACTER subset — the `{{groupNotMuted}}` feed (owner ruling: the group macros are
     // character-only; an agent voices via the assemble cast but never appears in a name list). Filtered by the
     // muted-seat keys `loadRoom` derives from the SAME `disabled` axis arbitration reads. A muted character
-    // stays in `cast` (its card + lore still contribute) but drops here.
-    castNotMuted: cast.filter((_, i) => {
-      const ref = castMembers[i];
+    // stays in `characters` (its card + lore still contribute) but drops here.
+    unmutedCharacters: characters.filter((_, i) => {
+      const ref = speakerRefs[i];
       return ref !== undefined && input.mutedSpeakerKeys?.has(speakerKey(ref)) !== true;
     }),
     // Null-anchor fallback: an unset/dead anchor resolves to the active persona so card-derived macros
@@ -696,10 +696,10 @@ function characterDepthNoteCandidates(
   candidates: InjectionCandidate[];
   contributorNames: string[];
 } {
-  const cast = ctx.cast ?? [ctx.character];
+  const characters = ctx.characters ?? [ctx.character];
   const candidates: InjectionCandidate[] = [];
   const contributorNames: string[] = [];
-  cast.forEach((member, idx) => {
+  characters.forEach((member, idx) => {
     const note = member.depthPrompt;
     if (note === null || note === undefined || note.prompt.trim().length === 0) {
       return;
@@ -823,14 +823,14 @@ async function runSendAuthorTransforms(
 
 /** Produces the immutable per-turn AssembleContext SHAPE consumes per speaker; never mutated after return. */
 export async function buildAssembleContext(ctx: ChatContext, input: BuildAssembleContextInput, out?: SendRegexResult): Promise<AssembleContext> {
-  const cards = await Promise.all(input.castCharacterIds.map((characterId) => ctx.getCard({ ownerId: input.ownerId, characterId })));
-  const present = input.castCharacterIds.flatMap((characterId, i) => {
+  const cards = await Promise.all(input.characterIds.map((characterId) => ctx.getCard({ ownerId: input.ownerId, characterId })));
+  const present = input.characterIds.flatMap((characterId, i) => {
     const card = cards[i];
     return card ? [{ characterId, card }] : [];
   });
-  const cast = present.map((p) => toAssembleCharacter(p.card));
-  const castMembers: SpeakerRef[] = present.map((p): SpeakerRef => ({ kind: "character", characterId: p.characterId }));
-  const character: AssembleCharacter = cast[0] ?? { name: "Assistant", description: "" };
+  const characters = present.map((p) => toAssembleCharacter(p.card));
+  const speakerRefs: SpeakerRef[] = present.map((p): SpeakerRef => ({ kind: "character", characterId: p.characterId }));
+  const character: AssembleCharacter = characters[0] ?? { name: "Assistant", description: "" };
 
   // The turn's PROSE bag — the two homes composed into one home-agnostic record (PROSE-1 §3.1 stays intact:
   // `composeProse` keeps each key only from the storage that slot actually homes in, so this is a merge of
@@ -844,11 +844,11 @@ export async function buildAssembleContext(ctx: ChatContext, input: BuildAssembl
   const pool = await loadWorldInfoPool(ctx.db, {
     chatId: input.chatId,
     ownerId: input.ownerId,
-    castCharacterIds: input.castCharacterIds,
+    characterIds: input.characterIds,
     personaIds: input.personaIds,
   });
 
-  const base = buildBaseContext(character, cast, castMembers, input);
+  const base = buildBaseContext(character, characters, speakerRefs, input);
   // The per-turn user-macro registries (WAVE MU) — absent ⇒ the process singletons (byte-identical). The
   // RENDER registry drives every section/WI/persona/note macro pass; the FREEZE registry the SEND bake.
   const reg = input.macroRegistry ?? globalMacroRegistry;
@@ -868,7 +868,7 @@ export async function buildAssembleContext(ctx: ChatContext, input: BuildAssembl
     PRESET_FORMAT_SLOT_IDS.wiFormat,
     legacyProseOverrides(PRESET_FORMAT_SLOT_IDS.wiFormat, input.promptConfig.formatStrings?.wiFormat),
   );
-  const names = [...cast.map((c) => c.name), input.personas.anchor?.name, input.personas.active?.name].filter(
+  const names = [...characters.map((c) => c.name), input.personas.anchor?.name, input.personas.active?.name].filter(
     (n): n is string => typeof n === "string" && n.length > 0,
   );
 

@@ -1,7 +1,7 @@
 // Builds the row-independent half of a MessageRenderContext from the same per-chat macro-name producer
 // resolveRowAttribution already consumes — never a second data source, never re-resolved from body
 // text. Both macro subjects ({{char}}, {{user}}) are per-row and built by the caller instead; this
-// helper supplies only the defaults: the solo-chat {{char}} fallback, the joined cast, and the chat's
+// helper supplies only the defaults: the solo-chat {{char}} fallback, the joined character names, and the chat's
 // anchor persona as the {{user}}/{{persona}} fallback (never the viewer's own active persona).
 
 import type { ParticipantView } from "@orb/contracts/chat";
@@ -25,7 +25,7 @@ export interface ResolveMessageRenderContextInput {
   readonly displayScripts?: readonly RegexScriptRow[] | undefined;
 }
 
-const SOLO_CAST_FLOOR = 1;
+const SOLO_CHARACTER_FLOOR = 1;
 
 // Never participants[0] (same anti-guess rule as attribution's Narrator fallback), and never "" (an
 // empty string is a real value to the kit atom's ?? floor check, not "absent").
@@ -41,11 +41,11 @@ function resolveDefaultCharacterName(participants: ReadonlyMap<CharacterId, Part
       soloName = participant.displayName;
     }
   }
-  return characterCount === SOLO_CAST_FLOOR ? soloName : undefined;
+  return characterCount === SOLO_CHARACTER_FLOOR ? soloName : undefined;
 }
 
-// In roster insertion order so the joined string matches the server's ctx.cast join byte-for-byte.
-function resolveCastNames(participants: ReadonlyMap<CharacterId, ParticipantView> | undefined): readonly string[] | undefined {
+// In roster insertion order so the joined string matches the server's ctx.characterNames join byte-for-byte.
+function resolveCharacterNames(participants: ReadonlyMap<CharacterId, ParticipantView> | undefined): readonly string[] | undefined {
   if (participants === undefined) {
     return;
   }
@@ -62,13 +62,13 @@ function resolveCastNames(participants: ReadonlyMap<CharacterId, ParticipantView
  *  characterId/personaId instead of a per-row context rebuild. */
 export function resolveMessageRenderContext(input: ResolveMessageRenderContextInput): MessageRenderContext {
   const speakerCharName = resolveDefaultCharacterName(input.participants);
-  const cast = resolveCastNames(input.participants);
+  const characterNames = resolveCharacterNames(input.participants);
   const anchorPersona = input.anchorPersonaId === null || input.anchorPersonaId === undefined ? undefined : input.personaNamesById.get(input.anchorPersonaId);
   return {
     characterNamesById: input.characterNamesById,
     personaNamesById: input.personaNamesById,
     ...(speakerCharName === undefined ? {} : { speakerCharName }),
-    ...(cast === undefined ? {} : { cast }),
+    ...(characterNames === undefined ? {} : { characterNames }),
     ...(anchorPersona === undefined ? {} : { fallbackPersonaName: anchorPersona.name }),
     ...(anchorPersona === undefined ? {} : { fallbackPersonaDescription: anchorPersona.description }),
     ...(input.autoFixMarkdown === undefined ? {} : { autoFixMarkdown: input.autoFixMarkdown }),

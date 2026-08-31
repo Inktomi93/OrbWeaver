@@ -236,7 +236,7 @@ export function renderRowActions(args: {
    *  appearance toggle upstream; null ⇒ no credit. The cluster derives its DISPLAY name. */
   readonly modelCredit: string | null;
   /** B7 — the room's present characters names (the picker's segment-target parse; see `MessageActionsRowProps`). */
-  readonly castNames?: readonly string[] | undefined;
+  readonly characterNames?: readonly string[] | undefined;
 }): ReactNode {
   if (args.editing || args.selecting) {
     return null;
@@ -248,7 +248,7 @@ export function renderRowActions(args: {
       messageActions={args.messageActions}
       viewerIsHost={args.viewerIsHost}
       modelCredit={args.modelCredit}
-      castNames={args.castNames}
+      characterNames={args.characterNames}
     />
   );
 }

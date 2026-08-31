@@ -40,7 +40,7 @@ const CHAT = {
   anchorPersonaId: NOVA,
   viewerIsHost: true,
   participants: [],
-  cast: PERSONAS.map((p) => ({ kind: "persona", id: p.id, name: p.name, description: "", avatarHash: null })),
+  identities: PERSONAS.map((p) => ({ kind: "persona", id: p.id, name: p.name, description: "", avatarHash: null })),
 };
 
 const SEED_PROC = "settings.updateUserSettingsSection";

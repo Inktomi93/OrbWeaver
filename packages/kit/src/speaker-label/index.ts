@@ -46,7 +46,7 @@ export interface SpeakerSpan {
  *  time a body reaches this parser it is assumed well-formed; a stray unterminated tag (one that never
  *  got a matching close) is simply left as plain, un-matched text (no crash, no data loss).
  *
- *  THE SECOND MARKER ALPHABET (`castNames`, the TOLERANCE + RETROACTIVE layer). The `<speaker>` wire
+ *  THE SECOND MARKER ALPHABET (`characterNames`, the TOLERANCE + RETROACTIVE layer). The `<speaker>` wire
  *  format is INSTRUCTED (the narrator round's `chat.group.speakerTags` prose slot), and an instruction is
  *  not a guarantee: this module's own header records what models actually emit — a plain `Name:`, a
  *  markdown-wrapped `**Name:**`, sometimes doubled — and every narrator row committed BEFORE the
@@ -61,12 +61,12 @@ export interface SpeakerSpan {
  *      tag, which is invisible markup and IS consumed) — deleting it would drop the only non-color
  *      attribution a low-vision reader has, and would make the body change at stream-settle.
  *  A body with no tags and no matched label yields the byte-identical single `{speaker: null}` span. */
-export function parseSpeakerSpans(content: string, castNames: readonly string[] = []): readonly SpeakerSpan[] {
+export function parseSpeakerSpans(content: string, characterNames: readonly string[] = []): readonly SpeakerSpan[] {
   const matches = [...content.matchAll(SPEAKER_TAG_PAIR)];
   if (matches.length === 0) {
-    // No markers: the PLAIN-label grammar gets its turn (empty `castNames` ⇒ the byte-identical no-op,
+    // No markers: the PLAIN-label grammar gets its turn (empty `characterNames` ⇒ the byte-identical no-op,
     // `text` === `content`, untouched).
-    return splitOnPlainLabels(content, castNames);
+    return splitOnPlainLabels(content, characterNames);
   }
 
   const spans: SpeakerSpan[] = [];
@@ -92,8 +92,8 @@ export function parseSpeakerSpans(content: string, castNames: readonly string[] 
 /** The line-start plain-label matcher for an EXACT cast name, or null when there is nothing to match.
  *  Names are deduped, blank-dropped and sorted LONGEST-FIRST so an alternation can't let `Anna` shadow
  *  `Anna Lee`. Built per call (the name set is per-room) — the `leadingLabelRe` precedent. */
-function plainLabelRe(castNames: readonly string[]): RegExp | null {
-  const names = [...new Set(castNames.map((n) => n.trim()).filter((n) => n.length > 0))].sort((a, b) => b.length - a.length).map((n) => RegExp.escape(n));
+function plainLabelRe(characterNames: readonly string[]): RegExp | null {
+  const names = [...new Set(characterNames.map((n) => n.trim()).filter((n) => n.length > 0))].sort((a, b) => b.length - a.length).map((n) => RegExp.escape(n));
   if (names.length === 0) {
     return null;
   }
@@ -114,8 +114,8 @@ function insideCodeFence(text: string, index: number): boolean {
 
 /** Split a TAGLESS body on plain `Name:` labels (the grammar is documented on {@link parseSpeakerSpans}).
  *  No cast names / no match ⇒ the byte-identical single `{speaker: null, text: content}` span. */
-function splitOnPlainLabels(content: string, castNames: readonly string[]): readonly SpeakerSpan[] {
-  const re = plainLabelRe(castNames);
+function splitOnPlainLabels(content: string, characterNames: readonly string[]): readonly SpeakerSpan[] {
+  const re = plainLabelRe(characterNames);
   const cuts: { readonly at: number; readonly speaker: string }[] = [];
   for (const match of re === null ? [] : content.matchAll(re)) {
     // The match starts ON the newline (or at 0); the span begins at the LINE, so the separator stays
@@ -166,8 +166,8 @@ export function segmentSnippet(text: string, max: number): string {
  *  still begins with the stored snippet (prefix, not equality — a tail edit to the same line keeps the
  *  anchor; a different inserted line breaks it). Anything else returns `null` and the caller DEGRADES to
  *  whole-message (projections degrade, never throw — the `contentSpansToBlocks` doctrine). */
-export function resolveSegmentAnchor(content: string, castNames: readonly string[], anchor: SegmentAnchor): SpeakerSpan | null {
-  const spans = parseSpeakerSpans(content, castNames);
+export function resolveSegmentAnchor(content: string, characterNames: readonly string[], anchor: SegmentAnchor): SpeakerSpan | null {
+  const spans = parseSpeakerSpans(content, characterNames);
   const span = spans[anchor.index];
   if (span === undefined || span.speaker !== anchor.speaker) {
     return null;

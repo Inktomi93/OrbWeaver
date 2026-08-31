@@ -20,7 +20,7 @@
 // `resolveContextTabs`, paired with its consumer INSIDE the definition file; the shell only ever sees the
 // NON-generic `ContextDefinition` this mint returns (§6b).
 
-import type { CastEntry, ParticipantView, RoomOverrides } from "@orb/contracts/chat";
+import type { ChatIdentity, ParticipantView, RoomOverrides } from "@orb/contracts/chat";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import type { CharacterId, ChatId, RefinerySessionId, UserId } from "@orb/kit/ids";
 import type { LucideIcon } from "@orb/ui/icons";
@@ -316,13 +316,13 @@ export interface CommittedChatContext {
   readonly phase: "committed";
   readonly chatId: ChatId;
   /** The room's stored title, RAW (`ChatDetail.title` — null/blank until renamed) — the context band
-   *  renders it through `deriveChatTitle` with the cast names, exactly as the topbar identity does. */
+   *  renders it through `deriveChatTitle` with the character names, exactly as the topbar identity does. */
   readonly title: string | null;
   readonly participants: readonly ParticipantView[];
-  /** The room's member-gated CAST producer (`ChatDetail.cast`, D137) — the ONE resolver a context tab has for
-   *  turning a seat's `activePersonaId` into the persona name/portrait its row renders (the Members tab's
-   *  human rows; see `features/chat/lib/member-rows.ts::toPersonRows`). */
-  readonly cast: readonly CastEntry[];
+  /** The room's member-gated CHAT IDENTITY producer (`ChatDetail.identities`, D137) — the ONE resolver a
+   *  context tab has for turning a seat's `activePersonaId` into the persona name/portrait its row renders
+   *  (the Members tab's human rows; see `features/chat/lib/member-rows.ts::toPersonRows`). */
+  readonly identities: readonly ChatIdentity[];
   readonly viewerUserId: UserId;
   readonly pendingHostUserId: UserId | null;
   readonly roomOverrides: RoomOverrides;

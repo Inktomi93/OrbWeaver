@@ -91,7 +91,7 @@ const ROOM_ROUTES: Readonly<Record<string, unknown>> = {
   // the honest fixture for these arms: they are about the FLANK's geometry, and a room where nobody has reacted
   // is both the common case and the one whose layout the silent-arm pins compare.
   "chat.listReactions": () => ({ reactionsEnabled: true, groups: [] }),
-  "chat.getChat": () => ({ participants: [], anchorPersonaId: null, cast: [], group: DEFAULT_GROUP_CONFIG }),
+  "chat.getChat": () => ({ participants: [], anchorPersonaId: null, identities: [], group: DEFAULT_GROUP_CONFIG }),
   "chat.previewContextFit": () => ({
     boundaryMessageId: null,
     usedTokens: 120,

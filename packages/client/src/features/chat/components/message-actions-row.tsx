@@ -126,7 +126,7 @@ export interface MessageActionsRowProps {
    *  picker's segment-target list parses the CANON body with these under the narrator-voice gate — the
    *  identical inputs the server's write validation uses, so a picked index survives the round trip.
    *  Absent ⇒ `[]` ⇒ only `<speaker>`-tagged bodies offer segment targets. */
-  readonly castNames?: readonly string[] | undefined;
+  readonly characterNames?: readonly string[] | undefined;
   /** WIREBTN — the viewer holds the room HOST role (`ChatDetail.viewerIsHost`). Gates "View wire trace…":
    *  `chat.getVariantWire` is `requireHost` server-side, so a member is never offered an item that would only
    *  ever refuse — and is never told the plane exists. Absent ⇒ NOT host (fail-closed: a caller that forgets
@@ -201,7 +201,7 @@ export function MessageActionsRow({
   messageActions,
   viewerIsHost = false,
   modelCredit,
-  castNames = [],
+  characterNames = [],
 }: MessageActionsRowProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
@@ -410,7 +410,7 @@ export function MessageActionsRow({
       {/* Same mount discipline as the wire viewer: an unopened row builds no picker subtree (the picker
           wiring itself — the canon parse + the segment claim — lives in `row-reaction-picker.tsx`). */}
       {pickerOpen ? (
-        <RowReactionPicker castNames={castNames} groups={reactionGroups} message={message} onOpenChange={setPickerOpen} viewerSeatId={viewerSeatId} />
+        <RowReactionPicker characterNames={characterNames} groups={reactionGroups} message={message} onOpenChange={setPickerOpen} viewerSeatId={viewerSeatId} />
       ) : null}
     </Row>
   );

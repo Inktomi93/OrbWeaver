@@ -4,7 +4,7 @@
 //                         + the MESSAGE-KIND axis (`MESSAGE_KINDS` / `MESSAGE_KIND_POLICY` — row PURPOSE)
 //   • assemble.ts       — the ASSEMBLE family (slim projections, `AssembleContext`, traces, injections)
 //   • messages.ts       — the D26 message/variant wire (`messageSlotSchema`, `MessageView`, tool/var records)
-//   • producers.ts      — the member-gated kind-polymorphic CAST producer (D137) + its two projections
+//   • producers.ts      — the member-gated kind-polymorphic CHAT IDENTITY producer (D137) + its two projections
 //   • bus.ts            — the stream delta, the `ChatBusEvent` union, warning codes, turn origin, D50 transform
 //   • metadata.ts       — the `chats.metadata` sub-blobs (roomOverrides/group/opening/visibility/steer)
 //   • roster.ts         — the unified-roster wire (D16/D22/D80): roster/seat/invite/render-policy/history-floor
@@ -207,18 +207,18 @@ export {
   USER_BACKED_KINDS,
 } from "./participants.ts";
 export type {
-  CastCharacterEntry,
-  CastEntry,
-  CastKind,
-  CastKindPolicy,
-  CastPersonaEntry,
+  ChatCharacterIdentity,
+  ChatIdentity,
+  ChatIdentityKind,
+  ChatIdentityKindPolicy,
+  ChatPersonaIdentity,
 } from "./producers.ts";
 export {
-  buildCastAvatarMaps,
-  buildCastNameContext,
-  CAST_KIND_POLICY,
-  CAST_KINDS,
-  castKey,
+  buildIdentityAvatarMaps,
+  buildIdentityNameContext,
+  CHAT_IDENTITY_KIND_POLICY,
+  CHAT_IDENTITY_KINDS,
+  identityKey,
 } from "./producers.ts";
 // The PROSE-1 app-tier slot table (census 74-81) — `#prose` imports it to compose `PROSE_SLOTS`.
 export { CHAT_PROSE_SLOTS, CHAT_REACT_TOOL_DESCRIPTION } from "./prose.ts";
@@ -238,7 +238,7 @@ export {
 } from "./reactions.ts";
 export type {
   AcceptInviteInput,
-  CarriedAppearanceCast,
+  CarriedAppearance,
   CarriedAppearanceMember,
   CarriedBackground,
   CreateInviteInput,
@@ -261,7 +261,7 @@ export type {
 export {
   acceptInviteSchema,
   allowsInteractiveCards,
-  carriedCastFromParticipants,
+  carriedAppearanceFromParticipants,
   characterMemberSpecSchema,
   createInviteSchema,
   HTML_TRUST_STEPS,
@@ -278,7 +278,7 @@ export {
   renderPolicyOverrideForStep,
   rendersTrustedHtml,
   resolveCarriedBackground,
-  resolveCarriedBackgroundForCast,
+  resolveCarriedBackgroundForAppearance,
   resolveCarriedTheme,
   resolveRenderPolicy,
   rosterMemberSpecSchema,

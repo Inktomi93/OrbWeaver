@@ -24,7 +24,7 @@ const CREATED_CHAT = {
   title: "The Ashfall Road",
   participants: [],
   anchorPersonaId: null,
-  cast: [],
+  identities: [],
   group: DEFAULT_GROUP_CONFIG,
   temporary: false,
   viewerIsHost: true,
@@ -97,7 +97,7 @@ test("a FAILED create leaves the caller where they were — no half-navigation i
   await expect(state).toHaveText("chat=none section=home pending=false");
 });
 
-test("a founding cast rides through as characterIds", async ({ mount, page }) => {
+test("a founding character set rides through as characterIds", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, START_CHAT_ROUTES);
   // MINTED, never a hand-written literal — `typeIdSchema` validates the 26-char suffix at RUNTIME.
   const aria: CharacterId = mintTypeId(ID_PREFIX.character);

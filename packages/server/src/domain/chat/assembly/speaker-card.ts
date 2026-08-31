@@ -1,6 +1,6 @@
 // domain/chat/assembly/speaker-card — the per-turn CARD-SECTION shape (three-axis; `shape(ctx, speaker)`).
-// Given the ONE immutable turn ctx (the full resolved `cast` + its index-aligned
-// `castMembers` identities) and what this turn VOICES, pick the rendered character section
+// Given the ONE immutable turn ctx (the full resolved `characters` + its index-aligned
+// `speakerRefs` identities) and what this turn VOICES, pick the rendered character section
 // (`ctx.character`/`speaker`) and the co-speakers:
 //   • per-speaker × merged (default) → co-speakers = the OTHER present characters (the "[Also present — X]" block renders them).
 //   • per-speaker × scoped           → co-speakers = [] (own card only; best isolation).
@@ -8,17 +8,17 @@
 //                                      other present member is a co-speaker, and `speaker` is the `cast` arm, which
 //                                      is what binds `{{char}}` to the joined cast (`assembly/macros` charForSpeaker).
 // PURE — never mutates the input ctx (§5: per-speaker is a fresh shape, not a mutation). A ctx with no
-// `castMembers` (solo / hand-built / preview) returns UNCHANGED → byte-identical (D16, no `if(isGroup)`).
+// `speakerRefs` (solo / hand-built / preview) returns UNCHANGED → byte-identical (D16, no `if(isGroup)`).
 //
 // WHY NARRATOR NEEDS ITS OWN ARM: a narrator round's speaker is the SYNTHETIC
-// group character, which by construction is NOT in `castMembers` — without this arm it would fall through
+// group character, which by construction is NOT in `speakerRefs` — without this arm it would fall through
 // the `idx === -1` guard below and assemble as if it were a SOLO turn for the primary (a system row naming
 // only the primary, opening "write <primary>'s perspective only" on a turn that voices the whole cast, with
 // the model nonetheless attempting the cast from a nudge naming names it was never given a card for). The
 // `-1` guard stays: it is the honest fallback for a genuinely off-cast speaker on a
 // PER-SPEAKER round (a wiring gap), and narrator no longer reaches it.
 //
-// D60: `castMembers` carries `agent` refs too. An agent has NO card — its resolved SOUL fills the same
+// D60: `speakerRefs` carries `agent` refs too. An agent has NO card — its resolved SOUL fills the same
 // card-shaped `AssembleCharacter` slot (doc 04 §5, "the card-shape minus the card"), so an agent speaker's
 // soul becomes the character section here exactly the way a character's card does — one turn path.
 
@@ -34,8 +34,8 @@ type CardScope = Extract<GroupConfig, { output: "per-speaker" }>["cardScope"];
  *  present member rides as a co-speaker — the SAME breadth `cardScope:"merged"` produces, because the cards
  *  a narrator turn needs are exactly "everyone in the room". `speaker` takes the `cast` arm so `{{char}}`
  *  resolves to the joined cast rather than to whichever member happens to be primary. */
-function shapeContextForCast(ctx: AssembleContext, cast: readonly AssembleCharacter[]): AssembleContext {
-  const active = cast[0] ?? ctx.character;
+function shapeContextForCast(ctx: AssembleContext, characters: readonly AssembleCharacter[]): AssembleContext {
+  const active = characters[0] ?? ctx.character;
   // An EMPTY-but-defined cast is reachable, so `members` needs the same floor `active` gets: `getCard` returning
   // falsy for every seated id drops the whole roster (`assembly/context` buildAssembleContext) while a narrator
   // round still fires (`verbs/turn` gates on `output === "narrator"` OR a speaker, never on roster size). An
@@ -43,12 +43,12 @@ function shapeContextForCast(ctx: AssembleContext, cast: readonly AssembleCharac
   // value at all (the narrator default, `assembly/assemble` templateFor; it read "You are  in an immersive…"
   // before the framing became mode-aware).
   // Flooring to `[active]` degrades to exactly the pre-cast-arm binding (the primary's name).
-  const members = cast.length > 0 ? [...cast] : [active];
+  const members = characters.length > 0 ? [...characters] : [active];
   return {
     ...ctx,
     character: active,
     speaker: { kind: "cast", members, active },
-    coSpeakers: cast.slice(1),
+    coSpeakers: characters.slice(1),
   };
 }
 
@@ -56,17 +56,17 @@ function shapeContextForCast(ctx: AssembleContext, cast: readonly AssembleCharac
  *  the co-speakers merged in beside it. An off-cast ref keeps the primary (never crashes). */
 function shapeContextForSingle(
   ctx: AssembleContext,
-  cast: readonly AssembleCharacter[],
-  castMembers: readonly SpeakerRef[],
+  characters: readonly AssembleCharacter[],
+  speakerRefs: readonly SpeakerRef[],
   speaker: { readonly ref: SpeakerRef; readonly cardScope: CardScope },
 ): AssembleContext {
   const key = speakerKey(speaker.ref);
-  const idx = castMembers.findIndex((m) => speakerKey(m) === key);
+  const idx = speakerRefs.findIndex((m) => speakerKey(m) === key);
   if (idx === -1) {
-    return ctx; // the speaker isn't in the resolved cast (a wiring gap) — keep the primary, never crash.
+    return ctx; // the speaker isn't among the resolved characters (a wiring gap) — keep the primary, never crash.
   }
-  const active = cast[idx] ?? ctx.character;
-  const others = cast.filter((_, i) => i !== idx);
+  const active = characters[idx] ?? ctx.character;
+  const others = characters.filter((_, i) => i !== idx);
   return {
     ...ctx,
     character: active,
@@ -85,15 +85,15 @@ export function shapeContextForSpeaker(
   ctx: AssembleContext,
   speaker: { readonly ref: SpeakerRef; readonly output: GroupOutput; readonly cardScope: CardScope },
 ): AssembleContext {
-  const { castMembers, cast } = ctx;
-  if (castMembers === undefined || cast === undefined) {
+  const { speakerRefs, characters } = ctx;
+  if (speakerRefs === undefined || characters === undefined) {
     return ctx; // solo / hand-built — no card selection to make.
   }
   switch (speaker.output) {
     case "narrator":
-      return shapeContextForCast(ctx, cast);
+      return shapeContextForCast(ctx, characters);
     case "per-speaker":
-      return shapeContextForSingle(ctx, cast, castMembers, speaker);
+      return shapeContextForSingle(ctx, characters, speakerRefs, speaker);
     default:
       return assertNeverGroupOutput(speaker.output);
   }

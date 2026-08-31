@@ -2,7 +2,7 @@
 // chat-turn seam, contract/resolve.ts). Principal-LESS by construction: every id it takes was already gated
 // by the caller (the turn resolves under the frozen `runAsUserId`, D19), so this is a pure keyed read.
 //
-// THE CAST SLICE IS ROSTER-ORDERED, and that is load-bearing: the union feeds `executeRegexScripts`, which
+// THE CHARACTER SLICE IS ROSTER-ORDERED, and that is load-bearing: the union feeds `executeRegexScripts`, which
 // applies its list IN ORDER, so a multi-character room's precedence is the roster's. ONE `inArray` read
 // brings every seated character's attachments back at once and the rows are REGROUPED into roster order
 // here — a per-character read loop was N round-trips for the same answer, and a bare `inArray` WITHOUT the
@@ -16,7 +16,7 @@ import type { ScriptRecord } from "../contract/rows.ts";
 import { listChatScripts, listGlobalScripts, listPresetScripts, toRow } from "./queries.ts";
 
 /** Every seated character's attached rows, concatenated in ROSTER order (see the header). */
-async function castSlice(ctx: RegexResolveContext, ownerId: UserId, characterIds: readonly CharacterId[]): Promise<ScriptRecord[]> {
+async function characterSlice(ctx: RegexResolveContext, ownerId: UserId, characterIds: readonly CharacterId[]): Promise<ScriptRecord[]> {
   if (characterIds.length === 0) {
     return [];
   }
@@ -33,16 +33,16 @@ async function castSlice(ctx: RegexResolveContext, ownerId: UserId, characterIds
 
 export function createResolveRegexSources(ctx: RegexResolveContext): ResolveRegexSources {
   return async ({ ownerId, presetId, characterIds, chatId }): Promise<ResolvedRegexSources> => {
-    const [hostGlobal, preset, cast, chat] = await Promise.all([
+    const [hostGlobal, preset, character, chat] = await Promise.all([
       listGlobalScripts(ctx.db, ownerId),
       presetId === null ? Promise.resolve<ScriptRecord[]>([]) : listPresetScripts(ctx.db, ownerId, presetId),
-      castSlice(ctx, ownerId, characterIds),
+      characterSlice(ctx, ownerId, characterIds),
       listChatScripts(ctx.db, chatId),
     ]);
     return {
       hostGlobal: hostGlobal.map(toRow),
       preset: preset.map(toRow),
-      cast: cast.map(toRow),
+      character: character.map(toRow),
       chat: chat.map(toRow),
     };
   };

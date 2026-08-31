@@ -2,7 +2,7 @@
 // a different layer). Kept OUT of _ct-stories.tsx so that module exports only components
 // (lint useComponentExportOnlyModules). Imported by the stories + the .ct.tsx assertions.
 
-import type { CastEntry, MessageView } from "@orb/contracts/chat";
+import type { ChatIdentity, MessageView } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import type { ParticipantRole } from "@orb/contracts/identity";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
@@ -14,14 +14,14 @@ import { castId } from "@orb/kit/ids";
  *  bare `MessageView[]` (Chat-Macro-Resolution.md §1/§3; the D137 kind-polymorphic `cast`). */
 export interface MessagesPageFixture {
   readonly messages: readonly MessageView[];
-  readonly cast: readonly CastEntry[];
+  readonly identities: readonly ChatIdentity[];
 }
 
 /** Wrap a `chat.listMessages` stub's messages array into its actual `MessagesPage` wire shape. The
  *  default empty cast is still a real (if empty) shape, never routeTrpc's generic unlisted-procedure
  *  `null`. */
-export function makeMessagesPage(messages: readonly MessageView[], cast: readonly CastEntry[] = []): MessagesPageFixture {
-  return { messages, cast };
+export function makeMessagesPage(messages: readonly MessageView[], identities: readonly ChatIdentity[] = []): MessagesPageFixture {
+  return { messages, identities };
 }
 
 /** The `chat.listChats` wire shape (`ChatListPage`) — keyset page + the server's real census. */
@@ -163,14 +163,14 @@ export const CHAT_ROOM_ROUTES: Readonly<Record<string, unknown>> = {
   "chat.getChat": {
     title: null,
     participants: [],
-    cast: [],
+    identities: [],
     anchorPersonaId: null,
     roomOverrides: {},
     group: DEFAULT_GROUP_CONFIG,
     rpg: null,
     viewerIsHost: true,
   },
-  "chat.listMessages": { messages: [], cast: [] },
+  "chat.listMessages": { messages: [], identities: [] },
 };
 
 /** A fully-valid `MessageView` literal (the client read model — slot ⋈ selected variant). */

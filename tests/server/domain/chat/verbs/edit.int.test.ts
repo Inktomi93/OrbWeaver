@@ -160,7 +160,7 @@ describe("editMessage — runOnEdit regex re-apply (PD-110; D53 host-tier)", () 
   const regexSourcesCtx = (cardName: string): ReturnType<typeof makeChatContext> =>
     makeChatContext(db, {
       getCard: () => Promise.resolve(card(cardName)),
-      resolveRegexSources: () => Promise.resolve({ hostGlobal: globalScripts, preset: [], cast: [], chat: [] }),
+      resolveRegexSources: () => Promise.resolve({ hostGlobal: globalScripts, preset: [], character: [], chat: [] }),
     });
 
   const script = (over: Record<string, unknown>): RegexScriptRow =>

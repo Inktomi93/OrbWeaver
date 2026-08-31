@@ -849,11 +849,11 @@ describe("toShapeCanon — the null-persona-stamp guard (a row never borrows a s
 
   /** A ctx just rich enough for `toShapeCanon`'s macro render — the host is the live trigger. */
   const ctxFor = (triggerUserId: UserId | null): AssembleContext =>
-    // FABRICATION-OK: slim AssembleContext double — this call path reads only character/cast/castCharacterIds/recentMessages/promptConfig/triggerUserId.
+    // FABRICATION-OK: slim AssembleContext double — this call path reads only character/cast/characterIds/recentMessages/promptConfig/triggerUserId.
     ({
       character: { name: "Aria", description: "" },
-      cast: [],
-      castCharacterIds: [],
+      characters: [],
+      characterIds: [],
       recentMessages: [],
       promptConfig: DEFAULT_PROMPT_CONFIG,
       triggerUserId,
@@ -1006,11 +1006,11 @@ describe("shape — the delivered-row trace", () => {
 // multi-speaker narrator block.
 
 const KIND_CTX: AssembleContext =
-  // FABRICATION-OK: slim AssembleContext double — this path reads only character/cast/castCharacterIds/recentMessages/promptConfig.
+  // FABRICATION-OK: slim AssembleContext double — this path reads only character/cast/characterIds/recentMessages/promptConfig.
   {
     character: { name: "Aria", description: "" },
-    cast: [{ name: "Group", description: "" }],
-    castCharacterIds: [GROUP_ID],
+    characters: [{ name: "Group", description: "" }],
+    characterIds: [GROUP_ID],
     recentMessages: [],
     promptConfig: DEFAULT_PROMPT_CONFIG,
     triggerUserId: null,

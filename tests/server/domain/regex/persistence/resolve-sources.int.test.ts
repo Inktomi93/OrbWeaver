@@ -40,7 +40,7 @@ describe("resolveRegexSources", () => {
 
     expect(sources.hostGlobal.map((s) => s.name)).toEqual(["global"]);
     expect(sources.preset.map((s) => s.name)).toEqual(["preset"]);
-    expect(sources.cast.map((s) => s.name)).toEqual(["cast"]);
+    expect(sources.character.map((s) => s.name)).toEqual(["cast"]);
     expect(sources.chat.map((s) => s.name)).toEqual(["room"]);
   });
 
@@ -63,8 +63,8 @@ describe("resolveRegexSources", () => {
     const ariaFirst = await resolve({ ownerId: owner, presetId: null, characterIds: [aria, brin], chatId });
     const brinFirst = await resolve({ ownerId: owner, presetId: null, characterIds: [brin, aria], chatId });
 
-    expect(ariaFirst.cast.map((s) => s.name)).toEqual(["aria-script", "brin-script"]);
-    expect(brinFirst.cast.map((s) => s.name)).toEqual(["brin-script", "aria-script"]);
+    expect(ariaFirst.character.map((s) => s.name)).toEqual(["aria-script", "brin-script"]);
+    expect(brinFirst.character.map((s) => s.name)).toEqual(["brin-script", "aria-script"]);
   });
 
   test("a null presetId resolves an EMPTY preset slice without a read", async () => {
@@ -73,7 +73,7 @@ describe("resolveRegexSources", () => {
     const chatId = await seedChat(db);
 
     const sources = await createResolveRegexSources({ db })({ ownerId: owner, presetId: null, characterIds: [], chatId });
-    expect(sources).toEqual({ hostGlobal: [], preset: [], cast: [], chat: [] });
+    expect(sources).toEqual({ hostGlobal: [], preset: [], character: [], chat: [] });
   });
 
   test("resolves under the FROZEN owner — a stranger's identical attachments never leak in", async () => {

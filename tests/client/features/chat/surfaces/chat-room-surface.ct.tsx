@@ -11,7 +11,7 @@
 // `makeMessagesPage`; the committed test also stubs `chat.getChat`'s roster + `cast` floor
 // (message-list-surface.ct.tsx's `ROSTER_STUB` precedent).
 
-import type { CastEntry, GroupConfig } from "@orb/contracts/chat";
+import type { ChatIdentity, GroupConfig } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { CharacterId, MessageId, PersonaId, UserId } from "@orb/kit/ids";
@@ -69,12 +69,12 @@ const ROSTER_STUB = {
   "chat.getChat": (): {
     participants: never[];
     anchorPersonaId: null;
-    cast: readonly CastEntry[];
+    identities: readonly ChatIdentity[];
     group: GroupConfig;
   } => ({
     participants: [],
     anchorPersonaId: null,
-    cast: [],
+    identities: [],
     group: DEFAULT_GROUP_CONFIG,
   }),
 };
@@ -124,12 +124,12 @@ test("the COMMITTED arm renders that same body identically — the draft is not 
     "chat.getChat": (): {
       participants: never[];
       anchorPersonaId: string;
-      cast: readonly CastEntry[];
+      identities: readonly ChatIdentity[];
       group: GroupConfig;
     } => ({
       participants: [],
       anchorPersonaId: NOVA,
-      cast: [{ kind: "persona", id: castId<PersonaId>(NOVA), name: "Nova", description: "a wandering cartographer", avatarHash: null }],
+      identities: [{ kind: "persona", id: castId<PersonaId>(NOVA), name: "Nova", description: "a wandering cartographer", avatarHash: null }],
       group: DEFAULT_GROUP_CONFIG,
     }),
   });
@@ -667,7 +667,7 @@ test("LIVE: stripping data-surface-tier off the room moves the transcript island
 // "the whole 'draft' mode is sloppy as fuck." One measured half of it: the sole-character chrome takeover
 // resolved off `chat.getChat`'s roster, which a draft has none of, so a room started with a themed card
 // wore the viewer's default chrome and re-skinned itself at the first send. It now resolves off the
-// phase-independent `CarriedAppearanceCast` — the founding CARDS before commit, the roster after — so
+// phase-independent `CarriedAppearance` — the founding CARDS before commit, the roster after — so
 // both arms below must land the SAME token from the SAME card.
 //
 // Asserted through the RENDERED custom property (the room's `<ThemeScope>` is what paints), never the
@@ -703,7 +703,7 @@ test("COMMITTED: the SAME card resolves the SAME room accent through the roster 
         },
       ],
       anchorPersonaId: null,
-      cast: [],
+      identities: [],
       group: DEFAULT_GROUP_CONFIG,
     }),
   });
@@ -764,7 +764,7 @@ function greetingWindowRoutes(alternateIdx: number): Record<string, unknown> {
         { id: "cp_greeter", kind: "character", characterId: GREETING_CHARACTER, displayName: "Aria", avatarHash: null, leftSeq: null, role: "member" },
       ],
       anchorPersonaId: null,
-      cast: [],
+      identities: [],
       group: DEFAULT_GROUP_CONFIG,
     }),
     // The card is where the ALTERNATES live — the strip reads them to know how many there are and which one

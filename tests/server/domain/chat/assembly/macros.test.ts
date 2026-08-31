@@ -66,19 +66,19 @@ describe("renderMacros", () => {
     expect(renderMacros("{{scenario}}", withRoom, null)).toBe("the dungeon");
   });
 
-  test("{{char}} = the joined cast under a narrator (cast) speaker", () => {
+  test("{{char}} = the joined character names under a narrator (`cast`) speaker", () => {
     const aria = { name: "Aria", description: "" };
     const kai = { name: "Kai", description: "" };
     const ctx = ctxOf({
-      cast: [aria, kai],
+      characters: [aria, kai],
       speaker: { kind: "cast", members: [aria, kai], active: aria },
     });
     expect(renderMacros("{{char}}", ctx, null)).toBe("Aria, Kai");
   });
 
-  test("{{group}} = the full cast names", () => {
+  test("{{group}} = the full character names", () => {
     const ctx = ctxOf({
-      cast: [
+      characters: [
         { name: "Aria", description: "" },
         { name: "Kai", description: "" },
       ],
@@ -124,7 +124,7 @@ describe("P6 macro × rpg channel — celBindings / idle_duration / rpg macros r
       celBindings: {
         rpg: {
           scene: { location: "Dunmoor", weather: "storm", day: 3 },
-          cast: [
+          characters: [
             { name: "Mari", mood: "wary", relationship: "enemy" },
             { name: "Kael", mood: "calm", relationship: "ally" },
           ],
@@ -134,14 +134,14 @@ describe("P6 macro × rpg channel — celBindings / idle_duration / rpg macros r
       },
     });
     expect(renderMacros("{{expr::rpg.scene.location}}", ctx, null)).toBe("Dunmoor");
-    expect(renderMacros('{{expr::rpg.cast.exists(c, c.relationship == "enemy")}}', ctx, null)).toBe("true");
+    expect(renderMacros('{{expr::rpg.characters.exists(c, c.relationship == "enemy")}}', ctx, null)).toBe("true");
     expect(renderMacros('{{expr::rpg.quests.filter(q, q.status == "active").size()}}', ctx, null)).toBe("1");
   });
 
   test('{{expr::rpg.…}} errors-to-"" off a game (no rpg binding staged — the built CEL degrade)', () => {
     // A non-game chat stages no celBindings ⇒ the field reference errors → "" (byte-identical to no expr).
     expect(renderMacros("{{expr::rpg.scene.location}}", ctxOf(), null)).toBe("");
-    expect(renderMacros('{{expr::rpg.cast.exists(c, c.relationship == "enemy")}}', ctxOf(), null)).toBe("");
+    expect(renderMacros('{{expr::rpg.characters.exists(c, c.relationship == "enemy")}}', ctxOf(), null)).toBe("");
   });
 
   test('{{idle_duration}} renders the staged human text on a turn, "" when absent', () => {
@@ -187,7 +187,7 @@ describe("renderHistoryMacros", () => {
     // A multi-character room: the narrator row's {{char}} is the JOINED cast.
     const multi = ctxOf({
       character: { name: "Aria", description: "" },
-      cast: [
+      characters: [
         { name: "Aria", description: "" },
         { name: "Kai", description: "" },
       ],

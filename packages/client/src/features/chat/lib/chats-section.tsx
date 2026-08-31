@@ -43,7 +43,7 @@ function toMembersTabProps(s: CommittedChatContext): CommittedMembersTabProps {
     chatId: s.chatId,
     chat: {
       participants: s.participants,
-      cast: s.cast,
+      identities: s.identities,
       viewerUserId: s.viewerUserId,
       pendingHostUserId: s.pendingHostUserId,
     },

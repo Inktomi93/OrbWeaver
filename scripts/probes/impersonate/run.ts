@@ -193,15 +193,15 @@ function generate(arm: ArmName, model: string, built: BuiltRequest, key: string)
     messages: built.messages,
     max_tokens: MAX_TOKENS,
     stream: false,
-    ...(LAYER === "on" ? { stop: foreignLabelStops([...built.castNames]) } : {}),
+    ...(LAYER === "on" ? { stop: foreignLabelStops([...built.characterNames]) } : {}),
   };
   return arm === "local" ? complete(`${LOCAL_URL}/v1/chat/completions`, body, {}) : complete(OPENROUTER_URL, body, { Authorization: `Bearer ${key}` });
 }
 
 function scoreSample(s: Sample, fx: ImpersonateFixture): void {
-  const cast = fx.cast.map((c) => c.name);
-  s.rawScore = scoreBleed(s.raw, cast, fx.persona.name);
-  s.cleanScore = scoreBleed(s.cleaned, cast, fx.persona.name);
+  const characters = fx.characters.map((c) => c.name);
+  s.rawScore = scoreBleed(s.raw, characters, fx.persona.name);
+  s.cleanScore = scoreBleed(s.cleaned, characters, fx.persona.name);
 }
 
 /** The blind who-is-speaking judge — the PRIMARY bleed measure. Sees the two people in the scene, the
@@ -220,7 +220,7 @@ async function judgeSample(text: string, fx: ImpersonateFixture, key: string): P
     return "UNPARSED";
   }
   const lastAssistant = [...fx.canon].reverse().find((r) => r.role === "assistant");
-  const speaker = fx.cast.find((c) => c.name === lastAssistant?.authorName) ?? fx.character;
+  const speaker = fx.characters.find((c) => c.name === lastAssistant?.authorName) ?? fx.character;
   const { text: out } = await complete(
     OPENROUTER_URL,
     {
@@ -352,7 +352,7 @@ async function runArm(args: {
         continue;
       }
       const { text, finishReason } = await generate(arm, model, built, key);
-      const cleaned = applyProductionClean(text, built.castNames, built.personaName);
+      const cleaned = applyProductionClean(text, built.characterNames, built.personaName);
       const sample: Sample = {
         arm,
         model,
@@ -360,12 +360,12 @@ async function runArm(args: {
         fixture: fx.id,
         sample: i,
         nudge: built.nudge,
-        legacyCleaned: applyLegacyClean(text, built.castNames),
+        legacyCleaned: applyLegacyClean(text, built.characterNames),
         raw: text,
         cleaned,
         finishReason,
-        rawScore: scoreBleed(text, built.castNames, built.personaName),
-        cleanScore: scoreBleed(cleaned, built.castNames, built.personaName),
+        rawScore: scoreBleed(text, built.characterNames, built.personaName),
+        cleanScore: scoreBleed(cleaned, built.characterNames, built.personaName),
       };
       collected.push(sample);
       appendSample(sample);

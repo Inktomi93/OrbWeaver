@@ -6,7 +6,7 @@
 // more, so there is no second commit path that has to stay byte-identical with this one.
 //
 // It lives in `#data`, not `features/chat`, because chat AND character both launch chats and a feature may
-// never import another feature (the `useCarriedAppearanceCast` / `useDisplayScripts` precedent — same
+// never import another feature (the `useCarriedAppearance` / `useDisplayScripts` precedent — same
 // reasoning, same tier). `data/` may reach `state/`, so the post-create navigation is the same
 // intent-named module action the rest of the app calls.
 //

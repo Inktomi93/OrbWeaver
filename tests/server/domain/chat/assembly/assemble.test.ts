@@ -333,9 +333,9 @@ describe("assemblePrompt — merged co-speaker scenario (F6: single emission)", 
     const base = ctxOf({
       character: aria,
       promptConfig: DEFAULT_PROMPT_CONFIG,
-      cast: [aria, kai],
-      castCharacterIds: [castId<CharacterId>("character_aria"), castId<CharacterId>("character_kai")],
-      castMembers: [
+      characters: [aria, kai],
+      characterIds: [castId<CharacterId>("character_aria"), castId<CharacterId>("character_kai")],
+      speakerRefs: [
         { kind: "character", characterId: castId<CharacterId>("character_aria") },
         { kind: "character", characterId: castId<CharacterId>("character_kai") },
       ],
@@ -384,9 +384,9 @@ describe("assemblePrompt — the factory main_prompt default is MODE-AWARE (narr
   function roomCtx(): AssembleContext {
     return ctxOf({
       character: aria,
-      cast: [aria, kai],
-      castCharacterIds: [castId<CharacterId>("character_aria"), castId<CharacterId>("character_kai")],
-      castMembers: [ariaRef, kaiRef],
+      characters: [aria, kai],
+      characterIds: [castId<CharacterId>("character_aria"), castId<CharacterId>("character_kai")],
+      speakerRefs: [ariaRef, kaiRef],
       pinnedPersona: persona,
       activePersona: persona,
     });

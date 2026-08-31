@@ -513,23 +513,23 @@ export interface AssembleContext {
    *  `chat → preset` edge (DAG §1): assembly always builds against a `PromptConfig`. */
   promptConfig: PromptConfig;
   /** All character members (primary first). A roster-of-one solo chat is exactly `[character]`. */
-  cast?: AssembleCharacter[];
-  /** Per-cast-member character id, index-aligned with `cast`. Null for a non-character slot — an AGENT seat
+  characters?: AssembleCharacter[];
+  /** Per-cast-member character id, index-aligned with `characters`. Null for a non-character slot — an AGENT seat
    *  (D60; its cast card is its resolved soul, it has no characterId) or a hand-built/legacy member. */
-  castCharacterIds?: (CharacterId | null)[];
-  /** Per-cast-member SPEAKER identity, index-aligned with `cast` (D60) — a `character` or an `agent` (whose
+  characterIds?: (CharacterId | null)[];
+  /** Per-cast-member SPEAKER identity, index-aligned with `characters` (D60) — a `character` or an `agent` (whose
    *  card is its resolved soul). The per-speaker card selection (`shape(ctx, speaker)`) keys on THIS to pick
    *  the active member + the co-speakers; a character-only room's refs are all `{kind:'character'}`. Absent ⇒
    *  a hand-built/legacy ctx (the per-speaker shape falls back to the primary — byte-identical). */
-  castMembers?: SpeakerRef[];
-  /** The non-muted CHARACTER subset of `cast` — drives `{{groupNotMuted}}`. Character-only by owner ruling:
+  speakerRefs?: SpeakerRef[];
+  /** The non-muted CHARACTER subset of `characters` — drives `{{groupNotMuted}}`. Character-only by owner ruling:
    *  the `{{group}}`-family macros never list agent seats (an agent voices via the cast, but is not a name in
    *  these lists). Absent ⇒ falls back to the full CHARACTER cast (the macro layer re-derives it). */
-  castNotMuted?: AssembleCharacter[];
+  unmutedCharacters?: AssembleCharacter[];
   /** Who is generating: `single` (per-speaker, `{{char}}` = that character) vs `cast` (narrator, `{{char}}`
    *  = the whole cast, joined). Solo is always `single`. PRODUCED by the card shape
    *  (`assembly/speaker-card`), which dispatches on the round's `output` axis — a narrator round's authoring
-   *  speaker is the SYNTHETIC group character and is deliberately NOT in `castMembers`, so this arm can never
+   *  speaker is the SYNTHETIC group character and is deliberately NOT in `speakerRefs`, so this arm can never
    *  be derived from the ref. `active` is the member whose card fills the character section (the primary);
    *  the rest ride as `coSpeakers`. */
   speaker?: { kind: "single"; character: AssembleCharacter } | { kind: "cast"; members: AssembleCharacter[]; active: AssembleCharacter };
@@ -630,7 +630,7 @@ export interface AssembleContext {
   worldInfoAfter?: string;
   /** All positional injections for this turn (chat_injections ∪ WI converted at build time). */
   chatInjections?: ChatInjection[];
-  /** The effective HOST-TIER regex set — the library rows resolved from the global/preset/cast/chat scope
+  /** The effective HOST-TIER regex set — the library rows resolved from the global/preset/character/chat scope
    *  junctions under the frozen `runAsUserId` (D19, never the caller). Absent ⇒ no host-tier regex. */
   hostTierRegexScripts?: readonly RegexScriptRow[] | undefined;
   /** WI-conversion trace, copied into `AssembleTrace` for the section-preview panel. `activated` is the

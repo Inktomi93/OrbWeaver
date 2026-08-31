@@ -17,7 +17,7 @@
 // they're injected as engine deps wired at the entry composition root.
 
 import type { AssembleContext, ChatWarningCode, DurableChatBusEvent, MessageView, TurnAbortReason } from "@orb/contracts/chat";
-import { buildCastNameContext, DEFAULT_MESSAGE_KIND, VARIANT_METADATA_REASONING_MS_KEY } from "@orb/contracts/chat";
+import { buildIdentityNameContext, DEFAULT_MESSAGE_KIND, VARIANT_METADATA_REASONING_MS_KEY } from "@orb/contracts/chat";
 import type { ResolvedConnection } from "@orb/contracts/connection";
 
 import type { ContinuePostfix, UserIntent } from "@orb/contracts/preset";
@@ -64,7 +64,7 @@ import {
   continueVariantStatements,
   insertCanonMessageStatements,
 } from "../persistence/canon-write.ts";
-import { loadChatCastProducer } from "../persistence/cast.ts";
+import { loadChatIdentityProducer } from "../persistence/identity.ts";
 import { refreshLock, releaseLock, tryAcquireLock } from "../persistence/lock.ts";
 import { classifyParticipant } from "../persistence/participant.ts";
 import {
@@ -1416,9 +1416,9 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
     const { canonAll, maxSeq, compactionOverlay } = pre;
     // The D16 classification anchor stamped on every `delta` this turn publishes (see `resolveSlotSeq`).
     const slotSeq = resolveSlotSeq(persist, target, maxSeq);
-    // Builds the per-chat cast producer from the full loaded canon's distinct characterId/personaId
+    // Builds the per-chat identity producer from the full loaded canon's distinct characterId/personaId
     // stamps, engine-side (the ids aren't knowable in turn prep) — projected through the names-only arm.
-    const historyMacroNames: HistoryMacroNames = buildCastNameContext(await loadChatCastProducer(ctx.db, { messages: canonAll }));
+    const historyMacroNames: HistoryMacroNames = buildIdentityNameContext(await loadChatIdentityProducer(ctx.db, { messages: canonAll }));
     // Per-speaker witnessed recall (D6): a scoped round's each speaker recalls its OWN egocentric memory,
     // horizon-filtered by ITS join/leave presence — so a late joiner never recalls scenes before it arrived.
     // Merged/narrator/solo/agent turns keep the round-level `memory` (byte-identical). A fresh shape, never a
@@ -1758,7 +1758,7 @@ async function generateTextUnpersisted(ctx: ChatContext, deps: EngineDeps, prep:
   await debitTurnBudget(deps.debitBudget, prep.triggeredBy, policy.budget);
 
   const canonAll = await loadCanonHistory(ctx.db, prep.chatId);
-  const historyMacroNames: HistoryMacroNames = buildCastNameContext(await loadChatCastProducer(ctx.db, { messages: canonAll }));
+  const historyMacroNames: HistoryMacroNames = buildIdentityNameContext(await loadChatIdentityProducer(ctx.db, { messages: canonAll }));
   try {
     const result = await runTurnPipeline({
       runChatTurn: ctx.runChatTurn,

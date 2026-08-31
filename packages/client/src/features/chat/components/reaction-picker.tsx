@@ -53,7 +53,7 @@ export interface ReactionPickerProps {
   /** The variant's STORED canon body — the segment-target parse substrate (see the header). */
   readonly content: string;
   /** The room's present characters names, already narrator-gated by the caller (`[]` on a non-narrator row). */
-  readonly castNames: readonly string[];
+  readonly characterNames: readonly string[];
   /** The viewer's own seat, or `null` while the room read is in flight — a null seat simply means no cell
    *  reads as pressed yet; it never disables the picker, because the SERVER resolves the seat on the write. */
   readonly viewerSeatId: ChatParticipantId | null;
@@ -68,8 +68,13 @@ export interface ReactionPickerProps {
  *  as "the whole message" — the spec's target is "one speaker's line", and a target list that also offered
  *  anonymous narration slices would mostly be noise). Empty for a single-span / tagless-unmatched body —
  *  the target row simply doesn't render and the picker behaves exactly as B6 shipped it. */
-function speakerTargets(content: string, castNames: readonly string[]): readonly { readonly index: number; readonly speaker: string; readonly text: string }[] {
-  return parseSpeakerSpans(content, castNames).flatMap((span, index) => (span.speaker === null ? [] : [{ index, speaker: span.speaker, text: span.text }]));
+function speakerTargets(
+  content: string,
+  characterNames: readonly string[],
+): readonly { readonly index: number; readonly speaker: string; readonly text: string }[] {
+  return parseSpeakerSpans(content, characterNames).flatMap((span, index) =>
+    span.speaker === null ? [] : [{ index, speaker: span.speaker, text: span.text }],
+  );
 }
 
 /**
@@ -77,10 +82,20 @@ function speakerTargets(content: string, castNames: readonly string[]): readonly
  * interaction, and leaving it open after a pick would leave the reader looking at a surface whose result is
  * behind it.
  */
-export function ReactionPicker({ castNames, chatId, content, groups, onOpenChange, onPick, open, variantId, viewerSeatId }: ReactionPickerProps): ReactElement {
+export function ReactionPicker({
+  characterNames,
+  chatId,
+  content,
+  groups,
+  onOpenChange,
+  onPick,
+  open,
+  variantId,
+  viewerSeatId,
+}: ReactionPickerProps): ReactElement {
   // Whole-message is the DEFAULT target (null) — a segment is an explicit narrowing per visit.
   const [target, setTarget] = useState<ReactionSegmentTarget | null>(null);
-  const targets = speakerTargets(content, castNames);
+  const targets = speakerTargets(content, characterNames);
   // Pressed state is per-TARGET: a whole-message 😂 and a line-anchored 😂 are different rows.
   const reactedWith = new Set(
     groups

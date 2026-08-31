@@ -12,7 +12,7 @@
 // value) — never a draft-state read, never a mid-flight sample. Accessible names go through the band's
 // `${CONTROL_MODE_WORD} ${label}` shape ("Run Roll d20"), since @orb/ui primitives drop `data-testid`.
 
-import type { CastEntry, GroupConfig } from "@orb/contracts/chat";
+import type { ChatIdentity, GroupConfig } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import type { RpgRuleset } from "@orb/contracts/rpg";
 import type { MessageId } from "@orb/kit/ids";
@@ -70,13 +70,13 @@ function routeRoom(
     "chat.getChat": (): {
       participants: never[];
       anchorPersonaId: null;
-      cast: readonly CastEntry[];
+      identities: readonly ChatIdentity[];
       group: GroupConfig;
       rpg: { gameId: string; engaged: boolean } | null;
     } => ({
       participants: [],
       anchorPersonaId: null,
-      cast: [],
+      identities: [],
       group: DEFAULT_GROUP_CONFIG,
       rpg: engaged ? { gameId: "rpg_game_ct_dice", engaged: true } : null,
     }),

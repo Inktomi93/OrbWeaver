@@ -3,7 +3,7 @@
 // over its owning domain's service — tool-use never imports a registrant. `ToolDefinition` stays
 // domain-internal (no client surface enumerates tools).
 
-import type { ChatAction, ChatRoster, GlobalAction, ParticipantRole, Principal } from "@orb/contracts/identity";
+import type { ChatAction, ChatMembership, GlobalAction, ParticipantRole, Principal } from "@orb/contracts/identity";
 import type { InvocationChat } from "@orb/contracts/plugin";
 import type { ChatId, ChatTurnId, UserId } from "@orb/kit/ids";
 import type { z } from "zod";
@@ -48,7 +48,7 @@ export interface ToolExecutionContext {
   readonly turnId: ChatTurnId | null;
   /** The caller's loaded membership, fed to can() for `scope:"chat"` ceilings. `null` when `chatId` is
    *  null — a chat-scoped tool executing then is an errors-as-data denial, never a crash. */
-  readonly roster: ChatRoster | null;
+  readonly roster: ChatMembership | null;
   /** Cross-role cancellation, threaded from the turn; honoring it is the handler's job. */
   readonly signal?: AbortSignal | undefined;
 }

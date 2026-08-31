@@ -108,7 +108,7 @@ function chatDetail(role: ParticipantRole, roomOverrides: Record<string, string>
     participants: [human(role), ...characters],
     // `ChatDetail.cast` is server-populated on every getChat; a tab that resolves a seat's persona through it
     // (the Members tab) reads an empty producer as "this seat plays nobody", never as a crash.
-    cast: [],
+    identities: [],
     roomOverrides,
     viewerIsHost: role === "host",
   };
@@ -191,7 +191,7 @@ function personaEntry(id: string, name: string): Record<string, unknown> {
 function multiHumanChat(viewerIsHost: boolean, humans: readonly Record<string, unknown>[]): unknown {
   return {
     participants: [...humans, character("aria")],
-    cast: humans.map((h) => personaEntry(String(h["userId"]).replace("user_", ""), String(h["displayName"]))),
+    identities: humans.map((h) => personaEntry(String(h["userId"]).replace("user_", ""), String(h["displayName"]))),
     roomOverrides: {},
     viewerIsHost,
   };
@@ -426,7 +426,7 @@ test.describe("#875 F6 — the band's chips at a coarse pointer", () => {
 // surface, and in a 1:1 room it rendered nothing but their own People row ("now it just shows my email").
 // A room with a cast has a roster; the tab shows it. (There is no "size-gate" clause in the D-ledger — the
 // old rule lived only in this title and a one-line roster.ts comment.)
-test("host in a SOLO (1-character) chat GETS the Members tab — its cast is its roster (#162)", async ({ mount, page }) => {
+test("host in a SOLO (1-character) chat GETS the Members tab — its characters ARE its roster (#162)", async ({ mount, page }) => {
   await routeTrpc(page, {
     ...CHAT_AMBIENT_ROUTES,
     ...THIS_CHAT_TAB_READS,
@@ -445,7 +445,7 @@ test("host in a SOLO (1-character) chat GETS the Members tab — its cast is its
 
 // The floor is ZERO for a HOST (owner ruling 2026-08-18): the Members tab is the room's one roster home in
 // every state, so a cast-less room gets the tab with a load-bearing empty state instead of a hidden tab.
-test("a HOST with NO cast still gets the Members tab — the empty state IS the add door", async ({ mount, page }) => {
+test("a HOST with NO characters still gets the Members tab — the empty state IS the add door", async ({ mount, page }) => {
   await routeTrpc(page, {
     ...CHAT_AMBIENT_ROUTES,
     ...THIS_CHAT_TAB_READS,
@@ -463,7 +463,7 @@ test("a HOST with NO cast still gets the Members tab — the empty state IS the 
   await expect(panel.getByRole("button", { name: "Add a character" })).toBeVisible();
 });
 
-test("a MEMBER with no cast and no People arm still has no Members tab (nothing to show, nothing to do)", async ({ mount, page }) => {
+test("a MEMBER with no characters and no People arm still has no Members tab (nothing to show, nothing to do)", async ({ mount, page }) => {
   await routeTrpc(page, {
     ...CHAT_AMBIENT_ROUTES,
     ...THIS_CHAT_TAB_READS,
@@ -886,8 +886,8 @@ test("a chatDeleted for the OPEN room takes the reader to landing, not a room wh
   await routeTrpc(page, {
     ...CHAT_AMBIENT_ROUTES,
     ...THIS_CHAT_TAB_READS,
-    "chat.getChat": { title: "The Ashfall Road", participants: [], cast: [], group: DEFAULT_GROUP_CONFIG },
-    "chat.listMessages": { messages: [], cast: [] },
+    "chat.getChat": { title: "The Ashfall Road", participants: [], identities: [], group: DEFAULT_GROUP_CONFIG },
+    "chat.listMessages": { messages: [], identities: [] },
     "chat.previewContextFit": {
       boundaryMessageId: null,
       usedTokens: 0,
