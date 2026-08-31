@@ -152,13 +152,13 @@ const EMPTY_COLLECTION: TeachingCollection = { injections: [], toolNames: [] };
 function attributionLine(
   row: Awaited<ReturnType<typeof listAttributionReactions>>[number],
   emoji: ReactionEmoji,
-  castNames: readonly string[],
+  characterNames: readonly string[],
   parseable: boolean,
 ): string {
   const name = row.reactorCharacterName ?? row.reactorPersonaName ?? "A member";
   const anchor =
     parseable && row.segmentIndex !== null && row.segmentSnippet !== null
-      ? resolveSegmentAnchor(row.content, castNames, { index: row.segmentIndex, speaker: row.segmentSpeaker, snippet: row.segmentSnippet })
+      ? resolveSegmentAnchor(row.content, characterNames, { index: row.segmentIndex, speaker: row.segmentSpeaker, snippet: row.segmentSnippet })
       : null;
   if (anchor !== null && row.segmentSnippet !== null) {
     const whose = row.segmentSpeaker ?? "the narration";
@@ -170,7 +170,7 @@ function attributionLine(
 /** Fold the read's chronological rows into note lines under the two per-message caps (K + content — see
  *  the section comment). "The last K" is a tail slice per messageId because the read is chronological
  *  within a message; an off-vocabulary emoji row is dropped (the `groupReactions` posture). */
-function buildAttributionLines(rows: Awaited<ReturnType<typeof listAttributionReactions>>, castNames: readonly string[]): readonly string[] {
+function buildAttributionLines(rows: Awaited<ReturnType<typeof listAttributionReactions>>, characterNames: readonly string[]): readonly string[] {
   const byMessage = new Map<string, typeof rows>();
   for (const row of rows) {
     const bucket = byMessage.get(row.messageId) ?? [];
@@ -186,7 +186,7 @@ function buildAttributionLines(rows: Awaited<ReturnType<typeof listAttributionRe
       if (token.success) {
         // The plain-`Name:` cast set applies only to a narrator-voiced row — the same `isNarratorVoiced`
         // gate the write-side validation and the client renderer use (one predicate, every parse).
-        lines.push(attributionLine(row, token.data, isNarratorVoiced(row.messageKind) ? castNames : [], parseable));
+        lines.push(attributionLine(row, token.data, isNarratorVoiced(row.messageKind) ? characterNames : [], parseable));
       }
     }
   }

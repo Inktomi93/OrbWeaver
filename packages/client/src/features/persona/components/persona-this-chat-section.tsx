@@ -37,7 +37,7 @@ function personaLabel(chat: ChatDetail, personas: readonly PersonaListItem[], id
   if (id === null) {
     return "None";
   }
-  return chat.cast.find((e) => e.kind === "persona" && e.id === id)?.name ?? personas.find((p) => p.id === id)?.name ?? "Unknown persona";
+  return chat.identities.find((e) => e.kind === "persona" && e.id === id)?.name ?? personas.find((p) => p.id === id)?.name ?? "Unknown persona";
 }
 
 /** The OTHER present humans' pinnable personas — each member's own active persona, labeled with the member.

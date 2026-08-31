@@ -31,7 +31,7 @@ import type {
 } from "../contract/params.ts";
 import type { ChatService } from "../contract/service.ts";
 import { requireHost } from "../guard.ts";
-import { loadChatCastProducer } from "../persistence/cast.ts";
+import { loadChatIdentityProducer } from "../persistence/identity.ts";
 import {
   acceptInviteByIdAtomic,
   countPresentMembers,
@@ -233,12 +233,12 @@ function createRedeemInvite(ctx: ChatContext, deps: InviteDeps): ChatService["re
     if (participant === undefined) {
       throw new ChatNotFoundError(chatId);
     }
-    const cast = await loadChatCastProducer(ctx.db, { participants });
+    const identities = await loadChatIdentityProducer(ctx.db, { participants });
     return {
       chat: toChatDetail({
         chat,
         participants,
-        cast,
+        identities,
         viewerUserId: principal.userId,
         // The joiner's OWN D16 floor, off the row the redeem just wrote — a `from-join` joiner must not
         // receive the compaction checkpoint (a distillation of the canon their floor withholds) on the very
@@ -293,12 +293,12 @@ function createAcceptInvite(ctx: ChatContext, deps: InviteDeps): ChatService["ac
     if (participant === undefined) {
       throw new ChatNotFoundError(chatId);
     }
-    const cast = await loadChatCastProducer(ctx.db, { participants });
+    const identities = await loadChatIdentityProducer(ctx.db, { participants });
     return {
       chat: toChatDetail({
         chat,
         participants,
-        cast,
+        identities,
         viewerUserId: principal.userId,
         // The joiner's OWN D16 floor, off the row the redeem just wrote — a `from-join` joiner must not
         // receive the compaction checkpoint (a distillation of the canon their floor withholds) on the very

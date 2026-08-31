@@ -5,7 +5,7 @@
 //
 // Chat search runs SERVER-SIDE: `characters` is joined by ONE predicate,
 // the library-list search arm (`searchPredicate`), and only as a FILTER — no name is ever selected or
-// returned from this file. That is the `persistence/cast.ts` shape, and it leaves the law above intact in
+// returned from this file. That is the `persistence/identity.ts` shape, and it leaves the law above intact in
 // the sense that matters: no display-name RESOLUTION happens here, and `users` is still never joined (which
 // is why the search's name arm covers character seats and not human members — see `searchPredicate`).
 
@@ -285,7 +285,7 @@ function memberHiddenBodyGuard(): SQL | undefined {
  *  • The name arm matches CHARACTER seats only. Human display names live in the identity publics table, and
  *    THE HEADER LAW OF THIS FILE reserves `users` for the verb layer — resolving a human's name here would
  *    be exactly the roster-name resolution that law keeps out. Character seats are joined the way
- *    `persistence/cast.ts` already joins them (a filter, never a projection). Departed seats count, matching
+ *    `persistence/identity.ts` already joins them (a filter, never a projection). Departed seats count, matching
  *    `participantCharacterIds`' own promise. */
 function searchPredicate(db: Db, needle: string): SQL | undefined {
   const like = `%${needle}%`;

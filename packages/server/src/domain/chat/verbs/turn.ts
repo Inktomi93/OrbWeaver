@@ -195,8 +195,8 @@ interface Room {
   readonly hostUserId: UserId;
   readonly candidates: readonly ArbiterCandidate[];
   readonly castNames: readonly CastName[];
-  readonly castCharacterIds: readonly CharacterId[];
-  /** The `speakerKey`s of the present MUTED seats (character + agent) — the `castNotMuted` producer, keyed on
+  readonly characterIds: readonly CharacterId[];
+  /** The `speakerKey`s of the present MUTED seats (character + agent) — the `unmutedCharacters` producer, keyed on
    *  the same seat `disabled` axis arbitration reads. Empty ⇒ nothing muted. */
   readonly mutedSpeakerKeys: ReadonlySet<string>;
   readonly personaIds: readonly PersonaId[];
@@ -272,7 +272,7 @@ async function loadRoom(ctx: ChatContext, chatId: ChatId): Promise<Room> {
     hostUserId,
     candidates,
     castNames: [...charCastNames],
-    castCharacterIds: charRows.map((r) => r.characterId),
+    characterIds: charRows.map((r) => r.characterId),
     mutedSpeakerKeys: new Set(candidates.filter((c) => c.disabled).map((c) => speakerKey(c.ref))),
     personaIds,
     presentHumanUserIds,
@@ -513,11 +513,11 @@ async function buildTurnContext(
     readonly runAsUserId: UserId;
     readonly model: string;
     readonly kind: TurnKind;
-    readonly castCharacterIds: readonly CharacterId[];
+    readonly characterIds: readonly CharacterId[];
     /** The soul-resolved seated agents (D60) — appended to the assemble cast so an agent speaker rides the
      *  one turn path. Empty ⇒ byte-identical to a character-only room. */
 
-    /** The muted-seat `speakerKey`s (character + agent) — threaded to `castNotMuted` for `{{groupNotMuted}}`. */
+    /** The muted-seat `speakerKey`s (character + agent) — threaded to `unmutedCharacters` for `{{groupNotMuted}}`. */
     readonly mutedSpeakerKeys: ReadonlySet<string>;
     readonly personaIds: readonly PersonaId[];
     /** The FOREIGN persona read's consent set — see {@link Room.presentHumanUserIds}. */
@@ -638,7 +638,7 @@ async function buildTurnContext(
       chatId: args.chatId,
       runAsUserId: args.runAsUserId,
       model: args.model,
-      castCharacterIds: args.castCharacterIds,
+      characterIds: args.characterIds,
       mutedSpeakerKeys: args.mutedSpeakerKeys,
       personaIds: args.personaIds,
       // SHAPE's null-stamp guard needs the identity behind `speakers.user`: a canon row with NO persona stamp
@@ -1421,7 +1421,7 @@ async function commitUserTurn(
       runAsUserId: identity.runAsUserId,
       model: connection.model,
       kind: "send",
-      castCharacterIds: room.castCharacterIds,
+      characterIds: room.characterIds,
 
       mutedSpeakerKeys: room.mutedSpeakerKeys,
       personaIds: room.personaIds,
@@ -1611,7 +1611,7 @@ function createForceCharacterTurn(ctx: ChatContext, deps: TurnDeps): ChatService
           runAsUserId: identity.runAsUserId,
           model: resolved.model,
           kind: "force",
-          castCharacterIds: room.castCharacterIds,
+          characterIds: room.characterIds,
 
           mutedSpeakerKeys: room.mutedSpeakerKeys,
           personaIds: room.personaIds,
@@ -1786,7 +1786,7 @@ async function resolveTurnBase(
     runAsUserId: identity.runAsUserId,
     model: connection.model,
     kind: args.kind,
-    castCharacterIds: room.castCharacterIds,
+    characterIds: room.characterIds,
 
     mutedSpeakerKeys: room.mutedSpeakerKeys,
     personaIds: room.personaIds,
@@ -2389,7 +2389,7 @@ async function runDeferredRound(
       runAsUserId: row.runAsUserId,
       model: connection.model,
       kind: "send",
-      castCharacterIds: room.castCharacterIds,
+      characterIds: room.characterIds,
 
       mutedSpeakerKeys: room.mutedSpeakerKeys,
       personaIds: room.personaIds,
@@ -2583,7 +2583,7 @@ export function createRequestTurn(ctx: ChatContext, deps: TurnDeps): RequestTurn
         runAsUserId: identity.runAsUserId,
         model: connection.model,
         kind: "auto",
-        castCharacterIds: room.castCharacterIds,
+        characterIds: room.characterIds,
 
         mutedSpeakerKeys: room.mutedSpeakerKeys,
         personaIds: room.personaIds,

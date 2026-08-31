@@ -110,7 +110,7 @@ async function shapedBodies(room: { host: UserId; chatId: ChatId; charId: Charac
   const assembleContext = await buildAssembleContext(ctx, {
     chatId: room.chatId,
     ownerId: room.host,
-    castCharacterIds: [room.charId],
+    characterIds: [room.charId],
     personaIds: [],
     promptConfig: DEFAULT_PROMPT_CONFIG,
     personas: { anchor: null, active: null },

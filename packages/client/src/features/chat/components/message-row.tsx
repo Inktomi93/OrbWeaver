@@ -295,7 +295,16 @@ export function MessageRow({
       placement: skin.headerPlacement,
       // B7 — the picker's segment-target parse keys the SAME cast-name set the span renderer uses
       // (`speakerThemesByName`'s keys); the actions row narrator-gates it against `message.kind` itself.
-      actions: renderRowActions({ editing, selecting, message, onChatForked, messageActions, viewerIsHost, modelCredit, castNames: [...speakerThemes.keys()] }),
+      actions: renderRowActions({
+        editing,
+        selecting,
+        message,
+        onChatForked,
+        messageActions,
+        viewerIsHost,
+        modelCredit,
+        characterNames: [...speakerThemes.keys()],
+      }),
     }),
     skin.headerPlacement,
   );

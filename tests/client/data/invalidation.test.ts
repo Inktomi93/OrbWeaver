@@ -728,9 +728,9 @@ describe("invalidation — the bus half applies the `view` carrier", () => {
     const key = trpc.chat.listMessages.queryKey({ chatId: CHAT_ID });
     // The seeded page is the read's real `MessagesPage` shape, built from the shared fixture (the `as never`
     // is only the DataTag's server-side output type, which this client-side fixture cannot name).
-    const seeded: { readonly messages: readonly MessageView[]; readonly cast: readonly never[] } = {
+    const seeded: { readonly messages: readonly MessageView[]; readonly identities: readonly never[] } = {
       messages: [makeMessageView({ id: MESSAGE_ID, chatId: CHAT_ID, content: "old variant" })],
-      cast: [],
+      identities: [],
     };
     queryClient.setQueryData([...key], seeded as never);
 

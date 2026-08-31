@@ -33,7 +33,7 @@ export interface BuiltRequest {
   /** The rendered impersonateNudge (the trailing user row) — quoted in the results for receipts. */
   readonly nudge: string;
   /** The cast names a wrong-name scrub / stop-string layer would key on. */
-  readonly castNames: readonly string[];
+  readonly characterNames: readonly string[];
   readonly personaName: string;
 }
 
@@ -42,8 +42,8 @@ function contextFor(fx: ImpersonateFixture): AssembleContext {
   return {
     character: fx.character,
     promptConfig: configFor(fx),
-    cast: [...fx.cast],
-    castCharacterIds: [...fx.castCharacterIds],
+    characters: [...fx.characters],
+    characterIds: [...fx.characterIds],
     recentMessages: fx.canon.map((r) => r.content),
     activePersona: fx.persona,
     pinnedPersona: fx.persona,
@@ -80,5 +80,5 @@ export function buildRequest(fx: ImpersonateFixture): BuiltRequest {
   for (const row of shaped.history) {
     messages.push({ role: row.role, content: row.content, ...(row.name !== undefined ? { name: row.name } : {}) });
   }
-  return { messages, nudge, castNames: fx.cast.map((c) => c.name), personaName: fx.persona.name };
+  return { messages, nudge, characterNames: fx.characters.map((c) => c.name), personaName: fx.persona.name };
 }

@@ -62,7 +62,7 @@ export interface MessageRenderContext {
   readonly scenario?: string;
   /** The full cast names in roster order — drives \{\{group\}\} and a human-authored/narrator row's
    *  \{\{char\}\} (joined cast in multi, the one character in solo). */
-  readonly cast?: readonly string[];
+  readonly characterNames?: readonly string[];
   /** The viewer's display-tier regex scripts (per-user, client-side, ephemeral). */
   readonly displayScripts?: readonly RegexScriptInput[];
   /** Frozen clock for \{\{time\}\}/\{\{date\}\}; omit = live clock inside kit. */
@@ -81,11 +81,11 @@ function regexCtxChar(ctx: MessageRenderContext, characterId: CharacterId | null
   if (characterId !== null) {
     return ctx.characterNamesById.get(characterId)?.name ?? ctx.speakerCharName ?? "";
   }
-  const cast = ctx.cast;
-  if (cast !== undefined && cast.length > 1) {
-    return cast.join(", ");
+  const characterNames = ctx.characterNames;
+  if (characterNames !== undefined && characterNames.length > 1) {
+    return characterNames.join(", ");
   }
-  return cast?.[0] ?? ctx.speakerCharName ?? "";
+  return characterNames?.[0] ?? ctx.speakerCharName ?? "";
 }
 
 export function renderMessageForDisplay(text: string, ctx: MessageRenderContext, rowCharacterId?: CharacterId | null, rowPersonaId?: PersonaId | null): string {
@@ -99,7 +99,7 @@ export function renderMessageForDisplay(text: string, ctx: MessageRenderContext,
       characterNamesById: ctx.characterNamesById,
       personaNamesById: ctx.personaNamesById,
       speakerCharName: ctx.speakerCharName,
-      cast: ctx.cast,
+      characterNames: ctx.characterNames,
       fallbackPersonaName: ctx.fallbackPersonaName,
       fallbackPersonaDescription: ctx.fallbackPersonaDescription,
     },
@@ -112,7 +112,7 @@ export function renderMessageForDisplay(text: string, ctx: MessageRenderContext,
     persona: rowPersona?.description ?? ctx.fallbackPersonaDescription ?? "",
     scenario: ctx.scenario ?? "",
     env: ctx.env ?? {},
-    ...(ctx.cast === undefined ? {} : { cast: ctx.cast }),
+    ...(ctx.characterNames === undefined ? {} : { characterNames: ctx.characterNames }),
     ...(ctx.nowMs === undefined ? {} : { nowMs: ctx.nowMs }),
   };
 

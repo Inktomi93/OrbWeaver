@@ -19,7 +19,7 @@
 // guarantee. And because that precondition is minted inline, the per-chat isolation catch below is NOT a
 // silent-skip engine: an isolated chat is COUNTED (`failed`) and logged at `error` level — see there.
 
-import { buildCastNameContext } from "@orb/contracts/chat";
+import { buildIdentityNameContext } from "@orb/contracts/chat";
 import type { SummarizeInput } from "@orb/contracts/role-clients";
 import { chatParticipants, chats } from "@orb/db";
 import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
@@ -39,7 +39,7 @@ import {
 } from "../memory/build/digests.ts";
 import { collectSegments, storeSegments } from "../memory/build/segments.ts";
 import { loadWitnessHorizons } from "../memory/persistence/queries.ts";
-import { loadChatCastProducer } from "../persistence/cast.ts";
+import { loadChatIdentityProducer } from "../persistence/identity.ts";
 import { classifyParticipant } from "../persistence/participant.ts";
 import { loadRoster } from "../persistence/roster.ts";
 import { resolveGroupBucketCharacterId } from "./group-bucket.ts";
@@ -84,7 +84,7 @@ async function loadCastAndHost(
     return actor?.kind === "character" ? [actor.characterId] : [];
   });
   const hostUserId = hostUserIdOf(roster);
-  const macroNames: RowMacroNameContext = buildCastNameContext(await loadChatCastProducer(ctx.db, { participants: roster }));
+  const macroNames: RowMacroNameContext = buildIdentityNameContext(await loadChatIdentityProducer(ctx.db, { participants: roster }));
   return { cast, hostUserId, macroNames };
 }
 

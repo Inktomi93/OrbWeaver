@@ -11,7 +11,7 @@
 import type { ResolvedCardFace } from "@orb/contracts/card-face";
 import { CARD_FACE_LIMITS, cardFaceFields } from "@orb/contracts/card-face";
 import { characterCardSchema, createCharacterSchema, updateCharacterSchema } from "@orb/contracts/character";
-import type { CastPersonaEntry } from "@orb/contracts/chat";
+import type { ChatPersonaIdentity } from "@orb/contracts/chat";
 import { createPersonaSchema } from "@orb/contracts/persona";
 import type { PersonaId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
@@ -91,10 +91,10 @@ test("CharacterDetail conforms to ResolvedCardFace<string | null> structurally (
   expect(typeof conforms).toBe("function");
 });
 
-test("CastPersonaEntry conforms to the resolved face minus starred (D137(E) — structural, by type)", () => {
-  // Compile-level: a CastPersonaEntry satisfies the resolved-face field set it claims (name/description/
+test("ChatPersonaIdentity conforms to the resolved face minus starred (D137(E) — structural, by type)", () => {
+  // Compile-level: a ChatPersonaIdentity satisfies the resolved-face field set it claims (name/description/
   // avatarHash); a drift in either shape reds this assignment.
-  const entry: CastPersonaEntry = {
+  const entry: ChatPersonaIdentity = {
     kind: "persona",
     id: castId<PersonaId>(mintTypeId(ID_PREFIX.persona)),
     name: "n",

@@ -45,24 +45,24 @@ updated: 2026-08-30
 > **Vocabulary (owner rulings, #901, 2026-08-30 — read this before you copy a word out of this doc).**
 > The room's seated characters are **Characters**; the saved seats+knobs+rules template is a **Roster**.
 > The word "cast" is retired for BOTH concepts. It survives here only as the *code* spelling of the D137
-> producer (`CastEntry`, `loadChatCastProducer`, `ctx.cast`, `castKey`, `CAST_KIND_POLICY`) — issue #903
+> producer (`ChatIdentity`, `loadChatIdentityProducer`, `ctx.cast`, `castKey`, `CHAT_IDENTITY_KIND_POLICY`) — issue #903
 > (vocab C2) renames that seam to **`ChatIdentity`** with the drive axis **`characters`**, and it has NOT
 > landed. So: code identifiers below are quoted as they are on the tree TODAY; the prose around them uses
 > the ruled words. Do not "restore" cast prose, and do not write the #903 names as if they exist.
 
-A chat read yields the identity-directory producer (`CastEntry[]`,
+A chat read yields the identity-directory producer (`ChatIdentity[]`,
 `@orb/contracts/chat/producers.ts`) — ONE
 kind-discriminated entry per identity the chat references, **member-gated** (any member may read it),
-loaded via `loadChatCastProducer` (`domain/chat/persistence/cast.ts`):
+loaded via `loadChatIdentityProducer` (`domain/chat/persistence/identity.ts`):
 
 - `{ kind: "persona"; id; name; description; avatarHash }` — description backs `{{persona}}`
 - `{ kind: "character"; id; name; avatarHash }` — deliberately NO description (a card's description is not
   member-consented; the member card surface is `ParticipantView`, D137(D))
 
 TWO projections derive the consumer maps, and the split IS the names-only law's mechanism: the resolver
-(§2) consumes `buildCastNameContext(cast)` → `personaNamesById`/`characterNamesById` — the KIT's
+(§2) consumes `buildIdentityNameContext(cast)` → `personaNamesById`/`characterNamesById` — the KIT's
 avatar-free entry types, so the macro engine is structurally unable to see chrome; the attribution chrome
-consumes `buildCastAvatarMaps(cast)` (avatar precedence per `CAST_KIND_POLICY` — a live participant
+consumes `buildIdentityAvatarMaps(cast)` (avatar precedence per `CHAT_IDENTITY_KIND_POLICY` — a live participant
 outranks a character entry, `participant-first`; personas are `cast-only`). Coverage: every id the chat
 references — its participants' personas/characters AND any `personaId`/`characterId` a stored message
 carries (incl. since-switched personas and a REMOVED character whose rows remain: the transcript-integrity

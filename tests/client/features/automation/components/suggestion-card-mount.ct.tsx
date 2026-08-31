@@ -13,7 +13,7 @@
 // visible, the panel's own visibility — never on a state that exists only mid-flight.
 
 import type { AutomationBusEvent } from "@orb/contracts/automation";
-import type { CastEntry, GroupConfig } from "@orb/contracts/chat";
+import type { ChatIdentity, GroupConfig } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import type { StreamFrame } from "@orb/contracts/stream";
 import type { AutomationRuleId, AutomationSuggestionId, MessageId } from "@orb/kit/ids";
@@ -69,10 +69,10 @@ async function routeRoom(page: Page, frames: readonly StreamFrame[]): Promise<{ 
       droppedCount: 0,
       compactSummary: null,
     }),
-    "chat.getChat": (): { participants: never[]; anchorPersonaId: null; cast: readonly CastEntry[]; group: GroupConfig } => ({
+    "chat.getChat": (): { participants: never[]; anchorPersonaId: null; identities: readonly ChatIdentity[]; group: GroupConfig } => ({
       participants: [],
       anchorPersonaId: null,
-      cast: [],
+      identities: [],
       group: DEFAULT_GROUP_CONFIG,
     }),
     "chat.listMessages": (): unknown =>

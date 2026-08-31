@@ -96,7 +96,7 @@ function inputOf(
   return {
     chatId: castId(chatId),
     ownerId,
-    castCharacterIds: castIds,
+    characterIds: castIds,
     personaIds: [],
     promptConfig: DEFAULT_PROMPT_CONFIG,
     personas,

@@ -44,7 +44,7 @@ function character(name: string): Record<string, unknown> {
   };
 }
 
-test("a GROUP cast shows the chip counting PRESENT participants (\u00a7 6.1: Members \u2014 N)", async ({ mount, page }) => {
+test("a GROUP chat shows the chip counting PRESENT participants (\u00a7 6.1: Members \u2014 N)", async ({ mount, page }) => {
   await routeTrpc(page, {
     "chat.getChat": () => ({
       title: "Council of Two",
@@ -192,7 +192,7 @@ test("a NON-host gets the same chip and the same one door (no host-forked topbar
 // band renders NEUTRAL chrome above the tab strip — never a second avatar+title cluster 300px away.
 test("the CONTEXT band renders neutral chrome, never a second identity cluster", async ({ mount, page }) => {
   await routeTrpc(page, {
-    "chat.getChat": { title: "Test chat", participants: [], cast: [] },
+    "chat.getChat": { title: "Test chat", participants: [], identities: [] },
   });
 
   const component = await mount(<ChatContextHeaderStory />);

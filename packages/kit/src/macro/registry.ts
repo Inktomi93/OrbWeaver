@@ -450,14 +450,14 @@ const setGlobalVar: MacroHandler = (args, ctx) => {
   return "";
 };
 
-// Absent cast ⇒ the cast-of-one [char], so {{group}} == {{char}} for solo.
-function castOf(ctx: MacroContext): readonly string[] {
-  return ctx.cast && ctx.cast.length > 0 ? ctx.cast : [ctx.char];
+// Absent `characterNames` ⇒ the cast-of-one [char], so {{group}} == {{char}} for solo.
+function characterNamesOf(ctx: MacroContext): readonly string[] {
+  return ctx.characterNames && ctx.characterNames.length > 0 ? ctx.characterNames : [ctx.char];
 }
 
 // The ACTIVE (non-muted) characters — distinct from {{group}} (every character, incl. muted).
-function castNotMutedOf(ctx: MacroContext): readonly string[] {
-  return ctx.castNotMuted && ctx.castNotMuted.length > 0 ? ctx.castNotMuted : castOf(ctx);
+function unmutedCharacterNamesOf(ctx: MacroContext): readonly string[] {
+  return ctx.unmutedCharacterNames && ctx.unmutedCharacterNames.length > 0 ? ctx.unmutedCharacterNames : characterNamesOf(ctx);
 }
 
 // Runs `ctx.evaluateString` on the raw field so nested macros embedded by the card author resolve.
@@ -575,16 +575,16 @@ export function createDefaultRegistry(): MacroRegistry {
   registry.register("model", (_args, ctx) => ctx.model ?? "", { requires: "chat" });
   registry.register("chatid", (_args, ctx) => ctx.chatId ?? "", { requires: "chat" });
 
-  registry.register("group", (_a, ctx) => castOf(ctx).join(", "), { requires: "char" });
-  registry.register("charifnotgroup", (_a, ctx) => castOf(ctx).join(", "), { requires: "char" });
-  registry.register("groupnotmuted", (_a, ctx) => castNotMutedOf(ctx).join(", "), {
+  registry.register("group", (_a, ctx) => characterNamesOf(ctx).join(", "), { requires: "char" });
+  registry.register("charifnotgroup", (_a, ctx) => characterNamesOf(ctx).join(", "), { requires: "char" });
+  registry.register("groupnotmuted", (_a, ctx) => unmutedCharacterNamesOf(ctx).join(", "), {
     requires: "char",
   });
   // The room characters minus the current speaker; humans not included. Empty for solo.
   registry.register(
     "notchar",
     (_a, ctx) =>
-      castOf(ctx)
+      characterNamesOf(ctx)
         .filter((n) => n !== ctx.char)
         .join(", "),
     { requires: "char" },

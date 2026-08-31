@@ -46,7 +46,7 @@ function detailFor(viewerUserId: UserId, participants: readonly ParticipantView[
   return toChatDetail({
     chat: ROW,
     participants,
-    cast: [],
+    identities: [],
     viewerUserId,
     viewerHistoryFloorSeq: 0,
   });

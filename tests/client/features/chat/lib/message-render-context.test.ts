@@ -60,7 +60,7 @@ test("a multi-character roster omits speakerCharName (ambiguous, no guess) but k
   // The producer map is still fully populated — a row with its own characterId still resolves.
   expect(result.characterNamesById.get(BOB_ID)?.name).toBe("Bob");
   // Ruling B: the full cast (roster order) IS exposed — a user/narrator row's {{char}} joins it.
-  expect(result.cast).toEqual(["Alice", "Bob"]);
+  expect(result.characterNames).toEqual(["Alice", "Bob"]);
 });
 
 test("a non-character participant never counts toward the solo/group split", () => {

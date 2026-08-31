@@ -32,7 +32,7 @@ const CHAT = {
   anchorPersonaId: NOVA,
   viewerIsHost: true,
   participants: [],
-  cast: PERSONAS.map((p) => ({ kind: "persona", id: p.id, name: p.name, description: "", avatarHash: null })),
+  identities: PERSONAS.map((p) => ({ kind: "persona", id: p.id, name: p.name, description: "", avatarHash: null })),
 };
 
 /** The MULTI-HUMAN room: a second present human plays "Zara", and the host has pinned HER persona as the
@@ -44,7 +44,7 @@ const MULTI_HUMAN_CHAT = {
     { kind: "human", userId: "user_ct", displayName: "You", activePersonaId: NOVA, leftSeq: null },
     { kind: "human", userId: "user_member", displayName: "Rowan", activePersonaId: ZARA, leftSeq: null },
   ],
-  cast: [...CHAT.cast, { kind: "persona", id: ZARA, name: "Zara", description: "", avatarHash: null }],
+  identities: [...CHAT.identities, { kind: "persona", id: ZARA, name: "Zara", description: "", avatarHash: null }],
 };
 
 const UPDATE_PROC = "persona.setActivePersona";

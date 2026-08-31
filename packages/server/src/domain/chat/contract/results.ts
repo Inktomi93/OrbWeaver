@@ -20,7 +20,7 @@ import type {
   UserMacroDraws,
 } from "@orb/contracts/chat";
 import type { ResolvedConnection } from "@orb/contracts/connection";
-import type { ChatRoster } from "@orb/contracts/identity";
+import type { ChatMembership } from "@orb/contracts/identity";
 import type { CustomParameters, UserIntent } from "@orb/contracts/preset";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
 import type { CharacterId, ChatId, MessageId, PersonaId, UserId } from "@orb/kit/ids";
@@ -338,7 +338,7 @@ export interface TurnPrep {
    *  deferred-drain / swipe-of-that-slot but never a later GM/auto/arbiter round. Absent ⇒ false (ineligible). */
   readonly respondsToLatestUserTurn?: boolean | undefined;
   /** The caller's loaded membership for chat-scoped tool ceilings; absent until a chat-scoped registrant exists. */
-  readonly toolRoster?: ChatRoster | undefined;
+  readonly toolRoster?: ChatMembership | undefined;
   /** The chat-level recurse cap; absent means the engine applies the seed default. */
   readonly toolRecurseLimit?: number | undefined;
   /** The per-speaker two-axis SHAPE, set by the group round driver; absent falls back to the single-speaker

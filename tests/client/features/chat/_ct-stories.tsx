@@ -83,7 +83,7 @@ import {
 import type { QuickReplyMode } from "@orb/contracts/automation";
 import type {
   CardTrust,
-  CastEntry,
+  ChatIdentity,
   HandoffOffer,
   JoinHistoryVisibility,
   MemoryRecallSlice,
@@ -93,7 +93,7 @@ import type {
   RoomOverrides,
   ToolCallRecord,
 } from "@orb/contracts/chat";
-import { buildCastAvatarMaps, buildCastNameContext, DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
+import { buildIdentityAvatarMaps, buildIdentityNameContext, DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import type { RewriteToggleId } from "@orb/contracts/preset";
 import { REWRITE_TOGGLES } from "@orb/contracts/preset";
 import type { ThemeChatStyle } from "@orb/contracts/theme";
@@ -309,15 +309,15 @@ export function MessageRowStory({
   // with no participant row whose message is still in the transcript); the decoupled `characters` entries
   // (later in the array — last-write-wins) are what carry avatar hashes: that IS the
   // participant-independent portrait floor under test.
-  const storyCast: readonly CastEntry[] = [
+  const storyCast: readonly ChatIdentity[] = [
     ...(participants ?? [])
       .filter((p): p is ParticipantView & { characterId: CharacterId } => p.characterId !== null)
-      .map((p): CastEntry => ({ kind: "character", id: p.characterId, name: p.displayName, avatarHash: null })),
-    ...(characters ?? []).map((c): CastEntry => ({ kind: "character", id: c.id, name: c.name, avatarHash: c.avatarHash ?? null })),
-    ...(personas ?? []).map((p): CastEntry => ({ kind: "persona", id: p.id, name: p.name, description: p.description ?? "", avatarHash: null })),
+      .map((p): ChatIdentity => ({ kind: "character", id: p.characterId, name: p.displayName, avatarHash: null })),
+    ...(characters ?? []).map((c): ChatIdentity => ({ kind: "character", id: c.id, name: c.name, avatarHash: c.avatarHash ?? null })),
+    ...(personas ?? []).map((p): ChatIdentity => ({ kind: "persona", id: p.id, name: p.name, description: p.description ?? "", avatarHash: null })),
   ];
-  const { characterNamesById, personaNamesById } = buildCastNameContext(storyCast);
-  const { characterAvatarsById } = buildCastAvatarMaps(storyCast);
+  const { characterNamesById, personaNamesById } = buildIdentityNameContext(storyCast);
+  const { characterAvatarsById } = buildIdentityAvatarMaps(storyCast);
 
   return (
     // The row now always renders <MessageActionsRow> (Edit/Hide/Delete/Fork/Copy), which reads the
@@ -410,14 +410,14 @@ export function NarratorTranscriptStory({
   const participantsMap = new Map(
     participants.filter((p): p is ParticipantView & { characterId: CharacterId } => p.characterId !== null).map((p) => [p.characterId, p] as const),
   );
-  const { characterNamesById, personaNamesById } = buildCastNameContext([
+  const { characterNamesById, personaNamesById } = buildIdentityNameContext([
     ...participants
       .filter((p): p is ParticipantView & { characterId: CharacterId } => p.characterId !== null)
-      .map((p): CastEntry => ({ kind: "character", id: p.characterId, name: p.displayName, avatarHash: null })),
+      .map((p): ChatIdentity => ({ kind: "character", id: p.characterId, name: p.displayName, avatarHash: null })),
     // The synthetic group card rides the producer like any cast member — that is the whole defect.
     ...(narratorProducer === undefined
       ? []
-      : [{ kind: "character", id: narratorProducer.id, name: narratorProducer.name, avatarHash: null } satisfies CastEntry]),
+      : [{ kind: "character", id: narratorProducer.id, name: narratorProducer.name, avatarHash: null } satisfies ChatIdentity]),
   ]);
   const rowProps = {
     chatStyle: "bubble",
@@ -468,8 +468,8 @@ export interface GroupTranscriptAttributionStoryProps {
 export function GroupTranscriptAttributionStory({ chatStyle, participants, persona, showInChatAvatars }: GroupTranscriptAttributionStoryProps): ReactElement {
   const seated = participants.filter((p): p is ParticipantView & { characterId: CharacterId } => p.characterId !== null);
   const participantsMap = new Map(seated.map((p) => [p.characterId, p] as const));
-  const { characterNamesById, personaNamesById } = buildCastNameContext([
-    ...seated.map((p): CastEntry => ({ kind: "character", id: p.characterId, name: p.displayName, avatarHash: null })),
+  const { characterNamesById, personaNamesById } = buildIdentityNameContext([
+    ...seated.map((p): ChatIdentity => ({ kind: "character", id: p.characterId, name: p.displayName, avatarHash: null })),
     { kind: "persona", id: persona.id, name: persona.name, description: persona.description ?? "", avatarHash: null },
   ]);
   const rowProps = {
@@ -675,7 +675,7 @@ export function MessageContentSpansStory({
     characterName === undefined && userName === undefined
       ? undefined
       : {
-          ...buildCastNameContext([]),
+          ...buildIdentityNameContext([]),
           ...(characterName === undefined ? {} : { speakerCharName: characterName }),
           ...(userName === undefined ? {} : { fallbackPersonaName: userName }),
         };
@@ -2634,7 +2634,7 @@ export function CommittedMembersTabStory({ soloCast = false, mutedSoloSeat = fal
       <div style={{ overflow: "visible", width }}>
         <CommittedMembersTab
           chatId={castId<ChatId>("chat_members_tab")}
-          chat={{ participants, cast: [], viewerUserId: castId<UserId>("user_riley"), pendingHostUserId: null }}
+          chat={{ participants, identities: [], viewerUserId: castId<UserId>("user_riley"), pendingHostUserId: null }}
           isHost={true}
           multiHumanCapable={false}
         />

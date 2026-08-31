@@ -95,7 +95,7 @@ function createdChat(temporary: boolean): Record<string, unknown> {
     title: null,
     participants: [],
     anchorPersonaId: null,
-    cast: [],
+    identities: [],
     group: DEFAULT_GROUP_CONFIG,
     temporary,
     viewerIsHost: true,
@@ -120,7 +120,7 @@ function createdRoomRoutes(temporary: boolean, canon: readonly unknown[] = []): 
   return {
     "chat.startChat": { chat, opening: null },
     "chat.getChat": chat,
-    "chat.listMessages": { messages: canon, cast: [] },
+    "chat.listMessages": { messages: canon, identities: [] },
     "chat.previewContextFit": PREVIEW_FIT_STUB,
   };
 }

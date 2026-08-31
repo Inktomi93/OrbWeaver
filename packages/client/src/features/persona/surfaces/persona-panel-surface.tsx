@@ -227,7 +227,7 @@ function ChatScopeBlock({
   const targetName =
     targetId === null
       ? null
-      : (personas.find((p) => p.id === targetId)?.name ?? chat.cast.find((e) => e.kind === "persona" && e.id === targetId)?.name ?? null);
+      : (personas.find((p) => p.id === targetId)?.name ?? chat.identities.find((e) => e.kind === "persona" && e.id === targetId)?.name ?? null);
 
   // One call, no pre-read: the server resolves "every user row I authored in this chat" itself
   // (`{kind:"mine"}`). The verb returns no affected-rows count, so the confirming toast names the persona

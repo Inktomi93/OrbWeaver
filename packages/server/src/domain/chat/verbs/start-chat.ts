@@ -46,7 +46,7 @@ import { ChatNotFoundError } from "../contract/errors.ts";
 import type { StartChatParams } from "../contract/params.ts";
 import type { StartChatResult, TurnOutcome } from "../contract/results.ts";
 import type { ChatService } from "../contract/service.ts";
-import { loadChatCastProducer } from "../persistence/cast.ts";
+import { loadChatIdentityProducer } from "../persistence/identity.ts";
 import { loadChatRow } from "../persistence/queries.ts";
 import { buildInitialRosterRows } from "../persistence/roster.ts";
 import { NO_HISTORY_FLOOR } from "../substrate/auth/index.ts";
@@ -236,12 +236,12 @@ function createStartChatVerb(ctx: ChatContext, deps: StartChatDeps): ChatService
       throw new ChatNotFoundError(chatId);
     }
     const participants = await deps.loadParticipantViews(chatId);
-    const cast = await loadChatCastProducer(ctx.db, { participants });
+    const identities = await loadChatIdentityProducer(ctx.db, { participants });
     return {
       chat: toChatDetail({
         chat: chatRow,
         participants,
-        cast,
+        identities,
         viewerUserId: hostUserId,
         // Born-here host: `joinSeq` 0, so the checkpoint clamp is inert by construction (there is no
         // pre-membership canon in a room this call just created).

@@ -1,4 +1,4 @@
-// CT: `useCarriedAppearanceCast` — the phase-independent read of "whose card dresses this room".
+// CT: `useCarriedAppearance` — the phase-independent read of "whose card dresses this room".
 //
 // WHY IT EXISTS (owner dogfood 2026-08-06): the carried look — the app-root background (BG-C) and the
 // room-theme takeover — used to be resolved from `chat.getChat`'s roster, which a DRAFT has none of. Every
