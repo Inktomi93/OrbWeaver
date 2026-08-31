@@ -1,9 +1,11 @@
 // The non-rendered half of #935: exact schema/owner equality is enforced by the structural gate; these
 // assertions keep the executable manifest's populations and pair generator honest for focused CT/Snap use.
 
+import { appearanceSettingsSchema } from "@orb/contracts/settings";
 import { describe } from "vitest";
 import {
   APPEARANCE_CARRIER_MANIFEST,
+  APPEARANCE_CARRIER_OBSERVABLES,
   APPEARANCE_CARRIER_PLANES,
   APPEARANCE_EDITOR_OWNERS,
   APPEARANCE_OWNER_KEYS,
@@ -11,6 +13,8 @@ import {
   THEME_CARRIER_OBSERVABLES,
 } from "../../../packages/client/src/lib/appearance-carrier-manifest.ts";
 import { expect, test } from "../../support/fixtures.ts";
+import type { AppearanceCarrierSnapshot } from "./appearance-carrier-matrix.ts";
+import { appearanceSettingsForCarrierArm, compareAppearanceCarrierArms } from "./appearance-carrier-matrix.ts";
 
 describe("Appearance carrier manifest", () => {
   test("declares 41 unique keys across seven non-empty editor owners", () => {
@@ -36,20 +40,44 @@ describe("Appearance carrier manifest", () => {
     });
   });
 
-  test("declared distinct arms are actually different and dependent source fields stay explicit", () => {
+  test("every declared two-arm row has one executable browser observable", () => {
     const rows = Object.entries(APPEARANCE_CARRIER_MANIFEST);
-    let armed = 0;
-    for (const [key, row] of rows) {
-      if (!("requiredDistinctArms" in row)) {
-        continue;
-      }
-      armed += 1;
-      const [first, second] = row.requiredDistinctArms;
-      expect(first, `${key} first arm`).not.toEqual(second);
-    }
-    expect(armed).toBe(36);
+    const armed = rows.filter(([, row]) => "requiredDistinctArms" in row).map(([key]) => key);
+    expect(new Set(Object.keys(APPEARANCE_CARRIER_OBSERVABLES))).toEqual(new Set(armed));
+    expect(armed).toHaveLength(36);
     expect(APPEARANCE_CARRIER_MANIFEST.backgroundAssetHash.dependsOn).toContain("backgroundImageKind");
     expect(APPEARANCE_CARRIER_MANIFEST.backgroundLibrary.carriers).toEqual(["source-catalog"]);
+  });
+
+  test("the generated executor applies schema-valid values on both arms", () => {
+    const armA = appearanceSettingsForCarrierArm(0);
+    const armB = appearanceSettingsForCarrierArm(1);
+    expect(armA.backgroundImageKind).toBe("seeded");
+    expect(armB.backgroundImageKind).toBe("seeded");
+    expect(appearanceSettingsSchema.safeParse(armA).success).toBe(true);
+    expect(appearanceSettingsSchema.safeParse(armB).success).toBe(true);
+    expect(armA).not.toEqual(armB);
+  });
+
+  test("the matrix fails loud for a missing observation on either arm and for equal rendered outcomes", () => {
+    const keys = Object.keys(APPEARANCE_CARRIER_OBSERVABLES) as (keyof AppearanceCarrierSnapshot)[];
+    const armA = Object.fromEntries(keys.map((key) => [key, `a:${key}`])) as AppearanceCarrierSnapshot;
+    const armB = Object.fromEntries(keys.map((key) => [key, `b:${key}`])) as AppearanceCarrierSnapshot;
+    expect(compareAppearanceCarrierArms(armA, armB)).toEqual({ compared: 36, expected: 36, findings: [] });
+
+    const missingA = { ...armA } as Partial<AppearanceCarrierSnapshot>;
+    const missingB = { ...armB } as Partial<AppearanceCarrierSnapshot>;
+    const first = keys[0];
+    if (first === undefined) {
+      throw new Error("appearance carrier observable population reached zero");
+    }
+    delete missingA[first];
+    delete missingB[first];
+    expect(compareAppearanceCarrierArms(missingA, armB).findings).toEqual([`${first}: missing arm A observation`]);
+    expect(compareAppearanceCarrierArms(armA, missingB).findings).toEqual([`${first}: missing arm B observation`]);
+    expect(compareAppearanceCarrierArms(armA, { ...armB, [first]: armA[first] }).findings).toEqual([
+      `${first}: both arms resolved to ${JSON.stringify(armA[first])}`,
+    ]);
   });
 
   test("first-frame lifecycle is honest: two root stamps and density's React-first hinted arm", () => {

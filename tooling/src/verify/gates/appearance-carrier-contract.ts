@@ -1,10 +1,11 @@
-// Gate: appearance-carrier-contract (#935) — every Appearance schema leaf has one editor owner and an
-// executable carrier declaration, and every declaration still names a live consumer that reads the key.
+// Gate: appearance-carrier-contract (#935) — every Appearance schema leaf has one owner, executable
+// carrier declaration, and live consumer that reads the key.
 // The manifest deliberately preserves the multi-plane theme engine; this gate rejects carrier flattening.
 
 import type { ArrayLiteralExpression, ObjectLiteralExpression, PropertyAssignment, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { Finding, GateDescriptor, GateRunCtx } from "../contract/gate.ts";
+import { belongsToObjectDeclaration, literalObjectKeys } from "../lib/appearance-carrier-contract-ast.ts";
 import { fileLoaded, repoRel } from "../lib/pass.ts";
 
 const MANIFEST_FILE = "packages/client/src/lib/appearance-carrier-manifest.ts";
@@ -14,7 +15,8 @@ const USE_APPEARANCE_FILE = "packages/client/src/features/app-shell/hooks/use-ap
 const SNAP_APPEARANCE_FILE = "tooling/src/_shared/appearance.ts";
 const MANIFEST_SYMBOL = "APPEARANCE_CARRIER_MANIFEST";
 const OWNERS_SYMBOL = "APPEARANCE_OWNER_KEYS";
-
+const OBSERVABLES_SYMBOL = "APPEARANCE_CARRIER_OBSERVABLES";
+const PLANTED_MANIFEST_BASENAME = "__g_appearance-carrier-manifest.ts";
 const EDITOR_BINDINGS = {
   sizing: ["packages/client/src/features/app-shell/lib/appearance-sizing-model.ts", "APPEARANCE_SIZING_KEYS", ".sizing"],
   effects: ["packages/client/src/features/app-shell/lib/appearance-effects-model.ts", "APPEARANCE_EFFECTS_KEYS", ".effects"],
@@ -40,6 +42,7 @@ interface Row {
 const identifiersByFunction = new Map<string, Set<string>>();
 const declaredFunctions = new Set<string>();
 const collectedSchemaLeaves = new Set<string>();
+const plantedManifestSources = new Map<string, SourceFile>();
 
 function unwrapped(node: Node): Node {
   let current = node;
@@ -324,6 +327,12 @@ function reconcile(ctx: GateRunCtx): void {
   ctx.scan({ unit: "appearance keys", candidates: schema.size, scanned: rows.length });
   reportSetDiff(ctx, "schema↔manifest", schema, new Set(rows.map((row) => row.key)));
   reportSetDiff(ctx, "schema↔editor owners", schema, new Set([...owners.values()].flat()));
+  reportSetDiff(
+    ctx,
+    "armed↔observable",
+    new Set(rows.filter((row) => row.arms !== undefined).map((row) => row.key)),
+    literalObjectKeys(manifestSource, OBSERVABLES_SYMBOL),
+  );
   const allEditorBindingsLoaded = Object.values(EDITOR_BINDINGS).every(([file]) => fileLoaded(ctx, file));
   if (allEditorBindingsLoaded) {
     if (owners.size !== Object.keys(EDITOR_BINDINGS).length) {
@@ -333,6 +342,11 @@ function reconcile(ctx: GateRunCtx): void {
   }
   validatePlanePopulations(ctx, validateRows(ctx, rows, owners));
   validateLifecycle(ctx, rows);
+  for (const source of plantedManifestSources.values()) {
+    for (const row of manifestRows(source)) {
+      validateRowSemantics(ctx, row);
+    }
+  }
 }
 
 export const gate: GateDescriptor = {
@@ -349,9 +363,13 @@ export const gate: GateDescriptor = {
     identifiersByFunction.clear();
     declaredFunctions.clear();
     collectedSchemaLeaves.clear();
+    plantedManifestSources.clear();
   },
   visit: (node, sf, ctx) => {
     const file = repoRel(ctx.root, sf.getFilePath());
+    if (file.endsWith(`/${PLANTED_MANIFEST_BASENAME}`) && belongsToObjectDeclaration(node, MANIFEST_SYMBOL)) {
+      plantedManifestSources.set(file, sf);
+    }
     if (Node.isPropertyAssignment(node) && file === SCHEMA_FILE) {
       const object = node.getParent();
       const call = object.getParent();
@@ -401,7 +419,7 @@ export const gate: GateDescriptor = {
       files: {
         [SCHEMA_FILE]: 'import { z } from "zod"; export const appearanceSettingsSchema = z.object({ density: z.string() });',
         [MANIFEST_FILE]:
-          'const C={file:"packages/client/src/x.ts",symbol:"AppShell"}; export const APPEARANCE_OWNER_KEYS={sizing:["density"]}; export const APPEARANCE_CARRIER_MANIFEST={density:{owner:"effects",carriers:["theme-scope"],consumer:C,lifecycle:"hydrated-from-prepaint-hint",portal:"shared-theme-scope-sibling",requiredDistinctArms:["compact","comfortable"]}};',
+          'const C={file:"packages/client/src/x.ts",symbol:"AppShell"}; export const APPEARANCE_OWNER_KEYS={sizing:["density"]}; export const APPEARANCE_CARRIER_MANIFEST={density:{owner:"effects",carriers:["theme-scope"],consumer:C,lifecycle:"hydrated-from-prepaint-hint",portal:"shared-theme-scope-sibling",requiredDistinctArms:["compact","comfortable"]}}; export const APPEARANCE_CARRIER_OBSERVABLES={density:{kind:"attribute",selector:"x",signal:"data-density"}};',
         "packages/client/src/x.ts": "export function AppShell(){ const density = 1; return density; }",
       },
       expect: { messageIncludes: "wrong owner for density" },
@@ -411,7 +429,7 @@ export const gate: GateDescriptor = {
       files: {
         [SCHEMA_FILE]: 'import { z } from "zod"; export const appearanceSettingsSchema = z.object({ density: z.string() });',
         [MANIFEST_FILE]:
-          'const C={file:"packages/client/src/x.ts",symbol:"AppShell"}; export const APPEARANCE_OWNER_KEYS={sizing:["density"]}; export const APPEARANCE_CARRIER_MANIFEST={density:{owner:"sizing",carriers:["theme-scope"],consumer:C,lifecycle:"hydrated-from-prepaint-hint",portal:"grid-only",requiredDistinctArms:["compact","compact"]}};',
+          'const C={file:"packages/client/src/x.ts",symbol:"AppShell"}; export const APPEARANCE_OWNER_KEYS={sizing:["density"]}; export const APPEARANCE_CARRIER_MANIFEST={density:{owner:"sizing",carriers:["theme-scope"],consumer:C,lifecycle:"hydrated-from-prepaint-hint",portal:"grid-only",requiredDistinctArms:["compact","compact"]}}; export const APPEARANCE_CARRIER_OBSERVABLES={density:{kind:"attribute",selector:"x",signal:"data-density"}};',
         "packages/client/src/x.ts": "export function AppShell(){ const other = 1; return other; }",
       },
       expect: { count: 3 },
@@ -423,7 +441,7 @@ export const gate: GateDescriptor = {
       files: {
         [SCHEMA_FILE]: 'import { z } from "zod"; export const appearanceSettingsSchema = z.object({ width: z.number() });',
         [MANIFEST_FILE]:
-          'const C={file:"packages/client/src/x.ts",symbol:"AppShell"}; export const APPEARANCE_OWNER_KEYS={sizing:["width"]}; export const APPEARANCE_CARRIER_MANIFEST={width:{owner:"sizing",carriers:["shell-grid"],consumer:C,lifecycle:"hydrated",portal:"grid-only",requiredDistinctArms:[60,90]}};',
+          'const C={file:"packages/client/src/x.ts",symbol:"AppShell"}; export const APPEARANCE_OWNER_KEYS={sizing:["width"]}; export const APPEARANCE_CARRIER_MANIFEST={width:{owner:"sizing",carriers:["shell-grid"],consumer:C,lifecycle:"hydrated",portal:"grid-only",requiredDistinctArms:[60,90]}}; export const APPEARANCE_CARRIER_OBSERVABLES={width:{kind:"inline-style",selector:"x",signal:"--width"}};',
         "packages/client/src/x.ts": "export function AppShell(){ const width = 90; return width; }",
       },
       why: "one schema leaf, its owner, a legal carrier/portal pair, distinct arms, and a live named consumer all agree",
