@@ -11,8 +11,18 @@ export type AppearanceEditorOwner = (typeof APPEARANCE_EDITOR_OWNERS)[number];
 export const APPEARANCE_CARRIER_PLANES = ["root-html", "theme-scope", "shell-grid", "background-layer", "message-props", "source-catalog"] as const;
 export type AppearanceCarrierPlane = (typeof APPEARANCE_CARRIER_PLANES)[number];
 
-export type AppearanceLifecycle = "prepaint-and-hydrated" | "hydrated" | "hydrated-from-prepaint-hint";
-export type AppearancePortalObligation = "must-reach-portals" | "shared-theme-scope-sibling" | "grid-only" | "outside-theme-scope" | "prop-threaded" | "none";
+const APPEARANCE_LIFECYCLES = ["prepaint-and-hydrated", "hydrated", "hydrated-from-prepaint-hint"] as const;
+export type AppearanceLifecycle = (typeof APPEARANCE_LIFECYCLES)[number];
+
+const APPEARANCE_PORTAL_OBLIGATIONS = [
+  "must-reach-portals",
+  "shared-theme-scope-sibling",
+  "grid-only",
+  "outside-theme-scope",
+  "prop-threaded",
+  "none",
+] as const;
+export type AppearancePortalObligation = (typeof APPEARANCE_PORTAL_OBLIGATIONS)[number];
 
 export interface AppearanceConsumerBinding {
   readonly file: string;

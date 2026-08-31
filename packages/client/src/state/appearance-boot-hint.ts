@@ -64,10 +64,13 @@ export const FONT_SCALE_VAR = "--font-scale";
 /** The appearance axes a boot needs before the shell can render one — the hint's whole surface. */
 export type AppearanceBootAxes = Pick<AppearanceSettings, "reducedMotion" | "fontScale" | "density">;
 
+/** The generated seed palettes that own a `[data-theme]` block. Hearth is represented by `null`. */
+export type SeedThemeName = keyof typeof SEED_THEME_VALUE_SETS;
+
 /** This device's whole remembered answer: the appearance axes plus the resolved `[data-theme]` value. */
 export interface AppearanceBootHintState extends AppearanceBootAxes {
   /** The `[data-theme]` value the shell would stamp (a SEED palette's lowercased name), or null for the base Hearth palette. */
-  readonly dataTheme: string | null;
+  readonly dataTheme: SeedThemeName | null;
 }
 
 /** The schema's own defaults — what a device that has never been told anything replays (i.e. nothing). */
@@ -78,7 +81,10 @@ const DEFAULT_STATE: AppearanceBootHintState = { ...DEFAULT_AXES, dataTheme: nul
 const PERSIST_VERSION = 1;
 
 /** The `[data-theme]` names the ui package actually generates a palette block for — anything else stamps nothing. */
-const SEED_THEME_NAMES: ReadonlySet<string> = new Set(Object.keys(SEED_THEME_VALUE_SETS));
+/** Boundary guard: persisted/server strings may name only a generated seed palette. */
+export function isSeedThemeName(value: string): value is SeedThemeName {
+  return Object.hasOwn(SEED_THEME_VALUE_SETS, value);
+}
 
 /** TOTAL: any shape that is not a valid remembered answer degrades to "this device knows nothing". */
 function migrate(persisted: unknown): AppearanceBootHintState {
@@ -92,7 +98,7 @@ function migrate(persisted: unknown): AppearanceBootHintState {
     reducedMotion: axes.reducedMotion,
     fontScale: axes.fontScale,
     density: axes.density,
-    dataTheme: typeof dataTheme === "string" && SEED_THEME_NAMES.has(dataTheme) ? dataTheme : null,
+    dataTheme: typeof dataTheme === "string" && isSeedThemeName(dataTheme) ? dataTheme : null,
   };
 }
 
@@ -119,7 +125,7 @@ export function rememberAppearanceBootHint(axes: AppearanceBootAxes): void {
 }
 
 /** Record the RESOLVED `[data-theme]` value (null = the base palette). Only ever called authoritatively. */
-export function rememberDataThemeHint(dataTheme: string | null): void {
+export function rememberDataThemeHint(dataTheme: SeedThemeName | null): void {
   if (useAppearanceBootHintStore.getState().dataTheme === dataTheme) {
     return;
   }

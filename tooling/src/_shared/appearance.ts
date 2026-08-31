@@ -82,7 +82,7 @@ async function seedAppearanceBootHint(context: BrowserContext, patch: Appearance
   await context.addInitScript(
     ({ axes: requested, key, version }) => {
       let current: unknown;
-      // @orb-gate-ignore caught-failure-ownership(default:catch): a malformed optional device hint is replaced by the requested probe axes; the app re-validates the result through appearanceSettingsSchema. Ends if the hint becomes authoritative.
+      // @orb-gate-ignore caught-failure-ownership(empty:catch): a malformed optional device hint is replaced by the requested probe axes; the app re-validates the result through appearanceSettingsSchema. Ends if the hint becomes authoritative.
       try {
         current = JSON.parse(localStorage.getItem(key) ?? "null") as unknown;
       } catch {

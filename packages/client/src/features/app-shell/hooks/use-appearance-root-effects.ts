@@ -16,6 +16,7 @@
 
 import type { BlurSurface, SurfaceTexture } from "@orb/contracts/settings";
 import { useLayoutEffect } from "react";
+import type { SeedThemeName } from "#state";
 import { DATA_THEME_ATTR, FONT_SCALE_VAR, REDUCED_MOTION_ATTR } from "#state";
 
 const BLUR_SURFACE_ATTR: Record<BlurSurface, string> = {
@@ -38,7 +39,7 @@ export interface ReadingTypographyVars {
 
 export function useAppearanceRootEffects(params: {
   readonly fontScale: number;
-  readonly dataTheme: string | null;
+  readonly dataTheme: SeedThemeName | null;
   readonly blurSurfaces: readonly BlurSurface[];
   readonly shadowEffects: boolean;
   readonly blurStrength: number;

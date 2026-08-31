@@ -226,12 +226,12 @@ function validateRowSemantics(ctx: GateRunCtx, row: Row): void {
   }
   const carrier = row.carriers[0];
   if (carrier === undefined || PORTAL_BY_CARRIER[carrier] !== row.portal) {
-    ctx.report(finding(`wrong carrier/portal obligation for ${row.key}: ${carrier || "none"} + ${row.portal || "none"}`, row.key));
+    ctx.report(finding(`wrong carrier/portal obligation for ${row.key}: ${carrier ?? "none"} + ${row.portal === "" ? "none" : row.portal}`, row.key));
   }
   const liveKey = `${row.consumerFile}#${row.consumerSymbol}`;
   if (!declaredFunctions.has(liveKey)) {
     ctx.report(finding(`live consumer ${liveKey} for ${row.key} does not exist`, row.key));
-  } else if (!identifiersByFunction.get(liveKey)?.has(row.key)) {
+  } else if (identifiersByFunction.get(liveKey)?.has(row.key) !== true) {
     ctx.report(finding(`live consumer ${liveKey} does not bind ${row.key}`, row.key));
   }
 }
@@ -239,7 +239,7 @@ function validateRowSemantics(ctx: GateRunCtx, row: Row): void {
 function validateRows(ctx: GateRunCtx, rows: readonly Row[], owners: ReadonlyMap<string, readonly string[]>): ReadonlyMap<string, number> {
   const planeCounts = new Map<string, number>();
   for (const row of rows) {
-    if (!owners.get(row.owner)?.includes(row.key)) {
+    if (owners.get(row.owner)?.includes(row.key) !== true) {
       ctx.report(finding(`wrong owner for ${row.key}: manifest=${row.owner || "missing"}`, row.key));
     }
     for (const plane of row.carriers) {
@@ -341,7 +341,7 @@ export const gate: GateDescriptor = {
   status: "active",
   scopeSafety: "whole-project",
   message:
-    "Appearance carrier graph drift: schema, editor owner, carrier, live consumer, or first-frame parity no longer agrees with the canonical 41-key manifest.",
+    "Appearance carrier graph drift: schema, editor owner, carrier, live consumer, or first-frame parity no longer agrees with the canonical 41-key manifest (client-architecture-lockdown.md §4).",
   fix: `repair ${MANIFEST_FILE} and the named live binding together; do not flatten the theme/custom-CSS planes`,
   scanRoot: (path) => path.startsWith("packages/client/src/") || path === SCHEMA_FILE || path === SNAP_APPEARANCE_FILE,
   kinds: [SyntaxKind.FunctionDeclaration, SyntaxKind.Identifier, SyntaxKind.PropertyAssignment],
