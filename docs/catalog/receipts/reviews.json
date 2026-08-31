@@ -1618,14 +1618,15 @@
     },
     {
       "path": "docs/reviews/stickler/2026-08-30-css-census-doctrine-and-enforcement.md",
-      "assignedSha256": "4ae356758952132f367972723ceb66ca33746dc0ea8453cb888d7bed2795b8de",
+      "assignedSha256": "005387164393ed7c8c4bb05326ddf6fa94f6051dc24bd9ee790fdf67e217708b",
       "disposition": "current",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "4ae356758952132f367972723ceb66ca33746dc0ea8453cb888d7bed2795b8de",
-      "verifiedCommit": "b682e9921f9bf4e5d804285c82d3194ccdcb5b8a",
+      "verifiedSha256": "005387164393ed7c8c4bb05326ddf6fa94f6051dc24bd9ee790fdf67e217708b",
+      "verifiedCommit": "bb01b0e91dfb6e1d7f6df8f2dbc40ef79f19a5bd",
       "verifiedAt": "2026-08-31",
       "evidence": [
+        "re-attested at bb01b0e91 under #969 — full 1,711-line read; the census records the pivot-dark/pivot-light framebuffer reds, total derivation repair, semantic foreground split, custom-CSS precedence, 2,060-sample pure proof, and focused CT green while retaining the grouped train barrier",
         "re-attested at b682e9921 — the historical 28d526c99 measurements are separated from current main; #949/#965/#966 integrated receipts, #950's official DevTools SDK route, the five-stylesheet-plus-token home count, semantic selector limits, and the ungraduated grouped barrier are reconciled",
         "re-attested at 219e839b6 — #956's semantic selector-writer gate, exact 69-class/112-data identity scope, focused proof, vendor parity, and honest real-tree deferral are reconciled into the durable CSS program",
         "re-attested at ef75f9455 — #939's cold-confirmed seed/custom chart repair and #955's integrated shell-length/token wall are reconciled with exact focused and rendered receipts while the grouped train barrier remains pending",
@@ -1637,7 +1638,7 @@
       ],
       "claims": [
         {
-          "claim": "13 historical confirmed findings (ceiling P1) plus the six-home CSS doctrine, ordered repair program, and per-enforcer reach/bite/blind-spot evidence; current main has five sanctioned stylesheets plus tokens.json, #949/#951/#952/#954-#957/#959/#961/#965/#966 are integrated in Review, #950 is Running on the revision-pinned official DevTools frontend SDK route, and the grouped train remains ungraduated.",
+          "claim": "13 historical confirmed findings (ceiling P1) plus the six-home CSS doctrine, ordered repair program, and per-enforcer reach/bite/blind-spot evidence; #969 repairs accepted-base foreground derivation and semantic carriers without adding a CSS home, while the grouped train remains ungraduated.",
           "evidence": [
             {
               "kind": "issue",
@@ -1650,7 +1651,7 @@
           ]
         }
       ],
-      "summary": "The live CSS census, doctrine, repair program and enforcer sweep, reconciled through #939's cold-confirmed chart repair and the integrated #955 length and #956 selector-writer walls while merge, cascade, and appearance-invariant work stays explicit."
+      "summary": "The live CSS census, doctrine, repair program and enforcer sweep, reconciled through #969's accepted-base foreground repair while the grouped train barrier remains explicit."
     },
     {
       "path": "docs/reviews/stickler/2026-08-30-vocab-unification.md",

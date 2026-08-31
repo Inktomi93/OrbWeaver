@@ -165,7 +165,7 @@
       "authority": "operational",
       "fullRead": true,
       "verifiedSha256": "22e06b85adecc0aa9a25006cf62fa2970ff5b51848ffc9c20e0999c1e7e799b5",
-      "verifiedCommit": "fce6b2b1a4a9f7126335208f63f49b571e9e1c9a",
+      "verifiedCommit": "a3c51c5dfc11a22e12b3996dc2b01cb027aa25fa",
       "verifiedAt": "2026-08-31",
       "evidence": [
         "re-attested at 5a9a9ada3 — css-selector-has-a-writer is registered with its semantic JSX/DOM/HAST/shared-provenance/vendor-contract reach and the discovered active count is 240; focused proof passed 18/18",
@@ -207,7 +207,7 @@
         "docs/architecture/core/Core-Enforcement-Active-Gates.md: re-attested at 79871238bc0506fa74902bb1844f734fc9e32db3 \u2014 the #866 S1+S2 (6923f33cb) and #876/#873 docs-law (79871238b) merges both carry truth-repairs here; both deltas read by the orchestrator; the gate-count line resolved to 233 at the merge",
         "re-attested at the #909 docs truth-repair merge (32bf93f3e): the lane's three-way rule applied per hit \u2014 concept prose takes the ruled word, every code symbol is quoted as it stands with its owning issue named, owner-sacred prose flagged not edited; verdict list read by the orchestrator",
         "re-attested at 214fa1200 after the CSS polarity gate registration: the new ACTIVE row and count delta were read with the landed descriptor; grouped CSS-train verification remains the runtime authority",
-        "re-attested at fce6b2b1a (#935): appearance-carrier-contract records the schema/editor/live-consumer/portal/prepaint contract and the 241 active-gate count; focused conformance passed 4/4 and the real gate declared and scanned 41/41 keys with zero findings"
+        "re-attested at a3c51c5df (#935): appearance-carrier-contract records the schema/editor/live-consumer/portal/prepaint contract and the 241 active-gate count; focused conformance passed 4/4 and the real gate declared and scanned 41/41 keys with zero findings"
       ],
       "claims": [
         {
@@ -295,14 +295,15 @@
     },
     {
       "path": "docs/architecture/core/Core-Path-Registry.md",
-      "assignedSha256": "b040d93c08d0d36b8f622b5d1c057de9a36a83b405e973277c4f4356c41b602d",
+      "assignedSha256": "bf00ada58af091fe2e1211013c107542f78357107832338f417bb6331c034740",
       "disposition": "current",
       "authority": "normative",
       "fullRead": true,
-      "verifiedSha256": "b040d93c08d0d36b8f622b5d1c057de9a36a83b405e973277c4f4356c41b602d",
-      "verifiedCommit": "bbecbfc78be417b6aab44609d3d4f0d484d8c87b",
+      "verifiedSha256": "bf00ada58af091fe2e1211013c107542f78357107832338f417bb6331c034740",
+      "verifiedCommit": "bb01b0e91dfb6e1d7f6df8f2dbc40ef79f19a5bd",
       "verifiedAt": "2026-08-31",
       "evidence": [
+        "re-attested at bb01b0e91 under #969 — full 545-line read; the D71 rider replaces the rejected-mid-band premise with one total accepted-base foreground contract and points to the derivation, ThemeScope, DTCG, CT, and imported-theme proof homes",
         "re-attested at bbecbfc78 — full-file read under #930; D70 now points to the one paint-law home and D150's shell-paint premise was re-derived against shell.css and the CSS census",
         "delta re-verify 2026-08-25 (#689, commit 0a2789a00834abe892bfa92839e8dec3c30a97af): D147 clause (d) rewritten in place \u2014 the SERVER-WIDE install is BUILT as an admin-triggered fan-out of per-user rows, so the clause's two recorded open questions (consent over a shared install, whose principal it runs as) are DISSOLVED, not answered. Re-read at the amended bytes and re-derived against the tree it now describes: domain/plugin/verbs/{install,uninstall,apply}-*-users.ts + substrate/distribution.ts + persistence/distributed-plugins.ts, the admin_distributed_plugins DDL, and the pins the clause cites (tests/server/domain/plugin/verbs/*-users.int.test.ts, persistence/distributed-plugins.int.test.ts, the cross-tenant sweep's three EXEMPT rows, settings-shell-surface.ct.tsx's admin/plain-user Distribute pair). No other D-entry in this document moved.",
         "docs/architecture/core/Core-Path-Registry.md D139-D140 re-derived against root AGENTS.md; the D140 direct-import routing delta preserves the standing work-control split",
@@ -673,7 +674,7 @@
           ]
         }
       ],
-      "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
+      "summary": "Active core reference re-attested at the #969 implementation: D71 now requires a total accepted-base foreground contract without narrowing custom themes; the derivation, ThemeScope, token, rendered, and import homes carry the proof."
     },
     {
       "path": "docs/architecture/core/Spine-Testing.md",
@@ -1059,14 +1060,15 @@
     },
     {
       "path": "docs/architecture/core/UI-Theming-and-Content.md",
-      "assignedSha256": "4fc7cffb35b190cbe57a96d5d8951e9ee25661d3fdfb8462c586b50700499a6d",
+      "assignedSha256": "7a1e416ee33f8c66a3fc39eab7700ee3e010421fffe66da873bb1a6b1f0a7e73",
       "disposition": "current",
       "authority": "current-reference",
       "fullRead": true,
-      "verifiedSha256": "4fc7cffb35b190cbe57a96d5d8951e9ee25661d3fdfb8462c586b50700499a6d",
-      "verifiedCommit": "32bf93f3e9f66740833d06ceeeb1c2eb6e67a28d",
-      "verifiedAt": "2026-08-30",
+      "verifiedSha256": "7a1e416ee33f8c66a3fc39eab7700ee3e010421fffe66da873bb1a6b1f0a7e73",
+      "verifiedCommit": "bb01b0e91dfb6e1d7f6df8f2dbc40ef79f19a5bd",
+      "verifiedAt": "2026-08-31",
       "evidence": [
+        "re-attested at bb01b0e91 under #969 — full 126-line read; §12.1 now points to D71 and names the surface-specific foreground derivation, reading-plate foreground, and custom-CSS later-winner contract",
         "docs/architecture/core/UI-Theming-and-Content.md:1 full read (123 lines) during the 2026-08-16 tier-B card-frame security pass (#91); \u00a712.2 truth-repaired against the tree",
         "git:e3efc08baf7601f1be23694babcbb2eeba94bf32 contains the exact current document blob",
         "docs/architecture/core/Core-Path-Registry.md:523-533 (standing control-plane and comment-source rulings \u2014 carried from the 2026-08-14 verification)",
@@ -1130,18 +1132,19 @@
           ]
         }
       ],
-      "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
+      "summary": "Active theming reference re-attested at #969: accepted custom bases derive surface-specific normal-text foregrounds and owner custom CSS remains the later winning plane."
     },
     {
       "path": "docs/architecture/core/client-architecture-lockdown.md",
-      "assignedSha256": "81aa33a915199da61223db4cbfd018da35163a26fbbca3d3f2c114948666f581",
+      "assignedSha256": "8884c3aa8244f26b56343105699ebe6f285d3281fcf8e3e2e5a6ca011b399074",
       "disposition": "current",
       "authority": "current-reference",
       "fullRead": true,
-      "verifiedSha256": "81aa33a915199da61223db4cbfd018da35163a26fbbca3d3f2c114948666f581",
-      "verifiedCommit": "4bf9ed645967f99b49c3f0d0b07cc5e9d7d7cb5b",
+      "verifiedSha256": "8884c3aa8244f26b56343105699ebe6f285d3281fcf8e3e2e5a6ca011b399074",
+      "verifiedCommit": "bb01b0e91dfb6e1d7f6df8f2dbc40ef79f19a5bd",
       "verifiedAt": "2026-08-31",
       "evidence": [
+        "re-attested at bb01b0e91 under #969 — full 803-line read; §4 records surface-specific normal-text foreground obligations, reading-plate and sidebar-accent roles, total accepted-base projection, and custom-CSS precedence without adding a CSS home",
         "re-attested at 4bf9ed645 — §4.5 records the one shared production/CT CSS front door and §4.6 records the repaired provenance-backed polarity gate",
         "re-attested at 8f30fb690 — §4.7 now records css-var-defined as the static value-resolution wall and removes undefined custom-property references from the known-unenforced list",
         "re-attested at b8eb66f00 — §4 now records the implemented portable/nonportable token partition, density ownership move, singular product polarity mechanism, exact #936 contract, and the honest #951/#954 enforcement limits",
@@ -1168,7 +1171,7 @@
           ]
         }
       ],
-      "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
+      "summary": "Active client paint law re-attested at #969: the existing six homes now carry a total accepted-base, surface-specific foreground contract while owner custom CSS remains later in the cascade."
     },
     {
       "path": "docs/architecture/core/motion-and-animation-guide.md",

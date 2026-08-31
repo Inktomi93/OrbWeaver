@@ -61,36 +61,6 @@
       ]
     },
     {
-      "path": "docs/design/css-merge-trace.md",
-      "assignedSha256": "2070796581c3438a6c0b74e90dc3c9aec6eb21268cf97a0904bc1e707d73075a",
-      "disposition": "current",
-      "authority": "design",
-      "fullRead": true,
-      "verifiedSha256": "2070796581c3438a6c0b74e90dc3c9aec6eb21268cf97a0904bc1e707d73075a",
-      "verifiedCommit": "5a5fda97fcd9fe247563462ecceb6e3375487c04",
-      "verifiedAt": "2026-08-31",
-      "evidence": [
-        "docs/design/css-merge-trace.md:1-98 read in full on integrated main; one configured merge, compiler-derived family parity, occurrence-aware loser/winner replay, dev-only transport, production exclusion, and focused verification receipt",
-        "git:5a5fda97fcd9fe247563462ecceb6e3375487c04 (integrated #949 design and implementation bytes)"
-      ],
-      "summary": "Implemented #949 design for one Tailwind/TV merge, compiler-positive custom-family parity, occurrence-aware loser-to-winner replay, and a bounded dev/test-only __orb.css receipt whose implementation is absent from production assets.",
-      "claims": [
-        {
-          "claim": "Orbweaver routes Tailwind Variants candidates through one configured final merger and can report bounded class-list loser/winner chains without copying tailwind-merge's classifier.",
-          "evidence": [
-            {
-              "kind": "issue",
-              "target": "#949"
-            },
-            {
-              "kind": "provenance",
-              "target": "git:5a5fda97fcd9fe247563462ecceb6e3375487c04"
-            }
-          ]
-        }
-      ]
-    },
-    {
       "path": "docs/design/config-ia-the-junk-drawer-problem.md",
       "assignedSha256": "ad6b4f4d21b85a86f705cde02b87668ca1cd8acbc13dbee2b8462298db627cd5",
       "disposition": "current",
@@ -294,6 +264,36 @@
         }
       ],
       "summary": "Context bracket build design (#860): the shell renders ONE column for every tabs context pane (head band → optional state rail → viewport → ground → meta rail at the foot); the rpg claim shrinks to a head-band claim; the generic Detail tablist and ContextRegionHost retire; rail model universal (#112); topbar yields to the band while docked (#846); the receded rail gets fill + floor (#861); six forks ruled; the #830 CT reds recorded as pre-existing."
+    },
+    {
+      "path": "docs/design/css-merge-trace.md",
+      "assignedSha256": "2070796581c3438a6c0b74e90dc3c9aec6eb21268cf97a0904bc1e707d73075a",
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "2070796581c3438a6c0b74e90dc3c9aec6eb21268cf97a0904bc1e707d73075a",
+      "verifiedCommit": "5a5fda97fcd9fe247563462ecceb6e3375487c04",
+      "verifiedAt": "2026-08-31",
+      "evidence": [
+        "docs/design/css-merge-trace.md:1-98 read in full on integrated main; one configured merge, compiler-derived family parity, occurrence-aware loser/winner replay, dev-only transport, production exclusion, and focused verification receipt",
+        "git:5a5fda97fcd9fe247563462ecceb6e3375487c04 (integrated #949 design and implementation bytes)"
+      ],
+      "summary": "Implemented #949 design for one Tailwind/TV merge, compiler-positive custom-family parity, occurrence-aware loser-to-winner replay, and a bounded dev/test-only __orb.css receipt whose implementation is absent from production assets.",
+      "claims": [
+        {
+          "claim": "Orbweaver routes Tailwind Variants candidates through one configured final merger and can report bounded class-list loser/winner chains without copying tailwind-merge's classifier.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#949"
+            },
+            {
+              "kind": "provenance",
+              "target": "git:5a5fda97fcd9fe247563462ecceb6e3375487c04"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/design/databank-surface-spec.md",
@@ -1025,6 +1025,42 @@
             {
               "kind": "issue",
               "target": "#35"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/design/theme-pivot-foreground-contract.md",
+      "assignedSha256": "472a6854182d92271154b241b8eeaec75912d774c5a4a38d3f394444dd6c1b57",
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "472a6854182d92271154b241b8eeaec75912d774c5a4a38d3f394444dd6c1b57",
+      "verifiedCommit": "bb01b0e91dfb6e1d7f6df8f2dbc40ef79f19a5bd",
+      "verifiedAt": "2026-08-31",
+      "evidence": [
+        "docs/design/theme-pivot-foreground-contract.md:1-241 read in full after the implementation rebase; alternatives, coupled sites, planted controls, accepted-base projection, semantic split, owner-CSS precedence, and final proof tiers are all recorded",
+        "bb01b0e91 implements the exact document blob and its named production/test/doc homes on main cc4c2aec7",
+        "pnpm test:scoped on the 14 named #969 unit/integration files: 14 files, 272 tests, 0 failures, 0 type errors",
+        "pnpm ct:scoped on ThemeScope, chat controls, custom-theme CSS, and Button: 4 files, 86 passed, 0 failed/flaky/skipped"
+      ],
+      "summary": "#969's implemented design: one total accepted-base derivation contract, actual-host foreground roles, bounded ramp/input projection that preserves authored bases, unchanged seed recipes apart from two additive semantic variables, and owner custom CSS as the later winning plane.",
+      "claims": [
+        {
+          "claim": "The accepted-base foreground contract is implemented and tracked by GitHub issue #969.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#969"
+            },
+            {
+              "kind": "code",
+              "target": "packages/kit/src/theme-derivation/index.ts:1"
+            },
+            {
+              "kind": "test",
+              "target": "tests/kit/theme-derivation/accepted-base-foreground.test.ts:1"
             }
           ]
         }
