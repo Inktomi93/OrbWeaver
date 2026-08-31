@@ -18,6 +18,7 @@ export interface StaticClassCandidate {
 export interface RuntimeClassPrefix {
   readonly prefix: string;
   readonly segments: readonly StaticClassSegment[];
+  readonly consumers: readonly Node[];
 }
 
 interface StaticClassUnresolved {

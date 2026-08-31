@@ -68,7 +68,7 @@ function reportBlindness(ctx: GateRunCtx, what: string): void {
     file: GATE_SELF,
     line: 0,
     column: 0,
-    message: `css-var-defined scanned zero ${what} — instrument blindness, not a clean tree (${GATE_SELF})`,
+    message: `css-var-defined scanned zero ${what} — instrument blindness, not a clean tree (tooling/src/verify/gates/css-var-defined.ts)`,
   });
 }
 
@@ -104,7 +104,7 @@ function checkVendorContract(ctx: GateRunCtx, vendor: VendorContract): void {
         file: GATE_SELF,
         line: 0,
         column: 0,
-        message: `Base UI mirror/package version mismatch: mirror=${vendor.mirrorVersion ?? "missing"}, installed=${vendor.version ?? "missing"} (${GATE_SELF})`,
+        message: `Base UI mirror/package version mismatch: mirror=${vendor.mirrorVersion ?? "missing"}, installed=${vendor.version ?? "missing"} (tooling/src/verify/gates/css-var-defined.ts)`,
       });
     }
     if (!sameSet(vendor.documented, vendor.declared)) {
@@ -112,7 +112,8 @@ function checkVendorContract(ctx: GateRunCtx, vendor: VendorContract): void {
         file: GATE_SELF,
         line: 0,
         column: 0,
-        message: `Base UI API-table custom properties and installed CssVars declarations differ — refresh/prove the mirror before changing runtime allowances (${GATE_SELF})`,
+        message:
+          "Base UI API-table custom properties and installed CssVars declarations differ — refresh/prove the mirror before changing runtime allowances (tooling/src/verify/gates/css-var-defined.ts)",
       });
     }
   }
@@ -126,7 +127,7 @@ function checkRealTreeVendor(ctx: GateRunCtx, vendor: VendorContract, vendorUse:
         file: GATE_SELF,
         line: 0,
         column: 0,
-        message: `Base UI vendor population drift: docs=${vendor.mirrorFiles}/${EXPECTED_MIRROR_FILES}, properties=${vendor.documented.size}/${EXPECTED_VENDOR_PROPERTIES} (${GATE_SELF})`,
+        message: `Base UI vendor population drift: docs=${vendor.mirrorFiles}/${EXPECTED_MIRROR_FILES}, properties=${vendor.documented.size}/${EXPECTED_VENDOR_PROPERTIES} (tooling/src/verify/gates/css-var-defined.ts)`,
       });
     }
     if (!sameSet(vendorUse, EXPECTED_VENDOR_USE)) {
@@ -134,7 +135,8 @@ function checkRealTreeVendor(ctx: GateRunCtx, vendor: VendorContract, vendorUse:
         file: GATE_SELF,
         line: 0,
         column: 0,
-        message: `Base UI runtime-property use changed — re-prove every added use and delete every stale expected use (${GATE_SELF})`,
+        message:
+          "Base UI runtime-property use changed — re-prove every added use and delete every stale expected use (tooling/src/verify/gates/css-var-defined.ts)",
       });
     }
     if (memberships !== EXPECTED_VENDOR_MEMBERSHIPS) {
@@ -142,7 +144,7 @@ function checkRealTreeVendor(ctx: GateRunCtx, vendor: VendorContract, vendorUse:
         file: GATE_SELF,
         line: 0,
         column: 0,
-        message: `Base UI reference-site membership drift: ${memberships}/${EXPECTED_VENDOR_MEMBERSHIPS} (${GATE_SELF})`,
+        message: `Base UI reference-site membership drift: ${memberships}/${EXPECTED_VENDOR_MEMBERSHIPS} (tooling/src/verify/gates/css-var-defined.ts)`,
       });
     }
   }
@@ -161,7 +163,7 @@ function checkRealTreeRuntime(ctx: GateRunCtx, inventory: CssVariableInventory):
       file: GATE_SELF,
       line: 0,
       column: 0,
-      message: `runtime-set custom-property use changed: ${[...runtimeUse].sort().join(", ")} — prove every added use and delete every stale expected use (${GATE_SELF})`,
+      message: `runtime-set custom-property use changed: ${[...runtimeUse].sort().join(", ")} — prove every added use and delete every stale expected use (tooling/src/verify/gates/css-var-defined.ts)`,
     });
   }
   if (!sameSet(producers, EXPECTED_RUNTIME_PRODUCERS)) {
@@ -169,7 +171,7 @@ function checkRealTreeRuntime(ctx: GateRunCtx, inventory: CssVariableInventory):
       file: GATE_SELF,
       line: 0,
       column: 0,
-      message: `runtime-set custom-property producers changed: ${[...producers].sort().join(", ")} — every live property needs an exact CSSProperties writer (${GATE_SELF})`,
+      message: `runtime-set custom-property producers changed: ${[...producers].sort().join(", ")} — every live property needs an exact CSSProperties writer (tooling/src/verify/gates/css-var-defined.ts)`,
     });
   }
 }

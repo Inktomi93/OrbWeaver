@@ -1,6 +1,7 @@
 // Gate: css-selector-has-a-writer (#956 / client-architecture-lockdown.md §4.7).
+
+import { CLIENT_GLOBALS, SHELL, THEME, TIERS, UI_GLOBALS } from "../contract/css-family.ts";
 import type { GateDescriptor } from "../contract/gate.ts";
-import { CLIENT_GLOBALS, SHELL, THEME, TIERS, UI_GLOBALS } from "../lib/css-family-census.ts";
 import { beginHookOwnerCollection } from "../lib/css-family-source-provenance.ts";
 import { auditCssSelectorWriters } from "../lib/css-selector-writer-policy.ts";
 import { beginSelectorWriterCollection, visitSelectorWriterNode } from "../lib/css-selector-writers.ts";
@@ -9,6 +10,7 @@ import { STATIC_CLASS_KINDS } from "../lib/static-class-expression.ts";
 const EMPTY_HOMES = { [THEME]: "", [UI_GLOBALS]: "", [TIERS]: "", [CLIENT_GLOBALS]: "", [SHELL]: "" } as const;
 const SOURCE = "packages/client/src/features/probe.tsx";
 const STREAMDOWN = "packages/ui/node_modules/streamdown/dist/chunk-BO2N2NFS.js";
+const RUNTIME_TAIL_EXPRESSION = ["$", "{runtimeTail}"].join("");
 
 export const gate: GateDescriptor = {
   name: "css-selector-has-a-writer",
@@ -16,7 +18,8 @@ export const gate: GateDescriptor = {
   status: "active",
   scopeSafety: "whole-project",
   fsBacked: true,
-  message: "an authored product-CSS selector hook has no semantic producer/writer; inert text cannot counterfeit DOM ownership",
+  message:
+    "an authored product-CSS selector hook has no semantic producer/writer; inert text cannot counterfeit DOM ownership (tooling/src/verify/gates/css-selector-has-a-writer.ts)",
   fix: "write the exact hook from a rendering/DOM terminal, remove the dead selector, or update the narrow vendor contract in both directions",
   begin: (ctx) => {
     beginHookOwnerCollection(ctx);
@@ -109,6 +112,14 @@ export const gate: GateDescriptor = {
     {
       files: { ...EMPTY_HOMES, [SHELL]: ".shell-wrapper { display: grid; }\n", [SOURCE]: 'export const probe = <div className="shell-wrapper" />;\n' },
       why: "a real JSX class terminal writes the shell hook",
+    },
+    {
+      files: {
+        ...EMPTY_HOMES,
+        [SHELL]: ".shell-prefix { display: grid; }\n",
+        [SOURCE]: `declare const runtimeTail: string;\nexport const probe = <div className={\`shell-prefix ${RUNTIME_TAIL_EXPRESSION}\`} />;\n`,
+      },
+      why: "a whitespace-complete literal before a runtime template tail remains exact class evidence",
     },
     {
       files: {

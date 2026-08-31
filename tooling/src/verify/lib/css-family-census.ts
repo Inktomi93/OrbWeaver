@@ -1,19 +1,11 @@
 // Shared census, constants, and ownership records for the declaration-level CSS family wall.
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import type { ProductStylesheet } from "../contract/css-family.ts";
+import { CLIENT_GLOBALS, PRODUCT_STYLESHEETS, SHELL, THEME, TIERS, UI_GLOBALS } from "../contract/css-family.ts";
 import type { Finding, GateRunCtx } from "../contract/gate.ts";
 import { blankCssComments } from "./comment-spans.ts";
 import { parseCssRules } from "./css-rules.ts";
-
-export const THEME = "packages/ui/src/styles/theme.css";
-export const UI_GLOBALS = "packages/ui/src/styles/globals.css";
-export const TIERS = "packages/ui/src/styles/tiers.css";
-export const CLIENT_GLOBALS = "packages/client/src/styles/globals.css";
-export const SHELL = "packages/client/src/features/app-shell/surfaces/shell.css";
-export const PRODUCT_STYLESHEETS = [THEME, UI_GLOBALS, TIERS, CLIENT_GLOBALS, SHELL] as const;
-export const AUTHORED_STYLESHEETS = [UI_GLOBALS, TIERS, CLIENT_GLOBALS, SHELL] as const;
-
-export type ProductStylesheet = (typeof PRODUCT_STYLESHEETS)[number];
 
 export interface DirectDeclaration {
   readonly prop: string;
@@ -58,14 +50,14 @@ const SOURCE_OWNERS = [
   { prefix: "packages/client/src/", owner: "client" },
 ] as const;
 export const EXPECTED_DECLARATION_CENSUS: Readonly<Record<ProductStylesheet, number>> = {
-  [THEME]: 275,
+  [THEME]: 281,
   [UI_GLOBALS]: 187,
   [TIERS]: 45,
-  [CLIENT_GLOBALS]: 111,
+  [CLIENT_GLOBALS]: 112,
   [SHELL]: 335,
 };
-export const EXPECTED_DECLARATION_TOTAL = 953;
-export const EXPECTED_DIRECT_THEME_DECLARATIONS = 179;
+export const EXPECTED_DECLARATION_TOTAL = 960;
+export const EXPECTED_DIRECT_THEME_DECLARATIONS = 185;
 export const CENSUS_TOKEN: Readonly<Record<ProductStylesheet, string>> = {
   [THEME]: "census:theme",
   [UI_GLOBALS]: "census:ui-globals",
@@ -145,7 +137,7 @@ function blankNestedBlocks(text: string): string {
 
 /** Direct declarations of the generated `@theme` block. `parseCssRules` correctly descends through
  *  at-rules to STYLE rules, but direct declarations in an at-rule are intentionally not style rules. */
-export function readDirectThemeDeclarations(raw: string): readonly DirectDeclaration[] {
+function readDirectThemeDeclarations(raw: string): readonly DirectDeclaration[] {
   const text = blankCssComments(raw);
   const match = /@theme\s*\{/u.exec(text);
   if (match === null) {

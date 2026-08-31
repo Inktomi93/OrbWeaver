@@ -37,7 +37,9 @@ function identifierScalars(host: CollectionHost, node: import("ts-morph").Identi
   }
   path.add(node);
   const values: string[] = [];
-  for (const declaration of host.identifierDeclarations(node)) {
+  const symbol = node.getSymbol();
+  const declarations = [...host.identifierDeclarations(node), ...(symbol?.getAliasedSymbol()?.getDeclarations() ?? [])];
+  for (const declaration of new Set(declarations)) {
     if (Node.isVariableDeclaration(declaration)) {
       const initializer = declaration.getInitializer();
       if (initializer !== undefined) {
@@ -150,7 +152,7 @@ export function evalObjectMember(host: CollectionHost, raw: Node, names: readonl
   }
   const objects = resolveObjects(host, raw, new Set(path));
   if (objects.length === 0) {
-    host.diagnose("opaque", raw, names === undefined ? "runtime object under dynamic class index" : "runtime object under class member access");
+    host.diagnose("opaque", raw, "runtime object under dynamic class index");
     return [];
   }
   return dedupeValues(objects.flatMap((object) => objectMemberValues(host, object, names, path)));

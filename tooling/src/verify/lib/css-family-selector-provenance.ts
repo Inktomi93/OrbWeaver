@@ -167,7 +167,8 @@ function selectorLexStep(state: SelectorLexState, char: string, escaped: boolean
   return { next: { depth, bracketDepth, quote }, atTopLevel };
 }
 
-type SelectorCombinator = "descendant" | "child" | "sibling";
+const SELECTOR_COMBINATORS = ["descendant", "child", "sibling"] as const;
+type SelectorCombinator = (typeof SELECTOR_COMBINATORS)[number];
 
 interface SelectorChain {
   readonly compounds: readonly string[];

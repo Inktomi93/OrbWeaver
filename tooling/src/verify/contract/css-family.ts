@@ -1,0 +1,10 @@
+export const THEME = "packages/ui/src/styles/theme.css";
+export const UI_GLOBALS = "packages/ui/src/styles/globals.css";
+export const TIERS = "packages/ui/src/styles/tiers.css";
+export const CLIENT_GLOBALS = "packages/client/src/styles/globals.css";
+export const SHELL = "packages/client/src/features/app-shell/surfaces/shell.css";
+
+export const PRODUCT_STYLESHEETS = [THEME, UI_GLOBALS, TIERS, CLIENT_GLOBALS, SHELL] as const;
+export const AUTHORED_STYLESHEETS = [UI_GLOBALS, TIERS, CLIENT_GLOBALS, SHELL] as const;
+
+export type ProductStylesheet = (typeof PRODUCT_STYLESHEETS)[number];
