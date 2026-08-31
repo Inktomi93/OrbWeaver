@@ -111,10 +111,10 @@ export interface StagedPatch {
 
 /** A name→actor-ref index over the roster (character/user members by their gather-surfaced display name,
  *  lowercased), so a model `targetRef` NAME resolves to the roster member's canonical ref key. Built once per
- *  apply from the resolved roster (`tools/apply.ts::buildRosterRefIndex`). A tool write on a roster member
+ *  apply from the resolved roster (`tools/apply.ts::buildActorRefIndex`). A tool write on a roster member
  *  then lands under `character:<id>`/`user:<id>` — the SAME key `buildTrackerView` + the steering reminder
  *  read, never an orphan `cast:<name>` the panel can't render. */
-export type RosterRefIndex = ReadonlyMap<string, RpgActorRef>;
+export type ActorRefIndex = ReadonlyMap<string, RpgActorRef>;
 
 /** The state patch `update_scene` produces — an ambient/presence/identity/beat overlay under the [merge-clear]
  *  contract. Since R2 a cast write touches TWO planes: `presentCharacters` (who is on stage — a flat

@@ -9,7 +9,7 @@
 // (`runInstrumentedRegex`) — one executor, two questions.
 //
 // THE ORDER IS THE REAL ORDER, not a display convenience. `executeRegexScripts` applies its list in order and
-// the chat turn's union is `global → preset → cast → chat`, deduped by row id (the resolver's own contract).
+// the chat turn's union is `global → preset → character → chat`, deduped by row id (the resolver's own contract).
 // So the stages below are: the owner's GLOBAL tier in its authored junction order, and then — only when the
 // subject script is NOT itself global — the subject, appended. That is not a guess about where it would run:
 // every scope that can attach it comes AFTER global in the union, so "after all of these" is its true

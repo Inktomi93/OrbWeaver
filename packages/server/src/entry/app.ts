@@ -322,14 +322,15 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
   // header set (including the `nosniff` this route also restates) is exactly right for it.
   registerPluginUi(app, { getUiBundle: (params) => deps.services.plugin.getUiBundle(params) });
 
-  // The card-frame doorway. Its roster read IS the trust authority (a client selects a character, the server
-  // decides that character's policy), and `allowExternalMedia` is the SAME live deployment ceiling the app
-  // document CSP above is built from — one ceiling, now three consumers. Note `securityHeaders` deliberately
-  // SKIPS the served document path so the frame's own, tighter policy survives (see security-headers.ts).
+  // The card-frame doorway. Its participant read IS the trust authority (a client selects a character, the
+  // server decides that character's policy), and `allowExternalMedia` is the SAME live deployment ceiling
+  // the app document CSP above is built from — one ceiling, now three consumers. Note `securityHeaders`
+  // deliberately SKIPS the served document path so the frame's own, tighter policy survives (see
+  // security-headers.ts).
   registerCardFrame(app, {
-    roster: { listParticipants: (params) => deps.services.chat.listParticipants(params) },
+    participants: { listParticipants: (params) => deps.services.chat.listParticipants(params) },
     allowExternalMedia: () => !deps.services.settings.getEffectiveConfig().forbidExternalMedia,
-    // The deployment half of the html-trust ladder's TOP rung (#111 leg 3). Same live read the roster
+    // The deployment half of the html-trust ladder's TOP rung (#111 leg 3). Same live read the participant
     // resolver uses, applied a second time at the boundary that actually mints the policy.
     allowInteractiveCards: () => deps.services.settings.getEffectiveConfig().allowInteractiveCards,
     now: deps.now,

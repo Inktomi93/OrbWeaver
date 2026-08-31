@@ -95,7 +95,7 @@ const MISS_DOC = buildCardFrameDocument({
 });
 
 /** The owner-scoped frame-body read — the ONE authority for whether these bytes may be served to this caller.
- *  Structural port so `entry/http` states exactly the slice it consumes (the `CardFrameRosterPort` precedent);
+ *  Structural port so `entry/http` states exactly the slice it consumes (the `CardFrameParticipantsPort` precedent);
  *  wired at compose to `services.plugin.getFrameBody`, whose three gates (ownership, the live `ui.frame` grant,
  *  the surface's own tier) are documented on the verb. */
 export interface PluginFrameSurfacePort {

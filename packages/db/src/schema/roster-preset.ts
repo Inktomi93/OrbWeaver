@@ -1,5 +1,5 @@
-// schema/roster-preset — saved parties (producer: domain/roster-preset; D61 B6, build record:
-// docs/history/design/saved-rosters-build-record.md). A roster preset is a LIBRARY artifact — a named cast the
+// schema/roster-preset — saved rosters (producer: domain/roster-preset; D61 B6, build record:
+// docs/history/design/saved-rosters-build-record.md). A roster preset is a LIBRARY artifact — a named roster the
 // owner drops into rooms — never a membership record: `chat_participants` stays the ONE runtime roster,
 // and a chat started from a preset carries NO back-reference (a preset is a stamp, not a live link).
 //
@@ -7,7 +7,7 @@
 // so there is no single required FK to derive the owner through): `ownerId` is stamped, and
 // `roster_preset_members` DERIVES through its required `presetId` FK (no ownerId column — stamping one
 // would mint the guardable-mismatch state D23 exists to kill). Member rows are a REAL FK junction, never
-// marinara's JSON id-array: a deleted character CASCADEs out of every party instead of rotting into a
+// marinara's JSON id-array: a deleted character CASCADEs out of every roster instead of rotting into a
 // dangling id, and per-seat knobs have a typed home.
 //
 // Deletion physics (the test surface, tests/server/domain/roster-preset/persistence): character delete →
@@ -51,7 +51,7 @@ export const rosterPresets = sqliteTable(
       .references(() => personas.id, { onDelete: "set null" }),
     // OPTIONAL room-behavior payload — chat's GroupConfigInput, validated through `groupConfigSchema` at
     // the write verb and RE-parsed by chat's `setGroupConfig` at apply (a stale blob after a GroupConfig
-    // evolution degrades loudly at apply, never silently). NULL = the preset carries cast only.
+    // evolution degrades loudly at apply, never silently). NULL = the preset carries its roster only.
     groupConfig: text("group_config", { mode: "json" }).$type<GroupConfigInput>(),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
     updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),
@@ -73,12 +73,12 @@ export const rosterPresetMembers = sqliteTable(
       .$type<RosterPresetId>()
       .notNull()
       .references(() => rosterPresets.id, { onDelete: "cascade" }),
-    // Real FK — never marinara's JSON array. A character delete CASCADEs the seat out of every party.
+    // Real FK — never marinara's JSON array. A character delete CASCADEs the seat out of every roster.
     characterId: text("character_id")
       .$type<CharacterId>()
       .notNull()
       .references(() => characters.id, { onDelete: "cascade" }),
-    // Founding-cast order (greet order, apply order) — dense 0..n-1, normalized at the write verb.
+    // Founding-roster order (greet order, apply order) — dense 0..n-1, normalized at the write verb.
     position: integer("position").notNull(),
     // Per-seat knobs, applied via chat's EXISTING `setSeatKnobs` at apply time (D80 — one knob home).
     // NULL talkativeness = inherit the chat's default (TALKATIVENESS_DEFAULT).
@@ -86,7 +86,7 @@ export const rosterPresetMembers = sqliteTable(
     disabled: integer("disabled", { mode: "boolean" }).notNull().default(false),
   },
   (t) => [
-    // One seat per character per party; `presetId` LEADS, so the cascade + the members read are indexed.
+    // One seat per character per roster; `presetId` LEADS, so the cascade + the members read are indexed.
     primaryKey({ columns: [t.presetId, t.characterId] }),
     // The character-delete cascade's parent scan (`fk-columns-indexed`: characterId sits SECOND in the
     // PK, which is unindexed for a predicate that knows only the characterId).
@@ -95,7 +95,7 @@ export const rosterPresetMembers = sqliteTable(
 );
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
-// roster_preset_rules — B10's rules rider (build record §6): the cast's captured automation RULE PRESETS
+// roster_preset_rules — B10's rules rider (build record §6): the roster's captured automation RULE PRESETS
 // (catalogue id + the RESOLVED knob bag), re-minted through automation's own `createRuleFromPreset` at
 // apply. `rule_preset_id` carries NO FK and NO CHECK — rule presets are a CODE catalogue
 // (`RULE_PRESET_IDS`, @orb/contracts/automation), not rows, and the tuple grows by design; the id is
@@ -123,7 +123,7 @@ export const rosterPresetRules = sqliteTable(
     knobs: text("knobs", { mode: "json" }).$type<RulePresetKnobValues>().notNull(),
   },
   (t) => [
-    // ONE instance of a rule preset per cast (the capture flattens a multi-mint room to its latest
+    // ONE instance of a rule preset per roster (the capture flattens a multi-mint room to its latest
     // mint's bag — build record §6.3); `presetId` LEADS, so the cascade + the rules read are indexed.
     primaryKey({ columns: [t.presetId, t.rulePresetId] }),
   ],

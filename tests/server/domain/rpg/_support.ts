@@ -40,7 +40,7 @@ import type {
   RpgStateDelta,
 } from "../../../../packages/server/src/domain/rpg/index.ts";
 import { createRpgChatOps, createRpgFlushBarrier, createRpgService, createRpgStagingStore } from "../../../../packages/server/src/domain/rpg/index.ts";
-import { buildRosterRefIndex, extractionToStateDelta } from "../../../../packages/server/src/domain/rpg/tools/apply.ts";
+import { buildActorRefIndex, extractionToStateDelta } from "../../../../packages/server/src/domain/rpg/tools/apply.ts";
 import { makeModelCapability, makeResolvedConnection } from "../../../support/factories/resolved-connection.ts";
 import { FROZEN_AT, seedChat, seedMessage, seedUser } from "../chat/_support.ts";
 
@@ -443,7 +443,7 @@ export function makeRpgService(
       input.baseState,
       extraction,
       { item: () => `item_${n}_${itemSeq++}`, quest: () => castId<RpgQuestId>(`q_${n}_${questSeq++}`), objective: () => `obj_${n}_${objectiveSeq++}` },
-      buildRosterRefIndex(fakes.roster),
+      buildActorRefIndex(fakes.roster),
     );
   };
   // R1 — the folded pair. NEITHER makes a model call in the real impl, which is the whole point: a test that

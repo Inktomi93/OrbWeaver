@@ -32,7 +32,7 @@ import {
 import type { ChatTurnId } from "@orb/kit/ids";
 import { newId } from "@orb/kit/ids";
 import type { ToolDefinition, ToolExecutionContext, ToolHandlerResult } from "#domain/tool-use";
-import type { RosterRefIndex } from "../contract/params.ts";
+import type { ActorRefIndex } from "../contract/params.ts";
 import type { RpgContext, RpgGameRow } from "../contract/service.ts";
 import { snapshotRowToState } from "../contract/service.ts";
 import { findGameByChat } from "../persistence/games.ts";
@@ -44,7 +44,7 @@ import {
   applyUpdateParty,
   applyUpdateScene,
   applyUpsertQuest,
-  buildRosterRefIndex,
+  buildActorRefIndex,
   toStagedJournalEntry,
 } from "./apply.ts";
 import { rollNotation } from "./dice.ts";
@@ -92,8 +92,8 @@ async function effectiveState(ctx: RpgContext, game: RpgGameRow, turnId: ChatTur
 /** The name→roster-ref index for the actor-targeting tools (F2): resolve the chat's roster once and index it by
  *  name, so `update_party`/`update_inventory` land a party-member write under its roster key — the SAME key the
  *  tracker view + reminder read (never an orphan `cast:<name>`). */
-async function rosterIndexFor(ctx: RpgContext, game: RpgGameRow): Promise<RosterRefIndex> {
-  return buildRosterRefIndex(await ctx.resolveRoster(game.chatId));
+async function rosterIndexFor(ctx: RpgContext, game: RpgGameRow): Promise<ActorRefIndex> {
+  return buildActorRefIndex(await ctx.resolveRoster(game.chatId));
 }
 
 /** Build the 7 rpg tool defs closing over `ctx` (registered at compose, W1c-b). */
