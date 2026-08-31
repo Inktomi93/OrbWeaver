@@ -37,7 +37,8 @@ const SANCTIONED_HOMES: ExemptionTable = {
 };
 
 /** The CARRIER FENCE (GATE-AUTHORING.md §5): only a className attribute or a class-composer call
- *  (`cn`/`clsx`/`cva`/`tv`) counts as a class string for this ambiguous token shape. */
+ *  (`cn`/`clsx`/`cva`/`tv`) counts as a class string for the ambiguous raw-utility shape. A
+ *  `z-(--z-*)` spelling identifies itself as a class recipe, including exported recipe constants. */
 const CLASS_COMPOSERS: ReadonlySet<string> = new Set(["cn", "clsx", "cva", "tv"]);
 
 function inClassCarrier(node: Node): boolean {
@@ -50,7 +51,7 @@ function inClassCarrier(node: Node): boolean {
 }
 
 const SEMANTIC_CLASSES = Z_TOKEN_NAMES.map((name) => `z-(--z-${name})`).join(" · ");
-const MESSAGE = `raw z-N or unknown semantic z-index in className — use one of: ${SEMANTIC_CLASSES}. Those SEVEN are governed here and set-equal checked against packages/ui/src/tokens/tokens.json z.*; a name outside them resolves to an undefined custom property and the z-index declaration is silently dropped. See docs/architecture/core/client-architecture-lockdown.md §4.`;
+const MESSAGE = `raw z-N or unknown semantic z-index in a class recipe — use one of: ${SEMANTIC_CLASSES}. Those SEVEN are governed here and set-equal checked against packages/ui/src/tokens/tokens.json z.*; a name outside them resolves to an undefined custom property and the z-index declaration is silently dropped. See docs/architecture/core/client-architecture-lockdown.md §4.`;
 
 const Z_INDEX_REGEX = /\bz-(?:\d+|\[\d+\])/u;
 const SEMANTIC_Z_REGEX = /\bz-\(--z-([a-z0-9-]+)\)/gu;
@@ -85,10 +86,7 @@ export const gate: GateDescriptor = {
       return;
     }
     const text = node.getText();
-    if (!inClassCarrier(node)) {
-      return;
-    }
-    if (Z_INDEX_REGEX.test(text)) {
+    if (inClassCarrier(node) && Z_INDEX_REGEX.test(text)) {
       ctx.report(node, { token: text, offset: 0 });
     }
     for (const match of text.matchAll(SEMANTIC_Z_REGEX)) {
@@ -141,6 +139,12 @@ export const gate: GateDescriptor = {
       why: "a semantic-looking class whose custom property is outside the governed token vocabulary",
     },
     {
+      files: 'export const POPUP_SURFACE = "relative z-(--z-sticky)";',
+      at: "packages/ui/src/lib/popup-surface.ts",
+      expect: { token: "z-(--z-sticky)" },
+      why: "self-identifying semantic z-index classes are inspected in exported class-recipe constants, not only JSX and composer calls",
+    },
+    {
       files: {
         [ANCHOR]: "export const tokens = {};\n",
         [TOKEN_SOURCE]: '{"z":{"base":{},"raised":{},"overlay":{},"modal":{},"popover":{},"toast":{}}}\n',
@@ -162,6 +166,11 @@ export const gate: GateDescriptor = {
   ],
   mustPass: [
     {
+      files: 'export const RELEASE_LABEL = "z-50";',
+      at: "packages/client/src/lib/release-label.ts",
+      why: "the raw z-N spelling remains ambiguity-fenced outside className and known class composers",
+    },
+    {
       files: 'const x = <div className="z-50" />;',
       at: "packages/ui/src/layout/test.tsx",
       why: "THE ALLOWLIST ITSELF: the layout tier is now SCANNED, and its raw utility passes only because a cited SANCTIONED_HOMES row covers it",
@@ -170,6 +179,11 @@ export const gate: GateDescriptor = {
       files: `const x = <div className="${Z_TOKEN_NAMES.map((name) => `z-(--z-${name})`).join(" ")}" />;`,
       at: "packages/client/src/test.tsx",
       why: "every recommended semantic token class passes the carrier check",
+    },
+    {
+      files: 'export const POPUP_SURFACE = "relative z-(--z-popover)";',
+      at: "packages/ui/src/lib/popup-surface.ts",
+      why: "the production exported-recipe carrier shape accepts a governed semantic token",
     },
     {
       files: {
