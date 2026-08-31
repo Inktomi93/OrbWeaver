@@ -27991,7 +27991,7 @@
         "authority": "review",
         "fullRead": true,
         "verifiedSha256": "5e0099e553035266025bbfcbb985793d47160f6555d3590a569644a2b3cc3592",
-        "verifiedCommit": "4ac9aca6b1099cc06d918a3372fc7bdf27c212f4",
+        "verifiedCommit": "a5c28aae4d37abba2b9ad3706b0a734eac42f6e1",
         "verifiedAt": "2026-08-31",
         "evidence": ["docs/reviews/research/2026-08-31-gate-pass-unified-walk.md:1 (authored in this lane from its own measurements; full read)"],
         "summary": "Measures the 236-gate structure pass and attributes its cost to the 110 gates that decline the shared single-pass walk (121s vs 8.8s for the 129 that ride it): dispatch is free, re-walking is not, so the documented unified model supersedes the memo B-prime proposes.",
