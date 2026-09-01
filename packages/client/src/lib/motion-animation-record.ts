@@ -91,11 +91,11 @@ function targetState(target: Element | null): AnimationRecord["targetState"] {
   };
 }
 
-function isCssTransition(animation: Animation): boolean {
+function isCssTransition(animation: Animation): animation is CSSTransition {
   return typeof CSSTransition !== "undefined" && animation instanceof CSSTransition;
 }
 
-function isCssAnimation(animation: Animation): boolean {
+function isCssAnimation(animation: Animation): animation is CSSAnimation {
   return typeof CSSAnimation !== "undefined" && animation instanceof CSSAnimation;
 }
 
@@ -139,12 +139,12 @@ function bindLifecycleToRunningTransitions(event: TransitionEvent): void {
   }
   const lifecycleState: AnimationLifecycleState = { ...pending, observedAt: "transition-run" };
   for (const animation of event.target.getAnimations()) {
-    if (isCssTransition(animation)) {
+    if (isCssTransition(animation) && animation.transitionProperty === event.propertyName) {
       lifecycleByAnimation.set(animation, lifecycleState);
     }
   }
-  // The observation belongs to the transitions launched by this state change. Leaving it keyed by the
-  // element would let a later application transition on the same mounted node inherit stale provenance.
+  // The observation belongs to this exact property launch. Binding every running transition on the node
+  // would let an older application transition inherit the Base UI state that launched its sibling.
   pendingLifecycleByTarget.delete(event.target);
 }
 
