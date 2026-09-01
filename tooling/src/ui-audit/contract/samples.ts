@@ -2,6 +2,7 @@
 // judge — plain data mirroring getComputedStyle/getBoundingClientRect output. RawSamples at the
 // bottom is the walker's return object, field-for-field.
 import type { InactiveKind, Rgb } from "@orb/tooling/_shared/wcag";
+import type { SubjectAccountingInput, ThemeRenderInput } from "./samples-evidence.ts";
 // `RawSamples` at the bottom COMPOSES the interactive-census shapes, so they are imported here as well as
 // re-exported below: a bare `export … from` re-exports a name without binding it locally (tsc catches
 // that; biome's type service does not).
@@ -85,6 +86,7 @@ export interface BrokenImageInput {
   readonly reason: "empty-src" | "failed-load";
 }
 
+export type { SubjectAccountingInput, ThemeRenderInput } from "./samples-evidence.ts";
 // ── The interactive census (tap targets · names · landmark · tabindex · doors · silhouettes · reach) ──
 // Re-exported, not re-declared: these shapes moved to contract/samples-interactive.ts when this file hit
 // the 450-line tooling cap (#797). `contract/samples.ts` stays the one door onto the sample vocabulary —
@@ -371,6 +373,10 @@ export interface ObscuredScanInput {
 
 // ── Aggregation ──────────────────────────────────────────────────────────────
 export interface RawSamples {
+  /** The denominator contract for every sample family below. Missing evidence is an instrument gap. */
+  readonly subjectAccounting: SubjectAccountingInput;
+  /** Requested-vs-rendered theme provenance and effective polarity over those same walked subjects. */
+  readonly themeRender: ThemeRenderInput;
   readonly texts: readonly ContrastInput[];
   readonly images: readonly ImageDistortionInput[];
   readonly tapTargets: readonly TapTargetInput[];

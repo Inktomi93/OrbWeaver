@@ -304,9 +304,38 @@ function themeListUrl(requestUrl: string): string | null {
  *  authenticated), then reuse the answer for every later request. Every failure arm — no origin, a non-200,
  *  an unparseable body, a name that is not in the library — returns null AFTER printing the loud warning,
  *  so a run can never quietly review the account's own theme under another theme's name. */
-function themeResolver(request: ThemeRequest): (route: Route, context: BrowserContext) => Promise<{ readonly id: string | null } | null> {
-  let pending: Promise<{ readonly id: string | null } | null> | null = null;
-  const resolveOnce = async (route: Route, context: BrowserContext): Promise<{ readonly id: string | null } | null> => {
+const THEME_RESOLUTION_SOURCES = ["default", "seed", "custom", "unknown"] as const;
+export type ThemeResolutionSource = (typeof THEME_RESOLUTION_SOURCES)[number];
+
+export interface ThemeResolutionEvidence {
+  readonly request: ThemeRequest;
+  readonly id: string | null;
+  readonly name: string | null;
+  readonly source: ThemeResolutionSource;
+}
+
+interface ResolvedTheme {
+  readonly id: string | null;
+  readonly evidence: ThemeResolutionEvidence;
+}
+
+function resolvedTheme(entries: readonly ThemeEntry[], request: ThemeRequest, id: string | null): ResolvedTheme {
+  if (id === null) {
+    return { id: null, evidence: { request, id: null, name: null, source: "default" } };
+  }
+  const entry = entries.find((candidate) => candidate.id === id);
+  let source: ThemeResolutionSource = "unknown";
+  if (entry?.isSeed === true) {
+    source = "seed";
+  } else if (entry?.isSeed === false) {
+    source = "custom";
+  }
+  return { id, evidence: { request, id, name: entry?.name ?? null, source } };
+}
+
+function themeResolver(request: ThemeRequest): (route: Route, context: BrowserContext) => Promise<ResolvedTheme | null> {
+  let pending: Promise<ResolvedTheme | null> | null = null;
+  const resolveOnce = async (route: Route, context: BrowserContext): Promise<ResolvedTheme | null> => {
     const url = themeListUrl(route.request().url());
     if (url === null) {
       warn(themeWarning(`could not derive an API origin from ${route.request().url()}`));
@@ -330,7 +359,7 @@ function themeResolver(request: ThemeRequest): (route: Route, context: BrowserCo
       warn(themeWarning(resolution.error));
       return null;
     }
-    return { id: resolution.id };
+    return resolvedTheme(entries, request, resolution.id);
   };
   return (route, context) => {
     pending ??= resolveOnce(route, context);
@@ -349,6 +378,8 @@ export interface SettingsShim {
 export interface SettingsShimEvidence {
   appearanceApplied: boolean | null;
   themeApplied: boolean | null;
+  /** The real catalog row the request resolved to; null until/unless resolution succeeds. */
+  themeResolution: ThemeResolutionEvidence | null;
 }
 
 function recordAppliedEvidence(evidence: SettingsShimEvidence, applied: boolean, appearanceRequested: boolean, themeResolved: boolean): void {
@@ -376,6 +407,7 @@ export async function installSettingsShim(context: BrowserContext, shim: Setting
   const evidence: SettingsShimEvidence = {
     appearanceApplied: shim.appearance === null ? null : false,
     themeApplied: shim.theme === null ? null : false,
+    themeResolution: null,
   };
   if (shim.appearance === null && shim.theme === null) {
     return evidence;
@@ -395,6 +427,9 @@ export async function installSettingsShim(context: BrowserContext, shim: Setting
       // No --theme, or a resolution that FAILED (the warning already said so) → no theme key at all, never
       // a fabricated selection. A resolved `none` IS a selection: `selectedThemeId: null`.
       const themeOutcome = resolveThemeId === null ? null : await resolveThemeId(route, context);
+      if (themeOutcome !== null) {
+        evidence.themeResolution = themeOutcome.evidence;
+      }
       const patch: SettingsPatch = {
         ...(shim.appearance === null ? {} : { appearance: shim.appearance }),
         ...(themeOutcome === null ? {} : themeConfigPatch(themeOutcome.id)),

@@ -21,6 +21,7 @@
 // triage, the divergences, and the license statement.
 
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { CENSUS_OBSERVE_CEILING_MS, CENSUS_OBSERVE_MIN_MS, CENSUS_SETTLE_POLL_MS } from "../lib/budgets.ts";
 import { WALKER_CENSUS_COLLISION } from "./walker/census-collision.ts";
 import { WALKER_CENSUS_DECOR } from "./walker/census-decor.ts";
 import { WALKER_CENSUS_INTERACTIVE } from "./walker/census-interactive.ts";
@@ -33,5 +34,53 @@ import { WALKER_RETURNS } from "./walker/returns.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm design-audit");
 
+/** Settle and census execute in ONE page task. A Node-side wait followed by a second evaluate leaves a
+ *  same-count replacement gap between "settled" and the identity snapshot — precisely the blindness #976
+ *  closes. Child-list revision joins element count so replacement cannot masquerade as quiet. */
+const PRE_WALK_SETTLE = `  var preWalkRevision = 0;
+  var preWalkMutationCount = 0;
+  function mutationCarriesElement(record) {
+    var nodes = [].slice.call(record.addedNodes).concat([].slice.call(record.removedNodes));
+    for (var mn = 0; mn < nodes.length; mn += 1) {
+      var mutationNode = nodes[mn];
+      if (mutationNode.nodeType === 1 || (mutationNode.querySelector && mutationNode.querySelector("*") !== null)) return true;
+    }
+    return false;
+  }
+  var preWalkObserver = new MutationObserver(function (records) {
+    for (var pm = 0; pm < records.length; pm += 1) {
+      if (!mutationCarriesElement(records[pm])) continue;
+      preWalkRevision += 1;
+      preWalkMutationCount += 1;
+    }
+  });
+  preWalkObserver.observe(document.documentElement, { childList: true, subtree: true });
+  var preWalkStarted = Date.now();
+  var preWalkLatest = document.getElementsByTagName("*").length;
+  var preWalkLastRevision = preWalkRevision;
+  var preWalkHeld = false;
+  while (Date.now() - preWalkStarted < ${CENSUS_OBSERVE_CEILING_MS}) {
+    await new Promise(function (resolve) { setTimeout(resolve, ${CENSUS_SETTLE_POLL_MS}); });
+    var preWalkCurrent = document.getElementsByTagName("*").length;
+    preWalkHeld = preWalkCurrent === preWalkLatest && preWalkRevision === preWalkLastRevision;
+    preWalkLatest = preWalkCurrent;
+    preWalkLastRevision = preWalkRevision;
+    if (preWalkHeld && Date.now() - preWalkStarted >= ${CENSUS_OBSERVE_MIN_MS}) break;
+  }
+  var preWalkPending = preWalkObserver.takeRecords();
+  for (var pp = 0; pp < preWalkPending.length; pp += 1) {
+    if (!mutationCarriesElement(preWalkPending[pp])) continue;
+    preWalkRevision += 1;
+    preWalkMutationCount += 1;
+    preWalkHeld = false;
+  }
+  preWalkObserver.disconnect();
+  var preWalkSettlement = {
+    count: preWalkLatest,
+    stabilized: preWalkHeld,
+    mutations: preWalkMutationCount,
+  };
+`;
+
 export const COLLECT_SAMPLES_JS = `(async () => {
-${WALKER_CORE}${WALKER_RESOLVE}${WALKER_CENSUS_TEXT}${WALKER_HIT_EXTENT}${WALKER_CENSUS_INTERACTIVE}${WALKER_CENSUS_DECOR}${WALKER_CENSUS_QUALITY}${WALKER_CENSUS_COLLISION}${WALKER_RETURNS}})()`;
+${PRE_WALK_SETTLE}${WALKER_CORE}${WALKER_RESOLVE}${WALKER_CENSUS_TEXT}${WALKER_HIT_EXTENT}${WALKER_CENSUS_INTERACTIVE}${WALKER_CENSUS_DECOR}${WALKER_CENSUS_QUALITY}${WALKER_CENSUS_COLLISION}${WALKER_RETURNS}})()`;

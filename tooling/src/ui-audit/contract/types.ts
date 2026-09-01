@@ -5,7 +5,7 @@ import type { Viewport } from "@orb/tooling/_shared/argv";
 import type { NavMethod } from "@orb/tooling/_shared/nav";
 import type { ThemeRequest } from "@orb/tooling/_shared/theme";
 import type { Severity } from "./findings.ts";
-import type { RawSamples } from "./samples.ts";
+import type { RawSamples, SubjectAccountingInput } from "./samples.ts";
 
 /** One pre-audit action, in argv order: a DOM click, a dev-bridge navigation, or a file-input upload
  *  (#651 — a census taken against an empty dropzone is a FALSE CLEAN; `--upload` lets the walk see the
@@ -65,6 +65,8 @@ export interface DomPopulation {
   settled: number;
   /** False when the count was still moving at the ceiling — the settled figure is then a floor. */
   stabilized: boolean;
+  /** Identity-level proof that every settled subject was walked or explicitly skipped. */
+  accounting: SubjectAccountingInput;
 }
 
 export interface CaptureOutcome {

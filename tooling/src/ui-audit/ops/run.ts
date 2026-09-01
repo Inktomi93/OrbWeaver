@@ -10,6 +10,7 @@
 // uses, one home so the two instruments cannot disagree about what is behind a glyph). What cannot be
 // sampled — an off-screen box, a failed shot — is printed as NO VERDICT and judged by nothing.
 import { writeFile } from "node:fs/promises";
+import type { SettingsShimEvidence } from "@orb/tooling/_shared/appearance";
 import { artifactFile, print, routeSlug } from "@orb/tooling/_shared/artifacts";
 import { buildUrl, launchProbeSession, withProbeSession } from "@orb/tooling/_shared/browser";
 import type { EvidenceGap } from "@orb/tooling/_shared/evidence";
@@ -20,7 +21,16 @@ import type { CensusReachInput, RawSamples } from "../contract/samples.ts";
 import type { Args, BackdropRefusal, DomPopulation } from "../contract/types.ts";
 import { checkScriptErrors } from "../lib/checks-quality.ts";
 import { collectAudit } from "../lib/collect.ts";
-import { censusGap, censusThinGap, censusTotal, reachGap, readinessGap, SAMPLE_COLLECTION_PREFIX, walkFailureGap } from "../lib/evidence.ts";
+import {
+  censusGap,
+  censusThinGap,
+  censusTotal,
+  reachGap,
+  readinessGap,
+  SAMPLE_COLLECTION_PREFIX,
+  themeProvenanceGap,
+  walkFailureGap,
+} from "../lib/evidence.ts";
 import { isAtOrAboveSeverity } from "../lib/severity.ts";
 import { stageLabel } from "../lib/stage-request.ts";
 import { navigateAndReveal } from "./drive.ts";
@@ -34,12 +44,21 @@ refuseDirectInvocation(import.meta.url, "pnpm design-audit");
  *   • `readinessGap` — on an app origin, the app never published `data-app-ready`: the walk censused the
  *     SHELL, which is a small NON-ZERO count the arms below are structurally blind to;
  *   • `censusGap` — the walk censused nothing at all (blank mount / error boundary / wrong route);
- *   • `censusThinGap` — it censused a FRACTION: the page kept growing after the walk, so the families
- *     folded the part that arrived late into "no findings" (the arm the three zero-tests cannot express);
+ *   • `censusThinGap` — exact subject accounting failed: the pre-walk settle, judged identity snapshot,
+ *     classified skips, or final identity set disagree (the arm the three zero-tests cannot express);
  *   • `reachGap`  — it censused plenty of text but reached NOT ONE offered control, so the tap-target,
  *     action-door and silhouette families each folded an empty list into "no findings".
  *  Only for a page that LOADED — a nav error is reported as itself. */
-function evidenceGapOf(url: string, appReady: boolean, samples: RawSamples | null, population: DomPopulation | null): EvidenceGap | null {
+interface EvidenceInputs {
+  readonly url: string;
+  readonly appReady: boolean;
+  readonly samples: RawSamples | null;
+  readonly population: DomPopulation | null;
+  readonly opts: Args;
+  readonly settingsEvidence: SettingsShimEvidence;
+}
+
+function evidenceGapOf({ url, appReady, samples, population, opts, settingsEvidence }: EvidenceInputs): EvidenceGap | null {
   // READINESS FIRST (#678): a shell censuses a small-but-nonzero node count, so this arm has to be judged
   // BEFORE the count-based ones — they cannot see it, and the run would otherwise print a clean verdict
   // over a page whose app never mounted.
@@ -52,7 +71,9 @@ function evidenceGapOf(url: string, appReady: boolean, samples: RawSamples | nul
   }
   // THIN BEFORE REACH (#808): a walk that ran over a half-rendered surface explains a low reach too, and
   // naming the fraction is the more useful refusal.
-  return censusThinGap(population) ?? reachGap(samples);
+  return (
+    censusThinGap(population) ?? themeProvenanceGap(opts.theme, settingsEvidence, samples.themeRender, population?.accounting.walked ?? 0) ?? reachGap(samples)
+  );
 }
 
 /** The reach rows of the RESULT line. `-1` is the absent-counters arm (a pinned pre-#653 sample set) —
@@ -109,7 +130,11 @@ export async function runUiAudit(opts: Args): Promise<number> {
     const reach = pixels.samples?.censusReach;
     // The evidence arms: a walk that saw nothing — or one that reached no offered control — folds check
     // families to zero and prints "no findings — clean". Guarded only where the page LOADED.
-    const gap = navError === null ? evidenceGapOf(url, appReady, pixels.samples, population) : null;
+    const settingsEvidence = session.contexts[0]?.settingsEvidence;
+    if (settingsEvidence === undefined) {
+      throw new Error("design-audit browser session has no settings-evidence owner");
+    }
+    const gap = navError === null ? evidenceGapOf({ url, appReady, samples: pixels.samples, population, opts, settingsEvidence }) : null;
     if (gap !== null) {
       print(`URL          ${url}`);
       return instrumentError(gap);
@@ -147,6 +172,12 @@ export async function runUiAudit(opts: Args): Promise<number> {
           pixelSampledBackdrops: pixels.sampled,
           backdropRefusals: pixels.refusals,
           censusReach: reach ?? null,
+          themeEvidence: {
+            request: opts.theme,
+            applied: settingsEvidence.themeApplied,
+            resolution: settingsEvidence.themeResolution,
+            rendered: pixels.samples?.themeRender ?? null,
+          },
           // The census's stability bracket (#808) — the artifact says what the RESULT line says.
           domPopulation: population,
         },
@@ -186,12 +217,25 @@ export async function runUiAudit(opts: Args): Promise<number> {
         // The DENOMINATOR (#409): how many nodes the walk censused. `findings=0` means nothing only when
         // this is non-zero, and a reader of the machine line is entitled to see it.
         ["census", census],
-        // The STABILITY denominator (#808), beside `census=` for the same reason: a census is only a
-        // measurement of the surface if the surface stopped changing around it. `dom-walk=` is the element
-        // population the walk could see, `dom-settled=` what it holds once settled — a reader is entitled to
-        // both, and a gap between them is what makes this run a refusal rather than a verdict.
+        // The exact subject-accounting denominator (#976): the old 1.5x tolerance let 285/381 print clean.
+        // Existing dom-walk/dom-settled labels stay stable; the new terms show how the equality closed.
         ["dom-walk", population?.duringWalk ?? -1],
         ["dom-settled", population === null ? -1 : `${population.settled}${population.stabilized ? "" : "+"}`],
+        ["dom-judged", population?.accounting.walked ?? -1],
+        ["dom-skip-head", population?.accounting.skipped.documentHead ?? -1],
+        ["dom-skip-dev", population?.accounting.skipped.devChrome ?? -1],
+        ["dom-inaccessible", population?.accounting.inaccessible ?? -1],
+        ["dom-added", population?.accounting.added ?? -1],
+        ["dom-detached", population?.accounting.detached ?? -1],
+        ["dom-mutations", population?.accounting.walkMutations ?? -1],
+        ["dom-settle-mutations", population?.accounting.settleMutations ?? -1],
+        ["theme-request", opts.theme ?? "account"],
+        ["theme-id", settingsEvidence.themeResolution?.id ?? (opts.theme === null ? "account" : "none")],
+        ["theme-source", settingsEvidence.themeResolution?.source ?? (opts.theme === null ? "account" : "unresolved")],
+        ["theme-root", pixels.samples?.themeRender.rootDataTheme ?? "default"],
+        ["theme-light", pixels.samples?.themeRender.subjectPolarities.light ?? -1],
+        ["theme-dark", pixels.samples?.themeRender.subjectPolarities.dark ?? -1],
+        ["theme-polarity-unknown", pixels.samples?.themeRender.subjectPolarities.unknown ?? -1],
         // The REACH denominator (#653) rides the machine line beside `census=` for the same reason: the
         // tap-target / action-door / silhouette families are viewport-bound, so `p1=0` means nothing until
         // a reader knows how many offered controls were measured and how many were skipped.

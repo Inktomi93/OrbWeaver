@@ -29,10 +29,16 @@ const LIBRARY = [
 const LIST_BODY = [{ result: { data: LIBRARY } }];
 
 test("the library is read out of the batched listThemes envelope; a non-list shape is null, never a guess", () => {
-  expect(readThemeList(LIST_BODY)).toEqual(LIBRARY.map(({ id, name }) => ({ id, name })));
+  expect(readThemeList(LIST_BODY)).toEqual(LIBRARY);
   // An auth failure / a moved schema must resolve to "I could not read the library", which WARNS.
   expect(readThemeList([{ error: { message: "UNAUTHORIZED" } }])).toBeNull();
   expect(readThemeList({ result: { data: { rows: 2 } } })).toBeNull();
+});
+
+test("a missing seed/custom discriminator stays unknown — provenance is never inferred from an id or name", () => {
+  expect(readThemeList([{ result: { data: [{ id: "theme_custom", name: "Could Be Anything" }] } }])).toEqual([
+    { id: "theme_custom", name: "Could Be Anything", isSeed: null },
+  ]);
 });
 
 test("a seed theme resolves by NAME, case-insensitively — the spelling an operator actually types", () => {

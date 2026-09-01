@@ -36,6 +36,67 @@ export const WALKER_CORE = `  var INTERACTIVE_SELECTOR = "a,button,[role=button]
     if (el.closest && el.closest(DEV_CHROME_SEL)) return true;
     return typeof el.className === "string" && GOOBER_CLASS_RE.test(el.className);
   }
+  // ONE settled identity snapshot is the denominator for every family below (#976). The generic
+  // getComputedStyle read is the common "walk attempted" operation: visibility changes which specialised
+  // facts apply, never whether a rendered document subject silently disappears from accounting.
+  var settledSubjects = [].slice.call(document.querySelectorAll("*"));
+  var allEls = [];
+  var documentHeadSkips = 0;
+  var devChromeSkips = 0;
+  var inaccessibleSubjects = 0;
+  var walkMutationCount = 0;
+  var walkObserver = new MutationObserver(function (records) {
+    for (var wm = 0; wm < records.length; wm += 1) {
+      if (mutationCarriesElement(records[wm])) walkMutationCount += 1;
+    }
+  });
+  walkObserver.observe(document.documentElement, { childList: true, subtree: true });
+  for (var subjectIndex = 0; subjectIndex < settledSubjects.length; subjectIndex += 1) {
+    var subject = settledSubjects[subjectIndex];
+    if (document.head && document.head.contains(subject)) {
+      documentHeadSkips += 1;
+      continue;
+    }
+    if (isDevChrome(subject)) {
+      devChromeSkips += 1;
+      continue;
+    }
+    try {
+      getComputedStyle(subject);
+      allEls.push(subject);
+    } catch (subjectError) {
+      inaccessibleSubjects += 1;
+    }
+  }
+  // Render provenance and WHOLE computed color-scheme values over the exact walked population. The source
+  // is structural: seed block on <html>, an inline ThemeScope custom-property carrier, or the base default.
+  var rootDataTheme = document.documentElement.getAttribute("data-theme");
+  var shellThemeScope = document.querySelector("[data-slot='theme-scope']");
+  var shellInlineBackground = shellThemeScope ? shellThemeScope.style.getPropertyValue("--color-background").trim() || null : null;
+  var shellColorScheme = shellThemeScope ? getComputedStyle(shellThemeScope).colorScheme || null : null;
+  var themeSubjectSources = { default: 0, seed: 0, custom: 0, unknown: 0 };
+  var themeSubjectPolarities = { light: 0, dark: 0, mixed: 0, unknown: 0 };
+  for (var themeIndex = 0; themeIndex < allEls.length; themeIndex += 1) {
+    var themeSubject = allEls[themeIndex];
+    var carryingScope = themeSubject.closest ? themeSubject.closest("[data-slot='theme-scope']") : null;
+    var carriedBackground = carryingScope ? carryingScope.style.getPropertyValue("--color-background").trim() : "";
+    if (carriedBackground !== "") themeSubjectSources.custom += 1;
+    else if (rootDataTheme !== null && rootDataTheme !== "") themeSubjectSources.seed += 1;
+    else themeSubjectSources.default += 1;
+    var schemeWords = (getComputedStyle(themeSubject).colorScheme || "").toLowerCase().split(/\\s+/).filter(Boolean);
+    var schemeHasLight = schemeWords.indexOf("light") !== -1;
+    var schemeHasDark = schemeWords.indexOf("dark") !== -1;
+    if (schemeHasLight && schemeHasDark) themeSubjectPolarities.mixed += 1;
+    else if (schemeHasLight) themeSubjectPolarities.light += 1;
+    else if (schemeHasDark) themeSubjectPolarities.dark += 1;
+    else themeSubjectPolarities.unknown += 1;
+  }
+  var themeRender = {
+    rootDataTheme: rootDataTheme,
+    shellScope: { present: shellThemeScope !== null, inlineBackground: shellInlineBackground, colorScheme: shellColorScheme },
+    subjectSources: themeSubjectSources,
+    subjectPolarities: themeSubjectPolarities,
+  };
   // Motion-law sanctioned measured-var height panels (motion guide §3.7).
   var PANEL_EXEMPT_SEL = "[data-slot='accordion-panel'],[data-slot='collapsible-panel']";
   // The owner-RATIFIED ListRow selection accent (2026-08-22, issue #485): a 2px left ember bar on the

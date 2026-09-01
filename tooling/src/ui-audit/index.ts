@@ -30,10 +30,12 @@ export type {
   RadialGlowInput,
   RawSamples,
   RepeatedTextInput,
+  SubjectAccountingInput,
   TabIndexInput,
   TapTargetInput,
   TextOverflowInput,
   TextStyleInput,
+  ThemeRenderInput,
   TruncatedTextInput,
   ZIndexInput,
 } from "./contract/samples.ts";
@@ -63,7 +65,7 @@ export {
 export { checkAnimatedImgHover, checkGradientText, checkNestedCard, checkZIndex } from "./lib/checks-structure.ts";
 export { checkCaveatHierarchy, checkFontCensus, checkTextStyle } from "./lib/checks-typography.ts";
 export { collectFindings } from "./lib/collect.ts";
-export { censusGap, censusThinGap, censusTotal, reachGap, readinessGap } from "./lib/evidence.ts";
+export { censusGap, censusThinGap, censusTotal, reachGap, readinessGap, themeProvenanceGap } from "./lib/evidence.ts";
 export { INTERACTIVE_TEXT_FLOOR_PX, LEADING_FLOOR, RAMP_FONT_FACES, TEXT_MICRO_PX } from "./lib/ramp.ts";
 export { isAtOrAboveSeverity, isValidSeverity } from "./lib/severity.ts";
 export {

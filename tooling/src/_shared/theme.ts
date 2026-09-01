@@ -43,6 +43,8 @@ export type ThemeParse = { readonly theme: ThemeRequest } | { readonly error: st
 export interface ThemeEntry {
   readonly id: string;
   readonly name: string;
+  /** The API's own seed/custom discriminator. null means the response omitted it — never guessed. */
+  readonly isSeed: boolean | null;
 }
 
 /** The value-taking theme flags — every probe CLI adds these to its required-value scan. */
@@ -105,7 +107,7 @@ export function readThemeList(body: unknown, index = 0): readonly ThemeEntry[] |
   const entries: ThemeEntry[] = [];
   for (const row of rows) {
     if (isPlainObject(row) && typeof row["id"] === "string" && typeof row["name"] === "string") {
-      entries.push({ id: row["id"], name: row["name"] });
+      entries.push({ id: row["id"], name: row["name"], isSeed: typeof row["isSeed"] === "boolean" ? row["isSeed"] : null });
     }
   }
   return entries;
