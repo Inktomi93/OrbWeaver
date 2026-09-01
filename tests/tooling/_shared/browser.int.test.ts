@@ -565,7 +565,9 @@ test("snap dead-CSS scan ignores third-party marker classes without hiding real 
   const name = `${RUN_ID}_deadcss_markers`;
   const result = runSnap(["--file", page, "--no-shot", "--json", "--no-failure-evidence", "--out", name]);
 
-  expect(result.status, result.stdout + result.stderr).toBe(0);
+  // A real dead token is now a contractual nonzero verdict; the manifest remains the proof that the
+  // third-party marker itself was excluded rather than hidden by a broad clean expectation.
+  expect(result.status, result.stdout + result.stderr).toBe(1);
   const capture = (manifest(name)["captures"] as Array<{ deadCss: Array<{ token: string }> }>)[0];
   expect(capture?.deadCss.map((entry) => entry.token)).toEqual(["definitely-dead"]);
 });

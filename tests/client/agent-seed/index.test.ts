@@ -112,28 +112,25 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-test("game({profile:'d20'}) drives createGame with the d20 stat profile and patchSheet WITH the attribute grid", async () => {
+test("game({profile:'d20'}) maps the caller profile to the d20 ruleset and patchSheet WITH the attribute grid", async () => {
   const client = fakeClient();
   const seed = buildAgentSeed(client);
 
   const result = await seed.game({ profile: "d20" });
 
   expect(result).toEqual({ chatId: CHAT_ID });
-  expect(client.rpg.createGame.mutate).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ chatId: CHAT_ID, mode: "lite" }));
-  const createGameArg = client.rpg.createGame.mutate.mock.calls[0][0];
-  expect(createGameArg.profile.attributes).toBeDefined();
+  expect(client.rpg.createGame.mutate).toHaveBeenCalledExactlyOnceWith({ chatId: CHAT_ID, mode: "lite", ruleset: "d20" });
   const patchSheetArg = client.rpg.patchSheet.mutate.mock.calls[0][0];
   expect(patchSheetArg.patch.attributes).toEqual({ str: 15, dex: 13, con: 14, int: 12, wis: 11, cha: 16 });
 });
 
-test("game({profile:'freeform'}) drives createGame with the freeform profile and patchSheet WITHOUT attributes", async () => {
+test("game({profile:'freeform'}) maps the caller profile to the freeform ruleset and patchSheet WITHOUT attributes", async () => {
   const client = fakeClient();
   const seed = buildAgentSeed(client);
 
   await seed.game({ profile: "freeform" });
 
-  const createGameArg = client.rpg.createGame.mutate.mock.calls[0][0];
-  expect(createGameArg.profile.attributes).toEqual([]);
+  expect(client.rpg.createGame.mutate).toHaveBeenCalledExactlyOnceWith({ chatId: CHAT_ID, mode: "lite", ruleset: "freeform" });
   const patchSheetArg = client.rpg.patchSheet.mutate.mock.calls[0][0];
   expect(patchSheetArg.patch).not.toHaveProperty("attributes");
 });
@@ -230,8 +227,7 @@ test("richGame() defaults to the freeform profile and returns the seeded chatId"
   const result = await seed.richGame();
 
   expect(result).toEqual({ chatId: CHAT_ID });
-  const createGameArg = client.rpg.createGame.mutate.mock.calls[0][0];
-  expect(createGameArg.profile.attributes).toEqual([]);
+  expect(client.rpg.createGame.mutate).toHaveBeenCalledExactlyOnceWith({ chatId: CHAT_ID, mode: "lite", ruleset: "freeform" });
 });
 
 test("concurrent first seeds with matching arguments join one chat creation and one seed sequence", async () => {
