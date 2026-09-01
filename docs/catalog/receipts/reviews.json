@@ -1873,6 +1873,35 @@
           ]
         }
       ]
+    },
+    {
+      "path": "docs/reviews/stickler/2026-09-01-ui-audit-population-train.md",
+      "assignedSha256": "0fec5dde3f159587caa1dffb7cb60993f9efce51e5b11a882ff1afa72c34e23b",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "0fec5dde3f159587caa1dffb7cb60993f9efce51e5b11a882ff1afa72c34e23b",
+      "verifiedCommit": "e19c9a5dc697fb7c776aa9169acc55ac1aa6870c",
+      "verifiedAt": "2026-09-01",
+      "evidence": [
+        "docs/reviews/stickler/2026-09-01-ui-audit-population-train.md:1-257 read in full; cold grouped review of daafa3e55^..532200fce with focused pure and Chromium plants for all eight confirmed population-integrity findings"
+      ],
+      "summary": "Cold grouped review of the UI-audit population train: eight confirmed findings, ceiling P1, covering arithmetic settlement, fail-loud partial populations, state pairing, authored ownership, bounded representatives, animation withholding, collision census completeness, and non-vacuous controls.",
+      "claims": [
+        {
+          "claim": "Work item #987 owns and e19c9a5dc repairs the eight confirmed population-integrity defects required before the audit instruments can consume the #953 matrix.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#987"
+            },
+            {
+              "kind": "provenance",
+              "target": "git:e19c9a5dc697fb7c776aa9169acc55ac1aa6870c"
+            }
+          ]
+        }
+      ]
     }
   ]
 }
