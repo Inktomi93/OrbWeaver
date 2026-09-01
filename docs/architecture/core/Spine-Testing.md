@@ -119,7 +119,7 @@ PASS-THROUGH wiring file — every exported callable's body reducing to ONE expr
 call, a DI-bundle object literal over its own parameters, or a factory returning one of those. A second
 statement, a branch (including a ternary), or a computed argument is behavior and stays demanded. Browser
 lanes are not generally presence-gated. The deliberate exception is the standing #883
-`worst-legal-art-contrast.ct.tsx`: `test-presence-client` requires that one cross-cutting rendered floor
+`worst-legal-art-contrast.suite.ct.tsx`: `test-presence-client` requires that one cross-cutting rendered floor
 because deleting it restores a known blind class across every theme polarity at once.
 
 **`test-presence` checks EXISTENCE, not coverage:** it confirms a store's mirror `.ct.tsx` EXISTS — NOT

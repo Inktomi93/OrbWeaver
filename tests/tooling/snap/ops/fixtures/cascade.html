@@ -36,7 +36,7 @@
       globalThis.__orb = {
         css: {
           read: () => ({ status: "ok", enabled: true, calls: 1, conflictCalls: 0, deduplicatedConflictCalls: 0, receipts: [] }),
-          reset: () => {},
+          reset: () => undefined,
         },
       };
     </script>

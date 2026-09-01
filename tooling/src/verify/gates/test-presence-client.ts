@@ -40,7 +40,7 @@ const UI_LOGIC_GROUPS = ["charts/", "markdown/", "stream/", "content/", "code-ed
 const TEST_KINDS = [".test.ts", ".int.test.ts", ".test.tsx", ".ct.tsx"] as const;
 const REAL_TREE_ANCHOR = "packages/client/src/index.ts";
 const WORST_ART_ANCHOR = "packages/client/src/features/chat/surfaces/chat-room-surface.tsx";
-const WORST_ART_STANDING_CT = "tests/client/features/chat/surfaces/worst-legal-art-contrast.ct.tsx";
+const WORST_ART_STANDING_CT = "tests/client/features/chat/surfaces/worst-legal-art-contrast.suite.ct.tsx";
 
 const MSG_CLIENT =
   "client data/forms/state primitive has no test — add a .test.ts / .int.test.ts / .ct.tsx at its tests/client mirror. These seals are composed by every feature; an untested change breaks behavior downstream silently (Spine-Testing.md §5).";
@@ -55,7 +55,7 @@ const MSG_STATE_ACTION = (action: string): string =>
 const MSG_STATE_UNREADABLE =
   "clause C could not read ANY corpus from this store's mirror, even though a mirror test EXISTS — so its actions went UNJUDGED and a ✓ here would be a lie about coverage this gate does not have (issue #619; tooling/src/verify/gates/GATE-AUTHORING.md §4.6). Either the mirror is empty, or it uses a test-kind suffix outside TEST_KINDS in tooling/src/verify/gates/test-presence-client.ts — widen that ONE vocabulary, never special-case it here.";
 const MSG_WORST_ART =
-  "the standing DOM-derived worst-legal-art contrast CT is missing — restore tests/client/features/chat/surfaces/worst-legal-art-contrast.ct.tsx. The room's rendered text population must stay sampled across shipped and custom theme polarities (issue #883).";
+  "the standing DOM-derived worst-legal-art contrast CT is missing — restore tests/client/features/chat/surfaces/worst-legal-art-contrast.suite.ct.tsx. The room's rendered text population must stay sampled across shipped and custom theme polarities (issue #883).";
 
 function relAfter(path: string, marker: string): string | undefined {
   const idx = path.indexOf(marker);
@@ -452,8 +452,11 @@ export const gate: GateDescriptor = {
           'import { createGatedStore } from "./create-gated-store";\n' +
           'const useX = createGatedStore<{ n: number }>("g-prestpl", () => ({ n: 0 }));\n' +
           'export function gPresTplAction(): number {\n  useX.setState({ n: 1 }, false, "x/set");\n  return 1;\n}\n',
-        // biome-ignore lint/suspicious/noTemplateCurlyInString: the fixture must preserve a literal interpolation span for the string-blanking control.
-        "tests/client/state/__g_gprestpl-store.test.ts": "export const t = `drove ${gPresTplAction()} write`;\ndeclare function gPresTplAction(): number;\n",
+        "tests/client/state/__g_gprestpl-store.test.ts": [
+          "export const t = `drove ",
+          "${gPresTplAction()}",
+          " write`;\ndeclare function gPresTplAction(): number;\n",
+        ].join(""),
       },
       why: "STRING POSTURE limit: a real `gPresTplAction()` call interpolated inside a template literal is CODE — the blanking keeps interpolation spans, so clause C still counts it and passes",
     },

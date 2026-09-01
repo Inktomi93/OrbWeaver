@@ -56,6 +56,10 @@ function message(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+function initializationFailure(failures: readonly unknown[], cause: unknown): AggregateError {
+  return new AggregateError(failures, `DevTools cascade runtime failed to initialize: ${message(cause)}`, { cause });
+}
+
 function validateInputs(inputs: readonly DevToolsCascadeInput[]): void {
   if (inputs.length === 0 || inputs.length > MAX_QUERIES) {
     throw new Error(`cascade query population must be 1..${MAX_QUERIES}`);
@@ -340,7 +344,6 @@ export async function prepareDevToolsCascadeRuntime(assetRoot: string): Promise<
     }
     // @orb-gate-ignore caught-failure-ownership(promise:rm): initialization cleanup joins the original failure in the AggregateError below. Ends if cleanup errors stop being appended or the aggregate throw is removed.
     await rm(tempRoot, { recursive: true, force: true }).catch((cleanupError: unknown) => failures.push(cleanupError));
-    // biome-ignore lint/style/useErrorCause: the caught error is the first AggregateError member; cleanup errors follow it without hiding either failure.
-    throw new AggregateError(failures, `DevTools cascade runtime failed to initialize: ${message(error)}`);
+    throw initializationFailure(failures, error);
   }
 }

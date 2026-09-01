@@ -226,7 +226,7 @@
     "tests/client/features/chat/surfaces/command-palette-surface.ct.tsx",
     "tests/client/features/chat/surfaces/message-list-surface.ct.tsx",
     "tests/client/features/chat/surfaces/new-chat-picker-surface.ct.tsx",
-    "tests/client/features/chat/surfaces/worst-legal-art-contrast.ct.tsx",
+    "tests/client/features/chat/surfaces/worst-legal-art-contrast.suite.ct.tsx",
     "tests/client/features/config/components/config-group-placeholder.ct.tsx",
     "tests/client/features/config/components/config-save-footer.ct.tsx",
     "tests/client/features/config/components/config-search-input.ct.tsx",
@@ -2204,6 +2204,9 @@
     "tests/ui/touch-target-floor.suite.ct.tsx"
   ],
   "deletions": {
+    "tests/client/features/chat/surfaces/worst-legal-art-contrast.ct.tsx": {
+      "why": "RENAMED, not dropped: the same 21-case #883 rendered contrast matrix now lives at tests/client/features/chat/surfaces/worst-legal-art-contrast.suite.ct.tsx. The `.suite.ct.tsx` suffix declares what the test already is — one cross-cutting browser property over the real chat room, ThemeScope pairs, shipped seeds, custom themes, pivot polarities, and hostile instrument controls — so test-layout does not falsely demand a same-named production module. Every assertion moved byte-for-byte."
+    },
     "tests/tooling/verify/lib/static-class-collection.test.ts": {
       "why": "RELOCATED, not dropped: this is a corpus-level integration test for the shared static-class collection pass, not a mirror of one singular tooling/src/verify/lib/static-class-collection.ts module. Every assertion moved verbatim to tests/tooling/static-class-collection.int.test.ts, the tooling-package.md §4.7 endgame-flat home. Un-deletes if the suite becomes a single-module mirror."
     },

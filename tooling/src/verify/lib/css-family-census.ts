@@ -50,14 +50,14 @@ const SOURCE_OWNERS = [
   { prefix: "packages/client/src/", owner: "client" },
 ] as const;
 export const EXPECTED_DECLARATION_CENSUS: Readonly<Record<ProductStylesheet, number>> = {
-  [THEME]: 281,
+  [THEME]: 287,
   [UI_GLOBALS]: 187,
   [TIERS]: 45,
   [CLIENT_GLOBALS]: 111,
   [SHELL]: 335,
 };
-export const EXPECTED_DECLARATION_TOTAL = 959;
-export const EXPECTED_DIRECT_THEME_DECLARATIONS = 185;
+export const EXPECTED_DECLARATION_TOTAL = 965;
+export const EXPECTED_DIRECT_THEME_DECLARATIONS = 187;
 export const CENSUS_TOKEN: Readonly<Record<ProductStylesheet, string>> = {
   [THEME]: "census:theme",
   [UI_GLOBALS]: "census:ui-globals",

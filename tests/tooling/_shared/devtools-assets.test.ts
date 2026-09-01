@@ -1,6 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, readFile, rm, symlink, unlink, writeFile } from "node:fs/promises";
+import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -161,12 +162,9 @@ test("every real manifest resource is Git-tracked, including resources beneath i
 
 test("the generated closure is excluded exactly from first-party source analyzers", async () => {
   const biome = JSON.parse(await readFile(join(REPO_ROOT, "biome.json"), "utf8")) as { readonly files: { readonly includes: readonly string[] } };
-  // @ts-expect-error -- the CommonJS dependency-cruiser config has no declaration; the consumed shape is narrowed below.
-  const dependencyCruiser = (
-    (await import("../../../.dependency-cruiser.cjs")) as {
-      readonly default: { readonly options: { readonly exclude: { readonly path: readonly string[] } } };
-    }
-  ).default;
+  const dependencyCruiser = createRequire(import.meta.url)("../../../.dependency-cruiser.cjs") as {
+    readonly options: { readonly exclude: { readonly path: readonly string[] } };
+  };
   const biomeRows = biome.files.includes.filter((row) => row.includes("devtools-frontend"));
   const depcruiseRows = dependencyCruiser.options.exclude.path.filter((row) => row.includes("devtools-frontend"));
 
