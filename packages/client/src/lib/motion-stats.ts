@@ -16,9 +16,9 @@
 // long-task-tracer.ts — one dev-gated observer, one console surface.
 //
 // The rest of the flagger pack ([anim] · [css] · [drop] · [space]) lives in `motion-flaggers.ts` —
-// this file is at the client 450-line cap, and those flaggers need no LoAF/CLS ring. They import the
-// surface-label + compositor vocabulary FROM HERE so both halves speak one language (the
-// `surfaceLabelOf` note below is the same reasoning, one level up). `[frame]`/`[input]`/`[reflow]` EMIT
+// those flaggers need no LoAF/CLS ring. Animation property and active-record ownership live in
+// `motion-animation-record.ts`; the surface label stays here because layout shifts and animation records
+// share it. `[frame]`/`[input]`/`[reflow]` EMIT
 // from `long-task-tracer.ts`, but the FRAMES they judge come from the one observer installed here
 // (`subscribeLongAnimationFrames`). One emitter per signal (AGENTS §3); one OBSERVER per entry type is
 // the same rule one level down — until P7 this file and the tracer each ran their own.
@@ -52,10 +52,6 @@
 import { logClock } from "./log-clock.ts";
 import type { SelectEntranceEvidence } from "./select-entrance-evidence.ts";
 import { installSelectEntranceObserver, resetSelectEntranceEvidence, selectEntranceForFrame } from "./select-entrance-evidence.ts";
-
-// translate/scale/rotate are CSS Transforms L2 individual properties that Tailwind v4 compiles its
-// scale-*/translate-* utilities to, and composite exactly like transform.
-export const COMPOSITOR_SAFE_PROPS: ReadonlySet<string> = new Set(["transform", "opacity", "filter", "translate", "scale", "rotate"]);
 
 // Ring cap — a long session must not grow this unbounded.
 const LOAF_RING_CAP = 64;
@@ -178,16 +174,6 @@ export interface MotionSnapshot {
   readonly worstShift: number;
   /** The recent attributed shifts — "what moved", which no CLS number carries. */
   readonly shifts: readonly ShiftRecord[];
-}
-
-export interface AnimationRecord {
-  readonly id?: string;
-  /** Best-effort surface/component label of the animated target (see resolveSurfaceLabel). */
-  readonly target: string;
-  /** The animated property set (from the keyframes). */
-  readonly properties: readonly string[];
-  /** true ⇒ every animated prop is compositor-safe (transform/opacity/filter) — no per-frame layout. */
-  readonly compositorClean: boolean;
 }
 
 // LoAF/layout-shift PerformanceEntry fields aren't all in lib.dom yet; narrow them structurally rather
@@ -405,44 +391,4 @@ export function surfaceLabelOf(el: Element): string {
   // No stable marker on the chain — fall back to the leaf's own tag + first class.
   const cls = el.classList.item(0);
   return cls === null ? `<${el.tagName.toLowerCase()}>` : `<${el.tagName.toLowerCase()} .${cls}>`;
-}
-
-function resolveSurfaceLabel(target: Animation["effect"]): string {
-  // Only KeyframeEffect carries a DOM target.
-  const el = target instanceof KeyframeEffect ? target.target : null;
-  return el instanceof Element ? surfaceLabelOf(el) : "(no-element)";
-}
-
-// getKeyframes() injects computedOffset on every frame in addition to the authoring fields, so it must
-// be dropped too or every animation reads as "dirty".
-const FRAME_CONTROL_KEYS = new Set(["offset", "computedOffset", "easing", "composite"]);
-
-/** The animated CSS-property set (union across keyframes, minus the frame-control fields). Exported for
- *  `motion-flaggers.ts`'s `[anim]` channel, which classifies at animation START rather than by sampling. */
-export function animatedProperties(effect: Animation["effect"]): string[] {
-  const props = new Set<string>();
-  if (!(effect instanceof KeyframeEffect)) {
-    return [];
-  }
-  for (const frame of effect.getKeyframes()) {
-    for (const key of Object.keys(frame)) {
-      if (!FRAME_CONTROL_KEYS.has(key)) {
-        props.add(key);
-      }
-    }
-  }
-  return [...props];
-}
-
-/** The currently-active animations, each classified compositor-clean or not — `window.__orb.animations()`. */
-export function activeAnimations(): readonly AnimationRecord[] {
-  return document.getAnimations().map((anim): AnimationRecord => {
-    const properties = animatedProperties(anim.effect);
-    const record: AnimationRecord = {
-      target: resolveSurfaceLabel(anim.effect),
-      properties,
-      compositorClean: properties.length > 0 && properties.every((p) => COMPOSITOR_SAFE_PROPS.has(p)),
-    };
-    return anim.id === "" ? record : { ...record, id: anim.id };
-  });
 }

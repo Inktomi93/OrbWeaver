@@ -44,11 +44,14 @@ const NAV_BRIDGE_METHOD: Record<Exclude<NavMethod, "goto">, string> = {
 export function buildNavScript(method: NavMethod, target: string): string {
   const goto = method === "goto" ? parseGotoTarget(target) : null;
   const bridgeMethod = goto === null ? NAV_BRIDGE_METHOD[method as Exclude<NavMethod, "goto">] : goto.method;
-  const arg = JSON.stringify(goto === null ? target : goto.arg);
+  const args =
+    goto?.method === "openConfig" && goto.sub !== undefined
+      ? `${JSON.stringify(goto.arg)}, ${JSON.stringify(goto.sub)}`
+      : JSON.stringify(goto === null ? target : goto.arg);
   return `(async () => {
     const nav = window.__orb && window.__orb.nav;
     if (!nav) return { ok: false, reason: "__orb.nav unavailable (not a dev build?)" };
-    return await nav.${bridgeMethod}(${arg});
+    return await nav.${bridgeMethod}(${args});
   })()`;
 }
 

@@ -11,29 +11,37 @@ import { appearanceSettingsForCarrierArm, compareAppearanceCarrierArms } from ".
 
 function readCarrierSnapshot(page: Page): Promise<Partial<AppearanceCarrierSnapshot>> {
   return page.evaluate((observables): Partial<AppearanceCarrierSnapshot> => {
-    const snapshot: Partial<AppearanceCarrierSnapshot> = {};
-    for (const [key, observable] of Object.entries(observables) as [keyof AppearanceCarrierSnapshot, AppearanceCarrierObservable][]) {
-      const element = document.querySelector<HTMLElement>(observable.selector);
+    const read = (observable: AppearanceCarrierObservable): { readonly found: boolean; readonly value: unknown } => {
+      const selector = observable.kind === "message-prop" ? 'section[aria-label="CT Appearance hook snapshot"]' : observable.selector;
+      const element = document.querySelector<HTMLElement>(selector);
       if (element === null) {
-        continue;
+        return { found: false, value: undefined };
       }
       if (observable.kind === "attribute") {
-        snapshot[key] = element.getAttribute(observable.signal);
-        continue;
+        return { found: true, value: element.getAttribute(observable.signal) };
       }
       if (observable.kind === "inline-style") {
-        snapshot[key] = element.style.getPropertyValue(observable.signal);
-        continue;
+        return { found: true, value: element.style.getPropertyValue(observable.signal) };
       }
       const payload = JSON.parse(element.textContent ?? "{}") as Record<string, unknown>;
-      const value = observable.signal
-        .split(".")
-        .reduce<unknown>(
-          (current, part) => (typeof current === "object" && current !== null ? (current as Record<string, unknown>)[part] : undefined),
-          payload,
-        );
-      if (value !== undefined) {
-        snapshot[key] = JSON.stringify(value);
+      return {
+        found: true,
+        value: observable.signal
+          .split(".")
+          .reduce<unknown>(
+            (current, part) => (typeof current === "object" && current !== null ? (current as Record<string, unknown>)[part] : undefined),
+            payload,
+          ),
+      };
+    };
+    const snapshot: Partial<AppearanceCarrierSnapshot> = {};
+    for (const [key, observable] of Object.entries(observables) as [keyof AppearanceCarrierSnapshot, AppearanceCarrierObservable][]) {
+      const observed = read(observable);
+      if (!observed.found) {
+        continue;
+      }
+      if (observed.value !== undefined) {
+        snapshot[key] = observable.kind === "message-prop" ? JSON.stringify(observed.value) : (observed.value as string);
       }
     }
     return snapshot;
@@ -57,7 +65,7 @@ test("#935 every armed appearance key changes its declared real carrier across t
     await routeAppearance(page, appearance, arm);
     const component = await mount(<AppearanceCarrierStory />);
     await expect
-      .poll(async () => JSON.parse((await page.getByTestId("appearance-message-carrier").textContent()) ?? "{}") as Record<string, unknown>)
+      .poll(async () => JSON.parse((await page.getByRole("region", { name: "CT Appearance hook snapshot" }).textContent()) ?? "{}") as Record<string, unknown>)
       .toMatchObject({ avatarSize: appearance.avatarSize });
     const snapshot = await readCarrierSnapshot(page);
     await component.unmount();

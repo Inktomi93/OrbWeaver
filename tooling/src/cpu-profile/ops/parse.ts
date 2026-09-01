@@ -1,14 +1,15 @@
 // Argv parse for cpu-profile — the strict-CLI posture (an unknown flag is a hard EXIT.misuse: a
 // typo'd step silently meters the landing page and reports it clean).
+
+import { mergeAppearancePatches } from "@orb/tooling/_shared/appearance";
 import {
   APPEARANCE_VALUE_FLAGS,
   appearanceHelpBlock,
   applyAppearanceFlag,
   FULL_MOTION_PATCH,
   loadAppearancePreset,
-  mergeAppearancePatches,
   parseAppearancePatch,
-} from "@orb/tooling/_shared/appearance";
+} from "@orb/tooling/_shared/appearance-flags";
 import type { Viewport } from "@orb/tooling/_shared/argv";
 import { parseViewport, splitLastEq } from "@orb/tooling/_shared/argv";
 import { DEFAULT_BASE } from "@orb/tooling/_shared/browser";

@@ -79,6 +79,7 @@ export {
   stageLabel,
   unknownRefRefusal,
 } from "./lib/stage-request.ts";
+export { runUiAuditMatrix } from "./ops/matrix.ts";
 export { DESIGN_AUDIT_HELP, parseAuditArgs } from "./ops/parse.ts";
 export { runUiAudit } from "./ops/run.ts";
 export { configureAuditStage } from "./ops/stage.ts";

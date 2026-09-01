@@ -36,7 +36,7 @@ import process from "node:process";
 import { print } from "../_shared/artifacts.ts";
 import { EXIT } from "../_shared/exit-contract.ts";
 import { runTool } from "../_shared/run-tool.ts";
-import { configureAuditStage, DESIGN_AUDIT_HELP, parseAuditArgs, runUiAudit } from "./index.ts";
+import { configureAuditStage, DESIGN_AUDIT_HELP, parseAuditArgs, runUiAudit, runUiAuditMatrix } from "./index.ts";
 
 async function main(): Promise<number> {
   const opts = parseAuditArgs(process.argv.slice(2));
@@ -54,7 +54,7 @@ async function main(): Promise<number> {
   if (stageExit !== null) {
     return stageExit;
   }
-  return await runUiAudit(opts);
+  return opts.matrix ? await runUiAuditMatrix(opts) : await runUiAudit(opts);
 }
 
 await runTool(main);

@@ -4,6 +4,7 @@ export interface CssCascadeQuery {
   readonly selector: string;
   readonly property: string;
   readonly page: number;
+  readonly matchIndex?: number;
 }
 
 type CssDeclarationState = "Active" | "Overloaded";
@@ -46,6 +47,7 @@ interface CssCascadeOkReceipt {
   readonly status: "ok";
   readonly selector: string;
   readonly property: string;
+  readonly matchIndex: number;
   readonly computedValue: string;
   readonly targetId: string;
   readonly computedDefault: boolean;

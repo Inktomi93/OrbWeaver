@@ -107,7 +107,7 @@ import { Text } from "@orb/ui/text";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { CSSProperties, ReactElement, ReactNode } from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import { SectionContextHeader, SectionContextHost } from "../../../../packages/client/src/features/app-shell/components/section-context-host.tsx";
 import { CharacterGalleryDialog } from "../../../../packages/client/src/features/chat/anchors/character-gallery-dialog.tsx";
 import { AddChatBookDialog } from "../../../../packages/client/src/features/chat/components/add-chat-book-dialog.tsx";
@@ -168,6 +168,7 @@ import type { PendingAttachment } from "../../../../packages/client/src/features
 import { speakerThemesByName } from "../../../../packages/client/src/features/chat/lib/attribution.ts";
 import { useChatsSelectionTitle } from "../../../../packages/client/src/features/chat/lib/chats-selection-title.ts";
 import type { MemberCharacterRow, MemberPersonRow } from "../../../../packages/client/src/features/chat/lib/member-rows.ts";
+import { __enableAppearanceMessageRegistryForTest } from "../../../../packages/client/src/lib/appearance-message-registry.ts";
 import type { SlashArgOffer } from "../../../../packages/client/src/lib/contribution-contracts.ts";
 import { CtChatContributorSectionRegistry, CtDataProviders, CtRealSectionRegistry } from "../../../support/ct/ct-data-providers.tsx";
 import { CHAT_ID, COMPOSER_CHAT_ID, makeMessageView } from "./fixtures.ts";
@@ -209,6 +210,7 @@ export interface MessageRowStoryProps {
   /** A FIXED mount width (px) — the row is its own `@container`, so this is what its composition reads. */
   readonly width?: number;
   readonly chatStyle: ThemeChatStyle;
+  readonly messageId?: MessageId;
   // Named `messageRole` (not `role`) so the JSX prop at the CT call site isn't read as an ARIA role.
   readonly messageRole?: MessageRole;
   readonly content?: string;
@@ -233,6 +235,9 @@ export interface MessageRowStoryProps {
   readonly avatarAspect?: "square" | "portrait";
   readonly avatarRing?: "none" | "accent";
   readonly showInChatAvatars?: boolean;
+  readonly autoFixMarkdown?: boolean;
+  readonly colorQuotedSpeech?: boolean;
+  readonly messageActions?: "expanded" | "hover";
   /** WS3/N3 — the per-toggle metadata-chip visibility (timestamp → name row, the rest → metadata row).
    *  Omitted ⇒ every datum hidden (the `MessageRow` NO_METADATA_VISIBLE default). */
   readonly metadataVisibility?: MessageMetadataVisibility;
@@ -273,6 +278,7 @@ export interface MessageRowStoryProps {
 export function MessageRowStory({
   width,
   chatStyle,
+  messageId,
   messageRole = "assistant",
   content = "**Bold** and _italic_",
   characterId = null,
@@ -287,6 +293,9 @@ export function MessageRowStory({
   avatarAspect,
   avatarRing,
   showInChatAvatars,
+  autoFixMarkdown,
+  colorQuotedSpeech,
+  messageActions,
   metadataVisibility,
   toolCalls,
   reasoning = null,
@@ -340,6 +349,7 @@ export function MessageRowStory({
         <MessageThreadAnchor>
           <MessageRow
             message={makeMessageView({
+              ...(messageId === undefined ? {} : { id: messageId }),
               role: messageRole,
               kind: messageKind,
               content,
@@ -361,6 +371,9 @@ export function MessageRowStory({
             avatarAspect={avatarAspect}
             avatarRing={avatarRing}
             showInChatAvatars={showInChatAvatars}
+            autoFixMarkdown={autoFixMarkdown}
+            colorQuotedSpeech={colorQuotedSpeech}
+            messageActions={messageActions}
             participants={participantsMap}
             characterNamesById={characterNamesById}
             characterAvatarsById={characterAvatarsById}
@@ -373,6 +386,61 @@ export function MessageRowStory({
         </MessageThreadAnchor>
       </div>
     </CtDataProviders>
+  );
+}
+
+const APPEARANCE_REGISTRY_MESSAGE_A = castId<MessageId>("msg_ct_appearance_registry_a");
+const APPEARANCE_REGISTRY_MESSAGE_B = castId<MessageId>("msg_ct_appearance_registry_b");
+
+/** Production-mode CT host for the dev-only MessageRow registry. A layout effect enables the test seam
+ * before either real row's passive registration effect runs. */
+export function AppearanceMessageRegistryStory(): ReactElement {
+  useLayoutEffect(() => __enableAppearanceMessageRegistryForTest(), []);
+  return (
+    <>
+      <MessageRowStory
+        chatStyle="bubble"
+        messageId={APPEARANCE_REGISTRY_MESSAGE_A}
+        avatarSize="sm"
+        avatarShape="round"
+        avatarAspect="square"
+        avatarRing="none"
+        showInChatAvatars={true}
+        autoFixMarkdown={false}
+        colorQuotedSpeech={true}
+        messageActions="hover"
+        metadataVisibility={{
+          showGenerationCost: false,
+          showGenerationTimer: false,
+          showMessageId: false,
+          showModelIcon: false,
+          showTimestamps: true,
+          showTokenCount: false,
+        }}
+        showLLMReasoningIcon={false}
+      />
+      <MessageRowStory
+        chatStyle="document"
+        messageId={APPEARANCE_REGISTRY_MESSAGE_B}
+        avatarSize="lg"
+        avatarShape="square"
+        avatarAspect="portrait"
+        avatarRing="accent"
+        showInChatAvatars={false}
+        autoFixMarkdown={true}
+        colorQuotedSpeech={false}
+        messageActions="expanded"
+        metadataVisibility={{
+          showGenerationCost: true,
+          showGenerationTimer: true,
+          showMessageId: true,
+          showModelIcon: true,
+          showTimestamps: false,
+          showTokenCount: true,
+        }}
+        showLLMReasoningIcon={true}
+      />
+    </>
   );
 }
 

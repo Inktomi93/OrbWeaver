@@ -1,5 +1,5 @@
 import type { VariantMatrixSpec } from "@orb/tooling/_shared/variant-matrix";
-import { planVariantMatrix, variantCellId } from "@orb/tooling/_shared/variant-matrix";
+import { planVariantMatrix, variantArtifactId, variantCellId } from "@orb/tooling/_shared/variant-matrix";
 import { expect, test } from "../../support/tool-fixtures.ts";
 
 const AXES = [
@@ -92,6 +92,8 @@ test("derives stable cell identity from every axis so a same-count replacement i
   expect(replacement.cells).toHaveLength(original.cells.length);
   expect(replacement.receipt.cellIds).not.toEqual(original.receipt.cellIds);
   expect(variantCellId(replacementAxes, replacement.cells[0]?.assignment ?? {})).toBe(replacement.cells[0]?.id);
+  expect(variantArtifactId(replacement.cells[0]?.id ?? "", 0)).toMatch(/^v01-[a-f0-9]{12}$/u);
+  expect(variantArtifactId(replacement.cells[0]?.id ?? "", 0)).not.toBe(variantArtifactId(original.cells[0]?.id ?? "", 0));
 });
 
 test("covers only legally reachable pairs and records impossible partial obligations loudly", () => {

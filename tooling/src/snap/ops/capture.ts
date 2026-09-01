@@ -20,8 +20,9 @@ async function captureEvidence(page: Page, opts: Args, outcome: CaptureOutcome, 
   const { pageIndex, trailingEvals } = pass;
   if (opts.deadCss) {
     const scan = await scanDeadCss(page, opts.includeHidden);
-    outcome.deadCss = scan.dead;
-    outcome.emptyCss = scan.empty;
+    outcome.deadCss = [...scan.dead];
+    outcome.emptyCss = [...scan.empty];
+    outcome.deadCssEvidence = scan;
   }
   if (opts.aria && opts.ariaPage === pageIndex) {
     const aria = await captureAria(page, opts);
@@ -57,6 +58,7 @@ export async function capture(page: Page, opts: Args, plan: PagePlan, evidence: 
     navFailures: 0,
     deadCss: [],
     emptyCss: [],
+    deadCssEvidence: null,
     ariaText: null,
     ariaError: null,
     evalResults: [],

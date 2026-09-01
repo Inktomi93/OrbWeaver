@@ -120,5 +120,40 @@ describe("Appearance carrier manifest", () => {
       dependsOn: ["backgroundImageKind"],
     });
     expect(contract.themeObservables).toEqual(THEME_CARRIER_OBSERVABLES);
+    expect(contract.historicalRows.map((row) => row.id)).toEqual([
+      "compact-portal-carried",
+      "dark-name-time-short-bubble",
+      "light-art-scrim-glass-elevation",
+      "mobile-compact-large-document",
+      "hover-pointer",
+      "density-preview",
+      "opposite-os-app-prepaint",
+    ]);
+    expect(
+      contract.rows.filter((row) => row.observable?.kind === "message-prop").every((row) => row.observable?.selector === '[data-slot="message-row"]'),
+    ).toBe(true);
+    const compactPortal = contract.historicalRows.find((row) => row.id === "compact-portal-carried");
+    expect(compactPortal?.cascade.filter((query) => query.property.startsWith("--spacing-")).every((query) => query.sources.includes("client-global"))).toBe(
+      true,
+    );
+    expect(compactPortal?.cascade.find((query) => query.property === "--color-background")?.sources).not.toContain("client-global");
+    expect(compactPortal?.subjects.find((subject) => subject.id === "carried-scope")?.population).toBe("many");
+    expect(compactPortal?.merge).toMatchObject({ mechanism: "merge-not-applicable", reason: "direct-carrier" });
+    const shortHeader = contract.historicalRows.find((row) => row.id === "dark-name-time-short-bubble");
+    expect(shortHeader?.cascade.map((query) => query.property)).not.toContain("background-color");
+    expect(shortHeader?.cascade.filter((query) => query.property === "color")).toHaveLength(2);
+  });
+
+  test("relates message header subjects to the row instead of falsely nesting them inside the bubble", () => {
+    const rows = appearanceMatrixContract().historicalRows;
+    for (const id of ["dark-name-time-short-bubble", "hover-pointer"] as const) {
+      const row = rows.find((candidate) => candidate.id === id);
+      const bubble = row?.subjects.find((subject) => subject.id === "bubble")?.selector;
+      const headerSubjects = row?.subjects.filter((subject) => ["name-row", "attribution", "timestamp", "actions-slot"].includes(subject.id)) ?? [];
+
+      expect(bubble).toContain('[data-slot="message-bubble"]');
+      expect(headerSubjects.length).toBeGreaterThan(0);
+      expect(headerSubjects.every((subject) => !subject.selector.includes('[data-slot="message-bubble"]'))).toBe(true);
+    }
   });
 });

@@ -9,23 +9,25 @@
 // an idle query cache can also mean the lazy route that owns the reads has not mounted yet (#145).
 
 import type { QueryClient } from "@tanstack/react-query";
+import type { AppearanceMatrixBridgeContract } from "./agent-bridge-appearance.ts";
+import { readAppearanceMatrixBridgeContract } from "./agent-bridge-appearance.ts";
 import type { OrbAgentHandles, OrbCssHandle, OrbNavHandle, OrbRpgReader, OrbSeedHandle, QuerySummary, ShellSnapshot } from "./agent-bridge-handles.ts";
 import { flagCounts, motionSummary } from "./agent-bridge-summary.ts";
 import type { OrbAutomationFiresFilter, OrbPluginLogReader } from "./agent-plugin-bridge.ts";
 import { readAutomationFires } from "./agent-plugin-bridge.ts";
-import type { AppearanceMatrixContract, AppearanceMatrixContractRow } from "./appearance-carrier-manifest.ts";
-import { appearanceMatrixContract } from "./appearance-carrier-manifest.ts";
 import { bootReads } from "./boot-reads.ts";
 import type { BusEventRecord } from "./bus-devlog.ts";
 import { __resetBusEventRing, busEventRing, busLiveCount } from "./bus-devlog.ts";
 import { IS_DEV } from "./dev-flag.ts";
 import { __resetLongTaskEvidence } from "./long-task-tracer.ts";
+import type { AnimationRecord } from "./motion-animation-record.ts";
+import { activeAnimations, installAnimationLifecycleRecorder } from "./motion-animation-record.ts";
 import { setFrameDropTrackingPaused } from "./motion-animation-state.ts";
 import { motionFlaggersDrain, motionFlaggersSettled } from "./motion-dead-class-flagger.ts";
 import type { MotionFlagRecord } from "./motion-flaggers.ts";
 import { __resetMotionFlags, installMotionFlaggers, motionFlags } from "./motion-flaggers.ts";
-import type { AnimationRecord, MotionSnapshot } from "./motion-stats.ts";
-import { __resetMotionStats, activeAnimations, installMotionObservers, motionSnapshot } from "./motion-stats.ts";
+import type { MotionSnapshot } from "./motion-stats.ts";
+import { __resetMotionStats, installMotionObservers, motionSnapshot } from "./motion-stats.ts";
 import { perfMeasureFromLoad, recentMeasures } from "./perf-marks.ts";
 import { __resetRenderStats, renderHeatmap } from "./render-stats.ts";
 
@@ -153,6 +155,8 @@ export function installAppReadySignal(queryClient: QueryClient, routeResolution:
 
 const ORB_RING_LIFETIMES = ["checkpoint", "durable", "server-runtime", "session"] as const;
 type OrbRingLifetime = (typeof ORB_RING_LIFETIMES)[number];
+const ORB_RING_NAMES = ["bus-events", "flags", "motion", "renders", "css-merges", "animations", "perf", "plugin-log", "automation-fires"] as const;
+type OrbRingName = (typeof ORB_RING_NAMES)[number];
 
 interface OrbRingMetadata {
   readonly name: OrbRingName;
@@ -230,10 +234,6 @@ interface OrbDebugHandle {
   readonly resetRing: (name: string) => OrbRingResetResult;
 }
 
-interface AppearanceMatrixBridgeContract extends Omit<AppearanceMatrixContract, "rows"> {
-  readonly rows: readonly (AppearanceMatrixContractRow & { readonly reached: number })[];
-}
-
 const ORB_DEBUG_CAPABILITIES = {
   ready: "promise that settles when initial app reads finish",
   isReady: "read whether the app-ready marker is present",
@@ -263,9 +263,6 @@ const ORB_DEBUG_CAPABILITIES = {
   rings: "describe every indexed evidence source and its lifetime",
   resetRing: "reset one checkpoint-safe client evidence source",
 } as const satisfies Record<keyof OrbDebugHandle, string>;
-
-const ORB_RING_NAMES = ["bus-events", "flags", "motion", "renders", "css-merges", "animations", "perf", "plugin-log", "automation-fires"] as const;
-type OrbRingName = (typeof ORB_RING_NAMES)[number];
 
 const ORB_RING_REGISTRY = {
   "bus-events": { read: "bus().events", lifetime: "checkpoint", resettable: true, description: "recent canon bus events" },
@@ -299,6 +296,7 @@ export function __installAgentDebugHandleForTest(queryClient: QueryClient, handl
 }
 
 function installAgentDebugHandleImpl(queryClient: QueryClient, handles: OrbAgentHandles): void {
+  installAnimationLifecycleRecorder();
   installMotionObservers();
   installMotionFlaggers();
   const { nav, seed, rpg, pluginLog, css, durableLocalUserId } = handles;
@@ -371,16 +369,6 @@ function installAgentDebugHandleImpl(queryClient: QueryClient, handles: OrbAgent
       }
     }
   };
-  const readAppearanceMatrixContract = (): AppearanceMatrixBridgeContract => {
-    const contract = appearanceMatrixContract();
-    return {
-      ...contract,
-      rows: contract.rows.map((row) => ({
-        ...row,
-        reached: row.observable === null ? 0 : document.querySelectorAll(row.observable.selector).length,
-      })),
-    };
-  };
   globalThis.__orb = {
     ready,
     isReady,
@@ -396,7 +384,7 @@ function installAgentDebugHandleImpl(queryClient: QueryClient, handles: OrbAgent
     resetEvidence,
     motionFlaggersSettled,
     motionFlaggersDrain,
-    appearanceMatrixContract: readAppearanceMatrixContract,
+    appearanceMatrixContract: readAppearanceMatrixBridgeContract,
     setMotionAuditDropTrackingPaused: setFrameDropTrackingPaused,
     snap,
     nav,

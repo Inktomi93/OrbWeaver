@@ -13,10 +13,11 @@ import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import { Checkbox } from "@orb/ui/checkbox";
 import { Row, Stack } from "@orb/ui/layout";
 import type { CSSProperties, ReactElement } from "react";
-import { Fragment } from "react";
+import { Fragment, useEffect } from "react";
 import type { ChatMessageSurfaceState, ChatSurfaceContribution, ContributorRegistry, ToolRenderer } from "#lib";
 import { cn, resolveRowRenderPolicy } from "#lib";
 import { toggleMessageSelected, useIsEditingMessage, useIsMessageSelected, useMessageEditReservedInlineSize, useSelectionActive } from "#state";
+import { appearanceMessageRegistryEnabled, registerAppearanceMessageSnapshot } from "../../../lib/appearance-message-registry.ts";
 import { AttachmentUrlProvider } from "../hooks/attachment-url-provider.tsx";
 import { useEnterMotion } from "../hooks/use-enter-motion.ts";
 import { resolveRowAttribution, speakerThemesByName } from "../lib/attribution.ts";
@@ -182,6 +183,37 @@ export function MessageRow({
   toolRenderers,
 }: MessageRowProps): ReactElement {
   const enterClasses = useEnterMotion(enterMotion);
+  useEffect(() => {
+    if (!appearanceMessageRegistryEnabled()) {
+      return;
+    }
+    return registerAppearanceMessageSnapshot(message.id, {
+      avatarAspect,
+      avatarRing,
+      avatarShape,
+      avatarSize,
+      autoFixMarkdown: autoFixMarkdown ?? false,
+      chatStyle,
+      colorQuotedSpeech: colorQuotedSpeech ?? true,
+      messageActions: messageActions ?? "hover",
+      metadataVisibility,
+      showInChatAvatars,
+      showLLMReasoningIcon,
+    });
+  }, [
+    avatarAspect,
+    avatarRing,
+    avatarShape,
+    avatarSize,
+    autoFixMarkdown,
+    chatStyle,
+    colorQuotedSpeech,
+    message.id,
+    messageActions,
+    metadataVisibility,
+    showInChatAvatars,
+    showLLMReasoningIcon,
+  ]);
   const skin = MESSAGE_ROW_SKINS[chatStyle];
   const role = message.role;
   // ONE binding for both the attribution ownership test and the render-policy own-input comparand.

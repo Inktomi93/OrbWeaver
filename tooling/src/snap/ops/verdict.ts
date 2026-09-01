@@ -2,7 +2,8 @@
 // zero member reddens the exit — snap is CI-usable because this is exhaustive, not vibes.
 import type { CapturedConsole } from "../../_shared/browser.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import type { CaptureOutcome, SnapFailureSummary } from "../contract/types.ts";
+import type { CaptureOutcome } from "../contract/types.ts";
+import type { SnapFailureSummary } from "../contract/verdict.ts";
 import { consoleFailureCounts } from "./noise.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
@@ -72,6 +73,8 @@ interface FailureSummaryInput {
   readonly strictConsole: boolean;
   readonly watch?: number;
   readonly diff?: number;
+  readonly environment?: number;
+  readonly appearance?: number;
 }
 
 export function buildFailureSummary(input: FailureSummaryInput): SnapFailureSummary {
@@ -93,6 +96,10 @@ export function buildFailureSummary(input: FailureSummaryInput): SnapFailureSumm
     assertions: totals.assertions,
     consoleErrors: console.errors,
     consoleWarnings: console.warnings,
-    css: input.outcomes.filter((outcome) => outcome.cssEvidence?.status === "instrument-error").length,
+    css: input.outcomes.filter((outcome) => outcome.cssEvidence?.status === "instrument-error" || (outcome.deadCssEvidence?.unreadable.length ?? 0) > 0).length,
+    deadCss: totals.deadCss,
+    emptyCss: totals.emptyCss,
+    environment: input.environment ?? 0,
+    appearance: input.appearance ?? 0,
   };
 }

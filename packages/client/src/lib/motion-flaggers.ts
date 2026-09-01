@@ -30,9 +30,10 @@
 // re-export from the lib barrel (that would drag it into the prod bundle).
 
 import { logClock } from "./log-clock.ts";
+import { animatedProperties, COMPOSITOR_SAFE_PROPS } from "./motion-animation-record.ts";
 import { hasVisibleDuration, installFrameDropFlagger, isExternalDevtoolsElement, resetFrameDropFlagger } from "./motion-animation-state.ts";
 import { installDeadClassFlagger } from "./motion-dead-class-flagger.ts";
-import { animatedProperties, COMPOSITOR_SAFE_PROPS, surfaceLabelOf } from "./motion-stats.ts";
+import { surfaceLabelOf } from "./motion-stats.ts";
 
 /** The pack's budgets — ONE table, so a console verdict and the CT that asserts it can never disagree.
  *  Every number is a rendered-behaviour threshold, not a style preference; each states what it means. */
@@ -157,7 +158,7 @@ function raise({ tag, key, offender, detail, overBudget }: RaiseArgs): void {
 //    previously-hovered element is missed. A colour transition on an element interaction has never
 //    touched — the mount/data-change case the ruling still forbids — fires normally.
 //
-// NOT APPLIED to `activeAnimations()` (`motion-stats.ts` → `__orb.animations()` → motion-audit's dirty-
+// NOT APPLIED to `activeAnimations()` (`motion-animation-record.ts` → `__orb.animations()` → motion-audit's dirty-
 // animation gate). That is a SAMPLER of `document.getAnimations()`: an interactive-state colour
 // transition lives ~130ms and a headless audit run hovers nothing, so the sampler cannot observe this
 // class at all — and `compositorClean` there is a factual property-set classification, not this law.

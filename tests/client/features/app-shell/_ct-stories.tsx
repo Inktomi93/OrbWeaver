@@ -118,16 +118,12 @@ export function AppShellStory(): ReactElement {
   );
 }
 
-/** The message plane's real query consumers beside the real shell. The matrix reads this serialization;
- * it does not restate how any key projects, so dropping a field from either hook makes that row disappear. */
-function AppearanceMessageCarrier(): ReactElement {
+/** The message plane's real query consumers beside the real shell. This visible CT-only snapshot keeps
+ * #935's generated hook liveness test; the rated runtime contract reads mounted real MessageRows instead. */
+function AppearanceHookSnapshot(): ReactElement {
   const message = useMessageAppearance();
   const chatStyle = useChatStyle();
-  return (
-    <output data-testid="appearance-message-carrier" hidden={true}>
-      {JSON.stringify({ ...message, chatStyle })}
-    </output>
-  );
+  return <section aria-label="CT Appearance hook snapshot">{JSON.stringify({ ...message, chatStyle })}</section>;
 }
 
 /** #935's composed carrier graph: real AppShell carriers plus the two prop-threading hooks that AppShell
@@ -138,7 +134,7 @@ export function AppearanceCarrierStory(): ReactElement {
       <CtFakeSectionRegistry sections={{ chats: { content: <p>carrier matrix</p> } }}>
         <LandOn section="chats" />
         <AppShell />
-        <AppearanceMessageCarrier />
+        <AppearanceHookSnapshot />
       </CtFakeSectionRegistry>
     </CtDataProviders>
   );

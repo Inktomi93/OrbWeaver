@@ -7,18 +7,14 @@
 // element it lands on, and that CLI misuse is refused instead of silently doing nothing.
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import { appearanceBootHintPatch, applySettingsToBody, deepMergeSettings, mergeAppearancePatches, trpcProcedureIndex } from "@orb/tooling/_shared/appearance";
 import {
-  appearanceBootHintPatch,
   appearancePresetNames,
   applyAppearanceFlag,
-  applySettingsToBody,
-  deepMergeSettings,
   FULL_MOTION_PATCH,
   loadAppearancePreset,
-  mergeAppearancePatches,
   parseAppearancePatch,
-  trpcProcedureIndex,
-} from "@orb/tooling/_shared/appearance";
+} from "@orb/tooling/_shared/appearance-flags";
 import type { BrowserContext, Route } from "@playwright/test";
 import { installSettingsShim } from "../../../tooling/src/_shared/appearance.ts";
 import { parseSnapArgs } from "../../../tooling/src/snap/index.ts";

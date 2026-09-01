@@ -25,6 +25,12 @@
       #source-order { color: red; }
       #mixed-parent, #null-only-parent { background-color: red; }
       #mixed { background-color: blue; }
+      .representative { color: red; }
+      .representative + .representative { color: blue; }
+      #media-identity { color: red; }
+      @media (prefers-color-scheme: dark) and (prefers-contrast: more) and (prefers-reduced-transparency: reduce) {
+        #media-identity { color: blue; }
+      }
       /*# sourceURL=/packages/ui/src/styles/globals.css */
     </style>
     <style data-vite-dev-id="/workspace/packages/client/src/styles/globals.css">
@@ -62,6 +68,9 @@
       <div id="null-only-parent"><div id="null-only">unclassified only</div></div>
       <div id="computed-default">computed default</div>
       <button id="user-agent" type="button">user agent</button>
+      <div class="representative">first representative</div>
+      <div class="representative">sampled representative</div>
+      <div id="media-identity">media identity</div>
     </main>
     <script>
       requestAnimationFrame(() => requestAnimationFrame(() => document.querySelector("#transition").classList.add("on")));

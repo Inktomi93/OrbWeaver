@@ -34,11 +34,11 @@ function errorReceipt(query: CssCascadeQuery, error: string): CssCascadeReceipt 
   return { status: "instrument-error", selector: query.selector, property: query.property, error };
 }
 
-function receiptError(repositoryDeclarations: number, merge: unknown): string | null {
+function receiptError(repositoryDeclarations: number, merge: unknown, requireMerge: boolean): string | null {
   if (repositoryDeclarations === 0) {
     return "repository declaration population is zero; pair the query with a planted repository declaration";
   }
-  if ((merge as { status?: unknown }).status === "instrument-error") {
+  if (requireMerge && (merge as { status?: unknown }).status === "instrument-error") {
     return `#949 merge transport reported instrument-error: ${String((merge as { error?: unknown }).error ?? "unknown")}`;
   }
   return null;
@@ -60,7 +60,12 @@ async function readMergeReceipt(session: ProbeSession, pageIndex: number): Promi
   return receipt;
 }
 
-async function capturePageCss(session: ProbeSession, queries: readonly CssCascadeQuery[], pageIndex: number): Promise<CssEvidenceReceipt> {
+export async function capturePageCssEvidence(
+  session: ProbeSession,
+  queries: readonly CssCascadeQuery[],
+  pageIndex: number,
+  requireMerge = true,
+): Promise<CssEvidenceReceipt> {
   const runtime = cascadeRuntimeFor(session);
   const page = session.pages[pageIndex];
   if (runtime === null || page === undefined) {
@@ -73,12 +78,13 @@ async function capturePageCss(session: ProbeSession, queries: readonly CssCascad
     merge = await readMergeReceipt(session, pageIndex);
     const raw = await runtime.query(
       page,
-      queries.map(({ selector, property }) => ({ selector, property })),
+      queries.map(({ selector, property, matchIndex }) => ({ selector, property, ...(matchIndex === undefined ? {} : { matchIndex }) })),
     );
     const cascade: CssCascadeReceipt[] = raw.map((receipt) => ({
       status: "ok",
       selector: receipt.selector,
       property: receipt.property,
+      matchIndex: receipt.matchIndex,
       computedValue: receipt.computedValue,
       targetId: receipt.targetId,
       computedDefault: receipt.computedDefault,
@@ -89,7 +95,7 @@ async function capturePageCss(session: ProbeSession, queries: readonly CssCascad
         receipt.status === "ok" ? count + receipt.declarations.filter((declaration) => REPOSITORY_CASCADE_SOURCES.has(declaration.source)).length : count,
       0,
     );
-    const error = receiptError(repositoryDeclarations, merge);
+    const error = receiptError(repositoryDeclarations, merge, requireMerge);
     return { status: error === null ? "ok" : "instrument-error", merge, cascade, repositoryDeclarations, error };
   } catch (error) {
     const detail = errorMessage(error);
@@ -105,6 +111,6 @@ export async function captureCssEvidence(session: ProbeSession, opts: Args, outc
     if (outcome === undefined) {
       throw new Error(`cascade outcome @${pageIndex} is unavailable`);
     }
-    outcome.cssEvidence = await capturePageCss(session, queries, pageIndex);
+    outcome.cssEvidence = await capturePageCssEvidence(session, queries, pageIndex);
   }
 }

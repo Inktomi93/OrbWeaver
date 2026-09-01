@@ -6,6 +6,7 @@
 import { CLASS_SELECTOR_TOKEN_PATTERN, CLASS_TOKEN_ESCAPE_PATTERN, DEAD_CSS_MARKER_EXACT, DEAD_CSS_MARKER_PREFIXES } from "@orb/kit/dead-css";
 import type { Page } from "@playwright/test";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import type { DeadCssEvidence } from "../contract/dead-css.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
@@ -22,14 +23,28 @@ refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 //      block (style.length === 0). Canonical case: v3 var syntax `w-[--foo]`
 //      compiling under v4 to `width: --foo` (bare ident, no var()). Mode 1
 //      can't see it because the SELECTOR exists.
-export async function scanDeadCss(page: Page, includeHidden: boolean): Promise<{ dead: Array<{ token: string; count: number }>; empty: string[] }> {
+async function settleDeadCssDrain(page: Page): Promise<DeadCssEvidence["drain"]> {
+  return (await page.evaluate(`(async () => {
+    const drain = globalThis.__orb?.motionFlaggersDrain;
+    if (typeof drain !== "function") return null;
+    const receipt = await drain();
+    if (!receipt || !Number.isInteger(receipt.requestedGeneration) || !Number.isInteger(receipt.completedGeneration) ||
+        receipt.requestedGeneration <= 0 || receipt.completedGeneration < receipt.requestedGeneration) {
+      throw new Error("INSTRUMENT ERROR: motionFlaggersDrain returned an invalid generation receipt");
+    }
+    return receipt;
+  })()`)) as DeadCssEvidence["drain"];
+}
+
+export async function scanDeadCss(page: Page, includeHidden: boolean): Promise<DeadCssEvidence> {
   // NOTE: the body ships as a STRING. Surviving reason: the body runs in the BROWSER while tsc
   // would check a function form against the NODE lib (TS2584 on every DOM name). Original reason —
   // now historical, tsx was shed 2026-08-03: tsx (esbuild keepNames) decorated
   // function expressions with a __name helper that doesn't exist inside the
   // browser context; a serialized IIFE evaluates untransformed. (Also the root
   // tsconfig that checks scripts/ is DOM-less — a function body wouldn't compile.)
-  return (await page.evaluate(`(() => {
+  const drain = await settleDeadCssDrain(page);
+  const census = (await page.evaluate(`(() => {
     const used = new Map();
     for (const el of document.querySelectorAll("*")) {
       if (!${JSON.stringify(includeHidden)}) {
@@ -42,6 +57,9 @@ export async function scanDeadCss(page: Page, includeHidden: boolean): Promise<{
     }
     const defined = new Set();
     const empty = new Set();
+    const unreadable = [];
+    let readableSheets = 0;
+    let ruleCount = 0;
     // THE REGEX IS BUILT FROM @orb/kit/dead-css'S SOURCE, not written here. This whole IIFE is a RAW
     // STRING, so a regex LITERAL has to carry doubled backslashes to survive it — a hand-maintained
     // second spelling of the flagger's pattern, and the one thing most likely to drift. JSON.stringify
@@ -50,6 +68,7 @@ export async function scanDeadCss(page: Page, includeHidden: boolean): Promise<{
     const unescapeRe = new RegExp(${JSON.stringify(CLASS_TOKEN_ESCAPE_PATTERN)}, "g");
     const walk = (rules) => {
       for (const r of rules) {
+        ruleCount += 1;
         const sel = r.selectorText;
         if (typeof sel === "string") {
           re.lastIndex = 0;
@@ -68,7 +87,15 @@ export async function scanDeadCss(page: Page, includeHidden: boolean): Promise<{
       }
     };
     for (const sheet of document.styleSheets) {
-      try { walk(sheet.cssRules); } catch { /* cross-origin */ }
+      let rules;
+      try {
+        rules = sheet.cssRules;
+      } catch (error) {
+        unreadable.push({ href: sheet.href, error: error instanceof Error ? error.message : String(error) });
+        continue;
+      }
+      readableSheets += 1;
+      walk(rules);
     }
     // Marker-only namespaces that ship no stylesheet rules — the SAME two tables the client flagger
     // reads (@orb/kit/dead-css), serialized in rather than restated.
@@ -92,6 +119,16 @@ export async function scanDeadCss(page: Page, includeHidden: boolean): Promise<{
       }
       return false;
     });
-    return { dead, empty: emptyUsed.sort() };
-  })()`)) as { dead: Array<{ token: string; count: number }>; empty: string[] };
+    return {
+      sheets: document.styleSheets.length,
+      readableSheets,
+      rules: ruleCount,
+      defined: defined.size,
+      used: used.size,
+      unreadable,
+      dead,
+      empty: emptyUsed.sort(),
+    };
+  })()`)) as Omit<DeadCssEvidence, "drain">;
+  return { ...census, drain };
 }

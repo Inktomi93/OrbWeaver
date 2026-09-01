@@ -2,12 +2,17 @@
 // the manifest, and the RESULT line. One browser run, many pieces of evidence.
 import type { Page } from "@playwright/test";
 import { artifactFile, artifactKey } from "../../_shared/artifacts.ts";
+import type { ProbeSession } from "../../_shared/browser.ts";
 import { closeProbeSessionAfterError } from "../../_shared/browser.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { printVerdict } from "../../_shared/evidence.ts";
+import type { AppearanceInvariantResult } from "../contract/appearance-invariants.ts";
+import type { SnapDetailedPlan, SnapDetailedResult } from "../contract/run.ts";
 import type { Args, ReportCtx, ShotPlan } from "../contract/types.ts";
 import { pageOut, shouldProduceShot } from "../lib/out-names.ts";
 import { throttleResultValue } from "../lib/throttle.ts";
+import { captureAppearanceInvariantRows } from "./appearance-invariant-runtime.ts";
+import { evaluateAppearanceInvariantCell } from "./appearance-invariants.ts";
 import { capturePages } from "./capture.ts";
 import { captureCssEvidence } from "./cascade.ts";
 import { runBaselineOrDiff } from "./diff.ts";
@@ -27,13 +32,35 @@ import {
   printWatchBlock,
   sessionForEvidence,
 } from "./report.ts";
-import { finishSession, launchSnapSession } from "./session.ts";
+import { finishSession, launchSnapSession, readSnapEnvironmentEvidence, snapEnvironmentMismatchCount } from "./session.ts";
 import { buildFailureSummary, evidenceFailureCounts, hasSnapFailure, mapOutputSummary, outcomeTotals } from "./verdict.ts";
 import { runWatchSeries } from "./watch.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
-export async function snap(opts: Args): Promise<number> {
+async function captureAppearanceResults(
+  session: ProbeSession,
+  opts: Args,
+  detailedPlan: SnapDetailedPlan | undefined,
+): Promise<readonly AppearanceInvariantResult[]> {
+  if (detailedPlan === undefined || detailedPlan.appearanceRows.length === 0) {
+    return [];
+  }
+  const receipts = await captureAppearanceInvariantRows(session, opts, detailedPlan.appearanceRows);
+  return receipts.map((receipt) => {
+    const policy = detailedPlan.appearanceRows.find((row) => row.id === receipt.rowId);
+    if (policy === undefined) {
+      throw new Error(`INSTRUMENT ERROR: Appearance receipt ${receipt.rowId} has no matrix policy`);
+    }
+    return { receipt, evaluation: evaluateAppearanceInvariantCell(policy, receipt) };
+  });
+}
+
+function hasAppearanceInvariantPlan(detailedPlan: SnapDetailedPlan | undefined): boolean {
+  return detailedPlan !== undefined && detailedPlan.appearanceRows.length > 0;
+}
+
+export async function runSnapDetailed(opts: Args, detailedPlan?: SnapDetailedPlan): Promise<SnapDetailedResult> {
   const { url, name } = snapDestination(opts);
   // `name` may be a PATH the caller chose (`--out /tmp/shot.png`): the shot lands exactly there, while the
   // kind-dir siblings (trace/HAR/baseline) key off its sanitized basename and stay under reports/.
@@ -43,12 +70,16 @@ export async function snap(opts: Args): Promise<number> {
   // need pixels to compare, and --shot-of is itself a shot — so those force it on.
   const produceShot = shouldProduceShot(opts);
   const totalPages = opts.pages;
-  const session = await launchSnapSession(opts, key, { pages: totalPages });
+  const session = await launchSnapSession(opts, key, {
+    pages: totalPages,
+    requireCascadeRuntime: hasAppearanceInvariantPlan(detailedPlan),
+  });
 
   try {
     const plan: ShotPlan = { url, out, produceShot };
     const outcomes = await capturePages(session, opts, plan);
     await captureCssEvidence(session, opts, outcomes);
+    const appearance = await captureAppearanceResults(session, opts, detailedPlan);
     const evidenceSession = sessionForEvidence(session, outcomes);
     // --watch: a timed series on PAGE 0 after everything settled (a streaming turn reflow, transient states).
     const watchTicks = opts.watchMs > 0 ? await runWatchSeries(session.pages[0] as Page, opts, pageOut(out, 0, totalPages)) : [];
@@ -68,6 +99,8 @@ export async function snap(opts: Args): Promise<number> {
 
     const totals = outcomeTotals(outcomes);
     const evidenceFailures = evidenceFailureCounts(outcomes);
+    const browserEnvironment = await readSnapEnvironmentEvidence(session);
+    const environmentFailures = snapEnvironmentMismatchCount(browserEnvironment);
     const watchFailures =
       watchTicks.filter((tick) => tick.shotError !== null).length +
       watchTicks.reduce((count, tick) => count + tick.evals.filter((entry) => entry.failed).length, 0);
@@ -80,6 +113,8 @@ export async function snap(opts: Args): Promise<number> {
       strictConsole: opts.strictConsole,
       watch: watchFailures,
       diff: Number(ssimFailed),
+      environment: environmentFailures,
+      appearance: appearance.filter((result) => result.evaluation.status !== "ok").length,
     });
     const red = hasSnapFailure(failureSummary);
     const artifacts = await finishSession(session, red, key, opts.failureEvidence);
@@ -101,6 +136,8 @@ export async function snap(opts: Args): Promise<number> {
           opts.theme !== null,
           session.contexts.map((context) => context.settingsEvidence.themeApplied),
         ),
+        browser: browserEnvironment,
+        settings: session.contexts.map((context) => context.settingsEvidence),
       },
       failures: failureSummary,
       traces: artifacts.traces,
@@ -118,11 +155,12 @@ export async function snap(opts: Args): Promise<number> {
       pageErrors: session.pageErrors,
       failedRequests: failed,
       ...(viteChurn.length === 0 ? {} : { viteDepChurn: viteChurn }),
+      appearance,
       captures: outcomes,
       ...(watchTicks.length === 0 ? {} : { watch: { totalMs: opts.watchMs, intervalMs: opts.watchEveryMs, ticks: watchTicks } }),
     });
     const mapSummary = mapOutputSummary(opts.map, outcomes);
-    return printVerdict("snap", {
+    const code = printVerdict("snap", {
       verdict: red ? 1 : 0,
       denominators: { pages: { value: totalPages, refuseWhen: "zero" } },
       pairs: [
@@ -140,6 +178,10 @@ export async function snap(opts: Args): Promise<number> {
         ["contrast-fails", totals.contrast],
         ["assertion-fails", totals.assertions],
         ["css-fails", failureSummary.css],
+        ["deadcss-fails", failureSummary.deadCss],
+        ["emptycss-fails", failureSummary.emptyCss],
+        ["environment-fails", failureSummary.environment],
+        ["appearance-fails", failureSummary.appearance],
         ["console-errors", failureSummary.consoleErrors],
         ["sandbox-trace-noise", session.consoleMessages.filter(isSandboxTraceNoise).length],
         ["console-warnings", evidenceSession.consoleMessages.filter((entry) => entry.type === "warning").length],
@@ -165,7 +207,22 @@ export async function snap(opts: Args): Promise<number> {
         ...diffPairs,
       ],
     });
+    return {
+      code,
+      receipt: {
+        failures: failureSummary,
+        captures: outcomes,
+        browser: browserEnvironment,
+        settings: session.contexts.map((context) => context.settingsEvidence),
+        appearance,
+        scenario: null,
+      },
+    };
   } catch (error) {
     return await closeProbeSessionAfterError(session, error);
   }
+}
+
+export async function snap(opts: Args): Promise<number> {
+  return (await runSnapDetailed(opts)).code;
 }
