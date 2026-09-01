@@ -2,9 +2,12 @@
 // surface. One tool, one API (docs/architecture/core/Core-Tooling-Law.md §2.5).
 
 export type { BrowserEnvironmentEvidence } from "../_shared/browser-environment.ts";
-export type { AnimationRecord, Args, AuditData, LoafRecord, MotionSnapshot, ReachAction, TraceEvent } from "./contract/types.ts";
+export type { AnimationRecord, ApplicationMotionEvidence, Args, AuditData, LoafRecord, MotionSnapshot, ReachAction, TraceEvent } from "./contract/types.ts";
+export { animationTotals } from "./lib/animations.ts";
 export { apparatusGap, appReadyTimeoutGap, motionEvidenceGaps, orbBridgeGap } from "./lib/evidence.ts";
 export { calibratedDroppedFramePct, droppedFramePct } from "./lib/frames.ts";
 export { clsOverBudget, clsTotals, loafOverBudget, loafTotals } from "./lib/verdicts.ts";
+export { runMotionAuditMatrix } from "./ops/matrix.ts";
 export { MOTION_AUDIT_HELP, parseMotionArgs } from "./ops/parse.ts";
-export { runMotionAudit } from "./ops/run.ts";
+export { evaluateMotionAudit } from "./ops/report.ts";
+export { runMotionAudit, runMotionAuditDetailed } from "./ops/run.ts";

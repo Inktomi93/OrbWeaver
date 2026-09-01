@@ -4,7 +4,10 @@
 import { mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { setTimeout as sleep } from "node:timers/promises";
 import type { Page } from "@playwright/test";
+import type { ProbeMedia } from "./browser-media.ts";
+import { applyProbeMedia, readProbeMedia } from "./browser-media.ts";
 import type { DevToolsAssetPin, DevToolsAssetServer } from "./devtools-assets.ts";
 import { startDevToolsAssetServer, verifyDevToolsAssets } from "./devtools-assets.ts";
 
@@ -14,10 +17,13 @@ const MAX_DECLARATIONS = 256;
 const MAX_EVIDENCE_TEXT = 4096;
 const DEBUG_PORT_ATTEMPTS = 100;
 const DEBUG_PORT_RETRY_MS = 25;
+const MEDIA_RESTORE_ATTEMPTS = 3;
+const MEDIA_RESTORE_STABILITY_MS = 250;
 
 export interface DevToolsCascadeInput {
   readonly selector: string;
   readonly property: string;
+  readonly matchIndex?: number;
   readonly allowComputedDefault?: boolean;
 }
 
@@ -38,6 +44,7 @@ export interface DevToolsCascadeRawDeclaration {
 export interface DevToolsCascadeRawReceipt {
   readonly selector: string;
   readonly property: string;
+  readonly matchIndex: number;
   readonly computedValue: string;
   readonly targetId: string;
   readonly computedDefault: boolean;
@@ -70,6 +77,9 @@ function validateInputs(inputs: readonly DevToolsCascadeInput[]): void {
     }
     if (!PROPERTY_RE.test(input.property)) {
       throw new Error(`invalid CSS property name: ${input.property}`);
+    }
+    if (input.matchIndex !== undefined && (!Number.isSafeInteger(input.matchIndex) || input.matchIndex < 0)) {
+      throw new Error(`invalid cascade match index: ${String(input.matchIndex)}`);
     }
   }
 }
@@ -109,9 +119,45 @@ async function targetIdentity(page: Page, pin: DevToolsAssetPin, profileDir: str
   return { id: target.targetInfo.targetId, port };
 }
 
-function bridgeSource(inputs: readonly DevToolsCascadeInput[]): string {
+function mediaFeatures(media: ProbeMedia): readonly { readonly name: string; readonly value: string }[] {
+  return [
+    ...(media.colorScheme === undefined ? [] : [{ name: "prefers-color-scheme", value: media.colorScheme }]),
+    { name: "prefers-reduced-motion", value: media.reducedMotion },
+    ...(media.contrast === undefined ? [] : [{ name: "prefers-contrast", value: media.contrast }]),
+    { name: "prefers-reduced-transparency", value: media.reducedTransparency ? "reduce" : "no-preference" },
+  ];
+}
+
+function sameMedia(left: ProbeMedia, right: ProbeMedia): boolean {
+  return (
+    left.colorScheme === right.colorScheme &&
+    left.reducedMotion === right.reducedMotion &&
+    left.contrast === right.contrast &&
+    left.reducedTransparency === right.reducedTransparency
+  );
+}
+
+async function restoreMediaAfterObserver(page: Page, expected: ProbeMedia): Promise<void> {
+  let actual = await readProbeMedia(page);
+  for (let attempt = 0; attempt < MEDIA_RESTORE_ATTEMPTS; attempt += 1) {
+    await applyProbeMedia(page, expected);
+    // Closing inspector.html resolves before its inspected-target detach finishes. An immediate read is
+    // a false green: the delayed detach can clear the slate ~250ms later. Require one full quiet window
+    // after each application; a late clear forces another application rather than escaping as PASS.
+    await sleep(MEDIA_RESTORE_STABILITY_MS);
+    actual = await readProbeMedia(page);
+    if (sameMedia(actual, expected)) {
+      return;
+    }
+  }
+  throw new Error(`DevTools observer did not restore stable media: expected=${JSON.stringify(expected)} actual=${JSON.stringify(actual)}`);
+}
+
+function bridgeSource(inputs: readonly DevToolsCascadeInput[], inspectedMedia: ProbeMedia): string {
   return `(async () => {
+    try {
     const inputs = ${JSON.stringify(inputs)};
+    const mediaFeatures = ${JSON.stringify(mediaFeatures(inspectedMedia))};
     const SDK = await import("./core/sdk/sdk.js");
     const Root = await import("./core/root/root.js");
     Object.assign(Root.Runtime.hostConfig, { devToolsAnimationStylesInStylesTab: { enabled: true } });
@@ -123,12 +169,18 @@ function bridgeSource(inputs: readonly DevToolsCascadeInput[]): string {
     }
     if (!target) throw new Error("DevTools SDK has no primary page target");
     const dom = target.model(SDK.DOMModel.DOMModel); const css = target.model(SDK.CSSModel.CSSModel);
-    if (!dom || !css) throw new Error("DevTools SDK DOM/CSS models are unavailable");
+    const emulation = target.model(SDK.EmulationModel.EmulationModel);
+    if (!dom || !css || !emulation) throw new Error("DevTools SDK DOM/CSS/Emulation models are unavailable");
+    // The frontend attach clears target media before CSSModel observes it. Restore through the SAME
+    // official SDK connection so CSSModel receives mediaQueryResultChanged before reading winners.
+    await emulation.emulateCSSMedia("", mediaFeatures);
     const documentNode = await dom.requestDocument(); if (!documentNode) throw new Error("DevTools SDK document is unavailable");
     const output = [];
     for (const input of inputs) {
-      const nodeId = await dom.querySelector(documentNode.id, input.selector);
-      if (!nodeId) throw new Error("selector matched zero nodes: " + input.selector);
+      const nodeIds = await dom.querySelectorAll(documentNode.id, input.selector);
+      const matchIndex = input.matchIndex ?? 0;
+      const nodeId = nodeIds[matchIndex];
+      if (!nodeId) throw new Error("selector match index " + matchIndex + " is outside population " + nodeIds.length + ": " + input.selector);
       const matched = await css.getMatchedStyles(nodeId); const computed = await css.getComputedStyle(nodeId);
       if (!matched || !computed) throw new Error("matched/computed styles unavailable: " + input.selector);
       const relevantStyles = matched.nodeStyles();
@@ -171,9 +223,12 @@ function bridgeSource(inputs: readonly DevToolsCascadeInput[]): string {
         const after = await css.getStyleSheetText(sheetId);
         if (after !== before) throw new Error("stylesheet bytes changed during observation: " + sheetId);
       }
-      output.push({ selector: input.selector, property: input.property, computedValue, computedDefault: declarations.length === 0, declarations });
+      output.push({ selector: input.selector, property: input.property, matchIndex, computedValue, computedDefault: declarations.length === 0, declarations });
     }
     return { inspectedUrl: target.inspectedURL(), output };
+    } catch (error) {
+      return { bridgeError: error instanceof Error ? error.message : String(error) };
+    }
   })()`;
 }
 
@@ -236,7 +291,10 @@ function validateBridgeOutput(value: unknown, inputs: readonly DevToolsCascadeIn
   if (typeof value !== "object" || value === null) {
     throw new Error("DevTools SDK bridge returned a non-object");
   }
-  const bridge = value as { inspectedUrl?: unknown; output?: unknown };
+  const bridge = value as { inspectedUrl?: unknown; output?: unknown; bridgeError?: unknown };
+  if (typeof bridge.bridgeError === "string") {
+    throw new Error(bridge.bridgeError);
+  }
   if (bridge.inspectedUrl !== expectedUrl || !Array.isArray(bridge.output) || bridge.output.length !== inputs.length) {
     throw new Error("DevTools SDK bridge returned the wrong target or query population");
   }
@@ -252,6 +310,7 @@ function validateBridgeOutput(value: unknown, inputs: readonly DevToolsCascadeIn
     return {
       selector: boundedText(row["selector"], "receipt selector"),
       property: boundedText(row["property"], "receipt property"),
+      matchIndex: boundedInteger(row["matchIndex"], "receipt match index"),
       computedValue: boundedText(row["computedValue"], "computed value"),
       targetId,
       computedDefault: row["computedDefault"] === true,
@@ -276,6 +335,7 @@ async function queryRuntime(args: QueryRuntimeArgs): Promise<readonly DevToolsCa
     throw new Error("cascade browser is disconnected");
   }
   const identity = await targetIdentity(page, pin, profileDir);
+  const inspectedMedia = await readProbeMedia(page);
   const frontend = await page.context().newPage();
   const externalRequests: string[] = [];
   frontend.on("request", (request) => {
@@ -283,22 +343,40 @@ async function queryRuntime(args: QueryRuntimeArgs): Promise<readonly DevToolsCa
       externalRequests.push(request.url());
     }
   });
-  try {
-    await frontend.goto(
-      `${server.origin}/serve_rev/@${pin.devtoolsFrontendRevision}/inspector.html?ws=127.0.0.1:${identity.port}/devtools/page/${identity.id}`,
-      { waitUntil: "domcontentloaded", timeout: 30_000 },
-    );
-    const output = validateBridgeOutput(await frontend.evaluate(bridgeSource(inputs)), inputs, identity.id, page.url());
-    if (externalRequests.length > 0 || server.unexpectedRequests.length > 0) {
-      throw new Error(`DevTools frontend attempted an external/unexpected request: ${[...externalRequests, ...server.unexpectedRequests].join(", ")}`);
-    }
-    if (!browser.isConnected()) {
-      throw new Error("cascade browser disconnected during observation");
-    }
-    return output;
-  } finally {
-    await frontend.close();
+  const [observation] = await Promise.allSettled([
+    (async (): Promise<readonly DevToolsCascadeRawReceipt[]> => {
+      await frontend.goto(
+        `${server.origin}/serve_rev/@${pin.devtoolsFrontendRevision}/inspector.html?ws=127.0.0.1:${identity.port}/devtools/page/${identity.id}`,
+        { waitUntil: "domcontentloaded", timeout: 30_000 },
+      );
+      // Attaching DevTools clears the inspected target's emulated-media slate before the SDK reads
+      // computed style. Restore the exact pre-attach identity *before* observation as well as after
+      // detach; otherwise the receipt can describe a different cascade winner than the rated page.
+      const output = validateBridgeOutput(await frontend.evaluate(bridgeSource(inputs, inspectedMedia)), inputs, identity.id, page.url());
+      if (externalRequests.length > 0 || server.unexpectedRequests.length > 0) {
+        throw new Error(`DevTools frontend attempted an external/unexpected request: ${[...externalRequests, ...server.unexpectedRequests].join(", ")}`);
+      }
+      if (!browser.isConnected()) {
+        throw new Error("cascade browser disconnected during observation");
+      }
+      return output;
+    })(),
+  ]);
+  const [detached] = await Promise.allSettled([frontend.close()]);
+  // Loading DevTools' frontend clears Emulation.setEmulatedMedia on the inspected target. Restore the
+  // exact live slate after detaching so both successful and failed observations leave the cell intact.
+  const [restored] = await Promise.allSettled([restoreMediaAfterObserver(page, inspectedMedia)]);
+  const failures = [observation, detached, restored].flatMap((result) => (result.status === "rejected" ? [result.reason] : []));
+  if (failures.length === 1) {
+    throw failures[0];
   }
+  if (failures.length > 1) {
+    throw new AggregateError(failures, "cascade observation and cleanup failed");
+  }
+  if (observation.status === "rejected") {
+    throw observation.reason;
+  }
+  return observation.value;
 }
 
 export async function prepareDevToolsCascadeRuntime(assetRoot: string): Promise<DevToolsCascadeRuntime> {

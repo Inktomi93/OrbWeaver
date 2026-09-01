@@ -10,12 +10,14 @@ import { chromium, devices } from "@playwright/test";
 import type { AppearancePatch, SettingsShimEvidence } from "./appearance.ts";
 import { installSettingsShim } from "./appearance.ts";
 import type { Viewport } from "./argv.ts";
-import type { PageCapture } from "./browser-capture.ts";
+import type { CapturedConsole, CapturedRequest, PageCapture } from "./browser-capture.ts";
 import { wireProbePage } from "./browser-capture.ts";
 import type { BrowserEnvironmentContract } from "./browser-environment.ts";
 import { resolveBrowserEnvironmentContract } from "./browser-environment.ts";
 import { resolveProbeMedia } from "./browser-media.ts";
 import type { ThemeRequest } from "./theme.ts";
+
+export type { CapturedConsole, CapturedRequest } from "./browser-capture.ts";
 
 // biome-ignore lint/style/noProcessEnv: SNAP_BASE_URL is a probe-harness knob (where the running dev stack answers; `localhost`, not 127.0.0.1 — vite v8 binds [::1] only) — ambient tooling env, not app config.
 export const DEFAULT_BASE = process.env["SNAP_BASE_URL"] ?? "http://localhost:5173";
@@ -96,22 +98,6 @@ export interface ProbeLaunchOptions {
   readonly persistentProfileDir?: string;
   /** Browser process args owned by a higher-level tooling lifecycle. Never populated from raw user argv. */
   readonly browserArgs?: readonly string[];
-}
-
-export interface CapturedRequest {
-  method: string;
-  url: string;
-  status: number | null;
-  failed: string | null;
-  /** Playwright resourceType (document/xhr/fetch/image/…) — annotates failures. */
-  type: string;
-}
-
-export interface CapturedConsole {
-  readonly type: string;
-  readonly text: string;
-  readonly location: { readonly url: string; readonly line: number; readonly column: number } | null;
-  readonly line: string;
 }
 
 /** One isolated browser context's captured state + pages — `--contexts N` opens N of these (own cookies/

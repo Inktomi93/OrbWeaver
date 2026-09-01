@@ -5,6 +5,7 @@
 import { access, readFile } from "node:fs/promises";
 import type { Server } from "node:http";
 import { createServer } from "node:http";
+import { setTimeout as sleep } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import { launchProbeSession, withProbeSession } from "@orb/tooling/_shared/browser";
 import type { DevToolsCascadeRawDeclaration, DevToolsCascadeRawReceipt } from "@orb/tooling/_shared/devtools-runtime";
@@ -86,9 +87,11 @@ test("the official DevTools SDK reports the planted cascade matrix without mutat
         { selector: "#computed-default", property: "opacity", allowComputedDefault: true },
         { selector: "#user-agent", property: "display" },
         { selector: "#mixed", property: "background-color" },
+        { selector: ".representative", property: "color", matchIndex: 0 },
+        { selector: ".representative", property: "color", matchIndex: 1 },
       ]);
 
-      expect(receipts).toHaveLength(17);
+      expect(receipts).toHaveLength(19);
       expect(declaration(row(receipts, "#layered"), "blue").state).toBe("Active");
       expect(declaration(row(receipts, "#layered"), "red").state).toBe("Overloaded");
       expect(declaration(row(receipts, "#specific"), "blue").state).toBe("Active");
@@ -108,6 +111,12 @@ test("the official DevTools SDK reports the planted cascade matrix without mutat
       expect(row(receipts, "#computed-default")).toMatchObject({ computedDefault: true, declarations: [] });
       expect(row(receipts, "#user-agent").declarations).toContainEqual(expect.objectContaining({ state: "Active", sourceUrl: null, styleSheetId: null }));
       expect(row(receipts, "#mixed").declarations).toEqual([expect.objectContaining({ state: "Active", value: "blue" })]);
+      expect(
+        receipts.filter((receipt) => receipt.selector === ".representative").map(({ matchIndex, computedValue }) => ({ matchIndex, computedValue })),
+      ).toEqual([
+        { matchIndex: 0, computedValue: "rgb(255, 0, 0)" },
+        { matchIndex: 1, computedValue: "rgb(0, 0, 255)" },
+      ]);
       expect(await page.content()).toBe(productDom);
 
       await page.evaluate(`(() => {
@@ -142,7 +151,7 @@ test("an ordinary zero-declaration query fails loud", { timeout: 60_000 }, async
       await page.evaluate(`document.querySelector("#transition").classList.add("on")`);
       await expect(runtime.query(page, [{ selector: "#computed-default", property: "opacity" }])).rejects.toThrow("declaration population is zero");
       await expect(runtime.query(page, [{ selector: "#null-only", property: "background-color" }])).rejects.toThrow("declaration population is zero");
-      await expect(runtime.query(page, [{ selector: "#absent", property: "color" }])).rejects.toThrow("selector matched zero nodes");
+      await expect(runtime.query(page, [{ selector: "#absent", property: "color" }])).rejects.toThrow("match index 0 is outside population 0");
       await expect(runtime.query(page, [{ selector: "#layered", property: "color:red" }])).rejects.toThrow("invalid CSS property name");
       await expect(
         runtime.query(
@@ -159,6 +168,48 @@ test("an ordinary zero-declaration query fails loud", { timeout: 60_000 }, async
         document.body.append(element);
       })()`);
       await expect(runtime.query(page, [{ selector: "#overflow", property: "color" }])).rejects.toThrow("declaration receipt overflow");
+    });
+  } finally {
+    await fixture.close();
+    await runtime.close();
+  }
+});
+
+test("the DevTools cascade observer preserves the rated page media identity", { timeout: 60_000 }, async () => {
+  const [runtime, fixture] = await Promise.all([prepareDevToolsCascadeRuntime(ASSET_ROOT), startFixture()]);
+  try {
+    const session = await launchProbeSession({
+      headless: true,
+      viewport: { width: 320, height: 240 },
+      colorScheme: "dark",
+      reducedMotion: true,
+      contrast: "more",
+      reducedTransparency: true,
+      localStorage: [],
+      persistentProfileDir: runtime.profileDir,
+      browserArgs: runtime.browserArgs,
+    });
+    await withProbeSession({ ...session, cleanup: [runtime.close] }, async ({ page }) => {
+      await page.goto(fixture.url, { waitUntil: "load" });
+      const readMedia = async (): Promise<readonly boolean[]> =>
+        await page.evaluate(() => [
+          matchMedia("(prefers-color-scheme: dark)").matches,
+          matchMedia("(prefers-reduced-motion: reduce)").matches,
+          matchMedia("(prefers-contrast: more)").matches,
+          matchMedia("(prefers-reduced-transparency: reduce)").matches,
+        ]);
+      expect(await readMedia()).toEqual([true, true, true, true]);
+      const [mediaReceipt] = await runtime.query(page, [{ selector: "#media-identity", property: "color" }]);
+      expect(mediaReceipt?.computedValue).toBe("rgb(0, 0, 255)");
+      expect(await readMedia()).toEqual([true, true, true, true]);
+      await sleep(250);
+      expect(await readMedia()).toEqual([true, true, true, true]);
+      await expect(runtime.query(page, [{ selector: "#absent", property: "color" }])).rejects.toThrow("match index 0 is outside population 0");
+      await expect(runtime.query(page, [{ selector: ".representative", property: "color", matchIndex: 2 }])).rejects.toThrow(
+        "match index 2 is outside population 2",
+      );
+      await expect(runtime.query(page, [{ selector: ".representative", property: "color", matchIndex: -1 }])).rejects.toThrow("invalid cascade match index");
+      expect(await readMedia()).toEqual([true, true, true, true]);
     });
   } finally {
     await fixture.close();

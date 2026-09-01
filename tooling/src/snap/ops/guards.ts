@@ -64,6 +64,9 @@ export function refuseFileMode(opts: Args): string | null {
   if (opts.theme !== null) {
     return "FILE REFUSED  --theme shims the app's settings response; a static file makes no such request — drop it (a mock states its own theme)";
   }
+  if (opts.matrix) {
+    return "FILE REFUSED  --matrix derives Appearance axes and theme capabilities from the live app bridge; a static file has neither — drive an app route";
+  }
   return null;
 }
 

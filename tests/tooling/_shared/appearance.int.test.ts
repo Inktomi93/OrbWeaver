@@ -163,3 +163,10 @@ test("the manifest distinguishes a requested appearance patch from one never app
   expect(manifest.environment.appearance).toEqual({ density: "compact" });
   expect(manifest.environment.appearanceApplied).toBe(false);
 });
+
+test("the prepaint recorder starts before the document element exists without a page error", async () => {
+  const recorded = await runSnapAt("/no-settings", ["--full-motion", "--eval", "(()=>JSON.stringify(globalThis.__orbAppearancePrepaint))()"]);
+
+  expect(recorded.status, recorded.stdout + recorded.stderr).toBe(0);
+  expect(recorded.stdout).toContain('\\"phase\\":\\"init\\",\\"dataTheme\\":null');
+});

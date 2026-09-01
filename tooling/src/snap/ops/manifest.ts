@@ -1,12 +1,15 @@
 // The --json manifest: the lossless machine record beside the pixels (schemaVersion 1).
 import { writeFile } from "node:fs/promises";
-import type { AppearancePatch } from "../../_shared/appearance.ts";
+import type { AppearancePatch, SettingsShimEvidence } from "../../_shared/appearance.ts";
 import type { Viewport } from "../../_shared/argv.ts";
 import { artifactFile } from "../../_shared/artifacts.ts";
 import type { CapturedConsole, CapturedRequest } from "../../_shared/browser.ts";
+import type { BrowserEnvironmentEvidence } from "../../_shared/browser-environment.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { ThemeRequest } from "../../_shared/theme.ts";
-import type { Args, CaptureOutcome, SnapFailureSummary, WatchTick } from "../contract/types.ts";
+import type { AppearanceInvariantResult } from "../contract/appearance-invariants.ts";
+import type { Args, CaptureOutcome, WatchTick } from "../contract/types.ts";
+import type { SnapFailureSummary } from "../contract/verdict.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
@@ -31,6 +34,10 @@ interface SnapManifest {
     readonly theme: ThemeRequest | null;
     /** Whether the requested theme selection resolved and reached a settings envelope in every context. */
     readonly themeApplied: boolean | null;
+    /** One actual runtime identity per browser context. Any mismatch is a Snap failure. */
+    readonly browser: readonly BrowserEnvironmentEvidence[];
+    /** Authenticated requested/resolved theme id/source/catalog evidence for every context. */
+    readonly settings: readonly SettingsShimEvidence[];
   };
   readonly failures: SnapFailureSummary;
   readonly traces: readonly string[];
@@ -48,6 +55,8 @@ interface SnapManifest {
   /** Vite dep-optimizer aborts, kept for the record and excluded from the verdict (isViteDepChurn).
    *  Absent when there were none — a warm stage never produces any. */
   readonly viteDepChurn?: readonly CapturedRequest[];
+  /** Matrix-only literal historical-row verdicts, including strict subject and CSS reconciliation. */
+  readonly appearance?: readonly AppearanceInvariantResult[];
   readonly captures: readonly CaptureOutcome[];
   /** Watch-only timeline. Present when --watch ran; ticks remain durable even when terminal output dedupes them. */
   readonly watch?: {

@@ -17,7 +17,7 @@ export async function runAudit(
   cdp: Awaited<ReturnType<ProbeSession["context"]["newCDPSession"]>>,
   opts: Args,
   measuredClick: MeasuredClick | null,
-): Promise<Omit<AuditData, "environment">> {
+): Promise<Omit<AuditData, "environment" | "applicationMotion">> {
   const traceEvents: TraceEvent[] = [];
   cdp.on("Tracing.dataCollected", (e: { value: TraceEvent[] }) => {
     traceEvents.push(...e.value);

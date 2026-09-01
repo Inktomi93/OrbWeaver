@@ -4,6 +4,7 @@
 // skins stay prop-driven. This manifest describes those boundaries; it is not permission to collapse them.
 
 import type { AppearanceSettings } from "@orb/contracts/settings";
+import { APPEARANCE_HISTORICAL_ROWS } from "./appearance-invariant-manifest.ts";
 
 export const APPEARANCE_EDITOR_OWNERS = ["sizing", "effects", "background", "reading", "avatars", "message-style", "message-details"] as const;
 export type AppearanceEditorOwner = (typeof APPEARANCE_EDITOR_OWNERS)[number];
@@ -185,6 +186,8 @@ export type AppearanceCarrierObservable =
   | { readonly kind: "inline-style"; readonly selector: string; readonly signal: string }
   | { readonly kind: "message-prop"; readonly selector: string; readonly signal: string };
 
+const LIVE_MESSAGE_ROW_SELECTOR = '[data-slot="message-row"]';
+
 type AppearanceCarrierObservableManifest = {
   readonly [K in AppearanceCarrierKey as (typeof APPEARANCE_CARRIER_MANIFEST)[K] extends { readonly requiredDistinctArms: readonly [unknown, unknown] }
     ? K
@@ -215,22 +218,22 @@ export const APPEARANCE_CARRIER_OBSERVABLES = {
   readingNameScale: { kind: "inline-style", selector: "html", signal: "--reading-name-scale" },
   readingBodyScale: { kind: "inline-style", selector: "html", signal: "--reading-body-scale" },
   justifyBodyText: { kind: "attribute", selector: "html", signal: "data-justify-body-text" },
-  showInChatAvatars: { kind: "message-prop", selector: '[data-testid="appearance-message-carrier"]', signal: "showInChatAvatars" },
-  avatarSize: { kind: "message-prop", selector: '[data-testid="appearance-message-carrier"]', signal: "avatarSize" },
-  avatarShape: { kind: "message-prop", selector: '[data-testid="appearance-message-carrier"]', signal: "avatarShape" },
-  avatarAspect: { kind: "message-prop", selector: '[data-testid="appearance-message-carrier"]', signal: "avatarAspect" },
-  avatarRing: { kind: "message-prop", selector: '[data-testid="appearance-message-carrier"]', signal: "avatarRing" },
-  chatStyle: { kind: "message-prop", selector: '[data-testid="appearance-message-carrier"]', signal: "chatStyle" },
-  colorQuotedSpeech: { kind: "message-prop", selector: '[data-testid="appearance-message-carrier"]', signal: "colorQuotedSpeech" },
-  autoFixMarkdown: { kind: "message-prop", selector: '[data-testid="appearance-message-carrier"]', signal: "autoFixMarkdown" },
-  showTimestamps: { kind: "message-prop", selector: '[data-testid="appearance-message-carrier"]', signal: "metadataVisibility.showTimestamps" },
-  showMessageId: { kind: "message-prop", selector: '[data-testid="appearance-message-carrier"]', signal: "metadataVisibility.showMessageId" },
-  showModelIcon: { kind: "message-prop", selector: '[data-testid="appearance-message-carrier"]', signal: "metadataVisibility.showModelIcon" },
-  showTokenCount: { kind: "message-prop", selector: '[data-testid="appearance-message-carrier"]', signal: "metadataVisibility.showTokenCount" },
-  showGenerationTimer: { kind: "message-prop", selector: '[data-testid="appearance-message-carrier"]', signal: "metadataVisibility.showGenerationTimer" },
-  showGenerationCost: { kind: "message-prop", selector: '[data-testid="appearance-message-carrier"]', signal: "metadataVisibility.showGenerationCost" },
-  showLLMReasoningIcon: { kind: "message-prop", selector: '[data-testid="appearance-message-carrier"]', signal: "showLLMReasoningIcon" },
-  messageActions: { kind: "message-prop", selector: '[data-testid="appearance-message-carrier"]', signal: "messageActions" },
+  showInChatAvatars: { kind: "message-prop", selector: LIVE_MESSAGE_ROW_SELECTOR, signal: "showInChatAvatars" },
+  avatarSize: { kind: "message-prop", selector: LIVE_MESSAGE_ROW_SELECTOR, signal: "avatarSize" },
+  avatarShape: { kind: "message-prop", selector: LIVE_MESSAGE_ROW_SELECTOR, signal: "avatarShape" },
+  avatarAspect: { kind: "message-prop", selector: LIVE_MESSAGE_ROW_SELECTOR, signal: "avatarAspect" },
+  avatarRing: { kind: "message-prop", selector: LIVE_MESSAGE_ROW_SELECTOR, signal: "avatarRing" },
+  chatStyle: { kind: "message-prop", selector: LIVE_MESSAGE_ROW_SELECTOR, signal: "chatStyle" },
+  colorQuotedSpeech: { kind: "message-prop", selector: LIVE_MESSAGE_ROW_SELECTOR, signal: "colorQuotedSpeech" },
+  autoFixMarkdown: { kind: "message-prop", selector: LIVE_MESSAGE_ROW_SELECTOR, signal: "autoFixMarkdown" },
+  showTimestamps: { kind: "message-prop", selector: LIVE_MESSAGE_ROW_SELECTOR, signal: "metadataVisibility.showTimestamps" },
+  showMessageId: { kind: "message-prop", selector: LIVE_MESSAGE_ROW_SELECTOR, signal: "metadataVisibility.showMessageId" },
+  showModelIcon: { kind: "message-prop", selector: LIVE_MESSAGE_ROW_SELECTOR, signal: "metadataVisibility.showModelIcon" },
+  showTokenCount: { kind: "message-prop", selector: LIVE_MESSAGE_ROW_SELECTOR, signal: "metadataVisibility.showTokenCount" },
+  showGenerationTimer: { kind: "message-prop", selector: LIVE_MESSAGE_ROW_SELECTOR, signal: "metadataVisibility.showGenerationTimer" },
+  showGenerationCost: { kind: "message-prop", selector: LIVE_MESSAGE_ROW_SELECTOR, signal: "metadataVisibility.showGenerationCost" },
+  showLLMReasoningIcon: { kind: "message-prop", selector: LIVE_MESSAGE_ROW_SELECTOR, signal: "showLLMReasoningIcon" },
+  messageActions: { kind: "message-prop", selector: LIVE_MESSAGE_ROW_SELECTOR, signal: "messageActions" },
 } as const satisfies AppearanceCarrierObservableManifest;
 
 /** Theme selection is adjacent to Appearance but is not one of its 41 schema leaves. These rendered
@@ -272,9 +275,13 @@ export interface AppearanceMatrixContract {
   readonly dependencies: number;
   readonly rows: readonly AppearanceMatrixContractRow[];
   readonly themeObservables: typeof THEME_CARRIER_OBSERVABLES;
+  readonly historicalRows: typeof APPEARANCE_HISTORICAL_ROWS;
 }
 
-/** Browser-serializable matrix input derived from the executable manifest. The debug bridge adds current
+/** Browser-serializable matrix input derived from the executable manifest. #953's rated consumers must
+ * join this carrier roster to `appearance-invariant-manifest.ts`'s seven literal historical policies;
+ * copying selectors or flattening those policies into another matrix would sever source ownership.
+ * The debug bridge adds current
  *  reached-subject counts; tooling never owns a second list of Appearance keys or arms. */
 export function appearanceMatrixContract(): AppearanceMatrixContract {
   const rows = (Object.keys(APPEARANCE_CARRIER_MANIFEST) as AppearanceCarrierKey[]).map((key): AppearanceMatrixContractRow => {
@@ -300,6 +307,7 @@ export function appearanceMatrixContract(): AppearanceMatrixContract {
     dependencies: rows.length - executable,
     rows,
     themeObservables: THEME_CARRIER_OBSERVABLES,
+    historicalRows: APPEARANCE_HISTORICAL_ROWS,
   };
 }
 

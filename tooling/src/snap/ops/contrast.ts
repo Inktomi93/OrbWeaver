@@ -3,11 +3,8 @@
 // The WCAG math itself is the fleet-shared kernel (_shared/wcag.ts) — one ruler for every instrument.
 import { errorMessage } from "@orb/kit/error-message";
 import type { Page } from "@playwright/test";
-import sharp from "sharp";
 import type { Viewport } from "../../_shared/argv.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import { ringBackdrop } from "../../_shared/pixel-backdrop.ts";
-import type { Rgb } from "../../_shared/wcag.ts";
 import {
   compositeForeground,
   contrastRatio,
@@ -17,9 +14,10 @@ import {
   LARGE_MIN_RATIO,
   NORMAL_MIN_RATIO,
 } from "../../_shared/wcag.ts";
-import type { ContrastBox, ContrastFacts, ContrastMeasured } from "../contract/contrast.ts";
+import type { ContrastCapture, ContrastEvidence, ContrastFacts } from "../contract/contrast.ts";
 import type { ContrastOutcome } from "../contract/types.ts";
 import { BOLD_WEIGHT, contrastExemption, isContrastMeasured, parseRgbString, refuseContrastVerdict, UI_COMPONENT_MIN_RATIO } from "../lib/contrast-verdict.ts";
+import { resolveContrastBackdrop } from "./contrast-pixels.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
@@ -242,53 +240,6 @@ function buildContrastScript(selector: string): string {
 
 /** No match anywhere in the DOM is `null`; matches that ALL sit outside the viewport are this — a
  *  distinct outcome, because "I can't see it" is not "it fails contrast". */
-// Screenshot the element's box (clamped into the viewport — an overflowing clip makes Playwright throw)
-// and read the composited backdrop from real pixels. Returns an error (never a fabricated color) when the
-// box is empty/off-screen or the shot/decode fails — the caller reports UNRESOLVED loudly.
-async function pixelSampleBackdrop(page: Page, box: ContrastBox, viewport: Viewport): Promise<{ rgb: Rgb } | { error: string }> {
-  const x = Math.max(0, Math.floor(box.x));
-  const y = Math.max(0, Math.floor(box.y));
-  const width = Math.min(Math.ceil(box.width), viewport.width - x);
-  const height = Math.min(Math.ceil(box.height), viewport.height - y);
-  if (width < 1 || height < 1) {
-    return { error: "element box is empty or fully off-screen" };
-  }
-  let buf: Buffer;
-  try {
-    buf = await page.screenshot({ clip: { x, y, width, height }, animations: "disabled" });
-  } catch (e) {
-    return { error: `screenshot failed: ${errorMessage(e)}` };
-  }
-  try {
-    const { data, info } = await sharp(buf).raw().toBuffer({ resolveWithObject: true });
-    return { rgb: ringBackdrop(data, info.width, info.height, info.channels) };
-  } catch (e) {
-    return { error: `pixel decode failed: ${errorMessage(e)}` };
-  }
-}
-
-// Resolve the backdrop as an { rgb, method } pair — trusting the cheap css-resolve ONLY for a genuine
-// opaque ancestor; every transparent/indeterminate resolve (the false-flat blind spot) pixel-samples.
-async function resolveContrastBackdrop(
-  page: Page,
-  facts: ContrastMeasured,
-  forcePixel: boolean,
-  viewport: Viewport,
-): Promise<{ rgb: Rgb; method: "css-resolve" | "pixel-sample" } | { error: string }> {
-  if (!forcePixel && facts.backdrop.kind === "flat") {
-    const rgb = parseRgbString(facts.backdrop.color);
-    return rgb === null ? { error: `unparseable backdrop (${facts.backdrop.color})` } : { rgb, method: "css-resolve" };
-  }
-  const sampled = await pixelSampleBackdrop(page, facts.box, viewport);
-  if ("error" in sampled) {
-    const why = facts.backdrop.kind === "indeterminate" ? "over background-image" : "transparent ancestor chain";
-    return {
-      error: `UNRESOLVED  ${why}; pixel sample failed (${sampled.error}) — refusing a fabricated flat baseline`,
-    };
-  }
-  return { rgb: sampled.rgb, method: "pixel-sample" };
-}
-
 /** THE SELECTOR-DIALECT FIX (#651). `buildContrastScript` hands its selector straight to in-page
  *  `document.querySelectorAll`, which only ever understood raw CSS — but the parse-time refusal
  *  (`lib/selector-shape.ts`) already waves Playwright engine forms (`text=`, `role=`, `xpath=`, `>>`,
@@ -366,26 +317,63 @@ async function resolveContrastFacts(page: Page, selector: string): Promise<Facts
   }
 }
 
-async function checkContrast(page: Page, selector: string, forcePixel: boolean, viewport: Viewport): Promise<ContrastOutcome> {
+function terminalEvidence(
+  selector: string,
+  status: ContrastEvidence["status"],
+  reason: string,
+  facts?: { readonly total: number; readonly inViewport?: number; readonly matchIndex?: number },
+): ContrastEvidence {
+  return {
+    selector,
+    status,
+    candidates: facts === undefined ? 0 : facts.total,
+    inViewport: facts === undefined ? 0 : (facts.inViewport ?? 0),
+    sampled: 0,
+    matchIndex: facts?.matchIndex ?? null,
+    method: null,
+    ratio: null,
+    requiredRatio: null,
+    passed: null,
+    foreground: null,
+    backdrop: null,
+    reason,
+  };
+}
+
+async function checkContrast(page: Page, selector: string, forcePixel: boolean, viewport: Viewport): Promise<ContrastCapture> {
   const resolved = await resolveContrastFacts(page, selector);
   if (!resolved.ok) {
-    return resolved.outcome;
+    return { outcome: resolved.outcome, evidence: terminalEvidence(selector, "instrument-error", resolved.outcome.line) };
   }
   const facts = resolved.facts;
   if (!isContrastMeasured(facts)) {
-    return refuseContrastVerdict(selector, facts);
+    const outcome = refuseContrastVerdict(selector, facts);
+    const inViewport = "occluded" in facts ? facts.inViewport : 0;
+    return { outcome, evidence: terminalEvidence(selector, "refused", outcome.line, { total: facts.total, inViewport }) };
   }
   const exempt = contrastExemption(selector, facts);
   if (exempt !== null) {
-    return exempt;
+    return {
+      outcome: exempt,
+      evidence: terminalEvidence(selector, "refused", exempt.line, { total: facts.total, inViewport: 1, matchIndex: facts.matchIndex }),
+    };
   }
   const backdrop = await resolveContrastBackdrop(page, facts, forcePixel, viewport);
   if ("error" in backdrop) {
-    return { line: `CONTRAST ${selector}: ${backdrop.error}`, failed: true };
+    const outcome = { line: `CONTRAST ${selector}: ${backdrop.error}`, failed: true };
+    return {
+      outcome,
+      evidence: terminalEvidence(selector, "instrument-error", backdrop.error, { total: facts.total, inViewport: 1, matchIndex: facts.matchIndex }),
+    };
   }
   const rawFg = parseRgbString(facts.color);
   if (rawFg === null) {
-    return { line: `CONTRAST ${selector}: unparseable color (${facts.color})`, failed: true };
+    const reason = `unparseable color (${facts.color})`;
+    const outcome = { line: `CONTRAST ${selector}: ${reason}`, failed: true };
+    return {
+      outcome,
+      evidence: terminalEvidence(selector, "instrument-error", reason, { total: facts.total, inViewport: 1, matchIndex: facts.matchIndex }),
+    };
   }
   // Ancestor opacity dims the foreground — composite it at the accumulated alpha over the resolved
   // backdrop before measuring (a 40%-opacity actions row's icon reads ~11:1 raw, ~2.6:1 as seen).
@@ -406,14 +394,38 @@ async function checkContrast(page: Page, selector: string, forcePixel: boolean, 
   // match" got mistaken for "the one on screen".
   const matchNote = facts.matchIndex > 0 ? ` · match ${facts.matchIndex + 1}/${facts.total}, first visible in-viewport` : "";
   const tail = `(${kindLabel} · font ${fontDisplay} · need ${needRatio.toFixed(1)} · ${backdrop.method}${dimNote}${matchNote})`;
+  const outcome = { line: `CONTRAST ${selector}: ${ratio.toFixed(2)}:1  ${pass ? "PASS" : "FAIL"}  ${tail}`, failed: !pass };
   return {
-    line: `CONTRAST ${selector}: ${ratio.toFixed(2)}:1  ${pass ? "PASS" : "FAIL"}  ${tail}`,
-    failed: !pass,
+    outcome,
+    evidence: {
+      selector,
+      status: "ok",
+      candidates: facts.total,
+      inViewport: 1,
+      sampled: 1,
+      matchIndex: facts.matchIndex,
+      method: backdrop.method,
+      ratio,
+      requiredRatio: needRatio,
+      passed: pass,
+      foreground: fg,
+      backdrop: backdrop.rgb,
+      reason: null,
+    },
   };
 }
 
 export async function captureContrasts(page: Page, selectors: readonly string[], forcePixel: boolean, viewport: Viewport): Promise<ContrastOutcome[]> {
-  const results: ContrastOutcome[] = [];
+  return (await captureContrastEvidence(page, selectors, forcePixel, viewport)).map((capture) => capture.outcome);
+}
+
+export async function captureContrastEvidence(
+  page: Page,
+  selectors: readonly string[],
+  forcePixel: boolean,
+  viewport: Viewport,
+): Promise<readonly ContrastCapture[]> {
+  const results: ContrastCapture[] = [];
   for (const selector of selectors) {
     results.push(await checkContrast(page, selector, forcePixel, viewport));
   }
