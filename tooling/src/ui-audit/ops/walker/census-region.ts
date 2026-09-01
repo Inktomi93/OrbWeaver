@@ -81,9 +81,8 @@ export const WALKER_CENSUS_REGION = `  // ── pane ink: a region that does no
   var QUIET_SCALE = 100;
 
   function relLum(rgb) {
-    var parts = rgb.match(/[0-9.]+/g);
-    if (!parts || parts.length < 3) return null;
     var chan = [];
+    var parts = [rgb.r, rgb.g, rgb.b];
     for (var qi = 0; qi < 3; qi += 1) {
       var c = Number(parts[qi]) / CHANNEL_MAX;
       chan.push(c <= SRGB_KNEE ? c / SRGB_LINEAR_DIV : Math.pow((c + SRGB_OFFSET) / SRGB_SCALE, SRGB_EXP));
@@ -94,18 +93,16 @@ export const WALKER_CENSUS_REGION = `  // ── pane ink: a region that does no
   // An element's own FILL against the nearest opaque ancestor fill — "how loud is this object",
   // deliberately not the text-contrast family's question.
   function fillContrast(el) {
-    var own = relLum(getComputedStyle(el).backgroundColor);
-    if (own === null) return null;
-    for (var an = el.parentElement; an !== null; an = an.parentElement) {
-      var bg = getComputedStyle(an).backgroundColor;
-      if (!bg || bg.indexOf("rgba(0, 0, 0, 0)") !== -1 || bg === "transparent") continue;
-      var base = relLum(bg);
-      if (base === null) continue;
-      var hi = Math.max(own, base);
-      var lo = Math.min(own, base);
-      return Math.round(((hi + WCAG_OFFSET) / (lo + WCAG_OFFSET)) * QUIET_SCALE) / QUIET_SCALE;
-    }
-    return null;
+    var own = parseRgb(getComputedStyle(el).backgroundColor);
+    if (own === null || own.a <= 0) return null;
+    var backdrop = resolveBackdrop(el.parentElement || el);
+    if (backdrop.kind !== "flat") return null;
+    var visibleOwn = compositeOver(own, backdrop.color);
+    var ownLum = relLum(visibleOwn);
+    var baseLum = relLum(backdrop.color);
+    var hi = Math.max(ownLum, baseLum);
+    var lo = Math.min(ownLum, baseLum);
+    return Math.round(((hi + WCAG_OFFSET) / (lo + WCAG_OFFSET)) * QUIET_SCALE) / QUIET_SCALE;
   }
 
   var onEls = document.querySelectorAll("[data-checked]");

@@ -228,8 +228,8 @@ export const WALKER_CENSUS_COHORT = `  // ── sibling cohort anatomy ──�
     var outline = parseFloat(st.outlineWidth);
     if (!Number.isNaN(outline) && outline >= SELECT_RING_MIN_PX && st.outlineStyle !== "none") channels.push("ring");
     if (st.boxShadow && st.boxShadow !== "none" && st.boxShadow.indexOf("inset") === -1) channels.push("shadow");
-    var bg = st.backgroundColor;
-    if (bg && bg !== "transparent" && bg.indexOf("rgba(0, 0, 0, 0)") === -1) channels.push("fill");
+    var bg = parseRgb(st.backgroundColor);
+    if (bg !== null && bg.a > 0) channels.push("fill");
     var sides = ["Top", "Right", "Bottom", "Left"];
     var thick = [];
     for (var si = 0; si < sides.length; si += 1) {

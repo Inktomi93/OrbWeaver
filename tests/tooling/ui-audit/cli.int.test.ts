@@ -1163,6 +1163,26 @@ auditRuleTest(
 );
 
 auditRuleTest(
+  [{ rule: "quiet-state", kind: "fires", reason: "the ordering remains measurable when token colors serialize as OKLCH" }],
+  "OKLCH state fills use the walker's browser color normalizer instead of being misread as RGB channels",
+  async ({ runCli, scratch }) => {
+    await writeFile(join(scratch, "loud-off-oklch.html"), switchWeightPage("oklch(0.96 0 0)", "oklch(0.55 0.15 50)"));
+    const res = await runCli("ui-audit", ["/loud-off-oklch.html", "--base", `file://${scratch}`], { timeoutMs: CLI_TIMEOUT_MS });
+    expect(res.stdout).toContain("quiet-state");
+  },
+);
+
+auditRuleTest(
+  [{ rule: "quiet-state", kind: "silent", reason: "a translucent OFF fill is composited before its state weight is ranked" }],
+  "alpha-bearing OKLCH fills are ranked by their visible composite rather than their authored channels",
+  async ({ runCli, scratch }) => {
+    await writeFile(join(scratch, "quiet-off-alpha.html"), switchWeightPage("oklch(0.96 0 0 / 0.08)", "oklch(0.72 0.16 55)"));
+    const res = await runCli("ui-audit", ["/quiet-off-alpha.html", "--base", `file://${scratch}`], { timeoutMs: CLI_TIMEOUT_MS });
+    expect(res.stdout).not.toContain("quiet-state");
+  },
+);
+
+auditRuleTest(
   [{ rule: "quiet-state", kind: "silent", reason: "the same pair with the weights the right way round — the fence is the inversion, not the contrast" }],
   "a muted OFF beneath an accent ON mints nothing",
   async ({ runCli, scratch }) => {
