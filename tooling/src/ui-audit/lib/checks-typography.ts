@@ -182,6 +182,70 @@ export function checkTextStyle(input: TextStyleInput): Finding[] {
   return findings;
 }
 
+// ── ONE AUTHORED DECISION, ONE ROW (the #983 contract, extended to type) ─────────────────────────
+// A TYPE-FLOOR breach is a property of the component, not of each render. On settings:appearance
+// `undersized-ui-text` printed EIGHT rows whose selectors differed only by `:nth-of-type(1..8)` —
+// `[data-slot=chat-style-cards] > button… > span[data-slot=text]` eight times, one repair. The other
+// rules in this family stay per-element on purpose: `line-length`, `tight-leading`, `all-caps-body`,
+// `justified-text` and the tracking pair judge THIS node's own copy, and two renders of one component
+// can legitimately differ on them. Only the two SIZE floors are component-level.
+const GROUPED_TYPE_RULES: ReadonlySet<string> = new Set(["text-below-ramp", "undersized-ui-text"]);
+
+/** The representative cap bounds PRESENTATION only — never the affected or judged denominator. Five,
+ *  matching `tap-target`, so one reader learns one number. */
+const TYPE_REPRESENTATIVE_CAP = 5;
+
+function typeDecisionKey(input: TextStyleInput, rule: string): string {
+  // BOTH halves or neither: a sample set without authored identity keeps the historic
+  // one-row-per-element contract by keying on its own selector, which can never collide.
+  const target = input.authoredTarget;
+  const home = input.authoredHome;
+  return target === undefined || home === undefined ? `${rule} ${input.selector}` : `${rule} ${target} ${home}`;
+}
+
+interface TypeGroup {
+  readonly finding: Finding;
+  readonly selectors: string[];
+}
+
+/** Folds the size-floor findings of one sample family by authored decision. Every other finding
+ *  passes through untouched and in order. */
+export function groupTypeFindings(inputs: readonly TextStyleInput[]): Finding[] {
+  const out: Finding[] = [];
+  const groups = new Map<string, TypeGroup>();
+  for (const input of inputs) {
+    for (const finding of checkTextStyle(input)) {
+      if (!GROUPED_TYPE_RULES.has(finding.rule)) {
+        out.push(finding);
+        continue;
+      }
+      const key = typeDecisionKey(input, finding.rule);
+      const existing = groups.get(key);
+      if (existing === undefined) {
+        groups.set(key, { finding, selectors: [input.selector] });
+      } else {
+        existing.selectors.push(input.selector);
+      }
+    }
+  }
+  for (const { finding, selectors } of groups.values()) {
+    if (selectors.length === 1) {
+      out.push(finding);
+      continue;
+    }
+    const representatives = selectors.slice(0, TYPE_REPRESENTATIVE_CAP);
+    const capped = selectors.length - representatives.length;
+    out.push({
+      ...finding,
+      value: `${finding.value} — ${String(selectors.length)} rendered instance(s) of one authored decision, ${String(representatives.length)} representative(s), ${String(capped)} capped`,
+      message: `${finding.message}. This is ONE component rendered ${String(selectors.length)} times, not ${String(selectors.length)} repairs — fix the variant once`,
+      representatives,
+      population: { affected: selectors.length, judged: selectors.length, capped },
+    });
+  }
+  return out;
+}
+
 // ── TYPE-HIERARCHY INVERSION: a caveat outweighed by what it bounds (#652) ───────────────────────────
 //
 // THE DEFECT. On the plugin consent screen the raw egress hostnames rendered at 15px, regular weight,

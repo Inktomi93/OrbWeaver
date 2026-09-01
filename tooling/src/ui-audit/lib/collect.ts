@@ -47,7 +47,7 @@ import {
   checkSelectionIdiom,
   checkZIndex,
 } from "./checks-structure.ts";
-import { checkCaveatHierarchy, checkFontCensus, checkTextStyle } from "./checks-typography.ts";
+import { checkCaveatHierarchy, checkFontCensus, groupTypeFindings } from "./checks-typography.ts";
 import { assertCensusAccounting, assertRelationalCensus, settledPopulationAccounting } from "./population.ts";
 
 interface FamilyCheckResult {
@@ -352,7 +352,10 @@ function structureFindings(samples: RawSamples): FamilyCheckResult {
 
 function typographyFindings(samples: RawSamples): FamilyCheckResult {
   const state = emptyFamilyResult();
-  runArray(state, () => samples.textStyles.flatMap(checkTextStyle));
+  // groupTypeFindings runs the SAME per-element checks and then folds only the two size floors by
+  // authored decision (#983's contract, extended to type — see checks-typography.ts). Every other
+  // typography rule passes through per-element, which is correct: they judge this node's own copy.
+  runArray(state, () => groupTypeFindings(samples.textStyles));
   runArray(state, () => checkCaveatHierarchy(samples.textStyles));
   runArray(state, () => checkFontCensus(samples.fontCensus));
   return state;

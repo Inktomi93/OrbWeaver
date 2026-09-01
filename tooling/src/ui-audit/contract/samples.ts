@@ -200,6 +200,14 @@ export interface TextStyleInput {
    *  every larger glyph on the page, which is the false-positive machine it must not become. Optional:
    *  absent in older fixture sample sets, where the rule declines rather than comparing globally. */
   readonly blockPath?: readonly number[];
+  /** The authored kind-claim (tag + slot + role + input type + declared variant attrs) and the
+   *  position-free structural home, the SAME pair #983 gave tap-target. A type-floor breach belongs to
+   *  the component, not to each render: `undersized-ui-text` printed EIGHT rows on settings:appearance
+   *  whose selectors differed only by `:nth-of-type(1..8)`. Both optional, and BOTH are required before
+   *  the check will group — a partially-instrumented family keeps the historic one-row-per-element
+   *  contract rather than mixing grouped and ungrouped evidence in one report. */
+  readonly authoredTarget?: string;
+  readonly authoredHome?: string;
 }
 
 // ── Accent borders (impeccable `side-tab` / `border-accent-on-rounded`) ──────

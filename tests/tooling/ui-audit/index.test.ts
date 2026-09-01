@@ -53,6 +53,7 @@ import {
   checkZIndex,
   collectFindings,
   DESIGN_AUDIT_RULES,
+  groupTypeFindings,
   INTERACTIVE_TEXT_FLOOR_PX,
   isAtOrAboveSeverity,
   isValidSeverity,
@@ -946,6 +947,46 @@ auditRuleTest(
     expect(checkTextStyle({ ...TEXT_STYLE_BASE, fontSizePx: INTERACTIVE_TEXT_FLOOR_PX, interactive: true }).map((f) => f.rule)).not.toContain(
       "undersized-ui-text",
     );
+  },
+);
+
+auditRuleTest(
+  [{ rule: "undersized-ui-text", kind: "fires", reason: "one authored decision rendered N times is ONE repair, not N" }],
+  "the two SIZE floors fold by authored decision; a distinct home stays its own row",
+  () => {
+    // The live shape this exists for: settings:appearance printed EIGHT undersized-ui-text rows whose
+    // selectors differed only by :nth-of-type(1..8) — `[data-slot=chat-style-cards] > button…`.
+    const small = {
+      ...TEXT_STYLE_BASE,
+      fontSizePx: 10.5,
+      interactive: true,
+      authoredTarget: "span|slot=text|role=|type=",
+      authoredHome: "button@button::span<button",
+    };
+    const repeated = [1, 2, 3, 4, 5, 6, 7, 8].map((n) => ({ ...small, selector: `[data-slot=chat-style-cards] > button:nth-of-type(${String(n)}) > span` }));
+    const grouped = groupTypeFindings(repeated).filter((f) => f.rule === "undersized-ui-text");
+    expect(grouped).toHaveLength(1);
+    expect(grouped[0]?.population).toEqual({ affected: 8, judged: 8, capped: 3 });
+    // The cap bounds PRESENTATION only — the denominator above still says eight.
+    expect(grouped[0]?.representatives).toHaveLength(5);
+
+    // ANTI-COLLAPSE CONTROL: a different authored home is a different repair and must survive.
+    const elsewhere = { ...small, selector: "#config-anchor-appearance-background > button > span", authoredHome: "div@config-group::span<button" };
+    const both = groupTypeFindings([...repeated, elsewhere]).filter((f) => f.rule === "undersized-ui-text");
+    expect(both).toHaveLength(2);
+
+    // A sample set with NO authored identity keeps the historic one-row-per-element contract rather
+    // than collapsing unrelated elements onto a shared key.
+    const legacy = repeated.map(({ authoredTarget: _t, authoredHome: _h, ...rest }) => rest);
+    expect(groupTypeFindings(legacy).filter((f) => f.rule === "undersized-ui-text")).toHaveLength(8);
+
+    // Only the SIZE floors fold: a per-element copy rule judges this node's own text and must not.
+    const longCaps = { ...TEXT_STYLE_BASE, directTextLen: 60, textTransform: "uppercase", authoredTarget: "p||role=|type=", authoredHome: "div@x::p<div" };
+    const caps = groupTypeFindings([
+      { ...longCaps, selector: "p:nth-of-type(1)" },
+      { ...longCaps, selector: "p:nth-of-type(2)" },
+    ]).filter((f) => f.rule === "all-caps-body");
+    expect(caps).toHaveLength(2);
   },
 );
 

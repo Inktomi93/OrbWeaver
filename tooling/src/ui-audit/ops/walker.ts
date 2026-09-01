@@ -12,6 +12,15 @@
 // exactly as in the pre-split monolith. The byte-equality of the composition against the monolith was
 // proven at the split (the P2 slicer-artifact fence, replayed).
 //
+// ORDER IS LOAD-BEARING, AND FUNCTION HOISTING DOES NOT SAVE IT. Every segment shares one function
+// body, so a `function foo(){}` in a later segment IS callable from an earlier one — but the `var`
+// constants those functions close over are hoisted UNDEFINED and only initialize when their own line
+// runs. `authoredTargetClaim` reads `TARGET_VARIANT_ATTRS`; `authoredTargetHome` reads
+// `TARGET_HOME_MAX`. Calling either before WALKER_TARGET_IDENTITY's lines have executed throws on
+// `undefined.length`, so that segment now sits immediately after WALKER_CORE (its only external
+// dependency is CORE's `INTERACTIVE_SELECTOR`) rather than after WALKER_CENSUS_TEXT — which is what
+// lets the TEXT census carry authored identity and group its findings by authored decision.
+//
 // PROVENANCE / ATTRIBUTION: the sample families marked "impeccable" adapt detection
 // recipes from pbakaus/impeccable (https://github.com/pbakaus/impeccable,
 // cli/engine/rules/checks.mjs — Copyright 2025 Paul Bakaus, Apache License 2.0). The code is
@@ -87,4 +96,4 @@ const PRE_WALK_SETTLE = `  var preWalkRevision = 0;
 `;
 
 export const COLLECT_SAMPLES_JS = `(async () => {
-${PRE_WALK_SETTLE}${WALKER_CORE}${WALKER_RESOLVE}${WALKER_CENSUS_TEXT}${WALKER_HIT_EXTENT}${WALKER_TARGET_IDENTITY}${WALKER_CENSUS_INTERACTIVE}${WALKER_CENSUS_DECOR}${WALKER_CENSUS_QUALITY}${WALKER_CENSUS_COLLISION}${WALKER_CENSUS_COHORT}${WALKER_CENSUS_SELECTION}${WALKER_CENSUS_REGION}${WALKER_RETURNS}})()`;
+${PRE_WALK_SETTLE}${WALKER_CORE}${WALKER_TARGET_IDENTITY}${WALKER_RESOLVE}${WALKER_CENSUS_TEXT}${WALKER_HIT_EXTENT}${WALKER_CENSUS_INTERACTIVE}${WALKER_CENSUS_DECOR}${WALKER_CENSUS_QUALITY}${WALKER_CENSUS_COLLISION}${WALKER_CENSUS_COHORT}${WALKER_CENSUS_SELECTION}${WALKER_CENSUS_REGION}${WALKER_RETURNS}})()`;
