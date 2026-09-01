@@ -7,6 +7,9 @@
 // theme" was undrivable without writing the owner's settings row. Theme-polarity coverage therefore rode
 // only on carried-theme ROOMS (a character card's own palette); every surface without a carried room (Home,
 // Configuration, Analytics…) had no light arm at all.
+
+import { parseCssColorToSrgb } from "@orb/kit/safe-color";
+import { srgbToOklch, surfacePolarity } from "@orb/kit/theme-derivation";
 //
 // THE MECHANISM (source-pinned): `use-selected-theme.ts` reads `settings.getUserSettings` →
 // `config.theme.selectedThemeId`, then fetches `settings.getTheme({id})` for that row; app-shell derives
@@ -45,6 +48,42 @@ export interface ThemeEntry {
   readonly name: string;
   /** The API's own seed/custom discriminator. null means the response omitted it — never guessed. */
   readonly isSeed: boolean | null;
+  /** The catalog row's authored base. null means the row omitted/unreadably shaped its override. */
+  readonly background: string | null;
+  /** Derived through the same theme-derivation polarity decision as ThemeScope. */
+  readonly polarity: "light" | "dark" | "unknown";
+  /** null means the response omitted the CSS field; never infer absence from that. */
+  readonly hasCustomCss: boolean | null;
+}
+
+export interface ThemeCatalogCapabilities {
+  readonly seed: { readonly light: readonly ThemeEntry[]; readonly dark: readonly ThemeEntry[] };
+  readonly custom: { readonly light: readonly ThemeEntry[]; readonly dark: readonly ThemeEntry[] };
+  readonly unknown: readonly ThemeEntry[];
+}
+
+function customCssState(css: unknown): boolean | null {
+  if (typeof css === "string") {
+    return css.trim().length > 0;
+  }
+  return css === null ? false : null;
+}
+
+function themeEntry(row: unknown): ThemeEntry | null {
+  if (!(isPlainObject(row) && typeof row["id"] === "string" && typeof row["name"] === "string")) {
+    return null;
+  }
+  const override = row["override"];
+  const background = isPlainObject(override) && typeof override["background"] === "string" ? override["background"] : null;
+  const parsed = background === null ? null : parseCssColorToSrgb(background);
+  return {
+    id: row["id"],
+    name: row["name"],
+    isSeed: typeof row["isSeed"] === "boolean" ? row["isSeed"] : null,
+    background,
+    polarity: parsed === null ? "unknown" : surfacePolarity(srgbToOklch(parsed)),
+    hasCustomCss: customCssState(row["css"]),
+  };
 }
 
 /** The value-taking theme flags — every probe CLI adds these to its required-value scan. */
@@ -104,13 +143,32 @@ export function readThemeList(body: unknown, index = 0): readonly ThemeEntry[] |
   if (!Array.isArray(rows)) {
     return null;
   }
-  const entries: ThemeEntry[] = [];
-  for (const row of rows) {
-    if (isPlainObject(row) && typeof row["id"] === "string" && typeof row["name"] === "string") {
-      entries.push({ id: row["id"], name: row["name"], isSeed: typeof row["isSeed"] === "boolean" ? row["isSeed"] : null });
+  return rows.flatMap((row) => {
+    const entry = themeEntry(row);
+    return entry === null ? [] : [entry];
+  });
+}
+
+/** Derive the matrix's usable theme axes from authenticated catalog rows. A row with an unknown source or
+ *  polarity stays named under `unknown`; consumers refuse missing required capabilities. */
+export function themeCatalogCapabilities(entries: readonly ThemeEntry[]): ThemeCatalogCapabilities {
+  const capabilities: {
+    seed: { light: ThemeEntry[]; dark: ThemeEntry[] };
+    custom: { light: ThemeEntry[]; dark: ThemeEntry[] };
+    unknown: ThemeEntry[];
+  } = { seed: { light: [], dark: [] }, custom: { light: [], dark: [] }, unknown: [] };
+  for (const entry of entries) {
+    if (entry.isSeed === null || entry.polarity === "unknown") {
+      capabilities.unknown.push(entry);
+      continue;
+    }
+    if (entry.isSeed) {
+      capabilities.seed[entry.polarity].push(entry);
+    } else {
+      capabilities.custom[entry.polarity].push(entry);
     }
   }
-  return entries;
+  return capabilities;
 }
 
 /** The resolution of a `--theme` request against the real library: an id (null = "no selection"), or a

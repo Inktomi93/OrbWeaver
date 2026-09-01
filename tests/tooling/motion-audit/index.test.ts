@@ -21,7 +21,14 @@ import {
 import { expect, test } from "../../support/tool-fixtures.ts";
 
 const DESKTOP_ENVIRONMENT: BrowserEnvironmentEvidence = {
-  requested: { device: null, viewport: { width: 1280, height: 800 } },
+  requested: {
+    device: null,
+    viewport: { width: 1280, height: 800 },
+    colorScheme: null,
+    reducedMotion: false,
+    contrast: null,
+    reducedTransparency: false,
+  },
   applied: {
     device: null,
     viewport: { width: 1280, height: 800 },
@@ -30,6 +37,10 @@ const DESKTOP_ENVIRONMENT: BrowserEnvironmentEvidence = {
     deviceScaleFactor: 1,
     isMobile: false,
     hasTouch: false,
+    colorScheme: null,
+    reducedMotion: false,
+    contrast: null,
+    reducedTransparency: false,
   },
   actual: {
     device: "desktop",
@@ -43,6 +54,10 @@ const DESKTOP_ENVIRONMENT: BrowserEnvironmentEvidence = {
     pointer: "fine",
     hover: "hover",
     isMobile: false,
+    colorScheme: "light",
+    reducedMotion: false,
+    contrast: "no-preference",
+    reducedTransparency: false,
   },
   mismatches: [],
 };

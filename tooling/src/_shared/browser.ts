@@ -45,6 +45,10 @@ export interface ProbeLaunchOptions {
   readonly colorScheme: "light" | "dark" | null;
   /** emulateMedia reducedMotion:"reduce". */
   readonly reducedMotion: boolean;
+  /** Browser media contrast arm. null leaves the browser default; matrix cells state both polarities. */
+  readonly contrast?: "more" | "no-preference" | null;
+  /** Chromium-only prefers-reduced-transparency arm, applied through CDP and read back with matchMedia. */
+  readonly reducedTransparency?: boolean;
   /** Seeded BEFORE any page script runs (addInitScript) — the only reliable moment. */
   readonly localStorage: readonly LocalStorageSeed[];
   /** When set, the context records video into this dir at the viewport size (record.ts).
@@ -154,7 +158,12 @@ interface ProbeResourceOwner {
 }
 
 interface PageCapture {
-  readonly media: { colorScheme?: "light" | "dark"; reducedMotion?: "reduce" };
+  readonly media: {
+    colorScheme?: "light" | "dark";
+    reducedMotion: "reduce" | "no-preference";
+    contrast?: "more" | "no-preference";
+    reducedTransparency: boolean;
+  };
   readonly consoleLines: string[];
   readonly consoleMessages: CapturedConsole[];
   readonly pageErrors: string[];
@@ -166,9 +175,26 @@ interface PageCapture {
 function wirePage(page: Page, capture: PageCapture): Promise<void> {
   const { media, consoleLines, consoleMessages, pageErrors, requests } = capture;
   const apply = async (): Promise<void> => {
-    if (media.colorScheme !== undefined || media.reducedMotion !== undefined) {
-      await page.emulateMedia(media);
-    }
+    const cdp = await page.context().newCDPSession(page);
+    // Every page starts from a stated feature slate. Without this reset, Chromium retains a prior
+    // reduced-transparency override even after the supported Playwright media fields change.
+    await cdp.send("Emulation.setEmulatedMedia", { features: [] });
+    await page.emulateMedia({
+      ...(media.colorScheme === undefined ? {} : { colorScheme: media.colorScheme }),
+      reducedMotion: media.reducedMotion,
+      ...(media.contrast === undefined ? {} : { contrast: media.contrast }),
+    });
+    // Playwright 1.61.1 has no reduced-transparency field. Sending the complete feature slate after its
+    // supported call prevents the second CDP command from erasing color/motion/contrast. The session must
+    // stay attached for the override lifetime; the page/context owns and closes it.
+    await cdp.send("Emulation.setEmulatedMedia", {
+      features: [
+        ...(media.colorScheme === undefined ? [] : [{ name: "prefers-color-scheme", value: media.colorScheme }]),
+        { name: "prefers-reduced-motion", value: media.reducedMotion },
+        ...(media.contrast === undefined ? [] : [{ name: "prefers-contrast", value: media.contrast }]),
+        { name: "prefers-reduced-transparency", value: media.reducedTransparency ? "reduce" : "no-preference" },
+      ],
+    });
   };
   page.on("console", (m: ConsoleMessage) => {
     const t = m.type();
@@ -281,12 +307,15 @@ async function buildContext(args: BuildContextArgs): Promise<ProbeContext> {
   const consoleMessages: CapturedConsole[] = [];
   const pageErrors: string[] = [];
   const requests = new Map<string, CapturedRequest>();
-  const media: { colorScheme?: "light" | "dark"; reducedMotion?: "reduce" } = {};
+  const media: PageCapture["media"] = {
+    reducedMotion: opts.reducedMotion ? "reduce" : "no-preference",
+    reducedTransparency: opts.reducedTransparency ?? false,
+  };
   if (opts.colorScheme !== null) {
     media.colorScheme = opts.colorScheme;
   }
-  if (opts.reducedMotion) {
-    media.reducedMotion = "reduce";
+  if (opts.contrast !== undefined && opts.contrast !== null) {
+    media.contrast = opts.contrast;
   }
 
   const capture: PageCapture = { media, consoleLines, consoleMessages, pageErrors, requests };

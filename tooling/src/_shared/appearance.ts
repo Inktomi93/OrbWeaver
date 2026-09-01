@@ -317,11 +317,12 @@ export interface ThemeResolutionEvidence {
 interface ResolvedTheme {
   readonly id: string | null;
   readonly evidence: ThemeResolutionEvidence;
+  readonly catalog: readonly ThemeEntry[];
 }
 
 function resolvedTheme(entries: readonly ThemeEntry[], request: ThemeRequest, id: string | null): ResolvedTheme {
   if (id === null) {
-    return { id: null, evidence: { request, id: null, name: null, source: "default" } };
+    return { id: null, evidence: { request, id: null, name: null, source: "default" }, catalog: entries };
   }
   const entry = entries.find((candidate) => candidate.id === id);
   let source: ThemeResolutionSource = "unknown";
@@ -330,7 +331,7 @@ function resolvedTheme(entries: readonly ThemeEntry[], request: ThemeRequest, id
   } else if (entry?.isSeed === false) {
     source = "custom";
   }
-  return { id, evidence: { request, id, name: entry?.name ?? null, source } };
+  return { id, evidence: { request, id, name: entry?.name ?? null, source }, catalog: entries };
 }
 
 function themeResolver(request: ThemeRequest): (route: Route, context: BrowserContext) => Promise<ResolvedTheme | null> {
@@ -380,6 +381,8 @@ export interface SettingsShimEvidence {
   themeApplied: boolean | null;
   /** The real catalog row the request resolved to; null until/unless resolution succeeds. */
   themeResolution: ThemeResolutionEvidence | null;
+  /** The authenticated catalog used for resolution, including derived source/polarity capabilities. */
+  themeCatalog: readonly ThemeEntry[] | null;
 }
 
 function recordAppliedEvidence(evidence: SettingsShimEvidence, applied: boolean, appearanceRequested: boolean, themeResolved: boolean): void {
@@ -408,6 +411,7 @@ export async function installSettingsShim(context: BrowserContext, shim: Setting
     appearanceApplied: shim.appearance === null ? null : false,
     themeApplied: shim.theme === null ? null : false,
     themeResolution: null,
+    themeCatalog: null,
   };
   if (shim.appearance === null && shim.theme === null) {
     return evidence;
@@ -429,6 +433,7 @@ export async function installSettingsShim(context: BrowserContext, shim: Setting
       const themeOutcome = resolveThemeId === null ? null : await resolveThemeId(route, context);
       if (themeOutcome !== null) {
         evidence.themeResolution = themeOutcome.evidence;
+        evidence.themeCatalog = themeOutcome.catalog;
       }
       const patch: SettingsPatch = {
         ...(shim.appearance === null ? {} : { appearance: shim.appearance }),
