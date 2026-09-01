@@ -1,6 +1,6 @@
 ---
 kind: design
-status: active
+status: archived
 updated: 2026-09-01
 ---
 
