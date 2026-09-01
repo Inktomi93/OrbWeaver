@@ -158,3 +158,23 @@ test("every real manifest resource is Git-tracked, including resources beneath i
   expect(untrackedManifestResources(manifest.resources, plantedMissing)).toContain(ignoredCoverageResource);
   expect(untrackedManifestResources(manifest.resources, tracked)).toEqual([]);
 });
+
+test("the generated closure is excluded exactly from first-party source analyzers", async () => {
+  const biome = JSON.parse(await readFile(join(REPO_ROOT, "biome.json"), "utf8")) as { readonly files: { readonly includes: readonly string[] } };
+  // @ts-expect-error -- the CommonJS dependency-cruiser config has no declaration; the consumed shape is narrowed below.
+  const dependencyCruiser = (
+    (await import("../../../.dependency-cruiser.cjs")) as {
+      readonly default: { readonly options: { readonly exclude: { readonly path: readonly string[] } } };
+    }
+  ).default;
+  const biomeRows = biome.files.includes.filter((row) => row.includes("devtools-frontend"));
+  const depcruiseRows = dependencyCruiser.options.exclude.path.filter((row) => row.includes("devtools-frontend"));
+
+  expect(biomeRows).toEqual([`!${ASSET_ROOT}`]);
+  expect(depcruiseRows).toEqual([`^${ASSET_ROOT}/`]);
+  const depcruisePattern = depcruiseRows[0];
+  if (depcruisePattern === undefined) {
+    throw new Error("the DevTools frontend depcruise exclusion is absent");
+  }
+  expect(new RegExp(depcruisePattern, "u").test("tooling/src/snap/lib/cascade-source.ts")).toBe(false);
+});

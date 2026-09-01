@@ -773,10 +773,15 @@ module.exports = {
     // TanStack Router codegen (client, Phase 6) — not ours to police. `__g_` is the check-gates
     // self-test's reserved throwaway-fixture sentinel (tsconfig.base.json's exclude note): excluding it
     // stops a concurrent `pnpm depcruise` from graphing a fixture mid-lifecycle → a phantom edge/error.
+    // The DevTools frontend root is an exact-revision GENERATED RUNTIME CLOSURE, not first-party source:
+    // its path-closed manifest + hashes + licenses are governed by devtools-frontend-assets, and the
+    // materialized subset deliberately contains imports outside the 477-resource runtime closure. Graphing
+    // it creates false unresolvable edges and subjects third-party bytes to Orb's package cake. Keep this
+    // exclusion anchored to that one generated root (Core-Tooling-Law.md §2.6 / #950).
     // The dist exclude is ANCHORED to workspace packages (`^packages/*/dist/`): a bare `(^|/)dist/` also
     // matches `node_modules/<lib>/dist/`, dropping the sealed-lib import edges (minisearch/echarts/shiki/…)
     // so the satellite-seal rules silently stop firing on their fixtures.
-    exclude: { path: ["routeTree\\.gen\\.ts$", "(^|/)__g_", "^packages/[^/]+/dist/"] },
+    exclude: { path: ["routeTree\\.gen\\.ts$", "(^|/)__g_", "^packages/[^/]+/dist/", "^tooling/src/snap/lib/devtools-frontend/"] },
     // NO RESULT CACHE (removed 2026-08-22, #393 P6 — planted-control receipt below). It was
     // `cache: { strategy: "content" }`, and a WARM cruise is BLIND TO A NEWLY-ADDED FILE: planting
     // `packages/kit/src/__dc/node.ts` with `import "node:fs"` and cruising warm reported 0 violations;

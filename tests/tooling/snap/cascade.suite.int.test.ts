@@ -12,7 +12,7 @@ import { prepareDevToolsCascadeRuntime } from "@orb/tooling/_shared/devtools-run
 import { expect, test } from "../../support/tool-fixtures.ts";
 
 const ASSET_ROOT = fileURLToPath(new URL("../../../tooling/src/snap/lib/devtools-frontend", import.meta.url));
-const FIXTURE = fileURLToPath(new URL("../snap/ops/fixtures/cascade.html", import.meta.url));
+const FIXTURE = fileURLToPath(new URL("./ops/fixtures/cascade.html", import.meta.url));
 
 async function closeServer(server: Server): Promise<void> {
   await new Promise<void>((done, reject) => server.close((error) => (error === undefined ? done() : reject(error))));

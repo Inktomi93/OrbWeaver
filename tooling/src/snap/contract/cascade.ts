@@ -6,20 +6,22 @@ export interface CssCascadeQuery {
   readonly page: number;
 }
 
-export type CssDeclarationState = "Active" | "Overloaded";
+type CssDeclarationState = "Active" | "Overloaded";
 
-export type CssCascadeSourceKind =
-  | "client-global"
-  | "dynamic"
-  | "generated-theme"
-  | "inline"
-  | "owner-custom-css"
-  | "shell"
-  | "ui-global"
-  | "ui-tier"
-  | "opaque";
+const CSS_CASCADE_SOURCE_KINDS = [
+  "client-global",
+  "dynamic",
+  "generated-theme",
+  "inline",
+  "owner-custom-css",
+  "shell",
+  "ui-global",
+  "ui-tier",
+  "opaque",
+] as const;
+export type CssCascadeSourceKind = (typeof CSS_CASCADE_SOURCE_KINDS)[number];
 
-export interface CssCascadeRange {
+interface CssCascadeRange {
   readonly startLine: number;
   readonly startColumn: number;
   readonly endLine: number;
@@ -40,7 +42,7 @@ export interface CssCascadeDeclaration {
   readonly range: CssCascadeRange | null;
 }
 
-export interface CssCascadeOkReceipt {
+interface CssCascadeOkReceipt {
   readonly status: "ok";
   readonly selector: string;
   readonly property: string;
@@ -50,7 +52,7 @@ export interface CssCascadeOkReceipt {
   readonly declarations: readonly CssCascadeDeclaration[];
 }
 
-export interface CssCascadeInstrumentError {
+interface CssCascadeInstrumentError {
   readonly status: "instrument-error";
   readonly selector: string;
   readonly property: string;
