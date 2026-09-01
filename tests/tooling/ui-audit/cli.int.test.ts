@@ -922,3 +922,70 @@ test("a modal covering the page is NOT an obscured-target — deliberate stackin
   const census = CENSUS_RE.exec(res.stdout)?.[1];
   expect(Number(census)).toBeGreaterThan(0);
 });
+
+// ── cohort-anatomy (#978): the RELATIONAL lens ───────────────────────────────────────────────────────
+// Every other family judges one element against a threshold; this one judges a POPULATION against
+// itself. 16px is not wrong — 16px beside a 32px twin built from the same component is. The fixture
+// mirrors the live config list that produced the surface's only P0, where three instruments had to
+// agree independently because no single rule could say "these siblings disagree".
+function cohortListPage(oddHeightPx: number): string {
+  const rows = ["Appearance", "Backup", "Chat behavior", "Jobs", "Tags", "Regex scripts", "World Info"];
+  const cells = rows
+    .map((label, index) => {
+      const height = index < 4 ? 32 : oddHeightPx;
+      return `<li data-slot="config-band" style="display:flex;align-items:center;height:${height}px;padding:0 12px;background:#1a1a1a;margin-bottom:2px">${label}</li>`;
+    })
+    .join("\n  ");
+  return `<!doctype html>
+<html data-app-ready="settled"><head><meta charset="utf-8"><title>t</title></head>
+<body style="margin:0;background:#000;color:#fff;font:14px system-ui"><main><ul style="list-style:none;margin:0;padding:16px">
+  ${cells}
+</ul></main></body></html>`;
+}
+
+auditRuleTest(
+  [{ rule: "cohort-anatomy", kind: "fires", reason: "three of seven same-slot siblings render at half the cohort's mode height" }],
+  "same-slot siblings that disagree on height are ONE finding carrying the population, not one per short row",
+  async ({ runCli, scratch }) => {
+    await writeFile(join(scratch, "diverge.html"), cohortListPage(16));
+    const res = await runCli("ui-audit", ["/diverge.html", "--base", `file://${scratch}`], { timeoutMs: CLI_TIMEOUT_MS });
+    expect(res.stdout).toContain("cohort-anatomy");
+    // The population IS the finding: a bare min/max cannot say which side is the defect, and an
+    // operator fixing "16px" needs to know 3 rows are wrong and 4 are right.
+    expect(res.stdout, "the value must name the outlier count, the mode, and both heights").toContain("3 of 7 at 16px, 4 at 32px");
+    // ONE finding for the whole cohort. The tap-target family reports the same live defect nine times;
+    // if this rule ever starts emitting per-member it has become the noise it exists to replace.
+    expect(res.stdout.split("cohort-anatomy").length - 1, "one cohort is one finding").toBe(1);
+  },
+);
+
+auditRuleTest(
+  [
+    {
+      rule: "cohort-anatomy",
+      kind: "silent",
+      reason: "the same list at a uniform height is the precision neighbour — the fence is the DISAGREEMENT, not the row count",
+    },
+  ],
+  "a uniform cohort mints nothing — and the silence is a judged zero, not a blind one",
+  async ({ runCli, scratch }) => {
+    await writeFile(join(scratch, "uniform.html"), cohortListPage(32));
+    const res = await runCli("ui-audit", ["/uniform.html", "--base", `file://${scratch}`], { timeoutMs: CLI_TIMEOUT_MS });
+    expect(res.stdout).not.toContain("cohort-anatomy");
+    // An absence is only a verdict when the family actually ran: `scanned-structure` counts the
+    // structure family's dispatches, so a census that stopped reaching cohorts cannot masquerade as clean.
+    expect(res.stdout, "the structure family must have dispatched — otherwise this is blindness, not silence").toMatch(/scanned-structure=[1-9]/u);
+  },
+);
+
+// A cohort just below BOTH thresholds stays silent: 24px against a 32px mode is 1.33x / 8px — inside the
+// ratio band, so the pair still reads as one family and the rule must not fire on ordinary variation.
+auditRuleTest(
+  [{ rule: "cohort-anatomy", kind: "silent", reason: "a 24px-vs-32px spread is inside the ratio band — ordinary variation, not two anatomies" }],
+  "a spread inside the ratio band is ordinary variation and mints nothing",
+  async ({ runCli, scratch }) => {
+    await writeFile(join(scratch, "narrow.html"), cohortListPage(24));
+    const res = await runCli("ui-audit", ["/narrow.html", "--base", `file://${scratch}`], { timeoutMs: CLI_TIMEOUT_MS });
+    expect(res.stdout).not.toContain("cohort-anatomy");
+  },
+);

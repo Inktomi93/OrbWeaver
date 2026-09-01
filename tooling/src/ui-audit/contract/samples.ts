@@ -7,6 +7,7 @@ import type { SubjectAccountingInput, ThemeRenderInput } from "./samples-evidenc
 // re-exported below: a bare `export … from` re-exports a name without binding it locally (tsc catches
 // that; biome's type service does not).
 import type { AccessibleNameInput, ActionDoorInput, CensusReachInput, ControlAspectInput, TabIndexInput, TapTargetInput } from "./samples-interactive.ts";
+import type { CohortAnatomyInput } from "./samples-layout.ts";
 
 /** Resolved backdrop behind a text node — `flat` (solid ancestor bg), `gradient` (worst-stop
  *  ratio over OPAQUE stops; translucent stops refuse as indeterminate),
@@ -101,6 +102,10 @@ export type {
   TabIndexInput,
   TapTargetInput,
 } from "./samples-interactive.ts";
+// ── The relational census (sibling cohorts) ──────────────────────────────────────────────────────────
+// Same split reason as the interactive family above, and the same import-beside-re-export rule:
+// `RawSamples` composes this name, so it is bound locally at the top of the file as well.
+export type { CohortAnatomyInput } from "./samples-layout.ts";
 
 // ── Heading order (impeccable `skipped-heading`; UIP §13.10 N7 is law here) ──
 export interface HeadingSample {
@@ -419,6 +424,9 @@ export interface RawSamples {
   /** Painted elements whose own centre hit-tests to a local neighbour (#816). Optional for the same
    *  reason as above. */
   readonly obscuredTargets?: readonly ObscuredTargetInput[];
+  /** Sibling cohorts and their height spread — the relational lens (#978). Optional: absent from the
+   *  fixture sample sets that predate it, where it reads as "no cohorts censused". */
+  readonly cohortAnatomies?: readonly CohortAnatomyInput[];
   /** The obscured census's denominator — absent means the sample set predates the family, which the
    *  report prints as `unreported` rather than as a complete-looking zero. */
   readonly obscuredScan?: ObscuredScanInput;
