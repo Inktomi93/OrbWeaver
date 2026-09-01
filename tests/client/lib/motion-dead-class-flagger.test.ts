@@ -5,7 +5,7 @@ import { expect, test } from "../../support/fixtures.ts";
 // throwing arm below is supplied through the real seam instead of faking `@orb/kit/dead-css` (§3).
 const tokenize = vi.fn<(selector: string) => readonly string[]>();
 
-const { definedClassTokens } = await import("../../../packages/client/src/lib/motion-dead-class-flagger.ts");
+const { definedClassTokens, motionFlaggersDrain } = await import("../../../packages/client/src/lib/motion-dead-class-flagger.ts");
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -37,4 +37,8 @@ test("selector-tokenizer failure propagates instead of masquerading as cross-ori
     throw new Error("planted tokenizer failure");
   });
   expect(() => definedClassTokens(tokenize)).toThrow("planted tokenizer failure");
+});
+
+test("a drain refuses loudly before the flagger is installed", async () => {
+  await expect(motionFlaggersDrain()).rejects.toThrow("INSTRUMENT ERROR: the motion dead-class flagger is not installed");
 });

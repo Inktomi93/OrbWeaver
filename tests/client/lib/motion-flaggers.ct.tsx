@@ -134,8 +134,9 @@ test("#852: a token the FRESH CSSOM read defines is not reported — while a nev
   const reports = component.getByTestId("dead-class-reports");
 
   await component.getByRole("button", { name: "arm late class" }).click();
-  // The control proves the harness is still reporting at all (a silent flagger would pass vacuously).
-  await expect(reports).toContainText("orb-ct-always-dead-marker", { timeout: 10_000 });
+  await expect(component.getByTestId("dead-class-drain-receipt")).not.toHaveText("pending", { timeout: 10_000 });
+  // The control proves the completed drain still reported a genuinely absent token.
+  await expect(reports).toContainText("orb-ct-always-dead-marker");
   await expect(reports).not.toContainText("orb-ct-late-defined-marker");
 });
 
@@ -144,7 +145,8 @@ test("#852: the same token IS reported when no read ever defines it (the negativ
   const reports = component.getByTestId("dead-class-reports");
 
   await component.getByRole("button", { name: "arm late class" }).click();
-  await expect(reports).toContainText("orb-ct-late-defined-marker", { timeout: 10_000 });
+  await expect(component.getByTestId("dead-class-drain-receipt")).not.toHaveText("pending", { timeout: 10_000 });
+  await expect(reports).toContainText("orb-ct-late-defined-marker");
 });
 
 test("a later dead-class mutation is found without rescanning the whole document", async ({ mount, page }) => {
@@ -181,7 +183,7 @@ test("a later dead-class mutation is found without rescanning the whole document
 // exactly what forces the yields the final assertion counts, and scaling it up would weaken the pin into
 // one that a non-yielding implementation could pass. Wall clock is the lever: `test.slow()` for the budget,
 // generous barriers inside it. Nothing here waits on a timer, so a slow box costs seconds, never a verdict.
-test("a mutation subtree yields across idle callbacks without losing a deep dead class", async ({ mount, page }) => {
+test("a drain waits across a 97-element multi-slice mutation and advances monotonically", async ({ mount, page }) => {
   test.slow();
   const lines = captureCssLines(page);
   await page.evaluate(() => {
@@ -203,10 +205,23 @@ test("a mutation subtree yields across idle callbacks without losing a deep dead
   const before = await page.evaluate(() => (document.documentElement as HTMLElement & { __orbIdleCallbackCount?: number }).__orbIdleCallbackCount ?? 0);
 
   await component.getByRole("button", { name: "add batched dead class" }).click();
-  await expect.poll(() => lines.some((line) => line.includes("orb-ct-batched-dead-class-marker")), { timeout: 60_000 }).toBe(true);
+  const receipts = component.getByTestId("dead-class-drain-receipts");
+  await expect(receipts).not.toHaveText("pending", { timeout: 60_000 });
+  expect(
+    lines.some((line) => line.includes("orb-ct-batched-dead-class-marker")),
+    "the completed drain includes the final descendant",
+  ).toBe(true);
   const after = await page.evaluate(() => (document.documentElement as HTMLElement & { __orbIdleCallbackCount?: number }).__orbIdleCallbackCount ?? 0);
+  const receiptRows = JSON.parse(await receipts.innerText()) as readonly {
+    readonly requestedGeneration: number;
+    readonly completedGeneration: number;
+  }[];
 
   expect(after - before, "the 97-element insertion cannot complete in one short idle slice").toBeGreaterThan(1);
+  expect(receiptRows).toEqual([
+    { requestedGeneration: 1, completedGeneration: 1 },
+    { requestedGeneration: 2, completedGeneration: 2 },
+  ]);
 });
 
 // PLANTED-DEFECT PROOF (P8) for the `@orb/kit/dead-css` tokenizer's un-escape step. The plant is the

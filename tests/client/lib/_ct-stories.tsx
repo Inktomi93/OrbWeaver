@@ -33,7 +33,7 @@ import { __createBusDevlogFixtureForTest, __recordBusEventForTest } from "../../
 // re-export would drag the dev observers into the prod bundle), so the only way to reach it is the path.
 import { __resetLongTaskEvidence, installLongTaskTracer } from "../../../packages/client/src/lib/long-task-tracer.ts";
 import { setFrameDropTrackingPaused } from "../../../packages/client/src/lib/motion-animation-state.ts";
-import { installDeadClassFlagger, motionFlaggersSettled } from "../../../packages/client/src/lib/motion-dead-class-flagger.ts";
+import { installDeadClassFlagger, motionFlaggersDrain, motionFlaggersSettled } from "../../../packages/client/src/lib/motion-dead-class-flagger.ts";
 import { __resetMotionFlags, installMotionFlaggers, MOTION_BUDGETS } from "../../../packages/client/src/lib/motion-flaggers.ts";
 import {
   __resetMotionStats,
@@ -615,9 +615,19 @@ const DEAD_CLASS_BATCH_ROWS = Array.from({ length: 96 }, (_, index) => ({ id: `d
 
 export function MotionFlaggersCssBatchStory(): ReactElement {
   const [show, setShow] = useState(false);
+  const [drains, setDrains] = useState<readonly unknown[] | null>(null);
   useEffect(() => {
     installMotionFlaggers();
   }, []);
+  useEffect(() => {
+    if (!show) {
+      return;
+    }
+    void motionFlaggersDrain().then(async (first) => {
+      const second = await motionFlaggersDrain();
+      setDrains([first, second]);
+    });
+  }, [show]);
   return (
     <div>
       <button type="button" onClick={(): void => setShow(true)}>
@@ -633,6 +643,7 @@ export function MotionFlaggersCssBatchStory(): ReactElement {
           ))}
         </div>
       ) : null}
+      <div data-testid="dead-class-drain-receipts">{drains === null ? "pending" : JSON.stringify(drains)}</div>
     </div>
   );
 }
@@ -650,6 +661,7 @@ const LATE_DEFINED_TOKEN = "orb-ct-late-defined-marker";
 export function DeadClassConfirmStory({ lateDefine }: { readonly lateDefine: boolean }): ReactElement {
   const [reported, setReported] = useState<readonly string[]>([]);
   const [armed, setArmed] = useState(false);
+  const [drain, setDrain] = useState<unknown>(null);
   useEffect(() => {
     let reads = 0;
     installDeadClassFlagger({
@@ -663,6 +675,11 @@ export function DeadClassConfirmStory({ lateDefine }: { readonly lateDefine: boo
       },
     });
   }, [lateDefine]);
+  useEffect(() => {
+    if (armed) {
+      void motionFlaggersDrain().then(setDrain);
+    }
+  }, [armed]);
   return (
     <div>
       <button type="button" onClick={(): void => setArmed(true)}>
@@ -674,6 +691,7 @@ export function DeadClassConfirmStory({ lateDefine }: { readonly lateDefine: boo
           is satisfied by a scan that simply had not happened yet. */}
       <div className={armed ? "orb-ct-always-dead-marker" : undefined}>control</div>
       <div data-testid="dead-class-reports">{reported.join(",")}</div>
+      <div data-testid="dead-class-drain-receipt">{drain === null ? "pending" : JSON.stringify(drain)}</div>
     </div>
   );
 }
