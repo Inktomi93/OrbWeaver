@@ -207,15 +207,35 @@ The behavioral suites are ONE `tests` concept expressed as stages with tier + sc
   exercises the CT suite too, and the visible `--retries=2` makes parallelism flakes RETRY instead of blocking (the CT\_GATE env it replaced retired 2026-07-17). At
   `changed` scope: vitest's own related-test graph over the unit+integration lanes (serial + contract are
   whole-tree-shaped, deferred to push). **The vitest run is wrapped by `scripts/vitest-supervised.mjs`
-  (#345):** vitest 4.1.11's `forks` pool can leave the parent process wedged in `ep_poll` after the run,
-  holding a dead worker's IPC Pipe (upstream vitest #10162/#10057, unfixed in 4.x) — its own 10s
-  `teardownTimeout` backstop only fires when the run finalizes, so a mid-shutdown worker-exit race hangs
-  the parent indefinitely and made `pnpm verify --push` unrunnable. The supervisor tees vitest's output and
-  SIGKILLs the whole process group after an inactivity window (default 5 min; **override with
-  `ORB_TEST_HANG_TIMEOUT_MS`** — raise it if a genuinely slow suite under co-hosted-homelab load ever trips
-  a false kill; a false RED there is safe, a false GREEN is not). On a wedge it reads the fresh
-  `reports/test-report.json` and exits 0 ONLY for a COMPLETE pass — a missing report or a vanished test (the
-  crashed-worker signature) is exit 1, never a false green. Guard: `tests/tooling/vitest-supervised.test.ts`.
+  (#345, re-rooted #1012):** vitest 4.1.11's run path has exactly ONE unbounded await — `Pool.run`'s
+  `await testFinish.promise`, settled only by a worker's `testfileFinished` message or a runner error/exit
+  event — and the CLI reaches `ctx.exit()` (which arms vitest's own unref'd `teardownTimeout` force-exit)
+  only AFTER that run promise resolves. So a worker that dies without settling its task resolver hangs the
+  parent FOREVER, before any backstop is armed: every per-file line prints and the summary never does.
+  There is no upstream remedy to import (re-derived 2026-09-01: no release above 4.1.11; vitest#10057 was
+  closed by its own author as premature and targets a spurious FAILURE, not a hang; vitest#10162 was
+  withdrawn for lack of a repro and reproduced on `threads` too), so the remedy is external and must
+  CONTAIN the wedge, not merely detect it. The supervisor therefore runs **one vitest process per
+  `--project`, sequentially** (`reports/test-shards/<project>.json`, merged into the one
+  `reports/test-report.json` contract) and tees each shard's output. **The kill signal is absence of
+  PROGRESS, not silence** — a truth repair paid for on 2026-09-01, when the old silence-only rule was
+  measured to be the PRIMARY defect: vitest's default reporter prints nothing while a single file runs, and
+  `tests/tooling/ast-observability.int.test.ts` (five rows, each spawning the real `pnpm ast` CLI over the
+  whole ts-morph workspace) held a healthy battery silent for 7+ minutes with a grandchild burning \~4.5
+  cores. So the watchdog samples the CPU jiffies of the shard's parent AND every descendant via `/proc` on
+  each tick; CPU burned anywhere in the tree counts as activity exactly like output. A shard's process
+  group is SIGKILLed only when it has been silent for `ORB_TEST_HANG_TIMEOUT_MS` (default 5 min) **AND**
+  the whole tree burned no CPU across that window — which is precisely the true wedge, every process idle
+  in `ep_poll` at zero CPU. `ORB_TEST_HANG_MAX_MS` (default 30 min) is the absolute silence ceiling. Before
+  the kill it writes `reports/test-wedge-<project>-attempt<n>-<ts>.txt`
+  — the wedged pid's `/proc` state/wchan/fds, the surviving worker tree, and the SUSPECT list (files the
+  shard's previous report named that this run never announced as finished). A shard the watchdog killed is
+  re-run **exactly once**, and only when its own fresh report is not a complete pass: a wedge is a tool
+  error, a red is a verdict, so a shard that FAILS TESTS is never re-run. The verdict predicate is
+  unchanged — exit 0 ONLY for a COMPLETE pass, a missing report or a vanished test (the crashed-worker
+  signature) is exit 1, never a false green — and a contained wedge is announced on stderr and recorded in
+  the merged report's `orbShards[].wedges` so a green never hides one. Guard:
+  `tests/tooling/vitest-supervised.test.ts`.
 - **`browser:ct`** (tiers `changed`/`manual`) — at `manual` it is the CT-ONLY whole-suite iteration lane
   (`pnpm test:ct`, `retries:0`), kept as a named stage so it surfaces in `verify --list` and satisfies
   parity arm 1; a `push`/`full` row would run the suite TWICE (it already rides `tests:node`). At `changed`
