@@ -22,11 +22,11 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(HERE, "..", "..");
 const CHAT_TESTS_DIR = join(REPO_ROOT, "tests/client/features/chat");
 const COMPONENTS_DIR = join(REPO_ROOT, "packages/client/src/features/chat/components");
-// The three homes a chat component's CT can live in (components / surfaces / anchors), under the chat CT tree.
+// The five homes a chat component's CT can live in, under the chat CT tree.
 // Every home a chat CT can live in. `hooks` is included because a component whose whole behaviour is
 // driven through a hook (the slash strip through `use-slash-commands`) is covered by that hook's CT — and a
 // `coveredBy` naming a CT this list can't see would read as DANGLING, which is a false red.
-const CT_DIRS = ["components", "surfaces", "anchors", "hooks"].map((d) => join(CHAT_TESTS_DIR, d));
+const CT_DIRS = ["components", "surfaces", "anchors", "hooks", "lib"].map((d) => join(CHAT_TESTS_DIR, d));
 const TSX_SUFFIX = /\.tsx$/u;
 const CT_SUFFIX = /\.ct\.tsx$/u;
 
@@ -131,6 +131,14 @@ const WAIVERS: Readonly<Record<string, Waiver>> = {
     why: "#490 split the faces strip + 'Filtered: X ✕' chip out of the list SURFACE under the 450-line cap; they render inside it and chat-list-surface.ct drives both (face tap scopes the list, the chip clears it).",
   },
   "chat-list-row-menu": { coveredBy: "chat-list-surface", why: "the per-row menu is driven through the real list rows in chat-list-surface.ct." },
+  "appearance-chat-style-cards": {
+    coveredBy: "appearance-message-style-section",
+    why: "appearance-message-style-section.ct drives the real style-card grid's persisted selection, every mode's name/gloss/preview anatomy, and the pressed-state transition that patches chatStyle.",
+  },
+  "chat-context-band": {
+    coveredBy: "chats-section",
+    why: "chats-section.ct drives the real context band's whole room title, members/memory/preset chips, readable and coarse-pointer floors, and members-chip navigation in both directions.",
+  },
 
   // chat-summary-row has a dedicated logic test (the row's derivation), not a CT — named here so the
   // ledger stays exhaustive.

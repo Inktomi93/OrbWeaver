@@ -4,6 +4,36 @@
   "issue": 5,
   "entries": [
     {
+      "path": "docs/design/951-css-family-semantic-provenance.md",
+      "assignedSha256": "0ceecbfde36383977417f1ba15beaba7b7b6900feaaa45336c16260a55be7284",
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "0ceecbfde36383977417f1ba15beaba7b7b6900feaaa45336c16260a55be7284",
+      "verifiedCommit": "4fde7115f19215a66ba01248149b3c6d291c2880",
+      "verifiedAt": "2026-08-31",
+      "evidence": [
+        "docs/design/951-css-family-semantic-provenance.md:1 (full read; terminal-carrier architecture, module boundaries, red-first plan, and static declared limits)",
+        "git:4fde7115f19215a66ba01248149b3c6d291c2880 (integrated #951 design and implementation bytes)"
+      ],
+      "summary": "Active #951 design for declaration-level CSS-family provenance over the shared #961 evaluator, with exact rendered terminals, DOM declaration proof, module boundaries, planted controls, and explicit static limits.",
+      "claims": [
+        {
+          "claim": "CSS-family ownership is defined at proven rendered terminals over the shared #961 static evaluator, with counterfeit spellings and unsupported runtime shapes explicitly excluded.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#951"
+            },
+            {
+              "kind": "provenance",
+              "target": "git:4fde7115f19215a66ba01248149b3c6d291c2880"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "path": "docs/design/953-appearance-invariant-matrix.md",
       "assignedSha256": "35041300c6e73581434944ccb0166958ff948f6f522c4a4bc983debd44dcd755",
       "disposition": "current",
@@ -31,6 +61,33 @@
             {
               "kind": "provenance",
               "target": "git:78788014d89708280ccd527abaf1044513ff58b9"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/design/961-static-class-provenance-repair.md",
+      "assignedSha256": "0078cc298da95842fca5f810ffc4e0c6b25e75b65cc2515a9d4397bc934d21a2",
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "0078cc298da95842fca5f810ffc4e0c6b25e75b65cc2515a9d4397bc934d21a2",
+      "verifiedCommit": "0952cc4623ea0bca4dd8b3b55984866d04ec6ca9",
+      "verifiedAt": "2026-08-31",
+      "evidence": ["docs/design/961-static-class-provenance-repair.md:1 (full read; red-first repair design and declared residual limits)"],
+      "summary": "Implemented #961 repair design for return-position composer ownership, local namespace re-exports, and JavaScript-correct object-spread overwrite/opacity semantics.",
+      "claims": [
+        {
+          "claim": "The three cold-refuted static-class semantics were repaired through work item #961.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#961"
+            },
+            {
+              "kind": "provenance",
+              "target": "git:0952cc4623ea0bca4dd8b3b55984866d04ec6ca9"
             }
           ]
         }
@@ -81,57 +138,29 @@
       ]
     },
     {
-      "path": "docs/design/951-css-family-semantic-provenance.md",
-      "assignedSha256": "0ceecbfde36383977417f1ba15beaba7b7b6900feaaa45336c16260a55be7284",
+      "path": "docs/design/995-production-boot-boundary.md",
+      "assignedSha256": "6c7d3b619bdd6e8e9d3d427eee95274af7ddb770733c548f972e85bee852be45",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "0ceecbfde36383977417f1ba15beaba7b7b6900feaaa45336c16260a55be7284",
-      "verifiedCommit": "4fde7115f19215a66ba01248149b3c6d291c2880",
-      "verifiedAt": "2026-08-31",
+      "verifiedSha256": "6c7d3b619bdd6e8e9d3d427eee95274af7ddb770733c548f972e85bee852be45",
+      "verifiedCommit": "9a4bee47ab1b21cd68c291c80e1704b486200dd8",
+      "verifiedAt": "2026-09-01",
       "evidence": [
-        "docs/design/951-css-family-semantic-provenance.md:1 (full read; terminal-carrier architecture, module boundaries, red-first plan, and static declared limits)",
-        "git:4fde7115f19215a66ba01248149b3c6d291c2880 (integrated #951 design and implementation bytes)"
+        "full-read #995 design re-attested against content commit 9a4bee47ab1b21cd68c291c80e1704b486200dd8; focused CT 6/6, ratchet unit 13/13, gate conformance, type programs, structure 244/244, and production boot 818,188/859,000 all passed"
       ],
-      "summary": "Active #951 design for declaration-level CSS-family provenance over the shared #961 evaluator, with exact rendered terminals, DOM declaration proof, module boundaries, planted controls, and explicit static limits.",
+      "summary": "Implemented #995 as one lean production readiness home shared by the DEV-only agent bridge, with structural anti-reachability controls and a measured boot-ratchet recalibration.",
       "claims": [
         {
-          "claim": "CSS-family ownership is defined at proven rendered terminals over the shared #961 static evaluator, with counterfeit spellings and unsupported runtime shapes explicitly excluded.",
+          "claim": "Production readiness and dev instrumentation are separated without duplicating readiness state or removing #953 debug capabilities.",
           "evidence": [
             {
               "kind": "issue",
-              "target": "#951"
+              "target": "#995"
             },
             {
               "kind": "provenance",
-              "target": "git:4fde7115f19215a66ba01248149b3c6d291c2880"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "path": "docs/design/961-static-class-provenance-repair.md",
-      "assignedSha256": "0078cc298da95842fca5f810ffc4e0c6b25e75b65cc2515a9d4397bc934d21a2",
-      "disposition": "current",
-      "authority": "design",
-      "fullRead": true,
-      "verifiedSha256": "0078cc298da95842fca5f810ffc4e0c6b25e75b65cc2515a9d4397bc934d21a2",
-      "verifiedCommit": "0952cc4623ea0bca4dd8b3b55984866d04ec6ca9",
-      "verifiedAt": "2026-08-31",
-      "evidence": ["docs/design/961-static-class-provenance-repair.md:1 (full read; red-first repair design and declared residual limits)"],
-      "summary": "Implemented #961 repair design for return-position composer ownership, local namespace re-exports, and JavaScript-correct object-spread overwrite/opacity semantics.",
-      "claims": [
-        {
-          "claim": "The three cold-refuted static-class semantics were repaired through work item #961.",
-          "evidence": [
-            {
-              "kind": "issue",
-              "target": "#961"
-            },
-            {
-              "kind": "provenance",
-              "target": "git:0952cc4623ea0bca4dd8b3b55984866d04ec6ca9"
+              "target": "git:9a4bee47ab1b21cd68c291c80e1704b486200dd8"
             }
           ]
         }
@@ -343,66 +372,6 @@
       "summary": "Context bracket build design (#860): the shell renders ONE column for every tabs context pane (head band → optional state rail → viewport → ground → meta rail at the foot); the rpg claim shrinks to a head-band claim; the generic Detail tablist and ContextRegionHost retire; rail model universal (#112); topbar yields to the band while docked (#846); the receded rail gets fill + floor (#861); six forks ruled; the #830 CT reds recorded as pre-existing."
     },
     {
-      "path": "docs/design/design-audit-subject-accounting-976.md",
-      "assignedSha256": "ddfe683a142a68e88fa736e74be5999ce58282c22da54f50455f3e39e2fb85d3",
-      "disposition": "current",
-      "authority": "design",
-      "fullRead": true,
-      "verifiedSha256": "ddfe683a142a68e88fa736e74be5999ce58282c22da54f50455f3e39e2fb85d3",
-      "verifiedCommit": "af6e7e187648d4f20ee5f4f37e112bdbb287df3f",
-      "verifiedAt": "2026-08-31",
-      "evidence": [
-        "docs/design/design-audit-subject-accounting-976.md:1 (full read; reproduced timing defect, exact subject accounting, theme provenance, rejected alternatives, coupled sites, red-first controls, and the #953 matrix boundary)",
-        "git:af6e7e187648d4f20ee5f4f37e112bdbb287df3f (content commit whose tree contains the verified design blob and implemented #976 proof)"
-      ],
-      "summary": "Implemented #976 design for fail-loud design-audit subject accounting and requested-versus-actual theme provenance, including late-mount and same-count replacement controls without duplicating the #953 appearance matrix.",
-      "claims": [
-        {
-          "claim": "Design-audit now judges one settled identity snapshot exactly and rejects population mutation or unresolved requested-versus-actual theme evidence as instrument error.",
-          "evidence": [
-            {
-              "kind": "issue",
-              "target": "#976"
-            },
-            {
-              "kind": "provenance",
-              "target": "git:af6e7e187648d4f20ee5f4f37e112bdbb287df3f"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "path": "docs/design/motion-audit-mobile-environment-977.md",
-      "assignedSha256": "ec1aac93ec06f4e92d8e6ac1061b94b12d32e1a882c9cd82bc650091994e7c1e",
-      "disposition": "current",
-      "authority": "design",
-      "fullRead": true,
-      "verifiedSha256": "ec1aac93ec06f4e92d8e6ac1061b94b12d32e1a882c9cd82bc650091994e7c1e",
-      "verifiedCommit": "db07e6cb175bf6c6260ec339f42268bc341185fa",
-      "verifiedAt": "2026-08-31",
-      "evidence": [
-        "docs/design/motion-audit-mobile-environment-977.md:1 (full read; shared full-device contract, runtime fingerprint, rejected viewport-only arm, coupled sites, red-first controls, and live proof)",
-        "git:db07e6cb175bf6c6260ec339f42268bc341185fa (content commit whose tree contains the verified design blob and implemented #977 proof)"
-      ],
-      "summary": "Implemented #977 design for a shared full-device launch contract and fail-loud requested-versus-actual mobile runtime evidence in motion-audit, without adding a copied appearance matrix.",
-      "claims": [
-        {
-          "claim": "Motion-audit now uses the shared full mobile descriptor and refuses a motion verdict when viewport, screen, user agent, DPR, touch, pointer, or hover evidence contradicts the launcher-owned contract.",
-          "evidence": [
-            {
-              "kind": "issue",
-              "target": "#977"
-            },
-            {
-              "kind": "provenance",
-              "target": "git:db07e6cb175bf6c6260ec339f42268bc341185fa"
-            }
-          ]
-        }
-      ]
-    },
-    {
       "path": "docs/design/css-merge-trace.md",
       "assignedSha256": "45f9fb5719a2e44eb9acdec96863145b88fbc164316b0ed74f376302ce734196",
       "disposition": "current",
@@ -489,6 +458,36 @@
             {
               "kind": "issue",
               "target": "#54"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/design/design-audit-subject-accounting-976.md",
+      "assignedSha256": "ddfe683a142a68e88fa736e74be5999ce58282c22da54f50455f3e39e2fb85d3",
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "ddfe683a142a68e88fa736e74be5999ce58282c22da54f50455f3e39e2fb85d3",
+      "verifiedCommit": "af6e7e187648d4f20ee5f4f37e112bdbb287df3f",
+      "verifiedAt": "2026-08-31",
+      "evidence": [
+        "docs/design/design-audit-subject-accounting-976.md:1 (full read; reproduced timing defect, exact subject accounting, theme provenance, rejected alternatives, coupled sites, red-first controls, and the #953 matrix boundary)",
+        "git:af6e7e187648d4f20ee5f4f37e112bdbb287df3f (content commit whose tree contains the verified design blob and implemented #976 proof)"
+      ],
+      "summary": "Implemented #976 design for fail-loud design-audit subject accounting and requested-versus-actual theme provenance, including late-mount and same-count replacement controls without duplicating the #953 appearance matrix.",
+      "claims": [
+        {
+          "claim": "Design-audit now judges one settled identity snapshot exactly and rejects population mutation or unresolved requested-versus-actual theme evidence as instrument error.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#976"
+            },
+            {
+              "kind": "provenance",
+              "target": "git:af6e7e187648d4f20ee5f4f37e112bdbb287df3f"
             }
           ]
         }
@@ -757,6 +756,36 @@
         "docs/design/mocks/README.md: re-attested at c41bcfa25fbe49071aa47cc952f96fb80af3069f — config-revamp row appended"
       ],
       "summary": "docs/design/mocks — frozen design drawings: full content read against frozen tree; landed-state record retained as historical evidence."
+    },
+    {
+      "path": "docs/design/motion-audit-mobile-environment-977.md",
+      "assignedSha256": "ec1aac93ec06f4e92d8e6ac1061b94b12d32e1a882c9cd82bc650091994e7c1e",
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "ec1aac93ec06f4e92d8e6ac1061b94b12d32e1a882c9cd82bc650091994e7c1e",
+      "verifiedCommit": "db07e6cb175bf6c6260ec339f42268bc341185fa",
+      "verifiedAt": "2026-08-31",
+      "evidence": [
+        "docs/design/motion-audit-mobile-environment-977.md:1 (full read; shared full-device contract, runtime fingerprint, rejected viewport-only arm, coupled sites, red-first controls, and live proof)",
+        "git:db07e6cb175bf6c6260ec339f42268bc341185fa (content commit whose tree contains the verified design blob and implemented #977 proof)"
+      ],
+      "summary": "Implemented #977 design for a shared full-device launch contract and fail-loud requested-versus-actual mobile runtime evidence in motion-audit, without adding a copied appearance matrix.",
+      "claims": [
+        {
+          "claim": "Motion-audit now uses the shared full mobile descriptor and refuses a motion verdict when viewport, screen, user agent, DPR, touch, pointer, or hover evidence contradicts the launcher-owned contract.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#977"
+            },
+            {
+              "kind": "provenance",
+              "target": "git:db07e6cb175bf6c6260ec339f42268bc341185fa"
+            }
+          ]
+        }
+      ]
     },
     {
       "path": "docs/design/note-token-intent-history.md",

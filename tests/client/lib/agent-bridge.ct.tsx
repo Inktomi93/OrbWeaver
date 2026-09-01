@@ -1,4 +1,4 @@
-// CT: the `data-app-ready` readiness signal (`lib/agent-bridge.ts`) — the flag EVERY verification instrument
+// CT: the `data-app-ready` readiness signal (`lib/app-ready-signal.ts`) — the flag EVERY verification instrument
 // waits on (snap's nav gate, design-audit, motion-audit, the e2e browser actors).
 //
 // WHY IT EXISTS. The signal used to hand the flag over unconditionally 3s after install, whether or not the
@@ -26,11 +26,14 @@ test("the mounted bridge publishes every typed capability and every evidence lif
   });
   await mount(<AgentBridgeStory />);
   await expect(page.getByTestId("bridge-installed")).toBeVisible();
+  await expect(page.getByTestId("bridge-ready-shared")).toHaveText("shared");
+  await expect(page.locator(READY_FLAG)).toBeAttached();
   const receipt = await page.evaluate(async () => {
     const orb = globalThis.__orb;
     if (orb === undefined) {
       throw new Error("__orb was not installed");
     }
+    await orb.ready;
     const capabilities = orb.capabilities();
     const namedRingRefusal = orb.resetRing("not-indexed");
     orb.resetFlags();
@@ -41,7 +44,7 @@ test("the mounted bridge publishes every typed capability and every evidence lif
     orb.setMotionAuditDropTrackingPaused(false);
     const answers = {
       ready: typeof orb.ready.then === "function",
-      isReady: typeof orb.isReady() === "boolean",
+      isReady: orb.isReady(),
       queries: Array.isArray(orb.queries()),
       bus: typeof orb.bus().live === "number" && Array.isArray(orb.bus().events),
       shell: typeof orb.shell().chatOpen === "boolean",
@@ -262,7 +265,7 @@ test("safe ring resets are isolated, preserve bus liveness, and unsafe names ref
 test("the flag does NOT go up while the initial reads are still in flight — the grace is a CHECK, not a hand-out", async ({ mount, page }) => {
   await mount(<AppReadySignalStory />);
 
-  // The barrier is the story's own rendered marker, fired past agent-bridge's 3s grace. Under the old
+  // The barrier is the story's own rendered marker, fired past app-ready-signal's 3s grace. Under the old
   // hand-out the flag was already up by now, on an app whose only read had not landed.
   await expect(page.getByTestId("grace-elapsed")).toBeVisible();
   await expect(page.locator(READY_FLAG)).toHaveCount(0);

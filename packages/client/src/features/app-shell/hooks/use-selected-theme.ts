@@ -61,7 +61,7 @@ export function useSelectedTheme(): { readonly theme: Theme | null; readonly dat
       rememberDataThemeHint(authoritative);
     }
   }, [resolved, authoritative]);
-  // THE BOOT-CRITICAL READ (#282). Readiness (`data-app-ready`, agent-bridge.ts) must not settle in the GAP
+  // THE BOOT-CRITICAL READ (#282). Readiness (`data-app-ready`, app-ready-signal.ts) must not settle in the GAP
   // between `settings.getUserSettings` resolving and the CHAINED `settings.getTheme` STARTING — the cache is
   // momentarily idle there and the boot veil would lift onto the base palette a beat before the resolved
   // theme swaps it (the cold-cache polarity flash on a device with no boot hint). Hold readiness while the

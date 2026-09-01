@@ -86,7 +86,7 @@ test("capabilities() exposes canonical targets and the mounted surface's publish
       "imageEdit",
       "pluginDialog",
       "pluginCommandArgs",
-      "savedCasts",
+      "savedRosters",
     ],
     // The closed config-group vocabulary (#866 S1, owner fork F-1): the nine settings groups + the four collections.
     configGroups: [
@@ -101,7 +101,7 @@ test("capabilities() exposes canonical targets and the mounted surface's publish
       "tags",
       "regex",
       "worldInfo",
-      "cast",
+      "rosterPreset",
       "plugins",
     ],
     contextTabs: ["runs", "setup"],

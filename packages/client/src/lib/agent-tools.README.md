@@ -6,7 +6,8 @@ one-line hint pointing here.
 
 ## `window.__orb` — the introspection handle (dev only)
 
-Read app state in ONE eval instead of scraping the DOM. Installed from `main.tsx` (`agent-bridge.ts`).
+Read app state in ONE eval instead of scraping the DOM. `main.tsx` reaches `agent-bridge.ts` only through
+the literal `import.meta.env.DEV` dynamic `agent-handles/index.ts` door.
 
 | Call | Returns |
 | - | - |
@@ -68,7 +69,7 @@ window under `evidence`, so neither phase can contaminate or erase the other.
 
 ## `data-app-ready` — the readiness wait target (dev + prod)
 
-`agent-bridge.ts` sets `data-app-ready` on `<html>` once the query cache first goes idle after the
+`app-ready-signal.ts` sets `data-app-ready` on `<html>` once the query cache first goes idle after the
 initial reads — SSE subscriptions are NOT queries, so it fires with the chat-bus stream still open. Use
 it instead of network-idle, which hangs on the never-idle SSE connection:
 

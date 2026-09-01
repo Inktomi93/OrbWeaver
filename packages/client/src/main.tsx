@@ -34,7 +34,7 @@ import { AppToaster, BootVeil } from "#features/app-shell";
 import { AppErrorBoundary, bindNotify, buildClientErrorPayload, createToastNotify } from "#lib";
 import { stampAppearanceBootHint } from "#state";
 import { queryClient, trpcClient, trpcProxy } from "./compose/app-singletons.ts";
-import { installAppReadySignal } from "./lib/agent-bridge.ts";
+import { installAppReadySignal } from "./lib/app-ready-signal.ts";
 import { routeResolution, router } from "./routes/router.tsx";
 import "./styles/index.ts";
 
