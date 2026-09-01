@@ -10,6 +10,7 @@
 
 import type { QueryClient } from "@tanstack/react-query";
 import type { OrbAgentHandles, OrbCssHandle, OrbNavHandle, OrbRpgReader, OrbSeedHandle, QuerySummary, ShellSnapshot } from "./agent-bridge-handles.ts";
+import { flagCounts, motionSummary } from "./agent-bridge-summary.ts";
 import type { OrbAutomationFiresFilter, OrbPluginLogReader } from "./agent-plugin-bridge.ts";
 import { readAutomationFires } from "./agent-plugin-bridge.ts";
 import type { AppearanceMatrixContract, AppearanceMatrixContractRow } from "./appearance-carrier-manifest.ts";
@@ -280,44 +281,6 @@ const ORB_RINGS: readonly OrbRingMetadata[] = ORB_RING_NAMES.map((name) => ({ na
 declare global {
   // `var` is required: ambient global augmentation must use var to attach to globalThis.
   var __orb: OrbDebugHandle | undefined;
-}
-
-/** The compact motion line for snap(): ring depth + the headline jank numbers + the checkpoint's dirty
- *  animation flag count. The explicit `.animations()` deep scan remains available, but running
- *  `document.getAnimations()` inside every cheap snapshot forces a style walk and made the auditor create
- *  layout frames on large surfaces. `observedCls` rides beside `cls` because the CWV metric
- *  excludes input-adjacent shifts and therefore reads ~0 through the exact interaction-driven relayout
- *  storms this line exists to surface (motion-stats.ts header) — a summary carrying only `cls` says
- *  "clean" about a shell that is thrashing. `nonVirtualizedCls` rides here for the mirror reason (issue
- *  #109): it is the total the motion budget actually gates on, and a summary carrying only `cls` says
- *  "over budget" about a long thread whose whole score is the virtualizer settling. */
-function motionSummary(): {
-  loafs: number;
-  worstBlocking: number;
-  cls: number;
-  observedCls: number;
-  nonVirtualizedCls: number;
-  dirtyAnimationFlags: number;
-} {
-  const m = motionSnapshot();
-  return {
-    loafs: m.loafs.length,
-    worstBlocking: m.worstBlocking,
-    cls: m.cls,
-    observedCls: m.observedCls,
-    nonVirtualizedCls: m.nonVirtualizedCls,
-    dirtyAnimationFlags: motionFlags().filter((flag) => flag.tag === "anim").length,
-  };
-}
-
-/** Raised motion flags counted per channel, for `snap()`'s one-call overview. The ring itself is the
- *  actionable artifact (`__orb.flags()`); this is the "is anything wrong at all" line. */
-function flagCounts(): Record<string, number> {
-  const counts: Record<string, number> = {};
-  for (const flag of motionFlags()) {
-    counts[flag.tag] = (counts[flag.tag] ?? 0) + 1;
-  }
-  return counts;
 }
 
 export function installAgentDebugHandle(queryClient: QueryClient, handles: OrbAgentHandles): void {
