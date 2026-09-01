@@ -12660,31 +12660,32 @@
       "lane": "design",
       "issue": 5,
       "lines": 235,
-      "bytes": 18470,
-      "sha256": "97caa37e86181a07da40d0d55cb97d8e4942d34e43fcfc4bf978af81c0e6f412",
+      "bytes": 18472,
+      "sha256": "5c42e095216d9f3f9789c6645cd65848ff06e52db2f78ab86aa14cbcce0f6b0a",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "design",
-          "status": "active",
+          "status": "archived",
           "updated": "2026-09-01"
         },
         "errors": []
       },
       "receipt": {
         "path": "docs/design/state-paint-census.md",
-        "assignedSha256": "97caa37e86181a07da40d0d55cb97d8e4942d34e43fcfc4bf978af81c0e6f412",
-        "disposition": "current",
+        "assignedSha256": "5c42e095216d9f3f9789c6645cd65848ff06e52db2f78ab86aa14cbcce0f6b0a",
+        "disposition": "archive",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "97caa37e86181a07da40d0d55cb97d8e4942d34e43fcfc4bf978af81c0e6f412",
-        "verifiedCommit": "c65bc72154640a2a06a874ffdb52d715d2612a75",
+        "verifiedSha256": "5c42e095216d9f3f9789c6645cd65848ff06e52db2f78ab86aa14cbcce0f6b0a",
+        "verifiedCommit": "489967ae993e09d7e93197cbc68ce302c440aac9",
         "verifiedAt": "2026-09-01",
         "evidence": [
           "docs/design/state-paint-census.md:1 (full read; defect class, one-segment architecture, attribute classification, rejected alternatives, coupled sites, two-direction test plan, ratified CTA-glow exemption)",
           "git:ed55bf1933c4d653f75d1117c50894b7612805a1 (integrated #996 design and implementation bytes)",
-          "docs/design/state-paint-census.md:203 (delta read at the F1 landing: the fork bullet now states the per-element WeakMap cache granularity and the currentColor twin pin)"
+          "docs/design/state-paint-census.md:203 (delta read at the F1 landing: the fork bullet now states the per-element WeakMap cache granularity and the currentColor twin pin)",
+          "docs/design/state-paint-census.md:3 (frontmatter status active -> archived at program close, #996 Done)"
         ],
         "summary": "Active #996 design for the state-paint census: one escape-aware :hover predicate + classified Base UI attribute-state vocabulary replacing three blind walker sites, attribute forcing riding the existing forced-state pass, population polarity named per withheld class, and the owner-ratified token-derivation CTA-glow exemption.",
         "claims": [
