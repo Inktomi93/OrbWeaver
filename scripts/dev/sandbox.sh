@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 # scripts/dev/sandbox.sh — one-shot launcher for the Claude Code sandbox (.devcontainer/) WITHOUT
 # VS Code: ensures the dev container is built + running (devcontainers CLI, idempotent), then opens
-# a NEW terminal window shelled into it with Claude already started. When Claude
-# exits, the window drops to a zsh inside the container instead of closing (so `pnpm check` etc.
-# are one keystroke away). HOST-side script — never run inside the container ($DEVCONTAINER guard).
+# a NEW terminal window shelled into it with Claude already started in permissive mode
+# (`--dangerously-skip-permissions` — the container + firewall are the boundary; owner ruling
+# 2026-09-01: the point of the dev container is to run without prompts). When Claude exits, the window
+# drops to a zsh inside the container instead of closing (so `pnpm check` etc. are one keystroke
+# away). HOST-side script — never run inside the container ($DEVCONTAINER guard).
 #
 #   pnpm sandbox              build/start + open Claude in a new terminal window
 #   pnpm sandbox --here       same, but in THIS terminal (no new window; also the SSH fallback)
 #   pnpm sandbox --shell      open a plain zsh in the container instead of Claude
 #   pnpm sandbox --rebuild    force-rebuild the container first (after editing .devcontainer/*)
-#   pnpm sandbox --unsafe-bypass-permissions
-#                             explicitly disable Claude permission confirmations (unsafe)
 #
 # Extra args pass through to claude: `pnpm sandbox -- --resume`.
 set -euo pipefail
@@ -26,45 +26,17 @@ fi
 HERE=0
 SHELL_ONLY=0
 REBUILD=0
-UNSAFE_BYPASS=0
 CLAUDE_ARGS=()
 while [ $# -gt 0 ]; do
   case "$1" in
     --here) HERE=1 ;;
     --shell) SHELL_ONLY=1 ;;
     --rebuild) REBUILD=1 ;;
-    --unsafe-bypass-permissions) UNSAFE_BYPASS=1 ;;
     --) shift; CLAUDE_ARGS+=("$@"); break ;;
     *) CLAUDE_ARGS+=("$1") ;;
   esac
   shift
 done
-
-refuse_raw_bypass() {
-  echo "Raw Claude permission bypass flags are refused. Use --unsafe-bypass-permissions before -- to accept the risk explicitly." >&2
-  exit 2
-}
-
-reject_raw_bypass_args() {
-  local previous=""
-  local arg
-  for arg in "$@"; do
-    case "$arg" in
-      --dangerously-skip-permissions|--dangerously-skip-permissions=*|--allow-dangerously-skip-permissions|--allow-dangerously-skip-permissions=*|--permission-mode=bypassPermissions)
-        refuse_raw_bypass
-        ;;
-      bypassPermissions)
-        if [ "$previous" = "--permission-mode" ]; then
-          refuse_raw_bypass
-        fi
-        ;;
-    esac
-    previous="$arg"
-  done
-}
-
-# Raw Claude flags must not bypass the launcher's named warning path, including args after `--`.
-reject_raw_bypass_args "${CLAUDE_ARGS[@]}"
 
 # 1. Ensure the container is up (idempotent: reuses a running one, starts a stopped one, builds on
 #    first run). --remove-existing-container only on --rebuild.
@@ -75,18 +47,12 @@ fi
 echo "▶ ensuring the sandbox container is up (first build takes a few minutes)…"
 npx --yes @devcontainers/cli "${UP_ARGS[@]}"
 
-# 2. The command that runs INSIDE the container. Confirmations stay enabled by default because the
-#    host workspace is bind-mounted and the container can reach the host subnet. On exit, fall
-#    through to zsh.
+# 2. The command that runs INSIDE the container. Claude in permissive mode is the point of the
+#    sandbox (the firewall + container are the boundary); on exit, fall through to zsh.
 if [ "$SHELL_ONLY" = 1 ]; then
   INNER='exec zsh -l'
 else
-  INNER='claude --permission-mode default'
-  if [ "$UNSAFE_BYPASS" = 1 ]; then
-    UNSAFE_WARNING='UNSAFE: Claude permission confirmations are disabled; the host workspace is bind-mounted.'
-    echo "$UNSAFE_WARNING" >&2
-    INNER="printf '%s\\n' $(printf '%q' "$UNSAFE_WARNING") >&2; claude --dangerously-skip-permissions"
-  fi
+  INNER='claude --dangerously-skip-permissions'
   for a in ${CLAUDE_ARGS[@]+"${CLAUDE_ARGS[@]}"}; do
     INNER="$INNER $(printf '%q' "$a")"
   done
