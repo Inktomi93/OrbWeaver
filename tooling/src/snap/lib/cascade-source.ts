@@ -37,6 +37,7 @@ export function classifyCascadeSource(input: {
     return "opaque";
   }
   let path: string;
+  // @orb-gate-ignore caught-failure-ownership(empty:catch): malformed or unsupported source URLs fail closed to `opaque`, which never counts as a repository declaration. Ends if opaque sources become trusted or satisfy the nonzero repository population.
   try {
     path = decodeURIComponent(new URL(input.sourceUrl, "http://orb.invalid").pathname);
   } catch {

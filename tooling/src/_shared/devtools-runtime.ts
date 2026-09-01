@@ -73,6 +73,7 @@ function validateInputs(inputs: readonly DevToolsCascadeInput[]): void {
 async function debugPort(profileDir: string): Promise<number> {
   const file = join(profileDir, "DevToolsActivePort");
   for (let attempt = 0; attempt < DEBUG_PORT_ATTEMPTS; attempt += 1) {
+    // @orb-gate-ignore caught-failure-ownership(empty:catch): Chrome creates this file only after binding the ephemeral endpoint; the bounded retry loop owns the race and throws when its budget expires. Ends if exhaustion stops throwing.
     try {
       const [line] = (await readFile(file, "utf8")).split("\n");
       const port = Number(line);
@@ -314,11 +315,13 @@ export async function prepareDevToolsCascadeRuntime(assetRoot: string): Promise<
         }
         closed = true;
         const failures: unknown[] = [];
+        // @orb-gate-ignore caught-failure-ownership(empty:error): cleanup failures are retained in `failures` and surfaced together as the terminal AggregateError below. Ends if the aggregate throw is removed.
         try {
           await ownedServer.close();
         } catch (error) {
           failures.push(error);
         }
+        // @orb-gate-ignore caught-failure-ownership(empty:error): cleanup failures are retained in `failures` and surfaced together as the terminal AggregateError below. Ends if the aggregate throw is removed.
         try {
           await rm(tempRoot, { recursive: true, force: true });
         } catch (error) {
@@ -330,10 +333,14 @@ export async function prepareDevToolsCascadeRuntime(assetRoot: string): Promise<
       },
     };
   } catch (error) {
+    const failures: unknown[] = [error];
     if (server !== null) {
-      await server.close().catch(() => undefined);
+      // @orb-gate-ignore caught-failure-ownership(promise:close): initialization cleanup joins the original failure in the AggregateError below. Ends if cleanup errors stop being appended or the aggregate throw is removed.
+      await server.close().catch((cleanupError: unknown) => failures.push(cleanupError));
     }
-    await rm(tempRoot, { recursive: true, force: true }).catch(() => undefined);
-    throw new Error(`DevTools cascade runtime failed to initialize: ${message(error)}`, { cause: error });
+    // @orb-gate-ignore caught-failure-ownership(promise:rm): initialization cleanup joins the original failure in the AggregateError below. Ends if cleanup errors stop being appended or the aggregate throw is removed.
+    await rm(tempRoot, { recursive: true, force: true }).catch((cleanupError: unknown) => failures.push(cleanupError));
+    // biome-ignore lint/style/useErrorCause: the caught error is the first AggregateError member; cleanup errors follow it without hiding either failure.
+    throw new AggregateError(failures, `DevTools cascade runtime failed to initialize: ${message(error)}`);
   }
 }

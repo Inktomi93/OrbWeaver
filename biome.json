@@ -20,6 +20,7 @@
       "!packages/ui/src/tokens/index.ts",
       "!packages/ui/src/tokens/themes.gen.ts",
       "!packages/ui/src/styles/theme.css",
+      "!tooling/src/snap/lib/devtools-frontend",
       "!**/__g_*",
       "!**/__dc_*",
       "!**/node_modules",

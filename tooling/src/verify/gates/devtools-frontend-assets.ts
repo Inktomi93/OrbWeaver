@@ -80,17 +80,24 @@ export const gate: GateDescriptor = {
   scopeSafety: "whole-project",
   fsBacked: true,
   message:
-    "the revision-matched official DevTools frontend closure is missing, stale, hash-drifted, path-open, license-incomplete, or disagrees with the installed Playwright/Chromium tuple; cascade provenance would be blind or non-hermetic",
+    "the revision-matched official DevTools frontend closure is missing, stale, hash-drifted, path-open, license-incomplete, or disagrees with the installed Playwright/Chromium tuple; cascade provenance would be blind or non-hermetic (docs/architecture/core/Core-Tooling-Law.md §2.6)",
   fix: "run `pnpm snap:devtools-assets` for the ratified tuple, inspect the closure/license delta, and commit the generated root as one change",
   run: (ctx) => {
     const root = join(ctx.root, ASSET_ROOT);
     if (!existsSync(join(ctx.root, PIN_REL))) {
       if (existsSync(join(ctx.root, REAL_TREE_ANCHOR))) {
         ctx.scan({ unit: "resource", candidates: 1, scanned: 0 });
-        ctx.report({ file: PIN_REL, line: 0, column: 0, token: "missing-closure", message: `the official DevTools asset pin is missing: ${PIN_REL}` });
+        ctx.report({
+          file: PIN_REL,
+          line: 0,
+          column: 0,
+          token: "missing-closure",
+          message: `the official DevTools asset pin is missing: ${PIN_REL} (docs/architecture/core/Core-Tooling-Law.md §2.6)`,
+        });
       }
       return;
     }
+    // @orb-gate-ignore caught-failure-ownership(empty:error): every validator failure is converted into this gate's asset-contract finding and zero-scan receipt. Ends if the catch stops reporting the failure detail.
     try {
       const assets = verifyDevToolsAssetsSync(root);
       ctx.scan({ unit: "resource", candidates: assets.pin.resourceCount, scanned: assets.manifest.resources.length });
