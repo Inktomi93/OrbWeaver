@@ -165,10 +165,11 @@
       "disposition": "current",
       "authority": "operational",
       "fullRead": true,
-      "verifiedSha256": "a3f6589bb2bd0035da31297dcb83438f3e979858bca8654ba7ea3b1e3e0eb768",
-      "verifiedCommit": "5d64aa1c651ddf3681835c4c513544cbc2328545",
-      "verifiedAt": "2026-08-31",
+      "verifiedSha256": "73a8838859131ee80dcce22bf29247388ed2cf66618e3f99e1e984ac1b7fa671",
+      "verifiedCommit": "9a4bee47ab1b21cd68c291c80e1704b486200dd8",
+      "verifiedAt": "2026-09-01",
       "evidence": [
+        "re-attested at 9a4bee47ab1b21cd68c291c80e1704b486200dd8 (#995): the agent-bridge-lock row records the lean production readiness home, shared debug Promise/query, and DEV-only bridge boundary; focused CT passed 6/6, gate conformance passed, and check:structure completed 244/244 active gates clean",
         "re-attested at db116d91ee1fcc6ee14ea915f1da0922cb8e84bd (#881/#882): tooling-instrument-proof evidence 8/8, focused UI twins 4/4 and conformance 6/6; design-audit-rule-proof UI audit 106/106, walker 53/53, conformance 8/8 and check-gates 8/8; merged check:structure clean at 243/243",
         "re-attested at 7b7eb54b2 under #950 — devtools-frontend-assets records the exact tuple/hash/MIME/license/inventory/path closure and the discovered active count is 242",
         "re-attested at 5a9a9ada3 — css-selector-has-a-writer is registered with its semantic JSX/DOM/HAST/shared-provenance/vendor-contract reach and the discovered active count is 240; focused proof passed 18/18",
@@ -215,6 +216,19 @@
       ],
       "claims": [
         {
+          "claim": "The agent bridge gate prevents the dev graph from re-entering production and prevents debug readiness from forking the production signal.",
+          "evidence": [
+            {
+              "kind": "gate",
+              "target": "tooling/src/verify/gates/agent-bridge-lock.ts:147"
+            },
+            {
+              "kind": "issue",
+              "target": "#995"
+            }
+          ]
+        },
+        {
           "claim": "Package layout gate.",
           "evidence": [
             {
@@ -233,7 +247,7 @@
           ]
         }
       ],
-      "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
+      "summary": "Active enforcement registry re-attested for #995: agent-bridge-lock pins the lean readiness home, shared readiness identity, and DEV-only instrumentation boundary."
     },
     {
       "path": "docs/architecture/core/Core-Enforcement-Deferred-Dropped.md",
@@ -1117,10 +1131,11 @@
       "disposition": "current",
       "authority": "current-reference",
       "fullRead": true,
-      "verifiedSha256": "e0bf282d2b8168db407a91bae3aeb78d1c3bab40aca3cefd7bfd4de148f8d7b4",
-      "verifiedCommit": "bc94c85f16e429e06f1d67b3704072df2098189c",
-      "verifiedAt": "2026-08-30",
+      "verifiedSha256": "31d69b7bf6293d76547a8aec58632004e74042aaedfae47f467ae007d492f4e5",
+      "verifiedCommit": "9a4bee47ab1b21cd68c291c80e1704b486200dd8",
+      "verifiedAt": "2026-09-01",
       "evidence": [
+        "delta re-verify 2026-09-01 (#995, content commit 9a4bee47ab1b21cd68c291c80e1704b486200dd8): quality:boot-chunk retains the summed boot-set definition and records the owner-authorized 859,000-byte ceiling derived from the clean 818,188-byte post-split production payload plus 4.99% measured headroom; the real ratchet passed with 40,812 bytes free",
         "docs/architecture/core/UNIFIED-VERIFICATION-DESIGN.md:1 (full read; header/status evaluated)",
         "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
@@ -1131,6 +1146,19 @@
       ],
       "claims": [
         {
+          "claim": "The boot ratchet measures the emitted production boot set against the #995 post-boundary calibration.",
+          "evidence": [
+            {
+              "kind": "gate",
+              "target": "tooling/src/verify/ops/boot-chunk-ratchet.ts:83"
+            },
+            {
+              "kind": "issue",
+              "target": "#995"
+            }
+          ]
+        },
+        {
           "claim": "Verification registry gate.",
           "evidence": [
             {
@@ -1140,7 +1168,7 @@
           ]
         }
       ],
-      "summary": "Active theming reference re-attested at #969: accepted custom bases derive surface-specific normal-text foregrounds and owner custom CSS remains the later winning plane."
+      "summary": "Active verification design re-attested for #995: quality:boot-chunk measures the emitted boot set against the 818,188-byte production baseline with the existing five-percent convention."
     },
     {
       "path": "docs/architecture/core/client-architecture-lockdown.md",
@@ -1148,10 +1176,11 @@
       "disposition": "current",
       "authority": "current-reference",
       "fullRead": true,
-      "verifiedSha256": "5ff50d639340ed6044417592f9027df5388f47524ef9719286c420f57e852aa6",
-      "verifiedCommit": "cb3e51ca640a1b04feb4f2148ed25d54a51eaa47",
-      "verifiedAt": "2026-08-31",
+      "verifiedSha256": "e9168d5155f3cd160b1c0fbc64edd9957990039f0bb21dc55fe0c1760cfff8ad",
+      "verifiedCommit": "9a4bee47ab1b21cd68c291c80e1704b486200dd8",
+      "verifiedAt": "2026-09-01",
       "evidence": [
+        "re-attested at 9a4bee47ab1b21cd68c291c80e1704b486200dd8 (#995): the ownership and registration tables plus §7 name app-ready-signal.ts as the one production readiness home and retain agent-bridge.ts solely behind the literal DEV dynamic handle door; the mounted bridge CT proved Promise identity and readiness behavior",
         "re-attested at cb3e51ca6 under #974 — full-file read; §4 records the graduated static CSS provenance boundary, #975's fail-loud live cascade/closure repair, and #976/#977 as trustworthy inputs rather than substitutes for #953",
         "re-attested at 242bfaecb under #969 — full 803-line read; §4 records surface-specific normal-text foreground obligations, reading-plate and sidebar-accent roles, total accepted-base projection, and custom-CSS precedence without adding a CSS home",
         "re-attested at 4bf9ed645 — §4.5 records the one shared production/CT CSS front door and §4.6 records the repaired provenance-backed polarity gate",
@@ -1171,6 +1200,23 @@
       ],
       "claims": [
         {
+          "claim": "Production readiness has one lean home and the dev observer imports its exact Promise/query behind the existing DEV dynamic boundary.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/client/src/main.tsx:37"
+            },
+            {
+              "kind": "gate",
+              "target": "tooling/src/verify/gates/agent-bridge-lock.ts:212"
+            },
+            {
+              "kind": "issue",
+              "target": "#995"
+            }
+          ]
+        },
+        {
           "claim": "Session channel home.",
           "evidence": [
             {
@@ -1180,7 +1226,7 @@
           ]
         }
       ],
-      "summary": "Active client paint law re-attested at #969: the existing six homes now carry a total accepted-base, surface-specific foreground contract while owner custom CSS remains later in the cascade."
+      "summary": "Active client architecture re-attested for #995: app-ready-signal.ts owns production readiness while agent-bridge.ts remains DEV-only and shares the same state."
     },
     {
       "path": "docs/architecture/core/motion-and-animation-guide.md",
