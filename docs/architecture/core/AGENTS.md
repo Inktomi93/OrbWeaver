@@ -310,6 +310,7 @@ the agent-principal design set (parked in `../proposed/`), or the built code. Li
 | testing policy (lanes, presence, determinism, factories) | `Spine-Testing.md` |
 | the derived-data cluster boundary (embeddings/search/discovery/memory/stats) | `Knowledge-Cluster.md` |
 | authoring a structural gate (descriptor contract · the coupled sites · the exemption grammar · scanRoot formats · harness mechanics) | `../../../tooling/src/verify/gates/GATE-AUTHORING.md` (scaffold: `pnpm gate:new <name>`) |
+| authoring a ui-audit detector rule (does the rule's selector mechanism match how THIS codebase expresses the thing it looks for — the mechanism-match table) | `../../../tooling/src/ui-audit/RULE-AUTHORING.md` |
 | the domain map | §6 above |
 | which WORD names which concept (user-facing copy · ids · testids · comments) | [`../../design/vocabulary-map.md`](../../design/vocabulary-map.md) — the one living home; D151 + §3 cite it and never restate it |
 | server tier law | `Tier-1-DB.md` · `Tier-2-Foundation.md` · `Tier-3-Infra.md` · `Tier-3b-Providers.md` · `Tier-4-Transport.md` · `Tier-5-Entry.md` |
