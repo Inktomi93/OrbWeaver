@@ -61,12 +61,12 @@ describe("Appearance carrier manifest", () => {
 
   test("the matrix fails loud for a missing observation on either arm and for equal rendered outcomes", () => {
     const keys = Object.keys(APPEARANCE_CARRIER_OBSERVABLES) as (keyof AppearanceCarrierSnapshot)[];
-    const armA = Object.fromEntries(keys.map((key) => [key, `a:${key}`])) as AppearanceCarrierSnapshot;
-    const armB = Object.fromEntries(keys.map((key) => [key, `b:${key}`])) as AppearanceCarrierSnapshot;
+    const armA: Partial<AppearanceCarrierSnapshot> = Object.fromEntries(keys.map((key) => [key, `a:${key}`]));
+    const armB: Partial<AppearanceCarrierSnapshot> = Object.fromEntries(keys.map((key) => [key, `b:${key}`]));
     expect(compareAppearanceCarrierArms(armA, armB)).toEqual({ compared: 36, expected: 36, findings: [] });
 
-    const missingA = { ...armA } as Partial<AppearanceCarrierSnapshot>;
-    const missingB = { ...armB } as Partial<AppearanceCarrierSnapshot>;
+    const missingA = { ...armA };
+    const missingB = { ...armB };
     const first = keys[0];
     if (first === undefined) {
       throw new Error("appearance carrier observable population reached zero");

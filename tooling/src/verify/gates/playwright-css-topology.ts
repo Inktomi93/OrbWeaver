@@ -5,6 +5,7 @@ import { existsSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, relative, resolve, sep } from "node:path";
 import type { GateDescriptor, GateRunCtx } from "../contract/gate.ts";
 import { blankCssComments, blankTsCommentsInText } from "../lib/comment-spans.ts";
+import { readStaticSource } from "../lib/config-static-read.ts";
 import { SANCTIONED_CSS_HOMES } from "./sanctioned-css-homes.ts";
 
 const MAIN = "packages/client/src/main.tsx";
@@ -25,7 +26,11 @@ function read(root: string, rel: string): string | null {
 
 function tsImports(ctx: GateRunCtx, rel: string): string[] | null {
   const sourceFile = ctx.project.getSourceFile(join(ctx.root, rel));
-  return sourceFile?.getImportDeclarations().map((declaration) => declaration.getModuleSpecifierValue()) ?? null;
+  if (sourceFile !== undefined) {
+    return sourceFile.getImportDeclarations().map((declaration) => declaration.getModuleSpecifierValue());
+  }
+  const outsideWorkspace = readStaticSource(ctx.root, rel);
+  return outsideWorkspace.kind === "ok" ? outsideWorkspace.sf.getImportDeclarations().map((declaration) => declaration.getModuleSpecifierValue()) : null;
 }
 
 function repoPath(root: string, absolute: string): string {
@@ -107,7 +112,7 @@ function loadTopologyImports(ctx: GateRunCtx): TopologyImports | null {
   const entry = tsImports(ctx, CSS_ENTRY);
   const ct = tsImports(ctx, CT_BOOT);
   if (main === null || shell === null || entry === null || ct === null) {
-    report(ctx, "CSS topology TypeScript anchors must be present in the shared AST workspace");
+    report(ctx, "CSS topology TypeScript anchors must be parseable from the shared workspace or their exact governed file");
     return null;
   }
   return { main, shell, entry, ct };

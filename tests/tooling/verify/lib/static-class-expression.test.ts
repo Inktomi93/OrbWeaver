@@ -215,7 +215,8 @@ test("models all zero-argument string trims across literal unions while preservi
   const p = project({
     "packages/ui/src/x.tsx": `
       declare const tail: string | undefined;
-      const union: "  probe:union-a  " | "  probe:union-b  " = Math.random() ? "  probe:union-a  " : "  probe:union-b  ";
+      declare const chooseUnionA: boolean;
+      const union: "  probe:union-a  " | "  probe:union-b  " = chooseUnionA ? "  probe:union-a  " : "  probe:union-b  ";
       export const Static = <div className={"  probe:trimmed  ".trim()} />;
       export const Start = <div className={"  probe:start  ".trimStart()} />;
       export const End = <div className={"  probe:end  ".trimEnd()} />;

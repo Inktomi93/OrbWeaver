@@ -29,7 +29,7 @@ export interface AppearanceConsumerBinding {
   readonly symbol: string;
 }
 
-export interface AppearanceCarrierRow<K extends keyof AppearanceSettings> {
+interface AppearanceCarrierRow<K extends keyof AppearanceSettings> {
   readonly owner: AppearanceEditorOwner;
   readonly carriers: readonly AppearanceCarrierPlane[];
   readonly consumer: AppearanceConsumerBinding;
