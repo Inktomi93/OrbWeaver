@@ -3,6 +3,7 @@
 import { readFile } from "node:fs/promises";
 import { basename, extname, isAbsolute, resolve } from "node:path";
 import process from "node:process";
+import { fileURLToPath } from "node:url";
 import { errorMessage } from "@orb/kit/error-message";
 import type { Page } from "@playwright/test";
 import { artifactDir, artifactFilePath, print, routeSlug } from "../../_shared/artifacts.ts";
@@ -11,15 +12,19 @@ import { closeProbeSessionAfterError } from "../../_shared/browser.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { printVerdict } from "../../_shared/evidence.ts";
 import { EXIT } from "../../_shared/exit-contract.ts";
-import type { Args, CaptureOutcome, ScenarioCheckpoint, ScenarioSpec, SessionCounts, ShotPlan, SnapFailureSummary } from "../contract/types.ts";
+import type { SnapDetailedResult } from "../contract/run.ts";
+import { scenarioPresetFile } from "../contract/scenario-presets.ts";
+import type { Args, CaptureOutcome, ScenarioCheckpoint, ScenarioSpec, SessionCounts, ShotPlan } from "../contract/types.ts";
+import type { SnapFailureSummary } from "../contract/verdict.ts";
 import { HTTP_URL_RE, shouldProduceShot } from "../lib/out-names.ts";
 import { capture } from "./capture.ts";
+import { captureCssEvidence } from "./cascade.ts";
 import { refuseFileMode, snapDestination } from "./guards.ts";
 import { appliedAcrossContexts, writeManifestIfRequested } from "./manifest.ts";
 import { consoleFailureCounts, isSandboxTraceNoise, partitionFailedRequests } from "./noise.ts";
 import { parseSnapArgs } from "./parse.ts";
 import { consoleForEvidence, pageErrorsForEvidence, printCaptureLog, printCheckpointScope, printPageReport, sessionForEvidence } from "./report.ts";
-import { finishSession, launchSnapSession } from "./session.ts";
+import { finishSession, launchSnapSession, readSnapEnvironmentEvidence, snapEnvironmentMismatchCount } from "./session.ts";
 import { evidenceFailureCounts, hasSnapFailure } from "./verdict.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
@@ -74,11 +79,14 @@ function inheritScenarioSession(globalArgs: Args, checkpoint: Args, name: string
     device: globalArgs.device,
     colorScheme: globalArgs.colorScheme,
     reducedMotion: globalArgs.reducedMotion,
+    ...(globalArgs.browserContrast === undefined ? {} : { browserContrast: globalArgs.browserContrast }),
+    ...(globalArgs.reducedTransparency === undefined ? {} : { reducedTransparency: globalArgs.reducedTransparency }),
     // The shim is installed once, on the ONE context every checkpoint shares — so it is a session-level
     // property like the media emulation, taken from the outer command (a checkpoint that sets its own is
     // refused below rather than silently applying to every checkpoint or to none).
     appearance: globalArgs.appearance,
     theme: globalArgs.theme,
+    cascade: globalArgs.cascade,
     probe: globalArgs.probe,
     localStorage: [...globalArgs.localStorage, ...checkpoint.localStorage],
     out: checkpoint.out ?? name,
@@ -136,8 +144,16 @@ async function prepareScenario(opts: Args, path: string): Promise<PreparedScenar
   return { spec, checkpoints: scenarioCheckpointArgs(opts, spec) };
 }
 
+function resolveScenarioPath(pathArg: string): string {
+  const preset = scenarioPresetFile(pathArg);
+  if (preset !== null) {
+    return fileURLToPath(new URL(`./scenarios/${preset}`, import.meta.url));
+  }
+  return isAbsolute(pathArg) ? pathArg : resolve(process.cwd(), pathArg);
+}
+
 async function loadScenario(pathArg: string): Promise<ScenarioSpec> {
-  const path = isAbsolute(pathArg) ? pathArg : resolve(process.cwd(), pathArg);
+  const path = resolveScenarioPath(pathArg);
   const source = await readFile(path, "utf8");
   return parseScenarioSpec(source, basename(path, extname(path)));
 }
@@ -165,7 +181,11 @@ function scenarioFailureSummary(
     assertions: outcomes.reduce((count, outcome) => count + outcome.assertions.filter((entry) => entry.failed).length, 0),
     consoleErrors: consoleFailures.errors,
     consoleWarnings: consoleFailures.warnings,
-    css: outcomes.filter((outcome) => outcome.cssEvidence?.status === "instrument-error").length,
+    css: outcomes.filter((outcome) => outcome.cssEvidence?.status === "instrument-error" || (outcome.deadCssEvidence?.unreadable.length ?? 0) > 0).length,
+    deadCss: outcomes.reduce((count, outcome) => count + outcome.deadCss.length, 0),
+    emptyCss: outcomes.reduce((count, outcome) => count + outcome.emptyCss.length, 0),
+    environment: 0,
+    appearance: 0,
   };
 }
 
@@ -207,7 +227,9 @@ async function captureScenarioCheckpoints(
     if (keepLivePage) {
       await resetScenarioEvidence(session.page);
     }
-    outcomes.push(await capture(session.page, checkpoint, { ...plan, pageIndex: 0, totalPages: 1, navigatePage: !keepLivePage }, session));
+    const outcome = await capture(session.page, checkpoint, { ...plan, pageIndex: 0, totalPages: 1, navigatePage: !keepLivePage }, session);
+    await captureCssEvidence(session, checkpoint, [outcome]);
+    outcomes.push(outcome);
     evidenceRanges.push({
       consoleStart,
       consoleEnd: session.consoleMessages.length,
@@ -243,6 +265,15 @@ function scenarioCheckpointSession(session: ProbeSession, outcome: CaptureOutcom
   };
 }
 
+function checkpointCssFailed(outcome: CaptureOutcome): boolean {
+  return (
+    outcome.deadCss.length > 0 ||
+    outcome.emptyCss.length > 0 ||
+    (outcome.deadCssEvidence?.unreadable.length ?? 0) > 0 ||
+    outcome.cssEvidence?.status === "instrument-error"
+  );
+}
+
 function printScenarioReports(args: ScenarioReportArgs): void {
   const { spec, session, checkpoints, outcomes, plans, evidenceRanges, failedRequests } = args;
   for (let index = 0; index < outcomes.length; index += 1) {
@@ -258,6 +289,7 @@ function printScenarioReports(args: ScenarioReportArgs): void {
         outcome.navError !== null ||
         outcome.navFailures > 0 ||
         outcome.stepFailures > 0 ||
+        checkpointCssFailed(outcome) ||
         failedAssertions > 0 ||
         errors > 0 ||
         ((checkpoints[index]?.strictConsole ?? false) && warnings > 0);
@@ -279,10 +311,10 @@ function printScenarioReports(args: ScenarioReportArgs): void {
   printCaptureLog(evidenceSession, failedRequests, args.viteChurn);
 }
 
-export async function snapScenario(opts: Args): Promise<number> {
+export async function runScenarioDetailed(opts: Args): Promise<SnapDetailedResult> {
   const scenarioPath = opts.scenario;
   if (scenarioPath === null) {
-    return EXIT.misuse;
+    return { code: EXIT.misuse, receipt: null };
   }
   let prepared: PreparedScenario;
   // @orb-gate-ignore caught-failure-ownership(empty:error): printed as SCENARIO ERROR and routed through EXIT.misuse, the process's own exit code. Ends if that exit code stops being surfaced.
@@ -290,7 +322,7 @@ export async function snapScenario(opts: Args): Promise<number> {
     prepared = await prepareScenario(opts, scenarioPath);
   } catch (error) {
     print(`SCENARIO ERROR: ${errorMessage(error)}`);
-    return EXIT.misuse;
+    return { code: EXIT.misuse, receipt: null };
   }
   const { spec, checkpoints } = prepared;
   const errors = scenarioErrors(checkpoints);
@@ -298,7 +330,7 @@ export async function snapScenario(opts: Args): Promise<number> {
     for (const error of errors) {
       print(`SCENARIO ARG ERROR: ${error}`);
     }
-    return EXIT.misuse;
+    return { code: EXIT.misuse, receipt: null };
   }
   const first = checkpoints[0] as Args;
   const session = await launchSnapSession(first, spec.name);
@@ -307,7 +339,9 @@ export async function snapScenario(opts: Args): Promise<number> {
     const evidenceConsole = consoleForEvidence(session.consoleMessages, outcomes);
     const evidencePageErrors = pageErrorsForEvidence(session.pageErrors, outcomes);
     const { failed: failedRequests, viteChurn } = partitionFailedRequests(session.requests.values());
-    const failureSummary = scenarioFailureSummary(outcomes, session, failedRequests, opts.strictConsole);
+    const browserEnvironment = await readSnapEnvironmentEvidence(session);
+    const environmentFailures = snapEnvironmentMismatchCount(browserEnvironment);
+    const failureSummary = { ...scenarioFailureSummary(outcomes, session, failedRequests, opts.strictConsole), environment: environmentFailures };
     const red = hasSnapFailure(failureSummary);
     const artifacts = await finishSession(session, red, spec.name, opts.failureEvidence);
     printScenarioReports({ spec, session, checkpoints, outcomes, plans, evidenceRanges, failedRequests, viteChurn });
@@ -329,6 +363,8 @@ export async function snapScenario(opts: Args): Promise<number> {
           first.theme !== null,
           session.contexts.map((context) => context.settingsEvidence.themeApplied),
         ),
+        browser: browserEnvironment,
+        settings: session.contexts.map((context) => context.settingsEvidence),
       },
       failures: failureSummary,
       traces: artifacts.traces,
@@ -348,13 +384,16 @@ export async function snapScenario(opts: Args): Promise<number> {
         })),
       },
     });
-    return printVerdict("snap-scenario", {
+    const code = printVerdict("snap-scenario", {
       verdict: red ? 1 : 0,
       denominators: { checkpoints: { value: outcomes.length, refuseWhen: "zero" } },
       pairs: [
         ["name", spec.name],
         ["checkpoints", outcomes.length],
         ["assertion-fails", failureSummary.assertions],
+        ["deadcss-fails", failureSummary.deadCss],
+        ["emptycss-fails", failureSummary.emptyCss],
+        ["environment-fails", failureSummary.environment],
         ["console-errors", failureSummary.consoleErrors],
         ["console-warnings", evidenceConsole.filter((entry) => entry.type === "warning").length],
         [
@@ -367,7 +406,27 @@ export async function snapScenario(opts: Args): Promise<number> {
         ["vite-dep-churn", viteChurn.length],
       ],
     });
+    return {
+      code,
+      receipt: {
+        failures: failureSummary,
+        captures: outcomes,
+        browser: browserEnvironment,
+        settings: session.contexts.map((context) => context.settingsEvidence),
+        appearance: [],
+        scenario: {
+          name: spec.name,
+          declaredCheckpointNames: spec.checkpoints.map((checkpoint) => checkpoint.name),
+          capturedCheckpointNames: outcomes.map((_, index) => spec.checkpoints[index]?.name ?? String(index)),
+          manifestPath,
+        },
+      },
+    };
   } catch (error) {
     return await closeProbeSessionAfterError(session, error);
   }
+}
+
+export async function snapScenario(opts: Args): Promise<number> {
+  return (await runScenarioDetailed(opts)).code;
 }

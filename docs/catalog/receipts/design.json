@@ -4,19 +4,54 @@
   "issue": 5,
   "entries": [
     {
-      "path": "docs/design/983-984-ui-audit-population-semantics.md",
-      "assignedSha256": "ebb64a6600d78e3d10c552379f266d3d4e6c50b83a13d416be14b2071c926082",
+      "path": "docs/design/953-appearance-invariant-matrix.md",
+      "assignedSha256": "35041300c6e73581434944ccb0166958ff948f6f522c4a4bc983debd44dcd755",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "ebb64a6600d78e3d10c552379f266d3d4e6c50b83a13d416be14b2071c926082",
-      "verifiedCommit": "53437ec8fee76bd7a0ff68328924c65d121dbbe7",
+      "verifiedSha256": "35041300c6e73581434944ccb0166958ff948f6f522c4a4bc983debd44dcd755",
+      "verifiedCommit": "78788014d89708280ccd527abaf1044513ff58b9",
       "verifiedAt": "2026-09-01",
       "evidence": [
-        "docs/design/983-984-ui-audit-population-semantics.md:1 (full read; authored population identity, declared relational semantics, denominator accounting, rejected alternatives, coupled sites, and red-first controls)",
-        "re-attested at 53437ec8f after the cold #953 matrix exposed and #987 repaired the distinction between fatal withholding and closed semantic exclusion"
+        "docs/design/953-appearance-invariant-matrix.md:1 (full read; derived planner, literal R1-R7 policy, rejected alternatives, denominator law, scenario composition, Base UI attribution, coupled sites, controls, and final runtime receipts)",
+        "git:78788014d89708280ccd527abaf1044513ff58b9 (content commit containing the exact verified design blob and the complete #953 implementation)",
+        "cold route matrices: Snap 16/16 with zero appearance violations/instrument errors and exact subject reconciliation; design-audit 13/13 with zero failed cells; motion-audit 6/6 identities with zero aggregate instrument errors and one ruled STATIC-EXPECTED twin",
+        "cold scenario compositions: appearance-shell-config 16/16 with 64/64 checkpoints and appearance-chat 16/16 with 48/48 checkpoints; both zero failed cells, zero uncovered pairs, and 16/16 manifests",
+        "normal static hook: 16/17 stages green; sole red was the D139 exact-blob receipt cycle now closed by this attestation"
       ],
-      "summary": "Implemented #983/#984/#987 design for authored UI-audit populations, exact settled accounting, explicit closed exclusions, bounded representatives, and fail-loud partial-population verdicts.",
+      "summary": "Implemented #953 as one source-derived representative appearance planner with thin Snap, design-audit, and motion-audit consumers; literal seven-row verdicts; strict CSS/cascade/pixel/geometry/accounting floors; exact runtime theme/device evidence; and two reusable high-risk scenario tapes.",
+      "claims": [
+        {
+          "claim": "The appearance program derives 36 executable carrier axes plus five dependencies from the live client contract, covers every reachable pair and ruled historical obligation, and refuses blind, partial, mismatched, or vacuous evidence across all three verdict tools.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#953"
+            },
+            {
+              "kind": "provenance",
+              "target": "git:78788014d89708280ccd527abaf1044513ff58b9"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/design/983-984-ui-audit-population-semantics.md",
+      "assignedSha256": "6179f99261eb3972e2999d29e9c339af4ac05cff13efa2d79e6c7e9f2bca2129",
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "6179f99261eb3972e2999d29e9c339af4ac05cff13efa2d79e6c7e9f2bca2129",
+      "verifiedCommit": "36c6a9101c0f00a2e27c3a487defdbb2a4c13a67",
+      "verifiedAt": "2026-09-01",
+      "evidence": [
+        "docs/design/983-984-ui-audit-population-semantics.md:1 (full read; #989 premise verdicts, authored population architecture, rejected alternatives, coupled sites, two-sided plants, and final live receipts)",
+        "git:36c6a9101c0f00a2e27c3a487defdbb2a4c13a67 (#989 F1/F3 repair; F2 correctly refused after its live singleton premise was refuted)",
+        "pnpm test:scoped tests/tooling/ui-audit --maxWorkers=4 (12/12 files, 250/250 tests, zero type errors); graph types and error-level Biome green",
+        "cold Config receipts embedded in the design: default exit 1 complete; Appearance at 1280x800 and 1280x2000 exit 2 with invariant obscured unaskable=0 and two real #987 withholding cohorts"
+      ],
+      "summary": "Implemented #983/#984/#987/#989 authored UI-audit populations with re-centred obscuration evidence, grouped typography repairs, exact settled accounting, bounded representatives, and fail-loud partial-population verdicts.",
       "claims": [
         {
           "claim": "Every owned UI-audit population now preserves authored decisions, closes exact census and presentation arithmetic, and refuses a clean verdict whenever non-cap withholding leaves the population partially judged.",
@@ -34,8 +69,12 @@
               "target": "#987"
             },
             {
+              "kind": "issue",
+              "target": "#989"
+            },
+            {
               "kind": "provenance",
-              "target": "git:53437ec8fee76bd7a0ff68328924c65d121dbbe7"
+              "target": "git:36c6a9101c0f00a2e27c3a487defdbb2a4c13a67"
             }
           ]
         }

@@ -53,7 +53,6 @@ import {
   checkZIndex,
   collectFindings,
   DESIGN_AUDIT_RULES,
-  groupTypeFindings,
   INTERACTIVE_TEXT_FLOOR_PX,
   isAtOrAboveSeverity,
   isValidSeverity,
@@ -951,42 +950,32 @@ auditRuleTest(
 );
 
 auditRuleTest(
-  [{ rule: "undersized-ui-text", kind: "fires", reason: "one authored decision rendered N times is ONE repair, not N" }],
-  "the two SIZE floors fold by authored decision; a distinct home stays its own row",
+  [{ rule: "undersized-ui-text", kind: "fires", reason: "the fold's BOUNDARY — what must not fold, and what happens without identity" }],
+  "only the SIZE floors fold: a per-element copy rule stays per-element, and no identity means no grouping",
   () => {
-    // The live shape this exists for: settings:appearance printed EIGHT undersized-ui-text rows whose
-    // selectors differed only by :nth-of-type(1..8) — `[data-slot=chat-style-cards] > button…`.
-    const small = {
-      ...TEXT_STYLE_BASE,
-      fontSizePx: 10.5,
-      interactive: true,
-      authoredTarget: "span|slot=text|role=|type=",
-      authoredHome: "button@button::span<button",
-    };
-    const repeated = [1, 2, 3, 4, 5, 6, 7, 8].map((n) => ({ ...small, selector: `[data-slot=chat-style-cards] > button:nth-of-type(${String(n)}) > span` }));
-    const grouped = groupTypeFindings(repeated).filter((f) => f.rule === "undersized-ui-text");
-    expect(grouped).toHaveLength(1);
-    expect(grouped[0]?.population).toEqual({ affected: 8, judged: 8, capped: 3 });
-    // The cap bounds PRESENTATION only — the denominator above still says eight.
-    expect(grouped[0]?.representatives).toHaveLength(5);
+    // main's own test pins the fold and the anti-collapse control (a different authored home stays a
+    // separate row) plus the accounting. These two cases pin the fold's BOUNDARY instead — the part
+    // most likely to regress if someone widens the grouped-rule set.
+    const identity = { authoredTarget: "span|slot=text|role=|type=", authoredHome: "button@style-option::span<button" };
 
-    // ANTI-COLLAPSE CONTROL: a different authored home is a different repair and must survive.
-    const elsewhere = { ...small, selector: "#config-anchor-appearance-background > button > span", authoredHome: "div@config-group::span<button" };
-    const both = groupTypeFindings([...repeated, elsewhere]).filter((f) => f.rule === "undersized-ui-text");
-    expect(both).toHaveLength(2);
-
-    // A sample set with NO authored identity keeps the historic one-row-per-element contract rather
-    // than collapsing unrelated elements onto a shared key.
-    const legacy = repeated.map(({ authoredTarget: _t, authoredHome: _h, ...rest }) => rest);
-    expect(groupTypeFindings(legacy).filter((f) => f.rule === "undersized-ui-text")).toHaveLength(8);
-
-    // Only the SIZE floors fold: a per-element copy rule judges this node's own text and must not.
-    const longCaps = { ...TEXT_STYLE_BASE, directTextLen: 60, textTransform: "uppercase", authoredTarget: "p||role=|type=", authoredHome: "div@x::p<div" };
-    const caps = groupTypeFindings([
-      { ...longCaps, selector: "p:nth-of-type(1)" },
-      { ...longCaps, selector: "p:nth-of-type(2)" },
-    ]).filter((f) => f.rule === "all-caps-body");
+    // (1) A per-element COPY rule must not fold. all-caps-body judges THIS node's own text, and two
+    // renders of one component can legitimately differ on it.
+    const longCaps = { ...TEXT_STYLE_BASE, ...identity, directTextLen: 60, textTransform: "uppercase" };
+    const caps = collectFindings({
+      ...EMPTY_SAMPLES,
+      textStyles: [
+        { ...longCaps, selector: "p:nth-of-type(1)" },
+        { ...longCaps, selector: "p:nth-of-type(2)" },
+      ],
+    }).filter(({ rule }) => rule === "all-caps-body");
     expect(caps).toHaveLength(2);
+
+    // (2) A sample bundle with NO authored identity keeps the historic one-row-per-element contract.
+    // The decision key falls back to the SELECTOR on both halves, which can never collide — so an
+    // un-instrumented walker degrades to the old behaviour instead of collapsing unrelated elements.
+    const small = { ...TEXT_STYLE_BASE, fontSizePx: 10.5, interactive: true };
+    const legacy = [1, 2, 3, 4, 5, 6, 7, 8].map((n) => ({ ...small, selector: `button:nth-of-type(${String(n)}) > span` }));
+    expect(collectFindings({ ...EMPTY_SAMPLES, textStyles: legacy }).filter(({ rule }) => rule === "undersized-ui-text")).toHaveLength(8);
   },
 );
 
@@ -1947,6 +1936,56 @@ test("collision populations group repeated instances without erasing a later aut
     populations: 2,
     emitted: 6,
     withheld: { cap: 18 },
+  });
+});
+
+test("type-floor populations collapse repeated authored instances without merging a different home", () => {
+  const repeated = Array.from({ length: 8 }, (_unused, index) => ({
+    ...TEXT_STYLE_BASE,
+    selector: `.style-option-${String(index)}`,
+    authoredTarget: "span|slot=text|role=|type=",
+    authoredHome: "button@style-option::span<button@style-option",
+    fontSizePx: TEXT_MICRO_PX,
+    interactive: true,
+  }));
+  const distinct = {
+    ...TEXT_STYLE_BASE,
+    selector: ".collapsible-label",
+    authoredTarget: "span|slot=text|role=|type=",
+    authoredHome: "button@collapsible-trigger::span<button@collapsible-trigger",
+    fontSizePx: TEXT_MICRO_PX,
+    interactive: true,
+  };
+  const audit = collectAudit({ ...EMPTY_SAMPLES, textStyles: [...repeated, distinct] });
+  const findings = audit.findings.filter(({ rule }) => rule === "undersized-ui-text");
+
+  expect(findings).toHaveLength(2);
+  expect(findings.map(({ population }) => population).sort((left, right) => (right?.affected ?? 0) - (left?.affected ?? 0))).toEqual([
+    { affected: 8, judged: 8, capped: 3 },
+    { affected: 1, judged: 1, capped: 0 },
+  ]);
+  expect(audit.populationAccounting["undersized-ui-text"]).toMatchObject({
+    candidates: 9,
+    judged: 9,
+    affected: 9,
+    populations: 2,
+    emitted: 6,
+    withheld: { cap: 3 },
+  });
+  expect(audit.populationAccounting["text-below-ramp"]).toMatchObject({ candidates: 9, judged: 9, affected: 0, populations: 0, emitted: 0 });
+
+  const belowRamp = collectAudit({
+    ...EMPTY_SAMPLES,
+    textStyles: [...repeated, distinct].map((input) => ({ ...input, fontSizePx: TEXT_MICRO_PX - 1, interactive: false })),
+  });
+  expect(belowRamp.findings.filter(({ rule }) => rule === "text-below-ramp")).toHaveLength(2);
+  expect(belowRamp.populationAccounting["text-below-ramp"]).toMatchObject({
+    candidates: 9,
+    judged: 9,
+    affected: 9,
+    populations: 2,
+    emitted: 6,
+    withheld: { cap: 3 },
   });
 });
 

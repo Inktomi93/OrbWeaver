@@ -1,0 +1,38 @@
+{
+  "name": "appearance-shell-config",
+  "defaults": ["--summary", "--checkpoint", "--expect-no-overflow", "html", "--no-shot"],
+  "checkpoints": [
+    {
+      "name": "opposite-os-app-prepaint",
+      "args": ["/", "--goto", "home", "--expect-visible", ".shell-grid"]
+    },
+    {
+      "name": "light-art-scrim-glass-elevation",
+      "args": ["/", "--open-chat", "latest", "--expect-visible", ".shell-grid", "--expect-visible", ".shell-main"]
+    },
+    {
+      "name": "compact-portal-carried",
+      "args": [
+        "/",
+        "--goto",
+        "settings:appearance.sizing",
+        "--goto",
+        "modal:command",
+        "--wait-for",
+        "[data-slot=\"dialog-popup\"]",
+        "--key",
+        "Escape",
+        "--wait-for",
+        "[data-slot=\"density-preview\"]",
+        "--goto",
+        "modal:command",
+        "--expect-visible",
+        "[data-slot=\"dialog-popup\"]"
+      ]
+    },
+    {
+      "name": "density-preview",
+      "args": ["/", "--key", "Escape", "--goto", "settings:appearance.sizing", "--expect-visible", "[data-slot=\"density-preview\"]"]
+    }
+  ]
+}

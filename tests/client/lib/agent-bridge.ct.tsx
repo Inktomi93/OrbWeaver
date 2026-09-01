@@ -14,6 +14,7 @@
 // past the grace rather than sleeping, then asks what the flag did.
 
 import { expect, test } from "@playwright/experimental-ct-react";
+import { AppearanceMessageRegistryStory } from "../features/chat/_ct-stories.tsx";
 import { AgentBridgeStory, AppReadyBootReadStory, AppReadyRouteResolutionStory, AppReadySignalStory } from "./_ct-stories.tsx";
 
 const READY_FLAG = "html[data-app-ready]";
@@ -105,6 +106,36 @@ test("the mounted bridge publishes every typed capability and every evidence lif
         expect.objectContaining({ name: "plugin-log", lifetime: "server-runtime", resettable: false }),
         expect.objectContaining({ name: "automation-fires", lifetime: "durable", resettable: false }),
       ],
+    });
+});
+
+test("the Appearance bridge samples actual values from every mounted real MessageRow", async ({ mount, page }) => {
+  await mount(
+    <>
+      <AgentBridgeStory />
+      <AppearanceMessageRegistryStory />
+    </>,
+  );
+  await expect(page.getByTestId("bridge-installed")).toBeVisible();
+  await expect
+    .poll(async () =>
+      page.evaluate(() => {
+        const contract = globalThis.__orb?.appearanceMatrixContract();
+        const row = (key: string): { readonly reached: number; readonly samples: readonly unknown[] } | undefined =>
+          contract?.rows.find((candidate) => candidate.key === key);
+        return {
+          registry: contract?.messageRegistry,
+          avatarSize: row("avatarSize"),
+          chatStyle: row("chatStyle"),
+          showTimestamps: row("showTimestamps"),
+        };
+      }),
+    )
+    .toEqual({
+      registry: { mounted: 2, registered: 2, matched: 2, missingIds: [], staleIds: [] },
+      avatarSize: expect.objectContaining({ reached: 2, samples: ["sm", "lg"] }),
+      chatStyle: expect.objectContaining({ reached: 2, samples: ["bubble", "document"] }),
+      showTimestamps: expect.objectContaining({ reached: 2, samples: [true, false] }),
     });
 });
 

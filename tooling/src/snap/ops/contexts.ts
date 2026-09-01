@@ -28,7 +28,7 @@ import {
   printProbeMotionWarning,
   sessionForEvidence,
 } from "./report.ts";
-import { finishSession, launchSnapSession } from "./session.ts";
+import { finishSession, launchSnapSession, readSnapEnvironmentEvidence, snapEnvironmentMismatchCount } from "./session.ts";
 import { buildFailureSummary, evidenceFailureCounts, hasSnapFailure, mapOutputSummary, outcomeTotals } from "./verdict.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
@@ -162,12 +162,15 @@ async function runOwnedContexts(session: ProbeSession, opts: Args, users: readon
   const allEvidenceConsole = session.contexts.flatMap((context, index) => consoleForEvidence(context.consoleMessages, [outcomes[index] as CaptureOutcome]));
   const allPageErrors = session.contexts.flatMap((context) => context.pageErrors);
   const allEvidencePageErrors = session.contexts.flatMap((context, index) => pageErrorsForEvidence(context.pageErrors, [outcomes[index] as CaptureOutcome]));
+  const browserEnvironment = await readSnapEnvironmentEvidence(session);
+  const environmentFailures = snapEnvironmentMismatchCount(browserEnvironment);
   const failureSummary = buildFailureSummary({
     outcomes,
     pageErrors: reportTotals.pageErrors,
     failedRequests: reportTotals.failedRequests,
     consoleMessages: allEvidenceConsole,
     strictConsole: opts.strictConsole,
+    environment: environmentFailures,
   });
   const red = hasSnapFailure(failureSummary);
   const artifacts = await finishSession(session, red, key, opts.failureEvidence);
@@ -189,6 +192,8 @@ async function runOwnedContexts(session: ProbeSession, opts: Args, users: readon
         opts.theme !== null,
         session.contexts.map((context) => context.settingsEvidence.themeApplied),
       ),
+      browser: browserEnvironment,
+      settings: session.contexts.map((context) => context.settingsEvidence),
     },
     failures: failureSummary,
     traces: artifacts.traces,
@@ -219,6 +224,9 @@ async function runOwnedContexts(session: ProbeSession, opts: Args, users: readon
       ["eval-fails", evidenceFailures.eval],
       ["contrast-fails", totals.contrast],
       ["assertion-fails", totals.assertions],
+      ["environment-fails", failureSummary.environment],
+      ["deadcss-fails", failureSummary.deadCss],
+      ["emptycss-fails", failureSummary.emptyCss],
       ["console-errors", failureSummary.consoleErrors],
       ["console-warnings", allEvidenceConsole.filter((entry) => entry.type === "warning").length],
       [

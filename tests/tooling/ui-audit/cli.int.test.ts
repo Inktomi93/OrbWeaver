@@ -115,6 +115,27 @@ interface TapPopulationReport {
   };
 }
 
+interface TypographyPopulationReport {
+  readonly findings: readonly {
+    readonly rule: string;
+    readonly representatives?: readonly string[];
+    readonly population?: { readonly affected: number; readonly judged: number; readonly capped: number };
+  }[];
+  readonly populationAccounting?: Readonly<
+    Record<
+      string,
+      {
+        readonly candidates: number;
+        readonly judged: number;
+        readonly affected: number;
+        readonly populations: number;
+        readonly emitted: number;
+        readonly withheld: Readonly<Record<string, number>>;
+      }
+    >
+  >;
+}
+
 auditRuleTest(
   [{ rule: "tap-target", kind: "fires", reason: "eleven sibling instances share one authored target and structural-home decision" }],
   "repeated sibling target instances collapse into one population finding with an honest capped denominator",
@@ -137,6 +158,48 @@ auditRuleTest(
       collapsed: { sameOwner: 0 },
     });
     await expect(res).toExitWith(1);
+  },
+);
+
+auditRuleTest(
+  [
+    { rule: "undersized-ui-text", kind: "fires", reason: "eight sibling text instances share one authored type-floor decision" },
+    { rule: "undersized-ui-text", kind: "fires", reason: "the equally-small label under a different authored home remains a separate repair" },
+  ],
+  "undersized UI text groups repeated instances without erasing a distinct authored home",
+  async ({ runCli, scratch }) => {
+    const repeated = Array.from(
+      { length: 8 },
+      (_unused, index) =>
+        `<button data-slot="style-option" style="display:block;width:160px;height:44px"><span data-slot="text" style="font-size:10.5px">Style ${String(index)}</span></button>`,
+    ).join("");
+    const distinct =
+      '<button data-slot="collapsible-trigger" style="display:block;width:160px;height:44px"><span data-slot="text" style="font-size:10.5px">Advanced</span></button>';
+    const reportPath = join(scratch, "type-floor-populations.json");
+    await writeFile(
+      join(scratch, "type-floor-populations.html"),
+      `<!doctype html>
+<html data-app-ready="settled"><head><meta charset="utf-8"><title>type floor populations</title></head>
+<body style="margin:0;background:#000;color:#fff;font-family:system-ui"><main>${repeated}${distinct}</main></body></html>`,
+    );
+    const result = await runCli("ui-audit", ["/type-floor-populations.html", "--base", `file://${scratch}`, "--fail-on", "P2", "--out", reportPath], {
+      timeoutMs: CLI_TIMEOUT_MS,
+    });
+    const report = JSON.parse(await readFile(reportPath, "utf8")) as TypographyPopulationReport;
+    const findings = report.findings.filter(({ rule }) => rule === "undersized-ui-text");
+
+    expect(findings).toHaveLength(2);
+    expect(findings.map(({ population }) => population?.affected).sort()).toEqual([1, 8]);
+    expect(findings.map(({ representatives }) => representatives?.length).sort()).toEqual([1, 5]);
+    expect(report.populationAccounting?.["undersized-ui-text"]).toMatchObject({
+      candidates: 9,
+      judged: 9,
+      affected: 9,
+      populations: 2,
+      emitted: 6,
+      withheld: { cap: 3 },
+    });
+    await expect(result).toExitWith(1);
   },
 );
 

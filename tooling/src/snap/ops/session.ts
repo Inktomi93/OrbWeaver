@@ -7,6 +7,8 @@ import { fileURLToPath } from "node:url";
 import { artifactDir } from "../../_shared/artifacts.ts";
 import type { LocalStorageSeed, ProbeLaunchOptions, ProbeSession } from "../../_shared/browser.ts";
 import { closeProbeSession, closeProbeSessionAfterError, launchProbeSession } from "../../_shared/browser.ts";
+import type { BrowserEnvironmentEvidence } from "../../_shared/browser-environment.ts";
+import { readBrowserEnvironment } from "../../_shared/browser-environment.ts";
 import type { DevToolsCascadeRuntime } from "../../_shared/devtools-runtime.ts";
 import { prepareDevToolsCascadeRuntime } from "../../_shared/devtools-runtime.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
@@ -82,11 +84,14 @@ export async function finishSession(session: ProbeSession, failed: boolean, name
   return { traces, hars: [] };
 }
 
-type LaunchExtras = Partial<Pick<ProbeLaunchOptions, "pages" | "contexts" | "contextCookies" | "cookieDomain">>;
+type LaunchExtras = Partial<Pick<ProbeLaunchOptions, "pages" | "contexts" | "contextCookies" | "cookieDomain">> & {
+  readonly requireCascadeRuntime?: boolean;
+};
 
 export async function launchSnapSession(opts: Args, name: string, extras: LaunchExtras = {}): Promise<ProbeSession> {
+  const { requireCascadeRuntime = false, ...launchExtras } = extras;
   const traceDir = opts.failureEvidence ? await artifactDir("traces") : null;
-  const cascade = opts.cascade.length === 0 ? null : await prepareDevToolsCascadeRuntime(DEVTOOLS_ASSET_ROOT);
+  const cascade = opts.cascade.length === 0 && !requireCascadeRuntime ? null : await prepareDevToolsCascadeRuntime(DEVTOOLS_ASSET_ROOT);
   let launched: ProbeSession;
   try {
     launched = await launchProbeSession({
@@ -94,6 +99,8 @@ export async function launchSnapSession(opts: Args, name: string, extras: Launch
       viewport: opts.viewport,
       colorScheme: opts.colorScheme,
       reducedMotion: opts.reducedMotion || opts.probe,
+      contrast: opts.browserContrast ?? null,
+      reducedTransparency: opts.reducedTransparency ?? false,
       appearance: opts.appearance,
       theme: opts.theme,
       localStorage: buildSeeds(opts),
@@ -101,7 +108,7 @@ export async function launchSnapSession(opts: Args, name: string, extras: Launch
       trace: opts.failureEvidence,
       ...(traceDir === null ? {} : { harPathPrefix: join(traceDir, name) }),
       ...(cascade === null ? {} : { persistentProfileDir: cascade.profileDir, browserArgs: cascade.browserArgs }),
-      ...extras,
+      ...launchExtras,
     });
   } catch (error) {
     await cascade?.close();
@@ -124,6 +131,27 @@ export async function launchSnapSession(opts: Args, name: string, extras: Launch
     return await closeProbeSessionAfterError(session, error);
   }
   return session;
+}
+
+/** Read the live identity of every context through the shared #977 rail. Requested/applied launcher
+ *  fields are provenance, not runtime proof; matrix cells refuse when this read has any mismatch. */
+export async function readSnapEnvironmentEvidence(session: ProbeSession): Promise<readonly BrowserEnvironmentEvidence[]> {
+  if (session.contexts.length === 0) {
+    throw new Error("INSTRUMENT ERROR: snap browser session has no context to prove");
+  }
+  return await Promise.all(
+    session.contexts.map(async (context) => {
+      const page = context.pages[0];
+      if (page === undefined) {
+        throw new Error("INSTRUMENT ERROR: snap browser context has no page to prove");
+      }
+      return await readBrowserEnvironment(page, session.environmentContract);
+    }),
+  );
+}
+
+export function snapEnvironmentMismatchCount(evidence: readonly BrowserEnvironmentEvidence[]): number {
+  return evidence.reduce((count, entry) => count + entry.mismatches.length, 0);
 }
 
 export function cascadeRuntimeFor(session: ProbeSession): DevToolsCascadeRuntime | null {

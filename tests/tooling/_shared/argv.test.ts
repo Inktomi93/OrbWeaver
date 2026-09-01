@@ -77,6 +77,7 @@ test("parseGotoTarget maps a bare id to the section method", () => {
 
 test("parseGotoTarget decodes settings:<group> to openConfig (the CLI keeps its word; the modal retired into the section)", () => {
   expect(parseGotoTarget("settings:appearance")).toEqual({ method: "openConfig", arg: "appearance" });
+  expect(parseGotoTarget("settings:appearance.sizing")).toEqual({ method: "openConfig", arg: "appearance", sub: "sizing" });
   // A category that itself contains a colon keeps everything after the FIRST prefix.
   expect(parseGotoTarget("settings:chat-behavior")).toEqual({ method: "openConfig", arg: "chat-behavior" });
 });

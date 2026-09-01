@@ -258,11 +258,23 @@ export function printCaptureLog(session: SessionCounts, failed: CapturedRequest[
   }
 }
 
+function printCssCensus(outcome: CaptureOutcome): void {
+  const evidence = outcome.deadCssEvidence;
+  if (evidence === null) {
+    return;
+  }
+  const drain = evidence.drain === null ? "unavailable" : `${evidence.drain.completedGeneration}/${evidence.drain.requestedGeneration}`;
+  print(
+    `\n--- CSS CENSUS sheets=${evidence.sheets} readable=${evidence.readableSheets} rules=${evidence.rules} defined=${evidence.defined} used=${evidence.used} unreadable=${evidence.unreadable.length} drain=${drain} ---`,
+  );
+  for (const sheet of evidence.unreadable) {
+    print(`  INSTRUMENT ERROR unreadable stylesheet ${sheet.href ?? "(inline)"}: ${sheet.error}`);
+  }
+}
+
 function printCssFindings(outcome: CaptureOutcome): void {
+  printCssCensus(outcome);
   if (outcome.deadCss.length > 0) {
-    // Advisory, not gating: a class token in the DOM that NO stylesheet rule matches
-    // is a utility Tailwind didn't generate (wrong token namespace, typo'd variant)
-    // or third-party noise — eyeball before trusting layout.
     print("\n--- DEADCSS (class tokens with no matching CSS rule) ---");
     for (const d of outcome.deadCss.slice(0, CSS_FINDINGS_CAP)) {
       print(`  ${d.token} (×${d.count})`);

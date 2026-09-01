@@ -2,8 +2,10 @@
 // ThemeScope whose only authored theme token is its background. The outer four prose inks deliberately
 // carry the opposite polarity, reproducing the cascade the clamp must close.
 
+import type { ChatId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { ThemeScope } from "@orb/ui/theme-scope";
-import type { CSSProperties, ReactElement } from "react";
+import type { ComponentProps, CSSProperties, ReactElement } from "react";
 import { Suspense } from "react";
 import { HomeHearthRoom } from "../../../../packages/client/src/features/chat/components/home-hearth-room.tsx";
 import { HomeMastheadBody } from "../../../../packages/client/src/features/chat/components/home-masthead-body.tsx";
@@ -17,18 +19,29 @@ interface HomePartialThemeProseStoryProps {
 }
 
 export function HomePartialThemeProseStory({ background, ambientBackground, ambientInk }: HomePartialThemeProseStoryProps): ReactElement {
-  const outerStyle = {
+  // csstype does not admit custom properties; the intersection keeps every authored value checked.
+  const outerStyle: CSSProperties & {
+    "--color-speaker": string;
+    "--color-dialogue": string;
+    "--color-narration": string;
+    "--color-prose-body": string;
+  } = {
     "--color-speaker": ambientInk,
     "--color-dialogue": ambientInk,
     "--color-narration": ambientInk,
     "--color-prose-body": ambientInk,
-  } as CSSProperties;
-  const chat = makeChatSummary({
-    id: "chat_theme_prose",
-    title: "The Lantern Room",
-    participantNames: ["Wren"],
-    lastMessagePreview: "The lanterns answer in amber.",
-  });
+  };
+  const chat = {
+    ...makeChatSummary({
+      title: "The Lantern Room",
+      participantNames: ["Wren"],
+      lastMessagePreview: "The lanterns answer in amber.",
+    }),
+    id: castId<ChatId>("chat_theme_prose"),
+    parentChatId: null,
+    participantCharacterIds: [],
+    participantPortraits: [],
+  } satisfies ComponentProps<typeof HomeHearthRoom>["chat"];
 
   return (
     <div style={outerStyle}>

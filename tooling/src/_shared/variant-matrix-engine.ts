@@ -10,7 +10,12 @@ import type {
   VariantMatrixSpec,
   VariantRequiredRow,
   VariantRequiredTwin,
-} from "./variant-matrix.ts";
+} from "./variant-matrix-contract.ts";
+import { coverReachablePairCandidates } from "./variant-matrix-cover.ts";
+import { minimizeVariantCells } from "./variant-matrix-minimize.ts";
+import type { MatrixRequirements } from "./variant-matrix-requirements.ts";
+import { requirementKeys, requirementObligations, requirementReceipts } from "./variant-matrix-requirements.ts";
+import { assignmentForPair, sampledAssignments } from "./variant-matrix-sampling.ts";
 
 function instrumentError(message: string): never {
   throw new Error(`INSTRUMENT ERROR: ${message}`);
@@ -85,7 +90,15 @@ function valueKey(axis: VariantAxis, value: string): string {
   return `${axis.id}=${value}`;
 }
 
-function findCompletion(spec: VariantMatrixSpec, assignment: VariantAssignment, uncoveredPairs: ReadonlySet<string>): VariantAssignment | null {
+function declarationOffset(axis: VariantAxis, salt: string): number {
+  let total = 0;
+  for (const character of `${salt}:${axis.id}`) {
+    total += character.codePointAt(0) ?? 0;
+  }
+  return total % axis.values.length;
+}
+
+function findCompletion(spec: VariantMatrixSpec, assignment: VariantAssignment, uncoveredPairs: ReadonlySet<string>, salt = ""): VariantAssignment | null {
   if (!spec.isLegal(assignment)) {
     return null;
   }
@@ -93,6 +106,7 @@ function findCompletion(spec: VariantMatrixSpec, assignment: VariantAssignment, 
   if (nextAxis === undefined) {
     return assignment;
   }
+  const offset = declarationOffset(nextAxis, salt);
   const candidates = nextAxis.values
     .map((value, index) => {
       const next = { ...assignment, [nextAxis.id]: value.id };
@@ -112,13 +126,13 @@ function findCompletion(spec: VariantMatrixSpec, assignment: VariantAssignment, 
           score += 1;
         }
       }
-      return { index, next, score };
+      return { index, next, score, tieRank: (index - offset + nextAxis.values.length) % nextAxis.values.length };
     })
     .filter((candidate): candidate is NonNullable<typeof candidate> => candidate !== null)
-    .sort((left, right) => right.score - left.score || left.index - right.index);
+    .sort((left, right) => right.score - left.score || left.tieRank - right.tieRank || left.index - right.index);
 
   for (const candidate of candidates) {
-    const completed = findCompletion(spec, candidate.next, uncoveredPairs);
+    const completed = findCompletion(spec, candidate.next, uncoveredPairs, salt);
     if (completed !== null) {
       return completed;
     }
@@ -140,7 +154,13 @@ function findTwinCompletion(
   if (nextAxis === undefined) {
     return { left, right };
   }
-  for (const value of nextAxis.values) {
+  const offset = declarationOffset(nextAxis, twin.id);
+  const values = [...nextAxis.values].sort(
+    (leftValue, rightValue) =>
+      ((nextAxis.values.indexOf(leftValue) - offset + nextAxis.values.length) % nextAxis.values.length) -
+      ((nextAxis.values.indexOf(rightValue) - offset + nextAxis.values.length) % nextAxis.values.length),
+  );
+  for (const value of values) {
     const completed = findTwinCompletion(spec, twin, { ...assignment, [nextAxis.id]: value.id });
     if (completed !== null) {
       return completed;
@@ -189,18 +209,10 @@ function coveredBy(cells: readonly VariantCell[], axes: readonly VariantAxis[]):
   return { pairs, values };
 }
 
-interface MatrixRequirements {
-  readonly rows: readonly VariantRequiredRow[];
-  readonly twins: readonly VariantRequiredTwin[];
-}
-
 interface MatrixState {
   readonly spec: VariantMatrixSpec;
   readonly uncoveredPairs: Set<string>;
   readonly cells: Map<string, VariantCell>;
-  readonly protectedCellIds: Set<string>;
-  readonly rowReceipt: { id: string; cellId: string }[];
-  readonly twinReceipt: { id: string; leftCellId: string; rightCellId: string }[];
 }
 
 function validateRequirementIds(requirements: MatrixRequirements): void {
@@ -281,27 +293,23 @@ function reachableValueKeys(spec: VariantMatrixSpec): Set<string> {
   return reachableValues;
 }
 
-function addCell(state: MatrixState, assignment: VariantAssignment, protect: boolean): VariantCell {
+function addCell(state: MatrixState, assignment: VariantAssignment): VariantCell {
   const id = variantCellId(state.spec.axes, assignment);
   const cell = state.cells.get(id) ?? { id, assignment };
   state.cells.set(id, cell);
   for (const pair of cellPairs(state.spec.axes, assignment)) {
     state.uncoveredPairs.delete(pair);
   }
-  if (protect) {
-    state.protectedCellIds.add(id);
-  }
   return cell;
 }
 
 function seedRequiredRows(state: MatrixState, rows: readonly VariantRequiredRow[]): void {
   for (const row of rows) {
-    const completed = findCompletion(state.spec, row.assignment, state.uncoveredPairs);
+    const completed = findCompletion(state.spec, row.assignment, state.uncoveredPairs, row.id);
     if (completed === null) {
       instrumentError(`required row impossible (${row.id})`);
     }
-    const cell = addCell(state, completed, true);
-    state.rowReceipt.push({ id: row.id, cellId: cell.id });
+    addCell(state, completed);
   }
 }
 
@@ -311,34 +319,23 @@ function seedRequiredTwins(state: MatrixState, twins: readonly VariantRequiredTw
     if (completed === null) {
       instrumentError(`required twin impossible (${twin.id})`);
     }
-    const left = addCell(state, completed.left, true);
-    const right = addCell(state, completed.right, true);
-    state.twinReceipt.push({ id: twin.id, leftCellId: left.id, rightCellId: right.id });
+    addCell(state, completed.left);
+    addCell(state, completed.right);
   }
 }
 
-function assignmentForPair(pair: string): VariantAssignment {
-  const [left, right] = pair.split("|");
-  const leftSplit = left?.indexOf("=") ?? -1;
-  const rightSplit = right?.indexOf("=") ?? -1;
-  if (left === undefined || right === undefined || leftSplit < 1 || rightSplit < 1) {
-    instrumentError(`invalid reachable pair ${pair}`);
-  }
-  return {
-    [left.slice(0, leftSplit)]: left.slice(leftSplit + 1),
-    [right.slice(0, rightSplit)]: right.slice(rightSplit + 1),
-  };
-}
-
-function coverReachablePairs(state: MatrixState): void {
-  while (state.uncoveredPairs.size > 0) {
-    const nextPair = state.uncoveredPairs.values().next().value as string;
-    const completed = findCompletion(state.spec, assignmentForPair(nextPair), state.uncoveredPairs);
-    if (completed === null) {
-      instrumentError(`reachable pair became impossible (${nextPair})`);
-    }
-    addCell(state, completed, false);
-  }
+function coverReachablePairs(state: MatrixState): readonly VariantAssignment[] {
+  return coverReachablePairCandidates({
+    uncovered: state.uncoveredPairs,
+    samples: sampledAssignments(state.spec, state.uncoveredPairs.size),
+    complete: (pair) => findCompletion(state.spec, assignmentForPair(pair), state.uncoveredPairs, pair),
+    identity: (assignment) => variantCellId(state.spec.axes, assignment),
+    pairs: (assignment) => cellPairs(state.spec.axes, assignment),
+    add: (assignment) => {
+      addCell(state, assignment);
+    },
+    impossible: (pair) => instrumentError(`reachable pair became impossible (${pair})`),
+  });
 }
 
 function coverReachableValues(state: MatrixState, reachableValues: ReadonlySet<string>): void {
@@ -353,28 +350,10 @@ function coverReachableValues(state: MatrixState, reachableValues: ReadonlySet<s
       if (completed === null) {
         instrumentError(`reachable value became impossible (${key})`);
       }
-      addCell(state, completed, false);
+      addCell(state, completed);
       valueCoverage = coveredBy([...state.cells.values()], state.spec.axes).values;
     }
   }
-}
-
-function minimizeCells(state: MatrixState, reachablePairs: readonly string[], reachableValues: ReadonlySet<string>): VariantCell[] {
-  const minimized = [...state.cells.values()];
-  for (let index = minimized.length - 1; index >= 0; index -= 1) {
-    const candidate = minimized[index];
-    if (candidate === undefined || state.protectedCellIds.has(candidate.id)) {
-      continue;
-    }
-    const remaining = minimized.filter((_, cellIndex) => cellIndex !== index);
-    const coverage = coveredBy(remaining, state.spec.axes);
-    const pairsRemain = reachablePairs.every((pair) => coverage.pairs.has(pair));
-    const valuesRemain = [...reachableValues].every((value) => coverage.values.has(value));
-    if (pairsRemain && valuesRemain) {
-      minimized.splice(index, 1);
-    }
-  }
-  return minimized;
 }
 
 function finalCoverage(
@@ -408,16 +387,26 @@ export function planVariantMatrix(spec: VariantMatrixSpec): VariantMatrixPlan {
     spec,
     uncoveredPairs: new Set(reachablePairs),
     cells: new Map(),
-    protectedCellIds: new Set(),
-    rowReceipt: [],
-    twinReceipt: [],
   };
   seedRequiredRows(state, requirements.rows);
   seedRequiredTwins(state, requirements.twins);
-  coverReachablePairs(state);
+  const candidates = coverReachablePairs(state);
   coverReachableValues(state, reachableValues);
-  const minimized = minimizeCells(state, reachablePairs, reachableValues);
+  const requirementCoverage = requirementKeys(requirements);
+  const minimized = minimizeVariantCells({
+    cells: [...state.cells.values()],
+    protectedCellIds: new Set(),
+    candidates,
+    obligations: [...reachablePairs, ...reachableValues, ...requirementCoverage],
+    obligationsFor: (assignment) => [
+      ...cellPairs(state.spec.axes, assignment),
+      ...cellValues(state.spec.axes, assignment),
+      ...requirementObligations(requirements, assignment),
+    ],
+    identity: (assignment) => variantCellId(state.spec.axes, assignment),
+  });
   const coverage = finalCoverage(spec, minimized, reachablePairs, reachableValues);
+  const receipts = requirementReceipts(minimized, requirements);
 
   return {
     cells: minimized,
@@ -426,8 +415,8 @@ export function planVariantMatrix(spec: VariantMatrixSpec): VariantMatrixPlan {
       reachablePairs,
       coveredPairs: reachablePairs.filter((pair) => coverage.pairs.has(pair)),
       uncoveredPairs: [],
-      requiredRows: state.rowReceipt,
-      requiredTwins: state.twinReceipt,
+      requiredRows: receipts.rows,
+      requiredTwins: receipts.twins,
       cellIds: minimized.map((cell) => cell.id),
     },
   };

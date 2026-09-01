@@ -1,14 +1,15 @@
 // Argv parse for ui-audit — the strict-CLI posture (an unknown flag is a hard EXIT.misuse, never an
 // ignored line, because a typo'd flag silently scans the wrong surface and reports it clean).
+
+import { mergeAppearancePatches } from "@orb/tooling/_shared/appearance";
 import {
   APPEARANCE_VALUE_FLAGS,
   appearanceHelpBlock,
   applyAppearanceFlag,
   FULL_MOTION_PATCH,
   loadAppearancePreset,
-  mergeAppearancePatches,
   parseAppearancePatch,
-} from "@orb/tooling/_shared/appearance";
+} from "@orb/tooling/_shared/appearance-flags";
 import type { Viewport } from "@orb/tooling/_shared/argv";
 import { parseViewport, splitLastEq } from "@orb/tooling/_shared/argv";
 import { DEFAULT_BASE } from "@orb/tooling/_shared/browser";
@@ -104,6 +105,9 @@ const FLAG_HANDLERS: Record<string, FlagHandler> = {
     a.viewport = DEFAULT_VIEWPORT;
     a.device = null;
   },
+  "--matrix": (a) => {
+    a.matrix = true;
+  },
   "--appearance": (a, rest) => {
     applyAppearanceFlag(a, parseAppearancePatch(rest.shift() ?? ""));
   },
@@ -161,6 +165,7 @@ Environment:
   --viewport <WxH>          default 1280x800
   --mobile                  iPhone 14 Pro Max — touch + pointer:coarse (the 44px tap floor)
   --desktop                 explicit 1280x800
+  --matrix                  derive and run the 13-cell Appearance/theme/device representative matrix
 
 Where it audits (default: ${DEFAULT_BASE} — the dev stack, which serves MAIN, never a worktree):
   --base <url>              audit an already-running origin (a stage, a file:// dir) — conflicts with the
@@ -226,6 +231,7 @@ export function parseAuditArgs(argv: string[]): Args {
   const args: Args = {
     route: "/",
     base: DEFAULT_BASE,
+    matrix: false,
     baseExplicit: false,
     isolated: false,
     ref: null,
@@ -255,5 +261,13 @@ export function parseAuditArgs(argv: string[]): Args {
   // Combination misuse is judged AFTER the whole argv is known (flag order must not change the verdict) —
   // still before anything runs, so a conflicting pair never boots a stage or a browser.
   args.errors.push(...stageArgErrors(args));
+  if (args.matrix) {
+    const overridden = ["--viewport", "--mobile", "--desktop", "--appearance", "--appearance-preset", "--full-motion", "--theme"].filter((flag) =>
+      argv.includes(flag),
+    );
+    if (overridden.length > 0) {
+      args.errors.push(`--matrix owns appearance/theme/device axes; drop: ${overridden.join(", ")}`);
+    }
+  }
   return args;
 }

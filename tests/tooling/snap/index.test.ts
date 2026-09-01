@@ -38,6 +38,10 @@ const CLEAN_FAILURES: SnapFailureSummary = {
   consoleErrors: 0,
   consoleWarnings: 0,
   css: 0,
+  deadCss: 0,
+  emptyCss: 0,
+  environment: 0,
+  appearance: 0,
 };
 
 function runSnap(args: readonly string[]): ReturnType<typeof spawnSync> {
@@ -345,7 +349,7 @@ test("snap CLI prints the --out warning before booting chromium", () => {
 
 test("every requested evidence failure participates in the final verdict", () => {
   expect(hasSnapFailure(CLEAN_FAILURES)).toBe(false);
-  for (const field of ["aria", "map", "eval", "watch", "diff", "assertions", "consoleErrors", "consoleWarnings"] as const) {
+  for (const field of ["aria", "map", "eval", "watch", "diff", "assertions", "consoleErrors", "consoleWarnings", "deadCss", "emptyCss"] as const) {
     expect(hasSnapFailure({ ...CLEAN_FAILURES, [field]: 1 }), field).toBe(true);
   }
 });
@@ -386,6 +390,17 @@ test("scenario schema is bounded to named checkpoints with argv arrays", () => {
   expect(scenario.name).toBe("chat_flow");
   expect(scenario.checkpoints).toEqual([{ name: "home", args: ["/", "--expect-visible", "main"] }]);
   expect(() => parseScenarioSpec('{"checkpoints":[]}', "fallback")).toThrow("at least one checkpoint");
+});
+
+// @instrument-proof: #953 must preserve the pre-rated-matrix composition: a behavioral JSON scenario
+// runs under every derived environment/Appearance cell. The parser used to reject this pair even though
+// matrix.ts retained the scenario execution branch, turning shipped capability into dead code.
+test("the rated matrix composes with a scenario instead of refusing the old capability", () => {
+  const args = parseSnapArgs(["--matrix", "--scenario", "walk.json", "--isolated"]);
+
+  expect(args.errors).toEqual([]);
+  expect(args.matrix).toBe(true);
+  expect(args.scenario).toBe("walk.json");
 });
 
 test("terminal console reports preserve failures before spending the remaining cap on recent noise", () => {
@@ -504,6 +519,8 @@ test("snap help exits cleanly without starting Chromium", () => {
   expect(result.stdout).toContain("--contexts <N>");
   expect(result.stdout).toContain("--watch <totalMs>");
   expect(result.stdout).toContain("--open-chat <id|title|latest|current>");
+  expect(result.stdout).toContain("appearance-shell-config");
+  expect(result.stdout).toContain("appearance-chat");
 });
 
 test("snap CLI exits 2 for misuse before starting Chromium", () => {

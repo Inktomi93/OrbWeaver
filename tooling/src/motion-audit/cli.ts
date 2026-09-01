@@ -29,7 +29,7 @@ import process from "node:process";
 import { print } from "../_shared/artifacts.ts";
 import { EXIT } from "../_shared/exit-contract.ts";
 import { runTool } from "../_shared/run-tool.ts";
-import { MOTION_AUDIT_HELP, parseMotionArgs, runMotionAudit } from "./index.ts";
+import { MOTION_AUDIT_HELP, parseMotionArgs, runMotionAudit, runMotionAuditMatrix } from "./index.ts";
 
 async function main(): Promise<number> {
   const opts = parseMotionArgs(process.argv.slice(2));
@@ -41,7 +41,7 @@ async function main(): Promise<number> {
     print(MOTION_AUDIT_HELP);
     return EXIT.misuse;
   }
-  return await runMotionAudit(opts);
+  return opts.matrix ? await runMotionAuditMatrix(opts) : await runMotionAudit(opts);
 }
 
 await runTool(main);

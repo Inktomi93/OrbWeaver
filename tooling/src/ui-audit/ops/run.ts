@@ -13,6 +13,7 @@ import { writeFile } from "node:fs/promises";
 import type { SettingsShimEvidence } from "@orb/tooling/_shared/appearance";
 import { artifactFile, print, routeSlug } from "@orb/tooling/_shared/artifacts";
 import { buildUrl, launchProbeSession, withProbeSession } from "@orb/tooling/_shared/browser";
+import { readBrowserEnvironment } from "@orb/tooling/_shared/browser-environment";
 import type { EvidenceGap } from "@orb/tooling/_shared/evidence";
 import { instrumentError, printEvidenceGaps, printVerdict } from "@orb/tooling/_shared/evidence";
 import type { ExitCode } from "@orb/tooling/_shared/exit-contract";
@@ -127,6 +128,11 @@ export async function runUiAudit(opts: Args): Promise<number> {
   // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: one linear ownership closure keeps every audit verdict and early return inside the same guaranteed cleanup boundary.
   return await withProbeSession(session, async () => {
     const { navError, actionsFailed, appReady, samples, population } = await navigateAndReveal(session.page, opts, url);
+    const browserEnvironment = await readBrowserEnvironment(session.page, session.environmentContract);
+    if (browserEnvironment.mismatches.length > 0) {
+      print(`URL          ${url}`);
+      return instrumentError({ evidence: "browser environment", detail: browserEnvironment.mismatches.join("; ") });
+    }
     // ZERO HYGIENE (#409), the apparatus arm: the WALK failing is an instrument failure, not a finding.
     // An HTTP nav error stays a violation below — that one IS a fact about the page.
     if (navError?.startsWith(SAMPLE_COLLECTION_PREFIX) === true) {
@@ -175,6 +181,7 @@ export async function runUiAudit(opts: Args): Promise<number> {
           stage: stageLabel(opts.stageShortSha),
           viewport: opts.viewport,
           device: opts.device,
+          browserEnvironment,
           actions: opts.actions,
           actionsFailed,
           failOn: opts.failOn,
@@ -184,6 +191,8 @@ export async function runUiAudit(opts: Args): Promise<number> {
           pixelSampledBackdrops: pixels.sampled,
           backdropRefusals: pixels.refusals,
           censusReach: reach ?? null,
+          obscuredRecentred: pixels.samples?.obscuredScan?.recentred ?? 0,
+          obscuredUnaskable: pixels.samples?.obscuredScan?.subjects ?? [],
           populationAccounting,
           populationVerdict: populationGap === null ? "complete" : { verdict: "NO VERDICT", ...populationGap },
           themeEvidence: {
@@ -238,7 +247,13 @@ export async function runUiAudit(opts: Args): Promise<number> {
         ["fail-on", opts.failOn],
         ["actions", opts.actions.length],
         ["actions-failed", actionsFailed],
-        ["pointer", opts.device === null ? "fine" : "coarse"],
+        ["device-request", browserEnvironment.requested.device ?? "desktop"],
+        ["device-actual", browserEnvironment.actual.device],
+        ["viewport-actual", `${browserEnvironment.actual.innerViewport.width}x${browserEnvironment.actual.innerViewport.height}`],
+        ["pointer", browserEnvironment.actual.pointer],
+        ["hover", browserEnvironment.actual.hover],
+        ["touch", browserEnvironment.actual.hasTouch ? "yes" : "no"],
+        ["environment-fails", browserEnvironment.mismatches.length],
         ["population-verdict", populationGap === null ? "complete" : "NO-VERDICT"],
         ["tap-candidates", populationAccounting["tap-target"]?.candidates ?? -1],
         ["tap-judged", populationAccounting["tap-target"]?.judged ?? -1],
@@ -276,6 +291,7 @@ export async function runUiAudit(opts: Args): Promise<number> {
         // The OBSCURED denominator (#816) beside the others: `obscured=0` is only a verdict when a reader
         // can see how many elements were asked whether they still own their own centre.
         ["obscured-scanned", pixels.samples?.obscuredScan?.candidates ?? -1],
+        ["obscured-recentred", pixels.samples?.obscuredScan?.recentred ?? -1],
         ["obscured-unaskable", pixels.samples?.obscuredScan?.unaskable ?? -1],
         ["px-backdrops", pixels.sampled],
         ["no-verdict", pixels.refusals.length],
