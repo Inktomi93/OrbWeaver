@@ -17,6 +17,7 @@ export const WALKER_CENSUS_SELECTION = `  // ── selection idiom: authored ST
   // census only the channels that CHANGE. Aggregate all five Base UI state kinds after pairing; splitting
   // them into one-element buckets makes a surface with three vocabularies look like three clean zeros.
   var selectionIdioms = [];
+  relationalAccounting["selection-idiom"] = { candidates: 0, judged: 0, withheld: {} };
   var SELECT_MIN_ELS = 3;
   var SELECT_RING_MIN_PX = 1;
   var SELECT_BAR_MIN_PX = 2;
@@ -100,7 +101,16 @@ export const WALKER_CENSUS_SELECTION = `  // ── selection idiom: authored ST
   var selectionTotal = 0;
   selectionGroups.forEach(function (groupsAtParent) {
     groupsAtParent.forEach(function (group) {
-      if (group.selected.length === 0 || group.unselected.length === 0) return;
+      relationalAccounting["selection-idiom"].candidates += 1;
+      if (group.selected.length === 0) {
+        withholdRelational(relationalAccounting["selection-idiom"], "unmatchedUnselected");
+        return;
+      }
+      if (group.unselected.length === 0) {
+        withholdRelational(relationalAccounting["selection-idiom"], "unmatchedSelected");
+        return;
+      }
+      relationalAccounting["selection-idiom"].judged += 1;
       var baseEl = group.unselected[0];
       for (var selectedIndex = 0; selectedIndex < group.selected.length; selectedIndex += 1) {
         var selectedEl = group.selected[selectedIndex];

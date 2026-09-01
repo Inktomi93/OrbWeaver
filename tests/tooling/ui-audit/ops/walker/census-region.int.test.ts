@@ -18,7 +18,26 @@ test("quiet-state refuses a global comparison between unrelated component famili
   const res = await runCli("ui-audit", ["/unrelated-states.html", "--base", `file://${scratch}`, "--fail-on", "P2"], {
     timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
   });
-  expect(res.stdout, "two global extrema with no compatible authored cohort prove no state ordering").not.toContain("quiet-state");
+  expect(res.stdout, "two global extrema with no compatible authored cohort prove no state ordering").not.toMatch(/^P2\s+quiet-state/mu);
+  expect(res.stdout).toContain("POPULATION   quiet-state candidates=2 judged=0 affected=0 populations=0 representatives=0");
+  expect(res.stdout).toContain("unmatchedOff=1");
+  expect(res.stdout).toContain("unmatchedOn=1");
+  expect(res.stdout).toContain("INSTRUMENT ERROR");
+  expect(res.stdout).not.toContain("no findings — clean");
+  await expect(res).toExitWith(2);
+});
+
+test("quiet-state counts a compatible resolved ON/OFF cohort as judged", async ({ runCli, scratch }) => {
+  await writeFile(
+    join(scratch, "paired-states.html"),
+    relationalDocument(`<section role="region" aria-label="Switches" style="background:#000;padding:12px">
+  <span data-slot="switch-root" data-variant="quiet" data-unchecked style="display:block;width:48px;height:24px;background:#222">off</span>
+  <span data-slot="switch-root" data-variant="quiet" data-checked style="display:block;width:48px;height:24px;background:#f90">on</span>
+</section>`),
+  );
+  const res = await runCli("ui-audit", ["/paired-states.html", "--base", `file://${scratch}`], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+  expect(res.stdout).toContain("POPULATION   quiet-state candidates=1 judged=1 affected=0 populations=0 representatives=0");
+  expect(res.stdout).not.toContain("INSTRUMENT ERROR");
 });
 
 test("independent labelled regions do not become one contradictory double-empty surface", async ({ runCli, scratch }) => {
@@ -29,7 +48,7 @@ test("independent labelled regions do not become one contradictory double-empty 
   const res = await runCli("ui-audit", ["/independent-empty.html", "--base", `file://${scratch}`, "--fail-on", "P2"], {
     timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
   });
-  expect(res.stdout, "each declared region owns one actionable empty state").not.toContain("double-empty-state");
+  expect(res.stdout, "each declared region owns one actionable empty state").not.toMatch(/^P2\s+double-empty-state/mu);
 });
 
 test("a hidden empty-state action is not an operable door out", async ({ runCli, scratch }) => {

@@ -109,7 +109,8 @@ interface TapPopulationReport {
       readonly affected: number;
       readonly populations: number;
       readonly emitted: number;
-      readonly withheld: { readonly nestedOwner: number; readonly cap: number };
+      readonly withheld: { readonly extentTruncated: number; readonly cap: number };
+      readonly collapsed: { readonly sameOwner: number };
     };
   };
 }
@@ -132,7 +133,8 @@ auditRuleTest(
       affected: 11,
       populations: 1,
       emitted: 5,
-      withheld: { nestedOwner: 0, cap: 6 },
+      withheld: { extentTruncated: 0, cap: 6 },
+      collapsed: { sameOwner: 0 },
     });
     await expect(res).toExitWith(1);
   },
@@ -198,8 +200,8 @@ auditRuleTest(
 );
 
 auditRuleTest(
-  [{ rule: "tap-target", kind: "fires", reason: "a failing interactive child is wholly owned by a failing outer interactive target" }],
-  "a nested failing target is suppressed when the already-reported outer target owns the same failure",
+  [{ rule: "tap-target", kind: "fires", reason: "a separately-authored nested action remains independently actionable" }],
+  "a nested failing target remains visible when the outer and inner authored decisions differ",
   async ({ runCli, scratch }) => {
     const reportPath = join(scratch, "nested-target.json");
     await writeFile(
@@ -218,8 +220,8 @@ auditRuleTest(
     });
     const report = JSON.parse(await readFile(reportPath, "utf8")) as TapPopulationReport;
     const findings = report.findings.filter((finding) => finding.rule === "tap-target");
-    expect(findings, "the inner glyph target is not a second authored repair").toHaveLength(1);
-    expect(report.populationAccounting?.["tap-target"]?.withheld.nestedOwner).toBe(1);
+    expect(findings, "DOM nesting alone cannot erase a separately-authored inner action").toHaveLength(2);
+    expect(report.populationAccounting?.["tap-target"]?.collapsed.sameOwner).toBe(0);
     await expect(res).toExitWith(1);
   },
 );
@@ -233,7 +235,10 @@ auditRuleTest(
 function switchPage(trackWidthPx: number): string {
   return `<!doctype html>
 <html data-app-ready="settled"><head><meta charset="utf-8"><title>t</title></head>
-<body style="margin:0;background:#000"><main><span role="switch" aria-checked="true" aria-label="Color quoted speech" tabindex="0" style="display:inline-block;width:${trackWidthPx}px;height:44px;border-radius:9999px;background:#f77f20"></span></main></body></html>`;
+<body style="margin:0;background:#000"><main>
+<span role="switch" aria-checked="true" aria-label="Color quoted speech" tabindex="0" style="display:inline-block;width:${trackWidthPx}px;height:44px;border-radius:9999px;background:#f77f20"></span>
+<span role="switch" aria-checked="false" aria-label="Color quoted speech" tabindex="0" style="display:inline-block;width:64px;height:44px;border-radius:9999px;background:#444"></span>
+</main></body></html>`;
 }
 
 test("a planted near-square role=switch REDs the audit through the real cli", async ({ runCli, scratch }) => {
@@ -819,7 +824,7 @@ function serveCustomThemeProof(): Promise<{ readonly base: string; readonly clos
   ];
   const html = `<!doctype html>
 <html style="color-scheme:dark"><head><meta charset="utf-8"><title>custom theme proof</title></head>
-<body style="margin:0;background:#111;color:#fff"><div id="scope" data-slot="theme-scope"><main>
+<body style="margin:0;background:#111;color:#fff;font-family:Geist,sans-serif"><div id="scope" data-slot="theme-scope"><main>
 <p style="font-size:16px;margin:24px">the custom theme subject</p>
 </main></div><script>
 fetch('/api/trpc/settings.getUserSettings?batch=1&input=%7B%7D').then((response) => response.json()).then((body) => {
@@ -879,13 +884,15 @@ test("custom light and dark requests prove catalog source, inline carrier, and e
       expect(res.stdout).toContain("theme-source=custom");
       expect(res.stdout).toContain("theme-root=default");
       expect(res.stdout).toMatch(new RegExp(`theme-${polarity}=[1-9]`, "u"));
-      await expect(res).toExitWith(0);
       const artifact = JSON.parse(await readFile(report, "utf8")) as {
+        findings: Array<{ rule: string; selector: string; value: string }>;
         themeEvidence: {
           resolution: { source: string; name: string };
           rendered: { shellScope: { inlineBackground: string | null }; subjectPolarities: Record<string, number> };
         };
       };
+      expect(artifact.findings, `the custom ${polarity} carrier must not introduce audit findings`).toEqual([]);
+      await expect(res).toExitWith(0);
       expect(artifact.themeEvidence.resolution).toMatchObject({ source: "custom", name });
       expect(artifact.themeEvidence.rendered.shellScope.inlineBackground).not.toBeNull();
       expect(artifact.themeEvidence.rendered.subjectPolarities[polarity]).toBeGreaterThan(0);
@@ -937,7 +944,7 @@ auditRuleTest(
   async ({ runCli, scratch }) => {
     await writeFile(join(scratch, "roomy.html"), collapsedRowPage(60));
     const res = await runCli("ui-audit", ["/roomy.html", "--base", `file://${scratch}`], { timeoutMs: CLI_TIMEOUT_MS });
-    expect(res.stdout).not.toContain("truncated-to-nothing");
+    expect(res.stdout).not.toMatch(/^P1\s+truncated-to-nothing/mu);
     // The absence is only a verdict when the walk censused nodes at all.
     const census = CENSUS_RE.exec(res.stdout)?.[1];
     expect(Number(census)).toBeGreaterThan(0);
@@ -1046,7 +1053,7 @@ auditRuleTest(
   async ({ runCli, scratch }) => {
     await writeFile(join(scratch, "beside.html"), overlapRowPage(160));
     const res = await runCli("ui-audit", ["/beside.html", "--base", `file://${scratch}`], { timeoutMs: CLI_TIMEOUT_MS });
-    expect(res.stdout).not.toContain("obscured-target");
+    expect(res.stdout).not.toMatch(/^P[01]\s+obscured-target/mu);
     const census = CENSUS_RE.exec(res.stdout)?.[1];
     expect(Number(census)).toBeGreaterThan(0);
   },
@@ -1067,7 +1074,7 @@ test("a modal covering the page is NOT an obscured-target — deliberate stackin
 </main></body></html>`,
   );
   const res = await runCli("ui-audit", ["/overlay.html", "--base", `file://${scratch}`], { timeoutMs: CLI_TIMEOUT_MS });
-  expect(res.stdout, "every covered node would be a finding if geometry decided this").not.toContain("obscured-target");
+  expect(res.stdout, "every covered node would be a finding if geometry decided this").not.toMatch(/^P[01]\s+obscured-target/mu);
   const census = CENSUS_RE.exec(res.stdout)?.[1];
   expect(Number(census)).toBeGreaterThan(0);
 });
@@ -1102,8 +1109,8 @@ auditRuleTest(
     // The population IS the finding: a bare min/max cannot say which side is the defect, and an
     // operator fixing "16px" needs to know 3 rows are wrong and 4 are right.
     expect(res.stdout, "the value must name the outlier count, the mode, and both heights").toContain("3 of 7 at 16px, 4 at 32px");
-    // ONE finding for the whole cohort. The tap-target family reports the same live defect nine times;
-    // if this rule ever starts emitting per-member it has become the noise it exists to replace.
+    // ONE finding for the whole cohort. Like tap-target's authored-decision populations, this must not
+    // emit one row per rendered instance; that would recreate the noise the relational rule replaces.
     expect(res.stdout.match(/^P2\s+cohort-anatomy/gmu) ?? [], "one cohort is one finding").toHaveLength(1);
   },
 );
@@ -1121,9 +1128,9 @@ auditRuleTest(
     await writeFile(join(scratch, "uniform.html"), cohortListPage(32));
     const res = await runCli("ui-audit", ["/uniform.html", "--base", `file://${scratch}`], { timeoutMs: CLI_TIMEOUT_MS });
     expect(res.stdout).not.toMatch(/^P2\s+cohort-anatomy/mu);
-    // An absence is only a verdict when the family actually ran: `scanned-structure` counts the
-    // structure family's dispatches, so a census that stopped reaching cohorts cannot masquerade as clean.
-    expect(res.stdout, "the structure family must have dispatched — otherwise this is blindness, not silence").toMatch(/scanned-structure=[1-9]/u);
+    expect(res.stdout, "the uniform cohort itself must have reached the detector").toContain(
+      "POPULATION   cohort-anatomy candidates=1 judged=1 affected=0 populations=0 representatives=0",
+    );
   },
 );
 
@@ -1177,7 +1184,9 @@ auditRuleTest(
     await writeFile(join(scratch, "bound.html"), voidRowPage(1000, "gap"));
     const res = await runCli("ui-audit", ["/bound.html", "--base", `file://${scratch}`], { timeoutMs: CLI_TIMEOUT_MS });
     expect(res.stdout).not.toMatch(/^P2\s+row-void/mu);
-    expect(res.stdout, "the structure family must have dispatched — silence is only a verdict when the family ran").toMatch(/scanned-structure=[1-9]/u);
+    expect(res.stdout, "the adjacent bound row itself must have reached the detector").toContain(
+      "POPULATION   row-void candidates=1 judged=1 affected=0 populations=0 representatives=0",
+    );
   },
 );
 
@@ -1242,8 +1251,10 @@ auditRuleTest(
   async ({ runCli, scratch }) => {
     await writeFile(join(scratch, "one-idiom.html"), selectionPage([RING, RING, RING, RING]));
     const res = await runCli("ui-audit", ["/one-idiom.html", "--base", `file://${scratch}`], { timeoutMs: CLI_TIMEOUT_MS });
-    expect(res.stdout).not.toContain("selection-idiom");
-    expect(res.stdout, "the structure family must have dispatched — silence is only a verdict when the family ran").toMatch(/scanned-structure=[1-9]/u);
+    expect(res.stdout).not.toMatch(/^P2\s+selection-idiom/mu);
+    expect(res.stdout, "all four compatible state cohorts must have reached the detector").toContain(
+      "POPULATION   selection-idiom candidates=4 judged=4 affected=0 populations=0 representatives=0",
+    );
   },
 );
 
@@ -1255,7 +1266,7 @@ auditRuleTest(
   async ({ runCli, scratch }) => {
     await writeFile(join(scratch, "two-idioms.html"), selectionPage([RING, RING, RAIL, RAIL]));
     const res = await runCli("ui-audit", ["/two-idioms.html", "--base", `file://${scratch}`], { timeoutMs: CLI_TIMEOUT_MS });
-    expect(res.stdout).not.toContain("selection-idiom");
+    expect(res.stdout).not.toMatch(/^P2\s+selection-idiom/mu);
   },
 );
 
@@ -1293,7 +1304,9 @@ auditRuleTest(
     await writeFile(join(scratch, "full.html"), inkPage(820));
     const res = await runCli("ui-audit", ["/full.html", "--base", `file://${scratch}`], { timeoutMs: CLI_TIMEOUT_MS });
     expect(res.stdout).not.toMatch(/^P3\s+pane-ink/mu);
-    expect(res.stdout, "the structure family must have dispatched — silence is only a verdict when the family ran").toMatch(/scanned-structure=[1-9]/u);
+    expect(res.stdout, "the filled pane itself must have reached the detector").toContain(
+      "POPULATION   pane-ink candidates=1 judged=1 affected=0 populations=0 representatives=0",
+    );
   },
 );
 
@@ -1324,7 +1337,7 @@ auditRuleTest(
   async ({ runCli, scratch }) => {
     await writeFile(join(scratch, "quiet-off.html"), switchWeightPage("#2a2a2a", "#f0a020"));
     const res = await runCli("ui-audit", ["/quiet-off.html", "--base", `file://${scratch}`], { timeoutMs: CLI_TIMEOUT_MS });
-    expect(res.stdout).not.toContain("quiet-state");
+    expect(res.stdout).not.toMatch(/^P2\s+quiet-state/mu);
   },
 );
 
@@ -1369,8 +1382,10 @@ auditRuleTest(
   async ({ runCli, scratch }) => {
     await writeFile(join(scratch, "one-empty.html"), emptyStatePage(1, true));
     const res = await runCli("ui-audit", ["/one-empty.html", "--base", `file://${scratch}`], { timeoutMs: CLI_TIMEOUT_MS });
-    expect(res.stdout).not.toContain("double-empty-state");
-    expect(res.stdout, "the quality family must have dispatched").toMatch(/scanned-quality=[1-9]/u);
+    expect(res.stdout).not.toMatch(/^P2\s+double-empty-state/mu);
+    expect(res.stdout, "the actionable empty surface itself must have reached the detector").toContain(
+      "POPULATION   double-empty-state candidates=1 judged=1 affected=0 populations=0 representatives=0",
+    );
   },
 );
 
@@ -1422,7 +1437,7 @@ auditRuleTest(
     // it is a muted track — which is what the user actually sees, and the correct verdict.
     await writeFile(join(scratch, "oklch-alpha-off.html"), oklchSwitchPage("oklch(0.99 0.005 60 / 0.12)", "oklch(0.55 0.14 60)"));
     const res = await runCli("ui-audit", ["/oklch-alpha-off.html", "--base", `file://${scratch}`], { timeoutMs: CLI_TIMEOUT_MS });
-    expect(res.stdout).not.toContain("quiet-state");
+    expect(res.stdout).not.toMatch(/^P2\s+quiet-state/mu);
   },
 );
 
@@ -1453,6 +1468,8 @@ auditRuleTest(
     await writeFile(join(scratch, "content-driven.html"), contentDrivenRowPage(200));
     const res = await runCli("ui-audit", ["/content-driven.html", "--base", `file://${scratch}`], { timeoutMs: CLI_TIMEOUT_MS });
     expect(res.stdout).not.toMatch(/^P2\s+cohort-anatomy/mu);
-    expect(res.stdout, "the structure family must have dispatched — silence is only a verdict when the family ran").toMatch(/scanned-structure=[1-9]/u);
+    expect(res.stdout, "the content-driven cohort itself must have reached the detector").toContain(
+      "POPULATION   cohort-anatomy candidates=1 judged=1 affected=0 populations=0 representatives=0",
+    );
   },
 );

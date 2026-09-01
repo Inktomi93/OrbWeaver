@@ -11,9 +11,10 @@
 // Full 59-rule triage + license statement:
 // .claude/skills/side-eye-design-review/reference/impeccable-adoption.md
 import type { Finding, PopulationAccounting, RulePopulationAccounting } from "../contract/findings.ts";
-import type { DesignAuditRuleFamily } from "../contract/rules.ts";
+import type { DesignAuditRuleFamily, DesignAuditRuleId } from "../contract/rules.ts";
 import { DESIGN_AUDIT_RULE_FAMILIES } from "../contract/rules.ts";
-import type { RawSamples, RelationalCensusAccountingInput } from "../contract/samples.ts";
+import type { RawSamples } from "../contract/samples.ts";
+import type { RelationalCensusAccountingInput } from "../contract/samples-populations.ts";
 import {
   checkAccessibleName,
   checkControlAspect,
@@ -30,7 +31,7 @@ import { checkBgPattern, checkIconTile, checkMotionStatic, checkRadialGlow } fro
 import {
   checkClippedOverflow,
   checkDoubleEmptyState,
-  checkDuplicateDoors,
+  checkDuplicateDoorPopulations,
   checkEdgeFlush,
   checkRepeatedText,
   checkTextOverflow,
@@ -47,6 +48,7 @@ import {
   checkZIndex,
 } from "./checks-structure.ts";
 import { checkCaveatHierarchy, checkFontCensus, checkTextStyle } from "./checks-typography.ts";
+import { assertCensusAccounting, assertRelationalCensus, settledPopulationAccounting } from "./population.ts";
 
 interface FamilyCheckResult {
   readonly findings: readonly Finding[];
@@ -88,8 +90,8 @@ function cappedRelationalFindings<T>(
   check: (item: T) => Finding | null,
   census: RelationalCensusAccountingInput | undefined,
 ): { readonly accounting: RulePopulationAccounting; readonly findings: readonly Finding[] } {
-  if (census !== undefined && census.judged !== items.length) {
-    throw new Error(`INSTRUMENT ERROR: ${rule} walker judged ${String(census.judged)} but returned ${String(items.length)} sample(s)`);
+  if (census !== undefined) {
+    assertRelationalCensus(rule, census, items.length);
   }
   const affected = nullableFindings(items, check);
   const cap = RELATIONAL_REPRESENTATIVE_CAPS[rule];
@@ -101,14 +103,105 @@ function cappedRelationalFindings<T>(
   }
   return {
     findings: emitted,
-    accounting: {
+    accounting: settledPopulationAccounting(rule, {
       candidates: census?.candidates ?? items.length,
       judged: census?.judged ?? items.length,
       affected: affected.length,
       populations: affected.length,
       emitted: emitted.length,
       withheld,
-    },
+      collapsed: {},
+    }),
+  };
+}
+
+function accountedFindings<T>(
+  rule: DesignAuditRuleId,
+  items: readonly T[],
+  check: (item: T) => Finding | null,
+  options: { readonly census: RelationalCensusAccountingInput | undefined; readonly samplesAreJudged: boolean },
+): { readonly accounting: RulePopulationAccounting; readonly findings: readonly Finding[] } {
+  const { census, samplesAreJudged } = options;
+  if (census !== undefined) {
+    if (samplesAreJudged) {
+      assertRelationalCensus(rule, census, items.length);
+    } else {
+      assertCensusAccounting(rule, census);
+    }
+  }
+  const findings = nullableFindings(items, check);
+  return {
+    findings,
+    accounting: settledPopulationAccounting(rule, {
+      candidates: census?.candidates ?? items.length,
+      judged: census?.judged ?? items.length,
+      affected: findings.length,
+      populations: findings.length,
+      emitted: findings.length,
+      withheld: { ...(census?.withheld ?? {}) },
+      collapsed: {},
+    }),
+  };
+}
+
+const DECISION_REPRESENTATIVE_CAP = 5;
+
+interface DecisionFindingRow<T> {
+  readonly input: T;
+  readonly finding: Finding;
+}
+
+function decisionPopulationFindings<T extends { readonly selector: string }>(
+  rule: DesignAuditRuleId,
+  items: readonly T[],
+  check: (item: T) => Finding,
+  options: { readonly census: RelationalCensusAccountingInput | undefined; readonly decisionKey: (item: T) => string },
+): { readonly accounting: RulePopulationAccounting; readonly findings: readonly Finding[] } {
+  const { census, decisionKey } = options;
+  if (census !== undefined) {
+    assertCensusAccounting(rule, census);
+  }
+  const groups = new Map<string, DecisionFindingRow<T>[]>();
+  for (const input of items) {
+    const key = decisionKey(input);
+    const group = groups.get(key) ?? [];
+    group.push({ input, finding: check(input) });
+    groups.set(key, group);
+  }
+  const findings: Finding[] = [];
+  let emitted = 0;
+  for (const group of groups.values()) {
+    const first = group[0];
+    if (first === undefined) {
+      continue;
+    }
+    const representatives = group.slice(0, DECISION_REPRESENTATIVE_CAP).map(({ input }) => input.selector);
+    const capped = group.length - representatives.length;
+    emitted += representatives.length;
+    findings.push({
+      ...first.finding,
+      selector: representatives[0] ?? first.input.selector,
+      value: `${first.finding.value}; ${String(group.length)} affected; ${String(representatives.length)} representative(s), ${String(capped)} capped`,
+      representatives,
+      population: { affected: group.length, judged: group.length, capped },
+    } as Finding);
+  }
+  const cap = items.length - emitted;
+  const withheld = { ...(census?.withheld ?? {}) };
+  if (cap > 0) {
+    withheld["cap"] = cap;
+  }
+  return {
+    findings,
+    accounting: settledPopulationAccounting(rule, {
+      candidates: census?.candidates ?? items.length,
+      judged: census?.judged ?? items.length,
+      affected: items.length,
+      populations: findings.length,
+      emitted,
+      withheld,
+      collapsed: {},
+    }),
   };
 }
 
@@ -128,22 +221,42 @@ function runArray(state: MutableFamilyCheckResult, detector: () => readonly Find
 function a11yFindings(samples: RawSamples): FamilyCheckResult {
   const state = emptyFamilyResult();
   const tapTargets = checkTapTargetPopulations(samples.tapTargets, samples.pointerCoarse);
+  const obscuredCensus =
+    samples.relationalAccounting?.["obscured-target"] ??
+    (samples.obscuredScan === undefined
+      ? undefined
+      : {
+          candidates: samples.obscuredScan.candidates,
+          judged: samples.obscuredScan.candidates - samples.obscuredScan.unaskable,
+          withheld: { unaskable: samples.obscuredScan.unaskable },
+        });
+  const obscured = decisionPopulationFindings("obscured-target", samples.obscuredTargets ?? [], checkObscuredTarget, {
+    decisionKey: (input) =>
+      `${input.authoredTarget ?? input.selector}\u0000${input.authoredHome ?? input.selector}\u0000${input.hitAuthoredTarget ?? input.hitSelector}\u0000${
+        input.hitAuthoredHome ?? input.hitSelector
+      }`,
+    census: obscuredCensus,
+  });
   runArray(state, () => tapTargets.findings);
   runArray(state, () => nullableFindings(samples.controlAspects ?? [], checkControlAspect));
   runArray(state, () => nullableFindings(samples.accessibleNames, checkAccessibleName));
   runNullable(state, () => checkMainLandmark({ main: samples.mainLandmarkPresent }));
   runArray(state, () => nullableFindings(samples.tabIndexes, checkTabIndexSmell));
   runArray(state, () => checkHeadingOrder(samples.headings));
-  runArray(state, () => (samples.obscuredTargets ?? []).map(checkObscuredTarget));
-  return { ...state, populationAccounting: { "tap-target": tapTargets.accounting } };
+  runArray(state, () => obscured.findings);
+  return { ...state, populationAccounting: { "obscured-target": obscured.accounting, "tap-target": tapTargets.accounting } };
 }
 
 function colorFindings(samples: RawSamples): FamilyCheckResult {
   const state = emptyFamilyResult();
+  const quiet = accountedFindings("quiet-state", samples.quietStates ?? [], checkQuietState, {
+    census: samples.relationalAccounting?.["quiet-state"],
+    samplesAreJudged: true,
+  });
   runArray(state, () => nullableFindings(samples.texts, checkContrast));
   runArray(state, () => nullableFindings(samples.texts, checkGrayOnColor));
-  runArray(state, () => nullableFindings(samples.quietStates ?? [], checkQuietState));
-  return state;
+  runArray(state, () => quiet.findings);
+  return { ...state, populationAccounting: { "quiet-state": quiet.accounting } };
 }
 
 function decorFindings(samples: RawSamples): FamilyCheckResult {
@@ -171,17 +284,33 @@ function ornamentFindings(samples: RawSamples): FamilyCheckResult {
 
 function qualityFindings(samples: RawSamples): FamilyCheckResult {
   const state = emptyFamilyResult();
-  runArray(state, () => checkDuplicateDoors(samples.actionDoors ?? []));
+  const duplicateDoors = checkDuplicateDoorPopulations(samples.actionDoors ?? []);
+  const emptyStates = accountedFindings("double-empty-state", samples.emptyStates ?? [], checkDoubleEmptyState, {
+    census: samples.relationalAccounting?.["double-empty-state"],
+    samplesAreJudged: true,
+  });
+  const truncated = decisionPopulationFindings("truncated-to-nothing", samples.truncatedTexts ?? [], checkTruncatedText, {
+    decisionKey: (input) => `${input.authoredTarget ?? input.selector}\u0000${input.authoredHome ?? input.selector}`,
+    census: samples.relationalAccounting?.["truncated-to-nothing"],
+  });
+  runArray(state, () => duplicateDoors.findings);
   runArray(state, () => samples.overflows.map(checkTextOverflow));
   runArray(state, () => samples.repeatedTexts.map(checkRepeatedText));
   runArray(state, () => samples.clippedOverflows.map(checkClippedOverflow));
   runArray(state, () => samples.edgeFlushCards.map(checkEdgeFlush));
-  runArray(state, () => nullableFindings(samples.emptyStates ?? [], checkDoubleEmptyState));
-  // The #816 collision families: text erased to zero width, and a painted element whose own centre
-  // belongs to a neighbour. Optional on the sample bundle — a pinned pre-#816 fixture set censused
-  // neither, and an absent family is silence about a question nobody asked, not a clean answer.
-  runArray(state, () => (samples.truncatedTexts ?? []).map(checkTruncatedText));
-  return state;
+  runArray(state, () => emptyStates.findings);
+  // The #816 collision family: text erased to zero width. Legacy sample bundles may omit its walker
+  // census; the collector still publishes a derived zero row so reports never confuse absence with an
+  // unreported population contract.
+  runArray(state, () => truncated.findings);
+  return {
+    ...state,
+    populationAccounting: {
+      "double-empty-state": emptyStates.accounting,
+      "duplicate-action-door": duplicateDoors.accounting,
+      "truncated-to-nothing": truncated.accounting,
+    },
+  };
 }
 
 function structureFindings(samples: RawSamples): FamilyCheckResult {
@@ -198,9 +327,13 @@ function structureFindings(samples: RawSamples): FamilyCheckResult {
   );
   const rowVoid = cappedRelationalFindings("row-void", samples.rowVoids ?? [], checkRowVoid, samples.relationalAccounting?.["row-void"]);
   const paneInk = cappedRelationalFindings("pane-ink", samples.paneInks ?? [], checkPaneInk, samples.relationalAccounting?.["pane-ink"]);
+  const selection = accountedFindings("selection-idiom", samples.selectionIdioms ?? [], checkSelectionIdiom, {
+    census: samples.relationalAccounting?.["selection-idiom"],
+    samplesAreJudged: false,
+  });
   runArray(state, () => cohortAnatomy.findings);
   runArray(state, () => rowVoid.findings);
-  runArray(state, () => nullableFindings(samples.selectionIdioms ?? [], checkSelectionIdiom));
+  runArray(state, () => selection.findings);
   runArray(state, () => paneInk.findings);
   return {
     ...state,
@@ -208,6 +341,7 @@ function structureFindings(samples: RawSamples): FamilyCheckResult {
       "cohort-anatomy": cohortAnatomy.accounting,
       "pane-ink": paneInk.accounting,
       "row-void": rowVoid.accounting,
+      "selection-idiom": selection.accounting,
     },
   };
 }

@@ -106,7 +106,6 @@ export type {
 // Same split reason as the interactive family above, and the same import-beside-re-export rule:
 // `RawSamples` composes this name, so it is bound locally at the top of the file as well.
 export type { CohortAnatomyInput, EmptyStateInput, PaneInkInput, QuietStateInput, RowVoidInput, SelectionIdiomInput } from "./samples-layout.ts";
-export type { RelationalCensusAccountingInput, RelationalPopulationAccountingInput } from "./samples-populations.ts";
 
 // ── Heading order (impeccable `skipped-heading`; UIP §13.10 N7 is law here) ──
 export interface HeadingSample {
@@ -341,6 +340,9 @@ export interface EdgeFlushInput {
 // `isVisible` requires `rect.width > 0`, so a name squeezed to 0px by a shrink-0 neighbour was not merely
 // unjudged — it was invisible to EVERY family, which is how a review's P1 read as census 420 / 0 findings.
 export interface TruncatedTextInput {
+  /** Stable authored-decision identity. Absent in pre-#987 fixture bundles, which retain per-row identity. */
+  readonly authoredTarget?: string;
+  readonly authoredHome?: string;
   readonly selector: string;
   /** What the text would occupy unwrapped (`scrollWidth`) — the size of what the reader is missing. */
   readonly naturalPx: number;
@@ -358,6 +360,11 @@ export interface TruncatedTextInput {
 // centre, bounded to a LOCAL neighbour (a common ancestor within a few levels) so an overlay covering the
 // page is never mistaken for a row colliding with itself.
 export interface ObscuredTargetInput {
+  /** Both sides of the collision's authored identity; selector fallback preserves historical fixtures. */
+  readonly authoredTarget?: string;
+  readonly authoredHome?: string;
+  readonly hitAuthoredTarget?: string;
+  readonly hitAuthoredHome?: string;
   readonly selector: string;
   /** What `elementFromPoint` returned at this element's centre instead. */
   readonly hitSelector: string;

@@ -28,11 +28,9 @@ refuseDirectInvocation(import.meta.url, "pnpm design-audit");
 
 export const WALKER_CENSUS_COHORT = `  // ── sibling cohort anatomy ────────────────────────────────────────────────
   var cohortAnatomies = [];
-  var relationalAccounting = {
-    "cohort-anatomy": { candidates: 0, judged: 0, withheld: {} },
-    "row-void": { candidates: 0, judged: 0, withheld: {} },
-    "pane-ink": { candidates: 0, judged: 0, withheld: {} },
-  };
+  relationalAccounting["cohort-anatomy"] = { candidates: 0, judged: 0, withheld: {} };
+  relationalAccounting["row-void"] = { candidates: 0, judged: 0, withheld: {} };
+  relationalAccounting["pane-ink"] = { candidates: 0, judged: 0, withheld: {} };
 
   function withholdRelational(accounting, reason) {
     accounting.withheld[reason] = (accounting.withheld[reason] || 0) + 1;
@@ -78,7 +76,9 @@ export const WALKER_CENSUS_COHORT = `  // ── sibling cohort anatomy ──�
     }
     // An element mid-transition is a measurement of a moment, not of a design — the same fence
     // ControlAspectInput.animating declares. One animating member voids the whole cohort's spread.
-    var canim = typeof cel.getAnimations === "function" && cel.getAnimations().length > 0;
+    var canim =
+      typeof cel.getAnimations === "function" &&
+      cel.getAnimations().some(function (animation) { return animation.playState === "running" || animation.playState === "pending"; });
     // A ROW SIZED BY ITS OWN CONTENT IS NOT A DEFECT (repaired after the first live run). On
     // settings:appearance this rule flagged a setting-row cohort at 234 / 53 / 34px — but the 234px
     // member holds a three-card theme picker and the 34px one holds a button, so the markup is right and
@@ -104,6 +104,10 @@ export const WALKER_CENSUS_COHORT = `  // ── sibling cohort anatomy ──�
       for (var mi = 0; mi < members.length; mi += 1) {
         if (members[mi].animating) animating = true;
         heights.push(members[mi].height);
+      }
+      if (animating) {
+        withholdRelational(relationalAccounting["cohort-anatomy"], "animating");
+        return;
       }
       var sorted = heights.slice().sort(function (a, b) { return a - b; });
       var minH = sorted[0];
@@ -234,7 +238,6 @@ export const WALKER_CENSUS_COHORT = `  // ── sibling cohort anatomy ──�
       if (gap > bestGap) { bestGap = gap; bestLeft = prev; bestRight = cur; }
     }
     if (bestLeft === null || bestRight === null) continue;
-    if (bestGap < VOID_MIN_PX || bestGap / vrect.width < VOID_MIN_RATIO) continue;
     var leftText = voidFlankText(bestLeft.el);
     if (leftText === "") continue;
     var rightIsControl = bestRight.el.matches(INTERACTIVE_SELECTOR) || bestRight.el.querySelector(INTERACTIVE_SELECTOR) !== null;

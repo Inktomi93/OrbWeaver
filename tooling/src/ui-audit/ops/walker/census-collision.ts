@@ -29,20 +29,23 @@
 //
 // AND THE UNASKABLE POINT IS COUNTED, NOT SKIPPED (#797's lesson, in this family's own words): a centre
 // outside the viewport cannot be asked — `elementFromPoint` answers null there and null reads as "nobody
-// else owns it". Those are tallied into `obscuredScan.unaskable` and printed, so the family's silence has
-// a denominator instead of a shrug.
+// else owns it". Those are tallied in both the legacy obscured scan and the rule-population settlement;
+// the latter makes any unaskable member withhold the whole tool verdict instead of masquerading as clean.
 import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm design-audit");
 
 export const WALKER_CENSUS_COLLISION = `  // ── truncated to NOTHING (#816) ────────────────────────────────────────────
+  var relationalAccounting = {
+    "truncated-to-nothing": { candidates: 0, judged: 0, withheld: {} },
+    "obscured-target": { candidates: 0, judged: 0, withheld: {} },
+  };
   var truncatedTexts = [];
   // Below this there is no word to lose — a 4px sliver is a rounding artefact, not an erased label.
   var TRUNC_MIN_NATURAL_PX = 8;
   // "Nothing survives": sub-pixel, not "a bit narrow". A label with even 2px showing is the
   // text-overflow family's business (it spills or ellipses); this rule is about total erasure.
   var TRUNC_MAX_VISIBLE_PX = 1;
-  var TRUNC_MAX_ROWS = 40;
   function nearestClipper(el) {
     for (var cn = el; cn !== null && cn !== document.documentElement; cn = cn.parentElement) {
       if (clipsOverflow(getComputedStyle(cn))) return cn;
@@ -57,7 +60,7 @@ export const WALKER_CENSUS_COLLISION = `  // ── truncated to NOTHING (#816) 
     var width = clip.clientWidth > 0 || cr.width <= 2 ? clip.clientWidth : cr.width;
     return { left: left, right: left + width };
   }
-  for (var tt = 0; tt < allEls.length && truncatedTexts.length < TRUNC_MAX_ROWS; tt += 1) {
+  for (var tt = 0; tt < allEls.length; tt += 1) {
     var ttel = allEls[tt];
     if (isDevChrome(ttel) || ttel.closest("[aria-hidden='true']") || isVisuallyHidden(ttel)) continue;
     if (ttel.namespaceURI === "http://www.w3.org/2000/svg") continue;
@@ -84,10 +87,14 @@ export const WALKER_CENSUS_COLLISION = `  // ── truncated to NOTHING (#816) 
     // No clipping ancestor at all: the text paints OUTSIDE its collapsed box and is readable — that is
     // the overflow family's business, never an erasure. This clause is what keeps the rule honest.
     if (ttClip === null) continue;
+    relationalAccounting["truncated-to-nothing"].candidates += 1;
     var ttSpan = clipContentSpan(ttClip);
     var ttVisible = Math.min(ttSpan.right, ttRect.left + ttNaturalPx) - Math.max(ttSpan.left, ttRect.left);
+    relationalAccounting["truncated-to-nothing"].judged += 1;
     if (ttVisible > TRUNC_MAX_VISIBLE_PX) continue;
     truncatedTexts.push({
+      authoredTarget: authoredTargetClaim(ttel),
+      authoredHome: authoredTargetHome(ttel),
       selector: describe(ttel),
       naturalPx: Math.round(ttNaturalPx),
       visiblePx: Math.max(0, Math.round(ttVisible)),
@@ -107,7 +114,6 @@ export const WALKER_CENSUS_COLLISION = `  // ── truncated to NOTHING (#816) 
   // overlay — a dialog over the app, a scrim, a portal'd menu — which is deliberate stacking, and the
   // whole reason this rule cannot be geometry-only.
   var OBSCURED_ANCESTOR_MAX = 5;
-  var OBSCURED_MAX_ROWS = 20;
   // DELIBERATE LAYERING IS A DIFFERENT PAINT LAYER (measured while building this rule's own fixtures: a
   // \`position: fixed\` dialog over the page made EVERY covered node a finding — 100% covered, one per
   // element — which is exactly the false-positive factory the geometry-only version would have been).
@@ -144,7 +150,7 @@ export const WALKER_CENSUS_COLLISION = `  // ── truncated to NOTHING (#816) 
     }
     return t.trim().replace(/\\s+/g, " ");
   }
-  for (var ob = 0; ob < allEls.length && obscuredTargets.length < OBSCURED_MAX_ROWS; ob += 1) {
+  for (var ob = 0; ob < allEls.length; ob += 1) {
     var obel = allEls[ob];
     if (isDevChrome(obel) || obel.closest("[aria-hidden='true']") || isVisuallyHidden(obel)) continue;
     if (!isVisible(obel)) continue;
@@ -186,7 +192,11 @@ export const WALKER_CENSUS_COLLISION = `  // ── truncated to NOTHING (#816) 
     if (obCovered < OBSCURED_MIN_COVERED) continue;
     if (Math.max(obOverlapW, obOverlapH) < OBSCURED_MIN_OVERLAP_PX) continue;
     obscuredTargets.push({
+      authoredTarget: authoredTargetClaim(obel),
+      authoredHome: authoredTargetHome(obel),
       selector: describe(obel),
+      hitAuthoredTarget: authoredTargetClaim(obHit),
+      hitAuthoredHome: authoredTargetHome(obHit),
       hitSelector: describe(obHit),
       overlapPx: Math.round(obOverlapW),
       coveredRatio: Math.round(obCovered * 100) / 100,
@@ -195,5 +205,8 @@ export const WALKER_CENSUS_COLLISION = `  // ── truncated to NOTHING (#816) 
     });
   }
   var obscuredScan = { candidates: obscuredCandidates, unaskable: obscuredUnaskable };
+  relationalAccounting["obscured-target"].candidates = obscuredCandidates;
+  relationalAccounting["obscured-target"].judged = obscuredCandidates - obscuredUnaskable;
+  relationalAccounting["obscured-target"].withheld = { unaskable: obscuredUnaskable };
 
 `;

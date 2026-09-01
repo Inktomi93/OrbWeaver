@@ -11,6 +11,7 @@ import type {
   TabIndexInput,
   TapTargetInput,
 } from "../contract/samples.ts";
+import { settledPopulationAccounting } from "./population.ts";
 
 // ── Tap targets ──────────────────────────────────────────────────────────────
 // The relevant floor is pointer-conditional (D62): coarse/touch owes the AAA 2.5.5 44px target,
@@ -78,10 +79,14 @@ function tapTargetDecisionKey(input: TapTargetInput): string {
 }
 
 function nestedOwnedTargets(rows: readonly JudgedTapTarget[]): ReadonlySet<string> {
-  const failingIds = new Set(rows.flatMap(({ input, finding }) => (finding === null || input.targetId === undefined ? [] : [input.targetId])));
+  const failingById = new Map(rows.flatMap((row) => (row.finding === null || row.input.targetId === undefined ? [] : [[row.input.targetId, row] as const])));
   const nestedOwned = new Set<string>();
   for (const { input, finding } of rows) {
-    if (finding !== null && input.targetId !== undefined && (input.ancestorTargetIds ?? []).some((id) => failingIds.has(id))) {
+    const sameDecisionAncestor = (input.ancestorTargetIds ?? []).some((id) => {
+      const ancestor = failingById.get(id);
+      return ancestor !== undefined && tapTargetDecisionKey(ancestor.input) === tapTargetDecisionKey(input);
+    });
+    if (finding !== null && input.targetId !== undefined && sameDecisionAncestor) {
       nestedOwned.add(input.targetId);
     }
   }
@@ -165,16 +170,18 @@ export function checkTapTargetPopulations(inputs: readonly TapTargetInput[], poi
   if (result.affected > inputs.length - extentTruncated || result.representatives + result.capped !== result.affected) {
     throw new Error("INSTRUMENT ERROR: tap-target population accounting does not settle");
   }
+  const accounting = settledPopulationAccounting("tap-target", {
+    candidates: inputs.length,
+    judged: inputs.length - extentTruncated,
+    affected: result.affected + nestedOwned.size,
+    populations: result.findings.length,
+    emitted: result.representatives,
+    withheld: { extentTruncated, cap: result.capped },
+    collapsed: { sameOwner: nestedOwned.size },
+  });
   return {
     findings: result.findings,
-    accounting: {
-      candidates: inputs.length,
-      judged: inputs.length - extentTruncated,
-      affected: result.affected,
-      populations: result.findings.length,
-      emitted: result.representatives,
-      withheld: { extentTruncated, nestedOwner: nestedOwned.size, cap: result.capped },
-    },
+    accounting,
   };
 }
 

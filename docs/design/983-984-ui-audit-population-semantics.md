@@ -169,3 +169,89 @@ positive fixtures remain the opposite-direction controls.
 Focused graduation is the UI-audit CLI integration file plus the owning index/contract tests, scoped
 types and static structure, then one live Config Appearance audit and one RPG/card fixture receipt.
 Frozen finding counts are forbidden: assertions name populations, decisions, and accounting identities.
+
+## #987 chosen architecture: one population settlement contract
+
+The grouped review found that the vocabulary above exists without one settlement rule at the Node trust
+seam. #987 closes that gap. Every rule-owned population row is valid only when every count is a finite,
+non-negative integer and these identities hold:
+
+- `candidates = judged + sum(withheld except cap)`;
+- `affected = emitted + withheld.cap + sum(collapsed)`;
+- `populations <= affected`, with zero affected forcing zero populations and zero emitted.
+
+`withheld` is reserved for candidates the instrument did not judge and for the presentation-only `cap`.
+An authored target already adjudicated by the same ancestor decision is not unjudged; it is recorded in
+a separate `collapsed` reason map. This keeps a legitimate same-owner collapse from turning a complete
+audit into a false partial result while preserving exact arithmetic for every rendered target.
+
+Any non-cap withholding makes the rule's verdict incomplete. A run containing such a row prints the full
+population evidence and an explicit `NO VERDICT`/instrument error, never `no findings — clean`, and exits
+non-clean. Cap withholding remains complete because the full population was judged and only presentation
+was bounded. Invalid arithmetic fails before classification; malformed counters cannot be normalized or
+silently accepted.
+
+### Previously silent state cohorts
+
+Selection and quiet-state census candidates are authored cohorts, not only successfully paired samples.
+A cohort with both compatible sides and resolvable evidence is judged. A selected-only/unselected-only,
+ON-only/OFF-only, or unresolvable cohort is withheld under an explicit reason. Clean negative controls
+assert this rule-owned candidate/judged/withheld row; family-dispatch totals are not population proof.
+
+Animating cohorts are likewise withheld rather than emitted as samples and later declined by the
+classifier. Only animations whose `playState` is `running` or `pending` count as active; retained finished
+animations do not permanently blind the cohort.
+
+### Authored-decision aggregation
+
+Nested tap-target suppression requires both DOM ancestry and an equal authored decision key. A distinct
+nested action remains a separate finding. Same-owner descendants contribute to `collapsed.sameOwner`,
+while the complete affected denominator remains visible.
+
+Duplicate-action-door no longer has a count-shaped off switch. Every distinct authored home is retained;
+two through six preserve their existing finding shape, and seven or more remain one bounded population
+finding with complete affected, representative, and cap evidence.
+
+`truncated-to-nothing` and `obscured-target` scan their full candidate populations. They group affected
+instances by stable authored decision before presentation and cap representative selectors only after
+the full census. Obscuration identity includes both the obscured target and the covering target so two
+different collision causes in one component are not collapsed. Repeated instances cannot consume the
+budget and erase a later distinct authored decision. The existing full backdrop compositing is unchanged.
+
+Rejected alternatives:
+
+- Treating every `withheld` reason as harmless explanation: that preserves evidence but still grants a
+  clean verdict over an unmeasured population.
+- Exempting nested ownership from arithmetic: it would make the same accounting field mean both
+  adjudicated collapse and missing judgment. `collapsed` keeps those facts distinct.
+- Raising the duplicate/collision caps: a larger raw-instance cap retains the same order-dependent blind
+  spot and only delays it.
+- Inferring collision equivalence from selector text or geometry: repeated selectors can contain distinct
+  authored causes, and equal boxes do not establish ownership.
+- Reusing family dispatch counts as negative-arm proof: dispatch proves a detector was called, not that
+  the intended subject entered its census.
+
+## #987 coupled sites and planted controls
+
+The contract fans out through `contract/findings.ts`, `contract/samples-populations.ts`, the selection,
+region, cohort, collision, and interactive walkers, their return join, the a11y/quality collectors, and
+the report/runner verdict seam. The #953 device-evidence and matrix edits in the shared runner remain
+authoritative and are preserved byte-for-byte around the additive population verdict.
+
+Red-first controls cover both sides of each fence:
+
+- negative, fractional, under-settled, and cap-inconsistent counters fail loud; valid capped counters pass;
+- a wholly or partly withheld rule prints complete evidence plus `NO VERDICT` and exits non-clean, while a
+  cap-only row remains a valid verdict;
+- selected-only, unselected-only, ON-only, OFF-only, and unresolvable cohorts are withheld; compatible
+  twins are judged;
+- a same-decision nested tap target collapses, while a distinct nested action stays visible;
+- duplicate doors stay monotonic from six to seven and retain the complete denominator above the cap;
+- active animation is withheld and a finished retained animation is judged;
+- repeated collision instances collapse to one authored population, a later distinct decision survives,
+  and affected/cap totals reflect the full DOM rather than the representative budget;
+- every clean precision control asserts rule-owned candidates and judged counts or an equivalent direct
+  structured-reach receipt. Fixed family-dispatch counts are removed as proof.
+
+The focused behavioral tier is the UI-audit pure index suite plus the selection, cohort, region,
+collision, return-join, and CLI integration fixtures. The orchestrator owns the grouped broad barrier.

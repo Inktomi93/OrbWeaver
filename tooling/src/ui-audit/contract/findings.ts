@@ -27,6 +27,9 @@ export interface RulePopulationAccounting {
   readonly populations: number;
   readonly emitted: number;
   readonly withheld: Readonly<Record<string, number>>;
+  /** Affected rendered targets already adjudicated by the same authored decision. These are not missing
+   * judgments and therefore never make the run partial. */
+  readonly collapsed: Readonly<Record<string, number>>;
 }
 
 export type PopulationAccounting = Readonly<Partial<Record<DesignAuditRuleId, RulePopulationAccounting>>>;

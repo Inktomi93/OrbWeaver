@@ -120,8 +120,11 @@ export function printPopulationAccounting(accounting: PopulationAccounting): voi
     const withheld = Object.entries(row.withheld)
       .map(([reason, count]) => `${reason}=${String(count)}`)
       .join(" ");
+    const collapsed = Object.entries(row.collapsed)
+      .map(([reason, count]) => `${reason}=${String(count)}`)
+      .join(" ");
     print(
-      `POPULATION   ${rule} candidates=${String(row.candidates)} judged=${String(row.judged)} affected=${String(row.affected)} populations=${String(row.populations)} representatives=${String(row.emitted)} withheld(${withheld})`,
+      `POPULATION   ${rule} candidates=${String(row.candidates)} judged=${String(row.judged)} affected=${String(row.affected)} populations=${String(row.populations)} representatives=${String(row.emitted)} withheld(${withheld}) collapsed(${collapsed})`,
     );
   }
   if (Object.keys(accounting).length > 0) {
@@ -129,9 +132,9 @@ export function printPopulationAccounting(accounting: PopulationAccounting): voi
   }
 }
 
-export function printFindingsTable(findings: readonly Finding[]): void {
+export function printFindingsTable(findings: readonly Finding[], complete = true): void {
   if (findings.length === 0) {
-    print("no findings — clean");
+    print(complete ? "no findings — clean" : "NO VERDICT   no emitted findings — one or more rule populations were not completely judged");
     return;
   }
   const sorted = [...findings].sort((a, b) => a.severity.localeCompare(b.severity));

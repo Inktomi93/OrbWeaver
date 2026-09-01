@@ -1,7 +1,7 @@
 // Copy-surface quality: text overflow, TEXT TRUNCATED TO NOTHING (#816), repeated container text,
 // clipped positioned children, edge-flush scroller cards, uncaught page errors, duplicate action doors
 // (the runtime half of issue #252). Pure. Provenance: lib/collect.ts header.
-import type { Finding } from "../contract/findings.ts";
+import type { Finding, RulePopulationAccounting } from "../contract/findings.ts";
 import type {
   ActionDoorInput,
   ClippedOverflowInput,
@@ -11,6 +11,7 @@ import type {
   TextOverflowInput,
   TruncatedTextInput,
 } from "../contract/samples.ts";
+import { settledPopulationAccounting } from "./population.ts";
 
 /** TRUNCATED WITH NOTHING TO SHOW FOR IT (#825). The walker has already excluded every truncation that
  *  paints an ellipsis or carries the full value in a title/aria-label, so this finding is only ever about
@@ -130,9 +131,9 @@ export function checkScriptErrors(pageErrors: readonly string[]): Finding[] {
   return findings;
 }
 
-/** Above this the surface is a per-datum grid the structural test failed to recognise, not an IA defect —
- *  reporting it would be a false-positive factory rather than a finding. */
-const DOOR_GROUP_MAX = 6;
+/** Two through six homes retain their historical full selector evidence; only presentation is bounded
+ * above that point. Cardinality never disables the rule. */
+const DOOR_REPRESENTATIVE_CAP = 6;
 
 /** THE HOMES ONE (role, name) IS OFFERED FROM — the whole judgement of this rule, in one fold.
  *
@@ -185,7 +186,12 @@ function busiestItemDoors(items: ReadonlyMap<string, Map<string, ActionDoorInput
   return busiest;
 }
 
-export function checkDuplicateDoors(doors: readonly ActionDoorInput[]): Finding[] {
+interface DuplicateDoorPopulationResult {
+  readonly findings: readonly Finding[];
+  readonly accounting: RulePopulationAccounting;
+}
+
+export function checkDuplicateDoorPopulations(doors: readonly ActionDoorInput[]): DuplicateDoorPopulationResult {
   const groups = new Map<string, ActionDoorInput[]>();
   for (const door of doors) {
     if (door.name.length === 0) {
@@ -197,14 +203,22 @@ export function checkDuplicateDoors(doors: readonly ActionDoorInput[]): Finding[
     groups.set(key, bucket);
   }
   const findings: Finding[] = [];
+  let affected = 0;
+  let emitted = 0;
+  let capped = 0;
   for (const [key, bucket] of [...groups].sort(([a], [b]) => a.localeCompare(b))) {
     // ONE DOOR PER DISTINCT PATH outside a list; inside one, per BUSIEST ROW (doorHomes).
     const homes = doorHomes(bucket);
-    if (homes.length < 2 || homes.length > DOOR_GROUP_MAX) {
+    if (homes.length < 2) {
       continue;
     }
     const [role = "control", name = ""] = key.split("|");
-    const at = homes.map((d) => d.selector);
+    const at = homes.slice(0, DOOR_REPRESENTATIVE_CAP).map((d) => d.selector);
+    const groupCapped = homes.length - at.length;
+    affected += homes.length;
+    emitted += at.length;
+    capped += groupCapped;
+    const omitted = groupCapped === 0 ? "" : ` AND ${String(groupCapped)} more home(s) retained in the population receipt`;
     findings.push({
       rule: "duplicate-action-door",
       severity: "P3",
@@ -212,11 +226,28 @@ export function checkDuplicateDoors(doors: readonly ActionDoorInput[]): Finding[
       value: `${homes.length}x ${role} "${name}"`,
       message: `the same action is offered from ${homes.length} structurally distinct places on one plane — a ${role} named "${name}" at ${at.join(
         " AND ",
-      )}. One verb wants one home per plane (the more-than-one-home IA class, docs/architecture/core/client-architecture-lockdown.md §13); if a second door is ruled UX, the ruling is what makes it one`,
+      )}${omitted}. One verb wants one home per plane (the more-than-one-home IA class, docs/architecture/core/client-architecture-lockdown.md §13); if a second door is ruled UX, the ruling is what makes it one`,
       origin: "orbweaver",
+      representatives: at,
+      population: { affected: homes.length, judged: homes.length, capped: groupCapped },
     });
   }
-  return findings;
+  return {
+    findings,
+    accounting: settledPopulationAccounting("duplicate-action-door", {
+      candidates: affected,
+      judged: affected,
+      affected,
+      populations: findings.length,
+      emitted,
+      withheld: { cap: capped },
+      collapsed: {},
+    }),
+  };
+}
+
+export function checkDuplicateDoors(doors: readonly ActionDoorInput[]): Finding[] {
+  return [...checkDuplicateDoorPopulations(doors).findings];
 }
 
 /** One empty state is a pane telling you what to do. Two at once is two panes telling you DIFFERENT

@@ -579,11 +579,40 @@ test("tap-target populations collapse siblings, suppress nested owners, and pres
   expect(result.accounting).toMatchObject({
     candidates: 6,
     judged: 6,
-    affected: 5,
+    affected: 6,
     populations: 2,
     emitted: 5,
-    withheld: { nestedOwner: 1, cap: 0 },
+    withheld: { extentTruncated: 0, cap: 0 },
+    collapsed: { sameOwner: 1 },
   });
+});
+
+test("tap-target populations keep a distinct nested authored action visible", () => {
+  const result = checkTapTargetPopulations(
+    [
+      {
+        targetId: "outer",
+        ancestorTargetIds: [],
+        authoredTarget: "div|slot=clickable-card|role=button|type=",
+        authoredHome: "section@library",
+        selector: "[data-slot=clickable-card]",
+        width: 18,
+        height: 18,
+      },
+      {
+        targetId: "inner",
+        ancestorTargetIds: ["outer"],
+        authoredTarget: "button|slot=row-actions|role=|type=",
+        authoredHome: "div@clickable-card",
+        selector: "[data-slot=row-actions]",
+        width: 18,
+        height: 18,
+      },
+    ],
+    false,
+  );
+  expect(result.findings).toHaveLength(2);
+  expect(result.accounting).toMatchObject({ affected: 2, emitted: 2, collapsed: { sameOwner: 0 } });
 });
 
 test("tap-target representative capping never truncates the affected or judged denominator", () => {
@@ -1579,6 +1608,16 @@ auditRuleTest(
   },
 );
 
+test("duplicate-action-door stays observable and bounded above six distinct authored homes", () => {
+  const findings = checkDuplicateDoors(Array.from({ length: 7 }, (_unused, index) => door(`#door-${String(index)}`, `button<home-${String(index)}`)));
+  expect(findings).toHaveLength(1);
+  expect(findings[0]).toMatchObject({
+    rule: "duplicate-action-door",
+    population: { affected: 7, judged: 7, capped: 1 },
+  });
+  expect(findings[0]?.representatives).toHaveLength(6);
+});
+
 // ── measured-spill pass-throughs (impeccable) ────────────────────────────────
 
 auditRuleTest(
@@ -1722,6 +1761,93 @@ const EMPTY_SAMPLES: RawSamples = {
   clippedOverflows: [],
   edgeFlushCards: [],
 };
+
+test.each([
+  ["under-settled", { candidates: 1, judged: 0, withheld: {} }],
+  ["negative", { candidates: -1, judged: 0, withheld: { invalid: -1 } }],
+  ["fractional", { candidates: 0.5, judged: 0, withheld: { invalid: 0.5 } }],
+  ["cap-inconsistent", { candidates: 0, judged: 0, withheld: { cap: 1 } }],
+] as const)("relational population accounting fails loud when %s counters cannot settle", (_label, malformed) => {
+  expect(() =>
+    collectAudit({
+      ...EMPTY_SAMPLES,
+      relationalAccounting: {
+        "cohort-anatomy": malformed,
+        "pane-ink": { candidates: 0, judged: 0, withheld: {} },
+        "row-void": { candidates: 0, judged: 0, withheld: {} },
+      },
+    }),
+  ).toThrow("INSTRUMENT ERROR");
+});
+
+test("collision populations group repeated instances without erasing a later authored decision", () => {
+  const repeatedTruncation = Array.from({ length: 9 }, (_unused, index) => ({
+    selector: `.repeated-${String(index)}`,
+    naturalPx: 60,
+    visiblePx: 0,
+    clipSelector: ".repeated-row",
+    text: `Repeated ${String(index)}`,
+    authoredTarget: "span|slot=cast-name|role=|type=",
+    authoredHome: "div@cast-row",
+  }));
+  const distinctTruncation = {
+    selector: ".later-distinct",
+    naturalPx: 80,
+    visiblePx: 0,
+    clipSelector: ".theme-row",
+    text: "Later distinct",
+    authoredTarget: "span|slot=theme-name|role=|type=",
+    authoredHome: "div@theme-row",
+  };
+  const repeatedObscuration = Array.from({ length: 23 }, (_unused, index) => ({
+    selector: `.badge-${String(index)}`,
+    hitSelector: `.start-${String(index)}`,
+    overlapPx: 24,
+    coveredRatio: 0.75,
+    interactive: false,
+    text: "2 rules",
+    authoredTarget: "span|slot=rule-count|role=|type=",
+    authoredHome: "div@cast-row",
+    hitAuthoredTarget: "button|slot=start|role=|type=",
+    hitAuthoredHome: "div@cast-row",
+  }));
+  const distinctObscuration = {
+    selector: ".later-label",
+    hitSelector: ".delete",
+    overlapPx: 20,
+    coveredRatio: 0.5,
+    interactive: false,
+    text: "Archive",
+    authoredTarget: "span|slot=archive-label|role=|type=",
+    authoredHome: "div@archive-row",
+    hitAuthoredTarget: "button|slot=delete|role=|type=",
+    hitAuthoredHome: "div@archive-row",
+  };
+  const audit = collectAudit({
+    ...EMPTY_SAMPLES,
+    truncatedTexts: [...repeatedTruncation, distinctTruncation],
+    obscuredTargets: [...repeatedObscuration, distinctObscuration],
+    obscuredScan: { candidates: 24, unaskable: 0 },
+  });
+  expect(audit.findings.filter(({ rule }) => rule === "truncated-to-nothing")).toHaveLength(2);
+  expect(audit.populationAccounting["truncated-to-nothing"]).toMatchObject({
+    candidates: 10,
+    judged: 10,
+    affected: 10,
+    populations: 2,
+    emitted: 6,
+    withheld: { cap: 4 },
+  });
+  expect(audit.findings.filter(({ rule }) => rule === "obscured-target")).toHaveLength(2);
+  expect(audit.populationAccounting["obscured-target"]).toMatchObject({
+    candidates: 24,
+    judged: 24,
+    affected: 24,
+    populations: 2,
+    emitted: 6,
+    withheld: { cap: 18 },
+  });
+});
 
 test("collectFindings fans a raw-sample bundle out to exactly the findings each sample warrants", () => {
   const findings = collectFindings({
