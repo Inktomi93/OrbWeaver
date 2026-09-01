@@ -1266,43 +1266,43 @@
       "markerLine": 329
     },
     {
-      "siteId": "packages/client/src/lib/agent-bridge.ts::promise:ready::1",
-      "path": "packages/client/src/lib/agent-bridge.ts",
-      "line": 110,
+      "siteId": "packages/client/src/lib/app-ready-signal.ts::promise:appReady::1",
+      "path": "packages/client/src/lib/app-ready-signal.ts",
+      "line": 93,
       "column": 3,
       "grammar": "promise",
-      "position": "promise:ready",
+      "position": "promise:appReady",
       "ordinal": 1,
-      "snippet": "ready.then(unsubscribe, unsubscribe);",
+      "snippet": "appReady.then(unsubscribe, unsubscribe);",
       "verdict": "deliberate-absorb",
-      "reason": "both arms only unsubscribe this listener; `ready`'s own settlement is owned by whichever caller awaits it elsewhere. Ends if this becomes the sole reader of `ready`.",
-      "markerLine": 109
+      "reason": "both arms only unsubscribe this listener; `appReady`'s own settlement is owned by whichever caller awaits it elsewhere. Ends if this becomes the sole reader of `appReady`.",
+      "markerLine": 92
     },
     {
-      "siteId": "packages/client/src/lib/agent-bridge.ts::promise:ready::2",
-      "path": "packages/client/src/lib/agent-bridge.ts",
-      "line": 115,
+      "siteId": "packages/client/src/lib/app-ready-signal.ts::promise:appReady::2",
+      "path": "packages/client/src/lib/app-ready-signal.ts",
+      "line": 98,
       "column": 3,
       "grammar": "promise",
-      "position": "promise:ready",
+      "position": "promise:appReady",
       "ordinal": 2,
-      "snippet": "ready.then(unsubscribeBootReads, unsubscribeBootReads);",
+      "snippet": "appReady.then(unsubscribeBootReads, unsubscribeBootReads);",
       "verdict": "deliberate-absorb",
-      "reason": "both arms only unsubscribe this listener; `ready`'s own settlement is owned by whichever caller awaits it elsewhere. Ends if this becomes the sole reader of `ready`.",
-      "markerLine": 114
+      "reason": "both arms only unsubscribe this listener; `appReady`'s own settlement is owned by whichever caller awaits it elsewhere. Ends if this becomes the sole reader of `appReady`.",
+      "markerLine": 97
     },
     {
-      "siteId": "packages/client/src/lib/agent-bridge.ts::promise:ready::3",
-      "path": "packages/client/src/lib/agent-bridge.ts",
-      "line": 146,
+      "siteId": "packages/client/src/lib/app-ready-signal.ts::promise:appReady::3",
+      "path": "packages/client/src/lib/app-ready-signal.ts",
+      "line": 129,
       "column": 3,
       "grammar": "promise",
-      "position": "promise:ready",
+      "position": "promise:appReady",
       "ordinal": 3,
-      "snippet": "ready.then(unsubscribeRoute, unsubscribeRoute);",
+      "snippet": "appReady.then(unsubscribeRoute, unsubscribeRoute);",
       "verdict": "deliberate-absorb",
-      "reason": "both arms only unsubscribe this listener; `ready`'s own settlement is owned by whichever caller awaits it elsewhere. Ends if this becomes the sole reader of `ready`.",
-      "markerLine": 145
+      "reason": "both arms only unsubscribe this listener; `appReady`'s own settlement is owned by whichever caller awaits it elsewhere. Ends if this becomes the sole reader of `appReady`.",
+      "markerLine": 128
     },
     {
       "siteId": "packages/client/src/lib/error-boundary.tsx::empty:catch::1",
@@ -5493,7 +5493,7 @@
     {
       "siteId": "tooling/src/verify/ops/boot-chunk-ratchet.ts::empty:catch::1",
       "path": "tooling/src/verify/ops/boot-chunk-ratchet.ts",
-      "line": 148,
+      "line": 165,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -5501,12 +5501,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "documented on the next line — an unreadable/absent dir is the same UNMEASURABLE class as zero matches, and `entry === undefined` below routes it to the `unmeasurable()` verdict, never a pass. Ends if that unmeasurable() routing is removed.",
-      "markerLine": 143
+      "markerLine": 160
     },
     {
       "siteId": "tooling/src/verify/ops/boot-chunk-ratchet.ts::empty:catch::2",
       "path": "tooling/src/verify/ops/boot-chunk-ratchet.ts",
-      "line": 163,
+      "line": 180,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -5514,12 +5514,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "captured and routed to the `unmeasurable()` verdict on the next line, never a pass. Ends if that unmeasurable() routing is removed.",
-      "markerLine": 160
+      "markerLine": 177
     },
     {
       "siteId": "tooling/src/verify/ops/boot-chunk-ratchet.ts::empty:catch::3",
       "path": "tooling/src/verify/ops/boot-chunk-ratchet.ts",
-      "line": 191,
+      "line": 208,
       "column": 7,
       "grammar": "empty",
       "position": "empty:catch",
@@ -5527,7 +5527,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "captured and routed to the `unmeasurable()` verdict on the next line, never a pass. Ends if that unmeasurable() routing is removed.",
-      "markerLine": 188
+      "markerLine": 205
     },
     {
       "siteId": "tooling/src/verify/ops/ct-unfed-ratchet.ts::default:catch::1",
