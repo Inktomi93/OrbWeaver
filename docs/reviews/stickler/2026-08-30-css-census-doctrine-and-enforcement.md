@@ -22,7 +22,7 @@ added the token-contract/generator and single-merge/cascade findings; its full A
 
 This report is both evidence and a repair ledger. Numeric selector, colour, motion, layer, and rendered
 measurements below remain evidence against base `28d526c99`; they are not silently re-labelled as HEAD
-measurements. Current main has five sanctioned stylesheets totalling **3,165 lines** (303 + 831 + 160 + 696 +
+measurements. Current main has five sanctioned stylesheets totalling **3,174 lines** (309 + 831 + 160 + 699 +
 1,175). The sixth sanctioned CSS home is `tokens.json`, not a sixth stylesheet. Current status:
 
 - **Done:** #919 (doctrine/D150), #921 (closed six-home inventory), #936 (DTCG contract), and measured defects
@@ -1693,7 +1693,7 @@ The orchestrator owns the write; these are offered in the store's own shape.
 **#918 census result and 2026-08-31 reconciliation.** The base-`28d526c99` audit found 13 confirmed findings
 (severity ceiling P1), one refuted premise, and three self-caught instrument failures after reading 3,169 CSS
 lines and driving 312 selectors across seven live surfaces. Those numbers remain historical evidence, not
-HEAD measurements. Current main has five sanctioned stylesheets totalling 3,165 lines; `tokens.json` is the
+HEAD measurements. Current main has five sanctioned stylesheets totalling 3,174 lines; `tokens.json` is the
 sixth sanctioned home.
 
 **Done:** #919/#930 repaired the paint law and D150; #921 enforces the exact six homes including dot paths and

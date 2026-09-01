@@ -1158,6 +1158,9 @@ function writeFixtures(): void {
 // css-selector-has-a-writer reads the same five exact homes and reconciles them against the whole source
 // graph plus installed vendor artifacts. Its dedicated fs-backed conformance pin drives historical inert
 // class/data spellings, exact-value drift, supported spreads, zero population, and both vendor stale arms.
+// devtools-frontend-assets reads the exact generated closure under tooling/src/snap/lib/devtools-frontend.
+// A __g file cannot perturb that manifest/pin/license/resource tuple without mutating the live vendored root;
+// its dedicated fs-backed conformance pin drives the same validator through exact red and green temp roots.
 const UNFIXTURABLE_GATES = new Set([
   "biome-grant-liveness",
   "tsconfig-entry-liveness",
@@ -1179,6 +1182,7 @@ const UNFIXTURABLE_GATES = new Set([
   "tokens-contract",
   "css-family-ownership",
   "css-selector-has-a-writer",
+  "devtools-frontend-assets",
   // The unit is the canonical production/CT front doors; a __g file cannot perturb their exact graph.
   "playwright-css-topology",
 ]);
