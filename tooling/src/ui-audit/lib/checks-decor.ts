@@ -5,6 +5,7 @@ import type { Rgb } from "@orb/tooling/_shared/wcag";
 import { relativeLuminance, rgbChroma } from "@orb/tooling/_shared/wcag";
 import type { Finding } from "../contract/findings.ts";
 import type { AccentBorderInput, GlowShadowInput } from "../contract/samples.ts";
+import { findColorToken } from "./css-color.ts";
 import { REM_PX } from "./ramp.ts";
 
 const ACCENT_BORDER_MIN_CHROMA = 25;
@@ -115,39 +116,24 @@ const GLOW_MIN_ALPHA = 0.05;
 const GLOW_BLUR_INDEX = 2; // shadow lengths: offset-x, offset-y, blur, [spread]
 const DARK_BACKDROP_MAX_LUM = 0.1;
 
-const RGBA_MIN_CHANNELS = 3;
-
 const SHADOW_LAYER_SPLIT_RE = /,(?![^(]*\))/;
-
-const SHADOW_COLOR_RE = /rgba?\([^)]*\)/i;
 
 const SHADOW_LENGTH_RE = /(-?\d*\.?\d+)(px|rem|em)?/g;
 
-const NUMBER_TOKEN_RE = /[\d.]+/g;
-
-export function parseRgbTokens(colorFn: string): Rgb | null {
-  const nums = colorFn.match(NUMBER_TOKEN_RE);
-  if (nums === null || nums.length < RGBA_MIN_CHANNELS) {
-    return null;
-  }
-  return {
-    r: Number(nums[0]),
-    g: Number(nums[1]),
-    b: Number(nums[2]),
-    a: nums.length > RGBA_MIN_CHANNELS ? Number(nums[RGBA_MIN_CHANNELS]) : 1,
-  };
-}
-
+// COLOUR READING IS `lib/css-color.ts`'s JOB, NEVER A REGEX HERE (#983-family, 2026-09-01). This
+// file used to carry `SHADOW_COLOR_RE = /rgba?\([^)]*\)/i` plus a `/[\d.]+/g` channel scrape, which
+// made `glow-shadow` blind to every OKLCH value — i.e. to every colour a tokens-only tree can
+// author, since raw colours are gate-RED at source. Measured with a two-direction control: the same
+// zero-offset chromatic halo FIRED as `rgba(255,90,40,.55)` and was SILENT as
+// `oklch(0.7 0.19 40 / 0.55)`. `@orb/kit/safe-color` is the one colour clamp and re-deriving a
+// colour regex is banned outright by UI-Primitives-and-Reuse.md §13.9.
 function parseShadowLayer(layer: string): { color: Rgb; lengths: number[] } | null {
-  const colorMatch = SHADOW_COLOR_RE.exec(layer);
-  if (colorMatch === null) {
+  const token = findColorToken(layer);
+  if (token === null) {
     return null;
   }
-  const color = parseRgbTokens(colorMatch[0]);
-  if (color === null) {
-    return null;
-  }
-  const stripped = `${layer.slice(0, colorMatch.index)} ${layer.slice(colorMatch.index + colorMatch[0].length)}`;
+  const color = token.color;
+  const stripped = `${layer.slice(0, token.start)} ${layer.slice(token.end)}`;
   const lengths: number[] = [];
   SHADOW_LENGTH_RE.lastIndex = 0;
   let m = SHADOW_LENGTH_RE.exec(stripped);

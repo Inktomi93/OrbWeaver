@@ -5,7 +5,7 @@ import type { Rgb } from "@orb/tooling/_shared/wcag";
 import { rgbChroma } from "@orb/tooling/_shared/wcag";
 import type { Finding } from "../contract/findings.ts";
 import type { BgPatternInput, IconTileInput, MotionStaticInput, RadialGlowInput } from "../contract/samples.ts";
-import { parseRgbTokens } from "./checks-decor.ts";
+import { findColorToken } from "./css-color.ts";
 
 const RADIAL_MIN_WIDTH_PX = 240;
 
@@ -21,19 +21,15 @@ const SPOTLIGHT_MAX_STOPS = 2;
 
 const RADIAL_MIN_STOPS = 2;
 
-const RADIAL_COLOR_TOKEN_RE = /rgba?\([^)]*\)|#[0-9a-f]{3,8}\b|\btransparent\b/i;
-
-const TRANSPARENT_KEYWORD_RE = /^transparent$/i;
+// A stop ARG is a colour when `lib/css-color.ts` can read one out of it — never a regex here. This
+// file used to carry `/rgba?\(…\)|#hex|transparent/`, which made `radial-halo` and
+// `radial-spotlight-glow` blind to every OKLCH wash, i.e. to every gradient a tokens-only tree can
+// author (measured 2026-09-01 with an rgb/oklch control pair; see css-color.ts's header). Colour
+// blindness was never the right way to avoid false positives on the sanctioned effect carriers —
+// `RadialGlowInput.sanctioned` is that mechanism, and it is unchanged.
+const TRANSPARENT_KEYWORD_RE = /^\s*transparent\s*$/iu;
 
 const RADIAL_GRADIENT_HEAD_RE = /(repeating-)?radial-gradient\(/gi;
-
-const HEX_SHORT_LEN = 3;
-
-const HEX_LONG_LEN = 6;
-
-const HEX_RADIX = 16;
-
-const HEX_PAIR = 2;
 
 function splitTopLevelCommas(s: string): string[] {
   const parts: string[] = [];
@@ -56,32 +52,29 @@ function splitTopLevelCommas(s: string): string[] {
   return parts;
 }
 
-function hexToRgbNode(hex: string): Rgb {
-  const h = hex.replace("#", "");
-  const full = h.length === HEX_SHORT_LEN ? [...h].map((c) => c + c).join("") : h.slice(0, HEX_LONG_LEN);
-  return {
-    r: Number.parseInt(full.slice(0, HEX_PAIR), HEX_RADIX),
-    g: Number.parseInt(full.slice(HEX_PAIR, HEX_PAIR * 2), HEX_RADIX),
-    b: Number.parseInt(full.slice(HEX_PAIR * 2, HEX_PAIR * HEX_SHORT_LEN), HEX_RADIX),
-    a: 1,
-  };
-}
-
 interface RadialStop {
   readonly color: Rgb | null;
   readonly transparent: boolean;
 }
 
+/** `transparent` is checked BEFORE the reader: the kit parses it to a real `rgba(0,0,0,0)`, and this
+ *  rule's whole shape gate is "does the gradient fade OUT", so the keyword has to stay a distinct
+ *  fact rather than collapsing into a zero-alpha colour. */
 function parseRadialStopToken(arg: string): RadialStop {
-  const tok = RADIAL_COLOR_TOKEN_RE.exec(arg);
+  if (TRANSPARENT_KEYWORD_RE.test(arg)) {
+    return { color: null, transparent: true };
+  }
+  const tok = findColorToken(arg);
   if (tok === null) {
     return { color: null, transparent: false };
   }
-  if (TRANSPARENT_KEYWORD_RE.test(tok[0])) {
-    return { color: null, transparent: true };
-  }
-  const color = tok[0].startsWith("#") ? hexToRgbNode(tok[0]) : parseRgbTokens(tok[0]);
-  return { color, transparent: color !== null && (color.a ?? 1) <= RADIAL_FADE_MAX_ALPHA };
+  return { color: tok.color, transparent: (tok.color.a ?? 1) <= RADIAL_FADE_MAX_ALPHA };
+}
+
+/** Does this gradient argument carry a colour at all? A stop arg is `<colour> [position]`, so the
+ *  position tokens (`0%`, `70%`) and the shape prelude (`circle`, `at 50% 40%`) answer no. */
+function isStopArg(arg: string): boolean {
+  return TRANSPARENT_KEYWORD_RE.test(arg) || findColorToken(arg) !== null;
 }
 
 /** Index of the `)` closing the paren opened at `openIdx`, or -1. */
@@ -112,7 +105,7 @@ function extractRadialStopArgs(value: string): string[] | null {
       if (end < 0) {
         return null;
       }
-      const args = splitTopLevelCommas(value.slice(open + 1, end)).filter((a) => RADIAL_COLOR_TOKEN_RE.test(a));
+      const args = splitTopLevelCommas(value.slice(open + 1, end)).filter(isStopArg);
       return args.length >= RADIAL_MIN_STOPS ? args : null;
     }
     g = RADIAL_GRADIENT_HEAD_RE.exec(value);
