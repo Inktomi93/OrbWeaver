@@ -252,4 +252,54 @@ export const WALKER_CENSUS_TEXT = `
     });
   }
 
+  // ── buried raster (img/background-image painting below ~0.15 effective opacity) ────────────
+  // RUNTIME ARM ONLY of pbakaus/impeccable's buried-raster recipe (cli/engine/rules/checks.mjs,
+  // checkQuality — Copyright 2025 Paul Bakaus, Apache License 2.0): a raster carrier that PAINTS
+  // something (display/visibility/geometry all live — a display:none/visibility:hidden subtree is a
+  // different defect class and is excluded here, never judged as buried) but composites at an
+  // accumulated opacity so low the material never reaches the screen. The 0.15 threshold and the
+  // verdict live Node-side (lib/checks-media.ts); this segment only gathers the candidate, its
+  // accumulated opacity, and whether its OWN transition-property could still raise it later (a
+  // mid-entrance reveal, not a resting bury — checks-media.ts owns why that EXCLUDES rather than fires).
+  var buriedCandidates = [];
+  for (var bi = 0; bi < imgEls.length; bi += 1) {
+    var bimg = imgEls[bi];
+    if (isDevChrome(bimg)) continue;
+    var bimgSrc = bimg.getAttribute("src");
+    if (!bimgSrc || bimgSrc.trim() === "") continue;
+    var bimgStyle = getComputedStyle(bimg);
+    if (bimgStyle.display === "none" || bimgStyle.visibility === "hidden") continue;
+    var bimgRect = bimg.getBoundingClientRect();
+    if (bimgRect.width <= 0 || bimgRect.height <= 0) continue;
+    buriedCandidates.push({ el: bimg, kind: "img" });
+  }
+  for (var bj = 0; bj < allEls.length; bj += 1) {
+    var bel2 = allEls[bj];
+    if (isDevChrome(bel2)) continue;
+    var bstyle2 = getComputedStyle(bel2);
+    var bgImg2 = bstyle2.backgroundImage;
+    if (!bgImg2 || bgImg2 === "none" || bgImg2.indexOf("gradient") !== -1) continue;
+    if (!BG_URL_RE.test(bgImg2)) continue;
+    if (bstyle2.display === "none" || bstyle2.visibility === "hidden") continue;
+    var bRect2 = bel2.getBoundingClientRect();
+    if (bRect2.width <= 0 || bRect2.height <= 0) continue;
+    buriedCandidates.push({ el: bel2, kind: "background" });
+  }
+  var buriedRasters = [];
+  for (var bk = 0; bk < buriedCandidates.length; bk += 1) {
+    var bc = buriedCandidates[bk];
+    var bcTransProps = (getComputedStyle(bc.el).transitionProperty || "").split(",");
+    var bcOpacityTransitions = false;
+    for (var bt = 0; bt < bcTransProps.length; bt += 1) {
+      var bcProp = bcTransProps[bt].replace(/^\\s+|\\s+$/g, "");
+      if (bcProp === "opacity" || bcProp === "all") { bcOpacityTransitions = true; break; }
+    }
+    buriedRasters.push({
+      selector: describe(bc.el),
+      kind: bc.kind,
+      effectiveOpacity: accumulatedOpacity(bc.el),
+      opacityTransitions: bcOpacityTransitions,
+    });
+  }
+
 `;

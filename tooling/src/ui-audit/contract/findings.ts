@@ -20,6 +20,19 @@ export interface FindingPopulation {
 
 /** Whole-family accounting. Withholding reasons are rule-owned because a truncated target extent and a
  * missing label/control relation are different facts, but both must remain machine-visible. */
+/** Walker-side denominator before Node settles findings, collapses authored repeats, and applies
+ *  representative caps. It lives HERE, beside `RulePopulationAccounting`, rather than in
+ *  `samples-populations.ts`: the per-rule sample files (`samples-occlusion.ts`, `samples-hover.ts`) need
+ *  it, and `samples-populations.ts` imports THOSE to compose its per-rule map — so homing the shape in the
+ *  aggregator made a type-only import CYCLE that `no-circular` reds. `findings.ts` depends only on
+ *  `rules.ts`, so it is the leaf both sides can reach without one. */
+export interface RelationalCensusAccountingInput {
+  readonly candidates: number;
+  readonly judged: number;
+  readonly withheld: Readonly<Record<string, number>>;
+  readonly excluded: Readonly<Record<string, number>>;
+}
+
 export interface RulePopulationAccounting {
   readonly candidates: number;
   readonly judged: number;

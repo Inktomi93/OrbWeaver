@@ -94,3 +94,36 @@ export interface PixelPass {
   sampled: number;
   refusals: BackdropRefusal[];
 }
+
+/** The wire shape `window.__orb.shell()` returns (`packages/client/src/lib/agent-bridge-handles.ts`'s
+ *  `ShellSnapshot`) — mirrored here rather than imported. The probe reads the dev bridge as JSON over
+ *  `page.evaluate`, never as a live cross-package import (tooling declares no `@orb/client` dependency,
+ *  and the DOM-derived reader is the one home for the query itself — this file only names its shape). */
+export interface ShellStateSnapshot {
+  readonly section: string | null;
+  readonly panels: ReadonlyArray<{ readonly side: string | null; readonly mode: string | null }>;
+  readonly chatOpen: boolean;
+  readonly focus: boolean;
+}
+
+/** THE TWO NON-RUNNING ARMS ARE NOT THE SAME ARM, and collapsing them is how a broken checker reads as
+ *  a clean surface (#953's ruling, applied here):
+ *   • `not-applicable` — the environment cannot hover at all (`(hover: none)`), so the app's whole hover
+ *     layer is behind a media query that does not match. There is no hover state in existence to judge.
+ *     Green, silent, no accounting row.
+ *   • `broke` — the pass was SUPPOSED to run and threw. That is a checker that failed, which is exit-2
+ *     NO VERDICT class, never a quiet partial on a green run. */
+export type HoverPassOutcome =
+  | { readonly kind: "ran" }
+  | { readonly kind: "not-applicable"; readonly reason: string }
+  | { readonly kind: "broke"; readonly reason: string };
+
+/** What the pass cost and what it could not do — printed on the RESULT line beside the accounting row,
+ *  because a hover census that forced nothing is only a verdict when a reader can see why. */
+export interface HoverPass {
+  readonly samples: RawSamples;
+  readonly wallMs: number;
+  readonly outcome: HoverPassOutcome;
+  readonly subjectsForced: number;
+  readonly forceFailures: readonly string[];
+}

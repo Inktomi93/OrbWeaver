@@ -179,7 +179,7 @@ function scanShadowValue(value: string, prop: string, onDark: boolean, selector:
       selector,
       value: `${prop}: ${verdict === "halo" ? "zero-offset chromatic halo" : "chromatic blur on dark backdrop"}`,
       message:
-        "a colored glow shadow on the element itself — the sanctioned accent glow (--shadow-glow) rides a ::before layer on selected/active carriers only; anything else is the generated-UI glow tell",
+        "a colored glow shadow — the sanctioned accent glow (--shadow-glow) rides a DEDICATED pseudo layer (absolute, pointer-events-none, behind the content, inset to the box, carrying no other paint) on selected/active carriers only; on the element itself, or on a layer that paints over content or carries other decoration, it is the generated-UI glow tell",
       origin: "impeccable",
     };
   }

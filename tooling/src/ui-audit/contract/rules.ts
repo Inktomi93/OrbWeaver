@@ -23,6 +23,7 @@ export const DESIGN_AUDIT_RULES = [
   { id: "skipped-heading", family: "a11y", severity: ["P2"] },
   { id: "text-over-art", family: "color", severity: ["P0", "P1"] },
   { id: "contrast", family: "color", severity: ["P1"] },
+  { id: "hover-contrast", family: "color", severity: ["P1"] },
   { id: "inactive-control-legibility", family: "color", severity: ["P3"] },
   { id: "gray-on-color", family: "color", severity: ["P2"] },
   { id: "border-accent-on-rounded", family: "decor", severity: ["P3"] },
@@ -44,6 +45,8 @@ export const DESIGN_AUDIT_RULES = [
   { id: "edge-flush-cards", family: "quality", severity: ["P3"] },
   { id: "script-error", family: "quality", severity: ["P0"] },
   { id: "duplicate-action-door", family: "quality", severity: ["P3"] },
+  { id: "headline-overhang", family: "quality", severity: ["P2"] },
+  { id: "inline-padding-leak", family: "quality", severity: ["P1"] },
   { id: "z-index-escalation", family: "structure", severity: ["P2", "P3"] },
   { id: "nested-card", family: "structure", severity: ["P3"] },
   { id: "gradient-text", family: "structure", severity: ["P3"] },
@@ -65,6 +68,8 @@ export const DESIGN_AUDIT_RULES = [
   { id: "caveat-outweighed", family: "typography", severity: ["P2"] },
   { id: "off-theme-font", family: "typography", severity: ["P2"] },
   { id: "flat-type-hierarchy", family: "typography", severity: ["P3"] },
+  { id: "buried-raster", family: "media", severity: ["P1"] },
+  { id: "tier-drift", family: "quality", severity: ["P2"] },
 ] as const satisfies readonly DesignAuditRuleDefinition[];
 
 export type DesignAuditRuleId = (typeof DESIGN_AUDIT_RULES)[number]["id"];

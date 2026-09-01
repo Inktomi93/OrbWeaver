@@ -2,25 +2,25 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 429,
-    "enforced": 426,
+    "sites": 430,
+    "enforced": 427,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 426,
+      "deliberate-absorb": 427,
       "detached-owned": 3,
       "unproven": 0
     },
     "byGrammar": {
       "promise": 124,
       "default": 120,
-      "empty": 185
+      "empty": 186
     }
   },
   "rows": [
     {
       "siteId": "packages/client/src/agent-nav/index.ts::promise:fetchQuery::1",
       "path": "packages/client/src/agent-nav/index.ts",
-      "line": 106,
+      "line": 108,
       "column": 22,
       "grammar": "promise",
       "position": "promise:fetchQuery",
@@ -28,12 +28,12 @@
       "snippet": "const chat = await queryClient.fetchQuery(trpc.chat.getChat.queryOptions({ chatId: idOrTitle as ChatId })).catch(() => null);",
       "verdict": "deliberate-absorb",
       "reason": "a fetch failure is indistinguishable from an invalid id here — both collapse to the honest \"not found\" the caller already handles. Ends if this arm stops sharing its miss path with the invalid-id case.",
-      "markerLine": 105
+      "markerLine": 107
     },
     {
       "siteId": "packages/client/src/agent-nav/index.ts::promise:fetchQuery::2",
       "path": "packages/client/src/agent-nav/index.ts",
-      "line": 130,
+      "line": 132,
       "column": 22,
       "grammar": "promise",
       "position": "promise:fetchQuery",
@@ -41,12 +41,12 @@
       "snippet": "const page = await queryClient.fetchQuery(trpc.chat.listChats.queryOptions({ limit: CHAT_NAV_PAGE_LIMIT })).catch(() => null);",
       "verdict": "deliberate-absorb",
       "reason": "the rejection is converted into an explicit `ok:false` NavResult the caller consumes as the verdict. Ends if this arm stops returning the failure as a NavResult.",
-      "markerLine": 129
+      "markerLine": 131
     },
     {
       "siteId": "packages/client/src/agent-nav/index.ts::promise:fetchQuery::3",
       "path": "packages/client/src/agent-nav/index.ts",
-      "line": 384,
+      "line": 386,
       "column": 28,
       "grammar": "promise",
       "position": "promise:fetchQuery",
@@ -54,12 +54,12 @@
       "snippet": "const byId = await queryClient.fetchQuery(trpc.character.get.queryOptions({ characterId: idOrName as CharacterId })).catch(() => null);",
       "verdict": "deliberate-absorb",
       "reason": "a fetch failure is indistinguishable from an invalid id — the id arm falls through to the honest name-search arm below, same as resolveDirectChatId. Ends if this arm stops sharing its miss path with the invalid-id case.",
-      "markerLine": 383
+      "markerLine": 385
     },
     {
       "siteId": "packages/client/src/agent-nav/index.ts::promise:fetchQuery::4",
       "path": "packages/client/src/agent-nav/index.ts",
-      "line": 393,
+      "line": 395,
       "column": 26,
       "grammar": "promise",
       "position": "promise:fetchQuery",
@@ -67,7 +67,7 @@
       "snippet": "const page = await queryClient.fetchQuery(trpc.character.list.queryOptions({ limit: CHARACTER_NAV_PAGE_LIMIT, search: idOrName })).catch(() => null);",
       "verdict": "deliberate-absorb",
       "reason": "the rejection is converted into an explicit `ok:false` NavResult the caller consumes as the verdict. Ends if this arm stops returning the failure as a NavResult.",
-      "markerLine": 392
+      "markerLine": 394
     },
     {
       "siteId": "packages/client/src/agent-seed/retry-attempt.ts::promise:promise::1",
@@ -4154,7 +4154,7 @@
     {
       "siteId": "tooling/src/_shared/nav.ts::promise:evaluate::1",
       "path": "tooling/src/_shared/nav.ts",
-      "line": 70,
+      "line": 106,
       "column": 11,
       "grammar": "promise",
       "position": "promise:evaluate",
@@ -4162,7 +4162,7 @@
       "snippet": "await page.evaluate(\"window.__orb && window.__orb.ready\").catch(() => undefined);",
       "verdict": "deliberate-absorb",
       "reason": "a best-effort readiness ping before the real bridge call two lines below — any genuine failure (no bridge, mid-navigation) is caught by the surrounding try and returned as ok:false with the message. Ends if this becomes the only readiness signal checked.",
-      "markerLine": 69
+      "markerLine": 105
     },
     {
       "siteId": "tooling/src/_shared/proc.ts::empty:error::1",
@@ -5281,6 +5281,19 @@
       "verdict": "deliberate-absorb",
       "reason": "the comment above states the outcome IS reported — appReady:false feeds lib/evidence.ts's readinessGap check (#678), so a missing readiness signal is surfaced as a verdict input, not swallowed. Ends if appReady stops being read downstream.",
       "markerLine": 85
+    },
+    {
+      "siteId": "tooling/src/ui-audit/ops/hover.ts::empty:e::1",
+      "path": "tooling/src/ui-audit/ops/hover.ts",
+      "line": 310,
+      "column": 5,
+      "grammar": "empty",
+      "position": "empty:e",
+      "ordinal": 1,
+      "snippet": "} catch (e) {",
+      "verdict": "deliberate-absorb",
+      "reason": "printed as `HOVER REFUSED <why>`, RETURNED as a `broke` outcome, and RENDERED AS EXIT.toolError by run.ts — propagated through both the message and the exit code, so a forced-state pass that failed reddens the audit's verdict rather than being absorbed. END CONDITION: the run reports `hover-contrast` NO VERDICT and exits 2.",
+      "markerLine": 257
     },
     {
       "siteId": "tooling/src/ui-audit/ops/matrix.ts::empty:error::1",

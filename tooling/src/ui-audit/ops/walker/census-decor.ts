@@ -1,4 +1,6 @@
-// ui-audit in-page walker — segment: decor censuses: nested cards, gradient text, animated img-hover, accent borders, glow shadows, radial glows, bg patterns, icon tiles, static motion offenders.
+// ui-audit in-page walker — segment: decor censuses: nested cards, gradient text, animated img-hover, accent borders, bg patterns, icon tiles, static motion offenders.
+// The two GLOW families that used to sit between accent borders and bg patterns now live in
+// census-glow.ts (2026-09-01) — the pseudo-element sweep took this file past the tooling-size cap.
 // One IIFE, segmented by rule family for the tooling-size cap: ops/walker.ts concatenates the
 // segments IN ORDER into COLLECT_SAMPLES_JS, so scope/hoisting behavior is byte-identical to the
 // pre-split monolith. Raw JS in a template literal (no backticks / dollar-brace — see
@@ -244,58 +246,6 @@ export const WALKER_CENSUS_DECOR = `  // ── nested cards (card-like = (shado
       // ancestor: a decorative panel nested inside a selected row must keep being judged.
       listRowSelected: !!(abel.matches && abel.matches(LIST_ROW_SELECTED_SEL)),
     });
-  }
-
-  // ── chromatic glow shadows (impeccable dark-glow) ────────────────────────
-  var shadowGlows = [];
-  for (var sg = 0; sg < allEls.length && shadowGlows.length < 200; sg += 1) {
-    var sgel = allEls[sg];
-    var sgStyle = getComputedStyle(sgel);
-    var bs = sgStyle.boxShadow;
-    var ts = sgStyle.textShadow;
-    if ((bs === "none" || !bs) && (ts === "none" || !ts)) continue;
-    if (!isVisible(sgel)) continue;
-    var sgBackdrop = resolveBackdrop(sgel.parentElement || sgel);
-    shadowGlows.push({
-      selector: describe(sgel),
-      boxShadow: bs === "none" ? "" : bs,
-      textShadow: ts === "none" ? "" : ts,
-      // The dark-glow tell is not a contrast VERDICT — it only asks "is this backdrop dark?" — so it keeps
-      // reading the best-effort composite for an unresolved backdrop. Refusing here would silently drop
-      // glow findings on every surface with a fixed art layer, which this change never judged.
-      backdropColor: sgBackdrop.kind === "flat" ? sgBackdrop.color : sgBackdrop.kind === "unresolved" ? sgBackdrop.fallback : null,
-      // THE SAME CARRIER LIST THE RADIAL CENSUS USES — one home for "the owner sanctioned this glow"
-      // (#983-family, 2026-09-01). This flag did not exist while the checker was colour-blind, because
-      // blindness was doing the exemption's job by accident: the sanctioned carriers author OKLCH, so
-      // nothing here could fire on them. Repairing the colour reader made the FP real and immediate —
-      // the first live run flagged \`[data-slot=media-grid-cell]\`, which SANCTIONED_GLOW_SEL has listed
-      // all along. Deliberately NOT widened beyond that constant: an exemption entry earns its place
-      // from a measured false positive, never from a guess about what might fire later.
-      sanctioned: !!(sgel.matches && sgel.matches(SANCTIONED_GLOW_SEL)),
-    });
-  }
-
-  // ── radial-gradient washes incl. pseudo-elements (impeccable radial-halo /
-  //    radial-spotlight-glow; sanctioned owner carriers tagged, judged in checks) ──
-  var radialGlows = [];
-  var PSEUDOS = ["", "::before", "::after"];
-  for (var rg = 0; rg < allEls.length && radialGlows.length < 100; rg += 1) {
-    var rgel = allEls[rg];
-    if (!isVisible(rgel)) continue;
-    for (var pi = 0; pi < PSEUDOS.length; pi += 1) {
-      var pStyle = PSEUDOS[pi] === "" ? getComputedStyle(rgel) : getComputedStyle(rgel, PSEUDOS[pi]);
-      if (PSEUDOS[pi] !== "" && (!pStyle.content || pStyle.content === "none")) continue;
-      var rbg = pStyle.backgroundImage || "";
-      if (rbg.indexOf("radial-gradient") === -1) continue;
-      var rrect = rgel.getBoundingClientRect();
-      radialGlows.push({
-        selector: describe(rgel) + PSEUDOS[pi],
-        value: rbg,
-        width: rrect.width,
-        height: rrect.height,
-        sanctioned: !!(rgel.matches && rgel.matches(SANCTIONED_GLOW_SEL)),
-      });
-    }
   }
 
   // ── decorative bg patterns: stripes + grid-line fields (impeccable

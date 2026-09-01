@@ -39,7 +39,11 @@ export type {
   TruncatedTextInput,
   ZIndexInput,
 } from "./contract/samples.ts";
-export type { Args, AuditAction, BackdropRefusal, CaptureOutcome, DomPopulation, PixelPass } from "./contract/types.ts";
+export type { BuriedRasterInput } from "./contract/samples-media.ts";
+export type { RelationalCensusAccountingInput } from "./contract/samples-populations.ts";
+export type { FocusStateCandidate, PanelModeCandidate, SurfaceStateAccounting } from "./contract/surface-state.ts";
+export { FOCUS_STATE_SPACE, PANEL_MODE_SPACE } from "./contract/surface-state.ts";
+export type { Args, AuditAction, BackdropRefusal, CaptureOutcome, DomPopulation, PixelPass, ShellStateSnapshot } from "./contract/types.ts";
 export {
   checkAccessibleName,
   checkControlAspect,
@@ -52,7 +56,7 @@ export {
 } from "./lib/checks-a11y.ts";
 export { checkContrast, checkGrayOnColor } from "./lib/checks-color.ts";
 export { checkAccentBorder, checkGlowShadow } from "./lib/checks-decor.ts";
-export { checkBrokenImage, checkImageDistortion } from "./lib/checks-media.ts";
+export { checkBrokenImage, checkBuriedRaster, checkBuriedRasterPopulations, checkImageDistortion } from "./lib/checks-media.ts";
 export { checkBgPattern, checkIconTile, checkMotionStatic, checkRadialGlow } from "./lib/checks-ornament.ts";
 export {
   checkClippedOverflow,
@@ -79,6 +83,7 @@ export {
   stageLabel,
   unknownRefRefusal,
 } from "./lib/stage-request.ts";
+export { buildSurfaceStateAccounting, surfaceStateAxisLabel } from "./lib/surface-state.ts";
 export { runUiAuditMatrix } from "./ops/matrix.ts";
 export { DESIGN_AUDIT_HELP, parseAuditArgs } from "./ops/parse.ts";
 export { runUiAudit } from "./ops/run.ts";
