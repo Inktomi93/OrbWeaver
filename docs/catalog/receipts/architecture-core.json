@@ -301,10 +301,11 @@
       "disposition": "current",
       "authority": "normative",
       "fullRead": true,
-      "verifiedSha256": "bf00ada58af091fe2e1211013c107542f78357107832338f417bb6331c034740",
-      "verifiedCommit": "242bfaecb0924c7cba3e5d2028ceadf6546dd661",
+      "verifiedSha256": "8fac16a819506fed7cb25333a7c323ba2c88b8ffb471355926ac007d291d093c",
+      "verifiedCommit": "8704736325fe3e0b17c99f1cc81b61267763135a",
       "verifiedAt": "2026-08-31",
       "evidence": [
+        "re-attested at 870473632 under #883 — full D-ledger read; D71 now distinguishes the 4.5 legal/rendered floor from Orb's attainable 4.6 derivation aim and records the 2,060-base, pivot, seed, and custom-CSS-preservation receipts",
         "re-attested at 242bfaecb under #969 — full 545-line read; the D71 rider replaces the rejected-mid-band premise with one total accepted-base foreground contract and points to the derivation, ThemeScope, DTCG, CT, and imported-theme proof homes",
         "re-attested at bbecbfc78 — full-file read under #930; D70 now points to the one paint-law home and D150's shell-paint premise was re-derived against shell.css and the CSS census",
         "delta re-verify 2026-08-25 (#689, commit 0a2789a00834abe892bfa92839e8dec3c30a97af): D147 clause (d) rewritten in place \u2014 the SERVER-WIDE install is BUILT as an admin-triggered fan-out of per-user rows, so the clause's two recorded open questions (consent over a shared install, whose principal it runs as) are DISSOLVED, not answered. Re-read at the amended bytes and re-derived against the tree it now describes: domain/plugin/verbs/{install,uninstall,apply}-*-users.ts + substrate/distribution.ts + persistence/distributed-plugins.ts, the admin_distributed_plugins DDL, and the pins the clause cites (tests/server/domain/plugin/verbs/*-users.int.test.ts, persistence/distributed-plugins.int.test.ts, the cross-tenant sweep's three EXEMPT rows, settings-shell-surface.ct.tsx's admin/plain-user Distribute pair). No other D-entry in this document moved.",
@@ -357,7 +358,7 @@
           ]
         }
       ],
-      "summary": "Canonical D-ledger re-read through D144; D71 backdrop truth-repair; frozen assigned hash retained and current verified blob updated."
+      "summary": "Canonical D-ledger re-read through D144; D71 carries the total accepted-base foreground contract plus its framebuffer-safe derivation target; frozen assigned hash retained and current verified blob updated."
     },
     {
       "path": "docs/architecture/core/Core-Planning-and-Checklists.md",
