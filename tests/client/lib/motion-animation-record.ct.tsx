@@ -17,13 +17,32 @@ test("records Base UI lifecycle, application CSS, and unattributed WAAPI ownersh
         requestAnimationFrame(() => {
           requestAnimationFrame(() => {
             const library = document.querySelector<HTMLElement>('[data-testid="library-transition"]');
+            const concurrent = document.querySelector<HTMLElement>('[data-testid="concurrent-transition"]');
             const application = document.querySelector<HTMLElement>('[data-testid="application-transition"]');
             const waapi = document.querySelector<HTMLElement>('[data-testid="waapi-animation"]');
-            if (library === null || application === null || waapi === null) {
+            if (library === null || concurrent === null || application === null || waapi === null) {
               throw new Error("animation record plant failed to mount");
             }
-            library.style.height = "100px";
-            library.removeAttribute("data-starting-style");
+            const startLibraryLifecycle = (event: TransitionEvent): void => {
+              if (event.propertyName !== "width") {
+                return;
+              }
+              library.removeEventListener("transitionrun", startLibraryLifecycle);
+              library.style.height = "100px";
+              library.removeAttribute("data-starting-style");
+            };
+            library.addEventListener("transitionrun", startLibraryLifecycle);
+            library.style.width = "100px";
+            const startConcurrentLifecycle = (event: TransitionEvent): void => {
+              if (event.propertyName !== "height") {
+                return;
+              }
+              concurrent.removeEventListener("transitionrun", startConcurrentLifecycle);
+              concurrent.style.opacity = "0.5";
+              concurrent.removeAttribute("data-starting-style");
+            };
+            concurrent.addEventListener("transitionrun", startConcurrentLifecycle);
+            concurrent.style.height = "100px";
             application.style.height = "100px";
             waapi.animate([{ height: "10px" }, { height: "100px" }], { duration: 30_000, fill: "both" });
             resolve();
@@ -50,6 +69,24 @@ test("records Base UI lifecycle, application CSS, and unattributed WAAPI ownersh
           properties: ["height"],
           compositorClean: false,
           targetState: { startingStyle: false, endingStyle: false },
+          lifecycleState: { startingStyle: true, endingStyle: false, observedAt: "transition-run" },
+          attribution: { owner: "base-ui", mechanism: "css-transition", phase: "starting-style" },
+        }),
+        expect.objectContaining({
+          target: "[data-testid=library-transition]",
+          properties: ["width"],
+          lifecycleState: null,
+          attribution: { owner: "application", mechanism: "css-transition" },
+        }),
+        expect.objectContaining({
+          target: "[data-testid=concurrent-transition]",
+          properties: ["height"],
+          lifecycleState: null,
+          attribution: { owner: "application", mechanism: "css-transition" },
+        }),
+        expect.objectContaining({
+          target: "[data-testid=concurrent-transition]",
+          properties: ["opacity"],
           lifecycleState: { startingStyle: true, endingStyle: false, observedAt: "transition-run" },
           attribution: { owner: "base-ui", mechanism: "css-transition", phase: "starting-style" },
         }),

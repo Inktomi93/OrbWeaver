@@ -18,6 +18,7 @@ let baseUrl = "";
 let nextId = 1;
 let mutations = 0;
 let ignoreRemovals = false;
+let failNextPostCreateList = false;
 const themes = new Map<string, StoredTheme>();
 
 function envelope(data: unknown): string {
@@ -28,10 +29,17 @@ beforeEach(async () => {
   nextId = 1;
   mutations = 0;
   ignoreRemovals = false;
+  failNextPostCreateList = false;
   themes.clear();
   server = createServer((request, response) => {
     const procedure = request.url?.split("/").at(-1) ?? "";
     if (request.method === "GET" && procedure === "settings.listThemes") {
+      if (failNextPostCreateList && mutations >= 2) {
+        failNextPostCreateList = false;
+        response.writeHead(500, { "content-type": "text/plain" });
+        response.end("planted post-create list failure");
+        return;
+      }
       response.writeHead(200, { "content-type": "application/json" });
       response.end(envelope([...themes.values()]));
       return;
@@ -101,4 +109,27 @@ test("cleanup fails loud when the server claims removal without deleting the row
   ignoreRemovals = true;
   await expect(fixture?.cleanup()).rejects.toThrow("INSTRUMENT ERROR: rated theme cleanup left");
   expect(themes.size).toBe(2);
+});
+
+test("a post-create catalog read failure removes both exact minted rows", async () => {
+  failNextPostCreateList = true;
+
+  await expect(provisionRatedStageThemes(baseUrl, true)).rejects.toThrow("settings.listThemes failed");
+  expect(themes.size).toBe(0);
+  expect(mutations).toBe(4);
+});
+
+test("a post-create failure preserves both the primary and cleanup failures", async () => {
+  failNextPostCreateList = true;
+  ignoreRemovals = true;
+
+  await expect(provisionRatedStageThemes(baseUrl, true)).rejects.toMatchObject({
+    message: "INSTRUMENT ERROR: rated theme provisioning and exact cleanup both failed",
+    errors: [
+      expect.objectContaining({ message: expect.stringContaining("settings.listThemes failed") }),
+      expect.objectContaining({ message: expect.stringContaining("rated theme cleanup left") }),
+    ],
+  });
+  expect(themes.size).toBe(2);
+  expect(mutations).toBe(4);
 });

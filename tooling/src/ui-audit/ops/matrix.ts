@@ -36,6 +36,28 @@ interface MatrixCellResult {
   readonly code: number;
 }
 
+export interface UiAuditMatrixExitSummary {
+  readonly verdict: number;
+  readonly violations: number;
+  readonly instrumentErrors: number;
+}
+
+export function aggregateUiAuditMatrixExit(codes: readonly number[]): UiAuditMatrixExitSummary {
+  const violations = codes.filter((code) => code === EXIT.violations).length;
+  const instrumentErrors = codes.filter((code) => code !== EXIT.clean && code !== EXIT.violations).length;
+  let verdict: number = EXIT.clean;
+  if (instrumentErrors > 0) {
+    verdict = EXIT.toolError;
+  } else if (violations > 0) {
+    verdict = EXIT.violations;
+  }
+  return {
+    verdict,
+    violations,
+    instrumentErrors,
+  };
+}
+
 function instrumentError(message: string): never {
   throw new Error(`INSTRUMENT ERROR: ${message}`);
 }
@@ -150,9 +172,10 @@ async function runRatedMatrix(opts: Args, preferredCustom: readonly [ThemeEntry,
   print(`DESIGN MATRIX PLAN  cells=${matrix.plan.cells.length} pairs-uncovered=${matrix.plan.receipt.uncoveredPairs.length}`);
   const cells = await runCells(opts, baseName, matrix);
   const failures = cells.filter((cell) => cell.code !== EXIT.clean).length;
+  const summary = aggregateUiAuditMatrixExit(cells.map((cell) => cell.code));
   const receipt = await writeReceipt(baseName, discovery, matrix, cells);
   return printVerdict("design-audit-matrix", {
-    verdict: failures > 0 ? EXIT.violations : EXIT.clean,
+    verdict: summary.verdict,
     denominators: {
       variants: { value: matrix.plan.cells.length, refuseWhen: "zero" },
       "appearance-axes": { value: matrix.appearanceAxes.length, refuseWhen: "zero" },
@@ -160,6 +183,8 @@ async function runRatedMatrix(opts: Args, preferredCustom: readonly [ThemeEntry,
     },
     pairs: [
       ["failed", failures],
+      ["instrument-errors", summary.instrumentErrors],
+      ["violations", summary.violations],
       ["uncovered-pairs", matrix.plan.receipt.uncoveredPairs.length],
       ["required-rows", matrix.plan.receipt.requiredRows.length],
       ["required-twins", matrix.plan.receipt.requiredTwins.length],

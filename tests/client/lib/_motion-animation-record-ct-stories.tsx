@@ -15,7 +15,8 @@ export function AnimationRecordStory(): ReactElement {
   }, []);
   return (
     <>
-      <div data-starting-style="" data-testid="library-transition" style={{ height: 10, transition: "height 30s linear" }} />
+      <div data-starting-style="" data-testid="library-transition" style={{ height: 10, transition: "height 30s linear, width 30s linear", width: 10 }} />
+      <div data-starting-style="" data-testid="concurrent-transition" style={{ height: 10, opacity: 1, transition: "height 30s linear, opacity 30s linear" }} />
       <div data-testid="application-transition" style={{ height: 10, transition: "height 30s linear" }} />
       <div data-testid="waapi-animation" style={{ height: 10 }} />
     </>
