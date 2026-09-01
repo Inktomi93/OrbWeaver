@@ -220,13 +220,18 @@ The behavioral suites are ONE `tests` concept expressed as stages with tier + sc
   `reports/test-report.json` contract) and tees each shard's output. **The kill signal is absence of
   PROGRESS, not silence** — a truth repair paid for on 2026-09-01, when the old silence-only rule was
   measured to be the PRIMARY defect: vitest's default reporter prints nothing while a single file runs, and
-  `tests/tooling/ast-observability.int.test.ts` (five rows, each spawning the real `pnpm ast` CLI over the
-  whole ts-morph workspace) held a healthy battery silent for 7+ minutes with a grandchild burning \~4.5
-  cores. So the watchdog samples the CPU jiffies of the shard's parent AND every descendant via `/proc` on
-  each tick; CPU burned anywhere in the tree counts as activity exactly like output. A shard's process
-  group is SIGKILLed only when it has been silent for `ORB_TEST_HANG_TIMEOUT_MS` (default 5 min) **AND**
-  the whole tree burned no CPU across that window — which is precisely the true wedge, every process idle
-  in `ep_poll` at zero CPU. `ORB_TEST_HANG_MAX_MS` (default 30 min) is the absolute silence ceiling. Before
+  `tests/tooling/ast/cli.int.test.ts` (every row spawns the real `pnpm ast` CLI over the whole ts-morph
+  workspace, on 120s/300s budgets) held a healthy battery silent for 7+ minutes with a grandchild burning
+  \~4.5 cores; that run finished naturally 36 minutes later having spent 1,057,996 ms inside that one file.
+  So the watchdog samples the CPU jiffies of the shard's parent AND every descendant via `/proc` on each
+  tick; CPU burned anywhere in the tree counts as activity exactly like output. A shard's process group is
+  SIGKILLed only when it has been silent for `ORB_TEST_HANG_TIMEOUT_MS` (default 5 min) **AND** the whole
+  tree burned no CPU across that window — which is precisely the true wedge, every process idle in
+  `ep_poll` at zero CPU. `ORB_TEST_HANG_MAX_MS` (default 30 min) is the absolute silence ceiling, and it
+  runs on its OWN clock: CPU progress pushes the no-CPU timer forward but never the ceiling's, or a busy
+  tree would postpone the backstop forever. (The same capture found `vitest.config.ts`'s `SERIAL_INT` row
+  for that suite still spelling its pre-`8931a886c` path, so the heaviest whole-workspace file had been
+  running in the PARALLEL lane — repointed in the same commit.) Before
   the kill it writes `reports/test-wedge-<project>-attempt<n>-<ts>.txt`
   — the wedged pid's `/proc` state/wchan/fds, the surviving worker tree, and the SUSPECT list (files the
   shard's previous report named that this run never announced as finished). A shard the watchdog killed is
