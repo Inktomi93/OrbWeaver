@@ -9,16 +9,6 @@ import type { ReactElement, ReactNode } from "react";
 import { cn } from "#lib";
 import type { BubbleDecoration } from "../lib/message-row-variants.ts";
 
-// The zero-height action slot deliberately paints outside the header's measured box (#204). Extend the
-// owning bubble upward by one token block while adding the same space back inside: the border box gains
-// the rail, but every child and the bubble's margin box stay at the exact pre-containment coordinates.
-const CONTAIN_ACTIONS_PADDED = "-mt-block pt-[calc(var(--spacing-row)+var(--spacing-block))]";
-const CONTAIN_ACTIONS_UNPADDED = "-mt-block pt-block";
-
-function actionContainmentClass(header: ReactNode, className: string): string | undefined {
-  return header === null ? undefined : className;
-}
-
 // The bubble's own padding is REMOVED at the string level, not overridden. It was written when `cn` knew
 // the DTCG type-scale groups only (lib/class-merge.ts) and custom SPACING tokens were opaque, so a `p-0`
 // decoration className computed to 0 in React while the DOM still rendered the padding utility. #146
@@ -48,11 +38,7 @@ export function renderSingleBubble(args: {
   const bubbleStyle = args.decoration?.style;
   if (headerBand !== undefined) {
     return (
-      <Stack
-        data-slot="message-bubble"
-        className={cn(withoutBubblePadding(args.bubbleClassName), actionContainmentClass(args.header, CONTAIN_ACTIONS_UNPADDED))}
-        style={bubbleStyle}
-      >
+      <Stack data-slot="message-bubble" className={withoutBubblePadding(args.bubbleClassName)} style={bubbleStyle}>
         <Stack
           aria-hidden="true"
           data-slot="message-band"
@@ -83,7 +69,7 @@ export function renderSingleBubble(args: {
         // `relative overflow-hidden` ONLY when the Echo fallback tile is present — it anchors the
         // absolutely-positioned tile and clips its feather to the bubble's `rounded-card` corners. No
         // other mode/kind reaches this (the plain bubble is byte-identical without a tile).
-        className={cn(args.bubbleClassName, actionContainmentClass(args.header, CONTAIN_ACTIONS_PADDED), edgeTile !== undefined && "relative overflow-hidden")}
+        className={cn(args.bubbleClassName, edgeTile !== undefined && "relative overflow-hidden")}
         style={bubbleStyle}
       >
         {edgeTile === undefined ? null : (
@@ -111,12 +97,7 @@ export function renderSingleBubble(args: {
     );
   }
   return (
-    <Row
-      align="start"
-      data-slot="message-bubble"
-      className={cn(withoutBubblePadding(args.bubbleClassName), actionContainmentClass(args.header, CONTAIN_ACTIONS_UNPADDED))}
-      style={bubbleStyle}
-    >
+    <Row align="start" data-slot="message-bubble" className={withoutBubblePadding(args.bubbleClassName)} style={bubbleStyle}>
       {args.role === "user" ? null : args.weldedAvatar}
       <Stack gap="row" className="min-w-0 flex-1 px-block py-row">
         {args.header}

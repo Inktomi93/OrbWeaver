@@ -127,8 +127,9 @@ function renderRowIdentity(args: {
  *  bands, and the ~17px of painted-then-empty space below the name was the detachment. The cluster rides
  *  a ZERO-HEIGHT flex wrapper (`h-0` + centered items): it keeps its full WIDTH in flow (the A3 geometry
  *  pin — a name can never be starved sideways), its buttons keep painting/hit-testing at full size, and
- *  reveal stays opacity-only. `message-row-bubble.tsx` expands the owning border box over this visible
- *  overflow without moving the header, prose, or row footprint. */
+ *  reveal stays opacity-only. The non-sticky inside arm moves only the rail down by one token block and
+ *  reserves the following section gap, containing its paint without overlapping prose or moving the
+ *  bubble outside its content-column owner. */
 function nameRowFrame(args: {
   readonly identity: ReactNode;
   readonly actions: ReactNode;
@@ -148,6 +149,7 @@ function nameRowFrame(args: {
       data-sticky={args.stickyAttribution ? "" : undefined}
       className={cn(
         headerBacking(args.placement, args.stickyAttribution),
+        args.placement === "inside" && !args.stickyAttribution && "mb-section",
         // At rest an inside header paints on the role bubble, so every datum must inherit that bubble's
         // paired foreground. Speaker/gloss inks derive from the scope's BASE and are invalid on an
         // independently-picked bubble fill. A sticky row paints its own reading band and keeps that
@@ -159,7 +161,11 @@ function nameRowFrame(args: {
     >
       {args.identity}
       {args.actions === null ? null : (
-        <Row align="center" className="h-0" data-slot="message-actions-slot">
+        <Row
+          align="center"
+          className={cn("h-0", args.placement === "inside" && !args.stickyAttribution && "relative top-block")}
+          data-slot="message-actions-slot"
+        >
           {args.actions}
         </Row>
       )}

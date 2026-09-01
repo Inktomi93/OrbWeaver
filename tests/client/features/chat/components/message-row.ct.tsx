@@ -1161,6 +1161,7 @@ test.describe("#988 message action rail containment", () => {
     readonly actions: ActionRailRect;
     readonly bubble: BubbleRect;
     readonly buttons: readonly ActionButtonGeometry[];
+    readonly content: BubbleRect;
     readonly targetFloor: number;
   }
 
@@ -1170,9 +1171,14 @@ test.describe("#988 message action rail containment", () => {
       if (bubble === null) {
         throw new Error("Message actions have no owning bubble");
       }
+      const content = bubble.closest<HTMLElement>("[data-slot='message-content-column']");
+      if (content === null) {
+        throw new Error("Message bubble has no owning content column");
+      }
 
       const actionsRect = element.getBoundingClientRect();
       const bubbleRect = bubble.getBoundingClientRect();
+      const contentRect = content.getBoundingClientRect();
       const targetFloorToken = getComputedStyle(element).getPropertyValue("--spacing-touch-target").trim();
       const targetFloor =
         Number.parseFloat(targetFloorToken) * (targetFloorToken.endsWith("rem") ? Number.parseFloat(getComputedStyle(document.documentElement).fontSize) : 1);
@@ -1205,6 +1211,12 @@ test.describe("#988 message action rail containment", () => {
             width: rect.width,
           };
         }),
+        content: {
+          bottom: contentRect.bottom,
+          left: contentRect.left,
+          right: contentRect.right,
+          top: contentRect.top,
+        },
         targetFloor,
       };
     });
@@ -1215,6 +1227,10 @@ test.describe("#988 message action rail containment", () => {
     expect(geometry.actions.left).toBeGreaterThanOrEqual(geometry.bubble.left - containmentTolerancePx);
     expect(geometry.actions.left + geometry.actions.width).toBeLessThanOrEqual(geometry.bubble.right + containmentTolerancePx);
     expect(geometry.actions.top + geometry.actions.height).toBeLessThanOrEqual(geometry.bubble.bottom + containmentTolerancePx);
+    expect(geometry.bubble.top).toBeGreaterThanOrEqual(geometry.content.top - containmentTolerancePx);
+    expect(geometry.bubble.left).toBeGreaterThanOrEqual(geometry.content.left - containmentTolerancePx);
+    expect(geometry.bubble.right).toBeLessThanOrEqual(geometry.content.right + containmentTolerancePx);
+    expect(geometry.bubble.bottom).toBeLessThanOrEqual(geometry.content.bottom + containmentTolerancePx);
   }
 
   function expectTargetAndHitOwnership(geometry: ActionGeometry): void {
