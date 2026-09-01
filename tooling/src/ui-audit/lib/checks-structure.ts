@@ -1,7 +1,15 @@
 // Cheap in-DOM antipatterns: z-index escalation, nested cards, gradient text, animated img-hover.
 // Pure. Provenance: lib/collect.ts header.
 import type { Finding } from "../contract/findings.ts";
-import type { AnimatedImgHoverInput, CohortAnatomyInput, GradientTextInput, NestedCardInput, RowVoidInput, ZIndexInput } from "../contract/samples.ts";
+import type {
+  AnimatedImgHoverInput,
+  CohortAnatomyInput,
+  GradientTextInput,
+  NestedCardInput,
+  RowVoidInput,
+  SelectionIdiomInput,
+  ZIndexInput,
+} from "../contract/samples.ts";
 
 // ── Cheap in-DOM antipatterns ────────────────────────────────────────────────
 const Z_INDEX_THRESHOLD = 999;
@@ -110,6 +118,36 @@ export function checkRowVoid(input: RowVoidInput): Finding | null {
     value: `${String(input.gapPx)}px of ${String(input.rowWidthPx)}px (${String(Math.round(input.gapRatio * RATIO_AS_PERCENT))}%) between "${input.leftText}" and its control`,
     message:
       "a label and the control it names sit at opposite ends of the row with most of the row empty between them — the eye has to traverse the whole pane to bind a name to its control, and because the control column moves with the pane width it re-learns that traverse per pane. Cap the row's measure so the pair is bound to a block instead of to the pane, or move the control adjacent to its label",
+    origin: "orbweaver",
+  };
+}
+
+/** Two vocabularies for one state is a house style with a variant; three is a surface where a user
+ *  re-learns "which one is chosen" per region. The config surface ran EIGHT for its selected states. */
+const SELECTION_MAX_TREATMENTS = 2;
+
+/** PICK ONE SELECTION IDIOM (#978). A left border plus a tint, a filled bar, a 2px ring, an underline
+ *  plus a tint, a check badge, a solid filled accent block, a light fill — each defensible alone, and
+ *  together they mean the answer to "which one is chosen" is region-specific. The heaviest treatment
+ *  then lands wherever it happened to be written, not on the highest-stakes state.
+ *
+ *  The population comes from Base UI's own closed state vocabulary, so it spans CONTAINERS — a list row
+ *  and a picker card are never siblings, and "eight ways to say this one" is a claim about the whole
+ *  surface that no sibling-scoped lens can make.
+ *
+ *  Signature is the MECHANISM, never the colour: two regions using one accent through different channels
+ *  are still two vocabularies, and a reader learns channels, not hex values. */
+export function checkSelectionIdiom(input: SelectionIdiomInput): Finding | null {
+  if (input.treatments <= SELECTION_MAX_TREATMENTS) {
+    return null;
+  }
+  return {
+    rule: "selection-idiom",
+    severity: "P2",
+    selector: input.exampleSelector,
+    value: `${String(input.treatments)} treatments for "${input.stateKind}" across ${String(input.elements)} element(s): ${input.signatures}`,
+    message:
+      'one surface says "this one is chosen" in several different visual vocabularies, so the answer is region-specific and a user re-learns it per region — and the heaviest treatment lands wherever it was written rather than on the highest-stakes state. Settle on two: a ring for cells in a grid, a rail plus tint for rows in a list, and retire the rest',
     origin: "orbweaver",
   };
 }
