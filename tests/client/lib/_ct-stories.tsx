@@ -1116,7 +1116,6 @@ export function AgentBridgeStory(): ReactElement {
       durableLocalUserId: () => null,
     } satisfies OrbAgentHandles;
     __installAgentDebugHandleForTest(client, handles);
-    setSharedReady(globalThis.__orb?.ready === appReady);
     installAppReadySignal(client, SETTLED_ROUTE);
     void client.fetchQuery({ queryKey: ["ct-agent-bridge-ready"], queryFn: async () => "ready" });
     globalThis.__orb?.resetEvidence();
@@ -1128,6 +1127,10 @@ export function AgentBridgeStory(): ReactElement {
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         if (live) {
+          // The identity check is time-invariant after the handle install (appReady is a module const
+          // and installAppReadySignal never touches __orb) — read here so the setState lives in a
+          // callback, not the effect body (react-hooks/set-state-in-effect).
+          setSharedReady(globalThis.__orb?.ready === appReady);
           setBridgeReady(true);
         }
       });

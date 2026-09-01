@@ -25,3 +25,36 @@ export type Backdrop =
   | { readonly kind: "gradient"; readonly stops: readonly Rgb[] }
   | { readonly kind: "image-indeterminate" }
   | { readonly kind: "unresolved"; readonly reason: "paint-layer-over-base" | "no-opaque-base"; readonly fallback: Rgb };
+
+// ── Chromatic glow shadows (impeccable `dark-glow`, sanctioned axes exempt) ──
+// Moved here from samples.ts (2026-09-01) with `Backdrop`'s cycle-break rationale: samples-hover.ts
+// needs these shapes and the aggregator needs samples-hover's — the leaf is the one home both reach.
+// THE OLD "LIMITATION (deliberate)" HERE WAS THE BUG, NOT A LIMIT (2026-09-01). It read: "colors
+// that serialize outside rgb()/rgba() (oklch tokens) are SKIPPED, never guessed — the sanctioned
+// owner glow rides token colors on ::before layers and must not FP here". That reasoning inverts:
+// our tokens are OKLCH-only and raw colours are gate-RED at source, so skipping OKLCH did not
+// protect the sanctioned carriers, it made the rule incapable of firing on anything this app can
+// author. Colours now read through `lib/css-color.ts`; FP safety comes from `sanctioned`, the same
+// walker-tagged carrier flag `RadialGlowInput` has always had.
+export interface GlowShadowInput {
+  readonly selector: string;
+  readonly boxShadow: string;
+  readonly textShadow: string;
+  readonly backdropColor: Rgb | null;
+  /** Walker-tagged exempt: an owner effect carrier, or a pseudo sample that is a DEDICATED glow layer —
+   *  a MECHANISM, never a name list; derived and justified in `ops/walker/census-glow.ts`. Optional so a
+   *  pre-2026-09-01 fixture bundle keeps its verdict instead of silently reading as exempt. */
+  readonly sanctioned?: boolean;
+}
+
+// ── Radial-gradient washes (impeccable `radial-halo` / `radial-spotlight-glow`) ──
+// Sanctioned carriers (tagged by the walker off the owner effect axes) are exempt. Colour reading is
+// `lib/css-color.ts`'s job for this family too — the old rgb/hex-only note here described the same
+// blindness the glow block above records.
+export interface RadialGlowInput {
+  readonly selector: string;
+  readonly value: string;
+  readonly width: number;
+  readonly height: number;
+  readonly sanctioned: boolean;
+}

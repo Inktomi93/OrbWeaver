@@ -18,7 +18,7 @@ import type { InactiveKind, Rgb } from "@orb/tooling/_shared/wcag";
 import type { Backdrop } from "./backdrop.ts";
 // Type-only and deliberately CIRCULAR-safe (samples.ts inline-imports this file's shapes): the forced
 // glow reads emit rows in the static glow census's OWN sample shapes so the checks stay unchanged.
-import type { GlowShadowInput, RadialGlowInput } from "./samples.ts";
+import type { GlowShadowInput, RadialGlowInput } from "./backdrop.ts";
 import type { RelationalCensusAccountingInput } from "./samples-populations.ts";
 
 /** ONE text-bearing element measured in both states. `subjectSelector` names the element whose `:hover`
