@@ -19,7 +19,7 @@ import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { CensusReachInput, RawSamples } from "../contract/samples.ts";
 import type { Args, BackdropRefusal, DomPopulation } from "../contract/types.ts";
 import { checkScriptErrors } from "../lib/checks-quality.ts";
-import { collectFindings, familyScanCounts } from "../lib/collect.ts";
+import { collectAudit } from "../lib/collect.ts";
 import { censusGap, censusThinGap, censusTotal, reachGap, readinessGap, SAMPLE_COLLECTION_PREFIX, walkFailureGap } from "../lib/evidence.ts";
 import { isAtOrAboveSeverity } from "../lib/severity.ts";
 import { stageLabel } from "../lib/stage-request.ts";
@@ -117,8 +117,9 @@ export async function runUiAudit(opts: Args): Promise<number> {
 
     // Uncaught page exceptions are findings in their own right (script-error, P0) — the probe
     // session's pageerror capture is wired from nav start (_shared/browser.ts wirePage).
-    const findings = pixels.samples === null ? [] : collectFindings(pixels.samples);
-    const familyScans = pixels.samples === null ? null : familyScanCounts(pixels.samples);
+    const audit = pixels.samples === null ? null : collectAudit(pixels.samples);
+    const findings = audit === null ? [] : [...audit.findings];
+    const familyScans = audit === null ? null : audit.familyScans;
     findings.push(...checkScriptErrors(session.pageErrors));
     const counts = countBySeverity(findings);
     // An action that failed means the scan happened on the WRONG surface — that is a red run, not a clean

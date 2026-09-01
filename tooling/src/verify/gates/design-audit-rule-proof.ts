@@ -1,7 +1,8 @@
 // Gate: design-audit-rule-proof — every live ui-audit rule owns a firing proof and a precision-neighbour
-// silence proof. The registry is the denominator; proof comments are deliberate machine-readable evidence.
-// Comment posture: comments-INTENDED (`@rule-fires` / `@rule-silent` are the contract being enforced).
-import { Node } from "ts-morph";
+// silence proof. The registry is the denominator; proof evidence must be attached to an executable
+// auditRuleTest registration so deleting the test deletes the proof.
+import type { ArrayLiteralExpression, ObjectLiteralExpression } from "ts-morph";
+import { Node, SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract/gate.ts";
 import { readStringValue, unwrapExpression } from "../lib/ast-read.ts";
 import { fileLoaded } from "../lib/pass.ts";
@@ -9,8 +10,6 @@ import { fileLoaded } from "../lib/pass.ts";
 const REGISTRY = "tooling/src/ui-audit/contract/rules.ts";
 const TEST_PREFIX = "tests/tooling/ui-audit/";
 const WALKER_CT = "tests/tooling/design-audit-walker.ct.tsx";
-const MARKER_RE = /^\s*\/\/\s*@rule-(fires|silent)\(([^)]*)\):\s*(.*?)\s*$/u;
-const MARKER_START_RE = /^\s*\/\/\s*@rule-(?:fires|silent)\b/u;
 
 interface Marker {
   readonly file: string;
@@ -70,20 +69,42 @@ function readRegistry(sf: Parameters<NonNullable<GateDescriptor["visitFile"]>>[0
   }
 }
 
-function readMarkers(rel: string, text: string): void {
-  for (const [index, line] of text.split("\n").entries()) {
-    if (!MARKER_START_RE.test(line)) {
+function propertyString(row: ObjectLiteralExpression, name: string): string | undefined {
+  const property = row.getProperty(name);
+  return Node.isPropertyAssignment(property) ? readStringValue(property.getInitializerOrThrow()) : undefined;
+}
+
+function readProofRows(proofs: ArrayLiteralExpression, rel: string): void {
+  for (const element of proofs.getElements()) {
+    const row = unwrapExpression(element);
+    if (!Node.isObjectLiteralExpression(row)) {
+      malformedMarkers.push({ file: rel, line: element.getStartLineNumber(), text: "auditRuleTest proof row must be an object literal" });
       continue;
     }
-    const match = MARKER_RE.exec(line);
-    const kind = match?.[1];
-    const id = match?.[2];
-    const reason = match?.[3];
-    if ((kind !== "fires" && kind !== "silent") || id === undefined || id.trim() === "" || reason === undefined || reason.trim() === "") {
-      malformedMarkers.push({ file: rel, line: index + 1, text: line.trim() });
+    const id = propertyString(row, "rule")?.trim();
+    const kind = propertyString(row, "kind")?.trim();
+    const reason = propertyString(row, "reason")?.trim();
+    if (id === undefined || id === "" || (kind !== "fires" && kind !== "silent") || reason === undefined || reason === "") {
+      malformedMarkers.push({ file: rel, line: row.getStartLineNumber(), text: row.getText() });
       continue;
     }
-    markers.push({ file: rel, line: index + 1, kind, id: id.trim(), reason: reason.trim() });
+    markers.push({ file: rel, line: row.getStartLineNumber(), kind, id, reason });
+  }
+}
+
+function readProofRegistrations(sf: Parameters<NonNullable<GateDescriptor["visitFile"]>>[0], rel: string): void {
+  const calls = sf
+    .getDescendantsOfKind(SyntaxKind.CallExpression)
+    .filter((call) => Node.isIdentifier(call.getExpression()) && call.getExpression().getText() === "auditRuleTest");
+  for (const call of calls) {
+    const [proofsArg, , callbackArg] = call.getArguments();
+    const proofs = proofsArg === undefined ? undefined : unwrapExpression(proofsArg);
+    const executable = callbackArg !== undefined && (Node.isArrowFunction(callbackArg) || Node.isFunctionExpression(callbackArg));
+    if (!(Node.isArrayLiteralExpression(proofs) && executable)) {
+      malformedMarkers.push({ file: rel, line: call.getStartLineNumber(), text: "auditRuleTest must carry a literal proof array and executable callback" });
+      continue;
+    }
+    readProofRows(proofs, rel);
   }
 }
 
@@ -93,8 +114,8 @@ export const gate: GateDescriptor = {
   status: "active",
   scopeSafety: "whole-project",
   message:
-    "the design-audit proof denominator is incomplete: every registered rule id needs a non-empty @rule-fires(id) reason and @rule-silent(id) nearest-legitimate-neighbour reason; stale ids and an empty registry are RED — tooling/src/ui-audit/contract/rules.ts",
-  fix: `register the live id, then add both proof markers beside the exercised ui-audit test without weakening the detector — ${REGISTRY}`,
+    "the design-audit proof denominator is incomplete: every registered rule id needs executable firing and nearest-legitimate-neighbour silence proofs; stale ids and a missing or empty registry are RED — tooling/src/ui-audit/contract/rules.ts",
+  fix: `register the live id, then attach both proof rows to the auditRuleTest callbacks that exercise it without weakening the detector — ${REGISTRY}`,
   scanRoot: (p) => p === REGISTRY || p.startsWith(TEST_PREFIX) || p === WALKER_CT,
   begin: () => {
     registryIds.clear();
@@ -107,11 +128,17 @@ export const gate: GateDescriptor = {
     if (rel === REGISTRY) {
       readRegistry(sf);
     } else if (rel !== null && (rel.startsWith(TEST_PREFIX) || rel === WALKER_CT)) {
-      readMarkers(rel, sf.getFullText());
+      readProofRegistrations(sf, rel);
     }
   },
   run: (ctx) => {
     if (!fileLoaded(ctx, REGISTRY)) {
+      ctx.report({
+        file: REGISTRY,
+        line: 0,
+        column: 0,
+        message: `design-audit registry is missing or unreadable — ${REGISTRY}`,
+      });
       return;
     }
     if (registryIds.size === 0) {
@@ -136,7 +163,7 @@ export const gate: GateDescriptor = {
         file: marker.file,
         line: marker.line,
         column: 0,
-        message: `malformed or empty design-audit proof marker: ${marker.text} — tooling/src/ui-audit/contract/rules.ts`,
+        message: `malformed or empty executable design-audit proof: ${marker.text} — tooling/src/ui-audit/contract/rules.ts`,
       });
     }
     const proofKinds = new Map<string, Set<Marker["kind"]>>();
@@ -162,13 +189,19 @@ export const gate: GateDescriptor = {
             file: REGISTRY,
             line: 0,
             column: 0,
-            message: `missing @rule-${kind}(${id}) proof marker — tooling/src/ui-audit/contract/rules.ts`,
+            message: `missing executable ${kind} proof for design-audit rule ${id} — tooling/src/ui-audit/contract/rules.ts`,
           });
         }
       }
     }
   },
   mustFlag: [
+    {
+      files: { [`${TEST_PREFIX}__g_proof.test.ts`]: 'auditRuleTest([], "fixture", () => {});\n' },
+      at: REGISTRY,
+      expect: { count: 1, messageIncludes: "registry is missing or unreadable" },
+      why: "a deleted or moved registry cannot make the proof denominator disappear cleanly",
+    },
     {
       files: { [REGISTRY]: "export const DESIGN_AUDIT_RULES = [] as const;\n" },
       at: REGISTRY,
@@ -178,17 +211,28 @@ export const gate: GateDescriptor = {
     {
       files: {
         [REGISTRY]: 'export const DESIGN_AUDIT_RULES = [{ id: "side-tab", family: "decor", severity: ["P3"] }] as const;\n',
-        [`${TEST_PREFIX}__g_proof.test.ts`]: "// @rule-fires(side-tab): thick chromatic side edge fixture\n",
+        [`${TEST_PREFIX}__g_proof.test.ts`]:
+          'auditRuleTest([{ rule: "side-tab", kind: "fires", reason: "thick chromatic side edge fixture" }], "fixture", () => {});\n',
       },
       at: REGISTRY,
-      expect: { count: 1, messageIncludes: "missing @rule-silent(side-tab)" },
+      expect: { count: 1, messageIncludes: "missing executable silent proof" },
       why: "a firing fixture alone does not prove precision at the nearest legitimate neighbour",
     },
     {
       files: {
         [REGISTRY]: 'export const DESIGN_AUDIT_RULES = [{ id: "side-tab", family: "decor", severity: ["P3"] }] as const;\n',
         [`${TEST_PREFIX}__g_proof.test.ts`]:
-          "// @rule-fires(side-tab): fixture\n// @rule-silent(side-tab): neighbor\n// @rule-fires(border-accent-on-rounded): dynamic classifier result\n",
+          'auditRuleTest([{ rule: "side-tab", kind: "silent", reason: "selected ListRow neighbour" }], "fixture", () => {});\n',
+      },
+      at: REGISTRY,
+      expect: { count: 1, messageIncludes: "missing executable fires proof" },
+      why: "a precision neighbour alone cannot launder a rule whose firing proof was deleted",
+    },
+    {
+      files: {
+        [REGISTRY]: 'export const DESIGN_AUDIT_RULES = [{ id: "side-tab", family: "decor", severity: ["P3"] }] as const;\n',
+        [`${TEST_PREFIX}__g_proof.test.ts`]:
+          'auditRuleTest([{ rule: "side-tab", kind: "fires", reason: "fixture" }, { rule: "side-tab", kind: "silent", reason: "neighbor" }, { rule: "border-accent-on-rounded", kind: "fires", reason: "dynamic classifier result" }], "fixture", () => {});\n',
       },
       at: `${TEST_PREFIX}__g_proof.test.ts`,
       expect: { count: 1, messageIncludes: "stale design-audit proof id" },
@@ -197,11 +241,12 @@ export const gate: GateDescriptor = {
     {
       files: {
         [REGISTRY]: 'export const DESIGN_AUDIT_RULES = [{ id: "side-tab", family: "decor", severity: ["P3"] }] as const;\n',
-        [`${TEST_PREFIX}__g_proof.test.ts`]: "// @rule-fires(side-tab):\n// @rule-silent(side-tab): neighbor\n",
+        [`${TEST_PREFIX}__g_proof.test.ts`]:
+          'auditRuleTest([{ rule: "side-tab", kind: "fires", reason: "" }, { rule: "side-tab", kind: "silent", reason: "neighbor" }], "fixture", () => {});\n',
       },
       at: `${TEST_PREFIX}__g_proof.test.ts`,
       expect: { count: 2 },
-      why: "an empty reason is not evidence, and the malformed marker must not satisfy the pair",
+      why: "an empty reason is not evidence, and the malformed executable row must not satisfy the pair",
     },
   ],
   mustPass: [
@@ -209,7 +254,7 @@ export const gate: GateDescriptor = {
       files: {
         [REGISTRY]: 'export const DESIGN_AUDIT_RULES = [{ id: "side-tab", family: "decor", severity: ["P3"] }] as const;\n',
         [`${TEST_PREFIX}__g_proof.test.ts`]:
-          "// @rule-fires(side-tab): thick chromatic side edge fixture emits\n// @rule-silent(side-tab): selected ListRow is the nearest sanctioned accent edge\n",
+          'auditRuleTest([{ rule: "side-tab", kind: "fires", reason: "thick chromatic side edge fixture emits" }, { rule: "side-tab", kind: "silent", reason: "selected ListRow is the nearest sanctioned accent edge" }], "fixture", () => {});\n',
       },
       why: "a registered id with both explained proof arms is complete",
     },
@@ -217,9 +262,9 @@ export const gate: GateDescriptor = {
       files: {
         [REGISTRY]: 'export const DESIGN_AUDIT_RULES = [{ id: "side-tab", family: "decor", severity: ["P3"] }] as const;\n',
         [`${TEST_PREFIX}__g_proof.test.ts`]:
-          'const quoted = "@rule-fires(ghost): not a comment marker";\n// @rule-fires(side-tab): fixture\n// @rule-silent(side-tab): neighbor\n',
+          'const quoted = "auditRuleTest([{ rule: ghost }])";\nauditRuleTest([{ rule: "side-tab", kind: "fires", reason: "fixture" }, { rule: "side-tab", kind: "silent", reason: "neighbor" }], "fixture", () => {});\n',
       },
-      why: "marker-like text inside a string is inert; only deliberate line-comment evidence counts",
+      why: "registration-like text inside a string is inert; only an executable auditRuleTest call counts",
     },
   ],
 };
