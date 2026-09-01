@@ -5,18 +5,18 @@
   "entries": [
     {
       "path": "docs/design/983-984-ui-audit-population-semantics.md",
-      "assignedSha256": "0a4f48d1e9a2d3dc8f43443fc776f96bf3122d0e656b7fc1d9b5c27b53cceb60",
+      "assignedSha256": "ebb64a6600d78e3d10c552379f266d3d4e6c50b83a13d416be14b2071c926082",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "0a4f48d1e9a2d3dc8f43443fc776f96bf3122d0e656b7fc1d9b5c27b53cceb60",
-      "verifiedCommit": "e19c9a5dc697fb7c776aa9169acc55ac1aa6870c",
+      "verifiedSha256": "ebb64a6600d78e3d10c552379f266d3d4e6c50b83a13d416be14b2071c926082",
+      "verifiedCommit": "53437ec8fee76bd7a0ff68328924c65d121dbbe7",
       "verifiedAt": "2026-09-01",
       "evidence": [
         "docs/design/983-984-ui-audit-population-semantics.md:1 (full read; authored population identity, declared relational semantics, denominator accounting, rejected alternatives, coupled sites, and red-first controls)",
-        "re-attested at e19c9a5dc after #987 — the one settlement door now closes candidate, judgment, withholding, collapse, representative, and cap arithmetic for every owned UI-audit population"
+        "re-attested at 53437ec8f after the cold #953 matrix exposed and #987 repaired the distinction between fatal withholding and closed semantic exclusion"
       ],
-      "summary": "Implemented #983/#984/#987 design for authored UI-audit populations, bounded representatives with exact accounting, declared relational comparisons, and fail-loud partial-population verdicts.",
+      "summary": "Implemented #983/#984/#987 design for authored UI-audit populations, exact settled accounting, explicit closed exclusions, bounded representatives, and fail-loud partial-population verdicts.",
       "claims": [
         {
           "claim": "Every owned UI-audit population now preserves authored decisions, closes exact census and presentation arithmetic, and refuses a clean verdict whenever non-cap withholding leaves the population partially judged.",
@@ -35,7 +35,7 @@
             },
             {
               "kind": "provenance",
-              "target": "git:e19c9a5dc697fb7c776aa9169acc55ac1aa6870c"
+              "target": "git:53437ec8fee76bd7a0ff68328924c65d121dbbe7"
             }
           ]
         }
