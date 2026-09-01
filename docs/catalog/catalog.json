@@ -11752,6 +11752,55 @@
       "receiptCurrent": true
     },
     {
+      "path": "docs/design/motion-audit-mobile-environment-977.md",
+      "lane": "design",
+      "issue": 5,
+      "lines": 207,
+      "bytes": 13770,
+      "sha256": "ec1aac93ec06f4e92d8e6ac1061b94b12d32e1a882c9cd82bc650091994e7c1e",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "design",
+          "status": "complete",
+          "updated": "2026-08-31"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/design/motion-audit-mobile-environment-977.md",
+        "assignedSha256": "ec1aac93ec06f4e92d8e6ac1061b94b12d32e1a882c9cd82bc650091994e7c1e",
+        "disposition": "current",
+        "authority": "design",
+        "fullRead": true,
+        "verifiedSha256": "ec1aac93ec06f4e92d8e6ac1061b94b12d32e1a882c9cd82bc650091994e7c1e",
+        "verifiedCommit": "db07e6cb175bf6c6260ec339f42268bc341185fa",
+        "verifiedAt": "2026-08-31",
+        "evidence": [
+          "docs/design/motion-audit-mobile-environment-977.md:1 (full read; shared full-device contract, runtime fingerprint, rejected viewport-only arm, coupled sites, red-first controls, and live proof)",
+          "git:db07e6cb175bf6c6260ec339f42268bc341185fa (content commit whose tree contains the verified design blob and implemented #977 proof)"
+        ],
+        "summary": "Implemented #977 design for a shared full-device launch contract and fail-loud requested-versus-actual mobile runtime evidence in motion-audit, without adding a copied appearance matrix.",
+        "claims": [
+          {
+            "claim": "Motion-audit now uses the shared full mobile descriptor and refuses a motion verdict when viewport, screen, user agent, DPR, touch, pointer, or hover evidence contradicts the launcher-owned contract.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#977"
+              },
+              {
+                "kind": "provenance",
+                "target": "git:db07e6cb175bf6c6260ec339f42268bc341185fa"
+              }
+            ]
+          }
+        ]
+      },
+      "receiptCurrent": true
+    },
+    {
       "path": "docs/design/note-token-intent-history.md",
       "lane": "design",
       "issue": 5,
