@@ -15,10 +15,10 @@
 // facts it read at the same instant rather than trying to join against `RawSamples.texts` (whose rows
 // are a DIFFERENT population — pixel-settled, aria-hidden-inclusive, and keyed only by selector).
 import type { InactiveKind, Rgb } from "@orb/tooling/_shared/wcag";
-import type { Backdrop } from "./backdrop.ts";
-// Type-only and deliberately CIRCULAR-safe (samples.ts inline-imports this file's shapes): the forced
-// glow reads emit rows in the static glow census's OWN sample shapes so the checks stay unchanged.
-import type { GlowShadowInput, RadialGlowInput } from "./backdrop.ts";
+// All three shapes come from the backdrop LEAF, never from samples.ts (the aggregator inline-imports
+// THIS file's shapes, so importing the aggregator here was a no-circular red): the forced glow reads
+// emit rows in the static glow census's OWN sample shapes so the checks stay unchanged.
+import type { Backdrop, GlowShadowInput, RadialGlowInput } from "./backdrop.ts";
 import type { RelationalCensusAccountingInput } from "./samples-populations.ts";
 
 /** ONE text-bearing element measured in both states. `subjectSelector` names the element whose `:hover`
