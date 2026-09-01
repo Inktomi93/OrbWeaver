@@ -76,7 +76,7 @@
     "muted-foreground": {
       "$value": {
         "colorSpace": "oklch",
-        "components": [0.72, 0.012, 250]
+        "components": [0.731, 0.012, 250]
       }
     },
     "accent": {
