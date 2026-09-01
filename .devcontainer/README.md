@@ -1,9 +1,10 @@
 # Dev Container — Claude Code Sandbox for orbweaver
 
-An isolated Linux container where Claude Code keeps its permission confirmations enabled by default.
-The non-root user and default-deny egress firewall reduce exposure, but the host checkout is bind-mounted
-and the firewall permits the host subnet. The container is therefore not sufficient justification for
-silently disabling command confirmations.
+An isolated Linux container where Claude Code runs in **permissive mode**
+(`--dangerously-skip-permissions`). The container is the security boundary: non-root user + a
+default-deny egress firewall. The point of the sandbox is to run without prompts (owner ruling
+2026-09-01); the host checkout is bind-mounted and the firewall permits the host subnet, so that is
+an accepted trade, not an oversight.
 
 This is **only a coding sandbox**. The GPU/vLLM + local-light model stack runs on the
 **host** (the `.models/` weights + `scripts/dev`); the container sets `VLLM_DISABLED=true`
@@ -22,7 +23,9 @@ Ported from neo-tavern's sandbox with one load-bearing fix — see "pnpm store" 
 3. Open the integrated terminal → you're `node@…` in `/workspace`.
 4. **First time only:** run `claude`, then `/login`, and paste the browser code (Max sub).
    This lands in the container's own `~/.claude` volume and persists — do it once.
-5. Run `claude` (permission confirmations remain enabled).
+5. Run it permissive: `claude --dangerously-skip-permissions` (a bare `claude` is the same thing:
+   `postCreateCommand` seeds the container's own `~/.claude/settings.json` with
+   `defaultMode: bypassPermissions` and pre-accepts the one-time bypass dialog).
 
 ### Pure CLI (no VS Code)
 ```bash
@@ -30,20 +33,14 @@ cd development/orbweaver
 npx @devcontainers/cli up --workspace-folder .            # build + start
 npx @devcontainers/cli exec --workspace-folder . zsh      # shell inside
 # inside:
-claude
+claude --dangerously-skip-permissions
 ```
 Or attach to a running container directly: `docker exec -it <id> zsh`
 (`docker ps --filter label=devcontainer.local_folder=$PWD`).
 
-The host launcher starts this safe workflow with `pnpm sandbox`. If you knowingly accept the host
-workspace and network risk, the explicit unsafe opt-in is `pnpm sandbox --unsafe-bypass-permissions`;
-the launcher prints a warning before starting Claude and again inside the container terminal.
-
-The launcher passes `--permission-mode default`, and the committed project settings set the same safe
-default for direct `claude` sessions. Project settings override the user-level setting in the persistent
-`~/.claude` volume, so upgrades neutralize the old project-written `bypassPermissions` default without
-rewriting login state, plugins, hooks, or any other user-owned setting. The named unsafe launcher option
-remains a command-line override for that session only.
+The host launcher does all of the above in one shot: `pnpm sandbox` (see `scripts/dev/sandbox.sh`).
+Bypass is CONTAINER-ONLY: the committed project `.claude/settings.json` pins no permission mode, so
+host sessions keep whatever the host user settings say.
 
 ---
 
@@ -52,7 +49,7 @@ remains a command-line override for that session only.
 - **Code + checks run IN the container:** `pnpm check`, `pnpm test`, `pnpm dev`, etc.
   Deps live in isolated `node_modules` volumes (see below).
 - **`git push` from the HOST**, not the container. No SSH keys are mounted inside (by
-  design — credentials stay on the host, outside the container).
+  design — credentials stay on the host, never exposed to a permissive sandbox).
   You can still `git commit` inside; just push from a host terminal.
 - **Models/vLLM run on the HOST.** In-container, `VLLM_DISABLED=true` and the local-light
   int suites self-skip. The firewall allows traffic to the host network, so a service
