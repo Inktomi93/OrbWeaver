@@ -5,7 +5,7 @@
 // gated number, making "journey under 0.1" unreachable by any app fix short of changing the virtualizer.
 // This file's home is the tests/tooling/motion-audit mirror (Spine-Testing.md §2); the browser
 // half — that a virtualized-tagged shift really does move only raw — is tests/client/lib/motion-stats.ct.tsx.
-import type { AuditData } from "../../../tooling/src/motion-audit/index.ts";
+import type { AuditData, BrowserEnvironmentEvidence } from "../../../tooling/src/motion-audit/index.ts";
 import {
   apparatusGap,
   calibratedDroppedFramePct,
@@ -14,14 +14,43 @@ import {
   droppedFramePct,
   loafOverBudget,
   loafTotals,
+  MOTION_AUDIT_HELP,
   motionEvidenceGaps,
   parseMotionArgs,
 } from "../../../tooling/src/motion-audit/index.ts";
 import { expect, test } from "../../support/tool-fixtures.ts";
 
+const DESKTOP_ENVIRONMENT: BrowserEnvironmentEvidence = {
+  requested: { device: null, viewport: { width: 1280, height: 800 } },
+  applied: {
+    device: null,
+    viewport: { width: 1280, height: 800 },
+    screen: { width: 1280, height: 800 },
+    userAgent: null,
+    deviceScaleFactor: 1,
+    isMobile: false,
+    hasTouch: false,
+  },
+  actual: {
+    device: "desktop",
+    viewport: { width: 1280, height: 800 },
+    innerViewport: { width: 1280, height: 800 },
+    screen: { width: 1280, height: 800 },
+    userAgent: "Mozilla/5.0 desktop",
+    deviceScaleFactor: 1,
+    maxTouchPoints: 0,
+    hasTouch: false,
+    pointer: "fine",
+    hover: "hover",
+    isMobile: false,
+  },
+  mismatches: [],
+};
+
 /** A collected run with EVERYTHING present, so each gap test plants exactly one absence. */
 function auditData(over: Partial<AuditData> = {}): AuditData {
   return {
+    environment: DESKTOP_ENVIRONMENT,
     motion: { loafs: [], cls: 0, virtualizedCls: 0, nonVirtualizedCls: 0, worstBlocking: 0, worstShift: 0 },
     animations: [],
     frames: { raw: { total: 12, dropped: 0, pct: 0 }, classified: { total: 0, dropped: 0 }, budgeted: { total: 12, dropped: 0, pct: 0 } },
@@ -351,6 +380,33 @@ test("viewport and measurement-window argv reject malformed values", () => {
   for (const raw of ["-1", "0", "Infinity", "nope"]) {
     expect(parseMotionArgs(["/", "--window", raw]).errors).toContain("--window requires a positive finite duration in milliseconds");
   }
+});
+
+test("--mobile selects the full shared device descriptor and the environment slot is last-wins", () => {
+  const mobile = parseMotionArgs(["/", "--mobile"]);
+  const viewportAfterMobile = parseMotionArgs(["/", "--mobile", "--viewport", "900x700"]);
+  const mobileAfterViewport = parseMotionArgs(["/", "--viewport", "900x700", "--mobile"]);
+  const desktopAfterMobile = parseMotionArgs(["/", "--mobile", "--desktop"]);
+
+  expect(mobile.errors).toEqual([]);
+  expect(mobile.device).toBe("iPhone 14 Pro Max");
+  expect(viewportAfterMobile).toMatchObject({ device: null, viewport: { width: 900, height: 700 }, errors: [] });
+  expect(mobileAfterViewport).toMatchObject({ device: "iPhone 14 Pro Max", errors: [] });
+  expect(desktopAfterMobile).toMatchObject({ device: null, viewport: { width: 1280, height: 800 }, errors: [] });
+  expect(MOTION_AUDIT_HELP).toContain("--mobile");
+  expect(MOTION_AUDIT_HELP).toContain("touch · pointer:coarse · mobile UA · DPR");
+});
+
+test("a requested/actual browser-environment mismatch is an instrument error input", () => {
+  const environment: BrowserEnvironmentEvidence = {
+    ...DESKTOP_ENVIRONMENT,
+    actual: { ...DESKTOP_ENVIRONMENT.actual, device: "unmatched", pointer: "fine", isMobile: null },
+    mismatches: ["pointer expected coarse but observed fine", "touch expected present but maxTouchPoints=0"],
+  };
+
+  const gaps = motionEvidenceGaps(auditData({ environment }), 2500);
+  expect(gaps.map((gap) => gap.evidence)).toEqual(["the requested browser environment"]);
+  expect(gaps[0]?.detail).toContain("viewport-only or partial device arm is not a mobile measurement");
 });
 
 // ── APPARATUS DIAGNOSIS (#515) — the permanent pin for a WRONG diagnosis printed with confidence ──────

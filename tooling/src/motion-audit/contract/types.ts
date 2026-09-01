@@ -3,6 +3,7 @@
 // event shape, and the audit result. Split from the pre-move motion-audit.ts (P3 of #393).
 import type { AppearancePatch } from "@orb/tooling/_shared/appearance";
 import type { Viewport } from "@orb/tooling/_shared/argv";
+import type { BrowserEnvironmentEvidence } from "@orb/tooling/_shared/browser-environment";
 import type { NavMethod } from "@orb/tooling/_shared/nav";
 import type { ThemeRequest } from "@orb/tooling/_shared/theme";
 
@@ -18,6 +19,8 @@ export interface Args {
   reach: ReachAction[];
   windowMs: number;
   viewport: Viewport;
+  /** null = raw desktop viewport; a name selects the shared full Playwright device descriptor. */
+  device: string | null;
   vnc: boolean;
   throttle: boolean;
   /** `--appearance`/`--appearance-preset`/`--full-motion`: the app-SETTING shim (_shared/appearance.ts). This
@@ -106,6 +109,7 @@ export interface CalibratedFrames {
 }
 
 export interface AuditData {
+  readonly environment: BrowserEnvironmentEvidence;
   readonly motion: MotionSnapshot | null;
   readonly animations: readonly AnimationRecord[];
   readonly frames: CalibratedFrames;

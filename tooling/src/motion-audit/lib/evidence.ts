@@ -70,6 +70,12 @@ function framePopulationGap(data: AuditData, windowMs: number): EvidenceGap {
  *  population is honestly empty (the exemption consumed it) and the raw evidence still exists. */
 export function motionEvidenceGaps(data: AuditData, windowMs: number): EvidenceGap[] {
   const gaps: EvidenceGap[] = [];
+  if (data.environment.mismatches.length > 0) {
+    gaps.push({
+      evidence: "the requested browser environment",
+      detail: `the live page did not match the launcher-owned device contract: ${data.environment.mismatches.join("; ")} — a viewport-only or partial device arm is not a mobile measurement`,
+    });
+  }
   if (data.motion === null) {
     gaps.push({
       evidence: "the __orb motion snapshot",

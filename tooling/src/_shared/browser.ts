@@ -10,6 +10,8 @@ import { chromium, devices } from "@playwright/test";
 import type { AppearancePatch, SettingsShimEvidence } from "./appearance.ts";
 import { installSettingsShim } from "./appearance.ts";
 import type { Viewport } from "./argv.ts";
+import type { BrowserEnvironmentContract } from "./browser-environment.ts";
+import { resolveBrowserEnvironmentContract } from "./browser-environment.ts";
 import type { ThemeRequest } from "./theme.ts";
 
 // biome-ignore lint/style/noProcessEnv: SNAP_BASE_URL is a probe-harness knob (where the running dev stack answers; `localhost`, not 127.0.0.1 — vite v8 binds [::1] only) — ambient tooling env, not app config.
@@ -134,6 +136,9 @@ export interface ProbeSession {
   readonly pageErrors: string[];
   /** Keyed by URL; status/failed filled in as responses land. */
   readonly requests: Map<string, CapturedRequest>;
+  /** Requested/applied context identity from the one launcher that resolved the Playwright descriptor.
+   *  Pair it with `readBrowserEnvironment(page, environmentContract)` for live runtime evidence. */
+  readonly environmentContract: BrowserEnvironmentContract;
   /** Every context opened (`contexts[0]` mirrors the flat `context`/`page`/`pages` fields above — the
    *  single-context default is byte-identical). `--contexts N` populates N of these. */
   readonly contexts: readonly ProbeContext[];
@@ -340,6 +345,7 @@ export async function launchProbeSession(opts: ProbeLaunchOptions): Promise<Prob
   // hasTouch — fold it into the context so touch/pointer:coarse/mobile-UA are REAL, not a bare viewport.
   // Look it up loudly: an unknown name must throw, never silently fall back to desktop.
   const deviceDescriptor = resolveDeviceDescriptor(opts);
+  const environmentContract = resolveBrowserEnvironmentContract(opts, deviceDescriptor);
   const contextCount = Math.max(1, opts.contexts ?? 1);
   if (opts.persistentProfileDir !== undefined && contextCount !== 1) {
     throw new Error("persistent browser probes support exactly one context");
@@ -377,6 +383,7 @@ export async function launchProbeSession(opts: ProbeLaunchOptions): Promise<Prob
     consoleMessages: first.consoleMessages,
     pageErrors: first.pageErrors,
     requests: first.requests,
+    environmentContract,
     contexts,
   };
 }

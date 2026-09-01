@@ -6,6 +6,7 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 import type { LocalStorageSeed } from "@orb/tooling/_shared/browser";
 import { closeProbeSession, launchProbeSession, withProbeSession } from "@orb/tooling/_shared/browser";
+import { MOBILE_DEVICE, readBrowserEnvironment } from "@orb/tooling/_shared/browser-environment";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { spawnNiced } from "@orb/tooling/_shared/proc";
 import { chromium } from "@playwright/test";
@@ -100,6 +101,62 @@ test("a real Chromium process is disconnected after a driven body throws", async
 
   await expect(withProbeSession(session, () => Promise.reject(new Error("planted live drive failure")))).rejects.toThrow("planted live drive failure");
   expect(session.browser.isConnected()).toBe(false);
+});
+
+test("a full mobile descriptor is distinguishable from a viewport-only desktop context", async () => {
+  const viewport = { width: 430, height: 740 };
+  const desktop = await launchProbeSession({
+    headless: true,
+    viewport,
+    colorScheme: null,
+    reducedMotion: false,
+    localStorage: [],
+  });
+  const mobile = await launchProbeSession({
+    headless: true,
+    viewport,
+    device: MOBILE_DEVICE,
+    colorScheme: null,
+    reducedMotion: false,
+    localStorage: [],
+  });
+
+  try {
+    await desktop.page.setContent('<meta name="viewport" content="width=device-width, initial-scale=1"><main>desktop</main>');
+    await mobile.page.setContent('<meta name="viewport" content="width=device-width, initial-scale=1"><main>mobile</main>');
+    const desktopEvidence = await readBrowserEnvironment(desktop.page, desktop.environmentContract);
+    const mobileEvidence = await readBrowserEnvironment(mobile.page, mobile.environmentContract);
+    const viewportOnlyFake = await readBrowserEnvironment(desktop.page, mobile.environmentContract);
+
+    expect(desktop.environmentContract).toMatchObject({
+      requested: { device: null, viewport },
+      applied: { deviceScaleFactor: 1, hasTouch: false, isMobile: false },
+    });
+    expect(mobile.environmentContract).toMatchObject({
+      requested: { device: MOBILE_DEVICE, viewport },
+      applied: { deviceScaleFactor: 3, hasTouch: true, isMobile: true },
+    });
+    expect(desktopEvidence).toMatchObject({
+      actual: { device: "desktop", viewport, pointer: "fine", hover: "hover", hasTouch: false, maxTouchPoints: 0, deviceScaleFactor: 1, isMobile: false },
+      mismatches: [],
+    });
+    expect(mobileEvidence).toMatchObject({
+      actual: { device: MOBILE_DEVICE, viewport, pointer: "coarse", hover: "none", hasTouch: true, deviceScaleFactor: 3, isMobile: true },
+      mismatches: [],
+    });
+    expect(viewportOnlyFake.actual).toMatchObject({ device: "unmatched", viewport, pointer: "fine", hover: "hover", hasTouch: false, isMobile: null });
+    expect(viewportOnlyFake.mismatches).toEqual(
+      expect.arrayContaining([
+        "DPR expected 3 but observed 1",
+        "touch expected present but maxTouchPoints=0",
+        "pointer expected coarse but observed fine",
+        "hover expected none but observed hover",
+      ]),
+    );
+  } finally {
+    await closeProbeSession(desktop);
+    await closeProbeSession(mobile);
+  }
 });
 
 test("the process census sees a live Chromium process before cleanup", async () => {
