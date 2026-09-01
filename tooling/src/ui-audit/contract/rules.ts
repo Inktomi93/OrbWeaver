@@ -62,4 +62,8 @@ export const DESIGN_AUDIT_RULES = [
 ] as const satisfies readonly DesignAuditRuleDefinition[];
 
 export type DesignAuditRuleId = (typeof DESIGN_AUDIT_RULES)[number]["id"];
+type DesignAuditRuleDefinitionUnion = (typeof DESIGN_AUDIT_RULES)[number];
+export type DesignAuditRuleSeverityById = {
+  readonly [RuleId in DesignAuditRuleId]: Extract<DesignAuditRuleDefinitionUnion, { readonly id: RuleId }>["severity"][number];
+};
 export const DESIGN_AUDIT_RULE_IDS: readonly DesignAuditRuleId[] = DESIGN_AUDIT_RULES.map((rule) => rule.id);

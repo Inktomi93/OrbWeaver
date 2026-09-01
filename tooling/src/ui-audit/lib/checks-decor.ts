@@ -4,7 +4,6 @@
 import type { Rgb } from "@orb/tooling/_shared/wcag";
 import { relativeLuminance, rgbChroma } from "@orb/tooling/_shared/wcag";
 import type { Finding } from "../contract/findings.ts";
-import type { DesignAuditRuleId } from "../contract/rules.ts";
 import type { AccentBorderInput, GlowShadowInput } from "../contract/samples.ts";
 import { REM_PX } from "./ramp.ts";
 
@@ -25,10 +24,11 @@ const HORIZONTAL_BAND_MAX_PX = 12;
 const BORDER_SIDES = ["top", "right", "bottom", "left"] as const;
 
 type BorderSide = (typeof BORDER_SIDES)[number];
+type AccentBorderRuleId = "border-accent-on-rounded" | "side-tab";
 
 /** One side's verdict: every accent-border rule it violates (a single edge can be two tells at once —
  *  a chromatic side band AND a border fighting the corner radius). */
-function classifyAccentSide(input: AccentBorderInput, side: BorderSide): readonly DesignAuditRuleId[] {
+function classifyAccentSide(input: AccentBorderInput, side: BorderSide): readonly AccentBorderRuleId[] {
   const w = input.widths[side];
   const color = input.colors[side];
   if (w < ACCENT_BORDER_MIN_PX || color === null || (color.a ?? 1) < ACCENT_BORDER_MIN_ALPHA || rgbChroma(color) < ACCENT_BORDER_MIN_CHROMA) {
@@ -46,7 +46,7 @@ function classifyAccentSide(input: AccentBorderInput, side: BorderSide): readonl
  *  "side-tab" alone here, so the live home resume card — a 3px accent edge on a 10px-radius panel, the
  *  textbook shape of BOTH §6 bans — could never report `border-accent-on-rounded`, which was reachable
  *  from a top/bottom edge only. A border fighting a rounded corner does not care which corner it hits. */
-function classifyVerticalEdge(input: AccentBorderInput, w: number): readonly DesignAuditRuleId[] {
+function classifyVerticalEdge(input: AccentBorderInput, w: number): readonly AccentBorderRuleId[] {
   if (input.badgeLike) {
     return [];
   }
@@ -58,7 +58,7 @@ function classifyVerticalEdge(input: AccentBorderInput, w: number): readonly Des
 
 /** A top/bottom accent edge: rounded ⇒ the corner-fighting tell; otherwise a bare 3–12px chromatic band,
  *  with tab underlines exempt (an active-tab indicator is the affordance, not a decoration). */
-function classifyHorizontalEdge(input: AccentBorderInput, w: number): readonly DesignAuditRuleId[] {
+function classifyHorizontalEdge(input: AccentBorderInput, w: number): readonly AccentBorderRuleId[] {
   if (input.radius > 0) {
     return ["border-accent-on-rounded"];
   }
@@ -83,7 +83,7 @@ export function checkAccentBorder(input: AccentBorderInput): Finding[] {
     return [];
   }
   const findings: Finding[] = [];
-  const seenRules = new Set<DesignAuditRuleId>();
+  const seenRules = new Set<AccentBorderRuleId>();
   for (const side of BORDER_SIDES) {
     for (const rule of classifyAccentSide(input, side)) {
       if (seenRules.has(rule)) {

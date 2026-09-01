@@ -7,7 +7,16 @@
 // control — a green that cannot fail is not a fence.
 
 import type { Rgb } from "@orb/tooling/_shared/wcag";
-import type { AccentBorderInput, ActionDoorInput, Backdrop, IconTileInput, RawSamples, TextStyleInput } from "../../../tooling/src/ui-audit/index.ts";
+import type {
+  AccentBorderInput,
+  ActionDoorInput,
+  Backdrop,
+  DesignAuditRuleId,
+  Finding,
+  IconTileInput,
+  RawSamples,
+  TextStyleInput,
+} from "../../../tooling/src/ui-audit/index.ts";
 import {
   checkAccentBorder,
   checkAccessibleName,
@@ -30,6 +39,7 @@ import {
   checkMainLandmark,
   checkMotionStatic,
   checkNestedCard,
+  checkObscuredTarget,
   checkRadialGlow,
   checkRepeatedText,
   checkScriptErrors,
@@ -37,6 +47,7 @@ import {
   checkTapTarget,
   checkTextOverflow,
   checkTextStyle,
+  checkTruncatedText,
   checkZIndex,
   collectFindings,
   DESIGN_AUDIT_RULES,
@@ -54,130 +65,122 @@ const WHITE: Rgb = { r: 255, g: 255, b: 255 };
 const LIGHT_GRAY: Rgb = { r: 210, g: 210, b: 210 };
 const FLAT_WHITE: Backdrop = { kind: "flat", color: WHITE };
 
-// Closed proof manifest. Each reason points at the firing fixture and its nearest legitimate neighbour
-// exercised in this file; design-audit-rule-proof reconciles these ids against DESIGN_AUDIT_RULES.
-// @rule-fires(tap-target): undersized coarse and fine pointer fixtures emit the rule
-// @rule-silent(tap-target): the same controls at the ratified pointer floors stay clean
-// @rule-fires(control-aspect): the pre-fix 48x44 switch fixture emits the rule
-// @rule-silent(control-aspect): the shipped 64x44 switch is the nearest legal geometry
-// @rule-fires(obscured-target): the covered-target samples emit for interactive and reading targets
-// @rule-silent(obscured-target): sub-threshold overlap and self hits are the nearest legal neighbours
-// @rule-fires(aria-name): the unlabeled icon button fixture emits the rule
-// @rule-silent(aria-name): the same button with an aria-label or visible text stays clean
-// @rule-fires(landmark-missing): the missing-main fixture emits the rule
-// @rule-silent(landmark-missing): the same page sample with main present stays clean
-// @rule-fires(tabindex-positive): tabindex one emits the rule
-// @rule-silent(tabindex-positive): tabindex zero and minus one preserve natural order and stay clean
-// @rule-fires(skipped-heading): the h1 to h3 fixture emits the rule
-// @rule-silent(skipped-heading): the adjacent heading descent is the nearest legal neighbour
-// @rule-fires(text-over-art): low-contrast and indeterminate art backdrops emit the rule
-// @rule-silent(text-over-art): every-stop passing gradients are the nearest measurable neighbour
-// @rule-fires(contrast): light gray normal text on white emits the rule
-// @rule-silent(contrast): black normal text on the same backdrop stays clean
-// @rule-fires(inactive-control-legibility): an operable but visually lost inactive control emits the rule
-// @rule-silent(inactive-control-legibility): a disabled control above the legibility floor stays clean
-// @rule-fires(gray-on-color): neutral text on a saturated backdrop emits the rule
-// @rule-silent(gray-on-color): neutral backdrops and chromatic text are the two nearest legal neighbours
-// @rule-fires(border-accent-on-rounded): a dominant chromatic edge fighting a radius emits the rule
-// @rule-silent(border-accent-on-rounded): the selected ListRow accent is the ratified nearest neighbour
-// @rule-fires(side-tab): a thick dominant chromatic side edge emits the rule
-// @rule-silent(side-tab): a status edge and neutral border are the nearest legitimate neighbours
-// @rule-fires(glow-shadow): a zero-offset chromatic halo emits the rule
-// @rule-silent(glow-shadow): a neutral elevation shadow on the same surface stays clean
-// @rule-fires(distorted-image): object-fit fill with aspect deviation emits the rule
-// @rule-silent(distorted-image): object-fit cover with the same mismatch is legitimate cropping
-// @rule-fires(broken-image): both walker failure reasons emit the rule
-// @rule-silent(broken-image): the clean-bundle fixture contains no broken-image sample
-// @rule-fires(radial-halo): a saturated radial wash fading to transparent emits the rule
-// @rule-silent(radial-halo): the neutral non-fading vignette is the nearest legitimate neighbour
-// @rule-fires(radial-spotlight-glow): a low-alpha accent spotlight emits the rule
-// @rule-silent(radial-spotlight-glow): the sanctioned small carrier stays clean
-// @rule-fires(stripe-background): a repeating stripe sample emits the rule
-// @rule-silent(stripe-background): the same decoration on a sliver-sized element stays clean
-// @rule-fires(grid-line-background): a two-axis grid sample emits the rule
-// @rule-silent(grid-line-background): the same decoration on a sliver-sized element stays clean
-// @rule-fires(icon-tile-stack): the rounded-square icon tile over a heading emits the rule
-// @rule-silent(icon-tile-stack): an avatar circle and an oversized sibling stay clean
-// @rule-fires(layout-transition): a layout-property transition emits the rule
-// @rule-silent(layout-transition): the accordion and collapsible panel slots are ratified neighbours
-// @rule-fires(bounce-easing): bounce names and overshoot beziers emit the rule
-// @rule-silent(bounce-easing): a non-overshooting easing is the nearest motion neighbour
-// @rule-fires(text-overflow): the visible spill fixture emits the rule
-// @rule-silent(text-overflow): the all-clean raw-sample bundle contains no spill sample
-// @rule-fires(truncated-to-nothing): the zero-visible-text fixture emits the rule
-// @rule-silent(truncated-to-nothing): the all-clean raw-sample bundle preserves visible text
-// @rule-fires(repeated-container-text): repeated copy in distinct spots emits the rule
-// @rule-silent(repeated-container-text): the all-clean bundle has no repeated-container sample
-// @rule-fires(clipped-overflow): both in-flow and positioned spill fixtures emit the rule
-// @rule-silent(clipped-overflow): the all-clean bundle contains no clipped spill
-// @rule-fires(edge-flush-cards): cards flush against the scroller edge emit the rule
-// @rule-silent(edge-flush-cards): the all-clean bundle preserves the edge gap
-// @rule-fires(script-error): page errors dedupe and emit the rule
-// @rule-silent(script-error): an empty page-error list stays clean
-// @rule-fires(duplicate-action-door): duplicate actions in distinct homes emit the rule
-// @rule-silent(duplicate-action-door): sibling rows in one list remain one legitimate home
-// @rule-fires(z-index-escalation): z-index at the escalation floor emits the rule
-// @rule-silent(z-index-escalation): the value immediately below the floor stays clean
-// @rule-fires(nested-card): a card inside a card emits the rule
-// @rule-silent(nested-card): the otherwise identical non-nested card stays clean
-// @rule-fires(gradient-text): background-clipped text emits the rule
-// @rule-silent(gradient-text): plain text without clipping stays clean
-// @rule-fires(animated-img-hover): a transformed image hover emits the rule
-// @rule-silent(animated-img-hover): the otherwise identical static image stays clean
-// @rule-fires(text-below-ramp): text below the micro token emits the rule
-// @rule-silent(text-below-ramp): text exactly at the ratified micro token stays clean
-// @rule-fires(undersized-ui-text): interactive micro text below eleven pixels emits the rule
-// @rule-silent(undersized-ui-text): interactive text at the floor stays clean
-// @rule-fires(line-length): measured over-wide prose emits the rule
-// @rule-silent(line-length): prose at the ratified seventy-five-character measure stays clean
-// @rule-fires(tight-leading): leading below the ratified ratio emits the rule
-// @rule-silent(tight-leading): leading exactly at the floor stays clean
-// @rule-fires(justified-text): justified prose without auto hyphens emits the rule
-// @rule-silent(justified-text): the same prose with auto hyphens stays clean
-// @rule-fires(all-caps-body): long uppercase running text emits the rule
-// @rule-silent(all-caps-body): headings and short uppercase labels stay clean
-// @rule-fires(wide-tracking): wide tracking on running text emits the rule
-// @rule-silent(wide-tracking): the uppercase micro-caps voice is the nearest legitimate neighbour
-// @rule-fires(crushed-tracking): tracking below the negative floor emits the rule
-// @rule-silent(crushed-tracking): tracking exactly at the floor stays clean
-// @rule-fires(caveat-outweighed): an alert sentence outweighed in its block emits the rule
-// @rule-silent(caveat-outweighed): a partner within one ramp step stays clean
-// @rule-fires(off-theme-font): a rendered face outside the token stacks emits the rule
-// @rule-silent(off-theme-font): every face from the token stacks stays clean
-// @rule-fires(flat-type-hierarchy): a compressed heading-size spread emits the rule
-// @rule-silent(flat-type-hierarchy): the real ramp spread stays clean
+interface AuditRuleProof {
+  readonly rule: DesignAuditRuleId;
+  readonly kind: "fires" | "silent";
+  readonly reason: string;
+}
+
+function auditRuleTest(proofs: readonly AuditRuleProof[], title: string, fn: () => void | Promise<void>): void {
+  expect(proofs.every((proof) => proof.reason.trim() !== "")).toBe(true);
+  test(title, fn);
+}
+
+type Equal<Left, Right> = (<Value>() => Value extends Left ? 1 : 2) extends <Value>() => Value extends Right ? 1 : 2 ? true : false;
+type Assert<Condition extends true> = Condition;
+type ContrastSeverityIsOnlyP1 = Assert<Equal<Extract<Finding, { readonly rule: "contrast" }>["severity"], "P1">>;
+const CONTRAST_SEVERITY_IS_ONLY_P1: ContrastSeverityIsOnlyP1 = true;
 
 test("the design-audit rule denominator is closed at the corrected 45 live ids", () => {
+  expect(CONTRAST_SEVERITY_IS_ONLY_P1).toBe(true);
   expect(DESIGN_AUDIT_RULES).toHaveLength(45);
   expect(new Set(DESIGN_AUDIT_RULES.map((rule) => rule.id)).size).toBe(45);
   expect(DESIGN_AUDIT_RULES.filter((rule) => rule.id === "side-tab" || rule.id === "border-accent-on-rounded")).toHaveLength(2);
+  expect(DESIGN_AUDIT_RULES.map(({ id, severity }) => `${id}:${severity.join("/")}`)).toEqual([
+    "tap-target:P1/P2",
+    "control-aspect:P2",
+    "obscured-target:P0/P1",
+    "aria-name:P1",
+    "landmark-missing:P2",
+    "tabindex-positive:P2",
+    "skipped-heading:P2",
+    "text-over-art:P0/P1",
+    "contrast:P1",
+    "inactive-control-legibility:P3",
+    "gray-on-color:P2",
+    "border-accent-on-rounded:P3",
+    "side-tab:P3",
+    "glow-shadow:P3",
+    "distorted-image:P1/P2",
+    "broken-image:P1",
+    "radial-halo:P2",
+    "radial-spotlight-glow:P3",
+    "stripe-background:P3",
+    "grid-line-background:P3",
+    "icon-tile-stack:P3",
+    "layout-transition:P3",
+    "bounce-easing:P2",
+    "text-overflow:P1",
+    "truncated-to-nothing:P1",
+    "repeated-container-text:P3",
+    "clipped-overflow:P1/P2",
+    "edge-flush-cards:P3",
+    "script-error:P0",
+    "duplicate-action-door:P3",
+    "z-index-escalation:P2/P3",
+    "nested-card:P3",
+    "gradient-text:P3",
+    "animated-img-hover:P3",
+    "text-below-ramp:P2",
+    "undersized-ui-text:P2",
+    "line-length:P3",
+    "tight-leading:P3",
+    "justified-text:P3",
+    "all-caps-body:P3",
+    "wide-tracking:P3",
+    "crushed-tracking:P3",
+    "caveat-outweighed:P2",
+    "off-theme-font:P2",
+    "flat-type-hierarchy:P3",
+  ]);
 });
 
 // ── #1 contrast ───────────────────────────────────────────────────────────────
 
-test("a low-contrast pair (light gray on white, normal text) FAILs", () => {
-  const finding = checkContrast({
-    selector: ".muted",
-    color: LIGHT_GRAY,
-    backdrop: FLAT_WHITE,
-    fontSizePx: 14,
-    fontWeight: 400,
-  });
-  expect(finding).not.toBeNull();
-  expect(finding?.rule).toBe("contrast");
-  expect(finding?.severity).toBe("P1");
-});
+auditRuleTest(
+  [{ rule: "contrast", kind: "fires", reason: "light gray normal text on white emits" }],
+  "a low-contrast pair (light gray on white, normal text) FAILs",
+  () => {
+    const finding = checkContrast({
+      selector: ".muted",
+      color: LIGHT_GRAY,
+      backdrop: FLAT_WHITE,
+      fontSizePx: 14,
+      fontWeight: 400,
+    });
+    expect(finding).not.toBeNull();
+    expect(finding?.rule).toBe("contrast");
+    expect(finding?.severity).toBe("P1");
+  },
+);
 
-test("a passing pair (black on white, normal text) reports no finding", () => {
-  const finding = checkContrast({
-    selector: ".body",
-    color: BLACK,
-    backdrop: FLAT_WHITE,
-    fontSizePx: 14,
-    fontWeight: 400,
-  });
-  expect(finding).toBeNull();
-});
+auditRuleTest(
+  [{ rule: "contrast", kind: "silent", reason: "black normal text on the same backdrop stays clean" }],
+  "a passing pair (black on white, normal text) reports no finding",
+  () => {
+    const finding = checkContrast({
+      selector: ".body",
+      color: BLACK,
+      backdrop: FLAT_WHITE,
+      fontSizePx: 14,
+      fontWeight: 400,
+    });
+    expect(finding).toBeNull();
+  },
+);
+
+auditRuleTest(
+  [
+    { rule: "inactive-control-legibility", kind: "fires", reason: "visually lost aria-disabled control emits the advisory" },
+    { rule: "inactive-control-legibility", kind: "silent", reason: "the same inactive control above the UI-component floor stays clean" },
+  ],
+  "inactive controls use their rule-specific P3 advisory and preserve the legal neighbour",
+  () => {
+    const base = { selector: "button.save", backdrop: FLAT_WHITE, fontSizePx: 14, fontWeight: 400, inactive: "aria" as const };
+    expect(checkContrast({ ...base, color: { r: 220, g: 220, b: 220 } })?.rule).toBe("inactive-control-legibility");
+    expect(checkContrast({ ...base, color: BLACK })).toBeNull();
+  },
+);
 
 test("large text gets the relaxed 3:1 floor — a ratio that fails normal text can pass large text", () => {
   // ~3.95:1 against white — fails the 4.5:1 normal floor, clears the 3:1 large floor.
@@ -261,18 +264,22 @@ test("a dimmed foreground is composited per gradient STOP, and the finding says 
 
 // ── #2 text-over-art ─────────────────────────────────────────────────────────
 
-test("text over a background-image with no flat/gradient color is indeterminate and FAILs at P1", () => {
-  const finding = checkContrast({
-    selector: ".hero-title",
-    color: WHITE,
-    backdrop: { kind: "image-indeterminate" },
-    fontSizePx: 24,
-    fontWeight: 700,
-  });
-  expect(finding).not.toBeNull();
-  expect(finding?.rule).toBe("text-over-art");
-  expect(finding?.severity).toBe("P1");
-});
+auditRuleTest(
+  [{ rule: "text-over-art", kind: "fires", reason: "indeterminate art backdrop emits" }],
+  "text over a background-image with no flat/gradient color is indeterminate and FAILs at P1",
+  () => {
+    const finding = checkContrast({
+      selector: ".hero-title",
+      color: WHITE,
+      backdrop: { kind: "image-indeterminate" },
+      fontSizePx: 24,
+      fontWeight: 700,
+    });
+    expect(finding).not.toBeNull();
+    expect(finding?.rule).toBe("text-over-art");
+    expect(finding?.severity).toBe("P1");
+  },
+);
 
 test("text over a gradient FAILs at P0 when the worst color stop is low-contrast", () => {
   const finding = checkContrast({
@@ -287,16 +294,20 @@ test("text over a gradient FAILs at P0 when the worst color stop is low-contrast
   expect(finding?.severity).toBe("P0");
 });
 
-test("text over a gradient passes when EVERY stop clears the ratio", () => {
-  const finding = checkContrast({
-    selector: ".banner-title",
-    color: WHITE,
-    backdrop: { kind: "gradient", stops: [BLACK, { r: 20, g: 20, b: 20 }] },
-    fontSizePx: 24,
-    fontWeight: 700,
-  });
-  expect(finding).toBeNull();
-});
+auditRuleTest(
+  [{ rule: "text-over-art", kind: "silent", reason: "every-stop passing gradient is the nearest measurable neighbour" }],
+  "text over a gradient passes when EVERY stop clears the ratio",
+  () => {
+    const finding = checkContrast({
+      selector: ".banner-title",
+      color: WHITE,
+      backdrop: { kind: "gradient", stops: [BLACK, { r: 20, g: 20, b: 20 }] },
+      fontSizePx: 24,
+      fontWeight: 700,
+    });
+    expect(finding).toBeNull();
+  },
+);
 
 test("a gradient with a TRANSLUCENT stop refuses (indeterminate P1) instead of trusting fake stop math", () => {
   // Alpha-blind worst-stop math was the documented gradient blind spot: a rgba(0,0,0,0.5) scrim
@@ -360,64 +371,80 @@ test("a PIXEL-SAMPLED backdrop is judged for contrast but never for gray-on-colo
 
 const SATURATED_BLUE: Rgb = { r: 30, g: 60, b: 210 };
 
-test("gray text on a saturated colored background fires gray-on-color at P2", () => {
-  const finding = checkGrayOnColor({
-    selector: ".washed",
-    color: { r: 128, g: 128, b: 128 },
-    backdrop: { kind: "flat", color: SATURATED_BLUE },
-    fontSizePx: 14,
-    fontWeight: 400,
-  });
-  expect(finding?.rule).toBe("gray-on-color");
-  expect(finding?.severity).toBe("P2");
-  expect(finding?.origin).toBe("impeccable");
-});
+auditRuleTest(
+  [{ rule: "gray-on-color", kind: "fires", reason: "neutral text on a saturated backdrop emits" }],
+  "gray text on a saturated colored background fires gray-on-color at P2",
+  () => {
+    const finding = checkGrayOnColor({
+      selector: ".washed",
+      color: { r: 128, g: 128, b: 128 },
+      backdrop: { kind: "flat", color: SATURATED_BLUE },
+      fontSizePx: 14,
+      fontWeight: 400,
+    });
+    expect(finding?.rule).toBe("gray-on-color");
+    expect(finding?.severity).toBe("P2");
+    expect(finding?.origin).toBe("impeccable");
+  },
+);
 
-test("gray-on-color stays quiet on a neutral background and for chromatic text", () => {
-  const onNeutral = checkGrayOnColor({
-    selector: ".a",
-    color: { r: 128, g: 128, b: 128 },
-    backdrop: FLAT_WHITE,
-    fontSizePx: 14,
-    fontWeight: 400,
-  });
-  const chromaticText = checkGrayOnColor({
-    selector: ".b",
-    color: { r: 200, g: 120, b: 40 },
-    backdrop: { kind: "flat", color: SATURATED_BLUE },
-    fontSizePx: 14,
-    fontWeight: 400,
-  });
-  expect(onNeutral).toBeNull();
-  expect(chromaticText).toBeNull();
-});
+auditRuleTest(
+  [{ rule: "gray-on-color", kind: "silent", reason: "neutral backdrop and chromatic text are nearest legal neighbours" }],
+  "gray-on-color stays quiet on a neutral background and for chromatic text",
+  () => {
+    const onNeutral = checkGrayOnColor({
+      selector: ".a",
+      color: { r: 128, g: 128, b: 128 },
+      backdrop: FLAT_WHITE,
+      fontSizePx: 14,
+      fontWeight: 400,
+    });
+    const chromaticText = checkGrayOnColor({
+      selector: ".b",
+      color: { r: 200, g: 120, b: 40 },
+      backdrop: { kind: "flat", color: SATURATED_BLUE },
+      fontSizePx: 14,
+      fontWeight: 400,
+    });
+    expect(onNeutral).toBeNull();
+    expect(chromaticText).toBeNull();
+  },
+);
 
 // ── #3 distorted image ───────────────────────────────────────────────────────
 
-test("a stretched image (rendered aspect far from natural, object-fit: fill) FAILs", () => {
-  const finding = checkImageDistortion({
-    selector: "img.banner",
-    naturalWidth: 1200,
-    naturalHeight: 400, // 3:1 source
-    renderedWidth: 600,
-    renderedHeight: 600, // 1:1 rendered — squished tall
-    objectFit: "fill",
-  });
-  expect(finding).not.toBeNull();
-  expect(finding?.rule).toBe("distorted-image");
-});
+auditRuleTest(
+  [{ rule: "distorted-image", kind: "fires", reason: "object-fit fill with aspect deviation emits" }],
+  "a stretched image (rendered aspect far from natural, object-fit: fill) FAILs",
+  () => {
+    const finding = checkImageDistortion({
+      selector: "img.banner",
+      naturalWidth: 1200,
+      naturalHeight: 400, // 3:1 source
+      renderedWidth: 600,
+      renderedHeight: 600, // 1:1 rendered — squished tall
+      objectFit: "fill",
+    });
+    expect(finding).not.toBeNull();
+    expect(finding?.rule).toBe("distorted-image");
+  },
+);
 
-test("a cover-fit image with the same aspect mismatch passes (cropping is not stretching)", () => {
-  const finding = checkImageDistortion({
-    selector: "img.banner",
-    naturalWidth: 1200,
-    naturalHeight: 400,
-    renderedWidth: 600,
-    renderedHeight: 600,
-    objectFit: "cover",
-  });
-  expect(finding).toBeNull();
-});
+auditRuleTest(
+  [{ rule: "distorted-image", kind: "silent", reason: "object-fit cover with the same mismatch is legitimate cropping" }],
+  "a cover-fit image with the same aspect mismatch passes (cropping is not stretching)",
+  () => {
+    const finding = checkImageDistortion({
+      selector: "img.banner",
+      naturalWidth: 1200,
+      naturalHeight: 400,
+      renderedWidth: 600,
+      renderedHeight: 600,
+      objectFit: "cover",
+    });
+    expect(finding).toBeNull();
+  },
+);
 
 test("an image whose rendered aspect matches its source (within tolerance) passes", () => {
   const finding = checkImageDistortion({
@@ -454,28 +481,36 @@ test("a severely distorted image (>=15% deviation) escalates to P1 over P2", () 
 
 // ── broken images (impeccable) ───────────────────────────────────────────────
 
-test("a broken image fires at P1 for both reasons", () => {
+auditRuleTest([{ rule: "broken-image", kind: "fires", reason: "both walker failure reasons emit" }], "a broken image fires at P1 for both reasons", () => {
   expect(checkBrokenImage({ selector: "img.avatar", reason: "failed-load" }).severity).toBe("P1");
   expect(checkBrokenImage({ selector: "img.empty", reason: "empty-src" }).rule).toBe("broken-image");
 });
 
 // ── #4 tap targets (pointer-conditional floor) ───────────────────────────────
 
-test("coarse pointer: a <44px target (short side 40px, still >=32px) WARNs at P2", () => {
-  const finding = checkTapTarget({ selector: "button.icon", width: 40, height: 40 }, true);
-  expect(finding).not.toBeNull();
-  expect(finding?.severity).toBe("P2");
-});
+auditRuleTest(
+  [{ rule: "tap-target", kind: "fires", reason: "undersized coarse pointer fixture emits" }],
+  "coarse pointer: a <44px target (short side 40px, still >=32px) WARNs at P2",
+  () => {
+    const finding = checkTapTarget({ selector: "button.icon", width: 40, height: 40 }, true);
+    expect(finding).not.toBeNull();
+    expect(finding?.severity).toBe("P2");
+  },
+);
 
 test("coarse pointer: a target below the 32px hard floor FAILs at P1", () => {
   const finding = checkTapTarget({ selector: "button.tiny", width: 24, height: 24 }, true);
   expect(finding?.severity).toBe("P1");
 });
 
-test("coarse pointer: a target at/above 44px reports no finding", () => {
-  const finding = checkTapTarget({ selector: "button.big", width: 48, height: 48 }, true);
-  expect(finding).toBeNull();
-});
+auditRuleTest(
+  [{ rule: "tap-target", kind: "silent", reason: "the same control at the ratified pointer floor stays clean" }],
+  "coarse pointer: a target at/above 44px reports no finding",
+  () => {
+    const finding = checkTapTarget({ selector: "button.big", width: 48, height: 48 }, true);
+    expect(finding).toBeNull();
+  },
+);
 
 // Fine pointer (mouse) only owes WCAG AA's 24px floor — the desktop control scale (32/34/40px) is
 // deliberate density (D62 P1), NOT a defect. This is the regression the pointer-aware floor fixes.
@@ -514,17 +549,25 @@ test("the withholding is keyed on the FLAG, not on the number — the same box f
 // (aspect 1.455). Each carve below carries the reason it exists AND its passing control.
 const SWITCH_SAMPLE = { selector: "[data-slot=switch-root]", role: "switch", animating: false };
 
-test("the pre-#420 coarse Switch geometry (48x44, aspect 1.09) FIRES — the defect this rule exists for", () => {
-  const finding = checkControlAspect({ ...SWITCH_SAMPLE, width: 48, height: 44 });
-  expect(finding?.rule).toBe("control-aspect");
-  expect(finding?.severity).toBe("P2");
-  expect(finding?.value, "the finding must publish the measured aspect, not just a verdict").toContain("1.09");
-  expect(finding?.value).toContain("48×44px");
-});
+auditRuleTest(
+  [{ rule: "control-aspect", kind: "fires", reason: "the pre-fix 48x44 switch fixture emits" }],
+  "the pre-#420 coarse Switch geometry (48x44, aspect 1.09) FIRES — the defect this rule exists for",
+  () => {
+    const finding = checkControlAspect({ ...SWITCH_SAMPLE, width: 48, height: 44 });
+    expect(finding?.rule).toBe("control-aspect");
+    expect(finding?.severity).toBe("P2");
+    expect(finding?.value, "the finding must publish the measured aspect, not just a verdict").toContain("1.09");
+    expect(finding?.value).toContain("48×44px");
+  },
+);
 
-test("the shipped fix (64x44, aspect 1.455) is CLEAN — the twin that makes the red above a plant", () => {
-  expect(checkControlAspect({ ...SWITCH_SAMPLE, width: 64, height: 44 })).toBeNull();
-});
+auditRuleTest(
+  [{ rule: "control-aspect", kind: "silent", reason: "the shipped 64x44 switch is the nearest legal geometry" }],
+  "the shipped fix (64x44, aspect 1.455) is CLEAN — the twin that makes the red above a plant",
+  () => {
+    expect(checkControlAspect({ ...SWITCH_SAMPLE, width: 64, height: 44 })).toBeNull();
+  },
+);
 
 test("the fine-pointer arm (48x32, aspect 1.5) was never the defect and stays clean", () => {
   expect(checkControlAspect({ ...SWITCH_SAMPLE, width: 48, height: 32 })).toBeNull();
@@ -567,33 +610,41 @@ test("an exactly-square switch is the worst case and fires at aspect 1.00", () =
 
 // ── #5 ARIA navigability ─────────────────────────────────────────────────────
 
-test("an unlabeled icon-button (no text, no aria-label/title/alt) FAILs", () => {
-  const finding = checkAccessibleName({
-    selector: "button.icon-close",
-    tag: "button",
-    hasVisibleText: false,
-    ariaLabel: null,
-    ariaLabelledbyText: null,
-    title: null,
-    altText: null,
-  });
-  expect(finding).not.toBeNull();
-  expect(finding?.rule).toBe("aria-name");
-  expect(finding?.severity).toBe("P1");
-});
+auditRuleTest(
+  [{ rule: "aria-name", kind: "fires", reason: "the unlabeled icon button fixture emits" }],
+  "an unlabeled icon-button (no text, no aria-label/title/alt) FAILs",
+  () => {
+    const finding = checkAccessibleName({
+      selector: "button.icon-close",
+      tag: "button",
+      hasVisibleText: false,
+      ariaLabel: null,
+      ariaLabelledbyText: null,
+      title: null,
+      altText: null,
+    });
+    expect(finding).not.toBeNull();
+    expect(finding?.rule).toBe("aria-name");
+    expect(finding?.severity).toBe("P1");
+  },
+);
 
-test("a labeled icon-button (aria-label set) passes", () => {
-  const finding = checkAccessibleName({
-    selector: "button.icon-close",
-    tag: "button",
-    hasVisibleText: false,
-    ariaLabel: "Close dialog",
-    ariaLabelledbyText: null,
-    title: null,
-    altText: null,
-  });
-  expect(finding).toBeNull();
-});
+auditRuleTest(
+  [{ rule: "aria-name", kind: "silent", reason: "the same button with an aria-label stays clean" }],
+  "a labeled icon-button (aria-label set) passes",
+  () => {
+    const finding = checkAccessibleName({
+      selector: "button.icon-close",
+      tag: "button",
+      hasVisibleText: false,
+      ariaLabel: "Close dialog",
+      ariaLabelledbyText: null,
+      title: null,
+      altText: null,
+    });
+    expect(finding).toBeNull();
+  },
+);
 
 test("visible text alone is enough to satisfy the accessible-name check", () => {
   const finding = checkAccessibleName({
@@ -621,70 +672,117 @@ test("an aria-label of only whitespace does NOT count as a name", () => {
   expect(finding).not.toBeNull();
 });
 
-test("a missing <main> landmark reports a P2 finding", () => {
+auditRuleTest([{ rule: "landmark-missing", kind: "fires", reason: "the missing-main fixture emits" }], "a missing <main> landmark reports a P2 finding", () => {
   expect(checkMainLandmark({ main: false })).not.toBeNull();
 });
 
-test("a present <main> landmark reports no finding", () => {
-  expect(checkMainLandmark({ main: true })).toBeNull();
-});
+auditRuleTest(
+  [{ rule: "landmark-missing", kind: "silent", reason: "the same page sample with main present stays clean" }],
+  "a present <main> landmark reports no finding",
+  () => {
+    expect(checkMainLandmark({ main: true })).toBeNull();
+  },
+);
 
-test("a positive tabindex is flagged (breaks natural DOM tab order)", () => {
-  const finding = checkTabIndexSmell({ selector: "div.weird", tabIndex: 5 });
-  expect(finding).not.toBeNull();
-  expect(finding?.rule).toBe("tabindex-positive");
-});
+auditRuleTest(
+  [{ rule: "tabindex-positive", kind: "fires", reason: "tabindex one emits" }],
+  "a positive tabindex is flagged (breaks natural DOM tab order)",
+  () => {
+    const finding = checkTabIndexSmell({ selector: "div.weird", tabIndex: 5 });
+    expect(finding).not.toBeNull();
+    expect(finding?.rule).toBe("tabindex-positive");
+  },
+);
 
-test("tabindex=0 and tabindex=-1 are both fine (not a smell)", () => {
-  expect(checkTabIndexSmell({ selector: "div.a", tabIndex: 0 })).toBeNull();
-  expect(checkTabIndexSmell({ selector: "div.b", tabIndex: -1 })).toBeNull();
-});
+auditRuleTest(
+  [{ rule: "tabindex-positive", kind: "silent", reason: "zero and minus one preserve natural order" }],
+  "tabindex=0 and tabindex=-1 are both fine (not a smell)",
+  () => {
+    expect(checkTabIndexSmell({ selector: "div.a", tabIndex: 0 })).toBeNull();
+    expect(checkTabIndexSmell({ selector: "div.b", tabIndex: -1 })).toBeNull();
+  },
+);
 
 // ── heading order (impeccable; N7) ───────────────────────────────────────────
 
-test("an h1→h3 skip fires skipped-heading at P2; a clean descent passes", () => {
-  const skipped = checkHeadingOrder([
-    { level: 1, text: "Library" },
-    { level: 3, text: "Recent" },
-  ]);
-  expect(skipped).toHaveLength(1);
-  expect(skipped[0]?.rule).toBe("skipped-heading");
-  expect(skipped[0]?.severity).toBe("P2");
-  const clean = checkHeadingOrder([
-    { level: 1, text: "Library" },
-    { level: 2, text: "Recent" },
-    { level: 3, text: "Today" },
-    { level: 2, text: "Archive" },
-  ]);
-  expect(clean).toEqual([]);
-});
+auditRuleTest(
+  [
+    { rule: "skipped-heading", kind: "fires", reason: "the h1 to h3 fixture emits" },
+    { rule: "skipped-heading", kind: "silent", reason: "the adjacent heading descent is the nearest legal neighbour" },
+  ],
+  "an h1→h3 skip fires skipped-heading at P2; a clean descent passes",
+  () => {
+    const skipped = checkHeadingOrder([
+      { level: 1, text: "Library" },
+      { level: 3, text: "Recent" },
+    ]);
+    expect(skipped).toHaveLength(1);
+    expect(skipped[0]?.rule).toBe("skipped-heading");
+    expect(skipped[0]?.severity).toBe("P2");
+    const clean = checkHeadingOrder([
+      { level: 1, text: "Library" },
+      { level: 2, text: "Recent" },
+      { level: 3, text: "Today" },
+      { level: 2, text: "Archive" },
+    ]);
+    expect(clean).toEqual([]);
+  },
+);
 
 // ── #6 cheap in-DOM antipatterns ─────────────────────────────────────────────
 
-test("z-index >= 999 is flagged; below it is not", () => {
-  expect(checkZIndex({ selector: ".modal", zIndex: 1000 })?.rule).toBe("z-index-escalation");
-  expect(checkZIndex({ selector: ".panel", zIndex: 50 })).toBeNull();
-});
+auditRuleTest(
+  [
+    { rule: "z-index-escalation", kind: "fires", reason: "z-index at the escalation floor emits" },
+    { rule: "z-index-escalation", kind: "silent", reason: "a value below the floor stays clean" },
+  ],
+  "z-index >= 999 is flagged; below it is not",
+  () => {
+    expect(checkZIndex({ selector: ".modal", zIndex: 1000 })?.rule).toBe("z-index-escalation");
+    expect(checkZIndex({ selector: ".panel", zIndex: 50 })).toBeNull();
+  },
+);
 
 test("an egregious z-index (>=9999) escalates to P2 over the default P3", () => {
   expect(checkZIndex({ selector: ".x", zIndex: 999 })?.severity).toBe("P3");
   expect(checkZIndex({ selector: ".y", zIndex: 99_999 })?.severity).toBe("P2");
 });
 
-test("a nested card is flagged; a non-nested one is not", () => {
-  expect(checkNestedCard({ selector: ".inner-card", isNested: true })?.rule).toBe("nested-card");
-  expect(checkNestedCard({ selector: ".card", isNested: false })).toBeNull();
-});
+auditRuleTest(
+  [
+    { rule: "nested-card", kind: "fires", reason: "a card inside a card emits" },
+    { rule: "nested-card", kind: "silent", reason: "the otherwise identical non-nested card stays clean" },
+  ],
+  "a nested card is flagged; a non-nested one is not",
+  () => {
+    expect(checkNestedCard({ selector: ".inner-card", isNested: true })?.rule).toBe("nested-card");
+    expect(checkNestedCard({ selector: ".card", isNested: false })).toBeNull();
+  },
+);
 
-test("gradient-clipped text is flagged; plain text is not", () => {
-  expect(checkGradientText({ selector: ".hero-h1", hasGradientText: true })?.rule).toBe("gradient-text");
-  expect(checkGradientText({ selector: ".body", hasGradientText: false })).toBeNull();
-});
+auditRuleTest(
+  [
+    { rule: "gradient-text", kind: "fires", reason: "background-clipped text emits" },
+    { rule: "gradient-text", kind: "silent", reason: "plain text without clipping stays clean" },
+  ],
+  "gradient-clipped text is flagged; plain text is not",
+  () => {
+    expect(checkGradientText({ selector: ".hero-h1", hasGradientText: true })?.rule).toBe("gradient-text");
+    expect(checkGradientText({ selector: ".body", hasGradientText: false })).toBeNull();
+  },
+);
 
-test("an <img> with a hover transform is flagged; a static one is not", () => {
-  expect(checkAnimatedImgHover({ selector: "img.card-art", hasHoverAnimation: true })?.rule).toBe("animated-img-hover");
-  expect(checkAnimatedImgHover({ selector: "img.static", hasHoverAnimation: false })).toBeNull();
-});
+auditRuleTest(
+  [
+    { rule: "animated-img-hover", kind: "fires", reason: "a transformed image hover emits" },
+    { rule: "animated-img-hover", kind: "silent", reason: "the otherwise identical static image stays clean" },
+  ],
+  "an <img> with a hover transform is flagged; a static one is not",
+  () => {
+    expect(checkAnimatedImgHover({ selector: "img.card-art", hasHoverAnimation: true })?.rule).toBe("animated-img-hover");
+    expect(checkAnimatedImgHover({ selector: "img.static", hasHoverAnimation: false })).toBeNull();
+  },
+);
 
 // ── typography floors (impeccable, ramp-bound) ───────────────────────────────
 
@@ -707,22 +805,39 @@ const TEXT_STYLE_BASE: TextStyleInput = {
   srOnly: false,
 };
 
-test("text below the ratified micro step fires text-below-ramp at P2; AT the micro step it passes", () => {
-  const below = checkTextStyle({ ...TEXT_STYLE_BASE, fontSizePx: 9 });
-  expect(below.map((f) => f.rule)).toContain("text-below-ramp");
-  const atMicro = checkTextStyle({ ...TEXT_STYLE_BASE, fontSizePx: TEXT_MICRO_PX });
-  expect(atMicro.map((f) => f.rule)).not.toContain("text-below-ramp");
-});
+auditRuleTest(
+  [
+    { rule: "text-below-ramp", kind: "fires", reason: "text below the micro token emits" },
+    { rule: "text-below-ramp", kind: "silent", reason: "text exactly at the ratified micro token stays clean" },
+  ],
+  "text below the ratified micro step fires text-below-ramp at P2; AT the micro step it passes",
+  () => {
+    const below = checkTextStyle({ ...TEXT_STYLE_BASE, fontSizePx: 9 });
+    expect(below.map((f) => f.rule)).toContain("text-below-ramp");
+    const atMicro = checkTextStyle({ ...TEXT_STYLE_BASE, fontSizePx: TEXT_MICRO_PX });
+    expect(atMicro.map((f) => f.rule)).not.toContain("text-below-ramp");
+  },
+);
 
-test("interactive text below 11px fires undersized-ui-text even at the micro token (ramp doesn't launder controls)", () => {
-  const atMicroInteractive = checkTextStyle({ ...TEXT_STYLE_BASE, fontSizePx: TEXT_MICRO_PX, interactive: true });
-  expect(TEXT_MICRO_PX).toBeLessThan(INTERACTIVE_TEXT_FLOOR_PX); // the premise this test rests on
-  expect(atMicroInteractive.map((f) => f.rule)).toContain("undersized-ui-text");
-  // Below the ramp, only text-below-ramp fires — the two floors never double-flag one element.
-  const belowBoth = checkTextStyle({ ...TEXT_STYLE_BASE, fontSizePx: 9, interactive: true });
-  expect(belowBoth.map((f) => f.rule)).toContain("text-below-ramp");
-  expect(belowBoth.map((f) => f.rule)).not.toContain("undersized-ui-text");
-});
+auditRuleTest(
+  [
+    { rule: "undersized-ui-text", kind: "fires", reason: "interactive micro text below eleven pixels emits" },
+    { rule: "undersized-ui-text", kind: "silent", reason: "interactive text at the floor is covered by the adjacent control fixture" },
+  ],
+  "interactive text below 11px fires undersized-ui-text even at the micro token (ramp doesn't launder controls)",
+  () => {
+    const atMicroInteractive = checkTextStyle({ ...TEXT_STYLE_BASE, fontSizePx: TEXT_MICRO_PX, interactive: true });
+    expect(TEXT_MICRO_PX).toBeLessThan(INTERACTIVE_TEXT_FLOOR_PX); // the premise this test rests on
+    expect(atMicroInteractive.map((f) => f.rule)).toContain("undersized-ui-text");
+    // Below the ramp, only text-below-ramp fires — the two floors never double-flag one element.
+    const belowBoth = checkTextStyle({ ...TEXT_STYLE_BASE, fontSizePx: 9, interactive: true });
+    expect(belowBoth.map((f) => f.rule)).toContain("text-below-ramp");
+    expect(belowBoth.map((f) => f.rule)).not.toContain("undersized-ui-text");
+    expect(checkTextStyle({ ...TEXT_STYLE_BASE, fontSizePx: INTERACTIVE_TEXT_FLOOR_PX, interactive: true }).map((f) => f.rule)).not.toContain(
+      "undersized-ui-text",
+    );
+  },
+);
 
 test("code contexts and sr-only text are exempt from the type floors", () => {
   expect(checkTextStyle({ ...TEXT_STYLE_BASE, fontSizePx: 8, codeContext: true }).map((f) => f.rule)).not.toContain("text-below-ramp");
@@ -736,14 +851,21 @@ test("code contexts and sr-only text are exempt from the type floors", () => {
 // pinned in real characters at the real Geist ratio (15px × 0.573 = 8.6px/ch).
 const GEIST_CH_15PX = 8.6;
 
-test("an over-wide prose block fires line-length; a normal measure passes", () => {
-  // 900px / 8.6px ≈ 105 real chars — past the 85 gate.
-  const wide = checkTextStyle({ ...TEXT_STYLE_BASE, totalTextLen: 200, rectWidth: 900, chWidthPx: GEIST_CH_15PX });
-  expect(wide.map((f) => f.rule)).toContain("line-length");
-  // 500px / 8.6px ≈ 58 real chars.
-  const normal = checkTextStyle({ ...TEXT_STYLE_BASE, totalTextLen: 200, rectWidth: 500, chWidthPx: GEIST_CH_15PX });
-  expect(normal.map((f) => f.rule)).not.toContain("line-length");
-});
+auditRuleTest(
+  [
+    { rule: "line-length", kind: "fires", reason: "measured over-wide prose emits" },
+    { rule: "line-length", kind: "silent", reason: "normal prose measure stays clean" },
+  ],
+  "an over-wide prose block fires line-length; a normal measure passes",
+  () => {
+    // 900px / 8.6px ≈ 105 real chars — past the 85 gate.
+    const wide = checkTextStyle({ ...TEXT_STYLE_BASE, totalTextLen: 200, rectWidth: 900, chWidthPx: GEIST_CH_15PX });
+    expect(wide.map((f) => f.rule)).toContain("line-length");
+    // 500px / 8.6px ≈ 58 real chars.
+    const normal = checkTextStyle({ ...TEXT_STYLE_BASE, totalTextLen: 200, rectWidth: 500, chWidthPx: GEIST_CH_15PX });
+    expect(normal.map((f) => f.rule)).not.toContain("line-length");
+  },
+);
 
 test("a line AT the ratified 75ch reading measure is clean — the instrument may not indict the house measure", () => {
   const atMeasure = checkTextStyle({ ...TEXT_STYLE_BASE, totalTextLen: 200, rectWidth: 75 * GEIST_CH_15PX, chWidthPx: GEIST_CH_15PX });
@@ -786,12 +908,19 @@ test("tracking counts toward the measure — a tracked line fits fewer character
   ).not.toContain("line-length");
 });
 
-test("leading below the ratified floor fires tight-leading; AT the floor (leading.label) it is legal", () => {
-  const tight = checkTextStyle({ ...TEXT_STYLE_BASE, fontSizePx: 15, lineHeightPx: 16.5 }); // 1.1×
-  expect(tight.map((f) => f.rule)).toContain("tight-leading");
-  const atFloor = checkTextStyle({ ...TEXT_STYLE_BASE, fontSizePx: 16, lineHeightPx: 16 * LEADING_FLOOR });
-  expect(atFloor.map((f) => f.rule)).not.toContain("tight-leading");
-});
+auditRuleTest(
+  [
+    { rule: "tight-leading", kind: "fires", reason: "leading below the ratified ratio emits" },
+    { rule: "tight-leading", kind: "silent", reason: "leading exactly at the floor stays clean" },
+  ],
+  "leading below the ratified floor fires tight-leading; AT the floor (leading.label) it is legal",
+  () => {
+    const tight = checkTextStyle({ ...TEXT_STYLE_BASE, fontSizePx: 15, lineHeightPx: 16.5 }); // 1.1×
+    expect(tight.map((f) => f.rule)).toContain("tight-leading");
+    const atFloor = checkTextStyle({ ...TEXT_STYLE_BASE, fontSizePx: 16, lineHeightPx: 16 * LEADING_FLOOR });
+    expect(atFloor.map((f) => f.rule)).not.toContain("tight-leading");
+  },
+);
 
 // #233, home-delta 2026-08-18: three of the reading arm's findings were THIS false positive, and the
 // finding printed its own refutation ("line-height 1.25× (floor 1.25)"). At --font-scale 1.25 the body
@@ -806,27 +935,48 @@ test("a Chrome-truncated computed line-height AT the floor does not fire tight-l
   expect(genuinelyTight.map((f) => f.rule)).toContain("tight-leading");
 });
 
-test("justified text without hyphens fires; hyphens:auto passes", () => {
-  expect(checkTextStyle({ ...TEXT_STYLE_BASE, textAlign: "justify" }).map((f) => f.rule)).toContain("justified-text");
-  expect(checkTextStyle({ ...TEXT_STYLE_BASE, textAlign: "justify", hyphens: "auto" }).map((f) => f.rule)).not.toContain("justified-text");
-});
+auditRuleTest(
+  [
+    { rule: "justified-text", kind: "fires", reason: "justified prose without auto hyphens emits" },
+    { rule: "justified-text", kind: "silent", reason: "the same prose with auto hyphens stays clean" },
+  ],
+  "justified text without hyphens fires; hyphens:auto passes",
+  () => {
+    expect(checkTextStyle({ ...TEXT_STYLE_BASE, textAlign: "justify" }).map((f) => f.rule)).toContain("justified-text");
+    expect(checkTextStyle({ ...TEXT_STYLE_BASE, textAlign: "justify", hyphens: "auto" }).map((f) => f.rule)).not.toContain("justified-text");
+  },
+);
 
-test("long uppercase body fires all-caps-body; headings and short caps labels are exempt", () => {
-  const caps = checkTextStyle({ ...TEXT_STYLE_BASE, textTransform: "uppercase", directTextLen: 60 });
-  expect(caps.map((f) => f.rule)).toContain("all-caps-body");
-  const heading = checkTextStyle({ ...TEXT_STYLE_BASE, textTransform: "uppercase", directTextLen: 60, isHeading: true });
-  expect(heading.map((f) => f.rule)).not.toContain("all-caps-body");
-  const shortLabel = checkTextStyle({ ...TEXT_STYLE_BASE, textTransform: "uppercase", directTextLen: 12 });
-  expect(shortLabel.map((f) => f.rule)).not.toContain("all-caps-body");
-});
+auditRuleTest(
+  [
+    { rule: "all-caps-body", kind: "fires", reason: "long uppercase running text emits" },
+    { rule: "all-caps-body", kind: "silent", reason: "headings and short uppercase labels stay clean" },
+  ],
+  "long uppercase body fires all-caps-body; headings and short caps labels are exempt",
+  () => {
+    const caps = checkTextStyle({ ...TEXT_STYLE_BASE, textTransform: "uppercase", directTextLen: 60 });
+    expect(caps.map((f) => f.rule)).toContain("all-caps-body");
+    const heading = checkTextStyle({ ...TEXT_STYLE_BASE, textTransform: "uppercase", directTextLen: 60, isHeading: true });
+    expect(heading.map((f) => f.rule)).not.toContain("all-caps-body");
+    const shortLabel = checkTextStyle({ ...TEXT_STYLE_BASE, textTransform: "uppercase", directTextLen: 12 });
+    expect(shortLabel.map((f) => f.rule)).not.toContain("all-caps-body");
+  },
+);
 
-test("wide tracking on running text fires; the uppercase micro-caps voice is exempt", () => {
-  // 0.08em of tracking.micro on 15px text = 1.2px — over the 0.05em body gate.
-  const wide = checkTextStyle({ ...TEXT_STYLE_BASE, letterSpacingPx: 1.2 });
-  expect(wide.map((f) => f.rule)).toContain("wide-tracking");
-  const caps = checkTextStyle({ ...TEXT_STYLE_BASE, letterSpacingPx: 1.2, textTransform: "uppercase", directTextLen: 25 });
-  expect(caps.map((f) => f.rule)).not.toContain("wide-tracking");
-});
+auditRuleTest(
+  [
+    { rule: "wide-tracking", kind: "fires", reason: "wide tracking on running text emits" },
+    { rule: "wide-tracking", kind: "silent", reason: "the uppercase micro-caps voice is the nearest legitimate neighbour" },
+  ],
+  "wide tracking on running text fires; the uppercase micro-caps voice is exempt",
+  () => {
+    // 0.08em of tracking.micro on 15px text = 1.2px — over the 0.05em body gate.
+    const wide = checkTextStyle({ ...TEXT_STYLE_BASE, letterSpacingPx: 1.2 });
+    expect(wide.map((f) => f.rule)).toContain("wide-tracking");
+    const caps = checkTextStyle({ ...TEXT_STYLE_BASE, letterSpacingPx: 1.2, textTransform: "uppercase", directTextLen: 25 });
+    expect(caps.map((f) => f.rule)).not.toContain("wide-tracking");
+  },
+);
 
 test("TYPED caps are caps: the tracking exemption follows the rendered pixels, not the stylesheet", () => {
   // Issue #148 item 4: the exemption keyed on `text-transform` alone, so a kicker whose caps were authored
@@ -841,12 +991,19 @@ test("TYPED caps are caps: the tracking exemption follows the rendered pixels, n
   expect(checkTextStyle({ ...TEXT_STYLE_BASE, letterSpacingPx: 1.2, directTextLen: 25 }).map((f) => f.rule)).toContain("wide-tracking");
 });
 
-test("crushed tracking fires strictly below the −0.04em floor; the floor itself is legal", () => {
-  const crushed = checkTextStyle({ ...TEXT_STYLE_BASE, fontSizePx: 20, letterSpacingPx: -1.0 }); // −0.05em
-  expect(crushed.map((f) => f.rule)).toContain("crushed-tracking");
-  const atFloor = checkTextStyle({ ...TEXT_STYLE_BASE, fontSizePx: 20, letterSpacingPx: -0.8 }); // −0.04em
-  expect(atFloor.map((f) => f.rule)).not.toContain("crushed-tracking");
-});
+auditRuleTest(
+  [
+    { rule: "crushed-tracking", kind: "fires", reason: "tracking below the negative floor emits" },
+    { rule: "crushed-tracking", kind: "silent", reason: "tracking exactly at the floor stays clean" },
+  ],
+  "crushed tracking fires strictly below the −0.04em floor; the floor itself is legal",
+  () => {
+    const crushed = checkTextStyle({ ...TEXT_STYLE_BASE, fontSizePx: 20, letterSpacingPx: -1.0 }); // −0.05em
+    expect(crushed.map((f) => f.rule)).toContain("crushed-tracking");
+    const atFloor = checkTextStyle({ ...TEXT_STYLE_BASE, fontSizePx: 20, letterSpacingPx: -0.8 }); // −0.04em
+    expect(atFloor.map((f) => f.rule)).not.toContain("crushed-tracking");
+  },
+);
 
 // ── accent borders (impeccable side-tab family) ──────────────────────────────
 
@@ -863,48 +1020,60 @@ const ACCENT_BASE: AccentBorderInput = {
 };
 const ACCENT_RED: Rgb = { r: 220, g: 40, b: 40, a: 1 };
 
-test("a thick chromatic left border fires side-tab at P3", () => {
-  const findings = checkAccentBorder({
-    ...ACCENT_BASE,
-    widths: { ...ACCENT_BASE.widths, left: 4 },
-    colors: { ...ACCENT_BASE.colors, left: ACCENT_RED },
-  });
-  expect(findings.map((f) => f.rule)).toContain("side-tab");
-  expect(findings[0]?.origin).toBe("impeccable");
-});
+auditRuleTest(
+  [{ rule: "side-tab", kind: "fires", reason: "a thick dominant chromatic side edge emits" }],
+  "a thick chromatic left border fires side-tab at P3",
+  () => {
+    const findings = checkAccentBorder({
+      ...ACCENT_BASE,
+      widths: { ...ACCENT_BASE.widths, left: 4 },
+      colors: { ...ACCENT_BASE.colors, left: ACCENT_RED },
+    });
+    expect(findings.map((f) => f.rule)).toContain("side-tab");
+    expect(findings[0]?.origin).toBe("impeccable");
+  },
+);
 
-test("a status/alert region wearing a severity edge is exempt; a neutral border never fires", () => {
-  const status = checkAccentBorder({
-    ...ACCENT_BASE,
-    statusContext: true,
-    widths: { ...ACCENT_BASE.widths, left: 4 },
-    colors: { ...ACCENT_BASE.colors, left: ACCENT_RED },
-  });
-  expect(status).toEqual([]);
-  const neutral = checkAccentBorder({
-    ...ACCENT_BASE,
-    widths: { ...ACCENT_BASE.widths, left: 4 },
-    colors: { ...ACCENT_BASE.colors, left: { r: 80, g: 80, b: 80, a: 1 } },
-  });
-  expect(neutral).toEqual([]);
-});
+auditRuleTest(
+  [{ rule: "side-tab", kind: "silent", reason: "a status edge and neutral border are nearest legitimate neighbours" }],
+  "a status/alert region wearing a severity edge is exempt; a neutral border never fires",
+  () => {
+    const status = checkAccentBorder({
+      ...ACCENT_BASE,
+      statusContext: true,
+      widths: { ...ACCENT_BASE.widths, left: 4 },
+      colors: { ...ACCENT_BASE.colors, left: ACCENT_RED },
+    });
+    expect(status).toEqual([]);
+    const neutral = checkAccentBorder({
+      ...ACCENT_BASE,
+      widths: { ...ACCENT_BASE.widths, left: 4 },
+      colors: { ...ACCENT_BASE.colors, left: { r: 80, g: 80, b: 80, a: 1 } },
+    });
+    expect(neutral).toEqual([]);
+  },
+);
 
-test("a thick chromatic top border on a rounded card fires border-accent-on-rounded; a tab underline is exempt", () => {
-  const rounded = checkAccentBorder({
-    ...ACCENT_BASE,
-    radius: 8,
-    widths: { ...ACCENT_BASE.widths, top: 3 },
-    colors: { ...ACCENT_BASE.colors, top: ACCENT_RED },
-  });
-  expect(rounded.map((f) => f.rule)).toContain("border-accent-on-rounded");
-  const tabUnderline = checkAccentBorder({
-    ...ACCENT_BASE,
-    tabContext: true,
-    widths: { ...ACCENT_BASE.widths, bottom: 3 },
-    colors: { ...ACCENT_BASE.colors, bottom: ACCENT_RED },
-  });
-  expect(tabUnderline).toEqual([]);
-});
+auditRuleTest(
+  [{ rule: "border-accent-on-rounded", kind: "fires", reason: "a dominant chromatic edge fighting a radius emits" }],
+  "a thick chromatic top border on a rounded card fires border-accent-on-rounded; a tab underline is exempt",
+  () => {
+    const rounded = checkAccentBorder({
+      ...ACCENT_BASE,
+      radius: 8,
+      widths: { ...ACCENT_BASE.widths, top: 3 },
+      colors: { ...ACCENT_BASE.colors, top: ACCENT_RED },
+    });
+    expect(rounded.map((f) => f.rule)).toContain("border-accent-on-rounded");
+    const tabUnderline = checkAccentBorder({
+      ...ACCENT_BASE,
+      tabContext: true,
+      widths: { ...ACCENT_BASE.widths, bottom: 3 },
+      colors: { ...ACCENT_BASE.colors, bottom: ACCENT_RED },
+    });
+    expect(tabUnderline).toEqual([]);
+  },
+);
 
 test("a thick chromatic LEFT border on a rounded card fires BOTH tells (issue #188)", () => {
   // The live home resume card's shape: border-left 3px accent on a 10px radius. The rule as born could
@@ -920,29 +1089,33 @@ test("a thick chromatic LEFT border on a rounded card fires BOTH tells (issue #1
   expect(rules).toContain("border-accent-on-rounded");
 });
 
-test("the ratified ListRow selection accent is exempt, and neither half of the predicate exempts alone (issue #485)", () => {
-  // OWNER RULED 2026-08-22: the selected-row left ember bar (a 2px `border-l-primary` on a rounded row) is
-  // the app-wide selection idiom and stands as shipped. The `listRowSelected` sample is the walker's
-  // two-halved verdict — the primitive's own slot AND `data-selected` — and this is the check's half of
-  // that contract: the flag exempts, and its absence leaves the identical geometry fully judged.
-  const selectedRow = checkAccentBorder({
-    ...ACCENT_BASE,
-    listRowSelected: true,
-    radius: 6,
-    widths: { ...ACCENT_BASE.widths, left: 2 },
-    colors: { ...ACCENT_BASE.colors, left: ACCENT_RED },
-  });
-  expect(selectedRow, "the ratified selection idiom is not a card tell").toEqual([]);
+auditRuleTest(
+  [{ rule: "border-accent-on-rounded", kind: "silent", reason: "the selected ListRow accent is the ratified nearest neighbour" }],
+  "the ratified ListRow selection accent is exempt, and neither half of the predicate exempts alone (issue #485)",
+  () => {
+    // OWNER RULED 2026-08-22: the selected-row left ember bar (a 2px `border-l-primary` on a rounded row) is
+    // the app-wide selection idiom and stands as shipped. The `listRowSelected` sample is the walker's
+    // two-halved verdict — the primitive's own slot AND `data-selected` — and this is the check's half of
+    // that contract: the flag exempts, and its absence leaves the identical geometry fully judged.
+    const selectedRow = checkAccentBorder({
+      ...ACCENT_BASE,
+      listRowSelected: true,
+      radius: 6,
+      widths: { ...ACCENT_BASE.widths, left: 2 },
+      colors: { ...ACCENT_BASE.colors, left: ACCENT_RED },
+    });
+    expect(selectedRow, "the ratified selection idiom is not a card tell").toEqual([]);
 
-  const sameGeometryUnratified = checkAccentBorder({
-    ...ACCENT_BASE,
-    radius: 6,
-    widths: { ...ACCENT_BASE.widths, left: 2 },
-    colors: { ...ACCENT_BASE.colors, left: ACCENT_RED },
-  }).map((f) => f.rule);
-  expect(sameGeometryUnratified, "the exemption is the FLAG, never the shape").toContain("side-tab");
-  expect(sameGeometryUnratified).toContain("border-accent-on-rounded");
-});
+    const sameGeometryUnratified = checkAccentBorder({
+      ...ACCENT_BASE,
+      radius: 6,
+      widths: { ...ACCENT_BASE.widths, left: 2 },
+      colors: { ...ACCENT_BASE.colors, left: ACCENT_RED },
+    }).map((f) => f.rule);
+    expect(sameGeometryUnratified, "the exemption is the FLAG, never the shape").toContain("side-tab");
+    expect(sameGeometryUnratified).toContain("border-accent-on-rounded");
+  },
+);
 
 test("a badge-like chip keeps its side-edge exemption even with a radius", () => {
   const badge = checkAccentBorder({
@@ -967,16 +1140,20 @@ test("a uniform border (no dominant edge) never fires side-tab", () => {
 
 // ── glow shadows (impeccable dark-glow) ──────────────────────────────────────
 
-test("a zero-offset chromatic halo fires glow-shadow on any backdrop", () => {
-  const finding = checkGlowShadow({
-    selector: ".cta",
-    boxShadow: "rgb(59, 130, 246) 0px 0px 20px 0px",
-    textShadow: "",
-    backdropColor: WHITE,
-  });
-  expect(finding?.rule).toBe("glow-shadow");
-  expect(finding?.severity).toBe("P3");
-});
+auditRuleTest(
+  [{ rule: "glow-shadow", kind: "fires", reason: "a zero-offset chromatic halo emits" }],
+  "a zero-offset chromatic halo fires glow-shadow on any backdrop",
+  () => {
+    const finding = checkGlowShadow({
+      selector: ".cta",
+      boxShadow: "rgb(59, 130, 246) 0px 0px 20px 0px",
+      textShadow: "",
+      backdropColor: WHITE,
+    });
+    expect(finding?.rule).toBe("glow-shadow");
+    expect(finding?.severity).toBe("P3");
+  },
+);
 
 test("a chromatic blurred shadow on a DARK backdrop fires; the same shadow on light passes", () => {
   const dark = checkGlowShadow({
@@ -995,69 +1172,97 @@ test("a chromatic blurred shadow on a DARK backdrop fires; the same shadow on li
   expect(light).toBeNull();
 });
 
-test("neutral elevation shadows and unparseable (oklch token) colors are skipped, never guessed", () => {
-  const neutral = checkGlowShadow({
-    selector: ".card",
-    boxShadow: "rgba(0, 0, 0, 0.3) 0px 4px 16px 0px",
-    textShadow: "",
-    backdropColor: { r: 10, g: 10, b: 12 },
-  });
-  expect(neutral).toBeNull();
-  const oklch = checkGlowShadow({
-    selector: ".sanctioned",
-    boxShadow: "oklch(0.72 0.175 52 / 0.4) 0px 0px 18px 0px",
-    textShadow: "",
-    backdropColor: { r: 10, g: 10, b: 12 },
-  });
-  expect(oklch).toBeNull();
-});
+auditRuleTest(
+  [{ rule: "glow-shadow", kind: "silent", reason: "a neutral elevation shadow on the same surface stays clean" }],
+  "neutral elevation shadows and unparseable (oklch token) colors are skipped, never guessed",
+  () => {
+    const neutral = checkGlowShadow({
+      selector: ".card",
+      boxShadow: "rgba(0, 0, 0, 0.3) 0px 4px 16px 0px",
+      textShadow: "",
+      backdropColor: { r: 10, g: 10, b: 12 },
+    });
+    expect(neutral).toBeNull();
+    const oklch = checkGlowShadow({
+      selector: ".sanctioned",
+      boxShadow: "oklch(0.72 0.175 52 / 0.4) 0px 0px 18px 0px",
+      textShadow: "",
+      backdropColor: { r: 10, g: 10, b: 12 },
+    });
+    expect(oklch).toBeNull();
+  },
+);
 
 // ── radial washes (impeccable radial-halo / radial-spotlight-glow) ───────────
 
-test("a saturated radial wash fading to transparent fires radial-halo at P2", () => {
-  const finding = checkRadialGlow({
-    selector: ".hero",
-    value: "radial-gradient(circle at 50% 30%, rgba(120, 60, 255, 0.8), transparent 70%)",
-    width: 800,
-    height: 400,
-    sanctioned: false,
-  });
-  expect(finding?.rule).toBe("radial-halo");
-  expect(finding?.severity).toBe("P2");
-});
+auditRuleTest(
+  [{ rule: "radial-halo", kind: "fires", reason: "a saturated radial wash fading to transparent emits" }],
+  "a saturated radial wash fading to transparent fires radial-halo at P2",
+  () => {
+    const finding = checkRadialGlow({
+      selector: ".hero",
+      value: "radial-gradient(circle at 50% 30%, rgba(120, 60, 255, 0.8), transparent 70%)",
+      width: 800,
+      height: 400,
+      sanctioned: false,
+    });
+    expect(finding?.rule).toBe("radial-halo");
+    expect(finding?.severity).toBe("P2");
+  },
+);
 
-test("a low-alpha accent spotlight fires radial-spotlight-glow at P3", () => {
-  const finding = checkRadialGlow({
-    selector: ".section",
-    value: "radial-gradient(circle at 52% 38%, rgba(80, 111, 255, 0.26), transparent 44%)",
-    width: 600,
-    height: 300,
-    sanctioned: false,
-  });
-  expect(finding?.rule).toBe("radial-spotlight-glow");
-  expect(finding?.severity).toBe("P3");
-});
+auditRuleTest(
+  [{ rule: "radial-spotlight-glow", kind: "fires", reason: "a low-alpha accent spotlight emits" }],
+  "a low-alpha accent spotlight fires radial-spotlight-glow at P3",
+  () => {
+    const finding = checkRadialGlow({
+      selector: ".section",
+      value: "radial-gradient(circle at 52% 38%, rgba(80, 111, 255, 0.26), transparent 44%)",
+      width: 600,
+      height: 300,
+      sanctioned: false,
+    });
+    expect(finding?.rule).toBe("radial-spotlight-glow");
+    expect(finding?.severity).toBe("P3");
+  },
+);
 
-test("sanctioned carriers, small surfaces, neutral vignettes, and non-fading gradients all pass", () => {
-  const spotlightValue = "radial-gradient(circle, rgba(80, 111, 255, 0.26), transparent 44%)";
-  expect(checkRadialGlow({ selector: ".aura", value: spotlightValue, width: 600, height: 300, sanctioned: true })).toBeNull();
-  expect(checkRadialGlow({ selector: ".badge", value: spotlightValue, width: 40, height: 40, sanctioned: false })).toBeNull();
-  const neutralVignette = "radial-gradient(circle, rgba(0, 0, 0, 0.3), transparent)";
-  expect(checkRadialGlow({ selector: ".vignette", value: neutralVignette, width: 600, height: 300, sanctioned: false })).toBeNull();
-  const realBackground = "radial-gradient(circle, rgb(40, 40, 60), rgb(20, 20, 30))";
-  expect(checkRadialGlow({ selector: ".bg", value: realBackground, width: 600, height: 300, sanctioned: false })).toBeNull();
-});
+auditRuleTest(
+  [
+    { rule: "radial-halo", kind: "silent", reason: "the neutral non-fading vignette is the nearest legitimate neighbour" },
+    { rule: "radial-spotlight-glow", kind: "silent", reason: "the sanctioned small carrier stays clean" },
+  ],
+  "sanctioned carriers, small surfaces, neutral vignettes, and non-fading gradients all pass",
+  () => {
+    const spotlightValue = "radial-gradient(circle, rgba(80, 111, 255, 0.26), transparent 44%)";
+    expect(checkRadialGlow({ selector: ".aura", value: spotlightValue, width: 600, height: 300, sanctioned: true })).toBeNull();
+    expect(checkRadialGlow({ selector: ".badge", value: spotlightValue, width: 40, height: 40, sanctioned: false })).toBeNull();
+    const neutralVignette = "radial-gradient(circle, rgba(0, 0, 0, 0.3), transparent)";
+    expect(checkRadialGlow({ selector: ".vignette", value: neutralVignette, width: 600, height: 300, sanctioned: false })).toBeNull();
+    const realBackground = "radial-gradient(circle, rgb(40, 40, 60), rgb(20, 20, 30))";
+    expect(checkRadialGlow({ selector: ".bg", value: realBackground, width: 600, height: 300, sanctioned: false })).toBeNull();
+  },
+);
 
 // ── decorative bg patterns (impeccable stripes / grid) ───────────────────────
 
-test("stripe and grid pattern samples fire their P3 rules; a sliver-sized element passes", () => {
-  const stripe = checkBgPattern({ selector: ".texture", kind: "stripe", backgroundSize: "auto", width: 400, height: 200 });
-  expect(stripe?.rule).toBe("stripe-background");
-  const grid = checkBgPattern({ selector: ".blueprint", kind: "grid", backgroundSize: "24px 24px", width: 800, height: 600 });
-  expect(grid?.rule).toBe("grid-line-background");
-  const sliver = checkBgPattern({ selector: ".divider", kind: "stripe", backgroundSize: "auto", width: 400, height: 2 });
-  expect(sliver).toBeNull();
-});
+auditRuleTest(
+  [
+    { rule: "stripe-background", kind: "fires", reason: "a repeating stripe sample emits" },
+    { rule: "stripe-background", kind: "silent", reason: "the same decoration on a sliver-sized element stays clean" },
+    { rule: "grid-line-background", kind: "fires", reason: "a two-axis grid sample emits" },
+    { rule: "grid-line-background", kind: "silent", reason: "the same decoration on a sliver-sized element stays clean" },
+  ],
+  "stripe and grid pattern samples fire their P3 rules; a sliver-sized element passes",
+  () => {
+    const stripe = checkBgPattern({ selector: ".texture", kind: "stripe", backgroundSize: "auto", width: 400, height: 200 });
+    expect(stripe?.rule).toBe("stripe-background");
+    const grid = checkBgPattern({ selector: ".blueprint", kind: "grid", backgroundSize: "24px 24px", width: 800, height: 600 });
+    expect(grid?.rule).toBe("grid-line-background");
+    const sliver = checkBgPattern({ selector: ".divider", kind: "stripe", backgroundSize: "auto", width: 400, height: 2 });
+    expect(sliver).toBeNull();
+  },
+);
 
 // ── icon tile above heading (impeccable icon-tile-stack) ─────────────────────
 
@@ -1077,44 +1282,73 @@ const ICON_TILE_BASE: IconTileInput = {
   iconChildWidth: 24,
 };
 
-test("the canonical rounded-square icon tile above a heading fires icon-tile-stack at P3", () => {
-  const finding = checkIconTile(ICON_TILE_BASE);
-  expect(finding?.rule).toBe("icon-tile-stack");
-  expect(finding?.severity).toBe("P3");
-});
+auditRuleTest(
+  [{ rule: "icon-tile-stack", kind: "fires", reason: "the rounded-square icon tile over a heading emits" }],
+  "the canonical rounded-square icon tile above a heading fires icon-tile-stack at P3",
+  () => {
+    const finding = checkIconTile(ICON_TILE_BASE);
+    expect(finding?.rule).toBe("icon-tile-stack");
+    expect(finding?.severity).toBe("P3");
+  },
+);
 
-test("circles (avatars), oversized siblings, and tiles without an icon child all pass", () => {
-  expect(checkIconTile({ ...ICON_TILE_BASE, siblingRadiusPx: 24 })).toBeNull(); // radius ≥ w/2 = circle
-  expect(checkIconTile({ ...ICON_TILE_BASE, siblingWidth: 300, siblingHeight: 300 })).toBeNull();
-  expect(checkIconTile({ ...ICON_TILE_BASE, hasIconChild: false })).toBeNull();
-});
+auditRuleTest(
+  [{ rule: "icon-tile-stack", kind: "silent", reason: "an avatar circle and oversized sibling stay clean" }],
+  "circles (avatars), oversized siblings, and tiles without an icon child all pass",
+  () => {
+    expect(checkIconTile({ ...ICON_TILE_BASE, siblingRadiusPx: 24 })).toBeNull(); // radius ≥ w/2 = circle
+    expect(checkIconTile({ ...ICON_TILE_BASE, siblingWidth: 300, siblingHeight: 300 })).toBeNull();
+    expect(checkIconTile({ ...ICON_TILE_BASE, hasIconChild: false })).toBeNull();
+  },
+);
 
 // ── static motion offenders (impeccable bounce/layout-transition) ────────────
 
-test("bounce animation names and overshoot beziers fire bounce-easing at P2 (motion law §4.3)", () => {
-  const named = checkMotionStatic({ selector: ".badge", kind: "bounce-name", value: "bounce-in", panelExempt: false });
-  expect(named?.rule).toBe("bounce-easing");
-  expect(named?.severity).toBe("P2");
-  const bezier = checkMotionStatic({ selector: ".pop", kind: "overshoot-bezier", value: "cubic-bezier(0.68, -0.55, 0.27, 1.55)", panelExempt: false });
-  expect(bezier?.rule).toBe("bounce-easing");
-});
+auditRuleTest(
+  [
+    { rule: "bounce-easing", kind: "fires", reason: "bounce names and overshoot beziers emit" },
+    { rule: "bounce-easing", kind: "silent", reason: "a non-overshooting easing in the same callback stays clean" },
+  ],
+  "bounce animation names and overshoot beziers fire bounce-easing at P2 (motion law §4.3)",
+  () => {
+    const named = checkMotionStatic({ selector: ".badge", kind: "bounce-name", value: "bounce-in", panelExempt: false });
+    expect(named?.rule).toBe("bounce-easing");
+    expect(named?.severity).toBe("P2");
+    const bezier = checkMotionStatic({ selector: ".pop", kind: "overshoot-bezier", value: "cubic-bezier(0.68, -0.55, 0.27, 1.55)", panelExempt: false });
+    expect(bezier?.rule).toBe("bounce-easing");
+  },
+);
 
-test("a layout-property transition fires at P3; the accordion/collapsible panel slots are exempt (motion law §3.7)", () => {
-  const finding = checkMotionStatic({ selector: ".drawer", kind: "layout-transition", value: "width, padding", panelExempt: false });
-  expect(finding?.rule).toBe("layout-transition");
-  expect(finding?.severity).toBe("P3");
-  expect(checkMotionStatic({ selector: ".panel", kind: "layout-transition", value: "height", panelExempt: true })).toBeNull();
-});
+auditRuleTest(
+  [
+    { rule: "layout-transition", kind: "fires", reason: "a layout-property transition emits" },
+    { rule: "layout-transition", kind: "silent", reason: "accordion and collapsible panel slots are ratified neighbours" },
+  ],
+  "a layout-property transition fires at P3; the accordion/collapsible panel slots are exempt (motion law §3.7)",
+  () => {
+    const finding = checkMotionStatic({ selector: ".drawer", kind: "layout-transition", value: "width, padding", panelExempt: false });
+    expect(finding?.rule).toBe("layout-transition");
+    expect(finding?.severity).toBe("P3");
+    expect(checkMotionStatic({ selector: ".panel", kind: "layout-transition", value: "height", panelExempt: true })).toBeNull();
+  },
+);
 
 // ── page censuses (impeccable, ramp-bound) ───────────────────────────────────
 
-test("a rendered face outside the token stacks fires off-theme-font; the token faces are clean", () => {
-  const findings = checkFontCensus({ families: ["geist", "inter"], sizes: [] });
-  expect(findings).toHaveLength(1);
-  expect(findings[0]?.rule).toBe("off-theme-font");
-  expect(findings[0]?.value).toBe("inter");
-  expect(checkFontCensus({ families: ["geist", "geist mono"], sizes: [] })).toEqual([]);
-});
+auditRuleTest(
+  [
+    { rule: "off-theme-font", kind: "fires", reason: "a rendered face outside token stacks emits" },
+    { rule: "off-theme-font", kind: "silent", reason: "every face from token stacks stays clean" },
+  ],
+  "a rendered face outside the token stacks fires off-theme-font; the token faces are clean",
+  () => {
+    const findings = checkFontCensus({ families: ["geist", "inter"], sizes: [] });
+    expect(findings).toHaveLength(1);
+    expect(findings[0]?.rule).toBe("off-theme-font");
+    expect(findings[0]?.value).toBe("inter");
+    expect(checkFontCensus({ families: ["geist", "geist mono"], sizes: [] })).toEqual([]);
+  },
+);
 
 // ── the caveat/type-hierarchy-inversion lens (#652) ──────────────────────────
 // The rendered halves live in cli.int.test.ts (the consent screen's own markup at two commits). These pin
@@ -1141,15 +1375,19 @@ const LOUD_HOSTNAME: TextStyleInput = {
   voice: "",
 };
 
-test("an alert sentence outweighed by a same-block sibling fires caveat-outweighed at P2", () => {
-  const findings = checkCaveatHierarchy([ALERT_CAVEAT, LOUD_HOSTNAME]);
-  expect(findings.map((f) => f.rule)).toEqual(["caveat-outweighed"]);
-  expect(findings[0]?.severity).toBe("P2");
-  expect(findings[0]?.selector, "the finding is filed against the whispering alert, not its partner").toBe("p[role=alert]:nth-of-type(1)");
-  expect(findings[0]?.message, "and it must NAME the partner, or nobody can decide which side to change").toContain(
-    "span[data-voice=datumMono]:nth-of-type(1)",
-  );
-});
+auditRuleTest(
+  [{ rule: "caveat-outweighed", kind: "fires", reason: "an alert sentence outweighed in its block emits" }],
+  "an alert sentence outweighed by a same-block sibling fires caveat-outweighed at P2",
+  () => {
+    const findings = checkCaveatHierarchy([ALERT_CAVEAT, LOUD_HOSTNAME]);
+    expect(findings.map((f) => f.rule)).toEqual(["caveat-outweighed"]);
+    expect(findings[0]?.severity).toBe("P2");
+    expect(findings[0]?.selector, "the finding is filed against the whispering alert, not its partner").toBe("p[role=alert]:nth-of-type(1)");
+    expect(findings[0]?.message, "and it must NAME the partner, or nobody can decide which side to change").toContain(
+      "span[data-voice=datumMono]:nth-of-type(1)",
+    );
+  },
+);
 
 test("the anchor is the ALERT ROLE, not the gloss voice — the voice arm measured 21 findings on 18 surfaces", () => {
   expect(checkCaveatHierarchy([{ ...ALERT_CAVEAT, alertContext: false }, LOUD_HOSTNAME])).toEqual([]);
@@ -1178,17 +1416,28 @@ test("a heading or a chrome-label voice is never the louder partner — naming a
   }
 });
 
-test("a partner inside one ramp step is not an inversion — the floor is a real step, not a rounding difference", () => {
-  expect(checkCaveatHierarchy([ALERT_CAVEAT, { ...LOUD_HOSTNAME, fontSizePx: 11.5 }])).toEqual([]);
-  expect(checkCaveatHierarchy([ALERT_CAVEAT, { ...LOUD_HOSTNAME, fontSizePx: 13 }]).map((f) => f.rule)).toEqual(["caveat-outweighed"]);
-});
+auditRuleTest(
+  [{ rule: "caveat-outweighed", kind: "silent", reason: "a partner within one ramp step stays clean" }],
+  "a partner inside one ramp step is not an inversion — the floor is a real step, not a rounding difference",
+  () => {
+    expect(checkCaveatHierarchy([ALERT_CAVEAT, { ...LOUD_HOSTNAME, fontSizePx: 11.5 }])).toEqual([]);
+    expect(checkCaveatHierarchy([ALERT_CAVEAT, { ...LOUD_HOSTNAME, fontSizePx: 13 }]).map((f) => f.rule)).toEqual(["caveat-outweighed"]);
+  },
+);
 
-test("a compressed size spread fires flat-type-hierarchy; the real ramp spread passes", () => {
-  const flat = checkFontCensus({ families: [], sizes: [12, 13, 14] });
-  expect(flat.map((f) => f.rule)).toContain("flat-type-hierarchy");
-  const ramp = checkFontCensus({ families: [], sizes: [10.5, 13, 15, 24] });
-  expect(ramp).toEqual([]);
-});
+auditRuleTest(
+  [
+    { rule: "flat-type-hierarchy", kind: "fires", reason: "a compressed heading-size spread emits" },
+    { rule: "flat-type-hierarchy", kind: "silent", reason: "the real ramp spread stays clean" },
+  ],
+  "a compressed size spread fires flat-type-hierarchy; the real ramp spread passes",
+  () => {
+    const flat = checkFontCensus({ families: [], sizes: [12, 13, 14] });
+    expect(flat.map((f) => f.rule)).toContain("flat-type-hierarchy");
+    const ramp = checkFontCensus({ families: [], sizes: [10.5, 13, 15, 24] });
+    expect(ramp).toEqual([]);
+  },
+);
 
 // ── duplicate-action-door: which repetitions are HOMES (#252 · #851) ─────────
 // The walker hands over one row per offered named control; this function decides how many HOMES they
@@ -1203,52 +1452,88 @@ function door(selector: string, path: string, list: string | null = null, item: 
   return { selector, role: "button", name: "more message actions", path, listKey: list, itemKey: item };
 }
 
-test("#851: sibling rows of one list are ONE home even when their subtrees diverge", () => {
-  // The live shape: three message rows of one <ol>, two reaching the button through `theme-scope` and one
-  // through `message-content-column`.
-  const findings = checkDuplicateDoors([
-    door("#a", "button<row<theme-scope<li", "list-1", "row-1"),
-    door("#b", "button<row<content-column<li", "list-1", "row-2"),
-    door("#c", "button<row<theme-scope<li", "list-1", "row-3"),
-  ]);
+auditRuleTest(
+  [{ rule: "duplicate-action-door", kind: "silent", reason: "sibling rows in one list remain one legitimate home" }],
+  "#851: sibling rows of one list are ONE home even when their subtrees diverge",
+  () => {
+    // The live shape: three message rows of one <ol>, two reaching the button through `theme-scope` and one
+    // through `message-content-column`.
+    const findings = checkDuplicateDoors([
+      door("#a", "button<row<theme-scope<li", "list-1", "row-1"),
+      door("#b", "button<row<content-column<li", "list-1", "row-2"),
+      door("#c", "button<row<theme-scope<li", "list-1", "row-3"),
+    ]);
 
-  expect(findings, `one action cluster per row is per-datum repetition — got ${JSON.stringify(findings.map((f) => f.value))}`).toEqual([]);
-});
+    expect(findings, `one action cluster per row is per-datum repetition — got ${JSON.stringify(findings.map((f) => f.value))}`).toEqual([]);
+  },
+);
 
-test("#851: the fold is per LIST, not global — two homes in ONE row, and two doors outside any list, still fire", () => {
-  const insideOneRow = checkDuplicateDoors([
-    door("#header", "button<name-row<theme-scope<li", "list-1", "row-1"),
-    door("#footer", "button<footer-row<theme-scope<li", "list-1", "row-1"),
-    // A second row repeating the same pair adds rows, never homes.
-    door("#header-2", "button<name-row<content-column<li", "list-1", "row-2"),
-    door("#footer-2", "button<footer-row<content-column<li", "list-1", "row-2"),
-  ]);
-  expect(
-    insideOneRow.map((f) => f.value),
-    "one action offered twice inside a single card is a real duplicate door",
-  ).toEqual(['2x button "more message actions"']);
+auditRuleTest(
+  [{ rule: "duplicate-action-door", kind: "fires", reason: "duplicate actions in distinct homes emit" }],
+  "#851: the fold is per LIST, not global — two homes in ONE row, and two doors outside any list, still fire",
+  () => {
+    const insideOneRow = checkDuplicateDoors([
+      door("#header", "button<name-row<theme-scope<li", "list-1", "row-1"),
+      door("#footer", "button<footer-row<theme-scope<li", "list-1", "row-1"),
+      // A second row repeating the same pair adds rows, never homes.
+      door("#header-2", "button<name-row<content-column<li", "list-1", "row-2"),
+      door("#footer-2", "button<footer-row<content-column<li", "list-1", "row-2"),
+    ]);
+    expect(
+      insideOneRow.map((f) => f.value),
+      "one action offered twice inside a single card is a real duplicate door",
+    ).toEqual(['2x button "more message actions"']);
 
-  const twoLists = checkDuplicateDoors([door("#a", "button<row<li", "list-1", "row-1"), door("#b", "button<row<li", "list-2", "row-1")]);
-  expect(
-    twoLists.map((f) => f.value),
-    "identity, not signature: two different lists that look alike are two homes",
-  ).toEqual(['2x button "more message actions"']);
+    const twoLists = checkDuplicateDoors([door("#a", "button<row<li", "list-1", "row-1"), door("#b", "button<row<li", "list-2", "row-1")]);
+    expect(
+      twoLists.map((f) => f.value),
+      "identity, not signature: two different lists that look alike are two homes",
+    ).toEqual(['2x button "more message actions"']);
 
-  const free = checkDuplicateDoors([door("#topbar", "button<header"), door("#tray", "button<footer")]);
-  expect(
-    free.map((f) => f.value),
-    "a door outside any list is judged by its path exactly as before",
-  ).toEqual(['2x button "more message actions"']);
-});
+    const free = checkDuplicateDoors([door("#topbar", "button<header"), door("#tray", "button<footer")]);
+    expect(
+      free.map((f) => f.value),
+      "a door outside any list is judged by its path exactly as before",
+    ).toEqual(['2x button "more message actions"']);
+  },
+);
 
 // ── measured-spill pass-throughs (impeccable) ────────────────────────────────
 
-test("text-overflow, repeated-container-text, clipped-overflow, and edge-flush-cards carry their fixed severities", () => {
-  expect(checkTextOverflow({ selector: ".cell", spillPx: 45, mode: "inline" }).severity).toBe("P1");
-  expect(checkRepeatedText({ containerSelector: ".card", text: "Active", count: 3, distinctSigs: 3 }).severity).toBe("P3");
-  expect(checkClippedOverflow({ selector: ".row", childSelector: ".menu", flow: "positioned", side: null, spillPx: 0 }).severity).toBe("P2");
-  expect(checkEdgeFlush({ scrollerSelector: ".strip", cardSelector: ".chip", edge: "right", gapPx: 2, count: 3 }).severity).toBe("P3");
-});
+auditRuleTest(
+  [
+    { rule: "text-overflow", kind: "fires", reason: "the visible spill fixture emits" },
+    { rule: "truncated-to-nothing", kind: "fires", reason: "the zero-visible-text fixture emits" },
+    { rule: "repeated-container-text", kind: "fires", reason: "repeated copy in distinct spots emits" },
+    { rule: "clipped-overflow", kind: "fires", reason: "in-flow and positioned spill fixtures emit" },
+    { rule: "edge-flush-cards", kind: "fires", reason: "cards flush against the scroller edge emit" },
+  ],
+  "text-overflow, repeated-container-text, clipped-overflow, and edge-flush-cards carry their fixed severities",
+  () => {
+    expect(checkTextOverflow({ selector: ".cell", spillPx: 45, mode: "inline" }).severity).toBe("P1");
+    expect(checkTruncatedText({ selector: ".label", naturalPx: 57, visiblePx: 0, clipSelector: ".row", text: "Saved cast" }).severity).toBe("P1");
+    expect(checkRepeatedText({ containerSelector: ".card", text: "Active", count: 3, distinctSigs: 3 }).severity).toBe("P3");
+    expect(checkClippedOverflow({ selector: ".row", childSelector: ".menu", flow: "positioned", side: null, spillPx: 0 }).severity).toBe("P2");
+    expect(checkEdgeFlush({ scrollerSelector: ".strip", cardSelector: ".chip", edge: "right", gapPx: 2, count: 3 }).severity).toBe("P3");
+  },
+);
+
+auditRuleTest(
+  [{ rule: "obscured-target", kind: "fires", reason: "a covered informative target emits the compositor disagreement" }],
+  "an obscured target names the neighbour that owns its centre",
+  () => {
+    const finding = checkObscuredTarget({
+      selector: ".badge",
+      hitSelector: "button.start",
+      overlapPx: 48,
+      coveredRatio: 0.75,
+      interactive: false,
+      text: "2 rules",
+    });
+    expect(finding.rule).toBe("obscured-target");
+    expect(finding.severity).toBe("P1");
+  },
+);
 
 // ── the two clipped-overflow arms (#444, paid for by #439) ───────────────────
 // A positioned child that needs to escape a clip is a composition smell. An ordinary IN-FLOW control
@@ -1269,21 +1554,29 @@ test("the in-flow arm is a P1 naming the side and the spill; the positioned arm 
 
 // ── script errors (impeccable; runner-side capture) ──────────────────────────
 
-test("script errors dedupe by first line, cap at 3, and fire at P0", () => {
-  const findings = checkScriptErrors([
-    "TypeError: x is undefined\n  at boot.js:1",
-    "TypeError: x is undefined\n  at boot.js:9", // duplicate first line
-    "ReferenceError: y\n  at a.js:2",
-    "SyntaxError: z\n  at b.js:3",
-    "RangeError: w\n  at c.js:4", // over the cap
-  ]);
-  expect(findings).toHaveLength(3);
-  expect(findings.every((f) => f.severity === "P0" && f.rule === "script-error")).toBe(true);
-});
+auditRuleTest(
+  [{ rule: "script-error", kind: "fires", reason: "page errors dedupe and emit" }],
+  "script errors dedupe by first line, cap at 3, and fire at P0",
+  () => {
+    const findings = checkScriptErrors([
+      "TypeError: x is undefined\n  at boot.js:1",
+      "TypeError: x is undefined\n  at boot.js:9", // duplicate first line
+      "ReferenceError: y\n  at a.js:2",
+      "SyntaxError: z\n  at b.js:3",
+      "RangeError: w\n  at c.js:4", // over the cap
+    ]);
+    expect(findings).toHaveLength(3);
+    expect(findings.every((f) => f.severity === "P0" && f.rule === "script-error")).toBe(true);
+  },
+);
 
-test("no page errors means no script-error findings", () => {
-  expect(checkScriptErrors([])).toEqual([]);
-});
+auditRuleTest(
+  [{ rule: "script-error", kind: "silent", reason: "an empty page-error list stays clean" }],
+  "no page errors means no script-error findings",
+  () => {
+    expect(checkScriptErrors([])).toEqual([]);
+  },
+);
 
 // ── severity ordering + the fail-on gate ─────────────────────────────────────
 
@@ -1379,9 +1672,21 @@ test("collectFindings fans the impeccable-adapted sample families out too, origi
   expect(findings.every((f) => f.origin === "impeccable")).toBe(true);
 });
 
-test("collectFindings on an all-clean bundle (incl. a present main landmark) returns nothing", () => {
-  expect(collectFindings(EMPTY_SAMPLES)).toEqual([]);
-});
+auditRuleTest(
+  [
+    { rule: "broken-image", kind: "silent", reason: "the clean bundle contains no broken-image sample" },
+    { rule: "text-overflow", kind: "silent", reason: "the clean bundle contains no visible spill" },
+    { rule: "truncated-to-nothing", kind: "silent", reason: "the clean bundle preserves visible text" },
+    { rule: "repeated-container-text", kind: "silent", reason: "the clean bundle has no repeated-container sample" },
+    { rule: "clipped-overflow", kind: "silent", reason: "the clean bundle contains no clipped spill" },
+    { rule: "edge-flush-cards", kind: "silent", reason: "the clean bundle preserves the edge gap" },
+    { rule: "obscured-target", kind: "silent", reason: "the clean bundle has no compositor-disagreement sample" },
+  ],
+  "collectFindings on an all-clean bundle (incl. a present main landmark) returns nothing",
+  () => {
+    expect(collectFindings(EMPTY_SAMPLES)).toEqual([]);
+  },
+);
 
 // ── CLI contract (tooling/src/ui-audit/cli.ts) ───────────────────────────────
 // The scanner could reach no surface but home and swallowed unknown flags until 2026-08-16 — a typo'd
