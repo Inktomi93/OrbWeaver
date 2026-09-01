@@ -290,13 +290,18 @@ export function checkObscuredTarget(input: ObscuredTargetInput): Finding {
   };
 }
 
-/** Any of aria-labelledby/aria-label/visible text/title/alt satisfies "has a name"; the probe
- *  doesn't need the browser's exact precedence order since it never computes what the name IS. */
+/** Any of aria-labelledby/aria-label/the NATIVE `<label>` association/visible text/title/alt satisfies
+ *  "has a name"; the probe doesn't need the browser's exact precedence order since it never computes what
+ *  the name IS. The native-label arm arrived at #1009: without it a control named by a `<label for>` alone
+ *  — correct, lint-clean HTML — was a P1, and the census could not see the name at all. Measured scope: no
+ *  live app surface relies on the native association alone (Base UI belts every one with aria-labelledby),
+ *  so this closed a LATENT false-positive class rather than a live wall. */
 export function checkAccessibleName(input: AccessibleNameInput): Finding | null {
   const hasName =
     input.hasVisibleText ||
     Boolean(input.ariaLabel?.trim()) ||
     Boolean(input.ariaLabelledbyText?.trim()) ||
+    Boolean(input.nativeLabelText?.trim()) ||
     Boolean(input.title?.trim()) ||
     Boolean(input.altText?.trim());
   if (hasName) {
@@ -307,7 +312,7 @@ export function checkAccessibleName(input: AccessibleNameInput): Finding | null 
     severity: "P1",
     selector: input.selector,
     value: "no accessible name",
-    message: `<${input.tag}> is interactive but exposes no accessible name — add visible text, aria-label, aria-labelledby, title, or alt`,
+    message: `<${input.tag}> is interactive but exposes no accessible name — add visible text, a <label for> (or wrap it in one), aria-label, aria-labelledby, title, or alt`,
     origin: "orbweaver",
   };
 }

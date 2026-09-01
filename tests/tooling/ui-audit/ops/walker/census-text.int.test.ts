@@ -49,6 +49,10 @@ async function auditFixture(scratch: string, runCli: ToolContext["runCli"], name
 
 /** #8a8a8a on #ffffff = 3.45:1 — under AA's 4.5:1, over 1.4.11's 3:1. */
 const DIM_LABEL = "color:#8a8a8a;font-size:16px";
+/** The same pair for a label that sits OUTSIDE the control: it needs its own white plate, because the
+ *  fixture document's body is BLACK and #8a8a8a on black is 6.08:1 — a passing ratio, which would make
+ *  every "must still fire" arm below pass for the wrong reason (measured: all three did, first run). */
+const DIM_LABEL_PLATE = `${DIM_LABEL};background:#ffffff;width:140px`;
 const CONTROL_BOX = "background:#ffffff;border:0;padding:8px;width:140px;height:40px";
 
 // ── silent: the label INSIDE a disabled control is exempt, not a P1 ───────────
@@ -109,5 +113,160 @@ auditRuleTest(
     const report = await auditFixture(scratch, runCli, "active-descendant", body);
     expect(report.findings.filter(({ rule }) => rule === "contrast")).toHaveLength(1);
     expect(report.populationAccounting?.["contrast"]).toMatchObject({ judged: 1, emitted: 1 });
+  },
+);
+
+// ── THE NAMING RELATION (#1016) ──────────────────────────────────────────────
+// WCAG 1.4.3 exempts "text that is part of an inactive user interface component", and a control's own
+// accessible NAME is part of it even when the DOM puts the name outside the control's subtree — the
+// normal shape for a slider (Base UI's Slider.Label is a plain <div> the thumb points at) and for any
+// `<label for>`. Measured 2026-09-01: a disabled Slider's label read 3.19:1 under light (the house
+// `data-disabled:opacity-50` group dim) and was filed an AA P1 — the instrument being wrong about the
+// spec. Ruled ARM B 2026-09-01: fix the classifier, not the app's disabled affordance.
+//
+// The exemption is DELIBERATELY NARROW and every boundary below is a precision neighbour that must
+// STILL FIRE, because a false clean is the expensive direction for a rule that claims "this fails".
+
+auditRuleTest(
+  [
+    {
+      rule: "contrast",
+      kind: "silent",
+      reason: "aria-labelledby: the disabled control's own name is part of the inactive component, wherever the DOM puts it (the live Slider shape)",
+    },
+  ],
+  "text a DISABLED control names via aria-labelledby is exempt",
+  async ({ runCli, scratch }) => {
+    const body = `<div id="nm-1" style="${DIM_LABEL_PLATE}">Volume</div><div role="slider" aria-labelledby="nm-1" aria-disabled="true" style="${CONTROL_BOX}"></div>`;
+    const report = await auditFixture(scratch, runCli, "named-by-disabled", body);
+    expect(report.findings.filter(({ rule }) => rule === "contrast")).toHaveLength(0);
+    expect(report.populationAccounting?.["contrast"]?.excluded).toMatchObject({ inactiveExempt: 1 });
+  },
+);
+
+auditRuleTest(
+  [
+    {
+      rule: "contrast",
+      kind: "silent",
+      reason: "the token-list spelling: aria-labelledby names SEVERAL ids, so the reverse lookup must match a token, not the whole attribute",
+    },
+  ],
+  "the reverse lookup matches a TOKEN of a multi-id aria-labelledby",
+  async ({ runCli, scratch }) => {
+    const body = `<div id="nm-a" style="${DIM_LABEL_PLATE}">Volume</div><div role="slider" aria-labelledby="nm-z nm-a" aria-disabled="true" style="${CONTROL_BOX}"></div>`;
+    const report = await auditFixture(scratch, runCli, "named-token-list", body);
+    expect(report.findings.filter(({ rule }) => rule === "contrast")).toHaveLength(0);
+    // Silent BECAUSE exempt, not silent because unjudged — the distinction the first run of these
+    // fixtures got wrong (a black-backdrop label passed the ratio outright).
+    expect(report.populationAccounting?.["contrast"]?.excluded).toMatchObject({ inactiveExempt: 1 });
+  },
+);
+
+auditRuleTest(
+  [
+    {
+      rule: "contrast",
+      kind: "fires",
+      reason: "PRECISION NEIGHBOUR 1 — the same label text named by an ENABLED control is ordinary judged text",
+    },
+  ],
+  "text named by an ENABLED control is still judged",
+  async ({ runCli, scratch }) => {
+    const body = `<div id="nm-2" style="${DIM_LABEL_PLATE}">Volume</div><div role="slider" aria-labelledby="nm-2" style="${CONTROL_BOX}"></div>`;
+    const report = await auditFixture(scratch, runCli, "named-by-enabled", body);
+    expect(report.findings.filter(({ rule }) => rule === "contrast")).toHaveLength(1);
+  },
+);
+
+auditRuleTest(
+  [
+    {
+      rule: "contrast",
+      kind: "fires",
+      reason: "PRECISION NEIGHBOUR 2 — text merely ADJACENT to a disabled control names nothing; proximity is not an association",
+    },
+  ],
+  "text adjacent to a disabled control, with no association, is still judged",
+  async ({ runCli, scratch }) => {
+    const body = `<div style="${DIM_LABEL_PLATE}">Volume</div><div role="slider" aria-disabled="true" style="${CONTROL_BOX}"></div>`;
+    const report = await auditFixture(scratch, runCli, "adjacent-not-named", body);
+    expect(report.findings.filter(({ rule }) => rule === "contrast")).toHaveLength(1);
+  },
+);
+
+auditRuleTest(
+  [
+    {
+      rule: "contrast",
+      kind: "fires",
+      reason: "PRECISION NEIGHBOUR 3 — a labelledby pointing at an id nothing carries is a broken reference, not an exemption",
+    },
+  ],
+  "a disabled control whose aria-labelledby names a MISSING id exempts nothing",
+  async ({ runCli, scratch }) => {
+    const body = `<div id="nm-3" style="${DIM_LABEL_PLATE}">Volume</div><div role="slider" aria-labelledby="nm-absent" aria-disabled="true" style="${CONTROL_BOX}"></div>`;
+    const report = await auditFixture(scratch, runCli, "named-missing-id", body);
+    expect(report.findings.filter(({ rule }) => rule === "contrast")).toHaveLength(1);
+  },
+);
+
+auditRuleTest(
+  [
+    {
+      rule: "inactive-control-legibility",
+      kind: "fires",
+      reason:
+        "the exemption is from the AA MINIMUM only: an exempted NAME rides the 1.4.11 3:1 advisory floor exactly like the control itself, so a name dimmed to invisibility still surfaces",
+    },
+  ],
+  "an exempted name dimmed below the UI-component floor still fires the P3 advisory",
+  async ({ runCli, scratch }) => {
+    const body = `<div id="nm-4" style="color:#000000;font-size:16px;opacity:0.3;background:#ffffff;width:140px">Volume</div><div role="slider" aria-labelledby="nm-4" aria-disabled="true" style="${CONTROL_BOX}"></div>`;
+    const report = await auditFixture(scratch, runCli, "named-below-floor", body);
+    expect(report.findings.filter(({ rule }) => rule === "contrast")).toHaveLength(0);
+    const advisories = report.findings.filter(({ rule }) => rule === "inactive-control-legibility");
+    expect(advisories).toHaveLength(1);
+  },
+);
+
+// ── the VENDOR spelling of the same state ────────────────────────────────────
+// A Base UI COMPOSITE root is a <div>: it cannot match `:disabled`, and the app is built almost entirely
+// out of those composites (Slider/Select/Toggle/Switch). The pseudo-only arm was therefore blind to every
+// disabled composite in the product — measured through this very suite family: a disabled Slider's label
+// stayed a P1 after the naming relation landed, because nothing in the chain matched `:disabled`.
+
+auditRuleTest(
+  [
+    {
+      rule: "contrast",
+      kind: "silent",
+      reason:
+        "Base UI stamps [data-disabled] on a composite ROOT (a div, which cannot carry :disabled) — RULE-AUTHORING row 3's class, and state-paint.ts's vocabulary already declares data-disabled 'WCAG 1.4.3 inactive-exempt'",
+    },
+  ],
+  "text inside a [data-disabled] composite root is exempt",
+  async ({ runCli, scratch }) => {
+    const body = `<div data-disabled style="${CONTROL_BOX}"><span style="${DIM_LABEL}">Volume</span></div>`;
+    const report = await auditFixture(scratch, runCli, "vendor-disabled", body);
+    expect(report.findings.filter(({ rule }) => rule === "contrast")).toHaveLength(0);
+    expect(report.populationAccounting?.["contrast"]?.excluded).toMatchObject({ inactiveExempt: 1 });
+  },
+);
+
+auditRuleTest(
+  [
+    {
+      rule: "contrast",
+      kind: "fires",
+      reason:
+        "PRECISION NEIGHBOUR 4 — data-trigger-disabled is a DIFFERENT Base UI attribute (a popup-metadata flag, not the control's own inactive state) and must not exempt anything",
+    },
+  ],
+  "the neighbouring data-trigger-disabled attribute exempts nothing",
+  async ({ runCli, scratch }) => {
+    const body = `<div data-trigger-disabled style="${CONTROL_BOX}"><span style="${DIM_LABEL}">Volume</span></div>`;
+    const report = await auditFixture(scratch, runCli, "vendor-neighbour", body);
+    expect(report.findings.filter(({ rule }) => rule === "contrast")).toHaveLength(1);
   },
 );

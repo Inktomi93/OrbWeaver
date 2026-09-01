@@ -21,11 +21,12 @@
 import type { InactiveKind, Rgb } from "@orb/tooling/_shared/wcag";
 import { compositeForeground, INACTIVE_KIND_EXPR, relativeLuminance } from "@orb/tooling/_shared/wcag";
 import type { ContrastInput, Finding, TextStyleInput } from "@orb/tooling/ui-audit";
-import { checkContrast, checkControlAspect, checkGrayOnColor, checkTextStyle } from "@orb/tooling/ui-audit";
+import { checkContrast, checkControlAspect, checkGrayOnColor, checkTextStyle, isAtOrAboveSeverity } from "@orb/tooling/ui-audit";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import type { ExpectedFinding, ThemeArm, VariantArmStoryDef } from "./variant-arm-matrix.def.ts";
 import { EXPECTED_FINDINGS, JUDGED_RULES, THEME_ARMS, VARIANT_ARM_STORY_DEFS } from "./variant-arm-matrix.def.ts";
+import { inactiveClassification } from "./variant-arm-matrix.gather.ts";
 import type { ArmPlan } from "./variant-arm-matrix.plan.ts";
 import { armPlanFor } from "./variant-arm-matrix.plan.ts";
 import { VariantArmCells, VariantArmContrastProbe } from "./variant-arm-matrix.stories.tsx";
@@ -308,8 +309,17 @@ function gatherRawFacts(page: Page): Promise<RawGather> {
 
 /** PASS 2 — the shared inactive classifier, VERBATIM, in a string script (the snap/walker pattern:
  *  INACTIVE_KIND_EXPR is a string constant so instruments inline it unmodified — one home, no re-spelled
- *  selector order). Joined to pass-1 samples by the stamped data-vam-ref. */
-function classifyInactive(page: Page): Promise<Record<string, InactiveKind>> {
+ *  selector order). Joined to pass-1 samples by the stamped data-vam-ref.
+ *
+ *  A string `evaluate` returns `unknown` and there is no compiler across the page boundary, so the payload
+ *  is SETTLED at the seam against the refs pass 1 actually sampled (#1015 — see the gather module's header
+ *  for why a missing ref is the silent arm). Every arm of the refusal is pinned in
+ *  tests/ui/variant-arm-parity.suite.test.ts. */
+function sampledRefsOf(raw: RawGather): string[] {
+  return raw.cells.flatMap((cell) => cell.texts.map((text) => text.ref));
+}
+
+async function classifyInactive(page: Page, raw: RawGather): Promise<Record<string, InactiveKind>> {
   const script = `(() => {
     const out = {};
     for (const el of document.querySelectorAll("[data-vam-ref]")) {
@@ -317,7 +327,8 @@ function classifyInactive(page: Page): Promise<Record<string, InactiveKind>> {
     }
     return out;
   })()`;
-  return page.evaluate(script) as Promise<Record<string, InactiveKind>>;
+  const parsed: unknown = await page.evaluate(script);
+  return inactiveClassification(parsed, sampledRefsOf(raw));
 }
 
 // ── Node-side: resolve, judge with the imported kernels, and account ──────────────────────────────
@@ -543,6 +554,29 @@ function judgeMount({ scope, raw, inactiveByRef, plan, theme }: MountInput): Mou
   };
 }
 
+// ── The severity floor (#1016) ────────────────────────────────────────────────────────────────────
+// THE HOUSE PRECEDENT IS A FLOOR, NOT A BUCKET. The CLI already reports every severity and FAILS on a
+// configurable one (`ops/run.ts`: `findings.some((f) => isAtOrAboveSeverity(f.severity, opts.failOn))`),
+// so a P3 is printed and never fatal. This suite adopts the same floor through the SAME exported
+// predicate rather than inventing a second disposition, which is what un-parked the disabled axis:
+// `inactive-control-legibility` fires on STANDARD disabled dimming BY DESIGN (button/toggle disabled
+// arms measured 2.3-2.9:1 on all three themes, 2026-09-01), so a zero-findings assertion over disabled
+// arms is structurally red forever — while a baseline or an exclusion would make the row invisible, and
+// a control nobody can see IS a defect, just not the AA one.
+//
+// So: advisories are TALLIED per rule and PRINTED into the run artifact beside the accounting, and the
+// planted 1.00:1 disabled twin (VariantArmContrastProbe) proves a real advisory still surfaces.
+const ARM_FAIL_ON = "P2";
+
+function isBlocking(finding: Finding): boolean {
+  return isAtOrAboveSeverity(finding.severity, ARM_FAIL_ON);
+}
+
+/** One advisory row as it lands in the annotation — enough to act on without re-running. */
+function advisoryRow(finding: Finding): string {
+  return `${finding.severity} ${finding.rule} ${finding.selector}: ${finding.value}`;
+}
+
 // ── The matrix ────────────────────────────────────────────────────────────────────────────────────
 
 // Lazy per-story plan cache: text's pairwise plan costs ~7s (measured 2026-09-01), so it is computed
@@ -565,7 +599,7 @@ for (const story of VARIANT_ARM_STORY_DEFS) {
       const plan = planFor(story);
       await mount(<VariantArmCells cells={plan.cells} storyKey={story.key} theme={theme} withDisabled={story.supportsDisabled} />);
       const raw = await gatherRawFacts(page);
-      const inactiveByRef = await classifyInactive(page);
+      const inactiveByRef = await classifyInactive(page, raw);
       // THEME LIVENESS: the wrapper paints the token background of the ACTIVE palette — light must be
       // light, both dark palettes dark. A data-theme typo falls through to :root silently (#875 F2);
       // this read is what makes each theme arm a measurement instead of an intention.
@@ -577,8 +611,10 @@ for (const story of VARIANT_ARM_STORY_DEFS) {
       expect(raw.cells.length, "every planned arm cell renders exactly once").toBe(expectedCells);
 
       const { findings, accounting, blindCells } = judgeMount({ scope: `${story.key}/${theme}`, raw, inactiveByRef, plan, theme });
-      // The denominator statement, attached to the run artifact (reports/ct-report.json).
-      test.info().annotations.push({ type: "variant-arm-accounting", description: JSON.stringify(accounting) });
+      // The denominator statement, attached to the run artifact (reports/ct-report.json) — now WITH the
+      // sub-floor advisories, which is what keeps the floor from being a swallow (#1016).
+      const advisories = findings.filter((finding) => isBlocking(finding) === false);
+      test.info().annotations.push({ type: "variant-arm-accounting", description: JSON.stringify({ ...accounting, advisories: advisories.map(advisoryRow) }) });
       // candidates = judged + withheld + excluded, PER RULE — the partition law. A missing row sums to
       // -1 (sentinel), which fails against the real candidate count loudly.
       for (const rule of JUDGED_RULES) {
@@ -593,12 +629,14 @@ for (const story of VARIANT_ARM_STORY_DEFS) {
       const rows = EXPECTED_FINDINGS.filter((row) => row.story === story.key && row.theme === theme);
       const matchesRow = (finding: Finding, row: ExpectedFinding): boolean =>
         finding.rule === row.rule && row.cellContains.every((part) => finding.selector.includes(part));
-      const unexpected = findings.filter((finding) => rows.some((row) => matchesRow(finding, row)) === false);
+      // The pin rows below are checked against EVERY finding (a pinned P3 must still stop matching when
+      // its defect is fixed); only the BLOCKING ones can fail the arm.
+      const unexpected = findings.filter((finding) => isBlocking(finding) && rows.some((row) => matchesRow(finding, row)) === false);
       for (const row of rows) {
         const matched = findings.filter((finding) => matchesRow(finding, row));
         expect(matched.length, `EXPECTED-FINDING row no longer matches its defect — ${row.reason}`).toBe(row.count);
       }
-      expect(unexpected, `arm findings for ${story.key} under ${theme} — each names its cell`).toEqual([]);
+      expect(unexpected, `arm findings at or above ${ARM_FAIL_ON} for ${story.key} under ${theme} — each names its cell`).toEqual([]);
     });
   }
 }
@@ -608,9 +646,21 @@ for (const story of VARIANT_ARM_STORY_DEFS) {
 test("PLANTED CONTROL: the fg==bg probe arm produces a contrast finding through the full pipeline", async ({ mount, page }) => {
   await mount(<VariantArmContrastProbe />);
   const raw = await gatherRawFacts(page);
-  const inactiveByRef = await classifyInactive(page);
+  const inactiveByRef = await classifyInactive(page, raw);
   const probePlan: ArmPlan = { story: "probe", axes: [], strategy: "full-cross", cells: [] };
   const { findings } = judgeMount({ scope: "probe", raw, inactiveByRef, plan: probePlan, theme: "hearth" });
   const contrast = findings.filter((finding) => finding.rule === "contrast");
   expect(contrast.length, "a 1.00:1 token pair MUST fire — zero findings here means the instrument went blind").toBeGreaterThan(0);
+
+  // THE FLOOR'S OWN CONTROL (#1016): the SAME 1.00:1 pair inside a `:disabled` control. WCAG 1.4.3
+  // exempts it from the AA minimum, so it must NOT be a contrast P1 — and it must NOT vanish either.
+  // A severity floor that could not produce this row would be a silent exclusion wearing a floor's name.
+  const advisories = findings.filter((finding) => isBlocking(finding) === false);
+  const invisible = advisories.filter((finding) => finding.rule === "inactive-control-legibility");
+  expect(invisible.length, "the disabled 1.00:1 twin MUST still surface as a P3 advisory — the floor prints, it does not swallow").toBeGreaterThan(0);
+  expect(
+    contrast.filter((finding) => finding.selector.includes("disabled")),
+    "an INACTIVE control is 1.4.3-exempt — it must never be filed as an AA contrast failure",
+  ).toEqual([]);
+  expect(invisible.every(isBlocking), "the advisory must sit BELOW the fail floor").toBe(false);
 });

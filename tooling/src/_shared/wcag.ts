@@ -119,21 +119,73 @@ export type InactiveKind = (typeof INACTIVE_KINDS)[number];
 
 /** The classifier as an in-page JS EXPRESSION over a bound `el`. Both instruments build their sampling
  *  script as a STRING, so a shared string constant is the only shape that can actually be one home —
- *  a shared FUNCTION could not cross into the page. Order matters and is unchanged: `inert` wins over
- *  everything, and native `:disabled` outranks the aria declaration.
+ *  a shared FUNCTION could not cross into the page. It stays an EXPRESSION (an IIFE) because all three
+ *  call sites splice it into an assignment: `var inactiveKind = <this>;`. ES5-shaped for the same reason
+ *  the walker is (see ops/walker.ts): `var`, function expressions, no arrows.
  *
- *  EVERY ARM IS ANCESTOR-AWARE (#1005, was `el.matches(…)` for the two non-inert arms until 2026-09-01).
- *  INACTIVENESS IS INHERITED BY THE PIXELS: a real control's text is a CHILD element — a disabled
- *  button's inner label span (`<button disabled><span>Pick one</span></button>`), a disabled Select's
- *  placeholder span — and that span matches neither
- *  `:disabled` (which only the form control itself matches) nor `[aria-disabled="true"]`. Both instruments
- *  sample the TEXT-BEARING element, so the element-scoped spelling classified every such label "none" and
- *  judged it against the 4.5:1 AA floor WCAG 1.4.3 exempts: snap reported `FAIL 3.45:1` on markup it
- *  claims to SKIP, and design-audit filed the P1s (measured 2026-09-01 at 2.90:1 on a disabled Select
- *  placeholder, tests/ui/variant-arm-matrix). `closest` matches the element ITSELF first, so the
- *  element-scoped behavior is preserved exactly and only the ancestor case is added. */
-export const INACTIVE_KIND_EXPR =
-  '(el.closest("[inert]") ? "inert" : el.closest(":disabled") ? "native" : el.closest(\'[aria-disabled="true"]\') ? "aria" : "none")';
+ *  Precedence is unchanged and applies at every arm: `inert` wins over everything, native `:disabled`
+ *  outranks the aria declaration.
+ *
+ *  TWO WAYS A CONTROL'S INACTIVENESS REACHES TEXT, and both are the SPEC's, not a convenience:
+ *
+ *  1. ANCESTRY (#1005, was `el.matches(…)`). A real control's text is a CHILD element — a disabled
+ *     button's inner label span (`<button disabled><span>Pick one</span></button>`), a disabled Select's
+ *     placeholder span — and that span
+ *     matches neither `:disabled` nor `[aria-disabled="true"]`. Both instruments sample the TEXT-BEARING
+ *     element, so the element-scoped spelling classified every such label "none" and judged it against the
+ *     4.5:1 AA floor WCAG 1.4.3 exempts. `closest` matches the element ITSELF first, so the old behavior
+ *     is a strict subset.
+ *
+ *  2. THE NAMING RELATION (#1016). WCAG 1.4.3's exception is "text … that is part of an inactive user
+ *     interface component". A control's own accessible NAME is part of that component even when the DOM
+ *     puts it outside the control's subtree — which is the normal shape: Base UI's `Slider.Label` renders
+ *     a plain `<div>` the thumb points at with `aria-labelledby` (SliderLabel.js — `useLabel` without
+ *     `native`), and a `<label for>` names its control from a sibling position. Measured 2026-09-01: a
+ *     DISABLED slider's label read 3.19:1 under light (the house `data-disabled:opacity-50` group dim,
+ *     `packages/ui/src/lib/disabled-state.ts`) and both instruments filed it as an AA contrast P1 — the
+ *     instrument being WRONG about the spec, not conservative. So the kind also derives from a control
+ *     that NAMES this element: the reverse `[aria-labelledby~="<id>"]` lookup (token-list `~=`, because
+ *     one control can name several ids) and the native label association `el.closest("label").control`.
+ *
+ *  THE EXEMPTION IS FROM THE AA MINIMUM ONLY. An exempted name still rides the
+ *  `INACTIVE_ADVISORY_MAX_RATIO` floor exactly like the control itself, so a disabled name dimmed below
+ *  3:1 still surfaces as the `inactive-control-legibility` advisory — "is it even there?" is the one
+ *  question the exemption must never swallow.
+ *
+ *  THE NATIVE ARM READS THE VENDOR SPELLING TOO (`[data-disabled]`), and that is not a widening — it is
+ *  the mechanism-match this codebase's own laws already state. A Base UI COMPOSITE root is a `<div>`: it
+ *  structurally cannot match `:disabled`, so the pseudo alone is blind to every disabled Slider, Select,
+ *  Toggle and Switch in the app (`tooling/src/ui-audit/RULE-AUTHORING.md` row 3 is this exact class —
+ *  "Base UI never sets the CSS pseudo for its own state, it sets a JS-driven `data-*`"), while
+ *  `ops/walker/state-paint.ts`'s classified vocabulary already declares the conclusion in writing:
+ *  `data-disabled` is OUT of the interaction-paint set precisely because it is "WCAG 1.4.3
+ *  inactive-exempt, judged at rest on genuinely disabled controls". It maps to `native` because Base UI
+ *  stamps it from the same `disabled` that puts `:disabled` on the component's own hidden input. The
+ *  neighbouring `data-trigger-disabled` is a DIFFERENT attribute name and is not matched.
+ *
+ *  DELIBERATELY NARROW, both ways. A `closest("label")` fallback for a NON-labelable element is not the
+ *  native arm (HTML declares no association there); the reverse lookup keys on THIS element's own id, so
+ *  text merely ADJACENT to a disabled control, and a `labelledby` pointing at an id nothing carries, are
+ *  both still judged. For a rule whose claim is "this text fails contrast", a false clean is the
+ *  expensive direction — every arm above is proven two-sided in
+ *  tests/tooling/ui-audit/ops/walker/census-text.int.test.ts. */
+export const INACTIVE_KIND_EXPR = `(function () {
+  var orbKindOf = function (node) {
+    return node.closest("[inert]") ? "inert" : node.closest(":disabled,[data-disabled]") ? "native" : node.closest('[aria-disabled="true"]') ? "aria" : "none";
+  };
+  var orbOwn = orbKindOf(el);
+  if (orbOwn !== "none") return orbOwn;
+  var orbNamer = null;
+  var orbId = el.getAttribute("id") || "";
+  if (orbId !== "" && orbId.indexOf('"') === -1 && orbId.indexOf("\\\\") === -1) {
+    orbNamer = document.querySelector('[aria-labelledby~="' + orbId + '"]');
+  }
+  if (orbNamer === null) {
+    var orbLabel = el.closest("label");
+    orbNamer = orbLabel && orbLabel.control ? orbLabel.control : null;
+  }
+  return orbNamer === null ? "none" : orbKindOf(orbNamer);
+})()`;
 
 /** Is this control exempt from a WCAG CONTRAST verdict? All three inactive spellings are — 1.4.3 exempts
  *  "inactive user interface components", and their dimming is the deliberate signal that they are off.

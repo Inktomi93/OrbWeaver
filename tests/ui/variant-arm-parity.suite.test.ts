@@ -10,6 +10,8 @@
 //   2. PLAN VALUE COVERAGE: every declared axis value (plus the __unset arm of default-less axes)
 //      appears in at least one planned cell — pins the pairwise planner + any future legality filter
 //      against silently dropping an arm.
+//   4. PAGE→NODE SEAM: the CT's pass-2 classifier payload is validated, not cast (#1015) — every arm of
+//      that refusal is pinned here, on the node side, because the CT cannot assert its own throw.
 //   3. RULE SCOPE: the audited arm-dependent rule set (2026-08-31 Base-UI mechanism audit, task #19) is
 //      fully partitioned into judged / out-of-scope / withheld-with-reason — a new arm-dependent rule
 //      cannot be silently unjudged, and a rule rename breaks the names here against
@@ -22,6 +24,7 @@ import { DESIGN_AUDIT_RULE_IDS } from "@orb/tooling/ui-audit";
 import { describe } from "vitest";
 import { expect, test } from "../support/fixtures.ts";
 import { introspectTv, JUDGED_RULES, OUT_OF_SCOPE_RULES, VARIANT_ARM_STORY_DEFS, WITHHELD_RULES, WITHHELD_VARIANT_SOURCES } from "./variant-arm-matrix.def.ts";
+import { inactiveClassification } from "./variant-arm-matrix.gather.ts";
 import { STORY_KEYS } from "./variant-arm-matrix.keys.ts";
 import type { DiscoveredTv } from "./variant-arm-matrix.plan.ts";
 import { armPlanFor, buildParityReport, unplannedValues } from "./variant-arm-matrix.plan.ts";
@@ -167,5 +170,39 @@ describe("rule-scope parity (the 16 arm-dependent rules, fully partitioned)", ()
     for (const [rule, reason] of Object.entries(WITHHELD_RULES)) {
       expect(reason.length, `withheld rule "${rule}" needs its mechanism reason`).toBeGreaterThan(20);
     }
+  });
+});
+
+// ── the CT's page→node seam (#1015) ──────────────────────────────────────────
+// The suite's pass-2 classifier runs as a STRING script (INACTIVE_KIND_EXPR must be inlined verbatim),
+// so its payload crosses the boundary as `unknown` and used to be settled with a cast. These are the
+// refusals that replaced it — the missing-ref arm is the load-bearing one, because the CT consumer reads
+// `inactiveByRef[ref] ?? "none"` and a skipped ref therefore reads as an ACTIVE control judged against
+// the full AA floor.
+
+describe("the variant-arm CT's inactive-classifier seam refuses instead of casting", () => {
+  const refs = ["r0", "r1"];
+
+  test("a complete payload passes through, kinds intact", () => {
+    expect(inactiveClassification({ r0: "native", r1: "none" }, refs)).toEqual({ r0: "native", r1: "none" });
+  });
+
+  test("a payload that is not a ref→kind map is refused", () => {
+    expect(() => inactiveClassification(null, refs)).toThrow(/INSTRUMENT ERROR.*not a ref→kind map/u);
+    expect(() => inactiveClassification(["native"], refs)).toThrow(/INSTRUMENT ERROR.*not a ref→kind map/u);
+  });
+
+  test("a value outside the shared InactiveKind vocabulary is refused, naming the ref", () => {
+    expect(() => inactiveClassification({ r0: "disabled", r1: "none" }, refs)).toThrow(/INSTRUMENT ERROR.*"r0".*native\/aria\/inert/u);
+    expect(() => inactiveClassification({ r0: true, r1: "none" }, refs)).toThrow(/INSTRUMENT ERROR.*"r0"/u);
+  });
+
+  test("a SAMPLED ref the classifier skipped is refused — the silent arm, which would read as active", () => {
+    expect(() => inactiveClassification({ r0: "native" }, refs)).toThrow(/INSTRUMENT ERROR.*skipped 1 sampled ref.*r1/u);
+    expect(() => inactiveClassification({}, refs)).toThrow(/INSTRUMENT ERROR.*skipped 2 sampled ref/u);
+  });
+
+  test("extra refs the page classified but pass 1 did not sample are harmless", () => {
+    expect(inactiveClassification({ r0: "none", r1: "none", r2: "aria" }, refs)["r2"]).toBe("aria");
   });
 });

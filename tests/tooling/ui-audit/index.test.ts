@@ -742,6 +742,7 @@ auditRuleTest(
       hasVisibleText: false,
       ariaLabel: null,
       ariaLabelledbyText: null,
+      nativeLabelText: null,
       title: null,
       altText: null,
     });
@@ -761,6 +762,7 @@ auditRuleTest(
       hasVisibleText: false,
       ariaLabel: "Close dialog",
       ariaLabelledbyText: null,
+      nativeLabelText: null,
       title: null,
       altText: null,
     });
@@ -775,6 +777,7 @@ test("visible text alone is enough to satisfy the accessible-name check", () => 
     hasVisibleText: true,
     ariaLabel: null,
     ariaLabelledbyText: null,
+    nativeLabelText: null,
     title: null,
     altText: null,
   });
@@ -788,6 +791,7 @@ test("an aria-label of only whitespace does NOT count as a name", () => {
     hasVisibleText: false,
     ariaLabel: "   ",
     ariaLabelledbyText: null,
+    nativeLabelText: null,
     title: null,
     altText: null,
   });
@@ -2122,6 +2126,7 @@ test("collectFindings fans a raw-sample bundle out to exactly the findings each 
         hasVisibleText: false,
         ariaLabel: null,
         ariaLabelledbyText: null,
+        nativeLabelText: null,
         title: null,
         altText: null,
       },

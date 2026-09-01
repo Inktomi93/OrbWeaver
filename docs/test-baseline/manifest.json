@@ -2046,6 +2046,7 @@
     "tests/tooling/ui-audit/ops/walker/census-cohort.int.test.ts",
     "tests/tooling/ui-audit/ops/walker/census-collision.int.test.ts",
     "tests/tooling/ui-audit/ops/walker/census-glow.int.test.ts",
+    "tests/tooling/ui-audit/ops/walker/census-interactive.int.test.ts",
     "tests/tooling/ui-audit/ops/walker/census-occlusion.int.test.ts",
     "tests/tooling/ui-audit/ops/walker/census-region.int.test.ts",
     "tests/tooling/ui-audit/ops/walker/census-selection.int.test.ts",

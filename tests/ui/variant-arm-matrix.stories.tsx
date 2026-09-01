@@ -151,6 +151,17 @@ export function VariantArmContrastProbe(): ReactElement {
       <div data-cell="probe=fg-eq-bg" data-cell-state="rest">
         <span className="text-background">unreadable probe glyphs</span>
       </div>
+      {/* THE ADVISORY'S OWN CONTROL (#1016). The same 1.00:1 pair inside a real `:disabled` control:
+          WCAG 1.4.3 exempts it from the AA contrast MINIMUM, so it must NOT be a P1 — but it is far
+          under 1.4.11's 3:1 UI-component boundary, so `inactive-control-legibility` owes a P3. That row
+          is exactly what the severity floor must keep VISIBLE rather than swallow: a disabled control
+          nobody can see is still a defect, it just is not the AA one. A raw <button> (not <Button>) so
+          the ink is the token under test and nothing else. */}
+      <div data-cell="probe=disabled-invisible" data-cell-state="disabled">
+        <button disabled={true} type="button">
+          <span className="text-background">unreadable disabled glyphs</span>
+        </button>
+      </div>
     </div>
   );
 }
