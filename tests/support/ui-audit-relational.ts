@@ -11,6 +11,13 @@ export function relationalDocument(body: string): string {
 
 export interface RelationalPopulationReport {
   readonly findings: readonly { readonly rule: string }[];
+  readonly obscuredRecentred?: number;
+  readonly obscuredUnaskable?: readonly {
+    readonly selector: string;
+    readonly reason: string;
+    readonly centre: { readonly x: number; readonly y: number };
+    readonly rect: { readonly left: number; readonly top: number; readonly right: number; readonly bottom: number };
+  }[];
   readonly populationAccounting?: Readonly<
     Record<
       string,

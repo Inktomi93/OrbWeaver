@@ -279,3 +279,152 @@ Red-first controls cover both sides of each fence:
 
 The focused behavioral tier is the UI-audit pure index suite plus the selection, cohort, region,
 collision, return-join, and CLI integration fixtures. The orchestrator owns the grouped broad barrier.
+
+## #989 Config live-run instrument repair
+
+The first Config population run alleged three places where the instrument reports rendered instances or
+viewport reachability as though they were design facts. Re-derivation confirmed the obscured-target and
+typography seams and refuted the quiet-state premise. This addendum is the implementation contract for the
+two confirmed repairs and the durable refusal for the third. It preserves #987's settlement identities and changes no product markup,
+contrast math, backdrop resolution, WCAG floor, content-driven cohort exclusion, or #953 device/matrix
+evidence. The zero-hygiene and planted-positive lessons in
+`2026-08-21T15-21-19-gDAF-orbweaver_verification_tooling_and_instrumentation_program.md` apply directly:
+every newly complete zero needs an opposite-direction plant that proves the instrument can still withhold
+or distinguish a real population.
+
+### Re-derived premises
+
+The exact `2b22adf57` tool was run against the freshness-proven live Config surface before any #989 edit.
+The default route returned four findings and complete population evidence. At
+`settings:appearance`, 1280x800 returned the same 21 findings as 1280x2000 but three obscured candidates
+were `unaskable`; at 1280x2000 none were. The quiet-state row was `candidates=3 judged=1` with one
+`unmatchedOn` and one `unmatchedOff` at both heights. A literal singleton gate was then planted at the
+resolved backdrop-partition boundary: its dedicated one-member fixture became excluded, while the live
+Appearance row did not move at all. Therefore both live one-sided quiet partitions contain at least two
+members and their withholding is real under #987; the claimed single-member premise is false on the
+served tree. The nine `undersized-ui-text` findings comprised eight positional instances below
+`chat-style-cards` and one different `collapsible-trigger` home. F1 and F3 stand; F2 is refused.
+
+### Chosen architecture
+
+1. Obscured-target keeps the collision census's local reveal and exact scroll restoration already proven
+   in the shared tree. A centre outside the current probe frame is re-centred once, remeasured, and judged
+   when it becomes askable. Only a still-outside centre or a null `elementFromPoint` answer is withheld.
+   The exact named withheld subjects remain report and artifact evidence. The cohesive obscured-scan
+   evidence shape moves to `contract/samples-evidence.ts` so `contract/samples.ts` returns below the
+   tooling source-size ceiling without a suppression.
+2. Target identity is concatenated immediately after walker core, before the text census. The identity
+   segment's only cross-segment dependency is core's `INTERACTIVE_SELECTOR`; its four helper names have
+   no second definition in the walker. Each `TextStyleInput` carries the text element's authored target
+   signature and position-free authored home. Node collection evaluates `checkTextStyle` once per sample,
+   retains every non-floor finding unchanged, and groups `text-below-ramp` and `undersized-ui-text` rows
+   separately by `(authoredTarget, authoredHome)`. Every collected text-style sample is a candidate and a
+   judged subject for each floor rule; affected instances are the rows the existing mutually-exclusive
+   floor classifier emits. Each authored group gets one finding, at most five selector representatives,
+   complete affected/judged/cap evidence, and a settled rule population row.
+
+### Rejected alternatives
+
+- Counting an off-frame centre directly as `unaskable` is the reproduced defect: the count changes with
+  viewport height. Treating null hit tests as clean would hide a real compositor refusal.
+- Reusing the interactive census's reach budget/accounting after that census has settled would couple two
+  independent denominators and obscure exact restoration. The collision-local reveal owns its attempts,
+  recentred count, named refusals, and original scroll position.
+- The F2 singleton exclusion is refused for this live repair. The exact gate was exercised successfully
+  by a singleton fixture but did not classify either live one-sided partition, proving they are not
+  singletons. Excluding them anyway would erase real missing-twin evidence; leaving the speculative gate
+  in production would be dead code justified only by a refuted premise.
+- Grouping typography by selector normalization, font size, or target signature alone merges unrelated
+  repair homes. Capping raw text samples destroys the denominator before classification. Giving all
+  typography rules population behavior in this repair is unrelated expansion; only the two identical
+  type-floor shapes are grouped.
+- Moving target identity without a live CLI plant could leave the raw IIFE syntactically valid but the
+  text census uninstrumented. The repeated-instance integration fixture is therefore the reorder proof,
+  not a source-order assertion alone.
+
+### Coupled sites and planted controls
+
+The F1 contract spans `contract/samples.ts`, `contract/samples-evidence.ts`, the collision walker,
+collector assertions, report text, runner artifact/result fields, and collision integration fixtures.
+The runner is shared with #953; #989 changes no runner hunk. F2 changes no source or test. F3 spans the sample contract, walker composition and text
+census, typography classifier/collector, the public pure index test, and the real-CLI integration file.
+
+The permanent controls are two-sided:
+
+- an off-frame but scroll-reachable obscured target is recentred and judged; a planted null hit-test answer
+  remains named, withheld, and exits with NO VERDICT;
+- eight repeated undersized text instances in one authored home collapse to one population, while an
+  equally undersized instance under a different authored home remains a second finding. The pure
+  collector test pins candidates, judged, affected, populations, representatives, and cap arithmetic;
+  the CLI fixture proves the reordered shared IIFE actually supplies the identity.
+
+Graduation is the full focused UI-audit suite, graph typecheck, error-level Biome on owned files,
+structure, and all three live Config commands at both appearance heights. The live report must show
+viewport-invariant obscured `unaskable` and collapsed typography populations. Appearance is expected to
+remain `NO-VERDICT`: its two live quiet-state one-sided cohorts are sufficiently populated to require the
+missing twin, and selection-idiom independently retains `unmatchedUnselected=1`. A complete verdict is
+incompatible with preserving those real #987 withholdings and is not a graduation condition for #989.
+
+### Final live receipts
+
+The served source was freshness-proven against the current shared tree before these cold runs; no stack
+restart was needed. The default command exited 1 because it retained one P1 design finding and produced a
+complete population verdict:
+
+```text
+$ pnpm design-audit config
+POPULATION   obscured-target candidates=112 judged=112 affected=0 populations=0 representatives=0 withheld(unaskable=0) excluded() collapsed()
+POPULATION   tap-target candidates=44 judged=44 affected=9 populations=1 representatives=5 withheld(extentTruncated=0 cap=4) excluded() collapsed(sameOwner=0)
+POPULATION   quiet-state candidates=0 judged=0 affected=0 populations=0 representatives=0 withheld() excluded() collapsed()
+POPULATION   double-empty-state candidates=0 judged=0 affected=0 populations=0 representatives=0 withheld() excluded() collapsed()
+POPULATION   duplicate-action-door candidates=4 judged=4 affected=4 populations=2 representatives=4 withheld(cap=0) excluded() collapsed()
+POPULATION   truncated-to-nothing candidates=72 judged=72 affected=0 populations=0 representatives=0 withheld() excluded() collapsed()
+POPULATION   cohort-anatomy candidates=8 judged=8 affected=1 populations=1 representatives=1 withheld() excluded() collapsed()
+POPULATION   pane-ink candidates=2 judged=2 affected=0 populations=0 representatives=0 withheld() excluded() collapsed()
+POPULATION   row-void candidates=2 judged=0 affected=0 populations=0 representatives=0 withheld() excluded(unbound=2) collapsed()
+POPULATION   selection-idiom candidates=3 judged=0 affected=0 populations=0 representatives=0 withheld() excluded(insufficientPopulation=3) collapsed()
+POPULATION   text-below-ramp candidates=75 judged=75 affected=0 populations=0 representatives=0 withheld() excluded() collapsed()
+POPULATION   undersized-ui-text candidates=75 judged=75 affected=0 populations=0 representatives=0 withheld() excluded() collapsed()
+RESULT design-audit stage=live findings=4 p0=0 p1=1 p2=1 p3=2 fail-on=P1 actions=0 actions-failed=0 device-request=desktop device-actual=desktop viewport-actual=1280x800 pointer=fine hover=hover touch=no environment-fails=0 population-verdict=complete tap-candidates=44 tap-judged=44 tap-affected=9 tap-populations=1 tap-representatives=5 tap-collapsed-same-owner=0 tap-withheld-cap=4 dom-walk=470 dom-settled=470 dom-judged=452 dom-skip-head=18 dom-skip-dev=0 dom-inaccessible=0 dom-added=0 dom-detached=0 dom-mutations=0 dom-settle-mutations=1 theme-request=account theme-id=account theme-source=account theme-root=default theme-light=0 theme-dark=452 theme-polarity-unknown=0 reached=44 skipped-offviewport=0 no-probe-frame=0 reveal-budget=ok obscured-scanned=112 obscured-recentred=0 obscured-unaskable=0 px-backdrops=0 no-verdict=0 nav=OK out=/home/inktomi/inktomi-stack/development/orbweaver/reports/design-audit/config.json census=347 scanned-a11y=7 scanned-color=3 scanned-decor=2 scanned-media=2 scanned-ornament=4 scanned-quality=7 scanned-structure=8 scanned-typography=3
+```
+
+The short Appearance command exited 2. Obscuration is fully askable after one collision-census re-centre,
+and nine affected type instances settle into two authored populations. The remaining non-cap withholdings
+are the real quiet-state and selection cohorts described above:
+
+```text
+$ pnpm design-audit config --goto settings:appearance
+POPULATION   obscured-target candidates=112 judged=112 affected=0 populations=0 representatives=0 withheld(unaskable=0) excluded() collapsed()
+POPULATION   tap-target candidates=117 judged=117 affected=29 populations=2 representatives=10 withheld(extentTruncated=0 cap=19) excluded() collapsed(sameOwner=0)
+POPULATION   quiet-state candidates=3 judged=1 affected=0 populations=0 representatives=0 withheld(unmatchedOn=1 unmatchedOff=1) excluded() collapsed()
+POPULATION   double-empty-state candidates=0 judged=0 affected=0 populations=0 representatives=0 withheld() excluded() collapsed()
+POPULATION   duplicate-action-door candidates=0 judged=0 affected=0 populations=0 representatives=0 withheld(cap=0) excluded() collapsed()
+POPULATION   truncated-to-nothing candidates=41 judged=41 affected=0 populations=0 representatives=0 withheld() excluded() collapsed()
+POPULATION   cohort-anatomy candidates=16 judged=16 affected=1 populations=1 representatives=1 withheld() excluded() collapsed()
+POPULATION   pane-ink candidates=2 judged=0 affected=0 populations=0 representatives=0 withheld() excluded(scrolling=2) collapsed()
+POPULATION   row-void candidates=38 judged=16 affected=15 populations=15 representatives=8 withheld(cap=7) excluded(unbound=22) collapsed()
+POPULATION   selection-idiom candidates=29 judged=3 affected=0 populations=0 representatives=0 withheld(unmatchedUnselected=1) excluded(insufficientPopulation=25) collapsed()
+POPULATION   text-below-ramp candidates=98 judged=98 affected=0 populations=0 representatives=0 withheld() excluded() collapsed()
+POPULATION   undersized-ui-text candidates=98 judged=98 affected=9 populations=2 representatives=6 withheld(cap=3) excluded() collapsed()
+RESULT design-audit stage=live findings=14 p0=0 p1=2 p2=11 p3=1 fail-on=P1 actions=1 actions-failed=0 device-request=desktop device-actual=desktop viewport-actual=1280x800 pointer=fine hover=hover touch=no environment-fails=0 population-verdict=NO-VERDICT tap-candidates=117 tap-judged=117 tap-affected=29 tap-populations=2 tap-representatives=10 tap-collapsed-same-owner=0 tap-withheld-cap=19 dom-walk=1082 dom-settled=1082 dom-judged=1064 dom-skip-head=18 dom-skip-dev=0 dom-inaccessible=0 dom-added=0 dom-detached=0 dom-mutations=0 dom-settle-mutations=0 theme-request=account theme-id=account theme-source=account theme-root=default theme-light=4 theme-dark=1060 theme-polarity-unknown=0 reached=117 skipped-offviewport=0 no-probe-frame=0 reveal-budget=ok obscured-scanned=112 obscured-recentred=1 obscured-unaskable=0 px-backdrops=0 no-verdict=0 nav=OK out=/home/inktomi/inktomi-stack/development/orbweaver/reports/design-audit/config.json census=749 scanned-a11y=7 scanned-color=3 scanned-decor=2 scanned-media=2 scanned-ornament=4 scanned-quality=7 scanned-structure=8 scanned-typography=3
+```
+
+The tall Appearance command also exited 2 with the same 14 findings and the same two real incomplete
+cohorts. The obscured census grows with the viewport, but `unaskable=0` is invariant:
+
+```text
+$ pnpm design-audit config --goto settings:appearance --viewport 1280x2000
+POPULATION   obscured-target candidates=189 judged=189 affected=0 populations=0 representatives=0 withheld(unaskable=0) excluded() collapsed()
+POPULATION   tap-target candidates=117 judged=117 affected=29 populations=2 representatives=10 withheld(extentTruncated=0 cap=19) excluded() collapsed(sameOwner=0)
+POPULATION   quiet-state candidates=3 judged=1 affected=0 populations=0 representatives=0 withheld(unmatchedOn=1 unmatchedOff=1) excluded() collapsed()
+POPULATION   double-empty-state candidates=0 judged=0 affected=0 populations=0 representatives=0 withheld() excluded() collapsed()
+POPULATION   duplicate-action-door candidates=0 judged=0 affected=0 populations=0 representatives=0 withheld(cap=0) excluded() collapsed()
+POPULATION   truncated-to-nothing candidates=78 judged=78 affected=0 populations=0 representatives=0 withheld() excluded() collapsed()
+POPULATION   cohort-anatomy candidates=16 judged=16 affected=1 populations=1 representatives=1 withheld() excluded() collapsed()
+POPULATION   pane-ink candidates=2 judged=1 affected=0 populations=0 representatives=0 withheld() excluded(scrolling=1) collapsed()
+POPULATION   row-void candidates=38 judged=16 affected=15 populations=15 representatives=8 withheld(cap=7) excluded(unbound=22) collapsed()
+POPULATION   selection-idiom candidates=29 judged=3 affected=0 populations=0 representatives=0 withheld(unmatchedUnselected=1) excluded(insufficientPopulation=25) collapsed()
+POPULATION   text-below-ramp candidates=98 judged=98 affected=0 populations=0 representatives=0 withheld() excluded() collapsed()
+POPULATION   undersized-ui-text candidates=98 judged=98 affected=9 populations=2 representatives=6 withheld(cap=3) excluded() collapsed()
+RESULT design-audit stage=live findings=14 p0=0 p1=2 p2=11 p3=1 fail-on=P1 actions=1 actions-failed=0 device-request=desktop device-actual=desktop viewport-actual=1280x2000 pointer=fine hover=hover touch=no environment-fails=0 population-verdict=NO-VERDICT tap-candidates=117 tap-judged=117 tap-affected=29 tap-populations=2 tap-representatives=10 tap-collapsed-same-owner=0 tap-withheld-cap=19 dom-walk=1082 dom-settled=1082 dom-judged=1064 dom-skip-head=18 dom-skip-dev=0 dom-inaccessible=0 dom-added=0 dom-detached=0 dom-mutations=0 dom-settle-mutations=0 theme-request=account theme-id=account theme-source=account theme-root=default theme-light=4 theme-dark=1060 theme-polarity-unknown=0 reached=117 skipped-offviewport=0 no-probe-frame=0 reveal-budget=ok obscured-scanned=189 obscured-recentred=0 obscured-unaskable=0 px-backdrops=0 no-verdict=0 nav=OK out=/home/inktomi/inktomi-stack/development/orbweaver/reports/design-audit/config.json census=763 scanned-a11y=7 scanned-color=3 scanned-decor=2 scanned-media=2 scanned-ornament=4 scanned-quality=7 scanned-structure=8 scanned-typography=3
+```

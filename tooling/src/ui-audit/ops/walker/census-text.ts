@@ -145,6 +145,8 @@ export const WALKER_CENSUS_TEXT = `
     }
     textStyles.push({
       selector: describe(el),
+      authoredTarget: authoredTargetClaim(el),
+      authoredHome: authoredTargetHome(el),
       tag: tag,
       directTextLen: direct.length,
       // The element's OWN text, capped. Carried for #652: a bounding SENTENCE and a qualifier FRAGMENT
