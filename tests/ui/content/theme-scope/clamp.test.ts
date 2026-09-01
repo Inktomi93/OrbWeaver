@@ -381,18 +381,21 @@ test("a picked background emits --color-reading-plate as base + readingPlate.del
   expect(clampThemeTokens({ background: "oklch(0.158 0.006 60)" }).vars["--color-reading-plate"]).toBe(
     "oklch(from oklch(0.158 0.006 60) calc(l + -0.038) c h / 0.65)",
   );
-  // Named colors are standards-resolved, so their plate gets the same polarity-derived alpha as numeric colors.
-  expect(clampThemeTokens({ background: "rebeccapurple" }).vars["--color-reading-plate"]).toBe("oklch(from rebeccapurple calc(l + -0.038) c h / 0.706)");
+  // Named colors are standards-resolved, so their plate gets the same polarity-derived alpha as numeric
+  // colors. The 0.713 arm includes the framebuffer-headroom target, not merely analytic AA.
+  expect(clampThemeTokens({ background: "rebeccapurple" }).vars["--color-reading-plate"]).toBe("oklch(from rebeccapurple calc(l + -0.038) c h / 0.713)");
   // No base ⇒ no plate (the static token shows through) — the plate is a DERIVATION, never a default.
   expect(clampThemeTokens({ accent: "#abc" }).vars["--color-reading-plate"]).toBeUndefined();
 });
 
 test.each([
-  ["oklch(0.62 0.01 60)", "0.062"],
-  ["oklch(0.6201 0.01 60)", "0.063"],
+  ["oklch(0.62 0.01 60)", "0.025"],
+  ["oklch(0.6201 0.01 60)", "0.033"],
 ] as const)("#969 %s emits the dedicated reading-plate foreground", (background, inkL) => {
   const { vars } = clampThemeTokens({ background });
-  expect(vars["--color-reading-plate"]).toBe(`oklch(from ${background} calc(l + -0.038) c h / 0.95)`);
+  // The pivot pair spends the attainable 4.6 derivation target in both dimensions: a slightly more
+  // opaque plate and the nearest neutral ink that preserves framebuffer margin.
+  expect(vars["--color-reading-plate"]).toBe(`oklch(from ${background} calc(l + -0.038) c h / 0.96)`);
   expect(vars["--color-reading-plate-foreground"]).toBe(`oklch(from ${background} ${inkL} 0 h / 1)`);
 });
 
