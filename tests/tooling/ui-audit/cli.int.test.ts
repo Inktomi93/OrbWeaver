@@ -75,6 +75,155 @@ test("the passing twin exits clean — the red above is the plant, not the harne
   }
 });
 
+// ── tap-target populations (#983): one authored decision, one actionable finding ───────────────────
+
+const TARGET_SIZE_PX = 18;
+
+function repeatedTapTargetsPage(homes: readonly { readonly slot: string; readonly count: number }[]): string {
+  const groups = homes
+    .map(({ slot, count }) => {
+      const controls = Array.from(
+        { length: count },
+        (_unused, index) =>
+          `<button data-slot="tracker-value-rest" aria-label="Reset ${String(index)}" style="width:${String(TARGET_SIZE_PX)}px;height:${String(TARGET_SIZE_PX)}px;padding:0">${String(index)}</button>`,
+      ).join("");
+      return `<section data-slot="${slot}" aria-label="${slot}">${controls}</section>`;
+    })
+    .join("");
+  return `<!doctype html>
+<html data-app-ready="settled"><head><meta charset="utf-8"><title>tap populations</title></head>
+<body style="margin:0;background:#000;color:#fff"><main>${groups}</main></body></html>`;
+}
+
+interface TapPopulationReport {
+  readonly findings: readonly {
+    readonly rule: string;
+    readonly selector: string;
+    readonly representatives?: readonly string[];
+    readonly population?: { readonly affected: number; readonly judged: number; readonly capped: number };
+  }[];
+  readonly populationAccounting?: {
+    readonly "tap-target"?: {
+      readonly candidates: number;
+      readonly judged: number;
+      readonly affected: number;
+      readonly populations: number;
+      readonly emitted: number;
+      readonly withheld: { readonly nestedOwner: number; readonly cap: number };
+    };
+  };
+}
+
+auditRuleTest(
+  [{ rule: "tap-target", kind: "fires", reason: "eleven sibling instances share one authored target and structural-home decision" }],
+  "repeated sibling target instances collapse into one population finding with an honest capped denominator",
+  async ({ runCli, scratch }) => {
+    const reportPath = join(scratch, "tap-population.json");
+    await writeFile(join(scratch, "tap-population.html"), repeatedTapTargetsPage([{ slot: "meter-row", count: 11 }]));
+    const res = await runCli("ui-audit", ["/tap-population.html", "--base", `file://${scratch}`, "--out", reportPath], { timeoutMs: CLI_TIMEOUT_MS });
+    const report = JSON.parse(await readFile(reportPath, "utf8")) as TapPopulationReport;
+    const findings = report.findings.filter((finding) => finding.rule === "tap-target");
+    expect(findings, "one authored target-size decision must not print once per rendered instance").toHaveLength(1);
+    expect(findings[0]?.population).toEqual({ affected: 11, judged: 11, capped: 6 });
+    expect(findings[0]?.representatives).toHaveLength(5);
+    expect(report.populationAccounting?.["tap-target"]).toMatchObject({
+      candidates: 11,
+      judged: 11,
+      affected: 11,
+      populations: 1,
+      emitted: 5,
+      withheld: { nestedOwner: 0, cap: 6 },
+    });
+    await expect(res).toExitWith(1);
+  },
+);
+
+auditRuleTest(
+  [{ rule: "tap-target", kind: "fires", reason: "the same target primitive appears under two distinct authored structural homes" }],
+  "two genuinely distinct target homes remain two findings while each home's siblings collapse",
+  async ({ runCli, scratch }) => {
+    const reportPath = join(scratch, "tap-homes.json");
+    await writeFile(
+      join(scratch, "tap-homes.html"),
+      repeatedTapTargetsPage([
+        { slot: "card-header", count: 3 },
+        { slot: "meter-row", count: 3 },
+      ]),
+    );
+    const res = await runCli("ui-audit", ["/tap-homes.html", "--base", `file://${scratch}`, "--out", reportPath], {
+      timeoutMs: CLI_TIMEOUT_MS,
+    });
+    const report = JSON.parse(await readFile(reportPath, "utf8")) as TapPopulationReport;
+    const findings = report.findings.filter((finding) => finding.rule === "tap-target");
+    expect(findings, "grouping on data-slot=button alone would incorrectly merge these homes").toHaveLength(2);
+    expect(findings.map((finding) => finding.population?.affected).sort()).toEqual([3, 3]);
+    await expect(res).toExitWith(1);
+  },
+);
+
+auditRuleTest(
+  [
+    {
+      rule: "tap-target",
+      kind: "fires",
+      reason: "the historical RPG shape repeats one reset primitive across four distinct authored repair homes",
+    },
+  ],
+  "RPG target populations collapse repeated card instances without merging header, meter, condition, and generic-button decisions",
+  async ({ runCli, scratch }) => {
+    const reportPath = join(scratch, "rpg-target-homes.json");
+    const homes = ["card-header", "meter-row", "rpg-conditions"]
+      .map(
+        (slot) =>
+          `<section data-slot="${slot}"><button data-slot="tracker-value-rest" style="width:18px;height:18px">r</button><button data-slot="tracker-value-rest" style="width:18px;height:18px">r</button></section>`,
+      )
+      .join("");
+    await writeFile(
+      join(scratch, "rpg-target-homes.html"),
+      `<!doctype html>
+<html data-app-ready="settled"><head><meta charset="utf-8"><title>rpg targets</title></head>
+<body style="margin:0;background:#000;color:#fff"><main>${homes}
+  <section data-slot="badge"><button data-slot="button" style="width:18px;height:18px">x</button><button data-slot="button" style="width:18px;height:18px">x</button></section>
+</main></body></html>`,
+    );
+    const res = await runCli("ui-audit", ["/rpg-target-homes.html", "--base", `file://${scratch}`, "--out", reportPath], {
+      timeoutMs: CLI_TIMEOUT_MS,
+    });
+    const report = JSON.parse(await readFile(reportPath, "utf8")) as TapPopulationReport;
+    const findings = report.findings.filter((finding) => finding.rule === "tap-target");
+    expect(findings, "four authored decisions must remain distinguishable after instance collapse").toHaveLength(4);
+    expect(findings.map((finding) => finding.population?.affected)).toEqual([2, 2, 2, 2]);
+    await expect(res).toExitWith(1);
+  },
+);
+
+auditRuleTest(
+  [{ rule: "tap-target", kind: "fires", reason: "a failing interactive child is wholly owned by a failing outer interactive target" }],
+  "a nested failing target is suppressed when the already-reported outer target owns the same failure",
+  async ({ runCli, scratch }) => {
+    const reportPath = join(scratch, "nested-target.json");
+    await writeFile(
+      join(scratch, "nested-target.html"),
+      `<!doctype html>
+<html data-app-ready="settled"><head><meta charset="utf-8"><title>nested target</title></head>
+<body style="margin:0;background:#000;color:#fff"><main>
+  <div data-slot="menu-trigger" role="button" aria-label="Open menu" tabindex="0" style="display:inline-flex;width:18px;height:18px">
+    <span data-slot="button" role="button" aria-label="Open menu icon" tabindex="0" style="display:block;width:10px;height:10px"></span>
+  </div>
+  <button style="width:44px;height:44px">healthy twin</button>
+</main></body></html>`,
+    );
+    const res = await runCli("ui-audit", ["/nested-target.html", "--base", `file://${scratch}`, "--out", reportPath], {
+      timeoutMs: CLI_TIMEOUT_MS,
+    });
+    const report = JSON.parse(await readFile(reportPath, "utf8")) as TapPopulationReport;
+    const findings = report.findings.filter((finding) => finding.rule === "tap-target");
+    expect(findings, "the inner glyph target is not a second authored repair").toHaveLength(1);
+    expect(report.populationAccounting?.["tap-target"]?.withheld.nestedOwner).toBe(1);
+    await expect(res).toExitWith(1);
+  },
+);
+
 // ── control silhouette (#430, from side-eye #420) ────────────────────────────
 
 // @instrument-proof: a planted near-square `role="switch"` (48x44 — the exact pre-#420 coarse geometry,

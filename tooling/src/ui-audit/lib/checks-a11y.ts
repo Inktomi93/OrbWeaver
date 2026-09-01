@@ -1,7 +1,7 @@
 // CONTROL GEOMETRY + navigability: tap targets (pointer-conditional floors) + control silhouette +
 // OBSCURED targets (#816) + accessible names + landmark + tabindex + heading order. Pure; thresholds cited.
 // Provenance: lib/collect.ts header.
-import type { Finding, Severity } from "../contract/findings.ts";
+import type { Finding, RulePopulationAccounting, Severity } from "../contract/findings.ts";
 import type {
   AccessibleNameInput,
   ControlAspectInput,
@@ -56,6 +56,125 @@ export function checkTapTarget(input: TapTargetInput, pointerCoarse: boolean): F
     value: `${Math.round(input.width)}×${Math.round(input.height)}px`,
     message: `interactive element's short side is ${Math.round(shortSide)}px — below WCAG AA's ${TAP_FINE_MIN_PX}px minimum (fine pointer); grow the hit area to ≥${TAP_FINE_MIN_PX}×${TAP_FINE_MIN_PX}px`,
     origin: "orbweaver",
+  };
+}
+
+const TAP_TARGET_REPRESENTATIVE_CAP = 5;
+
+interface TapTargetPopulationResult {
+  readonly findings: readonly Finding[];
+  readonly accounting: RulePopulationAccounting;
+}
+
+interface JudgedTapTarget {
+  readonly input: TapTargetInput;
+  readonly finding: Finding | null;
+}
+
+function tapTargetDecisionKey(input: TapTargetInput): string {
+  // Fixture sample sets predating #983 have no authored identity. Their selector is the only honest
+  // identity available, so they retain the pre-population one-row-per-target contract.
+  return `${input.authoredTarget ?? input.selector}\u0000${input.authoredHome ?? input.selector}`;
+}
+
+function nestedOwnedTargets(rows: readonly JudgedTapTarget[]): ReadonlySet<string> {
+  const failingIds = new Set(rows.flatMap(({ input, finding }) => (finding === null || input.targetId === undefined ? [] : [input.targetId])));
+  const nestedOwned = new Set<string>();
+  for (const { input, finding } of rows) {
+    if (finding !== null && input.targetId !== undefined && (input.ancestorTargetIds ?? []).some((id) => failingIds.has(id))) {
+      nestedOwned.add(input.targetId);
+    }
+  }
+  return nestedOwned;
+}
+
+function targetDecisionGroups(rows: readonly JudgedTapTarget[], nestedOwned: ReadonlySet<string>): ReadonlyMap<string, readonly JudgedTapTarget[]> {
+  const byDecision = new Map<string, JudgedTapTarget[]>();
+  for (const row of rows) {
+    if (row.input.targetId !== undefined && nestedOwned.has(row.input.targetId)) {
+      continue;
+    }
+    const key = tapTargetDecisionKey(row.input);
+    const group = byDecision.get(key);
+    if (group === undefined) {
+      byDecision.set(key, [row]);
+    } else {
+      group.push(row);
+    }
+  }
+  return byDecision;
+}
+
+interface TapTargetFindings {
+  readonly findings: readonly Finding[];
+  readonly affected: number;
+  readonly representatives: number;
+  readonly capped: number;
+}
+
+function targetPopulationFindings(groups: ReadonlyMap<string, readonly JudgedTapTarget[]>): TapTargetFindings {
+  const findings: Finding[] = [];
+  let affected = 0;
+  let representatives = 0;
+  let capped = 0;
+  for (const group of groups.values()) {
+    const measured = group.filter(({ input }) => input.extentTruncated !== true);
+    const failures = measured.filter((row) => row.finding !== null);
+    const first = failures[0];
+    if (first?.finding === null || first === undefined) {
+      continue;
+    }
+    const representativeSelectors = failures.slice(0, TAP_TARGET_REPRESENTATIVE_CAP).map(({ input }) => input.selector);
+    const groupCapped = failures.length - representativeSelectors.length;
+    const severity: "P1" | "P2" = failures.some(({ finding }) => finding?.severity === "P1") ? "P1" : "P2";
+    const sizes = failures.map(({ input }) => Math.round(Math.min(input.width, input.height)));
+    const minSize = Math.min(...sizes);
+    const maxSize = Math.max(...sizes);
+    affected += failures.length;
+    representatives += representativeSelectors.length;
+    capped += groupCapped;
+    findings.push({
+      rule: "tap-target",
+      severity,
+      selector: representativeSelectors[0] ?? first.input.selector,
+      value: `${String(failures.length)} affected of ${String(measured.length)} judged; short side ${String(minSize)}${minSize === maxSize ? "" : `–${String(maxSize)}`}px; ${String(representativeSelectors.length)} representative(s), ${String(groupCapped)} capped`,
+      message:
+        "rendered instances sharing one authored target-size decision miss the pointer-conditional floor — repair the component/home once; the affected population and bounded representative selectors are retained in the report",
+      origin: "orbweaver",
+      representatives: representativeSelectors,
+      population: { affected: failures.length, judged: measured.length, capped: groupCapped },
+    });
+  }
+  return { findings, affected, representatives, capped };
+}
+
+/** Converts per-instance geometry into one actionable row per authored target-size decision. The raw
+ * checker remains public and unchanged; this is the collection contract used by the shipped CLI. */
+export function checkTapTargetPopulations(inputs: readonly TapTargetInput[], pointerCoarse: boolean): TapTargetPopulationResult {
+  const identityRows = inputs.filter(
+    ({ targetId, ancestorTargetIds, authoredTarget, authoredHome }) =>
+      targetId !== undefined && ancestorTargetIds !== undefined && authoredTarget !== undefined && authoredHome !== undefined,
+  ).length;
+  if (identityRows !== 0 && identityRows !== inputs.length) {
+    throw new Error(`INSTRUMENT ERROR: tap-target identity is partial (${String(identityRows)}/${String(inputs.length)})`);
+  }
+  const judged: JudgedTapTarget[] = inputs.map((input) => ({ input, finding: checkTapTarget(input, pointerCoarse) }));
+  const nestedOwned = nestedOwnedTargets(judged);
+  const result = targetPopulationFindings(targetDecisionGroups(judged, nestedOwned));
+  const extentTruncated = inputs.filter((input) => input.extentTruncated === true).length;
+  if (result.affected > inputs.length - extentTruncated || result.representatives + result.capped !== result.affected) {
+    throw new Error("INSTRUMENT ERROR: tap-target population accounting does not settle");
+  }
+  return {
+    findings: result.findings,
+    accounting: {
+      candidates: inputs.length,
+      judged: inputs.length - extentTruncated,
+      affected: result.affected,
+      populations: result.findings.length,
+      emitted: result.representatives,
+      withheld: { extentTruncated, nestedOwner: nestedOwned.size, cap: result.capped },
+    },
   };
 }
 
