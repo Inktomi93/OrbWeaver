@@ -13,6 +13,14 @@ import { isExternalDevtoolsElement } from "./motion-animation-state.ts";
 const initialScan = Promise.withResolvers<void>();
 let initialScanSettled = false;
 
+export interface MotionFlaggerDrainReceipt {
+  readonly requestedGeneration: number;
+  readonly completedGeneration: number;
+}
+
+type MotionFlaggerDrainRequest = () => Promise<MotionFlaggerDrainReceipt>;
+let requestActiveDrain: MotionFlaggerDrainRequest | null = null;
+
 // A throttled scan is still capable of monopolizing one rendered frame under CPU pressure. Keep each
 // idle slice bounded even when the browser reports a timed-out deadline; the next idle task resumes the
 // same lazy tree walk rather than rebuilding a candidate array.
@@ -33,6 +41,19 @@ export interface DeadClassFlaggerOptions {
 /** Measurement harnesses settle the one initial full census before opening an interaction window. */
 export function motionFlaggersSettled(): Promise<void> {
   return initialScan.promise;
+}
+
+/** Wait for every dead-class mutation observed before this call to finish its cooperative scan. The
+ * returned generation is monotonic, so a harness can bind evidence to its own drain rather than reuse
+ * the initial census promise or guess a wall-clock delay. */
+export async function motionFlaggersDrain(): Promise<MotionFlaggerDrainReceipt> {
+  // MutationObserver delivery is a microtask. Yield once so a caller that mutates and drains in the same
+  // task cannot see an idle flagger before the mutation records have reached its pending queue.
+  await Promise.resolve();
+  if (requestActiveDrain === null) {
+    throw new Error("INSTRUMENT ERROR: the motion dead-class flagger is not installed");
+  }
+  return await requestActiveDrain();
 }
 
 function markMotionFlaggersSettled(): void {
@@ -96,6 +117,11 @@ function scanElement(el: Element, defined: ReadonlySet<string>, onDeadClass: Dea
 interface ScanJob {
   current: Element | null;
   readonly walker: TreeWalker | null;
+}
+
+interface DrainWaiter {
+  readonly requestedGeneration: number;
+  readonly resolve: (receipt: MotionFlaggerDrainReceipt) => void;
 }
 
 function scanJob(root: Element, subtree: boolean): ScanJob {
@@ -191,6 +217,27 @@ export function installDeadClassFlagger({ scanIntervalMs, onDeadClass, readDefin
   let lastScan = 0;
   let queued = false;
   let trailingPending = false;
+  let requestedGeneration = 0;
+  let completedGeneration = 0;
+  const drainWaiters: DrainWaiter[] = [];
+  const completeDrainsIfIdle = (): void => {
+    if (queued || jobs.length > 0 || pending.size > 0) {
+      return;
+    }
+    completedGeneration = requestedGeneration;
+    for (const waiter of drainWaiters.splice(0)) {
+      waiter.resolve({ requestedGeneration: waiter.requestedGeneration, completedGeneration });
+    }
+  };
+  requestActiveDrain = (): Promise<MotionFlaggerDrainReceipt> => {
+    requestedGeneration += 1;
+    const generation = requestedGeneration;
+    if (!(queued || jobs.length > 0 || pending.size > 0)) {
+      completedGeneration = generation;
+      return Promise.resolve({ requestedGeneration: generation, completedGeneration });
+    }
+    return new Promise((resolve) => drainWaiters.push({ requestedGeneration: generation, resolve }));
+  };
   const run = (deadline: IdleDeadline): void => {
     revalidated = false;
     if (jobs.length === 0) {
@@ -216,6 +263,7 @@ export function installDeadClassFlagger({ scanIntervalMs, onDeadClass, readDefin
     if (pending.size > 0) {
       maybeScan();
     }
+    completeDrainsIfIdle();
   };
   function scheduleRun(): void {
     queued = true;

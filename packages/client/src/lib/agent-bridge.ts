@@ -21,7 +21,7 @@ import { __resetBusEventRing, busEventRing, busLiveCount } from "./bus-devlog.ts
 import { IS_DEV } from "./dev-flag.ts";
 import { __resetLongTaskEvidence } from "./long-task-tracer.ts";
 import { setFrameDropTrackingPaused } from "./motion-animation-state.ts";
-import { motionFlaggersSettled } from "./motion-dead-class-flagger.ts";
+import { motionFlaggersDrain, motionFlaggersSettled } from "./motion-dead-class-flagger.ts";
 import type { MotionFlagRecord } from "./motion-flaggers.ts";
 import { __resetMotionFlags, installMotionFlaggers, motionFlags } from "./motion-flaggers.ts";
 import type { AnimationRecord, MotionSnapshot } from "./motion-stats.ts";
@@ -193,6 +193,8 @@ interface OrbDebugHandle {
   readonly resetEvidence: () => void;
   /** Wait for the one initial full dev-instrument census before opening a measured interaction window. */
   readonly motionFlaggersSettled: () => Promise<void>;
+  /** Wait for late class/style mutations and return the caller's monotonic drain generation. */
+  readonly motionFlaggersDrain: typeof motionFlaggersDrain;
   /** The live Appearance carrier roster, its two-arm values, and reached DOM populations. */
   readonly appearanceMatrixContract: () => AppearanceMatrixBridgeContract;
   /** Suspend only duplicate in-page [drop] tracking while motion-audit's CDP trace owns that verdict. */
@@ -246,6 +248,7 @@ const ORB_DEBUG_CAPABILITIES = {
   resetFlags: "clear the legacy motion-flag checkpoint",
   resetEvidence: "clear every checkpoint-safe client evidence store",
   motionFlaggersSettled: "wait for the initial motion-flagger census",
+  motionFlaggersDrain: "drain late dead-class mutation work with a monotonic generation receipt",
   appearanceMatrixContract: "read the live Appearance carrier matrix contract and reached subject counts",
   setMotionAuditDropTrackingPaused: "coordinate in-page drop tracking with motion-audit",
   snap: "read a cheap combined bridge overview",
@@ -392,6 +395,7 @@ function installAgentDebugHandleImpl(queryClient: QueryClient, handles: OrbAgent
     resetFlags: __resetMotionFlags,
     resetEvidence,
     motionFlaggersSettled,
+    motionFlaggersDrain,
     appearanceMatrixContract: readAppearanceMatrixContract,
     setMotionAuditDropTrackingPaused: setFrameDropTrackingPaused,
     snap,
@@ -407,7 +411,7 @@ function installAgentDebugHandleImpl(queryClient: QueryClient, handles: OrbAgent
     resetRing,
   };
   console.info(
-    "%c[orb]%c dev introspection ready → %cwindow.__orb%c.capabilities() · .rings()/.resetRing(name) · .snap() · .css.read() · .rpg() · .pluginLog(slug?) · .automationFires({chatId?}) · .queries() · .bus() · .perf() · .renders() · .motion() · .animations() · .flags()/.resetEvidence()/.motionFlaggersSettled()/.setMotionAuditDropTrackingPaused() · .shell() · .durableLocalUserId() · .nav.capabilities/section/openModal/openConfig/contextTab/openChat/openCharacter/closeModal · .seed.game({profile:'d20'|'freeform'})/richGame;  wait on %chtml[data-app-ready]%c.  Docs: packages/client/src/lib/agent-tools.README.md",
+    "%c[orb]%c dev introspection ready → %cwindow.__orb%c.capabilities() · .rings()/.resetRing(name) · .snap() · .css.read() · .rpg() · .pluginLog(slug?) · .automationFires({chatId?}) · .queries() · .bus() · .perf() · .renders() · .motion() · .animations() · .flags()/.resetEvidence()/.motionFlaggersSettled()/.motionFlaggersDrain()/.setMotionAuditDropTrackingPaused() · .shell() · .durableLocalUserId() · .nav.capabilities/section/openModal/openConfig/contextTab/openChat/openCharacter/closeModal · .seed.game({profile:'d20'|'freeform'})/richGame;  wait on %chtml[data-app-ready]%c.  Docs: packages/client/src/lib/agent-tools.README.md",
     "color:#e0a; font-weight:bold",
     "color:#888",
     "color:#0a7; font-weight:bold",

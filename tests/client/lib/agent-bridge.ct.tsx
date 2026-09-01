@@ -35,6 +35,7 @@ test("the mounted bridge publishes every typed capability and every evidence lif
     orb.resetFlags();
     orb.resetEvidence();
     await orb.motionFlaggersSettled();
+    const drain = await orb.motionFlaggersDrain();
     orb.setMotionAuditDropTrackingPaused(true);
     orb.setMotionAuditDropTrackingPaused(false);
     const answers = {
@@ -51,6 +52,7 @@ test("the mounted bridge publishes every typed capability and every evidence lif
       resetFlags: true,
       resetEvidence: true,
       motionFlaggersSettled: true,
+      motionFlaggersDrain: drain.completedGeneration >= drain.requestedGeneration,
       appearanceMatrixContract:
         orb.appearanceMatrixContract().declared === 41 &&
         orb.appearanceMatrixContract().executable === 36 &&
@@ -90,7 +92,7 @@ test("the mounted bridge publishes every typed capability and every evidence lif
       capabilityKeys: receipt.handleKeys,
       answerKeys: receipt.handleKeys,
       allAnswer: true,
-      capabilityCount: 26,
+      capabilityCount: 27,
       descriptionsPresent: true,
       rings: [
         expect.objectContaining({ name: "bus-events", read: "bus().events", lifetime: "checkpoint", resettable: true }),
