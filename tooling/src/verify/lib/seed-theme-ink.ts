@@ -20,7 +20,7 @@ import type { StaticClassCandidate } from "./static-class-expression.ts";
 export interface SeedPalette {
   readonly name: string;
   readonly scheme: "light" | "dark";
-  /** `--color-x` -> the oklch literal this palette resolves it to (light-dark() already collapsed). */
+  /** `--color-x` to the oklch literal this palette resolves it to (light-dark() already collapsed). */
   readonly vars: ReadonlyMap<string, string>;
 }
 
@@ -73,7 +73,7 @@ function declarationsIn(body: string): Map<string, string> {
 }
 
 /** The arm a palette's own color-scheme selects out of a `light-dark(<light>, <dark>)` value. */
-export function polarityArm(value: string, scheme: "light" | "dark"): string {
+function polarityArm(value: string, scheme: "light" | "dark"): string {
   const m = LIGHT_DARK.exec(value.trim());
   if (m === null) {
     return value.trim();

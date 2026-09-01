@@ -3,7 +3,7 @@
 import type { InactiveKind, Rgb } from "@orb/tooling/_shared/wcag";
 // `Backdrop` MOVED to contract/backdrop.ts (see its header). Imported locally because the shapes below
 // USE it, and re-exported below so its consumers keep one import.
-import type { Backdrop } from "./backdrop.ts";
+import type { Backdrop, GlowShadowInput, RadialGlowInput } from "./backdrop.ts";
 import type { ObscuredScanInput, SubjectAccountingInput, ThemeRenderInput } from "./samples-evidence.ts";
 // `RawSamples` at the bottom COMPOSES the interactive-census shapes, so they are imported here as well as
 // re-exported below: a bare `export … from` re-exports a name without binding it locally (tsc catches
@@ -11,7 +11,7 @@ import type { ObscuredScanInput, SubjectAccountingInput, ThemeRenderInput } from
 import type { AccessibleNameInput, ActionDoorInput, CensusReachInput, ControlAspectInput, TabIndexInput, TapTargetInput } from "./samples-interactive.ts";
 import type { RelationalSamples } from "./samples-populations.ts";
 
-export type { Backdrop } from "./backdrop.ts";
+export type { Backdrop, GlowShadowInput, RadialGlowInput } from "./backdrop.ts";
 
 export interface ContrastInput {
   readonly selector: string;
@@ -213,36 +213,10 @@ export interface AccentBorderInput {
   readonly listRowSelected: boolean;
 }
 
-// ── Chromatic glow shadows (impeccable `dark-glow`, sanctioned axes exempt) ──
-// THE OLD "LIMITATION (deliberate)" HERE WAS THE BUG, NOT A LIMIT (2026-09-01). It read: "colors
-// that serialize outside rgb()/rgba() (oklch tokens) are SKIPPED, never guessed — the sanctioned
-// owner glow rides token colors on ::before layers and must not FP here". That reasoning inverts:
-// our tokens are OKLCH-only and raw colours are gate-RED at source, so skipping OKLCH did not
-// protect the sanctioned carriers, it made the rule incapable of firing on anything this app can
-// author. Colours now read through `lib/css-color.ts`; FP safety comes from `sanctioned`, the same
-// walker-tagged carrier flag `RadialGlowInput` has always had.
-export interface GlowShadowInput {
-  readonly selector: string;
-  readonly boxShadow: string;
-  readonly textShadow: string;
-  readonly backdropColor: Rgb | null;
-  /** Walker-tagged exempt: an owner effect carrier, or a pseudo sample that is a DEDICATED glow layer —
-   *  a MECHANISM, never a name list; derived and justified in `ops/walker/census-glow.ts`. Optional so a
-   *  pre-2026-09-01 fixture bundle keeps its verdict instead of silently reading as exempt. */
-  readonly sanctioned?: boolean;
-}
-
-// ── Radial-gradient washes (impeccable `radial-halo` / `radial-spotlight-glow`) ──
-// Sanctioned carriers (tagged by the walker off the owner effect axes) are exempt. Colour reading is
-// `lib/css-color.ts`'s job for this family too — the old rgb/hex-only note here described the same
-// blindness the glow block above records.
-export interface RadialGlowInput {
-  readonly selector: string;
-  readonly value: string;
-  readonly width: number;
-  readonly height: number;
-  readonly sanctioned: boolean;
-}
+// ── Chromatic glow shadows + radial washes ──────────────────────────────────
+// `GlowShadowInput` / `RadialGlowInput` MOVED to contract/backdrop.ts (2026-09-01) — same cycle-break
+// as `Backdrop`: samples-hover.ts carries glow rows on its read results, and importing them from this
+// aggregator closed a type-only `no-circular` loop. Re-exported here so existing consumers are unchanged.
 
 // ── Decorative background patterns (impeccable stripes / grid fields) ────────
 export interface BgPatternInput {
