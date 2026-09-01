@@ -1404,16 +1404,17 @@
     },
     {
       "path": "docs/design/integer-line-boxes.md",
-      "assignedSha256": "a7ab07b40a6e404b9259fce18bb739ca9f3c0603de6bbf883f3f757ee74a6d68",
+      "assignedSha256": "daf687deab3973e974628dba540ccb07344e491123985c2e2d425f69b2321d81",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "a7ab07b40a6e404b9259fce18bb739ca9f3c0603de6bbf883f3f757ee74a6d68",
-      "verifiedCommit": "ed55bf1933c4d653f75d1117c50894b7612805a1",
+      "verifiedSha256": "daf687deab3973e974628dba540ccb07344e491123985c2e2d425f69b2321d81",
+      "verifiedCommit": "a6db3e258a5bf5de3d280dc796b5c509d97cc81e",
       "verifiedAt": "2026-09-01",
       "evidence": [
         "docs/design/integer-line-boxes.md:1 (full read; measured defect, multiplier cross, snapped-dimension architecture, re-pairing sweep, four-arm gate, ramp coherence, declared residuals)",
-        "git:ed55bf1933c4d653f75d1117c50894b7612805a1 (integrated #997 Law-1 design and implementation bytes)"
+        "git:ed55bf1933c4d653f75d1117c50894b7612805a1 (integrated #997 Law-1 design and implementation bytes)",
+        "re-attested at a6db3e258 — #1002 lands Laws 2-4: intro/title truth-repaired (Laws 2-4 no longer 'out of scope'), §9-§12 appended (rest-transform-grid gate; off-grid-transform / promoted-layer-offset / off-grid-text runtime rules; DPR 1/1.25/2 corpus table; reading-surface exemption mirrored). Delta read against the lane report; status stays active until the program closes"
       ],
       "summary": "Active #997 Law-1 design: leadings re-authored as snapped rem dimensions (orb.output snapped -> round(rem,1px)), the SNAPPED_LENGTH_BASE_PX numeric surface, the re-pairing sweep, and the four-arm integer-line-boxes gate, with the reading-surface residual and non-integer-root spacing declared honestly.",
       "claims": [

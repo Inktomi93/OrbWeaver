@@ -251,7 +251,7 @@
         ],
         "summary": "Normative constitution re-read against the split control plane, proposed-program sprint map, and existing package-layout enforcement."
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/architecture/core/Chat-Macro-Resolution.md",
@@ -441,9 +441,9 @@
       "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 384,
-      "bytes": 198123,
-      "sha256": "6cd65aa921a1d750fd547a44b001f66b383a94672bfd6df38f0df6169798d902",
+      "lines": 385,
+      "bytes": 199908,
+      "sha256": "ce8562a99378928f8a9ab574d5289c77d1d725e7e776711226d2ba86fd735108",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -456,12 +456,12 @@
       },
       "receipt": {
         "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
-        "assignedSha256": "6cd65aa921a1d750fd547a44b001f66b383a94672bfd6df38f0df6169798d902",
+        "assignedSha256": "ce8562a99378928f8a9ab574d5289c77d1d725e7e776711226d2ba86fd735108",
         "disposition": "current",
         "authority": "operational",
         "fullRead": true,
-        "verifiedSha256": "6cd65aa921a1d750fd547a44b001f66b383a94672bfd6df38f0df6169798d902",
-        "verifiedCommit": "402bfeeb9272be87ebe3feddbdffcdade663cb27",
+        "verifiedSha256": "ce8562a99378928f8a9ab574d5289c77d1d725e7e776711226d2ba86fd735108",
+        "verifiedCommit": "a6db3e258a5bf5de3d280dc796b5c509d97cc81e",
         "verifiedAt": "2026-09-01",
         "evidence": [
           "re-attested at 9a4bee47ab1b21cd68c291c80e1704b486200dd8 (#995): the agent-bridge-lock row records the lean production readiness home, shared debug Promise/query, and DEV-only bridge boundary; focused CT passed 6/6, gate conformance passed, and check:structure completed 244/244 active gates clean",
@@ -508,7 +508,8 @@
           "re-attested at 214fa1200 after the CSS polarity gate registration: the new ACTIVE row and count delta were read with the landed descriptor; grouped CSS-train verification remains the runtime authority",
           "re-attested at a3c51c5df (#935): appearance-carrier-contract records the schema/editor/live-consumer/portal/prepaint contract and the 241 active-gate count; focused conformance passed 4/4 and the real gate declared and scanned 41/41 keys with zero findings",
           "re-attested at 5d64aa1c651ddf3681835c4c513544cbc2328545 (#894): agent-bridge-lock records the one sanctioned __orb install door, exhaustive typed capability/ring registries, executable mounted CT proofs, and the 244 active-gate count; focused CT passed 5/5, gate conformance and real-tree gate passed, and the normal static hook was green through every non-catalog stage",
-          "docs/architecture/core/Core-Enforcement-Active-Gates.md:1 (delta read at the 2026-09-01 merge: +integer-line-boxes and +seed-theme-ink-contrast rows, count 243->245, merged with main's agent-bridge-lock row edit)"
+          "docs/architecture/core/Core-Enforcement-Active-Gates.md:1 (delta read at the 2026-09-01 merge: +integer-line-boxes and +seed-theme-ink-contrast rows, count 243->245, merged with main's agent-bridge-lock row edit)",
+          "re-attested at a6db3e258 — #1002 registers the rest-transform-grid gate (246→247 active gates; check:structure ran 247/247 on the lane tree); delta read of the added row only"
         ],
         "claims": [
           {
@@ -11673,9 +11674,9 @@
       "path": "docs/design/integer-line-boxes.md",
       "lane": "design",
       "issue": 5,
-      "lines": 255,
-      "bytes": 17326,
-      "sha256": "a7ab07b40a6e404b9259fce18bb739ca9f3c0603de6bbf883f3f757ee74a6d68",
+      "lines": 372,
+      "bytes": 26363,
+      "sha256": "daf687deab3973e974628dba540ccb07344e491123985c2e2d425f69b2321d81",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -11688,16 +11689,17 @@
       },
       "receipt": {
         "path": "docs/design/integer-line-boxes.md",
-        "assignedSha256": "a7ab07b40a6e404b9259fce18bb739ca9f3c0603de6bbf883f3f757ee74a6d68",
+        "assignedSha256": "daf687deab3973e974628dba540ccb07344e491123985c2e2d425f69b2321d81",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "a7ab07b40a6e404b9259fce18bb739ca9f3c0603de6bbf883f3f757ee74a6d68",
-        "verifiedCommit": "ed55bf1933c4d653f75d1117c50894b7612805a1",
+        "verifiedSha256": "daf687deab3973e974628dba540ccb07344e491123985c2e2d425f69b2321d81",
+        "verifiedCommit": "a6db3e258a5bf5de3d280dc796b5c509d97cc81e",
         "verifiedAt": "2026-09-01",
         "evidence": [
           "docs/design/integer-line-boxes.md:1 (full read; measured defect, multiplier cross, snapped-dimension architecture, re-pairing sweep, four-arm gate, ramp coherence, declared residuals)",
-          "git:ed55bf1933c4d653f75d1117c50894b7612805a1 (integrated #997 Law-1 design and implementation bytes)"
+          "git:ed55bf1933c4d653f75d1117c50894b7612805a1 (integrated #997 Law-1 design and implementation bytes)",
+          "re-attested at a6db3e258 — #1002 lands Laws 2-4: intro/title truth-repaired (Laws 2-4 no longer 'out of scope'), §9-§12 appended (rest-transform-grid gate; off-grid-transform / promoted-layer-offset / off-grid-text runtime rules; DPR 1/1.25/2 corpus table; reading-surface exemption mirrored). Delta read against the lane report; status stays active until the program closes"
         ],
         "summary": "Active #997 Law-1 design: leadings re-authored as snapped rem dimensions (orb.output snapped -> round(rem,1px)), the SNAPPED_LENGTH_BASE_PX numeric surface, the re-pairing sweep, and the four-arm integer-line-boxes gate, with the reading-surface residual and non-integer-root spacing declared honestly.",
         "claims": [

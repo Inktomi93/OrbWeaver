@@ -51,8 +51,8 @@ export function hoverCensusResult(parsed: unknown, label: string): HoverCensusRe
   return parsed as HoverCensusResult;
 }
 
-/** The attribute mechanism's SAME-TASK restore proof. It was read as `(JSON.parse(raw) as
- *  HoverAttrReadResult).restored` — the exact cast shape that started this discipline — and an absent
+/** The attribute mechanism's SAME-TASK restore proof. It was read as
+ *  `(JSON.parse(raw) as HoverAttrReadResult).restored` — the exact cast shape that started this discipline — and an absent
  *  flag reads as `undefined`, which is falsy, so a broken read would have withheld every member of the
  *  group as `notRestored` while looking like a working refusal. */
 export function attrRestored(raw: string, label: string): boolean {

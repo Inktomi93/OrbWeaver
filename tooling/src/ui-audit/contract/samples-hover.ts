@@ -153,12 +153,11 @@ export interface HoverGroupReadResult {
   readonly radials: readonly RadialGlowInput[];
 }
 
-/** The attribute read additionally proves its SAME-TASK restore (`restored`); the microtask-delayed
- *  failure class (a listener re-arming the attribute) is caught by the pass-final verify instead —
- *  both checks exist because neither can see the other's failure mode. */
-export interface HoverAttrReadResult extends HoverGroupReadResult {
-  readonly restored: boolean;
-}
+// The attribute read additionally proves its SAME-TASK restore as a `restored` flag beside the group
+// read; the microtask-delayed failure class (a listener re-arming the attribute) is caught by the
+// pass-final verify instead — both checks exist because neither can see the other's failure mode. Since
+// #1004 that flag is settled field-wise at the seam (ops/hover-validate.ts `attrRestored`), so the wire
+// shape carries no separate TS name: a cast-only interface was the exact thing the seam discipline retired.
 
 interface HoverCensusCounters {
   readonly textCandidates: number;
