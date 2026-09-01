@@ -3,11 +3,12 @@
 // `@instrument-proof:` (a planted DEFECT must RED) and `@instrument-absence-proof:` (a removed apparatus /
 // empty population must NOT read clean). Arms per class: (B) a member with no marker; (C) a marker in a
 // NON-member's tree; (D) a malformed bare marker. Plus (A) a member with no tooling/src/<tool>/ dir and
-// (E) an unreadable registry. comments-INTENDED: the marker IS a comment; the matcher anchors on the comment OPENER (mention-fence).
+// (E) an unreadable registry; (F) a member bypassing the shared printVerdict denominator door.
+// comments-INTENDED: the marker IS a comment; the matcher anchors on the comment OPENER (mention-fence).
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import type { SourceFile } from "ts-morph";
-import { SyntaxKind } from "ts-morph";
+import { Node, SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract/gate.ts";
 import { readStringValue, unwrapExpression } from "../lib/ast-read.ts";
 import { fileLoaded } from "../lib/pass.ts";
@@ -52,9 +53,10 @@ interface State {
   members: { readonly name: string; readonly file: string; readonly line: number }[];
   registrySeen: boolean;
   markers: MarkerHit[];
+  bypasses: { readonly file: string; readonly line: number; readonly tool: string }[];
 }
 
-const state: State = { members: [], registrySeen: false, markers: [] };
+const state: State = { members: [], registrySeen: false, markers: [], bypasses: [] };
 
 function relOf(sf: SourceFile): string {
   const abs = sf.getFilePath().replace(/\\/gu, "/");
@@ -104,6 +106,37 @@ function collectMarkers(sf: SourceFile, rel: string): void {
   }
 }
 
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: the import-alias and call-shape branches are the gate's deliberately explicit structural proof.
+function collectVerdictBypasses(sf: SourceFile, rel: string): void {
+  if (!rel.startsWith("tooling/src/")) {
+    return;
+  }
+  const tool = rel.slice("tooling/src/".length).split("/")[0] ?? "";
+  if (tool === "" || tool === "_shared" || tool === "verify") {
+    return;
+  }
+  const localNames = new Set<string>();
+  for (const declaration of sf.getImportDeclarations()) {
+    if (!(declaration.getModuleSpecifierValue().endsWith("_shared/artifacts") || declaration.getModuleSpecifierValue().endsWith("_shared/artifacts.ts"))) {
+      continue;
+    }
+    for (const named of declaration.getNamedImports()) {
+      if (named.getName() === "printResult") {
+        localNames.add(named.getAliasNode()?.getText() ?? named.getName());
+      }
+    }
+  }
+  if (localNames.size === 0) {
+    return;
+  }
+  for (const call of sf.getDescendantsOfKind(SyntaxKind.CallExpression)) {
+    const expression = call.getExpression();
+    if (Node.isIdentifier(expression) && localNames.has(expression.getText())) {
+      state.bypasses.push({ file: rel, line: call.getStartLineNumber(), tool });
+    }
+  }
+}
+
 export const gate: GateDescriptor = {
   name: "tooling-instrument-proof",
   docRow: "Core-Enforcement-Active-Gates.md (docs/architecture/core/Core-Tooling-Law.md §4.5)",
@@ -111,9 +144,9 @@ export const gate: GateDescriptor = {
   scopeSafety: "whole-project",
   fsBacked: true,
   message:
-    "the instrument-proof contract is broken — every INSTRUMENT_TOOLS member owes BOTH a planted-defect proof (`@instrument-proof: <what is planted and what must red>`) AND an absence proof (`@instrument-absence-proof: <what apparatus/population is removed and what must NOT read clean>`) in tests/tooling/<tool>/, both vocabularies are two-sided, and the registry must stay readable (docs/architecture/core/Core-Tooling-Law.md §4.5).",
-  fix: "add the missing marker-carrying proof test (plant the defect, or remove the apparatus and assert the run refuses to read clean), register the tool, or delete the stale/malformed marker.",
-  scanRoot: (p) => p === REGISTRY || p.startsWith(TESTS_PREFIX),
+    "the instrument-proof contract is broken — every INSTRUMENT_TOOLS member owes BOTH proof classes, both vocabularies are two-sided, the registry must stay readable, and registered tools must enter the shared printVerdict denominator door instead of calling printResult directly (docs/architecture/core/Core-Tooling-Law.md §4.5).",
+  fix: "add the missing marker-carrying proof test, register the tool, delete the stale/malformed marker, or route the registered instrument's RESULT through printVerdict with declared denominators.",
+  scanRoot: (p) => p === REGISTRY || p.startsWith(TESTS_PREFIX) || p.startsWith("tooling/src/"),
   visitFile: (sf, _ctx) => {
     const rel = relOf(sf);
     if (rel === REGISTRY) {
@@ -123,12 +156,15 @@ export const gate: GateDescriptor = {
     if (rel.startsWith(TESTS_PREFIX)) {
       collectMarkers(sf, rel);
     }
+    collectVerdictBypasses(sf, rel);
   },
   begin: () => {
     state.members = [];
     state.registrySeen = false;
     state.markers = [];
+    state.bypasses = [];
   },
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: each independent proof arm must remain visible in the gate reconciler.
   run: (ctx) => {
     const anchored = fileLoaded(ctx, ANCHOR);
     if (anchored && !state.registrySeen) {
@@ -178,6 +214,16 @@ export const gate: GateDescriptor = {
           line: h.line,
           column: 0,
           message: `\`${PROOF_CLASSES[h.kind].marker}\` marker in "${h.tool}"'s tree, but "${h.tool}" is not in INSTRUMENT_TOOLS — register it or delete the marker (docs/architecture/core/Core-Tooling-Law.md §4.5).`,
+        });
+      }
+    }
+    for (const bypass of state.bypasses) {
+      if (memberNames.has(bypass.tool)) {
+        ctx.report({
+          file: bypass.file,
+          line: bypass.line,
+          column: 0,
+          message: `registered instrument "${bypass.tool}" calls printResult directly — route its verdict through printVerdict with declared denominators so an empty population cannot read clean (arm F).`,
         });
       }
     }
@@ -238,6 +284,19 @@ export const gate: GateDescriptor = {
       expect: { messageIncludes: "could not be read" },
       why: "the anchor present but the registry gone — the blindness tripwire (arm E)",
     },
+    {
+      files: {
+        "tooling/src/_shared/instruments.ts": 'export const INSTRUMENT_TOOLS = ["snapx"] as const;\n',
+        "tooling/src/_shared/exit-contract.ts": "export const EXIT = 0;\n",
+        "tooling/src/snapx/index.ts": "export {};\n",
+        "tooling/src/snapx/ops/run.ts":
+          'import { printResult as emit } from "../../_shared/artifacts.ts";\nexport function run(): void { emit("snapx", [["findings", 0]]); }\n',
+        "tests/tooling/snapx/proof.test.ts":
+          "// @instrument-proof: plants a defect and asserts red\n// @instrument-absence-proof: empties the population and asserts no clean read\nexport const t = 1;\n",
+      },
+      expect: { messageIncludes: "calls printResult directly" },
+      why: "a registered instrument bypassing the shared denominator door through an aliased printResult import — the sanctioned-door arm F",
+    },
   ],
   mustPass: [
     {
@@ -268,6 +327,18 @@ export const gate: GateDescriptor = {
           '// @instrument-proof: plants a defect and asserts red\n// @instrument-absence-proof: empties the population and asserts no clean read\nconst doc = "the grammar is `// @instrument-absence-proof: <reason>`";\nexport const t = doc;\n',
       },
       why: "DECLARED LIMIT, written down: a marker QUOTED inside a string is a MENTION, not a use — the matcher anchors on the comment OPENER, so documentation of the vocabulary never registers a proof nor trips the two-sided arm",
+    },
+    {
+      files: {
+        "tooling/src/_shared/instruments.ts": 'export const INSTRUMENT_TOOLS = ["snapx"] as const;\n',
+        "tooling/src/_shared/exit-contract.ts": "export const EXIT = 0;\n",
+        "tooling/src/snapx/index.ts": "export {};\n",
+        "tooling/src/snapx/ops/run.ts":
+          'import { printVerdict } from "../../_shared/evidence.ts";\nexport function run(): number { return printVerdict("snapx", { verdict: 0, denominators: { scanned: { value: 1, refuseWhen: "zero" } }, pairs: [["findings", 0]] }); }\n',
+        "tests/tooling/snapx/proof.test.ts":
+          "// @instrument-proof: plants a defect and asserts red\n// @instrument-absence-proof: empties the population and asserts no clean read\nexport const t = 1;\n",
+      },
+      why: "a registered instrument entering the shared verdict door with an explicit non-zero denominator — the honourable arm F shape",
     },
   ],
 };

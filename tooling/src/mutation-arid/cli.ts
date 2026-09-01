@@ -3,7 +3,8 @@
 // the evidence a `break` recalibration rests on when its rules change.
 // Exit: 0 census printed · 2 the report could not be read · 3 bad arguments.
 import process from "node:process";
-import { print, printResult } from "../_shared/artifacts.ts";
+import { print } from "../_shared/artifacts.ts";
+import { printVerdict } from "../_shared/evidence.ts";
 import { EXIT } from "../_shared/exit-contract.ts";
 import { runTool, UsageError } from "../_shared/run-tool.ts";
 import { aridCensus } from "./index.ts";
@@ -33,13 +34,16 @@ function main(): number {
   for (const row of census.byReason) {
     print(`${String(row.count).padStart(COUNT_COLUMN)}  ${row.reason}`);
   }
-  printResult("mutation-arid", [
-    ["report", census.reportPath],
-    ["ignored", census.ignored],
-    ["scoredDenominator", census.scoredDenominator],
-    ["reasons", census.byReason.length],
-  ]);
-  return EXIT.clean;
+  return printVerdict("mutation-arid", {
+    verdict: EXIT.clean,
+    denominators: { scoredDenominator: { value: census.scoredDenominator, refuseWhen: "zero" } },
+    pairs: [
+      ["report", census.reportPath],
+      ["ignored", census.ignored],
+      ["scoredDenominator", census.scoredDenominator],
+      ["reasons", census.byReason.length],
+    ],
+  });
 }
 
 await runTool(main);

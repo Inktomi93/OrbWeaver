@@ -51,6 +51,9 @@ test("the passing twin exits clean — the red above is the plant, not the harne
   // ZERO HYGIENE (#409): "no P1s" is only a verdict when the walk actually censused nodes.
   const census = CENSUS_RE.exec(res.stdout)?.[1];
   expect(Number(census)).toBeGreaterThan(0);
+  for (const family of ["a11y", "color", "decor", "media", "ornament", "quality", "structure", "typography"]) {
+    expect(res.stdout).toMatch(new RegExp(`scanned-${family}=[1-9]\\d*`, "u"));
+  }
 });
 
 // ── control silhouette (#430, from side-eye #420) ────────────────────────────

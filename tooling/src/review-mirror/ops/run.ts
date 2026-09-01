@@ -6,8 +6,9 @@
 import { writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { print, printResult, REPO_ROOT } from "../../_shared/artifacts.ts";
+import { print, REPO_ROOT } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { printVerdict } from "../../_shared/evidence.ts";
 import { EXIT } from "../../_shared/exit-contract.ts";
 import { getWorkspace } from "../../_shared/ts-workspace.ts";
 import type { ReviewMirrorEvidence } from "../contract/types.ts";
@@ -35,7 +36,7 @@ export interface RunReviewMirrorOptions {
 }
 
 export interface RunReviewMirrorResult {
-  readonly code: typeof EXIT.clean;
+  readonly code: number;
   readonly evidencePath: string;
   /** The resolved absolute path of the tracked deposit when `evidenceOut` was requested, else null. */
   readonly trackedEvidencePath: string | null;
@@ -69,11 +70,19 @@ export function runReviewMirror(options: RunReviewMirrorOptions = {}): RunReview
     print(`tracked evidence: ${trackedEvidencePath} (commit this to link the sweep's findings to its board issue)`);
   }
   print(`next: review the mirror without source comments; use ${EVIDENCE_NAME} as the E5/E6/E7 scope receipt`);
-  printResult("review-mirror", [
-    ["tracked", mirror.tracked],
-    ["code", mirror.mirroredCode],
-    ["controls", evidence.pendingGuard.directControls],
-    ["reviewResidual", evidence.pendingGuard.reviewResiduals],
-  ]);
-  return { code: EXIT.clean, evidencePath, trackedEvidencePath, evidence };
+  const code = printVerdict("review-mirror", {
+    verdict: EXIT.clean,
+    denominators: {
+      tracked: { value: mirror.tracked, refuseWhen: "zero" },
+      code: { value: mirror.mirroredCode, refuseWhen: "zero" },
+      controls: { value: evidence.pendingGuard.directControls, refuseWhen: "zero" },
+    },
+    pairs: [
+      ["tracked", mirror.tracked],
+      ["code", mirror.mirroredCode],
+      ["controls", evidence.pendingGuard.directControls],
+      ["reviewResidual", evidence.pendingGuard.reviewResiduals],
+    ],
+  });
+  return { code, evidencePath, trackedEvidencePath, evidence };
 }

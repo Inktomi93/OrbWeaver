@@ -22,8 +22,9 @@ import type { ChatId, SocketId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { AppRouter } from "@orb/server/transport/trpc";
 import { createTRPCClient, httpBatchLink, httpSubscriptionLink, splitLink } from "@trpc/client";
-import { print, printResult } from "../../_shared/artifacts.ts";
+import { print } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { printVerdict } from "../../_shared/evidence.ts";
 import { EXIT } from "../../_shared/exit-contract.ts";
 import { UsageError } from "../../_shared/run-tool.ts";
 
@@ -82,14 +83,18 @@ function buildClient(env: SseEnv): ReturnType<typeof createTRPCClient<AppRouter>
 /** The tap's closing census (#409). An empty population is reported, never implied: a bare
  *  "connection closed" after zero frames looks identical to a successful tap of a busy room, and the
  *  withhold-not-throw gate means silence can also mean "you are not a member of this chat". */
-function reportFrames(frames: number): void {
+function reportFrames(frames: number, verdict: number): number {
   if (frames === 0) {
     print("· NO frames delivered — silence here can mean you are NOT A MEMBER of that chat (the withhold-not-throw gate), not only that the room was quiet");
   }
-  printResult("wire-tap", [
-    ["op", "sse"],
-    ["frames", frames],
-  ]);
+  return printVerdict("wire-tap", {
+    verdict,
+    denominators: { frames: { value: frames, refuseWhen: "zero", ...(frames === 0 ? { honestEmpty: "healthy SSE connection delivered no frames" } : {}) } },
+    pairs: [
+      ["op", "sse"],
+      ["frames", frames],
+    ],
+  });
 }
 
 export async function sseOp(argv: readonly string[]): Promise<number> {
@@ -146,21 +151,18 @@ export async function sseOp(argv: readonly string[]): Promise<number> {
         },
         onError: (err) => {
           process.stderr.write(`! error: ${err.message}\n`);
-          reportFrames(frames);
-          resolve(EXIT.violations);
+          resolve(reportFrames(frames, EXIT.violations));
         },
         onComplete: () => {
           process.stdout.write("· connection closed\n");
-          reportFrames(frames);
-          resolve(EXIT.clean);
+          resolve(reportFrames(frames, EXIT.clean));
         },
       },
     );
     process.on("SIGINT", () => {
       sub.unsubscribe();
       process.stdout.write("\n· interrupted\n");
-      reportFrames(frames);
-      resolve(EXIT.clean);
+      resolve(reportFrames(frames, EXIT.clean));
     });
   });
 }

@@ -6,7 +6,8 @@
 // Exit: 0 no real survivors in range · 1 real survivors confirmed · 2 the probe could not measure
 // (report drift, uncovered path, zero reported survivors, no mirror suite) · 3 bad arguments.
 import process from "node:process";
-import { print, printResult } from "../_shared/artifacts.ts";
+import { print } from "../_shared/artifacts.ts";
+import { printVerdict } from "../_shared/evidence.ts";
 import { EXIT } from "../_shared/exit-contract.ts";
 import { runTool, UsageError } from "../_shared/run-tool.ts";
 import { probeMutants } from "./index.ts";
@@ -62,26 +63,28 @@ function main(): number {
   for (const r of summary.receipts.filter((x) => !(x.killed || x.timedOut))) {
     print(`SURVIVED  ${summary.sourceRel}:${r.line}:${r.column}  ${r.mutator}${r.noop ? "  (NOOP-REPLACEMENT)" : ""}`);
   }
-  printResult("mutation-probe", [
-    ["source", summary.sourceRel],
-    ["specs", summary.specs.join(" ")],
-    ["reported", summary.reportedSurvivors],
-    ["measured", summary.measured],
-    ["killed", summary.killed],
-    ["survived", summary.stillSurvived],
-    ["timedOut", summary.timedOut],
-    ["noop", summary.noopReplacements],
-    ["reportedNoCoverage", summary.reportedNoCoverage],
-    ["reportedTotal(completeness)", summary.reportedTotal],
-    ["falselyUncovered", summary.falselyUncovered],
-    ["receipts", summary.receiptsPath],
-  ]);
-  // A timed-out mutant was never measured — reporting clean over it would be exactly the absent-evidence
-  // lie this tool exists to catch, so an unmeasured run is a tool error, never a pass.
+  let verdict: number = summary.stillSurvived === 0 && summary.falselyUncovered === 0 ? EXIT.clean : EXIT.violations;
   if (summary.timedOut > 0) {
-    return EXIT.toolError;
+    verdict = EXIT.toolError;
   }
-  return summary.stillSurvived === 0 && summary.falselyUncovered === 0 ? EXIT.clean : EXIT.violations;
+  return printVerdict("mutation-probe", {
+    verdict,
+    denominators: { measured: { value: summary.measured, refuseWhen: "zero" } },
+    pairs: [
+      ["source", summary.sourceRel],
+      ["specs", summary.specs.join(" ")],
+      ["reported", summary.reportedSurvivors],
+      ["measured", summary.measured],
+      ["killed", summary.killed],
+      ["survived", summary.stillSurvived],
+      ["timedOut", summary.timedOut],
+      ["noop", summary.noopReplacements],
+      ["reportedNoCoverage", summary.reportedNoCoverage],
+      ["reportedTotal(completeness)", summary.reportedTotal],
+      ["falselyUncovered", summary.falselyUncovered],
+      ["receipts", summary.receiptsPath],
+    ],
+  });
 }
 
 await runTool(main);

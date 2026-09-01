@@ -28,9 +28,9 @@ import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
 import { errorMessage } from "@orb/kit/error-message";
 import type { RequestTrace } from "@orb/server/foundation/observability";
-import { print, printResult, REPO_ROOT } from "../../_shared/artifacts.ts";
+import { print, REPO_ROOT } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import { instrumentError } from "../../_shared/evidence.ts";
+import { instrumentError, printVerdict } from "../../_shared/evidence.ts";
 import { EXIT } from "../../_shared/exit-contract.ts";
 import { spawnNicedChild } from "../../_shared/proc.ts";
 import { fireEvidenceGap } from "../lib/evidence.ts";
@@ -223,15 +223,23 @@ export async function fireOp(argv: readonly string[]): Promise<number> {
         "trace:fire — no response carried X-Request-Id: the foundation observability middleware is NOT mounted at entry/ (regression tripwire; initTracing is expected wired at entry/lifecycle.ts)\n",
       );
     }
-    printResult("probe-fire", [
-      ["requests", batch.fired],
-      ["failures", batch.failures],
-      ["traces", unwired ? "UNWIRED" : rendered],
-    ]);
+    let verdict: number = batch.failures > 0 ? EXIT.violations : EXIT.clean;
     if (gap !== null) {
-      return instrumentError(gap);
+      verdict = EXIT.toolError;
     }
-    return batch.failures > 0 ? EXIT.violations : EXIT.clean;
+    const code = printVerdict("probe-fire", {
+      verdict,
+      denominators: { requests: { value: batch.fired, refuseWhen: "zero" } },
+      pairs: [
+        ["requests", batch.fired],
+        ["failures", batch.failures],
+        ["traces", unwired ? "UNWIRED" : rendered],
+      ],
+    });
+    if (gap !== null) {
+      instrumentError(gap);
+    }
+    return code;
   };
 
   try {

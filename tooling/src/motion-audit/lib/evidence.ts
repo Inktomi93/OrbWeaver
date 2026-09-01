@@ -1,9 +1,10 @@
 // ZERO HYGIENE (#409) — motion-audit's half of the fleet rule in _shared/evidence.ts (read that first):
 // an audit whose evidence population is EMPTY has measured nothing, and `0%` / `PASS` over nothing is a
 // smoothness claim nothing observed. Pure over the collected data — ops/ prints and maps to EXIT.toolError.
-import { print, printResult } from "@orb/tooling/_shared/artifacts";
+import { print } from "@orb/tooling/_shared/artifacts";
 import type { EvidenceGap } from "@orb/tooling/_shared/evidence";
-import { INSTRUMENT_ERROR_VERDICT, printEvidenceGaps } from "@orb/tooling/_shared/evidence";
+import { INSTRUMENT_ERROR_VERDICT, printEvidenceGaps, printVerdict } from "@orb/tooling/_shared/evidence";
+import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import type { AuditData } from "../contract/types.ts";
 
 /** The app's in-page instrument is motion-audit's INPUT CONTRACT: `__orb` carries the LoAF ring, the CLS
@@ -86,8 +87,12 @@ export function motionEvidenceGaps(data: AuditData, windowMs: number): EvidenceG
 export function reportInstrumentError(url: string, gap: EvidenceGap): void {
   print(`URL         ${url}`);
   printEvidenceGaps([gap]);
-  printResult("motion-audit", [
-    ["verdict", INSTRUMENT_ERROR_VERDICT],
-    ["absent-evidence", gap.evidence],
-  ]);
+  printVerdict("motion-audit", {
+    verdict: EXIT.toolError,
+    denominators: {},
+    pairs: [
+      ["verdict", INSTRUMENT_ERROR_VERDICT],
+      ["absent-evidence", gap.evidence],
+    ],
+  });
 }
