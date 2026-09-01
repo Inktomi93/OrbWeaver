@@ -1,4 +1,4 @@
-// STATIC string evaluation for the CODE config registries (#614) — `eslint.config.js` and
+// STATIC source reading plus string evaluation for CODE registries (#614) — `eslint.config.js` and
 // `.dependency-cruiser.cjs` are JS/CJS, so a file-exact row hides behind a named const, an array const, a
 // spread, or a template literal built from consts. A gate that reads only bare StringLiterals there would
 // SILENTLY SEE ALMOST NOTHING and print a clean zero over a registry it never read — the lying-proof class
@@ -118,18 +118,18 @@ function readValueInner(node: Node, seen: Set<Node>): StaticRead {
   return refuse(node);
 }
 
-// ── the config-file reader ────────────────────────────────────────────────────────────────────────────
-/** ONE scratch parser for the repo-ROOT code configs. They are genuinely outside the shared workspace
- *  (`harnessGlobs` covers `packages/*​/src`, `tests/`, `tooling/src/` — never a root `.js`/`.cjs`), so
- *  `getWorkspace()` structurally cannot serve them; this is the `comment-spans.ts` / `baseui-read.ts`
- *  precedent and it carries a cited `PROJECT_SITES` row in `tooling-shared-plumbing.ts`. Each config is
- *  created at its OWN path, so the overwrite-identity trap (GATE-AUTHORING.md §5 — one reused SourceFile
- *  object answering every later call with the FIRST file's text) cannot arise between the two configs. */
+// ── the file reader ───────────────────────────────────────────────────────────────────────────────────
+/** ONE scratch parser for exact code files outside the governed shared-workspace corpus. The root configs
+ *  and Playwright's CT bootstrap are intentionally outside that corpus (`harnessGlobs` covers
+ *  `packages/*​/src`, `tests/`, `tooling/src/` — never a root `.js`/`.cjs` or `playwright/`), so `getWorkspace()` structurally
+ *  cannot serve them without widening every gate's jurisdiction. This is the `comment-spans.ts` /
+ *  `baseui-read.ts` precedent and carries a cited `PROJECT_SITES` row in `tooling-shared-plumbing.ts`.
+ *  Each file is created at its OWN path, so the overwrite-identity trap (GATE-AUTHORING.md §5 — one reused SourceFile
+ *  object answering every later call with the FIRST file's text) cannot arise between reads. */
 const scratch = new Project({ useInMemoryFileSystem: true, compilerOptions: { allowJs: true } });
 
-/** Read + parse a repo-relative JS/CJS config. Missing and SYNTACTICALLY BROKEN both refuse loudly — a
- *  silently-defaulted lint/import config would make every verdict downstream of it a lie. */
-export function readConfigSource(root: string, rel: string): ConfigRead {
+/** Read + parse one repo-relative source. Missing and SYNTACTICALLY BROKEN both refuse loudly. */
+export function readStaticSource(root: string, rel: string): ConfigRead {
   const abs = `${root}/${rel}`;
   if (!existsSync(abs)) {
     return { kind: "missing" };
@@ -143,6 +143,11 @@ export function readConfigSource(root: string, rel: string): ConfigRead {
     return { kind: "unparseable", detail: typeof message === "string" ? message : message.getMessageText() };
   }
   return { kind: "ok", sf, text };
+}
+
+/** Config-owner spelling retained for the two registry readers; parsing still has one implementation. */
+export function readConfigSource(root: string, rel: string): ConfigRead {
+  return readStaticSource(root, rel);
 }
 
 /** Walk a parsed config for the given property KEYS, statically evaluate each value, and classify it.

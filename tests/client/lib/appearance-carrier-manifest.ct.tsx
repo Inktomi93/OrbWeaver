@@ -2,12 +2,12 @@ import type { AppearanceSettings } from "@orb/contracts/settings";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import type { AppearanceCarrierObservable } from "../../../../../packages/client/src/lib/appearance-carrier-manifest.ts";
-import { APPEARANCE_CARRIER_OBSERVABLES } from "../../../../../packages/client/src/lib/appearance-carrier-manifest.ts";
-import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
-import type { AppearanceCarrierSnapshot } from "../../../lib/appearance-carrier-matrix.ts";
-import { appearanceSettingsForCarrierArm, compareAppearanceCarrierArms } from "../../../lib/appearance-carrier-matrix.ts";
-import { AppearanceCarrierStory } from "../_ct-stories.tsx";
+import type { AppearanceCarrierObservable } from "../../../packages/client/src/lib/appearance-carrier-manifest.ts";
+import { APPEARANCE_CARRIER_OBSERVABLES } from "../../../packages/client/src/lib/appearance-carrier-manifest.ts";
+import { routeTrpc } from "../../support/ct/route-trpc.ts";
+import { AppearanceCarrierStory } from "../features/app-shell/_ct-stories.tsx";
+import type { AppearanceCarrierSnapshot } from "./appearance-carrier-matrix.ts";
+import { appearanceSettingsForCarrierArm, compareAppearanceCarrierArms } from "./appearance-carrier-matrix.ts";
 
 function readCarrierSnapshot(page: Page): Promise<Partial<AppearanceCarrierSnapshot>> {
   return page.evaluate((observables): Partial<AppearanceCarrierSnapshot> => {

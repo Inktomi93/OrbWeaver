@@ -1,16 +1,18 @@
 import type { AppearanceSettings } from "@orb/contracts/settings";
-import { DEFAULT_APPEARANCE_SETTINGS } from "@orb/contracts/settings";
+import { appearanceSettingsSchema, DEFAULT_APPEARANCE_SETTINGS } from "@orb/contracts/settings";
 import { APPEARANCE_CARRIER_MANIFEST, APPEARANCE_CARRIER_OBSERVABLES } from "../../../packages/client/src/lib/appearance-carrier-manifest.ts";
 
-export type ArmedAppearanceCarrierKey = keyof typeof APPEARANCE_CARRIER_OBSERVABLES;
+type ArmedAppearanceCarrierKey = keyof typeof APPEARANCE_CARRIER_OBSERVABLES;
 export type AppearanceCarrierSnapshot = Record<ArmedAppearanceCarrierKey, string | null>;
 
 export function appearanceSettingsForCarrierArm(arm: 0 | 1, backgroundKindUnderTest = false): AppearanceSettings {
-  const settings = { ...DEFAULT_APPEARANCE_SETTINGS };
-  const writable = settings as unknown as Record<string, unknown>;
-  for (const key of Object.keys(APPEARANCE_CARRIER_OBSERVABLES) as ArmedAppearanceCarrierKey[]) {
-    writable[key] = APPEARANCE_CARRIER_MANIFEST[key].requiredDistinctArms[arm];
-  }
+  const overrides = Object.fromEntries(
+    (Object.keys(APPEARANCE_CARRIER_OBSERVABLES) as ArmedAppearanceCarrierKey[]).map((key) => [
+      key,
+      APPEARANCE_CARRIER_MANIFEST[key].requiredDistinctArms[arm],
+    ]),
+  );
+  const settings = appearanceSettingsSchema.parse({ ...DEFAULT_APPEARANCE_SETTINGS, ...overrides });
   settings.backgroundSeededId = "misty-highlands";
   if (!backgroundKindUnderTest) {
     settings.backgroundImageKind = "seeded";

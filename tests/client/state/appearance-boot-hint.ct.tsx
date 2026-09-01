@@ -8,6 +8,7 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
+import { isSeedThemeName } from "../../../packages/client/src/state/appearance-boot-hint.ts";
 import { AppearanceBootHintProbe } from "./_ct-stories.tsx";
 
 /** The store's own key (`createPersistedStore("appearance-boot")`) on a browser with no identity bound. */
@@ -24,6 +25,13 @@ async function seed(page: Page, state: Record<string, unknown>): Promise<void> {
   });
   await page.reload();
 }
+
+test("only generated seed palettes are accepted as boot theme names", () => {
+  expect(isSeedThemeName("light")).toBe(true);
+  expect(isSeedThemeName("mocha")).toBe(true);
+  expect(isSeedThemeName("hearth")).toBe(false);
+  expect(isSeedThemeName("not-a-palette")).toBe(false);
+});
 
 test("a device that remembers a LOUD appearance stamps motion, scale and theme before anything renders", async ({ mount, page }) => {
   await seed(page, { reducedMotion: true, fontScale: 1.25, density: "compact", dataTheme: "light" });
