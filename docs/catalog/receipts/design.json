@@ -1356,6 +1356,88 @@
         }
       ],
       "summary": "The living concept→word map: room seats are Characters, the saved template is a Roster (code rosterPreset, conforming), roster is reserved and never spent as English for a list, the rpg register is fenced with the chat word winning at the boundary, and castId is deliberately no-action. Prose-enforced by owner ruling with no gate; the enforcement section records the wave-union defect that produced it."
+    },
+    {
+      "path": "docs/design/state-paint-census.md",
+      "assignedSha256": "0aaa4bb36826166ea583c9457c19d14e007d7e5fd4ae44fc782235d7070d9684",
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "0aaa4bb36826166ea583c9457c19d14e007d7e5fd4ae44fc782235d7070d9684",
+      "verifiedCommit": "ed55bf1933c4d653f75d1117c50894b7612805a1",
+      "verifiedAt": "2026-09-01",
+      "evidence": [
+        "docs/design/state-paint-census.md:1 (full read; defect class, one-segment architecture, attribute classification, rejected alternatives, coupled sites, two-direction test plan, ratified CTA-glow exemption)",
+        "git:ed55bf1933c4d653f75d1117c50894b7612805a1 (integrated #996 design and implementation bytes)"
+      ],
+      "summary": "Active #996 design for the state-paint census: one escape-aware :hover predicate + classified Base UI attribute-state vocabulary replacing three blind walker sites, attribute forcing riding the existing forced-state pass, population polarity named per withheld class, and the owner-ratified token-derivation CTA-glow exemption.",
+      "claims": [
+        {
+          "claim": "One shared walker segment (ops/walker/state-paint.ts) is the single home for the escape-aware :hover predicate, the state-attribute vocabulary, and the glow-layer vocabulary, composed into both page programs.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#996"
+            },
+            {
+              "kind": "code",
+              "target": "tooling/src/ui-audit/ops/walker/state-paint.ts:1"
+            }
+          ]
+        },
+        {
+          "claim": "The CTA-glow exemption is a measured token-derivation mechanism (computed box-shadow equals the resolved --shadow-cta-glow on that element), ratified with a fresh composition receipt, never a name list.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "tooling/src/ui-audit/ops/walker/state-paint.ts:1"
+            },
+            {
+              "kind": "test",
+              "target": "tests/tooling/ui-audit/ops/walker/state-paint.int.test.ts:1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/design/integer-line-boxes.md",
+      "assignedSha256": "a7ab07b40a6e404b9259fce18bb739ca9f3c0603de6bbf883f3f757ee74a6d68",
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "a7ab07b40a6e404b9259fce18bb739ca9f3c0603de6bbf883f3f757ee74a6d68",
+      "verifiedCommit": "ed55bf1933c4d653f75d1117c50894b7612805a1",
+      "verifiedAt": "2026-09-01",
+      "evidence": [
+        "docs/design/integer-line-boxes.md:1 (full read; measured defect, multiplier cross, snapped-dimension architecture, re-pairing sweep, four-arm gate, ramp coherence, declared residuals)",
+        "git:ed55bf1933c4d653f75d1117c50894b7612805a1 (integrated #997 Law-1 design and implementation bytes)"
+      ],
+      "summary": "Active #997 Law-1 design: leadings re-authored as snapped rem dimensions (orb.output snapped -> round(rem,1px)), the SNAPPED_LENGTH_BASE_PX numeric surface, the re-pairing sweep, and the four-arm integer-line-boxes gate, with the reading-surface residual and non-integer-root spacing declared honestly.",
+      "claims": [
+        {
+          "claim": "Every leading token except none is a snapped rem dimension resolving to integer px at the 16px root, belted by round(rem,1px) across the continuous font-scale range.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#997"
+            },
+            {
+              "kind": "gate",
+              "target": "tooling/src/verify/gates/integer-line-boxes.ts:1"
+            }
+          ]
+        },
+        {
+          "claim": "The reading surface (--reading-line-height, user-authored continuous knob) is a declared residual carried as the gate's typed exemption, not silently passed.",
+          "evidence": [
+            {
+              "kind": "gate",
+              "target": "tooling/src/verify/gates/integer-line-boxes.ts:1"
+            }
+          ]
+        }
+      ]
     }
   ]
 }

@@ -440,9 +440,9 @@
       "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 382,
-      "bytes": 194508,
-      "sha256": "73a8838859131ee80dcce22bf29247388ed2cf66618e3f99e1e984ac1b7fa671",
+      "lines": 384,
+      "bytes": 198123,
+      "sha256": "6cd65aa921a1d750fd547a44b001f66b383a94672bfd6df38f0df6169798d902",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -455,12 +455,12 @@
       },
       "receipt": {
         "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
-        "assignedSha256": "a3f6589bb2bd0035da31297dcb83438f3e979858bca8654ba7ea3b1e3e0eb768",
+        "assignedSha256": "6cd65aa921a1d750fd547a44b001f66b383a94672bfd6df38f0df6169798d902",
         "disposition": "current",
         "authority": "operational",
         "fullRead": true,
-        "verifiedSha256": "73a8838859131ee80dcce22bf29247388ed2cf66618e3f99e1e984ac1b7fa671",
-        "verifiedCommit": "9a4bee47ab1b21cd68c291c80e1704b486200dd8",
+        "verifiedSha256": "6cd65aa921a1d750fd547a44b001f66b383a94672bfd6df38f0df6169798d902",
+        "verifiedCommit": "402bfeeb9272be87ebe3feddbdffcdade663cb27",
         "verifiedAt": "2026-09-01",
         "evidence": [
           "re-attested at 9a4bee47ab1b21cd68c291c80e1704b486200dd8 (#995): the agent-bridge-lock row records the lean production readiness home, shared debug Promise/query, and DEV-only bridge boundary; focused CT passed 6/6, gate conformance passed, and check:structure completed 244/244 active gates clean",
@@ -506,7 +506,8 @@
           "re-attested at the #909 docs truth-repair merge (32bf93f3e): the lane's three-way rule applied per hit — concept prose takes the ruled word, every code symbol is quoted as it stands with its owning issue named, owner-sacred prose flagged not edited; verdict list read by the orchestrator",
           "re-attested at 214fa1200 after the CSS polarity gate registration: the new ACTIVE row and count delta were read with the landed descriptor; grouped CSS-train verification remains the runtime authority",
           "re-attested at a3c51c5df (#935): appearance-carrier-contract records the schema/editor/live-consumer/portal/prepaint contract and the 241 active-gate count; focused conformance passed 4/4 and the real gate declared and scanned 41/41 keys with zero findings",
-          "re-attested at 5d64aa1c651ddf3681835c4c513544cbc2328545 (#894): agent-bridge-lock records the one sanctioned __orb install door, exhaustive typed capability/ring registries, executable mounted CT proofs, and the 244 active-gate count; focused CT passed 5/5, gate conformance and real-tree gate passed, and the normal static hook was green through every non-catalog stage"
+          "re-attested at 5d64aa1c651ddf3681835c4c513544cbc2328545 (#894): agent-bridge-lock records the one sanctioned __orb install door, exhaustive typed capability/ring registries, executable mounted CT proofs, and the 244 active-gate count; focused CT passed 5/5, gate conformance and real-tree gate passed, and the normal static hook was green through every non-catalog stage",
+          "docs/architecture/core/Core-Enforcement-Active-Gates.md:1 (delta read at the 2026-09-01 merge: +integer-line-boxes and +seed-theme-ink-contrast rows, count 243->245, merged with main's agent-bridge-lock row edit)"
         ],
         "claims": [
           {
@@ -11667,6 +11668,64 @@
       "receiptCurrent": true
     },
     {
+      "path": "docs/design/integer-line-boxes.md",
+      "lane": "design",
+      "issue": 5,
+      "lines": 255,
+      "bytes": 17326,
+      "sha256": "a7ab07b40a6e404b9259fce18bb739ca9f3c0603de6bbf883f3f757ee74a6d68",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "design",
+          "status": "active",
+          "updated": "2026-09-01"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/design/integer-line-boxes.md",
+        "assignedSha256": "a7ab07b40a6e404b9259fce18bb739ca9f3c0603de6bbf883f3f757ee74a6d68",
+        "disposition": "current",
+        "authority": "design",
+        "fullRead": true,
+        "verifiedSha256": "a7ab07b40a6e404b9259fce18bb739ca9f3c0603de6bbf883f3f757ee74a6d68",
+        "verifiedCommit": "ed55bf1933c4d653f75d1117c50894b7612805a1",
+        "verifiedAt": "2026-09-01",
+        "evidence": [
+          "docs/design/integer-line-boxes.md:1 (full read; measured defect, multiplier cross, snapped-dimension architecture, re-pairing sweep, four-arm gate, ramp coherence, declared residuals)",
+          "git:ed55bf1933c4d653f75d1117c50894b7612805a1 (integrated #997 Law-1 design and implementation bytes)"
+        ],
+        "summary": "Active #997 Law-1 design: leadings re-authored as snapped rem dimensions (orb.output snapped -> round(rem,1px)), the SNAPPED_LENGTH_BASE_PX numeric surface, the re-pairing sweep, and the four-arm integer-line-boxes gate, with the reading-surface residual and non-integer-root spacing declared honestly.",
+        "claims": [
+          {
+            "claim": "Every leading token except none is a snapped rem dimension resolving to integer px at the 16px root, belted by round(rem,1px) across the continuous font-scale range.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#997"
+              },
+              {
+                "kind": "gate",
+                "target": "tooling/src/verify/gates/integer-line-boxes.ts:1"
+              }
+            ]
+          },
+          {
+            "claim": "The reading surface (--reading-line-height, user-authored continuous knob) is a declared residual carried as the gate's typed exemption, not silently passed.",
+            "evidence": [
+              {
+                "kind": "gate",
+                "target": "tooling/src/verify/gates/integer-line-boxes.ts:1"
+              }
+            ]
+          }
+        ]
+      },
+      "receiptCurrent": true
+    },
+    {
       "path": "docs/design/interaction-direction-spec.md",
       "lane": "design",
       "issue": 5,
@@ -12589,6 +12648,68 @@
               {
                 "kind": "issue",
                 "target": "#25"
+              }
+            ]
+          }
+        ]
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/design/state-paint-census.md",
+      "lane": "design",
+      "issue": 5,
+      "lines": 235,
+      "bytes": 18262,
+      "sha256": "0aaa4bb36826166ea583c9457c19d14e007d7e5fd4ae44fc782235d7070d9684",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "design",
+          "status": "active",
+          "updated": "2026-09-01"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/design/state-paint-census.md",
+        "assignedSha256": "0aaa4bb36826166ea583c9457c19d14e007d7e5fd4ae44fc782235d7070d9684",
+        "disposition": "current",
+        "authority": "design",
+        "fullRead": true,
+        "verifiedSha256": "0aaa4bb36826166ea583c9457c19d14e007d7e5fd4ae44fc782235d7070d9684",
+        "verifiedCommit": "ed55bf1933c4d653f75d1117c50894b7612805a1",
+        "verifiedAt": "2026-09-01",
+        "evidence": [
+          "docs/design/state-paint-census.md:1 (full read; defect class, one-segment architecture, attribute classification, rejected alternatives, coupled sites, two-direction test plan, ratified CTA-glow exemption)",
+          "git:ed55bf1933c4d653f75d1117c50894b7612805a1 (integrated #996 design and implementation bytes)"
+        ],
+        "summary": "Active #996 design for the state-paint census: one escape-aware :hover predicate + classified Base UI attribute-state vocabulary replacing three blind walker sites, attribute forcing riding the existing forced-state pass, population polarity named per withheld class, and the owner-ratified token-derivation CTA-glow exemption.",
+        "claims": [
+          {
+            "claim": "One shared walker segment (ops/walker/state-paint.ts) is the single home for the escape-aware :hover predicate, the state-attribute vocabulary, and the glow-layer vocabulary, composed into both page programs.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#996"
+              },
+              {
+                "kind": "code",
+                "target": "tooling/src/ui-audit/ops/walker/state-paint.ts:1"
+              }
+            ]
+          },
+          {
+            "claim": "The CTA-glow exemption is a measured token-derivation mechanism (computed box-shadow equals the resolved --shadow-cta-glow on that element), ratified with a fresh composition receipt, never a name list.",
+            "evidence": [
+              {
+                "kind": "code",
+                "target": "tooling/src/ui-audit/ops/walker/state-paint.ts:1"
+              },
+              {
+                "kind": "test",
+                "target": "tests/tooling/ui-audit/ops/walker/state-paint.int.test.ts:1"
               }
             ]
           }
