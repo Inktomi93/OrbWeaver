@@ -80,13 +80,30 @@ const BUILD_TIMEOUT_MS = 300_000;
 // 1,146,760 B); the split into a preloaded sibling arrived with 2b87a0d7c and moved the real total by
 // +93 B, which is ordinary tree movement, not a regression.
 //
-// CEILING = 780,000 B. Arithmetic (unchanged convention): 742,930 × 1.05 = 780,076.5, rounded DOWN to
-// the flat 780,000 → 37,070 B of headroom = 4.99% over the measured value. Sized like the mutation
-// gate's `break`: a ceiling AT the measured value fires on ordinary churn (a token, a copy string, a
-// new icon), while ~5% is far below the cost of the class this exists to catch — re-adding ONE prose
-// barrel to the static graph is a six-figure-byte event (#433's own win was 234,000 B), so the fence
-// still bites on the first real regression and never on noise. Comparable headroom to the 777,000 B it
-// replaces (4.95% there), so the fence's sensitivity is unchanged; only its SCOPE widened.
+// That 780,000 B ceiling expired before #995: the 2026-09-01 pre-fix build measured 819,676 B and the
+// emitted html declared a third boot file, `time-Das8Thoo.js` (85,455 B). A sourcemap attribution of
+// that shared chunk found the production validation/identity floor — Zod core/classic, UUID/TypeID,
+// kit ids/time, `zod-jitless.ts`, Query timeout management, and Appearance boot-hint/readiness code.
+// Owner ruling: that synchronous production validation graph stays foundational; do not make Zod lazy
+// or defer contract loading merely to satisfy a stale number.
+//
+// RE-CALIBRATED 2026-09-01 after #995 restored the production-readiness / dev-instrumentation boundary:
+//   index-Bw7uAXfc.js       696,149 B  (the module entry script)
+//   jsx-runtime-DUeIs9Gz.js  36,584 B  (<link rel="modulepreload"> — fetched on the boot path)
+//   time-Das8Thoo.js         85,455 B  (<link rel="modulepreload"> — production validation/identity)
+//   ────────────────────────────────
+//   boot payload            818,188 B
+// The pre-split build was 819,676 B, so the clean boundary removed 1,488 B. The emitted production JS
+// retained `data-app-ready` but no Appearance/CSS-merge/animation debug registry strings; the residual
+// is the reviewed production graph above, not the dev graph moved into a preload.
+//
+// CEILING = 859,000 B. Arithmetic (same convention): 818,188 × 1.05 = 859,097.4, rounded DOWN to the
+// flat 859,000 → 40,812 B of headroom = 4.99% over the measured value. Sized like the mutation gate's
+// `break`: a ceiling AT the measured value fires on ordinary churn (a token, a copy string, a new icon),
+// while ~5% is far below the cost of the class this exists to catch — re-adding ONE prose barrel to the
+// static graph is a six-figure-byte event (#433's own win was 234,000 B), so the fence still bites on the
+// first real regression and never on noise. The sensitivity convention is unchanged; the baseline now
+// describes the production boot set the browser actually fetches.
 //
 // RE-CALIBRATE when: a deliberate, reviewed boot-graph addition lands (raise it, with its own measured
 // receipt and this same arithmetic); or a win like #433/#448 lands and the ceiling should ratchet DOWN
@@ -94,7 +111,7 @@ const BUILD_TIMEOUT_MS = 300_000;
 // follows the emitted html — though it will still move the number. This is deliberately ONE-SIDED — a
 // shrink is never RED, it is reported as headroom in the stage output so a large drop is visible and
 // can be ratcheted by hand.
-export const BOOT_CHUNK_CEILING_BYTES = 780_000;
+export const BOOT_CHUNK_CEILING_BYTES = 859_000;
 
 /** The `/assets/<name>.js` an emitted boot ref points at, or undefined for anything else (a CSS href, a
  *  favicon, an external URL) — the parser is anchored, never "whatever happens to be there". */

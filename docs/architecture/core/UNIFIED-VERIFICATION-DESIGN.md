@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-08-30
+updated: 2026-09-01
 ---
 
 <!-- RETRO DRIFT NOTE (2026-07-24): carried from main at promotion. Verified against retro's as-built
@@ -287,8 +287,8 @@ The behavioral suites are ONE `tests` concept expressed as stages with tier + sc
   stays green while it re-pays the whole cost. A byte ceiling catches every mechanism (a barrel, a fat dep,
   a lost `import type`, a route that stopped being lazy) instead of enumerating the ones already seen. PUSH,
   not static: the build is 15.45s warm (measured 2026-08-22) — cheap by build standards, but a bundler
-  invocation is not the structural-fast commit bar. The ceiling (780,000 B = the measured 742,930 + 4.99%,
-  re-derived 2026-08-23 against the summed boot set)
+  invocation is not the structural-fast commit bar. The ceiling (859,000 B = the measured 818,188 + 4.99%,
+  re-derived 2026-09-01 after #995 separated production readiness from dev instrumentation)
   carries the `stryker.gate.config.json` `_thresholds_comment` calibration discipline in its own header:
   measured value, headroom arithmetic, re-calibrate conditions. UNMEASURABLE IS EXIT 2, never a pass — zero
   matching entry chunks or more than one, an unreadable `index.html`, a module script that is not the entry

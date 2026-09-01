@@ -1,4 +1,4 @@
-// THE BOOT-CRITICAL DEPENDENT-READ GATE (#282). `data-app-ready` (agent-bridge.ts installAppReadySignal)
+// THE BOOT-CRITICAL DEPENDENT-READ GATE (#282). `data-app-ready` (app-ready-signal.ts)
 // settles when the query cache goes idle after a fetch has been seen. That is a LIE for a CHAINED read: the
 // selected theme is fetched only once `settings.getUserSettings` resolves (`useSelectedTheme` gates
 // `settings.getTheme` on the returned id), so between the parent SETTLING and the child fetch STARTING the
@@ -9,7 +9,7 @@
 // the registered boot-critical reads, exactly as it already waits for an in-flight fetch and for route
 // resolution.
 //
-// A MODULE SINGLETON, not an installAppReadySignal parameter: the reader (agent-bridge, lib tier) and the
+// A MODULE SINGLETON, not an installAppReadySignal parameter: the reader (app-ready-signal, lib tier) and the
 // one writer (`useSelectedTheme`, feature tier) both reach it, and keeping it OFF the signal's signature
 // leaves every existing readiness caller (the CT stories, the router door) untouched — an empty set never
 // delays anything, so a surface with no selected theme (the login screen) settles exactly as before.

@@ -89,7 +89,7 @@ export function readinessGap(url: string, appReady: boolean): EvidenceGap | null
  *  seen", it is "a FRACTION was seen", and the three zero-arms above cannot express a fraction.
  *
  *  WHY THE READINESS SIGNAL CANNOT COVER IT: `data-app-ready` is ONE-SHOT and fires at BOOT
- *  (packages/client/src/lib/agent-bridge.ts installAppReadySignal resolves a single Promise). A surface
+ *  (packages/client/src/lib/app-ready-signal.ts resolves a single Promise). A surface
  *  reached by a post-boot navigation or an `--actions` click therefore carries a readiness flag that was
  *  earned by a DIFFERENT surface, while its own reads are still in flight — which is exactly the run above.
  *

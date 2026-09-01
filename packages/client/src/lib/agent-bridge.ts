@@ -1,12 +1,6 @@
-// Agent/automation bridge — the browser-side introspection seam so Playwright/snap/agent
-// browser-driving read app state directly instead of scraping the DOM. Two installs, wired once from
-// main.tsx: installAppReadySignal sets `data-app-ready` on <html> once the query cache goes idle after
-// initial reads (a stable wait target that never hangs on the never-idle SSE bus); installAgentDebugHandle
-// installs dev-only `globalThis.__orb`.
-//
-// `data-app-ready` is PRESENCE + VALUE: presence stops waiting; `""` means settled and `"degraded"`
-// means the ceiling fired with reads still in flight. Readiness is judged after route resolution because
-// an idle query cache can also mean the lazy route that owns the reads has not mounted yet (#145).
+// Agent/automation bridge — the dev-only browser introspection seam so Playwright/snap/agent
+// browser-driving reads app state directly instead of scraping the DOM. Installed through the one literal
+// `import.meta.env.DEV` dynamic door in main.tsx; production readiness lives in app-ready-signal.ts (#995).
 
 import type { QueryClient } from "@tanstack/react-query";
 import type { AppearanceMatrixBridgeContract } from "./agent-bridge-appearance.ts";
@@ -15,7 +9,7 @@ import type { OrbAgentHandles, OrbCssHandle, OrbNavHandle, OrbRpgReader, OrbSeed
 import { flagCounts, motionSummary } from "./agent-bridge-summary.ts";
 import type { OrbAutomationFiresFilter, OrbPluginLogReader } from "./agent-plugin-bridge.ts";
 import { readAutomationFires } from "./agent-plugin-bridge.ts";
-import { bootReads } from "./boot-reads.ts";
+import { appReady, isAppReady } from "./app-ready-signal.ts";
 import type { BusEventRecord } from "./bus-devlog.ts";
 import { __resetBusEventRing, busEventRing, busLiveCount } from "./bus-devlog.ts";
 import { IS_DEV } from "./dev-flag.ts";
@@ -28,130 +22,10 @@ import type { MotionFlagRecord } from "./motion-flaggers.ts";
 import { __resetMotionFlags, installMotionFlaggers, motionFlags } from "./motion-flaggers.ts";
 import type { MotionSnapshot } from "./motion-stats.ts";
 import { __resetMotionStats, installMotionObservers, motionSnapshot } from "./motion-stats.ts";
-import { perfMeasureFromLoad, recentMeasures } from "./perf-marks.ts";
+import { recentMeasures } from "./perf-marks.ts";
 import { __resetRenderStats, renderHeatmap } from "./render-stats.ts";
 
 export type { NavResult, OrbAgentHandles, OrbNavCapabilities, OrbNavHandle, OrbRpgReader, OrbSeedHandle, SeedProfile } from "./agent-bridge-handles.ts";
-
-const READY_ATTR = "data-app-ready";
-// The grace before the first "no initial reads at all" check. An app that never fetches is ready here.
-const READY_GRACE_MS = 3000;
-// The hard ceiling. Past this the flag goes up REGARDLESS so no waiter ever hangs — but it goes up carrying
-// `degraded`, because at that point the reads have NOT settled and the flag is no longer a settle claim.
-const READY_CEILING_MS = 20_000;
-/** `data-app-ready` values. Presence means "stop waiting"; the VALUE is whether that was a real settle. */
-const READY_SETTLED = "";
-const READY_DEGRADED = "degraded";
-
-/** `ready` resolves once the app has hydrated and its initial reads have settled (see installAppReadySignal);
- *  `markReady` is its resolver, called from the settle check. */
-const { promise: ready, resolve: markReady } = Promise.withResolvers<void>();
-
-/** The readiness signal's view of ROUTE RESOLUTION — a narrow port, not the router itself: `lib/` is the
- *  floor tier and may not reach up into `routes/`. A route is RESOLVING from a navigation's start until its
- *  `beforeLoad` guard, loader and lazy component chunk have all landed; the app's adapter is
- *  `routeResolution` in `routes/router.tsx`. A host with no router (a CT story) supplies its own. */
-export interface RouteResolution {
-  /** Is a route still resolving right now? While TRUE, an idle query cache proves nothing. */
-  readonly isResolving: () => boolean;
-  /** Fire `onChange` whenever resolution state may have changed; returns the unsubscribe. */
-  readonly subscribe: (onChange: () => void) => () => void;
-}
-
-export function installAppReadySignal(queryClient: QueryClient, routeResolution: RouteResolution): void {
-  const el = document.documentElement;
-  const cache = queryClient.getQueryCache();
-  let settled = false;
-  const finish = (state: string): void => {
-    if (settled) {
-      return;
-    }
-    settled = true;
-    el.setAttribute(READY_ATTR, state);
-    perfMeasureFromLoad("app-ready");
-    markReady();
-  };
-  // IDLE IS NOT READY UNTIL A READ HAS BEEN SEEN. An idle cache means two different things — "the initial
-  // reads have drained" and "they have not started yet" — and only the first is readiness. The old shape
-  // guessed between them by waiting two frames before the first check, which is a race against however long
-  // the router/Suspense takes to kick the first read off (a CT drove the wrong side of it on the first run).
-  // Track it instead: once ANY fetch has been observed, an idle cache is a real settle.
-  let sawFetch = false;
-  let graced = false;
-  let graceTimer: ReturnType<typeof setTimeout> | null = null;
-  const check = (): void => {
-    if (queryClient.isFetching() > 0) {
-      sawFetch = true;
-      return;
-    }
-    // A route still resolving has not MOUNTED the component that owns the initial reads, so its idle cache
-    // carries no information at all — neither arm below may fire (issue #145). The 20s ceiling still covers
-    // a route that never resolves, and it hands over `degraded`, which is the truth about that capture.
-    if (routeResolution.isResolving()) {
-      return;
-    }
-    // A BOOT-CRITICAL DEPENDENT read is still resolving (#282). The selected theme is CHAINED off
-    // `settings.getUserSettings`, so between the parent settling and the child fetch STARTING the cache is
-    // momentarily idle — settling here lifted the boot veil onto the base palette a beat before the resolved
-    // theme swapped it (the cold-cache polarity flash). Wait for it, exactly as for an in-flight fetch. It is
-    // one-shot-safe: this only DELAYS the first settle and the 20s ceiling still fires `degraded` if a
-    // registered read never resolves (`boot-reads.ts`).
-    if (bootReads.isPending()) {
-      return;
-    }
-    // Idle with no read ever seen is only "ready" once the grace has passed — the genuine no-initial-reads
-    // app, which is the single case the old unconditional fallback existed to answer.
-    if (sawFetch || graced) {
-      finish(READY_SETTLED);
-    }
-  };
-  const unsubscribe = cache.subscribe(check);
-  // @orb-gate-ignore caught-failure-ownership(promise:ready): both arms only unsubscribe this listener; `ready`'s own settlement is owned by whichever caller awaits it elsewhere. Ends if this becomes the sole reader of `ready`.
-  ready.then(unsubscribe, unsubscribe);
-  // A boot-critical dependent read clearing is the other event (besides a cache tick) that can unblock a
-  // settle, so the signal re-checks when the gate changes — symmetric with the routeResolution subscription.
-  const unsubscribeBootReads = bootReads.subscribe(check);
-  // @orb-gate-ignore caught-failure-ownership(promise:ready): both arms only unsubscribe this listener; `ready`'s own settlement is owned by whichever caller awaits it elsewhere. Ends if this becomes the sole reader of `ready`.
-  ready.then(unsubscribeBootReads, unsubscribeBootReads);
-  requestAnimationFrame(() => {
-    requestAnimationFrame(check);
-  });
-  // THE GRACE IS A CHECK, NOT A HAND-OUT (2026-08-09). It used to `finish()` unconditionally at 3s, so an
-  // app whose initial reads were still running got the SETTLED flag anyway — and every instrument that waits
-  // on it (snap's readiness gate, design-audit, motion-audit, the e2e actors) captured a mid-hydration app
-  // while reporting a clean wait. That is how `snap --isolated` came to screenshot the Corpus home stuck on
-  // "Loading your corpus…" and read as a product defect: a five-deep Suspense waterfall on a cold stage
-  // simply takes longer than 3s. The grace now only unlocks the no-reads-at-all arm; it never overrides an
-  // in-flight one.
-  //
-  // AND ITS WINDOW STARTS AT ROUTE RESOLUTION (issue #145), not at install: measured from install it expired
-  // while the router was still fetching `/`'s lazy component chunk, and the very next cache tick after that
-  // chunk landed found an idle cache with `graced` already true — the flag went up SETTLED before a single
-  // read had been issued. Armed from resolution, the 3s is what it always claimed to be: an app that has
-  // MOUNTED its route and still issued no read genuinely has none.
-  const armGrace = (): void => {
-    if (graceTimer !== null || routeResolution.isResolving()) {
-      return;
-    }
-    graceTimer = setTimeout(() => {
-      graced = true;
-      check();
-    }, READY_GRACE_MS);
-  };
-  const unsubscribeRoute = routeResolution.subscribe(() => {
-    armGrace();
-    check();
-  });
-  // @orb-gate-ignore caught-failure-ownership(promise:ready): both arms only unsubscribe this listener; `ready`'s own settlement is owned by whichever caller awaits it elsewhere. Ends if this becomes the sole reader of `ready`.
-  ready.then(unsubscribeRoute, unsubscribeRoute);
-  armGrace();
-  // The ceiling still guarantees "never hang a waiter", but it tells the truth about what it is handing over:
-  // reads are STILL in flight, so the flag goes up as `degraded` and anything reading the value knows the
-  // capture is mid-flight rather than settled.
-  setTimeout(() => {
-    finish(READY_DEGRADED);
-  }, READY_CEILING_MS);
-}
 
 const ORB_RING_LIFETIMES = ["checkpoint", "durable", "server-runtime", "session"] as const;
 type OrbRingLifetime = (typeof ORB_RING_LIFETIMES)[number];
@@ -300,7 +174,6 @@ function installAgentDebugHandleImpl(queryClient: QueryClient, handles: OrbAgent
   installMotionObservers();
   installMotionFlaggers();
   const { nav, seed, rpg, pluginLog, css, durableLocalUserId } = handles;
-  const isReady = (): boolean => document.documentElement.hasAttribute(READY_ATTR);
   const shell = (): ShellSnapshot => ({
     section: document.querySelector('[aria-current="page"]')?.getAttribute("aria-label") ?? null,
     panels: [...document.querySelectorAll(".shell-panel")].map((p) => ({
@@ -328,7 +201,7 @@ function installAgentDebugHandleImpl(queryClient: QueryClient, handles: OrbAgent
     events: busEventRing(),
   });
   const snap = (): Record<string, unknown> => ({
-    ready: isReady(),
+    ready: isAppReady(),
     shell: shell(),
     bus: { live: busLiveCount(), events: busEventRing().length },
     queries: {
@@ -370,8 +243,8 @@ function installAgentDebugHandleImpl(queryClient: QueryClient, handles: OrbAgent
     }
   };
   globalThis.__orb = {
-    ready,
-    isReady,
+    ready: appReady,
+    isReady: isAppReady,
     queries,
     bus,
     shell,

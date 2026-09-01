@@ -74,7 +74,7 @@ export function busEventTypes(page: Page): Promise<readonly string[]> {
   return page.evaluate(() => (globalThis as OrbBusHandle).__orb?.bus().events.map((e) => e.type) ?? []);
 }
 
-/** Wait for the app shell + its initial reads to settle (the agent-bridge idle signal). */
+/** Wait for the app shell + its initial reads to settle (the app-ready idle signal). */
 export async function waitForAppReady(page: Page): Promise<void> {
   await expect(page.locator(APP_READY)).toBeAttached({ timeout: 30_000 });
 }

@@ -1,9 +1,9 @@
 import { createRoute, createRouter, lazyRouteComponent, notFound, redirect } from "@tanstack/react-router";
 import { redirectIfAuthed, requireAuthed } from "#features/auth";
 import { openConfigTo, parseConfigLink, resolveSectionPath, setActiveSection } from "#state";
-// Deep, not `#lib`: agent-bridge is OUT of the barrel (main.tsx imports it by path — a re-export would drag
-// the dev-only introspection handle into the prod bundle). Type-only, so nothing lands in the boot chunk.
-import type { RouteResolution } from "../lib/agent-bridge.ts";
+// Deep, not `#lib`: app-ready-signal is OUT of the barrel so its production import graph stays explicit.
+// Type-only, so this port itself lands nothing in the boot chunk.
+import type { RouteResolution } from "../lib/app-ready-signal.ts";
 import { rootRoute } from "./__root.tsx";
 import { LoginPage } from "./login-page.tsx";
 import { RoutePending } from "./route-pending.tsx";
@@ -91,7 +91,7 @@ export const router = createRouter({
   defaultViewTransition: true,
 });
 
-// The readiness signal's ROUTE-RESOLUTION port (issue #145 — `lib/agent-bridge.ts` declares the shape;
+// The readiness signal's ROUTE-RESOLUTION port (issue #145 — `lib/app-ready-signal.ts` declares the shape;
 // `lib/` is the floor tier and may not import this module, so the adapter lives here beside the singleton).
 // `status: "pending"` covers a navigation whose beforeLoad/loader/lazy-component chunk is still landing —
 // which for `/` is the ~4.9 MB `compose/authed-app.tsx` graph. `onRendered` is the LAST lifecycle event of a
