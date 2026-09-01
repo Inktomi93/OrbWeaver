@@ -989,3 +989,55 @@ auditRuleTest(
     expect(res.stdout).not.toContain("cohort-anatomy");
   },
 );
+
+// ── row-void (#978): the label and its control, with an ocean between ────────────────────────────────
+// "Every setting row is two lonely islands with an ocean between them." Both islands measure fine on
+// their own; the defect is the distance. Live on settings:appearance this reports 712px of 829px (86%)
+// between "Your themes" and its control.
+function voidRowPage(rowWidthPx: number, spread: "between" | "gap"): string {
+  const justify = spread === "between" ? "justify-content:space-between" : "gap:16px";
+  return `<!doctype html>
+<html data-app-ready="settled"><head><meta charset="utf-8"><title>t</title></head>
+<body style="margin:0;background:#000;color:#fff;font:14px system-ui"><main>
+<div style="display:flex;align-items:center;${justify};width:${rowWidthPx}px;height:32px;padding:0 12px">
+  <span style="width:75px">Avatar shape</span>
+  <button style="width:48px;height:24px">on</button>
+</div></main></body></html>`;
+}
+
+auditRuleTest(
+  [{ rule: "row-void", kind: "fires", reason: "a labelled control pushed to the far edge of a wide row leaves most of the row empty" }],
+  "a label and its control at opposite ends of a wide row is a row-void naming the label",
+  async ({ runCli, scratch }) => {
+    await writeFile(join(scratch, "void.html"), voidRowPage(1000, "between"));
+    const res = await runCli("ui-audit", ["/void.html", "--base", `file://${scratch}`], { timeoutMs: CLI_TIMEOUT_MS });
+    expect(res.stdout).toContain("row-void");
+    // The LABEL is what makes the finding actionable — an operator does not fix "a row", they fix the
+    // "Avatar shape" row. A selector path alone would not identify it in a pane of forty.
+    expect(res.stdout, "the finding must name the row by its label text").toContain('between "Avatar shape" and its control');
+    // The walker's whitespace-collapse regex lives in a TEMPLATE LITERAL, so a single backslash is
+    // consumed and the emitted regex becomes /s+/g — which eats the letter s. This caught exactly that.
+    expect(res.stdout, "the label must survive whitespace collapse intact").not.toContain("Avatar  hape");
+  },
+);
+
+auditRuleTest(
+  [{ rule: "row-void", kind: "silent", reason: "the same label and control adjacent at the same row width — the fence is the DISTANCE, not the pairing" }],
+  "the same pair sitting adjacent mints nothing — the rule is the ocean, not the row",
+  async ({ runCli, scratch }) => {
+    await writeFile(join(scratch, "bound.html"), voidRowPage(1000, "gap"));
+    const res = await runCli("ui-audit", ["/bound.html", "--base", `file://${scratch}`], { timeoutMs: CLI_TIMEOUT_MS });
+    expect(res.stdout).not.toContain("row-void");
+    expect(res.stdout, "the structure family must have dispatched — silence is only a verdict when the family ran").toMatch(/scanned-structure=[1-9]/u);
+  },
+);
+
+auditRuleTest(
+  [{ rule: "row-void", kind: "silent", reason: "a narrow row's gap is ordinary spacing — the absolute floor separates a void from a layout" }],
+  "a narrow row with the same proportional spread mints nothing — a gap is only an ocean at scale",
+  async ({ runCli, scratch }) => {
+    await writeFile(join(scratch, "tight-row.html"), voidRowPage(260, "between"));
+    const res = await runCli("ui-audit", ["/tight-row.html", "--base", `file://${scratch}`], { timeoutMs: CLI_TIMEOUT_MS });
+    expect(res.stdout).not.toContain("row-void");
+  },
+);

@@ -28,7 +28,7 @@ import { checkAccentBorder, checkGlowShadow } from "./checks-decor.ts";
 import { checkBrokenImage, checkImageDistortion } from "./checks-media.ts";
 import { checkBgPattern, checkIconTile, checkMotionStatic, checkRadialGlow } from "./checks-ornament.ts";
 import { checkClippedOverflow, checkDuplicateDoors, checkEdgeFlush, checkRepeatedText, checkTextOverflow, checkTruncatedText } from "./checks-quality.ts";
-import { checkAnimatedImgHover, checkCohortAnatomy, checkGradientText, checkNestedCard, checkZIndex } from "./checks-structure.ts";
+import { checkAnimatedImgHover, checkCohortAnatomy, checkGradientText, checkNestedCard, checkRowVoid, checkZIndex } from "./checks-structure.ts";
 import { checkCaveatHierarchy, checkFontCensus, checkTextStyle } from "./checks-typography.ts";
 
 interface FamilyCheckResult {
@@ -134,6 +134,7 @@ function structureFindings(samples: RawSamples): FamilyCheckResult {
   runArray(state, () => nullableFindings(samples.gradientTexts, checkGradientText));
   runArray(state, () => nullableFindings(samples.animatedImgHovers, checkAnimatedImgHover));
   runArray(state, () => nullableFindings(samples.cohortAnatomies ?? [], checkCohortAnatomy));
+  runArray(state, () => nullableFindings(samples.rowVoids ?? [], checkRowVoid));
   return state;
 }
 

@@ -119,4 +119,78 @@ export const WALKER_CENSUS_COHORT = `  // ── sibling cohort anatomy ──�
       });
     });
   });
+  // ── row void: a label and its control with an ocean between them ──────────
+  // "Every setting row is two lonely islands with an ocean between them" — a 654px gap between a 75px
+  // label and a 48px switch, in a control column that MOVES between panes (613 / 1016 / 1255), so the eye
+  // re-learns the traverse per pane. This is not "clean", it is evacuated, and no per-element rule can see
+  // it: both islands are individually fine.
+  //
+  // THE FENCE IS THE BINDING, NOT THE GAP. A wide gap is only a defect when the two flanks are BOUND —
+  // a label and the control it names. A topbar with a title left and actions right is chrome and is
+  // supposed to span its width. So a row qualifies only when the left flank carries text and the right
+  // flank is (or holds) an interactive control: a form row, evacuated.
+  var rowVoids = [];
+  var VOID_MIN_RATIO = 0.45;
+  var VOID_MIN_PX = 240;
+  var VOID_MAX_ROWS = 8;
+  var VOID_MIN_FLANK_PX = 4;
+
+  function voidFlankText(el) {
+    // \\s, not \\\\s: this is a TEMPLATE LITERAL, so a single backslash is consumed as an escape and
+    // the emitted regex becomes /s+/g — which silently replaces the LETTER s. Caught by a fixture
+    // reading back "Avatar  hape"; every sibling census writes it the same way for the same reason.
+    var t = (el.textContent || "").replace(/\\s+/g, " ").trim();
+    return t.length > 40 ? t.slice(0, 40) : t;
+  }
+
+  for (var vi = 0; vi < allEls.length && rowVoids.length < VOID_MAX_ROWS; vi += 1) {
+    var vrow = allEls[vi];
+    if (!isVisible(vrow)) continue;
+    var vstyle = getComputedStyle(vrow);
+    if (vstyle.display !== "flex" && vstyle.display !== "grid") continue;
+    var vrect = vrow.getBoundingClientRect();
+    if (vrect.width < VOID_MIN_PX) continue;
+    // Direct children only: a gap between grandchildren belongs to whichever row actually lays them out.
+    var vkids = [];
+    for (var vk = 0; vk < vrow.children.length; vk += 1) {
+      var kid = vrow.children[vk];
+      if (!isVisible(kid)) continue;
+      var krect = kid.getBoundingClientRect();
+      if (krect.width < VOID_MIN_FLANK_PX || krect.height < VOID_MIN_FLANK_PX) continue;
+      vkids.push({ el: kid, left: krect.left, right: krect.right, top: krect.top, bottom: krect.bottom });
+    }
+    if (vkids.length < 2) continue;
+    vkids.sort(function (a, b) { return a.left - b.left; });
+    // Widest gap between horizontally-adjacent children that also SHARE A LINE — a wrapped row's
+    // "gap" is a line break, not a void.
+    var bestGap = 0;
+    var bestLeft = null;
+    var bestRight = null;
+    for (var vg = 1; vg < vkids.length; vg += 1) {
+      var prev = vkids[vg - 1];
+      var cur = vkids[vg];
+      var sameLine = Math.min(prev.bottom, cur.bottom) - Math.max(prev.top, cur.top) > 0;
+      if (!sameLine) continue;
+      var gap = cur.left - prev.right;
+      if (gap > bestGap) { bestGap = gap; bestLeft = prev; bestRight = cur; }
+    }
+    if (bestLeft === null || bestRight === null) continue;
+    if (bestGap < VOID_MIN_PX || bestGap / vrect.width < VOID_MIN_RATIO) continue;
+    var leftText = voidFlankText(bestLeft.el);
+    if (leftText === "") continue;
+    var rightIsControl =
+      bestRight.el.matches(INTERACTIVE_SELECTOR) || bestRight.el.querySelector(INTERACTIVE_SELECTOR) !== null;
+    if (!rightIsControl) continue;
+    rowVoids.push({
+      selector: describe(vrow),
+      gapPx: Math.round(bestGap),
+      rowWidthPx: Math.round(vrect.width),
+      gapRatio: Math.round((bestGap / vrect.width) * 100) / 100,
+      leftSelector: describe(bestLeft.el),
+      leftText: leftText,
+      leftWidthPx: Math.round(bestLeft.right - bestLeft.left),
+      rightSelector: describe(bestRight.el),
+      rightWidthPx: Math.round(bestRight.right - bestRight.left),
+    });
+  }
 `;

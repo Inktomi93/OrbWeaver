@@ -49,6 +49,7 @@ export const DESIGN_AUDIT_RULES = [
   { id: "gradient-text", family: "structure", severity: ["P3"] },
   { id: "animated-img-hover", family: "structure", severity: ["P3"] },
   { id: "cohort-anatomy", family: "structure", severity: ["P2"] },
+  { id: "row-void", family: "structure", severity: ["P2"] },
   { id: "text-below-ramp", family: "typography", severity: ["P2"] },
   { id: "undersized-ui-text", family: "typography", severity: ["P2"] },
   { id: "line-length", family: "typography", severity: ["P3"] },

@@ -35,3 +35,23 @@ export interface CohortAnatomyInput {
    *  rather than judging it (the same fence `ControlAspectInput.animating` declares). */
   readonly animating: boolean;
 }
+
+/** One row-shaped container and the widest gap between two horizontally-adjacent children that share a
+ *  line, where the left flank carries text and the right flank holds a control.
+ *
+ *  THE BINDING IS THE FENCE, NOT THE GAP. A wide gap is a defect only when the flanks are BOUND — a
+ *  label and the control it names. A topbar with a title left and actions right is chrome and is
+ *  supposed to span its width, so it is never sampled. */
+export interface RowVoidInput {
+  readonly selector: string;
+  readonly gapPx: number;
+  readonly rowWidthPx: number;
+  /** `gapPx / rowWidthPx`, rounded to 2dp — the share of the row that is nothing. */
+  readonly gapRatio: number;
+  readonly leftSelector: string;
+  /** The label's own text, so the finding names WHICH row rather than a selector path. */
+  readonly leftText: string;
+  readonly leftWidthPx: number;
+  readonly rightSelector: string;
+  readonly rightWidthPx: number;
+}
