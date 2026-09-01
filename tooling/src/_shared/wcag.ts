@@ -119,10 +119,20 @@ export type InactiveKind = (typeof INACTIVE_KINDS)[number];
 
 /** The classifier as an in-page JS EXPRESSION over a bound `el`. Both instruments build their sampling
  *  script as a STRING, so a shared string constant is the only shape that can actually be one home —
- *  a shared FUNCTION could not cross into the page. Order matters: `inert` is an ancestor test and wins
- *  over the element's own state, and native `:disabled` outranks the aria declaration. */
+ *  a shared FUNCTION could not cross into the page. Order matters and is unchanged: `inert` wins over
+ *  everything, and native `:disabled` outranks the aria declaration.
+ *
+ *  EVERY ARM IS ANCESTOR-AWARE (#1005, was `el.matches(…)` for the two non-inert arms until 2026-09-01).
+ *  INACTIVENESS IS INHERITED BY THE PIXELS: a real control's text is a CHILD element — `<button disabled>
+ *  <span>Pick one</span></button>`, a disabled Select's placeholder span — and that span matches neither
+ *  `:disabled` (which only the form control itself matches) nor `[aria-disabled="true"]`. Both instruments
+ *  sample the TEXT-BEARING element, so the element-scoped spelling classified every such label "none" and
+ *  judged it against the 4.5:1 AA floor WCAG 1.4.3 exempts: snap reported `FAIL 3.45:1` on markup it
+ *  claims to SKIP, and design-audit filed the P1s (measured 2026-09-01 at 2.90:1 on a disabled Select
+ *  placeholder, tests/ui/variant-arm-matrix). `closest` matches the element ITSELF first, so the
+ *  element-scoped behavior is preserved exactly and only the ancestor case is added. */
 export const INACTIVE_KIND_EXPR =
-  '(el.closest("[inert]") ? "inert" : el.matches(":disabled") ? "native" : el.matches(\'[aria-disabled="true"]\') ? "aria" : "none")';
+  '(el.closest("[inert]") ? "inert" : el.closest(":disabled") ? "native" : el.closest(\'[aria-disabled="true"]\') ? "aria" : "none")';
 
 /** Is this control exempt from a WCAG CONTRAST verdict? All three inactive spellings are — 1.4.3 exempts
  *  "inactive user interface components", and their dimming is the deliberate signal that they are off.

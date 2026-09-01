@@ -34,17 +34,9 @@ import { print } from "@orb/tooling/_shared/artifacts";
 import type { CDPSession, Page } from "@playwright/test";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { GlowShadowInput, RadialGlowInput, RawSamples } from "../contract/samples.ts";
-import type {
-  HoverAttrGroupRow,
-  HoverAttrReadResult,
-  HoverCensusRestRow,
-  HoverCensusResult,
-  HoverContrastInput,
-  HoverForcedReadRow,
-  HoverGroupRow,
-} from "../contract/samples-hover.ts";
+import type { HoverAttrGroupRow, HoverCensusRestRow, HoverContrastInput, HoverForcedReadRow, HoverGroupRow } from "../contract/samples-hover.ts";
 import type { HoverPass, HoverPassOutcome } from "../contract/types.ts";
-import { candidateIndices, groupReadResult } from "./hover-validate.ts";
+import { attrRestored, candidateIndices, groupReadResult, hoverCensusResult, pageJsonString } from "./hover-validate.ts";
 import { HOVER_CENSUS } from "./hover-walker.ts";
 import { HOVER_FORCE_READ } from "./hover-walker-read.ts";
 import { WALKER_CORE } from "./walker/core.ts";
@@ -147,7 +139,7 @@ async function readGroup(session: HoverSession, groupIndex: number, group: Hover
       await force(cdp, nodeId, true);
       held.push(nodeId);
     }
-    const raw = (await page.evaluate(`JSON.stringify(window.__orbHover.read(${String(groupIndex)}))`)) as string;
+    const raw = pageJsonString(await page.evaluate(`JSON.stringify(window.__orbHover.read(${String(groupIndex)}))`), "hover group read");
     const result = groupReadResult(raw, session.candidates, "hover group read");
     return { rows: result.reads, shadows: result.shadows, radials: result.radials, failure: null };
   } catch (e) {
@@ -224,9 +216,10 @@ interface AttrForcedReads extends ForcedReads {
  *  a `failure` the caller counts into the withheld population (never an absorbed rejection). */
 async function readAttrGroup(page: Page, groupIndex: number, group: HoverAttrGroupRow, candidates: number): Promise<GroupOutcome & { restored: boolean }> {
   try {
-    const raw = (await page.evaluate(`JSON.stringify(window.__orbHover.readAttr(${String(groupIndex)}))`)) as string;
-    const result = groupReadResult(raw, candidates, `state-attr group read [${group.attr}]`);
-    const restored = (JSON.parse(raw) as HoverAttrReadResult).restored;
+    const label = `state-attr group read [${group.attr}]`;
+    const raw = pageJsonString(await page.evaluate(`JSON.stringify(window.__orbHover.readAttr(${String(groupIndex)}))`), label);
+    const result = groupReadResult(raw, candidates, label);
+    const restored = attrRestored(raw, label);
     return { rows: result.reads, shadows: result.shadows, radials: result.radials, failure: null, restored };
   } catch (e) {
     return { rows: [], shadows: [], radials: [], failure: errorMessage(e), restored: true };
@@ -315,7 +308,7 @@ export async function resolveHoverStates(page: Page, samples: RawSamples, hoverC
     // Roots the DOM agent so `DOM.requestNode` can push a node the page handed us; depth 0 keeps it from
     // serializing the whole tree back over the wire.
     await cdp.send("DOM.getDocument", { depth: 0 });
-    const census = (await page.evaluate(HOVER_CENSUS_JS)) as HoverCensusResult;
+    const census = hoverCensusResult(await page.evaluate(HOVER_CENSUS_JS), "the hover census");
     const candidates = census.rest.length;
     const forced = await forceEveryGroup({ page, cdp, nodes: new SubjectNodes(cdp), candidates }, census.groups);
     // The ATTRIBUTE mechanism runs AFTER every CDP hold is released — one state at a time, page-wide.
@@ -325,7 +318,7 @@ export async function resolveHoverStates(page: Page, samples: RawSamples, hoverC
     // stuck `:hover` did, and the microtask-delayed re-arm class is visible ONLY here). The indices
     // come back through `candidateIndices`, which REFUSES anything that is not one — the seam where a
     // silent `as number[]` once turned this entire branch off.
-    const stuckRaw = (await page.evaluate("JSON.stringify(window.__orbHover.verify())")) as string;
+    const stuckRaw = pageJsonString(await page.evaluate("JSON.stringify(window.__orbHover.verify())"), "hover verify");
     const stuck = new Set([...candidateIndices(stuckRaw, candidates, "hover verify"), ...attrForced.stuckMembers]);
     await page.evaluate("delete window.__orbHover");
     const withheld: Record<string, number> = {};

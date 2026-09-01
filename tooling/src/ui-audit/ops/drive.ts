@@ -8,10 +8,10 @@ import { settle } from "@orb/tooling/_shared/browser";
 import { runNav } from "@orb/tooling/_shared/nav";
 import { resolveFileInputLocator, resolveUploadPaths } from "@orb/tooling/_shared/upload";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import type { RawSamples } from "../contract/samples.ts";
 import type { Args, AuditAction, CaptureOutcome } from "../contract/types.ts";
 import { CLICK_TIMEOUT_MS, NAV_TIMEOUT_MS, WAIT_SELECTOR_TIMEOUT_MS } from "../lib/budgets.ts";
 import { SAMPLE_COLLECTION_PREFIX } from "../lib/evidence.ts";
+import { rawSamples } from "./page-validate.ts";
 import { COLLECT_SAMPLES_JS } from "./walker.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm design-audit");
@@ -101,7 +101,7 @@ export async function navigateAndReveal(page: AuditPage, opts: Args, url: string
   try {
     // Settle + identity snapshot happen inside this ONE page task (#976). Two evaluates would leave a
     // same-count replacement race between "settled" and "walked".
-    const samples = (await page.evaluate(COLLECT_SAMPLES_JS)) as RawSamples;
+    const samples = rawSamples(await page.evaluate(COLLECT_SAMPLES_JS));
     const accounting = samples.subjectAccounting;
     return {
       navError,

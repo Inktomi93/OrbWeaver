@@ -6,9 +6,65 @@
 // quietly dropped or quietly trusted sample.
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { GlowShadowInput, RadialGlowInput } from "../contract/samples.ts";
-import type { HoverForcedReadRow, HoverGroupReadResult } from "../contract/samples-hover.ts";
+import type { HoverCensusResult, HoverForcedReadRow, HoverGroupReadResult } from "../contract/samples-hover.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm design-audit");
+
+/** The page hands its results back as JSON TEXT (`JSON.stringify(window.__orbHover…)`), and every reader
+ *  below starts with `JSON.parse`. A non-string here means the in-page object was gone or the expression
+ *  threw — `JSON.parse(undefined)` would raise a SyntaxError the caller absorbs as an ordinary force
+ *  failure, which files the pass's own breakage under the app's population. Named, so it cannot. */
+export function pageJsonString(raw: unknown, label: string): string {
+  if (typeof raw !== "string") {
+    throw new Error(`INSTRUMENT ERROR: ${label} returned ${raw === null ? "null" : typeof raw}, not the JSON text of a page read`);
+  }
+  return raw;
+}
+
+/** The forced-state pass's DENOMINATOR, straight off `page.evaluate`. Its `rest` length IS the candidate
+ *  space every index below is bounded by, and its counters are the withheld population — so a malformed
+ *  census would silently shrink the space the whole pass is judged against. */
+export function hoverCensusResult(parsed: unknown, label: string): HoverCensusResult {
+  if (typeof parsed !== "object" || parsed === null) {
+    throw new Error(`INSTRUMENT ERROR: ${label} returned ${typeof parsed}, not a hover census`);
+  }
+  const census = parsed as { rest?: unknown; groups?: unknown; attrGroups?: unknown; census?: unknown };
+  for (const [field, value] of [
+    ["rest", census.rest],
+    ["groups", census.groups],
+    ["attrGroups", census.attrGroups],
+  ] as const) {
+    if (!Array.isArray(value)) {
+      throw new Error(`INSTRUMENT ERROR: ${label} returned ${Array.isArray(value) ? "an array" : typeof value} for "${field}", not a list`);
+    }
+  }
+  if (typeof census.census !== "object" || census.census === null) {
+    throw new Error(`INSTRUMENT ERROR: ${label} returned no counters — the withheld population would read as zero`);
+  }
+  // Every counter, not a hand-listed subset: the shape is a flat number map, so a non-number is a broken
+  // segment whichever key carries it, and a list here would drift as counters are added.
+  for (const [key, value] of Object.entries(census.census)) {
+    if (typeof value !== "number" || !Number.isFinite(value)) {
+      throw new Error(`INSTRUMENT ERROR: ${label} returned ${typeof value} for the "${key}" counter, not a number`);
+    }
+  }
+  return parsed as HoverCensusResult;
+}
+
+/** The attribute mechanism's SAME-TASK restore proof. It was read as `(JSON.parse(raw) as
+ *  HoverAttrReadResult).restored` — the exact cast shape that started this discipline — and an absent
+ *  flag reads as `undefined`, which is falsy, so a broken read would have withheld every member of the
+ *  group as `notRestored` while looking like a working refusal. */
+export function attrRestored(raw: string, label: string): boolean {
+  const parsed: unknown = JSON.parse(raw);
+  const restored = (parsed as { restored?: unknown }).restored;
+  if (typeof restored !== "boolean") {
+    throw new Error(
+      `INSTRUMENT ERROR: ${label} returned ${restored === undefined ? "nothing" : typeof restored} for "restored", not the same-task restore proof`,
+    );
+  }
+  return restored;
+}
 
 /** Parses a list of CANDIDATE INDICES the page returned, refusing anything that is not one. */
 export function candidateIndices(raw: string, bound: number, label: string): number[] {

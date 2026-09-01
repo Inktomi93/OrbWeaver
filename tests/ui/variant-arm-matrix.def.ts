@@ -43,10 +43,10 @@
 //   corrected that frame 2026-08-30 (shared-memory light-theme-polarity-receipts): a "both themes"
 //   receipt silently skips Mocha. Deviation taken with that receipt.
 // • STATE: rest only in v1. The disabled twin machinery is BUILT (supportsDisabled + the stories'
-//   ctx.disabled) but every story sets false: the first measured run proved the shared inactive
-//   classifier is element-scoped (a span inside a :disabled control classifies "none") and the <3:1
-//   advisory fires on standard disabled dimming by design — see WITHHELD_RULES
-//   ["inactive-control-legibility"] for the receipts. The axis returns when tooling rules on both.
+//   ctx.disabled) but every story sets false. Of the two blockers the first measured run found, the
+//   classifier half is FIXED (#1005 — every INACTIVE_KIND_EXPR arm is now ancestor-aware); the <3:1
+//   advisory firing on standard disabled dimming by design is not — see WITHHELD_RULES
+//   ["inactive-control-legibility"] for the receipts. The axis returns when tooling rules on that.
 // • Pointer: the CT default (fine). The coarse tap-target floor already has its own suite
 //   (touch-target-floor.suite.ct.tsx); see WITHHELD.
 //
@@ -276,7 +276,7 @@ export const OUT_OF_SCOPE_RULES: readonly DesignAuditRuleId[] = ["text-over-art"
  *  JUDGED ∪ OUT_OF_SCOPE ∪ keys(WITHHELD_RULES) covers the audited arm-dependent set exactly. */
 export const WITHHELD_RULES: Readonly<Record<string, string>> = {
   "inactive-control-legibility":
-    "MEASURED 2026-09-01 (this suite's first run, disabled twins on): (a) the ONE shared classifier (INACTIVE_KIND_EXPR) is element-scoped — a text span INSIDE a :disabled Select/Slider matches none of its three arms, classifies 'none', and mints AA P1s the 1.4.3 exemption should absorb (disabled Select 'Pick one' at α0.50 read 2.90:1/light); (b) the <3:1 advisory fires on STANDARD disabled dimming by design (button/toggle disabled arms read 2.3-2.9:1 on all three themes), so a zero-findings ratchet over disabled arms is structurally red forever. Both need a tooling/owner call (classifier closest(':disabled') arm; advisory baseline policy) before the disabled environment axis returns — filed in the lane report",
+    "MEASURED 2026-09-01 (this suite's first run, disabled twins on), two blockers, ONE now cleared: (a) FIXED #1005 — the ONE shared classifier (INACTIVE_KIND_EXPR) was element-scoped, so a text span INSIDE a :disabled Select/Slider matched none of its three arms, classified 'none', and minted AA P1s the 1.4.3 exemption should absorb (disabled Select 'Pick one' at α0.50 read 2.90:1/light); every arm is now closest()-based and both instruments are pinned two-sided (tests/tooling/ui-audit/ops/walker/census-text.int.test.ts, tests/tooling/snap/ops/contrast.int.test.ts). (b) STILL OPEN — the <3:1 advisory fires on STANDARD disabled dimming BY DESIGN (button/toggle disabled arms read 2.3-2.9:1 on all three themes), so a zero-findings ratchet over disabled arms is structurally red forever. The axis returns when (b) has an owner ruling (advisory disposition for disabled arms) AND the story defs flip supportsDisabled — this row is what tracks both",
   "off-theme-font":
     "FontCensusInput is mid-rework on this very tree (uncommitted: faces + probeUsable, the glyph-metric availability probe of ops/walker/census-text.ts) — its input now REQUIRES walker-derived measurement; re-judge when the #23 shape lands",
   "hover-contrast":

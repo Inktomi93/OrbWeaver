@@ -115,6 +115,10 @@ function payloadForCell<T>(axes: readonly VariantAxis[], assignment: VariantAssi
   if (value === undefined) {
     return instrumentError(`cell is missing ${axisId}`);
   }
+  // NOT a page-boundary cast (ops/page-validate.ts's discipline does not apply): `axes` is built in NODE
+  // by this file's own planner and the payload was put there by `auditEnvironmentAxes` — the value never
+  // crossed into the browser, so the only thing unproven is the per-axis payload type, which the two call
+  // sites below pin by axis id.
   return value.payload as T;
 }
 

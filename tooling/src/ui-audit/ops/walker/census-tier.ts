@@ -19,9 +19,16 @@
 // matching every other family in this walker (severity/threshold verdicts stay unit-testable without a
 // browser — ops/walker.ts header).
 //
-// THE MAPPED PAIRS (verify against tiers.css — it moves): card-root padding/border-radius,
-// list-row-root|body/markers gap, list-row-title font-size/weight/line-height, list-row-subtitle|
-// subtitle-reveal|meta font-size, input-root|select-trigger font-size/line-height.
+// THE MAPPED PAIRS ARE ENFORCED, NOT ASSERTED (#1003). Which (slot, property, --orb-tier-* var) triples
+// this segment censuses is still written by hand below — a walker string cannot import the stylesheet —
+// but the copy is no longer trusted: tests/tooling/ui-audit/ops/walker/census-tier.test.ts DERIVES the
+// triples from both sides (this string's judgeTier* calls under their querySelectorAll blocks; tiers.css's
+// own consuming rules) and reds on either direction — a tiers.css pair nothing here censuses (an
+// invisible rule the self-oracle cannot see, which still reads as a clean tier surface) and a pair here
+// that tiers.css no longer sets. The instrument that judges the app by its painted values now holds its
+// own map to the same standard. Today's set: card-root padding/border-radius, list-row-root|body/markers
+// gap, list-row-title font-size/weight/line-height, list-row-subtitle|subtitle-reveal|meta font-size,
+// input-root|select-trigger font-size/line-height.
 //
 // POLARITY (owner ruling 2026-09-01, corrected across three lanes the same day): a slot with no
 // `[data-surface-tier]` ancestor is CORRECT BY DESIGN — tiers.css states it keeps its own utility
