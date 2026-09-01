@@ -455,12 +455,12 @@
       },
       "receipt": {
         "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
-        "assignedSha256": "fc42c70365c9132c82792527d204e403dc57bf2a2255dd61b3ee57c2dec3124b",
+        "assignedSha256": "a3f6589bb2bd0035da31297dcb83438f3e979858bca8654ba7ea3b1e3e0eb768",
         "disposition": "current",
         "authority": "operational",
         "fullRead": true,
-        "verifiedSha256": "fc42c70365c9132c82792527d204e403dc57bf2a2255dd61b3ee57c2dec3124b",
-        "verifiedCommit": "db116d91ee1fcc6ee14ea915f1da0922cb8e84bd",
+        "verifiedSha256": "a3f6589bb2bd0035da31297dcb83438f3e979858bca8654ba7ea3b1e3e0eb768",
+        "verifiedCommit": "5d64aa1c651ddf3681835c4c513544cbc2328545",
         "verifiedAt": "2026-08-31",
         "evidence": [
           "re-attested at db116d91ee1fcc6ee14ea915f1da0922cb8e84bd (#881/#882): tooling-instrument-proof evidence 8/8, focused UI twins 4/4 and conformance 6/6; design-audit-rule-proof UI audit 106/106, walker 53/53, conformance 8/8 and check-gates 8/8; merged check:structure clean at 243/243",
@@ -504,7 +504,8 @@
           "docs/architecture/core/Core-Enforcement-Active-Gates.md: re-attested at 79871238bc0506fa74902bb1844f734fc9e32db3 — the #866 S1+S2 (6923f33cb) and #876/#873 docs-law (79871238b) merges both carry truth-repairs here; both deltas read by the orchestrator; the gate-count line resolved to 233 at the merge",
           "re-attested at the #909 docs truth-repair merge (32bf93f3e): the lane's three-way rule applied per hit — concept prose takes the ruled word, every code symbol is quoted as it stands with its owning issue named, owner-sacred prose flagged not edited; verdict list read by the orchestrator",
           "re-attested at 214fa1200 after the CSS polarity gate registration: the new ACTIVE row and count delta were read with the landed descriptor; grouped CSS-train verification remains the runtime authority",
-          "re-attested at a3c51c5df (#935): appearance-carrier-contract records the schema/editor/live-consumer/portal/prepaint contract and the 241 active-gate count; focused conformance passed 4/4 and the real gate declared and scanned 41/41 keys with zero findings"
+          "re-attested at a3c51c5df (#935): appearance-carrier-contract records the schema/editor/live-consumer/portal/prepaint contract and the 241 active-gate count; focused conformance passed 4/4 and the real gate declared and scanned 41/41 keys with zero findings",
+          "re-attested at 5d64aa1c651ddf3681835c4c513544cbc2328545 (#894): agent-bridge-lock records the one sanctioned __orb install door, exhaustive typed capability/ring registries, executable mounted CT proofs, and the 244 active-gate count; focused CT passed 5/5, gate conformance and real-tree gate passed, and the normal static hook was green through every non-catalog stage"
         ],
         "claims": [
           {
@@ -528,7 +529,7 @@
         ],
         "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/architecture/core/Core-Enforcement-Deferred-Dropped.md",
