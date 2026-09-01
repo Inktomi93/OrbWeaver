@@ -40,8 +40,11 @@ const DECLARATION = /--color-([a-z0-9-]+)\s*:\s*([^;]+);/giu;
 const THEME_BLOCK = /@theme\s*\{/u;
 const SEED_BLOCK = /\[data-theme="([a-z0-9-]+)"\]\s*\{/giu;
 /** `text-primary`, but never `text-primary-foreground` — a pair ink is judged on its own fill, not here. */
-const TEXT_UTILITY = /(?:^|\s)text-([a-z][a-z0-9-]*)(?=$|\s)/giu;
-const SELF_TINT_UTILITY = /(?:^|\s)bg-([a-z][a-z0-9-]*)\/(\d{1,3})(?=$|\s)/giu;
+const TEXT_UTILITY = /^text-([a-z][a-z0-9-]*)$/u;
+const SELF_TINT_UTILITY = /^bg-([a-z][a-z0-9-]*)\/(\d{1,3})$/u;
+/** Tailwind v4's importance marker rides the END of a utility (`text-x!`). */
+const TRAILING_IMPORTANT = /!$/u;
+const WHITESPACE = /\s+/u;
 
 /** The `{ … }` body opened by the brace at `openIdx`, by balanced-brace scan (nested at-rules included). */
 function blockBody(text: string, openIdx: number): string {
@@ -125,12 +128,44 @@ function collapse(vars: ReadonlyMap<string, string>, scheme: "light" | "dark"): 
   return out;
 }
 
-function selfTintsIn(classValue: string): ReadonlyMap<string, number> {
+/**
+ * The UTILITY a class token names, with its variant prefixes and importance markers stripped.
+ *
+ * A VARIANT-PREFIXED INK IS STILL AN INK (2026-09-01, verifier F2). `hover:text-foreground`,
+ * `data-invalid:text-destructive` and `group-hover:text-accolade` paint the same token on the same
+ * grounds — the variant decides WHEN, never WHAT. A bare-only reader censused them nowhere, and its
+ * coverage of the live tree was ACCIDENTAL: every such token happened to also appear bare, so the day
+ * one is authored only behind a variant it would be judged by nothing at all.
+ *
+ * Prefixes are cut at the LAST bracket-depth-0 colon, so an arbitrary variant carrying its own colon
+ * (`[&:hover]:text-x`, `data-[state=open]:text-x`) is not severed in the middle. Importance is stripped
+ * at BOTH ends: `!text-x` and `text-x!` are both live spellings, and reading only one of them is how
+ * `ui-size-via-variant` shipped a false terminal state.
+ */
+function utilityOf(classToken: string): string {
+  let depth = 0;
+  let cut = -1;
+  for (let index = 0; index < classToken.length; index += 1) {
+    const ch = classToken[index];
+    if (ch === "[" || ch === "(") {
+      depth += 1;
+    } else if (ch === "]" || ch === ")") {
+      depth -= 1;
+    } else if (ch === ":" && depth === 0) {
+      cut = index;
+    }
+  }
+  const bare = classToken.slice(cut + 1);
+  return (bare.startsWith("!") ? bare.slice(1) : bare).replace(TRAILING_IMPORTANT, "");
+}
+
+/** Self-tint percents by token: `bg-<token>/N` in ANY variant state (`hover:bg-primary/8` counts). */
+function selfTintsIn(classTokens: readonly string[]): ReadonlyMap<string, number> {
   const tints = new Map<string, number>();
-  SELF_TINT_UTILITY.lastIndex = 0;
-  for (let m = SELF_TINT_UTILITY.exec(classValue); m !== null; m = SELF_TINT_UTILITY.exec(classValue)) {
-    const token = m[1];
-    const percent = Number(m[2]);
+  for (const raw of classTokens) {
+    const match = SELF_TINT_UTILITY.exec(utilityOf(raw));
+    const token = match?.[1];
+    const percent = Number(match?.[2]);
     if (token !== undefined && Number.isFinite(percent)) {
       tints.set(token, percent);
     }
@@ -138,14 +173,13 @@ function selfTintsIn(classValue: string): ReadonlyMap<string, number> {
   return tints;
 }
 
-function inkTokensIn(classValue: string): readonly string[] {
+function inkTokensIn(classTokens: readonly string[]): readonly string[] {
   const tokens: string[] = [];
-  TEXT_UTILITY.lastIndex = 0;
-  for (let m = TEXT_UTILITY.exec(classValue); m !== null; m = TEXT_UTILITY.exec(classValue)) {
+  for (const raw of classTokens) {
     // A `-foreground` token is a PAIR ink: it only ever sits on its own fill, which
     // palette-contrast.suite.test.ts already judges. Measuring it against neutral chrome would
     // manufacture failures (near-white primary-foreground on a light card) for a pair that never occurs.
-    const token = m[1];
+    const token = TEXT_UTILITY.exec(utilityOf(raw))?.[1];
     if (token !== undefined && !token.endsWith("-foreground")) {
       tokens.push(token);
     }
@@ -155,20 +189,38 @@ function inkTokensIn(classValue: string): readonly string[] {
 
 /** The ink census: which colour tokens the product paints as TEXT, and with what self-tint behind them. */
 export function collectInkUses(candidates: readonly StaticClassCandidate[], relativePath: (node: StaticClassCandidate) => string | null): readonly InkUse[] {
-  const uses: InkUse[] = [];
+  // DEDUPED on (file, line, column, token, tint): one authored site is ONE ink, however many carrier
+  // roots the static walk reaches it through. An occurrence-weighted denominator would inflate the
+  // gate's own scan count without measuring anything new — a bigger number that says less.
+  const seen = new Map<string, InkUse>();
   for (const candidate of candidates) {
     const file = relativePath(candidate);
     const anchor = candidate.segments[0];
     if (file === null || anchor === undefined) {
       continue;
     }
-    const tints = selfTintsIn(candidate.value);
-    const start = anchor.node.getSourceFile().getLineAndColumnAtPos(anchor.sourceStart);
-    for (const token of inkTokensIn(candidate.value)) {
-      uses.push({ token, file, line: start.line, column: start.column, className: `text-${token}`, selfTintPercent: tints.get(token) ?? null });
+    const classTokens = candidate.value.split(WHITESPACE).filter((token) => token.length > 0);
+    const tints = selfTintsIn(classTokens);
+    const at = anchor.node.getSourceFile().getLineAndColumnAtPos(anchor.sourceStart);
+    for (const token of inkTokensIn(classTokens)) {
+      // BOTH ARMS when the carrier paints a self-tint: the ink also has to clear the ground BARE, because
+      // the tint may be variant-scoped while the ink is not. A self-tint can only ever LOWER the ratio
+      // (same hue, alpha-composited over the ground), so the bare arm never adds a failure the tinted arm
+      // did not already have — it only closes the hole where a tint hid the rest state from the census.
+      const tint = tints.get(token) ?? null;
+      for (const selfTintPercent of tint === null ? [null] : [null, tint]) {
+        seen.set(`${file}:${at.line}:${at.column}:${token}:${selfTintPercent ?? "bare"}`, {
+          token,
+          file,
+          line: at.line,
+          column: at.column,
+          className: `text-${token}`,
+          selfTintPercent,
+        });
+      }
     }
   }
-  return uses;
+  return [...seen.values()];
 }
 
 /** Source-over composite of `fg` at `alpha` over `bg` — the tint a `bg-<token>/N` paints. */

@@ -152,12 +152,18 @@ test("state-gated glow is read under force: a non-house layer under [data-select
   #ghover:hover { box-shadow: 0 0 18px rgba(240, 130, 60, 0.4); }
   #gcta:hover { box-shadow: var(--shadow-cta-glow); }
   #gcta-near:hover { box-shadow: var(--shadow-cta-glow), 0 0 24px rgba(240, 130, 60, 0.5); }
+  .curscope { --shadow-cta-glow: 0 0 18px currentColor; }
+  #scopeA { color: rgb(240, 130, 60); }
+  #scopeB { color: rgb(60, 130, 240); }
+  .gcur:hover { box-shadow: var(--shadow-cta-glow); }
 </style>
 <div class="gbox glayer" id="gbad">glow painting over my content when selected</div>
 <div class="gbox glayer" id="ghouse">the house layered glow when selected</div>
 <div class="gbox" id="ghover">a hover glow on the element itself</div>
 <div class="gbox" id="gcta">the token-exact CTA hover treatment</div>
-<div class="gbox" id="gcta-near">the token PLUS a smuggled extra layer</div>`),
+<div class="gbox" id="gcta-near">the token PLUS a smuggled extra layer</div>
+<div class="curscope" id="scopeA"><div class="gbox gcur" id="gcurA">token-exact under scope A</div></div>
+<div class="curscope" id="scopeB"><div class="gbox gcur" id="gcurB">token-exact under scope B</div></div>`),
   );
   const res = await runCli("ui-audit", ["/state-glow.html", "--base", `file://${scratch}`, "--fail-on", "P3", "--out", reportPath], {
     timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
@@ -173,6 +179,12 @@ test("state-gated glow is read under force: a non-house layer under [data-select
   // token with one smuggled extra layer is a near-miss and still fires.
   expect(glow, "the token-exact CTA hover glow is the ratified idiom, not the glow tell").not.toContain("#gcta:hover");
   expect(glow, "a near-miss of the token — one extra layer — stays judged").toContain("#gcta-near:hover");
+  // THE CACHE-GRANULARITY PIN (warm-leg F1): a currentColor-carrying token reads IDENTICAL raw text
+  // under two colour scopes while resolving differently — the raw-keyed cache reused scope A's
+  // serialization for scope B and FALSELY FIRED on whichever element resolved second. Per-element
+  // resolution keeps both token-exact twins silent.
+  expect(glow, "scope A's token-exact glow is exempt under per-element resolution").not.toContain("#gcurA:hover");
+  expect(glow, "scope B's token-exact glow is exempt too — the cache must not reuse scope A's resolution").not.toContain("#gcurB:hover");
   expect(res.stdout).toContain("glow-state-rows=");
   await expect(res).toExitWith(1);
 });

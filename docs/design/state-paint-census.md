@@ -208,7 +208,7 @@ escape fix should collapse `noHoverPaintUnproven=58`.
   whose computed `box-shadow` equals the value `--shadow-cta-glow` resolves to on that element —
   taken via a probe node beside the element (scoped token overrides resolve identically) with
   Tailwind's `rgba(0, 0, 0, 0) 0px 0px 0px 0px` unset-layer placeholders normalized away
-  (`matchesCtaGlowToken`, ops/walker/state-paint.ts). The ratification's premise was RE-MEASURED
+  (`matchesCtaGlowToken`, ops/walker/state-paint.ts; cache keyed PER ELEMENT and the probe carries the element's own raw token text — warm-leg F1 fix, pinned by the two-scope currentColor twins after the raw-keyed first cut falsely fired on the second scope). The ratification's premise was RE-MEASURED
   fresh on this tree (scratchpad `compose-receipt.mjs`): under CDP-forced hover+focus-visible the
   computed box-shadow serializes the FOCUS RING pair first and the glow layers after — they COMPOSE,
   nothing clobbered, re-confirming the SKILL.md 2026-09-01 retraction. Two-direction pins in

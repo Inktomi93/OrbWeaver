@@ -238,7 +238,16 @@ export const WALKER_STATE_PAINT = `  // ── shared interaction-state-paint pr
   // otherwise trip over was retracted in SKILL.md the same day. An element glow that does NOT equal
   // the token — extra layers, a hand-spelled halo, any near-miss — still fires (the two-direction
   // control in tests/tooling/ui-audit/ops/walker/state-paint.int.test.ts).
-  var ctaGlowResolvedCache = {};
+  // CACHE GRANULARITY IS PER ELEMENT (warm-leg F1, verifier finding 2026-09-01): the first cut
+  // keyed this memo on the token's RAW text — one page-global string whenever the raw collides — so
+  // a context-dependent resolution (a currentColor/em-carrying token under two colour scopes reads
+  // IDENTICAL raw text while the used value differs) reused the FIRST element's serialization for
+  // every later one. The failure direction was a FALSE FIRE on the scoped element, never a false
+  // exemption — but the promise above ("resolve exactly as they do for the element") must be the
+  // mechanism, not a wish: the memo is now keyed on the ELEMENT, and the probe carries the element's
+  // OWN raw token text (not a var() re-lookup) so the serialization is taken beside the element it
+  // exempts. Pinned by the two-scope currentColor fixture in state-paint.int.test.ts.
+  var ctaGlowResolvedCache = new WeakMap();
   function normalizedShadowLayers(text) {
     if (!text || text === "none") return "";
     var layers = splitTopLevelArgs(text);
@@ -253,16 +262,16 @@ export const WALKER_STATE_PAINT = `  // ── shared interaction-state-paint pr
   function matchesCtaGlowToken(el, forcedBoxShadow) {
     var raw = getComputedStyle(el).getPropertyValue("--shadow-cta-glow").trim();
     if (raw === "") return false;
-    var resolved = ctaGlowResolvedCache[raw];
+    var resolved = ctaGlowResolvedCache.get(el);
     if (resolved === undefined) {
       var host = el.parentElement || document.body;
       var probeEl = document.createElement("div");
       probeEl.style.cssText = "position:absolute;visibility:hidden;pointer-events:none";
-      probeEl.style.boxShadow = "var(--shadow-cta-glow)";
+      probeEl.style.boxShadow = raw;
       host.appendChild(probeEl);
       resolved = normalizedShadowLayers(getComputedStyle(probeEl).boxShadow);
       host.removeChild(probeEl);
-      ctaGlowResolvedCache[raw] = resolved;
+      ctaGlowResolvedCache.set(el, resolved);
     }
     return resolved !== "" && resolved === normalizedShadowLayers(forcedBoxShadow);
   }
