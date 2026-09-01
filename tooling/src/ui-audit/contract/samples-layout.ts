@@ -66,8 +66,8 @@ export interface RowVoidInput {
  *  what a sibling cohort cannot see: a list row and a picker card are never siblings, and "eight ways to
  *  say this one" is a statement about the whole surface. */
 export interface SelectionIdiomInput {
-  /** `checked` · `selected` · `current` · `pressed` · `active`. */
-  readonly stateKind: string;
+  /** Every authored state kind that contributed a selected/unselected delta. */
+  readonly stateKinds: string;
   /** How many elements carry this state. */
   readonly elements: number;
   /** How many DISTINCT visual vocabularies express it. */
@@ -91,6 +91,8 @@ export interface PaneInkInput {
   /** `lastInkPx / paneHeightPx`, 2dp. */
   readonly inkRatio: number;
   readonly textLeaves: number;
+  /** Visible authored paint subjects (text runs, media, controls, or an element's own paint). */
+  readonly designedSubjects: number;
 }
 
 /** The loudest ON state and the loudest OFF state on one surface, as an ORDERING.

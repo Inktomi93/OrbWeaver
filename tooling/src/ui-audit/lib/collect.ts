@@ -10,10 +10,10 @@
 // (`@orb/ui/tokens`), owner-sacred effect axes exempted, severities mapped to our P0–P3.
 // Full 59-rule triage + license statement:
 // .claude/skills/side-eye-design-review/reference/impeccable-adoption.md
-import type { Finding, PopulationAccounting } from "../contract/findings.ts";
+import type { Finding, PopulationAccounting, RulePopulationAccounting } from "../contract/findings.ts";
 import type { DesignAuditRuleFamily } from "../contract/rules.ts";
 import { DESIGN_AUDIT_RULE_FAMILIES } from "../contract/rules.ts";
-import type { RawSamples } from "../contract/samples.ts";
+import type { RawSamples, RelationalCensusAccountingInput } from "../contract/samples.ts";
 import {
   checkAccessibleName,
   checkControlAspect,
@@ -74,6 +74,42 @@ function nullableFindings<T>(items: readonly T[], check: (item: T) => Finding | 
     }
   }
   return findings;
+}
+
+const RELATIONAL_REPRESENTATIVE_CAPS = {
+  "cohort-anatomy": 12,
+  "pane-ink": 6,
+  "row-void": 8,
+} as const;
+
+function cappedRelationalFindings<T>(
+  rule: keyof typeof RELATIONAL_REPRESENTATIVE_CAPS,
+  items: readonly T[],
+  check: (item: T) => Finding | null,
+  census: RelationalCensusAccountingInput | undefined,
+): { readonly accounting: RulePopulationAccounting; readonly findings: readonly Finding[] } {
+  if (census !== undefined && census.judged !== items.length) {
+    throw new Error(`INSTRUMENT ERROR: ${rule} walker judged ${String(census.judged)} but returned ${String(items.length)} sample(s)`);
+  }
+  const affected = nullableFindings(items, check);
+  const cap = RELATIONAL_REPRESENTATIVE_CAPS[rule];
+  const emitted = affected.slice(0, cap);
+  const capWithheld = affected.length - emitted.length;
+  const withheld = { ...(census?.withheld ?? {}) };
+  if (capWithheld > 0) {
+    withheld["cap"] = capWithheld;
+  }
+  return {
+    findings: emitted,
+    accounting: {
+      candidates: census?.candidates ?? items.length,
+      judged: census?.judged ?? items.length,
+      affected: affected.length,
+      populations: affected.length,
+      emitted: emitted.length,
+      withheld,
+    },
+  };
 }
 
 function runNullable(state: MutableFamilyCheckResult, detector: () => Finding | null): void {
@@ -154,11 +190,26 @@ function structureFindings(samples: RawSamples): FamilyCheckResult {
   runArray(state, () => nullableFindings(samples.nestedCards, checkNestedCard));
   runArray(state, () => nullableFindings(samples.gradientTexts, checkGradientText));
   runArray(state, () => nullableFindings(samples.animatedImgHovers, checkAnimatedImgHover));
-  runArray(state, () => nullableFindings(samples.cohortAnatomies ?? [], checkCohortAnatomy));
-  runArray(state, () => nullableFindings(samples.rowVoids ?? [], checkRowVoid));
+  const cohortAnatomy = cappedRelationalFindings(
+    "cohort-anatomy",
+    samples.cohortAnatomies ?? [],
+    checkCohortAnatomy,
+    samples.relationalAccounting?.["cohort-anatomy"],
+  );
+  const rowVoid = cappedRelationalFindings("row-void", samples.rowVoids ?? [], checkRowVoid, samples.relationalAccounting?.["row-void"]);
+  const paneInk = cappedRelationalFindings("pane-ink", samples.paneInks ?? [], checkPaneInk, samples.relationalAccounting?.["pane-ink"]);
+  runArray(state, () => cohortAnatomy.findings);
+  runArray(state, () => rowVoid.findings);
   runArray(state, () => nullableFindings(samples.selectionIdioms ?? [], checkSelectionIdiom));
-  runArray(state, () => nullableFindings(samples.paneInks ?? [], checkPaneInk));
-  return state;
+  runArray(state, () => paneInk.findings);
+  return {
+    ...state,
+    populationAccounting: {
+      "cohort-anatomy": cohortAnatomy.accounting,
+      "pane-ink": paneInk.accounting,
+      "row-void": rowVoid.accounting,
+    },
+  };
 }
 
 function typographyFindings(samples: RawSamples): FamilyCheckResult {

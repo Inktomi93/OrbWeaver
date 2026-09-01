@@ -86,10 +86,10 @@ type Assert<Condition extends true> = Condition;
 type ContrastSeverityIsOnlyP1 = Assert<Equal<Extract<Finding, { readonly rule: "contrast" }>["severity"], "P1">>;
 const CONTRAST_SEVERITY_IS_ONLY_P1: ContrastSeverityIsOnlyP1 = true;
 
-test("the design-audit rule denominator is closed at the corrected 45 live ids", () => {
+test("the design-audit rule denominator is closed at the 51 live ids", () => {
   expect(CONTRAST_SEVERITY_IS_ONLY_P1).toBe(true);
-  expect(DESIGN_AUDIT_RULES).toHaveLength(45);
-  expect(new Set(DESIGN_AUDIT_RULES.map((rule) => rule.id)).size).toBe(45);
+  expect(DESIGN_AUDIT_RULES).toHaveLength(51);
+  expect(new Set(DESIGN_AUDIT_RULES.map((rule) => rule.id)).size).toBe(51);
   expect(DESIGN_AUDIT_RULES.filter((rule) => rule.id === "side-tab" || rule.id === "border-accent-on-rounded")).toHaveLength(2);
   expect(DESIGN_AUDIT_RULES.map(({ id, severity }) => `${id}:${severity.join("/")}`)).toEqual([
     "tap-target:P1/P2",
@@ -126,6 +126,12 @@ test("the design-audit rule denominator is closed at the corrected 45 live ids",
     "nested-card:P3",
     "gradient-text:P3",
     "animated-img-hover:P3",
+    "cohort-anatomy:P2",
+    "row-void:P2",
+    "selection-idiom:P2",
+    "pane-ink:P3",
+    "quiet-state:P2",
+    "double-empty-state:P2",
     "text-below-ramp:P2",
     "undersized-ui-text:P2",
     "line-length:P3",
@@ -1773,12 +1779,12 @@ test("collectFindings on an all-clean bundle (incl. a present main landmark) ret
 test("family populations are the exact detector dispatches, including both decor detectors", () => {
   expect(collectAudit(EMPTY_SAMPLES).familyScans).toEqual({
     a11y: 7,
-    color: 2,
+    color: 3,
     decor: 2,
     media: 2,
     ornament: 4,
-    quality: 6,
-    structure: 4,
+    quality: 7,
+    structure: 8,
     typography: 3,
   });
 });
