@@ -109,6 +109,7 @@ export const WALKER_CENSUS_REGION = `  // ── pane ink: a region that does no
   // the RANK is. Base UI emits data-checked and data-unchecked on the same component, so the pair is the
   // author's own claim and this needs no semantics from us.
   var quietStates = [];
+  relationalAccounting["quiet-state"] = { candidates: 0, judged: 0, withheld: {} };
   var LUM_R = 0.2126;
   var LUM_G = 0.7152;
   var LUM_B = 0.0722;
@@ -163,22 +164,17 @@ export const WALKER_CENSUS_REGION = `  // ── pane ink: a region that does no
 
   var onEls = document.querySelectorAll("[data-checked]");
   var offEls = document.querySelectorAll("[data-unchecked]");
-  var quietCohorts = new Map();
+  var quietAuthoredCohorts = new Map();
   function addQuietState(el, state) {
     if (!isVisible(el)) return;
     var contrast = fillContrast(el);
-    if (contrast === null) return;
-    var key = authoredTargetClaim(el) + "|home=" + authoredTargetHome(el) + "|backdrop=" + contrast.backdrop;
-    var cohort = quietCohorts.get(key);
+    var key = authoredTargetClaim(el) + "|home=" + authoredTargetHome(el);
+    var cohort = quietAuthoredCohorts.get(key);
     if (cohort === undefined) {
-      cohort = { on: 0, off: 0, offSelector: null };
-      quietCohorts.set(key, cohort);
+      cohort = [];
+      quietAuthoredCohorts.set(key, cohort);
     }
-    if (state === "on" && contrast.contrast > cohort.on) cohort.on = contrast.contrast;
-    if (state === "off" && contrast.contrast > cohort.off) {
-      cohort.off = contrast.contrast;
-      cohort.offSelector = describe(el);
-    }
+    cohort.push({ state: state, contrast: contrast, selector: describe(el) });
   }
   for (var oi2 = 0; oi2 < onEls.length; oi2 += 1) {
     addQuietState(onEls[oi2], "on");
@@ -186,12 +182,49 @@ export const WALKER_CENSUS_REGION = `  // ── pane ink: a region that does no
   for (var fi = 0; fi < offEls.length; fi += 1) {
     addQuietState(offEls[fi], "off");
   }
-  // BOTH sides must be measurable or there is no ordering to judge — a one-sided sample is silence, and
-  // the check is handed the honest absence rather than a fabricated comparison.
-  quietCohorts.forEach(function (cohort) {
-    if (cohort.on > 0 && cohort.off > 0 && cohort.offSelector !== null) {
-      quietStates.push({ selector: cohort.offSelector, offContrast: cohort.off, onContrast: cohort.on });
+  // One unresolvable state voids its authored cohort. Resolved states partition by backdrop so the
+  // comparison never crosses paint contexts; every one-sided partition is explicit withholding.
+  quietAuthoredCohorts.forEach(function (authoredCohort) {
+    if (authoredCohort.some(function (entry) { return entry.contrast === null; })) {
+      relationalAccounting["quiet-state"].candidates += 1;
+      withholdRelational(relationalAccounting["quiet-state"], "unresolved");
+      return;
     }
+    var byBackdrop = new Map();
+    for (var quietIndex = 0; quietIndex < authoredCohort.length; quietIndex += 1) {
+      var quietEntry = authoredCohort[quietIndex];
+      var backdropKey = quietEntry.contrast.backdrop;
+      var backdropCohort = byBackdrop.get(backdropKey);
+      if (backdropCohort === undefined) {
+        backdropCohort = [];
+        byBackdrop.set(backdropKey, backdropCohort);
+      }
+      backdropCohort.push(quietEntry);
+    }
+    byBackdrop.forEach(function (cohort) {
+      relationalAccounting["quiet-state"].candidates += 1;
+      var on = 0;
+      var off = 0;
+      var offSelector = null;
+      for (var quietMember = 0; quietMember < cohort.length; quietMember += 1) {
+        var member = cohort[quietMember];
+        if (member.state === "on" && member.contrast.contrast > on) on = member.contrast.contrast;
+        if (member.state === "off" && member.contrast.contrast > off) {
+          off = member.contrast.contrast;
+          offSelector = member.selector;
+        }
+      }
+      if (on === 0) {
+        withholdRelational(relationalAccounting["quiet-state"], "unmatchedOff");
+        return;
+      }
+      if (off === 0 || offSelector === null) {
+        withholdRelational(relationalAccounting["quiet-state"], "unmatchedOn");
+        return;
+      }
+      relationalAccounting["quiet-state"].judged += 1;
+      quietStates.push({ selector: offSelector, offContrast: off, onContrast: on });
+    });
   });
 
   // ── simultaneous empty states ─────────────────────────────────────────────
@@ -201,6 +234,7 @@ export const WALKER_CENSUS_REGION = `  // ── pane ink: a region that does no
   // empty-state primitive: the count of simultaneously-rendered empty-state roots IS the shape, and
   // whether each offers an action is its own slot.
   var emptyStates = [];
+  relationalAccounting["double-empty-state"] = { candidates: 0, judged: 0, withheld: {} };
   var emptyRoots = document.querySelectorAll("[data-slot=empty-state-root]");
   var emptyBySurface = new Map();
   function emptySurface(root) {
@@ -241,6 +275,8 @@ export const WALKER_CENSUS_REGION = `  // ── pane ink: a region that does no
   }
   emptyBySurface.forEach(function (group, surface) {
     if (group.roots.length > 0) {
+      relationalAccounting["double-empty-state"].candidates += 1;
+      relationalAccounting["double-empty-state"].judged += 1;
       emptyStates.push({ selector: describe(surface), rendered: group.roots.length, actionless: group.actionless });
     }
   });

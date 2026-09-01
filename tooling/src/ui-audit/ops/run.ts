@@ -14,7 +14,8 @@ import type { SettingsShimEvidence } from "@orb/tooling/_shared/appearance";
 import { artifactFile, print, routeSlug } from "@orb/tooling/_shared/artifacts";
 import { buildUrl, launchProbeSession, withProbeSession } from "@orb/tooling/_shared/browser";
 import type { EvidenceGap } from "@orb/tooling/_shared/evidence";
-import { instrumentError, printVerdict } from "@orb/tooling/_shared/evidence";
+import { instrumentError, printEvidenceGaps, printVerdict } from "@orb/tooling/_shared/evidence";
+import type { ExitCode } from "@orb/tooling/_shared/exit-contract";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { CensusReachInput, RawSamples } from "../contract/samples.ts";
@@ -31,6 +32,7 @@ import {
   themeProvenanceGap,
   walkFailureGap,
 } from "../lib/evidence.ts";
+import { populationEvidenceGap } from "../lib/population.ts";
 import { isAtOrAboveSeverity } from "../lib/severity.ts";
 import { stageLabel } from "../lib/stage-request.ts";
 import { navigateAndReveal } from "./drive.ts";
@@ -154,6 +156,7 @@ export async function runUiAudit(opts: Args): Promise<number> {
     const findings = audit === null ? [] : [...audit.findings];
     const familyScans = audit === null ? null : audit.familyScans;
     const populationAccounting = audit === null ? {} : audit.populationAccounting;
+    const populationGap = populationEvidenceGap(populationAccounting);
     findings.push(...checkScriptErrors(session.pageErrors));
     const counts = countBySeverity(findings);
     // An action that failed means the scan happened on the WRONG surface — that is a red run, not a clean
@@ -182,6 +185,7 @@ export async function runUiAudit(opts: Args): Promise<number> {
           backdropRefusals: pixels.refusals,
           censusReach: reach ?? null,
           populationAccounting,
+          populationVerdict: populationGap === null ? "complete" : { verdict: "NO VERDICT", ...populationGap },
           themeEvidence: {
             request: opts.theme,
             applied: settingsEvidence.themeApplied,
@@ -205,11 +209,21 @@ export async function runUiAudit(opts: Args): Promise<number> {
     printCensusReach(reach);
     printObscuredScan(pixels.samples?.obscuredScan);
     printPopulationAccounting(populationAccounting);
+    if (populationGap !== null) {
+      printEvidenceGaps([populationGap]);
+      print("");
+    }
     printBackdropRefusals(pixels.refusals);
-    printFindingsTable(findings);
+    printFindingsTable(findings, populationGap === null);
 
+    let verdict: ExitCode = EXIT.clean;
+    if (populationGap !== null) {
+      verdict = EXIT.toolError;
+    } else if (failed) {
+      verdict = EXIT.violations;
+    }
     return printVerdict("design-audit", {
-      verdict: failed ? EXIT.violations : EXIT.clean,
+      verdict,
       denominators: {
         census: { value: census, refuseWhen: "zero" },
         ...Object.fromEntries(Object.entries(familyScans ?? {}).map(([family, value]) => [`scanned-${family}`, { value, refuseWhen: "zero" as const }])),
@@ -225,12 +239,13 @@ export async function runUiAudit(opts: Args): Promise<number> {
         ["actions", opts.actions.length],
         ["actions-failed", actionsFailed],
         ["pointer", opts.device === null ? "fine" : "coarse"],
+        ["population-verdict", populationGap === null ? "complete" : "NO-VERDICT"],
         ["tap-candidates", populationAccounting["tap-target"]?.candidates ?? -1],
         ["tap-judged", populationAccounting["tap-target"]?.judged ?? -1],
         ["tap-affected", populationAccounting["tap-target"]?.affected ?? -1],
         ["tap-populations", populationAccounting["tap-target"]?.populations ?? -1],
         ["tap-representatives", populationAccounting["tap-target"]?.emitted ?? -1],
-        ["tap-withheld-nested", populationAccounting["tap-target"]?.withheld["nestedOwner"] ?? -1],
+        ["tap-collapsed-same-owner", populationAccounting["tap-target"]?.collapsed["sameOwner"] ?? -1],
         ["tap-withheld-cap", populationAccounting["tap-target"]?.withheld["cap"] ?? -1],
         // The DENOMINATOR (#409): how many nodes the walk censused. `findings=0` means nothing only when
         // this is non-zero, and a reader of the machine line is entitled to see it.

@@ -110,8 +110,13 @@ export function checkCohortAnatomy(input: CohortAnatomyInput): Finding | null {
  *  fixed distance from its label in every pane, which is why one change closes the ragged-right-edge
  *  family with it. */
 const RATIO_AS_PERCENT = 100;
+const ROW_VOID_MIN_RATIO = 0.45;
+const ROW_VOID_MIN_PX = 240;
 
 export function checkRowVoid(input: RowVoidInput): Finding | null {
+  if (input.gapPx < ROW_VOID_MIN_PX || input.gapRatio < ROW_VOID_MIN_RATIO) {
+    return null;
+  }
   return {
     rule: "row-void",
     severity: "P2",

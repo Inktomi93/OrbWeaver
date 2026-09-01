@@ -14,8 +14,29 @@ test("selection-idiom ignores invariant base paint when selected and unselected 
   const res = await runCli("ui-audit", ["/invariant-selection-paint.html", "--base", `file://${scratch}`, "--fail-on", "P2"], {
     timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
   });
-  expect(res.stdout, "absolute card paint is not a selection treatment when the unselected twin shares it").not.toContain("selection-idiom");
+  expect(res.stdout, "absolute card paint is not a selection treatment when the unselected twin shares it").not.toMatch(/^P2\s+selection-idiom/mu);
+  expect(res.stdout).toContain("POPULATION   selection-idiom candidates=3 judged=3 affected=0 populations=0 representatives=0");
 });
+
+for (const [label, attribute, withheldReason] of [
+  ["selected", "data-selected", "unmatchedSelected"],
+  ["unselected", 'aria-selected="false"', "unmatchedUnselected"],
+] as const) {
+  test(`selection-idiom refuses a clean verdict for an ${label}-only authored cohort`, async ({ runCli, scratch }) => {
+    const reportPath = join(scratch, `${label}-only-selection.json`);
+    await writeFile(
+      join(scratch, `${label}-only-selection.html`),
+      relationalDocument(`<section data-slot="choice-group"><div data-slot="choice" ${attribute} style="width:120px;height:40px">orphan</div></section>`),
+    );
+    const res = await runCli("ui-audit", [`/${label}-only-selection.html`, "--base", `file://${scratch}`, "--out", reportPath], {
+      timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
+    });
+    expect(res.stdout).toContain(`POPULATION   selection-idiom candidates=1 judged=0 affected=0 populations=0 representatives=0 withheld(${withheldReason}=1`);
+    expect(res.stdout).toContain("INSTRUMENT ERROR");
+    expect(res.stdout).not.toContain("no findings — clean");
+    await expect(res).toExitWith(2);
+  });
+}
 
 test("selection-idiom aggregates delta vocabularies across checked, selected, and current state kinds", async ({ runCli, scratch }) => {
   const vocabularies = [

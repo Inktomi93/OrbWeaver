@@ -99,7 +99,8 @@ export interface PaneInkInput {
  *
  *  No single contrast value here is wrong — the RANK is. Base UI emits `data-checked` and
  *  `data-unchecked` on the same component, so the pair is the author's own claim. Both sides must be
- *  measurable or the sample is not emitted at all: a one-sided comparison is silence, never a verdict. */
+ *  measurable or the sample is not emitted; the population census withholds a one-sided cohort and the
+ *  runner refuses a verdict rather than presenting the absent comparison as silence. */
 export interface QuietStateInput {
   readonly selector: string;
   readonly offContrast: number;
