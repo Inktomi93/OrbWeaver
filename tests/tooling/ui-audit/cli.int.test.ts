@@ -606,13 +606,13 @@ const OFF_CANVAS_CONTROL = '<button style="position:fixed;inset-inline-start:300
 test("a 413x16 control below the fold of an INNER scroller REDs — three rule families were blind to it", async ({ runCli, scratch }) => {
   await writeFile(join(scratch, "below-fold.html"), innerScrollerPage(""));
   const res = await runCli("ui-audit", ["/below-fold.html", "--base", `file://${scratch}`, "--fail-on", "P2"], { timeoutMs: CLI_TIMEOUT_MS });
-  expect(res.stdout, "16px is under the 24px fine-pointer floor — and it is 900px down an inner scroller").toContain("tap-target");
+  expect(res.stdout, "16px is under the 24px fine-pointer floor — and it is 900px down an inner scroller").toMatch(/^P1\s+tap-target/mu);
   // The denominator is not optional: a reader of a reach-bearing run is entitled to both numbers.
   expect(res.stdout).toContain("skipped-offviewport=0");
   expect(res.stdout).toMatch(REACHED_RE);
   // The healthy 48x48 twin sits in the SAME below-fold wrapper and must stay silent — the reveal widened
   // the census, it did not lower the floor. `tap-target` appears exactly once, for the 16px control.
-  expect(res.stdout.split("tap-target").length - 1, `only the 16px control may fire:\n${res.stdout}`).toBe(1);
+  expect(res.stdout.match(/^P1\s+tap-target/gmu) ?? [], `only the 16px control may fire:\n${res.stdout}`).toHaveLength(1);
   await expect(res).toExitWith(1);
 });
 
@@ -622,7 +622,7 @@ test("an unreachable control is COUNTED and NAMED on the run — never silently 
   expect(res.stdout, "the human line must say what was skipped and why").toContain("SKIPPED");
   expect(res.stdout).toContain("skipped-offviewport=1");
   // The reachable defect in the same page still fires: counting the phantom did not mute the census.
-  expect(res.stdout).toContain("tap-target");
+  expect(res.stdout).toMatch(/^P1\s+tap-target/mu);
 });
 
 // @instrument-absence-proof: a page whose ONLY offered control is unreachable has three verdict families
@@ -1098,13 +1098,13 @@ auditRuleTest(
   async ({ runCli, scratch }) => {
     await writeFile(join(scratch, "diverge.html"), cohortListPage(16));
     const res = await runCli("ui-audit", ["/diverge.html", "--base", `file://${scratch}`], { timeoutMs: CLI_TIMEOUT_MS });
-    expect(res.stdout).toContain("cohort-anatomy");
+    expect(res.stdout).toMatch(/^P2\s+cohort-anatomy/mu);
     // The population IS the finding: a bare min/max cannot say which side is the defect, and an
     // operator fixing "16px" needs to know 3 rows are wrong and 4 are right.
     expect(res.stdout, "the value must name the outlier count, the mode, and both heights").toContain("3 of 7 at 16px, 4 at 32px");
     // ONE finding for the whole cohort. The tap-target family reports the same live defect nine times;
     // if this rule ever starts emitting per-member it has become the noise it exists to replace.
-    expect(res.stdout.split("cohort-anatomy").length - 1, "one cohort is one finding").toBe(1);
+    expect(res.stdout.match(/^P2\s+cohort-anatomy/gmu) ?? [], "one cohort is one finding").toHaveLength(1);
   },
 );
 
@@ -1120,7 +1120,7 @@ auditRuleTest(
   async ({ runCli, scratch }) => {
     await writeFile(join(scratch, "uniform.html"), cohortListPage(32));
     const res = await runCli("ui-audit", ["/uniform.html", "--base", `file://${scratch}`], { timeoutMs: CLI_TIMEOUT_MS });
-    expect(res.stdout).not.toContain("cohort-anatomy");
+    expect(res.stdout).not.toMatch(/^P2\s+cohort-anatomy/mu);
     // An absence is only a verdict when the family actually ran: `scanned-structure` counts the
     // structure family's dispatches, so a census that stopped reaching cohorts cannot masquerade as clean.
     expect(res.stdout, "the structure family must have dispatched — otherwise this is blindness, not silence").toMatch(/scanned-structure=[1-9]/u);
@@ -1135,7 +1135,7 @@ auditRuleTest(
   async ({ runCli, scratch }) => {
     await writeFile(join(scratch, "narrow.html"), cohortListPage(24));
     const res = await runCli("ui-audit", ["/narrow.html", "--base", `file://${scratch}`], { timeoutMs: CLI_TIMEOUT_MS });
-    expect(res.stdout).not.toContain("cohort-anatomy");
+    expect(res.stdout).not.toMatch(/^P2\s+cohort-anatomy/mu);
   },
 );
 
@@ -1149,8 +1149,8 @@ function voidRowPage(rowWidthPx: number, spread: "between" | "gap"): string {
 <html data-app-ready="settled"><head><meta charset="utf-8"><title>t</title></head>
 <body style="margin:0;background:#000;color:#fff;font:14px system-ui"><main>
 <div style="display:flex;align-items:center;${justify};width:${rowWidthPx}px;height:32px;padding:0 12px">
-  <span style="width:75px">Avatar shape</span>
-  <button style="width:48px;height:24px">on</button>
+  <label id="avatar-shape-label" for="avatar-shape-control" style="width:75px">Avatar shape</label>
+  <button id="avatar-shape-control" aria-labelledby="avatar-shape-label" style="width:48px;height:24px">on</button>
 </div></main></body></html>`;
 }
 
@@ -1160,7 +1160,7 @@ auditRuleTest(
   async ({ runCli, scratch }) => {
     await writeFile(join(scratch, "void.html"), voidRowPage(1000, "between"));
     const res = await runCli("ui-audit", ["/void.html", "--base", `file://${scratch}`], { timeoutMs: CLI_TIMEOUT_MS });
-    expect(res.stdout).toContain("row-void");
+    expect(res.stdout).toMatch(/^P2\s+row-void/mu);
     // The LABEL is what makes the finding actionable — an operator does not fix "a row", they fix the
     // "Avatar shape" row. A selector path alone would not identify it in a pane of forty.
     expect(res.stdout, "the finding must name the row by its label text").toContain('between "Avatar shape" and its control');
@@ -1176,7 +1176,7 @@ auditRuleTest(
   async ({ runCli, scratch }) => {
     await writeFile(join(scratch, "bound.html"), voidRowPage(1000, "gap"));
     const res = await runCli("ui-audit", ["/bound.html", "--base", `file://${scratch}`], { timeoutMs: CLI_TIMEOUT_MS });
-    expect(res.stdout).not.toContain("row-void");
+    expect(res.stdout).not.toMatch(/^P2\s+row-void/mu);
     expect(res.stdout, "the structure family must have dispatched — silence is only a verdict when the family ran").toMatch(/scanned-structure=[1-9]/u);
   },
 );
@@ -1187,7 +1187,7 @@ auditRuleTest(
   async ({ runCli, scratch }) => {
     await writeFile(join(scratch, "tight-row.html"), voidRowPage(260, "between"));
     const res = await runCli("ui-audit", ["/tight-row.html", "--base", `file://${scratch}`], { timeoutMs: CLI_TIMEOUT_MS });
-    expect(res.stdout).not.toContain("row-void");
+    expect(res.stdout).not.toMatch(/^P2\s+row-void/mu);
   },
 );
 
@@ -1197,7 +1197,15 @@ auditRuleTest(
 // list row and a picker card are never siblings, and "eight ways to say this one" is a claim about the
 // whole surface that no sibling-scoped lens can make.
 function selectionPage(treatments: readonly string[]): string {
-  const cells = treatments.map((style, index) => `<div data-selected style="${style};width:120px;height:40px">cell ${String(index)}</div>`).join("\n  ");
+  const cells = treatments
+    .map(
+      (
+        style,
+        index,
+      ) => `<section data-slot="choice-group"><div data-slot="choice" data-selected style="${style};width:120px;height:40px">cell ${String(index)}</div>
+  <div data-slot="choice" aria-selected="false" style="width:120px;height:40px">other ${String(index)}</div></section>`,
+    )
+    .join("\n  ");
   return `<!doctype html>
 <html data-app-ready="settled"><head><meta charset="utf-8"><title>t</title></head>
 <body style="margin:0;background:#000;color:#fff;font:14px system-ui"><main>
@@ -1267,15 +1275,14 @@ function inkPage(contentPx: number): string {
 
 auditRuleTest(
   [{ rule: "pane-ink", kind: "fires", reason: "a 900px region whose last text sits near the top is evacuated, not airy" }],
-  "a region whose content ends near its top is a pane-ink finding measured on TEXT leaves",
+  "a region whose authored paint ends near its top is a pane-ink finding",
   async ({ runCli, scratch }) => {
     await writeFile(join(scratch, "thin.html"), inkPage(40));
     const res = await runCli("ui-audit", ["/thin.html", "--base", `file://${scratch}`], { timeoutMs: CLI_TIMEOUT_MS });
-    expect(res.stdout).toContain("pane-ink");
-    // MEASURED ON TEXT-BEARING LEAVES, never the tallest descendant: a full-height container spans the
-    // region, so a max-descendant measure reports 100% ink on an empty pane. Live proof of the right
-    // measure: Personas reports 298px of 752px with 8 leaves, matching a hand measurement exactly.
-    expect(res.stdout, "the finding must report the ink ratio and the leaf count").toMatch(/% ink, \d+ text leaves/u);
+    expect(res.stdout).toMatch(/^P3\s+pane-ink/mu);
+    // MEASURED ON AUTHORED PAINT, never the tallest descendant: a full-height transparent container spans
+    // the region, so a max-descendant measure reports 100% ink on an empty pane.
+    expect(res.stdout, "the finding must report the ink ratio and designed-subject count").toMatch(/% ink, \d+ text runs, \d+ designed subjects/u);
   },
 );
 
@@ -1285,7 +1292,7 @@ auditRuleTest(
   async ({ runCli, scratch }) => {
     await writeFile(join(scratch, "full.html"), inkPage(820));
     const res = await runCli("ui-audit", ["/full.html", "--base", `file://${scratch}`], { timeoutMs: CLI_TIMEOUT_MS });
-    expect(res.stdout).not.toContain("pane-ink");
+    expect(res.stdout).not.toMatch(/^P3\s+pane-ink/mu);
     expect(res.stdout, "the structure family must have dispatched — silence is only a verdict when the family ran").toMatch(/scanned-structure=[1-9]/u);
   },
 );
@@ -1445,7 +1452,7 @@ auditRuleTest(
   async ({ runCli, scratch }) => {
     await writeFile(join(scratch, "content-driven.html"), contentDrivenRowPage(200));
     const res = await runCli("ui-audit", ["/content-driven.html", "--base", `file://${scratch}`], { timeoutMs: CLI_TIMEOUT_MS });
-    expect(res.stdout).not.toContain("cohort-anatomy");
+    expect(res.stdout).not.toMatch(/^P2\s+cohort-anatomy/mu);
     expect(res.stdout, "the structure family must have dispatched — silence is only a verdict when the family ran").toMatch(/scanned-structure=[1-9]/u);
   },
 );

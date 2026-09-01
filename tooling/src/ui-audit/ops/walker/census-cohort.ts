@@ -28,12 +28,19 @@ refuseDirectInvocation(import.meta.url, "pnpm design-audit");
 
 export const WALKER_CENSUS_COHORT = `  // ── sibling cohort anatomy ────────────────────────────────────────────────
   var cohortAnatomies = [];
+  var relationalAccounting = {
+    "cohort-anatomy": { candidates: 0, judged: 0, withheld: {} },
+    "row-void": { candidates: 0, judged: 0, withheld: {} },
+    "pane-ink": { candidates: 0, judged: 0, withheld: {} },
+  };
+
+  function withholdRelational(accounting, reason) {
+    accounting.withheld[reason] = (accounting.withheld[reason] || 0) + 1;
+  }
+
   // Two members prove nothing: a pair that differs is as likely a header-plus-row as a defect. Three is
   // the smallest population where "most of them agree and one does not" is a statement.
   var COHORT_MIN_MEMBERS = 3;
-  // Report the worst cohorts, not a census — past a handful the surface is structurally inconsistent and
-  // the operator needs the offenders (snap/ops/overflow.ts's MAX_ESCAPES reasoning, same purpose).
-  var COHORT_MAX_ROWS = 12;
   // Sub-4px boxes are plumbing (sr-only stubs, spacers); their height carries no anatomy.
   var COHORT_MIN_PAINTED_PX = 4;
   // How much of a box difference the CONTENT difference must explain before the row counts as sized by
@@ -90,7 +97,8 @@ export const WALKER_CENSUS_COHORT = `  // ── sibling cohort anatomy ──�
 
   cohortsByParent.forEach(function (byKey, parentEl) {
     byKey.forEach(function (members, key) {
-      if (members.length < COHORT_MIN_MEMBERS || cohortAnatomies.length >= COHORT_MAX_ROWS) return;
+      if (members.length < COHORT_MIN_MEMBERS) return;
+      relationalAccounting["cohort-anatomy"].candidates += 1;
       var animating = false;
       var heights = [];
       for (var mi = 0; mi < members.length; mi += 1) {
@@ -145,6 +153,7 @@ export const WALKER_CENSUS_COHORT = `  // ── sibling cohort anatomy ──�
         distinctHeights: distinct.length,
         animating: animating,
       });
+      relationalAccounting["cohort-anatomy"].judged += 1;
     });
   });
   // ── row void: a label and its control with an ocean between them ──────────
@@ -160,7 +169,6 @@ export const WALKER_CENSUS_COHORT = `  // ── sibling cohort anatomy ──�
   var rowVoids = [];
   var VOID_MIN_RATIO = 0.45;
   var VOID_MIN_PX = 240;
-  var VOID_MAX_ROWS = 8;
   var VOID_MIN_FLANK_PX = 4;
 
   function voidFlankText(el) {
@@ -171,7 +179,30 @@ export const WALKER_CENSUS_COHORT = `  // ── sibling cohort anatomy ──�
     return t.length > 40 ? t.slice(0, 40) : t;
   }
 
-  for (var vi = 0; vi < allEls.length && rowVoids.length < VOID_MAX_ROWS; vi += 1) {
+  function boundVoidControl(leftEl, rightEl) {
+    var control = rightEl.matches(INTERACTIVE_SELECTOR) ? rightEl : rightEl.querySelector(INTERACTIVE_SELECTOR);
+    if (control === null) return null;
+    var labelledBy = String(control.getAttribute("aria-labelledby") || "").trim().split(/\\s+/);
+    var labelCandidates = [];
+    if (leftEl.matches("label[for]")) labelCandidates.push(leftEl);
+    var nestedLabels = leftEl.querySelectorAll("label[for]");
+    for (var vl = 0; vl < nestedLabels.length; vl += 1) labelCandidates.push(nestedLabels[vl]);
+    for (var lc = 0; lc < labelCandidates.length; lc += 1) {
+      var targetId = String(labelCandidates[lc].getAttribute("for") || "");
+      var target = targetId === "" ? null : document.getElementById(targetId);
+      if (target === control || (target !== null && rightEl.contains(target))) return control;
+    }
+    var leftIds = [];
+    if (leftEl.id) leftIds.push(leftEl.id);
+    var identified = leftEl.querySelectorAll("[id]");
+    for (var ii = 0; ii < identified.length; ii += 1) leftIds.push(identified[ii].id);
+    for (var lid = 0; lid < leftIds.length; lid += 1) {
+      if (labelledBy.indexOf(leftIds[lid]) !== -1) return control;
+    }
+    return null;
+  }
+
+  for (var vi = 0; vi < allEls.length; vi += 1) {
     var vrow = allEls[vi];
     if (!isVisible(vrow)) continue;
     var vstyle = getComputedStyle(vrow);
@@ -206,9 +237,13 @@ export const WALKER_CENSUS_COHORT = `  // ── sibling cohort anatomy ──�
     if (bestGap < VOID_MIN_PX || bestGap / vrect.width < VOID_MIN_RATIO) continue;
     var leftText = voidFlankText(bestLeft.el);
     if (leftText === "") continue;
-    var rightIsControl =
-      bestRight.el.matches(INTERACTIVE_SELECTOR) || bestRight.el.querySelector(INTERACTIVE_SELECTOR) !== null;
+    var rightIsControl = bestRight.el.matches(INTERACTIVE_SELECTOR) || bestRight.el.querySelector(INTERACTIVE_SELECTOR) !== null;
     if (!rightIsControl) continue;
+    relationalAccounting["row-void"].candidates += 1;
+    if (boundVoidControl(bestLeft.el, bestRight.el) === null) {
+      withholdRelational(relationalAccounting["row-void"], "unbound");
+      continue;
+    }
     rowVoids.push({
       selector: describe(vrow),
       gapPx: Math.round(bestGap),
@@ -220,91 +255,6 @@ export const WALKER_CENSUS_COHORT = `  // ── sibling cohort anatomy ──�
       rightSelector: describe(bestRight.el),
       rightWidthPx: Math.round(bestRight.right - bestRight.left),
     });
+    relationalAccounting["row-void"].judged += 1;
   }
-  // ── selection idiom: how many ways does one surface say "this one"? ────────
-  // "Pick ONE selection idiom. There are currently eight." — an orange left border + tint, a filled
-  // bar, a 2px ring, a ring on one button in a box, an underline + tint, a check badge, a SOLID FILLED
-  // ACCENT BLOCK, a light fill. Each is defensible alone; together they mean a user re-learns "which one
-  // is chosen" per region, and the heaviest treatment lands on the lowest-stakes state.
-  //
-  // THE GROUPING KEY IS THE PRIMITIVE'S OWN STATE ATTRIBUTE, never a shape guess. This app is built
-  // exclusively on Base UI, whose 1.7 docs define a closed state vocabulary (data-checked /
-  // data-selected / data-current / data-pressed / data-active, mirrored by the ARIA equivalents the
-  // app also authors). So "everything currently expressing selection" is the AUTHOR'S claim, it spans
-  // containers — which is exactly what a sibling cohort cannot see — and it is exhaustive rather than
-  // heuristic.
-  var selectionIdioms = [];
-  var SELECT_MIN_ELS = 3;
-  var SELECT_RING_MIN_PX = 1;
-  var SELECT_BAR_MIN_PX = 2;
-
-  function selectedStateKind(el) {
-    if (el.hasAttribute("data-checked") || el.getAttribute("aria-checked") === "true") return "checked";
-    if (el.hasAttribute("data-selected") || el.getAttribute("aria-selected") === "true") return "selected";
-    var ac = el.getAttribute("aria-current");
-    if (el.hasAttribute("data-current") || (ac !== null && ac !== "false")) return "current";
-    if (el.hasAttribute("data-pressed")) return "pressed";
-    if (el.hasAttribute("data-active")) return "active";
-    return null;
-  }
-
-  // WHICH CHANNELS CARRY THE SELECTION. Not "what colour" — the idiom is the MECHANISM, and two regions
-  // using the same accent through different channels still read as two vocabularies.
-  function selectionSignature(el) {
-    var st = getComputedStyle(el);
-    var channels = [];
-    var outline = parseFloat(st.outlineWidth);
-    if (!Number.isNaN(outline) && outline >= SELECT_RING_MIN_PX && st.outlineStyle !== "none") channels.push("ring");
-    if (st.boxShadow && st.boxShadow !== "none" && st.boxShadow.indexOf("inset") === -1) channels.push("shadow");
-    var bg = parseRgb(st.backgroundColor);
-    if (bg !== null && bg.a > 0) channels.push("fill");
-    var sides = ["Top", "Right", "Bottom", "Left"];
-    var thick = [];
-    for (var si = 0; si < sides.length; si += 1) {
-      var w = parseFloat(st["border" + sides[si] + "Width"]);
-      if (!Number.isNaN(w) && w >= SELECT_BAR_MIN_PX) thick.push(sides[si].toLowerCase());
-    }
-    // A single thick side is a RAIL/UNDERLINE idiom; all four is a boxed idiom. They are different
-    // vocabularies and must not collapse into one signature.
-    if (thick.length === 1) channels.push("bar-" + thick[0]);
-    else if (thick.length > 1) channels.push("border");
-    if (st.textDecorationLine && st.textDecorationLine.indexOf("underline") !== -1) channels.push("underline");
-    return channels.length === 0 ? "none" : channels.sort().join("+");
-  }
-
-  var idiomsByKind = new Map();
-  for (var si2 = 0; si2 < allEls.length; si2 += 1) {
-    var sel = allEls[si2];
-    if (!isVisible(sel)) continue;
-    var kind = selectedStateKind(sel);
-    if (kind === null) continue;
-    var sig = selectionSignature(sel);
-    if (sig === "none") continue;
-    var bucket = idiomsByKind.get(kind);
-    if (bucket === undefined) {
-      bucket = new Map();
-      idiomsByKind.set(kind, bucket);
-    }
-    var seen = bucket.get(sig);
-    if (seen === undefined) bucket.set(sig, { count: 1, selector: describe(sel) });
-    else seen.count += 1;
-  }
-
-  idiomsByKind.forEach(function (bucket, kind) {
-    var treatments = [];
-    var total = 0;
-    bucket.forEach(function (v, sig) {
-      treatments.push({ signature: sig, count: v.count, selector: v.selector });
-      total += v.count;
-    });
-    if (total < SELECT_MIN_ELS) return;
-    treatments.sort(function (a, b) { return b.count - a.count; });
-    selectionIdioms.push({
-      stateKind: kind,
-      elements: total,
-      treatments: treatments.length,
-      signatures: treatments.map(function (t) { return t.signature + "x" + t.count; }).join(" · "),
-      exampleSelector: treatments.length > 1 ? treatments[treatments.length - 1].selector : treatments[0].selector,
-    });
-  });
 `;

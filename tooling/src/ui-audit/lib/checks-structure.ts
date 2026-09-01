@@ -146,7 +146,7 @@ export function checkSelectionIdiom(input: SelectionIdiomInput): Finding | null 
     rule: "selection-idiom",
     severity: "P2",
     selector: input.exampleSelector,
-    value: `${String(input.treatments)} treatments for "${input.stateKind}" across ${String(input.elements)} element(s): ${input.signatures}`,
+    value: `${String(input.treatments)} treatments across ${input.stateKinds} states and ${String(input.elements)} element(s): ${input.signatures}`,
     message:
       'one surface says "this one is chosen" in several different visual vocabularies, so the answer is region-specific and a user re-learns it per region — and the heaviest treatment lands wherever it was written rather than on the highest-stakes state. Settle on two: a ring for cells in a grid, a rail plus tint for rows in a list, and retire the rest',
     origin: "orbweaver",
@@ -187,7 +187,7 @@ export function checkPaneInk(input: PaneInkInput): Finding | null {
     rule: "pane-ink",
     severity: "P3",
     selector: input.selector,
-    value: `content ends at ${String(input.lastInkPx)}px of ${String(input.paneHeightPx)}px (${String(Math.round(input.inkRatio * RATIO_AS_PERCENT))}% ink, ${String(input.textLeaves)} text leaves)`,
+    value: `content ends at ${String(input.lastInkPx)}px of ${String(input.paneHeightPx)}px (${String(Math.round(input.inkRatio * RATIO_AS_PERCENT))}% ink, ${String(input.textLeaves)} text runs, ${String(input.designedSubjects)} designed subjects)`,
     message:
       "a region is mostly empty below its content and nothing designed lives in the void — this reads as unfinished rather than airy. Either earn the height (a capped measure plus a second column for the section's own teaching, or a designed landing state) or let the shell hand this region less room",
     origin: "orbweaver",

@@ -19,47 +19,88 @@ export const WALKER_CENSUS_REGION = `  // ── pane ink: a region that does no
   // 1400. The teacher: 4 lines in a 700px column. Not 'clean' — UNFINISHED-LOOKING." A thin pane is not
   // a defect in any element; it is the region failing to earn the width the shell gave it.
   //
-  // MEASURED ON TEXT-BEARING LEAVES, never the tallest descendant. A full-height flex container spans the
-  // pane, so a max-descendant measure reports 100% ink on an evacuated region — measured live, that exact
-  // mistake returned "100%" for a pane whose last text sat at 40%.
+  // MEASURED ON AUTHORED PAINT, never the tallest descendant. A full-height flex container spans the pane,
+  // so a max-descendant measure reports 100% ink on an evacuated region. Text ranges, media, controls,
+  // and an element's own background/border/shadow count; transparent layout wrappers do not.
   //
   // ONLY THE LOW SIDE, and only on a region that is NOT scrolled: content past the fold is a scroll, not
   // a void, and the region legitimately continues below the measured box.
   var paneInks = [];
   var INK_MIN_HEIGHT_PX = 400;
   var INK_MIN_LEAVES = 3;
-  var INK_MAX_ROWS = 6;
   var INK_SCROLL_TOLERANCE_PX = 4;
   var INK_RATIO_SCALE = 100;
 
-  for (var pi = 0; pi < allEls.length && paneInks.length < INK_MAX_ROWS; pi += 1) {
+  function hasDesignedOwnPaint(el) {
+    var tag = el.tagName;
+    if (tag === "IMG" || tag === "SVG" || tag === "CANVAS" || tag === "VIDEO" || tag === "PICTURE") return true;
+    if (el.matches(INTERACTIVE_SELECTOR)) return true;
+    var style = getComputedStyle(el);
+    var bg = parseRgb(style.backgroundColor);
+    if (bg !== null && bg.a > 0) return true;
+    if (style.boxShadow && style.boxShadow !== "none") return true;
+    var paintedSides = ["Top", "Right", "Bottom", "Left"];
+    for (var psi = 0; psi < paintedSides.length; psi += 1) {
+      var side = paintedSides[psi];
+      if (parseFloat(style["border" + side + "Width"]) > 0 && style["border" + side + "Style"] !== "none") return true;
+    }
+    return false;
+  }
+
+  for (var pi = 0; pi < allEls.length; pi += 1) {
     var pane = allEls[pi];
     if (!isVisible(pane)) continue;
     var prole = pane.getAttribute("role");
     if (!(pane.tagName === "MAIN" || prole === "region" || prole === "tabpanel")) continue;
+    if (pane.tagName === "MAIN" && pane.querySelector("[role=region],[role=tabpanel]") !== null) continue;
     var prect = pane.getBoundingClientRect();
     if (prect.height < INK_MIN_HEIGHT_PX) continue;
-    if (pane.scrollHeight - pane.clientHeight > INK_SCROLL_TOLERANCE_PX) continue;
-    var leaves = pane.querySelectorAll("*");
+    relationalAccounting["pane-ink"].candidates += 1;
+    if (pane.scrollHeight - pane.clientHeight > INK_SCROLL_TOLERANCE_PX) {
+      withholdRelational(relationalAccounting["pane-ink"], "scrolling");
+      continue;
+    }
     var lowest = prect.top;
     var textLeaves = 0;
-    for (var li2 = 0; li2 < leaves.length; li2 += 1) {
-      var leaf = leaves[li2];
-      if (leaf.children.length !== 0) continue;
-      if ((leaf.textContent || "").trim() === "") continue;
-      if (!isVisible(leaf)) continue;
-      textLeaves += 1;
+    var designedSubjects = 0;
+    var textWalker = document.createTreeWalker(pane, NodeFilter.SHOW_TEXT);
+    var textNode = textWalker.nextNode();
+    while (textNode !== null) {
+      var textParent = textNode.parentElement;
+      if ((textNode.textContent || "").trim() !== "" && textParent !== null && isVisible(textParent)) {
+        var textRange = document.createRange();
+        textRange.selectNodeContents(textNode);
+        var textRect = textRange.getBoundingClientRect();
+        if (textRect.width > 0 && textRect.height > 0) {
+          textLeaves += 1;
+          designedSubjects += 1;
+          if (textRect.bottom > lowest) lowest = textRect.bottom;
+        }
+      }
+      textNode = textWalker.nextNode();
+    }
+    var painted = pane.querySelectorAll("*");
+    for (var li2 = 0; li2 < painted.length; li2 += 1) {
+      var leaf = painted[li2];
+      if (!isVisible(leaf) || !hasDesignedOwnPaint(leaf)) continue;
       var lrect = leaf.getBoundingClientRect();
+      if (lrect.width <= 0 || lrect.height <= 0) continue;
+      designedSubjects += 1;
       if (lrect.bottom > lowest) lowest = lrect.bottom;
     }
-    if (textLeaves < INK_MIN_LEAVES) continue;
+    if (textLeaves < INK_MIN_LEAVES) {
+      withholdRelational(relationalAccounting["pane-ink"], "insufficientText");
+      continue;
+    }
     paneInks.push({
       selector: describe(pane),
       paneHeightPx: Math.round(prect.height),
       lastInkPx: Math.round(lowest - prect.top),
       inkRatio: Math.round(((lowest - prect.top) / prect.height) * INK_RATIO_SCALE) / INK_RATIO_SCALE,
       textLeaves: textLeaves,
+      designedSubjects: designedSubjects,
     });
+    relationalAccounting["pane-ink"].judged += 1;
   }
 
   // ── quiet state: the OFF state must not outshout the ON state ─────────────
@@ -114,29 +155,44 @@ export const WALKER_CENSUS_REGION = `  // ── pane ink: a region that does no
     var baseLum = relLum(backdrop.color);
     var hi = Math.max(ownLum, baseLum);
     var lo = Math.min(ownLum, baseLum);
-    return Math.round(((hi + WCAG_OFFSET) / (lo + WCAG_OFFSET)) * QUIET_SCALE) / QUIET_SCALE;
+    return {
+      contrast: Math.round(((hi + WCAG_OFFSET) / (lo + WCAG_OFFSET)) * QUIET_SCALE) / QUIET_SCALE,
+      backdrop: [backdrop.color.r, backdrop.color.g, backdrop.color.b, backdrop.color.a].join(","),
+    };
   }
 
   var onEls = document.querySelectorAll("[data-checked]");
   var offEls = document.querySelectorAll("[data-unchecked]");
-  var onBest = 0;
-  var offBest = 0;
-  var offSel = null;
+  var quietCohorts = new Map();
+  function addQuietState(el, state) {
+    if (!isVisible(el)) return;
+    var contrast = fillContrast(el);
+    if (contrast === null) return;
+    var key = authoredTargetClaim(el) + "|home=" + authoredTargetHome(el) + "|backdrop=" + contrast.backdrop;
+    var cohort = quietCohorts.get(key);
+    if (cohort === undefined) {
+      cohort = { on: 0, off: 0, offSelector: null };
+      quietCohorts.set(key, cohort);
+    }
+    if (state === "on" && contrast.contrast > cohort.on) cohort.on = contrast.contrast;
+    if (state === "off" && contrast.contrast > cohort.off) {
+      cohort.off = contrast.contrast;
+      cohort.offSelector = describe(el);
+    }
+  }
   for (var oi2 = 0; oi2 < onEls.length; oi2 += 1) {
-    if (!isVisible(onEls[oi2])) continue;
-    var oc = fillContrast(onEls[oi2]);
-    if (oc !== null && oc > onBest) onBest = oc;
+    addQuietState(onEls[oi2], "on");
   }
   for (var fi = 0; fi < offEls.length; fi += 1) {
-    if (!isVisible(offEls[fi])) continue;
-    var fc = fillContrast(offEls[fi]);
-    if (fc !== null && fc > offBest) { offBest = fc; offSel = describe(offEls[fi]); }
+    addQuietState(offEls[fi], "off");
   }
   // BOTH sides must be measurable or there is no ordering to judge — a one-sided sample is silence, and
   // the check is handed the honest absence rather than a fabricated comparison.
-  if (onBest > 0 && offBest > 0 && offSel !== null) {
-    quietStates.push({ selector: offSel, offContrast: offBest, onContrast: onBest });
-  }
+  quietCohorts.forEach(function (cohort) {
+    if (cohort.on > 0 && cohort.off > 0 && cohort.offSelector !== null) {
+      quietStates.push({ selector: cohort.offSelector, offContrast: cohort.off, onContrast: cohort.on });
+    }
+  });
 
   // ── simultaneous empty states ─────────────────────────────────────────────
   // "The LIST pane says 'No extension pages yet / install a plugin' while the CONTENT pane says 'Pick an
@@ -146,14 +202,46 @@ export const WALKER_CENSUS_REGION = `  // ── pane ink: a region that does no
   // whether each offers an action is its own slot.
   var emptyStates = [];
   var emptyRoots = document.querySelectorAll("[data-slot=empty-state-root]");
-  var visibleEmpty = [];
-  var actionless = 0;
+  var emptyBySurface = new Map();
+  function emptySurface(root) {
+    for (var surface = root.parentElement; surface !== null; surface = surface.parentElement) {
+      var role = String(surface.getAttribute("role") || "").toLowerCase();
+      if (surface.tagName === "MAIN" || surface.tagName === "ASIDE" || surface.tagName === "NAV") return surface;
+      if (role === "region" || role === "tabpanel" || role === "dialog" || role === "main") return surface;
+    }
+    return document.body;
+  }
+
+  function hasOperableEmptyAction(root) {
+    var actionSlots = root.querySelectorAll("[data-slot=empty-state-action]");
+    for (var actionIndex = 0; actionIndex < actionSlots.length; actionIndex += 1) {
+      var actionSlot = actionSlots[actionIndex];
+      if (!isVisible(actionSlot) || actionSlot.closest("[inert]") !== null) continue;
+      var doors = actionSlot.matches(INTERACTIVE_SELECTOR) ? [actionSlot] : actionSlot.querySelectorAll(INTERACTIVE_SELECTOR);
+      for (var doorIndex = 0; doorIndex < doors.length; doorIndex += 1) {
+        var door = doors[doorIndex];
+        if (!isVisible(door) || door.closest("[inert]") !== null) continue;
+        if (door.hasAttribute("disabled") || door.getAttribute("aria-disabled") === "true") continue;
+        return true;
+      }
+    }
+    return false;
+  }
+
   for (var ei = 0; ei < emptyRoots.length; ei += 1) {
     if (!isVisible(emptyRoots[ei])) continue;
-    visibleEmpty.push(emptyRoots[ei]);
-    if (emptyRoots[ei].querySelector("[data-slot=empty-state-action]") === null) actionless += 1;
+    var surface = emptySurface(emptyRoots[ei]);
+    var emptyGroup = emptyBySurface.get(surface);
+    if (emptyGroup === undefined) {
+      emptyGroup = { roots: [], actionless: 0 };
+      emptyBySurface.set(surface, emptyGroup);
+    }
+    emptyGroup.roots.push(emptyRoots[ei]);
+    if (!hasOperableEmptyAction(emptyRoots[ei])) emptyGroup.actionless += 1;
   }
-  if (visibleEmpty.length > 0) {
-    emptyStates.push({ selector: describe(visibleEmpty[0]), rendered: visibleEmpty.length, actionless: actionless });
-  }
+  emptyBySurface.forEach(function (group, surface) {
+    if (group.roots.length > 0) {
+      emptyStates.push({ selector: describe(surface), rendered: group.roots.length, actionless: group.actionless });
+    }
+  });
 `;
