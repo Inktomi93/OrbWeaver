@@ -30,6 +30,14 @@ export const WALKER_TARGET_IDENTITY = `  // ── authored target identity (#98
     var role = el.getAttribute("role");
     var type = el.tagName === "INPUT" ? String(el.getAttribute("type") || "text").toLowerCase() : "";
     var parts = [el.tagName.toLowerCase(), "slot=" + (slot || ""), "role=" + (role || "").trim().toLowerCase(), "type=" + type];
+    // Label association is an AUTHORED decision, not presentation (#837): a control wrapped in a label
+    // whose for= names another control (.labels empty) and a control genuinely for-associated inside the
+    // same DOM shape are two different authored mistakes — without this facet they share a claim+home key
+    // and the decision population collapses them into one representative.
+    if (el.labels !== undefined && el.labels !== null) {
+      var inLabel = el.closest("label") ? "|inlabel" : "";
+      parts.push("labels=" + el.labels.length + inLabel);
+    }
     for (var va = 0; va < TARGET_VARIANT_ATTRS.length; va += 1) {
       var attr = TARGET_VARIANT_ATTRS[va];
       if (el.hasAttribute(attr)) parts.push(attr + "=" + String(el.getAttribute(attr) || ""));
