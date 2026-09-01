@@ -1163,26 +1163,6 @@ auditRuleTest(
 );
 
 auditRuleTest(
-  [{ rule: "quiet-state", kind: "fires", reason: "the ordering remains measurable when token colors serialize as OKLCH" }],
-  "OKLCH state fills use the walker's browser color normalizer instead of being misread as RGB channels",
-  async ({ runCli, scratch }) => {
-    await writeFile(join(scratch, "loud-off-oklch.html"), switchWeightPage("oklch(0.96 0 0)", "oklch(0.55 0.15 50)"));
-    const res = await runCli("ui-audit", ["/loud-off-oklch.html", "--base", `file://${scratch}`], { timeoutMs: CLI_TIMEOUT_MS });
-    expect(res.stdout).toContain("quiet-state");
-  },
-);
-
-auditRuleTest(
-  [{ rule: "quiet-state", kind: "silent", reason: "a translucent OFF fill is composited before its state weight is ranked" }],
-  "alpha-bearing OKLCH fills are ranked by their visible composite rather than their authored channels",
-  async ({ runCli, scratch }) => {
-    await writeFile(join(scratch, "quiet-off-alpha.html"), switchWeightPage("oklch(0.96 0 0 / 0.08)", "oklch(0.72 0.16 55)"));
-    const res = await runCli("ui-audit", ["/quiet-off-alpha.html", "--base", `file://${scratch}`], { timeoutMs: CLI_TIMEOUT_MS });
-    expect(res.stdout).not.toContain("quiet-state");
-  },
-);
-
-auditRuleTest(
   [{ rule: "quiet-state", kind: "silent", reason: "the same pair with the weights the right way round — the fence is the inversion, not the contrast" }],
   "a muted OFF beneath an accent ON mints nothing",
   async ({ runCli, scratch }) => {
@@ -1235,5 +1215,88 @@ auditRuleTest(
     const res = await runCli("ui-audit", ["/one-empty.html", "--base", `file://${scratch}`], { timeoutMs: CLI_TIMEOUT_MS });
     expect(res.stdout).not.toContain("double-empty-state");
     expect(res.stdout, "the quality family must have dispatched").toMatch(/scanned-quality=[1-9]/u);
+  },
+);
+
+// ── THE OKLCH PLANT (#978 repair) ────────────────────────────────────────────────────────────────────
+// quiet-state originally scraped the first three numbers out of the computed background color. That
+// works on the hex fixtures above — Chromium normalizes #f5f5f5 to rgb() — and is GARBAGE on the actual
+// token system, which is authored in OKLCH and preserved as such: a live switch reads back
+// "oklch(0.99 0.005 60 / 0.12)", so the scrape computed a near-black luminance from a near-WHITE colour
+// and the whole ORDERING then ranked on noise. Every fixture was green while the rule was blind on the
+// only surface that matters.
+//
+// These two plants are the fence: the first proves the rule reads OKLCH at all, the second proves alpha
+// is composited rather than ignored — the live off-track is 12% alpha, and comparing a translucent fill
+// as if it were opaque measures a colour nothing paints.
+function oklchSwitchPage(offFill: string, onFill: string): string {
+  return `<!doctype html>
+<html data-app-ready="settled"><head><meta charset="utf-8"><title>t</title></head>
+<body style="margin:0;background:oklch(0.15 0.006 60);color:#fff;font:14px system-ui"><main>
+  <span data-unchecked style="display:block;width:48px;height:24px;background-color:${offFill}">off</span>
+  <span data-checked style="display:block;width:48px;height:24px;background-color:${onFill}">on</span>
+</main></body></html>`;
+}
+
+auditRuleTest(
+  [{ rule: "quiet-state", kind: "fires", reason: "an OKLCH-authored OFF track outshouts its OKLCH ON track — the token system's real spelling" }],
+  "quiet-state reads OKLCH, not just the rgb() spelling a hex fixture normalizes to",
+  async ({ runCli, scratch }) => {
+    await writeFile(join(scratch, "oklch-loud-off.html"), oklchSwitchPage("oklch(0.99 0.005 60)", "oklch(0.55 0.14 60)"));
+    const res = await runCli("ui-audit", ["/oklch-loud-off.html", "--base", `file://${scratch}`], { timeoutMs: CLI_TIMEOUT_MS });
+    expect(res.stdout).toContain("quiet-state");
+    // A number-regex over "oklch(0.99 0.005 60)" yields 0.99/0.005/60 read as sRGB channels — a near-black
+    // luminance for a near-white colour. If this ever reports an inverted or absent ratio, the parser
+    // regressed to scraping instead of normalizing.
+    expect(res.stdout, "the OFF side must measure as the LOUD one").toMatch(/OFF 1[0-9.]+:1 vs ON [1-9][0-9.]*:1/u);
+  },
+);
+
+auditRuleTest(
+  [
+    {
+      rule: "quiet-state",
+      kind: "silent",
+      reason: "a 12%-alpha OFF track composites down to a quiet fill — ignoring alpha would judge a colour nothing paints",
+    },
+  ],
+  "a translucent OFF track is composited over its backdrop, not compared raw",
+  async ({ runCli, scratch }) => {
+    // Raw, this near-white fill would outshout the accent and fire. Composited at 12% over the dark page
+    // it is a muted track — which is what the user actually sees, and the correct verdict.
+    await writeFile(join(scratch, "oklch-alpha-off.html"), oklchSwitchPage("oklch(0.99 0.005 60 / 0.12)", "oklch(0.55 0.14 60)"));
+    const res = await runCli("ui-audit", ["/oklch-alpha-off.html", "--base", `file://${scratch}`], { timeoutMs: CLI_TIMEOUT_MS });
+    expect(res.stdout).not.toContain("quiet-state");
+  },
+);
+
+// ── THE CONTENT-DRIVEN COHORT PLANT (#978 repair) ────────────────────────────────────────────────────
+// cohort-anatomy first shipped assuming a shared data-slot implies a shared intended height. True for
+// the F1 case (16px config-band buttons beside 32px twins, identical content); false for a settings row
+// whose height is set by what it holds. Live on settings:appearance it reported a 234px theme-picker row
+// against its 34px button sibling — half the findings on that surface were this shape.
+function contentDrivenRowPage(tallChildPx: number): string {
+  const rows = [tallChildPx, 24, 24].map((childPx) => `<div data-slot="setting-row"><div style="height:${String(childPx)}px">row</div></div>`).join("\n  ");
+  return `<!doctype html>
+<html data-app-ready="settled"><head><meta charset="utf-8"><title>t</title></head>
+<body style="margin:0;background:#000;color:#fff;font:14px system-ui"><main>
+  ${rows}
+</main></body></html>`;
+}
+
+auditRuleTest(
+  [
+    {
+      rule: "cohort-anatomy",
+      kind: "silent",
+      reason: "a row whose box grew because its CONTENT grew is doing its job — the fence is a mis-sized box, not a tall one",
+    },
+  ],
+  "a row sized by its own content mints nothing — the theme-picker false positive, pinned",
+  async ({ runCli, scratch }) => {
+    await writeFile(join(scratch, "content-driven.html"), contentDrivenRowPage(200));
+    const res = await runCli("ui-audit", ["/content-driven.html", "--base", `file://${scratch}`], { timeoutMs: CLI_TIMEOUT_MS });
+    expect(res.stdout).not.toContain("cohort-anatomy");
+    expect(res.stdout, "the structure family must have dispatched — silence is only a verdict when the family ran").toMatch(/scanned-structure=[1-9]/u);
   },
 );
