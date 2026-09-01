@@ -80,21 +80,33 @@ export const WALKER_CENSUS_REGION = `  // ── pane ink: a region that does no
   var CHANNEL_MAX = 255;
   var QUIET_SCALE = 100;
 
+  // NEVER A NUMBER REGEX OVER A COLOR STRING. This is a tokens-only tree, so computed style hands back
+  // the AUTHORED space: a live switch reads back "oklch(0.99 0.005 60 / 0.12)". Scraping the first three
+  // numbers and dividing by 255 computes the luminance of a near-black from a near-WHITE, and the whole
+  // rule then ranks on noise. resolve.ts's parseRgb already normalizes any browser-understood color
+  // through a memoized canvas probe and carries alpha — the same lesson its own gradient scanner records
+  // for issue #189, one family over. Reuse it; do not re-derive a parser here.
   function relLum(rgb) {
-    var chan = [];
-    var parts = [rgb.r, rgb.g, rgb.b];
+    var chan = [rgb.r, rgb.g, rgb.b];
+    var lin = [];
     for (var qi = 0; qi < 3; qi += 1) {
-      var c = Number(parts[qi]) / CHANNEL_MAX;
-      chan.push(c <= SRGB_KNEE ? c / SRGB_LINEAR_DIV : Math.pow((c + SRGB_OFFSET) / SRGB_SCALE, SRGB_EXP));
+      var c = chan[qi] / CHANNEL_MAX;
+      lin.push(c <= SRGB_KNEE ? c / SRGB_LINEAR_DIV : Math.pow((c + SRGB_OFFSET) / SRGB_SCALE, SRGB_EXP));
     }
-    return LUM_R * chan[0] + LUM_G * chan[1] + LUM_B * chan[2];
+    return LUM_R * lin[0] + LUM_G * lin[1] + LUM_B * lin[2];
   }
 
-  // An element's own FILL against the nearest opaque ancestor fill — "how loud is this object",
+  // An element's own FILL against the nearest OPAQUE ancestor fill — "how loud is this object",
   // deliberately not the text-contrast family's question.
+  //
+  // ALPHA IS COMPOSITED, NOT IGNORED. The live off-state track is 12% alpha; comparing its raw color to
+  // an opaque one measures a fill that is not on the screen. A translucent layer is composited over the
+  // resolved backdrop first (resolve.ts's compositeOver), so the ratio describes the pixels a user sees.
   function fillContrast(el) {
     var own = parseRgb(getComputedStyle(el).backgroundColor);
     if (own === null || own.a <= 0) return null;
+    // resolveBackdrop keeps every translucent ancestor in the stack before producing the flat color
+    // actually beneath this state. Skipping those layers would compare against a color nobody sees.
     var backdrop = resolveBackdrop(el.parentElement || el);
     if (backdrop.kind !== "flat") return null;
     var visibleOwn = compositeOver(own, backdrop.color);

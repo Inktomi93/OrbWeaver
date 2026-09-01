@@ -36,6 +36,10 @@ export const WALKER_CENSUS_COHORT = `  // ── sibling cohort anatomy ──�
   var COHORT_MAX_ROWS = 12;
   // Sub-4px boxes are plumbing (sr-only stubs, spacers); their height carries no anatomy.
   var COHORT_MIN_PAINTED_PX = 4;
+  // How much of a box difference the CONTENT difference must explain before the row counts as sized by
+  // what it holds rather than mis-sized. 0.8 leaves room for a member's own padding without letting a
+  // row whose content matches its siblings' escape on rounding.
+  var CONTENT_EXPLAINS_RATIO = 0.8;
 
   function cohortKey(el) {
     var slot = el.getAttribute("data-slot");
@@ -68,7 +72,20 @@ export const WALKER_CENSUS_COHORT = `  // ── sibling cohort anatomy ──�
     // An element mid-transition is a measurement of a moment, not of a design — the same fence
     // ControlAspectInput.animating declares. One animating member voids the whole cohort's spread.
     var canim = typeof cel.getAnimations === "function" && cel.getAnimations().length > 0;
-    members.push({ el: cel, height: Math.round(crect.height), animating: canim });
+    // A ROW SIZED BY ITS OWN CONTENT IS NOT A DEFECT (repaired after the first live run). On
+    // settings:appearance this rule flagged a setting-row cohort at 234 / 53 / 34px — but the 234px
+    // member holds a three-card theme picker and the 34px one holds a button, so the markup is right and
+    // the heights SHOULD differ. Half the findings on that surface were this shape.
+    //
+    // The discriminator is the tallest CHILD: when a member's height is explained by what it contains,
+    // its box is doing its job. A defect is a member whose content is the same size as its siblings' and
+    // whose BOX still differs — the F1 case, where 16px and 32px rows hold identical content.
+    var tallestChild = 0;
+    for (var cc = 0; cc < cel.children.length; cc += 1) {
+      var childRect = cel.children[cc].getBoundingClientRect();
+      if (childRect.height > tallestChild) tallestChild = childRect.height;
+    }
+    members.push({ el: cel, height: Math.round(crect.height), content: Math.round(tallestChild), animating: canim });
   }
 
   cohortsByParent.forEach(function (byKey, parentEl) {
@@ -95,13 +112,24 @@ export const WALKER_CENSUS_COHORT = `  // ── sibling cohort anatomy ──�
       var modeHeight = heights[0];
       var modeCount = 0;
       counts.forEach(function (n, h) { if (n > modeCount) { modeCount = n; modeHeight = h; } });
+      // The mode member's own content height is the reference: an outlier whose CONTENT also grew is a
+      // row doing its job, and only one whose content matches the mode while its BOX does not is a
+      // defect. Without this the rule reported a 234px theme-picker row against its 34px button sibling.
+      var modeContent = 0;
+      for (var mc = 0; mc < members.length; mc += 1) {
+        if (members[mc].height === modeHeight) { modeContent = members[mc].content; break; }
+      }
       var outlier = null;
       var outlierCount = 0;
+      var contentDriven = 0;
       for (var oi = 0; oi < members.length; oi += 1) {
-        if (members[oi].height !== modeHeight) {
-          outlierCount += 1;
-          if (outlier === null) outlier = members[oi];
-        }
+        if (members[oi].height === modeHeight) continue;
+        var boxDelta = Math.abs(members[oi].height - modeHeight);
+        var contentDelta = Math.abs(members[oi].content - modeContent);
+        // Most of the box difference explained by the content difference ⇒ the content sized the row.
+        if (contentDelta >= boxDelta * CONTENT_EXPLAINS_RATIO) { contentDriven += 1; continue; }
+        outlierCount += 1;
+        if (outlier === null) outlier = members[oi];
       }
       cohortAnatomies.push({
         selector: describe(parentEl),
