@@ -16,6 +16,9 @@ const THEME_CSS = "packages/ui/src/styles/theme.css";
 const GATE_SELF = "tooling/src/verify/gates/seed-theme-ink-contrast.ts";
 const INK_SOURCES = ["packages/ui/src/", "packages/client/src/"] as const;
 const PERCENT = 100;
+/** Shared reason for the six track-ramp strokes — one decision, six tokens. */
+const TRACK_STROKE_WHY =
+  "`RING_STROKE` feeds `currentColor` to the RingGauge arc stroke on aria-hidden decorative geometry (its own header, #697) — WCAG 1.4.11's 3:1 applies, not 4.5:1 text, and palette-contrast.suite.test.ts already enforces that floor per seed. ENDS the day this kit typesets with a track token, which is what this row's stale arm watches for.";
 /** How much of a stale row's `why` the diagnostic quotes — enough to identify it, not a wall. */
 const WHY_EXCERPT = 48;
 
@@ -38,17 +41,40 @@ const GROUNDS: Readonly<Record<string, string>> = {
 };
 
 /**
- * Tokens whose `text-*` use is NOT text. The exemption is keyed on the CARRIER, not the token, because
- * the fact that exempts it lives at the carrier: `currentColor` feeding an SVG stroke on aria-hidden
- * decorative geometry. Keyed on the token would be the wrong inference and would have MISSED the defect
- * that minted this gate — `text-highlight` was a background token doing real text duty on three surfaces.
+ * Tokens whose `text-*` use is NOT TEXT — keyed `<file>::<token>`, never by file alone.
+ *
+ * WHY THE KEY IS THE PAIR (2026-09-01, verifier F3): a FILE key exempts every ink in that file, so a
+ * carrier that legitimately strokes six gauge colours also silently absolves the real label and value
+ * text sitting beside them — `meter/variants.ts` paints `text-foreground` and `text-muted-foreground`
+ * on its own readouts, and a file-keyed row was covering those too while its reason justified only the
+ * strokes. Enumerating the pair makes the stated end condition a MECHANISM: the stale arm below reds
+ * when an exempted (file, token) stops existing, not merely when a whole file stops painting any ink.
+ *
+ * And the key is the CARRIER pair, not the token, because the fact that exempts it lives at the
+ * carrier: `currentColor` feeding an SVG stroke on aria-hidden geometry. A token-only key would be the
+ * wrong inference and would have MISSED the defect that minted this gate — `text-highlight` was a
+ * background token doing real text duty on three surfaces.
+ *
+ * DELIBERATELY NARROW: `text-primary` / `text-destructive` as gauge FILLS in the same file are NOT
+ * exempted. They are decorative under 1.4.11's 3:1, so judging them at the stricter 4.5:1 text bar is
+ * the conservative direction, they clear it today in all three seeds, and every row left out of this
+ * table is a row that cannot rot.
  */
 const DECORATIVE_STROKE_CARRIERS: ExemptionTable = {
-  "packages/ui/src/primitives/switch/variants.ts": {
-    why: "`readOnlyIcon` is the readonly LOCK GLYPH painted ON the switch thumb, and its class says so: `text-background` inverts against the thumb's own `bg-foreground` fill (and `text-primary` against `bg-primary-foreground` in the accent tone) — an INVERTED pair ink whose ground is a known sibling slot, not the chrome this gate enumerates, plus a glyph judged at 1.4.11's 3:1. It measures ~13:1 on the fill it actually sits on. The `-foreground` suffix rule cannot see it because the inversion runs the other way (the INK is `background`). ENDS if this slot ever paints a text run, or if the thumb stops declaring its own fill — the stale arm reds the day the file stops painting any text-<token>.",
+  "packages/ui/src/charts/meter/variants.ts::track-1": { why: TRACK_STROKE_WHY },
+  "packages/ui/src/charts/meter/variants.ts::track-2": { why: TRACK_STROKE_WHY },
+  "packages/ui/src/charts/meter/variants.ts::track-3": { why: TRACK_STROKE_WHY },
+  "packages/ui/src/charts/meter/variants.ts::track-4": { why: TRACK_STROKE_WHY },
+  "packages/ui/src/charts/meter/variants.ts::track-5": { why: TRACK_STROKE_WHY },
+  "packages/ui/src/charts/meter/variants.ts::track-6": { why: TRACK_STROKE_WHY },
+  "packages/ui/src/charts/meter/variants.ts::border": {
+    why: "the gauge RAIL stroke (`track: text-border`, three species) — `--color-border` is a translucent LINE token that has no opaque colour to judge as text at all, and the rail is aria-hidden geometry under 1.4.11. ENDS if a `track` slot ever typesets, or if border stops being the rail's colour.",
   },
-  "packages/ui/src/charts/meter/variants.ts": {
-    why: "RING_STROKE / track / segment feed `currentColor` to SVG strokes on aria-hidden decorative geometry (its own header, #697) — WCAG 1.4.11's 3:1 applies, not 4.5:1 text, and palette-contrast.suite.test.ts already enforces that floor per seed. ENDS the day this kit paints TEXT with a track/surface token, which is what this row's stale arm watches for.",
+  "packages/ui/src/charts/meter/variants.ts::muted": {
+    why: "the UNFILLED segment (`filled:false -> segment: text-muted`) — a SURFACE token deliberately one ramp step from the panel, which is the whole point of an empty segment (its own header, #685/#693) and is 1.4.11 geometry, not text. ENDS if a segment ever carries a label.",
+  },
+  "packages/ui/src/primitives/switch/variants.ts::background": {
+    why: "`readOnlyIcon` is the readonly LOCK GLYPH painted ON the switch thumb: `text-background` inverts against the thumb's own `bg-foreground` fill, measuring ~13:1 on the surface it actually sits on. An INVERTED pair ink — the `-foreground` suffix rule cannot see it because the inversion runs the other way (the INK is `background`) — and a glyph, judged at 1.4.11's 3:1. ENDS if this slot ever paints a text run, or if the thumb stops declaring its own fill.",
   },
 };
 
@@ -134,13 +160,13 @@ function censusInks(ctx: GateRunCtx): readonly InkUse[] {
 }
 
 function reportStaleExemptions(ctx: GateRunCtx, seen: ReadonlySet<string>): void {
-  for (const [carrier, row] of Object.entries(DECORATIVE_STROKE_CARRIERS)) {
-    if (!seen.has(carrier)) {
+  for (const [pair, row] of Object.entries(DECORATIVE_STROKE_CARRIERS)) {
+    if (!seen.has(pair)) {
       ctx.report({
         file: GATE_SELF,
         line: 0,
         column: 0,
-        message: `stale decorative-stroke exemption: ${carrier} paints no text-<token> any more — delete the row or re-prove it ("${row.why.slice(0, WHY_EXCERPT)}…") — tooling/src/verify/gates/seed-theme-ink-contrast.ts`,
+        message: `stale decorative-stroke exemption: ${pair} is not painted any more — delete the row or re-prove it ("${row.why.slice(0, WHY_EXCERPT)}…") — tooling/src/verify/gates/seed-theme-ink-contrast.ts`,
       });
     }
   }
@@ -157,8 +183,9 @@ function sweep(ctx: GateRunCtx, uses: readonly InkUse[], palettes: readonly Seed
   const unresolved = new Set<string>();
   let measured = 0;
   for (const use of uses) {
-    if (DECORATIVE_STROKE_CARRIERS[use.file] !== undefined) {
-      exemptSeen.add(use.file);
+    const exemptKey = `${use.file}::${use.token}`;
+    if (DECORATIVE_STROKE_CARRIERS[exemptKey] !== undefined) {
+      exemptSeen.add(exemptKey);
       continue;
     }
     for (const palette of palettes) {
@@ -235,6 +262,24 @@ export const gate: GateDescriptor = {
     },
     {
       files: {
+        "packages/ui/src/styles/theme.css":
+          "@theme {\n--color-background: oklch(0.98 0.004 75);\n--color-card: oklch(0.995 0.003 75);\n--color-popover: oklch(0.995 0.003 75);\n--color-surface-raised: oklch(0.965 0.005 75);\n--color-sidebar: oklch(0.955 0.006 72);\n--color-muted: oklch(0.95 0.006 70);\n--color-secondary: oklch(0.94 0.008 70);\n--color-accent: oklch(0.93 0.01 70);\n--color-primary: oklch(0.5 0.16 50);\n}\n:root { color-scheme: light; }\n",
+        "packages/client/src/features/x.tsx": 'export const X = <span className="hover:text-card">x</span>;',
+      },
+      expect: { token: "text-card" },
+      why: "F2 (verifier, 2026-09-01): an ink authored ONLY behind a variant must still be censused. A bare-only reader judged `hover:text-card` NOWHERE — and its coverage of the live tree was accidental, since every variant-prefixed ink there happened to also appear bare",
+    },
+    {
+      files: {
+        "packages/ui/src/styles/theme.css":
+          "@theme {\n--color-background: oklch(0.98 0.004 75);\n--color-card: oklch(0.995 0.003 75);\n--color-popover: oklch(0.995 0.003 75);\n--color-surface-raised: oklch(0.965 0.005 75);\n--color-sidebar: oklch(0.955 0.006 72);\n--color-muted: oklch(0.95 0.006 70);\n--color-secondary: oklch(0.94 0.008 70);\n--color-accent: oklch(0.93 0.01 70);\n--color-primary: oklch(0.5 0.16 50);\n}\n:root { color-scheme: light; }\n",
+        "packages/ui/src/charts/meter/variants.ts": "import { tv } from 'tailwind-variants';\nexport const meter = tv({ base: 'text-card' });",
+      },
+      expect: { token: "text-card" },
+      why: "F3 (verifier, 2026-09-01): a carrier holding an exempted STROKE token must still be judged on every OTHER ink it paints — the file-keyed table absolved ~18 ink uses while its reason justified only the strokes (this file paints real `text-foreground` label and `text-muted-foreground` value text of its own)",
+    },
+    {
+      files: {
         "packages/ui/src/styles/theme.css": "@theme {\n--spacing-row: 1px;\n}\n",
         "packages/client/src/features/x.tsx": 'export const X = <span className="text-card">x</span>;',
       },
@@ -251,6 +296,15 @@ export const gate: GateDescriptor = {
           "import { tv } from 'tailwind-variants';\nexport const badge = tv({ base: 'bg-primary/8 text-primary' });",
       },
       why: "THE SHIPPED FIX: the same arm at the family band (0.50) under the family's 8% tint clears on every light ground",
+    },
+    {
+      files: {
+        "packages/ui/src/styles/theme.css":
+          "@theme {\n--color-background: oklch(0.98 0.004 75);\n--color-card: oklch(0.995 0.003 75);\n--color-popover: oklch(0.995 0.003 75);\n--color-surface-raised: oklch(0.965 0.005 75);\n--color-sidebar: oklch(0.955 0.006 72);\n--color-muted: oklch(0.95 0.006 70);\n--color-secondary: oklch(0.94 0.008 70);\n--color-accent: oklch(0.93 0.01 70);\n--color-primary: oklch(0.5 0.16 50);\n}\n:root { color-scheme: light; }\n",
+        "packages/ui/src/primitives/badge/variants.ts":
+          "import { tv } from 'tailwind-variants';\nexport const badge = tv({ base: 'hover:bg-primary/8 hover:text-primary !text-primary' });",
+      },
+      why: "F2's coverage claim, stated so it cannot silently return: variant prefixes and importance markers are STRIPPED (`hover:`, `!`), the variant-scoped `hover:bg-primary/8` is paired as a self-tint, and the shipped arm clears both the tinted and the bare judgement",
     },
     {
       files: {
