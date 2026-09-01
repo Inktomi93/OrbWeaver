@@ -7,7 +7,8 @@ import { ThemeScope } from "@orb/ui/theme-scope";
 import type { ReactElement } from "react";
 import { ChatControlsStory } from "./_ct-stories.tsx";
 
-type ContrastPalette = "hearth" | "mocha" | "light" | "custom-dark" | "custom-light" | "custom-pivot-dark" | "custom-pivot-light";
+const CONTRAST_PALETTES = ["hearth", "mocha", "light", "custom-dark", "custom-light", "custom-pivot-dark", "custom-pivot-light"] as const;
+type ContrastPalette = (typeof CONTRAST_PALETTES)[number];
 
 function customTokens(palette: ContrastPalette): ThemeScopeTokens {
   if (palette === "custom-dark") {
