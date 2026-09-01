@@ -135,19 +135,27 @@ function classMapKey(host: CollectionHost, member: Node, path: Set<Node>): Stati
 }
 
 function evalVariantConfig(host: CollectionHost, raw: Node, path: Set<Node>): StaticValue[] {
-  const configs = resolveObjects(host, raw, new Set(path));
-  if (configs.length === 0) {
-    host.diagnose("opaque", raw, "runtime variant configuration");
-    return [];
-  }
+  const configs = variantObjects(host, raw, path, "runtime variant configuration");
   return configs.flatMap((config) => variantConfigValues(host, config, path));
+}
+
+function variantObjects(host: CollectionHost, raw: Node, path: Set<Node>, reason: string): import("ts-morph").ObjectLiteralExpression[] {
+  const objects = resolveObjects(host, raw, new Set(path));
+  if (objects.length === 0) {
+    host.diagnose("opaque", raw, reason);
+  }
+  return objects;
 }
 
 function variantConfigValues(host: CollectionHost, config: import("ts-morph").ObjectLiteralExpression, path: Set<Node>): StaticValue[] {
   const values: StaticValue[] = [];
   for (const member of config.getProperties()) {
     if (Node.isSpreadAssignment(member)) {
-      values.push(...resolveObjects(host, member.getExpression(), new Set(path)).flatMap((spread) => variantConfigValues(host, spread, path)));
+      values.push(
+        ...variantObjects(host, member.getExpression(), path, "runtime object spread in variant configuration").flatMap((spread) =>
+          variantConfigValues(host, spread, path),
+        ),
+      );
       continue;
     }
     if (Node.isPropertyAssignment(member)) {
@@ -176,7 +184,7 @@ function variantPropertyValues(host: CollectionHost, member: import("ts-morph").
 }
 
 function slotValues(host: CollectionHost, raw: Node, path: Set<Node>): StaticValue[] {
-  return resolveObjects(host, raw, new Set(path)).flatMap((object) =>
+  return variantObjects(host, raw, path, "runtime variant slots").flatMap((object) =>
     object.getProperties().flatMap((member) => {
       if (Node.isSpreadAssignment(member)) {
         return slotValues(host, member.getExpression(), path);
@@ -191,7 +199,9 @@ function slotValues(host: CollectionHost, raw: Node, path: Set<Node>): StaticVal
 }
 
 function variantAxes(host: CollectionHost, raw: Node, path: Set<Node>): StaticValue[] {
-  return resolveObjects(host, raw, new Set(path)).flatMap((axis) => axis.getProperties().flatMap((member) => variantAxisValues(host, member, path)));
+  return variantObjects(host, raw, path, "runtime variant axes").flatMap((axis) =>
+    axis.getProperties().flatMap((member) => variantAxisValues(host, member, path)),
+  );
 }
 
 function variantAxisValues(host: CollectionHost, member: Node, path: Set<Node>): StaticValue[] {
@@ -228,7 +238,9 @@ function compoundValues(host: CollectionHost, raw: Node, path: Set<Node>): Stati
   if (Node.isArrayLiteralExpression(node)) {
     return node.getElements().flatMap((element) => compoundValues(host, element, path));
   }
-  return resolveObjects(host, node, new Set(path)).flatMap((object) => object.getProperties().flatMap((member) => compoundMember(host, member, path)));
+  return variantObjects(host, node, path, "runtime compound variant collection").flatMap((object) =>
+    object.getProperties().flatMap((member) => compoundMember(host, member, path)),
+  );
 }
 
 function compoundMember(host: CollectionHost, member: Node, path: Set<Node>): StaticValue[] {

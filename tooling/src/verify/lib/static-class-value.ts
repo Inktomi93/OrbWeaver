@@ -20,6 +20,7 @@ import {
 import { JsxBindingResolver } from "./static-class-jsx.ts";
 import type { CollectionHost } from "./static-class-object.ts";
 import { evalObjectMember, propertyName, resolveObjects, staticScalars } from "./static-class-object.ts";
+import { StaticVariantResolver } from "./static-class-variant.ts";
 
 interface ImportTarget {
   readonly from: import("ts-morph").SourceFile;
@@ -31,6 +32,7 @@ interface ImportTarget {
 export interface StaticClassResolvers {
   readonly composers: ComposerResolver;
   readonly jsxBindings: JsxBindingResolver;
+  readonly variants: StaticVariantResolver;
 }
 
 export class StaticClassEvaluator implements CollectionHost {
@@ -40,6 +42,7 @@ export class StaticClassEvaluator implements CollectionHost {
   readonly project: Project;
   readonly composers: ComposerResolver;
   readonly jsxBindings: JsxBindingResolver;
+  readonly variants: StaticVariantResolver;
 
   private readonly diagnosticKeys = new Set<string>();
   private opaqueEvents = 0;
@@ -53,9 +56,11 @@ export class StaticClassEvaluator implements CollectionHost {
     if (resolvers === undefined) {
       this.composers = new ComposerResolver(project);
       this.jsxBindings = new JsxBindingResolver(project, files);
+      this.variants = new StaticVariantResolver(project, this.composers);
     } else {
       this.composers = resolvers.composers;
       this.jsxBindings = resolvers.jsxBindings;
+      this.variants = resolvers.variants;
     }
   }
 
@@ -158,12 +163,21 @@ export class StaticClassEvaluator implements CollectionHost {
     if (composer !== undefined && composer !== "tv-factory" && composer !== "join-factory") {
       return evalComposerCall(this, node, composer, path);
     }
+    const variant = this.evalVariantResult(node, path);
+    if (variant !== undefined) {
+      return variant;
+    }
     const trimmed = this.evalStringTrim(node, path);
     if (trimmed !== undefined) {
       return trimmed;
     }
     this.diagnose("opaque", node, "runtime call result");
     return [];
+  }
+
+  evalVariantResult(node: import("ts-morph").CallExpression, path: Set<Node>): StaticValue[] | undefined {
+    const definitions = this.variants.definitionsOf(node.getExpression());
+    return definitions.length === 0 ? undefined : dedupeValues(definitions.flatMap((definition) => evalComposerCall(this, definition, "tv", path)));
   }
 
   /** String trimming is value-preserving for class provenance. On a mixed runtime template only the
