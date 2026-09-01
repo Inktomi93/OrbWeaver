@@ -24,6 +24,12 @@ import { expect, test } from "../support/tool-fixtures.ts";
 
 const SUPERVISOR = join(process.cwd(), "scripts", "vitest-supervised.mjs");
 
+// The busy-mode grandchild's source, hoisted out of FAKE below so this gate marker can be a REAL comment
+// (a `//` inside a template literal is string content, not a comment). It burns CPU for a measured
+// wall-clock span and prints nothing — the exact shape of a long single test file.
+// @orb-gate-ignore test-determinism: the SUBJECT is elapsed real CPU time — a spawned grandchild has no injectable clock, and the loop's END CONDITION is FAKE_BUSY_MS of wall time having passed
+const SPIN_SRC = "const t = Date.now(); while (Date.now() - t < Number(process.argv[1])) {}";
+
 // A single parametric fake vitest: it parses its own --outputFile.json (the supervisor passes the run args
 // straight through), writes the report its MODE dictates, records its pid, prints one line, then either
 // exits or hangs forever on an interval — exactly the shape the supervisor must survive.
@@ -54,7 +60,7 @@ const CRASH = { success: true, numTotalTests: 1, numPassedTests: 0, numFailedTes
 // "busy": SILENT but burning CPU in a GRANDCHILD, the shape a long single test file has (it spawns a CLI
 // and prints nothing) — the supervisor must NOT kill it.
 if (mode === "busy") {
-  const spin = spawn(process.execPath, ["-e", "const t=Date.now();while(Date.now()-t<" + (process.env.FAKE_BUSY_MS ?? "6000") + "){Math.sqrt(Math.random())}"], { stdio: "ignore" });
+  const spin = spawn(process.execPath, ["-e", ${JSON.stringify(SPIN_SRC)}, process.env.FAKE_BUSY_MS ?? "6000"], { stdio: "ignore" });
   spin.on("exit", () => { writeFileSync(out, JSON.stringify(COMPLETE_PASS)); process.exit(0); });
 }
 if (mode === "hang-pass" || mode === "pass") writeFileSync(out, JSON.stringify(COMPLETE_PASS));
@@ -96,6 +102,10 @@ interface SupervisorOptions {
   readonly wedgeOnce?: string;
   /** A per-case cwd, so one case's `reports/` wedge dumps never mix with another's. */
   readonly cwd?: string;
+  /** How long the busy grandchild spins (ms). */
+  readonly busyMs?: string;
+  /** The absolute silence ceiling — the backstop that fires even while the tree is still burning CPU. */
+  readonly hangMaxMs?: string;
 }
 
 function runSupervisor(options: SupervisorOptions): Promise<RunResult> {
@@ -114,6 +124,12 @@ function runSupervisor(options: SupervisorOptions): Promise<RunResult> {
   }
   if (options.wedgeOnce !== undefined) {
     env["FAKE_WEDGE_ONCE"] = options.wedgeOnce;
+  }
+  if (options.busyMs !== undefined) {
+    env["FAKE_BUSY_MS"] = options.busyMs;
+  }
+  if (options.hangMaxMs !== undefined) {
+    env["ORB_TEST_HANG_MAX_MS"] = options.hangMaxMs;
   }
   const args = [SUPERVISOR, "run", ...(options.projects ?? []).flatMap((p) => ["--project", p]), `--outputFile.json=${options.reportFile}`];
   return new Promise((resolve) => {
@@ -202,6 +218,33 @@ test("does NOT kill a child that is SILENT but burning CPU in a grandchild (the 
   expect(res.code).toBe(0);
   expect(existsSync(report)).toBe(true);
   // A survivor leaves NO wedge dump — the kill never happened.
+  expect(readdirSync(join(cwd, "reports")).filter((f) => f.startsWith("test-wedge-"))).toHaveLength(0);
+});
+
+// ORB_TEST_HANG_MAX_MS — the absolute backstop, and the ONLY thing that can stop a silent RUNAWAY. Both
+// arms are needed: a ceiling that never fires is decoration, and one that fires early is the false kill
+// this lane just removed. The TWO CLOCKS matter here — CPU progress resets the no-CPU timer but never the
+// ceiling's, or a busy tree would push the ceiling out forever (it did, until this pair was written).
+test("the ORB_TEST_HANG_MAX_MS ceiling KILLS a busy-but-silent runaway that outlives it", {
+  timeout: 30_000,
+}, async () => {
+  const cwd = caseDir("ceiling-fires");
+  const report = join(cwd, "reports", "test-report.json");
+  // Spins 20s; the ceiling is 3s. The child never prints again, so the ceiling clock keeps running.
+  const res = await runSupervisor({ mode: "busy", reportFile: report, cwd, busyMs: "20000", hangMaxMs: "3000" });
+  expect(res.code).toBe(1);
+  const dumps = readdirSync(join(cwd, "reports")).filter((f) => f.startsWith("test-wedge-"));
+  expect(dumps.length).toBeGreaterThan(0);
+  expect(readFileSync(join(cwd, "reports", dumps[0] ?? ""), "utf-8")).toContain("hard ceiling");
+});
+
+test("the SAME busy-but-silent child SURVIVES under a generous ORB_TEST_HANG_MAX_MS", {
+  timeout: 40_000,
+}, async () => {
+  const cwd = caseDir("ceiling-generous");
+  const report = join(cwd, "reports", "test-report.json");
+  const res = await runSupervisor({ mode: "busy", reportFile: report, cwd, busyMs: "6000", hangMaxMs: "600000" });
+  expect(res.code).toBe(0);
   expect(readdirSync(join(cwd, "reports")).filter((f) => f.startsWith("test-wedge-"))).toHaveLength(0);
 });
 

@@ -6,7 +6,7 @@
 // `Pool.run()` does `await testFinish.promise` (node_modules/vitest/dist/chunks/cli-api.*.js — `Pool.run`),
 // and that resolver is settled ONLY by a worker's `testfileFinished` message or by a runner error/exit
 // event. There is a `WORKER_START_TIMEOUT` for starting a worker but NO timeout once a file is running
-// (deliberate — this repo's `ast-observability` rows legitimately take 120s). The CLI is
+// (deliberate — this repo's `tests/tooling/ast/cli.int.test.ts` rows carry explicit 120s/300s budgets). The CLI is
 // `const ctx = await startVitest(...); if (!ctx.shouldKeepServer()) await ctx.exit()`, so vitest's OWN
 // safety net — the unref'd `teardownTimeout` force-exit armed inside `ctx.exit()` — is only reached AFTER
 // the run promise resolves. A worker that dies (or whose IPC breaks) without settling its task resolver
@@ -35,14 +35,16 @@
 //   2. WATCHDOG — PROGRESS, NOT SILENCE. Each shard is spawned via `nice -19` as a process-group leader and
 //      its output tee'd live, but SILENCE ALONE IS NOT THE WEDGE SIGNAL. **Truth repair, measured
 //      2026-09-01:** the previous version of this file claimed 300s was "~2.5× the longest legitimate quiet
-//      gap, the 120s `ast-observability` serial rows". That was WRONG and it made this watchdog the primary
-//      defect it was written to fix. 120s is that file's PER-ROW timeout; the FILE is five rows, each
-//      SPAWNING the real `pnpm ast` CLI and loading the whole workspace into ts-morph — and vitest's default
-//      reporter prints NOTHING while a single file runs. A live capture of an unsupervised battery caught
-//      the parent silent in `ep_poll` for 7+ minutes with one idle worker fork whose CHILD
-//      (`tooling/src/ast/cli.ts regkeys MOTION_BUDGETS`) was burning ~4.5 cores: a perfectly healthy run
-//      that the old 300s rule would have SIGKILLed, producing exactly the reported symptom (every per-file
-//      line printed, then silence, then a kill, and no summary — because the json report is never written).
+//      gap, the 120s `ast-observability` serial rows". That sentence was wrong TWICE, and it made this
+//      watchdog the primary defect it was written to fix. (i) It cited a file that has not existed since
+//      8931a886c; the suite is `tests/tooling/ast/cli.int.test.ts`, and 120s is its PER-ROW spawn budget
+//      (300s for the two typed whole-workspace rows), not the file's cost. (ii) vitest's default reporter
+//      prints NOTHING while a single file runs, so the quiet gap is the WHOLE FILE. A live capture of an
+//      unsupervised battery caught the parent silent in `ep_poll` for 7+ minutes with one idle worker fork
+//      whose CHILD (`tooling/src/ast/cli.ts regkeys MOTION_BUDGETS` — that suite's row) was burning ~4.5
+//      cores; the run finished naturally 36 minutes later, having spent 1,057,996 ms (17.6 min) inside that
+//      one file. The old 300s rule would have SIGKILLed it, producing exactly the reported symptom (every
+//      per-file line printed, then silence, then a kill, and no summary — the json report is never written).
 //      So the watchdog now samples the CPU jiffies of the parent AND every descendant (recursively, via
 //      /proc) on each tick: CPU burned anywhere in the tree counts as activity exactly like output does. A
 //      shard is killed only when it has been silent for ORB_TEST_HANG_TIMEOUT_MS (default 300000 = 5 min)
@@ -114,12 +116,27 @@ function hardCeilingMs() {
   return Number.isFinite(raw) && raw > 0 ? raw : DEFAULT_HARD_CEILING_MS;
 }
 
-/** The human reason a shard was declared wedged, for the log line and the dump header. */
-function wedgeReason(silentFor) {
-  const secs = Math.round(silentFor / MS_PER_SEC);
-  return silentFor >= hardCeilingMs()
-    ? `no output for ${secs}s — past the ${Math.round(hardCeilingMs() / MS_PER_SEC)}s hard ceiling`
-    : `no output for ${secs}s AND zero CPU across the whole process tree`;
+/** The liveness decision, as a pure function of the two clocks and the CPU burned since the last tick.
+ *  `alive` ⇒ keep going and push the no-CPU timer forward; `kill` ⇒ the shard is wedged (or past the
+ *  ceiling); neither ⇒ silent but still inside the window, so just wait. */
+function liveness({ sinceOutput, sinceProgress, burned, limit }) {
+  const ceilinged = sinceOutput >= hardCeilingMs();
+  if (ceilinged) {
+    return { alive: false, kill: true, ceilinged: true };
+  }
+  if (burned >= CPU_PROGRESS_JIFFIES) {
+    return { alive: true, kill: false, ceilinged: false };
+  }
+  return { alive: false, kill: sinceProgress >= limit, ceilinged: false };
+}
+
+/** The human reason a shard was declared wedged, for the log line and the dump header. `sinceOutput` and
+ *  `sinceProgress` are DIFFERENT clocks on purpose — see the watchdog. */
+function wedgeReason(sinceOutput, sinceProgress) {
+  const ceiling = hardCeilingMs();
+  return sinceOutput >= ceiling
+    ? `no output for ${Math.round(sinceOutput / MS_PER_SEC)}s — past the ${Math.round(ceiling / MS_PER_SEC)}s hard ceiling`
+    : `no output for ${Math.round(sinceProgress / MS_PER_SEC)}s AND zero CPU across the whole process tree`;
 }
 
 function resolveUnder(p) {
@@ -243,7 +260,7 @@ function procBlock(pid, label) {
 
 /** The wedge evidence file. Attempt-suffixed so a re-run never overwrites the first wedge's dump. */
 function writeWedgeDump(ctx) {
-  const { label, attempt, pid, completed, previousFiles, reportFile, limit, startedAt } = ctx;
+  const { label, attempt, pid, completed, previousFiles, reportFile, sinceOutput, sinceProgress, startedAt } = ctx;
   const stamp = new Date().toISOString().replaceAll(/[:.]/gu, "-");
   const path = resolveUnder(join("reports", `test-wedge-${label}-attempt${attempt}-${stamp}.txt`));
   const tree = descendants(pid);
@@ -255,7 +272,7 @@ function writeWedgeDump(ctx) {
     "vitest-supervised WEDGE DUMP",
     `when       : ${new Date().toISOString()}`,
     `shard      : ${label} (attempt ${attempt})`,
-    `verdict    : ${wedgeReason(limit)}`,
+    `verdict    : ${wedgeReason(sinceOutput, sinceProgress)}`,
     `shard ran  : ${Math.round((Date.now() - startedAt) / MS_PER_SEC)}s before the kill`,
     `report     : ${reportFile} (${existsSync(reportFile) ? "written" : "ABSENT — the run never finalized"})`,
     `completed  : ${completed.size} files`,
@@ -315,10 +332,15 @@ function runOnce({ args, reportFile, label, attempt, previousFiles }) {
   });
   activeChild = child;
   const completed = new Set();
-  let lastActivity = Date.now();
+  // TWO clocks, and they must stay separate: `lastOutput` only moves on real output, `lastProgress` also
+  // moves on CPU burn. The no-output-and-no-CPU rule reads `lastProgress`; the ABSOLUTE ceiling reads
+  // `lastOutput` — sharing one clock made the ceiling unreachable, because a busy tree reset it every tick.
+  let lastOutput = Date.now();
+  let lastProgress = Date.now();
   let carry = "";
   function absorb(chunk) {
-    lastActivity = Date.now();
+    lastOutput = Date.now();
+    lastProgress = lastOutput;
     const text = carry + chunk.toString();
     const lines = text.split("\n");
     carry = lines.pop() ?? "";
@@ -359,19 +381,24 @@ function runOnce({ args, reportFile, label, attempt, previousFiles }) {
       const cpu = child.pid === undefined ? lastCpu : treeCpuJiffies(child.pid);
       const burned = cpu - lastCpu;
       lastCpu = cpu;
-      const silentFor = Date.now() - lastActivity;
-      const alive = burned >= CPU_PROGRESS_JIFFIES && silentFor < hardCeilingMs();
+      const sinceOutput = Date.now() - lastOutput;
+      const sinceProgress = Date.now() - lastProgress;
+      const { alive, kill, ceilinged } = liveness({ sinceOutput, sinceProgress, burned, limit });
       if (alive) {
-        lastActivity = Date.now(); // CPU progress counts as activity, exactly like output.
+        lastProgress = Date.now(); // CPU progress counts as activity, exactly like output.
         return;
       }
-      if (silentFor < limit) {
+      if (!kill) {
         return;
       }
-      log(`${label}: ${wedgeReason(silentFor)} — WEDGED`);
-      log("(#345/#1012: a task resolver never settled, so ctx.exit()'s teardown backstop was never armed). Dumping + killing.");
+      log(`${label}: ${wedgeReason(sinceOutput, sinceProgress)} — WEDGED`);
+      log(
+        ceilinged
+          ? "(the ceiling backstop: something is still running but has reported nothing for far too long). Dumping + killing."
+          : "(#345/#1012: a task resolver never settled, so ctx.exit()'s teardown backstop was never armed). Dumping + killing.",
+      );
       if (child.pid !== undefined) {
-        writeWedgeDump({ label, attempt, pid: child.pid, completed, previousFiles, reportFile, limit: silentFor, startedAt });
+        writeWedgeDump({ label, attempt, pid: child.pid, completed, previousFiles, reportFile, sinceOutput, sinceProgress, startedAt });
       }
       killGroup(child);
       finish({ wedged: true, code: verdictFromReport(reportFile) });
