@@ -10,6 +10,26 @@
 // (`@orb/ui/tokens`), owner-sacred effect axes exempted, severities mapped to our P0–P3.
 // Full 59-rule triage + license statement:
 // .claude/skills/side-eye-design-review/reference/impeccable-adoption.md
+//
+// FOUR COLLECTION STRATEGIES (owner ruling 2026-09-01: no gate — rule shape is a judgment call a
+// checker can't make; this table is the enforcement). Pick your rung by what your samples need, not
+// "finishing the migration" — rung 1 is a legitimate destination for a page-singleton, not debt.
+// | rung | fn                     | adds over the rung below     | example rules |
+// | 1 | nullableFindings          | plain map, no accounting     | most rules (landmark-missing, script-error, flat-type-hierarchy, ...) |
+// | 2 | accountedFindings         | census + RulePopulationAccounting | quiet-state, double-empty-state, selection-idiom |
+// | 3 | cappedRelationalFindings  | + cap, never truncates affected/judged | cohort-anatomy, row-void, pane-ink |
+// | 4 | decisionPopulationFindings| + authored-decision grouping (decisionKey) | tap-target, obscured-target, truncated-to-nothing, text-below-ramp, undersized-ui-text |
+// Exception: duplicate-action-door has accounting via its OWN checkDuplicateDoorPopulations, not one of the four functions above (checks-quality.ts).
+// population.ts's reason maps are NOT interchangeable: withheld = a candidate the instrument COULD
+// NOT JUDGE (+ the presentation-only "cap" reason; non-cap withholding is a NO VERDICT run, see
+// populationEvidenceGap); excluded = measured facts PROVE the rule does not apply; collapsed =
+// adjudicated by a same-owner decision (rung 4's grouping). settledPopulationAccounting THROWS on
+// arithmetic that doesn't close (candidates = judged + withheld[non-cap] + excluded; affected =
+// emitted + cap + collapsed) — a malformed counter is an instrument error, never normalized.
+// THE WALKER-FILTERED TRAP: some rules' candidates are filtered by the WALKER, so the check sees
+// only survivors and accounting bolted on here reports candidates == judged while the real
+// denominator was lost upstream — relational families carry `relationalAccounting` FROM the walker
+// instead (contract/samples-populations.ts); a filtered census keeps its accounting there, not here.
 import type { Finding, PopulationAccounting, RulePopulationAccounting } from "../contract/findings.ts";
 import type { DesignAuditRuleFamily, DesignAuditRuleId } from "../contract/rules.ts";
 import { DESIGN_AUDIT_RULE_FAMILIES } from "../contract/rules.ts";
@@ -24,7 +44,7 @@ import {
   checkTabIndexSmell,
   checkTapTargetPopulations,
 } from "./checks-a11y.ts";
-import { checkContrast, checkGrayOnColor, checkQuietState } from "./checks-color.ts";
+import { checkContrast, checkGrayOnColor, checkQuietState, colorTextPopulations } from "./checks-color.ts";
 import { checkAccentBorder, checkGlowShadow } from "./checks-decor.ts";
 import { checkBrokenImage, checkImageDistortion } from "./checks-media.ts";
 import { checkBgPattern, checkIconTile, checkMotionStatic, checkRadialGlow } from "./checks-ornament.ts";
@@ -270,7 +290,7 @@ function colorFindings(samples: RawSamples): FamilyCheckResult {
   runArray(state, () => nullableFindings(samples.texts, checkContrast));
   runArray(state, () => nullableFindings(samples.texts, checkGrayOnColor));
   runArray(state, () => quiet.findings);
-  return { ...state, populationAccounting: { "quiet-state": quiet.accounting } };
+  return { ...state, populationAccounting: { ...colorTextPopulations(samples.texts), "quiet-state": quiet.accounting } };
 }
 
 function decorFindings(samples: RawSamples): FamilyCheckResult {

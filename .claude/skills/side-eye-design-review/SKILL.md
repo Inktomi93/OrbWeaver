@@ -285,6 +285,24 @@ Read `__orb` and any computed value via `snap --eval` / `snap --contrast` — a 
   `role="article"` message nodes in the DOM showed ZERO articles in its tree (children rendered flat).
   Never report "missing grouping/landmark" from a devtools snapshot alone — `snap --aria` (Playwright's
   ARIA snapshot) is the trustworthy structure receipt; cross-check the DOM via `--eval` when in doubt.
+- **KNOWN GAP, we carry no hover-state contrast check.** impeccable's own detector set includes
+  `checkHoverContrast` (a broader selector's rule can win the specificity fight on `:hover` and swap in
+  a failing text/background color even when the rest state passes); we adopted none of it. This was
+  missed by the 59-rule adoption triage BY CONSTRUCTION, not by oversight: the rule reuses the existing
+  `low-contrast` finding id, so it carries no separate registry row and a rule-by-rule diff against our
+  ruleset could never surface it. Proven feasible 2026-09-01: `CSS.forcePseudoState` (CDP) works in our
+  Chromium, forcing `:hover` swapped a CTA's text color from `rgb(255,255,255)` to `rgb(107,114,128)`,
+  and releasing the forced state restored it exactly; `tooling/src/_shared/browser-media.ts:65` already
+  opens a CDP session this could ride. Until this ships as a rule, a reviewer covers hover-state
+  contrast BY HAND on any surface with hover-styled text (forced-hover + `--contrast`, or a manual
+  `:hover` drive plus `getComputedStyle`); a clean `design-audit` pass says nothing about it.
+- **The general lesson behind two corrections of 2026-09-01 (the `--shadow-glow` rationale in §11's
+  effect-axes list BELOW, and the glow/radial parser note in `side-eye.md`, not in this file): a
+  documented reason why an instrument skips something is a CLAIM, and a claim decays.** Both were written down once
+  as settled fact and neither was re-measured for weeks/months while findings were filed (or not filed)
+  on the strength of them. When a skip is load-bearing for a finding you are about to NOT file, re-measure
+  the skip before trusting it; a live probe costs one Bash call, a stale rationale costs a defect nobody
+  ever checked for.
 
 ### The appearance EFFECT axes (2026-07 additions — know they EXIST, don't slop-flag them, verify each)
 
@@ -322,8 +340,20 @@ attribute at its REAL host; then verify:
   on chrome/cards ONLY, NEVER message prose (reading-surface rule); must `display:none` under
   `prefers-contrast: more`.
 - **`--shadow-glow`** — the rationed Ember accent glow on selected/active (media-grid `data-selected`,
-  avatar `ring=accent`, active rail item, focused composer). It lives on a `::before` LAYER, never the
-  element's own `box-shadow` (that clobbers the focus ring — WCAG 2.4.7; the P0 above). Not garish.
+  avatar `ring=accent`, active rail item, focused composer). It lives on a `::before` LAYER, the house
+  convention, chosen because it lets the glow animate opacity independently of any ring/shadow the
+  element also carries. **This entry used to claim the `::before` layer exists because a raw
+  `box-shadow: var(--shadow-glow)` on the element "clobbers the focus ring, WCAG 2.4.7." That was a
+  disproven rationale, corrected 2026-09-01.** Measured live: Tailwind v4 composes `ring-*` and a
+  utility-form glow through separate custom properties in one `box-shadow` value, ring layers first, so
+  the ring paints on top and nothing is clobbered; confirmed on one element carrying
+  `shadow-glow ring-2 ring-ring ring-offset-2 ring-offset-background` verbatim (computed `box-shadow`
+  with both present includes the ring pair, then the glow pair, in that order). The clobber is real for
+  exactly one shape: a raw `box-shadow: var(--shadow-glow)` written directly in CSS, which overwrites the
+  whole property rather than composing; one known site, `packages/client/src/features/app-shell/surfaces/shell.css:405`.
+  The three utility-form carriers (`media-grid`, `avatar`, `composer-drop-target`) are safe as authored.
+  Do not file a ring-clobber P0 against a utility-form `shadow-glow` site without re-measuring the
+  composed `box-shadow`; do keep filing it against the CSS `box-shadow: var(...)` shape.
 - **`--shadow-overlay`** — 4-layer float elevation (edge hairline + inset top-highlight + contact +
   ambient). No visible white line, no banding.
 - **Gradient border rings** — `[data-cta]::after` / `[data-selected]::after` / `[data-active]::after`,

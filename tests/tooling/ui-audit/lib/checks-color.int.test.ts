@@ -12,7 +12,8 @@
 import { describe } from "vitest";
 import { INACTIVE_KIND_EXPR, isContrastExempt, remainsOperable } from "../../../../tooling/src/_shared/wcag.ts";
 import type { ContrastInput } from "../../../../tooling/src/ui-audit/contract/samples.ts";
-import { checkContrast } from "../../../../tooling/src/ui-audit/lib/checks-color.ts";
+import { checkContrast, colorTextPopulations } from "../../../../tooling/src/ui-audit/lib/checks-color.ts";
+import { populationEvidenceGap } from "../../../../tooling/src/ui-audit/lib/population.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 // The two grays are chosen for the RATIOS they produce against the page, not for their looks — each
@@ -95,6 +96,102 @@ test("inactive controls are exempt before image and gradient text-over-art verdi
   });
   expect(checkContrast(gradient)?.rule).toBe("inactive-control-legibility");
   expect(checkContrast(gradient)?.severity).toBe("P3");
+});
+
+// ── #987: the reading-surface DENOMINATOR, both directions per reason ────────
+// The colour family declined silently in five places and published no denominator, and the RESULT line's
+// `no-verdict=` counts only the PIXEL SAMPLER's refusals — so a clean colour family could equally mean
+// "300 texts judged, all pass" or "300 censused, 280 declined", on the rule the apparatus exists for.
+// Each pin below asserts BOTH arms: which bucket the reason lands in AND what that does to the run's
+// verdict. A one-direction plant is not a control — a reason mis-filed as `excluded` would look identical
+// to a real judgment in the counter and would silently keep a partial run clean.
+const OPAQUE_WHITE = { r: 255, g: 255, b: 255 } as const;
+
+describe("design-audit colour populations — #987: every text sample lands in exactly one bucket", () => {
+  test("a judged FAILING text counts as judged AND affected; the run keeps its verdict", () => {
+    const rows = colorTextPopulations([sample({ inactive: "none" })]);
+    expect(rows.contrast).toMatchObject({ candidates: 1, judged: 1, affected: 1, emitted: 1, withheld: {}, excluded: {} });
+    // ...and the SAME shape passing is judged with nothing affected — the denominator is the point.
+    expect(colorTextPopulations([sample({ color: { r: 20, g: 20, b: 20 } })]).contrast).toMatchObject({ judged: 1, affected: 0, emitted: 0 });
+    expect(populationEvidenceGap(rows)).toBeNull();
+  });
+
+  test("a sub-measurable opacity is WITHHELD across the triple and makes the run NO VERDICT", () => {
+    // A glyph caught mid-fade paints nothing at that instant, so its ratio is arithmetic, not evidence.
+    const rows = colorTextPopulations([sample({ foregroundOpacity: 0.01 })]);
+    expect(rows.contrast).toMatchObject({ candidates: 1, judged: 0, affected: 0, withheld: { dimmed: 1 } });
+    expect(rows["text-over-art"]?.withheld).toEqual({ dimmed: 1 });
+    expect(rows["inactive-control-legibility"]?.withheld).toEqual({ dimmed: 1 });
+    expect(populationEvidenceGap(rows)?.detail).toContain("contrast: dimmed=1");
+  });
+
+  test("an UNRESOLVED backdrop is WITHHELD across the triple and makes the run NO VERDICT", () => {
+    const unresolved = sample({ backdrop: { kind: "unresolved", reason: "no-opaque-base", fallback: PAGE_BG } });
+    const rows = colorTextPopulations([unresolved]);
+    expect(rows.contrast).toMatchObject({ judged: 0, withheld: { unresolvedBackdrop: 1 } });
+    expect(rows["gray-on-color"]).toMatchObject({ judged: 0, withheld: { unresolvedBackdrop: 1 } });
+    expect(populationEvidenceGap(rows)).not.toBeNull();
+  });
+
+  test("an INACTIVE control is EXCLUDED from contrast — complete evidence, so the run keeps its verdict", () => {
+    // WCAG 1.4.3 exempts inactive components: the facts PROVE the rule inapplicable, they are not missing.
+    const rows = colorTextPopulations([sample({ inactive: "native" })]);
+    expect(rows.contrast).toMatchObject({ candidates: 1, judged: 0, affected: 0, withheld: {}, excluded: { inactiveExempt: 1 } });
+    // ...and the advisory that replaces it DID judge the same sample and found it.
+    expect(rows["inactive-control-legibility"]).toMatchObject({ judged: 1, affected: 1, emitted: 1 });
+    expect(populationEvidenceGap(rows)).toBeNull();
+  });
+
+  test("an inactive control over an IMAGE is withheld from the advisory it applies to — NO VERDICT", () => {
+    // The one decline inside the inactive arm that is a real gap: no measurable backdrop, so no ratio.
+    const rows = colorTextPopulations([sample({ inactive: "native", backdrop: { kind: "image-indeterminate" } })]);
+    expect(rows["inactive-control-legibility"]).toMatchObject({ judged: 0, withheld: { imageIndeterminate: 1 } });
+    expect(populationEvidenceGap(rows)?.detail).toContain("imageIndeterminate=1");
+    // The same is true of a translucent backdrop, whose composite is unknown.
+    const translucent = sample({ inactive: "native", backdrop: { kind: "flat", color: { ...PAGE_BG, a: 0.5 } } });
+    expect(colorTextPopulations([translucent])["inactive-control-legibility"]?.withheld).toEqual({ translucentBackdrop: 1 });
+  });
+
+  test("an ACTIVE text over an image is JUDGED by text-over-art, not withheld — the run keeps its verdict", () => {
+    // The asymmetry a reader will look for: this path EMITS a P1 saying contrast is indeterminate, so the
+    // instrument's inability is already the verdict. Counting it a second time as a missing judgment would
+    // double-count it AND turn every surface carrying one picture into a NO VERDICT run.
+    const rows = colorTextPopulations([sample({ backdrop: { kind: "image-indeterminate" } })]);
+    expect(rows["text-over-art"]).toMatchObject({ judged: 1, affected: 1, emitted: 1, withheld: {} });
+    expect(rows.contrast).toMatchObject({ judged: 0, excluded: { imageBackdrop: 1 } });
+    // gray-on-color EXCLUDES it for the same reason it excludes a pixel sample: a picture is not an
+    // authored colour. Filing that as a withholding would make one picture a permanent NO VERDICT.
+    expect(rows["gray-on-color"]).toMatchObject({ judged: 0, withheld: {}, excluded: { imageBackdrop: 1 } });
+    expect(populationEvidenceGap(rows)).toBeNull();
+  });
+
+  test("a PIXEL-SAMPLED backdrop is excluded from gray-on-color only — contrast still judges it", () => {
+    // Pixels answer luminance, not authorship, and this rule's remedy presumes an authored colour.
+    const rows = colorTextPopulations([sample({ backdropMethod: "pixel-sample" })]);
+    expect(rows["gray-on-color"]).toMatchObject({ judged: 0, withheld: {}, excluded: { pixelSampled: 1 } });
+    expect(rows.contrast?.judged).toBe(1);
+    expect(populationEvidenceGap(rows)).toBeNull();
+  });
+
+  test("every row settles over a MIXED population — candidates = judged + withheld + excluded", () => {
+    // settledPopulationAccounting throws when the arithmetic does not close, so a mis-bucketed reason is an
+    // instrument error rather than a plausible-looking counter.
+    const rows = colorTextPopulations([
+      sample(),
+      sample({ inactive: "native" }),
+      sample({ foregroundOpacity: 0.01 }),
+      sample({ backdrop: { kind: "image-indeterminate" } }),
+      sample({ backdrop: { kind: "gradient", stops: [PAGE_BG, OPAQUE_WHITE] } }),
+    ]);
+    for (const row of [rows.contrast, rows["text-over-art"], rows["inactive-control-legibility"], rows["gray-on-color"]]) {
+      const declined = Object.values(row?.withheld ?? {})
+        .concat(Object.values(row?.excluded ?? {}))
+        .reduce((a, b) => a + b, 0);
+      expect(row?.candidates).toBe(5);
+      expect((row?.judged ?? 0) + declined).toBe(5);
+    }
+    expect(rows.contrast?.excluded).toEqual({ inactiveExempt: 1, imageBackdrop: 1, gradientBackdrop: 1 });
+  });
 });
 
 describe("design-audit contrast — #624: ONE classifier, shared with snap", () => {
