@@ -1101,3 +1101,119 @@ auditRuleTest(
     expect(res.stdout).not.toContain("selection-idiom");
   },
 );
+
+// ── pane-ink · quiet-state · double-empty-state (#978): the region-scoped lens ───────────────────────
+// Three questions no element can answer about itself: does this region earn its height, is the OFF
+// state louder than the ON state, and how many panes of one surface are empty at once.
+function inkPage(contentPx: number): string {
+  return `<!doctype html>
+<html data-app-ready="settled"><head><meta charset="utf-8"><title>t</title></head>
+<body style="margin:0;background:#000;color:#fff;font:14px system-ui">
+<main role="region" style="height:900px;overflow:hidden">
+  <p style="margin:0;height:${contentPx}px">Your personas</p>
+  <p style="margin:0">New persona</p>
+  <p style="margin:0">Traveler</p>
+</main></body></html>`;
+}
+
+auditRuleTest(
+  [{ rule: "pane-ink", kind: "fires", reason: "a 900px region whose last text sits near the top is evacuated, not airy" }],
+  "a region whose content ends near its top is a pane-ink finding measured on TEXT leaves",
+  async ({ runCli, scratch }) => {
+    await writeFile(join(scratch, "thin.html"), inkPage(40));
+    const res = await runCli("ui-audit", ["/thin.html", "--base", `file://${scratch}`], { timeoutMs: CLI_TIMEOUT_MS });
+    expect(res.stdout).toContain("pane-ink");
+    // MEASURED ON TEXT-BEARING LEAVES, never the tallest descendant: a full-height container spans the
+    // region, so a max-descendant measure reports 100% ink on an empty pane. Live proof of the right
+    // measure: Personas reports 298px of 752px with 8 leaves, matching a hand measurement exactly.
+    expect(res.stdout, "the finding must report the ink ratio and the leaf count").toMatch(/% ink, \d+ text leaves/u);
+  },
+);
+
+auditRuleTest(
+  [{ rule: "pane-ink", kind: "silent", reason: "the same region filled to its height is the precision neighbour — the fence is the VOID, not the height" }],
+  "the same region filled to its height mints nothing",
+  async ({ runCli, scratch }) => {
+    await writeFile(join(scratch, "full.html"), inkPage(820));
+    const res = await runCli("ui-audit", ["/full.html", "--base", `file://${scratch}`], { timeoutMs: CLI_TIMEOUT_MS });
+    expect(res.stdout).not.toContain("pane-ink");
+    expect(res.stdout, "the structure family must have dispatched — silence is only a verdict when the family ran").toMatch(/scanned-structure=[1-9]/u);
+  },
+);
+
+function switchWeightPage(offFill: string, onFill: string): string {
+  return `<!doctype html>
+<html data-app-ready="settled"><head><meta charset="utf-8"><title>t</title></head>
+<body style="margin:0;background:#000;color:#fff;font:14px system-ui"><main>
+  <span data-unchecked style="display:block;width:48px;height:24px;background-color:${offFill}">off</span>
+  <span data-checked style="display:block;width:48px;height:24px;background-color:${onFill}">on</span>
+</main></body></html>`;
+}
+
+auditRuleTest(
+  [{ rule: "quiet-state", kind: "fires", reason: "a near-white OFF track against a dark page outshouts the accent ON track" }],
+  "an OFF state louder than its ON state is a quiet-state finding — an ORDERING, not a threshold",
+  async ({ runCli, scratch }) => {
+    await writeFile(join(scratch, "loud-off.html"), switchWeightPage("#f5f5f5", "#7a4a12"));
+    const res = await runCli("ui-audit", ["/loud-off.html", "--base", `file://${scratch}`], { timeoutMs: CLI_TIMEOUT_MS });
+    expect(res.stdout).toContain("quiet-state");
+    // Neither number is a violation on its own — the finding must show the RANK, which is the defect.
+    expect(res.stdout, "the value must show both sides so the inversion is legible").toMatch(/OFF [\d.]+:1 vs ON [\d.]+:1/u);
+  },
+);
+
+auditRuleTest(
+  [{ rule: "quiet-state", kind: "silent", reason: "the same pair with the weights the right way round — the fence is the inversion, not the contrast" }],
+  "a muted OFF beneath an accent ON mints nothing",
+  async ({ runCli, scratch }) => {
+    await writeFile(join(scratch, "quiet-off.html"), switchWeightPage("#2a2a2a", "#f0a020"));
+    const res = await runCli("ui-audit", ["/quiet-off.html", "--base", `file://${scratch}`], { timeoutMs: CLI_TIMEOUT_MS });
+    expect(res.stdout).not.toContain("quiet-state");
+  },
+);
+
+function emptyStatePage(count: number, withAction: boolean): string {
+  const action = withAction ? '<button data-slot="empty-state-action">New book</button>' : "";
+  const blocks = Array.from(
+    { length: count },
+    (_unused, index) => `<div data-slot="empty-state-root"><p>Nothing here yet ${String(index)}</p>${action}</div>`,
+  ).join("\n  ");
+  return `<!doctype html>
+<html data-app-ready="settled"><head><meta charset="utf-8"><title>t</title></head>
+<body style="margin:0;background:#000;color:#fff;font:14px system-ui"><main>
+  ${blocks}
+</main></body></html>`;
+}
+
+auditRuleTest(
+  [{ rule: "double-empty-state", kind: "fires", reason: "two panes of one surface are empty at once, so each gives separate guidance" }],
+  "two simultaneous empty states are one finding — the Extensions 'pick one on the left' with nothing on the left",
+  async ({ runCli, scratch }) => {
+    await writeFile(join(scratch, "two-empty.html"), emptyStatePage(2, true));
+    const res = await runCli("ui-audit", ["/two-empty.html", "--base", `file://${scratch}`], { timeoutMs: CLI_TIMEOUT_MS });
+    expect(res.stdout).toContain("double-empty-state");
+    expect(res.stdout, "the value must count the rendered states and the actionless ones").toContain("2 empty state(s) rendered at once");
+  },
+);
+
+auditRuleTest(
+  [{ rule: "double-empty-state", kind: "fires", reason: "a lone empty state offering no action is a dead end — the second arm of the same sample" }],
+  "one empty state with no action is still a finding — an empty pane owes a door out",
+  async ({ runCli, scratch }) => {
+    await writeFile(join(scratch, "dead-end.html"), emptyStatePage(1, false));
+    const res = await runCli("ui-audit", ["/dead-end.html", "--base", `file://${scratch}`], { timeoutMs: CLI_TIMEOUT_MS });
+    expect(res.stdout).toContain("double-empty-state");
+    expect(res.stdout, "the actionless count is what distinguishes this arm").toContain("1 with no action");
+  },
+);
+
+auditRuleTest(
+  [{ rule: "double-empty-state", kind: "silent", reason: "ONE empty state that offers its action is the correct shape and must stay silent" }],
+  "a single empty state with its action mints nothing",
+  async ({ runCli, scratch }) => {
+    await writeFile(join(scratch, "one-empty.html"), emptyStatePage(1, true));
+    const res = await runCli("ui-audit", ["/one-empty.html", "--base", `file://${scratch}`], { timeoutMs: CLI_TIMEOUT_MS });
+    expect(res.stdout).not.toContain("double-empty-state");
+    expect(res.stdout, "the quality family must have dispatched").toMatch(/scanned-quality=[1-9]/u);
+  },
+);

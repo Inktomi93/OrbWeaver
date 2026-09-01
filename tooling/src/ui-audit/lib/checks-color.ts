@@ -1,5 +1,5 @@
-// Contrast + text-over-art + gray-on-color — WCAG 2.x math over resolved backdrops. Pure; every
-// threshold cited. Provenance/attribution: lib/collect.ts header.
+// Contrast + text-over-art + gray-on-color + the ON/OFF weight ORDERING — WCAG 2.x math over resolved
+// backdrops. Pure; every threshold cited. Provenance/attribution: lib/collect.ts header.
 
 import type { InactiveKind, Rgb } from "@orb/tooling/_shared/wcag";
 import {
@@ -17,7 +17,7 @@ import {
   rgbChroma,
 } from "@orb/tooling/_shared/wcag";
 import type { Finding } from "../contract/findings.ts";
-import type { ContrastInput } from "../contract/samples.ts";
+import type { ContrastInput, QuietStateInput } from "../contract/samples.ts";
 import { OPAQUE_STOP_MIN_ALPHA } from "./ramp.ts";
 
 /** Why `aria-disabled` earns a sharper note than `:disabled`: it stays focusable and announced. */
@@ -215,5 +215,33 @@ export function checkGrayOnColor(input: ContrastInput): Finding | null {
     message:
       "gray text on a colored background looks washed out — use a darker shade of the background's own hue or a transparency of the text color, not neutral gray",
     origin: "impeccable",
+  };
+}
+
+/** The OFF state may sit at most this far ABOVE the ON state before the ranking is backwards. Not zero:
+ *  a hair of difference is palette noise, and the defect the config surface showed was 17.61:1 OFF
+ *  against 7.65:1 ON — a 9.96 inversion, not a rounding one. */
+const QUIET_MAX_INVERSION = 1.5;
+
+/** THE QUIET STATE MUST BE THE QUIET ONE (#978). "17.61:1 OFF vs 7.65:1 ON is backwards" — the loudest
+ *  object on the surface was a switch that was turned OFF, so the eye is pulled to the thing that is not
+ *  happening.
+ *
+ *  An ORDERING check, not a threshold: neither contrast value is wrong on its own, and no per-element
+ *  rule can express it. The pair comes from Base UI's own `data-checked` / `data-unchecked`, so it is the
+ *  author's claim about which state is which, and the walker emits the sample only when BOTH sides were
+ *  measurable — a one-sided read is silence rather than a fabricated comparison. */
+export function checkQuietState(input: QuietStateInput): Finding | null {
+  if (input.offContrast - input.onContrast <= QUIET_MAX_INVERSION) {
+    return null;
+  }
+  return {
+    rule: "quiet-state",
+    severity: "P2",
+    selector: input.selector,
+    value: `OFF ${String(input.offContrast)}:1 vs ON ${String(input.onContrast)}:1`,
+    message:
+      "the OFF state is louder than the ON state, so the eye is pulled to the thing that is NOT happening and a pane of switches reads as noise. Invert the weights: OFF is a muted track against the page, ON carries the accent",
+    origin: "orbweaver",
   };
 }

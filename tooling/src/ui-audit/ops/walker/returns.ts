@@ -73,5 +73,8 @@ export const WALKER_RETURNS = `  var pendingWalkMutations = walkObserver.takeRec
     cohortAnatomies: cohortAnatomies,
     rowVoids: rowVoids,
     selectionIdioms: selectionIdioms,
+    paneInks: paneInks,
+    quietStates: quietStates,
+    emptyStates: emptyStates,
   };
 `;

@@ -23,16 +23,25 @@ import {
   checkTabIndexSmell,
   checkTapTarget,
 } from "./checks-a11y.ts";
-import { checkContrast, checkGrayOnColor } from "./checks-color.ts";
+import { checkContrast, checkGrayOnColor, checkQuietState } from "./checks-color.ts";
 import { checkAccentBorder, checkGlowShadow } from "./checks-decor.ts";
 import { checkBrokenImage, checkImageDistortion } from "./checks-media.ts";
 import { checkBgPattern, checkIconTile, checkMotionStatic, checkRadialGlow } from "./checks-ornament.ts";
-import { checkClippedOverflow, checkDuplicateDoors, checkEdgeFlush, checkRepeatedText, checkTextOverflow, checkTruncatedText } from "./checks-quality.ts";
+import {
+  checkClippedOverflow,
+  checkDoubleEmptyState,
+  checkDuplicateDoors,
+  checkEdgeFlush,
+  checkRepeatedText,
+  checkTextOverflow,
+  checkTruncatedText,
+} from "./checks-quality.ts";
 import {
   checkAnimatedImgHover,
   checkCohortAnatomy,
   checkGradientText,
   checkNestedCard,
+  checkPaneInk,
   checkRowVoid,
   checkSelectionIdiom,
   checkZIndex,
@@ -95,6 +104,7 @@ function colorFindings(samples: RawSamples): FamilyCheckResult {
   const state = emptyFamilyResult();
   runArray(state, () => nullableFindings(samples.texts, checkContrast));
   runArray(state, () => nullableFindings(samples.texts, checkGrayOnColor));
+  runArray(state, () => nullableFindings(samples.quietStates ?? [], checkQuietState));
   return state;
 }
 
@@ -128,6 +138,7 @@ function qualityFindings(samples: RawSamples): FamilyCheckResult {
   runArray(state, () => samples.repeatedTexts.map(checkRepeatedText));
   runArray(state, () => samples.clippedOverflows.map(checkClippedOverflow));
   runArray(state, () => samples.edgeFlushCards.map(checkEdgeFlush));
+  runArray(state, () => nullableFindings(samples.emptyStates ?? [], checkDoubleEmptyState));
   // The #816 collision families: text erased to zero width, and a painted element whose own centre
   // belongs to a neighbour. Optional on the sample bundle — a pinned pre-#816 fixture set censused
   // neither, and an absent family is silence about a question nobody asked, not a clean answer.
@@ -144,6 +155,7 @@ function structureFindings(samples: RawSamples): FamilyCheckResult {
   runArray(state, () => nullableFindings(samples.cohortAnatomies ?? [], checkCohortAnatomy));
   runArray(state, () => nullableFindings(samples.rowVoids ?? [], checkRowVoid));
   runArray(state, () => nullableFindings(samples.selectionIdioms ?? [], checkSelectionIdiom));
+  runArray(state, () => nullableFindings(samples.paneInks ?? [], checkPaneInk));
   return state;
 }
 

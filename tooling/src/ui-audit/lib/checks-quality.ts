@@ -2,7 +2,15 @@
 // clipped positioned children, edge-flush scroller cards, uncaught page errors, duplicate action doors
 // (the runtime half of issue #252). Pure. Provenance: lib/collect.ts header.
 import type { Finding } from "../contract/findings.ts";
-import type { ActionDoorInput, ClippedOverflowInput, EdgeFlushInput, RepeatedTextInput, TextOverflowInput, TruncatedTextInput } from "../contract/samples.ts";
+import type {
+  ActionDoorInput,
+  ClippedOverflowInput,
+  EdgeFlushInput,
+  EmptyStateInput,
+  RepeatedTextInput,
+  TextOverflowInput,
+  TruncatedTextInput,
+} from "../contract/samples.ts";
 
 /** TRUNCATED WITH NOTHING TO SHOW FOR IT (#825). The walker has already excluded every truncation that
  *  paints an ellipsis or carries the full value in a title/aria-label, so this finding is only ever about
@@ -209,4 +217,32 @@ export function checkDuplicateDoors(doors: readonly ActionDoorInput[]): Finding[
     });
   }
   return findings;
+}
+
+/** One empty state is a pane telling you what to do. Two at once is two panes telling you DIFFERENT
+ *  things — the Extensions case, where the list said "install a plugin" while the content said "pick one
+ *  on the left" and there was nothing on the left to pick. */
+const EMPTY_MAX_SIMULTANEOUS = 1;
+
+/** TWO PANES, TWO STORIES (#978). Structural rather than semantic: the app has exactly one empty-state
+ *  primitive, so the count of simultaneously-rendered roots IS the shape, and `empty-state-action` says
+ *  whether each offers a door out.
+ *
+ *  The `actionless` half is the second finding in the same sample — an empty state that eats a pane and
+ *  offers no action is a dead end, and the config surface had three of them costing 129px of the list. */
+export function checkDoubleEmptyState(input: EmptyStateInput): Finding | null {
+  if (input.rendered <= EMPTY_MAX_SIMULTANEOUS && input.actionless === 0) {
+    return null;
+  }
+  const crowded = input.rendered > EMPTY_MAX_SIMULTANEOUS;
+  return {
+    rule: "double-empty-state",
+    severity: "P2",
+    selector: input.selector,
+    value: `${String(input.rendered)} empty state(s) rendered at once, ${String(input.actionless)} with no action`,
+    message: crowded
+      ? "more than one pane of this surface is empty at the same time, so the panes give separate — and often contradictory — guidance: one says how to create the first item while the other tells you to pick one from a list that has none. When the list is empty the content pane should mirror the list's guidance, not point at it"
+      : "an empty state offers no action — a pane that says there is nothing here and gives no door out is a dead end; every empty state owes its primary action",
+    origin: "orbweaver",
+  };
 }

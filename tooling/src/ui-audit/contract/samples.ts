@@ -7,7 +7,7 @@ import type { SubjectAccountingInput, ThemeRenderInput } from "./samples-evidenc
 // re-exported below: a bare `export … from` re-exports a name without binding it locally (tsc catches
 // that; biome's type service does not).
 import type { AccessibleNameInput, ActionDoorInput, CensusReachInput, ControlAspectInput, TabIndexInput, TapTargetInput } from "./samples-interactive.ts";
-import type { CohortAnatomyInput, RowVoidInput, SelectionIdiomInput } from "./samples-layout.ts";
+import type { CohortAnatomyInput, EmptyStateInput, PaneInkInput, QuietStateInput, RowVoidInput, SelectionIdiomInput } from "./samples-layout.ts";
 
 /** Resolved backdrop behind a text node — `flat` (solid ancestor bg), `gradient` (worst-stop
  *  ratio over OPAQUE stops; translucent stops refuse as indeterminate),
@@ -105,7 +105,7 @@ export type {
 // ── The relational census (sibling cohorts) ──────────────────────────────────────────────────────────
 // Same split reason as the interactive family above, and the same import-beside-re-export rule:
 // `RawSamples` composes this name, so it is bound locally at the top of the file as well.
-export type { CohortAnatomyInput, RowVoidInput, SelectionIdiomInput } from "./samples-layout.ts";
+export type { CohortAnatomyInput, EmptyStateInput, PaneInkInput, QuietStateInput, RowVoidInput, SelectionIdiomInput } from "./samples-layout.ts";
 
 // ── Heading order (impeccable `skipped-heading`; UIP §13.10 N7 is law here) ──
 export interface HeadingSample {
@@ -431,6 +431,12 @@ export interface RawSamples {
   readonly rowVoids?: readonly RowVoidInput[];
   /** How many vocabularies one surface uses to say "this one" — the relational lens (#978). */
   readonly selectionIdioms?: readonly SelectionIdiomInput[];
+  /** Regions that do not earn their height — the relational lens (#978). */
+  readonly paneInks?: readonly PaneInkInput[];
+  /** Whether the OFF state outshouts the ON state — an ORDERING question (#978). */
+  readonly quietStates?: readonly QuietStateInput[];
+  /** How many panes of one surface are simultaneously empty (#978). */
+  readonly emptyStates?: readonly EmptyStateInput[];
   /** The obscured census's denominator — absent means the sample set predates the family, which the
    *  report prints as `unreported` rather than as a complete-looking zero. */
   readonly obscuredScan?: ObscuredScanInput;
