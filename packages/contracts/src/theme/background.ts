@@ -25,7 +25,6 @@ import { z } from "zod";
  *  is an own-upload pinned by `assetId`/`assetHash` (GC-rooted via the asset-refs JSON live-sources for
  *  each carried location); `seeded` a static catalog slug; `external` a URL. */
 export const BACKGROUND_IMAGE_KINDS = ["none", "seeded", "external", "asset"] as const;
-export type BackgroundImageKind = (typeof BACKGROUND_IMAGE_KINDS)[number];
 
 /** The carried decorative-background SOURCE (BG-C) — a `ThemeOverride` twin. Source-only: fit/dim/blur are
  *  never carried (the viewer keeps their own appearance treatment). `kind:"none"` (or an empty ref for the

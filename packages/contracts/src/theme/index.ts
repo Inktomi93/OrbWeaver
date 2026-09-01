@@ -10,7 +10,7 @@
 import { z } from "zod";
 import { themeOverrideSchema } from "./override.ts";
 
-export type { BackgroundImageKind, ThemeBackground } from "./background.ts";
+export type { ThemeBackground } from "./background.ts";
 export { BACKGROUND_IMAGE_KINDS, canonicalBackgroundSource, themeBackgroundSchema } from "./background.ts";
 export type {
   BackgroundMaterializeFailure,
