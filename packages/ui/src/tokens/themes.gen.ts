@@ -65,7 +65,7 @@ export const SEED_THEME_VALUE_SETS = {
       "--color-secondary": "oklch(0.26 0.02 250)",
       "--color-secondary-foreground": "oklch(0.95 0.01 250)",
       "--color-muted": "oklch(0.26 0.015 250)",
-      "--color-muted-foreground": "oklch(0.72 0.012 250)",
+      "--color-muted-foreground": "oklch(0.731 0.012 250)",
       "--color-accent": "oklch(0.29 0.02 250)",
       "--color-accent-foreground": "oklch(0.95 0.01 250)",
       "--color-border": "oklch(0.99 0.01 250 / 0.09)",

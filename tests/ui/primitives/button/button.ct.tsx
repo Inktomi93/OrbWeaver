@@ -517,11 +517,11 @@ test("hover swaps the ghost intent to the accent token", async ({ mount, page })
 for (const intent of ["secondary", "ghost", "outline"] as const) {
   test(`${intent} inherits its transparent host's paired ink at rest (#969)`, async ({ mount }) => {
     const component = await mount(
-      <div style={{ color: "rgb(12, 34, 56)" }}>
+      <div style={{ color: TOKENS["color.primary"].value }}>
         <Button intent={intent}>Save</Button>
       </div>,
     );
-    await expect(component.getByRole("button", { name: "Save" })).toHaveCSS("color", "rgb(12, 34, 56)");
+    await expect(component.getByRole("button", { name: "Save" })).toHaveCSS("color", TOKENS["color.primary"].value);
   });
 }
 

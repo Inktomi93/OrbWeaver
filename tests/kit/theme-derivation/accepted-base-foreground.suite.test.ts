@@ -2,7 +2,9 @@
 // defect; this matrix prevents that repair from becoming a two-fixture exception.
 
 import {
+  AA_NORMAL_DERIVATION_RATIO,
   AA_NORMAL_RATIO,
+  compositeSrgb,
   derivedForeground,
   derivedForegroundLightnessForSurfaces,
   derivedMutedForegroundPair,
@@ -31,13 +33,19 @@ const SHARED_RAMP_ROLES = ["sidebar", "surfaceRaised", "card", "popover", "secon
 function worstContrast(ink: Oklch, surface: Oklch): number {
   const inkRgb = oklchToSrgb(ink);
   const surfaceRgb = oklchToSrgb(surface);
+  return worstRgbContrast(inkRgb, surfaceRgb);
+}
+
+function worstRgbContrast(inkRgb: ReturnType<typeof oklchToSrgb>, surfaceRgb: ReturnType<typeof oklchToSrgb>): number {
   const quantize = ({ r, g, b }: typeof inkRgb): typeof inkRgb => ({ r: Math.round(r), g: Math.round(g), b: Math.round(b) });
   return Math.min(wcagContrastRatio(inkRgb, surfaceRgb), wcagContrastRatio(quantize(inkRgb), quantize(surfaceRgb)));
 }
 
 function expectClearing(ink: Oklch, surfaces: readonly Oklch[]): void {
+  const endpoint = { l: ink.l < 0.5 ? 0 : 1, c: 0, h: ink.h };
+  const attainableTarget = Math.max(AA_NORMAL_RATIO, Math.min(AA_NORMAL_DERIVATION_RATIO, worstContrast(endpoint, surfaces[0] ?? endpoint)));
   for (const surface of surfaces) {
-    expect(worstContrast(ink, surface)).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
+    expect(worstContrast(ink, surface)).toBeGreaterThanOrEqual(attainableTarget);
   }
 }
 
@@ -70,12 +78,15 @@ function assertBase(base: Oklch): SampleResult {
   const opaqueMutedHosts = [base, surfaces.card, surfaces.popover, surfaces.sidebar, surfaces.secondary, surfaces.muted];
   const mutedPair = derivedMutedForegroundPair(base, opaqueMutedHosts, [base, surfaces.card, surfaces.popover]);
   const mutedInk = { l: mutedPair.lightness, c: 0, h: base.h };
-  const inputHosts = [
-    inputCompositeSurface(base, base, mutedPair.inputAlpha),
-    inputCompositeSurface(base, surfaces.card, mutedPair.inputAlpha),
-    inputCompositeSurface(base, surfaces.popover, mutedPair.inputAlpha),
-  ];
-  expectClearing(mutedInk, [...opaqueMutedHosts, ...inputHosts]);
+  expectClearing(mutedInk, opaqueMutedHosts);
+  const inputInk = oklchToSrgb(derivedForeground(base));
+  const mutedInkRgb = oklchToSrgb(mutedInk);
+  const endpoint = { l: mutedInk.l < 0.5 ? 0 : 1, c: 0, h: mutedInk.h };
+  const attainableTarget = Math.max(AA_NORMAL_RATIO, Math.min(AA_NORMAL_DERIVATION_RATIO, worstContrast(endpoint, base)));
+  for (const backing of [base, surfaces.card, surfaces.popover]) {
+    const inputHost = compositeSrgb(inputInk, mutedPair.inputAlpha, oklchToSrgb(backing));
+    expect(worstRgbContrast(mutedInkRgb, inputHost)).toBeGreaterThanOrEqual(attainableTarget);
+  }
 
   const oldMutedInk = { l: polarity === "light" ? THEME_DERIVATION.mutedLMin : THEME_DERIVATION.mutedLMax, c: 0, h: base.h };
   return {
@@ -85,7 +96,8 @@ function assertBase(base: Oklch): SampleResult {
   };
 }
 
-test("#969 every accepted-base sample has a real shared ink; unsafe ramp/input projections have nonzero populations", () => {
+test("#969 every accepted-base sample has a framebuffer-safe shared ink; unsafe ramp/input projections have nonzero populations", () => {
+  expect(AA_NORMAL_DERIVATION_RATIO).toBe(4.6);
   const results = BASES.map(assertBase);
   expect(results).toHaveLength(2060);
   expect(results.filter(({ rampProjected }) => rampProjected).length).toBeGreaterThan(0);

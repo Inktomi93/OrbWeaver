@@ -847,7 +847,7 @@ wallpaper · the media grid · the boot veil), each with its writer named below.
 | `[data-theme="light"]` (`:199-241`), `[data-theme="mocha"]` (`:243-285`) | correct-as-is | generated per D71; each self-complete and carrying its own `color-scheme` |
 | the intent family (`destructive/success/warning/info` ± foregrounds) and `--color-track-1..6` declared ONCE as `light-dark()`, never re-stated per theme | correct-as-is | D71 clause (3); this is the mechanism F3 says the chart ramp should join |
 | `--color-chart-1..5` polarity-aware, with carried-theme concrete derivation | **FIXED (#939)** | static seeds use `light-dark()` with byte-identical dark arms; custom ThemeScopes emit five host-judged concrete fills. Cold CT proved five real ECharts fills at ≥3:1 |
-| `--color-reading-plate-foreground` and `--color-sidebar-accent-foreground` | **FIXED (#969)** | portable semantic pairs added at the token home; seed values preserve the former winning inks, while custom ThemeScopes solve the over-art plate and sidebar hover fill against their actual pixels. Generated artifacts are additive-only |
+| `--color-reading-plate-foreground` and `--color-sidebar-accent-foreground` | **FIXED (#969), FRAMEBUFFER MARGIN REPAIRED (#883)** | portable semantic pairs live at the token home; custom ThemeScopes solve each actual host. WCAG remains 4.5 while Orb-owned neutral derivation aims at 4.6 capped by the anchor's attainable endpoint. Mocha `muted-foreground` is the sole seed retune (L 0.720→0.731); generated base token output is byte-identical |
 | `--color-sheen`, `--color-highlight` + foreground, `--color-sky-*` not overridden per theme | correct-as-is | deliberate polarity-FIXED values; `sheen` is used only at 0.02–0.04 alpha as a gradient foot, and the globals comment says so verbatim |
 
 **Token definitions:** 161 `--color-*:` declaration lines here vs **4** in `client/styles/globals.css` and 0
@@ -1547,7 +1547,7 @@ planted control.**
 | `tests/ui/styles/css-structure.suite.test.ts` | vitest | the five authored files, by literal assertion (theme enumeration · the unlayered floor · the light block's `color-scheme` · BLUR\_SURFACES sync · the reduce/contrast arms' source order and conditions · the 48rem four-way agreement · the reading-scale `, 1` fallbacks) | — | only what it enumerates; the dark-variant arm is **one-directional (F7)** |
 | `tests/ui/lib/class-merge.test.ts` + `css-merge-parity` | vitest/integration | every compiler-positive governed family plus TV ordinary/slot paths and bounded replay | 107/107 merge/token + 7/7 parity | does not claim browser cascade attribution |
 | `tests/ui/tokens/index.test.ts` | vitest | re-runs the codegen and diffs the committed artifacts | — | — |
-| `tests/ui/content/theme-scope/palette-contrast.suite.test.ts` + `tests/kit/theme-derivation/accepted-base-foreground.test.ts` | vitest | every seed value-set × polarity at the text/pill floors; #939's seed/custom chart-host, spelling/alpha/gamut, planted-failure, and pair-distance matrices; #969's actual per-surface foregrounds, input composites, reading plate over both art extremes, exact `.62`/`.6201` bases, and a 2,060-sample L/chroma/h matrix with nonzero unsafe-ramp/input controls | — | rendered ECharts and exact control pixels are intentionally proved separately in CT |
+| `tests/ui/content/theme-scope/palette-contrast.suite.test.ts` + `tests/kit/theme-derivation/accepted-base-foreground.suite.test.ts` | vitest | every seed value-set × polarity at the text/pill floors; #939's seed/custom chart-host, spelling/alpha/gamut, planted-failure, and pair-distance matrices; #969's actual per-surface foregrounds, input composites, reading plate over both art extremes, exact `.62`/`.6201` bases, and a 2,060-sample L/chroma/h matrix with nonzero unsafe-ramp/input controls | — | rendered ECharts and exact control pixels are intentionally proved separately in CT |
 | `tests/ui/touch-target-floor.suite.ct.tsx` | CT | coarse-emulated, per-pointer | — | — |
 | `snap --dead-css` | instrument | live DOM classList vs compiled CSSOM, per drive | — | **"does the VALUE resolve" and "which class won" (F10)**; and **no floor consults it** |
 | `motion-dead-class-flagger` (`[css]`) | instrument | live, MutationObserver-scoped, batched, confirm-before-report | — | same, plus **dev-only** — no watcher on the shipped build |
@@ -1699,8 +1699,13 @@ Foregrounds are solved against their actual paint hosts; reading-plate and sideb
 portable tokens; transparent action labels inherit the host ink; ST import no longer narrows the shared
 ThemeOverride domain. A shared-host ramp delta or input alpha retracts only when the unmodified derived value
 would make its documented foreground family mathematically infeasible; the authored base, dedicated accent
-ramps, and all three seed recipes remain exact. The current vault is 187 base tokens / 290 base-plus-seed
-entries / 195 exact targets, and generated seed artifacts differ only by the two additive paired variables.
+ramps, and theme domain remain exact. **#883's post-#969 framebuffer receipt closes the zero-margin hole:**
+the legal/rendered floor stays 4.5; derived neutral ink aims at 4.6 capped by the authored anchor's physical
+endpoint, and the same attainable target drives ramp/input projection. The 2,060-base analytic minimum is
+4.5798 (+0.0798); pivot input pairs are 4.6127/4.6144. The closed all-seed host sweep forced one value move:
+Mocha `muted-foreground` L 0.720→0.731 (quantized input/popover 4.430→4.6286). The current vault remains 187
+base tokens / 290 base-plus-seed entries / 195 exact targets; generated `tokens/index.ts` is byte-identical,
+and only that Mocha value changes in `theme.css`/`themes.gen.ts` beyond #969's two additive variables.
 
 **Integrated, in Review; the grouped CSS-train barrier has not graduated:** #951 family ownership; #952
 custom-property resolution; #954/#961 single-polarity prevention on the shared static-class substrate; #955

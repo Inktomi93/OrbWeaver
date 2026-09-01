@@ -1061,7 +1061,7 @@
             },
             {
               "kind": "test",
-              "target": "tests/kit/theme-derivation/accepted-base-foreground.test.ts:1"
+              "target": "tests/kit/theme-derivation/accepted-base-foreground.suite.test.ts:1"
             }
           ]
         }

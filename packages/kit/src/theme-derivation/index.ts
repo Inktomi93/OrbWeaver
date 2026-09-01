@@ -110,6 +110,11 @@ export const THEME_DERIVATION = {
 
 /** WCAG AA for normal-size text — the floor `palette-contrast.suite.test.ts` holds every orb pairing to. */
 export const AA_NORMAL_RATIO = 4.5;
+/** Orb's authored-neutral-ink target. It is deliberately above the legal floor because the browser's
+ *  8-bit OKLCH resolution and alpha composition can spend contrast after the analytic solve. A host near
+ *  WCAG's black/white crossover cannot physically reach 4.6, so each search caps this aim at the chosen
+ *  polarity endpoint's measured capacity rather than narrowing the accepted theme domain. */
+export const AA_NORMAL_DERIVATION_RATIO = 4.6;
 /** @public future: the large-text / non-text contrast gate (unbuilt) — WCAG AA for large text, the floor's
  *  sibling threshold beside `AA_NORMAL_RATIO`; the theme importer gates normal-size only today, this is the
  *  named constant that next gate reaches for. */
@@ -281,7 +286,7 @@ export function compositeSrgb(top: Rgb, alpha: number, under: Rgb): Rgb {
  *   • `null`  — the authored ink already clears AA against the base: keep it BYTE-IDENTICAL
  *     (the no-op-where-the-card-was-sensible guarantee; the dark-art rooms do not move a pixel);
  *   • a number — the ink fails AA there: the LIGHTNESS to re-derive it at, keeping the author's hue and
- *     chroma and using the same measured polarity/AA solver as every derived foreground.
+ *     chroma and using the same measured polarity/render-target solver as every derived foreground.
  * `inkAlpha < 1` composites the ink over the base first — a naive ratio on a translucent ink lies. (The
  * comparison stays INSIDE the backticks: tsdoc reads a bare `<` followed by a space as a malformed HTML
  * element and the eslint tsdoc/syntax rule reds the file.)
@@ -308,10 +313,15 @@ function worstTextContrast(ink: Rgb, surfaces: readonly Rgb[]): number {
   return Math.min(...surfaces.flatMap((surface) => [wcagContrastRatio(ink, surface), wcagContrastRatio(quantized(ink), quantized(surface))]));
 }
 
-function tryNeutralInkLightness(polarity: SurfacePolarity, surfaces: readonly Rgb[], initial: number): number | null {
+function neutralInkTarget(polarity: SurfacePolarity, anchor: Rgb): number {
+  const endpoint = oklchToSrgb({ l: polarity === "light" ? 0 : 1, c: 0, h: 0 });
+  return Math.max(AA_NORMAL_RATIO, Math.min(AA_NORMAL_DERIVATION_RATIO, worstTextContrast(endpoint, [anchor])));
+}
+
+function tryNeutralInkLightness(polarity: SurfacePolarity, surfaces: readonly Rgb[], initial: number, target: number): number | null {
   const increment = polarity === "light" ? -FOREGROUND_L_STEP : FOREGROUND_L_STEP;
   const limit = polarity === "light" ? 0 : 1;
-  const clears = (l: number): boolean => worstTextContrast(oklchToSrgb({ l, c: 0, h: 0 }), surfaces) >= AA_NORMAL_RATIO;
+  const clears = (l: number): boolean => worstTextContrast(oklchToSrgb({ l, c: 0, h: 0 }), surfaces) >= target;
   if (clears(initial)) {
     return initial;
   }
@@ -333,8 +343,8 @@ function tryNeutralInkLightness(polarity: SurfacePolarity, surfaces: readonly Rg
   return Math.round((initial + increment * low) / FOREGROUND_L_STEP) * FOREGROUND_L_STEP;
 }
 
-function neutralInkLightness(polarity: SurfacePolarity, surfaces: readonly Rgb[], initial: number): number {
-  const lightness = tryNeutralInkLightness(polarity, surfaces, initial);
+function neutralInkLightness(polarity: SurfacePolarity, surfaces: readonly Rgb[], initial: number, target: number): number {
+  const lightness = tryNeutralInkLightness(polarity, surfaces, initial, target);
   if (lightness === null) {
     throw new Error("unable to derive a contrast-safe neutral foreground");
   }
@@ -351,13 +361,14 @@ export function surfacePolarity(surface: Oklch): SurfacePolarity {
   return dark >= light ? "light" : "dark";
 }
 
-/** The smallest movement from Orb's existing foreground endpoint that clears AA against `surface`.
- * Existing dark/light themes keep their endpoint exactly; pivot-adjacent surfaces continue toward
- * black/white in deterministic 0.001-L steps until both float and framebuffer-quantized colors clear. */
+/** The smallest movement from Orb's existing foreground endpoint that reaches the attainable render target
+ * against `surface`. Existing dark/light themes keep their endpoint exactly; pivot-adjacent surfaces
+ * continue toward black/white in deterministic 0.001-L steps until float and quantized colors clear. */
 export function derivedForegroundLightness(surface: Oklch): number {
   const polarity = surfacePolarity(surface);
   const initial = polarity === "light" ? THEME_DERIVATION.fgLMin : THEME_DERIVATION.fgLMax;
-  return neutralInkLightness(polarity, [oklchToSrgb(surface)], initial);
+  const surfaceRgb = oklchToSrgb(surface);
+  return neutralInkLightness(polarity, [surfaceRgb], initial, neutralInkTarget(polarity, surfaceRgb));
 }
 
 /** A shared foreground for a documented family of nearby hosts (background/card/raised). */
@@ -368,10 +379,12 @@ export function derivedForegroundLightnessForSurfaces(surfaces: readonly Oklch[]
   }
   const polarity = surfacePolarity(anchor);
   const initial = polarity === "light" ? THEME_DERIVATION.fgLMin : THEME_DERIVATION.fgLMax;
+  const anchorRgb = oklchToSrgb(anchor);
   return neutralInkLightness(
     polarity,
     surfaces.map((surface) => oklchToSrgb(surface)),
     initial,
+    neutralInkTarget(polarity, anchorRgb),
   );
 }
 
@@ -384,10 +397,12 @@ export function derivedMutedForegroundLightness(surfaces: readonly Oklch[]): num
   }
   const polarity = surfacePolarity(anchor);
   const initial = polarity === "light" ? THEME_DERIVATION.mutedLMin : THEME_DERIVATION.mutedLMax;
+  const anchorRgb = oklchToSrgb(anchor);
   return neutralInkLightness(
     polarity,
     surfaces.map((surface) => oklchToSrgb(surface)),
     initial,
+    neutralInkTarget(polarity, anchorRgb),
   );
 }
 
@@ -413,21 +428,22 @@ export interface MutedForegroundPair {
   readonly inputAlpha: number;
 }
 
-/** The shared low-emphasis ink plus the translucent input alpha it must clear. The authored base and
- * opaque ramp stay fixed; only the derived fill alpha steps toward transparent when its legacy 0.12 would
- * pull an input across the family's contrast-safe polarity. */
+/** The shared low-emphasis ink plus the translucent input alpha it must clear. The authored base stays
+ * fixed; derived ramp projection happens upstream, and only the fill alpha steps toward transparent when
+ * its legacy 0.12 would pull an input below the anchor's attainable render target. */
 export function derivedMutedForegroundPair(base: Oklch, opaqueSurfaces: readonly Oklch[], inputBackings: readonly Oklch[]): MutedForegroundPair {
   const polarity = surfacePolarity(base);
   const initial = polarity === "light" ? THEME_DERIVATION.mutedLMin : THEME_DERIVATION.mutedLMax;
+  const target = neutralInkTarget(polarity, oklchToSrgb(base));
   const alphaSteps = Math.round(THEME_DERIVATION.inputAlpha / FOREGROUND_L_STEP);
+  const inputInk = oklchToSrgb({ l: derivedForegroundLightness(base), c: 0, h: base.h });
   for (let step = alphaSteps; step >= 0; step -= 1) {
     const inputAlpha = Number((step * FOREGROUND_L_STEP).toFixed(FOREGROUND_L_DECIMALS));
-    const surfaces = [...opaqueSurfaces, ...inputBackings.map((backing) => inputCompositeSurface(base, backing, inputAlpha))];
-    const lightness = tryNeutralInkLightness(
-      polarity,
-      surfaces.map((surface) => oklchToSrgb(surface)),
-      initial,
-    );
+    const surfaces = [
+      ...opaqueSurfaces.map((surface) => oklchToSrgb(surface)),
+      ...inputBackings.map((backing) => compositeSrgb(inputInk, inputAlpha, oklchToSrgb(backing))),
+    ];
+    const lightness = tryNeutralInkLightness(polarity, surfaces, initial, target);
     if (lightness !== null) {
       return { lightness, inputAlpha };
     }
@@ -532,11 +548,12 @@ function readingPlatePair(base: Oklch): ReadingPlatePair {
   const startAlpha = referencePlateAlpha(base, plate);
   const polarity = surfacePolarity(plateSurface);
   const initial = polarity === "light" ? THEME_DERIVATION.fgLMin : THEME_DERIVATION.fgLMax;
+  const target = neutralInkTarget(polarity, plate);
   const steps = Math.round((1 - startAlpha) / PLATE_ALPHA_STEP);
   for (let step = 0; step <= steps; step += 1) {
     const alpha = Number((Math.round((startAlpha + step * PLATE_ALPHA_STEP) / PLATE_ALPHA_STEP) * PLATE_ALPHA_STEP).toFixed(PLATE_ALPHA_DECIMALS));
     const surfaces = [compositeSrgb(plate, alpha, { r: 0, g: 0, b: 0 }), compositeSrgb(plate, alpha, { r: 255, g: 255, b: 255 })];
-    const lightness = tryNeutralInkLightness(polarity, surfaces, initial);
+    const lightness = tryNeutralInkLightness(polarity, surfaces, initial, target);
     if (lightness !== null) {
       return { alpha, foreground: { l: lightness, c: 0, h: base.h } };
     }
@@ -693,7 +710,8 @@ export interface RampDeltas {
  */
 function contrastSafeRampDelta(base: Oklch, desired: number, polarity: SurfacePolarity): number {
   const endpoint = oklchToSrgb({ l: polarity === "light" ? 0 : 1, c: 0, h: base.h });
-  const clears = (delta: number): boolean => worstTextContrast(endpoint, [oklchToSrgb(rampSurface(base, delta))]) >= AA_NORMAL_RATIO;
+  const target = neutralInkTarget(polarity, oklchToSrgb(base));
+  const clears = (delta: number): boolean => worstTextContrast(endpoint, [oklchToSrgb(rampSurface(base, delta))]) >= target;
   if (clears(desired)) {
     return desired;
   }

@@ -31,6 +31,16 @@ derives them against their actual surfaces. The authored base remains exact; onl
 delta or input alpha retracts when its starting recipe makes a common AA ink mathematically impossible. The
 separately validated owner-CSS plane still wins later.
 
+**Post-#969 framebuffer rider (#883, 2026-08-31).** “Analytically at 4.5” is not a sufficient generated
+foreground contract: browser OKLCH resolution and alpha composition measured Mocha input/popover at 4.430
+and both accepted pivot inputs at 4.460. WCAG/rendered acceptance remains 4.5; Orb-owned neutral derivation
+aims at 4.6, capped by the unchanged authored anchor's physically attainable black/white endpoint, and its
+derived ramp/input family yields to that same attainable target. The accepted-base matrix's analytic
+minimum is 4.5798; exact pivots solve to 4.6127/4.6144. The generated base token map remains byte-identical;
+Mocha's `muted-foreground` is the only seed output retuned (0.720→0.731, quantized input/popover
+4.430→4.6286). The all-seed gate is derived from `SEED_THEME_VALUE_SETS`, so a future value-set inherits the
+same host matrix rather than a theme-name exception.
+
 ## 1. The problem in one paragraph
 
 `packages/ui/src/tokens/tokens.json` holds 178 tokens in DTCG-shaped syntax (`$value`/`$type`).

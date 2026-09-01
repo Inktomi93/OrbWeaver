@@ -11,6 +11,7 @@
 import { BACKGROUND_DIM_MIN } from "@orb/contracts/settings/appearance";
 import type { RampDeltas } from "@orb/kit/theme-derivation";
 import {
+  AA_NORMAL_DERIVATION_RATIO,
   derivedForegroundLightness,
   READING_BAND_ALPHA,
   rampDeltas,
@@ -149,8 +150,8 @@ const REALISTIC_BASES = [...DARK_BASES, ...LIGHT_BASES];
 // three seed accents + a cool/warm spread. primary-foreground must stay legible on every one.
 const ACCENTS = ["oklch(0.72 0.175 52)", "oklch(0.7 0.14 250)", "oklch(0.55 0.16 50)", "oklch(0.5 0.2 25)", "oklch(0.9 0.15 100)"];
 
-test("static seed tokens (theme.css :root) — every body-text pairing clears WCAG AA 4.5:1", () => {
-  // Body/surface/secondary pairings must clear the normal-text floor.
+test.each(PALETTES.map((palette) => [palette.name, palette] as const))("static %s seed neutral pairs carry the framebuffer render margin", (_name, palette) => {
+  // Body/surface/secondary pairings must carry the solver's above-AA render target.
   const bodyPairs: ReadonlyArray<readonly [keyof typeof TOKENS, keyof typeof TOKENS]> = [
     ["color.foreground", "color.background"],
     ["color.foreground", "color.card"],
@@ -170,17 +171,17 @@ test("static seed tokens (theme.css :root) — every body-text pairing clears WC
     ["color.dialogue", "color.ai-bubble"],
   ];
   for (const [fg, bg] of bodyPairs) {
-    const ratio = contrastRatio(rgbOf(fg), rgbOf(bg));
-    expect(ratio, `${fg} on ${bg}`).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
+    const ratio = worstContrast(resolveTokenRgb(fg, palette), resolveTokenRgb(bg, palette));
+    expect(ratio, `${fg} on ${bg} @ ${palette.name}`).toBeGreaterThanOrEqual(AA_NORMAL_DERIVATION_RATIO);
   }
   // The muted foreground over the translucent input fill — composite the field over its darkest and
   // lightest realistic backdrops (popover is the lightest ramp surface — the worst case for the light
-  // muted tone on a dark theme). This is the exact pairing the muted-foreground bump (0.705→0.74) fixed.
-  const inputTok = parseOklch(TOKENS["color.input"].value);
+  // muted tone on a dark theme). This is the exact family the Mocha framebuffer miss exposed.
+  const inputTok = resolveTokenOklch("color.input", palette);
   for (const backdrop of ["color.card", "color.popover", "color.background"] as const) {
-    const composited = compositeOver(inputTok, rgbOf(backdrop));
-    const ratio = contrastRatio(rgbOf("color.muted-foreground"), composited);
-    expect(ratio, `muted-foreground on input over ${backdrop}`).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
+    const composited = compositeOver(inputTok, resolveTokenRgb(backdrop, palette));
+    const ratio = worstContrast(resolveTokenRgb("color.muted-foreground", palette), composited);
+    expect(ratio, `muted-foreground on input over ${backdrop} @ ${palette.name}`).toBeGreaterThanOrEqual(AA_NORMAL_DERIVATION_RATIO);
   }
 });
 

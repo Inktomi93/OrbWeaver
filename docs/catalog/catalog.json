@@ -652,9 +652,9 @@
       "path": "docs/architecture/core/Core-Path-Registry.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 545,
-      "bytes": 286674,
-      "sha256": "bf00ada58af091fe2e1211013c107542f78357107832338f417bb6331c034740",
+      "lines": 555,
+      "bytes": 287544,
+      "sha256": "8fac16a819506fed7cb25333a7c323ba2c88b8ffb471355926ac007d291d093c",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -729,7 +729,7 @@
         ],
         "summary": "Canonical D-ledger re-read through D144; D71 backdrop truth-repair; frozen assigned hash retained and current verified blob updated."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/architecture/core/Core-Planning-and-Checklists.md",
@@ -10022,9 +10022,9 @@
       "path": "docs/architecture/proposed/token-contract-program.md",
       "lane": "architecture-proposed",
       "issue": 4,
-      "lines": 289,
-      "bytes": 19603,
-      "sha256": "1d43a3680f11c198ea6672bc5543086a57dba495a62d971af6b092afb5be0a23",
+      "lines": 299,
+      "bytes": 20506,
+      "sha256": "f4bf01b7606b3bb2b177b3b0e0cb2aa3685ec99ab825522d771eb9177438536f",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -10062,7 +10062,7 @@
           }
         ]
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/architecture/proposed/tool-use-design/01-registry-and-execution.md",
@@ -12338,9 +12338,9 @@
       "path": "docs/design/theme-pivot-foreground-contract.md",
       "lane": "design",
       "issue": 5,
-      "lines": 241,
-      "bytes": 14696,
-      "sha256": "472a6854182d92271154b241b8eeaec75912d774c5a4a38d3f394444dd6c1b57",
+      "lines": 343,
+      "bytes": 22265,
+      "sha256": "9131657583722f92a6764ceb6015e0ab7f2907ddec92d490b919aa5b78cadd22",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -12381,13 +12381,13 @@
               },
               {
                 "kind": "test",
-                "target": "tests/kit/theme-derivation/accepted-base-foreground.test.ts:1"
+                "target": "tests/kit/theme-derivation/accepted-base-foreground.suite.test.ts:1"
               }
             ]
           }
         ]
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/design/tracked-field-unification.md",
@@ -29511,9 +29511,9 @@
       "path": "docs/reviews/stickler/2026-08-30-css-census-doctrine-and-enforcement.md",
       "lane": "reviews",
       "issue": 7,
-      "lines": 1718,
-      "bytes": 144289,
-      "sha256": "ac60d8faadb075628d47279e86d07e8f2c4f5da98df441450622222e32d2dcc1",
+      "lines": 1723,
+      "bytes": 144952,
+      "sha256": "07756b6f0ae1c556295e801efab5002c4de06c9d4c3725d9bafb81452cda5436",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -29563,7 +29563,7 @@
         ],
         "summary": "The live CSS census, doctrine, repair program and enforcer sweep, reconciled through #969's accepted-base foreground repair while the grouped train barrier remains explicit."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/reviews/stickler/2026-08-30-vocab-unification.md",
