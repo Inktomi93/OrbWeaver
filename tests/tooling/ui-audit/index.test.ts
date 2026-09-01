@@ -39,6 +39,7 @@ import {
   checkTextStyle,
   checkZIndex,
   collectFindings,
+  DESIGN_AUDIT_RULES,
   INTERACTIVE_TEXT_FLOOR_PX,
   isAtOrAboveSeverity,
   isValidSeverity,
@@ -52,6 +53,105 @@ const BLACK: Rgb = { r: 0, g: 0, b: 0 };
 const WHITE: Rgb = { r: 255, g: 255, b: 255 };
 const LIGHT_GRAY: Rgb = { r: 210, g: 210, b: 210 };
 const FLAT_WHITE: Backdrop = { kind: "flat", color: WHITE };
+
+// Closed proof manifest. Each reason points at the firing fixture and its nearest legitimate neighbour
+// exercised in this file; design-audit-rule-proof reconciles these ids against DESIGN_AUDIT_RULES.
+// @rule-fires(tap-target): undersized coarse and fine pointer fixtures emit the rule
+// @rule-silent(tap-target): the same controls at the ratified pointer floors stay clean
+// @rule-fires(control-aspect): the pre-fix 48x44 switch fixture emits the rule
+// @rule-silent(control-aspect): the shipped 64x44 switch is the nearest legal geometry
+// @rule-fires(obscured-target): the covered-target samples emit for interactive and reading targets
+// @rule-silent(obscured-target): sub-threshold overlap and self hits are the nearest legal neighbours
+// @rule-fires(aria-name): the unlabeled icon button fixture emits the rule
+// @rule-silent(aria-name): the same button with an aria-label or visible text stays clean
+// @rule-fires(landmark-missing): the missing-main fixture emits the rule
+// @rule-silent(landmark-missing): the same page sample with main present stays clean
+// @rule-fires(tabindex-positive): tabindex one emits the rule
+// @rule-silent(tabindex-positive): tabindex zero and minus one preserve natural order and stay clean
+// @rule-fires(skipped-heading): the h1 to h3 fixture emits the rule
+// @rule-silent(skipped-heading): the adjacent heading descent is the nearest legal neighbour
+// @rule-fires(text-over-art): low-contrast and indeterminate art backdrops emit the rule
+// @rule-silent(text-over-art): every-stop passing gradients are the nearest measurable neighbour
+// @rule-fires(contrast): light gray normal text on white emits the rule
+// @rule-silent(contrast): black normal text on the same backdrop stays clean
+// @rule-fires(inactive-control-legibility): an operable but visually lost inactive control emits the rule
+// @rule-silent(inactive-control-legibility): a disabled control above the legibility floor stays clean
+// @rule-fires(gray-on-color): neutral text on a saturated backdrop emits the rule
+// @rule-silent(gray-on-color): neutral backdrops and chromatic text are the two nearest legal neighbours
+// @rule-fires(border-accent-on-rounded): a dominant chromatic edge fighting a radius emits the rule
+// @rule-silent(border-accent-on-rounded): the selected ListRow accent is the ratified nearest neighbour
+// @rule-fires(side-tab): a thick dominant chromatic side edge emits the rule
+// @rule-silent(side-tab): a status edge and neutral border are the nearest legitimate neighbours
+// @rule-fires(glow-shadow): a zero-offset chromatic halo emits the rule
+// @rule-silent(glow-shadow): a neutral elevation shadow on the same surface stays clean
+// @rule-fires(distorted-image): object-fit fill with aspect deviation emits the rule
+// @rule-silent(distorted-image): object-fit cover with the same mismatch is legitimate cropping
+// @rule-fires(broken-image): both walker failure reasons emit the rule
+// @rule-silent(broken-image): the clean-bundle fixture contains no broken-image sample
+// @rule-fires(radial-halo): a saturated radial wash fading to transparent emits the rule
+// @rule-silent(radial-halo): the neutral non-fading vignette is the nearest legitimate neighbour
+// @rule-fires(radial-spotlight-glow): a low-alpha accent spotlight emits the rule
+// @rule-silent(radial-spotlight-glow): the sanctioned small carrier stays clean
+// @rule-fires(stripe-background): a repeating stripe sample emits the rule
+// @rule-silent(stripe-background): the same decoration on a sliver-sized element stays clean
+// @rule-fires(grid-line-background): a two-axis grid sample emits the rule
+// @rule-silent(grid-line-background): the same decoration on a sliver-sized element stays clean
+// @rule-fires(icon-tile-stack): the rounded-square icon tile over a heading emits the rule
+// @rule-silent(icon-tile-stack): an avatar circle and an oversized sibling stay clean
+// @rule-fires(layout-transition): a layout-property transition emits the rule
+// @rule-silent(layout-transition): the accordion and collapsible panel slots are ratified neighbours
+// @rule-fires(bounce-easing): bounce names and overshoot beziers emit the rule
+// @rule-silent(bounce-easing): a non-overshooting easing is the nearest motion neighbour
+// @rule-fires(text-overflow): the visible spill fixture emits the rule
+// @rule-silent(text-overflow): the all-clean raw-sample bundle contains no spill sample
+// @rule-fires(truncated-to-nothing): the zero-visible-text fixture emits the rule
+// @rule-silent(truncated-to-nothing): the all-clean raw-sample bundle preserves visible text
+// @rule-fires(repeated-container-text): repeated copy in distinct spots emits the rule
+// @rule-silent(repeated-container-text): the all-clean bundle has no repeated-container sample
+// @rule-fires(clipped-overflow): both in-flow and positioned spill fixtures emit the rule
+// @rule-silent(clipped-overflow): the all-clean bundle contains no clipped spill
+// @rule-fires(edge-flush-cards): cards flush against the scroller edge emit the rule
+// @rule-silent(edge-flush-cards): the all-clean bundle preserves the edge gap
+// @rule-fires(script-error): page errors dedupe and emit the rule
+// @rule-silent(script-error): an empty page-error list stays clean
+// @rule-fires(duplicate-action-door): duplicate actions in distinct homes emit the rule
+// @rule-silent(duplicate-action-door): sibling rows in one list remain one legitimate home
+// @rule-fires(z-index-escalation): z-index at the escalation floor emits the rule
+// @rule-silent(z-index-escalation): the value immediately below the floor stays clean
+// @rule-fires(nested-card): a card inside a card emits the rule
+// @rule-silent(nested-card): the otherwise identical non-nested card stays clean
+// @rule-fires(gradient-text): background-clipped text emits the rule
+// @rule-silent(gradient-text): plain text without clipping stays clean
+// @rule-fires(animated-img-hover): a transformed image hover emits the rule
+// @rule-silent(animated-img-hover): the otherwise identical static image stays clean
+// @rule-fires(text-below-ramp): text below the micro token emits the rule
+// @rule-silent(text-below-ramp): text exactly at the ratified micro token stays clean
+// @rule-fires(undersized-ui-text): interactive micro text below eleven pixels emits the rule
+// @rule-silent(undersized-ui-text): interactive text at the floor stays clean
+// @rule-fires(line-length): measured over-wide prose emits the rule
+// @rule-silent(line-length): prose at the ratified seventy-five-character measure stays clean
+// @rule-fires(tight-leading): leading below the ratified ratio emits the rule
+// @rule-silent(tight-leading): leading exactly at the floor stays clean
+// @rule-fires(justified-text): justified prose without auto hyphens emits the rule
+// @rule-silent(justified-text): the same prose with auto hyphens stays clean
+// @rule-fires(all-caps-body): long uppercase running text emits the rule
+// @rule-silent(all-caps-body): headings and short uppercase labels stay clean
+// @rule-fires(wide-tracking): wide tracking on running text emits the rule
+// @rule-silent(wide-tracking): the uppercase micro-caps voice is the nearest legitimate neighbour
+// @rule-fires(crushed-tracking): tracking below the negative floor emits the rule
+// @rule-silent(crushed-tracking): tracking exactly at the floor stays clean
+// @rule-fires(caveat-outweighed): an alert sentence outweighed in its block emits the rule
+// @rule-silent(caveat-outweighed): a partner within one ramp step stays clean
+// @rule-fires(off-theme-font): a rendered face outside the token stacks emits the rule
+// @rule-silent(off-theme-font): every face from the token stacks stays clean
+// @rule-fires(flat-type-hierarchy): a compressed heading-size spread emits the rule
+// @rule-silent(flat-type-hierarchy): the real ramp spread stays clean
+
+test("the design-audit rule denominator is closed at the corrected 45 live ids", () => {
+  expect(DESIGN_AUDIT_RULES).toHaveLength(45);
+  expect(new Set(DESIGN_AUDIT_RULES.map((rule) => rule.id)).size).toBe(45);
+  expect(DESIGN_AUDIT_RULES.filter((rule) => rule.id === "side-tab" || rule.id === "border-accent-on-rounded")).toHaveLength(2);
+});
 
 // ── #1 contrast ───────────────────────────────────────────────────────────────
 

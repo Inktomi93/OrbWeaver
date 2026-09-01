@@ -248,6 +248,8 @@ function writeFixtures(): void {
   // armed-empty at P1) — the stale-vocabulary arm. This suite file itself is FLAT under tests/tooling,
   // which the gate's tool-dir derivation skips, so the literal below is inert here.
   fx("tests/tooling/__g_rogue/x.test.ts", "// @instrument-proof: plants a fake defect and asserts the instrument reds\nexport const t = 1;\n");
+  // design-audit-rule-proof: a reasoned proof marker whose id is absent from the closed live registry.
+  fx("tests/tooling/ui-audit/__g_rule-proof.test.ts", "// @rule-fires(__g-ghost-rule): planted stale proof id\nexport const t = 1;\n");
   // test-determinism: ambient clock in a test (tooling/ is scanned; only support/+e2e/ are exempt).
   // The banned call is assembled so the literal isn't present in THIS file's source (which the gate
   // also scans) — only the written fixture resolves to the ambient-clock call.
