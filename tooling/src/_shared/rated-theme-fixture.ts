@@ -30,6 +30,10 @@ function instrumentError(message: string): never {
   throw new Error(`INSTRUMENT ERROR: ${message}`);
 }
 
+function provisioningCleanupError(primary: unknown, cleanup: unknown): AggregateError {
+  return new AggregateError([primary, cleanup], "INSTRUMENT ERROR: rated theme provisioning and exact cleanup both failed", { cause: primary });
+}
+
 async function trpc(baseUrl: string, procedure: string, input?: unknown): Promise<unknown> {
   const init: RequestInit =
     input === undefined
@@ -109,19 +113,28 @@ export async function provisionRatedStageThemes(baseUrl: string, staged: boolean
         "custom-dark",
       ),
     );
+    const catalog = await listThemes(baseUrl);
+    for (const entry of created) {
+      if (!catalog.some((candidate) => candidate.id === entry.id)) {
+        return instrumentError(`rated theme ${entry.id} was not readable after creation`);
+      }
+    }
+    const rated = created as [ThemeEntry, ThemeEntry];
+    return { entries: rated, cleanup: async () => await removeAndProveAbsent(baseUrl, rated) };
   } catch (error) {
-    if (created.length > 0) {
+    if (created.length === 0) {
+      throw error;
+    }
+    let cleanupFailure: unknown = null;
+    // @orb-gate-ignore caught-failure-ownership(empty:cleanupError): the cleanup failure is preserved beside the primary failure in the thrown AggregateError below; the matrix command prints that terminal error and exits toolError. Ends if either failure stops propagating.
+    try {
       await removeAndProveAbsent(baseUrl, created);
+    } catch (cleanupError) {
+      cleanupFailure = cleanupError;
+    }
+    if (cleanupFailure !== null) {
+      throw provisioningCleanupError(error, cleanupFailure);
     }
     throw error;
   }
-  const catalog = await listThemes(baseUrl);
-  for (const entry of created) {
-    if (!catalog.some((candidate) => candidate.id === entry.id)) {
-      await removeAndProveAbsent(baseUrl, created);
-      return instrumentError(`rated theme ${entry.id} was not readable after creation`);
-    }
-  }
-  const rated = created as [ThemeEntry, ThemeEntry];
-  return { entries: rated, cleanup: async () => await removeAndProveAbsent(baseUrl, rated) };
 }
