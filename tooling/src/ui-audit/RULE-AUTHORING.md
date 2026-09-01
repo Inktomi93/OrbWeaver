@@ -1,0 +1,124 @@
+---
+kind: law
+status: active
+updated: 2026-09-01
+---
+
+# Authoring a mechanism-matched ui-audit rule
+
+> THE law for `tooling/src/ui-audit/**` detector rules. Read this before adding, editing, or auditing a
+> rule's SELECTOR MECHANISM. Owner ruling (2026-09-01, task #19): the discipline below is a **TABLE, not
+> a gate** — a mechanism-match defect is a silent false-negative (a rule that never fires, not one that
+> mis-fires), so there is no failing-test shape to enforce structurally; the table is the amnesiac-agent
+> transfer of seven instances of the same defect class found in one day. Mirrors the shape of
+> `tooling/src/verify/gates/GATE-AUTHORING.md` (the structural-gate law); read that doc's own header for
+> why this repo writes law docs this way. Indexed from `docs/architecture/core/AGENTS.md` §7.
+
+## The one-line question
+
+Every detector rule answers a question about the rendered page by SELECTING something (a CSS selector
+text scan, an attribute read, a computed-style read, a static `tv()`/class-string scan). Before a rule
+lands, or before you trust one that already exists, ask: **does this rule's selector mechanism match how
+THIS codebase expresses the thing it is looking for?** A rule can be logically correct and still be BLIND
+— it never fires, the finding count looks clean, and nothing downstream distinguishes that from "no
+defect exists." Blind is worse than wrong: wrong is caught by a red; blind is caught by nothing.
+
+## The authoring checklist
+
+1. **Name the expression mechanism ON THE TREE, with a receipt.** Don't assume the obvious CSS spelling
+   (`:hover`, `rgb()`, a literal class string) is how this codebase actually authors the thing — grep or
+   `pnpm ast` the real call sites and cite `path:line`. A vendor/library choice (Base UI's `data-*`
+   state attributes instead of `:hover` — `docs/vendor/base-ui/handbook/styling.md`) or a build-time
+   transform (Tailwind's escaped `hover\:` class names, OKLCH color functions from the token vault) can
+   make the "obvious" selector wrong for 100% of the real population.
+2. **Plant a positive control in the codebase's OWN idiom.** Not a hand-written CSS snippet that happens
+   to satisfy the rule's regex — the actual authored shape (a real `tv()` variant, a real `oklch()` token,
+   a real `[data-highlighted]` selector) so the control proves the rule sees what ships, not what a
+   simplified test fixture ships.
+3. **Plant a negative in the NAIVE idiom** — the mechanism the rule does NOT use — to prove the rule does
+   not accidentally also fire on/confuse itself with the adjacent spelling (an escaped Tailwind class
+   containing the substring `:hover` inside its name is the canonical trap here, #24).
+4. **State the withheld/excluded polarity.** A candidate the rule could not judge is `withheld` (evidence
+   missing, still counted); a candidate proved out of scope is `excluded` (a closed reason, still
+   printed). Neither is a silent zero — see `docs/design/983-984-ui-audit-population-semantics.md` for
+   the full population-accounting contract these words carry.
+5. **If the mechanism has more than one live spelling in this codebase (CSS pseudo AND a `data-*`
+   attribute; an element's own paint AND its `::before`/`::after` layer), the rule owes ONE shared
+   predicate for both** — never a second copy of the same regex hand-duplicated into a sibling census
+   file (row 4 below is the paid lesson: the second copy silently missed the #24/#22 fix that landed on
+   the first).
+
+## The mechanism-match table
+
+Every row below is a REAL defect that shipped and was later found on this tree (2026-09-01, the
+detector-adapt program, tasks #18/#22/#24 + the 55-rule Base UI mechanism audit, task #21). Re-derive
+each row from the code, not from this table, before citing it — the receipts are pinned to the commits
+that fixed them and can drift.
+
+| # | What the rule looks for | How this codebase expresses it | The naive mechanism (blind) | The matching mechanism (landed) | Code receipt | Doc/memory pointer |
+| - | - | - | - | - | - | - |
+| 1 | An authored color (contrast, gradient stops, backdrop fills) | `oklch(0.72 0.175 52)` — every color token in the vault is OKLCH, never `rgb()`/hex | A regex over `rgb()`/hex substrings only | Paint the CSS value into a 1×1 canvas (`fillStyle`) and read back un-premultiplied RGBA — accepts every color function the browser understands, incl. OKLCH/color-mix | `tooling/src/ui-audit/ops/walker/resolve.ts:11-49` (issue #188 — measured: the home resume card's 3px oklch accent edge produced zero findings under the old regex) | memory `oklch-kills-rgb-regex-probes` |
+| 2 | A chromatic glow (`box-shadow`/`text-shadow`/radial wash) | The house pattern is a dedicated `::before`/`::after` pseudo layer, not paint on the element itself (`checks-decor.ts:186`, "DEDICATED pseudo layer … on selected/active carriers") | `getComputedStyle(el)` on the element only | `getComputedStyle(el, "::before")` / `"::after"` swept alongside the element read | `tooling/src/ui-audit/ops/walker/census-glow.ts:1-18` | `docs/design/state-paint-census.md` (archived) |
+| 3 | Interaction/selection paint (hover, pressed, selected, checked…) | Base UI (the app's only interactive-primitive vendor) never sets `:hover`/`:active`/`:checked` for its own state — it sets a JS-driven `data-*` attribute (`[data-highlighted]`, `[data-selected]`, …) the consumer styles | A stylesheet-text scan for the literal substring `:hover` | A shared predicate that recognizes BOTH the `:hover` pseudo AND the classified `data-*` state-attribute vocabulary, then forces each mechanism the way it is actually driven (CDP `:hover` vs. synchronous in-page `setAttribute`) | `tooling/src/ui-audit/ops/walker/state-paint.ts:11-16,29-73` + `ops/hover-walker.ts:11-44` (tasks #18/#22) | `docs/design/state-paint-census.md` (archived) |
+| 4 | The SAME state-paint question, asked a second time in a sibling census | Identical to row 3 — this is the same vocabulary, re-implemented | `census-decor.ts`'s animated-`<img>`-on-hover scan hand-duplicated the bare `/:hover/i.test(rule.selectorText)` string test instead of importing the shared predicate — so fixing row 3 in `hover-walker.ts` alone left this second copy blind | Route through the SAME `hasStateHover`/`stateAttrAnywhere` predicate from `state-paint.ts`, not a re-derived regex | `tooling/src/ui-audit/ops/walker/census-decor.ts:180-218` (line 208: `hasStateHover(rule.selectorText) \|\| stateAttrAnywhere(rule.selectorText)`) | `cb-baseui-rule-audit.md` finding #2 (task #21 scratchpad) |
+| 5 | Glow gated behind a transient interaction state (`data-highlighted:before:shadow-glow`) | The sanctioned glow carrier (row 2) is frequently ALSO state-gated (row 3) — a `data-pressed`/`data-highlighted` glow is genuinely pointer/keyboard-transient and invisible to any single static DOM read, exactly like `:hover` | A single-pass census at rest state only — a state-gated glow reads as "no glow" because the attribute isn't set when the walker runs | Read glow rows (element + pseudo layers) WHILE the subject is held under the same forced-state pass as row 3, and emit only what the state CHANGED over the rest snapshot | `tooling/src/ui-audit/ops/hover-walker.ts:36-39` ("GLOW RIDES THE SAME FORCES") + `ops/walker/census-glow.ts:6-14` | `cb-baseui-rule-audit.md` finding #4 |
+| 6 | Whether every `tv()` variant ARM of a component (not just the arm that happens to render on a visited surface) fails its own rules | `packages/ui`'s \~40 `variants.ts` files declare their axis/value space on the `tv()` object itself (`.variants`/`.variantKeys`, tailwind-variants 3.2.2) | A live/`design-audit` page walk judges only whichever arms happen to be rendered on the surfaces it visits — most arms of most components never render on any audited surface | Derive the full arm space AT RUNTIME from the `tv()` objects themselves (never a static source-text/`ts-morph` re-derivation — `as-const satisfies` blinds that method) and render/judge every arm in isolation | `tests/ui/variant-arm-matrix.def.ts:1-30` (header is the durable design artifact for the whole suite family) | memory `as-const-satisfies-blinds-ts-morph-initializer` |
+| 7 | The `:hover` pseudo-class inside authored selector text | Tailwind mints class NAMES containing escaped variant colons — `.dark\:hover\:bg-neutral-700:hover` — where the literal substring `:hover` also appears INSIDE the class name, not just as the trailing pseudo | A bare `/:hover/` test/strip matches inside the escaped class name too, and stripping it mangles the selector into one `querySelectorAll` throws on | A negative-lookbehind regex requiring the preceding character not be a backslash (`(?<!\\):hover(?![-\w])`), applied consistently to every `:hover` test AND strip, plus the identical discipline for `::before`/`::after` pseudo-element detection | `tooling/src/ui-audit/ops/walker/state-paint.ts:18-24,29-37` (issue #24 — measured: 25 unparseable selectors on the isolated config stage, 19 of them this bug) | — |
+
+## Closing verdicts (session tasks #21, #19 — folded in 2026-09-01)
+
+### #21 — the 55-rule Base UI mechanism audit
+
+`cb-baseui-rule-audit.md` and `cb-baseui-catalogue.md` (the full read-only audit of all 55
+`tooling/src/ui-audit` rules against the Base UI handbook + all 37 component pages) named four BLIND
+findings. Re-derived against the tree at this doc's landing commit:
+
+- **FIXED** — `hover-contrast` (finding #1, M1 vs. M1-evil-twin: the `:hover`-substring prefilter blind
+  to `data-*` state paint). Landed by the state-paint program (tasks #18/#22); table row 3 above.
+- **FIXED** — `animated-img-hover`'s stylesheet-scan arm (finding #2, the second `:hover`-substring copy
+  in `census-decor.ts`). Same program; table row 4 above.
+- **FIXED** — `glow-shadow`/`radial-halo`/`radial-spotlight-glow`'s transient-state blindness (finding
+  \#4, no forced-state read existed for the glow census at all). Same program; table row 5 above.
+- **STANDS** — `aria-name` (finding #3, M6: native `<label for="id">` association). Verified live at
+  this doc's landing commit: `tooling/src/ui-audit/ops/walker/census-interactive.ts:174-191` computes
+  `hasVisibleText`/`labelledbyText`/`altText` but performs no `<label for>`/`document.getElementById`
+  lookup keyed off the CONTROL's own id, and `checks-a11y.ts:296-301`'s `checkAccessibleName` never
+  receives such a channel. The real site named by the audit (`packages/client/src/components/
+  setting-switch-row.tsx`, every `Field label={…}` call wrapping a Base UI `Switch`/`Checkbox`/`Radio`)
+  is unchanged. This finding is UNFIXED and is not folded into any live lane — it is a new row for
+  Project 1, not a mechanism-table entry (the table records landed lessons; an open finding belongs on
+  the board).
+
+The audit's remaining EXPOSED/CLEAR verdicts (every other rule) and its UNKNOWN items (the exact
+false-negative rate of the two fixed color-axis-dependent gaps, and `duplicate-action-door`'s chained
+exposure to the `aria-name` gap) were not re-verified by this doc — they are read-only-pass findings and
+should be treated as scratchpad evidence, not re-attested law; the scratchpad files themselves
+(`cb-baseui-catalogue.md`, `cb-baseui-rule-audit.md`) were session-local and are not committed to the
+repository.
+
+### #19 — the three-unmeasured-axes doctrine
+
+A `design-audit` verdict about any one rendered element is a function of (at least) three independent
+axes, and an instrument that only varies one of them cannot claim to have judged the other two:
+
+1. **The panel axis** — which surface/pane is actually visited. Built: the `--panels` CLI axis
+   (`tooling/src/_shared/panel-presets.json`, lane `cb-panels-arm`, task addressed by the panel-preset
+   program) drives the live walker across a declared set of named panels instead of whichever surface a
+   scenario happens to navigate to.
+2. **The variant axis** — which `tv()` arm of a component actually renders. Built: the CT variant-arm
+   matrix (`tests/ui/variant-arm-matrix.{def,plan,stories,suite,parity}.ts`, task #19's CT half, lane
+   `cb-variant-axis`) renders and judges every arm of every `packages/ui` `tv()` component in isolation,
+   across all three shipped themes, closing the exact gap the Base UI audit flagged as "arm-dependent"
+   for `contrast`/`tap-target`/`glow-shadow`/etc.
+3. **The mechanism axis** — whether the rule's SELECTOR can even see the state/paint it is looking for,
+   independent of which panel or which arm is on screen. This is the axis this document owns: the table
+   above and its authoring checklist are the doctrine's closing leg. Owner ruling: a table, not a gate —
+   there is no single structural check that proves a rule's selector matches the codebase's expression
+   idiom in general; the table is the transferable judgment, re-applied by a human/agent reading it
+   before landing or trusting a rule.
+
+All three axes are now addressed: panel (built), variant (built), mechanism (this table). A rule that
+passes on one arm, on one panel, with a matching selector mechanism, is the strongest claim this
+instrument family can make about a component; a rule that varies fewer than all three axes is answering
+a narrower question than "does this component ever fail" and should say so in its own scope statement
+(see `tests/ui/variant-arm-matrix.def.ts`'s own "THE SCOPE SPLIT" section for the house pattern).
