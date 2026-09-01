@@ -37,8 +37,8 @@ refuseDirectInvocation(import.meta.url, "pnpm design-audit");
 
 export const WALKER_CENSUS_COLLISION = `  // ── truncated to NOTHING (#816) ────────────────────────────────────────────
   var relationalAccounting = {
-    "truncated-to-nothing": { candidates: 0, judged: 0, withheld: {} },
-    "obscured-target": { candidates: 0, judged: 0, withheld: {} },
+    "truncated-to-nothing": { candidates: 0, judged: 0, withheld: {}, excluded: {} },
+    "obscured-target": { candidates: 0, judged: 0, withheld: {}, excluded: {} },
   };
   var truncatedTexts = [];
   // Below this there is no word to lose — a 4px sliver is a rounding artefact, not an erased label.

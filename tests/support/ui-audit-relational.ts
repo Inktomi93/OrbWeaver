@@ -17,6 +17,7 @@ export interface RelationalPopulationReport {
       {
         readonly candidates: number;
         readonly emitted: number;
+        readonly excluded: Readonly<Record<string, number>>;
         readonly judged: number;
         readonly withheld: Readonly<Record<string, number>>;
       }

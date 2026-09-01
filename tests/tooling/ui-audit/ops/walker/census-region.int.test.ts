@@ -1,6 +1,7 @@
 // Adversarial region/surface controls for #984 through real visibility, paint, and authored ownership.
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import type { ToolFixtures } from "../../../../support/tool-fixtures.ts";
 import { expect, test } from "../../../../support/tool-fixtures.ts";
 import type { RelationalPopulationReport } from "../../../../support/ui-audit-relational.ts";
 import { RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "../../../../support/ui-audit-relational.ts";
@@ -83,4 +84,48 @@ test("pane-ink counts bottom illustrations and composed controls as designed occ
     report.findings.map((finding) => finding.rule),
     "visible media and a composed control occupy the lower pane even though neither is a childless text leaf",
   ).not.toContain("pane-ink");
+});
+
+async function runPaneExclusionFixture(
+  reason: "insufficientText" | "scrolling",
+  body: string,
+  runCli: ToolFixtures["runCli"],
+  scratch: string,
+): Promise<{ readonly report: RelationalPopulationReport; readonly stdout: string; readonly code: number | null }> {
+  const reportPath = join(scratch, `pane-${reason}.json`);
+  await writeFile(join(scratch, `pane-${reason}.html`), relationalDocument(body));
+  const res = await runCli("ui-audit", [`/pane-${reason}.html`, "--base", `file://${scratch}`, "--out", reportPath], {
+    timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
+  });
+  const report = JSON.parse(await readFile(reportPath, "utf8")) as RelationalPopulationReport;
+  return { report, stdout: res.stdout, code: res.code };
+}
+
+test("pane-ink records the closed scrolling applicability carve without poisoning the audit", async ({ runCli, scratch }) => {
+  const result = await runPaneExclusionFixture(
+    "scrolling",
+    `<section role="region" aria-label="Scrollable log" style="height:400px;overflow:auto"><div style="height:800px"><p>one</p><p>two</p><p>three</p></div></section>`,
+    runCli,
+    scratch,
+  );
+  expect(result.report.populationAccounting?.["pane-ink"]).toMatchObject({ candidates: 1, judged: 0, withheld: {}, excluded: { scrolling: 1 } });
+  expect(result.stdout).not.toContain("INSTRUMENT ERROR");
+  expect(result.code).toBe(0);
+});
+
+test("pane-ink records the closed insufficient-text applicability carve without poisoning the audit", async ({ runCli, scratch }) => {
+  const result = await runPaneExclusionFixture(
+    "insufficientText",
+    `<section role="region" aria-label="Sparse tool" style="height:500px;overflow:hidden"><p>one line</p><button style="height:44px">Run</button></section>`,
+    runCli,
+    scratch,
+  );
+  expect(result.report.populationAccounting?.["pane-ink"]).toMatchObject({
+    candidates: 1,
+    judged: 0,
+    withheld: {},
+    excluded: { insufficientText: 1 },
+  });
+  expect(result.stdout).not.toContain("INSTRUMENT ERROR");
+  expect(result.code).toBe(0);
 });

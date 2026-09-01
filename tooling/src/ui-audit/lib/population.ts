@@ -2,7 +2,7 @@
 // its arithmetic closes exactly; partial evidence is a NO VERDICT, never a clean result.
 import type { EvidenceGap } from "@orb/tooling/_shared/evidence";
 import type { PopulationAccounting, RulePopulationAccounting } from "../contract/findings.ts";
-import type { RelationalCensusAccountingInput } from "../contract/samples.ts";
+import type { RelationalCensusAccountingInput } from "../contract/samples-populations.ts";
 
 function assertCount(label: string, value: number): void {
   if (!Number.isSafeInteger(value) || value < 0) {
@@ -28,9 +28,10 @@ export function assertCensusAccounting(rule: string, census: RelationalCensusAcc
     throw new Error(`INSTRUMENT ERROR: ${rule} walker supplied Node-owned cap accounting`);
   }
   const withheld = sumCounts(rule, "withheld", census.withheld);
-  if (census.candidates !== census.judged + withheld) {
+  const excluded = sumCounts(rule, "excluded", census.excluded);
+  if (census.candidates !== census.judged + withheld + excluded) {
     throw new Error(
-      `INSTRUMENT ERROR: ${rule} candidates ${String(census.candidates)} do not settle as judged ${String(census.judged)} + withheld ${String(withheld)}`,
+      `INSTRUMENT ERROR: ${rule} candidates ${String(census.candidates)} do not settle as judged ${String(census.judged)} + withheld ${String(withheld)} + excluded ${String(excluded)}`,
     );
   }
 }
@@ -55,11 +56,15 @@ function assertPopulationAccounting(rule: string, row: RulePopulationAccounting)
   }
   const cap = row.withheld["cap"] ?? 0;
   const unjudged = sumCounts(rule, "withheld", row.withheld, new Set(["cap"]));
+  const excluded = sumCounts(rule, "excluded", row.excluded);
   const collapsed = sumCounts(rule, "collapsed", row.collapsed);
-  if (row.candidates !== row.judged + unjudged) {
+  if (row.candidates !== row.judged + unjudged + excluded) {
     throw new Error(
-      `INSTRUMENT ERROR: ${rule} candidates ${String(row.candidates)} do not settle as judged ${String(row.judged)} + withheld ${String(unjudged)}`,
+      `INSTRUMENT ERROR: ${rule} candidates ${String(row.candidates)} do not settle as judged ${String(row.judged)} + withheld ${String(unjudged)} + excluded ${String(excluded)}`,
     );
+  }
+  if (row.affected > row.judged) {
+    throw new Error(`INSTRUMENT ERROR: ${rule} affected ${String(row.affected)} exceeds judged ${String(row.judged)}`);
   }
   if (row.affected !== row.emitted + cap + collapsed) {
     throw new Error(

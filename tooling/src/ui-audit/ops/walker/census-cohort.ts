@@ -28,12 +28,16 @@ refuseDirectInvocation(import.meta.url, "pnpm design-audit");
 
 export const WALKER_CENSUS_COHORT = `  // ── sibling cohort anatomy ────────────────────────────────────────────────
   var cohortAnatomies = [];
-  relationalAccounting["cohort-anatomy"] = { candidates: 0, judged: 0, withheld: {} };
-  relationalAccounting["row-void"] = { candidates: 0, judged: 0, withheld: {} };
-  relationalAccounting["pane-ink"] = { candidates: 0, judged: 0, withheld: {} };
+  relationalAccounting["cohort-anatomy"] = { candidates: 0, judged: 0, withheld: {}, excluded: {} };
+  relationalAccounting["row-void"] = { candidates: 0, judged: 0, withheld: {}, excluded: {} };
+  relationalAccounting["pane-ink"] = { candidates: 0, judged: 0, withheld: {}, excluded: {} };
 
   function withholdRelational(accounting, reason) {
     accounting.withheld[reason] = (accounting.withheld[reason] || 0) + 1;
+  }
+
+  function excludeRelational(accounting, reason) {
+    accounting.excluded[reason] = (accounting.excluded[reason] || 0) + 1;
   }
 
   // Two members prove nothing: a pair that differs is as likely a header-plus-row as a defect. Three is
@@ -244,7 +248,7 @@ export const WALKER_CENSUS_COHORT = `  // ── sibling cohort anatomy ──�
     if (!rightIsControl) continue;
     relationalAccounting["row-void"].candidates += 1;
     if (boundVoidControl(bestLeft.el, bestRight.el) === null) {
-      withholdRelational(relationalAccounting["row-void"], "unbound");
+      excludeRelational(relationalAccounting["row-void"], "unbound");
       continue;
     }
     rowVoids.push({

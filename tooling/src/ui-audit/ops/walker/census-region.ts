@@ -57,7 +57,7 @@ export const WALKER_CENSUS_REGION = `  // ── pane ink: a region that does no
     if (prect.height < INK_MIN_HEIGHT_PX) continue;
     relationalAccounting["pane-ink"].candidates += 1;
     if (pane.scrollHeight - pane.clientHeight > INK_SCROLL_TOLERANCE_PX) {
-      withholdRelational(relationalAccounting["pane-ink"], "scrolling");
+      excludeRelational(relationalAccounting["pane-ink"], "scrolling");
       continue;
     }
     var lowest = prect.top;
@@ -89,7 +89,7 @@ export const WALKER_CENSUS_REGION = `  // ── pane ink: a region that does no
       if (lrect.bottom > lowest) lowest = lrect.bottom;
     }
     if (textLeaves < INK_MIN_LEAVES) {
-      withholdRelational(relationalAccounting["pane-ink"], "insufficientText");
+      excludeRelational(relationalAccounting["pane-ink"], "insufficientText");
       continue;
     }
     paneInks.push({
@@ -109,7 +109,7 @@ export const WALKER_CENSUS_REGION = `  // ── pane ink: a region that does no
   // the RANK is. Base UI emits data-checked and data-unchecked on the same component, so the pair is the
   // author's own claim and this needs no semantics from us.
   var quietStates = [];
-  relationalAccounting["quiet-state"] = { candidates: 0, judged: 0, withheld: {} };
+  relationalAccounting["quiet-state"] = { candidates: 0, judged: 0, withheld: {}, excluded: {} };
   var LUM_R = 0.2126;
   var LUM_G = 0.7152;
   var LUM_B = 0.0722;
@@ -234,7 +234,7 @@ export const WALKER_CENSUS_REGION = `  // ── pane ink: a region that does no
   // empty-state primitive: the count of simultaneously-rendered empty-state roots IS the shape, and
   // whether each offers an action is its own slot.
   var emptyStates = [];
-  relationalAccounting["double-empty-state"] = { candidates: 0, judged: 0, withheld: {} };
+  relationalAccounting["double-empty-state"] = { candidates: 0, judged: 0, withheld: {}, excluded: {} };
   var emptyRoots = document.querySelectorAll("[data-slot=empty-state-root]");
   var emptyBySurface = new Map();
   function emptySurface(root) {
