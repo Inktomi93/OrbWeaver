@@ -106,15 +106,15 @@ function collectMarkers(sf: SourceFile, rel: string): void {
   }
 }
 
-// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: the import-alias and call-shape branches are the gate's deliberately explicit structural proof.
-function collectVerdictBypasses(sf: SourceFile, rel: string): void {
+function instrumentToolOf(rel: string): string | null {
   if (!rel.startsWith("tooling/src/")) {
-    return;
+    return null;
   }
   const tool = rel.slice("tooling/src/".length).split("/")[0] ?? "";
-  if (tool === "" || tool === "_shared" || tool === "verify") {
-    return;
-  }
+  return tool === "" || tool === "_shared" || tool === "verify" ? null : tool;
+}
+
+function printResultLocalNames(sf: SourceFile): ReadonlySet<string> {
   const localNames = new Set<string>();
   for (const declaration of sf.getImportDeclarations()) {
     if (!(declaration.getModuleSpecifierValue().endsWith("_shared/artifacts") || declaration.getModuleSpecifierValue().endsWith("_shared/artifacts.ts"))) {
@@ -126,6 +126,15 @@ function collectVerdictBypasses(sf: SourceFile, rel: string): void {
       }
     }
   }
+  return localNames;
+}
+
+function collectVerdictBypasses(sf: SourceFile, rel: string): void {
+  const tool = instrumentToolOf(rel);
+  if (tool === null) {
+    return;
+  }
+  const localNames = printResultLocalNames(sf);
   if (localNames.size === 0) {
     return;
   }
@@ -133,6 +142,63 @@ function collectVerdictBypasses(sf: SourceFile, rel: string): void {
     const expression = call.getExpression();
     if (Node.isIdentifier(expression) && localNames.has(expression.getText())) {
       state.bypasses.push({ file: rel, line: call.getStartLineNumber(), tool });
+    }
+  }
+}
+
+type RunContext = Parameters<NonNullable<GateDescriptor["run"]>>[0];
+
+function reportMemberProofs(ctx: RunContext, memberNames: ReadonlySet<string>): void {
+  for (const member of state.members) {
+    if (!existsSync(join(ctx.root, "tooling/src", member.name))) {
+      ctx.report({
+        file: member.file,
+        line: member.line,
+        column: 0,
+        message: `INSTRUMENT_TOOLS names "${member.name}" but tooling/src/${member.name}/ does not exist — a dead registry row is a loaded gun (docs/architecture/core/Core-Tooling-Law.md §4.5).`,
+      });
+      continue;
+    }
+    for (const kind of PROOF_CLASS_NAMES) {
+      const proven = state.markers.some((hit) => hit.tool === member.name && hit.kind === kind && !hit.malformed);
+      if (!proven) {
+        ctx.report({
+          file: member.file,
+          line: member.line,
+          column: 0,
+          message: `instrument "${member.name}" has no \`${PROOF_CLASSES[kind].marker}\` test — it owes ${PROOF_CLASSES[kind].owes}; without it a verdict tool ships a green that cannot fail (docs/architecture/core/Core-Tooling-Law.md §4.5).`,
+        });
+      }
+    }
+  }
+  for (const bypass of state.bypasses) {
+    if (memberNames.has(bypass.tool)) {
+      ctx.report({
+        file: bypass.file,
+        line: bypass.line,
+        column: 0,
+        message: `registered instrument "${bypass.tool}" calls printResult directly — route its verdict through printVerdict with declared denominators so an empty population cannot read clean (arm F; docs/architecture/core/Core-Tooling-Law.md §4.5).`,
+      });
+    }
+  }
+}
+
+function reportMarkerIntegrity(ctx: RunContext, memberNames: ReadonlySet<string>): void {
+  for (const hit of state.markers) {
+    if (hit.malformed) {
+      ctx.report({
+        file: hit.file,
+        line: hit.line,
+        column: 0,
+        message: `malformed \`${PROOF_CLASSES[hit.kind].marker}\` marker — the reason (${PROOF_CLASSES[hit.kind].owes}) is REQUIRED (docs/architecture/core/Core-Tooling-Law.md §4.5).`,
+      });
+    } else if (!memberNames.has(hit.tool)) {
+      ctx.report({
+        file: hit.file,
+        line: hit.line,
+        column: 0,
+        message: `\`${PROOF_CLASSES[hit.kind].marker}\` marker in "${hit.tool}"'s tree, but "${hit.tool}" is not in INSTRUMENT_TOOLS — register it or delete the marker (docs/architecture/core/Core-Tooling-Law.md §4.5).`,
+      });
     }
   }
 }
@@ -164,7 +230,6 @@ export const gate: GateDescriptor = {
     state.markers = [];
     state.bypasses = [];
   },
-  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: each independent proof arm must remain visible in the gate reconciler.
   run: (ctx) => {
     const anchored = fileLoaded(ctx, ANCHOR);
     if (anchored && !state.registrySeen) {
@@ -178,55 +243,8 @@ export const gate: GateDescriptor = {
       return;
     }
     const memberNames = new Set(state.members.map((m) => m.name));
-    for (const m of state.members) {
-      if (!existsSync(join(ctx.root, "tooling/src", m.name))) {
-        ctx.report({
-          file: m.file,
-          line: m.line,
-          column: 0,
-          message: `INSTRUMENT_TOOLS names "${m.name}" but tooling/src/${m.name}/ does not exist — a dead registry row is a loaded gun (docs/architecture/core/Core-Tooling-Law.md §4.5).`,
-        });
-        continue;
-      }
-      for (const kind of PROOF_CLASS_NAMES) {
-        const proven = state.markers.some((h) => h.tool === m.name && h.kind === kind && !h.malformed);
-        if (!proven) {
-          ctx.report({
-            file: `tests/tooling/${m.name}`,
-            line: 0,
-            column: 0,
-            message: `instrument "${m.name}" has no \`${PROOF_CLASSES[kind].marker}\` test — it owes ${PROOF_CLASSES[kind].owes}; without it a verdict tool ships a green that cannot fail (docs/architecture/core/Core-Tooling-Law.md §4.5).`,
-          });
-        }
-      }
-    }
-    for (const h of state.markers) {
-      if (h.malformed) {
-        ctx.report({
-          file: h.file,
-          line: h.line,
-          column: 0,
-          message: `malformed \`${PROOF_CLASSES[h.kind].marker}\` marker — the reason (${PROOF_CLASSES[h.kind].owes}) is REQUIRED (docs/architecture/core/Core-Tooling-Law.md §4.5).`,
-        });
-      } else if (!memberNames.has(h.tool)) {
-        ctx.report({
-          file: h.file,
-          line: h.line,
-          column: 0,
-          message: `\`${PROOF_CLASSES[h.kind].marker}\` marker in "${h.tool}"'s tree, but "${h.tool}" is not in INSTRUMENT_TOOLS — register it or delete the marker (docs/architecture/core/Core-Tooling-Law.md §4.5).`,
-        });
-      }
-    }
-    for (const bypass of state.bypasses) {
-      if (memberNames.has(bypass.tool)) {
-        ctx.report({
-          file: bypass.file,
-          line: bypass.line,
-          column: 0,
-          message: `registered instrument "${bypass.tool}" calls printResult directly — route its verdict through printVerdict with declared denominators so an empty population cannot read clean (arm F).`,
-        });
-      }
-    }
+    reportMemberProofs(ctx, memberNames);
+    reportMarkerIntegrity(ctx, memberNames);
   },
   mustFlag: [
     {
