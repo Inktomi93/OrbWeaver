@@ -349,11 +349,20 @@ attribute at its REAL host; then verify:
   the ring paints on top and nothing is clobbered; confirmed on one element carrying
   `shadow-glow ring-2 ring-ring ring-offset-2 ring-offset-background` verbatim (computed `box-shadow`
   with both present includes the ring pair, then the glow pair, in that order). The clobber is real for
-  exactly one shape: a raw `box-shadow: var(--shadow-glow)` written directly in CSS, which overwrites the
-  whole property rather than composing; one known site, `packages/client/src/features/app-shell/surfaces/shell.css:405`.
-  The three utility-form carriers (`media-grid`, `avatar`, `composer-drop-target`) are safe as authored.
-  Do not file a ring-clobber P0 against a utility-form `shadow-glow` site without re-measuring the
-  composed `box-shadow`; do keep filing it against the CSS `box-shadow: var(...)` shape.
+  exactly one shape: a raw `box-shadow: var(--shadow-glow)` written directly on the ELEMENT in CSS, which
+  overwrites the whole property rather than composing. **There is currently NO such site in the tree**, and
+  a first pass claimed there was one because it read a grep hit's line number without reading the enclosing
+  selector: `shell.css:405` sits inside `.shell-rail-button[data-active]::before` (the rule opens at :398)
+  and is therefore already the sanctioned layered form; the file even carries the reasoning at :397. All
+  four `--shadow-glow` sites are correct today: three utility-form (`media-grid`, `avatar`,
+  `composer-drop-target`) which compose, and this one `::before`. Before filing a ring-clobber finding,
+  read the ENCLOSING SELECTOR, not the declaration; a property/value grep cannot tell the two shapes apart,
+  and both of the wrong calls made against this rule so far came from exactly that shortcut.
+  **Detector coverage, so you know what a clean pass does and does not cover:** `glow-shadow` reads the
+  ELEMENT's own computed `box-shadow` only (`census-decor.ts:253`), so a `::before` glow is invisible to
+  it — the sanctioned layered form cannot false-positive there, and an UNSANCTIONED copy of that same
+  pattern cannot be caught there either. The radial census does sweep `["", "::before", "::after"]`
+  (`census-decor.ts:281`), so the two families are asymmetric; judge a layered glow by eye.
 - **`--shadow-overlay`** — 4-layer float elevation (edge hairline + inset top-highlight + contact +
   ambient). No visible white line, no banding.
 - **Gradient border rings** — `[data-cta]::after` / `[data-selected]::after` / `[data-active]::after`,
