@@ -18,6 +18,12 @@
 // (main.tsx), the pure assembler (state/assemble-chrome.ts), and the co-located widget defs
 // (features/*/lib/*-chrome.tsx). Everywhere else re-declares a parallel chrome registry — RED.
 //
+// EVERY VOCABULARY IS RESOLVED, NOT READ FLAT (#942): the tuples are read through `lib/tuple-read.ts`, which
+// follows a sanctioned spread of a local/imported sibling tuple and REFUSES loudly on any other composition
+// shape. `CHROME_ZONES = [...RAIL_ZONES, "topbar.trail"]` is four zones; the old direct-element reader saw
+// ONE and every `rail.*`-zoned parallel map escaped while the file scan stayed healthy. The gate's scan line
+// prints each tuple's source declarations and member COUNT, so a shrunken denominator cannot look clean.
+//
 // SCOPE: the SectionId, ModalSlotId, AND ConfigGroupId vocabularies (all LIVE — the ConfigGroupId arm is
 // M6.1's SettingsCategoryId arm re-keyed by the config revamp, #866 S1; its allowlist mirrors the modal
 // arm: the TUPLE HOMES (`TUPLE_HOME_SUFFIXES` below — section-ids.ts/shell-store.ts/config-group-ids.ts/
@@ -27,6 +33,7 @@ import type { Expression, ObjectLiteralExpression, Project, SourceFile, Node as 
 import { Node, SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract/gate.ts";
 import { readStringValue } from "../lib/ast-read.ts";
+import { readTupleVocabulary } from "../lib/tuple-read.ts";
 
 /** A NODE-anchored hit — never a `{file,line,message}` Finding literal (finding-overload-provenance): the
  *  node carries its own position, and `token` folds the dynamic vocab/shape detail the gate's static
@@ -58,6 +65,8 @@ interface Vocab {
   readonly name: string;
   readonly tupleConst: string;
   readonly ids: ReadonlySet<string>;
+  /** `<file>#<CONST>` per declaration that contributed members — the semantic SOURCE manifest. */
+  readonly sources: readonly string[];
   readonly recordRe: RegExp;
   readonly partialRecordRe: RegExp;
   readonly isDefFile: (repoRelPath: string) => boolean;
@@ -80,35 +89,23 @@ function rel(path: string): string {
   return idx === -1 ? path : path.slice(idx + 1);
 }
 
-/** The members of a `<CONST> = [...] as const` tuple (the one home of a shell vocabulary). */
-function readTuple(project: Project, tupleConst: string): ReadonlySet<string> {
-  const ids = new Set<string>();
-  for (const sf of project.getSourceFiles()) {
-    const decl = sf.getVariableDeclaration(tupleConst);
-    const init = decl?.getInitializer();
-    if (init === undefined) {
-      continue;
-    }
-    const arr = Node.isAsExpression(init) ? init.getExpression() : init;
-    if (Node.isArrayLiteralExpression(arr)) {
-      for (const el of arr.getElements()) {
-        const value = readStringValue(el);
-        if (value !== undefined) {
-          ids.add(value);
-        }
-      }
-    }
-  }
-  return ids;
+/** One vocabulary's scan line: the tuple, the declarations that composed it, and the member COUNT — so a
+ *  denominator that shrank behind a composition edge is visible on the gate's own row (#942). */
+function vocabLine(tupleConst: string, sources: readonly string[], members: number): string {
+  return `${tupleConst}=${members} from ${sources.length === 0 ? "<none>" : sources.join("+")}`;
 }
 
 /** The three shell vocabularies the gate covers (all LIVE). */
 function readVocabs(project: Project): readonly Vocab[] {
+  const sections = readTupleVocabulary(project, "SECTION_IDS");
+  const modals = readTupleVocabulary(project, "MODAL_SLOT_IDS");
+  const groups = readTupleVocabulary(project, "CONFIG_GROUP_IDS");
   return [
     {
       name: "SectionId",
       tupleConst: "SECTION_IDS",
-      ids: readTuple(project, "SECTION_IDS"),
+      ids: sections.members,
+      sources: sections.sources,
       recordRe: SECTION_RECORD_RE,
       partialRecordRe: SECTION_PARTIAL_RE,
       // Section homes: the vocabulary tuple, the door assembly, the co-located section definition files.
@@ -118,7 +115,8 @@ function readVocabs(project: Project): readonly Vocab[] {
     {
       name: "ModalSlotId",
       tupleConst: "MODAL_SLOT_IDS",
-      ids: readTuple(project, "MODAL_SLOT_IDS"),
+      ids: modals.members,
+      sources: modals.sources,
       recordRe: MODAL_RECORD_RE,
       partialRecordRe: MODAL_PARTIAL_RE,
       // Modal homes: the vocabulary tuple, the door assembly, the co-located *-modal definition files.
@@ -128,7 +126,8 @@ function readVocabs(project: Project): readonly Vocab[] {
     {
       name: "ConfigGroupId",
       tupleConst: "CONFIG_GROUP_IDS",
-      ids: readTuple(project, "CONFIG_GROUP_IDS"),
+      ids: groups.members,
+      sources: groups.sources,
       recordRe: CONFIG_RECORD_RE,
       partialRecordRe: CONFIG_PARTIAL_RE,
       // Config-group homes: the vocabulary tuple, the door assembly, the co-located *-group definition files.
@@ -320,7 +319,8 @@ export const gate: GateDescriptor = {
   fix: "delete the map and read the registry (registry.get(id)/list()); if it is tracked scaffolding, home it in an allowlisted file with its FLAG marker.",
   run: (ctx) => {
     const out: NodeHit[] = [];
-    for (const vocab of readVocabs(ctx.project)) {
+    const vocabs = readVocabs(ctx.project);
+    for (const vocab of vocabs) {
       if (vocab.ids.size === 0) {
         continue;
       }
@@ -328,12 +328,16 @@ export const gate: GateDescriptor = {
         scanFileForVocab(sf, vocab, out);
       }
     }
-    const chromeZones = readTuple(ctx.project, "CHROME_ZONES");
-    if (chromeZones.size > 0) {
+    const chrome = readTupleVocabulary(ctx.project, "CHROME_ZONES");
+    if (chrome.members.size > 0) {
       for (const sf of ctx.project.getSourceFiles()) {
-        scanFileForChromeArray(sf, chromeZones, out);
+        scanFileForChromeArray(sf, chrome.members, out);
       }
     }
+    const declarations = [...vocabs.map((v) => v.sources), chrome.sources];
+    const lines = [...vocabs.map((v) => vocabLine(v.tupleConst, v.sources, v.ids.size)), vocabLine("CHROME_ZONES", chrome.sources, chrome.members.size)];
+    const sourceCount = declarations.reduce((n, list) => n + list.length, 0);
+    ctx.scan({ unit: `vocabulary source [${lines.join(" · ")}]`, candidates: sourceCount, scanned: sourceCount });
     for (const hit of out) {
       ctx.report(hit.node, { token: hit.token, offset: 0 });
     }
@@ -417,6 +421,16 @@ export const gate: GateDescriptor = {
       expect: { token: "chrome-array" },
       why: "a hand array of ≥2 CHROME_ZONES-zoned chrome entries outside the door and not a *-chrome file — the chrome arm (5)",
     },
+    {
+      files: {
+        "packages/client/src/state/section-registry.ts": 'export const RAIL_ZONES = ["rail.nav", "rail.brand", "rail.end"] as const;\n',
+        "packages/client/src/state/chrome-registry.ts":
+          'import { RAIL_ZONES } from "./section-registry.ts";\nexport const CHROME_ZONES = [...RAIL_ZONES, "topbar.trail"] as const;\n',
+        "packages/client/src/features/x/lib/hand-rail.ts": 'export const HAND = [\n  { id: "a", zone: "rail.nav" },\n  { id: "b", zone: "rail.brand" },\n];\n',
+      },
+      expect: { token: "chrome-array" },
+      why: 'THE #942 SPLIT: the live `CHROME_ZONES = [...RAIL_ZONES, "topbar.trail"]` shape, with a parallel hand list over the two zones that reach the gate ONLY through the imported spread — the direct-element reader saw 1 of 4 zones and this map escaped',
+    },
   ],
   mustPass: [
     {
@@ -493,6 +507,15 @@ export const gate: GateDescriptor = {
         "packages/client/src/compose/authed-app.tsx": 'export const widgets = [\n  { id: "a", zone: "rail.end" },\n  { id: "b", zone: "topbar.trail" },\n];\n',
       },
       why: "the door's chrome WIDGET list, in the compose/ half — the chrome arm's door allowance must follow the assembly, passes",
+    },
+    {
+      files: {
+        "packages/client/src/state/section-registry.ts": 'export const RAIL_ZONES = ["rail.nav", "rail.brand", "rail.end"] as const;\n',
+        "packages/client/src/state/chrome-registry.ts":
+          'import { RAIL_ZONES } from "./section-registry.ts";\nexport const CHROME_ZONES = [...RAIL_ZONES, "topbar.trail"] as const;\n',
+        "packages/client/src/features/x/lib/preset-zones.ts": 'export const PZ = [\n  { id: "a", zone: "setup" },\n  { id: "b", zone: "post" },\n];\n',
+      },
+      why: "the SPLIT vocabulary's false-positive half: with all four zones resolved, an array whose zones are NOT chrome zones still passes — resolving the spread widens the denominator without widening the accusation",
     },
   ],
 };

@@ -35,7 +35,7 @@
 // quiet on it rather than wrong — which is why `db-structure` + the baseline parity stage remain the
 // structural belts around it.
 
-import { isSchemaFile, leadingIndexedColumns, referencingColumns, schemaTables } from "@orb/tooling/_shared/schema-read";
+import { isSchemaFile, leadingIndexedColumns, referencingColumns, schemaScan, schemaTables } from "@orb/tooling/_shared/schema-read";
 import type { SourceFile } from "ts-morph";
 import type { GateDescriptor, GateRunCtx } from "../contract/gate.ts";
 
@@ -74,8 +74,22 @@ export const gate: GateDescriptor = {
   fix: FIX,
   scanRoot: isSchemaFile,
   visitFile: checkFile,
+  finalize: (ctx) => {
+    ctx.scan(schemaScan(ctx.project));
+  },
 
   mustFlag: [
+    {
+      files: {
+        "packages/db/src/schema/chat-columns.ts":
+          'import { text } from "drizzle-orm/sqlite-core";\n' +
+          'export const messageColumns = {\n  id: text("id").primaryKey(),\n  chatId: text("chat_id").references(() => chats.id, { onDelete: "cascade" }),\n};\n',
+        "packages/db/src/schema/chat.ts":
+          'import { sqliteTable } from "drizzle-orm/sqlite-core";\nimport { messageColumns } from "./chat-columns";\nexport const messages = sqliteTable("messages", messageColumns);\n',
+      },
+      expect: { count: 1, messageIncludes: "does not LEAD any index" },
+      why: "THE #945 IMPORTED-COLUMNS RED: the FK moved into an imported columns object and the table read as zero columns, so no index obligation existed at all — the gate header's own admitted quiet direction, now closed",
+    },
     {
       at: "packages/db/src/schema/chat.ts",
       files:

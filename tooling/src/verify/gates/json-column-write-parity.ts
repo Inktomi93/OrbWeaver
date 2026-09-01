@@ -28,6 +28,12 @@
 // DECLARED LIMITS (each has a mustPass row): a column with ONE writer is never judged (there is nothing to
 // straddle); an `.insert()`/`.values()` is creation, not a patch; a writer reached through more than one
 // helper hop, or through a `db.run(sql\`json_set(...)\`)`, is not classified.
+// COLUMNS ARE RESOLVED, NOT REQUIRED INLINE (#945): the columns argument is read through
+// `_shared/schema-read.ts`, which follows an imported/aliased object-literal binding (and object spreads)
+// and refuses loudly on any other shape. `sqliteTable("x", importedColumns, …)` used to yield ZERO columns
+// here, erasing this gate's obligations while the schema file scan stayed healthy; findings anchor on the
+// column's DECLARING file and the scan line prints the resolved table/column population.
+import { columnProperties, schemaScan } from "@orb/tooling/_shared/schema-read";
 import type { CallExpression, FunctionDeclaration, ObjectLiteralExpression, SourceFile, Node as TsNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { ExemptionTable, GateDescriptor } from "../contract/gate.ts";
@@ -77,7 +83,8 @@ interface Writer {
  *  never hand-listed. */
 function jsonColumnsOf(init: TsNode): ReadonlySet<string> {
   const cols = new Set<string>();
-  for (const pa of init.getDescendantsOfKind(SyntaxKind.PropertyAssignment)) {
+  const columns = Node.isCallExpression(init) ? columnProperties(init.getArguments()[1]) : [];
+  for (const pa of columns) {
     if (JSON_MODE_RE.test(pa.getInitializer()?.getText() ?? "")) {
       cols.add(pa.getName());
     }
@@ -310,6 +317,7 @@ export const gate: GateDescriptor = {
   scanRoot: (p) => p.includes("packages/db/src/schema/") || p.includes("packages/server/src/domain/"),
 
   run: (ctx) => {
+    ctx.scan(schemaScan(ctx.project));
     const files = ctx.project.getSourceFiles().filter((f) => f.getFilePath().includes(SCHEMA_DIR) || f.getFilePath().includes(DOMAIN_DIR));
     const jsonColumns = deriveJsonColumns(files);
     if (jsonColumns.size === 0) {
@@ -347,6 +355,22 @@ export const gate: GateDescriptor = {
   },
 
   mustFlag: [
+    {
+      // #945: the straddling JSON column is IMPORTED, and a second INLINE json column keeps the derivation
+      // non-empty — so the red cannot come from the zero-result blindness arm instead of the real straddle.
+      files: {
+        "packages/db/src/schema/refinery-columns.ts":
+          'export const sessionColumns = {\n  id: text("id"),\n  selection: text("selection", { mode: "json" }),\n};\n',
+        "packages/db/src/schema/refinery.ts":
+          'import { sessionColumns } from "./refinery-columns";\nexport const refinerySessions = sqliteTable("refinery_sessions", sessionColumns);\nexport const notes = sqliteTable("notes", {\n  body: text("body", { mode: "json" }),\n});\n',
+        "packages/server/src/domain/refinery/verbs/update-session.ts":
+          "export async function run(ctx, patch, sessionId) {\n  await ctx.db.update(refinerySessions).set({ selection: refinerySelectionSchema.parse(patch.selection) }).where(sessionId);\n}\n",
+        "packages/server/src/domain/refinery/verbs/apply-fields.ts":
+          "export async function apply(ctx, removed, sessionId) {\n  const { session } = await resolveApplyBasis(ctx, sessionId);\n  await ctx.db.update(refinerySessions).set({ selection: remapSelection(session.selection, removed) }).where(sessionId);\n}\n",
+      },
+      expect: { count: 1 },
+      why: "THE #945 IMPORTED-COLUMNS RED: a JSON column behind an imported columns object still owes write parity — and the inline `notes.body` column proves the red is the straddle, not the empty-derivation tripwire",
+    },
     {
       files: {
         "packages/db/src/schema/refinery.ts":
