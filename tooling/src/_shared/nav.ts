@@ -1,7 +1,7 @@
 // THE ONE SPA-navigation vocabulary for the browser probes — the dev nav bridge (`window.__orb.nav`,
 // packages/client/src/lib/agent-bridge.ts) every probe drives to reach a surface the URL cannot name (the
-// app routes only `/` and `/login`; sections, modals, config groups, context tabs and open chats are
-// client state).
+// app routes only `/` and `/login`; sections, modals, config groups, context tabs, open chats and the
+// SHELL PANEL LAYOUT are all client state).
 //
 // WHY THIS MODULE EXISTS (2026-08-17, issue #148 item 1): the bridge call was hand-spelled in snap.ts and
 // again in design-audit.ts, and `motion-audit`/`perf-meter` — the two probes that answer "is this surface
@@ -9,19 +9,26 @@
 // 2+ hops, so the chat context panel was STRUCTURALLY unmeasurable by both, and a throttled INP number for
 // a 208ms keydown could not be taken at all. One vocabulary, four probes, identical semantics.
 //
+// `panel`/`focus` (2026-08-31, #148 item 2 — the same gap one level out): panels docked/collapsed/focus-mode
+// were not an axis ANY probe could reach — not an arm, not a matrix cell, nothing enumerated the states — so
+// a report of text flush to a panel edge or a clipped rounded button could not be told apart from "lives in
+// a state no instrument visits". For motion-audit specifically a panel toggle is not only a state to reach
+// but an ANIMATION (the docked↔collapsed FLIP, `use-list-track-flip.ts` + `shell.css`'s
+// `shell-list-push-in`), so driving it also makes one of the app's largest motion surfaces measurable.
+//
 // The bridge is dev-only (`installAgentDebugHandle` gates on IS_DEV): against a prod/old build every action
 // fails LOUDLY with a stated reason. A nav that did not land means the probe is measuring some OTHER
 // surface, which is worse than not measuring — never silently continue on `ok:false`.
 import { errorMessage } from "@orb/kit/error-message";
-import { parseGotoTarget } from "@orb/tooling/_shared/argv";
+import { parseGotoTarget, splitLastEq } from "@orb/tooling/_shared/argv";
 import type { Page } from "@playwright/test";
 
 /** The nav verbs a probe CLI offers, spelled as they appear on the command line (minus the `--`). */
-export const NAV_METHODS = ["goto", "open-chat", "open-character", "context-tab"] as const;
+export const NAV_METHODS = ["goto", "open-chat", "open-character", "context-tab", "panel", "focus"] as const;
 export type NavMethod = (typeof NAV_METHODS)[number];
 
 /** The CLI flags that carry a nav action, in the order the help text lists them. */
-export const NAV_FLAGS: readonly string[] = ["--goto", "--open-chat", "--open-character", "--context-tab"];
+export const NAV_FLAGS: readonly string[] = ["--goto", "--open-chat", "--open-character", "--context-tab", "--panel", "--focus"];
 
 /** `--<flag>` → the nav verb it queues. */
 export const NAV_FLAG_METHOD: Record<string, NavMethod> = {
@@ -29,25 +36,54 @@ export const NAV_FLAG_METHOD: Record<string, NavMethod> = {
   "--open-chat": "open-chat",
   "--open-character": "open-character",
   "--context-tab": "context-tab",
+  "--panel": "panel",
+  "--focus": "focus",
 };
 
-// The 1:1 verb→bridge-method map. `goto` is absent by design: its target is namespaced
-// (`settings:<group>` / `modal:<slot>` / a bare section id) and picks its method through parseGotoTarget.
-const NAV_BRIDGE_METHOD: Record<Exclude<NavMethod, "goto">, string> = {
+// The 1:1 verb→bridge-method map. `goto` and `panel` are absent by design: `goto`'s target is namespaced
+// (`settings:<group>` / `modal:<slot>` / a bare section id) and picks its method through parseGotoTarget;
+// `panel`'s target carries TWO bridge arguments (`<name>=<mode>`), decoded below beside goto's own
+// multi-arg case rather than forced through this 1-target-in-1-arg-out map.
+const NAV_BRIDGE_METHOD: Record<Exclude<NavMethod, "goto" | "panel">, string> = {
   "open-chat": "openChat",
   "open-character": "openCharacter",
   "context-tab": "contextTab",
+  focus: "focus",
 };
 
-/** The in-page bridge call for one action. The `--goto` decode happens HERE in Node (parseGotoTarget is
- *  unit-tested in _shared/argv.ts) so the emitted script only ever names one concrete bridge method. */
+/** The decoded bridge call: the concrete `__orb.nav` method plus its already-JS-literal argument list. */
+interface NavCall {
+  readonly bridgeMethod: string;
+  readonly args: string;
+}
+
+/** Decode one verb+target pair into its bridge call. `goto`'s target is namespaced and picks its method
+ *  through parseGotoTarget; `panel`'s target is `<name>=<mode>` (the same `<a>=<b>` shape `--fill`/
+ *  `--key`/`--expect-text` use, split with splitLastEq — a panel NAME never contains `=`) and becomes TWO
+ *  bridge arguments; `focus` takes a `"on"|"off"` target and becomes ONE boolean argument (each CLI's own
+ *  parse validates the value is exactly `on`/`off` before this ever runs — this module trusts it); every
+ *  other verb passes its target through as one bridge argument. */
+function decodeNavCall(method: NavMethod, target: string): NavCall {
+  if (method === "goto") {
+    const goto = parseGotoTarget(target);
+    const args = goto.method === "openConfig" && goto.sub !== undefined ? `${JSON.stringify(goto.arg)}, ${JSON.stringify(goto.sub)}` : JSON.stringify(goto.arg);
+    return { bridgeMethod: goto.method, args };
+  }
+  if (method === "panel") {
+    const { head, tail } = splitLastEq(target);
+    return { bridgeMethod: "panel", args: `${JSON.stringify(head)}, ${JSON.stringify(tail)}` };
+  }
+  if (method === "focus") {
+    return { bridgeMethod: NAV_BRIDGE_METHOD.focus, args: JSON.stringify(target === "on") };
+  }
+  return { bridgeMethod: NAV_BRIDGE_METHOD[method], args: JSON.stringify(target) };
+}
+
+/** The in-page bridge call for one action. The `--goto`/`--panel` decode happens HERE in Node
+ *  (parseGotoTarget is unit-tested in _shared/argv.ts) so the emitted script only ever names one concrete
+ *  bridge method. */
 export function buildNavScript(method: NavMethod, target: string): string {
-  const goto = method === "goto" ? parseGotoTarget(target) : null;
-  const bridgeMethod = goto === null ? NAV_BRIDGE_METHOD[method as Exclude<NavMethod, "goto">] : goto.method;
-  const args =
-    goto?.method === "openConfig" && goto.sub !== undefined
-      ? `${JSON.stringify(goto.arg)}, ${JSON.stringify(goto.sub)}`
-      : JSON.stringify(goto === null ? target : goto.arg);
+  const { bridgeMethod, args } = decodeNavCall(method, target);
   return `(async () => {
     const nav = window.__orb && window.__orb.nav;
     if (!nav) return { ok: false, reason: "__orb.nav unavailable (not a dev build?)" };

@@ -60,6 +60,24 @@ const FLAG_HANDLERS: Record<string, FlagHandler> = {
   "--context-tab": (a, rest) => {
     pushNav(a, "context-tab", rest);
   },
+  // `--panel <name>=<mode>` (the same `<a>=<b>` shape --fill/--key/--expect-text use, splitLastEq — a
+  // panel NAME never contains `=`) and `--focus <on|off>` are validated HERE, not left for the bridge to
+  // reject: a mistyped mode/on-off string must be CLI misuse, never silently decode to some other value.
+  "--panel": (a, rest) => {
+    const raw = rest.shift() ?? "";
+    const s = splitLastEq(raw);
+    if (s.head === "" || s.tail === "") {
+      a.errors.push(`--panel expects name=mode, got ${JSON.stringify(raw)}`);
+    }
+    a.actions.push({ kind: "nav", method: "panel", target: raw });
+  },
+  "--focus": (a, rest) => {
+    const raw = rest.shift() ?? "";
+    if (raw !== "on" && raw !== "off") {
+      a.errors.push(`--focus expects on|off, got ${JSON.stringify(raw)}`);
+    }
+    a.actions.push({ kind: "nav", method: "focus", target: raw });
+  },
   "--wait": (a, rest) => {
     a.waitMs = Number(rest.shift() ?? String(DEFAULT_WAIT_MS));
   },
@@ -137,6 +155,8 @@ const REQUIRED_VALUE_FLAGS = new Set([
   "--open-chat",
   "--open-character",
   "--context-tab",
+  "--panel",
+  "--focus",
   "--wait",
   "--out",
   "--base",
@@ -159,7 +179,9 @@ Surface (ONE argv-ordered queue — write the chain the way it should happen):
                             selector down to the real <input type="file"> automatically. PATH BOUNDARY:
                             every path must resolve inside this repo or the OS tmp dir; anything else is
                             refused loudly. Same shape and boundary as snap's --upload (_shared/upload.ts).
-  --context-tab <tab>       --wait <ms>   settle after the last action (default ${DEFAULT_WAIT_MS})
+  --context-tab <tab>       --panel <name>=<docked|overlay|collapsed>   drive the shell's panel layout
+  --focus <on|off>          the shell's zen/focus-mode toggle
+  --wait <ms>               settle after the last action (default ${DEFAULT_WAIT_MS})
 
 Environment:
   --viewport <WxH>          default 1280x800
