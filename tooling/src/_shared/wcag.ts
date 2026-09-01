@@ -123,8 +123,9 @@ export type InactiveKind = (typeof INACTIVE_KINDS)[number];
  *  everything, and native `:disabled` outranks the aria declaration.
  *
  *  EVERY ARM IS ANCESTOR-AWARE (#1005, was `el.matches(…)` for the two non-inert arms until 2026-09-01).
- *  INACTIVENESS IS INHERITED BY THE PIXELS: a real control's text is a CHILD element — `<button disabled>
- *  <span>Pick one</span></button>`, a disabled Select's placeholder span — and that span matches neither
+ *  INACTIVENESS IS INHERITED BY THE PIXELS: a real control's text is a CHILD element — a disabled
+ *  button's inner label span (`<button disabled><span>Pick one</span></button>`), a disabled Select's
+ *  placeholder span — and that span matches neither
  *  `:disabled` (which only the form control itself matches) nor `[aria-disabled="true"]`. Both instruments
  *  sample the TEXT-BEARING element, so the element-scoped spelling classified every such label "none" and
  *  judged it against the 4.5:1 AA floor WCAG 1.4.3 exempts: snap reported `FAIL 3.45:1` on markup it

@@ -16,7 +16,7 @@ import type { OffGridTextInput, OffGridTransformInput, PromotedLayerOffsetInput 
  *  TRUNCATED `getComputedStyle` strings that forced lib/ramp.ts's larger `LEADING_FLOOR_EPSILON`), so this
  *  covers float noise from the `* dpr` multiply only. The smallest fraction the founding defect produced
  *  was 0.125 device px — two orders of magnitude above this — so no real landing hides under it. */
-export const GRID_EPSILON_DEVICE_PX = 0.001;
+const GRID_EPSILON_DEVICE_PX = 0.001;
 
 /** A resolved scale is "none" within this — a matrix decomposition of an identity transform can come back
  *  as 0.9999999999 through a rotate/skew round trip. */
