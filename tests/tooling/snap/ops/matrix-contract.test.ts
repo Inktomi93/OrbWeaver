@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { vi } from "vitest";
 import { appearanceMatrixContract } from "../../../../packages/client/src/lib/appearance-carrier-manifest.ts";
 import type { ThemeEntry } from "../../../../tooling/src/_shared/theme.ts";
 import { APPEARANCE_HIGH_RISK_PRESET_NAMES, scenarioPresetFile } from "../../../../tooling/src/snap/contract/scenario-presets.ts";
@@ -18,6 +19,10 @@ const THEMES = [
   { id: "custom-dark", name: "Ink", isSeed: false, background: "#161821", polarity: "dark", hasCustomCss: true },
 ] as const satisfies readonly ThemeEntry[];
 const MATRIX_TEST_TIMEOUT_MS = 15_000;
+// Every case here plans the full carrier x theme matrix (3-7s each on a quiet box); on the contended box the
+// battery runs on, the 5s default timed out 5 of 7 in one run — the budget applies to the whole file, not
+// only the identity case that first needed it (#1008).
+vi.setConfig({ testTimeout: MATRIX_TEST_TIMEOUT_MS });
 const MINTED_CUSTOM_THEMES = [THEMES[2], THEMES[3]] as const;
 
 test("ships stage-safe behavioral tapes for every historical Appearance row", () => {
