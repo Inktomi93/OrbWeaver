@@ -11,7 +11,9 @@ import type { AddressInfo } from "node:net";
 import { join } from "node:path";
 import process from "node:process";
 import { vi } from "vitest";
+import type { DesignAuditRuleId } from "../../../tooling/src/ui-audit/index.ts";
 import { livingChromiumIdentities, watchChromiumDescendants } from "../../support/chromium-processes.ts";
+import type { ToolFixtures } from "../../support/tool-fixtures.ts";
 import { expect, test } from "../../support/tool-fixtures.ts";
 
 const CLI_TIMEOUT_MS = 90_000;
@@ -23,6 +25,21 @@ vi.setConfig({ testTimeout: CLI_TIMEOUT_MS, hookTimeout: CLI_TIMEOUT_MS });
 const CENSUS_RE = /census=(\d+)/u;
 /** The REACH denominator (#653) — how many OFFERED controls the viewport-bound families measured. */
 const REACHED_RE = /reached=[1-9]/u;
+
+interface AuditRuleProof {
+  readonly rule: DesignAuditRuleId;
+  readonly kind: "fires" | "silent";
+  readonly reason: string;
+}
+
+function auditRuleTest(
+  proofs: readonly AuditRuleProof[],
+  title: string,
+  fn: (fixtures: Pick<ToolFixtures, "runCli" | "scratch">) => void | Promise<void>,
+): void {
+  expect(proofs.every((proof) => proof.reason.trim() !== "")).toBe(true);
+  test(title, fn);
+}
 
 function page(bodyStyle: string): string {
   return `<!doctype html>
@@ -636,14 +653,18 @@ test("a label collapsed to 0px is a truncated-to-nothing finding — the text is
   await expect(res).toExitWith(1);
 });
 
-test("the same row with a narrow cluster keeps its label and mints nothing — the fence is the collapse, not the truncation", async ({ runCli, scratch }) => {
-  await writeFile(join(scratch, "roomy.html"), collapsedRowPage(60));
-  const res = await runCli("ui-audit", ["/roomy.html", "--base", `file://${scratch}`], { timeoutMs: CLI_TIMEOUT_MS });
-  expect(res.stdout).not.toContain("truncated-to-nothing");
-  // The absence is only a verdict when the walk censused nodes at all.
-  const census = CENSUS_RE.exec(res.stdout)?.[1];
-  expect(Number(census)).toBeGreaterThan(0);
-});
+auditRuleTest(
+  [{ rule: "truncated-to-nothing", kind: "silent", reason: "the same row with a narrow neighbour keeps a visible label" }],
+  "the same row with a narrow cluster keeps its label and mints nothing — the fence is the collapse, not the truncation",
+  async ({ runCli, scratch }) => {
+    await writeFile(join(scratch, "roomy.html"), collapsedRowPage(60));
+    const res = await runCli("ui-audit", ["/roomy.html", "--base", `file://${scratch}`], { timeoutMs: CLI_TIMEOUT_MS });
+    expect(res.stdout).not.toContain("truncated-to-nothing");
+    // The absence is only a verdict when the walk censused nodes at all.
+    const census = CENSUS_RE.exec(res.stdout)?.[1];
+    expect(Number(census)).toBeGreaterThan(0);
+  },
+);
 
 // ── truncation is a defect only WITHOUT an affordance (#825) ────────────────────────────────────────
 
@@ -666,6 +687,33 @@ function truncatedLabelPage(affordance: "ellipsis" | "none" | "title"): string {
 </main></body></html>`;
 }
 
+function healthyQualityNeighboursPage(): string {
+  return `<!doctype html><html data-app-ready="settled"><head><meta charset="utf-8"><title>healthy quality neighbours</title></head>
+  <body style="margin:0;background:#fff;color:#111"><main style="padding:24px">
+    <img alt="healthy" width="32" height="32" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32'%3E%3Crect width='32' height='32' fill='black'/%3E%3C/svg%3E">
+    <section style="border:1px solid #222;border-radius:8px;background:#fff"><span>Active state</span><strong>Active state</strong></section>
+    <div style="width:320px;height:90px;overflow-x:auto"><div style="width:480px;padding:12px"><article style="width:180px;height:48px;border:1px solid #222;background:#fff">Inset card</article></div></div>
+    <div style="overflow:hidden;padding:12px;width:220px"><button style="width:120px;height:32px">Healthy action</button></div>
+  </main></body></html>`;
+}
+
+auditRuleTest(
+  [
+    { rule: "broken-image", kind: "silent", reason: "a loaded image with natural dimensions is a real healthy neighbour" },
+    { rule: "repeated-container-text", kind: "silent", reason: "two repeated labels remain below the three-place defect floor" },
+    { rule: "clipped-overflow", kind: "silent", reason: "a padded in-flow control remains inside its clipping box" },
+    { rule: "edge-flush-cards", kind: "silent", reason: "a card with real inset gutters is not flush to its scroller" },
+  ],
+  "healthy quality candidates stay silent at their nearest legal boundaries",
+  async ({ runCli, scratch }) => {
+    await writeFile(join(scratch, "healthy-quality.html"), healthyQualityNeighboursPage());
+    const res = await runCli("ui-audit", ["/healthy-quality.html", "--base", `file://${scratch}`], { timeoutMs: CLI_TIMEOUT_MS });
+    for (const rule of ["broken-image", "repeated-container-text", "clipped-overflow", "edge-flush-cards"]) {
+      expect(res.stdout, `${rule} must stay silent on its real healthy candidate`).not.toContain(rule);
+    }
+  },
+);
+
 test("a clipped label with NO ellipsis and no full-value affordance is still a text-overflow finding", async ({ runCli, scratch }) => {
   await writeFile(join(scratch, "bare-clip.html"), truncatedLabelPage("none"));
   const res = await runCli("ui-audit", ["/bare-clip.html", "--base", `file://${scratch}`], { timeoutMs: CLI_TIMEOUT_MS });
@@ -674,14 +722,18 @@ test("a clipped label with NO ellipsis and no full-value affordance is still a t
   await expect(res).toExitWith(1);
 });
 
-test("the SAME label truncated with an ellipsis mints nothing — the shipped idiom is not a defect", async ({ runCli, scratch }) => {
-  await writeFile(join(scratch, "ellipsis.html"), truncatedLabelPage("ellipsis"));
-  const res = await runCli("ui-audit", ["/ellipsis.html", "--base", `file://${scratch}`], { timeoutMs: CLI_TIMEOUT_MS });
-  expect(res.stdout, "text-overflow:ellipsis is the affordance the rule's own message asks for").not.toContain("text-overflow");
-  expect(res.stdout).toContain("p1=0");
-  // ZERO HYGIENE (#409): the silence is only a verdict when the walk censused nodes at all.
-  expect(Number(CENSUS_RE.exec(res.stdout)?.[1])).toBeGreaterThan(0);
-});
+auditRuleTest(
+  [{ rule: "text-overflow", kind: "silent", reason: "the same clipped label paints an ellipsis affordance" }],
+  "the SAME label truncated with an ellipsis mints nothing — the shipped idiom is not a defect",
+  async ({ runCli, scratch }) => {
+    await writeFile(join(scratch, "ellipsis.html"), truncatedLabelPage("ellipsis"));
+    const res = await runCli("ui-audit", ["/ellipsis.html", "--base", `file://${scratch}`], { timeoutMs: CLI_TIMEOUT_MS });
+    expect(res.stdout, "text-overflow:ellipsis is the affordance the rule's own message asks for").not.toContain("text-overflow");
+    expect(res.stdout).toContain("p1=0");
+    // ZERO HYGIENE (#409): the silence is only a verdict when the walk censused nodes at all.
+    expect(Number(CENSUS_RE.exec(res.stdout)?.[1])).toBeGreaterThan(0);
+  },
+);
 
 test("a bare clip carrying the full value in a title mints nothing either — the value is one hover away", async ({ runCli, scratch }) => {
   await writeFile(join(scratch, "titled.html"), truncatedLabelPage("title"));
@@ -710,13 +762,17 @@ test("a badge whose own centre hit-tests to the button on top of it is an obscur
   await expect(res).toExitWith(1);
 });
 
-test("the same pair side by side mints nothing — the rule is the hit test, not the row", async ({ runCli, scratch }) => {
-  await writeFile(join(scratch, "beside.html"), overlapRowPage(160));
-  const res = await runCli("ui-audit", ["/beside.html", "--base", `file://${scratch}`], { timeoutMs: CLI_TIMEOUT_MS });
-  expect(res.stdout).not.toContain("obscured-target");
-  const census = CENSUS_RE.exec(res.stdout)?.[1];
-  expect(Number(census)).toBeGreaterThan(0);
-});
+auditRuleTest(
+  [{ rule: "obscured-target", kind: "silent", reason: "the same badge and button side by side own their own centres" }],
+  "the same pair side by side mints nothing — the rule is the hit test, not the row",
+  async ({ runCli, scratch }) => {
+    await writeFile(join(scratch, "beside.html"), overlapRowPage(160));
+    const res = await runCli("ui-audit", ["/beside.html", "--base", `file://${scratch}`], { timeoutMs: CLI_TIMEOUT_MS });
+    expect(res.stdout).not.toContain("obscured-target");
+    const census = CENSUS_RE.exec(res.stdout)?.[1];
+    expect(Number(census)).toBeGreaterThan(0);
+  },
+);
 
 // The FALSE-POSITIVE fence that decides whether this rule can live on a real app: deliberate stacking.
 // An open dialog covers the page it sits over, and every covered element loses its own centre to the

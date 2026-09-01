@@ -31,23 +31,6 @@ import { checkClippedOverflow, checkDuplicateDoors, checkEdgeFlush, checkRepeate
 import { checkAnimatedImgHover, checkGradientText, checkNestedCard, checkZIndex } from "./checks-structure.ts";
 import { checkCaveatHierarchy, checkFontCensus, checkTextStyle } from "./checks-typography.ts";
 
-/** Runs one nullable check over one sample array, pushing every non-null Finding. */
-function pushFindings<T>(findings: Finding[], items: readonly T[], check: (item: T) => Finding | null): void {
-  for (const item of items) {
-    const f = check(item);
-    if (f !== null) {
-      findings.push(f);
-    }
-  }
-}
-
-/** Runs one array-returning check over one sample array. */
-function pushAllFindings<T>(findings: Finding[], items: readonly T[], check: (item: T) => Finding[]): void {
-  for (const item of items) {
-    findings.push(...check(item));
-  }
-}
-
 interface FamilyCheckResult {
   readonly findings: readonly Finding[];
   readonly scans: number;
@@ -55,98 +38,110 @@ interface FamilyCheckResult {
 
 type FamilyChecker = (samples: RawSamples) => FamilyCheckResult;
 
-function a11yFindings(samples: RawSamples): FamilyCheckResult {
+interface MutableFamilyCheckResult {
+  readonly findings: Finding[];
+  scans: number;
+}
+
+function emptyFamilyResult(): MutableFamilyCheckResult {
+  return { findings: [], scans: 0 };
+}
+
+function nullableFindings<T>(items: readonly T[], check: (item: T) => Finding | null): Finding[] {
   const findings: Finding[] = [];
-  pushFindings(findings, samples.tapTargets, (t) => checkTapTarget(t, samples.pointerCoarse));
-  pushFindings(findings, samples.controlAspects ?? [], checkControlAspect);
-  pushFindings(findings, samples.accessibleNames, checkAccessibleName);
-  const landmark = checkMainLandmark({ main: samples.mainLandmarkPresent });
-  if (landmark !== null) {
-    findings.push(landmark);
+  for (const item of items) {
+    const finding = check(item);
+    if (finding !== null) {
+      findings.push(finding);
+    }
   }
-  pushFindings(findings, samples.tabIndexes, checkTabIndexSmell);
-  findings.push(...checkHeadingOrder(samples.headings));
-  pushFindings(findings, samples.obscuredTargets ?? [], checkObscuredTarget);
-  return {
-    findings,
-    scans:
-      2 +
-      samples.tapTargets.length +
-      (samples.controlAspects?.length ?? 0) +
-      samples.accessibleNames.length +
-      samples.tabIndexes.length +
-      (samples.obscuredTargets?.length ?? 0),
-  };
+  return findings;
+}
+
+function runNullable(state: MutableFamilyCheckResult, detector: () => Finding | null): void {
+  state.scans += 1;
+  const finding = detector();
+  if (finding !== null) {
+    state.findings.push(finding);
+  }
+}
+
+function runArray(state: MutableFamilyCheckResult, detector: () => readonly Finding[]): void {
+  state.scans += 1;
+  state.findings.push(...detector());
+}
+
+function a11yFindings(samples: RawSamples): FamilyCheckResult {
+  const state = emptyFamilyResult();
+  runArray(state, () => nullableFindings(samples.tapTargets, (target) => checkTapTarget(target, samples.pointerCoarse)));
+  runArray(state, () => nullableFindings(samples.controlAspects ?? [], checkControlAspect));
+  runArray(state, () => nullableFindings(samples.accessibleNames, checkAccessibleName));
+  runNullable(state, () => checkMainLandmark({ main: samples.mainLandmarkPresent }));
+  runArray(state, () => nullableFindings(samples.tabIndexes, checkTabIndexSmell));
+  runArray(state, () => checkHeadingOrder(samples.headings));
+  runArray(state, () => (samples.obscuredTargets ?? []).map(checkObscuredTarget));
+  return state;
 }
 
 function colorFindings(samples: RawSamples): FamilyCheckResult {
-  const findings: Finding[] = [];
-  pushFindings(findings, samples.texts, checkContrast);
-  pushFindings(findings, samples.texts, checkGrayOnColor);
-  return { findings, scans: 1 + samples.texts.length * 2 };
+  const state = emptyFamilyResult();
+  runArray(state, () => nullableFindings(samples.texts, checkContrast));
+  runArray(state, () => nullableFindings(samples.texts, checkGrayOnColor));
+  return state;
 }
 
 function decorFindings(samples: RawSamples): FamilyCheckResult {
-  const findings: Finding[] = [];
-  pushAllFindings(findings, samples.accentBorders, checkAccentBorder);
-  pushFindings(findings, samples.shadowGlows, checkGlowShadow);
-  return { findings, scans: 1 + samples.accentBorders.length + samples.shadowGlows.length };
+  const state = emptyFamilyResult();
+  runArray(state, () => samples.accentBorders.flatMap(checkAccentBorder));
+  runArray(state, () => nullableFindings(samples.shadowGlows, checkGlowShadow));
+  return state;
 }
 
 function mediaFindings(samples: RawSamples): FamilyCheckResult {
-  const findings: Finding[] = [];
-  pushFindings(findings, samples.images, checkImageDistortion);
-  findings.push(...samples.brokenImages.map(checkBrokenImage));
-  return { findings, scans: 1 + samples.images.length + samples.brokenImages.length };
+  const state = emptyFamilyResult();
+  runArray(state, () => nullableFindings(samples.images, checkImageDistortion));
+  runArray(state, () => samples.brokenImages.map(checkBrokenImage));
+  return state;
 }
 
 function ornamentFindings(samples: RawSamples): FamilyCheckResult {
-  const findings: Finding[] = [];
-  pushFindings(findings, samples.radialGlows, checkRadialGlow);
-  pushFindings(findings, samples.bgPatterns, checkBgPattern);
-  pushFindings(findings, samples.iconTiles, checkIconTile);
-  pushFindings(findings, samples.motionStatics, checkMotionStatic);
-  return { findings, scans: 1 + samples.radialGlows.length + samples.bgPatterns.length + samples.iconTiles.length + samples.motionStatics.length };
+  const state = emptyFamilyResult();
+  runArray(state, () => nullableFindings(samples.radialGlows, checkRadialGlow));
+  runArray(state, () => nullableFindings(samples.bgPatterns, checkBgPattern));
+  runArray(state, () => nullableFindings(samples.iconTiles, checkIconTile));
+  runArray(state, () => nullableFindings(samples.motionStatics, checkMotionStatic));
+  return state;
 }
 
 function qualityFindings(samples: RawSamples): FamilyCheckResult {
-  const findings: Finding[] = [];
-  findings.push(...checkDuplicateDoors(samples.actionDoors ?? []));
-  findings.push(...samples.overflows.map(checkTextOverflow));
-  findings.push(...samples.repeatedTexts.map(checkRepeatedText));
-  findings.push(...samples.clippedOverflows.map(checkClippedOverflow));
-  findings.push(...samples.edgeFlushCards.map(checkEdgeFlush));
+  const state = emptyFamilyResult();
+  runArray(state, () => checkDuplicateDoors(samples.actionDoors ?? []));
+  runArray(state, () => samples.overflows.map(checkTextOverflow));
+  runArray(state, () => samples.repeatedTexts.map(checkRepeatedText));
+  runArray(state, () => samples.clippedOverflows.map(checkClippedOverflow));
+  runArray(state, () => samples.edgeFlushCards.map(checkEdgeFlush));
   // The #816 collision families: text erased to zero width, and a painted element whose own centre
   // belongs to a neighbour. Optional on the sample bundle — a pinned pre-#816 fixture set censused
   // neither, and an absent family is silence about a question nobody asked, not a clean answer.
-  findings.push(...(samples.truncatedTexts ?? []).map(checkTruncatedText));
-  return {
-    findings,
-    scans:
-      1 +
-      samples.overflows.length +
-      samples.repeatedTexts.length +
-      samples.clippedOverflows.length +
-      samples.edgeFlushCards.length +
-      (samples.truncatedTexts?.length ?? 0),
-  };
+  runArray(state, () => (samples.truncatedTexts ?? []).map(checkTruncatedText));
+  return state;
 }
 
 function structureFindings(samples: RawSamples): FamilyCheckResult {
-  const findings: Finding[] = [];
-  pushFindings(findings, samples.zIndexes, checkZIndex);
-  pushFindings(findings, samples.nestedCards, checkNestedCard);
-  pushFindings(findings, samples.gradientTexts, checkGradientText);
-  pushFindings(findings, samples.animatedImgHovers, checkAnimatedImgHover);
-  return { findings, scans: 1 + samples.zIndexes.length + samples.nestedCards.length + samples.gradientTexts.length + samples.animatedImgHovers.length };
+  const state = emptyFamilyResult();
+  runArray(state, () => nullableFindings(samples.zIndexes, checkZIndex));
+  runArray(state, () => nullableFindings(samples.nestedCards, checkNestedCard));
+  runArray(state, () => nullableFindings(samples.gradientTexts, checkGradientText));
+  runArray(state, () => nullableFindings(samples.animatedImgHovers, checkAnimatedImgHover));
+  return state;
 }
 
 function typographyFindings(samples: RawSamples): FamilyCheckResult {
-  const findings: Finding[] = [];
-  pushAllFindings(findings, samples.textStyles, checkTextStyle);
-  findings.push(...checkCaveatHierarchy(samples.textStyles));
-  findings.push(...checkFontCensus(samples.fontCensus));
-  return { findings, scans: 2 + samples.textStyles.length };
+  const state = emptyFamilyResult();
+  runArray(state, () => samples.textStyles.flatMap(checkTextStyle));
+  runArray(state, () => checkCaveatHierarchy(samples.textStyles));
+  runArray(state, () => checkFontCensus(samples.fontCensus));
+  return state;
 }
 
 /** Closed dispatcher: the registry owns the family vocabulary, and a family is counted only when its

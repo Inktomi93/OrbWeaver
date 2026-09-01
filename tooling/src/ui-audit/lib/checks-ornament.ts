@@ -268,6 +268,16 @@ export function checkMotionStatic(input: MotionStaticInput): Finding | null {
       origin: "impeccable",
     };
   }
+  if (input.kind === "overshoot-bezier") {
+    const bezierOvershootMinY = -0.1;
+    const bezierOvershootMaxY = 1.1;
+    const match = /cubic-bezier\(\s*[\d.-]+\s*,\s*([\d.-]+)\s*,\s*[\d.-]+\s*,\s*([\d.-]+)\s*\)/u.exec(input.value);
+    const y1 = Number.parseFloat(match?.[1] ?? "NaN");
+    const y2 = Number.parseFloat(match?.[2] ?? "NaN");
+    if (!(y1 < bezierOvershootMinY || y1 > bezierOvershootMaxY || y2 < bezierOvershootMinY || y2 > bezierOvershootMaxY)) {
+      return null;
+    }
+  }
   return {
     rule: "bounce-easing",
     severity: "P2",
