@@ -27,11 +27,19 @@ measurements. Current main has five sanctioned stylesheets totalling **3,165 lin
 
 - **Done:** #919 (doctrine/D150), #921 (closed six-home inventory), #936 (DTCG contract), and measured defects
   \#937–#940.
-- **Integrated, in Review; grouped CSS-train barrier not yet run:** #949, #951, #952, #954–#957, #959, #961,
-  \#965, and #966. These are implemented claims, not graduated-train claims. #966 has hoisted four repeated
-  per-gate scans into shared pass indexes; this report does not claim its entire 110-gate inventory migrated.
-- **Integrated, in Review:** #950 implements browser cascade provenance from the revision-pinned official
-  DevTools frontend SDK proof; the grouped CSS-train barrier still governs graduation.
+- **Integrated and grouped-barrier graduated:** #949–#952, #954–#957, #959, #961, #965, and #966. #966 has
+  hoisted four repeated per-gate scans into shared pass indexes; this report does not claim its entire
+  110-gate inventory migrated.
+- **Integrated and grouped-barrier graduated:** #950 implements browser cascade provenance from the
+  revision-pinned official DevTools frontend SDK proof.
+
+The 2026-08-31 graduation receipt is deliberately split rather than rerunning five minutes of unchanged
+code for generated line offsets: one full `pnpm check` made 16/17 static stages green, including 242/242
+structural gates over 6,337 files, 965/965 CSS declarations, Biome, ESLint, all type tiers, dependency-
+cruiser, Knip, docs, and catalog. Its sole red was five moved line numbers in the generated caught-failure
+population after a four-line suppression-removal helper. Regeneration then made `ledgers:fresh` green at
+2,202 test files and 421 caught sites with zero unproven. Focused affected tooling was 64/64, the rendered
+worst-art matrix 21/21, and the official-SDK cascade matrix 3/3.
 
 \#949 now owns the one class-list merge and bounded `__orb.css` loser→winner replay. It does **not** explain
 the browser cascade. #950 is the separate browser tier: official `CSSMatchedStyles.propertyState` supplies
@@ -476,11 +484,10 @@ integration added one bounded neutral surface to that announced contract: an exa
 over JSX/object spreads, so selector-writer gates can resolve spread-supplied `data-*` properties without
 misclassifying their values as class tokens or building a second resolver. The substrate must use
 whole-project declaration provenance and may tokenize with Oxide only after semantic carrier resolution;
-raw-source Oxide scanning also tokenizes prose and is not a correctness gate.
+raw-source Oxide scanning also tokenizes prose and is not a correctness gate. #951/#954/#961 passed the
+grouped barrier in the 242/242 structural graduation receipt.
 
-\#954 and #961 are integrated and in Review; the grouped CSS-train barrier has not yet graduated them.
-
-**Selector-writer closure (#956, grouped barrier pending).** `5a9a9ada3` turns the census's manually traced
+**Selector-writer closure (#956, grouped barrier passed).** `5a9a9ada3` turns the census's manually traced
 68 authored non-utility class identities and 112 data-selector identities into a dedicated semantic gate.
 Writers come from JSX attributes/spreads, declaration-proven DOM `setAttribute`/`toggleAttribute`, exact
 HAST element properties, #951/#961 class provenance, manifest-plus-installed Base UI state/value contracts,
@@ -489,7 +496,7 @@ arbitrary nonempty writer does not satisfy them, and mutating that rule makes th
 fail. Focused proof is 18/18 with tooling ts7, scoped Biome, and loader discovery at 240 active gates at
 integration. #965 subsequently moved the collector onto the existing shared visit and profiled the real tree
 at 1,195 owners, 1,583 sources, 1,745 evaluators, 68,517 dispatched nodes, 2,331 root evaluations, 19.3s wall,
-and 3.48 GB max RSS; 42/42 focused tests passed. The grouped barrier remains pending.
+and 3.48 GB max RSS; 42/42 focused tests passed. The grouped 242/242 barrier passed.
 
 ---
 
@@ -547,13 +554,13 @@ call sites (`media-tile-grid/variants.ts:39`, `avatar/variants.ts:36,49`) and `a
 usage review when the fix lands. The important prevention claim is broader: a token-name inventory cannot
 tell us whether Tailwind emits a utility family.
 
-**Resolution (#949 integrated, in Review).** Orb now registers only aspect/blur/ease, derives the governed
+**Resolution (#949 integrated; grouped barrier passed).** Orb now registers only aspect/blur/ease, derives the governed
 set from stable Tailwind compilation plus production Oxide roots, disables TV's internal merge, and routes
 ordinary and slot results through the sole configured Orb merger. The bounded dev/test `__orb.css` receipt
 uses occurrence-aware replay through that exact merger; it does not copy tailwind-merge's classifier. Focused
 proof passed 7/7 compiler parity, 107/107 merge/token tests, 65/65 dependency-cruiser tests, 42/42 Button and
-Avatar CT, and a 3,409-module production build with no trace implementation strings. The grouped CSS-train
-barrier has not yet graduated.
+Avatar CT, and a 3,409-module production build with no trace implementation strings. The grouped 242/242
+barrier passed.
 
 **Historical remediation prescription.** Register only aspect/blur/ease, then plant a compiler-derived positive/negative matrix
 for the exact pinned Tailwind version. Assert set equality between compiler-positive custom families, the
@@ -1168,12 +1175,12 @@ Three tiers, and a fourth category that is neither:
   polarity (#954), length ownership (#955), and production/CT topology (#959). The compose-only eslint
   keystone still governs `packages/client/src`; the compiler-derived single-merge contract and runtime
   factory seal are integrated under #949.
-- **IMPLEMENTED, NOT YET TRAIN-GRADUATED:** #949, #951, #952, #954–#957, #959, #961, and #965 are in Review.
-  Focused receipts prove their individual claims; only the grouped barrier may promote the combined tree.
-- **IMPLEMENTED, NOT YET TRAIN-GRADUATED:** #950 explains final browser cascade winners across layer,
+- **IMPLEMENTED AND TRAIN-GRADUATED:** #949, #951, #952, #954–#957, #959, #961, and #965 passed the grouped
+  242/242 structural barrier plus the affected 64/64 tooling and 21/21 rendered matrices.
+- **IMPLEMENTED AND TRAIN-GRADUATED:** #950 explains final browser cascade winners across layer,
   specificity, source order, inline style, inheritance, custom-property resolution, animation, and
   transition through the revision-pinned official DevTools frontend SDK, not raw-CDP inference. Focused
-  runtime and closure receipts are green; the grouped barrier remains.
+  runtime and closure receipts are green; the official-SDK matrix is 3/3 and the grouped barrier passed.
 - **REPORTED BUT UNREAD:** `snap --dead-css` (`deadcss=`/`emptycss=` on every RESULT line) and its dev-only
   `motion-dead-class-flagger` twin still emit findings that no mandatory scenario floor consumes. They answer
   existence/parsing, not value resolution, class-list merge, or browser cascade.
@@ -1205,9 +1212,9 @@ pre-launch removes the user risk, not the verification bar.**
 | # | step | blast radius | tier | mech/judgment |
 | - | - | - | - | - |
 | 1.1 | **#921 — CLOSED:** `feature-css-files` became `sanctioned-css-homes` at `9b0e6debb`; `fee25f89b` made the package inventory dot-path-complete, required regular files, deleted the exposed `.ds-preview-*` seventh home, and planted both controls | 1 gate + its conformance arms | **gate** | full conformance 8/8 green; cold verification independently confirmed 6 red/3 green descriptors plus all required-home and escaped-path probes |
-| 1.2 | **#952 / G-NEW-2 `css-var-defined` — IMPLEMENTED, GROUP BARRIER PENDING:** `681d38afb` proves every static `var(--x)` in the product stylesheets and declaration-proven arbitrary-variable class resolves through a generated token, authored declaration, fallback, exact runtime writer, or installed Base UI contract | 1 gate + shared resolver | **gate** | focused real-tree zero findings over 1,587 sources/225 definitions/751 references; 49 Base UI docs/43 properties/13 live/19 executable memberships; six exact CSSProperties writers stale-armed; conformance/type/lint/depcruise green; final status waits for the grouped CSS-train barrier |
+| 1.2 | **#952 / G-NEW-2 `css-var-defined` — IMPLEMENTED, GROUP BARRIER PASSED:** `681d38afb` proves every static `var(--x)` in the product stylesheets and declaration-proven arbitrary-variable class resolves through a generated token, authored declaration, fallback, exact runtime writer, or installed Base UI contract | 1 gate + shared resolver | **gate** | focused real-tree zero findings over 1,587 sources/225 definitions/751 references; 49 Base UI docs/43 properties/13 live/19 executable memberships; six exact CSSProperties writers stale-armed; conformance/type/lint/depcruise and grouped 242/242 barrier green |
 | 1.3 | **#940 — CLOSED:** repoint F4 to existing `z-(--z-raised)`, correct the coupled comment, set-equality check the gate's seven-name vocabulary against the vault, reject unknown semantic z vars in JSX and exported recipes, and prove the stacking winner live | 2 product files + gate + CT | code + gate + rendered | `20d810344` + cold-refutation follow-up `a8a60ce20`; independently confirmed |
-| 1.4 | **#956 / `css-selector-has-a-writer` — IMPLEMENTED, GROUP BARRIER PENDING:** every authored non-utility class and `data-*` selector identity is reconciled against semantic JSX/DOM/HAST/#951 writers plus exact installed vendor contracts | 1 gate + shared provenance/cache | **gate** | `5a9a9ada3`; focused 18/18, ts7/Biome green, 240 active gates discovered at integration. #965 subsequently bounded the shared collector at 19.3s/3.48 GB; grouped judgment still pending |
+| 1.4 | **#956 / `css-selector-has-a-writer` — IMPLEMENTED, GROUP BARRIER PASSED:** every authored non-utility class and `data-*` selector identity is reconciled against semantic JSX/DOM/HAST/#951 writers plus exact installed vendor contracts | 1 gate + shared provenance/cache | **gate** | `5a9a9ada3`; focused 18/18, ts7/Biome green, 240 active gates discovered at integration. #965 subsequently bounded the shared collector at 19.3s/3.48 GB; grouped 242/242 barrier green |
 
 ### Wave 2 — close the measured defects (each lands alone; each owes a rendered receipt)
 
@@ -1216,17 +1223,17 @@ pre-launch removes the user risk, not the verification bar.**
 | 2.1 | **F1 / #937 — CLOSED:** stamp viewer density on the root ThemeScope, remove the grid duplicate, and project viewer-sacred keys from every current card-sourced nested ThemeScope | root + chat/character shared card boundaries | code + unit/security + rendered + structural census | `c3fb373b2` + two cold-refutation follow-ups `80eb7ca0c`, `99e16df97`; independently confirmed |
 | 2.2 | **F2 / #938 — CLOSED:** owner chose symmetric Arm A and it landed after #936's structured-value emitter migration, never against the retired generator | token vault + generator + tiers | code + rendered CT on preview in BOTH directions | `f9dff3bb3`; cold detached verification passed 232/232 rendered CT, 92/92 focused Vitest, 8/8 ownership-gate integration, both typecheck tiers, and the 278-entry/187-target/19-`cssValues` contract |
 | 2.3 | **F3 / #939 — CLOSED:** static seeds use polarity-aware chart arms and carried custom ThemeScopes derive five concrete host-safe fills across the accepted deterministic colour domain | token/clamp contract + chart consumers | token/property matrix + real ECharts CT | `c45d39ac7` + `fd31bf645`; cold-confirmed 55/55 focused Vitest and 7/7 CT with five distinct pixel-matched fills at ≥3:1 |
-| 2.4 | **F7 / #954 — PRODUCT FIXED; #961 REPAIRED; GROUP REVIEW PENDING:** `214fa1200` deleted the named-theme variant, `6740e6705` made #954 a thin Oxide consumer, and `0952cc462` repaired return-position composer ownership, local namespace re-exports, and object-spread overwrite/opacity semantics from planted reds | repaired #961 provenance library + thin #954 consumer | code + shared tooling + gate + rendered | #961 focused 17/17 plus exact real probes; #954 focused 4/4 plus 13 mustFlag/5 mustPass; grouped CSS-train cold review/barrier remains |
-| 2.5 | **DONE IN #949; IN REVIEW:** compiler-positive aspect/blur/ease registration, exact positive/negative parity, later-wins controls, and sole `createTV` seal | merge front door + tests/gate | compiler/unit/gate | focused compiler 7/7, merge/token 107/107, dependency 65/65, CT 42/42; grouped barrier pending |
-| 2.6 | **§3.2b / #955 — IMPLEMENTED, GROUP BARRIER PENDING:** re-derived all 20 non-structural shell residues, reused existing tokens, added only the missing portable values/runtime outputs, and left the declared structural mechanisms alone | shell + token source/generated artifacts | code + gate + rendered | `e07b79b2d`; focused gate 8/8 and token contract/index 51/51; selected browser assertions 4/4, wrapper no-verdict; grouped rendered barrier remains |
-| 2.7 | **DONE IN #957; IN REVIEW:** repaired the three stale comments and coupled `.ctx-tab-strip` residue | 3 product/harness comments + gate residue | prose + focused gate | integrated at `aa8cf0d53`; grouped barrier pending |
+| 2.4 | **F7 / #954 — PRODUCT FIXED; #961 REPAIRED; GROUP BARRIER PASSED:** `214fa1200` deleted the named-theme variant, `6740e6705` made #954 a thin Oxide consumer, and `0952cc462` repaired return-position composer ownership, local namespace re-exports, and object-spread overwrite/opacity semantics from planted reds | repaired #961 provenance library + thin #954 consumer | code + shared tooling + gate + rendered | #961 focused 17/17 plus exact real probes; #954 focused 4/4 plus 13 mustFlag/5 mustPass; grouped 242/242 barrier green |
+| 2.5 | **DONE IN #949; GROUP BARRIER PASSED:** compiler-positive aspect/blur/ease registration, exact positive/negative parity, later-wins controls, and sole `createTV` seal | merge front door + tests/gate | compiler/unit/gate | focused compiler 7/7, merge/token 107/107, dependency 65/65, CT 42/42; grouped 242/242 barrier green |
+| 2.6 | **§3.2b / #955 — IMPLEMENTED, GROUP BARRIER PASSED:** re-derived all 20 non-structural shell residues, reused existing tokens, added only the missing portable values/runtime outputs, and left the declared structural mechanisms alone | shell + token source/generated artifacts | code + gate + rendered | `e07b79b2d`; focused gate 8/8 and token contract/index 51/51; selected browser assertions 4/4, wrapper no-verdict; grouped 242/242 barrier green |
+| 2.7 | **DONE IN #957; GROUP BARRIER PASSED:** repaired the three stale comments and coupled `.ctx-tab-strip` residue | 3 product/harness comments + gate residue | prose + focused gate | integrated at `aa8cf0d53`; grouped 242/242 barrier green |
 
 ### Wave 3 — the enforcement the doctrine promises but cannot yet keep
 
 | # | step | blast radius | tier | mech/judgment |
 | - | - | - | - | - |
 | 3.0 | **#962 — eliminate file-wide Biome disables before more gate work lands.** Current exhaustive census: 70 files carry 74 `biome-ignore-all` directives across six rules; the suppression ratchet explicitly excludes `tests/**`, and a rejected #954 index briefly carried a whole-file complexity bypass. Migrate every directive to an exact line/range or centrally governed, stale-armed path grant; extend governance to tests; plant an index-vs-working-tree control | 70 files + suppression governance | lint + gate + affected behavioral suites | no baseline/allowlist increase; zero file-wide directives is the contract |
-| 3.1 | **#955 / `css-length-tokens` — IMPLEMENTED, GROUP BARRIER PENDING:** the LENGTH twin over shell declarations/queries plus #961-resolved static class carriers; structural rows are reasoned and count-pinned, missing shell fails loud, and populations print | 1 gate + planted integration arms | **gate** | `e07b79b2d`; 8/8 conformance, 51/51 token contract/index, no discovered-ignore list; grouped train barrier remains |
+| 3.1 | **#955 / `css-length-tokens` — IMPLEMENTED, GROUP BARRIER PASSED:** the LENGTH twin over shell declarations/queries plus #961-resolved static class carriers; structural rows are reasoned and count-pinned, missing shell fails loud, and populations print | 1 gate + planted integration arms | **gate** | `e07b79b2d`; 8/8 conformance, 51/51 token contract/index, no discovered-ignore list; grouped 242/242 barrier green |
 | 3.2 | **OPEN under #935/#953:** wire reported-but-unread dead/empty CSS results into rated scenario floors, not every ad-hoc probe | snap contract + scenario floor | **instrument → floor** | appearance-matrix work owns scenario selection; a per-probe hard fail remains too noisy |
 | 3.3 | **Merge-precedence assertions per AXIS, not per call site** — extend `class-merge.test.ts` to assert, for every registered namespace derived from `TOKENS`, that two classes on one axis resolve to one. Bounded by the token vault, not by the app | 1 test file | vitest | mechanical once 2.5 lands |
 | 3.4 | **State the residual honestly in §4.7**: after 3.1–3.3, the remaining uncovered class is a runtime-ASSEMBLED class string, which no static tier can read. The named sweep that keeps it honest is the side-eye rendered pass | prose | **prose + a named sweep** | — this is the clause that must say out loud that it is prose |
@@ -1523,7 +1530,7 @@ planted control.**
 | `no-raw-color-in-css` | gate | `packages/{ui,client}/src/**/*.css` (`:70`) — the FULL CSS surface | mustFlag+mustPass | non-colour values; a colour whose `var()` chain resolves to nothing |
 | `motion-token-purity` | gate | `packages/{ui,client}/src/**/*.css` (`:101`) | mustFlag+mustPass | motion in TS/inline (covered by `no-off-token-inline-style`); `linear`/`0s` legal by design |
 | `css-length-tokens` (#955) | gate | `shell.css` declarations/queries + #961-resolved static class carriers across `packages/{client,ui}/src` | 4 mustFlag + 2 mustPass; focused conformance 8/8 | runtime-assembled class strings; declared viewport/query/ratio/measurement mechanics are count-pinned allowances rather than blind skips |
-| `css-selector-has-a-writer` (#956) | gate | the five sanctioned stylesheets' 68 non-utility class + 112 data-selector identities against semantic writers and exact vendor contracts | focused 18/18; Base UI manifest/installed 75/75 with zero drift; #965 bounded the shared collector at 19.3s/3.48 GB | opaque dynamic values cannot satisfy exact/prefix selectors; HAST evidence is limited to exact element records; grouped barrier pending |
+| `css-selector-has-a-writer` (#956) | gate | the five sanctioned stylesheets' 68 non-utility class + 112 data-selector identities against semantic writers and exact vendor contracts | focused 18/18; Base UI manifest/installed 75/75 with zero drift; #965 bounded the shared collector at 19.3s/3.48 GB; grouped 242/242 barrier green | opaque dynamic values cannot satisfy exact/prefix selectors; HAST evidence is limited to exact element records |
 | `no-color-literals` | gate | `packages/{client,ui}/src` (`:54`) | mustFlag+mustPass | runtime-ASSEMBLED class strings |
 | `no-arbitrary-tw-values` | gate | `packages/{client,ui}/src` (`:110`) | mustFlag+mustPass | token-driven bodies (`var()`/`calc()`) legal by design |
 | `no-off-token-radius-shadow` | gate | `packages/{client,ui}/src` (`:121`) | mustFlag+mustPass | `packages/client/src/features/preset/**` structurally excluded (declared) |
@@ -1707,17 +1714,18 @@ Mocha `muted-foreground` L 0.720→0.731 (quantized input/popover 4.430→4.6286
 base tokens / 290 base-plus-seed entries / 195 exact targets; generated `tokens/index.ts` is byte-identical,
 and only that Mocha value changes in `theme.css`/`themes.gen.ts` beyond #969's two additive variables.
 
-**Integrated, in Review; the grouped CSS-train barrier has not graduated:** #951 family ownership; #952
+**Integrated and grouped-barrier graduated:** #951 family ownership; #952
 custom-property resolution; #954/#961 single-polarity prevention on the shared static-class substrate; #955
 length ownership; #956 semantic writers for 68 non-utility class identities and 112 data-selector identities;
 \#957 stale-comment/coupled-residue repair; #959 production/Playwright CSS-topology derivation; #965 bounded
 static provenance collection (1,195 owners, 1,583 sources, 1,745 evaluators, 68,517 dispatched nodes, 2,331
-root evaluations, 19.3s, 3.48 GB max RSS, 42/42 focused).
+root evaluations, 19.3s, 3.48 GB max RSS, 42/42 focused). The graduation receipt is 242/242 structural
+gates over 6,337 files with 965/965 CSS declarations, plus 64/64 affected tooling and 21/21 rendered tests.
 
-**Merge versus cascade:** #949 is integrated/in Review with one Orb merge, exact Tailwind 4.3.3 compiler and
+**Merge versus cascade:** #949 is integrated and barrier-graduated with one Orb merge, exact Tailwind 4.3.3 compiler and
 production-Oxide family parity, aspect/blur/ease coverage, sole-`createTV` enforcement, and bounded dev/test
-`__orb.css` occurrence replay. It explains class-list losers and winners only. #950 is integrated/in Review
+`__orb.css` occurrence replay. It explains class-list losers and winners only. #950 is integrated and barrier-graduated
 with the revision-pinned official DevTools frontend SDK: `CSSMatchedStyles.propertyState` supplies
 browser-owned `Active`/`Overloaded` cascade attribution. Raw-CDP winner inference, mutation, UI scraping, and
-a local cascade evaluator are rejected. `deadcss`/`emptycss` remain reported-but-unread by mandatory floors;
-rated scenario integration remains #935/#953. No combined-train graduation is claimed.
+a local cascade evaluator are rejected; its official-SDK runtime matrix is 3/3. `deadcss`/`emptycss` remain
+reported-but-unread by mandatory floors; rated scenario integration remains #935/#953.
