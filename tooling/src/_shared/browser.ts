@@ -5,13 +5,16 @@
 // the lib-mismatch reason stands alone.)
 
 import process from "node:process";
-import type { Browser, BrowserContext, ConsoleMessage, Page } from "@playwright/test";
+import type { Browser, BrowserContext, Page } from "@playwright/test";
 import { chromium, devices } from "@playwright/test";
 import type { AppearancePatch, SettingsShimEvidence } from "./appearance.ts";
 import { installSettingsShim } from "./appearance.ts";
 import type { Viewport } from "./argv.ts";
+import type { PageCapture } from "./browser-capture.ts";
+import { wireProbePage } from "./browser-capture.ts";
 import type { BrowserEnvironmentContract } from "./browser-environment.ts";
 import { resolveBrowserEnvironmentContract } from "./browser-environment.ts";
+import { resolveProbeMedia } from "./browser-media.ts";
 import type { ThemeRequest } from "./theme.ts";
 
 // biome-ignore lint/style/noProcessEnv: SNAP_BASE_URL is a probe-harness knob (where the running dev stack answers; `localhost`, not 127.0.0.1 — vite v8 binds [::1] only) — ambient tooling env, not app config.
@@ -157,85 +160,6 @@ interface ProbeResourceOwner {
   readonly cleanup?: readonly (() => Promise<void>)[];
 }
 
-interface PageCapture {
-  readonly media: {
-    colorScheme?: "light" | "dark";
-    reducedMotion: "reduce" | "no-preference";
-    contrast?: "more" | "no-preference";
-    reducedTransparency: boolean;
-  };
-  readonly consoleLines: string[];
-  readonly consoleMessages: CapturedConsole[];
-  readonly pageErrors: string[];
-  readonly requests: Map<string, CapturedRequest>;
-}
-
-/** Wire console/pageerror/request capture + media emulation onto one page — shared by every context so
- *  `--pages` (tabs within a context) and `--contexts` (isolated contexts) both get identical capture. */
-function wirePage(page: Page, capture: PageCapture): Promise<void> {
-  const { media, consoleLines, consoleMessages, pageErrors, requests } = capture;
-  const apply = async (): Promise<void> => {
-    const cdp = await page.context().newCDPSession(page);
-    // Every page starts from a stated feature slate. Without this reset, Chromium retains a prior
-    // reduced-transparency override even after the supported Playwright media fields change.
-    await cdp.send("Emulation.setEmulatedMedia", { features: [] });
-    await page.emulateMedia({
-      ...(media.colorScheme === undefined ? {} : { colorScheme: media.colorScheme }),
-      reducedMotion: media.reducedMotion,
-      ...(media.contrast === undefined ? {} : { contrast: media.contrast }),
-    });
-    // Playwright 1.61.1 has no reduced-transparency field. Sending the complete feature slate after its
-    // supported call prevents the second CDP command from erasing color/motion/contrast. The session must
-    // stay attached for the override lifetime; the page/context owns and closes it.
-    await cdp.send("Emulation.setEmulatedMedia", {
-      features: [
-        ...(media.colorScheme === undefined ? [] : [{ name: "prefers-color-scheme", value: media.colorScheme }]),
-        { name: "prefers-reduced-motion", value: media.reducedMotion },
-        ...(media.contrast === undefined ? [] : [{ name: "prefers-contrast", value: media.contrast }]),
-        { name: "prefers-reduced-transparency", value: media.reducedTransparency ? "reduce" : "no-preference" },
-      ],
-    });
-  };
-  page.on("console", (m: ConsoleMessage) => {
-    const t = m.type();
-    const loc = m.location();
-    const where = (t === "error" || t === "warning") && loc.url ? ` (${loc.url}:${loc.lineNumber}:${loc.columnNumber})` : "";
-    const line = `[${t}] ${m.text()}${where}`;
-    consoleLines.push(line);
-    consoleMessages.push({
-      type: t,
-      text: m.text(),
-      location: loc.url ? { url: loc.url, line: loc.lineNumber, column: loc.columnNumber } : null,
-      line,
-    });
-  });
-  page.on("pageerror", (e: Error) => {
-    pageErrors.push(`${e.name}: ${e.message}\n${e.stack ?? ""}`);
-  });
-  page.on("request", (r) => {
-    requests.set(r.url(), {
-      method: r.method(),
-      url: r.url(),
-      status: null,
-      failed: null,
-      type: r.resourceType(),
-    });
-  });
-  page.on("response", (r) => {
-    const cur = requests.get(r.url());
-    if (cur) {
-      cur.status = r.status();
-    }
-  });
-  page.on("requestfailed", (r) => {
-    const cur = requests.get(r.url());
-    if (cur) {
-      cur.failed = r.failure()?.errorText ?? "failed";
-    }
-  });
-  return apply();
-}
-
 interface BuildContextArgs {
   readonly browser: Browser;
   readonly opts: ProbeLaunchOptions;
@@ -307,23 +231,14 @@ async function buildContext(args: BuildContextArgs): Promise<ProbeContext> {
   const consoleMessages: CapturedConsole[] = [];
   const pageErrors: string[] = [];
   const requests = new Map<string, CapturedRequest>();
-  const media: PageCapture["media"] = {
-    reducedMotion: opts.reducedMotion ? "reduce" : "no-preference",
-    reducedTransparency: opts.reducedTransparency ?? false,
-  };
-  if (opts.colorScheme !== null) {
-    media.colorScheme = opts.colorScheme;
-  }
-  if (opts.contrast !== undefined && opts.contrast !== null) {
-    media.contrast = opts.contrast;
-  }
+  const media = resolveProbeMedia(opts);
 
   const capture: PageCapture = { media, consoleLines, consoleMessages, pageErrors, requests };
   const pageCount = Math.max(1, opts.pages ?? 1);
   const pages: Page[] = [];
   for (let i = 0; i < pageCount; i += 1) {
     const page = await context.newPage();
-    await wirePage(page, capture);
+    await wireProbePage(page, capture);
     pages.push(page);
   }
 
