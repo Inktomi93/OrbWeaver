@@ -13,10 +13,13 @@
 // Every barrier below is a SETTLED rendered state (the door, the progress line, the failure line), never a
 // state that exists only while a query is in flight.
 
+import type { UserId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import type { TrpcRecorder, TrpcRoutes } from "../../../../support/ct/route-trpc.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { userSettingsView } from "../../../../support/ct/user-settings-view.ts";
 import { CorpusUnderstandingInvitationStory } from "../_ct-stories.tsx";
 
 const VIEWER = { userId: "user_me", globalRole: "user", handle: "me" };
@@ -51,7 +54,7 @@ function row(over: Record<string, unknown> = {}): Record<string, unknown> {
 /** The user-settings read the chain branches on — memory ON unless a test says otherwise (issue #166: with
  *  memory off there are no digests, so the pass has no themes stage to enqueue and says so). */
 function settings(memoryEnabled: boolean): Record<string, unknown> {
-  return { userId: VIEWER.userId, schemaVersion: 1, updatedAt: 1, config: { memory: { enabled: memoryEnabled } } };
+  return userSettingsView({ memory: { enabled: memoryEnabled } }, { userId: castId<UserId>(VIEWER.userId), updatedAt: 1 });
 }
 
 async function stub(page: Page, routes: TrpcRoutes = {}): Promise<TrpcRecorder> {
