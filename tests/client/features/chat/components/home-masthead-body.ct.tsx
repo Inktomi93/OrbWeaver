@@ -10,8 +10,10 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import { FROZEN_AT_MS } from "../../../../support/clock.ts";
+import { pixelContrast } from "../../../../support/ct/pixel-contrast.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { ChatMastheadTileStory } from "../_ct-stories.tsx";
+import { HomePartialThemeProseStory } from "../_theme-prose-ct-stories.tsx";
 import type { ChatSummaryFixture } from "../fixtures.ts";
 import { chatListResponder, makeChatSummary } from "../fixtures.ts";
 
@@ -123,3 +125,30 @@ test("F3 an empty library opens the empty house, never 'No rooms, still warm.'",
 
   await expect(heading).toHaveText("An empty house.");
 });
+
+for (const [polarity, background, ambientBackground, ambientInk] of [
+  ["light", "oklch(0.96 0.01 80)", "oklch(0.158 0.006 60)", "oklch(0.9 0.008 72)"],
+  ["dark", "oklch(0.18 0.01 60)", "oklch(0.98 0.004 75)", "oklch(0.28 0.012 60)"],
+] as const) {
+  test(`#985 a background-only ${polarity} theme keeps Home masthead and resume subtitle above AA`, async ({ mount, page }) => {
+    await page.clock.setFixedTime(FROZEN_AT_MS);
+    const chat = makeChatSummary({
+      id: "chat_theme_prose",
+      title: "The Lantern Room",
+      participantNames: ["Wren"],
+      lastMessagePreview: "The lanterns answer in amber.",
+    });
+    await routeTrpc(page, { "chat.listChats": chatListResponder([chat]) });
+
+    const home = await mount(<HomePartialThemeProseStory ambientBackground={ambientBackground} ambientInk={ambientInk} background={background} />);
+    const mastheadSubtitle = home.getByText(LEFT_OFF);
+    const resumeSubtitle = home.getByText("The lanterns answer in amber.");
+
+    await expect(mastheadSubtitle).toBeVisible();
+    await expect(resumeSubtitle).toBeVisible();
+    for (const subject of [mastheadSubtitle, resumeSubtitle]) {
+      const receipt = await pixelContrast(page, subject);
+      expect(receipt.ratio, receipt.describe).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+}
