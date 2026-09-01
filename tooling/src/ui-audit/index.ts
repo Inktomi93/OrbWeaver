@@ -2,6 +2,8 @@
 // One tool, one API (docs/architecture/core/Core-Tooling-Law.md §2.5).
 export type { Finding, RuleOrigin, Severity } from "./contract/findings.ts";
 export { SEVERITIES } from "./contract/findings.ts";
+export type { DesignAuditRuleFamily, DesignAuditRuleId, DesignAuditSeverity } from "./contract/rules.ts";
+export { DESIGN_AUDIT_RULE_FAMILIES, DESIGN_AUDIT_RULE_IDS, DESIGN_AUDIT_RULES, DESIGN_AUDIT_SEVERITIES } from "./contract/rules.ts";
 export type {
   AccentBorderInput,
   AccessibleNameInput,
