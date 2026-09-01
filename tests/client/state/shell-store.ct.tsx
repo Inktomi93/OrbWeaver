@@ -153,6 +153,23 @@ test("revealContextPanelBesideContent writes the tab + the dock, and the overlay
   await expect(state).toContainText("contextTab=field openOverlayPanel=context");
 });
 
+// THE CLOSING TWIN, minted for `__orb.nav.panel` (the write-side dev-nav bridge action): `revealContextPanel`
+// dual-writes to OPEN the panel regardless of which channel the current regime reads; `hideContextPanel` is
+// the same idiom for CLOSING it — a regime-unaware caller cannot know whether the live channel is the
+// persisted dock or the transient overlay request, so it releases both.
+test("hideContextPanel dual-writes: releases openOverlayPanel AND collapses the CONTEXT dock", async ({ mount }) => {
+  const probe = await mount(<ShellStoreProbe />);
+  const state = probe.locator("output");
+
+  await probe.getByRole("button", { name: "reveal context panel" }).click();
+  await expect(state).toContainText("context=docked");
+  await expect(state).toContainText("openOverlayPanel=context");
+
+  await probe.getByRole("button", { name: "nav-bridge close context" }).click();
+  await expect(state).toContainText("context=collapsed");
+  await expect(state).toContainText("openOverlayPanel=none");
+});
+
 test("useSectionListMode resolves override-over-default, per section, live", async ({ mount }) => {
   const probe = await mount(<ShellStoreProbe />);
   const state = probe.locator("output");

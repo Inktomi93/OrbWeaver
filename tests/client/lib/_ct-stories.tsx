@@ -1098,6 +1098,8 @@ export function AgentBridgeStory(): ReactElement {
         openChat: async () => ({ ok: true as const }),
         openCharacter: async () => ({ ok: true as const }),
         closeModal: () => ({ ok: true as const }),
+        panel: async () => ({ ok: true as const }),
+        focus: () => ({ ok: true as const }),
       },
       seed: { game: async () => ({ chatId: BRIDGE_CHAT_ID }), richGame: async () => ({ chatId: BRIDGE_CHAT_ID }) },
       rpg: async () => ({ chatId: null, game: null, tracker: null, journal: [], turnToolCalls: [] }),

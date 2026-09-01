@@ -411,3 +411,49 @@ test("openCharacter() with no id/name match REFUSES — no dispatch", async () =
   expect(result.ok).toBe(false);
   expect(selectSpy).not.toHaveBeenCalled();
 });
+
+// ── focus: the one arm with no channel to route wrong (regime-free — shell-store.ts's own header) ──
+
+test("focus(true/false) dispatches the real setFocusMode flag and always succeeds", () => {
+  const spy = vi.spyOn(state, "setFocusMode");
+  const nav = buildAgentNav(fakeTrpc([], []), new RealQueryClient() as QueryClient);
+
+  expect(nav.focus(true)).toEqual({ ok: true });
+  expect(spy).toHaveBeenLastCalledWith(true);
+
+  expect(nav.focus(false)).toEqual({ ok: true });
+  expect(spy).toHaveBeenLastCalledWith(false);
+});
+
+// ── panel: routing + refusal only — this suite runs in the NODE unit lane (no DOM), so it proves the
+// dispatch/validation surface `panel()` owns before it ever reads the rendered `data-panel-mode` landing
+// signal (`vitest.config.ts`'s "unit" project has no jsdom/happy-dom environment configured — `document`
+// does not exist here). The LANDING half — the reason this bridge action exists at all, since a store write
+// can land in a channel the current regime does not read — is proven where a real DOM is: the store
+// primitives it delegates to (`dockListPanel`/`collapseListPanel`/`revealContextPanel`/`hideContextPanel`,
+// including the #383 carry) are pinned by CT in `tests/client/state/{shell-store,list-flip-carry}.ct.tsx`,
+// and the end-to-end bridge call is proven live (`pnpm snap --dirty`) in both viewport regimes.
+
+test("panel() refuses an unknown panel name — no store dispatch", async () => {
+  const dockSpy = vi.spyOn(state, "dockListPanel");
+  const revealSpy = vi.spyOn(state, "revealContextPanel");
+  const nav = buildAgentNav(fakeTrpc([], []), new RealQueryClient() as QueryClient);
+
+  const result = await nav.panel("sidebar", "docked");
+
+  expect(result.ok).toBe(false);
+  expect(result.ok ? "" : result.reason).toContain("sidebar");
+  expect(dockSpy).not.toHaveBeenCalled();
+  expect(revealSpy).not.toHaveBeenCalled();
+});
+
+test('panel() refuses an unknown mode, including the resolved-only "overlay" — no store dispatch', async () => {
+  const dockSpy = vi.spyOn(state, "dockListPanel");
+  const nav = buildAgentNav(fakeTrpc([], []), new RealQueryClient() as QueryClient);
+
+  const result = await nav.panel("list", "overlay");
+
+  expect(result.ok).toBe(false);
+  expect(result.ok ? "" : result.reason).toContain("overlay");
+  expect(dockSpy).not.toHaveBeenCalled();
+});

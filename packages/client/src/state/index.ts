@@ -255,7 +255,7 @@ export {
   useImagineSeed,
 } from "./imagery-store.ts";
 export type { ListFlipCarry } from "./list-flip-carry.ts";
-export { dockListPanel, registerListFlipCarry } from "./list-flip-carry.ts";
+export { collapseListPanel, dockListPanel, registerListFlipCarry } from "./list-flip-carry.ts";
 export {
   __readMessageEditDraftForTest,
   cancelEditingMessage,
@@ -408,6 +408,7 @@ export {
   getAvailableContextTabIds,
   getAvailableContextTabs,
   getContextTab,
+  hideContextPanel,
   openModal,
   publishContextTabIds,
   publishContextTabs,

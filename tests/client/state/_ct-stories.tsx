@@ -45,6 +45,7 @@ import {
   clearSectionSaveStatus,
   clearWorldEntrySelection,
   closeModal,
+  collapseListPanel,
   compareCorpusPair,
   cycleTagFilter,
   dockListPanel,
@@ -54,6 +55,7 @@ import {
   getAvailableContextTabs,
   getContextTab,
   goToLanding,
+  hideContextPanel,
   isCommitted,
   onGameModeStarted,
   onGameModeStopped,
@@ -397,6 +399,12 @@ function ShellStoreProbeBody(): ReactElement {
       </button>
       <button type="button" onClick={(): void => setOpenOverlayPanel("context")}>
         open context overlay
+      </button>
+      <button type="button" onClick={(): void => collapseListPanel()}>
+        nav-bridge close list
+      </button>
+      <button type="button" onClick={(): void => hideContextPanel()}>
+        nav-bridge close context
       </button>
     </div>
   );
@@ -1400,6 +1408,9 @@ export function ListFlipCarryProbe(): ReactElement {
       </button>
       <button type="button" onClick={(): void => setPanelMode("list", "collapsed")}>
         collapse the list
+      </button>
+      <button type="button" onClick={(): void => collapseListPanel()}>
+        nav-bridge close the list
       </button>
     </div>
   );
