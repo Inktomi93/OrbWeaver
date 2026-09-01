@@ -1148,10 +1148,11 @@
       "disposition": "current",
       "authority": "current-reference",
       "fullRead": true,
-      "verifiedSha256": "8884c3aa8244f26b56343105699ebe6f285d3281fcf8e3e2e5a6ca011b399074",
-      "verifiedCommit": "242bfaecb0924c7cba3e5d2028ceadf6546dd661",
+      "verifiedSha256": "5ff50d639340ed6044417592f9027df5388f47524ef9719286c420f57e852aa6",
+      "verifiedCommit": "cb3e51ca640a1b04feb4f2148ed25d54a51eaa47",
       "verifiedAt": "2026-08-31",
       "evidence": [
+        "re-attested at cb3e51ca6 under #974 — full-file read; §4 records the graduated static CSS provenance boundary, #975's fail-loud live cascade/closure repair, and #976/#977 as trustworthy inputs rather than substitutes for #953",
         "re-attested at 242bfaecb under #969 — full 803-line read; §4 records surface-specific normal-text foreground obligations, reading-plate and sidebar-accent roles, total accepted-base projection, and custom-CSS precedence without adding a CSS home",
         "re-attested at 4bf9ed645 — §4.5 records the one shared production/CT CSS front door and §4.6 records the repaired provenance-backed polarity gate",
         "re-attested at 8f30fb690 — §4.7 now records css-var-defined as the static value-resolution wall and removes undefined custom-property references from the known-unenforced list",

@@ -3939,10 +3939,11 @@
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "f4bf01b7606b3bb2b177b3b0e0cb2aa3685ec99ab825522d771eb9177438536f",
-      "verifiedCommit": "d1f0ea36ecb3a642cc91c13812b69dfe541f40fa",
+      "verifiedSha256": "9624acf59938724b7644de199ff442fa892cf471ce9eae9971b8c80da6062bf3",
+      "verifiedCommit": "cb3e51ca640a1b04feb4f2148ed25d54a51eaa47",
       "verifiedAt": "2026-08-31",
       "evidence": [
+        "re-attested at cb3e51ca6 under #974 — full-file read; the post-program rider records #972's measured static/runtime provenance boundary and #975's live SDK complement without promoting this proposed design above active CSS law",
         "re-attested at 870473632 under #883 — full 299-line read; the post-#969 rider records the 4.6 attainable derivation target, exact matrix minima, sole Mocha seed retune, and byte-identical generated base token map",
         "re-attested at 242bfaecb under #969 — full 289-line read; the portable DTCG contract gains only reading-plate-foreground and sidebar-accent-foreground, while runtime-derived CSS remains in the existing ThemeScope output seam; the rebased #950 SDK-boundary delta was also read",
         "docs/architecture/proposed/token-contract-program.md:1 (full read; implemented #936 program and current durable token-contract shape)",
