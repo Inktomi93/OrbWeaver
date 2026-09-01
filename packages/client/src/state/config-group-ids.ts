@@ -5,7 +5,7 @@
 // MODAL into the Configuration SECTION: the nine settings categories, the four member collections (the
 // old open `config-collections` contributor set — owner fork F-1 closed the tuple) and the persona
 // surface are ONE vocabulary now, sorted into four SHELVES the LIST paints as named groups. A collection
-// keeps the id its owner already exports (`worldInfo`, `cast`): each is the ONE home of that kind, rides
+// keeps the id its owner already exports (`worldInfo`, `rosterPreset`): each is the ONE home of that kind, rides
 // the `data-collection` attributes the CTs address, and keys the per-device disclosure store.
 //
 // This module imports NOTHING (the two-reader vocabulary rule that split it out of `shell-store.ts`).

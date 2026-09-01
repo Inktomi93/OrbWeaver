@@ -19,7 +19,7 @@ test("the tuple is the nine settings groups + the four collections, each exactly
     "tags",
     "regex",
     "worldInfo",
-    "cast",
+    "rosterPreset",
     "plugins",
   ]);
   expect(new Set(CONFIG_GROUP_IDS).size).toBe(CONFIG_GROUP_IDS.length);

@@ -23,10 +23,12 @@ import { createToastManager, ToastProvider } from "@orb/ui/toast";
 import { QueryClient, QueryClientProvider, useMutation } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
-// Deep, not `@orb/client/lib`: agent-bridge is OUT of the barrel too (main.tsx imports it by path — a
-// re-export would drag the dev-only introspection handle into the prod bundle).
-import type { OrbAgentHandles, RouteResolution } from "../../../packages/client/src/lib/agent-bridge.ts";
-import { __installAgentDebugHandleForTest, installAppReadySignal } from "../../../packages/client/src/lib/agent-bridge.ts";
+import type { OrbAgentHandles } from "../../../packages/client/src/lib/agent-bridge.ts";
+import { __installAgentDebugHandleForTest } from "../../../packages/client/src/lib/agent-bridge.ts";
+// Deep, not `@orb/client/lib`: production readiness and the dev bridge stay OUT of the barrel. Keeping
+// their homes separate is the production boot boundary (#995); a barrel re-export could reconnect them.
+import type { RouteResolution } from "../../../packages/client/src/lib/app-ready-signal.ts";
+import { appReady, installAppReadySignal } from "../../../packages/client/src/lib/app-ready-signal.ts";
 import { __resetBootReads, setBootReadPending } from "../../../packages/client/src/lib/boot-reads.ts";
 import { __createBusDevlogFixtureForTest, __recordBusEventForTest } from "../../../packages/client/src/lib/bus-devlog.ts";
 // Deep, not `@orb/client/lib`: motion-stats is deliberately OUT of the barrel (its header — a barrel
@@ -888,7 +890,7 @@ export function MotionFrameReflowStory(): ReactElement {
   );
 }
 
-// Just past agent-bridge's 3s readiness GRACE. The marker is a settled RENDERED state, not a sleep: the CT
+// Just past app-ready-signal's 3s readiness GRACE. The marker is a settled RENDERED state, not a sleep: the CT
 // barriers on it, then asks what the flag did — which is the only way to observe a timer's decision without
 // a fixed wait.
 const GRACE_MARKER_MS = 3500;
@@ -1078,6 +1080,7 @@ export function AgentBridgeStory(): ReactElement {
   const cssStateRef = useRef({ calls: 0 });
   const [motionActive, setMotionActive] = useState(false);
   const [bridgeReady, setBridgeReady] = useState(false);
+  const [sharedReady, setSharedReady] = useState(false);
   const motionTargetRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const handles = {
@@ -1113,6 +1116,9 @@ export function AgentBridgeStory(): ReactElement {
       durableLocalUserId: () => null,
     } satisfies OrbAgentHandles;
     __installAgentDebugHandleForTest(client, handles);
+    setSharedReady(globalThis.__orb?.ready === appReady);
+    installAppReadySignal(client, SETTLED_ROUTE);
+    void client.fetchQuery({ queryKey: ["ct-agent-bridge-ready"], queryFn: async () => "ready" });
     globalThis.__orb?.resetEvidence();
     const busFixture = __createBusDevlogFixtureForTest();
     const motionTarget = motionTargetRef.current;
@@ -1136,6 +1142,7 @@ export function AgentBridgeStory(): ReactElement {
   return (
     <div>
       {bridgeReady ? <div data-testid="bridge-installed">installed</div> : null}
+      <div data-testid="bridge-ready-shared">{sharedReady ? "shared" : "forked"}</div>
       <style>{"@keyframes orb-ct-bridge-dirty { from { width: 80px } to { width: 160px } }"}</style>
       <button
         type="button"

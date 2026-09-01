@@ -21,8 +21,8 @@
 
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
-// BG-C: the background source-kind vocabulary (`BACKGROUND_IMAGE_KINDS` / `BackgroundImageKind`) is homed in
-// `#theme` (shared with the carried `ThemeBackground` twin); consumers import it from `@orb/contracts/theme`.
+// BG-C: the background source-kind vocabulary (`BACKGROUND_IMAGE_KINDS`) is homed in `#theme` (shared with
+// the carried `ThemeBackground` twin); consumers import it from `@orb/contracts/theme`.
 import { BACKGROUND_IMAGE_KINDS, THEME_CHAT_STYLES, THEME_DENSITIES } from "#theme";
 
 const CHAT_WIDTH_PCT_MIN = 30;
@@ -75,8 +75,8 @@ export const DEFAULT_BLUR_SURFACES: readonly BlurSurface[] = ["panels", "compose
 // pinned here by `backgroundAssetId` (GC-rooted via the settings live-source scan) + `backgroundAssetHash`
 // (the immutable content hash the SYNC `resolveBackgroundUrl` builds `blobUrl(hash)` from — id↔hash is
 // fixed for a content-addressed asset, so storing both is denormalized-but-never-stale). The source-kind
-// vocabulary (`BACKGROUND_IMAGE_KINDS` / `BackgroundImageKind`) is homed in `#theme` (shared with the
-// carried `ThemeBackground` twin — BG-C); consumers import it from `@orb/contracts/theme` directly.
+// vocabulary (`BACKGROUND_IMAGE_KINDS`) is homed in `#theme` (shared with the carried `ThemeBackground`
+// twin — BG-C); consumers import it from `@orb/contracts/theme` directly.
 
 export const SURFACE_TEXTURES = ["none", "grain"] as const;
 export type SurfaceTexture = (typeof SURFACE_TEXTURES)[number];

@@ -18,7 +18,7 @@ import { MS_PER_SECOND } from "./flags-support.ts";
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
 /** Did the app reach a SETTLED state? `settled` = the flag went up on a real query-cache idle; `degraded` =
- *  agent-bridge's ceiling handed the flag over with reads still running; `dataless` = the flag says settled
+ *  app-ready-signal's ceiling handed the flag over with reads still running; `dataless` = the flag says settled
  *  but the app never reached its data layer at all; `absent` = it never went up. */
 const APP_READINESS = ["settled", "degraded", "dataless", "absent"] as const;
 type AppReadiness = (typeof APP_READINESS)[number];
@@ -74,7 +74,7 @@ export async function navigate(page: Page, opts: Args, url: string): Promise<str
   } else if (!resp.ok()) {
     navError = `HTTP ${resp.status()}`;
   }
-  // Default readiness gate: agent-bridge.ts sets `data-app-ready` on <html> once the initial reads
+  // Default readiness gate: app-ready-signal.ts sets `data-app-ready` on <html> once the initial reads
   // settle — independent of the never-idle SSE stream. Wait for it so snaps capture the SETTLED app,
   // not mid-hydration skeletons (the "lists sit on skeletons forever" friction). Graceful: a non-app
   // page or an old build that never sets it just falls through, so this only ever adds real load-wait,
@@ -84,7 +84,7 @@ export async function navigate(page: Page, opts: Args, url: string): Promise<str
   //
   // THE RESULT IS REPORTED, NOT SWALLOWED (2026-08-09). This used to `.catch(() => undefined)` the whole
   // wait, so a page that never signalled ready produced a mid-hydration capture and a clean report — the
-  // instrument failing open. It now reads the flag's VALUE too: agent-bridge hands over `degraded` when its
+  // instrument failing open. It now reads the flag's VALUE too: app-ready-signal hands over `degraded` when its
   // ceiling fires with reads still in flight. Either shape is a nav error on a route we are serving,
   // because the capture below is NOT of the settled app and every downstream assertion about it is void.
   if (opts.file === null) {

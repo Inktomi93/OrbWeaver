@@ -112,7 +112,7 @@ test("the home page renders the home surface (tRPC query works)", {
   tag: "@smoke",
 }, async ({ page }) => {
   await page.goto("/");
-  // Wait for the app to reach cache-idle (the agent-bridge signal), then assert the variant-C HOME surface
+  // Wait for the app to reach cache-idle (the app-ready signal), then assert the variant-C HOME surface
   // (program #102) actually MOUNTED: its `main "Home content"` landmark. The Hearth Room hero, the "Pick up
   // where you left off" region and the "Other rooms" recents ALL derive from `chat.listChats`, so the home
   // content rendering at all is the end-to-end proof the owner-scoped query resolved (auth + transport + DB
