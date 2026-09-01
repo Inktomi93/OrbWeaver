@@ -103,9 +103,9 @@ export function accountedFindings<T>(
   };
 }
 
-export const DECISION_REPRESENTATIVE_CAP = 5;
+const DECISION_REPRESENTATIVE_CAP = 5;
 
-export interface DecisionFindingRow<T> {
+interface DecisionFindingRow<T> {
   readonly input: T;
   readonly finding: Finding | null;
 }

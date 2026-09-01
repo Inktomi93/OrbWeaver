@@ -20,7 +20,9 @@ import type { ExitCode } from "@orb/tooling/_shared/exit-contract";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { CensusReachInput, RawSamples } from "../contract/samples.ts";
-import type { Args, BackdropRefusal, DomPopulation } from "../contract/types.ts";
+import type { RelationalCensusAccountingInput } from "../contract/samples-populations.ts";
+import type { SurfaceStateAccounting } from "../contract/surface-state.ts";
+import type { Args, BackdropRefusal, DomPopulation, ShellStateSnapshot } from "../contract/types.ts";
 import { checkScriptErrors } from "../lib/checks-quality.ts";
 import { collectAudit } from "../lib/collect.ts";
 import {
@@ -36,7 +38,9 @@ import {
 import { populationEvidenceGap } from "../lib/population.ts";
 import { isAtOrAboveSeverity } from "../lib/severity.ts";
 import { stageLabel } from "../lib/stage-request.ts";
+import { buildSurfaceStateAccounting, surfaceStateAxisLabel } from "../lib/surface-state.ts";
 import { navigateAndReveal } from "./drive.ts";
+import { hoverPassLabel, resolveHoverStates } from "./hover.ts";
 import { resolvePixelBackdrops } from "./pixels.ts";
 import {
   countBySeverity,
@@ -46,6 +50,7 @@ import {
   printFindingsTable,
   printObscuredScan,
   printPopulationAccounting,
+  printSurfaceState,
 } from "./report.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm design-audit");
@@ -85,6 +90,28 @@ function evidenceGapOf({ url, appReady, samples, population, opts, settingsEvide
   return (
     censusThinGap(population) ?? themeProvenanceGap(opts.theme, settingsEvidence, samples.themeRender, population?.accounting.walked ?? 0) ?? reachGap(samples)
   );
+}
+
+/** THE PANEL-AXIS DECLARE + ACCOUNT rows (#148 item 2): the shell config `__orb.shell()` read for THIS
+ *  run, and — same law as `tap-*`'s own candidates/judged/withheld/populations rows below — an axis
+ *  label for every configuration this run did NOT visit, named rather than folded into a clean-looking
+ *  silence. `NO-VERDICT` mirrors `population-verdict`'s own hyphenated single-token spelling. */
+function surfaceStateRows(shellState: ShellStateSnapshot | null, accounting: SurfaceStateAccounting): [string, string][] {
+  const axisVerdict = (census: RelationalCensusAccountingInput): string => (surfaceStateAxisLabel(census) === "complete" ? "complete" : "NO-VERDICT");
+  const focusLabel = shellState === null ? "unmounted" : shellFocusOnOff(shellState.focus);
+  return [
+    ["section", shellState?.section ?? "unmounted"],
+    ["panel-list-mode", shellState?.panels.find((p) => p.side === "list")?.mode ?? "unmounted"],
+    ["panel-list-axis", axisVerdict(accounting.panelList)],
+    ["panel-context-mode", shellState?.panels.find((p) => p.side === "context")?.mode ?? "unmounted"],
+    ["panel-context-axis", axisVerdict(accounting.panelContext)],
+    ["focus-state", focusLabel],
+    ["focus-axis", axisVerdict(accounting.focus)],
+  ];
+}
+
+function shellFocusOnOff(focus: boolean): "on" | "off" {
+  return focus ? "on" : "off";
 }
 
 /** The reach rows of the RESULT line. `-1` is the absent-counters arm (a pinned pre-#653 sample set) —
@@ -141,7 +168,14 @@ export async function runUiAudit(opts: Args): Promise<number> {
     }
     // Backdrops the DOM walk could not resolve are settled from real pixels BEFORE the browser closes —
     // the sampler needs the page still on screen at the scroll position the samples were read at.
-    const pixels = samples === null ? { samples: null, sampled: 0, refusals: [] as BackdropRefusal[] } : await resolvePixelBackdrops(session.page, samples);
+    const pixelPass = samples === null ? { samples: null, sampled: 0, refusals: [] as BackdropRefusal[] } : await resolvePixelBackdrops(session.page, samples);
+    // The FORCED-STATE pass runs LAST of the in-browser passes and only on a hover-capable environment:
+    // it holds `:hover` on one subject at a time over CDP, so nothing else may be sampling meanwhile.
+    // It releases everything it forced and then re-reads every candidate's rest state to prove it (see
+    // ops/hover.ts) — an audit whose later samples were taken through a stuck `:hover` is worse than one
+    // that never asked the question.
+    const hover = pixelPass.samples === null ? null : await resolveHoverStates(session.page, pixelPass.samples, browserEnvironment.actual.hover === "hover");
+    const pixels = hover === null ? pixelPass : { ...pixelPass, samples: hover.samples };
     const census = samples === null ? 0 : censusTotal(samples);
     const reach = pixels.samples?.censusReach;
     // The evidence arms: a walk that saw nothing — or one that reached no offered control — folds check
@@ -156,6 +190,16 @@ export async function runUiAudit(opts: Args): Promise<number> {
       return instrumentError(gap);
     }
 
+    // THE PANEL-AXIS DECLARE (#148 item 2): what shell configuration this run actually saw, read through
+    // the ONE reader `__orb.shell()` (agent-bridge.ts) already owns — never re-derived as a fresh DOM
+    // query here. Unguarded, same as `readBrowserEnvironment`/`resolvePixelBackdrops`/`collectAudit`
+    // above: by this point the gap check already proved the app mounted and the bridge is a dev-build
+    // guarantee, so a throw here is the same "the run itself is broken" class those calls already are —
+    // never a graceful per-request failure like the bridge NAV calls in `_shared/nav.ts`, which a probe
+    // legitimately drives against a possibly-stale/prod surface.
+    const shellState = (await session.page.evaluate("window.__orb ? window.__orb.shell() : null")) as ShellStateSnapshot | null;
+    const surfaceStateAccounting = buildSurfaceStateAccounting(shellState);
+
     // Uncaught page exceptions are findings in their own right (script-error, P0) — the probe
     // session's pageerror capture is wired from nav start (_shared/browser.ts wirePage).
     const audit = pixels.samples === null ? null : collectAudit(pixels.samples);
@@ -163,6 +207,17 @@ export async function runUiAudit(opts: Args): Promise<number> {
     const familyScans = audit === null ? null : audit.familyScans;
     const populationAccounting = audit === null ? {} : audit.populationAccounting;
     const populationGap = populationEvidenceGap(populationAccounting);
+    // A CHECKER THAT BROKE IS NOT A CLEAN SURFACE (#953). The coarse-pointer arm is genuinely
+    // not-applicable and stays silent; a forced-state pass that THREW is exit-2 class, and it is stated
+    // as its own gap so a reader can tell "this surface has no hover layer" from "we could not ask".
+    const hoverGap: EvidenceGap | null =
+      hover?.outcome.kind === "broke"
+        ? {
+            evidence: "forced-state pass",
+            detail: `${hover.outcome.reason} — the :hover census was supposed to run and BROKE, so hover-contrast has NO VERDICT on this surface`,
+          }
+        : null;
+    const evidenceGaps = [populationGap, hoverGap].filter((row): row is EvidenceGap => row !== null);
     findings.push(...checkScriptErrors(session.pageErrors));
     const counts = countBySeverity(findings);
     // An action that failed means the scan happened on the WRONG surface — that is a red run, not a clean
@@ -193,8 +248,13 @@ export async function runUiAudit(opts: Args): Promise<number> {
           censusReach: reach ?? null,
           obscuredRecentred: pixels.samples?.obscuredScan?.recentred ?? 0,
           obscuredUnaskable: pixels.samples?.obscuredScan?.subjects ?? [],
+          // The forced-state pass's own receipt: what it cost, what it could not hold, and whether every
+          // release verified. `null` = the pass did not run at all (ops/hover.ts).
+          hoverPass:
+            hover === null ? null : { outcome: hover.outcome, wallMs: hover.wallMs, subjectsForced: hover.subjectsForced, forceFailures: hover.forceFailures },
           populationAccounting,
           populationVerdict: populationGap === null ? "complete" : { verdict: "NO VERDICT", ...populationGap },
+          hoverVerdict: hoverGap === null ? "complete" : { verdict: "NO VERDICT", ...hoverGap },
           themeEvidence: {
             request: opts.theme,
             applied: settingsEvidence.themeApplied,
@@ -203,6 +263,12 @@ export async function runUiAudit(opts: Args): Promise<number> {
           },
           // The census's stability bracket (#808) — the artifact says what the RESULT line says.
           domPopulation: population,
+          // THE PANEL AXIS (#148 item 2): the ONE shell configuration this run measured, plus the
+          // candidates/judged/withheld/excluded census over every configuration it did not — the SAME
+          // accounting law `populationAccounting` above already carries for the rule population, one
+          // dimension up.
+          shellState,
+          surfaceStateAccounting,
         },
         null,
         2,
@@ -217,16 +283,20 @@ export async function runUiAudit(opts: Args): Promise<number> {
     print("");
     printCensusReach(reach);
     printObscuredScan(pixels.samples?.obscuredScan);
+    printSurfaceState(shellState, surfaceStateAccounting);
     printPopulationAccounting(populationAccounting);
-    if (populationGap !== null) {
-      printEvidenceGaps([populationGap]);
+    if (evidenceGaps.length > 0) {
+      printEvidenceGaps(evidenceGaps);
       print("");
     }
     printBackdropRefusals(pixels.refusals);
-    printFindingsTable(findings, populationGap === null);
+    for (const failure of hover?.forceFailures ?? []) {
+      print(`HOVER REFUSED ${failure}`);
+    }
+    printFindingsTable(findings, evidenceGaps.length === 0);
 
     let verdict: ExitCode = EXIT.clean;
-    if (populationGap !== null) {
+    if (evidenceGaps.length > 0) {
       verdict = EXIT.toolError;
     } else if (failed) {
       verdict = EXIT.violations;
@@ -254,6 +324,7 @@ export async function runUiAudit(opts: Args): Promise<number> {
         ["hover", browserEnvironment.actual.hover],
         ["touch", browserEnvironment.actual.hasTouch ? "yes" : "no"],
         ["environment-fails", browserEnvironment.mismatches.length],
+        ...surfaceStateRows(shellState, surfaceStateAccounting),
         ["population-verdict", populationGap === null ? "complete" : "NO-VERDICT"],
         ["tap-candidates", populationAccounting["tap-target"]?.candidates ?? -1],
         ["tap-judged", populationAccounting["tap-target"]?.judged ?? -1],
@@ -293,6 +364,18 @@ export async function runUiAudit(opts: Args): Promise<number> {
         ["obscured-scanned", pixels.samples?.obscuredScan?.candidates ?? -1],
         ["obscured-recentred", pixels.samples?.obscuredScan?.recentred ?? -1],
         ["obscured-unaskable", pixels.samples?.obscuredScan?.unaskable ?? -1],
+        // The FORCED-STATE denominator + its COST. `hover-judged=0` is only a verdict when a reader can
+        // see how many texts declare hover paint at all, how many subjects were actually held in :hover,
+        // and — the release proof — that every one of them read back identical afterwards.
+        ["hover-pass", hoverPassLabel(hover)],
+        ["hover-candidates", pixels.samples?.hoverScan?.census.candidates ?? -1],
+        ["hover-rules", pixels.samples?.hoverScan?.hoverRules ?? -1],
+        ["hover-judged", pixels.samples?.hoverScan?.census.judged ?? -1],
+        ["hover-subjects-forced", pixels.samples?.hoverScan?.subjectsForced ?? -1],
+        ["hover-not-restored", pixels.samples?.hoverScan?.notRestored ?? -1],
+        ["hover-sheets-unreadable", pixels.samples?.hoverScan?.sheetsUnreadable ?? -1],
+        ["hover-selectors-unparseable", pixels.samples?.hoverScan?.unparseableSelectors ?? -1],
+        ["hover-ms", hover?.wallMs ?? -1],
         ["px-backdrops", pixels.sampled],
         ["no-verdict", pixels.refusals.length],
         ["nav", navVerdict(navError, actionsFailed)],

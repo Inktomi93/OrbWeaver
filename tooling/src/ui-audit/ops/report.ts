@@ -3,7 +3,9 @@ import { print } from "@orb/tooling/_shared/artifacts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { Finding, PopulationAccounting, Severity } from "../contract/findings.ts";
 import type { CensusReachInput, ObscuredScanInput } from "../contract/samples.ts";
-import type { BackdropRefusal } from "../contract/types.ts";
+import type { SurfaceStateAccounting } from "../contract/surface-state.ts";
+import type { BackdropRefusal, ShellStateSnapshot } from "../contract/types.ts";
+import { surfaceStateAxisLabel } from "../lib/surface-state.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm design-audit");
 
@@ -141,6 +143,39 @@ export function printPopulationAccounting(accounting: PopulationAccounting): voi
   if (Object.keys(accounting).length > 0) {
     print("");
   }
+}
+
+/** The panel-axis declare + account (#148 item 2): the ONE shell configuration `__orb.shell()` read for
+ *  this run, then — same law as `printPopulationAccounting` above — every candidate this run did NOT
+ *  visit, named rather than silently folded into a clean-looking zero. A verdict that never prints this
+ *  cannot be told apart from one that measured every configuration. */
+function shellFocusLabel(shell: ShellStateSnapshot | null): string {
+  if (shell === null) {
+    return "unmounted";
+  }
+  return shell.focus ? "on" : "off";
+}
+
+export function printSurfaceState(shell: ShellStateSnapshot | null, accounting: SurfaceStateAccounting): void {
+  const listMode = shell?.panels.find((p) => p.side === "list")?.mode ?? "unmounted";
+  const contextMode = shell?.panels.find((p) => p.side === "context")?.mode ?? "unmounted";
+  print(`SHELL STATE  section=${shell?.section ?? "unmounted"} panel-list=${listMode} panel-context=${contextMode} focus=${shellFocusLabel(shell)}`);
+  for (const [axis, census] of [
+    ["panel-list", accounting.panelList],
+    ["panel-context", accounting.panelContext],
+    ["focus", accounting.focus],
+  ] as const) {
+    const withheld = Object.entries(census.withheld)
+      .map(([reason, count]) => `${reason}=${String(count)}`)
+      .join(" ");
+    const excluded = Object.entries(census.excluded)
+      .map(([reason, count]) => `${reason}=${String(count)}`)
+      .join(" ");
+    print(
+      `SURFACE-AXIS ${axis} candidates=${String(census.candidates)} judged=${String(census.judged)} withheld(${withheld}) excluded(${excluded}) — ${surfaceStateAxisLabel(census)}`,
+    );
+  }
+  print("");
 }
 
 export function printFindingsTable(findings: readonly Finding[], complete = true): void {

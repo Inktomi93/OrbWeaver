@@ -7,6 +7,7 @@
 // control — a green that cannot fail is not a fence.
 
 import type { Rgb } from "@orb/tooling/_shared/wcag";
+import type { HoverContrastInput, HoverScanInput } from "../../../tooling/src/ui-audit/contract/samples-hover.ts";
 import type {
   AccentBorderInput,
   ActionDoorInput,
@@ -60,6 +61,7 @@ import {
   parseAuditArgs,
   TEXT_MICRO_PX,
 } from "../../../tooling/src/ui-audit/index.ts";
+import { checkHoverContrast, hoverContrastPopulations } from "../../../tooling/src/ui-audit/lib/checks-hover.ts";
 import { collectAudit } from "../../../tooling/src/ui-audit/lib/collect.ts";
 import { populationEvidenceGap, settledPopulationAccounting } from "../../../tooling/src/ui-audit/lib/population.ts";
 import { expect, test } from "../../support/tool-fixtures.ts";
@@ -87,10 +89,10 @@ type Assert<Condition extends true> = Condition;
 type ContrastSeverityIsOnlyP1 = Assert<Equal<Extract<Finding, { readonly rule: "contrast" }>["severity"], "P1">>;
 const CONTRAST_SEVERITY_IS_ONLY_P1: ContrastSeverityIsOnlyP1 = true;
 
-test("the design-audit rule denominator is closed at the 51 live ids", () => {
+test("the design-audit rule denominator is closed at the 56 live ids", () => {
   expect(CONTRAST_SEVERITY_IS_ONLY_P1).toBe(true);
-  expect(DESIGN_AUDIT_RULES).toHaveLength(51);
-  expect(new Set(DESIGN_AUDIT_RULES.map((rule) => rule.id)).size).toBe(51);
+  expect(DESIGN_AUDIT_RULES).toHaveLength(56);
+  expect(new Set(DESIGN_AUDIT_RULES.map((rule) => rule.id)).size).toBe(56);
   expect(DESIGN_AUDIT_RULES.filter((rule) => rule.id === "side-tab" || rule.id === "border-accent-on-rounded")).toHaveLength(2);
   expect(DESIGN_AUDIT_RULES.map(({ id, severity }) => `${id}:${severity.join("/")}`)).toEqual([
     "tap-target:P1/P2",
@@ -102,6 +104,7 @@ test("the design-audit rule denominator is closed at the 51 live ids", () => {
     "skipped-heading:P2",
     "text-over-art:P0/P1",
     "contrast:P1",
+    "hover-contrast:P1",
     "inactive-control-legibility:P3",
     "gray-on-color:P2",
     "border-accent-on-rounded:P3",
@@ -123,6 +126,8 @@ test("the design-audit rule denominator is closed at the 51 live ids", () => {
     "edge-flush-cards:P3",
     "script-error:P0",
     "duplicate-action-door:P3",
+    "headline-overhang:P2",
+    "inline-padding-leak:P1",
     "z-index-escalation:P2/P3",
     "nested-card:P3",
     "gradient-text:P3",
@@ -144,6 +149,8 @@ test("the design-audit rule denominator is closed at the 51 live ids", () => {
     "caveat-outweighed:P2",
     "off-theme-font:P2",
     "flat-type-hierarchy:P3",
+    "buried-raster:P1",
+    "tier-drift:P2",
   ]);
 });
 
@@ -1351,6 +1358,22 @@ auditRuleTest(
   },
 );
 
+test("the walker's `sanctioned` verdict short-circuits an otherwise-firing glow, and only for that sample", () => {
+  // The flag now carries TWO derivations (ops/walker/census-decor.ts): an owner effect carrier
+  // (`SANCTIONED_GLOW_SEL`) and — for a `::before`/`::after` sample only — the house layered-glow
+  // discipline. Both arrive here as one boolean on purpose; a parallel flag would be a second home for
+  // one question. The derivation itself is pinned in ops/walker/census-glow.int.test.ts, where a real
+  // browser can see a pseudo-element at all.
+  const input = {
+    selector: "#focal::before",
+    boxShadow: "oklch(0.72 0.175 52 / 0.4) 0px 0px 18px 0px",
+    textShadow: "",
+    backdropColor: { r: 10, g: 10, b: 12 },
+  } as const;
+  expect(checkGlowShadow({ ...input, sanctioned: true })).toBeNull();
+  expect(checkGlowShadow({ ...input, sanctioned: false })?.rule).toBe("glow-shadow");
+});
+
 // ── radial washes (impeccable radial-halo / radial-spotlight-glow) ───────────
 
 auditRuleTest(
@@ -2045,11 +2068,14 @@ test("collectFindings on an all-clean bundle (incl. a present main landmark) ret
 test("family populations are the exact detector dispatches, including both decor detectors", () => {
   expect(collectAudit(EMPTY_SAMPLES).familyScans).toEqual({
     a11y: 7,
-    color: 3,
+    // 4 since the forced-state family joined colour: contrast · gray-on-color · quiet-state · hover-contrast.
+    color: 4,
     decor: 2,
-    media: 2,
+    // 3 since buried-raster joined media: distorted-image · broken-image · buried-raster.
+    media: 3,
     ornament: 4,
-    quality: 7,
+    // 10 since the two text-occlusion arms (headline-overhang · inline-padding-leak) and tier-drift joined.
+    quality: 10,
     structure: 8,
     typography: 3,
   });
@@ -2087,4 +2113,143 @@ test("--mobile selects a coarse-pointer DEVICE, not a narrow viewport; --viewpor
   expect(parseAuditArgs(["/", "--mobile", "--viewport", "800x600"]).device).toBeNull();
   expect(parseAuditArgs(["/", "--mobile", "--desktop"]).device).toBeNull();
   expect(parseAuditArgs(["/"]).device).toBeNull();
+});
+
+// ── hover-contrast (the FORCED-STATE family) ──────────────────────────────────
+// The rule impeccable emits under its EXISTING `low-contrast` id, which is why our 59-rule adoption
+// triage never saw it. Samples come from ops/hover.ts's CDP pass; everything below is the pure half.
+
+function hoverSample(over: Partial<HoverContrastInput> = {}): HoverContrastInput {
+  return {
+    selector: "nav[data-slot=nav-links] > a.cta",
+    subjectSelector: "nav[data-slot=nav-links] > a.cta",
+    // Rest: white on near-black — comfortably legible, so `contrast` files nothing.
+    restColor: WHITE,
+    restBackdrop: NEAR_BLACK,
+    // Hover: the classic override — a broader `.nav-links a:hover` wins and swaps in a pale plate.
+    hoverColor: LIGHT_GRAY,
+    hoverBackdrop: FLAT_WHITE,
+    fontSizePx: 14,
+    fontWeight: 400,
+    foregroundOpacity: 1,
+    inactive: "none",
+    transitionCoversPaint: false,
+    transitionDurationMs: 0,
+    ...over,
+  };
+}
+
+function hoverScan(over: Partial<HoverScanInput["census"]> = {}, rest: Partial<Omit<HoverScanInput, "census">> = {}): HoverScanInput {
+  return {
+    census: { candidates: 1, judged: 1, withheld: {}, excluded: {}, ...over },
+    sheetsRead: 4,
+    sheetsUnreadable: 0,
+    hoverRules: 17,
+    unparseableSelectors: 0,
+    subjectsForced: 1,
+    notRestored: 0,
+    ...rest,
+  };
+}
+
+auditRuleTest(
+  [{ rule: "hover-contrast", kind: "fires", reason: "a CTA legible at rest drops to a pale plate under a broader :hover selector" }],
+  "hover-contrast fires when the hover pair fails WCAG on a control that passes at rest",
+  () => {
+    const finding = checkHoverContrast(hoverSample());
+
+    expect(finding?.rule).toBe("hover-contrast");
+    expect(finding?.severity).toBe("P1");
+    expect(finding?.origin).toBe("impeccable");
+    // The value states BOTH states: a hover ratio alone reads as an ordinary contrast row.
+    expect(finding?.value).toContain("hovered");
+    expect(finding?.value).toContain("rest");
+  },
+);
+
+auditRuleTest(
+  [{ rule: "hover-contrast", kind: "silent", reason: "the nearest legitimate neighbour — a control that changes colour on hover and stays above the floor" }],
+  "hover-contrast is silent when the hover pair clears the floor",
+  () => {
+    // Same shape, same mechanism, legible outcome: dark ink on the pale hover plate.
+    expect(checkHoverContrast(hoverSample({ hoverColor: BLACK }))).toBeNull();
+  },
+);
+
+test("hover-contrast never double-reports an element that already fails at REST — that row is contrast's", () => {
+  // Rest is 1.5:1 already; `contrast` owns it. The hover pair here fails TOO (and differs from rest, so
+  // the no-change arm cannot be what silences it) — filing it would hand a reviewer the same defect under
+  // two ids and two denominators.
+  const alreadyBad = hoverSample({ restColor: LIGHT_GRAY, restBackdrop: FLAT_WHITE, hoverColor: { r: 200, g: 200, b: 200 } });
+
+  expect(checkHoverContrast(alreadyBad)).toBeNull();
+  expect(hoverContrastPopulations([alreadyBad], hoverScan()).excluded["restAlreadyFails"]).toBe(1);
+});
+
+test("a control with NO hover paint is EXCLUDED from the hover denominator, never judged", () => {
+  // The walker prefilter resolved 10 visible texts and found hover paint on 1 of them. The other 9 are a
+  // measured fact about this surface, not nine silent passes.
+  const row = hoverContrastPopulations([hoverSample({ hoverColor: BLACK })], hoverScan({ candidates: 10, excluded: { noHoverPaint: 9 } }));
+
+  expect(row.candidates).toBe(10);
+  expect(row.excluded["noHoverPaint"]).toBe(9);
+  expect(row.judged).toBe(1);
+  expect(row.affected).toBe(0);
+  // Exclusions are denominator evidence and never make the run partial.
+  expect(populationEvidenceGap({ "hover-contrast": row })).toBeNull();
+});
+
+test("a subject whose :hover could NOT be forced is WITHHELD, and the run says so out loud", () => {
+  // ops/hover.ts buckets a group whose force or read threw as `forceFailed`. A withheld candidate is the
+  // instrument admitting it could not judge, which is a NO VERDICT — never a quieter clean number.
+  const row = hoverContrastPopulations(
+    [hoverSample({ hoverColor: BLACK })],
+    hoverScan({ candidates: 10, judged: 1, withheld: { forceFailed: 2 }, excluded: { noHoverPaint: 7 } }),
+  );
+
+  expect(row.withheld["forceFailed"]).toBe(2);
+  expect(populationEvidenceGap({ "hover-contrast": row })?.detail).toContain("hover-contrast: forceFailed=2");
+});
+
+test("a hover pair identical to the rest pair is excluded — there is no second state to judge", () => {
+  const unchanged = hoverSample({ hoverColor: WHITE, hoverBackdrop: NEAR_BLACK });
+
+  expect(checkHoverContrast(unchanged)).toBeNull();
+  expect(hoverContrastPopulations([unchanged], hoverScan()).excluded["noHoverChange"]).toBe(1);
+});
+
+test("an identical pair whose OWN transition covers the paint is a DIFFERENT exclusion — the forced read may just be too fast", () => {
+  // Same identical-pair shape as above, but the painted element declares a live color transition. This
+  // is the #detector-adapt blind spot: the forced read happens at t≈0, before the transition advances, so
+  // it cannot tell "no hover paint" from "hover paint arrives after the instant we looked". Splitting the
+  // reason keeps that ambiguity out of the plain `noHoverChange` bucket instead of silently merging it in.
+  const transitioning = hoverSample({ hoverColor: WHITE, hoverBackdrop: NEAR_BLACK, transitionCoversPaint: true, transitionDurationMs: 300 });
+
+  expect(checkHoverContrast(transitioning)).toBeNull();
+  const row = hoverContrastPopulations([transitioning], hoverScan());
+  expect(row.excluded["noHoverChangeButTransitioned"]).toBe(1);
+  expect(row.excluded["noHoverChange"]).toBeUndefined();
+});
+
+test("a transition declared but at ZERO duration is the plain noHoverChange bucket — no race to be blind to", () => {
+  const zeroDuration = hoverSample({ hoverColor: WHITE, hoverBackdrop: NEAR_BLACK, transitionCoversPaint: true, transitionDurationMs: 0 });
+
+  const row = hoverContrastPopulations([zeroDuration], hoverScan());
+  expect(row.excluded["noHoverChange"]).toBe(1);
+  expect(row.excluded["noHoverChangeButTransitioned"]).toBeUndefined();
+});
+
+test("the hover pass losing a sample between its phases is an INSTRUMENT ERROR, not a smaller denominator", () => {
+  expect(() => hoverContrastPopulations([], hoverScan({ candidates: 1, judged: 1 }))).toThrow("INSTRUMENT ERROR");
+});
+
+test("no forced-state pass means NO hover-contrast row at all — absent is not a clean-looking zero", () => {
+  const withoutPass = collectAudit(EMPTY_SAMPLES);
+  const withPass = collectAudit({ ...EMPTY_SAMPLES, hoverStates: [hoverSample()], hoverScan: hoverScan() });
+
+  expect(withoutPass.populationAccounting["hover-contrast"]).toBeUndefined();
+  expect(withPass.populationAccounting["hover-contrast"]?.candidates).toBe(1);
+  expect(withPass.findings.filter(({ rule }) => rule === "hover-contrast")).toHaveLength(1);
+  // The forced-state family rides the SAME closed dispatcher as the rest of colour, so its scan counts.
+  expect(withPass.familyScans.color).toBeGreaterThan(withoutPass.familyScans.color - 1);
 });

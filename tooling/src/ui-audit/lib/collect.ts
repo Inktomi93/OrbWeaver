@@ -20,8 +20,13 @@
 // | 1 | nullableFindings          | most rules (landmark-missing, script-error, flat-type-hierarchy, ...) |
 // | 2 | accountedFindings         | quiet-state, double-empty-state, selection-idiom |
 // | 3 | cappedRelationalFindings  | cohort-anatomy, row-void, pane-ink |
-// | 4 | decisionPopulationFindings| tap-target, obscured-target, truncated-to-nothing, text-below-ramp, undersized-ui-text |
+// | 4 | decisionPopulationFindings| tap-target, obscured-target, truncated-to-nothing, headline-overhang, inline-padding-leak, text-below-ramp, undersized-ui-text |
 // Exception: duplicate-action-door has accounting via its OWN checkDuplicateDoorPopulations, not one of the four functions above (checks-quality.ts).
+// Exception: hover-contrast likewise — hoverContrastPopulations (checks-hover.ts) MERGES a Node/CDP pass's
+// census with the check's own dispositions, because its samples are gathered outside COLLECT_SAMPLES_JS.
+// Exception: buried-raster likewise — checkBuriedRasterPopulations (checks-media.ts) owns its own
+// candidates/judged/excluded(opacity-transition) accounting; the population is walker-gathered raster
+// carriers with no upstream relational census to join.
 import type { Finding, PopulationAccounting } from "../contract/findings.ts";
 import type { DesignAuditRuleFamily } from "../contract/rules.ts";
 import { DESIGN_AUDIT_RULE_FAMILIES } from "../contract/rules.ts";
@@ -37,15 +42,19 @@ import {
 } from "./checks-a11y.ts";
 import { checkContrast, checkGrayOnColor, checkQuietState, colorTextPopulations } from "./checks-color.ts";
 import { checkAccentBorder, checkGlowShadow } from "./checks-decor.ts";
-import { checkBrokenImage, checkImageDistortion } from "./checks-media.ts";
+import { checkHoverContrast, hoverContrastPopulations } from "./checks-hover.ts";
+import { checkBrokenImage, checkBuriedRasterPopulations, checkImageDistortion } from "./checks-media.ts";
 import { checkBgPattern, checkIconTile, checkMotionStatic, checkRadialGlow } from "./checks-ornament.ts";
 import {
   checkClippedOverflow,
   checkDoubleEmptyState,
   checkDuplicateDoorPopulations,
   checkEdgeFlush,
+  checkHeadlineOverhang,
+  checkInlinePaddingLeak,
   checkRepeatedText,
   checkTextOverflow,
+  checkTierDrift,
   checkTruncatedText,
 } from "./checks-quality.ts";
 import {
@@ -132,10 +141,22 @@ function colorFindings(samples: RawSamples): FamilyCheckResult {
     census: samples.relationalAccounting?.["quiet-state"],
     samplesAreJudged: true,
   });
+  // The FORCED-STATE family (ops/hover.ts). Its samples come from their own CDP-driven pass, so an absent
+  // `hoverScan` is "the pass did not run" and publishes NO row — never a zero that reads as "checked".
+  const hoverScan = samples.hoverScan;
+  const hoverStates = samples.hoverStates ?? [];
   runArray(state, () => nullableFindings(samples.texts, checkContrast));
   runArray(state, () => nullableFindings(samples.texts, checkGrayOnColor));
   runArray(state, () => quiet.findings);
-  return { ...state, populationAccounting: { ...colorTextPopulations(samples.texts), "quiet-state": quiet.accounting } };
+  runArray(state, () => nullableFindings(hoverStates, checkHoverContrast));
+  return {
+    ...state,
+    populationAccounting: {
+      ...colorTextPopulations(samples.texts),
+      "quiet-state": quiet.accounting,
+      ...(hoverScan === undefined ? {} : { "hover-contrast": hoverContrastPopulations(hoverStates, hoverScan) }),
+    },
+  };
 }
 
 function decorFindings(samples: RawSamples): FamilyCheckResult {
@@ -147,9 +168,11 @@ function decorFindings(samples: RawSamples): FamilyCheckResult {
 
 function mediaFindings(samples: RawSamples): FamilyCheckResult {
   const state = emptyFamilyResult();
+  const buriedRasters = checkBuriedRasterPopulations(samples.buriedRasters ?? []);
   runArray(state, () => nullableFindings(samples.images, checkImageDistortion));
   runArray(state, () => samples.brokenImages.map(checkBrokenImage));
-  return state;
+  runArray(state, () => buriedRasters.findings);
+  return { ...state, populationAccounting: { "buried-raster": buriedRasters.accounting } };
 }
 
 function ornamentFindings(samples: RawSamples): FamilyCheckResult {
@@ -161,6 +184,14 @@ function ornamentFindings(samples: RawSamples): FamilyCheckResult {
   return state;
 }
 
+/** The rung-4 grouping key every authored-identity family in this file uses: the authored target paired
+ *  with its position-free home, NUL-joined so neither part can forge the boundary. Falls back to the
+ *  selector for sample bundles that predate authored identity (#989), which groups per instance — the
+ *  pre-#989 behavior — rather than collapsing unrelated rows under a shared `undefined`. */
+function authoredDecisionKey(input: { readonly selector: string; readonly authoredTarget?: string; readonly authoredHome?: string }): string {
+  return `${input.authoredTarget ?? input.selector}\u0000${input.authoredHome ?? input.selector}`;
+}
+
 function qualityFindings(samples: RawSamples): FamilyCheckResult {
   const state = emptyFamilyResult();
   const duplicateDoors = checkDuplicateDoorPopulations(samples.actionDoors ?? []);
@@ -169,8 +200,26 @@ function qualityFindings(samples: RawSamples): FamilyCheckResult {
     samplesAreJudged: true,
   });
   const truncated = decisionPopulationFindings("truncated-to-nothing", samples.truncatedTexts ?? [], checkTruncatedText, {
-    decisionKey: (input) => `${input.authoredTarget ?? input.selector}\u0000${input.authoredHome ?? input.selector}`,
+    decisionKey: authoredDecisionKey,
     census: samples.relationalAccounting?.["truncated-to-nothing"],
+  });
+  // The two PLACEMENT-COLLISION arms (#816 ii/iii). Rung 4 rather than rung 2 because both repeat by
+  // AUTHORED DECISION, not by instance: one misapplied `tv()` slot leaks on every row it renders, and
+  // filing that per row would bury the single fix under its own blast radius.
+  const overhangs = decisionPopulationFindings("headline-overhang", samples.headlineOverhangs ?? [], checkHeadlineOverhang, {
+    decisionKey: authoredDecisionKey,
+    census: samples.relationalAccounting?.["headline-overhang"],
+  });
+  const paddingLeaks = decisionPopulationFindings("inline-padding-leak", samples.inlinePaddingLeaks ?? [], checkInlinePaddingLeak, {
+    decisionKey: authoredDecisionKey,
+    census: samples.relationalAccounting?.["inline-padding-leak"],
+  });
+  // The density-tier self-oracle (packages/ui/src/styles/tiers.css): every judged (element, property)
+  // pair, passing or failing, is returned — accountedFindings' samplesAreJudged=true requires the items
+  // array to equal the census's own judged count.
+  const tierDrift = accountedFindings("tier-drift", samples.tierDrifts ?? [], checkTierDrift, {
+    census: samples.relationalAccounting?.["tier-drift"],
+    samplesAreJudged: true,
   });
   runArray(state, () => duplicateDoors.findings);
   runArray(state, () => samples.overflows.map(checkTextOverflow));
@@ -182,11 +231,17 @@ function qualityFindings(samples: RawSamples): FamilyCheckResult {
   // census; the collector still publishes a derived zero row so reports never confuse absence with an
   // unreported population contract.
   runArray(state, () => truncated.findings);
+  runArray(state, () => overhangs.findings);
+  runArray(state, () => paddingLeaks.findings);
+  runArray(state, () => tierDrift.findings);
   return {
     ...state,
     populationAccounting: {
       "double-empty-state": emptyStates.accounting,
       "duplicate-action-door": duplicateDoors.accounting,
+      "headline-overhang": overhangs.accounting,
+      "inline-padding-leak": paddingLeaks.accounting,
+      "tier-drift": tierDrift.accounting,
       "truncated-to-nothing": truncated.accounting,
     },
   };

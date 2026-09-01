@@ -1,6 +1,8 @@
 // Copy-surface quality: text overflow, TEXT TRUNCATED TO NOTHING (#816), repeated container text,
 // clipped positioned children, edge-flush scroller cards, uncaught page errors, duplicate action doors
-// (the runtime half of issue #252). Pure. Provenance: lib/collect.ts header.
+// (the runtime half of issue #252), and the two PLACEMENT-COLLISION arms — a display headline
+// overhanging an opaque card, and an `inline` element whose padding leaks off its line (#816 arms ii and
+// iii; their walker is ops/walker/census-occlusion.ts). Pure. Provenance: lib/collect.ts header.
 import type { Finding, RulePopulationAccounting } from "../contract/findings.ts";
 import type {
   ActionDoorInput,
@@ -11,7 +13,48 @@ import type {
   TextOverflowInput,
   TruncatedTextInput,
 } from "../contract/samples.ts";
+import type { HeadlineOverhangInput, InlinePaddingLeakInput } from "../contract/samples-occlusion.ts";
+import type { TierDriftInput } from "../contract/samples-populations.ts";
 import { settledPopulationAccounting } from "./population.ts";
+
+/** TWO LAYERS ON ONE SET OF PIXELS (#816 arm ii). The walker has already proven the whole shape — an
+ *  opaque bordered card, a display-scale line whose CENTRE is outside it, an overlap of at most half the
+ *  line's width, and both in the same paint layer — so this is a pass-through with the reader's message
+ *  on it.
+ *
+ *  P2 and not P1: the headline usually still paints on top and stays readable, so nothing is lost the way
+ *  `truncated-to-nothing` loses a label. It is the positioned arm of `clipped-overflow`'s class — a
+ *  composition smell that says the placement was never composed — and it carries the same severity. */
+export function checkHeadlineOverhang(input: HeadlineOverhangInput): Finding {
+  return {
+    rule: "headline-overhang",
+    severity: "P2",
+    selector: input.selector,
+    value: `${input.overlapPx}px of ${input.widthPx}px overlaps ${input.cardSelector} ("${input.text}")`,
+    message: `a ${input.fontSizePx}px display line sits mostly outside ${input.cardSelector} while its edge clips into it — the line and the card were placed onto the same pixels rather than composed, so the overlap moves with every width. Give the headline its own row, or let it start inside the card. VIEWPORT-BOUND: both rects are read at the scroll position of the walk, so this arm answers for the measured viewport only`,
+    origin: "impeccable",
+  };
+}
+
+/** PADDING THAT RESERVES NOTHING (#816 arm iii). `display: inline` does not grow its line for vertical
+ *  padding, so an opaque inline fill with block-scale padding paints OUTSIDE its own line and lands on
+ *  the lines above and below. Every other rule here is blind to it: the element's contrast, geometry and
+ *  hit test are all correct, and the victim is whatever happens to be on the neighbouring lines.
+ *
+ *  P1, the `truncated-to-nothing` bar: an opaque box painted over adjacent copy destroys reading, and
+ *  in our closed world the cause is a variant misapplication — a `tv()` slot handed a block's padding —
+ *  which means the fix is one authored decision and the blast radius is every render of that slot. */
+export function checkInlinePaddingLeak(input: InlinePaddingLeakInput): Finding {
+  const onto = input.ontoSelector === "" ? "" : ` onto ${input.ontoSelector}`;
+  return {
+    rule: "inline-padding-leak",
+    severity: "P1",
+    selector: input.selector,
+    value: `${input.paintedHeightPx}px painted over a ${input.lineHeightPx}px line (${input.paddingPx}px vertical padding)`,
+    message: `this element is \`display: inline\` with an opaque background and ${input.paddingPx}px of vertical padding — inline padding reserves NO vertical space, so the fill paints ${input.paintedHeightPx}px past its own line${onto} instead of enclosing its text. Almost always a variant misapplication: a slot receiving padding authored for a block. Give it \`inline-block\`/\`inline-flex\` if the padded box is wanted, or take the block padding off the inline slot`,
+    origin: "impeccable",
+  };
+}
 
 /** TRUNCATED WITH NOTHING TO SHOW FOR IT (#825). The walker has already excluded every truncation that
  *  paints an ellipsis or carries the full value in a title/aria-label, so this finding is only ever about
@@ -275,6 +318,38 @@ export function checkDoubleEmptyState(input: EmptyStateInput): Finding | null {
     message: crowded
       ? "more than one pane of this surface is empty at the same time, so the panes give separate — and often contradictory — guidance: one says how to create the first item while the other tells you to pick one from a list that has none. When the list is empty the content pane should mirror the list's guidance, not point at it"
       : "an empty state offers no action — a pane that says there is nothing here and gives no door out is a dead end; every empty state owes its primary action",
+    origin: "orbweaver",
+  };
+}
+
+/** SUB-PIXEL TOLERANCE, not a threshold — this rule invents no legal-vs-illegal boundary (the SOURCE-side
+ *  gates already prove the AUTHORED value is a token; this only proves the RESOLVED pixel matches it).
+ *  Precedent: lib/ramp.ts's `LEADING_FLOOR_EPSILON` (0.005 on a leading ratio, justified by Chrome's
+ *  truncated `getComputedStyle` string). A rem→px conversion off the live root font-size introduces the
+ *  same class of float noise, so 0.5px covers it with margin while staying far under any real drift (the
+ *  ramp's steps are \>=4px apart). Leading is compared on the 0-2 RATIO scale the tokens author in
+ *  (census-tier.ts already normalizes both sides), so it needs its own, proportionally larger floor. */
+const TIER_DRIFT_EPSILON_PX = 0.5;
+const TIER_DRIFT_EPSILON_RATIO = 0.02;
+
+/** DID THE RESOLVED PIXEL MATCH THE TIER MAP (packages/ui/src/styles/tiers.css)? The walker has already
+ *  proven both halves of the question — the SANCTIONED custom-property value the surface's declared tier
+ *  carries for this slot, and the PAINTED computed-style value that actually reached the screen — so this
+ *  is the one place either an inline style beating the unlayered tier rule, or a broken
+ *  `--orb-tier-*` chain silently falling back to a utility default, becomes visible. Neither failure mode
+ *  is reachable from a source-side scan: the AUTHORED value in both cases can be a perfectly legal token,
+ *  and the divergence only exists at resolved-pixel time. */
+export function checkTierDrift(input: TierDriftInput): Finding | null {
+  const epsilon = input.unit === "ratio" ? TIER_DRIFT_EPSILON_RATIO : TIER_DRIFT_EPSILON_PX;
+  if (Math.abs(input.sanctionedValue - input.paintedValue) <= epsilon) {
+    return null;
+  }
+  return {
+    rule: "tier-drift",
+    severity: "P2",
+    selector: input.selector,
+    value: `${input.property} painted "${input.paintedRaw}" vs tier "${input.tier}"'s ${input.varName}="${input.sanctionedRaw}" on [data-slot=${input.slot}]`,
+    message: `this slot declares tier="${input.tier}" but its resolved ${input.property} does not match the tier map's ${input.varName} — an inline style or an off-tier utility is beating the unlayered tier rule (tiers.css is deliberately unlayered so it always wins), or the custom-property chain is broken and the slot silently fell back to its tier-less default. Resolve the ${input.property} to the tier map, or add the opt-in that is meant to outrank it`,
     origin: "orbweaver",
   };
 }

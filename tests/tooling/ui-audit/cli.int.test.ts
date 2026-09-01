@@ -1536,3 +1536,299 @@ auditRuleTest(
     );
   },
 );
+
+// ── hover-contrast (#the forced-state pass) ────────────────────────────────────────────────────────
+// These are the plants that a PURE fixture structurally cannot be: `CSS.forcePseudoState` is a CDP
+// round trip against a real Chromium, so the only honest proof that the pass forces, reads and — the
+// part that matters — RELEASES is to drive the real cli over a real page. A stuck `:hover` would
+// silently corrupt every later sample in the run, so the release is asserted here every time.
+//
+// Every fixture pads its anchor past the 24px pointer:fine tap floor, so the only P1 in play is the
+// planted contrast defect and the exit code means what it says.
+
+/** `hover-*` rows of the RESULT line — the forced-state denominator and its cost. */
+function hoverRow(stdout: string, key: string): string {
+  // Token-split rather than a capture group: biome's type service reads `RegExp.exec` as non-nullish
+  // here and rejects every guard tsc requires, so the machine line is read the way it is written.
+  const prefix = `hover-${key}=`;
+  const token = stdout.split(/\s+/u).find((word) => word.startsWith(prefix));
+  return token === undefined ? "ABSENT" : token.slice(prefix.length);
+}
+
+interface HoverPopulationReport {
+  readonly findings: readonly { readonly rule: string; readonly selector: string; readonly value: string }[];
+  readonly populationAccounting?: {
+    readonly "hover-contrast"?: {
+      readonly candidates: number;
+      readonly judged: number;
+      readonly affected: number;
+      readonly withheld: Readonly<Record<string, number>>;
+      readonly excluded: Readonly<Record<string, number>>;
+    };
+  };
+  readonly hoverPass: { readonly outcome: { readonly kind: string }; readonly subjectsForced: number; readonly forceFailures: readonly string[] } | null;
+}
+
+/** A nav CTA that reads cleanly at rest. `hoverRule` is whatever the broader selector wins with. */
+function hoverPage(hoverRule: string): string {
+  return `<!doctype html>
+<html data-app-ready="settled"><head><meta charset="utf-8"><title>hover</title><style>
+  body { margin: 0; background: #101010; color: #ffffff; font-size: 16px }
+  a.cta { display: inline-block; padding: 14px 18px; color: #ffffff; background: #101010; text-decoration: none }
+  ${hoverRule}
+</style></head>
+<body><main><nav class="nav-links"><a class="cta" href="#">Continue the story</a></nav>
+<p style="padding:12px">a paragraph that no hover rule touches at all</p></main></body></html>`;
+}
+
+auditRuleTest(
+  [{ rule: "hover-contrast", kind: "fires", reason: "a real forced :hover swaps in a pale plate the CTA is illegible on, driven through the real cli" }],
+  "a planted HOVER-ONLY contrast defect REDs the audit through the real cli and real CDP",
+  async ({ runCli, scratch }) => {
+    // White on #101010 at rest (19:1). Under `.nav-links a:hover` the broader selector wins and the pair
+    // becomes #d2d2d2 on white — 1.5:1, and invisible to every rest-state rule in this instrument.
+    const reportPath = join(scratch, "hover-fires.json");
+    await writeFile(join(scratch, "hover-fires.html"), hoverPage(".nav-links a:hover { color: #d2d2d2; background: #ffffff }"));
+    const res = await runCli("ui-audit", ["/hover-fires.html", "--base", `file://${scratch}`, "--out", reportPath], { timeoutMs: CLI_TIMEOUT_MS });
+    const report = JSON.parse(await readFile(reportPath, "utf8")) as HoverPopulationReport;
+
+    const hover = report.findings.filter(({ rule }) => rule === "hover-contrast");
+    expect(hover).toHaveLength(1);
+    expect(hover[0]?.value).toContain("hovered");
+    // The REST state is clean — this defect is reachable only with the pointer on the control, which is
+    // exactly the mechanism the rest-state contrast family is blind to.
+    expect(report.findings.filter(({ rule }) => rule === "contrast")).toHaveLength(0);
+    expect(report.hoverPass?.outcome.kind).toBe("ran");
+    expect(report.hoverPass?.forceFailures).toEqual([]);
+    expect(Number(hoverRow(res.stdout, "subjects-forced"))).toBeGreaterThan(0);
+    await expect(res).toExitWith(1);
+  },
+);
+
+auditRuleTest(
+  [{ rule: "hover-contrast", kind: "silent", reason: "the nearest legitimate neighbour — the same CTA whose hover pair stays above the floor" }],
+  "the hover twin exits clean, and the untouched paragraph is EXCLUDED rather than counted as a pass",
+  async ({ runCli, scratch }) => {
+    const reportPath = join(scratch, "hover-passes.json");
+    await writeFile(join(scratch, "hover-passes.html"), hoverPage(".nav-links a:hover { color: #101010; background: #ffffff }"));
+    const res = await runCli("ui-audit", ["/hover-passes.html", "--base", `file://${scratch}`, "--out", reportPath], { timeoutMs: CLI_TIMEOUT_MS });
+    const report = JSON.parse(await readFile(reportPath, "utf8")) as HoverPopulationReport;
+    const row = report.populationAccounting?.["hover-contrast"];
+
+    expect(report.findings.filter(({ rule }) => rule === "hover-contrast")).toEqual([]);
+    // JUDGED, not skipped: the CTA's hover pair really was forced and measured. A silent rule whose
+    // denominator is zero is a rule that never ran.
+    expect(row?.judged).toBeGreaterThan(0);
+    // …and the paragraph, which no hover rule reaches, is a stated exclusion rather than a silent pass.
+    expect(row?.excluded["noHoverPaint"]).toBeGreaterThan(0);
+    expect(row?.affected).toBe(0);
+    expect(hoverRow(res.stdout, "pass")).toBe("ok");
+    await expect(res).toExitWith(0);
+  },
+);
+
+test("every forced :hover is RELEASED — the rest verdict is identical with the pass and without it", async ({ runCli, scratch }) => {
+  // THE POISON CASE. Forcing is a page-wide mutation: one `:hover` left on corrupts every later sample in
+  // the run, and the corruption looks like a real finding. So this fixture plants a REST-state contrast
+  // defect on a paragraph AND a hover rule on a neighbouring CTA. The paragraph's verdict must be exactly
+  // what it would be if the hover pass did not exist, and the pass's own re-read must find nothing stuck.
+  const reportPath = join(scratch, "hover-release.json");
+  await writeFile(
+    join(scratch, "hover-release.html"),
+    `<!doctype html>
+<html data-app-ready="settled"><head><meta charset="utf-8"><title>release</title><style>
+  body { margin: 0; background: #101010; color: #ffffff; font-size: 16px }
+  a.cta { display: inline-block; padding: 14px 18px; color: #ffffff; background: #101010; text-decoration: none }
+  .nav-links a:hover { color: #d2d2d2; background: #ffffff }
+  p.dim { color: #111111; background: #101010; padding: 12px }
+</style></head>
+<body><main><nav class="nav-links"><a class="cta" href="#">Continue the story</a></nav>
+<p class="dim">this line is unreadable at rest and stays that way</p></main></body></html>`,
+  );
+  const res = await runCli("ui-audit", ["/hover-release.html", "--base", `file://${scratch}`, "--out", reportPath], { timeoutMs: CLI_TIMEOUT_MS });
+  const report = JSON.parse(await readFile(reportPath, "utf8")) as HoverPopulationReport;
+
+  // The rest-state defect is reported ONCE, by `contrast`, exactly as it was before this rule existed.
+  expect(report.findings.filter(({ rule }) => rule === "contrast")).toHaveLength(1);
+  // The pass re-read every candidate's rest state after its last release and found none changed.
+  expect(hoverRow(res.stdout, "not-restored")).toBe("0");
+  expect(hoverRow(res.stdout, "sheets-unreadable")).toBe("0");
+  expect(hoverRow(res.stdout, "selectors-unparseable")).toBe("0");
+  // The hover defect on the CTA is found too — the release did not cost the pass its own verdict.
+  expect(report.findings.filter(({ rule }) => rule === "hover-contrast")).toHaveLength(1);
+  await expect(res).toExitWith(1);
+});
+
+test("a coarse-pointer run REFUSES the hover question instead of reporting a clean zero", async ({ runCli, scratch }) => {
+  // Under `--mobile` the whole hover layer is behind a media query that does not match, so there is no
+  // hover state to judge. The pass says so by name and publishes NO accounting row — an `affected=0` row
+  // here would read as "117 controls checked, all fine" on a device that cannot hover.
+  const reportPath = join(scratch, "hover-coarse.json");
+  await writeFile(join(scratch, "hover-coarse.html"), hoverPage(".nav-links a:hover { color: #d2d2d2; background: #ffffff }"));
+  const res = await runCli("ui-audit", ["/hover-coarse.html", "--base", `file://${scratch}`, "--mobile", "--out", reportPath], { timeoutMs: CLI_TIMEOUT_MS });
+  const report = JSON.parse(await readFile(reportPath, "utf8")) as HoverPopulationReport;
+
+  expect(hoverRow(res.stdout, "pass")).toBe("no-hover-media");
+  expect(report.populationAccounting?.["hover-contrast"]).toBeUndefined();
+  expect(report.findings.filter(({ rule }) => rule === "hover-contrast")).toEqual([]);
+});
+
+test("a control whose color transition covers the forced read is a NAMED exclusion, not a plain noHoverChange", async ({ runCli, scratch }) => {
+  // THE #detector-adapt REGRESSION PIN. Forcing `:hover` over CDP reads computed style at t≈0 — before a
+  // live transition has advanced — so a control that DOES repaint on hover, but repaints via a slow
+  // `transition: color`/`background-color`, reads back identical to rest and would silently fall into the
+  // same `noHoverChange` bucket as a control with genuinely no hover paint at all. The duration here is on
+  // the BASE rule (not `:hover`-only), so entry is slow in both directions and the release never drifts —
+  // `notRestored` stays 0, which is what proves this is the transition blind spot and not the `hover-stuck`
+  // poisoned-release case pinned above.
+  const reportPath = join(scratch, "hover-transitioned.json");
+  await writeFile(
+    join(scratch, "hover-transitioned.html"),
+    `<!doctype html>
+<html data-app-ready="settled"><head><meta charset="utf-8"><title>transitioned</title><style>
+  body { margin: 0; background: #101010; color: #ffffff; font-size: 16px }
+  a.cta { display: inline-block; padding: 14px 18px; color: #ffffff; background: #101010; text-decoration: none;
+          transition: color 600s linear, background-color 600s linear }
+  .nav-links a:hover { color: #d2d2d2; background: #ffffff }
+</style></head>
+<body><main><nav class="nav-links"><a class="cta" href="#">Continue the story</a></nav></main></body></html>`,
+  );
+  const res = await runCli("ui-audit", ["/hover-transitioned.html", "--base", `file://${scratch}`, "--out", reportPath], { timeoutMs: CLI_TIMEOUT_MS });
+  const report = JSON.parse(await readFile(reportPath, "utf8")) as HoverPopulationReport;
+  const row = report.populationAccounting?.["hover-contrast"];
+
+  // Not published as judged (the forced read cannot tell "no paint" from "paint not visible yet"), and NOT
+  // merged into the plain "genuinely no hover paint" bucket either — its own named reason.
+  expect(report.findings.filter(({ rule }) => rule === "hover-contrast")).toEqual([]);
+  expect(row?.excluded["noHoverChangeButTransitioned"]).toBe(1);
+  expect(row?.excluded["noHoverChange"]).toBeUndefined();
+  // The release genuinely worked — this is the transition blind spot, not the poisoned-release case.
+  expect(hoverRow(res.stdout, "not-restored")).toBe("0");
+});
+
+test("a candidate whose rest state does NOT read back is WITHHELD, never published as judged", async ({ runCli, scratch }) => {
+  // THE JOIN PIN. `hoverVerify` re-reads every candidate's rest state after the last release and returns
+  // the ones that did not come back identical; `settleInputs` must drop exactly those. A long CSS
+  // transition on the hovered properties makes that deterministic: at the instant the force is released
+  // the computed colour is still the HOVER value on its way back, so the instrument genuinely cannot
+  // prove it measured a rest state — and a reading taken through a state no pointer produced must not
+  // reach a verdict.
+  //
+  // This is a REGRESSION PIN with teeth: while the verify list was joined by SELECTOR against a numeric
+  // index (`Set<string>.has(number)` — always false), the withholding branch was unreachable, the poisoned
+  // sample was published as JUDGED and could file a real P1, and the RESULT line still printed a correct
+  // `hover-not-restored=1` beside it. The accounting balanced; it balanced wrong.
+  const reportPath = join(scratch, "hover-stuck.json");
+  await writeFile(
+    join(scratch, "hover-stuck.html"),
+    `<!doctype html>
+<html data-app-ready="settled"><head><meta charset="utf-8"><title>stuck</title><style>
+  body { margin: 0; background: #101010; color: #ffffff; font-size: 16px }
+  a.cta { display: inline-block; padding: 14px 18px; color: #ffffff; background: #101010; text-decoration: none;
+          transition: color 600s linear, background-color 600s linear }
+  /* Duration 0 ON the way in, 600s ON THE WAY BACK: the forced read is the true hover pair, and the
+     release then leaves the element ten minutes from its rest state. */
+  .nav-links a:hover { transition-duration: 0s; color: #101010; background: #ffffff }
+</style></head>
+<body><main><nav class="nav-links"><a class="cta" href="#">Continue the story</a></nav></main></body></html>`,
+  );
+  const res = await runCli("ui-audit", ["/hover-stuck.html", "--base", `file://${scratch}`, "--out", reportPath], { timeoutMs: CLI_TIMEOUT_MS });
+  const report = JSON.parse(await readFile(reportPath, "utf8")) as HoverPopulationReport;
+  const row = report.populationAccounting?.["hover-contrast"];
+
+  expect(Number(hoverRow(res.stdout, "not-restored"))).toBeGreaterThan(0);
+  // The number the RESULT line prints and the number the DENOMINATOR withholds are the same number.
+  expect(row?.withheld["notRestored"]).toBe(Number(hoverRow(res.stdout, "not-restored")));
+  // Withheld, therefore un-judged, therefore incapable of filing a finding from a poisoned reading.
+  expect(report.findings.filter(({ rule }) => rule === "hover-contrast")).toEqual([]);
+  // A withheld candidate is a NO VERDICT run, not a quieter clean one.
+  expect(res.stdout).toContain("notRestored=");
+  await expect(res).toExitWith(2);
+});
+
+/** A stylesheet served from its OWN origin with no CORS header — `sheet.cssRules` throws SecurityError
+ *  on it, which is the only way to produce a genuinely unreadable sheet on purpose. */
+function serveCssOnce(css: string): Promise<{ readonly href: string; readonly close: () => void }> {
+  const server = createServer((_req, res) => {
+    res.writeHead(200, { "content-type": "text/css; charset=utf-8" });
+    res.end(css);
+  });
+  return new Promise((resolve) => {
+    server.listen(0, "127.0.0.1", () => {
+      const addr = server.address() as AddressInfo;
+      resolve({
+        href: `http://127.0.0.1:${addr.port}/x.css`,
+        close: (): void => {
+          server.close();
+        },
+      });
+    });
+  });
+}
+
+test("an UNREADABLE stylesheet makes noHoverPaint a WITHHELD count, not an exclusion — absence of measurement is not proof", async ({ runCli }) => {
+  // THE POLARITY CONTROL, direction two. `excluded` means a measurement PROVED the rule does not apply;
+  // `withheld` means there was no measurement. When a sheet's `cssRules` throws, its `:hover` rules were
+  // never collected — so every element it would have painted falls into the "no hover paint" bucket, and
+  // recording THAT as `excluded` files absence-of-measurement as proof-of-inapplicability. Direction one
+  // (every sheet readable ⇒ the same bucket is a legitimate `excluded`) is pinned by the hover-twin test
+  // above; this is the arm that must flip.
+  const sheet = await serveCssOnce(".nav-links a:hover { color: #d2d2d2; background: #ffffff }");
+  const host = await serveOnce(`<!doctype html>
+<html data-app-ready="settled"><head><meta charset="utf-8"><title>unreadable</title>
+<link rel="stylesheet" href="${sheet.href}"><style>
+  body { margin: 0; background: #101010; color: #ffffff; font-size: 16px }
+  a.cta { display: inline-block; padding: 14px 18px; color: #ffffff; background: #101010; text-decoration: none }
+</style></head>
+<body><main><nav class="nav-links"><a class="cta" href="#">Continue the story</a></nav>
+<p style="padding:12px">a paragraph whose hover paint we now cannot rule out</p></main></body></html>`);
+  try {
+    const res = await runCli("ui-audit", ["/", "--base", host.base, "--out", "hover-unreadable"], { timeoutMs: CLI_TIMEOUT_MS });
+
+    expect(hoverRow(res.stdout, "sheets-unreadable")).toBe("1");
+    // NO VERDICT, by name — the run states which bucket it cannot vouch for.
+    expect(res.stdout).toContain("noHoverPaintUnproven=");
+    await expect(res).toExitWith(2);
+  } finally {
+    host.close();
+    sheet.close();
+  }
+});
+
+test("a forced-state pass that BREAKS is a NO VERDICT run, not a green one with a missing row", async ({ runCli, scratch }) => {
+  // #953's ruling applied to this pass: a checker that FAILED is exit-2 class. The two non-running arms
+  // are deliberately different — a coarse-pointer run is genuinely not-applicable and stays green and
+  // silent (pinned above); a pass that was supposed to run and threw must redden the verdict, exactly as
+  // ops/stage.ts does for a stage that will not boot. Before this, a thrown pass printed its reason,
+  // contributed no accounting row, and the audit exited 0 — the shape of every false clean this
+  // instrument exists to prevent.
+  //
+  // The break is planted, not simulated: a throwing `document.styleSheets` getter is the first thing the
+  // hover census touches, so the in-page evaluation rejects for real and the Node side sees a genuine
+  // failure rather than a test-only branch.
+  const reportPath = join(scratch, "hover-broke.json");
+  await writeFile(
+    join(scratch, "hover-broke.html"),
+    `<!doctype html>
+<html data-app-ready="settled"><head><meta charset="utf-8"><title>broke</title><style>
+  body { margin: 0; background: #101010; color: #ffffff; font-size: 16px }
+  a.cta { display: inline-block; padding: 14px 18px; color: #ffffff; background: #101010; text-decoration: none }
+  .nav-links a:hover { color: #101010; background: #ffffff }
+</style>
+<script>Object.defineProperty(document, "styleSheets", { get: function () { throw new Error("planted stylesheet failure"); } });</script>
+</head>
+<body><main><nav class="nav-links"><a class="cta" href="#">Continue the story</a></nav></main></body></html>`,
+  );
+  const res = await runCli("ui-audit", ["/hover-broke.html", "--base", `file://${scratch}`, "--out", reportPath], { timeoutMs: CLI_TIMEOUT_MS });
+  const report = JSON.parse(await readFile(reportPath, "utf8")) as HoverPopulationReport;
+
+  expect(hoverRow(res.stdout, "pass")).toBe("BROKE");
+  expect(res.stdout).toContain("HOVER REFUSED");
+  expect(res.stdout).toContain("planted stylesheet failure");
+  // Named as its OWN gap, so a reader can tell "this surface has no hover layer" from "we could not ask".
+  expect(res.stdout).toContain("forced-state pass");
+  expect(report.hoverPass?.outcome.kind).toBe("broke");
+  // No fabricated row either — the denominator is absent because nothing was measured.
+  expect(report.populationAccounting?.["hover-contrast"]).toBeUndefined();
+  await expect(res).toExitWith(2);
+});

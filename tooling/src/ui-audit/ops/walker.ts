@@ -34,11 +34,14 @@ import { CENSUS_OBSERVE_CEILING_MS, CENSUS_OBSERVE_MIN_MS, CENSUS_SETTLE_POLL_MS
 import { WALKER_CENSUS_COHORT } from "./walker/census-cohort.ts";
 import { WALKER_CENSUS_COLLISION } from "./walker/census-collision.ts";
 import { WALKER_CENSUS_DECOR } from "./walker/census-decor.ts";
+import { WALKER_CENSUS_GLOW } from "./walker/census-glow.ts";
 import { WALKER_CENSUS_INTERACTIVE } from "./walker/census-interactive.ts";
+import { WALKER_CENSUS_OCCLUSION } from "./walker/census-occlusion.ts";
 import { WALKER_CENSUS_QUALITY } from "./walker/census-quality.ts";
 import { WALKER_CENSUS_REGION } from "./walker/census-region.ts";
 import { WALKER_CENSUS_SELECTION } from "./walker/census-selection.ts";
 import { WALKER_CENSUS_TEXT } from "./walker/census-text.ts";
+import { WALKER_CENSUS_TIER } from "./walker/census-tier.ts";
 import { WALKER_CORE } from "./walker/core.ts";
 import { WALKER_HIT_EXTENT } from "./walker/hit-extent.ts";
 import { WALKER_RESOLVE } from "./walker/resolve.ts";
@@ -47,12 +50,12 @@ import { WALKER_TARGET_IDENTITY } from "./walker/target-identity.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm design-audit");
 
-/** Settle and census execute in ONE page task. A Node-side wait followed by a second evaluate leaves a
- *  same-count replacement gap between "settled" and the identity snapshot — precisely the blindness #976
- *  closes. Child-list revision joins element count so replacement cannot masquerade as quiet. */
-const PRE_WALK_SETTLE = `  var preWalkRevision = 0;
-  var preWalkMutationCount = 0;
-  function mutationCarriesElement(record) {
+/** WALKER_CORE's mutation observer calls this, but the declaration lived inside PRE_WALK_SETTLE — so any
+ *  OTHER page pass that reuses WALKER_CORE (ops/hover.ts's forced-state pass) would install an observer
+ *  whose callback throws `mutationCarriesElement is not defined` on the first DOM change, and an async
+ *  throw inside an observer surfaces as a page error, which this instrument reports as a P0 script-error
+ *  finding. One home, prepended to both compositions; order and scope are unchanged for the main walk. */
+export const WALKER_MUTATION_CARRIES = `  function mutationCarriesElement(record) {
     var nodes = [].slice.call(record.addedNodes).concat([].slice.call(record.removedNodes));
     for (var mn = 0; mn < nodes.length; mn += 1) {
       var mutationNode = nodes[mn];
@@ -60,7 +63,14 @@ const PRE_WALK_SETTLE = `  var preWalkRevision = 0;
     }
     return false;
   }
-  var preWalkObserver = new MutationObserver(function (records) {
+`;
+
+/** Settle and census execute in ONE page task. A Node-side wait followed by a second evaluate leaves a
+ *  same-count replacement gap between "settled" and the identity snapshot — precisely the blindness #976
+ *  closes. Child-list revision joins element count so replacement cannot masquerade as quiet. */
+const PRE_WALK_SETTLE = `  var preWalkRevision = 0;
+  var preWalkMutationCount = 0;
+${WALKER_MUTATION_CARRIES}  var preWalkObserver = new MutationObserver(function (records) {
     for (var pm = 0; pm < records.length; pm += 1) {
       if (!mutationCarriesElement(records[pm])) continue;
       preWalkRevision += 1;
@@ -96,4 +106,4 @@ const PRE_WALK_SETTLE = `  var preWalkRevision = 0;
 `;
 
 export const COLLECT_SAMPLES_JS = `(async () => {
-${PRE_WALK_SETTLE}${WALKER_CORE}${WALKER_TARGET_IDENTITY}${WALKER_RESOLVE}${WALKER_CENSUS_TEXT}${WALKER_HIT_EXTENT}${WALKER_CENSUS_INTERACTIVE}${WALKER_CENSUS_DECOR}${WALKER_CENSUS_QUALITY}${WALKER_CENSUS_COLLISION}${WALKER_CENSUS_COHORT}${WALKER_CENSUS_SELECTION}${WALKER_CENSUS_REGION}${WALKER_RETURNS}})()`;
+${PRE_WALK_SETTLE}${WALKER_CORE}${WALKER_TARGET_IDENTITY}${WALKER_RESOLVE}${WALKER_CENSUS_TEXT}${WALKER_HIT_EXTENT}${WALKER_CENSUS_INTERACTIVE}${WALKER_CENSUS_DECOR}${WALKER_CENSUS_GLOW}${WALKER_CENSUS_QUALITY}${WALKER_CENSUS_COLLISION}${WALKER_CENSUS_OCCLUSION}${WALKER_CENSUS_COHORT}${WALKER_CENSUS_SELECTION}${WALKER_CENSUS_REGION}${WALKER_CENSUS_TIER}${WALKER_RETURNS}})()`;

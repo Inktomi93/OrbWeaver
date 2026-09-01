@@ -116,8 +116,3 @@ function scanTokens(text: string): ColorToken[] {
 export function findColorToken(text: string): ColorToken | null {
   return scanTokens(text)[0] ?? null;
 }
-
-/** Every parseable colour token in `text`. */
-export function findColorTokens(text: string): readonly ColorToken[] {
-  return scanTokens(text);
-}

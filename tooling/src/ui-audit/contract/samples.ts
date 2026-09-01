@@ -1,7 +1,9 @@
-// The raw-sample shapes the in-page walker (ops/walker.ts) gathers and the lib/checks-* families
-// judge — plain data mirroring getComputedStyle/getBoundingClientRect output. RawSamples at the
-// bottom is the walker's return object, field-for-field.
+// The raw-sample shapes the in-page walker (ops/walker.ts) gathers and lib/checks-* judge — plain data
+// mirroring getComputedStyle/getBoundingClientRect. RawSamples at the bottom is the walker's return object.
 import type { InactiveKind, Rgb } from "@orb/tooling/_shared/wcag";
+// `Backdrop` MOVED to contract/backdrop.ts (see its header). Imported locally because the shapes below
+// USE it, and re-exported below so its consumers keep one import.
+import type { Backdrop } from "./backdrop.ts";
 import type { ObscuredScanInput, SubjectAccountingInput, ThemeRenderInput } from "./samples-evidence.ts";
 // `RawSamples` at the bottom COMPOSES the interactive-census shapes, so they are imported here as well as
 // re-exported below: a bare `export … from` re-exports a name without binding it locally (tsc catches
@@ -9,25 +11,7 @@ import type { ObscuredScanInput, SubjectAccountingInput, ThemeRenderInput } from
 import type { AccessibleNameInput, ActionDoorInput, CensusReachInput, ControlAspectInput, TabIndexInput, TapTargetInput } from "./samples-interactive.ts";
 import type { RelationalSamples } from "./samples-populations.ts";
 
-/** Resolved backdrop behind a text node — `flat` (solid ancestor bg), `gradient` (worst-stop
- *  ratio over OPAQUE stops; translucent stops refuse as indeterminate),
- *  `image-indeterminate` (a url() layer — incl. gradient-over-image composites — has no cheap
- *  DOM-only pixel sample, so it's flagged rather than silently passed), or `unresolved` — the DOM
- *  walk found no trustworthy base at all (issue #218).
- *
- *  `unresolved` IS NOT A VERDICT AND MUST NOT REACH A RATIO. It means the walker knows it cannot know:
- *  either nothing opaque backs the chain, or a fixed/absolute PAINT LAYER (the app's wallpaper photo)
- *  sits between the opaque base it found and the glyph. design-audit.ts settles these by sampling the
- *  element's real pixels (`resolvePixelBackdrops`) and rewriting the sample to `flat` before
- *  `collectFindings` ever sees it; one that survives to here is one the runner REFUSED (off-screen box,
- *  failed shot) and reported as an explicit NO-VERDICT row, so the checks below stay silent rather than
- *  minting a number from `fallback`. `fallback` is the pre-#218 fabricated composite, kept ONLY for the
- *  non-verdict tells (the dark-glow "is this backdrop dark" question). */
-export type Backdrop =
-  | { readonly kind: "flat"; readonly color: Rgb }
-  | { readonly kind: "gradient"; readonly stops: readonly Rgb[] }
-  | { readonly kind: "image-indeterminate" }
-  | { readonly kind: "unresolved"; readonly reason: "paint-layer-over-base" | "no-opaque-base"; readonly fallback: Rgb };
+export type { Backdrop } from "./backdrop.ts";
 
 export interface ContrastInput {
   readonly selector: string;
@@ -242,7 +226,8 @@ export interface GlowShadowInput {
   readonly boxShadow: string;
   readonly textShadow: string;
   readonly backdropColor: Rgb | null;
-  /** The element is a walker-tagged owner effect carrier (`SANCTIONED_GLOW_SEL`). Optional so a
+  /** Walker-tagged exempt: an owner effect carrier, or a pseudo sample that is a DEDICATED glow layer —
+   *  a MECHANISM, never a name list; derived and justified in `ops/walker/census-glow.ts`. Optional so a
    *  pre-2026-09-01 fixture bundle keeps its verdict instead of silently reading as exempt. */
   readonly sanctioned?: boolean;
 }
@@ -439,4 +424,11 @@ export interface RawSamples extends RelationalSamples {
   /** The obscured census's denominator — absent means the sample set predates the family, which the
    *  report prints as `unreported` rather than as a complete-looking zero. */
   readonly obscuredScan?: ObscuredScanInput;
+  /** Hover-painted texts measured in their FORCED `:hover` state, and that pass's own denominator
+   *  (ops/hover.ts). Absent when the pass did not run — coarse pointer, a fixture set, a break — and
+   *  absent means NO accounting row at all, never a clean-looking zero. Inline imports: this file sits
+   *  ON the 450-line tooling cap with three lanes live in it, so these two fields cost no import line. */
+  readonly hoverStates?: readonly import("./samples-hover.ts").HoverContrastInput[];
+  readonly hoverScan?: import("./samples-hover.ts").HoverScanInput;
+  readonly buriedRasters?: readonly import("./samples-media.ts").BuriedRasterInput[];
 }
