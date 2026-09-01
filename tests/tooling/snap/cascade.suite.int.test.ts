@@ -85,9 +85,10 @@ test("the official DevTools SDK reports the planted cascade matrix without mutat
         { selector: "#source-order", property: "color" },
         { selector: "#computed-default", property: "opacity", allowComputedDefault: true },
         { selector: "#user-agent", property: "display" },
+        { selector: "#mixed", property: "background-color" },
       ]);
 
-      expect(receipts).toHaveLength(16);
+      expect(receipts).toHaveLength(17);
       expect(declaration(row(receipts, "#layered"), "blue").state).toBe("Active");
       expect(declaration(row(receipts, "#layered"), "red").state).toBe("Overloaded");
       expect(declaration(row(receipts, "#specific"), "blue").state).toBe("Active");
@@ -103,8 +104,10 @@ test("the official DevTools SDK reports the planted cascade matrix without mutat
       expect(declaration(row(receipts, "#owner-wins"), "blue")).toMatchObject({ state: "Active", ownerCustomCss: true });
       expect(declaration(row(receipts, "#owner-loses"), "blue")).toMatchObject({ state: "Overloaded", ownerCustomCss: true });
       expect(declaration(row(receipts, "#source-order"), "blue").state).toBe("Active");
+      expect(declaration(row(receipts, "#source-order"), "blue").sourceUrl).toBe("/workspace/packages/client/src/styles/globals.css");
       expect(row(receipts, "#computed-default")).toMatchObject({ computedDefault: true, declarations: [] });
       expect(row(receipts, "#user-agent").declarations).toContainEqual(expect.objectContaining({ state: "Active", sourceUrl: null, styleSheetId: null }));
+      expect(row(receipts, "#mixed").declarations).toEqual([expect.objectContaining({ state: "Active", value: "blue" })]);
       expect(await page.content()).toBe(productDom);
 
       await page.evaluate(`(() => {
@@ -138,6 +141,7 @@ test("an ordinary zero-declaration query fails loud", { timeout: 60_000 }, async
       await page.goto(fixture.url, { waitUntil: "load" });
       await page.evaluate(`document.querySelector("#transition").classList.add("on")`);
       await expect(runtime.query(page, [{ selector: "#computed-default", property: "opacity" }])).rejects.toThrow("declaration population is zero");
+      await expect(runtime.query(page, [{ selector: "#null-only", property: "background-color" }])).rejects.toThrow("declaration population is zero");
       await expect(runtime.query(page, [{ selector: "#absent", property: "color" }])).rejects.toThrow("selector matched zero nodes");
       await expect(runtime.query(page, [{ selector: "#layered", property: "color:red" }])).rejects.toThrow("invalid CSS property name");
       await expect(

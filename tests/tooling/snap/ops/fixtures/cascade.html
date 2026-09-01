@@ -23,11 +23,12 @@
       #owner-wins, #owner-loses { color: red; }
       #owner-loses { color: red !important; }
       #source-order { color: red; }
+      #mixed-parent, #null-only-parent { background-color: red; }
+      #mixed { background-color: blue; }
       /*# sourceURL=/packages/ui/src/styles/globals.css */
     </style>
-    <style>
+    <style data-vite-dev-id="/workspace/packages/client/src/styles/globals.css">
       #source-order { color: blue; }
-      /*# sourceURL=/packages/client/src/styles/globals.css */
     </style>
     <style data-orb-theme-css>
       #owner-wins, #owner-loses { color: blue; }
@@ -57,6 +58,8 @@
       <div id="owner-wins">owner wins</div>
       <div id="owner-loses">owner loses</div>
       <div id="source-order">source order</div>
+      <div id="mixed-parent"><div id="mixed">mixed classified and unclassified</div></div>
+      <div id="null-only-parent"><div id="null-only">unclassified only</div></div>
       <div id="computed-default">computed default</div>
       <button id="user-agent" type="button">user agent</button>
     </main>

@@ -98,6 +98,22 @@
       "licenseFamily": "devtools-frontend"
     },
     {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/entrypoints/formatter_worker/formatter_worker-entrypoint.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/entrypoints/formatter_worker/formatter_worker-entrypoint.js",
+      "bytes": 877,
+      "sha256": "686316c370c9ddeac3b6e2295d12d0ba1ae845a06e980c76c80f724a5a02da5f",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
+      "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/entrypoints/formatter_worker/formatter_worker.js",
+      "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/entrypoints/formatter_worker/formatter_worker.js",
+      "bytes": 93490,
+      "sha256": "7f5cab7a95e3cc29a6cd0ecd5d8aefd5efe86998edfb6f510cc3c07c595a632a",
+      "mimeType": "text/javascript",
+      "licenseFamily": "devtools-frontend"
+    },
+    {
       "url": "/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/entrypoints/inspector_main/inspector_main.js",
       "file": "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/entrypoints/inspector_main/inspector_main.js",
       "bytes": 17259,

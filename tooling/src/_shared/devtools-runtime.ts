@@ -148,13 +148,16 @@ function bridgeSource(inputs: readonly DevToolsCascadeInput[]): string {
         for (const property of style.allProperties()) {
           if (property.name !== input.property) continue;
           const state = matched.propertyState(property);
+          if (state === null) continue;
           if (state !== "Active" && state !== "Overloaded") throw new Error("unknown property state for " + input.property);
           const parentRule = style.parentRule;
           const selector = parentRule && typeof parentRule.selectorText === "function" ? parentRule.selectorText() : null;
+          // Vite's injected stylesheet header is blank/document-scoped; its owning node retains the exact source module.
+          const sourceUrl = owner?.getAttribute("data-vite-dev-id") || header?.sourceURL || null;
           declarations.push({
             property: property.name, value: property.value, state, important: property.important,
             inherited: matched.isInherited(style), styleType: style.type, selector,
-            styleSheetId: style.styleSheetId ?? null, sourceUrl: header?.sourceURL ?? null,
+            styleSheetId: style.styleSheetId ?? null, sourceUrl,
             ownerCustomCss: owner?.getAttribute("data-orb-theme-css") !== undefined,
             range: property.range ? property.range.serializeToObject() : null,
           });

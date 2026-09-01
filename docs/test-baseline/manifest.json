@@ -1994,6 +1994,7 @@
     "tests/tooling/snap/lib/throttle.test.ts",
     "tests/tooling/snap/ops/contexts.int.test.ts",
     "tests/tooling/snap/ops/fixture.test.ts",
+    "tests/tooling/snap/ops/materialize-devtools.test.ts",
     "tests/tooling/snap/ops/overflow.ct.tsx",
     "tests/tooling/snap/ops/stage.test.ts",
     "tests/tooling/stack/index.int.test.ts",
