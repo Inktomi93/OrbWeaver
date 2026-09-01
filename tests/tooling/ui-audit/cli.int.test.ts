@@ -5,7 +5,7 @@
 // The fixtures declare `data-app-ready` on <html> themselves so the readiness wait resolves instantly
 // (a file page never runs the app; without the attribute every case burns the full 10s ceiling), and
 // carry a <main> landmark so the only P1-severity finding in play is the planted one.
-import { writeFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { join } from "node:path";
@@ -595,15 +595,17 @@ ${fill}
 </body></html>`;
 }
 
-test("a page that fills AFTER the walk is an INSTRUMENT ERROR, never a clean audit", async ({ runCli, scratch }) => {
-  // 1500ms lands past the default 500ms settle and the walk — exactly like a route whose reads resolve a
-  // beat after the boot readiness flag went up.
+test("a page that fills after the ordinary wait is settled BEFORE the judged walk", async ({ runCli, scratch }) => {
+  // 1500ms lands past the default 500ms operator wait — exactly like #976's real settings/theme reads.
+  // The instrument's own evidence floor must include it before taking the one judged subject snapshot.
   await writeFile(join(scratch, "late-fill.html"), lateFillPage(1500));
   const res = await runCli("ui-audit", ["/late-fill.html", "--base", `file://${scratch}`], { timeoutMs: CLI_TIMEOUT_MS });
-  expect(res.stdout).toContain("INSTRUMENT ERROR");
-  expect(res.stdout, "the gap must name the census's completeness — not the readiness signal, which WAS up").toContain("completeness");
-  expect(res.stdout, "a reader must see BOTH populations to judge the refusal").toMatch(/element\(s\) while the walk censused it and \d+/u);
-  await expect(res).toExitWith(2);
+  expect(res.stdout).not.toContain("INSTRUMENT ERROR");
+  await expect(res).toExitWith(0);
+  const walked = Number(/dom-walk=(\d+)/u.exec(res.stdout)?.[1]);
+  const settled = Number(/dom-settled=(\d+)/u.exec(res.stdout)?.[1]);
+  expect(walked, "the late rows must be in the judged snapshot, not merely observed afterward").toBeGreaterThan(60);
+  expect(settled).toBe(walked);
 });
 
 test("the settled twin is a verdict — the refusal above is the plant, not a fence that reds every run", async ({ runCli, scratch }) => {
@@ -618,6 +620,131 @@ test("the settled twin is a verdict — the refusal above is the plant, not a fe
   const settled = Number(/dom-settled=(\d+)/u.exec(res.stdout)?.[1]);
   expect(walked, "a page whose fill already landed must be censused whole").toBeGreaterThan(60);
   expect(settled).toBe(walked);
+});
+
+function sameCountReplacementPage(replacing: boolean): string {
+  const replacement = replacing
+    ? `let generation = 0;
+setInterval(() => {
+  const old = document.getElementById('replace-me');
+  const next = old.cloneNode(true);
+  generation += 1;
+  next.dataset.generation = String(generation);
+  old.replaceWith(next);
+}, 40);`
+    : "";
+  return `<!doctype html>
+<html data-app-ready="settled"><head><meta charset="utf-8"><title>t</title></head>
+<body style="margin:0;background:#000;color:#fff"><main>
+<section id="replace-me"><p style="font-size:16px;margin:24px">one subject, repeatedly replaced</p></section>
+</main><script>${replacement}</script></body></html>`;
+}
+
+// @instrument-absence-proof: count-only settling sees every reading as equal while the judged identities
+// are replaced underneath it. The pre-#976 instrument therefore emitted a verdict. Revision + count must
+// hold together; this plant never does and must fail at the bounded ceiling instead of reporting clean.
+test("continuous same-count replacement is an INSTRUMENT ERROR, never count-stable evidence", async ({ runCli, scratch }) => {
+  await writeFile(join(scratch, "same-count-replacement.html"), sameCountReplacementPage(true));
+  const res = await runCli("ui-audit", ["/same-count-replacement.html", "--base", `file://${scratch}`], { timeoutMs: CLI_TIMEOUT_MS });
+  expect(res.stdout).toContain("INSTRUMENT ERROR");
+  expect(res.stdout).toContain("still moving at its ceiling");
+  await expect(res).toExitWith(2);
+});
+
+test("the non-replacing twin is a verdict — the revision fence does not refuse a stable equal count", async ({ runCli, scratch }) => {
+  await writeFile(join(scratch, "same-count-stable.html"), sameCountReplacementPage(false));
+  const res = await runCli("ui-audit", ["/same-count-stable.html", "--base", `file://${scratch}`], { timeoutMs: CLI_TIMEOUT_MS });
+  expect(res.stdout).not.toContain("INSTRUMENT ERROR");
+  expect(res.stdout).toContain("dom-mutations=0");
+  await expect(res).toExitWith(0);
+});
+
+const CUSTOM_LIGHT_ID = "theme_01customlight000000000000";
+const CUSTOM_DARK_ID = "theme_01customdark0000000000000";
+
+function serveCustomThemeProof(): Promise<{ readonly base: string; readonly close: () => void; readonly mutations: () => number }> {
+  let writes = 0;
+  const library = [
+    { id: CUSTOM_LIGHT_ID, name: "Custom Light", isSeed: false },
+    { id: CUSTOM_DARK_ID, name: "Custom Dark", isSeed: false },
+  ];
+  const html = `<!doctype html>
+<html style="color-scheme:dark"><head><meta charset="utf-8"><title>custom theme proof</title></head>
+<body style="margin:0;background:#111;color:#fff"><div id="scope" data-slot="theme-scope"><main>
+<p style="font-size:16px;margin:24px">the custom theme subject</p>
+</main></div><script>
+fetch('/api/trpc/settings.getUserSettings?batch=1&input=%7B%7D').then((response) => response.json()).then((body) => {
+  const id = body[0].result.data.config.theme.selectedThemeId;
+  const light = id === '${CUSTOM_LIGHT_ID}';
+  const scope = document.getElementById('scope');
+  scope.style.setProperty('--color-background', light ? '#f8f8f8' : '#111111');
+  scope.style.setProperty('--color-foreground', light ? '#111111' : '#f8f8f8');
+  scope.style.background = 'var(--color-background)';
+  scope.style.color = 'var(--color-foreground)';
+  scope.style.colorScheme = light ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-app-ready', 'settled');
+});
+</script></body></html>`;
+  const server = createServer((req, res) => {
+    if (req.method !== "GET") {
+      writes += 1;
+      res.writeHead(405).end();
+      return;
+    }
+    const url = req.url ?? "/";
+    res.setHeader("content-type", url.startsWith("/api/trpc/") ? "application/json" : "text/html; charset=utf-8");
+    if (url.startsWith("/api/trpc/settings.listThemes")) {
+      res.end(JSON.stringify([{ result: { data: library } }]));
+      return;
+    }
+    if (url.startsWith("/api/trpc/settings.getUserSettings")) {
+      res.end(JSON.stringify([{ result: { data: { config: { theme: { selectedThemeId: CUSTOM_DARK_ID } } } } }]));
+      return;
+    }
+    res.end(html);
+  });
+  return new Promise((resolve) => {
+    server.listen(0, "127.0.0.1", () => {
+      const address = server.address() as AddressInfo;
+      resolve({
+        base: `http://127.0.0.1:${address.port}`,
+        close: (): void => {
+          server.close();
+        },
+        mutations: () => writes,
+      });
+    });
+  });
+}
+
+test("custom light and dark requests prove catalog source, inline carrier, and effective subject polarity", async ({ runCli, scratch }) => {
+  const server = await serveCustomThemeProof();
+  try {
+    for (const [name, polarity] of [
+      ["Custom Light", "light"],
+      ["Custom Dark", "dark"],
+    ] as const) {
+      const report = join(scratch, `${name.toLowerCase().replace(" ", "-")}.json`);
+      const res = await runCli("ui-audit", ["/", "--base", server.base, "--theme", name, "--out", report], { timeoutMs: CLI_TIMEOUT_MS });
+      expect(res.stdout).not.toContain("INSTRUMENT ERROR");
+      expect(res.stdout).toContain("theme-source=custom");
+      expect(res.stdout).toContain("theme-root=default");
+      expect(res.stdout).toMatch(new RegExp(`theme-${polarity}=[1-9]`, "u"));
+      await expect(res).toExitWith(0);
+      const artifact = JSON.parse(await readFile(report, "utf8")) as {
+        themeEvidence: {
+          resolution: { source: string; name: string };
+          rendered: { shellScope: { inlineBackground: string | null }; subjectPolarities: Record<string, number> };
+        };
+      };
+      expect(artifact.themeEvidence.resolution).toMatchObject({ source: "custom", name });
+      expect(artifact.themeEvidence.rendered.shellScope.inlineBackground).not.toBeNull();
+      expect(artifact.themeEvidence.rendered.subjectPolarities[polarity]).toBeGreaterThan(0);
+    }
+    expect(server.mutations(), "the proof shim must remain read-only").toBe(0);
+  } finally {
+    server.close();
+  }
 });
 
 // ── the two collision families a whole mobile review fell through (#816) ────────────────────────────

@@ -4011,7 +4011,7 @@
     {
       "siteId": "tooling/src/_shared/appearance.ts::default:e::1",
       "path": "tooling/src/_shared/appearance.ts",
-      "line": 324,
+      "line": 353,
       "column": 7,
       "grammar": "default",
       "position": "default:e",
@@ -4019,7 +4019,7 @@
       "snippet": "} catch (e) {",
       "verdict": "deliberate-absorb",
       "reason": "the list-themes command emits the read failure through warn before returning no catalog. Ends if the warning stops carrying the failure.",
-      "markerLine": 316
+      "markerLine": 345
     },
     {
       "siteId": "tooling/src/_shared/appearance.ts::empty:catch::1",
@@ -4037,7 +4037,7 @@
     {
       "siteId": "tooling/src/_shared/appearance.ts::empty:catch::2",
       "path": "tooling/src/_shared/appearance.ts",
-      "line": 404,
+      "line": 439,
       "column": 7,
       "grammar": "empty",
       "position": "empty:catch",
@@ -4045,7 +4045,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "the primary route failure is owned by the awaited fallback route, whose own rejection propagates to the command. Ends if fallback becomes fire-and-forget.",
-      "markerLine": 393
+      "markerLine": 425
     },
     {
       "siteId": "tooling/src/_shared/browser.ts::empty:error::1",
@@ -4089,7 +4089,7 @@
     {
       "siteId": "tooling/src/_shared/devtools-runtime.ts::empty:error::1",
       "path": "tooling/src/_shared/devtools-runtime.ts",
-      "line": 325,
+      "line": 328,
       "column": 11,
       "grammar": "empty",
       "position": "empty:error",
@@ -4097,12 +4097,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "cleanup failures are retained in `failures` and surfaced together as the terminal AggregateError below. Ends if the aggregate throw is removed.",
-      "markerLine": 322
+      "markerLine": 325
     },
     {
       "siteId": "tooling/src/_shared/devtools-runtime.ts::empty:error::2",
       "path": "tooling/src/_shared/devtools-runtime.ts",
-      "line": 331,
+      "line": 334,
       "column": 11,
       "grammar": "empty",
       "position": "empty:error",
@@ -4110,12 +4110,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "cleanup failures are retained in `failures` and surfaced together as the terminal AggregateError below. Ends if the aggregate throw is removed.",
-      "markerLine": 328
+      "markerLine": 331
     },
     {
       "siteId": "tooling/src/_shared/devtools-runtime.ts::promise:close::1",
       "path": "tooling/src/_shared/devtools-runtime.ts",
-      "line": 343,
+      "line": 346,
       "column": 13,
       "grammar": "promise",
       "position": "promise:close",
@@ -4123,12 +4123,12 @@
       "snippet": "await server.close().catch((cleanupError: unknown) => failures.push(cleanupError));",
       "verdict": "deliberate-absorb",
       "reason": "initialization cleanup joins the original failure in the AggregateError below. Ends if cleanup errors stop being appended or the aggregate throw is removed.",
-      "markerLine": 342
+      "markerLine": 345
     },
     {
       "siteId": "tooling/src/_shared/devtools-runtime.ts::promise:rm::1",
       "path": "tooling/src/_shared/devtools-runtime.ts",
-      "line": 346,
+      "line": 349,
       "column": 11,
       "grammar": "promise",
       "position": "promise:rm",
@@ -4136,7 +4136,7 @@
       "snippet": "await rm(tempRoot, { recursive: true, force: true }).catch((cleanupError: unknown) => failures.push(cleanupError));",
       "verdict": "deliberate-absorb",
       "reason": "initialization cleanup joins the original failure in the AggregateError below. Ends if cleanup errors stop being appended or the aggregate throw is removed.",
-      "markerLine": 345
+      "markerLine": 348
     },
     {
       "siteId": "tooling/src/_shared/entrypoint.ts::empty:catch::1",
@@ -4804,7 +4804,7 @@
     {
       "siteId": "tooling/src/snap/ops/materialize-devtools.ts::empty:catch::1",
       "path": "tooling/src/snap/ops/materialize-devtools.ts",
-      "line": 213,
+      "line": 188,
       "column": 7,
       "grammar": "empty",
       "position": "empty:catch",
@@ -4812,12 +4812,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "Chrome creates this file only after binding the ephemeral endpoint; the bounded retry loop owns the race and throws when its budget expires. Ends if exhaustion stops throwing.",
-      "markerLine": 206
+      "markerLine": 181
     },
     {
       "siteId": "tooling/src/snap/ops/materialize-devtools.ts::empty:error::1",
       "path": "tooling/src/snap/ops/materialize-devtools.ts",
-      "line": 89,
+      "line": 78,
       "column": 7,
       "grammar": "empty",
       "position": "empty:error",
@@ -4825,12 +4825,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "each failed attempt is retained as `lastError`; retry exhaustion throws it with the asset path below. Ends if exhaustion stops throwing the retained detail.",
-      "markerLine": 78
+      "markerLine": 67
     },
     {
       "siteId": "tooling/src/snap/ops/materialize-devtools.ts::empty:error::2",
       "path": "tooling/src/snap/ops/materialize-devtools.ts",
-      "line": 177,
+      "line": 152,
       "column": 9,
       "grammar": "empty",
       "position": "empty:error",
@@ -4838,12 +4838,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "request failures enter the shared `failures` receipt, return HTTP 502, and abort materialization after discovery. Ends if the post-discovery failures check is removed.",
-      "markerLine": 166
+      "markerLine": 141
     },
     {
       "siteId": "tooling/src/snap/ops/materialize-devtools.ts::promise:promise::1",
       "path": "tooling/src/snap/ops/materialize-devtools.ts",
-      "line": 165,
+      "line": 140,
       "column": 5,
       "grammar": "promise",
       "position": "promise:promise",
@@ -4851,7 +4851,7 @@
       "snippet": "(async (): Promise<void> => {",
       "verdict": "deliberate-absorb",
       "reason": "any escape from the request handler is recorded in `failures`, destroys the response, and aborts materialization after discovery. Ends if the shared failure receipt stops gating installation.",
-      "markerLine": 164
+      "markerLine": 139
     },
     {
       "siteId": "tooling/src/snap/ops/scenario.ts::empty:error::1",
@@ -5181,7 +5181,7 @@
     {
       "siteId": "tooling/src/ui-audit/ops/drive.ts::empty:e::1",
       "path": "tooling/src/ui-audit/ops/drive.ts",
-      "line": 73,
+      "line": 66,
       "column": 5,
       "grammar": "empty",
       "position": "empty:e",
@@ -5189,12 +5189,12 @@
       "snippet": "} catch (e) {",
       "verdict": "deliberate-absorb",
       "reason": "printed as ACTION FAILED and returned as 1 — the JSDoc above states an action that didn't land is never silent and reddens the audit's verdict through this return value. Ends if the returned count stops being summed into the verdict.",
-      "markerLine": 58
+      "markerLine": 51
     },
     {
       "siteId": "tooling/src/ui-audit/ops/drive.ts::promise:waitFor::1",
       "path": "tooling/src/ui-audit/ops/drive.ts",
-      "line": 129,
+      "line": 86,
       "column": 26,
       "grammar": "promise",
       "position": "promise:waitFor",
@@ -5202,7 +5202,7 @@
       "snippet": "const appReady = await page",
       "verdict": "deliberate-absorb",
       "reason": "the comment above states the outcome IS reported — appReady:false feeds lib/evidence.ts's readinessGap check (#678), so a missing readiness signal is surfaced as a verdict input, not swallowed. Ends if appReady stops being read downstream.",
-      "markerLine": 128
+      "markerLine": 85
     },
     {
       "siteId": "tooling/src/ui-audit/ops/stage.ts::empty:error::1",

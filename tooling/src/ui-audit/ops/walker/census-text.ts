@@ -217,10 +217,7 @@ export const WALKER_CENSUS_TEXT = `
     });
   }
   var bgCandidates = [];
-  // ONE dev-chrome filter for every element-driven sweep below (see DEV_CHROME_SEL).
-  var allEls = [].filter.call(document.querySelectorAll("*"), function (candidate) {
-    return !isDevChrome(candidate);
-  });
+  // allEls is the exact walked subject set captured in core.ts before any family ran (#976).
   for (var j = 0; j < allEls.length; j += 1) {
     var bel = allEls[j];
     var bstyle = getComputedStyle(bel);

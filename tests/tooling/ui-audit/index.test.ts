@@ -1600,6 +1600,25 @@ test("isValidSeverity rejects anything outside P0-P3", () => {
 // ── aggregation ───────────────────────────────────────────────────────────────
 
 const EMPTY_SAMPLES: RawSamples = {
+  subjectAccounting: {
+    observed: 3,
+    settled: 3,
+    stabilized: true,
+    settleMutations: 0,
+    walked: 1,
+    skipped: { documentHead: 2, devChrome: 0 },
+    inaccessible: 0,
+    final: 3,
+    added: 0,
+    detached: 0,
+    walkMutations: 0,
+  },
+  themeRender: {
+    rootDataTheme: null,
+    shellScope: { present: false, inlineBackground: null, colorScheme: null },
+    subjectSources: { default: 1, seed: 0, custom: 0, unknown: 0 },
+    subjectPolarities: { light: 0, dark: 1, mixed: 0, unknown: 0 },
+  },
   texts: [],
   images: [],
   tapTargets: [],

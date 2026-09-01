@@ -4,10 +4,12 @@
 // report prints "no findings — clean". That is the most dangerous zero in the fleet: a blank mount, a
 // swallowed error boundary, or a route that rendered nothing at all audits as the cleanest page in the
 // product. The census below is the denominator that verdict rests on.
+
+import type { SettingsShimEvidence, ThemeResolutionEvidence } from "@orb/tooling/_shared/appearance";
 import type { EvidenceGap } from "@orb/tooling/_shared/evidence";
-import type { RawSamples } from "../contract/samples.ts";
+import type { ThemeRequest } from "@orb/tooling/_shared/theme";
+import type { RawSamples, ThemeRenderInput } from "../contract/samples.ts";
 import type { DomPopulation } from "../contract/types.ts";
-import { THIN_CENSUS_GROWTH_RATIO, THIN_CENSUS_MIN_GROWTH } from "./budgets.ts";
 
 /** How many nodes the in-page walk actually censused, across every family it collects. This is the
  *  number the RESULT line publishes as `census=` — a clean verdict with `census=0` is not a verdict. */
@@ -78,7 +80,7 @@ export function readinessGap(url: string, appReady: boolean): EvidenceGap | null
   };
 }
 
-/** THE THIN-CENSUS GAP (#808) — the arm every other one here is structurally blind to.
+/** THE SUBJECT-ACCOUNTING GAP (#808, exact in #976) — the arm every other one here is structurally blind to.
  *
  *  MEASURED 2026-08-29 on Settings -\> Plugins at 1280x2200: `census=22 reached=3 findings=2 nav=OK`, a
  *  clean-looking verdict; the identical next command censused 1421 and reached 126. Nothing above fires on
@@ -91,27 +93,132 @@ export function readinessGap(url: string, appReady: boolean): EvidenceGap | null
  *  reached by a post-boot navigation or an `--actions` click therefore carries a readiness flag that was
  *  earned by a DIFFERENT surface, while its own reads are still in flight — which is exactly the run above.
  *
- *  So the denominator is MEASURED instead of assumed: ops/drive.ts brackets the walk with two element
- *  counts and then watches the count until it stops changing. A page that keeps growing after the census
- *  was taken rendered content the census could not have judged, and the size of that growth is the size of
- *  the lie. No persisted baseline (which would be absent on a fresh clone — the floor missing exactly when
- *  it is most needed) and no per-surface calibration: the surface states its own population, twice.
- *
- *  Returns null when the growth is incidental (below THIN_CENSUS_GROWTH_RATIO or fewer than
- *  THIN_CENSUS_MIN_GROWTH elements) — a late tooltip or a lazy image must never refuse a real run. */
+ *  #976 removes the old 1.5x / eight-element tolerance. The page first proves a bounded quiet window,
+ *  then takes one identity snapshot and closes every identity as walked or one explicit skip. A later
+ *  addition, detachment, replacement, inaccessible subject, or unexplained term is an instrument error:
+ *  there is no honest category of subject the verdict simply did not judge. */
 export function censusThinGap(population: DomPopulation | null): EvidenceGap | null {
   if (population === null) {
     return null;
   }
-  const { duringWalk, settled, stabilized } = population;
-  const growth = settled - duringWalk;
-  if (growth < THIN_CENSUS_MIN_GROWTH || settled < duringWalk * THIN_CENSUS_GROWTH_RATIO) {
+  const { duringWalk, settled, stabilized, accounting } = population;
+  const closedSkips = accounting.skipped.documentHead + accounting.skipped.devChrome;
+  const explained = accounting.walked + closedSkips;
+  const faults: string[] = [];
+  if (!stabilized) {
+    faults.push("the pre-walk population/revision watch was still moving at its ceiling");
+  }
+  if (accounting.observed !== settled || accounting.settled !== duringWalk || settled !== duringWalk) {
+    faults.push(`the quiet-window population (${settled}) and judged snapshot (${duringWalk}) differ`);
+  }
+  if (explained !== accounting.settled) {
+    faults.push(`${accounting.settled - explained} settled subject(s) have no walked/closed-skip class`);
+  }
+  if (accounting.inaccessible > 0) {
+    faults.push(`${accounting.inaccessible} subject(s) were inaccessible to the walk`);
+  }
+  if (accounting.final !== accounting.settled) {
+    faults.push(`the final population (${accounting.final}) differs from the snapshot (${accounting.settled})`);
+  }
+  if (accounting.added > 0 || accounting.detached > 0 || accounting.walkMutations > 0) {
+    faults.push(
+      `${accounting.added} added, ${accounting.detached} detached, ${accounting.walkMutations} element-bearing child-list mutation(s) occurred during the walk`,
+    );
+  }
+  if (faults.length === 0) {
     return null;
   }
-  const floorNote = stabilized ? "" : " (and it was STILL growing at the ceiling, so that figure is a floor)";
+  const floorNote = stabilized ? "" : " The population was still moving at the ceiling, so its figure is a floor.";
   return {
     evidence: "the node census's completeness",
-    detail: `the page held ${duringWalk} element(s) while the walk censused it and ${settled}${floorNote} once it stopped changing — the surface was still rendering, so the census measured a FRACTION of it and every check family folded the missing part into "no findings". A readiness flag does not cover this: it is one-shot at boot, so a route reached by a navigation or an --actions click carries the previous surface's settle. Re-run the SAME command (the surface is warm now), or raise --wait if this route is genuinely slow to fill`,
+    detail: `the page settled at ${settled} element(s), snapshotted ${duringWalk}, walked ${accounting.walked}, and explicitly skipped ${closedSkips} (${accounting.skipped.documentHead} document-head + ${accounting.skipped.devChrome} dev-chrome), but exact accounting failed: ${faults.join("; ")}.${floorNote} Re-run the SAME command only after the surface is actually stable; a clean verdict requires settled = walked + classified closed skips with no identity churn`,
+  };
+}
+
+function themeResolutionFaults(request: ThemeRequest, shim: SettingsShimEvidence): string[] {
+  const faults: string[] = [];
+  if (shim.themeApplied !== true) {
+    faults.push("the selection patch did not reach a real settings envelope");
+  }
+  const resolution = shim.themeResolution;
+  if (resolution === null) {
+    faults.push("the request has no authenticated catalog resolution");
+    return faults;
+  }
+  if (resolution.request !== request) {
+    faults.push(`the catalog resolved ${JSON.stringify(resolution.request)} instead of ${JSON.stringify(request)}`);
+  }
+  if (resolution.source === "unknown") {
+    faults.push("the catalog row omitted its seed/custom source discriminator");
+  }
+  return faults;
+}
+
+function themePopulationFaults(render: ThemeRenderInput, walked: number): string[] {
+  const faults: string[] = [];
+  const sourceTotal = render.subjectSources.default + render.subjectSources.seed + render.subjectSources.custom + render.subjectSources.unknown;
+  const polarityTotal = render.subjectPolarities.light + render.subjectPolarities.dark + render.subjectPolarities.mixed + render.subjectPolarities.unknown;
+  if (sourceTotal !== walked) {
+    faults.push(`${sourceTotal}/${walked} walked subjects have a rendered source class`);
+  }
+  if (polarityTotal !== walked || render.subjectPolarities.unknown > 0 || render.subjectPolarities.mixed > 0) {
+    faults.push(
+      `${polarityTotal}/${walked} walked subjects have a polarity class (${render.subjectPolarities.light} light, ${render.subjectPolarities.dark} dark, ${render.subjectPolarities.mixed} mixed, ${render.subjectPolarities.unknown} unknown)`,
+    );
+  }
+  return faults;
+}
+
+function themeCarrierFault(resolution: ThemeResolutionEvidence | null, render: ThemeRenderInput): string | null {
+  if (resolution?.source === "default") {
+    return render.rootDataTheme === null ? null : `the default arm rendered root data-theme=${JSON.stringify(render.rootDataTheme)}`;
+  }
+  if (resolution?.source === "seed") {
+    const expected = resolution.name?.toLowerCase() ?? null;
+    const hearthDefault = expected === "hearth" && render.rootDataTheme === null;
+    return hearthDefault || (expected !== null && render.rootDataTheme?.toLowerCase() === expected)
+      ? null
+      : `seed ${JSON.stringify(resolution.name)} rendered root data-theme=${JSON.stringify(render.rootDataTheme)}`;
+  }
+  if (resolution?.source === "custom") {
+    return render.rootDataTheme === null && render.shellScope.inlineBackground !== null
+      ? null
+      : `custom ${JSON.stringify(resolution.name)} rendered root data-theme=${JSON.stringify(render.rootDataTheme)} and shell inline background=${JSON.stringify(render.shellScope.inlineBackground)}`;
+  }
+  return null;
+}
+
+/** A named theme arm is a claim about what rendered, not merely what argv contained (#976). The shim's
+ *  authenticated catalog resolution proves request/id/source; the walk proves the root/scope carrier and
+ *  effective computed polarity over the exact judged population. */
+export function themeProvenanceGap(
+  request: ThemeRequest | null,
+  shim: SettingsShimEvidence,
+  render: ThemeRenderInput | null,
+  walked: number,
+): EvidenceGap | null {
+  if (request === null) {
+    return null;
+  }
+  const resolution = shim.themeResolution;
+  const faults = themeResolutionFaults(request, shim);
+  if (render === null) {
+    faults.push("the judged walk returned no rendered theme evidence");
+  } else {
+    faults.push(...themePopulationFaults(render, walked));
+    const carrier = themeCarrierFault(resolution, render);
+    if (carrier !== null) {
+      faults.push(carrier);
+    }
+  }
+  if (faults.length === 0) {
+    return null;
+  }
+  const resolutionLabel =
+    resolution === null ? "unresolved" : `id=${resolution.id ?? "none"} name=${resolution.name ?? "(default)"} source=${resolution.source}`;
+  return {
+    evidence: "the requested theme's rendered provenance",
+    detail: `--theme ${JSON.stringify(request)} resolved as ${resolutionLabel}, but ${faults.join("; ")} — requested theme, authenticated catalog row, rendered carrier, and effective subject polarity must agree before this run can claim that arm`,
   };
 }
 
