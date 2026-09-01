@@ -8,14 +8,13 @@
 // means the ceiling fired with reads still in flight. Readiness is judged after route resolution because
 // an idle query cache can also mean the lazy route that owns the reads has not mounted yet (#145).
 
-import type { ChatId } from "@orb/kit/ids";
-import type { CssMergeTraceSnapshot } from "@orb/ui/lib";
 import type { QueryClient } from "@tanstack/react-query";
+import type { OrbAgentHandles, OrbCssHandle, OrbNavHandle, OrbRpgReader, OrbSeedHandle, QuerySummary, ShellSnapshot } from "./agent-bridge-handles.ts";
 import type { OrbAutomationFiresFilter, OrbPluginLogReader } from "./agent-plugin-bridge.ts";
 import { readAutomationFires } from "./agent-plugin-bridge.ts";
 import { bootReads } from "./boot-reads.ts";
 import type { BusEventRecord } from "./bus-devlog.ts";
-import { busEventRing, busLiveCount } from "./bus-devlog.ts";
+import { __resetBusEventRing, busEventRing, busLiveCount } from "./bus-devlog.ts";
 import { IS_DEV } from "./dev-flag.ts";
 import { __resetLongTaskEvidence } from "./long-task-tracer.ts";
 import { setFrameDropTrackingPaused } from "./motion-animation-state.ts";
@@ -26,6 +25,8 @@ import type { AnimationRecord, MotionSnapshot } from "./motion-stats.ts";
 import { __resetMotionStats, activeAnimations, installMotionObservers, motionSnapshot } from "./motion-stats.ts";
 import { perfMeasureFromLoad, recentMeasures } from "./perf-marks.ts";
 import { __resetRenderStats, renderHeatmap } from "./render-stats.ts";
+
+export type { NavResult, OrbAgentHandles, OrbNavCapabilities, OrbNavHandle, OrbRpgReader, OrbSeedHandle, SeedProfile } from "./agent-bridge-handles.ts";
 
 const READY_ATTR = "data-app-ready";
 // The grace before the first "no initial reads at all" check. An app that never fetches is ready here.
@@ -147,118 +148,18 @@ export function installAppReadySignal(queryClient: QueryClient, routeResolution:
   }, READY_CEILING_MS);
 }
 
-interface QuerySummary {
-  readonly key: unknown;
-  readonly status: string;
-  readonly fetch: string;
-  readonly stale: boolean;
-  readonly updatedAt: number;
+const ORB_RING_LIFETIMES = ["checkpoint", "durable", "server-runtime", "session"] as const;
+type OrbRingLifetime = (typeof ORB_RING_LIFETIMES)[number];
+
+interface OrbRingMetadata {
+  readonly name: OrbRingName;
+  readonly read: string;
+  readonly lifetime: OrbRingLifetime;
+  readonly resettable: boolean;
+  readonly description: string;
 }
 
-interface ShellSnapshot {
-  readonly section: string | null;
-  readonly panels: ReadonlyArray<{ side: string | null; mode: string | null }>;
-  readonly chatOpen: boolean;
-  readonly focus: boolean;
-}
-
-/** Loud outcome of a `__orb.nav.*` action — `ok:true` on success, `ok:false` + a human reason on a
- *  rejected/invalid target. NEVER a silent no-op (a snap step reddens its exit on `ok:false`). */
-export type NavResult = { readonly ok: true } | { readonly ok: false; readonly reason: string };
-
-/** Canonical targets currently accepted by `__orb.nav`. Static vocabularies come from the same tuples the
- *  actions validate against; context tabs are the ids published by the surface mounted right now. */
-export interface OrbNavCapabilities {
-  readonly sections: readonly string[];
-  readonly modalSlots: readonly string[];
-  readonly configGroups: readonly string[];
-  readonly contextTabs: readonly string[];
-  /** Stable id paired with the exact visible label accepted by `contextTab`. */
-  readonly contextTabNames: ReadonlyArray<{ readonly id: string; readonly label: string }>;
-  readonly contextTabsPublished: boolean;
-  readonly chatPositions: readonly string[];
-}
-
-/** The two seedable game shapes: `d20` = the classic six-attribute grid + level + everything; `freeform` =
- *  the same rich planes MINUS the attribute grid (freeform has no attribute vocabulary — the sparser Sheet). */
-export type SeedProfile = "d20" | "freeform";
-
-/** Dev-only rpg game seeder: stand up a fully-populated game (character + chat + game(profile) + config +
- *  rich content across EVERY plane) in ONE call, so audits/demos/live-verify passes stop hand-rolling tRPC
- *  seeders. Built at the composition root under IS_DEV (drives the real `rpg.*` verbs through the wire
- *  client), injected into `installAgentDebugHandle`. Returns the created chatId — feed it to `nav.openChat`. */
-export interface OrbSeedHandle {
-  /** Seed one fully-populated game of `profile` and return its chatId (open it with `nav.openChat`). */
-  readonly game: (args: { profile: SeedProfile; title?: string }) => Promise<{ readonly chatId: ChatId }>;
-  /** Convenience: `game({ profile })` with `profile` defaulting to `freeform` (lite's create default). */
-  readonly richGame: (profile?: SeedProfile) => Promise<{ readonly chatId: ChatId }>;
-}
-
-/** Authoritative RPG state for the active chat, read through the same tRPC procedures as the UI. */
-interface OrbRpgSnapshot {
-  readonly chatId: ChatId | null;
-  readonly game: unknown;
-  readonly tracker: unknown;
-  readonly journal: readonly unknown[];
-  readonly turnToolCalls: readonly unknown[];
-}
-
-export type OrbRpgReader = () => Promise<OrbRpgSnapshot>;
-
-interface OrbCssHandle {
-  readonly read: () => CssMergeTraceSnapshot;
-  readonly reset: () => void;
-}
-
-export interface OrbAgentHandles {
-  readonly nav: OrbNavHandle;
-  readonly seed: OrbSeedHandle;
-  readonly rpg: OrbRpgReader;
-  readonly pluginLog: OrbPluginLogReader;
-  readonly css: OrbCssHandle;
-  readonly durableLocalUserId: () => string | null;
-}
-
-/** Dev-only SPA-navigation bridge: drive the app's client-state navigation (rail section, modals,
- *  config group, context tab, open chat) through the SAME store actions the real UI calls — the app
- *  has only `/` + `/login` as URL routes, so this is how a harness reaches every surface without a click
- *  chain. Built at the composition tier (`client/src/agent-nav/`, a door-owned dir module that may legally
- *  compose #state/#features/#data — the lib/ floor may not) and injected into `installAgentDebugHandle`. */
-export interface OrbNavHandle {
-  /** Discover the exact target vocabularies without reading source or provoking a failed action. */
-  readonly capabilities: () => OrbNavCapabilities;
-  /** Switch the active rail section (validated against SECTION_IDS). */
-  readonly section: (id: string) => NavResult;
-  /** Open a rail modal by slot (validated against MODAL_SLOT_IDS). */
-  readonly openModal: (slot: string) => NavResult;
-  /** Open the Settings section on a group (CONFIG_GROUP_IDS), optionally on a section anchor (#866 S1). */
-  readonly openConfig: (group: string, sub?: string) => NavResult;
-  /** Reveal the active content's context panel by stable id OR unique visible label, and RESOLVE ONLY ONCE
-   *  THE PANEL HAS PUBLISHED ITS TABS (issue #656 — it used to report `ok:true` against the not-yet-mounted
-   *  panel's EMPTY vocabulary and leave a different tab showing, so every one-call probe chain censused the
-   *  wrong surface while claiming this one). Async because that mount signal is: it opens the panel, waits
-   *  for its own publish, resolves the name against the published set, then verifies the tab the panel
-   *  actually landed on. Refuses loudly — and distinguishably — on an empty name, an ambiguous label, an
-   *  unknown name, a panel that never published, and a landing that disagrees with the request. */
-  readonly contextTab: (name: string) => Promise<NavResult>;
-  /** Switch to the Chats section + make an existing chat active by chat id OR exact display title, OR one of
-   *  the sentinels reported by `capabilities().chatPositions`:
-   *    · `"first"`/`"latest"` — the chat LIST's top row (`listChats` is newest-CONVERSATION-first, so both
-   *      spellings name the most recent LISTED chat). Rejects on an empty list.
-   *    · `"current"` — the ACTIVE room, read off the session's active-chat pointer with no list query in the
-   *      path. Use this, not `latest`, right after creating a room: a fresh room is an unlisted husk until
-   *      the list query refetches, so `latest` would name a different chat. Rejects on the landing surface.
-   *  All three are RESERVED WORDS — a chat actually titled one of them is reachable by its id. The id/title
-   *  arms resolve against the chat-list query cache (fetching it first if not loaded) and reject loudly on
-   *  no match or an ambiguous title. The section switch is part of the arm: reporting `ok` for a selection
-   *  nothing on screen reflects is a lie a caller cannot detect. */
-  readonly openChat: (idOrTitleOrPosition: string) => Promise<NavResult>;
-  /** Switch to the Characters section + select a character by id OR name — resolves against the character
-   *  list query. Rejects loudly on no match OR an ambiguous name. */
-  readonly openCharacter: (idOrName: string) => Promise<NavResult>;
-  /** Close any open modal. */
-  readonly closeModal: () => NavResult;
-}
+type OrbRingResetResult = { readonly ok: true; readonly name: OrbRingName } | { readonly ok: false; readonly name: string; readonly reason: string };
 
 interface OrbDebugHandle {
   /** Resolves when `data-app-ready` is set (initial reads settled). */
@@ -314,7 +215,58 @@ interface OrbDebugHandle {
    *  read binds it (the pre-adoption legacy world). The lens a test or this bridge asserts the
    *  per-user localStorage scoping through, without reaching into `localStorage` by hand. */
   readonly durableLocalUserId: () => string | null;
+  /** Exhaustive, typed inventory of this top-level handle. */
+  readonly capabilities: () => Readonly<Record<keyof OrbDebugHandle, string>>;
+  /** Evidence-source index: read surface, lifetime, and whether this client owns a safe reset. */
+  readonly rings: () => readonly OrbRingMetadata[];
+  /** Reset one checkpoint-safe client ring; unsafe or unknown names refuse loudly. */
+  readonly resetRing: (name: string) => OrbRingResetResult;
 }
+
+const ORB_DEBUG_CAPABILITIES = {
+  ready: "promise that settles when initial app reads finish",
+  isReady: "read whether the app-ready marker is present",
+  queries: "read the TanStack Query cache census",
+  bus: "read live chat-bus subscriptions and recent canon events",
+  shell: "read the mounted shell section, panels, chat, and focus state",
+  perf: "read session User Timing measures",
+  renders: "read checkpoint render-profiler evidence",
+  motion: "read checkpoint LoAF and layout-shift evidence",
+  animations: "read currently active animations and compositor classification",
+  flags: "read checkpoint motion defect flags",
+  resetFlags: "clear the legacy motion-flag checkpoint",
+  resetEvidence: "clear every checkpoint-safe client evidence store",
+  motionFlaggersSettled: "wait for the initial motion-flagger census",
+  setMotionAuditDropTrackingPaused: "coordinate in-page drop tracking with motion-audit",
+  snap: "read a cheap combined bridge overview",
+  nav: "drive SPA navigation through production state actions",
+  seed: "seed a complete development game through production APIs",
+  rpg: "read active-game state through production APIs",
+  pluginLog: "read installed plugins or one server-runtime host log",
+  css: "read or reset checkpoint CSS merge receipts",
+  automationFires: "read durable automation fire audit rows",
+  durableLocalUserId: "read the bound durable-local user namespace",
+  capabilities: "describe every top-level bridge member",
+  rings: "describe every indexed evidence source and its lifetime",
+  resetRing: "reset one checkpoint-safe client evidence source",
+} as const satisfies Record<keyof OrbDebugHandle, string>;
+
+const ORB_RING_NAMES = ["bus-events", "flags", "motion", "renders", "css-merges", "animations", "perf", "plugin-log", "automation-fires"] as const;
+type OrbRingName = (typeof ORB_RING_NAMES)[number];
+
+const ORB_RING_REGISTRY = {
+  "bus-events": { read: "bus().events", lifetime: "checkpoint", resettable: true, description: "recent canon bus events" },
+  flags: { read: "flags()", lifetime: "checkpoint", resettable: true, description: "deduplicated motion defect flags" },
+  motion: { read: "motion()", lifetime: "checkpoint", resettable: true, description: "LoAF and layout-shift evidence" },
+  renders: { read: "renders()", lifetime: "checkpoint", resettable: true, description: "render-profiler heatmap" },
+  "css-merges": { read: "css.read()", lifetime: "checkpoint", resettable: true, description: "configured class-merge receipts" },
+  animations: { read: "animations()", lifetime: "session", resettable: false, description: "currently active animations" },
+  perf: { read: "perf()", lifetime: "session", resettable: false, description: "load and session User Timing measures" },
+  "plugin-log": { read: "pluginLog(ref)", lifetime: "server-runtime", resettable: false, description: "plugin-host runtime log" },
+  "automation-fires": { read: "automationFires(filter)", lifetime: "durable", resettable: false, description: "durable automation dispatch audit" },
+} as const satisfies Record<OrbRingName, Omit<OrbRingMetadata, "name">>;
+
+const ORB_RINGS: readonly OrbRingMetadata[] = ORB_RING_NAMES.map((name) => ({ name, ...ORB_RING_REGISTRY[name] }));
 
 declare global {
   // `var` is required: ambient global augmentation must use var to attach to globalThis.
@@ -363,6 +315,15 @@ export function installAgentDebugHandle(queryClient: QueryClient, handles: OrbAg
   if (!IS_DEV) {
     return;
   }
+  installAgentDebugHandleImpl(queryClient, handles);
+}
+
+/** CT-only entry to exercise the real bridge implementation through Vite's production-mode CT build. */
+export function __installAgentDebugHandleForTest(queryClient: QueryClient, handles: OrbAgentHandles): void {
+  installAgentDebugHandleImpl(queryClient, handles);
+}
+
+function installAgentDebugHandleImpl(queryClient: QueryClient, handles: OrbAgentHandles): void {
   installMotionObservers();
   installMotionFlaggers();
   const { nav, seed, rpg, pluginLog, css, durableLocalUserId } = handles;
@@ -407,11 +368,33 @@ export function installAgentDebugHandle(queryClient: QueryClient, handles: OrbAg
     // Raised motion defects, by channel — a zero here is the only cheap "the surface is clean" read.
     flags: flagCounts(),
   });
+  const resetters = {
+    "bus-events": __resetBusEventRing,
+    flags: __resetMotionFlags,
+    motion: (): void => {
+      __resetLongTaskEvidence();
+      __resetMotionStats();
+    },
+    renders: __resetRenderStats,
+    "css-merges": css.reset,
+  } as const satisfies Record<Extract<OrbRingName, "bus-events" | "css-merges" | "flags" | "motion" | "renders">, () => void>;
+  const resetRing = (name: string): OrbRingResetResult => {
+    if (!Object.hasOwn(ORB_RING_REGISTRY, name)) {
+      return { ok: false, name, reason: `unknown ring "${name}"; call __orb.rings() for the indexed names` };
+    }
+    if (!Object.hasOwn(resetters, name)) {
+      const ring = ORB_RING_REGISTRY[name as OrbRingName];
+      return { ok: false, name, reason: `${name} is ${ring.lifetime} evidence and is not safely resettable by the client bridge` };
+    }
+    resetters[name as keyof typeof resetters]();
+    return { ok: true, name: name as keyof typeof resetters };
+  };
   const resetEvidence = (): void => {
-    __resetLongTaskEvidence();
-    __resetMotionFlags();
-    __resetMotionStats();
-    __resetRenderStats();
+    for (const name of ORB_RING_NAMES) {
+      if (name in resetters) {
+        resetters[name as keyof typeof resetters]();
+      }
+    }
   };
   globalThis.__orb = {
     ready,
@@ -436,9 +419,12 @@ export function installAgentDebugHandle(queryClient: QueryClient, handles: OrbAg
     css,
     automationFires: readAutomationFires,
     durableLocalUserId,
+    capabilities: (): Readonly<Record<keyof OrbDebugHandle, string>> => ORB_DEBUG_CAPABILITIES,
+    rings: (): readonly OrbRingMetadata[] => ORB_RINGS,
+    resetRing,
   };
   console.info(
-    "%c[orb]%c dev introspection ready → %cwindow.__orb%c.snap() · .css.read()/.reset() · .rpg() · .pluginLog(slug?) · .automationFires({chatId?}) · .queries() · .bus() · .perf() · .renders() · .motion() · .animations() · .flags()/.resetEvidence()/.motionFlaggersSettled()/.setMotionAuditDropTrackingPaused() · .shell() · .durableLocalUserId() · .nav.capabilities/section/openModal/openConfig/contextTab/openChat/openCharacter/closeModal · .seed.game({profile:'d20'|'freeform'})/richGame;  wait on %chtml[data-app-ready]%c.  Docs: packages/client/src/lib/agent-tools.README.md",
+    "%c[orb]%c dev introspection ready → %cwindow.__orb%c.capabilities() · .rings()/.resetRing(name) · .snap() · .css.read() · .rpg() · .pluginLog(slug?) · .automationFires({chatId?}) · .queries() · .bus() · .perf() · .renders() · .motion() · .animations() · .flags()/.resetEvidence()/.motionFlaggersSettled()/.setMotionAuditDropTrackingPaused() · .shell() · .durableLocalUserId() · .nav.capabilities/section/openModal/openConfig/contextTab/openChat/openCharacter/closeModal · .seed.game({profile:'d20'|'freeform'})/richGame;  wait on %chtml[data-app-ready]%c.  Docs: packages/client/src/lib/agent-tools.README.md",
     "color:#e0a; font-weight:bold",
     "color:#888",
     "color:#0a7; font-weight:bold",

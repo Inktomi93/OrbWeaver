@@ -1268,7 +1268,7 @@
     {
       "siteId": "packages/client/src/lib/agent-bridge.ts::promise:ready::1",
       "path": "packages/client/src/lib/agent-bridge.ts",
-      "line": 104,
+      "line": 105,
       "column": 3,
       "grammar": "promise",
       "position": "promise:ready",
@@ -1276,12 +1276,12 @@
       "snippet": "ready.then(unsubscribe, unsubscribe);",
       "verdict": "deliberate-absorb",
       "reason": "both arms only unsubscribe this listener; `ready`'s own settlement is owned by whichever caller awaits it elsewhere. Ends if this becomes the sole reader of `ready`.",
-      "markerLine": 103
+      "markerLine": 104
     },
     {
       "siteId": "packages/client/src/lib/agent-bridge.ts::promise:ready::2",
       "path": "packages/client/src/lib/agent-bridge.ts",
-      "line": 109,
+      "line": 110,
       "column": 3,
       "grammar": "promise",
       "position": "promise:ready",
@@ -1289,12 +1289,12 @@
       "snippet": "ready.then(unsubscribeBootReads, unsubscribeBootReads);",
       "verdict": "deliberate-absorb",
       "reason": "both arms only unsubscribe this listener; `ready`'s own settlement is owned by whichever caller awaits it elsewhere. Ends if this becomes the sole reader of `ready`.",
-      "markerLine": 108
+      "markerLine": 109
     },
     {
       "siteId": "packages/client/src/lib/agent-bridge.ts::promise:ready::3",
       "path": "packages/client/src/lib/agent-bridge.ts",
-      "line": 140,
+      "line": 141,
       "column": 3,
       "grammar": "promise",
       "position": "promise:ready",
@@ -1302,7 +1302,7 @@
       "snippet": "ready.then(unsubscribeRoute, unsubscribeRoute);",
       "verdict": "deliberate-absorb",
       "reason": "both arms only unsubscribe this listener; `ready`'s own settlement is owned by whichever caller awaits it elsewhere. Ends if this becomes the sole reader of `ready`.",
-      "markerLine": 139
+      "markerLine": 140
     },
     {
       "siteId": "packages/client/src/lib/error-boundary.tsx::empty:catch::1",

@@ -9,6 +9,7 @@
 import { createAppQueryClient } from "@orb/client/data";
 import { AppToaster } from "@orb/client/features/app-shell";
 import { bindNotify, createToastNotify, notify } from "@orb/client/lib";
+import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { Select } from "@orb/ui/select";
 import { createToastManager, ToastProvider } from "@orb/ui/toast";
 // @orb-gate-ignore query-machine-seals(useMutation): test-tier code the gate's `\.test\.tsx?$` scope
@@ -24,9 +25,10 @@ import type { ReactElement, ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 // Deep, not `@orb/client/lib`: agent-bridge is OUT of the barrel too (main.tsx imports it by path — a
 // re-export would drag the dev-only introspection handle into the prod bundle).
-import type { RouteResolution } from "../../../packages/client/src/lib/agent-bridge.ts";
-import { installAppReadySignal } from "../../../packages/client/src/lib/agent-bridge.ts";
+import type { OrbAgentHandles, RouteResolution } from "../../../packages/client/src/lib/agent-bridge.ts";
+import { __installAgentDebugHandleForTest, installAppReadySignal } from "../../../packages/client/src/lib/agent-bridge.ts";
 import { __resetBootReads, setBootReadPending } from "../../../packages/client/src/lib/boot-reads.ts";
+import { __createBusDevlogFixtureForTest, __recordBusEventForTest } from "../../../packages/client/src/lib/bus-devlog.ts";
 // Deep, not `@orb/client/lib`: motion-stats is deliberately OUT of the barrel (its header — a barrel
 // re-export would drag the dev observers into the prod bundle), so the only way to reach it is the path.
 import { __resetLongTaskEvidence, installLongTaskTracer } from "../../../packages/client/src/lib/long-task-tracer.ts";
@@ -40,6 +42,8 @@ import {
   motionSnapshot,
   subscribeLongAnimationFrames,
 } from "../../../packages/client/src/lib/motion-stats.ts";
+import { perfMeasureFromLoad } from "../../../packages/client/src/lib/perf-marks.ts";
+import { recordRender } from "../../../packages/client/src/lib/render-stats.ts";
 import { blockMainThread } from "../../support/ct/block-main-thread.ts";
 
 // Minted OUTSIDE React and bound ONCE — exactly the main.tsx posture. Fresh browser context per CT
@@ -1044,5 +1048,92 @@ export function CtToastSurface({ children }: { readonly children: ReactNode }): 
       {children}
       <AppToaster />
     </ToastProvider>
+  );
+}
+
+const BRIDGE_CHAT_ID = mintTypeId(ID_PREFIX.chat);
+
+/** Real `installAgentDebugHandle` mount for the #894 completeness/ring contract. External composition
+ * handles are inert fakes; every lib-owned capability and reset is the production implementation. */
+export function AgentBridgeStory(): ReactElement {
+  const [client] = useState(() => new QueryClient());
+  const cssStateRef = useRef({ calls: 0 });
+  const [motionActive, setMotionActive] = useState(false);
+  const [bridgeReady, setBridgeReady] = useState(false);
+  const motionTargetRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const handles = {
+      nav: {
+        capabilities: () => ({
+          sections: [],
+          modalSlots: [],
+          configGroups: [],
+          contextTabs: [],
+          contextTabNames: [],
+          contextTabsPublished: true,
+          chatPositions: [],
+        }),
+        section: () => ({ ok: true as const }),
+        openModal: () => ({ ok: true as const }),
+        openConfig: () => ({ ok: true as const }),
+        contextTab: async () => ({ ok: true as const }),
+        openChat: async () => ({ ok: true as const }),
+        openCharacter: async () => ({ ok: true as const }),
+        closeModal: () => ({ ok: true as const }),
+      },
+      seed: { game: async () => ({ chatId: BRIDGE_CHAT_ID }), richGame: async () => ({ chatId: BRIDGE_CHAT_ID }) },
+      rpg: async () => ({ chatId: null, game: null, tracker: null, journal: [], turnToolCalls: [] }),
+      pluginLog: async () => ({ ok: true as const, plugins: [] }),
+      css: {
+        read: () => ({ enabled: true, calls: cssStateRef.current.calls, conflictCalls: 0, deduplicatedConflictCalls: 0, receipts: [], status: "ok" as const }),
+        reset: () => {
+          cssStateRef.current.calls = 0;
+        },
+      },
+      durableLocalUserId: () => null,
+    } satisfies OrbAgentHandles;
+    __installAgentDebugHandleForTest(client, handles);
+    globalThis.__orb?.resetEvidence();
+    const busFixture = __createBusDevlogFixtureForTest();
+    const motionTarget = motionTargetRef.current;
+    const blockStartedAnimation = (): void => blockMainThread(120);
+    motionTarget?.addEventListener("animationstart", blockStartedAnimation);
+    let live = true;
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (live) {
+          setBridgeReady(true);
+        }
+      });
+    });
+    return (): void => {
+      live = false;
+      motionTarget?.removeEventListener("animationstart", blockStartedAnimation);
+      busFixture.cleanup();
+      globalThis.__orb = undefined;
+    };
+  }, [client]);
+  return (
+    <div>
+      {bridgeReady ? <div data-testid="bridge-installed">installed</div> : null}
+      <style>{"@keyframes orb-ct-bridge-dirty { from { width: 80px } to { width: 160px } }"}</style>
+      <button
+        type="button"
+        onClick={(): void => {
+          __recordBusEventForTest("ct.bridge", BRIDGE_CHAT_ID, ["chat.list"]);
+          recordRender("ct:bridge", "mount", 7);
+          cssStateRef.current.calls = 1;
+          perfMeasureFromLoad("ct-bridge");
+          setMotionActive(true);
+        }}
+      >
+        seed bridge evidence
+      </button>
+      <div
+        ref={motionTargetRef}
+        data-testid="bridge-motion"
+        style={{ width: 80, height: 20, animation: motionActive ? "orb-ct-bridge-dirty 10s linear" : undefined }}
+      />
+    </div>
   );
 }

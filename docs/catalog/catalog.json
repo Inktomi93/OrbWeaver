@@ -440,9 +440,9 @@
       "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 381,
-      "bytes": 193613,
-      "sha256": "fc42c70365c9132c82792527d204e403dc57bf2a2255dd61b3ee57c2dec3124b",
+      "lines": 382,
+      "bytes": 194240,
+      "sha256": "a3f6589bb2bd0035da31297dcb83438f3e979858bca8654ba7ea3b1e3e0eb768",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -528,7 +528,7 @@
         ],
         "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/architecture/core/Core-Enforcement-Deferred-Dropped.md",

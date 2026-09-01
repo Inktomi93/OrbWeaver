@@ -10,6 +10,9 @@ Read app state in ONE eval instead of scraping the DOM. Installed from `main.tsx
 
 | Call | Returns |
 | - | - |
+| `__orb.capabilities()` | exhaustive top-level member index with a one-line description for every `OrbDebugHandle` key; this is the discovery door, not a hand-maintained subset |
+| `__orb.rings()` | every indexed evidence source with its read spelling, honest lifetime (`checkpoint`, `session`, `server-runtime`, `durable`), and resetability |
+| `__orb.resetRing(name)` | reset one checkpoint-safe client evidence ring (`bus-events`, `flags`, `motion`, `renders`, `css-merges`), returning `{ok:true,name}`; unknown or unsafe names return `{ok:false,name,reason}` without mutating evidence |
 | `__orb.snap()` | cheap one-call overview: `{ ready, shell, bus, queries, perf, renders, motion, flags }`; motion summarizes recorded evidence without forcing a document-wide animation scan |
 | `__orb.css.read()` / `.reset()` | ordered configured-merge receipts since the last checkpoint: input occurrences, governed axis, exact loser → final winner, and output; repeated receipts dedupe while counters retain population. A read before any merge fails loud with `INSTRUMENT ERROR` |
 | `await __orb.rpg()` | active chat's authoritative game + selected-lineage tracker view + journal + recorded folded tool calls; read-only, through the production tRPC APIs |
@@ -22,7 +25,7 @@ Read app state in ONE eval instead of scraping the DOM. Installed from `main.tsx
 | `__orb.motion()` | LoAF ring + jank numbers: `{ loafs, cls, observedCls, worstBlocking, worstShift, shifts }`; each attributed shift says whether it followed real input, `__orb.nav`, or virtual-row reconciliation |
 | `__orb.animations()` | active animations: `{ id?, target, properties, compositorClean }[]` — `compositorClean:false` (animating a non-transform/opacity/filter prop) = per-frame-layout jank risk |
 | `__orb.flags()` | motion flagger records for the current evidence window |
-| `__orb.resetEvidence()` | clear flags, motion/CLS, and render-heatmap evidence before a driven checkpoint without resetting app state |
+| `__orb.resetEvidence()` | legacy aggregate: clear all five checkpoint-safe rings before a driven checkpoint without resetting app state; bus live-subscription count is deliberately untouched |
 | `__orb.motionFlaggersSettled()` | await the dev flaggers' one initial full CSS census before a measured checkpoint; later scans remain incremental |
 | `__orb.setMotionAuditDropTrackingPaused(paused)` | motion-audit only: pause duplicate in-page `[drop]` lifetime/report work while its CDP trace owns dropped-frame truth |
 | `__orb.shell()` | DOM-derived shell state: active section, panel modes, `chatOpen` |

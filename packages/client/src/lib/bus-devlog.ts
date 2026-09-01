@@ -46,6 +46,27 @@ export function busEventRing(): readonly BusEventRecord[] {
   return busEventLog;
 }
 
+/** Clear checkpoint evidence without touching `liveSubscriptions`: active sockets are runtime state,
+ * not evidence, and resetting that count would hide a double-subscription defect. */
+export function __resetBusEventRing(): void {
+  busEventLog.length = 0;
+}
+
+/** CT-only plant for the production-mode component build, where IS_DEV correctly disables bus logging. */
+export function __createBusDevlogFixtureForTest(): { readonly cleanup: () => void } {
+  liveSubscriptions += 1;
+  return {
+    cleanup: (): void => {
+      liveSubscriptions = Math.max(0, liveSubscriptions - 1);
+    },
+  };
+}
+
+/** CT-only event plant; does not mutate the live subscription count. */
+export function __recordBusEventForTest(type: string, chatId: ChatId, keys: readonly string[]): void {
+  busEventLog.push({ at: clockMs(), type, chatId, keys });
+}
+
 /** The live subscription count (a value climbing past 1 for one open chat = a double-subscription). */
 export function busLiveCount(): number {
   return liveSubscriptions;
