@@ -1133,6 +1133,162 @@ test("action cluster is hidden-at-rest (opacity 0, in-flow, inert) and never sta
   await expect.poll(async () => nameRow.evaluate((el) => el.scrollWidth > el.clientWidth + 1)).toBe(false);
 });
 
+test.describe("#988 message action rail containment", () => {
+  const containmentTolerancePx = 1;
+
+  interface ActionRailRect {
+    readonly height: number;
+    readonly left: number;
+    readonly top: number;
+    readonly width: number;
+  }
+
+  interface BubbleRect {
+    readonly bottom: number;
+    readonly left: number;
+    readonly right: number;
+    readonly top: number;
+  }
+
+  interface ActionButtonGeometry {
+    readonly height: number;
+    readonly hitOwned: boolean;
+    readonly name: string | null;
+    readonly width: number;
+  }
+
+  interface ActionGeometry {
+    readonly actions: ActionRailRect;
+    readonly bubble: BubbleRect;
+    readonly buttons: readonly ActionButtonGeometry[];
+    readonly targetFloor: number;
+  }
+
+  function actionGeometry(component: Locator): Promise<ActionGeometry> {
+    return component.locator(ACTIONS_ROW).evaluate((element) => {
+      const bubble = element.closest<HTMLElement>("[data-slot='message-bubble']");
+      if (bubble === null) {
+        throw new Error("Message actions have no owning bubble");
+      }
+
+      const actionsRect = element.getBoundingClientRect();
+      const bubbleRect = bubble.getBoundingClientRect();
+      const targetFloorToken = getComputedStyle(element).getPropertyValue("--spacing-touch-target").trim();
+      const targetFloor =
+        Number.parseFloat(targetFloorToken) * (targetFloorToken.endsWith("rem") ? Number.parseFloat(getComputedStyle(document.documentElement).fontSize) : 1);
+      const visibleButtons = Array.from(element.querySelectorAll<HTMLButtonElement>("button")).filter((button) => {
+        const style = getComputedStyle(button);
+        const rect = button.getBoundingClientRect();
+        return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
+      });
+
+      return {
+        actions: {
+          height: actionsRect.height,
+          left: actionsRect.left,
+          top: actionsRect.top,
+          width: actionsRect.width,
+        },
+        bubble: {
+          bottom: bubbleRect.bottom,
+          left: bubbleRect.left,
+          right: bubbleRect.right,
+          top: bubbleRect.top,
+        },
+        buttons: visibleButtons.map((button) => {
+          const rect = button.getBoundingClientRect();
+          const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+          return {
+            height: rect.height,
+            hitOwned: hit !== null && button.contains(hit),
+            name: button.getAttribute("aria-label"),
+            width: rect.width,
+          };
+        }),
+        targetFloor,
+      };
+    });
+  }
+
+  function expectContained(geometry: ActionGeometry): void {
+    expect(geometry.actions.top).toBeGreaterThanOrEqual(geometry.bubble.top - containmentTolerancePx);
+    expect(geometry.actions.left).toBeGreaterThanOrEqual(geometry.bubble.left - containmentTolerancePx);
+    expect(geometry.actions.left + geometry.actions.width).toBeLessThanOrEqual(geometry.bubble.right + containmentTolerancePx);
+    expect(geometry.actions.top + geometry.actions.height).toBeLessThanOrEqual(geometry.bubble.bottom + containmentTolerancePx);
+  }
+
+  function expectTargetAndHitOwnership(geometry: ActionGeometry): void {
+    expect(geometry.targetFloor).toBeGreaterThan(0);
+    expect(geometry.buttons.length).toBeGreaterThan(0);
+    for (const button of geometry.buttons) {
+      expect(button.name).not.toBeNull();
+      expect(button.width).toBeGreaterThanOrEqual(geometry.targetFloor);
+      expect(button.height).toBeGreaterThanOrEqual(geometry.targetFloor);
+      expect(button.hitOwned).toBe(true);
+    }
+  }
+
+  test("fine pointer keeps the full reveal rail inside its owning bubble", async ({ mount, page }) => {
+    expect(await page.evaluate(() => matchMedia("(pointer: fine)").matches)).toBe(true);
+    const component = await mount(<MessageRowStory chatStyle="bubble" messageRole="assistant" content="Contain these fine actions" />);
+    const actions = component.locator(ACTIONS_ROW);
+
+    await expect(actions).toHaveCSS("opacity", "0");
+    await expect(actions).toHaveCSS("pointer-events", "none");
+    const rest = await actionGeometry(component);
+
+    await page.evaluate(() => {
+      document.documentElement.dataset["orb988Cls"] = "0";
+      let cls = 0;
+      const observer = new PerformanceObserver((list) => {
+        for (const entry of list.getEntries()) {
+          if (!(entry as PerformanceEntry & { hadRecentInput: boolean }).hadRecentInput) {
+            cls += (entry as PerformanceEntry & { value: number }).value;
+          }
+        }
+        document.documentElement.dataset["orb988Cls"] = String(cls);
+      });
+      observer.observe({ buffered: false, type: "layout-shift" });
+    });
+
+    await component.locator(ROW).hover();
+    await expect(actions).toHaveCSS("opacity", "1");
+    await expect(actions).toHaveCSS("pointer-events", "auto");
+    const revealed = await actionGeometry(component);
+
+    expect(revealed.actions).toEqual(rest.actions);
+    expectContained(revealed);
+    expectTargetAndHitOwnership(revealed);
+    await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+    expect(await page.locator("html").getAttribute("data-orb988-cls")).toBe("0");
+  });
+
+  test.describe("coarse pointer", () => {
+    test.use({ hasTouch: true });
+
+    test("keeps the always-visible named action door inside its owning bubble", async ({ mount, page }) => {
+      expect(await page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
+      const component = await mount(
+        <MessageRowStory chatStyle="bubble" messageRole="assistant" content="Contain these coarse actions" characterId={ALICE_ID} participants={[alice()]} />,
+      );
+      const actions = component.locator(ACTIONS_ROW);
+      const namedDoor = actions.getByRole("button", { name: "More message actions" });
+
+      await expect(actions).toHaveCSS("opacity", "1");
+      await expect(actions).toHaveCSS("pointer-events", "auto");
+      await expect(namedDoor).toBeVisible();
+      const rest = await actionGeometry(component);
+
+      await namedDoor.focus();
+      const focused = await actionGeometry(component);
+
+      expect(focused.actions).toEqual(rest.actions);
+      expectContained(focused);
+      expectTargetAndHitOwnership(focused);
+    });
+  });
+});
+
 // ── #204: the HEADER HUGS ITS TEXT — the invisible action cluster contributes NO height ─────────────
 // The hover-reveal cluster is a ~34px row of icon buttons, opacity-0 at rest but in flow at full
 // height, and it SET the painted chip's height: 50px around a 16px name (50 = 34 + 2×py-row). Over
