@@ -3940,7 +3940,7 @@
       "authority": "design",
       "fullRead": true,
       "verifiedSha256": "f4bf01b7606b3bb2b177b3b0e0cb2aa3685ec99ab825522d771eb9177438536f",
-      "verifiedCommit": "8704736325fe3e0b17c99f1cc81b61267763135a",
+      "verifiedCommit": "d1f0ea36ecb3a642cc91c13812b69dfe541f40fa",
       "verifiedAt": "2026-08-31",
       "evidence": [
         "re-attested at 870473632 under #883 — full 299-line read; the post-#969 rider records the 4.6 attainable derivation target, exact matrix minima, sole Mocha seed retune, and byte-identical generated base token map",

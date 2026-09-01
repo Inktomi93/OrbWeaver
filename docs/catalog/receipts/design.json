@@ -1038,7 +1038,7 @@
       "authority": "design",
       "fullRead": true,
       "verifiedSha256": "9131657583722f92a6764ceb6015e0ab7f2907ddec92d490b919aa5b78cadd22",
-      "verifiedCommit": "8704736325fe3e0b17c99f1cc81b61267763135a",
+      "verifiedCommit": "d1f0ea36ecb3a642cc91c13812b69dfe541f40fa",
       "verifiedAt": "2026-08-31",
       "evidence": [
         "docs/design/theme-pivot-foreground-contract.md:1-343 read in full after the #883 repair; the 4.6 aim is capped by physical endpoint capacity and the exact accepted-base/pivot/seed receipts are recorded",

@@ -302,7 +302,7 @@
       "authority": "normative",
       "fullRead": true,
       "verifiedSha256": "8fac16a819506fed7cb25333a7c323ba2c88b8ffb471355926ac007d291d093c",
-      "verifiedCommit": "8704736325fe3e0b17c99f1cc81b61267763135a",
+      "verifiedCommit": "d1f0ea36ecb3a642cc91c13812b69dfe541f40fa",
       "verifiedAt": "2026-08-31",
       "evidence": [
         "re-attested at 870473632 under #883 — full D-ledger read; D71 now distinguishes the 4.5 legal/rendered floor from Orb's attainable 4.6 derivation aim and records the 2,060-base, pivot, seed, and custom-CSS-preservation receipts",
@@ -686,10 +686,11 @@
       "disposition": "current",
       "authority": "current-reference",
       "fullRead": true,
-      "verifiedSha256": "4fa6cd16ae20f579f47e2aa2a2132258d70f1c7db9dd939b780eb79cf95d56ae",
-      "verifiedCommit": "13712214a12b6216f5ca9a1482757379fef54470",
-      "verifiedAt": "2026-08-30",
+      "verifiedSha256": "dc501381778609b80898a765fc5123958f0f7f03e3db101b39f092e0d28a9439",
+      "verifiedCommit": "d1f0ea36ecb3a642cc91c13812b69dfe541f40fa",
+      "verifiedAt": "2026-08-31",
       "evidence": [
+        "re-attested at d1f0ea36e after #883 integration — full-file read; the rendered contrast matrix is now a named visual-instrument proof with hostile zero/no-backing/occlusion/opacity controls",
         "docs/architecture/core/Spine-Testing.md:1 (full read; header/status evaluated)",
         "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
