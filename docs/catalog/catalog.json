@@ -12660,8 +12660,8 @@
       "lane": "design",
       "issue": 5,
       "lines": 235,
-      "bytes": 18262,
-      "sha256": "0aaa4bb36826166ea583c9457c19d14e007d7e5fd4ae44fc782235d7070d9684",
+      "bytes": 18470,
+      "sha256": "97caa37e86181a07da40d0d55cb97d8e4942d34e43fcfc4bf978af81c0e6f412",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -12674,16 +12674,17 @@
       },
       "receipt": {
         "path": "docs/design/state-paint-census.md",
-        "assignedSha256": "0aaa4bb36826166ea583c9457c19d14e007d7e5fd4ae44fc782235d7070d9684",
+        "assignedSha256": "97caa37e86181a07da40d0d55cb97d8e4942d34e43fcfc4bf978af81c0e6f412",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "0aaa4bb36826166ea583c9457c19d14e007d7e5fd4ae44fc782235d7070d9684",
-        "verifiedCommit": "ed55bf1933c4d653f75d1117c50894b7612805a1",
+        "verifiedSha256": "97caa37e86181a07da40d0d55cb97d8e4942d34e43fcfc4bf978af81c0e6f412",
+        "verifiedCommit": "c65bc72154640a2a06a874ffdb52d715d2612a75",
         "verifiedAt": "2026-09-01",
         "evidence": [
           "docs/design/state-paint-census.md:1 (full read; defect class, one-segment architecture, attribute classification, rejected alternatives, coupled sites, two-direction test plan, ratified CTA-glow exemption)",
-          "git:ed55bf1933c4d653f75d1117c50894b7612805a1 (integrated #996 design and implementation bytes)"
+          "git:ed55bf1933c4d653f75d1117c50894b7612805a1 (integrated #996 design and implementation bytes)",
+          "docs/design/state-paint-census.md:203 (delta read at the F1 landing: the fork bullet now states the per-element WeakMap cache granularity and the currentColor twin pin)"
         ],
         "summary": "Active #996 design for the state-paint census: one escape-aware :hover predicate + classified Base UI attribute-state vocabulary replacing three blind walker sites, attribute forcing riding the existing forced-state pass, population polarity named per withheld class, and the owner-ratified token-derivation CTA-glow exemption.",
         "claims": [
