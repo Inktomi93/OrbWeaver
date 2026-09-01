@@ -51,6 +51,10 @@ test("the mounted bridge publishes every typed capability and every evidence lif
       resetFlags: true,
       resetEvidence: true,
       motionFlaggersSettled: true,
+      appearanceMatrixContract:
+        orb.appearanceMatrixContract().declared === 41 &&
+        orb.appearanceMatrixContract().executable === 36 &&
+        orb.appearanceMatrixContract().rows.some((row) => row.key === "fontScale" && row.reached >= 1),
       setMotionAuditDropTrackingPaused: true,
       snap: typeof orb.snap() === "object",
       nav: typeof orb.nav.capabilities().contextTabsPublished === "boolean" && orb.nav.section("anything").ok,
@@ -86,7 +90,7 @@ test("the mounted bridge publishes every typed capability and every evidence lif
       capabilityKeys: receipt.handleKeys,
       answerKeys: receipt.handleKeys,
       allAnswer: true,
-      capabilityCount: 25,
+      capabilityCount: 26,
       descriptionsPresent: true,
       rings: [
         expect.objectContaining({ name: "bus-events", read: "bus().events", lifetime: "checkpoint", resettable: true }),

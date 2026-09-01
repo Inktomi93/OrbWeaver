@@ -159,6 +159,47 @@ test("a full mobile descriptor is distinguishable from a viewport-only desktop c
   }
 });
 
+test("media evidence proves contrast and CDP-only reduced transparency in both directions", async () => {
+  const reduced = await launchProbeSession({
+    headless: true,
+    viewport: { width: 320, height: 240 },
+    colorScheme: "dark",
+    reducedMotion: true,
+    contrast: "more",
+    reducedTransparency: true,
+    localStorage: [],
+  });
+  const reset = await launchProbeSession({
+    headless: true,
+    viewport: { width: 320, height: 240 },
+    colorScheme: "light",
+    reducedMotion: false,
+    contrast: "no-preference",
+    reducedTransparency: false,
+    localStorage: [],
+  });
+
+  try {
+    await reduced.page.setContent("<main>reduced media</main>");
+    await reset.page.setContent("<main>reset media</main>");
+    const reducedEvidence = await readBrowserEnvironment(reduced.page, reduced.environmentContract);
+    const resetEvidence = await readBrowserEnvironment(reset.page, reset.environmentContract);
+
+    expect(reducedEvidence).toMatchObject({
+      actual: { colorScheme: "dark", reducedMotion: true, contrast: "more", reducedTransparency: true },
+      mismatches: [],
+    });
+    expect(resetEvidence).toMatchObject({
+      actual: { colorScheme: "light", reducedMotion: false, contrast: "no-preference", reducedTransparency: false },
+      mismatches: [],
+    });
+    expect(await reset.page.evaluate(() => globalThis.matchMedia("(prefers-reduced-transparency: reduce)").matches)).toBe(false);
+  } finally {
+    await closeProbeSession(reduced);
+    await closeProbeSession(reset);
+  }
+});
+
 test("the process census sees a live Chromium process before cleanup", async () => {
   const session = await launchProbeSession({
     headless: true,

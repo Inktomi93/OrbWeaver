@@ -13,6 +13,7 @@ import {
   readThemeList,
   resolveTheme,
   THEME_VALUE_FLAGS,
+  themeCatalogCapabilities,
   themeConfigPatch,
   themeHelpBlock,
   themeWarning,
@@ -22,14 +23,21 @@ import { expect, test } from "../../support/tool-fixtures.ts";
 
 /** The live shape of `settings.listThemes` (ThemeView rows, seeds + the caller's own), batched. */
 const LIBRARY = [
-  { id: "theme_00000000000000000000000001", name: "Hearth", isSeed: true },
-  { id: "theme_00000000000000000000000003", name: "Light", isSeed: true },
-  { id: "theme_01jd0000000000000000000abc", name: "Nate's Neon", isSeed: false },
+  { id: "theme_00000000000000000000000001", name: "Hearth", isSeed: true, override: { background: "oklch(0.158 0.02 255)" }, css: null },
+  { id: "theme_00000000000000000000000003", name: "Light", isSeed: true, override: { background: "oklch(0.97 0.01 255)" }, css: null },
+  { id: "theme_01jd0000000000000000000abc", name: "Nate's Neon", isSeed: false, override: { background: "oklch(0.72 0.1 120)" }, css: ".neon{}" },
+  { id: "theme_01jd0000000000000000000def", name: "Midnight", isSeed: false, override: { background: "oklch(0.2 0.04 260)" }, css: null },
 ];
 const LIST_BODY = [{ result: { data: LIBRARY } }];
+const EXPECTED_LIBRARY = [
+  { id: "theme_00000000000000000000000001", name: "Hearth", isSeed: true, background: "oklch(0.158 0.02 255)", polarity: "dark", hasCustomCss: false },
+  { id: "theme_00000000000000000000000003", name: "Light", isSeed: true, background: "oklch(0.97 0.01 255)", polarity: "light", hasCustomCss: false },
+  { id: "theme_01jd0000000000000000000abc", name: "Nate's Neon", isSeed: false, background: "oklch(0.72 0.1 120)", polarity: "light", hasCustomCss: true },
+  { id: "theme_01jd0000000000000000000def", name: "Midnight", isSeed: false, background: "oklch(0.2 0.04 260)", polarity: "dark", hasCustomCss: false },
+];
 
 test("the library is read out of the batched listThemes envelope; a non-list shape is null, never a guess", () => {
-  expect(readThemeList(LIST_BODY)).toEqual(LIBRARY);
+  expect(readThemeList(LIST_BODY)).toEqual(EXPECTED_LIBRARY);
   // An auth failure / a moved schema must resolve to "I could not read the library", which WARNS.
   expect(readThemeList([{ error: { message: "UNAUTHORIZED" } }])).toBeNull();
   expect(readThemeList({ result: { data: { rows: 2 } } })).toBeNull();
@@ -37,8 +45,19 @@ test("the library is read out of the batched listThemes envelope; a non-list sha
 
 test("a missing seed/custom discriminator stays unknown — provenance is never inferred from an id or name", () => {
   expect(readThemeList([{ result: { data: [{ id: "theme_custom", name: "Could Be Anything" }] } }])).toEqual([
-    { id: "theme_custom", name: "Could Be Anything", isSeed: null },
+    { id: "theme_custom", name: "Could Be Anything", isSeed: null, background: null, polarity: "unknown", hasCustomCss: null },
   ]);
+});
+
+test("catalog capabilities are derived from real rows and expose seed/custom polarity without a hand list", () => {
+  expect(themeCatalogCapabilities(readThemeList(LIST_BODY) ?? [])).toEqual({
+    seed: { light: [expect.objectContaining({ name: "Light" })], dark: [expect.objectContaining({ name: "Hearth" })] },
+    custom: {
+      light: [expect.objectContaining({ name: "Nate's Neon", hasCustomCss: true })],
+      dark: [expect.objectContaining({ name: "Midnight", hasCustomCss: false })],
+    },
+    unknown: [],
+  });
 });
 
 test("a seed theme resolves by NAME, case-insensitively — the spelling an operator actually types", () => {

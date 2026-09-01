@@ -10,6 +10,7 @@ import {
   APPEARANCE_EDITOR_OWNERS,
   APPEARANCE_OWNER_KEYS,
   appearanceCarrierRowsFor,
+  appearanceMatrixContract,
   THEME_CARRIER_OBSERVABLES,
 } from "../../../packages/client/src/lib/appearance-carrier-manifest.ts";
 import { expect, test } from "../../support/fixtures.ts";
@@ -98,5 +99,26 @@ describe("Appearance carrier manifest", () => {
     expect(THEME_CARRIER_OBSERVABLES.portalRoot.signals).toEqual(THEME_CARRIER_OBSERVABLES.activeScope.signals);
     expect(THEME_CARRIER_OBSERVABLES.carriedScope.selector).not.toBe(THEME_CARRIER_OBSERVABLES.activeScope.selector);
     expect(THEME_CARRIER_OBSERVABLES.ownerCustomCss.signals).toEqual(["textContent"]);
+  });
+
+  test("serializes the one live matrix contract without a second hand-maintained appearance roster", () => {
+    const contract = appearanceMatrixContract();
+
+    expect(contract.declared).toBe(41);
+    expect(contract.executable).toBe(36);
+    expect(contract.dependencies).toBe(5);
+    expect(contract.rows.map((row) => row.key)).toEqual(Object.keys(APPEARANCE_CARRIER_MANIFEST));
+    expect(contract.rows.filter((row) => row.arms !== null)).toHaveLength(36);
+    expect(contract.rows.find((row) => row.key === "density")).toMatchObject({
+      arms: ["comfortable", "compact"],
+      observable: APPEARANCE_CARRIER_OBSERVABLES.density,
+      portal: "shared-theme-scope-sibling",
+    });
+    expect(contract.rows.find((row) => row.key === "backgroundAssetHash")).toMatchObject({
+      arms: null,
+      observable: null,
+      dependsOn: ["backgroundImageKind"],
+    });
+    expect(contract.themeObservables).toEqual(THEME_CARRIER_OBSERVABLES);
   });
 });

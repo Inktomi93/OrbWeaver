@@ -253,6 +253,56 @@ export const THEME_CARRIER_OBSERVABLES = {
   ownerCustomCss: { selector: "style[data-orb-theme-css]", signals: ["textContent"], lifecycle: "hydrated" },
 } as const;
 
+export interface AppearanceMatrixContractRow {
+  readonly key: AppearanceCarrierKey;
+  readonly owner: AppearanceEditorOwner;
+  readonly carriers: readonly AppearanceCarrierPlane[];
+  readonly consumer: AppearanceConsumerBinding;
+  readonly lifecycle: AppearanceLifecycle;
+  readonly portal: AppearancePortalObligation;
+  readonly arms: readonly unknown[] | null;
+  readonly dependsOn: readonly AppearanceCarrierKey[];
+  readonly incompatibleWith: readonly AppearanceCarrierKey[];
+  readonly observable: AppearanceCarrierObservable | null;
+}
+
+export interface AppearanceMatrixContract {
+  readonly declared: number;
+  readonly executable: number;
+  readonly dependencies: number;
+  readonly rows: readonly AppearanceMatrixContractRow[];
+  readonly themeObservables: typeof THEME_CARRIER_OBSERVABLES;
+}
+
+/** Browser-serializable matrix input derived from the executable manifest. The debug bridge adds current
+ *  reached-subject counts; tooling never owns a second list of Appearance keys or arms. */
+export function appearanceMatrixContract(): AppearanceMatrixContract {
+  const rows = (Object.keys(APPEARANCE_CARRIER_MANIFEST) as AppearanceCarrierKey[]).map((key): AppearanceMatrixContractRow => {
+    const row = APPEARANCE_CARRIER_MANIFEST[key];
+    const executable = "requiredDistinctArms" in row;
+    return {
+      key,
+      owner: row.owner,
+      carriers: row.carriers,
+      consumer: row.consumer,
+      lifecycle: row.lifecycle,
+      portal: row.portal,
+      arms: executable ? row.requiredDistinctArms : null,
+      dependsOn: "dependsOn" in row ? (row.dependsOn as readonly AppearanceCarrierKey[]) : [],
+      incompatibleWith: "incompatibleWith" in row ? (row.incompatibleWith as readonly AppearanceCarrierKey[]) : [],
+      observable: executable ? APPEARANCE_CARRIER_OBSERVABLES[key as keyof typeof APPEARANCE_CARRIER_OBSERVABLES] : null,
+    };
+  });
+  const executable = rows.filter((row) => row.arms !== null).length;
+  return {
+    declared: rows.length,
+    executable,
+    dependencies: rows.length - executable,
+    rows,
+    themeObservables: THEME_CARRIER_OBSERVABLES,
+  };
+}
+
 export function appearanceCarrierRowsFor(plane: AppearanceCarrierPlane): readonly AppearanceCarrierKey[] {
   return (Object.keys(APPEARANCE_CARRIER_MANIFEST) as AppearanceCarrierKey[]).filter((key) =>
     (APPEARANCE_CARRIER_MANIFEST[key].carriers as readonly AppearanceCarrierPlane[]).includes(plane),

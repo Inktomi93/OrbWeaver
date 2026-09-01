@@ -19,6 +19,10 @@ export interface BrowserDeviceDescriptor {
 export interface BrowserEnvironmentRequest {
   readonly device: string | null;
   readonly viewport: Viewport;
+  readonly colorScheme: "light" | "dark" | null;
+  readonly reducedMotion: boolean;
+  readonly contrast: "more" | "no-preference" | null;
+  readonly reducedTransparency: boolean;
 }
 
 export interface BrowserEnvironmentApplied extends BrowserEnvironmentRequest {
@@ -52,6 +56,10 @@ export interface BrowserEnvironmentActual {
   readonly hasTouch: boolean;
   readonly pointer: PointerCapability;
   readonly hover: HoverCapability;
+  readonly colorScheme: "light" | "dark" | "mixed" | "no-preference";
+  readonly reducedMotion: boolean;
+  readonly contrast: "more" | "less" | "mixed" | "no-preference";
+  readonly reducedTransparency: boolean;
   /** Runtime inference: true/false only for a complete mobile/desktop fingerprint; null when unmatched. */
   readonly isMobile: boolean | null;
 }
@@ -73,6 +81,12 @@ interface RuntimeObservation {
   readonly pointerFine: boolean;
   readonly hoverHover: boolean;
   readonly hoverNone: boolean;
+  readonly colorSchemeLight: boolean;
+  readonly colorSchemeDark: boolean;
+  readonly reducedMotion: boolean;
+  readonly contrastMore: boolean;
+  readonly contrastLess: boolean;
+  readonly reducedTransparency: boolean;
 }
 
 const READ_RUNTIME_ENVIRONMENT = `(() => ({
@@ -85,6 +99,12 @@ const READ_RUNTIME_ENVIRONMENT = `(() => ({
   pointerFine: window.matchMedia("(pointer: fine)").matches,
   hoverHover: window.matchMedia("(hover: hover)").matches,
   hoverNone: window.matchMedia("(hover: none)").matches,
+  colorSchemeLight: window.matchMedia("(prefers-color-scheme: light)").matches,
+  colorSchemeDark: window.matchMedia("(prefers-color-scheme: dark)").matches,
+  reducedMotion: window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+  contrastMore: window.matchMedia("(prefers-contrast: more)").matches,
+  contrastLess: window.matchMedia("(prefers-contrast: less)").matches,
+  reducedTransparency: window.matchMedia("(prefers-reduced-transparency: reduce)").matches,
 }))()`;
 
 function sameViewport(left: Viewport | null, right: Viewport): boolean {
@@ -115,18 +135,42 @@ function hoverCapability(hover: boolean, none: boolean): HoverCapability {
   return none ? "none" : "unknown";
 }
 
+function binaryMedia<T extends string>(first: boolean, firstName: T, second: boolean, secondName: T): T | "mixed" | "no-preference" {
+  if (first && second) {
+    return "mixed";
+  }
+  if (first) {
+    return firstName;
+  }
+  return second ? secondName : "no-preference";
+}
+
 /** Resolve the exact context contract before launch. A named descriptor supersedes the raw viewport. */
 export function resolveBrowserEnvironmentContract(
-  input: { readonly viewport: Viewport; readonly device?: string | null },
+  input: {
+    readonly viewport: Viewport;
+    readonly device?: string | null;
+    readonly colorScheme?: "light" | "dark" | null;
+    readonly reducedMotion?: boolean;
+    readonly contrast?: "more" | "no-preference" | null;
+    readonly reducedTransparency?: boolean;
+  },
   descriptor: BrowserDeviceDescriptor | null,
 ): BrowserEnvironmentContract {
   const device = input.device ?? null;
+  const media = {
+    colorScheme: input.colorScheme ?? null,
+    reducedMotion: input.reducedMotion ?? false,
+    contrast: input.contrast ?? null,
+    reducedTransparency: input.reducedTransparency ?? false,
+  };
   if (descriptor === null) {
     return {
-      requested: { device, viewport: input.viewport },
+      requested: { device, viewport: input.viewport, ...media },
       applied: {
         device,
         viewport: input.viewport,
+        ...media,
         screen: input.viewport,
         userAgent: null,
         deviceScaleFactor: 1,
@@ -136,10 +180,11 @@ export function resolveBrowserEnvironmentContract(
     };
   }
   return {
-    requested: { device, viewport: descriptor.viewport },
+    requested: { device, viewport: descriptor.viewport, ...media },
     applied: {
       device,
       viewport: descriptor.viewport,
+      ...media,
       screen: descriptor.screen ?? descriptor.viewport,
       userAgent: descriptor.userAgent,
       deviceScaleFactor: descriptor.deviceScaleFactor,
@@ -149,11 +194,7 @@ export function resolveBrowserEnvironmentContract(
   };
 }
 
-function environmentMismatches(contract: BrowserEnvironmentContract, viewport: Viewport | null, runtime: RuntimeObservation): string[] {
-  const { applied } = contract;
-  const pointer = pointerCapability(runtime.pointerCoarse, runtime.pointerFine);
-  const hover = hoverCapability(runtime.hoverHover, runtime.hoverNone);
-  const hasTouch = runtime.maxTouchPoints > 0;
+function identityMismatches(applied: BrowserEnvironmentApplied, viewport: Viewport | null, runtime: RuntimeObservation): string[] {
   const mismatches: string[] = [];
   if (!sameViewport(viewport, applied.viewport)) {
     mismatches.push(`viewport expected ${viewportText(applied.viewport)} but observed ${viewportText(viewport)}`);
@@ -170,6 +211,14 @@ function environmentMismatches(contract: BrowserEnvironmentContract, viewport: V
   if (applied.userAgent === null && /\b(?:Android|iPhone|iPad|Mobile)\b/iu.test(runtime.userAgent)) {
     mismatches.push("desktop context exposed a mobile user agent");
   }
+  return mismatches;
+}
+
+function interactionMismatches(applied: BrowserEnvironmentApplied, runtime: RuntimeObservation): string[] {
+  const pointer = pointerCapability(runtime.pointerCoarse, runtime.pointerFine);
+  const hover = hoverCapability(runtime.hoverHover, runtime.hoverNone);
+  const hasTouch = runtime.maxTouchPoints > 0;
+  const mismatches: string[] = [];
   if (hasTouch !== applied.hasTouch) {
     mismatches.push(`touch expected ${applied.hasTouch ? "present" : "absent"} but maxTouchPoints=${runtime.maxTouchPoints}`);
   }
@@ -182,6 +231,33 @@ function environmentMismatches(contract: BrowserEnvironmentContract, viewport: V
     mismatches.push(`hover expected ${expectedHover} but observed ${hover}`);
   }
   return mismatches;
+}
+
+function mediaMismatches(applied: BrowserEnvironmentApplied, runtime: RuntimeObservation): string[] {
+  const colorScheme = binaryMedia(runtime.colorSchemeLight, "light", runtime.colorSchemeDark, "dark");
+  const contrast = binaryMedia(runtime.contrastMore, "more", runtime.contrastLess, "less");
+  const mismatches: string[] = [];
+  if (applied.colorScheme !== null && colorScheme !== applied.colorScheme) {
+    mismatches.push(`color scheme expected ${applied.colorScheme} but observed ${colorScheme}`);
+  }
+  if (runtime.reducedMotion !== applied.reducedMotion) {
+    mismatches.push(`reduced motion expected ${String(applied.reducedMotion)} but observed ${String(runtime.reducedMotion)}`);
+  }
+  if (applied.contrast !== null && contrast !== applied.contrast) {
+    mismatches.push(`contrast expected ${applied.contrast} but observed ${contrast}`);
+  }
+  if (runtime.reducedTransparency !== applied.reducedTransparency) {
+    mismatches.push(`reduced transparency expected ${String(applied.reducedTransparency)} but observed ${String(runtime.reducedTransparency)}`);
+  }
+  return mismatches;
+}
+
+function environmentMismatches(contract: BrowserEnvironmentContract, viewport: Viewport | null, runtime: RuntimeObservation): string[] {
+  return [
+    ...identityMismatches(contract.applied, viewport, runtime),
+    ...interactionMismatches(contract.applied, runtime),
+    ...mediaMismatches(contract.applied, runtime),
+  ];
 }
 
 /** Read the live page and compare it with the launcher-owned contract. Missing or contradictory evidence
@@ -202,6 +278,10 @@ export async function readBrowserEnvironment(page: Page, contract: BrowserEnviro
     hasTouch: runtime.maxTouchPoints > 0,
     pointer: pointerCapability(runtime.pointerCoarse, runtime.pointerFine),
     hover: hoverCapability(runtime.hoverHover, runtime.hoverNone),
+    colorScheme: binaryMedia(runtime.colorSchemeLight, "light", runtime.colorSchemeDark, "dark"),
+    reducedMotion: runtime.reducedMotion,
+    contrast: binaryMedia(runtime.contrastMore, "more", runtime.contrastLess, "less"),
+    reducedTransparency: runtime.reducedTransparency,
     isMobile: matched ? contract.applied.isMobile : null,
   };
   return { requested: contract.requested, applied: contract.applied, actual, mismatches };

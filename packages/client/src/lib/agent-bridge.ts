@@ -12,6 +12,8 @@ import type { QueryClient } from "@tanstack/react-query";
 import type { OrbAgentHandles, OrbCssHandle, OrbNavHandle, OrbRpgReader, OrbSeedHandle, QuerySummary, ShellSnapshot } from "./agent-bridge-handles.ts";
 import type { OrbAutomationFiresFilter, OrbPluginLogReader } from "./agent-plugin-bridge.ts";
 import { readAutomationFires } from "./agent-plugin-bridge.ts";
+import type { AppearanceMatrixContract, AppearanceMatrixContractRow } from "./appearance-carrier-manifest.ts";
+import { appearanceMatrixContract } from "./appearance-carrier-manifest.ts";
 import { bootReads } from "./boot-reads.ts";
 import type { BusEventRecord } from "./bus-devlog.ts";
 import { __resetBusEventRing, busEventRing, busLiveCount } from "./bus-devlog.ts";
@@ -190,6 +192,8 @@ interface OrbDebugHandle {
   readonly resetEvidence: () => void;
   /** Wait for the one initial full dev-instrument census before opening a measured interaction window. */
   readonly motionFlaggersSettled: () => Promise<void>;
+  /** The live Appearance carrier roster, its two-arm values, and reached DOM populations. */
+  readonly appearanceMatrixContract: () => AppearanceMatrixBridgeContract;
   /** Suspend only duplicate in-page [drop] tracking while motion-audit's CDP trace owns that verdict. */
   readonly setMotionAuditDropTrackingPaused: (paused: boolean) => void;
   /** One-call overview for a quick `preview_eval("__orb.snap()")`. */
@@ -223,6 +227,10 @@ interface OrbDebugHandle {
   readonly resetRing: (name: string) => OrbRingResetResult;
 }
 
+interface AppearanceMatrixBridgeContract extends Omit<AppearanceMatrixContract, "rows"> {
+  readonly rows: readonly (AppearanceMatrixContractRow & { readonly reached: number })[];
+}
+
 const ORB_DEBUG_CAPABILITIES = {
   ready: "promise that settles when initial app reads finish",
   isReady: "read whether the app-ready marker is present",
@@ -237,6 +245,7 @@ const ORB_DEBUG_CAPABILITIES = {
   resetFlags: "clear the legacy motion-flag checkpoint",
   resetEvidence: "clear every checkpoint-safe client evidence store",
   motionFlaggersSettled: "wait for the initial motion-flagger census",
+  appearanceMatrixContract: "read the live Appearance carrier matrix contract and reached subject counts",
   setMotionAuditDropTrackingPaused: "coordinate in-page drop tracking with motion-audit",
   snap: "read a cheap combined bridge overview",
   nav: "drive SPA navigation through production state actions",
@@ -396,6 +405,16 @@ function installAgentDebugHandleImpl(queryClient: QueryClient, handles: OrbAgent
       }
     }
   };
+  const readAppearanceMatrixContract = (): AppearanceMatrixBridgeContract => {
+    const contract = appearanceMatrixContract();
+    return {
+      ...contract,
+      rows: contract.rows.map((row) => ({
+        ...row,
+        reached: row.observable === null ? 0 : document.querySelectorAll(row.observable.selector).length,
+      })),
+    };
+  };
   globalThis.__orb = {
     ready,
     isReady,
@@ -410,6 +429,7 @@ function installAgentDebugHandleImpl(queryClient: QueryClient, handles: OrbAgent
     resetFlags: __resetMotionFlags,
     resetEvidence,
     motionFlaggersSettled,
+    appearanceMatrixContract: readAppearanceMatrixContract,
     setMotionAuditDropTrackingPaused: setFrameDropTrackingPaused,
     snap,
     nav,
