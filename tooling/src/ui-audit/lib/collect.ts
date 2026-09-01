@@ -20,7 +20,7 @@
 // | 1 | nullableFindings          | most rules (landmark-missing, script-error, flat-type-hierarchy, ...) |
 // | 2 | accountedFindings         | quiet-state, double-empty-state, selection-idiom |
 // | 3 | cappedRelationalFindings  | cohort-anatomy, row-void, pane-ink |
-// | 4 | decisionPopulationFindings| tap-target, obscured-target, truncated-to-nothing, headline-overhang, inline-padding-leak, text-below-ramp, undersized-ui-text |
+// | 4 | decisionPopulationFindings| tap-target, obscured-target, truncated-to-nothing, headline-overhang, inline-padding-leak, text-below-ramp, undersized-ui-text, off-grid-text, promoted-layer-offset, off-grid-transform |
 // Exception: duplicate-action-door has accounting via its OWN checkDuplicateDoorPopulations, not one of the four functions above (checks-quality.ts).
 // Exception: hover-contrast likewise — hoverContrastPopulations (checks-hover.ts) MERGES a Node/CDP pass's
 // census with the check's own dispositions, because its samples are gathered outside COLLECT_SAMPLES_JS.
@@ -46,6 +46,7 @@ import {
 import { checkContrast, checkGrayOnColor, checkQuietState, colorTextPopulations } from "./checks-color.ts";
 import { checkAccentBorder, checkGlowShadow } from "./checks-decor.ts";
 import { checkFontCensus, fontCensusPopulations } from "./checks-font-census.ts";
+import { checkOffGridText, checkOffGridTransform, checkPromotedLayerOffset } from "./checks-grid.ts";
 import { checkHoverContrast, hoverContrastPopulations } from "./checks-hover.ts";
 import { checkBrokenImage, checkBuriedRasterPopulations, checkImageDistortion } from "./checks-media.ts";
 import { checkBgPattern, checkIconTile, checkMotionStatic, checkRadialGlow } from "./checks-ornament.ts";
@@ -237,11 +238,26 @@ function qualityFindings(samples: RawSamples): FamilyCheckResult {
   runArray(state, () => truncated.findings);
   runArray(state, () => overhangs.findings);
   runArray(state, () => paddingLeaks.findings);
+  // The device-pixel grid CAUSE arms (docs/design/integer-line-boxes.md §9-§10, crispness Laws 2-3). Rung 4
+  // rather than rung 2 because both repeat by AUTHORED DECISION: one promoted `tv()` slot lands off-grid on
+  // every row it renders, and filing that per row buries the single fix under its own blast radius.
+  const promotedLayers = decisionPopulationFindings("promoted-layer-offset", samples.promotedLayerOffsets ?? [], checkPromotedLayerOffset, {
+    decisionKey: authoredDecisionKey,
+    census: samples.relationalAccounting?.["promoted-layer-offset"],
+  });
+  const restTransforms = decisionPopulationFindings("off-grid-transform", samples.offGridTransforms ?? [], checkOffGridTransform, {
+    decisionKey: authoredDecisionKey,
+    census: samples.relationalAccounting?.["off-grid-transform"],
+  });
   runArray(state, () => tierDrift.findings);
+  runArray(state, () => promotedLayers.findings);
+  runArray(state, () => restTransforms.findings);
   return {
     ...state,
     populationAccounting: {
       "double-empty-state": emptyStates.accounting,
+      "off-grid-transform": restTransforms.accounting,
+      "promoted-layer-offset": promotedLayers.accounting,
       "duplicate-action-door": duplicateDoors.accounting,
       "headline-overhang": overhangs.accounting,
       "inline-padding-leak": paddingLeaks.accounting,
@@ -308,11 +324,19 @@ function typographyFindings(samples: RawSamples): FamilyCheckResult {
     { decisionKey, census: undefined },
   );
   runArray(state, () => [...ungrouped, ...textBelowRamp.findings, ...undersizedUiText.findings]);
+  // The Law-4 runtime backstop (docs/design/integer-line-boxes.md §11). Same rung and same key as the two
+  // type-floor rules above: a blurred voice is a property of the COMPONENT, not of each render.
+  const offGridText = decisionPopulationFindings("off-grid-text", samples.offGridTexts ?? [], checkOffGridText, {
+    decisionKey: authoredDecisionKey,
+    census: samples.relationalAccounting?.["off-grid-text"],
+  });
   runArray(state, () => checkCaveatHierarchy(samples.textStyles));
   runArray(state, () => checkFontCensus(samples.fontCensus));
+  runArray(state, () => offGridText.findings);
   return {
     ...state,
     populationAccounting: {
+      "off-grid-text": offGridText.accounting,
       "off-theme-font": fontCensusPopulations(samples.fontCensus),
       "text-below-ramp": textBelowRamp.accounting,
       "undersized-ui-text": undersizedUiText.accounting,

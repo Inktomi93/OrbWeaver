@@ -70,6 +70,9 @@ export const DESIGN_AUDIT_RULES = [
   { id: "flat-type-hierarchy", family: "typography", severity: ["P3"] },
   { id: "buried-raster", family: "media", severity: ["P1"] },
   { id: "tier-drift", family: "quality", severity: ["P2"] },
+  { id: "off-grid-text", family: "typography", severity: ["P2"] },
+  { id: "promoted-layer-offset", family: "quality", severity: ["P2"] },
+  { id: "off-grid-transform", family: "quality", severity: ["P3"] },
 ] as const satisfies readonly DesignAuditRuleDefinition[];
 
 export type DesignAuditRuleId = (typeof DESIGN_AUDIT_RULES)[number]["id"];
