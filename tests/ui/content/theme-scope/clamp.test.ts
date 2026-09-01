@@ -488,6 +488,35 @@ test("#243 a standards-resolved named base emits the matching elevation ingredie
 });
 
 // ── #204 §7a: the prose-ink clamp — the four author-picked inks judged against the picked base. ──
+const PROSE_VARS = ["--color-speaker", "--color-dialogue", "--color-narration", "--color-prose-body"] as const;
+
+test.each([
+  ["LIGHT", "oklch(0.96 0.01 80)", "oklch(0.158 0.006 60)", 0.22],
+  ["DARK", "oklch(0.18 0.01 60)", "oklch(0.98 0.004 75)", 0.96],
+] as const)("#985 a background-only %s palette emits all four AA prose inks under the opposite ambient theme", (_polarity, background, ambient, inkL) => {
+  const { vars } = clampThemeTokens({ background }, ambient);
+  const emitted = PROSE_VARS.map((name) => vars[name]);
+
+  // Four declarations are the inverse control: deleting any one fallback emission leaves an undefined
+  // slot here and fails this exact base-only arm instead of silently inheriting the hostile outer ink.
+  expect(emitted).toEqual(PROSE_VARS.map(() => `oklch(from ${background} ${inkL} 0 h / 1)`));
+
+  const baseRgb = parseCssColorToSrgb(background);
+  if (baseRgb === null) {
+    throw new Error(`the planted #985 base did not parse: ${background}`);
+  }
+  const base = srgbToOklch(baseRgb);
+  const ink = { l: inkL, c: 0, h: base.h };
+  for (const [index, name] of PROSE_VARS.entries()) {
+    expect(wcagContrastRatio(oklchToSrgb(ink), oklchToSrgb(base)), `${name} at slot ${String(index)}`).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
+  }
+});
+
+test("#985 no carried background preserves prose inheritance even when an ambient base is known", () => {
+  const { vars } = clampThemeTokens({}, "oklch(0.98 0.004 75)");
+  expect(PROSE_VARS.map((name) => vars[name])).toEqual([undefined, undefined, undefined, undefined]);
+});
+
 test("a SENSIBLE authored ink passes through BYTE-IDENTICAL (the no-op-where-the-card-was-sensible arm)", () => {
   // Birdie's real palette: dialogue L 0.4 on base L 0.98 clears AA (~8.5:1) — the clamp must not move it.
   const { vars } = clampThemeTokens({ background: "oklch(0.98 0.004 78)", dialogueColor: "oklch(0.4 0.1 40)" });

@@ -224,8 +224,11 @@ export const THEME_DERIVATION = KIT_THEME_DERIVATION;
  * Opaque inherits the same margin every derived foreground has; translucency is the author's intent only
  * while their pick is legible, which the pass-through arm preserves byte-identically.
  */
-function proseInkOn(picked: string | undefined, base: ParsedOklch | null): string | undefined {
-  if (picked === undefined || base === null) {
+function proseInkOn(picked: string | undefined, base: ParsedOklch | null, absentFallback?: string): string | undefined {
+  if (picked === undefined) {
+    return absentFallback;
+  }
+  if (base === null) {
     return picked;
   }
   const ink = toOklch(picked);
@@ -306,6 +309,13 @@ function derivedOriginFor(background: string, authored: ParsedOklch | null, reso
   return resolved === null ? background : serializeOpaqueOklch(resolved);
 }
 
+function absentProseInkOn(raw: unknown, field: keyof ThemeScopeTokens, background: string | undefined, base: ParsedOklch | null): string | undefined {
+  if ((typeof raw === "object" && raw !== null && Object.hasOwn(raw, field)) || background === undefined || base === null) {
+    return;
+  }
+  return foregroundOn(derivedOriginFor(background, toOklch(background), base), base);
+}
+
 function colorSchemeFor(base: ParsedOklch | null): "light" | "dark" | null {
   if (base === null) {
     return null;
@@ -360,10 +370,15 @@ export function clampThemeTokens(raw: unknown, ambientBackground?: string, ambie
   // carried background is precisely the case where the composed surface IS knowable. The residual
   // provider-less fail-open (neither side statically readable) stands unchanged.
   const inkBase = inkBaseFor(t.background, ambientBackground);
-  put("--color-speaker", proseInkOn(t.speaker, inkBase));
-  put("--color-dialogue", proseInkOn(t.dialogueColor, inkBase));
-  put("--color-narration", proseInkOn(t.narrationColor, inkBase));
-  put("--color-prose-body", proseInkOn(t.bodyColor, inkBase));
+  // A carried base also owns every ABSENT prose pick (#985). Otherwise a legal background-only custom
+  // theme inherits all four inks from the outer seed, which can be the opposite polarity. Derive the
+  // fallback from the resolved carried pixel; with no carried background there is deliberately no
+  // fallback and the cascade remains intact. Explicit picks still take the pass-through/correction arms
+  // above byte-for-byte.
+  put("--color-speaker", proseInkOn(t.speaker, inkBase, absentProseInkOn(raw, "speaker", t.background, carriedBase)));
+  put("--color-dialogue", proseInkOn(t.dialogueColor, inkBase, absentProseInkOn(raw, "dialogueColor", t.background, carriedBase)));
+  put("--color-narration", proseInkOn(t.narrationColor, inkBase, absentProseInkOn(raw, "narrationColor", t.background, carriedBase)));
+  put("--color-prose-body", proseInkOn(t.bodyColor, inkBase, absentProseInkOn(raw, "bodyColor", t.background, carriedBase)));
   // Bubbles: the picker sets each bubble's bg; the fg is always derived for contrast, never picked.
   const putBubble = (bg: string, bgVar: string, fgVar: string): void => {
     const parsedBubble = toOklch(bg);
