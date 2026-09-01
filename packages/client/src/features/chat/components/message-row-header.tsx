@@ -126,8 +126,9 @@ function renderRowIdentity(args: {
  *  measured 50px around a 16px name (50 = 34 + 2×py-row): the empty top/bottom thirds were the phantom
  *  bands, and the ~17px of painted-then-empty space below the name was the detachment. The cluster rides
  *  a ZERO-HEIGHT flex wrapper (`h-0` + centered items): it keeps its full WIDTH in flow (the A3 geometry
- *  pin — a name can never be starved sideways), its buttons paint/hit-test centered on the text line
- *  (overflow is visible), and reveal remains opacity-only, so hover still reflows NOTHING. */
+ *  pin — a name can never be starved sideways), its buttons keep painting/hit-testing at full size, and
+ *  reveal stays opacity-only. `message-row-bubble.tsx` expands the owning border box over this visible
+ *  overflow without moving the header, prose, or row footprint. */
 function nameRowFrame(args: {
   readonly identity: ReactNode;
   readonly actions: ReactNode;
