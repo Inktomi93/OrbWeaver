@@ -206,7 +206,13 @@ test("inline size reproduces the `!h-auto !py-0` geometry it replaces: text-heig
 // what a display-at-rest datum wants, and 6 of the 8 shapes below spelled `justify-start` themselves). The
 // other two are CONTENT-WIDTH boxes (no `w-full`), where the property paints nothing — which this test
 // proves rather than assumes, since their compared width/height still match to 0.1px.
-const PARITY_SITES: readonly { readonly site: string; readonly old: string; readonly next: string; readonly inert?: readonly string[] }[] = [
+const PARITY_SITES: readonly {
+  readonly site: string;
+  readonly old: string;
+  readonly next: string;
+  readonly glyph?: boolean;
+  readonly inert?: readonly string[];
+}[] = [
   {
     site: "tracker-value / ambient-strip rest value",
     old: "!h-auto min-h-0 justify-start gap-0 border border-transparent !px-field !py-0 text-left font-normal",
@@ -241,6 +247,10 @@ const PARITY_SITES: readonly { readonly site: string; readonly old: string; read
     next: "",
     // This trigger holds ONE <Icon> and no text — nothing is typeset in it, so the arm's font-weight
     // (400 vs the base 500 the old string inherited) cannot paint. Every box number still must match.
+    // `glyph` keeps the fixture faithful to that: with text in the child, Geist's real 400/500 faces
+    // paint different advance widths (105 vs 103) — the fallback face had no medium cut, which is the
+    // only reason a typeset child ever passed here.
+    glyph: true,
     inert: ["fontWeight"],
   },
   { site: "cast-card-slots relationship pill (zero padding)", old: "!h-auto min-h-0 rounded-full !p-0 font-normal", next: "rounded-full" },
@@ -257,10 +267,14 @@ test("every converted call site paints the SAME box on the inline arm as it did 
       {PARITY_SITES.map((s, i) => (
         <div key={s.site}>
           <Button className={s.old} intent="ghost" size="sm">
-            <span data-testid={`old-${i}`}>Bruised knuckles</span>
+            <span data-testid={`old-${i}`} style={s.glyph ? { display: "inline-block", height: 16, width: 16 } : undefined}>
+              {s.glyph ? null : "Bruised knuckles"}
+            </span>
           </Button>
           <Button className={s.next} intent="ghost" size="inline">
-            <span data-testid={`new-${i}`}>Bruised knuckles</span>
+            <span data-testid={`new-${i}`} style={s.glyph ? { display: "inline-block", height: 16, width: 16 } : undefined}>
+              {s.glyph ? null : "Bruised knuckles"}
+            </span>
           </Button>
         </div>
       ))}
