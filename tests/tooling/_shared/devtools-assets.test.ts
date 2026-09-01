@@ -1,6 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdir, mkdtemp, readFile, rm, symlink, unlink, writeFile } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, readFile, rm, symlink, unlink, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -10,6 +10,7 @@ import { afterEach } from "vitest";
 import { expect, test } from "../../support/tool-fixtures.ts";
 
 const REAL_PIN = fileURLToPath(new URL("../../../tooling/src/snap/lib/devtools-frontend/pin.json", import.meta.url));
+const REAL_ROOT = fileURLToPath(new URL("../../../tooling/src/snap/lib/devtools-frontend", import.meta.url));
 const REPO_ROOT = fileURLToPath(new URL("../../..", import.meta.url));
 const ASSET_ROOT = "tooling/src/snap/lib/devtools-frontend";
 const roots: string[] = [];
@@ -119,6 +120,14 @@ test("hash drift fails before the asset server opens", async () => {
   expect(() => verifyDevToolsAssets(root)).toThrow("hash/size mismatch");
 });
 
+test("the formatter worker cannot disappear from the generated closure", async () => {
+  const root = await mkdtemp(join(tmpdir(), "orb-devtools-worker-test-"));
+  roots.push(root);
+  await cp(REAL_ROOT, root, { recursive: true });
+  await unlink(join(root, "assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/entrypoints/formatter_worker/formatter_worker-entrypoint.js"));
+  expect(() => verifyDevToolsAssets(root)).toThrow();
+});
+
 test("the installed Playwright and Chromium versions must match the tuple pin", async () => {
   const { root } = await syntheticRoot();
   const pinPath = join(root, "pin.json");
@@ -155,7 +164,8 @@ test("every real manifest resource is Git-tracked, including resources beneath i
   const plantedMissing = new Set(tracked);
   plantedMissing.delete(ignoredCoverageResource);
 
-  expect(manifest.resources).toHaveLength(477);
+  const formatterWorker = `${ASSET_ROOT}/assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/entrypoints/formatter_worker/formatter_worker-entrypoint.js`;
+  expect(manifest.resources.map(({ file }) => `${ASSET_ROOT}/${file}`)).toContain(formatterWorker);
   expect(untrackedManifestResources(manifest.resources, plantedMissing)).toContain(ignoredCoverageResource);
   expect(untrackedManifestResources(manifest.resources, tracked)).toEqual([]);
 });

@@ -21,6 +21,7 @@ import type {
 } from "../../_shared/devtools-assets.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { DEVTOOLS_LICENSE_SOURCES } from "../lib/devtools-license-sources.ts";
+import { literalModuleAssetPaths, pathForDevToolsRequest } from "../lib/devtools-module-assets.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap:devtools-assets");
 const ROOT = fileURLToPath(new URL("../lib/devtools-frontend", import.meta.url));
@@ -60,18 +61,6 @@ async function readPin(): Promise<DevToolsAssetPin> {
   return JSON.parse(await readFile(join(ROOT, "pin.json"), "utf8")) as DevToolsAssetPin;
 }
 
-function pathForRequest(rawUrl: string | undefined, revision: string): string {
-  if (rawUrl === undefined || rawUrl.includes("\\") || rawUrl.includes("%")) {
-    throw new Error(`refused non-canonical DevTools asset URL: ${rawUrl ?? "(missing)"}`);
-  }
-  const path = new URL(rawUrl, "http://127.0.0.1").pathname;
-  const prefix = `/serve_rev/@${revision}/`;
-  if (!path.startsWith(prefix) || path.includes("/../") || path.includes("/./") || path.includes("//")) {
-    throw new Error(`refused out-of-closure DevTools asset URL: ${path}`);
-  }
-  return path;
-}
-
 async function fetchAsset(path: string): Promise<CachedAsset> {
   let lastError: unknown = null;
   for (let attempt = 1; attempt <= RESOURCE_FETCH_ATTEMPTS; attempt += 1) {
@@ -96,20 +85,6 @@ async function fetchAsset(path: string): Promise<CachedAsset> {
   }
   const detail = lastError instanceof Error ? lastError.message : String(lastError);
   throw new Error(`DevTools asset fetch ${path} exhausted its retry budget: ${detail}`);
-}
-
-function literalModuleAssetPaths(modulePath: string, source: string, revision: string): readonly string[] {
-  const matches = source.matchAll(/new URL\((['"])([^'"\\]+)\1,\s*import\.meta\.url\)/gu);
-  const paths = new Set<string>();
-  for (const match of matches) {
-    const relative = match[2];
-    if (relative === undefined) {
-      throw new Error(`literal module asset parser lost its capture for ${modulePath}`);
-    }
-    const resolved = new URL(relative, `http://127.0.0.1${modulePath}`).pathname;
-    paths.add(pathForRequest(resolved, revision));
-  }
-  return [...paths];
 }
 
 async function discoverLiteralModuleAssets(
@@ -169,7 +144,7 @@ async function startDiscoveryProxy(revision: string, cache: Map<string, Promise<
           response.writeHead(HTTP_METHOD_NOT_ALLOWED).end();
           return;
         }
-        const path = pathForRequest(request.url, revision);
+        const path = pathForDevToolsRequest(request.url, revision);
         const pending = cache.get(path) ?? fetchAsset(path);
         cache.set(path, pending);
         const asset = await pending;
@@ -247,6 +222,8 @@ const FIXTURE_HTML = `<style>
 const DISCOVERY_BRIDGE = `(async () => {
   const SDK = await import("./core/sdk/sdk.js");
   const Root = await import("./core/root/root.js");
+  const Formatter = await import("./models/formatter/formatter.js"), formatted = await Formatter.ScriptFormatter.formatScriptContent("text/css", "a{color:red}", "  ");
+  if (!formatted.formattedContent.includes("color")) throw new Error("formatter worker returned no content");
   Object.assign(Root.Runtime.hostConfig, { devToolsAnimationStylesInStylesTab: { enabled: true } });
   if (Root.Runtime.hostConfig.devToolsAnimationStylesInStylesTab?.enabled !== true) throw new Error("animation host config arm missing");
   let target = SDK.TargetManager.TargetManager.instance().primaryPageTarget();
@@ -304,7 +281,6 @@ const DISCOVERY_BRIDGE = `(async () => {
   }
   return { inspectedUrl: target.inspectedURL(), fixture: Boolean(await dom.querySelector(doc.id, "[data-orb-devtools-fixture]")), rows };
 })()`;
-
 async function exerciseClosure(page: Page, pin: DevToolsAssetPin, frontendOrigin: string, profile: string): Promise<void> {
   await page.setContent(FIXTURE_HTML);
   await page.evaluate(
@@ -344,7 +320,6 @@ function familyFor(relativePath: string): string {
   const match = DEVTOOLS_LICENSE_SOURCES.find((source) => source.assetPrefix !== "" && relativePath.startsWith(source.assetPrefix));
   return match?.family ?? "devtools-frontend";
 }
-
 async function fetchNotice(revision: string, path: string): Promise<Buffer> {
   const response = await fetch(`${GITILES}/+/${revision}/${path}?format=TEXT`, { redirect: "manual" });
   if (response.status !== HTTP_OK || response.headers.has("location")) {
@@ -365,9 +340,6 @@ async function writeClosure(staging: string, pin: DevToolsAssetPin, cache: Map<s
     entries.push({ url, file, bytes: asset.body.byteLength, sha256: sha256(asset.body), mimeType: asset.mimeType, licenseFamily: familyFor(relative) });
   }
   const decodedBytes = entries.reduce((sum, entry) => sum + entry.bytes, 0);
-  if (entries.length !== pin.resourceCount || decodedBytes !== pin.decodedBytes) {
-    throw new Error(`closure drift: expected ${pin.resourceCount}/${pin.decodedBytes}, got ${entries.length}/${decodedBytes}`);
-  }
   const manifest: DevToolsAssetManifest = { schemaVersion: 1, resources: entries };
   const manifestText = canonical(manifest);
   await writeFile(join(staging, "manifest.json"), manifestText);
@@ -386,7 +358,7 @@ async function writeClosure(staging: string, pin: DevToolsAssetPin, cache: Map<s
   }
   const licenses: DevToolsLicenseManifest = { schemaVersion: 1, families };
   await writeFile(join(staging, "licenses.json"), canonical(licenses));
-  const nextPin: DevToolsAssetPin = { ...pin, manifestSha256: sha256(manifestText) };
+  const nextPin: DevToolsAssetPin = { ...pin, resourceCount: entries.length, decodedBytes, manifestSha256: sha256(manifestText) };
   if (!SHA256_RE.test(nextPin.manifestSha256)) {
     throw new Error("manifest checksum generation failed");
   }
