@@ -2031,6 +2031,7 @@
     "tests/tooling/ui-audit/cli.int.test.ts",
     "tests/tooling/ui-audit/index.test.ts",
     "tests/tooling/ui-audit/lib/checks-color.int.test.ts",
+    "tests/tooling/ui-audit/lib/checks-grid.test.ts",
     "tests/tooling/ui-audit/lib/checks-media.test.ts",
     "tests/tooling/ui-audit/lib/css-color.test.ts",
     "tests/tooling/ui-audit/lib/evidence.test.ts",

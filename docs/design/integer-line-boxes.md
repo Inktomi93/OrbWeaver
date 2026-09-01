@@ -4,14 +4,15 @@ status: active
 updated: 2026-09-01
 ---
 
-# Integer line boxes — the crisp type scale (Law 1 of the crispness doctrine)
+# Integer line boxes — the crispness doctrine (Law 1: the crisp type scale; Laws 2-4: §9-§12)
 
 > Owner rulings 2026-09-01, verbatim intent: "i want everything crisp at all times regardless of
 > device or orientation" · "wouldnt it be better to make a gate so it cant happen?" · "we fix the
 > scale to work properly we havent shipped yet". This document is the design for (A) the re-authored
-> type/leading scale, (B) the `integer-line-boxes` gate, (C) the `round()` belt. Laws 2–4 of the
-> doctrine (transform landings, promoted-layer offsets, the audit backstop) are explicitly out of
-> scope here.
+> type/leading scale, (B) the `integer-line-boxes` gate, (C) the `round()` belt. **Laws 2-4 (transform
+> landings, promoted-layer offsets, the runtime audit backstop) were out of scope for §1-§8 and are now
+> designed in §9-§12** — the deferred half of the program, landed against the seven horizontal residuals
+> Law 1's own acceptance receipt left behind.
 
 ## 1. The measured defect (receipts)
 
@@ -253,3 +254,119 @@ Memory lessons applied: `gate-authoring-hub`, `whole-project-arms-need-scope-sel
 `gate-authoring-three-new-traps`, `merge-floor-owes-the-literal-pinning-cts`,
 `tailwind-merge-custom-token-override`, `degraded-instrument-fixes-now`,
 `instruments-lie-verify-the-verifier`.
+
+## 9. Law 2 — rest-state transform identity
+
+**The law.** At REST an element must not carry a transform whose raster cannot land on the device-pixel
+grid. Two failure shapes: a resting SCALE resamples every glyph and edge under it for the element's whole
+life, and a resting TRANSLATION that lands the box between device pixels offsets the same raster. A
+transform belongs to MOTION — a state variant or a `@keyframes` stop — never to rest.
+
+**The gate-vs-runtime decision, on the doctrine's own axis.** The axis is not new here: it is the one
+`ops/walker/census-tier.ts` states verbatim — *"THE QUESTION IS NOT 'is this value legal' (source-side
+gates … already prove the AUTHORED value is a token). It is 'did the RESOLVED pixel match'."* Law 2 splits
+across it, so it gets BOTH halves:
+
+- **Authorship-provable → a gate.** `tooling/src/verify/gates/rest-transform-grid.ts`. A rest-state
+  `scale-*` other than `scale-100` is unprovable-by-construction: whatever the layout does, a non-identity
+  scale resamples. Nothing else on the enforcement ladder judges it — `no-arbitrary-tw-values`'
+  `SCOPED_UTILITY_RE` names `translate(-x|-y|-z)?` and omits `scale` (verified at mint), so an arbitrary
+  `scale-[1.02]` was legal everywhere. ARM C carries the same claim into stylesheets: a
+  `transform`/`translate`/`scale` declaration outside `@keyframes` whose value carries a fractional px
+  length or a percentage.
+- **Resolved-only → a runtime rule.** `off-grid-transform` in ui-audit. Whether a legal token translate
+  LANDS on the grid is the product of the live root font-size (§2.1's continuous `--font-scale` slider),
+  the element's own box and the DPR — none of which authorship can see. §2's own residual sentence already
+  said so: *"at `--font-scale` values with a non-integer root, `--spacing-*` offsets … are fractional
+  regardless of line boxes — full-grid alignment at those scales is Law 2/3/4 territory."*
+
+**What REST means, mechanically.** A class token is rest when EVERY variant prefix is a non-state one
+(breakpoint, container query, polarity, media feature, pseudo-element, structural position). `hover:`,
+`active:`, `data-*:`, `group-*:`, `aria-*:`, `peer-*:`, `starting:` and any unrecognised prefix are MOTION
+and are skipped. The conservative direction is deliberate: a missed state prefix costs coverage the ARM B
+census floor still sees, while a mis-classified state prefix would red legitimate motion (the live
+`active:scale-95` press idiom).
+
+**The sweep at mint (the tree is FIXED, not parked).** Every transform-family token in
+`packages/{ui,client}/src` plus every CSS `transform`/`translate`/`scale` declaration was censused. The
+live rest-state population is `rotate-45` (the overlay-arrow diamond — a rotation, no text, out of Law 2's
+translate/scale scope), `before:`/`after:` percentage translates on `content:''` hit-area pseudos, two
+`[transform:translateX(var(--drawer-swipe-movement-x))]`-class token indirections, and the
+`translate-y-0/1/2` spacing-scale steps. Every fractional-px landing in CSS (`translate: ±2.5px`, the
+waystone drift/sway/gust keyframes) is inside `@keyframes` — an animating stop, not a rest landing. **Zero
+live violations: the gate is born green.**
+
+**Declared limits, each a `mustPass` row.** A fractional-px arbitrary TRANSLATE is already RED under
+`no-arbitrary-tw-values`; a PERCENTAGE translate is a runtime fraction of the element's own box and is
+unprovable from a class string (the live `before:-translate-x-1/2` centring idiom); a `var()`/`calc()`
+indirection carries the token's own contract. All three land at resolved-pixel time on `off-grid-transform`.
+
+## 10. Law 3 — promoted-layer grid alignment
+
+**The law.** `backdrop-filter`, `will-change` and 3D-promoted layers rasterize their subtree ONCE and
+composite it, which disables the browser's per-paint baseline snapping. A promoted layer's own offset is
+therefore inherited by every glyph and edge inside it, so that offset must be an integer number of device
+pixels.
+
+**Decision: RUNTIME, with no authorship half at all.** A layer's offset is decided by layout — its
+ancestors' box model, the resolved spacing steps, the live root font-size. There is no authored value to
+judge, so a gate here would be a wish with a scanRoot. The rule is `promoted-layer-offset` in ui-audit,
+whose subject is the promotion ROOT, not the text inside it: that is where the repair lands, and filing it
+once against the layer instead of N times against its descendants is what keeps a single fix from being
+buried under its own blast radius.
+
+**The three promotion shapes and only those.** `backdrop-filter` (incl. the `-webkit-` alias),
+`will-change` other than `auto`, and a 3D context (`transform-style: preserve-3d`, or a computed transform
+that resolves to `matrix3d`). `filter` was considered and left out: it is not one of the three the law
+names, and widening the promotion vocabulary is a separate measurement.
+
+## 11. Law 4 — the runtime off-grid-text backstop
+
+**The law.** Text painted inside a promotion context lands wherever its layer landed. That is the founding
+defect verbatim (§1): 22 of 25 config-panel text elements off-grid under the panel's `backdrop-filter`,
+where the fraction is resampled rather than corrected. Law 1 fixed the ARITHMETIC that produced most of
+those fractions; the backstop is what sees the ones it did not — measured after Law 1 landed: seven
+horizontal (`leftFrac`) residuals on the config list panel, a class Law 1's vertical line-box reasoning
+never touched.
+
+**Decision: RUNTIME.** Same reason as Law 3, plus the one that makes the backstop necessary at all: it must
+fire on ANY surface at ANY scale, including scales no authored value can be checked against (12 of the
+slider's 15 stops produce a non-integer root).
+
+**Population semantics** (`docs/design/983-984-ui-audit-population-semantics.md` is the contract):
+
+| reason | disposition | why |
+| - | - | - |
+| no promoting ancestor | EXCLUDED `snapped` | the browser re-snaps that baseline every paint — a measurement proving INAPPLICABILITY, so the verdict survives (the census-tier polarity ruling, one property over) |
+| inside the reading surface | EXCLUDED `readingSurface` | the typed mirror of the `integer-line-boxes` ARM C row (below) |
+| non-finite rect / unusable DPR | WITHHELD `unmeasurable` | the instrument could not judge — fails loud, never a clean pass |
+
+**The reading-surface exemption is MIRRORED, never re-decided.** The `integer-line-boxes` gate exempts
+`packages/client/src/styles/globals.css::var(--reading-line-height)`; that declaration sits on
+`[data-slot="message-bubble"]`, so the same user-owned continuous multiplier (`appearance.readingLineHeight`
+1.2–2.2) decides every text landing inside the bubble. `tooling/src/ui-audit/lib/checks-grid.ts`'s
+`GRID_EXEMPTIONS` carries the selector, the `why` and the SAME end condition (it ends when the reading rule
+gains its own `round()` belt at the consuming declaration), and interpolates the selector into the walker
+so it is spelled exactly once across the Node verdict layer and the in-page census. **Two-sidedness at
+runtime is the ACCOUNTING, not a stale arm:** #987 requires the exclusion to be counted and printed, so an
+audit of a surface with bubbles and a zero `readingSurface` count is a visible instrument problem.
+
+**The DPR matrix.** Every fraction is normalized to DEVICE pixels IN THE PAGE
+(`value * devicePixelRatio - round(value * devicePixelRatio)`), which is what makes one Node-side epsilon
+correct at every arm: a CSS half-pixel is a real off-grid landing at DPR 1 and a perfectly crisp one at
+DPR 2. `design-audit` has no `--dpr` flag and this program does not add one; the 1 / 1.25 / 2 arms are
+taken by a scratch playwright probe that sets `deviceScaleFactor` per arm, and pinned permanently in
+`tests/tooling/ui-audit/lib/checks-grid.test.ts`.
+
+## 12. Laws 2–4 coupled sites
+
+- Gate: `tooling/src/verify/gates/rest-transform-grid.ts` · its `Core-Enforcement-Active-Gates.md` row +
+  the registered-gate count · its `__g_resttransform` fixture in `tests/tooling/check-gates.int.test.ts`.
+- Instrument: `tooling/src/ui-audit/ops/walker/census-grid.ts` (post-cohort, after `census-tier`) ·
+  `ops/walker.ts`'s composition · `ops/walker/returns.ts` · `contract/samples-grid.ts` ·
+  `contract/samples-populations.ts` (the `RelationalSamples` + accounting join) · `contract/rules.ts` (three
+  rule ids) · `lib/checks-grid.ts` · `lib/collect.ts` (rung 4, `authoredDecisionKey`) · `lib/evidence.ts`'s
+  `RELATIONAL_SAMPLE_FAMILIES` mapped-type record — which is the enforcer that made the census countable
+  rather than silently uncounted.
+- Proofs: `tests/tooling/ui-audit/lib/checks-grid.test.ts` (the `design-audit-rule-proof` fires/silent rows
+  for all three rules, plus the DPR matrix).

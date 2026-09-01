@@ -91,10 +91,10 @@ type Assert<Condition extends true> = Condition;
 type ContrastSeverityIsOnlyP1 = Assert<Equal<Extract<Finding, { readonly rule: "contrast" }>["severity"], "P1">>;
 const CONTRAST_SEVERITY_IS_ONLY_P1: ContrastSeverityIsOnlyP1 = true;
 
-test("the design-audit rule denominator is closed at the 56 live ids", () => {
+test("the design-audit rule denominator is closed at the 59 live ids", () => {
   expect(CONTRAST_SEVERITY_IS_ONLY_P1).toBe(true);
-  expect(DESIGN_AUDIT_RULES).toHaveLength(56);
-  expect(new Set(DESIGN_AUDIT_RULES.map((rule) => rule.id)).size).toBe(56);
+  expect(DESIGN_AUDIT_RULES).toHaveLength(59);
+  expect(new Set(DESIGN_AUDIT_RULES.map((rule) => rule.id)).size).toBe(59);
   expect(DESIGN_AUDIT_RULES.filter((rule) => rule.id === "side-tab" || rule.id === "border-accent-on-rounded")).toHaveLength(2);
   expect(DESIGN_AUDIT_RULES.map(({ id, severity }) => `${id}:${severity.join("/")}`)).toEqual([
     "tap-target:P1/P2",
@@ -153,6 +153,9 @@ test("the design-audit rule denominator is closed at the 56 live ids", () => {
     "flat-type-hierarchy:P3",
     "buried-raster:P1",
     "tier-drift:P2",
+    "off-grid-text:P2",
+    "promoted-layer-offset:P2",
+    "off-grid-transform:P3",
   ]);
 });
 
@@ -2154,10 +2157,13 @@ test("family populations are the exact detector dispatches, including both decor
     // 3 since buried-raster joined media: distorted-image · broken-image · buried-raster.
     media: 3,
     ornament: 4,
-    // 10 since the two text-occlusion arms (headline-overhang · inline-padding-leak) and tier-drift joined.
-    quality: 10,
+    // 12 since the two text-occlusion arms (headline-overhang · inline-padding-leak), tier-drift, and the
+    // two device-pixel-grid CAUSE arms (promoted-layer-offset · off-grid-transform — crispness Laws 3 and
+    // 2's resolved half) joined.
+    quality: 12,
     structure: 8,
-    typography: 3,
+    // 4 since the Law-4 runtime backstop (off-grid-text) joined typography.
+    typography: 4,
   });
 });
 

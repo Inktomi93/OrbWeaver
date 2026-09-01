@@ -248,8 +248,19 @@ function writeFixtures(): void {
   // armed-empty at P1) — the stale-vocabulary arm. This suite file itself is FLAT under tests/tooling,
   // which the gate's tool-dir derivation skips, so the literal below is inert here.
   fx("tests/tooling/__g_rogue/x.test.ts", "// @instrument-proof: plants a fake defect and asserts the instrument reds\nexport const t = 1;\n");
-  // design-audit-rule-proof: a reasoned proof marker whose id is absent from the closed live registry.
-  fx("tests/tooling/ui-audit/__g_rule-proof.test.ts", "// @rule-fires(__g-ghost-rule): planted stale proof id\nexport const t = 1;\n");
+  // design-audit-rule-proof: a proof ROW whose rule id is absent from the closed live registry. The old
+  // spelling here was a `// @rule-fires(...)` comment marker, and the gate migrated to executable
+  // `auditRuleTest` rows in 180b8dbb3 WITHOUT sweeping this fixture — so the gate has been silently
+  // UNFIRED in the anti-drift assertion ever since (found by this lane's floor, 2026-09-01). The row shape
+  // and the bound-helper requirement are the gate's own BOUND_HELPER_FIXTURE constant.
+  fx(
+    "tests/tooling/ui-audit/__g_ruleproof.test.ts",
+    'import { test } from "../../support/tool-fixtures.ts";\nfunction auditRuleTest(proofs: unknown, title: string, fn: () => void): void { void proofs; test(title, fn); }\nauditRuleTest([{ rule: "__g-ghost-rule", kind: "fires", reason: "planted stale proof id" }], "fixture", () => {});\n',
+  );
+  // agent-bridge-lock: a SECOND production installer of `globalThis.__orb` outside the sanctioned door.
+  // The gate landed in 5d64aa1c6 with no fixture and no UNFIXTURABLE row, so it too has never fired in the
+  // anti-drift assertion; the shape is lifted from the gate's own first mustFlag row.
+  fx("packages/client/src/lib/__g_rogue-bridge.ts", 'window["__orb"] = globalThis.__orb;\n');
   // test-determinism: ambient clock in a test (tooling/ is scanned; only support/+e2e/ are exempt).
   // The banned call is assembled so the literal isn't present in THIS file's source (which the gate
   // also scans) — only the written fixture resolves to the ambient-clock call.
@@ -400,6 +411,8 @@ function writeFixtures(): void {
   fx("packages/client/src/features/__g_darkvariant/components/__g_darkvariant.tsx", 'export const G = <div className="dark:bg-card" />;\n');
   // integer-line-boxes: Tailwind's unitless core leading (1.25 × a fractional voice size = a fractional box).
   fx("packages/client/src/features/__g_lineboxes/components/__g_lineboxes.tsx", 'export const G = <div className="text-micro leading-tight" />;\n');
+  // rest-transform-grid: a REST-state scale (no state variant) — a permanent sub-pixel resample of the subtree.
+  fx("packages/client/src/features/__g_resttransform/components/__g_resttransform.tsx", 'export const G = <div className="scale-95" />;\n');
   // css-var-defined: an exact arbitrary-variable carrier names no generated, authored, or runtime property.
   fx("packages/client/src/features/__g_cssvar/components/__g_cssvar.tsx", 'export const G = <div className="z-(--definitely-undefined)" />;\n');
   // density-tier: `rounded-card` outside the ELEVATED family, in a file with no baseline budget (A1). The
