@@ -1891,6 +1891,56 @@ test("collision populations group repeated instances without erasing a later aut
   });
 });
 
+test("type-floor populations collapse repeated authored instances without merging a different home", () => {
+  const repeated = Array.from({ length: 8 }, (_unused, index) => ({
+    ...TEXT_STYLE_BASE,
+    selector: `.style-option-${String(index)}`,
+    authoredTarget: "span|slot=text|role=|type=",
+    authoredHome: "button@style-option::span<button@style-option",
+    fontSizePx: TEXT_MICRO_PX,
+    interactive: true,
+  }));
+  const distinct = {
+    ...TEXT_STYLE_BASE,
+    selector: ".collapsible-label",
+    authoredTarget: "span|slot=text|role=|type=",
+    authoredHome: "button@collapsible-trigger::span<button@collapsible-trigger",
+    fontSizePx: TEXT_MICRO_PX,
+    interactive: true,
+  };
+  const audit = collectAudit({ ...EMPTY_SAMPLES, textStyles: [...repeated, distinct] });
+  const findings = audit.findings.filter(({ rule }) => rule === "undersized-ui-text");
+
+  expect(findings).toHaveLength(2);
+  expect(findings.map(({ population }) => population).sort((left, right) => (right?.affected ?? 0) - (left?.affected ?? 0))).toEqual([
+    { affected: 8, judged: 8, capped: 3 },
+    { affected: 1, judged: 1, capped: 0 },
+  ]);
+  expect(audit.populationAccounting["undersized-ui-text"]).toMatchObject({
+    candidates: 9,
+    judged: 9,
+    affected: 9,
+    populations: 2,
+    emitted: 6,
+    withheld: { cap: 3 },
+  });
+  expect(audit.populationAccounting["text-below-ramp"]).toMatchObject({ candidates: 9, judged: 9, affected: 0, populations: 0, emitted: 0 });
+
+  const belowRamp = collectAudit({
+    ...EMPTY_SAMPLES,
+    textStyles: [...repeated, distinct].map((input) => ({ ...input, fontSizePx: TEXT_MICRO_PX - 1, interactive: false })),
+  });
+  expect(belowRamp.findings.filter(({ rule }) => rule === "text-below-ramp")).toHaveLength(2);
+  expect(belowRamp.populationAccounting["text-below-ramp"]).toMatchObject({
+    candidates: 9,
+    judged: 9,
+    affected: 9,
+    populations: 2,
+    emitted: 6,
+    withheld: { cap: 3 },
+  });
+});
+
 test("collectFindings fans a raw-sample bundle out to exactly the findings each sample warrants", () => {
   const findings = collectFindings({
     ...EMPTY_SAMPLES,

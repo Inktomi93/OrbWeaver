@@ -106,7 +106,10 @@ export const WALKER_CENSUS_COLLISION = `  // ── truncated to NOTHING (#816) 
   // ── obscured target: the compositor disagrees at the element's own centre (#816) ──
   var obscuredTargets = [];
   var obscuredCandidates = 0;
+  var obscuredRecentred = 0;
+  var obscuredRevealScrolls = 0;
   var obscuredUnaskable = 0;
+  var obscuredUnaskableSubjects = [];
   // A hairline intersection is antialiasing, not a collision; a quarter of the box is a mis-tap.
   var OBSCURED_MIN_COVERED = 0.25;
   var OBSCURED_MIN_OVERLAP_PX = 4;
@@ -150,6 +153,16 @@ export const WALKER_CENSUS_COLLISION = `  // ── truncated to NOTHING (#816) 
     }
     return t.trim().replace(/\\s+/g, " ");
   }
+  function recenterObscuredCandidate(el) {
+    obscuredRevealScrolls += 1;
+    try {
+      el.scrollIntoView({ block: "center", inline: "nearest", behavior: "instant" });
+    } catch (e) {
+      el.scrollIntoView(true);
+    }
+    var rect = el.getBoundingClientRect();
+    return pointInFrame(rect.left + rect.width / 2, rect.top + rect.height / 2);
+  }
   for (var ob = 0; ob < allEls.length; ob += 1) {
     var obel = allEls[ob];
     if (isDevChrome(obel) || obel.closest("[aria-hidden='true']") || isVisuallyHidden(obel)) continue;
@@ -168,12 +181,40 @@ export const WALKER_CENSUS_COLLISION = `  // ── truncated to NOTHING (#816) 
     var obcx = obRect.left + obRect.width / 2;
     var obcy = obRect.top + obRect.height / 2;
     obscuredCandidates += 1;
-    // UNASKABLE, NOT UN-OBSCURED (#797): a centre off the edge of the screen answers null, and null is
-    // not evidence. Counted, never silently dropped.
-    if (!pointInFrame(obcx, obcy)) { obscuredUnaskable += 1; continue; }
+    // A partially visible subject is OFFERED, so first ask its real scroller to put the subject's own
+    // centre in the compositor frame. This is the obscured census's equivalent of the earlier offered-
+    // control reveal; measuring the off-frame centre as null made bottom-edge navigation and appearance
+    // tiles poison a whole matrix cell even though one ordinary scroll made the question answerable.
+    if (!pointInFrame(obcx, obcy)) {
+      if (recenterObscuredCandidate(obel)) {
+        obscuredRecentred += 1;
+        obRect = obel.getBoundingClientRect();
+        obcx = obRect.left + obRect.width / 2;
+        obcy = obRect.top + obRect.height / 2;
+      }
+    }
+    // UNASKABLE, NOT UN-OBSCURED (#797): a centre that remains off the edge after the legitimate reveal
+    // answers null, and null is not evidence. Counted, never silently dropped.
+    if (!pointInFrame(obcx, obcy)) {
+      obscuredUnaskable += 1;
+      obscuredUnaskableSubjects.push({
+        selector: describe(obel), reason: "centre-outside-frame", centre: { x: obcx, y: obcy },
+        rect: { left: obRect.left, top: obRect.top, right: obRect.right, bottom: obRect.bottom },
+        interactive: obInteractive, text: obText.slice(0, 40),
+      });
+      continue;
+    }
     if (ownsPoint(obel, obcx, obcy)) continue;
     var obHit = document.elementFromPoint(obcx, obcy);
-    if (obHit === null) { obscuredUnaskable += 1; continue; }
+    if (obHit === null) {
+      obscuredUnaskable += 1;
+      obscuredUnaskableSubjects.push({
+        selector: describe(obel), reason: "hit-test-null", centre: { x: obcx, y: obcy },
+        rect: { left: obRect.left, top: obRect.top, right: obRect.right, bottom: obRect.bottom },
+        interactive: obInteractive, text: obText.slice(0, 40),
+      });
+      continue;
+    }
     if (isDevChrome(obHit)) continue;
     // Ancestor/descendant paint is not a collision — a parent owning the point is the composite case
     // ownsPoint already adjudicates, and a child owning it is the element working normally.
@@ -204,7 +245,21 @@ export const WALKER_CENSUS_COLLISION = `  // ── truncated to NOTHING (#816) 
       text: obText.slice(0, 40),
     });
   }
-  var obscuredScan = { candidates: obscuredCandidates, unaskable: obscuredUnaskable };
+  // The collision-local reveals must not re-point the later census families or the pixel screenshot.
+  // The interactive segment captured every scrollable ancestor before any probing and restored it once;
+  // restore that same authoritative snapshot again after this second, narrower sweep.
+  for (var osr = scrollRestore.length - 1; osr >= 0; osr -= 1) {
+    var obscuredSlot = scrollRestore[osr];
+    obscuredSlot.el.scrollTop = obscuredSlot.top;
+    obscuredSlot.el.scrollLeft = obscuredSlot.left;
+  }
+  var obscuredScan = {
+    candidates: obscuredCandidates,
+    recentred: obscuredRecentred,
+    revealScrolls: obscuredRevealScrolls,
+    unaskable: obscuredUnaskable,
+    subjects: obscuredUnaskableSubjects,
+  };
   relationalAccounting["obscured-target"].candidates = obscuredCandidates;
   relationalAccounting["obscured-target"].judged = obscuredCandidates - obscuredUnaskable;
   relationalAccounting["obscured-target"].withheld = { unaskable: obscuredUnaskable };

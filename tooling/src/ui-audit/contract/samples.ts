@@ -2,7 +2,7 @@
 // judge — plain data mirroring getComputedStyle/getBoundingClientRect output. RawSamples at the
 // bottom is the walker's return object, field-for-field.
 import type { InactiveKind, Rgb } from "@orb/tooling/_shared/wcag";
-import type { SubjectAccountingInput, ThemeRenderInput } from "./samples-evidence.ts";
+import type { ObscuredScanInput, SubjectAccountingInput, ThemeRenderInput } from "./samples-evidence.ts";
 // `RawSamples` at the bottom COMPOSES the interactive-census shapes, so they are imported here as well as
 // re-exported below: a bare `export … from` re-exports a name without binding it locally (tsc catches
 // that; biome's type service does not).
@@ -87,7 +87,7 @@ export interface BrokenImageInput {
   readonly reason: "empty-src" | "failed-load";
 }
 
-export type { SubjectAccountingInput, ThemeRenderInput } from "./samples-evidence.ts";
+export type { ObscuredScanInput, SubjectAccountingInput, ThemeRenderInput } from "./samples-evidence.ts";
 // ── The interactive census (tap targets · names · landmark · tabindex · doors · silhouettes · reach) ──
 // Re-exported, not re-declared: these shapes moved to contract/samples-interactive.ts when this file hit
 // the 450-line tooling cap (#797). `contract/samples.ts` stays the one door onto the sample vocabulary —
@@ -136,6 +136,10 @@ export interface AnimatedImgHoverInput {
 // ── Typography & copy-surface floors (impeccable quality family, ramp-bound) ─
 export interface TextStyleInput {
   readonly selector: string;
+  /** Stable authored-decision identity. Optional only for fixture bundles predating #989. */
+  readonly authoredTarget?: string;
+  /** Position-free structural home paired with `authoredTarget`; optional for historical fixtures. */
+  readonly authoredHome?: string;
   readonly tag: string;
   /** Length of the element's OWN text nodes (trimmed, whitespace-collapsed). */
   readonly directTextLen: number;
@@ -375,13 +379,6 @@ export interface ObscuredTargetInput {
   /** Does the loser offer an action itself (a control) or is it informative text (a badge/label)? */
   readonly interactive: boolean;
   readonly text: string;
-}
-
-/** The obscured census's own DENOMINATOR (#797's lesson restated for this family): a centre point outside
- *  the viewport is UNASKABLE, not un-obscured, and a silent skip makes the family's silence unreadable. */
-export interface ObscuredScanInput {
-  readonly candidates: number;
-  readonly unaskable: number;
 }
 
 // ── Aggregation ──────────────────────────────────────────────────────────────

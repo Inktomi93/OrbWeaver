@@ -184,6 +184,8 @@ export async function runUiAudit(opts: Args): Promise<number> {
           pixelSampledBackdrops: pixels.sampled,
           backdropRefusals: pixels.refusals,
           censusReach: reach ?? null,
+          obscuredRecentred: pixels.samples?.obscuredScan?.recentred ?? 0,
+          obscuredUnaskable: pixels.samples?.obscuredScan?.subjects ?? [],
           populationAccounting,
           populationVerdict: populationGap === null ? "complete" : { verdict: "NO VERDICT", ...populationGap },
           themeEvidence: {
@@ -276,6 +278,7 @@ export async function runUiAudit(opts: Args): Promise<number> {
         // The OBSCURED denominator (#816) beside the others: `obscured=0` is only a verdict when a reader
         // can see how many elements were asked whether they still own their own centre.
         ["obscured-scanned", pixels.samples?.obscuredScan?.candidates ?? -1],
+        ["obscured-recentred", pixels.samples?.obscuredScan?.recentred ?? -1],
         ["obscured-unaskable", pixels.samples?.obscuredScan?.unaskable ?? -1],
         ["px-backdrops", pixels.sampled],
         ["no-verdict", pixels.refusals.length],

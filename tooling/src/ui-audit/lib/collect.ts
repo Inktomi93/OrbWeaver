@@ -150,13 +150,13 @@ const DECISION_REPRESENTATIVE_CAP = 5;
 
 interface DecisionFindingRow<T> {
   readonly input: T;
-  readonly finding: Finding;
+  readonly finding: Finding | null;
 }
 
 function decisionPopulationFindings<T extends { readonly selector: string }>(
   rule: DesignAuditRuleId,
   items: readonly T[],
-  check: (item: T) => Finding,
+  check: (item: T) => Finding | null,
   options: { readonly census: RelationalCensusAccountingInput | undefined; readonly decisionKey: (item: T) => string },
 ): { readonly accounting: RulePopulationAccounting; readonly findings: readonly Finding[] } {
   const { census, decisionKey } = options;
@@ -171,24 +171,29 @@ function decisionPopulationFindings<T extends { readonly selector: string }>(
     groups.set(key, group);
   }
   const findings: Finding[] = [];
+  let affected = 0;
   let emitted = 0;
   for (const group of groups.values()) {
-    const first = group[0];
+    const failures = group.filter((row): row is DecisionFindingRow<T> & { readonly finding: Finding } => row.finding !== null);
+    const first = failures[0];
     if (first === undefined) {
       continue;
     }
-    const representatives = group.slice(0, DECISION_REPRESENTATIVE_CAP).map(({ input }) => input.selector);
-    const capped = group.length - representatives.length;
+    const representatives = failures.slice(0, DECISION_REPRESENTATIVE_CAP).map(({ input }) => input.selector);
+    const capped = failures.length - representatives.length;
+    const affectedSummary =
+      failures.length === group.length ? `${String(failures.length)} affected` : `${String(failures.length)} affected of ${String(group.length)} judged`;
+    affected += failures.length;
     emitted += representatives.length;
     findings.push({
       ...first.finding,
       selector: representatives[0] ?? first.input.selector,
-      value: `${first.finding.value}; ${String(group.length)} affected; ${String(representatives.length)} representative(s), ${String(capped)} capped`,
+      value: `${first.finding.value}; ${affectedSummary}; ${String(representatives.length)} representative(s), ${String(capped)} capped`,
       representatives,
-      population: { affected: group.length, judged: group.length, capped },
+      population: { affected: failures.length, judged: group.length, capped },
     } as Finding);
   }
-  const cap = items.length - emitted;
+  const cap = affected - emitted;
   const withheld = { ...(census?.withheld ?? {}) };
   if (cap > 0) {
     withheld["cap"] = cap;
@@ -198,7 +203,7 @@ function decisionPopulationFindings<T extends { readonly selector: string }>(
     accounting: settledPopulationAccounting(rule, {
       candidates: census?.candidates ?? items.length,
       judged: census?.judged ?? items.length,
-      affected: items.length,
+      affected,
       populations: findings.length,
       emitted,
       withheld,
@@ -224,6 +229,11 @@ function runArray(state: MutableFamilyCheckResult, detector: () => readonly Find
 function a11yFindings(samples: RawSamples): FamilyCheckResult {
   const state = emptyFamilyResult();
   const tapTargets = checkTapTargetPopulations(samples.tapTargets, samples.pointerCoarse);
+  if (samples.obscuredScan?.subjects !== undefined && samples.obscuredScan.subjects.length !== samples.obscuredScan.unaskable) {
+    throw new Error(
+      `INSTRUMENT ERROR: obscured unaskable population=${String(samples.obscuredScan.unaskable)} does not equal named subjects=${String(samples.obscuredScan.subjects.length)}`,
+    );
+  }
   const obscuredCensus =
     samples.relationalAccounting?.["obscured-target"] ??
     (samples.obscuredScan === undefined
@@ -352,10 +362,34 @@ function structureFindings(samples: RawSamples): FamilyCheckResult {
 
 function typographyFindings(samples: RawSamples): FamilyCheckResult {
   const state = emptyFamilyResult();
-  runArray(state, () => samples.textStyles.flatMap(checkTextStyle));
+  const styleFindings = new Map<(typeof samples.textStyles)[number], readonly Finding[]>();
+  const ungrouped: Finding[] = [];
+  for (const input of samples.textStyles) {
+    const findings = checkTextStyle(input);
+    styleFindings.set(input, findings);
+    ungrouped.push(...findings.filter(({ rule }) => rule !== "text-below-ramp" && rule !== "undersized-ui-text"));
+  }
+  const decisionKey = (input: (typeof samples.textStyles)[number]): string =>
+    `${input.authoredTarget ?? input.selector}\u0000${input.authoredHome ?? input.selector}`;
+  const textBelowRamp = decisionPopulationFindings(
+    "text-below-ramp",
+    samples.textStyles,
+    (input) => styleFindings.get(input)?.find(({ rule }) => rule === "text-below-ramp") ?? null,
+    { decisionKey, census: undefined },
+  );
+  const undersizedUiText = decisionPopulationFindings(
+    "undersized-ui-text",
+    samples.textStyles,
+    (input) => styleFindings.get(input)?.find(({ rule }) => rule === "undersized-ui-text") ?? null,
+    { decisionKey, census: undefined },
+  );
+  runArray(state, () => [...ungrouped, ...textBelowRamp.findings, ...undersizedUiText.findings]);
   runArray(state, () => checkCaveatHierarchy(samples.textStyles));
   runArray(state, () => checkFontCensus(samples.fontCensus));
-  return state;
+  return {
+    ...state,
+    populationAccounting: { "text-below-ramp": textBelowRamp.accounting, "undersized-ui-text": undersizedUiText.accounting },
+  };
 }
 
 /** Closed dispatcher: the registry owns the family vocabulary, and a family is counted only when its
