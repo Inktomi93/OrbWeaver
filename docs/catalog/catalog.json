@@ -11268,6 +11268,55 @@
       "receiptCurrent": true
     },
     {
+      "path": "docs/design/design-audit-subject-accounting-976.md",
+      "lane": "design",
+      "issue": 5,
+      "lines": 164,
+      "bytes": 9755,
+      "sha256": "ddfe683a142a68e88fa736e74be5999ce58282c22da54f50455f3e39e2fb85d3",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "design",
+          "status": "complete",
+          "updated": "2026-08-31"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/design/design-audit-subject-accounting-976.md",
+        "assignedSha256": "ddfe683a142a68e88fa736e74be5999ce58282c22da54f50455f3e39e2fb85d3",
+        "disposition": "current",
+        "authority": "design",
+        "fullRead": true,
+        "verifiedSha256": "ddfe683a142a68e88fa736e74be5999ce58282c22da54f50455f3e39e2fb85d3",
+        "verifiedCommit": "af6e7e187648d4f20ee5f4f37e112bdbb287df3f",
+        "verifiedAt": "2026-08-31",
+        "evidence": [
+          "docs/design/design-audit-subject-accounting-976.md:1 (full read; reproduced timing defect, exact subject accounting, theme provenance, rejected alternatives, coupled sites, red-first controls, and the #953 matrix boundary)",
+          "git:af6e7e187648d4f20ee5f4f37e112bdbb287df3f (content commit whose tree contains the verified design blob and implemented #976 proof)"
+        ],
+        "summary": "Implemented #976 design for fail-loud design-audit subject accounting and requested-versus-actual theme provenance, including late-mount and same-count replacement controls without duplicating the #953 appearance matrix.",
+        "claims": [
+          {
+            "claim": "Design-audit now judges one settled identity snapshot exactly and rejects population mutation or unresolved requested-versus-actual theme evidence as instrument error.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#976"
+              },
+              {
+                "kind": "provenance",
+                "target": "git:af6e7e187648d4f20ee5f4f37e112bdbb287df3f"
+              }
+            ]
+          }
+        ]
+      },
+      "receiptCurrent": true
+    },
+    {
       "path": "docs/design/docker-modern-practices-research.md",
       "lane": "design",
       "issue": 5,
