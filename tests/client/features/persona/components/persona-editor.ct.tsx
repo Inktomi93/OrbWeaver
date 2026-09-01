@@ -13,6 +13,7 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import { routeTrpc, trpcError, trpcHold } from "../../../../support/ct/route-trpc.ts";
+import { userSettingsView } from "../../../../support/ct/user-settings-view.ts";
 import { PersonaEditorMacroStory } from "../_ct-stories.tsx";
 
 const USER_MACRO_ROW = "{{sceneTone}}";
@@ -41,7 +42,7 @@ const PERSONA_EDITOR_AMBIENT_ROUTES: Readonly<Record<string, unknown>> = {
 test("a persona description completes against the ACTIVE PRESET's user macros, gloss and all", async ({ mount, page }) => {
   await routeTrpc(page, {
     ...PERSONA_EDITOR_AMBIENT_ROUTES,
-    "settings.getUserSettings": () => ({ config: { seeds: { defaultPresetId: ACTIVE_PRESET_ID } } }),
+    "settings.getUserSettings": () => userSettingsView({ seeds: { defaultPresetId: ACTIVE_PRESET_ID } }),
     "preset.get": () => ({ config: { userMacros: USER_MACROS } }),
     "persona.update": () => null,
   });
@@ -62,7 +63,7 @@ test("with the BUILT-IN preset active there is no plane to read — the builtin 
   // preset at all, and the field must still be completable (never an empty popover waiting on a read).
   const trpc = await routeTrpc(page, {
     ...PERSONA_EDITOR_AMBIENT_ROUTES,
-    "settings.getUserSettings": () => ({ config: { seeds: { defaultPresetId: null } } }),
+    "settings.getUserSettings": () => userSettingsView({ seeds: { defaultPresetId: null } }),
     "preset.get": () => ({ config: { userMacros: USER_MACROS } }),
     "persona.update": () => null,
   });
@@ -92,7 +93,7 @@ test("Connected characters lists the junction read; Disconnect fires with both i
   const trpc = await routeTrpc(page, {
     ...PERSONA_EDITOR_AMBIENT_ROUTES,
     "persona.listConnectedCharacters": () => CONNECTED,
-    "settings.getUserSettings": () => ({ config: { seeds: { defaultPresetId: null } } }),
+    "settings.getUserSettings": () => userSettingsView({ seeds: { defaultPresetId: null } }),
     "persona.update": () => null,
     "persona.connectToCharacter": () => null,
     "persona.disconnectFromCharacter": () => ({ disconnected: true }),
@@ -132,7 +133,7 @@ test("Duplicate admits one durable intent and rejection restores retry", async (
   let attempts = 0;
   const trpc = await routeTrpc(page, {
     ...PERSONA_EDITOR_AMBIENT_ROUTES,
-    "settings.getUserSettings": () => ({ config: { seeds: { defaultPresetId: null } } }),
+    "settings.getUserSettings": () => userSettingsView({ seeds: { defaultPresetId: null } }),
     "persona.update": () => null,
     "persona.duplicate": () => (attempts++ === 0 ? first : retry),
   });

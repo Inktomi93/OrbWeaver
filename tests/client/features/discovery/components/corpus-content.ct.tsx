@@ -26,11 +26,14 @@
 // naming `Date.now()` in a comment is legal. The "one paste away" worry this header used to record is not
 // lost: a commented-OUT statement is `commented-code`'s territory and REDs there.
 
+import type { UserId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import type { TrpcRecorder, TrpcRoutes } from "../../../../support/ct/route-trpc.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { readPhantomScrollers } from "../../../../support/ct/scroll-containing-block.ts";
+import { userSettingsView } from "../../../../support/ct/user-settings-view.ts";
 import { CorpusContentNarrowStory, CorpusContentStory } from "../_ct-stories.tsx";
 
 /** The frozen page clock. Every stamp below is derived from it; no test here reads a wall clock. */
@@ -93,7 +96,7 @@ const UNANALYSED: TrpcRoutes = {
   // The chain reads BOTH of these now (issue #166): memory's switch decides whether the pass has a themes
   // stage at all, and the queue is what tells the readiness rail whether the dedup pass has ever RUN — a zero
   // from a pass that never ran is "not run", not "none found".
-  "settings.getUserSettings": { userId: "user_me", schemaVersion: 1, updatedAt: 1, config: { memory: { enabled: true } } },
+  "settings.getUserSettings": userSettingsView({ memory: { enabled: true } }, { userId: castId<UserId>("user_me"), updatedAt: 1 }),
   "workloads.list": [],
 };
 

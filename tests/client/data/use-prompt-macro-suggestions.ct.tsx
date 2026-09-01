@@ -13,6 +13,7 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import { routeTrpc } from "../../support/ct/route-trpc.ts";
+import { userSettingsView } from "../../support/ct/user-settings-view.ts";
 import { PromptMacroSuggestionsStory } from "./_ct-stories.tsx";
 
 const ACTIVE_PRESET_ID = "preset_ct_active";
@@ -20,7 +21,7 @@ const USER_MACROS = [{ name: "sceneTone", description: "This game's tonal regist
 
 test("the ACTIVE preset's user macros join the builtin catalog — and LEAD it", async ({ mount, page }) => {
   await routeTrpc(page, {
-    "settings.getUserSettings": () => ({ config: { seeds: { defaultPresetId: ACTIVE_PRESET_ID } } }),
+    "settings.getUserSettings": () => userSettingsView({ seeds: { defaultPresetId: ACTIVE_PRESET_ID } }),
     "preset.get": () => ({ config: { userMacros: USER_MACROS } }),
   });
   const component = await mount(<PromptMacroSuggestionsStory />);
@@ -33,7 +34,7 @@ test("the ACTIVE preset's user macros join the builtin catalog — and LEAD it",
 
 test("`defaultPresetId: null` is the BUILT-IN preset — no preset read fires, the builtins still complete", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
-    "settings.getUserSettings": () => ({ config: { seeds: { defaultPresetId: null } } }),
+    "settings.getUserSettings": () => userSettingsView({ seeds: { defaultPresetId: null } }),
     "preset.get": () => ({ config: { userMacros: USER_MACROS } }),
   });
   const component = await mount(<PromptMacroSuggestionsStory />);

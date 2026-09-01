@@ -24,6 +24,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { HOST_BAND, openContextSections } from "../../../../support/ct/open-context-sections.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { userSettingsView } from "../../../../support/ct/user-settings-view.ts";
 import { ExtensionsPageStory, PluginChatSettingsSectionStory, PluginDialogBodyStory } from "../_ct-stories.tsx";
 
 const A_PAST_INSTANT = 1_760_000_000_000;
@@ -103,7 +104,7 @@ const TAB_ROUTES: Readonly<Record<string, unknown>> = {
   "chat.listChatInjections": () => [],
   "chat.getUserMacroPicks": () => ({ macros: [], values: {} }),
   "chat.getVariablePicks": () => ({ variables: [], values: {} }),
-  "settings.getUserSettings": () => ({ config: { seeds: { defaultPresetId: null } } }),
+  "settings.getUserSettings": () => userSettingsView({ seeds: { defaultPresetId: null } }),
   "chat.getChat": () => ({ id: "chat_ct", viewerIsHost: true, toolRecurseLimit: 7, hostDisplayScripts: false, roomOverrides: {}, participants: [] }),
 };
 

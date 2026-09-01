@@ -27,10 +27,13 @@
 // BARRIER DISCIPLINE: every test waits on `[data-corpus-focal]`, the node only the SETTLED arm produces —
 // the surface's testid attaches while its single QueryBoundary still reads "Loading your corpus…".
 
+import type { UserId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import type { TrpcRoutes } from "../../../../support/ct/route-trpc.ts";
 import { routeTrpc, trpcHold } from "../../../../support/ct/route-trpc.ts";
+import { userSettingsView } from "../../../../support/ct/user-settings-view.ts";
 import {
   CorpusHomeDefaultPaneStory,
   CorpusHomeNarrowPaneStory,
@@ -93,7 +96,7 @@ const UNANALYSED: TrpcRoutes = {
   "discovery.themes": [],
   "discovery.topKeywords": [],
   "discovery.themeDrift": [],
-  "settings.getUserSettings": { userId: "user_me", schemaVersion: 1, updatedAt: 1, config: { memory: { enabled: true } } },
+  "settings.getUserSettings": userSettingsView({ memory: { enabled: true } }, { userId: castId<UserId>("user_me"), updatedAt: 1 }),
   "workloads.list": [],
 };
 
@@ -846,7 +849,7 @@ const POPULATED: TrpcRoutes = {
   "discovery.topKeywords": KEYWORDS,
   "discovery.themeDrift": [],
   "sessions.me": { userId: "user_me", globalRole: "user", handle: "me" },
-  "settings.getUserSettings": { userId: "user_me", schemaVersion: 1, updatedAt: 1, config: { memory: { enabled: true } } },
+  "settings.getUserSettings": userSettingsView({ memory: { enabled: true } }, { userId: castId<UserId>("user_me"), updatedAt: 1 }),
   "workloads.list": RUNS,
 };
 

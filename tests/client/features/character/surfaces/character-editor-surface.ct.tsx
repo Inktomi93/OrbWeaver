@@ -20,6 +20,7 @@ import { resolvedTokenColor } from "../../../../support/ct/resolved-token-color.
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { readPhantomScrollers } from "../../../../support/ct/scroll-containing-block.ts";
 import { touchFloorPx } from "../../../../support/ct/touch-floor.ts";
+import { userSettingsView } from "../../../../support/ct/user-settings-view.ts";
 import type { ChatSummaryFixture } from "../../chat/fixtures.ts";
 import { chatListResponder, makeSeatPortrait } from "../../chat/fixtures.ts";
 import { CharacterDetailContributorStory, CharacterEditorSurfaceStory, CharacterFacetInspectorStory } from "../_ct-stories.tsx";
@@ -654,7 +655,7 @@ test("MACU-2: a card facet completes against the ACTIVE PRESET's user macros", a
     "character.update": () => CARD,
     // The SUBJECT here — the seeded default preset. After the spread, so this partial wins over the
     // ambient full-defaults settings row.
-    "settings.getUserSettings": () => ({ config: { seeds: { defaultPresetId: "preset_ct_active" } } }),
+    "settings.getUserSettings": () => userSettingsView({ seeds: { defaultPresetId: "preset_ct_active" } }),
     "preset.get": () => ({
       config: { userMacros: [{ name: "sceneTone", description: MACRO_USER_GLOSS, args: [], body: "hushed", inputs: [], strict: false }] },
     }),
