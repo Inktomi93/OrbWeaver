@@ -161,6 +161,7 @@ Steps (ONE argv-ordered tape; each gets its own measurement window):
   --wheel "sel=dy"   --wheelburst "sel=dy:n"
   --goto <section|settings:cat|modal:slot>   --open-chat <id|title|latest|current>
   --open-character <id|name>   --context-tab <tab>
+  --panel <name>=<docked|overlay|collapsed>   --focus <on|off>
 
 Run:
   --base <url> · --viewport <WxH> · --settle <ms> · --cycles <n> · --out <name> · --cpuprofile

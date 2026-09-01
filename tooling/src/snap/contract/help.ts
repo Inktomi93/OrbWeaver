@@ -47,6 +47,9 @@ mid-chain runs mid-chain; --map/--aria/--contrast/--expect-* observe the settled
   --open-chat <id|title|latest|current>   --open-character <id>     --context-tab <tab>
     latest = the chat list's top row; current = the room open right now (no list query — the one to
     use after creating a room, since a fresh room is unlisted until the list refetches)
+  --panel <name>=<docked|overlay|collapsed>   drive the shell's panel layout — also the docked↔collapsed
+                            FLIP transition (use-list-track-flip.ts + shell.css's shell-list-push-in)
+  --focus <on|off>          the shell's zen/focus-mode toggle
   --watch <totalMs> [--every <ms>]  poll evals and optional screenshots over time
   Add @N to a page-targeted flag with --pages N, for example --click@1.
   Every selector is CSS unless prefixed: a bare phrase ("choose who speaks next") is a type-selector

@@ -80,6 +80,22 @@ function validatePairFlagValue(flag: string, raw: string, errors: string[]): voi
   validateCascadePair(flag, raw, split, errors);
 }
 
+/** `--panel <name>=<mode>` (the same `<a>=<b>` shape --fill/--key/--expect-text use — a panel NAME never
+ *  carries `=`) and `--focus <on|off>`, the one nav verb whose value is a bare boolean rather than a
+ *  selector/pair. Own function so validatePairFlagValue and validateFlagValue's dispatch both stay under
+ *  the biome cognitive-complexity cap. */
+function validateShellNavFlagValue(flag: string, raw: string, errors: string[]): void {
+  if (flag === "--panel") {
+    const { head, tail } = splitLastEq(raw);
+    if (head === "" || tail === "") {
+      errors.push(`--panel expects name=mode, got ${JSON.stringify(raw)}`);
+    }
+  }
+  if (flag === "--focus" && raw !== "on" && raw !== "off") {
+    errors.push(`--focus expects on|off, got ${JSON.stringify(raw)}`);
+  }
+}
+
 function validateCascadePair(flag: string, raw: string, split: { readonly head: string; readonly tail: string }, errors: string[]): void {
   if (flag !== "--cascade") {
     return;
@@ -107,6 +123,7 @@ function validateFlagValue(flag: string, raw: string, errors: string[]): void {
   validateLoadFlagValue(flag, raw, errors);
   validateEvidenceFlagValue(flag, raw, errors);
   validatePairFlagValue(flag, raw, errors);
+  validateShellNavFlagValue(flag, raw, errors);
   validateSelectorFlagValue(flag, raw, errors);
 }
 

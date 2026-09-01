@@ -11,7 +11,7 @@ import {
   parseAppearancePatch,
 } from "@orb/tooling/_shared/appearance-flags";
 import type { Viewport } from "@orb/tooling/_shared/argv";
-import { parseViewport } from "@orb/tooling/_shared/argv";
+import { parseViewport, splitLastEq } from "@orb/tooling/_shared/argv";
 import { DEFAULT_BASE } from "@orb/tooling/_shared/browser";
 import { MOBILE_DEVICE } from "@orb/tooling/_shared/browser-environment";
 import { applyThemeFlag, parseThemeFlag, THEME_VALUE_FLAGS, themeHelpBlock } from "@orb/tooling/_shared/theme";
@@ -41,6 +41,12 @@ const FLAG_HANDLERS: Record<string, FlagHandler> = {
   },
   "--context-tab": (a, rest) => {
     a.reach.push({ kind: "nav", method: "context-tab", target: rest.shift() ?? "" });
+  },
+  "--panel": (a, rest) => {
+    a.reach.push({ kind: "nav", method: "panel", target: rest.shift() ?? "" });
+  },
+  "--focus": (a, rest) => {
+    a.reach.push({ kind: "nav", method: "focus", target: rest.shift() ?? "" });
   },
   "--url": (a, rest) => {
     a.url = rest.shift() ?? null;
@@ -104,6 +110,8 @@ const REQUIRED_VALUE_FLAGS = new Set([
   "--open-chat",
   "--open-character",
   "--context-tab",
+  "--panel",
+  "--focus",
   "--url",
   "--base",
   "--selector",
@@ -121,6 +129,9 @@ Usage:
 Reach the surface (argv-ordered, run BEFORE the trace; evidence is reset after the last one):
   --click <selector>        --goto <section|settings:cat|modal:slot>
   --open-chat <id|title|latest|current>   --open-character <id|name>   --context-tab <tab>
+  --panel <name>=<docked|overlay|collapsed>   drive the shell's panel layout (also the docked↔collapsed
+                            FLIP transition — one of the app's largest motion surfaces)
+  --focus <on|off>          the shell's zen/focus-mode toggle
 
 Measure:
   --selector <sel>          THE interaction — clicked inside the trace window
@@ -181,6 +192,21 @@ function scanArgv(argv: readonly string[]): string[] {
   return errors;
 }
 
+// `--panel`/`--focus` are validated HERE, not left for the bridge to reject: a mistyped mode/on-off string
+// must be CLI misuse, never a silent decode to some other value (--panel splits with splitLastEq — the
+// same `<a>=<b>` shape --fill/--key/--expect-text use; a panel NAME never carries `=`). Split out of
+// strictValueErrors purely to keep it under the biome cognitive-complexity cap.
+function shellNavValueErrors(flag: string | undefined, raw: string | undefined): string[] {
+  if (flag === "--panel" && raw !== undefined) {
+    const s = splitLastEq(raw);
+    return s.head === "" || s.tail === "" ? [`--panel expects name=mode, got ${JSON.stringify(raw)}`] : [];
+  }
+  if (flag === "--focus" && raw !== undefined && raw !== "on" && raw !== "off") {
+    return [`--focus expects on|off, got ${JSON.stringify(raw)}`];
+  }
+  return [];
+}
+
 function strictValueErrors(argv: readonly string[]): string[] {
   const errors: string[] = [];
   for (let index = 0; index < argv.length; index += 1) {
@@ -195,6 +221,7 @@ function strictValueErrors(argv: readonly string[]): string[] {
         errors.push("--window requires a positive finite duration in milliseconds");
       }
     }
+    errors.push(...shellNavValueErrors(flag, raw));
   }
   return errors;
 }

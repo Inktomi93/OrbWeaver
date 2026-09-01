@@ -154,6 +154,12 @@ export const FLAG_HANDLERS: Record<string, FlagHandler> = {
   "--context-tab": (a, rest, page) => {
     pushNav(a, { kind: "context-tab", target: rest.shift() ?? "", page });
   },
+  "--panel": (a, rest, page) => {
+    pushNav(a, { kind: "panel", target: rest.shift() ?? "", page });
+  },
+  "--focus": (a, rest, page) => {
+    pushNav(a, { kind: "focus", target: rest.shift() ?? "", page });
+  },
   "--pages": (a, rest) => {
     a.pages = Math.max(1, Number(rest.shift() ?? "1") || 1);
   },
