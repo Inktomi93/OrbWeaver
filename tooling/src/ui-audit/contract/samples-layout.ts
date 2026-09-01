@@ -55,3 +55,27 @@ export interface RowVoidInput {
   readonly rightSelector: string;
   readonly rightWidthPx: number;
 }
+
+/** Every element on the surface currently expressing ONE selection state, and how many distinct visual
+ *  vocabularies express it.
+ *
+ *  THE GROUPING KEY IS THE PRIMITIVE'S OWN CLAIM. This app is built exclusively on Base UI, whose 1.7
+ *  docs define a closed state vocabulary — `data-checked` / `data-selected` / `data-current` /
+ *  `data-pressed` / `data-active`, mirrored by the ARIA equivalents the app also authors. So "everything
+ *  currently selected" is exhaustive rather than heuristic, and it spans CONTAINERS, which is exactly
+ *  what a sibling cohort cannot see: a list row and a picker card are never siblings, and "eight ways to
+ *  say this one" is a statement about the whole surface. */
+export interface SelectionIdiomInput {
+  /** `checked` · `selected` · `current` · `pressed` · `active`. */
+  readonly stateKind: string;
+  /** How many elements carry this state. */
+  readonly elements: number;
+  /** How many DISTINCT visual vocabularies express it. */
+  readonly treatments: number;
+  /** Each vocabulary and its population, e.g. `ring+fillx4 · bar-leftx3 · underlinex1`. The idiom is the
+   *  MECHANISM, not the colour: two regions using one accent through different channels are still two
+   *  vocabularies. */
+  readonly signatures: string;
+  /** The rarest treatment's element — the likeliest odd one out, and where a reader should look first. */
+  readonly exampleSelector: string;
+}

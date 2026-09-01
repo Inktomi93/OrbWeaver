@@ -193,4 +193,90 @@ export const WALKER_CENSUS_COHORT = `  // ── sibling cohort anatomy ──�
       rightWidthPx: Math.round(bestRight.right - bestRight.left),
     });
   }
+  // ── selection idiom: how many ways does one surface say "this one"? ────────
+  // "Pick ONE selection idiom. There are currently eight." — an orange left border + tint, a filled
+  // bar, a 2px ring, a ring on one button in a box, an underline + tint, a check badge, a SOLID FILLED
+  // ACCENT BLOCK, a light fill. Each is defensible alone; together they mean a user re-learns "which one
+  // is chosen" per region, and the heaviest treatment lands on the lowest-stakes state.
+  //
+  // THE GROUPING KEY IS THE PRIMITIVE'S OWN STATE ATTRIBUTE, never a shape guess. This app is built
+  // exclusively on Base UI, whose 1.7 docs define a closed state vocabulary (data-checked /
+  // data-selected / data-current / data-pressed / data-active, mirrored by the ARIA equivalents the
+  // app also authors). So "everything currently expressing selection" is the AUTHOR'S claim, it spans
+  // containers — which is exactly what a sibling cohort cannot see — and it is exhaustive rather than
+  // heuristic.
+  var selectionIdioms = [];
+  var SELECT_MIN_ELS = 3;
+  var SELECT_RING_MIN_PX = 1;
+  var SELECT_BAR_MIN_PX = 2;
+
+  function selectedStateKind(el) {
+    if (el.hasAttribute("data-checked") || el.getAttribute("aria-checked") === "true") return "checked";
+    if (el.hasAttribute("data-selected") || el.getAttribute("aria-selected") === "true") return "selected";
+    var ac = el.getAttribute("aria-current");
+    if (el.hasAttribute("data-current") || (ac !== null && ac !== "false")) return "current";
+    if (el.hasAttribute("data-pressed")) return "pressed";
+    if (el.hasAttribute("data-active")) return "active";
+    return null;
+  }
+
+  // WHICH CHANNELS CARRY THE SELECTION. Not "what colour" — the idiom is the MECHANISM, and two regions
+  // using the same accent through different channels still read as two vocabularies.
+  function selectionSignature(el) {
+    var st = getComputedStyle(el);
+    var channels = [];
+    var outline = parseFloat(st.outlineWidth);
+    if (!Number.isNaN(outline) && outline >= SELECT_RING_MIN_PX && st.outlineStyle !== "none") channels.push("ring");
+    if (st.boxShadow && st.boxShadow !== "none" && st.boxShadow.indexOf("inset") === -1) channels.push("shadow");
+    var bg = st.backgroundColor;
+    if (bg && bg !== "transparent" && bg.indexOf("rgba(0, 0, 0, 0)") === -1) channels.push("fill");
+    var sides = ["Top", "Right", "Bottom", "Left"];
+    var thick = [];
+    for (var si = 0; si < sides.length; si += 1) {
+      var w = parseFloat(st["border" + sides[si] + "Width"]);
+      if (!Number.isNaN(w) && w >= SELECT_BAR_MIN_PX) thick.push(sides[si].toLowerCase());
+    }
+    // A single thick side is a RAIL/UNDERLINE idiom; all four is a boxed idiom. They are different
+    // vocabularies and must not collapse into one signature.
+    if (thick.length === 1) channels.push("bar-" + thick[0]);
+    else if (thick.length > 1) channels.push("border");
+    if (st.textDecorationLine && st.textDecorationLine.indexOf("underline") !== -1) channels.push("underline");
+    return channels.length === 0 ? "none" : channels.sort().join("+");
+  }
+
+  var idiomsByKind = new Map();
+  for (var si2 = 0; si2 < allEls.length; si2 += 1) {
+    var sel = allEls[si2];
+    if (!isVisible(sel)) continue;
+    var kind = selectedStateKind(sel);
+    if (kind === null) continue;
+    var sig = selectionSignature(sel);
+    if (sig === "none") continue;
+    var bucket = idiomsByKind.get(kind);
+    if (bucket === undefined) {
+      bucket = new Map();
+      idiomsByKind.set(kind, bucket);
+    }
+    var seen = bucket.get(sig);
+    if (seen === undefined) bucket.set(sig, { count: 1, selector: describe(sel) });
+    else seen.count += 1;
+  }
+
+  idiomsByKind.forEach(function (bucket, kind) {
+    var treatments = [];
+    var total = 0;
+    bucket.forEach(function (v, sig) {
+      treatments.push({ signature: sig, count: v.count, selector: v.selector });
+      total += v.count;
+    });
+    if (total < SELECT_MIN_ELS) return;
+    treatments.sort(function (a, b) { return b.count - a.count; });
+    selectionIdioms.push({
+      stateKind: kind,
+      elements: total,
+      treatments: treatments.length,
+      signatures: treatments.map(function (t) { return t.signature + "x" + t.count; }).join(" · "),
+      exampleSelector: treatments.length > 1 ? treatments[treatments.length - 1].selector : treatments[0].selector,
+    });
+  });
 `;

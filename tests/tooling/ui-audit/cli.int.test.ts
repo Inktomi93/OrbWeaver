@@ -1041,3 +1041,63 @@ auditRuleTest(
     expect(res.stdout).not.toContain("row-void");
   },
 );
+
+// ── selection-idiom (#978): how many ways does one surface say "this one"? ───────────────────────────
+// The population is Base UI's own closed state vocabulary (data-checked / data-selected / data-current /
+// data-pressed / data-active, plus the ARIA equivalents the app authors), so it spans CONTAINERS — a
+// list row and a picker card are never siblings, and "eight ways to say this one" is a claim about the
+// whole surface that no sibling-scoped lens can make.
+function selectionPage(treatments: readonly string[]): string {
+  const cells = treatments.map((style, index) => `<div data-selected style="${style};width:120px;height:40px">cell ${String(index)}</div>`).join("\n  ");
+  return `<!doctype html>
+<html data-app-ready="settled"><head><meta charset="utf-8"><title>t</title></head>
+<body style="margin:0;background:#000;color:#fff;font:14px system-ui"><main>
+  ${cells}
+</main></body></html>`;
+}
+
+const RING = "outline:2px solid orange";
+const FILL = "background-color:#402000";
+const RAIL = "border-left:3px solid orange";
+
+auditRuleTest(
+  [{ rule: "selection-idiom", kind: "fires", reason: "three different visual vocabularies express one selection state on one surface" }],
+  "three vocabularies for one selection state is a finding naming the MECHANISMS, not the colours",
+  async ({ runCli, scratch }) => {
+    await writeFile(join(scratch, "idioms.html"), selectionPage([RING, FILL, RAIL]));
+    const res = await runCli("ui-audit", ["/idioms.html", "--base", `file://${scratch}`], { timeoutMs: CLI_TIMEOUT_MS });
+    expect(res.stdout).toContain("selection-idiom");
+    // The signature is the MECHANISM. Two regions using one accent through different channels are still
+    // two vocabularies, and a reader learns channels — so the value must name them and their populations.
+    expect(res.stdout, "the value must name each mechanism and its count").toContain("ringx1 · fillx1 · bar-leftx1");
+  },
+);
+
+auditRuleTest(
+  [
+    {
+      rule: "selection-idiom",
+      kind: "silent",
+      reason: "one vocabulary repeated is a house style — the fence is the COUNT of vocabularies, not the count of selected elements",
+    },
+  ],
+  "one vocabulary repeated across the same population mints nothing",
+  async ({ runCli, scratch }) => {
+    await writeFile(join(scratch, "one-idiom.html"), selectionPage([RING, RING, RING, RING]));
+    const res = await runCli("ui-audit", ["/one-idiom.html", "--base", `file://${scratch}`], { timeoutMs: CLI_TIMEOUT_MS });
+    expect(res.stdout).not.toContain("selection-idiom");
+    expect(res.stdout, "the structure family must have dispatched — silence is only a verdict when the family ran").toMatch(/scanned-structure=[1-9]/u);
+  },
+);
+
+// A house style plus ONE variant is normal (a grid uses a ring, a list uses a rail). The fence sits above
+// two, so the rule reports a vocabulary sprawl rather than the existence of a second idiom.
+auditRuleTest(
+  [{ rule: "selection-idiom", kind: "silent", reason: "two vocabularies is a house style with a variant, which is the recommended end state" }],
+  "two vocabularies is the recommended end state and mints nothing",
+  async ({ runCli, scratch }) => {
+    await writeFile(join(scratch, "two-idioms.html"), selectionPage([RING, RING, RAIL, RAIL]));
+    const res = await runCli("ui-audit", ["/two-idioms.html", "--base", `file://${scratch}`], { timeoutMs: CLI_TIMEOUT_MS });
+    expect(res.stdout).not.toContain("selection-idiom");
+  },
+);
