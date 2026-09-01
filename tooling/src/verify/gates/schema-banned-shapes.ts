@@ -3,6 +3,12 @@
 // D-cite) the ledger killed by name; a reintroduction (an amnesiac agent re-porting a neo pattern) is
 // RED with the cite. The registry is the extensible-forever table shape — a new "we decided NOT to have
 // X" ruling adds one row.
+// COLUMNS ARE RESOLVED, NOT REQUIRED INLINE (#945): the columns argument is read through
+// `_shared/schema-read.ts`, which follows an imported/aliased object-literal binding (and object spreads)
+// and refuses loudly on any other shape. `sqliteTable("x", importedColumns, …)` used to yield ZERO columns
+// here, erasing this gate's obligations while the schema file scan stayed healthy; findings anchor on the
+// column's DECLARING file and the scan line prints the resolved table/column population.
+import { columnProperties, schemaScan } from "@orb/tooling/_shared/schema-read";
 import type { InterfaceDeclaration, Node, Project, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract/gate.ts";
@@ -161,15 +167,7 @@ function tablesIn(sf: SourceFile): Table[] {
 }
 
 function columnKeys(colsObj: Node): string[] {
-  if (!colsObj.isKind(SyntaxKind.ObjectLiteralExpression)) {
-    return [];
-  }
-  return colsObj.getProperties().flatMap((p) => {
-    if (p.isKind(SyntaxKind.PropertyAssignment) || p.isKind(SyntaxKind.ShorthandPropertyAssignment)) {
-      return [p.getName()];
-    }
-    return [];
-  });
+  return columnProperties(colsObj).map((p) => p.getName());
 }
 
 function tableBanViolation(found: Table[], rel: string, shape: TableBan): Violation[] {
@@ -295,11 +293,20 @@ export const gate: GateDescriptor = {
     "a ledger-REJECTED schema/contract shape has been reintroduced — the ledger killed this shape by name; drop it or contest the D-cite (see the row's citation in Core-Laws-and-Precedents.md).",
   fix: "remove the banned column/field/import (or the whole table) — the ledger row names the correct home for the concern.",
   run: (ctx) => {
+    ctx.scan(schemaScan(ctx.project));
     for (const v of scanBannedShapes(ctx.root, ctx.project)) {
       ctx.report({ file: v.file, line: v.line, column: 0, message: v.message });
     }
   },
   mustFlag: [
+    {
+      files: {
+        "packages/db/src/schema/x-columns.ts": 'export const chatColumns = { activePresetId: text("active_preset_id") };\n',
+        "packages/db/src/schema/x.ts": 'import { chatColumns } from "./x-columns";\nexport const t = sqliteTable("chats", chatColumns);\n',
+      },
+      expect: { count: 1, messageIncludes: "D58" },
+      why: "THE #945 IMPORTED-COLUMNS RED: a ledger-REJECTED column reintroduced behind an imported columns object — the table-name ban still fired, but the COLUMN ban (the one carrying the D-cite for this shape) read zero columns and passed",
+    },
     {
       files: 'export const chats = sqliteTable("chats", { ownerId: text("owner_id") });\n',
       at: "packages/db/src/schema/chat.ts",

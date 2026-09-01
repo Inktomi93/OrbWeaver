@@ -18,8 +18,14 @@
 //   • Arm B resolves a tRPC cite to `<router>.<proc>` and an HTTP cite to its route-path literal. It proves
 //     the door EXISTS, not that it is reachable from the UI — client chrome is CT/side-eye territory.
 
+// COLUMNS ARE RESOLVED, NOT REQUIRED INLINE (#945): the columns argument is read through
+// `_shared/schema-read.ts`, which follows an imported/aliased object-literal binding (and object spreads)
+// and refuses loudly on any other shape. `sqliteTable("x", importedColumns, …)` used to yield ZERO columns
+// here, erasing this gate's obligations while the schema file scan stayed healthy; findings anchor on the
+// column's DECLARING file and the scan line prints the resolved table/column population.
 import type { PortableKind } from "@orb/contracts/portability";
 import { PORTABLE_KINDS } from "@orb/contracts/portability";
+import { columnProperties, schemaScan } from "@orb/tooling/_shared/schema-read";
 import type { SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { ExemptionRow, ExemptionTable, GateDescriptor, GateRunCtx } from "../contract/gate.ts";
@@ -316,12 +322,16 @@ function readSchema(sf: SourceFile): void {
       continue;
     }
     for (const decl of stmt.getDeclarations()) {
-      const init = decl.getInitializer()?.getText() ?? "";
-      if (!SQLITE_TABLE_RE.test(init)) {
+      const initializer = decl.getInitializer();
+      if (initializer === undefined || !SQLITE_TABLE_RE.test(initializer.getText())) {
         continue;
       }
       declaredTables.add(decl.getName());
-      if (OWNER_COLUMN_RE.test(init)) {
+      // The ownership stamp is read off the RESOLVED columns, not the table's own initializer text: an
+      // imported columns object carries no `text("owner_id")` in this file, and reading text alone made an
+      // owner-stamped table look unowned — i.e. carried no portability obligation at all (#945).
+      const columns = initializer.isKind(SyntaxKind.CallExpression) ? columnProperties(initializer.getArguments()[1]) : [];
+      if (columns.some((column) => OWNER_COLUMN_RE.test(column.getInitializer()?.getText() ?? ""))) {
         ownerStamped.add(decl.getName());
       }
     }
@@ -479,6 +489,7 @@ export const gate: GateDescriptor = {
   message: MESSAGE,
   fix: FIX,
   run: (ctx) => {
+    ctx.scan(schemaScan(ctx.project));
     declaredTables.clear();
     ownerStamped.clear();
     for (const sf of ctx.project.getSourceFiles()) {
@@ -498,6 +509,15 @@ export const gate: GateDescriptor = {
   },
 
   mustFlag: [
+    {
+      files: {
+        "packages/db/src/schema/journal-columns.ts": 'export const journalColumns = { ownerId: text("owner_id"), body: text("body") };\n',
+        "packages/db/src/schema/journal.ts":
+          'import { journalColumns } from "./journal-columns";\nexport const journalEntries = sqliteTable("journal_entries", journalColumns);\n',
+      },
+      expect: { count: 1, messageIncludes: "OWNER-STAMPED canon that no portable kind carries" },
+      why: "THE #945 IMPORTED-COLUMNS RED: arm A used to read the ownership stamp off the table initializer's TEXT, so an imported columns object made an owner-stamped table look unowned — i.e. carrying no portability obligation at all",
+    },
     {
       files: {
         "packages/db/src/schema/journal.ts":

@@ -4,6 +4,11 @@
 // `*Service` interface's members per `domain/<d>/contract/service.ts` and requires a boundary-anchored
 // service call `<service>.<verb>(` or its `create<Verb>(` factory call in domain tests. COMMENT POSTURE:
 // comment-SAFE — AST CallExpressions only. DEFERRED is a ratchet (bus-coverage.ts precedent).
+// MEMBERS ARE RESOLVED, NOT LOCAL (#943): the verb set is the interface TYPE's properties, so the five verbs
+// `WorkloadService extends WorkloadScheduleService` inherits from an imported base are obligations too — a
+// local-`getMembers()` reader lost them while the workspace scan stayed healthy. Each verb keeps its
+// DECLARING interface for the diagnostic, the scan line prints local/inherited/total, and an `extends`
+// clause that resolves to nothing (or a member with no declaration) is a loud refusal, never a smaller set.
 import type { CallExpression, InterfaceDeclaration, Project, SourceFile, Type } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { ExemptionTable, GateDescriptor, GateRunCtx } from "../contract/gate.ts";
@@ -42,8 +47,8 @@ const STALE_PREFIX =
 /** The DEFERRED keys that actually suppressed a RED this run — the stale arm's truth set. */
 const seenDeferred = new Set<string>();
 
-const MESSAGE = (verb: string): string =>
-  `${verb} — the *Service interface declares this verb but no test in its domain tree invokes ` +
+const MESSAGE = (verb: string, declaredIn: string): string =>
+  `${verb} (declared on ${declaredIn}) — the *Service interface declares this verb but no test in its domain tree invokes ` +
   "it as a service method or through its `create<Verb>(` factory (core/Spine-Testing.md §5; " +
   "test-support-dry-punchlist.md W1i). Add a behavioral test at tests/server/domain/ or, for a tracked " +
   "gap, a DEFERRED entry in contract-verb-presence.ts.";
@@ -195,32 +200,79 @@ function isCovered(calls: readonly CallExpression[], service: InterfaceDeclarati
   });
 }
 
-/** A property member is verb-shaped when its type is a function type (`(…) => …`) — the codebase's
- *  `readonly send: (params) => Promise<…>` idiom. `MethodSignature` members are verbs directly. */
-function interfaceVerbNames(iface: InterfaceDeclaration): string[] {
-  const names: string[] = [];
-  for (const member of iface.getMembers()) {
-    if (Node.isMethodSignature(member)) {
-      names.push(member.getName());
-      continue;
-    }
-    if (Node.isPropertySignature(member)) {
-      const typeNode = member.getTypeNode();
-      if (typeNode !== undefined && Node.isFunctionTypeNode(typeNode)) {
-        names.push(member.getName());
-      }
-    }
+/** A member declaration is verb-shaped when it is a `MethodSignature`, or a `PropertySignature` whose type
+ *  is a function type (`readonly send: (params) => Promise<…>`, the codebase's idiom). */
+function isVerbDeclaration(declaration: Node): boolean {
+  if (Node.isMethodSignature(declaration)) {
+    return true;
   }
-  return names;
+  if (!Node.isPropertySignature(declaration)) {
+    return false;
+  }
+  const typeNode = declaration.getTypeNode();
+  return typeNode !== undefined && Node.isFunctionTypeNode(typeNode);
 }
 
-/** Every verb declared by the domain's `*Service` interfaces (name ends exactly in `Service` — excludes
+/** The interface a resolved member was DECLARED on — the provenance the diagnostic names, so an inherited
+ *  verb points at the base contract that owns it instead of at the interface that merely composes it. */
+function declaringInterfaceName(declaration: Node, fallback: string): string {
+  const parent = declaration.getParent();
+  return parent !== undefined && Node.isInterfaceDeclaration(parent) ? parent.getName() : fallback;
+}
+
+/** Every `extends` clause of a service interface must RESOLVE. A base whose expression binds no interface
+ *  declaration would silently contribute zero members — the exact shrunken-denominator failure this gate was
+ *  repaired for (#943) — so it is a tool error instead. */
+function assertHeritageResolves(iface: InterfaceDeclaration): void {
+  for (const clause of iface.getExtends()) {
+    const symbol = clause.getExpression().getSymbol();
+    const declarations = (symbol?.getAliasedSymbol() ?? symbol)?.getDeclarations() ?? [];
+    if (!declarations.some((declaration) => Node.isInterfaceDeclaration(declaration))) {
+      throw new Error(
+        `contract-verb-presence: ${iface.getName()} in ${iface.getSourceFile().getFilePath()} extends "${clause.getText()}", which resolves to no interface declaration — its inherited verbs cannot be enumerated`,
+      );
+    }
+  }
+}
+
+/** One resolved verb: its name, the interface whose obligations it joins, and where it was DECLARED. */
+interface ResolvedVerb {
+  readonly service: InterfaceDeclaration;
+  readonly verb: string;
+  readonly declaredIn: string;
+  readonly inherited: boolean;
+}
+
+/** Every verb a `*Service` interface EXPOSES — the resolved type's properties, not the local declaration
+ *  list, so an inherited base's verbs stay obligations (#943). A property that resolves to no declaration at
+ *  all is unsupported composition, and refuses loudly rather than quietly leaving the denominator. */
+function resolvedVerbs(iface: InterfaceDeclaration): ResolvedVerb[] {
+  assertHeritageResolves(iface);
+  const verbs: ResolvedVerb[] = [];
+  for (const property of iface.getType().getProperties()) {
+    const declarations = property.getDeclarations();
+    if (declarations.length === 0) {
+      throw new Error(
+        `contract-verb-presence: member "${property.getName()}" of ${iface.getName()} (${iface.getSourceFile().getFilePath()}) resolves to no declaration — its verb shape cannot be established`,
+      );
+    }
+    const declaration = declarations[0];
+    if (declaration === undefined || !isVerbDeclaration(declaration)) {
+      continue;
+    }
+    const declaredIn = declaringInterfaceName(declaration, iface.getName());
+    verbs.push({ service: iface, verb: property.getName(), declaredIn, inherited: declaredIn !== iface.getName() });
+  }
+  return verbs;
+}
+
+/** Every verb exposed by the domain's `*Service` interfaces (name ends exactly in `Service` — excludes
  *  `*ServiceDeps`, which is a DI bundle, not the verb surface). */
-function serviceVerbs(contract: SourceFile): Array<{ readonly service: InterfaceDeclaration; readonly verb: string }> {
-  const verbs: Array<{ readonly service: InterfaceDeclaration; readonly verb: string }> = [];
+function serviceVerbs(contract: SourceFile): ResolvedVerb[] {
+  const verbs: ResolvedVerb[] = [];
   for (const iface of contract.getInterfaces()) {
     if (iface.isExported() && iface.getName().endsWith("Service")) {
-      verbs.push(...interfaceVerbNames(iface).map((verb) => ({ service: iface, verb })));
+      verbs.push(...resolvedVerbs(iface));
     }
   }
   return verbs;
@@ -231,11 +283,23 @@ function domainTestFiles(domain: string, files: readonly SourceFile[]): SourceFi
   return files.filter((sf) => DOMAIN_TEST_RE.exec(sf.getFilePath())?.groups?.["domain"] === domain);
 }
 
+/** The verb population this run judged — printed on the gate's scan line so an inherited base that stopped
+ *  resolving shows as a smaller TOTAL instead of a clean ✓ (#943). */
+interface VerbPopulation {
+  readonly violations: readonly Violation[];
+  readonly services: number;
+  readonly local: number;
+  readonly inherited: number;
+}
+
 /** The whole-tree reconciliation shared by the legacy Check and the single-pass `run` descriptor: each
  *  domain's *Service verbs vs its test-tree invocation corpus. */
-function reconcileContractVerbPresence(project: Project): Violation[] {
+function reconcileContractVerbPresence(project: Project): VerbPopulation {
   const files = project.getSourceFiles();
   const violations: Violation[] = [];
+  const services = new Set<string>();
+  let local = 0;
+  let inherited = 0;
   for (const contract of files) {
     const match = SERVICE_CONTRACT_RE.exec(contract.getFilePath());
     const domain = match?.groups?.["domain"];
@@ -244,7 +308,13 @@ function reconcileContractVerbPresence(project: Project): Violation[] {
     }
     const corpus = corpusCalls(domainTestFiles(domain, files));
     const file = `packages/server/src/domain/${domain}/contract/service.ts`;
-    for (const { service, verb } of serviceVerbs(contract)) {
+    for (const { service, verb, declaredIn, inherited: isInherited } of serviceVerbs(contract)) {
+      services.add(`${domain}.${service.getName()}`);
+      if (isInherited) {
+        inherited += 1;
+      } else {
+        local += 1;
+      }
       const key = `${domain}.${verb}`;
       if (isCovered(corpus, service, verb)) {
         continue;
@@ -253,10 +323,10 @@ function reconcileContractVerbPresence(project: Project): Violation[] {
         seenDeferred.add(key);
         continue;
       }
-      violations.push({ file, line: 1, message: MESSAGE(key) });
+      violations.push({ file, line: 1, message: MESSAGE(key, declaredIn) });
     }
   }
-  return violations;
+  return { violations, services: services.size, local, inherited };
 }
 
 export const gate: GateDescriptor = {
@@ -269,7 +339,14 @@ export const gate: GateDescriptor = {
   fix: "add a behavioral test that invokes the verb (or its create<Verb>( factory) under tests/server/domain/<domain>/, or add a cited DEFERRED entry.",
   run: (ctx: GateRunCtx) => {
     seenDeferred.clear();
-    for (const v of reconcileContractVerbPresence(ctx.project)) {
+    const population = reconcileContractVerbPresence(ctx.project);
+    const total = population.local + population.inherited;
+    ctx.scan({
+      unit: `service verb [interfaces=${population.services} local=${population.local} inherited=${population.inherited} total=${total}]`,
+      candidates: total,
+      scanned: total,
+    });
+    for (const v of population.violations) {
       ctx.report({ file: v.file, line: v.line, column: 0, message: v.message });
     }
     if (!fileLoaded(ctx, ANCHOR)) {
@@ -294,6 +371,18 @@ export const gate: GateDescriptor = {
       },
       expect: { messageIncludes: "no test in its domain tree invokes" },
       why: "a Service verb (uncoveredVerb) with no test invocation in the domain tree — a dead-wired verb",
+    },
+    {
+      // THE #943 SPLIT: the verb lives on an IMPORTED base interface the service extends. Only the local
+      // verb is exercised, and the inherited one must still be an obligation.
+      files: {
+        "packages/server/src/domain/hub/contract/verbs.ts": "export interface HubVerbService {\n  inherited(): void;\n}\n",
+        "packages/server/src/domain/hub/contract/service.ts":
+          'import type { HubVerbService } from "./verbs.ts";\nexport interface HubService extends HubVerbService {\n  local(): void;\n}\n',
+        "tests/server/domain/hub/x.test.ts": "const service = createHubService(ctx);\nexport const q = service.local();\n",
+      },
+      expect: { count: 1, messageIncludes: "hub.inherited (declared on HubVerbService)" },
+      why: "THE #943 ESCAPE, MADE PERMANENT: a local-`getMembers()` reader saw only `local` and reported a healthy denominator while the five verbs `WorkloadService` inherits from imported `WorkloadScheduleService` owed no test at all. The finding names the DECLARING interface, so the fix lands on the base contract.",
     },
     {
       // a longer identifier ending in the verb name (rebuild vs build) is NOT boundary-anchored coverage.
@@ -357,6 +446,24 @@ export const gate: GateDescriptor = {
         "tests/server/domain/hub/x.test.ts": "const service = createHubService(ctx);\nexport const q = service.coveredVerb();\n",
       },
       why: "the verb is invoked on a service assembled by its domain factory — covered, passes",
+    },
+    {
+      files: {
+        "packages/server/src/domain/hub/contract/verbs.ts": "export interface HubVerbService {\n  inherited(): void;\n}\n",
+        "packages/server/src/domain/hub/contract/service.ts":
+          'import type { HubVerbService } from "./verbs.ts";\nexport interface HubService extends HubVerbService {\n  local(): void;\n}\n',
+        "tests/server/domain/hub/x.test.ts": "const service = createHubService(ctx);\nservice.local();\nservice.inherited();\n",
+      },
+      why: "the SPLIT's green half: both the local and the imported-base verb are exercised through the assembled service — resolving inherited members widens the obligation set without widening the accusation (the live workloads shape, whose five schedule verbs all have behavioral tests)",
+    },
+    {
+      files: {
+        "packages/server/src/domain/hub/contract/verbs.ts": "export interface HubBundle {\n  readonly notAVerb: string;\n}\n",
+        "packages/server/src/domain/hub/contract/service.ts":
+          'import type { HubBundle } from "./verbs.ts";\nexport interface HubService extends HubBundle {\n  readonly local: () => void;\n}\n',
+        "tests/server/domain/hub/x.test.ts": "const service = createHubService(ctx);\nservice.local();\n",
+      },
+      why: "an inherited member that is NOT verb-shaped (a plain data property) is not an obligation — the resolved-member widening keeps the function-type test, so a DI/data base contributes nothing to the denominator",
     },
     {
       files: {
