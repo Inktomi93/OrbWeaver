@@ -61,6 +61,7 @@ import {
   TEXT_MICRO_PX,
 } from "../../../tooling/src/ui-audit/index.ts";
 import { collectAudit } from "../../../tooling/src/ui-audit/lib/collect.ts";
+import { populationEvidenceGap, settledPopulationAccounting } from "../../../tooling/src/ui-audit/lib/population.ts";
 import { expect, test } from "../../support/tool-fixtures.ts";
 
 const BLACK: Rgb = { r: 0, g: 0, b: 0 };
@@ -1763,21 +1764,62 @@ const EMPTY_SAMPLES: RawSamples = {
 };
 
 test.each([
-  ["under-settled", { candidates: 1, judged: 0, withheld: {} }],
-  ["negative", { candidates: -1, judged: 0, withheld: { invalid: -1 } }],
-  ["fractional", { candidates: 0.5, judged: 0, withheld: { invalid: 0.5 } }],
-  ["cap-inconsistent", { candidates: 0, judged: 0, withheld: { cap: 1 } }],
+  ["under-settled", { candidates: 1, judged: 0, withheld: {}, excluded: {} }],
+  ["negative", { candidates: -1, judged: 0, withheld: { invalid: -1 }, excluded: {} }],
+  ["fractional", { candidates: 0.5, judged: 0, withheld: { invalid: 0.5 }, excluded: {} }],
+  ["cap-inconsistent", { candidates: 0, judged: 0, withheld: { cap: 1 }, excluded: {} }],
 ] as const)("relational population accounting fails loud when %s counters cannot settle", (_label, malformed) => {
   expect(() =>
     collectAudit({
       ...EMPTY_SAMPLES,
       relationalAccounting: {
         "cohort-anatomy": malformed,
-        "pane-ink": { candidates: 0, judged: 0, withheld: {} },
-        "row-void": { candidates: 0, judged: 0, withheld: {} },
+        "pane-ink": { candidates: 0, judged: 0, withheld: {}, excluded: {} },
+        "row-void": { candidates: 0, judged: 0, withheld: {}, excluded: {} },
       },
     }),
   ).toThrow("INSTRUMENT ERROR");
+});
+
+test.each([
+  [
+    "affected without a candidate or judgment",
+    { candidates: 0, judged: 0, affected: 1, populations: 1, emitted: 1, withheld: {}, excluded: {}, collapsed: {} },
+  ],
+  ["affected above candidates and judgments", { candidates: 1, judged: 1, affected: 2, populations: 1, emitted: 2, withheld: {}, excluded: {}, collapsed: {} }],
+  [
+    "affected above judgments inside a larger candidate census",
+    { candidates: 2, judged: 1, affected: 2, populations: 1, emitted: 2, withheld: { unresolved: 1 }, excluded: {}, collapsed: {} },
+  ],
+] as const)("settled population accounting fails loud when %s", (_label, malformed) => {
+  expect(() => settledPopulationAccounting("cohort-anatomy", malformed)).toThrow("INSTRUMENT ERROR");
+});
+
+test("settled population accounting closes explicit semantic exclusions without weakening evidence gaps", () => {
+  const excluded = {
+    candidates: 1,
+    judged: 0,
+    affected: 0,
+    populations: 0,
+    emitted: 0,
+    withheld: {},
+    excluded: { notApplicable: 1 },
+    collapsed: {},
+  };
+  const withheld = {
+    candidates: 1,
+    judged: 0,
+    affected: 0,
+    populations: 0,
+    emitted: 0,
+    withheld: { unaskable: 1 },
+    excluded: {},
+    collapsed: {},
+  };
+
+  expect(settledPopulationAccounting("row-void", excluded)).toEqual(excluded);
+  expect(populationEvidenceGap({ "row-void": excluded })).toBeNull();
+  expect(populationEvidenceGap({ "obscured-target": withheld })?.detail).toContain("unaskable=1");
 });
 
 test("collision populations group repeated instances without erasing a later authored decision", () => {

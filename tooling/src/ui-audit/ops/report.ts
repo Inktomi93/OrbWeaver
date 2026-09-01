@@ -123,8 +123,11 @@ export function printPopulationAccounting(accounting: PopulationAccounting): voi
     const collapsed = Object.entries(row.collapsed)
       .map(([reason, count]) => `${reason}=${String(count)}`)
       .join(" ");
+    const excluded = Object.entries(row.excluded)
+      .map(([reason, count]) => `${reason}=${String(count)}`)
+      .join(" ");
     print(
-      `POPULATION   ${rule} candidates=${String(row.candidates)} judged=${String(row.judged)} affected=${String(row.affected)} populations=${String(row.populations)} representatives=${String(row.emitted)} withheld(${withheld}) collapsed(${collapsed})`,
+      `POPULATION   ${rule} candidates=${String(row.candidates)} judged=${String(row.judged)} affected=${String(row.affected)} populations=${String(row.populations)} representatives=${String(row.emitted)} withheld(${withheld}) excluded(${excluded}) collapsed(${collapsed})`,
     );
   }
   if (Object.keys(accounting).length > 0) {

@@ -17,7 +17,10 @@ export const WALKER_CENSUS_SELECTION = `  // ── selection idiom: authored ST
   // census only the channels that CHANGE. Aggregate all five Base UI state kinds after pairing; splitting
   // them into one-element buckets makes a surface with three vocabularies look like three clean zeros.
   var selectionIdioms = [];
-  relationalAccounting["selection-idiom"] = { candidates: 0, judged: 0, withheld: {} };
+  relationalAccounting["selection-idiom"] = { candidates: 0, judged: 0, withheld: {}, excluded: {} };
+  // One carrier cannot express a comparison population. Two carriers assert an authored cohort, so a
+  // one-sided pair is real missing twin evidence rather than an N/A singleton.
+  var SELECT_COMPARISON_MIN_MEMBERS = 2;
   var SELECT_MIN_ELS = 3;
   var SELECT_RING_MIN_PX = 1;
   var SELECT_BAR_MIN_PX = 2;
@@ -102,6 +105,10 @@ export const WALKER_CENSUS_SELECTION = `  // ── selection idiom: authored ST
   selectionGroups.forEach(function (groupsAtParent) {
     groupsAtParent.forEach(function (group) {
       relationalAccounting["selection-idiom"].candidates += 1;
+      if (group.selected.length + group.unselected.length < SELECT_COMPARISON_MIN_MEMBERS) {
+        excludeRelational(relationalAccounting["selection-idiom"], "insufficientPopulation");
+        return;
+      }
       if (group.selected.length === 0) {
         withholdRelational(relationalAccounting["selection-idiom"], "unmatchedUnselected");
         return;

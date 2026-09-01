@@ -110,6 +110,7 @@ function cappedRelationalFindings<T>(
       populations: affected.length,
       emitted: emitted.length,
       withheld,
+      excluded: { ...(census?.excluded ?? {}) },
       collapsed: {},
     }),
   };
@@ -139,6 +140,7 @@ function accountedFindings<T>(
       populations: findings.length,
       emitted: findings.length,
       withheld: { ...(census?.withheld ?? {}) },
+      excluded: { ...(census?.excluded ?? {}) },
       collapsed: {},
     }),
   };
@@ -200,6 +202,7 @@ function decisionPopulationFindings<T extends { readonly selector: string }>(
       populations: findings.length,
       emitted,
       withheld,
+      excluded: { ...(census?.excluded ?? {}) },
       collapsed: {},
     }),
   };
@@ -229,6 +232,7 @@ function a11yFindings(samples: RawSamples): FamilyCheckResult {
           candidates: samples.obscuredScan.candidates,
           judged: samples.obscuredScan.candidates - samples.obscuredScan.unaskable,
           withheld: { unaskable: samples.obscuredScan.unaskable },
+          excluded: {},
         });
   const obscured = decisionPopulationFindings("obscured-target", samples.obscuredTargets ?? [], checkObscuredTarget, {
     decisionKey: (input) =>

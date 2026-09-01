@@ -19,12 +19,15 @@ structural homes remain two repairs. Likewise, a relational rule may compare ele
 page declares their relation through HTML, ARIA, component slots, state carriers, or a shared platform
 surface. Visual proximity and global extrema are not relations.
 
-Every capped family publishes four different facts:
+Every capped family publishes five different facts:
 
 - `candidates`: subjects that entered the family's structural census;
 - `judged`: candidates for which the required relation and measurement existed;
 - `emitted`: representative sample or finding rows retained after the cap;
-- `withheld`: candidates not judged, partitioned by reason, plus judged rows omitted only by the cap.
+- `withheld`: applicable candidates not judged because required evidence was unavailable, partitioned by
+  reason, plus judged rows omitted only by the cap;
+- `excluded`: candidates reached by the structural census and then proved outside the rule's semantic
+  population, partitioned by a closed rule-owned reason.
 
 These are evidence, not finding counts. A clean rule with a partial population must not print like a
 complete clean rule.
@@ -176,11 +179,17 @@ The grouped review found that the vocabulary above exists without one settlement
 seam. #987 closes that gap. Every rule-owned population row is valid only when every count is a finite,
 non-negative integer and these identities hold:
 
-- `candidates = judged + sum(withheld except cap)`;
+- `candidates = judged + sum(withheld except cap) + sum(excluded)`;
+- `affected <= judged`;
 - `affected = emitted + withheld.cap + sum(collapsed)`;
 - `populations <= affected`, with zero affected forcing zero populations and zero emitted.
 
-`withheld` is reserved for candidates the instrument did not judge and for the presentation-only `cap`.
+`withheld` is reserved for applicable candidates the instrument could not judge and for the presentation-
+only `cap`. `excluded` is reserved for candidates whose measured facts close the question by proving the
+rule does not apply. Exclusion is complete evidence, never a population gap, but remains printed and
+serialized so an N/A cohort cannot silently disappear from the denominator. An exclusion reason may not
+stand in for a failed measurement: `unaskable`, unresolved paint, active animation, and a sufficiently
+large one-sided state cohort remain withheld and therefore fail loud.
 An authored target already adjudicated by the same ancestor decision is not unjudged; it is recorded in
 a separate `collapsed` reason map. This keeps a legitimate same-owner collapse from turning a complete
 audit into a false partial result while preserving exact arithmetic for every rendered target.
@@ -194,9 +203,20 @@ silently accepted.
 ### Previously silent state cohorts
 
 Selection and quiet-state census candidates are authored cohorts, not only successfully paired samples.
-A cohort with both compatible sides and resolvable evidence is judged. A selected-only/unselected-only,
-ON-only/OFF-only, or unresolvable cohort is withheld under an explicit reason. Clean negative controls
-assert this rule-owned candidate/judged/withheld row; family-dispatch totals are not population proof.
+A cohort with both compatible sides and resolvable evidence is judged. A one-element selection group is
+below the minimum population for any selected/unselected comparison and is explicitly excluded as
+`insufficientPopulation`; it is not evidence that a comparison failed. A group with at least two state
+carriers but only selected or only unselected members is large enough to assert an authored cohort, so its
+missing opposite twin remains withheld. ON-only/OFF-only quiet-state cohorts and unresolvable paint remain
+withheld because their rule already has enough population to ask the contrast question but lacks the
+opposite state or measurement. Clean negative controls assert the rule-owned partition rather than family-
+dispatch totals.
+
+Row-void likewise distinguishes a structural prefilter from the rule population. A wide title/actions
+topbar reaches the flank census, but a completed binding search proves it is not a form row; it is recorded
+as `excluded.unbound`, not `withheld.unbound`. A label/control pair whose binding exists but whose geometry
+cannot be measured would remain withheld. Obscured targets whose centre cannot be asked of the compositor
+remain `withheld.unaskable` because they are applicable targets with missing measurement evidence.
 
 Animating cohorts are likewise withheld rather than emitted as samples and later declined by the
 classifier. Only animations whose `playState` is `running` or `pending` count as active; retained finished
@@ -222,6 +242,10 @@ Rejected alternatives:
 
 - Treating every `withheld` reason as harmless explanation: that preserves evidence but still grants a
   clean verdict over an unmeasured population.
+- Removing inapplicable candidates from the denominator: that makes a closed negative arm indistinguishable
+  from a walker that never reached the subject.
+- Treating every unmatched state carrier as incomplete: a single rendered selected item contains no
+  comparison population, so this turns ordinary one-off navigation state into a tool-wide NO VERDICT.
 - Exempting nested ownership from arithmetic: it would make the same accounting field mean both
   adjudicated collapse and missing judgment. `collapsed` keeps those facts distinct.
 - Raising the duplicate/collision caps: a larger raw-instance cap retains the same order-dependent blind

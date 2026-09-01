@@ -8,6 +8,7 @@ export interface RelationalCensusAccountingInput {
   readonly candidates: number;
   readonly judged: number;
   readonly withheld: Readonly<Record<string, number>>;
+  readonly excluded: Readonly<Record<string, number>>;
 }
 
 interface RelationalPopulationAccountingInput {

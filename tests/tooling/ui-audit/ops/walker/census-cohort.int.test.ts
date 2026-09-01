@@ -14,14 +14,23 @@ test("row-void rejects an unbound title/actions topbar even when its rendered ga
   <div><button style="width:80px;height:32px">Reset</button><button style="width:80px;height:32px">Save</button></div>
 </header>`),
   );
-  await runCli("ui-audit", ["/unbound-topbar.html", "--base", `file://${scratch}`, "--out", reportPath], {
+  const res = await runCli("ui-audit", ["/unbound-topbar.html", "--base", `file://${scratch}`, "--out", reportPath], {
     timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
   });
   const report = JSON.parse(await readFile(reportPath, "utf8")) as RelationalPopulationReport;
+  expect(report.populationAccounting?.["row-void"]).toMatchObject({
+    candidates: 1,
+    judged: 0,
+    withheld: {},
+    excluded: { unbound: 1 },
+  });
   expect(
     report.findings.map((finding) => finding.rule),
     "visual adjacency is not a label/control binding",
   ).not.toContain("row-void");
+  expect(res.stdout).toContain("excluded(unbound=1)");
+  expect(res.stdout).not.toContain("INSTRUMENT ERROR");
+  await expect(res).toExitWith(0);
 });
 
 test("cohort-anatomy withholds an actively animating cohort instead of counting it judged", async ({ runCli, scratch }) => {

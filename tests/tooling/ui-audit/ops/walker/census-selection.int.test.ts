@@ -18,11 +18,11 @@ test("selection-idiom ignores invariant base paint when selected and unselected 
   expect(res.stdout).toContain("POPULATION   selection-idiom candidates=3 judged=3 affected=0 populations=0 representatives=0");
 });
 
-for (const [label, attribute, withheldReason] of [
-  ["selected", "data-selected", "unmatchedSelected"],
-  ["unselected", 'aria-selected="false"', "unmatchedUnselected"],
+for (const [label, attribute] of [
+  ["selected", "data-selected"],
+  ["unselected", 'aria-selected="false"'],
 ] as const) {
-  test(`selection-idiom refuses a clean verdict for an ${label}-only authored cohort`, async ({ runCli, scratch }) => {
+  test(`selection-idiom records a one-member ${label}-only group as an explicit closed exclusion`, async ({ runCli, scratch }) => {
     const reportPath = join(scratch, `${label}-only-selection.json`);
     await writeFile(
       join(scratch, `${label}-only-selection.html`),
@@ -31,9 +31,33 @@ for (const [label, attribute, withheldReason] of [
     const res = await runCli("ui-audit", [`/${label}-only-selection.html`, "--base", `file://${scratch}`, "--out", reportPath], {
       timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
     });
-    expect(res.stdout).toContain(`POPULATION   selection-idiom candidates=1 judged=0 affected=0 populations=0 representatives=0 withheld(${withheldReason}=1`);
+    expect(res.stdout).toContain(
+      "POPULATION   selection-idiom candidates=1 judged=0 affected=0 populations=0 representatives=0 withheld() excluded(insufficientPopulation=1)",
+    );
+    expect(res.stdout).not.toContain("INSTRUMENT ERROR");
+    await expect(res).toExitWith(0);
+  });
+}
+
+for (const [label, attribute, withheldReason] of [
+  ["selected", "data-selected", "unmatchedSelected"],
+  ["unselected", 'aria-selected="false"', "unmatchedUnselected"],
+] as const) {
+  test(`selection-idiom withholds a comparable ${label}-only authored cohort`, async ({ runCli, scratch }) => {
+    await writeFile(
+      join(scratch, `comparable-${label}-only-selection.html`),
+      relationalDocument(`<section data-slot="choice-group">
+<div data-slot="choice" ${attribute} style="width:120px;height:40px">one</div>
+<div data-slot="choice" ${attribute} style="width:120px;height:40px">two</div>
+</section>`),
+    );
+    const res = await runCli("ui-audit", [`/comparable-${label}-only-selection.html`, "--base", `file://${scratch}`], {
+      timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
+    });
+    expect(res.stdout).toContain(
+      `POPULATION   selection-idiom candidates=1 judged=0 affected=0 populations=0 representatives=0 withheld(${withheldReason}=1) excluded()`,
+    );
     expect(res.stdout).toContain("INSTRUMENT ERROR");
-    expect(res.stdout).not.toContain("no findings — clean");
     await expect(res).toExitWith(2);
   });
 }

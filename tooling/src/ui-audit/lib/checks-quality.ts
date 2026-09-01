@@ -241,6 +241,7 @@ export function checkDuplicateDoorPopulations(doors: readonly ActionDoorInput[])
       populations: findings.length,
       emitted,
       withheld: { cap: capped },
+      excluded: {},
       collapsed: {},
     }),
   };

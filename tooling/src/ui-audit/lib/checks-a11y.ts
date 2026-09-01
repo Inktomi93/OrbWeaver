@@ -177,6 +177,7 @@ export function checkTapTargetPopulations(inputs: readonly TapTargetInput[], poi
     populations: result.findings.length,
     emitted: result.representatives,
     withheld: { extentTruncated, cap: result.capped },
+    excluded: {},
     collapsed: { sameOwner: nestedOwned.size },
   });
   return {
