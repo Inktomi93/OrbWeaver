@@ -41,6 +41,7 @@ import { stageLabel } from "../lib/stage-request.ts";
 import { buildSurfaceStateAccounting, surfaceStateAxisLabel } from "../lib/surface-state.ts";
 import { navigateAndReveal } from "./drive.ts";
 import { hoverPassLabel, resolveHoverStates } from "./hover.ts";
+import { shellStateSnapshot } from "./page-validate.ts";
 import { resolvePixelBackdrops } from "./pixels.ts";
 import {
   countBySeverity,
@@ -197,7 +198,7 @@ export async function runUiAudit(opts: Args): Promise<number> {
     // guarantee, so a throw here is the same "the run itself is broken" class those calls already are —
     // never a graceful per-request failure like the bridge NAV calls in `_shared/nav.ts`, which a probe
     // legitimately drives against a possibly-stale/prod surface.
-    const shellState = (await session.page.evaluate("window.__orb ? window.__orb.shell() : null")) as ShellStateSnapshot | null;
+    const shellState = shellStateSnapshot(await session.page.evaluate("window.__orb ? window.__orb.shell() : null"));
     const surfaceStateAccounting = buildSurfaceStateAccounting(shellState);
 
     // Uncaught page exceptions are findings in their own right (script-error, P0) — the probe

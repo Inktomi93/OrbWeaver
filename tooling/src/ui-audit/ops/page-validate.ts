@@ -1,0 +1,164 @@
+// The PAGE→NODE seam validators for the reads OUTSIDE the forced-state pass — the fact walk's whole
+// return object and the `__orb.shell()` bridge read. Same discipline, same reason, as ops/hover-validate.ts
+// (which owns the hover pass's seams): a cast across the page boundary has no compiler behind it.
+//
+// WHY THIS IS NOT PARANOIA, MEASURED (2026-09-01, by renaming a key in ops/walker/returns.ts and running
+// the CLI both ways). The walker is a hand-written JS STRING assembled from ~17 segments; nothing
+// type-checks it against `RawSamples`, so `(await page.evaluate(COLLECT_SAMPLES_JS)) as RawSamples`
+// asserted a 40-field contract on faith. Both arms of the old behaviour were wrong, in different ways:
+//   • a dropped REQUIRED family did not read clean — it CRASHED, opaquely and in the wrong place:
+//     `TypeError: Cannot read properties of undefined (reading 'length')` inside lib/evidence.ts
+//     (`tapTargets`) or `…(reading 'filter')` inside ops/pixels.ts (`texts`). Exit 2, no mention of the
+//     walk, and the stack points a reader at an innocent file.
+//   • a family present at the WRONG KIND, and every OPTIONAL family, has no such tripwire at all: the
+//     consumers read those as "not censused", which is the genuinely silent arm — a rule with no samples
+//     files no findings, and the run reports a clean surface.
+// Validated, both become the same thing: a named INSTRUMENT ERROR that ops/run.ts already renders as
+// "the in-page node walk is ABSENT — this run is not a verdict". Same class as the pass's founding defect
+// (`JSON.parse(raw) as number[]` over selector strings, which quietly disabled restoration withholding),
+// one boundary up and with a much larger blast radius.
+//
+// THE FIELD TABLE CANNOT DRIFT: it is a `Record<keyof RawSamples, …>`, so adding a field to the contract
+// without classifying it here is a tsc error, not a silently unchecked field. Kinds are CONTAINER-level
+// (is this an array / an object / a boolean, and is it allowed to be absent) — per-row validation belongs
+// to the rule that reads the row, and a deep re-spelling here would be a second copy of the contract.
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import type { RawSamples } from "../contract/samples.ts";
+import type { ShellStateSnapshot } from "../contract/types.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm design-audit");
+
+/** `?` = optional (the field is absent from sample sets that predate its family, which every consumer
+ *  already reads as "not censused"); the bare kinds are required and their absence is an instrument gap.
+ *  Homed as a tuple and derived, the house string-union shape (Spine-TypeScript-and-Patterns.md §7.5). */
+const SEAM_KINDS = ["array", "array?", "boolean", "object", "object?"] as const;
+type SeamKind = (typeof SEAM_KINDS)[number];
+
+const RAW_SAMPLE_SHAPE: Record<keyof RawSamples, SeamKind> = {
+  accentBorders: "array",
+  accessibleNames: "array",
+  actionDoors: "array?",
+  animatedImgHovers: "array",
+  bgPatterns: "array",
+  brokenImages: "array",
+  buriedRasters: "array?",
+  censusReach: "object?",
+  clippedOverflows: "array",
+  cohortAnatomies: "array?",
+  controlAspects: "array?",
+  edgeFlushCards: "array",
+  emptyStates: "array?",
+  fontCensus: "object",
+  gradientTexts: "array",
+  headings: "array",
+  headlineOverhangs: "array?",
+  hoverScan: "object?",
+  hoverStates: "array?",
+  iconTiles: "array",
+  images: "array",
+  inlinePaddingLeaks: "array?",
+  mainLandmarkPresent: "boolean",
+  motionStatics: "array",
+  nestedCards: "array",
+  obscuredScan: "object?",
+  obscuredTargets: "array?",
+  overflows: "array",
+  paneInks: "array?",
+  pointerCoarse: "boolean",
+  quietStates: "array?",
+  radialGlows: "array",
+  relationalAccounting: "object?",
+  repeatedTexts: "array",
+  rowVoids: "array?",
+  selectionIdioms: "array?",
+  shadowGlows: "array",
+  subjectAccounting: "object",
+  tabIndexes: "array",
+  tapTargets: "array",
+  textStyles: "array",
+  texts: "array",
+  themeRender: "object",
+  tierDrifts: "array?",
+  truncatedTexts: "array?",
+  zIndexes: "array",
+};
+
+function isPlainObject(value: unknown): boolean {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/** What this value IS, for the error line — a reader needs "returned a string" to find the segment. */
+function describeValue(value: unknown): string {
+  if (value === undefined) {
+    return "nothing";
+  }
+  if (value === null) {
+    return "null";
+  }
+  return Array.isArray(value) ? "an array" : typeof value;
+}
+
+const SEAM_MATCHERS: Record<string, (value: unknown) => boolean> = {
+  array: Array.isArray,
+  boolean: (value) => typeof value === "boolean",
+  object: isPlainObject,
+};
+
+function checkField(field: string, kind: SeamKind, value: unknown, label: string): void {
+  if (value === undefined && kind.endsWith("?")) {
+    return;
+  }
+  const want = kind.replace("?", "");
+  if (SEAM_MATCHERS[want]?.(value) !== true) {
+    const article = want === "array" ? "an" : "a";
+    throw new Error(
+      `INSTRUMENT ERROR: ${label} returned ${describeValue(value)} for "${field}", not ${article} ${want} — the walk did not produce the sample contract`,
+    );
+  }
+}
+
+/** The fact walk's whole return object, settled at the seam. A malformed family is a NO VERDICT for the
+ *  entire run (drive.ts renders the throw as `sample collection: …`, which ops/run.ts already classes as
+ *  an INSTRUMENT failure), never a family that quietly censuses nothing. */
+export function rawSamples(parsed: unknown, label = "the in-page fact walk"): RawSamples {
+  if (!isPlainObject(parsed)) {
+    throw new Error(`INSTRUMENT ERROR: ${label} returned ${describeValue(parsed)}, not a sample object`);
+  }
+  const record = parsed as Record<string, unknown>;
+  for (const [field, kind] of Object.entries(RAW_SAMPLE_SHAPE)) {
+    checkField(field, kind, record[field], label);
+  }
+  return parsed as RawSamples;
+}
+
+/** The shell bridge read (`window.__orb.shell()`). `null` is a REAL answer — the bridge is absent on a
+ *  non-app page — so it is passed through; anything else must be the snapshot the panel-axis declare
+ *  reads, because a malformed one degrades that declare into a silently wrong surface-state accounting. */
+export function shellStateSnapshot(parsed: unknown, label = "the __orb.shell() bridge read"): ShellStateSnapshot | null {
+  if (parsed === null || parsed === undefined) {
+    return null;
+  }
+  if (!isPlainObject(parsed)) {
+    throw new Error(`INSTRUMENT ERROR: ${label} returned ${describeValue(parsed)}, not a shell snapshot`);
+  }
+  const shell = parsed as Record<string, unknown>;
+  const section = shell["section"];
+  if (typeof section !== "string" && section !== null) {
+    throw new Error(`INSTRUMENT ERROR: ${label} returned ${describeValue(section)} for "section", not a string or null`);
+  }
+  checkField("chatOpen", "boolean", shell["chatOpen"], label);
+  checkField("focus", "boolean", shell["focus"], label);
+  checkField("panels", "array", shell["panels"], label);
+  for (const panel of shell["panels"] as readonly unknown[]) {
+    if (!isPlainObject(panel)) {
+      throw new Error(`INSTRUMENT ERROR: ${label} returned ${describeValue(panel)} as a panel row, not a { side, mode } pair`);
+    }
+    const row = panel as Record<string, unknown>;
+    const side = row["side"];
+    const mode = row["mode"];
+    if ((typeof side !== "string" && side !== null) || (typeof mode !== "string" && mode !== null)) {
+      throw new Error(`INSTRUMENT ERROR: ${label} returned a panel row whose side/mode is not a string or null`);
+    }
+  }
+  return parsed as ShellStateSnapshot;
+}

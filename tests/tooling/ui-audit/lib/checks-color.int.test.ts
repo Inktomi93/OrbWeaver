@@ -214,5 +214,12 @@ describe("design-audit contrast — #624: ONE classifier, shared with snap", () 
     expect(INACTIVE_KIND_EXPR).toContain("aria-disabled");
     expect(INACTIVE_KIND_EXPR).toContain("[inert]");
     expect(INACTIVE_KIND_EXPR.indexOf("[inert]")).toBeLessThan(INACTIVE_KIND_EXPR.indexOf(":disabled"));
+    // #1005 — EVERY arm is an ancestor test (`closest`, which matches the element itself first). A
+    // text-bearing CHILD of a disabled control is what both instruments actually sample, and an
+    // `el.matches(…)` arm classifies it "none". The BEHAVIOURAL proof of this is the two int fixtures
+    // (tests/tooling/ui-audit/ops/walker/census-text.int.test.ts, tests/tooling/snap/ops/contrast.int.test.ts);
+    // this is the cheap spelling guard that catches a narrowing edit before those have to run a browser.
+    expect(INACTIVE_KIND_EXPR).not.toContain("el.matches(");
+    expect(INACTIVE_KIND_EXPR.match(/el\.closest\(/gu)).toHaveLength(3);
   });
 });
