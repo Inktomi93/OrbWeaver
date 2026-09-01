@@ -56,8 +56,14 @@ const SERIAL_INT = [
   "tests/tooling/verify/gates/caught-failure-ownership.int.test.ts",
   // The `pnpm ast` audit-epilogue proof: every row SPAWNS the real CLI, which loads the whole workspace
   // into ts-morph (~11s each). Five of those in the parallel lane is a load bomb, and no parallel-lane
-  // timeout covers them — the rows carry explicit 120s timeouts and run one at a time here.
-  "tests/tooling/ast-observability.int.test.ts",
+  // timeout covers them — the rows carry explicit 120s timeouts (300s for the two typed whole-workspace
+  // rows) and run one at a time here. PATH REPOINTED 2026-09-01 (#1012): this row read
+  // `tests/tooling/ast-observability.int.test.ts` for months after 8931a886c moved the file to
+  // `tests/tooling/ast/cli.int.test.ts` WITHOUT touching this config — so the row matched nothing and the
+  // file silently ran in the PARALLEL lane, i.e. exactly the load bomb this entry exists to prevent.
+  // Measured on the stale config: 1,057,996 ms (17.6 min) in `|integration|`, one row failing, and ZERO
+  // output for the whole stretch — which is what the `pnpm test` hang watchdog was killing at 300s.
+  "tests/tooling/ast/cli.int.test.ts",
   // test-presence + motion-audit: whole-tree scanners (same class as gate-conformance above) that flaked on
   // the parallel 5s timeout under verify --push's full-suite load — the plugin train grew the tree past the
   // edge (each passes alone ~3.4s but exceeds 5s under fork contention). Serial + 30s covers the scan weight.
