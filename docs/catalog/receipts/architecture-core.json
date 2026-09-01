@@ -161,14 +161,15 @@
     },
     {
       "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
-      "assignedSha256": "48cd24b24530e038830fa14e64e9e3c0437188d57da5da1ee6427b8f7176d06a",
+      "assignedSha256": "fc42c70365c9132c82792527d204e403dc57bf2a2255dd61b3ee57c2dec3124b",
       "disposition": "current",
       "authority": "operational",
       "fullRead": true,
-      "verifiedSha256": "48cd24b24530e038830fa14e64e9e3c0437188d57da5da1ee6427b8f7176d06a",
-      "verifiedCommit": "7b7eb54b2dc770527b246a3918b027c97956e333",
+      "verifiedSha256": "fc42c70365c9132c82792527d204e403dc57bf2a2255dd61b3ee57c2dec3124b",
+      "verifiedCommit": "db116d91ee1fcc6ee14ea915f1da0922cb8e84bd",
       "verifiedAt": "2026-08-31",
       "evidence": [
+        "re-attested at db116d91ee1fcc6ee14ea915f1da0922cb8e84bd (#881/#882): tooling-instrument-proof evidence 8/8, focused UI twins 4/4 and conformance 6/6; design-audit-rule-proof UI audit 106/106, walker 53/53, conformance 8/8 and check-gates 8/8; merged check:structure clean at 243/243",
         "re-attested at 7b7eb54b2 under #950 — devtools-frontend-assets records the exact tuple/hash/MIME/license/inventory/path closure and the discovered active count is 242",
         "re-attested at 5a9a9ada3 — css-selector-has-a-writer is registered with its semantic JSX/DOM/HAST/shared-provenance/vendor-contract reach and the discovered active count is 240; focused proof passed 18/18",
         "re-attested at e07b79b2d — css-length-tokens is registered beside the exact shell declaration/query and #961 static-class reach it enforces; the discovered active count is 239 and focused conformance passed 8/8",
