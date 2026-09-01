@@ -3,6 +3,12 @@
 // a sanctioned "ownerId IS the scope subject" case (see OWNERID_ALLOWLIST's per-entry justification).
 // Every other table must derive its owner by following one FK to an owned entity. A newly-stamped
 // `ownerId` on an unlisted table is a doubling — RED with the D23 cite; a stale allowlist entry is also RED (two-direction ratchet).
+// COLUMNS ARE RESOLVED, NOT REQUIRED INLINE (#945): the columns argument is read through
+// `_shared/schema-read.ts`, which follows an imported/aliased object-literal binding (and object spreads)
+// and refuses loudly on any other shape. `sqliteTable("x", importedColumns, …)` used to yield ZERO columns
+// here, erasing this gate's obligations while the schema file scan stayed healthy; findings anchor on the
+// column's DECLARING file and the scan line prints the resolved table/column population.
+import { columnProperties, schemaScan } from "@orb/tooling/_shared/schema-read";
 import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { ExemptionTable, GateDescriptor } from "../contract/gate.ts";
@@ -75,12 +81,10 @@ function ownerIdTableOf(node: Node): string | undefined {
   if (nameArg === undefined || !nameArg.isKind(SyntaxKind.StringLiteral)) {
     return;
   }
-  if (colsArg === undefined || !colsArg.isKind(SyntaxKind.ObjectLiteralExpression)) {
+  if (colsArg === undefined) {
     return;
   }
-  const hasOwner = colsArg
-    .getProperties()
-    .some((p) => (p.isKind(SyntaxKind.PropertyAssignment) || p.isKind(SyntaxKind.ShorthandPropertyAssignment)) && p.getName() === OWNER_COL);
+  const hasOwner = columnProperties(colsArg).some((p) => p.getName() === OWNER_COL);
   return hasOwner ? nameArg.getLiteralText() : undefined;
 }
 
@@ -116,6 +120,7 @@ export const gate: GateDescriptor = {
     }
   },
   finalize: (ctx) => {
+    ctx.scan(schemaScan(ctx.project));
     if (ctx.scope.kind !== "project" || !fileLoaded(ctx, SCHEMA_BARREL)) {
       return; // not the real full schema tree — the name-keyed stale arm would misfire (§4.4)
     }
@@ -131,6 +136,14 @@ export const gate: GateDescriptor = {
     }
   },
   mustFlag: [
+    {
+      files: {
+        "packages/db/src/schema/x-columns.ts": 'export const tColumns = { ownerId: text("owner_id") };\n',
+        "packages/db/src/schema/x.ts": 'import { tColumns } from "./x-columns";\nexport const t = sqliteTable("not_allowlisted", tColumns);\n',
+      },
+      expect: { count: 1, messageIncludes: "D23" },
+      why: "THE #945 IMPORTED-COLUMNS RED: a D23 ownership stamp on an unlisted table, reached through an imported columns object — the existing allowlist rows keep their own stale checks satisfied, so nothing else would have noticed",
+    },
     {
       files: 'export const t = sqliteTable("not_allowlisted", { ownerId: text("owner_id") });\n',
       at: "packages/db/src/schema/x.ts",

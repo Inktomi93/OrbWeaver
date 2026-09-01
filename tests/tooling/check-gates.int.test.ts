@@ -1111,6 +1111,15 @@ function writeFixtures(): void {
     "packages/client/src/lib/__g_appearance-carrier-manifest.ts",
     'const C={file:"packages/client/src/lib/__g_appearance-carrier-manifest.ts",symbol:"AppShell"};\nexport const APPEARANCE_CARRIER_MANIFEST={density:{owner:"sizing",carriers:["theme-scope"],consumer:C,lifecycle:"hydrated-from-prepaint-hint",portal:"shared-theme-scope-sibling",requiredDistinctArms:["compact","compact"]}};\nexport function AppShell(){ const density = "compact"; return density; }\n',
   );
+  // no-parallel-section-map (arm 5), THE #942 SPLIT ON THE REAL TREE: a hand chrome list over `rail.nav` +
+  // `rail.brand` — two zones that reach the gate's vocabulary ONLY through the live
+  // `CHROME_ZONES = [...RAIL_ZONES, "topbar.trail"]` spread. A direct-element reader saw one zone of four
+  // and this parallel map escaped; conformance proves the resolver, and only this drives it against the
+  // REAL chrome-registry/section-registry pair.
+  fx(
+    "packages/client/src/features/__g_grailzones/lib/hand-rail.ts",
+    'export const HAND = [\n  { id: "a", zone: "rail.nav" },\n  { id: "b", zone: "rail.brand" },\n];\n',
+  );
 }
 
 // Registered gates that CANNOT be driven by an injected `__g_` fixture — whole-corpus ratchets whose

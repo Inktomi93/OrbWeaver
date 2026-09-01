@@ -3,6 +3,12 @@
 // FK-enforced" (D24). A soft ref (an id column with no FK, kept coherent by a hand-rolled sweep) is
 // banned; sanctioned exceptions: `audit_logs.entityId` (must outlive an arbitrary referent of unknown
 // type) and `users.externalId` (an external IdP subject, not an orbweaver-table reference). The allowlist is a two-direction ratchet.
+// COLUMNS ARE RESOLVED, NOT REQUIRED INLINE (#945): the columns argument is read through
+// `_shared/schema-read.ts`, which follows an imported/aliased object-literal binding (and object spreads)
+// and refuses loudly on any other shape. `sqliteTable("x", importedColumns, …)` used to yield ZERO columns
+// here, erasing this gate's obligations while the schema file scan stayed healthy; findings anchor on the
+// column's DECLARING file and the scan line prints the resolved table/column population.
+import { columnProperties, schemaScan } from "@orb/tooling/_shared/schema-read";
 import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { ExemptionTable, GateDescriptor } from "../contract/gate.ts";
@@ -58,20 +64,16 @@ function chainRoot(expr: Node): string {
 
 interface IdColumn {
   pair: string;
+  /** The column's DECLARING file — not the table's, once the columns object is imported. */
+  file: string;
   line: number;
   hasRef: boolean;
 }
 
 /** Every id-shaped column (key ends `Id`, rooted at text/integer, no `.primaryKey()`) in one table. */
 function idColumns(colsObj: Node, tableSqlName: string): IdColumn[] {
-  if (!colsObj.isKind(SyntaxKind.ObjectLiteralExpression)) {
-    return [];
-  }
   const out: IdColumn[] = [];
-  for (const prop of colsObj.getProperties()) {
-    if (!prop.isKind(SyntaxKind.PropertyAssignment)) {
-      continue;
-    }
+  for (const prop of columnProperties(colsObj)) {
     if (!ID_KEY.test(prop.getName())) {
       continue;
     }
@@ -85,6 +87,7 @@ function idColumns(colsObj: Node, tableSqlName: string): IdColumn[] {
     }
     out.push({
       pair: `${tableSqlName}.${prop.getName()}`,
+      file: prop.getSourceFile().getFilePath(),
       line: prop.getStartLineNumber(),
       hasRef: chain.includes(".references("),
     });
@@ -113,7 +116,7 @@ export const gate: GateDescriptor = {
   begin: () => {
     seenSoftPairs.clear();
   },
-  visit: (node, sf, ctx) => {
+  visit: (node, _sf, ctx) => {
     if (!node.isKind(SyntaxKind.CallExpression)) {
       return;
     }
@@ -125,8 +128,8 @@ export const gate: GateDescriptor = {
     if (nameArg === undefined || !nameArg.isKind(SyntaxKind.StringLiteral) || colsArg === undefined) {
       return;
     }
-    const rel = relPath(ctx.root, sf.getFilePath());
     for (const col of idColumns(colsArg, nameArg.getLiteralText())) {
+      const rel = relPath(ctx.root, col.file);
       if (col.hasRef) {
         continue;
       }
@@ -143,6 +146,7 @@ export const gate: GateDescriptor = {
     }
   },
   finalize: (ctx) => {
+    ctx.scan(schemaScan(ctx.project));
     if (ctx.scope.kind !== "project" || !fileLoaded(ctx, SOFT_REF_SCHEMA_BARREL)) {
       return; // not the real full schema tree — the name-keyed stale arm would misfire (§4.4)
     }
@@ -158,6 +162,14 @@ export const gate: GateDescriptor = {
     }
   },
   mustFlag: [
+    {
+      files: {
+        "packages/db/src/schema/x-columns.ts": 'export const tColumns = { widgetId: text("widget_id") };\n',
+        "packages/db/src/schema/x.ts": 'import { tColumns } from "./x-columns";\nexport const t = sqliteTable("t", tColumns);\n',
+      },
+      expect: { count: 1, messageIncludes: "soft ref" },
+      why: "THE #945 IMPORTED-COLUMNS RED: an id-shaped column with no FK, reached through an imported columns object. It has no allowlist row, so the stale arm could never have exposed the omission — the miss was permanently silent",
+    },
     {
       files: 'export const t = sqliteTable("t", { widgetId: text("widget_id") });\n',
       at: "packages/db/src/schema/x.ts",

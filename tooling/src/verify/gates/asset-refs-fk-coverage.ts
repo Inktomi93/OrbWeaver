@@ -2,7 +2,13 @@
 // `ASSET_REFS` or `DERIVED_ASSET_COLUMNS` (domain/assets/persistence/asset-refs.ts), the one
 // enumeration seam both asset GC and portability blob-bundling walk. Unregistered = invisible to
 // both (GC can reap a live blob as orphaned; export/import won't bundle it). STRICT, no allowlist.
-import type { ArrayLiteralExpression, CallExpression, Expression, Identifier, ObjectLiteralExpression, PropertyAssignment, SourceFile } from "ts-morph";
+// COLUMNS ARE RESOLVED, NOT REQUIRED INLINE (#945): the columns argument is read through
+// `_shared/schema-read.ts`, which follows an imported/aliased object-literal binding and refuses loudly on
+// any other shape — `sqliteTable("x", importedColumns, …)` used to yield ZERO columns here, silently
+// erasing every obligation in this gate while the schema file scan stayed healthy. Findings anchor on the
+// column's DECLARING file, and the scan line prints the resolved table/column population.
+import { columnProperties, schemaScan } from "@orb/tooling/_shared/schema-read";
+import type { ArrayLiteralExpression, CallExpression, Expression, Identifier, PropertyAssignment, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract/gate.ts";
 import type { CheckContext } from "../contract/harness.ts";
@@ -22,6 +28,8 @@ interface FkColumn {
   readonly tableSql: string;
   readonly columnJs: string;
   readonly columnSql: string;
+  /** The column's DECLARING file — not the table's, which differ once the columns object is imported. */
+  readonly file: string;
   readonly line: number;
 }
 
@@ -87,10 +95,10 @@ function findColumnSqlName(init: Expression): string {
   return "";
 }
 
-function fkColumnsOfTable(tableJs: string, tableSql: string, colsArg: ObjectLiteralExpression): FkColumn[] {
+function fkColumnsOfTable(tableJs: string, tableSql: string, columns: readonly PropertyAssignment[]): FkColumn[] {
   const out: FkColumn[] = [];
-  for (const prop of colsArg.getProperties()) {
-    if (!(prop.isKind(SyntaxKind.PropertyAssignment) && referencesAssetsId(prop))) {
+  for (const prop of columns) {
+    if (!referencesAssetsId(prop)) {
       continue;
     }
     out.push({
@@ -98,6 +106,7 @@ function fkColumnsOfTable(tableJs: string, tableSql: string, colsArg: ObjectLite
       tableSql,
       columnJs: prop.getName(),
       columnSql: findColumnSqlName(prop.getInitializerOrThrow()),
+      file: prop.getSourceFile().getFilePath(),
       line: prop.getStartLineNumber(),
     });
   }
@@ -115,14 +124,14 @@ function fkColumnsToAssets(sf: SourceFile): FkColumn[] {
     if (nameArg === undefined || !nameArg.isKind(SyntaxKind.StringLiteral)) {
       continue;
     }
-    if (colsArg === undefined || !colsArg.isKind(SyntaxKind.ObjectLiteralExpression)) {
+    if (colsArg === undefined) {
       continue;
     }
     const tableJs = call.getFirstAncestorByKind(SyntaxKind.VariableDeclaration)?.getName();
     if (tableJs === undefined) {
       continue;
     }
-    out.push(...fkColumnsOfTable(tableJs, nameArg.getLiteralText(), colsArg));
+    out.push(...fkColumnsOfTable(tableJs, nameArg.getLiteralText(), columnProperties(colsArg)));
   }
   return out;
 }
@@ -221,6 +230,7 @@ export const gate: GateDescriptor = {
     "a schema column is a foreign key to `assets.id` but is registered in NEITHER ASSET_REFS nor DERIVED_ASSET_COLUMNS (domain/assets/persistence/asset-refs.ts) — asset GC and portability blob-bundling both enumerate that registry, so an unregistered column silently escapes both.",
   fix: 'classify the column RETAINING (add a `{ table, column }` row to ASSET_REFS) or DERIVED (add its snake-case `"table.column"` to DERIVED_ASSET_COLUMNS) in domain/assets/persistence/asset-refs.ts.',
   run: (ctx) => {
+    ctx.scan(schemaScan(ctx.project));
     const { registrySf, schemaFiles } = partitionProject(ctx.project);
     if (registrySf === undefined) {
       ctx.report({ file: GATE_SELF, line: 1, column: 0, message: MISSING_REGISTRY });
@@ -235,7 +245,7 @@ export const gate: GateDescriptor = {
           continue;
         }
         ctx.report({
-          file: relPath(ctx.root, sf.getFilePath()),
+          file: relPath(ctx.root, col.file),
           line: col.line,
           column: 0,
           message: MESSAGE(col.tableSql, col.columnSql),
@@ -244,6 +254,19 @@ export const gate: GateDescriptor = {
     }
   },
   mustFlag: [
+    {
+      // #945: the FK column lives in an IMPORTED columns object. Before the reader resolved it the table
+      // read as ZERO columns and this unregistered asset FK escaped both GC and portability bundling.
+      files: {
+        "packages/db/src/schema/x-columns.ts":
+          'import { assets } from "./assets";\nexport const thingColumns = { assetId: text("asset_id").references(() => assets.id) };\n',
+        "packages/db/src/schema/x.ts": 'import { thingColumns } from "./x-columns";\nexport const t = sqliteTable("thing", thingColumns);\n',
+        "packages/db/src/schema/assets.ts": 'export const assets = sqliteTable("assets", { id: text("id").primaryKey() });\n',
+        "packages/server/src/domain/assets/persistence/asset-refs.ts": "export const ASSET_REFS = [];\nexport const DERIVED_ASSET_COLUMNS = [];\n",
+      },
+      expect: { messageIncludes: "registered in NEITHER" },
+      why: 'THE #945 IMPORTED-COLUMNS RED: an asset FK reached through `sqliteTable("thing", thingColumns)` is still an obligation, and the finding anchors on the column\'s declaring file',
+    },
     {
       files: {
         "packages/db/src/schema/x.ts":
