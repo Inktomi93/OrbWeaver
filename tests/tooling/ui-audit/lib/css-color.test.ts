@@ -81,6 +81,21 @@ describe("glow-shadow sees every authorable colour space (was rgb-only, hence de
   test("refuses an unresolved var() instead of scoring it", () => {
     expect(glow("var(--shadow-glow) 0px 0px 18px 0px")).toBeNull();
   });
+
+  test("a SANCTIONED carrier is exempt — the flag is the mechanism, never colour blindness", () => {
+    // The first live run after the colour repair flagged [data-slot=media-grid-cell], which
+    // SANCTIONED_GLOW_SEL has listed all along; the glow census simply never consulted it. Both
+    // directions, so the exemption cannot quietly become a blanket.
+    const halo = "oklch(0.72 0.175 52 / 0.4) 0px 0px 18px 0px";
+    const carrier = { selector: "[data-slot=media-grid-cell]", boxShadow: halo, textShadow: "", backdropColor: DARK, sanctioned: true };
+    expect(checkGlowShadow(carrier)).toBeNull();
+    expect(checkGlowShadow({ ...carrier, sanctioned: false })?.rule).toBe("glow-shadow");
+  });
+
+  test("an absent sanctioned flag keeps a pre-2026-09-01 fixture's verdict", () => {
+    // Optional on the contract: omitting it must read as "not exempt", never as "exempt".
+    expect(glow("oklch(0.72 0.175 52 / 0.4) 0px 0px 18px 0px")?.rule).toBe("glow-shadow");
+  });
 });
 
 describe("radial washes see every authorable colour space (was rgb/hex-only, hence dead)", () => {

@@ -264,6 +264,14 @@ export const WALKER_CENSUS_DECOR = `  // ── nested cards (card-like = (shado
       // reading the best-effort composite for an unresolved backdrop. Refusing here would silently drop
       // glow findings on every surface with a fixed art layer, which this change never judged.
       backdropColor: sgBackdrop.kind === "flat" ? sgBackdrop.color : sgBackdrop.kind === "unresolved" ? sgBackdrop.fallback : null,
+      // THE SAME CARRIER LIST THE RADIAL CENSUS USES — one home for "the owner sanctioned this glow"
+      // (#983-family, 2026-09-01). This flag did not exist while the checker was colour-blind, because
+      // blindness was doing the exemption's job by accident: the sanctioned carriers author OKLCH, so
+      // nothing here could fire on them. Repairing the colour reader made the FP real and immediate —
+      // the first live run flagged \`[data-slot=media-grid-cell]\`, which SANCTIONED_GLOW_SEL has listed
+      // all along. Deliberately NOT widened beyond that constant: an exemption entry earns its place
+      // from a measured false positive, never from a guess about what might fire later.
+      sanctioned: !!(sgel.matches && sgel.matches(SANCTIONED_GLOW_SEL)),
     });
   }
 

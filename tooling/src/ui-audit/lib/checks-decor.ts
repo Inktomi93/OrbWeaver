@@ -187,6 +187,12 @@ function scanShadowValue(value: string, prop: string, onDark: boolean, selector:
 }
 
 export function checkGlowShadow(input: GlowShadowInput): Finding | null {
+  // An owner effect carrier is exempt — the SAME mechanism `checkRadialGlow` has always used. Until
+  // the colour reader was repaired this arm did not exist, because colour-blindness was doing the
+  // exemption's job by accident (the carriers author OKLCH, which the old regex could not spell).
+  if (input.sanctioned === true) {
+    return null;
+  }
   const onDark = input.backdropColor !== null && relativeLuminance(input.backdropColor) < DARK_BACKDROP_MAX_LUM;
   return scanShadowValue(input.boxShadow, "box-shadow", onDark, input.selector) ?? scanShadowValue(input.textShadow, "text-shadow", onDark, input.selector);
 }
