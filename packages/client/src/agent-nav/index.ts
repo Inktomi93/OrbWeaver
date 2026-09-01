@@ -36,10 +36,12 @@ import {
   selectCharacter,
   selectChat,
   setActiveSection,
+  setFocusMode,
   subscribeShellState,
 } from "#state";
 import type { NavResult, OrbNavCapabilities, OrbNavHandle } from "../lib/agent-bridge.ts";
 import { markAgentNavigation } from "../lib/motion-stats.ts";
+import { resolvePanelRequest } from "./panel-request.ts";
 
 const OK: NavResult = { ok: true };
 // One page at the server's CEILING covers a dev character library — enough to resolve any id/name without a
@@ -414,6 +416,14 @@ export function buildAgentNav(trpc: Trpc, queryClient: QueryClient): OrbNavHandl
     closeModal(): NavResult {
       markAgentNavigation();
       closeModal();
+      return OK;
+    },
+    async panel(name: string, mode: string): Promise<NavResult> {
+      return await resolvePanelRequest(name, mode);
+    },
+    focus(on: boolean): NavResult {
+      markAgentNavigation();
+      setFocusMode(on);
       return OK;
     },
   };

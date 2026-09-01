@@ -74,4 +74,12 @@ export interface OrbNavHandle {
   readonly openChat: (idOrTitleOrPosition: string) => Promise<NavResult>;
   readonly openCharacter: (idOrName: string) => Promise<NavResult>;
   readonly closeModal: () => NavResult;
+  /** Write one side panel's mode ("list" | "context", "docked" | "collapsed") through the SAME regime-routed
+   *  channel the topbar's own toggle writes, then verify the panel's RENDERED mode actually landed there
+   *  before reporting `ok:true` — a store write that lands in a channel the current regime does not read is
+   *  a silent no-op, and a section with no such pane can never resolve `docked` at all. */
+  readonly panel: (name: string, mode: string) => Promise<NavResult>;
+  /** Flip the shell's ONE focus flag — hides every panel when `true`, restores the section's own saved
+   *  layout when `false`. Regime-free (see `shell-store.ts`'s `setFocusMode`), so this can never no-op. */
+  readonly focus: (on: boolean) => NavResult;
 }

@@ -288,6 +288,17 @@ export function revealContextPanel(tab?: string): void {
   setPanelMode("context", "docked");
 }
 
+/** Close the CONTEXT panel from anywhere — the collapse-time twin of {@link revealContextPanel}, minted for
+ *  the `__orb.nav.panel` bridge action. Writes BOTH regime channels unconditionally for the SAME reason
+ *  `revealContextPanel` does (see its own comment above): CONTEXT's auto-overlay-ness depends on a
+ *  content-constraint read only available during render (`use-shell-layout.ts`'s `contextContentConstrained`),
+ *  so a caller outside React cannot pick the one channel that is live — writing both lets whichever regime is
+ *  active read its own, and the channel it does not read is simply inert. */
+export function hideContextPanel(): void {
+  setOpenOverlayPanel(null);
+  setPanelMode("context", "collapsed");
+}
+
 /** Reveal the CONTEXT panel's tab for a drill whose BODY is ALREADY in CONTENT — a character-card facet,
  *  where the tap that opens the field also swaps CONTENT to that field's editor.
  *

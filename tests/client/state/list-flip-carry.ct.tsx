@@ -50,3 +50,18 @@ test("#391 registerListFlipCarry(null) retires the carry, and the dock still lan
   await expect(probe.getByTestId("list-override")).toHaveText("docked");
   await expect(probe.getByTestId("carry-log")).toHaveText("docked@none");
 });
+
+// `collapseListPanel` is `dockListPanel`'s closing twin, minted for `__orb.nav.panel` — it must pay the SAME
+// #383 carry the topbar's own collapse (through `useShellLayout`'s wide-regime `collapsePanel`) does, unlike
+// the probe's bare `setPanelMode("list","collapsed")` door above, which the carry deliberately does not see.
+test("collapseListPanel invokes the registered carry with the destination mode, and the override lands", async ({ mount }) => {
+  const probe = await mount(<ListFlipCarryProbe />);
+  await probe.getByRole("button", { name: "mount the carry", exact: true }).click();
+  await probe.getByRole("button", { name: "dock the list" }).click();
+  await expect(probe.getByTestId("carry-log")).toHaveText("docked@none");
+
+  await probe.getByRole("button", { name: "nav-bridge close the list" }).click();
+
+  await expect(probe.getByTestId("carry-log")).toHaveText("docked@none | collapsed@docked");
+  await expect(probe.getByTestId("list-override")).toHaveText("collapsed");
+});

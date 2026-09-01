@@ -53,3 +53,12 @@ export function dockListPanel(): void {
   listFlipCarry?.("docked");
   setPanelMode("list", "docked");
 }
+
+/** Collapse the active section's LIST pane from OUTSIDE the shell — the closing twin of {@link dockListPanel},
+ *  minted for the `__orb.nav.panel` bridge action (a regime-unaware caller that must pay the same #383 carry
+ *  a real topbar collapse does): carry CONTEXT across the regime flip this collapse can cause, THEN write the
+ *  override. Same call order as `dockListPanel` and as `useShellLayout`'s own `collapsePanel` wide arm. */
+export function collapseListPanel(): void {
+  listFlipCarry?.("collapsed");
+  setPanelMode("list", "collapsed");
+}
