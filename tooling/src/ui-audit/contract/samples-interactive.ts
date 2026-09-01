@@ -34,6 +34,10 @@ export interface AccessibleNameInput {
   readonly hasVisibleText: boolean;
   readonly ariaLabel: string | null;
   readonly ariaLabelledbyText: string | null;
+  /** The text of every `<label>` the BROWSER associates with this control (`HTMLElement.labels` — both
+   *  `for=` and wrapping), or null. REQUIRED rather than optional on purpose (#1009): a name SOURCE a
+   *  fixture can silently omit is how this census came to miss the association HTML has always used. */
+  readonly nativeLabelText: string | null;
   readonly title: string | null;
   readonly altText: string | null;
 }

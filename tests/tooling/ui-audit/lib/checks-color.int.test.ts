@@ -216,10 +216,16 @@ describe("design-audit contrast — #624: ONE classifier, shared with snap", () 
     expect(INACTIVE_KIND_EXPR.indexOf("[inert]")).toBeLessThan(INACTIVE_KIND_EXPR.indexOf(":disabled"));
     // #1005 — EVERY arm is an ancestor test (`closest`, which matches the element itself first). A
     // text-bearing CHILD of a disabled control is what both instruments actually sample, and an
-    // `el.matches(…)` arm classifies it "none". The BEHAVIOURAL proof of this is the two int fixtures
+    // `el.matches(…)` arm classifies it "none".
+    expect(INACTIVE_KIND_EXPR).not.toContain(".matches(");
+    expect(INACTIVE_KIND_EXPR.match(/node\.closest\(/gu)).toHaveLength(3);
+    // #1016 — and the NAMING relation, both spellings: a control's accessible name is part of the
+    // inactive component even when the DOM puts it outside the control's subtree. `~=` is load-bearing
+    // (aria-labelledby is a TOKEN LIST — one control can name several ids).
+    expect(INACTIVE_KIND_EXPR).toContain('aria-labelledby~="');
+    expect(INACTIVE_KIND_EXPR).toContain(".control");
+    // The BEHAVIOURAL proof of every arm above is the int fixtures
     // (tests/tooling/ui-audit/ops/walker/census-text.int.test.ts, tests/tooling/snap/ops/contrast.int.test.ts);
     // this is the cheap spelling guard that catches a narrowing edit before those have to run a browser.
-    expect(INACTIVE_KIND_EXPR).not.toContain("el.matches(");
-    expect(INACTIVE_KIND_EXPR.match(/el\.closest\(/gu)).toHaveLength(3);
   });
 });

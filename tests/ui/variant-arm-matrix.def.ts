@@ -42,11 +42,14 @@
 //   silently falls through to :root, #875 F2), light, mocha. The brief said "light + dark"; the owner
 //   corrected that frame 2026-08-30 (shared-memory light-theme-polarity-receipts): a "both themes"
 //   receipt silently skips Mocha. Deviation taken with that receipt.
-// • STATE: rest only in v1. The disabled twin machinery is BUILT (supportsDisabled + the stories'
-//   ctx.disabled) but every story sets false. Of the two blockers the first measured run found, the
-//   classifier half is FIXED (#1005 — every INACTIVE_KIND_EXPR arm is now ancestor-aware); the <3:1
-//   advisory firing on standard disabled dimming by design is not — see WITHHELD_RULES
-//   ["inactive-control-legibility"] for the receipts. The axis returns when tooling rules on that.
+// • STATE: rest AND disabled, on the six renderers that take `ctx.disabled` (button/input/select/
+//   slider/switch/toggle — stories.tsx RENDERERS). Un-parked at #1016 once both blockers the first
+//   measured run found were answered: the shared classifier is ancestor-aware (#1005), and the <3:1
+//   advisory — which fires on STANDARD disabled dimming by design — is now handled the way the CLI
+//   already handles a P3 (`ops/run.ts` fail-on floor via `isAtOrAboveSeverity`): TALLIED and PRINTED in
+//   the accounting annotation, never failing the arm. A SEVERITY FLOOR, not a new bucket and not a
+//   baseline: the row stays visible, and its own planted control (a 1.00:1 disabled twin in
+//   VariantArmContrastProbe) proves it still appears.
 // • Pointer: the CT default (fine). The coarse tap-target floor already has its own suite
 //   (touch-target-floor.suite.ct.tsx); see WITHHELD.
 //
@@ -145,7 +148,7 @@ const def = (args: DefArgs): VariantArmStoryDef => ({
  *  move it up here, delete its withheld entry — the parity suite REDs any drift in either direction. */
 export const VARIANT_ARM_STORY_DEFS: readonly VariantArmStoryDef[] = [
   def({ key: "badge", source: "primitives/badge/variants.ts", exportName: "badgeVariants", tv: badgeVariants, supportsDisabled: false, expectText: true }),
-  def({ key: "button", source: "primitives/button/variants.ts", exportName: "buttonVariants", tv: buttonVariants, supportsDisabled: false, expectText: false }),
+  def({ key: "button", source: "primitives/button/variants.ts", exportName: "buttonVariants", tv: buttonVariants, supportsDisabled: true, expectText: false }),
   def({ key: "card", source: "primitives/card/variants.ts", exportName: "cardVariants", tv: cardVariants, supportsDisabled: false, expectText: true }),
   def({
     key: "empty-state",
@@ -163,7 +166,7 @@ export const VARIANT_ARM_STORY_DEFS: readonly VariantArmStoryDef[] = [
     supportsDisabled: false,
     expectText: true,
   }),
-  def({ key: "input", source: "primitives/input/variants.ts", exportName: "inputVariants", tv: inputVariants, supportsDisabled: false, expectText: false }),
+  def({ key: "input", source: "primitives/input/variants.ts", exportName: "inputVariants", tv: inputVariants, supportsDisabled: true, expectText: false }),
   def({
     key: "list-row",
     source: "primitives/list-row/variants.ts",
@@ -172,8 +175,8 @@ export const VARIANT_ARM_STORY_DEFS: readonly VariantArmStoryDef[] = [
     supportsDisabled: false,
     expectText: true,
   }),
-  def({ key: "select", source: "primitives/select/variants.ts", exportName: "selectVariants", tv: selectVariants, supportsDisabled: false, expectText: false }),
-  def({ key: "slider", source: "primitives/slider/variants.ts", exportName: "sliderVariants", tv: sliderVariants, supportsDisabled: false, expectText: true }),
+  def({ key: "select", source: "primitives/select/variants.ts", exportName: "selectVariants", tv: selectVariants, supportsDisabled: true, expectText: false }),
+  def({ key: "slider", source: "primitives/slider/variants.ts", exportName: "sliderVariants", tv: sliderVariants, supportsDisabled: true, expectText: true }),
   def({
     key: "status-chip",
     source: "primitives/status-chip/variants.ts",
@@ -182,9 +185,9 @@ export const VARIANT_ARM_STORY_DEFS: readonly VariantArmStoryDef[] = [
     supportsDisabled: false,
     expectText: true,
   }),
-  def({ key: "switch", source: "primitives/switch/variants.ts", exportName: "switchVariants", tv: switchVariants, supportsDisabled: false, expectText: false }),
+  def({ key: "switch", source: "primitives/switch/variants.ts", exportName: "switchVariants", tv: switchVariants, supportsDisabled: true, expectText: false }),
   def({ key: "text", source: "primitives/text/variants.ts", exportName: "textVariants", tv: textVariants, supportsDisabled: false, expectText: true }),
-  def({ key: "toggle", source: "primitives/toggle/variants.ts", exportName: "toggleVariants", tv: toggleVariants, supportsDisabled: false, expectText: true }),
+  def({ key: "toggle", source: "primitives/toggle/variants.ts", exportName: "toggleVariants", tv: toggleVariants, supportsDisabled: true, expectText: true }),
 ];
 
 /** Every tv export with a variants block that v1 does NOT story — BY NAME, with the reason, keyed
@@ -257,7 +260,15 @@ export interface ExpectedFinding {
   readonly reason: string;
 }
 
-// EMPTY BY RULING, MECHANISM PROVEN. This suite's first run (2026-09-01) found a real arm-intrinsic
+// EMPTY, AND IT EARNED IT TWICE. A row lived here for exactly as long as its defect did: the first
+// disabled-axis run (#1016) measured a disabled Slider's label at 3.19:1 under light, the row pinned it
+// two-sided, and when the owning fix landed the SAME DAY (ARM B — the shared classifier now derives a
+// text's inactive kind from a control that NAMES it, and reads Base UI's [data-disabled] composite
+// spelling: tooling/src/_shared/wcag.ts) the row went RED exactly as designed — "EXPECTED-FINDING row no
+// longer matches its defect", matched 0 of 3 — and was deleted in the fixing commit. That red IS the
+// mechanism working; a row that could not produce it would be an allowlist.
+//
+// This suite's first run (2026-09-01) found a real arm-intrinsic
 // defect — Badge intent=primary tone=soft under LIGHT only: primary ink over its own 15% tint at
 // 3.97:1 (< AA 4.5:1) at all three sizes, Hearth/Mocha passing — and the row pinned here carried it
 // two-sided until the owner routed the token fix to a parallel lane the same hour, at which point a
@@ -267,7 +278,16 @@ export interface ExpectedFinding {
 export const EXPECTED_FINDINGS: readonly ExpectedFinding[] = [];
 
 /** Rules this suite judges (kernels imported from @orb/tooling/ui-audit — never re-derived math). */
-export const JUDGED_RULES: readonly DesignAuditRuleId[] = ["contrast", "gray-on-color", "control-aspect", "text-below-ramp", "undersized-ui-text"];
+export const JUDGED_RULES: readonly DesignAuditRuleId[] = [
+  "contrast",
+  "gray-on-color",
+  "control-aspect",
+  "text-below-ramp",
+  "undersized-ui-text",
+  // JUDGED since #1016 (was withheld while the disabled axis was parked). It is a P3, so it rides the
+  // suite's severity floor: counted in the per-rule accounting and printed as an advisory, never a fail.
+  "inactive-control-legibility",
+];
 
 /** Composition-dependent — the live audit owns it (scope split, header). */
 export const OUT_OF_SCOPE_RULES: readonly DesignAuditRuleId[] = ["text-over-art"];
@@ -275,8 +295,6 @@ export const OUT_OF_SCOPE_RULES: readonly DesignAuditRuleId[] = ["text-over-art"
 /** Arm-dependent rules v1 WITHHOLDS, by name, with the mechanism reason. The parity suite asserts
  *  JUDGED ∪ OUT_OF_SCOPE ∪ keys(WITHHELD_RULES) covers the audited arm-dependent set exactly. */
 export const WITHHELD_RULES: Readonly<Record<string, string>> = {
-  "inactive-control-legibility":
-    "MEASURED 2026-09-01 (this suite's first run, disabled twins on), two blockers, ONE now cleared: (a) FIXED #1005 — the ONE shared classifier (INACTIVE_KIND_EXPR) was element-scoped, so a text span INSIDE a :disabled Select/Slider matched none of its three arms, classified 'none', and minted AA P1s the 1.4.3 exemption should absorb (disabled Select 'Pick one' at α0.50 read 2.90:1/light); every arm is now closest()-based and both instruments are pinned two-sided (tests/tooling/ui-audit/ops/walker/census-text.int.test.ts, tests/tooling/snap/ops/contrast.int.test.ts). (b) STILL OPEN — the <3:1 advisory fires on STANDARD disabled dimming BY DESIGN (button/toggle disabled arms read 2.3-2.9:1 on all three themes), so a zero-findings ratchet over disabled arms is structurally red forever. The axis returns when (b) has an owner ruling (advisory disposition for disabled arms) AND the story defs flip supportsDisabled — this row is what tracks both",
   "off-theme-font":
     "FontCensusInput is mid-rework on this very tree (uncommitted: faces + probeUsable, the glyph-metric availability probe of ops/walker/census-text.ts) — its input now REQUIRES walker-derived measurement; re-judge when the #23 shape lands",
   "hover-contrast":

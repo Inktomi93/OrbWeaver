@@ -171,24 +171,6 @@ export const WALKER_CENSUS_INTERACTIVE = `  // ── interactive elements: tap 
     return IMPLICIT_ROLES[tag] || "generic";
   };
   var interactiveEls = document.querySelectorAll(INTERACTIVE_SELECTOR);
-  var labelledbyText = function (el) {
-    var attr = el.getAttribute("aria-labelledby") || "";
-    var ids = attr.split(/\\s+/).filter(Boolean);
-    if (ids.length === 0) return null;
-    var text = ids
-      .map(function (id) {
-        var ref = document.getElementById(id);
-        return ref ? ref.textContent || "" : "";
-      })
-      .join(" ")
-      .trim();
-    return text.length > 0 ? text : null;
-  };
-  var altTextOf = function (el) {
-    if (el.tagName === "IMG") return el.getAttribute("alt");
-    var inner = el.querySelector("img[alt]");
-    return inner ? inner.getAttribute("alt") : null;
-  };
   // The compositor hit-extent probe — ownsPoint / measureHitExtent / probeFrameFits /
   // inVisualViewport and the ancestor-credit vocabulary — is the PRECEDING segment
   // (ops/walker/hit-extent.ts, split out at #797 for the tooling line cap). Same function scope.
@@ -312,6 +294,7 @@ export const WALKER_CENSUS_INTERACTIVE = `  // ── interactive elements: tap 
       hasVisibleText: (iel.textContent || "").trim().length > 0,
       ariaLabel: iel.getAttribute("aria-label"),
       ariaLabelledbyText: labelledbyText(iel),
+      nativeLabelText: nativeLabelText(iel),
       title: iel.getAttribute("title"),
       altText: altTextOf(iel),
     });
@@ -323,7 +306,11 @@ export const WALKER_CENSUS_INTERACTIVE = `  // ── interactive elements: tap 
     // into duplicate generic doors (issue #370). This excludes role="generic" whether implicit OR
     // explicit — doorRole does not distinguish the two — so only non-generic roles and any tabindex
     // other than -1 remain judged.
-    var doorName = doorNameKey(iel.getAttribute("aria-label") || labelledbyText(iel) || (iel.textContent || "") || iel.getAttribute("title") || altTextOf(iel));
+    // The native label sits between the aria overrides and the control's own content — where the accname
+    // spec puts it, and where the two existing neighbours already implied it. No existing pair in this
+    // chain is reordered. Without it a label-named switch was a NAMELESS door: invisible to the
+    // duplicate-door lens as well as filed as a false aria-name P1 (#1009, both halves of one blindness).
+    var doorName = doorNameKey(iel.getAttribute("aria-label") || labelledbyText(iel) || nativeLabelText(iel) || (iel.textContent || "") || iel.getAttribute("title") || altTextOf(iel));
     var resolvedDoorRole = doorRole(iel);
     var programmaticGeneric = resolvedDoorRole === "generic" && String(iel.getAttribute("tabindex") || "").trim() === "-1";
     if (doorName.length > 0 && onScreen && !hiddenStub && !programmaticGeneric) {
