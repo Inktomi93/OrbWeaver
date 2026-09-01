@@ -8,6 +8,7 @@
 // arm is store-backed (no network).
 
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
+import { DEFAULT_CHAT_SETTINGS, DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { HOST_BAND, openContextSections } from "../../../../support/ct/open-context-sections.ts";
@@ -53,13 +54,20 @@ const POV_VARIABLE = {
 };
 const VARIABLE_PICKS = { variables: [POV_VARIABLE], values: {} };
 
-// The Documents section's SECOND, non-suspending read (`useSlotState`, chat-documents-section.tsx:67 →
-// `settings.getUserSettings` for the host's active preset, to say whether that preset places `{{databank}}`).
-// Found by the #629 pin below, not by anyone reading the file: it was unstubbed in EVERY arm here, and the
-// stub's lenient `null` fulfil is NOT `undefined`, so the section skipped its own "resolving" arm and
-// resolved the built-in prompt config — the right answer, reached by accident. Declared now: this room's
-// host runs the built-in preset (`defaultPresetId: null`), which is the arm these tests were already in.
-const USER_SETTINGS = { config: { seeds: { defaultPresetId: null } } };
+// `settings.getUserSettings` — read by FOUR consumers under this tab, and the reason this stub is spelled
+// from the contract rather than by hand. `UserSettingsView.config` is ALWAYS the parsed+defaulted
+// `UserSettings` (server/domain/settings/contract/views.ts:11 — "never a raw blob"), and the consumers here
+// split on whether they tolerate a hole: `useChatBehaviorPrefs` and `useSlotState` read `config.chat` /
+// `config.seeds` through a `??` fallback, but `BackgroundTileGrid` (background-source-field.tsx:130, the
+// Background section's grid) reads `data.config.appearance.backgroundLibrary` STRAIGHT — so a hand-written
+// partial config threw on `undefined.backgroundLibrary` and put that section in its QueryBoundary's error
+// arm. That is what #1014 was: a stubbed-but-CONTRACT-INCOMPLETE payload, invisible to `trpc.unstubbed()`
+// (the read was stubbed) and caught only by the #629 no-error-arm pin below. `DEFAULT_USER_SETTINGS` is
+// the contract's own `userSettingsSchema.parse({})`, and its defaults are exactly the arm these tests were
+// already asserting: `seeds.defaultPresetId: null` (this room's host runs the built-in preset, so the
+// Documents section resolves the built-in prompt config) and an EMPTY `appearance.backgroundLibrary` (the
+// Background grid renders None + the seeded plates).
+const USER_SETTINGS = { config: DEFAULT_USER_SETTINGS };
 
 // The Documents section's own suspense read (S2, D-4) — this tab is its production mount, so every
 // committed arm must stub it or the section's boundary would swallow the failure and the tab's composition
@@ -390,7 +398,9 @@ function stubOfferChoices(page: Page, room: boolean | null, userDefault: boolean
     "chat.listChatInjections": () => [],
     "chat.getUserMacroPicks": () => EMPTY_PICKS,
     "chat.getVariablePicks": () => VARIABLE_PICKS,
-    "settings.getUserSettings": () => ({ config: { ...USER_SETTINGS.config, chat: { offerChoices: userDefault } } }),
+    // Same contract rule as USER_SETTINGS: `config.chat` is a WHOLE `ChatSettings`, so the arm's one knob
+    // rides the contract defaults rather than replacing the section with a one-key object.
+    "settings.getUserSettings": () => ({ config: { ...USER_SETTINGS.config, chat: { ...DEFAULT_CHAT_SETTINGS, offerChoices: userDefault } } }),
     "chat.getChat": () => ({ ...CHAT_DETAIL, offerChoices: room }),
     [UPDATE_OFFER_CHOICES]: () => ({}),
   });
@@ -469,7 +479,7 @@ function stubReactionToggles(
     "chat.listChatInjections": () => [],
     "chat.getUserMacroPicks": () => EMPTY_PICKS,
     "chat.getVariablePicks": () => VARIABLE_PICKS,
-    "settings.getUserSettings": () => ({ config: { ...USER_SETTINGS.config, chat: { ...args.userDefaults } } }),
+    "settings.getUserSettings": () => ({ config: { ...USER_SETTINGS.config, chat: { ...DEFAULT_CHAT_SETTINGS, ...args.userDefaults } } }),
     "chat.getChat": () => ({ ...CHAT_DETAIL, ...args.room }),
     [UPDATE_REACTIONS_ENABLED]: () => true,
     [UPDATE_CHARACTERS_CAN_REACT]: () => true,
