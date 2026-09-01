@@ -51,7 +51,7 @@ export const numberFieldVariants = tv({
   variants: {
     size: {
       md: { root: "w-full", input: "h-touch-target text-center text-body leading-body" },
-      inline: { root: "w-number-inline", input: "h-control-sm px-field text-right font-mono text-code leading-body" },
+      inline: { root: "w-number-inline", input: "h-control-sm px-field text-right font-mono text-code leading-label-relaxed" },
     },
   },
   defaultVariants: { size: "md" },

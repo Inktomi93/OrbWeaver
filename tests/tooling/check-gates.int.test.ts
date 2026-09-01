@@ -321,6 +321,10 @@ function writeFixtures(): void {
   fx("packages/ui/src/primitives/__g_uiprim/index.ts", "export const x = 1;\n");
   // client-structure: a BUILT feature (has code) with a stray root file + no index.ts front door.
   fx("packages/client/src/features/__g_cfeat/stray.ts", "export const x = 1;\n");
+  // seed-theme-ink-contrast: a SURFACE token painted as TEXT. `--color-card` as ink on the `--color-card`
+  // ground is 1.00:1 by construction in every seed, so this is a real-shape violation of the ink-duty rule
+  // (the founding defect's own class: a token whose role is a background doing text duty).
+  fx("packages/client/src/features/__g_gink/lib/ink.tsx", 'export const Ink = <span className="text-card">x</span>;\n');
   // section-registry-completeness: a non-auth feature front-door import in a route file that isn't
   // app-root (the anti-god-map arm 3b). `#features/chat` is a real specifier the gate matches by AST.
   fx("packages/client/src/routes/__g_g1route.tsx", 'import { X } from "#features/chat";\nexport const G = X;\n');
@@ -394,6 +398,8 @@ function writeFixtures(): void {
   fx("packages/client/src/features/__g_hoverswap/components/__g_hoverswap.tsx", 'export const G = <div className="group-hover/row:hidden" />;\n');
   // no-tailwind-dark-variant: polarity is derived by ThemeScope; a named-theme class variant is a second axis.
   fx("packages/client/src/features/__g_darkvariant/components/__g_darkvariant.tsx", 'export const G = <div className="dark:bg-card" />;\n');
+  // integer-line-boxes: Tailwind's unitless core leading (1.25 × a fractional voice size = a fractional box).
+  fx("packages/client/src/features/__g_lineboxes/components/__g_lineboxes.tsx", 'export const G = <div className="text-micro leading-tight" />;\n');
   // css-var-defined: an exact arbitrary-variable carrier names no generated, authored, or runtime property.
   fx("packages/client/src/features/__g_cssvar/components/__g_cssvar.tsx", 'export const G = <div className="z-(--definitely-undefined)" />;\n');
   // density-tier: `rounded-card` outside the ELEVATED family, in a file with no baseline budget (A1). The

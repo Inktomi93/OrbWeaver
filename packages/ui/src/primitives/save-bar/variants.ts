@@ -13,8 +13,8 @@ export const saveBarVariants = tv({
     root: "@container/save-bar sticky z-(--z-raised) flex flex-wrap items-center justify-between gap-row border-border bg-card px-block py-row",
     // `flex-1`: the identity CLAIMS the free width rather than merely being allowed to shrink into it.
     label: "flex min-w-0 flex-1 items-baseline gap-field",
-    title: "truncate font-medium text-body text-foreground",
-    kind: "shrink-0 text-label text-muted-foreground",
+    title: "truncate font-medium text-body leading-body text-foreground",
+    kind: "shrink-0 text-label leading-label text-muted-foreground",
     // THE DIAGNOSTIC SLOT, AND WHY IT IS NOT `actions` (side-eye 2026-08-18 P1-4). At 430px the character
     // editor's bar rendered `Sabin…  Character  1257 total · 1017 permanent  Saved`: the NAME — the only
     // thing telling a phone reader which character they are editing — got 54px while the token census got

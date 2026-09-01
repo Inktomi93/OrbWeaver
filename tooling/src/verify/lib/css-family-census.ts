@@ -50,14 +50,18 @@ const SOURCE_OWNERS = [
   { prefix: "packages/client/src/", owner: "client" },
 ] as const;
 export const EXPECTED_DECLARATION_CENSUS: Readonly<Record<ProductStylesheet, number>> = {
-  [THEME]: 287,
+  // +2 over the #938 baseline: leading.micro + leading.label-relaxed (docs/design/integer-line-boxes.md).
+  // +1 more: --color-accolade, the polarity-aware distinction ink minted 2026-09-01 when the seed
+  // ink-duty audit measured the crown gold as TEXT at 1.41-1.71:1 on the light seed (tokens.json
+  // color.accolade; the mark token color.highlight stays background-only).
+  [THEME]: 290,
   [UI_GLOBALS]: 187,
   [TIERS]: 45,
   [CLIENT_GLOBALS]: 111,
   [SHELL]: 335,
 };
-export const EXPECTED_DECLARATION_TOTAL = 965;
-export const EXPECTED_DIRECT_THEME_DECLARATIONS = 187;
+export const EXPECTED_DECLARATION_TOTAL = 968;
+export const EXPECTED_DIRECT_THEME_DECLARATIONS = 190;
 export const CENSUS_TOKEN: Readonly<Record<ProductStylesheet, string>> = {
   [THEME]: "census:theme",
   [UI_GLOBALS]: "census:ui-globals",

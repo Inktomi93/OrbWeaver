@@ -25,7 +25,7 @@ export function Kicker({ children, crown = false, trailing }: RpgKickerProps): R
     <Row gap="field" align="center">
       {/* `voice="kicker"` IS this anatomy (micro · caps · semibold · micro tracking · muted) — the
           crown case only re-colours it, so the className carries the colour and nothing else. */}
-      <Text voice="kicker" className={crown ? "text-highlight" : ""}>
+      <Text voice="kicker" className={crown ? "text-accolade" : ""}>
         {children}
       </Text>
       {trailing}

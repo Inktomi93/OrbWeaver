@@ -1,5 +1,5 @@
 {
-  "$description": "Light seed-theme VALUE-SET (UI-Architecture §3, D42/D44 §12.1). A light [data-theme] palette override consumed by tokens.build.ts, which emits it into src/styles/theme.css as `[data-theme=\"light\"] {…}` (with `color-scheme: light` so native controls/scrollbars flip) — NOT hand-written CSS. Only EMITTED-class colors (THEME_SCOPE_EMIT_VARS) plus the SEED-COVERED extra (color.backdrop) may appear; the five shadow INGREDIENT colours joined the EMITTED class at #243 — this palette's elevation (a DARK hairline because a white one measured 1.29:1 and vanished, NO inset top-highlight because white on a 0.995 card paints nothing, and warm-dark ambient at 0.10/0.14 instead of the dark theme's 0.4/0.5 black, which made the resume card read as a sticker) IS now the derivation's light arm, pinned literal-for-literal against shadowIngredients(background) by palette-contrast.suite.test.ts, which is why their hue is this palette's 75 rather than the base ramp's 60 (a sub-quantization move: max 0.25/255 per channel composited); the set is validated at build time (exact path coverage · paths exist in tokens.json · every $value is oklch()). reading-plate MUST equal derive(background) per THEME_DERIVATION.readingPlate, at the POLARITY-DERIVED alpha readingPlateAlpha(background) — 0.921 for this light base, not the 0.65 dark floor, because a light plate's composite over dark art is what fails AA (#217) — pinned by palette-contrast.suite.test.ts; reading-band is that SAME colour at alpha 1 (#241 — the sticky attribution band derives from the plate so the two cannot step apart). Edit here + run `pnpm --filter @orb/ui tokens:build`.",
+  "$description": "Light seed-theme VALUE-SET (UI-Architecture §3, D42/D44 §12.1). A light [data-theme] palette override consumed by tokens.build.ts, which emits it into src/styles/theme.css as `[data-theme=\"light\"] {…}` (with `color-scheme: light` so native controls/scrollbars flip) — NOT hand-written CSS. Only EMITTED-class colors (THEME_SCOPE_EMIT_VARS) plus the SEED-COVERED extra (color.backdrop) may appear; the five shadow INGREDIENT colours joined the EMITTED class at #243 — this palette's elevation (a DARK hairline because a white one measured 1.29:1 and vanished, NO inset top-highlight because white on a 0.995 card paints nothing, and warm-dark ambient at 0.10/0.14 instead of the dark theme's 0.4/0.5 black, which made the resume card read as a sticker) IS now the derivation's light arm, pinned literal-for-literal against shadowIngredients(background) by palette-contrast.suite.test.ts, which is why their hue is this palette's 75 rather than the base ramp's 60 (a sub-quantization move: max 0.25/255 per channel composited); the set is validated at build time (exact path coverage · paths exist in tokens.json · every $value is oklch()). reading-plate MUST equal derive(background) per THEME_DERIVATION.readingPlate, at the POLARITY-DERIVED alpha readingPlateAlpha(background) — 0.921 for this light base, not the 0.65 dark floor, because a light plate's composite over dark art is what fails AA (#217) — pinned by palette-contrast.suite.test.ts; reading-band is that SAME colour at alpha 1 (#241 — the sticky attribution band derives from the plate so the two cannot step apart). PRIMARY SITS IN THE INK BAND, NOT THE FILL BAND (2026-09-01, measured): this palette's primary was oklch(0.55 0.16 50), a fill lightness — but --color-primary is also INK (`text-primary`: the Text accent voice, the Select item indicator, the soft/ghost badge tones), and at 0.55 it had only 4.86:1 against this background bare, so the 15% tint the soft chip paints under it fell to 3.97:1 and shipped under AA-NORMAL at every size (found by the variant-arm matrix, which renders arms no surface had adopted yet). The four divergent intents never had this problem because tokens.json gives each a hand-tuned polarity-aware LIGHT arm at L 0.47-0.50; primary is per-theme instead of light-dark(), so its light arm is HERE, and 0.50 puts it in that same band — soft chip 4.99:1, bare ink 6.02:1, and the solid CTA pill under primary-foreground improves 5.00:1 -> 6.19:1. The accent reads deeper on light; that is the polarity's cost of being legible, and it is what the rest of the family already pays. Edit here + run `pnpm --filter @orb/ui tokens:build`.",
   "color": {
     "background": {
       "$value": {
@@ -46,7 +46,7 @@
     "primary": {
       "$value": {
         "colorSpace": "oklch",
-        "components": [0.55, 0.16, 50]
+        "components": [0.5, 0.16, 50]
       }
     },
     "primary-foreground": {
@@ -264,6 +264,12 @@
       }
     },
     "$type": "color",
+    "accolade": {
+      "$value": {
+        "colorSpace": "oklch",
+        "components": [0.48, 0.12, 100]
+      }
+    },
     "destructive": {
       "$value": {
         "colorSpace": "oklch",
@@ -291,7 +297,7 @@
     "warning": {
       "$value": {
         "colorSpace": "oklch",
-        "components": [0.5, 0.11, 75]
+        "components": [0.49, 0.11, 75]
       }
     },
     "warning-foreground": {

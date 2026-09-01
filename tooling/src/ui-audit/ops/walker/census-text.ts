@@ -197,6 +197,55 @@ export const WALKER_CENSUS_TEXT = `
     if (fontSizePx >= 8 && fontSizePx < 200) fontSizes[String(Math.round(fontSizePx * 10) / 10)] = 1;
   }
 
+  // ── FACE AVAILABILITY: what the page can PAINT, not what it declares (#23) ──────────────────────
+  // The census above gathers each element's FIRST NON-GENERIC DECLARED face, and that is a CASCADE fact:
+  // font loading cannot move it (no CSSOM exposes the USED face), so a page whose brand webfont never
+  // ships still reports the brand name and off-theme-font reads CLEAN on exactly the defect it names.
+  // document.fonts.check cannot close that hole either — for a family with no registered @font-face the
+  // spec makes check() VACUOUSLY TRUE (measured on this tree: check("16px ZzzNotAFont") === true, with
+  // document.fonts holding zero Geist faces). Glyph metrics can: a family the browser cannot resolve
+  // falls through to the base generic and measures exactly like a family that provably does not exist.
+  var FACE_PROBE_TEXT = "mmmmmmmmmmlliWWWQQQ0123456789";
+  var FACE_PROBE_BASES = ["monospace", "serif", "sans-serif"];
+  var FACE_PROBE_ABSENT = "__orb_no_such_face__";
+  var faceCtx = document.createElement("canvas").getContext("2d");
+  var faceWidthOver = function (family, base) {
+    faceCtx.font = '72px "' + family.replace(/"/g, "") + '", ' + base;
+    return faceCtx.measureText(FACE_PROBE_TEXT).width;
+  };
+  var faceBaseWidth = {};
+  var faceProbeUsable = false;
+  if (faceCtx) {
+    for (var fb = 0; fb < FACE_PROBE_BASES.length; fb += 1) {
+      faceCtx.font = "72px " + FACE_PROBE_BASES[fb];
+      faceBaseWidth[FACE_PROBE_BASES[fb]] = faceCtx.measureText(FACE_PROBE_TEXT).width;
+    }
+    // THE TWO-SIDED CONTROL RUNS EVERY RUN, not only in a fixture. POSITIVE: the browser's own serif face
+    // must measure DIFFERENTLY from the monospace base — a probe that cannot tell two PRESENT faces apart
+    // would report every face absent and blind the rule a second way. NEGATIVE: a family that cannot
+    // exist must measure exactly its base on every base — if it reads as present the probe discriminates
+    // nothing. Either control failing leaves probeUsable false, and the Node side WITHHOLDS the token-face
+    // verdict rather than publishing a pass it did not measure.
+    var faceProbeSeesPresent = faceWidthOver("serif", "monospace") !== faceBaseWidth["monospace"];
+    var faceProbeSeesAbsent = true;
+    for (var fc = 0; fc < FACE_PROBE_BASES.length; fc += 1) {
+      if (faceWidthOver(FACE_PROBE_ABSENT, FACE_PROBE_BASES[fc]) !== faceBaseWidth[FACE_PROBE_BASES[fc]]) faceProbeSeesAbsent = false;
+    }
+    faceProbeUsable = faceProbeSeesPresent && faceProbeSeesAbsent;
+  }
+  var fontFaces = [];
+  var declaredFaces = Object.keys(fontFamilies);
+  for (var fd = 0; fd < declaredFaces.length; fd += 1) {
+    var declaredFace = declaredFaces[fd];
+    var facePaints = false;
+    if (faceProbeUsable) {
+      for (var fe = 0; fe < FACE_PROBE_BASES.length; fe += 1) {
+        if (faceWidthOver(declaredFace, FACE_PROBE_BASES[fe]) !== faceBaseWidth[FACE_PROBE_BASES[fe]]) { facePaints = true; break; }
+      }
+    }
+    fontFaces.push({ name: declaredFace, available: facePaints });
+  }
+
   // ── images (<img> + non-cover/contain background-image) ─────────────────
   var images = [];
   var brokenImages = [];

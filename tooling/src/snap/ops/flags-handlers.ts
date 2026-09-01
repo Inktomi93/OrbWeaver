@@ -8,6 +8,7 @@ import { parseViewport, splitFirstEq, splitLastEq, splitSelectorEq } from "../..
 import { DEFAULT_BASE } from "../../_shared/browser.ts";
 import { MOBILE_DEVICE } from "../../_shared/browser-environment.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { applyPanelPresetFlag, loadPanelPreset } from "../../_shared/panel-flags.ts";
 import { applyThemeFlag, parseThemeFlag } from "../../_shared/theme.ts";
 import type { Args } from "../contract/types.ts";
 import { NO_CPU_THROTTLE, parseNetworkProfile } from "../lib/throttle.ts";
@@ -159,6 +160,13 @@ export const FLAG_HANDLERS: Record<string, FlagHandler> = {
   },
   "--focus": (a, rest, page) => {
     pushNav(a, { kind: "focus", target: rest.shift() ?? "", page });
+  },
+  // `--panels <preset>` expands into the SAME panel/focus navs at ITS argv position and on THIS page tab,
+  // so a preset is composition over the two flags above, never a second mechanism (_shared/panel-flags.ts).
+  "--panels": (a, rest, page) => {
+    applyPanelPresetFlag(loadPanelPreset(rest.shift() ?? ""), a.errors, (action) => {
+      pushNav(a, { kind: action.method, target: action.target, page });
+    });
   },
   "--pages": (a, rest) => {
     a.pages = Math.max(1, Number(rest.shift() ?? "1") || 1);

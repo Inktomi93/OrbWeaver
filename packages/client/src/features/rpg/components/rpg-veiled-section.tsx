@@ -43,7 +43,7 @@ function VeiledLedger({ chatId }: { readonly chatId: ChatId }): ReactElement | n
           {/* The claim the character makes to the table (the lie's public face); `type` is the lie class. */}
           {lie.reason === "" ? null : <Text voice="label">{lie.reason}</Text>}
           {/* The TRUTH — crown-gold, host-only. */}
-          <Text voice="gloss" className="text-highlight">
+          <Text voice="gloss" className="text-accolade">
             truth: {lie.truth}
           </Text>
           {lie.type === "" ? null : <Text voice="gloss">{lie.type}</Text>}

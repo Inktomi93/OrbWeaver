@@ -13,7 +13,7 @@ export const SEED_THEME_VALUE_SETS = {
       "--color-surface-raised": "oklch(0.965 0.005 75)",
       "--color-popover": "oklch(0.995 0.003 75)",
       "--color-popover-foreground": "oklch(0.24 0.01 60)",
-      "--color-primary": "oklch(0.55 0.16 50)",
+      "--color-primary": "oklch(0.5 0.16 50)",
       "--color-primary-foreground": "oklch(0.99 0.01 75)",
       "--color-secondary": "oklch(0.94 0.008 70)",
       "--color-secondary-foreground": "oklch(0.28 0.01 60)",

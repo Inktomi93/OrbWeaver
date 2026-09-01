@@ -15,7 +15,7 @@
 //
 // P5 — the ACT RAIL (the plot spine, "ACT II — THE BONE KEY ●I ─ ◉II ─ ○III"): renders the
 // snapshot-resident `tracker.plot` plane (clone-forward like quests — swipe-consistent), current act
-// embered (text-highlight), past acts settled, future acts muted. TEXT is the datum (the "ACT II — title"
+// embered (text-accolade), past acts settled, future acts muted. TEXT is the datum (the "ACT II — title"
 // line); the dot row is aria-hidden decoration (the tracker-kit a11y model). Null plot ⇒ NOTHING renders
 // (no client-invented acts, ever).
 

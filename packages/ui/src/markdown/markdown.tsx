@@ -69,7 +69,7 @@ class MarkdownErrorBoundary extends Component<BoundaryProps, BoundaryState> {
 
   override render(): ReactNode {
     if (this.state.failed) {
-      return <div className="text-body text-muted-foreground">Content failed to render.</div>;
+      return <div className="text-body leading-body text-muted-foreground">Content failed to render.</div>;
     }
     return this.props.children;
   }
@@ -126,7 +126,7 @@ export function Markdown({ trust, mode, children, className, colorQuotes = false
 
   if (children.length > MAX_RENDER_LENGTH) {
     return (
-      <pre className={cn("relative max-h-[60cqh] overflow-auto whitespace-pre-wrap text-body", className)} data-slot="markdown-oversized">
+      <pre className={cn("relative max-h-[60cqh] overflow-auto whitespace-pre-wrap text-body leading-body", className)} data-slot="markdown-oversized">
         {children}
       </pre>
     );
@@ -198,6 +198,7 @@ export function Markdown({ trust, mode, children, className, colorQuotes = false
           cn(
             "space-y-0 whitespace-normal break-words [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_em]:text-narration",
             "[&_blockquote]:border-l-4 [&_blockquote]:border-muted-foreground/50 [&_blockquote]:py-row [&_blockquote]:pl-block",
+            // @orb-gate-ignore integer-line-boxes: inline code INSIDE prose — the line's box is the surrounding paragraph's strut (a smaller inline box never grows an integer line), so pairing a leading here would be inert. Ends if this selector stops targeting inline (non-pre) code.
             "[&_:not(pre)>code]:px-tight [&_:not(pre)>code]:py-tight [&_:not(pre)>code]:text-code",
             className,
           ) ?? ""

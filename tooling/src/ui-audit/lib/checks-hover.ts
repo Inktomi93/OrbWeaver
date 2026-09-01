@@ -93,6 +93,37 @@ function hoverDecline(input: HoverContrastInput, minRatio: number): HoverOutcome
   return restAlreadyFails(input, minRatio) ? { kind: "excluded", reason: "restAlreadyFails" } : { kind: "measurable", over: input.hoverBackdrop.color };
 }
 
+// TWO MECHANISMS, ONE RULE ID (docs/design/state-paint-census.md): `stateAttr` names the Base UI
+// state attribute the pass forced instead of `:hover`; the finding text says which state the reader
+// must reproduce, because "while the pointer is on it" sends them chasing a :hover rule that does
+// not exist for an attribute-painted row.
+interface StateWording {
+  readonly stateWord: string;
+  readonly backgroundWord: string;
+  readonly subjectVerb: string;
+  readonly causeNote: string;
+}
+
+function stateWordingOf(input: HoverContrastInput): StateWording {
+  if (input.stateAttr === undefined || input.stateAttr === null) {
+    return {
+      stateWord: "hovered",
+      backgroundWord: "hover",
+      subjectVerb: "is hovered",
+      causeNote:
+        "exactly while the pointer is on it. A broader selector winning the specificity fight on :hover is the usual cause: check which rule supplies the hover color and which supplies the hover background",
+    };
+  }
+  const valuePart = input.stateAttrValue === undefined || input.stateAttrValue === null ? "" : `=${JSON.stringify(input.stateAttrValue)}`;
+  const stateWord = `under [${input.stateAttr}${valuePart}]`;
+  return {
+    stateWord,
+    backgroundWord: stateWord,
+    subjectVerb: "carries the state",
+    causeNote: `exactly while the ${input.stateAttr} state holds. Check which rule supplies the state color and which supplies the state background — Base UI drives this paint through the attribute, never :hover`,
+  };
+}
+
 function hoverOutcome(input: HoverContrastInput): HoverOutcome {
   const minRatio = isLargeText(input.fontSizePx, input.fontWeight) ? LARGE_MIN_RATIO : NORMAL_MIN_RATIO;
   const declined = hoverDecline(input, minRatio);
@@ -109,15 +140,16 @@ function hoverOutcome(input: HoverContrastInput): HoverOutcome {
   const restRatio = input.restBackdrop.kind === "flat" ? contrastRatio(input.restColor, input.restBackdrop.color) : null;
   const restNote = restRatio === null ? "" : ` (rest ${restRatio.toFixed(2)}:1)`;
   const dimNote = dimmed ? ` · dimmed α${input.foregroundOpacity.toFixed(2)}` : "";
-  const subjectNote = input.subjectSelector === input.selector ? "" : ` when ${input.subjectSelector} is hovered`;
+  const wording = stateWordingOf(input);
+  const subjectNote = input.subjectSelector === input.selector ? "" : ` when ${input.subjectSelector} ${wording.subjectVerb}`;
   return {
     kind: "judged",
     finding: {
       rule: "hover-contrast",
       severity: "P1",
       selector: input.selector,
-      value: `${ratio.toFixed(2)}:1 hovered${restNote}${dimNote}`,
-      message: `this text drops to ${ratio.toFixed(2)}:1 against its own hover background${subjectNote} — below the ${String(minRatio)}:1 minimum it clears at rest, so the label goes unreadable exactly while the pointer is on it. A broader selector winning the specificity fight on :hover is the usual cause: check which rule supplies the hover color and which supplies the hover background`,
+      value: `${ratio.toFixed(2)}:1 ${wording.stateWord}${restNote}${dimNote}`,
+      message: `this text drops to ${ratio.toFixed(2)}:1 against its own ${wording.backgroundWord} background${subjectNote} — below the ${String(minRatio)}:1 minimum it clears at rest, so the label goes unreadable ${wording.causeNote}`,
       origin: "impeccable",
     },
   };

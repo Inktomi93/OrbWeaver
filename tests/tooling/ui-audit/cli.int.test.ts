@@ -26,6 +26,18 @@ const CENSUS_RE = /census=(\d+)/u;
 /** The REACH denominator (#653) — how many OFFERED controls the viewport-bound families measured. */
 const REACHED_RE = /reached=[1-9]/u;
 
+/** Rows of the RESULT findings table for one rule — VERDICTS, anchored on the severity column.
+ *  A bare `stdout.toContain("contrast")` is not that assertion: the run also prints a POPULATION
+ *  accounting row per rule (`POPULATION   contrast candidates=1 judged=1 …`), which names the rule
+ *  without filing anything. That line satisfied every `toContain` and falsified every `not.toContain`
+ *  — a fires-proof that could not fail beside a silence-proof that could not pass. Anchoring on
+ *  `P0..P3 <rule> ` keeps both halves reading the verdict, and the denominators stay assertable
+ *  separately (they are evidence about the walk, not about the page). */
+function findingRows(stdout: string, rule: string): readonly string[] {
+  const row = new RegExp(`^P[0-3]\\s+${rule}\\s`, "u");
+  return stdout.split("\n").filter((line) => row.test(line));
+}
+
 interface AuditRuleProof {
   readonly rule: DesignAuditRuleId;
   readonly kind: "fires" | "silent";
@@ -53,7 +65,7 @@ test("a planted contrast defect REDs the audit through the real cli", async ({ r
   const file = join(scratch, "bad.html");
   await writeFile(file, page("background:#000;color:#000"));
   const res = await runCli("ui-audit", ["/bad.html", "--base", `file://${scratch}`], { timeoutMs: CLI_TIMEOUT_MS });
-  expect(res.stdout).toContain("contrast");
+  expect(findingRows(res.stdout, "contrast")).not.toEqual([]);
   await expect(res).toExitWith(1);
 });
 
@@ -62,9 +74,9 @@ test("the passing twin exits clean — the red above is the plant, not the harne
   await writeFile(file, page("background:#000;color:#fff"));
   const res = await runCli("ui-audit", ["/good.html", "--base", `file://${scratch}`], { timeoutMs: CLI_TIMEOUT_MS });
   // The twin proves the PLANTED CLASS is absent (no contrast finding, no P1) — a fixture page still
-  // legitimately trips the P2 font census (its default face is off the token ramp), which the exit
-  // verdict correctly ignores at the default --fail-on P1.
-  expect(res.stdout).not.toContain("contrast");
+  // legitimately trips the P2 font census (its default face is off the token ramp, and #23 now says so
+  // with the measurement), which the exit verdict correctly ignores at the default --fail-on P1.
+  expect(findingRows(res.stdout, "contrast")).toEqual([]);
   expect(res.stdout).toContain("p1=0");
   await expect(res).toExitWith(0);
   // ZERO HYGIENE (#409): "no P1s" is only a verdict when the walk actually censused nodes.
@@ -74,6 +86,46 @@ test("the passing twin exits clean — the red above is the plant, not the harne
     expect(res.stdout).toMatch(new RegExp(`scanned-${family}=[1-9]\\d*`, "u"));
   }
 });
+
+// ── #23: the font census judged the DECLARED stack and called it "rendered" ────────────────────────
+// THE LIE, reproduced through the real CLI and a real browser. `getComputedStyle().fontFamily` is a
+// cascade fact no font loading can move, so a page declaring the token stack reported CLEAN whether or
+// not the face existed — and on this tree it never does: no @font-face registers Geist, the host has
+// none installed, and `document.fonts` holds twenty KaTeX faces and nothing else. Every design-audit run
+// laundered that into a silent font census. The first fixture is that page; before the paint probe it
+// emitted ZERO findings. The second is the probe's live POSITIVE control: an installed face measures as
+// present in the same run, so a probe silently stuck at all-false (which would blind the rule a third
+// way) cannot produce this pair.
+function declaredFacePage(family: string): string {
+  return `<!doctype html>
+<html data-app-ready="settled"><head><meta charset="utf-8"><title>t</title></head>
+<body style="margin:0;background:#000;color:#fff;font-family:${family}"><main><p style="font-size:16px;margin:24px">the reading surface under audit</p></main></body></html>`;
+}
+
+auditRuleTest(
+  [{ rule: "off-theme-font", kind: "fires", reason: "a token face this environment cannot paint emits, with the measurement" }],
+  "a declared token face that does not exist here REDs the font census — the false clean is closed",
+  async ({ runCli, scratch }) => {
+    await writeFile(join(scratch, "unpaintable.html"), declaredFacePage("Geist, ui-sans-serif, system-ui, sans-serif"));
+    const res = await runCli("ui-audit", ["/unpaintable.html", "--base", `file://${scratch}`], { timeoutMs: CLI_TIMEOUT_MS });
+    const rows = findingRows(res.stdout, "off-theme-font");
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toContain("geist");
+    // P2 only — the census reports what paints; it does not decide the exit at --fail-on P1.
+    await expect(res).toExitWith(0);
+    // The denominator says the verdict was MEASURED, not skipped: one candidate, judged, nothing withheld.
+    expect(res.stdout).toContain("POPULATION   off-theme-font candidates=1 judged=1 affected=1");
+
+    // The probe's live positive direction: a face that IS installed here is judged as painting, so the
+    // absence above is a measurement rather than a probe that answers "absent" to everything.
+    await writeFile(join(scratch, "installed.html"), declaredFacePage('"Liberation Serif", serif'));
+    const present = await runCli("ui-audit", ["/installed.html", "--base", `file://${scratch}`], { timeoutMs: CLI_TIMEOUT_MS });
+    const presentRows = findingRows(present.stdout, "off-theme-font");
+    expect(presentRows).toHaveLength(1);
+    expect(presentRows[0]).toContain("paints");
+    expect(present.stdout).not.toContain("faceProbeUnusable");
+  },
+);
 
 // ── tap-target populations (#983): one authored decision, one actionable finding ───────────────────
 
@@ -584,7 +636,35 @@ test("a page the walk censused NOTHING on is an INSTRUMENT ERROR, never a clean 
   const res = await runCli("ui-audit", ["/empty.html", "--base", `file://${scratch}`], { timeoutMs: CLI_TIMEOUT_MS });
   expect(res.stdout).toContain("INSTRUMENT ERROR");
   expect(res.stdout).toContain("census");
+  // THE REFUSAL SAYS WHY, ON THE PROCESS'S OWN OUTPUT (#25). It writes no report artifact, so a harness
+  // that only reads `--out` sees an ENOENT and cannot tell a refusal from a crashed walk; stdout is the
+  // one channel that distinguishes them, and a silent exit-2 here would be the defect, not the fence.
+  expect(res.stdout, "a refusal that does not state its reason is indistinguishable from a crash").toContain("censused 0 nodes");
   await expect(res).toExitWith(2);
+});
+
+// @instrument-absence-proof: THE POLARITY ERROR INSIDE THE REFUSAL (#25). The relational families
+// (cohort-anatomy, row-void, pane-ink, tier-drift, …) were absent from the census total, so a fixture
+// built to exercise a RELATIONAL rule — geometry and CSS, no text, no image, no control — refused with
+// "the walk censused 0 nodes" even though the walker saw and judged its elements. The workaround was a
+// stray text node in every relational fixture, unrelated to the rule under test. A censused relational
+// sample is a censused node: this run must reach a VERDICT, and the tier-drift finding proves the walk
+// judged the very elements the census claimed not to see.
+test("a relational-only fixture is judged, never refused as an empty census", async ({ runCli, scratch }) => {
+  const body = `<style>
+  [data-surface-tier="instrument"] { --orb-tier-island-pad: 8px; --orb-tier-island-radius: 4px; }
+  [data-surface-tier] [data-slot="card-root"] { padding: var(--orb-tier-island-pad); border-radius: var(--orb-tier-island-radius); }
+</style><div data-surface-tier="instrument"><div data-slot="card-root" style="padding:20px;width:100px;height:60px;background:#222"></div></div>`;
+  await writeFile(
+    join(scratch, "relational-only.html"),
+    `<!doctype html>\n<html data-app-ready="settled"><head><meta charset="utf-8"><title>t</title></head><body style="margin:0;background:#000;color:#fff"><main>${body}</main></body></html>`,
+  );
+  const reportPath = join(scratch, "relational-only.json");
+  const res = await runCli("ui-audit", ["/relational-only.html", "--base", `file://${scratch}`, "--out", reportPath], { timeoutMs: CLI_TIMEOUT_MS });
+  expect(res.stdout, "the census families are not the judged families — a relational sample IS a census").not.toContain("censused 0 nodes");
+  expect(Number(CENSUS_RE.exec(res.stdout)?.[1])).toBeGreaterThan(0);
+  const report = JSON.parse(await readFile(reportPath, "utf8")) as { readonly findings: readonly { readonly rule: string }[] };
+  expect(report.findings.filter(({ rule }) => rule === "tier-drift")).toHaveLength(1);
 });
 
 // ── --upload (#651) ──────────────────────────────────────────────────────────
@@ -622,7 +702,7 @@ test("--upload populates the surface design-audit censuses — clean unuploaded,
   // Unuploaded: the exact false-clean shape #651 named — a real defect sits behind a file pick, and a
   // census that never populates the surface reports nothing wrong.
   const clean = await runCli("ui-audit", ["/upload.html", "--base", `file://${scratch}`], { timeoutMs: CLI_TIMEOUT_MS });
-  expect(clean.stdout).not.toContain("contrast");
+  expect(findingRows(clean.stdout, "contrast")).toEqual([]);
   await expect(clean).toExitWith(0);
 
   // Through --upload: the SAME route now REDs on the SAME rule, because the walk censused the
@@ -630,7 +710,7 @@ test("--upload populates the surface design-audit censuses — clean unuploaded,
   const fixture = join(scratch, "fixture.txt");
   await writeFile(fixture, "hello upload");
   const uploaded = await runCli("ui-audit", ["/upload.html", "--base", `file://${scratch}`, "--upload", `#wrap=${fixture}`], { timeoutMs: CLI_TIMEOUT_MS });
-  expect(uploaded.stdout).toContain("contrast");
+  expect(findingRows(uploaded.stdout, "contrast")).not.toEqual([]);
   await expect(uploaded).toExitWith(1);
 });
 
@@ -954,7 +1034,17 @@ test("custom light and dark requests prove catalog source, inline carrier, and e
           rendered: { shellScope: { inlineBackground: string | null }; subjectPolarities: Record<string, number> };
         };
       };
-      expect(artifact.findings, `the custom ${polarity} carrier must not introduce audit findings`).toEqual([]);
+      // The carrier's own claim, scoped past ONE finding that belongs to the fixture rather than to the
+      // theme: this page declares the app's real `Geist, sans-serif` stack over `file://` with no CSS
+      // bundle, so the token face measurably cannot paint and #23's font census says so — correctly, and
+      // in every run of this fixture. It is named and asserted rather than filtered blind, so a SECOND
+      // finding class can never hide behind the exclusion.
+      const fontRows = artifact.findings.filter(({ rule }) => rule === "off-theme-font");
+      expect(fontRows.map(({ value }) => value)).toEqual(["geist (token face, not paintable)"]);
+      expect(
+        artifact.findings.filter(({ rule }) => rule !== "off-theme-font"),
+        `the custom ${polarity} carrier must not introduce audit findings`,
+      ).toEqual([]);
       await expect(res).toExitWith(0);
       expect(artifact.themeEvidence.resolution).toMatchObject({ source: "custom", name });
       expect(artifact.themeEvidence.rendered.shellScope.inlineBackground).not.toBeNull();

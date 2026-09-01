@@ -18,16 +18,17 @@ export const TOKENS = {
   "color.muted-foreground": { cssVar: "--color-muted-foreground", value: "oklch(0.74 0.008 65)" },
   "color.accent": { cssVar: "--color-accent", value: "oklch(0.285 0.009 60)" },
   "color.accent-foreground": { cssVar: "--color-accent-foreground", value: "oklch(0.955 0.004 75)" },
-  "color.destructive": { cssVar: "--color-destructive", value: "light-dark(oklch(0.5 0.19 25), oklch(0.65 0.19 25))" },
+  "color.destructive": { cssVar: "--color-destructive", value: "light-dark(oklch(0.5 0.19 25), oklch(0.72 0.19 25))" },
   "color.destructive-foreground": { cssVar: "--color-destructive-foreground", value: "light-dark(oklch(0.98 0.01 25), oklch(0.2 0.03 25))" },
   "color.success": { cssVar: "--color-success", value: "light-dark(oklch(0.47 0.12 155), oklch(0.72 0.13 155))" },
   "color.success-foreground": { cssVar: "--color-success-foreground", value: "light-dark(oklch(0.97 0.01 150), oklch(0.14 0.02 150))" },
-  "color.warning": { cssVar: "--color-warning", value: "light-dark(oklch(0.5 0.11 75), oklch(0.79 0.13 75))" },
+  "color.warning": { cssVar: "--color-warning", value: "light-dark(oklch(0.49 0.11 75), oklch(0.79 0.13 75))" },
   "color.warning-foreground": { cssVar: "--color-warning-foreground", value: "light-dark(oklch(0.98 0.01 85), oklch(0.2 0.03 85))" },
   "color.info": { cssVar: "--color-info", value: "light-dark(oklch(0.48 0.1 232), oklch(0.7 0.1 232))" },
   "color.info-foreground": { cssVar: "--color-info-foreground", value: "light-dark(oklch(0.98 0.01 232), oklch(0.2 0.03 232))" },
   "color.highlight": { cssVar: "--color-highlight", value: "oklch(0.82 0.16 100)" },
   "color.highlight-foreground": { cssVar: "--color-highlight-foreground", value: "oklch(0.22 0.03 100)" },
+  "color.accolade": { cssVar: "--color-accolade", value: "light-dark(oklch(0.48 0.12 100), oklch(0.82 0.16 100))" },
   "color.border": { cssVar: "--color-border", value: "oklch(0.99 0.005 60 / 0.08)" },
   "color.input": { cssVar: "--color-input", value: "oklch(0.99 0.005 60 / 0.12)" },
   "color.ring": { cssVar: "--color-ring", value: "oklch(0.72 0.175 52)" },
@@ -142,11 +143,13 @@ export const TOKENS = {
   "text.code": { cssVar: "--text-code", value: "0.8125rem" },
   "text.micro": { cssVar: "--text-micro", value: "0.65625rem" },
   "leading.none": { cssVar: "--leading-none", value: "1" },
-  "leading.display": { cssVar: "--leading-display", value: "1.25" },
-  "leading.headline": { cssVar: "--leading-headline", value: "1.3" },
-  "leading.title": { cssVar: "--leading-title", value: "1.35" },
-  "leading.body": { cssVar: "--leading-body", value: "1.55" },
-  "leading.label": { cssVar: "--leading-label", value: "1.25" },
+  "leading.display": { cssVar: "--leading-display", value: "round(1.875rem, 1px)" },
+  "leading.headline": { cssVar: "--leading-headline", value: "round(1.625rem, 1px)" },
+  "leading.title": { cssVar: "--leading-title", value: "round(1.375rem, 1px)" },
+  "leading.body": { cssVar: "--leading-body", value: "round(1.4375rem, 1px)" },
+  "leading.label": { cssVar: "--leading-label", value: "round(1rem, 1px)" },
+  "leading.label-relaxed": { cssVar: "--leading-label-relaxed", value: "round(1.25rem, 1px)" },
+  "leading.micro": { cssVar: "--leading-micro", value: "round(0.8125rem, 1px)" },
   "container.cq-sm": { cssVar: "--container-cq-sm", value: "24rem" },
   "container.cq-md": { cssVar: "--container-cq-md", value: "32rem" },
   "container.cq-lg": { cssVar: "--container-cq-lg", value: "48rem" },
@@ -204,14 +207,15 @@ export type TokenPath = keyof typeof TOKENS;
 
 /** Concrete arms for every polarity-aware token. CSS consumers use TOKENS[path].value; canvas/build-time consumers use this generated surface and never parse light-dark() serialization. */
 export const TOKEN_POLARITY_ARMS = {
-  "color.destructive": { light: "oklch(0.5 0.19 25)", dark: "oklch(0.65 0.19 25)" },
+  "color.destructive": { light: "oklch(0.5 0.19 25)", dark: "oklch(0.72 0.19 25)" },
   "color.destructive-foreground": { light: "oklch(0.98 0.01 25)", dark: "oklch(0.2 0.03 25)" },
   "color.success": { light: "oklch(0.47 0.12 155)", dark: "oklch(0.72 0.13 155)" },
   "color.success-foreground": { light: "oklch(0.97 0.01 150)", dark: "oklch(0.14 0.02 150)" },
-  "color.warning": { light: "oklch(0.5 0.11 75)", dark: "oklch(0.79 0.13 75)" },
+  "color.warning": { light: "oklch(0.49 0.11 75)", dark: "oklch(0.79 0.13 75)" },
   "color.warning-foreground": { light: "oklch(0.98 0.01 85)", dark: "oklch(0.2 0.03 85)" },
   "color.info": { light: "oklch(0.48 0.1 232)", dark: "oklch(0.7 0.1 232)" },
   "color.info-foreground": { light: "oklch(0.98 0.01 232)", dark: "oklch(0.2 0.03 232)" },
+  "color.accolade": { light: "oklch(0.48 0.12 100)", dark: "oklch(0.82 0.16 100)" },
   "color.chart-1": { light: "oklch(0.49 0.175 52)", dark: "oklch(0.72 0.175 52)" },
   "color.chart-2": { light: "oklch(0.53 0.1 200)", dark: "oklch(0.7 0.1 200)" },
   "color.chart-3": { light: "oklch(0.53 0.12 300)", dark: "oklch(0.68 0.12 300)" },
@@ -226,6 +230,19 @@ export const TOKEN_POLARITY_ARMS = {
 } as const;
 
 export type PolarityTokenPath = keyof typeof TOKEN_POLARITY_ARMS;
+
+/** Resolved px at the 16px root for every snapped-output dimension — build-time consumers (the ui-audit ramp bindings) read THIS and never parse the round() serialization (the TOKEN_POLARITY_ARMS precedent). */
+export const SNAPPED_LENGTH_BASE_PX = {
+  "leading.display": 30,
+  "leading.headline": 26,
+  "leading.title": 22,
+  "leading.body": 23,
+  "leading.label": 16,
+  "leading.label-relaxed": 20,
+  "leading.micro": 13,
+} as const;
+
+export type SnappedTokenPath = keyof typeof SNAPPED_LENGTH_BASE_PX;
 
 /** `var(--…)` reference for a token — the ONE way runtime code names a token. */
 export function cssVar(path: TokenPath): string {

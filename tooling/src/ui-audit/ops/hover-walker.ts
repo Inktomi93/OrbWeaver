@@ -1,30 +1,45 @@
-// ui-audit in-page segment — the FORCED-STATE (`:hover`) census, read/verify closures included.
-// Raw JS in a template literal (no backticks / dollar-brace — see _shared/browser.ts for why a string,
-// not a function). Provenance + attribution: ops/walker.ts. Composed by ops/hover.ts, NOT by
-// COLLECT_SAMPLES_JS: this segment runs in its own evaluation because the pass it belongs to has a
-// Node-side CDP round trip in the middle of it.
+// ui-audit in-page segment — the FORCED-STATE census (`:hover` AND Base-UI state attributes),
+// read/verify closures included. Raw JS in a template literal (no backticks / dollar-brace — see
+// _shared/browser.ts for why a string, not a function). Provenance + attribution: ops/walker.ts.
+// Composed by ops/hover.ts, NOT by COLLECT_SAMPLES_JS: this pass has a Node-side CDP round trip in
+// the middle of it. The shared predicate/vocabulary segment is ops/walker/state-paint.ts; the design
+// (mechanisms, classification, polarity) is docs/design/state-paint-census.md.
 //
-// THE POPULATION ARGUMENT LIVES HERE, because this is the code that bounds it. Forcing `:hover` on every
+// THE POPULATION ARGUMENT LIVES HERE, because this is the code that bounds it. Forcing state on every
 // interactive element would be one CDP round trip per element (117 controls on `settings:appearance`),
-// and most of them declare no hover paint at all. So the narrowing is done FIRST, in page JS, at zero
-// round-trip cost: enumerate the stylesheets, keep only the rules whose selector carries a `:hover`
-// compound AND whose declaration block sets `color`/`background-color`, and resolve those selectors to
-// elements. Everything else is `excluded(noHoverPaint=…)` — stated, not dropped.
+// and most of them declare no state paint at all. So the narrowing is done FIRST, in page JS, at zero
+// round-trip cost: enumerate the stylesheets, keep only the rules whose selector carries an
+// interaction-state compound — a `:hover` pseudo (UNESCAPED: Tailwind mints class NAMES containing
+// `\\:hover\\:`, and a bare match mangled 19 selectors into unparseable garbage on one stage run, #24)
+// OR a Base UI state attribute (`[data-highlighted]` and friends — Base UI never expresses its own
+// state as `:hover`, so an attribute-blind census published `excluded(noHoverPaint)` for every popup
+// item row, a FALSE measurement claim) — AND whose declaration block sets `color`/`background-color`,
+// then resolve those selectors to elements. Everything else is `excluded(noHoverPaint=…)` — stated,
+// not dropped, and now TRUE of both mechanisms.
 //
-// PAINTED ELEMENT vs HOVER SUBJECT. `.nav-links a:hover` paints the anchor and the anchor is hovered;
-// `.card:hover .label` paints the label while the CARD is hovered. The segment splits each selector at
-// its last `:hover` compound: everything up to it names the SUBJECT to force, the whole selector with
-// `:hover` stripped names what gets PAINTED. A subject's hover background also re-backs every
-// text-bearing descendant, so those ride along as candidates too — that is the "hover background moves,
-// label colour does not" half of the defect, which a self-hover-only census is structurally blind to.
+// PAINTED ELEMENT vs STATE SUBJECT. `.nav-links a:hover` paints the anchor and the anchor is hovered;
+// `.card:hover .label` paints the label while the CARD is hovered — and identically,
+// `[data-selected] .label` paints the label while an ANCESTOR carries the attribute. The segment
+// splits each selector at its last state-bearing compound: everything up to it names the SUBJECT to
+// force, the whole selector with the state test stripped names what gets PAINTED. A subject's state
+// background also re-backs every text-bearing descendant, so those ride along as candidates too.
 //
-// FORCING IS PER SUBJECT, NOT PER CANDIDATE. Candidates are grouped by subject and every member of a
-// group is read in ONE evaluate while that subject is forced, so the round-trip count is the number of
-// distinct hover subjects, not the number of texts. A subject's ANCESTORS that are themselves hover
-// subjects are forced with it, because a real pointer sets `:hover` on the whole ancestor chain.
+// FORCING IS PER SUBJECT, NOT PER CANDIDATE. `:hover` subjects are held over CDP (one round trip per
+// subject chain — ancestors that are themselves hover subjects are forced with it, because a real
+// pointer sets `:hover` on the whole chain). ATTRIBUTE subjects are forced IN PAGE — record the prior
+// value, setAttribute, read every member synchronously in the SAME task (React/Base UI cannot
+// interleave a re-render into a synchronous task), restore the prior value, and assert the restore.
+// The pass-final `hoverVerify` then re-reads EVERY candidate's rest key — hover and attribute alike —
+// because a reactive listener (a MutationObserver re-arming the attribute) lands in a later microtask
+// that the inline restore check cannot see; a stuck state poisons every later sample in the run.
+//
+// GLOW RIDES THE SAME FORCES. Rules gating `box-shadow`/`text-shadow`/a radial `background-image`
+// behind either mechanism register GLOW members on the same subject groups; while a subject is held,
+// `stateGlowRowsOf` (state-paint.ts) reads element+pseudo layers and emits ONLY what the state
+// CHANGED over the rest snapshot, in the static glow census's own sample shapes.
 //
 // THE PAINT-LAYER MEMO IS DELIBERATELY WARM. `resolveBackdrop` memoizes the fixed/absolute paint-layer
-// census on first use; it is primed here in the rest state and reused under force. A hover rule that
+// census on first use; it is primed here in the rest state and reused under force. A state rule that
 // creates or moves a full-page paint layer would be mis-attributed — that is a stated limit, and the
 // alternative (re-censusing every paint layer per subject) is the cost this whole design exists to avoid.
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
@@ -32,30 +47,43 @@ import { INACTIVE_KIND_EXPR } from "../../_shared/wcag.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm design-audit");
 
-/** How many distinct hover subjects one run will force. Generous by design: it is a REFUSAL threshold,
- *  not a sampling cap — candidates past it are withheld by name, which makes the run a NO VERDICT rather
- *  than a quietly partial one. Measured live it does not bind (see ops/hover.ts). */
-const HOVER_SUBJECT_BUDGET = 240;
+/** How many distinct subjects one run will force, per mechanism. Generous by design: it is a REFUSAL
+ *  threshold, not a sampling cap — candidates past it are withheld by name, which makes the run a NO
+ *  VERDICT rather than a quietly partial one. Measured live it does not bind (see ops/hover.ts).
+ *  Exported for the pass's second half (ops/hover-walker-read.ts), which applies the same threshold
+ *  to the glow-only groups it creates. */
+export const HOVER_SUBJECT_BUDGET = 240;
 
 export const HOVER_CENSUS = `
-  // ── forced-state (:hover) census ─────────────────────────────────────────
-  var HOVER_PSEUDO_RE = /:hover(?![-\\w])/gi;
+  // ── forced-state census: rule collection (both mechanisms, one stylesheet walk) ─────────────
   var hoverSheetsRead = 0;
   var hoverSheetsUnreadable = 0;
   var hoverRuleCount = 0;
+  var attrRuleCount = 0;
+  var glowRuleCount = 0;
+  var glowUnresolved = 0;
   var hoverUnparseable = 0;
   var hoverSelectorTexts = [];
+  var attrSelectorTexts = [];
+  var glowSelectorTexts = [];
   function hoverCollectRules(rules) {
     for (var hr = 0; hr < rules.length; hr += 1) {
       var rule = rules[hr];
       if (rule.cssRules && rule.cssRules.length > 0) hoverCollectRules(rule.cssRules);
       if (typeof rule.selectorText !== "string") continue;
-      if (rule.selectorText.indexOf(":hover") === -1) continue;
       if (!rule.style) continue;
+      var selHover = hasStateHover(rule.selectorText);
+      var selAttr = stateAttrAnywhere(rule.selectorText);
+      if (!selHover && !selAttr) continue;
       // A CSSStyleDeclaration read off a RULE expands shorthands, so "background: red" answers here too.
-      if (rule.style.color === "" && rule.style.backgroundColor === "") continue;
-      hoverRuleCount += 1;
-      hoverSelectorTexts.push(rule.selectorText);
+      if (rule.style.color !== "" || rule.style.backgroundColor !== "") {
+        if (selHover) { hoverRuleCount += 1; hoverSelectorTexts.push(rule.selectorText); }
+        else { attrRuleCount += 1; attrSelectorTexts.push(rule.selectorText); }
+      }
+      if (rule.style.boxShadow !== "" || rule.style.textShadow !== "" || (rule.style.backgroundImage || "").indexOf("radial-gradient") !== -1) {
+        glowRuleCount += 1;
+        glowSelectorTexts.push({ sel: rule.selectorText, hover: selHover });
+      }
     }
   }
   for (var hs = 0; hs < document.styleSheets.length; hs += 1) {
@@ -68,116 +96,74 @@ export const HOVER_CENSUS = `
     }
   }
 
-  /** Split at top-level commas only — a comma inside :is(a, b) belongs to the pseudo, not to the list. */
-  function hoverSplitList(text) {
-    var parts = [];
-    var depth = 0;
-    var quote = "";
-    var buf = "";
-    for (var si = 0; si < text.length; si += 1) {
-      var ch = text.charAt(si);
-      if (quote !== "") {
-        buf += ch;
-        if (ch === quote && text.charAt(si - 1) !== "\\\\") quote = "";
-        continue;
-      }
-      if (ch === "'" || ch === '"') { quote = ch; buf += ch; continue; }
-      if (ch === "(" || ch === "[") depth += 1;
-      if (ch === ")" || ch === "]") depth -= 1;
-      if (depth === 0 && ch === ",") { parts.push(buf); buf = ""; continue; }
-      buf += ch;
+  // ── pair building ────────────────────────────────────────────────────────
+  // element -> the DEEPEST hover subject that repaints it (deepest wins: that is the rule a reader
+  // will go looking for); element -> per state-attribute subject. The withheld classes (pseudo-
+  // element paint, functional-pseudo state, unresolvable subject) mark hosts + descendants so the
+  // candidate loop can NAME them instead of filing a false noHoverPaint exclusion.
+  var hoverPaintOf = new Map();
+  var attrPaintOf = new Map();
+  var pseudoPaintEls = new Map();
+  var complexPaintEls = new Map();
+  var unresolvedSubjectEls = new Map();
+  function hoverConsider(el, subject) {
+    var prior = hoverPaintOf.get(el);
+    if (prior === undefined || prior.contains(subject)) hoverPaintOf.set(el, subject);
+  }
+  function forEachPaintedWithKids(pel, mark) {
+    mark(pel);
+    if (!pel.querySelectorAll) return;
+    var kids = pel.querySelectorAll("*");
+    for (var kk = 0; kk < kids.length; kk += 1) mark(kids[kk]);
+  }
+  function markStateHosts(sel, map) {
+    var hosts = null;
+    try { hosts = document.querySelectorAll(sel); } catch (e) { hoverUnparseable += 1; return; }
+    for (var mh = 0; mh < hosts.length; mh += 1) {
+      if (isDevChrome(hosts[mh])) continue;
+      forEachPaintedWithKids(hosts[mh], function (el) { map.set(el, true); });
     }
-    parts.push(buf);
-    return parts;
+  }
+  function attrStateKey(attr, value) { return attr + "\\u0000" + (value === null ? "" : "=" + value); }
+  function attrSuffixOf(attr, value) { return "[" + attr + (value === null ? "" : "=" + JSON.stringify(value)) + "]"; }
+  function attrConsider(el, subject, attr, value, already) {
+    var entry = attrPaintOf.get(el);
+    if (entry === undefined) { entry = {}; attrPaintOf.set(el, entry); }
+    var key = attrStateKey(attr, value);
+    var prior = entry[key];
+    if (prior === undefined || prior.subject.contains(subject)) entry[key] = { subject: subject, attr: attr, value: value, already: already };
   }
 
-  /** One complex selector to its top-level compounds, each with the combinator that precedes it. */
-  function hoverCompounds(sel) {
-    var out = [];
-    var depth = 0;
-    var quote = "";
-    var buf = "";
-    var comb = "";
-    var pendingSpace = false;
-    for (var ci = 0; ci < sel.length; ci += 1) {
-      var c = sel.charAt(ci);
-      if (quote !== "") {
-        buf += c;
-        if (c === quote && sel.charAt(ci - 1) !== "\\\\") quote = "";
-        continue;
-      }
-      if (c === "'" || c === '"') { quote = c; buf += c; continue; }
-      if (c === "(" || c === "[") { depth += 1; buf += c; continue; }
-      if (c === ")" || c === "]") { depth -= 1; buf += c; continue; }
-      if (depth > 0) { buf += c; continue; }
-      if (c === " " || c === "\\t" || c === "\\n" || c === "\\r") {
-        if (buf !== "") pendingSpace = true;
-        continue;
-      }
-      if (c === ">" || c === "+" || c === "~") {
-        if (buf !== "") { out.push({ combinator: comb, compound: buf }); buf = ""; }
-        comb = c;
-        pendingSpace = false;
-        continue;
-      }
-      if (pendingSpace && buf !== "") { out.push({ combinator: comb, compound: buf }); buf = ""; comb = " "; }
-      pendingSpace = false;
-      buf += c;
-    }
-    if (buf !== "") out.push({ combinator: comb, compound: buf });
-    return out;
-  }
-
-  function hoverJoin(parts) {
-    var s = "";
-    for (var ji = 0; ji < parts.length; ji += 1) {
-      var step = parts[ji];
-      if (ji === 0) s += step.compound;
-      else if (step.combinator === " " || step.combinator === "") s += " " + step.compound;
-      else s += " " + step.combinator + " " + step.compound;
-    }
-    return s;
-  }
-
-  function hoverStrip(sel) {
-    return sel.replace(HOVER_PSEUDO_RE, "").trim();
-  }
-
+  // :hover pairs — the original mechanism, now escape-aware end to end.
   var hoverPairs = [];
   var hoverPairSeen = {};
   for (var hi = 0; hi < hoverSelectorTexts.length; hi += 1) {
-    var listParts = hoverSplitList(hoverSelectorTexts[hi]);
+    var listParts = selectorSplitList(hoverSelectorTexts[hi]);
     for (var lp = 0; lp < listParts.length; lp += 1) {
       var one = listParts[lp].trim();
-      if (one === "" || one.indexOf(":hover") === -1) continue;
-      var comps = hoverCompounds(one);
+      if (one === "" || !hasStateHover(one)) continue;
+      var comps = selectorCompounds(one);
       var lastHover = -1;
       for (var cj = 0; cj < comps.length; cj += 1) {
-        if (comps[cj].compound.indexOf(":hover") !== -1) lastHover = cj;
+        if (hasStateHover(comps[cj].compound)) lastHover = cj;
       }
       if (lastHover === -1) continue;
-      var paintedSel = hoverStrip(hoverJoin(comps));
-      var subjectSel = hoverStrip(hoverJoin(comps.slice(0, lastHover + 1)));
+      var paintedSel = stripStateHover(selectorJoin(comps));
+      // A pseudo-ELEMENT paint target (.x:hover::before) cannot be judged: resolveBackdrop reads
+      // ancestors only, so the pair would be measured against a backdrop the pseudo may replace.
+      // WITHHELD by name (hosts marked below), never silently unparseable, never wrongly judged.
+      if (hasStatePseudoElement(paintedSel)) {
+        var hoverHostSel = stripStatePseudoElements(paintedSel);
+        if (hoverHostSel !== "") markStateHosts(hoverHostSel, pseudoPaintEls);
+        continue;
+      }
+      var subjectSel = stripStateHover(selectorJoin(comps.slice(0, lastHover + 1)));
       if (paintedSel === "" || subjectSel === "") continue;
       var pairKey = subjectSel + " <<>> " + paintedSel;
       if (hoverPairSeen[pairKey] === true) continue;
       hoverPairSeen[pairKey] = true;
       hoverPairs.push({ paintedSel: paintedSel, subjectSel: subjectSel });
     }
-  }
-
-  // element -> the DEEPEST hover subject that repaints it. Deepest wins because that is the rule a
-  // reader will go looking for; its hover-subject ancestors are forced alongside it below.
-  var hoverPaintOf = new Map();
-  function hoverConsider(el, subject) {
-    var prior = hoverPaintOf.get(el);
-    if (prior === undefined || prior.contains(subject)) hoverPaintOf.set(el, subject);
-  }
-  function hoverRegisterPainted(pel, subject) {
-    hoverConsider(pel, subject);
-    if (!pel.querySelectorAll) return;
-    var kids = pel.querySelectorAll("*");
-    for (var kk = 0; kk < kids.length; kk += 1) hoverConsider(kids[kk], subject);
   }
   for (var pi2 = 0; pi2 < hoverPairs.length; pi2 += 1) {
     var pair = hoverPairs[pi2];
@@ -199,14 +185,92 @@ export const HOVER_CENSUS = `
         break;
       }
       if (subjectEl === null || isDevChrome(subjectEl)) continue;
-      hoverRegisterPainted(pel2, subjectEl);
+      forEachPaintedWithKids(pel2, function (el) { hoverConsider(el, subjectEl); });
     }
   }
 
-  // The DENOMINATOR: every visible text-bearing subject the walk accepted — the same base population the
-  // reading-surface rules judge, so "excluded(noHoverPaint=N)" is a statement about this surface's texts.
+  // state-attribute pairs — the Base UI mechanism.
+  var attrPairSeen = {};
+  for (var ai = 0; ai < attrSelectorTexts.length; ai += 1) {
+    var aParts = selectorSplitList(attrSelectorTexts[ai]);
+    for (var ap = 0; ap < aParts.length; ap += 1) {
+      var aOne = aParts[ap].trim();
+      if (aOne === "") continue;
+      var aComps = selectorCompounds(aOne);
+      var lastAttr = -1;
+      var attrSpec = null;
+      var anyComplex = false;
+      for (var ac = 0; ac < aComps.length; ac += 1) {
+        var occs = stateAttrScan(aComps[ac].compound);
+        for (var ao = 0; ao < occs.length; ao += 1) {
+          if (occs[ao].topLevel && !occs[ao].complex) { lastAttr = ac; attrSpec = occs[ao]; }
+          else anyComplex = true;
+        }
+      }
+      if (lastAttr === -1) {
+        // The state test is reachable only through a functional pseudo (the compiled Tailwind
+        // group-variant shape) or a non-= operator — the true subject is not the element the
+        // compound names, so forcing here would publish a FALSE noHoverChange. Withheld by name.
+        if (anyComplex) {
+          var complexHostSel = stripStateFunctionalPseudos(stripStatePseudoElements(aOne));
+          if (complexHostSel !== "") markStateHosts(complexHostSel, complexPaintEls);
+        }
+        continue;
+      }
+      var aPaintedSel = stripStateAttrs(aOne);
+      if (hasStatePseudoElement(aPaintedSel)) {
+        var attrHostSel = stripStatePseudoElements(aPaintedSel);
+        if (attrHostSel !== "") markStateHosts(attrHostSel, pseudoPaintEls);
+        continue;
+      }
+      var aSubjectSel = stripStateAttrs(selectorJoin(aComps.slice(0, lastAttr + 1)));
+      if (aPaintedSel === "" || aSubjectSel === "") {
+        // A bare-attribute compound ([data-selected] .label) has no rest-resolvable subject.
+        var bareHostSel = aPaintedSel !== "" ? aPaintedSel : null;
+        if (bareHostSel !== null) markStateHosts(bareHostSel, unresolvedSubjectEls);
+        continue;
+      }
+      var aKey = aSubjectSel + " <<>> " + aPaintedSel + " <<>> " + attrStateKey(attrSpec.attr, attrSpec.value);
+      if (attrPairSeen[aKey] === true) continue;
+      attrPairSeen[aKey] = true;
+      var aPainted = null;
+      try {
+        aPainted = document.querySelectorAll(aPaintedSel);
+      } catch (attrPaintedError) {
+        hoverUnparseable += 1;
+        continue;
+      }
+      for (var apk = 0; apk < aPainted.length; apk += 1) {
+        var apel = aPainted[apk];
+        if (isDevChrome(apel)) continue;
+        var aSubjectEl = null;
+        try {
+          aSubjectEl = aSubjectSel === aPaintedSel ? apel : apel.closest(aSubjectSel);
+        } catch (attrSubjectError) {
+          hoverUnparseable += 1;
+          break;
+        }
+        if (aSubjectEl === null || isDevChrome(aSubjectEl)) continue;
+        var aPrior = aSubjectEl.getAttribute(attrSpec.attr);
+        var aAlready = aPrior !== null && (attrSpec.value === null || aPrior === attrSpec.value);
+        (function (subj, spec, already) {
+          forEachPaintedWithKids(apel, function (el) { attrConsider(el, subj, spec.attr, spec.value, already); });
+        })(aSubjectEl, attrSpec, aAlready);
+      }
+    }
+  }
+
+  // ── the DENOMINATOR: every visible text-bearing subject, one candidate per STATE QUESTION ────
+  // An element painted under both :hover and [data-selected] asks two different questions and gets
+  // two candidate rows; an element painted by neither is ONE candidate, excluded(noHoverPaint) —
+  // now a true claim about both mechanisms. Elements whose only paint is a withheld shape are ONE
+  // candidate under that shape's name.
   var hoverCandidates = [];
   var hoverNoPaint = 0;
+  var hoverAlreadyInState = 0;
+  var hoverPseudoPaint = 0;
+  var hoverComplexPaint = 0;
+  var hoverUnresolvedSubject = 0;
   var hoverUnreadableColor = 0;
   var hoverTextCandidates = 0;
   function hoverRestKey(color, backdrop) {
@@ -234,21 +298,26 @@ export const HOVER_CENSUS = `
     var tel = allEls[ti];
     if (!isVisible(tel)) continue;
     if (directTextOf(tel) === "") continue;
-    hoverTextCandidates += 1;
     var subjectForText = hoverPaintOf.get(tel);
-    if (subjectForText === undefined) { hoverNoPaint += 1; continue; }
+    var attrEntry = attrPaintOf.get(tel);
+    var isPseudoPainted = pseudoPaintEls.get(tel) === true;
+    var isComplexPainted = complexPaintEls.get(tel) === true;
+    var isUnresolvedPainted = unresolvedSubjectEls.get(tel) === true;
+    if (subjectForText === undefined && attrEntry === undefined && !isPseudoPainted && !isComplexPainted && !isUnresolvedPainted) {
+      hoverTextCandidates += 1;
+      hoverNoPaint += 1;
+      continue;
+    }
     var restStyle = getComputedStyle(tel);
     var restColor = parseRgb(restStyle.color);
-    if (restColor === null) { hoverUnreadableColor += 1; continue; }
+    if (restColor === null) { hoverTextCandidates += 1; hoverUnreadableColor += 1; continue; }
     var restBackdrop = resolveBackdrop(tel);
     var fwRest = restStyle.fontWeight;
-    var el = tel;
     var restTransition = hoverTransitionInfo(restStyle.transitionProperty, restStyle.transitionDuration);
-    hoverCandidates.push({
-      el: tel,
-      subject: subjectForText,
-      selector: describe(tel),
-      subjectSelector: describe(subjectForText),
+    // INACTIVE_KIND_EXPR (interpolated below) is written against an \`el\` binding — the shared
+    // spelling every walker call site provides before evaluating it.
+    var el = tel;
+    var restFacts = {
       restColor: { r: restColor.r, g: restColor.g, b: restColor.b },
       restBackdrop: restBackdrop,
       restKey: hoverRestKey({ r: restColor.r, g: restColor.g, b: restColor.b }, restBackdrop),
@@ -257,20 +326,80 @@ export const HOVER_CENSUS = `
       inactive: ${INACTIVE_KIND_EXPR},
       transitionCoversPaint: restTransition.covers,
       transitionDurationMs: restTransition.ms,
-    });
+    };
+    if (subjectForText !== undefined) {
+      hoverTextCandidates += 1;
+      hoverCandidates.push({
+        el: tel,
+        subject: subjectForText,
+        stateAttr: null,
+        stateAttrValue: null,
+        selector: describe(tel),
+        subjectSelector: describe(subjectForText),
+        restColor: restFacts.restColor,
+        restBackdrop: restFacts.restBackdrop,
+        restKey: restFacts.restKey,
+        fontSizePx: restFacts.fontSizePx,
+        fontWeight: restFacts.fontWeight,
+        inactive: restFacts.inactive,
+        transitionCoversPaint: restFacts.transitionCoversPaint,
+        transitionDurationMs: restFacts.transitionDurationMs,
+      });
+    }
+    if (attrEntry !== undefined) {
+      for (var akey in attrEntry) {
+        var aState = attrEntry[akey];
+        hoverTextCandidates += 1;
+        if (aState.already === true) { hoverAlreadyInState += 1; continue; }
+        hoverCandidates.push({
+          el: tel,
+          subject: aState.subject,
+          stateAttr: aState.attr,
+          stateAttrValue: aState.value,
+          selector: describe(tel),
+          subjectSelector: describe(aState.subject),
+          restColor: restFacts.restColor,
+          restBackdrop: restFacts.restBackdrop,
+          restKey: restFacts.restKey,
+          fontSizePx: restFacts.fontSizePx,
+          fontWeight: restFacts.fontWeight,
+          inactive: restFacts.inactive,
+          transitionCoversPaint: restFacts.transitionCoversPaint,
+          transitionDurationMs: restFacts.transitionDurationMs,
+        });
+      }
+    }
+    if (isPseudoPainted) { hoverTextCandidates += 1; hoverPseudoPaint += 1; }
+    if (isComplexPainted) { hoverTextCandidates += 1; hoverComplexPaint += 1; }
+    if (isUnresolvedPainted) { hoverTextCandidates += 1; hoverUnresolvedSubject += 1; }
   }
 
-  // Group by subject: ONE force per subject, all its texts read in one evaluate.
+  // ── grouping: ONE force per subject (per state), all its members read in one evaluate ────────
   var hoverSubjects = [];
   var hoverSubjectIndex = new Map();
-  for (var gi2 = 0; gi2 < hoverCandidates.length; gi2 += 1) {
-    var gsub = hoverCandidates[gi2].subject;
-    if (hoverSubjectIndex.has(gsub)) continue;
-    hoverSubjectIndex.set(gsub, hoverSubjects.length);
-    hoverSubjects.push(gsub);
+  function hoverGroupOf(subject) {
+    var known = hoverSubjectIndex.get(subject);
+    if (known !== undefined) return known;
+    hoverSubjectIndex.set(subject, hoverSubjects.length);
+    hoverSubjects.push(subject);
+    return hoverSubjects.length - 1;
+  }
+  var attrGroups = [];
+  var attrGroupIndex = new Map();
+  function attrGroupOf(subject, attr, value) {
+    var perEl = attrGroupIndex.get(subject);
+    if (perEl === undefined) { perEl = {}; attrGroupIndex.set(subject, perEl); }
+    var key = attrStateKey(attr, value);
+    if (perEl[key] !== undefined) return perEl[key];
+    attrGroups.push({ el: subject, attr: attr, value: value, members: [], glowMembers: [] });
+    perEl[key] = attrGroups.length - 1;
+    return perEl[key];
+  }
+  for (var cm0 = 0; cm0 < hoverCandidates.length; cm0 += 1) {
+    if (hoverCandidates[cm0].stateAttr === null) hoverGroupOf(hoverCandidates[cm0].subject);
   }
   var hoverGroups = [];
-  for (var sj = 0; sj < hoverSubjects.length; sj += 1) hoverGroups.push({ subjectIndex: sj, forced: [], members: [] });
+  for (var sj = 0; sj < hoverSubjects.length; sj += 1) hoverGroups.push({ subjectIndex: sj, forced: [], members: [], glowMembers: [] });
   for (var sk = 0; sk < hoverSubjects.length; sk += 1) {
     // A real pointer sets :hover on the whole ancestor chain; only ancestors that THEMSELVES declare
     // hover paint can change anything, and those are exactly the other subjects.
@@ -283,80 +412,16 @@ export const HOVER_CENSUS = `
   }
   var hoverOverBudget = 0;
   for (var cm = 0; cm < hoverCandidates.length; cm += 1) {
-    var groupIndex = hoverSubjectIndex.get(hoverCandidates[cm].subject);
-    if (groupIndex >= ${String(HOVER_SUBJECT_BUDGET)}) { hoverOverBudget += 1; continue; }
-    hoverGroups[groupIndex].members.push(cm);
-  }
-
-  function hoverRead(gx) {
-    var group = hoverGroups[gx];
-    var out = [];
-    for (var mi = 0; mi < group.members.length; mi += 1) {
-      var idx = group.members[mi];
-      var cand = hoverCandidates[idx];
-      var hoverStyle = getComputedStyle(cand.el);
-      var hoverColor = parseRgb(hoverStyle.color);
-      out.push({
-        index: idx,
-        color: hoverColor === null ? null : { r: hoverColor.r, g: hoverColor.g, b: hoverColor.b },
-        backdrop: resolveBackdrop(cand.el),
-        opacity: accumulatedOpacity(cand.el),
-      });
+    var cand0 = hoverCandidates[cm];
+    if (cand0.stateAttr === null) {
+      var groupIndex = hoverSubjectIndex.get(cand0.subject);
+      if (groupIndex >= ${String(HOVER_SUBJECT_BUDGET)}) { hoverOverBudget += 1; continue; }
+      hoverGroups[groupIndex].members.push(cm);
+    } else {
+      var aGroupIndex = attrGroupOf(cand0.subject, cand0.stateAttr, cand0.stateAttrValue);
+      if (aGroupIndex >= ${String(HOVER_SUBJECT_BUDGET)}) { hoverOverBudget += 1; continue; }
+      attrGroups[aGroupIndex].members.push(cm);
     }
-    return out;
   }
 
-  /** Every candidate's REST reading, re-taken after the last release. A single stuck :hover poisons every
-   *  later sample in the run, so this is proven on the live page each run, not only in a fixture.
-   *  RETURNS CANDIDATE INDICES, not selectors: the Node side joins these against the same index space
-   *  hoverRead emits and hoverRest is built parallel to. Returning selectors here made
-   *  Set<string>.has(number) permanently false on the other side, so the withholding branch never ran
-   *  while the RESULT line still printed the right count. */
-  function hoverVerify() {
-    var stuck = [];
-    for (var vi = 0; vi < hoverCandidates.length; vi += 1) {
-      var vcand = hoverCandidates[vi];
-      var vcolor = parseRgb(getComputedStyle(vcand.el).color);
-      var vkey = hoverRestKey(vcolor === null ? null : { r: vcolor.r, g: vcolor.g, b: vcolor.b }, resolveBackdrop(vcand.el));
-      if (vkey !== vcand.restKey) stuck.push(vi);
-    }
-    return stuck;
-  }
-
-  var hoverRest = [];
-  for (var rj = 0; rj < hoverCandidates.length; rj += 1) {
-    var rc = hoverCandidates[rj];
-    hoverRest.push({
-      selector: rc.selector,
-      subjectSelector: rc.subjectSelector,
-      restColor: rc.restColor,
-      restBackdrop: rc.restBackdrop,
-      fontSizePx: rc.fontSizePx,
-      fontWeight: rc.fontWeight,
-      inactive: rc.inactive,
-      transitionCoversPaint: rc.transitionCoversPaint,
-      transitionDurationMs: rc.transitionDurationMs,
-    });
-  }
-  var hoverGroupRows = [];
-  for (var gk = 0; gk < hoverGroups.length; gk += 1) {
-    hoverGroupRows.push({ forced: hoverGroups[gk].forced, members: hoverGroups[gk].members });
-  }
-  window.__orbHover = { subjects: hoverSubjects, read: hoverRead, verify: hoverVerify };
-  walkObserver.disconnect();
-  return {
-    rest: hoverRest,
-    groups: hoverGroupRows,
-    census: {
-      textCandidates: hoverTextCandidates,
-      noHoverPaint: hoverNoPaint,
-      unreadableColor: hoverUnreadableColor,
-      overBudget: hoverOverBudget,
-      sheetsRead: hoverSheetsRead,
-      sheetsUnreadable: hoverSheetsUnreadable,
-      hoverRules: hoverRuleCount,
-      unparseableSelectors: hoverUnparseable,
-      subjects: hoverSubjects.length,
-    },
-  };
 `;

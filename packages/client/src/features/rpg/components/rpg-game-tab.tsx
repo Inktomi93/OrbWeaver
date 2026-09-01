@@ -377,8 +377,8 @@ function HostConsole({ state }: { readonly state: RpgPanelState }): ReactElement
   return (
     <Stack gap="section" data-slot="rpg-game-tab">
       <Row gap="field" align="center">
-        <Icon icon={Crown} size="sm" className="text-highlight" />
-        <Text voice="kicker" className="tracking-micro text-highlight">
+        <Icon icon={Crown} size="sm" className="text-accolade" />
+        <Text voice="kicker" className="tracking-micro text-accolade">
           Host console — host only
         </Text>
       </Row>

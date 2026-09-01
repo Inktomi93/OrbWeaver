@@ -79,8 +79,8 @@ export function RpgGameDoor({ chatId }: RpgGameDoorProps): ReactElement {
     return (
       <Stack gap="section" data-slot="rpg-game-door" align="start">
         <Row gap="field" align="center">
-          <Icon icon={Crown} size="sm" className="text-highlight" />
-          <Text voice="kicker" className="tracking-micro text-highlight">
+          <Icon icon={Crown} size="sm" className="text-accolade" />
+          <Text voice="kicker" className="tracking-micro text-accolade">
             {GAME_MODE_OFF_KICKER}
           </Text>
         </Row>
@@ -96,8 +96,8 @@ export function RpgGameDoor({ chatId }: RpgGameDoorProps): ReactElement {
   return (
     <Stack gap="section" data-slot="rpg-game-door" align="start">
       <Row gap="field" align="center">
-        <Icon icon={Crown} size="sm" className="text-highlight" />
-        <Text voice="kicker" className="tracking-micro text-highlight">
+        <Icon icon={Crown} size="sm" className="text-accolade" />
+        <Text voice="kicker" className="tracking-micro text-accolade">
           Game mode
         </Text>
       </Row>

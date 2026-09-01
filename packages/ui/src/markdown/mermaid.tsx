@@ -21,9 +21,12 @@ const MERMAID_THEME_VARIABLES = {
 /** Token-styled diagram-error surface, offering retry plus the raw source so a broken diagram stays copy-recoverable. */
 function MermaidError({ error, retry }: MermaidErrorComponentProps): ReactElement {
   return (
-    <div data-slot="markdown-mermaid-error" className="rounded-control border border-destructive/40 bg-card p-block text-label text-muted-foreground">
+    <div
+      data-slot="markdown-mermaid-error"
+      className="rounded-control border border-destructive/40 bg-card p-block text-label leading-label text-muted-foreground"
+    >
       <p className="text-destructive">Diagram failed to render.</p>
-      <p className="mt-field font-mono text-code">{error}</p>
+      <p className="mt-field font-mono text-code leading-label-relaxed">{error}</p>
       <Button className="mt-row" intent="ghost" onClick={retry} size="sm">
         Retry
       </Button>

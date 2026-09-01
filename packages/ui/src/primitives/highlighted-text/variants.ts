@@ -18,7 +18,7 @@ export const highlightedTextVariants = tv({
   variants: {
     skin: {
       default: { root: "text-body leading-body text-foreground" },
-      code: { root: "font-mono text-micro leading-body text-muted-foreground" },
+      code: { root: "font-mono text-micro leading-label text-muted-foreground" },
     },
   },
   defaultVariants: { skin: "default" },

@@ -1,6 +1,7 @@
 // The operator contract is large prose, not parser machinery. Keeping it outside ops/parse.ts gives the
 // validator headroom while still deriving every advertised vocabulary from its owning constants.
 import { appearanceHelpBlock } from "../../_shared/appearance-flags.ts";
+import { panelPresetHelpBlock } from "../../_shared/panel-flags.ts";
 import { themeHelpBlock } from "../../_shared/theme.ts";
 import { NETWORK_PROFILE_SPELLINGS } from "../lib/throttle.ts";
 import { SNAP_SCENARIO_PRESET_NAMES } from "./scenario-presets.ts";
@@ -50,6 +51,7 @@ mid-chain runs mid-chain; --map/--aria/--contrast/--expect-* observe the settled
   --panel <name>=<docked|overlay|collapsed>   drive the shell's panel layout — also the docked↔collapsed
                             FLIP transition (use-list-track-flip.ts + shell.css's shell-list-push-in)
   --focus <on|off>          the shell's zen/focus-mode toggle
+  --panels <preset>         reach a NAMED panel configuration in one flag (see Panel state below)
   --watch <totalMs> [--every <ms>]  poll evals and optional screenshots over time
   Add @N to a page-targeted flag with --pages N, for example --click@1.
   Every selector is CSS unless prefixed: a bare phrase ("choose who speaks next") is a type-selector
@@ -68,6 +70,8 @@ Load emulation (CDP; applied to EVERY page BEFORE it navigates, so boot is measu
   MEASURED LIMIT: the DEV build (~250 unbundled ESM resources) still cannot reach data-app-ready under a
   3G/4G profile — throttle CPU alone against :5173. The network arm is for a PROD build; the recipe for
   serving one off-band is in .claude/skills/side-eye-design-review/SKILL.md.
+
+${panelPresetHelpBlock()}
 
 ${appearanceHelpBlock()}
 

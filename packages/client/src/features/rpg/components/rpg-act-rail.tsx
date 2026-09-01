@@ -1,7 +1,7 @@
 // The P5 ACT RAIL ("ACT II — THE BONE KEY ●I ─ ◉II ─ ○III") — extracted from
 // rpg-quests-tab.tsx (the component-size cap; the RpgSceneCards precedent). Renders the snapshot-resident
 // `tracker.plot` plane (clone-forward like quests — swipe-consistent), current act embered
-// (text-highlight), past acts settled, future acts muted. TEXT is the datum (the "ACT II — title" line);
+// (text-accolade), past acts settled, future acts muted. TEXT is the datum (the "ACT II — title" line);
 // the dot row is aria-hidden decoration (the tracker-kit a11y model). Null plot ⇒ the caller renders
 // nothing (no client-invented acts, ever).
 //
@@ -31,7 +31,7 @@ const ACT_STATES = ["past", "current", "future"] as const;
 type ActState = (typeof ACT_STATES)[number];
 const ACT_STATE_STYLE: Readonly<Record<ActState, { readonly glyph: string; readonly className: string }>> = {
   past: { glyph: "●", className: "text-foreground" },
-  current: { glyph: "◉", className: "text-highlight font-semibold" },
+  current: { glyph: "◉", className: "text-accolade font-semibold" },
   future: { glyph: "○", className: "text-muted-foreground" },
 };
 
@@ -67,12 +67,12 @@ export function RpgActRail({ plot, edit }: { readonly plot: RpgPlot; readonly ed
     <Stack gap="field" data-slot="rpg-act-rail" className="rounded-base border border-border bg-card px-block py-row">
       <Row gap="block" align="center" justify="between">
         {edit === undefined ? (
-          <Text voice="kicker" className="text-highlight">
+          <Text voice="kicker" className="text-accolade">
             {heading}
           </Text>
         ) : (
           <Row gap="field" align="center" className="min-w-0">
-            <Text as="span" voice="kicker" className="text-highlight">
+            <Text as="span" voice="kicker" className="text-accolade">
               Act
             </Text>
             {/* Rest shows the mock's ROMAN numeral; the click-reveals input edits the arabic number. */}
@@ -88,7 +88,7 @@ export function RpgActRail({ plot, edit }: { readonly plot: RpgPlot; readonly ed
                 }
               }}
               className="!w-avatar-md px-field text-center tabular-nums"
-              restClassName="font-semibold text-highlight"
+              restClassName="font-semibold text-accolade"
             />
             <Text as="span" voice="label" aria-hidden={true} className="text-muted-foreground">
               —
@@ -99,7 +99,7 @@ export function RpgActRail({ plot, edit }: { readonly plot: RpgPlot; readonly ed
               placeholder="act title…"
               onEdit={(next): void => edit.onEditActTitle(next.trim())}
               className="!w-auto min-w-0 max-w-full field-sizing-content"
-              restClassName="min-w-0 text-highlight"
+              restClassName="min-w-0 text-accolade"
             />
             {pinned === undefined || pinned === null ? null : <RpgFieldLock field="the act" onRelease={(): void => edit.onRelease(pinned)} />}
           </Row>

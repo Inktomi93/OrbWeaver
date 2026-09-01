@@ -2,18 +2,18 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 430,
-    "enforced": 427,
+    "sites": 432,
+    "enforced": 429,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 427,
+      "deliberate-absorb": 429,
       "detached-owned": 3,
       "unproven": 0
     },
     "byGrammar": {
       "promise": 124,
-      "default": 120,
-      "empty": 186
+      "default": 121,
+      "empty": 187
     }
   },
   "rows": [
@@ -4165,6 +4165,19 @@
       "markerLine": 105
     },
     {
+      "siteId": "tooling/src/_shared/panel-flags.ts::default:catch::1",
+      "path": "tooling/src/_shared/panel-flags.ts",
+      "line": 48,
+      "column": 5,
+      "grammar": "default",
+      "position": "default:catch",
+      "ordinal": 1,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "panel-preset JSON parse returns null so the caller emits its option-specific refusal; no nav action is queued. Ends if parse failure stops being a refusal.",
+      "markerLine": 45
+    },
+    {
       "siteId": "tooling/src/_shared/proc.ts::empty:error::1",
       "path": "tooling/src/_shared/proc.ts",
       "line": 24,
@@ -5285,7 +5298,7 @@
     {
       "siteId": "tooling/src/ui-audit/ops/hover.ts::empty:e::1",
       "path": "tooling/src/ui-audit/ops/hover.ts",
-      "line": 310,
+      "line": 389,
       "column": 5,
       "grammar": "empty",
       "position": "empty:e",
@@ -5293,7 +5306,7 @@
       "snippet": "} catch (e) {",
       "verdict": "deliberate-absorb",
       "reason": "printed as `HOVER REFUSED <why>`, RETURNED as a `broke` outcome, and RENDERED AS EXIT.toolError by run.ts — propagated through both the message and the exit code, so a forced-state pass that failed reddens the audit's verdict rather than being absorbed. END CONDITION: the run reports `hover-contrast` NO VERDICT and exits 2.",
-      "markerLine": 257
+      "markerLine": 311
     },
     {
       "siteId": "tooling/src/ui-audit/ops/matrix.ts::empty:error::1",
@@ -5346,6 +5359,19 @@
       "verdict": "deliberate-absorb",
       "reason": "every validator failure is converted into this gate's asset-contract finding and zero-scan receipt. Ends if the catch stops reporting the failure detail.",
       "markerLine": 100
+    },
+    {
+      "siteId": "tooling/src/verify/gates/integer-line-boxes.ts::empty:catch::1",
+      "path": "tooling/src/verify/gates/integer-line-boxes.ts",
+      "line": 118,
+      "column": 5,
+      "grammar": "empty",
+      "position": "empty:catch",
+      "ordinal": 1,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "an unparseable tokens.json becomes this gate's own RED finding (\"tokens.json is unparseable\") through the returned problems array — the loudest owner a structural gate has. Ends if the problems array stops being reported in `run`.",
+      "markerLine": 115
     },
     {
       "siteId": "tooling/src/verify/gates/monotonic-tests.ts::empty:catch::1",

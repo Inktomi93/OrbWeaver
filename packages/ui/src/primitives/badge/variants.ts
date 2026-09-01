@@ -3,7 +3,7 @@ import { tv } from "#lib";
 // The badge/chip/pill skin — status token PAIRS on a rounded-full pill (ui-package-design §6.1).
 // `info` rides its own `--color-info` / `--color-info-foreground` pair (D71 static intent token; the
 // foreground was minted in north-star PP1). THREE tones per intent, in descending weight: `solid`
-// (default — the filled pill, unchanged), `soft` (a 15% color-mix tint + the intent's own text color +
+// (default — the filled pill, unchanged), `soft` (an 8% color-mix tint + the intent's own text color +
 // a 30% hairline border, via Tailwind v4 opacity modifiers which compile to `color-mix(in oklab,
 // var(--color-<intent>) N%, transparent)` — north-star §2c), and `ghost` (NO fill at all — a hairline
 // outline + the intent's text color). Migrated status chips (Host / filter / member role) use `soft`;
@@ -31,9 +31,11 @@ export const badgeVariants = tv({
       md: "px-block py-field text-body leading-body",
       // THE IN-FLOW ARM (side-eye F-6, 2026-08-03) — a chip that sits INSIDE a run of prose (a `{{macro}}`
       // token in a preview of what the model receives), not beside it. `sm` in that position is line-box
-      // DAMAGE: `inline-flex` + `py-field` + `leading-label` builds a 28.25px box inside a 20.15px line, so
-      // every line carrying a macro shoves its neighbours apart, and the 8px side padding detaches the
-      // following punctuation (`{{user}} 's voice`).
+      // DAMAGE: `inline-flex` + `py-field` + `leading-label` builds a box TALLER than the line it sits in, so
+      // every line carrying a macro shoves its neighbours apart, and the side padding detaches the
+      // following punctuation (`{{user}} 's voice`). (The 2026-08-03 measurement was 28.25px in a 20.15px
+      // line; those figures are archaeology of a REJECTED shape and no longer hold under the integer
+      // line-box scale, so the mechanism is stated and the stale numbers are not.)
       //
       // So this arm states the three things that make a chip behave like a WORD: `inline` (participates in
       // the line box instead of establishing a flex box), NO padding on either axis (the braces the chip
@@ -67,20 +69,27 @@ export const badgeVariants = tv({
     },
   },
   compoundVariants: [
-    { intent: "neutral", tone: "soft", class: "bg-muted/15 text-muted-foreground border-border" },
-    { intent: "primary", tone: "soft", class: "bg-primary/15 text-primary border-primary/30" },
-    { intent: "success", tone: "soft", class: "bg-success/15 text-success border-success/30" },
-    { intent: "warning", tone: "soft", class: "bg-warning/15 text-warning border-warning/30" },
-    // DANGER TINTS AT 8%, NOT THE FAMILY'S 15% (side-eye 2026-08-08 P1-1, measured). `soft` paints the
-    // intent's own hue as TEXT on a tint of that same hue — so the tint spends contrast, and destructive
-    // has the least to spend: tokens.json tunes it to 5.07:1 as text on the dark card, the FLOOR of the
-    // status family (success/warning/info/primary all sit higher). At 15% the composite fell to 4.28:1 —
-    // under AA-NORMAL at this chip's 13px/500 — on the one chip in the app whose whole job is to say a job
-    // is dead. 8% restores 4.66:1 (10% was only 4.59:1, too thin a margin to survive a theme's own
-    // destructive arm). The hairline stays at /30, so the pill keeps its shape and reads as a `soft` chip,
-    // not a ghost. Pinned by a canvas-composited contrast measurement in tests/ui/primitives/badge/badge.ct.tsx.
+    // THE SOFT TINT IS 8% FOR THE WHOLE FAMILY (2026-09-01; was 15%, with destructive alone at 8%).
+    // `soft` paints the intent's own hue as TEXT on a tint of that SAME hue, so the tint spends contrast
+    // out of the ink's own budget — and the budget is a property of the (ink, ground) PAIR, not of the
+    // token. The 15% family alpha was tuned against the card, which is the widest budget any ground
+    // offers; every quieter ground spends more. Measured across all three seeds × every chrome/quiet
+    // ground including the `bg-accent` a ListRow or Card paints on HOVER (list-row/variants.ts:107,188,212,
+    // card/variants.ts:34) UNDER whatever the row contains: at 15% the family put 42 (ink, ground) pairs
+    // under AA-NORMAL 4.5:1, worst 3.40:1; at 8% — with the two token arms that moved with it
+    // (tokens.json destructive dark, themes/light.json warning) — ZERO, worst 4.54:1. So the alpha the
+    // destructive chip already needed is simply the alpha the family needed, and the special case retires:
+    // ONE tint strength, no per-intent exception to keep in sync. The hairline stays at /30, so the pill
+    // keeps its shape and reads as a `soft` chip, not a ghost (the destructive arm has shipped at 8% since
+    // 2026-08-08 and reads correctly). Pinned by canvas-composited contrast measurements in BOTH polarities
+    // in tests/ui/primitives/badge/badge.ct.tsx, and statically for every seed by the
+    // `seed-theme-ink-contrast` gate.
+    { intent: "neutral", tone: "soft", class: "bg-muted/8 text-muted-foreground border-border" },
+    { intent: "primary", tone: "soft", class: "bg-primary/8 text-primary border-primary/30" },
+    { intent: "success", tone: "soft", class: "bg-success/8 text-success border-success/30" },
+    { intent: "warning", tone: "soft", class: "bg-warning/8 text-warning border-warning/30" },
     { intent: "danger", tone: "soft", class: "bg-destructive/8 text-destructive border-destructive/30" },
-    { intent: "info", tone: "soft", class: "bg-info/15 text-info border-info/30" },
+    { intent: "info", tone: "soft", class: "bg-info/8 text-info border-info/30" },
     { intent: "neutral", tone: "ghost", class: "text-muted-foreground border-border" },
     { intent: "primary", tone: "ghost", class: "text-primary border-primary/30" },
     { intent: "success", tone: "ghost", class: "text-success border-success/30" },

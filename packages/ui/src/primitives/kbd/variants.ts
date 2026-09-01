@@ -10,5 +10,5 @@ import { tv } from "#lib";
 // derived ramp member themes retint) not `--accent` — accent is reserved for hover/interaction
 // states (north-star PP2).
 export const kbdVariants = tv({
-  base: "inline-flex select-none items-center justify-center rounded-inset bg-muted px-field font-mono text-micro tracking-micro text-muted-foreground",
+  base: "inline-flex select-none items-center justify-center rounded-inset bg-muted px-field font-mono text-micro leading-micro tracking-micro text-muted-foreground",
 });

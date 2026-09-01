@@ -12,7 +12,7 @@ export const seriesRowVariants = tv({
     swatch: "size-row shrink-0 rounded-control",
     content: "flex min-w-0 flex-1 flex-col",
     label: "truncate text-foreground",
-    detail: "truncate text-micro leading-label text-muted-foreground",
+    detail: "truncate text-micro leading-micro text-muted-foreground",
     value: "shrink-0 tabular-nums text-muted-foreground",
   },
   variants: {

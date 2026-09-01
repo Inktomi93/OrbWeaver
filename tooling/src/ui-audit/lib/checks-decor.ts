@@ -178,8 +178,12 @@ function scanShadowValue(value: string, prop: string, onDark: boolean, selector:
       severity: "P3",
       selector,
       value: `${prop}: ${verdict === "halo" ? "zero-offset chromatic halo" : "chromatic blur on dark backdrop"}`,
+      // MEASURED TRUTH, not the old clobber rationale (SKILL.md retraction + the re-taken 2026-09-01
+      // composition receipt: ring layers serialize FIRST in the composed box-shadow, so a utility-form
+      // glow does not clobber the focus ring). The sanctioned forms are named below; everything else —
+      // a hand-spelled halo, a layer over content, a near-miss of the token — is the glow tell.
       message:
-        "a colored glow shadow — the sanctioned accent glow (--shadow-glow) rides a DEDICATED pseudo layer (absolute, pointer-events-none, behind the content, inset to the box, carrying no other paint) on selected/active carriers only; on the element itself, or on a layer that paints over content or carries other decoration, it is the generated-UI glow tell",
+        "a colored glow shadow — the sanctioned forms are the rationed accent glow (--shadow-glow) on a DEDICATED pseudo layer (absolute, pointer-events-none, behind the content, inset to the box, carrying no other paint) on selected/active carriers, and the token-exact primary-CTA hover treatment (--shadow-cta-glow, which the focus ring composes over); any other chromatic glow is the generated-UI glow tell",
       origin: "impeccable",
     };
   }

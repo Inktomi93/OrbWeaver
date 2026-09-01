@@ -1,7 +1,14 @@
 // The FORCED-STATE pass (`hover-contrast`) — the one sample family that cannot be gathered inside
 // COLLECT_SAMPLES_JS, because Chromium exposes no way for page JS to force its own `:hover`. The only
 // door is `CSS.forcePseudoState` over CDP, which is a NODE-side round trip, so this pass sandwiches a
-// Node loop between two in-page evaluations.
+// Node loop between two in-page evaluations. Since 2026-09-01 it carries BOTH state mechanisms
+// (docs/design/state-paint-census.md): the `:hover` pseudo over CDP, and Base UI's `data-*` state
+// attributes forced IN PAGE (a synchronous set/read/restore needs no protocol door) — plus the
+// state-gated GLOW rows read while a subject is held, folded into the static glow census's own
+// sample families. STATED LIMIT: the `(hover: none)` early return below withholds the ATTRIBUTE
+// census too — attribute states are real on touch, but the rule collection is not media-condition
+// aware, so a coarse-pointer environment keeps the whole pass `not-applicable` (visible as
+// `hover-pass=no-hover-media` on the RESULT line) rather than running half-blind.
 //
 // THE BOUNDED-POPULATION ARGUMENT (the design question this file answers). A naive "force hover on every
 // interactive element" is one round trip per element — 117 controls on `settings:appearance` — and most
@@ -26,12 +33,23 @@ import { errorMessage } from "@orb/kit/error-message";
 import { print } from "@orb/tooling/_shared/artifacts";
 import type { CDPSession, Page } from "@playwright/test";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import type { RawSamples } from "../contract/samples.ts";
-import type { HoverCensusRestRow, HoverCensusResult, HoverContrastInput, HoverForcedReadRow, HoverGroupRow } from "../contract/samples-hover.ts";
+import type { GlowShadowInput, RadialGlowInput, RawSamples } from "../contract/samples.ts";
+import type {
+  HoverAttrGroupRow,
+  HoverAttrReadResult,
+  HoverCensusRestRow,
+  HoverCensusResult,
+  HoverContrastInput,
+  HoverForcedReadRow,
+  HoverGroupRow,
+} from "../contract/samples-hover.ts";
 import type { HoverPass, HoverPassOutcome } from "../contract/types.ts";
+import { candidateIndices, groupReadResult } from "./hover-validate.ts";
 import { HOVER_CENSUS } from "./hover-walker.ts";
+import { HOVER_FORCE_READ } from "./hover-walker-read.ts";
 import { WALKER_CORE } from "./walker/core.ts";
 import { WALKER_RESOLVE } from "./walker/resolve.ts";
+import { WALKER_STATE_PAINT } from "./walker/state-paint.ts";
 import { WALKER_MUTATION_CARRIES } from "./walker.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm design-audit");
@@ -40,41 +58,10 @@ refuseDirectInvocation(import.meta.url, "pnpm design-audit");
  *  `resolveBackdrop` machinery the main walk uses — never a second colour reader or a second backdrop
  *  resolver (UI-Primitives-and-Reuse.md §13.9; three shipped rules were structurally dead the last time
  *  this instrument grew its own). CORE's mutation observer needs `mutationCarriesElement`, which is why
- *  walker.ts exports that fragment separately. */
+ *  walker.ts exports that fragment separately. WALKER_STATE_PAINT sits after RESOLVE and before the
+ *  census halves — the same var-initialization ordering COLLECT_SAMPLES_JS obeys. */
 const HOVER_CENSUS_JS = `(async () => {
-${WALKER_MUTATION_CARRIES}${WALKER_CORE}${WALKER_RESOLVE}${HOVER_CENSUS}})()`;
-
-/** Parses a list of CANDIDATE INDICES the page returned, refusing anything that is not one. This is
- *  the seam the pass's first defect lived at: `JSON.parse(raw) as number[]` over a list of selector
- *  STRINGS type-checked fine and silently disabled the restoration withholding. A cast here has no
- *  compiler behind it, so this validates instead — and a violation is an INSTRUMENT ERROR, loud. */
-function candidateIndices(raw: string, bound: number, label: string): number[] {
-  const parsed: unknown = JSON.parse(raw);
-  if (!Array.isArray(parsed)) {
-    throw new Error(`INSTRUMENT ERROR: ${label} returned ${typeof parsed}, not a list of candidate indices`);
-  }
-  return parsed.map((value: unknown) => {
-    if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 0 || value >= bound) {
-      throw new Error(`INSTRUMENT ERROR: ${label} returned ${JSON.stringify(value)}, not a candidate index below ${String(bound)}`);
-    }
-    return value;
-  });
-}
-
-/** Same discipline for the forced readings: every row must name a candidate this pass censused. */
-function forcedReadRows(raw: string, bound: number): HoverForcedReadRow[] {
-  const parsed: unknown = JSON.parse(raw);
-  if (!Array.isArray(parsed)) {
-    throw new Error(`INSTRUMENT ERROR: hover read returned ${typeof parsed}, not a list of readings`);
-  }
-  return parsed.map((value: unknown) => {
-    const row = value as HoverForcedReadRow;
-    if (typeof row.index !== "number" || !Number.isSafeInteger(row.index) || row.index < 0 || row.index >= bound) {
-      throw new Error(`INSTRUMENT ERROR: hover read row names ${JSON.stringify(row.index)}, not a candidate index below ${String(bound)}`);
-    }
-    return row;
-  });
-}
+${WALKER_MUTATION_CARRIES}${WALKER_CORE}${WALKER_RESOLVE}${WALKER_STATE_PAINT}${HOVER_CENSUS}${HOVER_FORCE_READ}})()`;
 
 /** The RESULT line's `hover-pass=` word. ONE token, never a sentence — the machine line is split on
  *  whitespace by its readers, so the `broke` arm's full reason rides the printed `HOVER REFUSED` line,
@@ -141,11 +128,14 @@ interface HoverSession {
 
 interface GroupOutcome {
   readonly rows: readonly HoverForcedReadRow[];
+  readonly shadows: readonly GlowShadowInput[];
+  readonly radials: readonly RadialGlowInput[];
   readonly failure: string | null;
 }
 
-/** Hold one subject chain in `:hover`, read every text it repaints, release. The release runs even when
- *  the read threw — a stuck state would silently corrupt every group after this one. */
+/** Hold one subject chain in `:hover`, read every text it repaints (and the glow deltas riding the
+ *  same force), release. The release runs even when the read threw — a stuck state would silently
+ *  corrupt every group after this one. */
 async function readGroup(session: HoverSession, groupIndex: number, group: HoverGroupRow): Promise<GroupOutcome> {
   const { page, cdp, nodes } = session;
   const held: number[] = [];
@@ -158,9 +148,10 @@ async function readGroup(session: HoverSession, groupIndex: number, group: Hover
       held.push(nodeId);
     }
     const raw = (await page.evaluate(`JSON.stringify(window.__orbHover.read(${String(groupIndex)}))`)) as string;
-    return { rows: forcedReadRows(raw, session.candidates), failure: null };
+    const result = groupReadResult(raw, session.candidates, "hover group read");
+    return { rows: result.reads, shadows: result.shadows, radials: result.radials, failure: null };
   } catch (e) {
-    return { rows: [], failure: errorMessage(e) };
+    return { rows: [], shadows: [], radials: [], failure: errorMessage(e) };
   } finally {
     for (const nodeId of held) {
       await force(cdp, nodeId, false);
@@ -183,17 +174,23 @@ interface ForcedReads {
   readonly failures: readonly string[];
   readonly forceFailedMembers: number;
   readonly subjectsForced: number;
+  readonly shadows: readonly GlowShadowInput[];
+  readonly radials: readonly RadialGlowInput[];
 }
 
 /** Every group, one at a time. A group whose force or read threw contributes its members to
- *  `forceFailed` — a named withholding, which makes the run a NO VERDICT rather than a quiet partial. */
+ *  `forceFailed` — a named withholding, which makes the run a NO VERDICT rather than a quiet partial.
+ *  A group with zero contrast members but a non-zero glow count is still driven — skipping it would
+ *  silently drop the state-gated glow arm. */
 async function forceEveryGroup(session: HoverSession, groups: readonly HoverGroupRow[]): Promise<ForcedReads> {
   const reads = new Map<number, HoverForcedReadRow>();
   const failures: string[] = [];
+  const shadows: GlowShadowInput[] = [];
+  const radials: RadialGlowInput[] = [];
   let forceFailedMembers = 0;
   let subjectsForced = 0;
   for (const [groupIndex, group] of groups.entries()) {
-    if (group.members.length === 0) {
+    if (group.members.length === 0 && group.glows === 0) {
       continue;
     }
     // Strictly sequential: only one subject chain may be held in `:hover` at a time, because a page with
@@ -204,6 +201,8 @@ async function forceEveryGroup(session: HoverSession, groups: readonly HoverGrou
       for (const row of outcome.rows) {
         reads.set(row.index, row);
       }
+      shadows.push(...outcome.shadows);
+      radials.push(...outcome.radials);
       continue;
     }
     forceFailedMembers += group.members.length;
@@ -211,7 +210,62 @@ async function forceEveryGroup(session: HoverSession, groups: readonly HoverGrou
       failures.push(outcome.failure);
     }
   }
-  return { reads, failures, forceFailedMembers, subjectsForced };
+  return { reads, failures, forceFailedMembers, subjectsForced, shadows, radials };
+}
+
+interface AttrForcedReads extends ForcedReads {
+  /** Candidate indices whose group's SAME-TASK attribute restore failed — their reads are withheld
+   *  (`notRestored`) exactly like a verify-caught stuck state, because a subject that would not give
+   *  its attribute back is a subject whose later samples cannot be trusted either. */
+  readonly stuckMembers: ReadonlySet<number>;
+}
+
+/** One attribute group driven in page — the same outcome shape as `readGroup`, so a failed force is
+ *  a `failure` the caller counts into the withheld population (never an absorbed rejection). */
+async function readAttrGroup(page: Page, groupIndex: number, group: HoverAttrGroupRow, candidates: number): Promise<GroupOutcome & { restored: boolean }> {
+  try {
+    const raw = (await page.evaluate(`JSON.stringify(window.__orbHover.readAttr(${String(groupIndex)}))`)) as string;
+    const result = groupReadResult(raw, candidates, `state-attr group read [${group.attr}]`);
+    const restored = (JSON.parse(raw) as HoverAttrReadResult).restored;
+    return { rows: result.reads, shadows: result.shadows, radials: result.radials, failure: null, restored };
+  } catch (e) {
+    return { rows: [], shadows: [], radials: [], failure: errorMessage(e), restored: true };
+  }
+}
+
+/** The ATTRIBUTE mechanism's drive: no CDP — each group's force/read/restore is ONE synchronous
+ *  in-page task (`window.__orbHover.readAttr`), sequential for the same one-state-at-a-time reason. */
+async function forceEveryAttrGroup(page: Page, groups: readonly HoverAttrGroupRow[], candidates: number): Promise<AttrForcedReads> {
+  const reads = new Map<number, HoverForcedReadRow>();
+  const failures: string[] = [];
+  const shadows: GlowShadowInput[] = [];
+  const radials: RadialGlowInput[] = [];
+  const stuckMembers = new Set<number>();
+  let forceFailedMembers = 0;
+  let subjectsForced = 0;
+  for (const [groupIndex, group] of groups.entries()) {
+    if (group.members.length === 0 && group.glows === 0) {
+      continue;
+    }
+    const outcome = await readAttrGroup(page, groupIndex, group, candidates);
+    if (outcome.failure !== null) {
+      forceFailedMembers += group.members.length;
+      if (failures.length < FORCE_FAILURE_QUOTES) {
+        failures.push(outcome.failure);
+      }
+      continue;
+    }
+    subjectsForced += 1;
+    for (const row of outcome.rows) {
+      reads.set(row.index, row);
+      if (outcome.restored !== true) {
+        stuckMembers.add(row.index);
+      }
+    }
+    shadows.push(...outcome.shadows);
+    radials.push(...outcome.radials);
+  }
+  return { reads, failures, forceFailedMembers, subjectsForced, shadows, radials, stuckMembers };
 }
 
 /** Joins each candidate's rest facts to its forced reading. A candidate with no reading was already
@@ -264,29 +318,52 @@ export async function resolveHoverStates(page: Page, samples: RawSamples, hoverC
     const census = (await page.evaluate(HOVER_CENSUS_JS)) as HoverCensusResult;
     const candidates = census.rest.length;
     const forced = await forceEveryGroup({ page, cdp, nodes: new SubjectNodes(cdp), candidates }, census.groups);
-    // THE RELEASE PROOF, on the live page, every run: rest state re-read after the last release. The
-    // indices come back through `candidateIndices`, which REFUSES anything that is not one — the seam
-    // where a silent `as number[]` once turned this entire branch off.
+    // The ATTRIBUTE mechanism runs AFTER every CDP hold is released — one state at a time, page-wide.
+    const attrForced = await forceEveryAttrGroup(page, census.attrGroups, candidates);
+    // THE RELEASE PROOF, on the live page, every run: rest state re-read after the last release —
+    // BOTH mechanisms, one candidate space (a stuck data-attribute changes the rest key exactly as a
+    // stuck `:hover` did, and the microtask-delayed re-arm class is visible ONLY here). The indices
+    // come back through `candidateIndices`, which REFUSES anything that is not one — the seam where a
+    // silent `as number[]` once turned this entire branch off.
     const stuckRaw = (await page.evaluate("JSON.stringify(window.__orbHover.verify())")) as string;
-    const stuck = new Set(candidateIndices(stuckRaw, candidates, "hover verify"));
+    const stuck = new Set([...candidateIndices(stuckRaw, candidates, "hover verify"), ...attrForced.stuckMembers]);
     await page.evaluate("delete window.__orbHover");
     const withheld: Record<string, number> = {};
-    bump(withheld, "forceFailed", forced.forceFailedMembers);
-    const inputs = settleInputs(census.rest, forced, stuck, withheld);
+    bump(withheld, "forceFailed", forced.forceFailedMembers + attrForced.forceFailedMembers);
+    const mergedReads = new Map([...forced.reads, ...attrForced.reads]);
+    const merged: ForcedReads = { ...forced, reads: mergedReads };
+    const inputs = settleInputs(census.rest, merged, stuck, withheld);
     bump(withheld, "unreadableRestColor", census.census.unreadableColor);
     bump(withheld, "forceBudget", census.census.overBudget);
+    // The state shapes the forcer refuses to fake a measurement for (samples-hover.ts) — withheld by
+    // NAME, so a surface carrying one is a NO VERDICT with a reason, never a false noHoverPaint.
+    bump(withheld, "pseudoElementPaint", census.census.pseudoElementPaint);
+    bump(withheld, "complexStateSelector", census.census.complexStateSelector);
+    bump(withheld, "unresolvableStateSubject", census.census.unresolvableStateSubject);
     // ── #2 POLARITY. `excluded` is a MEASUREMENT proving the rule does not apply; `withheld` is the
-    // absence of a measurement. An unreadable stylesheet's `:hover` rules were never collected, so every
+    // absence of a measurement. An unreadable stylesheet's state rules were never collected, so every
     // element it would have painted falls into `noHoverPaint` — recording that as `excluded` would file
     // absence-of-measurement as proof-of-inapplicability, the polarity inverted. `noHoverPaint` only
     // earns `excluded` when every sheet was readable AND every selector parsed.
     const paintProven = census.census.sheetsUnreadable === 0 && census.census.unparseableSelectors === 0;
     const excluded: Record<string, number> = {};
     bump(paintProven ? excluded : withheld, paintProven ? "noHoverPaint" : "noHoverPaintUnproven", census.census.noHoverPaint);
+    // A subject already IN the forced state at rest: that paint is live and the rest families judge
+    // it — a measurement-backed exclusion, never a re-force.
+    bump(excluded, "alreadyInState", census.census.alreadyInState);
+    const stateShadows = [...forced.shadows, ...attrForced.shadows];
+    const stateRadials = [...forced.radials, ...attrForced.radials];
+    // The attribute + glow arms' visible receipt (the glow families carry no per-sample accounting
+    // channel, so an unresolved glow pair is NAMED here rather than silently dropped).
+    print(
+      `STATE-PAINT  attr-rules=${String(census.census.attrRules)} attr-subjects-forced=${String(attrForced.subjectsForced)} glow-rules=${String(census.census.glowRules)} glow-state-rows=${String(stateShadows.length + stateRadials.length)} glow-unresolved=${String(census.census.glowUnresolved)}`,
+    );
     return {
       samples: {
         ...samples,
         hoverStates: inputs,
+        shadowGlows: [...samples.shadowGlows, ...stateShadows],
+        radialGlows: [...samples.radialGlows, ...stateRadials],
         hoverScan: {
           census: {
             candidates: census.census.textCandidates,
@@ -297,6 +374,8 @@ export async function resolveHoverStates(page: Page, samples: RawSamples, hoverC
           sheetsRead: census.census.sheetsRead,
           sheetsUnreadable: census.census.sheetsUnreadable,
           hoverRules: census.census.hoverRules,
+          attrRules: census.census.attrRules,
+          attrSubjectsForced: attrForced.subjectsForced,
           unparseableSelectors: census.census.unparseableSelectors,
           subjectsForced: forced.subjectsForced,
           notRestored: stuck.size,
@@ -305,7 +384,7 @@ export async function resolveHoverStates(page: Page, samples: RawSamples, hoverC
       wallMs: Date.now() - started,
       outcome: { kind: "ran" },
       subjectsForced: forced.subjectsForced,
-      forceFailures: forced.failures,
+      forceFailures: [...forced.failures, ...attrForced.failures],
     };
   } catch (e) {
     // A CHECKER THAT BROKE IS NOT A CLEAN SURFACE (#953). The reason is printed here at the moment it

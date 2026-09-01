@@ -17,7 +17,7 @@ export const optionStripVariants = tv({
     ],
     leading: "flex shrink-0 items-center justify-center text-muted-foreground",
     body: "flex min-w-0 flex-1 items-center gap-field",
-    label: "font-mono text-code text-foreground",
+    label: "font-mono text-code leading-label-relaxed text-foreground",
     description: "truncate text-label leading-label text-muted-foreground",
   },
   variants: {

@@ -229,8 +229,11 @@ const PARITY_SITES: readonly { readonly site: string; readonly old: string; read
   },
   {
     site: "rpg-header-band veiled cue (medium weight)",
-    old: "!h-auto min-h-0 gap-field !px-field !py-0 text-highlight hover:text-highlight",
-    next: "px-field font-medium text-highlight hover:text-highlight",
+    // The gold moved to `text-accolade` on 2026-09-01 (the polarity-aware distinction INK; `highlight`
+    // stays the background-only mark token) — mirrored here because this row claims to be the site's
+    // own class strings. Geometry is unchanged: both are colour utilities.
+    old: "!h-auto min-h-0 gap-field !px-field !py-0 text-accolade hover:text-accolade",
+    next: "px-field font-medium text-accolade hover:text-accolade",
   },
   {
     site: "rpg-pack-rows item glyph (zero padding)",
