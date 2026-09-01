@@ -6,6 +6,7 @@ import type {
   CohortAnatomyInput,
   GradientTextInput,
   NestedCardInput,
+  PaneInkInput,
   RowVoidInput,
   SelectionIdiomInput,
   ZIndexInput,
@@ -162,6 +163,33 @@ export function checkAnimatedImgHover(input: AnimatedImgHoverInput): Finding | n
     selector: input.selector,
     value: "hover transform/transition",
     message: "image animates (scale/rotate/translate) on hover — confirm this is intentional, not inherited card-hover motion",
+    origin: "orbweaver",
+  };
+}
+
+/** A region below this is evacuated rather than merely short. Personas measured 40% at 752px; the
+ *  teacher, four lines in a 700px column. Above it a region reads as deliberately airy. */
+const INK_MIN_RATIO = 0.45;
+
+/** THE PANE DOES NOT EARN ITS HEIGHT (#978). "The panes are 60-90% empty and nothing designed lives in
+ *  the void — not 'clean', UNFINISHED-LOOKING." The shell gave this region its size; the region has to
+ *  either fill it or not be that big.
+ *
+ *  P3 because the fix is a design decision rather than a defect repair: either the region earns the
+ *  width (a measure cap plus a second column for the section's teaching) or the shell should not hand it
+ *  that much. Only the LOW side is judged — a region whose content runs past the fold is a scroll, and
+ *  the walker never samples a scrolled region at all. */
+export function checkPaneInk(input: PaneInkInput): Finding | null {
+  if (input.inkRatio >= INK_MIN_RATIO) {
+    return null;
+  }
+  return {
+    rule: "pane-ink",
+    severity: "P3",
+    selector: input.selector,
+    value: `content ends at ${String(input.lastInkPx)}px of ${String(input.paneHeightPx)}px (${String(Math.round(input.inkRatio * RATIO_AS_PERCENT))}% ink, ${String(input.textLeaves)} text leaves)`,
+    message:
+      "a region is mostly empty below its content and nothing designed lives in the void — this reads as unfinished rather than airy. Either earn the height (a capped measure plus a second column for the section's own teaching, or a designed landing state) or let the shell hand this region less room",
     origin: "orbweaver",
   };
 }

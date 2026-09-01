@@ -79,3 +79,38 @@ export interface SelectionIdiomInput {
   /** The rarest treatment's element — the likeliest odd one out, and where a reader should look first. */
   readonly exampleSelector: string;
 }
+
+/** One region and how far down its own height its last text actually reaches.
+ *
+ *  Measured on TEXT-BEARING LEAVES, never the tallest descendant: a full-height flex container spans the
+ *  pane, so a max-descendant measure reports 100% ink on an evacuated region. */
+export interface PaneInkInput {
+  readonly selector: string;
+  readonly paneHeightPx: number;
+  readonly lastInkPx: number;
+  /** `lastInkPx / paneHeightPx`, 2dp. */
+  readonly inkRatio: number;
+  readonly textLeaves: number;
+}
+
+/** The loudest ON state and the loudest OFF state on one surface, as an ORDERING.
+ *
+ *  No single contrast value here is wrong — the RANK is. Base UI emits `data-checked` and
+ *  `data-unchecked` on the same component, so the pair is the author's own claim. Both sides must be
+ *  measurable or the sample is not emitted at all: a one-sided comparison is silence, never a verdict. */
+export interface QuietStateInput {
+  readonly selector: string;
+  readonly offContrast: number;
+  readonly onContrast: number;
+}
+
+/** How many empty states one surface renders at once, and how many of them offer no way out.
+ *
+ *  Structural rather than semantic: the app has exactly ONE empty-state primitive, so the count of
+ *  simultaneously-rendered `empty-state-root` elements IS the shape, and `empty-state-action` says
+ *  whether each offers a door. */
+export interface EmptyStateInput {
+  readonly selector: string;
+  readonly rendered: number;
+  readonly actionless: number;
+}
