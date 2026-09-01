@@ -177,7 +177,3 @@ export function collectAudit(samples: RawSamples): AuditCollection {
 export function collectFindings(samples: RawSamples): Finding[] {
   return [...collectAudit(samples).findings];
 }
-
-export function familyScanCounts(samples: RawSamples): Readonly<Record<DesignAuditRuleFamily, number>> {
-  return collectAudit(samples).familyScans;
-}

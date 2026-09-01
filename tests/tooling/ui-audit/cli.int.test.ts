@@ -37,8 +37,10 @@ function auditRuleTest(
   title: string,
   fn: (fixtures: Pick<ToolFixtures, "runCli" | "scratch">) => void | Promise<void>,
 ): void {
-  expect(proofs.every((proof) => proof.reason.trim() !== "")).toBe(true);
-  test(title, fn);
+  test(title, ({ runCli, scratch }) => {
+    expect(proofs.every((proof) => proof.reason.trim() !== "")).toBe(true);
+    return fn({ runCli, scratch });
+  });
 }
 
 function page(bodyStyle: string): string {
