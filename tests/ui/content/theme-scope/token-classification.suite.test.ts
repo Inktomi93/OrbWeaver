@@ -71,6 +71,12 @@ const SEED_COVERED = new Set<string>(["color.backdrop"]);
 //     themes). highlight (+ its foreground) is POLARITY-INDEPENDENT (a text-mark BACKGROUND, never text) —
 //     a single plain oklch (the former no-op light-dark(X,X) was collapsed, §W6). All locked to their AA
 //     floors per palette AND per polarity by the palette-contrast per-value-set sweep.
+//   • accolade: the DISTINCTION ink, the polarity-aware TEXT twin of highlight (minted 2026-09-01 when the seed
+//     ink audit measured the gold rendered as text at 1.41-1.71:1 on light). SEMANTIC-intent like the four
+//     divergent intents and shaped like them: ONE static token with light-dark() arms, the dark arm REFERENCING
+//     color.highlight (mark and ink are the same decision on a dark page), the light arm oklch(0.48 0.12 100)
+//     in themes/light.json clearing AA-normal on every light ground it touches. Not palette-tracking: a
+//     custom theme keeps the gold, the active arm follows color-scheme exactly as destructive/success do.
 //   • sidebar-primary: an unused reserved alias of `primary` (0 consumers — the rail active state reads
 //     `--color-primary` directly). No chrome renders it, so nothing to theme.
 //   • track-1..6: the D71 track ramp (Context-Panel-Program §4.8) — a categorical ramp for
@@ -99,6 +105,7 @@ const SEED_COVERED = new Set<string>(["color.backdrop"]);
 //     literals, so the token's job is making that choice visible and overridable, not palette-tracking.
 const STATIC_RATIONALE = new Set<string>([
   "color.sheen",
+  "color.accolade",
   "color.destructive",
   "color.destructive-foreground",
   "color.success",

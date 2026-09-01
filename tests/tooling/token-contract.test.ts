@@ -159,9 +159,12 @@ test("the real vault is conformant and preserves the exact generated target surf
     mocha: countTokens(JSON.parse(texts.mocha)),
   };
   expect(result.diagnostics).toEqual([]);
-  expect(constituents).toEqual({ base: 187, light: 61, mocha: 42 });
+  // 2026-09-01 (#998 seed-contrast landing): base +3 = color.accolade + the two snapped --leading-* vars;
+  // light +1 = accolade's light arm. Spelled, not derived, because the same-count controls below depend on
+  // the exact surface — a same-count swap must be caught by the diagnostics, never by the count.
+  expect(constituents).toEqual({ base: 190, light: 62, mocha: 42 });
   expect(result.scannedTokens).toBe(constituents.base + constituents.light + constituents.mocha);
-  expect(result.cssTargets.size).toBe(195);
+  expect(result.cssTargets.size).toBe(198);
   expect(result.cssTargets).toEqual(BASELINE_TARGETS);
   expect(result.themes).toEqual([
     { id: "hearth", colorScheme: "dark", source: "base" },
@@ -326,7 +329,7 @@ describe("Orb semantic controls", () => {
       cssValues["--aspect-portrait-renamed"] = portrait;
     });
     const result = validateTokenContractTexts(swapped, REPO_ROOT);
-    expect(result.cssTargets.size).toBe(195);
+    expect(result.cssTargets.size).toBe(198);
     expect(result.diagnostics.map((item) => item.code)).toContain("removed.target.unrecorded");
 
     const avatar = readFileSync(join(UI_ROOT, "src/primitives/avatar/variants.ts"), "utf8");
@@ -361,7 +364,7 @@ describe("bounded Resolver controls", () => {
       colors["sky-day"] = background;
     });
     const result = validateTokenContractTexts(swapped);
-    expect(result.scannedTokens).toBe(290);
+    expect(result.scannedTokens).toBe(294);
     expect(result.diagnostics.map((item) => item.code)).toContain("seed.members");
   });
 
