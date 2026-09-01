@@ -296,6 +296,10 @@ export const WALKER_CENSUS_INTERACTIVE = `  // ── interactive elements: tap 
       var lowerBound = extent.truncated && effective < HIT_PROBE_MAX * 2;
       if (lowerBound) censusReach.frameTruncated += 1;
       tapTargets.push({
+        targetId: targetIdentity(iel),
+        ancestorTargetIds: interactiveAncestorIdentities(iel),
+        authoredTarget: authoredTargetClaim(iel),
+        authoredHome: authoredTargetHome(iel),
         selector: describe(iel),
         width: Math.max(irect.width, effective),
         height: Math.max(irect.height, effective),

@@ -15,6 +15,7 @@ import type {
   Finding,
   IconTileInput,
   RawSamples,
+  TapTargetInput,
   TextStyleInput,
 } from "../../../tooling/src/ui-audit/index.ts";
 import {
@@ -45,6 +46,7 @@ import {
   checkScriptErrors,
   checkTabIndexSmell,
   checkTapTarget,
+  checkTapTargetPopulations,
   checkTextOverflow,
   checkTextStyle,
   checkTruncatedText,
@@ -543,6 +545,75 @@ test("the withholding is keyed on the FLAG, not on the number — the same box f
   expect(checkTapTarget({ selector: "button.edge", width: 18, height: 18, extentTruncated: false }, false)?.severity).toBe("P1");
   // Absent reads as "fully measured" — the fixture sample sets that predate the flag stay judged.
   expect(checkTapTarget({ selector: "button.edge", width: 18, height: 18 }, false)?.severity).toBe("P1");
+});
+
+test("tap-target populations collapse siblings, suppress nested owners, and preserve distinct homes", () => {
+  const target = (targetId: string, home: string, ancestorTargetIds: readonly string[] = []): TapTargetInput => ({
+    targetId,
+    ancestorTargetIds,
+    authoredTarget: "button|slot=tracker-value-rest|role=|type=",
+    authoredHome: home,
+    selector: `[data-target=${targetId}]`,
+    width: 18,
+    height: 18,
+  });
+  const result = checkTapTargetPopulations(
+    [
+      target("outer", "section@card-header"),
+      target("nested", "section@card-header", ["outer"]),
+      target("header-2", "section@card-header"),
+      target("header-3", "section@card-header"),
+      target("meter-1", "div@meter-row"),
+      target("meter-2", "div@meter-row"),
+    ],
+    false,
+  );
+  expect(result.findings).toHaveLength(2);
+  expect(result.findings.map((finding) => finding.population?.affected).sort()).toEqual([2, 3]);
+  expect(result.accounting).toMatchObject({
+    candidates: 6,
+    judged: 6,
+    affected: 5,
+    populations: 2,
+    emitted: 5,
+    withheld: { nestedOwner: 1, cap: 0 },
+  });
+});
+
+test("tap-target representative capping never truncates the affected or judged denominator", () => {
+  const samples = Array.from({ length: 9 }, (_unused, index) => ({
+    targetId: `target-${String(index)}`,
+    ancestorTargetIds: [],
+    authoredTarget: "button|slot=tracker-value-rest|role=|type=",
+    authoredHome: "div@meter-row",
+    selector: `[data-target='${String(index)}']`,
+    width: 18,
+    height: 18,
+  }));
+  const result = checkTapTargetPopulations(samples, false);
+  expect(result.findings[0]?.population).toEqual({ affected: 9, judged: 9, capped: 4 });
+  expect(result.findings[0]?.representatives).toHaveLength(5);
+  expect(result.accounting.withheld["cap"]).toBe(4);
+});
+
+test("a partially-instrumented tap-target population fails loud instead of mixing grouped and legacy rows", () => {
+  expect(() =>
+    checkTapTargetPopulations(
+      [
+        {
+          targetId: "instrumented",
+          ancestorTargetIds: [],
+          authoredTarget: "button|slot=button|role=|type=",
+          authoredHome: "section@toolbar",
+          selector: "button.instrumented",
+          width: 18,
+          height: 18,
+        },
+        { selector: "button.blind", width: 18, height: 18 },
+      ],
+      false,
+    ),
+  ).toThrow("INSTRUMENT ERROR: tap-target identity is partial (1/2)");
 });
 
 // ── #4b control silhouette (#430, from side-eye #420) ────────────────────────

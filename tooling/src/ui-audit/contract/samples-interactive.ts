@@ -8,6 +8,15 @@
 
 // ── ARIA navigability ────────────────────────────────────────────────────────
 export interface TapTargetInput {
+  /** Per-walk identity used only to prove nested ownership; never serialized into a grouping key. */
+  readonly targetId?: string;
+  /** Interactive ancestor identities, nearest first. A failing ancestor owns the descendant's duplicate
+   * target-size decision; a healthy ancestor does not suppress a failing child. */
+  readonly ancestorTargetIds?: readonly string[];
+  /** Author-declared target kind: tag, role/type, data-slot, and generic variant carriers. */
+  readonly authoredTarget?: string;
+  /** Position-free structural path to the nearest authored slot/role/landmark home. */
+  readonly authoredHome?: string;
   readonly selector: string;
   readonly width: number;
   readonly height: number;

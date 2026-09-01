@@ -10,7 +10,7 @@
 // (`@orb/ui/tokens`), owner-sacred effect axes exempted, severities mapped to our P0–P3.
 // Full 59-rule triage + license statement:
 // .claude/skills/side-eye-design-review/reference/impeccable-adoption.md
-import type { Finding } from "../contract/findings.ts";
+import type { Finding, PopulationAccounting } from "../contract/findings.ts";
 import type { DesignAuditRuleFamily } from "../contract/rules.ts";
 import { DESIGN_AUDIT_RULE_FAMILIES } from "../contract/rules.ts";
 import type { RawSamples } from "../contract/samples.ts";
@@ -21,7 +21,7 @@ import {
   checkMainLandmark,
   checkObscuredTarget,
   checkTabIndexSmell,
-  checkTapTarget,
+  checkTapTargetPopulations,
 } from "./checks-a11y.ts";
 import { checkContrast, checkGrayOnColor, checkQuietState } from "./checks-color.ts";
 import { checkAccentBorder, checkGlowShadow } from "./checks-decor.ts";
@@ -51,6 +51,7 @@ import { checkCaveatHierarchy, checkFontCensus, checkTextStyle } from "./checks-
 interface FamilyCheckResult {
   readonly findings: readonly Finding[];
   readonly scans: number;
+  readonly populationAccounting?: PopulationAccounting;
 }
 
 type FamilyChecker = (samples: RawSamples) => FamilyCheckResult;
@@ -90,14 +91,15 @@ function runArray(state: MutableFamilyCheckResult, detector: () => readonly Find
 
 function a11yFindings(samples: RawSamples): FamilyCheckResult {
   const state = emptyFamilyResult();
-  runArray(state, () => nullableFindings(samples.tapTargets, (target) => checkTapTarget(target, samples.pointerCoarse)));
+  const tapTargets = checkTapTargetPopulations(samples.tapTargets, samples.pointerCoarse);
+  runArray(state, () => tapTargets.findings);
   runArray(state, () => nullableFindings(samples.controlAspects ?? [], checkControlAspect));
   runArray(state, () => nullableFindings(samples.accessibleNames, checkAccessibleName));
   runNullable(state, () => checkMainLandmark({ main: samples.mainLandmarkPresent }));
   runArray(state, () => nullableFindings(samples.tabIndexes, checkTabIndexSmell));
   runArray(state, () => checkHeadingOrder(samples.headings));
   runArray(state, () => (samples.obscuredTargets ?? []).map(checkObscuredTarget));
-  return state;
+  return { ...state, populationAccounting: { "tap-target": tapTargets.accounting } };
 }
 
 function colorFindings(samples: RawSamples): FamilyCheckResult {
@@ -183,18 +185,21 @@ const AUDIT_FAMILY_CHECKERS: Readonly<Record<DesignAuditRuleFamily, FamilyChecke
 export interface AuditCollection {
   readonly findings: readonly Finding[];
   readonly familyScans: Readonly<Record<DesignAuditRuleFamily, number>>;
+  readonly populationAccounting: PopulationAccounting;
 }
 
 /** Runs every enabled family through the same dispatch that produces its population evidence. */
 export function collectAudit(samples: RawSamples): AuditCollection {
   const findings: Finding[] = [];
   const familyScans = Object.fromEntries(DESIGN_AUDIT_RULE_FAMILIES.map((family) => [family, 0])) as Record<DesignAuditRuleFamily, number>;
+  const populationAccounting: Partial<PopulationAccounting> = {};
   for (const family of DESIGN_AUDIT_RULE_FAMILIES) {
     const result = AUDIT_FAMILY_CHECKERS[family](samples);
     findings.push(...result.findings);
     familyScans[family] += result.scans;
+    Object.assign(populationAccounting, result.populationAccounting);
   }
-  return { findings, familyScans };
+  return { findings, familyScans, populationAccounting };
 }
 
 export function collectFindings(samples: RawSamples): Finding[] {

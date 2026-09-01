@@ -35,7 +35,15 @@ import { isAtOrAboveSeverity } from "../lib/severity.ts";
 import { stageLabel } from "../lib/stage-request.ts";
 import { navigateAndReveal } from "./drive.ts";
 import { resolvePixelBackdrops } from "./pixels.ts";
-import { countBySeverity, navVerdict, printBackdropRefusals, printCensusReach, printFindingsTable, printObscuredScan } from "./report.ts";
+import {
+  countBySeverity,
+  navVerdict,
+  printBackdropRefusals,
+  printCensusReach,
+  printFindingsTable,
+  printObscuredScan,
+  printPopulationAccounting,
+} from "./report.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm design-audit");
 
@@ -145,6 +153,7 @@ export async function runUiAudit(opts: Args): Promise<number> {
     const audit = pixels.samples === null ? null : collectAudit(pixels.samples);
     const findings = audit === null ? [] : [...audit.findings];
     const familyScans = audit === null ? null : audit.familyScans;
+    const populationAccounting = audit === null ? {} : audit.populationAccounting;
     findings.push(...checkScriptErrors(session.pageErrors));
     const counts = countBySeverity(findings);
     // An action that failed means the scan happened on the WRONG surface — that is a red run, not a clean
@@ -172,6 +181,7 @@ export async function runUiAudit(opts: Args): Promise<number> {
           pixelSampledBackdrops: pixels.sampled,
           backdropRefusals: pixels.refusals,
           censusReach: reach ?? null,
+          populationAccounting,
           themeEvidence: {
             request: opts.theme,
             applied: settingsEvidence.themeApplied,
@@ -194,6 +204,7 @@ export async function runUiAudit(opts: Args): Promise<number> {
     print("");
     printCensusReach(reach);
     printObscuredScan(pixels.samples?.obscuredScan);
+    printPopulationAccounting(populationAccounting);
     printBackdropRefusals(pixels.refusals);
     printFindingsTable(findings);
 
@@ -214,6 +225,13 @@ export async function runUiAudit(opts: Args): Promise<number> {
         ["actions", opts.actions.length],
         ["actions-failed", actionsFailed],
         ["pointer", opts.device === null ? "fine" : "coarse"],
+        ["tap-candidates", populationAccounting["tap-target"]?.candidates ?? -1],
+        ["tap-judged", populationAccounting["tap-target"]?.judged ?? -1],
+        ["tap-affected", populationAccounting["tap-target"]?.affected ?? -1],
+        ["tap-populations", populationAccounting["tap-target"]?.populations ?? -1],
+        ["tap-representatives", populationAccounting["tap-target"]?.emitted ?? -1],
+        ["tap-withheld-nested", populationAccounting["tap-target"]?.withheld["nestedOwner"] ?? -1],
+        ["tap-withheld-cap", populationAccounting["tap-target"]?.withheld["cap"] ?? -1],
         // The DENOMINATOR (#409): how many nodes the walk censused. `findings=0` means nothing only when
         // this is non-zero, and a reader of the machine line is entitled to see it.
         ["census", census],

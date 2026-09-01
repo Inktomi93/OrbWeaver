@@ -1,7 +1,7 @@
 // Console reporting: the findings table, the pixel-refusal block, the nav verdict.
 import { print } from "@orb/tooling/_shared/artifacts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import type { Finding, Severity } from "../contract/findings.ts";
+import type { Finding, PopulationAccounting, Severity } from "../contract/findings.ts";
 import type { CensusReachInput, ObscuredScanInput } from "../contract/samples.ts";
 import type { BackdropRefusal } from "../contract/types.ts";
 
@@ -111,6 +111,22 @@ export function printObscuredScan(scan: ObscuredScanInput | undefined): void {
     `OBSCURED     ${scan.unaskable} of ${scan.candidates} candidate(s) had a centre point outside the viewport — elementFromPoint cannot be asked there, so their obscured verdict is WITHHELD, not passed`,
   );
   print("");
+}
+
+/** Population verdicts bound presentation without losing the machine denominator. Print every owned
+ * counter, including zero, so an absent/partial family cannot resemble a complete clean census. */
+export function printPopulationAccounting(accounting: PopulationAccounting): void {
+  for (const [rule, row] of Object.entries(accounting)) {
+    const withheld = Object.entries(row.withheld)
+      .map(([reason, count]) => `${reason}=${String(count)}`)
+      .join(" ");
+    print(
+      `POPULATION   ${rule} candidates=${String(row.candidates)} judged=${String(row.judged)} affected=${String(row.affected)} populations=${String(row.populations)} representatives=${String(row.emitted)} withheld(${withheld})`,
+    );
+  }
+  if (Object.keys(accounting).length > 0) {
+    print("");
+  }
 }
 
 export function printFindingsTable(findings: readonly Finding[]): void {

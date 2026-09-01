@@ -1,6 +1,6 @@
 // ui-audit's programmatic front door — what tests and sibling tools import; the cli fronts this surface.
 // One tool, one API (docs/architecture/core/Core-Tooling-Law.md §2.5).
-export type { Finding, RuleOrigin, Severity } from "./contract/findings.ts";
+export type { Finding, FindingPopulation, PopulationAccounting, RuleOrigin, RulePopulationAccounting, Severity } from "./contract/findings.ts";
 export { SEVERITIES } from "./contract/findings.ts";
 export type { DesignAuditRuleFamily, DesignAuditRuleId, DesignAuditSeverity } from "./contract/rules.ts";
 export { DESIGN_AUDIT_RULE_FAMILIES, DESIGN_AUDIT_RULE_IDS, DESIGN_AUDIT_RULES, DESIGN_AUDIT_SEVERITIES } from "./contract/rules.ts";
@@ -48,6 +48,7 @@ export {
   checkObscuredTarget,
   checkTabIndexSmell,
   checkTapTarget,
+  checkTapTargetPopulations,
 } from "./lib/checks-a11y.ts";
 export { checkContrast, checkGrayOnColor } from "./lib/checks-color.ts";
 export { checkAccentBorder, checkGlowShadow } from "./lib/checks-decor.ts";
