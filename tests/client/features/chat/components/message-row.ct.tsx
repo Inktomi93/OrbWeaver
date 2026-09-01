@@ -1245,7 +1245,7 @@ test.describe("#988 message action rail containment", () => {
   }
 
   test("fine pointer keeps the full reveal rail inside its owning bubble", async ({ mount, page }) => {
-    expect(await page.evaluate(() => matchMedia("(pointer: fine)").matches)).toBe(true);
+    await expect.poll(async () => await page.evaluate(() => matchMedia("(pointer: fine)").matches)).toBe(true);
     const component = await mount(<MessageRowStory chatStyle="bubble" messageRole="assistant" content="Contain these fine actions" />);
     const actions = component.locator(ACTIONS_ROW);
 
@@ -1276,14 +1276,14 @@ test.describe("#988 message action rail containment", () => {
     expectContained(revealed);
     expectTargetAndHitOwnership(revealed);
     await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
-    expect(await page.locator("html").getAttribute("data-orb988-cls")).toBe("0");
+    await expect(page.locator("html")).toHaveAttribute("data-orb988-cls", "0");
   });
 
   test.describe("coarse pointer", () => {
     test.use({ hasTouch: true });
 
     test("keeps the always-visible named action door inside its owning bubble", async ({ mount, page }) => {
-      expect(await page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
+      await expect.poll(async () => await page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
       const component = await mount(
         <MessageRowStory chatStyle="bubble" messageRole="assistant" content="Contain these coarse actions" characterId={ALICE_ID} participants={[alice()]} />,
       );
