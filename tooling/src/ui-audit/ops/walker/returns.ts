@@ -70,5 +70,6 @@ export const WALKER_RETURNS = `  var pendingWalkMutations = walkObserver.takeRec
     truncatedTexts: truncatedTexts,
     obscuredTargets: obscuredTargets,
     obscuredScan: obscuredScan,
+    cohortAnatomies: cohortAnatomies,
   };
 `;

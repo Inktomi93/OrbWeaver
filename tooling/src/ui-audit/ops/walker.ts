@@ -22,6 +22,7 @@
 
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { CENSUS_OBSERVE_CEILING_MS, CENSUS_OBSERVE_MIN_MS, CENSUS_SETTLE_POLL_MS } from "../lib/budgets.ts";
+import { WALKER_CENSUS_COHORT } from "./walker/census-cohort.ts";
 import { WALKER_CENSUS_COLLISION } from "./walker/census-collision.ts";
 import { WALKER_CENSUS_DECOR } from "./walker/census-decor.ts";
 import { WALKER_CENSUS_INTERACTIVE } from "./walker/census-interactive.ts";
@@ -83,4 +84,4 @@ const PRE_WALK_SETTLE = `  var preWalkRevision = 0;
 `;
 
 export const COLLECT_SAMPLES_JS = `(async () => {
-${PRE_WALK_SETTLE}${WALKER_CORE}${WALKER_RESOLVE}${WALKER_CENSUS_TEXT}${WALKER_HIT_EXTENT}${WALKER_CENSUS_INTERACTIVE}${WALKER_CENSUS_DECOR}${WALKER_CENSUS_QUALITY}${WALKER_CENSUS_COLLISION}${WALKER_RETURNS}})()`;
+${PRE_WALK_SETTLE}${WALKER_CORE}${WALKER_RESOLVE}${WALKER_CENSUS_TEXT}${WALKER_HIT_EXTENT}${WALKER_CENSUS_INTERACTIVE}${WALKER_CENSUS_DECOR}${WALKER_CENSUS_QUALITY}${WALKER_CENSUS_COLLISION}${WALKER_CENSUS_COHORT}${WALKER_RETURNS}})()`;
