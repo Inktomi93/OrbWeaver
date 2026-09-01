@@ -14,27 +14,18 @@
 // FOUR COLLECTION STRATEGIES (owner ruling 2026-09-01: no gate — rule shape is a judgment call a
 // checker can't make; this table is the enforcement). Pick your rung by what your samples need, not
 // "finishing the migration" — rung 1 is a legitimate destination for a page-singleton, not debt.
-// | rung | fn                     | adds over the rung below     | example rules |
-// | 1 | nullableFindings          | plain map, no accounting     | most rules (landmark-missing, script-error, flat-type-hierarchy, ...) |
-// | 2 | accountedFindings         | census + RulePopulationAccounting | quiet-state, double-empty-state, selection-idiom |
-// | 3 | cappedRelationalFindings  | + cap, never truncates affected/judged | cohort-anatomy, row-void, pane-ink |
-// | 4 | decisionPopulationFindings| + authored-decision grouping (decisionKey) | tap-target, obscured-target, truncated-to-nothing, text-below-ramp, undersized-ui-text |
+// Mechanics (what each rung's function does, the reason-map semantics, the walker-filtered trap):
+// lib/population-strategies.ts header.
+// | rung | fn                     | example rules |
+// | 1 | nullableFindings          | most rules (landmark-missing, script-error, flat-type-hierarchy, ...) |
+// | 2 | accountedFindings         | quiet-state, double-empty-state, selection-idiom |
+// | 3 | cappedRelationalFindings  | cohort-anatomy, row-void, pane-ink |
+// | 4 | decisionPopulationFindings| tap-target, obscured-target, truncated-to-nothing, text-below-ramp, undersized-ui-text |
 // Exception: duplicate-action-door has accounting via its OWN checkDuplicateDoorPopulations, not one of the four functions above (checks-quality.ts).
-// population.ts's reason maps are NOT interchangeable: withheld = a candidate the instrument COULD
-// NOT JUDGE (+ the presentation-only "cap" reason; non-cap withholding is a NO VERDICT run, see
-// populationEvidenceGap); excluded = measured facts PROVE the rule does not apply; collapsed =
-// adjudicated by a same-owner decision (rung 4's grouping). settledPopulationAccounting THROWS on
-// arithmetic that doesn't close (candidates = judged + withheld[non-cap] + excluded; affected =
-// emitted + cap + collapsed) — a malformed counter is an instrument error, never normalized.
-// THE WALKER-FILTERED TRAP: some rules' candidates are filtered by the WALKER, so the check sees
-// only survivors and accounting bolted on here reports candidates == judged while the real
-// denominator was lost upstream — relational families carry `relationalAccounting` FROM the walker
-// instead (contract/samples-populations.ts); a filtered census keeps its accounting there, not here.
-import type { Finding, PopulationAccounting, RulePopulationAccounting } from "../contract/findings.ts";
-import type { DesignAuditRuleFamily, DesignAuditRuleId } from "../contract/rules.ts";
+import type { Finding, PopulationAccounting } from "../contract/findings.ts";
+import type { DesignAuditRuleFamily } from "../contract/rules.ts";
 import { DESIGN_AUDIT_RULE_FAMILIES } from "../contract/rules.ts";
 import type { RawSamples } from "../contract/samples.ts";
-import type { RelationalCensusAccountingInput } from "../contract/samples-populations.ts";
 import {
   checkAccessibleName,
   checkControlAspect,
@@ -68,7 +59,7 @@ import {
   checkZIndex,
 } from "./checks-structure.ts";
 import { checkCaveatHierarchy, checkFontCensus, checkTextStyle } from "./checks-typography.ts";
-import { assertCensusAccounting, assertRelationalCensus, settledPopulationAccounting } from "./population.ts";
+import { accountedFindings, cappedRelationalFindings, decisionPopulationFindings, nullableFindings } from "./population-strategies.ts";
 
 interface FamilyCheckResult {
   readonly findings: readonly Finding[];
@@ -85,152 +76,6 @@ interface MutableFamilyCheckResult {
 
 function emptyFamilyResult(): MutableFamilyCheckResult {
   return { findings: [], scans: 0 };
-}
-
-function nullableFindings<T>(items: readonly T[], check: (item: T) => Finding | null): Finding[] {
-  const findings: Finding[] = [];
-  for (const item of items) {
-    const finding = check(item);
-    if (finding !== null) {
-      findings.push(finding);
-    }
-  }
-  return findings;
-}
-
-const RELATIONAL_REPRESENTATIVE_CAPS = {
-  "cohort-anatomy": 12,
-  "pane-ink": 6,
-  "row-void": 8,
-} as const;
-
-function cappedRelationalFindings<T>(
-  rule: keyof typeof RELATIONAL_REPRESENTATIVE_CAPS,
-  items: readonly T[],
-  check: (item: T) => Finding | null,
-  census: RelationalCensusAccountingInput | undefined,
-): { readonly accounting: RulePopulationAccounting; readonly findings: readonly Finding[] } {
-  if (census !== undefined) {
-    assertRelationalCensus(rule, census, items.length);
-  }
-  const affected = nullableFindings(items, check);
-  const cap = RELATIONAL_REPRESENTATIVE_CAPS[rule];
-  const emitted = affected.slice(0, cap);
-  const capWithheld = affected.length - emitted.length;
-  const withheld = { ...(census?.withheld ?? {}) };
-  if (capWithheld > 0) {
-    withheld["cap"] = capWithheld;
-  }
-  return {
-    findings: emitted,
-    accounting: settledPopulationAccounting(rule, {
-      candidates: census?.candidates ?? items.length,
-      judged: census?.judged ?? items.length,
-      affected: affected.length,
-      populations: affected.length,
-      emitted: emitted.length,
-      withheld,
-      excluded: { ...(census?.excluded ?? {}) },
-      collapsed: {},
-    }),
-  };
-}
-
-function accountedFindings<T>(
-  rule: DesignAuditRuleId,
-  items: readonly T[],
-  check: (item: T) => Finding | null,
-  options: { readonly census: RelationalCensusAccountingInput | undefined; readonly samplesAreJudged: boolean },
-): { readonly accounting: RulePopulationAccounting; readonly findings: readonly Finding[] } {
-  const { census, samplesAreJudged } = options;
-  if (census !== undefined) {
-    if (samplesAreJudged) {
-      assertRelationalCensus(rule, census, items.length);
-    } else {
-      assertCensusAccounting(rule, census);
-    }
-  }
-  const findings = nullableFindings(items, check);
-  return {
-    findings,
-    accounting: settledPopulationAccounting(rule, {
-      candidates: census?.candidates ?? items.length,
-      judged: census?.judged ?? items.length,
-      affected: findings.length,
-      populations: findings.length,
-      emitted: findings.length,
-      withheld: { ...(census?.withheld ?? {}) },
-      excluded: { ...(census?.excluded ?? {}) },
-      collapsed: {},
-    }),
-  };
-}
-
-const DECISION_REPRESENTATIVE_CAP = 5;
-
-interface DecisionFindingRow<T> {
-  readonly input: T;
-  readonly finding: Finding | null;
-}
-
-function decisionPopulationFindings<T extends { readonly selector: string }>(
-  rule: DesignAuditRuleId,
-  items: readonly T[],
-  check: (item: T) => Finding | null,
-  options: { readonly census: RelationalCensusAccountingInput | undefined; readonly decisionKey: (item: T) => string },
-): { readonly accounting: RulePopulationAccounting; readonly findings: readonly Finding[] } {
-  const { census, decisionKey } = options;
-  if (census !== undefined) {
-    assertCensusAccounting(rule, census);
-  }
-  const groups = new Map<string, DecisionFindingRow<T>[]>();
-  for (const input of items) {
-    const key = decisionKey(input);
-    const group = groups.get(key) ?? [];
-    group.push({ input, finding: check(input) });
-    groups.set(key, group);
-  }
-  const findings: Finding[] = [];
-  let affected = 0;
-  let emitted = 0;
-  for (const group of groups.values()) {
-    const failures = group.filter((row): row is DecisionFindingRow<T> & { readonly finding: Finding } => row.finding !== null);
-    const first = failures[0];
-    if (first === undefined) {
-      continue;
-    }
-    const representatives = failures.slice(0, DECISION_REPRESENTATIVE_CAP).map(({ input }) => input.selector);
-    const capped = failures.length - representatives.length;
-    const affectedSummary =
-      failures.length === group.length ? `${String(failures.length)} affected` : `${String(failures.length)} affected of ${String(group.length)} judged`;
-    affected += failures.length;
-    emitted += representatives.length;
-    findings.push({
-      ...first.finding,
-      selector: representatives[0] ?? first.input.selector,
-      value: `${first.finding.value}; ${affectedSummary}; ${String(representatives.length)} representative(s), ${String(capped)} capped`,
-      representatives,
-      population: { affected: failures.length, judged: group.length, capped },
-    } as Finding);
-  }
-  const cap = affected - emitted;
-  const withheld = { ...(census?.withheld ?? {}) };
-  if (cap > 0) {
-    withheld["cap"] = cap;
-  }
-  return {
-    findings,
-    accounting: settledPopulationAccounting(rule, {
-      candidates: census?.candidates ?? items.length,
-      judged: census?.judged ?? items.length,
-      affected,
-      populations: findings.length,
-      emitted,
-      withheld,
-      excluded: { ...(census?.excluded ?? {}) },
-      collapsed: {},
-    }),
-  };
 }
 
 function runNullable(state: MutableFamilyCheckResult, detector: () => Finding | null): void {
