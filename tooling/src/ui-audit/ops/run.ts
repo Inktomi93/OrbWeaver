@@ -10,15 +10,16 @@
 // uses, one home so the two instruments cannot disagree about what is behind a glyph). What cannot be
 // sampled — an off-screen box, a failed shot — is printed as NO VERDICT and judged by nothing.
 import { writeFile } from "node:fs/promises";
-import { artifactFile, print, printResult, routeSlug } from "@orb/tooling/_shared/artifacts";
+import { artifactFile, print, routeSlug } from "@orb/tooling/_shared/artifacts";
 import { buildUrl, launchProbeSession, withProbeSession } from "@orb/tooling/_shared/browser";
 import type { EvidenceGap } from "@orb/tooling/_shared/evidence";
-import { instrumentError } from "@orb/tooling/_shared/evidence";
+import { instrumentError, printVerdict } from "@orb/tooling/_shared/evidence";
+import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { CensusReachInput, RawSamples } from "../contract/samples.ts";
 import type { Args, BackdropRefusal, DomPopulation } from "../contract/types.ts";
 import { checkScriptErrors } from "../lib/checks-quality.ts";
-import { collectFindings } from "../lib/collect.ts";
+import { collectFindings, familyScanCounts } from "../lib/collect.ts";
 import { censusGap, censusThinGap, censusTotal, reachGap, readinessGap, SAMPLE_COLLECTION_PREFIX, walkFailureGap } from "../lib/evidence.ts";
 import { isAtOrAboveSeverity } from "../lib/severity.ts";
 import { stageLabel } from "../lib/stage-request.ts";
@@ -117,6 +118,7 @@ export async function runUiAudit(opts: Args): Promise<number> {
     // Uncaught page exceptions are findings in their own right (script-error, P0) — the probe
     // session's pageerror capture is wired from nav start (_shared/browser.ts wirePage).
     const findings = pixels.samples === null ? [] : collectFindings(pixels.samples);
+    const familyScans = pixels.samples === null ? null : familyScanCounts(pixels.samples);
     findings.push(...checkScriptErrors(session.pageErrors));
     const counts = countBySeverity(findings);
     // An action that failed means the scan happened on the WRONG surface — that is a red run, not a clean
@@ -163,39 +165,45 @@ export async function runUiAudit(opts: Args): Promise<number> {
     printBackdropRefusals(pixels.refusals);
     printFindingsTable(findings);
 
-    printResult("design-audit", [
-      ["stage", stageLabel(opts.stageShortSha)],
-      ["findings", findings.length],
-      ["p0", counts.P0],
-      ["p1", counts.P1],
-      ["p2", counts.P2],
-      ["p3", counts.P3],
-      ["fail-on", opts.failOn],
-      ["actions", opts.actions.length],
-      ["actions-failed", actionsFailed],
-      ["pointer", opts.device === null ? "fine" : "coarse"],
-      // The DENOMINATOR (#409): how many nodes the walk censused. `findings=0` means nothing only when
-      // this is non-zero, and a reader of the machine line is entitled to see it.
-      ["census", census],
-      // The STABILITY denominator (#808), beside `census=` for the same reason: a census is only a
-      // measurement of the surface if the surface stopped changing around it. `dom-walk=` is the element
-      // population the walk could see, `dom-settled=` what it holds once settled — a reader is entitled to
-      // both, and a gap between them is what makes this run a refusal rather than a verdict.
-      ["dom-walk", population?.duringWalk ?? -1],
-      ["dom-settled", population === null ? -1 : `${population.settled}${population.stabilized ? "" : "+"}`],
-      // The REACH denominator (#653) rides the machine line beside `census=` for the same reason: the
-      // tap-target / action-door / silhouette families are viewport-bound, so `p1=0` means nothing until
-      // a reader knows how many offered controls were measured and how many were skipped.
-      ...reachRows(reach),
-      // The OBSCURED denominator (#816) beside the others: `obscured=0` is only a verdict when a reader
-      // can see how many elements were asked whether they still own their own centre.
-      ["obscured-scanned", pixels.samples?.obscuredScan?.candidates ?? -1],
-      ["obscured-unaskable", pixels.samples?.obscuredScan?.unaskable ?? -1],
-      ["px-backdrops", pixels.sampled],
-      ["no-verdict", pixels.refusals.length],
-      ["nav", navVerdict(navError, actionsFailed)],
-      ["out", outPath],
-    ]);
-    return failed ? 1 : 0;
+    return printVerdict("design-audit", {
+      verdict: failed ? EXIT.violations : EXIT.clean,
+      denominators: {
+        census: { value: census, refuseWhen: "zero" },
+        ...Object.fromEntries(Object.entries(familyScans ?? {}).map(([family, value]) => [`scanned-${family}`, { value, refuseWhen: "zero" as const }])),
+      },
+      pairs: [
+        ["stage", stageLabel(opts.stageShortSha)],
+        ["findings", findings.length],
+        ["p0", counts.P0],
+        ["p1", counts.P1],
+        ["p2", counts.P2],
+        ["p3", counts.P3],
+        ["fail-on", opts.failOn],
+        ["actions", opts.actions.length],
+        ["actions-failed", actionsFailed],
+        ["pointer", opts.device === null ? "fine" : "coarse"],
+        // The DENOMINATOR (#409): how many nodes the walk censused. `findings=0` means nothing only when
+        // this is non-zero, and a reader of the machine line is entitled to see it.
+        ["census", census],
+        // The STABILITY denominator (#808), beside `census=` for the same reason: a census is only a
+        // measurement of the surface if the surface stopped changing around it. `dom-walk=` is the element
+        // population the walk could see, `dom-settled=` what it holds once settled — a reader is entitled to
+        // both, and a gap between them is what makes this run a refusal rather than a verdict.
+        ["dom-walk", population?.duringWalk ?? -1],
+        ["dom-settled", population === null ? -1 : `${population.settled}${population.stabilized ? "" : "+"}`],
+        // The REACH denominator (#653) rides the machine line beside `census=` for the same reason: the
+        // tap-target / action-door / silhouette families are viewport-bound, so `p1=0` means nothing until
+        // a reader knows how many offered controls were measured and how many were skipped.
+        ...reachRows(reach),
+        // The OBSCURED denominator (#816) beside the others: `obscured=0` is only a verdict when a reader
+        // can see how many elements were asked whether they still own their own centre.
+        ["obscured-scanned", pixels.samples?.obscuredScan?.candidates ?? -1],
+        ["obscured-unaskable", pixels.samples?.obscuredScan?.unaskable ?? -1],
+        ["px-backdrops", pixels.sampled],
+        ["no-verdict", pixels.refusals.length],
+        ["nav", navVerdict(navError, actionsFailed)],
+        ["out", outPath],
+      ],
+    });
   });
 }

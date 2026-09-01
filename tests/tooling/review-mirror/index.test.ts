@@ -1,6 +1,6 @@
 import { Project } from "ts-morph";
 import type { ReviewMirrorEvidence } from "../../../tooling/src/review-mirror/index.ts";
-import { censusPendingGuards, reviewEvidenceGaps, stripComments } from "../../../tooling/src/review-mirror/index.ts";
+import { assertReviewEvidence, censusPendingGuards, reviewEvidenceGaps, stripComments } from "../../../tooling/src/review-mirror/index.ts";
 import { expect, test } from "../../support/tool-fixtures.ts";
 
 const ROOT = "/review-fixture";
@@ -59,6 +59,8 @@ test("TS stripping removes comments without corrupting regex, template or line p
   expect(stripped.split("\n")).toHaveLength(source.split("\n").length);
 });
 
+// @instrument-proof: corrupt mirror and pending-guard populations are planted and the evidence door must reject the review verdict.
+// @instrument-absence-proof: tracked, mirrored-code, and E7 census populations are emptied and must never read as a clean review sweep.
 test("missing or empty generation evidence is an instrument error, never a clean zero", () => {
   const valid = evidence();
   expect(reviewEvidenceGaps(valid)).toEqual([]);
@@ -78,6 +80,7 @@ test("missing or empty generation evidence is an instrument error, never a clean
       "E7 Button/Switch pending-guard census is empty",
     ]),
   );
+  expect(() => assertReviewEvidence(empty)).toThrow("review-mirror evidence is not a verdict");
 });
 
 test("the E7 census distinguishes direct, derived, epoch and genuinely missing guards", () => {

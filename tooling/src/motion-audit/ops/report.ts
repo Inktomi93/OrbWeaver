@@ -1,7 +1,7 @@
 // The human report + the RESULT line + the exit verdict — raw/classified/budgeted, all labeled.
-import { print, printResult } from "@orb/tooling/_shared/artifacts";
+import { print } from "@orb/tooling/_shared/artifacts";
 import type { EvidenceGap } from "@orb/tooling/_shared/evidence";
-import { INSTRUMENT_ERROR_VERDICT, printEvidenceGaps } from "@orb/tooling/_shared/evidence";
+import { INSTRUMENT_ERROR_VERDICT, printEvidenceGaps, printVerdict } from "@orb/tooling/_shared/evidence";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { Args, AuditData, LoafRecord, ReachAction } from "../contract/types.ts";
@@ -111,26 +111,36 @@ export function report(url: string, opts: Args, data: AuditData): number {
   printEvidenceGaps(gaps);
   const verdict = verdictFor(gaps, budgetsPass(data, dirtyAnimations.length));
 
-  printResult("motion-audit", [
-    ["verdict", verdict.label],
-    ["reach-actions", opts.reach.length],
-    ["reach-failed", reachFailures],
-    // The measured interaction never happened — invisible in the machine line before #409, so a FAIL
-    // over all-zero budgets was unattributable.
-    ["step-failed", stepFailed ? 1 : 0],
-    ["dropped-frames-raw", pct(frames.raw.pct)],
-    ["dropped-frames-classified", frames.classified.dropped],
-    ["dropped-frames", pct(frames.budgeted.pct)],
-    ["worst-blocking-raw", `${loaf.rawWorstBlocking}ms`],
-    ["first-select-entrances", loaf.classifiedInitializations],
-    ["worst-blocking-budgeted", `${loaf.budgetedWorstBlocking}ms`],
-    ["cls-raw", cls.raw],
-    ["cls-virtualized", cls.virtualized],
-    ["cls-non-virtualized", cls.budgeted],
-    ["loaf-style-in-frame-raw", layoutInFrame.length],
-    ["loaf-style-in-frame-budgeted", loaf.budgetedStyleLayout],
-    ["dirty-animations", dirtyAnimations.length],
-    ["page-errors", pageErrors.length],
-  ]);
-  return verdict.exit;
+  return printVerdict("motion-audit", {
+    verdict: verdict.exit,
+    denominators: {
+      "raw-frames": { value: frames.raw.total, refuseWhen: "zero" },
+      "budgeted-frames": {
+        value: frames.budgeted.total,
+        refuseWhen: "zero",
+        ...(frames.budgeted.total === 0 ? { honestEmpty: "all raw frames were classified as sanctioned initialization" } : {}),
+      },
+    },
+    pairs: [
+      ["verdict", verdict.label],
+      ["reach-actions", opts.reach.length],
+      ["reach-failed", reachFailures],
+      // The measured interaction never happened — invisible in the machine line before #409, so a FAIL
+      // over all-zero budgets was unattributable.
+      ["step-failed", stepFailed ? 1 : 0],
+      ["dropped-frames-raw", pct(frames.raw.pct)],
+      ["dropped-frames-classified", frames.classified.dropped],
+      ["dropped-frames", pct(frames.budgeted.pct)],
+      ["worst-blocking-raw", `${loaf.rawWorstBlocking}ms`],
+      ["first-select-entrances", loaf.classifiedInitializations],
+      ["worst-blocking-budgeted", `${loaf.budgetedWorstBlocking}ms`],
+      ["cls-raw", cls.raw],
+      ["cls-virtualized", cls.virtualized],
+      ["cls-non-virtualized", cls.budgeted],
+      ["loaf-style-in-frame-raw", layoutInFrame.length],
+      ["loaf-style-in-frame-budgeted", loaf.budgetedStyleLayout],
+      ["dirty-animations", dirtyAnimations.length],
+      ["page-errors", pageErrors.length],
+    ],
+  });
 }

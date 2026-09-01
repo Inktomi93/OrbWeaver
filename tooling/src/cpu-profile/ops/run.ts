@@ -3,9 +3,10 @@
 // can be the INSTRUMENT — attribute before optimizing.
 import { writeFile } from "node:fs/promises";
 import type { ResultPair } from "@orb/tooling/_shared/artifacts";
-import { artifactFile, print, printResult } from "@orb/tooling/_shared/artifacts";
+import { artifactFile, print } from "@orb/tooling/_shared/artifacts";
 import { buildUrl, launchProbeSession, settle, withProbeSession } from "@orb/tooling/_shared/browser";
-import { instrumentError } from "@orb/tooling/_shared/evidence";
+import { instrumentError, printVerdict } from "@orb/tooling/_shared/evidence";
+import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { Args, MeterData, MeterWindow } from "../contract/types.ts";
 import { NAV_TIMEOUT_MS, TRAILING_SETTLE_MS } from "../lib/budgets.ts";
@@ -110,7 +111,7 @@ export async function runCpuProfile(opts: Args): Promise<number> {
     if (profilePath !== null) {
       pairs.push(["profile", profilePath]);
     }
-    printResult("perf-meter", pairs);
-    return failures > 0 || pageErrors.length > 0 ? 1 : 0;
+    const verdict = failures > 0 || pageErrors.length > 0 ? EXIT.violations : EXIT.clean;
+    return printVerdict("perf-meter", { verdict, denominators: { steps: { value: reports.length, refuseWhen: "zero" } }, pairs });
   });
 }

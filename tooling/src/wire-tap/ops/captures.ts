@@ -19,8 +19,9 @@
 // single-user dev needs neither). Hits the server DIRECTLY on PORT (default 8788), not the vite proxy.
 import process from "node:process";
 import type { WireCapture, WireOutcome } from "@orb/server/foundation/observability";
-import { print, printResult } from "../../_shared/artifacts.ts";
+import { print } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { printVerdict } from "../../_shared/evidence.ts";
 import { EXIT } from "../../_shared/exit-contract.ts";
 import { UsageError } from "../../_shared/run-tool.ts";
 
@@ -126,13 +127,23 @@ export async function capturesOp(argv: readonly string[]): Promise<number> {
     return recorderExit(recorder, kind, url);
   }
   printRows(args.outcomes, kind, rows);
-  printResult("wire-tap", [
-    ["op", kind],
-    ["recorder", describeRecorder(recorder)],
-    ["rows", rows.length],
-    ["url", url],
-  ]);
-  return recorderExit(recorder, kind, url);
+  const verdict = recorderExit(recorder, kind, url);
+  return printVerdict("wire-tap", {
+    verdict,
+    denominators: {
+      rows: {
+        value: rows.length,
+        refuseWhen: "zero",
+        ...(rows.length === 0 && recorder === true ? { honestEmpty: "enabled recorder ring contained no rows" } : {}),
+      },
+    },
+    pairs: [
+      ["op", kind],
+      ["recorder", describeRecorder(recorder)],
+      ["rows", rows.length],
+      ["url", url],
+    ],
+  });
 }
 
 /** The three recorder states as one word for the result line — `unreported` is the pre-#412 server, and is

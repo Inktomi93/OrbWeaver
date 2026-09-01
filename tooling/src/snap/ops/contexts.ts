@@ -2,10 +2,11 @@
 // FIXTURE stack (never the shared single-user dev pair) — host-vs-member truth in one run.
 
 import type { Page } from "@playwright/test";
-import { artifactFile, artifactKey, print, printResult, routeSlug } from "../../_shared/artifacts.ts";
+import { artifactFile, artifactKey, print, routeSlug } from "../../_shared/artifacts.ts";
 import type { ProbeSession } from "../../_shared/browser.ts";
 import { buildUrl, closeProbeSessionAfterError } from "../../_shared/browser.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { printVerdict } from "../../_shared/evidence.ts";
 import type { FixtureTarget } from "../contract/fixture.ts";
 import type { Args, CaptureOutcome, ReportCtx, ShotPlan } from "../contract/types.ts";
 import { contextOut, shouldProduceShot } from "../lib/out-names.ts";
@@ -202,41 +203,44 @@ async function runOwnedContexts(session: ProbeSession, opts: Args, users: readon
     captures: outcomes,
   });
   const mapSummary = mapOutputSummary(opts.map, outcomes);
-  printResult("snap", [
-    ["out", produceShot ? contextOut(out, 0, totalContexts) : "(none)"],
-    ["contexts", totalContexts],
-    ["users", users.map((u) => u.handle).join(",")],
-    ["aria", totals.ariaSeen ? "yes" : "no"],
-    ["aria-fails", evidenceFailures.aria],
-    ["map", mapSummary.count],
-    ["map-dom-fallbacks", mapSummary.domFallbacks],
-    ["map-fails", evidenceFailures.map],
-    ["evals", totals.evals],
-    ["eval-fails", evidenceFailures.eval],
-    ["contrast-fails", totals.contrast],
-    ["assertion-fails", totals.assertions],
-    ["console-errors", failureSummary.consoleErrors],
-    ["console-warnings", allEvidenceConsole.filter((entry) => entry.type === "warning").length],
-    [
-      "boot-console-warnings",
-      allConsole.filter((entry) => entry.type === "warning").length - allEvidenceConsole.filter((entry) => entry.type === "warning").length,
+  return printVerdict("snap", {
+    verdict: red ? 1 : 0,
+    denominators: { contexts: { value: totalContexts, refuseWhen: "zero" } },
+    pairs: [
+      ["out", produceShot ? contextOut(out, 0, totalContexts) : "(none)"],
+      ["contexts", totalContexts],
+      ["users", users.map((u) => u.handle).join(",")],
+      ["aria", totals.ariaSeen ? "yes" : "no"],
+      ["aria-fails", evidenceFailures.aria],
+      ["map", mapSummary.count],
+      ["map-dom-fallbacks", mapSummary.domFallbacks],
+      ["map-fails", evidenceFailures.map],
+      ["evals", totals.evals],
+      ["eval-fails", evidenceFailures.eval],
+      ["contrast-fails", totals.contrast],
+      ["assertion-fails", totals.assertions],
+      ["console-errors", failureSummary.consoleErrors],
+      ["console-warnings", allEvidenceConsole.filter((entry) => entry.type === "warning").length],
+      [
+        "boot-console-warnings",
+        allConsole.filter((entry) => entry.type === "warning").length - allEvidenceConsole.filter((entry) => entry.type === "warning").length,
+      ],
+      ["trace", artifacts.traces[0] ?? "none"],
+      ["har", artifacts.hars[0] ?? "none"],
+      ["json", manifestPath ?? "none"],
+      ["crop", cropOutcome(opts, { ...plan, out: contextOut(out, 0, totalContexts), failed: [], totalPages: totalContexts }) ?? "none"],
+      ["motion", motionResultValue(opts)],
+      ["throttle", throttleResultValue(opts.cpuThrottle, opts.network)],
+      ["nav", navResultVerdict(totals.navigation, totals.navActions)],
+      ["nav-actions-failed", totals.navActions],
+      ["steps-failed", totals.steps],
+      ["page-errors", reportTotals.pageErrors],
+      ["failed-req", reportTotals.failedRequests],
+      ["vite-dep-churn", reportTotals.viteChurn],
+      ["deadcss", totals.deadCss],
+      ["emptycss", totals.emptyCss],
     ],
-    ["trace", artifacts.traces[0] ?? "none"],
-    ["har", artifacts.hars[0] ?? "none"],
-    ["json", manifestPath ?? "none"],
-    ["crop", cropOutcome(opts, { ...plan, out: contextOut(out, 0, totalContexts), failed: [], totalPages: totalContexts }) ?? "none"],
-    ["motion", motionResultValue(opts)],
-    ["throttle", throttleResultValue(opts.cpuThrottle, opts.network)],
-    ["nav", navResultVerdict(totals.navigation, totals.navActions)],
-    ["nav-actions-failed", totals.navActions],
-    ["steps-failed", totals.steps],
-    ["page-errors", reportTotals.pageErrors],
-    ["failed-req", reportTotals.failedRequests],
-    ["vite-dep-churn", reportTotals.viteChurn],
-    ["deadcss", totals.deadCss],
-    ["emptycss", totals.emptyCss],
-  ]);
-  return red ? 1 : 0;
+  });
 }
 
 export function resolveContextsMode(opts: Args, target: FixtureTarget): { readonly users: readonly FixtureUser[] } | { readonly refuse: string } | null {

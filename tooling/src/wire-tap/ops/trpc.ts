@@ -6,8 +6,9 @@
 //   wire-tap trpc character.list
 //   wire-tap trpc chat.startChat --input '{"characterIds":["…"]}' --mutate
 import process from "node:process";
-import { print, printResult } from "../../_shared/artifacts.ts";
+import { print } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { printVerdict } from "../../_shared/evidence.ts";
 import { EXIT } from "../../_shared/exit-contract.ts";
 import { UsageError } from "../../_shared/run-tool.ts";
 
@@ -87,11 +88,14 @@ export async function trpcOp(argv: readonly string[]): Promise<number> {
     /* non-JSON response — print verbatim */
   }
   print(pretty);
-  printResult("wire-tap", [
-    ["op", "trpc"],
-    ["procedure", args.procedure],
-    ["method", args.mutate ? "POST" : "GET"],
-    ["status", res.status],
-  ]);
-  return res.ok ? EXIT.clean : EXIT.violations;
+  return printVerdict("wire-tap", {
+    verdict: res.ok ? EXIT.clean : EXIT.violations,
+    denominators: { responses: { value: 1, refuseWhen: "zero" } },
+    pairs: [
+      ["op", "trpc"],
+      ["procedure", args.procedure],
+      ["method", args.mutate ? "POST" : "GET"],
+      ["status", res.status],
+    ],
+  });
 }

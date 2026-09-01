@@ -1,8 +1,9 @@
 // --matrix: the bounded desktop/mobile × light/dark × motion/reduced grid, one variant per run.
 import { basename, extname } from "node:path";
 import type { Viewport } from "../../_shared/argv.ts";
-import { print, printResult, routeSlug } from "../../_shared/artifacts.ts";
+import { print, routeSlug } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { printVerdict } from "../../_shared/evidence.ts";
 import type { Args } from "../contract/types.ts";
 import { variantOut } from "../lib/out-names.ts";
 import { DEFAULT_VIEWPORT, MOBILE_DEVICE } from "./flags-support.ts";
@@ -47,9 +48,12 @@ export async function snapMatrix(opts: Args): Promise<number> {
     const code = runArgs.scenario === null ? await snap(runArgs) : await snapScenario(runArgs);
     failures += Number(code !== 0);
   }
-  printResult("snap-matrix", [
-    ["variants", MATRIX_VARIANTS.length],
-    ["failed", failures],
-  ]);
-  return failures > 0 ? 1 : 0;
+  return printVerdict("snap-matrix", {
+    verdict: failures > 0 ? 1 : 0,
+    denominators: { variants: { value: MATRIX_VARIANTS.length, refuseWhen: "zero" } },
+    pairs: [
+      ["variants", MATRIX_VARIANTS.length],
+      ["failed", failures],
+    ],
+  });
 }

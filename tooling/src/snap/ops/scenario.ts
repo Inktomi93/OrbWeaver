@@ -5,10 +5,11 @@ import { basename, extname, isAbsolute, resolve } from "node:path";
 import process from "node:process";
 import { errorMessage } from "@orb/kit/error-message";
 import type { Page } from "@playwright/test";
-import { artifactDir, artifactFilePath, print, printResult, routeSlug } from "../../_shared/artifacts.ts";
+import { artifactDir, artifactFilePath, print, routeSlug } from "../../_shared/artifacts.ts";
 import type { CapturedRequest, ProbeSession } from "../../_shared/browser.ts";
 import { closeProbeSessionAfterError } from "../../_shared/browser.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { printVerdict } from "../../_shared/evidence.ts";
 import { EXIT } from "../../_shared/exit-contract.ts";
 import type { Args, CaptureOutcome, ScenarioCheckpoint, ScenarioSpec, SessionCounts, ShotPlan, SnapFailureSummary } from "../contract/types.ts";
 import { HTTP_URL_RE, shouldProduceShot } from "../lib/out-names.ts";
@@ -347,22 +348,25 @@ export async function snapScenario(opts: Args): Promise<number> {
         })),
       },
     });
-    printResult("snap-scenario", [
-      ["name", spec.name],
-      ["checkpoints", outcomes.length],
-      ["assertion-fails", failureSummary.assertions],
-      ["console-errors", failureSummary.consoleErrors],
-      ["console-warnings", evidenceConsole.filter((entry) => entry.type === "warning").length],
-      [
-        "boot-console-warnings",
-        session.consoleMessages.filter((entry) => entry.type === "warning").length - evidenceConsole.filter((entry) => entry.type === "warning").length,
+    return printVerdict("snap-scenario", {
+      verdict: red ? 1 : 0,
+      denominators: { checkpoints: { value: outcomes.length, refuseWhen: "zero" } },
+      pairs: [
+        ["name", spec.name],
+        ["checkpoints", outcomes.length],
+        ["assertion-fails", failureSummary.assertions],
+        ["console-errors", failureSummary.consoleErrors],
+        ["console-warnings", evidenceConsole.filter((entry) => entry.type === "warning").length],
+        [
+          "boot-console-warnings",
+          session.consoleMessages.filter((entry) => entry.type === "warning").length - evidenceConsole.filter((entry) => entry.type === "warning").length,
+        ],
+        ["trace", artifacts.traces[0] ?? "none"],
+        ["har", artifacts.hars[0] ?? "none"],
+        ["json", manifestPath ?? "none"],
+        ["vite-dep-churn", viteChurn.length],
       ],
-      ["trace", artifacts.traces[0] ?? "none"],
-      ["har", artifacts.hars[0] ?? "none"],
-      ["json", manifestPath ?? "none"],
-      ["vite-dep-churn", viteChurn.length],
-    ]);
-    return red ? 1 : 0;
+    });
   } catch (error) {
     return await closeProbeSessionAfterError(session, error);
   }

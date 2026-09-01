@@ -1,9 +1,10 @@
 // The single-run pass: launch, drive+capture every page, the watch series, report, baseline/diff,
 // the manifest, and the RESULT line. One browser run, many pieces of evidence.
 import type { Page } from "@playwright/test";
-import { artifactFile, artifactKey, printResult } from "../../_shared/artifacts.ts";
+import { artifactFile, artifactKey } from "../../_shared/artifacts.ts";
 import { closeProbeSessionAfterError } from "../../_shared/browser.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { printVerdict } from "../../_shared/evidence.ts";
 import type { Args, ReportCtx, ShotPlan } from "../contract/types.ts";
 import { pageOut, shouldProduceShot } from "../lib/out-names.ts";
 import { throttleResultValue } from "../lib/throttle.ts";
@@ -121,46 +122,49 @@ export async function snap(opts: Args): Promise<number> {
       ...(watchTicks.length === 0 ? {} : { watch: { totalMs: opts.watchMs, intervalMs: opts.watchEveryMs, ticks: watchTicks } }),
     });
     const mapSummary = mapOutputSummary(opts.map, outcomes);
-    printResult("snap", [
-      ["out", produceShot ? pageOut(out, 0, totalPages) : "(none)"],
-      ["pages", totalPages],
-      ["watch", watchTicks.length],
-      ["watch-fails", watchFailures],
-      ["aria", totals.ariaSeen ? "yes" : "no"],
-      ["aria-fails", evidenceFailures.aria],
-      ["map", mapSummary.count],
-      ["map-dom-fallbacks", mapSummary.domFallbacks],
-      ["map-fails", evidenceFailures.map],
-      ["evals", totals.evals],
-      ["eval-fails", evidenceFailures.eval],
-      ["contrast-fails", totals.contrast],
-      ["assertion-fails", totals.assertions],
-      ["css-fails", failureSummary.css],
-      ["console-errors", failureSummary.consoleErrors],
-      ["sandbox-trace-noise", session.consoleMessages.filter(isSandboxTraceNoise).length],
-      ["console-warnings", evidenceSession.consoleMessages.filter((entry) => entry.type === "warning").length],
-      [
-        "boot-console-warnings",
-        session.consoleMessages.filter((entry) => entry.type === "warning").length -
-          evidenceSession.consoleMessages.filter((entry) => entry.type === "warning").length,
+    return printVerdict("snap", {
+      verdict: red ? 1 : 0,
+      denominators: { pages: { value: totalPages, refuseWhen: "zero" } },
+      pairs: [
+        ["out", produceShot ? pageOut(out, 0, totalPages) : "(none)"],
+        ["pages", totalPages],
+        ["watch", watchTicks.length],
+        ["watch-fails", watchFailures],
+        ["aria", totals.ariaSeen ? "yes" : "no"],
+        ["aria-fails", evidenceFailures.aria],
+        ["map", mapSummary.count],
+        ["map-dom-fallbacks", mapSummary.domFallbacks],
+        ["map-fails", evidenceFailures.map],
+        ["evals", totals.evals],
+        ["eval-fails", evidenceFailures.eval],
+        ["contrast-fails", totals.contrast],
+        ["assertion-fails", totals.assertions],
+        ["css-fails", failureSummary.css],
+        ["console-errors", failureSummary.consoleErrors],
+        ["sandbox-trace-noise", session.consoleMessages.filter(isSandboxTraceNoise).length],
+        ["console-warnings", evidenceSession.consoleMessages.filter((entry) => entry.type === "warning").length],
+        [
+          "boot-console-warnings",
+          session.consoleMessages.filter((entry) => entry.type === "warning").length -
+            evidenceSession.consoleMessages.filter((entry) => entry.type === "warning").length,
+        ],
+        ["trace", artifacts.traces[0] ?? "none"],
+        ["har", artifacts.hars[0] ?? "none"],
+        ["json", manifestPath ?? "none"],
+        ["crop", cropOutcome(opts, { ...plan, out: pageOut(out, 0, totalPages), failed, totalPages }) ?? "none"],
+        ["motion", motionResultValue(opts)],
+        ["throttle", throttleResultValue(opts.cpuThrottle, opts.network)],
+        ["nav", navResultVerdict(totals.navigation, totals.navActions)],
+        ["nav-actions-failed", totals.navActions],
+        ["steps-failed", totals.steps],
+        ["page-errors", evidenceSession.pageErrors.length],
+        ["failed-req", failed.length],
+        ["vite-dep-churn", viteChurn.length],
+        ["deadcss", totals.deadCss],
+        ["emptycss", totals.emptyCss],
+        ...diffPairs,
       ],
-      ["trace", artifacts.traces[0] ?? "none"],
-      ["har", artifacts.hars[0] ?? "none"],
-      ["json", manifestPath ?? "none"],
-      ["crop", cropOutcome(opts, { ...plan, out: pageOut(out, 0, totalPages), failed, totalPages }) ?? "none"],
-      ["motion", motionResultValue(opts)],
-      ["throttle", throttleResultValue(opts.cpuThrottle, opts.network)],
-      ["nav", navResultVerdict(totals.navigation, totals.navActions)],
-      ["nav-actions-failed", totals.navActions],
-      ["steps-failed", totals.steps],
-      ["page-errors", evidenceSession.pageErrors.length],
-      ["failed-req", failed.length],
-      ["vite-dep-churn", viteChurn.length],
-      ["deadcss", totals.deadCss],
-      ["emptycss", totals.emptyCss],
-      ...diffPairs,
-    ]);
-    return red ? 1 : 0;
+    });
   } catch (error) {
     return await closeProbeSessionAfterError(session, error);
   }

@@ -29,6 +29,9 @@ import { checkClippedOverflow, checkDuplicateDoors, checkEdgeFlush, checkRepeate
 import { checkAnimatedImgHover, checkGradientText, checkNestedCard, checkZIndex } from "./checks-structure.ts";
 import { checkCaveatHierarchy, checkFontCensus, checkTextStyle } from "./checks-typography.ts";
 
+const AUDIT_FAMILIES = ["a11y", "color", "decor", "media", "ornament", "quality", "structure", "typography"] as const;
+type AuditFamily = (typeof AUDIT_FAMILIES)[number];
+
 /** Runs one nullable check over one sample array, pushing every non-null Finding. */
 function pushFindings<T>(findings: Finding[], items: readonly T[], check: (item: T) => Finding | null): void {
   for (const item of items) {
@@ -87,4 +90,32 @@ export function collectFindings(samples: RawSamples): Finding[] {
   findings.push(...(samples.truncatedTexts ?? []).map(checkTruncatedText));
   findings.push(...(samples.obscuredTargets ?? []).map(checkObscuredTarget));
   return findings;
+}
+
+/** Per-family detector invocations. The base invocation records that an enabled family ran even when
+ * this page offered no matching candidates; removing or bypassing the family makes its count zero. */
+export function familyScanCounts(samples: RawSamples): Readonly<Record<AuditFamily, number>> {
+  return {
+    a11y:
+      1 +
+      samples.tapTargets.length +
+      (samples.controlAspects?.length ?? 0) +
+      samples.accessibleNames.length +
+      samples.tabIndexes.length +
+      (samples.obscuredTargets?.length ?? 0),
+    color: 1 + samples.texts.length * 2,
+    decor: 1 + samples.accentBorders.length + samples.shadowGlows.length,
+    media: 1 + samples.images.length + samples.brokenImages.length,
+    ornament: 1 + samples.radialGlows.length + samples.bgPatterns.length + samples.iconTiles.length + samples.motionStatics.length,
+    quality:
+      1 +
+      (samples.actionDoors?.length ?? 0) +
+      samples.overflows.length +
+      samples.repeatedTexts.length +
+      samples.clippedOverflows.length +
+      samples.edgeFlushCards.length +
+      (samples.truncatedTexts?.length ?? 0),
+    structure: 1 + samples.zIndexes.length + samples.nestedCards.length + samples.gradientTexts.length + samples.animatedImgHovers.length,
+    typography: 1 + samples.textStyles.length + samples.fontCensus.families.length + samples.fontCensus.sizes.length,
+  };
 }
