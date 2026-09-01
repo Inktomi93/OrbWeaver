@@ -1,0 +1,26 @@
+{
+  "name": "appearance-chat",
+  "defaults": ["--summary", "--checkpoint", "--expect-no-overflow", ".shell-main", "--no-shot"],
+  "checkpoints": [
+    {
+      "name": "dark-name-time-short-bubble",
+      "args": ["/", "--open-chat", "latest", "--wait-for", "[data-slot=\"message-row\"]", "--expect-visible", "[data-slot=\"message-row\"]"]
+    },
+    {
+      "name": "mobile-compact-large-document",
+      "args": [
+        "/",
+        "--open-chat",
+        "current",
+        "--expect-visible",
+        "[data-slot=\"message-row-body\"]",
+        "--expect-visible",
+        "[data-slot=\"message-content-column\"]"
+      ]
+    },
+    {
+      "name": "hover-pointer",
+      "args": ["/", "--open-chat", "current", "--expect-visible", "[data-slot=\"message-actions-row\"]"]
+    }
+  ]
+}

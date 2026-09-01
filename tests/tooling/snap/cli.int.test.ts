@@ -14,6 +14,51 @@ const GOOD_HTML = `<!doctype html><html><body style="background:#ffffff">
 
 const BROWSER_TIMEOUT_MS = 60_000;
 
+const DEAD_CSS_HTML = `<!doctype html><html data-app-ready="settled"><head><style>.defined { color: black }</style></head>
+<body><p class="never-defined">dead selector plant</p></body></html>`;
+const EMPTY_CSS_HTML = `<!doctype html><html data-app-ready="settled"><head><style>.empty-used { width: --not-a-value }</style></head>
+<body><p class="empty-used">empty rule plant</p></body></html>`;
+const CLEAN_CSS_HTML = `<!doctype html><html data-app-ready="settled"><head><style>.defined { color: black }</style></head>
+<body><p class="defined">defined selector twin</p></body></html>`;
+
+// @instrument-proof: dead/empty CSS are verdict members, not advisory report lines. The same CLI and
+// browser walk a dead token, a used empty rule, and a clean defined twin so an always-red implementation
+// cannot satisfy the fence.
+test("dead and empty CSS findings RED ordinary Snap while the defined twin stays clean", { timeout: 3 * BROWSER_TIMEOUT_MS }, async ({
+  plantedTree,
+  runCli,
+}) => {
+  const root = await plantedTree({ "dead.html": DEAD_CSS_HTML, "empty.html": EMPTY_CSS_HTML, "clean.html": CLEAN_CSS_HTML });
+  const argv = ["--text", "--no-failure-evidence"];
+  const dead = await runCli("snap", ["--file", `${root}/dead.html`, ...argv], { timeoutMs: BROWSER_TIMEOUT_MS });
+  const empty = await runCli("snap", ["--file", `${root}/empty.html`, ...argv], { timeoutMs: BROWSER_TIMEOUT_MS });
+  const clean = await runCli("snap", ["--file", `${root}/clean.html`, ...argv], { timeoutMs: BROWSER_TIMEOUT_MS });
+
+  expect(dead.stdout).toContain("never-defined");
+  expect(empty.stdout).toContain(".empty-used");
+  await expect(dead).toExitWith(EXIT.violations);
+  await expect(empty).toExitWith(EXIT.violations);
+  await expect(clean).toExitWith(EXIT.clean);
+});
+
+test("dead CSS REDs the scenario aggregate and checkpoint summary", { timeout: 2 * BROWSER_TIMEOUT_MS }, async ({ plantedTree, runCli }) => {
+  const root = await plantedTree({ "dead.html": DEAD_CSS_HTML, "clean.html": CLEAN_CSS_HTML });
+  const scenario = (file: string, name: string): string =>
+    JSON.stringify({ name, defaults: ["--text", "--summary"], checkpoints: [{ name: "css", args: ["--file", file] }] });
+  const scenarios = await plantedTree({
+    "dead-scenario.json": scenario(`${root}/dead.html`, "dead-css-scenario"),
+    "clean-scenario.json": scenario(`${root}/clean.html`, "clean-css-scenario"),
+  });
+  const dead = await runCli("snap", ["--scenario", `${scenarios}/dead-scenario.json`, "--no-failure-evidence"], { timeoutMs: BROWSER_TIMEOUT_MS });
+  const clean = await runCli("snap", ["--scenario", `${scenarios}/clean-scenario.json`, "--no-failure-evidence"], { timeoutMs: BROWSER_TIMEOUT_MS });
+
+  expect(dead.stdout).toContain("CHECKPOINT css FAIL");
+  expect(dead.stdout).toContain("deadcss-fails=1");
+  await expect(dead).toExitWith(EXIT.violations);
+  expect(clean.stdout).toContain("CHECKPOINT css PASS");
+  await expect(clean).toExitWith(EXIT.clean);
+});
+
 test("the contrast instrument REDs on a planted WCAG failure (and stays green on the readable twin)", { timeout: 2 * BROWSER_TIMEOUT_MS }, async ({
   plantedTree,
   runCli,

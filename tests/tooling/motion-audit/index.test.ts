@@ -5,13 +5,15 @@
 // gated number, making "journey under 0.1" unreachable by any app fix short of changing the virtualizer.
 // This file's home is the tests/tooling/motion-audit mirror (Spine-Testing.md §2); the browser
 // half — that a virtualized-tagged shift really does move only raw — is tests/client/lib/motion-stats.ct.tsx.
-import type { AuditData, BrowserEnvironmentEvidence } from "../../../tooling/src/motion-audit/index.ts";
+import type { AnimationRecord, AuditData, BrowserEnvironmentEvidence } from "../../../tooling/src/motion-audit/index.ts";
 import {
+  animationTotals,
   apparatusGap,
   calibratedDroppedFramePct,
   clsOverBudget,
   clsTotals,
   droppedFramePct,
+  evaluateMotionAudit,
   loafOverBudget,
   loafTotals,
   MOTION_AUDIT_HELP,
@@ -66,6 +68,7 @@ const DESKTOP_ENVIRONMENT: BrowserEnvironmentEvidence = {
 function auditData(over: Partial<AuditData> = {}): AuditData {
   return {
     environment: DESKTOP_ENVIRONMENT,
+    applicationMotion: null,
     motion: { loafs: [], cls: 0, virtualizedCls: 0, nonVirtualizedCls: 0, worstBlocking: 0, worstShift: 0 },
     animations: [],
     frames: { raw: { total: 12, dropped: 0, pct: 0 }, classified: { total: 0, dropped: 0 }, budgeted: { total: 12, dropped: 0, pct: 0 } },
@@ -76,6 +79,76 @@ function auditData(over: Partial<AuditData> = {}): AuditData {
     ...over,
   };
 }
+
+function dirtyAnimation(over: Partial<AnimationRecord> = {}): AnimationRecord {
+  return {
+    target: '[data-slot="collapsible-panel"]',
+    properties: ["height"],
+    compositorClean: false,
+    ...over,
+  };
+}
+
+test("only an exactly attributed Base UI height lifecycle leaves the dirty-animation budget", () => {
+  const starting = dirtyAnimation({
+    targetState: { startingStyle: false, endingStyle: false },
+    lifecycleState: { startingStyle: true, endingStyle: false, observedAt: "transition-run" },
+    attribution: { owner: "base-ui", mechanism: "css-transition", phase: "starting-style" },
+  });
+  const ending = dirtyAnimation({
+    targetState: { startingStyle: false, endingStyle: false },
+    lifecycleState: { startingStyle: false, endingStyle: true, observedAt: "transition-run" },
+    attribution: { owner: "base-ui", mechanism: "css-transition", phase: "ending-style" },
+  });
+
+  expect(animationTotals([starting, ending])).toMatchObject({ rawDirty: 2, sanctionedLibrary: 2, budgetedDirty: 0, gaps: [] });
+  expect(evaluateMotionAudit(auditData({ animations: [starting, ending] }), 2500)).toMatchObject({
+    dirtyAnimations: 2,
+    sanctionedLibraryAnimations: 2,
+    budgetedDirtyAnimations: 0,
+    budgetsPass: true,
+    gaps: [],
+  });
+});
+
+test("application, unattributed legacy, and unsupported Base UI dirty animations remain budget failures", () => {
+  const application = dirtyAnimation({
+    targetState: { startingStyle: false, endingStyle: false },
+    attribution: { owner: "application", mechanism: "css-transition" },
+  });
+  const legacy = dirtyAnimation();
+  const unsupportedLibrary = dirtyAnimation({
+    properties: ["width"],
+    lifecycleState: { startingStyle: true, endingStyle: false, observedAt: "transition-run" },
+    attribution: { owner: "base-ui", mechanism: "css-transition", phase: "starting-style" },
+  });
+
+  expect(animationTotals([application, legacy, unsupportedLibrary])).toMatchObject({
+    rawDirty: 3,
+    sanctionedLibrary: 0,
+    budgetedDirty: 3,
+    gaps: [],
+  });
+  expect(evaluateMotionAudit(auditData({ animations: [application, legacy, unsupportedLibrary] }), 2500)).toMatchObject({
+    dirtyAnimations: 3,
+    sanctionedLibraryAnimations: 0,
+    budgetedDirtyAnimations: 3,
+    budgetsPass: false,
+    gaps: [],
+  });
+});
+
+test("a counterfeit Base UI owner/phase tuple is an attribution evidence gap", () => {
+  const counterfeit = dirtyAnimation({
+    targetState: { startingStyle: false, endingStyle: true },
+    lifecycleState: { startingStyle: false, endingStyle: true, observedAt: "transition-run" },
+    attribution: { owner: "base-ui", mechanism: "css-transition", phase: "starting-style" },
+  });
+
+  expect(animationTotals([counterfeit])).toMatchObject({ rawDirty: 1, sanctionedLibrary: 0, budgetedDirty: 1 });
+  expect(animationTotals([counterfeit]).gaps.map((gap) => gap.evidence)).toEqual(["Base UI animation attribution"]);
+  expect(evaluateMotionAudit(auditData({ animations: [counterfeit] }), 2500).gaps.map((gap) => gap.evidence)).toEqual(["Base UI animation attribution"]);
+});
 
 /** The in-page snapshot fields the verdict reads. Typed off the probe's own parameter so the fixture can
  *  never drift from the shape `clsTotals` actually parses (a probe the reader can't read is a lying proof). */
@@ -410,6 +483,9 @@ test("--mobile selects the full shared device descriptor and the environment slo
   expect(desktopAfterMobile).toMatchObject({ device: null, viewport: { width: 1280, height: 800 }, errors: [] });
   expect(MOTION_AUDIT_HELP).toContain("--mobile");
   expect(MOTION_AUDIT_HELP).toContain("touch · pointer:coarse · mobile UA · DPR");
+  expect(MOTION_AUDIT_HELP).toContain("--goto settings:appearance");
+  expect(MOTION_AUDIT_HELP).toContain('[data-slot="collapsible-trigger"]');
+  expect(MOTION_AUDIT_HELP).not.toContain("settings-trigger");
 });
 
 test("a requested/actual browser-environment mismatch is an instrument error input", () => {

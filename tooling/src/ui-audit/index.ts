@@ -64,7 +64,7 @@ export {
   checkTruncatedText,
 } from "./lib/checks-quality.ts";
 export { checkAnimatedImgHover, checkGradientText, checkNestedCard, checkZIndex } from "./lib/checks-structure.ts";
-export { checkCaveatHierarchy, checkFontCensus, checkTextStyle, groupTypeFindings } from "./lib/checks-typography.ts";
+export { checkCaveatHierarchy, checkFontCensus, checkTextStyle } from "./lib/checks-typography.ts";
 export { collectFindings } from "./lib/collect.ts";
 export { censusGap, censusThinGap, censusTotal, reachGap, readinessGap, themeProvenanceGap } from "./lib/evidence.ts";
 export { INTERACTIVE_TEXT_FLOOR_PX, LEADING_FLOOR, RAMP_FONT_FACES, TEXT_MICRO_PX } from "./lib/ramp.ts";
@@ -79,6 +79,7 @@ export {
   stageLabel,
   unknownRefRefusal,
 } from "./lib/stage-request.ts";
+export { runUiAuditMatrix } from "./ops/matrix.ts";
 export { DESIGN_AUDIT_HELP, parseAuditArgs } from "./ops/parse.ts";
 export { runUiAudit } from "./ops/run.ts";
 export { configureAuditStage } from "./ops/stage.ts";

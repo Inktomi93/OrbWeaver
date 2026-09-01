@@ -2,9 +2,24 @@
 // resources and contexts while this module owns only the event wiring duplicated across every page.
 
 import type { ConsoleMessage, Page } from "@playwright/test";
-import type { CapturedConsole, CapturedRequest } from "./browser.ts";
 import type { ProbeMedia } from "./browser-media.ts";
 import { applyProbeMedia } from "./browser-media.ts";
+
+export interface CapturedRequest {
+  method: string;
+  url: string;
+  status: number | null;
+  failed: string | null;
+  /** Playwright resourceType (document/xhr/fetch/image/…) — annotates failures. */
+  type: string;
+}
+
+export interface CapturedConsole {
+  readonly type: string;
+  readonly text: string;
+  readonly location: { readonly url: string; readonly line: number; readonly column: number } | null;
+  readonly line: string;
+}
 
 export interface PageCapture {
   readonly media: ProbeMedia;

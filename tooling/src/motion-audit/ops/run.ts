@@ -1,10 +1,12 @@
-// The audit orchestration: launch (full motion — the OS media query AND, via --full-motion, the app
-// setting) -> goto/ready/settle -> reach -> flagger settle -> measured window -> report.
+// The audit orchestration: launch with the requested OS media-query arm and independent app Appearance
+// arm -> goto/ready/settle -> reach -> flagger settle -> measured window -> report.
+import type { ProbeSession } from "@orb/tooling/_shared/browser";
 import { buildUrl, launchProbeSession, settle, withProbeSession } from "@orb/tooling/_shared/browser";
 import { readBrowserEnvironment } from "@orb/tooling/_shared/browser-environment";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
+import { readRuntimeAppearanceContract } from "../../_shared/appearance-matrix.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import type { Args, AuditData } from "../contract/types.ts";
+import type { ApplicationMotionEvidence, Args, AuditData } from "../contract/types.ts";
 import { CPU_THROTTLE_RATE, MOUNT_SETTLE_MS, NAV_TIMEOUT_MS, READY_TIMEOUT_MS } from "../lib/budgets.ts";
 import { apparatusGap, reportInstrumentError } from "../lib/evidence.ts";
 import { driveReach, hasOrbBridge, prepareMeasuredClick } from "./drive.ts";
@@ -41,6 +43,11 @@ const RESET_AFTER_GEOMETRY = `new Promise((resolve, reject) => {
 /** The outcome of one ordered evidence barrier — a value, or the terminal instrument-error exit. */
 type Barrier<T> = { readonly ok: true; readonly value: T } | { readonly ok: false };
 
+export interface MotionAuditRunResult {
+  readonly code: number;
+  readonly data: AuditData | null;
+}
+
 /** Run one pre-measurement barrier, converting ANY throw into a TERMINAL instrument error.
  *
  *  The swallow is owned, not hidden: every caller returns `EXIT.toolError` on `ok: false`, so a failed
@@ -56,7 +63,36 @@ async function barrier<T>(url: string, evidence: string, detail: (message: strin
   }
 }
 
-export async function runMotionAudit(opts: Args): Promise<number> {
+async function readApplicationMotion(
+  page: Parameters<typeof readRuntimeAppearanceContract>[0],
+  opts: Args,
+  applied: boolean | null,
+): Promise<ApplicationMotionEvidence | null> {
+  // Older `--isolated --ref` bundles legitimately predate the carrier bridge. The ordinary audit does not
+  // consume this field; the matrix exception explicitly rejects null, so absence cannot become STATIC-EXPECTED.
+  // @orb-gate-ignore caught-failure-ownership(default:catch): null is preserved in AuditData and the only consumer, matrix STATIC-EXPECTED, rejects it as instrument error; ordinary legacy-ref runs never claim this field. Ends if null becomes an accepted matrix identity.
+  try {
+    const contract = await readRuntimeAppearanceContract(page);
+    const row = contract.rows.find((candidate) => candidate.key === "reducedMotion");
+    const requested = opts.appearance !== null && Object.hasOwn(opts.appearance, "reducedMotion") ? opts.appearance["reducedMotion"] : null;
+    return {
+      requested: typeof requested === "boolean" ? requested : null,
+      applied,
+      reached: row?.reached ?? 0,
+      samples: row?.samples ?? [],
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function applyCpuThrottle(cdp: Awaited<ReturnType<ProbeSession["context"]["newCDPSession"]>>, enabled: boolean): Promise<void> {
+  if (enabled) {
+    await cdp.send("Emulation.setCPUThrottlingRate", { rate: CPU_THROTTLE_RATE });
+  }
+}
+
+export async function runMotionAuditDetailed(opts: Args): Promise<MotionAuditRunResult> {
   const url = opts.url ?? buildUrl(opts.base, opts.route);
 
   const session = await launchProbeSession({
@@ -64,7 +100,7 @@ export async function runMotionAudit(opts: Args): Promise<number> {
     viewport: opts.viewport,
     device: opts.device,
     colorScheme: null,
-    reducedMotion: false, // the OS media query — a motion probe wants the REAL animations
+    reducedMotion: opts.osReducedMotion,
     appearance: opts.appearance, // …and the APP setting, which the media query does not reach (--full-motion)
     theme: opts.theme,
     localStorage: [],
@@ -73,9 +109,7 @@ export async function runMotionAudit(opts: Args): Promise<number> {
     const { page } = session;
     const cdp = await session.context.newCDPSession(page);
 
-    if (opts.throttle) {
-      await cdp.send("Emulation.setCPUThrottlingRate", { rate: CPU_THROTTLE_RATE });
-    }
+    await applyCpuThrottle(cdp, opts.throttle);
 
     await page.goto(url, { waitUntil: "domcontentloaded", timeout: NAV_TIMEOUT_MS });
     // The readiness outcome is KEPT, not swallowed (#515). Discarding it here is what let a cold-vite boot
@@ -94,7 +128,7 @@ export async function runMotionAudit(opts: Args): Promise<number> {
     const gap = apparatusGap({ url, ready, bridge: await hasOrbBridge(page), readyTimeoutMs: READY_TIMEOUT_MS });
     if (gap !== null) {
       reportInstrumentError(url, gap);
-      return EXIT.toolError;
+      return { code: EXIT.toolError, data: null };
     }
 
     const environment = await barrier(
@@ -104,7 +138,7 @@ export async function runMotionAudit(opts: Args): Promise<number> {
       () => readBrowserEnvironment(page, session.environmentContract),
     );
     if (!environment.ok) {
-      return EXIT.toolError;
+      return { code: EXIT.toolError, data: null };
     }
 
     // Reach the surface FIRST (and reset the evidence it produced), then trace the measured window.
@@ -115,7 +149,7 @@ export async function runMotionAudit(opts: Args): Promise<number> {
       () => driveReach(page, opts.reach),
     );
     if (!reach.ok) {
-      return EXIT.toolError;
+      return { code: EXIT.toolError, data: null };
     }
     // The dead-class flagger's one full census is dev-instrument work. requestIdleCallback can postpone it
     // until the first later mutation, so explicitly settle it outside the product interaction window.
@@ -126,7 +160,7 @@ export async function runMotionAudit(opts: Args): Promise<number> {
       () => page.evaluate(SETTLE_FLAGGERS),
     );
     if (!settled.ok) {
-      return EXIT.toolError;
+      return { code: EXIT.toolError, data: null };
     }
     const measuredClick = await prepareMeasuredClick(page, opts.selector);
     if (opts.selector !== null) {
@@ -139,12 +173,23 @@ export async function runMotionAudit(opts: Args): Promise<number> {
         () => page.evaluate(RESET_AFTER_GEOMETRY),
       );
       if (!reset.ok) {
-        return EXIT.toolError;
+        return { code: EXIT.toolError, data: null };
       }
     }
 
     const data = await runAudit(page, cdp, opts, measuredClick);
-    const withErrors: AuditData = { ...data, environment: environment.value, pageErrors: [...session.pageErrors], reachFailures: reach.value };
-    return report(url, opts, withErrors);
+    const applicationMotion = await readApplicationMotion(page, opts, session.contexts[0]?.settingsEvidence.appearanceApplied ?? null);
+    const withErrors: AuditData = {
+      ...data,
+      environment: environment.value,
+      applicationMotion,
+      pageErrors: [...session.pageErrors],
+      reachFailures: reach.value,
+    };
+    return { code: report(url, opts, withErrors), data: withErrors };
   });
+}
+
+export async function runMotionAudit(opts: Args): Promise<number> {
+  return (await runMotionAuditDetailed(opts)).code;
 }

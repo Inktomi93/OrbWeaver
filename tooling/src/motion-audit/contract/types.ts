@@ -15,18 +15,21 @@ export interface Args {
   route: string;
   url: string | null;
   base: string;
+  /** Run the six-cell scenario/application-motion/OS-motion/device representative matrix. */
+  matrix: boolean;
   selector: string | null;
   reach: ReachAction[];
   windowMs: number;
   viewport: Viewport;
   /** null = raw desktop viewport; a name selects the shared full Playwright device descriptor. */
   device: string | null;
+  /** The OS media-query arm, independent of the app's persisted Appearance reducedMotion setting. */
+  osReducedMotion: boolean;
   vnc: boolean;
   throttle: boolean;
-  /** `--appearance`/`--appearance-preset`/`--full-motion`: the app-SETTING shim (_shared/appearance.ts). This
-   *  probe already asks the browser for full motion (`reducedMotion:false`, the OS media query) — but the
-   *  dev account STORES `appearance.reducedMotion:true`, so without this every number here described an app
-   *  whose own setting had frozen the animations being measured. null = the account's real state. */
+  /** `--appearance`/`--appearance-preset`/`--full-motion`: the app-SETTING shim (_shared/appearance.ts).
+   *  This is independent of `osReducedMotion`: the former owns the app carrier, while the latter owns the
+   *  browser media query. null = the account's real app state. */
   appearance: AppearancePatch | null;
   /** `--theme <name|id|none>`: the ACTIVE THEME this run pretends is selected, shimmed over the same
    *  `settings.getUserSettings` response (never written — _shared/theme.ts). null = the account's own theme. */
@@ -73,6 +76,32 @@ export interface AnimationRecord {
   readonly target: string;
   readonly properties: readonly string[];
   readonly compositorClean: boolean;
+  /** Optional only for `--ref` bundles older than #953. Absence is unattributed evidence, never clean. */
+  readonly targetState?: {
+    readonly startingStyle: boolean;
+    readonly endingStyle: boolean;
+  };
+  /** Optional only for old bundles. Null means the launch recorder observed no Base UI lifecycle. */
+  readonly lifecycleState?: {
+    readonly startingStyle: boolean;
+    readonly endingStyle: boolean;
+    readonly observedAt: "transition-run";
+  } | null;
+  /** The browser-observed owner/mechanism. Tooling revalidates Base UI claims before classification. */
+  readonly attribution?: AnimationAttribution;
+}
+
+const ANIMATION_OWNERS = ["base-ui", "application", "unattributed"] as const;
+type AnimationOwner = (typeof ANIMATION_OWNERS)[number];
+const ANIMATION_MECHANISMS = ["css-transition", "css-animation", "web-animation", "unknown"] as const;
+type AnimationMechanism = (typeof ANIMATION_MECHANISMS)[number];
+const ANIMATION_PHASES = ["starting-style", "ending-style"] as const;
+type AnimationPhase = (typeof ANIMATION_PHASES)[number];
+
+interface AnimationAttribution {
+  readonly owner: AnimationOwner;
+  readonly mechanism: AnimationMechanism;
+  readonly phase?: AnimationPhase;
 }
 
 export interface TraceEvent {
@@ -108,8 +137,20 @@ export interface CalibratedFrames {
   readonly budgeted: FrameTotals;
 }
 
+/** Requested/shimmed/live app reduced-motion identity. Matrix STATIC-EXPECTED is invalid unless all
+ * three agree; an argv boolean or a successful interception alone is not evidence of the rendered arm. */
+export interface ApplicationMotionEvidence {
+  readonly requested: boolean | null;
+  readonly applied: boolean | null;
+  readonly reached: number;
+  readonly samples: readonly unknown[];
+}
+
 export interface AuditData {
   readonly environment: BrowserEnvironmentEvidence;
+  /** Null for a bundle that predates the live Appearance carrier bridge. Ordinary single-run budgets do
+   * not consume it; the rated matrix's STATIC-EXPECTED arm refuses when it is absent. */
+  readonly applicationMotion: ApplicationMotionEvidence | null;
   readonly motion: MotionSnapshot | null;
   readonly animations: readonly AnimationRecord[];
   readonly frames: CalibratedFrames;

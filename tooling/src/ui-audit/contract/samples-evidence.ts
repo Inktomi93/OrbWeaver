@@ -46,3 +46,21 @@ export interface ThemeRenderInput {
     readonly unknown: number;
   };
 }
+
+/** The obscured census's own denominator (#797). A centre still outside the frame after a legitimate
+ * reveal, or an in-frame centre whose compositor hit-test answers null, is withheld rather than read as
+ * unobscured. Historical fixture bundles may omit the additive reach and subject details. */
+export interface ObscuredScanInput {
+  readonly candidates: number;
+  readonly recentred?: number;
+  readonly revealScrolls?: number;
+  readonly unaskable: number;
+  readonly subjects?: readonly {
+    readonly selector: string;
+    readonly reason: "centre-outside-frame" | "hit-test-null";
+    readonly centre: { readonly x: number; readonly y: number };
+    readonly rect: { readonly left: number; readonly top: number; readonly right: number; readonly bottom: number };
+    readonly interactive: boolean;
+    readonly text: string;
+  }[];
+}

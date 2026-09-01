@@ -6,6 +6,7 @@ import { INSTRUMENT_ERROR_VERDICT, printEvidenceGaps, printVerdict } from "@orb/
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { Args, AuditData, LoafRecord, ReachAction } from "../contract/types.ts";
+import { animationTotals, isSanctionedLibraryAnimation } from "../lib/animations.ts";
 import { CPU_THROTTLE_RATE } from "../lib/budgets.ts";
 import { motionEvidenceGaps } from "../lib/evidence.ts";
 import {
@@ -111,6 +112,28 @@ function budgetsPass(data: AuditData, dirtyAnimations: number): boolean {
   return !(budgetFails || stepFailed || reachFailures > 0 || pageErrors.length > 0);
 }
 
+export interface MotionAuditEvaluation {
+  readonly gaps: readonly EvidenceGap[];
+  /** Raw non-compositor-clean population, preserved for compatibility and denominator honesty. */
+  readonly dirtyAnimations: number;
+  readonly sanctionedLibraryAnimations: number;
+  readonly budgetedDirtyAnimations: number;
+  readonly budgetsPass: boolean;
+}
+
+/** Pure verdict input shared with the matrix-only STATIC-EXPECTED arm. The ordinary report remains the
+ * only printer; this surface lets the exception prove that the frame population is its sole gap. */
+export function evaluateMotionAudit(data: AuditData, windowMs: number): MotionAuditEvaluation {
+  const animations = animationTotals(data.animations);
+  return {
+    gaps: [...motionEvidenceGaps(data, windowMs), ...animations.gaps],
+    dirtyAnimations: animations.rawDirty,
+    sanctionedLibraryAnimations: animations.sanctionedLibrary,
+    budgetedDirtyAnimations: animations.budgetedDirty,
+    budgetsPass: budgetsPass(data, animations.budgetedDirty),
+  };
+}
+
 /** Absent evidence OUTRANKS both budget arms: a budget can neither pass nor fail on a number nothing
  *  observed, so the run is reported as no verdict at all (EXIT.toolError — "the run is NOT a verdict"). */
 function verdictFor(gaps: readonly EvidenceGap[], pass: boolean): { label: string; exit: number } {
@@ -127,6 +150,7 @@ export function report(url: string, opts: Args, data: AuditData): number {
   const cls = clsTotals(motion);
   const layoutInFrame = (motion === null ? [] : motion.loafs).filter((l) => l.styleAndLayoutStart > 0);
   const dirtyAnimations = animations.filter((a) => !a.compositorClean);
+  const animationPopulation = animationTotals(animations);
 
   print(`URL         ${url}`);
   printReachLine(opts.reach, reachFailures);
@@ -141,9 +165,16 @@ export function report(url: string, opts: Args, data: AuditData): number {
   print(
     `frames      raw ${frames.raw.dropped}/${frames.raw.total} dropped (${pct(frames.raw.pct)}) · Select entrance ${frames.classified.dropped}/${frames.classified.total} classified · budgeted ${frames.budgeted.dropped}/${frames.budgeted.total} (${pct(frames.budgeted.pct)})`,
   );
-  print(`animations  ${animations.length} active · ${dirtyAnimations.length} NOT compositor-clean`);
+  print(
+    `animations  ${animations.length} active · ${animationPopulation.rawDirty} NOT compositor-clean raw · ${animationPopulation.sanctionedLibrary} Base UI height lifecycle · ${animationPopulation.budgetedDirty} budgeted dirty`,
+  );
   for (const a of dirtyAnimations) {
-    print(`  ✗ ${a.target}  animates [${a.properties.join(", ")}] — non-compositor prop (jank risk)`);
+    const attribution = `${a.attribution?.owner ?? "unattributed"}/${a.attribution?.mechanism ?? "legacy"}`;
+    print(
+      isSanctionedLibraryAnimation(a)
+        ? `  · ${a.target}  animates [${a.properties.join(", ")}] — ${attribution} (raw, classified owner-accepted height lifecycle)`
+        : `  ✗ ${a.target}  animates [${a.properties.join(", ")}] — ${attribution} non-compositor prop (jank risk)`,
+    );
   }
   for (const l of layoutInFrame) {
     printLayoutLoaf(l);
@@ -156,9 +187,9 @@ export function report(url: string, opts: Args, data: AuditData): number {
     }
   }
 
-  const gaps = motionEvidenceGaps(data, opts.windowMs);
-  printEvidenceGaps(gaps);
-  const verdict = verdictFor(gaps, budgetsPass(data, dirtyAnimations.length));
+  const evaluation = evaluateMotionAudit(data, opts.windowMs);
+  printEvidenceGaps(evaluation.gaps);
+  const verdict = verdictFor(evaluation.gaps, evaluation.budgetsPass);
 
   return printVerdict("motion-audit", {
     verdict: verdict.exit,
@@ -192,6 +223,8 @@ export function report(url: string, opts: Args, data: AuditData): number {
       ["loaf-style-in-frame-raw", layoutInFrame.length],
       ["loaf-style-in-frame-budgeted", loaf.budgetedStyleLayout],
       ["dirty-animations", dirtyAnimations.length],
+      ["library-height-animations", animationPopulation.sanctionedLibrary],
+      ["dirty-animations-budgeted", animationPopulation.budgetedDirty],
       ["page-errors", pageErrors.length],
     ],
   });

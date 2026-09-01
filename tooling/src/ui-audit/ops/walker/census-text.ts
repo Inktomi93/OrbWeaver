@@ -145,6 +145,13 @@ export const WALKER_CENSUS_TEXT = `
     }
     textStyles.push({
       selector: describe(el),
+      // AUTHORED IDENTITY, the same pair #983 gave tap-target — a type-floor breach is a property of
+      // the COMPONENT, not of each render. These are only in scope here because
+      // WALKER_TARGET_IDENTITY sits ahead of this segment; the helpers read \`var\` constants that
+      // hoist UNDEFINED, so function hoisting alone would NOT have saved a later placement. The full
+      // reasoning is walker.ts's ORDER note, and it is the one thing that makes this line safe.
+      authoredTarget: authoredTargetClaim(el),
+      authoredHome: authoredTargetHome(el),
       tag: tag,
       directTextLen: direct.length,
       // The element's OWN text, capped. Carried for #652: a bounding SENTENCE and a qualifier FRAGMENT
@@ -178,13 +185,6 @@ export const WALKER_CENSUS_TEXT = `
       voice: voiceOf(el),
       alertContext: !!el.closest(CAVEAT_ROLE_CTX),
       blockPath: blockPathOf(el),
-      // AUTHORED IDENTITY, the same pair #983 gave tap-target. A type-floor breach is a property of
-      // the COMPONENT, not of each render: on settings:appearance \`undersized-ui-text\` printed eight
-      // rows whose selectors differed only by \`:nth-of-type(1..8)\` — one authored decision, eight
-      // repairs to read. These two facts let the check fold them, and they are only in scope here
-      // because WALKER_TARGET_IDENTITY was moved ahead of this segment (see walker.ts's ORDER note).
-      authoredTarget: authoredTargetClaim(el),
-      authoredHome: authoredTargetHome(el),
     });
 
     // page censuses (impeccable overused-font/flat-type-hierarchy recipe, family list rebound

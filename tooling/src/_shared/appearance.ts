@@ -31,8 +31,8 @@
 // ThemeScope commit from `orb:appearance-boot`. Intercepting the query alone would therefore measure a
 // stale first frame. `installSettingsShim` seeds exactly those carried axes before navigation; the
 // appearance-carrier-contract gate keeps this copied browser boundary set-equal to the live manifest.
-import { readFileSync } from "node:fs";
 import type { BrowserContext, Route } from "@playwright/test";
+import { installAppearancePrepaintRecorder } from "./appearance-prepaint.ts";
 import { warn } from "./log.ts";
 import type { ThemeEntry, ThemeRequest } from "./theme.ts";
 import { LIST_THEMES_PROCEDURE, readThemeList, resolveTheme, themeConfigPatch, themeWarning } from "./theme.ts";
@@ -51,9 +51,6 @@ export type AppearancePatch = Readonly<Record<string, unknown>>;
 /** A patch at `config` level — the union of the axes a run pretends (`appearance`, `theme`). Same
  *  `unknown` values for the same reason: the SERVER schema owns the vocabulary. */
 export type SettingsPatch = Readonly<Record<string, unknown>>;
-
-/** Parse outcome: a patch, or a stated reason (the caller turns it into an ARG ERROR — EXIT.misuse). */
-export type AppearanceParse = { readonly patch: AppearancePatch } | { readonly error: string };
 
 /** The appearance values remembered before React. `dataTheme` is a separate selected-theme axis. */
 export interface AppearanceBootHintPatch {
@@ -98,95 +95,8 @@ async function seedAppearanceBootHint(context: BrowserContext, patch: Appearance
   );
 }
 
-/** `--full-motion` is exactly this patch — the flag a motion sweep actually types. */
-export const FULL_MOTION_PATCH: AppearancePatch = { reducedMotion: false };
-
-/** THE curated appearance points (`--appearance-preset <name>`), committed beside the probes so a sweep
- *  names a profile instead of pasting JSON. One home: new coverage is a new PROFILE there, never a new flag.
- *  Read eagerly at parse time so an unknown/broken profile is CLI misuse (EXIT.misuse), not a mid-run surprise. */
-const PRESETS_PATH = new URL("./appearance-presets.json", import.meta.url);
-
-interface PresetFile {
-  readonly presets?: Record<string, { readonly why?: string; readonly appearance?: unknown }>;
-}
-
-/** Null when the committed file is missing or unparseable — the caller turns that into an ARG ERROR naming
- *  the path, never a silent "no such preset" that blames the caller for a broken file. */
-function readPresetFile(): PresetFile | null {
-  // @orb-gate-ignore caught-failure-ownership(default:catch): appearance JSON parse returns null so the caller emits its option-specific refusal; no theme is applied. Ends if parse failure stops being a refusal.
-  try {
-    return JSON.parse(readFileSync(PRESETS_PATH, "utf8")) as PresetFile;
-  } catch {
-    return null;
-  }
-}
-
-/** Every profile name, in file order — the list an ARG ERROR prints and `--help` echoes. */
-export function appearancePresetNames(): readonly string[] {
-  return Object.keys(readPresetFile()?.presets ?? {});
-}
-
-/** `--appearance-preset <name>` → its patch, or a stated reason naming the valid profiles. */
-export function loadAppearancePreset(name: string): AppearanceParse {
-  const file = readPresetFile();
-  if (file === null) {
-    return { error: "--appearance-preset could not read tooling/src/_shared/appearance-presets.json (missing or invalid JSON)" };
-  }
-  const presets = file.presets ?? {};
-  const entry = presets[name];
-  if (entry === undefined) {
-    return { error: `--appearance-preset "${name}" is not a profile — valid: ${Object.keys(presets).join(", ")}` };
-  }
-  if (!isPlainObject(entry.appearance)) {
-    return { error: `--appearance-preset "${name}" has no appearance object in tooling/src/_shared/appearance-presets.json` };
-  }
-  return { patch: entry.appearance };
-}
-
-/** The value-taking appearance flags — every probe CLI adds these to its required-value scan. */
-export const APPEARANCE_VALUE_FLAGS: readonly string[] = ["--appearance", "--appearance-preset"];
-
-/** The one help block for the appearance axis, shared by all four probe CLIs so the axis warning cannot
- *  drift between them. Rendered with the house `Heading:` + two-space-indented flag list. */
-export function appearanceHelpBlock(): string {
-  return `Appearance (the APP's own settings, shimmed over the settings response and never written — a DIFFERENT
-axis from --reduced-motion, which emulates the OS media query; they compose):
-  --full-motion                 render with the app's reduce-motion setting OFF
-  --appearance '<json>'         deep-merge any appearance keys, e.g. '{"density":"compact"}'
-  --appearance-preset <name>    curated profile: ${appearancePresetNames().join(" | ")}
-                                (tooling/src/_shared/appearance-presets.json is the ONE home for these —
-                                new coverage is a new profile there, never a new flag; --appearance
-                                composes OVER a preset). No flag = the account's real state.`;
-}
-
-/** Fold one appearance flag's outcome into a CLI's args — the patch accumulates (later keys win, so argv
- *  reads the way it behaves) and a stated reason becomes CLI misuse (EXIT.misuse). Shared by all four probes:
- *  a typo'd profile must never quietly audit the account state under a profile's name. */
-export function applyAppearanceFlag(target: { appearance: AppearancePatch | null; errors: string[] }, parsed: AppearanceParse): void {
-  if ("error" in parsed) {
-    target.errors.push(parsed.error);
-    return;
-  }
-  target.appearance = mergeAppearancePatches(target.appearance, parsed.patch);
-}
-
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-/** `--appearance '<json>'` → a patch. A non-object (array/number/string/null) is CLI misuse, not a silent
- *  no-op: the flag's whole contract is "these appearance keys". */
-export function parseAppearancePatch(raw: string): AppearanceParse {
-  let value: unknown;
-  try {
-    value = JSON.parse(raw);
-  } catch (e) {
-    return { error: `--appearance expects a JSON object, got ${JSON.stringify(raw)} (${e instanceof Error ? e.message : String(e)})` };
-  }
-  if (!isPlainObject(value)) {
-    return { error: `--appearance expects a JSON object, got ${JSON.stringify(raw)}` };
-  }
-  return { patch: value };
 }
 
 /**
@@ -416,6 +326,7 @@ export async function installSettingsShim(context: BrowserContext, shim: Setting
   if (shim.appearance === null && shim.theme === null) {
     return evidence;
   }
+  await installAppearancePrepaintRecorder(context);
   if (shim.appearance !== null) {
     await seedAppearanceBootHint(context, shim.appearance);
   }

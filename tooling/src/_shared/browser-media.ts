@@ -18,12 +18,46 @@ export interface ProbeMediaOptions {
   readonly reducedTransparency?: boolean;
 }
 
+interface ProbeMediaObservation {
+  readonly dark: boolean;
+  readonly light: boolean;
+  readonly reducedMotion: boolean;
+  readonly contrastMore: boolean;
+  readonly reducedTransparency: boolean;
+}
+
+const READ_PROBE_MEDIA = `(() => ({
+  dark: window.matchMedia("(prefers-color-scheme: dark)").matches,
+  light: window.matchMedia("(prefers-color-scheme: light)").matches,
+  reducedMotion: window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+  contrastMore: window.matchMedia("(prefers-contrast: more)").matches,
+  reducedTransparency: window.matchMedia("(prefers-reduced-transparency: reduce)").matches,
+}))()`;
+
 export function resolveProbeMedia(opts: ProbeMediaOptions): ProbeMedia {
   return {
     reducedMotion: opts.reducedMotion ? "reduce" : "no-preference",
     reducedTransparency: opts.reducedTransparency ?? false,
     ...(opts.colorScheme === null ? {} : { colorScheme: opts.colorScheme }),
     ...(opts.contrast === undefined || opts.contrast === null ? {} : { contrast: opts.contrast }),
+  };
+}
+
+/** Snapshot the page's live media identity before a browser observer attaches. Chromium's DevTools
+ *  frontend resets emulated media on the inspected target, so the observer must restore what it read. */
+export async function readProbeMedia(page: Page): Promise<ProbeMedia> {
+  const actual = (await page.evaluate(READ_PROBE_MEDIA)) as ProbeMediaObservation;
+  let colorScheme: ProbeMedia["colorScheme"];
+  if (actual.dark === true) {
+    colorScheme = "dark";
+  } else if (actual.light === true) {
+    colorScheme = "light";
+  }
+  return {
+    ...(colorScheme === undefined ? {} : { colorScheme }),
+    reducedMotion: actual.reducedMotion === true ? "reduce" : "no-preference",
+    contrast: actual.contrastMore === true ? "more" : "no-preference",
+    reducedTransparency: actual.reducedTransparency === true,
   };
 }
 

@@ -108,8 +108,16 @@ export function printObscuredScan(scan: ObscuredScanInput | undefined): void {
     return;
   }
   print(
-    `OBSCURED     ${scan.unaskable} of ${scan.candidates} candidate(s) had a centre point outside the viewport — elementFromPoint cannot be asked there, so their obscured verdict is WITHHELD, not passed`,
+    `OBSCURED     ${scan.unaskable} of ${scan.candidates} candidate(s) produced no compositor verdict after re-centring — their obscured verdict is WITHHELD, not passed`,
   );
+  for (const subject of (scan.subjects ?? []).slice(0, REFUSAL_PRINT_CAP)) {
+    print(
+      `             ${subject.selector} centre=${Math.round(subject.centre.x)},${Math.round(subject.centre.y)} rect=${Math.round(subject.rect.left)},${Math.round(subject.rect.top)}..${Math.round(subject.rect.right)},${Math.round(subject.rect.bottom)} ${subject.reason}`,
+    );
+  }
+  if ((scan.subjects?.length ?? 0) > REFUSAL_PRINT_CAP) {
+    print(`             … ${String((scan.subjects?.length ?? 0) - REFUSAL_PRINT_CAP)} more (full list in the report json)`);
+  }
   print("");
 }
 

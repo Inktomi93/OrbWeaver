@@ -18,6 +18,8 @@ export type AuditAction =
 export interface Args {
   route: string;
   base: string;
+  /** Run the bounded representative Appearance matrix through the ordinary single-audit path. */
+  matrix: boolean;
   actions: AuditAction[];
   waitMs: number;
   out: string | null;

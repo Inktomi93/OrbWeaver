@@ -211,17 +211,24 @@ test("a drain waits across a 97-element multi-slice mutation and advances monoto
     lines.some((line) => line.includes("orb-ct-batched-dead-class-marker")),
     "the completed drain includes the final descendant",
   ).toBe(true);
-  const after = await page.evaluate(() => (document.documentElement as HTMLElement & { __orbIdleCallbackCount?: number }).__orbIdleCallbackCount ?? 0);
-  const receiptRows = JSON.parse(await receipts.innerText()) as readonly {
-    readonly requestedGeneration: number;
-    readonly completedGeneration: number;
-  }[];
-
-  expect(after - before, "the 97-element insertion cannot complete in one short idle slice").toBeGreaterThan(1);
-  expect(receiptRows).toEqual([
-    { requestedGeneration: 1, completedGeneration: 1 },
-    { requestedGeneration: 2, completedGeneration: 2 },
-  ]);
+  await expect
+    .poll(
+      async () =>
+        (await page.evaluate(() => (document.documentElement as HTMLElement & { __orbIdleCallbackCount?: number }).__orbIdleCallbackCount ?? 0)) - before,
+    )
+    .toBeGreaterThan(1);
+  await expect
+    .poll(
+      async () =>
+        JSON.parse(await receipts.innerText()) as readonly {
+          readonly requestedGeneration: number;
+          readonly completedGeneration: number;
+        }[],
+    )
+    .toEqual([
+      { requestedGeneration: 1, completedGeneration: 1 },
+      { requestedGeneration: 2, completedGeneration: 2 },
+    ]);
 });
 
 // PLANTED-DEFECT PROOF (P8) for the `@orb/kit/dead-css` tokenizer's un-escape step. The plant is the

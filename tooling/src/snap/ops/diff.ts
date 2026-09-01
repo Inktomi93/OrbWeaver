@@ -7,7 +7,8 @@ import { artifactDir, print } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { resolveFfmpeg } from "../../_shared/ffmpeg.ts";
 import { runNicedSync } from "../../_shared/proc.ts";
-import type { Args, DiffOutcome } from "../contract/types.ts";
+import type { Args } from "../contract/types.ts";
+import type { DiffOutcome } from "../contract/verdict.ts";
 import { PNG_EXT_RE, SSIM_ALL_RE } from "../lib/out-names.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");

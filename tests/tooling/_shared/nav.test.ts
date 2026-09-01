@@ -17,6 +17,7 @@ test("each verb calls its own bridge method with the raw target", () => {
 test("--goto is DECODED in Node, so the emitted script names one concrete method", () => {
   // The bridge does not understand the namespaced spelling; parseGotoTarget (_kit/flags.ts) picks the arm.
   expect(buildNavScript("goto", "settings:appearance")).toContain('nav.openConfig("appearance")');
+  expect(buildNavScript("goto", "settings:appearance.sizing")).toContain('nav.openConfig("appearance", "sizing")');
   expect(buildNavScript("goto", "modal:you")).toContain('nav.openModal("you")');
   expect(buildNavScript("goto", "presets")).toContain('nav.section("presets")');
 });

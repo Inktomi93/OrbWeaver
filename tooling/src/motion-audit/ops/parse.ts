@@ -1,14 +1,15 @@
 // Argv parse for motion-audit — the strict-CLI posture (an unknown flag is a hard EXIT.misuse: a
 // typo'd nav flag must not quietly audit the landing page under the name of the surface asked for).
+
+import { mergeAppearancePatches } from "@orb/tooling/_shared/appearance";
 import {
   APPEARANCE_VALUE_FLAGS,
   appearanceHelpBlock,
   applyAppearanceFlag,
   FULL_MOTION_PATCH,
   loadAppearancePreset,
-  mergeAppearancePatches,
   parseAppearancePatch,
-} from "@orb/tooling/_shared/appearance";
+} from "@orb/tooling/_shared/appearance-flags";
 import type { Viewport } from "@orb/tooling/_shared/argv";
 import { parseViewport } from "@orb/tooling/_shared/argv";
 import { DEFAULT_BASE } from "@orb/tooling/_shared/browser";
@@ -67,6 +68,15 @@ const FLAG_HANDLERS: Record<string, FlagHandler> = {
     a.viewport = DEFAULT_VIEWPORT;
     a.device = null;
   },
+  "--matrix": (a) => {
+    a.matrix = true;
+  },
+  "--os-reduced-motion": (a) => {
+    a.osReducedMotion = true;
+  },
+  "--os-full-motion": (a) => {
+    a.osReducedMotion = false;
+  },
   "--vnc": (a) => {
     a.vnc = true;
   },
@@ -120,13 +130,20 @@ Environment:
   --base <url> · --url <full-url> · --viewport <WxH> · --vnc (headful) · --no-throttle
   --mobile                  ${MOBILE_DEVICE} full descriptor (touch · pointer:coarse · mobile UA · DPR)
   --desktop                 explicit 1280x800 desktop (pointer:fine · hover)
+  --os-reduced-motion       emulate prefers-reduced-motion: reduce (independent of app Appearance)
+  --os-full-motion          explicit OS full-motion media-query arm (default)
+  --matrix                  derive/run the six scenario × app-motion × OS-motion × device cells;
+                            the exact reduced mobile entry may report STATIC-EXPECTED only beside the
+                            nonzero full-motion mobile interaction control (ordinary zero-frame law stays)
+                            rated Appearance recipe: --goto settings:appearance
+                            --selector '[data-slot="collapsible-trigger"]'
 
 ${appearanceHelpBlock()}
 
 ${themeHelpBlock()}
-  A motion verdict owes BOTH arms: bare (the account's real state — does the floor hold?) and
-  --full-motion (is the nice stuff good?). This probe's browser-level reducedMotion:false is the OS
-  media query only; it does NOT turn the app's own setting back on.
+  A single-run motion verdict owes BOTH app arms: bare (the account's real state — does the floor hold?)
+  and --full-motion (is the nice stuff good?). The independent --os-full-motion/--os-reduced-motion
+  flags change only the browser media query; --matrix derives and runs both app and OS arms.
 
 Exit: 0 pass · 1 budget breach / failed action / page error · 2 nothing was observed (no __orb bridge,
       no composited frame) · 3 CLI misuse.`;
@@ -187,11 +204,13 @@ export function parseMotionArgs(argv: string[]): Args {
     route: "/",
     url: null,
     base: DEFAULT_BASE,
+    matrix: false,
     selector: null,
     reach: [],
     windowMs: DEFAULT_WINDOW_MS,
     viewport: DEFAULT_VIEWPORT,
     device: null,
+    osReducedMotion: false,
     vnc: false,
     throttle: true,
     appearance: null,
@@ -206,6 +225,24 @@ export function parseMotionArgs(argv: string[]): Args {
       handler(args, rest);
     } else if (!tok.startsWith("-")) {
       args.route = tok;
+    }
+  }
+  if (args.matrix) {
+    const overridden = [
+      "--viewport",
+      "--mobile",
+      "--desktop",
+      "--appearance",
+      "--appearance-preset",
+      "--full-motion",
+      "--os-reduced-motion",
+      "--os-full-motion",
+    ].filter((flag) => argv.includes(flag));
+    if (overridden.length > 0) {
+      args.errors.push(`--matrix owns application-motion/OS-motion/device axes; drop: ${overridden.join(", ")}`);
+    }
+    if (args.selector === null) {
+      args.errors.push("--matrix requires --selector so the entry and interaction scenarios are both executable");
     }
   }
   return args;

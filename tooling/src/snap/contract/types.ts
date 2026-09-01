@@ -1,11 +1,11 @@
 // snap's typed surface — the queue/args/outcome shapes every op speaks (docs/architecture/core/Core-Tooling-Law.md §2.5).
 import type { AppearancePatch } from "../../_shared/appearance.ts";
 import type { Viewport } from "../../_shared/argv.ts";
-import type { ResultPair } from "../../_shared/artifacts.ts";
 import type { CapturedConsole, CapturedRequest, LocalStorageSeed } from "../../_shared/browser.ts";
 import type { NavMethod } from "../../_shared/nav.ts";
 import type { ThemeRequest } from "../../_shared/theme.ts";
 import type { CssCascadeQuery, CssEvidenceReceipt } from "./cascade.ts";
+import type { DeadCssEvidence } from "./dead-css.ts";
 
 // `page` = the target page index for --pages multi-tab mode (0 when unprefixed / single-page). Every
 // step/capture carries it so one flat argv-ordered list can drive N tabs in one shared context.
@@ -214,6 +214,12 @@ export interface Args {
   /** emulateMedia reducedMotion:"reduce" (also implied by --probe). THE OS MEDIA QUERY — a DIFFERENT gate
    *  from `appearance` below (the app's own setting); they diverge and they compose. */
   reducedMotion: boolean;
+  /** Matrix-owned browser media arm. The ordinary CLI leaves this absent; `--matrix` sets both
+   *  polarities and the shared launcher proves the applied value against live matchMedia evidence. */
+  browserContrast?: "more" | "no-preference";
+  /** Matrix-owned Chromium `prefers-reduced-transparency` arm. Kept separate from Appearance because it
+   *  is an OS/browser contract, applied through the shared CDP rail and read back from the page. */
+  reducedTransparency?: boolean;
   /** `--appearance '<json>'` / `--appearance-preset <name>` / `--full-motion`: the deep-merge patch shimmed
    *  over the REAL `settings.getUserSettings` response for this run (never written — _shared/appearance.ts).
    *  Accumulated in argv order, later keys winning. null = drive the account's real state (the default, and
@@ -298,6 +304,7 @@ export interface CaptureOutcome {
   navFailures: number;
   deadCss: Array<{ token: string; count: number }>;
   emptyCss: string[];
+  deadCssEvidence: DeadCssEvidence | null;
   ariaText: string | null;
   ariaError: string | null;
   evalResults: EvalOutcome[];
@@ -407,11 +414,6 @@ export interface SessionCounts {
   readonly pageErrors: readonly string[];
 }
 
-export interface DiffOutcome {
-  diffPairs: ResultPair[];
-  ssimFailed: boolean;
-}
-
 // if --eval exprs were given, re-run them labeled with elapsed ms. Runs on PAGE 0's evals only (the
 // series is a single-surface time-lapse). Returns the tick count + the artifact/eval lines to report.
 export interface WatchTick {
@@ -429,22 +431,4 @@ export interface ScenarioSpec {
   readonly name: string;
   readonly defaults: readonly string[];
   readonly checkpoints: readonly ScenarioCheckpoint[];
-}
-
-export interface SnapFailureSummary {
-  readonly navigation: number;
-  readonly navActions: number;
-  readonly pageErrors: number;
-  readonly failedRequests: number;
-  readonly steps: number;
-  readonly contrast: number;
-  readonly aria: number;
-  readonly map: number;
-  readonly eval: number;
-  readonly watch: number;
-  readonly diff: number;
-  readonly assertions: number;
-  readonly consoleErrors: number;
-  readonly consoleWarnings: number;
-  readonly css: number;
 }
