@@ -258,7 +258,9 @@ test("#860 the CONTEXT head band is the open character's identity, over a foot r
 test("#860 a card with its own look carries the Own look mark in the band", async ({ mount, page }) => {
   await routeTrpc(page, {
     "character.list": () => CHARACTER_PAGE,
-    "character.get": () => ({ ...AZARAEL_DETAIL, themeOverride: { primary: "#ff8800" } }),
+    // `accent` is a card-embeddable `ThemeOverride` key; `primary` is a rendered CSS custom property and
+    // never a wire key, so a stub carrying it projects to an empty card theme and the mark stays hidden.
+    "character.get": () => ({ ...AZARAEL_DETAIL, themeOverride: { accent: "#ff8800" } }),
     "character.update": () => AZARAEL_DETAIL,
     "chat.listChats": chatListResponder([]),
     "settings.getUserSettings": () => SETTINGS,

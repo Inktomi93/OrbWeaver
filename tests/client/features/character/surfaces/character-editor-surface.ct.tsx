@@ -713,6 +713,11 @@ const APPEARANCE_TAB_RE = /Appearance tab/u;
 const OWN_LOOK_NAME = "Own look";
 /** …and the gloss it used to carry as that name, now its DESCRIPTION. */
 const OWN_LOOK_SENTENCE = "This card carries its own look — edit it in the Look tab.";
+/** A card that CARRIES a look, spelled in the WIRE vocabulary. `accent` is a card-embeddable
+ *  `ThemeOverride` key (`contracts/theme/override.ts`); `primary` is a rendered CSS custom property and
+ *  has never been a wire key — a stub carrying it projects through `cardEmbeddableSubset` to an EMPTY
+ *  card theme, so `OwnLookMark` correctly renders nothing and every assertion below finds no chip. */
+const OWN_LOOK_OVERRIDE = { accent: "#ff8800" } as const;
 /** The spoiler toggle's ONE name — it no longer flips (`aria-pressed` carries the state). */
 const SPOILER_NAME = "Hide spoilers";
 /** design-audit's `undersized-ui-text` floor: the smallest a CONTROL's own label may compute. */
@@ -852,7 +857,7 @@ test.describe("P2-5 suggestion chips at a coarse pointer", () => {
 test("P2-7 the OWN LOOK badge points at the tab that actually holds the theme editor", async ({ mount, page }) => {
   await routeTrpc(page, {
     ...CHARACTER_EDITOR_AMBIENT_ROUTES,
-    "character.get": () => ({ ...CARD, themeOverride: { primary: "#ff8800" } }),
+    "character.get": () => ({ ...CARD, themeOverride: OWN_LOOK_OVERRIDE }),
     "chat.listChats": chatListResponder([]),
     "character.update": () => CARD,
   });
@@ -901,7 +906,7 @@ test("#840 the spoiler eye keeps ONE name and lets aria-pressed carry the state"
 test("#840 the Own look chip is named by its visible text and its gloss is keyboard-reachable", async ({ mount, page }) => {
   await routeTrpc(page, {
     ...CHARACTER_EDITOR_AMBIENT_ROUTES,
-    "character.get": () => ({ ...CARD, themeOverride: { primary: "#ff8800" } }),
+    "character.get": () => ({ ...CARD, themeOverride: OWN_LOOK_OVERRIDE }),
     "chat.listChats": chatListResponder([]),
     "character.update": () => CARD,
   });
