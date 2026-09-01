@@ -10756,6 +10756,26 @@
       "receiptCurrent": true
     },
     {
+      "path": "docs/design/953-appearance-invariant-matrix.md",
+      "lane": "design",
+      "issue": 5,
+      "lines": 306,
+      "bytes": 16169,
+      "sha256": "0e167de4ea5fc99a19c39eb07138ea9a3f82b318a0bed49355482121a9cb2ff1",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "design",
+          "status": "active",
+          "updated": "2026-08-31"
+        },
+        "errors": []
+      },
+      "receipt": null,
+      "receiptCurrent": false
+    },
+    {
       "path": "docs/design/961-static-class-provenance-repair.md",
       "lane": "design",
       "issue": 5,
@@ -10794,6 +10814,59 @@
               {
                 "kind": "provenance",
                 "target": "git:0952cc4623ea0bca4dd8b3b55984866d04ec6ca9"
+              }
+            ]
+          }
+        ]
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/design/983-984-ui-audit-population-semantics.md",
+      "lane": "design",
+      "issue": 5,
+      "lines": 171,
+      "bytes": 9649,
+      "sha256": "4d9c4954985850e3828dcd719136159a50203e3cf2baa4b3efc9dfe51f8587c0",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "design",
+          "status": "active",
+          "updated": "2026-09-01"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/design/983-984-ui-audit-population-semantics.md",
+        "assignedSha256": "4d9c4954985850e3828dcd719136159a50203e3cf2baa4b3efc9dfe51f8587c0",
+        "disposition": "current",
+        "authority": "design",
+        "fullRead": true,
+        "verifiedSha256": "4d9c4954985850e3828dcd719136159a50203e3cf2baa4b3efc9dfe51f8587c0",
+        "verifiedCommit": "c875eae5175cd8f4d5ecd6fb92fa08d88c3f6b8a",
+        "verifiedAt": "2026-09-01",
+        "evidence": [
+          "docs/design/983-984-ui-audit-population-semantics.md:1 (full read; authored population identity, declared relational semantics, denominator accounting, rejected alternatives, coupled sites, and red-first controls)",
+          "git:c875eae5175cd8f4d5ecd6fb92fa08d88c3f6b8a (content commit whose tree contains the verified design blob and implemented #983 tap-target population contract)"
+        ],
+        "summary": "Active #983/#984 design for authored UI-audit populations, bounded representatives with complete accounting, and declared relational comparisons; #983 tap-target grouping is implemented and #984 remains the next isolated leg.",
+        "claims": [
+          {
+            "claim": "Tap-target findings now collapse repeated rendered instances only when their authored target and structural-home claims agree, while nested duplicates and presentation caps remain explicit in the machine denominator.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#983"
+              },
+              {
+                "kind": "issue",
+                "target": "#984"
+              },
+              {
+                "kind": "provenance",
+                "target": "git:c875eae5175cd8f4d5ecd6fb92fa08d88c3f6b8a"
               }
             ]
           }
