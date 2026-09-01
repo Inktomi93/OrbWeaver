@@ -6,11 +6,15 @@
 > `~/inktomi-stack/development/skills-reference/impeccable`, registry
 > `cli/engine/registry/antipatterns.mjs`, implementations `cli/engine/rules/checks.mjs`) triaged
 > adopt / adapt / reject against orbweaver law, with the reason on every row. The adapted rules
-> live in OUR detector home — `scripts/probes/design-audit-walker.ts` (in-page fact gathering) +
-> `scripts/probes/design-audit-checks.ts` (pure verdicts, unit-tested at
-> `tests/tooling/design-audit.test.ts`) — and run via `pnpm design-audit`. The 23-command design
-> vocabulary is adapted in `SKILL.md` §15; the DESIGN.md-equivalent context distillation is
-> `reference/design-context.md`.
+> live in OUR detector home — **`tooling/src/ui-audit/`** (paths corrected 2026-09-01; the
+> `scripts/probes/design-audit-*.ts` spellings this file carried were retired by the P3-of-#393
+> move and now resolve to nothing, which also left the Apache-2.0 §4b notice below naming files
+> that do not exist): `ops/walker.ts` + `ops/walker/census-*.ts` (in-page fact gathering),
+> `lib/checks-*.ts` (pure verdicts) and `lib/collect.ts` (the family dispatcher that carries the
+> attribution header), unit-tested at `tests/tooling/ui-audit/index.test.ts` with real-CLI
+> fixtures at `tests/tooling/ui-audit/cli.int.test.ts` — and run via `pnpm design-audit`. The
+> 23-command design vocabulary is adapted in `SKILL.md` §15; the DESIGN.md-equivalent context
+> distillation is `reference/design-context.md`.
 
 ## License & attribution
 
@@ -30,7 +34,17 @@ Every adapted finding is origin-tagged: `Finding.origin === "impeccable"` in the
 
 ## Why adaptation-into-our-home (alternatives weighed)
 
-- **REJECTED — vendor impeccable's CLI engine and run it beside design-audit.** Two detector
+- **REJECTED — vendor impeccable's CLI engine and run it beside design-audit.** A harder reason
+  than the ones below, measured 2026-09-01 and unavailable when this was written: **their browser
+  engine cannot audit this app at all.** `engines/browser/detect-url.mjs:228` defaults to
+  `waitUntil: 'networkidle0'`, and our SSE stream never idles — `detect http://localhost:5173/config`
+  dies on `Navigation timeout of 30000 ms exceeded` and reports `[]`. That generalizes to any app
+  holding a persistent connection. (Ours wait on `data-app-ready`, which is the correct primitive.)
+  A second engine-level hazard worth knowing: their CLI's first run against its own fixture corpus
+  printed NOTHING and exited 0 — `.impeccable/config.json`'s `ignoreFiles` suppressed every file with
+  no scanned-count and no notice. That is the exact false-clean class our #409 denominator work
+  exists to kill, and it is a reason to keep our runner's verdict contract rather than theirs.
+  The original reasons, all still true: Two detector
   homes for one concept (violates one-home); their engine assumes a `DESIGN.md`/`PRODUCT.md`
   context flow we deliberately do not adopt (our design truth is generated law — see
   `design-context.md`); it runs on puppeteer (not in our tree; ours is Playwright); it carries its
@@ -51,7 +65,46 @@ Impeccable has categories (`slop`/`quality`) + flags (`advisory`, `error`). We k
 `error` → P0 · real user-facing breakage → P1 · law-backed defect / strong signal → P2 ·
 taste-tell / advisory → P3. `pnpm design-audit --fail-on` semantics unchanged (default P1).
 
+## Blind ≠ inapplicable — the triage axis this record originally lacked (2026-09-01)
+
+The rows below were triaged on ONE question: adopt, adapt, or reject? Re-testing them against the
+live tree found that question hides three independent ones, and that conflating them put two rules
+in the closed pile under reasons that measurement refutes:
+
+1. **Does the defect CLASS exist in our world?** (semantic applicability)
+2. **Can THEIR MECHANISM see it here?** (mechanical reach)
+3. **Is the pixel layer the right LAYER for us?** (detection altitude)
+
+A "no" on (2) is not a rejection. It is an ADAPT candidate — the class may be entirely real while
+their sampler is simply pointed at a vocabulary we do not use. `monotonous-spacing` is exactly that
+shape, and so is any rule keyed on numeric Tailwind utilities, opaque hairlines, or a `DESIGN.md`.
+
+On (3): every impeccable rule infers authorship from rendered pixels because in an OPEN world that
+is all there is — hence the chroma thresholds, aspect windows, size gates and exemption lists. We
+are a CLOSED world with four layers they structurally cannot have: the **token** layer (DTCG
+`tokens.json` + resolver + `removed.json`), the **variant** layer (`tv()` configs, statically
+resolvable to class unions since #972), the **primitive** layer (a closed `@orb/ui` set;
+`dangerouslySetInnerHTML` gated, `ui-size-via-variant` policing sizing), and the **cascade** layer
+(merge trace #949, cascade trace #950, family ownership #951, `css-var-defined` #952). A defect
+visible in pixels usually has an EXACT signature one or more layers up, where detection is cheaper,
+deterministic, and fires at `pnpm check` instead of needing a browser and a driven surface.
+`lib/ramp.ts` is that seam already, half-built: it binds thresholds to live `TOKENS` for TYPE
+(`text.micro`, `leading.label`, `font.sans`/`font.mono`) and for nothing else.
+
+**A rule that emits an existing id has NO registry row, and a rule-by-rule diff cannot see it.**
+`checkHoverContrast` — hover-state WCAG contrast, catching a broader selector winning the
+specificity fight and swapping in a failing colour — emits `low-contrast`, so it never appeared in
+the 59 ids triaged here and was missed entirely. We carry no hover-contrast check of any kind.
+When re-syncing against upstream, diff the exported MECHANISMS, not just `ANTIPATTERNS`.
+
 ## Triage — all 59 rules
+
+> **Upstream is at 61 as of 2026-09-01.** The two rules minted after this triage are
+> `organic-clip-path` (clip-path polygon ≥10 off-grid vertices, or `path()` with ≥3 curve segments)
+> — tested inapplicable: our only polygon is `code-editor.tsx:94` at three vertices — and
+> `buried-raster` (a raster under a ≥0.9-alpha wash, or at `opacity < 0.15`), which IS applicable
+> here and is being adapted (runtime arm only; their CSS-text arm needs the stylesheet scanner we
+> deliberately do not have).
 
 **Counts: 29 ADAPTED · 4 DEDUPED (ours already covers — keep ours) · 26 REJECTED.**
 
@@ -120,7 +173,7 @@ any gradient background") honestly: it now REFUSES rather than silently passing 
 | `overused-font` | the owner-pinned brand font is **Geist** (`tokens.json` `font.sans`) — on impeccable's own overused list; adoption would permanently red the owner's deliberate choice. The tell stays in the SKILL as a new-work taste note only. |
 | `ai-color-palette` | palette is owner-sacred (D71 theme pipeline); hue heuristics against a token-driven accent are FPs, and off-token color is already source-RED (tokens-only biome hook) |
 | `cream-palette` | dark owner-themed app; the failure class (reflex light-beige page bg) cannot ship through the token pipeline |
-| `gpt-thin-border-wide-shadow` | CONFLICT: the sanctioned `--shadow-overlay` recipe IS "edge hairline + inset top-highlight + contact + ambient" — the exact pairing this rule flags. Would red every floating panel by design. |
+| `gpt-thin-border-wide-shadow` | **REASON CORRECTED 2026-09-01 by measurement — the original reason was FALSE.** It read: "CONFLICT: the sanctioned `--shadow-overlay` recipe IS 'edge hairline + inset top-highlight + contact + ambient' — the exact pairing this rule flags. Would red every floating panel by design." Measured against their actual gate: the rule reds ZERO panels. It requires ≥2 borders at ≤1.5px **with alpha ≥ 0.28**; `--color-border` is `oklch(0.99 0.005 60 / 0.08)` — nearly 4× below that floor — so it is silent on every one of our bordered overlays in both the `oklch()` and `rgba()` spellings, and fires only when the alpha is lifted to 0.28/0.50 (two-direction control). The shadow half DOES clear their bar (`--shadow-overlay` max blur 32px vs their ≥16px), but the border half never engages. **Verdict unchanged (do not adopt), on the correct ground: their border-alpha gate is tuned for opaque hairlines and cannot see a 0.08-alpha edge.** The defect class it gestures at — a hand-rolled elevation recipe instead of `shadow-overlay` — is already owned at SOURCE by `no-off-token-radius-shadow` (allowlist empty; a new offender is red on sight). |
 | `pulsing-dot` | a chat app's presence/typing indicators are genuinely-live indicators — the rule's own carve-out; decorative-pulse judgment stays with the reviewer (§6) |
 | `blinking-cursor` | the streaming caret is a real live-activity caret (motion guide §4.2 item 10); no hero/landing register exists for the decorative case |
 
@@ -132,7 +185,7 @@ any gradient background") honestly: it now REFUSES rather than silently passing 
 | `italic-serif-display` | no display heroes; faces are token-pinned (Geist only) |
 | `shape-assembled-illustration` | empty-state decorations + the weave-glyph are sanctioned brand marks; no hero-illustration class |
 | `numbered-section-labels` | no realistic surface; stays a §6 human-lens tell |
-| `monotonous-spacing` | an Operate shell's lists/rows are uniform BY LAW (density tier map); rhythm judgment stays in the §3/§13 human lens |
+| `monotonous-spacing` | **REASON CORRECTED 2026-09-01 by measurement.** The original reason — "an Operate shell's lists/rows are uniform BY LAW (density tier map)" — reads as *we checked and it is fine*, when the truth is *the rule could never measure us*. Its Tailwind sampler is `/\b(?:p\|px\|py\|…\|gap)-(\d+)\b/` — **numeric utilities only**. Our vocabulary is semantic (`p-field`, `gap-row`, `px-section`), so it collects ZERO spacing values and never reaches its ≥10-sample threshold; against a `p-4 gap-4` control on the same call it fires at 100%. Verdict unchanged, ground corrected: **structurally blind, not semantically inapplicable** — which puts it in the ADAPT pool, not the closed one (see "Blind ≠ inapplicable" below). |
 | `first-viewport-column-overflow` | fold-balance is a landing-page concern; shell panes scroll by design |
 | `body-text-viewport-edge` | shell geometry provides gutters by construction (panes own padding); the failure needs a bare document flow we don't have |
 | `content-hidden-at-rest` | scroll-reveal visibility gating is banned by our motion law and unused; React-managed content fails differently (nav error / script-error covers it). Their reveal-sweep machinery targets a page class we don't ship. |

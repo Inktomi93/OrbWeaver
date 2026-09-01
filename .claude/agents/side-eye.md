@@ -185,9 +185,19 @@ reports a nav error, run `pnpm stack start` first. **All three write only under 
   genuinely missing/crashes. **Gradient backdrops now REFUSE instead of lying:** a
   `gradient(…),url(…)` layer or a gradient with translucent stops reports `text-over-art`
   ("contrast indeterminate — verify manually") rather than silently passing — treat those findings
-  as HAND-VERIFY work orders (Echo/Whisper use exactly that pattern), and note oklch-token shadow/
-  gradient colors are deliberately skipped by the glow/radial parsers (rgb/hex only — the sanctioned
-  token effects can't FP there). **Its tap-target / aria-name findings are frequently FALSE
+  as HAND-VERIFY work orders (Echo/Whisper use exactly that pattern). **The line that used to sit
+  here — "oklch-token shadow/gradient colors are deliberately skipped by the glow/radial parsers
+  (rgb/hex only — the sanctioned token effects can't FP there)" — was a DISPROVEN rationale and the
+  parsers were REPAIRED 2026-09-01.** Colour-space blindness does not buy FP safety; it buys total
+  blindness. Our tokens are OKLCH-only and raw colours are gate-RED at source, so `glow-shadow`,
+  `radial-halo` and `radial-spotlight-glow` could only ever have fired on a value another gate
+  already blocks — three shipped rules that were structurally DEAD. Measured with a two-direction
+  control: the same zero-offset chromatic halo FIRED as `rgba(255,90,40,.55)` and was SILENT as
+  `oklch(0.7 0.19 40 / 0.55)`. They now read every space through `@orb/kit/safe-color` (the one
+  colour clamp — re-deriving a colour regex is banned by UI-Primitives-and-Reuse.md §13.9), and FP
+  safety comes from where it always should have: the `sanctioned` carrier flag, pinned alongside the
+  colour-space rows in `tests/tooling/ui-audit/lib/css-color.test.ts`. **Treat any glow/radial row in
+  a report dated before 2026-09-01 as taken by a blind instrument** — a clean one proves nothing. **Its tap-target / aria-name findings are frequently FALSE
   POSITIVES** — Base UI mints hidden 1×1 native inputs (`aria-hidden`, `tabindex=-1`) for
   Select/Slider, and Switch roots are named via `aria-labelledby`, not textContent. VERIFY each with
   `--aria`/`--map` before reporting; NEVER forward the raw count (last full pass: 52 such findings,

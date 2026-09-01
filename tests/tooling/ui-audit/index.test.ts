@@ -1284,7 +1284,7 @@ test("a chromatic blurred shadow on a DARK backdrop fires; the same shadow on li
 
 auditRuleTest(
   [{ rule: "glow-shadow", kind: "silent", reason: "a neutral elevation shadow on the same surface stays clean" }],
-  "neutral elevation shadows and unparseable (oklch token) colors are skipped, never guessed",
+  "neutral elevation shadows pass, and an UNRESOLVED value is skipped — but OKLCH is judged (2026-09-01)",
   () => {
     const neutral = checkGlowShadow({
       selector: ".card",
@@ -1293,13 +1293,31 @@ auditRuleTest(
       backdropColor: { r: 10, g: 10, b: 12 },
     });
     expect(neutral).toBeNull();
+    // THIS ASSERTION WAS INVERTED, AND THE INVERSION PINNED A DEAD RULE. It used to expect `null`
+    // for an oklch zero-offset chromatic halo — in our own accent hue — under the name
+    // "unparseable (oklch token)". OKLCH was never unparseable; the rule's hand-rolled
+    // `rgba?\(…\)` regex simply could not spell it, and since our tokens are OKLCH-only and raw
+    // colours are gate-RED at source, that made `glow-shadow` structurally incapable of firing on
+    // anything this app can author. The old selector name (`.sanctioned`) shows the intent:
+    // colour-blindness was standing in for an exemption `checkGlowShadow` does not have — only
+    // `checkRadialGlow` takes a `sanctioned` flag. The sanctioned `--shadow-glow` rides a `::before`
+    // LAYER, so an element whose OWN box-shadow carries an accent halo is the WCAG 2.4.7
+    // focus-ring-clobbering defect the skill calls a P0 — exactly what this must now catch.
     const oklch = checkGlowShadow({
-      selector: ".sanctioned",
+      selector: ".accent-halo-on-the-element-itself",
       boxShadow: "oklch(0.72 0.175 52 / 0.4) 0px 0px 18px 0px",
       textShadow: "",
       backdropColor: { r: 10, g: 10, b: 12 },
     });
-    expect(oklch).toBeNull();
+    expect(oklch?.rule).toBe("glow-shadow");
+    // What IS genuinely unreadable stays skipped: an unresolved var() has no channel to score.
+    const unresolved = checkGlowShadow({
+      selector: ".unresolved",
+      boxShadow: "var(--shadow-glow) 0px 0px 18px 0px",
+      textShadow: "",
+      backdropColor: { r: 10, g: 10, b: 12 },
+    });
+    expect(unresolved).toBeNull();
   },
 );
 
