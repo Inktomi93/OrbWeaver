@@ -58,6 +58,7 @@ import {
   parseAuditArgs,
   TEXT_MICRO_PX,
 } from "../../../tooling/src/ui-audit/index.ts";
+import { collectAudit } from "../../../tooling/src/ui-audit/lib/collect.ts";
 import { expect, test } from "../../support/tool-fixtures.ts";
 
 const BLACK: Rgb = { r: 0, g: 0, b: 0 };
@@ -1316,6 +1317,7 @@ auditRuleTest(
     expect(named?.severity).toBe("P2");
     const bezier = checkMotionStatic({ selector: ".pop", kind: "overshoot-bezier", value: "cubic-bezier(0.68, -0.55, 0.27, 1.55)", panelExempt: false });
     expect(bezier?.rule).toBe("bounce-easing");
+    expect(checkMotionStatic({ selector: ".fade", kind: "overshoot-bezier", value: "cubic-bezier(0.2, 0, 0, 1)", panelExempt: false })).toBeNull();
   },
 );
 
@@ -1672,21 +1674,22 @@ test("collectFindings fans the impeccable-adapted sample families out too, origi
   expect(findings.every((f) => f.origin === "impeccable")).toBe(true);
 });
 
-auditRuleTest(
-  [
-    { rule: "broken-image", kind: "silent", reason: "the clean bundle contains no broken-image sample" },
-    { rule: "text-overflow", kind: "silent", reason: "the clean bundle contains no visible spill" },
-    { rule: "truncated-to-nothing", kind: "silent", reason: "the clean bundle preserves visible text" },
-    { rule: "repeated-container-text", kind: "silent", reason: "the clean bundle has no repeated-container sample" },
-    { rule: "clipped-overflow", kind: "silent", reason: "the clean bundle contains no clipped spill" },
-    { rule: "edge-flush-cards", kind: "silent", reason: "the clean bundle preserves the edge gap" },
-    { rule: "obscured-target", kind: "silent", reason: "the clean bundle has no compositor-disagreement sample" },
-  ],
-  "collectFindings on an all-clean bundle (incl. a present main landmark) returns nothing",
-  () => {
-    expect(collectFindings(EMPTY_SAMPLES)).toEqual([]);
-  },
-);
+test("collectFindings on an all-clean bundle (incl. a present main landmark) returns nothing", () => {
+  expect(collectFindings(EMPTY_SAMPLES)).toEqual([]);
+});
+
+test("family populations are the exact detector dispatches, including both decor detectors", () => {
+  expect(collectAudit(EMPTY_SAMPLES).familyScans).toEqual({
+    a11y: 7,
+    color: 2,
+    decor: 2,
+    media: 2,
+    ornament: 4,
+    quality: 6,
+    structure: 4,
+    typography: 3,
+  });
+});
 
 // ── CLI contract (tooling/src/ui-audit/cli.ts) ───────────────────────────────
 // The scanner could reach no surface but home and swallowed unknown flags until 2026-08-16 — a typo'd
