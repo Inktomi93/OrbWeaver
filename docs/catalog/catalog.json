@@ -30133,6 +30133,54 @@
       "receiptCurrent": true
     },
     {
+      "path": "docs/reviews/stickler/2026-09-01-issue-953-appearance-matrix-grouped-review.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 266,
+      "bytes": 19162,
+      "sha256": "1abde44273595021cff40951ff8af4fa75aefcf05e722802592174a00e6e8895",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-01"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/stickler/2026-09-01-issue-953-appearance-matrix-grouped-review.md",
+        "assignedSha256": "1abde44273595021cff40951ff8af4fa75aefcf05e722802592174a00e6e8895",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "1abde44273595021cff40951ff8af4fa75aefcf05e722802592174a00e6e8895",
+        "verifiedCommit": "a5319fc7f8dbf4d5e8a675dfd0839ae3f12f0153",
+        "verifiedAt": "2026-09-01",
+        "evidence": [
+          "docs/reviews/stickler/2026-09-01-issue-953-appearance-matrix-grouped-review.md:1-266 read in full; cold grouped review of 3f2661ce3..23a964757, three confirmed findings, and post-review disposition at repair commit 9dc7bc0b6"
+        ],
+        "summary": "Cold grouped review of the #953 appearance-invariant matrix train: three confirmed evidence-provenance findings, ceiling P1, their focused controls, and the hook-green repair disposition.",
+        "claims": [
+          {
+            "claim": "Work item #953 owns the reviewed matrix train and 9dc7bc0b6 repairs all three confirmed findings.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#953"
+              },
+              {
+                "kind": "provenance",
+                "target": "git:9dc7bc0b615a89a3d856131e6156d6fca732da22"
+              }
+            ]
+          }
+        ]
+      },
+      "receiptCurrent": true
+    },
+    {
       "path": "docs/reviews/stickler/2026-09-01-ui-audit-population-train.md",
       "lane": "reviews",
       "issue": 7,
