@@ -226,20 +226,27 @@ export interface AccentBorderInput {
 }
 
 // ── Chromatic glow shadows (impeccable `dark-glow`, sanctioned axes exempt) ──
-// LIMITATION (deliberate): colors that serialize outside rgb()/rgba() (oklch tokens) are
-// SKIPPED, never guessed — the sanctioned owner glow rides token colors on ::before layers and
-// must not FP here; a violation authored in raw rgb/hex (the only way past the tokens-only
-// source gate) is exactly what still parses.
+// THE OLD "LIMITATION (deliberate)" HERE WAS THE BUG, NOT A LIMIT (2026-09-01). It read: "colors
+// that serialize outside rgb()/rgba() (oklch tokens) are SKIPPED, never guessed — the sanctioned
+// owner glow rides token colors on ::before layers and must not FP here". That reasoning inverts:
+// our tokens are OKLCH-only and raw colours are gate-RED at source, so skipping OKLCH did not
+// protect the sanctioned carriers, it made the rule incapable of firing on anything this app can
+// author. Colours now read through `lib/css-color.ts`; FP safety comes from `sanctioned`, the same
+// walker-tagged carrier flag `RadialGlowInput` has always had.
 export interface GlowShadowInput {
   readonly selector: string;
   readonly boxShadow: string;
   readonly textShadow: string;
   readonly backdropColor: Rgb | null;
+  /** The element is a walker-tagged owner effect carrier (`SANCTIONED_GLOW_SEL`). Optional so a
+   *  pre-2026-09-01 fixture bundle keeps its verdict instead of silently reading as exempt. */
+  readonly sanctioned?: boolean;
 }
 
 // ── Radial-gradient washes (impeccable `radial-halo` / `radial-spotlight-glow`) ──
-// Sanctioned carriers (tagged by the walker off the owner effect axes) are exempt; the same
-// rgb/hex-only parsing honesty as glow-shadow applies.
+// Sanctioned carriers (tagged by the walker off the owner effect axes) are exempt. Colour reading is
+// `lib/css-color.ts`'s job for this family too — the old rgb/hex-only note here described the same
+// blindness the glow block above records.
 export interface RadialGlowInput {
   readonly selector: string;
   readonly value: string;
