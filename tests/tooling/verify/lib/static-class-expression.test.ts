@@ -192,6 +192,70 @@ test("traverses tv/cva class-bearing config fields without treating selectors, d
   );
 });
 
+test("carries declaration-proven tv configuration through direct, aliased, re-exported, and slot-member calls", () => {
+  const p = project({
+    "packages/ui/src/variants.ts": `
+      import { tv as makeVariants } from "tailwind-variants";
+      const recipe = makeVariants({
+        base: "probe:base",
+        slots: { root: "probe:root", icon: "probe:icon" },
+        variants: { tone: { loud: { root: "probe:loud" }, quiet: { root: "probe:quiet" } } },
+        compoundVariants: [{ tone: "loud", class: "probe:compound" }],
+        defaultVariants: { tone: "probe:not-a-class" },
+      });
+      export { recipe as controlVariants };
+      export const local = recipe({ tone: "loud" });
+    `,
+    "packages/ui/src/index.ts": 'export { controlVariants as CONTROL } from "./variants.ts";\n',
+    "packages/ui/src/consumer.ts": `
+      import { CONTROL as direct } from "./index.ts";
+      const alias = direct;
+      const slots = direct({ tone: "loud" });
+      export const a = direct({ tone: "quiet" });
+      export const b = alias();
+      export const c = slots.root();
+      export const d = direct().icon();
+    `,
+  });
+  const calls = new Map(p.getSourceFiles().flatMap((source) => source.getDescendantsOfKind(SyntaxKind.CallExpression).map((call) => [call.getText(), call])));
+  const expected = ["probe:base", "probe:compound", "probe:icon", "probe:loud", "probe:quiet", "probe:root"].sort();
+  const provenCalls = ['recipe({ tone: "loud" })', 'direct({ tone: "quiet" })', "alias()", "slots.root()", "direct().icon()"] as const;
+  for (const text of provenCalls) {
+    const call = calls.get(text);
+    if (call === undefined) {
+      throw new Error(`test fixture lost ${text}`);
+    }
+    const result = evaluateStaticClassExpression(call, call);
+    expect(result.candidates.map((candidate) => candidate.value).sort(), text).toEqual(expected);
+    expect(result.opaque, text).toEqual([]);
+    expect(result.unresolved, text).toEqual([]);
+  }
+  const walked = walkStaticClassExpressions(p, p.getSourceFiles());
+  const consumers = walked.candidates.find((candidate) => candidate.value === "probe:base")?.consumers.map((consumer) => consumer.getText()) ?? [];
+  expect(consumers).toEqual(expect.arrayContaining([...provenCalls]));
+});
+
+test("keeps counterfeit and runtime-configured variant calls opaque", () => {
+  const p = project({
+    "packages/ui/src/x.tsx": `
+      function tv(_config: unknown) { return () => "probe:counterfeit"; }
+      declare const runtime: Record<string, unknown>;
+      const counterfeit = tv({ base: "probe:not-proven" });
+      import { tv as realTv } from "tailwind-variants";
+      const dynamic = realTv(runtime);
+      const spread = realTv({ base: "probe:known", ...runtime });
+      export const A = <div className={counterfeit()} />;
+      export const B = <div className={dynamic()} />;
+      export const C = <div className={spread()} />;
+    `,
+  });
+  const result = walkStaticClassExpressions(p, p.getSourceFiles());
+  expect(result.candidates.map((candidate) => candidate.value)).toEqual(["probe:known"]);
+  expect(result.opaque.map((shape) => shape.reason)).toEqual(
+    expect.arrayContaining(["runtime call result", "runtime variant configuration", "runtime object spread in variant configuration"]),
+  );
+});
+
 test("counts opaque runtime leaves and fails loud on a static cycle while retaining a runtime prefix", () => {
   const p = project({
     "packages/ui/src/x.tsx": `

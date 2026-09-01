@@ -18,6 +18,7 @@ import { JsxBindingResolver } from "./static-class-jsx.ts";
 import { findObjectProperties, propertyName } from "./static-class-object.ts";
 import type { StaticClassResolvers } from "./static-class-value.ts";
 import { StaticClassEvaluator } from "./static-class-value.ts";
+import { StaticVariantResolver } from "./static-class-variant.ts";
 
 export type {
   RuntimeClassPrefix,
@@ -64,7 +65,12 @@ export class StaticClassCollector {
     this.files = files;
     this.sourceSet = new Set(files);
     this.passOwned = passOwned;
-    this.resolvers = { composers: new ComposerResolver(project), jsxBindings: new JsxBindingResolver(project, files) };
+    const composers = new ComposerResolver(project);
+    this.resolvers = {
+      composers,
+      jsxBindings: new JsxBindingResolver(project, files),
+      variants: new StaticVariantResolver(project, composers),
+    };
     this.state = { evaluator: this.evaluator(), candidateByKey: new Map(), prefixByKey: new Map(), roots: 0 };
   }
 
@@ -237,11 +243,17 @@ function propertyRoot(state: WalkState, node: import("ts-morph").PropertyAssignm
 
 function composerRoot(state: WalkState, node: import("ts-morph").CallExpression): boolean {
   const composer = state.evaluator.composers.composerOf(node.getExpression());
-  if (!concreteComposer(composer)) {
+  if (concreteComposer(composer)) {
+    state.roots += 1;
+    evaluateRoot(state, node, () => evalComposerCall(state.evaluator, node, composer, new Set()));
+    return true;
+  }
+  const variant = state.evaluator.evalVariantResult(node, new Set());
+  if (variant === undefined) {
     return false;
   }
   state.roots += 1;
-  evaluateRoot(state, node, () => evalComposerCall(state.evaluator, node, composer, new Set()));
+  evaluateRoot(state, node, () => variant);
   return true;
 }
 
