@@ -4,8 +4,8 @@ export const WAIT_SELECTOR_TIMEOUT_MS = 10_000;
 export const CLICK_TIMEOUT_MS = 5000;
 
 // ── the CENSUS-STABILITY window (#808) ──────────────────────────────────────
-// `data-app-ready` is a ONE-SHOT BOOT signal (packages/client/src/lib/agent-bridge.ts
-// installAppReadySignal resolves a single Promise), so it says nothing about a surface reached by a
+// `data-app-ready` is a ONE-SHOT BOOT signal (packages/client/src/lib/app-ready-signal.ts resolves a
+// single Promise), so it says nothing about a surface reached by a
 // post-boot navigation or an `--actions` click: the flag is already up while the new route's reads are
 // still in flight. The walk therefore has no signal telling it the surface is finished — it has to be
 // MEASURED, by watching whether the page keeps growing after the census was taken.

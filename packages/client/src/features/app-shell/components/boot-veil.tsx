@@ -3,7 +3,7 @@
 // (app-splash is app-shell chrome, §13.9) so it covers route resolution, code, and the initial reads.
 //
 // THE EXIT IS LOAD-GATED (owner tweak 3, §9.3): the veil watches `data-app-ready` on <html> — the one
-// readiness seam (`lib/agent-bridge.ts` installAppReadySignal: query-cache idle after initial reads;
+// readiness seam (`lib/app-ready-signal.ts`: query-cache idle after initial reads;
 // PRESENCE means stop waiting, including the 20s `degraded` ceiling). Slow boot → the weave fills the
 // actual wait and settles, then dissolves the instant ready lands.
 //
@@ -69,7 +69,7 @@ import type { ReactElement } from "react";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { WeaveGlyph } from "#lib";
 
-/** The readiness seam (agent-bridge.ts READY_ATTR — presence = stop waiting; value may be "degraded"). */
+/** The readiness seam (app-ready-signal.ts — presence = stop waiting; value may be "degraded"). */
 const READY_ATTR = "data-app-ready";
 
 function subscribeReady(onChange: () => void): () => void {
