@@ -73,8 +73,10 @@ interface AuditRuleProof {
 }
 
 function auditRuleTest(proofs: readonly AuditRuleProof[], title: string, fn: () => void | Promise<void>): void {
-  expect(proofs.every((proof) => proof.reason.trim() !== "")).toBe(true);
-  test(title, fn);
+  test(title, () => {
+    expect(proofs.every((proof) => proof.reason.trim() !== "")).toBe(true);
+    return fn();
+  });
 }
 
 type Equal<Left, Right> = (<Value>() => Value extends Left ? 1 : 2) extends <Value>() => Value extends Right ? 1 : 2 ? true : false;

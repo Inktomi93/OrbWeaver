@@ -140,13 +140,18 @@ function proofHelper(sf: Parameters<NonNullable<GateDescriptor["visitFile"]>>[0]
   }
   const delegates = helper.getDescendantsOfKind(SyntaxKind.CallExpression).some((call) => {
     const [title, fn] = call.getArguments();
+    const forwardsFn =
+      (Node.isIdentifier(fn) && fn.getText() === "fn") ||
+      ((Node.isArrowFunction(fn) || Node.isFunctionExpression(fn)) &&
+        fn
+          .getDescendantsOfKind(SyntaxKind.CallExpression)
+          .some((forwarded) => Node.isIdentifier(forwarded.getExpression()) && forwarded.getExpression().getText() === "fn"));
     return (
       Node.isIdentifier(call.getExpression()) &&
       call.getExpression().getText() === "test" &&
       Node.isIdentifier(title) &&
       title.getText() === "title" &&
-      Node.isIdentifier(fn) &&
-      fn.getText() === "fn"
+      forwardsFn
     );
   });
   return delegates ? helper : null;
@@ -212,7 +217,7 @@ export const gate: GateDescriptor = {
         file: REGISTRY,
         line: 0,
         column: 0,
-        message: `design-audit registry is missing or unreadable — ${REGISTRY}`,
+        message: "design-audit registry is missing or unreadable — tooling/src/ui-audit/contract/rules.ts",
       });
       return;
     }
