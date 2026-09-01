@@ -41,6 +41,13 @@
 // the run (pass/fail/flaky/skip counts), and on any hard failure lists each failing test's file:line +
 // title. Printed LAST so it survives a `tail`. This is diagnostics only — it never changes run status on a
 // hard fail (Playwright already fails); STRICT flake-fail behavior is unchanged.
+//
+// THE COUNTING IS NOT HERE (#1006). That summary is the receipt every merge floor quotes, so when it was
+// accused of lying the counting moved to `ct-run-tally.ts` — a pure `readRun(suite, root)` pinned by
+// tests/tooling/verify/ops/ct-run-tally.test.ts (mixed pass/fail/retry-then-pass across several workers).
+// This reporter reads the run's facts ONCE per `onEnd` and renders the summary, the FAILED list, the flake
+// block, the artifact and the ratchet's executed-file input from that single walk: two independent walks
+// are the only way a summary and its own failure list could ever describe different sets.
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import process from "node:process";
@@ -48,101 +55,27 @@ import { reportsPath } from "@orb/tooling/_shared/artifacts";
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { readBudgetRows } from "@orb/tooling/_shared/ratchet-rows";
 import type { FullResult, Reporter, Suite, TestCase } from "@playwright/test/reporter";
+import type { CtFlakyTest, CtRunFacts } from "../contract/ct-run.ts";
+import { RULE, readRun, summaryLines } from "./ct-run-tally.ts";
 import type { UnfedRatchetVerdict } from "./ct-unfed-ratchet.ts";
 import { ACTIVE_MARKER, BASELINE_REL, judgeUnfedReads, owesActiveMarker } from "./ct-unfed-ratchet.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm test:ct (playwright loads this module as a reporter)");
 
 const ARTIFACT_PATH = reportsPath(process.cwd(), "ct-flaky.json");
-const RULE_WIDTH = 88;
-const RULE = "━".repeat(RULE_WIDTH);
 
 interface CtFlakyReporterOptions {
   readonly strict?: boolean;
-}
-
-interface FlakyTest {
-  readonly file: string;
-  readonly line: number;
-  readonly column: number;
-  readonly title: string;
-  readonly titlePath: readonly string[];
-  readonly retries: number;
 }
 
 interface FlakyArtifact {
   readonly generatedAt: string;
   readonly flakyCount: number;
   readonly strict: boolean;
-  readonly flaky: readonly FlakyTest[];
+  readonly flaky: readonly CtFlakyTest[];
 }
 
-interface FailedTest {
-  readonly file: string;
-  readonly line: number;
-  readonly title: string;
-}
-
-interface Tally {
-  readonly passed: number;
-  readonly failed: number;
-  readonly flaky: number;
-  readonly skipped: number;
-}
-
-function collectFlaky(suite: Suite): FlakyTest[] {
-  const flaky: FlakyTest[] = [];
-  for (const testCase of suite.allTests()) {
-    if (testCase.outcome() !== "flaky") {
-      continue;
-    }
-    const { file, line, column } = testCase.location;
-    const path = testCase.titlePath().filter(Boolean);
-    flaky.push({
-      file: relative(process.cwd(), file),
-      line,
-      column,
-      title: path.join(" › "),
-      titlePath: path,
-      retries: Math.max(testCase.results.length - 1, 1),
-    });
-  }
-  return flaky;
-}
-
-// `unexpected` is Playwright's hard-fail outcome (failed even after any retries). We list these by
-// file:line + title so a truncated/tailed log still names what broke.
-function collectFailed(suite: Suite): FailedTest[] {
-  const failed: FailedTest[] = [];
-  for (const testCase of suite.allTests()) {
-    if (testCase.outcome() !== "unexpected") {
-      continue;
-    }
-    const { file, line } = testCase.location;
-    failed.push({
-      file: relative(process.cwd(), file),
-      line,
-      title: testCase.titlePath().filter(Boolean).join(" › "),
-    });
-  }
-  return failed;
-}
-
-function tally(suite: Suite): Tally {
-  const counts = { passed: 0, failed: 0, flaky: 0, skipped: 0 };
-  const byOutcome: Record<ReturnType<TestCase["outcome"]>, keyof typeof counts> = {
-    expected: "passed",
-    unexpected: "failed",
-    flaky: "flaky",
-    skipped: "skipped",
-  };
-  for (const testCase of suite.allTests()) {
-    counts[byOutcome[testCase.outcome()]] += 1;
-  }
-  return counts;
-}
-
-function writeArtifact(flaky: readonly FlakyTest[], strict: boolean): void {
+function writeArtifact(flaky: readonly CtFlakyTest[], strict: boolean): void {
   const artifact: FlakyArtifact = {
     generatedAt: new Date().toISOString(),
     flakyCount: flaky.length,
@@ -153,7 +86,7 @@ function writeArtifact(flaky: readonly FlakyTest[], strict: boolean): void {
   writeFileSync(ARTIFACT_PATH, `${JSON.stringify(artifact, undefined, 2)}\n`);
 }
 
-function announce(flaky: readonly FlakyTest[], strict: boolean): void {
+function announce(flaky: readonly CtFlakyTest[], strict: boolean): void {
   const posture = strict ? "STRICT (CT_NO_FLAKES=1) — FAILING the run" : "WARN (suite stays green; set CT_NO_FLAKES=1 to fail)";
   const lines = ["", RULE, `  CT FLAKES DETECTED — ${flaky.length} test(s) passed ONLY on retry (masked by --retries)`, `  posture: ${posture}`, RULE];
   for (const t of flaky) {
@@ -201,21 +134,6 @@ function announceUnstubbed(byFile: ReadonlyMap<string, ReadonlySet<string>>): vo
   process.stdout.write(`${lines.join("\n")}\n`);
 }
 
-// The terminal summary — ALWAYS printed, LAST, so a hard failure survives a `tail`. `status` is the run's
-// overall result ("passed" = green even with retries; "failed" = at least one hard fail / interruption).
-function printSummary(t: Tally, failed: readonly FailedTest[], status: FullResult["status"]): void {
-  const verdict = status === "passed" ? "PASS" : status.toUpperCase();
-  const lines = ["", RULE, `  CT SUMMARY — ${verdict}  ·  ${t.passed} passed · ${t.failed} failed · ${t.flaky} flaky · ${t.skipped} skipped`];
-  if (failed.length > 0) {
-    lines.push(RULE, `  FAILED (${failed.length}):`);
-    for (const f of failed) {
-      lines.push(`  ✗ ${f.file}:${f.line}  ${f.title}`);
-    }
-  }
-  lines.push(RULE, "");
-  process.stdout.write(`${lines.join("\n")}\n`);
-}
-
 class CtFlakyReporter implements Reporter {
   readonly #strict: boolean;
   #rootSuite: Suite | undefined;
@@ -258,24 +176,13 @@ class CtFlakyReporter implements Reporter {
     }
   }
 
-  /** The files this run actually EXECUTED (a skipped test observed nothing). Repo-relative, deduped. */
-  #executedFiles(suite: Suite): string[] {
-    const files = new Set<string>();
-    for (const testCase of suite.allTests()) {
-      if (testCase.outcome() !== "skipped") {
-        files.add(relative(process.cwd(), testCase.location.file));
-      }
-    }
-    return [...files];
-  }
-
   /** Judge this run against the committed ledger (#637). Returns the verdict so `onEnd` can both print it
    *  and fail the run — a ratchet that only prints is the diagnostics posture this replaced. */
-  #judge(suite: Suite): UnfedRatchetVerdict {
+  #judge(facts: CtRunFacts): UnfedRatchetVerdict {
     const root = process.cwd();
     return judgeUnfedReads(
       {
-        executedFiles: this.#executedFiles(suite),
+        executedFiles: facts.executedFiles,
         instrumentedFiles: this.#instrumented,
         unfedByFile: new Map([...this.#unstubbed].map(([file, procs]) => [file, [...procs].sort()])),
       },
@@ -287,7 +194,10 @@ class CtFlakyReporter implements Reporter {
   async onEnd(result: FullResult): Promise<{ status?: FullResult["status"] } | undefined> {
     await Promise.resolve();
     const suite = this.#rootSuite;
-    const flaky = suite === undefined ? [] : collectFlaky(suite);
+    // ONE read of the run's facts, and every number, list and artifact below is rendered from it — a
+    // second independent walk is how a summary and its own FAILED list could ever disagree (#1006).
+    const facts = suite === undefined ? undefined : readRun(suite, process.cwd());
+    const flaky = facts?.flaky ?? [];
     writeArtifact(flaky, this.#strict);
     if (flaky.length > 0) {
       announce(flaky, this.#strict);
@@ -297,7 +207,7 @@ class CtFlakyReporter implements Reporter {
     }
     // The RATCHET (#637). Judged whenever there is a suite to judge, and printed only when it has something
     // to say — a silent ratchet on a clean run is the point.
-    const verdict = suite === undefined ? { refusals: [], violations: [] } : this.#judge(suite);
+    const verdict = facts === undefined ? { refusals: [], violations: [] } : this.#judge(facts);
     const ratchetFailed = verdict.violations.length > 0 || verdict.refusals.length > 0;
     if (ratchetFailed) {
       announceRatchet(verdict);
@@ -306,8 +216,8 @@ class CtFlakyReporter implements Reporter {
     // fail it names every failing test (the exit-1-with-no-name gap this reporter closes). It reports the
     // EFFECTIVE status, not playwright's: a run whose every test passed but whose ratchet fired exits 1, and
     // a tail-surviving summary that said PASS beside that exit would be the last line lying about the run.
-    if (suite !== undefined) {
-      printSummary(tally(suite), collectFailed(suite), ratchetFailed ? "failed" : result.status);
+    if (facts !== undefined) {
+      process.stdout.write(`${summaryLines(facts.tally, facts.failed, ratchetFailed ? "failed" : result.status).join("\n")}\n`);
     }
     // A refusal fails the run exactly like a violation: "the census could not observe" must never be
     // indistinguishable from "the census found nothing".

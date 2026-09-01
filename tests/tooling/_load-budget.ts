@@ -55,6 +55,19 @@ function loadKillError(what: string, budgetMs: number): Error {
   );
 }
 
+/** The shape node reports a killed child in — either half may be absent depending on which path fired. */
+export interface KillShape {
+  readonly code?: string | undefined;
+  readonly signal?: string | null | undefined;
+}
+
+/** TRUE iff this is a child killed by its own `timeout`, in EITHER of the two shapes node produces. Pure and
+ *  exported so both runners share ONE discriminator and both shapes are pinned — a second spelling is how the
+ *  spawnSync path came to miss a kill and return `{status:0, stdout:""}`, a silent false green (#999 f). */
+export function isTimeoutKill(kill: KillShape): boolean {
+  return kill.signal === "SIGTERM" || kill.code === "ETIMEDOUT";
+}
+
 export interface ChildBudgetOpts {
   readonly cwd: string;
   readonly env?: NodeJS.ProcessEnv;
@@ -86,11 +99,16 @@ function runCommandWithBudget(run: CommandBudget): string {
       timeout: budgetMs,
     });
   } catch (err) {
-    const e = err as { signal?: string | null; stdout?: string };
-    // execFileSync's timeout kill throws an error carrying `signal:"SIGTERM"` (a plain non-zero exit has
-    // `signal:null`). That — and only that — is the load kill. (Unlike spawnSync's RESULT object, the
-    // execFileSync ERROR has no `killed` boolean, so the signal is the reliable discriminator.)
-    if (e.signal === "SIGTERM") {
+    const e = err as { code?: string; signal?: string | null; stdout?: string };
+    // A timeout kill has TWO shapes and BOTH are load kills. The original ruling — `signal:"SIGTERM"` (a
+    // plain non-zero exit has `signal:null`) — still holds and is kept; what changed is the INPUT. Measured
+    // 2026-09-01 (#999 f): `pnpm check:structure` killed at its budget under loadavg 38/24 cores threw the
+    // OTHER shape instead — `code:"ETIMEDOUT"`, `errno:-110`, `syscall:"spawnSync pnpm"`, with `signal:null`
+    // and `status:0`, because node surfaces spawnSync's own `error` field rather than a signalled exit when
+    // the killed child's group does not report the signal back. The SIGTERM-only discriminator therefore
+    // dropped the kill into the generic branch below, which printed `child exit 0` — the opaque, unclassified
+    // red this whole module exists to prevent, and it cost a lane the archaeology anyway.
+    if (isTimeoutKill(e)) {
       throw loadKillError(label, budgetMs);
     }
     const status = (e as { status?: number | null }).status;
@@ -125,7 +143,11 @@ export interface SpawnBudgetResult {
  *  a failed assertion. A normal exit (any status) is returned untouched. */
 export function spawnNodeWithBudget(args: readonly string[], cwd: string, budgetMs: number, label: string): SpawnBudgetResult {
   const run = spawnSync("node", [...args], { cwd, encoding: "utf8", timeout: budgetMs });
-  if (run.signal === "SIGTERM" && run.error !== undefined) {
+  // `run.error` present is what separates a killed child from one that merely exited; WHICH kill shape it
+  // carries (a SIGTERM'd exit or an ETIMEDOUT error object) is `isTimeoutKill`'s call — and getting that
+  // wrong HERE is worse than on the execFileSync path, because the miss returns `{status:0, stdout:""}`
+  // instead of throwing: a silent false green rather than an opaque red.
+  if (run.error !== undefined && isTimeoutKill({ code: (run.error as { code?: string }).code, signal: run.signal })) {
     throw loadKillError(label, budgetMs);
   }
   return { status: run.status, stdout: run.stdout, stderr: run.stderr };
