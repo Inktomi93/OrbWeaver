@@ -14,9 +14,213 @@
 // past the grace rather than sleeping, then asks what the flag did.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { AppReadyBootReadStory, AppReadyRouteResolutionStory, AppReadySignalStory } from "./_ct-stories.tsx";
+import { AgentBridgeStory, AppReadyBootReadStory, AppReadyRouteResolutionStory, AppReadySignalStory } from "./_ct-stories.tsx";
 
 const READY_FLAG = "html[data-app-ready]";
+
+// @agent-bridge-proof: a real install must expose exactly the exhaustive typed capability registry at runtime.
+test("the mounted bridge publishes every typed capability and every evidence lifetime", async ({ mount, page }) => {
+  await page.route("**/api/_debug/automation/fires", async (route) => {
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, rows: [] }) });
+  });
+  await mount(<AgentBridgeStory />);
+  await expect(page.getByTestId("bridge-installed")).toBeVisible();
+  const receipt = await page.evaluate(async () => {
+    const orb = globalThis.__orb;
+    if (orb === undefined) {
+      throw new Error("__orb was not installed");
+    }
+    const capabilities = orb.capabilities();
+    const namedRingRefusal = orb.resetRing("not-indexed");
+    orb.resetFlags();
+    orb.resetEvidence();
+    await orb.motionFlaggersSettled();
+    orb.setMotionAuditDropTrackingPaused(true);
+    orb.setMotionAuditDropTrackingPaused(false);
+    const answers = {
+      ready: typeof orb.ready.then === "function",
+      isReady: typeof orb.isReady() === "boolean",
+      queries: Array.isArray(orb.queries()),
+      bus: typeof orb.bus().live === "number" && Array.isArray(orb.bus().events),
+      shell: typeof orb.shell().chatOpen === "boolean",
+      perf: Array.isArray(orb.perf()),
+      renders: Array.isArray(orb.renders()),
+      motion: Array.isArray(orb.motion().loafs),
+      animations: Array.isArray(orb.animations()),
+      flags: Array.isArray(orb.flags()),
+      resetFlags: true,
+      resetEvidence: true,
+      motionFlaggersSettled: true,
+      setMotionAuditDropTrackingPaused: true,
+      snap: typeof orb.snap() === "object",
+      nav: typeof orb.nav.capabilities().contextTabsPublished === "boolean" && orb.nav.section("anything").ok,
+      seed: (await orb.seed.game({ profile: "freeform" })).chatId.length > 0 && (await orb.seed.richGame()).chatId.length > 0,
+      rpg: Array.isArray((await orb.rpg()).journal),
+      pluginLog: typeof (await orb.pluginLog()).ok === "boolean",
+      css: typeof orb.css.read().calls === "number",
+      automationFires: typeof (await orb.automationFires()) === "object",
+      durableLocalUserId: orb.durableLocalUserId() === null,
+      capabilities: Object.keys(capabilities).length > 0,
+      rings: orb.rings().length > 0,
+      resetRing: !namedRingRefusal.ok && namedRingRefusal.reason.includes("not-indexed"),
+    } satisfies Record<keyof typeof orb, boolean>;
+    return {
+      capabilityKeys: Object.keys(capabilities).sort(),
+      handleKeys: Object.keys(orb).sort(),
+      answerKeys: Object.keys(answers).sort(),
+      allAnswer: Object.values(answers).every(Boolean),
+      descriptions: Object.values(capabilities),
+      rings: orb.rings(),
+    };
+  });
+  await expect
+    .poll(() => ({
+      capabilityKeys: receipt.capabilityKeys,
+      answerKeys: receipt.answerKeys,
+      allAnswer: receipt.allAnswer,
+      capabilityCount: receipt.capabilityKeys.length,
+      descriptionsPresent: receipt.descriptions.every((description) => description.trim().length > 0),
+      rings: receipt.rings,
+    }))
+    .toEqual({
+      capabilityKeys: receipt.handleKeys,
+      answerKeys: receipt.handleKeys,
+      allAnswer: true,
+      capabilityCount: 25,
+      descriptionsPresent: true,
+      rings: [
+        expect.objectContaining({ name: "bus-events", read: "bus().events", lifetime: "checkpoint", resettable: true }),
+        expect.objectContaining({ name: "flags", lifetime: "checkpoint", resettable: true }),
+        expect.objectContaining({ name: "motion", lifetime: "checkpoint", resettable: true }),
+        expect.objectContaining({ name: "renders", lifetime: "checkpoint", resettable: true }),
+        expect.objectContaining({ name: "css-merges", lifetime: "checkpoint", resettable: true }),
+        expect.objectContaining({ name: "animations", lifetime: "session", resettable: false }),
+        expect.objectContaining({ name: "perf", lifetime: "session", resettable: false }),
+        expect.objectContaining({ name: "plugin-log", lifetime: "server-runtime", resettable: false }),
+        expect.objectContaining({ name: "automation-fires", lifetime: "durable", resettable: false }),
+      ],
+    });
+});
+
+// @agent-ring-proof: seeded checkpoint rings clear independently while live, session, server, and durable evidence refuses reset.
+test("safe ring resets are isolated, preserve bus liveness, and unsafe names refuse loudly", async ({ mount, page }) => {
+  await mount(<AgentBridgeStory />);
+  await expect(page.getByTestId("bridge-installed")).toBeVisible();
+  await page.getByRole("button", { name: "seed bridge evidence" }).click();
+  await expect.poll(async () => page.evaluate(() => (globalThis.__orb?.flags().length ?? 0) > 0)).toBe(true);
+  await expect.poll(async () => page.evaluate(() => (globalThis.__orb?.motion().loafs.length ?? 0) > 0)).toBe(true);
+  await expect.poll(async () => page.evaluate(() => (globalThis.__orb?.animations().length ?? 0) > 0)).toBe(true);
+  const receipt = await page.evaluate(() => {
+    const orb = globalThis.__orb;
+    if (orb === undefined) {
+      throw new Error("__orb was not installed");
+    }
+    const before = structuredClone({
+      bus: orb.bus(),
+      flags: orb.flags(),
+      motion: orb.motion(),
+      renders: orb.renders(),
+      css: orb.css.read(),
+      animations: orb.animations(),
+      perf: orb.perf(),
+    });
+    const busReset = orb.resetRing("bus-events");
+    const afterBus = structuredClone({ bus: orb.bus(), flags: orb.flags(), motion: orb.motion(), renders: orb.renders(), css: orb.css.read() });
+    const flagsReset = orb.resetRing("flags");
+    const afterFlags = structuredClone({ flags: orb.flags(), motion: orb.motion(), renders: orb.renders(), css: orb.css.read() });
+    const motionReset = orb.resetRing("motion");
+    const afterMotion = structuredClone({ motion: orb.motion(), renders: orb.renders(), css: orb.css.read() });
+    const rendersReset = orb.resetRing("renders");
+    const afterRenders = structuredClone({ renders: orb.renders(), css: orb.css.read() });
+    const cssReset = orb.resetRing("css-merges");
+    const unsafe = [
+      orb.resetRing("animations"),
+      orb.resetRing("perf"),
+      orb.resetRing("plugin-log"),
+      orb.resetRing("automation-fires"),
+      orb.resetRing("missing"),
+      orb.resetRing("toString"),
+    ];
+    return {
+      before,
+      busReset,
+      afterBus,
+      flagsReset,
+      afterFlags,
+      motionReset,
+      afterMotion,
+      rendersReset,
+      afterRenders,
+      cssReset,
+      unsafe,
+      after: {
+        bus: orb.bus(),
+        flags: orb.flags(),
+        motion: orb.motion(),
+        renders: orb.renders(),
+        css: orb.css.read(),
+        animations: orb.animations(),
+        perf: orb.perf(),
+      },
+    };
+  });
+  await expect
+    .poll(() => receipt)
+    .toEqual(
+      expect.objectContaining({
+        before: expect.objectContaining({
+          bus: { live: 1, events: [expect.objectContaining({ type: "ct.bridge" })] },
+          flags: expect.arrayContaining([expect.anything()]),
+          motion: expect.objectContaining({ loafs: expect.arrayContaining([expect.anything()]) }),
+          renders: [expect.anything()],
+          css: expect.objectContaining({ calls: 1 }),
+          animations: expect.arrayContaining([expect.anything()]),
+          perf: expect.arrayContaining([expect.objectContaining({ name: "ct-bridge" })]),
+        }),
+        busReset: { ok: true, name: "bus-events" },
+        afterBus: expect.objectContaining({
+          bus: { live: 1, events: [] },
+          flags: expect.arrayContaining([expect.anything()]),
+          motion: expect.objectContaining({ loafs: expect.arrayContaining([expect.anything()]) }),
+          renders: [expect.anything()],
+          css: expect.objectContaining({ calls: 1 }),
+        }),
+        flagsReset: { ok: true, name: "flags" },
+        afterFlags: expect.objectContaining({
+          flags: [],
+          motion: expect.objectContaining({ loafs: expect.arrayContaining([expect.anything()]) }),
+          renders: [expect.anything()],
+          css: expect.objectContaining({ calls: 1 }),
+        }),
+        motionReset: { ok: true, name: "motion" },
+        afterMotion: expect.objectContaining({
+          motion: expect.objectContaining({ loafs: [] }),
+          renders: [expect.anything()],
+          css: expect.objectContaining({ calls: 1 }),
+        }),
+        rendersReset: { ok: true, name: "renders" },
+        afterRenders: expect.objectContaining({ renders: [], css: expect.objectContaining({ calls: 1 }) }),
+        cssReset: { ok: true, name: "css-merges" },
+        after: expect.objectContaining({
+          bus: { live: 1, events: [] },
+          flags: [],
+          motion: expect.objectContaining({ loafs: [] }),
+          renders: [],
+          css: expect.objectContaining({ calls: 0 }),
+          animations: expect.arrayContaining([expect.anything()]),
+          perf: receipt.before.perf,
+        }),
+        unsafe: expect.arrayContaining([
+          expect.objectContaining({ ok: false, name: "animations" }),
+          expect.objectContaining({ ok: false, name: "perf" }),
+          expect.objectContaining({ ok: false, name: "plugin-log" }),
+          expect.objectContaining({ ok: false, name: "automation-fires" }),
+          expect.objectContaining({ ok: false, name: "missing" }),
+          expect.objectContaining({ ok: false, name: "toString" }),
+        ]),
+      }),
+    );
+});
 
 test("the flag does NOT go up while the initial reads are still in flight — the grace is a CHECK, not a hand-out", async ({ mount, page }) => {
   await mount(<AppReadySignalStory />);
