@@ -157,7 +157,7 @@ controls resolve the same polarity without enumerating theme names. A `dark:` va
 `[data-theme]` values cannot see a custom theme's derived polarity and is therefore a defect, not a second
 supported path. #954 deleted the authored `@custom-variant dark` declaration. Its replacement gate consumes
 the repaired whole-project static-class provenance substrate and passes the focused cross-file/alias/member/
-array/object/template and false-positive matrix; grouped CSS-train review remains the final graduation step.
+array/object/template and false-positive matrix; the grouped CSS-train barrier graduated that contract.
 
 ### 4.7 Enforcement and honest holes
 
@@ -169,12 +169,20 @@ The enforcement ledger has three categories; never count one as another:
   missing home; compose-only keeps client intrinsic paint out of features; class-merge seals and tests
   preserve primitive ownership. The sanctioned homes are path permissions, not proof that every declaration
   inside them is correct.
-- **UNENFORCED OR UNDER REPAIR, KNOWN:** #951's `css-family-ownership` responsibility wall is active work.
-  Its current self-proof reports a complete declaration denominator, but cold controls proved carrier-name
-  counterfeits, missed wrapper/spread forms, selector-text false positives, and unwritten `.shell-*` prefixes;
-  it does not graduate until one provenance model survives those controls and independent verification.
-  Misspelled/unknown semantic utility names can still silently drop; no gate proves the intended merge winner
-  across shell, ui globals, and client globals.
+- **ENFORCED TODAY:** #951's `css-family-ownership` responsibility wall, #956's semantic-writer proof,
+  \#955's length ownership, #954's polarity rule, and #949's single configured class-merge provenance all
+  graduated the grouped CSS barrier. #972 then proved 413 previously opaque static `tv` observations in each
+  ownership gate; the remaining 508 observations are genuinely runtime-assembled, and the repository has no
+  `cva` package, lockfile entry, import, or call population. Static proof therefore stops at a measured
+  boundary instead of inventing a grammar for a zero population.
+- **ENFORCED TODAY:** #950/#975 prove the final browser cascade through the revision-pinned official DevTools
+  frontend SDK. A declaration for which `propertyState(property)` is `null` is a legitimate unclassified SDK
+  row and is skipped before the denominator; mixed populations retain their classified `Active`/`Overloaded`
+  rows, while zero classified declarations remain `INSTRUMENT ERROR` except for the explicit
+  `allowComputedDefault` arm. The same-revision closure is 479 resources / 9,853,687 bytes, including the two
+  transitively discovered formatter-worker assets. Vite's blank rule URLs recover repository provenance only
+  from the authoritative `data-vite-dev-id` stylesheet header. The six live cascade queries returned
+  structured nonzero results with 1,891 requests, zero failed requests, and zero page errors.
 - **ENFORCED TODAY:** `css-var-defined` rejects unresolved static `var(--x)` references and
   declaration-proven arbitrary-variable utilities. Its definition set includes generated tokens, authored
   declarations, explicit fallbacks, exact CSSProperties-backed runtime writers, and the installed Base UI
@@ -187,6 +195,11 @@ The enforcement ledger has three categories; never count one as another:
   blindness. The type-directed emitter preserves ThemeScope, polarity, carried palettes, runtime formulas,
   and owner custom CSS; #936's frontier cold review is the implementation receipt.
 - **REPORTED BUT UNREAD:** `pnpm snap --dead-css` and the dev-only `motion-dead-class-flagger` emit dead/empty CSS findings, but no blocking floor consumes those warning reports today. An instrument nobody reads is not enforcement.
+
+The runtime prerequisites for the remaining scenario-floor work are now explicit. #976 makes design-audit
+account every settled subject exactly and reports requested/resolved/actual theme polarity; #977 makes
+motion-audit report requested/applied/actual browser identity and refuse viewport-only mobile counterfeits.
+These instruments are trustworthy inputs to #953, not substitutes for #953's matrix and floor wiring.
 
 After the static gates and scenario-floor wiring close those holes, runtime-assembled class strings remain outside static proof. Their named backstop is the rendered side-eye sweep. These are named gaps, not permission to widen the set.
 

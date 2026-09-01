@@ -32,6 +32,11 @@ measurements. Current main has five sanctioned stylesheets totalling **3,174 lin
   110-gate inventory migrated.
 - **Integrated and grouped-barrier graduated:** #950 implements browser cascade provenance from the
   revision-pinned official DevTools frontend SDK proof.
+- **Post-graduation trust repairs:** #972 proved 413 previously opaque `tv` observations in each static
+  ownership gate, leaving 508 genuinely runtime-assembled observations and a zero `cva` population. #975
+  repaired the live cascade denominator and same-revision DevTools closure. #976 made design-audit's settled
+  subject and requested/resolved/actual theme evidence exact. #977 made motion-audit's requested/applied/actual
+  browser environment fail loud on a viewport-only mobile counterfeit.
 
 The 2026-08-31 graduation receipt is deliberately split rather than rerunning five minutes of unchanged
 code for generated line offsets: one full `pnpm check` made 16/17 static stages green, including 242/242
@@ -49,6 +54,22 @@ evaluators, 68,517 dispatched nodes, and 2,331 root evaluations in 19.3s with 3.
 suite passed 42/42. The semantic population governed by #956 remains 68 non-utility class identities plus
 112 data-selector identities. Those current semantic counts are not interchangeable with the historical
 7,189-file textual reach sweep.
+
+\#976's old 500ms walk preceded settings/theme settlement at about 690ms, so 285 walked subjects could falsely
+certify 381 settled subjects: `381/285 = 1.337`, below the old 1.5x heuristic. The replacement is an exact
+identity-preserving equation: every Light, Mocha, and default run accounts for 381 settled subjects as 363
+walked/judged plus 18 explicit document-head skips, with zero inaccessible, added, detached, mutated, or
+unaccounted subjects. A continuous same-count replacement plant exits 2 on the mutation/revision ceiling; an
+equal-count non-replacing twin exits 0. Requested/resolved/root theme identity and each walked subject's
+computed `color-scheme` agree: Light has 363 light-polarity subjects, Mocha and default have 363 dark-polarity
+subjects, and an unknown request is `INSTRUMENT ERROR`.
+
+\#977 derives Snap, design-audit, and motion-audit's mobile choice from one shared full-device contract. The
+live identity is requested/applied/actual iPhone 14 Pro Max, viewport and inner viewport 430x740, screen
+430x932, coarse pointer, no hover, one touch point, DPR 3, mobile true, and zero mismatches. Normal and
+reduced-motion fixture twins retain nonzero subjects and frames; the same 430x740 viewport without the device
+fingerprint exits 2. A 100ms live run's two subjects/seven frames honestly classified the accepted #824
+collapsible height animation; it is not a physical-device-jank finding, and #977 adds no matrix loop.
 
 ---
 
@@ -682,21 +703,23 @@ truth; the resolved computed style is.
   second tier is a bounded browser/CT computed-and-matched-style matrix, not an assertion at every call site.
   \#950's architecture is now proven: a revision-matched official DevTools frontend SDK reports
   `CSSMatchedStyles.propertyState` as `Active`/`Overloaded`. Raw-CDP inference, mutation, UI scraping, and a
-  local cascade evaluator are rejected. #950 is integrated and in Review; the grouped CSS-train barrier has
-  not graduated it.
+  local cascade evaluator are rejected. #950 graduated the grouped CSS train; #975 subsequently made a null
+  SDK classification a skipped row rather than a mislabeled declaration while keeping an ordinary zero
+  classified-declaration population fail loud.
 
 **The flagger's own audit (asked for specifically):**
 
 - **It is DEV-ONLY** (`motion-dead-class-flagger.ts:1`, the `[css]` arm of the dev-only motion flagger pack).
   So it protects the developer loop, not the shipped build. A prod-only regression in this class has no
   watcher at all. That boundary belongs written down — doctrine §4.7.
-- **Its confirm-before-report contract is live and correctly shaped.** `:174` states the rule
+- **Its confirm-before-report contract is live and exercised in both directions.** `:174` states the rule
   (*"a miss against the cache is a CANDIDATE, never a finding: one fresh CSSOM read confirms it"*) and
   `:179 confirmDead` is the function that does it, called from `:209 scanBatch`. The #852 fix (a cached
   `defined` set could flag a LIVE class while Base UI's React-19-hoisted `<style precedence>` rules landed
-  mid-drain) is structurally present, not just noted. I did not force a hoisted-style race to fire it — my
-  drive produced no candidates at all to confirm — so I record the SHAPE as verified and the RACE as
-  unexercised.
+  mid-drain) has permanent late-defined-silent and never-defined-reported CT controls. The initial
+  `motionFlaggersSettled()` promise is the first-drain barrier; #953 must await it before its first checkpoint
+  and then reset checkpoint evidence. Only styles injected after that settlement require a new per-drain
+  marker/barrier.
 - **Nothing consumes its output as a verdict.** It reports through the shared console ring. snap captures
   console and its verdict posture is `console-errors` (always red) with warnings red only under
   `--strict-console`; a `[css]` line is a warning. So it is the third category exactly: **neither enforced nor
@@ -745,7 +768,7 @@ bundle-order argument in the paragraph above it stands — but the cited justifi
 `SHELL_CHROME_CLASSES`. It bans a feature from painting a class that no longer has a rule — harmless, and its
 conformance fixtures still pass, but it is a coupled site whenever #860's residue is swept.
 
-**Resolution (2026-08-31).** #957 is integrated and in Review. Commit `aa8cf0d53` corrected the ThemeScope
+**Resolution (2026-08-31).** #957 graduated the grouped CSS barrier. Commit `aa8cf0d53` corrected the ThemeScope
 carrier anatomy, removed the deleted `.ctx-tab-strip` guidance from shell and Playwright, and reconciled the
 coupled gate residue. No current code comment should be inferred from the historical examples above.
 
@@ -814,16 +837,20 @@ inheritance, and custom-property resolution belong to the live CSSOM. The origin
 refuted: protocol matched styles do not expose the declaration activity verdict. #950 therefore embeds a
 revision-matched, path-closed official DevTools frontend SDK and asks
 `CSSMatchedStyles.propertyState` for `Active`/`Overloaded`; raw CDP matched-style data is transport input,
-not a safe cascade oracle. The measured 477-resource, 9,759,320-byte closure includes conditional official
-module asset edges and is hash/license/revision verified before use. Planted controls cover layer,
+not a safe cascade oracle. #975 repaired the same-revision closure to 479 resources / 9,853,687 bytes by
+following literal `import.meta.resolve()` edges and exercising the official formatter API so both transitive
+formatter-worker assets are observed; the closure remains hash/license/revision verified. Planted controls cover layer,
 specificity, inline, inheritance, custom-property fallback/cycle/undefined, animation, transition, and a
 losing declaration. An empty trace is `INSTRUMENT ERROR`, never clean. `snap --dead-css` remains
 complementary: it answers whether a class/rule exists, not which valid declaration won.
 
-**Current status.** #949 is integrated and in Review at `5a5fda97f`; #950 is integrated and in Review at
-`1ae9f38e7`, including the Git-tracked 477-resource closure repair. The architecture is proven in
-`../research/2026-08-31-devtools-css-cascade-provenance.md`; browser-winner coverage is on main, while the
-grouped CSS-train barrier still governs graduation.
+**Current status.** #949 and #950 are grouped-barrier graduated. #975 (`3bc35e338`) treats a null
+`propertyState(property)` as a legitimate unclassified SDK row, preserves classified rows in a mixed
+population, and keeps an ordinary zero classified-declaration population at `INSTRUMENT ERROR`; only
+`allowComputedDefault` is an explicit zero exception. Vite rules with blank URLs recover repository
+provenance through the stylesheet's authoritative `data-vite-dev-id` header. The six live queries returned
+structured nonzero cascade results with four repository declarations, 1,891 requests, zero failed requests,
+zero unexpected requests, and zero page errors.
 
 ---
 
@@ -1181,6 +1208,13 @@ Three tiers, and a fourth category that is neither:
   specificity, source order, inline style, inheritance, custom-property resolution, animation, and
   transition through the revision-pinned official DevTools frontend SDK, not raw-CDP inference. Focused
   runtime and closure receipts are green; the official-SDK matrix is 3/3 and the grouped barrier passed.
+- **POST-GRADUATION PROVENANCE BOUNDARY:** #972 proved 413 `tv` observations in each static ownership gate;
+  508 observations remain genuinely runtime-assembled. `cva` has zero package/lockfile/source population, so
+  no speculative `cva` grammar was added. #975's live cascade repair is the runtime complement described above.
+- **INSTRUMENT TRUST PREREQUISITES FOR #953:** #976 accounts for exactly 381 settled design-audit subjects
+  (363 walked/judged + 18 explicit document-head skips) and reports requested/resolved/actual theme polarity;
+  \#977 reports requested/applied/actual mobile environment and rejects a same-viewport desktop counterfeit.
+  Neither replaces #953's matrix or scenario-floor verdict.
 - **REPORTED BUT UNREAD:** `snap --dead-css` (`deadcss=`/`emptycss=` on every RESULT line) and its dev-only
   `motion-dead-class-flagger` twin still emit findings that no mandatory scenario floor consumes. They answer
   existence/parsing, not value resolution, class-list merge, or browser cascade.
@@ -1242,7 +1276,7 @@ pre-launch removes the user risk, not the verification bar.**
 
 | # | step | blast radius | tier | proof obligation |
 | - | - | - | - | - |
-| 5.0 | **DONE #959:** production and Playwright CT share one `@orb/client/styles` front door; `playwright-css-topology` derives its recursive sanctioned graph and keeps the sole tests-only Tailwind source extension explicit | production/CT CSS entry + topology gate | gate + build + rendered CT | gate conformance green, client build green, custom-theme CT 3/3, cascade-order assertion 1/1; grouped train barrier remains |
+| 5.0 | **DONE #959; GROUP BARRIER PASSED:** production and Playwright CT share one `@orb/client/styles` front door; `playwright-css-topology` derives its recursive sanctioned graph and keeps the sole tests-only Tailwind source extension explicit | production/CT CSS entry + topology gate | gate + build + rendered CT | gate conformance green, client build green, custom-theme CT 3/3, cascade-order assertion 1/1 |
 | 4.1 | **DONE #936:** freeze theme.css/TS/seed outputs, exact 178-target set, ThemeScope/polarity/carried palettes, pointer-fine output, and owner custom-CSS behavior | token/theme matrix | behavioral + rendered goldens | final generated artifacts byte-identical |
 | 4.2 | **DONE #936:** pin/hash official 2025.10 Format + Resolver schemas; direct-declare Ajv/ajv-formats; strict schema + alias/font/inheritance/extension validation with planted controls and semantic counts | package + gate | static contract | 272 scanned entries; schema/hash/zero-population failures loud |
 | 4.3 | **DONE #936:** partition portable tokens from strict `orb.cssValues`; explicit theme-or-root placement; migrate base + seed families and bounded Resolver composition | canonical token source/value sets | contract + generated parity | 178 exact targets; full identity and seed-set ratchets |
@@ -1253,11 +1287,11 @@ pre-launch removes the user risk, not the verification bar.**
 
 | # | step | blast radius | tier | proof obligation |
 | - | - | - | - | - |
-| 5.1 | **IMPLEMENTED #949, IN REVIEW:** compiler-positive/negative namespace set equality, aspect/blur/ease only, and sole `createTV` seal | merge front door + tests/gate | compiler/unit/gate | a package upgrade or new emitted family cannot silently outrun the merger |
-| 5.2 | **IMPLEMENTED #949, IN REVIEW:** one Orb merge plus bounded occurrence-aware loser→final-winner replay at dev/test `__orb.css` | merge instrumentation | unit + instrument controls | duplicate/asymmetric/modifier/arbitrary/custom-family cases; zero population is instrument error |
-| 5.3 | **IMPLEMENTED #950, IN REVIEW:** revision-pinned official DevTools frontend SDK cascade provenance for bounded property/selector queries | Snap/official SDK | rendered instrument | 477-resource Git-tracked path-closed asset set; layer, specificity, source order, inline, inheritance, custom-property fallback/cycle/undefined, animation, transition, and planted losers; no raw-CDP inference |
-| 5.4 | Prove the 41-key Appearance carrier graph and interaction arms across ThemeScope, grid, portals, background layers, message props, and mobile/desktop shell regimes | gate + Snap matrix | static carrier + rendered scenarios | every setting has a writer, carrier, consumer, visible state, and incompatible-arm rule |
-| 5.5 | Promote stable Snap measurements into rated floors (contrast, overflow/containment, cascade/merge, density, polarity, scrim/art, mobile geometry) while keeping exploratory matrices available | scenario/rating harness | preflight + scenario floor | catches interaction failures before manual side-eye; side-eye remains final taste/a11y verification |
+| 5.1 | **GRADUATED #949; EXTENDED #972:** compiler-positive/negative namespace set equality, aspect/blur/ease only, sole `createTV` seal, and 413 declaration-proven `tv` observations in each ownership gate | merge front door + tests/gate | compiler/unit/gate | 508 runtime-assembled observations remain explicit; `cva` population is zero |
+| 5.2 | **GRADUATED #949:** one Orb merge plus bounded occurrence-aware loser→final-winner replay at dev/test `__orb.css` | merge instrumentation | unit + instrument controls | duplicate/asymmetric/modifier/arbitrary/custom-family cases; zero population is instrument error |
+| 5.3 | **GRADUATED #950; REPAIRED #975:** revision-pinned official DevTools frontend SDK cascade provenance for bounded property/selector queries | Snap/official SDK | rendered instrument | 479-resource / 9,853,687-byte closure; null SDK rows skipped before the denominator; Vite header provenance; six live nonzero queries and planted zero/missing-worker failures |
+| 5.4 | **STATIC CARRIER PROGRAM CLOSED #935; RENDERED MATRIX REMAINS #953:** prove the 41-key Appearance carrier graph and interaction arms across ThemeScope, grid, portals, background layers, message props, and mobile/desktop shell regimes | gate + Snap matrix | static carrier + rendered scenarios | static writer/carrier/consumer closure is enforced; composed visible states and incompatible arms remain matrix obligations |
+| 5.5 | **OPEN #953:** promote stable Snap measurements into rated floors (contrast, overflow/containment, cascade/merge, density, polarity, scrim/art, mobile geometry) while keeping exploratory matrices available | scenario/rating harness | preflight + scenario floor | #976/#977 now make theme/subject/mobile inputs trustworthy; side-eye remains final taste/a11y verification |
 
 ### What must land TOGETHER
 
@@ -1620,16 +1654,16 @@ selector identities; it must not be replaced by the older “every writer” ove
 
 One line each; none dressed as a finding.
 
-1. `client/styles/globals.css:574`'s avatar hairline is `.shell-grid`-scoped, so an avatar inside a portalled
-   Dialog gets none over a wallpaper. Probably correct (the popup's own fill is at or above the reading-plate
-   alpha), but I did not measure an avatar inside a modal over art.
-2. `[data-has-bg-image]` is written bare at `client/globals.css:455,567` and grid-scoped at `:104,:116,:574`
-   and throughout shell.css. Reach is identical today (only `.shell-grid` carries the attribute); the two
-   spellings differ only in specificity. A single spelling would be tidier; I did not find a case where it
-   matters.
-3. The `motion-dead-class-flagger`'s #852 confirm-before-report race is structurally present but I did not
-   force a React-19 hoisted-`<style precedence>` insertion mid-drain to exercise it. Shape verified, race
-   unexercised.
+1. **Ruled by #974:** the avatar hairline remains `.shell-grid`-scoped. A portalled Dialog owns its own
+   polarity-aware popup backing rather than inheriting grid art treatment. Retain one rendered
+   dialog-avatar-over-art acceptance pin so that deliberate scope cannot become an invisible regression.
+2. **Ruled by #974:** `data-has-bg-image` has one production writer on `.shell-grid`. Its spellings encode
+   different reach: bare selectors target grid descendants, `.shell-grid[...]` asserts grid identity, and
+   the sibling combinator reaches the portal root. Do not normalize them into one spelling.
+3. **Resolved initial race; one dynamic boundary remains:** #852's late-defined-silent and
+   never-defined-reported CT controls exercise the initial drain. #953 must await `motionFlaggersSettled()`
+   and reset checkpoint evidence before its first cell. A style injected after settlement still needs an
+   explicit per-drain marker/barrier.
 4. **Resolved by #957:** the deleted `ctx-tab-strip` entry was removed from the coupled gate vocabulary.
 5. **Resolved by #939:** the permanent chart matrix covers every seed/polarity host, including Mocha, plus
    accepted custom-theme inputs and real ECharts fills.
@@ -1727,5 +1761,11 @@ production-Oxide family parity, aspect/blur/ease coverage, sole-`createTV` enfor
 `__orb.css` occurrence replay. It explains class-list losers and winners only. #950 is integrated and barrier-graduated
 with the revision-pinned official DevTools frontend SDK: `CSSMatchedStyles.propertyState` supplies
 browser-owned `Active`/`Overloaded` cascade attribution. Raw-CDP winner inference, mutation, UI scraping, and
-a local cascade evaluator are rejected; its official-SDK runtime matrix is 3/3. `deadcss`/`emptycss` remain
-reported-but-unread by mandatory floors; rated scenario integration remains #935/#953.
+a local cascade evaluator are rejected; its official-SDK runtime matrix is 3/3. #972 subsequently proved
+413 `tv` observations in each static gate, leaving 508 genuinely opaque runtime observations and a zero
+`cva` population. #975 repaired the cascade SDK denominator, Vite provenance, and closure to 479 resources /
+9,853,687 bytes; all six live cascade queries returned structured nonzero results with zero unexpected
+requests. #976 now accounts for 381 settled design subjects exactly and proves requested/resolved/actual
+theme polarity, including a same-count mutation plant. #977 proves requested/applied/actual mobile identity,
+both normal/reduced-motion nonzero populations, and refusal of a same-viewport counterfeit. `deadcss`/
+`emptycss` remain reported-but-unread by mandatory floors; rated scenario integration remains #953.

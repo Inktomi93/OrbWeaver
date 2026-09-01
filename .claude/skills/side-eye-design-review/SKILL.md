@@ -22,7 +22,7 @@ voice — audience/voice/anti-references/references/the-one-feeling, citable in 
 - **Never distort an image.** `object-fit: cover` (crop), never `background-size: 100% <h>` or any
   fixed-both-dimensions sizing that stretches. A 2:3 portrait forced into a wide band is a squish. We
   own `sharp` — the right-shaped crop is a variant, not a CSS stretch. Rendered aspect must match the
-  source aspect (within ~3%).
+  source aspect (within \~3%).
 - **Tokens only.** No raw px/hex/arbitrary Tailwind values in features (biome hook enforces it);
   `@orb/ui` primitives + `<Stack>/<Row>/<Section>/<Container>`; no `className` on raw HTML in a
   feature. A raw value is a finding.
@@ -50,7 +50,7 @@ voice — audience/voice/anti-references/references/the-one-feeling, citable in 
 - Body line length 65–75ch (`max-w-prose`).
 - Pair fonts on a contrast axis (serif+sans, geometric+humanist) or one family in multiple weights;
   two similar sans is a tell.
-- Display heading ceiling ≤ ~6rem; letter-spacing floor ≥ −0.04em (tighter = letters touch).
+- Display heading ceiling ≤ \~6rem; letter-spacing floor ≥ −0.04em (tighter = letters touch).
 - `text-wrap: balance` on h1–h3; `pretty` on long prose. A flat type hierarchy is a slop tell.
 
 ## §3 Layout
@@ -108,6 +108,7 @@ buzzwords, aphorisms) apply to UI CHROME COPY only — never to model/user prose
 ## §7 Nielsen's 10 heuristics — scoring rubric (0–4; honest, most surfaces land 20–32/40)
 
 `0` absent/broken · `2` partial with real gaps · `4` genuinely excellent.
+
 1. **Visibility of system status** — loading/save/submit feedback, progress, location, inline validation.
 2. **Match system ↔ real world** — plain language, logical order, recognizable metaphors, no jargon.
 3. **User control & freedom** — undo/redo, cancel, back-to-safety, clear filters, Esc from flows.
@@ -160,7 +161,7 @@ state in ONE eval — never scrape the DOM.
 **`window.__orb`** (via chrome-devtools MCP `evaluate_script`, after `data-app-ready`):
 
 | Call | Returns / use |
-| --- | --- |
+| - | - |
 | `__orb.snap()` | one-call overview `{ ready, shell, bus, queries, perf, renders }` — start here |
 | `__orb.renders()` | render heatmap `{ id, count, mounts, updates, totalMs, avgMs, maxMs }[]`, hottest-first — **churn is a real UX defect**, flag hot surfaces |
 | `__orb.motion()` | `{ loafs[], cls, observedCls, virtualizedCls, nonVirtualizedCls, worstBlocking, worstShift, shifts[] }` — long-animation-frames (`blockingDuration`, `styleAndLayoutStart>0` = style/layout ran in-frame) + layout instability. **The smoothness receipt — don't eyeball jank.** Judge `nonVirtualizedCls`, not `cls` (see §11 motion) |
@@ -184,11 +185,11 @@ probes' capture or chrome-devtools `list_console_messages`.
 **Probes** (Bash, own headless browser, output under `reports/` — gitignored; the cheap path — one
 call, no MCP, no context dump; **prefer these over the chrome-devtools MCP for everything but a live
 keyboard walk**):
+
 - `pnpm snap <route>` — capture + introspection flags: **`--map [sel]`** (selector map — every element
   → its stable selector; discover targets, never grep source) · **`--contrast <sel>`** (WCAG ratio,
   oklch-safe, `PASS/FAIL`) · **`--eval '<js>'`** (any in-page value, incl. `__orb.renders()`/
-  `__orb.snap()` and `getComputedStyle`) · `--aria`/`--text` (a11y tree) · `--click/--press/--fill/
-  --wait-for` (interaction chain) · `--shot-of` · `--diff`/`--baseline` · `--dark`/`--reduced-motion` ·
+  `__orb.snap()` and `getComputedStyle`) · `--aria`/`--text` (a11y tree) · `--click/--press/--fill/ --wait-for` (interaction chain) · `--shot-of` · `--diff`/`--baseline` · `--dark`/`--reduced-motion` ·
   `--deadcss`.
   **NAVIGATION (the app is state-navigated, 2 URL routes — these replace click-chains):**
   `--goto <target>` (a section id like `presets`, `settings:<category>`, or `modal:<slot>`; refuses
@@ -224,7 +225,7 @@ keyboard walk**):
   `pointer: coarse`, so hover-reveals go always-visible and the rail becomes the bottom tab bar) ·
   `--desktop` (the 1280×800 default, explicit) · last of `--mobile`/`--desktop`/`--wide`/`--viewport` wins.
 - `pnpm perf-meter` (responsiveness + CPU profile) · `pnpm design-audit` (the deterministic defect
-  scanner — ~40 rules across two origin-tagged families: the house rules plus the impeccable-adapted
+  scanner — \~40 rules across two origin-tagged families: the house rules plus the impeccable-adapted
   set (gradient-decoration tells, type-ramp legibility floors, text overflow, clipped positioned
   children, script errors, taste tells like icon-tile-stack/gray-on-color); triage table:
   `reference/impeccable-adoption.md` in this skill dir).
@@ -232,6 +233,7 @@ keyboard walk**):
 Read `__orb` and any computed value via `snap --eval` / `snap --contrast` — a **Bash** call, no MCP.
 
 **Probe footguns (pay these once, not every review):**
+
 - **Start the stack FIRST** — `pnpm stack start` (server :8788 + vite :5173); snap gates on :5173. A
   "vite not up" / hanging snap = the stack isn't running. `pnpm stack status` to check, `stop` to kill.
 - **`snap --eval` AUTO-INVOKES a function literal** — pass a BARE arrow `'()=>{…; return x}'` WITHOUT a
@@ -265,8 +267,8 @@ Read `__orb` and any computed value via `snap --eval` / `snap --contrast` — a 
      Box math minted 10 of 13 "sub-target" findings in one audit.
   3. **Off-viewport hosts are phantoms.** One census measured a detail panel sitting off-canvas at x=431
      on a 430px viewport. Check the host is on screen before you measure anything inside it.
-  VERIFY each with `--aria` (the real accessible name) / `--map` before reporting; never forward the raw
-  count. (An early full pass: 52 such findings, all false.)
+     VERIFY each with `--aria` (the real accessible name) / `--map` before reporting; never forward the raw
+     count. (An early full pass: 52 such findings, all false.)
 - **`nested-card` was the noisiest rule on the tree** — 26/26 false positives on home as recently as
   2026-08-16, all of them border+radius+bg INTERACTIVE controls inside a card, which chrome-diet CD1
   explicitly sanctions ("border+radius+bg only on interactive islands / elevated surfaces"). The walker
@@ -298,20 +300,27 @@ are unbuilt):**
 | `data-texture` | `<html>` | ONLY when `surfaceTexture !== "none"` — it is REMOVED at the default, so its absence is the default, not a missing feature (`use-appearance-root-effects.ts:74-78`) |
 | `data-app-ready` | `<html>` | after the initial reads settle |
 | `--font-scale` · `--blur-strength` · `--reading-line-height` · `--reading-letter-spacing` · `--reading-paragraph-spacing` · `--reading-name-scale` · `--reading-body-scale` | `<html>` inline `style` | always |
-| **`data-elevation`** · `data-density` · `data-list-mode` · `data-context-mode` · `data-focus-mode` · `data-reduced-motion` · `data-has-bg-image` | **`.shell-grid`, NOT the root** (`app-shell.tsx:255-261`) | always (`data-has-bg-image` only with a background image) |
+| **`data-elevation`** · `data-density` · `data-list-mode` · `data-context-mode` · `data-focus-mode` · `data-reduced-motion` · `data-has-bg-image` | **`.shell-grid`, NOT the root** (`app-shell.tsx:247-255`) | always (`data-has-bg-image` only with a background image; it has one production writer) |
 
 Read them with `snap --eval '[...document.documentElement.attributes].map(a=>a.name+"="+a.value)'` and
 `snap --eval '[...document.querySelector(".shell-grid").attributes].map(a=>a.name+"="+a.value)'` — never
 from memory, and never assume a handle is on the root.
 
+`data-has-bg-image` selector spelling is semantic, not style noise: a bare selector reaches descendants of
+the grid writer, `.shell-grid[data-has-bg-image]` asserts the writer itself, and the existing sibling
+combinator reaches the themed portal root. Do not normalize those three reach classes. The avatar hairline is
+deliberately grid-only; portalled dialogs own their polarity-aware popup backing and owe a rendered
+dialog-avatar-over-art acceptance pin.
+
 New user-tunable, token/accent-driven effects. Check they render right AND aren't mistaken for AI-slop
 (they're intentional + rationed). Toggle an axis via the Appearance settings pane, or by writing the
 attribute at its REAL host; then verify:
+
 - **`elevation: flat | ramp | glow`** (`.shell-grid[data-elevation]`) — `glow` = layered shadows + inner
   top-highlight on panels/cards. All three values must switch cleanly (no cascade residue when reverting).
-- **`surfaceTexture: none | grain`** (root `data-texture`, absent at `none`) — opt-in SVG-noise dusting (soft-light ~0.04)
+- **`surfaceTexture: none | grain`** (root `data-texture`, absent at `none`) — opt-in SVG-noise dusting (soft-light \~0.04)
   on chrome/cards ONLY, NEVER message prose (reading-surface rule); must `display:none` under
-  `prefers-contrast: high`.
+  `prefers-contrast: more`.
 - **`--shadow-glow`** — the rationed Ember accent glow on selected/active (media-grid `data-selected`,
   avatar `ring=accent`, active rail item, focused composer). It lives on a `::before` LAYER, never the
   element's own `box-shadow` (that clobbers the focus ring — WCAG 2.4.7; the P0 above). Not garish.
@@ -319,7 +328,7 @@ attribute at its REAL host; then verify:
   ambient). No visible white line, no banding.
 - **Gradient border rings** — `[data-cta]::after` / `[data-selected]::after` / `[data-active]::after`,
   accent-tinted, radius-safe, must COMPOSE with the fill (not clobber `bg-primary`/`shadow-*`).
-- **Spotlight** — `media-grid-cell::before` radial that follows the pointer at LOW alpha (~0.18, never a
+- **Spotlight** — `media-grid-cell::before` radial that follows the pointer at LOW alpha (\~0.18, never a
   wash over the thumbnail); GUARDED `@media (pointer: fine)` + `prefers-reduced-motion: reduce → display:
   none`. Verify both guards (emulate coarse pointer + reduced-motion → gone).
 - **Ambient aura** — `empty-state-decoration::before` radial behind the hero glyph ONLY; must never lower
@@ -327,12 +336,17 @@ attribute at its REAL host; then verify:
 
 ### Motion & animation verification (when the surface animates/transitions/scrolls)
 
+Before the first checkpoint, await `window.__orb.motionFlaggersSettled()` and then reset checkpoint evidence.
+That barrier covers the initial stylesheet drain and has permanent late-defined-silent / never-defined-reported
+controls. If the review injects a stylesheet after settlement, it owes a new per-drain marker/barrier; do not
+reuse the initial promise as proof that later CSSOM work has drained.
+
 Smoothness is a **receipt**, not a vibe — the eye can't reliably tell 60fps from 45fps, and a headless
 review sees no motion at all. When reviewing anything animated (entry/exit transitions, hover motion,
 drawer/panel slides, scroll, immersive chat modes), read the numbers instead of guessing:
 
 > **CLS / motion receipts are taken WITHOUT `--probe`. Full stop.** `--probe` injects
-> `*{animation:none!important;transition:none!important}` from DOMContentLoaded (`snap.ts` PROBE_CSS_SCRIPT)
+> `*{animation:none!important;transition:none!important}` from DOMContentLoaded (`snap.ts` PROBE\_CSS\_SCRIPT)
 > — which kills the FLIP animations whose whole job is to make a track change CLS-free
 > (`shell.css @keyframes shell-list-push-in`, stamped by `use-list-track-flip.ts`). Under `--probe` the
 > harness MANUFACTURES layout-shift findings; a 0.2295 theme-scope shift was filed off exactly this on
@@ -349,7 +363,7 @@ drawer/panel slides, scroll, immersive chat modes), read the numbers instead of 
   - **`nonVirtualizedCls > 0.1`** — layout shifting under the user (content jumping as it loads).
     **Read the NON-virtualized total, never the raw `cls`** (issue #109, 2026-08-16): the instrument
     classifies virtual-row reconciliation (`shifts[].virtualized`) and `cls` still includes it, so a long
-    thread scores ~0.26 of pure message-list settling that NO app fix can move. `virtualizedCls` is the
+    thread scores \~0.26 of pure message-list settling that NO app fix can move. `virtualizedCls` is the
     share being excluded and `cls` is still printed — cite all three, gate on the third.
   - any animation with **`compositorClean: false`** — it animates a non-`transform`/`opacity`/`filter`
     prop (width/height/top/margin/…), i.e. a per-frame layout pass. Cross-refs §4 ("don't animate
@@ -361,6 +375,7 @@ drawer/panel slides, scroll, immersive chat modes), read the numbers instead of 
   `cls-raw` / `cls-virtualized` / `cls-non-virtualized`; **only the last one is in the verdict**. Note:
   the dropped-frame % is only fully trustworthy headful (`--vnc`) — headless has no real vsync;
   LoAF/CLS/blocking are the headless-reliable signals.
+
 ### The PROD-BUILD CLS arm — and the declared limit on Lighthouse's mobile CLS (#836)
 
 **Lighthouse mobile CLS on `/` is NOT reproducible by our probes, and the dev build is not the reason.**
@@ -370,9 +385,9 @@ the same page's own buffered layout-shift buffer reports **0.0293** at 4× CPU a
 0.001. So a Lighthouse mobile CLS in the 0.1 band with our own arms clean is a **declared limit** — cite
 both numbers and do not file a fix row off the Lighthouse figure alone.
 
-The recipe, when a prod-build receipt is actually needed (~25s build + a server boot):
+The recipe, when a prod-build receipt is actually needed (\~25s build + a server boot):
 
-1. `pnpm --filter @orb/client build` in YOUR worktree (~25s; writes `packages/client/dist`).
+1. `pnpm --filter @orb/client build` in YOUR worktree (\~25s; writes `packages/client/dist`).
 2. Boot the REAL prod entry off-band — never `vite preview` (`vite.config.ts` has no `preview.proxy`, so
    the SPA would have no `/api` at all) and never on `:8788` (that is main's dev stack):
    `PORT=8790 BIND_HOST=127.0.0.1 NODE_ENV=production ORB_ENV_NO_FILE=1 OWNER_HANDLES=… CREDENTIALS_KEY=…
@@ -389,11 +404,13 @@ Three instrument facts the eval must respect on a prod build:
 - **`window.__orb` does not exist in a production bundle** — `installAgentDebugHandle` early-returns under
   `!IS_DEV`, so `__orb.motion()` (and its virtualized-share classification) is unavailable. `data-app-ready`
   IS set in prod (`installAppReadySignal` is not gated).
+
 - **`performance.getEntriesByType("layout-shift")` returns `[]` in chromium** and logs *"Deprecated API for
   given entry type"* — a silent zero that reads exactly like a clean surface. The only reader is a
   `PerformanceObserver` with `buffered: true`; give it a settle window that spans the whole boot, because
   under `slow-4g` the app's OWN readiness ceiling hands over `data-app-ready="degraded"` well before the
   page is done.
+
 - **The dev build cannot take the network arm at all**: at `slow-4g`, `/` on `:5173` issues **447** requests
   and `page.goto` blows past 90s. Prod issues 12. Throttle CPU alone against `:5173`.
 
@@ -410,7 +427,7 @@ UI (or `snap --goto`/`__orb.nav` if present; check `scripts/probes/snap.ts`'s he
 `/some-path` does NOT navigate anywhere — it renders the home shell under a misleading PNG name.
 
 | What | Where |
-| --- | --- |
+| - | - |
 | Global CSS (incl. the reduced-motion killer) | `packages/ui/src/styles/globals.css` |
 | Theme CSS + tokens — **GENERATED, never hand-read as intent** (D71: seed value-sets in json) | `packages/ui/src/styles/theme.css` · `packages/ui/src/tokens/index.ts` |
 | `@orb/ui` primitives (the ONLY elements features may use; D44 media primitives) | `packages/ui/src/primitives/` (+ `layout/`, `content/`, `markdown/`, `stream/`) |
@@ -423,7 +440,7 @@ UI (or `snap --goto`/`__orb.nav` if present; check `scripts/probes/snap.ts`'s he
 | Client architecture law (lockdown — component/registry discipline) | `docs/architecture/core/client-architecture-lockdown.md` |
 | The constitution + doc index | `docs/architecture/core/AGENTS.md` |
 | D-ledger (cite the D-number a finding breaks) | `docs/architecture/core/Core-Laws-and-Precedents.md` → `Core-Path-Registry.md` |
-| CTs (component tests) — repo root, NOT packages/** | `tests/client/**` (e2e: `tests/e2e/**`) |
+| CTs (component tests) — repo root, NOT packages/\*\* | `tests/client/**` (e2e: `tests/e2e/**`) |
 | Probe tool manuals — **authoritative, read them fresh; this skill does not duplicate flags** | `scripts/probes/snap.ts` header · `scripts/probes/design-audit*.ts` |
 | Server truth for any chat surface | `GET :8788/api/_debug/db/chat/:id` · `/api/_debug/db/chats` (LIST) · `/api/_debug/db/characters` (LIST) · `/api/_debug/errors` · `/api/_debug/db/integrity` |
 
@@ -436,8 +453,7 @@ click a character quick-pick → the draft room opens → send one message → t
 add members via the Members-section affordances (the character bar + the add doors; the shipped
 strings still read "Cast"/"Saved casts" until #902 lands the #901 Fork-1/2 rename to
 Characters/Saved rosters — review against the RULED word, report the shipped one). For a HEAVY fixture the UI can't produce in reasonable
-calls (long transcripts / compaction / virtualization looks), run `tsx scripts/dev/seed-chat.ts
---messages 120 --characters 3 [--title "…"]` — it writes N deterministic numbered rows through the
+calls (long transcripts / compaction / virtualization looks), run `tsx scripts/dev/seed-chat.ts --messages 120 --characters 3 [--title "…"]` — it writes N deterministic numbered rows through the
 canon-safe bulk seam (restart the stack or seed a fresh DB so the live connection sees it; see the
 script header). Reach a chat by `--open-chat <id|exactTitle|latest|current>` (it REFUSES an ambiguous
 title — pass the id; `current` = the room this browser session is showing now) and a character by
@@ -451,6 +467,7 @@ usually means you're on the other stack. Check which base you're driving before 
 **The bottom-right ❗N ⚠M chip is vite-plugin-checker's overlay badge** — tsc/ESLint diagnostics for
 the dev build (owner-corrected 2026-07-25; NOT TanStack devtools — that shell is bottom-LEFT,
 hover-hidden). Three hard-won facts:
+
 - **Read the counts from `.cache/stack/client.log`** (the checker prints full diagnostics there). Do
   NOT probe the badge with `--eval` DOM queries — it renders in a SHADOW ROOT; `querySelectorAll`
   returns nothing and lies "no badge".
@@ -497,7 +514,7 @@ geography; a surface inventing its own geography is a finding, not a style choic
 [ RAIL | LIST | CONTENT | CONTEXT ]
 ```
 
-- **RAIL** (left, ~56px icon column) — WHICH facet. **TEN sections is the current sanctioned count**
+- **RAIL** (left, \~56px icon column) — WHICH facet. **TEN sections is the current sanctioned count**
   (a running tally, not a fixed ceiling — each addition carries its provenance) and ten is the live
   count — the rail is FULL, not under-filled. Law: `UI-Architecture-and-Layout.md:190` — *"TEN sections
   (D121 amended D62 P6's seven — Presets stays in the rail, Connections lives in Settings per D66;
@@ -521,6 +538,7 @@ geography; a surface inventing its own geography is a finding, not a style choic
   usage/bindings). Closable. **Never navigation** — actions ON the artifact only.
 
 **The physics to enforce (violations are findings, cite §4.2):**
+
 1. LIST selection drives CONTENT; CONTEXT follows CONTENT.
 2. **Modals are for interrupts and pickers ONLY** (new-chat picker, add-member, theme, settings,
    account, ⌘K). **Settings IS a modal** — not a section, not a pane. Section content NEVER lives in

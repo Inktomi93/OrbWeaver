@@ -410,6 +410,25 @@ and it would collide with D54's sealed-`ui` merge posture — an owner call, not
 would churn the locked six-home path. Put guidance in `$description` and schema-validated vendor
 extensions, not comments.
 
+## Post-research settlement — static provenance and live cascade (2026-08-31)
+
+This remains an evidence document, not active architecture law. Later implementation established the
+boundary that the original ecosystem research could not measure:
+
+- \#972 proved 413 previously opaque `tv` observations in each static ownership gate. The remaining 508 are
+  genuinely runtime-assembled. `cva` has zero package, lockfile, import, and call population, so Orbweaver did
+  not add a grammar for an absent library.
+- \#975 repaired the official DevTools SDK materializer and live denominator without changing the pinned SDK
+  revision. Literal `import.meta.resolve()` discovery plus the official formatter API produced a 479-resource,
+  9,853,687-byte hash/license/revision-verified closure containing both formatter-worker assets. A null
+  `propertyState(property)` is an unclassified SDK row, not `Active` or `Overloaded`; mixed populations keep
+  their classified rows, while an ordinary zero classified-declaration population remains `INSTRUMENT ERROR`.
+  Blank Vite rule URLs recover repository provenance only through the stylesheet's `data-vite-dev-id` header.
+  All six live property queries returned structured nonzero results with zero unexpected requests.
+
+The active contract and enforcement posture lives in `client-architecture-lockdown.md` §4. This rider records
+what the research led to; it does not promote this review over that law.
+
 ## 13. What I did NOT verify in Part 2
 
 - ~~zod availability~~ SETTLED: `zod` is a declared direct dependency of `packages/ui`

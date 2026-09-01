@@ -41,6 +41,17 @@ Mocha's `muted-foreground` is the only seed output retuned (0.720→0.731, quant
 4.430→4.6286). The all-seed gate is derived from `SEED_THEME_VALUE_SETS`, so a future value-set inherits the
 same host matrix rather than a theme-name exception.
 
+**Post-program CSS provenance boundary (#972/#975, 2026-08-31).** This document remains the implemented
+token-contract design record; it does not supersede the active CSS law. #972 proved 413 previously opaque
+`tv` observations in each static ownership gate and left 508 genuinely runtime-assembled observations. The
+repository has no `cva` dependency, lockfile entry, import, or call population, so no speculative grammar was
+added. #975 is the browser-tier complement: null DevTools `propertyState(property)` rows are legitimate
+unclassified SDK states and are skipped before the classified-declaration denominator; an ordinary zero
+classified population still fails loud. Its same-revision closure is 479 resources / 9,853,687 bytes, and
+Vite repository provenance is recovered only from the authoritative `data-vite-dev-id` stylesheet header.
+These results settle the boundary around the token program; they do not reopen D54 or create a second value
+authority.
+
 ## 1. The problem in one paragraph
 
 `packages/ui/src/tokens/tokens.json` holds 178 tokens in DTCG-shaped syntax (`$value`/`$type`).

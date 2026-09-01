@@ -13,16 +13,18 @@ Project field, issue, product/tooling source, commit, or remote was mutated by t
 
 ## Current-state reconciliation (2026-08-31)
 
-This report preserves the pre-implementation evidence below; it is not a live status board. Five prerequisites
-or measured repairs have since closed:
+This report preserves the pre-implementation evidence below; it is not a live status board. Every
+"Current prevention" label and issue count below this reconciliation is current at baseline `0445b0e517`,
+not at HEAD. The current replacements are:
 
 - **#921:** `9b0e6debb` replaced the feature-only proxy with the exact-six `sanctioned-css-homes` gate;
   cold review found dot-path and wrong-file-kind bypasses; `fee25f89b` closed both, deleted the exposed
   `.ds-preview-*` seventh home, and passed independent cold confirmation.
 - **#934:** `19ed6321f` restored all 41 imported Appearance leaves without moving the domain-owned schema;
   the real tree now reports `contracts=1 sources=2 leaves=166 appearanceLeaves=41`, with imported red/green
-  controls and independent cold confirmation. The broader 41-key carrier/DOM/pixel program remains open
-  because name-liveness does not prove direction, both arms, reach, geometry, contrast, or pixels.
+  controls and independent cold confirmation. #935 subsequently closed the schema-derived 41-key carrier
+  program; rendered composition remains owned by the named acceptance and #953 matrix cells rather than by
+  name-liveness alone.
 - **#936:** the structured DTCG contract/emitter landed, then frontier review forced explicit output
   placement, honest fs-vs-Git proof, exact CSS-target identity, and exact Light/Mocha seed membership before
   closure. Final receipt: 178 targets, 272 scanned entries, 44/44 adversarial checks, byte-identical artifacts.
@@ -30,9 +32,32 @@ or measured repairs have since closed:
   refutations; 1,235-file census, 42/42 unit/security, and 3/3 rendered receipts.
 - **#940:** modal stacking uses existing `z.raised`; the z gate is 7/7 vault-parity checked and covers exported
   class recipes after cold refutation; the real overlap/hit-test CT passed.
+- **#938/#939 and the grouped CSS prevention train:** comfortable/compact density is symmetric; seed and
+  accepted custom-theme chart ramps are contrast-safe; #949–#952, #954–#957, #959, #961, and #965 graduated
+  their merge, cascade, ownership, polarity, topology, and bounded-provenance barriers. #921's exact six-home
+  gate remains the F9 closure; its historical path-short defect below is evidence, not current status.
+- **#972/#975:** static `tv` provenance proved 413 observations in each ownership gate, leaving 508 genuinely
+  runtime-assembled observations and zero `cva` population. Live cascade tracing now skips legitimate null
+  SDK classifications before its denominator, retains mixed classified rows, refuses ordinary zero classified
+  populations, recovers Vite provenance from `data-vite-dev-id`, and carries a 479-resource / 9,853,687-byte
+  same-revision closure. Six live properties returned structured nonzero traces with zero unexpected requests.
+- **#976/#977:** design-audit now accounts for all 381 settled subjects exactly and proves requested/resolved/
+  actual theme polarity; motion-audit uses one canonical full-device contract and proves the exact iPhone
+  runtime environment. A same-viewport counterfeit exits 2. The 100ms live mobile run classified the accepted
+  \#824 collapsible height animation; it did not claim physical-device jank or a #977 defect.
+- **#974 scope rulings:** the wallpaper avatar hairline stays grid-only because a portalled Dialog owns its
+  own polarity-aware popup backing; retain one rendered dialog-avatar-over-art pin. `data-has-bg-image` has
+  one production writer on `.shell-grid`; bare descendant, grid-qualified, and portal-sibling selectors encode
+  different reach and must not be normalized. #852 proves the initial late-style drain in both directions;
+  \#953 must await `motionFlaggersSettled()` and reset checkpoint evidence, while post-settlement style
+  injection still needs an explicit per-drain marker.
+- **Instrument prerequisites:** #881, #882, and #894 closed the shared fail-loud verdict denominator, derived
+  design-rule liveness, and self-describing bridge/ring contracts. They make #953's future matrix inputs
+  inspectable; they do not make the matrix or mandatory scenario floors exist.
 
-#938/#939, #933 prevention, and the Appearance/config chain remain governed by their live Project items and
-the ordered program rather than this audit's original recommendation tense.
+The historical findings and 215-issue corpus below remain unchanged as evidence from their declared base.
+Current implementation status is governed by this reconciliation and the active architecture law, never by
+the original recommendation tense.
 
 ## Findings
 
@@ -61,7 +86,7 @@ Evidence produced this session:
   `settingsLeaves(settings, ...)` never follows the imported symbol.
 - The permanent Arm-C positive at lines 585-592 plants an inline `z.object` in `settings/index.ts`; it
   does not plant the refactor shape that caused the blind spot.
-- #448's closure evidence proves the move was intentional and green for boot size/object identity, but
+- \#448's closure evidence proves the move was intentional and green for boot size/object identity, but
   names no coupled `knob-wire-coverage` receipt.
 
 Current prevention: **ABSENT for Appearance Arm C**. The editor partition is ENFORCED; consumer liveness
@@ -72,7 +97,7 @@ Earliest cheap tier: the existing structure gate. Make leaf discovery symbol/imp
 explicitly add `appearanceSettingsSchema` as a member source with a rename tripwire and set-equality to the
 schema. Plant the exact positive: move a settings sub-schema into an imported module, add one unread leaf,
 and require Arm C to red. This belongs in a new P1 Tooling work item, before #920/#926/#929 and before
-#933's matrix work. Even repaired, Arm C proves only a name-shaped read somewhere; it cannot prove the
+\#933's matrix work. Even repaired, Arm C proves only a name-shaped read somewhere; it cannot prove the
 correct consumer, both arms, DOM reach, interaction behavior, geometry, or contrast.
 
 ### P1 — the claimed DTCG source is not valid against the current 2025.10 typed-value contract
@@ -137,7 +162,7 @@ must differ, which descendants/portals must inherit it, or which high-risk pair/
 Concrete failure scenario: the contract and editor add a valid key, an unrelated string occurrence makes
 a repaired name-based Arm C green, and no generated test cell exercises its portal/mobile/light/background
 interaction. The first honest detector is a future snap or a side-eye report. #231, #626, #653, #674,
-#681, #697, #877, #929, and #931 are all variations of this path: the value existed, a local proof passed,
+\#681, #697, #877, #929, and #931 are all variations of this path: the value existed, a local proof passed,
 but the relevant reach, opposite arm, composite, or instrument denominator was outside it.
 
 Current prevention: **KNOWN-UNENFORCED** as a whole. Individual axes range from ENFORCED to
@@ -242,7 +267,7 @@ Important carrier facts:
 ## All seven Appearance ownership groups and their high-risk interactions
 
 | Group | Exact keys | Current carriers / consumers | High-risk interactions and issue evidence | Current prevention and first detector |
-|---|---|---|---|---|
+| - | - | - | - | - |
 | Sizing (5) | `chatWidthPct`, `fontScale`, `density`, `elevation`, `reducedMotion` | `--width-shell-content` on grid; `--font-scale` + motion attr on `<html>`; effective density and elevation on grid; boot hint stores motion/scale/density but pre-stamps only motion/scale | density × custom-theme density; compact × comfortable; grid × portal; density/elevation × dock/overlay/mobile; font scale × shell breakpoints/CLS; motion × portals/boot/background video. #122, #129, #146, #231, #282, #315, #465, #654, #663, #680, #815, #821, #823, #835, #837, #877, #918, #929, #931 | Width/font/motion have focused computed CTs; boot no-clobber is rendered. Density portal/both-arm are ABSENT; geometry is first caught by AppShell CT where a specific cell exists, otherwise snap/side-eye. |
 | Effects (5) | `blurSurfaces`, `blurStrength`, `shadowEffects`, `surfaceTexture`, `enableThemeColorization` | `<html>` attrs/var; client/UI globals; shell cascade; texture reaches portal through root | blur × background × polarity; glass × elevation; texture × portal; colorization × ThemeScope tokens; reduced motion × texture/animation. #204, #217, #232, #237, #243, #487, #626, #637, #674, #681, #682, #690, #692, #693, #697, #918, #931 | Root stamping ENFORCED; selected glass/elevation and texture portal CTs rendered; population coverage remains REPORTED-BUT-UNREAD or RENDERED/SIDE-EYE-ONLY. Snap pixels required for compositing. |
 | Background (9) | `backgroundImageKind`, `backgroundSeededId`, `backgroundAssetId`, `backgroundAssetHash`, `backgroundAssetMime`, `backgroundLibrary`, `backgroundFit`, `backgroundDim`, `backgroundBlur` | source resolves to image or video fixed layer; chat/carried source can replace viewer source; fit/dim/blur remain viewer treatment; grid gets `data-has-bg-image` | image/video × reduced motion; art × blur/elevation/plate/polarity; carried chat background × section changes; asset/library atomicity; mobile crop. #170, #204, #217, #225, #231, #237, #282, #320, #321, #448, #487, #549, #622, #626, #637, #650, #654, #674, #681, #883, #918, #929, #931 | Resolver and layer CTs ENFORCE source/type branches; visual crop/composite/contrast is RENDERED/SIDE-EYE-ONLY. #883 is the needed DOM-derived worst-art population guard. |
@@ -254,7 +279,7 @@ Important carrier facts:
 ## What the current gates and CTs actually prove
 
 | Mechanism | What it proves | What it does **not** prove | Classification for Appearance |
-|---|---|---|---|
+| - | - | - | - |
 | `assertSettingsKeyPartition` (`config-section-partition.ts:70-120,196-212`; real-door test lines 233-288) | Once any namespace is decomposed, every default key is claimed/cited; no exact or nested overlap; leaf bindings belong to the claim and resolve a default. The seven real Appearance contributions are in the door. | No consumer read, correct key, both-arm behavior, carrier reach, DOM geometry, contrast, or preview honesty. | **ENFORCED** for write ownership only. |
 | `knob-wire-coverage` Arm C | For inline schemas in `settings/index.ts`, every distinctive leaf name occurs in a read-shaped node somewhere in client/server/UI. | All 41 imported Appearance leaves after #448; correct receiver/consumer; effects; arms; reach; pixels. | **ABSENT** for Appearance; weak name-liveness elsewhere. |
 | `density-tier` gate | Surface-tier assignment/radius/nesting/voice shape and registered tier-mapped slots. | User Appearance density, portal reach, comfortable reset, or actual shell selector. `UI-Density-Law` explicitly makes surface tier orthogonal to user density. | **ENFORCED**, but for a different axis. |
@@ -274,7 +299,7 @@ The issue receipts below are not a title taxonomy. They are grouped by the mecha
 survive. Issues may appear in more than one family because the interaction is the defect.
 
 | Recurring family | Issue receipts | Current truth / alleged fix liveness | Prevention class | Why it recurs | Earliest cheap tier before snap | Where snap is still necessary | Planted positive and owner/dependency |
-|---|---|---|---|---|---|---|---|
+| - | - | - | - | - | - | - | - |
 | Editor/contract/read carrier splits | #98, #170, #231, #282, #320, #321, #448, #465, #487, #549, #622, #626, #637, #650, #654, #837, #866, #918, #929, #931, #933 | Partition/minimal patches live. #448 boot split lives but blinded Arm C. | **ENFORCED** writes; **ABSENT** 41-key reads | Separate contract, editor, cache, carrier, CSS, and visual tiers can each be locally green. | Imported-schema-aware Arm C + schema-derived carrier manifest. | Live-save effect, visual result, async/boot transition. | Imported sub-schema dead leaf; wrong-key consumer. Tooling + Client, new P1 before config. |
 | Selector/cascade/merge winner | #114, #135, #137, #138, #146, #169, #189, #211, #218, #225, #249, #253, #444, #464, #466, #508, #624, #653, #660, #678, #797, #808, #816, #825, #851, #877, #891, #918, #919, #921, #930, #931, #933 | #930 doctrine live; #921 committed baseline still path-short; #933 diagnostics unbuilt. | **KNOWN-UNENFORCED** + **REPORTED-BUT-UNREAD** | Valid classes/declarations still need a winner; path permission is not semantic family ownership. | Closed CSS home gate; merge namespace set-equality; computed winner CT for named axes. | Cross-sheet cascade, container/media state, real element geometry. | Mis-homed CSS in UI and Client; loser→winner class pair. #921 then #933. |
 | Reach/portal/root-carrier mismatch | #135, #137, #138, #188, #211, #231, #282, #315, #444, #465, #653, #654, #678, #797, #808, #816, #825, #877, #918, #931 | Theme and reduced-motion portal fixes live; density remains grid-only. | Theme/motion **ENFORCED**; density **ABSENT** | An attribute is stamped where one consumer lives, then a sibling/portal/boot surface is added outside it. | Carrier manifest + CT asserting common-ancestor parity. | Open overlays/toasts and composed focus/geometry. | Compact grid + dialog sibling; both density arms. #931 F1 then #933 matrix. |
@@ -347,13 +372,13 @@ Ordered recommendation:
    move together; no legacy steady state. This can proceed parallel to #931.
 4. File the 41-key carrier manifest/CT program. It depends on the repaired gate and fixed density mechanism.
 5. **#921 DONE:** the closed-set path wall and its cold-found filesystem follow-up are closed. Then split
-   #933 into four deliverables:
+   \#933 into four deliverables:
    semantic CSS-family/path enforcement; merge/token namespace and DTCG proof; `__orb.css` diagnostics
    (after #894); invariant snap matrices (after the carrier program, #883, and fixed #931 axes).
 6. Settle #920's one-collection anatomy before any #929 theme-card work.
 7. Settle #926's rest model and Applies disposition before any #929 teacher work.
 8. Split #929 into at least: A chat-style preview fidelity; B theme card proportions/identity (depends
-   #920); C teacher frame (depends #926); D list/nav collection grammar (coordinate #925/#927); E hierarchy,
+   \#920); C teacher frame (depends #926); D list/nav collection grammar (coordinate #925/#927); E hierarchy,
    import door, and save-status placement (coordinate #928/#932). Do not close the 27-item parent on one
    screenshot.
 
@@ -384,9 +409,9 @@ Why the word boundaries matter: an unbounded `ui` matches ordinary words such as
 trial pass to 808/933. That pass was rejected rather than represented as coverage.
 
 Deep-read candidates included #98, #114, #135, #137, #138, #146, #167, #170, #204, #217, #225, #231,
-#232, #236, #237, #243, #282, #315, #431, #435, #448, #465, #487, #549, #626, #637, #650, #651,
-#653, #654, #674, #681, #682, #690, #692, #693, #697, #815, #821, #823, #835, #837, #874, #881,
-#882, #883, #894, #918, #919, #920, #921, #925, #926, #929, #930, #931, and #933, including comments
+\#232, #236, #237, #243, #282, #315, #431, #435, #448, #465, #487, #549, #626, #637, #650, #651,
+\#653, #654, #674, #681, #682, #690, #692, #693, #697, #815, #821, #823, #835, #837, #874, #881,
+\#882, #883, #894, #918, #919, #920, #921, #925, #926, #929, #930, #931, and #933, including comments
 and closure evidence where present. The full CSS census and its issue-linked reports supply rule-level
 evidence for the older recurrence chain; titles/statuses were not treated as truth.
 
@@ -408,7 +433,7 @@ Relevant classified manifest (215 issues; open members are listed immediately af
 ```
 
 Open relevant members at query time: #297, #850, #853, #859, #866, #868, #869, #871, #877, #881,
-#882, #883, #891, #894, #908, #915, #920, #921, #925, #926, #927, #928, #929, #931, #932, #933.
+\#882, #883, #891, #894, #908, #915, #920, #921, #925, #926, #927, #928, #929, #931, #932, #933.
 
 Exclusions:
 
@@ -417,7 +442,7 @@ Exclusions:
 - term hits about server-only/domain behavior with no visual/client/tooling mechanism were screened out
   after body read;
 - duplicate/bot/status comments with no new evidence were not treated as separate receipts;
-- #915's optional 2× capture feature is relevant instrument context but not a blocker for CSS-pixel default
+- \#915's optional 2× capture feature is relevant instrument context but not a blocker for CSS-pixel default
   snap verification;
 - concurrent uncommitted #921/token-program work was not credited as current prevention.
 
@@ -456,8 +481,7 @@ the exact cells for subsequent rendered work.
 
 ## Verification log
 
-- Current committed baseline and dirty-tree exclusions recorded with `git rev-parse HEAD`, `git status
-  --short`, and `git diff --name-only`.
+- Current committed baseline and dirty-tree exclusions recorded with `git rev-parse HEAD`, `git status --short`, and `git diff --name-only`.
 - Structural searches used both TS and TSX where applicable; the two load-bearing `z.object` absence claims
   each reported `scannedFileCount=1` and were cross-checked with literal `rg` and full-file source reads.
 - GitHub REST issue corpus query covered 933 non-PR issues; Project query covered 933 items and 447 Client
@@ -492,10 +516,12 @@ gates, and every member-discovery gate should have a positive where the member s
 
 At its committed baseline, the pre-implementation visual/Client audit confirmed 5 findings (severity ceiling
 P1): #931's four product defects and #929's preview defect were live; #931's gate-message clause was stale;
-#448 had silently removed all 41 Appearance leaves from knob-wire Arm C; no mechanism proved the
-seven-group/41-key carrier graph; and the token vault was not DTCG 2025.10-conformant. Since that baseline,
-#921 and #934 have closed with cold verification; the carrier/DOM/pixel program and token/product/prevention
-work remain open. The report maps 215 relevant open/closed issues to recurring mechanisms, classifies present
-prevention, defines cheap pre-snap controls and required rendered cells, and establishes the dependency order
-for #921/#931/#933/#920/#926/#929. Full report:
+\#448 had silently removed all 41 Appearance leaves from knob-wire Arm C; no mechanism proved the
+seven-group/41-key carrier graph; and the token vault was not DTCG 2025.10-conformant. Those five findings and
+the 215-issue corpus are dated evidence, not current totals. Since that baseline, #921/#934/#935/#936–#940 and
+the grouped CSS prevention train have closed; #881/#882/#894 made the instrument surface fail loud and
+self-describing; #972/#975 closed the static-variant and live-cascade trust gaps; and #976/#977 closed exact
+design-subject/theme and mobile-environment proof. #953 still owns the generated appearance matrix and
+mandatory scenario-floor consumption. The report preserves the original recurring-mechanism map, cheap
+pre-snap controls, rendered cells, and dependency order. Full report:
 `docs/reviews/stickler/2026-08-31-visual-client-issue-corpus-and-appearance-prevention.md`.
