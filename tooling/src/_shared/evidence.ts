@@ -27,7 +27,8 @@ export interface EvidenceGap {
  *  a FAIL is a claim about the app, and this run made no observation to base one on. */
 export const INSTRUMENT_ERROR_VERDICT = "INSTRUMENT-ERROR";
 
-export type DenominatorRefusal = "below" | "unstable" | "zero";
+export const DENOMINATOR_REFUSALS = ["below", "unstable", "zero"] as const;
+export type DenominatorRefusal = (typeof DENOMINATOR_REFUSALS)[number];
 
 /** One population a clean verdict depends on. `honestEmpty` is deliberately narrow: it can explain a
  *  measured zero, but it can never launder an absent, non-finite, or sentinel (`-1`) population. */

@@ -4856,7 +4856,7 @@
     {
       "siteId": "tooling/src/snap/ops/scenario.ts::empty:error::1",
       "path": "tooling/src/snap/ops/scenario.ts",
-      "line": 290,
+      "line": 291,
       "column": 5,
       "grammar": "empty",
       "position": "empty:error",
@@ -4864,7 +4864,7 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "printed as SCENARIO ERROR and routed through EXIT.misuse, the process's own exit code. Ends if that exit code stops being surfaced.",
-      "markerLine": 287
+      "markerLine": 288
     },
     {
       "siteId": "tooling/src/snap/ops/shot.ts::empty:catch::1",
@@ -5454,7 +5454,7 @@
     {
       "siteId": "tooling/src/wire-tap/ops/trpc.ts::empty:catch::1",
       "path": "tooling/src/wire-tap/ops/trpc.ts",
-      "line": 86,
+      "line": 87,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -5462,7 +5462,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "a non-JSON response body just prints the raw text as-is (the comment states this directly) — the response body itself is never lost, only the pretty-print step is skipped. Ends if the raw text stops being printed on this path.",
-      "markerLine": 83
+      "markerLine": 84
     },
     {
       "siteId": "tooling/src/workboard/ops/gh.ts::empty:catch::1",
