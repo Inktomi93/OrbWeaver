@@ -1,6 +1,7 @@
 // The audit orchestration: launch (full motion — the OS media query AND, via --full-motion, the app
 // setting) -> goto/ready/settle -> reach -> flagger settle -> measured window -> report.
 import { buildUrl, launchProbeSession, settle, withProbeSession } from "@orb/tooling/_shared/browser";
+import { readBrowserEnvironment } from "@orb/tooling/_shared/browser-environment";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { Args, AuditData } from "../contract/types.ts";
@@ -61,6 +62,7 @@ export async function runMotionAudit(opts: Args): Promise<number> {
   const session = await launchProbeSession({
     headless: !opts.vnc,
     viewport: opts.viewport,
+    device: opts.device,
     colorScheme: null,
     reducedMotion: false, // the OS media query — a motion probe wants the REAL animations
     appearance: opts.appearance, // …and the APP setting, which the media query does not reach (--full-motion)
@@ -92,6 +94,16 @@ export async function runMotionAudit(opts: Args): Promise<number> {
     const gap = apparatusGap({ url, ready, bridge: await hasOrbBridge(page), readyTimeoutMs: READY_TIMEOUT_MS });
     if (gap !== null) {
       reportInstrumentError(url, gap);
+      return EXIT.toolError;
+    }
+
+    const environment = await barrier(
+      url,
+      "the requested browser environment",
+      (m) => `runtime environment observation failed — the requested device/viewport/pointer arm cannot be proven, so this run refuses: ${m}`,
+      () => readBrowserEnvironment(page, session.environmentContract),
+    );
+    if (!environment.ok) {
       return EXIT.toolError;
     }
 
@@ -132,7 +144,7 @@ export async function runMotionAudit(opts: Args): Promise<number> {
     }
 
     const data = await runAudit(page, cdp, opts, measuredClick);
-    const withErrors: AuditData = { ...data, pageErrors: [...session.pageErrors], reachFailures: reach.value };
+    const withErrors: AuditData = { ...data, environment: environment.value, pageErrors: [...session.pageErrors], reachFailures: reach.value };
     return report(url, opts, withErrors);
   });
 }

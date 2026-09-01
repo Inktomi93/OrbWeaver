@@ -15,8 +15,6 @@ export const WIDE_VIEWPORT: Viewport = { width: 1920, height: 1080 };
 // pointer:coarse + mobile UA + DPR3, so the app's coarse-pointer progressive-disclosure and bottom-tab
 // rail both render — a bare narrow viewport misses them. `scale:"css"` in SHOT_BASE keeps the DPR3 shot
 // at 1 image px / CSS px (not 3×), so the PNG cost stays sane.
-export const MOBILE_DEVICE = "iPhone 14 Pro Max";
-
 // ── Flag dispatch helpers ───────────────────────────────────────────────────
 // Each consumes what it needs from `rest`. Repeatable flags push; every order-sensitive drive flag
 // (step OR bridge nav) lands in the ONE args.actions queue in argv order. `page` is the --pages tab

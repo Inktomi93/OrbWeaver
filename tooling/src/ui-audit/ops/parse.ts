@@ -12,6 +12,7 @@ import {
 import type { Viewport } from "@orb/tooling/_shared/argv";
 import { parseViewport, splitLastEq } from "@orb/tooling/_shared/argv";
 import { DEFAULT_BASE } from "@orb/tooling/_shared/browser";
+import { MOBILE_DEVICE } from "@orb/tooling/_shared/browser-environment";
 import type { NavMethod } from "@orb/tooling/_shared/nav";
 import { applyThemeFlag, parseThemeFlag, THEME_VALUE_FLAGS, themeHelpBlock } from "@orb/tooling/_shared/theme";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
@@ -25,11 +26,6 @@ refuseDirectInvocation(import.meta.url, "pnpm design-audit");
 const DEFAULT_VIEWPORT: Viewport = { width: 1280, height: 800 };
 const DEFAULT_WAIT_MS = 500;
 const DEFAULT_FAIL_ON: Severity = "P1";
-// Same descriptor snap's --mobile uses — full touch + mobile UA + DPR3 + pointer:coarse, not a narrow
-// viewport. The tap-target rule reads `(pointer: coarse)` in-page, so this flag is what makes the 44px
-// floor apply at all.
-const MOBILE_DEVICE = "iPhone 14 Pro Max";
-
 type FlagHandler = (args: Args, rest: string[]) => void;
 
 function pushNav(args: Args, method: NavMethod, rest: string[]): void {

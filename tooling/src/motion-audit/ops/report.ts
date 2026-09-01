@@ -1,5 +1,6 @@
 // The human report + the RESULT line + the exit verdict — raw/classified/budgeted, all labeled.
 import { print } from "@orb/tooling/_shared/artifacts";
+import type { BrowserEnvironmentEvidence } from "@orb/tooling/_shared/browser-environment";
 import type { EvidenceGap } from "@orb/tooling/_shared/evidence";
 import { INSTRUMENT_ERROR_VERDICT, printEvidenceGaps, printVerdict } from "@orb/tooling/_shared/evidence";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
@@ -52,6 +53,53 @@ function pct(value: number | null): string {
   return value === null ? "n/a" : `${value}%`;
 }
 
+function viewportText(viewport: { readonly width: number; readonly height: number } | null): string {
+  return viewport === null ? "unavailable" : `${viewport.width}x${viewport.height}`;
+}
+
+function mobileText(value: boolean | null): string {
+  if (value === null) {
+    return "unmatched";
+  }
+  return value ? "yes" : "no";
+}
+
+function mobileValue(value: boolean | null): string | number {
+  if (value === null) {
+    return "unmatched";
+  }
+  return value ? 1 : 0;
+}
+
+function printEnvironment(environment: BrowserEnvironmentEvidence): void {
+  print(`requested   device ${environment.requested.device ?? "desktop"} · viewport ${viewportText(environment.requested.viewport)}`);
+  print(
+    `applied     device ${environment.applied.device ?? "desktop"} · viewport ${viewportText(environment.applied.viewport)} · screen ${viewportText(environment.applied.screen)} · DPR ${environment.applied.deviceScaleFactor} · touch ${environment.applied.hasTouch ? "yes" : "no"} · mobile ${environment.applied.isMobile ? "yes" : "no"}`,
+  );
+  print(
+    `actual      device ${environment.actual.device} · viewport ${viewportText(environment.actual.viewport)} · inner ${viewportText(environment.actual.innerViewport)} · screen ${viewportText(environment.actual.screen)} · pointer ${environment.actual.pointer} · hover ${environment.actual.hover} · touch ${environment.actual.maxTouchPoints} · DPR ${environment.actual.deviceScaleFactor} · mobile ${mobileText(environment.actual.isMobile)}`,
+  );
+  print(`user-agent  ${environment.actual.userAgent}`);
+}
+
+function environmentPairs(environment: BrowserEnvironmentEvidence): Array<readonly [string, string | number]> {
+  return [
+    ["device-requested", environment.requested.device ?? "desktop"],
+    ["device-applied", environment.applied.device ?? "desktop"],
+    ["device-actual", environment.actual.device],
+    ["viewport-requested", viewportText(environment.requested.viewport)],
+    ["viewport-actual", viewportText(environment.actual.viewport)],
+    ["screen-actual", viewportText(environment.actual.screen)],
+    ["pointer-actual", environment.actual.pointer],
+    ["hover-actual", environment.actual.hover],
+    ["touch-points-actual", environment.actual.maxTouchPoints],
+    ["dpr-actual", environment.actual.deviceScaleFactor],
+    ["mobile-applied", environment.applied.isMobile ? 1 : 0],
+    ["mobile-actual", mobileValue(environment.actual.isMobile)],
+    ["environment-mismatches", environment.mismatches.length],
+  ];
+}
+
 /** The PASS/FAIL arm — every budget the audit gates on. Speaks only about evidence the caller has
  *  already proven PRESENT; the absent-evidence arm is `verdictFor` below. */
 function budgetsPass(data: AuditData, dirtyAnimations: number): boolean {
@@ -74,7 +122,7 @@ function verdictFor(gaps: readonly EvidenceGap[], pass: boolean): { label: strin
 
 /** Print the human report + the RESULT line, return the exit code. */
 export function report(url: string, opts: Args, data: AuditData): number {
-  const { motion, animations, frames, pageErrors, stepFailed, reachFailures } = data;
+  const { environment, motion, animations, frames, pageErrors, stepFailed, reachFailures } = data;
   const loaf = loafTotals(motion);
   const cls = clsTotals(motion);
   const layoutInFrame = (motion === null ? [] : motion.loafs).filter((l) => l.styleAndLayoutStart > 0);
@@ -84,6 +132,7 @@ export function report(url: string, opts: Args, data: AuditData): number {
   printReachLine(opts.reach, reachFailures);
   print(`window      ${opts.windowMs}ms · cpu-throttle ${opts.throttle ? `${CPU_THROTTLE_RATE}×` : "off"}`);
   print(`headless    ${opts.vnc ? "no (headful — dropped-frame % trustworthy)" : "yes (dropped-frame % ADVISORY — no real vsync)"}`);
+  printEnvironment(environment);
   print(
     `LoAF        ${motion?.loafs.length ?? 0} in ring · raw worst blocking ${loaf.rawWorstBlocking}ms · ${loaf.classifiedInitializations} first Select entrance · budgeted worst ${loaf.budgetedWorstBlocking}ms · ${loaf.budgetedStyleLayout} budgeted style/layout`,
   );
@@ -125,6 +174,9 @@ export function report(url: string, opts: Args, data: AuditData): number {
       ["verdict", verdict.label],
       ["reach-actions", opts.reach.length],
       ["reach-failed", reachFailures],
+      ["window-ms", opts.windowMs],
+      ["motion-subjects", animations.length],
+      ...environmentPairs(environment),
       // The measured interaction never happened — invisible in the machine line before #409, so a FAIL
       // over all-zero budgets was unattributable.
       ["step-failed", stepFailed ? 1 : 0],

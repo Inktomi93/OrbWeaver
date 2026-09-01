@@ -1,5 +1,7 @@
 // motion-audit's programmatic front door — what tests and sibling tools import; the cli fronts this
 // surface. One tool, one API (docs/architecture/core/Core-Tooling-Law.md §2.5).
+
+export type { BrowserEnvironmentEvidence } from "../_shared/browser-environment.ts";
 export type { AnimationRecord, Args, AuditData, LoafRecord, MotionSnapshot, ReachAction, TraceEvent } from "./contract/types.ts";
 export { apparatusGap, appReadyTimeoutGap, motionEvidenceGaps, orbBridgeGap } from "./lib/evidence.ts";
 export { calibratedDroppedFramePct, droppedFramePct } from "./lib/frames.ts";

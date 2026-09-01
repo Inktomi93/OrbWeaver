@@ -4,23 +4,13 @@
 import { applyAppearanceFlag, FULL_MOTION_PATCH, loadAppearancePreset, mergeAppearancePatches, parseAppearancePatch } from "../../_shared/appearance.ts";
 import { parseViewport, splitFirstEq, splitLastEq, splitSelectorEq } from "../../_shared/argv.ts";
 import { DEFAULT_BASE } from "../../_shared/browser.ts";
+import { MOBILE_DEVICE } from "../../_shared/browser-environment.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { applyThemeFlag, parseThemeFlag } from "../../_shared/theme.ts";
 import type { Args } from "../contract/types.ts";
 import { NO_CPU_THROTTLE, parseNetworkProfile } from "../lib/throttle.ts";
 import { STAGE_FLAG_HANDLERS } from "./flags-stage.ts";
-import {
-  ariaFlag,
-  consumeOptionalSelector,
-  DEFAULT_VIEWPORT,
-  MOBILE_DEVICE,
-  MS_PER_SECOND,
-  mapFlag,
-  pushEval,
-  pushNav,
-  pushStep,
-  WIDE_VIEWPORT,
-} from "./flags-support.ts";
+import { ariaFlag, consumeOptionalSelector, DEFAULT_VIEWPORT, MS_PER_SECOND, mapFlag, pushEval, pushNav, pushStep, WIDE_VIEWPORT } from "./flags-support.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 

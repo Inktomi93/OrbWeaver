@@ -2,11 +2,12 @@
 import { basename, extname } from "node:path";
 import type { Viewport } from "../../_shared/argv.ts";
 import { print, routeSlug } from "../../_shared/artifacts.ts";
+import { MOBILE_DEVICE } from "../../_shared/browser-environment.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { printVerdict } from "../../_shared/evidence.ts";
 import type { Args } from "../contract/types.ts";
 import { variantOut } from "../lib/out-names.ts";
-import { DEFAULT_VIEWPORT, MOBILE_DEVICE } from "./flags-support.ts";
+import { DEFAULT_VIEWPORT } from "./flags-support.ts";
 import { snap } from "./run.ts";
 import { snapScenario } from "./scenario.ts";
 

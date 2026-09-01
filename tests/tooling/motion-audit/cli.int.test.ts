@@ -29,7 +29,15 @@ const ANIMATION = `<style>
 /** A minimal __orb bridge whose motion() answers with the given snapshot. */
 function page(
   motionJson: string,
-  opts: { animated?: boolean; resetThrows?: boolean; settleThrows?: boolean; missingReset?: boolean; missingSettle?: boolean } = {},
+  opts: {
+    animated?: boolean;
+    resetThrows?: boolean;
+    settleThrows?: boolean;
+    missingReset?: boolean;
+    missingSettle?: boolean;
+    expectedReducedMotion?: boolean;
+    runtimeEnvironmentMismatch?: boolean;
+  } = {},
 ): string {
   const animated = opts.animated ?? true;
   const resetEvidence =
@@ -38,11 +46,28 @@ function page(
     opts.missingSettle === true
       ? ""
       : `motionFlaggersSettled: ${opts.settleThrows === true ? '() => { throw new Error("planted settle failure"); }' : "() => true"},`;
+  const reducedMotionProof =
+    opts.expectedReducedMotion === undefined
+      ? ""
+      : `const boot=JSON.parse(localStorage.getItem("orb:appearance-boot")??"null");
+if(boot?.state?.reducedMotion!==${String(opts.expectedReducedMotion)}) throw new Error("appearance reducedMotion arm did not reach the page");`;
+  const environmentMismatch =
+    opts.runtimeEnvironmentMismatch === true
+      ? `const nativeMatchMedia=window.matchMedia.bind(window);
+window.matchMedia=(query)=>{
+  if(query==="(pointer: coarse)"||query==="(hover: none)") return {matches:false,media:query};
+  if(query==="(pointer: fine)"||query==="(hover: hover)") return {matches:true,media:query};
+  return nativeMatchMedia(query);
+};
+Object.defineProperty(navigator,"maxTouchPoints",{configurable:true,get:()=>0});`
+      : "";
   return `<!doctype html>
-<html data-app-ready="settled"><head><meta charset="utf-8"><title>t</title>${animated ? ANIMATION : ""}<script>
+<html data-app-ready="settled"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>t</title>${animated ? ANIMATION : ""}<script>
+${reducedMotionProof}
+${environmentMismatch}
 globalThis.__orb = {
   motion: () => (${motionJson}),
-  animations: () => [],
+  animations: () => (${animated ? '[{ target: "#spin", properties: ["transform"], compositorClean: true }]' : "[]"}),
   ${resetEvidence}
   ${motionFlaggersSettled}
   setMotionAuditDropTrackingPaused: () => {},
@@ -81,6 +106,44 @@ test("the in-budget twin passes on a REAL frame population — the red above is 
   // The denominator is the whole point: a 0% over an EMPTY population is absent evidence, not smoothness.
   const denominator = FRAME_LINE_RE.exec(res.stdout)?.[1];
   expect(Number(denominator)).toBeGreaterThan(0);
+});
+
+function expectMobileEnvironment(stdout: string): void {
+  expect(stdout).toContain("requested   device iPhone 14 Pro Max · viewport 430x740");
+  expect(stdout).toContain("actual      device iPhone 14 Pro Max · viewport 430x740");
+  expect(stdout).toContain("pointer coarse · hover none");
+  expect(stdout).toContain("touch 1 · DPR 3 · mobile yes");
+  expect(stdout).toContain("window-ms=1000");
+  expect(stdout).toContain("motion-subjects=1");
+  expect(stdout).toContain("environment-mismatches=0");
+  expect(Number(FRAME_LINE_RE.exec(stdout)?.[1])).toBeGreaterThan(0);
+}
+
+test("mobile normal-motion and reduced-motion arms retain real subjects, windows, frames, and coarse/touch evidence", async ({ runCli, scratch }) => {
+  await writeFile(join(scratch, "mobile-normal.html"), page(CLEAN, { expectedReducedMotion: false }));
+  const normal = await runCli("motion-audit", args(scratch, "mobile-normal.html", ["--mobile", "--full-motion"]), { timeoutMs: CLI_TIMEOUT_MS });
+  expectMobileEnvironment(normal.stdout);
+  await expect(normal).toExitWith(0);
+
+  await writeFile(join(scratch, "mobile-reduced.html"), page(CLEAN, { expectedReducedMotion: true }));
+  const reduced = await runCli("motion-audit", args(scratch, "mobile-reduced.html", ["--mobile", "--appearance", '{"reducedMotion":true}']), {
+    timeoutMs: CLI_TIMEOUT_MS,
+  });
+  expectMobileEnvironment(reduced.stdout);
+  await expect(reduced).toExitWith(0);
+});
+
+test("a viewport-matched fake mobile runtime is INSTRUMENT ERROR while the same-request descriptor twin passes", async ({ runCli, scratch }) => {
+  await writeFile(join(scratch, "mobile-runtime-fake.html"), page(CLEAN, { expectedReducedMotion: false, runtimeEnvironmentMismatch: true }));
+  const planted = await runCli("motion-audit", args(scratch, "mobile-runtime-fake.html", ["--mobile", "--full-motion"]), { timeoutMs: CLI_TIMEOUT_MS });
+  expect(planted.stdout).toContain("INSTRUMENT ERROR");
+  expect(planted.stdout).toContain("the requested browser environment");
+  expect(planted.stdout).toContain("pointer expected coarse but observed fine");
+  expect(planted.stdout).toContain("device unmatched · viewport 430x740");
+  expect(planted.stdout).toContain("environment-mismatches=");
+  expect(planted.stdout).not.toContain("environment-mismatches=0");
+  expect(Number(FRAME_LINE_RE.exec(planted.stdout)?.[1])).toBeGreaterThan(0);
+  await expect(planted).toExitWith(2);
 });
 
 // @instrument-absence-proof: the __orb bridge REMOVED (the apparatus absent) and, below, a measured window

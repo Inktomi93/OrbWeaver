@@ -12,6 +12,7 @@ import {
 import type { Viewport } from "@orb/tooling/_shared/argv";
 import { parseViewport } from "@orb/tooling/_shared/argv";
 import { DEFAULT_BASE } from "@orb/tooling/_shared/browser";
+import { MOBILE_DEVICE } from "@orb/tooling/_shared/browser-environment";
 import { applyThemeFlag, parseThemeFlag, THEME_VALUE_FLAGS, themeHelpBlock } from "@orb/tooling/_shared/theme";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { Args } from "../contract/types.ts";
@@ -53,7 +54,18 @@ const FLAG_HANDLERS: Record<string, FlagHandler> = {
     a.windowMs = Number(rest.shift() ?? String(DEFAULT_WINDOW_MS)) || DEFAULT_WINDOW_MS;
   },
   "--viewport": (a, rest) => {
-    a.viewport = parseViewport(rest.shift() ?? "") ?? a.viewport;
+    const viewport = parseViewport(rest.shift() ?? "");
+    if (viewport !== null) {
+      a.viewport = viewport;
+      a.device = null;
+    }
+  },
+  "--mobile": (a) => {
+    a.device = MOBILE_DEVICE;
+  },
+  "--desktop": (a) => {
+    a.viewport = DEFAULT_VIEWPORT;
+    a.device = null;
   },
   "--vnc": (a) => {
     a.vnc = true;
@@ -106,6 +118,8 @@ Measure:
 
 Environment:
   --base <url> · --url <full-url> · --viewport <WxH> · --vnc (headful) · --no-throttle
+  --mobile                  ${MOBILE_DEVICE} full descriptor (touch · pointer:coarse · mobile UA · DPR)
+  --desktop                 explicit 1280x800 desktop (pointer:fine · hover)
 
 ${appearanceHelpBlock()}
 
@@ -177,6 +191,7 @@ export function parseMotionArgs(argv: string[]): Args {
     reach: [],
     windowMs: DEFAULT_WINDOW_MS,
     viewport: DEFAULT_VIEWPORT,
+    device: null,
     vnc: false,
     throttle: true,
     appearance: null,
