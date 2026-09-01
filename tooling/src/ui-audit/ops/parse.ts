@@ -15,6 +15,7 @@ import { parseViewport, splitLastEq } from "@orb/tooling/_shared/argv";
 import { DEFAULT_BASE } from "@orb/tooling/_shared/browser";
 import { MOBILE_DEVICE } from "@orb/tooling/_shared/browser-environment";
 import type { NavMethod } from "@orb/tooling/_shared/nav";
+import { applyPanelPresetFlag, loadPanelPreset, PANEL_PRESET_VALUE_FLAGS, panelPresetHelpBlock } from "@orb/tooling/_shared/panel-flags";
 import { applyThemeFlag, parseThemeFlag, THEME_VALUE_FLAGS, themeHelpBlock } from "@orb/tooling/_shared/theme";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { Severity } from "../contract/findings.ts";
@@ -77,6 +78,14 @@ const FLAG_HANDLERS: Record<string, FlagHandler> = {
       a.errors.push(`--focus expects on|off, got ${JSON.stringify(raw)}`);
     }
     a.actions.push({ kind: "nav", method: "focus", target: raw });
+  },
+  // `--panels <preset>` expands into the SAME panel/focus actions, HERE at its own argv position — so it
+  // composes with the hand-written flags by ordinary queue order (a --panel written after it wins) instead
+  // of being a second, differently-behaving mechanism. The profiles live in _shared/panel-presets.json.
+  "--panels": (a, rest) => {
+    applyPanelPresetFlag(loadPanelPreset(rest.shift() ?? ""), a.errors, (action) => {
+      a.actions.push({ kind: "nav", ...action });
+    });
   },
   "--wait": (a, rest) => {
     a.waitMs = Number(rest.shift() ?? String(DEFAULT_WAIT_MS));
@@ -163,6 +172,7 @@ const REQUIRED_VALUE_FLAGS = new Set([
   "--ref",
   "--viewport",
   "--fail-on",
+  ...PANEL_PRESET_VALUE_FLAGS,
   ...APPEARANCE_VALUE_FLAGS,
   ...THEME_VALUE_FLAGS,
 ]);
@@ -181,6 +191,7 @@ Surface (ONE argv-ordered queue — write the chain the way it should happen):
                             refused loudly. Same shape and boundary as snap's --upload (_shared/upload.ts).
   --context-tab <tab>       --panel <name>=<docked|overlay|collapsed>   drive the shell's panel layout
   --focus <on|off>          the shell's zen/focus-mode toggle
+  --panels <preset>         reach a NAMED panel configuration in one flag (see Panel state below)
   --wait <ms>               settle after the last action (default ${DEFAULT_WAIT_MS})
 
 Environment:
@@ -205,6 +216,8 @@ Where it audits (default: ${DEFAULT_BASE} — the dev stack, which serves MAIN, 
   cold surface — vite's dep-optimizer is still churning and the walk would census a fraction of the page and
   call it clean — so the first invocation warms the stage and the second one measures it. Stage admin is
   snap's: pnpm snap --stage-status|--stage-down|--stage-sweep.
+
+${panelPresetHelpBlock()}
 
 ${appearanceHelpBlock()}
 

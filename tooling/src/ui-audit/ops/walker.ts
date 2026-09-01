@@ -46,6 +46,7 @@ import { WALKER_CORE } from "./walker/core.ts";
 import { WALKER_HIT_EXTENT } from "./walker/hit-extent.ts";
 import { WALKER_RESOLVE } from "./walker/resolve.ts";
 import { WALKER_RETURNS } from "./walker/returns.ts";
+import { WALKER_STATE_PAINT } from "./walker/state-paint.ts";
 import { WALKER_TARGET_IDENTITY } from "./walker/target-identity.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm design-audit");
@@ -105,5 +106,10 @@ ${WALKER_MUTATION_CARRIES}  var preWalkObserver = new MutationObserver(function 
   };
 `;
 
+// WALKER_STATE_PAINT sits immediately after WALKER_RESOLVE in BOTH compositions (here and
+// ops/hover.ts): its functions call RESOLVE's `parseRgb`/`resolveBackdrop` and CORE's `describe`
+// (call-time resolution — safe), and its `var` vocabulary (STATE_PAINT_ATTRS, PSEUDOS,
+// STATE_VARIANT_TRANSFORM_RE) must be INITIALIZED before WALKER_CENSUS_DECOR and
+// WALKER_CENSUS_GLOW read it — the exact "var hoists UNDEFINED" ordering rule stated above.
 export const COLLECT_SAMPLES_JS = `(async () => {
-${PRE_WALK_SETTLE}${WALKER_CORE}${WALKER_TARGET_IDENTITY}${WALKER_RESOLVE}${WALKER_CENSUS_TEXT}${WALKER_HIT_EXTENT}${WALKER_CENSUS_INTERACTIVE}${WALKER_CENSUS_DECOR}${WALKER_CENSUS_GLOW}${WALKER_CENSUS_QUALITY}${WALKER_CENSUS_COLLISION}${WALKER_CENSUS_OCCLUSION}${WALKER_CENSUS_COHORT}${WALKER_CENSUS_SELECTION}${WALKER_CENSUS_REGION}${WALKER_CENSUS_TIER}${WALKER_RETURNS}})()`;
+${PRE_WALK_SETTLE}${WALKER_CORE}${WALKER_TARGET_IDENTITY}${WALKER_RESOLVE}${WALKER_STATE_PAINT}${WALKER_CENSUS_TEXT}${WALKER_HIT_EXTENT}${WALKER_CENSUS_INTERACTIVE}${WALKER_CENSUS_DECOR}${WALKER_CENSUS_GLOW}${WALKER_CENSUS_QUALITY}${WALKER_CENSUS_COLLISION}${WALKER_CENSUS_OCCLUSION}${WALKER_CENSUS_COHORT}${WALKER_CENSUS_SELECTION}${WALKER_CENSUS_REGION}${WALKER_CENSUS_TIER}${WALKER_RETURNS}})()`;

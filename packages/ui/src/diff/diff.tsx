@@ -52,5 +52,5 @@ export function DiffView({ before, after, mode = "chars", className }: DiffViewP
     );
     offset += change.value.length;
   }
-  return <pre className={cn("whitespace-pre-wrap font-mono text-code", className)}>{segments}</pre>;
+  return <pre className={cn("whitespace-pre-wrap font-mono text-code leading-label-relaxed", className)}>{segments}</pre>;
 }

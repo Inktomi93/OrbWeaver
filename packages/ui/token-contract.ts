@@ -97,7 +97,7 @@ const CSS_VAR_RE = /var\((--[a-z0-9-]+)(?:\s*,[^)]*)?\)/gu;
 type JsonObject = Record<string, unknown>;
 type AddFormats = (ajv: Ajv) => Ajv;
 export type TokenType = (typeof TOKEN_TYPES)[number];
-export type OutputRole = "input" | "light-dark" | "percentage";
+export type OutputRole = "input" | "light-dark" | "percentage" | "snapped";
 export type CssValuePlacement = "theme" | "root";
 
 export interface TokenContractDiagnostic {
@@ -151,7 +151,7 @@ export interface TokenContractTexts {
 
 const dimensionSchema = z.object({ value: z.number(), unit: z.enum(["px", "rem"]) }).strict();
 const pointerFineSchema = dimensionSchema;
-const outputSchema = z.object({ kind: z.enum(["input", "light-dark", "percentage"]) }).strict();
+const outputSchema = z.object({ kind: z.enum(["input", "light-dark", "percentage", "snapped"]) }).strict();
 const llmSchema = z
   .object({ usage: z.array(z.string().min(1)).min(1).optional(), rules: z.string().min(1).optional() })
   .strict()
@@ -279,6 +279,9 @@ function collectTokenNode(node: JsonObject, path: readonly string[], effectiveTy
     if (effectiveType !== "dimension") {
       collector.diagnostics.push(diagnostic(jsonPath, "orb.pointerFine.type", "orb.pointerFine is valid only on a dimension token"));
     }
+  }
+  if (role === "snapped" && effectiveType !== "dimension") {
+    collector.diagnostics.push(diagnostic(jsonPath, "orb.output.type", "snapped output requires a dimension token"));
   }
   if (role === "percentage" && effectiveType !== "number") {
     collector.diagnostics.push(diagnostic(jsonPath, "orb.output.type", "percentage output requires a number token"));

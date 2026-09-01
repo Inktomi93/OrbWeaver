@@ -3,6 +3,11 @@
 // `--orb-tier-*` custom property set by `[data-surface-tier]`, consumed unlayered by a `[data-slot]` rule —
 // rather than loading the real stylesheet, matching the sibling occlusion-family precedent (census-occlusion.int.test.ts).
 //
+// The fixtures that PRODUCE a tier-drift sample carry no text at all: the relational families count toward
+// the node census now (#25, tooling/src/ui-audit/lib/evidence.ts censusTotal), so a geometry+CSS fixture is
+// a censused surface and reaches a verdict on its own. The two fixtures whose candidates are excluded or
+// withheld BEFORE sampling still carry a label, and say so at the fixture.
+//
 // ZERO FINDINGS ON THE LIVE TREE IS THE SUCCESS CONDITION for this rule, which makes a false positive the
 // expensive failure: every trap the brief named (an opt-in that outranks the tier, a slot outside every
 // Surface, a broken var chain) gets its own SILENT proof here, not just the firing case.
@@ -77,7 +82,7 @@ auditRuleTest(
   ],
   "a painted padding that diverges from the surface's declared tier is a tier-drift",
   async ({ runCli, scratch }) => {
-    const body = `${CARD_TIER_CSS}<div data-surface-tier="instrument"><div data-slot="card-root" style="padding:20px;width:100px;height:60px;background:#222">Card</div></div>`;
+    const body = `${CARD_TIER_CSS}<div data-surface-tier="instrument"><div data-slot="card-root" style="padding:20px;width:100px;height:60px;background:#222"></div></div>`;
     const { report } = await auditFixture({ scratch, runCli, name: "tier-drift-defect", body });
     const findings = report.findings.filter(({ rule }) => rule === "tier-drift");
     expect(findings).toHaveLength(1);
@@ -99,7 +104,7 @@ auditRuleTest(
   ],
   "an ELEVATED card-root's opted-out radius is excluded, not flagged against the tier default",
   async ({ runCli, scratch }) => {
-    const body = `${CARD_TIER_CSS}<div data-surface-tier="instrument"><div data-slot="card-root" data-elevated style="width:100px;height:60px;background:#222">Card</div></div>`;
+    const body = `${CARD_TIER_CSS}<div data-surface-tier="instrument"><div data-slot="card-root" data-elevated style="width:100px;height:60px;background:#222"></div></div>`;
     const { report } = await auditFixture({ scratch, runCli, name: "tier-drift-elevated", body });
     expect(report.findings.filter(({ rule }) => rule === "tier-drift")).toHaveLength(0);
     // padding is judged and passes (8px sanctioned == 8px painted); radius is excluded as an opt-in.
@@ -125,6 +130,10 @@ auditRuleTest(
   ],
   "a card-root outside every Surface keeps its own default, never judged against a tier",
   async ({ runCli, scratch }) => {
+    // The label is LOAD-BEARING here, unlike the tiered fixtures above (#25): an untiered card-root is
+    // excluded before it is sampled, so this page censuses NOTHING in any family — text included — and a
+    // zero census is correctly an instrument failure that writes no report. A censusable node is what
+    // lets the run reach the verdict this test reads.
     const body = `${CARD_TIER_CSS}<div data-slot="card-root" style="padding:99px;border-radius:99px;width:100px;height:60px;background:#222">Card</div>`;
     const { report } = await auditFixture({ scratch, runCli, name: "tier-drift-untiered", body });
     expect(report.findings.filter(({ rule }) => rule === "tier-drift")).toHaveLength(0);
@@ -151,6 +160,8 @@ auditRuleTest(
   async ({ runCli, scratch }) => {
     // "broken" is a real [data-surface-tier] value, but this fixture's <style> never defines
     // --orb-tier-island-pad/--orb-tier-island-radius for it, so getPropertyValue reads back "".
+    // The label is load-bearing for the same reason as the untiered fixture above (#25): an unresolved
+    // chain is WITHHELD before it is sampled, so nothing at all is censused without it.
     const body = `${CARD_TIER_CSS}<div data-surface-tier="broken"><div data-slot="card-root" style="width:100px;height:60px;background:#222">Card</div></div>`;
     const { report, code } = await auditFixture({ scratch, runCli, name: "tier-drift-broken", body });
     expect(report.findings.filter(({ rule }) => rule === "tier-drift")).toHaveLength(0);
@@ -176,7 +187,7 @@ auditRuleTest(
   ],
   "a card-root that resolves to exactly its tier's sanctioned pixel is judged clean",
   async ({ runCli, scratch }) => {
-    const body = `${CARD_TIER_CSS}<div data-surface-tier="instrument"><div data-slot="card-root" style="width:100px;height:60px;background:#222">Card</div></div>`;
+    const body = `${CARD_TIER_CSS}<div data-surface-tier="instrument"><div data-slot="card-root" style="width:100px;height:60px;background:#222"></div></div>`;
     const { report, code } = await auditFixture({ scratch, runCli, name: "tier-drift-clean", body });
     expect(report.findings.filter(({ rule }) => rule === "tier-drift")).toHaveLength(0);
     expect(report.populationAccounting?.["tier-drift"]).toMatchObject({ candidates: 2, judged: 2, affected: 0 });

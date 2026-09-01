@@ -45,7 +45,7 @@ export const CSS_MERGE_FAMILY_NAMES = [
 // the size default — so an unregistered group is a silently-wrong line-height, not a lint nit.
 const CUSTOM_CLASS_GROUPS = {
   "font-size": [{ text: ["display", "headline", "title", "body", "label", "code", "micro"] }],
-  leading: [{ leading: ["display", "headline", "title", "body", "label"] }],
+  leading: [{ leading: ["display", "headline", "title", "body", "label", "label-relaxed", "micro"] }],
   tracking: [{ tracking: ["micro"] }],
 };
 

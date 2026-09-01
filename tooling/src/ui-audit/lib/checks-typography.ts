@@ -1,8 +1,9 @@
-// Typography & copy-surface floors (ramp-bound type/leading/tracking/caps/justify/line-length)
-// + the font/type-scale censuses. Pure. Provenance: lib/collect.ts header.
+// Typography & copy-surface floors (ramp-bound type/leading/tracking/caps/justify/line-length), one
+// text element at a time. The PAGE-level censuses (off-theme-font, flat-type-hierarchy) live beside
+// this in checks-font-census.ts. Pure. Provenance: lib/collect.ts header.
 import type { Finding } from "../contract/findings.ts";
-import type { FontCensusInput, TextStyleInput } from "../contract/samples.ts";
-import { INTERACTIVE_TEXT_FLOOR_PX, LEADING_FLOOR, LEADING_FLOOR_EPSILON, RAMP_FLOOR_EPSILON_PX, RAMP_FONT_FACES, TEXT_MICRO_PX } from "./ramp.ts";
+import type { TextStyleInput } from "../contract/samples.ts";
+import { INTERACTIVE_TEXT_FLOOR_PX, LEADING_FLOOR, LEADING_FLOOR_EPSILON, RAMP_FLOOR_EPSILON_PX, TEXT_MICRO_PX } from "./ramp.ts";
 
 const LINE_LENGTH_TEXT_MIN = 80;
 
@@ -312,43 +313,6 @@ export function checkCaveatHierarchy(inputs: readonly TextStyleInput[]): Finding
       message: `this alert sentence BOUNDS what ${partner.selector} means, and renders ${(partner.fontSizePx / input.fontSizePx).toFixed(2)}× smaller than it — the warning whispers while the thing it qualifies shouts; lift the alert a step (the \`prose\` modifier does exactly this) or quiet its partner`,
       origin: "orbweaver",
     });
-  }
-  return findings;
-}
-
-const FLAT_HIERARCHY_MIN_SIZES = 3;
-
-const FLAT_HIERARCHY_MIN_RATIO = 2.0;
-
-export function checkFontCensus(census: FontCensusInput): Finding[] {
-  const findings: Finding[] = [];
-  for (const family of census.families) {
-    if (!RAMP_FONT_FACES.has(family)) {
-      findings.push({
-        rule: "off-theme-font",
-        severity: "P2",
-        selector: "page",
-        value: family,
-        message: `rendered font face "${family}" is outside the token stacks (font.sans/font.mono → ${[...RAMP_FONT_FACES].join(", ")}) — a stray face means a missing font-family token application`,
-        origin: "impeccable",
-      });
-    }
-  }
-  if (census.sizes.length >= FLAT_HIERARCHY_MIN_SIZES) {
-    const sorted = [...census.sizes].sort((a, b) => a - b);
-    const min = sorted[0] as number;
-    const max = sorted.at(-1) as number;
-    if (min > 0 && max / min < FLAT_HIERARCHY_MIN_RATIO) {
-      findings.push({
-        rule: "flat-type-hierarchy",
-        severity: "P3",
-        selector: "page",
-        value: `${sorted.map((s) => `${s}px`).join(", ")} (ratio ${(max / min).toFixed(1)}:1)`,
-        message:
-          "page font sizes are too close together for a visible hierarchy — use fewer steps with more contrast (the ramp spans micro 10.5 → display 24 for a reason)",
-        origin: "impeccable",
-      });
-    }
   }
   return findings;
 }

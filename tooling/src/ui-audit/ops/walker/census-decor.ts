@@ -177,12 +177,19 @@ export const WALKER_CENSUS_DECOR = `  // ── nested cards (card-like = (shado
     }
   }
 
-  // ── animated <img> on hover (statically detectable) ──────────────────────
+  // ── animated <img> on interaction state (statically detectable) ──────────
+  // BOTH STATE MECHANISMS, ONE PREDICATE (2026-09-01, docs/design/state-paint-census.md). This scan
+  // was the IDENTICAL bare \`/:hover/i\` string test hover-walker.ts carried — blind to a Base UI
+  // data-attribute-driven img transform (\`data-highlighted:scale-105\`, or an authored
+  // \`[data-selected] img { transform: … }\`), and, being un-anchored, also matched the \`:hover\`
+  // INSIDE an escaped Tailwind class name. Zero live img hovers ride the attribute channel today —
+  // the owner's standing ruling is "we dont build things just for what we have today", and the
+  // shared predicate (ops/walker/state-paint.ts) costs this scan nothing.
   var animatedImgHovers = [];
   for (var h = 0; h < imgEls.length; h += 1) {
     var himg = imgEls[h];
     var hcls = typeof himg.className === "string" ? himg.className.split(/\\s+/) : [];
-    if (hcls.some(function (c) { return TAILWIND_HOVER_TRANSFORM_RE.test(c); })) {
+    if (hcls.some(function (c) { return STATE_VARIANT_TRANSFORM_RE.test(c); })) {
       animatedImgHovers.push({ selector: describe(himg), hasHoverAnimation: true });
     }
   }
@@ -198,7 +205,7 @@ export const WALKER_CENSUS_DECOR = `  // ── nested cards (card-like = (shado
         var rule = rules[r];
         if (!rule.selectorText) continue;
         if (
-          /:hover/i.test(rule.selectorText) &&
+          (hasStateHover(rule.selectorText) || stateAttrAnywhere(rule.selectorText)) &&
           /img/i.test(rule.selectorText) &&
           HOVER_TRANSFORM_RE.test(rule.cssText)
         ) {

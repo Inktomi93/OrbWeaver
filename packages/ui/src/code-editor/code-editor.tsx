@@ -269,7 +269,10 @@ export function CodeEditor({
           amber ring. `FOCUS_RING_HAS` (not `focus-within:`) is the exact TextField treatment: it paints
           only when a descendant matches `:focus-visible`, which is what a text input's own
           `focus-visible:` ring does. `overflow-hidden` clips descendants, never this box's own ring. */}
-      <div ref={hostRef} className={cn("overflow-hidden rounded-control border border-border font-mono text-code", FOCUS_RING_HAS, className)} />
+      <div
+        ref={hostRef}
+        className={cn("overflow-hidden rounded-control border border-border font-mono text-code leading-label-relaxed", FOCUS_RING_HAS, className)}
+      />
       {hasDiagnostics ? (
         <div id={describedById} aria-live="polite" className="sr-only">
           {diagnostics.map((diagnostic, index) => {

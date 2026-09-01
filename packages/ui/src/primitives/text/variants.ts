@@ -1,7 +1,8 @@
 import { tv } from "#lib";
 
 // Shared by both <Text> and <Heading>. `weight` rides Tailwind's built-in font-weight utilities — no
-// DTCG weight token exists today. `code` has no dedicated leading token, so it falls back to leading-body.
+// DTCG weight token exists today. `code` rides `leading-label-relaxed` — the 13px continuous-reading box
+// (docs/design/integer-line-boxes.md: leadings are fixed integer line boxes, never unitless ratios).
 export const textVariants = tv({
   base: "font-sans",
   variants: {
@@ -11,9 +12,9 @@ export const textVariants = tv({
       title: "text-title leading-title",
       body: "text-body leading-body",
       label: "text-label leading-label",
-      code: "font-mono text-code leading-body",
+      code: "font-mono text-code leading-label-relaxed",
       // micro-caps section-label voice: 10.5px + micro tracking. Pair with weight="semibold" transform="caps".
-      micro: "text-micro leading-tight tracking-micro",
+      micro: "text-micro leading-micro tracking-micro",
     },
     weight: {
       regular: "font-normal",
@@ -47,7 +48,7 @@ export const textVariants = tv({
     voice: {
       // A section's NAME — never a datum. The mocks' `.kicker` (9.5px caps, .09em, 650); pair with
       // <Section kicker> for the hairline rule that completes the CD1 "a grouping is not a box" swap.
-      kicker: "font-sans text-micro leading-tight tracking-micro font-semibold uppercase text-muted-foreground",
+      kicker: "font-sans text-micro leading-micro tracking-micro font-semibold uppercase text-muted-foreground",
       // A kicker that is itself the visible label of a control. Interactive copy needs the readable label
       // step (13px) while retaining the compact, tracked instrument register of the band it belongs to.
       interactiveKicker: "font-sans text-label leading-label tracking-micro font-semibold uppercase text-muted-foreground",
@@ -57,7 +58,7 @@ export const textVariants = tv({
       // jittering as they tick; rides `text-label` rather than a new 11px step (D5).
       datum: "font-mono text-label leading-label tracking-normal tabular-nums font-normal text-foreground",
       // The quiet explanatory second line (the mocks' `.truth`/`.beat`/`.orb .vals`).
-      gloss: "font-sans text-micro leading-tight tracking-normal font-normal text-muted-foreground",
+      gloss: "font-sans text-micro leading-micro tracking-normal font-normal text-muted-foreground",
       // THE ONE NUMBER A SURFACE EXISTS TO PRODUCE (added 2026-08-09, side-eye P1-13). `datum` is the
       // voice for A value; `hero` is the voice for THE value — a run's overall score, a headline count —
       // the figure the user opened the surface to read. It was being spelled `voice="datum"`, which set
@@ -135,7 +136,7 @@ export const textVariants = tv({
       // NO `tabular-nums`, deliberately — that is `datum`'s column-alignment property and it is wrong here
       // (a hash is not a column of numbers). Resolves the same step the `size="code" tone="muted"` pair
       // produced; call sites that carried `className="tabular-nums"` beside the old pair keep it.
-      datumMono: "font-mono text-code leading-body tracking-normal font-normal text-muted-foreground",
+      datumMono: "font-mono text-code leading-label-relaxed tracking-normal font-normal text-muted-foreground",
       // The DECORATIVE DISPLAY GLYPH (added S6): a single-letter mark an immersive chat row skin paints on
       // its own band/tile fill — aria-hidden ornament, not prose. None of the four CONTENT voices fits it
       // (each would shrink a glyph whose entire job is to BE large), and the alternative at the call site
@@ -145,7 +146,7 @@ export const textVariants = tv({
       // title step override `font-size` (the echo tile rides `--spacing-avatar-hero` inline).
       monogram: "font-sans text-title leading-title tracking-normal font-semibold",
     },
-    // THE READING-LENGTH MODIFIER (side-eye F-31, 2026-08-02). `text-micro` (10.5px, leading-tight) was
+    // THE READING-LENGTH MODIFIER (side-eye F-31, 2026-08-02). `text-micro` (10.5px, leading-micro) was
     // doing five jobs — kicker, gloss, explainer prose, subtitle, status — and while contrast passes
     // everywhere (7.06–8.66:1), the SCALE is too flat for prose: a three-sentence teach line set at the
     // same step and the same tight leading as a status chip is a wall.
@@ -157,7 +158,7 @@ export const textVariants = tv({
     //
     // DECLARED AFTER `voice` so it wins the size/leading merge (the same ordering law `voice` itself needs).
     prose: {
-      true: "text-label leading-body",
+      true: "text-label leading-label-relaxed",
       false: "",
     },
     // THE ROW-ALIGNMENT MODIFIER (side-eye home re-score 2026-08-18, #216). `line-clamp-N` CAPS a run at N

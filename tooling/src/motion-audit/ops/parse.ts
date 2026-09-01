@@ -14,6 +14,7 @@ import type { Viewport } from "@orb/tooling/_shared/argv";
 import { parseViewport, splitLastEq } from "@orb/tooling/_shared/argv";
 import { DEFAULT_BASE } from "@orb/tooling/_shared/browser";
 import { MOBILE_DEVICE } from "@orb/tooling/_shared/browser-environment";
+import { applyPanelPresetFlag, loadPanelPreset, PANEL_PRESET_VALUE_FLAGS, panelPresetHelpBlock } from "@orb/tooling/_shared/panel-flags";
 import { applyThemeFlag, parseThemeFlag, THEME_VALUE_FLAGS, themeHelpBlock } from "@orb/tooling/_shared/theme";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { Args } from "../contract/types.ts";
@@ -47,6 +48,12 @@ const FLAG_HANDLERS: Record<string, FlagHandler> = {
   },
   "--focus": (a, rest) => {
     a.reach.push({ kind: "nav", method: "focus", target: rest.shift() ?? "" });
+  },
+  // `--panels <preset>` expands into the SAME panel/focus actions at ITS argv position (_shared/panel-flags.ts).
+  "--panels": (a, rest) => {
+    applyPanelPresetFlag(loadPanelPreset(rest.shift() ?? ""), a.errors, (action) => {
+      a.reach.push({ kind: "nav", ...action });
+    });
   },
   "--url": (a, rest) => {
     a.url = rest.shift() ?? null;
@@ -117,6 +124,7 @@ const REQUIRED_VALUE_FLAGS = new Set([
   "--selector",
   "--window",
   "--viewport",
+  ...PANEL_PRESET_VALUE_FLAGS,
   ...APPEARANCE_VALUE_FLAGS,
   ...THEME_VALUE_FLAGS,
 ]);
@@ -132,6 +140,7 @@ Reach the surface (argv-ordered, run BEFORE the trace; evidence is reset after t
   --panel <name>=<docked|overlay|collapsed>   drive the shell's panel layout (also the docked↔collapsed
                             FLIP transition — one of the app's largest motion surfaces)
   --focus <on|off>          the shell's zen/focus-mode toggle
+  --panels <preset>         reach a NAMED panel configuration in one flag (see Panel state below)
 
 Measure:
   --selector <sel>          THE interaction — clicked inside the trace window
@@ -148,6 +157,8 @@ Environment:
                             nonzero full-motion mobile interaction control (ordinary zero-frame law stays)
                             rated Appearance recipe: --goto settings:appearance
                             --selector '[data-slot="collapsible-trigger"]'
+
+${panelPresetHelpBlock()}
 
 ${appearanceHelpBlock()}
 

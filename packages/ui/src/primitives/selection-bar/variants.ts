@@ -13,7 +13,7 @@ export const selectionBarVariants = tv({
   // row is a set of separate things and reads fine stacked, a sentence does not.
   slots: {
     root: "flex flex-wrap items-center gap-row px-row py-field",
-    count: "flex-1 whitespace-nowrap text-body text-muted-foreground",
+    count: "flex-1 whitespace-nowrap text-body leading-body text-muted-foreground",
     actions: "flex items-center gap-field",
   },
   variants: {

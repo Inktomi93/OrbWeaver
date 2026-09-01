@@ -61,7 +61,7 @@ export const WALKER_RETURNS = `  var pendingWalkMutations = walkObserver.takeRec
     bgPatterns: bgPatterns,
     iconTiles: iconTiles,
     motionStatics: motionStatics,
-    fontCensus: { families: Object.keys(fontFamilies), sizes: Object.keys(fontSizes).map(Number) },
+    fontCensus: { faces: fontFaces, probeUsable: faceProbeUsable, sizes: Object.keys(fontSizes).map(Number) },
     brokenImages: brokenImages,
     headings: headings,
     overflows: overflows,

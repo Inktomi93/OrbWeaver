@@ -36,6 +36,8 @@ const THEMES_TS = join(HERE, "src/tokens/themes.gen.ts");
 // must keep it — that is why it is fixed here and not only in the emitted file.
 const THEMES_MODULE = "./themes.gen.ts";
 const OKLCH_COMPONENT_COUNT = 3;
+/** The rem base every snapped dimension resolves against (the app's root before --font-scale). */
+const ROOT_REM_PX = 16;
 const CUBIC_BEZIER_COORDINATE_COUNT = 4;
 const DTCG_ALIAS_RE = /^\{([^{}]+)\}$/u;
 
@@ -176,6 +178,11 @@ function renderPortableToken(token: TransformedToken, contractToken: ContractTok
       return null;
     case "percentage":
       return `${finiteNumber(resolvedValue(token), path)}%`;
+    case "snapped":
+      // The device-pixel belt (docs/design/integer-line-boxes.md §3b): a snapped dimension is authored
+      // integer at the 16px root and emitted through round() so every --font-scale value — the slider is
+      // continuous — resolves the box back onto the device-pixel grid. Identity at the default scale.
+      return `round(${renderDimension(resolvedValue(token), path)}, 1px)`;
     case "light-dark":
       if (lightToken === undefined) {
         throw new Error(`${path}: light-dark output has no Light arm`);
@@ -304,7 +311,19 @@ function collectPointerFine(node: Record<string, unknown>, path: readonly string
   }
 }
 
-function renderTokensTs(tokens: readonly GeneratedCssValue[], polarityArms: readonly GeneratedPolarityArms[]): string {
+/** A snapped-output dimension's resolved px at the 16px root (docs/design/integer-line-boxes.md §3b). */
+interface SnappedBasePx {
+  readonly path: readonly string[];
+  readonly px: number;
+}
+
+function snappedBasePx(token: TransformedToken, path: string): SnappedBasePx {
+  const dimension = objectValue(resolvedValue(token), path);
+  const amount = finiteNumber(dimension["value"], `${path}.value`);
+  return { path: token.path, px: dimension["unit"] === "rem" ? amount * ROOT_REM_PX : amount };
+}
+
+function renderTokensTs(tokens: readonly GeneratedCssValue[], polarityArms: readonly GeneratedPolarityArms[], snapped: readonly SnappedBasePx[]): string {
   const entries = tokens.map((t) => {
     const key = t.path.join(".");
     return `  "${key}": { cssVar: "${cssVarName(t.path)}", value: ${JSON.stringify(t.value)} },`;
@@ -330,6 +349,13 @@ function renderTokensTs(tokens: readonly GeneratedCssValue[], polarityArms: read
     "} as const;",
     "",
     "export type PolarityTokenPath = keyof typeof TOKEN_POLARITY_ARMS;",
+    "",
+    "/** Resolved px at the 16px root for every snapped-output dimension — build-time consumers (the ui-audit ramp bindings) read THIS and never parse the round() serialization (the TOKEN_POLARITY_ARMS precedent). */",
+    "export const SNAPPED_LENGTH_BASE_PX = {",
+    ...snapped.map((token) => `  ${JSON.stringify(token.path.join("."))}: ${token.px},`),
+    "} as const;",
+    "",
+    "export type SnappedTokenPath = keyof typeof SNAPPED_LENGTH_BASE_PX;",
     "",
     "/** `var(--…)` reference for a token — the ONE way runtime code names a token. */",
     "export function cssVar(path: TokenPath): string {",
@@ -439,6 +465,7 @@ export async function generateArtifacts(): Promise<{ themeCss: string; tokensTs:
   const contractByPath = new Map(contract.baseTokens.map((token) => [token.pathString, token]));
   const flat: GeneratedCssValue[] = [];
   const polarityArms: GeneratedPolarityArms[] = [];
+  const snapped: SnappedBasePx[] = [];
   for (const token of dictionary.allTokens) {
     const path = token.path.join(".");
     const contractToken = contractByPath.get(path);
@@ -448,6 +475,9 @@ export async function generateArtifacts(): Promise<{ themeCss: string; tokensTs:
     const value = renderPortableToken(token, contractToken, contract.lightTokens.get(path));
     if (value !== null) {
       flat.push({ path: token.path, value, placement: "theme" });
+    }
+    if (contractToken.outputRole === "snapped") {
+      snapped.push(snappedBasePx(token, path));
     }
     polarityArms.push(...generatedPolarityArms(token, contractToken, contract.lightTokens.get(path)));
   }
@@ -474,7 +504,7 @@ export async function generateArtifacts(): Promise<{ themeCss: string; tokensTs:
   const seedThemes = loadSeedThemes(contract);
   return {
     themeCss: renderGeneratedCss(flat) + renderPointerFineBlock(fine) + renderSeedThemesBlock(seedThemes),
-    tokensTs: renderTokensTs(flat, polarityArms),
+    tokensTs: renderTokensTs(flat, polarityArms, snapped),
     themesTs: renderSeedThemesTs(seedThemes),
   };
 }

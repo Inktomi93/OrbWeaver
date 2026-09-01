@@ -280,8 +280,23 @@ export interface MotionStaticInput {
 }
 
 // ── Page censuses: fonts + type-scale spread (impeccable adapted, ramp-bound) ──
+/** One face the cascade names FIRST on some element, paired with whether this environment can PAINT it.
+ *  The pair is required because the two facts fail in opposite directions: the name is a cascade fact a
+ *  missing webfont cannot move, and `available` is the only thing that separates a token stack that
+ *  renders from one whose brand face was never shipped. Measured by glyph metrics in
+ *  ops/walker/census-text.ts — `document.fonts.check` is vacuously TRUE for an unregistered family and
+ *  cannot answer it. */
+export interface FontFaceInput {
+  readonly name: string;
+  readonly available: boolean;
+}
+
 export interface FontCensusInput {
-  readonly families: readonly string[];
+  readonly faces: readonly FontFaceInput[];
+  /** False when the in-page metric probe failed its own two-sided control (no 2d context, a present face
+   *  it could not distinguish, or an impossible family reading as present). Then `available` carries no
+   *  information and every token face is WITHHELD — absence of measurement is never a clean pass. */
+  readonly probeUsable: boolean;
   readonly sizes: readonly number[];
 }
 

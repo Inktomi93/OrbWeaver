@@ -40,7 +40,7 @@ export const compareBlocksVariants = tv({
     blockHeader: "flex items-center gap-row",
     blockLabel: "text-label leading-label font-medium text-muted-foreground",
     blockSpacer: "flex-1",
-    stateChip: "rounded-full px-field py-px text-micro leading-tight font-semibold uppercase tracking-wide",
+    stateChip: "rounded-full px-field py-px text-micro leading-micro font-semibold uppercase tracking-wide",
     body: "flex flex-col gap-field",
     pair: "grid grid-cols-2 gap-row @max-lg:grid-cols-1",
     panel: "flex flex-col gap-field rounded-control p-block",

@@ -54,10 +54,12 @@ import {
   checkZIndex,
   collectFindings,
   DESIGN_AUDIT_RULES,
+  fontCensusPopulations,
   INTERACTIVE_TEXT_FLOOR_PX,
   isAtOrAboveSeverity,
   isValidSeverity,
   LEADING_FLOOR,
+  LEADING_FLOOR_EPSILON,
   parseAuditArgs,
   TEXT_MICRO_PX,
 } from "../../../tooling/src/ui-audit/index.ts";
@@ -1078,7 +1080,13 @@ test("a Chrome-truncated computed line-height AT the floor does not fire tight-l
   const truncated = checkTextStyle({ ...TEXT_STYLE_BASE, fontSizePx: 13.125, lineHeightPx: 16.4062 });
   expect(truncated.map((f) => f.rule)).not.toContain("tight-leading");
   // …and the epsilon stays a rounding allowance, not a weakened floor: genuinely tight leading still fires.
-  const genuinelyTight = checkTextStyle({ ...TEXT_STYLE_BASE, fontSizePx: 13.125, lineHeightPx: 13.125 * 1.24 });
+  // DERIVED from the floor, not spelled: this number was `1.24` while the floor was the unitless 1.25
+  // token, and the integer-line-box change (docs/design/integer-line-boxes.md §3a) moved the floor to
+  // 16/13 = 1.2308 — which makes 1.24 LEGAL leading and silently turned this arm into a test that could
+  // only fail. A pin whose job is "one step under the floor" says that, so it survives the next ratified
+  // move instead of encoding one era's number.
+  const oneStepUnderFloor = LEADING_FLOOR - LEADING_FLOOR_EPSILON * 2;
+  const genuinelyTight = checkTextStyle({ ...TEXT_STYLE_BASE, fontSizePx: 13.125, lineHeightPx: 13.125 * oneStepUnderFloor });
   expect(genuinelyTight.map((f) => f.rule)).toContain("tight-leading");
 });
 
@@ -1524,13 +1532,85 @@ auditRuleTest(
   ],
   "a rendered face outside the token stacks fires off-theme-font; the token faces are clean",
   () => {
-    const findings = checkFontCensus({ families: ["geist", "inter"], sizes: [] });
+    const findings = checkFontCensus({
+      faces: [
+        { name: "geist", available: true },
+        { name: "inter", available: true },
+      ],
+      probeUsable: true,
+      sizes: [],
+    });
     expect(findings).toHaveLength(1);
     expect(findings[0]?.rule).toBe("off-theme-font");
-    expect(findings[0]?.value).toBe("inter");
-    expect(checkFontCensus({ families: ["geist", "geist mono"], sizes: [] })).toEqual([]);
+    expect(findings[0]?.value).toBe("inter (paints)");
+    expect(
+      checkFontCensus({
+        faces: [
+          { name: "geist", available: true },
+          { name: "geist mono", available: true },
+        ],
+        probeUsable: true,
+        sizes: [],
+      }),
+    ).toEqual([]);
   },
 );
+
+// ── #23: the census reads the DECLARED cascade, so "on the token ramp" was never proof of what PAINTS ──
+// Measured on this tree while writing these: the app declares `Geist, ui-sans-serif, system-ui,
+// sans-serif`, the repo registers no @font-face, the host has no Geist installed, and `document.fonts`
+// carries twenty KaTeX faces and no Geist — while every design-audit run reported the font census clean.
+// The arm below is that false clean, closed. `document.fonts.check` cannot be the guard: for an
+// unregistered family the spec makes it vacuously true (measured: check("16px ZzzNotAFont") === true).
+auditRuleTest(
+  [{ rule: "off-theme-font", kind: "fires", reason: "a token face the environment measurably cannot paint emits" }],
+  "a declared token face that measurably does not paint fires off-theme-font — the surface renders a fallback nobody chose",
+  () => {
+    const findings = checkFontCensus({ faces: [{ name: "geist", available: false }], probeUsable: true, sizes: [] });
+    expect(findings).toHaveLength(1);
+    expect(findings[0]?.rule).toBe("off-theme-font");
+    expect(findings[0]?.value).toBe("geist (token face, not paintable)");
+    expect(findings[0]?.message).toContain("MEASURABLY does not paint");
+    expect(fontCensusPopulations({ faces: [{ name: "geist", available: false }], probeUsable: true, sizes: [] })).toEqual({
+      candidates: 1,
+      judged: 1,
+      affected: 1,
+      populations: 1,
+      emitted: 1,
+      withheld: {},
+      excluded: {},
+      collapsed: {},
+    });
+  },
+);
+
+test("a probe that failed its own control WITHHOLDS the token-face verdict — it never publishes a pass it did not measure", () => {
+  const census = { faces: [{ name: "geist", available: false }], probeUsable: false, sizes: [] } as const;
+  expect(checkFontCensus(census)).toEqual([]);
+  expect(fontCensusPopulations(census)).toEqual({
+    candidates: 1,
+    judged: 0,
+    affected: 0,
+    populations: 0,
+    emitted: 0,
+    withheld: { faceProbeUnusable: 1 },
+    excluded: {},
+    collapsed: {},
+  });
+});
+
+test("an unmeasurable probe still fires on a STRAY face — that arm is a cascade fact and needs no environment evidence", () => {
+  const findings = checkFontCensus({ faces: [{ name: "comic sans ms", available: false }], probeUsable: false, sizes: [] });
+  expect(findings).toHaveLength(1);
+  expect(findings[0]?.value).toBe("comic sans ms (paint unmeasured)");
+  expect(fontCensusPopulations({ faces: [{ name: "comic sans ms", available: false }], probeUsable: false, sizes: [] }).judged).toBe(1);
+});
+
+test("a stray face the environment cannot paint says so — the reader is told a fallback rendered, not that Comic Sans did", () => {
+  const findings = checkFontCensus({ faces: [{ name: "comic sans ms", available: false }], probeUsable: true, sizes: [] });
+  expect(findings[0]?.value).toBe("comic sans ms (declared, not paintable)");
+  expect(findings[0]?.message).toContain("unnamed fallback");
+});
 
 // ── the caveat/type-hierarchy-inversion lens (#652) ──────────────────────────
 // The rendered halves live in cli.int.test.ts (the consent screen's own markup at two commits). These pin
@@ -1614,9 +1694,9 @@ auditRuleTest(
   ],
   "a compressed size spread fires flat-type-hierarchy; the real ramp spread passes",
   () => {
-    const flat = checkFontCensus({ families: [], sizes: [12, 13, 14] });
+    const flat = checkFontCensus({ faces: [], probeUsable: true, sizes: [12, 13, 14] });
     expect(flat.map((f) => f.rule)).toContain("flat-type-hierarchy");
-    const ramp = checkFontCensus({ families: [], sizes: [10.5, 13, 15, 24] });
+    const ramp = checkFontCensus({ faces: [], probeUsable: true, sizes: [10.5, 13, 15, 24] });
     expect(ramp).toEqual([]);
   },
 );
@@ -1825,7 +1905,7 @@ const EMPTY_SAMPLES: RawSamples = {
   bgPatterns: [],
   iconTiles: [],
   motionStatics: [],
-  fontCensus: { families: [], sizes: [] },
+  fontCensus: { faces: [], probeUsable: true, sizes: [] },
   brokenImages: [],
   headings: [],
   overflows: [],
@@ -2054,7 +2134,7 @@ test("collectFindings fans the impeccable-adapted sample families out too, origi
     textStyles: [{ ...TEXT_STYLE_BASE, fontSizePx: 9 }],
     brokenImages: [{ selector: "img.dead", reason: "failed-load" }],
     overflows: [{ selector: ".cell", spillPx: 30, mode: "block" }],
-    fontCensus: { families: ["comic sans ms"], sizes: [] },
+    fontCensus: { faces: [{ name: "comic sans ms", available: true }], probeUsable: true, sizes: [] },
   });
   const rules = findings.map((f) => f.rule).sort((a, b) => a.localeCompare(b));
   expect(rules).toEqual(["broken-image", "off-theme-font", "text-below-ramp", "text-overflow"]);

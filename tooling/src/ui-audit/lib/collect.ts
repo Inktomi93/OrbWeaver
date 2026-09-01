@@ -24,6 +24,9 @@
 // Exception: duplicate-action-door has accounting via its OWN checkDuplicateDoorPopulations, not one of the four functions above (checks-quality.ts).
 // Exception: hover-contrast likewise — hoverContrastPopulations (checks-hover.ts) MERGES a Node/CDP pass's
 // census with the check's own dispositions, because its samples are gathered outside COLLECT_SAMPLES_JS.
+// Exception: off-theme-font likewise — fontCensusPopulations (checks-font-census.ts) owns its own
+// candidates/judged/withheld(faceProbeUnusable) accounting; its population is the PAGE's censused font
+// faces, not per-element samples, so none of the four rungs fits.
 // Exception: buried-raster likewise — checkBuriedRasterPopulations (checks-media.ts) owns its own
 // candidates/judged/excluded(opacity-transition) accounting; the population is walker-gathered raster
 // carriers with no upstream relational census to join.
@@ -42,6 +45,7 @@ import {
 } from "./checks-a11y.ts";
 import { checkContrast, checkGrayOnColor, checkQuietState, colorTextPopulations } from "./checks-color.ts";
 import { checkAccentBorder, checkGlowShadow } from "./checks-decor.ts";
+import { checkFontCensus, fontCensusPopulations } from "./checks-font-census.ts";
 import { checkHoverContrast, hoverContrastPopulations } from "./checks-hover.ts";
 import { checkBrokenImage, checkBuriedRasterPopulations, checkImageDistortion } from "./checks-media.ts";
 import { checkBgPattern, checkIconTile, checkMotionStatic, checkRadialGlow } from "./checks-ornament.ts";
@@ -67,7 +71,7 @@ import {
   checkSelectionIdiom,
   checkZIndex,
 } from "./checks-structure.ts";
-import { checkCaveatHierarchy, checkFontCensus, checkTextStyle } from "./checks-typography.ts";
+import { checkCaveatHierarchy, checkTextStyle } from "./checks-typography.ts";
 import { accountedFindings, cappedRelationalFindings, decisionPopulationFindings, nullableFindings } from "./population-strategies.ts";
 
 interface FamilyCheckResult {
@@ -308,7 +312,11 @@ function typographyFindings(samples: RawSamples): FamilyCheckResult {
   runArray(state, () => checkFontCensus(samples.fontCensus));
   return {
     ...state,
-    populationAccounting: { "text-below-ramp": textBelowRamp.accounting, "undersized-ui-text": undersizedUiText.accounting },
+    populationAccounting: {
+      "off-theme-font": fontCensusPopulations(samples.fontCensus),
+      "text-below-ramp": textBelowRamp.accounting,
+      "undersized-ui-text": undersizedUiText.accounting,
+    },
   };
 }
 

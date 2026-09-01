@@ -77,7 +77,7 @@ export function MessageMedia({ src, media, alt, dims, allowExternal = false, cla
   // `rounded-base` (not `card`): media and its gate/broken placeholders are GROUPED CONTENT inside the
   // message bubble, which is the elevated island itself (UI-Density-Law.md §2.1 D6).
   const fallbackClass = cn(
-    "flex w-full max-w-full items-center justify-center rounded-base border border-border bg-muted p-block text-body text-muted-foreground",
+    "flex w-full max-w-full items-center justify-center rounded-base border border-border bg-muted p-block text-body leading-body text-muted-foreground",
     className,
   );
 

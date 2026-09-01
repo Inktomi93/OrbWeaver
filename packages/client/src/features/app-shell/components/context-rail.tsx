@@ -115,11 +115,11 @@ const KICKER_OWNERSHIP_CLASSES: Readonly<Record<"owning" | "receded", string>> =
 };
 
 /** THE CROWN INHERITS THE RECEDE (side-eye 08-01). Crown gold marks a host-only cell, but painted as an
- *  absolute `text-highlight` a RECEDED rail's brightest pixel was its crown. The gold is a treatment WITHIN
+ *  absolute `text-accolade` a RECEDED rail's brightest pixel was its crown. The gold is a treatment WITHIN
  *  a rail's own voice, so it steps with that voice: full gold while the rail owns, the cell's inherited
  *  (muted) colour while it recedes. */
 const CROWN_OWNERSHIP_CLASSES: Readonly<Record<"owning" | "receded", string>> = {
-  owning: "text-highlight",
+  owning: "text-accolade",
   receded: "text-inherit",
 };
 

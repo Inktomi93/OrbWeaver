@@ -294,7 +294,7 @@ export const toolbarVariants = tv({
 
 // Meets the touch floor via h-control-sm, pointer-conditional (44px coarse/unknown, 32px fine).
 export const toolbarButtonVariants = tv({
-  base: `inline-flex h-control-sm min-w-control-sm select-none items-center justify-center gap-field rounded-control text-foreground text-label hover:bg-accent focus-visible:outline-none ${DISABLED_STATE_NATIVE} ${FOCUS_RING}`,
+  base: `inline-flex h-control-sm min-w-control-sm select-none items-center justify-center gap-field rounded-control text-foreground text-label leading-label hover:bg-accent focus-visible:outline-none ${DISABLED_STATE_NATIVE} ${FOCUS_RING}`,
 });
 
 export const toolbarSeparatorVariants = tv({
@@ -311,12 +311,12 @@ export const toolbarGroupVariants = tv({
 // The trailing metadata link ("Edited 51m ago"). Label type, muted until hover — it is a toolbar ITEM
 // (roving tabindex), so it carries the same focus ring as ToolbarButton, not a bare underline.
 export const toolbarLinkVariants = tv({
-  base: `inline-flex h-control-sm items-center rounded-control px-field text-label text-muted-foreground no-underline hover:text-foreground focus-visible:outline-none ${FOCUS_RING}`,
+  base: `inline-flex h-control-sm items-center rounded-control px-field text-label leading-label text-muted-foreground no-underline hover:text-foreground focus-visible:outline-none ${FOCUS_RING}`,
 });
 
 // Wears the shared field-control box so an input inside a toolbar matches every other text control.
 // Use ONE per horizontal toolbar and place it LAST — left/right arrows drive both the text caret and
 // the roving tabindex (Base UI's own usage guideline, components/toolbar.md §"Usage guidelines").
 export const toolbarInputVariants = tv({
-  base: `h-control-sm min-w-0 rounded-control border border-border bg-input px-field text-body text-foreground placeholder:text-muted-foreground focus-visible:outline-none ${DISABLED_STATE_NATIVE} ${FOCUS_RING}`,
+  base: `h-control-sm min-w-0 rounded-control border border-border bg-input px-field text-body leading-body text-foreground placeholder:text-muted-foreground focus-visible:outline-none ${DISABLED_STATE_NATIVE} ${FOCUS_RING}`,
 });

@@ -9,11 +9,54 @@ import type { SettingsShimEvidence, ThemeResolutionEvidence } from "@orb/tooling
 import type { EvidenceGap } from "@orb/tooling/_shared/evidence";
 import type { ThemeRequest } from "@orb/tooling/_shared/theme";
 import type { RawSamples, ThemeRenderInput } from "../contract/samples.ts";
+import type { RelationalSamples } from "../contract/samples-populations.ts";
 import type { DomPopulation } from "../contract/types.ts";
 
+/** Every RELATIONAL sample family, derived from the ONE contract that declares them
+ *  (contract/samples-populations.ts `RelationalSamples`): the array-valued keys, which excludes
+ *  `relationalAccounting` because that is the census's bookkeeping, not a censused element.
+ *
+ *  A mapped-type Record over that union is the enforcement (constitution §5.5): the next relational
+ *  family REDs tsc here with a missing property instead of silently going uncounted, which is exactly
+ *  how the whole family went uncounted in the first place. */
+type RelationalSampleFamily = {
+  [K in keyof RelationalSamples]-?: NonNullable<RelationalSamples[K]> extends readonly unknown[] ? K : never;
+}[keyof RelationalSamples];
+
+const RELATIONAL_SAMPLE_FAMILIES: Readonly<Record<RelationalSampleFamily, true>> = {
+  cohortAnatomies: true,
+  emptyStates: true,
+  headlineOverhangs: true,
+  inlinePaddingLeaks: true,
+  paneInks: true,
+  quietStates: true,
+  rowVoids: true,
+  selectionIdioms: true,
+  tierDrifts: true,
+};
+
+// `Object.keys` widens to string[]; the record above is the exhaustive home, so the cast reads back the
+// key type the map was declared with (the house idiom — snap/contract/scenario-presets.ts).
+const RELATIONAL_FAMILY_KEYS = Object.keys(RELATIONAL_SAMPLE_FAMILIES) as readonly RelationalSampleFamily[];
+
 /** How many nodes the in-page walk actually censused, across every family it collects. This is the
- *  number the RESULT line publishes as `census=` — a clean verdict with `census=0` is not a verdict. */
+ *  number the RESULT line publishes as `census=` — a clean verdict with `census=0` is not a verdict.
+ *
+ *  THE RELATIONAL FAMILIES COUNT (#25). They did not, and that was a polarity error inside the refusal
+ *  itself: a fixture built to exercise a RELATIONAL rule is geometry and CSS — no text, no image, no
+ *  control — so every counted family folded empty while the walker had seen and JUDGED its elements,
+ *  and `censusGap` refused with "the walk censused 0 nodes". The guard could not tell "the walk failed"
+ *  from "the walk succeeded in a family I do not count", and the workaround was a stray text node in
+ *  every relational fixture, unrelated to the rule under test.
+ *
+ *  WHY WIDEN THE COUNT rather than give `censusGap` a second, narrower reason: the doc-comment above was
+ *  already the intended contract ("across every family it collects"), a relational sample IS a censused
+ *  element, and one honest denominator is worth more than two verdicts an operator has to reconcile.
+ *  The protection is untouched — a walk that saw nothing in ANY family still totals 0 and still refuses,
+ *  and the fraction-shaped false cleans stay owned by `readinessGap`/`censusThinGap`, which do not read
+ *  this number at all. */
 export function censusTotal(samples: RawSamples): number {
+  const relational = RELATIONAL_FAMILY_KEYS.reduce((total, family) => total + (samples[family]?.length ?? 0), 0);
   return (
     samples.texts.length +
     samples.textStyles.length +
@@ -24,7 +67,8 @@ export function censusTotal(samples: RawSamples): number {
     samples.tabIndexes.length +
     samples.zIndexes.length +
     (samples.actionDoors?.length ?? 0) +
-    (samples.controlAspects?.length ?? 0)
+    (samples.controlAspects?.length ?? 0) +
+    relational
   );
 }
 
@@ -223,9 +267,13 @@ export function themeProvenanceGap(
 }
 
 /** WHY an empty census is a HARD gap rather than "the page is simply bare": the walk censuses text,
- *  styles, images, tap targets, accessible names, headings, tab indexes and z-indexes — a rendered app
- *  surface cannot be empty across ALL of them. Zero means the walk saw nothing, which is a statement
- *  about the probe, not about the design. */
+ *  styles, images, tap targets, accessible names, headings, tab indexes, z-indexes AND every relational
+ *  family (`censusTotal` above) — a rendered app surface cannot be empty across ALL of them. Zero means
+ *  the walk saw nothing, which is a statement about the probe, not about the design.
+ *
+ *  The counted set is exactly `censusTotal`'s, and it has to stay that way: a family the walker collects
+ *  but the total omits makes this refusal fire on a surface the walk actually judged, and a refusal that
+ *  is wrong about WHY reads as a crash (#25). */
 export function censusGap(url: string): EvidenceGap {
   return {
     evidence: "the node census",

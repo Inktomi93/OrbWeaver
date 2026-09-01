@@ -1,0 +1,21 @@
+{
+  "$schema-note": "THE ONE HOME for the named SHELL PANEL configurations the probes drive (--panels <name>). Each entry is an ordered list of the SAME nav actions --panel/--focus queue (tooling/src/_shared/nav.ts), expanded at the flag's own argv position — a preset is composition over the existing drivers, never a second mechanism. New coverage = a new profile HERE, never a new CLI flag. Only `panel` and `focus` methods are allowed: a panel preset that could `goto` would silently move the surface a run claims to be measuring. `panel` targets are `<name>=<mode>` with name in list|context and mode in docked|collapsed (packages/client/src/agent-nav/panel-request.ts owns that vocabulary and REFUSES loudly on anything else — this file is not a second home for it, tests/tooling/_shared/panel-flags.test.ts pins the shipped rows against it). A preset naming a pane the active section does not declare is a LOUD refusal, not a silent skip: the run's SHELL STATE / SURFACE-AXIS rows then report what was actually reached.",
+  "presets": {
+    "both-docked": {
+      "why": "Both side panels open at once — the widest chrome the shell ever paints, and the arm where the transcript column is at its NARROWEST. Text flush to a panel edge, a clipped trailing cluster, or a truncation defect in the middle column only exists here. Refuses on a section that declares no list pane (home): that is the honest answer, not a state to pretend into.",
+      "nav": [{ "method": "focus", "target": "off" }, { "method": "panel", "target": "list=docked" }, { "method": "panel", "target": "context=docked" }]
+    },
+    "list-only": {
+      "why": "The list rail docked with the context panel away — the shell's most common working state, and the one an undriven run lands in only by accident of whatever the account last left behind.",
+      "nav": [{ "method": "focus", "target": "off" }, { "method": "panel", "target": "list=docked" }, { "method": "panel", "target": "context=collapsed" }]
+    },
+    "context-only": {
+      "why": "The context panel docked with the list rail collapsed — the arm that measures the context pane's own layout at its real width instead of squeezed between two rails.",
+      "nav": [{ "method": "focus", "target": "off" }, { "method": "panel", "target": "list=collapsed" }, { "method": "panel", "target": "context=docked" }]
+    },
+    "focus": {
+      "why": "Zen mode: the shell's focusMode flag, which is a regime INPUT to resolvePanelMode ABOVE mobile/narrow (packages/client/src/state/shell-store.ts) — it resolves BOTH panels itself, so this profile deliberately writes no panel modes. A docked request under focus would not land and would refuse; the flag alone is the whole configuration.",
+      "nav": [{ "method": "focus", "target": "on" }]
+    }
+  }
+}

@@ -155,7 +155,7 @@ export const listRowVariants = tv({
       // The wrapping arm raises the leading: a two-line clamped sentence at the one-line step (1.25) has
       // its descenders nearly touching the next line's caps (side-eye P2-7). This is the one type property
       // the tier map deliberately leaves to the variants — an unlayered tier rule would outrank it.
-      true: { subtitle: "line-clamp-2 leading-body" },
+      true: { subtitle: "line-clamp-2 leading-label-relaxed" },
       false: { subtitle: "truncate" },
     },
     // THE ROW-TITLE STEP (added 2026-08-16, side-eye #102 F8). `default` is the tier's own step — `body`

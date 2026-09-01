@@ -8,7 +8,7 @@ import { FOCUS_RING_INSET, tv } from "#lib";
 // diff segments, badges).
 export const logViewerVariants = tv({
   slots: {
-    root: "flex flex-col overflow-hidden rounded-control border border-border bg-card font-mono text-code",
+    root: "flex flex-col overflow-hidden rounded-control border border-border bg-card font-mono text-code leading-label-relaxed",
     toolbar: "flex shrink-0 justify-end border-b border-border p-field",
     // tabIndex=0 (WCAG 2.1.1 keyboard-scrollable) needs a visible focus ring; `ring-inset` keeps it
     // inside the root's own `overflow-hidden` boundary instead of getting clipped.

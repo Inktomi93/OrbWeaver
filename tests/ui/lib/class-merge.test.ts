@@ -170,6 +170,15 @@ test.for(GOVERNED_FAMILY_AXES)("$family obeys later-wins in both argument orders
   expect(cn(second, first)).toBe(first);
 });
 
+// The two fixed-box members minted by docs/design/integer-line-boxes.md: an unregistered leading name
+// keeps BOTH classes and leaves the winner to stylesheet order (this file's founding defect), so each
+// new member owes its own later-wins pin the moment it joins CUSTOM_CLASS_GROUPS.
+test("the fixed-box leading members (micro, label-relaxed) are governed", () => {
+  expect(cn("leading-label-relaxed", "leading-micro")).toBe("leading-micro");
+  expect(cn("leading-micro", "leading-label")).toBe("leading-label");
+  expect(cn("leading-body", "leading-label-relaxed")).toBe("leading-label-relaxed");
+});
+
 test("modifier, important, postfix, and arbitrary candidates reach the configured merger", () => {
   expect(cn("hover:p-2", "hover:p-4")).toBe("hover:p-4");
   expect(cn("p-2!", "p-4!")).toBe("p-4!");

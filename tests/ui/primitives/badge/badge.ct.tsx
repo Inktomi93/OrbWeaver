@@ -194,6 +194,124 @@ test("soft-tone text clears AA-NORMAL over its own tint, on the surface it actua
     expect(ratio, `${testid} soft-tone contrast`).toBeGreaterThanOrEqual(4.5);
   }
 });
+// ── THE LIGHT ARM of the pin above (2026-09-01) ────────────────────────────────────────────────────
+// The test above mounts THEMELESS, which is the base (dark) palette — so for its whole life it judged
+// one polarity, and the defect it exists to catch shipped in the other one. Measured by the variant-arm
+// matrix: `intent=primary tone=soft` under `[data-theme=light]` was 3.97:1 at every size, because the
+// light seed's `--color-primary` was a FILL lightness (oklch 0.55) doing INK duty — bare `text-primary`
+// on the light background had only 4.86:1 to spend, so ANY tint under it fell through the floor. The
+// other four accents never had that problem: destructive/success/warning/info each carry a hand-tuned
+// polarity-aware LIGHT arm at L 0.47-0.50 (tokens.json), which is exactly what buys their soft chips
+// their margin. The seed now puts primary in that same band.
+//
+// So the polarity is an ARM of this assertion, not a second suite: same chips, same composite, mounted
+// under the light [data-theme] scope (the variant-arm-matrix wrapper pattern; the emitted block carries
+// `color-scheme: light`, so the four light-dark() intents resolve their light arms here and their dark
+// arms above). The broad per-arm sweep stays the matrix suite's job.
+test("soft-tone text clears AA-NORMAL under the LIGHT theme too — the polarity this pin shipped blind on", async ({ mount }) => {
+  const chips = await mount(
+    <div className="bg-card" data-theme="light">
+      <Badge data-testid="danger" intent="danger" tone="soft">
+        12 stalled
+      </Badge>
+      <Badge data-testid="warning" intent="warning" tone="soft">
+        10 queued
+      </Badge>
+      <Badge data-testid="neutral" intent="neutral" tone="soft">
+        11 empty
+      </Badge>
+      <Badge data-testid="success" intent="success" tone="soft">
+        ready
+      </Badge>
+      <Badge data-testid="info" intent="info" tone="soft">
+        info
+      </Badge>
+      <Badge data-testid="primary" intent="primary" tone="soft">
+        primary
+      </Badge>
+    </div>,
+  );
+  const measured = await Promise.all(
+    ["danger", "warning", "neutral", "success", "info", "primary"].map(async (testid) => {
+      const [fg, bg] = await chips.getByTestId(testid).evaluate(paintedColors);
+      return { testid, ratio: contrastRatio(fg ?? [], bg ?? []) };
+    }),
+  );
+  for (const { testid, ratio } of measured) {
+    expect(ratio, `${testid} soft-tone contrast (light)`).toBeGreaterThanOrEqual(4.5);
+  }
+});
+
+// ── THE INTERACTIVE GROUND (2026-09-01) — the composition neither pin above could see ───────────────
+// Both pins above measure a chip at REST on a card. But a ListRow and a Card paint `bg-accent` on HOVER
+// (list-row/variants.ts:107,188,212 · card/variants.ts:34) UNDER whatever the row contains — and rows
+// contain exactly this: status glosses (`text-destructive` in workload-row.tsx:212) and soft chips. The
+// hover ground is a lighter/darker step away from the surface the tokens were tuned against, so it
+// spends contrast that the card never charged for, and nobody had priced it: measured across all three
+// seeds it put 42 (ink, ground) pairs under AA-NORMAL, worst 3.40:1.
+//
+// The fix was two-sided and is pinned here at BOTH ends: the soft tint dropped to 8% family-wide
+// (badge/variants.ts) and `color.destructive`'s DARK arm joined the family band (tokens.json 0.65 ->
+// 0.72), because destructive was the one ink with nothing to spend — at 0.65 it failed the hover ground
+// even BARE, with no tint involved at all.
+//
+// The planted control is the historical value itself: the same chip with `--color-destructive` pinned
+// back to oklch(0.65 0.19 25) inline MUST still fail, or this pin has gone blind and its green means
+// nothing. That is the red-first receipt made permanent.
+test("status ink and soft chips clear AA-NORMAL on the INTERACTIVE (hover) ground, in both polarities", async ({ mount }) => {
+  for (const theme of ["hearth", "light"] as const) {
+    const row = await mount(
+      <div className="bg-accent" {...(theme === "light" ? { "data-theme": "light" } : {})}>
+        <span className="text-destructive" data-testid="gloss">
+          2 failed
+        </span>
+        <Badge data-testid="danger" intent="danger" tone="soft">
+          12 stalled
+        </Badge>
+        <Badge data-testid="warning" intent="warning" tone="soft">
+          10 queued
+        </Badge>
+        <Badge data-testid="primary" intent="primary" tone="soft">
+          primary
+        </Badge>
+        <Badge data-testid="info" intent="info" tone="soft">
+          info
+        </Badge>
+        <Badge data-testid="success" intent="success" tone="soft">
+          ready
+        </Badge>
+      </div>,
+    );
+    const measured = await Promise.all(
+      ["gloss", "danger", "warning", "primary", "info", "success"].map(async (testid) => {
+        const [fg, bg] = await row.getByTestId(testid).evaluate(paintedColors);
+        return { testid, ratio: contrastRatio(fg ?? [], bg ?? []) };
+      }),
+    );
+    for (const { testid, ratio } of measured) {
+      expect(ratio, `${testid} on the hover ground (${theme})`).toBeGreaterThanOrEqual(4.5);
+    }
+    await row.unmount();
+  }
+});
+
+test("PLANTED CONTROL: a token that cannot pass on that ground still measures BELOW AA through this path", async ({ mount }) => {
+  // The pin above is only worth its green if this exact measurement path can still go RED. The control is
+  // a SURFACE token painted as ink — `text-muted` is one ramp step from the grounds it sits on, so it is
+  // sub-AA by construction in every palette, no authored colour literal required (§13.7 bans those in a
+  // primitive CT, and rightly: a literal control would drift from the palette it claims to represent).
+  // The HISTORICAL arm — destructive at oklch(0.65) measuring 4.07:1 here — is pinned instead where a raw
+  // value belongs, as the `seed-theme-ink-contrast` gate's own mustFlag row.
+  const row = await mount(
+    <div className="bg-accent">
+      <span className="text-muted" data-testid="unreadable">
+        2 failed
+      </span>
+    </div>,
+  );
+  const [fg, bg] = await row.getByTestId("unreadable").evaluate(paintedColors);
+  expect(contrastRatio(fg ?? [], bg ?? []), "a surface token as ink must measure below AA — if this passes, the measurement has gone blind").toBeLessThan(4.5);
+});
 
 test("md size carries more horizontal padding than sm", async ({ mount }) => {
   const small = await mount(<Badge size="sm">Tag</Badge>);
@@ -318,13 +436,18 @@ test("size=inline keeps a leading glyph ON the line — it does not split the in
       </Badge>
     </p>,
   );
-  const box = (testid: string): Promise<{ height: number; top: number }> =>
-    run.getByTestId(testid).evaluate((el) => {
-      const rect = el.getBoundingClientRect();
-      return { height: rect.height, top: rect.top };
-    });
-  const marked = await box("marked");
-  const plain = await box("plain");
+  // ONE evaluate, AFTER `document.fonts.ready` — both facts are read from the same paint (2026-09-01).
+  // Two sequential evaluates flaked: Geist ships `font-display: swap`, so the webfont could land BETWEEN
+  // them and `marked` was measured with FALLBACK metrics (18px) against a `plain` measured with Geist
+  // (17px). Nothing about the chips differed; the two reads simply disagreed about which font was live.
+  const { marked, plain } = await run.evaluate(async (root) => {
+    await root.ownerDocument.fonts.ready;
+    const rect = (testid: string): { height: number; top: number } => {
+      const box = root.querySelector(`[data-testid="${testid}"]`)?.getBoundingClientRect();
+      return { height: box?.height ?? 0, top: box?.top ?? 0 };
+    };
+    return { marked: rect("marked"), plain: rect("plain") };
+  });
   // The chip carrying a mark is the same line-box height as the chip that carries none.
   expect(marked.height).toBeCloseTo(plain.height, 1);
   // …and the mark rides beside its word rather than above it: the glyph's own box sits inside the chip's.

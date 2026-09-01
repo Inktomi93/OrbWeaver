@@ -14,6 +14,7 @@ import type { Viewport } from "@orb/tooling/_shared/argv";
 import { parseViewport, splitLastEq } from "@orb/tooling/_shared/argv";
 import { DEFAULT_BASE } from "@orb/tooling/_shared/browser";
 import { NAV_FLAG_METHOD, NAV_FLAGS } from "@orb/tooling/_shared/nav";
+import { applyPanelPresetFlag, loadPanelPreset, PANEL_PRESET_VALUE_FLAGS, panelPresetHelpBlock } from "@orb/tooling/_shared/panel-flags";
 import { applyThemeFlag, parseThemeFlag, THEME_VALUE_FLAGS, themeHelpBlock } from "@orb/tooling/_shared/theme";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { Args, Step } from "../contract/types.ts";
@@ -81,6 +82,19 @@ function parseStepFlag(flag: string, rest: string[], steps: Step[]): boolean {
   return parseWheelFlag(flag, rest, steps);
 }
 
+/** `--panels <preset>` — its own arm (the step flags above take only the tape, and a preset also owes a
+ *  stated reason to `args.errors`). The actions land on the tape AT THIS ARGV POSITION, so a preset behaves
+ *  exactly like the --panel/--focus steps it expands into (_shared/panel-flags.ts). */
+function parsePanelPresetFlag(flag: string, rest: string[], args: Args): boolean {
+  if (flag !== "--panels") {
+    return false;
+  }
+  applyPanelPresetFlag(loadPanelPreset(rest.shift() ?? ""), args.errors, (action) => {
+    args.steps.push({ kind: "nav", ...action });
+  });
+  return true;
+}
+
 /** The appearance-shim flags — its own arm (not folded into parseScalarFlag) so that function stays under
  *  the cognitive-complexity cap, and so the axis has one visible home in each probe's parser. */
 function parseAppearanceFlag(flag: string, rest: string[], args: Args): boolean {
@@ -146,6 +160,7 @@ const VALUE_FLAGS = new Set([
   "--settle",
   "--viewport",
   "--cycles",
+  ...PANEL_PRESET_VALUE_FLAGS,
   ...APPEARANCE_VALUE_FLAGS,
   ...THEME_VALUE_FLAGS,
 ]);
@@ -162,9 +177,12 @@ Steps (ONE argv-ordered tape; each gets its own measurement window):
   --goto <section|settings:cat|modal:slot>   --open-chat <id|title|latest|current>
   --open-character <id|name>   --context-tab <tab>
   --panel <name>=<docked|overlay|collapsed>   --focus <on|off>
+  --panels <preset>                 reach a NAMED panel configuration in one flag (see Panel state below)
 
 Run:
   --base <url> · --viewport <WxH> · --settle <ms> · --cycles <n> · --out <name> · --cpuprofile
+
+${panelPresetHelpBlock()}
 
 ${appearanceHelpBlock()}
 
@@ -239,7 +257,7 @@ export function parsePerfArgs(argv: string[]): Args {
   const rest = [...argv];
   while (rest.length > 0) {
     const a = rest.shift() as string;
-    if (parseScalarFlag(a, rest, args) || parseAppearanceFlag(a, rest, args) || parseStepFlag(a, rest, args.steps)) {
+    if (parseScalarFlag(a, rest, args) || parseAppearanceFlag(a, rest, args) || parsePanelPresetFlag(a, rest, args) || parseStepFlag(a, rest, args.steps)) {
       continue;
     }
     if (!a.startsWith("--")) {

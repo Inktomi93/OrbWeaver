@@ -4,8 +4,10 @@
 // is to be true when the two count-based arms cannot see the problem.
 
 import type { SettingsShimEvidence } from "../../../../tooling/src/_shared/appearance.ts";
-import type { DomPopulation, ThemeRenderInput } from "../../../../tooling/src/ui-audit/index.ts";
-import { censusThinGap, readinessGap, themeProvenanceGap } from "../../../../tooling/src/ui-audit/index.ts";
+import type { RowVoidInput } from "../../../../tooling/src/ui-audit/contract/samples-layout.ts";
+import type { TierDriftInput } from "../../../../tooling/src/ui-audit/contract/samples-populations.ts";
+import type { DomPopulation, RawSamples, ThemeRenderInput } from "../../../../tooling/src/ui-audit/index.ts";
+import { censusThinGap, censusTotal, readinessGap, themeProvenanceGap } from "../../../../tooling/src/ui-audit/index.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 function population(duringWalk: number, settled: number, stabilized = true): DomPopulation {
@@ -121,6 +123,106 @@ test("a planted requested-vs-rendered mismatch is a provenance gap", () => {
   expect(gap?.evidence).toContain("provenance");
   expect(gap?.detail).toContain("Light");
   expect(gap?.detail).toContain("mocha");
+});
+
+// ── THE CENSUS TOTAL (#25) — the denominator the censusGap refusal reads ─────────────────────────
+
+/** A walk that collected NOTHING, in any family. `censusTotal` over this must be 0: that is the
+ *  blank-mount / swallowed-error-boundary shape the refusal exists for, and no widening of the count
+ *  may soften it. */
+const NOTHING_WALKED: RawSamples = {
+  subjectAccounting: {
+    observed: 3,
+    settled: 3,
+    stabilized: true,
+    settleMutations: 0,
+    walked: 1,
+    skipped: { documentHead: 2, devChrome: 0 },
+    inaccessible: 0,
+    final: 3,
+    added: 0,
+    detached: 0,
+    walkMutations: 0,
+  },
+  themeRender: {
+    rootDataTheme: null,
+    shellScope: { present: false, inlineBackground: null, colorScheme: null },
+    subjectSources: { default: 1, seed: 0, custom: 0, unknown: 0 },
+    subjectPolarities: { light: 0, dark: 1, mixed: 0, unknown: 0 },
+  },
+  texts: [],
+  images: [],
+  tapTargets: [],
+  accessibleNames: [],
+  mainLandmarkPresent: true,
+  tabIndexes: [],
+  zIndexes: [],
+  nestedCards: [],
+  gradientTexts: [],
+  animatedImgHovers: [],
+  pointerCoarse: false,
+  textStyles: [],
+  accentBorders: [],
+  shadowGlows: [],
+  radialGlows: [],
+  bgPatterns: [],
+  iconTiles: [],
+  motionStatics: [],
+  fontCensus: { faces: [], probeUsable: true, sizes: [] },
+  brokenImages: [],
+  headings: [],
+  overflows: [],
+  repeatedTexts: [],
+  clippedOverflows: [],
+  edgeFlushCards: [],
+};
+
+/** One density-tier resolution the walker really read and judged — a RELATIONAL sample, carrying no
+ *  text, no image and no control. A fixture built to exercise a relational rule produces exactly this
+ *  and nothing else. */
+const TIER_DRIFT: TierDriftInput = {
+  selector: "div[data-slot=card-root]",
+  tier: "instrument",
+  slot: "card-root",
+  property: "padding-top",
+  varName: "--orb-tier-island-pad",
+  unit: "px",
+  sanctionedRaw: "8px",
+  paintedRaw: "20px",
+  sanctionedValue: 8,
+  paintedValue: 20,
+};
+
+const ROW_VOID: RowVoidInput = {
+  selector: "div[data-slot=row]",
+  gapPx: 300,
+  rowWidthPx: 600,
+  gapRatio: 0.5,
+  leftSelector: "span",
+  leftText: "label",
+  leftWidthPx: 40,
+  rightSelector: "button",
+  rightWidthPx: 60,
+};
+
+// @instrument-absence-proof: the polarity error INSIDE the refusal path (#25). A geometry+CSS fixture
+// built for a RELATIONAL rule leaves every counted family empty while the walker legitimately saw and
+// judged elements — the run then refused with `censusGap` ("the walk censused 0 nodes"), which to an
+// operator and to a harness reading the (never-written) report is indistinguishable from a walker
+// crash. A censused relational sample is a censused node.
+test("a relational-only walk is CENSUSED, not zero — a geometry fixture is not a blank mount", () => {
+  expect(censusTotal({ ...NOTHING_WALKED, tierDrifts: [TIER_DRIFT] })).toBeGreaterThan(0);
+});
+
+test("every relational family counts, and each sample counts once", () => {
+  expect(censusTotal({ ...NOTHING_WALKED, rowVoids: [ROW_VOID] })).toBeGreaterThan(0);
+  expect(censusTotal({ ...NOTHING_WALKED, tierDrifts: [TIER_DRIFT], rowVoids: [ROW_VOID] })).toBe(2);
+});
+
+// The protection this may not weaken (#409/#678/#976): a walk that saw nothing in ANY family — counted
+// or relational — is still a zero census, and a zero census is still an instrument failure.
+test("a walk that collected nothing in ANY family is still zero — the refusal keeps its teeth", () => {
+  expect(censusTotal(NOTHING_WALKED)).toBe(0);
 });
 
 test("unknown catalog source and unknown subject polarity are never inferred", () => {

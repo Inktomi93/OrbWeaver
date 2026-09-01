@@ -14,7 +14,7 @@ export const macroTextareaVariants = tv({
     // resize-y: a native bottom-drag handle — the field auto-grows with content (the shared
     // textarea skin's `field-sizing: content`) but a caller can still pull it taller by hand
     // (persona-panel redesign — a long description wants more room on demand).
-    textarea: "min-h-0 flex-1 resize-y font-mono text-code",
+    textarea: "min-h-0 flex-1 resize-y font-mono text-code leading-label-relaxed",
     listbox: [
       "absolute top-full right-0 left-0 z-(--z-overlay) mt-field max-h-64 overflow-y-auto rounded-card border border-border bg-popover py-field shadow-overlay",
     ],
@@ -24,7 +24,7 @@ export const macroTextareaVariants = tv({
       "hover:bg-muted data-highlighted:bg-accent data-highlighted:text-accent-foreground",
     ],
     itemMain: "flex min-w-0 flex-col gap-field",
-    itemName: "font-mono text-code text-foreground",
+    itemName: "font-mono text-code leading-label-relaxed text-foreground",
     itemDescription: "truncate text-label leading-label text-muted-foreground",
     helper: "text-label leading-label text-muted-foreground",
     argHint: "text-label leading-label text-muted-foreground",

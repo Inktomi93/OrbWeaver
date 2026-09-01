@@ -4,6 +4,7 @@
 // classification data, distinct from the dispatch table they describe.
 import { APPEARANCE_VALUE_FLAGS } from "../../_shared/appearance-flags.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { PANEL_PRESET_VALUE_FLAGS } from "../../_shared/panel-flags.ts";
 import { THEME_VALUE_FLAGS } from "../../_shared/theme.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
@@ -29,6 +30,7 @@ export const REQUIRED_VALUE_FLAGS = new Set([
   "--context-tab",
   "--panel",
   "--focus",
+  ...PANEL_PRESET_VALUE_FLAGS,
   "--pages",
   "--contexts",
   "--as",

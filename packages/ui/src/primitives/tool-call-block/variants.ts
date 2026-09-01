@@ -10,13 +10,13 @@ export const toolCallBlockVariants = tv({
     // `rounded-base`, not `rounded-card`: a tool call is GROUPED CONTENT inside the transcript's message
     // bubble, which is itself the elevated island (UI-Density-Law.md §2.1 D6 — `card` is the floating step).
     root: "rounded-base border border-border bg-card text-card-foreground",
-    summary: `flex cursor-pointer list-outside items-center gap-row px-block py-row text-body font-medium text-foreground outline-none ${FOCUS_RING}`,
-    name: "font-mono text-code",
+    summary: `flex cursor-pointer list-outside items-center gap-row px-block py-row text-body leading-body font-medium text-foreground outline-none ${FOCUS_RING}`,
+    name: "font-mono text-code leading-label-relaxed",
     status: "contents",
     duration: "ml-auto text-label leading-label text-muted-foreground",
     body: "flex flex-col gap-block border-t border-border p-block",
     section: "flex flex-col gap-field",
     sectionLabel: "text-label leading-label font-medium text-muted-foreground",
-    pre: "overflow-x-auto whitespace-pre-wrap rounded-control bg-muted p-block font-mono text-code text-foreground",
+    pre: "overflow-x-auto whitespace-pre-wrap rounded-control bg-muted p-block font-mono text-code leading-label-relaxed text-foreground",
   },
 });
