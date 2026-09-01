@@ -23,6 +23,19 @@ paths:
 - **Under multi-lane load the `--workers=2` cap is mandatory** — measured 2026-08-21 at load-avg 170,
   the default worker count timed out EVERY test at `mount()` on pure contention (zero signal), while
   `--workers=2` came back green in 53s. A contention timeout is not a failing test.
+- **NEVER run two `ct:scoped` invocations concurrently in ONE worktree** — the script's `rm -rf
+  playwright/.cache` + rebuild is single-flight per TREE, so a sibling replaces the component index
+  mid-flight and everything that MOUNTS fails while the few tests that don't still pass. TRUTH-REPAIR
+  2026-09-01 (#1006): the interim rule "pass `--reporter=list` until the summary reporter is fixed" is
+  RETIRED — the CT summary was accused of inverting a run ("2 passed / 51 failed" against list's "52 passed
+  / 1 failed") and was CLEARED by reproduction (three arms — a trivial pass/fail probe, a 51× retry-then-pass
+  probe under `--retries=2`, and the real tests/ui suites — each matched the json reporter's own counts from
+  the SAME run, and a list arm of the same selection agreed 82/82). The sighting came from ONE shared
+  worktree that six lanes were working in with sibling CT runs live: it was the cache clobber above, i.e.
+  two different runs, not a lying counter. The counting is now pure and committed-pinned
+  (`tooling/src/verify/ops/ct-run-tally.ts` + `tests/tooling/verify/ops/ct-run-tally.test.ts`), so a real
+  inversion would red a test instead of costing a lane an investigation. Read a clobbered run's tell —
+  a *registered* component list naming stories you did not select — from `reports/ct-report.json`.
 - **A CT file nobody NAMED is a file nobody ran.** `pnpm check` is static and `check:structure` never
   executes a CT, so list the CT paths you ran in your floor and in your report, beside their results.
 - **Only per-package `pnpm typecheck` owns `tests/**/*.ct.tsx`**, and only `typecheck:tests-dom` owns

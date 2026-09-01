@@ -5,7 +5,16 @@
 // the two non-kill paths are untouched (solo behavior unchanged); and the pure factor is unit-checked with
 // injected loadavg/core values so the "quiet box → factor 1 → solo budgets unchanged" contract is nailed.
 import { expect, test } from "../support/tool-fixtures.ts";
-import { computeLoadFactor, isLoadKill, LOAD_KILL_MARKER, runNodeWithBudget, runPnpmWithBudget, scaledBudget, spawnNodeWithBudget } from "./_load-budget.ts";
+import {
+  computeLoadFactor,
+  isLoadKill,
+  isTimeoutKill,
+  LOAD_KILL_MARKER,
+  runNodeWithBudget,
+  runPnpmWithBudget,
+  scaledBudget,
+  spawnNodeWithBudget,
+} from "./_load-budget.ts";
 
 // A child that outlives any budget we hand it — the planted SLOW case. Kept well above the 300ms budget so
 // the kill is unambiguous, and it writes nothing, so a returned value could only be a missed kill.
@@ -77,6 +86,23 @@ test("spawnNodeWithBudget: a planted slow child throws a legible kill; a normal 
 
   const run = spawnNodeWithBudget(["-e", "process.exit(2);"], repoRoot, 30_000, "normal spawn");
   expect(run.status).toBe(2);
+});
+
+// BOTH KILL SHAPES (#999 f, 2026-09-01). A `pnpm check:structure` child killed at its budget under loadavg
+// 38/24 cores did NOT arrive as a SIGTERM'd exit — node surfaced spawnSync's own error object instead
+// (`code:"ETIMEDOUT"`, `signal:null`, `status:0`), so the SIGTERM-only discriminator missed it and the kill
+// printed as an opaque "child exit 0". The planted-slow-child tests above only ever produce the SIGTERM
+// shape on this box, which is exactly why the OTHER shape needs a direct pin: an instrument that classifies
+// one of two real shapes reads as covered while staying blind to the one that actually happened.
+test("BOTH timeout-kill shapes classify as kills, and nothing else does", () => {
+  expect(isTimeoutKill({ signal: "SIGTERM" })).toBe(true);
+  expect(isTimeoutKill({ code: "ETIMEDOUT", signal: null })).toBe(true);
+  // A plain non-zero exit and a DIFFERENT signal are verdicts, not kills — over-claiming would launder a
+  // real red into "not a verdict", which is the opposite failure and just as dishonest.
+  expect(isTimeoutKill({ signal: null })).toBe(false);
+  expect(isTimeoutKill({ code: "ENOENT", signal: null })).toBe(false);
+  expect(isTimeoutKill({ signal: "SIGKILL" })).toBe(false);
+  expect(isTimeoutKill({})).toBe(false);
 });
 
 test("isLoadKill rejects a plain assertion-style error — the two are never conflated", () => {
