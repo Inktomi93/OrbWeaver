@@ -251,7 +251,7 @@
         ],
         "summary": "Normative constitution re-read against the split control plane, proposed-program sprint map, and existing package-layout enforcement."
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/architecture/core/Chat-Macro-Resolution.md",
@@ -441,9 +441,9 @@
       "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 384,
-      "bytes": 198123,
-      "sha256": "6cd65aa921a1d750fd547a44b001f66b383a94672bfd6df38f0df6169798d902",
+      "lines": 385,
+      "bytes": 199908,
+      "sha256": "ce8562a99378928f8a9ab574d5289c77d1d725e7e776711226d2ba86fd735108",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -545,7 +545,7 @@
         ],
         "summary": "Active enforcement registry re-attested for #995: agent-bridge-lock pins the lean readiness home, shared readiness identity, and DEV-only instrumentation boundary."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/architecture/core/Core-Enforcement-Deferred-Dropped.md",
@@ -1940,9 +1940,9 @@
       "path": "docs/architecture/core/UNIFIED-VERIFICATION-DESIGN.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 353,
-      "bytes": 29969,
-      "sha256": "83c199006f3bd9584e6b0aadda5db4493aa500c10c3ce95d6bdf7f62969ff2d8",
+      "lines": 358,
+      "bytes": 30456,
+      "sha256": "e222765e013a665db627b772e3f17eb973f17b8ade842a68f76b63fde5c6a923",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -1959,12 +1959,13 @@
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "83c199006f3bd9584e6b0aadda5db4493aa500c10c3ce95d6bdf7f62969ff2d8",
-        "verifiedCommit": "6b2a9808eded8ebbd11bed80a17834a79feb83a4",
+        "verifiedSha256": "e222765e013a665db627b772e3f17eb973f17b8ade842a68f76b63fde5c6a923",
+        "verifiedCommit": "c40d194a1d870b51435af8add0d07d71ea42d1cb",
         "verifiedAt": "2026-09-01",
         "evidence": [
           "delta re-verify 2026-09-01 (#995, content commit 9a4bee47ab1b21cd68c291c80e1704b486200dd8): quality:boot-chunk retains the summed boot-set definition and records the owner-authorized 859,000-byte ceiling derived from the clean 818,188-byte post-split production payload plus 4.99% measured headroom; the real ratchet passed with 40,812 bytes free",
           "docs/architecture/core/UNIFIED-VERIFICATION-DESIGN.md:1 (full read; header/status evaluated)",
+          "delta re-verify 2026-09-01 (#1012 review follow-up, content commit c40d194a1d870b51435af8add0d07d71ea42d1cb): §3.7's `tests:node` bullet is re-read at the corrected bytes. The dangling citation is repaired — the suite that produced the measured 7-minute silence is `tests/tooling/ast/cli.int.test.ts`, not the `tests/tooling/ast-observability.int.test.ts` path deleted in 8931a886c — and the bullet now records that the same capture found `vitest.config.ts`'s SERIAL_INT row still spelling the pre-move path, so the heaviest whole-workspace file had been running in the PARALLEL lane (1,057,996 ms measured; repointed in the same commit). It also records that ORB_TEST_HANG_MAX_MS runs on its OWN clock, because CPU progress pushing a single shared clock made the ceiling unreachable. Verified against the code (scripts/vitest-supervised.mjs `liveness`/`wedgeReason`) and a real `pnpm test:scoped tests/tooling/vitest-supervised.test.ts` run reporting 11/11, with a planted control (ceiling forced off) reddening the ceiling row. No other claim in this document moved.",
           "delta re-verify 2026-09-01 (#1012, content commit 6b2a9808eded8ebbd11bed80a17834a79feb83a4): §3.7's `tests:node` bullet is rewritten for the sharded supervisor — the wedge is re-rooted from the withdrawn upstream Pipe-handle story to the source-pinned mechanism (vitest 4.1.11 `Pool.run`'s unbounded `await testFinish.promise`, with `ctx.exit()`'s teardown backstop only armed after the run resolves), the upstream dead ends are recorded (no release above 4.1.11; #10057 closed by its author; #10162 withdrawn), and the runner is restated as one sequential vitest process per `--project` with per-shard reports merged into `reports/test-report.json`, a `/proc`+suspect-list wedge dump, and exactly ONE re-run of a wedged shard. The bullet also records the PRIMARY defect measured live that day: the kill signal is now absence of PROGRESS (silence AND zero CPU across the parent plus every /proc descendant, with ORB_TEST_HANG_MAX_MS as the absolute ceiling), because the old silence-only rule false-killed a healthy battery that ast-observability.int held silent for 7+ minutes while a grandchild burned ~4.5 cores. The never-a-false-green predicate is explicitly unchanged. No other claim in this document moved.",
           "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
           "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
@@ -11673,9 +11674,9 @@
       "path": "docs/design/integer-line-boxes.md",
       "lane": "design",
       "issue": 5,
-      "lines": 255,
-      "bytes": 17326,
-      "sha256": "a7ab07b40a6e404b9259fce18bb739ca9f3c0603de6bbf883f3f757ee74a6d68",
+      "lines": 372,
+      "bytes": 26363,
+      "sha256": "daf687deab3973e974628dba540ccb07344e491123985c2e2d425f69b2321d81",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -11725,7 +11726,7 @@
           }
         ]
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/design/interaction-direction-spec.md",
