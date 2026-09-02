@@ -337,6 +337,8 @@ function writeFixtures(): void {
     "packages/client/src/features/__g_qbres/lib/unkeyed.tsx",
     'export const G = <QueryBoundary fallback={<SkeletonRows count={3} />}>{"b"}</QueryBoundary>;\n',
   );
+  // sub-floor-disclosure: a size="text" CollapsibleTrigger with no @sub-floor-ok marker (#884 C2).
+  fx("packages/client/src/features/__g_subfloor/lib/unmarked.tsx", 'export const G = <CollapsibleTrigger size="text">Advanced</CollapsibleTrigger>;\n');
   // seed-theme-ink-contrast: a SURFACE token painted as TEXT. `--color-card` as ink on the `--color-card`
   // ground is 1.00:1 by construction in every seed, so this is a real-shape violation of the ink-duty rule
   // (the founding defect's own class: a token whose role is a background doing text duty).

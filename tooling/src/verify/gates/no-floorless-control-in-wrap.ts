@@ -2,8 +2,17 @@
 // floor rides an OVERFLOWING ::after) repeated inside a `flex-wrap` container is a COLLISION GENERATOR: on a
 // wrapped row pitch the pseudos overlap and the row BELOW wins hit-testing (weather picker, measured 320px:
 // aiming `clear` committed `snow` — no boundingBox CT can see it, only elementFromPoint). Arms: MAPPED child or
-// ≥2 literal floorless siblings · JUDGMENT_DEFERRED stale (both modes) · variants-vocabulary tripwire.
-import type { JsxElement, Node } from "ts-morph";
+// ≥2 literal floorless siblings · JUDGMENT_DEFERRED stale (both modes) · variants-vocabulary tripwire ·
+// the VERTICAL-PITCH arm (#884 C3, #850's class — 28 P1s): a `Stack` whose direct children resolve to ≥2
+// rows each carrying a floorless Button (a `.map` child counts as 2; one level of SAME-FILE component
+// indirection is resolved) stacks sub-floor rows — every GAP token is below the coarse touch floor (max
+// `gutter` = 32px < 44px, tokens.json), so the gap attr is deliberately not read; if a ≥floor gap token is
+// ever minted, re-derive this arm. Escapes: `rows="control"` on the Stack (layout/variants.ts — the
+// one-token fix) or every counted row carrying its own `min-h-touch-target`/`min-h-control-*`/
+// `pointer-coarse:min-h-*`. DECLARED LIMITS: cross-file row components are invisible (the live
+// rpg-stat-profile-editor rows are TrackerValue/HintEditor imports — the founding shape is proven by the
+// same-file fixture); className via variable is invisible (LIMIT-1's class).
+import type { JsxElement, Node, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { ExemptionRow, ExemptionTable, GateDescriptor } from "../contract/gate.ts";
 import { blankTsComments } from "../lib/comment-spans.ts";
@@ -83,15 +92,17 @@ const JUDGMENT_DEFERRED: ExemptionTable<ExemptionRow> = {
 const seenDeferred = new Set<string>();
 
 const MESSAGE =
-  "a floorless-size Button (`inline`/`glyph-*`) repeated inside a `flex-wrap` container — the size arm " +
-  "carries its touch floor in an OVERFLOWING ::after (28px fine / 44px coarse), so on a wrapped run's row " +
-  "pitch adjacent hit areas OVERLAP and the row BELOW wins hit-testing: aiming at one control commits its " +
-  "neighbour (the ambient-strip weather picker, measured via elementFromPoint at 320px — " +
-  "packages/client/src/components/tracker-blocks/ambient-strip.tsx records the fix). A wrapping RUN of " +
-  "controls needs a size whose BOX is the target.";
+  "a floorless-size Button (`inline`/`glyph-*`) repeated at a SUB-FLOOR PITCH — the size arm carries its " +
+  "touch floor in an OVERFLOWING ::after (28px fine / 44px coarse), so stacked/wrapped neighbours contest " +
+  "the same pixels and the pseudo LOSES hit-testing to whatever flow content it lands on. Token `Stack` = " +
+  "the vertical-pitch arm (#850's class: rows of inline-edit affordances in a Stack, each hit box its bare " +
+  "text height because the pseudo lands on the neighbour row's text); a size-value token = the flex-wrap " +
+  "arm (the ambient-strip weather picker, measured via elementFromPoint at 320px: aiming `clear` committed " +
+  "`snow` — packages/client/src/components/tracker-blocks/ambient-strip.tsx records the fix).";
 const FIX =
-  "use a control size (`sm`/`icon` — the box IS the target, nothing overflows to collide) for controls in a " +
-  "wrapping run; `inline`/`glyph-*` stay correct for a lone datum/glyph riding inside a row.";
+  'vertical pitch: `rows="control"` on the Stack (one token — floors every direct row, layout/variants.ts) ' +
+  "or a per-row `min-h-touch-target`/`pointer-coarse:min-h-*`; a wrapping run: a control size (`sm`/`icon` " +
+  "— the box IS the target). `inline`/`glyph-*` stay correct for a lone datum/glyph riding inside a row.";
 
 /** The nearest enclosing JsxElement whose OPENING tag carries `flex-wrap` (same-file JSX tree only). */
 function wrapContainerOf(node: Node): JsxElement | undefined {
@@ -149,6 +160,105 @@ function ownerIsButton(attr: Node): boolean {
   return owner.getTagNameNode().getText() === "Button";
 }
 
+// ─── the VERTICAL-PITCH arm (#884 C3) ───────────────────────────────────────────────────────────────
+
+/** Does this subtree hold a floorless-size Button (literal size attr, Button tag)? */
+function floorlessButtonIn(root: Node): boolean {
+  return root.getDescendantsOfKind(SyntaxKind.JsxAttribute).some((attr) => {
+    if (attr.getNameNode().getText() !== "size") {
+      return false;
+    }
+    const init = attr.getInitializer();
+    return init?.isKind(SyntaxKind.StringLiteral) === true && FLOORLESS_SET.has(init.getLiteralText()) && ownerIsButton(attr);
+  });
+}
+
+/** One level of SAME-FILE component indirection: `<AttributeRow/>` → the body of a same-file
+ *  `function AttributeRow(...)` or `const AttributeRow = (...) => …`. Cross-file tags resolve to nothing
+ *  (declared limit). */
+function sameFileComponentBody(sf: SourceFile, tagName: string): Node | undefined {
+  const fn = sf.getFunction(tagName);
+  if (fn !== undefined) {
+    return fn.getBody();
+  }
+  const decl = sf.getVariableDeclaration(tagName);
+  const init = decl?.getInitializer();
+  return init !== undefined && (init.isKind(SyntaxKind.ArrowFunction) || init.isKind(SyntaxKind.FunctionExpression)) ? init.getBody() : undefined;
+}
+
+const ROW_FLOOR_RE = /\bmin-h-touch-target\b|\bmin-h-control-[a-z]+\b|pointer-coarse:min-h-[a-z-]+/u;
+
+/** The row's OWN literal className carries a floor fence. Only the direct child's opening tag is read —
+ *  a resolved component's root cannot be fenced from here (its escape is the Stack's `rows="control"`). */
+function rowCarriesFloor(el: Node): boolean {
+  const opening = el.isKind(SyntaxKind.JsxElement) ? el.getOpeningElement() : el;
+  if (!(opening.isKind(SyntaxKind.JsxOpeningElement) || opening.isKind(SyntaxKind.JsxSelfClosingElement))) {
+    return false;
+  }
+  const attr = opening.getAttribute("className");
+  if (attr === undefined || !attr.isKind(SyntaxKind.JsxAttribute)) {
+    return false;
+  }
+  return ROW_FLOOR_RE.test(attr.getText());
+}
+
+/** A direct JsxExpression child that is `{xs.map((x) => <El …/>)}` → the produced element, or undefined. */
+function mappedElementOf(child: Node): Node | undefined {
+  if (!child.isKind(SyntaxKind.JsxExpression)) {
+    return;
+  }
+  const call = child.getExpression();
+  if (call === undefined || !call.isKind(SyntaxKind.CallExpression)) {
+    return;
+  }
+  const callee = call.getExpression();
+  if (!(callee.isKind(SyntaxKind.PropertyAccessExpression) && MAP_CALLEE_RE.test(callee.getText()))) {
+    return;
+  }
+  const cb = call.getArguments()[0];
+  if (cb === undefined || !(cb.isKind(SyntaxKind.ArrowFunction) || cb.isKind(SyntaxKind.FunctionExpression))) {
+    return;
+  }
+  const body = cb.getBody();
+  const produced = body.isKind(SyntaxKind.ParenthesizedExpression) ? body.getExpression() : body;
+  return produced.isKind(SyntaxKind.JsxElement) || produced.isKind(SyntaxKind.JsxSelfClosingElement) ? produced : undefined;
+}
+
+/** Does this row element (or its same-file component resolution) hold a floorless Button, unfenced? */
+function countsAsFloorlessRow(sf: SourceFile, el: Node): boolean {
+  if (rowCarriesFloor(el)) {
+    return false;
+  }
+  if (floorlessButtonIn(el)) {
+    return true;
+  }
+  const opening = el.isKind(SyntaxKind.JsxElement) ? el.getOpeningElement() : el;
+  if (!(opening.isKind(SyntaxKind.JsxOpeningElement) || opening.isKind(SyntaxKind.JsxSelfClosingElement))) {
+    return false;
+  }
+  const body = sameFileComponentBody(sf, opening.getTagNameNode().getText());
+  return body !== undefined && floorlessButtonIn(body);
+}
+
+/** The pitch weight of one Stack: literal element children count 1, a `.map` child counts 2 (N runtime
+ *  rows). ≥2 unfenced floorless rows = a sub-floor pitch population. */
+function floorlessRowWeight(sf: SourceFile, stack: JsxElement): number {
+  let weight = 0;
+  for (const child of stack.getJsxChildren()) {
+    if (child.isKind(SyntaxKind.JsxElement) || child.isKind(SyntaxKind.JsxSelfClosingElement)) {
+      weight += countsAsFloorlessRow(sf, child) ? 1 : 0;
+      continue;
+    }
+    const produced = mappedElementOf(child);
+    if (produced !== undefined && countsAsFloorlessRow(sf, produced)) {
+      weight += 2;
+    }
+  }
+  return weight;
+}
+
+const STACK_ROWS_CONTROL_RE = /rows\s*=\s*(?:\{\s*)?["']control["']/u;
+
 export const gate: GateDescriptor = {
   name: "no-floorless-control-in-wrap",
   docRow: "Core-Enforcement-Active-Gates.md (Layer 3)",
@@ -158,6 +268,23 @@ export const gate: GateDescriptor = {
   fix: FIX,
   scanRoot: (p) => p.startsWith("packages/client/src/") || p.startsWith("packages/ui/src/"),
   kinds: [SyntaxKind.JsxAttribute],
+  // The VERTICAL-PITCH arm (#884 C3) — judged per Stack element, so it rides the per-file hook rather
+  // than the size-attr subscription (the founding rows reach their Buttons through same-file components,
+  // which no ancestor walk from the attr can see).
+  visitFile: (sf, ctx) => {
+    if (!sf.getFullText().includes("<Stack")) {
+      return;
+    }
+    for (const el of sf.getDescendantsOfKind(SyntaxKind.JsxElement)) {
+      const opening = el.getOpeningElement();
+      if (opening.getTagNameNode().getText() !== "Stack" || STACK_ROWS_CONTROL_RE.test(opening.getText())) {
+        continue;
+      }
+      if (floorlessRowWeight(sf, el) >= 2) {
+        ctx.report(opening, { token: "Stack", offset: Math.max(opening.getText().indexOf("Stack"), 0) });
+      }
+    }
+  },
   begin: () => {
     seenDeferred.clear();
   },
@@ -278,8 +405,69 @@ export const gate: GateDescriptor = {
       expect: { count: 2, messageIncludes: "JUDGMENT_DEFERRED" },
       why: "mode B (§4.4a): the real tree's anchor is present but neither exempted file carries a live hit — both rows red as stale",
     },
+    {
+      // The VERTICAL-PITCH founding shape (#884 C3 — rpg-stat-profile-editor.tsx's geometry, spelled
+      // same-file so the one-level component resolution can prove it): a Stack mapping a row component
+      // whose body holds a floorless inline-edit Button — N runtime rows at a sub-floor pitch.
+      files:
+        "const ATTRS = ['a', 'b'];\n" +
+        "function AttributeRow({ k }: { k: string }) {\n" +
+        '  return (\n    <Row gap="field">\n      <span>{k}</span>\n      <Button size="inline">edit</Button>\n    </Row>\n  );\n}\n' +
+        "export function Editor() {\n" +
+        '  return (\n    <Stack gap="field">\n      {ATTRS.map((k) => (\n        <AttributeRow key={k} k={k} />\n      ))}\n    </Stack>\n  );\n}\n',
+      at: "packages/client/src/features/rpg/components/pitch-editor.tsx",
+      expect: { count: 1, token: "Stack" },
+      why: "the vertical-pitch founding shape: a mapped same-file row component carrying an inline Button — #850's 28 P1s (rows of 18px hit boxes whose 28px pseudo lands on the neighbour row's text)",
+    },
+    {
+      files:
+        "export function TwoRows() {\n" +
+        '  return (\n    <Stack gap="field">\n' +
+        '      <Row><Button size="inline">a</Button></Row>\n      <Row><Button size="inline">b</Button></Row>\n' +
+        "    </Stack>\n  );\n}\n",
+      at: "packages/client/src/features/preset/components/two-rows.tsx",
+      expect: { count: 1, token: "Stack" },
+      why: "the LITERAL-rows spelling of the pitch arm: two direct rows each holding a floorless Button, no map needed",
+    },
   ],
   mustPass: [
+    {
+      files:
+        "export function TwoRows() {\n" +
+        '  return (\n    <Stack gap="field" rows="control">\n' +
+        '      <Row><Button size="inline">a</Button></Row>\n      <Row><Button size="inline">b</Button></Row>\n' +
+        "    </Stack>\n  );\n}\n",
+      at: "packages/client/src/features/preset/components/floored-stack.tsx",
+      why: 'the pitch arm\'s ONE-TOKEN fix: `rows="control"` floors every direct row at the pointer-conditional control height (layout/variants.ts)',
+    },
+    {
+      files:
+        "export function FencedRows() {\n" +
+        '  return (\n    <Stack gap="field">\n' +
+        '      <Row className="pointer-coarse:min-h-touch-target"><Button size="inline">a</Button></Row>\n' +
+        '      <Row className="min-h-control-sm"><Button size="inline">b</Button></Row>\n' +
+        "    </Stack>\n  );\n}\n",
+      at: "packages/client/src/features/preset/components/fenced-rows.tsx",
+      why: "every counted row carries its OWN floor — the per-row spelling of the same fact passes",
+    },
+    {
+      files:
+        "export function OneRow() {\n" +
+        '  return (\n    <Stack gap="field">\n' +
+        '      <Row><Button size="inline">a</Button></Row>\n      <Row><span>plain text row</span></Row>\n' +
+        "    </Stack>\n  );\n}\n",
+      at: "packages/client/src/features/preset/components/one-row.tsx",
+      why: "a SINGLE floorless row has no sub-floor neighbour to lend its pseudo to — no pitch population",
+    },
+    {
+      files:
+        'import { TrackerValue } from "#components/tracker-blocks";\n' +
+        "const XS = ['a', 'b'];\n" +
+        "export function CrossFile() {\n" +
+        '  return (\n    <Stack gap="field">\n      {XS.map((x) => (\n        <TrackerValue key={x} />\n      ))}\n    </Stack>\n  );\n}\n',
+      at: "packages/client/src/features/rpg/components/cross-file-rows.tsx",
+      why: "DECLARED LIMIT: a CROSS-FILE row component (the live rpg-stat-profile-editor shape — TrackerValue/HintEditor imports) is invisible to the same-file resolution; the founding geometry is proven by the same-file fixture",
+    },
     {
       files:
         "const SKIES = ['clear', 'snow'];\n" +
