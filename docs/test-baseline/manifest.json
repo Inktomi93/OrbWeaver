@@ -291,6 +291,7 @@
     "tests/client/features/persona/components/persona-this-chat-section.ct.tsx",
     "tests/client/features/persona/lib/persona-editor-model.test.ts",
     "tests/client/features/persona/surfaces/persona-panel-surface.ct.tsx",
+    "tests/client/features/plugin/components/extensions-list-header.ct.tsx",
     "tests/client/features/plugin/components/plugin-command-args-body.ct.tsx",
     "tests/client/features/plugin/components/plugin-frame.ct.tsx",
     "tests/client/features/plugin/components/plugin-message-footer-surfaces.ct.tsx",

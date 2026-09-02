@@ -262,6 +262,29 @@ function ExtensionsListHarness(): ReactElement {
   return <>{list()}</>;
 }
 
+/** The Extensions section's LIST chrome-band, through the real registry (`registry.get("extensions").listHeader`)
+ *  — the exact call the shell's `.shell-panel-header` band makes (#1190). */
+export function ExtensionsListHeaderStory({ width = SWITCHER_PANE_WIDTH }: { readonly width?: number }): ReactElement {
+  return (
+    <CtDataProviders>
+      <CtRealSectionRegistry>
+        <div style={{ width }}>
+          <ExtensionsListHeaderHarness />
+        </div>
+      </CtRealSectionRegistry>
+    </CtDataProviders>
+  );
+}
+
+function ExtensionsListHeaderHarness(): ReactElement {
+  const registry = useSectionRegistry();
+  const listHeader = registry.get("extensions").listHeader;
+  if (typeof listHeader !== "function") {
+    throw new Error("ct-stories: the extensions section declares no list header");
+  }
+  return <>{listHeader()}</>;
+}
+
 /** The Extensions section's CONTENT pane, through the real registry. `selectKey` drives the module-singleton
  *  drill store the way a switcher click does (`selectPluginPage`) — `null` is the no-selection arm, which is a
  *  DIFFERENT state from "there are no pages" and must read differently. */
