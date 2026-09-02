@@ -40,12 +40,14 @@ current as of the newest commit.
 | Leg | Full-read files | Lines | Findings |
 | - | - | - | - |
 | Leg 1 | 24 | \~26,100 | F1 (#1240) · F2 (#1241) · F3 (#1242) |
-| Leg 2 so far | 8 | \~6,850 | none yet |
-| **Total** | **32 / 469** | \~32,950 | ceiling P3 |
+| Leg 2 so far | 14 | \~9,290 | none yet |
+| **Total** | **38 / 469** | \~35,390 | ceiling P3 |
 
 Leg-2 files read and judged (chunk 1): `web-weave.ct.tsx`, `slider.ct.tsx`, `toast.ct.tsx`,
 `sandbox-frame.ct.tsx`, `params-deck.ct.tsx`, `chat-room-surface.ct.tsx`,
-`preset-library-surface.ct.tsx`, `preset-editor-surface.ct.tsx`.
+`preset-library-surface.ct.tsx`, `preset-editor-surface.ct.tsx`. Chunk 2:
+`character-editor-surface.ct.tsx`, `character-create-actions.ct.tsx`, `preset-structure-tabs.ct.tsx`,
+`section-drill-in.ct.tsx`, `lane-run-control.ct.tsx`, `image-edit-body.ct.tsx`.
 
 ## 2. Findings
 
@@ -133,22 +135,76 @@ Full read; the file is the corpus's densest negative-assertion surface and every
 - Fabrication surface: fixtures are typed (`PresetDetailFixture`), input casts are narrowing reads of
   recorder payloads (`input as { id?: string }`), not double-casts reaching an assert.
 
+## 3b. Per-file verdicts — chunk 2 (6 files, all CLEAN)
+
+### 3b.1 `tests/client/features/character/surfaces/character-editor-surface.ct.tsx` (1,086 lines) — CLEAN
+
+Full read. The subtlest site in the file is the §6.2 tag-detach pin (`:365`–`:391`): a one-shot
+`expect(cardUpdated).toBe(false)` after a fast poll on the junction write — superficially the F2 shape.
+Judged BARRIERED, by two independent mechanisms: (a) the preceding
+`expect(getByText("Saved")).toBeVisible()` barrier rides the post-#81 status seam, which flips to
+"Saving…" the INSTANT any card-form field dirties (the transcript pin at `:270` proves that), so under a
+tags-re-enter-the-form regression "Saved" only re-appears after the write lands and the flag is true;
+(b) a direct-mutate regression from the same click rides the same batch tick as the recorded
+`bulkRemoveCardTag` (the same-click ordering argument). Elsewhere: the F2 portrait-geometry pin re-polls
+the trigger box on every assert; the P2-5 row-fill fences poll `readFillAtAssertion()`; the #1132
+paint-pair reads are variant-stamped computed styles behind attach barriers; DRAFT-TRUST arms
+discriminate on the `img` element allowlist with the untrusted arm's text-still-renders control; the
+transcript pattern is the same closed-window form the preset editor wears. No stale premise found.
+
+### 3b.2 `tests/client/features/character/components/character-create-actions.ct.tsx` (183 lines) — CLEAN
+
+`attemptCreate` settles on the Create button re-enabling (`isPending` drop) — the resting-dialog
+barrier every subsequent read sits behind. `hitExtent` one-shots follow visibility + coarse-pointer
+polls. Carries the two-sided control the mapper needs (the INTERNAL\_SERVER\_ERROR arm proves the field
+line does NOT render for unfixable faults). Copy spelled literally with the red-first receipt reasoning
+documented in-file.
+
+### 3b.3 `tests/client/features/preset/components/preset-structure-tabs.ct.tsx` (62 lines) — CLEAN
+
+`overflows()` one-shots are static layout reads behind visible + `toContainText` barriers; both ends of
+the width range asserted; the moved teaching copy pinned on the hint.
+
+### 3b.4 `tests/client/features/preset/components/prompt-assembly/section-drill-in.ct.tsx` (517 lines) — CLEAN
+
+The item-10 baseline/geometry one-shots (`boxOf`/`labelBox`/`controlBoxOf`) read static post-drill
+layout (boundingBox auto-waits visibility; no async content in the drill-in); the O-14 ghost-fit claims
+are `expect.poll`. The fork-eject pin (§5.2) exercises the real keyed-remount seam and asserts the
+editor is STILL open post-retarget. The zone-arm column-stability test deliberately reads
+before/after. `trackColor()` one-shots follow `toBeChecked` barriers and resolve the token via a live
+swatch, not a literal. Structural-omission pins (marker menu, pivot, carrier) assert with the
+menu/drill OPEN.
+
+### 3b.5 `tests/client/features/refinery/components/lane-run-control.ct.tsx` (180 lines) — CLEAN
+
+`hairlineGeometry`/`hairlineAfterContent` throw loudly on a missing host (never a silent zero), carry
+the segment-exists positive control before the containment negatives, and read animation-invariant used
+values (the travel animates position, not the 33% width). Geometry one-shots ride boundingBox
+auto-wait; the type-step comparison resolves `--text-micro` live rather than a hardcoded px.
+
+### 3b.6 `tests/client/features/imagery/components/image-edit-body.ct.tsx` (216 lines) — CLEAN
+
+The #654 reservation pins are the strongest shape: pre-decode box read behind `toBeVisible`, then
+`release()` + poll on `naturalWidth`, then geometry-equality with the reserved box (a would-reflow tree
+reds because the forced layout read reflects the decoded intrinsic size). The `ONESHOT-OK` at `:168`
+is barriered by the preceding count poll. #702 negatives (`toBeHidden` on the wrong-toast and the
+absent hand-off) run behind the retrying `toContainText` settle on the partial-success toast.
+
 ## 4. Verified clean so far (leg-2 methods)
 
-- Full-read of all 8 files above, whole files, no sampling.
+- Full-read of all 14 files above, whole files, no sampling.
 - Fresh merged-tree Phase A scan (469/469 files, scannedFileCount cross-checked against `git ls-files`).
-- Helper-hoisted site classification against the scan's site list; every site in the 8 files accounted
+- Helper-hoisted site classification against the scan's site list; every site in the 14 files accounted
   for above.
 
 ## 5. Remaining leg-2 queue (state at this commit)
 
-Core helper-await files still to read (\~27): character-editor-surface (1086), section-drill-in (517),
-theme-scope (654), workloads-group (461), menu (453), context-tabs-panel (418), assembly-preview-panel
-(569), corpus-content (586), databank-detail-surface (494), analytics-overview-surface (382, ex-fenced),
-tabs (358), injections-manager (335), payload-view (320), code-editor (295), image-edit-body (216),
-accessible-name-quality.suite (206), image-detail-body (204), config-save-footer-adjacent files,
-character-create-actions (183), lane-run-control (180), message-media-block (161), room-overrides-form
-(146), form-identity.suite (138), web-weave-touch (104), preset-structure-tabs (62). Ex-fenced batch:
+Core helper-await files still to read (\~21): theme-scope (654), workloads-group (461), menu (453),
+context-tabs-panel (418), assembly-preview-panel (569), corpus-content (586), databank-detail-surface
+(494), analytics-overview-surface (382, ex-fenced), tabs (358), injections-manager (335), payload-view
+(320), code-editor (295), accessible-name-quality.suite (206), image-detail-body (204),
+message-media-block (161), room-overrides-form (146), form-identity.suite (138), web-weave-touch (104).
+Ex-fenced batch:
 appearance-background-section (405), config-teacher (370), config-search-input (234), config-save-footer
 (202), config-list-collection-group (113), config-group-placeholder (101), config-palette-source (57).
 Pre-fold-flagged (last, dead-text risk): config-welcome (755), config-content-surface (908),
