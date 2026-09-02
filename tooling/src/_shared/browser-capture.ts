@@ -29,8 +29,11 @@ export interface PageCapture {
   readonly requests: Map<string, CapturedRequest>;
 }
 
-/** Wire capture and media onto one page. Tabs and isolated contexts share this exact event contract. */
-export function wireProbePage(page: Page, capture: PageCapture): Promise<void> {
+/** Wire capture (and, by default, media) onto one page. Tabs and isolated contexts share this exact event
+ *  contract. `"observe"` wires the events only — an ATTACHED session (a sibling on a daemon's browser)
+ *  declares the owner's media for its environment contract and must never re-emulate it on the owner's
+ *  page: a re-applied override from an attacher is the P3 leak the substrate exists to end. */
+export function wireProbePage(page: Page, capture: PageCapture, mediaMode: "apply" | "observe" = "apply"): Promise<void> {
   const { media, consoleLines, consoleMessages, pageErrors, requests } = capture;
   page.on("console", (message: ConsoleMessage) => {
     const type = message.type();
@@ -69,5 +72,5 @@ export function wireProbePage(page: Page, capture: PageCapture): Promise<void> {
       captured.failed = request.failure()?.errorText ?? "failed";
     }
   });
-  return applyProbeMedia(page, media);
+  return mediaMode === "apply" ? applyProbeMedia(page, media) : Promise.resolve();
 }

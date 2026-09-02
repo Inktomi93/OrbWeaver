@@ -237,6 +237,22 @@ rather than one directory symlink, which is required and not cosmetic: CT and e2
 straight into it with Playwright, and file headers across `packages/` cite individual shots as durable
 evidence.
 
+**The STATEFUL SESSION (#1231, `docs/design/1208-instrument-substrate.md` §3.7–§3.8).** A `pnpm snap --session <name> …` call is still ONE run with ONE slot — the CLIENT opens it (`withInstrumentRun("snap")`)
+and the session DAEMON adopts it for the call's artifacts through the explicit-slot form
+`beginInstrumentRun(instrument, root, { slotDir })` (`_shared/artifact-out.ts`): an adopted slot gets no
+marker and is never published by the adopter; the owner publishes at its own finish, so a killed call
+leaves the client's `.inflight` marker and `reports/snaps/<name>.png` keeps naming the previous COMPLETE
+run. The session itself is a run slot too, instrument `snap-session`
+(`reports/runs/snap-session/<runId>/`), opened by the daemon so its `.inflight` marker carries the DAEMON's
+pid — `abandonedRuns(root, "snap-session")` therefore lists exactly the sessions whose daemon died, with no
+new marker machinery, and every `--session` call, `--session-status` and `--stage-status` reads it first
+and prints `SESSION DEAD …` (exit 2 on a call). The slot is settled (published with no aliases) when the
+session closes or a sweep reaps it. Session-lifetime evidence (the console/page-error/request rings) lives
+with the daemon and reaches `reports/` only through `--session-export <name>`, which writes
+`sessions/<name>/*.json` into the EXPORTING call's slot — published as `reports/sessions/<name>/…`
+pointers. The daemon's own stdout is `<main>/.cache/snap-session/<name>.log` beside its socket and row,
+deliberately NOT inside its slot (the enumerating finish would publish it as a pointer).
+
 - **The door is `withInstrumentRun(instrument, main)`** (`tooling/src/_shared/artifacts.ts`), called by the
   instrument's `cli.ts` around its RUN leg only — the help/misuse legs write nothing and must not mint an
   empty slot. It NAMES the slot on stdout at the start (`run slot reports/runs/<instrument>/<runId>`) plus

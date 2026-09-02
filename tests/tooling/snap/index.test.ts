@@ -170,6 +170,39 @@ test("snap rejects unknown flags and multiple routes instead of silently choosin
   expect(args.errors).toContain("expected at most one route, got 2");
 });
 
+// The stateful-session family (docs/design/1208-instrument-substrate.md §4.4, #1231): the flags parse, a
+// positional route is REMEMBERED as given (a session call with none drives the live page), and the
+// combinations that cannot mean anything refuse by name.
+test("session flags parse, the admin modes stand alone, and a bad TTL or name refuses before any browser boots", () => {
+  const driving = parseSnapArgs(["--session", "p-home-perf", "--session-ttl", "0.5", "--eval", "1"]);
+  expect(driving.errors).toEqual([]);
+  expect(driving.session).toBe("p-home-perf");
+  expect(driving.sessionTtlMin).toBe(0.5);
+  expect(driving.routeGiven).toBe(false);
+  expect(driving.route).toBe("/");
+  expect(parseSnapArgs(["--session", "p-x", "/chat"]).routeGiven).toBe(true);
+
+  const status = parseSnapArgs(["--session-status", "p-x"]);
+  expect(status.errors).toEqual([]);
+  expect(status.sessionStatus).toBe(true);
+  expect(status.sessionStatusName).toBe("p-x");
+  expect(parseSnapArgs(["--session-status"]).sessionStatusName).toBeNull();
+  expect(parseSnapArgs(["--session-status", "--json"]).sessionStatusName).toBeNull();
+
+  expect(parseSnapArgs(["--session-close", "p-x", "--session-sweep"]).errors).toContain(
+    "--session-status, --session-close, --session-sweep and --session-export are mutually exclusive",
+  );
+  expect(parseSnapArgs(["--session", "p-x", "--session-status"]).errors).toContainEqual(expect.stringContaining("stand alone"));
+  expect(parseSnapArgs(["--session-ttl", "5", "/"]).errors).toContain("--session-ttl <min> is a boot property of --session <name>");
+  expect(parseSnapArgs(["--session", "p-x", "--session-ttl", "0"]).errors).toContainEqual(
+    expect.stringContaining("--session-ttl expects a positive number of minutes"),
+  );
+  expect(parseSnapArgs(["--session", "p-x", "--matrix", "--isolated"]).errors).toContainEqual(expect.stringContaining("phase 1"));
+  expect(parseSnapArgs(["--session", "p-x", "--stage-status"]).errors).toContainEqual(expect.stringContaining("do not combine with --stage-status"));
+  expect(parseSnapArgs(["--session", "P-Bad Name"]).errors).toContainEqual(expect.stringContaining("must match"));
+  expect(parseSnapArgs(["--session"]).errors).toContain("--session requires a value");
+});
+
 test("snap rejects missing and malformed flag values", () => {
   const args = parseSnapArgs(["--click", "--no-shot", "--pages", "0", "--viewport", "wide", "--fill", "input", "--ls", "broken", "--crop", "100x"]);
 

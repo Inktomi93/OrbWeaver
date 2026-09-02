@@ -117,6 +117,9 @@ export interface ProbeContext {
   readonly requests: Map<string, CapturedRequest>;
   readonly harPath: string | null;
   readonly settingsEvidence: SettingsShimEvidence;
+  /** False for a context ANOTHER connection owns — an `attachProbeSession` over a session daemon's browser.
+   *  `closeProbeSession` never closes it: a disconnect is not a takeover. Absent = owned (every launch). */
+  readonly owned?: boolean;
 }
 
 export interface ProbeSession {
@@ -148,9 +151,16 @@ export interface ProbeSession {
 
 interface ProbeResourceOwner {
   readonly browser: { readonly close: () => Promise<void> };
-  readonly contexts: readonly { readonly context: { readonly close: () => Promise<void> } }[];
+  readonly contexts: readonly { readonly context: { readonly close: () => Promise<void> }; readonly owned?: boolean }[];
   readonly cleanup?: readonly (() => Promise<void>)[];
 }
+
+/** What an ATTACH declares about the browser it joins — the owning session's environment, read from its
+ *  registry row, so the attached session's environment contract is the session's rather than a guess. */
+export type ProbeAttachOptions = Pick<
+  ProbeLaunchOptions,
+  "viewport" | "device" | "colorScheme" | "reducedMotion" | "contrast" | "reducedTransparency" | "deviceScaleFactor"
+>;
 
 interface BuildContextArgs {
   readonly browser: Browser;
@@ -240,7 +250,7 @@ async function buildContext(args: BuildContextArgs): Promise<ProbeContext> {
   return { context, pages, consoleLines, consoleMessages, pageErrors, requests, harPath, settingsEvidence };
 }
 
-function resolveDeviceDescriptor(opts: ProbeLaunchOptions): (typeof devices)[string] | null {
+function resolveDeviceDescriptor(opts: Pick<ProbeLaunchOptions, "device">): (typeof devices)[string] | null {
   if (opts.device === undefined || opts.device === null) {
     return null;
   }
@@ -330,9 +340,53 @@ export async function launchProbeSession(opts: ProbeLaunchOptions): Promise<Prob
   };
 }
 
-/** Close every owned context and the browser even when the probe body throws or returns early. */
+/** ATTACH to a browser another connection owns — a stateful-session daemon's, over its debugging endpoint
+ *  (docs/design/1208-instrument-substrate.md §3.4) — the ONE attach site (gate `tooling-shared-plumbing`
+ *  arm H). The returned session is shape-identical to a launched one so every consumer is oblivious, with
+ *  two deliberate differences: its context is `owned: false` (a disconnect is not a takeover — the owner's
+ *  page survives `closeProbeSession`; the phase-0 spike's `second.close()` receipt), and the owner's shims
+ *  and rings stay on the OWNER's connection while this session wires its own capture for the duration of
+ *  its run (context-scoped shims keep applying to what an attached client drives — the spike's Q1).
+ *  `environment` is what the session DECLARED: it feeds the environment contract and is never re-applied
+ *  to the page (re-emulating media from an attacher would be the P3 leak this substrate ends). */
+export async function attachProbeSession(endpoint: string, environment: ProbeAttachOptions): Promise<ProbeSession> {
+  const browser = await chromium.connectOverCDP(endpoint);
+  const context = browser.contexts()[0];
+  const pages = context?.pages() ?? [];
+  const page = pages[0];
+  if (context === undefined || page === undefined) {
+    await browser.close();
+    throw new Error(`attached browser at ${endpoint} exposes no page — the session has not booted a context yet`);
+  }
+  const deviceDescriptor = resolveDeviceDescriptor(environment);
+  const environmentContract = resolveBrowserEnvironmentContract(environment, deviceDescriptor);
+  const consoleLines: string[] = [];
+  const consoleMessages: CapturedConsole[] = [];
+  const pageErrors: string[] = [];
+  const requests = new Map<string, CapturedRequest>();
+  const capture: PageCapture = { media: resolveProbeMedia(environment), consoleLines, consoleMessages, pageErrors, requests };
+  for (const tab of pages) {
+    await wireProbePage(tab, capture, "observe");
+  }
+  const attached: ProbeContext = {
+    context,
+    pages,
+    consoleLines,
+    consoleMessages,
+    pageErrors,
+    requests,
+    harPath: null,
+    // No shim was asked of THIS connection — the owner's is the one that applies (null = unrequested).
+    settingsEvidence: { appearanceApplied: null, themeApplied: null, themeResolution: null, themeCatalog: null },
+    owned: false,
+  };
+  return { browser, context, page, pages, consoleLines, consoleMessages, pageErrors, requests, environmentContract, contexts: [attached] };
+}
+
+/** Close every OWNED context and the browser even when the probe body throws or returns early. An attached
+ *  session's context is not ours to close (`owned: false`); closing its `browser` handle is a disconnect. */
 export async function closeProbeSession(session: ProbeResourceOwner): Promise<void> {
-  const contextResults = await Promise.allSettled(session.contexts.map(({ context }) => context.close()));
+  const contextResults = await Promise.allSettled(session.contexts.filter(({ owned }) => owned !== false).map(({ context }) => context.close()));
   const failures = contextResults.flatMap((result) => (result.status === "rejected" ? [result.reason] : []));
   // @orb-gate-ignore caught-failure-ownership(empty:error): collected into failures[] which the two checks below rethrow as-is or as an AggregateError — never silently dropped. Ends if the failures array stops being surfaced after this block.
   try {

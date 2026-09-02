@@ -8,6 +8,7 @@ import type { ThemeRequest } from "../../_shared/theme.ts";
 import type { CssCascadeQuery, CssEvidenceReceipt } from "./cascade.ts";
 import type { DeadCssEvidence } from "./dead-css.ts";
 import type { LighthouseDevice, LighthouseMode } from "./lighthouse.ts";
+import type { NetworkProfileName } from "./load-emulation.ts";
 
 /** `--scale`'s resolved shape. `mode` is what Playwright's `screenshot({ scale })` receives — it accepts
  *  ONLY "css" | "device", so a numeric ask reaches the pixels through `deviceScaleFactor`, which raises
@@ -82,34 +83,6 @@ export type Assertion =
   | { kind: "url"; expected: string; page: number }
   | { kind: "overflow"; selector: string; page: number }
   | { kind: "focus"; selector: string; page: number };
-
-/** The `--network` vocabulary: Chrome DevTools' OWN predefined conditions, by their current DevTools
- *  names (`front_end/core/sdk/NetworkManager.ts`). "Fast 3G" is DevTools' retired name for "Slow 4G" and
- *  is accepted as an alias by the parser, never as a distinct profile — two spellings, one condition. The
- *  numbers live with the resolver in lib/throttle.ts. */
-const NETWORK_PROFILE_NAMES = ["fast-4g", "offline", "slow-3g", "slow-4g"] as const;
-export type NetworkProfileName = (typeof NETWORK_PROFILE_NAMES)[number];
-
-/** One CDP `Network.emulateNetworkConditions` payload. */
-export interface NetworkConditions {
-  readonly offline: boolean;
-  /** Bytes/second; -1 disables the limit (CDP's own sentinel). */
-  readonly downloadThroughput: number;
-  readonly uploadThroughput: number;
-  /** Additional minimum latency, ms. */
-  readonly latency: number;
-}
-
-/** The two wall-clock ceilings one drive is judged against (#836). They are a function of what the run is
- *  serving (a cold `--isolated` vite) AND of the load arm it declared: a `--network`/`--cpu-throttle` run
- *  is deliberately slower, so holding it to the un-throttled budget refuses the flag it was asked for.
- *  Resolved by `driveBudgets` in lib/throttle.ts. */
-export interface DriveBudgets {
-  /** `page.goto` ceiling. */
-  readonly nav: number;
-  /** `data-app-ready` ceiling — the one that decides whether a capture is of the SETTLED app. */
-  readonly ready: number;
-}
 
 export interface Args {
   /** Print the operator cookbook and exit without touching a browser or stage. */
@@ -324,8 +297,34 @@ export interface Args {
   stageSweep: boolean;
   /** Consent for --stage-down to tear down a stage owned by ANOTHER checkout while its band is still
    *  bound (#447 follow-on) — the #108 cross-checkout teardown is unchanged, it just says so out loud
-   *  now. No effect on your own stage, an idle one, or a dead one. */
+   *  now. No effect on your own stage, an idle one, or a dead one. Also the consent `--session-close`
+   *  needs for a foreign LIVE session. */
   force: boolean;
+  // ── STATEFUL SESSIONS (one browser per lane, kept between calls — docs/design/1208-instrument-substrate.md) ──
+  /** `--session <name>`: drive the named session's LIVE browser, booting its daemon on first use. Every
+   *  later call forwards its argv to the daemon over the repo-keyed socket; a call carrying a browser-
+   *  lifetime flag is refused (lib/session-plan.ts SESSION_ONLY_FLAGS). null = the one-shot path, untouched. */
+  session: string | null;
+  /** `--session-daemon <name>`: the DAEMON'S OWN entry — spawned by ops/session-client.ts through
+   *  _shared/proc.ts, never typed by an operator. The rest of the argv is the session's BOOT argv. */
+  sessionDaemon: string | null;
+  /** `--session-status [<name>]`: every session of this repo — owner · pid · live/dead · idle · binding —
+   *  then exit. Ignores the route. */
+  sessionStatus: boolean;
+  sessionStatusName: string | null;
+  /** `--session-close <name>`: close a live session (a foreign LIVE one needs --force) or reap a dead one. */
+  sessionClose: string | null;
+  /** `--session-sweep`: reap dead and idle-past-TTL sessions plus orphan registry entries; live ones are
+   *  reported and never touched. */
+  sessionSweep: boolean;
+  /** `--session-export <name>`: copy the session's console / page-error / request rings into THIS run's
+   *  slot, published as reports/sessions/<name>/…. */
+  sessionExport: string | null;
+  /** `--session-ttl <min>`: the boot call's idle TTL (default 30 min; env ORB_SESSION_TTL_MIN). */
+  sessionTtlMin: number | null;
+  /** Did the argv carry a positional route? `route` keeps its "/" default for every reader; a session call
+   *  with NO route and no --file drives the LIVE page instead of re-navigating (§3.3). */
+  routeGiven: boolean;
 }
 
 export interface CaptureOutcome {
@@ -375,6 +374,9 @@ export interface AssertionOutcome {
   readonly line: string;
   readonly failed: boolean;
 }
+
+// `--expect-no-overflow`'s shapes (OverflowSide/OverflowEscape/OverflowProbe) live in ./overflow.ts.
+// The `--network`/`--cpu-throttle` vocabulary and the drive ceilings live in ./load-emulation.ts.
 
 export interface PerfEvidence {
   readonly navigation: { readonly domContentLoadedMs: number; readonly loadMs: number; readonly responseMs: number } | null;
