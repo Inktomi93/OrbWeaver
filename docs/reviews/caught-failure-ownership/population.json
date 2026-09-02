@@ -2,18 +2,18 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 453,
-    "enforced": 450,
+    "sites": 455,
+    "enforced": 452,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 450,
+      "deliberate-absorb": 452,
       "detached-owned": 3,
       "unproven": 0
     },
     "byGrammar": {
       "promise": 124,
       "default": 135,
-      "empty": 194
+      "empty": 196
     }
   },
   "rows": [
@@ -4817,7 +4817,7 @@
     {
       "siteId": "tooling/src/snap/ops/capture.ts::empty:catch::1",
       "path": "tooling/src/snap/ops/capture.ts",
-      "line": 111,
+      "line": 117,
       "column": 9,
       "grammar": "empty",
       "position": "empty:catch",
@@ -4825,12 +4825,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "best-effort fallback shot after the nav already failed — the RESULT line's navError still reports the real failure. Ends if the comment's \"still lands\" claim stops holding.",
-      "markerLine": 108
+      "markerLine": 114
     },
     {
       "siteId": "tooling/src/snap/ops/capture.ts::empty:e::1",
       "path": "tooling/src/snap/ops/capture.ts",
-      "line": 104,
+      "line": 110,
       "column": 5,
       "grammar": "empty",
       "position": "empty:e",
@@ -4838,7 +4838,7 @@
       "snippet": "} catch (e) {",
       "verdict": "deliberate-absorb",
       "reason": "captured into outcome.navError, which the caller counts into the verdict's navigation total and prints as NAV ERROR. Ends if navError stops being read.",
-      "markerLine": 76
+      "markerLine": 78
     },
     {
       "siteId": "tooling/src/snap/ops/cascade.ts::empty:error::1",
@@ -5062,6 +5062,19 @@
       "markerLine": 87
     },
     {
+      "siteId": "tooling/src/snap/ops/lighthouse.ts::empty:catch::1",
+      "path": "tooling/src/snap/ops/lighthouse.ts",
+      "line": 89,
+      "column": 7,
+      "grammar": "empty",
+      "position": "empty:catch",
+      "ordinal": 1,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "the bounded retry loop OWNS this failure — a connection refused before Chrome binds its listener is the normal first tick, and exhaustion throws the named error below. Ends if exhaustion stops throwing.",
+      "markerLine": 82
+    },
+    {
       "siteId": "tooling/src/snap/ops/map.ts::promise:count::1",
       "path": "tooling/src/snap/ops/map.ts",
       "line": 200,
@@ -5166,9 +5179,22 @@
       "markerLine": 354
     },
     {
+      "siteId": "tooling/src/snap/ops/request-log.ts::empty:error::1",
+      "path": "tooling/src/snap/ops/request-log.ts",
+      "line": 52,
+      "column": 5,
+      "grammar": "empty",
+      "position": "empty:error",
+      "ordinal": 1,
+      "snippet": "} catch (error) {",
+      "verdict": "deliberate-absorb",
+      "reason": "the failure IS the result — an unreadable body (a torn-down page, a redirect with no text) becomes the `error` arm of RequestBodyOutcome, which finishRequestLog prints as \"the body could not be read: <reason>\" and the RESULT line reports as `request-body=error`. Ends if that arm stops being printed.",
+      "markerLine": 48
+    },
+    {
       "siteId": "tooling/src/snap/ops/scenario.ts::empty:error::1",
       "path": "tooling/src/snap/ops/scenario.ts",
-      "line": 324,
+      "line": 340,
       "column": 5,
       "grammar": "empty",
       "position": "empty:error",
@@ -5176,7 +5202,7 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "printed as SCENARIO ERROR and routed through EXIT.misuse, the process's own exit code. Ends if that exit code stops being surfaced.",
-      "markerLine": 321
+      "markerLine": 337
     },
     {
       "siteId": "tooling/src/snap/ops/shot.ts::empty:catch::1",

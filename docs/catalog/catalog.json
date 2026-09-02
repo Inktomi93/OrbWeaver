@@ -10854,9 +10854,9 @@
       "path": "docs/design/1195-devtools-mcp-retirement.md",
       "lane": "design",
       "issue": 5,
-      "lines": 65,
-      "bytes": 5642,
-      "sha256": "0eb74adabfc2d72c845b73be7399dbf1238901e587ac6139b9aaf73df481e29d",
+      "lines": 95,
+      "bytes": 8218,
+      "sha256": "f427918198331c0a374be16ace90672ea0b22977bb89ff8f007d1834c3de76da",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -10873,13 +10873,14 @@
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "0eb74adabfc2d72c845b73be7399dbf1238901e587ac6139b9aaf73df481e29d",
-        "verifiedCommit": "33d7067f059e4fcbf43c672d8a2e967479aa68f2",
+        "verifiedSha256": "f427918198331c0a374be16ace90672ea0b22977bb89ff8f007d1834c3de76da",
+        "verifiedCommit": "2642a54df9154c339a0b87c4ca0d5df8b48829f5",
         "verifiedAt": "2026-09-02",
         "claims": [
           {
             "claim": "Lighthouse (41 calls, snapshot-mode dominant) is the one MCP use that produced findings snap could not (axe label-content-name-mismatch, target-size); it becomes a snap arm before the MCP retires.",
             "evidence": [
+              "re-attested at 2642a54df (#1198 #1199 #1227, lane p-snap-arms): §2 items 1-2 marked BUILT with the seam (snap's own chromium on --remote-debugging-port, puppeteer-core attaches to THAT browser, the target matched by CDP id; defaultViewport:null and disableFullPageScreenshot measured as load-bearing), the pins and the live plugins-pane receipt (desktop audited=36 failed-audits=1 label-content-name-mismatch ×4 — the MCP's own finding reproduced in-house; requests=2445). Read in full at the fold by the primary orchestrator.",
               {
                 "kind": "issue",
                 "target": "#1198"

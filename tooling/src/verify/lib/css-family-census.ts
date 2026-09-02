@@ -66,6 +66,8 @@ export const EXPECTED_DECLARATION_CENSUS: Readonly<Record<ProductStylesheet, num
   // (`bg-foreground/55` + `text-background`) forced an INVERTED ink whose ground is the control's own fill,
   // which `seed-theme-ink-contrast` can only judge against the eight surface GROUNDS — 48 findings,
   // unpassable by tuning. A `-foreground` pair is the shape that census can read (tokens.json).
+  // +1 (2026-09-02, #1204): `--dimension-shell-content-floor` — the chat-width dial's floor derived from the
+  // Geist reading measure (650 + 40 gutter + 48 flat insets = 738px) instead of the pre-Geist 680px literal.
   [THEME]: 300,
   // +2 (2026-09-02, #1128): `--scroll-fade-depth` / `--scroll-fade-floor` on `.scroll-fade-y`. The block
   // -axis fade ramped to ZERO alpha over 10% of the pane and measured two live buttons at 1.75:1 at the
