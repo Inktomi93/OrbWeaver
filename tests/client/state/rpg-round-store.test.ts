@@ -1,4 +1,4 @@
-import { applyRpgRoundEvent, clearRpgRounds, readRpgRoundPendingForTest } from "@orb/client/state";
+import { applyRpgRoundEvent, clearRpgRounds, readRpgRoundPendingForTest } from "@orb/client/state/pure";
 import type { ChatId, ChatTurnId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";

@@ -4,7 +4,7 @@
 // produced N identical accessible names. The escalation must fire ONLY on the collided rows (a longer stamp
 // everywhere is noise), and it must terminate even when two rows are identical to the millisecond.
 
-import { rowQualifiers } from "@orb/client/lib";
+import { rowQualifiers } from "@orb/client/lib/pure";
 import { describe } from "vitest";
 import { expect, test } from "../../support/fixtures.ts";
 

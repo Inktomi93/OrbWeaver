@@ -12,8 +12,8 @@
 
 import type { ChatBusDeps } from "@orb/client/data/bus";
 import { applyChatBusEvent } from "@orb/client/data/bus";
-import type { TurnSlot } from "@orb/client/state";
-import { chatStream, subscribeTurnSlot } from "@orb/client/state";
+import type { TurnSlot } from "@orb/client/state/pure";
+import { chatStream, subscribeTurnSlot } from "@orb/client/state/pure";
 import type { ChatBusEvent, ChatDeltaEvent, ChatWarningCode, TurnIntent } from "@orb/contracts/chat";
 import { CHAT_BUS_EVENT_TYPES } from "@orb/contracts/chat";
 import type { CharacterId, ChatId, MessageId, MessageVariantId, PersonaId, WorldBookId, WorldEntryId } from "@orb/kit/ids";

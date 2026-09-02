@@ -2,7 +2,7 @@
 // the cache and returns `undefined` for an uncached key, and that it NEVER fetches (no queryFn runs) — the
 // read-only-peek contract the §11.3 gate exemption rests on.
 
-import { peekQueryData } from "@orb/client/data";
+import { peekQueryData } from "@orb/client/data/pure";
 import { QueryClient } from "@tanstack/react-query";
 import { expect, test } from "../../support/fixtures.ts";
 

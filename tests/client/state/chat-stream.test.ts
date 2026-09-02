@@ -6,8 +6,8 @@
 // reset — there is no `clearTurn` (removed as dead API; a terminal slot just lingers until the next
 // `beginTurn`, and a fresh id never collides with a prior test's lingering slot).
 
-import type { TurnSlot } from "@orb/client/state";
-import { __setFrameSchedulerForTest, chatStream, isLiveTurnPhase, subscribeTurnSlot, subscribeUserMessageCommitted } from "@orb/client/state";
+import type { TurnSlot } from "@orb/client/state/pure";
+import { __setFrameSchedulerForTest, chatStream, isLiveTurnPhase, subscribeTurnSlot, subscribeUserMessageCommitted } from "@orb/client/state/pure";
 import type { ChatDeltaEvent, TurnIntent } from "@orb/contracts/chat";
 import type { ChatId, MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

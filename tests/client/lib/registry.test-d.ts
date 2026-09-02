@@ -2,7 +2,7 @@
 // object missing (or adding) a member of the `Id` vocabulary tuple fails to compile. Runtime
 // behavior lives in the .test.ts sibling; these assertions run in the vitest `types` lane.
 
-import { createRegistry } from "@orb/client/lib";
+import { createRegistry } from "@orb/client/lib/pure";
 import { expectTypeOf, test } from "vitest";
 
 const ID_TUPLE = ["a", "b", "c"] as const;

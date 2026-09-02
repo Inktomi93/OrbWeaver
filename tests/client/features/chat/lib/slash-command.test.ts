@@ -2,7 +2,7 @@
 // decides whether a draft is posted or executed, so the edge cases here are the ones that would either
 // swallow a user's message or fire a command they did not ask for.
 
-import type { SlashCommandContribution } from "@orb/client/lib";
+import type { SlashCommandContribution } from "@orb/client/lib/pure";
 import {
   classifySlashKey,
   matchSlashCommands,

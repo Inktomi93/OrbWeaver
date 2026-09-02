@@ -7,7 +7,7 @@
 // surfaceId)` is what forces the body to resolve off the live cache and show the honest "gone" arm instead.
 // The other pin is that a re-open REPLACES — an outcome that opens a second dialog must never render the first.
 
-import { __readPluginDialogSubjectForTest, __resetPluginDialog, clearPluginDialog, openPluginDialog } from "@orb/client/state";
+import { __readPluginDialogSubjectForTest, __resetPluginDialog, clearPluginDialog, openPluginDialog } from "@orb/client/state/pure";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
 import { expect, test } from "../../support/fixtures.ts";

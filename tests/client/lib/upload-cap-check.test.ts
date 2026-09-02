@@ -3,7 +3,7 @@
 // size guard at all, reading `UploadCaps.assetUpload` (census #72 item 1: the field was served but
 // never read).
 
-import { oversizeUploadMessage } from "@orb/client/lib";
+import { oversizeUploadMessage } from "@orb/client/lib/pure";
 import { expect, test } from "../../support/fixtures.ts";
 
 function fileOfSize(bytes: number): File {

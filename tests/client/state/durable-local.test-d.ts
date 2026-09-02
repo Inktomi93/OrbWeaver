@@ -8,7 +8,7 @@
 // The runtime arms (no-op / adopt / switch, and the forged-hint pin) live in the `.test.ts` sibling and are
 // untouched — only a type-level assertion can see the boundary this file guards.
 
-import { bindDurableLocalToUser } from "@orb/client/state";
+import { bindDurableLocalToUser } from "@orb/client/state/pure";
 import type { UserId, VerifiedUserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expectTypeOf, test } from "vitest";

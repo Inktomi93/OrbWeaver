@@ -2,7 +2,7 @@
 // compile fact (see registry.test-d.ts); these pin the runtime behavior tsc can't: unknown-id throw,
 // duplicate-contributor-id throw at construction, list() order.
 
-import { createContributorRegistry, createRegistry } from "@orb/client/lib";
+import { createContributorRegistry, createRegistry } from "@orb/client/lib/pure";
 import { describe } from "vitest";
 import { expect, test } from "../../support/fixtures.ts";
 

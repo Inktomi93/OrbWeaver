@@ -111,6 +111,33 @@
     "tests/tooling/snap/ops/contrast.int.test.ts",
     "tests/tooling/stack/lib/engine-launch.test.ts",
     "tests/ui/charts/meter/waystone-treatment.test.ts",
+    // #1243, Arm A-prime — the fork ledger for #1228's residual (types:graph 454/45 → 0/0, see
+    // packages/client/src/{data,lib,state}/pure.ts): these deep-import a client SOURCE file directly
+    // (the pre-existing "Deep import the PURE module, not the barrel" convention — see
+    // tests/client/data/import-bundle.test.ts's own comment), and that file is ITSELF DOM-coupled —
+    // not reachable through a pure surface at all, so per the fork's own escape clause ("never force
+    // it") these tests are homed here instead of minted a pure re-export.
+    "tests/client/data/auth-bootstrap.test.ts",
+    "tests/client/data/auth-config.test.ts",
+    "tests/client/data/stale-session.test.ts",
+    "tests/client/features/chat/lib/message-actions-reveal.test.ts",
+    // Same fork, SOURCE-internal-`#data` flavor: route-guards.ts itself (not the test) imports the
+    // FULL `#data` internal alias (package.json's `"#*": "./src/*/index.ts"` always resolves to the
+    // barrel, never the pure subpath) for reasons unrelated to what this test exercises — no pure
+    // surface can intercept an internal package-alias import without editing route-guards.ts itself
+    // (src churn, out of the fork's fence).
+    "tests/client/features/auth/lib/route-guards.test.ts",
+    // Same fork, agent-nav flavor: `buildAgentNav` (the ONE export the test needs) is defined in
+    // agent-nav/index.ts itself, which imports panel-request.ts (DOM-coupled) at module scope — no
+    // separable pure symbol exists.
+    "tests/client/agent-nav/index.test.ts",
+    // Same fork, forms flavor: `mirrorDraft`/`readDraftSeed` share ONE FILE (entity-form-base.ts) with
+    // `focusFirstInvalidField` (`document.querySelector`) — same shape as agent-nav above, no separable
+    // pure symbol. `createAutosaveEntityForm` (the fourth) is defined in a `.tsx` React component.
+    "tests/client/features/character/lib/character-draft-store.test.ts",
+    "tests/client/features/preset/lib/preset-draft-store.test.ts",
+    "tests/client/features/world-info/lib/entry-draft-store.test.ts",
+    "tests/client/forms/create-autosave-entity-form-model.test-d.ts",
     "tests/e2e/**/*.ts"
   ]
 }

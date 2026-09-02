@@ -9,7 +9,7 @@
 // `turnCompleted` closes the turn slot synchronously, the ghost unmounts, and the canon row underneath is
 // still the OLD variant until the wire answers.
 
-import { applyCanonView, createTrpcClient, createTrpcProxy } from "@orb/client/data";
+import { applyCanonView, createTrpcClient, createTrpcProxy } from "@orb/client/data/pure";
 import type { ChatBusEvent, MessageView } from "@orb/contracts/chat";
 import type { ChatId, MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

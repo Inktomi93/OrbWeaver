@@ -4,7 +4,7 @@
 // `fetch` is stubbed at the global boundary (the sanctioned "fake at the edges" seam — the `safeFetch`
 // precedent, `tests/server/infra/network/egress.test.ts`), never a hand-mock of `uploadAsset` itself.
 
-import { uploadAsset } from "@orb/client/data";
+import { uploadAsset } from "@orb/client/data/pure";
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { afterEach, vi } from "vitest";

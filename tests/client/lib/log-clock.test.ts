@@ -2,7 +2,7 @@
 // zero-padded. Determinism: the Date is injected (the ambient default is the sanctioned
 // observability clock, exercised only for shape — not value — here).
 
-import { logClock } from "@orb/client/lib";
+import { logClock } from "@orb/client/lib/pure";
 import { describe } from "vitest";
 import { expect, test } from "../../support/fixtures.ts";
 

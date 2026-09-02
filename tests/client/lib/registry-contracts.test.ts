@@ -2,8 +2,8 @@
 // the M3 correctness core: when-filtering, own-then-contributor declared order, the duplicate-id THROW at
 // mint construction, null-state passthrough, and actions binding.
 
-import type { ContextRegionDef, ContextTabDef, ContextTabsSpec } from "@orb/client/lib";
-import { createContributorRegistry, defineContextRegion, defineContextTabs, resolveContextTabs } from "@orb/client/lib";
+import type { ContextRegionDef, ContextTabDef, ContextTabsSpec } from "@orb/client/lib/pure";
+import { createContributorRegistry, defineContextRegion, defineContextTabs, resolveContextTabs } from "@orb/client/lib/pure";
 import { describe } from "vitest";
 import { expect, test } from "../../support/fixtures.ts";
 

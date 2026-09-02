@@ -4,7 +4,7 @@
 // enabled only when DEV *and* the Redux DevTools extension exist — neither here, so zustand must
 // not console-warn about a missing extension).
 
-import { createGatedStore, STORE_DEVTOOLS_ENABLED } from "@orb/client/state";
+import { createGatedStore, STORE_DEVTOOLS_ENABLED } from "@orb/client/state/pure";
 import { describe, vi } from "vitest";
 import { expect, test } from "../../support/fixtures.ts";
 

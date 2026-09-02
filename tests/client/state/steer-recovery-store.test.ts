@@ -3,7 +3,7 @@
 // React render — the `recent-models-store.test.ts` posture). Pins the ring semantics the wand's "Recent
 // steers" recall renders FROM: unshift (most-recent-first) · de-dupe on re-fire · cap · blank never stored.
 
-import { __readRecentSteersForTest, __resetRecentSteers, pushFiredSteer, STEER_RECOVERY_CAP } from "@orb/client/state";
+import { __readRecentSteersForTest, __resetRecentSteers, pushFiredSteer, STEER_RECOVERY_CAP } from "@orb/client/state/pure";
 import { beforeEach, describe } from "vitest";
 import { expect, test } from "../../support/fixtures.ts";
 
