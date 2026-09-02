@@ -72,6 +72,20 @@
 // saw — and deleted four dead `Crew*` names the 2026-07-25 rollback had purged. No actual secret-bearing bus
 // field exists today; D16 holds.
 //
+// THE POPULATION IS EVERY LIVE WIRE-EVENT UNION, NOT THE FOUNDING FOUR (#1030 F4, 2026-09-01). The rpg
+// ROOM stream (`RpgBusEvent` — fanned to every subscriber of an open room exactly like `ChatBusEvent`) and
+// `AutomationBusEvent` were outside BOTH D16 arms: not in this gate's population AND not in the
+// dep-cruiser `bus-contract-no-credentials` rule's path scope, which also missed world-info. The gate now
+// scans seven homes (+50 members on the live tree, still zero findings) and the cruiser rule's `from` path
+// covers chat|user-bus|notifications|events|world-info|rpg|automation|workloads.
+//   FORKED, NOT SILENTLY DROPPED — `WorkloadEvent` (`contracts/workloads/events.ts`) is the one live union
+//   still outside this gate's population, because it declares `succeeded.result?: unknown` DELIBERATELY,
+//   with a written argument (the per-kind shapes are `WorkloadResultByKind`, resolved by the reader that
+//   knows the kind). Admitting it would RED the open-value arm on that field, and the two honest answers —
+//   discriminate `result` per kind, or grant a cited exemption row — are both owner/architecture calls, not
+//   a gate lane's. Its resolve-time arm IS closed (the cruiser rule now covers `workloads/`). Ends when the
+//   owner rules on `result`.
+//
 // DECLARED LIMITS, each with a `mustPass` row: (1) a NAMED alias of an open shape (`type Meta =
 // Record<string, string>` used as a field type) is not resolved — that is the non-transitive boundary
 // above, and reversing it is a ruling, not an omission; `Record` itself is matched BY NAME because the
@@ -92,6 +106,11 @@ const BUS_FILES = new Set([
   "packages/contracts/src/notifications/index.ts",
   "packages/contracts/src/events/index.ts",
   "packages/contracts/src/world-info/index.ts",
+  // #1030 F4: two live wire-event unions that fanned out with NO D16 arm over them — the rpg ROOM stream
+  // (`RpgBusEvent`, fanned to every subscriber of an open room exactly like `ChatBusEvent`) and the
+  // automation bus. Both were outside this population AND outside the dep-cruiser tier-1 arm.
+  "packages/contracts/src/rpg/bus.ts",
+  "packages/contracts/src/automation/index.ts",
 ]);
 
 // The type-alias / interface declaration names that ARE bus event payload shapes (the ROOTS of the member
@@ -99,7 +118,16 @@ const BUS_FILES = new Set([
 // notification zod schema is matched separately (see below). This list is a ROOT set, not the member
 // denominator: an arm/base that is NOT named here is reached transitively and scanned all the same, which
 // is why `PersonaUpdatedEvent`/`WorldInfoUpdatedEvent` (live `DomainEvent` arms) need no row.
-const BUS_DECL_NAMES = new Set(["ChatBusEvent", "UserBusEvent", "WiBusEvent", "DomainEvent", "CharacterUpdatedEvent", "AssetCreatedEvent"]);
+const BUS_DECL_NAMES = new Set([
+  "ChatBusEvent",
+  "UserBusEvent",
+  "WiBusEvent",
+  "DomainEvent",
+  "CharacterUpdatedEvent",
+  "AssetCreatedEvent",
+  "RpgBusEvent",
+  "AutomationBusEvent",
+]);
 const NOTIFICATION_SCHEMA_NAME = "notificationEventSchema";
 
 // The credential-smell tokens (lowercased substring match on a field name). `key` catches apiKey/secretKey;
@@ -127,6 +155,11 @@ const STALE_PREFIX =
   "stale SANCTIONED_FIELDS row — no scanned bus payload declares this field any more, so the sanction is a " +
   "standing grant on a NAME (ratchet down): the day a real secret is spelled that way on a bus member it " +
   "would ship silently. Delete the row: ";
+const EMPTY_ROOT_PREFIX =
+  "this bus root resolved to ZERO wire members — it yielded no field, deferred to no other named root, and " +
+  "was not refused out loud, so the gate scanned an EMPTY denominator for it while every other arm stayed " +
+  "green (#1030 F3: a schema/type refactor can hollow a root out without renaming it, which the §4.6 " +
+  "blindness arm cannot see because the name still resolves). Re-derive the root's shape: ";
 const BLIND_PREFIX =
   "blindness tripwire (GATE-AUTHORING.md §4.6) — this gate dispatches on EXACT declaration names, and this " +
   "one resolves to NOTHING across the five bus homes on the real tree. A rename/move turns the whole arm " +
@@ -142,8 +175,29 @@ const walkedDecls = new Set<string>();
 const seenMembers = new Set<string>();
 
 /** The per-pass member census — the semantic denominator this gate declares through `ctx.scan`, so a drop
- *  is visible even when the file count is unchanged (the audit's prevention program #1). */
-const census = { events: 0, local: 0, inherited: 0, carriers: new Set<string>(), refPayloads: 0, namedArms: 0 };
+ *  is visible even when the file count is unchanged (the audit's prevention program #1). `revisits` counts
+ *  identity references to a declaration ALREADY walked this pass (a carrier two roots share) — a real
+ *  contribution for the per-root alarm below, even though it adds no new member. */
+const census = { events: 0, local: 0, inherited: 0, carriers: new Set<string>(), refPayloads: 0, namedArms: 0, revisits: 0 };
+
+/** Fail-closed reports made this pass. THE PER-ROOT ALARM READS THIS (#1030 F3): a root that yielded no
+ *  member, deferred to no other named root, and produced no refusal taught the reader NOTHING — a schema or
+ *  type refactor can drop a root's denominator to zero while every other arm stays green. Counting the
+ *  refusals keeps the alarm from double-reporting a root the reader already refused out loud. */
+let shapeReports = 0;
+/** Roots whose walk contributed nothing at all — reported in `finalize` (see `EMPTY_ROOT_PREFIX`). */
+const emptyRoots = new Set<string>();
+
+/** Every fail-closed refusal goes through here so the per-root alarm can see it. */
+function reportShape(ctx: GateRunCtx, at: Node, token: string): void {
+  shapeReports += 1;
+  ctx.report(at, { token, offset: 0 });
+}
+
+/** What a root's walk has contributed so far — the alarm compares this before and after. */
+function contributionMark(): string {
+  return `${census.local + census.inherited}/${census.namedArms}/${census.revisits}/${shapeReports}`;
+}
 
 /** A real run loads the whole workspace; a conformance mini-project loads a handful. The blindness sweep is
  *  a WHOLE-CORPUS claim, so it self-guards on this — §4.5's real-tree anchor in its RENAME-PROOF form: a
@@ -253,14 +307,19 @@ const OPEN_RECORD_NAME = "Record";
 
 type NamedTypeDecl = InterfaceDeclaration | TypeAliasDeclaration;
 
-/** Resolve a type NAME to its declaration in this workspace. Pure language-service resolution over the
- *  shared pure-AST project: same-file names and relative imports resolve; a specifier the harness project
- *  cannot resolve (a package subpath / `#alias`) returns undefined, which the caller reports rather than
- *  swallows. A definition outside the run's root (or inside node_modules) is deliberately NOT accepted —
- *  a vendored shape is not a wire contract this gate can adjudicate. */
-function resolveNamedType(nameNode: Node, root: string): NamedTypeDecl | undefined {
+/** Resolve a type NAME to EVERY declaration it names in this workspace. Pure language-service resolution
+ *  over the shared pure-AST project: same-file names and relative imports resolve; a specifier the harness
+ *  project cannot resolve (a package subpath / `#alias`) yields an EMPTY list, which the caller reports
+ *  rather than swallows. A definition outside the run's root (or inside node_modules) is deliberately NOT
+ *  accepted — a vendored shape is not a wire contract this gate can adjudicate.
+ *
+ *  ALL declarations, not the first (#1030 F2): TypeScript MERGES same-named interfaces, so a carrier can be
+ *  declared twice and `getDefinitionNodes()` returns both. A `find()` walked one of them and the members of
+ *  the other — which are on the wire exactly the same — were never scanned. `walkedDecls` already dedupes,
+ *  so walking every declaration costs one visit each. */
+function resolveNamedTypes(nameNode: Node, root: string): readonly NamedTypeDecl[] {
   const definitions = N.isIdentifier(nameNode) ? nameNode.getDefinitionNodes() : [];
-  return definitions.find((def): def is NamedTypeDecl => {
+  return definitions.filter((def): def is NamedTypeDecl => {
     if (!(N.isInterfaceDeclaration(def) || N.isTypeAliasDeclaration(def))) {
       return false;
     }
@@ -289,12 +348,14 @@ function followIdentityRef(nameNode: Node, at: Node, ctx: GateRunCtx): void {
     census.namedArms += 1;
     return;
   }
-  const decl = resolveNamedType(nameNode, ctx.root);
-  if (decl === undefined) {
-    ctx.report(at, { token: `${UNRESOLVED_TOKEN}${name}`, offset: 0 });
+  const decls = resolveNamedTypes(nameNode, ctx.root);
+  if (decls.length === 0) {
+    reportShape(ctx, at, `${UNRESOLVED_TOKEN}${name}`);
     return;
   }
-  walkDecl(decl, "inherited", ctx);
+  for (const decl of decls) {
+    walkDecl(decl, "inherited", ctx);
+  }
 }
 
 /** Walk a declaration's MEMBER list. A member that is not a plain named property — an index signature, a
@@ -304,11 +365,11 @@ function followIdentityRef(nameNode: Node, at: Node, ctx: GateRunCtx): void {
 function walkMembers(members: readonly Node[], frame: WalkFrame): void {
   for (const member of members) {
     if (!N.isPropertySignature(member)) {
-      frame.ctx.report(member, { token: `${UNSUPPORTED_TOKEN}${member.getKindName()}`, offset: 0 });
+      reportShape(frame.ctx, member, `${UNSUPPORTED_TOKEN}${member.getKindName()}`);
       continue;
     }
     if (N.isComputedPropertyName(member.getNameNode())) {
-      frame.ctx.report(member, { token: `${UNSUPPORTED_TOKEN}ComputedName`, offset: 0 });
+      reportShape(frame.ctx, member, `${UNSUPPORTED_TOKEN}ComputedName`);
       continue;
     }
     countReferencedPayload(member);
@@ -347,25 +408,25 @@ function walkFieldType(typeNode: Node | undefined, frame: WalkFrame): void {
     return;
   }
   if (N.isMappedTypeNode(typeNode)) {
-    frame.ctx.report(typeNode, { token: `${UNSUPPORTED_TOKEN}MappedType`, offset: 0 });
+    reportShape(frame.ctx, typeNode, `${UNSUPPORTED_TOKEN}MappedType`);
     return;
   }
   if (N.isTypeReference(typeNode)) {
     if (typeNode.getTypeName().getText() === OPEN_RECORD_NAME) {
-      frame.ctx.report(typeNode, { token: `${UNSUPPORTED_TOKEN}${OPEN_RECORD_NAME}`, offset: 0 });
+      reportShape(frame.ctx, typeNode, `${UNSUPPORTED_TOKEN}${OPEN_RECORD_NAME}`);
     }
     return;
   }
   const openValue = OPEN_VALUE_KINDS.get(typeNode.getKind());
   if (openValue !== undefined) {
-    frame.ctx.report(typeNode, { token: `${UNSUPPORTED_TOKEN}${openValue}`, offset: 0 });
+    reportShape(frame.ctx, typeNode, `${UNSUPPORTED_TOKEN}${openValue}`);
   }
 }
 
 /** Walk a type NODE in an identity position, recording its direct members and following its references. */
 function walkTypeNode(typeNode: Node | undefined, frame: WalkFrame): void {
   if (typeNode === undefined) {
-    frame.ctx.report(frame.owner, { token: `${UNSUPPORTED_TOKEN}missing-type-node`, offset: 0 });
+    reportShape(frame.ctx, frame.owner, `${UNSUPPORTED_TOKEN}missing-type-node`);
     return;
   }
   if (N.isUnionTypeNode(typeNode) || N.isIntersectionTypeNode(typeNode)) {
@@ -389,13 +450,14 @@ function walkTypeNode(typeNode: Node | undefined, frame: WalkFrame): void {
   if (MEMBERLESS_KINDS.has(typeNode.getKind())) {
     return;
   }
-  frame.ctx.report(typeNode, { token: `${UNSUPPORTED_TOKEN}${typeNode.getKindName()}`, offset: 0 });
+  reportShape(frame.ctx, typeNode, `${UNSUPPORTED_TOKEN}${typeNode.getKindName()}`);
 }
 
 /** Walk one declaration's members + its identity references. Deduped so a shared carrier is walked once. */
 function walkDecl(decl: NamedTypeDecl, origin: "local" | "inherited", ctx: GateRunCtx): void {
   const key = nodeKey(decl);
   if (walkedDecls.has(key)) {
+    census.revisits += 1;
     return;
   }
   walkedDecls.add(key);
@@ -414,9 +476,14 @@ function walkDecl(decl: NamedTypeDecl, origin: "local" | "inherited", ctx: GateR
 
 /** Scan a NAMED bus root (`type ChatBusEvent = …` / `interface CharacterUpdatedEvent { … }`). */
 function scanBusDecl(decl: NamedTypeDecl, ctx: GateRunCtx): void {
-  seenRoots.add(decl.getName());
+  const name = decl.getName();
+  seenRoots.add(name);
   census.events += 1;
+  const before = contributionMark();
   walkDecl(decl, "local", ctx);
+  if (contributionMark() === before) {
+    emptyRoots.add(name);
+  }
 }
 
 /** zod builders that neither add a key nor admit an unknown one, so an ARM may chain through them. Anything
@@ -446,13 +513,13 @@ function scanSchemaSpread(prop: Node, expression: Node, frame: WalkFrame): void 
     scanSchemaExpr(spread.getExpression(), true, { ...frame, origin: "inherited" });
     return;
   }
-  frame.ctx.report(prop, { token: `${UNSUPPORTED_TOKEN}Spread`, offset: 0 });
+  reportShape(frame.ctx, prop, `${UNSUPPORTED_TOKEN}Spread`);
 }
 
 /** Record the wire keys one `z.object({ … })` literal declares. */
 function scanSchemaObject(obj: Node, frame: WalkFrame): void {
   if (!N.isObjectLiteralExpression(obj)) {
-    frame.ctx.report(obj, { token: `${UNSUPPORTED_TOKEN}${obj.getKindName()}`, offset: 0 });
+    reportShape(frame.ctx, obj, `${UNSUPPORTED_TOKEN}${obj.getKindName()}`);
     return;
   }
   for (const prop of obj.getProperties()) {
@@ -461,11 +528,11 @@ function scanSchemaObject(obj: Node, frame: WalkFrame): void {
       continue;
     }
     if (!(N.isPropertyAssignment(prop) || N.isShorthandPropertyAssignment(prop))) {
-      frame.ctx.report(prop, { token: `${UNSUPPORTED_TOKEN}${prop.getKindName()}`, offset: 0 });
+      reportShape(frame.ctx, prop, `${UNSUPPORTED_TOKEN}${prop.getKindName()}`);
       continue;
     }
     if (N.isComputedPropertyName(prop.getNameNode())) {
-      frame.ctx.report(prop, { token: `${UNSUPPORTED_TOKEN}ComputedName`, offset: 0 });
+      reportShape(frame.ctx, prop, `${UNSUPPORTED_TOKEN}ComputedName`);
       continue;
     }
     recordMember(prop, prop.getName(), frame.origin, frame.ctx);
@@ -484,7 +551,7 @@ function scanSchemaIdentifier(expr: Node, strict: boolean, frame: WalkFrame): vo
   }
   const init = resolveSchemaInit(expr, frame.ctx.root);
   if (init === undefined) {
-    frame.ctx.report(expr, { token: `${UNRESOLVED_SCHEMA_TOKEN}${expr.getText()}`, offset: 0 });
+    reportShape(frame.ctx, expr, `${UNRESOLVED_SCHEMA_TOKEN}${expr.getText()}`);
     return;
   }
   const key = nodeKey(init);
@@ -522,7 +589,7 @@ function scanSchemaCall(expr: Node, callee: PropertyAccessExpression, strict: bo
     scanSchemaExpr(callee.getExpression(), strict, frame);
     return;
   }
-  frame.ctx.report(expr, { token: `${UNSUPPORTED_TOKEN}z.${method}`, offset: 0 });
+  reportShape(frame.ctx, expr, `${UNSUPPORTED_TOKEN}z.${method}`);
 }
 
 /** Walk one schema expression, recording every wire key it contributes.
@@ -542,7 +609,7 @@ function scanSchemaExpr(node: Node, strict: boolean, frame: WalkFrame): void {
     return;
   }
   if (strict) {
-    frame.ctx.report(expr, { token: `${UNSUPPORTED_TOKEN}${expr.getKindName()}`, offset: 0 });
+    reportShape(frame.ctx, expr, `${UNSUPPORTED_TOKEN}${expr.getKindName()}`);
   }
 }
 
@@ -550,7 +617,7 @@ function scanSchemaExpr(node: Node, strict: boolean, frame: WalkFrame): void {
  *  argument is reported rather than resolved (a declared limit: the arms list is spelled inline today). */
 function scanSchemaArms(arms: Node, frame: WalkFrame): void {
   if (!N.isArrayLiteralExpression(arms)) {
-    frame.ctx.report(arms, { token: `${UNSUPPORTED_TOKEN}non-literal-arms`, offset: 0 });
+    reportShape(frame.ctx, arms, `${UNSUPPORTED_TOKEN}non-literal-arms`);
     return;
   }
   for (const arm of arms.getElements()) {
@@ -564,7 +631,11 @@ function scanSchemaArms(arms: Node, frame: WalkFrame): void {
 function scanNotificationSchema(init: Node, ctx: GateRunCtx): void {
   seenRoots.add(NOTIFICATION_SCHEMA_NAME);
   census.events += 1;
+  const before = contributionMark();
   scanSchemaExpr(init, true, { ctx, origin: "local", owner: init });
+  if (contributionMark() === before) {
+    emptyRoots.add(NOTIFICATION_SCHEMA_NAME);
+  }
 }
 
 export const gate: GateDescriptor = {
@@ -607,6 +678,9 @@ export const gate: GateDescriptor = {
     census.carriers.clear();
     census.refPayloads = 0;
     census.namedArms = 0;
+    census.revisits = 0;
+    shapeReports = 0;
+    emptyRoots.clear();
   },
   finalize: (ctx) => {
     ctx.scan({
@@ -615,6 +689,19 @@ export const gate: GateDescriptor = {
       scanned: census.local + census.inherited,
       skipped: { "arm scanned at its own named root": census.namedArms },
     });
+    // THE PER-ROOT DENOMINATOR ALARM (#1030 F3). Unlike the blindness sweep it needs no corpus anchor: it
+    // judges only roots this run actually RESOLVED, so a mini-project that declares one root is judged on
+    // that root alone. A root contributes when it yields a member, defers to another named root, revisits a
+    // carrier a sibling already walked, or is REFUSED out loud — none of the four means the reader learned
+    // nothing, and a root that did none of them has an empty denominator nothing else would report.
+    for (const name of emptyRoots) {
+      ctx.report({
+        file: GATE_SELF,
+        line: 1,
+        column: 0,
+        message: `${EMPTY_ROOT_PREFIX}"${name}" — re-derive it against tooling/src/verify/gates/bus-payload-allowlist.ts`,
+      });
+    }
     if (ctx.scope.kind !== "project") {
       return;
     }
@@ -733,6 +820,28 @@ export const gate: GateDescriptor = {
       at: "packages/contracts/src/notifications/index.ts",
       expect: { count: 1, token: "unsupported-shape:z.loose" },
       why: "the zod spelling of an open key space — `.loose()`/`.passthrough()`/`.catchall()` admit unknown keys, which is exactly what the notifications header promises the wire does NOT do",
+    },
+    {
+      files: 'export type RpgBusEvent = { type: "gameChanged"; chatId: string; sessionSecret: string };\n',
+      at: "packages/contracts/src/rpg/bus.ts",
+      expect: { count: 1, token: "sessionSecret" },
+      why: "THE WIDENED POPULATION (#1030 F4): the rpg ROOM stream fans to every subscriber of an open room exactly like ChatBusEvent, and sat outside BOTH D16 arms — this row is what proves the new home is really scanned rather than merely listed",
+    },
+    {
+      files: {
+        "packages/contracts/src/events/merged-carrier.ts":
+          "export interface MergedCarrier {\n  readonly emittedAt: number;\n}\nexport interface MergedCarrier {\n  readonly apiKey: string;\n}\n",
+        "packages/contracts/src/events/index.ts":
+          'import type { MergedCarrier } from "./merged-carrier.ts";\nexport interface CharacterUpdatedEvent extends MergedCarrier {\n  readonly type: "character.updated";\n}\n',
+      },
+      expect: { count: 1, token: "apiKey" },
+      why: "THE MERGED-DECLARATION ARM (#1030 F2): TypeScript merges same-named interfaces and `getDefinitionNodes()` returns both — a `find()` walked the first and the second declaration's members shipped unscanned",
+    },
+    {
+      files: 'import { z } from "zod";\nexport const notificationEventSchema = z.discriminatedUnion("type", []);\n',
+      at: "packages/contracts/src/notifications/index.ts",
+      expect: { count: 1, messageIncludes: "ZERO wire members" },
+      why: "THE EMPTY-DENOMINATOR ARM (#1030 F3): the name still resolves, so the §4.6 blindness sweep stays quiet by construction — a refactor that hollows a root out is invisible to every other arm, and a gate scanning nothing reports a healthy green forever",
     },
   ],
   mustPass: [
