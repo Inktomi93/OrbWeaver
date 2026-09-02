@@ -1,4 +1,4 @@
-// Shared core for the FILE-EXACT registry-liveness gates — biome-grant-liveness's siblings (#607). A
+// Shared core for the registry-liveness gates — biome-grant-liveness's siblings (#607). A
 // registry (a lint/type config) that names a SPECIFIC FILE to grant a suppression, an override, an
 // include/exclude, or a rule exemption has, per GATE-AUTHORING.md §4.4 mode (B), a row whose subject is
 // never visited by anything — so when the file is deleted or moved the row goes SILENTLY dead: an
@@ -8,8 +8,24 @@
 // clean zero on a shape it cannot statically read); this module owns the parts that are IDENTICAL across
 // them: the exact-vs-glob classifier, the DEAD-row arm, and the two-sided EXEMPT arms. It is a shared LIB,
 // not a parallel framework: biome-grant-liveness is the reference implementation of the same shape.
-import { existsSync } from "node:fs";
-import { join } from "node:path";
+//
+// THE PATTERN HALF (#973). The four gates originally judged only file-EXACT rows and recorded every
+// glob/pattern row as a declared skip — 298 grants (175 depcruise · 78 eslint · 23 tsconfig · 22 biome)
+// that no liveness arm could see, i.e. permanent authority nobody reviews. A pattern's liveness IS
+// decidable whenever its member source is FINITE and derivable from the tree: expand it against the
+// TRACKED corpus (`git ls-files` — never an FS walk, which would make the verdict depend on whether
+// node_modules/dist/reports happen to exist) and require at least ONE current member. Zero members means
+// the pattern names nothing this repo carries — the same loaded-gun class as a dead file-exact row, one
+// level up. Two member sources are offered because dependency-cruiser matches MODULE paths, not only repo
+// paths: `repoPaths` and `dependencyModules` (every name declared in a tracked package.json, rendered as
+// `node_modules/<name>/…` and as a bare specifier). A pattern matching NEITHER is dead.
+// The MATCHER stays with the owning gate — biome/eslint/tsconfig speak globs (node's own
+// `path.matchesGlob`), dep-cruiser speaks regex source, and tsconfig entries resolve against their own
+// config's directory. This module never guesses a syntax and never expands against a root it was not
+// handed: no universal DSL (#973 program shape 5).
+import { existsSync, readFileSync } from "node:fs";
+import { join, matchesGlob } from "node:path";
+import { execNicedSync } from "@orb/tooling/_shared/proc";
 import type { ExemptionTable, Finding } from "../contract/gate.ts";
 
 /** Glob metacharacters the include/override syntaxes understand. A path carrying none of these is
@@ -107,4 +123,217 @@ export function lineFinder(text: string): (path: string) => number {
     cursor.set(quoted, at + 1);
     return at + 1;
   };
+}
+
+/** Index of the first glob metacharacter — the end of the pattern's literal head. */
+function headLength(pattern: string): number {
+  const at = pattern.search(/[*?[\]{}!]/u);
+  return at === -1 ? pattern.length : at;
+}
+
+/** A GLOB matcher over repo-relative members, using node's OWN `path.matchesGlob` — never a hand-rolled
+ *  translator (a bespoke glob DSL is the lying-proof class: it passes its own fixtures and silently
+ *  mis-answers the corpus). The second arm covers a DIRECTORY entry: `packages/db/src/schema` names a tree
+ *  node, and every file under it is a member. */
+export function globMatcher(pattern: string): (member: string) => boolean {
+  // `matchesGlob` recompiles the pattern on EVERY call, so a bare per-member call over the whole corpus is
+  // the dominant cost (measured: +3.9s on eslint's 78 globs alone). The literal head — everything before the
+  // first metacharacter — is a SOUND necessary condition: every one of these syntaxes matches that prefix
+  // verbatim, and a pattern that starts with a metacharacter yields "" and filters nothing. It only ever
+  // skips members that could not have matched.
+  const head = pattern.slice(0, headLength(pattern));
+  return (member) => member.startsWith(head) && (matchesGlob(member, pattern) || matchesGlob(member, `${pattern}/**`));
+}
+
+// ── the PATTERN half (#973) ────────────────────────────────────────────────────────────────────────────
+
+/** One pattern row a gate could not judge as file-exact: where it is declared, its raw source, and the
+ *  matcher the OWNING gate built for it (glob semantics vs regex source vs a config-dir-relative glob —
+ *  this module never re-derives a syntax it was not handed). */
+export interface PatternRow {
+  /** The config file the finding anchors at. */
+  readonly file: string;
+  /** The raw pattern, as authored — the finding token, so the diagnostic names what the reader must fix. */
+  readonly pattern: string;
+  /** 1-based line, or 0 when the line scan could not place it (the finding still stands, file-level). */
+  readonly line: number;
+  /** True iff this repo-relative member path is inside the pattern's set. */
+  readonly matches: (member: string) => boolean;
+}
+
+/** The two member sources a pattern may live against. Both are derived from TRACKED files only, so the
+ *  verdict is identical on a clean checkout and on a machine that has built, installed, and run tests. */
+export interface MemberSources {
+  /** Every tracked repo path (`git ls-files`). */
+  readonly repoPaths: readonly string[];
+  /** Every declared dependency rendered as the module paths a registry writes: `node_modules/<name>/` and
+   *  the bare specifier `<name>/`. Dep-cruiser's `path`/`pathNot` match module paths, not repo paths. */
+  readonly dependencyModules: readonly string[];
+}
+
+export interface PatternLivenessMessages {
+  /** A pattern with ZERO members in either source. Carries the pattern as the finding token. */
+  readonly deadPattern: string;
+  /** A RATIFIED row the config no longer carries. */
+  readonly staleRatified: string;
+  /** A RATIFIED row whose cited producer no longer resolves. */
+  readonly deadCite: string;
+  /** The irreducible BUDGET moved. `{actual}`/`{budget}` are substituted. */
+  readonly budgetMoved: string;
+}
+
+export interface PatternLivenessInput {
+  readonly root: string;
+  readonly rows: readonly PatternRow[];
+  readonly sources: MemberSources;
+  /** Patterns whose liveness is NOT decidable from the tree, each with its `why` + END CONDITION and a
+   *  resolving `cite`. Two-sided exactly like the file-exact EXEMPT tables. */
+  readonly ratified: ExemptionTable<GrantExemption>;
+  /** Which config the ratified-table findings anchor at. */
+  readonly ratifiedAnchorFile: string;
+  /** The §4.5 real-tree anchor: only a genuine full-config read judges the ratified table. */
+  readonly anchorOk: boolean;
+  readonly messages: PatternLivenessMessages;
+}
+
+/** How a pattern row was disposed of, for the gate's `ctx.scan` declaration — the visible denominator that
+ *  replaces an unread `skipReasons` counter (#973 Done). */
+export interface PatternLivenessOutcome {
+  readonly findings: readonly Finding[];
+  /** Patterns with ≥1 current member — judged and live. */
+  readonly live: number;
+  /** Patterns a RATIFIED row forgives. */
+  readonly ratified: number;
+  /** Patterns with no member at all and no ratification — every one is a finding. */
+  readonly dead: number;
+}
+
+/** Every tracked repo path, as repo-relative posix. TRACKED, never an FS walk: a gate that judged patterns
+ *  against the filesystem would answer differently depending on whether node_modules/dist/reports exist
+ *  (and `__g_` fixtures are materialised for milliseconds mid-run by check-gates.int). */
+function trackedRepoPaths(root: string): readonly string[] {
+  // @orb-gate-ignore caught-failure-ownership(default:catch): NOT a swallow — an empty corpus is the
+  // caller's LOUD blindness arm ("I could not measure", never "clean"), and every caller reds on it at
+  // real-config scope. Throwing here would surface as an anonymous harness ToolError instead of the
+  // diagnostic that names the config. Ends if a caller starts reading [] as "no members".
+  try {
+    return execNicedSync("git", ["ls-files", "-z"], { cwd: root })
+      .split("\0")
+      .filter((path) => path !== "");
+  } catch {
+    return [];
+  }
+}
+
+const DEPENDENCY_KEYS = ["dependencies", "devDependencies", "peerDependencies", "optionalDependencies"] as const;
+
+/** Every dependency NAME declared by a tracked package.json, rendered as the two module-path spellings a
+ *  registry writes. This is the second finite source: `node_modules/echarts/` is live exactly while some
+ *  package.json still declares `echarts`, which is a tracked fact, not an install artifact. */
+function manifestDependencyNames(root: string, rel: string): readonly string[] {
+  let parsed: Record<string, unknown>;
+  // @orb-gate-ignore caught-failure-ownership(default:catch): a malformed package.json is the package
+  // manager's red, not this gate's subject — it contributes no names rather than aborting the pass. Ends
+  // if this gate ever becomes the manifest validator.
+  try {
+    parsed = JSON.parse(readFileSync(join(root, rel), "utf-8")) as Record<string, unknown>;
+  } catch {
+    return [];
+  }
+  return DEPENDENCY_KEYS.flatMap((key) => {
+    const block = parsed[key];
+    return typeof block === "object" && block !== null ? Object.keys(block) : [];
+  });
+}
+
+function declaredDependencyModules(root: string, repoPaths: readonly string[]): readonly string[] {
+  const names = new Set<string>();
+  for (const rel of repoPaths) {
+    if (rel.endsWith("package.json") && !rel.includes("node_modules/")) {
+      for (const name of manifestDependencyNames(root, rel)) {
+        names.add(name);
+      }
+    }
+  }
+  return [...names].flatMap((name) => [`node_modules/${name}/index.js`, `${name}/index.js`]);
+}
+
+/** Derive BOTH member sources once per pass. */
+export function memberSources(root: string): MemberSources {
+  const repoPaths = trackedRepoPaths(root);
+  return { repoPaths, dependencyModules: declaredDependencyModules(root, repoPaths) };
+}
+
+/** The rows that still have NO member, after one sweep of `members`.
+ *
+ *  MEMBER-MAJOR, not pattern-major, and that is a measured decision: the naive shape (for each pattern,
+ *  scan the whole corpus) recompiles the glob per call and costs patterns × corpus even when almost every
+ *  pattern is satisfied by the first few files — 78 eslint globs over 8.4k tracked paths took ~12s. Sweeping
+ *  members and RETIRING each pattern the moment it is satisfied leaves only the genuinely dead ones paying
+ *  a full scan, and stops early once every pattern is live. */
+function unsatisfied(rows: readonly PatternRow[], members: readonly string[]): readonly PatternRow[] {
+  const pending = new Set(rows);
+  for (const member of members) {
+    if (pending.size === 0) {
+      return [];
+    }
+    for (const row of pending) {
+      if (row.matches(member)) {
+        pending.delete(row);
+      }
+    }
+  }
+  return [...pending];
+}
+
+/** The two-sided RATIFIED arms — a row the config dropped, and a cite that stopped resolving. */
+function ratifiedArms(input: PatternLivenessInput, carried: ReadonlySet<string>): Finding[] {
+  const out: Finding[] = [];
+  for (const [pattern, row] of Object.entries(input.ratified)) {
+    if (!carried.has(pattern)) {
+      out.push({ file: input.ratifiedAnchorFile, line: 0, column: 0, token: pattern, message: input.messages.staleRatified });
+      continue;
+    }
+    if (!existsSync(join(input.root, row.cite))) {
+      out.push({ file: input.ratifiedAnchorFile, line: 0, column: 0, token: row.cite, message: input.messages.deadCite });
+    }
+  }
+  return out;
+}
+
+/** Judge every pattern row: live (≥1 current member), ratified (a reviewed allowance), or DEAD. */
+export function patternLivenessFindings(input: PatternLivenessInput): PatternLivenessOutcome {
+  const carried = new Set(input.rows.map((row) => row.pattern));
+  const judged = input.rows.filter((row) => input.ratified[row.pattern] === undefined);
+  const ratified = input.rows.length - judged.length;
+  // Repo paths first (the dominant source), then the declared-dependency module paths for whatever is left
+  // — dep-cruiser patterns live on that second corpus and on nothing else.
+  const dead = unsatisfied(unsatisfied(judged, input.sources.repoPaths), input.sources.dependencyModules);
+  const findings: Finding[] = dead.map((row) => ({
+    file: row.file,
+    line: row.line,
+    column: 0,
+    token: row.pattern,
+    message: input.messages.deadPattern,
+  }));
+  const live = judged.length - dead.length;
+  return { findings: [...findings, ...(input.anchorOk ? ratifiedArms(input, carried) : [])], live, ratified, dead: dead.length };
+}
+
+/** The no-growth/stale arm for an IRREDUCIBLE family whose members cannot be enumerated at all (a
+ *  dep-cruiser `$1` backreference, a `${configDir}` template): the count is budgeted, and BOTH directions
+ *  are RED — growth adds unreviewed authority, and a shrink that was not committed leaves a budget nobody
+ *  can trust. Never a silent counter. */
+export function irreducibleBudgetFindings(file: string, actual: number, budget: number, message: string): readonly Finding[] {
+  return actual === budget
+    ? []
+    : [
+        {
+          file,
+          line: 0,
+          column: 0,
+          token: `${String(actual)} vs ${String(budget)}`,
+          message: message.replace("{actual}", String(actual)).replace("{budget}", String(budget)),
+        },
+      ];
 }

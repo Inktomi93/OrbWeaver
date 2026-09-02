@@ -11,6 +11,7 @@
 // DIRECTION: these lists are load-bearing import law and a false RED blocks every lane's floor, so the
 // classifier must treat every ambiguous pattern (prefix, alternation, class, suffix-only) as a SKIP. Both
 // directions are planted here.
+import { execFileSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import type { Node } from "ts-morph";
@@ -18,6 +19,7 @@ import { Project } from "ts-morph";
 import { describe } from "vitest";
 import type { Finding, GateRunCtx, GateScanDeclaration } from "../../../../tooling/src/verify/contract/gate.ts";
 import { classifyRegex, gate } from "../../../../tooling/src/verify/gates/depcruise-grant-liveness.ts";
+import { irreducibleBudgetFindings } from "../../../../tooling/src/verify/lib/grant-liveness.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const CONFIG_REL = ".dependency-cruiser.cjs";
@@ -164,5 +166,111 @@ describe("depcruise-grant-liveness — the REAL tree", () => {
     expect(declared?.candidates ?? 0).toBeGreaterThanOrEqual(ANCHOR);
     expect(declared?.scanned ?? 0).toBeGreaterThan(0);
     expect(run.findings).toEqual([]);
+  });
+});
+
+// ── #973: the PATTERN half. A pattern grant is LIVE only while some TRACKED file or DECLARED dependency is
+// still inside it. These arms need a real git work tree (the corpus is `git ls-files`, deliberately not an
+// FS walk), so each plants a throwaway repo — which is also why conformance cannot drive them: its
+// mini-projects are under the real-config anchor and have no work tree at all.
+
+/** A throwaway git repo at `root` with `files` committed — the corpus these arms judge against. */
+/** The gate's own module — its §4.5 real-tree anchor for the pattern half. */
+const GATE_SELF_REL = "tooling/src/verify/gates/depcruise-grant-liveness.ts";
+
+function plantRepo(root: string, files: Readonly<Record<string, string>>): void {
+  // Plant the gate's OWN module: the pattern half is scoped to a root that carries it (the §4.5 real-tree
+  // anchor shape), so a fixture opts IN by planting the anchor and the file-exact fixtures stay untouched.
+  plant(root, GATE_SELF_REL, "export const gate = 1;\n");
+
+  // The RATIFIED rows' cites must resolve in the planted root too — the DEAD-CITE arm is two-sided and
+  // (correctly) reds a promise whose evidence is gone.
+  for (const cite of RATIFIED_CITES) {
+    plant(root, cite, "cite\n");
+  }
+  for (const [rel, content] of Object.entries(files)) {
+    plant(root, rel, content);
+  }
+  execFileSync("git", ["init", "-q"], { cwd: root });
+  execFileSync("git", ["add", "-A"], { cwd: root });
+}
+
+/** An anchor-sized config: `patterns` under test plus prefix filler that clears REAL_CONFIG_MIN_CANDIDATES
+ *  (below it the gate judges the file-exact half only, exactly as in a conformance mini-project). */
+function patternConfig(patterns: readonly string[]): string {
+  // The filler must be PATTERN-shaped (a fully-anchored literal would be judged by the file-exact half and
+  // red as a dead file) AND live (or it would red as a dead pattern) — so each is an alternation that the
+  // planted KIT_FILE satisfies.
+  const filler = Array.from({ length: ANCHOR }, (_, i) => `^packages/kit/src/(f${String(i)}|live)\\.ts$`);
+  // Plus ONE live FILE-EXACT row: an anchor-sized set that derives zero exact rows is the classifier-rot
+  // tripwire, which would drown the pattern arm under test.
+  const all = [...patterns, ...RATIFIED_KEYS, ...filler, String.raw`^${KIT_FILE}$`.replace(".ts", "\\.ts")]
+    .map((pattern) => JSON.stringify(pattern))
+    .join(", ");
+  return `module.exports = { forbidden: [{ name: "r", from: { path: [${all}] }, to: {} }] };\n`;
+}
+
+/** The gate's RATIFIED keys, restated (the test is the SECOND opinion, not a re-import). A planted config
+ *  must carry them or the two-sided STALE arm correctly reds every fixture. */
+const RATIFIED_KEYS = [String.raw`(^|/)__g_`, String.raw`^packages/[^/]+/dist/`, String.raw`^@jitl/quickjs-ng-wasmfile-release-sync/wasm\?url$`];
+/** The RATIFIED rows' cites, restated — the DEAD-CITE arm reds when one stops resolving. */
+const RATIFIED_CITES = ["tooling/src/verify/gates/GATE-AUTHORING.md", ".gitignore", "packages/client/src/features/plugin/lib/ui-guest/ui-guest.worker.ts"];
+const KIT_FILE = "packages/kit/src/live.ts";
+const KIT_SOURCE = "export const live = 1;\n";
+
+describe("depcruise-grant-liveness — PATTERN liveness (#973)", () => {
+  test("a PATTERN whose class has no tracked member is RED, and names the pattern", ({ scratch }) => {
+    plantRepo(scratch, { [CONFIG_REL]: patternConfig(["^packages/nonexistent-tier/"]), [KIT_FILE]: KIT_SOURCE });
+    const run = runGate(scratch);
+    expect(tokens(run)).toContain("^packages/nonexistent-tier/");
+    expect(messages(run)).toContain("matches NOTHING this repo carries");
+  });
+
+  test("a LIVE multi-member pattern is accepted — the control's other direction", ({ scratch }) => {
+    plantRepo(scratch, { [CONFIG_REL]: patternConfig(["^packages/kit/src/"]), [KIT_FILE]: KIT_SOURCE });
+    expect(runGate(scratch).findings).toEqual([]);
+  });
+
+  test("a DEPENDENCY pattern lives on the declared dependency set, not on repo paths", ({ scratch }) => {
+    // dep-cruiser matches MODULE paths: `node_modules/echarts/` is live exactly while some package.json
+    // still declares echarts. Judging it against repo paths alone would call every vendor seal dead.
+    plantRepo(scratch, {
+      [CONFIG_REL]: patternConfig(["node_modules/echarts/"]),
+      [KIT_FILE]: KIT_SOURCE,
+      "package.json": '{ "name": "p", "dependencies": { "echarts": "1.0.0" } }\n',
+    });
+    expect(runGate(scratch).findings).toEqual([]);
+  });
+
+  test("the SAME dependency pattern reds once the dependency is undeclared", ({ scratch }) => {
+    plantRepo(scratch, {
+      [CONFIG_REL]: patternConfig(["node_modules/echarts/"]),
+      [KIT_FILE]: KIT_SOURCE,
+      "package.json": '{ "name": "p", "dependencies": {} }\n',
+    });
+    expect(tokens(runGate(scratch))).toContain("node_modules/echarts/");
+  });
+
+  test("a `$1` BACKREFERENCE is never judged — its member set is bound at cruise time, not by the tree", ({ scratch }) => {
+    // dep-cruiser binds `$1` from the paired rule's capture, so the pattern denotes a different set per
+    // matched file and no static reader can test it. It must not be accused of being dead.
+    plantRepo(scratch, { [CONFIG_REL]: patternConfig([String.raw`^packages/server/src/domain/$1/`]), [KIT_FILE]: KIT_SOURCE });
+    expect(runGate(scratch).findings).toEqual([]);
+  });
+
+  test("the irreducible BUDGET is two-sided — growth AND an uncommitted shrink both RED", () => {
+    // The budget is what stops that unjudgeable population from growing silently; a bare counter would
+    // not. Driven directly because the arm is guarded by a real-tree anchor no planted root carries.
+    const message = "actual {actual} budget {budget}";
+    expect(irreducibleBudgetFindings(CONFIG_REL, 15, 15, message)).toEqual([]);
+    expect(irreducibleBudgetFindings(CONFIG_REL, 16, 15, message)[0]?.message).toBe("actual 16 budget 15");
+    expect(irreducibleBudgetFindings(CONFIG_REL, 14, 15, message)[0]?.message).toBe("actual 14 budget 15");
+  });
+
+  test("an EMPTY corpus refuses loudly rather than calling every pattern dead", ({ scratch }) => {
+    // No `git init` — `git ls-files` cannot answer, so the pattern verdicts would all be vacuous.
+    plant(scratch, CONFIG_REL, patternConfig(["^packages/kit/src/"]));
+    plant(scratch, GATE_SELF_REL, "export const gate = 1;\n");
+    expect(messages(runGate(scratch))).toContain("came back EMPTY");
   });
 });

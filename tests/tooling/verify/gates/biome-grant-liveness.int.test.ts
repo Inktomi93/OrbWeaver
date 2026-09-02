@@ -7,6 +7,7 @@
 // reintroduced. Every arm here is a planted control: a dead row REDs, a live row is silent, a
 // zero-row/unparseable/absent config REFUSES LOUDLY rather than printing a clean zero, and the real tree
 // derives a substantial row count (a green over a count you did not expect is the blind-gate failure mode).
+import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import type { Node } from "ts-morph";
@@ -152,5 +153,68 @@ describe("biome-grant-liveness — the REAL tree", () => {
 
   test("the exemption's cited producer is still on the tree (the §3 path-constant tripwire, live)", ({ repoRoot }) => {
     expect(existsSync(join(repoRoot, CATALOG_SERIALIZER))).toBe(true);
+  });
+});
+
+// ── #973: the PATTERN half. A pattern grant is LIVE only while some TRACKED file is still inside it, so
+// these arms need a real git work tree (the corpus is `git ls-files`, deliberately not an FS walk) — which
+// is also why conformance cannot drive them: its mini-projects are under the real-config anchor and have
+// no work tree at all.
+
+/** A throwaway git repo at `root` with `files` committed — the corpus these arms judge against. */
+/** The gate's own module — its §4.5 real-tree anchor for the pattern half. */
+const GATE_SELF_REL = "tooling/src/verify/gates/biome-grant-liveness.ts";
+
+function plantRepo(root: string, files: Readonly<Record<string, string>>): void {
+  // Plant the gate's OWN module: the pattern half is scoped to a root that carries it (the §4.5 real-tree
+  // anchor shape), so a fixture opts IN by planting the anchor and the file-exact fixtures stay untouched.
+  plant(root, GATE_SELF_REL, "export const gate = 1;\n");
+
+  for (const [rel, content] of Object.entries(files)) {
+    plant(root, rel, content);
+  }
+  execFileSync("git", ["init", "-q"], { cwd: root });
+  execFileSync("git", ["add", "-A"], { cwd: root });
+}
+
+const BIOME_LIVE_SRC = "packages/ui/src/live.ts";
+const BIOME_LIVE_SOURCE = "export const live = 1;\n";
+
+/** An anchor-sized biome.json: `globs` under test, LIVE glob filler, and ONE live file-exact grant. */
+function overrideConfig(globs: readonly string[]): string {
+  const filler = Array.from({ length: ANCHOR_INCLUDES }, (_, i) => `packages/ui/src/**/{live,f${String(i)}}.ts`);
+  const includes = [...globs, ...filler, BIOME_LIVE_SRC, TRANSIENT_CATALOG_TMP];
+  return `${JSON.stringify({ overrides: [{ includes }] }, null, 2)}\n`;
+}
+
+function plantBiomeRepo(root: string, globs: readonly string[]): void {
+  plantRepo(root, {
+    [CONFIG_REL]: overrideConfig(globs),
+    [BIOME_LIVE_SRC]: BIOME_LIVE_SOURCE,
+    [TRANSIENT_CATALOG_TMP]: "{}\n",
+    [CATALOG_SERIALIZER]: "export const serializer = 1;\n",
+  });
+}
+
+describe("biome-grant-liveness — PATTERN liveness (#973)", () => {
+  test("a GLOB grant matching no tracked file is RED, and names the glob", ({ scratch }) => {
+    plantBiomeRepo(scratch, ["packages/nonexistent/**"]);
+    const run = runGate(scratch);
+    expect(tokens(run)).toContain("packages/nonexistent/**");
+    expect(messages(run)).toContain("matches NO tracked file");
+  });
+
+  test("a LIVE multi-member glob grant is accepted — the control's other direction", ({ scratch }) => {
+    plantBiomeRepo(scratch, ["packages/ui/src/**/*.ts"]);
+    expect(runGate(scratch).findings).toEqual([]);
+  });
+
+  test("an EMPTY corpus refuses loudly rather than calling every glob grant dead", ({ scratch }) => {
+    plant(scratch, CONFIG_REL, overrideConfig(["packages/ui/src/**/*.ts"]));
+    plant(scratch, BIOME_LIVE_SRC, BIOME_LIVE_SOURCE);
+    plant(scratch, TRANSIENT_CATALOG_TMP, "{}\n");
+    plant(scratch, CATALOG_SERIALIZER, "export const serializer = 1;\n");
+    plant(scratch, GATE_SELF_REL, "export const gate = 1;\n");
+    expect(messages(runGate(scratch))).toContain("came back EMPTY");
   });
 });
