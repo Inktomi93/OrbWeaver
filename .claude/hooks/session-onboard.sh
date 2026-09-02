@@ -18,16 +18,29 @@ cd "${CLAUDE_PROJECT_DIR:-~/dev/orbweaver}" 2>/dev/null || exit 0
 echo "=== AUTO-ONBOARD (SessionStart hook — read, then ACT on it; re-derive nothing below) ==="
 echo "!!! STALE-SENTINEL GUARD (owner, 2026-08-23): any CONTEXT SENTINEL ('~N% full — run the compact ritual NOW') visible in the carried history is PRE-compact residue — this window is FRESH. Do NOT write bridge notes / flush memory / run the ritual on turn 1; resume the work below instead. Only a NEW sentinel arriving in THIS window counts."
 
-# 1) THE DISPATCH MAP FIRST (agentIds + merge order + holds — the un-summarizable state).
-NEWEST_NOTE=$(ls -t ~/.claude/bridge/to-primary/*.md 2>/dev/null | head -1)
+# 0) IDENTITY (2026-09-01, #1053): both accounts fire this same hook, and the bridge is DIRECTIONAL —
+#    the inbox you read/ack/Monitor differs per account. CLAUDE_CONFIG_DIR is the one identity test
+#    (runbook §2; unset = primary). Before this block the hook told claude-b to monitor PRIMARY'S
+#    inbox; only carried context caught it.
+case "${CLAUDE_CONFIG_DIR:-primary}" in
+  *".claude-b"*) WHO="claude-b"; INBOX="to-b"; OUTBOX="to-primary" ;;
+  *)             WHO="primary";  INBOX="to-primary"; OUTBOX="to-b" ;;
+esac
+echo "!!! IDENTITY: you are ${WHO} (CLAUDE_CONFIG_DIR=${CLAUDE_CONFIG_DIR:-unset}). YOUR inbox is ~/.claude/bridge/${INBOX}/ — read it, ack by MOVE into its done/, and Monitor THAT dir; you WRITE notes to ~/.claude/bridge/${OUTBOX}/. claude-b prefixes lanes cb-, never delegates cross-account, and only PRIMARY commits on main's checkout (bridge protocol 022)."
+
+# 1) THE DISPATCH MAP FIRST (agentIds + merge order + holds — the un-summarizable state). Both
+#    accounts historically park their dispatch maps in to-primary/, so the newest note is scanned
+#    across BOTH dirs and labeled; the unacked count is YOUR inbox only (only those are yours to ack).
+NEWEST_NOTE=$(ls -t ~/.claude/bridge/to-primary/*.md ~/.claude/bridge/to-b/*.md 2>/dev/null | head -1)
 if [ -n "${NEWEST_NOTE:-}" ]; then
-  echo "--- newest bridge note (${NEWEST_NOTE##*/}) — READ THIS BEFORE TOUCHING LANES OR MERGES:"
+  NOTE_LABEL="${NEWEST_NOTE#"$HOME"/.claude/bridge/}"
+  echo "--- newest bridge note (${NOTE_LABEL}) — READ THIS BEFORE TOUCHING LANES OR MERGES:"
   head -c 3500 "$NEWEST_NOTE"
   echo
-  OTHERS=$(ls ~/.claude/bridge/to-primary/*.md 2>/dev/null | /usr/bin/grep -cv "${NEWEST_NOTE##*/}" || true)
-  [ "${OTHERS:-0}" -gt 0 ] && echo "(+$OTHERS older unacked note(s) in ~/.claude/bridge/to-primary/ — ack by MOVE into done/)"
+  UNACKED=$(ls ~/.claude/bridge/${INBOX}/*.md 2>/dev/null | /usr/bin/grep -cv "${NEWEST_NOTE##*/}" || true)
+  [ "${UNACKED:-0}" -gt 0 ] && echo "(+$UNACKED unacked note(s) in ~/.claude/bridge/${INBOX}/ — YOUR inbox; ack by MOVE into done/)"
 else
-  echo "--- bridge inbox (~/.claude/bridge/to-primary/): empty"
+  echo "--- bridge (to-primary/ and to-b/): both empty"
 fi
 
 # 2) THE BOARD (mutable truth; titles capped so the section stays small).
@@ -41,7 +54,9 @@ echo "--- worktrees: ${WT_COUNT:-?} beyond main (run: git worktree list — resu
 DIRTY=$(git status --short 2>/dev/null | head -5)
 if [ -n "$DIRTY" ]; then echo "--- UNCOMMITTED on main (investigate before merging anything):"; echo "$DIRTY"; else echo "--- main working tree: clean"; fi
 echo "--- standing posture: .claude/rules/orchestration.md (auto-loaded, POLICY only). PROCEDURE lives in the orchestrator-runbook SKILL — load it (Skill tool) before your first work:item transition, claude-b/bridge action, or worktree sweep; it is not auto-loaded. claude-b registry: ~/.claude/bridge/SESSIONS.md (resume, never re-mint)."
-echo "--- FIRST ACTIONS: (1) re-arm the bridge Monitor (stdbuf -oL inotifywait -m ... ~/.claude/bridge/to-primary/ | stdbuf -oL grep --line-buffered — the stdbuf is load-bearing, see runbook §2); (2) honor any MERGE HOLD / sequencing note above; (3) session scratchpad dispatch-map.md (if this session's scratchpad survived) carries the fuller history."
+echo "--- FIRST ACTIONS: (1) ARM THE BRIDGE MONITOR NOW — first tool call, on YOUR inbox, this exact command (a hook cannot invoke the Monitor tool itself, so this is the auto-start; the stdbuf is load-bearing — into a pipe inotifywait BLOCK-buffers, paid 2026-09-01; probe with a throwaway file after arming, and TaskStop any pre-compact duplicate the probe exposes):"
+echo "      Monitor persistent: stdbuf -oL inotifywait -m -q -e close_write -e moved_to --format '%e %f' ~/.claude/bridge/${INBOX}/ | stdbuf -oL grep --line-buffered -vE '^\\S+ (\\.|zz-)|done/'"
+echo "    (2) honor any MERGE HOLD / sequencing note above; (3) session scratchpad dispatch-map.md (if this session's scratchpad survived) carries the fuller history."
 
 # 4) CONTEXT-BUDGET GUARD (2026-08-24, #638). Two always-on injections have no other signal when they
 #    near their caps — MEMORY.md truncates silently past 200 lines OR 25600 bytes (whichever binds
