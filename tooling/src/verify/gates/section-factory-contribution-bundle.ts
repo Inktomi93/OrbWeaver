@@ -6,9 +6,14 @@
 //     and all three call sites (the door + the two CT overrides); collapse them into ONE named-field param;
 // (2) ARITY TRIPWIRE — >1 FUNCTION-typed (render-prop) parameter: row 5's own rule — one foreign pane
 //     projected into a host is Arm A, two is a contribution seam wearing a prop.
+// A REGISTRY PARAMETER IS RESOLVED THROUGH TYPE ALIASES (#947): `a: ChatSeams` where
+// `type ChatSeams = ContributorRegistry<X>` is the same positional signature wearing a name, and the old
+// literal-shape reader called it a DECLARED LIMIT with a `mustPass` row — a proof that BLESSED the escape.
+// The alias chain is followed to its declaring name, project-visible aliases only; a type this reader cannot
+// resolve is still not a registry (the residual limit, with its own mustPass), and an alias CYCLE refuses.
 // DECLARED LIMITS (each a mustPass row): an UNANNOTATED return type is invisible (no checker walk — the
-// three live factories all annotate); a registry or render prop reached through a type ALIAS is invisible
-// (the reader is literal-shape, per GATE-AUTHORING §5). The name-keyed blindness (GATE-AUTHORING §4 rule 6)
+// three live factories all annotate); a registry reached through a type declared OUTSIDE the project graph
+// is invisible. The name-keyed blindness (GATE-AUTHORING §4 rule 6)
 // is covered by the finalize tripwire: both keyed type names must still be exported from their declaring
 // modules, and the tree must still hold ≥1 subject.
 import type { Node, ParameterDeclaration, SourceFile } from "ts-morph";
@@ -32,17 +37,57 @@ const REGISTRY_HOME = "packages/client/src/lib/registry.ts";
  *  (a named interface, or an inline `{ a: ContributorRegistry<…>; … }` type literal) is not this shape —
  *  which is exactly the remedy, so it must not match. */
 const REGISTRY_TYPE_RE = /^ContributorRegistry\s*(?:<|$)/u;
+/** How deep an alias chain may go before this is not honest authoring any more. */
+const MAX_ALIAS_HOPS = 8;
 
 let factoriesSeen = 0;
+/** Registry-typed parameters this pass RESOLVED — the semantic member count behind the file scan (#947). */
+let registryParamsSeen = 0;
+/** How many of those needed an alias hop; a drop to zero on a tree that uses aliases is the tell. */
+let aliasResolvedParams = 0;
 
 function rel(path: string): string {
   const idx = path.indexOf("/packages/");
   return idx === -1 ? path : path.slice(idx + 1);
 }
 
+/** Does this type node denote the registry — written literally, or reached through project-visible type
+ *  ALIASES (`type ChatSeams = ContributorRegistry<X>`)? An alias is the same positional seam wearing a
+ *  name; leaving it invisible was a blessed escape (#947). A cycle refuses loudly; a name the project does
+ *  not declare is simply not a registry (the residual declared limit). */
+function denotesRegistry(typeNode: Node | undefined, seen: ReadonlySet<string> = new Set()): boolean {
+  if (typeNode === undefined) {
+    return false;
+  }
+  if (REGISTRY_TYPE_RE.test(typeNode.getText().trim())) {
+    return true;
+  }
+  const reference = typeNode.asKind(SyntaxKind.TypeReference);
+  const name = reference?.getTypeName();
+  if (name === undefined) {
+    return false;
+  }
+  const symbol = name.getSymbol();
+  const aliases = ((symbol?.getAliasedSymbol() ?? symbol)?.getDeclarations() ?? []).flatMap((d) => {
+    const alias = d.asKind(SyntaxKind.TypeAliasDeclaration);
+    return alias === undefined ? [] : [alias];
+  });
+  return aliases.some((alias) => {
+    const key = `${alias.getSourceFile().getFilePath()}#${alias.getName()}`;
+    if (seen.has(key)) {
+      throw new Error(`section-factory-contribution-bundle: type-alias cycle resolving a parameter type at ${key}`);
+    }
+    if (seen.size >= MAX_ALIAS_HOPS) {
+      throw new Error(
+        `section-factory-contribution-bundle: type-alias chain deeper than ${MAX_ALIAS_HOPS} hops at ${key} — the parameter's type cannot be established`,
+      );
+    }
+    return denotesRegistry(alias.getTypeNode(), new Set([...seen, key]));
+  });
+}
+
 function isRegistryParam(p: ParameterDeclaration): boolean {
-  const t = p.getTypeNode();
-  return t !== undefined && REGISTRY_TYPE_RE.test(t.getText().trim());
+  return denotesRegistry(p.getTypeNode());
 }
 
 /** A render-prop parameter: the type is written as a FUNCTION type (`(view: V) => ReactNode`). */
@@ -92,7 +137,10 @@ const RENDER_PROP_MSG = (f: Factory, names: readonly string[]): string =>
   "wearing a prop. Mint the contributor registry and assemble it at the door — client-architecture-lockdown.md §12 row 5.";
 
 function checkFactory(f: Factory, path: string, out: Violation[]): void {
-  const registries = f.params.filter(isRegistryParam).map((p) => p.getName());
+  const registryParams = f.params.filter(isRegistryParam);
+  registryParamsSeen += registryParams.length;
+  aliasResolvedParams += registryParams.filter((p) => !REGISTRY_TYPE_RE.test(p.getTypeNode()?.getText().trim() ?? "")).length;
+  const registries = registryParams.map((p) => p.getName());
   if (registries.length > 1) {
     out.push({ file: rel(path), line: f.line, message: BUNDLE_MSG(f, registries) });
   }
@@ -156,6 +204,8 @@ export const gate: GateDescriptor = {
   kinds: [SyntaxKind.FunctionDeclaration, SyntaxKind.VariableDeclaration],
   begin: () => {
     factoriesSeen = 0;
+    registryParamsSeen = 0;
+    aliasResolvedParams = 0;
   },
   visit: (node, sf: SourceFile, ctx) => {
     if (!sf.getFilePath().includes(CLIENT_SRC)) {
@@ -173,6 +223,11 @@ export const gate: GateDescriptor = {
     }
   },
   finalize: (ctx) => {
+    ctx.scan({
+      unit: `section factory [factories=${factoriesSeen} registryParams=${registryParamsSeen} aliasResolved=${aliasResolvedParams}]`,
+      candidates: factoriesSeen,
+      scanned: factoriesSeen,
+    });
     if (ctx.scope.kind !== "project") {
       return;
     }
@@ -198,6 +253,18 @@ export const gate: GateDescriptor = {
       at: "packages/client/src/features/chat/lib/chats-section.tsx",
       expect: { count: 1, messageIncludes: "named-field bundle" },
       why: "the OTHER authoring shape — an exported const arrow factory; keying only on `function` declarations would be half a gate",
+    },
+    {
+      // THE #947 REPLACEMENT (this shape used to be a `mustPass` — a proof that BLESSED the escape): both
+      // seams arrive through imported type ALIASES of the registry. Same positional churn, same remedy.
+      files: {
+        "packages/client/src/features/chat/lib/types.ts":
+          'import type { ContributorRegistry } from "../../../lib/registry";\nexport type ChatTabSeam = ContributorRegistry<X>;\nexport type ChatRegionSeam = ContributorRegistry<Y>;\n',
+        "packages/client/src/features/chat/lib/chats-section.tsx":
+          'import type { ChatRegionSeam, ChatTabSeam } from "./types";\nexport function makeChatsSection(a: ChatTabSeam, b: ChatRegionSeam): SectionDefinition {\n  return null as never;\n}\n',
+      },
+      expect: { count: 1, messageIncludes: "named-field bundle" },
+      why: "THE #947 ALIAS RED: two registry seams behind imported aliases. The old reader compared the parameter's TEXT, so renaming the type was enough to leave the gate — and its own mustPass row recorded that escape as a declared limit",
     },
     {
       files:
@@ -242,6 +309,20 @@ export const gate: GateDescriptor = {
   ],
   mustPass: [
     {
+      files: {
+        "packages/client/src/features/chat/lib/types.ts":
+          'import type { ContributorRegistry } from "../../../lib/registry";\nexport type ChatTabSeam = ContributorRegistry<X>;\n',
+        "packages/client/src/features/chat/lib/chats-section.tsx":
+          'import type { ChatTabSeam } from "./types";\nexport function makeChatsSection(a: ChatTabSeam, pane: (view: V) => ReactNode): SectionDefinition {\n  return null as never;\n}\n',
+      },
+      why: "the ALIAS resolution's green half: ONE aliased registry beside ONE render prop is §12 row 5 Arm A — resolving aliases widens what the arms SEE, never what they accuse",
+    },
+    {
+      files: "export function makeXSection(a: ForeignSeam, b: ForeignSeam): SectionDefinition {\n  return null as never;\n}\n",
+      at: "packages/client/src/features/x/lib/x-section.tsx",
+      why: "THE RESIDUAL DECLARED LIMIT, honestly scoped: a parameter type the project graph does not DECLARE cannot be resolved to the registry symbol, so it is not judged. This is a reach limit (no declaration to follow), not the old blessed alias escape — a declared alias now REDs, and that row is a mustFlag above",
+    },
+    {
       files:
         "export function makeChatsSection({ contextTabs, contextRegions, surfaces, toolRenderers }: ChatsSectionContributors): SectionDefinition {\n" +
         "  return null as never;\n}\n",
@@ -271,11 +352,6 @@ export const gate: GateDescriptor = {
       files: "export function makeXSection(a: ContributorRegistry<X>, b: ContributorRegistry<Y>) {\n  return null as never;\n}\n",
       at: "packages/client/src/features/x/lib/x-section.tsx",
       why: "DECLARED LIMIT: an UNANNOTATED return type is invisible (the reader is literal-shape, GATE-AUTHORING §5) — all three live factories annotate, and G1's co-location keeps them findable",
-    },
-    {
-      files: "export function makeXSection(a: ChatSeams, b: ChatSeams): SectionDefinition {\n  return null as never;\n}\n",
-      at: "packages/client/src/features/x/lib/x-section.tsx",
-      why: "DECLARED LIMIT: a registry reached through a type ALIAS is invisible to the literal-shape reader — recorded, not silently assumed away",
     },
     {
       files: {

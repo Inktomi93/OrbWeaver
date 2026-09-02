@@ -5,7 +5,7 @@
 // The permissive direction is the dangerous one here, so every unsupported composition shape must REFUSE
 // loudly rather than yield a smaller set (GATE-AUTHORING.md §4.6 / §5).
 import { Project } from "ts-morph";
-import { readTupleVocabulary } from "../../../../tooling/src/verify/lib/tuple-read.ts";
+import { readTupleDeclaration, readTupleVocabulary } from "../../../../tooling/src/verify/lib/tuple-read.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 function projectOf(files: Readonly<Record<string, string>>): Project {
@@ -62,4 +62,27 @@ test("a non-tuple source refuses — a `new Set([...])` vocabulary is not establ
 
 test("a spread that resolves to ZERO members refuses — an empty contribution is the silent-shrink shape", () => {
   expect(() => members({ "a.ts": "export const B = [] as const;\nexport const Z = [...B] as const;" }, "Z")).toThrow(/resolved to zero members/u);
+});
+
+// ── #947: the per-member provenance the semantic-member gates report through ────────────────────────────
+test("readTupleDeclaration resolves one declaration and keeps each member's own declaring node", () => {
+  const project = projectOf({
+    "tooling/src/_shared/instrument-core.ts": 'export const CORE_INSTRUMENTS = ["ghost"] as const;',
+    "tooling/src/_shared/instruments.ts":
+      'import { CORE_INSTRUMENTS } from "./instrument-core.ts";\nexport const INSTRUMENT_TOOLS = [...CORE_INSTRUMENTS, "snap"] as const;',
+  });
+  const declaration = project.getSourceFileOrThrow("/repo/tooling/src/_shared/instruments.ts").getVariableDeclarationOrThrow("INSTRUMENT_TOOLS");
+  const vocabulary = readTupleDeclaration(declaration);
+  expect(vocabulary.entries.map((entry) => entry.value)).toEqual(["ghost", "snap"]);
+  // The spread-in member's node lives in the module that WROTE it — a gate reporting "this member owes a
+  // proof" must land there, not on the tuple that composed it.
+  expect(vocabulary.entries[0]?.node.getSourceFile().getFilePath()).toBe("/repo/tooling/src/_shared/instrument-core.ts");
+  expect(vocabulary.entries[0]?.source).toBe("tooling/src/_shared/instrument-core.ts#CORE_INSTRUMENTS");
+  expect(vocabulary.entries[1]?.node.getSourceFile().getFilePath()).toBe("/repo/tooling/src/_shared/instruments.ts");
+});
+
+test("readTupleDeclaration refuses the same unsanctioned shapes as the project-wide read", () => {
+  const project = projectOf({ "a.ts": "export const Z = [...zones()] as const;" });
+  const declaration = project.getSourceFileOrThrow("/repo/a.ts").getVariableDeclarationOrThrow("Z");
+  expect(() => readTupleDeclaration(declaration)).toThrow(/unsupported spread/u);
 });
