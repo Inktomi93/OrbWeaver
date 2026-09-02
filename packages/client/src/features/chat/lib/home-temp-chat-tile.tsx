@@ -14,10 +14,16 @@ import { HomeTempChatTileBody, TEMP_CHAT_SKELETON_ROWS } from "../components/hom
 const TEMP_CHAT_TILE_ORDER = 30;
 
 /** The measured settled body block — see the `skeletonBlock` note on the contribution below.
- *  RE-MEASURED 2026-08-17 (rail sweep P3-16): the CTA came down to `size="sm"` so the shelf's two
- *  peer-rank CTAs share one register, which shortened this fixed body. 93 is the re-measurement, reported
- *  by the `#177` first-boot CT as `chat.tempChat moved -2.36px` against the old 95. */
-const TEMP_CHAT_SKELETON_BLOCK_PX = 93;
+ *  RE-MEASURED 2026-09-02 (#1146, the reservation sweep post `ed55bf193`): that pass re-authored every
+ *  leading token as a snapped rem dimension (`leading.body` 1.55 -> `round(1.4375rem, 1px)`, among
+ *  others), which moves any settled block built from two voices of text. The `#177` first-boot CT's own
+ *  declared-vs-settled printout read `chat.tempChat reserved 114.00 settled 113.00 drift -1.00` against
+ *  the OLD 93 — still inside the test's ±1px epsilon, but a real 1px shrink, not epsilon noise, so this
+ *  is the re-measurement rather than a widened tolerance. 92 is the new declaration (93 - 1). RE-MEASURED
+ *  2026-08-17 (rail sweep P3-16): the CTA came down to `size="sm"` so the shelf's two peer-rank CTAs
+ *  share one register, which shortened this fixed body. 93 was that re-measurement, reported by the
+ *  `#177` first-boot CT as `chat.tempChat moved -2.36px` against the old 95. */
+const TEMP_CHAT_SKELETON_BLOCK_PX = 92;
 
 export const chatTempChatTile: HomeTileContribution = {
   id: "chat.tempChat",
