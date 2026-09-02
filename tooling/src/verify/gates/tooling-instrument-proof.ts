@@ -5,13 +5,18 @@
 // NON-member's tree; (D) a malformed bare marker. Plus (A) a member with no tooling/src/<tool>/ dir and
 // (E) an unreadable registry; (F) a member bypassing the shared printVerdict denominator door.
 // comments-INTENDED: the marker IS a comment; the matcher anchors on the comment OPENER (mention-fence).
+// THE REGISTRY IS RESOLVED, NOT READ FLAT (#947): INSTRUMENT_TOOLS is read through `lib/tuple-read.ts`, so a
+// member that moves behind `[...CORE_INSTRUMENTS, "snap"]` still owes both proof classes — a direct-element
+// reader would have dropped every spread member while the registry still parsed and the gate still ran. Each
+// member keeps its own DECLARING element (an imported member reports at its home file), the scan line prints
+// the member count and the contributing declarations, and any unsanctioned composition shape refuses loudly.
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import type { SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract/gate.ts";
-import { readStringValue, unwrapExpression } from "../lib/ast-read.ts";
 import { fileLoaded } from "../lib/pass.ts";
+import { readTupleDeclaration } from "../lib/tuple-read.ts";
 
 const REGISTRY = "tooling/src/_shared/instruments.ts";
 const ANCHOR = "tooling/src/_shared/exit-contract.ts";
@@ -51,12 +56,14 @@ interface MarkerHit {
 
 interface State {
   members: { readonly name: string; readonly file: string; readonly line: number }[];
+  /** `<file>#<CONST>` per declaration that contributed a member — the semantic SOURCE manifest. */
+  sources: readonly string[];
   registrySeen: boolean;
   markers: MarkerHit[];
   bypasses: { readonly file: string; readonly line: number; readonly tool: string }[];
 }
 
-const state: State = { members: [], registrySeen: false, markers: [], bypasses: [] };
+const state: State = { members: [], sources: [], registrySeen: false, markers: [], bypasses: [] };
 
 function relOf(sf: SourceFile): string {
   const abs = sf.getFilePath().replace(/\\/gu, "/");
@@ -74,19 +81,15 @@ function collectMembers(sf: SourceFile): void {
     return;
   }
   state.registrySeen = true;
-  const init = decl.getInitializer();
-  if (init === undefined) {
+  if (decl.getInitializer() === undefined) {
     return;
   }
-  const arr = unwrapExpression(init);
-  if (!arr.isKind(SyntaxKind.ArrayLiteralExpression)) {
-    return;
-  }
-  for (const el of arr.getElements()) {
-    const name = readStringValue(el);
-    if (name !== undefined) {
-      state.members.push({ name, file: relOf(sf), line: el.getStartLineNumber() });
-    }
+  const vocabulary = readTupleDeclaration(decl);
+  state.sources = vocabulary.sources;
+  for (const member of vocabulary.entries) {
+    // The member's OWN element node, so a row spread in from a sibling module reports at that module's
+    // line rather than at the spread that composed it.
+    state.members.push({ name: member.value, file: relOf(member.node.getSourceFile()), line: member.node.getStartLineNumber() });
   }
 }
 
@@ -226,11 +229,17 @@ export const gate: GateDescriptor = {
   },
   begin: () => {
     state.members = [];
+    state.sources = [];
     state.registrySeen = false;
     state.markers = [];
     state.bypasses = [];
   },
   run: (ctx) => {
+    ctx.scan({
+      unit: `instrument registry [INSTRUMENT_TOOLS=${state.members.length} from ${state.sources.length === 0 ? "<none>" : state.sources.join("+")}]`,
+      candidates: state.sources.length,
+      scanned: state.sources.length,
+    });
     const anchored = fileLoaded(ctx, ANCHOR);
     if (anchored && !state.registrySeen) {
       ctx.report({
@@ -254,6 +263,22 @@ export const gate: GateDescriptor = {
       },
       expect: { messageIncludes: "does not exist" },
       why: "a registry row naming a tool with no dir — the rename tripwire (arm A)",
+    },
+    {
+      // THE #947 SPLIT: the member arrives through an imported spread. A direct-element reader saw only
+      // "snapx" and the spread-in instrument owed no proof pair at all.
+      files: {
+        "tooling/src/_shared/instrument-core.ts": 'export const CORE_INSTRUMENTS = ["ghost"] as const;\n',
+        "tooling/src/_shared/instruments.ts":
+          'import { CORE_INSTRUMENTS } from "./instrument-core.ts";\nexport const INSTRUMENT_TOOLS = [...CORE_INSTRUMENTS, "snapx"] as const;\n',
+        "tooling/src/_shared/exit-contract.ts": "export const EXIT = 0;\n",
+        "tooling/src/ghost/index.ts": "export {};\n",
+        "tooling/src/snapx/index.ts": "export {};\n",
+        "tests/tooling/snapx/proof.test.ts":
+          "// @instrument-proof: plants a defect and asserts red\n// @instrument-absence-proof: empties the population and asserts no clean read\nexport const t = 1;\n",
+      },
+      expect: { count: 2, messageIncludes: "ghost" },
+      why: 'THE #947 SPLIT RED: `[...CORE_INSTRUMENTS, "snapx"]` — the locally-written member is fully proven, and the SPREAD member owes both proof classes. Before the resolver it was not a subject at all, so a registry could shed its whole core into a sibling module and go green',
     },
     {
       files: {
@@ -317,6 +342,21 @@ export const gate: GateDescriptor = {
     },
   ],
   mustPass: [
+    {
+      files: {
+        "tooling/src/_shared/instrument-core.ts": 'export const CORE_INSTRUMENTS = ["ghost"] as const;\n',
+        "tooling/src/_shared/instruments.ts":
+          'import { CORE_INSTRUMENTS } from "./instrument-core.ts";\nexport const INSTRUMENT_TOOLS = [...CORE_INSTRUMENTS, "snapx"] as const;\n',
+        "tooling/src/_shared/exit-contract.ts": "export const EXIT = 0;\n",
+        "tooling/src/ghost/index.ts": "export {};\n",
+        "tooling/src/snapx/index.ts": "export {};\n",
+        "tests/tooling/ghost/proof.test.ts":
+          "// @instrument-proof: plants a defect and asserts red\n// @instrument-absence-proof: empties the population and asserts no clean read\nexport const t = 1;\n",
+        "tests/tooling/snapx/proof.test.ts":
+          "// @instrument-proof: plants a defect and asserts red\n// @instrument-absence-proof: empties the population and asserts no clean read\nexport const t = 1;\n",
+      },
+      why: "the SPLIT's green half: both the spread-in and the locally-written member carry both reasoned proof markers — resolving the spread widens the obligation set, never the accusation",
+    },
     {
       files: {
         "tooling/src/_shared/instruments.ts": 'export const INSTRUMENT_TOOLS = ["snapx"] as const;\n',

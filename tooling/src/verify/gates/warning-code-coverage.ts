@@ -2,11 +2,17 @@
 // (infra/providers/contract/resolve.ts, emitted in infra/providers/**) and CHAT_WARNING_CODES
 // (@orb/contracts/chat, emitted in domain/chat/**). A declared-never-emitted code is silently dead; a
 // stale DEFERRED entry (gained an emit) is RED too. COMMENT POSTURE: comment-SAFE — AST warning records only.
+// EACH TUPLE IS RESOLVED, NOT READ FLAT (#947): both channels read their tuple through `lib/tuple-read.ts`,
+// so a code that moves behind `[...BASE_CODES, "local"]` keeps its emit obligation — a direct-element reader
+// dropped every spread member while the tuple still parsed and the channel still reported members. Members
+// keep their declaring source, the scan line prints each channel's member count + contributing declarations,
+// and any composition shape the source law does not sanction refuses loudly instead of shrinking the set.
 import type { CallExpression, ObjectLiteralExpression, Project, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract/gate.ts";
 import type { Check, Violation } from "../contract/harness.ts";
 import { readStringValue, unwrapExpression } from "../lib/ast-read.ts";
+import { readTupleDeclaration } from "../lib/tuple-read.ts";
 
 /** One warning channel: where its tuple lives + where its emits live + the tracked-deferred allowlist. */
 export interface WarningChannel {
@@ -48,17 +54,15 @@ const missingMessage = (channel: WarningChannel, code: string): string =>
 const staleMessage = (channel: WarningChannel, code: string): string =>
   `${channel.tuple} DEFERRED member "${code}" now HAS an emit site — delete its stale allowlist entry (tooling/src/verify/gates/warning-code-coverage.ts).`;
 
-/** The string-literal member keys of a `[...] as const` tuple declaration. */
-function tupleMembers(home: SourceFile, tuple: string): string[] {
+/** The resolved member keys of a `[...] as const` tuple declaration, following the sanctioned spreads of
+ *  local/imported sibling tuples (#947) — with the declarations that contributed them. */
+function tupleMembers(home: SourceFile, tuple: string): { readonly members: string[]; readonly sources: readonly string[] } {
   const decl = home.getVariableDeclaration(tuple);
-  const arr = decl?.getFirstDescendantByKind(SyntaxKind.ArrayLiteralExpression);
-  if (arr === undefined) {
-    return [];
+  if (decl === undefined || decl.getInitializer() === undefined) {
+    return { members: [], sources: [] };
   }
-  return arr.getElements().flatMap((el) => {
-    const value = readStringValue(el);
-    return value === undefined ? [] : [value];
-  });
+  const vocabulary = readTupleDeclaration(decl);
+  return { members: [...vocabulary.members], sources: vocabulary.sources };
 }
 
 function localStringValue(node: Node): string | undefined {
@@ -162,6 +166,15 @@ function emittedCodes(project: { getSourceFiles: () => SourceFile[] }, channel: 
   return emitted;
 }
 
+/** What each channel's tuple resolved to THIS run — printed on the gate's scan line so a channel whose
+ *  members moved behind a spread shows a smaller count instead of a clean ✓ (#947). */
+interface ChannelPopulation {
+  readonly tuple: string;
+  readonly members: number;
+  readonly sources: readonly string[];
+}
+let population: ChannelPopulation[] = [];
+
 function channelViolations(project: { getSourceFiles: () => SourceFile[] }, channel: WarningChannel): Violation[] {
   const home = project.getSourceFiles().find((sf) => channel.homeFile.test(sf.getFilePath()));
   if (home === undefined) {
@@ -173,7 +186,8 @@ function channelViolations(project: { getSourceFiles: () => SourceFile[] }, chan
       },
     ];
   }
-  const members = tupleMembers(home, channel.tuple);
+  const { members, sources } = tupleMembers(home, channel.tuple);
+  population.push({ tuple: channel.tuple, members: members.length, sources });
   if (members.length === 0) {
     return [
       {
@@ -207,6 +221,7 @@ export function createWarningCodeCoverage(channels: readonly WarningChannel[]): 
 }
 
 function reconcileWarningCoverage(project: Project): Violation[] {
+  population = [];
   return CHANNELS.flatMap((c) => channelViolations(project, c));
 }
 
@@ -219,7 +234,11 @@ export const gate: GateDescriptor = {
     "a warning-code tuple member has NO emit site and no DEFERRED entry — a declared-never-emitted warning code is silently dead (D41 bans speculative codes). Wire the emit or add a cited DEFERRED entry in tooling/src/verify/gates/warning-code-coverage.ts. See Core-Path-Registry.md D41.",
   fix: "wire the `{ code: '…' }` emit site in the channel's scope, or add a cited DEFERRED entry in warning-code-coverage.ts.",
   run: (ctx) => {
-    for (const v of reconcileWarningCoverage(ctx.project)) {
+    const violations = reconcileWarningCoverage(ctx.project);
+    const lines = population.map((c) => `${c.tuple}=${c.members} from ${c.sources.length === 0 ? "<none>" : c.sources.join("+")}`);
+    const sourceCount = population.reduce((n, c) => n + c.sources.length, 0);
+    ctx.scan({ unit: `warning tuple source [${lines.join(" · ")}]`, candidates: sourceCount, scanned: sourceCount });
+    for (const v of violations) {
       ctx.report({ file: v.file, line: v.line, column: 0, message: v.message });
     }
   },
@@ -229,6 +248,34 @@ export const gate: GateDescriptor = {
   // an example (which runs the live descriptor). Their coverage is retained in
   // tests/tooling/warning-code-coverage.residual.test.ts + the live `pnpm check:structure` run.
   mustFlag: [
+    {
+      // THE #947 SPLIT, provider channel: the dead code arrives through an imported spread, beside one
+      // locally-written code that IS emitted. A direct-element reader saw only the emitted local member.
+      files: {
+        "packages/server/src/infra/providers/contract/provider-codes.ts": 'export const BASE_WARNING_CODES = ["never_emitted"] as const;\n',
+        [PROVIDER_HOME]:
+          'import { BASE_WARNING_CODES } from "./provider-codes.ts";\nexport const WARNING_CODES = [...BASE_WARNING_CODES, "provider_ok"] as const;\n',
+        [PROVIDER_EMIT]: PROVIDER_EMIT_FIXTURE,
+        "packages/contracts/src/chat/bus.ts": 'export const CHAT_WARNING_CODES = ["chat_ok"] as const;\n',
+        "packages/server/src/domain/chat/x.ts": 'emit({ type: "warning", code: "chat_ok" });\n',
+      },
+      expect: { count: 1, messageIncludes: "never_emitted" },
+      why: 'THE #947 SPLIT RED (provider channel): `[...BASE_WARNING_CODES, "provider_ok"]` — the spread member is still a declared code and still owes an emit. Before the resolver the tuple reported a healthy non-empty member list while every spread-in code left the denominator',
+    },
+    {
+      // THE SAME SPLIT on the CHAT channel — a different home, a different emit scope, and its own reader
+      // path, so proving one channel says nothing about the other.
+      files: {
+        [PROVIDER_HOME]: PROVIDER_HOME_FIXTURE,
+        [PROVIDER_EMIT]: PROVIDER_EMIT_FIXTURE,
+        "packages/contracts/src/chat/base-codes.ts": 'export const BASE_CHAT_WARNING_CODES = ["never_emitted"] as const;\n',
+        "packages/contracts/src/chat/bus.ts":
+          'import { BASE_CHAT_WARNING_CODES } from "./base-codes.ts";\nexport const CHAT_WARNING_CODES = [...BASE_CHAT_WARNING_CODES, "chat_ok"] as const;\n',
+        "packages/server/src/domain/chat/x.ts": 'emit({ type: "warning", code: "chat_ok" });\n',
+      },
+      expect: { count: 1, messageIncludes: "never_emitted" },
+      why: "THE #947 SPLIT RED (chat channel): the second channel resolves its own home and emit scope, so it carries its own split proof rather than inheriting the provider channel's",
+    },
     {
       files: {
         [PROVIDER_HOME]: 'export const WARNING_CODES = ["wrong_receiver"] as const;\n',
@@ -272,6 +319,17 @@ export const gate: GateDescriptor = {
     },
   ],
   mustPass: [
+    {
+      files: {
+        "packages/server/src/infra/providers/contract/provider-codes.ts": 'export const BASE_WARNING_CODES = ["base_emitted"] as const;\n',
+        [PROVIDER_HOME]:
+          'import { BASE_WARNING_CODES } from "./provider-codes.ts";\nexport const WARNING_CODES = [...BASE_WARNING_CODES, "provider_ok"] as const;\n',
+        [PROVIDER_EMIT]: 'warnings.push({ code: "base_emitted", message: "visible" });\nwarnings.push({ code: "provider_ok", message: "visible" });\n',
+        "packages/contracts/src/chat/bus.ts": 'export const CHAT_WARNING_CODES = ["chat_ok"] as const;\n',
+        "packages/server/src/domain/chat/x.ts": 'emit({ type: "warning", code: "chat_ok" });\n',
+      },
+      why: "the SPLIT's green half: the spread-in code HAS its emit site — resolving the spread widens the coverage obligation without widening the accusation",
+    },
     {
       files: {
         [PROVIDER_HOME]: 'export const WARNING_CODES = ["aliased_warning"] as const;\n',

@@ -3,7 +3,13 @@
 // enforcer (`comment:{prompt:"never"}` sat unenforced while assembly shipped comments to the wire). Arms:
 // MISSING (multi-arm axis, no reader, no DEFERRED row) · STALE (DEFERRED axis gained a reader) · ORPHAN ·
 // blindness/mode-B tripwires. Single-LITERAL axes are vacuously exempt (nothing to dispatch on) — a mustPass row.
-import type { SourceFile } from "ts-morph";
+// THE AXES ARE RESOLVED, NOT LOCAL (#947): the interface's members come from its resolved TYPE, so an axis
+// `MessageKindPolicy extends CoreMessageKindPolicy` inherits is still law that owes a reader. A local
+// `getProperties()` read dropped every inherited column while the interface still resolved and the gate
+// still reported axes — the same false-negative direction as a shrunken denominator. Each axis keeps its
+// DECLARING interface (an inherited axis reports at the base's own line), and an `extends` clause that
+// resolves to no interface refuses loudly rather than silently contributing zero axes.
+import type { InterfaceDeclaration, Node, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { ExemptionRow, ExemptionTable, GateDescriptor, GateRunCtx } from "../contract/gate.ts";
 import { fileLoaded } from "../lib/pass.ts";
@@ -50,18 +56,61 @@ interface Axis {
    *  reader would demand dead code. Self-cleaning: the exemption vanishes the commit the axis widens. */
   readonly singleArm: boolean;
   readonly line: number;
+  /** The interface that DECLARES the axis — the home itself, or the base it was inherited from (#947). */
+  readonly declaredIn: string;
+  /** The declaring file, repo-relative: an inherited axis reports at the BASE's own site, not the home's. */
+  readonly file: string;
+  readonly inherited: boolean;
 }
 
+/** Every `extends` clause must RESOLVE. A base binding no interface declaration would silently contribute
+ *  zero axes, which is exactly the shrunken-denominator failure this gate was repaired for (#947). */
+function assertHeritageResolves(iface: InterfaceDeclaration): void {
+  for (const clause of iface.getExtends()) {
+    const symbol = clause.getExpression().getSymbol();
+    const declarations = (symbol?.getAliasedSymbol() ?? symbol)?.getDeclarations() ?? [];
+    if (!declarations.some((declaration) => declaration.getKind() === SyntaxKind.InterfaceDeclaration)) {
+      throw new Error(
+        `message-kind-policy-coverage: ${IFACE} extends "${clause.getText()}", which resolves to no interface declaration — its inherited axes cannot be enumerated`,
+      );
+    }
+  }
+}
+
+/** The interface an axis was declared on, for the diagnostic's provenance. */
+function declaringInterface(declaration: Node, fallback: string): string {
+  const parent = declaration.getParent();
+  return parent?.asKind(SyntaxKind.InterfaceDeclaration)?.getName() ?? fallback;
+}
+
+/** The policy's axes — the RESOLVED type's properties, so an inherited column stays law that owes a reader
+ *  (#947). A property that resolves to no declaration at all is unsupported composition, and refuses. */
 function readAxes(home: SourceFile): readonly Axis[] | undefined {
   const iface = home.getInterface(IFACE);
   if (iface === undefined) {
     return;
   }
-  return iface.getProperties().map((p) => ({
-    name: p.getName(),
-    singleArm: p.getTypeNode()?.getKind() === SyntaxKind.LiteralType,
-    line: p.getStartLineNumber(),
-  }));
+  assertHeritageResolves(iface);
+  return iface
+    .getType()
+    .getProperties()
+    .map((property) => {
+      const declaration = property.getDeclarations()[0];
+      if (declaration === undefined) {
+        throw new Error(`message-kind-policy-coverage: axis "${property.getName()}" of ${IFACE} resolves to no declaration — its arity cannot be established`);
+      }
+      const declaredIn = declaringInterface(declaration, IFACE);
+      const path = declaration.getSourceFile().getFilePath();
+      const packages = path.indexOf("/packages/");
+      return {
+        name: property.getName(),
+        singleArm: declaration.asKind(SyntaxKind.PropertySignature)?.getTypeNode()?.getKind() === SyntaxKind.LiteralType,
+        line: declaration.getStartLineNumber(),
+        declaredIn,
+        file: packages === -1 ? HOME : path.slice(packages + 1),
+        inherited: declaredIn !== IFACE,
+      };
+    });
 }
 
 /** Home-file consts that DERIVE from the record reading `.axis` (MEMORY_INGEST_KINDS' shape) — their names
@@ -109,7 +158,8 @@ function judgeAxis(ctx: GateRunCtx, home: SourceFile, axis: Axis): void {
   const hasReader = axisHasReader(ctx, home, axis.name);
   const deferred = axis.name in DEFERRED;
   if (!(hasReader || deferred)) {
-    ctx.report({ file: HOME, line: axis.line, column: 0, token: axis.name });
+    // The axis's own declaring file (#947) — an inherited axis's fix belongs on the base contract.
+    ctx.report({ file: axis.file, line: axis.line, column: 0, token: `${axis.name} (declared on ${axis.declaredIn})` });
   }
   if (hasReader && deferred) {
     ctx.report({
@@ -165,11 +215,31 @@ export const gate: GateDescriptor = {
         });
       }
     }
+    const inherited = axes.filter((a) => a.inherited).length;
+    ctx.scan({
+      unit: `policy axis [${IFACE} local=${axes.length - inherited} inherited=${inherited} total=${axes.length}]`,
+      candidates: axes.length,
+      scanned: axes.length,
+    });
     for (const axis of axes) {
       judgeAxis(ctx, home, axis);
     }
   },
   mustFlag: [
+    {
+      // THE #947 SPLIT: the multi-arm axis lives on an imported base the policy extends. Read locally, the
+      // interface still resolved and still reported an axis — the inherited column simply owed no reader.
+      files: {
+        "packages/contracts/src/chat/policy-base.ts": "export interface CoreMessageKindPolicy {\n  readonly memory: 'ingest' | 'exclude';\n}\n",
+        [HOME]:
+          'import type { CoreMessageKindPolicy } from "./policy-base.ts";\n' +
+          "export interface MessageKindPolicy extends CoreMessageKindPolicy {\n  readonly prompt: 'conversation' | 'never';\n}\n" +
+          "export const MESSAGE_KIND_POLICY = { standard: { memory: 'ingest', prompt: 'conversation' } };\n",
+        "packages/server/src/domain/chat/assembly/shape.ts": "export const p = MESSAGE_KIND_POLICY.standard.prompt;\n",
+      },
+      expect: { count: 1, token: "memory (declared on CoreMessageKindPolicy)" },
+      why: "THE #947 SPLIT RED: the locally-written axis has its reader, and the INHERITED multi-arm axis has none — law with no enforcer, invisible while the axes were read off the local declaration. The finding names the base contract that owns the axis",
+    },
     {
       files: {
         [HOME]:
@@ -189,6 +259,18 @@ export const gate: GateDescriptor = {
     },
   ],
   mustPass: [
+    {
+      files: {
+        "packages/contracts/src/chat/policy-base.ts": "export interface CoreMessageKindPolicy {\n  readonly memory: 'ingest' | 'exclude';\n}\n",
+        [HOME]:
+          'import type { CoreMessageKindPolicy } from "./policy-base.ts";\n' +
+          "export interface MessageKindPolicy extends CoreMessageKindPolicy {\n  readonly prompt: 'conversation' | 'never';\n}\n" +
+          "export const MESSAGE_KIND_POLICY = { standard: { memory: 'ingest', prompt: 'conversation' } };\n",
+        "packages/server/src/domain/chat/assembly/shape.ts":
+          "export const p = MESSAGE_KIND_POLICY.standard.prompt;\nexport const m = MESSAGE_KIND_POLICY.standard.memory;\n",
+      },
+      why: "the SPLIT's green half: the inherited axis HAS a production reader — resolving inherited members widens the law the gate enforces, never the accusation",
+    },
     {
       files: {
         [HOME]:
