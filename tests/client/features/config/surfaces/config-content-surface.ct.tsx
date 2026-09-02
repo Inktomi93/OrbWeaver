@@ -806,6 +806,89 @@ test("a POPULATED collection band ENTERS its library in one act — rows open AN
   await expect(content.locator('[data-slot="config-welcome"]')).toHaveCount(0);
 });
 
+// ── SWITCHING LIBRARIES MUST NOT CRASH THE APP (#1203 P0, side-eye repro on folded main) ─────────────
+// THE DEFECT: the landing is ONE component instance for EVERY collection, and it calls `useCount?.()` and
+// `preview?.useEntries()` — OPTIONAL hooks on per-contribution fields. Tags, regex and world-info declare a
+// `preview`; ROSTERS does not. So switching between a preview-declaring library and rosters changed the
+// HOOK COUNT on a fiber React was reusing: "Rendered fewer hooks than expected" (or more, the other way),
+// thrown past every route boundary to `CatchBoundaryImpl` — rail, list and content all white-screened, with
+// reload as the only recovery. Tags→Regex survived on LUCK (equal hook counts), which is why this pin sweeps
+// the ROSTERS pair in BOTH directions rather than one happy path.
+//
+// THE CLAIM IS THE CLASS, not a pair: every collection whose declared hook set differs from its neighbour's
+// must be reachable from that neighbour, back and forth, with the app still standing. A page error here is
+// the crash itself — asserted directly, because a white-screened shell can still satisfy a naive
+// "the old text is gone" assertion.
+
+/** One tag row in the `tag.listTagsWithUsage` shape — the tag preview ranks by usage total. */
+function switchTagRow(index: number): Record<string, unknown> {
+  return {
+    id: `tag_switch_${String(index)}`,
+    name: `switch-tag-${String(index)}`,
+    color: null,
+    color2: null,
+    source: null,
+    folderType: "NONE",
+    sortOrder: index,
+    isHiddenOnCard: false,
+    usage: { characters: index + 1, chats: 0, worldBooks: 0, personas: 0, presets: 0, total: index + 1 },
+  };
+}
+
+/** One book in the `worldInfo.listBooksWithUsage` shape — the world-info preview ranks by attachment. */
+const SWITCH_BOOK = {
+  id: "world_book_switch00001",
+  name: "The Ninefold Reach",
+  description: null,
+  createdAt: 1,
+  entryCount: 42,
+  usage: { characters: 2, personas: 0, chats: 0, global: true, total: 3 },
+};
+
+/** The three bands this sweep walks: two libraries that DECLARE a preview hook, and the one that does not. */
+const TAGS_BAND = '[data-config-group="tags"] [data-slot="config-band"]';
+const WORLD_INFO_BAND = '[data-config-group="worldInfo"] [data-slot="config-band"]';
+const ROSTERS_BAND = '[data-config-group="rosterPreset"] [data-slot="config-band"]';
+
+test("switching between libraries with DIFFERENT declared hook sets keeps the app standing", async ({ mount, page }) => {
+  // The page errors the defect throws — collected from the first navigation, so a crash cannot be missed by
+  // an assertion that a white screen happens to satisfy.
+  const pageErrors: string[] = [];
+  page.on("pageerror", (error) => pageErrors.push(error.message));
+  await stub(page, {
+    "tag.listTagsWithUsage": () => [switchTagRow(0), switchTagRow(1)],
+    "worldInfo.listBooksWithUsage": () => [SWITCH_BOOK],
+    "worldInfo.getBook": () => ({ id: SWITCH_BOOK.id, name: SWITCH_BOOK.name, description: null, createdAt: 1 }),
+    "worldInfo.listEntries": () => [],
+    "rosterPreset.list": () => [],
+  });
+  const component = await mount(<ConfigHostStory />);
+  const content = component.getByRole("region", { name: "Settings", exact: true });
+
+  // preview-declaring → NONE (the reported "Rendered fewer hooks than expected").
+  await component.locator(TAGS_BAND).click();
+  await expect(content.getByRole("heading", { level: 2, name: "Tags" })).toBeVisible();
+  await component.locator(ROSTERS_BAND).click();
+  await expect(content.getByText("No saved rosters yet.")).toBeVisible();
+
+  // NONE → preview-declaring (the reported "Rendered more hooks than during the previous render").
+  await component.locator(TAGS_BAND).click();
+  await expect(content.getByRole("heading", { level: 2, name: "Tags" })).toBeVisible();
+
+  // …and the same pair through the OTHER declaring library, both ways — the class, not one route.
+  await component.locator(WORLD_INFO_BAND).click();
+  await expect(content.getByRole("heading", { level: 2, name: "World Info" })).toBeVisible();
+  await component.locator(ROSTERS_BAND).click();
+  await expect(content.getByText("No saved rosters yet.")).toBeVisible();
+  await component.locator(WORLD_INFO_BAND).click();
+  await expect(content.getByRole("heading", { level: 2, name: "World Info" })).toBeVisible();
+
+  // THE SHELL IS STILL THERE. The crash escaped every route boundary and took the LIST with it, so the map
+  // surviving is part of the claim — not just the pane the switch was aimed at.
+  await expect(component.getByRole("region", { name: LIST_REGION })).toBeVisible();
+  expect(pageErrors, `the switch threw: ${pageErrors.join(" · ")}`).toEqual([]);
+});
+
 test("…and a second click folds the rows away WITHOUT leaving the library", async ({ mount, page }) => {
   await stub(page, { "regex.listScripts": () => POPULATED_SCRIPTS });
   const component = await mount(<ConfigHostStory />);

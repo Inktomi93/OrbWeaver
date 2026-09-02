@@ -175,6 +175,10 @@ export function ConfigWelcome({ groups }: ConfigWelcomeProps): ReactElement {
             `.hearth-grid{align-items:start}`): grid's default `stretch` would make every slot as tall as the
             tallest and hang the short ones' actions in dead space. */}
         <Grid className={`items-start ${HIDE_WHILE_SETTLING}`} cols="auto" data-slot="config-hearth" gap="gutter">
+          {/* KEYED BY THE GROUP, and that key is LOAD-BEARING beyond list reconciliation (#1203): a
+              launcher calls the contribution's OPTIONAL hooks, so two libraries sharing one fiber would
+              change the hook count mid-fiber and crash the app. The seam states the law
+              (`collection-contracts.ts`, `useCount`); this map has always satisfied it. */}
           {ordered.map((group) => (
             <CollectionLauncher group={group} key={group.id} />
           ))}

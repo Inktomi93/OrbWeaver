@@ -284,16 +284,30 @@ function ContentArm({ groups, selection, active, collection }: ContentArmProps):
     );
   }
   if (collection !== null) {
-    return <CollectionLanding group={collection} />;
+    // KEYED BY THE COLLECTION (#1203 P0). A `CollectionContribution` declares OPTIONAL hooks (`useCount`,
+    // `preview.useEntries`), so its hook SET is a property of the contribution — tags/regex/world-info
+    // declare a preview, rosters does not. Without a key React reuses ONE fiber for every library, so a
+    // switch changed the hook count mid-fiber and threw "Rendered fewer/more hooks than expected" straight
+    // past every route boundary: the whole shell white-screened, reload-only. The key is the correct
+    // identity statement — a different library is a different component instance, not the same one with new
+    // props — and it is what makes "unconditional in a fixed position" true for each contribution's own
+    // fiber. The seam states this law for every future host (`collection-contracts.ts`, `useCount`).
+    return <CollectionLanding group={collection} key={collection.id} />;
   }
   return <ConfigWelcome groups={groups} />;
 }
 
 /**
  * AN ACTIVE COLLECTION'S LANDING — the CONTENT a library shows while it is the reader's location and no
- * member is open. Its own component so `useCount` runs unconditionally in a fixed position; the copy is the
- * CONTRIBUTION's (`label`, `description`, `preview`, `emptyText`, `create.label`) and the ONE host sentence
- * about the host's own geometry (`CONFIG_COLLECTION_LANDING.hint`).
+ * member is open. The copy is the CONTRIBUTION's (`label`, `description`, `preview`, `emptyText`,
+ * `create.label`) and the ONE host sentence about the host's own geometry (`CONFIG_COLLECTION_LANDING.hint`).
+ *
+ * ITS HOOKS ARE UNCONDITIONAL FOR ONE CONTRIBUTION'S FIBER, WHICH IS WHY THE MOUNT IS KEYED (#1203 P0 —
+ * this clause used to say "its own component so `useCount` runs unconditionally in a fixed position", which
+ * was FALSE the moment two contributions shared this component's fiber). `useCount?.()` and
+ * `preview?.useEntries()` are optional-hook calls: their COUNT is fixed per contribution and varies BETWEEN
+ * contributions (rosters declares no preview), so the invariant holds only while each library gets its own
+ * instance. A component is not a fiber — the `key` at the mount site above is what makes that true.
  *
  * ═══ THE SPECIES CONTRACT, LANDED (#925 owner rulings 2026-09-02) ═══════════════════════════════════
  *
