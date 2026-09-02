@@ -153,3 +153,125 @@ test("the blindness arm ABSTAINS on a conformance-sized project — a mini-proje
   const found = findings({ [WORLD_INFO]: LIVE_WORLD_INFO, [USER_BUS]: LIVE_USER_BUS });
   expect(found).toEqual([]);
 });
+
+// ── #1024: an OPEN KEY SPACE on a wire event (index signature / `Record` / mapped type / `unknown`) ────
+// RED-FIRST: every case below returned ZERO findings against the pre-#1024 gate — `getProperties()` skips
+// index signatures outright, and a field's own spelled type was never judged at all.
+
+test("an INDEX SIGNATURE on a named wire event is refused — getProperties() never saw it", () => {
+  const found = findings({
+    [CHAT_BUS]: 'export type ChatBusEvent = { type: "x"; chatId: string; [k: string]: string };\n',
+  });
+  expect(found.map((f) => f.token)).toEqual(["unsupported-shape:IndexSignature"]);
+});
+
+test("an index signature on an INHERITED carrier interface is refused at its declaring site", () => {
+  const found = findings({
+    "packages/contracts/src/events/open-carrier.ts": "export interface OpenCarrier {\n  readonly [k: string]: string;\n}\n",
+    [EVENTS]:
+      'import type { OpenCarrier } from "./open-carrier.ts";\nexport interface CharacterUpdatedEvent extends OpenCarrier {\n  readonly type: "character.updated";\n}\n',
+  });
+  expect(found).toHaveLength(1);
+  expect(found[0]?.token).toBe("unsupported-shape:IndexSignature");
+  expect(found[0]?.file).toBe("packages/contracts/src/events/open-carrier.ts");
+});
+
+test("a `Record<string, …>` FIELD is refused — an open bag carries a secret under a name the predicate cannot read", () => {
+  const found = findings({
+    [CHAT_BUS]: 'export type ChatBusEvent = { type: "x"; chatId: string; meta: Record<string, string> };\n',
+  });
+  expect(found.map((f) => f.token)).toEqual(["unsupported-shape:Record"]);
+});
+
+test("an `unknown` field is refused, and so is a mapped-type event body", () => {
+  expect(findings({ [CHAT_BUS]: 'export type ChatBusEvent = { type: "x"; chatId: string; blob: unknown };\n' }).map((f) => f.token)).toEqual([
+    "unsupported-shape:unknown",
+  ]);
+  expect(findings({ [CHAT_BUS]: "export type ChatBusEvent = { [K in string]: string };\n" }).map((f) => f.token)).toEqual(["unsupported-shape:MappedType"]);
+});
+
+test("an INLINE nested object literal's keys are on the wire under the event's own name and ARE scanned", () => {
+  const found = findings({
+    [CHAT_BUS]: 'export type ChatBusEvent = { type: "x"; chatId: string; payload: { apiKey: string } };\n',
+  });
+  expect(found.map((f) => f.token)).toEqual(["apiKey"]);
+});
+
+test("a NAMED reference stays undescended — the boundary #948 declared is not widened by the open-shape check", () => {
+  const gateResult = result({
+    [CHAT_BUS]:
+      'export interface MessageView {\n  readonly apiKey: string;\n  readonly meta: Record<string, string>;\n}\nexport type ChatBusEvent = { type: "x"; chatId: string; view?: MessageView };\n',
+  });
+  expect(gateResult.findings).toEqual([]);
+  expect(gateResult.scan.declared?.unit).toContain("refPayloadsNotFollowed=1");
+});
+
+// ── #1025: the notification zod arm resolves IMPORTED schema objects ──────────────────────────────────
+// RED-FIRST: the pre-#1025 arm read literal `z.object({…})` calls only, so every imported-initializer case
+// below returned ZERO findings while the credential shipped on the durable inbox wire.
+
+test("an IMPORTED schema used directly as a notification arm is resolved — its credential key is reported at the carrier", () => {
+  const found = findings({
+    "packages/contracts/src/notifications/leaky-base.ts":
+      'import { z } from "zod";\nexport const leakyBase = z.object({ type: z.literal("leak"), apiKey: z.string() });\n',
+    [NOTIFICATIONS]:
+      'import { z } from "zod";\nimport { leakyBase } from "./leaky-base.ts";\nexport const notificationEventSchema = z.discriminatedUnion("type", [leakyBase]);\n',
+  });
+  expect(found).toHaveLength(1);
+  expect(found[0]?.token).toBe("apiKey");
+  expect(found[0]?.file).toBe("packages/contracts/src/notifications/leaky-base.ts");
+});
+
+test("an imported base reached through `.extend({…})` contributes BOTH sides' keys", () => {
+  const found = findings({
+    "packages/contracts/src/notifications/base.ts":
+      'import { z } from "zod";\nexport const inboxBase = z.object({ recipientUserId: z.string(), sessionToken: z.string() });\n',
+    [NOTIFICATIONS]:
+      'import { z } from "zod";\nimport { inboxBase } from "./base.ts";\nexport const notificationEventSchema = z.discriminatedUnion("type", [inboxBase.extend({ password: z.string() })]);\n',
+  });
+  expect(found.map((f) => f.token).sort()).toEqual(["password", "sessionToken"]);
+});
+
+test("an object SPREAD of an imported schema's `.shape` is resolved, not silently dropped", () => {
+  const found = findings({
+    "packages/contracts/src/notifications/base.ts": 'import { z } from "zod";\nexport const inboxBase = z.object({ apiKey: z.string() });\n',
+    [NOTIFICATIONS]:
+      'import { z } from "zod";\nimport { inboxBase } from "./base.ts";\nexport const notificationEventSchema = z.discriminatedUnion("type", [z.object({ ...inboxBase.shape, type: z.literal("x") })]);\n',
+  });
+  expect(found.map((f) => f.token)).toEqual(["apiKey"]);
+});
+
+test("an imported schema carrying only SANCTIONED fields passes — the resolver widens what is SEEN, never what is flagged", () => {
+  const gateResult = result({
+    "packages/contracts/src/notifications/base.ts":
+      'import { z } from "zod";\nexport const inboxBase = z.object({ recipientUserId: z.string(), chatId: z.string() });\n',
+    [NOTIFICATIONS]:
+      'import { z } from "zod";\nimport { inboxBase } from "./base.ts";\nexport const notificationEventSchema = z.discriminatedUnion("type", [inboxBase.extend({ inviteId: z.string() })]);\n',
+  });
+  expect(gateResult.findings).toEqual([]);
+  expect(gateResult.scan.declared?.unit).toContain("carriers=1");
+});
+
+test("an arm imported through a specifier this pure-AST harness cannot resolve FAILS CLOSED", () => {
+  const found = findings({
+    [NOTIFICATIONS]:
+      'import { z } from "zod";\nimport { farBase } from "@orb/contracts/elsewhere";\nexport const notificationEventSchema = z.discriminatedUnion("type", [farBase]);\n',
+  });
+  expect(found.map((f) => f.token)).toEqual(["unresolved-schema:farBase"]);
+});
+
+test("an arm that admits unknown keys (`.loose()`) is refused — the open-key-space rule on the zod side", () => {
+  const found = findings({
+    [NOTIFICATIONS]:
+      'import { z } from "zod";\nexport const notificationEventSchema = z.discriminatedUnion("type", [z.object({ type: z.literal("x") }).loose()]);\n',
+  });
+  expect(found.map((f) => f.token)).toEqual(["unsupported-shape:z.loose"]);
+});
+
+test("a nested `z.object` in a property VALUE still contributes its keys (the live `source` shape)", () => {
+  const found = findings({
+    [NOTIFICATIONS]:
+      'import { z } from "zod";\nexport const notificationEventSchema = z.discriminatedUnion("type", [\n  z.object({ type: z.literal("x"), source: z.discriminatedUnion("kind", [z.object({ kind: z.literal("rule"), apiKey: z.string() })]) }),\n]);\n',
+  });
+  expect(found.map((f) => f.token)).toEqual(["apiKey"]);
+});
