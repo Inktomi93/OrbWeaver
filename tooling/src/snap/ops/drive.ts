@@ -2,6 +2,8 @@
 // queue (navs + steps + mid-chain evals — the interleave IS the contract, 2026-08-15/16), and the
 // trailing-eval split that keeps a trailing `--eval` a settled-surface observer.
 import { errorMessage } from "@orb/kit/error-message";
+import type { NavResultShape } from "@orb/tooling/_shared/page-validate";
+import { navResultShape } from "@orb/tooling/_shared/page-validate";
 import type { Page } from "@playwright/test";
 import { print } from "../../_shared/artifacts.ts";
 import { settle } from "../../_shared/browser.ts";
@@ -187,11 +189,6 @@ async function driveStep(page: Page, step: Step): Promise<number> {
   }
 }
 
-interface NavResultShape {
-  ok: boolean;
-  reason?: string;
-}
-
 // One nav action + its settle. Returns the failure count (0 or 1); each failure prints + reddens exit.
 async function driveNav(page: Page, action: NavAction): Promise<number> {
   // Every nav action needs the app hydrated AND the bridge installed — wait on both, gracefully bounded.
@@ -205,7 +202,9 @@ async function driveNav(page: Page, action: NavAction): Promise<number> {
   try {
     // @orb-gate-ignore caught-failure-ownership(promise:evaluate): a fire-and-forget readiness ping whose result is discarded — the very next line's evaluate() runs regardless and its failure IS caught by this try, reported as NAV FAILED. Ends if the next evaluate stops being what reports real failures.
     await page.evaluate("window.__orb && window.__orb.ready").catch(() => undefined);
-    result = (await page.evaluate(buildNavScript(action.kind, action.target))) as NavResultShape;
+    // #1004 — ONE nav-result predicate for all four call sites (_shared/page-validate.ts); this file
+    // used to declare its own copy of the shape and assert it.
+    result = navResultShape(await page.evaluate(buildNavScript(action.kind, action.target)), `nav ${action.kind} ${action.target}`);
   } catch (e) {
     print(`NAV FAILED  ${action.kind} ${action.target}: ${errorMessage(e)}`);
     return 1;

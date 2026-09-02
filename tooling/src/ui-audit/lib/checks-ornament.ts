@@ -3,7 +3,7 @@
 
 import type { Rgb } from "@orb/tooling/_shared/wcag";
 import { rgbChroma } from "@orb/tooling/_shared/wcag";
-import type { Finding } from "../contract/findings.ts";
+import type { CandidateDisposition, Finding } from "../contract/findings.ts";
 import type { BgPatternInput, IconTileInput, MotionStaticInput, RadialGlowInput } from "../contract/samples.ts";
 import { findColorToken } from "./css-color.ts";
 
@@ -165,6 +165,20 @@ export function checkRadialGlow(input: RadialGlowInput): Finding | null {
   return null;
 }
 
+/** The two radial rules' shared disposition. The census is every visible radial-gradient layer, element
+ *  and pseudo (ops/walker/census-glow.ts). The ONLY decline that is not this rule's own question is the
+ *  owner-sanctioned effect carrier — every other `null` above (too small, does not fade out, neutral
+ *  chroma, unparseable stop list) is the rule ANSWERING "no", which `grayOnColorOutcome` in
+ *  checks-color.ts rules a judged pass rather than an exclusion. The two rules split ONE detector run,
+ *  so each publishes the same denominator and only its own affected count. */
+export function classifyRadialGlow(input: RadialGlowInput, rule: "radial-halo" | "radial-spotlight-glow"): CandidateDisposition {
+  if (input.sanctioned) {
+    return { kind: "excluded", reason: "sanctionedGlowCarrier" };
+  }
+  const finding = checkRadialGlow(input);
+  return { kind: "judged", finding: finding?.rule === rule ? finding : null };
+}
+
 const PATTERN_MIN_WIDTH_PX = 100;
 
 const PATTERN_MIN_HEIGHT_PX = 40;
@@ -192,6 +206,18 @@ export function checkBgPattern(input: BgPatternInput): Finding | null {
     message: "a decorative grid-line background drawn with tiled hairline gradients — reserve grid overlays for actual canvas/map/measurement surfaces",
     origin: "impeccable",
   };
+}
+
+/** The two background-pattern rules' disposition. A sample carries exactly one `kind`, so the OTHER
+ *  rule's census excludes it by a measured fact — `stripe-background` and `grid-line-background` are
+ *  different populations drawn from one walker sweep, and pretending a stripe was "judged clean" by the
+ *  grid rule would inflate both denominators. The size floor stays a judged pass: "is this big enough to
+ *  be surface decoration" is the rule's own question. */
+export function classifyBgPattern(input: BgPatternInput, rule: "grid-line-background" | "stripe-background"): CandidateDisposition {
+  if ((input.kind === "stripe") !== (rule === "stripe-background")) {
+    return { kind: "excluded", reason: "otherPatternKind" };
+  }
+  return { kind: "judged", finding: checkBgPattern(input) };
 }
 
 const TILE_MIN_PX = 32;
@@ -244,6 +270,22 @@ export function checkIconTile(input: IconTileInput): Finding | null {
       "a rounded-square icon container stacked above a heading is the universal generated feature-card template — put the icon beside the heading or let it sit in flow without its own container",
     origin: "impeccable",
   };
+}
+
+/** The two static-motion rules' disposition. The walker gathers three sample KINDS into one array
+ *  (`bounce-name`, `overshoot-bezier`, `layout-transition`) and each rule owns a disjoint subset, so the
+ *  other kinds are an exclusion rather than a phantom clean judgment. `panelExempt` is the motion law's
+ *  own §3.7 carve-out (the measured-var accordion/collapsible panels) and is likewise a closed
+ *  exclusion — the count is what makes a widening `PANEL_EXEMPT_SEL` visible instead of silent. An
+ *  `overshoot-bezier` sample whose curve re-parses inside the legal band is a judged pass. */
+export function classifyMotionStatic(input: MotionStaticInput, rule: "bounce-easing" | "layout-transition"): CandidateDisposition {
+  if ((input.kind === "layout-transition") !== (rule === "layout-transition")) {
+    return { kind: "excluded", reason: "otherMotionKind" };
+  }
+  if (rule === "layout-transition" && input.panelExempt) {
+    return { kind: "excluded", reason: "panelExempt" };
+  }
+  return { kind: "judged", finding: checkMotionStatic(input) };
 }
 
 export function checkMotionStatic(input: MotionStaticInput): Finding | null {

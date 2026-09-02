@@ -80,6 +80,16 @@ export const gate: GateDescriptor = {
 
   mustFlag: [
     {
+      at: "packages/db/src/schema/chat.ts",
+      files:
+        'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\n' +
+        'const id = text("id").primaryKey();\n' +
+        'const chatId = text("chat_id").references(() => chats.id, { onDelete: "cascade" });\n' +
+        'export const messages = sqliteTable("messages", { id, chatId });\n',
+      expect: { count: 1, messageIncludes: "does not LEAD any index" },
+      why: "THE #1035 SHORTHAND RED, measured by v-gates: this exact table went GREEN while the byte-identical INLINE column RED'd (resolvedColumns 3 -> 2, no refusal anywhere) — one editor refactor from a schema with no index obligations at all",
+    },
+    {
       files: {
         "packages/db/src/schema/chat-columns.ts":
           'import { text } from "drizzle-orm/sqlite-core";\n' +
@@ -155,6 +165,15 @@ export const gate: GateDescriptor = {
     },
   ],
   mustPass: [
+    {
+      at: "packages/db/src/schema/chat.ts",
+      files:
+        'import { index, sqliteTable, text } from "drizzle-orm/sqlite-core";\n' +
+        'const id = text("id").primaryKey();\n' +
+        'const chatId = text("chat_id").references(() => chats.id, { onDelete: "cascade" });\n' +
+        'export const messages = sqliteTable(\n  "messages",\n  { id, chatId },\n  (t) => [index("messages_chat_idx").on(t.chatId)],\n);\n',
+      why: "the SHORTHAND's green twin: the same resolved FK, indexed — the member kind changes what the gate SEES, not what it demands",
+    },
     {
       at: "packages/db/src/schema/chat.ts",
       files:

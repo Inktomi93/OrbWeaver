@@ -168,6 +168,7 @@ export function extractRows(request: ExtractRequest): RowExtraction {
   const { sf, rel, text, keys, classify } = request;
   const lineOf = lineFinder(text);
   const exact: ExactRow[] = [];
+  const skippedRows: ExactRow[] = [];
   const unresolved: UnresolvedShape[] = [];
   let candidates = 0;
   let skipped = 0;
@@ -181,15 +182,17 @@ export function extractRows(request: ExtractRequest): RowExtraction {
     for (const value of read.values) {
       candidates += 1;
       const path = classify(value);
-      if (path === undefined) {
-        skipped += 1;
-        continue;
-      }
       // Anchor at the VALUE's own literal line when the raw text carries it (a const-resolved or
       // template-built value has no literal of its own — those fall back to the property's line).
       const at = lineOf(value);
-      exact.push({ file: rel, path, line: at === 0 ? pa.getStartLineNumber() : at });
+      const line = at === 0 ? pa.getStartLineNumber() : at;
+      if (path === undefined) {
+        skipped += 1;
+        skippedRows.push({ file: rel, path: value, line });
+        continue;
+      }
+      exact.push({ file: rel, path, line });
     }
   }
-  return { candidates, exact, skipped, unresolved };
+  return { candidates, exact, skipped, skippedRows, unresolved };
 }

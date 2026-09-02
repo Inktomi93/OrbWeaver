@@ -18,6 +18,7 @@ import type { ContrastCapture, ContrastEvidence, ContrastFacts } from "../contra
 import type { ContrastOutcome } from "../contract/types.ts";
 import { BOLD_WEIGHT, contrastExemption, isContrastMeasured, parseRgbString, refuseContrastVerdict, UI_COMPONENT_MIN_RATIO } from "../lib/contrast-verdict.ts";
 import { resolveContrastBackdrop } from "./contrast-pixels.ts";
+import { contrastFacts } from "./page-validate.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
@@ -305,7 +306,9 @@ async function resolveContrastFacts(page: Page, selector: string): Promise<Facts
     return { ok: false, outcome: { line: `CONTRAST ${selector}: NOT FOUND`, failed: true } };
   }
   try {
-    const facts = (await page.evaluate(buildContrastScript(`[${CONTRAST_MARK}]`))) as ContrastFacts;
+    // #1004 — settled at the seam: the three non-null arms are told apart by KEY PRESENCE, so a
+    // malformed object used to fall through to the measured arm and mint a verdict from undefined.
+    const facts = contrastFacts(await page.evaluate(buildContrastScript(`[${CONTRAST_MARK}]`)));
     if (facts === null) {
       return { ok: false, outcome: { line: `CONTRAST ${selector}: NOT FOUND`, failed: true } };
     }

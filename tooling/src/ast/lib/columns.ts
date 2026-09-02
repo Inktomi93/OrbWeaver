@@ -175,7 +175,7 @@ function tableDefOf(table: SchemaTable): TableDef | undefined {
     tableVar: varName,
     sqlTable: sqlName,
     jsProp: column.name,
-    sqlColumn: sqlColumnName(column.node.getInitializer(), column.name),
+    sqlColumn: sqlColumnName(column.initializer, column.name),
     decl: column.node as Node,
   }));
   return { varName, sqlName, key: declKey(binding), columns };

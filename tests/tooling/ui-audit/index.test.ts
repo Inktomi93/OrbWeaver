@@ -2158,17 +2158,25 @@ test("family populations are the exact detector dispatches, including both decor
     a11y: 7,
     // 4 since the forced-state family joined colour: contrast · gray-on-color · quiet-state · hover-contrast.
     color: 4,
-    decor: 2,
+    // 3 since #1027 split the accent-border detector into its two RULE dispatches (side-tab ·
+    // border-accent-on-rounded), each publishing its own rung-2 population over the shared census.
+    decor: 3,
     // 3 since buried-raster joined media: distorted-image · broken-image · buried-raster.
     media: 3,
-    ornament: 4,
+    // 7 for the same #1027 reason: radial-halo · radial-spotlight-glow · stripe-background ·
+    // grid-line-background · icon-tile-stack · layout-transition · bounce-easing are seven RULES
+    // sharing three walker censuses, and a scan is a rule dispatch, not a detector call.
+    ornament: 7,
     // 12 since the two text-occlusion arms (headline-overhang · inline-padding-leak), tier-drift, and the
     // two device-pixel-grid CAUSE arms (promoted-layer-offset · off-grid-transform — crispness Laws 3 and
     // 2's resolved half) joined.
     quality: 12,
     structure: 8,
-    // 4 since the Law-4 runtime backstop (off-grid-text) joined typography.
-    typography: 4,
+    // 10 since #1027: the two rung-4 type floors ride one dispatch, then the six per-element rules
+    // (line-length · tight-leading · justified-text · all-caps-body · wide-tracking · crushed-tracking)
+    // each own a rung-2 partition over the shared text census, plus caveat-outweighed, the page font
+    // census, and the Law-4 runtime backstop (off-grid-text).
+    typography: 10,
   });
 });
 

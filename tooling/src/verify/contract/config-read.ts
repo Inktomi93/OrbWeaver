@@ -56,5 +56,9 @@ export interface RowExtraction {
   readonly exact: readonly ExactRow[];
   /** Values that are patterns, not single files (declared skips). */
   readonly skipped: number;
+  /** The same values, ANCHORED (#973). A skip used to be a bare count, which is how 298 pattern grants
+   *  became invisible permanent authority: the pattern-liveness half judges these rows, so the extractor
+   *  must hand them out rather than tallying them away. */
+  readonly skippedRows: readonly ExactRow[];
   readonly unresolved: readonly UnresolvedShape[];
 }

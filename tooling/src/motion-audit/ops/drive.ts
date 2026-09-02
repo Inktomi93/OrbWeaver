@@ -10,20 +10,24 @@ import type { Page } from "@playwright/test";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { AnimationRecord, MeasuredClick, MotionSnapshot, ReachAction } from "../contract/types.ts";
 import { REACH_SETTLE_MS, STEP_TIMEOUT_MS } from "../lib/budgets.ts";
+import { animationRecords, bridgePresence, motionSnapshot } from "./page-validate.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm motion-audit");
 
 /** Is the app's in-page instrument present at all? Checked BEFORE anything is measured: without it every
  *  `__orb` read below answers null/[] and each budget arm reads that as a clean zero (#409). */
 export async function hasOrbBridge(page: Page): Promise<boolean> {
-  return (await page.evaluate("globalThis.__orb !== undefined && globalThis.__orb !== null")) as boolean;
+  return bridgePresence(await page.evaluate("globalThis.__orb !== undefined && globalThis.__orb !== null"));
 }
 
+// #1004 — the three bridge reads are VALIDATED at the seam, not cast. Same reason the presence probe
+// above exists: every one of these feeds a budget, and a budget reads missing or wrong-shaped evidence
+// as a pass (`undefined > budget` is false). ops/page-validate.ts carries the full argument.
 export async function readMotion(page: Page): Promise<MotionSnapshot | null> {
-  return (await page.evaluate("globalThis.__orb ? globalThis.__orb.motion() : null")) as MotionSnapshot | null;
+  return motionSnapshot(await page.evaluate("globalThis.__orb ? globalThis.__orb.motion() : null"));
 }
 export async function readAnimations(page: Page): Promise<readonly AnimationRecord[]> {
-  return (await page.evaluate("globalThis.__orb ? globalThis.__orb.animations() : []")) as readonly AnimationRecord[];
+  return animationRecords(await page.evaluate("globalThis.__orb ? globalThis.__orb.animations() : []"));
 }
 
 /** Resolve Playwright's visibility/actionability geometry before the checkpoint. Those reads can run

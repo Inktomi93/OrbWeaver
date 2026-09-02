@@ -367,7 +367,7 @@ test("a planted near-square role=switch REDs the audit through the real cli", as
 test("the shipped 64x44 twin carries no control-aspect finding — the red above is the plant", async ({ runCli, scratch }) => {
   await writeFile(join(scratch, "pill.html"), switchPage(64));
   const res = await runCli("ui-audit", ["/pill.html", "--base", `file://${scratch}`, "--fail-on", "P2"], { timeoutMs: CLI_TIMEOUT_MS });
-  expect(res.stdout).not.toContain("control-aspect");
+  expect(findingRows(res.stdout, "control-aspect"), "the population row names the rule without filing anything — anchor on the verdict").toEqual([]);
   // The twin still legitimately trips the P2 font census (a bare fixture page's default face is off the
   // token ramp), so the exit code is not the discriminator here — the ABSENCE of the planted class is.
   const census = CENSUS_RE.exec(res.stdout)?.[1];
@@ -828,7 +828,7 @@ test("an alert sentence set smaller than the endpoints it bounds is a caveat-out
 test("the shipped twin is silent — `prose` lifted the alert above the register it bounds", async ({ runCli, scratch }) => {
   await writeFile(join(scratch, "consent-post.html"), consentBlock("13px", "12px"));
   const res = await runCli("ui-audit", ["/consent-post.html", "--base", `file://${scratch}`, "--fail-on", "P2"], { timeoutMs: CLI_TIMEOUT_MS });
-  expect(res.stdout, "the alert now outweighs the endpoints — flagging it would indict the fix").not.toContain("caveat-outweighed");
+  expect(findingRows(res.stdout, "caveat-outweighed"), "the alert now outweighs the endpoints — flagging it would indict the fix").toEqual([]);
   // The absence is only a verdict when the walk censused nodes at all.
   const census = CENSUS_RE.exec(res.stdout)?.[1];
   expect(Number(census)).toBeGreaterThan(0);
@@ -849,9 +849,10 @@ test("a quiet caption under the figure it explains is NOT an inversion — the r
 </div></main></body></html>`,
   );
   const res = await runCli("ui-audit", ["/caption.html", "--base", `file://${scratch}`, "--fail-on", "P2"], { timeoutMs: CLI_TIMEOUT_MS });
-  expect(res.stdout, "a caption under a stat figure is what a caption is for — this shape fired 21x app-wide under the gloss anchor").not.toContain(
-    "caveat-outweighed",
-  );
+  expect(
+    findingRows(res.stdout, "caveat-outweighed"),
+    "a caption under a stat figure is what a caption is for — this shape fired 21x app-wide under the gloss anchor",
+  ).toEqual([]);
   const census = CENSUS_RE.exec(res.stdout)?.[1];
   expect(Number(census)).toBeGreaterThan(0);
 });

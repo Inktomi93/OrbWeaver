@@ -2,6 +2,7 @@
 // carrier keys/arms; the authenticated catalog owns theme ids. Tool policies own only projections.
 import { listSeededBackgrounds } from "@orb/contracts/theme";
 import type { Page } from "@playwright/test";
+import { pageArray, pageNumberFields, pageObject } from "./page-validate.ts";
 import type { ThemeEntry } from "./theme.ts";
 import { themeCatalogCapabilities } from "./theme.ts";
 import type { VariantAssignment, VariantAxis } from "./variant-matrix.ts";
@@ -167,7 +168,16 @@ export function deriveAppearanceContract(contract: RuntimeAppearanceContract): D
 /** Read the client-owned live bridge. Tool consumers do not import the client manifest or copy this
  *  evaluation body; the page is the source of truth for the contract it actually rendered. */
 export async function readRuntimeAppearanceContract(page: Page): Promise<RuntimeAppearanceContract> {
-  return (await page.evaluate(READ_APPEARANCE_MATRIX_CONTRACT)) as RuntimeAppearanceContract;
+  // #1004 — the contract is the DENOMINATOR for every axis this tool plans, so a malformed read is a
+  // silently smaller matrix, not an error. Counts and the two row lists are settled here; the per-row
+  // shape is already re-derived and cross-checked by `deriveAppearanceContract` above.
+  const label = "the live appearance contract";
+  const record = pageObject(await page.evaluate(READ_APPEARANCE_MATRIX_CONTRACT), label);
+  pageNumberFields(record, ["declared", "executable", "dependencies"], label);
+  pageArray(record["rows"], `${label} field "rows"`);
+  pageArray(record["historicalRows"], `${label} field "historicalRows"`);
+  pageObject(record["themeObservables"], `${label} field "themeObservables"`);
+  return record as unknown as RuntimeAppearanceContract;
 }
 
 function assertMessageRegistryReceipt(registry: RuntimeMessageRegistryReceipt | undefined): void {

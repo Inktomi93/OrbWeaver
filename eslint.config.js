@@ -251,7 +251,6 @@ export default tseslint.config(
       // under packages/*/src) mid-lifecycle → a phantom lint error that vanishes on re-run.
       "**/__g_*",
       "**/*.gen.ts",
-      "**/routeTree.gen.ts",
       "packages/ui/src/tokens/index.ts",
       "packages/ui/src/styles/theme.css",
     ],

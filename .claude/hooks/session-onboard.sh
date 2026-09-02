@@ -41,7 +41,7 @@ echo "--- worktrees: ${WT_COUNT:-?} beyond main (run: git worktree list — resu
 DIRTY=$(git status --short 2>/dev/null | head -5)
 if [ -n "$DIRTY" ]; then echo "--- UNCOMMITTED on main (investigate before merging anything):"; echo "$DIRTY"; else echo "--- main working tree: clean"; fi
 echo "--- standing posture: .claude/rules/orchestration.md (auto-loaded, POLICY only). PROCEDURE lives in the orchestrator-runbook SKILL — load it (Skill tool) before your first work:item transition, claude-b/bridge action, or worktree sweep; it is not auto-loaded. claude-b registry: ~/.claude/bridge/SESSIONS.md (resume, never re-mint)."
-echo "--- FIRST ACTIONS: (1) re-arm the bridge Monitor (inotifywait -m ~/.claude/bridge/to-primary/); (2) honor any MERGE HOLD / sequencing note above; (3) session scratchpad dispatch-map.md (if this session's scratchpad survived) carries the fuller history."
+echo "--- FIRST ACTIONS: (1) re-arm the bridge Monitor (stdbuf -oL inotifywait -m ... ~/.claude/bridge/to-primary/ | stdbuf -oL grep --line-buffered — the stdbuf is load-bearing, see runbook §2); (2) honor any MERGE HOLD / sequencing note above; (3) session scratchpad dispatch-map.md (if this session's scratchpad survived) carries the fuller history."
 
 # 4) CONTEXT-BUDGET GUARD (2026-08-24, #638). Two always-on injections have no other signal when they
 #    near their caps — MEMORY.md truncates silently past 200 lines OR 25600 bytes (whichever binds

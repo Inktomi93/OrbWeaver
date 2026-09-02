@@ -97,8 +97,8 @@ function createOptions(args: readonly string[]): Pick<CreateCommand, "title" | "
   return { title: requiredFlagValue(args, "--title").trim(), bodyFile: requiredFlagValue(args, "--body-file") };
 }
 
-/** `file "<title>" --kind <class> [--priority P] [--area A] [--review R] [--body-file f] [--ready]
- *  [--claim <lane>]` — create + the metadata writes + ready + claim in ONE invocation (6-7 calls today).
+/** The `file` verb — create + the metadata writes + ready + claim in ONE invocation (6-7 calls today);
+ *  usage: `file "<title>" --kind <class> [--priority P] [--area A] [--review R] [--body-file f] [--ready] [--claim <lane>]`.
  *  `--body-file` is optional: with none, the body IS the title, which is the one-line row this verb
  *  exists for. A `decision` refuses --ready/--claim rather than walking past the owner gate the class
  *  itself declares (its create status is Needs owner). */

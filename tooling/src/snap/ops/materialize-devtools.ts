@@ -22,6 +22,7 @@ import type {
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { DEVTOOLS_LICENSE_SOURCES } from "../lib/devtools-license-sources.ts";
 import { literalModuleAssetPaths, pathForDevToolsRequest } from "../lib/devtools-module-assets.ts";
+import { devToolsDiscoveryProof } from "./page-validate.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap:devtools-assets");
 const ROOT = fileURLToPath(new URL("../lib/devtools-frontend", import.meta.url));
@@ -58,6 +59,8 @@ function canonical(value: unknown): string {
 }
 
 async function readPin(): Promise<DevToolsAssetPin> {
+  // NOT a page-boundary cast (#1004): this is a file WE wrote on disk, read back in node — no browser
+  // realm, no JSON round-trip we did not control. The page seam in this file is `devToolsDiscoveryProof`.
   return JSON.parse(await readFile(join(ROOT, "pin.json"), "utf8")) as DevToolsAssetPin;
 }
 
@@ -306,7 +309,9 @@ async function exerciseClosure(page: Page, pin: DevToolsAssetPin, frontendOrigin
       timeout: 30_000,
     });
     await frontend.waitForTimeout(FRONTEND_ATTACH_MS);
-    const proof = (await frontend.evaluate(DISCOVERY_BRIDGE)) as { inspectedUrl: string; fixture: boolean; rows: unknown[] };
+    // #1004 — this object IS the attach proof for the whole materialisation; a malformed one used to
+    // satisfy the three checks below by way of undefined comparisons.
+    const proof = devToolsDiscoveryProof(await frontend.evaluate(DISCOVERY_BRIDGE));
     if (proof.inspectedUrl !== "about:blank" || !proof.fixture || proof.rows.length !== PLANTED_CASES) {
       throw new Error("DevTools SDK attached to the wrong target or returned an empty matrix");
     }

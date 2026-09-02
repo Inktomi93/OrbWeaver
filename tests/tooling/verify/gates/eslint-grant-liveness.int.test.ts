@@ -9,6 +9,7 @@
 // are bare string literals, the rest arrive through named consts, const ARRAYS and spreads. A reader that
 // saw only StringLiterals would have found almost nothing and printed a clean zero — so the real-tree test
 // asserts the DENOMINATOR, not just the verdict, and the planted controls exercise each hiding shape.
+import { execFileSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import type { Node } from "ts-morph";
@@ -139,5 +140,74 @@ describe("eslint-grant-liveness — the REAL tree", () => {
     expect(declared?.candidates ?? 0).toBeGreaterThanOrEqual(ANCHOR);
     expect(declared?.scanned ?? 0).toBeGreaterThan(0);
     expect(run.findings).toEqual([]);
+  });
+});
+
+// ── #973: the PATTERN half. A pattern grant is LIVE only while some TRACKED file is still inside it, so
+// these arms need a real git work tree (the corpus is `git ls-files`, deliberately not an FS walk) — which
+// is also why conformance cannot drive them: its mini-projects are under the real-config anchor and have
+// no work tree at all.
+
+/** A throwaway git repo at `root` with `files` committed — the corpus these arms judge against. */
+/** The gate's own module — its §4.5 real-tree anchor for the pattern half. */
+const GATE_SELF_REL = "tooling/src/verify/gates/eslint-grant-liveness.ts";
+
+function plantRepo(root: string, files: Readonly<Record<string, string>>): void {
+  // Plant the gate's OWN module: the pattern half is scoped to a root that carries it (the §4.5 real-tree
+  // anchor shape), so a fixture opts IN by planting the anchor and the file-exact fixtures stay untouched.
+  plant(root, GATE_SELF_REL, "export const gate = 1;\n");
+
+  for (const [rel, content] of Object.entries(files)) {
+    plant(root, rel, content);
+  }
+  execFileSync("git", ["init", "-q"], { cwd: root });
+  execFileSync("git", ["add", "-A"], { cwd: root });
+}
+
+const LIVE_SRC = "packages/ui/src/live.ts";
+const LIVE_SOURCE = "export const live = 1;\n";
+/** The gate's RATIFIED keys + cites, restated (the test is the SECOND opinion). A planted config must
+ *  carry them, and their cites must resolve, or the two-sided arms correctly red every fixture. */
+const RATIFIED_KEYS = ["**/node_modules/**", "**/dist/**", "**/__g_*"];
+const RATIFIED_CITES = [".gitignore", "tooling/src/verify/gates/GATE-AUTHORING.md"];
+
+/** An anchor-sized config: `globs` under test, the ratified rows a real config carries, LIVE glob filler,
+ *  and ONE live file-exact grant (an anchor-sized set deriving zero exact rows is the classifier-rot
+ *  tripwire, which would drown the arm under test). */
+function globConfig(globs: readonly string[]): string {
+  const filler = Array.from({ length: ANCHOR }, (_, i) => `packages/ui/src/**/{live,f${String(i)}}.ts`);
+  const all = [...globs, ...RATIFIED_KEYS, ...filler, LIVE_SRC].map((g) => JSON.stringify(g)).join(", ");
+  return `export default [{ files: [${all}] }];\n`;
+}
+
+function plantEslintRepo(root: string, globs: readonly string[], extra: Readonly<Record<string, string>> = {}): void {
+  const cites = Object.fromEntries(RATIFIED_CITES.map((cite) => [cite, "cite\n"]));
+  plantRepo(root, { [CONFIG_REL]: globConfig(globs), [LIVE_SRC]: LIVE_SOURCE, ...cites, ...extra });
+}
+
+describe("eslint-grant-liveness — PATTERN liveness (#973)", () => {
+  test("a GLOB matching no tracked file is RED, and names the glob", ({ scratch }) => {
+    plantEslintRepo(scratch, ["packages/nonexistent/**/*.ts"]);
+    const run = runGate(scratch);
+    expect(tokens(run)).toContain("packages/nonexistent/**/*.ts");
+    expect(messages(run)).toContain("matches NO tracked file");
+  });
+
+  test("a LIVE multi-member glob is accepted — the control's other direction", ({ scratch }) => {
+    plantEslintRepo(scratch, ["packages/ui/src/**/*.{ts,tsx}"]);
+    expect(runGate(scratch).findings).toEqual([]);
+  });
+
+  test("a DIRECTORY glob is live through its members, not through its own name", ({ scratch }) => {
+    plantEslintRepo(scratch, ["packages/ui/src"]);
+    expect(runGate(scratch).findings).toEqual([]);
+  });
+
+  test("an EMPTY corpus refuses loudly rather than calling every glob dead", ({ scratch }) => {
+    // No `git init` — `git ls-files` cannot answer, so every glob verdict would be vacuous.
+    plant(scratch, CONFIG_REL, globConfig(["packages/ui/src/**/*.ts"]));
+    plant(scratch, LIVE_SRC, LIVE_SOURCE);
+    plant(scratch, GATE_SELF_REL, "export const gate = 1;\n");
+    expect(messages(runGate(scratch))).toContain("came back EMPTY");
   });
 });

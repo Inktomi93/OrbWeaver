@@ -4,8 +4,20 @@ import type { AppearancePatch } from "@orb/tooling/_shared/appearance";
 import type { Viewport } from "@orb/tooling/_shared/argv";
 import type { NavMethod } from "@orb/tooling/_shared/nav";
 import type { ThemeRequest } from "@orb/tooling/_shared/theme";
-import type { Severity } from "./findings.ts";
+import type { Finding, PopulationAccounting, Severity } from "./findings.ts";
 import type { RawSamples, SubjectAccountingInput } from "./samples.ts";
+
+/** What ONE `DesignAuditRuleFamily`'s checker returns to the collect dispatcher: its findings, the
+ *  number of RULE dispatches it made (a scan proves a detector actually executed — a bypassed dispatch
+ *  leaves a zero), and the population rows its rules published. Homed here rather than beside the
+ *  dispatcher because `lib/collect.ts` and `lib/collect-families.ts` both need it. */
+export interface FamilyCheckResult {
+  readonly findings: readonly Finding[];
+  readonly scans: number;
+  readonly populationAccounting?: PopulationAccounting;
+}
+
+export type FamilyChecker = (samples: RawSamples) => FamilyCheckResult;
 
 /** One pre-audit action, in argv order: a DOM click, a dev-bridge navigation, or a file-input upload
  *  (#651 — a census taken against an empty dropzone is a FALSE CLEAN; `--upload` lets the walk see the

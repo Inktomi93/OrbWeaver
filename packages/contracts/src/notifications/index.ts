@@ -162,6 +162,7 @@ export interface InboxView {
   /** null = unread; epoch-ms when the recipient first read it (idempotent — set once). */
   readonly readAt: number | null;
   /** null = active in the inbox; epoch-ms when the recipient dismissed it (idempotent — set once). */
+  // @view-server-only: `notifications.list` is dismissedAt-EXCLUDED at the query (persistence/queries.ts:86 `isNull(dismissedAt)`), so every row the client receives carries null here — the value exists for the idempotent dismiss flip, not for a reader. Ends if the inbox grows a "dismissed" tab that pages the excluded rows.
   readonly dismissedAt: number | null;
   readonly createdAt: number;
 }

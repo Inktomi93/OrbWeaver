@@ -94,9 +94,9 @@ module.exports = {
     {
       name: "bus-contract-no-credentials",
       comment:
-        "D16 bus-payload firewall: a bus-event contract module (chat/user-bus/notifications/events — the room-public / per-user / durable-inbox streams) must NEVER import @orb/contracts/credentials, the ONLY home of the secret-bearing shapes (ResolvedCredential, apiKey, baseUrl, headers). This is the resolve-time (tier-1) arm of the allowlist — even a TYPE import of a credential shape into a bus module is forbidden, so a producer can't structurally place a secret onto the wire. The SAFE `CredentialSource` enum reaches chat via #connection's verbatim re-export (routing's source axis), which is NOT this module — that path stays legal. Paired with the `bus-payload-allowlist` ts-morph gate (field-name arm). (Core-Laws-and-Precedents.md D16; client-architecture-lockdown.md §13.)",
+        "D16 bus-payload firewall: a bus-event contract module (chat/user-bus/notifications/events/world-info/rpg/automation/workloads — the room-public / per-user / durable-inbox streams) must NEVER import @orb/contracts/credentials, the ONLY home of the secret-bearing shapes (ResolvedCredential, apiKey, baseUrl, headers). This is the resolve-time (tier-1) arm of the allowlist — even a TYPE import of a credential shape into a bus module is forbidden, so a producer can't structurally place a secret onto the wire. The SAFE `CredentialSource` enum reaches chat via #connection's verbatim re-export (routing's source axis), which is NOT this module — that path stays legal. THE SCOPE IS EVERY LIVE WIRE-EVENT UNION, not the original four (#1030 F4): world-info (WiBusEvent, embedded in ChatBusEvent), rpg (RpgBusEvent — the room stream), automation (AutomationBusEvent) and workloads (WorkloadEvent) were outside this arm while carrying real fan-out, so for the rpg room stream NEITHER D16 arm applied. Paired with the `bus-payload-allowlist` ts-morph gate (field-name arm). (Core-Laws-and-Precedents.md D16; client-architecture-lockdown.md §13.)",
       severity: "error",
-      from: { path: `${CONTRACTS}(chat|user-bus|notifications|events)/` },
+      from: { path: `${CONTRACTS}(chat|user-bus|notifications|events|world-info|rpg|automation|workloads)/` },
       to: { path: `${CONTRACTS}credentials/` },
     },
     {
@@ -781,7 +781,7 @@ module.exports = {
     // The dist exclude is ANCHORED to workspace packages (`^packages/*/dist/`): a bare `(^|/)dist/` also
     // matches `node_modules/<lib>/dist/`, dropping the sealed-lib import edges (minisearch/echarts/shiki/…)
     // so the satellite-seal rules silently stop firing on their fixtures.
-    exclude: { path: ["routeTree\\.gen\\.ts$", "(^|/)__g_", "^packages/[^/]+/dist/", "^tooling/src/snap/lib/devtools-frontend/"] },
+    exclude: { path: ["(^|/)__g_", "^packages/[^/]+/dist/", "^tooling/src/snap/lib/devtools-frontend/"] },
     // NO RESULT CACHE (removed 2026-08-22, #393 P6 — planted-control receipt below). It was
     // `cache: { strategy: "content" }`, and a WARM cruise is BLIND TO A NEWLY-ADDED FILE: planting
     // `packages/kit/src/__dc/node.ts` with `import "node:fs"` and cruising warm reported 0 violations;

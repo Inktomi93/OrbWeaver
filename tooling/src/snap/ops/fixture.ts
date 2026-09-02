@@ -88,6 +88,8 @@ function curlJson<T>(url: string): T | null {
   }
   // @orb-gate-ignore caught-failure-ownership(default:catch): fail-closed floor — a parse failure returns null, and fixtureStatus() below turns any null into `{ up: false, reason: "… unreachable" }`, never a silent pass. Ends if that fail-closed mapping is removed.
   try {
+    // NOT a page-boundary cast (#1004): `res.stdout` is this tool's OWN subprocess answering on a
+    // contract this file defines, not a browser realm — the caller passes the shape it asked for.
     return JSON.parse(res.stdout) as T;
   } catch {
     return null;
