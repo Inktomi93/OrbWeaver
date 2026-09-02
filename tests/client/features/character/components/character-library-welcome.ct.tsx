@@ -136,6 +136,38 @@ test("#864 the pane at rest is the LANDING — the caption is gone and the shelv
   await expect(shelf(pane, "Starred · 2").getByRole("button")).toHaveCount(2);
 });
 
+// #1134 (side-eye 2026-09-02 F5). THE THREE READS MUST BE ONE WAVE, and the shape of the defect is why
+// this is pinned at the network boundary rather than by counting queries: three `useSuspenseQuery` calls in
+// one body CANNOT fire together — the first suspends before React reaches the second hook — so the reads
+// serialized into a waterfall (measured live on main: recent →01.227 ←01.259, starred →01.260 ←01.361,
+// newest →01.362 ←01.369). `__orb.queries()`/`recorder.count()` are blind to it: three procedure calls
+// happen either way. What CHANGES is whether a response lands before the last request goes out.
+//
+// The assertion is therefore ordering, not a count, so it holds whichever way `httpBatchLink` decides to
+// pack them: one batched request trivially satisfies it, three concurrent ones satisfy it, and only a
+// waterfall violates it. Barriered on the SETTLED pane (the shelf is rendered) before the log is read.
+test("#1134 the landing's three reads go out as one wave — no response lands before the last request", async ({ mount, page }) => {
+  const events: string[] = [];
+  const isLanding = (url: string): boolean => url.includes("character.list");
+  page.on("request", (request) => {
+    if (isLanding(request.url())) {
+      events.push("out");
+    }
+  });
+  page.on("requestfinished", (request) => {
+    if (isLanding(request.url())) {
+      events.push("in");
+    }
+  });
+
+  await routeTrpc(page, landingRoutes({ recent: [SABINE, ELIAS, KOHAKU], newest: [SABINE, ELIAS, KOHAKU] }));
+  const pane = await mount(<CharacterLibraryWelcomeListModeStory />);
+  await expect(shelf(pane, "Recently chatted").getByRole("button", { name: "Kohaku" })).toBeVisible();
+
+  expect(events.filter((event) => event === "out").length, "the probe measured nothing — no read reached the wire").toBeGreaterThan(0);
+  expect(events.indexOf("in"), `a response landed while reads were still going out: ${events.join(",")}`).toBe(events.lastIndexOf("out") + 1);
+});
+
 test("#864 pressing a face selects that character", async ({ mount, page }) => {
   await routeTrpc(page, landingRoutes({ recent: [SABINE, ELIAS], newest: [SABINE, ELIAS] }));
   const pane = await mount(<CharacterLibraryWelcomeListModeStory />);

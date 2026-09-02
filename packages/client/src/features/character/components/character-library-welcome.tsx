@@ -33,7 +33,7 @@ import type { CharacterId } from "@orb/kit/ids";
 import { MS_PER_WEEK } from "@orb/kit/time";
 import { Container, Grid, Row, Stack } from "@orb/ui/layout";
 import { Heading, Text } from "@orb/ui/text";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useSuspenseQueries } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useId } from "react";
@@ -218,18 +218,29 @@ function weekLine(added: readonly CharacterRow[]): string {
  *
  * `archived: false` on all three: an archived character is one you put away, and a landing that resurfaces
  * her has undone the only thing archiving does.
+ *
+ * THREE READS, ONE WAVE — the PLURAL hook, never three `useSuspenseQuery` calls (side-eye 2026-09-02 F5,
+ * re-measured on the live stack). Three singular calls in one body structurally cannot fire together: the
+ * first SUSPENDS before React reaches the second hook, so the reads serialize into a waterfall — recent
+ * →01.227 ←01.259, starred →01.260 ←01.361, newest →01.362 ←01.369: ~140ms of stacked round trips where
+ * ~35ms does, each resume its own commit of `region:content`, and the last one landing inside the list
+ * pane's entry animation (`[drop] 82ms · aside[aria-label=Characters list]`). `useSuspenseQueries` issues
+ * all three in one pass and suspends once. The COUNT is untouched — the ruling above survives, its input
+ * changed. Same idiom and same reason as `chat/components/assembly-preview-panel.tsx`.
  */
 function CharacterLandingBody(): ReactElement {
   const trpc = useTRPC();
   const listOffScreen = useSectionListMode("characters") === "collapsed";
-  const { data: recentPage } = useSuspenseQuery(trpc.character.list.queryOptions({ archived: false, limit: RECENT_SHELF_LIMIT, sort: "recent" }));
-  const { data: starredPage } = useSuspenseQuery(
-    // BOTH the predicate AND the sort. The predicate is what makes the shelf APPLICABLE (a `starred` sort
-    // alone returns the whole library with the starred ones first, so an unstarred library would render a
-    // full shelf of unstarred faces) and what makes `totalCount` the starred CENSUS the eyebrow prints.
-    trpc.character.list.queryOptions({ archived: false, limit: STARRED_SHELF_LIMIT, sort: "starred", starred: true }),
-  );
-  const { data: newestPage } = useSuspenseQuery(trpc.character.list.queryOptions({ archived: false, limit: NEWEST_PAGE_LIMIT, sort: "newest" }));
+  const [{ data: recentPage }, { data: starredPage }, { data: newestPage }] = useSuspenseQueries({
+    queries: [
+      trpc.character.list.queryOptions({ archived: false, limit: RECENT_SHELF_LIMIT, sort: "recent" }),
+      // BOTH the predicate AND the sort. The predicate is what makes the shelf APPLICABLE (a `starred` sort
+      // alone returns the whole library with the starred ones first, so an unstarred library would render a
+      // full shelf of unstarred faces) and what makes `totalCount` the starred CENSUS the eyebrow prints.
+      trpc.character.list.queryOptions({ archived: false, limit: STARRED_SHELF_LIMIT, sort: "starred", starred: true }),
+      trpc.character.list.queryOptions({ archived: false, limit: NEWEST_PAGE_LIMIT, sort: "newest" }),
+    ],
+  });
 
   // The recent SORT orders by last activity but does not FILTER by it — it sinks the never-chatted tail to
   // the end. "Recently chatted" is a claim about people you have chatted with, so the tail is dropped here.
