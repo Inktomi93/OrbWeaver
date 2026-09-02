@@ -14,8 +14,9 @@ import { vi } from "vitest";
 import type { CaptureOutcome } from "../../../../tooling/src/snap/contract/types.ts";
 import { awaitThemeStamp, themeStampExit, themeStampExpectation, themeStampGap } from "../../../../tooling/src/snap/index.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
+import { scaledBudget } from "../../_load-budget.ts";
 
-const BROWSER_TIMEOUT_MS = 90_000;
+const BROWSER_TIMEOUT_MS = scaledBudget(90_000);
 vi.setConfig({ testTimeout: BROWSER_TIMEOUT_MS, hookTimeout: BROWSER_TIMEOUT_MS });
 
 /** How late the fixture stamps. Long enough that an immediate read cannot win the race by accident. */
