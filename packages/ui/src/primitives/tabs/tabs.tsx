@@ -72,8 +72,8 @@ function indicatorGeometry(node: HTMLElement): IndicatorGeometry | null {
  * printed `animating non-compositor left, width … OVER BUDGET` on the first switch of every tab surface —
  * guide §3.7's compositor-only rule, which is a correctness constraint and not a preference.
  *
- * The obvious transform spelling is illegal here. A pure-CSS `translateX(var(--active-tab-left))
- * scaleX(width/base)` never rests at identity — EVERY selected tab is a rest state carrying a
+ * The obvious transform spelling is illegal here. A pure-CSS `translateX(var(--active-tab-left)) scaleX(width/base)`
+ * never rests at identity — EVERY selected tab is a rest state carrying a
  * non-identity scale — which the `rest-transform-grid` gate reds (integer-line-boxes §9 Law 2: a resting
  * scale permanently resamples the subtree's raster), and it would scale the 2px bar's `rounded-full` cap
  * radius by the same factor for the whole life of the element.
