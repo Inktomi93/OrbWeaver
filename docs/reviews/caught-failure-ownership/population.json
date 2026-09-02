@@ -2,18 +2,18 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 446,
-    "enforced": 443,
+    "sites": 449,
+    "enforced": 446,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 443,
+      "deliberate-absorb": 446,
       "detached-owned": 3,
       "unproven": 0
     },
     "byGrammar": {
       "promise": 124,
-      "default": 129,
-      "empty": 193
+      "default": 131,
+      "empty": 194
     }
   },
   "rows": [
@@ -1303,6 +1303,19 @@
       "verdict": "deliberate-absorb",
       "reason": "both arms only unsubscribe this listener; `appReady`'s own settlement is owned by whichever caller awaits it elsewhere. Ends if this becomes the sole reader of `appReady`.",
       "markerLine": 128
+    },
+    {
+      "siteId": "packages/client/src/lib/console-error-ring.ts::empty:catch::1",
+      "path": "packages/client/src/lib/console-error-ring.ts",
+      "line": 78,
+      "column": 5,
+      "grammar": "empty",
+      "position": "empty:catch",
+      "ordinal": 1,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "an unstringifiable console argument degrades to a",
+      "markerLine": 73
     },
     {
       "siteId": "packages/client/src/lib/error-boundary.tsx::empty:catch::1",
@@ -3099,22 +3112,48 @@
       "markerLine": 177
     },
     {
-      "siteId": "packages/server/src/foundation/observability/debug/routes.ts::default:catch::1",
-      "path": "packages/server/src/foundation/observability/debug/routes.ts",
-      "line": 108,
+      "siteId": "packages/server/src/foundation/observability/debug/bug-report.ts::default:catch::1",
+      "path": "packages/server/src/foundation/observability/debug/bug-report.ts",
+      "line": 102,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
       "ordinal": 1,
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
-      "reason": "null is consumed by both collectLogs and",
-      "markerLine": 103
+      "reason": "git being absent, or the cwd not being a",
+      "markerLine": 97
+    },
+    {
+      "siteId": "packages/server/src/foundation/observability/debug/log-ring-read.ts::default:catch::1",
+      "path": "packages/server/src/foundation/observability/debug/log-ring-read.ts",
+      "line": 56,
+      "column": 5,
+      "grammar": "default",
+      "position": "default:catch",
+      "ordinal": 1,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "null is consumed by every caller as \"skip this",
+      "markerLine": 51
+    },
+    {
+      "siteId": "packages/server/src/foundation/observability/debug/routes.ts::default:catch::1",
+      "path": "packages/server/src/foundation/observability/debug/routes.ts",
+      "line": 80,
+      "column": 5,
+      "grammar": "default",
+      "position": "default:catch",
+      "ordinal": 1,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "a malformed body is a 400 the caller sees, and",
+      "markerLine": 76
     },
     {
       "siteId": "packages/server/src/foundation/observability/debug/routes.ts::empty:catch::1",
       "path": "packages/server/src/foundation/observability/debug/routes.ts",
-      "line": 265,
+      "line": 247,
       "column": 9,
       "grammar": "empty",
       "position": "empty:catch",
@@ -3122,7 +3161,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "documented below — a checker error falls",
-      "markerLine": 259
+      "markerLine": 241
     },
     {
       "siteId": "packages/server/src/foundation/observability/debug/wire-capture.ts::default:catch::1",
