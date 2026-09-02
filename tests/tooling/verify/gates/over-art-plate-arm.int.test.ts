@@ -24,9 +24,17 @@ const PROVENANCE_RE = /MEASURED failure|STRUCTURAL finding, PENDING MEASUREMENT/
 
 /** The population the cb-plate-gate lane measured on 2026-08-24 — restated here rather than imported, so
  *  this file is a SECOND opinion on the ledger instead of a tautology over it. A row leaving this list is a
- *  fix (regenerate the ledger); a row ARRIVING is surface number ten, which is the whole point. */
+ *  fix (regenerate the ledger); a row ARRIVING is surface number ten, which is the whole point.
+ *
+ *  `.shell-main::--color-card` LEFT BY BEING FIXED (a743e4799, #1247's re-pin). It is the case this
+ *  comment names: `.shell-main`'s glass carrier took D144's plate arm — its `::before` mixes the tint over
+ *  `--color-reading-plate` on the light arm instead of over `transparent` — so #626's MEASURED 3.69:1 row
+ *  was deleted from the ledger rather than re-keyed, and the derivation stopped reporting it. Confirmed by
+ *  running the gate's OWN lib (`judgeStylesheets`) on the real tree, not by reading the test: live went
+ *  five → four with `findings: []`, and the four survivors are byte-identical to the four rows the
+ *  committed ledger still carries. `admitted()` and the ledger-row check below both read this list's
+ *  length, so they follow. */
 const UNPAIRED_AT_MINT: readonly string[] = [
-  `${SHEET}::.shell-main::--color-card`,
   `${SHEET}::[data-slot="composer"]::--color-sidebar`,
   `${SHEET}::[data-slot="message-bubble"]::--color-ai-bubble`,
   `${SHEET}::[data-slot="message-bubble"]::--color-system-bubble`,
@@ -231,9 +239,20 @@ describe("over-art-plate-arm — alpha 0 is READ, not unreadable (#1171)", () =>
     expect(messages(run), "…and the marker that cannot apply is itself a finding").toContain("STALE");
   });
 
-  test("the real tree's shell pane leaves by CLASSIFICATION — the #1154 carrier, counted", ({ repoRoot }) => {
+  // TWO panes leave by classification now, not one (#1247). The second is `.shell-main`, whose no-fill +
+  // `::before` glass pair landed at 3b86ae427 ("…, .shell-main glass carrier", 2026-09-02 10:54) — two
+  // hours BEFORE a743e4799, and that commit did not re-pair this pin. Attribution matters here because the
+  // rest of this file's re-pin does trace to a743e4799 and this arm does not: proven by restoring
+  // globals.css from `a743e4799^` and re-running the gate's own `judgeStylesheets`, which already reported
+  // `fill-moved-to-pseudo-carrier: 2`. The rule's own comment in globals.css had ALREADY named both
+  // ("this rule and the `.shell-main` pair below") while quoting the stale measurement of 1 beside it — a
+  // count nobody re-derived after the surface it counts changed.
+  test("the real tree's shell panes leave by CLASSIFICATION — the #1154 and .shell-main carriers, counted", ({ repoRoot }) => {
     const judged = judgeStylesheets(repoRoot);
-    expect(judged.skipped["fill-moved-to-pseudo-carrier"], "`.shell-panel { background: none }` hands its fill to its ::before").toBe(1);
+    expect(
+      judged.skipped["fill-moved-to-pseudo-carrier"],
+      "`.shell-panel` and `.shell-main` each go `background: none` and hand their fill to their own ::before",
+    ).toBe(2);
     expect(judged.findings, "and nothing on the real tree reads as unreadable or dark-arm-moved").toEqual([]);
   });
 });
