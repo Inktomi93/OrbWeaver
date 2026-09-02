@@ -5,6 +5,11 @@
 // definitions against `SECTION_IDS`' one home. A shrink-only RATCHET, never a ban — some duals are ruled UX
 // (a hero CTA beside a rail button); the gate makes a NEW door a decision instead of an accident.
 // COMMENT POSTURE: comment-SAFE — pure node subscription, no file text is matched.
+// THE VOCABULARY IS RESOLVED, NOT READ FLAT (#947): `SECTION_IDS` is read through `lib/tuple-read.ts`, so
+// `[...CORE_SECTION_IDS, "home"]` contributes every id. A direct-element reader would leave the imported
+// section planes out of the vocabulary — their definitions would stop being recognised as rail sections and
+// every duplicate door on them would regroup under a feature directory, silently, with the vocabulary still
+// non-empty and the blindness tripwire still satisfied. The scan line prints the resolved id count + sources.
 //
 // "WHICH VERB IS THIS SITE?" IS NOT THIS GATE'S OWN ANSWER: the creation-site reader lives at
 // `tooling/src/_shared/trpc-doors.ts` (`mutationProcedures`) and is SHARED with the `ast subset-callers`
@@ -24,6 +29,8 @@ import { DOORS_BASELINE_REL, mutationProcedures } from "../../_shared/trpc-doors
 import type { ExemptionTable, GateDescriptor, GateRunCtx } from "../contract/gate.ts";
 import { readStringValue } from "../lib/ast-read.ts";
 import { fileLoaded } from "../lib/pass.ts";
+import type { TupleVocabulary } from "../lib/tuple-read.ts";
+import { readTupleDeclaration } from "../lib/tuple-read.ts";
 
 const GATE_SELF = "tooling/src/verify/gates/duplicate-action-doors.ts";
 /** Re-exported from the shared door home (`_shared/trpc-doors.ts`) so the debt walk's import still resolves
@@ -76,17 +83,23 @@ const BLIND_VOCAB =
   "BLINDNESS TRIPWIRE — `SECTION_IDS` resolved to zero members, so no definition can be recognised as a rail " +
   "section. Re-point SECTION_IDS_HOME in tooling/src/verify/gates/duplicate-action-doors.ts";
 
-/** The `SECTION_IDS` tuple, read from its one home. Empty is a tripwire, never a pass. */
+/** The `SECTION_IDS` tuple, read from its one home and RESOLVED through the sanctioned spreads of
+ *  local/imported sibling tuples (#947 — `[...CORE_SECTION_IDS, "home"]` would otherwise contribute only
+ *  the locally-written id, and every door on an imported section plane would evade the rule while the
+ *  vocabulary still looked non-empty). Empty is a tripwire, never a pass; an unsanctioned composition
+ *  shape refuses loudly in `tuple-read.ts`. */
 export function readSectionIds(project: Project, root: string): readonly string[] {
+  return [...readSectionVocabulary(project, root).members];
+}
+
+/** The same read, keeping the SOURCE manifest for the scan line. */
+function readSectionVocabulary(project: Project, root: string): TupleVocabulary {
   const sf = project.getSourceFile(join(root, SECTION_IDS_HOME));
   const decl = sf?.getVariableDeclaration("SECTION_IDS");
-  const init = decl?.getInitializer();
-  const arr = init === undefined ? undefined : init.asKind(SyntaxKind.ArrayLiteralExpression);
-  const unwrapped = arr ?? init?.getFirstDescendantByKind(SyntaxKind.ArrayLiteralExpression);
-  return (unwrapped?.getElements() ?? []).flatMap((e) => {
-    const v = readStringValue(e);
-    return v === undefined ? [] : [v];
-  });
+  if (decl === undefined || decl.getInitializer() === undefined) {
+    return { members: new Set<string>(), entries: [], sources: [] };
+  }
+  return readTupleDeclaration(decl);
 }
 
 function repoRel(sf: SourceFile, root: string): string {
@@ -295,6 +308,12 @@ export const gate: GateDescriptor = {
   fix: FIX,
   scanRoot: (p) => p.startsWith(FEATURES_PREFIX) || p === SECTION_IDS_HOME,
   run: (ctx) => {
+    const vocabulary = readSectionVocabulary(ctx.project, ctx.root);
+    ctx.scan({
+      unit: `section vocabulary [SECTION_IDS=${vocabulary.members.size} from ${vocabulary.sources.length === 0 ? "<none>" : vocabulary.sources.join("+")}]`,
+      candidates: vocabulary.sources.length,
+      scanned: vocabulary.sources.length,
+    });
     // ONE plane derivation for the whole pass, threaded to every arm that needs it (see `derivePlanes`).
     const planes = derivePlanes(ctx.project, ctx.root);
     judgeBlindness(ctx, planes);
@@ -309,6 +328,23 @@ export const gate: GateDescriptor = {
     judgeExemptions(ctx, planes);
   },
   mustFlag: [
+    {
+      // THE #947 SPLIT: the section id reaches the vocabulary only through the imported CORE_SECTION_IDS
+      // spread. Unresolved, `chats` is not a known id, the definition is not recognised as a rail section,
+      // and both doors regroup under the FEATURE DIRECTORY — the finding still fires but under the wrong
+      // plane key (`feature:chat::…`), which is the ratchet's and the exemption table's key. So a budget
+      // row or an EXEMPT_PROCEDURES entry written for the real plane silently stops matching, and two
+      // sections sharing a feature dir collapse into one bucket. The token below pins the REAL plane.
+      files: {
+        "packages/client/src/state/core-section-ids.ts": 'export const CORE_SECTION_IDS = ["chats"] as const;\n',
+        [SECTION_IDS_HOME]: 'import { CORE_SECTION_IDS } from "./core-section-ids.ts";\nexport const SECTION_IDS = [...CORE_SECTION_IDS, "home"] as const;\n',
+        "packages/client/src/features/chat/lib/chats-section.tsx": 'export const s = { id: "chats", rail: { label: "Chats" } };\n',
+        "packages/client/src/features/chat/components/a.tsx": "export const A = () => trpc.chat.forkChat.mutationOptions();\n",
+        "packages/client/src/features/chat/components/b.tsx": "export const B = () => trpc.chat.forkChat.mutationOptions();\n",
+      },
+      expect: { count: 1, token: "chats::chat.forkChat" },
+      why: "THE #947 SPLIT RED: the founding duplicate-door shape on a section plane whose id arrives through an imported spread. Measured at HEAD, the unresolved reader reported the SAME pair under `feature:chat::chat.forkChat` — a mis-keyed plane, so every plane-keyed budget row and exemption for `chats` quietly stopped matching. The token pins the derived plane, not merely the presence of a finding",
+    },
     {
       files: {
         [SECTION_IDS_HOME]: 'export const SECTION_IDS = ["chats"] as const;\n',
@@ -333,6 +369,15 @@ export const gate: GateDescriptor = {
     },
   ],
   mustPass: [
+    {
+      files: {
+        "packages/client/src/state/core-section-ids.ts": 'export const CORE_SECTION_IDS = ["chats"] as const;\n',
+        [SECTION_IDS_HOME]: 'import { CORE_SECTION_IDS } from "./core-section-ids.ts";\nexport const SECTION_IDS = [...CORE_SECTION_IDS, "home"] as const;\n',
+        "packages/client/src/features/chat/lib/chats-section.tsx": 'export const s = { id: "chats", rail: { label: "Chats" } };\n',
+        "packages/client/src/features/chat/components/a.tsx": "export const A = () => trpc.chat.forkChat.mutationOptions();\n",
+      },
+      why: "the SPLIT's green half: the same imported-spread vocabulary with ONE door on the plane — resolving the spread restores the plane without inventing a duplicate",
+    },
     {
       files: {
         [SECTION_IDS_HOME]: 'export const SECTION_IDS = ["chats"] as const;\n',

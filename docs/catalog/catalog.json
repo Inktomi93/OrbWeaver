@@ -443,8 +443,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 394,
-      "bytes": 204163,
-      "sha256": "301e6cacb34c4050a42a925a2cef9658c1436aa17c153a65285780d8163680d3",
+      "bytes": 206393,
+      "sha256": "32ba6324ef05a2f04f7ec21e33a54062a87245fc714ab1f5b7d582f039ce5e01",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -516,7 +516,8 @@
           "re-attested at 8cab2a0fe (#948, lane p-bus-secret): the bus-payload-allowlist row now states the TRANSITIVE member reader over the named wire event's own type identity (extends bases, intersection constituents, aliased union arms, followed through imports), the PRESERVED non-transitive boundary for a field's own type, and the two fail-closed arms (unresolved-base/unsupported-shape, and the REAL_CORPUS_MIN-guarded blindness sweep). Delta read against the landed descriptor; red-first proved the pre-change gate returned zero findings for the imported-carrier and aliased-arm shapes; a real planted extends-carrier violation reported apiKey and was removed; check:structure clean at 247/247 COMPLETE, gate-conformance 8/8, check-gates.int 8/8, new pins 11/11",
           "re-attested at 32161441d — merge of #942/#943/#945 (8d93d820f) and #948 (8cab2a0fe) row repairs into one ledger; both lanes' evidence lines kept, the union read once",
           "re-attested at 77f0aaad90a75a4e7e437f8fac3f76b7efae0fe6 (#1018/#910): the Layer-3 table registers runner-config-path-liveness (discovered active count 248) and states the description-MIRROR rule — a row copying its descriptor's runtime message declares it with (@mirrors-message) and is held byte-for-byte; the three live mirrors are marked. check:structure ran COMPLETE 248/248 clean, gate conformance 8/8, check-gates.int 8/8, and both gate pins 18/18",
-          "re-attested at 8d813c402 — merge of #1018/#968/#910 (77f0aaad9: runner-config-path-liveness row, 247→248, the @mirrors-message preamble + three marked rows) onto the #942-#948 ledger; union read once"
+          "re-attested at 8d813c402 — merge of #1018/#968/#910 (77f0aaad9: runner-config-path-liveness row, 247→248, the @mirrors-message preamble + three marked rows) onto the #942-#948 ledger; union read once",
+          "re-attested at 171daabb4 (#947): six more rows truth-repaired where the gate's claim changed — tooling-instrument-proof / warning-code-coverage / duplicate-action-doors now RESOLVE their tuples through lib/tuple-read.ts, chat-viewer-plane-canon-reads folds object spreads into its authority matrix, message-kind-policy-coverage counts INHERITED axes, and section-factory-contribution-bundle resolves registry parameters through type aliases (its old alias mustPass, which blessed the false negative, is now a mustFlag). Delta read; verified by check:structure 247/247 run COMPLETE clean, check-gates.int + gate-conformance 16/16, 18 resolver pins, and per-gate red-first receipts (7/7 HEAD readers silent or mis-keyed on the same planted shapes)"
         ],
         "claims": [
           {
@@ -553,7 +554,7 @@
         ],
         "summary": "Active enforcement registry re-attested for #995: agent-bridge-lock pins the lean readiness home, shared readiness identity, and DEV-only instrumentation boundary."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/architecture/core/Core-Enforcement-Deferred-Dropped.md",
