@@ -13,6 +13,8 @@ import type { RatchetRow } from "../../_shared/ratchet-rows.ts";
 import { admissionFor, classNote, readBudgetRows } from "../../_shared/ratchet-rows.ts";
 import type { GateDescriptor } from "../contract/gate.ts";
 import type { Violation } from "../contract/harness.ts";
+import type { GovernedScope } from "../contract/suppressions.ts";
+import { GOVERNED_SCOPES } from "../contract/suppressions.ts";
 import { forEachTriviaCarrier } from "../lib/comment-spans.ts";
 
 export const BASELINE_REL = "tooling/src/verify/gates/suppressions.baseline.json";
@@ -37,11 +39,6 @@ interface RatifiedRule {
   readonly kind: "ruling" | "tool-fp";
   readonly why: string;
 }
-
-/** The governed SCOPE axis — the partition the ratification tables key on. Derived from the SAME predicate
- *  that admits a file (`governedScope`), never from a second list. */
-const GOVERNED_SCOPES = ["source", "tests"] as const;
-export type GovernedScope = (typeof GOVERNED_SCOPES)[number];
 
 /** Ratification is derived by rule class PER SCOPE; absent classes remain debt. The per-file exceed arm still
  *  rejects every new marker, while a class matching zero live sites in its scope is stale and rejected.
