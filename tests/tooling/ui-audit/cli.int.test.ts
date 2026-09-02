@@ -560,9 +560,9 @@ test("the help states WHERE it audits, the stage flags, and the stage-db provena
 // so the census and reach gaps are structurally blind to it — the readiness signal is the discriminator, and
 // it must NOT fire on the file:// fixtures the rest of this file drives (no app is expected there).
 // A real http origin is required: the exemption is keyed on the scheme, so a file:// plant proves nothing.
-function serveOnce(html: string): Promise<{ readonly base: string; readonly close: () => void }> {
+function serveOnce(html: string, status = 200): Promise<{ readonly base: string; readonly close: () => void }> {
   const server = createServer((_req, res) => {
-    res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+    res.writeHead(status, { "content-type": "text/html; charset=utf-8" });
     res.end(html);
   });
   return new Promise((resolve) => {
@@ -613,6 +613,74 @@ test("the SAME page over the SAME origin with the readiness flag audits normally
   } finally {
     server.close();
   }
+});
+
+// ── #1081: an ERROR BOUNDARY IS NOT A SURFACE, and neither is a page that never loaded ───────────────
+//
+// @instrument-absence-proof: THE LIE, reproduced 2026-09-01 through the real CLI against the dev stack —
+// `pnpm design-audit /__no-such-route__` printed all 48 POPULATION rows, filed `landmark-missing` P2
+// against the router's not-found boundary and exited 0. Every arm above passes on that page: the route
+// RESOLVED so `data-app-ready` went up, the census was 11 (not 0) and one control was reached. The
+// discriminator is the app's own declare — `data-app-failure`, stamped by the not-found boundary and the
+// crash fallback (packages/client/src/lib/app-failure-surface.tsx) — and the fixtures below carry exactly
+// what the app renders: the declare, real text, and NO <main>, so the finding the old run filed is
+// available to fire and is asserted absent.
+const FAILURE_SURFACE_HTML = `<!doctype html>
+<html data-app-ready="settled"><head><meta charset="utf-8"><title>t</title></head>
+<body style="margin:0;background:#000;color:#fff"><div data-app-failure="not-found">
+<h1 style="font-size:32px;margin:24px">not found</h1>
+<p style="font-size:16px;margin:24px">that route doesn’t exist.</p></div></body></html>`;
+
+test("a page declaring the app's not-found boundary is a NO VERDICT, never an audited surface", async ({ runCli, scratch }) => {
+  await writeFile(join(scratch, "not-found.html"), FAILURE_SURFACE_HTML);
+  const res = await runCli("ui-audit", ["/not-found.html", "--base", `file://${scratch}`], { timeoutMs: CLI_TIMEOUT_MS });
+  expect(res.stdout).toContain("INSTRUMENT ERROR");
+  expect(res.stdout, "the refusal names the KIND the app declared, so a reader knows which non-surface this was").toContain("not-found");
+  // The whole point: no verdict-shaped output at all. The old run printed every one of these over the
+  // app's apology — the populations, the findings table, and the RESULT line that reads as a measurement.
+  expect(res.stdout).not.toContain("POPULATION ");
+  expect(res.stdout).not.toContain("RESULT design-audit");
+  expect(findingRows(res.stdout, "landmark-missing")).toEqual([]);
+  await expect(res).toExitWith(2);
+});
+
+test("the SAME page without the declare audits normally — the fence is the app's statement, not a shape heuristic", async ({ runCli, scratch }) => {
+  await writeFile(join(scratch, "declare-free.html"), FAILURE_SURFACE_HTML.replace(' data-app-failure="not-found"', ""));
+  const res = await runCli("ui-audit", ["/declare-free.html", "--base", `file://${scratch}`], { timeoutMs: CLI_TIMEOUT_MS });
+  expect(res.stdout).not.toContain("INSTRUMENT ERROR");
+  expect(res.stdout).toContain("RESULT design-audit");
+  // The positive control for the assertion above: this identical markup DOES file the landmark finding.
+  expect(findingRows(res.stdout, "landmark-missing")).not.toEqual([]);
+});
+
+// @instrument-absence-proof: a nav error collected NO samples (ops/drive.ts returns `samples: null`), so the
+// report printed under it — census 0, an empty findings table, `population-verdict=complete` — described no
+// observation at all. The HTTP failure is still stated; it is stated as a refusal.
+test("an HTTP nav error is a NO VERDICT, not a violation with an empty report under it", async ({ runCli }) => {
+  const server = await serveOnce("<!doctype html><html><body>gone</body></html>", 404);
+  try {
+    const res = await runCli("ui-audit", ["/", "--base", server.base], { timeoutMs: CLI_TIMEOUT_MS });
+    expect(res.stdout).toContain("INSTRUMENT ERROR");
+    expect(res.stdout, "the refusal states the HTTP fact — it is the finding for a human").toContain("HTTP 404");
+    expect(res.stdout).not.toContain("POPULATION ");
+    expect(res.stdout).not.toContain("RESULT design-audit");
+    await expect(res).toExitWith(2);
+  } finally {
+    server.close();
+  }
+});
+
+// @instrument-absence-proof: an action that did not land means the walk censused whatever surface the chain
+// stalled on. Its findings are true of a page nobody asked about, filed under the name of one nobody saw.
+test("a reveal action that did not land is a NO VERDICT, not findings about the surface it stalled on", async ({ runCli, scratch }) => {
+  await writeFile(join(scratch, "good.html"), page("background:#000;color:#fff"));
+  const res = await runCli("ui-audit", ["/good.html", "--base", `file://${scratch}`, "--click", "#no-such-control"], { timeoutMs: CLI_TIMEOUT_MS });
+  expect(res.stdout).toContain("ACTION FAILED");
+  expect(res.stdout).toContain("INSTRUMENT ERROR");
+  expect(res.stdout, "the refusal names the queue, not the census — a different absence").toContain("reveal queue");
+  expect(res.stdout).not.toContain("POPULATION ");
+  expect(res.stdout).not.toContain("RESULT design-audit");
+  await expect(res).toExitWith(2);
 });
 
 // A run with no stage still says so: `stage=live` is the honest label for "whatever --base served", and it
@@ -863,7 +931,10 @@ test("--upload refuses a path OUTSIDE the repo/scratchpad boundary — loudly, n
   const res = await runCli("ui-audit", ["/upload.html", "--base", `file://${scratch}`, "--upload", "#wrap=/etc/hostname"], { timeoutMs: CLI_TIMEOUT_MS });
   expect(res.stdout).toContain("ACTION FAILED");
   expect(res.stdout).toContain("boundary");
-  await expect(res).toExitWith(1);
+  // Exit 2, not 1, since #1081: a refused upload is an action that did not land, so the surface the walk
+  // would have scanned is not the populated one this run names. The refusal is unchanged and still loud —
+  // what changed is that it no longer prints findings and populations about the empty dropzone underneath.
+  await expect(res).toExitWith(2);
 });
 
 // ── the THIN CENSUS: a FRACTION of the surface, printed as a verdict (#808) ─────────────────────────

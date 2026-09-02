@@ -134,6 +134,23 @@ export function rawSamples(parsed: unknown, label = "the in-page fact walk"): Ra
   return parsed as RawSamples;
 }
 
+/** THE FAILURE-SURFACE READ (#1081) — `[data-app-failure]`'s value, or `null` for "the app is not declaring
+ *  a failure surface", which is the healthy case and the one every audit expects. Same seam discipline as
+ *  the reads above: the evaluate returns `unknown`, and a non-string non-null here would mean the page
+ *  answered something the declare's contract does not allow, which is an instrument error rather than a
+ *  quiet "no failure" — that quiet arm is exactly the false clean the declare exists to close. The VALUE is
+ *  not matched against a known list: a kind this instrument has not heard of is still the app saying this is
+ *  not a surface, and printing the unknown word is more useful than folding it into a verdict. */
+export function appFailureSurface(parsed: unknown, label = "the [data-app-failure] declare read"): string | null {
+  if (parsed === null || parsed === undefined) {
+    return null;
+  }
+  if (typeof parsed !== "string") {
+    throw new Error(`INSTRUMENT ERROR: ${label} returned ${describeValue(parsed)}, not a failure-surface kind or null`);
+  }
+  return parsed;
+}
+
 /** The shell bridge read (`window.__orb.shell()`). `null` is a REAL answer — the bridge is absent on a
  *  non-app page — so it is passed through; anything else must be the snapshot the panel-axis declare
  *  reads, because a malformed one degrades that declare into a silently wrong surface-state accounting. */

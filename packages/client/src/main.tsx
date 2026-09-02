@@ -20,7 +20,6 @@ import { EmptyState } from "@orb/ui/empty-state";
 // vite resolve AlertTriangle/Icon fine (the same gap `#primitives/icons` hits inside packages/ui itself
 // — see status-chip.tsx).
 import { AlertTriangle, Icon } from "@orb/ui/icons";
-import { Stack } from "@orb/ui/layout";
 import { createToastManager, ToastProvider } from "@orb/ui/toast";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider } from "@tanstack/react-router";
@@ -31,7 +30,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { TRPCProvider } from "#data";
 import { AppToaster, BootVeil } from "#features/app-shell";
-import { AppErrorBoundary, bindNotify, buildClientErrorPayload, createToastNotify } from "#lib";
+import { AppErrorBoundary, AppFailureSurface, bindNotify, buildClientErrorPayload, createToastNotify } from "#lib";
 import { stampAppearanceBootHint } from "#state";
 import { queryClient, trpcClient, trpcProxy } from "./compose/app-singletons.ts";
 import { installAppReadySignal } from "./lib/app-ready-signal.ts";
@@ -113,7 +112,7 @@ createRoot(rootEl).render(
           <AppErrorBoundary
             onError={reportClientError}
             renderFallback={(): ReactElement => (
-              <Stack align="center" justify="center" className="min-h-dvh bg-background text-foreground">
+              <AppFailureSurface kind="crashed">
                 <EmptyState
                   icon={<Icon icon={AlertTriangle} size="lg" />}
                   title="Something went wrong"
@@ -124,7 +123,7 @@ createRoot(rootEl).render(
                     </Button>
                   }
                 />
-              </Stack>
+              </AppFailureSurface>
             )}
           >
             {/* The registry providers moved DOWN, into the `/` route's lazy chunk (compose/authed-app.tsx):

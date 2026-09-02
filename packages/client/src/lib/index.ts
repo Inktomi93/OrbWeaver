@@ -7,6 +7,8 @@
 export type { SeededBackground } from "@orb/contracts/theme";
 export { listSeededBackgrounds, resolveSeededBackgroundUrl } from "@orb/contracts/theme";
 export { cn } from "@orb/ui/lib";
+export type { AppFailureKind, AppFailureSurfaceProps } from "./app-failure-surface.tsx";
+export { AppFailureSurface } from "./app-failure-surface.tsx";
 export type {
   AppearanceCarrierKey,
   AppearanceCarrierPlane,

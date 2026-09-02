@@ -26,9 +26,12 @@ import type { Args, BackdropRefusal, DomPopulation, ShellStateSnapshot } from ".
 import { checkScriptErrors } from "../lib/checks-quality.ts";
 import { collectAudit } from "../lib/collect.ts";
 import {
+  actionsFailedGap,
   censusGap,
   censusThinGap,
   censusTotal,
+  failureSurfaceGap,
+  navErrorGap,
   reachGap,
   readinessGap,
   SAMPLE_COLLECTION_PREFIX,
@@ -41,7 +44,7 @@ import { stageLabel } from "../lib/stage-request.ts";
 import { buildSurfaceStateAccounting, surfaceStateAxisLabel } from "../lib/surface-state.ts";
 import { navigateAndReveal } from "./drive.ts";
 import { hoverPassLabel, resolveHoverStates } from "./hover.ts";
-import { shellStateSnapshot } from "./page-validate.ts";
+import { appFailureSurface, shellStateSnapshot } from "./page-validate.ts";
 import { resolvePixelBackdrops } from "./pixels.ts";
 import {
   countBySeverity,
@@ -56,6 +59,10 @@ import {
 
 refuseDirectInvocation(import.meta.url, "pnpm design-audit");
 
+/** The app's failure-surface declare, read as a plain expression (no page function to serialize): the
+ *  attribute's value, or `null` when nothing on the page declares one. */
+const READ_FAILURE_SURFACE_JS = "(document.querySelector('[data-app-failure]') || { getAttribute: () => null }).getAttribute('data-app-failure')";
+
 /** ZERO HYGIENE, every arm, in one place (#409 + #653 + #678 + #808). Returns the gap that makes this run
  *  an INSTRUMENT failure rather than a verdict, or null when the walk is entitled to be believed:
  *   • `readinessGap` — on an app origin, the app never published `data-app-ready`: the walk censused the
@@ -65,7 +72,8 @@ refuseDirectInvocation(import.meta.url, "pnpm design-audit");
  *     classified skips, or final identity set disagree (the arm the three zero-tests cannot express);
  *   • `reachGap`  — it censused plenty of text but reached NOT ONE offered control, so the tap-target,
  *     action-door and silhouette families each folded an empty list into "no findings".
- *  Only for a page that LOADED — a nav error is reported as itself. */
+ *  Only for a page that LOADED and that the app did not declare a failure surface for — the nav, action and
+ *  `data-app-failure` arms are terminal in `runUiAudit` before any of this is reached (#1081). */
 interface EvidenceInputs {
   readonly url: string;
   readonly appReady: boolean;
@@ -167,10 +175,35 @@ export async function runUiAudit(opts: Args): Promise<number> {
       return instrumentError({ evidence: "browser environment", detail: browserEnvironment.mismatches.join("; ") });
     }
     // ZERO HYGIENE (#409), the apparatus arm: the WALK failing is an instrument failure, not a finding.
-    // An HTTP nav error stays a violation below — that one IS a fact about the page.
+    // THE HTTP NAV ERROR USED TO STAY A VIOLATION HERE ("that one IS a fact about the page") and #1081
+    // corrected the CONSEQUENCE, not the fact: it is still a fact about the page and this run still reports
+    // it, but as a refusal rather than as a verdict, because `ops/drive.ts` collected no samples for it and
+    // the tables printed under a nav error described nothing.
     if (navError?.startsWith(SAMPLE_COLLECTION_PREFIX) === true) {
       print(`URL          ${url}`);
       return instrumentError(walkFailureGap(navError));
+    }
+    // THE PRE-MEASUREMENT REFUSALS (#1081), all three terminal for one reason: past this point every table
+    // this file prints is a fold over `pixels.samples`, and in each of these cases those samples describe
+    // either nothing at all or a surface nobody asked for. The same call `ops/matrix.ts` already makes at
+    // matrix discovery (nav / actions / readiness ⇒ INSTRUMENT ERROR), now made by the single-run path too.
+    if (navError !== null) {
+      print(`URL          ${url}`);
+      return instrumentError(navErrorGap(navError));
+    }
+    if (actionsFailed > 0) {
+      print(`URL          ${url}`);
+      return instrumentError(actionsFailedGap(actionsFailed, opts.actions.length));
+    }
+    // THE FAILURE-SURFACE DECLARE: read from the page itself, before a single check family folds. The app
+    // stamps `data-app-failure` on its not-found boundary and its crash fallback (packages/client/src/lib/
+    // app-failure-surface.tsx) precisely so an instrument cannot mistake either for a surface — and this
+    // read has to happen HERE rather than beside the shell snapshot below, which runs after the gap check
+    // that would already have printed a verdict.
+    const failureKind = appFailureSurface(await session.page.evaluate(READ_FAILURE_SURFACE_JS));
+    if (failureKind !== null) {
+      print(`URL          ${url}`);
+      return instrumentError(failureSurfaceGap(url, failureKind));
     }
     // Backdrops the DOM walk could not resolve are settled from real pixels BEFORE the browser closes —
     // the sampler needs the page still on screen at the scroll position the samples were read at.
@@ -190,7 +223,9 @@ export async function runUiAudit(opts: Args): Promise<number> {
     if (settingsEvidence === undefined) {
       throw new Error("design-audit browser session has no settings-evidence owner");
     }
-    const gap = navError === null ? evidenceGapOf({ url, appReady, samples: pixels.samples, population, opts, settingsEvidence }) : null;
+    // Unconditional now (#1081): the page-LOADED precondition this used to test for is the terminal nav arm
+    // above, so a run that reaches here has a page whose samples are entitled to be judged.
+    const gap = evidenceGapOf({ url, appReady, samples: pixels.samples, population, opts, settingsEvidence });
     if (gap !== null) {
       print(`URL          ${url}`);
       return instrumentError(gap);
@@ -231,9 +266,10 @@ export async function runUiAudit(opts: Args): Promise<number> {
     const evidenceGaps = [populationGap, hoverGap].filter((row): row is EvidenceGap => row !== null);
     findings.push(...checkScriptErrors(session.pageErrors));
     const counts = countBySeverity(findings);
-    // An action that failed means the scan happened on the WRONG surface — that is a red run, not a clean
-    // one, for exactly the reason the strict CLI exists.
-    const failed = navError !== null || actionsFailed > 0 || findings.some((f) => isAtOrAboveSeverity(f.severity, opts.failOn));
+    // Only the findings decide the verdict here: a nav error or a failed action means the scan happened on
+    // the WRONG surface, and since #1081 that is a NO VERDICT above rather than a red run whose tables
+    // describe a page nobody asked for.
+    const failed = findings.some((f) => isAtOrAboveSeverity(f.severity, opts.failOn));
 
     await writeFile(
       outPath,
@@ -249,6 +285,8 @@ export async function runUiAudit(opts: Args): Promise<number> {
           device: opts.device,
           browserEnvironment,
           actions: opts.actions,
+          // Both are the terminal arms' own counters (#1081) — an artifact only exists for a run that
+          // MEASURED something, so in a written report they read `0` / `null` and say so on the record.
           actionsFailed,
           failOn: opts.failOn,
           navError,
@@ -289,9 +327,6 @@ export async function runUiAudit(opts: Args): Promise<number> {
     );
 
     print(`URL          ${url}`);
-    if (navError !== null) {
-      print(`NAV ERROR    ${navError} — no samples collected`);
-    }
     print(`report       ${outPath}`);
     print("");
     printCensusReach(reach);
@@ -391,6 +426,9 @@ export async function runUiAudit(opts: Args): Promise<number> {
         ["hover-ms", hover?.wallMs ?? -1],
         ["px-backdrops", pixels.sampled],
         ["no-verdict", pixels.refusals.length],
+        // `nav=` stays DERIVED rather than a printed literal, and it stays on the line because a dozen
+        // review receipts cite it as the environment-alive proof — but since #1081 a RESULT line can only
+        // ever carry `OK`: both other verdicts return an INSTRUMENT ERROR before any of this is computed.
         ["nav", navVerdict(navError, actionsFailed)],
         ["out", outPath],
       ],

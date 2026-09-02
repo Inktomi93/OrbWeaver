@@ -182,6 +182,13 @@ export const DESIGN_AUDIT_HELP = `design-audit — the deterministic UI defect s
 Usage:
   pnpm design-audit [route] [flags]
 
+The positional is a URL PATH on the audited origin, never a section lookup: \`design-audit characters\`
+loads \`/characters\`. Every rail section happens to BE a path — \`/<section>\` is a real deep-link alias
+(routes/router.tsx #181): it selects the section and lands on \`/\`. Anything that is not a section, a
+settings category or a modal slot has no route, so it renders the app's not-found boundary — which this
+tool refuses to audit (an error boundary is not a surface: exit 2, no findings, no populations). To reach
+a surface WITHOUT a page load — including every settings/modal target — audit \`/\` and drive \`--goto\`.
+
 Surface (ONE argv-ordered queue — write the chain the way it should happen):
   --click <selector>        --goto <section|settings:cat|modal:slot>
   --open-chat <id|title|latest|current>   --open-character <id|name>
@@ -228,7 +235,8 @@ Verdict:
   --out <name|path>         reports/design-audit/<name>.json — or, path-shaped (absolute / ./ ../),
                             that exact file
 
-Exit: 0 clean · 1 findings or nav error · 2 nothing was censused (empty walk) · 3 CLI misuse.`;
+Exit: 0 clean · 1 findings · 2 NOT A VERDICT (empty walk, nav error, an action that did not land, or a
+      declared failure surface) · 3 CLI misuse.`;
 
 /** Argv is scanned for misuse BEFORE anything runs. An unknown flag used to print
  *  `UNKNOWN FLAG --goto (ignored)` and exit 0 — so a typo'd audit scanned home, reported clean, and the

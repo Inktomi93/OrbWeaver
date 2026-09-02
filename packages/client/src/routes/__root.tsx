@@ -1,7 +1,7 @@
-import { Stack } from "@orb/ui/layout";
 import { Heading, Text } from "@orb/ui/text";
 import { createRootRoute, Outlet } from "@tanstack/react-router";
 import type { ReactElement } from "react";
+import { AppFailureSurface } from "#lib";
 
 // UPGRADE PATH (task #15 — the data layer): swap createRootRoute() for
 // createRootRouteWithContext<{ queryClient; trpc; auth }>() and forward those singletons from the
@@ -11,12 +11,12 @@ import type { ReactElement } from "react";
 
 function NotFound(): ReactElement {
   return (
-    <Stack align="center" justify="center" gap="block" className="min-h-dvh bg-background text-foreground">
+    <AppFailureSurface kind="not-found">
       <Heading level={1}>not found</Heading>
       <Text size="label" tone="muted">
         that route doesn’t exist.
       </Text>
-    </Stack>
+    </AppFailureSurface>
   );
 }
 

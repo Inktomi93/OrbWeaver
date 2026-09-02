@@ -87,6 +87,48 @@ export function walkFailureGap(navError: string): EvidenceGap {
   };
 }
 
+/** THE PAGE-LEVEL NAV GAP (#1081). An HTTP error or a dead response is a fact about the ORIGIN, and it used
+ *  to be reported as a violation (exit 1) with the whole report printed under it — census 0, an empty
+ *  findings table, `population-verdict=complete`, a surface-state declaration reading `unmounted`. None of
+ *  that was measured: `ops/drive.ts` returns `samples: null` on a nav error, so every table below it is the
+ *  shape of a verdict wrapped around nothing. The FACT survives — it is what this gap's detail states — but
+ *  the run is NO VERDICT, which is the same call `ops/matrix.ts` already makes at matrix discovery. */
+export function navErrorGap(navError: string): EvidenceGap {
+  return {
+    evidence: "the navigation",
+    detail: `${navError} — the page never loaded, so nothing was censused and every table this run would print describes no observation. The HTTP failure is real and is the finding for a human; the audit has no verdict about the surface behind it`,
+  };
+}
+
+/** THE ACTIONS GAP (#1081). The argv-ordered queue is how a run REACHES its subject, so a failed action means
+ *  the walk censused a different surface than the one that was asked for — `ops/drive.ts` already prints the
+ *  failing action and its reason. Reporting findings from the surface it happened to be standing on is worse
+ *  than reporting nothing: they are true of a page nobody asked about, filed under the name of one nobody
+ *  saw. */
+export function actionsFailedGap(actionsFailed: number, actionCount: number): EvidenceGap {
+  return {
+    evidence: "the reveal queue",
+    detail: `${actionsFailed} of ${actionCount} action(s) did not land (each printed above with its reason) — the walk therefore censused whatever surface the chain stalled on, not the one this run names, so its findings and populations are a verdict about the wrong page`,
+  };
+}
+
+/** THE FAILURE-SURFACE GAP (#1081) — the arm that made this file's own opening paragraph literally true.
+ *
+ *  MEASURED 2026-09-01 through the real CLI against the dev stack: `pnpm design-audit /__no-such-route__`
+ *  printed all 48 POPULATION rows, filed `landmark-missing` P2 against the router's not-found boundary and
+ *  exited 0 — "a swallowed error boundary … audits as the cleanest page in the product", six lines up.
+ *  Nothing above catches it and nothing above can: the route RESOLVED (so `data-app-ready` went up and
+ *  `readinessGap` passes), the census was 11 rather than 0 (`censusGap` passes) and one control was reached
+ *  (`reachGap` passes). A not-found boundary is not a fraction of a surface — it is the app saying there is
+ *  no surface — so the discriminator is the app's own declare (`data-app-failure`, packages/client/src/lib/
+ *  app-failure-surface.tsx), never a node count and never a sniff of the rendered copy. */
+export function failureSurfaceGap(url: string, kind: string): EvidenceGap {
+  return {
+    evidence: "the audited surface",
+    detail: `${url} rendered the app's ${JSON.stringify(kind)} failure surface (it declares itself with data-app-failure) — an error boundary is not a surface, so every finding, population and surface-state row this run could print would describe the app's apology instead of the page that was asked for. Audit a route that resolves, or fix what sent the app here`,
+  };
+}
+
 /** The REACH gap (#653): the page offered controls and the viewport-bound censuses reached NONE of them.
  *
  *  `censusGap` above catches a walk that saw nothing at all. This catches its narrower, nastier sibling —
