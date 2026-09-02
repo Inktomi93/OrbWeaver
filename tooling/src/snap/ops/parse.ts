@@ -6,9 +6,10 @@ import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { Args } from "../contract/types.ts";
 import { CROP_RE } from "../lib/out-names.ts";
 import { selectorRefusalForFlag } from "../lib/selector-shape.ts";
+import { sessionModeValidationPairs, sessionNameErrors } from "../lib/session-plan.ts";
 import { CSS_SHOT_SCALE, parseShotScale, shotScaleBudgetRefusal } from "../lib/shot-scale.ts";
 import { NETWORK_PROFILE_SPELLINGS, NO_CPU_THROTTLE, parseNetworkProfile } from "../lib/throttle.ts";
-import { OPTIONAL_SELECTOR_FLAGS, PAGE_TARGET_FLAGS, REQUIRED_VALUE_FLAGS } from "./flags-classes.ts";
+import { OPTIONAL_NAME_FLAGS, OPTIONAL_SELECTOR_FLAGS, PAGE_TARGET_FLAGS, REQUIRED_VALUE_FLAGS } from "./flags-classes.ts";
 import { FLAG_HANDLERS } from "./flags-handlers.ts";
 import { DEFAULT_VIEWPORT, MS_PER_SECOND } from "./flags-support.ts";
 
@@ -31,6 +32,11 @@ function validateNumericFlag(flag: string, raw: string, errors: string[]): void 
     if (!Number.isFinite(value) || value < 0) {
       errors.push(`${flag} expects a non-negative number, got ${JSON.stringify(raw)}`);
     }
+  }
+  // A fractional TTL is legal (a 0.05-minute calibration drive); zero or less is a session that never
+  // idles out — the strand class the TTL exists to end — so it is refused, never defaulted.
+  if (flag === "--session-ttl" && !(Number.isFinite(Number(raw)) && Number(raw) > 0)) {
+    errors.push(`--session-ttl expects a positive number of minutes, got ${JSON.stringify(raw)}`);
   }
 }
 
@@ -148,6 +154,13 @@ function consumesOptionalSelector(argv: readonly string[], index: number): boole
   return value !== undefined && !value.startsWith("-") && !value.startsWith("/");
 }
 
+/** The scanner's twin of ops/flags-session.ts `consumeOptionalName`: a name is any next token that is not
+ *  a flag (a route-shaped `/x` after `--session-status` is a NAME the name rule then refuses, never a route). */
+function consumesOptionalName(argv: readonly string[], index: number): boolean {
+  const value = argv[index + 1];
+  return value !== undefined && !value.startsWith("-");
+}
+
 interface ArgvScan {
   readonly errors: string[];
   routeCount: number;
@@ -170,6 +183,9 @@ function scanArgvToken(argv: readonly string[], index: number, scan: ArgvScan): 
   }
   if (REQUIRED_VALUE_FLAGS.has(flag)) {
     return consumeRequiredArg(argv, index, flag, scan.errors);
+  }
+  if (OPTIONAL_NAME_FLAGS.has(flag)) {
+    return consumesOptionalName(argv, index) ? 1 : 0;
   }
   if (!(OPTIONAL_SELECTOR_FLAGS.has(flag) && consumesOptionalSelector(argv, index))) {
     return 0;
@@ -270,13 +286,18 @@ function evidenceValidationPairs(args: Args, producesShot: boolean): ValidationP
 function validateParsedArgs(args: Args): string[] {
   const contextsMode = args.contexts > 1 || args.as !== null;
   const producesShot = args.shotOf !== null || args.shot || args.baseline || args.diff;
-  const invalidModes = [...sessionValidationPairs(args, contextsMode), ...evidenceValidationPairs(args, producesShot)];
+  const invalidModes = [
+    ...sessionValidationPairs(args, contextsMode),
+    ...sessionModeValidationPairs(args, contextsMode),
+    ...evidenceValidationPairs(args, producesShot),
+  ];
   // The image budget is checked against the RAW viewport, which is the one a numeric --scale can reach
   // (the device arm is refused above, so a descriptor's own viewport is never the multiplicand here).
   const budget = args.device === null ? shotScaleBudgetRefusal(args.scale, args.viewport) : null;
   return [
     ...validatePageTargets(args, contextsMode),
     ...invalidModes.filter(([invalid]) => invalid).map(([, message]) => message),
+    ...sessionNameErrors(args),
     ...(budget === null ? [] : [budget]),
   ];
 }
@@ -372,6 +393,15 @@ export function parseSnapArgs(argv: string[]): Args {
     stageStatus: false,
     stageSweep: false,
     force: false,
+    session: null,
+    sessionDaemon: null,
+    sessionStatus: false,
+    sessionStatusName: null,
+    sessionClose: null,
+    sessionSweep: false,
+    sessionExport: null,
+    sessionTtlMin: null,
+    routeGiven: false,
   };
   const rest = [...argv];
   while (rest.length > 0) {
@@ -386,6 +416,7 @@ export function parseSnapArgs(argv: string[]): Args {
       // scanArgv already recorded it; parsing remains side-effect free for tests/importers.
     } else {
       args.route = tok;
+      args.routeGiven = true;
     }
   }
   args.errors.push(...validateParsedArgs(args));

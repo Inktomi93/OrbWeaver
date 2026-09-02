@@ -2,6 +2,7 @@
 // One tool, one API (docs/architecture/core/Core-Tooling-Law.md §2.5).
 export type { FixtureStatus, FixtureTarget, FixtureTargetOverride } from "./contract/fixture.ts";
 export { SNAP_HELP } from "./contract/help.ts";
+export type { OverflowEscape, OverflowProbe, OverflowSide } from "./contract/overflow.ts";
 export type { SnapDetailedResult, SnapRunReceipt } from "./contract/run.ts";
 export type {
   ActiveStage,
@@ -14,15 +15,7 @@ export type {
   StageSweepEvidence,
   StageSweepVerdict,
 } from "./contract/stage.ts";
-export type {
-  Args,
-  NetworkConditions,
-  NetworkProfileName,
-  OverflowEscape,
-  OverflowProbe,
-  OverflowSide,
-  SnapAction,
-} from "./contract/types.ts";
+export type { Args, NetworkConditions, NetworkProfileName, SnapAction } from "./contract/types.ts";
 export type { DiffOutcome, SnapFailureSummary } from "./contract/verdict.ts";
 export { capEvalText } from "./lib/eval-text.ts";
 export { variantOut } from "./lib/out-names.ts";
@@ -44,8 +37,13 @@ export { isSandboxTraceNoise, isViteDepChurn, partitionFailedRequests, SANDBOX_T
 export { OVERFLOW_MAX_ESCAPES, OVERFLOW_TOLERANCE_PX, sweepOverflowEscapes } from "./ops/overflow.ts";
 export { parseSnapArgs } from "./ops/parse.ts";
 export { selectConsoleMessagesForReport } from "./ops/report.ts";
-export { runSnapDetailed, snap } from "./ops/run.ts";
+export { runOnSession, runSnapDetailed, snap } from "./ops/run.ts";
 export { parseScenarioSpec, runScenarioDetailed, snapScenario } from "./ops/scenario.ts";
+// The stateful-session substrate (docs/design/1208-instrument-substrate.md §10.1): the admin verbs, the
+// client (boot + call + export), and the daemon's own entry — all three dispatched by cli.ts.
+export { runSessionAdmin } from "./ops/session-admin.ts";
+export { runSessionCall } from "./ops/session-client.ts";
+export { runSessionDaemon } from "./ops/session-daemon.ts";
 // The isolated stage is snap-OWNED plumbing with a SECOND consumer (#678): design-audit boots the same
 // stage so a rendered fix can be audited BRANCH-SIDE. Cross-tool consumption enters here, through the
 // front door — the stage set stays one home in snap/ (docs/architecture/core/Core-Tooling-Law.md §2.4 + §4.2).

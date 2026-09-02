@@ -105,6 +105,28 @@ Sessions:
   --stage-sweep           reap a stage nothing has used past the idle TTL + prune orphan dirs
   --scenario <json|preset> sequential checkpoints in one browser lifetime
                            presets: ${SNAP_SCENARIO_PRESET_NAMES.join(" | ")}
+
+Stateful sessions (ONE browser per lane, kept between calls — docs/design/1208-instrument-substrate.md):
+  --session <name> [where] [environment] [app settings] <route>   boot + first call: a niced daemon holds
+                          the browser (headless; --vnc to watch) behind <main>/.cache/snap-session/<name>.sock
+  --session <name> [--goto …|--click …|--eval …|--text|--map|--contrast …]   later calls drive the LIVE
+                          page (no route = no re-navigation); a route or --file navigates. Browser-lifetime
+                          flags (--base/--isolated/--viewport/--mobile/--dark/--appearance/--theme/--ls/
+                          --pages/--cpu-throttle/…) belong to the BOOT call and are refused later (exit 3).
+                          Every call is its own run slot; every call after the first is an evidence window.
+                          A session keeps no Playwright trace/HAR — --session-export carries its rings.
+  --session-ttl <min>     boot only: idle TTL (default 30; env ORB_SESSION_TTL_MIN). Cap 3 live sessions per
+                          box (env ORB_SESSION_CAP); the next boot exits 2 naming the live ones.
+  --session-status [<name>]   every session of this repo: owner · pid · live/DEAD · idle · binding · endpoint
+  --session-close <name> [--force]   close a live session (a LIVE one owned by another checkout needs --force)
+                          or reap a dead one
+  --session-sweep         reap dead + idle-past-TTL sessions and orphan registry entries; live ones reported
+  --session-export <name> [--out <base>]   copy the console/page-error/request rings into this run's slot,
+                          published as reports/sessions/<name>/…
+  A call on a DEAD session (daemon gone) prints SESSION DEAD naming the op it died in and exits 2 — never a
+  silently-resolving pointer. A call from another checkout is refused naming the owner (F4). One request at
+  a time: a second caller mid-call gets SESSION BUSY (exit 2). --session-daemon <name> is the daemon's own
+  entry — spawned by snap, never typed. Phase 1 refuses --session with --matrix/--scenario/--contexts/--as.
   --matrix                rated 16-cell representative run derived from the live 36-axis Appearance
                           carrier contract plus authenticated theme/device/media capabilities; includes
                           both OS/app polarity directions and strict R1-R7 CSS/pixel/geometry accounting

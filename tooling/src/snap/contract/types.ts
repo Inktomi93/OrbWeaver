@@ -303,8 +303,34 @@ export interface Args {
   stageSweep: boolean;
   /** Consent for --stage-down to tear down a stage owned by ANOTHER checkout while its band is still
    *  bound (#447 follow-on) — the #108 cross-checkout teardown is unchanged, it just says so out loud
-   *  now. No effect on your own stage, an idle one, or a dead one. */
+   *  now. No effect on your own stage, an idle one, or a dead one. Also the consent `--session-close`
+   *  needs for a foreign LIVE session. */
   force: boolean;
+  // ── STATEFUL SESSIONS (one browser per lane, kept between calls — docs/design/1208-instrument-substrate.md) ──
+  /** `--session <name>`: drive the named session's LIVE browser, booting its daemon on first use. Every
+   *  later call forwards its argv to the daemon over the repo-keyed socket; a call carrying a browser-
+   *  lifetime flag is refused (lib/session-plan.ts SESSION_ONLY_FLAGS). null = the one-shot path, untouched. */
+  session: string | null;
+  /** `--session-daemon <name>`: the DAEMON'S OWN entry — spawned by ops/session-client.ts through
+   *  _shared/proc.ts, never typed by an operator. The rest of the argv is the session's BOOT argv. */
+  sessionDaemon: string | null;
+  /** `--session-status [<name>]`: every session of this repo — owner · pid · live/dead · idle · binding —
+   *  then exit. Ignores the route. */
+  sessionStatus: boolean;
+  sessionStatusName: string | null;
+  /** `--session-close <name>`: close a live session (a foreign LIVE one needs --force) or reap a dead one. */
+  sessionClose: string | null;
+  /** `--session-sweep`: reap dead and idle-past-TTL sessions plus orphan registry entries; live ones are
+   *  reported and never touched. */
+  sessionSweep: boolean;
+  /** `--session-export <name>`: copy the session's console / page-error / request rings into THIS run's
+   *  slot, published as reports/sessions/<name>/…. */
+  sessionExport: string | null;
+  /** `--session-ttl <min>`: the boot call's idle TTL (default 30 min; env ORB_SESSION_TTL_MIN). */
+  sessionTtlMin: number | null;
+  /** Did the argv carry a positional route? `route` keeps its "/" default for every reader; a session call
+   *  with NO route and no --file drives the LIVE page instead of re-navigating (§3.3). */
+  routeGiven: boolean;
 }
 
 export interface CaptureOutcome {
@@ -351,36 +377,7 @@ export interface AssertionOutcome {
   readonly failed: boolean;
 }
 
-// ── --expect-no-overflow: the scroll-delta arm AND the child-rect sweep ──────
-// `scrollWidth - clientWidth` is a POSITIVE-ONLY measure: content pushed off the LEFT or TOP edge of a
-// clipping box does not grow the scroll box at all, so the delta reads 0 on a frame where a control is
-// painted outside the container and cut (#439/#444 — measured, a `justify-end` nowrap footer put a
-// button 35px left of a dialog while this assertion printed `overflow=0x0`). The predicate that decides
-// what the rect sweep judges lives with the measurement, in ops/overflow.ts.
-
-const OVERFLOW_SIDES = ["bottom", "left", "right", "top"] as const;
-export type OverflowSide = (typeof OVERFLOW_SIDES)[number];
-
-export interface OverflowEscape {
-  /** A locatable path to the OUTERMOST escaping element, with its text as a recognition hint. */
-  readonly selector: string;
-  readonly side: OverflowSide;
-  readonly px: number;
-}
-
-export interface OverflowProbe {
-  /** `scrollWidth - clientWidth` / `scrollHeight - clientHeight` — the historical arm, unchanged. */
-  readonly scrollX: number;
-  readonly scrollY: number;
-  /** Which SIDES the rect sweep judged, and therefore which it did not. Scrolling sanctions content
-   *  past the RIGHT/BOTTOM edge — that content is reachable, and the scroll arm above measures it —
-   *  but it sanctions nothing on the LEFT/TOP: there is no negative scroll offset, so content before
-   *  the content origin is unreachable and cut whatever the overflow value says. (Measured on the live
-   *  new-chat dialog, which is `overflow: auto` with a zero scroll delta — an axis-level decline would
-   *  have left the instrument blind on the exact surface #439 was found on.) */
-  readonly judged: readonly OverflowSide[];
-  readonly escapes: readonly OverflowEscape[];
-}
+// `--expect-no-overflow`'s shapes (OverflowSide/OverflowEscape/OverflowProbe) live in ./overflow.ts.
 
 export interface PerfEvidence {
   readonly navigation: { readonly domContentLoadedMs: number; readonly loadMs: number; readonly responseMs: number } | null;
