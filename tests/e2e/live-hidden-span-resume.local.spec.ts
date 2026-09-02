@@ -29,6 +29,7 @@
 
 import type { CharacterHandle, ChatId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { E2E_FIXTURE_PROVIDER_PORT } from "@orb/tooling/_shared/ports";
 import { expect, test } from "@playwright/test";
 import { addMemberToChat, configureCustomProvider, loginLocal, ownerActor } from "./support/actors.ts";
 import {
@@ -39,7 +40,7 @@ import {
   FIXTURE_POST_SPAN_PROSE,
   startFixtureProvider,
 } from "./support/fixture-provider.ts";
-import { FIXTURE_PROVIDER_PORT, LOCAL_MEMBER } from "./support/modes.ts";
+import { LOCAL_MEMBER } from "./support/modes.ts";
 import type { StreamValue } from "./support/sse.ts";
 import { collectChatRoomFrames } from "./support/sse.ts";
 
@@ -73,7 +74,7 @@ test("P3 mid-slot resume: a MEMBER resuming INSIDE an open <lie> tag never recei
   test.setTimeout(180_000);
   const origin = baseURL ?? "";
   const host = ownerActor(origin);
-  const fixture = await startFixtureProvider(FIXTURE_PROVIDER_PORT);
+  const fixture = await startFixtureProvider(E2E_FIXTURE_PROVIDER_PORT);
 
   const priorList = await host.query<{ readonly items: readonly { readonly id: string; readonly handle: CharacterHandle }[] }>("character.list", {});
   const prior = priorList.items.find((c) => c.handle === CARD_HANDLE);

@@ -8,6 +8,7 @@ import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { ExitCode } from "../../_shared/exit-contract.ts";
 import { EXIT } from "../../_shared/exit-contract.ts";
 import { warn } from "../../_shared/log.ts";
+import { MODEL_AB_PORT } from "../../_shared/ports.ts";
 import { UsageError } from "../../_shared/run-tool.ts";
 import type { CliOptions, Variant } from "../contract/types.ts";
 import { runProbes } from "./probe.ts";
@@ -16,7 +17,7 @@ import { busyGpuOwners, runVariants, SERVED_NAME, vllmBinMissing } from "./serve
 
 refuseDirectInvocation(import.meta.url, "node tooling/src/model-ab/cli.ts <verb>");
 
-const DEFAULT_PORT = 8901;
+const DEFAULT_PORT = MODEL_AB_PORT;
 const DEFAULT_VLLM_BIN = path.join(REPO_ROOT, ".cache", "vllm", "venv", "bin", "vllm");
 const DEFAULT_HF_HOME = "/media/inktomi/Data/vllm-models";
 const STAMP_CHARS = 16;

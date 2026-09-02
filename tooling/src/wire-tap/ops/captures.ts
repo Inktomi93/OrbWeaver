@@ -23,6 +23,7 @@ import { print } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { printVerdict } from "../../_shared/evidence.ts";
 import { EXIT } from "../../_shared/exit-contract.ts";
+import { DEV_PORTS } from "../../_shared/ports.ts";
 import { UsageError } from "../../_shared/run-tool.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm sse-tap (node tooling/src/wire-tap/cli.ts <verb>)");
@@ -73,7 +74,7 @@ function parseCapturesArgs(argv: readonly string[]): CapturesArgs {
 
 function baseUrl(): string {
   // biome-ignore lint/style/noProcessEnv: PORT mirrors the server's listen port — ambient tooling env, not app config; probes run outside the foundation/env perimeter.
-  const port = process.env["PORT"] ?? "8788";
+  const port = process.env["PORT"] ?? String(DEV_PORTS.server);
   // biome-ignore lint/style/noProcessEnv: WIRE_TAP_BASE points the reader at a non-local server when needed — ambient tooling env, not app config.
   return process.env["WIRE_TAP_BASE"] ?? `http://127.0.0.1:${port}`;
 }

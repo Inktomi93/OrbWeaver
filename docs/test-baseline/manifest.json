@@ -1957,6 +1957,7 @@
     "tests/tooling/_shared/page-validate.test.ts",
     "tests/tooling/_shared/panel-flags.test.ts",
     "tests/tooling/_shared/pixel-backdrop.test.ts",
+    "tests/tooling/_shared/ports.test.ts",
     "tests/tooling/_shared/proc.test.ts",
     "tests/tooling/_shared/ratchet-rows.test.ts",
     "tests/tooling/_shared/rated-theme-fixture.test.ts",
