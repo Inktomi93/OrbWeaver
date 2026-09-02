@@ -31610,6 +31610,70 @@
       "receiptCurrent": true
     },
     {
+      "path": "docs/reviews/stickler/2026-09-02-ct-corpus-audit-leg3.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 469,
+      "bytes": 37522,
+      "sha256": "18c07c9c8a719d57604eade319b704175de77d342539badbe71520045601c127",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-02"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/stickler/2026-09-02-ct-corpus-audit-leg3.md",
+        "assignedSha256": "18c07c9c8a719d57604eade319b704175de77d342539badbe71520045601c127",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "18c07c9c8a719d57604eade319b704175de77d342539badbe71520045601c127",
+        "verifiedCommit": "dc4f733d90b106a9297acfcd830c6e1c01d13162",
+        "verifiedAt": "2026-09-02",
+        "summary": "CT corpus audit leg 3 (#1229, lane cb-ct-audit-3): full-read of the 13-file HI-band remainder plus the two config surfaces the collections fold REWROTE (fresh subjects) — 15 files, ~12,258 lines, in 4 incrementally-committed chunks. The HI band (61 files) is DRAINED. Zero findings; campaign ceiling stays at leg 1's P3. Taxonomy sweep receipts over exactly these files (0 reports/ writes, 0 kill spawns, 4 marked fabrication casts, 0 skip/only, 0 suppressions, every ONESHOT-OK marker inside the adjacency window) plus premise spot-checks against today's src. Running campaign total 84/469 full-read; leg-4 shard map (MID 74 by area, LO 334 by directory) and 4 proposed memory lessons recorded.",
+        "evidence": [
+          "born-reviewed at dc4f733d90b106a9297acfcd830c6e1c01d13162: authored and full-read by lane cb-ct-audit-3 (stickler) in the same session — chunks 1-4 per-file verdicts, the taxonomy sweep receipts, the premise spot-check list, the leg-4 shard map and the #1229 issue summary"
+        ],
+        "claims": [
+          {
+            "claim": "The #1203 luck-based-coverage P0 (an optional per-library hook whose count differed between neighbouring collections) now has a class-sweep repair pin: both directions through both declaring libraries, with page errors collected from the first navigation and the LIST landmark asserted to survive.",
+            "evidence": [
+              {
+                "kind": "test",
+                "target": "tests/client/features/config/surfaces/config-content-surface.ct.tsx:857",
+                "note": "a white-screened shell can satisfy a naive 'the old text is gone' assertion, so the claim is pageerror + the surviving landmark, not the pane alone"
+              }
+            ]
+          },
+          {
+            "claim": "home-surface's two-polarity contrast matrix ASSERTS that its light arm inverted before judging a pixel, and reads the framebuffer because a CSS mask is invisible to every computed-style contrast instrument in the repo (including pixelContrast, which composites ancestor opacity a mask never touches).",
+            "evidence": [
+              {
+                "kind": "test",
+                "target": "tests/client/features/home/surfaces/home-surface.ct.tsx:1201",
+                "note": "the polarity probe resolves the tokens through a canvas because oklch defeats an rgb regex; the in-band controls' positive control is a peer CTA outside the fade band"
+              }
+            ]
+          },
+          {
+            "claim": "composer's #366 keyboard-focus pin is failable rather than decorative: the composer card carries shadow-glow and its ring only under focus-within, so the resting computed box-shadow is none.",
+            "evidence": [
+              {
+                "kind": "code",
+                "target": "packages/client/src/features/chat/components/composer-drop-target.tsx:41"
+              }
+            ]
+          }
+        ]
+      },
+      "receiptCurrent": true
+    },
+    {
       "path": "docs/reviews/stickler/2026-09-02-cta-conformance-census.md",
       "lane": "reviews",
       "issue": 7,
