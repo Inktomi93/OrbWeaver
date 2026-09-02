@@ -136,7 +136,18 @@ export interface CollectionContribution {
    *  contract). `false` ⇒ the whole group renders NOTHING. Never a BUILD fact. */
   readonly useVisible?: () => boolean;
   /** The group count for the band ("TAGS · 412") — a cache-first hook, same call discipline. It also drives
-   *  the host's filter affordance at {@link COLLECTION_LARGE_GROUP}. */
+   *  the host's filter affordance at {@link COLLECTION_LARGE_GROUP}.
+   *
+   *  ═══ THE OPTIONAL-HOOK LAW FOR EVERY HOST OF THIS SEAM (#1203 P0, 2026-09-02) ═══════════════════
+   *  This field and {@link preview} are OPTIONAL HOOKS, so a contribution's hook SET is part of its
+   *  identity: tags/regex/world-info declare a preview, rosters does not. "Called unconditionally in a
+   *  fixed position" is therefore a claim about ONE CONTRIBUTION'S FIBER, never about the component that
+   *  draws it. **A host that renders a per-collection component MUST key it by the collection's group id**
+   *  — otherwise React reuses one fiber across a switch, the hook count changes mid-fiber, and the
+   *  "Rendered fewer/more hooks than expected" invariant violation escapes every route boundary and
+   *  white-screens the whole shell (measured: switching Tags→Rosters on the config CONTENT landing; the
+   *  Tags→Regex pair survived only because those two happen to declare equal hook counts). Both host sites
+   *  key today: `config-content-surface.tsx`'s landing and `config-welcome.tsx`'s launcher map. */
   readonly useCount?: () => number | undefined;
   /** The library's own CONTENTS as a ranked top-{@link COLLECTION_PREVIEW_LIMIT} glance, for the welcome's
    *  HERO (program #102, the owner-picked Hearth variant). It is the one thing NEITHER the roster band nor
