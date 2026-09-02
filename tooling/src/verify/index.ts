@@ -100,4 +100,4 @@ export { runScopedCli, runScopedPass, SCOPED_USAGE } from "./ops/scoped.ts";
 export { runShow, SHOW_HELP } from "./ops/show.ts";
 export { runStructure } from "./ops/structure.ts";
 export { findMultiMembershipFiles, findUnrunFiles, runTestsExecutionMembership } from "./ops/tests-execution-membership.ts";
-export { findEscapees, runTestsTypeMembership } from "./ops/tests-type-membership.ts";
+export { findEscapees, findTripleSlashLibLeaks, runTestsTypeMembership } from "./ops/tests-type-membership.ts";

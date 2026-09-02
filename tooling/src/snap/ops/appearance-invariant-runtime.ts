@@ -104,7 +104,11 @@ async function driveSurface(page: Page, row: RuntimeAppearanceHistoricalRow): Pr
       .locator(selector)
       .filter({ visible: true })
       .first()
-      .evaluate((element) => element.scrollIntoView({ block: "center", inline: "nearest" }), { timeout: STEP_TIMEOUT_MS });
+      // #1228: a string body, not a typed `(element) => …` callback — the latter needs lib.dom's
+      // `HTMLElement`/`SVGElement` (`scrollIntoView` isn't on Playwright's own minimal element type),
+      // which this program deliberately does not carry (tooling/src stays DOM-less by design; see
+      // tsconfig.json's header). Same pattern as this file's other `page.evaluate` string calls above.
+      .evaluate(`(element) => element.scrollIntoView({ block: "center", inline: "nearest" })`, undefined, { timeout: STEP_TIMEOUT_MS });
     await settle(page, STEP_SETTLE_MS);
   }
   if (row.id === "opposite-os-app-prepaint") {
@@ -116,7 +120,8 @@ async function driveSurface(page: Page, row: RuntimeAppearanceHistoricalRow): Pr
       .locator(selector)
       .filter({ visible: true })
       .first()
-      .evaluate((element) => element.scrollIntoView({ block: "center", inline: "nearest" }), { timeout: STEP_TIMEOUT_MS });
+      // #1228: same string-body reasoning as above.
+      .evaluate(`(element) => element.scrollIntoView({ block: "center", inline: "nearest" })`, undefined, { timeout: STEP_TIMEOUT_MS });
     await settle(page, STEP_SETTLE_MS);
   }
 }

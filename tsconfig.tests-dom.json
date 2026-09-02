@@ -9,6 +9,21 @@
   // by NO static stage. This config is that missing home: a dom+dom.iterable+es2025 program (the browser
   // lib set, copied from packages/client/tsconfig.json) that OWNS the DOM-coupled `.ts` escapees.
   //
+  // WIDENED 2026-09-02 (#1228, the DOM-lib-leak defuse): a `/// <reference lib="dom" />` triple-slash
+  // directive is PROGRAM-scoped, not file-scoped — one such line in one root-aggregator-swept file
+  // (scripts/probes/st-goldens/generate-goldens.ts) silently supplied lib.dom to the ENTIRE root
+  // aggregator, masking every OTHER DOM-coupled escapee riding the same leak. Removing the leak exposed
+  // further escapee shapes this program also owns, per-file, same doctrine (never a directory glob
+  // beyond the ratified `tests/e2e/**` exception): a DOM-coupled `scripts/**` script (no lib.dom of its
+  // own program otherwise), several DOM-coupled `tests/tooling/**` int/CT tests, and ONE DOM-coupled
+  // `.ct.tsx` file living outside `tests/{client,ui}/**` (so no package's `.tsx` reach-back claims it
+  // either — `jsx: react-jsx` above already anticipated this shape). ONE further escapee this sweep
+  // found — tooling/src/snap/ops/appearance-invariant-runtime.ts — turned out NOT to belong here: its
+  // only two DOM-typed call sites were converted to Playwright's string-body `.evaluate()` form (same
+  // convention the file already used elsewhere), so it needs no dom lib and stays DOM-less in the root
+  // aggregator, its natural home (its caller, tooling/src/snap/ops/run.ts, is live production CLI code
+  // that could never itself move to a DOM-having program).
+  //
   // The `tests-type-membership` verify stage (tooling/src/verify/ops/tests-type-membership.ts) is the permanent
   // guard: it reconciles EVERY type-relevant file under tests/** + playwright/** against the import-closure
   // of every type program (this one included), and REDs if any file lands in zero programs. A new
@@ -41,13 +56,15 @@
     // + the `#imports` map); permit that to typecheck them (safe under the base's `noEmit`).
     "allowImportingTsExtensions": true
   },
-  // The DOM-coupled `.ts` tests the root graph EXCLUDES and no `*.tsx` reach-back claims. Per-file
-  // escapees are enumerated EXPLICITLY (not a glob) so each is a deliberate add — the membership stage
-  // names each one as it appears. Keep in sync with tsconfig.json's matching `exclude` entries (the
-  // graph must NOT also own them). EXCEPTION — `tests/e2e/**` rides as a DIRECTORY glob (owner ruling,
-  // 2026-07-24): the whole playwright e2e tree is DOM-context by nature (`page.evaluate` callbacks read
-  // browser state), not a per-file escapee; DOM-less typing forced hand-rolled element bridges +
-  // `as unknown as` casts in every spec.
+  // The DOM-coupled `.ts` tests the root graph EXCLUDES and no `*.tsx` reach-back claims — plus (since
+  // #1228) the `scripts/**` script, the `tooling/src/**` source file, and the one `.ct.tsx` outside
+  // `tests/{client,ui}/**` that rode the dom-lib leak (see the header note above). Per-file escapees are
+  // enumerated EXPLICITLY (not a glob) so each is a deliberate add — the membership stage names each one
+  // as it appears. Keep in sync with tsconfig.json's matching `exclude` entries (the graph must NOT also
+  // own them). EXCEPTION — `tests/e2e/**` rides as a DIRECTORY glob (owner ruling, 2026-07-24): the whole
+  // playwright e2e tree is DOM-context by nature (`page.evaluate` callbacks read browser state), not a
+  // per-file escapee; DOM-less typing forced hand-rolled element bridges + `as unknown as` casts in every
+  // spec.
   "include": [
     "reset.d.ts",
     // The root ambient pair (node-26 adoption program §1.2) — see tsconfig.base.json's include note.
@@ -64,9 +81,35 @@
     "tests/client/state/config-group-registry.test.ts",
     "tests/client/state/config-section-partition.test.ts",
     "tests/client/state/config-section-registry.test.ts",
+    // #1228: the DOM-barrel hazard, chat-feature-barrel flavor — value-imports 2 pure functions from
+    // `@orb/client/features/chat`, whose barrel re-exports `chat-list-surface.tsx` (DOM-coupled) →
+    // phantom lib.dom errors in the DOM-less node program. The barrel SOURCE stays dom-typechecked by
+    // packages/client/tsconfig.
+    "tests/client/features/chat/lib/join-token.test.ts",
+    // #1228: the DOM-lib-leak defuse. Neutralizing scripts/probes/st-goldens/generate-goldens.ts's
+    // former `/// <reference lib="dom" />` (a program-scoped triple-slash directive that had been
+    // silently supplying lib.dom to the WHOLE root aggregator) reds every one of the escapees below —
+    // each is a genuinely DOM-coupled `.ts`/`.ct.tsx` file that was riding the leak instead of being
+    // explicitly homed. Each is documented at its own use site; this program is their real home.
+    "scripts/probes/st-goldens/generate-goldens.ts",
+    "tests/support/ct/accessible-names.ts",
+    "tests/support/ct/autosave-status-transcript.ts",
+    "tests/support/ct/canvas-ink.ts",
     "tests/support/ct/drop-files.ts",
+    "tests/support/ct/held-portrait-image.ts",
+    "tests/support/ct/measure-clamp.ts",
+    "tests/support/ct/part-vs-surface.ts",
+    "tests/support/ct/pixel-contrast.ts",
+    "tests/support/ct/scroll-containing-block.ts",
     "tests/support/ct/settings-geometry.ts",
     "tests/support/ct/tier-liveness.ts",
+    "tests/support/ct/touch-floor.ts",
+    "tests/support/ct/weave-drive.ts",
+    "tests/tooling/_shared/browser.int.test.ts",
+    "tests/tooling/design-audit-walker.ct.tsx",
+    "tests/tooling/snap/cascade.suite.int.test.ts",
+    "tests/tooling/snap/ops/contrast.int.test.ts",
+    "tests/tooling/stack/lib/engine-launch.test.ts",
     "tests/ui/charts/meter/waystone-treatment.test.ts",
     "tests/e2e/**/*.ts"
   ]
