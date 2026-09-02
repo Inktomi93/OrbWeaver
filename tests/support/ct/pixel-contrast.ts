@@ -380,8 +380,16 @@ export interface PixelExtremaReceipt {
  *
  * REFUSES rather than fabricating, on {@link pixelContrast}'s terms: no box, an off-viewport box, or a
  * decode failure throws.
+ *
+ * `region` NARROWS THE QUESTION TO THE PART A GRADIENT ACTUALLY REACHES, and on the INLINE axis that is
+ * the difference between a red and a false clean (#1140). A block-axis band is deep enough to swallow a
+ * whole control, so #1128 could ask the whole box; an edge fade on a horizontally scrolling STRIP reaches
+ * only the trailing slice of the item that straddles it, and the unfaded two-thirds of that same item
+ * supplies both extremes — the upper bound comes back at the item's FULL ratio while its last characters
+ * are dissolving. Name the slice the band covers and the bound is still an upper bound, of the right box.
+ * Same shape and same reason as {@link pixelSurface}'s own `region`.
  */
-export async function pixelExtremaContrast(page: Page, target: Locator): Promise<PixelExtremaReceipt> {
+export async function pixelExtremaContrast(page: Page, target: Locator, options: PixelSurfaceOptions = {}): Promise<PixelExtremaReceipt> {
   const box = await target.boundingBox();
   if (box === null) {
     throw new Error("pixelExtremaContrast: the target has no box (not rendered)");
@@ -390,12 +398,13 @@ export async function pixelExtremaContrast(page: Page, target: Locator): Promise
   if (viewport === null) {
     throw new Error("pixelExtremaContrast: the page has no viewport size");
   }
-  const x = Math.max(0, Math.floor(box.x));
-  const y = Math.max(0, Math.floor(box.y));
-  const width = Math.min(Math.ceil(box.width), viewport.width - x);
-  const height = Math.min(Math.ceil(box.height), viewport.height - y);
+  const region = options.region ?? { x0: 0, x1: 1, y0: 0, y1: 1 };
+  const x = Math.max(0, Math.floor(box.x + box.width * region.x0));
+  const y = Math.max(0, Math.floor(box.y + box.height * region.y0));
+  const width = Math.min(Math.ceil(box.width * (region.x1 - region.x0)), viewport.width - x);
+  const height = Math.min(Math.ceil(box.height * (region.y1 - region.y0)), viewport.height - y);
   if (width < 1 || height < 1) {
-    throw new Error(`pixelExtremaContrast: the target box is empty or off-screen (${JSON.stringify(box)})`);
+    throw new Error(`pixelExtremaContrast: the target box is empty or off-screen (${JSON.stringify(box)}, region ${JSON.stringify(region)})`);
   }
   const shot = await page.screenshot({ clip: { x, y, width, height }, animations: "disabled" });
   const { data, info } = await rawPixels(shot);

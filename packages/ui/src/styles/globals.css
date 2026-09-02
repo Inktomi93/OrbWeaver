@@ -463,12 +463,62 @@
  * instead of a hard cut. Scroll-aware and both-edge — the same mechanism as the vertical
  * `message-list-scroll` fade: each edge fades ONLY while content is actually scrolled past it (the
  * consumer toggles data-fade-start/-end on scroll/resize), so an unscrolled or fitting strip renders
- * both its edges fully opaque instead of dimming a flush item against nothing. */
+ * both its edges fully opaque instead of dimming a flush item against nothing.
+ *
+ * IT BOTTOMS OUT AT THE FLOOR, NOT AT ZERO (#1140, the inline twin of #1128). It ramped to TRANSPARENT,
+ * so the item straddling a scrolled edge — the one whose word is half the reason to scroll — dissolved
+ * into whatever sits behind the strip while a mask kept it fully hit-testable: a user could click a view
+ * they could not read. MEASURED in the CT browser on the preset editor's five-tab strip, sweeping the pane
+ * across 320/360/390/450px and both scrolled edges: at 360px the trailing 13px of `Transforms` read
+ * **2.01:1** dark and **1.91:1** light (ink 187,186,184 against 255,253,250), and at 390px the leading
+ * 22px of the ACTIVE `Params` tab read **3.24:1** light — while every tab clear of the band read 7.75:1
+ * dark / 11.55:1 light in the same decode. Every contrast instrument we own resolves its subject through
+ * `getComputedStyle`, which a mask never touches, and all of them reported the strip clean. The same cells
+ * read 4.82 / 5.33 / 7.55:1 with the floor in place.
+ *
+ * ONLY THE FLOOR CROSSED THE AXIS, and that is deliberate. #1128's other half — a band that is a LENGTH
+ * rather than `--fade-edge-stop`'s percentage — was a ruling about a self-scrolling SURFACE, whose band
+ * grows with the pane; that block's header states in as many words that a percentage "is right for a
+ * strip", and it is: a strip's band is a fraction of a box that only exists while the box is too small,
+ * so it cannot run away. The finding here is a CONTRAST finding, the floor answers it, and the recorded
+ * depth ruling survives untouched.
+ *
+ * WHAT THE FLOOR STILL CANNOT PROMISE is the block twin's paragraph verbatim — a muted pair needs an
+ * alpha so high there is no perceptible fade left. This is set for the class the cue is actually over:
+ * a tablist's labels and a strip's chips, at full ink. */
+
+/* THE ALPHA BOTH AXES BOTTOM OUT AT, declared ONCE for the one recipe that has two axes (#1140). It rides
+   `--scroll-fade-*`, NOT `--fade-*`: `--fade-edge-stop` is a GENERATED token family (tokens.json
+   `fade.edge-stop`) and the only names a stylesheet may mint inside it are the four sanctioned local stops
+   the `css-family-ownership` gate declares, so a `--fade-*-floor` here would rewrite a generated family
+   outside theme.css and is gate-RED. It mints no family at all, exactly as `--art-bleed-peak` above does,
+   and it stays local to this recipe because it is not portable: it is an alpha DERIVED from a contrast
+   floor, and the derivation is the `.scroll-fade-y` header below — a fade composites the ink toward
+   whatever is behind the scroller, so a full-contrast pair clears WCAG 1.4.3's 4.5:1 at alpha >= 0.48 on
+   the dark arm and >= 0.60 on the LIGHT one (near-black on near-white, the demanding polarity). 0.62
+   clears both. One declaration, because one number that drifted apart on two axes of one recipe would be
+   two cues that dim differently for no reason a reader could name. */
+.scroll-fade-x,
+.scroll-fade-y {
+  --scroll-fade-floor: 0.62;
+}
 .scroll-fade-x {
   --fade-start-stop: 0%;
   --fade-end-stop: 0%;
-  -webkit-mask-image: linear-gradient(to right, transparent, black var(--fade-start-stop), black calc(100% - var(--fade-end-stop)), transparent);
-  mask-image: linear-gradient(to right, transparent, black var(--fade-start-stop), black calc(100% - var(--fade-end-stop)), transparent);
+  -webkit-mask-image: linear-gradient(
+    to right,
+    rgb(0 0 0 / var(--scroll-fade-floor)),
+    black var(--fade-start-stop),
+    black calc(100% - var(--fade-end-stop)),
+    rgb(0 0 0 / var(--scroll-fade-floor))
+  );
+  mask-image: linear-gradient(
+    to right,
+    rgb(0 0 0 / var(--scroll-fade-floor)),
+    black var(--fade-start-stop),
+    black calc(100% - var(--fade-end-stop)),
+    rgb(0 0 0 / var(--scroll-fade-floor))
+  );
 }
 .scroll-fade-x[data-fade-start] {
   --fade-start-stop: var(--fade-edge-stop);
@@ -504,7 +554,7 @@
  * TWO CHANGES, AND BOTH ARE LOAD-BEARING. (1) The band is a LENGTH (`--spacing-section`, the surface's own
  * rhythm), so it cannot grow with the pane: at any viewport a control more than one section-step above the
  * cut is painted at full strength, which is where a control that is genuinely on screen sits. (2) The ramp
- * bottoms out at `--fade-block-floor` rather than at zero, so a control the band DOES reach still carries
+ * bottoms out at `--scroll-fade-floor` rather than at zero, so a control the band DOES reach still carries
  * ink. The floor is derived, not chosen by eye: a fade composites the ink toward whatever is behind the
  * scroller, so for a full-contrast pair the composite clears WCAG 1.4.3's 4.5:1 at alpha >= 0.48 on the
  * dark arm and >= 0.60 on the LIGHT one (near-black on near-white, the demanding polarity); 0.62 clears
@@ -518,14 +568,12 @@
  * (client globals.css) already states from the other side. The floor is set for the class this cue is
  * ACTUALLY over: controls and headings at full ink. */
 .scroll-fade-y {
-  /* THE FLOOR AND THE DEPTH RIDE `--scroll-fade-*`, NOT `--fade-*`. `--fade-edge-stop` is a GENERATED
-     token family (tokens.json `fade.edge-stop`), and the only names a stylesheet may mint inside it are
-     the four sanctioned local stops the `css-family-ownership` gate declares — a `--fade-block-floor`
-     here rewrites a generated family outside theme.css and is gate-RED. These two mint no family at all,
-     exactly as `--art-bleed-peak` above does, and they stay local to this recipe on purpose: neither is
-     portable (a depth in the surface's own rhythm, an alpha derived from a contrast floor). */
+  /* THE DEPTH RIDES `--scroll-fade-*`, NOT `--fade-*`, for the reason the shared floor above states at
+     length: `--fade-edge-stop` is a GENERATED family and only the four sanctioned local stops may be
+     minted inside it. It mints no family at all and stays local because it is not portable — a depth in
+     the surface's OWN rhythm. The floor moved up to the shared rule when the inline twin needed the same
+     alpha (#1140); it is one number for one recipe, and its derivation is this header. */
   --scroll-fade-depth: var(--spacing-section);
-  --scroll-fade-floor: 0.62;
   /* The two SANCTIONED stop names carry the scroll-aware half — 0 while an edge hides nothing. They are
      LENGTHS on this axis where the inline twin uses a percentage; see the header for why. */
   --fade-top-stop: 0px;

@@ -171,8 +171,13 @@ export function __installAgentDebugHandleForTest(queryClient: QueryClient, handl
 
 /** `data-panel-available` → the tri-state a reader needs: the declaration, or `null` for "the shell did
  *  not publish one". Never defaults to `true`: a missing declare that read as "available" would be the
- *  exact silent-guess this attribute exists to end. */
-function panelAvailability(panel: Element): boolean | null {
+ *  exact silent-guess this attribute exists to end.
+ *
+ *  EXPORTED because `shell()` is not the only reader (#1149): `agent-nav/panel-request.ts` names the same
+ *  tri-state in its refusal for a `"docked"` request that never landed. One parser for one attribute — a
+ *  second `getAttribute("data-panel-available") === "true"` elsewhere is the drift where the `null` arm
+ *  quietly becomes `false` and a shell that published nothing gets accused of declaring nothing. */
+export function panelAvailability(panel: Element): boolean | null {
   const declared = panel.getAttribute("data-panel-available");
   return declared === null ? null : declared === "true";
 }

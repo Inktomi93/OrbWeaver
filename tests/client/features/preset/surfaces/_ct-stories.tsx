@@ -60,6 +60,21 @@ export function PresetEditorWidePaneStory(): ReactElement {
   );
 }
 
+/** The editor in a pane the CT RESIZES, for #1140's edge-fade width matrix. A point measurement never
+ *  proves a range property, and the `.scroll-fade-x` band is a FRACTION of the strip's own box — so the
+ *  pane has to be swept, not fixed. The wrapper carries the hook the test writes `inline-size` on (the
+ *  `[data-home-fold-pane]` idiom #1128 used on the block axis). It starts at the narrowest DESKTOP content
+ *  pane; the sweep reaches below it (phone widths) and past the strip's own overflow. */
+export function PresetEditorStripFadeStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div data-preset-fade-pane="" style={{ height: 720, width: 390 }}>
+        <PresetEditorSurface presetId={PRESET_A} />
+      </div>
+    </CtDataProviders>
+  );
+}
+
 /** Stands in for the user-bus SSE frame the server fans when Connections writes `routing.roleDefaults`
  *  (`settings.updateUserSettingsSection` is busDriven — `settingsChanged` is the ONLY freshness driver for
  *  the editor's capability read). Drives the REAL `useInvalidation()` seam, so the map row is what's under
