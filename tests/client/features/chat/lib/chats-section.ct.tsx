@@ -52,7 +52,7 @@ function cell(component: Locator, name: string): Locator {
 }
 
 const NATE_HOST_RE = /Nate — host/u;
-const ARIA_CAST_RE = /Aria — character/u;
+const ARIA_CHARACTER_RE = /Aria — character/u;
 const BUDDY_MEMBER_RE = /Buddy — member/u;
 
 // `multiHumanCapable` now reads from `/api/auth/config` (not a prop), so the People-tab cases stub the
@@ -83,7 +83,7 @@ function human(role: ParticipantRole): Record<string, unknown> {
   return { kind: "human", role, userId: "user_ct", characterId: null };
 }
 
-// A character seat — the fields `resolveIsGroupChat` AND the Members Cast rows read (the §7.1 merge
+// A character seat — the fields `resolveIsGroupChat` AND the Members Character rows read (the §7.1 merge
 // projects displayName/disabled/talkativeness/avatarHash into `MemberCharacterRow`s).
 function character(key: string): Record<string, unknown> {
   return {
@@ -106,7 +106,7 @@ function character(key: string): Record<string, unknown> {
 function chatDetail(role: ParticipantRole, roomOverrides: Record<string, string> = {}, characters: readonly Record<string, unknown>[] = []): unknown {
   return {
     participants: [human(role), ...characters],
-    // `ChatDetail.cast` is server-populated on every getChat; a tab that resolves a seat's persona through it
+    // `ChatDetail.identities` is server-populated on every getChat; a tab that resolves a seat's persona through it
     // (the Members tab) reads an empty producer as "this seat plays nobody", never as a crash.
     identities: [],
     roomOverrides,
@@ -163,7 +163,7 @@ function emptyTrace(): Record<string, unknown> {
 
 // A PRESENT human seat with the fields the People tab renders (multi-human invites lane):
 // `leftSeq: null` is load-bearing — the projection keeps only present seats. `activePersonaId` is equally
-// load-bearing now: a human row renders the PERSONA it is playing, resolved against the room's cast producer
+// load-bearing now: a human row renders the PERSONA it is playing, resolved against the room's characters producer
 // (#162). The `handle` stays on the WIRE stub, spelled as an EMAIL exactly as an OIDC install ships it,
 // because the point of the change is that no row can render it as a second identity beside the name.
 function humanSeat(id: string, displayName: string, role: ParticipantRole): Record<string, unknown> {
@@ -181,13 +181,13 @@ function humanSeat(id: string, displayName: string, role: ParticipantRole): Reco
   };
 }
 
-/** The persona CAST entry a {@link humanSeat} is playing — what turns its `activePersonaId` into a name. */
+/** The persona IDENTITY entry a {@link humanSeat} is playing — what turns its `activePersonaId` into a name. */
 function personaEntry(id: string, name: string): Record<string, unknown> {
   return { kind: "persona", id: `persona_${id}`, name, description: "", avatarHash: null };
 }
 
 // A `ChatDetail` stub for the People-tab cases — carries the server-resolved `viewerIsHost` (the
-// invite-controls gate; NOT the first-seat proxy the older tabs still use) and the room's cast producer.
+// invite-controls gate; NOT the first-seat proxy the older tabs still use) and the room's characters producer.
 function multiHumanChat(viewerIsHost: boolean, humans: readonly Record<string, unknown>[]): unknown {
   return {
     participants: [...humans, character("aria")],
@@ -421,10 +421,10 @@ test.describe("#875 F6 — the band's chips at a coarse pointer", () => {
 });
 
 // RULING CHANGED (#162, owner 2026-08-17). This case used to assert the OPPOSITE — "host in a SOLO
-// (1-character) chat sees no Members tab (D16 size-gate)" — because the Cast section demanded >=2
+// (1-character) chat sees no Members tab (D16 size-gate)" — because the Characters section demanded >=2
 // characters. That floor is what produced the owner's live complaint: the Members tab is the room's ROSTER
 // surface, and in a 1:1 room it rendered nothing but their own People row ("now it just shows my email").
-// A room with a cast has a roster; the tab shows it. (There is no "size-gate" clause in the D-ledger — the
+// A room with characters has a roster; the tab shows it. (There is no "size-gate" clause in the D-ledger — the
 // old rule lived only in this title and a one-line roster.ts comment.)
 test("host in a SOLO (1-character) chat GETS the Members tab — its characters ARE its roster (#162)", async ({ mount, page }) => {
   await routeTrpc(page, {
@@ -440,11 +440,11 @@ test("host in a SOLO (1-character) chat GETS the Members tab — its characters 
   await expect(cell(component, "Preview")).toBeVisible();
   await expect(cell(component, "Members")).toBeVisible();
   await cell(component, "Members").click();
-  await expect(page.getByTestId("members-panel").getByRole("button", { name: ARIA_CAST_RE })).toBeVisible();
+  await expect(page.getByTestId("members-panel").getByRole("button", { name: ARIA_CHARACTER_RE })).toBeVisible();
 });
 
 // The floor is ZERO for a HOST (owner ruling 2026-08-18): the Members tab is the room's one roster home in
-// every state, so a cast-less room gets the tab with a load-bearing empty state instead of a hidden tab.
+// every state, so a character-less room gets the tab with a load-bearing empty state instead of a hidden tab.
 test("a HOST with NO characters still gets the Members tab — the empty state IS the add door", async ({ mount, page }) => {
   await routeTrpc(page, {
     ...CHAT_AMBIENT_ROUTES,
@@ -492,7 +492,7 @@ test("host in a GROUP (2-character) chat sees the Members tab AND it is the defa
   await expect(members).toBeVisible();
   // The §7 ONE rule: with no tab requested, a group composition opens to Members.
   await expect(members).toHaveAttribute("aria-current", "true");
-  // The Cast rows render with the row contract's accessible names.
+  // The Character rows render with the row contract's accessible names.
   await expect(component.getByRole("button", { name: "Aria — character" })).toBeVisible();
   await expect(component.getByRole("button", { name: "Bryn — character" })).toBeVisible();
 });
@@ -556,7 +556,7 @@ test("NOT multi-human capable → no People section anywhere (single-user render
   // absent on a single-user install: no People section, and therefore no invite door anywhere.
   await cell(component, "Members").click();
   const panel = page.getByTestId("members-panel");
-  await expect(panel.locator('[data-slot="members-cast"]')).toBeVisible();
+  await expect(panel.locator('[data-slot="members-characters"]')).toBeVisible();
   await expect(panel.locator('[data-slot="members-people"]')).toHaveCount(0);
   await expect(panel.getByRole("button", { name: "Invite people" })).toHaveCount(0);
 });
@@ -579,7 +579,7 @@ test("capable HOST: Members lists the humans (host chip) and the invite dialog m
   const component = await mount(<ChatContextPanelStory />);
   await cell(component, "Members").click();
 
-  // The People section — humans differentiated from the seated cast, host crowned; the server
+  // The People section — humans differentiated from the seated characters, host crowned; the server
   // `viewerIsHost:true` also means the viewer's own seat carries the "you" marker on Nate's row.
   const panel = page.getByTestId("members-panel");
   await expect(panel.getByRole("button", { name: NATE_HOST_RE })).toBeVisible();

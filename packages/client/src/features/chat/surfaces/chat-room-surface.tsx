@@ -24,7 +24,7 @@ import type { ChatRoomSurfaceState, ChatSurfaceContribution, ContributorRegistry
 import { cn, deriveChatTitle, useFocusOnMount } from "#lib";
 import type { ActiveChatHandle } from "#state";
 import { MessageThreadAnchor } from "../anchors/message-thread-anchor.tsx";
-import { ChatCastBar } from "../components/chat-cast-bar.tsx";
+import { ChatCharacterBar } from "../components/chat-character-bar.tsx";
 import { ChoiceSendProvider } from "../components/choice-send-provider.tsx";
 import { Composer } from "../components/composer.tsx";
 import { MessageSelectionBar } from "../components/message-selection-bar.tsx";
@@ -125,8 +125,8 @@ export function ChatRoomSurface({ handle, busDeps, onChatForked, surfaceContribu
           role="group"
           tabIndex={-1}
         >
-          {/* The cast strip is presence-at-a-glance for the room's roster — size-gated inside. */}
-          <ChatCastBar chatId={chatId} />
+          {/* The character strip is presence-at-a-glance for the room's roster — size-gated inside. */}
+          <ChatCharacterBar chatId={chatId} />
           {/* THE FLANK ROW IS UNCONDITIONAL, AND THAT IS THE #680 FIX — the fork it replaces was the P0.
            *  A `flankContributions.length === 0 ? thread : <wrapper>` fork made the room's HEIGHT CHAIN a
            *  function of whether any contributor happened to be REGISTERED, and the wrapper arm severed it:

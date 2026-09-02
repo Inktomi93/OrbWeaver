@@ -15,8 +15,8 @@
 // characters in a finally (removing a character takes its chats with it). `opening: "none"` seeds NO
 // greeting rows, so the canon starts genuinely empty.
 //
-// The group surfaces are roster-size-gated BY CONSTRUCTION (chats-section.tsx): the Cast bar renders only
-// above 1 character (chat-cast-bar.tsx), while the Members tab remains available to the host even in a
+// The group surfaces are roster-size-gated BY CONSTRUCTION (chats-section.tsx): the Character bar renders only
+// above 1 character (chat-character-bar.tsx), while the Members tab remains available to the host even in a
 // solo room and the group-behavior controls only appear for a host of a >1-character room. So asserting
 // their PRESENCE/ABSENCE is a statement about the ROSTER, not about pixels.
 //
@@ -31,8 +31,8 @@ import type { CharacterHandle, CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/test";
 import {
-  castChipNames,
-  castChips,
+  characterChipNames,
+  characterChips,
   openChatByTitle,
   openContextTab,
   openDetailPanel,
@@ -51,20 +51,20 @@ import {
   startGroupChat,
 } from "./support/trpc.ts";
 
-/** A spec-owned cast: unique handles (idempotent re-mint across crashed runs) + unique DISPLAY names, so a
+/** A spec-owned character pair: unique handles (idempotent re-mint across crashed runs) + unique DISPLAY names, so a
  *  `getByRole(..., { name })` locator can never collide with a seeded library card. */
-const CAST = [
+const CHARACTERS = [
   { handle: castId<CharacterHandle>("e2e-group-alpha"), name: "Groupspec Alpha" },
   { handle: castId<CharacterHandle>("e2e-group-bravo"), name: "Groupspec Bravo" },
 ] as const;
 
-interface SeededCast {
+interface SeededCharacters {
   readonly characterIds: readonly CharacterId[];
   readonly cleanup: () => Promise<void>;
 }
 
-async function mintCast(count: number): Promise<SeededCast> {
-  const chosen = CAST.slice(0, count);
+async function mintCharacters(count: number): Promise<SeededCharacters> {
+  const chosen = CHARACTERS.slice(0, count);
   const characterIds: CharacterId[] = [];
   for (const member of chosen) {
     characterIds.push(await mintFreshCharacter(member.handle, member.name, `${member.name} greeting.`));
@@ -85,68 +85,68 @@ function seatFor(seats: readonly RosterSeat[], characterId: CharacterId): Roster
   return seats.find((s) => s.characterId === characterId);
 }
 
-test("a solo room converts to a group: the cast bar and Group-behavior section appear live while Members remains available", async ({ page }) => {
-  const cast = await mintCast(2);
+test("a solo room converts to a group: the character bar and Group-behavior section appear live while Members remains available", async ({ page }) => {
+  const characters = await mintCharacters(2);
   const title = `e2e-group-convert-${Date.now()}`;
-  const chat = await startGroupChat({ characterIds: [cast.characterIds[0] ?? ""], title });
+  const chat = await startGroupChat({ characterIds: [characters.characterIds[0] ?? ""], title });
   try {
     await openChatByTitle(page, title);
     await openDetailPanel(page);
 
-    // SOLO: one character ⇒ no cast bar and the "This chat" tab carries NO Group-behavior section. The
+    // SOLO: one character ⇒ no character bar and the "This chat" tab carries NO Group-behavior section. The
     // Members tab is still available because hosts can manage identity and seat state in solo rooms.
-    expect(await castChips(page).count()).toBe(0);
+    expect(await characterChips(page).count()).toBe(0);
     await expect(page.getByRole("toolbar", { name: "Chat" }).getByRole("button", { name: "Members", exact: true })).toBeVisible();
     await openContextTab(page, "This chat");
     await expect(page.getByRole("heading", { name: "Group behavior" })).toHaveCount(0);
 
     // The conversion itself — the server-side seat insert; the open room must learn about it off the
     // chat bus (`chatUpdated` → getChat refetch), with NO reload.
-    await addCharacterToChat(chat.id, cast.characterIds[1] ?? castId<CharacterId>(""));
+    await addCharacterToChat(chat.id, characters.characterIds[1] ?? castId<CharacterId>(""));
 
-    await expect.poll(async () => (await castChipNames(page)).length, { timeout: 15_000 }).toBe(2);
-    expect(await castChipNames(page)).toEqual(expect.arrayContaining([CAST[0].name, CAST[1].name]));
+    await expect.poll(async () => (await characterChipNames(page)).length, { timeout: 15_000 }).toBe(2);
+    expect(await characterChipNames(page)).toEqual(expect.arrayContaining([CHARACTERS[0].name, CHARACTERS[1].name]));
     await expect(page.getByRole("toolbar", { name: "Chat" }).getByRole("button", { name: "Members", exact: true })).toBeVisible({ timeout: 10_000 });
     // …and the group-behavior controls arrive with it, live, inside the "This chat" tab.
     await openGroupBehaviorSection(page);
 
     // The roster is really two present character seats server-side, not just two chips.
-    expect((await characterSeats(chat.id)).map((s) => s.displayName)).toEqual([CAST[0].name, CAST[1].name]);
+    expect((await characterSeats(chat.id)).map((s) => s.displayName)).toEqual([CHARACTERS[0].name, CHARACTERS[1].name]);
   } finally {
     await deleteChat(chat.id).catch(() => null);
-    await cast.cleanup();
+    await characters.cleanup();
   }
 });
 
 test("removing a character through the Members row menu drops the seat server-side and shrinks the room back to solo", async ({ page }) => {
-  const cast = await mintCast(2);
+  const characters = await mintCharacters(2);
   const title = `e2e-group-remove-${Date.now()}`;
-  const chat = await startGroupChat({ characterIds: cast.characterIds, title });
+  const chat = await startGroupChat({ characterIds: characters.characterIds, title });
   try {
     await openChatByTitle(page, title);
     await openDetailPanel(page);
     await openContextTab(page, "Members");
 
     // The newly-wired `removeCharacterFromChat`, driven through its ONE user-facing affordance.
-    await openMemberRowMenu(page, CAST[1].name);
-    await page.getByRole("menuitem", { name: `Remove ${CAST[1].name} from chat` }).click();
+    await openMemberRowMenu(page, CHARACTERS[1].name);
+    await page.getByRole("menuitem", { name: `Remove ${CHARACTERS[1].name} from chat` }).click();
 
     // Server truth first: the seat is gone from the PRESENT roster (leftSeq-stamped out).
-    await expect.poll(async () => (await characterSeats(chat.id)).map((s) => s.displayName), { timeout: 15_000 }).toEqual([CAST[0].name]);
-    // …and the room re-reads it: back below the group floor, so the cast bar unmounts.
-    await expect.poll(async () => castChips(page).count(), { timeout: 15_000 }).toBe(0);
+    await expect.poll(async () => (await characterSeats(chat.id)).map((s) => s.displayName), { timeout: 15_000 }).toEqual([CHARACTERS[0].name]);
+    // …and the room re-reads it: back below the group floor, so the character bar unmounts.
+    await expect.poll(async () => characterChips(page).count(), { timeout: 15_000 }).toBe(0);
   } finally {
     await deleteChat(chat.id).catch(() => null);
-    await cast.cleanup();
+    await characters.cleanup();
   }
 });
 
 test("group config round-trips through the Group-behavior section: output / speaker tags / policy / card visibility persist and survive a reload", async ({
   page,
 }) => {
-  const cast = await mintCast(2);
+  const characters = await mintCharacters(2);
   const title = `e2e-group-config-${Date.now()}`;
-  const chat = await startGroupChat({ characterIds: cast.characterIds, title });
+  const chat = await startGroupChat({ characterIds: characters.characterIds, title });
   try {
     // The starting point is the canonical default (per-speaker × natural × sheet) — so every flip below is
     // a real change, not a coincidental match.
@@ -193,14 +193,14 @@ test("group config round-trips through the Group-behavior section: output / spea
     await expect(page.getByRole("switch", { name: "Label each speaker" })).toHaveAttribute("aria-checked", "false");
   } finally {
     await deleteChat(chat.id).catch(() => null);
-    await cast.cleanup();
+    await characters.cleanup();
   }
 });
 
 test("per-speaker card scope persists: scoping each character to their own card round-trips through the Group-behavior section", async ({ page }) => {
-  const cast = await mintCast(2);
+  const characters = await mintCharacters(2);
   const title = `e2e-group-scope-${Date.now()}`;
-  const chat = await startGroupChat({ characterIds: cast.characterIds, title });
+  const chat = await startGroupChat({ characterIds: characters.characterIds, title });
   try {
     expect((await getGroupConfig(chat.id)).cardScope).toBe("merged");
 
@@ -222,15 +222,15 @@ test("per-speaker card scope persists: scoping each character to their own card 
     await expect(page.getByRole("switch", { name: "Each character sees only their own card" })).toHaveAttribute("aria-checked", "true");
   } finally {
     await deleteChat(chat.id).catch(() => null);
-    await cast.cleanup();
+    await characters.cleanup();
   }
 });
 
 test("seat knobs are per-seat: muting one member and re-weighting another persist independently", async ({ page }) => {
-  const cast = await mintCast(2);
+  const characters = await mintCharacters(2);
   const title = `e2e-group-seats-${Date.now()}`;
-  const chat = await startGroupChat({ characterIds: cast.characterIds, title });
-  const [alphaId, bravoId] = [cast.characterIds[0] ?? castId<CharacterId>(""), cast.characterIds[1] ?? castId<CharacterId>("")];
+  const chat = await startGroupChat({ characterIds: characters.characterIds, title });
+  const [alphaId, bravoId] = [characters.characterIds[0] ?? castId<CharacterId>(""), characters.characterIds[1] ?? castId<CharacterId>("")];
   try {
     const seeded = await characterSeats(chat.id);
     const baselineWeight = seatFor(seeded, alphaId)?.talkativeness ?? 0;
@@ -241,8 +241,8 @@ test("seat knobs are per-seat: muting one member and re-weighting another persis
     await openContextTab(page, "Members");
 
     // Mute BRAVO through the row menu (the canonical action home).
-    await openMemberRowMenu(page, CAST[1].name);
-    await page.getByRole("menuitem", { name: `Mute ${CAST[1].name}` }).click();
+    await openMemberRowMenu(page, CHARACTERS[1].name);
+    await page.getByRole("menuitem", { name: `Mute ${CHARACTERS[1].name}` }).click();
     // Base UI keeps a CLOSING popup mounted (and in the a11y tree) through its exit animation, so opening
     // the next row's menu back-to-back leaves BRAVO's dying menu and ALPHA's live one both matchable — a
     // strict-mode collision, not an app defect. Gate on the first menu actually being gone.
@@ -251,9 +251,9 @@ test("seat knobs are per-seat: muting one member and re-weighting another persis
     // Re-weight ALPHA through the anchored talkativeness slider. Base UI commits a KEYBOARD adjustment via
     // `onValueCommitted`, one step per ArrowLeft (step 0.05) — `Home`/`End` do NOT move the underlying
     // range input in this build, verified live, so the arrow is the honest gesture.
-    await openMemberRowMenu(page, CAST[0].name);
+    await openMemberRowMenu(page, CHARACTERS[0].name);
     await page.getByRole("menuitem", { name: "Talkativeness…" }).click();
-    const slider = page.getByRole("slider", { name: `Talkativeness: ${CAST[0].name}` });
+    const slider = page.getByRole("slider", { name: `Talkativeness: ${CHARACTERS[0].name}` });
     await expect(slider).toBeVisible({ timeout: 10_000 });
     await slider.press("ArrowLeft");
     await slider.press("ArrowLeft");
@@ -272,14 +272,14 @@ test("seat knobs are per-seat: muting one member and re-weighting another persis
     await openChatByTitle(page, title);
     await openDetailPanel(page);
     await openContextTab(page, "Members");
-    await expect(page.getByRole("button", { name: `Actions for ${CAST[1].name}`, exact: true })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("button", { name: `Actions for ${CHARACTERS[1].name}`, exact: true })).toBeVisible({ timeout: 15_000 });
     const persisted = (await getChatDetail(chat.id)).participants;
     expect(seatFor(persisted, bravoId)?.disabled).toBe(true);
     expect(seatFor(persisted, alphaId)?.talkativeness).toBe(alphaWeight);
     // The muted seat is legible as muted in the row's accessible NAME (member-rows.ts `rowAccessibleName`).
-    await expect(page.getByRole("button", { name: `${CAST[1].name} — character, muted` })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("button", { name: `${CHARACTERS[1].name} — character, muted` })).toBeVisible({ timeout: 10_000 });
   } finally {
     await deleteChat(chat.id).catch(() => null);
-    await cast.cleanup();
+    await characters.cleanup();
   }
 });

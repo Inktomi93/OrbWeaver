@@ -1,17 +1,17 @@
-// The chat cast bar: a thin read-only row of one chip per character participant, mounted above the
+// The chat character bar: a thin read-only row of one chip per character participant, mounted above the
 // transcript. Per-member controls live in the Members panel + speak-as in the composer — this strip is
 // presence-at-a-glance only, no mutations. Size-gated: null unless the roster has >1 of a relevant kind
 // (>1 character or >1 present human).
 //
 // ONE STRIP, ONE SOURCE (chat-creation-draft-mode-replacement.md §4.1, R1). It briefly had a DRAFT twin that
 // read its seats from the founding CARDS, because a pre-send room had no roster and a group draft therefore
-// showed no cast at all (side-eye P2, 2026-08-06). The room has a roster from the creation click — and
+// showed no characters at all (side-eye P2, 2026-08-06). The room has a roster from the creation click — and
 // `useStartChat` seeds this exact `getChat` key from `startChat`'s response — so the committed strip is
 // populated on the first frame and the twin is gone. The read is non-suspense: the strip is decoration, so
 // a cold cache degrades to null rather than blocking the transcript.
 //
 // #511 — ON A PHONE IT IS AN AVATAR STACK: THE NAMES GO `sr-only` AT A COARSE POINTER. Measured on the
-// real room pane at a coarse pointer (chat-cast-bar.ct.tsx carries the full matrix): a crowded-but-ordinary
+// real room pane at a coarse pointer (chat-character-bar.ct.tsx carries the full matrix): a crowded-but-ordinary
 // roster — two humans still named by their EMAIL plus four card-realistic character names — wrapped this
 // strip to 3 rows / 100px at 430px, 4 rows / 130px at 390px and 5 rows / 160px at 320px. The tax GREW as
 // the screen shrank, because the strip's answer to "no room" is to wrap and every wrapped row is taken from
@@ -34,14 +34,14 @@
 // holding the device a foot away, where a face reads faster than a name. A narrow DESKTOP window is
 // narrow without being short, and it keeps its names.
 //
-// THE REFUSED ARMS (recorded so they are not re-minted): merging the cast row into the TOPBAR would put a
+// THE REFUSED ARMS (recorded so they are not re-minted): merging the character row into the TOPBAR would put a
 // second roster read beside `chat-header`'s member-count chip (§13 single-homing) and reaches into shell
 // chrome this component does not own; collapse-on-scroll leaves the worst case standing at first paint,
 // which is exactly when the reader is deciding whether the room is worth their thumb.
 //
 // #490 — THE STRIP IS READ-ONLY AGAIN, WHICH IS WHAT THE PARAGRAPH ABOVE ALWAYS SAID. A host-only
 // `AddMemberPopover` had been mounted here as a trailing "+", so "add a character" had TWO doors visible at
-// the same time in the default room layout (this strip's glyph and the CONTEXT panel's CAST header glyph —
+// the same time in the default room layout (this strip's glyph and the CONTEXT panel's CHARACTERS header glyph —
 // `design-audit` `duplicate-action-door`, confirmed on the shot). §13 single-homing: two homes for one
 // concept is a defect, not a convenience, and the tie-break is not taste — this file's own first paragraph
 // declares "presence-at-a-glance only, no mutations", and §14 puts configuration in CONTEXT. So the door
@@ -64,14 +64,14 @@ import { testId } from "#lib";
 import { BG_PHOTO_BAND_PLATE } from "../lib/message-row-backing.ts";
 import { filterCharacters, resolveHumanParticipants } from "../lib/roster.ts";
 
-export interface ChatCastBarProps {
+export interface ChatCharacterBarProps {
   readonly chatId: ChatId;
 }
 
 const HUMAN_CHIP_CAP = 5;
 
-/** One rendered cast seat — the minimal projection the strip paints. */
-interface CastSeat {
+/** One rendered character seat — the minimal projection the strip paints. */
+interface CharacterSeat {
   readonly key: string;
   /** The deterministic fallback-hue seed — the character id, so one entity is one colour everywhere. */
   readonly hueSeed: string;
@@ -81,9 +81,15 @@ interface CastSeat {
   readonly disabled: boolean;
 }
 
-/** THE cast strip. */
-function CastBarStrip({ cast, humans }: { readonly cast: readonly CastSeat[]; readonly humans: readonly ParticipantView[] }): ReactElement | null {
-  if (cast.length <= 1 && humans.length <= 1) {
+/** THE character strip. */
+function CharacterBarStrip({
+  characters,
+  humans,
+}: {
+  readonly characters: readonly CharacterSeat[];
+  readonly humans: readonly ParticipantView[];
+}): ReactElement | null {
+  if (characters.length <= 1 && humans.length <= 1) {
     return null;
   }
   return (
@@ -96,16 +102,16 @@ function CastBarStrip({ cast, humans }: { readonly cast: readonly CastSeat[]; re
       gap="field"
       align="center"
       className={cn("flex-wrap px-block py-row", BG_PHOTO_BAND_PLATE)}
-      data-testid={testId("chatCastBar")}
+      data-testid={testId("chatCharacterBar")}
       aria-label="Characters"
       role="group"
     >
-      {(cast.length > 1 ? cast : []).map((member) => (
+      {(characters.length > 1 ? characters : []).map((member) => (
         <Row
           key={member.key}
           gap="row"
           align="center"
-          data-slot="cast-chip"
+          data-slot="character-chip"
           data-muted={member.disabled ? "" : undefined}
           className={cn(member.disabled && "opacity-50")}
         >
@@ -125,26 +131,26 @@ function CastBarStrip({ cast, humans }: { readonly cast: readonly CastSeat[]; re
 }
 
 /** Seats from the same `chat.getChat` the message list + Context panel already read. */
-export function ChatCastBar({ chatId }: ChatCastBarProps): ReactElement | null {
+export function ChatCharacterBar({ chatId }: ChatCharacterBarProps): ReactElement | null {
   const trpc = useTRPC();
   const { data: chat } = useQuery(trpc.chat.getChat.queryOptions({ chatId }));
   const roster = filterCharacters(chat?.participants ?? []);
   const humans = resolveHumanParticipants(chat?.participants ?? []);
-  const cast: readonly CastSeat[] = roster.map((member) => ({
+  const characters: readonly CharacterSeat[] = roster.map((member) => ({
     key: member.id,
     hueSeed: member.characterId,
     displayName: member.displayName,
     avatarHash: member.avatarHash,
     disabled: member.disabled,
   }));
-  return <CastBarStrip cast={cast} humans={humans} />;
+  return <CharacterBarStrip characters={characters} humans={humans} />;
 }
 
 function HumanChips({ humans }: { readonly humans: readonly ParticipantView[] }): ReactElement {
   const visible = humans.slice(0, HUMAN_CHIP_CAP);
   const overflow = humans.length - visible.length;
   return (
-    <Row gap="row" align="center" aria-label="People" data-slot="cast-bar-humans" role="group">
+    <Row gap="row" align="center" aria-label="People" data-slot="character-bar-humans" role="group">
       {visible.map((member) => (
         <Row key={member.id} gap="row" align="center" data-slot="human-chip">
           <Avatar size="sm" fallbackDelay={0} hueSeed={member.id} {...(member.avatarHash === null ? {} : { src: blobUrl(member.avatarHash) })}>

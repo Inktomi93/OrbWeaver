@@ -119,7 +119,7 @@ import { AssemblyPreviewPanel } from "../../../../packages/client/src/features/c
 import { ChatMessageHandlingSection } from "../../../../packages/client/src/features/chat/components/chat-behavior-message-handling-section.tsx";
 import { ChatStreamingSection } from "../../../../packages/client/src/features/chat/components/chat-behavior-streaming-section.tsx";
 import { ChatBooksSection } from "../../../../packages/client/src/features/chat/components/chat-books-section.tsx";
-import { ChatCastBar } from "../../../../packages/client/src/features/chat/components/chat-cast-bar.tsx";
+import { ChatCharacterBar } from "../../../../packages/client/src/features/chat/components/chat-character-bar.tsx";
 import { ChatDocumentsSection } from "../../../../packages/client/src/features/chat/components/chat-documents-section.tsx";
 import { ChatHeaderSurface } from "../../../../packages/client/src/features/chat/components/chat-header.tsx";
 import { ChatImportDialog } from "../../../../packages/client/src/features/chat/components/chat-import-dialog.tsx";
@@ -313,21 +313,21 @@ export function MessageRowStory({
       : new Map(
           participants.filter((p): p is ParticipantView & { characterId: CharacterId } => p.characterId !== null).map((p) => [p.characterId, p] as const),
         );
-  // The story's own producer, built with the REAL contracts cast projections (never a hand-rolled Map) so
-  // `MessageRow` sees exactly the maps `message-list-surface.tsx` would derive from the wire cast (D137).
+  // The story's own producer, built with the REAL contracts identity projections (never a hand-rolled Map) so
+  // `MessageRow` sees exactly the maps `message-list-surface.tsx` would derive from the wire identities (D137).
   // Names cover the participant roster UNION any decoupled `characters` (the removal case — a character
   // with no participant row whose message is still in the transcript); the decoupled `characters` entries
   // (later in the array — last-write-wins) are what carry avatar hashes: that IS the
   // participant-independent portrait floor under test.
-  const storyCast: readonly ChatIdentity[] = [
+  const storyIdentities: readonly ChatIdentity[] = [
     ...(participants ?? [])
       .filter((p): p is ParticipantView & { characterId: CharacterId } => p.characterId !== null)
       .map((p): ChatIdentity => ({ kind: "character", id: p.characterId, name: p.displayName, avatarHash: null })),
     ...(characters ?? []).map((c): ChatIdentity => ({ kind: "character", id: c.id, name: c.name, avatarHash: c.avatarHash ?? null })),
     ...(personas ?? []).map((p): ChatIdentity => ({ kind: "persona", id: p.id, name: p.name, description: p.description ?? "", avatarHash: null })),
   ];
-  const { characterNamesById, personaNamesById } = buildIdentityNameContext(storyCast);
-  const { characterAvatarsById } = buildIdentityAvatarMaps(storyCast);
+  const { characterNamesById, personaNamesById } = buildIdentityNameContext(storyIdentities);
+  const { characterAvatarsById } = buildIdentityAvatarMaps(storyIdentities);
 
   return (
     // The row now always renders <MessageActionsRow> (Edit/Hide/Delete/Fork/Copy), which reads the
@@ -483,7 +483,7 @@ export function NarratorTranscriptStory({
     ...participants
       .filter((p): p is ParticipantView & { characterId: CharacterId } => p.characterId !== null)
       .map((p): ChatIdentity => ({ kind: "character", id: p.characterId, name: p.displayName, avatarHash: null })),
-    // The synthetic group card rides the producer like any cast member — that is the whole defect.
+    // The synthetic group card rides the producer like any character seat — that is the whole defect.
     ...(narratorProducer === undefined
       ? []
       : [{ kind: "character", id: narratorProducer.id, name: narratorProducer.name, avatarHash: null } satisfies ChatIdentity]),
@@ -519,7 +519,7 @@ export function NarratorTranscriptStory({
 
 export interface GroupTranscriptAttributionStoryProps {
   readonly chatStyle: ThemeChatStyle;
-  /** The seated cast — one assistant row is rendered per character, in roster order. */
+  /** The seated characters — one assistant row is rendered per character, in roster order. */
   readonly participants: readonly ParticipantView[];
   /** The viewer's persona; its row sits between the two character rows, as a real room's would. */
   readonly persona: PersonaNameStoryEntry;
@@ -675,8 +675,8 @@ export interface MessageContentSpansStoryProps {
   readonly trust?: "trusted" | "untrusted";
   /** External-media gate for the mount (defaults `false` = gated, the safe floor). */
   readonly allowExternal?: boolean;
-  /** The room's cast — fed through the REAL `speakerThemesByName` producer, so the story's per-speaker
-   *  tints and cast-name set are exactly what `MessageRow` computes. Omitted ⇒ no roster (hash fallback). */
+  /** The room's characters — fed through the REAL `speakerThemesByName` producer, so the story's per-speaker
+   *  tints and character-name set are exactly what `MessageRow` computes. Omitted ⇒ no roster (hash fallback). */
   readonly participants?: readonly ParticipantView[];
   /** The NARRATOR grammar gate on the plain-`Name:` span split. */
   readonly narratorVoiced?: boolean;
@@ -1903,7 +1903,7 @@ export function ChatRoomTrackStory({ paneWidth }: { readonly paneWidth: number }
  *  minus the topbar and the bottom tab bar, handed in by the test so the budget is stated, not assumed.
  *
  *  The pane is the whole width here because that is what the shell gives it on a phone (both side panels
- *  resolve `collapsed` below the mobile breakpoint), so the cast strip, the transcript and the composer
+ *  resolve `collapsed` below the mobile breakpoint), so the character strip, the transcript and the composer
  *  compete for one column exactly as they do on the device. What this stage exists to measure is that
  *  competition: the chrome above the transcript is a fixed tax and the transcript is whatever survives it. */
 export function ChatRoomPhoneStory({ paneHeight }: { readonly paneHeight: number }): ReactElement {
@@ -2195,12 +2195,12 @@ export function RoomOverridesSwitchStory(): ReactElement {
 
 // ── Group-roster-controls stories (task #29) ────────────────────────────────────────────────────
 
-/** The read-only cast bar (chat-cast-bar.tsx) — the roster comes from the routeTrpc `chat.getChat`
+/** The read-only character bar (chat-character-bar.tsx) — the roster comes from the routeTrpc `chat.getChat`
  *  stub the `.ct.tsx` sets per case (a solo roster → the bar renders `null`; a 2+ roster → chips). */
-export function ChatCastBarStory({ overArt = false }: { readonly overArt?: boolean } = {}): ReactElement {
+export function ChatCharacterBarStory({ overArt = false }: { readonly overArt?: boolean } = {}): ReactElement {
   return (
     <CtDataProviders>
-      {/* A wrapping div so the mount `component` locator is the WRAPPER, not the cast bar's own root
+      {/* A wrapping div so the mount `component` locator is the WRAPPER, not the character bar's own root
           element — a `component.getByTestId`/`getByText` then searches its descendants (the
           ComposerStory precedent; without it `component` IS the bar and its own testid is not a
           descendant of itself).
@@ -2208,7 +2208,7 @@ export function ChatCastBarStory({ overArt = false }: { readonly overArt?: boole
           self-gated by Tailwind's `in-data-[has-bg-image]` ANCESTOR variant, so without an ancestor
           carrying the flag the class is structurally inert and the arm cannot be measured at all. */}
       <div {...(overArt ? { "data-has-bg-image": "" } : {})}>
-        <ChatCastBar chatId={CHAT_ID} />
+        <ChatCharacterBar chatId={CHAT_ID} />
       </div>
     </CtDataProviders>
   );
@@ -2262,7 +2262,7 @@ export function ComposerChatOptionsStory(): ReactElement {
 }
 
 /** The Members panel (members-panel.tsx + member-row-menu.tsx — the §7.1 Roster+People merge) as the
- *  PURE source-agnostic component it is: fixed People + Cast rows in, every action observed via the
+ *  PURE source-agnostic component it is: fixed People + Character rows in, every action observed via the
  *  `members-last-action` readout, no network. `withPeople` seats two humans (viewer-host Riley + member
  *  Kestrel, Kestrel pending-nominated); `memberView` is the NON-host viewer (only View character
  *  remains); `omitForceTurn` is the DRAFT case (no turn to force). */
@@ -2272,14 +2272,14 @@ export interface MembersPanelStoryProps {
   readonly memberView?: boolean;
   /** Seats Kestrel at the NON-default D16 posture (`from-join`) — the state chip + the RESTORE direction. */
   readonly restrictedMember?: boolean;
-  /** Fills the CAST section's header add SLOT (#162 — the roster's character-add door). The committed
+  /** Fills the Characters section's header add SLOT (#162 — the roster's character-add door). The committed
    *  surface passes `AddMemberPopover`; the story passes a plain button wearing the SAME accessible name,
    *  because what this panel owes is the seat, not the picker (the picker has its own coverage). */
   readonly withAddCharacter?: boolean;
-  /** A 1:1 room — the shape whose whole Cast section the old `>=2` floor hid (#162). */
-  readonly soloCast?: boolean;
-  /** A room with NO characters at all — the Cast section is then the add door's empty state. */
-  readonly emptyCast?: boolean;
+  /** A 1:1 room — the shape whose whole Characters section the old `>=2` floor hid (#162). */
+  readonly soloCharacters?: boolean;
+  /** A room with NO characters at all — the Characters section is then the add door's empty state. */
+  readonly emptyCharacters?: boolean;
 }
 export function MembersPanelStory({
   omitForceTurn = false,
@@ -2287,8 +2287,8 @@ export function MembersPanelStory({
   memberView = false,
   restrictedMember = false,
   withAddCharacter = false,
-  soloCast = false,
-  emptyCast = false,
+  soloCharacters = false,
+  emptyCharacters = false,
 }: MembersPanelStoryProps): ReactElement {
   const [lastAction, setLastAction] = useState("");
   const people: MemberPersonRow[] = withPeople
@@ -2319,9 +2319,9 @@ export function MembersPanelStory({
         },
       ]
     : [];
-  const cast: MemberCharacterRow[] = [
+  const characterRows: MemberCharacterRow[] = [
     {
-      kind: "cast",
+      kind: "character",
       key: "participant_aria",
       characterId: castId<CharacterId>("character_aria"),
       displayName: "Aria",
@@ -2331,7 +2331,7 @@ export function MembersPanelStory({
       responding: true,
     },
     {
-      kind: "cast",
+      kind: "character",
       key: "participant_bryn",
       characterId: castId<CharacterId>("character_bryn"),
       displayName: "Bryn",
@@ -2341,18 +2341,18 @@ export function MembersPanelStory({
       responding: false,
     },
   ];
-  const soloOrFull = soloCast ? cast.slice(0, 1) : cast;
-  const seatedCast = emptyCast ? [] : soloOrFull;
+  const soloOrFull = soloCharacters ? characterRows.slice(0, 1) : characterRows;
+  const seatedCharacters = emptyCharacters ? [] : soloOrFull;
   return (
     <CtDataProviders>
       <div style={{ width: 420 }}>
         <div data-testid="members-last-action">{lastAction}</div>
         <MembersPanel
           people={people}
-          cast={seatedCast}
+          characters={seatedCharacters}
           {...(withAddCharacter
             ? {
-                castAction: (
+                charactersAction: (
                   <button type="button" aria-label="Add a character" onClick={(): void => setLastAction("add-character")}>
                     +
                   </button>
@@ -2418,9 +2418,9 @@ export function MembersKickFocusStory(): ReactElement {
     },
     ...(kicked ? [] : [kestrel]),
   ];
-  const cast: MemberCharacterRow[] = [
+  const characterRows: MemberCharacterRow[] = [
     {
-      kind: "cast",
+      kind: "character",
       key: "participant_aria",
       characterId: castId<CharacterId>("character_aria"),
       displayName: "Aria",
@@ -2438,7 +2438,7 @@ export function MembersKickFocusStory(): ReactElement {
         </button>
         <MembersPanel
           people={people}
-          cast={cast}
+          characters={characterRows}
           onInvitePeople={(): void => undefined}
           onKick={(): void => undefined}
           onSetDisabled={(): void => undefined}
@@ -2462,22 +2462,22 @@ export function InviteDialogStory(): ReactElement {
 }
 
 export interface ChatOptionsMenuStoryProps {
-  /** @defaultValue false — seed one cast member (enables "New chat with the same characters" + the solo gallery). */
-  readonly withCast?: boolean;
+  /** @defaultValue false — seed one character seat (enables "New chat with the same characters" + the solo gallery). */
+  readonly withCharacters?: boolean;
 }
 
-const CT_OPTIONS_CAST = [{ characterId: castId<CharacterId>("char_ct_options"), name: "Aria" }];
+const CT_OPTIONS_CHARACTERS = [{ characterId: castId<CharacterId>("char_ct_options"), name: "Aria" }];
 
 /** The ⋯ chat-options menu (chat-options-menu.tsx). Its turn actions (Continue/Regenerate/Impersonate)
  *  reuse `useGuidedActions` with an EMPTY steer — the `.ct.tsx` stubs `chat.listMessages` (a tail assistant
  *  enables Continue/Regenerate) and asserts each verb fires with NO `guided` object (the F2 plain-turn fix). */
-export function ChatOptionsMenuStory({ withCast = false }: ChatOptionsMenuStoryProps = {}): ReactElement {
+export function ChatOptionsMenuStory({ withCharacters = false }: ChatOptionsMenuStoryProps = {}): ReactElement {
   return (
     <CtDataProviders>
       {/* A wrapping div so `component` is the WRAPPER (the popup renders through a Portal — item
           assertions use the PAGE locator, the composer-guided-cluster precedent). */}
       <div>
-        <ChatOptionsMenu chatId={CHAT_ID} title="Test chat" characters={withCast ? CT_OPTIONS_CAST : []} />
+        <ChatOptionsMenu chatId={CHAT_ID} title="Test chat" characters={withCharacters ? CT_OPTIONS_CHARACTERS : []} />
       </div>
     </CtDataProviders>
   );
@@ -2622,9 +2622,9 @@ export function AddChatBookDialogStory({ attachedIds = [] }: { readonly attached
  *  AND the popover thumb snaps back after a failed write (the row is keyed by member id, so no remount). */
 export function MembersReseedStory(): ReactElement {
   const [ariaWeight, setAriaWeight] = useState(0.5);
-  const cast: MemberCharacterRow[] = [
+  const characterRows: MemberCharacterRow[] = [
     {
-      kind: "cast",
+      kind: "character",
       key: "participant_aria",
       characterId: castId<CharacterId>("character_aria"),
       displayName: "Aria",
@@ -2640,13 +2640,13 @@ export function MembersReseedStory(): ReactElement {
         <button type="button" data-testid="bump-aria" onClick={(): void => setAriaWeight(0.8)}>
           bump
         </button>
-        <MembersPanel people={[]} cast={cast} onSetDisabled={(): void => undefined} onSetTalkativeness={(): void => undefined} />
+        <MembersPanel people={[]} characters={characterRows} onSetDisabled={(): void => undefined} onSetTalkativeness={(): void => undefined} />
       </div>
     </CtDataProviders>
   );
 }
 
-/** A committed room's cast SEAT, as the Members tab's projections read it (`toCharacterRows`). Only the fields
+/** A committed room's character SEAT, as the Members tab's projections read it (`toCharacterRows`). Only the fields
  *  those projections touch vary per story; the rest is one shape so a seat added here can never disagree
  *  with the wire type. */
 function membersTabSeat(name: string, characterId: CharacterId): ParticipantView {
@@ -2674,7 +2674,7 @@ function membersTabSeat(name: string, characterId: CharacterId): ParticipantView
 
 export interface CommittedMembersTabStoryProps {
   /** A 1:1 room — ONE character seat. The default is the two-seat GROUP room (the counter-arm). */
-  readonly soloCast?: boolean;
+  readonly soloCharacters?: boolean;
   /** Seats the room's sole character ALREADY MUTED — the state a group room could leave behind, and the
    *  reason mute keeps an exit in a solo room (committed-members-tab.tsx). */
   readonly mutedSoloSeat?: boolean;
@@ -2691,11 +2691,11 @@ export interface CommittedMembersTabStoryProps {
 
 /** The REAL Members tab body (committed-members-tab.tsx) — the surface that decides which seams reach the
  *  panel. Mounted with a host viewer and `multiHumanCapable:false`, so the People section is absent and the
- *  arms under test are exactly the cast row's: which of the group-arbiter controls (#182) exist. */
-export function CommittedMembersTabStory({ soloCast = false, mutedSoloSeat = false, width = 420 }: CommittedMembersTabStoryProps = {}): ReactElement {
+ *  arms under test are exactly the character row's: which of the group-arbiter controls (#182) exist. */
+export function CommittedMembersTabStory({ soloCharacters = false, mutedSoloSeat = false, width = 420 }: CommittedMembersTabStoryProps = {}): ReactElement {
   const aria = membersTabSeat("Aria", castId<CharacterId>("character_aria"));
   const solo = mutedSoloSeat ? { ...aria, disabled: true } : aria;
-  const participants: readonly ParticipantView[] = soloCast ? [solo] : [aria, membersTabSeat("Bryn", castId<CharacterId>("character_bryn"))];
+  const participants: readonly ParticipantView[] = soloCharacters ? [solo] : [aria, membersTabSeat("Bryn", castId<CharacterId>("character_bryn"))];
   return (
     <CtDataProviders>
       {/* `overflow: visible` on a FIXED width — a content-sized mount root grows to fit the cluster and

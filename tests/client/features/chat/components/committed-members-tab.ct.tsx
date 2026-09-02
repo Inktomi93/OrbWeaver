@@ -5,7 +5,7 @@
 //
 // #182 (owner live report 2026-08-18 — "some group stuff is showing up even when not in group"): Mute,
 // Talkativeness and "Make X speak next" are inputs to the GROUP SPEAKER ARBITER, and #162's removal of the
-// Cast section's `>=2` floor un-hid them in every 1:1 room. They are gated on the room actually having a
+// Characters section's `>=2` floor un-hid them in every 1:1 room. They are gated on the room actually having a
 // second character now; everything the roster IS (the section, the row, its identity, View character,
 // Remove from chat) stays — that half is #162's ruling and these tests pin it so the narrowing can't creep.
 
@@ -13,14 +13,14 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
 import { CommittedMembersTabStory } from "../_ct-stories.tsx";
 
-const CAST = '[data-slot="members-cast"]';
+const CHARACTER_SECTION = '[data-slot="members-characters"]';
 const CHIP_RE = /Talkativeness: Aria/u;
 
 test("a 1:1 room renders the roster but NO group-arbiter controls (#182)", async ({ mount, page }) => {
-  const component = await mount(<CommittedMembersTabStory soloCast={true} />);
+  const component = await mount(<CommittedMembersTabStory soloCharacters={true} />);
 
-  // #162's half, unchanged: the solo room's Cast section and its seat are here.
-  await expect(component.locator(CAST)).toBeVisible();
+  // #162's half, unchanged: the solo room's Characters section and its seat are here.
+  await expect(component.locator(CHARACTER_SECTION)).toBeVisible();
   const row = component.getByRole("button", { name: "Aria — character" });
   await expect(row).toBeVisible();
 
@@ -55,10 +55,10 @@ test("a GROUP room still gets all three arbiter controls (the counter-arm)", asy
 });
 
 // The door mute opens must not lock from the inside: a seat muted while the room was a group survives the
-// cast shrinking to one, and a room whose only voice is excluded cannot answer at all. So the UNMUTE stays
+// roster shrinking to one character, and a room whose only voice is excluded cannot answer at all. So the UNMUTE stays
 // reachable in a solo room — while talkativeness and force-turn, which strand nothing, do not come back.
 test("a solo room whose seat is ALREADY muted keeps the unmute (and only the unmute)", async ({ mount, page }) => {
-  const component = await mount(<CommittedMembersTabStory soloCast={true} mutedSoloSeat={true} />);
+  const component = await mount(<CommittedMembersTabStory soloCharacters={true} mutedSoloSeat={true} />);
 
   await expect(component.getByRole("button", { name: "Aria — character, muted" })).toBeVisible();
   await expect(component.getByRole("button", { name: "Unmute Aria" })).toHaveCount(1);
@@ -89,11 +89,11 @@ test("a solo room whose seat is ALREADY muted keeps the unmute (and only the unm
 // "Rosters…" to buy back a 320px overflow; see the width block below for why that trade was void. The pin
 // is deliberately on the FULL spelling: re-compressing it must red here, not pass quietly.
 test("#848/#899 N6: both CHARACTERS add-doors carry a visible word, and each says what it opens", async ({ mount }) => {
-  const component = await mount(<CommittedMembersTabStory soloCast={true} />);
-  const cast = component.locator(CAST);
+  const component = await mount(<CommittedMembersTabStory soloCharacters={true} />);
+  const characterSection = component.locator(CHARACTER_SECTION);
 
-  const groupDoor = cast.getByRole("button", { name: "Saved rosters…" });
-  const characterDoor = cast.getByRole("button", { name: "Add a character" });
+  const groupDoor = characterSection.getByRole("button", { name: "Saved rosters…" });
+  const characterDoor = characterSection.getByRole("button", { name: "Add a character" });
   // VISIBLE text, not the accessible name — the empty string was the whole defect on the second door.
   await expect(groupDoor).toHaveText(/saved rosters/iu);
   await expect(characterDoor).toHaveText(/character/iu);
@@ -130,7 +130,7 @@ async function headerGeometry(component: Locator): Promise<{
   readonly doorsTrailBy: number;
   readonly kickerClipped: boolean;
 }> {
-  return await component.locator(CAST).evaluate((section: HTMLElement) => {
+  return await component.locator(CHARACTER_SECTION).evaluate((section: HTMLElement) => {
     const bounds = section.getBoundingClientRect();
     const header = section.querySelector('[data-slot="members-section-header"]') as HTMLElement;
     const doors = section.querySelector('[data-slot="members-section-doors"]') as HTMLElement;
@@ -161,12 +161,12 @@ async function headerGeometry(component: Locator): Promise<{
 
 for (const width of MATRIX) {
   test(`#912 @${width}: nothing escapes the pane, the doors trail it, and both keep their whole words`, async ({ mount }) => {
-    const component = await mount(<CommittedMembersTabStory soloCast={true} width={width} />);
-    const cast = component.locator(CAST);
+    const component = await mount(<CommittedMembersTabStory soloCharacters={true} width={width} />);
+    const characterSection = component.locator(CHARACTER_SECTION);
 
     // The words are the point of the fix — assert them AT each width, not once at a wide mount.
-    await expect(cast.getByRole("button", { name: "Saved rosters…" })).toBeVisible();
-    await expect(cast.getByRole("button", { name: "Add a character" })).toBeVisible();
+    await expect(characterSection.getByRole("button", { name: "Saved rosters…" })).toBeVisible();
+    await expect(characterSection.getByRole("button", { name: "Add a character" })).toBeVisible();
 
     const geometry = await headerGeometry(component);
     expect(geometry.escaped, "no CHARACTERS-header control escapes the pane").toBe(0);
@@ -192,7 +192,7 @@ const CROSSOVERS = [
 
 for (const { width, lines } of CROSSOVERS) {
   test(`#912 @${width}: the header takes exactly ${lines} line(s)`, async ({ mount }) => {
-    const component = await mount(<CommittedMembersTabStory soloCast={true} width={width} />);
+    const component = await mount(<CommittedMembersTabStory soloCharacters={true} width={width} />);
     expect((await headerGeometry(component)).lines).toBe(lines);
   });
 }
@@ -209,11 +209,11 @@ test.describe("coarse pointer", () => {
   for (const width of [256, 464] as const) {
     test(`#912 @${width} coarse: nothing escapes the pane and both doors keep their whole words`, async ({ mount, page }) => {
       await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
-      const component = await mount(<CommittedMembersTabStory soloCast={true} width={width} />);
-      const cast = component.locator(CAST);
+      const component = await mount(<CommittedMembersTabStory soloCharacters={true} width={width} />);
+      const characterSection = component.locator(CHARACTER_SECTION);
 
-      await expect(cast.getByRole("button", { name: "Saved rosters…" })).toBeVisible();
-      await expect(cast.getByRole("button", { name: "Add a character" })).toBeVisible();
+      await expect(characterSection.getByRole("button", { name: "Saved rosters…" })).toBeVisible();
+      await expect(characterSection.getByRole("button", { name: "Add a character" })).toBeVisible();
 
       const geometry = await headerGeometry(component);
       expect(geometry.escaped, "no CHARACTERS-header control escapes the pane at a coarse pointer").toBe(0);

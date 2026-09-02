@@ -285,12 +285,12 @@ export async function renameFirstChatViaRowKebab(page: Page, title: string): Pro
 // ── GROUP-ROOM helpers (group-chat.spec.ts · multi-tab-room-sync.spec.ts). Orb has NO `/chat/$id` URL, so
 // the ONLY way to put a page (or a SECOND page in the same context) into a specific room is to click that
 // chat's LIST row — which is why every group/hub spec self-seeds a UNIQUELY-titled chat and opens it BY
-// TITLE. The group surfaces are roster-size-gated by construction (chats-section.tsx): the Cast bar renders
+// TITLE. The group surfaces are roster-size-gated by construction (chats-section.tsx): the Character bar renders
 // only above 1 character, and the Members/Group CONTEXT tabs only when the room is a group (>1 character)
 // — so their PRESENCE is a behavioral assertion about the roster, never a layout claim. ──
 
-const CAST_BAR = '[aria-label="Characters"]';
-const CAST_CHIP = '[data-slot="cast-chip"]';
+const CHARACTER_BAR = '[aria-label="Characters"]';
+const CHARACTER_CHIP = '[data-slot="character-chip"]';
 
 /** Navigate to `/` and open the chat whose LIST row carries `title` (the row's accessible name leads with
  *  it). The room's composer is live on return. Titles are minted unique per spec, so the match is
@@ -348,13 +348,13 @@ export async function openGroupBehaviorSection(page: Page): Promise<void> {
   await expect(page.getByRole("button", { name: "Per-speaker", exact: true })).toBeVisible({ timeout: 15_000 });
 }
 
-/** The cast bar's chip locator (chat-cast-bar.tsx) — one chip per PRESENT character, and the whole bar is
- *  absent below 2 characters. `castChipNames` reads the rendered roster; `castChip` targets one member. */
-export function castChips(page: Page): ReturnType<Page["locator"]> {
-  return page.locator(`${CAST_BAR} ${CAST_CHIP}`);
+/** The character bar's chip locator (chat-character-bar.tsx) — one chip per PRESENT character, and the whole bar is
+ *  absent below 2 characters. `characterChipNames` reads the rendered roster; `characterChip` targets one member. */
+export function characterChips(page: Page): ReturnType<Page["locator"]> {
+  return page.locator(`${CHARACTER_BAR} ${CHARACTER_CHIP}`);
 }
 
-/** The rendered cast-bar member names (empty when the bar isn't mounted — a solo room). A chip's text is
+/** The rendered character-bar member names (empty when the bar isn't mounted — a solo room). A chip's text is
  *  `<avatar initials>\n<display name>`, so the NAME is its last non-empty line.
  *
  *  FINE-POINTER ONLY, and that is now load-bearing (#511): the strip's names are `pointer-coarse:sr-only`,
@@ -362,8 +362,8 @@ export function castChips(page: Page): ReturnType<Page["locator"]> {
  *  empty roster on any coarse-pointer project rather than failing loudly. The e2e config is
  *  `devices["Desktop Chrome"]` (playwright.config.ts) so today every run is fine-pointer; a mobile project
  *  added here must read the names off `textContent` (the accessibility-tree read) instead. */
-export async function castChipNames(page: Page): Promise<readonly string[]> {
-  const texts = await castChips(page).allInnerTexts();
+export async function characterChipNames(page: Page): Promise<readonly string[]> {
+  const texts = await characterChips(page).allInnerTexts();
   return texts
     .map(
       (text) =>

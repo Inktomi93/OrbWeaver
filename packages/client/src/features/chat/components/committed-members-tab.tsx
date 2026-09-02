@@ -1,4 +1,4 @@
-// The committed chat's Members tab body — People (multi-human installs) + Cast rows, with the host
+// The committed chat's Members tab body — People (multi-human installs) + Character rows, with the host
 // membership gestures (invite/kick/nominate/leave) and the per-character roster controls. The `chat`
 // slice + gates arrive already-resolved from the section's `ChatContextState` projection (no re-fetch).
 
@@ -68,7 +68,7 @@ export function CommittedMembersTab({ chatId, chat, isHost, multiHumanCapable }:
   const nominateHost = useNominateHostHandoff({ trpc, invalidation });
   const setHistoryVisibility = useSetMemberHistoryVisibility({ trpc, invalidation });
   const [inviteOpen, setInviteOpen] = useState(false);
-  // The D22 member card-viewer target — a Cast row's "View character" opens the CLAMPED in-room card
+  // The D22 member card-viewer target — a Character row's "View character" opens the CLAMPED in-room card
   // (getMemberCard) for THIS characterId, NOT a jump to the owner's editable characters library (a
   // member may not own the card, and the library isn't visibility-clamped). `null` = closed; the
   // useQuery inside the viewer is gated on `open`, so no read fires until a row is picked.
@@ -83,10 +83,10 @@ export function CommittedMembersTab({ chatId, chat, isHost, multiHumanCapable }:
     respondingCharacterId,
   };
   const people = multiHumanCapable ? toPersonRows(sources) : [];
-  // No display floor on the cast: the room's characters ARE the roster, and a "worth its own list" threshold
-  // here hid every 1:1 room's whole cast plus its per-character controls (#162). The panel drops the section
+  // No display floor on the characters: the room's characters ARE the roster, and a "worth its own list" threshold
+  // here hid every 1:1 room's whole character list plus its per-character controls (#162). The panel drops the section
   // entirely when there is nothing to show AND nothing this viewer can add.
-  const cast = toCharacterRows(sources);
+  const characters = toCharacterRows(sources);
   const hostMembership = isHost && multiHumanCapable;
   // ARBITRATION APPLICABILITY (#182 — "some group stuff is showing up even when not in group", owner live
   // report 2026-08-18). Mute, Talkativeness and "Make X speak next" are not per-character preferences: all
@@ -94,24 +94,24 @@ export function CommittedMembersTab({ chatId, chat, isHost, multiHumanCapable }:
   // arbitration exclusion"; talkativeness is a RELATIVE weight; force-turn overrides the pick). A room with
   // one character has no arbitration to steer — the weight chip reads a ratio against nobody, muting the sole
   // voice leaves a room that cannot answer, and "speak next" is what pressing Send already does. So the three
-  // seams are simply ABSENT below a cast of two, which the panel/row/menu already render as "no affordance"
+  // seams are simply ABSENT below two characters, which the panel/row/menu already render as "no affordance"
   // (§8.1, the same mechanism that omits host-only controls for a member) — no second mode, no disabled
   // controls, no new branch downstream.
   //
-  // THIS NARROWS #162 DELIBERATELY AND ONLY HERE. `lib/roster.ts`'s header rules that the old `>=2` CAST
+  // THIS NARROWS #162 DELIBERATELY AND ONLY HERE. `lib/roster.ts`'s header rules that the old `>=2` CHARACTERS
   // FLOOR was wrong precisely because it withheld these controls — that ruling is about the SECTION: the
-  // floor stays ZERO, the 1:1 room still renders its Cast section, its rows, its identity, View character,
+  // floor stays ZERO, the 1:1 room still renders its Characters section, its rows, its identity, View character,
   // Remove-from-chat and the add-character door. What moves is the three group-arbitration knobs, which the
   // floor was hiding as a side effect of hiding everything. The room's roster is not a group affordance; the
   // speaker arbiter's controls are.
   const arbitrationApplies = isHost && resolveIsGroupChat(chat.participants);
-  // MUTE KEEPS AN EXIT. A seat muted while the room was a group stays muted after the cast shrinks to one,
+  // MUTE KEEPS AN EXIT. A seat muted while the room was a group stays muted after the roster shrinks to one character,
   // and a room whose only voice is excluded cannot answer at all — so gating the toggle on group-ness alone
   // would build a door that locks from the inside. Mute is therefore applicable while the room is a group OR
   // while a seat is ALREADY muted: the state stays reachable out of, never into, a 1:1 room.
-  const muteApplies = arbitrationApplies || (isHost && cast.some((row) => row.disabled));
+  const muteApplies = arbitrationApplies || (isHost && characters.some((row) => row.disabled));
 
-  // `setSeatKnobs` keys by the participant row id (D80); the cast-row callbacks surface `characterId`, so
+  // `setSeatKnobs` keys by the participant row id (D80); the character-row callbacks surface `characterId`, so
   // resolve the seat here from the same roster the rows were projected from.
   const participantIdByCharacter = new Map(filterCharacters(chat.participants).map((p) => [p.characterId, p.id]));
 
@@ -125,13 +125,13 @@ export function CommittedMembersTab({ chatId, chat, isHost, multiHumanCapable }:
     <>
       <MembersPanel
         people={people}
-        cast={cast}
+        characters={characters}
         onInvitePeople={hostMembership ? (): void => setInviteOpen(true) : undefined}
         // The roster's ADD door, character half (#162 — "add more characters or add people into it" is ONE
-        // feature, and this tab used to offer only the human half). The SAME picker the cast bar's "+" opens;
+        // feature, and this tab used to offer only the human half). The SAME picker the character bar's "+" opens;
         // gated on `isHost` alone, not `hostMembership`, because adding a character is a single-human
         // capability that has nothing to do with the multi-human deployment flag.
-        castAction={
+        charactersAction={
           isHost ? (
             // `flex-wrap` + `justify="end"`: at the narrowest real pane the two doors cannot share a line
             // either, so they STACK — still trailing, still with their whole words. The panel's

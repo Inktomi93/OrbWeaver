@@ -1,7 +1,7 @@
 ---
 kind: design
 status: active
-updated: 2026-08-30
+updated: 2026-09-01
 ---
 
 # THE VOCABULARY MAP — one concept, one word
@@ -32,7 +32,7 @@ finding: say so rather than minting a word.
 | A library character | **Character** | `character` | landed |
 | A library persona | **Persona** | `persona` | landed |
 | The humans in a room | **People** (section) · **Host** / **Member** | `member` / `host` (`chat_participants.kind='human'`) | landed |
-| **The characters seated in a room** | **Characters** (section) | `character` (`chat_participants.kind='character'`) | **COPY landed** (#902 C1, #914) — **CODE NOT LANDED**: the `MembersRow` discriminant is still `kind: "cast"` and the whole `chat-cast-bar` family (file · `chatCastBar` testid · a `tokens.json` entry · `CastAvatars`/`CastSeat`/`castMenuItems`/`CastInlineCluster` · the e2e locators) still spells `cast`; owned by **#922** |
+| **The characters seated in a room** | **Characters** (section) | `character` (`chat_participants.kind='character'`) | landed (#902 C1 copy, #914 sweep, **#922 code**). The code half — the `MembersRow` discriminant `kind: "character"`, `chat-character-bar.tsx`, the `chatCharacterBar` testid, `CharacterAvatars`/`CharacterSeat`/`characterMenuItems`/`CharacterInlineCluster`, the `MembersPanel` `characters`/`charactersAction` seam, the `character-chip`/`members-characters` slots and the e2e locators — landed with #922. |
 | Every identity a chat references (characters ∪ personas, incl. departed) — the name/avatar directory | — | `ChatIdentity` / `identityKey` / `ChatDetail.identities` / `MessagesPage.identities`; producer `loadChatIdentityProducer` (`domain/chat/persistence/identity.ts`); axis `CHAT_IDENTITY_KINDS` / `ChatIdentityKind` / `CHAT_IDENTITY_KIND_POLICY`; projections `buildIdentityNameContext` / `buildIdentityAvatarMaps` | landed (#903 C2). Was `CastEntry` / `castKey` / `ChatDetail.cast` / `loadChatCastProducer` / `CAST_*`. |
 | Present, seated characters the arbiter may drive (the D60 drive axis) | — | `AssembleContext.characters` / `speakerRefs` / `characterIds` / `unmutedCharacters` (`domain/chat/assembly/context.ts`) | landed (#903 C2). Was `cast` / `castMembers` / `castCharacterIds` / `castNotMuted`. |
 | The present characters' NAMES as a macro/label feed (`{{group}}`, the speaker-label plain alphabet) | — | `characterNames` / `unmutedCharacterNames` (`@orb/kit/macro` `MacroContext` + `RowMacroNameContext`, `@orb/kit/speaker-label`) | landed (#903 C2). Was `cast` / `castNotMuted` / `castNames`. |
@@ -59,7 +59,6 @@ so this list is the complete set of sanctioned survivors inside chat and must sh
 | The present characters' `{ref, name}` pairs the arbiter picks a speaker from | `CastName` (`domain/chat/contract/arbitration.ts:27`), `room.castNames`, `joinedCastName`, `castCharForHostRow` (`verbs/turn.ts`, `engine/round.ts`, `engine/smart-arbitrate.ts`, `engine/select-speakers.ts`) | **NEEDS A WORD.** It is neither the identity directory (no personas, no departed) nor the drive axis (it is name+ref, not `AssembleCharacter`). \~30 sites. |
 | The narrator arm of `AssembleContext.speaker` — "this one generation voices everyone" | the string VALUE `"cast"` in `speaker: { kind: "cast"; … }` (`contracts/src/chat/assemble.ts:535`) and its \~8 `=== "cast"` readers in `assembly/assemble.ts`, `assembly/macros.ts`, `assembly/speaker-card.ts` | **NEEDS A WORD.** A literal, not a symbol, so no rename wave has ever seen it. `"narrator"` already names the sibling `GroupOutput` axis, so a straight swap would collide — that is the decision this needs. |
 | The founding / seated CHARACTER IDS an import or a backfill writes | `ResolvedCast` + `cast: ResolvedCast` (`domain/import/verbs/import-chat-bundle.ts`), `cast: readonly CharacterId[]` (`chat/persistence/import-write.ts:190`, `chat/substrate/backfill.ts:77`) | **NEEDS A WORD** (or is simply `characterIds`, matching the drive axis — but that is a ruling, not a lane's call). |
-| The seated-characters UI family | `MembersRow`'s `kind: "cast"` discriminant, `chat-cast-bar.tsx`, the `chatCastBar` testid + its `tokens.json` entry, `CastAvatars` / `CastSeat` / `castMenuItems` / `CastInlineCluster`, both e2e specs | **OWNED BY #922.** This is the CODE half of the "characters seated in a room" row above, which #902 C1 landed in COPY only. |
 
 ## The rpg register (D151 · `AGENTS.md` §3)
 

@@ -23,8 +23,8 @@ import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import {
   assistantRows,
-  castChipNames,
-  castChips,
+  characterChipNames,
+  characterChips,
   openChatByTitle,
   openContextTab,
   openDetailPanel,
@@ -34,7 +34,7 @@ import {
 } from "./support/chat-room.ts";
 import { assistantTurns, characterSeats, deleteChat, getGroupConfig, mintFreshCharacter, removeCharacter, startGroupChat } from "./support/trpc.ts";
 
-const CAST = [
+const CHARACTERS = [
   { handle: castId<CharacterHandle>("e2e-hub-alpha"), name: "Hubspec Alpha" },
   { handle: castId<CharacterHandle>("e2e-hub-bravo"), name: "Hubspec Bravo" },
   { handle: castId<CharacterHandle>("e2e-hub-cirrus"), name: "Hubspec Cirrus" },
@@ -56,11 +56,11 @@ interface Room {
  *  a unique title so a list-row locator can only match this chat. */
 async function seedRoom(label: string, count: number, groupConfig?: Record<string, unknown>): Promise<Room> {
   const characterIds: CharacterId[] = [];
-  for (const member of CAST.slice(0, count)) {
+  for (const member of CHARACTERS.slice(0, count)) {
     characterIds.push(await mintFreshCharacter(member.handle, member.name, `${member.name} greeting.`));
   }
   const title = `e2e-hub-${label}-${Date.now()}`;
-  // The founding cast is the first two; any extra minted character is the one tab A will SEAT mid-test.
+  // The founding characters are the first two; any extra minted character is the one tab A will SEAT mid-test.
   const chat = await startGroupChat({ characterIds: characterIds.slice(0, 2), title, ...(groupConfig === undefined ? {} : { groupConfig }) });
   return { chatId: chat.id, characterIds, title };
 }
@@ -76,7 +76,7 @@ async function teardown(room: Room): Promise<void> {
  *  a mutation fired from the sibling tab can land before this tab is subscribed and the assertion races. */
 async function joinRoom(page: Page, title: string): Promise<void> {
   await openChatByTitle(page, title);
-  await expect(castChips(page).first()).toBeVisible({ timeout: 15_000 });
+  await expect(characterChips(page).first()).toBeVisible({ timeout: 15_000 });
 }
 
 test("a roster change in tab A reaches tab B's open room live (seat added, then removed)", async ({ browser }) => {
@@ -87,10 +87,10 @@ test("a roster change in tab A reaches tab B's open room live (seat added, then 
     const tabB = await ctx.newPage();
     await joinRoom(tabA, room.title);
     await joinRoom(tabB, room.title);
-    expect(await castChipNames(tabB)).toHaveLength(2);
+    expect(await characterChipNames(tabB)).toHaveLength(2);
 
-    // Tab A seats the third character through the CONTEXT panel's CAST door — a REAL user gesture, not an
-    // API poke. It used to reach the cast bar's twin of the same door, which #490 removed (§13: one action,
+    // Tab A seats the third character through the CONTEXT panel's CHARACTERS door — a REAL user gesture, not an
+    // API poke. It used to reach the character bar's twin of the same door, which #490 removed (§13: one action,
     // one home — the two were visible at the same time); the door itself is unchanged, only its address, and
     // this is the same panel the removal half of this test opens ten lines down. Tab A must be the
     // FOREGROUND tab for it: the picker is an anchored Popover, and an anchored layer in a backgrounded page
@@ -100,22 +100,22 @@ test("a roster change in tab A reaches tab B's open room live (seat added, then 
     await openDetailPanel(tabA);
     await openContextTab(tabA, "Members");
     await tabA.getByRole("button", { name: "Add a character", exact: true }).click();
-    await tabA.getByRole("option", { name: CAST[2].name, exact: true }).click();
-    await expect.poll(async () => (await castChipNames(tabA)).length, { timeout: 15_000 }).toBe(3);
+    await tabA.getByRole("option", { name: CHARACTERS[2].name, exact: true }).click();
+    await expect.poll(async () => (await characterChipNames(tabA)).length, { timeout: 15_000 }).toBe(3);
 
     // THE load-bearing assertion: tab B never touched anything, yet its OPEN ROOM shows the new member.
-    await expect.poll(async () => (await castChipNames(tabB)).length, { timeout: 15_000 }).toBe(3);
-    expect(await castChipNames(tabB)).toContain(CAST[2].name);
+    await expect.poll(async () => (await characterChipNames(tabB)).length, { timeout: 15_000 }).toBe(3);
+    expect(await characterChipNames(tabB)).toContain(CHARACTERS[2].name);
 
     // …and the symmetric drop fans the same way (the seat leaves B's room with no reload).
     await openDetailPanel(tabA);
     await openContextTab(tabA, "Members");
-    await openMemberRowMenu(tabA, CAST[2].name);
-    await tabA.getByRole("menuitem", { name: `Remove ${CAST[2].name} from chat` }).click();
+    await openMemberRowMenu(tabA, CHARACTERS[2].name);
+    await tabA.getByRole("menuitem", { name: `Remove ${CHARACTERS[2].name} from chat` }).click();
 
     await expect.poll(async () => (await characterSeats(room.chatId)).length, { timeout: 15_000 }).toBe(2);
-    await expect.poll(async () => (await castChipNames(tabB)).length, { timeout: 15_000 }).toBe(2);
-    expect(await castChipNames(tabB)).not.toContain(CAST[2].name);
+    await expect.poll(async () => (await characterChipNames(tabB)).length, { timeout: 15_000 }).toBe(2);
+    expect(await characterChipNames(tabB)).not.toContain(CHARACTERS[2].name);
   } finally {
     await ctx.close();
     await teardown(room);

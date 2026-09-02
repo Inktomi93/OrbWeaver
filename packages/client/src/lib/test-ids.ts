@@ -84,7 +84,7 @@ export const TEST_IDS = {
   // The ✨ menu's SECOND image door (#623) — opens the /imagine modal seeded with the typed text, so the
   // mode + preview surface is reachable without knowing to type `/`.
   composerOpenImagine: "composer-open-imagine",
-  chatCastBar: "chat-cast-bar",
+  chatCharacterBar: "chat-character-bar",
   notificationsInbox: "notifications-inbox",
   workloadsSection: "workloads-section",
   workloadsRunButton: "workloads-run-button",
@@ -109,7 +109,7 @@ export const TEST_IDS = {
   inviteOutstandingList: "invite-outstanding-list",
   joinInviteDialog: "join-invite-dialog",
   joinInviteConfirm: "join-invite-confirm",
-  // D22 — the read-only, level-clamped member card-viewer opened from a roster Cast row ("View
+  // D22 — the read-only, level-clamped member card-viewer opened from a roster Character row ("View
   // character"). `memberCardHiddenNote` marks the "hidden at this visibility level" affordance the
   // viewer renders in place of a clamped-away (null) section.
   memberCardViewer: "member-card-viewer",

@@ -47,7 +47,7 @@ const LIST_ROW = {
 // canon-requiring actions DISABLED, and EVERY disabled item carries a hover reason NAMING the unlock
 // condition. `committed={false}` is the ONE seam. ─────────────────────────────────────────────────────
 
-// The full row label set the ⋯ menu renders (committed + draft, character-gated rows included via withCast).
+// The full row label set the ⋯ menu renders (committed + draft, character-gated rows included via withCharacters).
 // IA de-dup (owner rule, W3c): items with a CONTEXT-panel home are GONE from the ⋯ menu — Chat settings
 // (Settings tab), Preview request (Preview tab), Injections (Injections tab), and Invite / Hand off host /
 // Leave (all in the Members tab); the turn actions live on the WAND (#41). "Turn on game mode" is the
@@ -63,7 +63,7 @@ const ANY_EXPORT = /export/iu;
 
 test("#8: a COMMITTED chat's row actions are ENABLED (there IS a server row) — the committed baseline", async ({ mount, page }) => {
   await routeTrpc(page, { ...CHAT_ROOM_ROUTES });
-  const component = await mount(<ChatOptionsMenuStory withCast={true} />);
+  const component = await mount(<ChatOptionsMenuStory withCharacters={true} />);
   await component.getByRole("button", { name: "Chat options" }).click();
 
   await expect(page.getByRole("menuitem", { name: "Rename", exact: true })).toBeEnabled();
@@ -73,7 +73,7 @@ test("#8: a COMMITTED chat's row actions are ENABLED (there IS a server row) —
 // carries no import/export chrome — this pins the ABSENCE, so a re-scattered download can't land quietly.
 test("lifecycle placement: the room ⋯ menu offers NO transcript download (its one home is the list row kebab)", async ({ mount, page }) => {
   await routeTrpc(page, { ...CHAT_ROOM_ROUTES });
-  const component = await mount(<ChatOptionsMenuStory withCast={true} />);
+  const component = await mount(<ChatOptionsMenuStory withCharacters={true} />);
   await component.getByRole("button", { name: "Chat options" }).click();
 
   await expect(page.getByRole("menuitem", { name: "Rename", exact: true })).toBeVisible();
@@ -87,7 +87,7 @@ test("lifecycle placement: the room ⋯ menu offers NO transcript download (its 
 
 test("#862: the ⋯ item is ONE start action — a single click on 'Turn on game mode' fires rpg.createGame with no ruleset pick", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "rpg.createGame": () => ({ gameId: "rpg_game_ct", trackersReadOnly: false }) });
-  const component = await mount(<ChatOptionsMenuStory withCast={true} />);
+  const component = await mount(<ChatOptionsMenuStory withCharacters={true} />);
   await component.getByRole("button", { name: "Chat options" }).click();
 
   // ONE item, exact name — not a submenu trigger, and not the retired "Turn on RPG" noun.

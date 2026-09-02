@@ -1,7 +1,7 @@
 // The MEMBERS-row per-row MENU — the §7.1 canonical action home (rule 10: one canonical label + icon
 // per action, everywhere). Builds the `@orb/ui/menu` item set for a row from the action seams the
 // surface wired (host-only callbacks are ABSENT for a member — §8.1 — so a row with zero actions
-// renders no menu at all): Cast rows = Mute/Unmute · Talkativeness… (opens the anchored popover) ·
+// renders no menu at all): Character rows = Mute/Unmute · Talkativeness… (opens the anchored popover) ·
 // Make X speak next (force-turn; stays available for a MUTED member — #29, mute is passive arbitration
 // exclusion) · View character (the FINAL-Chats §9e cross-section jump). Person rows = Hand off host… ·
 // the D16 join-history toggle (host-only: hide/reveal the canon sent before that member joined) ·
@@ -28,10 +28,10 @@ export interface MemberMenuControls {
 /** The per-row Menu items — ALL of a row's actions (rule 10); destructive rows LAST. Empty array ⇒
  *  the row renders no menu (a member viewing another human). */
 export function buildMenuItems(props: MemberRowActions & { readonly row: MemberPersonRow | MemberCharacterRow }, controls: MemberMenuControls): ReactNode[] {
-  return props.row.kind === "cast" ? castMenuItems(props.row, props, controls.openWeight) : personMenuItems(props.row, props, controls.setConfirm);
+  return props.row.kind === "character" ? characterMenuItems(props.row, props, controls.openWeight) : personMenuItems(props.row, props, controls.setConfirm);
 }
 
-function castMenuItems(row: MemberCharacterRow, actions: MemberRowActions, openWeight: () => void): ReactNode[] {
+function characterMenuItems(row: MemberCharacterRow, actions: MemberRowActions, openWeight: () => void): ReactNode[] {
   const items: ReactNode[] = [];
   if (actions.onSetDisabled !== undefined) {
     items.push(
@@ -65,7 +65,7 @@ function castMenuItems(row: MemberCharacterRow, actions: MemberRowActions, openW
       </MenuItem>,
     );
   }
-  // Destructive row LAST (the header rule): the symmetric drop for the cast-bar add. leftSeq-stamps the
+  // Destructive row LAST (the header rule): the symmetric drop for the character-bar add. leftSeq-stamps the
   // seat out server-side and is reversible via a re-add, so a direct action (like Mute) — no hard-delete
   // confirm. Host-only seam: absent for a member (§8.1), so this never renders for a non-host.
   if (actions.onRemoveCharacter !== undefined) {

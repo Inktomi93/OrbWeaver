@@ -1,4 +1,4 @@
-// CT: the group cast bar (chat-cast-bar.tsx, task #29). Drives the production path over the stubbed
+// CT: the group character bar (chat-character-bar.tsx, task #29). Drives the production path over the stubbed
 // network (routeTrpc) — `chat.getChat` supplies the roster. Proves the D16 size-gate (a solo roster of
 // ≤1 character renders NO bar) and the multi-member render (a chip per character; a muted member's chip
 // is marked/dimmed). Read-only surface — no mutations here (those live in the Roster tab + composer).
@@ -14,10 +14,10 @@ import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
-import { ChatCastBarStory, ChatRoomPhoneStory } from "../_ct-stories.tsx";
+import { ChatCharacterBarStory, ChatRoomPhoneStory } from "../_ct-stories.tsx";
 import { CHAT_AMBIENT_ROUTES, makeMessagesPage, makeMessageView } from "../fixtures.ts";
 
-/** A character seat — only the fields the cast bar reads; the rest is filler the bar ignores. */
+/** A character seat — only the fields the character bar reads; the rest is filler the bar ignores. */
 function character(key: string, name: string, over: Record<string, unknown> = {}): unknown {
   return {
     id: `chat_participant_${key}`,
@@ -42,10 +42,10 @@ function roster(...members: unknown[]): unknown {
  * the REQUESTED id keeps one responder honest for every roster below (each seat asks for its own character),
  * rather than a single hard-coded card that would be right for one test and a lie for the rest.
  */
-const CAST_CHARACTER_ROUTE: Record<string, unknown> = {
+const CHARACTER_ROUTE: Record<string, unknown> = {
   "character.get": (input: unknown): unknown => ({
     id: (input as { characterId?: CharacterId } | undefined)?.characterId ?? castId<CharacterId>("character_unknown"),
-    name: "Cast member",
+    name: "Character seat",
     avatarHash: null,
     description: "",
     greetings: [],
@@ -64,32 +64,32 @@ function human(role: ParticipantRole): unknown {
   };
 }
 
-/** A committed `ChatDetail` stub carrying the server-resolved host gate + a 2-character cast (so the bar
+/** A committed `ChatDetail` stub carrying the server-resolved host gate + a 2-character roster (so the bar
  *  renders past the D16 size-gate). A host FIRST human seat trips the retired first-seat proxy. */
-function castWithHost(viewerIsHost: boolean): unknown {
+function charactersWithHost(viewerIsHost: boolean): unknown {
   return {
     participants: [human("host"), human("member"), character("aria", "Aria"), character("bryn", "Bryn")],
     viewerIsHost,
   };
 }
 
-test("a solo roster (1 character) renders NO cast bar (the D16 size-gate)", async ({ mount, page }) => {
-  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CAST_CHARACTER_ROUTE, "chat.getChat": () => roster(character("aria", "Aria")) });
-  const component = await mount(<ChatCastBarStory />);
+test("a solo roster (1 character) renders NO character bar (the D16 size-gate)", async ({ mount, page }) => {
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHARACTER_ROUTE, "chat.getChat": () => roster(character("aria", "Aria")) });
+  const component = await mount(<ChatCharacterBarStory />);
   // Give the query a beat to settle, then assert the bar never appears.
   await expect(component.getByText("Aria")).toHaveCount(0);
-  await expect(component.getByTestId("chat-cast-bar")).toHaveCount(0);
+  await expect(component.getByTestId("chat-character-bar")).toHaveCount(0);
 });
 
 test("a 2+ roster renders a chip per character", async ({ mount, page }) => {
   await routeTrpc(page, {
     ...CHAT_AMBIENT_ROUTES,
-    ...CAST_CHARACTER_ROUTE,
+    ...CHARACTER_ROUTE,
     "chat.getChat": () => roster(character("aria", "Aria"), character("bryn", "Bryn")),
   });
-  const component = await mount(<ChatCastBarStory />);
+  const component = await mount(<ChatCharacterBarStory />);
 
-  await expect(component.getByTestId("chat-cast-bar")).toBeVisible();
+  await expect(component.getByTestId("chat-character-bar")).toBeVisible();
   await expect(component.getByRole("group", { name: "Characters" })).toBeVisible();
   await expect(component.getByText("Aria")).toBeVisible();
   await expect(component.getByText("Bryn")).toBeVisible();
@@ -98,38 +98,38 @@ test("a 2+ roster renders a chip per character", async ({ mount, page }) => {
 test("a muted member's chip is marked (dimmed)", async ({ mount, page }) => {
   await routeTrpc(page, {
     ...CHAT_AMBIENT_ROUTES,
-    ...CAST_CHARACTER_ROUTE,
+    ...CHARACTER_ROUTE,
     "chat.getChat": () => roster(character("aria", "Aria"), character("bryn", "Bryn", { disabled: true })),
   });
-  const component = await mount(<ChatCastBarStory />);
+  const component = await mount(<ChatCharacterBarStory />);
 
   // Both chips render; exactly one carries the muted marker (Bryn).
-  await expect(component.locator('[data-slot="cast-chip"]')).toHaveCount(2);
-  await expect(component.locator('[data-slot="cast-chip"][data-muted]')).toHaveCount(1);
+  await expect(component.locator('[data-slot="character-chip"]')).toHaveCount(2);
+  await expect(component.locator('[data-slot="character-chip"][data-muted]')).toHaveCount(1);
 });
 
 // ── #490: THE STRIP CARRIES NO MUTATION AT ALL, HOST OR NOT ───────────────────────────────────────
 // INVERTED, deliberately. The two cases here used to be "a member sees NO '+'" / "a host sees the '+'" —
 // a host-gate pin on a door that should never have been on this strip: it made "add a character" a
-// SIMULTANEOUSLY VISIBLE second door beside the CONTEXT panel's CAST header (`design-audit`
+// SIMULTANEOUSLY VISIBLE second door beside the CONTEXT panel's Characters header (`design-audit`
 // `duplicate-action-door`, side-eye 2026-08-22), and this component's own header declares it
 // "presence-at-a-glance only, no mutations". The host GATE is not what moved — the door's ONE home is
 // `committed-members-tab.tsx`, where `members-panel.ct.tsx` pins exactly this host/member pair. Half a
 // migration is the rot, so the old pins are re-aimed rather than left asserting a door that is gone.
 test("#490 neither a host nor a member gets an add-member door on the strip (its ONE home is CONTEXT)", async ({ mount, page }) => {
-  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CAST_CHARACTER_ROUTE, "chat.getChat": () => castWithHost(false) });
-  const asMember = await mount(<ChatCastBarStory />);
-  await expect(asMember.getByTestId("chat-cast-bar")).toBeVisible();
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHARACTER_ROUTE, "chat.getChat": () => charactersWithHost(false) });
+  const asMember = await mount(<ChatCharacterBarStory />);
+  await expect(asMember.getByTestId("chat-character-bar")).toBeVisible();
   await expect(asMember.getByRole("button", { name: "Add a character" })).toHaveCount(0);
   await asMember.unmount();
 
   // The arm that would silently come back if someone re-mounted the popover behind the host gate.
-  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CAST_CHARACTER_ROUTE, "chat.getChat": () => castWithHost(true) });
-  const asHost = await mount(<ChatCastBarStory />);
-  await expect(asHost.getByTestId("chat-cast-bar")).toBeVisible();
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHARACTER_ROUTE, "chat.getChat": () => charactersWithHost(true) });
+  const asHost = await mount(<ChatCharacterBarStory />);
+  await expect(asHost.getByTestId("chat-character-bar")).toBeVisible();
   await expect(asHost.getByRole("button", { name: "Add a character" })).toHaveCount(0);
   // …and the strip is still the strip: it is not empty, it just does not mutate.
-  await expect(asHost.locator('[data-slot="cast-chip"]')).not.toHaveCount(0);
+  await expect(asHost.locator('[data-slot="character-chip"]')).not.toHaveCount(0);
 });
 
 // ── #229/#237: the strip's OVER-ART legibility backing ────────────────────────────────────────────
@@ -138,9 +138,9 @@ test("#490 neither a host nor a member gets an add-member door on the strip (its
 // for the message row's own bands, and the one rule #237 extends across the shell's chrome. The backing
 // is self-gated on the shell's `data-has-bg-image`, so the plain-background arm must not move a pixel.
 test("#229: over a wallpaper the strip takes the derived plate + blur; without one it is byte-identical", async ({ mount, page }) => {
-  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CAST_CHARACTER_ROUTE, "chat.getChat": () => roster(character("a", "Birdie"), character("b", "Hikari")) });
-  const plain = await mount(<ChatCastBarStory />);
-  const plainStrip = plain.getByTestId("chat-cast-bar");
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHARACTER_ROUTE, "chat.getChat": () => roster(character("a", "Birdie"), character("b", "Hikari")) });
+  const plain = await mount(<ChatCharacterBarStory />);
+  const plainStrip = plain.getByTestId("chat-character-bar");
   await expect(plainStrip).toBeVisible();
   // No wallpaper ⇒ no plate, no blur: the strip is exactly the transparent band it always was.
   await expect
@@ -153,8 +153,8 @@ test("#229: over a wallpaper the strip takes the derived plate + blur; without o
     .toStrictEqual({ backdrop: "none", bg: "rgba(0, 0, 0, 0)" });
   await plain.unmount();
 
-  const overArt = await mount(<ChatCastBarStory overArt={true} />);
-  const artStrip = overArt.getByTestId("chat-cast-bar");
+  const overArt = await mount(<ChatCharacterBarStory overArt={true} />);
+  const artStrip = overArt.getByTestId("chat-character-bar");
   await expect(artStrip).toBeVisible();
   const readArtPaintAtAssertion = async (): Promise<typeof artPaint> =>
     await artStrip.evaluate((el) => {
@@ -198,8 +198,8 @@ test("#229: over a wallpaper the strip takes the derived plate + blur; without o
 // chrome this component does not own; collapse-on-scroll leaves the worst case (130px) standing at
 // first paint, which is exactly when the reader is deciding whether the room is worth their thumb.
 //
-// THE FORK THE OWNER MAY WANT TO SEE: on a phone the cast is IDENTIFIED BY FACE ONLY. Initials + the
-// per-character hue seed carry an unfamiliar cast weakly, and this is a deliberate trade of one glance
+// THE FORK THE OWNER MAY WANT TO SEE: on a phone a character is IDENTIFIED BY FACE ONLY. Initials + the
+// per-character hue seed carry an unfamiliar character weakly, and this is a deliberate trade of one glance
 // for ~90px of transcript.
 
 /** A human seat the strip actually PAINTS — `resolveHumanParticipants` filters on `leftSeq === null`, so
@@ -219,7 +219,7 @@ function seatedHuman(role: ParticipantRole, displayName: string): unknown {
 }
 
 /** The compound worst case the matrix above found: two humans named by their EMAIL (#162 — that is what a
- *  human seat's display name is until a persona names it) beside a card-realistic cast. */
+ *  human seat's display name is until a persona names it) beside card-realistic character names. */
 const CROWDED_ROSTER = [
   seatedHuman("host", "studio@inktomi.tech"),
   seatedHuman("member", "casey@example.com"),
@@ -231,7 +231,7 @@ const CROWDED_ROSTER = [
 
 const PHONE_ROOM_STUB = {
   ...CHAT_AMBIENT_ROUTES,
-  ...CAST_CHARACTER_ROUTE,
+  ...CHARACTER_ROUTE,
   "chat.previewContextFit": (): unknown => ({
     boundaryMessageId: null,
     usedTokens: 120,
@@ -261,8 +261,8 @@ function measureStrip(page: Page): Promise<{
   readonly avatarWidth: number;
 }> {
   return page.evaluate(() => {
-    const strip = document.querySelector('[data-testid="chat-cast-bar"]') as HTMLElement;
-    const chips = [...document.querySelectorAll('[data-slot="cast-chip"],[data-slot="human-chip"]')];
+    const strip = document.querySelector('[data-testid="chat-character-bar"]') as HTMLElement;
+    const chips = [...document.querySelectorAll('[data-slot="character-chip"],[data-slot="human-chip"]')];
     const avatar = strip.querySelector('[data-slot="avatar-root"]') as HTMLElement;
     return {
       height: Math.round(strip.getBoundingClientRect().height),
@@ -290,8 +290,8 @@ for (const width of [430, 390, 320]) {
       // Settled snapshot: a media-query match on a CONTEXT flag fixed before the page opened (`hasTouch`), so
       // nothing async can change it (the face-strip / touch-target-floor suites read it the same way).
       await expect.poll(async () => await page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
-      await expect(room.getByTestId("chat-cast-bar")).toBeVisible();
-      await expect(room.locator('[data-slot="cast-chip"]')).toHaveCount(4);
+      await expect(room.getByTestId("chat-character-bar")).toBeVisible();
+      await expect(room.locator('[data-slot="character-chip"]')).toHaveCount(4);
 
       const measured = await measureStrip(page);
       expect(measured.rows, `the strip wrapped to ${measured.rows} rows at ${width}px (height ${measured.height}px)`).toBe(1);
@@ -322,9 +322,9 @@ test.describe("#511 the desktop strip keeps its names", () => {
   test.use({ viewport: { width: 1440, height: 900 } });
 
   test("at a fine pointer the names are painted, not merely announced", async ({ mount, page }) => {
-    await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CAST_CHARACTER_ROUTE, "chat.getChat": () => ({ participants: CROWDED_ROSTER }) });
-    const component = await mount(<ChatCastBarStory />);
-    await expect(component.getByTestId("chat-cast-bar")).toBeVisible();
+    await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHARACTER_ROUTE, "chat.getChat": () => ({ participants: CROWDED_ROSTER }) });
+    const component = await mount(<ChatCharacterBarStory />);
+    await expect(component.getByTestId("chat-character-bar")).toBeVisible();
     // Settled snapshot: the same context-fixed media match as the coarse arm — no `hasTouch`, decided before
     // the page opened, and it is the discriminator for this whole describe.
     await expect.poll(async () => await page.evaluate(() => matchMedia("(pointer: fine)").matches)).toBe(true);

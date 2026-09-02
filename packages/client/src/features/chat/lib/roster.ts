@@ -46,10 +46,10 @@ export function resolveIsGroupChat(participants: readonly ParticipantView[]): bo
   return buildParticipantsById(participants).size > 1;
 }
 
-const CAST_SECTION_FLOOR = 1;
+const CHARACTER_SECTION_FLOOR = 1;
 const PEOPLE_TAB_FLOOR = 2;
 
-/** The Members tab's Cast section floor — ANY character in the room earns the list.
+/** The Members tab's Characters section floor — ANY character in the room earns the list.
  *
  *  ⚠️ IT WAS 2, AND THAT HID THE WHOLE ROSTER IN EVERY 1:1 ROOM. The Members tab is the room's roster
  *  surface, so a solo chat — the overwhelmingly common shape — rendered a tab containing nothing but the
@@ -69,7 +69,7 @@ const PEOPLE_TAB_FLOOR = 2;
  * @public Test-anchored module surface; focused tests pin this production-local behavior.
  */
 export function charactersSectionVisible(participants: readonly ParticipantView[]): boolean {
-  return filterCharacters(participants).length >= CAST_SECTION_FLOOR;
+  return filterCharacters(participants).length >= CHARACTER_SECTION_FLOOR;
 }
 
 /**
@@ -82,7 +82,7 @@ export function charactersSectionVisible(participants: readonly ParticipantView[
  *
  *   • \>=2 HUMANS (found 2026-08-03, first real multi-user test) — "Invite people" lives ONLY in this tab, so
  *     you needed a second human to see the tab and the tab was the only way to invite one. A deadlock.
- *   • \>=2 CHARACTERS (found 2026-08-17, owner dogfood) — a 1:1 room's whole Cast section vanished, taking
+ *   • \>=2 CHARACTERS (found 2026-08-17, owner dogfood) — a 1:1 room's whole Characters section vanished, taking
  *     every per-character control with it: "it used to show … the characters in the room, now it just shows
  *     my email". THE SUPERSESSION THAT KILLED THE TOPBAR POPOVER: `chat-header.tsx` carried a whole second
  *     roster surface (`SoloRosterMenu`, with its own add-character door) built for exactly the rooms this
