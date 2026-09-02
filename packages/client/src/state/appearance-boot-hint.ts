@@ -67,7 +67,7 @@ export type AppearanceBootAxes = Pick<AppearanceSettings, "reducedMotion" | "fon
 
 /** The generated seed palettes that own a `[data-theme]` block — re-exported from its ONE home beside the
  *  theme-scope resolver (`#lib`), which owns both halves of "what does this theme paint from". */
-export type { SeedThemeName };
+export type { SeedThemeName } from "#lib";
 
 /** This device's whole remembered answer: the appearance axes plus the resolved `[data-theme]` value. */
 export interface AppearanceBootHintState extends AppearanceBootAxes {
@@ -84,7 +84,7 @@ const PERSIST_VERSION = 1;
 
 // The guard itself lives at the util floor beside `dataThemeOf` (one predicate, one home); this module
 // keeps re-exporting it so every `#state` consumer is untouched by the re-home.
-export { isSeedThemeName };
+export { isSeedThemeName } from "#lib";
 
 /** TOTAL: any shape that is not a valid remembered answer degrades to "this device knows nothing". */
 function migrate(persisted: unknown): AppearanceBootHintState {
