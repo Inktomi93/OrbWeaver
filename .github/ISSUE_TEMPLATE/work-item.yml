@@ -52,6 +52,12 @@ body:
     validations:
       required: true
   - type: textarea
+    id: dod
+    attributes:
+      label: Definition of Done (optional command)
+      description: "ONE shell command that FAILS today and must pass before this row can close. It lands as a dod-fenced block; a maintainer adopts it red-first with `pnpm work:item dod <n>` — until then it blocks the close as unminted. Spell with pnpm scripts or pnpm exec, never npx."
+      render: dod
+  - type: textarea
     id: hazards
     attributes:
       label: Hazards and coupled sites

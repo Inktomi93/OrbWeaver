@@ -54,6 +54,12 @@ export function appendDodBlock(body: string, command: string): string {
   return base === "" ? buildDodBlock(command) : `${base}\n\n${buildDodBlock(command)}`;
 }
 
+/** GitHub's marker for an optional issue-form field left blank. A `render: dod` textarea (the form
+ *  ingress, #923 P5) would fence it — treat that block as ABSENT, or every form-filed row with an
+ *  empty DoD field would be unclosable. A hand-authored EMPTY block still refuses loudly below. */
+const FORM_EMPTY_RESPONSE = "_No response_";
+const AMBIGUOUS_BAR = "the issue body carries more than one ```dod block — an ambiguous bar; keep exactly one";
+
 /** The one bar, or null. TWO blocks is an ambiguous bar — refused loudly, never first-match-wins. */
 export function extractDod(body: string): string | null {
   const matches = [...normalizeIssueBody(body).matchAll(DOD_FENCE_RE)];
@@ -61,9 +67,12 @@ export function extractDod(body: string): string | null {
     return null;
   }
   if (matches.length > 1) {
-    throw new Error("the issue body carries more than one ```dod block — an ambiguous bar; keep exactly one");
+    throw new Error(AMBIGUOUS_BAR);
   }
   const command = (matches[0]?.[1] ?? "").trim();
+  if (command === FORM_EMPTY_RESPONSE) {
+    return null;
+  }
   if (command === "") {
     throw new Error("the issue body's ```dod block is empty — not a runnable bar; re-mint it or remove the block");
   }
@@ -71,10 +80,16 @@ export function extractDod(body: string): string | null {
 }
 
 /** Replace the existing block's fence in place (the re-mint path — body edit history is the trace), or
- *  append a fresh block when none exists. */
+ *  append a fresh block when none exists. Keyed on FENCE presence, not on extractDod: a form-emitted
+ *  `_No response_` fence reads as an absent BAR but is still the fence to replace — and an empty or
+ *  stale block is exactly what a re-mint repairs, so neither refuses here. */
 export function upsertDodBlock(body: string, command: string): string {
   const normalized = normalizeIssueBody(body);
-  if (extractDod(normalized) === null) {
+  const fences = [...normalized.matchAll(DOD_FENCE_RE)];
+  if (fences.length > 1) {
+    throw new Error(AMBIGUOUS_BAR);
+  }
+  if (fences.length === 0) {
     return appendDodBlock(normalized, command);
   }
   return normalized.replace(DOD_FENCE_RE, `\`\`\`dod\n${command}\n\`\`\``);

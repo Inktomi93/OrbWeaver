@@ -34,8 +34,9 @@ export function runWorkCommand(command: WorkCommand): void {
     return;
   }
   // RED-FIRST at mint, ONCE per invocation and BEFORE any board call (#923): a green bar refuses at
-  // zero GitHub cost, and an N-row `dod` fan-out proves the one command a single time.
-  if (command.kind === "dod") {
+  // zero GitHub cost, and an N-row `dod` fan-out proves the one command a single time. The bare ADOPT
+  // form (command null) learns its command from each row's body, so its red-first runs per-row instead.
+  if (command.kind === "dod" && command.command !== null) {
     requireRedDodAtMint(command.command);
   }
   if (command.kind === "refute" && command.dod !== null) {

@@ -11,7 +11,8 @@
 import { UsageError } from "../../_shared/run-tool.ts";
 import type { CreateCommand, FileCommand, IssueClass, ListCommand, WorkCommand } from "../contract/types.ts";
 import { validateDodCommand } from "./dod.ts";
-import { CREATE_OPTION_COUNT, EVIDENCE_MAX_LENGTH, ISSUE_CLASSES, ISSUE_RE, LIFECYCLE_FIELDS } from "./vocab.ts";
+import { capEvidenceHard } from "./evidence.ts";
+import { CREATE_OPTION_COUNT, ISSUE_CLASSES, ISSUE_RE, LIFECYCLE_FIELDS } from "./vocab.ts";
 
 export function issueNumber(raw: string | undefined): number {
   const number = Number(raw);
@@ -81,28 +82,21 @@ function splitOverride(rest: readonly string[]): { readonly rest: readonly strin
   return { rest: rest.filter((_, index) => index !== forceIndex && index !== reasonIndex && index !== reasonIndex + 1), override };
 }
 
-/** `--evidence` is written to GitHub's Evidence text column, which server-side rejects anything past
- *  EVIDENCE_MAX_LENGTH chars — refuse it HERE (misuse, exit 3) so the message names the limit and the
- *  actual length, instead of letting it reach the network and come back as a generic tool error (exit
- *  2) indistinguishable from a lifecycle-state refusal. */
-function capEvidence(value: string): string {
-  if (value.length > EVIDENCE_MAX_LENGTH) {
-    throw new UsageError(
-      `evidence is ${value.length} chars; cap is ${EVIDENCE_MAX_LENGTH} (GitHub's Project text-column limit) — post the full receipt as an issue comment and pass a short evidence string`,
-    );
-  }
-  return value;
-}
-
+/** PAIRS, not one field (#923 P1): `set 11 Priority High Area Client` is one batched write. Every name
+ *  is guarded before anything is accepted, so a lifecycle field anywhere in the list refuses whole. */
 function parseSet(issues: readonly number[], args: readonly string[]): WorkCommand {
-  const [fieldName, value, ...extra] = args;
-  if (fieldName === undefined || value === undefined || extra.length > 0) {
-    throw new UsageError("set requires exactly one field name and value");
+  if (args.length === 0 || args.length % 2 !== 0) {
+    throw new UsageError("set requires field name and value pairs");
   }
-  if (LIFECYCLE_FIELDS.has(fieldName.toLowerCase())) {
-    throw new UsageError(`set cannot modify lifecycle-controlled field ${fieldName}`);
+  const assignments: { readonly name: string; readonly value: string }[] = [];
+  for (let index = 0; index < args.length; index += 2) {
+    const name = args[index] as string;
+    if (LIFECYCLE_FIELDS.has(name.toLowerCase())) {
+      throw new UsageError(`set cannot modify lifecycle-controlled field ${name}`);
+    }
+    assignments.push({ name, value: args[index + 1] as string });
   }
-  return { kind: "set", issues, field: fieldName, value };
+  return { kind: "set", issues, assignments };
 }
 
 function issueClass(value: string | undefined): IssueClass {
@@ -169,7 +163,7 @@ function parseLand(issues: readonly number[], rest: readonly string[]): WorkComm
     kind: "land",
     issues,
     lane: flagValue(tail, "--lane"),
-    evidence: capEvidence(requiredFlagValue(tail, "--evidence")),
+    evidence: capEvidenceHard(requiredFlagValue(tail, "--evidence")),
     commentFile: flagValue(tail, "--comment-file"),
     override,
   };
@@ -180,17 +174,22 @@ function parseLand(issues: readonly number[], rest: readonly string[]): WorkComm
  *  single-option tail they always had. */
 function parseReceiptVerb(name: "verify" | "reverify" | "done" | "refute" | "dod", issues: readonly number[], rest: readonly string[]): WorkCommand {
   if (name === "verify" || name === "reverify") {
-    return { kind: name, issues, evidence: capEvidence(option(rest, "--evidence")) };
+    return { kind: name, issues, evidence: capEvidenceHard(option(rest, "--evidence")) };
   }
   if (name === "done") {
     refuseUnknownFlags(rest, ["--evidence", "--force-close", "--reason"], "done");
     const { rest: tail, override } = splitOverride(rest);
-    return { kind: name, issues, evidence: capEvidence(option(tail, "--evidence")), override };
+    return { kind: name, issues, evidence: capEvidenceHard(option(tail, "--evidence")), override };
   }
   if (name === "refute") {
     refuseUnknownFlags(rest, ["--evidence", "--dod"], "refute");
     const dod = flagValue(rest, "--dod");
-    return { kind: name, issues, evidence: capEvidence(requiredFlagValue(rest, "--evidence")), dod: dod === null ? null : validateDodCommand(dod) };
+    return { kind: name, issues, evidence: capEvidenceHard(requiredFlagValue(rest, "--evidence")), dod: dod === null ? null : validateDodCommand(dod) };
+  }
+  // Bare `dod <n…>` = ADOPT the body's existing block (#923 P5, the issue-form ingress) — the command
+  // is only known after the per-row context fetch, so the red-first run happens there, before any write.
+  if (rest.length === 0) {
+    return { kind: name, issues, command: null };
   }
   return { kind: name, issues, command: validateDodCommand(option(rest, "--cmd")) };
 }

@@ -6,9 +6,10 @@
 import { print, REPO_ROOT } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { runNicedSync } from "../../_shared/proc.ts";
+import { UsageError } from "../../_shared/run-tool.ts";
 import type { WorkItemContext } from "../contract/types.ts";
-import { dodStamp, extractDod, upsertDodBlock } from "../lib/dod.ts";
-import { DOD_FIELD, DOD_OUTPUT_TAIL, DOD_TIMEOUT_MS, REPOSITORY } from "../lib/vocab.ts";
+import { dodStamp, extractDod, upsertDodBlock, validateDodCommand } from "../lib/dod.ts";
+import { DOD_FIELD, DOD_OUTPUT_TAIL, DOD_TIMEOUT_MS, PROJECT_NUMBER, REPOSITORY } from "../lib/vocab.ts";
 import { currentValue } from "../lib/writes.ts";
 import { gh } from "./gh.ts";
 import { writeFields } from "./project.ts";
@@ -70,7 +71,7 @@ export function enforceDodAtClose(work: WorkItemContext, override: string | null
   }
   if (stamp === undefined) {
     throw new Error(
-      `#${issue}'s issue body carries a \`\`\`dod block that was never minted through work:item — refusing to run it; mint it (red-first) with work:item dod ${issue} --cmd '<cmd>' or remove the block`,
+      `#${issue}'s issue body carries a \`\`\`dod block that was never minted through work:item — refusing to run it; adopt it (red-first) with work:item dod ${issue}, or remove the block`,
     );
   }
   if (stamp !== dodStamp(command)) {
@@ -88,17 +89,53 @@ export function enforceDodAtClose(work: WorkItemContext, override: string | null
   return null;
 }
 
-/** Mint (or re-mint) a row's bar: upsert the body block — GitHub's body edit history is the visible
- *  trace — then stamp the Project field. The caller has ALREADY proven the command red (mint order:
- *  red-first before any board write). Decision/program rows refuse — their closes are not machine-
- *  checkable (the #923 fit table). */
-export function writeDod(work: WorkItemContext, command: string): void {
+/** The first thing a fresh board hits: the DoD TEXT field must exist on the Project before a bar can
+ *  be stamped. Append the one-time deployment step to the refusal so the fix needs no doc dig. */
+export function withDodFieldHint<T>(operation: () => T): T {
+  try {
+    return operation();
+  } catch (error) {
+    if (error instanceof Error && error.message.includes(`no field named ${DOD_FIELD}`)) {
+      error.message = `${error.message} — add a TEXT field named ${DOD_FIELD} to Project ${PROJECT_NUMBER} once (project settings → Fields → New field → Text), then rerun`;
+    }
+    throw error;
+  }
+}
+
+function refuseUncheckableKind(work: WorkItemContext): void {
   const kind = currentValue(work.item, "Kind")?.toLowerCase();
   if (kind === "decision" || kind === "program") {
     throw new Error(
       kind === "decision" ? "a decision closes on an owner ruling — a DoD does not apply" : "a program closes on its child rows — a DoD does not apply",
     );
   }
+}
+
+/** Mint (or re-mint) a row's bar: upsert the body block — GitHub's body edit history is the visible
+ *  trace — then stamp the Project field. The caller has ALREADY proven the command red (mint order:
+ *  red-first before any board write). Decision/program rows refuse — their closes are not machine-
+ *  checkable (the #923 fit table). */
+export function writeDod(work: WorkItemContext, command: string): void {
+  refuseUncheckableKind(work);
   gh(["issue", "edit", String(work.target.number), "--repo", REPOSITORY, "--body", upsertDodBlock(work.target.body, command)]);
-  writeFields(work.item, [{ name: DOD_FIELD, value: dodStamp(command) }], "WorkItemFields");
+  withDodFieldHint(() => writeFields(work.item, [{ name: DOD_FIELD, value: dodStamp(command) }], "WorkItemFields"));
+}
+
+/** ADOPT the body's existing block (#923 P5 — the issue-form ingress: a `render: dod` textarea lands
+ *  the fence in the body with no stamp, so the row cannot close until someone proves the bar red and
+ *  stamps it — exactly this verb, bare: `work:item dod <n>`). No body write: the block IS the bar. */
+export function adoptDod(work: WorkItemContext): void {
+  refuseUncheckableKind(work);
+  const command = extractDod(work.target.body);
+  if (command === null) {
+    throw new Error(`#${work.target.number} has no \`\`\`dod block to adopt — pass the bar explicitly: work:item dod ${work.target.number} --cmd '<cmd>'`);
+  }
+  // The body is data, not argv — a spelling refusal here is an operational error (exit 2), not misuse.
+  try {
+    validateDodCommand(command);
+  } catch (error) {
+    throw error instanceof UsageError ? new Error(`#${work.target.number}'s dod block is not adoptable: ${error.message}`) : error;
+  }
+  requireRedDodAtMint(command);
+  withDodFieldHint(() => writeFields(work.item, [{ name: DOD_FIELD, value: dodStamp(command) }], "WorkItemFields"));
 }

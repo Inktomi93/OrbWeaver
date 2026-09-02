@@ -70,6 +70,8 @@ interface FakeState {
   failOptionAlways?: boolean;
   /** Overrides the per-DoD wall clock through the WORK_ITEM_DOD_TIMEOUT_MS seam (#923). */
   dodTimeoutMs?: number;
+  /** Piped to the CLI's stdin — the `--body-file -` ingress (#923 P3). */
+  stdinBody?: string;
 }
 
 // The fake gh speaks the CLI's quota-sane wire protocol: named GraphQL operations dispatched on the
@@ -276,7 +278,12 @@ function drive(state: FakeState, ...args: string[]): { readonly status: number |
     if (state.dodTimeoutMs !== undefined) {
       childEnv["WORK_ITEM_DOD_TIMEOUT_MS"] = String(state.dodTimeoutMs);
     }
-    const result = spawnSync(process.execPath, [join(ROOT, "tooling", "src", "workboard", "cli.ts"), ...args], { cwd: ROOT, encoding: "utf8", env: childEnv });
+    const result = spawnSync(process.execPath, [join(ROOT, "tooling", "src", "workboard", "cli.ts"), ...args], {
+      cwd: ROOT,
+      encoding: "utf8",
+      env: childEnv,
+      ...(state.stdinBody === undefined ? {} : { input: state.stdinBody }),
+    });
     Object.assign(state, JSON.parse(readFileSync(statePath, "utf8")) as FakeState);
     return { status: result.status, stdout: result.stdout, stderr: result.stderr };
   } finally {
@@ -379,7 +386,7 @@ defineTest("help prints the complete Project operator path", () => {
   expect(result.stdout).toContain("Triage → Ready → Running → Review → Verify → Done");
   expect(result.stdout).toContain("Interrupted transitions are safe to rerun");
   expect(result.stdout).toContain(".github/ISSUE_TEMPLATE/*.yml");
-  expect(result.stdout).toContain("--evidence is capped at 1024 chars");
+  expect(result.stdout).toContain("--evidence over 1024 chars auto-splits");
 });
 
 defineTest("list returns a stable filtered Project snapshot without mutation", () => {
@@ -515,29 +522,44 @@ defineTest("review gates verification and rejects blocked work", () => {
   expect(review.stderr).toContain("cannot enter Review while blocked");
 });
 
-defineTest("over-cap evidence refuses as misuse, distinct from a lifecycle-state refusal on the same verb (#664)", () => {
-  // GitHub's ProjectV2 text column rejects anything past 1024 chars (measured live 2026-08-24 against a
-  // scratch project: 1024 clean, 1025 UNPROCESSABLE) — a bare exit 2 there was indistinguishable from
-  // the "must be Review before Verify" state refusal below, which also exits 2.
-  const overCap = "x".repeat(1025);
-  const running = createState("Running");
-  const tooLong = drive(running, "verify", "11", "--evidence", overCap);
-  expect(tooLong.status).toBe(MISUSE_EXIT);
-  expect(tooLong.stderr).toContain("evidence is 1025 chars");
-  expect(tooLong.stderr).toContain("cap is 1024");
-  expect(fieldValue(running, EVIDENCE_FIELD)).toBeUndefined();
+defineTest(
+  "over-column evidence auto-splits (#923 P2): the field gets a head + pointer, the comment gets the full text, and done still matches",
+  () => {
+    // GitHub's ProjectV2 text column rejects anything past 1024 chars (measured live 2026-08-24, #664).
+    // The old shape REFUSED over-cap evidence; owner-approved P2 replaces the refusal with the split —
+    // the transform is pure and identical on verify and done, so the same-receipt rule holds.
+    const overCap = `head-${"x".repeat(1500)}`;
+    const reviewed = createState("Review");
+    const inFlight = drive(reviewed, "verify", "11", "--evidence", overCap);
+    expect(inFlight.status).toBe(0);
+    const field = fieldValue(reviewed, EVIDENCE_FIELD) ?? "";
+    expect(field.length).toBeLessThanOrEqual(1024);
+    expect(field).toContain("full receipt in issue comment");
+    const overflow = targetIssue(reviewed).comments.find((body) => body.includes("Full verification receipt"));
+    expect(overflow).toContain(overCap);
+    // done recomputes the identical transform from the identical --evidence and closes.
+    expect(drive(reviewed, "done", "11", "--evidence", overCap).status).toBe(0);
+    expect(targetIssue(reviewed).state).toBe("CLOSED");
 
-  const atCap = "x".repeat(1024);
-  const reviewed = createState("Review");
-  const inCap = drive(reviewed, "verify", "11", "--evidence", atCap);
-  expect(inCap.status).toBe(0);
-  expect(fieldValue(reviewed, EVIDENCE_FIELD)).toBe(atCap);
+    // At the column cap the transform is the identity — no pointer, no comment.
+    const atCap = "x".repeat(1024);
+    const identity = createState("Review");
+    expect(drive(identity, "verify", "11", "--evidence", atCap).status).toBe(0);
+    expect(fieldValue(identity, EVIDENCE_FIELD)).toBe(atCap);
+    expect(targetIssue(identity).comments).toHaveLength(0);
 
-  // The same verb's genuine lifecycle-state refusal still exits 2, unchanged and still distinguishable.
-  const prematureVerify = drive(running, "verify", "11", "--evidence", "short receipt");
-  expect(prematureVerify.status).toBe(TOOL_ERROR_EXIT);
-  expect(prematureVerify.stderr).toContain("must be Review before Verify");
-});
+    // The HARD cap (GitHub's comment-body limit) still refuses as misuse, before any network call.
+    const absurd = drive(createState("Review"), "verify", "11", "--evidence", "x".repeat(60_001));
+    expect(absurd.status).toBe(MISUSE_EXIT);
+    expect(absurd.stderr).toContain("hard cap is 60000");
+
+    // The same verb's genuine lifecycle-state refusal still exits 2, unchanged and distinguishable.
+    const prematureVerify = drive(createState("Running"), "verify", "11", "--evidence", "short receipt");
+    expect(prematureVerify.status).toBe(TOOL_ERROR_EXIT);
+    expect(prematureVerify.stderr).toContain("must be Review before Verify");
+  },
+  TABLE_DRIVEN_TIMEOUT_MS,
+);
 
 defineTest("reverify repairs stale Verify evidence without weakening the normal verify guard", () => {
   const state = createState("Verify");
@@ -1008,8 +1030,12 @@ defineTest("every lifecycle verb takes a LIST of issues, and one refusal stops t
   expect(fieldValue(state, STATUS_FIELD)).toBe("Ready");
 
   // A field name is never swallowed as an id: the run of numbers stops at the first non-numeric token.
-  expect(parseWorkCommand(["set", "11", "12", "Priority", "High"])).toEqual({ kind: "set", issues: [11, 12], field: "Priority", value: "High" });
-  expect(parseWorkCommand(["set", "11", "Priority", "High"])).toEqual({ kind: "set", issues: [11], field: "Priority", value: "High" });
+  expect(parseWorkCommand(["set", "11", "12", "Priority", "High"])).toEqual({
+    kind: "set",
+    issues: [11, 12],
+    assignments: [{ name: "Priority", value: "High" }],
+  });
+  expect(parseWorkCommand(["set", "11", "Priority", "High"])).toEqual({ kind: "set", issues: [11], assignments: [{ name: "Priority", value: "High" }] });
 
   // A refusal mid-list stops there. #8 is already Ready (a no-op rerun); #11 is Review and refuses.
   const partial = createState("Review");
@@ -1125,10 +1151,17 @@ defineTest(
     expect(early.status).toBe(TOOL_ERROR_EXIT);
     expect(early.stderr).toContain("must be Ready or later before land");
 
-    // land inherits the evidence cap, so an over-cap receipt is misuse (exit 3) BEFORE any write.
-    const overCap = drive(createState("Ready"), "land", "11", "--lane", "x", "--evidence", "x".repeat(1025));
-    expect(overCap.status).toBe(MISUSE_EXIT);
-    expect(overCap.stderr).toContain("cap is 1024");
+    // An over-COLUMN receipt walks the whole close via the split (#923 P2) — field head+pointer,
+    // full text as a comment; only the HARD cap still refuses, as misuse, before any write.
+    const overColumn = createState("Ready");
+    const split = drive(overColumn, "land", "11", "--lane", "x", "--evidence", "x".repeat(1025));
+    expect(split.status).toBe(0);
+    expect(targetIssue(overColumn).state).toBe("CLOSED");
+    expect((fieldValue(overColumn, EVIDENCE_FIELD) ?? "").length).toBeLessThanOrEqual(1024);
+    expect(targetIssue(overColumn).comments.some((body) => body.includes("Full verification receipt"))).toBe(true);
+    const absurd = drive(createState("Ready"), "land", "11", "--lane", "x", "--evidence", "x".repeat(60_001));
+    expect(absurd.status).toBe(MISUSE_EXIT);
+    expect(absurd.stderr).toContain("hard cap is 60000");
   },
   TABLE_DRIVEN_TIMEOUT_MS,
 );
@@ -1508,6 +1541,97 @@ defineTest("help documents the DoD surface", () => {
   expect(result.status).toBe(0);
   expect(result.stdout).toContain("--dod '<cmd>'");
   expect(result.stdout).toContain("--force-close --reason");
-  expect(result.stdout).toContain("dod <issue…> --cmd '<command>'");
+  expect(result.stdout).toContain("dod <issue…> [--cmd '<command>']");
   expect(result.stdout).toContain("never npx");
+});
+
+// ── #923 P1/P3/P5 (owner-approved 2026-09-01): multi-field set, stdin bodies, form-block adoption ───
+
+defineTest("set takes PAIRS: N fields land as ONE batched mutation, and a lifecycle field anywhere refuses whole", () => {
+  // Values DIFFER from the fixture's (Kind Work, Review Technical) — an unchanged value is filtered by
+  // pendingChange and would fake a "batched" pin over zero writes.
+  const state = createState("Running");
+  const result = drive(state, "set", "11", "Kind", "Decision", "Review", "Owner");
+  expect(result.status).toBe(0);
+  const mutations = mutationCalls(state);
+  expect(mutations).toHaveLength(1);
+  // Two aliased operations inside the one request — the writeFields batch, not two calls.
+  expect(queryOf(mutations[0] ?? []).match(/updateProjectV2ItemFieldValue/gu) ?? []).toHaveLength(2);
+  expect(fieldValue(state, KIND_FIELD)).toBe("Decision");
+  expect(fieldValue(state, REVIEW_FIELD)).toBe("Owner");
+
+  expect(() => parseWorkCommand(["set", "11", "Priority"])).toThrow("set requires field name and value pairs");
+  expect(() => parseWorkCommand(["set", "11", "Priority", "High", "DoD", "x"])).toThrow("set cannot modify lifecycle-controlled field DoD");
+});
+
+defineTest("--body-file - reads the body from stdin, composes with --dod, and refuses empty stdin", () => {
+  const state = createState("Triage");
+  state.stdinBody = "line one\n\nline two";
+  const result = drive(state, "file", "--title", "Stdin row", "--kind", "work", "--body-file", "-");
+  expect(result.status).toBe(0);
+  expect(state.issues[String(CREATED_ISSUE)]?.body).toContain("line one\n\nline two");
+
+  const withBar = createState("Triage");
+  withBar.stdinBody = "reported behavior";
+  const barred = drive(withBar, "file", "--title", "Stdin bug", "--kind", "bug", "--body-file", "-", "--dod", "exit 1");
+  expect(barred.status).toBe(0);
+  expect(withBar.issues[String(CREATED_ISSUE)]?.body).toContain("reported behavior");
+  expect(withBar.issues[String(CREATED_ISSUE)]?.body).toContain("```dod\nexit 1\n```");
+
+  const empty = createState("Triage");
+  empty.stdinBody = "   ";
+  const refused = drive(empty, "file", "--title", "Empty stdin", "--kind", "work", "--body-file", "-");
+  expect(refused.status).toBe(TOOL_ERROR_EXIT);
+  expect(refused.stderr).toContain("body must not be empty");
+  expect(empty.calls.some((args) => args[0] === "issue" && args[1] === "create")).toBe(false);
+});
+
+defineTest(
+  "bare dod adopts the body's unminted block red-first — and refuses a green, npx-spelled, or absent one",
+  () => {
+    const state = createState("Running");
+    targetIssue(state).body = `form-filed row\n\n${buildDodBlock("exit 1")}`;
+    const result = drive(state, "dod", "11");
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("DoD red at mint (exit 1)");
+    expect(fieldValue(state, DOD_FIELD)).toBe(dodStamp("exit 1"));
+    // Adoption stamps WITHOUT rewriting the body — the block is already the visible bar.
+    expect(state.calls.some((args) => args[0] === "issue" && args[1] === "edit" && args.includes("--body"))).toBe(false);
+
+    const green = createState("Running");
+    targetIssue(green).body = buildDodBlock("exit 0");
+    const refusedGreen = drive(green, "dod", "11");
+    expect(refusedGreen.status).toBe(TOOL_ERROR_EXIT);
+    expect(refusedGreen.stderr).toContain("already green at mint");
+    expect(fieldValue(green, DOD_FIELD)).toBeUndefined();
+
+    const npx = createState("Running");
+    targetIssue(npx).body = buildDodBlock("npx vitest run t.test.ts");
+    const refusedNpx = drive(npx, "dod", "11");
+    expect(refusedNpx.status).toBe(TOOL_ERROR_EXIT);
+    expect(refusedNpx.stderr).toContain("not adoptable");
+
+    const bare = createState("Running");
+    const refusedBare = drive(bare, "dod", "11");
+    expect(refusedBare.status).toBe(TOOL_ERROR_EXIT);
+    expect(refusedBare.stderr).toContain("no ```dod block to adopt");
+  },
+  TABLE_DRIVEN_TIMEOUT_MS,
+);
+
+defineTest("a form-emitted `_No response_` dod fence reads as ABSENT: the close proceeds and adopt refuses", () => {
+  // GitHub renders an empty optional textarea as `_No response_`; with `render: dod` that could land
+  // INSIDE the fence. Treating it as a real bar would make every form-filed row with an empty DoD
+  // field unclosable (unminted-block refusal) — so extraction reads it as no bar at all.
+  const state = createState("Verify");
+  withVerifyEvidence(state, "r");
+  targetIssue(state).body = "### Definition of Done (optional command)\n\n```dod\n_No response_\n```";
+  expect(drive(state, "land", "11", "--evidence", "r").status).toBe(0);
+  expect(targetIssue(state).state).toBe("CLOSED");
+
+  const adopt = createState("Running");
+  targetIssue(adopt).body = "```dod\n_No response_\n```";
+  const refused = drive(adopt, "dod", "11");
+  expect(refused.status).toBe(TOOL_ERROR_EXIT);
+  expect(refused.stderr).toContain("no ```dod block to adopt");
 });
