@@ -73,22 +73,21 @@ interface IdColumn {
 /** Every id-shaped column (key ends `Id`, rooted at text/integer, no `.primaryKey()`) in one table. */
 function idColumns(colsObj: Node, tableSqlName: string): IdColumn[] {
   const out: IdColumn[] = [];
-  for (const prop of columnProperties(colsObj)) {
-    if (!ID_KEY.test(prop.getName())) {
+  for (const column of columnProperties(colsObj)) {
+    if (!ID_KEY.test(column.name) || column.initializer === undefined) {
       continue;
     }
-    const init = prop.getInitializerOrThrow();
-    if (!COLUMN_ROOTS.has(chainRoot(init))) {
+    if (!COLUMN_ROOTS.has(chainRoot(column.initializer))) {
       continue;
     }
-    const chain = init.getText();
+    const chain = column.text;
     if (chain.includes(".primaryKey(")) {
       continue;
     }
     out.push({
-      pair: `${tableSqlName}.${prop.getName()}`,
-      file: prop.getSourceFile().getFilePath(),
-      line: prop.getStartLineNumber(),
+      pair: `${tableSqlName}.${column.name}`,
+      file: column.node.getSourceFile().getFilePath(),
+      line: column.node.getStartLineNumber(),
       hasRef: chain.includes(".references("),
     });
   }
@@ -163,6 +162,12 @@ export const gate: GateDescriptor = {
   },
   mustFlag: [
     {
+      files: 'const widgetId = text("widget_id");\nexport const t = sqliteTable("t", { widgetId });\n',
+      at: "packages/db/src/schema/x.ts",
+      expect: { count: 1, messageIncludes: "soft ref" },
+      why: "THE #1035 SHORTHAND RED: an id-shaped column with no FK, declared as a shorthand member — it has no allowlist row, so nothing else could ever have exposed the drop",
+    },
+    {
       files: {
         "packages/db/src/schema/x-columns.ts": 'export const tColumns = { widgetId: text("widget_id") };\n',
         "packages/db/src/schema/x.ts": 'import { tColumns } from "./x-columns";\nexport const t = sqliteTable("t", tColumns);\n',
@@ -181,6 +186,11 @@ export const gate: GateDescriptor = {
   // `fileLoaded`-guarded to the real schema barrel — its coverage moves to the live `pnpm check:structure`
   // run. Only the pure FLAG/PASS branches port as examples below.
   mustPass: [
+    {
+      files: 'const widgetId = text("widget_id").references(() => w.id);\nexport const t = sqliteTable("t", { widgetId });\n',
+      at: "packages/db/src/schema/x.ts",
+      why: "the SHORTHAND's green twin: the resolved column carries its FK — the member kind is not the verdict",
+    },
     {
       files: 'export const t = sqliteTable("t", { widgetId: text("widget_id").references(() => w.id) });\n',
       at: "packages/db/src/schema/y.ts",
