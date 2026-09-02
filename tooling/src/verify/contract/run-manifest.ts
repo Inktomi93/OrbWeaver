@@ -17,11 +17,33 @@
 // artifact that says so, and every reader refuses it. Before the run may exit 0/1 it also asserts the
 // counts reconcile — `ran === active` and `registered + unregistered === corpus` — and a mismatch is
 // exit-2 class, never a shorter clean report.
+//
+// WHERE THOSE TWO WRITES LAND CHANGED (#1029, owner ruling 2026-09-01 "all reports need to be able to be
+// ran concurrently"). Both writes used to go to the ONE fixed `reports/check-structure.json`, and that path
+// is precisely what concurrent runs clobber — measured live, a complete 248-gate verdict was replaced by a
+// SIBLING run's in-flight stub inside 30s, which is this manifest's own tell firing for the wrong run. So
+// the run writes into its private slot (`reports/runs/structure/<runId>/`, `_shared/artifacts.ts`) and
+// publishes `reports/check-structure.json` as a symlink into it at COMPLETION ONLY.
+//
+// The ruling survives — its INPUT changed. The stub still exists, still says `complete: false`, and is
+// still refused by every reader; what retired is the assumption that a reader arriving at the fixed path
+// is looking at the last run STARTED. The killed-run tell now reaches that reader through
+// `abandonedRuns()`: a slot whose in-flight marker outlived its pid. That is strictly finer than the old
+// signal, which could not distinguish "my run died" from "a sibling lane is mid-run".
 export interface RunManifest {
-  /** Identity of the process that produced this artifact: pid + start instant. Two concurrent runs write
-   *  to the same path (last writer wins, deliberately — concurrent commits must not block), so a reader
-   *  comparing identities can tell "this is my run's report" from "somebody else's landed on top". */
+  /** Identity of the run that produced this artifact: `<checkout>-<pid>-<timestamp>` (#1029). The checkout
+   *  half is `main` for the primary checkout and the worktree directory name for a lane, so a run id names
+   *  WHERE it ran as well as when — an artifact can never be misattributed across worktrees. */
   readonly runId: string;
+  /** The checkout the run judged (`main` / the worktree basename) — the run id's first field, broken out
+   *  so a reader does not have to parse it. */
+  readonly checkout: string;
+  /** The repo-relative slot this run's own artifacts live in, so a reader holding the published pointer can
+   *  name the run it actually read. */
+  readonly artifactDir: string;
+  /** OTHER runs of this instrument that were in flight when this one opened its slot. Named, never
+   *  silently tolerated: a race is a fact about the run, and `[]` on a solo run is the honest zero. */
+  readonly concurrent: readonly string[];
   readonly startedAt: string;
   /** null while the run is in flight — the tell a reader refuses on. */
   readonly finishedAt: string | null;

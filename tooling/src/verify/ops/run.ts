@@ -32,7 +32,8 @@
 import { renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
-import { ensureReportsDir, reportsPath, reportsRelPath } from "@orb/tooling/_shared/artifacts";
+import type { RunSlot } from "@orb/tooling/_shared/artifacts";
+import { checkoutName, openRunSlot, publishRunSlot, runFile } from "@orb/tooling/_shared/artifacts";
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { spawnNicedTranscript } from "@orb/tooling/_shared/proc";
@@ -83,8 +84,18 @@ function pushOrStatic(stage: StageDef): string {
   return "verify --full";
 }
 
-function logPathFor(stageName: string): string {
-  return reportsRelPath("verify", `${stageName.replace(/:/gu, "-")}.log`);
+/** The artifact this harness publishes at `reports/verify.json`. */
+const REPORT_NAME = "verify.json";
+/** The run-slot family this harness writes under (`reports/runs/verify/<runId>/`, #1029). */
+const INSTRUMENT = "verify";
+/** Where per-stage transcripts live inside a run's slot; published as the `reports/verify/` alias. */
+const STAGES_SEGMENT = "stages";
+
+/** The repo-relative log path recorded in the artifact — inside THIS RUN'S slot, so two concurrent runs
+ *  can never write the same stage's transcript (the defect #1029 closes; before it, `lint:biome`'s log was
+ *  one path shared by every verify process on the checkout). */
+function logPathFor(slot: RunSlot, stageName: string): string {
+  return join(slot.relDir, STAGES_SEGMENT, `${stageName.replace(/:/gu, "-")}.log`);
 }
 
 // A monotonic counter over this process's atomic writes — combined with the pid it makes a temp name that
@@ -137,7 +148,16 @@ export function noticesIn(output: string): string[] {
   return out;
 }
 
-async function runOneStage(root: string, stage: StageDef, selection: Selection | undefined, verbose: boolean): Promise<StageResult> {
+/** What one stage needs that is the same for every stage in the run: where the tree is, which run slot its
+ *  transcript belongs to, and whether output is mirrored live. */
+interface RunContext {
+  readonly root: string;
+  readonly slot: RunSlot;
+  readonly verbose: boolean;
+}
+
+async function runOneStage(ctx: RunContext, stage: StageDef, selection: Selection | undefined): Promise<StageResult> {
+  const { root, slot, verbose } = ctx;
   const plan = planStage(stage, selection);
   if (plan.mode === "deferred" || plan.mode === "skipped") {
     return {
@@ -175,8 +195,8 @@ async function runOneStage(root: string, stage: StageDef, selection: Selection |
   const durationMs = Date.now() - start;
 
   const body = result.transcript;
-  const logFile = logPathFor(stage.name);
-  writeFileAtomic(join(root, logFile), `${header}${body}`);
+  const logFile = logPathFor(slot, stage.name);
+  writeFileAtomic(runFile(slot, STAGES_SEGMENT, `${stage.name.replace(/:/gu, "-")}.log`), `${header}${body}`);
 
   const exitCode = stage.classify(result.code);
   const ok = exitCode === EXIT.clean;
@@ -220,8 +240,19 @@ function mirrorChunk(chunk: string, stream: "stdout" | "stderr"): void {
   process.stderr.write(chunk);
 }
 
-function writeReport(root: string, report: VerifyReport): void {
-  writeFileAtomic(reportsPath(root, "verify.json"), `${JSON.stringify(report, null, 2)}\n`);
+/** This run's artifact, written INSIDE its slot and published as `reports/verify.json` only after the run
+ *  finishes — so a concurrent reader resolves to a complete run, never a half-written one (#1029). */
+function writeReport(slot: RunSlot, report: VerifyReport): void {
+  writeFileAtomic(runFile(slot, REPORT_NAME), `${JSON.stringify(report, null, 2)}\n`);
+}
+
+/** A concurrent verify run is NAMED on stderr, never silently tolerated — the artifact carries the same
+ *  list in `run.concurrent`, so a lane reading only the json sees it too. */
+function announceRacing(slot: RunSlot): void {
+  if (slot.racing.length > 0) {
+    process.stderr.write(`[verify] CONCURRENT verify run(s) on this checkout: ${slot.racing.join(", ")}\n`);
+    process.stderr.write(`[verify] this run writes to ${slot.relDir}; reports/verify.json is published by whichever finishes last.\n`);
+  }
 }
 
 /** The run's scope label for the banner + the artifact. */
@@ -229,8 +260,8 @@ function scopeLabel(parsed: Parsed): string {
   return parsed.selection === undefined ? "whole" : parsed.selection.label;
 }
 
-async function runTier(root: string, parsed: Parsed): Promise<VerifyReport> {
-  ensureReportsDir(root, "verify");
+async function runTier(root: string, slot: RunSlot, parsed: Parsed): Promise<VerifyReport> {
+  const startedAt = new Date().toISOString();
   printHeadBanner(parsed.tier, scopeLabel(parsed));
 
   const stages = stagesForTier(parsed.tier);
@@ -255,13 +286,21 @@ async function runTier(root: string, parsed: Parsed): Promise<VerifyReport> {
     }
     // Sequential BY DESIGN: stages share the CPU, the reports dir and the console — they run one at a
     // time in registry order, exactly as the old sync loop ran them. The await IS the ordering.
-    results.push(await runOneStage(root, stage, parsed.selection, parsed.verbose));
+    results.push(await runOneStage({ root, slot, verbose: parsed.verbose }, stage, parsed.selection));
   }
 
   const exitCode = aggregateExit(results.map((s) => s.exitCode));
   return {
     tier: parsed.tier,
     scope: scopeLabel(parsed),
+    run: {
+      runId: slot.runId,
+      checkout: checkoutName(root),
+      artifactDir: slot.relDir,
+      startedAt,
+      finishedAt: new Date().toISOString(),
+      concurrent: slot.racing,
+    },
     ok: exitCode === EXIT.clean,
     exitCode,
     failed: results.filter((s) => !s.ok).length,
@@ -292,8 +331,17 @@ export async function runVerify(root: string, parsed: Parsed): Promise<number> {
     printList();
     return EXIT.clean;
   }
-  const report = await runTier(root, parsed);
-  writeReport(root, report);
+  const slot = openRunSlot(root, INSTRUMENT);
+  announceRacing(slot);
+  const report = await runTier(root, slot, parsed);
+  writeReport(slot, report);
+  // The `latest` pointers, published together at the END: `reports/verify.json` and the `reports/verify/`
+  // per-stage log directory the constitution names. Until this line both still resolve to the previous
+  // COMPLETE run — which is the whole point of publishing at completion only.
+  publishRunSlot(root, slot, [
+    { alias: REPORT_NAME, target: REPORT_NAME },
+    { alias: INSTRUMENT, target: STAGES_SEGMENT },
+  ]);
 
   // #411: retain, then compare against the previous run AT THE SAME TIER. The advisory prints BEFORE the
   // summary block so the truncation-robust tail (the verdict + the artifact pointer) stays last.
