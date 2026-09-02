@@ -45,7 +45,7 @@ and `tooling/src/` since the @orb/tooling P1 widening, docs/architecture/core/Co
 | `visitFile` | one of | per-file hook (line scans, per-file setup) |
 | `run` | one of | whole-project pass over the SAME shared project — never `new Project(` |
 | `fsBacked` | no | true when hooks read the real filesystem. Conformance then materializes examples into a real temp dir instead of an in-memory project |
-| `markerImmune` | no | ONLY for a gate that AUDITS an exemption vocabulary — `pass.ts` then offers it no suppression on either arm. Occupants: `gate-ignore-inventory`, `finding-overload-provenance`. Not a "this gate is important" flag |
+| `markerImmune` | no | `pass.ts` offers the gate no suppression on either arm. TWO admitted classes, and only two: (a) a gate that AUDITS an exemption vocabulary — `gate-ignore-inventory`, `finding-overload-provenance` — where a marker would absolve the very finding two-sidedness exists to produce; (b) THE D16 WIRE FIREWALL, `bus-payload-allowlist` (owner ruling 2026-09-01, #1048) — a security backstop whose findings are two-sided BY DESIGN and whose exemption door is a REVIEWED table row (`SANCTIONED_FIELDS`, with a D-cite), not a comment written by the same hand as the violation. Still not a "this gate is important" flag: a third occupant needs the same kind of argument, in writing, or the flag decays into exactly that |
 | `begin` / `finalize` | no | reset accumulators / judge them. Ratchet + stale arms live in `finalize` |
 | `mustFlag` / `mustPass` | yes | ≥1 each. The loader REFUSES an un-proven gate — this is fail-closed, not advisory |
 
@@ -275,7 +275,10 @@ An exemption is a promise. This is how the promise is written.
    counted the same way, so `gate-ignore-inventory`'s STALE and OVER-EXEMPT arms cover this arm too. **And a
    gate that AUDITS an exemption vocabulary sets `markerImmune: true`** (§1): a marker written one line above
    the report that indicts it would absolve precisely the finding two-sidedness exists to produce, so the
-   suppressor must never reach it. That is the only legitimate reason for the flag.
+   suppressor must never reach it. Since 2026-09-01 (#1048) §1 admits ONE further class by owner ruling —
+   the D16 wire firewall `bus-payload-allowlist`, whose exemption door is a reviewed table row rather than
+   a marker. Both classes share the same argument shape: the marker would grant, unreviewed, exactly the
+   thing the gate exists to withhold. Read §1's cell before adding a third; "this gate matters" is not it.
    3b. **THE RESOLVER THAT READS STACKED MARKERS IS BLOCK-SCOPED.** Markers accumulate for the next guarded
    node and then CLEAR. A file-scoped reader silently exempts the rest of the file from the first marker
    onward — the same rubber stamp as a bare marker, just slower to notice.
