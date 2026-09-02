@@ -1,7 +1,7 @@
 // ListPaneHeader — the client-shared LIST chrome-band cluster (D12). The content
 // a section definition's `listHeader` slot feeds into `.shell-panel-header`: an optional back affordance, the
-// micro-caps section title (optionally `TITLE · <accent>` for a scoped/entity mode), a live mono count, and
-// the panel's ONE primary action (D66 A2).
+// section title at the DISPLAY step (optionally `Title · <accent>` for a scoped/entity mode — #1136, see the
+// heading), a live mono count, and the panel's ONE primary action (D66 A2).
 //
 // Minted because three landed headers hand-copied the identical `Row(Heading micro/caps/semibold + Text
 // micro/mono/muted)` cluster (chat · corpus · analytics) and the character screen's modal band adds two more
@@ -29,11 +29,11 @@ export interface ListPaneHeaderBack {
 }
 
 export interface ListPaneHeaderProps {
-  /** The section title, rendered micro-caps (`Chats`, `Corpus`, …). */
+  /** The section title, rendered at the DISPLAY step (`Chats`, `Corpus`, …) — #1136. */
   readonly title: string;
-  /** The scoped-mode entity half — renders as `TITLE · <accent>` with the accent in the foreground tone. */
+  /** The scoped-mode entity half — renders as `Title · <accent>` with the accent in the muted tone. */
   readonly accent?: string;
-  /** A live census. Rendered mono/micro/muted, and omitted at 0 (a zero census is noise, not information). A
+  /** A live census. Rendered mono/label/muted, and omitted at 0 (a zero census is noise, not information). A
    *  string is a page-BOUNDED count that already read `"100+"` off its own limit (P2-d) — the caller decided
    *  the cap, this band just prints what it is handed. */
   readonly count?: number | string;
@@ -42,7 +42,7 @@ export interface ListPaneHeaderProps {
   readonly action?: ReactNode;
 }
 
-/** One LIST chrome-band: `[‹] TITLE · accent  count … action`. */
+/** One LIST chrome-band: `[‹] Title · accent  count … action`. */
 export function ListPaneHeader({ title, accent, count, back, action }: ListPaneHeaderProps): ReactElement {
   return (
     <>
@@ -70,8 +70,21 @@ export function ListPaneHeader({ title, accent, count, back, action }: ListPaneH
             here (`LIST_PANE_TITLE_ID`), so the complementary landmark says whatever the band says. It is
             what makes a pane that SWAPS its contents (Characters → a character's chats) stop announcing
             the section it used to hold. The rationale + the single-instance argument live at the constant. */}
+        {/* THE BAND'S NAME IS THE SURFACE'S DISPLAY SLOT (#1136, side-eye 2026-09-02 F9 — and the Config
+            drive's F24, which is the SAME defect because it is the same file: seven sections' list bands
+            resolve their title here). It used to be `size="micro" transform="caps" tone="muted"`, i.e. the
+            10.5px caps KICKER — so the pane's own `<h2>` was SMALLER than the body text under it and the
+            largest type anywhere on a rail surface was 16px. `flat-type-hierarchy` fired in every arm of
+            every appearance preset with "10.5px, 13px, 15px, 16px (ratio 1.5:1)".
+            THE STEP IS FORCED, NOT CHOSEN: the rule's floor is max/min >= 2.0 and the min on these surfaces
+            is the 10.5px kicker, so nothing below 21px clears it — `title` (16) and `headline` (20) both
+            still fail. `display` (24) is the one ramp step that does, which is also what the rule's own
+            message says the ramp is for. A kicker still names the GROUPS inside the pane (`View`,
+            `Filters`); what it may no longer name is the pane itself.
+            IT KEEPS `truncate` AND THE MOBILE SHED: a 24px name in a 307px docked band ellipsises exactly
+            as the 10.5px one did, and shell.css still sheds an unscoped title when the pane IS the screen. */}
         <Heading
-          // `gap-row`, not `gap-field` (#525): 6px of air between a caps NAME and a mono DATUM is below the
+          // `gap-row`, not `gap-field` (#525): 6px of air between the NAME and a mono DATUM is below the
           // step the eye needs to read them as two things, and the census is the one child here that is not
           // part of the title's phrase.
           className="flex min-w-0 items-center gap-row"
@@ -79,32 +92,36 @@ export function ListPaneHeader({ title, accent, count, back, action }: ListPaneH
           data-slot="list-pane-title"
           id={LIST_PANE_TITLE_ID}
           level={2}
-          size="micro"
-          tone="muted"
-          transform="caps"
+          size="display"
+          tone="default"
           weight="semibold"
         >
           {/* The title TEXT is what truncates, not the heading box — see the count's note. It restates the
-              micro-caps axes because it is the element that now carries them (the heading became the flex
-              box), which is the same spelling the accent half beside it already uses. */}
-          <Text as="span" className="truncate" size="micro" tone="muted" transform="caps" weight="semibold">
+              display axes because it is the element that carries them (the heading is the flex box), which
+              is the same spelling the accent half beside it already uses. */}
+          <Text as="span" className="truncate" size="display" tone="default" weight="semibold">
             {accent === undefined ? title : `${title} · `}
-            {/* The entity half carries the foreground tone so the pane reads as "CHATS, scoped to HER";
-                `caps` inherits from the heading, so the accent needs no transform of its own. */}
+            {/* The entity half is the same step; it carries the MUTED tone now that the name it qualifies
+                owns the foreground, so the pane still reads as "Chats, scoped to HER" rather than as two
+                equal nouns. */}
             {accent === undefined ? null : (
-              <Text as="span" size="micro" tone="default" weight="semibold">
+              <Text as="span" size="display" tone="muted" weight="semibold">
                 {accent}
               </Text>
             )}
           </Text>
           {count === undefined || count === 0 ? null : (
-            // `normal-case` OPTS OUT OF THE HEADING'S CAPS (#525). `transform="none"` emits no class (it is
-            // the Text default, spelled as `""`), so a count nested in this caps heading INHERITED the
-            // uppercase: the filtered census printed `CHATS 129 OF 896` and the word joining the two numbers
-            // shouted at the same weight as the section name, which is what made the whole band read as one
-            // token instead of name-then-number. The accent half above deliberately keeps the inheritance —
-            // it is part of the title's phrase; a datum is not.
-            <Text as="span" className="shrink-0 font-mono normal-case" size="micro" tone="muted" weight="regular">
+            // THE COUNT RIDES `label`, NOT `micro` (#1136): beside a 24px name a 10.5px datum is not quiet,
+            // it is unreadable. The step is a LEGIBILITY call and nothing else — measured in the CT browser
+            // inside the real band, the datum lands at top 15.5 either way, because the .5 is the BAND's,
+            // not this element's: `.shell-panel-header` is `height: 48px` + a 1px bottom rule, so its
+            // content box is 47 and `align-items:center` halves an odd remainder for every child it holds
+            // (the heading at 8.5, the 32px action buttons at 7.5 — the two `off-grid-text` findings #1135
+            // already carries on this band). That is the band's row to fix, not this one's.
+            // `normal-case` is gone with the heading's caps: the #525 defect it existed to stop
+            // (`CHATS 129 OF 896` — the joining word shouting at the section name's weight) cannot occur
+            // now that nothing in this cluster uppercases.
+            <Text as="span" className="shrink-0 font-mono" size="label" tone="muted" weight="regular">
               {count}
             </Text>
           )}
