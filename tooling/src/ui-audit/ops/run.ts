@@ -318,12 +318,29 @@ export async function runUiAudit(opts: Args): Promise<number> {
           obscuredRecentred: pixels.samples?.obscuredScan?.recentred ?? 0,
           obscuredUnaskable: pixels.samples?.obscuredScan?.subjects ?? [],
           // The forced-state pass's own receipt: what it cost, what it could not hold, and whether every
-          // release verified. `null` = the pass did not run at all (ops/hover.ts).
+          // release verified. `null` = the pass did not run at all (ops/hover.ts). `forceFailedGroups` is the
+          // COMPLETE count (#1087 F2); `forceFailures` quotes at most three of the reasons.
           hoverPass:
-            hover === null ? null : { outcome: hover.outcome, wallMs: hover.wallMs, subjectsForced: hover.subjectsForced, forceFailures: hover.forceFailures },
+            hover === null
+              ? null
+              : {
+                  outcome: hover.outcome,
+                  wallMs: hover.wallMs,
+                  subjectsForced: hover.subjectsForced,
+                  forceFailedGroups: hover.forceFailedGroups,
+                  forceFailures: hover.forceFailures,
+                },
           populationAccounting,
+          // THE CAP LEDGER RIDES THE ARTIFACT (#1087 F1). stdout printed the truncation and the exit code
+          // carried it, but a JSON consumer saw `populationVerdict: "complete"` and no trace of the bound —
+          // and for the four rung-1 WALKER-PROVEN families (lib/collect.ts's rung table) there is no
+          // population row to look at either, so the artifact was the ONLY channel and it read clean over a
+          // census that had dropped findings. Both halves ship: the per-family ledger and its own verdict.
+          censusCaps: pixels.samples?.censusCaps ?? null,
+          censusCapVerdict: capGap === null ? "complete" : { verdict: "NO VERDICT", ...capGap },
           populationVerdict: populationGap === null ? "complete" : { verdict: "NO VERDICT", ...populationGap },
           hoverVerdict: hoverGap === null ? "complete" : { verdict: "NO VERDICT", ...hoverGap },
+          forceVerdict: forceGap === null ? "complete" : { verdict: "NO VERDICT", ...forceGap },
           themeEvidence: {
             request: opts.theme,
             applied: settingsEvidence.themeApplied,

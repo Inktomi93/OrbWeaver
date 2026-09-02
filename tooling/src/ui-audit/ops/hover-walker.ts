@@ -5,24 +5,20 @@
 // the middle of it. The shared predicate/vocabulary segment is ops/walker/state-paint.ts; the design
 // (mechanisms, classification, polarity) is docs/design/state-paint-census.md.
 //
-// THE POPULATION ARGUMENT LIVES HERE, because this is the code that bounds it. Forcing state on every
-// interactive element would be one CDP round trip per element (117 controls on `settings:appearance`),
-// and most of them declare no state paint at all. So the narrowing is done FIRST, in page JS, at zero
-// round-trip cost: enumerate the stylesheets, keep only the rules whose selector carries an
-// interaction-state compound — a `:hover` pseudo (UNESCAPED: Tailwind mints class NAMES containing
-// `\\:hover\\:`, and a bare match mangled 19 selectors into unparseable garbage on one stage run, #24)
-// OR a Base UI state attribute (`[data-highlighted]` and friends — Base UI never expresses its own
-// state as `:hover`, so an attribute-blind census published `excluded(noHoverPaint)` for every popup
-// item row, a FALSE measurement claim) — AND whose declaration block sets `color`/`background-color`,
-// then resolve those selectors to elements. Everything else is `excluded(noHoverPaint=…)` — stated,
-// not dropped, and now TRUE of both mechanisms.
+// THE PREFILTER IS THIS FILE'S; the round-trip argument behind it is stated once, in ops/hover.ts's
+// header. Keep only rules whose selector carries a `:hover` pseudo (UNESCAPED: Tailwind mints class
+// NAMES containing `\\:hover\\:`, and a bare match mangled 19 selectors into unparseable garbage on one
+// stage run, #24) or a Base UI state attribute, AND whose block sets `color`/`background-color`.
+// Everything else is `excluded(noHoverPaint=…)` — stated, not dropped, and TRUE of both mechanisms.
 //
-// PAINTED ELEMENT vs STATE SUBJECT. `.nav-links a:hover` paints the anchor and the anchor is hovered;
-// `.card:hover .label` paints the label while the CARD is hovered — and identically,
-// `[data-selected] .label` paints the label while an ANCESTOR carries the attribute. The segment
-// splits each selector at its last state-bearing compound: everything up to it names the SUBJECT to
-// force, the whole selector with the state test stripped names what gets PAINTED. A subject's state
-// background also re-backs every text-bearing descendant, so those ride along as candidates too.
+// PAINTED ELEMENT vs STATE SUBJECT — three shapes, one question. `.nav-links a:hover` paints the
+// anchor and the anchor is hovered. `.card:hover .label` (and identically `[data-selected] .label`)
+// paints the label while an ANCESTOR is in state: the split is at the selector's last state-bearing
+// COMPOUND, everything up to it naming the subject. Tailwind's compiled group variant
+// `.x:is(:where(.group):hover *)` names its subject INSIDE a functional pseudo, so no compound split
+// finds it — ops/walker/group-variant.ts derives that anchor instead (#1084), and refuses by name the
+// shapes it cannot. A subject's state background re-backs every text-bearing descendant, so those
+// ride along as candidates too.
 //
 // FORCING IS PER SUBJECT, NOT PER CANDIDATE. `:hover` subjects are held over CDP (one round trip per
 // subject chain — ancestors that are themselves hover subjects are forced with it, because a real
@@ -151,15 +147,17 @@ export const HOVER_CENSUS = `
         if (hoverAt.nested) anyNestedHover = true;
       }
       if (lastHover === -1) {
-        // #1073, the exact mirror of the attribute arm below: every \`:hover\` in this selector sits
-        // inside a functional pseudo, which is Tailwind's compiled group-variant shape
-        // (\`.group-hover\\\\:bg-x:is(:where(.group):hover *)\`). The subject the rule watches is an
-        // ANCESTOR the compound does not name, so the pair this loop used to build forced \`:hover\` on
-        // the PAINTED element, saw nothing repaint, and published \`excluded(noHoverChange)\` — a
-        // measurement claim about a rule that never engaged. Withheld by name instead.
-        if (anyNestedHover) {
-          var nestedHostSel = stripStateFunctionalPseudos(stripStatePseudoElements(one));
-          if (nestedHostSel !== "") markStateHosts(nestedHostSel, complexPaintEls);
+        // Every \`:hover\` here is nested in a functional pseudo — the compiled group variant, whose
+        // subject is an ANCESTOR (#1073 stopped forcing the painted element; #1084 resolves the anchor
+        // and forces THAT). ops/walker/group-variant.ts owns the derivation and the refusals.
+        var gvHover = anyNestedHover ? groupVariantPairOf(one) : null;
+        if (gvHover === null) continue;
+        if (gvHover.kind === "pseudo") { markStateHosts(gvHover.hostSel, pseudoPaintEls); continue; }
+        if (gvHover.kind === "opaque") { markStateHosts(gvHover.hostSel, complexPaintEls); continue; }
+        var gvKey = gvHover.subjectSel + " <<>> " + gvHover.paintedSel;
+        if (hoverPairSeen[gvKey] !== true) {
+          hoverPairSeen[gvKey] = true;
+          hoverPairs.push({ paintedSel: gvHover.paintedSel, subjectSel: gvHover.subjectSel });
         }
         continue;
       }
@@ -214,36 +212,44 @@ export const HOVER_CENSUS = `
       var aComps = selectorCompounds(aOne);
       var lastAttr = -1;
       var attrSpec = null;
-      var anyComplex = false;
+      var anyComplexOperator = false;
+      var nestedSpec = null;
       for (var ac = 0; ac < aComps.length; ac += 1) {
         var occs = stateAttrScan(aComps[ac].compound);
         for (var ao = 0; ao < occs.length; ao += 1) {
-          if (occs[ao].topLevel && !occs[ao].complex) { lastAttr = ac; attrSpec = occs[ao]; }
-          else anyComplex = true;
+          if (occs[ao].complex) anyComplexOperator = true;
+          else if (occs[ao].topLevel) { lastAttr = ac; attrSpec = occs[ao]; }
+          else nestedSpec = occs[ao];
         }
       }
+      var aPaintedSel = "";
+      var aSubjectSel = "";
       if (lastAttr === -1) {
-        // The state test is reachable only through a functional pseudo (the compiled Tailwind
-        // group-variant shape) or a non-= operator — the true subject is not the element the
-        // compound names, so forcing here would publish a FALSE noHoverChange. Withheld by name.
-        if (anyComplex) {
-          var complexHostSel = stripStateFunctionalPseudos(stripStatePseudoElements(aOne));
-          if (complexHostSel !== "") markStateHosts(complexHostSel, complexPaintEls);
+        // No forcible state test on the compound itself: either the compiled group variant, whose
+        // anchor ops/walker/group-variant.ts resolves (#1084), or a shape it refuses to model — a
+        // non-\`=\` operator included, which stays withheld because the forcer cannot produce it.
+        var gvAttr = groupVariantPairOf(aOne);
+        if (gvAttr === null || gvAttr.kind !== "pair" || anyComplexOperator || nestedSpec === null) {
+          if (gvAttr !== null) markStateHosts(gvAttr.hostSel, gvAttr.kind === "pseudo" ? pseudoPaintEls : complexPaintEls);
+          continue;
         }
-        continue;
-      }
-      var aPaintedSel = stripStateAttrs(aOne);
-      if (hasStatePseudoElement(aPaintedSel)) {
-        var attrHostSel = stripStatePseudoElements(aPaintedSel);
-        if (attrHostSel !== "") markStateHosts(attrHostSel, pseudoPaintEls);
-        continue;
-      }
-      var aSubjectSel = stripStateAttrs(selectorJoin(aComps.slice(0, lastAttr + 1)));
-      if (aPaintedSel === "" || aSubjectSel === "") {
-        // A bare-attribute compound ([data-selected] .label) has no rest-resolvable subject.
-        var bareHostSel = aPaintedSel !== "" ? aPaintedSel : null;
-        if (bareHostSel !== null) markStateHosts(bareHostSel, unresolvedSubjectEls);
-        continue;
+        attrSpec = nestedSpec;
+        aPaintedSel = gvAttr.paintedSel;
+        aSubjectSel = gvAttr.subjectSel;
+      } else {
+        aPaintedSel = stripStateAttrs(aOne);
+        if (hasStatePseudoElement(aPaintedSel)) {
+          var attrHostSel = stripStatePseudoElements(aPaintedSel);
+          if (attrHostSel !== "") markStateHosts(attrHostSel, pseudoPaintEls);
+          continue;
+        }
+        aSubjectSel = stripStateAttrs(selectorJoin(aComps.slice(0, lastAttr + 1)));
+        if (aPaintedSel === "" || aSubjectSel === "") {
+          // A bare-attribute compound ([data-selected] .label) has no rest-resolvable subject.
+          var bareHostSel = aPaintedSel !== "" ? aPaintedSel : null;
+          if (bareHostSel !== null) markStateHosts(bareHostSel, unresolvedSubjectEls);
+          continue;
+        }
       }
       var aKey = aSubjectSel + " <<>> " + aPaintedSel + " <<>> " + attrStateKey(attrSpec.attr, attrSpec.value);
       if (attrPairSeen[aKey] === true) continue;
