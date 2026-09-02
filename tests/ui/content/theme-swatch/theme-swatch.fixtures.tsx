@@ -4,12 +4,12 @@
 // stored values (the same bytes a `themes` row carries), and the CT asserts only cross-mount EQUALITY of
 // the derived paints, never a literal.
 
-import { ThemeSwatchCard, ThemeSwatchStrip } from "@orb/ui/theme-swatch";
+import { ThemeSwatchStrip } from "@orb/ui/theme-swatch";
 import type { ReactElement } from "react";
 
 const TOKENS = { background: "oklch(0.2 0.02 300)", accent: "oklch(0.7 0.1 300)" };
 
-/** The SAME tokens mounted in both shapes — the cross-mount stripe-parity subject. */
+/** The SAME tokens mounted in both footprints — the cross-mount stripe-parity subject. */
 export function SwatchPairStory(): ReactElement {
   return (
     <div>
@@ -17,18 +17,8 @@ export function SwatchPairStory(): ReactElement {
         <ThemeSwatchStrip tokens={TOKENS} />
       </div>
       <div data-testid="as-card">
-        <ThemeSwatchCard name="Weft" tokens={TOKENS} />
+        <ThemeSwatchStrip size="card" tokens={TOKENS} />
       </div>
-    </div>
-  );
-}
-
-/** Two cards, one applied — the aria-pressed / onSelect subject. */
-export function SwatchCardsStory({ onPick }: { readonly onPick: () => void }): ReactElement {
-  return (
-    <div>
-      <ThemeSwatchCard name="Weft" onSelect={onPick} tokens={TOKENS} />
-      <ThemeSwatchCard meta="current" name="Mocha" selected={true} tokens={TOKENS} />
     </div>
   );
 }

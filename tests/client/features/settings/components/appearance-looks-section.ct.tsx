@@ -1,9 +1,16 @@
-// CT: the LOOKS section (#866 S4 / #297 apply-not-mode — config-revamp-design.md §7.3), superseding
-// `theme-picker-surface.ct.tsx` (the modal mount died; the picker + builder live in Appearance now).
-// Every arm the old CT pinned that survived the re-home is RE-PINNED here on the new anatomy — the O-8
-// deferred mint most of all — plus the S4 contracts: picking a card APPLIES (the `selectedThemeId` patch
-// through the real write seam; the Hearth card writes NULL — the base theme, no `[data-theme]` block),
-// the Your-themes row ⋯ inventory (Apply · Edit in builder · Export · Delete), and Import → createTheme.
+// CT: the LOOKS section (#866 S4 / #297 apply-not-mode, as amended by the owner's 2026-08-30 ONE-COLLECTION
+// ruling — #920). Every arm the older CTs pinned that survived is RE-PINNED here on the unified anatomy —
+// the O-8 deferred mint most of all — plus the S4 contracts: picking a cell APPLIES (the `selectedThemeId`
+// patch through the real write seam; Hearth writes NULL — the base theme, no `[data-theme]` block) and
+// Import → createTheme.
+//
+// THE #920 PLANTS, each one an invariant from the cold contract:
+//   · a seed and an owned theme render the SAME anatomy and differ only in MENU CONTENTS;
+//   · an EXTRA seed the client has never heard of renders — there is no client allowlist any more (the
+//     deleted SHIPPED_ORDER is what this arm would have caught);
+//   · provenance: Hearth's thumbnail carries NO `data-theme` and NO ThemeScope; a named seed carries its
+//     generated `[data-theme]` and still NO override scope; a custom theme carries a ThemeScope;
+//   · no thumbnail ever injects a theme's custom CSS.
 
 import { readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -31,6 +38,18 @@ function seed(id: string, name: string, bg: string, accent: string): SeedView {
 const HEARTH = seed("theme_00000000000000000000000001", "Hearth", "oklch(0.158 0.006 60)", "oklch(0.72 0.175 52)");
 const MOCHA = seed("theme_00000000000000000000000002", "Mocha", "oklch(0.15 0.015 250)", "oklch(0.7 0.14 250)");
 const LIGHT = seed("theme_00000000000000000000000003", "Light", "oklch(0.98 0.004 75)", "oklch(0.55 0.16 50)");
+/** A FOURTH seed the client has never heard of — the no-allowlist plant (#920). If a client-side
+ *  shipped-name list ever comes back, this row stops rendering and this file reds. */
+const EXTRA_SEED = seed("theme_00000000000000000000000004", "Ember", "oklch(0.2 0.02 20)", "oklch(0.7 0.16 20)");
+const CUSTOM_CSS_THEME = {
+  id: "theme_owned02",
+  name: "With CSS",
+  override: { background: "oklch(0.3 0.02 120)", accent: "oklch(0.7 0.1 120)" },
+  css: ".orb-thumbnail-canary { outline: 4px solid red; }",
+  isSeed: false,
+  createdAt: NOW,
+  updatedAt: NOW,
+};
 const OWNED = {
   id: "theme_owned01",
   name: "My Theme",
@@ -40,7 +59,7 @@ const OWNED = {
   createdAt: NOW,
   updatedAt: NOW,
 };
-const THEMES = [HEARTH, MOCHA, LIGHT, OWNED];
+const THEMES = [HEARTH, MOCHA, LIGHT, EXTRA_SEED, OWNED, CUSTOM_CSS_THEME];
 const SETTINGS_VIEW = {
   userId: "user_ct_theme",
   schemaVersion: 1,
@@ -48,6 +67,11 @@ const SETTINGS_VIEW = {
   updatedAt: 0,
 };
 const APPLY_PROC = "settings.updateUserSettingsSection";
+/** The same view with MOCHA applied — the mount the Hearth arm needs (see its comment). */
+const MOCHA_CURRENT_VIEW = {
+  ...SETTINGS_VIEW,
+  config: { ...DEFAULT_USER_SETTINGS, theme: { ...DEFAULT_USER_SETTINGS.theme, selectedThemeId: MOCHA.id } },
+};
 
 function stub(page: Page, extra: Record<string, unknown> = {}): Promise<TrpcRecorder> {
   return routeTrpc(page, {
@@ -58,14 +82,97 @@ function stub(page: Page, extra: Record<string, unknown> = {}): Promise<TrpcReco
   });
 }
 
-test("the three shipped cards + the owned row render; Hearth is current with no explicit selection", async ({ mount, page }) => {
+test("ONE collection: every theme — seed or owned — renders the SAME cell, and Hearth is current with no explicit selection", async ({ mount, page }) => {
   await stub(page);
   const component = await mount(<LooksSectionStory />);
-  for (const name of ["Hearth", "Mocha", "Light"]) {
-    await expect(component.getByRole("button", { name, exact: true })).toBeVisible();
+  const collection = component.getByRole("radiogroup", { name: "Theme" });
+  // Six themes, six identical cells — no "Your themes" list, no second anatomy (#920's whole ruling).
+  await expect(collection.getByRole("radio")).toHaveCount(THEMES.length);
+  for (const name of ["Hearth", "Mocha", "Light", "Ember", "My Theme", "With CSS"]) {
+    await expect(collection.getByRole("radio", { name, exact: true })).toBeVisible();
   }
-  await expect(component.getByText("My Theme", { exact: true })).toBeVisible();
-  await expect(component.getByRole("button", { name: "Hearth", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(collection.getByRole("radio", { name: "Hearth", exact: true })).toHaveAttribute("aria-checked", "true");
+  // ANATOMY EQUALITY, asserted structurally rather than by eye: a seed's cell and an owned cell expose the
+  // same slot set. A provenance badge, a different wrapper, or a re-introduced ListRow all break this.
+  // `theme-scope` is EXCLUDED on purpose and is not a hole: it is the clamp boundary a CUSTOM palette must
+  // paint through and a seed must NOT (its own arm below pins exactly that), so it is provenance
+  // machinery, not anatomy — the user cannot see it.
+  const slotsOf = (name: string): Promise<readonly string[]> =>
+    collection.getByRole("radio", { name, exact: true }).evaluate((cell) =>
+      [...cell.querySelectorAll("[data-slot]")]
+        .map((node) => node.getAttribute("data-slot") ?? "")
+        .filter((slot) => slot !== "theme-scope")
+        .sort((a, b) => a.localeCompare(b)),
+    );
+  const seedSlots = await slotsOf("Mocha");
+  expect(seedSlots.length).toBeGreaterThan(0); // positive control: two empty lists are trivially equal
+  expect(seedSlots).toEqual(await slotsOf("My Theme"));
+});
+
+// PROVENANCE (#920's theme-engine invariants, verbatim). A thumbnail must paint the row the way SELECTING
+// it would paint the app — and for a seed that means its GENERATED block, never its stored override fed
+// back through the clamp (which would re-derive and shadow the hand-tuned palette).
+test("thumbnail provenance: Hearth stamps nothing, a named seed stamps its block, a custom theme gets a ThemeScope — and no seed gets an override scope", async ({
+  mount,
+  page,
+}) => {
+  await stub(page);
+  const component = await mount(<LooksSectionStory />);
+  const collection = component.getByRole("radiogroup", { name: "Theme" });
+  const surfaceOf = (name: string): ReturnType<typeof collection.getByRole> =>
+    collection.getByRole("radio", { name, exact: true }).locator('[data-slot="theme-mini-surface"]');
+
+  await expect(surfaceOf("Hearth")).toHaveCount(1);
+  await expect(surfaceOf("Hearth")).not.toHaveAttribute("data-theme", /.+/);
+  await expect(surfaceOf("Mocha")).toHaveAttribute("data-theme", "mocha");
+  await expect(surfaceOf("Light")).toHaveAttribute("data-theme", "light");
+  // NO seed cell may carry a clamp scope — that is the shadowing bug in one assertion.
+  for (const name of ["Hearth", "Mocha", "Light", "Ember"]) {
+    await expect(collection.getByRole("radio", { name, exact: true }).locator('[data-slot="theme-scope"]')).toHaveCount(0);
+  }
+  // HEARTH REPLAYS THE BASE PALETTE INLINE. Stamping nothing is only "the base palette" at the shell ROOT;
+  // nested under a Light or Mocha root it means "inherit the ambient", and a card that paints itself in
+  // somebody else's palette is the F2 family. Read as a computed value off the rendered box, not as a class.
+  const hearthBackground = await surfaceOf("Hearth").evaluate((box) => getComputedStyle(box).getPropertyValue("--color-background").trim());
+  // ONESHOT-OK: read after the awaited toHaveCount on the same box — inline custom properties are render-time markup
+  expect(hearthBackground.length).toBeGreaterThan(0);
+  const mochaBackground = await surfaceOf("Mocha").evaluate((box) => getComputedStyle(box).getPropertyValue("--color-background").trim());
+  // ONESHOT-OK: same settled mount; the two blocks are static CSS
+  expect(hearthBackground).not.toBe(mochaBackground);
+
+  // …and a CUSTOM theme is the opposite arm: it paints through the clamp, and stamps no block.
+  await expect(collection.getByRole("radio", { name: "My Theme", exact: true }).locator('[data-slot="theme-scope"]')).toHaveCount(1);
+  await expect(surfaceOf("My Theme")).not.toHaveAttribute("data-theme", /.+/);
+});
+
+// A theme's `css` is GLOBAL OWNER CSS. A thumbnail shows the governed, clamped palette and nothing else —
+// injecting a row's stylesheet to render a 100px picture would let a saved theme restyle the settings pane.
+test("no thumbnail injects a theme's custom CSS", async ({ mount, page }) => {
+  await stub(page);
+  const component = await mount(<LooksSectionStory />);
+  await expect(component.getByRole("radio", { name: "With CSS", exact: true })).toBeVisible();
+  const canary = await page.evaluate(() => document.documentElement.innerHTML.includes("orb-thumbnail-canary"));
+  // ONESHOT-OK: read after the awaited toBeVisible on the custom-CSS theme's own cell — an injection would already have happened.
+  expect(canary).toBe(false);
+});
+
+// ONE SHAPE, DIFFERENT AFFORDANCES (#920): `isSeed` changes the MENU, never the anatomy.
+test("a seed's ⋯ offers Apply · Duplicate · Export and NO Delete; an owned theme's adds Edit in builder and Delete", async ({ mount, page }) => {
+  await stub(page);
+  const component = await mount(<LooksSectionStory />);
+
+  await component.getByRole("button", { name: "Actions for Mocha" }).click();
+  for (const item of ["Apply", "Duplicate", "Export"]) {
+    await expect(page.getByRole("menuitem", { name: item })).toBeVisible();
+  }
+  await expect(page.getByRole("menuitem", { name: "Delete" })).toHaveCount(0);
+  await expect(page.getByRole("menuitem", { name: "Edit in builder" })).toHaveCount(0);
+  await page.keyboard.press("Escape");
+
+  await component.getByRole("button", { name: "Actions for My Theme" }).click();
+  for (const item of ["Apply", "Edit in builder", "Duplicate", "Export", "Delete"]) {
+    await expect(page.getByRole("menuitem", { name: item })).toBeVisible();
+  }
 });
 
 // APPLY-NOT-MODE (#297): the card IS the applying act, through the real write seam — parameterized over
@@ -76,24 +183,24 @@ for (const [name, expected] of [
   ["Light", LIGHT.id],
   ["Hearth", null],
 ] as const) {
-  test(`picking the ${name} card applies it — the selectedThemeId patch says ${expected === null ? "null (the base theme)" : "its id"}`, async ({
+  test(`picking the ${name} cell applies it — the selectedThemeId patch says ${expected === null ? "null (the base theme)" : "its id"}`, async ({
     mount,
     page,
   }) => {
-    const trpc = await stub(page);
+    // A radio does not re-fire on the ALREADY-CHECKED option (the old `aria-pressed` button did), and the
+    // group's value is CONTROLLED by the server read — which the stub holds still. So the Hearth arm, the
+    // one that proves the NULL write, mounts with Mocha current instead of clicking its way there.
+    const trpc = await stub(page, expected === null ? { "settings.getUserSettings": (): unknown => MOCHA_CURRENT_VIEW } : {});
     const component = await mount(<LooksSectionStory />);
-    await component.getByRole("button", { name, exact: true }).click();
+    await component.getByRole("radio", { name, exact: true }).click();
     await expect.poll(() => trpc.lastInput(APPLY_PROC), { intervals: [20, 50, 100] }).toEqual({ section: "theme", patch: { selectedThemeId: expected } });
   });
 }
 
-test("a Your-themes row's ⋯ carries EXACTLY Apply · Edit in builder · Export · Delete, and Apply patches", async ({ mount, page }) => {
+test("an owned theme's Apply patches through the real write seam", async ({ mount, page }) => {
   const trpc = await stub(page);
   const component = await mount(<LooksSectionStory />);
   await component.getByRole("button", { name: "Actions for My Theme" }).click();
-  for (const item of ["Apply", "Edit in builder", "Export", "Delete"]) {
-    await expect(page.getByRole("menuitem", { name: item })).toBeVisible();
-  }
   await page.getByRole("menuitem", { name: "Apply" }).click();
   await expect.poll(() => trpc.lastInput(APPLY_PROC), { intervals: [20, 50, 100] }).toEqual({ section: "theme", patch: { selectedThemeId: OWNED.id } });
 });
@@ -109,7 +216,7 @@ test("builder door + zero edits + Back mints NOTHING — no row ever existed", a
   await expect(component.getByRole("textbox", { name: "Theme name" })).toBeVisible();
   await expect(component.locator('[data-slot="autosave-status"]')).toHaveText("Draft — edit to create");
   await component.getByRole("button", { name: "← Back to Looks" }).click();
-  await expect(component.getByText("My Theme", { exact: true })).toBeVisible();
+  await expect(component.getByRole("radio", { name: "My Theme", exact: true })).toBeVisible();
 
   // ONESHOT-OK: read after the list re-rendered; a mint could only have fired during the torn-down session.
   expect(trpc.count("settings.duplicateTheme")).toBe(0);
@@ -184,7 +291,7 @@ test("Export downloads the row's own bytes; Import feeds createTheme the parsed 
   await expect.poll(() => trpc.lastInput("settings.createTheme"), { intervals: [50, 100, 200] }).toEqual({ name: "Weft", override: OWNED.override });
 });
 
-test("at the 430px pushed-pane width the shipped cards WRAP and the builder door stays inside", async ({ mount, page }) => {
+test("at the 430px pushed-pane width the collection collapses to one column and the builder door stays inside", async ({ mount, page }) => {
   await stub(page);
   const component = await mount(<LooksSectionNarrowStory />);
   const host = page.getByTestId("looks-narrow-host");

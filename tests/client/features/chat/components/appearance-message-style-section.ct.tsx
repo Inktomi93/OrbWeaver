@@ -34,16 +34,18 @@ test("mounts with the persisted defaults rendered — the default mode's CARD is
   await stub(page);
   await mount(<AppearanceMessageStyleSectionStory />);
   await expect(page.getByRole("heading", { name: "Message style" })).toBeVisible();
-  // #866 §7.8 — the Select became preview cards; the persisted value is the one aria-pressed card.
-  await expect(page.getByRole("button", { name: "Bubble", exact: true })).toHaveAttribute("aria-pressed", "true");
-  await expect(page.getByRole("button", { name: "Flat", exact: true })).toHaveAttribute("aria-pressed", "false");
+  // #866 §7.8 — the Select became preview cells; #981 F20 made the set ONE radiogroup, so the persisted
+  // value is the CHECKED radio (resolving the group by that role IS the semantic pin).
+  const cards = page.getByRole("radiogroup", { name: "Chat display" });
+  await expect(cards.getByRole("radio", { name: "Bubble", exact: true })).toHaveAttribute("aria-checked", "true");
+  await expect(cards.getByRole("radio", { name: "Flat", exact: true })).toHaveAttribute("aria-checked", "false");
   await expect(page.getByRole("switch", { name: "Color quoted speech" })).toBeVisible();
 });
 
 test("changing chat display patches the `appearance` section with ONLY this section's three keys", async ({ mount, page }) => {
   const trpc = await stub(page);
   await mount(<AppearanceMessageStyleSectionStory />);
-  await page.getByRole("button", { name: "Flat", exact: true }).click();
+  await page.getByRole("radio", { name: "Flat", exact: true }).click();
 
   await expect.poll(() => lastPatch(trpc)?.["chatStyle"], { intervals: [20, 50, 100] }).toBe("flat");
   // P1: no sibling section's key rides along — a full-blob patch here would clobber whatever Avatars or
@@ -66,31 +68,58 @@ test("the auto-fix switch patches autoFixMarkdown, still key-minimal", async ({ 
 // pins it; the gloss is its `aria-describedby` DESCRIPTION — #1022, 2026-09-01: the ruling survives, its
 // mechanism changed, because the old `aria-label` over a visible label + gloss was a WCAG 2.5.3 /
 // §13.10 N2 label-in-name violation ×8), and every mode carries a gloss AND a mini preview pair.
-test("every chat-display CARD carries its name, its gloss and its preview — and exactly one is pressed", async ({ mount, page }) => {
+test("every chat-display CELL carries its name, its gloss and its preview — and exactly one is checked", async ({ mount, page }) => {
   await stub(page);
   await mount(<AppearanceMessageStyleSectionStory />);
-  const cards = page.locator('[data-slot="chat-style-cards"]').getByRole("button");
-  await expect(cards).toHaveCount(CHAT_STYLE_COUNT);
+  const cards = page.getByRole("radiogroup", { name: "Chat display" });
+  await expect(cards.getByRole("radio")).toHaveCount(CHAT_STYLE_COUNT);
 
-  // Resolving `{ name: "Ripple", exact: true }` at all IS the name proof.
-  const ripple = page.getByRole("button", { name: "Ripple", exact: true });
+  // Resolving `{ name: "Ripple", exact: true }` at all IS the name proof — the name is the VISIBLE label
+  // via aria-labelledby, and the gloss is its aria-describedby DESCRIPTION (§13.10 N1/N2, #1022's ruling).
+  const ripple = cards.getByRole("radio", { name: "Ripple", exact: true });
   await expect(ripple).toBeVisible();
   await expect(ripple.getByText("A tall portrait sticks beside the text as you scroll.")).toBeVisible();
 
-  // Exactly ONE pressed card, and picking moves it (the state is the value, not a second flag).
-  await expect(page.locator('[data-slot="chat-style-cards"] [aria-pressed="true"]')).toHaveCount(1);
+  // Exactly ONE checked cell, and picking moves it (the state is the value, not a second flag).
+  await expect(cards.locator('[aria-checked="true"]')).toHaveCount(1);
   await ripple.click();
-  await expect(ripple).toHaveAttribute("aria-pressed", "true");
-  await expect(page.getByRole("button", { name: "Bubble", exact: true })).toHaveAttribute("aria-pressed", "false");
+  await expect(ripple).toHaveAttribute("aria-checked", "true");
+  await expect(cards.getByRole("radio", { name: "Bubble", exact: true })).toHaveAttribute("aria-checked", "false");
+});
 
-  // The previews DERIVE from the skin table (the derive-never-mirror rider): two different modes must
-  // render structurally different anatomies — byte-identical previews would mean a copied placeholder.
-  const bubblePreview = await page.getByRole("button", { name: "Bubble", exact: true }).evaluate((el) => el.querySelector("[aria-hidden]")?.innerHTML ?? "");
-  const documentPreview = await page
-    .getByRole("button", { name: "Document", exact: true })
-    .evaluate((el) => el.querySelector("[aria-hidden]")?.innerHTML ?? "");
-  expect(bubblePreview).not.toBe(""); // ONESHOT-OK: settled — the cards rendered above (toHaveCount) before this read
-  expect(bubblePreview).not.toBe(documentPreview); // ONESHOT-OK: settled — same render, structural comparison
+// #1099 F8 — THE DEFECT THIS ARM EXISTS FOR. Five of the eight cards drew the IDENTICAL picture (two grey
+// blobs): bubble/echo/whisper/ripple/tide share `outer`/`inner`, and the old preview read nothing else off
+// the skin. Five identical pictures in a picker OF PICTURES is worse than none — it asserts the options are
+// the same. The pin is therefore the whole population, not a spot check between two modes.
+test("all EIGHT previews are structurally distinct — no two modes draw the same picture", async ({ mount, page }) => {
+  await stub(page);
+  await mount(<AppearanceMessageStyleSectionStory />);
+  const cards = page.getByRole("radiogroup", { name: "Chat display" });
+  await expect(cards.getByRole("radio")).toHaveCount(CHAT_STYLE_COUNT);
+
+  const previews = await cards.evaluate((group): readonly string[] => [...group.querySelectorAll('[data-slot="picker-cell-art"]')].map((art) => art.innerHTML));
+  // Positive control first: an empty list would satisfy "all distinct" vacuously — and an empty preview
+  // set is a live defect class here (the Layered elevation diagram painted nothing for a whole era).
+  // ONESHOT-OK: read after the awaited toHaveCount barrier — the eight cells are mounted and their art is static markup.
+  expect(previews).toHaveLength(CHAT_STYLE_COUNT);
+  for (const markup of previews) {
+    expect(markup.length).toBeGreaterThan(0);
+  }
+  expect(new Set(previews).size).toBe(CHAT_STYLE_COUNT);
+});
+
+// #981 F20 — one tab stop, roving focus, arrows change selection. The old anatomy was eight independent
+// `aria-pressed` buttons, so passing this control cost eight tab stops.
+test("the chat-display picker is ONE tab stop and arrows move the selection", async ({ mount, page }) => {
+  await stub(page);
+  await mount(<AppearanceMessageStyleSectionStory />);
+  const cards = page.getByRole("radiogroup", { name: "Chat display" });
+  const bubble = cards.getByRole("radio", { name: "Bubble", exact: true });
+  await bubble.focus();
+  await expect(bubble).toBeFocused();
+  await expect(cards.getByRole("radio", { name: "Flat", exact: true })).toHaveAttribute("tabindex", "-1");
+  await page.keyboard.press("ArrowRight");
+  await expect(cards.getByRole("radio", { name: "Flat", exact: true })).toHaveAttribute("aria-checked", "true");
 });
 
 // UIP-404's row grammar, AS AMENDED BY #932 — and the amendment is the point, so the old pin is stated

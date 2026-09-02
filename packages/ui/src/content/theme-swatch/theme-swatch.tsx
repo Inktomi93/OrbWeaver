@@ -1,17 +1,18 @@
-// theme-swatch — ONE swatch anatomy for every theme-picker mount (#866 S4, owner addendum #3): the Looks
-// section's shipped cards + Your-themes rows, the builder's start-from state, and the character tab's
-// StartFromThemeField all render the SAME stripe from the theme's REAL stored override values, through
-// `<ThemeScope>` (the D71 clamp derives base · card · accent from the picked background — the same
-// derivation the theme paints with, so the stripe can never be a hand-painted approximation). §13.9
-// litmus: domain-agnostic (takes tokens + strings), multiple committed consumers.
+// theme-swatch — the theme STRIPE a menu row leads with (#866 S4, owner addendum #3). It renders from the
+// theme's REAL stored override values through `<ThemeScope>` (the D71 clamp derives base · card · accent
+// from the picked background — the same derivation the theme paints with, so the stripe can never be a
+// hand-painted approximation). §13.9 litmus: domain-agnostic (takes tokens + strings), one committed
+// consumer (the character tab's StartFromThemeField menu).
 //
-// Two shapes: `ThemeSwatchStrip` (the decorative three-cell chip — a ListRow's leading slot) and
-// `ThemeSwatchCard` (strip over a name row; a toggle button whose selected state wears the ring —
-// `aria-pressed`, the apply-not-mode picker cell).
+// ONE shape: `ThemeSwatchStrip`, the decorative three-cell chip a MENU row leads with. The `ThemeSwatchCard`
+// that used to sit beside it (strip over a name row, `aria-pressed`) retired with #920 — the Looks
+// collection renders every theme as the app's ONE picker cell with a `ThemeMiniSurface` thumbnail, and a
+// second card anatomy for the same job is precisely the split that ruling removed. The three-cell chip
+// survives because a MENU row's leading slot is a genuinely different job from a picker cell, and it is
+// the only mount left (§13.9's inclusion litmus: ≥1 committed consumer).
 
-import type { ReactElement, ReactNode } from "react";
+import type { ReactElement } from "react";
 import { cn, variantAttrs } from "#lib";
-import { Text } from "#primitives/text";
 import type { ThemeScopeTokens } from "../theme-scope/clamp.ts";
 import { ThemeScope } from "../theme-scope/theme-scope.tsx";
 import { themeSwatchVariants } from "./variants.ts";
@@ -40,37 +41,5 @@ export function ThemeSwatchStrip({ tokens, size = "row", className }: ThemeSwatc
         <span className={cn(slots.cell(), "bg-primary") ?? ""} />
       </ThemeScope>
     </span>
-  );
-}
-
-export interface ThemeSwatchCardProps {
-  readonly tokens: ThemeScopeTokens;
-  readonly name: string;
-  /** A short trailing datum on the name row ("current", an age). */
-  readonly meta?: ReactNode;
-  readonly selected?: boolean;
-  readonly onSelect?: () => void;
-}
-
-/** The picker CARD: the stripe over a name row. A toggle button — `aria-pressed` carries the applied
- *  state and the ring follows it (apply-not-mode: picking a card APPLIES the look, #297). */
-export function ThemeSwatchCard({ tokens, name, meta, selected = false, onSelect }: ThemeSwatchCardProps): ReactElement {
-  const slots = themeSwatchVariants({ size: "card" });
-  return (
-    // `aria-label` pins the accessible NAME to the theme's name alone — `aria-pressed` carries the
-    // applied state and `meta` stays visual, so "Hearth" is one findable control, not "Hearth current".
-    <button aria-label={name} aria-pressed={selected} className={slots.card()} data-slot="theme-swatch-card" onClick={onSelect} type="button">
-      <ThemeSwatchStrip className={slots.cardStrip()} size="card" tokens={tokens} />
-      <span className={slots.cardBody()}>
-        <Text as="span" voice="label" className="truncate">
-          {name}
-        </Text>
-        {meta === undefined ? null : (
-          <Text as="span" voice="datum">
-            {meta}
-          </Text>
-        )}
-      </span>
-    </button>
   );
 }

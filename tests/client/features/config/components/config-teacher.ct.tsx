@@ -143,9 +143,9 @@ test("focusing a knob row teaches THAT setting — head and About swap, and the 
   // focus). A PLAIN section's row on purpose — the folded sections' rows are behind the collapsed
   // "Customize this look" arm and have their own landing pins.
   const row = workspace.locator('[data-setting="chat-style"]');
-  // FOCUS a card (the focus-within seam) — chat-style is preview CARDS since #866 §7.8; a focus is the
-  // publish, no popup involved.
-  await row.getByRole("button", { name: "Bubble", exact: true }).focus();
+  // FOCUS a cell (the focus-within seam) — chat-style is preview cells in a RADIOGROUP since #981 F20
+  // (they were N aria-pressed buttons); a focus is the publish, no popup involved.
+  await row.getByRole("radio", { name: "Bubble", exact: true }).focus();
   await expect(pane.getByText("How every message in the transcript is shaped", { exact: false })).toBeVisible();
   // The `i` carries the row's accessible subject — the teacher's pull-revelation door.
   await expect(row.getByRole("button", { name: "More info about Chat display" })).toBeVisible();
@@ -164,7 +164,7 @@ test("the foot tab KEEPS across a focus change — a reader on Applies stays on 
     .click();
 
   const pane = workspace.locator(CONTEXT_PANE);
-  await workspace.locator('[data-setting="chat-style"]').getByRole("button", { name: "Bubble", exact: true }).focus();
+  await workspace.locator('[data-setting="chat-style"]').getByRole("radio", { name: "Bubble", exact: true }).focus();
   await pane.getByRole("button", { name: "Applies" }).click();
   await expect(pane.getByRole("button", { name: "Applies" })).toHaveAttribute("aria-current", "true");
 

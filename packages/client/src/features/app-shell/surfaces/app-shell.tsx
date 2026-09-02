@@ -10,6 +10,7 @@ import { TooltipProvider } from "@orb/ui/tooltip";
 import type { CSSProperties, ReactElement, ReactNode } from "react";
 import { useEffect, useRef } from "react";
 import { preload } from "react-dom";
+import { resolveThemeScopeTokens } from "#lib";
 import type { ChromeEntry, SectionId } from "#state";
 import { closeModal, openModal, setActiveSection, useChromeRegistry, useModalRegistry, useSectionRegistry } from "#state";
 import { RegionAnchor } from "../anchors/region-anchor.tsx";
@@ -38,7 +39,6 @@ import type { ShellLayout } from "../hooks/use-shell-layout.ts";
 import { useShellLayout } from "../hooks/use-shell-layout.ts";
 import { useStrayFileDropGuard } from "../hooks/use-stray-file-drop-guard.ts";
 import { appearanceBackgroundSource, resolveThemeBackgroundUrl } from "../lib/resolve-theme-background.ts";
-import { resolveThemeScopeTokens } from "../lib/resolve-theme-scope-tokens.ts";
 
 /** Collapse whichever panels are currently AUTO-OVERLAYS (the scrim's dismiss, shared by its click and the
  *  Escape key). Module-scope + `layout`-taking so it is never an effect dependency (D54: no manual memo). */

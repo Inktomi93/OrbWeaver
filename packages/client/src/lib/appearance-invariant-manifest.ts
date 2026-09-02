@@ -91,7 +91,15 @@ const SHELL_CONTENT = ".shell-content";
 const THEME_INK = ":is(.shell-topbar-title, .shell-topbar-jump-label)";
 const MATRIX_FIXTURE_INK = "--orb-matrix-fixture-ink";
 const DIALOG_VIEWPORT = '[data-slot="dialog-viewport"]';
-const DENSITY_PREVIEW = '[data-slot="density-preview"]';
+// THE PREVIEW OF THE OPTION YOU HAVE NOT PICKED (#929/#1099 F9). Density's spacing art used to be ONE
+// detached box following the DRAFT value; it is now folded into each option, so `[data-slot=
+// "density-preview"]` alone resolves to TWO nodes and a `population: "one"` subject would be an instrument
+// lying about which one it sampled. Narrowing to the UNCHECKED cell keeps both checks that lean on this
+// subject saying exactly what they always said: with two options, the unchecked one is by construction the
+// OPPOSITE density of the shell (`opposite-density`), and picking the other one swaps which node this
+// selector resolves to — so the sampled spacing vector still changes across the mutation while the outer
+// carrier and the dialog popup stay byte-stable (`token-isolation`).
+const DENSITY_PREVIEW = '[data-slot="picker-cell"][aria-checked="false"] [data-slot="density-preview"]';
 const STRUCTURAL_INTERACTIVES = ".shell-main :is(button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]))";
 
 const SPACING_PROPERTIES = ["--spacing-field", "--spacing-row", "--spacing-block", "--spacing-section"] as const;
@@ -274,7 +282,7 @@ export const APPEARANCE_HISTORICAL_ROWS = [
       mechanism: "merge-not-applicable",
       reason: "direct-carrier",
       selector: DENSITY_PREVIEW,
-      owner: "packages/client/src/features/app-shell/components/appearance-sizing-section.tsx#DensityPreview",
+      owner: "packages/client/src/features/app-shell/components/appearance-density-cards.tsx#DensityDiagram",
     },
     requiredChecks: ["opposite-density", "token-isolation", "modal-stacking", "popup-contained", "rect-stable", "persistence-isolation", "cls-budget"],
     optionalSubjectIds: [],

@@ -13,7 +13,7 @@
 import type { AppearanceSettings } from "@orb/contracts/settings";
 import { DEFAULT_APPEARANCE_SETTINGS } from "@orb/contracts/settings";
 import { pickKeys } from "@orb/kit/objects";
-import { Row, Section, Stack } from "@orb/ui/layout";
+import { Row, Section } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
@@ -21,10 +21,10 @@ import { ConfigTeachScope, SettingRow, SettingRowGroup } from "#components";
 import { createEntityMutation, QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms";
-import { DENSITY_ITEMS } from "#lib";
 import { configAnchorId } from "#state";
 import { CHAT_WIDTH_MAX, CHAT_WIDTH_MIN, FONT_SCALE_MAX, FONT_SCALE_MIN, FONT_SCALE_STEP } from "../lib/appearance-bounds.ts";
 import { APPEARANCE_SIZING_KEYS, APPEARANCE_SIZING_SUBCATEGORY } from "../lib/appearance-sizing-model.ts";
+import { DensityCards } from "./appearance-density-cards.tsx";
 import { ElevationCards } from "./appearance-elevation-cards.tsx";
 
 type SizingForm = Pick<AppearanceSettings, (typeof APPEARANCE_SIZING_KEYS)[number]>;
@@ -72,34 +72,6 @@ function SizingFormBody({ sectionId }: { readonly sectionId: string }): ReactEle
   );
 }
 
-/** The density LIVE mini-preview (#866 §7.8): three mock rows inside a box carrying `data-density` off
- *  the DRAFT value — tiers.css's symmetric density map re-scopes the spacing tokens for this subtree
- *  exactly as it does for the shell carrier, so the gaps/padding here ARE the definition, never a copy.
- *  Ornament (`aria-hidden`): the segment above is the control; this is what the pick looks like. */
-function DensityPreview({ draft }: { readonly draft: SizingForm["density"] }): ReactElement {
-  return (
-    <Stack
-      aria-hidden={true}
-      // `transition-all` was catching inherited non-compositor properties (`scrollbarColor` —
-      // the app's `[anim]` flagger convicted this preview OVER BUDGET on every density pick). The
-      // preview only ever animates the density-tier spacing tokens (`gap`/`padding`, tiers.css) —
-      // naming them keeps the tier-change motion and drops everything `all` swept in by accident.
-      className="rounded-control border border-border p-block transition-[gap,padding] duration-(--motion-fast) ease-out-expo"
-      data-density={draft}
-      data-slot="density-preview"
-      gap="row"
-    >
-      {["The first row", "A second row", "And a third"].map((line) => (
-        <Row key={line} align="center" className="rounded-control bg-accent p-field" gap="field">
-          <Text as="span" voice="gloss">
-            {line}
-          </Text>
-        </Row>
-      ))}
-    </Stack>
-  );
-}
-
 function SizingBody({ sectionId, session }: { readonly sectionId: string; readonly session: AutosaveSession<SizingForm> }): ReactElement {
   const { form, saveState, retrySave } = session;
   return (
@@ -125,32 +97,25 @@ function SizingBody({ sectionId, session }: { readonly sectionId: string; readon
               {(field): ReactElement => <field.SliderField label="Text size" min={FONT_SCALE_MIN} max={FONT_SCALE_MAX} step={FONT_SCALE_STEP} />}
             </form.AppField>
           </SettingRow>
-          {/* SEEN, NOT READ (#866 §7.8, owner-acked): density/elevation OUTCOMES are spatial, so the
-              Selects became labelled SEGMENTS — every option visible at rest — and density carries the
-              LIVE mini-preview reading the DRAFT value. The preview derives everything: its box wears
-              `data-density`, and tiers.css's symmetric map re-scopes the four spacing tokens (one
-              definition, two consumers — never a mirrored number). */}
-          <SettingRow settingId="density">
-            <Stack className="min-w-0" gap="field">
-              <form.AppField name="density">{(field): ReactElement => <field.SegmentField label="Density" items={DENSITY_ITEMS} />}</form.AppField>
-              <form.Subscribe selector={(state): SizingForm["density"] => state.values.density}>
-                {(draft): ReactElement => <DensityPreview draft={draft} />}
-              </form.Subscribe>
-            </Stack>
+          {/* SEEN, NOT READ (#866 §7.8, owner-acked): density/elevation OUTCOMES are spatial, so both are
+              ILLUSTRATED PICKERS in the shared picker-cell grid (#929 E6) — every option visible at rest,
+              with its own picture. Density's spacing art is folded INTO each option (#1099 F9: the old
+              two-option segment did not fit its 200px group and stacked, and its live preview showed only
+              the option already picked); each cell's box wears `data-density`, and tiers.css's symmetric
+              map re-scopes the four spacing tokens, so the picture IS the definition. Both rows are `span`
+              so the registry draws the lead (name · `i` · gloss) — the hand-rolled
+              `<Text voice="label">Surface elevation</Text>` that stood in for it is gone. */}
+          <SettingRow settingId="density" span={true}>
+            <form.AppField name="density">
+              {(field): ReactElement => <DensityCards onBlur={field.handleBlur} onPick={field.handleChange} value={field.state.value} />}
+            </form.AppField>
           </SettingRow>
           {/* Elevation gets ILLUSTRATED CARDS, not a preview (#866 §7.8 owner ruling — the
               preview-vs-illustration distinction): its meaning is the ABSENCE of seams across the shell,
               which no nested box can preview honestly; the diagram depicts the difference between the
               options with every colour/hairline/shadow DERIVED from the shell's own tokens. */}
-          <SettingRow settingId="elevation">
-            <Stack className="min-w-0" gap="field">
-              <Text as="span" voice="label">
-                Surface elevation
-              </Text>
-              <form.AppField name="elevation">
-                {(field): ReactElement => <ElevationCards onPick={field.handleChange} value={field.state.value} />}
-              </form.AppField>
-            </Stack>
+          <SettingRow settingId="elevation" span={true}>
+            <form.AppField name="elevation">{(field): ReactElement => <ElevationCards onPick={field.handleChange} value={field.state.value} />}</form.AppField>
           </SettingRow>
           <SettingRow settingId="reduced-motion">
             <form.AppField name="reducedMotion">{(field): ReactElement => <field.SwitchField label="Reduce motion" />}</form.AppField>
