@@ -11,7 +11,12 @@
 //     CWV metric read ~0 through a full relayout per frame;
 //  3. an UNEXPECTED shift (past the 500ms input window) counts toward `cls` and is tagged `unexpected`;
 //  4. a VIRTUALIZED shift (issue #109) moves `cls`/`observedCls`/`virtualizedCls` but leaves
-//     `nonVirtualizedCls` — the total motion-audit's budget gates on — at zero.
+//     `nonVirtualizedCls` — the total motion-audit's budget gates on — at zero;
+//  5. the OBSERVED total carries the SAME virtual-row split (#1071): a virtualized shift INSIDE the input
+//     window moves `observedCls`/`observedVirtualizedCls` and leaves `observedNonVirtualizedCls` at zero,
+//     while every spec total stays zero. That is the field motion-audit subtracts before gating an
+//     interaction cell — without it, budgeting a click on raw `observedCls` would charge virtual-row
+//     reconciliation as an app defect, which is exactly what #109 removed from the budget.
 //
 // The observers are module-global by design; CT gives each test a fresh browser context, so the totals
 // start at zero per test (the `_ct-stories` header's own note).
@@ -92,9 +97,12 @@ interface MotionRead {
   readonly observedCls: number;
   readonly virtualizedCls: number;
   readonly nonVirtualizedCls: number;
+  readonly observedVirtualizedCls: number;
+  readonly observedNonVirtualizedCls: number;
   readonly worstBlocking: number;
   readonly worstShift: number;
   readonly shifts: readonly {
+    readonly startTime: number;
     readonly value: number;
     readonly hadRecentInput: boolean;
     readonly agentNavigation: boolean;
@@ -179,6 +187,10 @@ test("an INPUT-ADJACENT shift is reported but excluded from the CWV metric — t
   // …while the flagger's own total, and the attributed ring, are not.
   expect(motion.observedCls).toBeGreaterThan(0);
   expect(motion.shifts.some((s) => s.hadRecentInput && s.sources.some((src) => src.includes("cls-victim")))).toBe(true);
+  // …and the whole of it is chargeable: nothing here is virtual-row reconciliation, so the number
+  // motion-audit gates an INTERACTION on (#1071) equals the observed total.
+  expect(motion.observedVirtualizedCls).toBe(0);
+  expect(motion.observedNonVirtualizedCls).toBe(motion.observedCls);
 });
 
 test("an UNEXPECTED shift (past the input window) counts toward CLS and is tagged so", async ({ mount, page }) => {
@@ -287,4 +299,30 @@ test("a real sealed Select classifies its confirmed first and repeat entrance li
   await cdp.send("Emulation.setCPUThrottlingRate", { rate: 1 });
   expect(loafTotals(styled).budgetedStyleLayout).toBeGreaterThan(0);
   expect(loafOverBudget(styled)).toBe(true);
+});
+
+test("a virtualized shift INSIDE the input window moves only the OBSERVED virtualized share (#1071)", async ({ mount, page }) => {
+  // The regression the observed split exists to prevent. motion-audit's measured click is a real CDP
+  // dispatch, so the spec metric zeroes everything within 500ms of it — and the interaction budget
+  // therefore has to judge the OBSERVED total instead. If that total did not carry the #109 split, this
+  // shape (a click that settles a message list) would be charged as an app defect nothing could fix.
+  const lines = captureClsLines(page);
+  const component = await mount(<MotionVirtualizedShiftStory />);
+
+  // A real click: its actionability wait supplies the presented "before" header law A requires, and the
+  // trusted event is precisely what sets `hadRecentInput` on the resulting entry.
+  await component.getByRole("button", { name: "settle rows now" }).click();
+  await expect.poll(async () => (await readMotion(page)).observedCls, evidencePoll()).toBeGreaterThan(0);
+
+  const motion = await readMotion(page);
+  expect(motion.shifts.some((s) => s.hadRecentInput && s.virtualized && s.sources.some((src) => src.includes("virtual-row")))).toBe(true);
+  // Every spec total is blind to it (input-adjacent)…
+  expect(motion.cls).toBe(0);
+  expect(motion.virtualizedCls).toBe(0);
+  expect(motion.nonVirtualizedCls).toBe(0);
+  // …the observed total sees it, and classifies ALL of it as reconciliation…
+  expect(motion.observedVirtualizedCls).toBe(motion.observedCls);
+  // …so the number an interaction cell is gated on stays clean.
+  expect(motion.observedNonVirtualizedCls).toBe(0);
+  expect(lines).toEqual([]);
 });

@@ -34,6 +34,16 @@
 // is over. So: `cls` stays the spec metric (no consumer's meaning changes), `observedCls` counts every
 // shift, and an input-adjacent shift is TAGGED in the log line rather than dropped.
 //
+// …AND THE OBSERVED TOTAL CARRIES THE SAME THREE-WAY SPLIT (#1071, 2026-09-01). `observedCls` alone is
+// not a gateable number: `virtualizedClsTotal` below accrues only inside the `!hadRecentInput` branch, so
+// the observed total folds virtual-row reconciliation back in — and a click that opens a chat settles the
+// message list INSIDE its own 500ms input window. Gating an interaction on raw `observedCls` would trade
+// #1071's false PASS for a false FAIL nothing an app fix could move, which is exactly what #109 removed
+// from the budget. Deriving it from the `shifts` ring instead is not an option either: `SHIFT_RING_CAP`
+// truncates silently, and an under-count is lenient — the same lie in the other direction. So every shift
+// also lands in `observedVirtualizedClsTotal`, and `observedNonVirtualizedCls` is what motion-audit's
+// INTERACTION cells budget on. The three original fields keep their exact meanings.
+//
 // THE THIRD SPLIT — THE BUDGET GATES ON `nonVirtualizedCls` (issue #109, 2026-08-16). Virtual-row
 // reconciliation was already CLASSIFIED here (`virtualized`) and warn-suppressed, but still folded into
 // `cls`, which is the number `motion-audit`'s budget failed on. Measured by lane ae-shell-motion on a
@@ -152,6 +162,9 @@ let observedClsTotal = 0;
 /** The share of `clsTotal` the instrument classified as virtual-row reconciliation — subtracted out to
  *  form the budgeted total (see the header's third-split note). */
 let virtualizedClsTotal = 0;
+/** The same classification over EVERY shift, input-adjacent included — the observed total's virtual-row
+ *  share, so an interaction budget can subtract it (see the header's observed-split note, #1071). */
+let observedVirtualizedClsTotal = 0;
 let worstShift = 0;
 let evidenceStartTime = 0;
 let agentNavigationUntil = 0;
@@ -170,6 +183,11 @@ export interface MotionSnapshot {
   readonly virtualizedCls: number;
   /** `cls` − `virtualizedCls`: THE BUDGETED TOTAL (issue #109). The only CLS number an app fix can move. */
   readonly nonVirtualizedCls: number;
+  /** The virtual-row share of `observedCls` — the #109 classification over the input-adjacent shifts too. */
+  readonly observedVirtualizedCls: number;
+  /** `observedCls` − `observedVirtualizedCls`: THE INTERACTION BUDGET TOTAL (#1071). What an app fix can
+   *  move out of a relayout storm the CWV metric excludes because it followed a real input. */
+  readonly observedNonVirtualizedCls: number;
   readonly worstBlocking: number;
   readonly worstShift: number;
   /** The recent attributed shifts — "what moved", which no CLS number carries. */
@@ -241,6 +259,9 @@ function warnShift(record: ShiftRecord): void {
 function accumulateShift(e: LayoutShiftEntry): void {
   observedClsTotal += e.value;
   const virtualized = sourcesAreVirtualized(e.sources);
+  if (virtualized) {
+    observedVirtualizedClsTotal += e.value;
+  }
   // CWV definition: shifts within 500ms of user input are excluded from the METRIC (an expected reflow,
   // not surprise) — but they are still recorded and still logged, see the header.
   if (!e.hadRecentInput) {
@@ -322,6 +343,8 @@ export function motionSnapshot(): MotionSnapshot {
     observedCls: Number(observedClsTotal.toFixed(SHIFT_DECIMALS)),
     virtualizedCls: Number(virtualizedClsTotal.toFixed(SHIFT_DECIMALS)),
     nonVirtualizedCls: Number((clsTotal - virtualizedClsTotal).toFixed(SHIFT_DECIMALS)),
+    observedVirtualizedCls: Number(observedVirtualizedClsTotal.toFixed(SHIFT_DECIMALS)),
+    observedNonVirtualizedCls: Number((observedClsTotal - observedVirtualizedClsTotal).toFixed(SHIFT_DECIMALS)),
     worstBlocking: loafRing.reduce((a, l) => Math.max(a, l.blockingDuration), 0),
     worstShift: Number(worstShift.toFixed(SHIFT_DECIMALS)),
     shifts: shiftRing,
@@ -338,6 +361,7 @@ export function __resetMotionStats(): void {
   clsTotal = 0;
   observedClsTotal = 0;
   virtualizedClsTotal = 0;
+  observedVirtualizedClsTotal = 0;
   worstShift = 0;
   agentNavigationUntil = 0;
 }

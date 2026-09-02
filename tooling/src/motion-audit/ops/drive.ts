@@ -8,9 +8,9 @@ import { settle } from "@orb/tooling/_shared/browser";
 import { runNav } from "@orb/tooling/_shared/nav";
 import type { Page } from "@playwright/test";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import type { AnimationRecord, MeasuredClick, MotionSnapshot, ReachAction } from "../contract/types.ts";
+import type { AnimationRecord, MeasuredClick, MotionFlagRecord, MotionSnapshot, ReachAction } from "../contract/types.ts";
 import { REACH_SETTLE_MS, STEP_TIMEOUT_MS } from "../lib/budgets.ts";
-import { animationRecords, bridgePresence, motionSnapshot } from "./page-validate.ts";
+import { animationRecords, bridgePresence, flagRecords, motionSnapshot } from "./page-validate.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm motion-audit");
 
@@ -28,6 +28,16 @@ export async function readMotion(page: Page): Promise<MotionSnapshot | null> {
 }
 export async function readAnimations(page: Page): Promise<readonly AnimationRecord[]> {
   return animationRecords(await page.evaluate("globalThis.__orb ? globalThis.__orb.animations() : []"));
+}
+/** The TRANSIENT half (#1070). `animations()` above is a SAMPLER — a 130–360ms transition launched by the
+ *  measured click is finished ~2s before it runs — so the flag ring is what carries the population the
+ *  dirty-animation budget was written for. Checkpoint-scoped: `resetEvidence` (already called before the
+ *  measured click) clears it, so this read is exactly the measured window's raises. */
+export async function readFlags(page: Page): Promise<readonly MotionFlagRecord[] | null> {
+  // `null` where the MEMBER is absent, never `[]`: an unobservable population and an empty one are
+  // different facts, and folding them together is how the blindness comes back (lib/evidence.ts owns
+  // the consequence). Distinguished on the page side because the node side cannot tell them apart after.
+  return flagRecords(await page.evaluate('globalThis.__orb && typeof globalThis.__orb.flags === "function" ? globalThis.__orb.flags() : null'));
 }
 
 /** Resolve Playwright's visibility/actionability geometry before the checkpoint. Those reads can run

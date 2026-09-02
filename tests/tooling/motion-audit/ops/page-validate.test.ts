@@ -6,7 +6,7 @@
 // __orb read below answers null/[] and each budget arm reads that as a clean zero"); these are the same
 // defence for the case where the bridge is present and answers the wrong shape.
 import { describe } from "vitest";
-import { animationRecords, bridgePresence, motionSnapshot } from "../../../../tooling/src/motion-audit/ops/page-validate.ts";
+import { animationRecords, bridgePresence, flagRecords, motionSnapshot } from "../../../../tooling/src/motion-audit/ops/page-validate.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const SNAPSHOT = { loafs: [], cls: 0.01, worstBlocking: 12, worstShift: 0.004 };
@@ -44,6 +44,11 @@ describe("the __orb.motion() read", () => {
 
   test("an optional member PRESENT at the wrong kind is still refused", () => {
     expect(() => motionSnapshot({ ...SNAPSHOT, nonVirtualizedCls: "0.1" })).toThrow(/field "nonVirtualizedCls" returned string/u);
+    // The #1071 observed halves get the same treatment — they gate an INTERACTION cell, so a NaN there
+    // compares false and reads as measured stability.
+    expect(() => motionSnapshot({ ...SNAPSHOT, observedCls: Number.NaN })).toThrow(/field "observedCls".*finite/u);
+    expect(() => motionSnapshot({ ...SNAPSHOT, observedNonVirtualizedCls: "0.2" })).toThrow(/field "observedNonVirtualizedCls" returned string/u);
+    expect(() => motionSnapshot({ ...SNAPSHOT, shifts: { length: 0 } })).toThrow(/field "shifts".*not a list/u);
   });
 
   test("a non-object answer is refused", () => {
@@ -66,5 +71,36 @@ describe("the __orb.animations() read", () => {
     expect(() => animationRecords([{ ...RECORD, compositorClean: undefined }])).toThrow(/row 0 field "compositorClean" returned nothing/u);
     expect(() => animationRecords([RECORD, { ...RECORD, properties: "opacity" }])).toThrow(/row 1 field "properties" returned string/u);
     expect(() => animationRecords(["x"])).toThrow(/row 0 returned string, not an object/u);
+  });
+});
+
+describe("the __orb.flags() read", () => {
+  const Anim = { tag: "anim", at: 40, offender: "#row", detail: "animating non-compositor height", overBudget: true };
+
+  test("null is a REAL answer — the MEMBER is absent, which is not an empty ring", () => {
+    // The distinction IS the #1070 finding: "nothing fired" and "the transient population cannot be
+    // observed" are different facts, and lib/evidence.ts turns the second into a refusal.
+    expect(flagRecords(null)).toBeNull();
+    expect(flagRecords(undefined)).toBeNull();
+    expect(flagRecords([])).toEqual([]);
+  });
+
+  test("a NON-list is refused — it folds to zero raises, i.e. 'nothing dirty fired'", () => {
+    expect(() => flagRecords({ length: 0 })).toThrow(/INSTRUMENT ERROR.*not a list/u);
+  });
+
+  test("a malformed ROW is refused, naming its index and field", () => {
+    expect(() => flagRecords([{ ...Anim, tag: 7 }])).toThrow(/row 0 field "tag" returned number/u);
+    expect(() => flagRecords([Anim, { ...Anim, at: Number.NaN }])).toThrow(/row 1 field "at".*finite/u);
+  });
+
+  test("a PRESENT animation payload at the wrong shape is refused, not silently unsanctionable", () => {
+    // Degrading a wrong-shaped payload to "unattributed" would be a FAILURE, not a pass — but it would
+    // also hide a broken bridge behind a plausible red. The shape is the instrument's contract.
+    expect(() => flagRecords([{ ...Anim, animation: { target: "#row", properties: "height", compositorClean: false } }])).toThrow(
+      /row 0 animation field "properties" returned string/u,
+    );
+    expect(() => flagRecords([{ ...Anim, animation: "height" }])).toThrow(/row 0 field "animation" returned string, not an object/u);
+    expect(flagRecords([{ ...Anim, animation: { target: "#row", properties: ["height"], compositorClean: false } }])).toHaveLength(1);
   });
 });

@@ -30,7 +30,8 @@
 // re-export from the lib barrel (that would drag it into the prod bundle).
 
 import { logClock } from "./log-clock.ts";
-import { animatedProperties, COMPOSITOR_SAFE_PROPS } from "./motion-animation-record.ts";
+import type { AnimationRecord } from "./motion-animation-record.ts";
+import { animatedProperties, animationRecordOf, COMPOSITOR_SAFE_PROPS } from "./motion-animation-record.ts";
 import { hasVisibleDuration, installFrameDropFlagger, isExternalDevtoolsElement, resetFrameDropFlagger } from "./motion-animation-state.ts";
 import { installDeadClassFlagger } from "./motion-dead-class-flagger.ts";
 import { surfaceLabelOf } from "./motion-stats.ts";
@@ -73,6 +74,25 @@ export interface MotionFlagRecord {
   readonly detail: string;
   /** true ⇒ a declared budget in `MOTION_BUDGETS` was crossed (vs. an unconditional correctness flag). */
   readonly overBudget: boolean;
+  /** THE RAW BROWSER FACTS behind an `anim` raise — property set, target lifecycle state, owner/mechanism
+   *  attribution — as `motion-animation-record.ts` builds them, captured at LAUNCH.
+   *
+   *  Why it rides the flag and not just the console line (#1070): `__orb.animations()` samples
+   *  `document.getAnimations()`, so a 130–360ms house transition — the whole band this app animates in —
+   *  is over before any end-of-window read, and `pnpm motion-audit`'s dirty-animation budget was in
+   *  practice a continuous-LOOP detector judging a population that could not contain the transitions its
+   *  allowance table exists to sanction. The ring is checkpoint-scoped and cleared by `resetEvidence`, so
+   *  a driven probe reads exactly its own measured window.
+   *
+   *  IT CARRIES NO VERDICT. `overBudget` above is THIS channel's console verdict under guide §3.7 and is
+   *  deliberately not what a consumer reads: a reader re-judges these raw facts under its own policy (for
+   *  motion-audit, the #953 owner-accepted Base UI height allowance in `lib/animations.ts`, unchanged).
+   *  Present only on the `anim` channel; the other three raise no animation.
+   *
+   *  MUST NOT SILENTLY DISAPPEAR — a consumer that receives an `anim` flag without it cannot sanction the
+   *  ratified lifecycles and must treat the raise as unattributed. `tests/client/lib/motion-flaggers.ct.tsx`
+   *  pins the attachment for exactly that reason. */
+  readonly animation?: AnimationRecord;
 }
 
 const flagRing: MotionFlagRecord[] = [];
@@ -110,16 +130,19 @@ interface RaiseArgs {
   readonly offender: string;
   readonly detail: string;
   readonly overBudget: boolean;
+  /** Only the `anim` channel supplies this — see {@link MotionFlagRecord.animation}. */
+  readonly animation?: AnimationRecord;
 }
 
 /** Raise one flag: dedupe on `key`, ring it, and print the house line. */
-function raise({ tag, key, offender, detail, overBudget }: RaiseArgs): void {
+function raise({ tag, key, offender, detail, overBudget, animation }: RaiseArgs): void {
   const identity = `${tag}|${key}`;
   if (raised.has(identity)) {
     return;
   }
   raised.add(identity);
-  flagRing.push({ tag, at: Math.round(performance.now()), offender, detail, overBudget });
+  // The console line below is unchanged by the payload — it is pull-side evidence only.
+  flagRing.push({ tag, at: Math.round(performance.now()), offender, detail, overBudget, ...(animation === undefined ? {} : { animation }) });
   if (flagRing.length > FLAG_RING_CAP) {
     flagRing.shift();
   }
@@ -215,6 +238,10 @@ function flagDirtyAnimationsOn(el: Element): void {
       offender: label,
       detail: `animating non-compositor ${dirty.join(", ")} (guide §3.7 — transform/opacity/filter, plus paint-only colour on an interactive state)`,
       overBudget: true,
+      // The launch-time facts a pull-side consumer needs to apply its OWN owner/lifecycle policy to a
+      // transition that will be over before any sampler could see it (#1070). The lifecycle binder runs
+      // on `transitionrun`, which precedes `transitionstart`, so the Base UI state is already bound here.
+      animation: animationRecordOf(anim),
     });
   }
 }

@@ -8,7 +8,7 @@ import type { Page } from "@playwright/test";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { Args, AuditData, MeasuredClick, TraceEvent } from "../contract/types.ts";
 import { calibratedDroppedFramePct } from "../lib/frames.ts";
-import { readAnimations, readMotion } from "./drive.ts";
+import { readAnimations, readFlags, readMotion } from "./drive.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm motion-audit");
 
@@ -24,6 +24,8 @@ export async function runAudit(
   });
   await page.evaluate("globalThis.__orb?.setMotionAuditDropTrackingPaused(true)");
   let stepFailed = opts.selector !== null && measuredClick === null;
+  // Set only where the native click actually dispatched — see AuditData.measuredInput (#1071).
+  let measuredInput = false;
   try {
     await cdp.send("Tracing.start", {
       categories: "benchmark,blink.user_timing,disabled-by-default-devtools.timeline.frame,disabled-by-default-devtools.timeline",
@@ -34,6 +36,7 @@ export async function runAudit(
       // @orb-gate-ignore caught-failure-ownership(empty:e): sets stepFailed, which is returned in the AuditData the caller reads as part of the verdict, and prints STEP FAILED — not dropped. Ends if stepFailed stops being read from the returned AuditData.
       try {
         await page.mouse.click(measuredClick.x, measuredClick.y);
+        measuredInput = true;
       } catch (e) {
         stepFailed = true;
         print(`STEP FAILED  click ${opts.selector ?? "(none)"}: ${errorMessage(e)}`);
@@ -55,6 +58,7 @@ export async function runAudit(
   return {
     motion: await readMotion(page),
     animations: await readAnimations(page),
+    flags: await readFlags(page),
     frames: calibratedDroppedFramePct(traceEvents),
     pageErrors: [],
     // Kept even when frames are found: an empty population is diagnosed by whether the TRACE was empty
@@ -62,5 +66,6 @@ export async function runAudit(
     traceEventCount: traceEvents.length,
     stepFailed,
     reachFailures: 0,
+    measuredInput,
   };
 }

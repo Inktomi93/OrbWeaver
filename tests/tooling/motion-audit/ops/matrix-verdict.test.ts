@@ -22,7 +22,10 @@ const controlVariant: MotionMatrixVariant = {
 };
 const link: MotionStaticExpectedLink = { candidateId: candidateVariant.id, controlId: controlVariant.id };
 
-function data(reduced: boolean, frames: number, app: boolean): AuditData {
+// `measuredInput` mirrors the cell's own variant: the ruled candidate is a reduced ENTRY cell (selector
+// null ⇒ no trusted input, so the #109 spec total is the honest basis), while the paired control is the
+// full-motion INTERACTION cell that dispatches a real click (#1071).
+function data(reduced: boolean, frames: number, app: boolean, measuredInput: boolean): AuditData {
   const viewport = { width: 430, height: 932 };
   return {
     environment: {
@@ -71,6 +74,8 @@ function data(reduced: boolean, frames: number, app: boolean): AuditData {
     traceEventCount: 12,
     stepFailed: false,
     reachFailures: 0,
+    measuredInput,
+    flags: [],
   };
 }
 
@@ -80,16 +85,16 @@ function cell(variant: MotionMatrixVariant, receipt: AuditData, code: number): M
 
 test("the ruled reduced mobile entry is STATIC-EXPECTED only beside a real full-motion interaction control", () => {
   const verdict = evaluateMotionStaticExpected(link, [
-    cell(candidateVariant, data(true, 0, true), EXIT.toolError),
-    cell(controlVariant, data(false, 8, false), EXIT.clean),
+    cell(candidateVariant, data(true, 0, true, false), EXIT.toolError),
+    cell(controlVariant, data(false, 8, false, true), EXIT.clean),
   ]);
   expect(verdict).toMatchObject({ status: "static-expected", candidateCode: EXIT.clean });
 });
 
 test("counterfeit carrier identity, a zero-frame control, and a candidate budget breach fail loud", () => {
-  const candidateData = data(true, 0, true);
+  const candidateData = data(true, 0, true, false);
   const candidate = cell(candidateVariant, candidateData, EXIT.toolError);
-  const control = cell(controlVariant, data(false, 8, false), EXIT.clean);
+  const control = cell(controlVariant, data(false, 8, false, true), EXIT.clean);
 
   expect(
     evaluateMotionStaticExpected(link, [
@@ -100,7 +105,7 @@ test("counterfeit carrier identity, a zero-frame control, and a candidate budget
     status: "instrument-error",
     candidateCode: EXIT.toolError,
   });
-  expect(evaluateMotionStaticExpected(link, [candidate, { ...control, data: data(false, 0, false), code: EXIT.toolError }])).toMatchObject({
+  expect(evaluateMotionStaticExpected(link, [candidate, { ...control, data: data(false, 0, false, true), code: EXIT.toolError }])).toMatchObject({
     status: "instrument-error",
     candidateCode: EXIT.toolError,
   });
@@ -112,8 +117,8 @@ test("counterfeit carrier identity, a zero-frame control, and a candidate budget
 
 test("a reduced candidate that produced frames keeps the ordinary verdict", () => {
   const verdict = evaluateMotionStaticExpected(link, [
-    cell(candidateVariant, data(true, 2, true), EXIT.clean),
-    cell(controlVariant, data(false, 8, false), EXIT.clean),
+    cell(candidateVariant, data(true, 2, true, false), EXIT.clean),
+    cell(controlVariant, data(false, 8, false, true), EXIT.clean),
   ]);
   expect(verdict).toMatchObject({ status: "ordinary", candidateCode: EXIT.clean });
 });

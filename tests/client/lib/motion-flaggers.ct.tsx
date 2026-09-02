@@ -281,6 +281,37 @@ test("a visible non-compositor transition is flagged", async ({ mount, page }) =
   await expect.poll(() => lines.length).toBeGreaterThan(0);
 });
 
+/** The `anim` raises as the story's own module instance holds them — the PULL half `__orb.flags()` serves. */
+interface AnimFlagProbe {
+  readonly tag: string;
+  readonly animation?: { readonly properties: readonly string[]; readonly compositorClean: boolean };
+}
+function readAnimFlags(page: Page): Promise<readonly AnimFlagProbe[]> {
+  return page.evaluate(() => {
+    const read = (globalThis as { __motionFlagsRead?: () => readonly unknown[] }).__motionFlagsRead;
+    const rows = read === undefined ? [] : (JSON.parse(JSON.stringify(read())) as { tag: string }[]);
+    return rows.filter((row) => row.tag === "anim");
+  }) as Promise<readonly AnimFlagProbe[]>;
+}
+
+// PERMANENT PIN for the LAUNCH-RECORD ATTACHMENT (#1070). `pnpm motion-audit`'s dirty-animation budget
+// reads `__orb.flags()` for the TRANSIENT population, because its other input — `__orb.animations()` — is
+// a `document.getAnimations()` sample taken when the measured window closes, ~2s after a 130-360ms house
+// transition ended. Without the attached record the audit cannot apply the #953 Base UI height allowance
+// and must treat every raise as unattributed, so a refactor that quietly drops `animation:` re-blinds an
+// instrument while leaving this file's console assertions green. Hence: the raise's FACTS, asserted.
+test("an [anim] raise carries the launch-time animation record the audit re-judges (#1070)", async ({ mount, page }) => {
+  const component = await mount(<MotionFlaggersReducedMotionStory />);
+  await component.getByRole("button", { name: "change color" }).click();
+  await expect.poll(async () => (await readAnimFlags(page)).length).toBeGreaterThan(0);
+
+  const anim = await readAnimFlags(page);
+  // The payload exists on EVERY anim raise — an absent one is unsanctionable evidence downstream.
+  expect(anim.every((flag) => flag.animation !== undefined)).toBe(true);
+  // …and it carries the two facts the allowance policy reads: the property set and the compositor verdict.
+  expect(anim.some((flag) => flag.animation?.properties.includes("color") === true && flag.animation.compositorClean === false)).toBe(true);
+});
+
 /** Read the story's own transitionstart tally — the receipt that the exempted transition really ran. */
 function colourTransitionStarts(page: Page): Promise<number> {
   return page.evaluate(() => (document.documentElement as HTMLElement & { __orbColourTransitionStarts?: number }).__orbColourTransitionStarts ?? 0);

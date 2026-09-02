@@ -5,11 +5,13 @@
 // gated number, making "journey under 0.1" unreachable by any app fix short of changing the virtualizer.
 // This file's home is the tests/tooling/motion-audit mirror (Spine-Testing.md §2); the browser
 // half — that a virtualized-tagged shift really does move only raw — is tests/client/lib/motion-stats.ct.tsx.
-import type { AnimationRecord, AuditData, BrowserEnvironmentEvidence } from "../../../tooling/src/motion-audit/index.ts";
+import type { AnimationRecord, AuditData, BrowserEnvironmentEvidence, MotionFlagRecord } from "../../../tooling/src/motion-audit/index.ts";
 import {
   animationTotals,
   apparatusGap,
   calibratedDroppedFramePct,
+  clsBudgetBasis,
+  clsBudgeted,
   clsOverBudget,
   clsTotals,
   droppedFramePct,
@@ -18,6 +20,8 @@ import {
   loafTotals,
   MOTION_AUDIT_HELP,
   motionEvidenceGaps,
+  observedClsGap,
+  observedClsTotals,
   parseMotionArgs,
 } from "../../../tooling/src/motion-audit/index.ts";
 import { expect, test } from "../../support/tool-fixtures.ts";
@@ -69,13 +73,29 @@ function auditData(over: Partial<AuditData> = {}): AuditData {
   return {
     environment: DESKTOP_ENVIRONMENT,
     applicationMotion: null,
-    motion: { loafs: [], cls: 0, virtualizedCls: 0, nonVirtualizedCls: 0, worstBlocking: 0, worstShift: 0 },
+    motion: {
+      loafs: [],
+      cls: 0,
+      virtualizedCls: 0,
+      nonVirtualizedCls: 0,
+      observedCls: 0,
+      observedVirtualizedCls: 0,
+      observedNonVirtualizedCls: 0,
+      worstBlocking: 0,
+      worstShift: 0,
+    },
     animations: [],
     frames: { raw: { total: 12, dropped: 0, pct: 0 }, classified: { total: 0, dropped: 0 }, budgeted: { total: 12, dropped: 0, pct: 0 } },
     pageErrors: [],
     traceEventCount: 900,
     stepFailed: false,
     reachFailures: 0,
+    // Default = an ENTRY window (no trusted input), which is what every pre-#1071 case in this file
+    // measured. The interaction arms below set it explicitly.
+    measuredInput: false,
+    // Default = no TRANSIENT raises, so every pre-#1070 case keeps the end-of-window sample's exact
+    // arithmetic. The transient arms below plant them explicitly.
+    flags: [],
     ...over,
   };
 }
@@ -156,7 +176,9 @@ type Snapshot = NonNullable<Parameters<typeof clsTotals>[0]>;
 const FRAME_REPORTER_KEY = "frame_reporter";
 const AFFECTS_SMOOTHNESS_KEY = "affects_smoothness";
 
-function snapshot(over: Pick<Snapshot, "cls" | "virtualizedCls" | "nonVirtualizedCls">): Snapshot {
+function snapshot(
+  over: Pick<Snapshot, "cls" | "virtualizedCls" | "nonVirtualizedCls" | "observedCls" | "observedVirtualizedCls" | "observedNonVirtualizedCls">,
+): Snapshot {
   return { loafs: [], worstBlocking: 0, worstShift: 0, ...over };
 }
 
@@ -261,19 +283,19 @@ test("a purely virtualized journey moves the RAW total and never the verdict", (
   // The measured shape: 0.26 of instability, all of it virtual-row reconciliation.
   const motion = snapshot({ cls: 0.26, virtualizedCls: 0.26, nonVirtualizedCls: 0 });
   expect(clsTotals(motion)).toEqual({ raw: 0.26, virtualized: 0.26, budgeted: 0 });
-  expect(clsOverBudget(motion)).toBe(false);
+  expect(clsOverBudget(motion, false)).toBe(false);
 });
 
 test("a real app shift still fails the budget even when virtualized settling dwarfs it", () => {
   // The regression this must not become: excluding virtualized shifts must not excuse a real one.
   const motion = snapshot({ cls: 0.41, virtualizedCls: 0.26, nonVirtualizedCls: 0.15 });
-  expect(clsOverBudget(motion)).toBe(true);
+  expect(clsOverBudget(motion, false)).toBe(true);
   expect(clsTotals(motion).raw).toBe(0.41);
 });
 
 test("the non-virtualized total is judged against the same 0.1 CWV ceiling as before", () => {
-  expect(clsOverBudget(snapshot({ cls: 0.1, virtualizedCls: 0, nonVirtualizedCls: 0.1 }))).toBe(false);
-  expect(clsOverBudget(snapshot({ cls: 0.11, virtualizedCls: 0, nonVirtualizedCls: 0.11 }))).toBe(true);
+  expect(clsOverBudget(snapshot({ cls: 0.1, virtualizedCls: 0, nonVirtualizedCls: 0.1 }), false)).toBe(false);
+  expect(clsOverBudget(snapshot({ cls: 0.11, virtualizedCls: 0, nonVirtualizedCls: 0.11 }), false)).toBe(true);
 });
 
 test("a page bundle predating the split (no virtualized fields) keeps the OLD verdict, never a free pass", () => {
@@ -281,14 +303,14 @@ test("a page bundle predating the split (no virtualized fields) keeps the OLD ve
   // that as "nothing was virtualized" reproduces the pre-#109 behaviour; reading it as 0 would be a lie.
   const legacy = snapshot({ cls: 0.26 });
   expect(clsTotals(legacy)).toEqual({ raw: 0.26, virtualized: 0, budgeted: 0.26 });
-  expect(clsOverBudget(legacy)).toBe(true);
+  expect(clsOverBudget(legacy, false)).toBe(true);
 });
 
 test("no snapshot at all (no __orb bridge) is zeros, not NaN — and those zeros are NOT a verdict", () => {
   // The totals stay total (a reader that NaNs is worse), but #409 moved the consequence: the run that
   // produced no snapshot is an INSTRUMENT ERROR at the verdict seam, never a clean CLS of 0.
   expect(clsTotals(null)).toEqual({ raw: 0, virtualized: 0, budgeted: 0 });
-  expect(clsOverBudget(null)).toBe(false);
+  expect(clsOverBudget(null, false)).toBe(false);
   expect(motionEvidenceGaps(auditData({ motion: null }), 2500).map((g) => g.evidence)).toContain("the __orb motion snapshot");
 });
 
@@ -530,4 +552,201 @@ test("BRIDGE-ABSENT is only claimed once the app HAS signalled ready", () => {
 
 test("a ready page WITH the bridge yields no gap — the audit may speak", () => {
   expect(apparatusGap({ url: APPARATUS_URL, ready: true, bridge: true, readyTimeoutMs: READY_MS })).toBeNull();
+});
+
+// ── #1071: the INTERACTION-CELL CLS basis ────────────────────────────────────────────────────────────
+// THE PAID FALSE PASS, replayed. motion-stats.ts:26-35 records it: the docked LIST panel toggle moved
+// `.shell-main` 272px across 7 entries — 0.207 of instability — and EVERY entry carried
+// `hadRecentInput: true`, because motion-audit's measured click is a REAL CDP dispatch and the Layout
+// Instability spec zeroes everything within 500ms of trusted input. `cls` read 0.0177 and the tool
+// printed PASS while the shell visibly thrashed. Before this pin the receipt below evaluated
+// `budgetsPass: true` (red-first receipt, lane cb-motion-truth).
+const DOCKED_PANEL_TOGGLE = {
+  cls: 0.0177,
+  virtualizedCls: 0,
+  nonVirtualizedCls: 0.0177,
+  observedCls: 0.207,
+  observedVirtualizedCls: 0,
+  observedNonVirtualizedCls: 0.207,
+} as const;
+
+test("an INTERACTION window is judged on the observed total — the paid docked-panel receipt FAILS", () => {
+  const motion = snapshot({ ...DOCKED_PANEL_TOGGLE });
+  expect(clsBudgetBasis(true)).toBe("observed-non-virtualized");
+  expect(clsBudgeted(motion, true)).toBe(0.207);
+  expect(clsOverBudget(motion, true)).toBe(true);
+  expect(evaluateMotionAudit(auditData({ motion, measuredInput: true }), 2500)).toMatchObject({ budgetsPass: false, gaps: [] });
+});
+
+test("the SAME receipt on an ENTRY window keeps the #109 arithmetic exactly — polarity is preserved", () => {
+  // The mechanism audit verified entry-cell polarity MATCHED: no trusted input happened, so the spec
+  // metric excluded nothing and `nonVirtualizedCls` is the honest number. This must not move.
+  const motion = snapshot({ ...DOCKED_PANEL_TOGGLE });
+  expect(clsBudgetBasis(false)).toBe("non-virtualized");
+  expect(clsBudgeted(motion, false)).toBe(0.0177);
+  expect(clsOverBudget(motion, false)).toBe(false);
+  expect(evaluateMotionAudit(auditData({ motion }), 2500)).toMatchObject({ budgetsPass: true, gaps: [] });
+});
+
+test("virtual-row reconciliation inside the click's own 500ms is still NOT an app defect (#109 holds)", () => {
+  // The regression the observed split exists to prevent: a click that opens a chat settles the message
+  // list within its own input window. Budgeting on raw `observedCls` would trade #1071's false PASS for
+  // a false FAIL nothing an app fix could move.
+  const motion = snapshot({
+    cls: 0,
+    virtualizedCls: 0,
+    nonVirtualizedCls: 0,
+    observedCls: 0.26,
+    observedVirtualizedCls: 0.26,
+    observedNonVirtualizedCls: 0,
+  });
+  expect(observedClsTotals(motion)).toEqual({ raw: 0.26, virtualized: 0.26, budgeted: 0 });
+  expect(clsOverBudget(motion, true)).toBe(false);
+});
+
+test("a real app shift inside the input window still fails even when virtualized settling dwarfs it", () => {
+  const motion = snapshot({
+    cls: 0,
+    virtualizedCls: 0,
+    nonVirtualizedCls: 0,
+    observedCls: 0.41,
+    observedVirtualizedCls: 0.26,
+    observedNonVirtualizedCls: 0.15,
+  });
+  expect(clsOverBudget(motion, true)).toBe(true);
+});
+
+test("an interaction against a bundle with no observed total REFUSES — it never falls back to `cls`", () => {
+  // The one #109-shaped optional field that must not degrade gracefully: the fallback (`cls`) IS the
+  // #1071 lie. `--isolated --ref <pre-#1071 sha>` + --selector gets an instrument error, not a verdict.
+  const legacy = snapshot({ cls: 0.0177, virtualizedCls: 0, nonVirtualizedCls: 0.0177 });
+  expect(clsBudgeted(legacy, true)).toBeNull();
+  expect(clsOverBudget(legacy, true)).toBe(false);
+  const evaluation = evaluateMotionAudit(auditData({ motion: legacy, measuredInput: true }), 2500);
+  expect(evaluation.gaps.map((gap) => gap.evidence)).toEqual([observedClsGap().evidence]);
+  // …and the SAME bundle on an entry window is not a gap at all: nothing was excluded there.
+  expect(evaluateMotionAudit(auditData({ motion: legacy }), 2500).gaps).toEqual([]);
+});
+
+test("a missing snapshot stays the ONE __orb gap — the observed gap never double-reports it", () => {
+  expect(evaluateMotionAudit(auditData({ motion: null, measuredInput: true }), 2500).gaps.map((g) => g.evidence)).toEqual(["the __orb motion snapshot"]);
+});
+
+test("observedClsTotals derives the remainder when only the two halves are served", () => {
+  // Same tolerance the #109 fields already carry: a bundle that reports the raw + virtualized halves but
+  // not the difference is read by subtraction, never by falling through to the spec total.
+  // Binary-exact operands: the subtraction is deliberately unrounded (the collector already rounds to 4
+  // decimals), so a fixture must not smuggle a float-precision failure into a semantic pin.
+  expect(observedClsTotals(snapshot({ cls: 0, observedCls: 0.5, observedVirtualizedCls: 0.25 }))).toEqual({ raw: 0.5, virtualized: 0.25, budgeted: 0.25 });
+  expect(observedClsTotals(snapshot({ cls: 0 }))).toBeNull();
+  expect(observedClsTotals(null)).toBeNull();
+});
+
+// ── #1070: the TRANSIENT animation census ────────────────────────────────────────────────────────────
+// `__orb.animations()` is a SAMPLE taken when the measured window closes. Every house duration is
+// 130/220/360ms and the default window is 2,500ms, so a dirty transition launched by the measured click
+// is finished ~2s before the sample: the dirty-animation budget was a continuous-LOOP detector, and its
+// whole `sanctionedLibrary` machinery adjudicated a population that could not contain the transitions it
+// exists to sanction. The `anim` channel of `__orb.flags()` carries the launch-time records; motion-audit
+// re-judges them with the SAME (unchanged, #953) policy and never reads the channel's own `overBudget`.
+
+function animFlag(over: Partial<MotionFlagRecord> = {}): MotionFlagRecord {
+  return {
+    tag: "anim",
+    at: 120,
+    offender: '[data-slot="tabs-indicator"]',
+    detail: "animating non-compositor left, width",
+    overBudget: true,
+    ...over,
+  };
+}
+
+test("a dirty transition that ENDED before the window sample is still budgeted (#1070)", () => {
+  // The blindness itself: the end-of-window sample is EMPTY and the run passed regardless of what fired.
+  const flags = [animFlag({ animation: { target: '[data-slot="tabs-indicator"]', properties: ["left", "width"], compositorClean: false } })];
+  expect(animationTotals([], flags)).toMatchObject({ rawDirty: 0, transientDirty: 1, sanctionedLibrary: 0, budgetedDirty: 1 });
+  expect(evaluateMotionAudit(auditData({ flags }), 2500)).toMatchObject({
+    dirtyAnimations: 0,
+    transientDirtyAnimations: 1,
+    budgetedDirtyAnimations: 1,
+    budgetsPass: false,
+  });
+});
+
+test("the #953 allowance is applied to the transient population UNCHANGED — the console verdict is not read", () => {
+  // The flag says `overBudget: true` (guide §3.7's console policy, #1069's fork). motion-audit re-judges
+  // the raw facts: an exactly attributed Base UI height lifecycle leaves the budget, here as it does in
+  // the active sample. Reading `overBudget` instead would import the open fork into this exit code.
+  const ratified = animFlag({
+    offender: '[data-slot="collapsible-panel"]',
+    animation: {
+      target: '[data-slot="collapsible-panel"]',
+      properties: ["height"],
+      compositorClean: false,
+      targetState: { startingStyle: false, endingStyle: false },
+      lifecycleState: { startingStyle: true, endingStyle: false, observedAt: "transition-run" },
+      attribution: { owner: "base-ui", mechanism: "css-transition", phase: "starting-style" },
+    },
+  });
+  expect(ratified.overBudget).toBe(true);
+  expect(animationTotals([], [ratified])).toMatchObject({ transientDirty: 1, sanctionedLibrary: 1, budgetedDirty: 0 });
+  expect(evaluateMotionAudit(auditData({ flags: [ratified] }), 2500)).toMatchObject({ budgetsPass: true, gaps: [] });
+});
+
+test("a COMPOSITOR-CLEAN transient raise never enters the dirty population", () => {
+  const clean = animFlag({ animation: { target: "[data-slot=drawer-popup]", properties: ["transform"], compositorClean: true } });
+  expect(animationTotals([], [clean])).toMatchObject({ transientDirty: 0, budgetedDirty: 0 });
+});
+
+test("only the `anim` channel is consumed — [css]/[drop]/[space] raise no animation and are ignored", () => {
+  const others = [
+    animFlag({ tag: "drop", offender: "[data-slot=rail]" }),
+    animFlag({ tag: "css", offender: ".dead-token" }),
+    animFlag({ tag: "space", offender: "img", overBudget: false }),
+  ];
+  expect(animationTotals([], others)).toMatchObject({ rawDirty: 0, transientDirty: 0, budgetedDirty: 0 });
+  expect(evaluateMotionAudit(auditData({ flags: others }), 2500)).toMatchObject({ budgetsPass: true });
+});
+
+test("an `anim` raise with NO launch record is an unattributed FAILURE, never a sanctioned zero", () => {
+  // A bundle predating the attachment (or a raise site that dropped it) cannot be sanctioned — the
+  // allowance needs the property set and the bound lifecycle. Same posture this file already takes for a
+  // pre-#953 AnimationRecord: unattributed evidence is a failure, not a pass.
+  const unrecorded = [animFlag()];
+  expect(animationTotals([], unrecorded)).toMatchObject({ transientDirty: 1, sanctionedLibrary: 0, budgetedDirty: 1 });
+  expect(evaluateMotionAudit(auditData({ flags: unrecorded }), 2500).budgetsPass).toBe(false);
+});
+
+test("a loop seen in BOTH populations is ONE offender — the counts never double", () => {
+  // A continuous dirty animation starts inside the window AND is still running at the sample. Reporting
+  // two offenders for one defect is the kind of inflation that makes an instrument's numbers unreadable.
+  const running = dirtyAnimation({ target: "[data-slot=busy-spinner]", properties: ["margin-left"] });
+  const raise = animFlag({
+    offender: "[data-slot=busy-spinner]",
+    animation: { target: "[data-slot=busy-spinner]", properties: ["margin-left"], compositorClean: false },
+  });
+  expect(animationTotals([running], [raise])).toMatchObject({ rawDirty: 1, transientDirty: 1, budgetedDirty: 1 });
+});
+
+test("with no flags at all the active-sample arithmetic is byte-for-byte the pre-#1070 behaviour", () => {
+  const application = dirtyAnimation({
+    targetState: { startingStyle: false, endingStyle: false },
+    attribution: { owner: "application", mechanism: "css-transition" },
+  });
+  expect(animationTotals([application], [])).toMatchObject({ rawDirty: 1, transientDirty: 0, sanctionedLibrary: 0, budgetedDirty: 1 });
+  expect(animationTotals([application])).toEqual(animationTotals([application], []));
+});
+
+test("a counterfeit Base UI tuple in the TRANSIENT population is an attribution gap too", () => {
+  const counterfeit = animFlag({
+    animation: {
+      target: '[data-slot="menu-popup"]',
+      properties: ["height"],
+      compositorClean: false,
+      targetState: { startingStyle: false, endingStyle: true },
+      lifecycleState: { startingStyle: false, endingStyle: true, observedAt: "transition-run" },
+      attribution: { owner: "base-ui", mechanism: "css-transition", phase: "starting-style" },
+    },
+  });
+  expect(animationTotals([], [counterfeit]).gaps.map((gap) => gap.evidence)).toEqual(["Base UI animation attribution"]);
 });
