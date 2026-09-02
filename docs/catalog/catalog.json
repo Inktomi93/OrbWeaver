@@ -457,12 +457,12 @@
       },
       "receipt": {
         "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
-        "assignedSha256": "8c9daac4f90e6835d1e46609c4ec5871506e06956eb3f4014f1a3571d2b556ee",
+        "assignedSha256": "196f2157e4e93692e0328e2162d5d635bedadc8d99dabd03a52318b5bce6f205",
         "disposition": "current",
         "authority": "operational",
         "fullRead": true,
-        "verifiedSha256": "8c9daac4f90e6835d1e46609c4ec5871506e06956eb3f4014f1a3571d2b556ee",
-        "verifiedCommit": "eb3196c3475192aae811f52200e5afd902df494e",
+        "verifiedSha256": "196f2157e4e93692e0328e2162d5d635bedadc8d99dabd03a52318b5bce6f205",
+        "verifiedCommit": "9e5c8f6ee1d106b06f067ef30b3b24ba33273c28",
         "verifiedAt": "2026-09-01",
         "evidence": [
           "re-attested at 9a4bee47ab1b21cd68c291c80e1704b486200dd8 (#995): the agent-bridge-lock row records the lean production readiness home, shared debug Promise/query, and DEV-only bridge boundary; focused CT passed 6/6, gate conformance passed, and check:structure completed 244/244 active gates clean",
@@ -530,7 +530,8 @@
           "re-attested at 75559ae15 — merge of #1035 (1120e060b: schema-read answers every member kind, drizzle population receipt on the eight gates) onto the #1024-#1030 ledger; union read once",
           "re-attested at bb6b9e21a3dcef35b7b890f505749c05fafb6260 — #879 widened two Layer-3 rows in place: json-column-write-parity gained its ARM B (versioned-config write dominance, its fail-closed arms and its APP_SETTINGS_KEY declared limit) and no-raw-zustand-persist gained ARMs B/C (the destructive-reset home and the durable-local blindfold seam). Row text re-derived from the shipped descriptors' own message/fix in the same commit; no other row touched.",
           "re-attested at eb3196c34 — merge of #879 (bb6b9e21a: json-column-write-parity dominance arm over the derived versioned-config column set + no-raw-zustand-persist arms B/C), resolved onto #1035's SchemaColumn record; union read once",
-          "re-attested at f92e84640 (#1048, lane p-bus-secret2, owner ruling): the bus-payload-allowlist row records `markerImmune` — no `@orb-gate-ignore` can silence a credential finding or a fail-closed token on the D16 wire firewall, and the ONE exemption door stays a reviewed SANCTIONED_FIELDS row with its D-cite. It is the FIRST NON-AUDITOR occupant of that flag, so GATE-AUTHORING.md §1 (the descriptor table cell) and §4.3a-bis both widen by ONE stated precedent, and both say a third occupant owes the same argument in writing. Delta read; registered-gate COUNT unchanged. Receipts: red-first on the REAL descriptor, two-sided in ONE run — with the flag off the marker suppressed both a planted `apiKey` member and an `unresolved-base:` token (so the marker spelling really bites and the pin is not a lying proof), and with it on neither is suppressed; a live-tree sweep found NO `@orb-gate-ignore bus-payload-allowlist` marker anywhere, so the flip orphaned nothing and gate-ignore-inventory stayed clean. check:structure ran COMPLETE 248/248 clean over 6,509 files (234/234 members), gate-conformance + the gate-ignore resolver pins 20/20, the gate's own pins 32/32, knip clean, types:graph clean, check:docs clean on both edited docs, ledgers-fresh clean. check-gates.int was UNRUN-BY-LOAD (loadavg 22.7 on 24 cores, above the quiet-tree bar)."
+          "re-attested at f92e84640 (#1048, lane p-bus-secret2, owner ruling): the bus-payload-allowlist row records `markerImmune` — no `@orb-gate-ignore` can silence a credential finding or a fail-closed token on the D16 wire firewall, and the ONE exemption door stays a reviewed SANCTIONED_FIELDS row with its D-cite. It is the FIRST NON-AUDITOR occupant of that flag, so GATE-AUTHORING.md §1 (the descriptor table cell) and §4.3a-bis both widen by ONE stated precedent, and both say a third occupant owes the same argument in writing. Delta read; registered-gate COUNT unchanged. Receipts: red-first on the REAL descriptor, two-sided in ONE run — with the flag off the marker suppressed both a planted `apiKey` member and an `unresolved-base:` token (so the marker spelling really bites and the pin is not a lying proof), and with it on neither is suppressed; a live-tree sweep found NO `@orb-gate-ignore bus-payload-allowlist` marker anywhere, so the flip orphaned nothing and gate-ignore-inventory stayed clean. check:structure ran COMPLETE 248/248 clean over 6,509 files (234/234 members), gate-conformance + the gate-ignore resolver pins 20/20, the gate's own pins 32/32, knip clean, types:graph clean, check:docs clean on both edited docs, ledgers-fresh clean. check-gates.int was UNRUN-BY-LOAD (loadavg 22.7 on 24 cores, above the quiet-tree bar).",
+          "re-attested at 9e5c8f6ee — merge of #1048 (f92e84640: bus-payload-allowlist markerImmune; GATE-AUTHORING §1 charter widened by one stated precedent); union read once"
         ],
         "claims": [
           {
@@ -567,7 +568,7 @@
         ],
         "summary": "Active enforcement registry re-attested for #995: agent-bridge-lock pins the lean readiness home, shared readiness identity, and DEV-only instrumentation boundary."
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/architecture/core/Core-Enforcement-Deferred-Dropped.md",
