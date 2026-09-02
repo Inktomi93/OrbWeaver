@@ -34,8 +34,11 @@ export interface PortPair {
 }
 
 /** What a reserved port is FOR. `provider` is the scripted BYO-provider stub (not an orbweaver server);
- *  `engine` is a vLLM process, which has no vite side at all. */
-export type PortRole = "server" | "vite" | "engine" | "provider";
+ *  `engine` is a vLLM process, which has no vite side at all. The AXIS is the tuple; the union DERIVES
+ *  from it, so a new role is added in exactly one place and every dispatch over it fails to compile until
+ *  it is handled (Spine-TypeScript §"String-union dispatch discipline"). */
+export const PORT_ROLES = ["server", "vite", "engine", "provider"] as const;
+export type PortRole = (typeof PORT_ROLES)[number];
 
 /** One reserved port: who owns it and why nothing else may take it. */
 export interface ReservedPort {
