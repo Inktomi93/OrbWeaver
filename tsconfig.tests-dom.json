@@ -33,14 +33,22 @@
   // deep-imports client SOURCE is a browser-subject test, so its honest home is here, matching the
   // `tests/e2e/**` precedent (a directory glob by ruling, not a per-file ledger) rather than the
   // per-file doctrine below. Per-file `tests/client/**` comments below this line are RETIRED; a new
-  // client escapee needs no entry at all now. THE COST, stated plainly: every genuinely node-context
-  // PURE-LOGIC test under tests/client/** (the majority of the tree — only ~90 of ~800+ tracked files
-  // ever needed a per-file exception before this move) loses the DOM-less program's structural guard
-  // against an accidental `document`/`window` reference creeping into its subject; a client unit test
-  // that starts touching the DOM would no longer red HERE — it would still red under `pnpm typecheck`
-  // (the per-package client program, which DOES carry dom) at push-floor time, just one tier later than
-  // before. That is the price, paid once, of ending the whack-a-mole (tsconfig.json's matching exclude
-  // carries the same note).
+  // client escapee needs no entry at all now. THE GUARD MOVES FROM TYPE TIME TO RUN TIME, NOT
+  // TO ANOTHER TYPE PROGRAM — stated precisely because the first cut of this note got it wrong:
+  // `pnpm typecheck` (the per-package client program) CARRIES lib.dom, so it structurally CANNOT catch
+  // an accidental `document`/`window` reference — a program that types DOM globals successfully is not
+  // a guard against them. The real guard: vitest has NO `environment` key on any project
+  // (vitest.config.ts) and neither jsdom nor happy-dom is an installed dependency anywhere in the repo,
+  // so every node-context project runs with no `document`/`window` at all. A client unit test that
+  // accidentally reaches for one now COMPILES clean here (this program has dom) but, once it lands
+  // under tests/client/** and runs under a NODE project, throws `ReferenceError: document is not
+  // defined` the instant it EXECUTES — loud, immediate, unmissable, arguably a better guard than a type
+  // error, just later in the pipeline (RUN, not TYPE). AND the move is cleaner than a cost/benefit
+  // trade at all: tsconfig.json's own header (its DOM-LESS-on-purpose note) states the root
+  // aggregator's actual motivating purpose is protecting SERVER/node typing from lib.dom's overrides
+  // (`BodyInit`/`BlobPart` rejecting `Uint8Array` — the 2026-06-28 incident), never policing stray
+  // `document` in tests. This move relocated only TEST files; no server code moved; that purpose is
+  // fully intact (tsconfig.json's matching exclude carries the same note).
   //
   // The `tests-type-membership` verify stage (tooling/src/verify/ops/tests-type-membership.ts) is the permanent
   // guard: it reconciles EVERY type-relevant file under tests/** + playwright/** against the import-closure
