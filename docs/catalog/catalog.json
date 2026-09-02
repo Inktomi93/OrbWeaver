@@ -189,29 +189,30 @@
       "path": "docs/architecture/core/AGENTS.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 370,
-      "bytes": 33566,
-      "sha256": "c56005deea26ec8ebfcbf5e3e05da4b3b748a367dbf090123797b3faedcb448a",
+      "lines": 376,
+      "bytes": 34129,
+      "sha256": "a51d72f18bfbb28462441a65e2d0ce2a071d800b185bcf20990f556ee801bf06",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "law",
           "status": "active",
-          "updated": "2026-08-30"
+          "updated": "2026-09-01"
         },
         "errors": []
       },
       "receipt": {
         "path": "docs/architecture/core/AGENTS.md",
-        "assignedSha256": "c56005deea26ec8ebfcbf5e3e05da4b3b748a367dbf090123797b3faedcb448a",
+        "assignedSha256": "a51d72f18bfbb28462441a65e2d0ce2a071d800b185bcf20990f556ee801bf06",
         "disposition": "current",
         "authority": "normative",
         "fullRead": true,
-        "verifiedSha256": "c56005deea26ec8ebfcbf5e3e05da4b3b748a367dbf090123797b3faedcb448a",
-        "verifiedCommit": "e85447e4bf2974330f2ed95f8eb94851e77d6d20",
+        "verifiedSha256": "a51d72f18bfbb28462441a65e2d0ce2a071d800b185bcf20990f556ee801bf06",
+        "verifiedCommit": "b2b74c97343aa257aabed4ac61dd3ef39d39d128",
         "verifiedAt": "2026-09-01",
         "evidence": [
+          "delta re-verify 2026-09-01 (#1029, content commit b2b74c97343aa257aabed4ac61dd3ef39d39d128): §4's harness-artifacts bullet now states that reports/verify.json, reports/check-structure.json, reports/verify/<stage>.log and reports/test-report.json are `latest` POINTERS published atomically at completion by a run that writes only inside reports/runs/<instrument>/<checkout>-<pid>-<timestamp>/, and routes the layout to its one home (UNIFIED-VERIFICATION-DESIGN.md §3.3b). Re-derived against tooling/src/_shared/artifacts.ts:59-300 and the landed publishers.",
           "re-attested at b8eb66f00 — the CSS constitution pointer now distinguishes portable DTCG values from validated runtime CSS outputs while keeping the exact six-home law in client-architecture-lockdown.md §4",
           "re-attested at bbecbfc78 — full-file read under #930; the added constitution line is a pointer to the path-closed six-home paint law and introduces no second wording",
           "docs/architecture/core/AGENTS.md:1-352 full read; Project, recovery, proposed-program, lane authority, and direct Claude-rule import routing reconciled",
@@ -959,28 +960,29 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 383,
-      "bytes": 39954,
-      "sha256": "9cd4a893488ed35d7b754ccf650b054af8538b6ef21ec8cee37b30f91aaa9536",
+      "bytes": 40166,
+      "sha256": "3639dae6b3509b4c3454712dff3dc397d1b337935b9397e275db3bdde9a83132",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "law",
           "status": "active",
-          "updated": "2026-08-30"
+          "updated": "2026-09-01"
         },
         "errors": []
       },
       "receipt": {
         "path": "docs/architecture/core/Core-Tooling-Law.md",
-        "assignedSha256": "9cd4a893488ed35d7b754ccf650b054af8538b6ef21ec8cee37b30f91aaa9536",
+        "assignedSha256": "3639dae6b3509b4c3454712dff3dc397d1b337935b9397e275db3bdde9a83132",
         "disposition": "current",
         "authority": "normative",
         "fullRead": true,
-        "verifiedSha256": "9cd4a893488ed35d7b754ccf650b054af8538b6ef21ec8cee37b30f91aaa9536",
-        "verifiedCommit": "7b7eb54b2dc770527b246a3918b027c97956e333",
-        "verifiedAt": "2026-08-30",
+        "verifiedSha256": "3639dae6b3509b4c3454712dff3dc397d1b337935b9397e275db3bdde9a83132",
+        "verifiedCommit": "b2b74c97343aa257aabed4ac61dd3ef39d39d128",
+        "verifiedAt": "2026-09-01",
         "evidence": [
+          "delta re-verify 2026-09-01 (#1029, content commit b2b74c97343aa257aabed4ac61dd3ef39d39d128): §2.4's `artifacts.ts` row now names the run-slot layout members (runId/checkoutName/openRunSlot/runFile/publishRunSlot/abandonedRuns) that joined the ONE reports/ plumbing home, and cites the layout's home rather than restating it. Verified against tooling/src/_shared/artifacts.ts:59-300 and the tooling-shared-plumbing arm-C exemption row that keeps this module the only `reports` speller.",
           "re-attested at 7b7eb54b2 under #950 — full-file/delta read; the shared-tooling table and revisioned-runtime section bind the verified offline DevTools asset server/runtime to Snap's one sanctioned asset root",
           "delta re-verify 2026-08-22 (lane srv-data): three deferral rows closed in place — §2.6's stack row and §9's roster-row lesson record the #415 template move, §3.2a records the #408 `/tools/` clause deletion. Each was re-derived against the landed change, not copied from the issue text",
           "docs/design/tooling-package.md:1 full read; P3 truth-repairs authored this session (§2.4 importer refresh + spawnNicedChild door, §2.6 five landed tool shapes, §2.7 record-promotion + EventSource decisions executed, §9.2a the P3 replay ledger, §9.3 the post-merge orchestrator ledger) against the same tree the P3 commit landed on",
@@ -1963,9 +1965,9 @@
       "path": "docs/architecture/core/UNIFIED-VERIFICATION-DESIGN.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 358,
-      "bytes": 30456,
-      "sha256": "e222765e013a665db627b772e3f17eb973f17b8ade842a68f76b63fde5c6a923",
+      "lines": 428,
+      "bytes": 35628,
+      "sha256": "1b6cdd40d17ee8094a4294a03eeaffa479bca4282cf4ad7498113d86d828ccfb",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -1978,14 +1980,15 @@
       },
       "receipt": {
         "path": "docs/architecture/core/UNIFIED-VERIFICATION-DESIGN.md",
-        "assignedSha256": "e0bf282d2b8168db407a91bae3aeb78d1c3bab40aca3cefd7bfd4de148f8d7b4",
+        "assignedSha256": "1b6cdd40d17ee8094a4294a03eeaffa479bca4282cf4ad7498113d86d828ccfb",
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "e222765e013a665db627b772e3f17eb973f17b8ade842a68f76b63fde5c6a923",
-        "verifiedCommit": "c40d194a1d870b51435af8add0d07d71ea42d1cb",
+        "verifiedSha256": "1b6cdd40d17ee8094a4294a03eeaffa479bca4282cf4ad7498113d86d828ccfb",
+        "verifiedCommit": "393e0d85485e2b844c4a6fd0c6036cbc9b4526d7",
         "verifiedAt": "2026-09-01",
         "evidence": [
+          "delta re-verify 2026-09-01 (#1029, content commit 393e0d85485e2b844c4a6fd0c6036cbc9b4526d7): new §3.3b is the ONE home for the reports/ layout — run identity `<checkout>-<pid>-<timestamp>`, the per-run slot, completion-only atomic symlink publishing, the racing-writer census, the 10-slot retention ring, why verify-history.jsonl stays unslotted, and the not-yet-slotted leftovers. §3.7's wedge-dump path is truth-repaired to the run slot. Derived from the landed publishers (tooling/src/verify/ops/run.ts + structure.ts + ct-flaky-reporter.ts, scripts/vitest-supervised.mjs) and pinned by tests/tooling/_shared/artifacts.int.test.ts. Re-pinned at the follow-up commit that struck the `O_APPEND` symbol cite (dangling-refs: a backticked symbol a core doc names must resolve in the workspace).",
           "delta re-verify 2026-09-01 (#995, content commit 9a4bee47ab1b21cd68c291c80e1704b486200dd8): quality:boot-chunk retains the summed boot-set definition and records the owner-authorized 859,000-byte ceiling derived from the clean 818,188-byte post-split production payload plus 4.99% measured headroom; the real ratchet passed with 40,812 bytes free",
           "docs/architecture/core/UNIFIED-VERIFICATION-DESIGN.md:1 (full read; header/status evaluated)",
           "delta re-verify 2026-09-01 (#1012 review follow-up, content commit c40d194a1d870b51435af8add0d07d71ea42d1cb): §3.7's `tests:node` bullet is re-read at the corrected bytes. The dangling citation is repaired — the suite that produced the measured 7-minute silence is `tests/tooling/ast/cli.int.test.ts`, not the `tests/tooling/ast-observability.int.test.ts` path deleted in 8931a886c — and the bullet now records that the same capture found `vitest.config.ts`'s SERIAL_INT row still spelling the pre-move path, so the heaviest whole-workspace file had been running in the PARALLEL lane (1,057,996 ms measured; repointed in the same commit). It also records that ORB_TEST_HANG_MAX_MS runs on its OWN clock, because CPU progress pushing a single shared clock made the ceiling unreachable. Verified against the code (scripts/vitest-supervised.mjs `liveness`/`wedgeReason`) and a real `pnpm test:scoped tests/tooling/vitest-supervised.test.ts` run reporting 11/11, with a planted control (ceiling forced off) reddening the ceiling row. No other claim in this document moved.",

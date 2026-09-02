@@ -2,18 +2,18 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 435,
-    "enforced": 432,
+    "sites": 443,
+    "enforced": 440,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 432,
+      "deliberate-absorb": 440,
       "detached-owned": 3,
       "unproven": 0
     },
     "byGrammar": {
       "promise": 124,
-      "default": 123,
-      "empty": 188
+      "default": 127,
+      "empty": 192
     }
   },
   "rows": [
@@ -4048,6 +4048,110 @@
       "markerLine": 340
     },
     {
+      "siteId": "tooling/src/_shared/artifacts.ts::default:catch::1",
+      "path": "tooling/src/_shared/artifacts.ts",
+      "line": 154,
+      "column": 5,
+      "grammar": "default",
+      "position": "default:catch",
+      "ordinal": 1,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "an absent or unparseable in-flight marker means \"this slot is not in flight\" — the ONLY question this reader asks — and `null` is that answer at every call site (the racing census, the prune filter, the abandoned-run scan). Ends if any caller starts treating null as \"in flight\".",
+      "markerLine": 151
+    },
+    {
+      "siteId": "tooling/src/_shared/artifacts.ts::default:catch::2",
+      "path": "tooling/src/_shared/artifacts.ts",
+      "line": 166,
+      "column": 5,
+      "grammar": "default",
+      "position": "default:catch",
+      "ordinal": 2,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "ESRCH from a signal-0 probe IS the answer — the pid is gone — and `false` is that answer at every call site (the racing census, the prune filter, the abandoned-run scan). Ends if this needs to distinguish EPERM (a live pid this user may not signal) from ESRCH.",
+      "markerLine": 162
+    },
+    {
+      "siteId": "tooling/src/_shared/artifacts.ts::default:catch::3",
+      "path": "tooling/src/_shared/artifacts.ts",
+      "line": 177,
+      "column": 5,
+      "grammar": "default",
+      "position": "default:catch",
+      "ordinal": 3,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "no runs directory yet means this instrument has never run here — an empty list is the truthful census, and every caller (racing, prune, abandoned) reads it as \"no other slots\". Ends if a missing directory must be created or refused here rather than by openRunSlot.",
+      "markerLine": 172
+    },
+    {
+      "siteId": "tooling/src/_shared/artifacts.ts::default:catch::4",
+      "path": "tooling/src/_shared/artifacts.ts",
+      "line": 282,
+      "column": 5,
+      "grammar": "default",
+      "position": "default:catch",
+      "ordinal": 4,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "this IS an existence predicate — the throw is the negative answer and is returned as `false` to the one caller (publishRunSlot's \"did the run write this artifact?\" check). Ends if the caller starts needing WHY the path is unreadable.",
+      "markerLine": 278
+    },
+    {
+      "siteId": "tooling/src/_shared/artifacts.ts::empty:catch::1",
+      "path": "tooling/src/_shared/artifacts.ts",
+      "line": 99,
+      "column": 5,
+      "grammar": "empty",
+      "position": "empty:catch",
+      "ordinal": 1,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "a missing `.git` entry means this root is not a checkout at all (a planted fixture tree), which is a legitimate NAME, not a failure — the fallback IS the answer and it is returned to the caller. Ends if a non-checkout root must be refused instead of named.",
+      "markerLine": 96
+    },
+    {
+      "siteId": "tooling/src/_shared/artifacts.ts::empty:catch::2",
+      "path": "tooling/src/_shared/artifacts.ts",
+      "line": 214,
+      "column": 5,
+      "grammar": "empty",
+      "position": "empty:catch",
+      "ordinal": 2,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "the pre-clean of a leftover temp link from an earlier crashed publish; ENOENT is the normal case, and a real failure surfaces immediately at the symlinkSync below (EEXIST), which is NOT caught. Ends if the symlink call is made tolerant of an existing path.",
+      "markerLine": 211
+    },
+    {
+      "siteId": "tooling/src/_shared/artifacts.ts::empty:catch::3",
+      "path": "tooling/src/_shared/artifacts.ts",
+      "line": 225,
+      "column": 5,
+      "grammar": "empty",
+      "position": "empty:catch",
+      "ordinal": 3,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "nothing at the alias yet (the first publish) or a concurrent publisher removed it — both mean \"no stale REAL file to clear\", and the renameSync below still lands the pointer atomically and DOES throw if it cannot. Ends if the rename stops being the load-bearing step.",
+      "markerLine": 218
+    },
+    {
+      "siteId": "tooling/src/_shared/artifacts.ts::empty:catch::4",
+      "path": "tooling/src/_shared/artifacts.ts",
+      "line": 245,
+      "column": 5,
+      "grammar": "empty",
+      "position": "empty:catch",
+      "ordinal": 4,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "the marker is already gone when a run publishes twice (the supervisor's single-project arm) — the post-condition \"this slot is no longer in flight\" holds either way. Ends if publishing twice must become an error.",
+      "markerLine": 242
+    },
+    {
       "siteId": "tooling/src/_shared/browser.ts::empty:error::1",
       "path": "tooling/src/_shared/browser.ts",
       "line": 314,
@@ -4284,7 +4388,7 @@
     {
       "siteId": "tooling/src/doc-catalog/ops/tree.ts::default:catch::1",
       "path": "tooling/src/doc-catalog/ops/tree.ts",
-      "line": 63,
+      "line": 70,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -4292,12 +4396,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "every caller (receiptFacts) treats a git command failure as \"this receipt fact is unverified\", not as a tool crash — null downgrades verifiedCommitExists/IsAncestor/blob to false/null rather than aborting the whole catalog build. Ends if a caller starts treating null as \"verified\".",
-      "markerLine": 60
+      "markerLine": 67
     },
     {
       "siteId": "tooling/src/doc-catalog/ops/tree.ts::default:catch::2",
       "path": "tooling/src/doc-catalog/ops/tree.ts",
-      "line": 72,
+      "line": 79,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -4305,7 +4409,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "same optional-read contract as gitResult above — only called when verifiedCommitExists is already true, and a failed `git show` just means the blob hash comes back null (unverified), not that the build aborts. Ends if a caller starts treating null as \"verified\".",
-      "markerLine": 69
+      "markerLine": 76
     },
     {
       "siteId": "tooling/src/model-ab/lib/verify.ts::empty:catch::1",

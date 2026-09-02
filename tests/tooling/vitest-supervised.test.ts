@@ -150,11 +150,27 @@ function readJson<T>(path: string): T {
   return JSON.parse(readFileSync(path, "utf-8")) as T;
 }
 
-/** A fresh cwd per sharded case: `reports/test-wedge-*.txt` is written relative to it. */
+/** A fresh cwd per sharded case: every artifact is written relative to it. */
 function caseDir(name: string): string {
   const d = join(dir, name);
   mkdirSync(d, { recursive: true });
   return d;
+}
+
+/** The wedge dumps this run wrote. Since #1029 they live in the run's OWN SLOT
+ *  (`reports/runs/test/<checkout>-<pid>-<timestamp>/`) rather than at a fixed `reports/` path — which is
+ *  precisely what lets two concurrent supervisors keep each other's evidence. A case dir hosts exactly one
+ *  supervisor run, so its single slot is the run's. */
+function wedgeDumps(cwd: string): readonly string[] {
+  const runs = join(cwd, "reports", "runs", "test");
+  if (!existsSync(runs)) {
+    return [];
+  }
+  return readdirSync(runs).flatMap((runId) =>
+    readdirSync(join(runs, runId))
+      .filter((f) => f.startsWith("test-wedge-"))
+      .map((f) => join(runs, runId, f)),
+  );
 }
 
 test("mirrors a clean child's exit 0", { timeout: 15_000 }, async () => {
@@ -218,7 +234,7 @@ test("does NOT kill a child that is SILENT but burning CPU in a grandchild (the 
   expect(res.code).toBe(0);
   expect(existsSync(report)).toBe(true);
   // A survivor leaves NO wedge dump — the kill never happened.
-  expect(readdirSync(join(cwd, "reports")).filter((f) => f.startsWith("test-wedge-"))).toHaveLength(0);
+  expect(wedgeDumps(cwd)).toHaveLength(0);
 });
 
 // ORB_TEST_HANG_MAX_MS — the absolute backstop, and the ONLY thing that can stop a silent RUNAWAY. Both
@@ -233,9 +249,9 @@ test("the ORB_TEST_HANG_MAX_MS ceiling KILLS a busy-but-silent runaway that outl
   // Spins 20s; the ceiling is 3s. The child never prints again, so the ceiling clock keeps running.
   const res = await runSupervisor({ mode: "busy", reportFile: report, cwd, busyMs: "20000", hangMaxMs: "3000" });
   expect(res.code).toBe(1);
-  const dumps = readdirSync(join(cwd, "reports")).filter((f) => f.startsWith("test-wedge-"));
+  const dumps = wedgeDumps(cwd);
   expect(dumps.length).toBeGreaterThan(0);
-  expect(readFileSync(join(cwd, "reports", dumps[0] ?? ""), "utf-8")).toContain("hard ceiling");
+  expect(readFileSync(dumps[0] ?? "", "utf-8")).toContain("hard ceiling");
 });
 
 test("the SAME busy-but-silent child SURVIVES under a generous ORB_TEST_HANG_MAX_MS", {
@@ -245,7 +261,7 @@ test("the SAME busy-but-silent child SURVIVES under a generous ORB_TEST_HANG_MAX
   const report = join(cwd, "reports", "test-report.json");
   const res = await runSupervisor({ mode: "busy", reportFile: report, cwd, busyMs: "6000", hangMaxMs: "600000" });
   expect(res.code).toBe(0);
-  expect(readdirSync(join(cwd, "reports")).filter((f) => f.startsWith("test-wedge-"))).toHaveLength(0);
+  expect(wedgeDumps(cwd)).toHaveLength(0);
 });
 
 test("still kills a child that is silent AND idle, and says so in the dump", { timeout: 20_000 }, async () => {
@@ -253,9 +269,9 @@ test("still kills a child that is silent AND idle, and says so in the dump", { t
   const report = join(cwd, "reports", "test-report.json");
   const res = await runSupervisor({ mode: "hang-crash", reportFile: report, cwd });
   expect(res.code).toBe(1);
-  const dumps = readdirSync(join(cwd, "reports")).filter((f) => f.startsWith("test-wedge-"));
+  const dumps = wedgeDumps(cwd);
   expect(dumps.length).toBeGreaterThan(0);
-  expect(readFileSync(join(cwd, "reports", dumps[0] ?? ""), "utf-8")).toContain("zero CPU across the whole process tree");
+  expect(readFileSync(dumps[0] ?? "", "utf-8")).toContain("zero CPU across the whole process tree");
 });
 
 test("shards one vitest process per --project and merges their reports into the ONE contract path", {
@@ -294,8 +310,9 @@ test("a shard that wedges is re-run ONCE and its wedge is recorded, while the ot
   const cwd = caseDir("shard-retry");
   const report = join(cwd, "reports", "test-report.json");
   const spawnLog = join(cwd, "spawns.txt");
-  // Seed the shard's PREVIOUS report — the supervisor rotates it aside and diffs it against the files this
-  // run announced as finished, which is what turns a wedge into a suspect list.
+  // Seed the shard's PREVIOUS report at the PUBLISHED pointer — the supervisor reads it there (#1029; this
+  // run writes into its own slot, so nothing is rotated) and diffs it against the files this run announced
+  // as finished, which is what turns a wedge into a suspect list.
   mkdirSync(join(cwd, "reports", "test-shards"), { recursive: true });
   writeFileSync(
     join(cwd, "reports", "test-shards", "unit.json"),
@@ -321,10 +338,10 @@ test("a shard that wedges is re-run ONCE and its wedge is recorded, while the ot
   expect(merged.orbShards?.find((s) => s.project === "contract")?.wedges).toBe(0);
   // The wedge dump is attempt-suffixed evidence, and it names the file the previous run reported but this
   // one never finished (b.test.ts) — the suspect list, the only root-cause lead a wedge leaves.
-  const dumps = readdirSync(join(cwd, "reports")).filter((f) => f.startsWith("test-wedge-"));
+  const dumps = wedgeDumps(cwd);
   expect(dumps).toHaveLength(1);
   expect(dumps[0]).toContain("test-wedge-unit-attempt1-");
-  const dump = readFileSync(join(cwd, "reports", dumps[0] ?? ""), "utf-8");
+  const dump = readFileSync(dumps[0] ?? "", "utf-8");
   expect(dump).toContain("PARENT pid=");
   expect(dump).toContain("tests/unit/b.test.ts");
 });

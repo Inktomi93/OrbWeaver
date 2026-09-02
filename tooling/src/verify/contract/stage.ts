@@ -68,9 +68,25 @@ export interface StageResult {
   readonly notices: readonly string[];
 }
 
+/** WHO wrote this artifact (#1029). `reports/verify.json` is a `latest` POINTER now — published only when
+ *  a run finishes — so the identity is part of the verdict: a reader who cannot say which run produced the
+ *  file it is holding cannot say the verdict is theirs. `concurrent` names the other verify runs that were
+ *  in flight on this checkout when this one opened its slot; `[]` is the honest solo-run zero. */
+interface VerifyRunIdentity {
+  readonly runId: string;
+  readonly checkout: string;
+  /** Repo-relative slot holding this run's own `verify.json` + per-stage logs. */
+  readonly artifactDir: string;
+  readonly startedAt: string;
+  readonly finishedAt: string;
+  readonly concurrent: readonly string[];
+}
+
 export interface VerifyReport {
   readonly tier: Tier;
   readonly scope: string;
+  /** Optional only for the hand-built report fixtures in the unit tests; every real run carries it. */
+  readonly run?: VerifyRunIdentity;
   readonly ok: boolean;
   readonly exitCode: number;
   /** The count of stages that failed (violations or tool-error) — the top-of-file verdict at a glance. */

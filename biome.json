@@ -762,7 +762,7 @@
       }
     },
     {
-      "includes": ["docs/catalog/catalog.json", "docs/catalog/catalog.tmp.json"],
+      "includes": ["docs/catalog/catalog.json", "docs/catalog/catalog.tmp.*.json"],
       "files": {
         "maxSize": 4194304
       }
