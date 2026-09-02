@@ -6,13 +6,18 @@
 
 import type { ConfigSubcategory } from "#state";
 
+/** The grant row's id, exported because a DEEP LINK targets it: the Extensions pane's "waiting on you" empty
+ *  lands the person on this exact control rather than the section's top (#924). Same one-home reason as the
+ *  subcategory ids above — a link and its target must never spell the anchor twice. */
+export const PLUGIN_PERMISSIONS_SETTING_ID = "plugin-permissions";
+
 export const PLUGINS_INSTALLED_SUBCATEGORY: ConfigSubcategory = {
   id: "installed",
   label: "Installed",
   keywords: ["plugin", "extension", "script", "sandbox", "enable", "disable", "remove", "uninstall", "update", "upgrade", "log"],
   settings: [
     {
-      id: "plugin-permissions",
+      id: PLUGIN_PERMISSIONS_SETTING_ID,
       label: "What a plugin is allowed to do",
       keywords: ["permission", "capability", "grant", "consent", "reach", "hosts", "network", "allow"],
       teach: {

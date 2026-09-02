@@ -9,6 +9,12 @@
 // THE EMPTY STATE IS THE ADVERTISEMENT, argued in `extensions-copy.ts`: a section a person only ever sees full
 // teaches nothing about the platform, so the zero-page state is a teaching empty with the action that leads to
 // installing one, not a hidden rail entry.
+//
+// …AND WHICH EMPTY IT IS, IS A FACT ABOUT THE ASKER (#924). `useExtensionsEmpty` resolves the reason and this
+// pane draws it; the CONTENT pane draws the SAME reason from the SAME hook, so the two panes cannot tell a
+// person two different things about one account. Until the reads settle the reason is `null` and this pane
+// shows the list skeleton — stating "you have none" about an account nobody has read yet is the defect in
+// miniature.
 
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
@@ -18,26 +24,33 @@ import { ListRow } from "@orb/ui/list-row";
 import type { ReactElement } from "react";
 import { useRef } from "react";
 import { LibrarySurfaceShell } from "#components";
+import { SkeletonRows } from "#data";
 import { testId, useFocusOnMount } from "#lib";
 import { openConfigTo, selectPluginPageFromList, usePluginPageKey } from "#state";
+import { useExtensionsEmpty } from "../hooks/use-extensions-empty.ts";
 import { usePluginPages } from "../hooks/use-plugin-pages.ts";
-import { EXTENSIONS_EMPTY_ACTION, EXTENSIONS_EMPTY_BODY, EXTENSIONS_EMPTY_TITLE } from "../lib/extensions-copy.ts";
+import { EXTENSIONS_EMPTY_COPY } from "../lib/extensions-copy.ts";
 
 /** The rows, or the teaching empty. Split from the shell so the boundary wraps a component that reads. */
 function ExtensionsPageList(): ReactElement {
   const pages = usePluginPages();
+  const empty = useExtensionsEmpty();
   const active = usePluginPageKey();
   if (pages.length === 0) {
+    if (empty.reason === null) {
+      return <SkeletonRows count={2} shape="line" />;
+    }
+    const copy = EXTENSIONS_EMPTY_COPY[empty.reason];
     return (
       <EmptyState
         action={
-          <Button intent="secondary" onClick={(): void => openConfigTo("plugins")} size="sm">
-            {EXTENSIONS_EMPTY_ACTION}
+          <Button intent="secondary" onClick={(): void => openConfigTo("plugins", copy.sub, copy.setting ?? undefined)} size="sm">
+            {copy.action}
           </Button>
         }
-        description={EXTENSIONS_EMPTY_BODY}
+        description={copy.description(empty.awaiting)}
         icon={<Icon icon={Blocks} size="md" />}
-        title={EXTENSIONS_EMPTY_TITLE}
+        title={copy.title}
         titleAs="h2"
       />
     );

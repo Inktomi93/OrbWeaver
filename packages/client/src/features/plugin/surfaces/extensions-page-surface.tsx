@@ -16,9 +16,10 @@
 // THE ZERO-PAGES ARM MIRRORS THE LIST'S TEACHING EMPTY VERBATIM (side-eye 2026-08-29 P3-6): with no pages
 // registered, "Pick an extension page / Choose a page on the left" told a first-timer to choose from a list
 // that was itself saying "No extension pages yet" — two panes giving contradictory guidance about the same
-// fact. The mirror reuses the SAME `EXTENSIONS_EMPTY_*` constants (one home for the guidance, so the two
-// panes can never drift), and the no-selection copy survives for the pages>0 arm — "pick one" and "there are
-// none" are still different facts (the CT pins the distinction).
+// fact. The mirror reuses the SAME copy home AND the same `useExtensionsEmpty` reason (#924 — so the two
+// panes can never drift on WHICH empty either), and the no-selection copy survives for the pages>0 arm —
+// "pick one" and "there are none" are still different facts (the CT pins the distinction). While the reads
+// are unsettled the reason is `null` and this pane draws NOTHING rather than an empty it cannot justify.
 //
 // EVERY non-page state carries an ACTION, and they are DIFFERENT actions, which is the whole reason the
 // states exist separately: "there are none" and "that page is gone" send you to Plugins (install, or turn
@@ -37,15 +38,15 @@ import { clearPluginPage, openConfigTo, usePluginPageKey } from "#state";
 import { PluginFrame } from "../components/plugin-frame.tsx";
 import { PluginSurfaceRenderer } from "../components/plugin-surface-renderer.tsx";
 import { PluginSurfaceShell } from "../components/plugin-surface-shell.tsx";
+import { useExtensionsEmpty } from "../hooks/use-extensions-empty.ts";
 import { usePluginPages } from "../hooks/use-plugin-pages.ts";
 import {
-  EXTENSIONS_EMPTY_ACTION,
-  EXTENSIONS_EMPTY_BODY,
-  EXTENSIONS_EMPTY_TITLE,
+  EXTENSIONS_EMPTY_COPY,
   EXTENSIONS_GONE_BODY,
   EXTENSIONS_GONE_TITLE,
   EXTENSIONS_NO_SELECTION_BODY,
   EXTENSIONS_NO_SELECTION_TITLE,
+  EXTENSIONS_OPEN_PLUGINS_ACTION,
 } from "../lib/extensions-copy.ts";
 
 export function ExtensionsPageSurface(): ReactElement {
@@ -55,24 +56,29 @@ export function ExtensionsPageSurface(): ReactElement {
   useFocusOnMount(surfaceRef);
   const key = usePluginPageKey();
   const pages = usePluginPages();
+  const empty = useExtensionsEmpty();
   const page = key === null ? undefined : pages.find((candidate) => candidate.key === key);
 
   if (key === null) {
     // ZERO PAGES: mirror the LIST's teaching empty rather than pointing at an empty list (file header).
     if (pages.length === 0) {
+      if (empty.reason === null) {
+        return <Container className="h-full outline-none" data-testid={testId("extensionsContent")} ref={surfaceRef} tabIndex={-1} />;
+      }
+      const copy = EXTENSIONS_EMPTY_COPY[empty.reason];
       return (
         <Container className="h-full outline-none" data-testid={testId("extensionsContent")} ref={surfaceRef} tabIndex={-1}>
           <Stack align="center" className="h-full" justify="center">
             <EmptyState
               action={
-                <Button intent="secondary" onClick={(): void => openConfigTo("plugins")} size="sm">
-                  {EXTENSIONS_EMPTY_ACTION}
+                <Button intent="secondary" onClick={(): void => openConfigTo("plugins", copy.sub, copy.setting ?? undefined)} size="sm">
+                  {copy.action}
                 </Button>
               }
-              description={EXTENSIONS_EMPTY_BODY}
+              description={copy.description(empty.awaiting)}
               icon={<Icon icon={Blocks} size="md" />}
               measure="wide"
-              title={EXTENSIONS_EMPTY_TITLE}
+              title={copy.title}
             />
           </Stack>
         </Container>
@@ -108,7 +114,7 @@ export function ExtensionsPageSurface(): ReactElement {
           <EmptyState
             action={
               <Button intent="secondary" onClick={(): void => openConfigTo("plugins")} size="sm">
-                {EXTENSIONS_EMPTY_ACTION}
+                {EXTENSIONS_OPEN_PLUGINS_ACTION}
               </Button>
             }
             description={EXTENSIONS_GONE_BODY}
