@@ -23,7 +23,7 @@ export const SEED_THEME_VALUE_SETS = {
       "--color-accent-foreground": "oklch(0.28 0.01 60)",
       "--color-border": "oklch(0.2 0.01 60 / 0.12)",
       "--color-input": "oklch(0.2 0.01 60 / 0.16)",
-      "--color-ring": "oklch(0.55 0.16 50)",
+      "--color-ring": "oklch(0.5 0.16 50)",
       "--color-sidebar": "oklch(0.955 0.006 72)",
       "--color-sidebar-foreground": "oklch(0.3 0.01 60)",
       "--color-sidebar-accent": "oklch(0.9 0.012 70)",
