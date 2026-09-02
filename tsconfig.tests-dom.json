@@ -24,6 +24,24 @@
   // aggregator, its natural home (its caller, tooling/src/snap/ops/run.ts, is live production CLI code
   // that could never itself move to a DOM-having program).
   //
+  // WIDENED AGAIN 2026-09-02 (#1243, the wholesale arm): per-file `tests/client/**` escapees (the
+  // pattern above) went through FIVE rounds of "trace an offender, home its test, re-measure" — each
+  // round found a fresh, independent internal reacher into the SAME impure client package-internal
+  // aliases (`#lib`/`#state`/`#data`, which always resolve to `index.ts`, never a curated `pure.ts`
+  // subpath: see packages/client/src/{data,lib,state}/pure.ts) — a signature of a wrong unit of work,
+  // not a shrinking ledger. `tests/client/**` is NOT node-context by nature: any test that imports or
+  // deep-imports client SOURCE is a browser-subject test, so its honest home is here, matching the
+  // `tests/e2e/**` precedent (a directory glob by ruling, not a per-file ledger) rather than the
+  // per-file doctrine below. Per-file `tests/client/**` comments below this line are RETIRED; a new
+  // client escapee needs no entry at all now. THE COST, stated plainly: every genuinely node-context
+  // PURE-LOGIC test under tests/client/** (the majority of the tree — only ~90 of ~800+ tracked files
+  // ever needed a per-file exception before this move) loses the DOM-less program's structural guard
+  // against an accidental `document`/`window` reference creeping into its subject; a client unit test
+  // that starts touching the DOM would no longer red HERE — it would still red under `pnpm typecheck`
+  // (the per-package client program, which DOES carry dom) at push-floor time, just one tier later than
+  // before. That is the price, paid once, of ending the whack-a-mole (tsconfig.json's matching exclude
+  // carries the same note).
+  //
   // The `tests-type-membership` verify stage (tooling/src/verify/ops/tests-type-membership.ts) is the permanent
   // guard: it reconciles EVERY type-relevant file under tests/** + playwright/** against the import-closure
   // of every type program (this one included), and REDs if any file lands in zero programs. A new
@@ -61,10 +79,12 @@
   // `tests/{client,ui}/**` that rode the dom-lib leak (see the header note above). Per-file escapees are
   // enumerated EXPLICITLY (not a glob) so each is a deliberate add — the membership stage names each one
   // as it appears. Keep in sync with tsconfig.json's matching `exclude` entries (the graph must NOT also
-  // own them). EXCEPTION — `tests/e2e/**` rides as a DIRECTORY glob (owner ruling, 2026-07-24): the whole
-  // playwright e2e tree is DOM-context by nature (`page.evaluate` callbacks read browser state), not a
-  // per-file escapee; DOM-less typing forced hand-rolled element bridges + `as unknown as` casts in every
-  // spec.
+  // own them). EXCEPTIONS riding as DIRECTORY globs instead of the per-file doctrine: `tests/e2e/**`
+  // (owner ruling, 2026-07-24 — the whole playwright e2e tree is DOM-context by nature, `page.evaluate`
+  // callbacks read browser state, not a per-file escapee; DOM-less typing forced hand-rolled element
+  // bridges + `as unknown as` casts in every spec) and, since #1243, `tests/client/**/*.ts` (see the
+  // header's WIDENED AGAIN note — five whack-a-mole rounds proved `tests/client/**` is not node-context
+  // by nature). `.tsx` under tests/client stays excluded here and owned by packages/client/tsconfig.json.
   "include": [
     "reset.d.ts",
     // The root ambient pair (node-26 adoption program §1.2) — see tsconfig.base.json's include note.
@@ -74,18 +94,11 @@
     // `import "katex/…​.css"`) into THIS closure, and a d.ts is not part of an import closure — without
     // this line the program REDs on a stylesheet that resolves fine in every real build.
     "packages/ui/src/markdown/css-modules.d.ts",
-    "tests/client/features/chat/hooks/use-message-items.test.ts",
-    "tests/client/forms/create-form-handle-bridge.test.ts",
-    "tests/client/forms/entity-form-base.test.ts",
-    "tests/client/state/create-entity-draft-store.test.ts",
-    "tests/client/state/config-group-registry.test.ts",
-    "tests/client/state/config-section-partition.test.ts",
-    "tests/client/state/config-section-registry.test.ts",
-    // #1228: the DOM-barrel hazard, chat-feature-barrel flavor — value-imports 2 pure functions from
-    // `@orb/client/features/chat`, whose barrel re-exports `chat-list-surface.tsx` (DOM-coupled) →
-    // phantom lib.dom errors in the DOM-less node program. The barrel SOURCE stays dom-typechecked by
-    // packages/client/tsconfig.
-    "tests/client/features/chat/lib/join-token.test.ts",
+    // #1243, the wholesale arm (see header): every `tests/client/**` and `tests/ui/**` non-`.tsx` file,
+    // by directory glob — `tests/ui/**` was added on the SAME signature (five separate per-file fixes
+    // each surfacing a fresh independent reacher into ui/lib/index.ts's "#lib" alias).
+    "tests/client/**/*.ts",
+    "tests/ui/**/*.ts",
     // #1228: the DOM-lib-leak defuse. Neutralizing scripts/probes/st-goldens/generate-goldens.ts's
     // former `/// <reference lib="dom" />` (a program-scoped triple-slash directive that had been
     // silently supplying lib.dom to the WHOLE root aggregator) reds every one of the escapees below —
@@ -110,117 +123,23 @@
     "tests/tooling/snap/cascade.suite.int.test.ts",
     "tests/tooling/snap/ops/contrast.int.test.ts",
     "tests/tooling/stack/lib/engine-launch.test.ts",
-    "tests/ui/charts/meter/waystone-treatment.test.ts",
-    // #1243, Arm A-prime — the fork ledger for #1228's residual (types:graph 454/45 → 0/0, see
-    // packages/client/src/{data,lib,state}/pure.ts): these deep-import a client SOURCE file directly
-    // (the pre-existing "Deep import the PURE module, not the barrel" convention — see
-    // tests/client/data/import-bundle.test.ts's own comment), and that file is ITSELF DOM-coupled —
-    // not reachable through a pure surface at all, so per the fork's own escape clause ("never force
-    // it") these tests are homed here instead of minted a pure re-export.
-    "tests/client/data/auth-bootstrap.test.ts",
-    "tests/client/data/auth-config.test.ts",
-    "tests/client/data/stale-session.test.ts",
-    "tests/client/features/chat/lib/message-actions-reveal.test.ts",
-    // Same fork, SOURCE-internal-`#data` flavor: route-guards.ts itself (not the test) imports the
-    // FULL `#data` internal alias (package.json's `"#*": "./src/*/index.ts"` always resolves to the
-    // barrel, never the pure subpath) for reasons unrelated to what this test exercises — no pure
-    // surface can intercept an internal package-alias import without editing route-guards.ts itself
-    // (src churn, out of the fork's fence).
-    "tests/client/features/auth/lib/route-guards.test.ts",
-    // Same fork, agent-nav flavor: `buildAgentNav` (the ONE export the test needs) is defined in
-    // agent-nav/index.ts itself, which imports panel-request.ts (DOM-coupled) at module scope — no
-    // separable pure symbol exists.
-    "tests/client/agent-nav/index.test.ts",
-    // Same fork, forms flavor: `mirrorDraft`/`readDraftSeed` share ONE FILE (entity-form-base.ts) with
-    // `focusFirstInvalidField` (`document.querySelector`) — same shape as agent-nav above, no separable
-    // pure symbol. `createAutosaveEntityForm` (the fourth) is defined in a `.tsx` React component.
-    "tests/client/features/character/lib/character-draft-store.test.ts",
-    "tests/client/features/preset/lib/preset-draft-store.test.ts",
-    "tests/client/features/world-info/lib/entry-draft-store.test.ts",
-    "tests/client/forms/create-autosave-entity-form-model.test-d.ts",
-    // #1243 final leg (owner-accepted plan change, bridge 178): STOP minting pure surfaces for the
-    // tail — the ledger below can shrink later; a red types:graph taxes every lane now. Same shape as
-    // agent-nav above: buildAgentNav-style barrels whose ONE export is defined in the barrel file
-    // itself, which imports lib/agent-bridge.ts (DOM-coupled) at module scope.
-    "tests/client/agent-rpg/index.test.ts",
-    "tests/client/agent-seed/index.test.ts",
-    // Same final leg, SOURCE-internal-`#data` flavor (route-guards.ts precedent above): each of these
-    // deep-imports a client feature lib/ file that itself imports the internal `#data` alias (always
-    // index.ts, never the pure subpath) for reasons unrelated to what the test exercises.
-    "tests/client/features/workloads/lib/workloads-model.test.ts",
-    "tests/client/features/workloads/lib/portability-model.test.ts",
-    "tests/client/features/chat/lib/chat-documents-model.test.ts",
-    "tests/client/features/persona/lib/persona-editor-model.test.ts",
-    "tests/client/features/discovery/lib/corpus-faces.test.ts",
-    "tests/client/features/chat/lib/chat-books-model.test.ts",
-    "tests/client/features/character/lib/character-card-form-model.test.ts",
-    "tests/client/features/chat/lib/chat-summary-row.test.ts",
-    // The plain `.test.ts` sibling of the already-homed `.test-d.ts` above — same entity-form-base.ts
-    // chain (create-autosave-entity-form-model.ts -> use-app-form.ts -> bound-fields/*.tsx).
-    "tests/client/forms/create-autosave-entity-form-model.test.ts",
-    // #1243, pure.ts #lib-trim displacement: these needed a symbol from a state/data pure.ts member
-    // that was removed for internally importing "#lib" (see packages/client/src/{state,data}/pure.ts's
-    // own headers for the full member list and rationale) - so they revert to the bare barrel import
-    // and move here.
-    "tests/client/state/active-chat-store.test.ts",
-    "tests/client/data/bus/apply-chat-bus-event.test.ts",
-    "tests/client/state/chat-stream.test.ts",
-    "tests/client/features/config/lib/config-search.test.ts",
-    "tests/client/state/config-group-registry.test.ts",
-    "tests/client/state/config-section-partition.test.ts",
-    "tests/client/state/config-section-registry.test.ts",
-    "tests/client/state/config-teach.test.ts",
-    "tests/client/state/create-gated-store.test.ts",
-    "tests/client/state/create-gated-store.test-d.ts",
-    "tests/client/state/assemble-chrome.test.ts",
-    "tests/client/data/bus/room-registry.test.ts",
-    "tests/client/data/invalidation.test.ts",
-    "tests/client/data/invalidation-carrier.test.ts",
-    "tests/client/data/invalidation-reads.test.ts",
-    "tests/client/data/query-client.test.ts",
-    "tests/client/data/session-freshness.test.ts",
-    // #1243: two more #data-internal-alias reachers found on the re-measure after the pure.ts trim -
-    // preflight-warn.ts -> use-refinery-schemas.ts -> "#data", and workloads-schedule-model.ts ->
-    // workloads-model.ts -> "#data" (workloads-model.test.ts's OWN import was already homed above, but
-    // workloads-schedule-model.ts reaches the SAME impure file via a second, independent test).
-    "tests/client/features/refinery/lib/preflight-warn.test.ts",
-    "tests/client/features/workloads/lib/workloads-schedule-model.test.ts",
-    // #1243: use-orb-socket.ts imports "../stale-session.ts" directly (not via the "#data" alias this
-    // time, a plain relative import) which chains to auth-bootstrap.ts/auth-config.ts - the same
-    // DOM-coupled data/ files, a fourth independent path to them.
-    "tests/client/data/bus/use-orb-socket.test.ts",
-    // #1243, packages/ui half: the SAME class as the client escapees above, on the OTHER package.
-    // web-weave-*.test.ts bare-import "@orb/ui/web-weave" for pure geometry/physics (buildWeb,
-    // WEAVE_TIMELINE, the Weave* types) - a .test.ts, not .tsx, so no packages/ui/tsconfig.json
-    // reach-back claims it, and the barrel also carries the DOM-coupled web-weave.tsx component.
-    // bar-list/option.test.ts deep-imports charts/bar-list/option.ts, which imports
-    // charts/chart/{label-metrics,use-measured-width}.ts (DOM measurement). attach-media.test.ts
-    // deep-imports the client feature file that imports "@orb/ui/file-dropzone" (a component barrel).
-    "tests/ui/art/web-weave/web-weave-geometry.test.ts",
-    "tests/ui/art/web-weave/web-weave-glint.test.ts",
-    "tests/ui/art/web-weave/web-weave-physics.test.ts",
-    "tests/ui/art/web-weave/web-weave-prey.test.ts",
-    "tests/ui/art/web-weave/web-weave-render.test.ts",
-    "tests/ui/art/web-weave/web-weave-spider.test.ts",
-    "tests/ui/charts/bar-list/option.test.ts",
-    "tests/client/features/chat/lib/attach-media.test.ts",
-    // #1243: two more reachers of data/bus/index.ts, via the DEEPER "@orb/client/data/bus" subpath
-    // (not the top-level "@orb/client/data" barrel) - which still resolves to the impure index.ts
-    // (stale-session.ts's chain) via the exports-map wildcard. One is a SERVER test needing the bus
-    // barrel's socket types.
-    "tests/client/data/bus/chat-event-seq-guard.test.ts",
+    // #1243: two SERVER tests, each deep-importing a client/ui feature file whose OWN code internally
+    // imports a package-scoped alias ("#lib"/the client "@orb/client/data/bus" deep subpath) - not
+    // subsumed by either wholesale glob above since they live under tests/server/.
     "tests/server/transport/trpc/stream/socket.test.ts",
-    // #1243: these deep-import a client feature file directly (bypassing any barrel entirely, a
-    // pre-existing pattern) whose OWN code internally imports "#state" - always state/index.ts, never
-    // state/pure.ts - so no pure surface can intercept it. order-home-tiles.test.ts also imports
-    // HomeTileContribution from state/pure - that half stays fine, only the deep-import half forces
-    // this move.
-    "tests/client/features/home/lib/order-home-tiles.test.ts",
-    "tests/client/features/home/lib/roadmap.test.ts",
-    "tests/client/features/preset/components/prompt-assembly/marker-copy.int.test.ts",
-    "tests/client/features/chat/lib/prose-settings-model.test.ts",
-    "tests/client/features/chat/lib/chat-behavior-message-handling-model.test.ts",
-    "tests/client/forms/autosave-convergence.suite.test.ts",
+    "tests/server/domain/chat/macro-identity.suite.int.test.ts",
+    // #1243: two tests/tooling/** files bare-importing "@orb/ui/lib" for a pure constant each
+    // (CSS_MERGE_FAMILY_NAMES, STAMPED_VARIANT_AXES) - pulls ui/lib/index.ts wholesale; no
+    // "@orb/ui/lib/pure" surface exists (out of this round's scope).
+    "tests/tooling/css-merge-parity.int.test.ts",
+    "tests/tooling/ui-audit/ops/walker/target-identity.test.ts",
+    // #1243: tests/tooling/_ct-stories.tsx is a `.tsx` STORY module (not a test, no test-role directory
+    // exemption claims it either - it lives under tests/tooling/, not tests/{client,ui}/) bare-importing
+    // @orb/ui/{button,checkbox,slider}, whose primitives import "#lib" - the SAME class as
+    // design-audit-walker.ct.tsx above (#1228). overflow.ct.tsx (a sibling missed in the original #1228
+    // sweep) ALSO imports it independently.
+    "tests/tooling/_ct-stories.tsx",
+    "tests/tooling/snap/ops/overflow.ct.tsx",
     "tests/e2e/**/*.ts"
   ]
 }

@@ -28,7 +28,7 @@
 // serving both jobs is exactly how #204 happened — a light palette's dark inks landed on the app's fixed
 // dark smoke. A token names ONE polarity semantic.
 
-import { isDeterministicColor } from "@orb/kit/safe-color";
+import { isDeterministicColor, isSafeColor } from "@orb/kit/safe-color";
 import {
   accentFillLightness,
   derivedForegroundLightness,
@@ -37,7 +37,6 @@ import {
   surfacePolarity,
 } from "@orb/kit/theme-derivation";
 import { z } from "zod";
-import { isSafeColor } from "#lib";
 import type { ParsedOklch } from "./color-parse.ts";
 import { compositedBase, serializeOpaqueOklch, toOklch } from "./color-parse.ts";
 import { foregroundOn, surfaceVarsOn } from "./derive-vars.ts";
