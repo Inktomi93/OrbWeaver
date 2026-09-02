@@ -30,6 +30,7 @@ import {
   generateSuppressionsBaseline,
   generateTestBaselineManifest,
   generateTestPresenceBaseline,
+  generateUiVariantAxesStampedBaseline,
   LEDGER_CHECKS,
   parse,
   runBootChunkRatchet,
@@ -65,6 +66,7 @@ const BASELINES: Readonly<Record<string, (root: string) => number>> = {
   suppressions: generateSuppressionsBaseline,
   "test-baseline-manifest": generateTestBaselineManifest,
   "test-presence": generateTestPresenceBaseline,
+  "ui-variant-axes-stamped": generateUiVariantAxesStampedBaseline,
 };
 
 const USAGE = `usage: node tooling/src/verify/cli.ts <${VERIFY_VERBS.join("|")}> [args…]`;

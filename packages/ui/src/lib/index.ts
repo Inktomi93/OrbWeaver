@@ -47,4 +47,14 @@ export { SCROLL_FADE_X_CLASS, SCROLL_FADE_Y_CLASS, useScrollFadeX, useScrollFade
 export { SELECTION_CONTROL, TOUCH_TARGET_PSEUDO } from "./selection-control.ts";
 export { sinHash } from "./sin-hash.ts";
 export { usePrefersReducedMotion } from "./use-prefers-reduced-motion.ts";
+export {
+  STAMPED_VARIANT_AXES,
+  type StampedVariantAxis,
+  type VariantAxisAttrs,
+  type VariantAxisSource,
+  type VariantClassRecipe,
+  type VariantStampProps,
+  variantAttrs,
+  variantProps,
+} from "./variant-attrs.ts";
 export { assertBoundedScrollHeight, GAP_TOKENS, type GapToken, gapPxFor } from "./virtual-gap.ts";

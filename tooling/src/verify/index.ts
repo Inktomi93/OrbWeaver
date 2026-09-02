@@ -87,6 +87,7 @@ export { generateProseBaseline } from "./ops/gen/prose.ts";
 export { generateSuppressionsBaseline } from "./ops/gen/suppressions.ts";
 export { deriveTestBaselineManifest, generateTestBaselineManifest } from "./ops/gen/test-baseline-manifest.ts";
 export { generateTestPresenceBaseline } from "./ops/gen/test-presence.ts";
+export { generateUiVariantAxesStampedBaseline } from "./ops/gen/ui-variant-axes-stamped.ts";
 export { censusDrift, LEDGER_CHECKS, ledgerFreshness, ledgerReport, manifestDrift, runLedgersFresh } from "./ops/ledgers-fresh.ts";
 export { runNewGate } from "./ops/new-gate.ts";
 export { runOrphanRatchet } from "./ops/orphan-export-ratchet.ts";

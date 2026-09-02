@@ -1,6 +1,6 @@
 import type { ComponentProps, ReactElement } from "react";
 import type { VariantProps } from "tailwind-variants";
-import { cn } from "#lib";
+import { variantProps } from "#lib";
 import { badgeVariants } from "./variants.ts";
 
 export interface BadgeProps extends ComponentProps<"span">, VariantProps<typeof badgeVariants> {}
@@ -19,5 +19,6 @@ export interface BadgeProps extends ComponentProps<"span">, VariantProps<typeof 
  * preview), which must not perturb the line box it lives in. See the variant's own note.
  */
 export function Badge({ className, intent, tone, size, ...props }: BadgeProps): ReactElement {
-  return <span data-slot="badge" {...props} className={cn(badgeVariants({ intent, tone, size }), className)} />;
+  // The className AND the `data-intent`/`data-tone`/`data-size` axis stamp, from ONE selection object (#1080).
+  return <span data-slot="badge" {...props} {...variantProps(badgeVariants, { intent, tone, size }, className)} />;
 }
