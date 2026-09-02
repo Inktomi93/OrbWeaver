@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-08-18
+updated: 2026-09-02
 ---
 
 # UI-Gates-and-Lessons
@@ -54,7 +54,7 @@ round.
 | A display floor ("don't show a list of one") | Gates RENDERING only. The moment the only door to a verb lives inside the gated surface it is an ACCESS rule — walk what verbs live only in there, and render the surface with an empty state that carries the door (`features/chat/lib/roster.ts` records three paid instances). |
 | A two-column layout void whose SHORT SIDE flips with viewport width | Cannot be fixed by moving content between columns. Measure BOTH ends of the width range first; the fix is structural self-balancing. |
 | A View Transition with NO `view-transition-name` | Is a frozen full-page SCREENSHOT over the live page — chrome that moves during the swap ghosts by construction. Name only what changes; the tell is `::view-transition-group(root)` computing full-viewport. |
-| `prefers-reduced-motion` | Does NOT make an animation instant — a fresh animation is held pending at `currentTime` 0 for a frame or two, so a from-value FLIP paints the full-distance corner. SKIP the FLIP under reduced motion, never shorten it. |
+| `prefers-reduced-motion` | Does NOT make an animation instant — a fresh animation is held pending at `currentTime` 0 for a frame or two, so a from-value FLIP paints the full-distance corner. SKIP the FLIP under reduced motion, never shorten it. (2026-09-02, #1069: a FLIP run as a TRANSITION rather than a keyframe needs no arm of its own — the globals.css `transition-property: none !important` floor means the inverse is applied and dropped inside one task with nothing painted between. Which FLIP shapes exist, and which to reach for, is `motion-and-animation-guide.md` §1.5 — its one home.) |
 | Every 34px icon button | Becomes 44–48px at `pointer: coarse` — three of them is a third of a 320px row. The tax is an unbudgeted WIDTH cost, and a fine-pointer viewport (the default) can never see it. |
 | Feature-owned inline SVG | Paints with `currentColor` + numeric opacity attributes only: the compose-only keystone bans `className`/`style` on raw intrinsics, and CSS `var(--token)` is INERT inside an SVG presentation attribute. An accent-colored diagram forces an `@orb/ui` primitive. |
 

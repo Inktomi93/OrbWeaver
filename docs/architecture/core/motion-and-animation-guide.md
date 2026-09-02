@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-08-22
+updated: 2026-09-02
 ---
 
 # Motion & Animation Guide
@@ -124,9 +124,10 @@ animates the layout vars Base UI recomputes live (`--available-height`, `--ancho
 repositioned popup lags its anchor. Same finding as the toast root (`toast/variants.ts`) and the
 same reason Button has to name `scale`. Pinned by unpolled `transitionProperty` reads in
 `tests/ui/primitives/dialog/dialog.ct.tsx` + `tests/ui/primitives/popover/popover.ct.tsx`.
-The four surviving `transition-all` sites (accordion panel, collapsible panel, progress
-indicator, tabs indicator) are measured NON-focusable — no tab stop lands on any of them — so
-they keep the shorthand.
+The three surviving `transition-all` sites (accordion panel, collapsible panel, progress
+indicator) are measured NON-focusable — no tab stop lands on any of them — so they keep the
+shorthand. The tabs indicator was the fourth until #1069 (2026-09-02) and now names
+`transition-[transform]`, for the §4.2-item-2 reason rather than the focus-ring one.
 
 ### 1.3 Keeping the exit animation alive: `keepMounted`
 
@@ -181,9 +182,33 @@ are so nobody builds against the wrong contract:
   same render-prop/polymorphism pattern Base UI uses. It is not something feature code
   should touch when just consuming an existing primitive.
 
-Practical takeaway: **100% of the animation work in this app happens in CSS/Tailwind
-against data-attributes and CSS vars**, never in a React animation hook. That matches what
-the codebase already does.
+Practical takeaway: **the animation work in this app happens in CSS/Tailwind against
+data-attributes and CSS vars**, never in a React animation hook. No JS tween loop, no spring
+library, no rAF-driven interpolation, no duration or easing computed in JS: every value an
+animation interpolates over is authored in CSS from the three duration tokens and the one
+curve.
+
+**AMENDED 2026-09-02 (#1069) — the FLIP-inversion exception, which is a MEASUREMENT, not an
+animation.** The rule above bans JS from producing animation VALUES. It does not ban JS from
+supplying the one fact CSS cannot know: *where this element was before the layout it is now
+in*. A FLIP (measure the previous box, apply the inverse, let CSS run it home) computes a
+DELTA and hands the interpolation straight back to CSS — the transition's property, duration
+and curve stay on the element's own classes. Two sites, and they are the whole exception class:
+
+- `packages/client/src/features/app-shell/hooks/use-list-track-flip.ts` — the shell's panel
+  push. JS stamps `data-list-flip="in|out"`; the distance is `--panel-w` and the keyframes
+  live in `shell.css`, so CSS owns even the delta. **Prefer this shape whenever the distance
+  is already a CSS value.**
+- `glideIndicator` in `packages/ui/src/primitives/tabs/tabs.tsx` — the tabs indicator glide
+  (§4.2 item 2). The delta is the difference between two runtime boxes, so no CSS value
+  expresses it: JS writes the inverse `transform` inline, flushes, and drops it, and the
+  slot's `transition-[transform]` runs it back to identity. It stays a TRANSITION rather than
+  a JS-var keyframe precisely so a fast second switch retargets mid-flight (§1.2, §3.2).
+
+Anything else that reaches for JS to move pixels is a defect, not a third member: read those
+two files before writing a third, and if the delta can be spelled in CSS, the answer is the
+shell's shape. Reduced motion needs no special arm in either — the globals.css floor
+(`transition-property: none !important`) makes the inverse land instead of animate.
 
 ## 2. Motion taxonomy + where-to-place-it playbook
 
@@ -291,6 +316,15 @@ in order. The sourced synthesis and design-writing quotes behind these live in
    (`__orb.animations()`) it deliberately does not touch — are documented at that carve-out's
    own comment. Read them before treating a flagger verdict as this law's verdict.
 
+   **AMENDED 2026-09-02 (#1069) — the ratified-lifecycle allowance has ONE home.** §4.2 item 3's
+   accordion/collapsible panel height is BUILT and sanctioned by this section's own text, yet the
+   `[anim]` channel convicted it on every first open, because the allowance minted with #953 had
+   landed only on `pnpm motion-audit`'s (pull) half of the shared vocabulary. The predicate now
+   lives in `@orb/kit/motion-allowance` and BOTH instruments read it — the push side prints the
+   raise without a budget verdict, the pull side keeps re-judging the raw facts under it. It
+   sanctions a Base UI transition bound to one `data-starting-style`/`data-ending-style` phase,
+   never the word "height": an application-authored height animation is still a §3.7 violation.
+
 8. **When NOT to animate.** Litmus: seen 100+ times daily → don't animate (keystroke feedback,
    every row a power user scrolls past). Also: motion the user did NOT cause (another user's
    message arriving) gets a subtler cue than motion their own click triggered, or none.
@@ -390,8 +424,17 @@ same render — no unmount phase to attach a transition to, and the honest visua
 collapse §3.7 forbids animating (full reasoning in `new-arrivals.ts`'s header).
 
 **2. Tabs indicator glide.** BUILT. `packages/ui/src/primitives/tabs/tabs.tsx` renders
-`Tabs.Indicator`; `tabs/variants.ts` glides it on the runtime `--active-tab-left/width` vars
-(`transition-all duration-(--motion-base) ease-out-expo`).
+`Tabs.Indicator`; the bar's REST box is layout off Base UI's runtime `--active-tab-left/width`
+vars, and the MOVE is a transform-only FLIP (`glideIndicator` — §1.5's exception class —
+transitioned back to identity at `--motion-base`/`ease-out-expo`).
+**MECHANISM CHANGED 2026-09-02 (#1069):** it was `transition-all` on `left`/`width` until then,
+i.e. a layout animation that relayouts the list every frame, which the app's own `[anim]`
+flagger convicted under §3.7 on the first switch of every tab surface. The obvious pure-CSS
+transform spelling is illegal here — `scaleX(width/base)` never rests at identity, so every
+selected tab would be a rest state carrying a non-identity scale (`rest-transform-grid`,
+integer-line-boxes §9 Law 2) and the 2px bar's `rounded-full` caps would be permanently
+stretched. Pinned by `tests/ui/primitives/tabs/tabs.ct.tsx` (the launched property set, the
+resting transition contract, and the settled landing on the new tab's box).
 
 **3. Accordion / Collapsible height.** BUILT. Both panels transition
 `h-(--accordion-panel-height)` / `h-(--collapsible-panel-height)` from/to

@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-09-01
+updated: 2026-09-02
 ---
 
 # Client Architecture Lockdown
@@ -139,7 +139,10 @@ rail/list/context track arithmetic and the zero-width sentinel, co-motion variab
 and specificity-ordered elevation. Density repointing lives in `tiers.css`; #951 moved the historical compact
 arm there with rendered parity so shell no longer owns density semantics. Its panel motion uses FLIP because
 animating dynamic grid tracks produced a recorded `0.2774` layout shift; the transform path preserves the
-zero-layout-shift contract and the reduced-motion arm still settles transforms immediately.
+zero-layout-shift contract and the reduced-motion arm still settles transforms immediately. That FLIP is
+the CSS-owned-delta shape (JS stamps `data-list-flip`, `shell.css` owns distance and keyframes); the rule
+for when a FLIP may compute its delta in JS instead is NOT restated here — `motion-and-animation-guide.md`
+§1.5 is its one home (2026-09-02, #1069).
 
 Its structural literals are limited to viewport units, grid ratios and zero sentinels, query conditions, and per-site alpha composition. Everything else wants a token. `shell.css` does contain colour declarations: all 56 are token-sourced and it contains zero raw colour literals. That paint is legal because it belongs to the shell's own region fills, seams, scrim, and elevation; a component's skin never lands there.
 

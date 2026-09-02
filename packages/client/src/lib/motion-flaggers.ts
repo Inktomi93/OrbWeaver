@@ -29,9 +29,10 @@
 // Dev-only by construction: installed from agent-bridge.ts, which early-returns when !IS_DEV. Never
 // re-export from the lib barrel (that would drag it into the prod bundle).
 
+import { isSanctionedLibraryAnimation } from "@orb/kit/motion-allowance";
 import { logClock } from "./log-clock.ts";
 import type { AnimationRecord } from "./motion-animation-record.ts";
-import { animatedProperties, animationRecordOf, COMPOSITOR_SAFE_PROPS } from "./motion-animation-record.ts";
+import { animatedProperties, animationRecordOf, COMPOSITOR_SAFE_PROPS, installAnimationLifecycleRecorder } from "./motion-animation-record.ts";
 import { hasVisibleDuration, installFrameDropFlagger, isExternalDevtoolsElement, resetFrameDropFlagger } from "./motion-animation-state.ts";
 import { installDeadClassFlagger } from "./motion-dead-class-flagger.ts";
 import { surfaceLabelOf } from "./motion-stats.ts";
@@ -232,16 +233,28 @@ function flagDirtyAnimationsOn(el: Element): void {
     }
     const dirty = props.filter((p) => !COMPOSITOR_SAFE_PROPS.has(p));
     const label = surfaceLabelOf(el);
+    // The launch-time facts a pull-side consumer needs to apply its OWN owner/lifecycle policy to a
+    // transition that will be over before any sampler could see it (#1070). The lifecycle binder runs
+    // on `transitionrun`, which precedes `transitionstart`, so the Base UI state is already bound here.
+    const animation = animationRecordOf(anim);
+    // THE RATIFIED-LIFECYCLE ALLOWANCE (#1069, the twin of #953's audit-side one). The accordion /
+    // collapsible panel height lifecycle is guide §4.2 item 3 — BUILT, and §3.7's own text sanctions it
+    // ("Base UI ships `--accordion-panel-height` … so you can transition `height`"). This channel
+    // convicted it anyway on every first open, app-wide, because the allowance had landed on the PULL
+    // half of the shared vocabulary only. The predicate is the same one motion-audit re-judges these
+    // facts with — `@orb/kit/motion-allowance`, one table, never a copy — so the two instruments can no
+    // longer disagree about ratified behaviour. The raise still HAPPENS (the facts are the pull side's
+    // evidence and a consumer must be free to apply a stricter policy); it just is not a budget verdict.
+    const sanctioned = isSanctionedLibraryAnimation(animation);
     raise({
       tag: "anim",
       key: `${label}|${dirty.join(",")}`,
       offender: label,
-      detail: `animating non-compositor ${dirty.join(", ")} (guide §3.7 — transform/opacity/filter, plus paint-only colour on an interactive state)`,
-      overBudget: true,
-      // The launch-time facts a pull-side consumer needs to apply its OWN owner/lifecycle policy to a
-      // transition that will be over before any sampler could see it (#1070). The lifecycle binder runs
-      // on `transitionrun`, which precedes `transitionstart`, so the Base UI state is already bound here.
-      animation: animationRecordOf(anim),
+      detail: sanctioned
+        ? `Base UI lifecycle ${dirty.join(", ")} — the ratified panel-height allowance (guide §4.2 item 3), not a §3.7 violation`
+        : `animating non-compositor ${dirty.join(", ")} (guide §3.7 — transform/opacity/filter, plus paint-only colour on an interactive state)`,
+      overBudget: !sanctioned,
+      animation,
     });
   }
 }
@@ -286,6 +299,10 @@ function skipTransition(el: Element, propertyName: string): boolean {
  *  Behaviour change: a compositor-safe transition on an element that ALSO has a dirty animation running no
  *  longer classifies it — the dirty one's own start event does. */
 function installAnimationFlagger(): void {
+  // The channel's own verdict now depends on the LAUNCH lifecycle record (the allowance above), so this
+  // installs the recorder that binds it rather than assuming a caller did. Idempotent, and the bridge
+  // still installs it for `__orb.animations()` — the two installs are one recorder.
+  installAnimationLifecycleRecorder();
   const onStart = (event: Event): void => {
     const target = event.target;
     if (!(target instanceof Element)) {

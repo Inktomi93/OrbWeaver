@@ -1,4 +1,5 @@
 // The human report + the RESULT line + the exit verdict — raw/classified/budgeted, all labeled.
+import { isSanctionedLibraryAnimation } from "@orb/kit/motion-allowance";
 import { print } from "@orb/tooling/_shared/artifacts";
 import type { BrowserEnvironmentEvidence } from "@orb/tooling/_shared/browser-environment";
 import type { EvidenceGap } from "@orb/tooling/_shared/evidence";
@@ -6,7 +7,7 @@ import { INSTRUMENT_ERROR_VERDICT, printEvidenceGaps, printVerdict } from "@orb/
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { AnimationRecord, Args, AuditData, LoafRecord, MotionFlagRecord, ReachAction } from "../contract/types.ts";
-import { animationTotals, isSanctionedLibraryAnimation } from "../lib/animations.ts";
+import { animationTotals } from "../lib/animations.ts";
 import { CPU_THROTTLE_RATE } from "../lib/budgets.ts";
 import { motionEvidenceGaps } from "../lib/evidence.ts";
 import {

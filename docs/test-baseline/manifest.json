@@ -715,6 +715,7 @@
     "tests/kit/macro/variables.test.ts",
     "tests/kit/message-role/index.test.ts",
     "tests/kit/model-name/index.test.ts",
+    "tests/kit/motion-allowance/index.test.ts",
     "tests/kit/objects/index.test.ts",
     "tests/kit/persona/index.test.ts",
     "tests/kit/png-card-chunk/index.test.ts",

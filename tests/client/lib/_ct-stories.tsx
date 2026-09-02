@@ -10,6 +10,7 @@ import { createAppQueryClient } from "@orb/client/data";
 import { AppToaster } from "@orb/client/features/app-shell";
 import { bindNotify, createToastNotify, notify } from "@orb/client/lib";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
 import { Select } from "@orb/ui/select";
 import { createToastManager, ToastProvider } from "@orb/ui/toast";
 // @orb-gate-ignore query-machine-seals(useMutation): test-tier code the gate's `\.test\.tsx?$` scope
@@ -34,6 +35,7 @@ import { __createBusDevlogFixtureForTest, __recordBusEventForTest } from "../../
 // Deep, not `@orb/client/lib`: motion-stats is deliberately OUT of the barrel (its header — a barrel
 // re-export would drag the dev observers into the prod bundle), so the only way to reach it is the path.
 import { __resetLongTaskEvidence, installLongTaskTracer } from "../../../packages/client/src/lib/long-task-tracer.ts";
+import { installAnimationLifecycleRecorder } from "../../../packages/client/src/lib/motion-animation-record.ts";
 import { setFrameDropTrackingPaused } from "../../../packages/client/src/lib/motion-animation-state.ts";
 import { installDeadClassFlagger, motionFlaggersDrain, motionFlaggersSettled } from "../../../packages/client/src/lib/motion-dead-class-flagger.ts";
 import { __resetMotionFlags, installMotionFlaggers, MOTION_BUDGETS, motionFlags } from "../../../packages/client/src/lib/motion-flaggers.ts";
@@ -336,6 +338,42 @@ export function MotionFlaggersInteractiveColourStory(): ReactElement {
       </style>
       <div className="orb-ct-colour-card" data-testid="carve-out-colour-card" />
       <div className="orb-ct-geometry-card" data-testid="carve-out-geometry-card" />
+    </div>
+  );
+}
+
+/** The RATIFIED-LIFECYCLE ALLOWANCE stage (#1069 — the console twin of #953's audit-side allowance). Two
+ * surfaces on one mount, so the allowance and the thing it must NOT weaken are proven together:
+ *  · the REAL `@orb/ui` Collapsible, whose panel is guide §4.2 item 3's BUILT height lifecycle
+ *    (`h-(--collapsible-panel-height)` from `data-starting-style:h-0`). A hand-rolled height transition
+ *    would not do: the allowance is about Base UI's `data-starting-style` lifecycle, which only the real
+ *    primitive produces, and the whole finding was the flagger convicting THIS component.
+ *  · `dirty-height-target` is the POSITIVE CONTROL: the same PROPERTY, animated by the application with
+ *    no library lifecycle behind it. It must still print OVER BUDGET, or the allowance has blinded the
+ *    channel by property name instead of sanctioning a lifecycle.
+ * The lifecycle recorder is installed alongside the flaggers exactly as `agent-bridge.ts` wires the app. */
+export function MotionFlaggersRatifiedHeightStory(): ReactElement {
+  const [grown, setGrown] = useState(false);
+  useEffect(() => {
+    installAnimationLifecycleRecorder();
+    installMotionFlaggers();
+    // FABRICATION-OK: a browser-context probe slot, written and read by this story's CT alone.
+    const probes = globalThis as unknown as { __motionFlagsRead: typeof motionFlags | undefined };
+    probes.__motionFlagsRead = motionFlags;
+    return (): void => {
+      probes.__motionFlagsRead = undefined;
+    };
+  }, []);
+  return (
+    <div>
+      <Collapsible>
+        <CollapsibleTrigger>Reveal the panel</CollapsibleTrigger>
+        <CollapsiblePanel data-testid="ratified-panel">The ratified height lifecycle.</CollapsiblePanel>
+      </Collapsible>
+      <button type="button" onClick={(): void => setGrown(true)}>
+        grow the box
+      </button>
+      <div data-testid="dirty-height-target" style={{ height: grown ? 200 : 40, transition: "height 150ms linear", background: "#ccc" }} />
     </div>
   );
 }

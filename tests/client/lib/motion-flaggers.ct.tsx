@@ -33,6 +33,7 @@ import {
   MotionFlaggersDropStory,
   MotionFlaggersExternalDevtoolsStory,
   MotionFlaggersInteractiveColourStory,
+  MotionFlaggersRatifiedHeightStory,
   MotionFlaggersReducedMotionStory,
   MotionFlaggersSettleStory,
   MotionFlaggersSlowInputStory,
@@ -310,6 +311,45 @@ test("an [anim] raise carries the launch-time animation record the audit re-judg
   expect(anim.every((flag) => flag.animation !== undefined)).toBe(true);
   // …and it carries the two facts the allowance policy reads: the property set and the compositor verdict.
   expect(anim.some((flag) => flag.animation?.properties.includes("color") === true && flag.animation.compositorClean === false)).toBe(true);
+});
+
+// PERMANENT PIN for the RATIFIED-LIFECYCLE ALLOWANCE (#1069 — the console twin of #953's audit-side one,
+// motion guide §4.2 item 3 + §3.7's own "Base UI ships `--collapsible-panel-height` … so you can
+// transition `height`"). The `[anim]` channel printed `animating non-compositor height … OVER BUDGET` on
+// the FIRST OPEN of every accordion/collapsible in the app, i.e. a live instrument accusing ratified
+// behaviour — the same lying-instrument class as the #456 card-hover finding, and the reason a triager
+// learns to ignore this channel. A lying instrument's fix owes a pin that REDs in BOTH directions, so the
+// positive control is the identical PROPERTY with no library lifecycle behind it: the allowance sanctions
+// a Base UI lifecycle, never the word "height".
+test("#1069 a Base UI panel-height lifecycle is NOT over budget while an application height animation still is", async ({ mount, page }) => {
+  const lines: string[] = [];
+  page.on("console", (message) => {
+    if (message.text().includes("[anim]")) {
+      lines.push(message.text());
+    }
+  });
+  const component = await mount(<MotionFlaggersRatifiedHeightStory />);
+
+  // CONTROL FIRST: an application-authored height animation. If this never fires, the allowance
+  // assertions below are vacuous — a dead channel would pass them all.
+  await component.getByRole("button", { name: "grow the box" }).click();
+  await expect.poll(() => lines.filter((line) => line.includes("dirty-height-target")).length).toBeGreaterThan(0);
+  expect(lines.join("\n"), "an application height animation has no library lifecycle to sanction").toContain("OVER BUDGET");
+
+  // …and the ratified one, on the REAL primitive: raised (the pull side needs the facts) but NOT a verdict.
+  await component.getByRole("button", { name: "Reveal the panel" }).click();
+  await expect(component.getByTestId("ratified-panel")).toBeVisible();
+  await expect.poll(() => lines.filter((line) => line.includes("ratified-panel")).length).toBeGreaterThan(0);
+
+  const ratified = lines.filter((line) => line.includes("ratified-panel"));
+  expect(ratified.join("\n"), "the ratified panel-height lifecycle must not be convicted").not.toContain("OVER BUDGET");
+  expect(ratified.join("\n")).toContain("guide §4.2 item 3");
+  // The pull side re-judges the FACTS, so the raise (and its launch record) must survive the allowance.
+  const raises = await readAnimFlags(page);
+  expect(
+    raises.some((flag) => flag.animation?.properties.includes("height") === true),
+    "the allowance silences the VERDICT, never the evidence",
+  ).toBe(true);
 });
 
 /** Read the story's own transitionstart tally — the receipt that the exempted transition really ran. */

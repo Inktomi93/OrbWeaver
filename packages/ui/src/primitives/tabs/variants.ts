@@ -29,11 +29,17 @@ export const tabsVariants = tv({
       "data-[orientation=vertical]:justify-start",
     ],
     // The sliding underline — a 2px `--primary` bar pinned to the list's bottom edge, positioned from
-    // Base UI's runtime --active-tab-left/width vars. transition-all animates the slide as selection
-    // moves. rounded-full keeps the short bar's ends soft.
+    // Base UI's runtime --active-tab-left/width vars. rounded-full keeps the short bar's ends soft.
+    //
+    // The REST box is layout (`left`/`width`) and carries NO transform; the SLIDE is a transform-only
+    // FLIP driven from `tabs.tsx` (`glideIndicator` — read its note for why the obvious
+    // `translateX()`/`scaleX()` skin is illegal here). So the transition NAMES `transform` and nothing
+    // else: it was `transition-all` on left/width until #1069, i.e. a layout animation on every tab
+    // switch that the app's own `[anim]` flagger correctly convicted under guide §3.7. `origin-left`
+    // pins the FLIP's scale to the bar's leading edge, which is where the left var measures from.
     indicator: [
-      "absolute bottom-0 left-(--active-tab-left) z-(--z-raised) h-0.5 w-(--active-tab-width) rounded-full bg-primary",
-      "transition-all duration-(--motion-base) ease-out-expo",
+      "absolute bottom-0 left-(--active-tab-left) z-(--z-raised) h-0.5 w-(--active-tab-width) origin-left rounded-full bg-primary",
+      "transition-[transform] duration-(--motion-base) ease-out-expo",
     ],
     // The panel is FOCUSABLE (Base UI gives it tabindex=0 so a keyboard user can reach its content by
     // Tab), so it needs a real focus ring: the UA's default outline measured 1.10:1 against the panel
