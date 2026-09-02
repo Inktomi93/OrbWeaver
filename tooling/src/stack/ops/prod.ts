@@ -22,7 +22,6 @@
 // `--build` builds only the CLIENT bundle, through @orb/client's own `vite build` script.
 //
 // The DEV mode of `pnpm stack` is untouched and still lives in ../stack.sh.
-import process from "node:process";
 import { print } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { ExitCode } from "../../_shared/exit-contract.ts";
@@ -38,8 +37,11 @@ import { runServedProbe } from "./served-probe.ts";
 
 refuseDirectInvocation(import.meta.url, "bash tooling/src/stack/stack.sh <verb>");
 
-// process.argv is [node, script, verb, ...] — the operator's own argv starts here.
-const ARGV_AFTER_VERB = 3;
+// `argv` here is ALREADY the operator's half (prod-entry.ts passes `process.argv.slice(2)`), so the verb
+// sits at 0 and the `--` separator is searched from 1. Stated in the local frame on purpose: the old
+// spelling searched the GLOBAL process.argv from index 3 — the same position, expressed in a frame this
+// module cannot be handed by a caller or a test (Core-Tooling-Law §4.9).
+const ARGV_AFTER_VERB = 1;
 
 /** `debug-env` — the internal verb stack.sh calls for the DEV mode's `--debug` overlay, so both modes
  *  resolve arming through ONE implementation (including the `.env` conflict refusal). Prints `KEY=value`
@@ -88,8 +90,8 @@ export async function runStackProd(argv: readonly string[]): Promise<ExitCode> {
   }
   if (argv[0] === "classify") {
     // `--` separates our verb from the operator's argv, so an operator arg named `classify` is inert.
-    const sep = process.argv.indexOf("--", ARGV_AFTER_VERB);
-    return doClassify(sep === -1 ? argv.slice(1) : process.argv.slice(sep + 1));
+    const sep = argv.indexOf("--", ARGV_AFTER_VERB);
+    return doClassify(sep === -1 ? argv.slice(1) : argv.slice(sep + 1));
   }
   const parsed = parseStackArgv(argv);
   if (!parsed.ok) {

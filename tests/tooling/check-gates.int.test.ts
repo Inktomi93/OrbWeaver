@@ -233,6 +233,10 @@ function writeFixtures(): void {
   fx("tooling/src/__g_big/ops/big.ts", "export const x = 1;\n".repeat(451));
   // tooling-shared-plumbing: a second ts-morph Project construction outside _shared/ts-workspace.ts.
   fx("tooling/src/__g_plumb/ops/p.ts", "declare const Project: new (o: object) => unknown;\nexport const p = new Project({});\n");
+  // tooling-argv-front-door: a LIBRARY module reading the GLOBAL argv — legal only in a cli.ts or a
+  // censused bash-fronted entry (#971). The fixture is under lib/ so it does not also trip the
+  // ops-direct-invocation arm below.
+  fx("tooling/src/__g_argv/lib/reader.ts", 'import process from "node:process";\nexport const flag = process.argv.slice(2)[0];\n');
   // tooling-ops-direct-invocation: an ops/ LIBRARY module that would exit 0 if it were RUN — no module-scope
   // refusal and no module-scope entry runner (#509's lying-instrument shape). The guard spelling is written
   // into a STRING here on purpose: the fixture proves the check is AST-positional, since a text search would

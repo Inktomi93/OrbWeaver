@@ -20,50 +20,56 @@ import { runCodemod } from "./run.ts";
  * `tooling/src/codemod/ops/` (one-shot research codemods may draft in `scripts/`).
  *
  * Usage of the example would be:
- *   await exampleRestructureCodemod();
+ *   await exampleRestructureCodemod(process.argv.slice(2));
  */
-export function exampleRestructureCodemod(): Promise<CodemodResult> {
-  return runCodemod("example-restructure", (ctx) => {
-    // 1. Move some files. ts-morph auto-rewrites relative specifiers.
-    ctx.plan(
-      moveFiles(ctx, [
-        ["src/foo.ts", "src/feature/foo.ts"],
-        ["src/foo.test.ts", "src/feature/foo.test.ts"],
-      ]),
-    );
+export function exampleRestructureCodemod(argv: readonly string[]): Promise<CodemodResult> {
+  return runCodemod(
+    "example-restructure",
+    (ctx) => {
+      // 1. Move some files. ts-morph auto-rewrites relative specifiers.
+      ctx.plan(
+        moveFiles(ctx, [
+          ["src/foo.ts", "src/feature/foo.ts"],
+          ["src/foo.test.ts", "src/feature/foo.test.ts"],
+        ]),
+      );
 
-    // 2. Sweep alias paths ts-morph couldn't follow.
-    ctx.plan(repointAliasPaths(ctx, [[/#server\/foo/gu, "#server/feature/foo"]]));
+      // 2. Sweep alias paths ts-morph couldn't follow.
+      ctx.plan(repointAliasPaths(ctx, [[/#server\/foo/gu, "#server/feature/foo"]]));
 
-    // 3. Route a split: types.ts has 3 symbols going to 3 new files.
-    ctx.plan(
-      routeSymbolsByMap(ctx, "#server/feature/foo", {
-        FooDetail: "#server/feature/contract/foo-detail",
-        FooParams: "#server/feature/contract/foo-params",
-        FooError: "#server/feature/contract/foo-error",
-      }),
-    );
+      // 3. Route a split: types.ts has 3 symbols going to 3 new files.
+      ctx.plan(
+        routeSymbolsByMap(ctx, "#server/feature/foo", {
+          FooDetail: "#server/feature/contract/foo-detail",
+          FooParams: "#server/feature/contract/foo-params",
+          FooError: "#server/feature/contract/foo-error",
+        }),
+      );
 
-    // 4. Add a re-export to the new front door.
-    ctx.plan(
-      addReExport(ctx, "src/feature/index.ts", {
-        moduleSpecifier: "./contract/foo-detail",
-        name: "FooDetail",
-        isTypeOnly: true,
-      }),
-    );
+      // 4. Add a re-export to the new front door.
+      ctx.plan(
+        addReExport(ctx, "src/feature/index.ts", {
+          moduleSpecifier: "./contract/foo-detail",
+          name: "FooDetail",
+          isTypeOnly: true,
+        }),
+      );
 
-    // 5. Delete the now-empty old file. Note `confirm: true` is required.
-    ctx.plan(deleteFiles(ctx, ["src/feature/foo.ts"], { confirm: true, note: "after symbol routing" }));
+      // 5. Delete the now-empty old file. Note `confirm: true` is required.
+      ctx.plan(deleteFiles(ctx, ["src/feature/foo.ts"], { confirm: true, note: "after symbol routing" }));
 
-    ctx.log("All 5 phases queued. Run with --apply to commit.");
-  });
+      ctx.log("All 5 phases queued. Run with --apply to commit.");
+    },
+    { argv },
+  );
 }
 
 // ── Bonus: bare-bones argv/env helpers some codemods want ────────────────────
 
-/** Get a named flag value from argv, e.g. `--threshold=0.5` → `"0.5"`. */
-export function getFlag(name: string, argv: readonly string[] = process.argv.slice(2)): string | undefined {
+/** Get a named flag value from a codemod's OWN argv, e.g. `--threshold=0.5` → `"0.5"`. `argv` is
+ *  REQUIRED: a default of `process.argv.slice(2)` made the helper's answer depend on how the process was
+ *  started, so a caller could not drive it and two callers got different answers (Core-Tooling-Law §4.9). */
+export function getFlag(name: string, argv: readonly string[]): string | undefined {
   const prefix = `--${name}=`;
   const match = argv.find((a) => a.startsWith(prefix));
   return match?.slice(prefix.length);
