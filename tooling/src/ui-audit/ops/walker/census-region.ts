@@ -144,9 +144,17 @@ export const WALKER_CENSUS_REGION = `  // ── pane ink: a region that does no
   // ALPHA IS COMPOSITED, NOT IGNORED. The live off-state track is 12% alpha; comparing its raw color to
   // an opaque one measures a fill that is not on the screen. A translucent layer is composited over the
   // resolved backdrop first (resolve.ts's compositeOver), so the ratio describes the pixels a user sees.
+  //
+  // NO OWN FILL IS A CLOSED NEGATIVE, NOT A MISSING MEASUREMENT (#1068). A transparent element — the live
+  // checkbox-indicator, a glyph host whose background-color is rgba(0, 0, 0, 0) — has no loudness for an
+  // ordering rule to rank, so the rule does not apply to it: that is EXCLUDED evidence. Only an
+  // unresolvable BACKDROP is the missing measurement WITHHELD is reserved for (#987 polarity). The two
+  // used to share one null return, so every fill-less cohort published as withheld(unresolved) — which
+  // alone is enough to make a whole run NO VERDICT.
+  var QUIET_NO_OWN_FILL = "no-own-fill";
   function fillContrast(el) {
     var own = parseRgb(getComputedStyle(el).backgroundColor);
-    if (own === null || own.a <= 0) return null;
+    if (own === null || own.a <= 0) return QUIET_NO_OWN_FILL;
     // resolveBackdrop keeps every translucent ancestor in the stack before producing the flat color
     // actually beneath this state. Skipping those layers would compare against a color nobody sees.
     var backdrop = resolveBackdrop(el.parentElement || el);
@@ -158,8 +166,42 @@ export const WALKER_CENSUS_REGION = `  // ── pane ink: a region that does no
     var lo = Math.min(ownLum, baseLum);
     return {
       contrast: Math.round(((hi + WCAG_OFFSET) / (lo + WCAG_OFFSET)) * QUIET_SCALE) / QUIET_SCALE,
-      backdrop: [backdrop.color.r, backdrop.color.g, backdrop.color.b, backdrop.color.a].join(","),
     };
+  }
+
+  // THE PARTITION MUST BE INDEPENDENT OF THE AXIS IT PARTITIONS (#1068). An authored cohort is split a
+  // second time by paint context so a comparison never crosses one — but the context resolved from the
+  // subject's OWN parent is state-derived on exactly the components this rule exists for, so the split
+  // was a restatement of the ON/OFF axis and the cohort could only ever come out one-sided:
+  //
+  //   Settings -> Appearance: switch-thumb's nearest opaque ancestor IS switch-root, whose fill is the
+  //     track — three ON thumbs over oklch(0.72 0.175 52), seven OFF thumbs over the dim track. Measured
+  //     withheld(unmatchedOn=1 unmatchedOff=1) with both twins on screen.
+  //   Characters, bulk mode: the checked row's [data-slot=list-row-root][data-selected] carries a 10%
+  //     ember tint, so one cohort of ten row checkboxes resolved two backdrops (35,20,9 vs 11,8,7).
+  //
+  // So the partition resolves ABOVE every state carrier in the subject's own chain — the context the
+  // whole component sits in, which is what "do not cross paint contexts" means — while the CONTRAST is
+  // still measured against the real backdrop a user sees, state tint included. #987's one-sided ruling is
+  // UNCHANGED: two differently-painted panels are still two contexts and a genuinely twin-less cohort is
+  // still withheld. What changed is its INPUT — which carriers share one context.
+  var QUIET_STATE_CARRIER_SEL =
+    "[data-checked],[data-unchecked],[data-selected],[data-unselected],[data-current],[data-not-current],[data-pressed],[data-unpressed],[data-active],[data-inactive],[aria-checked],[aria-selected],[aria-pressed],[aria-current]";
+  var QUIET_CONTEXT_MAX_LEVELS = 24;
+  function stateIndependentContext(el) {
+    var context = el.parentElement;
+    var levels = 0;
+    for (var anc = el.parentElement; anc !== null && anc !== document.body && levels < QUIET_CONTEXT_MAX_LEVELS; anc = anc.parentElement, levels += 1) {
+      if (anc.matches(QUIET_STATE_CARRIER_SEL)) context = anc.parentElement;
+    }
+    return context;
+  }
+  function contextBackdropKey(el) {
+    var context = stateIndependentContext(el);
+    if (context === null) return null;
+    var backdrop = resolveBackdrop(context);
+    if (backdrop.kind !== "flat") return null;
+    return [backdrop.color.r, backdrop.color.g, backdrop.color.b, backdrop.color.a].join(",");
   }
 
   var onEls = document.querySelectorAll("[data-checked]");
@@ -174,7 +216,7 @@ export const WALKER_CENSUS_REGION = `  // ── pane ink: a region that does no
       cohort = [];
       quietAuthoredCohorts.set(key, cohort);
     }
-    cohort.push({ state: state, contrast: contrast, selector: describe(el) });
+    cohort.push({ state: state, contrast: contrast, context: contextBackdropKey(el), selector: describe(el) });
   }
   for (var oi2 = 0; oi2 < onEls.length; oi2 += 1) {
     addQuietState(onEls[oi2], "on");
@@ -182,26 +224,38 @@ export const WALKER_CENSUS_REGION = `  // ── pane ink: a region that does no
   for (var fi = 0; fi < offEls.length; fi += 1) {
     addQuietState(offEls[fi], "off");
   }
-  // One unresolvable state voids its authored cohort. Resolved states partition by backdrop so the
-  // comparison never crosses paint contexts; every one-sided partition is explicit withholding.
+  // A cohort that paints NO fill at all is closed evidence that the ordering rule has no subject there
+  // (excluded); one whose paint or context could not be resolved is a missing measurement (withheld).
+  // Resolved states then partition by state-independent paint context; every one-sided partition is
+  // explicit withholding.
   quietAuthoredCohorts.forEach(function (authoredCohort) {
-    if (authoredCohort.some(function (entry) { return entry.contrast === null; })) {
+    var unfilled = 0;
+    for (var fillIndex = 0; fillIndex < authoredCohort.length; fillIndex += 1) {
+      if (authoredCohort[fillIndex].contrast === QUIET_NO_OWN_FILL) unfilled += 1;
+    }
+    if (unfilled === authoredCohort.length) {
+      relationalAccounting["quiet-state"].candidates += 1;
+      excludeRelational(relationalAccounting["quiet-state"], "noOwnFill");
+      return;
+    }
+    // A cohort only SOME of whose members paint is deliberately still withheld: ranking a measured
+    // loudness against an unmeasured one is the fabricated comparison #987 refuses.
+    if (unfilled > 0 || authoredCohort.some(function (entry) { return entry.contrast === null || entry.context === null; })) {
       relationalAccounting["quiet-state"].candidates += 1;
       withholdRelational(relationalAccounting["quiet-state"], "unresolved");
       return;
     }
-    var byBackdrop = new Map();
+    var byContext = new Map();
     for (var quietIndex = 0; quietIndex < authoredCohort.length; quietIndex += 1) {
       var quietEntry = authoredCohort[quietIndex];
-      var backdropKey = quietEntry.contrast.backdrop;
-      var backdropCohort = byBackdrop.get(backdropKey);
-      if (backdropCohort === undefined) {
-        backdropCohort = [];
-        byBackdrop.set(backdropKey, backdropCohort);
+      var contextCohort = byContext.get(quietEntry.context);
+      if (contextCohort === undefined) {
+        contextCohort = [];
+        byContext.set(quietEntry.context, contextCohort);
       }
-      backdropCohort.push(quietEntry);
+      contextCohort.push(quietEntry);
     }
-    byBackdrop.forEach(function (cohort) {
+    byContext.forEach(function (cohort) {
       relationalAccounting["quiet-state"].candidates += 1;
       var on = 0;
       var off = 0;
