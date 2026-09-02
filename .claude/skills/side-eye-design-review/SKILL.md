@@ -10,9 +10,10 @@ heuristics, and the Orbweaver constitution. A checklist you APPLY. When a findin
 these, name the rule. Companion reference files in this skill dir: `reference/design-context.md`
 (the DESIGN.md-equivalent map to our generated/ratified design truth + the OWNER-RATIFIED product
 voice — audience/voice/anti-references/references/the-one-feeling, citable in reviews since
-2026-08-16) and `reference/impeccable-adoption.md` (the upstream 59-rule detector triage +
-attribution; the LIVE ruleset is `tooling/src/ui-audit/contract/rules.ts` — 59 rules today, and that
-registry is the denominator, never a number remembered here).
+2026-08-16) and `reference/impeccable-adoption.md` (the upstream detector triage that produced the
+adapted set + attribution; the LIVE ruleset is `DESIGN_AUDIT_RULES` in
+`tooling/src/ui-audit/contract/rules.ts`, and that registry is the denominator, never a number
+remembered here).
 
 ## §0 Our laws (repo-specific — check these first; where we actually fail)
 
@@ -227,12 +228,12 @@ keyboard walk**):
   `pointer: coarse`, so hover-reveals go always-visible and the rail becomes the bottom tab bar) ·
   `--desktop` (the 1280×800 default, explicit) · last of `--mobile`/`--desktop`/`--wide`/`--viewport` wins.
 - `pnpm perf-meter` (responsiveness + CPU profile) · `pnpm design-audit` (the deterministic defect
-  scanner — **59 rules** in eight families as of 2026-09-01 (a11y 7 · color 6 · decor 3 · media 3 ·
-  ornament 7 · quality 13 · structure 8 · typography 12), each carrying one of two ORIGIN tags: the
-  house rules (`origin: "orbweaver"`) plus the impeccable-adapted set (`origin: "impeccable"` —
-  gradient-decoration tells, type-ramp legibility floors, text overflow, clipped positioned children,
-  script errors, taste tells like icon-tile-stack/gray-on-color). **Re-derive the count from
-  `tooling/src/ui-audit/contract/rules.ts` before citing it**; adoption triage:
+  scanner — every registered rule in `DESIGN_AUDIT_RULES` (`tooling/src/ui-audit/contract/rules.ts`),
+  grouped by the tuple's `family` axis (a11y · color · decor · media · ornament · quality · structure ·
+  typography), each carrying one of two ORIGIN tags: the house rules (`origin: "orbweaver"`) plus the
+  impeccable-adapted set (`origin: "impeccable"` — gradient-decoration tells, type-ramp legibility
+  floors, text overflow, clipped positioned children, script errors, taste tells like
+  icon-tile-stack/gray-on-color). **Cite the registry, never a remembered count**; adoption triage:
   `reference/impeccable-adoption.md` in this skill dir).
 - **Every rule also has a DECIDED POPULATION RUNG, and a clean row is not the same claim as a clean
   verdict.** `pnpm design-audit` prints a `POPULATION <rule> candidates=… judged=… affected=…
@@ -329,7 +330,7 @@ Read `__orb` and any computed value via `snap --eval` / `snap --contrast` — a 
   ARIA snapshot) is the trustworthy structure receipt; cross-check the DOM via `--eval` when in doubt.
 - **CLOSED 2026-09-01 — hover-state contrast IS checked now (`hover-contrast`, P1).** This bullet used
   to read "KNOWN GAP, we carry no hover-state contrast check"; that is false on the current tree. The
-  gap was real and it was missed by the upstream 59-rule adoption triage BY CONSTRUCTION rather than by
+  gap was real and it was missed by the upstream adoption triage BY CONSTRUCTION rather than by
   oversight — impeccable's `checkHoverContrast` reuses the existing `low-contrast` finding id, so it
   carried no separate registry row and a rule-by-rule id diff could never surface it (the durable
   lesson: **when re-syncing against upstream, diff the exported MECHANISMS, not just the id registry**).
