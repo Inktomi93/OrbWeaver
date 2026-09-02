@@ -1311,19 +1311,19 @@
     },
     {
       "path": "docs/design/vocabulary-map.md",
-      "assignedSha256": "2924fc5e5d67946eb7bff68ea16db5124321901a6eff7195437f6aef1c173740",
+      "assignedSha256": "a11a69bebff2145d20a31adf8588904d039f27558ce99ef942128a6e2dd2a20a",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "2924fc5e5d67946eb7bff68ea16db5124321901a6eff7195437f6aef1c173740",
-      "verifiedCommit": "d9d18be38d6f91d44f5d116bbac59a3c4ea95295",
+      "verifiedSha256": "a11a69bebff2145d20a31adf8588904d039f27558ce99ef942128a6e2dd2a20a",
+      "verifiedCommit": "15098cdb4232ebf8ce044675a5f2e3370b321320",
       "verifiedAt": "2026-09-01",
       "evidence": [
         "docs/design/vocabulary-map.md:1-72 read IN FULL by the orchestrator (claude-b) before the receipt; minted by lane cb-vocab-reconcile at the #914 merge as the ONE living home for the concept→word table, per the owner's ruling that the design doc is the source of truth and everything references it",
         "re-attested at 106e855db — row 4's status corrected from 'landed' to COPY-landed/CODE-not-landed after lane cb-vocab-c2 found ten files still spelling cast; the map's own status column is a tree claim and owes a receipt like any other (#922)",
         "re-attested at 05a109eec — rows 5/6 flipped to landed with their Was-history, three new rows added (kit name axis, regex slice, CarriedAppearance), plus a new section listing four concepts still spelled cast that the map has NO word for; row 4 kept at the orchestrator's #922 truth repair (COPY landed / CODE not landed) — the union resolution at this merge",
         "re-attested at 8e162cd47 — #922 (claude-b lane cb-cast-code, 45aa4313c rebased): row 4 flipped to landed-with-deletion (chat-cast-bar → chat-character-bar; MembersRow kind:\"character\"); delta read of the row",
-        "re-attested at d9d18be38 — #1011 (claude-b lane cb-cast-residues, 55852c3d6 rebased over #922's row 4): three survivor rows retired to their landed spellings (speakerCandidates family, speaker kind cast→multi-voice with the stored-literal absence proof, ResolvedCharacterIds); delta read of the six rows; an earlier evidence line written before the fold actually landed was retracted"
+        "re-attested at 15098cdb4 — #1011 (claude-b lane cb-cast-residues, rebased twice over #922's row 4 and the same-day merges): three survivor rows retired to their landed spellings (speakerCandidates family, speaker kind cast→multi-voice with the stored-literal absence proof, ResolvedCharacterIds); delta read of the six rows. Two earlier #1011 evidence lines written before the fold landed were retracted"
       ],
       "claims": [
         {
