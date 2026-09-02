@@ -3,7 +3,7 @@ import { NumberField as BaseNumberField } from "@base-ui/react/number-field";
 import type { ReactElement, ReactNode } from "react";
 import { useId } from "react";
 import type { VariantProps } from "tailwind-variants";
-import { cn } from "#lib";
+import { cn, variantAttrs } from "#lib";
 import { Icon, Lock, Minus, MoveHorizontal, Plus } from "#primitives/icons";
 import { numberFieldVariants } from "./variants.ts";
 
@@ -126,12 +126,16 @@ export function NumberField(props: NumberFieldProps): ReactElement {
             <Icon className={slots.stepReadOnlyIcon()} icon={Lock} size="xs" />
           </BaseNumberField.Decrement>
         ) : null}
+        {/* STAMP SITE (#1097): the INPUT. `size` sets the input's own control height (and whether the
+            steppers exist at all), and the input is the interactive element the tap-target census keys
+            on — a stamp on the outer root would be invisible to it (identity never walks ancestors). */}
         <BaseNumberField.Input
           aria-describedby={inputDescribedBy === "" ? undefined : inputDescribedBy}
           aria-label={ariaLabel}
           className={slots.input()}
           data-slot="number-field-input"
           placeholder={placeholder}
+          {...variantAttrs(numberFieldVariants, { size })}
         />
         {hasSteppers ? (
           <BaseNumberField.Increment aria-label={stepperLabel(INCREMENT_LABEL, ariaLabel)} className={slots.increment()} data-slot="number-field-increment">

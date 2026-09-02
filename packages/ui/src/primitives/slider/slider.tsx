@@ -2,7 +2,7 @@ import type { SliderRootProps } from "@base-ui/react/slider";
 import { Slider as BaseSlider } from "@base-ui/react/slider";
 import type { ReactElement, ReactNode } from "react";
 import type { VariantProps } from "tailwind-variants";
-import { cn } from "#lib";
+import { cn, variantAttrs } from "#lib";
 import { sliderVariants } from "./variants.ts";
 
 // A range slider carries an array value → one thumb per entry; a single slider carries a scalar.
@@ -102,6 +102,9 @@ export function Slider<Value extends number | readonly number[] = number>(props:
             never saw it). Base UI positions each thumb `position:absolute` at `insetInlineStart: <pct>` /
             `top: 50%` against its nearest positioned ancestor — the Control (`relative` in variants.ts),
             whose content box is exactly the track's box, so the geometry is unchanged. */}
+        {/* STAMP SITE (#1097): the THUMB. `tone` repaints the indicator AND the thumb, and the thumb is
+            the interactive element (role=slider, the knob the tap-target census targets) — the indicator
+            is decorative fill no census keys on. */}
         {Array.from({ length: count }, (_unused, index) => (
           <BaseSlider.Thumb
             aria-describedby={thumbDescribedBy}
@@ -109,6 +112,7 @@ export function Slider<Value extends number | readonly number[] = number>(props:
             aria-valuetext={thumbValueText}
             className={slots.thumb()}
             data-slot="slider-thumb"
+            {...variantAttrs(sliderVariants, { tone })}
             index={isRange ? index : undefined}
             // biome-ignore lint/suspicious/noArrayIndexKey: thumbs are a fixed positional set (one per value slot), never reordered.
             key={index}

@@ -10,7 +10,7 @@
 // `aria-pressed`, the apply-not-mode picker cell).
 
 import type { ReactElement, ReactNode } from "react";
-import { cn } from "#lib";
+import { cn, variantAttrs } from "#lib";
 import { Text } from "#primitives/text";
 import type { ThemeScopeTokens } from "../theme-scope/clamp.ts";
 import { ThemeScope } from "../theme-scope/theme-scope.tsx";
@@ -30,7 +30,10 @@ export function ThemeSwatchStrip({ tokens, size = "row", className }: ThemeSwatc
   return (
     // `aria-hidden` rides a wrapper — ThemeScope's own root takes no ARIA props by design (its API is the
     // clamp boundary, nothing else).
-    <span aria-hidden={true} data-slot="theme-swatch-strip">
+    // STAMP SITE (#1097): the strip WRAPPER. `size` sizes the strip (and its cells), and this span is the
+    // slot the audit identifies the swatch by — `ThemeScope`, which wears the sized classes, takes only
+    // `tokens`/`className` by design (its API is the clamp boundary), so it is not a stampable element.
+    <span aria-hidden={true} data-slot="theme-swatch-strip" {...variantAttrs(themeSwatchVariants, { size })}>
       <ThemeScope className={cn(slots.strip(), className) ?? ""} tokens={tokens}>
         <span className={cn(slots.cell(), "bg-background") ?? ""} />
         <span className={cn(slots.cell(), "bg-card") ?? ""} />

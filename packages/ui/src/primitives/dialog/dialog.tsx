@@ -10,7 +10,7 @@ import type {
 import { Dialog as BaseDialog } from "@base-ui/react/dialog";
 import type { ReactElement } from "react";
 import type { VariantProps } from "tailwind-variants";
-import { usePortalContainer } from "#lib";
+import { usePortalContainer, variantAttrs } from "#lib";
 import { dialogVariants } from "./variants.ts";
 
 const slots = dialogVariants();
@@ -43,7 +43,9 @@ export function DialogPopup(props: DialogPopupProps): ReactElement {
     <BaseDialog.Portal container={container ?? portalContainer} keepMounted={keepMounted}>
       <BaseDialog.Backdrop className={sized.backdrop()} data-slot="dialog-backdrop" forceRender={forceRender} />
       <BaseDialog.Viewport className={sized.viewport()} data-slot="dialog-viewport">
-        <BaseDialog.Popup className={sized.popup({ className })} data-slot="dialog-popup" {...rest}>
+        {/* STAMP SITE (#1097): the POPUP. `size` widths/heights the popup (the viewport only gets the
+            matching gutter), and the popup is the painted dialog surface a census targets. */}
+        <BaseDialog.Popup className={sized.popup({ className })} data-slot="dialog-popup" {...variantAttrs(dialogVariants, { size })} {...rest}>
           {children}
         </BaseDialog.Popup>
       </BaseDialog.Viewport>

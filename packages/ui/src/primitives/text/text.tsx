@@ -1,6 +1,6 @@
 import type { ComponentProps, ReactElement } from "react";
 import type { VariantProps } from "tailwind-variants";
-import { cn } from "#lib";
+import { variantProps } from "#lib";
 import { textVariants } from "./variants.ts";
 
 // <Text> paints body prose, never a heading — heading semantics belong to <Heading>.
@@ -43,12 +43,16 @@ export interface TextProps extends ComponentProps<"p">, VariantProps<typeof text
  */
 export function Text({ className, as = "p", size, weight, tone, transform, voice, prose, ink, lines, ...rest }: TextProps): ReactElement {
   const Component = TEXT_ELEMENTS[as];
+  // The className AND the `data-size`/`data-tone` axis stamp, from ONE selection object (#1080). Spread
+  // LAST, after `{...rest}`, deliberately: the seam is the ONE writer of those two attributes, so a call
+  // site can no longer hand-write a `data-tone` in a private vocabulary that the walker would then read as
+  // an authored recipe arm (#1097 — the refinery-chip collision).
   return (
     <Component
       data-slot="text"
       data-voice={voice}
-      className={cn(textVariants({ size, weight, tone, transform, voice, prose, ink, lines }), className)}
       {...rest}
+      {...variantProps(textVariants, { size, weight, tone, transform, voice, prose, ink, lines }, className)}
     />
   );
 }
@@ -67,8 +71,8 @@ export function Heading({ className, level, size, weight = "semibold", tone, tra
     <Component
       data-slot="heading"
       data-voice={voice}
-      className={cn(textVariants({ size: size ?? HEADING_SIZE_BY_LEVEL[level], weight, tone, transform, voice, prose, ink, lines }), className)}
       {...rest}
+      {...variantProps(textVariants, { size: size ?? HEADING_SIZE_BY_LEVEL[level], weight, tone, transform, voice, prose, ink, lines }, className)}
     />
   );
 }
