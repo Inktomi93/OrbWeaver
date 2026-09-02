@@ -29629,6 +29629,89 @@
       "receiptCurrent": true
     },
     {
+      "path": "docs/reviews/side-eye/2026-09-02-config-surface-live-drive-2.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 614,
+      "bytes": 62347,
+      "sha256": "3d3714a85666e7750088d37f800ac1fc2c97403d66a888ec0f83cb7c3d08b86d",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "draft",
+          "updated": "2026-09-02"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/side-eye/2026-09-02-config-surface-live-drive-2.md",
+        "assignedSha256": "3d3714a85666e7750088d37f800ac1fc2c97403d66a888ec0f83cb7c3d08b86d",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "3d3714a85666e7750088d37f800ac1fc2c97403d66a888ec0f83cb7c3d08b86d",
+        "verifiedCommit": "a98085731986da7772a26c48dbd9a3e71f65d38c",
+        "verifiedAt": "2026-09-02",
+        "summary": "side-eye maximal re-drive of the Config surface on the truth-repaired fleet (#1099, lane cb-config-eye-2, tip 4f3840283): verdict DO NOT SHIP AS IS unchanged; of 08-30's 36 defects 2 fixed / 4 changed / 26 standing / 4 not re-measured; 12 new findings (3 P1: the Looks-section mount shift, the CONTEXT pane duplicating the LIST, transition-all at four sites); a 13-row instrument delta; two instrument rows (::after accent bars invisible to census-decor; snap --matrix NO-VERDICT on non-chat surfaces); four self-retractions.",
+        "evidence": [
+          "born-reviewed at a98085731 (Phase 2 of the overnight plan): full read by the primary orchestrator — environment/run health, the verdict, Part 0 delta tables (F1-F36, E1-E8, the nits, inherited retractions), Part 1 G1-G12 with receipts, Part 2 instrument delta + the one remaining blind spot, Part 3 UX/IA/errands/console triage, the retractions, what works, the coverage table, the state left behind; claude-b files the G/instrument rows and amends the Config train"
+        ],
+        "claims": [
+          {
+            "claim": "Clicking a settings group mounts the Looks section ~230 ms late and pushes 372 px of content down (observed non-virtualized shift 0.1656, reproduced 4x incl. a real Playwright click) — the reserved-box class #885 shipped on 21 sites and missed here; only statable since #1071's observed-CLS basis.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#1099"
+              },
+              {
+                "kind": "issue",
+                "target": "#885"
+              }
+            ]
+          },
+          {
+            "claim": "With both panes docked the CONTEXT pane renders the LIST's nine Appearance sub-sections verbatim (8x duplicate-action-door, zero in every other pane arm) — shell law says CONTEXT is never navigation.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#1099"
+              }
+            ]
+          },
+          {
+            "claim": "transition-all survives at four sites (collapsible, accordion, appearance-sizing-section, progress) and the [anim] flagger convicts scrollbarColor beside the ratified height; #1069's tab glide is confirmed working on the same run.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#1099"
+              },
+              {
+                "kind": "issue",
+                "target": "#1069"
+              }
+            ]
+          },
+          {
+            "claim": "The repaired fleet paid for itself: quiet-state, row-void, cohort-anatomy and duplicate-action-door now catch by machine what 08-30 measured by hand or missed; the four appearance presets found tight-leading x5 + nested-card x2 the declared coverage gap was hiding; the remaining blind spot is ::after accent bars (census-decor reads border-*-width only).",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#1099"
+              },
+              {
+                "kind": "issue",
+                "target": "#1068"
+              }
+            ]
+          }
+        ]
+      },
+      "receiptCurrent": true
+    },
+    {
       "path": "docs/reviews/stickler/2026-08-18-corpus-consolidation-proposal.md",
       "lane": "reviews",
       "issue": 7,
