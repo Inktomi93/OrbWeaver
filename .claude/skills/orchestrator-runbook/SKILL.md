@@ -99,7 +99,14 @@ preserved as the recorded condition rather than rewritten into a description of 
   cannot span accounts):** `~/.claude/bridge/` holds `to-b/` and `to-primary/` inboxes. A message is
   one markdown file `NNN-<slug>.md` (frontmatter: from/at/re + body); the reader ACKS BY MOVE into
   the inbox's `done/` subdir after acting. Check your inbox at session start and at every merge
-  window; never edit another message, only move it. REALTIME (primary side): keep a persistent
+  window; never edit another message, only move it.
+  **The full message contract is `~/.claude/bridge/PROTOCOL.md` (v2, authoritative) — read it BEFORE
+  writing a note** (added 2026-09-01, #1054: a cold session invented its own form and forked the
+  numbering at 055): `NNN` is monotonic across BOTH directions (take the max over all four dirs,
+  `done/` included), `at:` is ISO 8601 UTC, and the `re:` line carries the KIND — plain, `QUESTION —`
+  (body states options + your DEFAULT and deadline; keep working unless truly `BLOCKED`), `ANSWER to
+  NNN`, `ACK of NNN`. A QUESTION stays UNACKED until answered; an unanswered question means the
+  default fired, and the report says so. REALTIME (primary side): keep a persistent
   Monitor (`stdbuf -oL inotifywait -m -q -e close_write -e moved_to --format '%e %f'
   ~/.claude/bridge/to-primary/ | stdbuf -oL grep --line-buffered -v done/` — the `stdbuf -oL` is
   LOAD-BEARING: into a pipe inotifywait BLOCK-buffers, so the first note sat unseen until a second event
