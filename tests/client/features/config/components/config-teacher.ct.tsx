@@ -84,6 +84,48 @@ test("with nothing selected the pane says 'Nothing selected' ONCE", async ({ mou
   await expect(workspace.locator(CONTEXT_PANE).getByText("Nothing selected")).toHaveCount(1);
 });
 
+// The nine Appearance sections, as the LIST spells them — the population the CONTEXT pane duplicated
+// verbatim before #1101 (side-eye re-drive G2: `design-audit --panels both-docked` filed 8 ×
+// `duplicate-action-door`). This story IS the both-docked arm: LIST · CONTENT · CONTEXT, all mounted.
+const APPEARANCE_SECTIONS = [
+  "Looks",
+  "Message style",
+  "Avatars",
+  "Sizing & motion",
+  "Message details",
+  "Background",
+  "Reading typography",
+  "Effects",
+  "Library",
+];
+
+test("CONTEXT is never navigation — with a group open the pane teaches the section you are READING, and offers no jump list", async ({ mount, page }) => {
+  await stub(page);
+  const workspace = await mount(<ConfigWorkspaceStory />);
+  await workspace.getByRole("button", { name: "reset groups" }).click();
+
+  const list = workspace.locator('[data-slot="config-list"]');
+  await list.getByRole("button", { name: /Appearance/ }).click();
+  const pane = workspace.locator(CONTEXT_PANE);
+
+  // BARRIER on a SETTLED state that exists in both worlds, so the absence sweep below can never pass
+  // vacuously against a pane that has not painted: the teacher bracket is up and the group's body has
+  // mounted its rows.
+  await expect(pane.getByRole("button", { name: "About" })).toBeVisible();
+  await expect(workspace.locator('[data-setting="chat-style"]')).toBeVisible();
+
+  // Not one LIST row has a twin in here (UI-Architecture-and-Layout.md §4.2: "CONTEXT … Never navigation
+  // — actions ON the artifact only"). The LIST keeps every one of them, which is the point.
+  for (const section of APPEARANCE_SECTIONS) {
+    await expect(pane.getByRole("button", { name: section, exact: true })).toHaveCount(0);
+    await expect(list.getByRole("button", { name: section, exact: true })).toHaveCount(1);
+  }
+
+  // And what it teaches INSTEAD is the section the reader is in — the spy's current row (Looks), whose
+  // own section `teach` is About/Applies-class material that already existed.
+  await expect(pane.getByText("Appearance choices are applied states", { exact: false })).toBeVisible();
+});
+
 test("focusing a knob row teaches THAT setting — head and About swap, and the i is its door", async ({ mount, page }) => {
   await stub(page);
   const workspace = await mount(<ConfigWorkspaceStory />);

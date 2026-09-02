@@ -29,13 +29,17 @@ import type { ReactNode } from "react";
 import type { CollectionContribution, Registry } from "#lib";
 import type { ConfigGroupId, ConfigShelf } from "./config-group-ids.ts";
 
-/** A reference to another knob (or section) — the teacher's "Related" link vocabulary (VS Code's
- *  `#other.setting#`, config-revamp-design.md §3.5). The host resolves it into an `openConfigTo` door;
- *  a ref that resolves to nothing is RED at the compose door (`assertTeachHonesty` — owner rider R-TEACH). */
+/** A reference to another KNOB — the teacher's "Related" link vocabulary (VS Code's `#other.setting#`,
+ *  config-revamp-design.md §3.5). The host resolves it into an `openConfigTo` door; a ref that resolves to
+ *  nothing is RED at the compose door (`assertTeachHonesty` — owner rider R-TEACH).
+ *
+ *  `setting` is REQUIRED, which is the wall (#1101): a ref without one resolves to a door labelled with its
+ *  SECTION's name — a LIST row restated inside the context pane, and the context pane is never navigation
+ *  (`UI-Architecture-and-Layout.md` §4.2). A cross-section jump belongs in the LIST, which already has it. */
 export interface ConfigSettingRef {
   readonly group: ConfigGroupId;
   readonly sub: string;
-  readonly setting?: string;
+  readonly setting: string;
 }
 
 /** What the context pane TEACHES about a setting (or a section) — contribution DATA the host renders

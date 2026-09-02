@@ -55,8 +55,8 @@ describe("assertTeachHonesty", () => {
 
   test("PLANTED RED: a related ref that resolves to nothing throws, in all three flavours", () => {
     // A deliberately wrong group id (`as never` — unspellable in the union): the arm under test IS the resolution failure.
-    expect(() => assertTeachHonesty(registryOf(withLeaf(HONEST, [{ group: "not-a-group" as never, sub: "x" }])))).toThrow(UNKNOWN_GROUP);
-    expect(() => assertTeachHonesty(registryOf(withLeaf(HONEST, [{ group: "appearance", sub: "no-such-sub" }])))).toThrow(UNRENDERED_SUB);
+    expect(() => assertTeachHonesty(registryOf(withLeaf(HONEST, [{ group: "not-a-group" as never, sub: "x", setting: "y" }])))).toThrow(UNKNOWN_GROUP);
+    expect(() => assertTeachHonesty(registryOf(withLeaf(HONEST, [{ group: "appearance", sub: "no-such-sub", setting: "y" }])))).toThrow(UNRENDERED_SUB);
     expect(() => assertTeachHonesty(registryOf(withLeaf(HONEST, [{ group: "appearance", sub: "t-sub", setting: "no-such-leaf" }])))).toThrow(
       UNDECLARED_SETTING,
     );

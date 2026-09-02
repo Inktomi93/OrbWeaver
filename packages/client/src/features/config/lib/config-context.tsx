@@ -10,7 +10,9 @@
 //     group's lesson;
 //   · a FOCUSED setting (`configFocus`, written by the `SettingRow` frame) → its leaf's `teach`, falling
 //     back to its section's, falling back to the group's;
-//   · a group with nothing focused → the group's own lesson, its sections offered as Related doors;
+//   · a group with nothing focused → the SECTION the reader is in (the scroll-spy's current row) and its
+//     own lesson, falling back to the group's own. NEVER a jump list: the context pane is not navigation
+//     (`UI-Architecture-and-Layout.md` §4.2), and the LIST already homes every one of those doors (#1101);
 //   · nothing at all → the section's `empty` arm (never a blank pane).
 // Focus-follows-content over `contextTab`: a focus change swaps head + body and KEEPS the tab (CP-4 §4.1).
 
@@ -33,8 +35,8 @@ import {
   isCollectionGroup,
   isTeachNone,
   openConfigTo,
-  selectConfigSub,
   useActiveConfigGroup,
+  useActiveConfigSub,
   useCollectionSelection,
   useConfigFocus,
   useConfigSectionRegistry,
@@ -42,32 +44,35 @@ import {
 import { CollectionMemberContext, TeacherBand } from "../components/config-teacher.tsx";
 import { CONFIG_CONTEXT_EMPTY, CONFIG_SECTION_LABEL } from "./config-copy.ts";
 import { useConfigSelectionTitle } from "./config-selection-title.ts";
-import { useConfigSubcategories } from "./config-subcategories.ts";
 import { TEACHER_TAB_DEFS } from "./config-teacher-tabs.tsx";
 
-/** The GROUP lesson — synthesized from the def (its `description` is its own head, §3.5): the sections
- *  contributed at its anchor become Related doors, so the pane is a map even before anything is focused. */
-function groupLesson(group: ConfigGroupDefinition, subcategories: readonly ConfigSubcategory[]): ConfigTeachView {
+/** The GROUP lesson — synthesized from the def (its `description` is its own head, §3.5). It offers NO
+ *  doors: this pane used to publish the group's sections as a nine-row jump list — the LIST's own rows,
+ *  restated 900px to its right (side-eye re-drive G2, #1101 — `design-audit --panels both-docked` filed
+ *  8 × `duplicate-action-door`, and that arm is the only one that renders both panes at once). Being the
+ *  map is the LIST's job. */
+function groupLesson(group: ConfigGroupDefinition): ConfigTeachView {
   return {
     title: group.label,
     trail: CONFIG_SECTION_LABEL,
     summary: group.description,
     affects: [],
     applies: [],
-    related: subcategories.map((sub) => ({ label: sub.label, open: (): void => selectConfigSub(group.id, sub.id) })),
+    related: [],
     learn: null,
     value: null,
   };
 }
 
-/** Resolve a `related` ref into a walkable door — the label is the TARGET's own (its leaf's, else its
- *  section's), the opener is the cross-section deep link. The compose door's `assertTeachHonesty` already
- *  proved every ref resolves, so the fallbacks here are type-narrowing, not real absences. */
+/** Resolve a `related` ref into a walkable door — the label is the TARGET LEAF's own, the opener is the
+ *  cross-section deep link. The compose door's `assertTeachHonesty` already proved every ref resolves to a
+ *  declared leaf, so the fallback here is type-narrowing, not a real absence. A door NEVER wears a section's
+ *  name: that is the LIST's row, and a knob is the only thing this pane may point at (#1101). */
 function relatedDoor(ref: ConfigSettingRef, sections: readonly ConfigSectionContribution[]): ConfigTeachDoor {
   const target = sections.find((c) => c.anchor === ref.group && c.nav.id === ref.sub);
-  const leaf = ref.setting === undefined ? undefined : (target?.nav.settings ?? []).find((s) => s.id === ref.setting);
+  const leaf = (target?.nav.settings ?? []).find((s) => s.id === ref.setting);
   return {
-    label: leaf?.label ?? target?.nav.label ?? ref.sub,
+    label: leaf?.label ?? ref.setting,
     open: (): void => openConfigTo(ref.group, ref.sub, ref.setting),
   };
 }
@@ -118,6 +123,23 @@ function focusLesson(
   return fallback;
 }
 
+/** The lesson for a group with NOTHING focused: the section the reader is in — the scroll-spy's current
+ *  row, the same fact the LIST lights (CONTEXT follows CONTENT, `UI-Architecture-and-Layout.md` §4.2
+ *  physics 1). A section that declares no lesson of its own falls through to `fallback` (the group's), which
+ *  is a paragraph. Neither arm offers a door: the jump list is the LIST's job (#1101). */
+function readingLesson(
+  group: ConfigGroupDefinition,
+  readingSub: string | null,
+  sections: readonly ConfigSectionContribution[],
+  fallback: ConfigTeachView,
+): ConfigTeachView {
+  const nav = readingSub === null ? undefined : sections.find((c) => c.anchor === group.id && c.nav.id === readingSub)?.nav;
+  if (nav?.teach === undefined) {
+    return fallback;
+  }
+  return teachView(nav.teach, { title: nav.label, trail: `${CONFIG_SECTION_LABEL} · ${group.label}` }, sections);
+}
+
 /** The open member's arm — the collection's own context contract, verbatim (the retired
  *  `ConfigContextBody`'s three truths, re-homed): a `none` collection renders ITS copy, never a generic. */
 function memberArm(group: CollectionGroupDefinition, memberId: string, title: string): ConfigContextState["member"] {
@@ -148,7 +170,7 @@ export function makeConfigContext(groups: ConfigGroupRegistry): ContextDefinitio
     const selection = useCollectionSelection();
     const activeGroup = useActiveConfigGroup();
     const selectionTitle = useConfigSelectionTitle(groups);
-    const subcategoriesFor = useConfigSubcategories();
+    const readingSub = useActiveConfigSub();
     // The focused leaf's §3.4 value seam — the SAME hook the row chrome reads, so About's block and the
     // row's stripe cannot disagree. Unconditional (rules of hooks); null wherever there is no bound leaf.
     const leafValue = projectLeafValue(useConfigLeaf(focusedLeafAddress(focus)));
@@ -159,7 +181,7 @@ export function makeConfigContext(groups: ConfigGroupRegistry): ContextDefinitio
     if (!(group.when?.(viewer) ?? true)) {
       return null;
     }
-    const lesson = groupLesson(group, subcategoriesFor(group));
+    const lesson = groupLesson(group);
     if (selection !== null && isCollectionGroup(group)) {
       return { teach: lesson, member: memberArm(group, selection.memberId, selectionTitle ?? group.label) };
     }
@@ -170,7 +192,7 @@ export function makeConfigContext(groups: ConfigGroupRegistry): ContextDefinitio
         return { teach: focusLesson({ group, sub, settingId: focus.setting }, sections, lesson, leafValue), member: null };
       }
     }
-    return { teach: lesson, member: null };
+    return { teach: readingLesson(group, readingSub, sections, lesson), member: null };
   }
 
   return defineContextTabs<ConfigContextState>({
