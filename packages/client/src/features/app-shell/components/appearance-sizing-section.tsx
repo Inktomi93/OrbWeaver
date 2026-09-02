@@ -81,7 +81,11 @@ function DensityPreview({ draft }: { readonly draft: SizingForm["density"] }): R
   return (
     <Stack
       aria-hidden={true}
-      className="rounded-control border border-border p-block transition-all duration-(--motion-fast) ease-out-expo"
+      // `transition-all` was catching inherited non-compositor properties (`scrollbarColor` —
+      // the app's `[anim]` flagger convicted this preview OVER BUDGET on every density pick). The
+      // preview only ever animates the density-tier spacing tokens (`gap`/`padding`, tiers.css) —
+      // naming them keeps the tier-change motion and drops everything `all` swept in by accident.
+      className="rounded-control border border-border p-block transition-[gap,padding] duration-(--motion-fast) ease-out-expo"
       data-density={draft}
       data-slot="density-preview"
       gap="row"

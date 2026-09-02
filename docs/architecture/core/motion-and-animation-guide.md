@@ -124,10 +124,18 @@ animates the layout vars Base UI recomputes live (`--available-height`, `--ancho
 repositioned popup lags its anchor. Same finding as the toast root (`toast/variants.ts`) and the
 same reason Button has to name `scale`. Pinned by unpolled `transitionProperty` reads in
 `tests/ui/primitives/dialog/dialog.ct.tsx` + `tests/ui/primitives/popover/popover.ct.tsx`.
-The three surviving `transition-all` sites (accordion panel, collapsible panel, progress
-indicator) are measured NON-focusable — no tab stop lands on any of them — so they keep the
-shorthand. The tabs indicator was the fourth until #1069 (2026-09-02) and now names
-`transition-[transform]`, for the §4.2-item-2 reason rather than the focus-ring one.
+**AMENDED 2026-09-02 (#1102) — zero `transition-all` sites remain.** #1069's amendment recorded
+"three surviving `transition-all` sites (accordion panel, collapsible panel, progress indicator)"
+as NON-focusable and safe to keep the shorthand; that count missed a fourth,
+`appearance-sizing-section.tsx`'s density live-preview, and undersold the actual failure mode —
+`transition-all` doesn't only race a focus ring, it also animates INHERITED properties the element
+never opted into (`scrollbarColor`), which the app's `[anim]` flagger convicted OVER BUDGET on the
+collapsible panel and the density preview regardless of focusability. All four now name their
+properties explicitly: `transition-[height]` (accordion panel, collapsible panel — the ratified
+\#953/#1069 lifecycle allowance, §4.2 item 3), `transition-[width,background-color]` (progress
+indicator), `transition-[gap,padding]` (density preview, `appearance-sizing-section.tsx`). The
+tabs indicator was the earlier fourth until #1069 (2026-09-02) and names `transition-[transform]`,
+for the §4.2-item-2 reason rather than the focus-ring one.
 
 ### 1.3 Keeping the exit animation alive: `keepMounted`
 
