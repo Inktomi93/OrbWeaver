@@ -59,6 +59,22 @@
 // VALUE is walked permissively: a leaf validator contributes no key, and a REFERENCED schema is the zod
 // twin of the non-transitive boundary above.
 //
+// BOTH READER POSITIONS FAIL CLOSED, NOT JUST THE IDENTITY ONE (#1066, 2026-09-01). This gate has TWO
+// walkers — `walkTypeNode` for the event's IDENTITY (union arms, bases) and `walkFieldType` for what a FIELD
+// spells — and they used to fail in opposite directions: the identity walker refused an unmodelled kind out
+// loud, the field walker ended in a bare `return`. MEASURED on the committed gate: `payload: Flag extends
+// true ? { apiKey: string } : { safe: string }` on `ChatBusEvent` produced ZERO findings and zero members,
+// while the control `payload: { apiKey: string }` reported `apiKey` — one shape, loud in one position and
+// invisible in the other. A tuple element (`payload: [{ apiKey: string }]`) was the same silence. The field
+// walker now has exactly four terminal answers and no fifth: WALK the wrappers/containers (parentheses,
+// `readonly`/`keyof`, array/tuple elements incl. rest/optional/named members, union/intersection parts),
+// READ an inline object literal or a provable §5.5 distribution, STOP at a NAMED reference (the
+// non-transitive boundary below), or REFUSE — `unsupported-shape:<Kind>` for a conditional type, a
+// `typeof` query, `object`, a function/constructor type, an `import(…)` type, an infer, or any kind added
+// to the language after this line was written. Only a provably KEYLESS kind (`FIELD_KEYLESS_KINDS`: the
+// scalars, literals and template-literal strings a field legitimately spells) passes in silence, and that
+// set is WIDER than the identity walker's on purpose — `chatId: string` is a field, never an event identity.
+//
 // FAIL-CLOSED, NEVER SILENT: a base/arm the reader cannot resolve to a declaration in this workspace, or a
 // type shape it does not model, is REPORTED (`unresolved-base:` / `unsupported-shape:` tokens) — the gate
 // cannot prove no credential hides there, and under D16 an unprovable bus shape is itself the violation. A
@@ -111,7 +127,10 @@
 // the same referenced-payload case and is not descended. (3) An arms ARRAY that is not spelled as an array
 // literal is reported rather than resolved. (4) A distributed template's indexed access into a NAMED map
 // (`WorkloadResultByKind[K]`) contributes the field name and stops — the same boundary as (1), reached
-// through the mapped-type reader.
+// through the mapped-type reader; that includes INDEXING a named alias of an open shape (`type Bag =
+// Record<string, unknown>; payload: Bag["anything"]`), so an open bag is refused in its INLINE spelling
+// only. Reversing (1) or (4) is the same whole-graph-crawler ruling #948 declined — and after #1066 these
+// four are the WHOLE list of ways a field can carry a shape unscanned: every other unmodelled kind reds.
 import type {
   IndexedAccessTypeNode,
   InterfaceDeclaration,
@@ -323,12 +342,30 @@ function countReferencedPayload(prop: Node): void {
 }
 
 /** Type-node kinds that cannot declare a named field, so passing over them hides nothing. Everything else
- *  the walker does not model is REPORTED, never skipped. */
+ *  the walker does not model is REPORTED, never skipped. IDENTITY position only — a bus event's identity is
+ *  a union of object shapes, so a bare `string` arm there is a shape to refuse, not a value to allow. */
 const MEMBERLESS_KINDS: ReadonlySet<SyntaxKind> = new Set([
   SyntaxKind.LiteralType,
   SyntaxKind.UndefinedKeyword,
   SyntaxKind.NeverKeyword,
   SyntaxKind.VoidKeyword,
+]);
+
+/** The FIELD position's keyless set — deliberately WIDER than `MEMBERLESS_KINDS` (#1066). A field
+ *  legitimately spells a scalar — a string, a number, a literal, a template-literal string — where an
+ *  event's identity never does, and a scalar declares no wire key, so passing over one hides nothing.
+ *  A template literal is a string by construction: its interpolations are types, never wire keys. Every
+ *  kind that is neither here nor handled by `walkFieldType` is REPORTED by kind — the field walker used to
+ *  end in a bare `return`, which made one shape loud in the identity walker and INVISIBLE here. */
+const FIELD_KEYLESS_KINDS: ReadonlySet<SyntaxKind> = new Set([
+  ...MEMBERLESS_KINDS,
+  SyntaxKind.StringKeyword,
+  SyntaxKind.NumberKeyword,
+  SyntaxKind.BooleanKeyword,
+  SyntaxKind.BigIntKeyword,
+  SyntaxKind.SymbolKeyword,
+  SyntaxKind.NullKeyword,
+  SyntaxKind.TemplateLiteralType,
 ]);
 
 /** Value-position type keywords that carry an UNCONSTRAINED value — an open key space by another spelling
@@ -590,29 +627,60 @@ function walkFieldMappedShape(typeNode: Node, frame: WalkFrame): boolean {
   return true;
 }
 
-/** Judge a wire field's OWN spelled type: refuse an open key space, and descend an INLINE object literal
- *  (spelled inside the event, so its keys ride the wire under the event's own name). A NAMED reference is
- *  never resolved — that is the non-transitive boundary, and `Record` is the one name matched literally. */
-function walkFieldType(typeNode: Node | undefined, frame: WalkFrame): void {
-  if (typeNode === undefined) {
-    return;
-  }
-  if (N.isParenthesizedTypeNode(typeNode)) {
+/** The shapes whose CONSTITUENTS are field positions in their own right — a wrapper's inner type (
+ *  parentheses, `readonly`/`keyof`, and the three tuple-element decorations, none of which carry a key of
+ *  their own), an array's element type, a tuple's elements, a union/intersection's parts. True when this
+ *  node was one of them and every constituent has been walked. Split out of `walkFieldType` so the terminal
+ *  verdicts there — read / stop / refuse — stay readable as one screen. */
+function walkFieldContainer(typeNode: Node, frame: WalkFrame): boolean {
+  const wrapper =
+    N.isParenthesizedTypeNode(typeNode) ||
+    N.isTypeOperatorTypeNode(typeNode) ||
+    N.isRestTypeNode(typeNode) ||
+    N.isOptionalTypeNode(typeNode) ||
+    N.isNamedTupleMember(typeNode);
+  if (wrapper) {
     walkFieldType(typeNode.getTypeNode(), frame);
-    return;
+    return true;
   }
   if (N.isArrayTypeNode(typeNode)) {
     walkFieldType(typeNode.getElementTypeNode(), frame);
-    return;
+    return true;
   }
-  if (N.isTypeOperatorTypeNode(typeNode)) {
-    walkFieldType(typeNode.getTypeNode(), frame);
-    return;
+  // A TUPLE element is a field position of its own: an inline object literal spelled there rides the wire
+  // exactly like an array's element type, and it was never walked at all before #1066.
+  if (N.isTupleTypeNode(typeNode)) {
+    for (const element of typeNode.getElements()) {
+      walkFieldType(element, frame);
+    }
+    return true;
   }
   if (N.isUnionTypeNode(typeNode) || N.isIntersectionTypeNode(typeNode)) {
     for (const constituent of typeNode.getTypeNodes()) {
       walkFieldType(constituent, frame);
     }
+    return true;
+  }
+  return false;
+}
+
+/** Judge a wire field's OWN spelled type: refuse an open key space, and descend an INLINE object literal
+ *  (spelled inside the event, so its keys ride the wire under the event's own name). A NAMED reference is
+ *  never resolved — that is the non-transitive boundary, and `Record` is the one name matched literally.
+ *
+ *  AND IT FAILS CLOSED ON EVERY OTHER KIND (#1066). This function used to end in a bare `return`, so a type
+ *  node it did not model rode the wire in SILENCE — measured on a CONDITIONAL field type whose true arm
+ *  carried an inline `apiKey`: zero findings, zero members, while the control inline object literal
+ *  reported `apiKey`. The identity walker had always refused an unmodelled kind out loud, so ONE shape was
+ *  loud in one reader position and invisible in the other. Now the two positions agree: a kind that is
+ *  neither WALKED (the wrappers/containers above), READ (an inline literal or a provable distribution),
+ *  deliberately STOPPED (a named reference — the non-transitive boundary) nor provably KEYLESS
+ *  (`FIELD_KEYLESS_KINDS`) is REPORTED as `unsupported-shape:<Kind>`. */
+function walkFieldType(typeNode: Node | undefined, frame: WalkFrame): void {
+  if (typeNode === undefined) {
+    return;
+  }
+  if (walkFieldContainer(typeNode, frame)) {
     return;
   }
   if (N.isTypeLiteral(typeNode)) {
@@ -631,7 +699,12 @@ function walkFieldType(typeNode: Node | undefined, frame: WalkFrame): void {
   const openValue = OPEN_VALUE_KINDS.get(typeNode.getKind());
   if (openValue !== undefined) {
     reportShape(frame.ctx, typeNode, `${UNSUPPORTED_TOKEN}${openValue}`);
+    return;
   }
+  if (FIELD_KEYLESS_KINDS.has(typeNode.getKind())) {
+    return;
+  }
+  reportShape(frame.ctx, typeNode, `${UNSUPPORTED_TOKEN}${typeNode.getKindName()}`);
 }
 
 /** Walk a type NODE in an identity position, recording its direct members and following its references. */
@@ -1099,6 +1172,18 @@ export const gate: GateDescriptor = {
       expect: { count: 1, token: "apiKey" },
       why: "the FIELD-position twin: an inline distribution's keys ride the wire under the event's own name exactly like an inline object literal's, and this position passed SILENTLY before #1047 — no refusal, no member, nothing to see",
     },
+    {
+      files: 'type Flag = true;\nexport type ChatBusEvent = { type: "x"; payload: Flag extends true ? { apiKey: string } : { safe: string } };\n',
+      at: "packages/contracts/src/chat/bus.ts",
+      expect: { count: 1, token: "unsupported-shape:ConditionalType" },
+      why: "THE FIELD WALKER NOW FAILS CLOSED (#1066): measured on the committed gate this exact source produced ZERO findings while the control `payload: { apiKey: string }` reported `apiKey` — the identity walker refused an unmodelled kind out loud and the field walker fell through in silence, so one shape was loud in one reader position and invisible in the other",
+    },
+    {
+      files: 'export type ChatBusEvent = { type: "x"; payload: [first: { apiKey: string }] };\n',
+      at: "packages/contracts/src/chat/bus.ts",
+      expect: { count: 1, token: "apiKey" },
+      why: "the same silence in its other spelling (#1066): a TUPLE element is a field position, and an inline object literal spelled there rides the wire exactly like an array's element type — the walker never descended one before, so the credential was unscanned rather than refused",
+    },
   ],
   mustPass: [
     {
@@ -1173,6 +1258,17 @@ export const gate: GateDescriptor = {
           'import type { WorkloadKind } from "./axes.ts";\nimport type { WorkloadResultByKind } from "./result.ts";\nexport type WorkloadEvent = {\n  [K in WorkloadKind]: { readonly type: "succeeded"; readonly kind: K; readonly result: WorkloadResultByKind[K] };\n}[WorkloadKind];\n',
       },
       why: "A DECLARED LIMIT (#1047), the live `WorkloadEvent` shape: the constraint is resolved through the `(typeof TUPLE)[number]` axis and the template's members are scanned, but `result`'s indexed access into the NAMED `WorkloadResultByKind` is a shape the field REFERENCES — its `apiKey` belongs to that map's own home, exactly like `MessageView`'s. Reversing this is the same whole-graph-crawler ruling #948 declined; the boundary is measured as `refPayloadsNotFollowed`",
+    },
+    {
+      files:
+        'export type ChatBusEvent = { type: "x"; chatId: string; n: number; ok: boolean; big: bigint; s: symbol; none: null; maybe: undefined; nope: never; tag: `wi.${string}` };\n',
+      at: "packages/contracts/src/chat/bus.ts",
+      why: "THE OTHER DIRECTION of the #1066 widening: a field legitimately spells a SCALAR where an event's identity never does, and a scalar declares no wire key — so `FIELD_KEYLESS_KINDS` is deliberately wider than the identity walker's `MEMBERLESS_KINDS`. Without this row the fail-closed arm would red every honest payload on the tree, which is how a fail-closed widening turns into a gate nobody can keep green",
+    },
+    {
+      files: 'type Bag = Record<string, unknown>;\nexport type ChatBusEvent = { type: "x"; payload: Bag["anything"] };\n',
+      at: "packages/contracts/src/chat/bus.ts",
+      why: "DECLARED LIMIT (4) in its open-alias spelling, written down rather than assumed: indexing a NAMED alias stops at the name exactly as limit (1) does, so an open bag is refused only when spelled INLINE. #1066 closed the unmodelled-kind hole around this limit; it did not reverse the limit, which is a ruling",
     },
   ],
 };

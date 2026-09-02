@@ -483,3 +483,66 @@ test("an INLINE distribution in a FIELD position is read, and an unreadable one 
   // An index signature intersected into the template reaches the open-key-space arm through the new path.
   expect(tokens(workloadsProject(`${CLEAN_TEMPLATE}  } & {\n    readonly [k: string]: unknown;\n`))).toEqual(["unsupported-shape:IndexSignature"]);
 });
+
+// ── #1066: the FIELD walker fails CLOSED on an unmodelled type node ───────────────────────────────────
+// RED-FIRST: every refusal in the first test below returned ZERO findings against the pre-#1066 gate. The
+// field position ended in a bare `return`, so ONE shape was loud in the identity walker
+// (`unsupported-shape:<Kind>`) and invisible in the field walker — measured on the #1047 admission leg with
+// `payload: Flag extends true ? { apiKey: string } : { safe: string }`, which reported nothing at all while
+// the control `payload: { apiKey: string }` reported `apiKey`.
+
+test("#1066: an UNMODELLED field type is refused by kind — the silent fall-through is closed", () => {
+  // THE MEASURED DEFECT: a conditional field type. Its arms' field names differ per arm, which is exactly
+  // why the distribution reader refuses a conditional template — and the same shape spelled directly as a
+  // field's type used to ride the wire unscanned, credential and all.
+  expect(
+    tokens({
+      [CHAT_BUS]: 'type Flag = true;\nexport type ChatBusEvent = { type: "x"; payload: Flag extends true ? { apiKey: string } : { safe: string } };\n',
+    }),
+  ).toEqual(["unsupported-shape:ConditionalType"]);
+  // `typeof <value>` puts a VALUE's inferred shape on the wire — a shape this pure-AST reader never walked.
+  expect(tokens({ [CHAT_BUS]: 'const seed = { apiKey: "" };\nexport type ChatBusEvent = { type: "x"; payload: typeof seed };\n' })).toEqual([
+    "unsupported-shape:TypeQuery",
+  ]);
+  // `object` is an open key space by another spelling — every key, no vocabulary, exactly like `unknown`.
+  expect(tokens({ [CHAT_BUS]: 'export type ChatBusEvent = { type: "x"; payload: object };\n' })).toEqual(["unsupported-shape:ObjectKeyword"]);
+  // A function on a wire payload is not serializable and declares no readable key set.
+  expect(tokens({ [CHAT_BUS]: 'export type ChatBusEvent = { type: "x"; onDone: () => void };\n' })).toEqual(["unsupported-shape:FunctionType"]);
+  // An `import("…")` type is the resolve-time escape the `unresolved-base:` arm closes on the identity side.
+  expect(tokens({ [CHAT_BUS]: 'export type ChatBusEvent = { type: "x"; payload: import("./far.ts").Far };\n' })).toEqual(["unsupported-shape:ImportType"]);
+});
+
+test("#1066: the WRAPPERS the walker legitimately walks are still READ, not turned into refusals", () => {
+  // The widening must not convert walked shapes into refusals: each wrapper below carries an INLINE object
+  // literal whose keys ride the wire under the event's own name, and each must report `apiKey` — not a kind.
+  expect(tokens({ [CHAT_BUS]: 'export type ChatBusEvent = { type: "x"; payload: ({ apiKey: string }) };\n' })).toEqual(["apiKey"]);
+  expect(tokens({ [CHAT_BUS]: 'export type ChatBusEvent = { type: "x"; payload: readonly { apiKey: string }[] };\n' })).toEqual(["apiKey"]);
+  // A TUPLE element is a field position too — it was never walked before, so an inline object spelled there
+  // was as invisible as the conditional above.
+  expect(tokens({ [CHAT_BUS]: 'export type ChatBusEvent = { type: "x"; payload: [{ apiKey: string }] };\n' })).toEqual(["apiKey"]);
+  expect(tokens({ [CHAT_BUS]: 'export type ChatBusEvent = { type: "x"; payload: [first: { apiKey: string }, ...rest: { token: string }[]] };\n' })).toEqual([
+    "apiKey",
+    "token",
+  ]);
+});
+
+test("#1066: a KEYLESS field type is silent — a scalar declares no wire key and is not a refusal", () => {
+  // The other direction of the same widening: `chatId: string` must not become `unsupported-shape:
+  // StringKeyword`. A field position legitimately spells a scalar where an event's IDENTITY never does,
+  // which is why the field walker's keyless set is broader than the identity walker's.
+  expect(
+    tokens({
+      [CHAT_BUS]:
+        'export type ChatBusEvent = { type: "x"; chatId: string; n: number; ok: boolean; big: bigint; s: symbol; none: null; maybe: undefined; nope: never; nada: void; tag: `wi.${string}` };\n',
+    }),
+  ).toEqual([]);
+});
+
+test("#1066: the DECLARED LIMITS are unchanged — a named alias of an open shape still stops at the boundary", () => {
+  // Limit (1): a NAMED alias is not resolved, so `Meta` contributes the field name `meta` and stops.
+  expect(tokens({ [CHAT_BUS]: 'type Meta = Record<string, string>;\nexport type ChatBusEvent = { type: "x"; meta: Meta };\n' })).toEqual([]);
+  // Limit (4) in its field spelling: an indexed access into a NAMED shape is a shape the field REFERENCES.
+  expect(tokens({ [CHAT_BUS]: 'type Bag = Record<string, unknown>;\nexport type ChatBusEvent = { type: "x"; payload: Bag["anything"] };\n' })).toEqual([]);
+  // And the positive control the whole widening is measured against still reports.
+  expect(tokens({ [CHAT_BUS]: 'export type ChatBusEvent = { type: "x"; payload: { apiKey: string } };\n' })).toEqual(["apiKey"]);
+});

@@ -1214,11 +1214,14 @@ function writeFixtures(): void {
 // bus-payload-allowlist: scopes to 8 EXACT bus-contract file paths (BUS_FILES) — a __g_ sentinel path
 // can't match. STILL UNFIXTURABLE after #948 made the member walk TRANSITIVE over the named event's own
 // type identity, after #1024/#1025 added the open-key-space and imported-zod-schema arms, and after #1047
-// admitted the workloads home + taught the reader the §5.5 mapped-type distribution: every one of
+// admitted the workloads home + taught the reader the §5.5 mapped-type distribution, and after #1066 made
+// the FIELD walker fail closed on every unmodelled type node: every one of
 // those reaches a carrier ONLY because a REAL bus file `extends`/aliases/imports it, which a throwaway
 // file cannot make it do. Bite proven by gate-conformance's mustFlag (imported-carrier, aliased-arm,
 // unresolved-base, blindness, index-signature, `Record` field, imported zod arm, unresolved-schema,
-// `.loose()`, and the three #1047 distribution rows — template-member, unenumerable-constraint, field-position) + the committed pins in tests/tooling/verify/gates/bus-payload-allowlist.test.ts + two
+// `.loose()`, the three #1047 distribution rows — template-member, unenumerable-constraint, field-position —
+// and the two #1066 field-walker rows: a conditional field type refused by kind, and an inline object inside
+// a TUPLE element read rather than skipped) + the committed pins in tests/tooling/verify/gates/bus-payload-allowlist.test.ts + two
 // D16 real-file backup-pattern proofs (apiKey planted on user-bus settingsChanged → RED → restored;
 // 2026-09-01, an index signature on the real `UserBusEvent.corpusRecomputed` arm AND a relatively-imported
 // notification arm carrying `apiKey` → both RED at their declaring sites → restored). The #1030 F4
