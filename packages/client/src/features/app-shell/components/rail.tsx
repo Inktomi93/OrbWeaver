@@ -117,6 +117,14 @@ function RailBrand({
 
 const BRAND_GLYPH_SIZE = 26;
 
+/** The id of ONE sheet-hosted entry's spoken count. The You tab `aria-describedby`s every one of them: an id
+ *  REFERENCE is what lets the tab say the count without the count ever leaving its per-entry hook (see
+ *  `SheetBadgeCount`). An id whose node is absent — a gated entry, or a zero count — is ignored by the name
+ *  computation, so the description is exactly the counts that exist. */
+function sheetBadgeId(entryId: string): string {
+  return `shell-rail-sheet-badge-${entryId}`;
+}
+
 /**
  * ONE sheet-hosted widget's waiting-count, projected onto the You TAB (side-eye home re-score 2026-08-18,
  * #214 residue). A widget curated `mobile: "sheet"` leaves the phone's chrome for the sheet — which gave
@@ -129,16 +137,23 @@ const BRAND_GLYPH_SIZE = 26;
  * parent must hold — so the badge carries its own live announcement instead: `role="status"` speaks
  * "N unread" the moment the read lands, which is the AT equivalent of a badge appearing, and the sheet's
  * own inbox heading ("Notifications (N unread)") names the count for anyone who opens it.
+ *
+ * THE NAME HALF OF THAT RULING SURVIVES — ITS INPUT CHANGED (#1129). A name is still a string the parent
+ * must hold, and the count still never leaves the hook that owns it. What changed is that being spoken does
+ * not require being a name: the tab `aria-describedby`s this node by ID, so the count is durable in the a11y
+ * tree instead of living only in the instant the live region fired. It had to be, because `aria-label`
+ * overrides the button's whole subtree — a reader who focused the door after the read settled heard "You"
+ * and nothing else, and on a phone this is the inbox's ONLY rest-state signal.
  */
 function SheetBadge({ entry }: { readonly entry: ChromeEntry }): ReactNode {
   const visible = entry.useVisible?.() ?? true;
   if (!visible || entry.useBadge === undefined) {
     return null;
   }
-  return <SheetBadgeCount useBadge={entry.useBadge} />;
+  return <SheetBadgeCount entryId={entry.id} label={entry.label} useBadge={entry.useBadge} />;
 }
 
-function SheetBadgeCount({ useBadge }: { readonly useBadge: () => number }): ReactNode {
+function SheetBadgeCount({ entryId, label, useBadge }: { readonly entryId: string; readonly label: string; readonly useBadge: () => number }): ReactNode {
   const count = useBadge();
   if (count === 0) {
     return null;
@@ -148,8 +163,15 @@ function SheetBadgeCount({ useBadge }: { readonly useBadge: () => number }): Rea
       <Badge intent="primary" size="sm" aria-hidden={true}>
         {count}
       </Badge>
-      <span className="sr-only" role="status">
-        {count} unread
+      {/* THE SPOKEN COUNT IS BOTH AN ANNOUNCEMENT AND A DURABLE FACT (#1129). `role="status"` says it the
+          moment it lands; the tab's `aria-describedby` (RailButton) points HERE, so a reader who focuses the
+          door a second later — or arrives after the read settled — still hears it. Before that, `aria-label`
+          overrode the button's whole subtree for name computation and this node was reachable only in the
+          instant it appeared: the phone's ONLY rest-state signal for a sheet-hosted inbox was sighted-only.
+          It names WHAT it counts with the ENTRY'S OWN label (the registry's string, never a feature read —
+          app-shell may not import a feature), so "3 unread" is no longer an unattributed number. */}
+      <span className="sr-only" id={sheetBadgeId(entryId)} role="status">
+        {label}: {count} unread
       </span>
     </>
   );
@@ -248,6 +270,11 @@ export function Rail({ activeSection, onSelectSection, onOpenModal }: RailProps)
       {youModal === undefined ? null : (
         <RailButton
           badge={sheetOverflowChrome(entries).map((e) => <SheetBadge entry={e} key={e.id} />)}
+          // Every sheet-hosted entry's count node, by id — the ids are known from the door-frozen list
+          // without calling one hook, which is exactly why the tab can describe counts it may not read.
+          describedById={sheetOverflowChrome(entries)
+            .map((e) => sheetBadgeId(e.id))
+            .join(" ")}
           icon={youModal.trigger.icon}
           label={youModal.trigger.label}
           mobile="tab"

@@ -121,9 +121,22 @@ test.describe("the mobile bottom bar", () => {
 
     await expect(you).toBeVisible();
     await expect(you.locator('[data-slot="badge"]')).toHaveText("3");
-    // The count is announced when it lands — the tab's own NAME cannot carry it (a name is a string the
-    // parent holds, and these counts arrive through a per-entry hook), so the signal is a live region.
-    await expect(you.getByRole("status")).toHaveText("3 unread");
+    // THE LIVE-REGION RULING SURVIVES — ITS INPUT CHANGED (#1129).
+    // OLD CONDITION: "the tab's own NAME cannot carry the count (a name is a STRING the parent holds, and
+    // these counts arrive through a per-entry hook), so the signal is a live region." Both halves still
+    // hold: the count is still announced the moment it lands, and it is still never lifted out of the hook
+    // that owns it.
+    // NEW CONDITION: the count does not have to be a STRING to be spoken. `aria-describedby` is an ID
+    // REFERENCE, so the tab can say what the per-entry hook rendered without ever holding it. That matters
+    // because a live region is EPHEMERAL: `aria-label="You"` overrides this button's whole subtree for name
+    // computation, so once the announcement had been made the number was unrecoverable — a reader focusing
+    // the door a second later, or arriving after the read settled, heard "You" and nothing else, and this is
+    // the phone's ONLY rest-state signal for a sheet-hosted inbox (the bell is curated off the phone row,
+    // notifications-chrome.tsx — that ruling is untouched and the door stays the You sheet).
+    // The spoken text also SAYS WHAT IT COUNTS, from the entry's own registry label — app-shell may not
+    // import a feature, so the attribution comes through the same projection as the badge itself.
+    await expect(you.getByRole("status")).toHaveText("Fake trail widget: 3 unread");
+    await expect(you).toHaveAccessibleDescription("Fake trail widget: 3 unread");
     // A `useVisible: false` entry contributes NOTHING: one badge on the tab, not two, and never the
     // hidden entry's 9.
     await expect(you.locator('[data-slot="badge"]')).toHaveCount(1);

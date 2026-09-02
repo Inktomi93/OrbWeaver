@@ -32,11 +32,27 @@ export interface RailButtonProps {
    *  (`sheetOverflowChrome`). Rendered inside the button beside the icon, exactly where the desktop bell
    *  puts its own badge. */
   readonly badge?: ReactNode;
+  /** Ids of the nodes that SPEAK this control's badge — the tab's accessible DESCRIPTION (#1129). `aria-label`
+   *  is this button's whole name, so a count rendered inside it is invisible to name computation and its
+   *  `role="status"` announcement is unrecoverable once it has been made; an id reference carries the count
+   *  into what the control says about itself WITHOUT the count leaving the per-entry hook that owns it. A
+   *  space-separated list; ids with no node are ignored, so a gated or zero-count entry contributes nothing. */
+  readonly describedById?: string;
   /** The registry-owned modal this affordance opens, when it is a modal trigger. */
   readonly modalId?: ModalSlotId;
 }
 
-export function RailButton({ label, icon, active = false, onClick, mobile = "sheet", mobileOnly = false, badge, modalId }: RailButtonProps): ReactElement {
+export function RailButton({
+  label,
+  icon,
+  active = false,
+  onClick,
+  mobile = "sheet",
+  mobileOnly = false,
+  badge,
+  describedById,
+  modalId,
+}: RailButtonProps): ReactElement {
   return (
     <Tooltip>
       <TooltipTrigger
@@ -45,6 +61,7 @@ export function RailButton({ label, icon, active = false, onClick, mobile = "she
             intent="ghost"
             size="icon"
             aria-label={label}
+            aria-describedby={describedById === undefined || describedById === "" ? undefined : describedById}
             aria-current={active ? "page" : undefined}
             data-active={active ? "" : undefined}
             data-mobile={mobile}
