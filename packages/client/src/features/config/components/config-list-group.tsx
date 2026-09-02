@@ -32,7 +32,8 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { useId } from "react";
 import type { ConfigGroupDefinition, ConfigGroupId, ConfigSectionPartition, ConfigSubcategory } from "#state";
-import { isCollectionGroup, useConfigGroupOpen } from "#state";
+import { isCollectionGroup, isPlaceholderGroup, useConfigGroupOpen } from "#state";
+import { CONFIG_UNBUILT_MARKER } from "../lib/config-copy.ts";
 import { CollectionListGroup } from "./config-list-collection-group.tsx";
 
 export interface ConfigListGroupProps {
@@ -84,46 +85,24 @@ function SectionsListGroup({
   const foldLabelId = `${bodyId}-fold`;
   const fold = group.advancedFold;
   const hasRows = subcategories.primary.length > 0 || subcategories.advanced.length > 0;
+  // FEATURE STATUS IS THE LIST'S (#925 ruling 2, 2026-09-02). The verdict is derived from the group's own
+  // body arm rather than passed down like `modifiedMarker`/`saveFailedMarker`: those two are per-render
+  // FACTS the surface computes (which sections differ, which saves failed), while this is the definition's
+  // own shape — a build fact fixed at the door — so a prop would be plumbing with nothing to carry. The WORD
+  // still comes from the host's one copy home, shared with the body this row opens.
+  const unbuilt = isPlaceholderGroup(group);
   return (
     <Stack gap="tight" data-slot="config-group" data-config-group={group.id}>
-      {/* A group WITH rows is a disclosure GROUP, not a nav leaf: it expands (`aria-expanded`) and its
-          children carry the one "you are here" marker. A group with no rows IS the leaf, so it keeps
-          `aria-current` itself. Two `aria-current` rows for one location was the side-eye a11y defect.
-          The band's click ACTIVATES (and therefore opens) the group — never a bare toggle — so the active
-          group cannot be collapsed from its own band: selection and disclosure are one act. */}
-      <Button
-        aria-controls={hasRows ? bodyId : undefined}
-        aria-current={hasRows || !active ? undefined : "true"}
-        aria-expanded={hasRows ? open : undefined}
-        // `w-full`, NOT `flex-1` (#978 F1). This band's parent is a VERTICAL `Stack`, so `flex: 1 1 0%`
-        // put a flex-BASIS of 0 on the BLOCK axis and defeated the size variant's sealed `h-control-sm`:
-        // the button fell back to min-content and every settings band in the LIST rendered 16px tall — at
-        // BOTH pointer classes, beside 32/44px collection siblings drawn by the same component (measured
-        // 290.2 × 16.0px; Lighthouse `target-size` "safe clickable space … 20px instead of at least 24px").
-        // The collection band below keeps `flex-1` because ITS parent is a `Row` — same intent, the axis is
-        // what differs. Pinned by the dynamic band-height CT at both pointer classes.
-        className="min-w-0 w-full justify-start gap-tight px-tight"
-        data-slot="config-band"
-        data-config-group={group.id}
-        intent="ghost"
-        onClick={(): void => onSelectGroup(group)}
-        size="sm"
-        type="button"
-      >
-        <Icon {...(hasRows ? {} : { className: "invisible" })} icon={open ? ChevronDown : ChevronRight} size="sm" />
-        <Icon icon={group.icon} size="sm" />
-        <Text as="span" voice="interactiveKicker" className="truncate">
-          {group.label}
-        </Text>
-        {/* THE GROUP SAYS WHEN SOMETHING INSIDE IT CHANGED (#1099 Errand A). It rides INSIDE the band
-            button, so it is part of the band's accessible name — a mark only the sighted reader gets is
-            half a mark. `kicker` is a text voice, not a box: the band's height is untouched. */}
-        {modifiedMarker === undefined ? null : (
-          <Text as="span" data-slot="config-group-modified" voice="kicker">
-            {modifiedMarker}
-          </Text>
-        )}
-      </Button>
+      <SectionsBand
+        active={active}
+        bodyId={bodyId}
+        group={group}
+        hasRows={hasRows}
+        {...(modifiedMarker === undefined ? {} : { modifiedMarker })}
+        onSelectGroup={onSelectGroup}
+        open={open}
+        unbuilt={unbuilt}
+      />
       <div id={bodyId} hidden={!(open && hasRows)}>
         {open && hasRows ? (
           <Stack className="ps-(--spacing-section)" gap="field">
@@ -187,6 +166,82 @@ function SectionsListGroup({
         ) : null}
       </div>
     </Stack>
+  );
+}
+
+interface SectionsBandProps {
+  readonly group: ConfigGroupDefinition;
+  /** The group contributes at least one section — then the band is a disclosure GROUP rather than a leaf. */
+  readonly hasRows: boolean;
+  readonly open: boolean;
+  readonly active: boolean;
+  readonly modifiedMarker?: string;
+  /** Its surface has not been built (the `{ placeholder: true }` arm) — the row says so and stays a door. */
+  readonly unbuilt: boolean;
+  readonly bodyId: string;
+  readonly onSelectGroup: (group: ConfigGroupDefinition) => void;
+}
+
+/** A SETTINGS group's band. Its own component so the frame above reads as a dispatch (the collection arm's
+ *  two bands are each one for the same reason), and so this file stays under the `component-size` cap the
+ *  collection split was about. */
+function SectionsBand({ group, hasRows, open, active, modifiedMarker, unbuilt, bodyId, onSelectGroup }: SectionsBandProps): ReactElement {
+  return (
+    // A group WITH rows is a disclosure GROUP, not a nav leaf: it expands (`aria-expanded`) and its children
+    // carry the one "you are here" marker. A group with no rows IS the leaf, so it keeps `aria-current`
+    // itself. Two `aria-current` rows for one location was the side-eye a11y defect. The band's click
+    // ACTIVATES (and therefore opens) the group — never a bare toggle — so the active group cannot be
+    // collapsed from its own band: selection and disclosure are one act.
+    <Button
+      aria-controls={hasRows ? bodyId : undefined}
+      aria-current={hasRows || !active ? undefined : "true"}
+      aria-expanded={hasRows ? open : undefined}
+      // `w-full`, NOT `flex-1` (#978 F1). This band's parent is a VERTICAL `Stack`, so `flex: 1 1 0%` put a
+      // flex-BASIS of 0 on the BLOCK axis and defeated the size variant's sealed `h-control-sm`: the button
+      // fell back to min-content and every settings band in the LIST rendered 16px tall — at BOTH pointer
+      // classes, beside 32/44px collection siblings drawn by the same component (measured 290.2 × 16.0px;
+      // Lighthouse `target-size` "safe clickable space … 20px instead of at least 24px"). The collection band
+      // keeps `flex-1` because ITS parent is a `Row` — same intent, the axis is what differs. Pinned by the
+      // dynamic band-height CT at both pointer classes.
+      //
+      // THE UNBUILT ROW IS QUIETER, AND STILL A DOOR (#925 ruling 2). Greying is the SECOND half of the
+      // signal — the word below is the first, because colour alone is not a status a screen reader or a
+      // low-vision reader can read. `text-muted-foreground` is the house's own recessive text token, so the
+      // row recedes exactly as far as every other stood-down label and no further: it keeps its box, its
+      // focus ring, its tab stop and its click, because a row nobody can open is how a finished feature gets
+      // mistaken for a broken one (the #1043 class, from the other direction).
+      className={`min-w-0 w-full justify-start gap-tight px-tight${unbuilt ? " text-muted-foreground" : ""}`}
+      data-config-group={group.id}
+      data-slot="config-band"
+      {...(unbuilt ? { "data-config-unbuilt": "" } : {})}
+      intent="ghost"
+      onClick={(): void => onSelectGroup(group)}
+      size="sm"
+      type="button"
+    >
+      <Icon {...(hasRows ? {} : { className: "invisible" })} icon={open ? ChevronDown : ChevronRight} size="sm" />
+      <Icon icon={group.icon} size="sm" />
+      <Text as="span" voice="interactiveKicker" className="truncate">
+        {group.label}
+      </Text>
+      {/* IN WORDS, INSIDE THE BAND'S OWN NAME — the same anatomy the modified marker uses below, for the same
+          reason: a mark only the sighted reader gets is half a mark. This is the surface's ONLY remaining
+          home for the phrase (#1043): CONTENT's status band is gone, and a library the reader has not filled
+          says its own `emptyText` instead. */}
+      {unbuilt ? (
+        <Text as="span" data-slot="config-group-unbuilt" voice="kicker">
+          {CONFIG_UNBUILT_MARKER}
+        </Text>
+      ) : null}
+      {/* THE GROUP SAYS WHEN SOMETHING INSIDE IT CHANGED (#1099 Errand A). It rides INSIDE the band button,
+          so it is part of the band's accessible name. `kicker` is a text voice, not a box: the band's height
+          is untouched. */}
+      {modifiedMarker === undefined ? null : (
+        <Text as="span" data-slot="config-group-modified" voice="kicker">
+          {modifiedMarker}
+        </Text>
+      )}
+    </Button>
   );
 }
 

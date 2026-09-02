@@ -5,10 +5,18 @@
 // a 917px pane, a ramp that stopped at the title step, a 2-track grid with a permanent empty cell, and
 // ~380px of void under the last card. An authored-string test would have stayed green through all four.
 //
-// THE CORPUS IS THE VARIABLE. The whole point of the shape is that hero-vs-rail is decided by what you
-// have BUILT, so the stubs drive three states through ONE story: the real dev corpus (one built library,
-// two not), an all-built corpus, and the cold first run where nothing is built at all. Empty states are
+// THE CORPUS IS THE VARIABLE. A slot's ARM is decided by what the reader has actually put in that library,
+// so the stubs drive three states through ONE story: the real dev corpus (one populated library, three
+// empty), an all-populated corpus, and the cold first run where every library is empty. Empty states are
 // load-bearing here, not an afterthought.
+//
+// THE STATUS PARTITION IS GONE (#925 ruling 2 · #1043, 2026-09-02). The pane used to be a two-COLUMN split
+// — populated libraries in a lead track, empty ones in a rail under a `Not built yet` band — and the owner
+// read that band as a claim about the FEATURE ("regex isn't ready yet despite being finished"). Feature
+// status moved to the LIST (pinned in `config-group-placeholder.ct.tsx`) and this pane says nothing about
+// it: ONE auto-fit grid, one slot per collection in canonical order, and population changes only what the
+// slot SAYS. The tests below therefore assert the two ARMS (`[data-config-populated]` /
+// `[data-config-empty]`) and never a column, a rail or a status word.
 //
 // NO CLOCK, DELIBERATELY: nothing on this surface renders a relative time, so there is no wall-clock read
 // to freeze. The counts are the fixtures' own array lengths.
@@ -42,10 +50,11 @@ const COLORIZED_BORDER_ACCENT_SHARE = 0.22;
 const ANY_CREATE_VERB = /^New /;
 /** The wall's derived remainder chip, whatever number it lands on. */
 const ANY_REMAINDER = /^\+\d+ more$/;
-/** The BUILT column's own marker — a second attribute beside `data-collection`, so the column's `:has()`
- *  test and the card's identity can never be confused for one another. */
-const BUILT = "[data-config-built]";
-const UNBUILT = "[data-config-unbuilt]";
+/** A slot's ARM marker — a second attribute beside `data-collection`, so the CD3 sibling verdict and the
+ *  card's identity can never be confused for one another. It says POPULATED / EMPTY, never built/unbuilt:
+ *  what it reports is the reader's library, and the app's own readiness is the LIST's word (#1043). */
+const POPULATED = "[data-config-populated]";
+const EMPTY = "[data-config-empty]";
 
 /** The measured production pane the story mounts at (`_ct-stories.tsx`'s `CONTENT_PANE_PX`). Restated as
  *  the assertion's own expectation rather than imported — a `_ct-stories` module may export only
@@ -183,8 +192,8 @@ function stub(page: Page, corpus: Corpus): Promise<unknown> {
  *  reads as not-built — the in-flight state, where the rail legitimately holds all three. So each test
  *  waits for the rendered partition it is about to measure, never for a request count. */
 async function settled(pane: Locator, built: number, unbuilt: number): Promise<void> {
-  await expect(pane.locator(BUILT)).toHaveCount(built);
-  await expect(pane.locator(UNBUILT)).toHaveCount(unbuilt);
+  await expect(pane.locator(POPULATED)).toHaveCount(built);
+  await expect(pane.locator(EMPTY)).toHaveCount(unbuilt);
 }
 
 async function box(locator: Locator): Promise<{ x: number; y: number; width: number; height: number }> {
@@ -267,7 +276,7 @@ test("the surface renders the full six-step ramp, display step included", async 
   expect(await fontPx(masthead), "the masthead rides --text-display").toBeCloseTo(display, 1);
 
   // The BUILT library's name is the headline step — the one item this surface promotes.
-  expect(await fontPx(pane.locator(BUILT).getByText("Tags", { exact: true })), "the built library's name rides --text-headline").toBeCloseTo(headline, 1);
+  expect(await fontPx(pane.locator(POPULATED).getByText("Tags", { exact: true })), "the built library's name rides --text-headline").toBeCloseTo(headline, 1);
 
   // A NOT-BUILT library's name is the title step below it.
   expect(await fontPx(pane.getByRole("heading", { name: "Regex scripts" })), "a not-built library's name rides --text-title").toBeCloseTo(title, 1);
@@ -285,31 +294,31 @@ test("the surface renders the full six-step ramp, display step included", async 
   expect(sizes.length, `the rendered ramp is ${String(sizes.length)} steps: ${sizes.join(" ")}`).toBeGreaterThanOrEqual(6);
 });
 
-// ── THE SHAPE (#99's grid hole) ─────────────────────────────────────────────────────────────────────
-// The hole was the symptom of forcing THREE collections into ONE even grid, so the fix is to stop
-// treating them as three equals — not to re-tune a track count. The library you built leads; the two you
-// have not sit in the rail beside it. There is no even grid left to have a hole in.
-test("the built library LEADS and the not-built ones sit in the rail beside it", async ({ mount, page }) => {
+// ── THE SHAPE (#99's grid hole · #925 ruling 2's replacement for the split) ─────────────────────────
+// PREMISE RETIRED, CLAIM KEPT. This test used to assert the two-COLUMN split — "the built library LEADS and
+// the not-built ones sit in the rail beside it" — which was the geometry the `Not built yet` band organised
+// and which the owner's ruling deleted along with it. What survives is the claim that outlived the split
+// and the hole it replaced: every registered collection has exactly ONE slot, in canonical order, and no
+// collection is filed anywhere by its population.
+test("every collection has ONE slot in ONE grid, in canonical order, whatever its population", async ({ mount, page }) => {
   await stub(page, { tags: TAGS });
   const pane = await mount(<ConfigWelcomeStory />);
   await settled(pane, 1, 3);
 
   const welcome = await box(pane.locator(WELCOME));
-  const hero = await box(pane.locator(BUILT));
-  const [regex, world] = await Promise.all([box(pane.locator('[data-config-unbuilt="regex"]')), box(pane.locator('[data-config-unbuilt="worldInfo"]'))]);
-
-  // The lead column starts on the surface's own left edge — one left edge for the copy and the hero.
-  expect(Math.abs(hero.x - welcome.x), "the hero starts on the masthead's left edge").toBeLessThanOrEqual(1);
-  // SIDE BY SIDE, not stacked: the rail begins after the hero ends. This is the split, and it is the
-  // assertion that fails the instant the container step stops engaging at the real pane width.
-  expect(regex.x, "the rail sits beside the hero, not under it").toBeGreaterThan(hero.x + hero.width);
-  // The hero is the DOMINANT track (`lead` is 1.55fr/1fr, deliberately unequal).
-  expect(hero.width, "the built library takes the wide track").toBeGreaterThan(regex.width);
-  // The two not-built libraries share the rail's column and stack — the mock's 1280px drawing exactly.
-  expect(Math.abs(regex.x - world.x), "the rail's slots share one column").toBeLessThanOrEqual(1);
-  expect(world.y, "and they stack inside it").toBeGreaterThan(regex.y);
-  // NO HOLE AT ANY WIDTH: every collection is rendered exactly once, in one of the two columns.
+  // Rendered exactly once each, and NOWHERE ELSE — no second region, no rail, no hole.
   await expect(pane.locator("[data-collection]")).toHaveCount(4);
+  await expect
+    .poll(() => pane.locator("[data-collection]").evaluateAll((slots) => slots.map((slot) => slot.getAttribute("data-collection"))))
+    .toEqual(["tags", "regex", "worldInfo", "rosterPreset"]);
+  // …in the SAME `(shelf, order, id)` sequence the LIST paints, so the two panes read as one map: `tags`
+  // is populated here and the three after it are empty, and the order is unmoved by that.
+  const [tags, regex] = await Promise.all([box(pane.locator('[data-config-populated="tags"]')), box(pane.locator('[data-config-empty="regex"]'))]);
+  expect(Math.abs(tags.x - welcome.x), "the first slot starts on the masthead's left edge").toBeLessThanOrEqual(1);
+  expect(regex.y >= tags.y, "the second slot follows the first in reading order").toBe(true);
+  // AND NO STATUS REGION SURVIVES (#1043): the phrase that made a finished feature read as unready is gone
+  // from CONTENT entirely, at the corpus state that used to draw it.
+  await expect(pane.locator(WELCOME).getByText("Not built yet")).toHaveCount(0);
 });
 
 // ── THE PROMOTION IS PAID FOR ───────────────────────────────────────────────────────────────────────
@@ -322,7 +331,7 @@ test("the hero shows the library's real contents and still sheds the count + cre
   const pane = await mount(<ConfigWelcomeStory />);
   await settled(pane, 1, 3);
 
-  const hero = pane.locator(BUILT);
+  const hero = pane.locator(POPULATED);
   // MOST USED, ranked — the fixture's usage descends with the index, so the top chip is the first tag and
   // a wall in insertion order would pass only by accident. The wall is a top-N GLANCE, never the roster:
   // it is capped, and it says how much of the library it is not showing.
@@ -376,13 +385,13 @@ test("the door is a short-named control and the census is CONTENT, not part of a
 // so there is no hero to lead with. The rail must then take the PANE, not the 1fr track it would have had
 // beside an absent lead column — otherwise the cold reader gets the exact squeezed-column defect this
 // pass is deleting, on the one visit where the pane is nothing but invitations.
-test("with NOTHING built the invitations take the whole pane — no empty lead track, no hole", async ({ mount, page }) => {
+test("with NOTHING in any library the invitations take the whole pane — no leftover track, no hole", async ({ mount, page }) => {
   await stub(page, {});
   const pane = await mount(<ConfigWelcomeStory />);
   await settled(pane, 0, 4);
 
   const welcome = await box(pane.locator(WELCOME));
-  const slots = await Promise.all(["tags", "regex", "worldInfo", "rosterPreset"].map(async (id) => box(pane.locator(`[data-config-unbuilt="${id}"]`))));
+  const slots = await Promise.all(["tags", "regex", "worldInfo", "rosterPreset"].map(async (id) => box(pane.locator(`[data-config-empty="${id}"]`))));
   const spanned = Math.max(...slots.map((slot) => slot.x + slot.width)) - Math.min(...slots.map((slot) => slot.x));
   expect(spanned, "the invitations span the surface instead of a leftover rail").toBeCloseTo(welcome.width, 0);
 
@@ -393,31 +402,49 @@ test("with NOTHING built the invitations take the whole pane — no empty lead t
   await expect(pane.locator(WELCOME).getByText("0", { exact: true })).toHaveCount(4);
 });
 
-// ── THE FULLY-BUILT CORPUS ──────────────────────────────────────────────────────────────────────────
-// The other end of the same axis, and the CD3 test. When every library is built the rail has nothing to
-// name, so the band must not render over nothing — and the surface must still promote exactly ONE island,
-// or it has no focal at all.
-test("with EVERYTHING built the rail's band disappears and exactly ONE island is focal", async ({ mount, page }) => {
+// ── THE FULLY-POPULATED CORPUS ──────────────────────────────────────────────────────────────────────
+// The other end of the same axis, and the CD3 test: whatever the corpus, the surface promotes exactly ONE
+// island or it has no focal at all. The status band it used to also check for is deleted (#925 ruling 2),
+// so the claim is now that the phrase appears at NO corpus state — asserted here and on the mixed arm above.
+test("with EVERY library populated exactly ONE island is focal, and no status word appears", async ({ mount, page }) => {
   await stub(page, { tags: TAGS, scripts: SCRIPTS, books: BOOKS, casts: [CAST] });
   const pane = await mount(<ConfigWelcomeStory />);
   await settled(pane, 4, 0);
 
-  // A band over an empty group is chrome that lies about what is under it. The claim is VISIBILITY, not
-  // DOM count: the column stands itself down with `display: none` (which also drops it from the
-  // accessibility tree), and `toHaveCount` would count a node no reader can reach.
-  await expect(pane.getByText("Not built yet")).toBeHidden();
+  await expect(pane.locator(WELCOME).getByText("Not built yet")).toHaveCount(0);
 
-  // CD3: exactly one element carries the accent stripe at rest. Read off the PAINTED pseudo-element, not
-  // a class list — `first:` is the whole verdict and a class assertion would survive the variant breaking.
+  // CD3: exactly one element carries the accent stripe at rest. Read off the PAINTED pseudo-element, not a
+  // class list — the sibling variant is the whole verdict and a class assertion would survive it breaking.
   const striped = await pane
-    .locator(BUILT)
+    .locator(POPULATED)
     .evaluateAll((cards) => cards.filter((card) => Number.parseFloat(getComputedStyle(card, "::after").width) > 0).length);
   expect(striped, "one focal, no more and no fewer").toBe(1);
+  // …and it is the FIRST one in DOM order, which is what the sibling variant means.
+  const stripedFirst = await pane
+    .locator(POPULATED)
+    .evaluateAll((cards) => cards.findIndex((card) => Number.parseFloat(getComputedStyle(card, "::after").width) > 0));
+  expect(stripedFirst, "the focal is the first populated island, by DOM order").toBe(0);
+});
 
-  // …and the three islands stack in the lead column rather than leaving the rail as void.
-  const welcome = await box(pane.locator(WELCOME));
-  const first = await box(pane.locator(BUILT).first());
-  expect(first.width, "with no rail to hold, the lead column takes the pane").toBeCloseTo(welcome.width, 0);
+// ── THE MIXED CORPUS IS WHERE `first:` USED TO BE WRONG ─────────────────────────────────────────────
+// With one grid the first CHILD can be an EMPTY slot, which draws no card at all — so a `first:`-gated halo
+// would have belonged to nobody and the surface would have had no focal. The verdict is a sibling fact
+// instead ("a populated card with a populated card before it stands its halo down"), and this is the arm
+// that tells the two spellings apart: tags is empty, regex and world-info are populated.
+test("the focal is the first POPULATED island even when an empty slot leads the grid", async ({ mount, page }) => {
+  await stub(page, { books: BOOKS, scripts: SCRIPTS });
+  const pane = await mount(<ConfigWelcomeStory />);
+  await settled(pane, 2, 2);
+
+  const halos = await pane.locator(POPULATED).evaluateAll((cards) =>
+    cards.map((card) => {
+      const painted = getComputedStyle(card, "::before");
+      return painted.content === "none" ? 0 : Number.parseFloat(painted.opacity);
+    }),
+  );
+  const painted = halos.filter((opacity) => opacity > 0);
+  expect(painted, "exactly one halo, and it is the first populated card").toHaveLength(1);
+  expect(halos[0] ?? 0, "…and it is the FIRST one").toBeGreaterThan(0);
 });
 
 // ── CD3 UNDER COLORIZATION (side-eye 2026-08-19, "the single-focal collapses under maximal") ────────
@@ -434,7 +461,7 @@ test("exactly one focal at rest, and its accent does not collapse under theme co
   // Read off the PAINTED pseudo-elements, per card — a class-list assertion would survive the variant
   // breaking, and `first:` is the whole CD3 verdict.
   const readFocal = (): Promise<{ glow: number[]; striped: number }> =>
-    pane.locator(BUILT).evaluateAll((cards) => ({
+    pane.locator(POPULATED).evaluateAll((cards) => ({
       // `content: none` means the pseudo does not EXIST — and its computed `opacity` still reads the
       // inherited 1, which is exactly the false positive an opacity-only read produces on a card that
       // paints no halo at all. Existence first, then strength.
@@ -511,22 +538,22 @@ test("a settling count paints NO slot — the in-flight arm is neither column (t
   // flight, so THREE invitations painted across the full pane and then reflowed into a 1.55fr/1ff split
   // when the counts landed. A settling count is not a verdict, so nothing paints.
   await expect(pane.locator("[data-collection]"), "a count in flight is not a verdict — no slot, in either column").toHaveCount(0);
-  // …AND NEITHER DOES THE GRID (2026-08-19). Suppressing the SLOTS was only half of it: the track count is
-  // a `:has()` verdict over what rendered, so one count landing a frame ahead of its siblings painted the
-  // hero across the whole pane and then reflowed it into the lead track — the 0.0283 residue, root-caused
-  // from the browser's own shift sources (843→482.75px on the hero's door row). The hearth now stands down
-  // until no collection is still settling, so its first paint is its final geometry.
+  // …AND NEITHER DOES THE GRID (2026-08-19, and still true after the column split was deleted). Suppressing
+  // the SLOTS was only half of it: a slot whose count lands late swaps its ARM, and the populated arm is
+  // taller than the invitation it replaces (a chip wall and a door in place of a create verb), so the row it
+  // sits in grows under whatever is beside it. The hearth stands down until no collection is still settling,
+  // so its first paint is its final geometry.
   await expect(pane.locator('[data-slot="config-hearth"]'), "the hearth does not paint a geometry it is about to change").toBeHidden();
 
   hold.release(TAGS);
   await settled(pane, 1, 3);
-  // …and the geometry the reader FIRST sees is the settled one, because the slots that could have moved
-  // were never rendered before it: the hero on the surface's left edge, the rail beside it.
+  // …and the geometry the reader FIRST sees is the settled one, because the slots that could have moved were
+  // never rendered before it: the first slot on the surface's left edge, the rest in canonical order after
+  // it. (The sibling assertion this replaces was the lead/rail split's, which #925 ruling 2 deleted.)
   const welcome = await box(pane.locator(WELCOME));
-  const hero = await box(pane.locator(BUILT));
-  const rail = await box(pane.locator('[data-config-unbuilt="regex"]'));
-  expect(Math.abs(hero.x - welcome.x)).toBeLessThanOrEqual(1);
-  expect(rail.x, "the rail arrives beside the hero — it never occupied the pane first").toBeGreaterThan(hero.x + hero.width);
+  const first = await box(pane.locator('[data-config-populated="tags"]'));
+  expect(Math.abs(first.x - welcome.x)).toBeLessThanOrEqual(1);
+  await expect(pane.locator("[data-collection]"), "every slot arrives at once, in one grid").toHaveCount(4);
 });
 
 test("landing the counts shifts NOTHING — the browser's own layout-shift score across the release is zero", async ({ mount, page }) => {
@@ -585,7 +612,7 @@ test("the hero is an operable door, by pointer and by keyboard", async ({ mount,
   // The island stays the whole pointer target (its `onClick` mirrors the door's), so the tap floor is
   // measured there — the door's own coarse floor rides `Button`'s `::after` touch-target pseudo, which a
   // bounding box structurally cannot see.
-  const islandBox = await box(pane.locator(BUILT));
+  const islandBox = await box(pane.locator(POPULATED));
   expect(islandBox.height, "a door a thumb cannot land on is not a door").toBeGreaterThanOrEqual(TOUCH_FLOOR_PX);
 
   await door.focus();
@@ -612,7 +639,7 @@ test("every hero in the lead column shows real contents — no hollow shells", a
   ] as const;
   await Promise.all(
     previews.flatMap(([id, kicker, chip]) => {
-      const card = pane.locator(`[data-config-built="${id}"]`);
+      const card = pane.locator(`[data-config-populated="${id}"]`);
       return [
         expect(card.getByText(kicker, { exact: true }), `${id} names its own rank`).toBeVisible(),
         expect(card.getByText(chip, { exact: false }), `${id} shows a real member`).toBeVisible(),
@@ -624,7 +651,7 @@ test("every hero in the lead column shows real contents — no hollow shells", a
   // THE MEASURED DEFECT, as geometry: the hollow shells were 106px against the census's 198px. The claim is
   // RELATIVE, never a frozen pixel — a preview-bearing card cannot be a bare name+blurb+door stub, and the
   // three cards no longer differ by ~2x.
-  const heights = await pane.locator(BUILT).evaluateAll((cards) => cards.map((card) => card.getBoundingClientRect().height));
+  const heights = await pane.locator(POPULATED).evaluateAll((cards) => cards.map((card) => card.getBoundingClientRect().height));
   expect(heights.length).toBe(3);
   expect(Math.min(...heights), "no card is a hollow name+blurb+door shell").toBeGreaterThan(120);
   expect(Math.max(...heights) / Math.min(...heights), "the lead column is not one hero and two stubs").toBeLessThan(2);
@@ -640,10 +667,9 @@ test("every launcher blurb is capped at the reading measure, like the masthead",
 
   const measured = await Promise.all(
     (["tags", "regex", "worldInfo"] as const).map(async (id) => {
-      const blurb = pane.locator(`[data-config-built="${id}"]`).locator('[data-slot="text"][data-voice="gloss"]').first();
-      // Probed IN THE BLURB'S OWN FONT CONTEXT — the measure is a `ch` value and `ch` resolves against
-      // the ELEMENT's font, so probing it on the pane reads a different number for the same rule. The
-      // token is `--reading-measure-prose` since the #1145 split; the transcript keeps the wider one.
+      const blurb = pane.locator(`[data-config-populated="${id}"]`).locator('[data-slot="text"][data-voice="gloss"]').first();
+      // Probed IN THE BLURB'S OWN FONT CONTEXT — `--reading-measure` is a `ch` value and `ch` resolves
+      // against the ELEMENT's font, so probing it on the pane reads a different number for the same rule.
       const [measure, drawn] = await Promise.all([resolvedPx(blurb, "--reading-measure-prose"), box(blurb)]);
       return { drawn, id, measure };
     }),
@@ -692,7 +718,7 @@ test("two members with the SAME NAME both appear in the wall, and the remainder 
   const pane = await mount(<ConfigWelcomeStory />);
   await settled(pane, 1, 3);
 
-  const hero = pane.locator('[data-config-built="tags"]');
+  const hero = pane.locator('[data-config-populated="tags"]');
   const chips = hero.locator('[data-slot="badge"]').filter({ hasText: DUPLICATE_NAME });
   await expect(chips, "the same name twice is two members, not one").toHaveCount(2);
   // …and they are distinguishable: each chip carries its own ranking datum.
@@ -712,7 +738,7 @@ test("a detail that is the same on every chip is dropped — the wall carries na
   const pane = await mount(<ConfigWelcomeStory />);
   await settled(pane, 2, 2);
 
-  const regex = pane.locator('[data-config-built="regex"]');
+  const regex = pane.locator('[data-config-populated="regex"]');
   // The wall is still there, and it is still the library's own members.
   await expect(regex.getByText("Recently edited", { exact: true })).toBeVisible();
   await expect(regex.locator('[data-slot="badge"]')).toHaveCount(SAME_STAMP_SCRIPTS.length);
@@ -721,7 +747,7 @@ test("a detail that is the same on every chip is dropped — the wall carries na
   // …and the rule is about DISTINCTNESS, not about regex: the tag wall's usage totals vary, so it keeps
   // every one of its details.
   const tagDetails = await pane
-    .locator('[data-config-built="tags"]')
+    .locator('[data-config-populated="tags"]')
     .locator('[data-slot="text"][data-voice="datum"]')
     .evaluateAll((nodes) => nodes.map((node) => node.textContent ?? ""));
   expect(new Set(tagDetails).size, "a varying detail is kept").toBeGreaterThan(1);

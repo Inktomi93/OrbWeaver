@@ -137,7 +137,7 @@ export type {
   SettingTeach,
   SettingTeachDecl,
 } from "./config-group-registry.ts";
-export { configAnchorId, isCollectionGroup, isPushingGroup, isTeachNone } from "./config-group-registry.ts";
+export { configAnchorId, isCollectionGroup, isPlaceholderGroup, isPushingGroup, isTeachNone } from "./config-group-registry.ts";
 export type { ConfigLinkTarget } from "./config-link.ts";
 export { formatConfigLink, parseConfigLink } from "./config-link.ts";
 export type { ConfigTarget, ConfigVisibleSetting } from "./config-nav-store.ts";

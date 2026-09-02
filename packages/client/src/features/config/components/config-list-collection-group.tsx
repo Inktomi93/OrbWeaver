@@ -15,11 +15,11 @@
 // unreadable to a screen reader. IMPORT leads CREATE because create is the primary and a primary sits last,
 // hard against the trailing edge (the world-info list band's landed order, re-homed).
 //
-// AND THE BAND HAS TWO ARMS BY POPULATION, which is the one thing to read before editing either: a
-// populated band DISCLOSES (its click toggles the member rows), a zero-member band SELECTS
-// (`CollectionEmptyBand` — it has nothing to disclose, and it is a door to the library's own empty surface
-// in the CONTENT pane). Both rulings, and the #925 scope note that fences them, are stated at that
-// component.
+// AND THE BAND HAS TWO ARMS BY POPULATION, which is the one thing to read before editing either — but as of
+// #925 both arms are DOORS, and population decides only what is behind them: a zero-member band SELECTS into
+// the library's own empty surface (`CollectionEmptyBand`, #1099 F5), and a populated band ENTERS the library
+// on the first click (CONTENT lands on its landing) then TOGGLES its rows on the next
+// (`CollectionMemberBand`). Each component states its own ruling fork in full; read the one you are editing.
 
 import { Button } from "@orb/ui/button";
 import { FileTrigger } from "@orb/ui/file-trigger";
@@ -38,8 +38,9 @@ import { selectCollectionMemberFromList, selectConfigGroup, toggleConfigGroup, u
 
 export interface CollectionListGroupProps {
   readonly group: CollectionGroupDefinition;
-  /** The EFFECTIVE active group is this one — the zero-member band is the only arm that can BE the current
-   *  location (a populated band discloses instead of selecting), so it is the only arm that marks itself. */
+  /** The EFFECTIVE active group is this one. BOTH arms can now BE the current location (#925): each marks
+   *  itself `aria-current` while no member of the collection is open, and the populated arm's click toggles
+   *  its rows rather than re-entering once it is already the location. */
   readonly active: boolean;
 }
 
@@ -72,44 +73,7 @@ export function CollectionListGroup({ group, active }: CollectionListGroupProps)
         {isEmpty ? (
           <CollectionEmptyBand active={active} count={count} group={group} />
         ) : (
-          <Button
-            aria-controls={bodyId}
-            aria-expanded={open}
-            // THE NAME IS THE LABEL AND THE COUNT, UNGLUED (side-eye 2026-08-19 ARIA). The count is a
-            // sibling span with no separator between them, and the accessible-name computation
-            // concatenates adjacent inline nodes with NOTHING in between — so this disclosure announced
-            // "Tags1736", one token, with the number welded onto the library's name. A literal space would
-            // fix the string and break the layout (the count is a `datum` span with its own spacing), so
-            // the name is stated instead: the VISIBLE kicker keeps its micro-caps voice untouched, and
-            // only what a screen reader hears is spelled out.
-            //
-            // ── THE SEPARATOR IS A SPACE, NOT A COMMA (side-eye 2026-08-19 P1-2; the fork is stated) ──
-            // The band VISIBLY reads "Tags 1736" and a name of "Tags, 1736" does not CONTAIN it, which
-            // fails WCAG 2.5.3 Label in Name. So the un-glue keeps its one job and spends the one character
-            // that is not part of the label: whitespace.
-            aria-label={count === undefined ? group.label : `${group.label} ${String(count)}`}
-            // THE BAND IS AN ISLAND, NOT A LABELLED BUTTON (side-eye 2026-08-06 P3). `tight` is the token
-            // minted for exactly this (glyph↔text inside an island); the padding drops one step for the
-            // same reason. Pinned by the narrow-pane CT.
-            className="min-w-0 flex-1 justify-start gap-tight px-tight"
-            data-config-group={group.id}
-            data-slot="config-band"
-            intent="ghost"
-            onClick={(): void => toggleConfigGroup(group.id)}
-            size="sm"
-            type="button"
-          >
-            <Icon icon={open ? ChevronDown : ChevronRight} size="sm" />
-            <Icon icon={group.icon} size="sm" />
-            <Text as="span" voice="interactiveKicker" className="truncate">
-              {group.label}
-            </Text>
-            {count === undefined ? null : (
-              <Text as="span" voice="datum">
-                {count}
-              </Text>
-            )}
-          </Button>
+          <CollectionMemberBand active={active} bodyId={bodyId} count={count} group={group} memberOpen={selection?.kind === group.id} open={open} />
         )}
         <CollectionBulkTrigger collection={collection} />
         <CollectionImportTrigger collection={collection} />
@@ -145,6 +109,105 @@ export function CollectionListGroup({ group, active }: CollectionListGroupProps)
   );
 }
 
+/**
+ * A POPULATED collection's band: the disclosure over its member rows, and — as of #925 — a real DOOR into
+ * the library it names.
+ *
+ * ═══ THE RULING FORK, STATED (#925 owner rulings 2026-09-02 · the 2026-08-06 P2 ruling, preserved) ═══
+ *
+ * THE RECORDED RULING was "a collection group's activation is only its DISCLOSURE" (`config-section.tsx`'s
+ * `makeSelectionSeam`, and this file's own zero-member note). It survives as the fact it always was — a
+ * collection's CONTENT is a MEMBER, so a collection group does not PUSH on a phone and its band is not a
+ * settings band. Its INPUT changed twice over, and both changes are the owner's own:
+ *   1. The species correction (2026-09-02): collections are a distinct species whose bar is THEY MUST WORK
+ *      — no dead ends, no capability lies — and the populated arm's interaction contract is #925's call.
+ *   2. The ARRIVAL DEFAULT (same day): a group is now active from the first frame. So "disclosure only"
+ *      stopped meaning "CONTENT is untouched" and started meaning "CONTENT keeps showing the FIRST GROUP'S
+ *      SETTINGS while the LIST says you are in Tags" — a click that opens rows under a pane about something
+ *      else, which is the capability lie by the owner's own click-count lens.
+ *
+ * SO THE ACT IS SPLIT BY WHERE THE READER ALREADY IS, which is the honest reading of both rulings:
+ *  · NOT the active group ⇒ ENTER the library: `selectConfigGroup` makes it the location (CONTENT lands on
+ *    its own landing — `config-content-surface.tsx`) and opens it in the same act. This is the zero-member
+ *    band's landed F5 behavior, now true of the arm beside it: population decides the ARM, never whether a
+ *    band is a door.
+ *  · ALREADY the active group ⇒ TOGGLE its rows. The disclosure survives as a capability — a 400-row library
+ *    the reader wants folded away without leaving it — and collapsing does not clear the location, so the
+ *    landing (or the open member's editor) stays put. This is the ONE place this species diverges from a
+ *    settings group, whose active band deliberately cannot collapse itself, and the divergence is
+ *    species-legitimate: a settings group's rows ARE its map of the pane beside it, while a library's rows
+ *    are its contents, and folding contents away is a thing a reader does.
+ */
+function CollectionMemberBand({
+  group,
+  count,
+  open,
+  active,
+  memberOpen,
+  bodyId,
+}: {
+  readonly group: CollectionGroupDefinition;
+  readonly count: number | undefined;
+  readonly open: boolean;
+  readonly active: boolean;
+  /** A member of THIS collection is open — then the member's row is the location, not the band. */
+  readonly memberOpen: boolean;
+  readonly bodyId: string;
+}): ReactElement {
+  return (
+    <Button
+      aria-controls={bodyId}
+      // THE BAND IS THE LOCATION WHEN NO MEMBER IS (the one-current-per-location rule, applied to this
+      // species). A settings band that owns rows never carries `aria-current` because its active CHILD does;
+      // a collection band's children are MEMBERS, and while none is open nothing below it is the reader's
+      // place — so the band is, exactly as the zero-member arm already says of itself.
+      aria-current={active && !memberOpen ? "true" : undefined}
+      aria-expanded={open}
+      // THE NAME IS THE LABEL AND THE COUNT, UNGLUED (side-eye 2026-08-19 ARIA). The count is a sibling span
+      // with no separator between them, and the accessible-name computation concatenates adjacent inline
+      // nodes with NOTHING in between — so this disclosure announced "Tags1736", one token, with the number
+      // welded onto the library's name. A literal space would fix the string and break the layout (the count
+      // is a `datum` span with its own spacing), so the name is stated instead: the VISIBLE kicker keeps its
+      // micro-caps voice untouched, and only what a screen reader hears is spelled out.
+      //
+      // ── THE SEPARATOR IS A SPACE, NOT A COMMA (side-eye 2026-08-19 P1-2; the fork is stated) ──
+      // The band VISIBLY reads "Tags 1736" and a name of "Tags, 1736" does not CONTAIN it, which fails WCAG
+      // 2.5.3 Label in Name. So the un-glue keeps its one job and spends the one character that is not part
+      // of the label: whitespace.
+      aria-label={count === undefined ? group.label : `${group.label} ${String(count)}`}
+      // THE BAND IS AN ISLAND, NOT A LABELLED BUTTON (side-eye 2026-08-06 P3). `tight` is the token minted
+      // for exactly this (glyph↔text inside an island); the padding drops one step for the same reason.
+      // Pinned by the narrow-pane CT.
+      className="min-w-0 flex-1 justify-start gap-tight px-tight"
+      data-config-group={group.id}
+      data-slot="config-band"
+      intent="ghost"
+      onClick={(): void => {
+        if (active) {
+          toggleConfigGroup(group.id);
+          return;
+        }
+        // `selectConfigGroup` opens the group as part of landing on it, so entering is ONE act and never a
+        // select-then-toggle pair that could land closed. `null` for the section: a collection has none.
+        selectConfigGroup(group.id, null);
+      }}
+      size="sm"
+      type="button"
+    >
+      <Icon icon={open ? ChevronDown : ChevronRight} size="sm" />
+      <Icon icon={group.icon} size="sm" />
+      <Text as="span" voice="interactiveKicker" className="truncate">
+        {group.label}
+      </Text>
+      {count === undefined ? null : (
+        <Text as="span" voice="datum">
+          {count}
+        </Text>
+      )}
+    </Button>
+  );
+}
+
 /** A ZERO-MEMBER collection's band. Its own component for the same reason every other arm here is one —
  *  the group frame reads as a dispatch, not as a pile of ternaries — and because this arm is the ONE band
  *  whose act is selection rather than disclosure, which is a fact worth reading in one place. */
@@ -171,9 +234,11 @@ function CollectionEmptyBand({
     //
     // SCOPE, so nobody generalises this by accident (owner ruling 2026-09-02, recorded on #925): a
     // collection is a GENUINELY DISTINCT species from a settings group, and that distinctness is
-    // legitimate — what was illegitimate was a band that did nothing at all. This arm fixes THAT, and
-    // says nothing about the POPULATED band, whose activation is still its disclosure (the ruling above,
-    // intact). Whether a populated collection keeps disclosure-primary is #925's design call.
+    // legitimate — what was illegitimate was a band that did nothing at all. #925 then made the call this
+    // note reserved for it: the POPULATED band is a door too (it ENTERS the library, and toggles its rows
+    // only once the reader is already there — `CollectionMemberBand` states that fork). What did NOT
+    // change is the species: neither arm PUSHES on a phone (`isPushingGroup`), because a collection's
+    // CONTENT is a member and a member is what pushes.
     <Button
       aria-current={active ? "true" : undefined}
       // UNGLUED, exactly like its populated twin above (side-eye 2026-08-19 ARIA): the label and the

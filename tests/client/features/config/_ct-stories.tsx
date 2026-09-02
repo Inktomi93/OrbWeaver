@@ -65,6 +65,11 @@ export interface ConfigHostStoryProps {
   readonly height?: number;
   /** The #696 placeholder registry (connections → `{ placeholder: true }`) in place of the real one. */
   readonly placeholder?: boolean;
+  /** Publish the MOBILE viewport regime BEFORE first render (#925 ruling 4). The arrival default is
+   *  desktop-only — on a phone the LIST is the whole screen and an auto-selected group would push CONTENT
+   *  over the map the reader arrived for — so the phone arm has to be the regime the FIRST render sees, not
+   *  a switch flipped afterwards. `setMobileViewport` in the lazy initializer is the one place that is true. */
+  readonly mobile?: boolean;
   /** Extra provider-nested children (a socket host, a probe) — rendered under the data layer. */
   readonly children?: ReactNode;
 }
@@ -72,9 +77,10 @@ export interface ConfigHostStoryProps {
 /** The config HOST: the LIST and CONTENT panes side by side over the real registries, in a fixed box, the
  *  way the shell mounts them (LIST docked at its default width, CONTENT filling the rest). The ONLY way to
  *  mount a `sections` skimmer since config-revamp-design.md §6.8 — a group has no surface of its own. */
-export function ConfigHostStory({ target, sub, width = 900, height = 560, placeholder = false, children }: ConfigHostStoryProps): ReactElement {
+export function ConfigHostStory({ target, sub, width = 900, height = 560, placeholder = false, mobile = false, children }: ConfigHostStoryProps): ReactElement {
   useState(() => {
     __resetConfigNav();
+    setMobileViewport(mobile);
     if (target !== undefined) {
       openConfigTo(target, sub);
     }

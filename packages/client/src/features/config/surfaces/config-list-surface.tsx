@@ -15,7 +15,7 @@
 import { Container, Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { useRef } from "react";
+import { useLayoutEffect, useRef } from "react";
 import { useSettingsViewerView } from "#data";
 import { useFocusOnMount } from "#lib";
 import type { ConfigGroupDefinition, ConfigGroupId, ConfigGroupRegistry } from "#state";
@@ -27,6 +27,7 @@ import {
   useActiveConfigSub,
   useConfigSectionRegistry,
   useErroredSaveSections,
+  useMobileViewport,
 } from "#state";
 import { ConfigListGroup } from "../components/config-list-group.tsx";
 import { ConfigMobileTeaching } from "../components/config-mobile-teaching.tsx";
@@ -77,6 +78,7 @@ export function ConfigListSurface({ groups }: ConfigListSurfaceProps): ReactElem
   };
   const onSelectGroup = (group: ConfigGroupDefinition): void => selectConfigGroup(group.id, firstSubId(group));
   const onSelectSub = (groupId: ConfigGroupId, subId: string): void => selectConfigSub(groupId, subId);
+  useConfigArrivalDefault(visible, activeGroup, onSelectGroup);
 
   return (
     // `h-full min-h-0` on the anchor is what makes the Stack's `overflow-y-auto` real: the shell's LIST
@@ -141,4 +143,51 @@ export function ConfigListSurface({ groups }: ConfigListSurfaceProps): ReactElem
       </Stack>
     </Container>
   );
+}
+
+/**
+ * THE ARRIVAL DEFAULT (#925, owner amendment 2026-09-02: *"when clicking onto config I then have to click a
+ * category and then a section before I can see settings — rather than just opening by default to the FIRST
+ * group and showing sections expanded if there's room"*). Config opens SHOWING SETTINGS: the first group in
+ * the LIST's canonical order becomes active on arrival, so the click cost of reading a setting drops from
+ * one (band click) to ZERO and the landing stops being a gauntlet in front of the surface's own contents.
+ *
+ * IT IS THE BAND CLICK, NOT A SECOND MECHANISM. The default calls the SAME `onSelectGroup` the band's
+ * `onClick` calls — which names the group's first section so the row lights immediately (#549) and, through
+ * the active-group rule, expands the band. "Sections expanded when the pane has room" is therefore already
+ * true and stays the ONE rule it always was: the ACTIVE group is expanded, every sibling keeps the
+ * collapsed-by-default posture of the 2026-08-02 ruling (a 400-row library expanded on arrival would bury
+ * the map the LIST exists to be). That ruling survives untouched; only the number of active groups at
+ * arrival changed, from zero to one.
+ *
+ * THREE CONDITIONS, each a real state and not defensive noise:
+ *  · ONCE PER MOUNT (`landed`) — the default is an ARRIVAL fact. `clearActiveConfigGroup` (the shell's
+ *    mobile Back, a rail bounce) is a door the reader walked THROUGH; a default that re-fired on the next
+ *    render would slam it shut and the landing would be unreachable.
+ *  · NOT WHEN SOMETHING IS ALREADY ACTIVE — a deep link (`openConfigTo`) or an open member resolves before
+ *    this runs, and `activeGroup` is the EFFECTIVE derivation (a member's kind counts), so both are covered
+ *    by one read.
+ *  · NEVER ON A PHONE — the mobile one-shell rule turns an active PUSHING group into `hasSelection()`, so an
+ *    auto-selected group would push CONTENT over the LIST and the reader would arrive inside a settings body
+ *    they never chose, with the map behind a Back button. On a phone the LIST *is* the screen, which is the
+ *    same posture the amendment asks for on the desktop: arrive on what you came for.
+ *
+ * `useLayoutEffect`, not `useEffect`: the write lands BEFORE the browser paints, so the arrival's first
+ * frame is the settings body rather than one frame of the landing followed by a swap.
+ */
+function useConfigArrivalDefault(
+  visible: readonly ConfigGroupDefinition[],
+  activeGroup: ConfigGroupId | null,
+  onSelectGroup: (group: ConfigGroupDefinition) => void,
+): void {
+  const landed = useRef(false);
+  const mobile = useMobileViewport();
+  useLayoutEffect((): void => {
+    const first = visible[0];
+    if (landed.current || mobile || activeGroup !== null || first === undefined) {
+      return;
+    }
+    landed.current = true;
+    onSelectGroup(first);
+  });
 }

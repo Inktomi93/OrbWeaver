@@ -720,3 +720,98 @@ the option's own value; `Select.Value` mirrors `ItemText`, so the closed trigger
 too, deliberately. A new bound `SegmentField` (single-select ToggleGroup in a Field; empty-pick refused)
 joins the form kit for (b).
 Design landed at `docs/design/config-revamp-design.md` (draft, 2026-08-30). Premise repaired: Settings is the `settings` MODAL on `rail.end`, not a section — `SECTION_IDS` stays at ten; what retires is the modal, its gear, `settingsCategory`/`openSettingsTo`. The design: ONE closed config-group registry (`CONFIG_GROUP_IDS`, four shelves User/App/Collections/Extensions; body arms `sections` | `collection` | `placeholder` — `surface` retired by §6.8) that the nine settings panes, the three collections, the persona surface and the Plugins screen all register through, with the D120 section seam and key partition untouched and plugins riding the Extensions group's data rows; a LIST of shelves + group bands with the shipped `settings-scroll-spy.ts` re-homed as the one spy; ONE search index (groups · subcategories · leaves · collection members · persona names) over the sealed fuzzy-search hook with VS Code-style `@modified`/`@shelf:`/`@in:`/`@ext:`/`@advanced` tokens, in-place `HighlightedText` hits in both panes, a ⌘K `CommandPaletteSource`, and `openConfigTo(group, sub?, setting?)` replacing `openSettingsTo` + `goToCollection` (17 call sites); a dense CONTENT row frame (modified rail · gloss · control · reset/copy menu · scope chip); the CONTEXT pane as the TEACHER on the #860 bracket via `defineContextTabs<ConfigContextState>` (About · Applies · Learn) fed by a `configFocus` seam and per-leaf `SettingTeach` data; the rail persona slot as switcher · identity · log out. Zero new `@orb/ui` primitives; four client composites with CTs named. Nine owner forks with recommendations (closed tuple for collections; keep the Theme picker; retire the account modal; defer tags-as-facet; rename the label "Settings"). Sequence: S1 registry+surface and S2 search are dispatchable now; S3 teacher waits for #860; S4 rail slot after S1.
+
+## 8. The COLLECTIONS species contract and the landing redesign (#925 + #1043, as built 2026-09-02)
+
+Owner rulings of 2026-09-02, recorded on #925 in four comments (the later ones supersede the earlier where
+they differ) and executed in lane `cb-collections`. This section is their one durable home; the code and its
+file headers carry the per-site reasoning.
+
+### 8.1 The ruling set, compressed
+
+1. **SPECIES.** Collections (Tags · Regex scripts · World Info · Rosters) are a genuinely distinct species
+   from settings groups and that distinctness is legitimate — the bar is that **they must WORK**: no dead
+   ends, no capability lies. An earlier comment's "the axis is CONSISTENCY, collections are config sections
+   with a member list" was retracted by the owner minutes later and is NOT law.
+2. **LANDING.** The CONTENT-side "Not built yet" band DIES. Feature status belongs to the LIST: a genuinely
+   unbuilt group is a GREYED but clickable row whose activation renders the coming-soon body in CONTENT.
+   No parallel status region.
+3. **CLASSIFICATION (#1043).** Start from re-derived, per-collection build receipts. Built-but-empty is a
+   LIVE row with an honest empty state; only a genuinely unbuilt feature greys.
+4. **ARRIVAL.** Config opens SHOWING SETTINGS — default-select the first group, sections expanded when the
+   pane has room — instead of a landing gauntlet. The owner's lens is CLICK COUNT.
+
+### 8.2 The classification receipt (ruling 3, re-derived against the tree)
+
+`ast-grep -p 'placeholder: true'` over `packages/client/src`, both languages (tsx `scannedFileCount=668`,
+ts `scannedFileCount=587`), matches ONLY the type declaration (`state/config-group-registry.ts`) and
+comments: **no group definition carries the placeholder arm.** `automation` was the last one and became a
+real surface at `cb8026bfc`. All four collections are BUILT — each declares a real tRPC list read, a
+`CollectionContribution` with a mounted member editor, a create verb and a context arm
+(`features/{tag,regex,world-info,roster-preset}/lib/*-group.tsx`). **So the greyed arm has ZERO occupants on
+today's tree**: the band dies and nothing replaces it in the LIST. The arm is still built, because
+`{ placeholder: true }` is live declared intent with a synthetic CT subject (`placeholderConfigGroups`), and
+it is pinned there — a mechanism waiting for its first real occupant, never a speculative feature.
+
+### 8.3 The species contract (ruling 1 — this row's design call)
+
+A collection's CONTENT is a MEMBER; a settings group's CONTENT is its own body. Everything below follows
+from that one difference, and each divergence from the settings species is marked as legitimate or as drift.
+
+| Question | The collection's answer | Verdict |
+| - | - | - |
+| What does a band's click mean? | **Enter the library** when it is not the current location (select + disclose in one act, CONTENT lands on the library's own landing); **toggle its rows** once it already is. | Species-legitimate divergence: a settings group's active band cannot collapse itself because its rows ARE the map of the pane beside it; a library's rows are its contents, and folding contents away is a thing a reader does. |
+| Where do members live? | In the LIST, under the band, owner-rendered — unchanged (C-4). | Same as a settings group's section rows: not a divergence. |
+| How does the editor open? | Selecting a member; the editor mounts in CONTENT (C-7), and the member is what PUSHES on a phone. | Legitimate: `isPushingGroup` stays false for the whole species. |
+| What is "you are here"? | The band carries `aria-current` while no member of the collection is open; once one is, the member's row is the location. | The one-current-per-location rule, applied to a species whose children are members. |
+| What does an empty library show? | Its own empty state (`emptyText` + the create verb) in CONTENT — #1099 F5, unchanged. | Legitimate. |
+| What does a populated library show with no member open? | Its own LANDING: the library's glance (name · blurb · the ranked preview wall) + one host sentence about where the members are + the create verb. | New. It replaces a fall-through to the four-library welcome, which named every library except the one the reader had just opened. |
+
+The one anatomy the welcome's launcher and the CONTENT landing share is
+`features/config/components/config-library-glance.tsx` — two hosts, one wall, no second spelling.
+**Left as a clean seam for #1169** (LIST-pane consistency): the divergences above are stated as species
+facts, so a convergence pass can price each one instead of re-deriving them.
+
+### 8.4 The landing redesign (ruling 2) and what it deleted
+
+- The welcome's `<Section kicker="Not built yet">` band is gone, and with it the whole **lead/rail column
+  split** — the split existed only to segregate "not built" from "built". The Hearth is now ONE auto-fit
+  grid, one slot per collection in canonical `(shelf, order, id)` order; population changes what a slot
+  SAYS, never where the surface files it.
+- Both ruled anatomies survive as the slot's two ARMS: populated sheds the count and the create verb and
+  pays for its promotion with `preview` + a door (2026-08-08 C7 arm 2); empty keeps count(0) + create and no
+  box (2026-08-03 · CD1).
+- The `data-config-built` / `data-config-unbuilt` markers are now `data-config-populated` /
+  `data-config-empty` — the vocabulary fix #1043 is actually about: those attributes report the READER's
+  library, and the app's own readiness is the LIST's word alone (`CONFIG_UNBUILT_MARKER`, one home, two
+  surfaces: the greyed row and the placeholder body's chip).
+- **What did NOT die:** the settling census (`HIDE_WHILE_SETTLING` + the zero-box `data-config-settling`
+  marker). Its input changed but did not disappear — a slot whose count lands late still swaps its arm, and
+  the populated arm is taller than the invitation it replaces. The CT that measures the browser's own
+  layout-shift score across the counts landing stays green at 0.
+- CD3's single focal moved from `first:` to a sibling verdict (`[[data-config-populated]~&]`): with one
+  mixed grid the first CHILD may be an empty slot, which draws no card, so a `first:`-gated halo would have
+  belonged to nobody.
+
+### 8.5 The arrival default (ruling 4) and the click-cost receipt
+
+`useConfigArrivalDefault` (`features/config/surfaces/config-list-surface.tsx`) calls the SAME
+`onSelectGroup` a band click calls, once per mount, in a layout effect (before paint), for the first
+`when`-visible group in the LIST's canonical order — Appearance today, derived and never named.
+
+| Cold arrival at `/config` | Clicks to see a setting | Notes |
+| - | - | - |
+| Before this row (desktop) | **1** | The landing (Hearth) held CONTENT; one band click landed the group AND its first section — the owner's "category then section" was measured against the pre-`fd85639f8` surface; the nav fold had already collapsed the second click. |
+| After (desktop) | **0** | The first group is active in the first painted frame; its band is expanded (the ACTIVE-group rule, unchanged) and its first section row is `aria-current`. |
+| After (phone) | unchanged | The default does NOT fire on a mobile viewport: an active pushing group makes `hasSelection()` true and the one-shell rule would push CONTENT over the map the reader arrived for. |
+
+Three conditions, each a real state: once per mount (a reader who backs out to the landing STAYS there —
+`clearActiveConfigGroup` is a door they walked through), never when a member or a deep-linked group is
+already active, never on a phone. **"Sections expanded when the pane has room" needed no new rule** — the
+ACTIVE group has always been the expanded one, and every sibling keeps the 2026-08-02 collapsed-by-default
+posture (an expanded 400-row library would bury the map).
+
+Two consequences worth knowing: CONTENT no longer takes the section's arrival focus for an active GROUP
+(only an open MEMBER means the reader asked for the pane — otherwise the arrival default would re-create the
+2026-08-19 defect by a different route), and every config host mount now exercises the first group's
+section reads, which is why the CT stubs feed them.
