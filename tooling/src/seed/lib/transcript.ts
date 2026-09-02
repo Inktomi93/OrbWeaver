@@ -2,6 +2,7 @@
 // assertable without a database. DETERMINISM is the whole point: every line is numbered (`[#0000] …`) so a
 // reviewer can assert ORDERING and offset math against the rendered list, and a re-run with the same args
 // produces the SAME bytes, which the import-hash oracle then skips instead of duplicating.
+import { UsageError } from "../../_shared/run-tool.ts";
 import type { ChatArgs, DemoArgs } from "../contract/types.ts";
 
 const DEFAULT_MESSAGES = 120;
@@ -14,24 +15,58 @@ const ROLE_STRIDE = 2;
 const SEQ_PAD = 4;
 const NON_LEAF_CHARS = /[^\w-]+/gu;
 
+/** Both parsers REFUSE what they do not recognise (#971). They used to be `includes`/`indexOf` bags: a
+ *  typo'd `--frsh` seeded ON TOP of the existing db instead of wiping it, and `--messages abc` silently
+ *  built the 120-row default — a seeder answering a request nobody made, with no signal. A flag value is
+ *  never itself a `-` token (both readers below refuse one), so every `-` token is a flag POSITION. */
+function refuseUnknownFlags(argv: readonly string[], allowed: readonly string[], verb: string): void {
+  const unknown = argv.find((token) => token.startsWith("-") && !allowed.includes(token));
+  if (unknown !== undefined) {
+    throw new UsageError(`seed ${verb} does not recognize ${unknown} — flags: ${allowed.join(" ")}`);
+  }
+}
+
+const DEMO_FLAGS: readonly string[] = ["--fresh", "--force"];
+const CHAT_FLAGS: readonly string[] = ["--messages", "--characters", "--title", "--force"];
+
 export function parseDemoArgs(argv: readonly string[]): DemoArgs {
+  refuseUnknownFlags(argv, DEMO_FLAGS, "demo");
+  const positional = argv.find((token) => !token.startsWith("-"));
+  if (positional !== undefined) {
+    throw new UsageError(`seed demo takes no positional argument — got ${JSON.stringify(positional)}`);
+  }
   return { fresh: argv.includes("--fresh"), force: argv.includes("--force") };
 }
 
+/** A present flag with a missing or non-positive value is MISUSE, never the default: silently seeding the
+ *  120-row default for a caller who asked for 5000 is the wrong fixture behind a clean exit. */
 function numFlag(argv: readonly string[], flag: string, fallback: number): number {
   const i = argv.indexOf(flag);
-  const raw = i === -1 ? undefined : argv[i + 1];
-  const n = Number(raw ?? fallback);
-  return Number.isFinite(n) && n > 0 ? Math.floor(n) : fallback;
+  if (i === -1) {
+    return fallback;
+  }
+  const raw = argv[i + 1];
+  const n = Number(raw);
+  if (raw === undefined || raw.startsWith("-") || !Number.isFinite(n) || n <= 0) {
+    throw new UsageError(`${flag} takes a positive number — got ${JSON.stringify(raw ?? "(nothing)")}`);
+  }
+  return Math.floor(n);
 }
 
 function strFlag(argv: readonly string[], flag: string, fallback: string): string {
   const i = argv.indexOf(flag);
-  const raw = i === -1 ? undefined : argv[i + 1];
-  return raw !== undefined && !raw.startsWith("--") ? raw : fallback;
+  if (i === -1) {
+    return fallback;
+  }
+  const raw = argv[i + 1];
+  if (raw === undefined || raw.startsWith("-") || raw.trim() === "") {
+    throw new UsageError(`${flag} requires a value`);
+  }
+  return raw;
 }
 
 export function parseChatArgs(argv: readonly string[]): ChatArgs {
+  refuseUnknownFlags(argv, CHAT_FLAGS, "chat");
   return {
     messages: numFlag(argv, "--messages", DEFAULT_MESSAGES),
     characters: numFlag(argv, "--characters", DEFAULT_CHARACTERS),

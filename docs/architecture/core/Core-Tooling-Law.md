@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-09-01
+updated: 2026-09-02
 ---
 
 # `@orb/tooling` — tooling-tree law
@@ -186,7 +186,7 @@ Worked precedents for step 3: `no-raw-clock` was FENCED with a `mustPass` row (t
 
 ## 4. Enforcement
 
-Five tooling gates, three cruiser stanzas, two extensions of existing gates. Each follows `GATE-AUTHORING.md` in full. **Live violations found at any landing are FIXED in that lane** — no debt baselines are minted for tooling.
+Six tooling gates, three cruiser stanzas, two extensions of existing gates. Each follows `GATE-AUTHORING.md` in full. **Live violations found at any landing are FIXED in that lane** — no debt baselines are minted for tooling.
 
 ### 4.1 `tooling-slot-template`
 
@@ -238,6 +238,23 @@ fsBacked, whole-project. Keys off a LIVE registry, not a path list: `_shared/ins
 Three arms per class: a member with no marker-carrying test in its `tests/tooling/<tool>/` mirror; a marker in a NON-member's tree (two-sided vocabulary — an unregistered "proof" is either a lie or a missing registry row); a malformed marker (the reason is REQUIRED). Plus the rename tripwire: a member naming a tool dir that does not exist.
 
 A registry member joins in the SAME commit its tool dir lands. An incident instrument (`wire-tap`) satisfies the gate uniformly rather than through a second tier: its CI proof plants a LOOPBACK fixture server and asserts the tap reports exactly the planted frames — **a committed proof never depends on the dev stack**; a live connect smoke is a landing RECEIPT, not a test.
+
+### 4.9 `tooling-argv-front-door`
+
+incremental-safe by node shape but declared `whole-project` (its stale + blindness arms are cross-file); `kinds: [PropertyAccessExpression, ElementAccessExpression]`, comment-SAFE (node kinds only, so a header explaining the argv layout is not a read); `scanRoot: tooling/src/`, scan-and-allowlist over the entries.
+
+**The law it pins.** The OPERATOR'S ARGV enters a tooling program at exactly ONE place and flows DOWN as a `readonly string[]` parameter. `process.argv` may be read only in:
+
+- a tool's `cli.ts` — the five-slot argv front door (§2.5), matched by SHAPE (`tooling/src/<tool>/cli.ts`) rather than by a path list, so a cli.ts that moves reds at its new path instead of carrying its exemption along;
+- a censused `ARGV_ENTRIES` row — the node half a `.sh` execs, which has no `cli.ts` by §2.5 (`stack/ops/{prod-entry,dev-identity-entry,engines,engines-ctl}.ts`), plus `_shared/entrypoint.ts`, whose subject is `argv[1]` — the ENTRY IDENTITY ("was this module the program?") — and never the operator's flags.
+
+Everything else — `ops/`, `lib/`, `contract/`, and every `ops/parse.ts` — takes argv as a PARAMETER. **A library reading the global argv is the defect class:** its behaviour depends on how the PROCESS was started, so no caller and no test can drive it, it silently re-admits flags the front door already refused, and two callers of the same helper get different answers. The mint census (2026-08-31, #971) found exactly four: `codemod/lib/diagnostics.ts` (the `--max-output-lines=N` spill knob), `codemod/lib/example.ts` (`getFlag`'s default parameter), `codemod/lib/run.ts` (`runCodemod`'s own `--apply`/`--dry-run` decision) and `stack/ops/prod.ts`, which reached past its own entry to re-find the `--` forwarding separator in the GLOBAL frame.
+
+**Threading argv in is a REQUIRED field, not an optional one.** `RunCodemodOptions.argv` is required precisely because the omission's failure mode is silent: `resolveIsDryRun([])` returns "dry run", so a forgotten argv would swallow an operator's `--apply` and report a clean preview. A required field makes it a tsc error instead.
+
+Arms: **(A)** the read outside a sanctioned home, both spellings (an element-access-blind matcher would be the loophole); **(B)** the two-sided `ARGV_ENTRIES` stale sweep — a `seen` set populated only by a live match, so a row whose file merely stopped reading argv and a row whose file is GONE collapse to one check (§4.4a); **(C)** the §4.6 blindness tripwire — zero `cli.ts` readers on a real-tree run means the matcher stopped recognising the shape, and every arm above is vacuously green. Arms B and C are anchored on `_shared/exit-contract.ts` via `fileLoaded`, never on `scope.kind`.
+
+**DECLARED LIMIT (its own `mustPass` row): this gate pins WHERE argv is read, never HOW STRICTLY each tool's grammar parses it.** The 27-reader census behind #971 classified each CLI's real grammar — strict-ordered (`snap`/`ui-audit`/`motion-audit`/`cpu-profile`/`screen-record`, each with its own `ops/parse.ts`), positional/subcommand (`ast`/`verify`/`workboard`/`doc-catalog`/`seed`/`wire-tap`/`render-trace`), flag-bag, and `--`-forwarding (`stack`) — and closed the lenient ones by hand. There is deliberately NO generic `parseArgv(spec)`: flattening 27 grammars into one would change every tool's contract, and each existing contract stays byte-stable.
 
 ### 4.6 dep-cruiser stanzas
 

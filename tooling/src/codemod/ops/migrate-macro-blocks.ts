@@ -92,6 +92,12 @@ export function migrateMacroBlocks(text: string): MigrationResult {
 export function migrateMacroBlocksOp(argv: readonly string[]): void {
   const dryRun = argv.includes("--dry-run");
   const files = argv.filter((a) => a !== "--dry-run");
+  // An unrecognised flag used to land in `files` and die inside readFileSync as an ENOENT crash (exit 2,
+  // "the tool broke") rather than as the misuse it is.
+  const unknown = files.find((a) => a.startsWith("-"));
+  if (unknown !== undefined) {
+    throw new UsageError(`migrate-macro-blocks does not recognize ${JSON.stringify(unknown)} — usage: pnpm codemod migrate-macro-blocks [--dry-run] <file...>`);
+  }
   if (files.length === 0) {
     throw new UsageError("usage: pnpm codemod migrate-macro-blocks [--dry-run] <file...>");
   }

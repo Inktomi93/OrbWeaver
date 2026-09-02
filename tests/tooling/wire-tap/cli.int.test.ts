@@ -175,3 +175,10 @@ test("a server that publishes NO enabled field cannot be interpreted — exit 2,
   expect(res.stdout).toContain("recorder=unreported");
   await expect(res).toExitWith(2);
 });
+
+test("trailing tokens after the chatId are misuse, never a silently single-room tap", async ({ runCli }) => {
+  // They used to be dropped, so `sse-tap a b` tapped only room `a` while the operator read the
+  // transcript as covering both (#971).
+  const res = await runCli("wire-tap", ["sse", "chat-proof-1", "chat-proof-2"], { env: NODE_FLAG_ENV });
+  await expect(res).toExitWith(3);
+});

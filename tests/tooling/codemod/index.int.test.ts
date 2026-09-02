@@ -57,6 +57,9 @@ async function withTree(files: Record<string, string>, fn: (h: Harness) => Promi
       writeFileSync(abs, text);
     }
     const options: RunCodemodOptions = {
+      // The kit no longer reads the global process.argv (#971): a caller states its own argv, and the
+      // apply/dry-run decision rides `forceApply` per run below.
+      argv: [],
       setup: { tsConfigFilePath: join(root, "tsconfig.json"), replaceGlobs: [`${root}/**/*.ts`] },
       repoRoot: root,
       // The fixtures are deliberately tiny and sometimes mid-refactor; the pre-emit check is a

@@ -199,14 +199,10 @@ function checkDiagnostics(opts: {
   return diagnosticErrors;
 }
 
-export async function runCodemod(
-  name: string,
-  codemod: (ctx: CodemodContext) => void | Promise<void>,
-  options: RunCodemodOptions = {},
-): Promise<CodemodResult> {
+export async function runCodemod(name: string, codemod: (ctx: CodemodContext) => void | Promise<void>, options: RunCodemodOptions): Promise<CodemodResult> {
   const startedAt = Date.now();
   const repoRoot = resolve(options.repoRoot ?? process.cwd());
-  const argv = process.argv.slice(2);
+  const { argv } = options;
   const isDryRun = resolveIsDryRun(options, argv);
 
   const project = createCodemodProject(options.setup);

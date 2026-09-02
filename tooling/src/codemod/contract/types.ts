@@ -179,20 +179,26 @@ export interface CodemodResult {
  * Pass `name` for the log header. Pass `setup` to customize the project.
  */
 export interface RunCodemodOptions {
+  /** The invoking program's OWN argv (`process.argv.slice(2)` at its cli/entry). REQUIRED, and required
+   *  on purpose: `runCodemod` used to read the global `process.argv` itself, which made a library's
+   *  write/dry-run decision depend on how the process was started and unreachable from any caller. A
+   *  required field makes an omission a tsc error rather than a silent downgrade to dry-run — the one
+   *  failure mode that would swallow an operator's `--apply` (Core-Tooling-Law §4.9). */
+  readonly argv: readonly string[];
   readonly setup?: CreateProjectOptions;
   /** Set true to skip the post-transform `getPreEmitDiagnostics()` check.
    *  Useful when the codemod intentionally lands the project in a transient
    *  broken state (e.g. you're mid-restructure and a follow-up commit
    *  finishes the refactor). Off by default — the check catches real bugs. */
   readonly skipDiagnosticsCheck?: boolean;
-  /** Set true to apply without parsing `--apply` from argv. Use in tests. */
+  /** Set true to apply without `--apply` appearing in `argv`. Use in tests. */
   readonly forceApply?: boolean;
   /** Override the repo root used for path-escape guards. Defaults to
    *  `process.cwd()` resolved. */
   readonly repoRoot?: string;
   /** Max stdout lines before the preview output spills to /tmp.
-   *  Defaults to 200; overridable via `--max-output-lines=N` flag or
-   *  `NEO_CODEMOD_MAX_LINES=N` env var. The spill file path appears at BOTH
+   *  Defaults to 200; overridable via the `--max-output-lines=N` flag (parsed by `codemod/cli.ts` and
+   *  passed in) or the `NEO_CODEMOD_MAX_LINES=N` env var. The spill file path appears at BOTH
    *  the head and the tail of the truncated output so head/tail readers see
    *  the pointer. */
   readonly maxOutputLines?: number;

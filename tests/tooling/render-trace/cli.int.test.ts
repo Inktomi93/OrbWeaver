@@ -96,3 +96,21 @@ test("an EMPTY traces list says so out loud and stays clean — an empty ring is
   expect(res.stdout).toContain("0 traces");
   await expect(res).toExitWith(0);
 });
+
+// ── the argv grammar (#971) — every op REFUSES what it does not recognise ────────────────────────────
+
+test("trace:tail refuses an unrecognised token instead of tailing UNAUTHENTICATED", async ({ runCli }) => {
+  // `--token=` is the whole grammar. The space spelling `--token foo` used to be dropped silently, so the
+  // tail polled with no header and printed the resulting 401 as if it were the server's answer.
+  const res = await runCli("render-trace", ["tail", "--token", "planted"]);
+  expect(res.stderr).toContain("--token");
+  await expect(res).toExitWith(3);
+});
+
+test("trace:fire refuses a flag instead of firing it as a request path", async ({ runCli }) => {
+  // A `--flag` used to be parsed as a bare path and fired: the 404 it produced was then reported as a
+  // failing request, which reads exactly like a real finding.
+  const res = await runCli("render-trace", ["fire", "--token=planted"]);
+  expect(res.stderr).toContain("--token=planted");
+  await expect(res).toExitWith(3);
+});

@@ -33,6 +33,7 @@ import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { instrumentError, printVerdict } from "../../_shared/evidence.ts";
 import { EXIT } from "../../_shared/exit-contract.ts";
 import { spawnNicedChild } from "../../_shared/proc.ts";
+import { UsageError } from "../../_shared/run-tool.ts";
 import { fireEvidenceGap } from "../lib/evidence.ts";
 import { renderTrace } from "../lib/render.ts";
 
@@ -70,7 +71,11 @@ interface FireRequest {
 }
 
 function parseRequest(arg: string): FireRequest {
-  // `GET /path` / `POST /path` / bare `/path` (defaults to GET).
+  // `GET /path` / `POST /path` / bare `/path` (defaults to GET). fire takes NO flags: a `--token` used to
+  // be fired AS A REQUEST PATH and reported as a 404 finding, which reads exactly like a real failure.
+  if (arg.startsWith("-")) {
+    throw new UsageError(`trace:fire takes request paths, not flags — got ${JSON.stringify(arg)} (usage: pnpm trace:fire ["GET /api/…" …])`);
+  }
   const space = arg.indexOf(" ");
   if (space < 0) {
     return { method: "GET", path: arg };

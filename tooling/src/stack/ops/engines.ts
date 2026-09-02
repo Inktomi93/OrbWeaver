@@ -54,7 +54,7 @@ import type { ExitCode } from "../../_shared/exit-contract.ts";
 import { EXIT } from "../../_shared/exit-contract.ts";
 import type { FullPriorityChild } from "../../_shared/proc.ts";
 import { spawnFullPriorityChild } from "../../_shared/proc.ts";
-import { runTool } from "../../_shared/run-tool.ts";
+import { runTool, UsageError } from "../../_shared/run-tool.ts";
 import type { EngineLaunchProbes } from "../contract/types.ts";
 import { probeEngineAdoption } from "../lib/engine-adoption.ts";
 import { decideEngineLaunch, ENGINE_LAUNCH_IDENTITY_FAILURE } from "../lib/engine-launch.ts";
@@ -68,7 +68,12 @@ const MS_PER_SECOND = 1000;
 // `--detach`: boot the fleet, record engine pgids to the pidfile, then EXIT (no foreground hold, no
 // kill-trap) — the detached fleet model (A.4). Each engine is its own setsid group leader, so they survive
 // the launcher's death; the bit-us-twice class is unmakeable. Default (no flag) = the old foreground owner.
-const DETACH = process.argv.includes("--detach");
+const ENGINE_ARGV = process.argv.slice(2);
+const DETACH = ENGINE_ARGV.includes("--detach");
+// `--detach` is the WHOLE grammar. A typo used to fall through to the FOREGROUND owner, which is the
+// opposite topology (the launcher then owns the fleet and dies with the shell) — a silent mode flip on
+// a multi-minute GPU boot. main() refuses it below (#971).
+const UNKNOWN_ENGINE_ARG = ENGINE_ARGV.find((a) => a !== "--detach");
 const PIDFILE = engineIdentityFilePath(REPO_ROOT);
 const BOOT_LOCK = path.join(fleetRunDir(REPO_ROOT), "engines.boot.lock");
 
@@ -264,6 +269,9 @@ async function launchFleet(launch: EngineLaunchConfig, deployment: ReturnType<ty
 }
 
 async function main(): Promise<ExitCode> {
+  if (UNKNOWN_ENGINE_ARG !== undefined) {
+    throw new UsageError(`engines does not recognize ${JSON.stringify(UNKNOWN_ENGINE_ARG)} — usage: engines.ts [--detach]`);
+  }
   if (shouldSkip()) {
     return EXIT.clean;
   }
