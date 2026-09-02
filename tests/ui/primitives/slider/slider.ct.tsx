@@ -372,7 +372,7 @@ test("#1187: the thumb carries NO transform at rest, and its centering lands on 
     const offsets = await thumb.evaluate((element) => {
       const control = element.closest('[data-slot="slider-control"]');
       if (control === null) {
-        throw new Error("#1187 pin: the thumb must be a child of the slider control");
+        throw new Error("slider-thumb grid pin: the thumb must be a child of the slider control");
       }
       const box = element.getBoundingClientRect();
       const host = control.getBoundingClientRect();

@@ -2,10 +2,13 @@
 import type { AppearancePatch } from "../../_shared/appearance.ts";
 import type { Viewport } from "../../_shared/argv.ts";
 import type { CapturedConsole, CapturedRequest, LocalStorageSeed } from "../../_shared/browser.ts";
+import type { EvidenceGap } from "../../_shared/evidence.ts";
 import type { NavMethod } from "../../_shared/nav.ts";
 import type { ThemeRequest } from "../../_shared/theme.ts";
 import type { CssCascadeQuery, CssEvidenceReceipt } from "./cascade.ts";
 import type { DeadCssEvidence } from "./dead-css.ts";
+import type { LighthouseDevice, LighthouseMode } from "./lighthouse.ts";
+import type { NetworkProfileName } from "./load-emulation.ts";
 
 /** `--scale`'s resolved shape. `mode` is what Playwright's `screenshot({ scale })` receives — it accepts
  *  ONLY "css" | "device", so a numeric ask reaches the pixels through `deviceScaleFactor`, which raises
@@ -80,34 +83,6 @@ export type Assertion =
   | { kind: "url"; expected: string; page: number }
   | { kind: "overflow"; selector: string; page: number }
   | { kind: "focus"; selector: string; page: number };
-
-/** The `--network` vocabulary: Chrome DevTools' OWN predefined conditions, by their current DevTools
- *  names (`front_end/core/sdk/NetworkManager.ts`). "Fast 3G" is DevTools' retired name for "Slow 4G" and
- *  is accepted as an alias by the parser, never as a distinct profile — two spellings, one condition. The
- *  numbers live with the resolver in lib/throttle.ts. */
-const NETWORK_PROFILE_NAMES = ["fast-4g", "offline", "slow-3g", "slow-4g"] as const;
-export type NetworkProfileName = (typeof NETWORK_PROFILE_NAMES)[number];
-
-/** One CDP `Network.emulateNetworkConditions` payload. */
-export interface NetworkConditions {
-  readonly offline: boolean;
-  /** Bytes/second; -1 disables the limit (CDP's own sentinel). */
-  readonly downloadThroughput: number;
-  readonly uploadThroughput: number;
-  /** Additional minimum latency, ms. */
-  readonly latency: number;
-}
-
-/** The two wall-clock ceilings one drive is judged against (#836). They are a function of what the run is
- *  serving (a cold `--isolated` vite) AND of the load arm it declared: a `--network`/`--cpu-throttle` run
- *  is deliberately slower, so holding it to the un-throttled budget refuses the flag it was asked for.
- *  Resolved by `driveBudgets` in lib/throttle.ts. */
-export interface DriveBudgets {
-  /** `page.goto` ceiling. */
-  readonly nav: number;
-  /** `data-app-ready` ceiling — the one that decides whether a capture is of the SETTLED app. */
-  readonly ready: number;
-}
 
 export interface Args {
   /** Print the operator cookbook and exit without touching a browser or stage. */
@@ -265,6 +240,25 @@ export interface Args {
   mapSelector: string;
   /** Which --pages tab to map (default 0), set by a `@<idx>` suffix on --map. */
   mapPage: number;
+  // ── THE TWO MCP-RETIRING ARMS (#1198/#1199 — docs/design/1195-devtools-mcp-retirement.md §2) ──
+  /** `--lighthouse <desktop|mobile>`: audit the SETTLED page with the Lighthouse engine over this run's
+   *  own browser (ops/lighthouse.ts). null = the arm is off, which is every ordinary run — the engine
+   *  and its puppeteer attach are dynamically imported, so a run without this flag pays nothing.
+   *  `--lighthouse mobile` also fills the DEVICE slot with `--mobile`'s descriptor, so one device story
+   *  governs the pixels and the audit; a later --desktop/--viewport/--wide clears it and is REFUSED. */
+  lighthouse: LighthouseDevice | null;
+  /** `--lighthouse-mode <snapshot|navigation>`. snapshot (the default) audits the page as the drive queue
+   *  left it; navigation RELOADS and therefore audits a different, freshly-booted page. */
+  lighthouseMode: LighthouseMode;
+  /** `--requests [url-substring]`: print + file the ORDERED log of every request this run's pages issued
+   *  (method, url, status, type, size, timing). The optional value narrows what is PRINTED, never what is
+   *  recorded — the artifact is always the complete log, and the block states both counts. */
+  requests: boolean;
+  requestsFilter: string | null;
+  /** `--request-body <url-substring>`: capture ONE matching response body, capped and truncation-accounted
+   *  (lib/request-log.ts). Implies --requests: a body with no log leaves the reader unable to see which
+   *  request it came from, or that a second one matched. */
+  requestBody: string | null;
   // ── LOAD EMULATION (CDP — the margin a rest-state measurement cannot see) ───
   /** `--cpu-throttle <n>`: CDP `Emulation.setCPUThrottlingRate`, applied to EVERY page before it
    *  navigates. 1 = no throttle (the default). The measurement it exists for: a settle that is free at
@@ -353,6 +347,10 @@ export interface CaptureOutcome {
   perf: PerfEvidence | null;
   /** Null when no --cascade query targeted this page. */
   cssEvidence: CssEvidenceReceipt | null;
+  /** #1227: the `--theme` stamp this page was supposed to carry and did not. Non-null means the capture
+   *  describes the DEFAULT palette while the run was labelled with a theme — an instrument error (exit 2),
+   *  never a finding about the app (ops/theme-stamp.ts). */
+  themeStampGap: EvidenceGap | null;
   /** Indices into this capture's ProbeSession arrays when --checkpoint owns the verdict window. */
   evidenceRange: EvidenceRange | null;
 }
@@ -378,6 +376,7 @@ export interface AssertionOutcome {
 }
 
 // `--expect-no-overflow`'s shapes (OverflowSide/OverflowEscape/OverflowProbe) live in ./overflow.ts.
+// The `--network`/`--cpu-throttle` vocabulary and the drive ceilings live in ./load-emulation.ts.
 
 export interface PerfEvidence {
   readonly navigation: { readonly domContentLoadedMs: number; readonly loadMs: number; readonly responseMs: number } | null;

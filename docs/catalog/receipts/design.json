@@ -9,10 +9,11 @@
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "54c4f521692e5b3e5a40c9cf69da699b6f7816dc1a407841a761a2f48129803b",
-      "verifiedCommit": "f21f7d10c097dd6cb09e8a9e2b46dfabc0254f3e",
+      "verifiedSha256": "81e4808155fbece0f43884583acd87646367fb31a0e6b7d2f02553b4dff37682",
+      "verifiedCommit": "5c8025a9b51005938999eee6757c22a6350ec8d2",
       "verifiedAt": "2026-09-02",
       "evidence": [
+        "re-attested at 06267c252 (#1226, lane p-substrate-spike, merged by hand into the forge's later table): the §10 phase-0 receipt paragraph — F3 arm (a) CONFIRMED (context-scoped shims reach a second CDP client; page-scoped do not), the Lighthouse seam is snapshot(page) over an attached puppeteer page with defaultViewport:null, the category score is not a verdict, dependency shape (root devDeps: lighthouse ^13.4.1 + puppeteer-core), the test-layout naming deviation (.suite.int). Union read at the fold by the primary orchestrator.",
         "re-attested at f21f7d10c (forge warm leg, two commits): §7.1 'Timeouts and load: one budget policy' added per the owner's 'also wrap in the timeout design' — inventory with receipts, one load reading, three classes (wall clocks scale via budget(baseMs) with a factor cap + absolute ceiling F11; rates withhold with ORB-LOAD-WITHHOLD; idle/TTL is not a budget), home tooling/src/_shared/load-budget (planned), gate arm J, T14–T17, phase 1b; §12.1 records F1–F4 as owner rulings; the twelve dangling backticked paths de-backticked (stale receipts as plain text, planned files marked '(planned)'); premise correction: motion-audit's mobile arm already carries withholdMeasurement. Read in full at the fold by the primary orchestrator.",
         "born-reviewed by the primary orchestrator at 9d479c443 (lane p-substrate-design, forge): all 403 lines read in full at the fold — the 12-row pain-point inventory with code and transcript receipts (3015 instrument invocations over 14 days), the launch/stage-binding map, the four-noun model, the daemon protocol and state machine, the band registry, the slot integration, the grammar inventory and shared families, the op reuse map, the two worked arms, the load model, T1–T13, the alternatives, the phased plan, the cost and F1–F10. Premise refutations recorded in §1 P11 (the brief's stale paths; 'five lanes refused' = discipline refusals, 2 hard errors)."
       ],
@@ -62,8 +63,8 @@
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "0eb74adabfc2d72c845b73be7399dbf1238901e587ac6139b9aaf73df481e29d",
-      "verifiedCommit": "33d7067f059e4fcbf43c672d8a2e967479aa68f2",
+      "verifiedSha256": "f427918198331c0a374be16ace90672ea0b22977bb89ff8f007d1834c3de76da",
+      "verifiedCommit": "2642a54df9154c339a0b87c4ca0d5df8b48829f5",
       "verifiedAt": "2026-09-02",
       "claims": [
         {
@@ -96,6 +97,7 @@
       ],
       "summary": "Census of every chrome-devtools MCP tool call across both accounts for 14 days (176 calls) mapped to snap arms; the Lighthouse arm and a request log are the gaps to build before the MCP retires (owner-directed #1195).",
       "evidence": [
+        "re-attested at 2642a54df (#1198 #1199 #1227, lane p-snap-arms): §2 items 1-2 marked BUILT with the seam (snap's own chromium on --remote-debugging-port, puppeteer-core attaches to THAT browser, the target matched by CDP id; defaultViewport:null and disableFullPageScreenshot measured as load-bearing), the pins and the live plugins-pane receipt (desktop audited=36 failed-audits=1 label-content-name-mismatch ×4 — the MCP's own finding reproduced in-house; requests=2445). Read in full at the fold by the primary orchestrator.",
         "born-reviewed by the primary orchestrator (author) 2026-09-02 at 33d7067f0: the two-account, 14-day transcript census of chrome-devtools MCP tool calls (176 calls, 719 jsonl files) mapped to snap arms; two gaps named (a Lighthouse arm, a request log) and the retirement step; owner-directed program (#1195)."
       ]
     },
@@ -335,10 +337,11 @@
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "8fcf3b6faf2e74d34a2ec04e246f67191981237e2d153ab27d7fcc7d05fbd051",
-      "verifiedCommit": "dad0162ae0dbac9cc6c7669486cbf88b276b8e69",
+      "verifiedSha256": "7275446281c61a356fb91295b8e8968a05b3f18c0ac8a4d4be0f7b66d646e7f9",
+      "verifiedCommit": "3063712328b14bb6fcc88455834d5d9b1033d16f",
       "verifiedAt": "2026-09-02",
       "evidence": [
+        "re-attested at 306371232 (#1209 #1210 #1212 #1213 #1214 #1217 #1218, claude-b lane cb-collections batch, two commits): §8.5 arrival receipt amended; NEW §8.6 — ConfigWelcome RETIRED (no reachable door on any viewport; the Hearth vocabulary collision noted and corrected), the populated landing states LIBRARY-LEVEL facts via CollectionInsight (the preview seam fully retired, no half-migration; import/export doors PRICED as gaps, not stubbed), the empty landing teaches; NEW §8.7 — the five mechanicals (bulk toggle follows members, the a11y trio with a partial refutation, auto-opened arrival group folds, arrival focus target = the active group's band — a stated ruling fork). Read in full at the fold by the primary orchestrator (96 added lines).",
         "re-attested at dad0162ae (#925 #1043, claude-b lane cb-collections): NEW §8 — the COLLECTIONS species contract and the landing redesign (four owner rulings of 2026-09-02 compressed in §8.1; the classification receipt in §8.2: all four collections BUILT, the greyed arm has zero occupants and stays pinned; the species/divergence table in §8.3 left as the clean seam for #1169 and #1191). Section read in full at the fold by the primary orchestrator.",
         "re-attested at 65a4934fe (#1101 / re-drive G2, claude-b lane cb-context-distill): the CONTEXT pane teaches the scroll-spy's current section instead of restating the LIST's doors; two program-doc lines carry dated AMENDED notes — shell law §4.2 ('never navigation') outranks the program doc; ConfigSettingRef.setting now required",
         "docs/design/config-revamp-design.md read in full by the orchestrator (claude-b) at merge (lane cb-config-research, stickler research + design for #866; 12 products + NN/g receipted via SearXNG→trafilatura, THIN rows marked; the house read against 9707b9672; the Settings-is-a-modal premise repair accepted mid-run); the nine owner forks are being ruled live; the four D-rows are labelled R-A..R-D, never forward-numbered",
@@ -405,10 +408,11 @@
       "disposition": "needs-owner",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "490d051ca21d373b6712fc3769023dc17d7bb018e71092d5d85f83b0f81868b6",
-      "verifiedCommit": "535266f00954e2c612036a2bee1825609c59be09",
-      "verifiedAt": "2026-08-30",
+      "verifiedSha256": "06f1e5abcc14dc540cc8245c683c6875b5cb0e8de284c07c94822fa7f25d6a68",
+      "verifiedCommit": "080bd09493a38432c96f69e055fdd6767f531f60",
+      "verifiedAt": "2026-09-02",
       "evidence": [
+        "delta re-verify 2026-09-02 (#1193): three §3.1/§3.2/§4 debug-gate lines re-derived at a67ef0ea8 — the fallback arm is posture-scoped (foundation/env::resolveOwnerFallbackCredential, false whenever NODE_ENV=production, which both supported prod launchers set in buildProdSpawnPlan), the second belt (isAdmin's peer-less re-resolution) is deliberately gone, and §4's accepted residual now also carries /api/_debug because the gate reads the same omitted NODE_ENV",
         "docs/design/containerize-prod-image-spec.md:1 (design; draft; full read 2026-08-19)",
         "the auth/env/engine path:line receipts were re-derived against merged main (6ef448dd6) and the stale ones repaired in place",
         "REPAIRED at fd71a395d: single-user's fallback is peer-gated, not unconditional (3.1); LOCAL_INITIAL_PASSWORD is optional, not boot-fatal (3.2/3.5); the D2 external-engine code changes are already BUILT (3.6); the Host-spoof exploit narrative in 4/7/8 is obsolete",
@@ -1826,6 +1830,95 @@
         "born-reviewed by lane cb-pane-design (author, forge) 2026-09-02 at 6a437c76c: full source read of all ten SectionDefinitions, the shell consumers (app-shell/panel-chrome/section-content/section-context-host/use-shell-layout/region-anchor), the shared composites (list-pane-header, library-surface, create-collection-surface) and every LIST surface; the measured matrix (#1191 second comment) re-verified against tip 0e1b33e11 receipts",
         "docs/design/config-revamp-design.md:724-817 (the section 8 species contract this design's divergence grammar generalizes)",
         "docs/architecture/core/client-architecture-lockdown.md sections 6a/6b/11/14 (the registry law, three-states law and browse adjudication the standards extend)"
+      ]
+    },
+    {
+      "path": "docs/design/1238-plugin-distribution.md",
+      "assignedSha256": "98e67c7d343b70208ee41a66f3a9794dead2069f2a0bb7453931df1753878474",
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "98e67c7d343b70208ee41a66f3a9794dead2069f2a0bb7453931df1753878474",
+      "verifiedCommit": "fe7e41eed47b0c25da3fb215c05b7cb1b0f976b1",
+      "verifiedAt": "2026-09-02",
+      "claims": [
+        {
+          "claim": "The teaching plugins live in the server package's entry tier and their guest .js sources are typechecked by NO program (allowJs is false repo-wide); only the SDK mirror is pinned, and the seeds ride the image's whole-src copy — the rot and reachability the ruling names are structural.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/server/src/entry/boot/seed-example-plugins.ts:42"
+            },
+            {
+              "kind": "code",
+              "target": "tsconfig.base.json:72"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/entry/boot/seed-assets/index.ts:82"
+            },
+            {
+              "kind": "test",
+              "target": "tests/contracts/plugin/host-v1.test-d.ts:1"
+            }
+          ]
+        },
+        {
+          "claim": "The bundle-validate funnel is source-agnostic by design and the origin axis is additive — every new door is a byte source for the ONE funnel, never a second install path, and a URL-carrying git origin passes the existing db CHECK unchanged.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/contracts/src/plugin/lifecycle.ts:7"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/plugin/substrate/manifest.ts:2"
+            },
+            {
+              "kind": "code",
+              "target": "packages/db/src/schema/plugin.ts:113"
+            }
+          ]
+        },
+        {
+          "claim": "The authority and consent model is settled and reused unchanged: per-user install under the caller, deployment-wide as the admin fan-out of per-user consent-first rows, enable as the second explicit act — no door in this design adds a consent surface.",
+          "evidence": [
+            {
+              "kind": "ruling",
+              "target": "D147"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/plugin/substrate/distribution.ts:5"
+            }
+          ]
+        },
+        {
+          "claim": "The doors reuse live machinery: the FolderPicker primitive and the client-side fflate bundle reader exist, and the URL-install verb family (preview/install/upgrade-from-stored/check-for-updates) is the template the git family mirrors.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1238"
+            },
+            {
+              "kind": "code",
+              "target": "packages/ui/src/primitives/file-dropzone/folder-picker.tsx:20"
+            },
+            {
+              "kind": "code",
+              "target": "packages/client/src/features/plugin/lib/plugin-bundle.ts:29"
+            },
+            {
+              "kind": "code",
+              "target": "packages/server/src/domain/plugin/verbs/install-from-url.ts:23"
+            }
+          ]
+        }
+      ],
+      "summary": "The #1238 distribution design (lane cb-plugin-dist-design, forge, 2026-09-02): the teaching set becomes @orb/showcase-plugins under packages/* (server-dep, node-resolved seeding — no image-copy mechanism, per the owner's container ruling), guest sources enter a checkJs type program against the published host-v1.d.ts, and three doors land on the one funnel: dev-gated load-unpacked, client-packed folder upload, and install-from-git via an infra/git adapter (isomorphic-git over the egress-guarded transport, ephemeral clone, git origin + source_commit receipt). Owner rulings recorded verbatim incl. disclaimer-text-no-extra-click; three forks with defaults; three build lanes dispatched from section 9.",
+      "evidence": [
+        "authored born-reviewed by the designing lane at fe7e41eed: full reads of the plugin domain's install/upgrade/url-verb family, the substrate funnel, the seeder + packer, the contracts manifest/lifecycle homes, the db CHECKs, the client install card + bundle reader, and the SillyTavern reference (src/endpoints/extensions.js install/update/branches flow) — receipts inline in the doc",
+        "owner rulings 2026-09-02 quoted verbatim in the doc's commission block (new package; no forced zips; app-does-the-clone; disclaimer text without a separate click; no container-build asset moving)"
       ]
     }
   ]

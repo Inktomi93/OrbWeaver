@@ -6,12 +6,55 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useTRPC } from "#data";
-import { openModal } from "#state";
+import type { CollectionInsight } from "#lib";
+import { timeLib } from "#lib";
+import { openModal, selectCollectionMember } from "#state";
+import { ROSTER_COLLECTION_ID } from "../lib/roster-model.ts";
 
 /** The group band's live census ("ROSTERS · 4"). */
 export function useRosterCount(): number | undefined {
   const trpc = useTRPC();
   return useQuery(trpc.rosterPreset.list.queryOptions()).data?.length;
+}
+
+/**
+ * THE ROSTER LIBRARY'S OWN LANDING FACTS (the `insights` seam, #1209).
+ *
+ * WHAT THE LIST CANNOT SAY. A roster row names the cast; what no row states is what the library is FOR at a
+ * glance — how many of these casts carry the room's automation rules with them (B10's rider: applying a
+ * roster switches those rules on, which is the fact a reader most needs before they drop one into a chat)
+ * and which one they saved last. This is the library the reviewer's crash repro reached FIRST because it
+ * declared no facts at all: a landing that said the name of the library back to the reader and stopped.
+ *
+ * ONE CACHED READ — the same `rosterPreset.list` key the census and the member title share.
+ */
+export function useRosterInsights(): readonly CollectionInsight[] | undefined {
+  const trpc = useTRPC();
+  const rows = useQuery(trpc.rosterPreset.list.queryOptions()).data;
+  if (rows === undefined) {
+    return rows;
+  }
+  const withRules = rows.filter((roster) => roster.rules.length > 0);
+  const first = withRules[0];
+  const newest = [...rows].sort((left, right) => right.updatedAt - left.updatedAt)[0];
+  return [
+    {
+      id: "with-rules",
+      label: "Carry room rules",
+      value: `${String(withRules.length)} of ${String(rows.length)}`,
+      ...(first === undefined ? {} : { open: { label: `Open ${first.name}`, run: (): void => selectCollectionMember(ROSTER_COLLECTION_ID, first.id) } }),
+    },
+    ...(newest === undefined
+      ? []
+      : [
+          {
+            id: "last-saved",
+            label: "Last saved",
+            value: timeLib.formatRelative(newest.updatedAt),
+            open: { label: `Open ${newest.name}`, run: (): void => selectCollectionMember(ROSTER_COLLECTION_ID, newest.id) },
+          },
+        ]),
+  ];
 }
 
 /** The OPEN member's name for the mobile pushed frame's topbar (`useMemberTitle`) — the same cached list. */

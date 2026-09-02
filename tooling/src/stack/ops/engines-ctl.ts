@@ -34,12 +34,15 @@ import {
   VLLM_ENGINES,
   writeHold,
 } from "@orb/server/infra/providers/vllm/engine";
+import { budget } from "@orb/tooling/_shared/load-budget";
 import { runTool, UsageError } from "../../_shared/run-tool.ts";
 
 const REPO_ROOT = process.cwd();
 const RUN_DIR = fleetRunDir(REPO_ROOT);
 const BYTES_PER_GIB = 1_073_741_824;
-const HEALTH_TIMEOUT_MS = 2000;
+// A CEILING, load-scaled through the one policy (#1232): the literal is the QUIET-BOX base.
+const HEALTH_TIMEOUT_MS_BASE = 2000;
+const HEALTH_TIMEOUT_MS = budget(HEALTH_TIMEOUT_MS_BASE);
 // Column pad for the per-engine status line (widest engine name = "rerank").
 const ENGINE_NAME_PAD = 6;
 const STOP_GRACE_TICKS = 30;

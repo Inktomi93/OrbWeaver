@@ -124,10 +124,11 @@
       "disposition": "archive",
       "authority": "historical",
       "fullRead": true,
-      "verifiedSha256": "ece118a60821cad501ff787d36e6ff93f2f118ecffbd1ae2779cb52029ce9895",
-      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
-      "verifiedAt": "2026-08-30",
+      "verifiedSha256": "d0a3aa6c5ee93f0ce2aa6683a06ca717fb714eb30b00538a0310b20cfea24715",
+      "verifiedCommit": "a67ef0ea8f08de88f501db2718821b9194064b43",
+      "verifiedAt": "2026-09-02",
       "evidence": [
+        "delta re-verify 2026-09-02 (#1193, the debug-gate amendment): the AUTHFIX-2 entry's two changed blocks were re-derived against the commit they describe (a67ef0ea8) — the credential allow-list is built per request in entry/auth/seam.ts::debugGateCredentialed, its fallback arm reads foundation/env::resolveOwnerFallbackCredential, its header arm reads infra/auth::selectSignedForwardJwt, and the enforcer row's counts are the planted-control results (4 admission rows red on fallback:false, 2 header rows red on header:true)",
         "docs/architecture/core/Core-Audits-and-Debt.md:1 (full read; header/status evaluated)",
         "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
@@ -171,8 +172,8 @@
       "disposition": "current",
       "authority": "operational",
       "fullRead": true,
-      "verifiedSha256": "e59deac821071ae0daf2ddc9140ef28254cbf8910bdc0937bba26de6af154e67",
-      "verifiedCommit": "7dcb31b0e0f04e0f3868e126205879bd46cdc00a",
+      "verifiedSha256": "d3c5036abd691ac4ebb9da41b05f7f7663cd348d389c219bbe3b10091df8817d",
+      "verifiedCommit": "5c8025a9b51005938999eee6757c22a6350ec8d2",
       "verifiedAt": "2026-09-02",
       "evidence": [
         "re-attested at a4467408a (#971, lane p-argv-lock): `tooling-argv-front-door` row — both read spellings, the shape-derived cli.ts home, the two-sided ARGV_ENTRIES stale sweep, the §4.6 blindness tripwire, and the declared limit; registered-gate count 251 → 252 (a live `pnpm check:structure` reports 252/252).",
@@ -841,13 +842,14 @@
       "disposition": "current",
       "authority": "current-reference",
       "fullRead": true,
-      "verifiedSha256": "3f0c417b884bdb3acd0b8e9a20e02efc30204094e7ce5c11bcbedc98517f9b23",
-      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-      "verifiedAt": "2026-08-14",
+      "verifiedSha256": "d5f366a0b5ca57d6eeb7f95614775769227d31559efafbc43b9d1111086f3f19",
+      "verifiedCommit": "080bd09493a38432c96f69e055fdd6767f531f60",
+      "verifiedAt": "2026-09-02",
       "evidence": [
         "docs/architecture/core/Tier-2-Foundation.md:1 (full read; header/status evaluated)",
         "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
-        "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+        "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
+        "delta re-verify 2026-09-02 (#1193): the ONE changed line is the AdminAuthChecker port row — re-derived against packages/server/src/foundation/observability/debug/routes.ts at a67ef0ea8, where the port is `isAdmin: (c: Context) => boolean` (Context, not Headers; synchronous, so a second peer-less resolution is unwritable) and the never-throw contract is unchanged"
       ],
       "claims": [
         {

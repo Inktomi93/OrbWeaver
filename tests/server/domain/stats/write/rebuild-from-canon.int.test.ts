@@ -109,6 +109,33 @@ beforeEach(async () => {
 });
 
 describe("reconcileStats", () => {
+  // #1147 — THE CENSUS POPULATION IS SEATS, NOT AUTHORSHIP. `character_stats.chats` is defined here as
+  // `COUNT(DISTINCT cp.chat_id)` per character seat, so a character that HOLDS a seat in a started room is
+  // part of the population even with no canon of its own — a greet-less card, an imported cast member, a
+  // member seated but never prompted. Building the rows off the message accumulator alone left those
+  // characters with NO ROLLUP ROW AT ALL, which every reader renders as "never chatted".
+  test("a SEATED but SILENT character gets a census row: the room counts, the economics are zero", async () => {
+    const silent = await seedCharacter(db, ownerId, { id: "character_silent", name: "Bryn" });
+    await db.insert(chatParticipants).values({
+      id: castId<ChatParticipantId>("chat_participant_silent"),
+      chatId,
+      kind: "character",
+      characterId: silent,
+      role: "member",
+      joinSeq: 0,
+    });
+
+    const res = await reconcileStats(db, { ownerId, now: createFrozenClock(T0 + 999).now });
+
+    expect(res.characters).toBe(2);
+    const row = (await db.select().from(characterStats).where(eq(characterStats.characterId, silent)))[0];
+    expect(row).toMatchObject({ chats: 1, firstChatAt: T0, assistantTurns: 0, swipes: 0, contentBytes: 0, tokensIn: 0 });
+    // The seat contributes nothing to the OWNER grain beyond the library count it already had — the room is
+    // still one room, and the silent seat authored no economics.
+    const owner = (await db.select().from(ownerStats).where(eq(ownerStats.ownerId, ownerId)))[0];
+    expect(owner).toMatchObject({ chats: 1, characters: 2, assistantTurns: 1 });
+  });
+
   test("rebuilds owner / character / daily / model rollups from canon", async () => {
     const clock = createFrozenClock(T0 + 999);
     const res = await reconcileStats(db, { ownerId, now: clock.now });
@@ -264,7 +291,9 @@ describe("reconcileStats", () => {
 
     const previous = (await db.select().from(characterStats).where(eq(characterStats.characterId, characterId)))[0];
     const next = (await db.select().from(characterStats).where(eq(characterStats.characterId, nextCharacterId)))[0];
-    expect(previous).toBeUndefined();
+    // The re-attributed-away character KEEPS its census row — it still holds a seat in the room (#1147);
+    // what moved is the ECONOMICS, and a zeroed row is the sharper proof of that than an absent one.
+    expect(previous).toMatchObject({ chats: 1, assistantTurns: 0, swipes: 0, contentBytes: 0 });
     expect(next?.assistantTurns).toBe(1);
     expect(next?.swipes).toBe(1);
     expect(held.snapshotCalls()).toBe(4);

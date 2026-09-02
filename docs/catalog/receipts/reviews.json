@@ -2404,6 +2404,75 @@
         }
       ],
       "summary": "The #1224 CTA census: population conformant (675 controls, primitives-funneled by four live belts plus resolver physics), stamps fully held inside @orb/ui (baseline {}), rendered arm clean across all three shipped themes with token-matched positive controls. Two findings: the call-site skin family shadowing intent=outline (LOW), and snap --theme landing after data-app-ready so first-surface receipts sample the default palette (P2 instrument)."
+    },
+    {
+      "path": "docs/reviews/stickler/2026-09-02-ct-corpus-audit-leg1.md",
+      "assignedSha256": "25c5dbed4daeef8ff14a77a9e1c16fde889116d3dfefafcccf5f658c844cc385",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "25c5dbed4daeef8ff14a77a9e1c16fde889116d3dfefafcccf5f658c844cc385",
+      "verifiedCommit": "e55c7b6991dfcf8eb31229ead7e8ce6254e1d756",
+      "verifiedAt": "2026-09-02",
+      "summary": "CT corpus audit leg 1 (#1229, lane cb-ct-audit): Phase A structural sweeps over all 469 .ct.tsx files (16 defect classes, planted positive controls, second-method corroboration) + full-reads of the 24 highest-risk files (~26k lines). 2 confirmed findings (P3 reports/snaps literal screenshot write; P4 racy zero-count negative pin), 1 half-tracked product note (bare-Button CTA ring), 0 stale selectors, 0 assertion-free/tautological tests. Shard map + 149-site helper-await triage list for legs 2+.",
+      "evidence": [
+        "born-reviewed at e55c7b6991dfcf8eb31229ead7e8ce6254e1d756: authored and full-read by lane cb-ct-audit (stickler) in the same session — Phase A table, F1-F3, 24 shard verdicts, Appendix A band map, Appendix B helper-await sites"
+      ],
+      "claims": [
+        {
+          "claim": "rules-section.ct.tsx writes a CT screenshot into the snap instrument's published reports/snaps/ family via a template literal the #1201 sweep missed — the same file uses storyShot at five sibling sites.",
+          "evidence": [
+            {
+              "kind": "test",
+              "target": "tests/client/features/automation/components/rules-section.ct.tsx:1088"
+            }
+          ]
+        },
+        {
+          "claim": "The unchanged-commit zero-count pin races the async fetch it forbids — a node-side recorder read microseconds after blur() with no rendered barrier, downstream ordering proof, or inverted poll.",
+          "evidence": [
+            {
+              "kind": "test",
+              "target": "tests/client/features/automation/components/owner-automation-sections.ct.tsx:223"
+            }
+          ]
+        },
+        {
+          "claim": "A bare <Button> (omitted intent) paints the primary skin without its data-cta ring; 9 live call sites; the 'documented, not repainted' disposition lives only on the frozen 2026-08-03 board.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/ui/src/primitives/button/button.tsx:54"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/reviews/stickler/2026-09-02-ct-corpus-audit-leg2.md",
+      "assignedSha256": "e2453ea4d3608ac9c31ab477f5048aca252bd52b9893498e5dea8f30dbad06ad",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "e2453ea4d3608ac9c31ab477f5048aca252bd52b9893498e5dea8f30dbad06ad",
+      "verifiedCommit": "323f3d68b82033eac8056599529e2f8eb71f5b60",
+      "verifiedAt": "2026-09-02",
+      "summary": "CT corpus audit leg 2 (#1229, lane cb-ct-audit): full-read of 45 more CT files (~19.5k lines) in 7 incrementally-committed chunks — the whole reachable helper-hoisted-assert core population (32 files/69 sites), the 7 ex-fenced config files, and 6 of the 19 HI-band remainder files. Zero new findings; every helper-hoisted non-retrying assert judged barriered-by-construction; F1 (#1240) confirmed still live on the merged base. Running campaign total 69/469 full-read. Stop marker + exact leg-3 queue recorded (usage-window stop).",
+      "evidence": [
+        "born-reviewed at 323f3d68b82033eac8056599529e2f8eb71f5b60: authored and full-read by lane cb-ct-audit (stickler) in the same session — chunks 1-7 per-file verdicts, updated shard map, leg-3 queue"
+      ],
+      "claims": [
+        {
+          "claim": "The leg-2 core helper-await population (35 files minus 3 pre-fold-parked) contains zero racing (F2-shaped) one-shot asserts; every site is barriered by construction.",
+          "evidence": [
+            {
+              "kind": "test",
+              "target": "tests/client/features/preset/surfaces/preset-editor-surface.ct.tsx:460",
+              "note": "the model windowed zero-read: explicit browser-side settle window + ONESHOT-OK mechanism note; every sibling site in the 32 read files carries an equivalent barrier (report §3-§3g)"
+            }
+          ]
+        }
+      ]
     }
   ]
 }

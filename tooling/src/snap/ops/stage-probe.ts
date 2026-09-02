@@ -11,7 +11,7 @@
 import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import { runNicedSync } from "../../_shared/proc.ts";
+import { killPidGroup, runNicedSync } from "../../_shared/proc.ts";
 import type { StagePorts } from "../contract/stage.ts";
 import { STAGE_ROOT_REL } from "../lib/stage-plan.ts";
 
@@ -75,7 +75,7 @@ export function killProcessGroup(pid: number): boolean {
   if (pgid.length === 0) {
     return false;
   }
-  runNicedSync("kill", ["-TERM", `-${pgid}`], { stdio: "ignore" });
+  killPidGroup(Number(pgid), "SIGTERM");
   return true;
 }
 

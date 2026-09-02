@@ -4,8 +4,9 @@
 import { chromium } from "@playwright/test";
 import { captureContrastEvidence } from "../../../../tooling/src/snap/ops/contrast.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
+import { scaledBudget } from "../../_load-budget.ts";
 
-const BROWSER_TIMEOUT_MS = 60_000;
+const BROWSER_TIMEOUT_MS = scaledBudget(60_000);
 const VIEWPORT = { width: 400, height: 240 } as const;
 
 test("structured contrast proves pixel sampling and refuses the same-count occluded twin", { timeout: BROWSER_TIMEOUT_MS }, async () => {

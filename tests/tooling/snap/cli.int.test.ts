@@ -3,7 +3,7 @@
 // proving the instrument is not always-red. `--file` mode: no stack, a real headless chromium.
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { expect, test } from "../../support/tool-fixtures.ts";
-import { withholdMeasurement } from "../_load-budget.ts";
+import { scaledBudget, withholdMeasurement } from "../_load-budget.ts";
 
 const BAD_HTML = `<!doctype html><html><body style="background:#8a8a8a">
 <p style="color:#7a7a7a;font-size:16px">barely there text</p>
@@ -13,7 +13,7 @@ const GOOD_HTML = `<!doctype html><html><body style="background:#ffffff">
 <p style="color:#111111;font-size:16px">plainly readable text</p>
 </body></html>`;
 
-const BROWSER_TIMEOUT_MS = 60_000;
+const BROWSER_TIMEOUT_MS = scaledBudget(60_000);
 
 const DEAD_CSS_HTML = `<!doctype html><html data-app-ready="settled"><head><style>.defined { color: black }</style></head>
 <body><p class="never-defined">dead selector plant</p></body></html>`;

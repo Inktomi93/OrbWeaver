@@ -2,18 +2,18 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 463,
-    "enforced": 460,
+    "sites": 465,
+    "enforced": 462,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 460,
+      "deliberate-absorb": 462,
       "detached-owned": 3,
       "unproven": 0
     },
     "byGrammar": {
       "promise": 126,
       "default": 138,
-      "empty": 199
+      "empty": 201
     }
   },
   "rows": [
@@ -1305,6 +1305,19 @@
       "markerLine": 128
     },
     {
+      "siteId": "packages/client/src/lib/bug-report-capture.ts::default:catch::1",
+      "path": "packages/client/src/lib/bug-report-capture.ts",
+      "line": 210,
+      "column": 5,
+      "grammar": "default",
+      "position": "default:catch",
+      "ordinal": 1,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "the FAILURE is already owned and surfaced — the caller returns `{ok:false}` and the button's status line renders `HTTP <status> from <route>` either way. This try only asks whether the body ADDS a named arm; a non-JSON error page (proxy 502, HTML) is the expected miss, and `null` means \"say only what is true\". Ends if a refusal body ever becomes required rather than additive.",
+      "markerLine": 204
+    },
+    {
       "siteId": "packages/client/src/lib/console-error-ring.ts::empty:catch::1",
       "path": "packages/client/src/lib/console-error-ring.ts",
       "line": 78,
@@ -1983,7 +1996,7 @@
     {
       "siteId": "packages/server/src/domain/chat/verbs/claim-chat.ts::promise:incumbent::1",
       "path": "packages/server/src/domain/chat/verbs/claim-chat.ts",
-      "line": 181,
+      "line": 185,
       "column": 13,
       "grammar": "promise",
       "position": "promise:incumbent",
@@ -1991,7 +2004,7 @@
       "snippet": "await incumbent.catch(() => claim(chatId));",
       "verdict": "deliberate-absorb",
       "reason": "retried, not swallowed — a failed",
-      "markerLine": 178
+      "markerLine": 182
     },
     {
       "siteId": "packages/server/src/domain/chat/verbs/turn.ts::default:catch::1",
@@ -2633,7 +2646,7 @@
     {
       "siteId": "packages/server/src/entry/auth/seam.ts::default:catch::1",
       "path": "packages/server/src/entry/auth/seam.ts",
-      "line": 111,
+      "line": 126,
       "column": 9,
       "grammar": "default",
       "position": "default:catch",
@@ -2641,20 +2654,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "a cookie value that fails to percent-decode is not a session token, and `null` here means exactly \"no cookie session\" — the caller's unauthenticated path. A client-supplied malformed header is not an operator event. Ends if a malformed cookie should be distinguished from an absent one.",
-      "markerLine": 108
-    },
-    {
-      "siteId": "packages/server/src/entry/auth/seam.ts::default:catch::2",
-      "path": "packages/server/src/entry/auth/seam.ts",
-      "line": 382,
-      "column": 7,
-      "grammar": "default",
-      "position": "default:catch",
-      "ordinal": 2,
-      "snippet": "} catch {",
-      "verdict": "deliberate-absorb",
-      "reason": "FAIL-CLOSED, and this function's own JSDoc above is the contract — a transport/db fault resolves to `false` so a misbehaving seam can never OPEN the debug gate. Propagating here would turn an infra blip into a 500 on a gate whose only correct failure mode is \"denied\". Ends if the debug gate gains a distinct unavailable state.",
-      "markerLine": 374
+      "markerLine": 123
     },
     {
       "siteId": "packages/server/src/entry/boot/seed-assets/index.ts::default:catch::1",
@@ -3153,7 +3153,7 @@
     {
       "siteId": "packages/server/src/foundation/observability/debug/routes.ts::empty:catch::1",
       "path": "packages/server/src/foundation/observability/debug/routes.ts",
-      "line": 247,
+      "line": 271,
       "column": 9,
       "grammar": "empty",
       "position": "empty:catch",
@@ -3161,7 +3161,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "documented below — a checker error falls",
-      "markerLine": 241
+      "markerLine": 265
     },
     {
       "siteId": "packages/server/src/foundation/observability/debug/wire-capture.ts::default:catch::1",
@@ -4271,7 +4271,7 @@
     {
       "siteId": "tooling/src/_shared/devtools-runtime.ts::empty:error::1",
       "path": "tooling/src/_shared/devtools-runtime.ts",
-      "line": 388,
+      "line": 394,
       "column": 11,
       "grammar": "empty",
       "position": "empty:error",
@@ -4279,12 +4279,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "cleanup failures are retained in `failures` and surfaced together as the terminal AggregateError below. Ends if the aggregate throw is removed.",
-      "markerLine": 385
+      "markerLine": 391
     },
     {
       "siteId": "tooling/src/_shared/devtools-runtime.ts::empty:error::2",
       "path": "tooling/src/_shared/devtools-runtime.ts",
-      "line": 394,
+      "line": 400,
       "column": 11,
       "grammar": "empty",
       "position": "empty:error",
@@ -4292,12 +4292,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "cleanup failures are retained in `failures` and surfaced together as the terminal AggregateError below. Ends if the aggregate throw is removed.",
-      "markerLine": 391
+      "markerLine": 397
     },
     {
       "siteId": "tooling/src/_shared/devtools-runtime.ts::promise:close::1",
       "path": "tooling/src/_shared/devtools-runtime.ts",
-      "line": 406,
+      "line": 412,
       "column": 13,
       "grammar": "promise",
       "position": "promise:close",
@@ -4305,12 +4305,12 @@
       "snippet": "await server.close().catch((cleanupError: unknown) => failures.push(cleanupError));",
       "verdict": "deliberate-absorb",
       "reason": "initialization cleanup joins the original failure in the AggregateError below. Ends if cleanup errors stop being appended or the aggregate throw is removed.",
-      "markerLine": 405
+      "markerLine": 411
     },
     {
       "siteId": "tooling/src/_shared/devtools-runtime.ts::promise:rm::1",
       "path": "tooling/src/_shared/devtools-runtime.ts",
-      "line": 409,
+      "line": 415,
       "column": 11,
       "grammar": "promise",
       "position": "promise:rm",
@@ -4318,7 +4318,7 @@
       "snippet": "await rm(tempRoot, { recursive: true, force: true }).catch((cleanupError: unknown) => failures.push(cleanupError));",
       "verdict": "deliberate-absorb",
       "reason": "initialization cleanup joins the original failure in the AggregateError below. Ends if cleanup errors stop being appended or the aggregate throw is removed.",
-      "markerLine": 408
+      "markerLine": 414
     },
     {
       "siteId": "tooling/src/_shared/entrypoint.ts::empty:catch::1",
@@ -4336,7 +4336,7 @@
     {
       "siteId": "tooling/src/_shared/nav.ts::promise:evaluate::1",
       "path": "tooling/src/_shared/nav.ts",
-      "line": 107,
+      "line": 110,
       "column": 11,
       "grammar": "promise",
       "position": "promise:evaluate",
@@ -4344,7 +4344,7 @@
       "snippet": "await page.evaluate(\"window.__orb && window.__orb.ready\").catch(() => undefined);",
       "verdict": "deliberate-absorb",
       "reason": "a best-effort readiness ping before the real bridge call two lines below — any genuine failure (no bridge, mid-navigation) is caught by the surrounding try and returned as ok:false with the message. Ends if this becomes the only readiness signal checked.",
-      "markerLine": 106
+      "markerLine": 109
     },
     {
       "siteId": "tooling/src/_shared/panel-flags.ts::default:catch::1",
@@ -4362,7 +4362,7 @@
     {
       "siteId": "tooling/src/_shared/proc.ts::empty:error::1",
       "path": "tooling/src/_shared/proc.ts",
-      "line": 27,
+      "line": 28,
       "column": 5,
       "grammar": "empty",
       "position": "empty:error",
@@ -4370,12 +4370,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "ESRCH is the desired teardown end state; every other signal error is rethrown. Ends if callers require proof that the signal landed.",
-      "markerLine": 24
+      "markerLine": 25
     },
     {
       "siteId": "tooling/src/_shared/proc.ts::empty:error::2",
       "path": "tooling/src/_shared/proc.ts",
-      "line": 222,
+      "line": 227,
       "column": 9,
       "grammar": "empty",
       "position": "empty:error",
@@ -4383,7 +4383,7 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "ESRCH or an observed child exit makes kill idempotent; every still-live signal failure rethrows. Ends if child exit fields stop being authoritative.",
-      "markerLine": 219
+      "markerLine": 224
     },
     {
       "siteId": "tooling/src/_shared/rated-theme-fixture.ts::empty:cleanupError::1",
@@ -4557,7 +4557,7 @@
     {
       "siteId": "tooling/src/model-ab/ops/probe.ts::promise:json::1",
       "path": "tooling/src/model-ab/ops/probe.ts",
-      "line": 26,
+      "line": 29,
       "column": 25,
       "grammar": "promise",
       "position": "promise:json",
@@ -4565,12 +4565,12 @@
       "snippet": "const json = (await res.json().catch(() => ({}))) as ChatResponse;",
       "verdict": "deliberate-absorb",
       "reason": "res.ok/status are read independently of json — a non-JSON error body just means the `message` field falls back to empty in the failure branch below; the HTTP failure itself is never lost. Ends if the ok/status path starts depending on json having parsed.",
-      "markerLine": 25
+      "markerLine": 28
     },
     {
       "siteId": "tooling/src/model-ab/ops/serve.ts::empty:catch::1",
       "path": "tooling/src/model-ab/ops/serve.ts",
-      "line": 78,
+      "line": 83,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -4578,12 +4578,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "a failed health poll advances to the bounded retry whose timeout or process exit is the operator verdict. Ends if one poll becomes terminal.",
-      "markerLine": 72
+      "markerLine": 77
     },
     {
       "siteId": "tooling/src/model-ab/ops/serve.ts::empty:e::1",
       "path": "tooling/src/model-ab/ops/serve.ts",
-      "line": 144,
+      "line": 149,
       "column": 5,
       "grammar": "empty",
       "position": "empty:e",
@@ -4591,7 +4591,7 @@
       "snippet": "} catch (e) {",
       "verdict": "deliberate-absorb",
       "reason": "the boot failure is warned and returned as an explicit failed variant row with error text. Ends if callers stop publishing that row.",
-      "markerLine": 135
+      "markerLine": 140
     },
     {
       "siteId": "tooling/src/motion-audit/lib/verdicts.ts::empty:catch::1",
@@ -4661,7 +4661,7 @@
     {
       "siteId": "tooling/src/motion-audit/ops/run.ts::default:catch::1",
       "path": "tooling/src/motion-audit/ops/run.ts",
-      "line": 86,
+      "line": 106,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -4669,12 +4669,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "null is preserved in AuditData and the only consumer, matrix STATIC-EXPECTED, rejects it as instrument error; ordinary legacy-ref runs never claim this field. Ends if null becomes an accepted matrix identity.",
-      "markerLine": 75
+      "markerLine": 95
     },
     {
       "siteId": "tooling/src/motion-audit/ops/run.ts::promise:waitFor::1",
       "path": "tooling/src/motion-audit/ops/run.ts",
-      "line": 129,
+      "line": 149,
       "column": 25,
       "grammar": "promise",
       "position": "promise:waitFor",
@@ -4682,7 +4682,7 @@
       "snippet": "const ready = await page",
       "verdict": "deliberate-absorb",
       "reason": "false feeds apparatusGap, which emits INSTRUMENT ERROR instead of a motion verdict. Ends if readiness stops gating measurement.",
-      "markerLine": 128
+      "markerLine": 148
     },
     {
       "siteId": "tooling/src/motion-audit/ops/trace.ts::empty:e::1",
@@ -4713,7 +4713,7 @@
     {
       "siteId": "tooling/src/mutation-probe/ops/probe.ts::empty:catch::1",
       "path": "tooling/src/mutation-probe/ops/probe.ts",
-      "line": 49,
+      "line": 52,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -4721,12 +4721,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "the readable:false verdict IS the return contract — the JSDoc above states this distinguishes \"the report was not there\" from \"the suite named no failing test\", so a read/parse failure is reported through the return value, not swallowed. Ends if a caller starts treating readable:false the same as readable:true.",
-      "markerLine": 41
+      "markerLine": 44
     },
     {
       "siteId": "tooling/src/render-trace/ops/fire.ts::empty:catch::1",
       "path": "tooling/src/render-trace/ops/fire.ts",
-      "line": 96,
+      "line": 99,
       "column": 7,
       "grammar": "empty",
       "position": "empty:catch",
@@ -4734,12 +4734,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "a connection-refused/fetch failure during boot polling is expected while the server isn't listening yet — the loop retries until deadlineMs, then throws its own timeout error below. Ends if this stops eventually throwing on deadline.",
-      "markerLine": 89
+      "markerLine": 92
     },
     {
       "siteId": "tooling/src/render-trace/ops/fire.ts::empty:catch::2",
       "path": "tooling/src/render-trace/ops/fire.ts",
-      "line": 198,
+      "line": 201,
       "column": 7,
       "grammar": "empty",
       "position": "empty:catch",
@@ -4747,7 +4747,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "best-effort teardown of a scratch tempDir on process exit — force:true already tolerates a missing path, and there is no caller left to hand a failure to at this point. Ends if this tempDir starts holding anything a later step depends on existing/not-existing.",
-      "markerLine": 195
+      "markerLine": 198
     },
     {
       "siteId": "tooling/src/review-mirror/ops/generate.ts::empty:error::1",
@@ -4765,7 +4765,7 @@
     {
       "siteId": "tooling/src/screen-record/ops/drive.ts::empty:e::1",
       "path": "tooling/src/screen-record/ops/drive.ts",
-      "line": 76,
+      "line": 80,
       "column": 7,
       "grammar": "empty",
       "position": "empty:e",
@@ -4773,7 +4773,7 @@
       "snippet": "} catch (e) {",
       "verdict": "deliberate-absorb",
       "reason": "printed as a STEP FAILED line and counted into the failures total this function returns to its caller as the run's verdict. Ends if the returned count stops being read by the caller.",
-      "markerLine": 71
+      "markerLine": 75
     },
     {
       "siteId": "tooling/src/seed/ops/demo.ts::empty:err::1",
@@ -4830,7 +4830,7 @@
     {
       "siteId": "tooling/src/snap/ops/capture.ts::empty:catch::1",
       "path": "tooling/src/snap/ops/capture.ts",
-      "line": 111,
+      "line": 117,
       "column": 9,
       "grammar": "empty",
       "position": "empty:catch",
@@ -4838,12 +4838,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "best-effort fallback shot after the nav already failed — the RESULT line's navError still reports the real failure. Ends if the comment's \"still lands\" claim stops holding.",
-      "markerLine": 108
+      "markerLine": 114
     },
     {
       "siteId": "tooling/src/snap/ops/capture.ts::empty:e::1",
       "path": "tooling/src/snap/ops/capture.ts",
-      "line": 104,
+      "line": 110,
       "column": 5,
       "grammar": "empty",
       "position": "empty:e",
@@ -4851,7 +4851,7 @@
       "snippet": "} catch (e) {",
       "verdict": "deliberate-absorb",
       "reason": "captured into outcome.navError, which the caller counts into the verdict's navigation total and prints as NAV ERROR. Ends if navError stops being read.",
-      "markerLine": 76
+      "markerLine": 78
     },
     {
       "siteId": "tooling/src/snap/ops/cascade.ts::empty:error::1",
@@ -5075,6 +5075,19 @@
       "markerLine": 87
     },
     {
+      "siteId": "tooling/src/snap/ops/lighthouse.ts::empty:catch::1",
+      "path": "tooling/src/snap/ops/lighthouse.ts",
+      "line": 89,
+      "column": 7,
+      "grammar": "empty",
+      "position": "empty:catch",
+      "ordinal": 1,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "the bounded retry loop OWNS this failure — a connection refused before Chrome binds its listener is the normal first tick, and exhaustion throws the named error below. Ends if exhaustion stops throwing.",
+      "markerLine": 82
+    },
+    {
       "siteId": "tooling/src/snap/ops/map.ts::promise:count::1",
       "path": "tooling/src/snap/ops/map.ts",
       "line": 200,
@@ -5179,9 +5192,22 @@
       "markerLine": 354
     },
     {
+      "siteId": "tooling/src/snap/ops/request-log.ts::empty:error::1",
+      "path": "tooling/src/snap/ops/request-log.ts",
+      "line": 52,
+      "column": 5,
+      "grammar": "empty",
+      "position": "empty:error",
+      "ordinal": 1,
+      "snippet": "} catch (error) {",
+      "verdict": "deliberate-absorb",
+      "reason": "the failure IS the result — an unreadable body (a torn-down page, a redirect with no text) becomes the `error` arm of RequestBodyOutcome, which finishRequestLog prints as \"the body could not be read: <reason>\" and the RESULT line reports as `request-body=error`. Ends if that arm stops being printed.",
+      "markerLine": 48
+    },
+    {
       "siteId": "tooling/src/snap/ops/scenario.ts::empty:error::1",
       "path": "tooling/src/snap/ops/scenario.ts",
-      "line": 279,
+      "line": 291,
       "column": 5,
       "grammar": "empty",
       "position": "empty:error",
@@ -5189,7 +5215,7 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "printed as SCENARIO ERROR and routed through EXIT.misuse, the process's own exit code. Ends if that exit code stops being surfaced.",
-      "markerLine": 276
+      "markerLine": 288
     },
     {
       "siteId": "tooling/src/snap/ops/session-admin.ts::default:catch::1",
@@ -5402,7 +5428,7 @@
     {
       "siteId": "tooling/src/stack/lib/port-health.ts::empty:error::1",
       "path": "tooling/src/stack/lib/port-health.ts",
-      "line": 21,
+      "line": 24,
       "column": 5,
       "grammar": "empty",
       "position": "empty:error",
@@ -5410,7 +5436,7 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "connection refusal is the only absent verdict; every other rejection becomes an unproven result that launchOneEngine refuses before headroom or spawn. Ends if unproven can authorize launch.",
-      "markerLine": 17
+      "markerLine": 20
     },
     {
       "siteId": "tooling/src/stack/lib/prod-record.ts::default:catch::1",
@@ -5480,7 +5506,7 @@
     {
       "siteId": "tooling/src/stack/ops/engines-ctl.ts::default:catch::1",
       "path": "tooling/src/stack/ops/engines-ctl.ts",
-      "line": 76,
+      "line": 79,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -5488,7 +5514,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "a failed engine identity probe returns false and the caller refuses control of that process. Ends if false can authorize a signal.",
-      "markerLine": 72
+      "markerLine": 75
     },
     {
       "siteId": "tooling/src/stack/ops/prod-down.ts::empty:error::1",
@@ -5519,7 +5545,7 @@
     {
       "siteId": "tooling/src/stack/ops/prod-state.ts::empty:catch::1",
       "path": "tooling/src/stack/ops/prod-state.ts",
-      "line": 80,
+      "line": 83,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -5527,12 +5553,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "health fetch failure is the explicit unhealthy observation consumed by identity classification. Ends if unhealthy can authorize ownership.",
-      "markerLine": 72
+      "markerLine": 75
     },
     {
       "siteId": "tooling/src/stack/ops/prod-state.ts::empty:catch::2",
       "path": "tooling/src/stack/ops/prod-state.ts",
-      "line": 105,
+      "line": 108,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -5540,7 +5566,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "credential-free debug probe failure returns unknown posture, which prevents token-bearing identity claims. Ends if unknown can authorize control.",
-      "markerLine": 101
+      "markerLine": 104
     },
     {
       "siteId": "tooling/src/stack/ops/prod-support.ts::default:catch::1",
@@ -5597,7 +5623,7 @@
     {
       "siteId": "tooling/src/stack/ops/served-probe.ts::default:catch::1",
       "path": "tooling/src/stack/ops/served-probe.ts",
-      "line": 57,
+      "line": 60,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -5605,12 +5631,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "probe JSON parse failure returns null and the caller reports the service as unverified. Ends if null can satisfy the served probe.",
-      "markerLine": 53
+      "markerLine": 56
     },
     {
       "siteId": "tooling/src/stack/ops/served-probe.ts::default:catch::2",
       "path": "tooling/src/stack/ops/served-probe.ts",
-      "line": 66,
+      "line": 69,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -5618,7 +5644,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "probe request failure returns null and the caller reports the service as unreachable. Ends if null can satisfy the served probe.",
-      "markerLine": 63
+      "markerLine": 66
     },
     {
       "siteId": "tooling/src/ui-audit/ops/drive.ts::empty:e::1",
@@ -5896,7 +5922,7 @@
     {
       "siteId": "tooling/src/verify/ops/boot-chunk-ratchet.ts::empty:catch::1",
       "path": "tooling/src/verify/ops/boot-chunk-ratchet.ts",
-      "line": 165,
+      "line": 168,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -5904,12 +5930,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "documented on the next line — an unreadable/absent dir is the same UNMEASURABLE class as zero matches, and `entry === undefined` below routes it to the `unmeasurable()` verdict, never a pass. Ends if that unmeasurable() routing is removed.",
-      "markerLine": 160
+      "markerLine": 163
     },
     {
       "siteId": "tooling/src/verify/ops/boot-chunk-ratchet.ts::empty:catch::2",
       "path": "tooling/src/verify/ops/boot-chunk-ratchet.ts",
-      "line": 180,
+      "line": 183,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -5917,12 +5943,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "captured and routed to the `unmeasurable()` verdict on the next line, never a pass. Ends if that unmeasurable() routing is removed.",
-      "markerLine": 177
+      "markerLine": 180
     },
     {
       "siteId": "tooling/src/verify/ops/boot-chunk-ratchet.ts::empty:catch::3",
       "path": "tooling/src/verify/ops/boot-chunk-ratchet.ts",
-      "line": 208,
+      "line": 211,
       "column": 7,
       "grammar": "empty",
       "position": "empty:catch",
@@ -5930,7 +5956,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "captured and routed to the `unmeasurable()` verdict on the next line, never a pass. Ends if that unmeasurable() routing is removed.",
-      "markerLine": 205
+      "markerLine": 208
     },
     {
       "siteId": "tooling/src/verify/ops/ct-unfed-ratchet.ts::default:catch::1",

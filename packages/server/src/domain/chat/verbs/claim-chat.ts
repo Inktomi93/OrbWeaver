@@ -37,7 +37,7 @@ import type { ClaimChatOp } from "../contract/context.ts";
 import { classifyParticipant } from "../persistence/participant.ts";
 import { characterSeatedInAnotherChat, loadRoster } from "../persistence/roster.ts";
 import { hostUserIdOf } from "../substrate/roster-host.ts";
-import { canonMessageDelta, chatCreatedDelta, newCharacterDelta, swipeVariantDelta } from "../substrate/stats-delta.ts";
+import { canonMessageDelta, chatCreatedDelta, seatChatDelta, swipeVariantDelta } from "../substrate/stats-delta.ts";
 
 /** The canon present at claim (slots + every variant), the delta replay's input. */
 interface ClaimCanon {
@@ -64,7 +64,7 @@ async function loadClaimCanon(ctx: ChatContext, chatId: ChatId): Promise<ClaimCa
   return { slots, variants };
 }
 
-/** The creation-stats replay: the chat-created counters (+ a first-chat bump per founding character) and
+/** The creation-stats replay: the chat-created counters (+ a census and first-chat bump per founding seat) and
  *  every canon row present at claim. Mirrors `verbs/fork.ts::pushForkStatsDeltas` fold-for-fold — the two
  *  differ only in their head delta (`forked`), and both mirror the rebuild's folds (the drift-gate contract). */
 async function pushClaimStatsDeltas(
@@ -82,9 +82,13 @@ async function pushClaimStatsDeltas(
     ctx.db,
     chatCreatedDelta({ ownerId, characterId: characterIds[0] ?? null, forked: false, newCharacter: firstChat[0] === true, now: createdAt }),
   );
-  for (const isFirst of firstChat.slice(1)) {
-    if (isFirst) {
-      ctx.applyStatsDelta(stmts, ctx.db, newCharacterDelta({ ownerId, now: createdAt }));
+  // EVERY OTHER FOUNDING SEAT COUNTS THE ROOM TOO (#1147). The rebuild credits the room to each of its
+  // character seats (`COUNT(DISTINCT cp.chat_id)`), so a seat that rode only an `owner_stats.characters`
+  // bump left the live census reading 0 chats for every character seated after the first — the ordinary
+  // group room. The seat delta carries no owner-grain `chats`, so the room still counts ONCE for the owner.
+  for (const [idx, characterId] of characterIds.entries()) {
+    if (idx > 0) {
+      ctx.applyStatsDelta(stmts, ctx.db, seatChatDelta({ ownerId, characterId, forked: false, newCharacter: firstChat[idx] === true, now: createdAt }));
     }
   }
   const { slots, variants } = await loadClaimCanon(ctx, chatId);

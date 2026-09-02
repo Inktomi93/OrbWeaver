@@ -43,14 +43,25 @@
 //
 // The budget, MEASURED at the default theme in the CT browser (both pointer classes give the SAME widths
 // here — the two doors are text buttons already past the coarse touch floor, so coarse costs HEIGHT, not
-// width; the pins are `committed-members-tab.ct.tsx`):
-//   · "Characters" kicker 75.7 · gap-field 6 · "Saved rosters…" 138.9 · gap-tight 4 · "Add a character" 142.0
-//   · ONE LINE needs ≥ 366.6px of content box · TWO LINES (kicker / both doors) ≥ 284.9 · below that the
-//     two doors stack, and NOTHING overflows until the content box is narrower than the widest single
-//     door (142.0) — which no real pane is: the narrowest is ~256 (`--dimension-panel-context`'s 17rem
-//     clamp floor less the bracket's `px-row`), and the phone sheet is 100dvw − that padding (~304).
+// width; the pins are `committed-members-tab.ct.tsx`). Re-measured 2026-09-02 after `ed55bf193` vendored
+// Geist, with the pre-Geist fallback reading beside each number:
+//   · "Characters" kicker 79.4 (was 75.7 — a 10.5px uppercase label carries a trailing letter-spacing
+//     column, so it moves with the face) · gap-field 6 · "Saved rosters…" 137.0 (138.9) · gap-tight 4 ·
+//     "Add a character" 142.0 (142.0)
+//   · ONE LINE needs ≥ 368.5px of content box (was 366.6) · TWO LINES (kicker / both doors) ≥ 283.0
+//     (was 284.9) · below that the two doors stack, and NOTHING overflows until the content box is
+//     narrower than the widest single door (142.0) — which no real pane is: the narrowest is ~256
+//     (`--dimension-panel-context`'s 17rem clamp floor less the bracket's `px-row`), and the phone sheet
+//     is 100dvw − that padding (~304).
 // So a new word costs a line at a narrower width, never a truncation and never a neighbour's label. If a
 // change would push a single door past ~256px, THAT is the point to come back and re-decide.
+//
+// THE CLIFFS ARE PINNED BY MEASUREMENT, NOT BY WIDTH (#1044). These two thresholds moved ~2px when the
+// face changed and no product code did; the CT used to assert a line count at 368, 1.4px above the then
+// one-line cliff, and it red on unmodified main twice. It now SWEEPS for both cliffs and asserts them as
+// inequalities against the pane's ends — so the numbers above are documentation, and the pane-relative
+// law (one line at the ceiling, doors sharing a line at the phone sheet, no door wider than the floor)
+// is the thing enforced.
 
 import { Button } from "@orb/ui/button";
 import { Icon, UserPlus } from "@orb/ui/icons";

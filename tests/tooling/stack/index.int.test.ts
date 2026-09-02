@@ -27,6 +27,7 @@ import { fileURLToPath } from "node:url";
 import { spawnNiced } from "@orb/tooling/_shared/proc";
 import { probeServedTransform } from "../../../tooling/src/stack/index.ts";
 import { expect, test } from "../../support/tool-fixtures.ts";
+import { scaledBudget } from "../_load-budget.ts";
 
 const STACK_SH = fileURLToPath(new URL("../../../tooling/src/stack/stack.sh", import.meta.url));
 const ENGINES_SH = fileURLToPath(new URL("../../../tooling/src/stack/engines.sh", import.meta.url));
@@ -38,7 +39,7 @@ const MANUAL_CLEANUP_INT_RE = /manual cleanup|relaunch/u;
  *  is inside the noise — and a blown budget reports a TIMEOUT, which reads exactly like an assertion red
  *  while the assertion never ran (#1040's lesson, one tier down). Two arms that predate #1162 flaked this
  *  way under lane load; the pre-#1162 sources timed the SAME, so the budget is the defect, not the code. */
-const IDENTITY_ARM_TIMEOUT_MS = 60_000;
+const IDENTITY_ARM_TIMEOUT_MS = scaledBudget(60_000);
 
 interface Dispatch {
   readonly status: number;
@@ -348,7 +349,7 @@ test("clear-absent still REFUSES when a survivor really outlived the leader (#11
 // servers. `ENGINES_BOOT_TIMEOUT=0` makes the deadline deterministic: the wait loop never iterates, so
 // every arm below measures the VERDICT the deadline produces, not a race against a timer.
 const FAKE_HEALTH_ENGINES = ["embed", "rerank", "gen"] as const;
-const ENGINES_PROBE_TIMEOUT_MS = 30_000;
+const ENGINES_PROBE_TIMEOUT_MS = scaledBudget(30_000);
 
 /** A throwaway /health door per named engine. `absent` engines get NO server (their port never answers);
  *  `downFirst` makes a door 503 for its first N probes and 200 after — a boot measured in PROBES, not in

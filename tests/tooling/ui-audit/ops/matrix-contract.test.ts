@@ -2,6 +2,7 @@ import { appearanceMatrixContract } from "../../../../packages/client/src/lib/ap
 import type { ThemeEntry } from "../../../../tooling/src/_shared/theme.ts";
 import { planUiAuditAppearanceMatrix, uiAuditMatrixVariant } from "../../../../tooling/src/ui-audit/ops/matrix-contract.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
+import { scaledBudget } from "../../_load-budget.ts";
 
 const THEMES = [
   { id: "seed-light", name: "Light", isSeed: true, background: "#ffffff", polarity: "light", hasCustomCss: false },
@@ -13,7 +14,7 @@ const THEMES = [
 // The real 36-axis minimizer is the behavior under test. It measures ~4.3s alone and 5.2s beside four
 // workers on the shared host, so Vitest's 5s default cuts through healthy work. This is a deadline for
 // the owning integration-sized unit, not a retry or a smaller/fabricated planner input.
-const MATRIX_PLANNER_TIMEOUT_MS = 60_000; // measured 22.3s at load ~30 (2026-09-02 fold train), 14s quiet
+const MATRIX_PLANNER_TIMEOUT_MS = scaledBudget(60_000); // measured 22.3s at load ~30 (2026-09-02 fold train), 14s quiet
 const MINTED_CUSTOM_THEMES = [THEMES[2], THEMES[3]] as const;
 
 test(

@@ -21,6 +21,7 @@ import { join } from "node:path";
 import process from "node:process";
 import { afterAll, beforeAll } from "vitest";
 import { expect, test } from "../support/tool-fixtures.ts";
+import { scaledBudget } from "./_load-budget.ts";
 
 const SUPERVISOR = join(process.cwd(), "scripts", "vitest-supervised.mjs");
 
@@ -173,22 +174,22 @@ function wedgeDumps(cwd: string): readonly string[] {
   );
 }
 
-test("mirrors a clean child's exit 0", { timeout: 15_000 }, async () => {
+test("mirrors a clean child's exit 0", { timeout: scaledBudget(15_000) }, async () => {
   const res = await runSupervisor({ mode: "exit0", reportFile: join(dir, "r0.json") });
   expect(res.code).toBe(0);
 });
 
-test("mirrors a failing child's exit 1", { timeout: 15_000 }, async () => {
+test("mirrors a failing child's exit 1", { timeout: scaledBudget(15_000) }, async () => {
   const res = await runSupervisor({ mode: "exit1", reportFile: join(dir, "r1.json") });
   expect(res.code).toBe(1);
 });
 
-test("kills a wedged child that wrote a COMPLETE pass and reports exit 0", { timeout: 15_000 }, async () => {
+test("kills a wedged child that wrote a COMPLETE pass and reports exit 0", { timeout: scaledBudget(15_000) }, async () => {
   const res = await runSupervisor({ mode: "hang-pass", reportFile: join(dir, "rpass.json") });
   expect(res.code).toBe(0);
 });
 
-test("resolves and runs the REAL default vitest entry (not the .bin sh shim) — a light project exits 0", { timeout: 60_000 }, async () => {
+test("resolves and runs the REAL default vitest entry (not the .bin sh shim) — a light project exits 0", { timeout: scaledBudget(60_000) }, async () => {
   // No ORB_VITEST_BIN: the supervisor must resolve node_modules/vitest/vitest.mjs (a node ESM), never the
   // #!/bin/sh `.bin/vitest` shim — `node <shim>` throws SyntaxError (caught in the #345 acceptance). cwd is
   // the repo root so vitest.config + node_modules resolve; the contract project is small (~5s, pure zod).
@@ -201,7 +202,7 @@ test("resolves and runs the REAL default vitest entry (not the .bin sh shim) —
   expect(res.code).toBe(0);
 });
 
-test("a wedged child whose report hides a crashed worker is reported exit 1, and its group is dead", { timeout: 15_000 }, async () => {
+test("a wedged child whose report hides a crashed worker is reported exit 1, and its group is dead", { timeout: scaledBudget(15_000) }, async () => {
   const report = join(dir, "rcrash.json");
   const pidFile = join(dir, "crash.pid");
   const res = await runSupervisor({ mode: "hang-crash", reportFile: report, pidFile });
@@ -224,7 +225,7 @@ test("a wedged child whose report hides a crashed worker is reported exit 1, and
 // prints nothing while a file runs; `ast-observability.int` spawns the real `pnpm ast` CLI five times).
 // These two cases pin BOTH directions of the replacement rule — silent+busy survives, silent+idle dies.
 test("does NOT kill a child that is SILENT but burning CPU in a grandchild (the false-kill class)", {
-  timeout: 40_000,
+  timeout: scaledBudget(40_000),
 }, async () => {
   const cwd = caseDir("busy");
   const report = join(cwd, "reports", "test-report.json");
@@ -242,7 +243,7 @@ test("does NOT kill a child that is SILENT but burning CPU in a grandchild (the 
 // this lane just removed. The TWO CLOCKS matter here — CPU progress resets the no-CPU timer but never the
 // ceiling's, or a busy tree would push the ceiling out forever (it did, until this pair was written).
 test("the ORB_TEST_HANG_MAX_MS ceiling KILLS a busy-but-silent runaway that outlives it", {
-  timeout: 30_000,
+  timeout: scaledBudget(30_000),
 }, async () => {
   const cwd = caseDir("ceiling-fires");
   const report = join(cwd, "reports", "test-report.json");
@@ -255,7 +256,7 @@ test("the ORB_TEST_HANG_MAX_MS ceiling KILLS a busy-but-silent runaway that outl
 });
 
 test("the SAME busy-but-silent child SURVIVES under a generous ORB_TEST_HANG_MAX_MS", {
-  timeout: 40_000,
+  timeout: scaledBudget(40_000),
 }, async () => {
   const cwd = caseDir("ceiling-generous");
   const report = join(cwd, "reports", "test-report.json");
@@ -264,7 +265,7 @@ test("the SAME busy-but-silent child SURVIVES under a generous ORB_TEST_HANG_MAX
   expect(wedgeDumps(cwd)).toHaveLength(0);
 });
 
-test("still kills a child that is silent AND idle, and says so in the dump", { timeout: 20_000 }, async () => {
+test("still kills a child that is silent AND idle, and says so in the dump", { timeout: scaledBudget(20_000) }, async () => {
   const cwd = caseDir("idle");
   const report = join(cwd, "reports", "test-report.json");
   const res = await runSupervisor({ mode: "hang-crash", reportFile: report, cwd });
@@ -275,7 +276,7 @@ test("still kills a child that is silent AND idle, and says so in the dump", { t
 });
 
 test("shards one vitest process per --project and merges their reports into the ONE contract path", {
-  timeout: 30_000,
+  timeout: scaledBudget(30_000),
 }, async () => {
   const cwd = caseDir("shard-ok");
   const report = join(cwd, "reports", "test-report.json");
@@ -305,7 +306,7 @@ test("shards one vitest process per --project and merges their reports into the 
 });
 
 test("a shard that wedges is re-run ONCE and its wedge is recorded, while the other shard's verdict stands", {
-  timeout: 40_000,
+  timeout: scaledBudget(40_000),
 }, async () => {
   const cwd = caseDir("shard-retry");
   const report = join(cwd, "reports", "test-report.json");

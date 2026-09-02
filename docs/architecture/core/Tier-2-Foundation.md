@@ -29,7 +29,7 @@ Upward pressures resolve by **inversion of control**, never imports:
 | Port (declared in foundation) | Impl wired by `entry/` | Why a port |
 | - | - | - |
 | `AssetInspector.fsck()` | `domain/assets` | assets is UP-stack |
-| `AdminAuthChecker.isAdmin(headers)` | the auth resolver, adapted | auth resolution is up-stack; `isAdmin` MUST never throw (a misbehaving seam degrades to deny, never opens the gate) |
+| `AdminAuthChecker.isAdmin(c)` | the auth seam's `debugGateAdmits` verdict, read off the request context | auth resolution is up-stack; it takes the hono `Context` (not headers) and is SYNCHRONOUS ON PURPOSE (#1193) — the impl must judge the principal the auth middleware ALREADY resolved, since that is the only resolution that saw the raw TCP peer, and a sync signature makes a second, peer-less resolution unwritable. It MUST never throw (a misbehaving seam degrades to deny, never opens the gate) |
 
 The DB probes need no port (`@orb/db` is a lower package). `wrapLibSqlClient` is the mirror case: declared here, *handed to* `createDb` at the composition root (`@orb/db` may not import foundation — cake).
 

@@ -91,6 +91,16 @@ const DOCUMENTED_STATIC = new Map<string, string>([
     "--color-warning-foreground",
     "audited-static (#16) — the warning semantic surface is outside the ThemeScope override subset (§12.1); a fixed base needs no derived fg.",
   ],
+  [
+    "--color-selection-quiet-foreground",
+    "audited-static (#1247, the pair minted at a743e4799 for #1110) — its ground `--color-selection-quiet` is a " +
+      "static `light-dark()` token outside the ThemeScope override subset (§12.1), so the pair can never be " +
+      "half-overridden: both arms are fixed and the ACTIVE arm follows `color-scheme`, which ThemeScope does " +
+      "set. Deriving it is not merely unnecessary but wrong — the fill carries a two-sided MEASURED bound (a " +
+      "ceiling under the accent checked fill, a 1.4.11 floor over `bg-accent`) that a per-theme derivation " +
+      "cannot hold. Classified STATIC_RATIONALE in tests/ui/content/theme-scope/token-classification.suite.test.ts, " +
+      "and the pair's AA is pinned in palette-contrast.suite.test.ts.",
+  ],
 ]);
 
 test("every consumed --color-*-foreground/-border custom property is emitted by ThemeScope or documented as static (#16)", () => {
@@ -100,7 +110,7 @@ test("every consumed --color-*-foreground/-border custom property is emitted by 
   expect(
     unaccounted,
     "consumed but neither emitted by ThemeScope (clamp.ts THEME_SCOPE_EMIT_VARS) nor documented in " +
-      "DOCUMENTED_STATIC (tests/ui/tokens/theme-emit-pairing.test.ts) — a token that pairs with a " +
+      "DOCUMENTED_STATIC (tests/ui/tokens/theme-emit-pairing.suite.test.ts) — a token that pairs with a " +
       "themeable surface but never re-derives is the D44 §12.1 gap class",
   ).toEqual([]);
 });

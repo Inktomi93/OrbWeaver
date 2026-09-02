@@ -16,6 +16,7 @@ import { prepareDevToolsCascadeRuntime } from "../../_shared/devtools-runtime.ts
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { FailureArtifacts } from "../contract/run.ts";
 import type { Args } from "../contract/types.ts";
+import { reserveLoopbackPort } from "../lib/loopback-port.ts";
 import { NETWORK_PROFILES, NO_CPU_THROTTLE } from "../lib/throttle.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
@@ -28,6 +29,13 @@ const DEVTOOLS_ASSET_ROOT = fileURLToPath(new URL("../lib/devtools-frontend", im
 const CASCADE_RUNTIMES = new WeakMap<ProbeSession, DevToolsCascadeRuntime>();
 /** The profile dir whose `DevToolsActivePort` names a session's debugging endpoint (cascade or bare). */
 const DEBUG_PROFILES = new WeakMap<ProbeSession, string>();
+// `--lighthouse` needs a REAL Chrome debugging endpoint on the browser this run drives (ops/lighthouse.ts
+// explains why an adapter is not an option). The port is a LAUNCH ARGUMENT, so it is reserved before the
+// browser exists and remembered here — the same shape the cascade runtime uses for its own attachment.
+// SEPARATE from DEBUG_PROFILES on purpose: this arm PICKS a port, the session/cascade path lets Chrome
+// pick one and READS it back. Both write `--remote-debugging-port`, so they must never launch one browser
+// together — `--session` + `--lighthouse` is refused at parse time (lib/session-plan.ts).
+const LIGHTHOUSE_PORTS = new WeakMap<ProbeSession, number>();
 // Harness-side determinism for --probe: floor every animation/transition and hide the
 // caret from FIRST PAINT (screenshot-time `animations:"disabled"` only rewinds at capture;
 // this kills mid-run flicker during steps too). Raw string — see _shared/browser.ts header.
@@ -99,6 +107,26 @@ function scaleLaunchOverride(opts: Args): { readonly deviceScaleFactor?: number 
   return opts.scale.deviceScaleFactor === null ? {} : { deviceScaleFactor: opts.scale.deviceScaleFactor };
 }
 
+/** The `--lighthouse` debugging endpoint, resolved TOTALLY: the arm-is-off case returns an empty launch
+ *  patch and a no-op, so the launcher below gains no branch for an optional arm. Mutually exclusive with
+ *  the cascade runtime's own persistent-profile endpoint AND with a session's, by parse-time refusal
+ *  (ops/parse.ts, lib/session-plan.ts). */
+async function lighthouseEndpoint(opts: Args): Promise<{
+  readonly launch: Partial<Pick<ProbeLaunchOptions, "browserArgs">>;
+  readonly remember: (session: ProbeSession) => void;
+}> {
+  if (opts.lighthouse === null) {
+    return { launch: {}, remember: (): void => undefined };
+  }
+  const port = await reserveLoopbackPort();
+  return {
+    launch: { browserArgs: [`--remote-debugging-port=${port}`] },
+    remember: (session: ProbeSession): void => {
+      LIGHTHOUSE_PORTS.set(session, port);
+    },
+  };
+}
+
 /** The persistent-profile launch a run may need: the DevTools-SDK cascade runtime (its profile publishes
  *  the debugging endpoint AND serves the SDK) or the bare debugging profile (a session with no cascade).
  *  Never both — one profile, one endpoint. */
@@ -146,9 +174,10 @@ export async function launchSnapSession(opts: Args, name: string, extras: Launch
   const { requireCascadeRuntime = false, debuggingEndpoint = false, ...launchExtras } = extras;
   const traceDir = opts.failureEvidence ? await artifactDir("traces") : null;
   const profile = await prepareLaunchProfile(opts, requireCascadeRuntime, debuggingEndpoint);
+  const endpoint = await lighthouseEndpoint(opts);
   let launched: ProbeSession;
   try {
-    launched = await launchProbeSession({ ...buildLaunchOptions(opts, name, traceDir, profile), ...launchExtras });
+    launched = await launchProbeSession({ ...buildLaunchOptions(opts, name, traceDir, profile), ...endpoint.launch, ...launchExtras });
   } catch (error) {
     await closeLaunchProfile(profile);
     throw error;
@@ -162,6 +191,7 @@ export async function launchSnapSession(opts: Args, name: string, extras: Launch
   if (persistent !== null) {
     DEBUG_PROFILES.set(session, persistent.profileDir);
   }
+  endpoint.remember(session);
   if (opts.probe) {
     try {
       await Promise.all(session.contexts.map(({ context }) => context.addInitScript({ content: PROBE_CSS_SCRIPT })));
@@ -207,6 +237,12 @@ export function cascadeRuntimeFor(session: ProbeSession): DevToolsCascadeRuntime
 export async function debuggingEndpointFor(session: ProbeSession): Promise<string | null> {
   const profileDir = DEBUG_PROFILES.get(session);
   return profileDir === undefined ? null : await readDebuggingEndpoint(profileDir);
+}
+
+/** The Chrome debugging port this session's browser was launched with, or null when `--lighthouse` was
+ *  off. A null here is what makes the arm REFUSE rather than attach to somebody else's browser. */
+export function lighthousePortFor(session: ProbeSession): number | null {
+  return LIGHTHOUSE_PORTS.get(session) ?? null;
 }
 
 // ── CDP load emulation (#826) ───────────────────────────────────────────────

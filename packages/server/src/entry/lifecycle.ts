@@ -29,10 +29,12 @@ import {
   effectiveVllmDisabled,
   enginesPostureInput,
   env,
+  ownerFallbackCredentialInput,
   postureManages,
   resolveBindPosture,
   resolveDiagnosticsPosture,
   resolveEnginesPosture,
+  resolveOwnerFallbackCredential,
 } from "#foundation/env";
 import { getLog, initTracing, superviseDetached, wrapLibSqlClient } from "#foundation/observability";
 import {
@@ -499,7 +501,15 @@ export function createLifecycle(): Lifecycle {
     const app = createApp({
       now,
       db,
-      seam: createAuthSeam({ sessions: built.sessions, verifyForwardJwt: createForwardJwtVerifier() }),
+      seam: createAuthSeam({
+        sessions: built.sessions,
+        verifyForwardJwt: createForwardJwtVerifier(),
+        // The /api/_debug credential plane's third arm (#1193): on a DEV box the loopback owner fallback IS
+        // the operator's session, so the diagnostics door opens for it; in PRODUCTION — where a same-host
+        // proxy makes every request a loopback peer — it never does, single-user included. The RULE lives in
+        // `foundation/env`, beside the boot-fatality that rules the same hazard.
+        ownerFallbackIsOperatorCredential: resolveOwnerFallbackCredential(ownerFallbackCredentialInput()),
+      }),
       services: built.services,
       rateLimit: createRateLimitGate({ db, now, resolveRateLimits: () => built.services.settings.getEffectiveConfig().rateLimits }),
       presence: built.presence,

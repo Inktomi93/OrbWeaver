@@ -1,143 +1,18 @@
 // Argv → Args: the side-effect-free scan (unknown flags, value/type validation, page-suffix rules),
 // the parse loop over ops/flags-handlers.ts's table, mode cross-validation, and the ARG WARNING set.
-import { parseViewport, splitFirstEq, splitLastEq, splitPageSuffix, splitSelectorEq } from "../../_shared/argv.ts";
+import { splitPageSuffix } from "../../_shared/argv.ts";
 import { DEFAULT_BASE, DEFAULT_DEBUG_TOKEN } from "../../_shared/browser.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { Args } from "../contract/types.ts";
-import { CROP_RE } from "../lib/out-names.ts";
-import { selectorRefusalForFlag } from "../lib/selector-shape.ts";
+import { validateFlagValue, validateSelectorFlagValue } from "../lib/flag-values.ts";
 import { sessionModeValidationPairs, sessionNameErrors } from "../lib/session-plan.ts";
-import { CSS_SHOT_SCALE, parseShotScale, shotScaleBudgetRefusal } from "../lib/shot-scale.ts";
-import { NETWORK_PROFILE_SPELLINGS, NO_CPU_THROTTLE, parseNetworkProfile } from "../lib/throttle.ts";
-import { OPTIONAL_NAME_FLAGS, OPTIONAL_SELECTOR_FLAGS, PAGE_TARGET_FLAGS, REQUIRED_VALUE_FLAGS } from "./flags-classes.ts";
+import { CSS_SHOT_SCALE, shotScaleBudgetRefusal } from "../lib/shot-scale.ts";
+import { NO_CPU_THROTTLE } from "../lib/throttle.ts";
+import { OPTIONAL_NAME_FLAGS, OPTIONAL_SELECTOR_FLAGS, OPTIONAL_VALUE_FLAGS, PAGE_TARGET_FLAGS, REQUIRED_VALUE_FLAGS } from "./flags-classes.ts";
 import { FLAG_HANDLERS } from "./flags-handlers.ts";
 import { DEFAULT_VIEWPORT, MS_PER_SECOND } from "./flags-support.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
-
-function validateInteger(raw: string, flag: string, min: number, errors: string[]): void {
-  const value = Number(raw);
-  if (!Number.isInteger(value) || value < min) {
-    errors.push(`${flag} expects an integer >= ${min}, got ${JSON.stringify(raw)}`);
-  }
-}
-
-function validateNumericFlag(flag: string, raw: string, errors: string[]): void {
-  if (flag === "--pages" || flag === "--contexts" || flag === "--every" || flag === "--aria-depth") {
-    validateInteger(raw, flag, 1, errors);
-    return;
-  }
-  if (flag === "--watch" || flag === "--sse") {
-    const value = Number(raw);
-    if (!Number.isFinite(value) || value < 0) {
-      errors.push(`${flag} expects a non-negative number, got ${JSON.stringify(raw)}`);
-    }
-  }
-  // A fractional TTL is legal (a 0.05-minute calibration drive); zero or less is a session that never
-  // idles out — the strand class the TTL exists to end — so it is refused, never defaulted.
-  if (flag === "--session-ttl" && !(Number.isFinite(Number(raw)) && Number(raw) > 0)) {
-    errors.push(`--session-ttl expects a positive number of minutes, got ${JSON.stringify(raw)}`);
-  }
-}
-
-/** The load-emulation arms REFUSE on a bad value instead of falling back to "no throttle": a run whose
- *  argv asked for 4× CPU and silently measured at 1× is a false rest-state receipt (#826). */
-function validateLoadFlagValue(flag: string, raw: string, errors: string[]): void {
-  if (flag === "--cpu-throttle" && !(Number.isFinite(Number(raw)) && Number(raw) >= NO_CPU_THROTTLE)) {
-    errors.push(`--cpu-throttle expects a rate >= ${NO_CPU_THROTTLE} (1 = off, 4 = the standard load arm), got ${JSON.stringify(raw)}`);
-  }
-  if (flag === "--network" && parseNetworkProfile(raw) === null) {
-    errors.push(`--network expects one of ${NETWORK_PROFILE_SPELLINGS.join(" | ")}, got ${JSON.stringify(raw)}`);
-  }
-}
-
-function validateEvidenceFlagValue(flag: string, raw: string, errors: string[]): void {
-  if (flag === "--viewport" && parseViewport(raw) === null) {
-    errors.push(`--viewport expects positive WxH, got ${JSON.stringify(raw)}`);
-  }
-  if (flag === "--crop" && !CROP_RE.test(raw)) {
-    errors.push(`--crop expects WxH or WxH+X+Y, got ${JSON.stringify(raw)}`);
-  }
-  if (flag === "--ls" && splitFirstEq(raw) === null) {
-    errors.push(`--ls expects key=value with a non-empty key, got ${JSON.stringify(raw)}`);
-  }
-  // A rejected --scale must REFUSE, never fall back to the css default: a run that asked for device
-  // pixels and silently produced CSS pixels is the same false-receipt class as the load-arm flags above.
-  if (flag === "--scale" && parseShotScale(raw) === null) {
-    errors.push(`--scale expects css | device | a number >= 1, got ${JSON.stringify(raw)}`);
-  }
-}
-
-function validatePairFlagValue(flag: string, raw: string, errors: string[]): void {
-  const split = splitLastEq(raw);
-  // --fill splits on the FIRST '=' — its value is a JS literal that often contains '=' itself
-  // (`--fill 'input=const a = 1;'`); LAST-'=' would misparse the selector and refuse.
-  if (flag === "--fill" && splitSelectorEq(raw) === null) {
-    errors.push(`--fill expects sel=value with a non-empty selector, got ${JSON.stringify(raw)}`);
-  }
-  // `--key Tab` (no '=') is the BARE-KEY form — a key name, not a selector. Only the pair form owes a
-  // non-empty selector.
-  if (flag === "--key" && raw.includes("=") && split.head === "") {
-    errors.push(`--key expects selector=Key with a non-empty selector (or a bare key name), got ${JSON.stringify(raw)}`);
-  }
-  if (flag === "--expect-text" && (!raw.includes("=") || split.head === "")) {
-    errors.push(`--expect-text expects selector=text, got ${JSON.stringify(raw)}`);
-  }
-  if (flag === "--expect-count" && (!raw.includes("=") || split.head === "" || !Number.isInteger(Number(split.tail)) || Number(split.tail) < 0)) {
-    errors.push(`--expect-count expects selector=nonNegativeInteger, got ${JSON.stringify(raw)}`);
-  }
-  if (flag === "--upload" && (!raw.includes("=") || split.head === "" || split.tail.trim() === "")) {
-    errors.push(`--upload expects selector=path[,path...] with a non-empty selector and at least one path, got ${JSON.stringify(raw)}`);
-  }
-  validateCascadePair(flag, raw, split, errors);
-}
-
-/** `--panel <name>=<mode>` (the same `<a>=<b>` shape --fill/--key/--expect-text use — a panel NAME never
- *  carries `=`) and `--focus <on|off>`, the one nav verb whose value is a bare boolean rather than a
- *  selector/pair. Own function so validatePairFlagValue and validateFlagValue's dispatch both stay under
- *  the biome cognitive-complexity cap. */
-function validateShellNavFlagValue(flag: string, raw: string, errors: string[]): void {
-  if (flag === "--panel") {
-    const { head, tail } = splitLastEq(raw);
-    if (head === "" || tail === "") {
-      errors.push(`--panel expects name=mode, got ${JSON.stringify(raw)}`);
-    }
-  }
-  if (flag === "--focus" && raw !== "on" && raw !== "off") {
-    errors.push(`--focus expects on|off, got ${JSON.stringify(raw)}`);
-  }
-}
-
-function validateCascadePair(flag: string, raw: string, split: { readonly head: string; readonly tail: string }, errors: string[]): void {
-  if (flag !== "--cascade") {
-    return;
-  }
-  if (!raw.includes("=") || split.head === "" || !/^(?:--[A-Za-z0-9_-]+|-?[A-Za-z][A-Za-z0-9-]*)$/u.test(split.tail)) {
-    errors.push(`--cascade expects selector=css-property, got ${JSON.stringify(raw)}`);
-  }
-}
-
-/** REFUSE a selector that can never match rather than letting it time out as a false "not rendered"
- *  (#550 — the whole reason lib/selector-shape.ts exists). */
-function validateSelectorFlagValue(flag: string, raw: string, errors: string[]): void {
-  const refusal = selectorRefusalForFlag(flag, raw);
-  if (refusal !== null) {
-    errors.push(refusal);
-  }
-}
-
-function validateFlagValue(flag: string, raw: string, errors: string[]): void {
-  if (raw === "" && flag !== "--debug-token") {
-    errors.push(`${flag} requires a non-empty value`);
-    return;
-  }
-  validateNumericFlag(flag, raw, errors);
-  validateLoadFlagValue(flag, raw, errors);
-  validateEvidenceFlagValue(flag, raw, errors);
-  validatePairFlagValue(flag, raw, errors);
-  validateShellNavFlagValue(flag, raw, errors);
-  validateSelectorFlagValue(flag, raw, errors);
-}
 
 function consumeRequiredArg(argv: readonly string[], index: number, flag: string, errors: string[]): number {
   const value = argv[index + 1];
@@ -159,6 +34,19 @@ function consumesOptionalSelector(argv: readonly string[], index: number): boole
 function consumesOptionalName(argv: readonly string[], index: number): boolean {
   const value = argv[index + 1];
   return value !== undefined && !value.startsWith("-");
+}
+
+/** The two OPTIONAL-inline-value classes and the predicate each consumes by. Separate classes because the
+ *  RULES differ on a `/`-leading token — a VALUE leaves it alone (`--requests /route` keeps its route), a
+ *  NAME swallows it (`--session-status /x` is refused as a bad name rather than read as a route) — but ONE
+ *  lookup, so the scanner asks the question once instead of growing a branch per class. */
+const OPTIONAL_INLINE_CONSUMERS: readonly (readonly [ReadonlySet<string>, (argv: readonly string[], index: number) => boolean])[] = [
+  [OPTIONAL_VALUE_FLAGS, consumesOptionalSelector],
+  [OPTIONAL_NAME_FLAGS, consumesOptionalName],
+];
+
+function optionalInlineConsumer(flag: string): ((argv: readonly string[], index: number) => boolean) | null {
+  return OPTIONAL_INLINE_CONSUMERS.find(([flags]) => flags.has(flag))?.[1] ?? null;
 }
 
 interface ArgvScan {
@@ -184,8 +72,11 @@ function scanArgvToken(argv: readonly string[], index: number, scan: ArgvScan): 
   if (REQUIRED_VALUE_FLAGS.has(flag)) {
     return consumeRequiredArg(argv, index, flag, scan.errors);
   }
-  if (OPTIONAL_NAME_FLAGS.has(flag)) {
-    return consumesOptionalName(argv, index) ? 1 : 0;
+  // An optional inline value (`--requests trpc`, `--session-status p-x`): consumed so it is never counted
+  // as the route, and deliberately NOT passed to the selector refusal — see OPTIONAL_INLINE_CONSUMERS.
+  const consumesInline = optionalInlineConsumer(flag);
+  if (consumesInline !== null) {
+    return consumesInline(argv, index) ? 1 : 0;
   }
   if (!(OPTIONAL_SELECTOR_FLAGS.has(flag) && consumesOptionalSelector(argv, index))) {
     return 0;
@@ -283,6 +174,30 @@ function evidenceValidationPairs(args: Args, producesShot: boolean): ValidationP
   ];
 }
 
+/** The `--lighthouse`/`--requests` arms' cross-flag rules. Every one refuses a run that would produce a
+ *  receipt whose LABEL and CONTENT disagree — the failure class ops/lighthouse.ts's header calls out. */
+function armValidationPairs(args: Args): ValidationPair[] {
+  return [
+    [
+      args.lighthouse === "mobile" && args.device === null,
+      "--lighthouse mobile needs the mobile device descriptor, but a later --desktop/--viewport/--wide cleared it — the audit would be labelled mobile and taken on a desktop context (tooling/src/snap/ops/lighthouse.ts)",
+    ],
+    [
+      args.lighthouse === "desktop" && args.device !== null,
+      "--lighthouse desktop cannot run on the --mobile device descriptor — pass --lighthouse mobile, or drop --mobile",
+    ],
+    [
+      args.lighthouse !== null && args.cascade.length > 0,
+      "--lighthouse and --cascade are mutually exclusive: both need the browser's debugging endpoint, and --cascade owns it through a persistent profile (tooling/src/_shared/devtools-runtime.ts). Take the two receipts in two runs",
+    ],
+    [args.lighthouse === null && args.lighthouseMode !== "snapshot", "--lighthouse-mode requires --lighthouse <desktop|mobile>"],
+    [
+      (args.scenario !== null || args.matrix || args.contexts > 1 || args.as !== null) && (args.lighthouse !== null || args.requests),
+      "--lighthouse/--requests run only on the ordinary single-run path: --scenario, --contexts/--as and --matrix drive their own sessions or their own device axis and would silently ignore the arm (tooling/src/snap/ops/run.ts)",
+    ],
+  ];
+}
+
 function validateParsedArgs(args: Args): string[] {
   const contextsMode = args.contexts > 1 || args.as !== null;
   const producesShot = args.shotOf !== null || args.shot || args.baseline || args.diff;
@@ -290,6 +205,7 @@ function validateParsedArgs(args: Args): string[] {
     ...sessionValidationPairs(args, contextsMode),
     ...sessionModeValidationPairs(args, contextsMode),
     ...evidenceValidationPairs(args, producesShot),
+    ...armValidationPairs(args),
   ];
   // The image budget is checked against the RAW viewport, which is the one a numeric --scale can reach
   // (the device arm is refused above, so a descriptor's own viewport is never the multiplicand here).
@@ -384,6 +300,11 @@ export function parseSnapArgs(argv: string[]): Args {
     map: false,
     mapSelector: "body",
     mapPage: 0,
+    lighthouse: null,
+    lighthouseMode: "snapshot",
+    requests: false,
+    requestsFilter: null,
+    requestBody: null,
     device: null,
     isolated: false,
     ref: null,

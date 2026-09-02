@@ -6,7 +6,8 @@ import { Users } from "@orb/ui/icons";
 import { useQuery } from "@tanstack/react-query";
 import { useTRPC } from "#data";
 import type { ConfigGroupDefinition, ConfigSearchRow } from "#state";
-import { ROSTER_COLLECTION_ID, rosterCollection } from "./roster-collection.tsx";
+import { rosterCollection } from "./roster-collection.tsx";
+import { ROSTER_COLLECTION_ID } from "./roster-model.ts";
 
 /** The saved rosters as SEARCH rows (§3.3) — the roster's own cache-first read; non-suspense on purpose. */
 function useRosterSearchRows(): readonly ConfigSearchRow[] {

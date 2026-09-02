@@ -361,9 +361,9 @@
       "path": "docs/architecture/core/Core-Audits-and-Debt.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 326,
-      "bytes": 65797,
-      "sha256": "ece118a60821cad501ff787d36e6ff93f2f118ecffbd1ae2779cb52029ce9895",
+      "lines": 354,
+      "bytes": 68483,
+      "sha256": "d0a3aa6c5ee93f0ce2aa6683a06ca717fb714eb30b00538a0310b20cfea24715",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -380,10 +380,11 @@
         "disposition": "archive",
         "authority": "historical",
         "fullRead": true,
-        "verifiedSha256": "ece118a60821cad501ff787d36e6ff93f2f118ecffbd1ae2779cb52029ce9895",
-        "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
-        "verifiedAt": "2026-08-30",
+        "verifiedSha256": "d0a3aa6c5ee93f0ce2aa6683a06ca717fb714eb30b00538a0310b20cfea24715",
+        "verifiedCommit": "a67ef0ea8f08de88f501db2718821b9194064b43",
+        "verifiedAt": "2026-09-02",
         "evidence": [
+          "delta re-verify 2026-09-02 (#1193, the debug-gate amendment): the AUTHFIX-2 entry's two changed blocks were re-derived against the commit they describe (a67ef0ea8) — the credential allow-list is built per request in entry/auth/seam.ts::debugGateCredentialed, its fallback arm reads foundation/env::resolveOwnerFallbackCredential, its header arm reads infra/auth::selectSignedForwardJwt, and the enforcer row's counts are the planted-control results (4 admission rows red on fallback:false, 2 header rows red on header:true)",
           "docs/architecture/core/Core-Audits-and-Debt.md:1 (full read; header/status evaluated)",
           "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
           "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
@@ -447,8 +448,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 399,
-      "bytes": 231425,
-      "sha256": "e59deac821071ae0daf2ddc9140ef28254cbf8910bdc0937bba26de6af154e67",
+      "bytes": 231859,
+      "sha256": "d3c5036abd691ac4ebb9da41b05f7f7663cd348d389c219bbe3b10091df8817d",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -465,8 +466,8 @@
         "disposition": "current",
         "authority": "operational",
         "fullRead": true,
-        "verifiedSha256": "e59deac821071ae0daf2ddc9140ef28254cbf8910bdc0937bba26de6af154e67",
-        "verifiedCommit": "7dcb31b0e0f04e0f3868e126205879bd46cdc00a",
+        "verifiedSha256": "d3c5036abd691ac4ebb9da41b05f7f7663cd348d389c219bbe3b10091df8817d",
+        "verifiedCommit": "5c8025a9b51005938999eee6757c22a6350ec8d2",
         "verifiedAt": "2026-09-02",
         "evidence": [
           "re-attested at a4467408a (#971, lane p-argv-lock): `tooling-argv-front-door` row — both read spellings, the shape-derived cli.ts home, the two-sided ARGV_ENTRIES stale sweep, the §4.6 blindness tripwire, and the declared limit; registered-gate count 251 → 252 (a live `pnpm check:structure` reports 252/252).",
@@ -1440,8 +1441,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 79,
-      "bytes": 11806,
-      "sha256": "3f0c417b884bdb3acd0b8e9a20e02efc30204094e7ce5c11bcbedc98517f9b23",
+      "bytes": 12125,
+      "sha256": "d5f366a0b5ca57d6eeb7f95614775769227d31559efafbc43b9d1111086f3f19",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -1458,13 +1459,14 @@
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "3f0c417b884bdb3acd0b8e9a20e02efc30204094e7ce5c11bcbedc98517f9b23",
-        "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
-        "verifiedAt": "2026-08-14",
+        "verifiedSha256": "d5f366a0b5ca57d6eeb7f95614775769227d31559efafbc43b9d1111086f3f19",
+        "verifiedCommit": "080bd09493a38432c96f69e055fdd6767f531f60",
+        "verifiedAt": "2026-09-02",
         "evidence": [
           "docs/architecture/core/Tier-2-Foundation.md:1 (full read; header/status evaluated)",
           "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
-          "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
+          "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
+          "delta re-verify 2026-09-02 (#1193): the ONE changed line is the AdminAuthChecker port row — re-derived against packages/server/src/foundation/observability/debug/routes.ts at a67ef0ea8, where the port is `isAdmin: (c: Context) => boolean` (Context, not Headers; synchronous, so a second peer-less resolution is unwritable) and the never-throw contract is unchanged"
         ],
         "claims": [
           {
@@ -10852,9 +10854,9 @@
       "path": "docs/design/1195-devtools-mcp-retirement.md",
       "lane": "design",
       "issue": 5,
-      "lines": 65,
-      "bytes": 5642,
-      "sha256": "0eb74adabfc2d72c845b73be7399dbf1238901e587ac6139b9aaf73df481e29d",
+      "lines": 95,
+      "bytes": 8218,
+      "sha256": "f427918198331c0a374be16ace90672ea0b22977bb89ff8f007d1834c3de76da",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -10871,8 +10873,8 @@
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "0eb74adabfc2d72c845b73be7399dbf1238901e587ac6139b9aaf73df481e29d",
-        "verifiedCommit": "33d7067f059e4fcbf43c672d8a2e967479aa68f2",
+        "verifiedSha256": "f427918198331c0a374be16ace90672ea0b22977bb89ff8f007d1834c3de76da",
+        "verifiedCommit": "2642a54df9154c339a0b87c4ca0d5df8b48829f5",
         "verifiedAt": "2026-09-02",
         "claims": [
           {
@@ -10905,6 +10907,7 @@
         ],
         "summary": "Census of every chrome-devtools MCP tool call across both accounts for 14 days (176 calls) mapped to snap arms; the Lighthouse arm and a request log are the gaps to build before the MCP retires (owner-directed #1195).",
         "evidence": [
+          "re-attested at 2642a54df (#1198 #1199 #1227, lane p-snap-arms): §2 items 1-2 marked BUILT with the seam (snap's own chromium on --remote-debugging-port, puppeteer-core attaches to THAT browser, the target matched by CDP id; defaultViewport:null and disableFullPageScreenshot measured as load-bearing), the pins and the live plugins-pane receipt (desktop audited=36 failed-audits=1 label-content-name-mismatch ×4 — the MCP's own finding reproduced in-house; requests=2445). Read in full at the fold by the primary orchestrator.",
           "born-reviewed by the primary orchestrator (author) 2026-09-02 at 33d7067f0: the two-account, 14-day transcript census of chrome-devtools MCP tool calls (176 calls, 719 jsonl files) mapped to snap arms; two gaps named (a Lighthouse arm, a request log) and the retirement step; owner-directed program (#1195)."
         ]
       },
@@ -10914,9 +10917,9 @@
       "path": "docs/design/1208-instrument-substrate.md",
       "lane": "design",
       "issue": 5,
-      "lines": 456,
-      "bytes": 71876,
-      "sha256": "54c4f521692e5b3e5a40c9cf69da699b6f7816dc1a407841a761a2f48129803b",
+      "lines": 474,
+      "bytes": 78714,
+      "sha256": "81e4808155fbece0f43884583acd87646367fb31a0e6b7d2f02553b4dff37682",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -10933,10 +10936,11 @@
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "54c4f521692e5b3e5a40c9cf69da699b6f7816dc1a407841a761a2f48129803b",
-        "verifiedCommit": "f21f7d10c097dd6cb09e8a9e2b46dfabc0254f3e",
+        "verifiedSha256": "81e4808155fbece0f43884583acd87646367fb31a0e6b7d2f02553b4dff37682",
+        "verifiedCommit": "5c8025a9b51005938999eee6757c22a6350ec8d2",
         "verifiedAt": "2026-09-02",
         "evidence": [
+          "re-attested at 06267c252 (#1226, lane p-substrate-spike, merged by hand into the forge's later table): the §10 phase-0 receipt paragraph — F3 arm (a) CONFIRMED (context-scoped shims reach a second CDP client; page-scoped do not), the Lighthouse seam is snapshot(page) over an attached puppeteer page with defaultViewport:null, the category score is not a verdict, dependency shape (root devDeps: lighthouse ^13.4.1 + puppeteer-core), the test-layout naming deviation (.suite.int). Union read at the fold by the primary orchestrator.",
           "re-attested at f21f7d10c (forge warm leg, two commits): §7.1 'Timeouts and load: one budget policy' added per the owner's 'also wrap in the timeout design' — inventory with receipts, one load reading, three classes (wall clocks scale via budget(baseMs) with a factor cap + absolute ceiling F11; rates withhold with ORB-LOAD-WITHHOLD; idle/TTL is not a budget), home tooling/src/_shared/load-budget (planned), gate arm J, T14–T17, phase 1b; §12.1 records F1–F4 as owner rulings; the twelve dangling backticked paths de-backticked (stale receipts as plain text, planned files marked '(planned)'); premise correction: motion-audit's mobile arm already carries withholdMeasurement. Read in full at the fold by the primary orchestrator.",
           "born-reviewed by the primary orchestrator at 9d479c443 (lane p-substrate-design, forge): all 403 lines read in full at the fold — the 12-row pain-point inventory with code and transcript receipts (3015 instrument invocations over 14 days), the launch/stage-binding map, the four-noun model, the daemon protocol and state machine, the band registry, the slot integration, the grammar inventory and shared families, the op reuse map, the two worked arms, the load model, T1–T13, the alternatives, the phased plan, the cost and F1–F10. Premise refutations recorded in §1 P11 (the brief's stale paths; 'five lanes refused' = discipline refusals, 2 hard errors)."
         ],
@@ -10979,6 +10983,114 @@
           }
         ],
         "summary": "The instrument substrate design (owner-directed #1208): stateful snap sessions behind a per-lane daemon, N registered stage bands with TTL and lazy reap, one CLI grammar as shared flag families, an arm registry with Lighthouse and request-log worked, a 13-control test plan, a five-phase build plan and ten owner forks."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/design/1238-plugin-distribution.md",
+      "lane": "design",
+      "issue": 5,
+      "lines": 108,
+      "bytes": 26666,
+      "sha256": "98e67c7d343b70208ee41a66f3a9794dead2069f2a0bb7453931df1753878474",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "design",
+          "status": "draft",
+          "updated": "2026-09-02"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/design/1238-plugin-distribution.md",
+        "assignedSha256": "98e67c7d343b70208ee41a66f3a9794dead2069f2a0bb7453931df1753878474",
+        "disposition": "current",
+        "authority": "design",
+        "fullRead": true,
+        "verifiedSha256": "98e67c7d343b70208ee41a66f3a9794dead2069f2a0bb7453931df1753878474",
+        "verifiedCommit": "fe7e41eed47b0c25da3fb215c05b7cb1b0f976b1",
+        "verifiedAt": "2026-09-02",
+        "claims": [
+          {
+            "claim": "The teaching plugins live in the server package's entry tier and their guest .js sources are typechecked by NO program (allowJs is false repo-wide); only the SDK mirror is pinned, and the seeds ride the image's whole-src copy — the rot and reachability the ruling names are structural.",
+            "evidence": [
+              {
+                "kind": "code",
+                "target": "packages/server/src/entry/boot/seed-example-plugins.ts:42"
+              },
+              {
+                "kind": "code",
+                "target": "tsconfig.base.json:72"
+              },
+              {
+                "kind": "code",
+                "target": "packages/server/src/entry/boot/seed-assets/index.ts:82"
+              },
+              {
+                "kind": "test",
+                "target": "tests/contracts/plugin/host-v1.test-d.ts:1"
+              }
+            ]
+          },
+          {
+            "claim": "The bundle-validate funnel is source-agnostic by design and the origin axis is additive — every new door is a byte source for the ONE funnel, never a second install path, and a URL-carrying git origin passes the existing db CHECK unchanged.",
+            "evidence": [
+              {
+                "kind": "code",
+                "target": "packages/contracts/src/plugin/lifecycle.ts:7"
+              },
+              {
+                "kind": "code",
+                "target": "packages/server/src/domain/plugin/substrate/manifest.ts:2"
+              },
+              {
+                "kind": "code",
+                "target": "packages/db/src/schema/plugin.ts:113"
+              }
+            ]
+          },
+          {
+            "claim": "The authority and consent model is settled and reused unchanged: per-user install under the caller, deployment-wide as the admin fan-out of per-user consent-first rows, enable as the second explicit act — no door in this design adds a consent surface.",
+            "evidence": [
+              {
+                "kind": "ruling",
+                "target": "D147"
+              },
+              {
+                "kind": "code",
+                "target": "packages/server/src/domain/plugin/substrate/distribution.ts:5"
+              }
+            ]
+          },
+          {
+            "claim": "The doors reuse live machinery: the FolderPicker primitive and the client-side fflate bundle reader exist, and the URL-install verb family (preview/install/upgrade-from-stored/check-for-updates) is the template the git family mirrors.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#1238"
+              },
+              {
+                "kind": "code",
+                "target": "packages/ui/src/primitives/file-dropzone/folder-picker.tsx:20"
+              },
+              {
+                "kind": "code",
+                "target": "packages/client/src/features/plugin/lib/plugin-bundle.ts:29"
+              },
+              {
+                "kind": "code",
+                "target": "packages/server/src/domain/plugin/verbs/install-from-url.ts:23"
+              }
+            ]
+          }
+        ],
+        "summary": "The #1238 distribution design (lane cb-plugin-dist-design, forge, 2026-09-02): the teaching set becomes @orb/showcase-plugins under packages/* (server-dep, node-resolved seeding — no image-copy mechanism, per the owner's container ruling), guest sources enter a checkJs type program against the published host-v1.d.ts, and three doors land on the one funnel: dev-gated load-unpacked, client-packed folder upload, and install-from-git via an infra/git adapter (isomorphic-git over the egress-guarded transport, ephemeral clone, git origin + source_commit receipt). Owner rulings recorded verbatim incl. disclaimer-text-no-extra-click; three forks with defaults; three build lanes dispatched from section 9.",
+        "evidence": [
+          "authored born-reviewed by the designing lane at fe7e41eed: full reads of the plugin domain's install/upgrade/url-verb family, the substrate funnel, the seeder + packer, the contracts manifest/lifecycle homes, the db CHECKs, the client install card + bundle reader, and the SillyTavern reference (src/endpoints/extensions.js install/update/branches flow) — receipts inline in the doc",
+          "owner rulings 2026-09-02 quoted verbatim in the doc's commission block (new package; no forced zips; app-does-the-clone; disclaimer text without a separate click; no container-build asset moving)"
+        ]
       },
       "receiptCurrent": true
     },
@@ -11515,9 +11627,9 @@
       "path": "docs/design/config-revamp-design.md",
       "lane": "design",
       "issue": 5,
-      "lines": 817,
-      "bytes": 136767,
-      "sha256": "8fcf3b6faf2e74d34a2ec04e246f67191981237e2d153ab27d7fcc7d05fbd051",
+      "lines": 908,
+      "bytes": 144395,
+      "sha256": "7275446281c61a356fb91295b8e8968a05b3f18c0ac8a4d4be0f7b66d646e7f9",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -11534,10 +11646,11 @@
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "8fcf3b6faf2e74d34a2ec04e246f67191981237e2d153ab27d7fcc7d05fbd051",
-        "verifiedCommit": "dad0162ae0dbac9cc6c7669486cbf88b276b8e69",
+        "verifiedSha256": "7275446281c61a356fb91295b8e8968a05b3f18c0ac8a4d4be0f7b66d646e7f9",
+        "verifiedCommit": "3063712328b14bb6fcc88455834d5d9b1033d16f",
         "verifiedAt": "2026-09-02",
         "evidence": [
+          "re-attested at 306371232 (#1209 #1210 #1212 #1213 #1214 #1217 #1218, claude-b lane cb-collections batch, two commits): §8.5 arrival receipt amended; NEW §8.6 — ConfigWelcome RETIRED (no reachable door on any viewport; the Hearth vocabulary collision noted and corrected), the populated landing states LIBRARY-LEVEL facts via CollectionInsight (the preview seam fully retired, no half-migration; import/export doors PRICED as gaps, not stubbed), the empty landing teaches; NEW §8.7 — the five mechanicals (bulk toggle follows members, the a11y trio with a partial refutation, auto-opened arrival group folds, arrival focus target = the active group's band — a stated ruling fork). Read in full at the fold by the primary orchestrator (96 added lines).",
           "re-attested at dad0162ae (#925 #1043, claude-b lane cb-collections): NEW §8 — the COLLECTIONS species contract and the landing redesign (four owner rulings of 2026-09-02 compressed in §8.1; the classification receipt in §8.2: all four collections BUILT, the greyed arm has zero occupants and stays pinned; the species/divergence table in §8.3 left as the clean seam for #1169 and #1191). Section read in full at the fold by the primary orchestrator.",
           "re-attested at 65a4934fe (#1101 / re-drive G2, claude-b lane cb-context-distill): the CONTEXT pane teaches the scroll-spy's current section instead of restating the LIST's doors; two program-doc lines carry dated AMENDED notes — shell law §4.2 ('never navigation') outranks the program doc; ConfigSettingRef.setting now required",
           "docs/design/config-revamp-design.md read in full by the orchestrator (claude-b) at merge (lane cb-config-research, stickler research + design for #866; 12 products + NN/g receipted via SearXNG→trafilatura, THIN rows marked; the house read against 9707b9672; the Settings-is-a-modal premise repair accepted mid-run); the nine owner forks are being ruled live; the four D-rows are labelled R-A..R-D, never forward-numbered",
@@ -11623,9 +11736,9 @@
       "path": "docs/design/containerize-prod-image-spec.md",
       "lane": "design",
       "issue": 5,
-      "lines": 577,
-      "bytes": 46982,
-      "sha256": "490d051ca21d373b6712fc3769023dc17d7bb018e71092d5d85f83b0f81868b6",
+      "lines": 601,
+      "bytes": 49260,
+      "sha256": "06f1e5abcc14dc540cc8245c683c6875b5cb0e8de284c07c94822fa7f25d6a68",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -11642,10 +11755,11 @@
         "disposition": "needs-owner",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "490d051ca21d373b6712fc3769023dc17d7bb018e71092d5d85f83b0f81868b6",
-        "verifiedCommit": "535266f00954e2c612036a2bee1825609c59be09",
-        "verifiedAt": "2026-08-30",
+        "verifiedSha256": "06f1e5abcc14dc540cc8245c683c6875b5cb0e8de284c07c94822fa7f25d6a68",
+        "verifiedCommit": "080bd09493a38432c96f69e055fdd6767f531f60",
+        "verifiedAt": "2026-09-02",
         "evidence": [
+          "delta re-verify 2026-09-02 (#1193): three §3.1/§3.2/§4 debug-gate lines re-derived at a67ef0ea8 — the fallback arm is posture-scoped (foundation/env::resolveOwnerFallbackCredential, false whenever NODE_ENV=production, which both supported prod launchers set in buildProdSpawnPlan), the second belt (isAdmin's peer-less re-resolution) is deliberately gone, and §4's accepted residual now also carries /api/_debug because the gate reads the same omitted NODE_ENV",
           "docs/design/containerize-prod-image-spec.md:1 (design; draft; full read 2026-08-19)",
           "the auth/env/engine path:line receipts were re-derived against merged main (6ef448dd6) and the stale ones repaired in place",
           "REPAIRED at fd71a395d: single-user's fallback is peer-gated, not unconditional (3.1); LOCAL_INITIAL_PASSWORD is optional, not boot-fatal (3.2/3.5); the D2 external-engine code changes are already BUILT (3.6); the Host-spoof exploit narrative in 4/7/8 is obsolete",
@@ -31381,6 +31495,113 @@
               {
                 "kind": "provenance",
                 "target": "git:53437ec8fee76bd7a0ff68328924c65d121dbbe7"
+              }
+            ]
+          }
+        ]
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/stickler/2026-09-02-ct-corpus-audit-leg1.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 931,
+      "bytes": 82106,
+      "sha256": "25c5dbed4daeef8ff14a77a9e1c16fde889116d3dfefafcccf5f658c844cc385",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-02"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/stickler/2026-09-02-ct-corpus-audit-leg1.md",
+        "assignedSha256": "25c5dbed4daeef8ff14a77a9e1c16fde889116d3dfefafcccf5f658c844cc385",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "25c5dbed4daeef8ff14a77a9e1c16fde889116d3dfefafcccf5f658c844cc385",
+        "verifiedCommit": "e55c7b6991dfcf8eb31229ead7e8ce6254e1d756",
+        "verifiedAt": "2026-09-02",
+        "summary": "CT corpus audit leg 1 (#1229, lane cb-ct-audit): Phase A structural sweeps over all 469 .ct.tsx files (16 defect classes, planted positive controls, second-method corroboration) + full-reads of the 24 highest-risk files (~26k lines). 2 confirmed findings (P3 reports/snaps literal screenshot write; P4 racy zero-count negative pin), 1 half-tracked product note (bare-Button CTA ring), 0 stale selectors, 0 assertion-free/tautological tests. Shard map + 149-site helper-await triage list for legs 2+.",
+        "evidence": [
+          "born-reviewed at e55c7b6991dfcf8eb31229ead7e8ce6254e1d756: authored and full-read by lane cb-ct-audit (stickler) in the same session — Phase A table, F1-F3, 24 shard verdicts, Appendix A band map, Appendix B helper-await sites"
+        ],
+        "claims": [
+          {
+            "claim": "rules-section.ct.tsx writes a CT screenshot into the snap instrument's published reports/snaps/ family via a template literal the #1201 sweep missed — the same file uses storyShot at five sibling sites.",
+            "evidence": [
+              {
+                "kind": "test",
+                "target": "tests/client/features/automation/components/rules-section.ct.tsx:1088"
+              }
+            ]
+          },
+          {
+            "claim": "The unchanged-commit zero-count pin races the async fetch it forbids — a node-side recorder read microseconds after blur() with no rendered barrier, downstream ordering proof, or inverted poll.",
+            "evidence": [
+              {
+                "kind": "test",
+                "target": "tests/client/features/automation/components/owner-automation-sections.ct.tsx:223"
+              }
+            ]
+          },
+          {
+            "claim": "A bare <Button> (omitted intent) paints the primary skin without its data-cta ring; 9 live call sites; the 'documented, not repainted' disposition lives only on the frozen 2026-08-03 board.",
+            "evidence": [
+              {
+                "kind": "code",
+                "target": "packages/ui/src/primitives/button/button.tsx:54"
+              }
+            ]
+          }
+        ]
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/stickler/2026-09-02-ct-corpus-audit-leg2.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 459,
+      "bytes": 30859,
+      "sha256": "e2453ea4d3608ac9c31ab477f5048aca252bd52b9893498e5dea8f30dbad06ad",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-02"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/stickler/2026-09-02-ct-corpus-audit-leg2.md",
+        "assignedSha256": "e2453ea4d3608ac9c31ab477f5048aca252bd52b9893498e5dea8f30dbad06ad",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "e2453ea4d3608ac9c31ab477f5048aca252bd52b9893498e5dea8f30dbad06ad",
+        "verifiedCommit": "323f3d68b82033eac8056599529e2f8eb71f5b60",
+        "verifiedAt": "2026-09-02",
+        "summary": "CT corpus audit leg 2 (#1229, lane cb-ct-audit): full-read of 45 more CT files (~19.5k lines) in 7 incrementally-committed chunks — the whole reachable helper-hoisted-assert core population (32 files/69 sites), the 7 ex-fenced config files, and 6 of the 19 HI-band remainder files. Zero new findings; every helper-hoisted non-retrying assert judged barriered-by-construction; F1 (#1240) confirmed still live on the merged base. Running campaign total 69/469 full-read. Stop marker + exact leg-3 queue recorded (usage-window stop).",
+        "evidence": [
+          "born-reviewed at 323f3d68b82033eac8056599529e2f8eb71f5b60: authored and full-read by lane cb-ct-audit (stickler) in the same session — chunks 1-7 per-file verdicts, updated shard map, leg-3 queue"
+        ],
+        "claims": [
+          {
+            "claim": "The leg-2 core helper-await population (35 files minus 3 pre-fold-parked) contains zero racing (F2-shaped) one-shot asserts; every site is barriered by construction.",
+            "evidence": [
+              {
+                "kind": "test",
+                "target": "tests/client/features/preset/surfaces/preset-editor-surface.ct.tsx:460",
+                "note": "the model windowed zero-read: explicit browser-side settle window + ONESHOT-OK mechanism note; every sibling site in the 32 read files carries an equivalent barrier (report §3-§3g)"
               }
             ]
           }

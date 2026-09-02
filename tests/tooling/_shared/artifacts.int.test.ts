@@ -20,6 +20,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, readlinkSync, utimesS
 import { join } from "node:path";
 import process from "node:process";
 import { expect, test } from "../../support/tool-fixtures.ts";
+import { scaledBudget } from "../_load-budget.ts";
 
 /** A valid descriptor whose `run` SLEEPS, so two children are provably in flight at the same time (a
  *  0.5s run pair could otherwise serialize by luck and prove nothing). `Atomics.wait` blocks without
@@ -71,7 +72,7 @@ function published(root: string): RunView {
 
 // EXPLICIT BUDGETS on all three: each case spawns real CLI children and the planted gate SLEEPS 1.5s to
 // force the overlap, which is past vitest's 5s default the moment the box carries sibling lanes.
-test("two concurrent `check:structure` runs both keep their verdict, and the pointer names a COMPLETE one", { timeout: 60_000 }, async ({
+test("two concurrent `check:structure` runs both keep their verdict, and the pointer names a COMPLETE one", { timeout: scaledBudget(60_000) }, async ({
   plantedTree,
   runCli,
 }) => {
@@ -98,7 +99,10 @@ test("two concurrent `check:structure` runs both keep their verdict, and the poi
   expect(runs.some((r) => r.concurrent.length > 0)).toBe(true);
 });
 
-test("a run names the LIVE sibling holding a slot — the racing-writer census, deterministically", { timeout: 60_000 }, async ({ plantedTree, runCli }) => {
+test("a run names the LIVE sibling holding a slot — the racing-writer census, deterministically", { timeout: scaledBudget(60_000) }, async ({
+  plantedTree,
+  runCli,
+}) => {
   const root = await plantedTree({ ...SCANNED, [`${GATE_DIR}/planted-slow.ts`]: SLOW_GATE });
   // A slot whose in-flight marker names a LIVE pid (this test process): the shape a concurrent instrument
   // leaves. Planted rather than raced, so the census assertion cannot be a coin flip.
@@ -190,7 +194,10 @@ function raceSlots(root: string): readonly string[] {
   return readdirSync(join(root, "reports", "runs", RACE_INSTRUMENT));
 }
 
-test("concurrent publishers pruning ONE over-capacity ring never throw at each other's deletions", { timeout: 120_000 }, async ({ plantedTree, repoRoot }) => {
+test("concurrent publishers pruning ONE over-capacity ring never throw at each other's deletions", { timeout: scaledBudget(120_000) }, async ({
+  plantedTree,
+  repoRoot,
+}) => {
   const { spawnNiced } = await import("@orb/tooling/_shared/proc");
   const artifacts = join(repoRoot, "tooling", "src", "_shared", "artifacts.ts");
 
@@ -237,7 +244,7 @@ sleep(600);
 writeFileSync(path, JSON.stringify({ runId: id, complete: true }));
 `;
 
-test("PLANTED CONTROL: the old fixed-path writer loses one of two concurrent runs", { timeout: 60_000 }, async ({ plantedTree }) => {
+test("PLANTED CONTROL: the old fixed-path writer loses one of two concurrent runs", { timeout: scaledBudget(60_000) }, async ({ plantedTree }) => {
   const root = await plantedTree({ "old-writer.mjs": OLD_WRITER });
   const target = join(root, "fixed-report.json");
   const { spawnNiced } = await import("@orb/tooling/_shared/proc");
