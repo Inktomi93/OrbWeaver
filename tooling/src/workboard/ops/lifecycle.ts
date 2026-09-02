@@ -13,7 +13,7 @@ import type { Issue, LifecycleCommand, WorkCommand, WorkItemContext } from "../c
 import { evidenceText } from "../lib/evidence.ts";
 import { INGRESS_LABELS, REPOSITORY, REQUIRED_READY_METADATA, TERMINAL_DISPOSITIONS } from "../lib/vocab.ts";
 import { currentValue } from "../lib/writes.ts";
-import { adoptDod, enforceDodAtClose, writeDod } from "./dod.ts";
+import { adoptDod, enforceDodAtClose, preflightDodAtLand, writeDod } from "./dod.ts";
 import { gh } from "./gh.ts";
 import {
   blockerIssueId,
@@ -188,6 +188,14 @@ function done(work: WorkItemContext, evidence: string, override: string | null):
  *  ONE `--evidence` satisfies done's same-receipt rule by construction: it is literally the same string. */
 function land(work: WorkItemContext, command: Extract<WorkCommand, { readonly kind: "land" }>): void {
   requireStatus(work, ["Ready", "Running", "Review", "Verify", "Done"], "work item must be Ready or later before land");
+  // PRE-FLIGHT (owner amendment 2026-09-01): land always ends at done, so a row carrying a DoD proves
+  // its bar BEFORE the first board mutation — a red bar exits here with the row untouched, never with
+  // claim/review/verify writes spent on a close that could not happen. --force-close skips it (nothing
+  // executes on the override path); done's own gate honors the green memo and stays authoritative for
+  // direct invocations.
+  if (command.override === null) {
+    preflightDodAtLand(work);
+  }
   const at = (): string => currentValue(work.item, "Status")?.toLowerCase() ?? "";
   if (at() === "ready") {
     if (command.lane === null) {

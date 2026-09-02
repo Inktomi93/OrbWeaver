@@ -1619,6 +1619,52 @@ defineTest(
   TABLE_DRIVEN_TIMEOUT_MS,
 );
 
+defineTest(
+  "land pre-flights the bar BEFORE any board write: red leaves a Ready row untouched; green executes EXACTLY once; direct done stays authoritative",
+  () => {
+    const directory = mkdtempSync(join(tmpdir(), "work-item-dod-preflight-"));
+    try {
+      // (a) Red + Ready: the same command+exit+output refusal, with ZERO board mutations — the row is
+      // exactly as it was (no Lane, still Ready, still OPEN). The single graphql call is the context
+      // READ that learns the row's bar; the amendment's zero is the WRITE count (argv-borne `file --dod`
+      // can refuse at a true zero; a row-borne bar structurally cannot be known without one read).
+      const red = createState("Ready");
+      withDod(red, "exit 9");
+      const refused = drive(red, "land", "11", "--lane", "x", "--evidence", "r");
+      expect(refused.status).toBe(TOOL_ERROR_EXIT);
+      expect(refused.stderr).toContain("DoD is red");
+      expect(refused.stderr).toContain("exit: 9");
+      expect(mutationCalls(red)).toHaveLength(0);
+      expect(graphqlCalls(red)).toHaveLength(1);
+      expect(red.calls.some((args) => args[0] === "issue")).toBe(false);
+      expect(fieldValue(red, STATUS_FIELD)).toBe("Ready");
+      expect(fieldValue(red, "Lane")).toBeUndefined();
+      expect(targetIssue(red).state).toBe("OPEN");
+
+      // (b) Green: the bar executes EXACTLY once across the whole claim→done walk — a witness-file
+      // COUNTER, not an assumption (without the memo, done's gate would run it a second time).
+      const witness = join(directory, "runs");
+      const green = createState("Ready");
+      withDod(green, `echo run >> ${witness}; exit 0`);
+      expect(drive(green, "land", "11", "--lane", "x", "--evidence", "r").status).toBe(0);
+      expect(targetIssue(green).state).toBe("CLOSED");
+      expect(readFileSync(witness, "utf8").trim().split("\n")).toHaveLength(1);
+
+      // (c) Direct `done` carries no memo — ITS gate runs the bar, exactly once.
+      const directWitness = join(directory, "direct-runs");
+      const direct = createState("Verify");
+      withVerifyEvidence(direct, "r");
+      withDod(direct, `echo run >> ${directWitness}; exit 0`);
+      expect(drive(direct, "done", "11", "--evidence", "r").status).toBe(0);
+      expect(targetIssue(direct).state).toBe("CLOSED");
+      expect(readFileSync(directWitness, "utf8").trim().split("\n")).toHaveLength(1);
+    } finally {
+      rmSync(directory, { force: true, recursive: true });
+    }
+  },
+  TABLE_DRIVEN_TIMEOUT_MS,
+);
+
 defineTest("a form-emitted `_No response_` dod fence reads as ABSENT: the close proceeds and adopt refuses", () => {
   // GitHub renders an empty optional textarea as `_No response_`; with `render: dod` that could land
   // INSIDE the fence. Treating it as a real bar would make every form-filed row with an empty DoD
