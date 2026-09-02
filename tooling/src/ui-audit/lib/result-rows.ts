@@ -11,9 +11,18 @@ import { surfaceStateAxisLabel } from "./surface-state.ts";
 /** THE PANEL-AXIS DECLARE + ACCOUNT rows (#148 item 2): the shell config `__orb.shell()` read for THIS
  *  run, and — same law as `tap-*`'s own candidates/judged/withheld/populations rows below — an axis
  *  label for every configuration this run did NOT visit, named rather than folded into a clean-looking
- *  silence. `NO-VERDICT` mirrors `population-verdict`'s own hyphenated single-token spelling. */
+ *  silence. `NO-VERDICT` mirrors `population-verdict`'s own hyphenated single-token spelling.
+ *
+ *  ONLY `withheld` IS `NO-VERDICT` (#1122). EXCLUDED is a REACHED verdict — "measured facts prove the
+ *  space inapplicable" — and printing it as NO-VERDICT was the polarity that put three unclosable
+ *  `NO-VERDICT` axes beside `population-verdict=complete` on every Home run. It is not folded into
+ *  `complete` either: `complete` claims this run REACHED every configuration in the space, and on an
+ *  excluded axis it reached none because none exist. Three labels, three different facts. */
 export function surfaceStateRows(shellState: ShellStateSnapshot | null, accounting: SurfaceStateAccounting, drive: DriveStateCandidate): [string, string][] {
-  const axisVerdict = (census: RelationalCensusAccountingInput): string => (surfaceStateAxisLabel(census) === "complete" ? "complete" : "NO-VERDICT");
+  const axisVerdict = (census: RelationalCensusAccountingInput): string => {
+    const label = surfaceStateAxisLabel(census);
+    return label === "withheld" ? "NO-VERDICT" : label;
+  };
   const focusLabel = shellState === null ? "unmounted" : shellFocusOnOff(shellState.focus);
   return [
     ["section", shellState?.section ?? "unmounted"],

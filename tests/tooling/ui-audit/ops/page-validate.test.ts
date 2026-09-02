@@ -84,7 +84,7 @@ describe("the in-page fact walk's seam", () => {
 });
 
 describe("the __orb.shell() bridge seam", () => {
-  const shell = { section: "home", panels: [{ side: "left", mode: "docked" }], chatOpen: true, focus: false };
+  const shell = { section: "home", panels: [{ side: "left", mode: "docked", available: true }], chatOpen: true, focus: false };
 
   test("null is a REAL answer (no bridge on the page) and passes through", () => {
     expect(shellStateSnapshot(null)).toBeNull();
@@ -101,7 +101,31 @@ describe("the __orb.shell() bridge seam", () => {
     expect(() => shellStateSnapshot({ ...shell, section: 3 })).toThrow(/INSTRUMENT ERROR.*"section"/u);
     expect(() => shellStateSnapshot({ ...shell, panels: {} })).toThrow(/INSTRUMENT ERROR.*"panels"/u);
     expect(() => shellStateSnapshot({ ...shell, panels: ["left"] })).toThrow(/INSTRUMENT ERROR.*panel row/u);
-    expect(() => shellStateSnapshot({ ...shell, panels: [{ side: 1, mode: "docked" }] })).toThrow(/INSTRUMENT ERROR.*side\/mode/u);
+    expect(() => shellStateSnapshot({ ...shell, panels: [{ side: 1, mode: "docked", available: true }] })).toThrow(/INSTRUMENT ERROR.*side\/mode/u);
+  });
+
+  // #1122 · THE DECLARATION IS REQUIRED, AND ITS ABSENCE IS A LOUD REFUSAL, NEVER A DEFAULT. `available`
+  // is the only thing that lets the surface-axis census say EXCLUDED instead of WITHHELD on a pane the
+  // active section structurally does not have, so a build that does not publish `data-panel-available`
+  // (panel-chrome.tsx) must STOP the run at exit-2 rather than silently fall back to the old guess — the
+  // "clean zero" arm the fix contract bans. `null` is the same class as absent: the pane rendered and
+  // declared nothing about itself.
+  test("a panel row with NO available declaration REFUSES loudly — a build that does not publish it is not a verdict", () => {
+    expect(() => shellStateSnapshot({ ...shell, panels: [{ side: "left", mode: "docked" }] })).toThrow(/INSTRUMENT ERROR.*"available" declaration/u);
+    expect(() => shellStateSnapshot({ ...shell, panels: [{ side: "left", mode: "docked", available: null }] })).toThrow(
+      /INSTRUMENT ERROR.*"available" declaration/u,
+    );
+    expect(() => shellStateSnapshot({ ...shell, panels: [{ side: "left", mode: "docked", available: "true" }] })).toThrow(
+      /INSTRUMENT ERROR.*"available" declaration/u,
+    );
+    // …and the refusal NAMES the side it read, so a half-published shell says WHICH pane broke.
+    expect(() => shellStateSnapshot({ ...shell, panels: [{ side: "context", mode: "collapsed" }] })).toThrow(/side=context/u);
+  });
+
+  // The positive control for the refusal above: a row that DOES declare passes, in both polarities.
+  test("both declared polarities pass — the refusal is about an ABSENT declaration, not about `false`", () => {
+    expect(shellStateSnapshot({ ...shell, panels: [{ side: "left", mode: "collapsed", available: false }] })).not.toBeNull();
+    expect(shellStateSnapshot({ ...shell, panels: [{ side: "left", mode: "docked", available: true }] })).not.toBeNull();
   });
 });
 

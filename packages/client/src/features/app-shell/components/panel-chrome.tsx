@@ -36,12 +36,20 @@ export interface PanelChromeProps {
   readonly header?: ReactNode;
   /** The current mode — sets `data-panel-mode` (shell.css owns the transform/width per mode). */
   readonly mode: PanelMode;
+  /** Does the ACTIVE SECTION declare this pane at all (`SectionDefinition.panels`, `section-registry.ts`)?
+   *  Published as `data-panel-available` because the declaration is otherwise UNREACHABLE outside React —
+   *  `agent-nav/panel-request.ts` can only infer it from a write that failed to land ("the active section
+   *  LIKELY declares no pane"), and design-audit's SURFACE-AXIS census had to call an unreachable mode
+   *  WITHHELD on a section that structurally cannot have it (#1122). `false` does NOT change what renders:
+   *  `"unavailable"` is still not a fourth `PanelMode` (the pane resolves `collapsed`, the topbar ships no
+   *  toggle — section-registry.ts). This attribute is a DECLARE, not a behaviour. */
+  readonly available: boolean;
   /** Close THIS panel — the band's own dismiss, rendered only while the panel FLOATS (see the header). */
   readonly onDismiss: () => void;
   readonly children: ReactNode;
 }
 
-export function PanelChrome({ panel, label, header, mode, onDismiss, children }: PanelChromeProps): ReactElement {
+export function PanelChrome({ panel, label, header, mode, available, onDismiss, children }: PanelChromeProps): ReactElement {
   // A collapsed panel is translated out of the shell and inert, so its first body mount cannot be seen or
   // reached — it must not ride the boot commit (4a6c54cdf). THAT RULING SURVIVES; ITS INPUT CHANGED (#895).
   // Latching the mount DURING RENDER (`if (mode !== "collapsed") setBodyMounted(true)`) satisfied it and
@@ -77,6 +85,7 @@ export function PanelChrome({ panel, label, header, mode, onDismiss, children }:
       // case for a section whose band is not a `ListPaneHeader`. CONTEXT keeps the static label: its band is
       // the section's detail identity, not a swappable pane. See `lib/list-pane-title-id.ts`.
       {...(panel === "list" ? { "aria-labelledby": LIST_PANE_TITLE_ID } : {})}
+      data-panel-available={available ? "true" : "false"}
       data-panel-mode={mode}
       data-panel-side={panel}
       aria-hidden={mode === "collapsed" ? "true" : undefined}

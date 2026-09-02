@@ -110,10 +110,16 @@ export interface PixelPass {
 /** The wire shape `window.__orb.shell()` returns (`packages/client/src/lib/agent-bridge-handles.ts`'s
  *  `ShellSnapshot`) — mirrored here rather than imported. The probe reads the dev bridge as JSON over
  *  `page.evaluate`, never as a live cross-package import (tooling declares no `@orb/client` dependency,
- *  and the DOM-derived reader is the one home for the query itself — this file only names its shape). */
+ *  and the DOM-derived reader is the one home for the query itself — this file only names its shape).
+ *
+ *  A panel row's `available` is the ACTIVE SECTION'S declaration for that pane (`data-panel-available`,
+ *  `panel-chrome.tsx`), NOT a resolved mode: an unavailable pane and a merely-collapsed one both render
+ *  `data-panel-mode="collapsed"`, which is why every unvisited mode used to be WITHHELD here (#1122).
+ *  `null` means the shell published no declaration at all — a broken publish, refused loudly by
+ *  `ops/page-validate.ts`, never read as "unavailable". */
 export interface ShellStateSnapshot {
   readonly section: string | null;
-  readonly panels: ReadonlyArray<{ readonly side: string | null; readonly mode: string | null }>;
+  readonly panels: ReadonlyArray<{ readonly side: string | null; readonly mode: string | null; readonly available: boolean | null }>;
   readonly chatOpen: boolean;
   readonly focus: boolean;
 }

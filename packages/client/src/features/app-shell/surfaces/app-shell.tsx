@@ -296,6 +296,7 @@ export function AppShell(): ReactElement {
             <PanelChrome
               panel="list"
               label={`${layout.activeSectionLabel} list`}
+              available={layout.listAvailable}
               header={activeDef.listHeader?.()}
               mode={layout.listMode}
               onDismiss={(): void => layout.collapsePanel("list")}
@@ -362,6 +363,7 @@ export function AppShell(): ReactElement {
             <PanelChrome
               panel="context"
               label={`${layout.activeSectionLabel} details`}
+              available={layout.contextAvailable}
               header={contextPane.header}
               mode={layout.contextMode}
               onDismiss={(): void => layout.collapsePanel("context")}

@@ -235,7 +235,17 @@ function sessionValidationPairs(args: Args, contextsMode: boolean): ValidationPa
       args.matrix && (args.pages > 1 || contextsMode || args.watchMs > 0 || args.baseline || args.diff),
       "--matrix does not combine with --pages/--contexts/--as/--watch/--baseline/--diff",
     ],
-    [args.matrix && !args.isolated, "--matrix requires --isolated/--dirty/--ref because rated custom themes and density-preview drafts are stage-scoped"],
+    // #1127 I4: NAME WHAT IS STAGE-SCOPED AND WHY NO SUBSET ESCAPES IT. A lane whose sibling holds the
+    // single band read the old one-liner as "pick the cells that don't need the stage" and had no way to
+    // learn there are none: `ops/matrix-contract.ts` pins `custom-light`/`custom-dark` as REQUIRED theme
+    // axis values (`representativeMatrixThemes` refuses outright unless a rated custom theme with custom
+    // CSS exists) and `riskTwins` requires the `density-preview` pair — so EVERY planned cell carries a
+    // stage-scoped assignment and a live-`:5173` arm would be a different matrix, not a subset of this one.
+    // The remedy is the band, so the refusal names the command that says who holds it.
+    [
+      args.matrix && !args.isolated,
+      "--matrix requires --isolated/--dirty/--ref: EVERY cell is stage-scoped, not just some. The plan's required rows pin the rated custom-light/custom-dark themes (which only exist in a stage db) and its required twins pin the density-preview pair, so there is no live-stack subset to fall back to. If the single stage band is held by a sibling, `pnpm snap --stage-status` names the owner (checkout · pid · age) — wait for it or ask the orchestrator; never tear a sibling's stage down",
+    ],
   ];
 }
 

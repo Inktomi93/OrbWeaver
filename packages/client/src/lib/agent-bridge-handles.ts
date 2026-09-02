@@ -15,7 +15,11 @@ export interface QuerySummary {
 
 export interface ShellSnapshot {
   readonly section: string | null;
-  readonly panels: ReadonlyArray<{ side: string | null; mode: string | null }>;
+  /** One row per rendered `.shell-panel`. `available` is the ACTIVE SECTION'S declaration for that pane
+   *  (`data-panel-available`, `panel-chrome.tsx`) — `true`/`false` when the shell published it, `null`
+   *  when the attribute is absent, which is a BROKEN publish and not "unavailable" (design-audit refuses
+   *  a run on it rather than reading it as a fact — #1122). */
+  readonly panels: ReadonlyArray<{ side: string | null; mode: string | null; available: boolean | null }>;
   readonly chatOpen: boolean;
   readonly focus: boolean;
 }

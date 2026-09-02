@@ -152,6 +152,29 @@ export function appFailureSurface(parsed: unknown, label = "the [data-app-failur
   return parsed;
 }
 
+/** One `.shell-panel` row of the bridge read. `side`/`mode` are the rendered facts; `available` is the
+ *  ACTIVE SECTION'S DECLARATION and is REQUIRED, because its absence is exit-2 rather than a default
+ *  (#1122): it is the only thing that lets the SURFACE-AXIS census say EXCLUDED instead of WITHHELD on a
+ *  pane a section structurally does not have, so a build that does not publish `data-panel-available`
+ *  (`panel-chrome.tsx`) must STOP the run instead of silently falling back to the old guess. `null` is the
+ *  same class as absent — the pane rendered and declared nothing. */
+function checkPanelRow(panel: unknown, label: string): void {
+  if (!isPlainObject(panel)) {
+    throw new Error(`INSTRUMENT ERROR: ${label} returned ${describeValue(panel)} as a panel row, not a { side, mode, available } row`);
+  }
+  const row = panel as Record<string, unknown>;
+  const side = row["side"];
+  const mode = row["mode"];
+  if ((typeof side !== "string" && side !== null) || (typeof mode !== "string" && mode !== null)) {
+    throw new Error(`INSTRUMENT ERROR: ${label} returned a panel row whose side/mode is not a string or null`);
+  }
+  if (typeof row["available"] !== "boolean") {
+    throw new Error(
+      `INSTRUMENT ERROR: ${label} returned a panel row (side=${String(side)}) with no boolean "available" declaration — this build does not publish data-panel-available (panel-chrome.tsx), so the surface-axis census cannot tell an UNAVAILABLE pane from a collapsed one and this run is not a verdict`,
+    );
+  }
+}
+
 /** The shell bridge read (`window.__orb.shell()`). `null` is a REAL answer — the bridge is absent on a
  *  non-app page — so it is passed through; anything else must be the snapshot the panel-axis declare
  *  reads, because a malformed one degrades that declare into a silently wrong surface-state accounting. */
@@ -171,15 +194,7 @@ export function shellStateSnapshot(parsed: unknown, label = "the __orb.shell() b
   checkField("focus", "boolean", shell["focus"], label);
   checkField("panels", "array", shell["panels"], label);
   for (const panel of shell["panels"] as readonly unknown[]) {
-    if (!isPlainObject(panel)) {
-      throw new Error(`INSTRUMENT ERROR: ${label} returned ${describeValue(panel)} as a panel row, not a { side, mode } pair`);
-    }
-    const row = panel as Record<string, unknown>;
-    const side = row["side"];
-    const mode = row["mode"];
-    if ((typeof side !== "string" && side !== null) || (typeof mode !== "string" && mode !== null)) {
-      throw new Error(`INSTRUMENT ERROR: ${label} returned a panel row whose side/mode is not a string or null`);
-    }
+    checkPanelRow(panel, label);
   }
   return parsed as ShellStateSnapshot;
 }

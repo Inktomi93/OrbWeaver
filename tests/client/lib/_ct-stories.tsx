@@ -1218,6 +1218,15 @@ export function AgentBridgeStory(): ReactElement {
         data-testid="bridge-motion"
         style={{ width: 80, height: 20, animation: motionActive ? "orb-ct-bridge-dirty 10s linear" : undefined }}
       />
+      {/* #1122 · THE PANEL-ROW TRI-STATE `shell()` MUST CARRY. `shell()` is DOM-derived, so these three
+          asides ARE its input: a pane whose section declares it (`true`), one whose section declares it
+          UNAVAILABLE (`false` — indistinguishable from the middle one by `data-panel-mode` alone, which is
+          the whole reason the attribute exists), and one publishing NO declaration, which must read `null`
+          and never default to `true`. Raw `.shell-panel` markup rather than a real shell is deliberate: the
+          unit here is the bridge's READER; `app-shell.ct.tsx` pins that the real shell publishes it. */}
+      <aside className="shell-panel" data-panel-available="true" data-panel-mode="docked" data-panel-side="list" />
+      <aside className="shell-panel" data-panel-available="false" data-panel-mode="collapsed" data-panel-side="context" />
+      <aside className="shell-panel" data-panel-mode="collapsed" data-panel-side="undeclared" />
     </div>
   );
 }
