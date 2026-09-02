@@ -13,7 +13,7 @@ import type { ComponentProps, ReactElement, KeyboardEvent as ReactKeyboardEvent,
 import { useLayoutEffect, useRef } from "react";
 import type { VariantProps } from "tailwind-variants";
 import { cn, formatResultCount } from "#lib";
-import type { ButtonProps } from "#primitives/button";
+import type { ButtonBaseProps, ButtonProps } from "#primitives/button";
 import { Button } from "#primitives/button";
 import { Icon, Search } from "#primitives/icons";
 import { commandVariants } from "./variants.ts";
@@ -141,7 +141,9 @@ export function CommandList({ className, listSize, ...rest }: CommandListProps):
   return <BaseCommandList className={cn(commandVariants({ listSize }).list(), className)} data-slot="command-list" {...rest} />;
 }
 
-export interface CommandAuxiliaryButtonProps extends ButtonProps {}
+/** An ALIAS, not an `extends`: `ButtonProps` is the icon-only-name union (§13.10 N1, #1021), and an
+ *  interface cannot extend a union — nor should this wrapper weaken the requirement it forwards. */
+export type CommandAuxiliaryButtonProps = ButtonProps;
 
 /**
  * A non-option action mounted inside a Command root. The focused button owns Enter through its native
@@ -149,14 +151,18 @@ export interface CommandAuxiliaryButtonProps extends ButtonProps {}
  * Space already stays native because cmdk does not consume it, and Escape keeps bubbling so the containing
  * command surface/dialog can close normally.
  */
-export function CommandAuxiliaryButton({ onKeyDown, ...props }: CommandAuxiliaryButtonProps): ReactElement {
-  const handleKeyDown: NonNullable<ButtonProps["onKeyDown"]> = (event): void => {
-    onKeyDown?.(event);
+export function CommandAuxiliaryButton(props: CommandAuxiliaryButtonProps): ReactElement {
+  // Taken whole rather than destructured: a rest over the name union loses which arm the caller
+  // satisfied, and the forwarded props would stop proving they carry a name.
+  const handleKeyDown: NonNullable<ButtonBaseProps["onKeyDown"]> = (event): void => {
+    props.onKeyDown?.(event);
     if (event.key === "Enter") {
       event.stopPropagation();
     }
   };
-  return <Button onKeyDown={handleKeyDown} {...props} />;
+  // The handler lands AFTER the spread on purpose — the wrapper's Enter containment is the whole point
+  // of the part, and a caller's own onKeyDown (which this handler already calls first) must not replace it.
+  return <Button {...props} onKeyDown={handleKeyDown} />;
 }
 
 export interface CommandEmptyProps extends Omit<ComponentProps<typeof BaseCommandEmpty>, "className"> {

@@ -56,6 +56,7 @@ export function RpgHintMapEditor({ kicker, emptyLine, labelNoun, addPlaceholder,
             onEdit={(next): void => onCommit({ ...hints, [label]: next })}
           />
           <Button
+            aria-label={`Remove ${label}`}
             intent="ghost"
             size="glyph-md"
             onClick={(): void => {

@@ -1086,7 +1086,7 @@
     {
       "siteId": "packages/client/src/features/rpg/components/rpg-game-tab.tsx::empty:catch::1",
       "path": "packages/client/src/features/rpg/components/rpg-game-tab.tsx",
-      "line": 328,
+      "line": 323,
       "column": 7,
       "grammar": "empty",
       "position": "empty:catch",
@@ -1094,12 +1094,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "the failed mutation's own errorToast already",
-      "markerLine": 315
+      "markerLine": 310
     },
     {
       "siteId": "packages/client/src/features/rpg/components/rpg-game-tab.tsx::promise:onResync::1",
       "path": "packages/client/src/features/rpg/components/rpg-game-tab.tsx",
-      "line": 357,
+      "line": 352,
       "column": 13,
       "grammar": "promise",
       "position": "promise:onResync",
@@ -1107,7 +1107,7 @@
       "snippet": "onResync().catch(() => undefined); // The sequence owns and surfaces mutation failure.",
       "verdict": "deliberate-absorb",
       "reason": "onResync already catches its own",
-      "markerLine": 354
+      "markerLine": 349
     },
     {
       "siteId": "packages/client/src/features/rpg/components/rpg-populate-control.tsx::empty:catch::1",

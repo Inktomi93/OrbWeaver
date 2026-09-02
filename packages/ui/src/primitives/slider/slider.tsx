@@ -15,9 +15,21 @@ export interface SliderProps<Value extends number | readonly number[] = number>
   extends Omit<SliderRootProps<Value>, "orientation">,
     VariantProps<typeof sliderVariants> {
   className?: string;
-  /** Visible, auto-associated label. A plain string also seeds the thumb `aria-label` for the single-thumb case. */
+  /** Visible label. When it is rendered it IS the thumb's accessible name (Base UI wires the
+   *  association); a single-thumb slider therefore takes no `aria-label` at all — see `thumbLabels`. */
   label?: ReactNode;
-  /** Accessible names per thumb (index-aligned) — use for range endpoints ("Minimum"/"Maximum"). */
+  /**
+   * Accessible names per thumb (index-aligned) — the range endpoints ("Minimum"/"Maximum"), or the ONE
+   * name of a single-thumb slider that renders NO visible `label` (the KnobRow / talkativeness shape,
+   * where the name lives in the row beside the rail).
+   *
+   * IGNORED for a single thumb whenever `label` is rendered, and that is the point (§13.10 N1 — visible
+   * text beats `aria-label`). Base UI drops the label association the instant ANY `aria-label` reaches
+   * the thumb (`SliderThumb.js`: `'aria-labelledby': ariaLabelledByProp ?? (ariaLabel == null ? labelId
+   * : undefined)`), so a seal that passed both shipped two independent name sources over one control —
+   * the pixels said one thing and the accessibility tree announced the other, with nothing to keep them
+   * in step (#1019). A range keeps its per-thumb names because one visible label cannot name two ends.
+   */
   thumbLabels?: readonly string[];
   /**
    * Description id(s) for the THUMB — the element that actually carries the value for assistive tech (Base
@@ -56,8 +68,11 @@ export function Slider<Value extends number | readonly number[] = number>(props:
   const slots = sliderVariants({ tone });
   const count = thumbCount(rootProps.value ?? rootProps.defaultValue);
   const isRange = count > 1;
-  const singleAriaLabel = typeof label === "string" ? label : thumbLabels?.[0];
   const hasLabel = label !== undefined && label !== null;
+  // ONE NAMING PATH (§13.10 N1, #1019): a rendered <Slider.Label> names the single thumb through Base UI's
+  // own association, so the string form is passed ONLY where no label is rendered. A range always names its
+  // endpoints itself — one label cannot say "minimum" and "maximum".
+  const thumbAriaLabels = isRange || !hasLabel ? thumbLabels : undefined;
 
   return (
     <BaseSlider.Root className={cn(slots.root(), className)} data-slot="slider-root" {...rootProps}>
@@ -90,7 +105,7 @@ export function Slider<Value extends number | readonly number[] = number>(props:
         {Array.from({ length: count }, (_unused, index) => (
           <BaseSlider.Thumb
             aria-describedby={thumbDescribedBy}
-            aria-label={isRange ? thumbLabels?.[index] : singleAriaLabel}
+            aria-label={thumbAriaLabels?.[index]}
             aria-valuetext={thumbValueText}
             className={slots.thumb()}
             data-slot="slider-thumb"
