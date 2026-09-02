@@ -5922,7 +5922,7 @@
     {
       "siteId": "tooling/src/verify/lib/program-routing.ts::empty:catch::1",
       "path": "tooling/src/verify/lib/program-routing.ts",
-      "line": 169,
+      "line": 228,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -5930,7 +5930,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "optional-read-as-absent — a corrupt/unreadable cache becomes a miss, which the caller recomputes from scratch via ts7 rather than trusting. Ends if the caller stops recomputing on a cache miss.",
-      "markerLine": 166
+      "markerLine": 225
     },
     {
       "siteId": "tooling/src/verify/ops/boot-chunk-ratchet.ts::empty:catch::1",

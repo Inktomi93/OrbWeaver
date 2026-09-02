@@ -2148,6 +2148,7 @@
     "tests/tooling/verify/lib/history.int.test.ts",
     "tests/tooling/verify/lib/near-cap.test.ts",
     "tests/tooling/verify/lib/population.int.test.ts",
+    "tests/tooling/verify/lib/program-routing.int.test.ts",
     "tests/tooling/verify/lib/render.int.test.ts",
     "tests/tooling/verify/lib/static-class-expression.test.ts",
     "tests/tooling/verify/lib/timing.test.ts",

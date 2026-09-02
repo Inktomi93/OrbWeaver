@@ -133,10 +133,11 @@ export function programsFor(rel: string, graphSrcMembers?: ReadonlySet<string>):
 // `ts7 -p tsconfig.json --listFilesOnly` lists the graph's TRUE membership; we keep only the
 // repo-relative packages/*/src files (the overlay set — everything else is a graph ROOT or node_modules).
 // Cached under node_modules/.cache (gitignored, per-worktree — the tsbuildinfo convention), keyed on the
-// git HEAD + a hash of the dirty working set: a src edit changes the dirty key, a commit changes HEAD, so
-// the cache refreshes exactly when the import graph could have moved. Cache MISS or a ts7 failure ⇒
-// undefined ⇒ programsFor falls back to the conservative "any package-src runs the graph" rule (never
-// under-runs the overlay). The heavy ts7 spawn happens ONCE per key, not per file.
+// git HEAD + a digest of the working tree's DELTA FROM IT — every dirty path AND THE BYTES AT THAT PATH
+// (see {@link graphMembershipKey}), so the cache refreshes exactly when the compiler's input could have
+// moved. Cache MISS or a ts7 failure ⇒ undefined ⇒ touchesGraph falls back to the conservative "any
+// package-src runs the graph" rule (never under-runs the overlay). The heavy ts7 spawn happens ONCE per
+// key, not per file.
 const GRAPH_MEMBERSHIP_CACHE = "node_modules/.cache/graph-membership.json";
 const PKG_SRC_ABS_RE = /\/(packages\/[^/]+\/src\/.*\.(?:ts|tsx|mts|cts))$/u;
 
@@ -145,15 +146,73 @@ interface MembershipCache {
   readonly members: readonly string[];
 }
 
-/** A stable key for the graph's import closure: HEAD commit + a digest of `git status --porcelain` (the
- *  dirty working set). Cheap; recomputed each run, but the ts7 spawn only fires on a key change. */
-function graphMembershipKey(): string {
-  const head = runNicedSync("git", ["rev-parse", "HEAD"], { cwd: ROOT });
-  const dirty = runNicedSync("git", ["status", "--porcelain"], { cwd: ROOT });
+/** The two halves of "which paths can differ from HEAD's tree". `diff --name-only HEAD` covers the
+ *  TRACKED side (modifications, staged adds, deletions, and both sides of a rename); `ls-files --others`
+ *  covers the UNTRACKED side and lists FILES — `status --porcelain` collapses an all-untracked directory
+ *  to one `??` entry, and a directory has no bytes to digest. */
+const WORKING_TREE_DELTA_COMMANDS: readonly (readonly string[])[] = [
+  ["diff", "--name-only", "HEAD"],
+  ["ls-files", "--others", "--exclude-standard"],
+];
+
+interface WorkingTreeDelta {
+  /** Repo-relative paths whose content can differ from HEAD's tree, sorted (digest order must be stable). */
+  readonly paths: readonly string[];
+  /** The commands that FAILED. Folded into the key so a broken git can never mint a clean-tree key. */
+  readonly failures: readonly string[];
+}
+
+function workingTreeDelta(root: string): WorkingTreeDelta {
+  const paths = new Set<string>();
+  const failures: string[] = [];
+  for (const args of WORKING_TREE_DELTA_COMMANDS) {
+    const res = runNicedSync("git", args, { cwd: root });
+    if (res.status !== 0) {
+      failures.push(args.join(" "));
+      continue;
+    }
+    for (const line of res.stdout.split("\n")) {
+      const rel = line.trim();
+      if (rel !== "") {
+        paths.add(rel);
+      }
+    }
+  }
+  return { paths: [...paths].sort(), failures };
+}
+
+/** A stable key for the graph's import closure: the HEAD commit + a digest of the working tree's DELTA
+ *  from it — each dirty path AND THE SHA1 OF ITS CURRENT BYTES.
+ *
+ *  Hashing the BYTES is load-bearing, not belt-and-braces (#1264). Until 2026-09-02 the second half was a
+ *  digest of `git status --porcelain`, which is a list of PATHS AND STATUS CODES: two different working
+ *  trees with the same dirty path set mint the SAME key, so the cache served a membership set computed
+ *  from DIFFERENT bytes. On a clean tree that never bit — the digest is constant and HEAD alone
+ *  invalidates it on every commit — but a lane worktree keeps roughly one dirty path set for a whole
+ *  session, so the FIRST compute froze and every later edit rode a stale set. Measured on the unmodified
+ *  source: adding `import "@orb/ui/button"` to an already-dirty `tests/` file moved the graph from 7 to 34
+ *  ui src files (ts7 `--listFilesOnly`) while the key did not move at all, so `touchesGraph` answered
+ *  FALSE for a file the graph now contains — an UNDER-run of the overlay, the exact failure the cold-cache
+ *  fallback exists to prevent, and `types:graph` would have been skipped at a scoped tier.
+ *
+ *  `root` is a parameter (not just {@link ROOT}) so the key's content-sensitivity is provable against a
+ *  temp git repo instead of by mutating the checkout under test. */
+export function graphMembershipKey(root: string = ROOT): string {
+  const head = runNicedSync("git", ["rev-parse", "HEAD"], { cwd: root });
   const headSha = head.status === 0 ? head.stdout.trim() : "no-head";
-  const dirtyText = dirty.status === 0 ? dirty.stdout : "";
-  const dirtyDigest = createHash("sha1").update(dirtyText).digest("hex");
-  return `${headSha}:${dirtyDigest}`;
+  const delta = workingTreeDelta(root);
+  const digest = createHash("sha1");
+  for (const failure of delta.failures) {
+    digest.update(`!${failure}\n`);
+  }
+  for (const rel of delta.paths) {
+    const abs = join(root, rel);
+    // A path in the delta that is GONE (a deletion, or a rename's old side) has no bytes; its presence in
+    // the path list is already the signal, so the marker keeps the entry without a read.
+    const content = existsSync(abs) ? createHash("sha1").update(readFileSync(abs)).digest("hex") : "-";
+    digest.update(`${rel}\0${content}\n`);
+  }
+  return `${headSha}:${digest.digest("hex")}`;
 }
 
 /** Read the cached overlay set iff its key matches the current one, else undefined (miss/stale/corrupt). */
