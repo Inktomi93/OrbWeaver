@@ -20,7 +20,7 @@ export type {
 } from "./contract/stage.ts";
 // The `--theme` readiness gate (#1227) — the pure expectation/refusal halves plus the browser wait, so a
 // pin can drive the SHIPPED wait against a late-stamping page without a dev stack.
-export type { ThemeStampExpectation } from "./contract/theme-stamp.ts";
+export type { ThemeStampExpectation, ThemeStampReceipt } from "./contract/theme-stamp.ts";
 export type { Args, NetworkConditions, NetworkProfileName, SnapAction } from "./contract/types.ts";
 export type { DiffOutcome, SnapFailureSummary } from "./contract/verdict.ts";
 export { capEvalText } from "./lib/eval-text.ts";

@@ -14,6 +14,7 @@ import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
+import { SEED_THEME_VALUE_SETS } from "@orb/ui/tokens";
 import { afterAll, beforeAll, vi } from "vitest";
 import { expect, test } from "../../support/tool-fixtures.ts";
 import { scaledBudget } from "../_load-budget.ts";
@@ -35,16 +36,39 @@ const LIBRARY = [
   { id: "theme_00000000000000000000000003", name: "Light", isSeed: true },
 ];
 
+/** The seed palettes that OWN a generated `[data-theme]` block, from the one generated source the blocks
+ *  are emitted from. The page below applies the app's own rule (`dataThemeOf`) rather than a name list of
+ *  its own: Hearth is a seed too, and it stamps NOTHING because it IS the base `@theme` ramp. */
+const BLOCK_OWNING_SEEDS = Object.keys(SEED_THEME_VALUE_SETS);
+
 // The page reads the SAME batched GET the app's httpBatchLink sends (settings SECOND, so an element-0 patch
-// would fail this) and stamps the SELECTION it read onto <html> — the stand-in for the app's real chain
-// (use-selected-theme → getTheme → [data-theme]). data-app-ready satisfies snap's readiness wait.
+// would fail this), then runs THE APP'S OWN TWO-HOP CHAIN: the selection it read is resolved to its theme
+// ROW through a CHAINED `settings.getTheme` (use-selected-theme.ts), and only then does `[data-theme]` get
+// stamped — `dataThemeOf`'s rule, seed-and-owns-a-block, lowercased.
+//
+// THE ORDER IS THE CONTRACT, not decoration (#1227/#1250): the app HOLDS readiness across that chain (the
+// boot-critical read, #282) precisely so nothing samples the default palette in the gap, so `data-app-ready`
+// is set LAST here. Before this, the stub set readiness immediately and never stamped at all — which is why
+// snap's theme-stamp gate refused it: the fixture, not the gate, was the thing that had drifted from the app.
 const PAGE_HTML = `<!doctype html><html><body><main>stub</main><script>
+const BLOCK_OWNERS = ${JSON.stringify(BLOCK_OWNING_SEEDS)};
 fetch("/api/trpc/persona.list,settings.getUserSettings?batch=1&input=%7B%7D")
   .then((r) => r.json())
-  .then((body) => {
-    document.documentElement.dataset.selected = String(body[1].result.data.config.theme.selectedThemeId);
-    document.documentElement.dataset.density = String(body[1].result.data.config.appearance.density);
+  .then(async (body) => {
+    const config = body[1].result.data.config;
+    const selected = config.theme.selectedThemeId;
+    document.documentElement.dataset.selected = String(selected);
+    document.documentElement.dataset.density = String(config.appearance.density);
     document.documentElement.dataset.sibling = String(body[0].result.data.rows);
+    if (selected) {
+      const input = encodeURIComponent(JSON.stringify({ 0: { id: selected } }));
+      const rows = await fetch("/api/trpc/settings.getTheme?batch=1&input=" + input).then((r) => r.json());
+      const row = rows[0].result.data;
+      const stamp = row && row.isSeed ? String(row.name).toLowerCase() : null;
+      if (stamp && BLOCK_OWNERS.includes(stamp)) {
+        document.documentElement.setAttribute("data-theme", stamp);
+      }
+    }
     document.documentElement.setAttribute("data-app-ready", "");
   });
 </script></body></html>`;
@@ -53,6 +77,10 @@ let server: Server;
 let base = "";
 let mutations = 0;
 let listThemeReads = 0;
+/** The CHAINED row read the page makes, mirroring `use-selected-theme`. Counted separately from
+ *  `listThemeReads` on purpose: that counter is the receipt that the SHIM resolved the name by asking the
+ *  app, and a page that also read `listThemes` would silently launder it. */
+let getThemeReads = 0;
 
 beforeAll(async () => {
   server = createServer((req, res) => {
@@ -60,6 +88,13 @@ beforeAll(async () => {
     if (req.method !== "GET") {
       mutations += 1;
       res.writeHead(405).end();
+      return;
+    }
+    if (url.startsWith("/api/trpc/settings.getTheme")) {
+      getThemeReads += 1;
+      const row = LIBRARY.find((entry) => url.includes(entry.id)) ?? null;
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(JSON.stringify([{ result: { data: row } }]));
       return;
     }
     if (url.startsWith("/api/trpc/settings.listThemes")) {
@@ -131,6 +166,11 @@ test("--theme <name> flips the SELECTION the page reads, resolved against the ac
   // A sibling procedure of the same batch, and the appearance axis nobody named, are untouched.
   expect(light.stdout).toContain('\\"sibling\\":\\"2\\"');
   expect(light.stdout).toContain('\\"density\\":\\"comfortable\\"');
+  // …and the flip REACHED THE PAINT: the chained row read ran and the palette the shell selects on is the
+  // one that was asked for. A selection that never becomes a `[data-theme]` stamp is the #1227 defect — a
+  // run that samples the DEFAULT palette while reporting the theme on its RESULT line.
+  expect(getThemeReads).toBeGreaterThan(0);
+  expect(light.stdout).toContain('\\"theme\\":\\"light\\"');
 
   // NON-MUTATION: the stored selection is the one the origin still serves, and no write ever reached it.
   expect(STORED_THEME.selectedThemeId).toBe(HEARTH_ID);

@@ -212,7 +212,9 @@ export async function runLighthouseArm(session: ProbeSession, opts: Args, name: 
   if (refusal !== null) {
     return refusal;
   }
-  // @orb-gate-ignore caught-failure-ownership(empty:error): converted into the REFUSED outcome the caller prints as an INSTRUMENT ERROR and exits 2 on — a Lighthouse throw is never a finding about the app. Ends if the refused arm stops being read by ops/run.ts.
+  // A Lighthouse throw is never a finding about the app: it is converted into the REFUSED outcome the
+  // caller prints as an INSTRUMENT ERROR and exits 2 on. (No gate-ignore: the catch RETURNS a value
+  // carrying the caught binding, so caught-failure-ownership classifies it as owned and files nothing.)
   try {
     const receipt = await auditSettledPage(page, {
       device,

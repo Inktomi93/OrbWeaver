@@ -57,35 +57,49 @@ test("a LATE stamp is what the old immediate read missed, and what the shipped g
     // RED, reproduced: the sample the instrument used to take the moment readiness went up.
     expect(await page.locator("html").first().getAttribute("data-theme")).toBeNull();
 
-    const gap = await awaitThemeStamp(page, shimEvidence());
+    const receipt = await awaitThemeStamp(page, shimEvidence());
 
     // GREEN: the gate waited, so everything downstream samples the requested theme.
-    expect(gap).toBeNull();
+    expect(receipt.gap).toBeNull();
+    // …and it WAITED rather than getting lucky on the first read: the instrument's own poll count is the
+    // receipt, never the test's wall clock (#1252).
+    expect(receipt.polls).toBeGreaterThan(1);
     expect(await page.locator("html").first().getAttribute("data-theme")).toBe("light");
   });
 });
 
 test("a page that NEVER stamps is refused by name — not measured under a theme label", async () => {
   await withPage(NEVER_STAMPS_HTML, async (page) => {
-    const gap = await awaitThemeStamp(page, shimEvidence());
+    const { gap, polls } = await awaitThemeStamp(page, shimEvidence());
 
     expect(gap).not.toBeNull();
     expect(gap?.evidence).toContain("data-theme");
     expect(gap?.evidence).toContain("Light");
     expect(gap?.detail).toContain("was ABSENT");
     expect(gap?.detail).toContain("DEFAULT palette");
+    // The refusal is over a REAL population: it read the attribute repeatedly and every read came back
+    // absent. A refusal after zero reads would be an instrument failure wearing a finding's clothes.
+    expect(polls).toBeGreaterThan(1);
   });
 });
 
 test("an UNGATED theme arm never waits and never refuses — a custom theme stamps no html attribute", async () => {
   await withPage(NEVER_STAMPS_HTML, async (page) => {
-    const started = Date.now();
-    const gap = await awaitThemeStamp(page, shimEvidence({ source: "custom", name: "Neon" }));
+    const receipt = await awaitThemeStamp(page, shimEvidence({ source: "custom", name: "Neon" }));
 
-    expect(gap).toBeNull();
-    // The proof it did not silently burn the stamp budget on an arm it cannot judge.
-    expect(Date.now() - started).toBeLessThan(STAMP_DELAY_MS);
+    expect(receipt.gap).toBeNull();
+    // THE PROOF IT DID NOT BURN THE STAMP BUDGET on an arm it cannot judge — read off the instrument's own
+    // accounting, not off the clock. A wall-time assertion here would measure the box under lane load
+    // (Spine-Testing.md §3); `polls === 0` says the page was never touched, which is the actual claim.
+    expect(receipt.polls).toBe(0);
   });
+});
+
+test("a seed theme that owns no [data-theme] block (Hearth IS the base ramp) is UNGATED, never refused", () => {
+  const hearth = themeStampExpectation(shimEvidence({ name: "Hearth", id: "theme_hearth" }));
+
+  expect(hearth.kind).toBe("ungated");
+  expect(hearth.kind === "ungated" ? hearth.reason : "").toContain("owns no generated [data-theme] block");
 });
 
 test("the expectation names what it can and cannot predict, and says why", () => {

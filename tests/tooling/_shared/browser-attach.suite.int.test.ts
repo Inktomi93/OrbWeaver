@@ -63,9 +63,9 @@ async function launchDebuggable(profileDir: string): Promise<ProbeSession> {
 async function debuggingEndpoint(profileDir: string): Promise<string> {
   const file = join(profileDir, "DevToolsActivePort");
   for (let attempt = 0; attempt < DEBUG_PORT_ATTEMPTS; attempt += 1) {
-    // @orb-gate-ignore caught-failure-ownership(empty:catch): the file exists only after Chrome binds its
-    // ephemeral endpoint; the bounded loop owns the race and throws below when its budget expires. Ends if
-    // exhaustion stops throwing.
+    // The file exists only after Chrome binds its ephemeral endpoint; the bounded loop owns the race and
+    // throws below when its budget expires. (No gate-ignore: caught-failure-ownership's scanRoot is
+    // packages/*/src + tooling/src, so `tests/` carries no suppressible violation.)
     try {
       const [line] = (await readFile(file, "utf8")).split("\n");
       const port = Number(line);

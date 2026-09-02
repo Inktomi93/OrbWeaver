@@ -81,7 +81,7 @@ export async function capture(page: Page, opts: Args, plan: PagePlan, evidence: 
     // #1227: `data-app-ready` is not the whole readiness contract when a THEME was requested — the stamp
     // lands one settings hop later, and everything below (the drive queue, every capture, the shot) would
     // otherwise sample the default palette under a themed label.
-    outcome.themeStampGap = await awaitThemeStamp(page, evidence.settingsEvidence);
+    outcome.themeStampGap = (await awaitThemeStamp(page, evidence.settingsEvidence)).gap;
     if (opts.checkpoint) {
       // Raw string, not a function — the tooling program is DOM-less and carries no __orb ambient.
       await page.evaluate("window.__orb && window.__orb.resetEvidence()");
