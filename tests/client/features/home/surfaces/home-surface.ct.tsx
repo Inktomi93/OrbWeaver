@@ -13,10 +13,11 @@ import { pixelExtremaContrast } from "../../../../support/ct/pixel-contrast.ts";
 import { trpcHold } from "../../../../support/ct/route-trpc.ts";
 import { characterListResponder, makeCharacterSummary } from "../../character/fixtures.ts";
 // `CHAT_ROOM_ROUTES` is AMBIENT to every home mount in this file since #1126: the hearth tile warms the
-// room it offers (`usePrefetchRoom` — `chat.getChat` + `chat.listMessages` leave with the tile's mount, a
-// human reaction time ahead of the Resume click), so both keys are requested by any tree containing the
-// recents tile. Fed at their honest empty defaults, never left to `routeTrpc`'s null, so the warm-up runs
-// for real here instead of resolving a non-view.
+// room it offers (`usePrefetchRoom` — `chat.getChat` leaves with the tile's mount, a human reaction time
+// ahead of the Resume click), so the roster key is requested by any tree containing the recents tile. Fed
+// at its honest empty default, never left to `routeTrpc`'s null, so the warm-up runs for real here instead
+// of resolving a non-view. The map's `chat.listMessages` row rides along because the two are one feed —
+// the owner ruled that read is NOT warmed, so nothing here requests it.
 import { CHAT_ROOM_ROUTES, chatListResponder, makeChatSummary, makeSeatPortrait } from "../../chat/fixtures.ts";
 import { READY_DOC, stubDatabank } from "../../databank/fixtures.ts";
 import {

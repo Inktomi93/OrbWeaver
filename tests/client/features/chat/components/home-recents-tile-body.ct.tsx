@@ -9,10 +9,11 @@
 // asserted against the shell STORE, never a rendered echo.
 //
 // `CHAT_ROOM_ROUTES` is AMBIENT to every mount here since #1126: the hearth tile WARMS the room it offers
-// (`usePrefetchRoom` — the room's own suspending pair, `chat.getChat` + `chat.listMessages`, leaves with
-// the tile's mount rather than with the Resume click), so both keys are requested by every tree in this
-// file. Fed at their honest empty defaults so the warm-up runs for real instead of resolving routeTrpc's
-// null; the last test in the file is the one whose SUBJECT they are.
+// (`usePrefetchRoom` — `chat.getChat` leaves with the tile's MOUNT rather than with the Resume click), so
+// the roster key is requested by every tree in this file. Fed at its honest empty default so the warm-up
+// runs for real instead of resolving routeTrpc's null; the last test in the file is the one whose SUBJECT
+// it is. The map's `chat.listMessages` row rides along because the two are one feed — the owner ruled that
+// read is NOT warmed (`use-prefetch-room.ts` carries the numbers), so nothing here requests it.
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import { routeTrpc, trpcHold } from "../../../../support/ct/route-trpc.ts";
@@ -693,9 +694,16 @@ test.describe("the hero's action row at a phone width", () => {
 // a roster to draw. Measured on the live stack: the strip settles at 40px and the room stack's gap is
 // 12px (40 + 12 = the reported shift), and a SECOND Resume in the same browser lifetime — same click,
 // warm cache — records no layout shift at all. So the defect is the COLD CACHE, not the layout.
-// Asserted at the NETWORK seam, which is the one place a warm-up is observable: the two keys the room
-// suspends on must have left the client on the hero's MOUNT, before anybody clicks anything.
-test("#1126 the hero warms the room's own suspending reads on mount, before the Resume click", async ({ mount, page }) => {
+// Asserted at the NETWORK seam, which is the one place a warm-up is observable: the roster key must have
+// left the client on the hero's MOUNT, before anybody clicks anything.
+//
+// THE ROSTER READ ONLY (owner ruling 2026-09-02) — `chat.listMessages` is deliberately NOT warmed, so the
+// room keeps its skeleton phase and the click keeps its cost. The both-reads arm was built and measured:
+// it roughly halves aggregate blocking but moves the transcript render into the click step (rafGap
+// 217/333/383ms -> 467/700/683ms), and the owner refused that trade. `use-prefetch-room.ts` carries the
+// numbers; this file's `CHAT_ROOM_ROUTES` feed keeps `chat.listMessages` stubbed either way, because the
+// ROOM still reads it whenever a mount here renders one.
+test("#1126 the hero warms the room's roster read on mount, before the Resume click", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([RECENT, OLDER]) });
 
   const home = await mount(<ChatRecentsPairStory />);
@@ -706,5 +714,4 @@ test("#1126 the hero warms the room's own suspending reads on mount, before the 
   // about to open, and warming eight of them would spend this surface's own connection budget on a bet
   // nobody placed; a `[{chat_recent}, {chat_older}, …]` array simply never equals this one.
   await expect.poll(() => trpc.inputs("chat.getChat")).toEqual([{ chatId: "chat_recent" }]);
-  await expect.poll(() => trpc.inputs("chat.listMessages")).toEqual([{ chatId: "chat_recent" }]);
 });
