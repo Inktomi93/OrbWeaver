@@ -11158,9 +11158,9 @@
       "path": "docs/design/983-984-ui-audit-population-semantics.md",
       "lane": "design",
       "issue": 5,
-      "lines": 574,
-      "bytes": 43730,
-      "sha256": "9baa86f24e35035d916c418f2c3605a2b5062af9cda260c5c58a353d694d52b3",
+      "lines": 581,
+      "bytes": 44330,
+      "sha256": "5f4447630827e5f7d27938a5d8be2108222f85143484f8a693f45cf6a1fd5a96",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -11177,8 +11177,8 @@
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "9baa86f24e35035d916c418f2c3605a2b5062af9cda260c5c58a353d694d52b3",
-        "verifiedCommit": "7ff42cde92011ed33fbe3877c942a359b7457bcc",
+        "verifiedSha256": "5f4447630827e5f7d27938a5d8be2108222f85143484f8a693f45cf6a1fd5a96",
+        "verifiedCommit": "70b9c67a1f539f08a3c2b531d3799e4e89d05acc",
         "verifiedAt": "2026-09-02",
         "evidence": [
           "re-attested at 95c4f97a5 (#1068, lane p-quiet-cohorts): the quiet-state amendment — the backdrop partition resolves above every state carrier in the subject's chain (it was restating the ON/OFF axis on switches and selected rows); fill-less cohorts excluded(noOwnFill) vs partially fill-less withheld(unresolved); :208 survives verbatim; characters driven + settings:appearance reach complete",
@@ -11187,7 +11187,8 @@
           "git:36c6a9101c0f00a2e27c3a487defdbb2a4c13a67 (#989 F1/F3 repair; F2 correctly refused after its live singleton premise was refuted)",
           "pnpm test:scoped tests/tooling/ui-audit --maxWorkers=4 (12/12 files, 250/250 tests, zero type errors); graph types and error-level Biome green",
           "cold Config receipts embedded in the design: default exit 1 complete; Appearance at 1280x800 and 1280x2000 exit 2 with invariant obscured unaskable=0 and two real #987 withholding cohorts",
-          "re-attested at 7ff42cde9 — #1122 fold (a87e241f7): the population-law section gains the surface-state axes' proven-exclusion paragraph (the published `data-panel-available` declaration, `sectionDeclaresNoPane`/`sectionDeclaresNoPanes`, the tri-state refusal, and `excluded` printed as its own RESULT label with NO-VERDICT reserved for WITHHELD). Delta read once against the live receipt taken on Home and Characters after the fold; no other section moved."
+          "re-attested at 7ff42cde9 — #1122 fold (a87e241f7): the population-law section gains the surface-state axes' proven-exclusion paragraph (the published `data-panel-available` declaration, `sectionDeclaresNoPane`/`sectionDeclaresNoPanes`, the tri-state refusal, and `excluded` printed as its own RESULT label with NO-VERDICT reserved for WITHHELD). Delta read once against the live receipt taken on Home and Characters after the fold; no other section moved.",
+          "re-attested at 70b9c67a1 — #1156 fold (4290cb23f): the population-law section gains off-grid-text's closed reason set (excluded srOnly/readingSurface/snapped · withheld srOnlyUnreadable/unmeasurable; one tri-state in-page predicate; candidates unchanged by the exclusion). Delta read once against the live driven Characters receipt (54/35/10 → 54/33/9, excluded(srOnly=4))."
         ],
         "summary": "Implemented #983/#984/#987/#989 authored UI-audit populations with re-centred obscuration evidence, grouped typography repairs, exact settled accounting, bounded representatives, and fail-loud partial-population verdicts.",
         "claims": [
