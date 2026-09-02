@@ -67,7 +67,10 @@ test("every lifecycle verb is batched — the id payload is a LIST on every arm"
 test("the DoD payloads live on exactly the arms that carry them", () => {
   expectTypeOf<Extract<WorkCommand, { kind: "file" }>["dod"]>().toEqualTypeOf<string | null>();
   expectTypeOf<Extract<WorkCommand, { kind: "refute" }>["dod"]>().toEqualTypeOf<string | null>();
-  expectTypeOf<Extract<WorkCommand, { kind: "dod" }>["command"]>().toEqualTypeOf<string>();
+  // null = the ADOPT form (#923 P5): the bar comes from the row's own body, red-first per row.
+  expectTypeOf<Extract<WorkCommand, { kind: "dod" }>["command"]>().toEqualTypeOf<string | null>();
+  // `set` batches PAIRS (#923 P1) — a refactor back to a single {field,value} re-taxes every multi-field edit.
+  expectTypeOf<Extract<WorkCommand, { kind: "set" }>["assignments"]>().toEqualTypeOf<readonly { readonly name: string; readonly value: string }[]>();
   expectTypeOf<Extract<WorkCommand, { kind: "done" }>["override"]>().toEqualTypeOf<string | null>();
   expectTypeOf<Extract<WorkCommand, { kind: "land" }>["override"]>().toEqualTypeOf<string | null>();
   // @ts-expect-error — `verify` carries no override; only the closing verbs may record one.

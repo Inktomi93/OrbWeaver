@@ -30,6 +30,12 @@ test("extract is two-sided: no block is null, two blocks refuse, an empty block 
   expect(extractDod("a body with no bar")).toBe(null);
   expect(() => extractDod(`${buildDodBlock("exit 1")}\n\n${buildDodBlock("exit 2")}`)).toThrow("more than one");
   expect(() => extractDod("```dod\n\n```")).toThrow("empty");
+  // GitHub's empty-optional-form marker reads as ABSENT (#923 P5) — a form-filed row with a blank DoD
+  // textarea must stay closable, and upsert still REPLACES that fence instead of appending a second.
+  expect(extractDod("```dod\n_No response_\n```")).toBe(null);
+  const replaced = upsertDodBlock("```dod\n_No response_\n```", "exit 1");
+  expect(extractDod(replaced)).toBe("exit 1");
+  expect(replaced.match(/```dod/gu) ?? []).toHaveLength(1);
 });
 
 test("upsert replaces the one existing block in place and appends when none exists", () => {

@@ -151,28 +151,40 @@ and not-attempted rows.
    NOTHING), and `encodeWrite`'s refusal appends the valid member list so the fix needs no probe
    call. Zero added calls on the warm-cache path.
 
-## §Proposals (structural — owner picks; not built here)
+## §Proposals — owner ruling 2026-09-01: P1/P2/P3/P5 APPROVED and built (second commit); P4 DEFERRED
 
-- **P1 Multi-field `set`.** `set` was the census's most-called verb (1,502). `file` collapsed ingress
-  metadata, but every mid-life edit is still one call per field even though `writeFields` batches N
-  changes into one request. Sketch: `set <n…> <field> <value> [<field> <value>…]` — parse pairs,
-  one batched write. Cost: the `set` arm's pinned shape changes (`{field,value}` → a list; test-d +
-  two cli pins update); medium-small. Benefit: the second-largest remaining call sink.
-- **P2 Evidence overflow auto-comment.** The 1024 cap refuses and tells the operator to post a
-  comment + short receipt — two manual steps. Sketch: over-cap `--evidence` auto-posts the full text
-  as a comment and writes `<head>… (full receipt in comment)` to the field, in the SAME invocation.
-  Cost: the verify/done same-receipt exact-match rule must apply the identical transform on both
-  sides or `done` false-refuses; small but contract-touching.
-- **P3 `--body -` (stdin) for `file`/`create`.** Multi-line bodies today force a scratch file per
-  row (lane-unique naming tax, teardown). Reading stdin is a few lines and removes a whole scratch
-  ritual. Small.
-- **P4 Done-archive sweep.** Done rows accumulate forever; every `list`/`overview` pages through
-  them (the \~250KB dump class). GitHub has `archiveProjectV2Item`. Sketch: `work:item archive [--done-before <date>]`, orchestrator-run at drains. Changes board semantics (archived items leave
-  the default view) — owner call. Small-medium.
-- **P5 Issue-form DoD section.** `.github/ISSUE_TEMPLATE/*.yml` (owner territory) could carry an
-  optional "Definition of Done" textarea whose content `file`-time tooling lifts into the fenced
-  block — ingress forms and the tool would then agree on one spelling. Small, but touches owner-owned
-  forms.
+The four approved proposals landed in this lane's second commit, on the shapes below with these
+resolutions:
+
+- **P1 built:** `set <n…> <field> <value> [<field> <value>…]` — pairs, one batched `writeFields`
+  mutation per row; a lifecycle-controlled field anywhere in the list refuses the whole call.
+- **P2 built:** the over-column transform is ONE pure function (`lib/evidence.ts` `evidenceText`)
+  shared by every Evidence writer (verify/reverify/refute) AND by done's same-receipt match — the
+  field gets a deterministic head + `[full receipt in issue comment <hash8>]` pointer, the full text
+  posts once through `postCommentOnce`, and only a 60k hard cap (GitHub's comment limit) still
+  refuses, at parse.
+- **P3 built:** `--body-file -` reads stdin on `file` and `create` (composes with `--dod`).
+- **P5 built:** `bug.yml`/`work-item.yml` gain an optional `render: dod` textarea, and bare
+  `work:item dod <n…>` ADOPTS the body's unminted block — red-first per row, stamp-only (no body
+  rewrite). A fence containing GitHub's `_No response_` empty-form marker reads as ABSENT everywhere
+  (or every form-filed row with a blank DoD textarea would be unclosable), and `upsertDodBlock` keys
+  on fence presence so a re-mint REPLACES such a fence instead of appending a second.
+- Ride-along with the approvals: the DoD-field-missing refusal now appends the one-time deployment
+  step (add a TEXT field named `DoD` to Project 1) — kept even though the live board's field was
+  created 2026-09-01, for fresh clones of the pattern.
+
+## §Proposals (remaining — deferred, owner picks)
+
+- **P4 Done-archive sweep (DEFERRED 2026-09-01 pending this priced sketch).** Done rows accumulate
+  forever; every `list`/`overview` pages through them (the \~250KB dump class). GitHub has
+  `archiveProjectV2Item`. Sketch: `work:item archive [--done-before <date>]` — enumerate via the
+  existing `listItems`, filter Status=Done (+ closed issue state) older than the cutoff, one archive
+  mutation per item, printed as a named receipt (`archived #a #b #c`). Orchestrator-run at drains,
+  never automatic at `done` (a just-closed row should stay visible through the train's verify
+  window). Cost: one new verb + one mutation document + a fake-gh arm, small-medium; the real
+  decision is board SEMANTICS — archived items leave the default Project views, so `overview`'s
+  "Done (N)" count would stop counting all-time closes unless the verb also prints a running total.
+  Reversible per item (`unarchiveProjectV2Item`).
 
 ## Memory lessons consulted (by filename)
 

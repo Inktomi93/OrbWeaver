@@ -2127,6 +2127,7 @@
     "tests/tooling/wire-tap/cli.int.test.ts",
     "tests/tooling/workboard/cli.test.ts",
     "tests/tooling/workboard/lib/dod.test.ts",
+    "tests/tooling/workboard/lib/evidence.test.ts",
     "tests/tooling/worktree-bootstrap.int.test.ts",
     "tests/ui/art/art-bleed/art-bleed.ct.tsx",
     "tests/ui/art/web-weave/weave-veil.ct.tsx",

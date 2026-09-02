@@ -10,9 +10,10 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { Issue, LifecycleCommand, WorkCommand, WorkItemContext } from "../contract/types.ts";
+import { evidenceText } from "../lib/evidence.ts";
 import { INGRESS_LABELS, REPOSITORY, REQUIRED_READY_METADATA, TERMINAL_DISPOSITIONS } from "../lib/vocab.ts";
 import { currentValue } from "../lib/writes.ts";
-import { enforceDodAtClose, writeDod } from "./dod.ts";
+import { adoptDod, enforceDodAtClose, writeDod } from "./dod.ts";
 import { gh } from "./gh.ts";
 import {
   blockerIssueId,
@@ -106,20 +107,36 @@ function review(work: WorkItemContext): void {
   transitionStatusLast(work.item, "Review", []);
 }
 
+/** Every Evidence WRITER routes through the one pure transform (#923 P2): an over-column receipt lands
+ *  whole as an issue comment while the field carries the deterministic head + pointer — so done's
+ *  same-receipt match recomputes the identical field text from the identical --evidence. */
+function writeEvidence(work: WorkItemContext, evidence: string, transition: string | null): string {
+  const text = evidenceText(evidence);
+  if (text.overflow !== null) {
+    postCommentOnce(work, text.overflow);
+  }
+  if (transition === null) {
+    writeFields(work.item, [{ name: "Evidence", value: text.field }], "WorkItemFields");
+  } else {
+    transitionStatusLast(work.item, transition, [{ name: "Evidence", value: text.field }]);
+  }
+  return text.field;
+}
+
 function verify(work: WorkItemContext, evidence: string): void {
   requireStatus(work, ["Review", "Verify"], "work item must be Review before Verify");
   requireUnblocked(work.target, "work item cannot be verified while blocked");
   const currentEvidence = currentValue(work.item, "Evidence");
-  if (currentValue(work.item, "Status")?.toLowerCase() === "verify" && currentEvidence !== undefined && currentEvidence !== evidence) {
+  if (currentValue(work.item, "Status")?.toLowerCase() === "verify" && currentEvidence !== undefined && currentEvidence !== evidenceText(evidence).field) {
     throw new Error("work item is already Verify with different Evidence");
   }
-  transitionStatusLast(work.item, "Verify", [{ name: "Evidence", value: evidence }]);
+  writeEvidence(work, evidence, "Verify");
 }
 
 function reverify(work: WorkItemContext, evidence: string): void {
   requireStatus(work, ["Verify"], "work item must already be Verify before Evidence can be replaced");
   requireUnblocked(work.target, "work item cannot be reverified while blocked");
-  writeFields(work.item, [{ name: "Evidence", value: evidence }], "WorkItemFields");
+  writeEvidence(work, evidence, null);
 }
 
 /** A verification that FAILED: the row's outcome stands, but its implementation is claimable for
@@ -128,7 +145,7 @@ function reverify(work: WorkItemContext, evidence: string): void {
  *  with the same evidence converges without complaint. */
 function refute(work: WorkItemContext, evidence: string): void {
   requireStatus(work, ["Verify", "Ready"], "work item must be Verify before refute");
-  transitionStatusLast(work.item, "Ready", [{ name: "Evidence", value: evidence }]);
+  writeEvidence(work, evidence, "Ready");
 }
 
 /** Idempotent by BODY: a rerun after a partial failure must not double-post. The dedup is what makes
@@ -142,7 +159,9 @@ function postCommentOnce(work: WorkItemContext, body: string): void {
 function done(work: WorkItemContext, evidence: string, override: string | null): void {
   requireStatus(work, ["Verify", "Done"], "work item must be Verify before Done");
   requireUnblocked(work.target, "work item cannot be Done while blocked");
-  if (currentValue(work.item, "Evidence")?.trim() !== evidence) {
+  // The same-receipt rule compares against the TRANSFORMED field text (#923 P2) — verify wrote it
+  // through the identical pure transform, so an over-column receipt still matches by construction.
+  if (currentValue(work.item, "Evidence")?.trim() !== evidenceText(evidence).field.trim()) {
     throw new Error("work item Evidence must match --evidence before Done");
   }
   // The DoD gate (#923): runs before the Status write, skipped when Status is ALREADY Done — the only
@@ -155,7 +174,7 @@ function done(work: WorkItemContext, evidence: string, override: string | null):
       postCommentOnce(work, overrideComment);
     }
   }
-  postCommentOnce(work, `Verification evidence: ${evidence}`);
+  postCommentOnce(work, `Verification evidence: ${evidenceText(evidence).field}`);
   setField(work.item, "Status", "Done");
   if (work.target.state !== "CLOSED") {
     gh(["issue", "close", String(work.target.number), "--repo", REPOSITORY, "--reason", "completed"]);
@@ -232,7 +251,9 @@ function runOneLifecycle(command: LifecycleCommand, issue: number): number {
       needsOwner(work);
       break;
     case "set":
-      setField(work.item, command.field, command.value);
+      // N assignments, ONE batched mutation (#923 P1) — writeFields already aliases them into a
+      // single request; the lifecycle-field guard ran at parse.
+      writeFields(work.item, command.assignments, "WorkItemFields");
       break;
     case "verify":
       verify(work, command.evidence);
@@ -252,7 +273,11 @@ function runOneLifecycle(command: LifecycleCommand, issue: number): number {
       refute(work, command.evidence);
       break;
     case "dod":
-      writeDod(work, command.command);
+      if (command.command === null) {
+        adoptDod(work);
+      } else {
+        writeDod(work, command.command);
+      }
       break;
     case "park":
       transitionStatusLast(work.item, "Parked", [

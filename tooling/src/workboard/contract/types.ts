@@ -68,7 +68,9 @@ export interface IssueClassConfig {
 export type LifecycleCommand =
   | { readonly kind: "claim"; readonly issues: readonly number[]; readonly lane: string }
   | { readonly kind: "ready" | "review" | "needs-owner"; readonly issues: readonly number[] }
-  | { readonly kind: "set"; readonly issues: readonly number[]; readonly field: string; readonly value: string }
+  /** `set` takes PAIRS (#923 P1 — the census's most-called verb at 1,502 single-field calls): N
+   *  name/value assignments land as ONE batched field mutation per row. */
+  | { readonly kind: "set"; readonly issues: readonly number[]; readonly assignments: readonly { readonly name: string; readonly value: string }[] }
   | { readonly kind: "verify" | "reverify"; readonly issues: readonly number[]; readonly evidence: string }
   /** `done` gains the LOUD override (#923): `override` is the `--force-close --reason` text — it skips
    *  the DoD run, records the reason + the overridden command as an issue comment, and closes. Null =
@@ -78,8 +80,9 @@ export type LifecycleCommand =
    *  Ready — red-first is satisfied by the very failure being reported (#923). */
   | { readonly kind: "refute"; readonly issues: readonly number[]; readonly evidence: string; readonly dod: string | null }
   /** Re-mint (or first-mint) a row's DoD: red-first run, body-block upsert, Project stamp — the ONLY
-   *  writer of the DoD field besides `file --dod` (`set` refuses it). */
-  | { readonly kind: "dod"; readonly issues: readonly number[]; readonly command: string }
+   *  writer of the DoD field besides `file --dod` (`set` refuses it). `command` null = ADOPT the body's
+   *  existing block (#923 P5 — the issue-form ingress), red-first, stamping without a body write. */
+  | { readonly kind: "dod"; readonly issues: readonly number[]; readonly command: string | null }
   | { readonly kind: "park"; readonly issues: readonly number[]; readonly wake: string }
   | { readonly kind: "block"; readonly issues: readonly number[]; readonly blocker: number }
   | { readonly kind: "unblock"; readonly issues: readonly number[]; readonly blocker: number }
