@@ -369,16 +369,42 @@ export interface ConfigTeachDoor {
   readonly open: () => void;
 }
 
-/** The focused LEAF's value seam, projected for the About tab (§3.4 row chrome, #866): raw stored values
- *  (`unknown` — the teacher formats), the `@modified` verdict at leaf grain, and the pre-bound Reset —
- *  the COARSE pointer's one path to it (the row menu is fine-pointer chrome). `null` on the view ⇒ the
- *  focused subject has no per-leaf binding (a section, a group, a composite row) and About teaches
- *  without the block. */
+/** The focused LEAF's value seam, projected for the About tab (§3.4 row chrome, #866): the `@modified`
+ *  verdict at leaf grain and the pre-bound Reset — the COARSE pointer's one path to it (the row menu is
+ *  fine-pointer chrome). `null` on the view ⇒ the focused subject has no per-leaf binding (a section, a
+ *  group, a composite row) and About teaches without the block.
+ *
+ *  `current`/`defaultValue` ARE DISPLAY STRINGS, NOT THE STORED VALUES (#1099 F15): they were raw `unknown`s
+ *  the teacher formatted, and the teacher cannot reach a control's option table — so the pane printed
+ *  "Using the default — md." beside a control reading "Medium". This file's law already said the host
+ *  flattens to display data; the value block was the one place that did not. The MODIFIED verdict and the
+ *  Reset write still run on the RAW values host-side, so a label can never decide what gets written. */
 export interface ConfigTeachValue {
-  readonly current: unknown;
-  readonly defaultValue: unknown;
+  readonly current: string;
+  readonly defaultValue: string;
   readonly modified: boolean;
   readonly reset: () => void;
+}
+
+/** ONE ROW OF THE TEACHER'S ROSTER (#926, the owner's PS5 ruling: "the teacher pane lists info about the
+ *  settings that you can currently SEE, and when you scroll down … it changes the number of items"). One
+ *  entry per setting row intersecting the CONTENT viewport, already flattened: the leaf's registry label,
+ *  its one-line gloss, and its value in the control's own display words.
+ *
+ *  IT CARRIES NO DOOR, deliberately — the context pane is never navigation (`UI-Architecture-and-Layout.md`
+ *  §4.2, #1101): a roster entry that scrolled its row into view would be the LIST's job restated 900px to
+ *  its right, which is the exact duplicate-door defect the jump list was deleted for. */
+export interface ConfigRosterEntry {
+  /** `sub/setting` — the address, stable across a re-derive, and the React key. */
+  readonly id: string;
+  readonly label: string;
+  /** The SAME first sentence the row's own `Field.Description` renders, so roster and row cannot disagree.
+   *  `null` for a `{none}` leaf: it opted out of teaching but is still IN VIEW, and a roster that dropped it
+   *  would lie about the count the owner's ruling is written in terms of. */
+  readonly gloss: string | null;
+  /** The value in the control's display words, or `null` when the leaf has no bound `key`. */
+  readonly value: string | null;
+  readonly modified: boolean;
 }
 
 /** The RESOLVED lesson the Config context pane teaches (§7.2) — the focused leaf's teach, its section's,
@@ -400,6 +426,14 @@ export interface ConfigTeachView {
   readonly value: ConfigTeachValue | null;
 }
 
+/** The Config teacher's tab-id VOCABULARY — homed beside `CHAT_CONTEXT_TAB_IDS` for the same reason and by
+ *  the same gate (a feature `lib/` is not a type home). `config-teacher-tabs.tsx` keeps the DEFS and pairs
+ *  them with this axis through a TOTAL `Record`, so a fourth tab fails `tsc` there until someone writes its
+ *  def AND its applicability `when` — it can never default to permanently visible, which is how the Applies
+ *  cell survived 107 empty states (#926). */
+export const CONFIG_TEACHER_TAB_IDS = ["config.about", "config.applies", "config.learn"] as const;
+export type ConfigTeacherTabId = (typeof CONFIG_TEACHER_TAB_IDS)[number];
+
 /** The Config CONTEXT-panel state projection (O5 strict — the `defineContextTabs<ConfigContextState>`
  *  anchor, #866 S3). `member` is the OPEN collection member's arm: while present the Applies tab renders
  *  it (a member's "where it's attached" IS its applies answer) and the head band names the member;
@@ -408,4 +442,9 @@ export interface ConfigTeachView {
 export interface ConfigContextState {
   readonly teach: ConfigTeachView;
   readonly member: { readonly title: string; readonly body: () => ReactNode } | null;
+  /** THE AT-REST BODY (#926): the settings currently in the reader's viewport. Non-empty ⇒ About renders
+   *  the ROSTER; EMPTY ⇒ About renders `teach` — which is every drilled state (a focused row's own lesson),
+   *  every open member, and the honest fallback for a section that renders no leaf rows at all (a jobs
+   *  table, a collection roster). One field, one rule, and the render stays state-blind. */
+  readonly roster: readonly ConfigRosterEntry[];
 }

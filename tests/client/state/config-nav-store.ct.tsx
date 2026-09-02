@@ -4,7 +4,8 @@
 //
 // What it pins: `openConfigTo` is the ONE deep-link intent for every kind of group (a settings group, a
 // section inside it, a leaf, a COLLECTION) and it arrives with the rail switched, the group EXPANDED and any
-// stale member selection cleared; a LIST band click names the FIRST section current immediately (#549 — the
+// stale member selection cleared; the spy's ONE write carries both the section and the VISIBLE ROWS (#926,
+// the teacher roster's population), coalescing an identical membership and leaving the section on request; a LIST band click names the FIRST section current immediately (#549 — the
 // row lights before the suppressed spy re-arms); the spy's write never moves the group; a repeated request
 // mints a NEW landing (the nonce); and the EFFECTIVE active group is a derivation — an open member's kind
 // wins over the explicitly activated group, which is what lets every owner's create hook stay one write.
@@ -34,6 +35,38 @@ test("openConfigTo(group, sub, setting) carries the section AND the leaf into th
 
   await probe.getByRole("button", { name: "open prose leaf" }).click();
   await expect(state).toContainText("group=chat-behavior seam=chat-behavior sub=prose target=chat-behavior/prose/prose-arbiter#");
+});
+
+// ONE PASS, ONE REPORT (#926): the spy's write carries the section crossing its line AND the rows the
+// reader can SEE, in one commit, so the LIST's lit row and the teacher's roster cannot disagree by a frame.
+test("setActiveConfigSub reports the viewport's rows too — identical membership is a no-op, and `undefined` leaves the section", async ({ mount }) => {
+  const probe = await mount(<ConfigNavProbe />);
+  const state = probe.locator("output");
+  await probe.getByRole("button", { name: "reset nav" }).click();
+  await expect(state).toContainText("visible=none");
+
+  await probe.getByRole("button", { name: "spy visible two", exact: true }).click();
+  await expect(state).toContainText("visible=jobs/poll+jobs/retries");
+
+  // A FRESH ARRAY WITH THE SAME MEMBERSHIP MUST NOT PUBLISH. The spy recomputes on every rAF of a scroll,
+  // so an identity-only change would re-render the teacher per pixel; the store compares membership.
+  await probe.getByRole("button", { name: "spy visible two again" }).click();
+  await expect(state).toContainText("visible=jobs/poll+jobs/retries");
+
+  // A REAL change does publish — the count tracking the viewport is the whole ruling.
+  await probe.getByRole("button", { name: "spy visible one" }).click();
+  await expect(state).toContainText("visible=jobs/retries");
+
+  // THE LEAVE ARM: rows reported with `undefined` change the roster and leave the section standing — the
+  // jump's named answer outranks the spy's guess, which is why a waited tick may report only the rows.
+  await expect(state).toContainText("sub=jobs");
+  await probe.getByRole("button", { name: "spy visible only" }).click();
+  await expect(state).toContainText("visible=jobs/poll");
+  await expect(state).toContainText("sub=jobs");
+
+  // And a navigation to the welcome drops it with the rest of the nav facts.
+  await probe.getByRole("button", { name: "clear group" }).click();
+  await expect(state).toContainText("visible=none");
 });
 
 test("a repeated request is a NEW landing — the nonce advances", async ({ mount }) => {

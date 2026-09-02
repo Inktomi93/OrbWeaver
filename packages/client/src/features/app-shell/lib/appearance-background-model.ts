@@ -5,6 +5,7 @@
 
 import { APPEARANCE_OWNER_KEYS } from "#lib";
 import type { ConfigSubcategory } from "#state";
+import { BACKGROUND_FIT_ITEMS } from "./appearance-select-items.ts";
 
 export const APPEARANCE_BACKGROUND_SUBCATEGORY: ConfigSubcategory = {
   id: "background",
@@ -24,6 +25,7 @@ export const APPEARANCE_BACKGROUND_SUBCATEGORY: ConfigSubcategory = {
     {
       id: "background-fit",
       key: "backgroundFit",
+      options: BACKGROUND_FIT_ITEMS,
       label: "Fit",
       keywords: ["cover", "contain", "stretch"],
       teach: {

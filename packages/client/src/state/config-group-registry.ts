@@ -68,6 +68,22 @@ export function isTeachNone(decl: SettingTeachDecl): decl is { readonly none: st
   return "none" in decl;
 }
 
+/** One labelled option of an enum-valued leaf — structurally the row a `SelectOption`/picker cell already
+ *  is, DECLARED here so `#state` owns no UI type and the teacher never learns what a Select is.
+ *
+ *  IT IS A REFERENCE, NEVER A SECOND TABLE (#1099 F15): the leaf points at the SAME items array its visible
+ *  control renders, so the pane and the control cannot drift. A hand-written twin map here would be exactly
+ *  the drift the teacher law exists to prevent — the defect was the pane printing the WIRE value ("md.")
+ *  under a control reading "Medium", and a duplicate map fixes it once and rots on the next option.
+ *
+ *  NOT EXPORTED, deliberately: a leaf author never names it (they hand over their control's items array),
+ *  and the teacher names it as `ConfigSettingLeaf["options"]` — the indexed access says "whatever a leaf
+ *  declares", which is the truer statement anyway and keeps `state/index.ts` at its 450-line cap. */
+interface ConfigSettingOption {
+  readonly value: string;
+  readonly label: string;
+}
+
 /** One searchable/jumpable setting inside a subcategory — the leaf of the config search index. */
 export interface ConfigSettingLeaf {
   readonly id: string;
@@ -85,6 +101,12 @@ export interface ConfigSettingLeaf {
    *  no per-leaf value chrome (a composite row, a CRUD list, an app-tier section) — the modified stripe,
    *  the row menu's Reset, and About's default-vs-current all key on this. */
   readonly key?: string;
+  /** The leaf's OPTION TABLE, when its control is a chooser — the same array the control renders. The
+   *  teacher resolves `key`'s stored value through it, so the roster and About print the control's own
+   *  display words. Absent = the value is not an enum (a boolean, a number, free text) and the honest
+   *  fallbacks apply (On/Off · None · the number). An option-LIST value (an array key, `blurSurfaces`)
+   *  maps every member through the same table. */
+  readonly options?: readonly ConfigSettingOption[];
 }
 
 /** A subcategory = one anchored section inside a group; each stamps a stable anchor node the spy reads and

@@ -9,8 +9,9 @@
 // id is unchanged (§7.1); every absorbed search LEAF travels here intact (§7.2), so a fuzzy jump for "reduce motion"
 // or "density" still lands on a real anchor.
 
-import { APPEARANCE_OWNER_KEYS } from "#lib";
+import { APPEARANCE_OWNER_KEYS, DENSITY_ITEMS } from "#lib";
 import type { ConfigSubcategory } from "#state";
+import { ELEVATION_ITEMS } from "./appearance-select-items.ts";
 
 export const APPEARANCE_SIZING_SUBCATEGORY: ConfigSubcategory = {
   id: "sizing",
@@ -41,6 +42,7 @@ export const APPEARANCE_SIZING_SUBCATEGORY: ConfigSubcategory = {
       id: "density",
       key: "density",
       label: "Density",
+      options: DENSITY_ITEMS,
       keywords: ["compact", "comfortable", "spacing"],
       teach: {
         summary: "Compact tightens spacing throughout the app; Comfortable keeps the default breathing room.",
@@ -51,6 +53,7 @@ export const APPEARANCE_SIZING_SUBCATEGORY: ConfigSubcategory = {
       id: "elevation",
       key: "elevation",
       label: "Surface elevation",
+      options: ELEVATION_ITEMS,
       keywords: ["layered", "depth", "shadow", "flat"],
       teach: {
         summary: "Layered lifts the panels and content into a brightness ladder and drops the region borders; Flat keeps one tone with hairlines.",

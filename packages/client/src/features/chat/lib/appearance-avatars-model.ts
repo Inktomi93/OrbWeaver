@@ -6,6 +6,7 @@
 
 import { APPEARANCE_OWNER_KEYS } from "#lib";
 import type { ConfigSubcategory } from "#state";
+import { AVATAR_ASPECT_ITEMS, AVATAR_RING_ITEMS, AVATAR_SHAPE_ITEMS, AVATAR_SIZE_ITEMS } from "./appearance-select-items.ts";
 
 export const APPEARANCE_AVATARS_SUBCATEGORY: ConfigSubcategory = {
   id: "avatars",
@@ -22,18 +23,21 @@ export const APPEARANCE_AVATARS_SUBCATEGORY: ConfigSubcategory = {
       id: "avatar-size",
       key: "avatarSize",
       label: "Avatar size",
+      options: AVATAR_SIZE_ITEMS,
       teach: { summary: "How large each speaker's avatar renders beside their messages.", affects: ["avatar boxes in every chat"] },
     },
     {
       id: "avatar-shape",
       key: "avatarShape",
       label: "Avatar shape",
+      options: AVATAR_SHAPE_ITEMS,
       teach: { summary: "Round or square avatar frames.", affects: ["avatar frames in every chat"] },
     },
     {
       id: "avatar-aspect",
       key: "avatarAspect",
       label: "Avatar aspect",
+      options: AVATAR_ASPECT_ITEMS,
       teach: {
         summary: "Portrait reserves a taller box — the immersive VN-style modes use it.",
         affects: ["avatar boxes in every chat", "the immersive chat displays most of all"],
@@ -44,6 +48,7 @@ export const APPEARANCE_AVATARS_SUBCATEGORY: ConfigSubcategory = {
       id: "avatar-ring",
       key: "avatarRing",
       label: "Avatar ring",
+      options: AVATAR_RING_ITEMS,
       teach: { summary: "An accent ring around each avatar, or none.", affects: ["avatar frames in every chat"] },
     },
   ],

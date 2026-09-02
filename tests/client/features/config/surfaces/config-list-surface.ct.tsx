@@ -486,6 +486,10 @@ test("selecting a member routes CONTENT to its owner's editor and CONTEXT to its
   await workspace.locator(LIST_PANE).getByRole("button", { name: TAGS_BAND }).click();
   await firstRow(workspace).click();
   await expect(workspace.getByRole("heading", { name: FIRST_ROW })).toBeVisible();
+  // A MEMBER LANDS ON ABOUT SINCE #926 — the collection's own arm is the APPLIES cell, which the reader now
+  // opens rather than arriving on (the old `defaultTab` landed every member on Applies, and for a `none`
+  // collection that meant landing on a null state). The arm's content is unchanged; only the landing is.
+  await workspace.locator('[data-slot="ct-config-context-pane"]').getByRole("button", { name: "Applies" }).click();
   await expect(workspace.getByText("Nothing to attach")).toBeVisible();
 
   // A SCRIPT: the same host, a different owner's editor and a real context body.
@@ -845,6 +849,10 @@ test("the global-scope switch has exactly ONE home — the CONTEXT panel, never 
 
   await workspace.locator(LIST_PANE).getByRole("button", { name: REGEX_BAND }).click();
   await listRow(workspace, "Format dialogue quotes").click();
+  // A MEMBER LANDS ON ABOUT SINCE #926 — the collection's own arm is the APPLIES cell, which the reader now
+  // opens rather than arriving on (the old `defaultTab` landed every member on Applies, and for a `none`
+  // collection that meant landing on a null state). The arm's content is unchanged; only the landing is.
+  await workspace.locator('[data-slot="ct-config-context-pane"]').getByRole("button", { name: "Applies" }).click();
   // Barrier on the SETTLED context arm — the panel only exists once the usage read has landed.
   await expect(workspace.getByText("Runs in every chat")).toBeVisible();
 
@@ -870,6 +878,10 @@ test("no control on the Configuration plane is offered from two of its three pan
 
   await workspace.locator(LIST_PANE).getByRole("button", { name: REGEX_BAND }).click();
   await listRow(workspace, "Format dialogue quotes").click();
+  // A MEMBER LANDS ON ABOUT SINCE #926 — the collection's own arm is the APPLIES cell, which the reader now
+  // opens rather than arriving on (the old `defaultTab` landed every member on Applies, and for a `none`
+  // collection that meant landing on a null state). The arm's content is unchanged; only the landing is.
+  await workspace.locator('[data-slot="ct-config-context-pane"]').getByRole("button", { name: "Applies" }).click();
   await expect(workspace.getByText("Runs in every chat")).toBeVisible();
 
   // ONE round trip: the census is a pure DOM read, and doing it per-locator would be N awaits in a loop.

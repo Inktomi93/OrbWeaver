@@ -6,11 +6,19 @@
 //
 // WHAT IT PINS:
 //  · nothing selected → the section's empty arm, ONCE;
-//  · focusing a knob row (the `SettingRow` seam) swaps the pane's head + About body to that leaf's teach;
-//  · the foot tab KEEPS across a focus change (focus-follows-content over `contextTab`, CP-4 §4.1);
-//  · Learn is ABSENT while no contribution supplies `more` (applicability, never a disabled husk);
-//  · an open member turns Applies into the collection's own arm (the "Where it's attached" answer), and a
-//    `none` collection renders ITS copy once;
+//  · AT REST the pane is the ROSTER of the settings currently in the CONTENT viewport, and scrolling the
+//    content re-derives its membership (#926, the owner's PS5 ruling — the one-at-a-time model this file
+//    used to pin was REJECTED, so those expectations were retired, not preserved);
+//  · focusing a VISIBLE knob row swaps the pane to that leaf's drill (head + About), and scrolling that row
+//    off screen returns the pane to the roster — keep-last focus now has a viewport horizon;
+//  · every value the pane prints is the CONTROL'S OWN DISPLAY WORD, never the wire value (#1099 F15 — the
+//    pane said "md." beside a picker reading "Medium");
+//  · a settings state has NO Applies cell (`overriddenBy` is declared by 0 of 107 leaves) and Applies never
+//    takes the landing; Learn is ABSENT while no contribution supplies `more`;
+//  · an open member turns Applies into the collection's own arm (the "Where it's attached" answer), lands on
+//    ABOUT, and a `none` collection renders ITS copy once; the foot tab KEEPS across a subject change
+//    (focus-follows-content over `contextTab`, CP-4 §4.1) — pinned on the member arm, the one state that
+//    still resolves two cells;
 //  · the row's `i` is the teacher's door (accname derived from the row label).
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
@@ -35,6 +43,10 @@ const TAG = {
   isHiddenOnCard: false,
   usage: { characters: 1, chats: 0, worldBooks: 0, personas: 0, presets: 0, total: 1 },
 };
+
+/** A SECOND member, purely so the tab-continuity pin has a subject change to make inside the one arm that
+ *  still resolves two cells (a settings state is now a single About cell — #926's applicability gate). */
+const TAG_2 = { ...TAG, id: "tag_001", name: "tag-001", sortOrder: 1 };
 
 const SCRIPT = {
   id: "regex_script_stripooc",
@@ -66,7 +78,7 @@ function stub(page: Page): Promise<TrpcRecorder> {
     ],
     "rosterPreset.list": [],
     "sessions.me": { userId: "user_ct_config", handle: "ct_config", globalRole: "user" },
-    "tag.listTagsWithUsage": () => [TAG],
+    "tag.listTagsWithUsage": () => [TAG, TAG_2],
     "regex.listScripts": () => [SCRIPT],
     "regex.listGlobal": () => [],
     "regex.listScriptUsage": () => ({ presets: [], characters: [], rooms: [] }),
@@ -121,9 +133,78 @@ test("CONTEXT is never navigation — with a group open the pane teaches the sec
     await expect(list.getByRole("button", { name: section, exact: true })).toHaveCount(1);
   }
 
-  // And what it teaches INSTEAD is the section the reader is in — the spy's current row (Looks), whose
-  // own section `teach` is About/Applies-class material that already existed.
-  await expect(pane.getByText("Appearance choices are applied states", { exact: false })).toBeVisible();
+  // And what it teaches INSTEAD is the ROSTER of what the reader can SEE — one entry per visible setting
+  // row, each carrying that leaf's own gloss. `shipped-looks` is the first row of the first section, so it
+  // is in view at scrollTop 0 in every arm of this story.
+  await expect(pane.locator('[data-slot="teacher-roster-entry"][data-setting="looks/shipped-looks"]')).toBeVisible();
+});
+
+test("the roster IS the viewport — scrolling the content re-derives which settings it lists", async ({ mount, page }) => {
+  await stub(page);
+  const workspace = await mount(<ConfigWorkspaceStory />);
+  await workspace.getByRole("button", { name: "reset groups" }).click();
+  await workspace
+    .locator('[data-slot="config-list"]')
+    .getByRole("button", { name: /Appearance/ })
+    .click();
+
+  const pane = workspace.locator(CONTEXT_PANE);
+  const entries = pane.locator('[data-slot="teacher-roster-entry"]');
+  // SETTLE on a rendered state that exists in both worlds before reading the set: the group's body has
+  // mounted its rows and the pane has painted at least one entry for them.
+  await expect(workspace.locator('[data-setting="chat-style"]')).toBeVisible();
+  await expect(entries.first()).toBeVisible();
+  const atTop = await entries.evaluateAll((nodes) => nodes.map((node) => node.getAttribute("data-setting")));
+  expect(atTop).toContain("looks/shipped-looks");
+
+  // Scroll the CONTENT pane (the scroller the spy listens to) to its end. The roster is a different set
+  // afterwards — which is the whole ruling: "when you scroll down … it changes the number of items".
+  await workspace.locator('[data-slot="config-content"]').evaluate((node) => {
+    node.scrollTop = node.scrollHeight;
+  });
+  await expect
+    .poll(async () => entries.evaluateAll((nodes) => nodes.map((node) => node.getAttribute("data-setting"))), { intervals: [50, 100, 200] })
+    .not.toEqual(atTop);
+  const atBottom = await entries.evaluateAll((nodes) => nodes.map((node) => node.getAttribute("data-setting")));
+  expect(atBottom).not.toContain("looks/shipped-looks");
+});
+
+test("a settings state offers NO Applies cell, and About is the landing", async ({ mount, page }) => {
+  await stub(page);
+  const workspace = await mount(<ConfigWorkspaceStory />);
+  await workspace.getByRole("button", { name: "reset groups" }).click();
+  await workspace
+    .locator('[data-slot="config-list"]')
+    .getByRole("button", { name: /Appearance/ })
+    .click();
+
+  const pane = workspace.locator(CONTEXT_PANE);
+  await expect(pane.getByRole("button", { name: "About" })).toHaveAttribute("aria-current", "true");
+  // `overriddenBy` is declared by ZERO of the 107 live teach declarations, so the cell's only content was
+  // its own null state — a permanent cell teaching nothing (#926's census, #864's furniture ban).
+  await expect(pane.getByRole("button", { name: "Applies" })).toHaveCount(0);
+  await expect(pane.getByRole("button", { name: "Learn" })).toHaveCount(0);
+});
+
+test("the pane prints the CONTROL'S display word, never the wire value", async ({ mount, page }) => {
+  await stub(page);
+  const workspace = await mount(<ConfigWorkspaceStory />);
+  await workspace.getByRole("button", { name: "reset groups" }).click();
+  await workspace
+    .locator('[data-slot="config-list"]')
+    .getByRole("button", { name: /Appearance/ })
+    .click();
+
+  // Avatar size stores "md" and its picker reads "Medium" (#1099 F15: the teacher printed "Using the
+  // default — md."). The ROSTER prints it first — every visible row carries its value — and the DRILL
+  // prints it again in the default-vs-current block.
+  const row = workspace.locator('[data-setting="avatar-size"]');
+  await row.scrollIntoViewIfNeeded();
+  const pane = workspace.locator(CONTEXT_PANE);
+  await expect(pane.locator('[data-slot="teacher-roster-entry"][data-setting="avatars/avatar-size"]')).toContainText("Medium");
+
+  await row.getByRole("combobox").focus();
+  await expect(pane.getByText("Using the default — Medium.")).toBeVisible();
 });
 
 test("focusing a knob row teaches THAT setting — head and About swap, and the i is its door", async ({ mount, page }) => {
@@ -143,6 +224,11 @@ test("focusing a knob row teaches THAT setting — head and About swap, and the 
   // focus). A PLAIN section's row on purpose — the folded sections' rows are behind the collapsed
   // "Customize this look" arm and have their own landing pins.
   const row = workspace.locator('[data-setting="chat-style"]');
+  // BRING THE ROW INTO THE CONTENT VIEWPORT FIRST — the drill has a viewport horizon since #926, and a
+  // reader who focuses a row has always scrolled it into view (the browser does it for a Tab). Playwright's
+  // `.focus()` alone can leave the row outside the scroller's box, which is a state the pane deliberately
+  // answers with the roster.
+  await row.scrollIntoViewIfNeeded();
   // FOCUS a cell (the focus-within seam) — chat-style is preview cells in a RADIOGROUP since #981 F20
   // (they were N aria-pressed buttons); a focus is the publish, no popup involved.
   await row.getByRole("radio", { name: "Bubble", exact: true }).focus();
@@ -152,24 +238,39 @@ test("focusing a knob row teaches THAT setting — head and About swap, and the 
 
   // Learn is ABSENT: no appearance leaf supplies `more`.
   await expect(pane.getByRole("button", { name: "Learn" })).toHaveCount(0);
+
+  // AND THE DRILL HAS A VIEWPORT HORIZON (#926): keep-last focus still never clears on blur, but scrolling
+  // the focused row off screen returns the pane to the roster — the at-rest state — rather than teaching a
+  // row the reader can no longer see.
+  await workspace.locator('[data-slot="config-content"]').evaluate((node) => {
+    node.scrollTop = node.scrollHeight;
+  });
+  await expect(pane.locator('[data-slot="teacher-roster-entry"]').first()).toBeVisible();
+  await expect(pane.getByText("How every message in the transcript is shaped", { exact: false })).toHaveCount(0);
 });
 
-test("the foot tab KEEPS across a focus change — a reader on Applies stays on Applies", async ({ mount, page }) => {
+// CP-4 §4.1 (focus-follows-content over `contextTab`) is RE-HOMED, not dropped: it used to be pinned on a
+// settings row moving to another settings row, and a settings state now resolves ONE cell, so that arm can
+// no longer express a tab to keep. The member arm still resolves About + Applies, and a member→member
+// change is the same subject change through the same seam.
+test("the foot tab KEEPS across a subject change — a reader on Applies stays on Applies", async ({ mount, page }) => {
   await stub(page);
   const workspace = await mount(<ConfigWorkspaceStory />);
   await workspace.getByRole("button", { name: "reset groups" }).click();
-  await workspace
-    .locator('[data-slot="config-list"]')
-    .getByRole("button", { name: /Appearance/ })
-    .click();
+
+  const list = workspace.locator('[data-slot="config-list"]');
+  await list.getByRole("button", { name: TAGS_BAND }).click();
+  await list.getByText("tag-000").click();
 
   const pane = workspace.locator(CONTEXT_PANE);
-  await workspace.locator('[data-setting="chat-style"]').getByRole("radio", { name: "Bubble", exact: true }).focus();
+  // A MEMBER LANDS ON ABOUT (#926): the old `defaultTab` opened every member on Applies, which for a `none`
+  // collection is a null state — the pane's landing was its emptiest arm.
+  await expect(pane.getByRole("button", { name: "About" })).toHaveAttribute("aria-current", "true");
   await pane.getByRole("button", { name: "Applies" }).click();
   await expect(pane.getByRole("button", { name: "Applies" })).toHaveAttribute("aria-current", "true");
 
-  // Move focus to a different row (the focus-within seam): the head/body swap, the TAB does not.
-  await workspace.locator('[data-setting="color-quoted-speech"]').getByRole("switch").focus();
+  await list.getByText("tag-001").click();
+  await expect(workspace.getByRole("heading", { name: "tag-001" })).toBeVisible();
   await expect(pane.getByRole("button", { name: "Applies" })).toHaveAttribute("aria-current", "true");
 });
 
@@ -222,7 +323,7 @@ function stubModified(page: Page): Promise<TrpcRecorder> {
     "settings.listThemes": () => [],
     "rosterPreset.list": [],
     "sessions.me": { userId: "user_ct_config", handle: "ct_config", globalRole: "user" },
-    "tag.listTagsWithUsage": () => [TAG],
+    "tag.listTagsWithUsage": () => [TAG, TAG_2],
     "regex.listScripts": () => [SCRIPT],
     "regex.listGlobal": () => [],
     "regex.listScriptUsage": () => ({ presets: [], characters: [], rooms: [] }),

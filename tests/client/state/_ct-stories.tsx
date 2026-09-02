@@ -193,6 +193,7 @@ import {
   useStatusAnnouncement,
   useTagFilter,
   useTagSortMode,
+  useVisibleConfigSettings,
 } from "@orb/client/state";
 import type { CharacterId, ChatId, PresetId, TagId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -1436,10 +1437,14 @@ export function ConfigNavProbe(): ReactElement {
   const section = useActiveSection();
   const tagsOpen = useConfigGroupOpen("tags");
   const selection = useCollectionSelection();
+  // The spy's OTHER write (#926): the setting rows currently in the CONTENT viewport — the teacher roster's
+  // population. Printed as its membership so the pin can prove BOTH that it lands and that an identical
+  // re-write is a no-op (the coalescing the rAF-per-scroll rate depends on).
+  const visible = useVisibleConfigSettings();
   return (
     <div>
       <output>
-        {`group=${group ?? "none"} seam=${seam ?? "none"} sub=${sub ?? "none"} target=${target === null ? "none" : `${target.group}/${target.sub ?? "-"}/${target.setting ?? "-"}#${target.nonce}`} section=${section} tagsOpen=${String(tagsOpen)} selection=${selection === null ? "none" : `${selection.kind}:${selection.memberId}`}`}
+        {`group=${group ?? "none"} seam=${seam ?? "none"} sub=${sub ?? "none"} target=${target === null ? "none" : `${target.group}/${target.sub ?? "-"}/${target.setting ?? "-"}#${target.nonce}`} section=${section} tagsOpen=${String(tagsOpen)} selection=${selection === null ? "none" : `${selection.kind}:${selection.memberId}`} visible=${visible.length === 0 ? "none" : visible.map((row) => `${row.sub}/${row.setting}`).join("+")}`}
       </output>
       <button type="button" onClick={(): void => openConfigTo("appearance")}>
         open appearance
@@ -1461,6 +1466,37 @@ export function ConfigNavProbe(): ReactElement {
       </button>
       <button type="button" onClick={(): void => setActiveConfigSub("analysis")}>
         spy analysis
+      </button>
+      <button
+        type="button"
+        onClick={(): void =>
+          setActiveConfigSub("jobs", [
+            { sub: "jobs", setting: "poll" },
+            { sub: "jobs", setting: "retries" },
+          ])
+        }
+      >
+        spy visible two
+      </button>
+      {/* A DISTINCT ARRAY WITH THE SAME MEMBERSHIP — the coalescing arm: the store must treat it as a no-op
+          rather than publishing a new identity, or the teacher re-renders on every scroll frame. */}
+      <button
+        type="button"
+        onClick={(): void =>
+          setActiveConfigSub("jobs", [
+            { sub: "jobs", setting: "poll" },
+            { sub: "jobs", setting: "retries" },
+          ])
+        }
+      >
+        spy visible two again
+      </button>
+      <button type="button" onClick={(): void => setActiveConfigSub("jobs", [{ sub: "jobs", setting: "retries" }])}>
+        spy visible one
+      </button>
+      {/* The LEAVE arm: `undefined` reports rows without touching the section a jump named. */}
+      <button type="button" onClick={(): void => setActiveConfigSub(undefined, [{ sub: "jobs", setting: "poll" }])}>
+        spy visible only
       </button>
       <button type="button" onClick={(): void => selectCollectionMember("regex", "regex_nav_probe")}>
         select regex member

@@ -10,6 +10,7 @@
 
 import { APPEARANCE_OWNER_KEYS } from "#lib";
 import type { ConfigSubcategory } from "#state";
+import { CHAT_STYLE_ITEMS } from "./appearance-select-items.ts";
 
 export const APPEARANCE_MESSAGE_STYLE_SUBCATEGORY: ConfigSubcategory = {
   id: "message-style",
@@ -19,6 +20,7 @@ export const APPEARANCE_MESSAGE_STYLE_SUBCATEGORY: ConfigSubcategory = {
       id: "chat-style",
       key: "chatStyle",
       label: "Chat display",
+      options: CHAT_STYLE_ITEMS,
       keywords: ["bubble", "flat", "document", "immersive", "echo", "whisper", "ripple"],
       teach: {
         summary: "How every message in the transcript is shaped — bubbles, flat rows, document flow, or the immersive skins.",

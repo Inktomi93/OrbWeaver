@@ -10,7 +10,7 @@
 
 import type { AppearanceSettings } from "@orb/contracts/settings";
 import { APPEARANCE_BACKGROUND_FITS, BLUR_SURFACES } from "@orb/contracts/settings";
-import type { SelectItems, SelectOption } from "@orb/ui/select";
+import type { SelectOption } from "@orb/ui/select";
 
 // FLAT rows typed to the UNION (#866 §7.8) — the illustrated elevation cards key their total diagram
 // map off `item.value`, so the table carries the real member type, not a widened string.
@@ -25,7 +25,7 @@ export const ELEVATION_ITEMS: readonly SelectOption<AppearanceSettings["elevatio
 // spent its life claiming "chrome/cards only, never the reading surface", which the shipped selector never
 // did. The measurement that carried the ruling: sub-12/255 peak contribution over prose at 0.04 under
 // `soft-light`, and `prefers-contrast: more` drops the overlay entirely.
-export const SURFACE_TEXTURE_ITEMS: SelectItems<string> = [
+export const SURFACE_TEXTURE_ITEMS: readonly SelectOption<string>[] = [
   { value: "none", label: "None" },
   { value: "grain", label: "Film grain" },
 ] satisfies readonly { value: AppearanceSettings["surfaceTexture"]; label: string }[];
@@ -51,7 +51,7 @@ const BACKGROUND_FIT_LABELS: Record<AppearanceSettings["backgroundFit"], string>
   center: "Center (actual size)",
   stretch: "Stretch (distort to fill)",
 };
-export const BACKGROUND_FIT_ITEMS: SelectItems<string> = APPEARANCE_BACKGROUND_FITS.map((value) => ({
+export const BACKGROUND_FIT_ITEMS: readonly SelectOption<string>[] = APPEARANCE_BACKGROUND_FITS.map((value) => ({
   value,
   label: BACKGROUND_FIT_LABELS[value],
 }));

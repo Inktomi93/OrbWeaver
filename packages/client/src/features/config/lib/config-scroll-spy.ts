@@ -63,6 +63,35 @@ export function computeActiveSub(container: HTMLElement, prefix: string): string
   return current === undefined ? null : current.id.slice(prefix.length);
 }
 
+/** Every setting ROW intersecting the pane's own box, in document order — the teacher roster's population
+ *  (#926, the owner's PS5 ruling: "the teacher pane lists info about the settings that you can currently
+ *  see, and when you scroll down … it changes the number of items").
+ *
+ *  IT IS THE SAME PASS AS `computeActiveSub` AND THAT IS THE POINT (contract 4): the roster and the LIST's
+ *  lit row are two readings of ONE viewport measurement, so they cannot disagree, and no second
+ *  IntersectionObserver exists to drift out of phase with the scroll listener that already runs here.
+ *
+ *  THE ADDRESS COMES OFF THE DOM, not a parallel registry walk: `SettingRow` stamps `data-setting` and the
+ *  owning contribution stamps `configAnchorId(group, sub)` on its `<Section>`, so a row's full address is
+ *  its own attribute plus its nearest anchor ancestor — which means a row that is not RENDERED (a closed
+ *  advanced fold, a `when`-gated section) is absent by construction rather than by a second predicate. */
+export function computeVisibleSettings(container: HTMLElement, prefix: string): readonly { readonly sub: string; readonly setting: string }[] {
+  const box = container.getBoundingClientRect();
+  const rows: { readonly sub: string; readonly setting: string }[] = [];
+  for (const row of container.querySelectorAll<HTMLElement>('[data-slot="setting-row"][data-setting]')) {
+    const rect = row.getBoundingClientRect();
+    if (rect.bottom <= box.top || rect.top >= box.bottom) {
+      continue;
+    }
+    const anchor = row.closest<HTMLElement>(`[id^="${prefix}"]`);
+    if (anchor === null) {
+      continue;
+    }
+    rows.push({ sub: anchor.id.slice(prefix.length), setting: row.dataset["setting"] ?? "" });
+  }
+  return rows;
+}
+
 /** Scroll a jumped-to section to the top of the pane and flash its inset ring, so the eye lands on the
  *  thing the jump named instead of hunting a silently-repositioned page. */
 export function flashAnchor(el: HTMLElement): void {
