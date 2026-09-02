@@ -1,7 +1,7 @@
 ---
 kind: design
 status: draft
-updated: 2026-08-30
+updated: 2026-09-02
 ---
 
 # Config revamp — ONE configuration surface, search-first, with the context pane as the teacher (#866)
@@ -154,7 +154,7 @@ interface SettingTeach {
 
 A subcategory carries the same shape (`SettingTeach` on `ConfigSubcategory`) for the section-level lesson, and a group's `description` is its own head. A collection member's teaching is the collection's existing `context` arm (Where it's attached) — unchanged. Persona's five parts get `teach` copy (the relocation's "teaching treatment"); persona VERBS do not change.
 
-- **The pane, on the bracket:** HEAD band = the focused setting's label + its scope chip + a Modified chip when modified (the artifact identity — DESIGN.md's slot table); no top rail (no lenses); VIEWPORT = the active foot tab; FOOT rail tabs (icon + caption, one tab stop, arrows): **About** (summary · affects · default vs current, with a Reset door · related links) · **Applies** (`overriddenBy` doors; for a collection member this IS its existing context arm, so the Applies tab is that arm renamed) · **Learn** (`more`, present only when the contribution supplies one — APPLICABILITY, not hiding). `defaultTab` = About. With NOTHING focused the viewport teaches the GROUP (its `description` + its subcategories as doors) and, with no group active, the section's own no-selection copy (`CONFIG_CONTEXT_EMPTY`) — never a blank pane.
+- **The pane, on the bracket:** HEAD band = the focused setting's label + its scope chip + a Modified chip when modified (the artifact identity — DESIGN.md's slot table); no top rail (no lenses); VIEWPORT = the active foot tab; FOOT rail tabs (icon + caption, one tab stop, arrows): **About** (summary · affects · default vs current, with a Reset door · related links) · **Applies** (`overriddenBy` doors; for a collection member this IS its existing context arm, so the Applies tab is that arm renamed) · **Learn** (`more`, present only when the contribution supplies one — APPLICABILITY, not hiding). `defaultTab` = About. With NOTHING focused the viewport teaches the SECTION THE READER IS IN — the scroll-spy's current row and its own `teach`, falling back to the GROUP's `description` where a section declares none — and, with no group active, the section's own no-selection copy (`CONFIG_CONTEXT_EMPTY`) — never a blank pane. **AMENDED 2026-09-02 (#1101), superseding this bullet's original "its `description` + its subcategories as doors":** the subcategories-as-doors arm published the LIST's own nine rows a second time inside the context pane (`design-audit --panels both-docked` filed 8 × `duplicate-action-door`), and `UI-Architecture-and-Layout.md` §4.2 — the shell law, which outranks this program doc — says CONTEXT is *"closable; never navigation"*. The map is the LIST's job; the pane teaches. A `related` ref is consequently a knob ref only (`setting` is required — tsc is the wall).
 - **Focus-follows-content over `contextTab`.** The foot tab selection is the shared `contextTab` seam (ids `config.about` / `config.applies` / `config.learn`, namespaced like `rpg.*`); focusing a different row swaps the head + body and KEEPS the tab (a reader on Applies stays on Applies as they move down a section — the CP-4 §4.1 continuity rule). A collection selection re-resolves the tabs (Applies is now the arm); the `contextTab` fallback picks the first visible tab as it always has.
 - **Collapsed or absent context:** the row keeps its one-line gloss and a trailing `i` glyph (the `HintTrigger` atom, sibling of the label) whose activation, on desktop with the pane collapsed, opens the pane as a slide-over on this row (`openOverlayPanel("context")` — the M10 overlay regime; the pane is never forced open by focus alone, D62's "closable, never navigation"); on a phone it opens the same teacher as a bottom sheet (the config-rail mobile mock's "context folds into CONTENT" arm). The `i` is the pull-revelation door NN/g's tooltip guideline requires on touch; its tooltip on fine pointers is the first sentence of `summary`.
 - **What stays inline no matter what:** the label, the one-line gloss, the control, the modified rail, reset, and any `disabledReason` — task-vital facts never live only in the teacher (NN/g guideline 1).
@@ -396,9 +396,11 @@ state-free by the `client-lib-floor` rule, so ids are resolved to DISPLAY data b
 `ConfigContextState = { teach: ConfigTeachView; member: { title: string; body: () => ReactNode } | null }`.
 `useConfigContextState` (in `features/config/lib/config-context.tsx`) resolves focus × selection × the two
 registries: member open ⇒ `member` = the collection's context arm (or its `none` copy as an EmptyState) and
-`teach` = the group lesson; focus ⇒ the leaf ladder; group active, nothing focused ⇒ the group lesson with
-its subcategories as `related` doors; nothing ⇒ `null` (the mint's `empty` arm = `CONFIG_CONTEXT_EMPTY`).
-`related` refs resolve through the registries into `openConfigTo(group, sub, setting)` doors.
+`teach` = the group lesson; focus ⇒ the leaf ladder; group active, nothing focused ⇒ the READING lesson (the
+spy's current section's own `teach`, else the group's — neither carries doors, #1101); nothing ⇒ `null`
+(the mint's `empty` arm = `CONFIG_CONTEXT_EMPTY`).
+`related` refs resolve through the registries into `openConfigTo(group, sub, setting)` doors, and every ref
+names a `setting` — a section-only ref would render a LIST row's name as a door (#1101).
 
 **The tabs.** `context: defineContextTabs<ConfigContextState>` replaces the `kind:"single"` arm in
 `makeConfigSection`: tabs `config.about` (About — summary · Affects · Related doors) · `config.applies`

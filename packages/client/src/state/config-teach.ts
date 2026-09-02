@@ -33,7 +33,7 @@ function assertRefResolves(ref: ConfigSettingRef, registry: ContributorRegistry<
   if (section === undefined) {
     throw new Error(`config teach: ${subject} relates to "${ref.group}/${ref.sub}", which no contribution renders`);
   }
-  if (ref.setting !== undefined && !(section.nav.settings ?? []).some((leaf) => leaf.id === ref.setting)) {
+  if (!(section.nav.settings ?? []).some((leaf) => leaf.id === ref.setting)) {
     throw new Error(`config teach: ${subject} relates to setting "${ref.setting}", which "${ref.group}/${ref.sub}" does not declare`);
   }
 }
