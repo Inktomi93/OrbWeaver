@@ -40,6 +40,55 @@ test("an unknown verb is still MISUSE, not a help answer", async ({ runCli }) =>
   expect(res.stderr).toContain('unknown verb "not-a-verb"');
 });
 
+// ── the TAIL axis (#1117) ────────────────────────────────────────────────────────────────────────────
+//
+// The VERB axis was always strict; the tail each verb received was not. These pins run under the SAME
+// 512MB ceiling as the help pins above, which is half the assertion: a refusal that has to build the
+// ts-morph project first is not a refusal, it is an OOM. Red-first, measured on the unmodified source:
+//   `ledgers-fresh --scope packages/ui`      → exit 0, re-derived EVERY committed ledger over the whole tree
+//   `scoped --package @orb/kit --bogus-flag` → exit 0 after a full scoped pass, flag dropped on the floor
+//   `orphan-ratchet --updat`                 → exit 1 from a CHECK the operator never asked for (they asked
+//                                              for the baseline REWRITE, which is the opposite verdict)
+// `new-gate` and `baseline` are read-proven rather than run-proven in the same direction: their pre-fix
+// effect IS the write we are refusing (a scaffolded gate file, a rewritten committed ledger), so the
+// receipt for them is the refusal below, taken before either door opens.
+const TAIL_REFUSALS: readonly (readonly [string, readonly string[], string])[] = [
+  ["ledgers-fresh", ["--scope", "packages/ui"], "takes no arguments"],
+  ["structure", ["--changed"], "takes no arguments"],
+  ["db-baseline", ["extra"], "takes no arguments"],
+  ["orphan-ratchet", ["--updat"], "does not recognize"],
+  ["new-gate", ["a-gate", "b-gate"], "ONE gate per invocation"],
+  ["baseline", ["prose", "--chekc"], "unexpected argument"],
+  ["scoped", ["--package", "@orb/kit", "--bogus-flag"], "unrecognised argument"],
+];
+
+test.for(TAIL_REFUSALS)(
+  "`verify %s` refuses an unrecognised tail before doing any work",
+  { timeout: HELP_TIMEOUT_MS },
+  async ([verb, args, message], { runCli }) => {
+    const res = await runCli("verify", [verb, ...args], { env: SMALL_HEAP_ENV, timeoutMs: HELP_TIMEOUT_MS });
+    await expect(res).toExitWith(3);
+    expect(res.stderr).toContain(message);
+  },
+);
+
+// The other half of every refusal above: the spellings the two orchestrators drive hourly must be
+// BYTE-STABLE. `--help` is not a tail (it is answered before the tail check), and a verb's own value
+// flags survive — proven here at the front door, not by reading the parse.
+test("a no-tail verb still answers --help, and a real flag still reaches its verb", { timeout: HELP_TIMEOUT_MS }, async ({ runCli }) => {
+  const help = await runCli("verify", ["ledgers-fresh", "--help"], { env: SMALL_HEAP_ENV, timeoutMs: HELP_TIMEOUT_MS });
+  await expect(help).toExitWith(0);
+  // `--gate <substr>` is `debt`'s own grammar; a substring that matches no ledger is that verb's OWN
+  // refusal (still exit 3) — the point is that the front door handed the flag through rather than eating it.
+  const debt = await runCli("verify", ["debt", "--gate", "no-such-gate-anywhere"], { env: SMALL_HEAP_ENV, timeoutMs: HELP_TIMEOUT_MS });
+  expect(debt.stderr + debt.stdout).toContain("no-such-gate-anywhere");
+  // `pnpm verify --list` is `cli.ts run --list` — the single most-driven spelling in the repo (every lane
+  // reads the tier ladder from it). It stays clean and still prints the registry.
+  const list = await runCli("verify", ["run", "--list"], { env: SMALL_HEAP_ENV, timeoutMs: HELP_TIMEOUT_MS });
+  await expect(list).toExitWith(0);
+  expect(list.stdout).toContain("the stage registry");
+});
+
 // The abort itself takes ~5s (v8 fills the heap first), which is exactly vitest's default testTimeout —
 // so this one names its own.
 test("the 512MB ceiling BITES — the same verb without --help dies under it", { timeout: HELP_TIMEOUT_MS }, async ({ runCli }) => {

@@ -110,7 +110,38 @@ function parseArgs(argv: readonly string[]): Args | { readonly error: string } {
   const changedPaths = changed ? positionalsAfterChanged(argv) : [];
   const args: Args = { scope, package: pkg, changed, changedPaths };
   const error = validateSelectors(args);
-  return error === undefined ? args : { error };
+  if (error !== undefined) {
+    return { error };
+  }
+  const unknown = unknownToken(argv);
+  return unknown === undefined ? args : { error: `unrecognised argument ${JSON.stringify(unknown)}` };
+}
+
+/** The first token this grammar does not know. A valid SELECTOR is already established by the caller, so
+ *  what is left is the tail: an extra flag, or a positional where only `--changed` admits one. Both used
+ *  to be dropped in silence — `scoped --package @orb/kit --bogus-flag` ran a full scoped pass and exited
+ *  0, which reads as "the flag did something" (#1117; measured red-first on this tree). */
+function unknownToken(argv: readonly string[]): string | undefined {
+  const unknown: string[] = [];
+  let sawChanged = false;
+  let i = 0;
+  while (i < argv.length) {
+    const token = argv[i] as string;
+    i += 1;
+    if (token === "--changed") {
+      sawChanged = true;
+      continue;
+    }
+    if (token === "--scope" || token === "--package") {
+      i += 1; // skip the selector's VALUE, whatever it is
+      continue;
+    }
+    // After `--changed`, bare positionals are the explicit changed paths (and `git` is its sentinel).
+    if (!sawChanged || token.startsWith("-")) {
+      unknown.push(token);
+    }
+  }
+  return unknown[0];
 }
 
 /** The value immediately following `flag`, or undefined if the flag is absent. */

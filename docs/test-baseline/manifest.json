@@ -2036,6 +2036,8 @@
     "tests/tooling/stack/lib/port-health.test.ts",
     "tests/tooling/stack/lib/source-scan.test.ts",
     "tests/tooling/stack/lib/spawn-lock.int.test.ts",
+    "tests/tooling/stack/ops/engines-ctl.int.test.ts",
+    "tests/tooling/stack/ops/engines.int.test.ts",
     "tests/tooling/stack/ops/prod-down.test.ts",
     "tests/tooling/stack/ops/prod-state.test.ts",
     "tests/tooling/stack/ops/prod-support.test.ts",

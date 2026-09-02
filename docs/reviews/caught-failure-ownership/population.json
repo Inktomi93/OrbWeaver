@@ -5233,7 +5233,7 @@
     {
       "siteId": "tooling/src/stack/ops/engines-ctl.ts::default:catch::1",
       "path": "tooling/src/stack/ops/engines-ctl.ts",
-      "line": 74,
+      "line": 76,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -5241,7 +5241,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "a failed engine identity probe returns false and the caller refuses control of that process. Ends if false can authorize a signal.",
-      "markerLine": 70
+      "markerLine": 72
     },
     {
       "siteId": "tooling/src/stack/ops/prod-down.ts::empty:error::1",
@@ -5740,7 +5740,7 @@
     {
       "siteId": "tooling/src/verify/ops/orphan-export-ratchet.ts::empty:err::1",
       "path": "tooling/src/verify/ops/orphan-export-ratchet.ts",
-      "line": 241,
+      "line": 249,
       "column": 5,
       "grammar": "empty",
       "position": "empty:err",
@@ -5748,7 +5748,7 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "printed as TOOL ERROR and routed through EXIT.toolError, per the exit-contract §3.3 comment below. Ends if that exit code stops being surfaced.",
-      "markerLine": 237
+      "markerLine": 245
     },
     {
       "siteId": "tooling/src/wire-tap/ops/trpc.ts::empty:catch::1",
