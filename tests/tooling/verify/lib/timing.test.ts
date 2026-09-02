@@ -5,9 +5,10 @@
 // WHY THE UNTIMED ARM IS A UNIT TEST AND NOT A PLANTED CLI RUN: the harness times every hook through ONE
 // wrapper (`guard`), so a REAL run cannot produce an untimed gate on demand — the only way to reach that
 // state is a writer regression (a phase added to the dispatcher and not to the clock) or an artifact
-// re-read from an older writer. Both arrive as `undefined` while satisfying `tsc`, which is exactly why
-// the alarm exists and why its control has to construct the broken record directly.
-import type { GatePassResult, PassResult } from "../../../../tooling/src/verify/contract/pass.ts";
+// re-read from an older writer. Both arrive as `undefined` while satisfying `tsc` at the call site, which
+// is why the alarm's parameter is `TimingLedgerView` (the ledger as a READER receives it) rather than
+// `PassResult`: the broken shapes below are then ordinary values of a real type, never a cast past one.
+import type { GatePassResult, TimingGateView, TimingLedgerView } from "../../../../tooling/src/verify/contract/pass.ts";
 import { timingAlarms, timingLine } from "../../../../tooling/src/verify/lib/timing.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
@@ -19,47 +20,48 @@ function gate(name: string, phaseMs: Partial<GatePassResult["timing"]["phaseMs"]
   return { name, ok: true, findings: [], scan: SCAN, timing: { totalMs, phaseMs: phases } };
 }
 
-function pass(gates: readonly GatePassResult[], totalMs: number): PassResult {
-  // `?? 0` because the broken-record arms below hand this a gate whose `timing` is the very `undefined`
-  // the alarm exists to catch — the harness's own sum would throw on it before the alarm could speak.
-  const totalOf = (g: GatePassResult): number => (g.timing as GatePassResult["timing"] | undefined)?.totalMs ?? 0;
-  return { gates, toolErrors: [], timing: { totalMs, gateMs: gates.reduce((sum, g) => sum + totalOf(g), 0) } };
+/** A ledger AS A READER RECEIVES IT (`TimingLedgerView`) — which is the point of every broken arm below.
+ *  A live `PassResult` is assignable to this view, so the healthy control measures the same door
+ *  production calls, while a gate whose `timing` never arrived is expressible here WITHOUT a cast. */
+function ledger(gates: readonly TimingGateView[], totalMs: number): TimingLedgerView {
+  return { gates, timing: { totalMs, gateMs: gates.reduce((sum, g) => sum + (g.timing?.totalMs ?? 0), 0) } };
 }
 
 test("a fully timed pass raises NO alarm — the negative control the refusals below are read against", () => {
-  expect(timingAlarms(pass([gate("planted-cheap", { visit: 1.5 }), gate("planted-hog", { run: 199.25 })], 500))).toEqual([]);
+  expect(timingAlarms(ledger([gate("planted-cheap", { visit: 1.5 }), gate("planted-hog", { run: 199.25 })], 500))).toEqual([]);
 });
 
 test("a gate with NO wall-clock refuses the run instead of publishing a silent undefined", () => {
-  const untimed = { ...gate("planted-untimed", {}), timing: undefined } as unknown as GatePassResult;
-  const alarms = timingAlarms(pass([gate("planted-ok", { run: 3 }), untimed], 500));
+  const untimed: TimingGateView = { name: "planted-untimed" };
+  const alarms = timingAlarms(ledger([gate("planted-ok", { run: 3 }), untimed], 500));
   expect(alarms).toHaveLength(1);
   expect(alarms[0]).toContain("planted-untimed");
   expect(alarms[0]).toContain("UNTIMED, not instant");
 });
 
 test("a gate missing ONE phase's clock is refused by name — a partial breakdown is not a breakdown", () => {
-  const broken = gate("planted-half-timed", { run: 12 });
-  const missingRun = { ...broken, timing: { totalMs: 12, phaseMs: { ...broken.timing.phaseMs, run: undefined } } } as unknown as GatePassResult;
-  const alarms = timingAlarms(pass([missingRun], 500));
+  const missingRun: TimingGateView = {
+    name: "planted-half-timed",
+    timing: { totalMs: 12, phaseMs: { begin: 0, visit: 0, visitFile: 0, finalize: 0 } },
+  };
+  const alarms = timingAlarms(ledger([missingRun], 500));
   expect(alarms).toHaveLength(1);
   expect(alarms[0]).toContain("planted-half-timed");
   expect(alarms[0]).toContain("phase(s) run");
 });
 
 test("a non-finite clock is refused exactly like a missing one — NaN is not a measurement", () => {
-  const nan = { ...gate("planted-nan", {}), timing: { totalMs: Number.NaN, phaseMs: gate("x", {}).timing.phaseMs } } as GatePassResult;
-  expect(timingAlarms(pass([nan], 500))[0]).toContain("planted-nan");
+  const nan: TimingGateView = { name: "planted-nan", timing: { totalMs: Number.NaN, phaseMs: gate("x", {}).timing.phaseMs } };
+  expect(timingAlarms(ledger([nan], 500))[0]).toContain("planted-nan");
 });
 
 test("a ledger whose gates outweigh the pass is refused — a part cannot exceed the whole", () => {
-  const gates = [gate("planted-hog", { run: 900 })];
-  const impossible: PassResult = { gates, toolErrors: [], timing: { totalMs: 100, gateMs: 900 } };
+  const impossible: TimingLedgerView = { gates: [gate("planted-hog", { run: 900 })], timing: { totalMs: 100, gateMs: 900 } };
   expect(timingAlarms(impossible)[0]).toContain("does not add up");
 });
 
 test("a pass with no timing of its own is refused — there is no total to check the gates against", () => {
-  const noTotal = { gates: [gate("planted-ok", { run: 1 })], toolErrors: [], timing: undefined } as unknown as PassResult;
+  const noTotal: TimingLedgerView = { gates: [gate("planted-ok", { run: 1 })] };
   expect(timingAlarms(noTotal)[0]).toContain("no wall-clock of its own");
 });
 

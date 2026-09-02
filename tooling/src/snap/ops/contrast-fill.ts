@@ -54,13 +54,16 @@ async function readFill(page: Page, facts: ContrastMeasured, viewport: Viewport)
   const box = facts.box;
   const clip = padClip(box, viewport);
   if (clip === null) {
-    return { refusal: "the element box is empty or fully off-screen" };
+    return { kind: "refused", refusal: "the element box is empty or fully off-screen" };
   }
   let buffer: Buffer;
   try {
     buffer = await page.screenshot({ clip, animations: "disabled" });
   } catch (error) {
-    return { refusal: `screenshot failed: ${errorMessage(error)}` };
+    // OWNED, not swallowed: the caught failure leaves as a DISCRIMINATED refusal carrying its own message,
+    // and the only consumer prints it as `NO VERDICT` and FAILS the run. Nothing downstream can read this
+    // as a measurement.
+    return { kind: "refused", refusal: `screenshot failed: ${errorMessage(error)}` };
   }
   try {
     // `Promise.resolve` for the reason ops/contrast-pixels.ts states: biome's type service does not
@@ -85,7 +88,8 @@ async function readFill(page: Page, facts: ContrastMeasured, viewport: Viewport)
     const geometry = { interior, radii, feather: Math.max(1, Math.round(FEATHER_PX * scale)) };
     return readFillChannels({ data, width: info.width, height: info.height, channels: info.channels }, geometry);
   } catch (error) {
-    return { refusal: `pixel decode failed: ${errorMessage(error)}` };
+    // Owned on the same terms as the screenshot arm above.
+    return { kind: "refused", refusal: `pixel decode failed: ${errorMessage(error)}` };
   }
 }
 
@@ -105,7 +109,7 @@ export async function measureFillContrast(page: Page, selector: string, facts: C
     matchIndex: facts.matchIndex,
     requiredRatio: UI_COMPONENT_MIN_RATIO,
   } as const;
-  if ("refusal" in reading) {
+  if (reading.kind === "refused") {
     const line = `CONTRAST ${selector}: NO VERDICT (fill-only, undecodable) — ${reading.refusal}`;
     return {
       outcome: { line, failed: true },

@@ -12,12 +12,13 @@
 // ../contract/pass.ts and the marker grammar in ./gate-ignore.ts (five-slot split, P6). BOTH report
 // overloads are suppressible since #828 — the node arm block-scoped, the Finding arm line-adjacent — except
 // for a `markerImmune` gate, which audits the vocabulary and must never be silenced by it.
-import { performance } from "node:perf_hooks";
 import { getWorkspace } from "@orb/tooling/_shared/ts-workspace";
 import type { Node, SourceFile, SyntaxKind } from "ts-morph";
 import type { Finding, GateDescriptor, GateRunCtx, GateScanDeclaration, Scope } from "../contract/gate.ts";
-import type { DeclaredScan, GatePassResult, GatePhase, GateScan, GateTiming, PassResult, PassTiming, PopulationScan, ToolError } from "../contract/pass.ts";
+import type { DeclaredScan, GatePassResult, GatePhase, GateScan, PassResult, PopulationScan, ToolError } from "../contract/pass.ts";
 import { findGateIgnore, findGateIgnoreAtLine } from "./gate-ignore.ts";
+import type { PhaseClock } from "./pass-timing.ts";
+import { chargedPhase, inFinalizePhase, newPhaseClock, nowMs, passTiming } from "./pass-timing.ts";
 
 /** repo-relative posix path for a SourceFile. */
 export function repoRel(root: string, absPath: string): string {
@@ -116,49 +117,15 @@ interface ScanState {
   declaredSkip: Record<string, number>;
 }
 
-/** Per-gate run state: the descriptor, its private finding sink, its scan tally, its per-phase clock,
- *  and the context whose `report`/`scan` drain into them. Carried together so no phase has to
- *  re-look-up either (avoids non-null assertions). */
+/** Per-gate run state: the descriptor, its finding sink, its scan tally, its cost clock (charged through
+ *  `guard` — #1107), and the context whose `report`/`scan` drain into them. Carried together so no phase
+ *  has to re-look-up either (avoids non-null assertions). */
 interface GateRun {
   readonly gate: GateDescriptor;
   readonly sink: Finding[];
   readonly scan: ScanState;
-  /** Milliseconds accumulated per phase by `guard` — the ONE place every hook call passes through, so a
-   *  new phase cannot be added without being timed (#1107). */
-  readonly clock: Record<GatePhase, number>;
+  readonly clock: PhaseClock;
   readonly ctx: GateRunCtx;
-}
-
-/** 3 decimal places. Microsecond resolution is what `performance.now()` actually offers, and it keeps a
- *  250-gate artifact readable while still separating a 0.1ms gate from a 0.001ms one. */
-const MS_SCALE = 1000;
-
-/** Round DOWN — a per-gate/per-phase number may only ever understate, so `Σ parts <= whole` is
- *  arithmetic rather than a rounding coincidence (`GateTiming`'s contract). */
-function floorMs(ms: number): number {
-  return Math.floor(ms * MS_SCALE) / MS_SCALE;
-}
-
-/** Round UP — the enclosing whole may only ever overstate, the mirror of `floorMs`. */
-function ceilMs(ms: number): number {
-  return Math.ceil(ms * MS_SCALE) / MS_SCALE;
-}
-
-function newClock(): Record<GatePhase, number> {
-  return { begin: 0, visit: 0, visitFile: 0, run: 0, finalize: 0 };
-}
-
-/** The gate's finished cost record: every phase floored, and `totalMs` their sum (so `Σ phaseMs` and
- *  `totalMs` can never disagree — a reader that sums the breakdown gets the sort key back). */
-function finishTiming(clock: Record<GatePhase, number>): GateTiming {
-  const phaseMs: Record<GatePhase, number> = {
-    begin: floorMs(clock.begin),
-    visit: floorMs(clock.visit),
-    visitFile: floorMs(clock.visitFile),
-    run: floorMs(clock.run),
-    finalize: floorMs(clock.finalize),
-  };
-  return { totalMs: floorMs(phaseMs.begin + phaseMs.visit + phaseMs.visitFile + phaseMs.run + phaseMs.finalize), phaseMs };
 }
 
 /** Fold one `ctx.scan(...)` declaration into the gate's tally. Numerics ACCUMULATE (a gate may declare
@@ -229,7 +196,6 @@ const gateIgnoreUses = new Map<string, number>();
  *  where the stale/ratchet arms that use it live. No gate trips it today; this is the tripwire for the day
  *  one does. */
 let gateIgnoreLateUse = false;
-let currentPhase: ToolError["phase"] = "begin";
 
 /** How many findings the marker at `<file>:<line>` suppressed this run. `0` = stale (§4.4); `>1` from an
  *  UNPOSITIONED marker = over-exemption (§4.3a). */
@@ -261,7 +227,7 @@ function makeGateRun(gate: GateDescriptor, ctxBase: Omit<GateRunCtx, "report" | 
   const consume = (file: string, markerLine: number): void => {
     const key = `${file}:${markerLine}`;
     gateIgnoreUses.set(key, (gateIgnoreUses.get(key) ?? 0) + 1);
-    gateIgnoreLateUse ||= currentPhase === "finalize";
+    gateIgnoreLateUse ||= inFinalizePhase();
   };
   /** The FINDING overload's suppression (#828): no node, so the marker binds to the line IMMEDIATELY above
    *  `finding.line`. A `markerImmune` gate AUDITS the vocabulary and is never reachable by it. */
@@ -302,24 +268,19 @@ function makeGateRun(gate: GateDescriptor, ctxBase: Omit<GateRunCtx, "report" | 
   const declare = (counts: GateScanDeclaration): void => {
     acceptDeclaration(scan, counts);
   };
-  return { gate, sink, scan, clock: newClock(), ctx: { ...ctxBase, passIdentity, report: report as GateRunCtx["report"], scan: declare } };
+  return { gate, sink, scan, clock: newPhaseClock(), ctx: { ...ctxBase, passIdentity, report: report as GateRunCtx["report"], scan: declare } };
 }
 
-/** Every hook call in the pass goes through here, which is why the CLOCK lives here too (#1107): one
- *  wrapper owns both the throw-isolation and the cost attribution, so a phase cannot be added, or a hook
- *  invoked off-path, without being timed. The `finally` charges the gate even when it THREW — a gate that
- *  burns 90s and then dies is exactly the one whose cost a reader needs. */
+/** Every hook call takes this door, so throw-isolation and cost attribution can never disagree (#1107). */
 function guard(run: GateRun, phase: GatePhase, errors: ToolError[], fn: () => void): void {
-  currentPhase = phase;
-  const startedAt = performance.now();
-  // @orb-gate-ignore caught-failure-ownership(empty:err): pushed into the errors array as a ToolError — the exit-contract's tool-error class, never a silent pass. Ends if the errors array stops being read into the run's exit code.
-  try {
-    fn();
-  } catch (err) {
-    errors.push({ gate: run.gate.name, phase, message: err instanceof Error ? err.message : String(err) });
-  } finally {
-    run.clock[phase] += performance.now() - startedAt;
-  }
+  chargedPhase(run.clock, phase, () => {
+    // @orb-gate-ignore caught-failure-ownership(empty:err): pushed into the errors array as a ToolError — the exit-contract's tool-error class, never a silent pass. Ends if the errors array stops being read into the run's exit code.
+    try {
+      fn();
+    } catch (err) {
+      errors.push({ gate: run.gate.name, phase, message: err instanceof Error ? err.message : String(err) });
+    }
+  });
 }
 
 function inRoot(gate: GateDescriptor, rel: string): boolean {
@@ -367,7 +328,7 @@ function walkFile(sf: SourceFile, byKind: ReadonlyMap<SyntaxKind, readonly GateR
     for (const run of subs) {
       if (inScope.has(run)) {
         markVisited(run, sf);
-        guard(run, "visit", errors, () => runVisit(run, node, sf));
+        guard(run, "visit", errors, () => run.gate.visit?.(node, sf, run.ctx));
       }
     }
   });
@@ -400,16 +361,12 @@ function runFilePhase(runs: readonly GateRun[], ctxBase: Omit<GateRunCtx, "repor
   }
 }
 
-function runVisit(run: GateRun, node: Node, sf: SourceFile): void {
-  run.gate.visit?.(node, sf, run.ctx);
-}
-
 /** The pass over a given descriptor set and fileset. Each node is touched once; only subscribed gates
  *  see it. Whole-project `run` gates get their declared pass over the SAME project. */
 export function runPass(gates: readonly GateDescriptor[], ctxBase: Omit<GateRunCtx, "report" | "scan">): PassResult {
   gateIgnoreUses.clear();
   gateIgnoreLateUse = false;
-  const passStartedAt = performance.now();
+  const passStartedAt = nowMs();
   const passIdentity = {};
   const runs: readonly GateRun[] = gates.filter((g) => g.status === "active").map((g) => makeGateRun(g, ctxBase, passIdentity));
   const errors: ToolError[] = [];
@@ -431,16 +388,9 @@ export function runPass(gates: readonly GateDescriptor[], ctxBase: Omit<GateRunC
 
   const results: GatePassResult[] = runs.map((run) => {
     const findings = canonicalSort(run.sink);
-    return { name: run.gate.name, ok: findings.length === 0, findings, scan: finishScan(run.scan, ctxBase.files.length), timing: finishTiming(run.clock) };
+    return { name: run.gate.name, ok: findings.length === 0, findings, scan: finishScan(run.scan, ctxBase.files.length), timing: run.clock.finish() };
   });
   return { gates: results, toolErrors: errors, timing: passTiming(passStartedAt, results) };
-}
-
-/** The pass's own wall clock, closed AFTER the per-gate records are folded so `gateMs` is the sum of the
- *  exact numbers the artifact publishes — a reader can subtract them and get the harness's share without
- *  re-deriving anything. */
-function passTiming(startedAt: number, gates: readonly GatePassResult[]): PassTiming {
-  return { totalMs: ceilMs(performance.now() - startedAt), gateMs: floorMs(gates.reduce((sum, g) => sum + g.timing.totalMs, 0)) };
 }
 
 /** Gate-conformance PROBE artifacts (`__g_*` / `__dc_*`): transient fixtures the conformance tests

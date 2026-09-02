@@ -6,7 +6,7 @@
 // plant as bytes than to arrange as a page: an interior thinner than its own anti-aliased edge, and an
 // interior made only of anti-aliasing, are both one buffer here and a fight in a browser.
 import { contrastRatio } from "../../../../tooling/src/_shared/wcag.ts";
-import type { ContrastFillRegion, ContrastPixelImage } from "../../../../tooling/src/snap/contract/contrast.ts";
+import type { ContrastFillReading, ContrastFillRegion, ContrastPixelImage } from "../../../../tooling/src/snap/contract/contrast.ts";
 import { readFillChannels } from "../../../../tooling/src/snap/lib/contrast-fill.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
@@ -39,6 +39,20 @@ function plant(
   return { data, width, height, channels: CHANNELS };
 }
 
+/** Read one field of a reading THROUGH ITS DISCRIMINANT. A wrong-arm read returns the neutral value the
+ *  assertion then rejects by name, so a case can never quietly pass on the arm it was not testing. */
+function ratioOf(reading: ContrastFillReading): number {
+  return reading.kind === "measured" ? reading.ratio : 0;
+}
+
+function shareOf(reading: ContrastFillReading, whenRefused: number): number {
+  return reading.kind === "measured" ? reading.share : whenRefused;
+}
+
+function refusalOf(reading: ContrastFillReading): string {
+  return reading.kind === "refused" ? reading.refusal : `NOT REFUSED (measured ${String(ratioOf(reading))}:1)`;
+}
+
 const BOX: ContrastFillRegion = { left: 4, top: 4, width: 32, height: 32 };
 const CLIP = { width: 40, height: 40 } as const;
 /** No corner radius: the subject's paint fills its whole box. */
@@ -50,9 +64,9 @@ test("a solid fill is measured against the band outside the box — the switch-t
   const image = plant(CLIP.width, CLIP.height, [10, 10, 10], [{ rect: BOX, rgb: [20, 20, 20] }]);
   const reading = readFillChannels(image, { interior: BOX, radii: SQUARE, feather: 1 });
   expect(reading).toMatchObject({ channel: "fill", fill: { r: 20, g: 20, b: 20 }, surround: { r: 10, g: 10, b: 10 } });
-  expect("ratio" in reading ? reading.ratio : 0).toBeCloseTo(contrastRatio({ r: 20, g: 20, b: 20 }, { r: 10, g: 10, b: 10 }), 4);
+  expect(ratioOf(reading)).toBeCloseTo(contrastRatio({ r: 20, g: 20, b: 20 }, { r: 10, g: 10, b: 10 }), 4);
   // The whole interior is one population, so the verdict is carried by the fill itself.
-  expect("share" in reading ? reading.share : 0).toBeGreaterThan(0.9);
+  expect(shareOf(reading, 0)).toBeGreaterThan(0.9);
 });
 
 test("a 2px INSET RING beats the fill it sits on, and is named as the minority channel it is", () => {
@@ -72,8 +86,8 @@ test("a 2px INSET RING beats the fill it sits on, and is named as the minority c
   );
   const reading = readFillChannels(image, { interior: BOX, radii: SQUARE, feather: 1 });
   expect(reading).toMatchObject({ channel: "inset-edge", fill: { r: 255, g: 255, b: 255 } });
-  expect("ratio" in reading ? reading.ratio : 0).toBeGreaterThan(3);
-  expect("share" in reading ? reading.share : 1).toBeLessThan(0.5);
+  expect(ratioOf(reading)).toBeGreaterThan(3);
+  expect(shareOf(reading, 1)).toBeLessThan(0.5);
 });
 
 test("a ROUND subject does not own its box corners — what shows through them is surround, not a channel", () => {
@@ -97,11 +111,11 @@ test("a ROUND subject does not own its box corners — what shows through them i
   }
   const round = readFillChannels(image, { interior: BOX, radii: CIRCLE, feather: 1 });
   expect(round).toMatchObject({ channel: "fill", fill: { r: 20, g: 20, b: 20 } });
-  expect("ratio" in round ? round.ratio : 0).toBeLessThan(1.5);
+  expect(ratioOf(round)).toBeLessThan(1.5);
   // The counterfactual: read the SAME pixels as a square and the corners carry a loud false verdict.
   const square = readFillChannels(image, { interior: BOX, radii: SQUARE, feather: 1 });
   expect(square).toMatchObject({ fill: { r: 247, g: 127, b: 32 } });
-  expect("ratio" in square ? square.ratio : 0).toBeGreaterThan(3);
+  expect(ratioOf(square)).toBeGreaterThan(3);
 });
 
 test("a subject bordering TWO surfaces is refused — the median of a bimodal band paints nothing", () => {
@@ -118,22 +132,25 @@ test("a subject bordering TWO surfaces is refused — the median of a bimodal ba
     ],
   );
   const reading = readFillChannels(image, { interior: BOX, radii: SQUARE, feather: 1 });
-  expect(reading).toMatchObject({ refusal: expect.stringContaining("borders more than one surface") as unknown as string });
+  expect(reading.kind).toBe("refused");
+  expect(refusalOf(reading)).toContain("borders more than one surface");
 });
 
 test("no band outside the box is a REFUSAL, never a ratio — the element fills the clip", () => {
   const full: ContrastFillRegion = { left: 0, top: 0, width: CLIP.width, height: CLIP.height };
   const image = plant(CLIP.width, CLIP.height, [10, 10, 10], [{ rect: full, rgb: [20, 20, 20] }]);
   const reading = readFillChannels(image, { interior: full, radii: SQUARE, feather: 1 });
-  expect(reading).toMatchObject({ refusal: expect.stringContaining("no surround to measure against") as unknown as string });
-  expect("ratio" in reading).toBe(false);
+  expect(reading.kind).toBe("refused");
+  expect(refusalOf(reading)).toContain("no surround to measure against");
+  expect(ratioOf(reading)).toBe(0);
 });
 
 test("a box thinner than its own feathered edge is a REFUSAL — there is no interior to read", () => {
   const hairline: ContrastFillRegion = { left: 4, top: 20, width: 32, height: 2 };
   const image = plant(CLIP.width, CLIP.height, [10, 10, 10], [{ rect: hairline, rgb: [255, 255, 255] }]);
   const reading = readFillChannels(image, { interior: hairline, radii: SQUARE, feather: 1 });
-  expect(reading).toMatchObject({ refusal: expect.stringContaining("no interior pixels") as unknown as string });
+  expect(reading.kind).toBe("refused");
+  expect(refusalOf(reading)).toContain("no interior pixels");
 });
 
 test("an interior that is ONLY anti-aliasing is refused — no population reaches the share floor", () => {
@@ -145,5 +162,6 @@ test("an interior that is ONLY anti-aliasing is refused — no population reache
   }));
   const image = plant(CLIP.width, CLIP.height, [10, 10, 10], noise);
   const reading = readFillChannels(image, { interior: BOX, radii: SQUARE, feather: 1 });
-  expect(reading).toMatchObject({ refusal: expect.stringContaining("anti-aliasing") as unknown as string });
+  expect(reading.kind).toBe("refused");
+  expect(refusalOf(reading)).toContain("anti-aliasing");
 });

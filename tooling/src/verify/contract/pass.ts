@@ -64,10 +64,13 @@ export interface GateScan {
   readonly populations: readonly PopulationScan[];
 }
 
-/** The five hooks a gate can own, in the order the pass runs them. ONE importable spelling — the
- *  harness's error attribution (`ToolError.phase`) and its cost ledger (`GateTiming.phaseMs`) are the
- *  same axis, and a sixth phase must fail `tsc` in both readers at once. */
-export type GatePhase = "begin" | "visit" | "visitFile" | "run" | "finalize";
+/** The five hooks a gate can own, IN THE ORDER THE PASS RUNS THEM — the axis itself, minted once as a
+ *  tuple so every reader iterates the same list and a sixth phase is one edit. The union is DERIVED from
+ *  it: re-spelling these names as a second string union is what lets a reader silently judge four phases
+ *  while the dispatcher runs five (`no-inline-union-redecl`). Both consumers — the harness's error
+ *  attribution (`ToolError.phase`) and its cost ledger (`GateTiming.phaseMs`) — read this one axis. */
+export const GATE_PHASES = ["begin", "visit", "visitFile", "run", "finalize"] as const;
+export type GatePhase = (typeof GATE_PHASES)[number];
 
 /** WALL-CLOCK ONE GATE'S OWN HOOKS CONSUMED this pass (#1107). Recorded by the harness for every gate,
  *  like `GateScan` and for the same reason one level over: `reports/check-structure.json` carried a
@@ -116,6 +119,22 @@ export interface PassResult {
   readonly toolErrors: readonly ToolError[];
   /** What the pass itself cost, beside the sum of its gates (#1107). */
   readonly timing: PassTiming;
+}
+
+/** THE COST LEDGER AS A READER ACTUALLY RECEIVES IT (#1107), which is not the same shape the writer
+ *  produces. `GateTiming` is required on a freshly-run `GatePassResult` — but the two ways it genuinely
+ *  goes missing both satisfy `tsc` at the call site: an artifact re-read from an OLDER writer, and a
+ *  phase added to the dispatcher and not to the clock. Reading through this view is what lets
+ *  `timingAlarms` check for them without a cast, and lets its planted controls express them without
+ *  fabricating a value the type refuses. A live `PassResult` is assignable to it as-is. */
+export interface TimingGateView {
+  readonly name: string;
+  readonly timing?: { readonly totalMs?: number | undefined; readonly phaseMs?: Partial<Record<GatePhase, number>> | undefined } | undefined;
+}
+
+export interface TimingLedgerView {
+  readonly gates: readonly TimingGateView[];
+  readonly timing?: Partial<PassTiming> | undefined;
 }
 
 /** One parsed `@orb-gate-ignore` marker. `malformed` is the GATE-AUTHORING §4.3 verdict: a marker missing

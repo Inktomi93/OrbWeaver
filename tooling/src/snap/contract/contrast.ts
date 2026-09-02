@@ -85,6 +85,7 @@ export interface ContrastFillGeometry {
  *  minority population (an inset ring, a border, a focus outline) that beats the fill — the distinction a
  *  reviewer needs, because a 3:1 carried by 4% of the box is a hairline affordance, not a filled state. */
 interface ContrastFillSample {
+  readonly kind: "measured";
   readonly ratio: number;
   readonly fill: Rgb;
   readonly surround: Rgb;
@@ -99,8 +100,14 @@ interface ContrastFillSample {
 }
 
 /** No channel could be measured. NEVER a ratio: the whole defect this arm closes is a fill-polarity claim
- *  answered with a coincidental number, so "I could not measure" has to be its own printed outcome. */
+ *  answered with a coincidental number, so "I could not measure" has to be its own printed outcome.
+ *
+ *  IT IS DISCRIMINATED, not told apart by key presence. Two readers depend on that: a malformed value can
+ *  no longer fall through to the measured arm (the #1004 fix one contract over), and a `catch` returning
+ *  this is a failure-DISCRIMINATED outcome the `caught-failure-ownership` census recognises as ownership —
+ *  a bare `{ refusal }` reads to it as success data with an error sitting beside it. */
 interface ContrastFillRefusal {
+  readonly kind: "refused";
   readonly refusal: string;
 }
 
