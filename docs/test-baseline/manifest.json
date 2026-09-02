@@ -621,6 +621,7 @@
     "tests/contracts/workloads/params.contract.test.ts",
     "tests/contracts/world-info/index.contract.test.ts",
     "tests/db/client.int.test.ts",
+    "tests/db/kit/chat-visibility.int.test.ts",
     "tests/db/kit/db-errors.int.test.ts",
     "tests/db/schema/assets.int.test.ts",
     "tests/db/schema/audit.int.test.ts",

@@ -19,7 +19,7 @@ import { Text } from "@orb/ui/text";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
 import { Fragment, useEffect, useRef, useState } from "react";
-import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
+import { QueryBoundary, QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import type { AppFormInstance, AutosaveSession } from "#forms";
 import { AutosaveStatus, createAutosaveEntityForm } from "#forms";
 import type { CharacterDetailContribution, CharacterDetailState, ContributorRegistry } from "#lib";
@@ -89,14 +89,42 @@ function resolveDetailSections(
     .map((c) => ({ id: c.id, node: c.body(state) }));
 }
 
+/** The editor's first-boot guess, in `line` rows: the save bar, the hero's identity block, and the field
+ *  ladder's first few rows. It is only ever the FIRST paint on a device — `reserveKey` replaces it with what
+ *  this device actually measured, and `skeletonRowCountFor` re-fills the count to that box. */
+const EDITOR_SKELETON_ROWS = 8;
+
+/**
+ * The Characters CONTENT when a row is selected.
+ *
+ * IT RESERVES ITS BOX AND PAINTS A SHAPE (#1133, side-eye 2026-09-02 F3). Opening a character dropped
+ * **14 of 55 frames (25.45%)** with an observed non-virtualized CLS of 0.0233, and the `record` strip showed
+ * why: for ~240ms the CONTENT pane was EMPTY except for the words "Loading character…" at the top-left, then
+ * the whole editor arrived at once. A bare sentence reserves nothing, so everything below it moved. This is
+ * the #885 class and takes the #885 seam: `reserveKey` wraps the fallback in the box this device saw the
+ * editor settle at last time (synchronous, off `surface-box-store`, so the very first commit already carries
+ * it) and re-measures the settled child on every commit; the `SkeletonRows` count is re-filled to that box,
+ * so the placeholder is honest about content as well as height.
+ */
 export function CharacterEditorSurface({ characterId, detailContributors, onRevealField }: CharacterEditorSurfaceProps): ReactElement {
   return (
-    <QueryBoundary
-      fallback={<Text voice="quiet">Loading character…</Text>}
-      renderError={(_error, retry): ReactElement => <QueryErrorState label="this character" onRetry={retry} />}
-    >
-      <CharacterEditorBody characterId={characterId} detailContributors={detailContributors} onRevealField={onRevealField} />
-    </QueryBoundary>
+    // THE SCROLL CONTAINER IS THE SURFACE'S, NOT THE BODY'S, AND THAT IS LOAD-BEARING (#1133). `reserveKey`
+    // makes the boundary wrap its settled child in a measuring element, so a scroll box UNDER the boundary
+    // inherits `h-full` from an auto-height wrapper — which computes to `auto`, the pane stops scrolling, and
+    // everything past the fold becomes unreachable (caught by the editor CT's facet drill-in: "element is
+    // outside of the viewport", 56 scroll retries). Hoisting it here puts the measured wrapper INSIDE the
+    // scroller, where an auto-height child is exactly what a scroller wants. `relative` rides along: a scroll
+    // box with no containing block dumps every `position:absolute` descendant into an ancestor's scrollable
+    // area (character-library-welcome.tsx carries the same note).
+    <Stack className="relative h-full overflow-y-auto">
+      <QueryBoundary
+        fallback={<SkeletonRows count={EDITOR_SKELETON_ROWS} />}
+        renderError={(_error, retry): ReactElement => <QueryErrorState label="this character" onRetry={retry} />}
+        reserveKey="character.editor"
+      >
+        <CharacterEditorBody characterId={characterId} detailContributors={detailContributors} onRevealField={onRevealField} />
+      </QueryBoundary>
+    </Stack>
   );
 }
 
@@ -200,7 +228,8 @@ function CharacterEditorForm({ data, trpc, session, detailContributors, onReveal
   const detailSections = resolveDetailSections(detailContributors, { characterId: data.id });
 
   return (
-    <Stack ref={surfaceRef} tabIndex={-1} className="relative h-full overflow-y-auto outline-none">
+    // The focus target only — the scroll box + its containing block moved up to the surface (see there).
+    <Stack ref={surfaceRef} tabIndex={-1} className="outline-none">
       <form
         onSubmit={(event): void => {
           event.preventDefault();
@@ -238,7 +267,14 @@ function CharacterEditorForm({ data, trpc, session, detailContributors, onReveal
                         chip prints through, so the editor and the pane cannot spell one number two ways.
                         The `aria-label` above stays UNGROUPED on purpose: a screen reader groups the digits
                         itself, and separators inside a spoken string are read out. */}
-                    {groupThousands(totalTokenCount(values, activeGreetingIndex))} total · {groupThousands(permanentTokenCount(values))} permanent
+                    {/* IT SAYS WHAT IT COUNTS (side-eye 2026-09-02 F11). The line read `1,257 total · 1,017
+                        permanent` — the same datum the CONTEXT band prints as `1,257 tokens`, one home
+                        naming its unit and one not, which is two vocabularies for one number. `tokens` is
+                        the band's word and now this one's; `permanent` keeps its gloss on the `title` +
+                        `aria-label` above (a pointer and a screen reader both reach it), because the meta
+                        slot is the one that gets clipped at 430px and a second focusable trigger in it is
+                        what the P1-4 fix removed. */}
+                    {groupThousands(totalTokenCount(values, activeGreetingIndex))} tokens · {groupThousands(permanentTokenCount(values))} permanent
                   </Text>
                 )}
               </form.Subscribe>

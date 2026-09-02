@@ -69,17 +69,33 @@ export interface CharacterSummary {
   readonly tags: readonly TagView[];
   /** LEFT JOIN character_summaries.elevatorPitch; null until the distill producer has run. */
   readonly elevatorPitch: string | null;
-  /** LEFT JOIN character_stats.lastActivityAt; null = never chatted. Drives the recent sort + resume-or-new. */
+  /**
+   * WHEN THIS OWNER LAST SPOKE TO HER — `MAX(coalesce(newest message, chat.updated_at))` over her
+   * member-visible rooms; null = never chatted. Drives the `recent` sort + resume-or-new, and the landing
+   * PRINTS it ("chatted 3h ago").
+   *
+   * IT IS CANON, NOT `character_stats` (#1131). The read used to LEFT JOIN the stats rollup's
+   * `last_activity_at`, which is turn ECONOMICS on a different clock: measured on the dev library
+   * 2026-09-02, nine of ten characters with real seated chats had no stats row at all — so the Characters
+   * landing's "Recently chatted" shelf could only ever show one face — and the tenth's rollup stamp
+   * disagreed with her newest message by 29 days. Now it is the SAME expression `chat.listChats` orders and
+   * displays by (`@orb/db/kit` `chatRecencyExpr`), so the landing, the editor header and the context pane
+   * cannot print three answers.
+   */
   readonly lastChattedAt: number | null;
   /**
-   * #865 — HOW MANY THREADS this character has, off the same `character_stats` LEFT JOIN the most/fewestChats
-   * keysets already order by (no extra query, no new column). It was selected and thrown away until the
-   * Characters landing needed to print it on a face.
+   * #865 — HOW MANY THREADS this character has: a `COUNT` of the same member-visible seated rooms
+   * `lastChattedAt` maxes over, which is what the editor header's "N chats" and the context band's chip
+   * already counted through `chat.listChats.totalCount`.
    *
-   * NOT NULLABLE: a join miss and a stats row reading zero are the same fact to a reader ("no chats yet"),
-   * and the face prints a NUMBER — a nullable field would push a three-state decision onto every consumer
-   * for a distinction the product does not make. (The SORTS still see the raw null, and still sink it to the
-   * tail — `chats is null` is their leading term, on the row, not on this projection.)
+   * IT IS NOT `character_stats.chats` (#1131). That counter is bumped only for a room's FIRST founding
+   * character (`chatCreatedDelta`, `domain/chat/verbs/claim-chat.ts`); a character seated second — or
+   * joined into a running room — contributes message deltas and never a chat, so the rollup read `0` for a
+   * character the rest of the app said had one.
+   *
+   * NOT NULLABLE: a character with no rooms counts zero, and the face prints a NUMBER — a nullable field
+   * would push a three-state decision onto every consumer for a distinction the product does not make. The
+   * two chat-count SORTS see the same zero and still sink it to their tail.
    */
   readonly chatCount: number;
   /** #865 — the CLOSED where-it-came-from verdict; the {@link CharacterDetail} twin, same one derivation.

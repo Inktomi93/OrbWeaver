@@ -7,7 +7,7 @@
 import type { CharacterListCursor } from "@orb/contracts/character";
 import { AUTHORED_CARD_CREATOR } from "@orb/contracts/character";
 import { characters, characterTags, tags } from "@orb/db";
-import type { CharacterHandle, CharacterId, Handle, TagId, UserId } from "@orb/kit/ids";
+import type { CharacterHandle, CharacterId, ChatId, Handle, TagId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq, sql } from "drizzle-orm";
 import { describe } from "vitest";
@@ -25,7 +25,7 @@ import {
 } from "../../../../../packages/server/src/domain/character/persistence/queries.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { seedAsset, seedCharacterStats, seedCharacterSummary, seedRawCharacter, seedUser } from "../_support.ts";
+import { seedAsset, seedCharacterSummary, seedRawCharacter, seedSeatedChat, seedUser } from "../_support.ts";
 
 /** The library-wide name-collision verdict for a page whose names collide with nothing — `summaryOf`'s
  *  third argument. The verdict itself is {@link ambiguousNamesFor}'s own subject, below. */
@@ -116,7 +116,7 @@ describe("persistence/queries", () => {
     expect(rows.map((r) => summaryOf(r, [], NO_AMBIGUOUS_NAMES).handle)).toEqual(["real"]);
   });
 
-  test("summaryOf projects the FIX-#2 denorms (elevatorPitch + lastChattedAt), null when the JOINs miss", async () => {
+  test("summaryOf projects elevatorPitch + lastChattedAt, null when there is no summary row and no seated chat", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const withDenorms = await seedRawCharacter(db, {
@@ -129,7 +129,7 @@ describe("persistence/queries", () => {
       characterId: withDenorms,
       elevatorPitch: "A wandering bard.",
     });
-    await seedCharacterStats(db, { characterId: withDenorms, lastActivityAt: 1_800_000_000_000 });
+    await seedSeatedChat(db, { chatId: castId<ChatId>("chat_d"), ownerId: owner, characterId: withDenorms, recencyAt: 1_800_000_000_000 });
 
     const rows = await listOwnedCharactersWithAvatar(db, {
       ownerId: owner,
@@ -140,32 +140,41 @@ describe("persistence/queries", () => {
     const byHandle = new Map(rows.map((r) => [r.character.handle, summaryOf(r, [], NO_AMBIGUOUS_NAMES)]));
     expect(byHandle.get(castId<CharacterHandle>("d"))?.elevatorPitch).toBe("A wandering bard.");
     expect(byHandle.get(castId<CharacterHandle>("d"))?.lastChattedAt).toBe(1_800_000_000_000);
-    // No summary/stats row → both denorms are null (LEFT JOIN miss).
+    // No summary row and no seated chat → the pitch is a LEFT JOIN miss and the stamp is a MAX over nothing.
     expect(byHandle.get(castId<CharacterHandle>("bare"))?.elevatorPitch).toBeNull();
     expect(byHandle.get(castId<CharacterHandle>("bare"))?.lastChattedAt).toBeNull();
   });
 
-  // #865 — the two fields the Characters landing reads off a FACE. `chatCount` was already selected for the
-  // most/fewestChats keysets and thrown away in `summaryOf`; `provenance` is the closed verdict the Origin
-  // readout used to re-derive on the client. Both ride the page query's EXISTING joins/columns.
-  test("summaryOf projects chatCount off the stats join — 0, not null, when the row has never chatted (#865)", async () => {
+  // #865 — the two fields the Characters landing reads off a FACE. #1131 changed where `chatCount` COMES
+  // FROM: it was `character_stats.chats`, a turn-economics rollup bumped only for a room's FIRST founding
+  // character, so a seated-second character read 0 while the editor header and the context pane (both
+  // counting canon through `chat.listChats`) read 1. It is now a COUNT over the caller's member-visible
+  // seated rooms — the same scope `listMemberChats` pages.
+  test("summaryOf counts the caller's member-visible seated rooms, and 0 (never null) when there are none (#865/#1131)", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const busy = await seedRawCharacter(db, { id: "character_busy", ownerId: owner, handle: castId<CharacterHandle>("busy") });
-    // A stats row that EXISTS but counts zero — distinct from having no stats row at all.
-    const idle = await seedRawCharacter(db, { id: "character_idle", ownerId: owner, handle: castId<CharacterHandle>("idle") });
-    await seedRawCharacter(db, { id: "character_nostats", ownerId: owner, handle: castId<CharacterHandle>("nostats") });
-    await seedCharacterStats(db, { characterId: busy, lastActivityAt: 1_800_000_000_000, chats: 7 });
-    await seedCharacterStats(db, { characterId: idle, lastActivityAt: null, chats: 0 });
+    // Seated in rooms that EXIST but are outside the library's visibility lens — the husk, the temporary
+    // room and the room this owner has left. Every one of them must count as nothing.
+    const hidden = await seedRawCharacter(db, { id: "character_hidden", ownerId: owner, handle: castId<CharacterHandle>("hidden") });
+    await seedRawCharacter(db, { id: "character_none", ownerId: owner, handle: castId<CharacterHandle>("none") });
+    await seedSeatedChat(db, { chatId: castId<ChatId>("chat_b1"), ownerId: owner, characterId: busy, recencyAt: 1_800_000_000_000 });
+    await seedSeatedChat(db, { chatId: castId<ChatId>("chat_b2"), ownerId: owner, characterId: busy, recencyAt: 1_700_000_000_000 });
+    await seedSeatedChat(db, { chatId: castId<ChatId>("chat_h1"), ownerId: owner, characterId: hidden, recencyAt: 9000, started: false });
+    await seedSeatedChat(db, { chatId: castId<ChatId>("chat_h2"), ownerId: owner, characterId: hidden, recencyAt: 9000, temporary: true });
+    await seedSeatedChat(db, { chatId: castId<ChatId>("chat_h3"), ownerId: owner, characterId: hidden, recencyAt: 9000, present: false });
 
     const rows = await listOwnedCharactersWithAvatar(db, { ownerId: owner, limit: 10, sort: "recent", cursor: undefined });
     const byHandle = new Map(rows.map((r) => [r.character.handle, summaryOf(r, [], NO_AMBIGUOUS_NAMES)]));
-    expect(byHandle.get(castId<CharacterHandle>("busy"))?.chatCount).toBe(7);
-    expect(byHandle.get(castId<CharacterHandle>("idle"))?.chatCount).toBe(0);
-    // THE JOIN MISS IS A COUNT OF ZERO, NOT AN UNKNOWN: "no stats row" and "a stats row saying 0" are the
-    // same fact to a reader ("no chats yet"), and the face prints a NUMBER — a nullable field there would
-    // push a three-state decision onto every consumer for a distinction the product does not make.
-    expect(byHandle.get(castId<CharacterHandle>("nostats"))?.chatCount).toBe(0);
+    expect(byHandle.get(castId<CharacterHandle>("busy"))?.chatCount).toBe(2);
+    // AND THE STAMP IS THE NEWEST OF THEM — a message-less room's recency is its own `updated_at`.
+    expect(byHandle.get(castId<CharacterHandle>("busy"))?.lastChattedAt).toBe(1_800_000_000_000);
+    // NO VISIBLE ROOM IS A COUNT OF ZERO, NOT AN UNKNOWN: the face prints a NUMBER, and a nullable field
+    // there would push a three-state decision onto every consumer for a distinction the product does not
+    // make. An invisible room is exactly as absent as no room.
+    expect(byHandle.get(castId<CharacterHandle>("hidden"))?.chatCount).toBe(0);
+    expect(byHandle.get(castId<CharacterHandle>("hidden"))?.lastChattedAt).toBeNull();
+    expect(byHandle.get(castId<CharacterHandle>("none"))?.chatCount).toBe(0);
   });
 
   test("summaryOf projects the closed provenance verdict — imported beats shipped beats authored (#865)", async () => {
@@ -240,7 +249,7 @@ describe("persistence/queries", () => {
   });
 });
 
-describe("listOwnedCharactersWithAvatar — recent sort (lastActivityAt DESC NULLS-LAST, createdAt, id)", () => {
+describe("listOwnedCharactersWithAvatar — recent sort (last-chat DESC NULLS-LAST, createdAt, id)", () => {
   // Build 4 rows: two chatted (distinct lastActivityAt), two never-chatted (null → the tail, ordered by
   // createdAt DESC, id DESC). Expected recent order: chattedNew, chattedOld, then the null tail newest-first.
   async function seedRecent(db: Awaited<ReturnType<typeof freshDb>>): Promise<UserId> {
@@ -259,24 +268,21 @@ describe("listOwnedCharactersWithAvatar — recent sort (lastActivityAt DESC NUL
     });
     await seedRawCharacter(db, { id: "character_n1", ownerId: owner, handle: castId<CharacterHandle>("n1"), createdAt: 30 });
     await seedRawCharacter(db, { id: "character_n2", ownerId: owner, handle: castId<CharacterHandle>("n2"), createdAt: 40 });
-    await seedCharacterStats(db, {
-      characterId: castId<CharacterId>("character_hot"),
-      lastActivityAt: 9000,
-    });
-    await seedCharacterStats(db, {
-      characterId: castId<CharacterId>("character_warm"),
-      lastActivityAt: 5000,
-    });
-    // A stats row that EXISTS but has never chatted (lastActivityAt null) must sort into the null tail, same
-    // as no stats row at all.
-    await seedCharacterStats(db, {
+    await seedSeatedChat(db, { chatId: castId<ChatId>("chat_hot"), ownerId: owner, characterId: castId<CharacterId>("character_hot"), recencyAt: 9000 });
+    await seedSeatedChat(db, { chatId: castId<ChatId>("chat_warm"), ownerId: owner, characterId: castId<CharacterId>("character_warm"), recencyAt: 5000 });
+    // A seated room that is ARCHIVED sorts into the never-chatted tail exactly as no room at all does — the
+    // visibility lens is part of the stamp, not a filter applied after it.
+    await seedSeatedChat(db, {
+      chatId: castId<ChatId>("chat_n1"),
+      ownerId: owner,
       characterId: castId<CharacterId>("character_n1"),
-      lastActivityAt: null,
+      recencyAt: 8000,
+      archived: true,
     });
     return owner;
   }
 
-  test("chatted rows rank by lastActivityAt DESC; never-chatted sink to the createdAt-DESC tail", async () => {
+  test("chatted rows rank by last-chat DESC; never-chatted sink to the createdAt-DESC tail", async () => {
     const db = await freshDb();
     const owner = await seedRecent(db);
     const rows = await listOwnedCharactersWithAvatar(db, {
@@ -285,7 +291,7 @@ describe("listOwnedCharactersWithAvatar — recent sort (lastActivityAt DESC NUL
       sort: "recent",
       cursor: undefined,
     });
-    // hot(9000) > warm(5000) > [null tail: n2(createdAt 40) > n1(createdAt 30)].
+    // hot(9000) > warm(5000) > [null tail: n2(createdAt 40) > n1(createdAt 30) — its only room is archived].
     expect(rows.map((r) => r.character.handle)).toEqual(["hot", "warm", "n2", "n1"]);
   });
 
@@ -357,7 +363,7 @@ describe("listOwnedCharactersWithAvatar — recent sort (lastActivityAt DESC NUL
     expect(second.map((r) => r.character.handle)).toEqual(["n2", "n1"]);
   });
 
-  test("a TIE on lastActivityAt with the page boundary between the two rows: no skip, no dup", async () => {
+  test("a TIE on the last-chat stamp with the page boundary between the two rows: no skip, no dup", async () => {
     // Two rows share an IDENTICAL lastActivityAt — the exact case cross-device recency now produces at scale
     // (two characters chatted in the same tick). The keyset MUST break the tie deterministically (createdAt
     // DESC, then id DESC), so a page boundary landing BETWEEN them emits each exactly once.
@@ -375,14 +381,8 @@ describe("listOwnedCharactersWithAvatar — recent sort (lastActivityAt DESC NUL
       handle: castId<CharacterHandle>("tieB"),
       createdAt: 200,
     });
-    await seedCharacterStats(db, {
-      characterId: castId<CharacterId>("character_tieA"),
-      lastActivityAt: 7000,
-    });
-    await seedCharacterStats(db, {
-      characterId: castId<CharacterId>("character_tieB"),
-      lastActivityAt: 7000,
-    });
+    await seedSeatedChat(db, { chatId: castId<ChatId>("chat_tieA"), ownerId: owner, characterId: castId<CharacterId>("character_tieA"), recencyAt: 7000 });
+    await seedSeatedChat(db, { chatId: castId<ChatId>("chat_tieB"), ownerId: owner, characterId: castId<CharacterId>("character_tieB"), recencyAt: 7000 });
 
     // Page 1 (limit 1): the tiebreak (createdAt DESC) ranks tieB (200) before tieA (100).
     const first = await listOwnedCharactersWithAvatar(db, {
@@ -398,7 +398,7 @@ describe("listOwnedCharactersWithAvatar — recent sort (lastActivityAt DESC NUL
     }
     expect(boundary.lastChattedAt).toBe(7000);
 
-    // Page 2 from the tieB boundary: tieA (the SAME lastActivityAt) must appear exactly once — the keyset's
+    // Page 2 from the tieB boundary: tieA (the SAME last-chat stamp) must appear exactly once — the keyset's
     // (createdAt, id) tiebreak carries across the equal-activity boundary, so tieB is not re-emitted (no dup)
     // and tieA is not skipped.
     const cursor: CharacterListCursor = {
@@ -577,10 +577,11 @@ describe("listOwnedCharactersWithAvatar — newest / oldest sort (createdAt, id)
   });
 });
 
-describe("listOwnedCharactersWithAvatar — mostChats / fewestChats sort (chats NULLS-LAST, id)", () => {
-  // Four rows: two with distinct chat counts, one with a stats row but 0 chats, one with NO stats row (the
-  // join-null tail). `chats` is join-nullable (no stats row = null), so never-chatted sinks to the tail in
-  // BOTH directions.
+describe("listOwnedCharactersWithAvatar — mostChats / fewestChats sort (zero tail LAST, id)", () => {
+  // Four rows: two with distinct room counts and two with none. #1131 collapsed the old third state — "a
+  // stats row that says 0" vs "no stats row at all" were two spellings of one fact and the count is now a
+  // real `COUNT`, so there is no null arm left to page. What survives is the RULING: the zero group trails
+  // every chatted row in BOTH directions (an unchatted card is unjudged, never "fewest").
   async function seedByChats(db: Awaited<ReturnType<typeof freshDb>>): Promise<UserId> {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     await seedRawCharacter(db, {
@@ -601,32 +602,30 @@ describe("listOwnedCharactersWithAvatar — mostChats / fewestChats sort (chats 
       handle: castId<CharacterHandle>("zero"),
       createdAt: 30,
     });
-    // "none" has NO stats row → chats is join-null (the tail).
+    // "none" is seated nowhere at all — the zero group's second member.
     await seedRawCharacter(db, {
       id: "character_none",
       ownerId: owner,
       handle: castId<CharacterHandle>("none"),
       createdAt: 40,
     });
-    await seedCharacterStats(db, {
-      characterId: castId<CharacterId>("character_busy"),
-      lastActivityAt: 9000,
-      chats: 12,
-    });
-    await seedCharacterStats(db, {
-      characterId: castId<CharacterId>("character_some"),
-      lastActivityAt: 5000,
-      chats: 3,
-    });
-    await seedCharacterStats(db, {
+    await seedSeatedChat(db, { chatId: castId<ChatId>("chat_busy1"), ownerId: owner, characterId: castId<CharacterId>("character_busy"), recencyAt: 9000 });
+    await seedSeatedChat(db, { chatId: castId<ChatId>("chat_busy2"), ownerId: owner, characterId: castId<CharacterId>("character_busy"), recencyAt: 8000 });
+    await seedSeatedChat(db, { chatId: castId<ChatId>("chat_busy3"), ownerId: owner, characterId: castId<CharacterId>("character_busy"), recencyAt: 7000 });
+    await seedSeatedChat(db, { chatId: castId<ChatId>("chat_some1"), ownerId: owner, characterId: castId<CharacterId>("character_some"), recencyAt: 5000 });
+    await seedSeatedChat(db, { chatId: castId<ChatId>("chat_some2"), ownerId: owner, characterId: castId<CharacterId>("character_some"), recencyAt: 4000 });
+    // "zero" IS seated — in a husk nobody ever claimed, which the library counts as nothing.
+    await seedSeatedChat(db, {
+      chatId: castId<ChatId>("chat_zero"),
+      ownerId: owner,
       characterId: castId<CharacterId>("character_zero"),
-      lastActivityAt: null,
-      chats: 0,
+      recencyAt: 6000,
+      started: false,
     });
     return owner;
   }
 
-  test("mostChats ranks by chat count DESC; the no-stats-row card sinks to the NULLS-LAST tail", async () => {
+  test("mostChats ranks by room count DESC; the zero group sinks to the tail, id-ordered within it", async () => {
     const db = await freshDb();
     const owner = await seedByChats(db);
     const all = await listOwnedCharactersWithAvatar(db, {
@@ -635,17 +634,17 @@ describe("listOwnedCharactersWithAvatar — mostChats / fewestChats sort (chats 
       sort: "mostChats",
       cursor: undefined,
     });
-    // busy(12) > some(3) > zero(0, has a stats row) > none(null tail).
+    // busy(3) > some(2) > the zero tail in id DESC: character_zero > character_none.
     expect(all.map((r) => r.character.handle)).toEqual(["busy", "some", "zero", "none"]);
   });
 
-  test("mostChats: a non-null cursor pages across the tie AND into the null tail", async () => {
+  test("mostChats: a cursor pages across the boundary AND into the zero tail", async () => {
     const db = await freshDb();
     const owner = await seedByChats(db);
-    // Boundary = some(chatCount 3). Strictly after: zero(0), then the null tail (none).
+    // Boundary = some(chatCount 2). Strictly after: the zero tail (zero, none).
     const cursor: CharacterListCursor = {
       sort: "mostChats",
-      chatCount: 3,
+      chatCount: 2,
       id: castId<CharacterId>("character_some"),
     };
     const page = await listOwnedCharactersWithAvatar(db, {
@@ -657,20 +656,21 @@ describe("listOwnedCharactersWithAvatar — mostChats / fewestChats sort (chats 
     expect(page.map((r) => r.character.handle)).toEqual(["zero", "none"]);
   });
 
-  test("mostChats: a null-boundary cursor stays WITHIN the null tail (no non-null row leaks back)", async () => {
+  test("mostChats: a ZERO-boundary cursor stays WITHIN the zero tail (no chatted row leaks back)", async () => {
     const db = await freshDb();
     const owner = await seedByChats(db);
-    // Add a SECOND no-stats-row card so the null tail has an internal id-DESC order to page.
+    // Add a SECOND roomless card so the zero tail has an internal id-DESC order to page.
     await seedRawCharacter(db, {
       id: "character_none2",
       ownerId: owner,
       handle: castId<CharacterHandle>("none2"),
       createdAt: 50,
     });
-    // Full null tail in mostChats (id DESC): none2 > none (lexical). Boundary = none2 → only `none` follows.
+    // Full zero tail in mostChats (id DESC): zero > none2 > none (lexical). Boundary = none2 → only `none`
+    // follows: `zero` is ahead of the boundary and the chatted rows must not leak back.
     const cursor: CharacterListCursor = {
       sort: "mostChats",
-      chatCount: null,
+      chatCount: 0,
       id: castId<CharacterId>("character_none2"),
     };
     const page = await listOwnedCharactersWithAvatar(db, {
@@ -682,7 +682,7 @@ describe("listOwnedCharactersWithAvatar — mostChats / fewestChats sort (chats 
     expect(page.map((r) => r.character.handle)).toEqual(["none"]);
   });
 
-  test("fewestChats is the direction-flipped twin — fewest first, null STILL last", async () => {
+  test("fewestChats is the direction-flipped twin — fewest first, the zero group STILL last", async () => {
     const db = await freshDb();
     const owner = await seedByChats(db);
     const all = await listOwnedCharactersWithAvatar(db, {
@@ -691,13 +691,13 @@ describe("listOwnedCharactersWithAvatar — mostChats / fewestChats sort (chats 
       sort: "fewestChats",
       cursor: undefined,
     });
-    // zero(0) < some(3) < busy(12), then the null tail (none) — never-chatted is NEVER "fewest".
-    expect(all.map((r) => r.character.handle)).toEqual(["zero", "some", "busy", "none"]);
+    // some(2) < busy(3), then the zero tail in id ASC (none, zero) — never-chatted is NEVER "fewest".
+    expect(all.map((r) => r.character.handle)).toEqual(["some", "busy", "none", "zero"]);
 
-    // Boundary = some(chatCount 3). Strictly after in fewestChats: busy(12), then the null tail (none).
+    // Boundary = some(chatCount 2). Strictly after in fewestChats: busy(3), then the whole zero tail.
     const cursor: CharacterListCursor = {
       sort: "fewestChats",
-      chatCount: 3,
+      chatCount: 2,
       id: castId<CharacterId>("character_some"),
     };
     const page = await listOwnedCharactersWithAvatar(db, {
@@ -706,7 +706,7 @@ describe("listOwnedCharactersWithAvatar — mostChats / fewestChats sort (chats 
       sort: "fewestChats",
       cursor,
     });
-    expect(page.map((r) => r.character.handle)).toEqual(["busy", "none"]);
+    expect(page.map((r) => r.character.handle)).toEqual(["busy", "none", "zero"]);
   });
 
   test("a chat-count TIE with the page boundary between the two rows: no skip, no dup", async () => {
@@ -724,17 +724,11 @@ describe("listOwnedCharactersWithAvatar — mostChats / fewestChats sort (chats 
       handle: castId<CharacterHandle>("tB"),
       createdAt: 200,
     });
-    // Identical chat count — id must break the tie deterministically (id DESC for mostChats).
-    await seedCharacterStats(db, {
-      characterId: castId<CharacterId>("character_tA"),
-      lastActivityAt: null,
-      chats: 7,
-    });
-    await seedCharacterStats(db, {
-      characterId: castId<CharacterId>("character_tB"),
-      lastActivityAt: null,
-      chats: 7,
-    });
+    // Identical room count — id must break the tie deterministically (id DESC for mostChats).
+    await seedSeatedChat(db, { chatId: castId<ChatId>("chat_tA1"), ownerId: owner, characterId: castId<CharacterId>("character_tA"), recencyAt: 100 });
+    await seedSeatedChat(db, { chatId: castId<ChatId>("chat_tA2"), ownerId: owner, characterId: castId<CharacterId>("character_tA"), recencyAt: 200 });
+    await seedSeatedChat(db, { chatId: castId<ChatId>("chat_tB1"), ownerId: owner, characterId: castId<CharacterId>("character_tB"), recencyAt: 100 });
+    await seedSeatedChat(db, { chatId: castId<ChatId>("chat_tB2"), ownerId: owner, characterId: castId<CharacterId>("character_tB"), recencyAt: 200 });
 
     // Page 1 (limit 1): id DESC ranks tB before tA (character_tB > character_tA lexically).
     const first = await listOwnedCharactersWithAvatar(db, {
@@ -748,7 +742,7 @@ describe("listOwnedCharactersWithAvatar — mostChats / fewestChats sort (chats 
     if (boundary === undefined) {
       throw new Error("expected a boundary row");
     }
-    expect(boundary.chatCount).toBe(7);
+    expect(boundary.chatCount).toBe(2);
 
     // Page 2 from the tB boundary: tA (the SAME count) appears exactly once — the id tiebreak carries across
     // the equal-count boundary (tB not re-emitted, tA not skipped).

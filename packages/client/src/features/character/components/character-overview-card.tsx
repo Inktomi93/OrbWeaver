@@ -41,6 +41,7 @@ import { Separator } from "@orb/ui/separator";
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
+import { useId } from "react";
 import { useTRPC } from "#data";
 import { deriveChatTitle, timeLib } from "#lib";
 import { EMPTY_VALUE } from "../lib/empty-vocabulary.ts";
@@ -202,7 +203,20 @@ function Kicker({ children }: { readonly children: string }): ReactElement {
 }
 
 /** One LABEL / DATUM pair with an optional GLOSS second line. `mono` is the datum's numeric skin — a
- *  measurement reads in mono tabular figures, a phrase ("Made here", "3m ago") reads as prose. */
+ *  measurement reads in mono tabular figures, a phrase ("Made here", "3m ago") reads as prose.
+ *
+ *  THE PAIR IS BOUND, NOT ADJACENT (side-eye 2026-09-02 F14). The region rendered as a flat run of sibling
+ *  paragraphs — `Added` · `2d ago` · `Source` · `Example — shipped with Orbweaver` · … — with nothing tying a
+ *  value to its label: correct only if you read them in visual order, which is exactly what a screen-reader
+ *  user cannot rely on. The ROW is a `group` named by its own label, so the value is announced inside
+ *  something that says what it is.
+ *
+ *  NOT `aria-labelledby` ON THE VALUE, which is what the review proposed and what this first shipped as: the
+ *  value renders as a `<p>`, whose `paragraph` role is name-PROHIBITED, so the attribute is inert — measured
+ *  in the CT, `toHaveAccessibleName` returned `""` with the `aria-labelledby` present on the element. `group`
+ *  supports naming from the author and is the shape a label/value pair actually is. `dl`/`dt`/`dd` would be
+ *  the other honest answer and is not reachable here: it needs raw HTML carrying classNames, which is exactly
+ *  what the layout primitives exist to prevent, and they are `div`-only by design. */
 function OverviewRow({
   label,
   value,
@@ -214,14 +228,15 @@ function OverviewRow({
   readonly gloss?: string | undefined;
   readonly mono: boolean;
 }): ReactElement {
+  const labelId = useId();
   return (
-    <Stack gap="field" data-slot="overview-row">
+    <Stack aria-labelledby={labelId} data-slot="overview-row" gap="field" role="group">
       <Row gap="block" align="baseline" justify="between">
         {/* The grammar's name/value pair (#573): the row's own MUTED name rides className, because `tone`
             is declared before `voice` and loses the merge — the ratified spelling for an intentional tone.
             The value is a `datum` when it is mono/tabular and a `label` otherwise; both were spelled
             `size="label"` before, which is the A3-red internal axis. */}
-        <Text voice="label" className="min-w-0 truncate text-muted-foreground">
+        <Text voice="label" className="min-w-0 truncate text-muted-foreground" id={labelId}>
           {label}
         </Text>
         <Text voice={mono ? "datum" : "label"} className="shrink-0">

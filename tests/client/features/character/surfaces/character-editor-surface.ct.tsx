@@ -29,7 +29,10 @@ import { CHARACTER_EDITOR_AMBIENT_ROUTES, characterListResponder, makeCharacterD
 // GROUPED DIGITS (#878 F13): the census prints `1,257 total · 1,017 permanent`, never a bare four-digit
 // run that reads as an id. The comma is OPTIONAL in the pattern only because a sub-1000 fixture is legal;
 // the grouping itself is asserted on a four-digit count in the F13 pin.
-const TOKEN_SPLIT_RE = /[\d,]+ total · [\d,]+ permanent/;
+// The census SAYS WHAT IT COUNTS (#1131 F11): `1,257 tokens · 1,017 permanent`. It read `N total ·
+// M permanent` — the same datum the CONTEXT band prints as `1,257 tokens`, one home naming its unit and
+// one not. The pin follows the visible line, which is the thing a reader compares across the two homes.
+const TOKEN_SPLIT_RE = /[\d,]+ tokens · [\d,]+ permanent/;
 const BLUR_CLASS_RE = /blur-md/;
 // Facet-row accessible names (the row's label-button wraps label + subtitle, so match by substring).
 const SYSTEM_PROMPT_ROW = /System prompt/;
@@ -447,7 +450,7 @@ const FIRST_SUGGESTION = "noir";
 const ACCEPT_BUTTON_RE = /^Accept /;
 const MORE_BUTTON_RE = /more$/;
 const TRANSPARENT = "rgba(0, 0, 0, 0)";
-const TOKEN_TOTAL_RE = /\d+ total/;
+const TOKEN_TOTAL_RE = /\d+ tokens/;
 const TOKEN_PERMANENT_RE = /permanent — sent every turn/;
 /** The content header's own gloss (#493) — the pointer half of the same explanation. */
 const TOKEN_SENT_EVERY_TURN_RE = /sent every turn/;
@@ -963,4 +966,120 @@ test("#843 a suggestion pill's own label clears the 11px functional floor", asyn
   // The `Suggested` kicker stays at the micro step — the finding was about a CONTROL's own label, and a
   // blanket bump would have taken the footnote voice with it.
   await expect.poll(() => fontSizePx(component.getByText("Suggested", { exact: true }))).toBeLessThan(UI_TEXT_FLOOR_PX);
+});
+
+// ── #1132 · F2 — THE OPENING STRIP HAD NO STATE AT ALL ────────────────────────────────────────────
+// Measured 2026-09-02: all four `Opening N` buttons read `{role:null, pressed:null, current:null,
+// selected:null, tabIndex:0}` — four tab stops, no arrow arm, and the only paint separating the active one
+// was a 1px border compositing to 1.189:1 against a WCAG 1.4.11 floor of 3:1. These assert the ratified
+// toolbar idiom the context pane already implements (#112), through affordances a user actually has.
+
+test("#1132 the Opening strip is a named toolbar with ONE tab stop and aria-current on the showing opening", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    ...CHARACTER_EDITOR_AMBIENT_ROUTES,
+    "character.get": () => GREETINGS_CARD, // two greetings ⇒ the strip renders
+    "chat.listChats": chatListResponder([]),
+    "character.update": () => GREETINGS_CARD,
+  });
+  const component = await mount(<CharacterEditorSurfaceStory />);
+
+  const strip = component.getByRole("toolbar", { name: "Openings" });
+  await expect(strip).toBeVisible();
+
+  const first = component.getByRole("button", { name: "Opening 1" });
+  const second = component.getByRole("button", { name: "Opening 2" });
+  // THE STATE IS A CLAIM, not a colour: the showing opening says so, the other says nothing at all.
+  await expect(first).toHaveAttribute("aria-current", "true");
+  await expect(second).not.toHaveAttribute("aria-current", /.*/);
+  // ONE TAB STOP for the whole strip (roving): the rest are -1, so a keyboard user crosses the group in one
+  // Tab instead of four.
+  await expect(first).toHaveAttribute("tabindex", "0");
+  await expect(second).toHaveAttribute("tabindex", "-1");
+
+  // Selecting moves the claim.
+  await second.click();
+  await expect(second).toHaveAttribute("aria-current", "true");
+  await expect(first).not.toHaveAttribute("aria-current", /.*/);
+});
+
+test("#1132 ArrowRight moves focus inside the strip WITHOUT selecting (manual activation)", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    ...CHARACTER_EDITOR_AMBIENT_ROUTES,
+    "character.get": () => GREETINGS_CARD,
+    "chat.listChats": chatListResponder([]),
+    "character.update": () => GREETINGS_CARD,
+  });
+  const component = await mount(<CharacterEditorSurfaceStory />);
+
+  const first = component.getByRole("button", { name: "Opening 1" });
+  const second = component.getByRole("button", { name: "Opening 2" });
+  await first.focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(second).toBeFocused();
+  // ACTIVATION IS MANUAL: the arrow moved the stop, it did not mount the other greeting. The panel under
+  // this strip is a whole themed markdown bubble, and crossing four pills must not render four of them.
+  await expect(first).toHaveAttribute("aria-current", "true");
+  await page.keyboard.press("Enter");
+  await expect(second).toHaveAttribute("aria-current", "true");
+});
+
+test("#1132 the showing opening is a FILL, not a hairline — its own paint differs from its siblings'", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    ...CHARACTER_EDITOR_AMBIENT_ROUTES,
+    "character.get": () => GREETINGS_CARD,
+    "chat.listChats": chatListResponder([]),
+    "character.update": () => GREETINGS_CARD,
+  });
+  const component = await mount(<CharacterEditorSurfaceStory />);
+
+  const paintOf = (node: Locator): Promise<{ readonly bg: string; readonly ring: string }> =>
+    node.evaluate((el) => {
+      const style = globalThis.getComputedStyle(el);
+      return { bg: style.backgroundColor, ring: style.boxShadow };
+    });
+  const on = await paintOf(component.getByRole("button", { name: "Opening 1" }));
+  const off = await paintOf(component.getByRole("button", { name: "Opening 2" }));
+
+  // The defect was "both transparent, separated by a 1.189:1 border". The selected arm now carries an actual
+  // FILL — the ratified `selection="on"` skin — so the two differ in the channel a reader can see.
+  expect(on.bg).not.toBe(off.bg);
+  expect(on.bg).not.toBe("rgba(0, 0, 0, 0)");
+  // …and its inset ring is a second, redundant channel (state never rests on one axis).
+  expect(on.ring).not.toBe(off.ring);
+});
+
+// ── #1138 · F13 — the suggestion strip was ten ungrouped consecutive tab stops ─────────────────────
+test("#1138 the suggestion chips live in a NAMED group that states how many are coming", async ({ mount, page }) => {
+  await routeSuggestions(page);
+  const component = await mount(<CharacterEditorSurfaceStory />);
+
+  const group = component.getByRole("group", { name: `Suggested tags, ${String(SUGGESTION_NAMES.length)}` });
+  await expect(group).toBeVisible();
+  // The chips are INSIDE it — the point of the name is that a reader learns the set before entering it.
+  await expect(group.getByRole("button", { name: `Accept ${SUGGESTION_NAMES[0]}` })).toBeVisible();
+  // "Suggest tags" is a COMMAND on the card, not a member of the suggestion set — it stays outside.
+  await expect(group.getByRole("button", { name: "Suggest tags" })).toHaveCount(0);
+});
+
+// ── #1138 · F14 — the context Overview bound label→value by POSITION only ──────────────────────────
+test("#1138 an Overview value is NAMED BY its label, not merely adjacent to it", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    ...CHARACTER_EDITOR_AMBIENT_ROUTES,
+    "character.get": () => OVERVIEW_CARD,
+    "chat.listChats": chatListResponder(OVERVIEW_CHATS),
+  });
+  const component = await mount(<CharacterFacetInspectorStory />);
+
+  // The pair is a NAMED GROUP: entering it, a reader is told what the value is before hearing it. Before
+  // #1138 the region was a flat run of sibling paragraphs and "chub" announced as an orphan phrase with the
+  // word that says what it is two siblings away.
+  const row = component.getByRole("group", { name: "Source" });
+  await expect(row).toBeVisible();
+  await expect(row).toContainText("chub");
+
+  // AND THE INERT SPELLING IS REFUSED. The review's own suggestion — `aria-labelledby` from the value to its
+  // label — is a no-op here: the value renders as a `<p>`, whose `paragraph` role is name-prohibited, so the
+  // attribute computes to no name at all. This is the pin that catches a "fix" that regresses to it.
+  const value = row.getByText("chub");
+  await expect(value).toHaveAccessibleName("");
 });

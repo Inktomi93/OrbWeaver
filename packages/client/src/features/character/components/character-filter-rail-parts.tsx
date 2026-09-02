@@ -17,8 +17,13 @@ import { useEffect, useState } from "react";
 import type { TagFilterEntry, TagFilterState } from "#lib";
 import { tagFilterStateOf } from "#lib";
 import { useRovingChipFocus } from "../hooks/use-roving-chip-focus.ts";
+
 import type { LibraryChipTag } from "../lib/character-library-lens.ts";
 import { vocabularyPanelTags } from "../lib/character-library-lens.ts";
+
+/** THE tag chip's own spelling — the state attribute each chip carries, which is also what the CTs address
+ *  them by. One const, so the roving group and the markup can never name two different things. */
+const TAG_CHIP_SELECTOR = "[data-tag-filter-state]";
 
 /** How many panel chips one animation frame mounts. The expansion's whole cost used to land in the click's
  *  own task (648ms blocking, `dispatchDiscreteEvent`); mounting in chunks keeps the FIRST paint to this many
@@ -97,7 +102,7 @@ export function TagVocabularyPanel({
   const shown = matches.slice(0, mounted);
   // ONE TAB STOP FOR THE CLOUD (#491) — see `use-roving-chip-focus.ts` for the 563-stop measurement and for
   // why this borrows the toolbar KEYBOARD MODEL without the toolbar's skin.
-  const roving = useRovingChipFocus(shown.length);
+  const roving = useRovingChipFocus(shown.length, TAG_CHIP_SELECTOR);
   return (
     <>
       <Row gap="field">
