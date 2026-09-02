@@ -2059,6 +2059,7 @@
     "tests/tooling/ui-gate-structural-regressions.int.test.ts",
     "tests/tooling/verify/cli.int.test.ts",
     "tests/tooling/verify/gates/biome-grant-liveness.int.test.ts",
+    "tests/tooling/verify/gates/bus-payload-allowlist.test.ts",
     "tests/tooling/verify/gates/caught-failure-ownership.int.test.ts",
     "tests/tooling/verify/gates/contract-verb-presence.test.ts",
     "tests/tooling/verify/gates/css-selector-has-a-writer.int.test.ts",
