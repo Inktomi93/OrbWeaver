@@ -457,14 +457,15 @@
       },
       "receipt": {
         "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
-        "assignedSha256": "301e6cacb34c4050a42a925a2cef9658c1436aa17c153a65285780d8163680d3",
+        "assignedSha256": "6ebad6bc1d6d877019fe2d674c086f1c7b49a1b2e86c658b771477c991cebdda",
         "disposition": "current",
         "authority": "operational",
         "fullRead": true,
-        "verifiedSha256": "301e6cacb34c4050a42a925a2cef9658c1436aa17c153a65285780d8163680d3",
-        "verifiedCommit": "8d813c402341f4e6bb388f873f690d2c7655642a",
+        "verifiedSha256": "6ebad6bc1d6d877019fe2d674c086f1c7b49a1b2e86c658b771477c991cebdda",
+        "verifiedCommit": "12b8c524f6e463708292ac17ecb0c2aaa9ceb767",
         "verifiedAt": "2026-09-01",
         "evidence": [
+          "re-attested at 12b8c524f6e463708292ac17ecb0c2aaa9ceb767 (#973): the four grant-liveness rows record the PATTERN half — 298 previously-unjudged glob/pattern grants partitioned into 261 verified-live, 17 ratified with reason+cite, 18 irreducible under a two-sided no-growth budget, and 2 stale-and-removed. check:structure ran COMPLETE 248/248 clean, gate conformance 8/8, and the four gate pins 61/61",
           "re-attested at 9a4bee47ab1b21cd68c291c80e1704b486200dd8 (#995): the agent-bridge-lock row records the lean production readiness home, shared debug Promise/query, and DEV-only bridge boundary; focused CT passed 6/6, gate conformance passed, and check:structure completed 244/244 active gates clean",
           "re-attested at db116d91ee1fcc6ee14ea915f1da0922cb8e84bd (#881/#882): tooling-instrument-proof evidence 8/8, focused UI twins 4/4 and conformance 6/6; design-audit-rule-proof UI audit 106/106, walker 53/53, conformance 8/8 and check-gates 8/8; merged check:structure clean at 243/243",
           "re-attested at 7b7eb54b2 under #950 — devtools-frontend-assets records the exact tuple/hash/MIME/license/inventory/path closure and the discovered active count is 242",
@@ -553,7 +554,7 @@
         ],
         "summary": "Active enforcement registry re-attested for #995: agent-bridge-lock pins the lean readiness home, shared readiness identity, and DEV-only instrumentation boundary."
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/architecture/core/Core-Enforcement-Deferred-Dropped.md",
