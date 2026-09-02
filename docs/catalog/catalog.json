@@ -1783,15 +1783,15 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 345,
-      "bytes": 29578,
-      "sha256": "85e0f1e2a60179bf4f61aa283c36897830dc91b3aa7752592c1f1ce0aedd5fb9",
+      "bytes": 29933,
+      "sha256": "4ea26e56a6bd76f82887b35bf592d6c30e9b2b746442a21a68c9d3e665584e7d",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "law",
           "status": "active",
-          "updated": "2026-08-18"
+          "updated": "2026-09-02"
         },
         "errors": []
       },
@@ -1801,10 +1801,11 @@
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "85e0f1e2a60179bf4f61aa283c36897830dc91b3aa7752592c1f1ce0aedd5fb9",
-        "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
-        "verifiedAt": "2026-08-30",
+        "verifiedSha256": "4ea26e56a6bd76f82887b35bf592d6c30e9b2b746442a21a68c9d3e665584e7d",
+        "verifiedCommit": "0b7fd3933a8041b9b1c07ab22e1cd9b54ce3127e",
+        "verifiedAt": "2026-09-02",
         "evidence": [
+          "re-attested at 0b7fd3933 (#1069): reduced-motion FLIP row + the §1.5 pointer",
           "docs/architecture/core/UI-Gates-and-Lessons.md:1 (full read; header/status evaluated)",
           "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
           "pnpm check:docs (2026-08-14: 104 file(s) formatted)",
@@ -2007,16 +2008,16 @@
       "path": "docs/architecture/core/client-architecture-lockdown.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 827,
-      "bytes": 141365,
-      "sha256": "11950199ae3feac8d32dd55a65263a9964dcbe388192f887f88e4442dec3ccdc",
+      "lines": 830,
+      "bytes": 141636,
+      "sha256": "2f69da59d1b4f244e3abecb7f4dec9053840741f88af6aab32f98bf928ea7aab",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "law",
           "status": "active",
-          "updated": "2026-09-01"
+          "updated": "2026-09-02"
         },
         "errors": []
       },
@@ -2026,10 +2027,11 @@
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "11950199ae3feac8d32dd55a65263a9964dcbe388192f887f88e4442dec3ccdc",
-        "verifiedCommit": "a287baa771fcc3337aea6196b73a54151714dc8d",
+        "verifiedSha256": "2f69da59d1b4f244e3abecb7f4dec9053840741f88af6aab32f98bf928ea7aab",
+        "verifiedCommit": "0b7fd3933a8041b9b1c07ab22e1cd9b54ce3127e",
         "verifiedAt": "2026-09-02",
         "evidence": [
+          "re-attested at 0b7fd3933 (#1069): the shell FLIP paragraph → §1.5 pointer",
           "re-attested at a287baa77 (#933 closure): §4.7 — the REPORTED-BUT-UNREAD bullet replaced by two ENFORCED TODAY bullets (dead/empty-CSS blocking floor; the rated R1-R7 floors + the one planner and its three matrix consumers, #953 Done); token count cites the pinning test",
           "re-attested at 1d90455b6 (#1039 presence disclosure, claude-b lane cb-presence-surface): law 6 truth-repaired — a client READ now exists (`notifications.presence`, poll-driven, cited in query-freshness-coverage) and still no client WRITE; the sentence matches the contract's declared procedures on the folded tree",
           "re-attested at 9a4bee47ab1b21cd68c291c80e1704b486200dd8 (#995): the ownership and registration tables plus §7 name app-ready-signal.ts as the one production readiness home and retain agent-bridge.ts solely behind the literal DEV dynamic handle door; the mounted bridge CT proved Promise identity and readiness behavior",
@@ -2086,16 +2088,16 @@
       "path": "docs/architecture/core/motion-and-animation-guide.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 471,
-      "bytes": 30871,
-      "sha256": "acd1908ad34fd3ab41f1832998171fe7db1d054b942739abe50452ffd3876fc2",
+      "lines": 514,
+      "bytes": 34459,
+      "sha256": "941e48290c5be5b32a8b61709f675849ab49c3b8c7e503d309611a3decb3b276",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "law",
           "status": "active",
-          "updated": "2026-08-22"
+          "updated": "2026-09-02"
         },
         "errors": []
       },
@@ -2105,10 +2107,11 @@
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "acd1908ad34fd3ab41f1832998171fe7db1d054b942739abe50452ffd3876fc2",
-        "verifiedCommit": "774231540214ff0322f9884872c0c0588ed54f8a",
-        "verifiedAt": "2026-08-30",
+        "verifiedSha256": "941e48290c5be5b32a8b61709f675849ab49c3b8c7e503d309611a3decb3b276",
+        "verifiedCommit": "0b7fd3933a8041b9b1c07ab22e1cd9b54ce3127e",
+        "verifiedAt": "2026-09-02",
         "evidence": [
+          "re-attested at 0b7fd3933 (#1069 tabs glide, claude-b lane cb-tabs-glide): §1.5 dated exception class names BOTH FLIP shapes (tabs indicator + use-list-track-flip); §4.2-2 mechanism = rest-in-layout + FLIP transform glide via MutationObserver; §3.7 allowance ONE home in packages/kit/src/motion-allowance; §1.2 count 4→3",
           "docs/architecture/core/motion-and-animation-guide.md:1 full read against repair commit b75860a08476cdf9276337b5009d003bd0ab31eb",
           "delta re-verify 2026-08-22 (#456, commit 09f76110c1c53bb6f1d66c689f71ece5e9b80437): re-read IN FULL at the amended bytes — §3.7 gains the owner-ruled interactive-state colour carve-out (paint-only colour on hover/active/focus allowed; geometry unchanged), which resolves its standing collision with §2's state-transition row and §4.2 item 9's transition-colors. No other claim in this document moved.",
           "packages/client/src/lib/motion-flaggers.ts:134 the [anim] channel's carve-out predicate (property set + live interactive-state match + hover-out latch) with its stated blind spots",
