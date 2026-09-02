@@ -102,7 +102,7 @@ const WAIVERS: Readonly<Record<string, Waiver>> = {
   "rename-chat-dialog": { coveredBy: "chat-options-menu", why: "the rename dialog opens from the options menu; chat-options-menu.ct drives it." },
   "add-member-popover": {
     coveredBy: "members-panel",
-    why: "#490 gave the add-member door ONE home: it anchors on the CONTEXT panel's CAST header (the cast-bar twin is gone — two simultaneously-visible doors for one action), and members-panel.ct drives it.",
+    why: "#490 gave the add-member door ONE home: it anchors on the CONTEXT panel's CAST header (the character-bar twin is gone — two simultaneously-visible doors for one action), and members-panel.ct drives it.",
   },
   "chat-content": { coveredBy: "chat-room-surface", why: "ChatContent is the room-surface body; chat-room-surface.ct mounts it." },
   "tool-recurse-control": {

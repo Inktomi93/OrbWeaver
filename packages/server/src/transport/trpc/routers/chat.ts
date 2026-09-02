@@ -432,7 +432,7 @@ const setChatAnchorPersonaSchema = z.object({
 // intent/guided steer — the DERIVED `userIntentSchema`/`guidedSteerSchema` wire boundary, as `send`/`generate`).
 // NOTE (#29): a MUTED member is still force-summonable — mute is passive arbitration exclusion, not a host-
 // override block (the verb's presence-only target check, verbs/turn.ts).
-// Add a character to an existing chat's roster (J7 add-member — the cast-bar "+"). Host-only INSIDE the
+// Add a character to an existing chat's roster (J7 add-member — the character-bar "+"). Host-only INSIDE the
 // verb (`requireHost`) + the PD-21 single-owner invariant (a foreign character reads as missing, leak-
 // free) — this router row is a thin pass-through, the same shape as the sibling roster cluster.
 const addCharacterToChatSchema = z.object({
