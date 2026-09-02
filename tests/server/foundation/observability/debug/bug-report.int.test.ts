@@ -13,9 +13,9 @@ import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
+import type { BugReportRecord } from "@orb/kit/bug-report";
 import { resolveEvidenceWindow } from "@orb/kit/evidence-window";
 import { afterEach, beforeEach, describe } from "vitest";
-import type { BugReportRecord } from "@orb/kit/bug-report";
 import {
   mintBugReportId,
   readBuildIdentity,

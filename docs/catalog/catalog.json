@@ -10849,6 +10849,68 @@
       "receiptCurrent": true
     },
     {
+      "path": "docs/design/1195-devtools-mcp-retirement.md",
+      "lane": "design",
+      "issue": 5,
+      "lines": 65,
+      "bytes": 5642,
+      "sha256": "0eb74adabfc2d72c845b73be7399dbf1238901e587ac6139b9aaf73df481e29d",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "design",
+          "status": "active",
+          "updated": "2026-09-02"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/design/1195-devtools-mcp-retirement.md",
+        "assignedSha256": "0eb74adabfc2d72c845b73be7399dbf1238901e587ac6139b9aaf73df481e29d",
+        "disposition": "current",
+        "authority": "design",
+        "fullRead": true,
+        "verifiedSha256": "0eb74adabfc2d72c845b73be7399dbf1238901e587ac6139b9aaf73df481e29d",
+        "verifiedCommit": "33d7067f059e4fcbf43c672d8a2e967479aa68f2",
+        "verifiedAt": "2026-09-02",
+        "claims": [
+          {
+            "claim": "Lighthouse (41 calls, snapshot-mode dominant) is the one MCP use that produced findings snap could not (axe label-content-name-mismatch, target-size); it becomes a snap arm before the MCP retires.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#1198"
+              }
+            ]
+          },
+          {
+            "claim": "The request log (3 calls) is the only other gap; every other tool maps to an existing snap arm named in the census table.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#1199"
+              }
+            ]
+          },
+          {
+            "claim": "The retirement itself (side-eye tools, the main-session plugin, the headless-patch ritual, the skill's Lighthouse row) is the last step of the program.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#1195"
+              }
+            ]
+          }
+        ],
+        "summary": "Census of every chrome-devtools MCP tool call across both accounts for 14 days (176 calls) mapped to snap arms; the Lighthouse arm and a request log are the gaps to build before the MCP retires (owner-directed #1195).",
+        "evidence": [
+          "born-reviewed by the primary orchestrator (author) 2026-09-02 at 33d7067f0: the two-account, 14-day transcript census of chrome-devtools MCP tool calls (176 calls, 719 jsonl files) mapped to snap arms; two gaps named (a Lighthouse arm, a request log) and the retirement step; owner-directed program (#1195)."
+        ]
+      },
+      "receiptCurrent": true
+    },
+    {
       "path": "docs/design/885-884-boundary-reservation-and-touch-floor.md",
       "lane": "design",
       "issue": 5,
