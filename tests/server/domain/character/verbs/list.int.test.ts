@@ -6,14 +6,14 @@
 
 import { AUTHORED_CARD_CREATOR, CHARACTER_PROVENANCES } from "@orb/contracts/character";
 import { characterTags, tags } from "@orb/db";
-import type { CharacterHandle, CharacterId, Handle, TagId, UserId } from "@orb/kit/ids";
+import type { CharacterHandle, CharacterId, ChatId, Handle, TagId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createCharacterService, createStampRefinerySignals } from "@orb/server/domain/character";
 import { describe, vi } from "vitest";
 import { cardTokenSize } from "../../../../../packages/server/src/domain/character/substrate/card-tokens.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { makeHarness, principal, seedCharacterStats, seedCharacterSummary, seedRawCharacter, seedUser } from "../_support.ts";
+import { makeHarness, principal, seedCharacterSummary, seedRawCharacter, seedSeatedChat, seedUser } from "../_support.ts";
 
 describe("list", () => {
   test("returns the owner's characters newest-first, excluding other owners", async () => {
@@ -177,7 +177,7 @@ describe("list — sort (recent / alpha) + stale-cursor rejection", () => {
       input: { handle: castId<CharacterHandle>("hot"), name: "Hot", description: "d" },
     });
     // Only "hot" has been chatted → it leads; "cold" (never chatted) sinks to the null tail.
-    await seedCharacterStats(db, { characterId: hot.id, lastActivityAt: 7000 });
+    await seedSeatedChat(db, { chatId: castId<ChatId>("chat_hot"), ownerId: owner, characterId: hot.id, recencyAt: 7000 });
 
     const page = await svc.list({ principal: principal(owner), sort: "recent", limit: 1 });
     expect(page.items.map((r) => r.id)).toEqual([hot.id]);
@@ -248,7 +248,7 @@ describe("list — sort (recent / alpha) + stale-cursor rejection", () => {
     expect(oldest.nextCursor).toEqual({ sort: "oldest", createdAt: first.createdAt, id: first.id });
   });
 
-  test("mostChats/fewestChats carry a (nullable) chatCount on the cursor", async () => {
+  test("mostChats/fewestChats carry the room count on the cursor, zero included", async () => {
     const db = await freshDb();
     const svc = createCharacterService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
@@ -256,22 +256,23 @@ describe("list — sort (recent / alpha) + stale-cursor rejection", () => {
       principal: principal(owner),
       input: { handle: castId<CharacterHandle>("busy"), name: "Busy", description: "d" },
     });
-    // "quiet" has no stats row → null chat count (the tail).
+    // "quiet" is seated in no room at all → a chat count of zero (the tail).
     await svc.create({
       principal: principal(owner),
       input: { handle: castId<CharacterHandle>("quiet"), name: "Quiet", description: "d" },
     });
-    await seedCharacterStats(db, { characterId: busy.id, lastActivityAt: 7000, chats: 9 });
+    await seedSeatedChat(db, { chatId: castId<ChatId>("chat_busy1"), ownerId: owner, characterId: busy.id, recencyAt: 7000 });
+    await seedSeatedChat(db, { chatId: castId<ChatId>("chat_busy2"), ownerId: owner, characterId: busy.id, recencyAt: 6000 });
 
     const most = await svc.list({ principal: principal(owner), sort: "mostChats", limit: 1 });
     expect(most.items.map((r) => r.id)).toEqual([busy.id]);
-    expect(most.nextCursor).toEqual({ sort: "mostChats", chatCount: 9, id: busy.id });
+    expect(most.nextCursor).toEqual({ sort: "mostChats", chatCount: 2, id: busy.id });
 
-    // fewestChats: the never-chatted "quiet" (null) STILL sinks to the tail → "busy" leads, and the last row
+    // fewestChats: the never-chatted "quiet" (0) STILL sinks to the tail → "busy" leads, and the last row
     // of a full page (here the only row on a limit-1 page) carries its chatCount.
     const fewest = await svc.list({ principal: principal(owner), sort: "fewestChats", limit: 1 });
     expect(fewest.items.map((r) => r.id)).toEqual([busy.id]);
-    expect(fewest.nextCursor).toEqual({ sort: "fewestChats", chatCount: 9, id: busy.id });
+    expect(fewest.nextCursor).toEqual({ sort: "fewestChats", chatCount: 2, id: busy.id });
   });
 
   test("summary tokenSize reads the stamped denorm column (== cardTokenSize of the written card)", async () => {
@@ -716,7 +717,7 @@ describe("list — canonical tags (the library tag filter)", () => {
 // selected for the most/fewestChats keysets and dropped in `summaryOf`, and the provenance verdict was
 // being re-derived in the Origin readout from two raw columns the LIST row never carried at all.
 describe("list — the landing projections (chatCount · provenance)", () => {
-  test("every row carries chatCount off the stats rollup and a closed provenance verdict", async () => {
+  test("every row carries chatCount off the caller's visible seated rooms and a closed provenance verdict", async () => {
     const db = await freshDb();
     const svc = createCharacterService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
@@ -742,14 +743,16 @@ describe("list — the landing projections (chatCount · provenance)", () => {
       name: "Imported",
       importedFrom: "https://example.test/card.png",
     });
-    await seedCharacterStats(db, { characterId: mine.id, lastActivityAt: 1_800_000_000_000, chats: 4 });
-    await seedCharacterStats(db, { characterId: imported, lastActivityAt: null, chats: 0 });
+    await seedSeatedChat(db, { chatId: castId<ChatId>("chat_mine1"), ownerId: owner, characterId: mine.id, recencyAt: 1_800_000_000_000 });
+    await seedSeatedChat(db, { chatId: castId<ChatId>("chat_mine2"), ownerId: owner, characterId: mine.id, recencyAt: 1_700_000_000_000 });
+    // Seated only in a room this owner has left — outside her membership scope, so it counts as nothing.
+    await seedSeatedChat(db, { chatId: castId<ChatId>("chat_imported"), ownerId: owner, characterId: imported, recencyAt: 9000, present: false });
 
     const page = await svc.list({ principal: principal(owner), sort: "alpha" });
     const byId = new Map(page.items.map((row) => [row.id, row]));
-    expect(byId.get(mine.id)?.chatCount).toBe(4);
+    expect(byId.get(mine.id)?.chatCount).toBe(2);
     expect(byId.get(imported)?.chatCount).toBe(0);
-    // No stats row at all → 0, the same fact a reader reads (see the persistence pin for why not null).
+    // No room at all → 0, the same fact a reader reads (see the persistence pin for why not null).
     expect(byId.get(shipped)?.chatCount).toBe(0);
 
     expect(byId.get(mine.id)?.provenance).toBe("authored");
@@ -759,12 +762,14 @@ describe("list — the landing projections (chatCount · provenance)", () => {
     expect(page.items.every((row) => CHARACTER_PROVENANCES.includes(row.provenance))).toBe(true);
   });
 
-  test("chatCount rides the EXISTING page join — the statement count does not grow with the page (#865 no N+1)", async () => {
+  test("chatCount rides the page's OWN statement — the statement count does not grow with the page (#865 no N+1)", async () => {
     const db = await freshDb();
     const svc = createCharacterService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const solo = await seedRawCharacter(db, { id: "character_solo", ownerId: owner, handle: castId<CharacterHandle>("solo"), name: "Solo" });
-    await seedCharacterStats(db, { characterId: solo, lastActivityAt: 1_800_000_000_000, chats: 3 });
+    await seedSeatedChat(db, { chatId: castId<ChatId>("chat_solo1"), ownerId: owner, characterId: solo, recencyAt: 1_800_000_000_000 });
+    await seedSeatedChat(db, { chatId: castId<ChatId>("chat_solo2"), ownerId: owner, characterId: solo, recencyAt: 1_700_000_000_000 });
+    await seedSeatedChat(db, { chatId: castId<ChatId>("chat_solo3"), ownerId: owner, characterId: solo, recencyAt: 1_600_000_000_000 });
 
     // The instrument, proven on the ONE-row page first: a real, non-zero statement count.
     const spy = vi.spyOn(db, "select");
@@ -780,14 +785,21 @@ describe("list — the landing projections (chatCount · provenance)", () => {
         handle: castId<CharacterHandle>(`bulk-${String(at)}`),
         name: `Bulk ${String(at)}`,
       });
-      await seedCharacterStats(db, { characterId: id, lastActivityAt: null, chats: at });
+      for (let room = 0; room < at; room += 1) {
+        await seedSeatedChat(db, {
+          chatId: castId<ChatId>(`chat_bulk_${String(at)}_${String(room)}`),
+          ownerId: owner,
+          characterId: id,
+          recencyAt: 1000 + room,
+        });
+      }
     }
     spy.mockClear();
     const bigPage = await svc.list({ principal: principal(owner) });
     expect(bigPage.items).toHaveLength(7);
-    // Seven rows, each with its own chat count, and the SAME number of statements as one row: the count
-    // comes off the `character_stats` LEFT JOIN the page query already carried for the most/fewestChats
-    // keysets, never a per-row read.
+    // Seven rows, each with its own chat count, and the SAME number of statements as one row: the count is
+    // a CORRELATED SUBQUERY inside the page's own SELECT (#1131 — it used to be a `character_stats` LEFT
+    // JOIN, and the no-N+1 property is what that join was defending), never a per-row read.
     expect(spy.mock.calls.length).toBe(forOneRow);
     expect(bigPage.items.reduce((total, row) => total + row.chatCount, 0)).toBe(18);
     spy.mockRestore();

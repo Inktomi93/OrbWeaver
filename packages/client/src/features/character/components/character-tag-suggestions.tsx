@@ -20,7 +20,7 @@ import { Button } from "@orb/ui/button";
 import { Check, Icon, Sparkles, X } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
-import { useQuery } from "@tanstack/react-query";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import type { Trpc } from "#data";
 import { useInvalidation } from "#data";
@@ -34,16 +34,36 @@ export interface CharacterTagSuggestionsProps {
 /** The pending-suggestion review strip: distinct chips (Accept/Reject each) + "Suggest tags" + "Manage tags". */
 export function CharacterTagSuggestions({ characterId, trpc }: CharacterTagSuggestionsProps): ReactElement {
   const invalidation = useInvalidation();
-  const { data: suggestions } = useQuery(trpc.tag.listPendingSuggestions.queryOptions({ characterId }));
+  // SUSPENDING, NOT POLLING INTO PLACE (#1133, side-eye 2026-09-02 F3). This strip sits ABOVE the greeting
+  // bubble and used to render at zero height until its read landed, then appear — measured as
+  // `[data-slot=character-greeting] moved 0px,84px` at 4387ms, an input-adjacent shift 240ms after the pane
+  // had already filled. A `useQuery` cannot reserve anything (it has no pending shape to hand a boundary);
+  // suspending hands the wait to the caller's `QueryBoundary`, which reserves the measured box (#885). The
+  // read itself is unchanged.
+  const { data: suggestions } = useSuspenseQuery(trpc.tag.listPendingSuggestions.queryOptions({ characterId }));
   const accept = useAcceptSuggestion({ trpc, invalidation });
   const reject = useRejectSuggestion({ trpc, invalidation });
   const suggest = useSuggestCharacterTags({ trpc, invalidation });
 
-  const pending: readonly TagSuggestionView[] = suggestions ?? [];
+  const pending: readonly TagSuggestionView[] = suggestions;
   return (
     <Row gap="field" align="center" className="flex-wrap" data-slot="character-tag-suggestions">
       {pending.length > 0 && (
-        <Row gap="field" align="center" className="flex-wrap">
+        // A NAMED GROUP, NOT TEN LOOSE BUTTONS (side-eye 2026-09-02 F13). The strip announced as `paragraph:
+        // Suggested` followed by `Accept x` / `Dismiss x` ×5 with nothing binding them: a screen-reader user
+        // entered ten consecutive controls with no idea what set they belonged to or how many were coming,
+        // while the same surface's `group "Tags"` / `group "View"` / `group "Filters"` all do this correctly.
+        // The COUNT is in the name because it is the fact that decides whether to walk the set at all, and it
+        // is derived from the same array the chips are, so it cannot go stale.
+        <Row
+          aria-label={`Suggested tags, ${String(pending.length)}`}
+          role="group"
+          gap="field"
+          align="center"
+          className="flex-wrap"
+          data-slot="character-tag-suggestion-group"
+        >
+          {/* The visible kicker stays: the group's accessible name is for AT, this is the sighted label. */}
           <Text voice="kicker">Suggested</Text>
           {pending.map((suggestion) => (
             <SuggestionChip

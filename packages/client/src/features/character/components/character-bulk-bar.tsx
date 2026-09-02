@@ -82,7 +82,13 @@ export function CharacterBulkBar({ ids, selectedCount, onClear, onRemoveSubmitte
         {characterActionsForScope("bulk").map((action) => (
           // Bulk archive never toggles (it always archives), so the label is the verb's one name — never
           // `characterActionLabel`'s toggled face.
-          <Button disabled={isPending} intent={action.destructive ? "destructive" : "secondary"} key={action.id} onClick={bulkHandlers[action.id]} size="sm">
+          // QUIETER, AND THE SAME WEIGHT AS ITS SIBLINGS (side-eye 2026-09-02 F10). Delete was the ONLY
+          // filled control in the bar — `bg oklch(0.72 0.19 25)` at the right edge, i.e. the scan position a
+          // reader takes as "confirm", beside two transparent ghosts. §5 error prevention: the irreversible
+          // act must not be the visually primary one. It is a `secondary` like Tag and Archive now; the
+          // destructive INTENT is carried where it belongs, by the AlertDialog confirm below, which states
+          // the count and spells out that it cannot be undone.
+          <Button disabled={isPending} intent="secondary" key={action.id} onClick={bulkHandlers[action.id]} size="sm">
             {action.label}
           </Button>
         ))}

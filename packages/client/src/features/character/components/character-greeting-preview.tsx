@@ -21,6 +21,7 @@ import { GreetingStudio } from "#components";
 import { useColorQuotedSpeech, usePromptMacroSuggestions } from "#data";
 import type { AppFormInstance } from "#forms";
 import { cn, notify } from "#lib";
+import { useRovingChipFocus } from "../hooks/use-roving-chip-focus.ts";
 import type { CharacterCardFormValues } from "../lib/character-card-form-model.ts";
 
 type CardForm = AppFormInstance<CharacterCardFormValues>;
@@ -87,7 +88,32 @@ export function CharacterGreetingPreview(props: CharacterGreetingPreviewProps): 
   );
 }
 
-/** The "Opening 1 / 2 / …" in-bubble pill-tabs (rendered only for a multi-greeting card). */
+/** THE OPENING PILL'S own spelling — the roving group matches its items by it and the CTs address them by
+ *  it, so the strip and its keyboard model can never name two different things. */
+const OPENING_PILL_SELECTOR = '[data-slot="greeting-opening"]';
+
+/**
+ * The "Opening 1 / 2 / …" strip (rendered only for a multi-greeting card) — the control that decides which
+ * greeting the bubble below is showing.
+ *
+ * IT IS THE RATIFIED TOOLBAR IDIOM (#112), COPIED FROM THE CONTEXT PANE (#1132, side-eye 2026-09-02 F2). It
+ * shipped as four bare `<Button>`s and MEASURED that way it announced nothing at all: no `role`, no
+ * `aria-pressed`/`aria-selected`/`aria-current` on any of the four, `tabIndex 0` on every one (four stops, no
+ * arrow arm) — and the ONLY paint separating the active pill from the other three was `secondary`'s 1px
+ * border, which composites to **1.189:1** over the bubble's backdrop against WCAG 1.4.11's 3:1 floor for a
+ * state indicator. Neither a sighted nor a screen-reader user could tell which opening was showing.
+ *   · the STRIP is `role="toolbar"` + `aria-label="Openings"` — a named set of related controls, ONE tab
+ *     stop, arrows inside it (`useRovingChipFocus`, the same model the tag cloud takes).
+ *   · the ACTIVE pill carries `aria-current="true"`, so a strip's state is a claim, not a colour; the other
+ *     three claim nothing.
+ *   · the SELECTED PAINT is Button's ratified `selection="on"` — `bg-accent` + a 2px `inset-ring-ring`,
+ *     byte-identical to Toggle's `data-pressed` skin, so a selected opening and a selected tag chip are ONE
+ *     reading. A FILL, not a hairline, which is what clears the non-text floor; no new token is minted here
+ *     (a colour for this state would be a vault change, not a feature's call).
+ * ACTIVATION IS ON CLICK/ENTER, never on focus: arrows move the stop, the press selects. The panel under the
+ * strip re-renders a whole themed markdown bubble, and a keyboard user crossing four pills must not mount
+ * four of them on the way to the one they want (the context rail's own measured ruling).
+ */
 function GreetingPills({
   count,
   activeIndex,
@@ -97,19 +123,26 @@ function GreetingPills({
   readonly activeIndex: number;
   readonly onSelect: (index: number) => void;
 }): ReactElement | null {
+  const roving = useRovingChipFocus(count, OPENING_PILL_SELECTOR);
   if (count <= 1) {
     return null;
   }
   return (
-    <Row gap="field" align="center" className="flex-wrap">
+    // The strip WRAPS at a narrow pane, so both axes walk the same linear order — APG's own allowance for a
+    // wrapping toolbar (the hook's header carries the reasoning).
+    <Row aria-label="Openings" className="flex-wrap" gap="field" onFocus={roving.onFocus} onKeyDown={roving.onKeyDown} role="toolbar" align="center">
       {Array.from({ length: count }, (_, i) => (
         <Button
+          aria-current={i === activeIndex ? "true" : undefined}
+          data-slot="greeting-opening"
           // biome-ignore lint/suspicious/noArrayIndexKey: greetings are positional alternates with no stable id (an ST card array) — the index IS the identity (§6.1 "Opening N").
           key={i}
-          type="button"
-          size="sm"
-          intent={i === activeIndex ? "secondary" : "ghost"}
+          intent="ghost"
           onClick={(): void => onSelect(i)}
+          selection={i === activeIndex ? "on" : "none"}
+          size="sm"
+          tabIndex={i === roving.activeIndex ? 0 : -1}
+          type="button"
         >
           Opening {i + 1}
         </Button>
@@ -302,7 +335,11 @@ function GreetingAttributeRow({
     return <GreetingGroupOnlyToggle form={form} index={index} />;
   }
   if (greetingCount > 1) {
-    return <Text voice="gloss">The first opening is always shown; mark alternates group-chats-only.</Text>;
+    // A REAL SENTENCE (side-eye 2026-09-02 nit 19). It read "The first opening is always shown; mark
+    // alternates group-chats-only." — a second clause with no subject and no referent a reader could act on.
+    // The fact it is trying to state is that THIS row has no toggle because the first opening is not
+    // optional, and that the toggle lives on the alternates.
+    return <Text voice="gloss">The first opening is always shown, so it has no toggle. Open an alternate to limit it to group chats.</Text>;
   }
   return null;
 }

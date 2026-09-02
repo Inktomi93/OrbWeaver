@@ -1,5 +1,6 @@
-// The tag-vocabulary panel's KEYBOARD MODEL — one tab stop for the whole chip cloud, arrows within it
-// (WAI-APG's toolbar pattern).
+// A ROVING KEYBOARD MODEL — one tab stop for a whole group of sibling controls, arrows within it (WAI-APG's
+// toolbar pattern). Two groups on this surface take it: the tag-vocabulary chip cloud (below) and the
+// character editor's `Opening N` strip (#1132), which had four tab stops and no arrow arm at all.
 //
 // WHY IT EXISTS (#491, side-eye 2026-08-22 rail-characters P1-1, measured on the owner's 551-tag library):
 // every chip was sequentially tabbable, so opening the vocabulary put **563 tab stops** between a keyboard
@@ -26,10 +27,6 @@
 
 import type { FocusEvent as ReactFocusEvent, KeyboardEvent as ReactKeyboardEvent } from "react";
 import { useState } from "react";
-
-/** The chips inside the roving container — matched by the chip's own state attribute, which is the same
- *  hook the CTs address them by. */
-const CHIP_SELECTOR = "[data-tag-filter-state]";
 
 /** What one roving group hands its container: which index owns the tab stop, and the two handlers that
  *  move it. */
@@ -62,13 +59,20 @@ function nextIndex(key: string, current: number, count: number): number | null {
 }
 
 /**
- * One roving tab stop over the chips inside the container the returned handlers are attached to.
+ * One roving tab stop over the items inside the container the returned handlers are attached to.
  *
- * `count` is the number of chips RENDERED right now — the panel mounts in chunks and its search box
- * re-filters, so the stop is clamped at render rather than corrected in an effect (an effect would land one
- * commit after the chips it is clamping against, which is a frame with a `tabIndex={0}` on nothing).
+ * `count` is the number of items RENDERED right now — the tag panel mounts in chunks and its search box
+ * re-filters, and the greeting strip grows and shrinks with the card's alternates, so the stop is clamped at
+ * render rather than corrected in an effect (an effect would land one commit after the items it is clamping
+ * against, which is a frame with a `tabIndex={0}` on nothing).
+ *
+ * `itemSelector` is a CSS selector for this group's items inside the container — not a hard-coded attribute,
+ * because two groups on this surface take the same keyboard model over different markup: the tag
+ * vocabulary's chips (`[data-tag-filter-state]`) and the editor's Opening pills
+ * (`[data-slot="greeting-opening"]`). It is also what the CTs address the items by, so each group's one
+ * spelling is a const at its own call site rather than a literal in two places.
  */
-export function useRovingChipFocus(count: number): RovingChipFocus {
+export function useRovingChipFocus(count: number, itemSelector: string): RovingChipFocus {
   const [requested, setRequested] = useState(0);
   const active = count === 0 ? 0 : Math.min(requested, count - 1);
 
@@ -82,10 +86,10 @@ export function useRovingChipFocus(count: number): RovingChipFocus {
       // The arrows would otherwise scroll the panel's own viewport out from under the chip we just moved to.
       event.preventDefault();
       setRequested(target);
-      event.currentTarget.querySelectorAll<HTMLElement>(CHIP_SELECTOR)[target]?.focus();
+      event.currentTarget.querySelectorAll<HTMLElement>(itemSelector)[target]?.focus();
     },
     onFocus: (event: ReactFocusEvent<HTMLDivElement>): void => {
-      const at = [...event.currentTarget.querySelectorAll<HTMLElement>(CHIP_SELECTOR)].indexOf(event.target);
+      const at = [...event.currentTarget.querySelectorAll<HTMLElement>(itemSelector)].indexOf(event.target);
       if (at >= 0) {
         setRequested(at);
       }

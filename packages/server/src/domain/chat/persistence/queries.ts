@@ -35,6 +35,7 @@ import type { UserMacroValues } from "@orb/contracts/preset";
 import { userIntentSchema, userMacroValuesSchema } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
 import { characters, chatEvents, chatInjections, chatParticipants, chatStreamEvents, chats, messages, messageVariants } from "@orb/db";
+import { chatRecencyExpr, memberVisibleChatScope } from "@orb/db/kit";
 import { HIDDEN_TAGS } from "@orb/kit/content";
 import type { CharacterId, ChatId, MessageId, MessageVariantId, PersonaId, UserId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
@@ -333,19 +334,12 @@ function searchPredicate(db: Db, needle: string): SQL | undefined {
 function memberChatScope(db: Db, userId: UserId, opts: MemberChatFilter): SQL | undefined {
   const characterId = opts.characterId;
   return and(
-    eq(chatParticipants.chatId, chats.id),
-    eq(chatParticipants.userId, userId),
-    isNull(chatParticipants.leftSeq),
-    eq(chats.temporary, false),
-    // THE HUSK LENS (R0 §4.3) — the `temporary` arm's twin, deliberately spelled beside it. A room nobody
-    // CLAIMED (`chats.started_at` NULL — no line sent, no turn run, no config written) is hidden from the
-    // library for EVERYONE including its creator: the creating device holds it through the active handle,
-    // exactly as it held a draft, and the reaper takes it if nothing ever happens. Hiding it here rather than
-    // client-side is the paged-list law (a client filter mis-sizes every page) and buys export exclusion free
-    // (bulk export enumerates through this path). NOT gated by `includeArchived`: archived is a state of a
-    // real chat, unstarted is the absence of one.
-    isNotNull(chats.startedAt),
-    opts.includeArchived === true ? undefined : eq(chats.archived, false),
+    // MEMBERSHIP + THE TEMPORARY/HUSK/ARCHIVED LENSES ARE `@orb/db/kit`'S NOW (#1131) — the character
+    // library's row has to count the SAME rooms this list pages, and neither domain may import the other
+    // (constitution §2), so those four arms live one layer down and both readers spell them once. What
+    // stays here is what is a chat-LIST lens rather than visibility: the recency bound, the per-character
+    // projection, and the search.
+    memberVisibleChatScope(userId, opts),
     opts.beforeRecencyAt === undefined ? undefined : lt(chatRecencySql(db), opts.beforeRecencyAt),
     characterId === undefined
       ? undefined
@@ -359,28 +353,20 @@ function memberChatScope(db: Db, userId: UserId, opts: MemberChatFilter): SQL | 
   );
 }
 
-/** THE ONE RECENCY CLOCK of the chat library (#150, owner-observed live 2026-08-17) — a room's newest
- *  message time, falling back to its row stamp when it has no message: `coalesce(max(created_at), updated_at)`.
+/** THE ONE RECENCY CLOCK of the chat library (#150) — `coalesce(max(message.created_at), chats.updated_at)`,
+ *  the value every surface DISPLAYS as `lastMessageAt ?? updatedAt`, ordered on so that "the top row is the
+ *  most recent conversation" is true BY CONSTRUCTION rather than by a coincidence of write paths (it used to
+ *  order on `chats.updated_at`, a row-modification stamp a turn does not write and a metadata touch does).
  *
- *  IT IS THE DISPLAY KEY, IN SQL. The list used to ORDER BY `chats.updated_at` while every surface DISPLAYS
- *  `lastMessageAt ?? updatedAt` — two clocks that disagree in BOTH directions, because `updated_at` is a
- *  row-modification stamp and nothing more: appending a message does not write the chat row (so the freshest
- *  conversation sank to 4th), while a metadata touch does (so a room whose last line was two weeks old led
- *  the list, and the home hero honestly rendered "you left off 2w ago" over it). Sorting on this expression
- *  makes "the top row is the most recent conversation" true BY CONSTRUCTION rather than by a coincidence of
- *  write paths — and it leaves `updated_at` honest as what it is.
+ *  THE EXPRESSION MOVED TO `@orb/db/kit` WITH THE VISIBILITY SCOPE (#1131) so the character library's
+ *  per-character `MAX` reads the same clock; this alias keeps the call sites in this file reading as before.
  *
  *  IT MIRRORS {@link loadChatMessageStats}'S PREDICATE EXACTLY, selected-variant join included: that read is
- *  where `ChatSummary.lastMessageAt` comes from, so any divergence here would sort a list by a number no row
- *  in it shows (a slot whose selected variant is gone must move neither the stamp nor the sort). The
- *  verb-level test that pins `items` non-increasing in `lastMessageAt ?? updatedAt` is the enforcer of that
- *  agreement. */
+ *  where `ChatSummary.lastMessageAt` comes from, so any divergence would sort a list by a number no row in it
+ *  shows. The verb-level test that pins `items` non-increasing in `lastMessageAt ?? updatedAt` is the
+ *  enforcer of that agreement. */
 function chatRecencySql(db: Db): SQL<number> {
-  return sql<number>`coalesce((${db
-    .select({ at: max(messages.createdAt) })
-    .from(messages)
-    .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
-    .where(eq(messages.chatId, chats.id))}), ${chats.updatedAt})`;
+  return chatRecencyExpr(db);
 }
 
 /** The membership-scoped library list — the chats the user is a present member of, newest-CONVERSATION

@@ -29,7 +29,7 @@ import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import type { Trpc } from "#data";
-import { useInvalidation, useUploadAsset, useUploadCaps } from "#data";
+import { QueryBoundary, QueryErrorState, SkeletonRows, useInvalidation, useUploadAsset, useUploadCaps } from "#data";
 import type { AppFormInstance } from "#forms";
 import { notify, oversizeUploadMessage } from "#lib";
 import { toggleSpoilerBlur, useSpoilerBlur } from "#state";
@@ -39,6 +39,10 @@ import type { CharacterCardFormValues } from "../lib/character-card-form-model.t
 import { CharacterGreetingPreview } from "./character-greeting-preview.tsx";
 import { CharacterTagSuggestions } from "./character-tag-suggestions.tsx";
 import { CharacterTagsRow } from "./character-tags-row.tsx";
+
+/** The suggestion strip's first-boot guess: one wrapped row of chips. `reserveKey` replaces it with this
+ *  device's own measurement on every subsequent open. */
+const TAG_SUGGESTION_SKELETON_ROWS = 1;
 
 /** THE HERO'S GLANCE ECHOES STAND DOWN WHILE THE CONTEXT PANE IS OPEN (#875 F5, side-eye 2026-08-30) —
  *  the shell marker `shell.css` keys the yield on, exactly as the topbar's identity yields to the chat
@@ -127,7 +131,18 @@ export function CharacterHeroBand({
       </Row>
 
       <CharacterTagsRow characterId={detail.id} tags={detail.tags} trpc={trpc} />
-      <CharacterTagSuggestions characterId={detail.id} trpc={trpc} />
+      {/* ITS OWN BOUNDARY, WITH A RESERVATION (#1133 F3). The suggestion strip is the block between the tags
+          row and the greeting, and it arrives on its own read — so before #1133 it rendered at zero height
+          and then pushed the greeting down 84px AFTER the editor had finished filling. Its own boundary
+          keeps the suspense local (the editor does not re-suspend for it) and `reserveKey` holds the box
+          this device measured, so the block below it never moves. */}
+      <QueryBoundary
+        fallback={<SkeletonRows count={TAG_SUGGESTION_SKELETON_ROWS} />}
+        renderError={(_error, retry): ReactElement => <QueryErrorState label="tag suggestions" onRetry={retry} />}
+        reserveKey="character.tagSuggestions"
+      >
+        <CharacterTagSuggestions characterId={detail.id} trpc={trpc} />
+      </QueryBoundary>
 
       <CharacterGreetingPreview
         characterId={detail.id}
@@ -266,7 +281,13 @@ export function OwnLookMark({ themeOverride }: { readonly themeOverride: ThemeOv
                 is the 10.5px micro step — under the 11px readable floor the context rail beside it refused
                 to break ("the readable-floor ruling stands", context-rail.tsx). design-audit measured it as
                 `undersized-ui-text` on both bands in every arm. Same instrument register, readable step. */}
-            <Text voice="interactiveKicker" className="text-inherit">
+            {/* `as="span"`, NOT the `<Text>` default `<p>` (side-eye 2026-09-02 nit 26, in BOTH homes —
+                this component renders in the CONTENT header and again in the CONTEXT band, so one edit
+                fixes two). `<button>` takes PHRASING content only: React-DOM constructs the tree so nothing
+                reparents at runtime, but an HTML parser (SSR/hydration, an ariaSnapshot round trip) closes
+                the button at the `<p>` and re-parents everything after it. Same voice, same accessible
+                name — this is the `character-facet-row.tsx` #235 fix, applied to the site that missed it. */}
+            <Text as="span" voice="interactiveKicker" className="text-inherit">
               Own look
             </Text>
           </Button>

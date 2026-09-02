@@ -1,9 +1,11 @@
 // @orb/db/kit — db-layer primitives that need drizzle types (so NOT @orb/kit-pure). Front door for the
-// batch tuple bridge, the unified constraint classifier, the owner-scoped fetch, the bound-variable
-// chunker, and the JSON read-seam parsers.
+// batch tuple bridge, the unified constraint classifier, the owner-scoped fetch, the member-visible chat
+// scope + recency clock, the bound-variable chunker, and the JSON read-seam parsers.
 
 export type { AwaitableBatchStmt, BatchStmt, DbBatchInput } from "./batch.ts";
 export { batchMany, batchStmt } from "./batch.ts";
+export type { ChatVisibilityLens } from "./chat-visibility.ts";
+export { chatRecencyExpr, memberVisibleChatScope } from "./chat-visibility.ts";
 export { checkList } from "./check-list.ts";
 export type { ConstraintKind, ConstraintViolation } from "./db-errors.ts";
 export { CONSTRAINT_KINDS, isConstraintViolation } from "./db-errors.ts";

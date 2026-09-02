@@ -380,14 +380,17 @@ export const characterListCursorSchema = z.discriminatedUnion("sort", [
   }),
   z.object({
     sort: z.literal("mostChats"),
-    /** `null` = the boundary row has no `character_stats` row (never chatted → the NULLS-LAST tail). */
-    chatCount: z.number().int().nullable(),
+    /** NOT NULLABLE (#1131): the count is a `COUNT` over the caller's visible rooms seated with this
+     *  character, so a never-chatted boundary row is `0`, not absent. `0` is the tail in both directions —
+     *  DESC reaches it last by arithmetic, ASC by an explicit leading term (an unchatted card is unjudged,
+     *  never "fewest"; the `bestScore`/`worstScore` precedent). */
+    chatCount: z.number().int(),
     id: typeIdSchema(ID_PREFIX.character),
   }),
   z.object({
     sort: z.literal("fewestChats"),
-    /** `null` = the boundary row has no `character_stats` row (never chatted → the NULLS-LAST tail). */
-    chatCount: z.number().int().nullable(),
+    /** NOT NULLABLE — see the `mostChats` arm. */
+    chatCount: z.number().int(),
     id: typeIdSchema(ID_PREFIX.character),
   }),
   z.object({

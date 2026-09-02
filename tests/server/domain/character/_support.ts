@@ -12,9 +12,9 @@ import type { ProseOverrides } from "@orb/contracts/prose";
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
-import { assets, characterStats, characterSummaries, characters } from "@orb/db";
+import { assets, characterSummaries, characters, chatParticipants, chats } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
-import type { AssetId, CharacterHandle, CharacterId, CharacterSnapshotId, CharacterStatId, Handle, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterHandle, CharacterId, CharacterSnapshotId, ChatId, ChatParticipantId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { CharacterContext } from "../../../../packages/server/src/domain/character/context.ts";
 import type { AttachCardTagOp, DetachCardTagOp } from "../../../../packages/server/src/domain/character/contract/service.ts";
@@ -266,24 +266,56 @@ export async function seedRawCharacter(db: Db, overrides: SeedRawCharacterOverri
   return id;
 }
 
-/** Seed a `character_stats` rollup row carrying `lastActivityAt` (+ optional `chats`) — the FIX-#2 `recent`-sort
- *  / `lastChattedAt` denorm source AND the `most/fewestChats` chat-count source (both LEFT JOINed by the
- *  library list). Only the columns the list read projects are meaningful; the rest default (`chats` → 0). Pass
- *  `lastActivityAt: null` to model a stats row that exists but has never chatted. A card with NO stats row at
- *  all (don't call this) is the join-null case both sorts sink to the tail. */
-export async function seedCharacterStats(
+/**
+ * Seed ONE room this owner is in, with this character seated in it — the source the library list derives
+ * `lastChattedAt` + `chatCount` from since #1131 (it used to read the `character_stats` rollup, which is
+ * turn economics and counted only a room's FIRST founding character; `seedCharacterStats` went with it).
+ *
+ * NO MESSAGES, DELIBERATELY: `chatRecencyExpr` is `coalesce(max(selected message.created_at), updated_at)`,
+ * so a message-less room's recency IS its `updatedAt` — which makes `recencyAt` the one dial a keyset test
+ * needs, without seeding a whole canon chain per row. `startedAt` is stamped (a HUSK is invisible to the
+ * library for everyone) and both lenses are open by default; pass them to model the excluded arms.
+ */
+export async function seedSeatedChat(
   db: Db,
   args: {
+    readonly chatId: ChatId;
+    readonly ownerId: UserId;
     readonly characterId: CharacterId;
-    readonly lastActivityAt: number | null;
-    readonly chats?: number;
+    /** The room's recency — `chats.updatedAt`, which IS the clock for a message-less room. */
+    readonly recencyAt: number;
+    readonly archived?: boolean;
+    readonly temporary?: boolean;
+    /** `false` ⇒ a HUSK (`started_at` NULL): a room nobody claimed, hidden from every library. */
+    readonly started?: boolean;
+    /** `false` ⇒ the owner has LEFT the room (`left_seq` set) — out of her membership scope. */
+    readonly present?: boolean;
   },
 ): Promise<void> {
-  await db.insert(characterStats).values({
-    id: castId<CharacterStatId>(`character_stat_${args.characterId}`),
+  await db.insert(chats).values({
+    id: args.chatId,
+    archived: args.archived ?? false,
+    temporary: args.temporary ?? false,
+    startedAt: (args.started ?? true) ? args.recencyAt : null,
+    createdAt: args.recencyAt,
+    updatedAt: args.recencyAt,
+  });
+  await db.insert(chatParticipants).values({
+    id: castId<ChatParticipantId>(`chat_participant_${args.chatId}_human`),
+    chatId: args.chatId,
+    kind: "human",
+    userId: args.ownerId,
+    role: "host",
+    joinSeq: 0,
+    ...((args.present ?? true) ? {} : { leftSeq: 1 }),
+  });
+  await db.insert(chatParticipants).values({
+    id: castId<ChatParticipantId>(`chat_participant_${args.chatId}_${args.characterId}`),
+    chatId: args.chatId,
+    kind: "character",
     characterId: args.characterId,
-    lastActivityAt: args.lastActivityAt,
-    ...(args.chats !== undefined ? { chats: args.chats } : {}),
+    role: "member",
+    joinSeq: 0,
   });
 }
 

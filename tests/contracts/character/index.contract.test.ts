@@ -374,7 +374,8 @@ test("characterListCursorSchema parses each sort variant (recent carries a nulla
     id: CHAR_ID,
   });
   expect(oldest.sort).toBe("oldest");
-  // most/fewestChats carry a NULLABLE chatCount (null = the never-chatted NULLS-LAST tail).
+  // most/fewestChats carry a NON-NULL chatCount since #1131 — the server counts the caller's visible seated
+  // rooms, so a never-chatted boundary is `0`, and `null` is no longer a boundary the wire can express.
   const mostChats = characterListCursorSchema.parse({
     sort: "mostChats",
     chatCount: 12,
@@ -383,10 +384,12 @@ test("characterListCursorSchema parses each sort variant (recent carries a nulla
   expect(mostChats.sort).toBe("mostChats");
   const fewestChats = characterListCursorSchema.parse({
     sort: "fewestChats",
-    chatCount: null,
+    chatCount: 0,
     id: CHAR_ID,
   });
   expect(fewestChats.sort).toBe("fewestChats");
+  // …and the old spelling is REFUSED, so a stale client cursor cannot re-enter the null arm that is gone.
+  expect(characterListCursorSchema.safeParse({ sort: "mostChats", chatCount: null, id: CHAR_ID }).success).toBe(false);
   // largest/smallestCards carry a NON-null tokenSize (the notNull `characters.token_size` denorm column).
   const largest = characterListCursorSchema.parse({
     sort: "largestCards",
