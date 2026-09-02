@@ -15,13 +15,14 @@ import process from "node:process";
 import { parseWorkCommand } from "../../../tooling/src/workboard/index.ts";
 import { buildDodBlock, dodStamp } from "../../../tooling/src/workboard/lib/dod.ts";
 import { expect, test } from "../../support/tool-fixtures.ts";
+import { scaledBudget } from "../_load-budget.ts";
 
 const ROOT = resolve(import.meta.dirname, "../../..");
 const ORIGINAL_PATH = execFileSync("printenv", ["PATH"], { encoding: "utf8" }).trim();
 const TOOL_ERROR_EXIT = 2;
 const MISUSE_EXIT = 3;
 const EXECUTABLE_MODE = 0o755;
-const TABLE_DRIVEN_TIMEOUT_MS = 15_000;
+const TABLE_DRIVEN_TIMEOUT_MS = scaledBudget(15_000);
 const TARGET_ISSUE = 11;
 const FIRST_BLOCKER = 7;
 const SECOND_BLOCKER = 8;

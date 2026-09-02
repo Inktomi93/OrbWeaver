@@ -21,6 +21,7 @@ import type { Finding, GateRunCtx, GateScanDeclaration } from "../../../../tooli
 import { gate } from "../../../../tooling/src/verify/gates/biome-grant-liveness.ts";
 import { judgeReport, judgeRuleLiveness } from "../../../../tooling/src/verify/lib/biome-rule-liveness.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
+import { scaledBudget } from "../../_load-budget.ts";
 
 const CONFIG_REL = "biome.json";
 /** Mirrors the gate's own anchor (`REAL_CONFIG_MIN_INCLUDES`) — the size at which its exemption + blindness
@@ -29,7 +30,7 @@ const ANCHOR_INCLUDES = 30;
 /** Every arm that drives the gate over the REAL tree spawns one biome check (#1158). MEASURED 2026-09-02:
  *  4.8s for the gate alone, 8.5s for the planted-control run under a 4-worker co-run — a SPAWN budget,
  *  which degrades with load, so the headroom is generous on purpose rather than tuned to one machine. */
-const GATE_RUN_TIMEOUT_MS = 120_000;
+const GATE_RUN_TIMEOUT_MS = scaledBudget(120_000);
 const TRANSIENT_CATALOG_TMP = "docs/catalog/catalog.tmp.*.json";
 const CATALOG_SERIALIZER = "tooling/src/doc-catalog/ops/tree.ts";
 

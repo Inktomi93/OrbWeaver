@@ -14,6 +14,7 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { GATE_PHASES } from "../../../../tooling/src/verify/contract/pass.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
+import { scaledBudget } from "../../_load-budget.ts";
 
 /** A minimal, VALID descriptor: scans everything, flags nothing. `scanRoot: () => true` + a `visitFile`
  *  keeps it out of the zero-scan alarm, so a failure here is never that alarm wearing a disguise. */
@@ -242,7 +243,7 @@ test("a gate that OOMs under a planted heap ceiling exits non-zero and leaves th
     // `spawnNiced` MERGES over the inherited env, so this replaces the workspace's 16GB NODE_OPTIONS
     // ceiling for this child only and leaves PATH (which `nice` needs) alone.
     env: Object.fromEntries([["NODE_OPTIONS", "--max-old-space-size=64"]]),
-    timeoutMs: 60_000,
+    timeoutMs: scaledBudget(60_000),
   });
   expect(res.code).not.toBe(0);
   expect(res.code).not.toBe(1); // never a VERDICT — an aborted checker is exit-2 class
