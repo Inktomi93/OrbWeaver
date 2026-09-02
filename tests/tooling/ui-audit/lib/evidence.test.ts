@@ -131,6 +131,7 @@ test("a planted requested-vs-rendered mismatch is a provenance gap", () => {
  *  blank-mount / swallowed-error-boundary shape the refusal exists for, and no widening of the count
  *  may soften it. */
 const NOTHING_WALKED: RawSamples = {
+  censusCaps: {},
   subjectAccounting: {
     observed: 3,
     settled: 3,

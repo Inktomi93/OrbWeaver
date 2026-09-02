@@ -144,10 +144,25 @@ export const HOVER_CENSUS = `
       if (one === "" || !hasStateHover(one)) continue;
       var comps = selectorCompounds(one);
       var lastHover = -1;
+      var anyNestedHover = false;
       for (var cj = 0; cj < comps.length; cj += 1) {
-        if (hasStateHover(comps[cj].compound)) lastHover = cj;
+        var hoverAt = stateHoverScan(comps[cj].compound);
+        if (hoverAt.topLevel) lastHover = cj;
+        if (hoverAt.nested) anyNestedHover = true;
       }
-      if (lastHover === -1) continue;
+      if (lastHover === -1) {
+        // #1073, the exact mirror of the attribute arm below: every \`:hover\` in this selector sits
+        // inside a functional pseudo, which is Tailwind's compiled group-variant shape
+        // (\`.group-hover\\\\:bg-x:is(:where(.group):hover *)\`). The subject the rule watches is an
+        // ANCESTOR the compound does not name, so the pair this loop used to build forced \`:hover\` on
+        // the PAINTED element, saw nothing repaint, and published \`excluded(noHoverChange)\` — a
+        // measurement claim about a rule that never engaged. Withheld by name instead.
+        if (anyNestedHover) {
+          var nestedHostSel = stripStateFunctionalPseudos(stripStatePseudoElements(one));
+          if (nestedHostSel !== "") markStateHosts(nestedHostSel, complexPaintEls);
+        }
+        continue;
+      }
       var paintedSel = stripStateHover(selectorJoin(comps));
       // A pseudo-ELEMENT paint target (.x:hover::before) cannot be judged: resolveBackdrop reads
       // ancestors only, so the pair would be measured against a backdrop the pseudo may replace.

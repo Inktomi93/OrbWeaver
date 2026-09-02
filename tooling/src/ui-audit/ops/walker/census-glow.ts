@@ -55,8 +55,13 @@ export const WALKER_CENSUS_GLOW = `  // ── chromatic glow shadows incl. pseu
   // background), an offset bloom, and a text-bearing pseudo. STATED RESIDUAL GAP: this cannot judge
   // RATION — a correctly-layered glow repeated across fifty islands reads as sanctioned here. Ration is a
   // count-over-surface question, not a per-sample one, and inventing a threshold now would be tuning.
+  //
+  // THE BOUND IS DECLARED, NOT SILENT (#1038): the loop scans EVERY element and \`capPush\` (core.ts)
+  // tallies what the 200-row representative bound had to drop, so a page carrying more glow layers than
+  // the bound is a NO VERDICT with a count rather than a clean read of its first 200.
   var shadowGlows = [];
-  for (var sg = 0; sg < allEls.length && shadowGlows.length < 200; sg += 1) {
+  var SHADOW_GLOW_CAP = 200;
+  for (var sg = 0; sg < allEls.length; sg += 1) {
     var sgel = allEls[sg];
     if (!isVisible(sgel)) continue;
     for (var sgp = 0; sgp < PSEUDOS.length; sgp += 1) {
@@ -66,7 +71,7 @@ export const WALKER_CENSUS_GLOW = `  // ── chromatic glow shadows incl. pseu
       var ts = sgStyle.textShadow;
       if ((bs === "none" || !bs) && (ts === "none" || !ts)) continue;
       var sgBackdrop = resolveBackdrop(sgel.parentElement || sgel);
-      shadowGlows.push({
+      capPush("shadowGlows", shadowGlows, SHADOW_GLOW_CAP, {
         // The pseudo rides in the selector, the radial census's spelling — a finding a reviewer cannot
         // locate to the LAYER is a finding they will re-derive by hand.
         selector: describe(sgel) + PSEUDOS[sgp],
@@ -89,7 +94,8 @@ export const WALKER_CENSUS_GLOW = `  // ── chromatic glow shadows incl. pseu
   // ── radial-gradient washes incl. pseudo-elements (impeccable radial-halo /
   //    radial-spotlight-glow; sanctioned owner carriers tagged, judged in checks) ──
   var radialGlows = [];
-  for (var rg = 0; rg < allEls.length && radialGlows.length < 100; rg += 1) {
+  var RADIAL_GLOW_CAP = 100;
+  for (var rg = 0; rg < allEls.length; rg += 1) {
     var rgel = allEls[rg];
     if (!isVisible(rgel)) continue;
     for (var pi = 0; pi < PSEUDOS.length; pi += 1) {
@@ -98,7 +104,7 @@ export const WALKER_CENSUS_GLOW = `  // ── chromatic glow shadows incl. pseu
       var rbg = pStyle.backgroundImage || "";
       if (rbg.indexOf("radial-gradient") === -1) continue;
       var rrect = rgel.getBoundingClientRect();
-      radialGlows.push({
+      capPush("radialGlows", radialGlows, RADIAL_GLOW_CAP, {
         selector: describe(rgel) + PSEUDOS[pi],
         value: rbg,
         width: rrect.width,

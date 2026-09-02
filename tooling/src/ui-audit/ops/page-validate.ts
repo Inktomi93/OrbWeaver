@@ -42,6 +42,7 @@ const RAW_SAMPLE_SHAPE: Record<keyof RawSamples, SeamKind> = {
   bgPatterns: "array",
   brokenImages: "array",
   buriedRasters: "array?",
+  censusCaps: "object",
   censusReach: "object?",
   clippedOverflows: "array",
   cohortAnatomies: "array?",

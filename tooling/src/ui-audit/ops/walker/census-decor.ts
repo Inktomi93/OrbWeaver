@@ -218,8 +218,11 @@ export const WALKER_CENSUS_DECOR = `  // ── nested cards (card-like = (shado
   }
 
   // ── accent borders (impeccable side-tab / border-accent-on-rounded) ─────
+  // The 200-row bound is a REPRESENTATIVE bound, and the scan runs past it (#1038): \`capPush\` tallies
+  // what it dropped so the two rules over this census publish a complete \`candidates=\`.
   var accentBorders = [];
-  for (var ab = 0; ab < allEls.length && accentBorders.length < 200; ab += 1) {
+  var ACCENT_BORDER_CAP = 200;
+  for (var ab = 0; ab < allEls.length; ab += 1) {
     var abel = allEls[ab];
     if (!isVisible(abel)) continue;
     var abTag = abel.tagName.toLowerCase();
@@ -235,7 +238,7 @@ export const WALKER_CENSUS_DECOR = `  // ── nested cards (card-like = (shado
     var ownBg = parseRgb(abStyle.backgroundColor);
     if (BORDER_SAFE_TAGS[abTag] === 1) continue;
     if (abTag === "span" && !(ownBg && ownBg.a > 0.5)) continue;
-    accentBorders.push({
+    capPush("accentBorders", accentBorders, ACCENT_BORDER_CAP, {
       selector: describe(abel),
       tag: abTag,
       widths: widths,
@@ -258,7 +261,8 @@ export const WALKER_CENSUS_DECOR = `  // ── nested cards (card-like = (shado
   // ── decorative bg patterns: stripes + grid-line fields (impeccable
   //    repeating-stripes-gradient / codex-grid-background) ──────────────────
   var bgPatterns = [];
-  for (var bp = 0; bp < allEls.length && bgPatterns.length < 50; bp += 1) {
+  var BG_PATTERN_CAP = 50;
+  for (var bp = 0; bp < allEls.length; bp += 1) {
     var bpel = allEls[bp];
     if (!isVisible(bpel)) continue;
     var bpStyle = getComputedStyle(bpel);
@@ -270,7 +274,7 @@ export const WALKER_CENSUS_DECOR = `  // ── nested cards (card-like = (shado
     var isGrid = !isStripe && linearCount >= 2 && !!sizeMatch && Number(sizeMatch[1]) <= 200 && Number(sizeMatch[2]) <= 200;
     if (!isStripe && !isGrid) continue;
     var bpRect = bpel.getBoundingClientRect();
-    bgPatterns.push({
+    capPush("bgPatterns", bgPatterns, BG_PATTERN_CAP, {
       selector: describe(bpel),
       kind: isStripe ? "stripe" : "grid",
       backgroundSize: bpStyle.backgroundSize || "",
@@ -315,13 +319,14 @@ export const WALKER_CENSUS_DECOR = `  // ── nested cards (card-like = (shado
   var LAYOUT_PROP_RE = /^(width|height|max-width|max-height|min-width|min-height|padding(-(top|right|bottom|left))?|margin(-(top|right|bottom|left))?)$/;
   var BOUNCE_NAME_RE = /bounce|elastic|wobble|jiggle|spring/i;
   var BEZIER_RE = /cubic-bezier\\(\\s*([\\d.-]+)\\s*,\\s*([\\d.-]+)\\s*,\\s*([\\d.-]+)\\s*,\\s*([\\d.-]+)\\s*\\)/g;
-  for (var ms = 0; ms < allEls.length && motionStatics.length < 100; ms += 1) {
+  var MOTION_STATIC_CAP = 100;
+  for (var ms = 0; ms < allEls.length; ms += 1) {
     var msel = allEls[ms];
     if (!isVisible(msel)) continue;
     var msStyle = getComputedStyle(msel);
     var an = msStyle.animationName || "none";
     if (an !== "none" && BOUNCE_NAME_RE.test(an)) {
-      motionStatics.push({ selector: describe(msel), kind: "bounce-name", value: an, panelExempt: false });
+      capPush("motionStatics", motionStatics, MOTION_STATIC_CAP, { selector: describe(msel), kind: "bounce-name", value: an, panelExempt: false });
       continue;
     }
     var tfAll = (msStyle.transitionTimingFunction || "") + " " + (msStyle.animationTimingFunction || "");
@@ -332,7 +337,7 @@ export const WALKER_CENSUS_DECOR = `  // ── nested cards (card-like = (shado
         var y1 = Number.parseFloat(bm[2]);
         var y2 = Number.parseFloat(bm[4]);
         if (y1 < -0.1 || y1 > 1.1 || y2 < -0.1 || y2 > 1.1) {
-          motionStatics.push({ selector: describe(msel), kind: "overshoot-bezier", value: bm[0], panelExempt: false });
+          capPush("motionStatics", motionStatics, MOTION_STATIC_CAP, { selector: describe(msel), kind: "overshoot-bezier", value: bm[0], panelExempt: false });
           break;
         }
       }
@@ -349,7 +354,7 @@ export const WALKER_CENSUS_DECOR = `  // ── nested cards (card-like = (shado
         if (dur > 0) layoutHits.push(prop);
       }
       if (layoutHits.length > 0) {
-        motionStatics.push({
+        capPush("motionStatics", motionStatics, MOTION_STATIC_CAP, {
           selector: describe(msel),
           kind: "layout-transition",
           value: layoutHits.join(", "),

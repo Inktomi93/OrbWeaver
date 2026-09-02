@@ -138,4 +138,8 @@ export interface HoverPass {
   readonly outcome: HoverPassOutcome;
   readonly subjectsForced: number;
   readonly forceFailures: readonly string[];
+  /** How many state GROUPS failed to force or read — complete, unlike `forceFailures`, which quotes at
+   *  most three. Carried separately because a failed group's members ride `withheld.forceFailed` and a
+   *  glow-only group has NO members, so the member count alone cannot see it (#1031). */
+  readonly forceFailedGroups: number;
 }

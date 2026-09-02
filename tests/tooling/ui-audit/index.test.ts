@@ -1875,6 +1875,7 @@ test("isValidSeverity rejects anything outside P0-P3", () => {
 // ── aggregation ───────────────────────────────────────────────────────────────
 
 const EMPTY_SAMPLES: RawSamples = {
+  censusCaps: {},
   subjectAccounting: {
     observed: 3,
     settled: 3,

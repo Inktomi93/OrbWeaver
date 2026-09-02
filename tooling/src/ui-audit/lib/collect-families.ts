@@ -9,6 +9,7 @@
 // and joins the population rows. Provenance/attribution: collect.ts header.
 import type { Finding, PopulationAccounting } from "../contract/findings.ts";
 import type { RawSamples } from "../contract/samples.ts";
+import type { CensusCapFamily } from "../contract/samples-populations.ts";
 import type { FamilyCheckResult } from "../contract/types.ts";
 import {
   checkAccessibleName,
@@ -156,13 +157,30 @@ export function colorFindings(samples: RawSamples): FamilyCheckResult {
   };
 }
 
+/** How many carriers of one capped walker census never made it out of the page (#1038,
+ *  contract/samples-populations.ts). Absent family = never capped, which reads as 0 — the ONE place that
+ *  default is written, so no family checker re-spells it. */
+function capExceeded(samples: RawSamples, family: CensusCapFamily): number {
+  return samples.censusCaps[family]?.dropped ?? 0;
+}
+
 export function decorFindings(samples: RawSamples): FamilyCheckResult {
   const state = emptyFamilyResult();
   // ONE detector, TWO rules, TWO denominators: a single edge can be both tells, so each rule extracts
   // its own verdict from the same run and publishes the same censused candidate count.
-  const sideTabs = partitionedFindings("side-tab", samples.accentBorders, (input) => classifyAccentBorder(input, "side-tab"));
-  const rounded = partitionedFindings("border-accent-on-rounded", samples.accentBorders, (input) => classifyAccentBorder(input, "border-accent-on-rounded"));
-  const glows = partitionedFindings("glow-shadow", samples.shadowGlows, classifyGlowShadow);
+  const sideTabs = partitionedFindings(
+    "side-tab",
+    samples.accentBorders,
+    (input) => classifyAccentBorder(input, "side-tab"),
+    capExceeded(samples, "accentBorders"),
+  );
+  const rounded = partitionedFindings(
+    "border-accent-on-rounded",
+    samples.accentBorders,
+    (input) => classifyAccentBorder(input, "border-accent-on-rounded"),
+    capExceeded(samples, "accentBorders"),
+  );
+  const glows = partitionedFindings("glow-shadow", samples.shadowGlows, classifyGlowShadow, capExceeded(samples, "shadowGlows"));
   runArray(state, () => sideTabs.findings);
   runArray(state, () => rounded.findings);
   runArray(state, () => glows.findings);
@@ -191,13 +209,43 @@ export function mediaFindings(samples: RawSamples): FamilyCheckResult {
 
 export function ornamentFindings(samples: RawSamples): FamilyCheckResult {
   const state = emptyFamilyResult();
-  const halos = partitionedFindings("radial-halo", samples.radialGlows, (input) => classifyRadialGlow(input, "radial-halo"));
-  const spotlights = partitionedFindings("radial-spotlight-glow", samples.radialGlows, (input) => classifyRadialGlow(input, "radial-spotlight-glow"));
-  const stripes = partitionedFindings("stripe-background", samples.bgPatterns, (input) => classifyBgPattern(input, "stripe-background"));
-  const grids = partitionedFindings("grid-line-background", samples.bgPatterns, (input) => classifyBgPattern(input, "grid-line-background"));
+  const halos = partitionedFindings(
+    "radial-halo",
+    samples.radialGlows,
+    (input) => classifyRadialGlow(input, "radial-halo"),
+    capExceeded(samples, "radialGlows"),
+  );
+  const spotlights = partitionedFindings(
+    "radial-spotlight-glow",
+    samples.radialGlows,
+    (input) => classifyRadialGlow(input, "radial-spotlight-glow"),
+    capExceeded(samples, "radialGlows"),
+  );
+  const stripes = partitionedFindings(
+    "stripe-background",
+    samples.bgPatterns,
+    (input) => classifyBgPattern(input, "stripe-background"),
+    capExceeded(samples, "bgPatterns"),
+  );
+  const grids = partitionedFindings(
+    "grid-line-background",
+    samples.bgPatterns,
+    (input) => classifyBgPattern(input, "grid-line-background"),
+    capExceeded(samples, "bgPatterns"),
+  );
   const tiles = totalJudge("icon-tile-stack", samples.iconTiles, checkIconTile);
-  const layouts = partitionedFindings("layout-transition", samples.motionStatics, (input) => classifyMotionStatic(input, "layout-transition"));
-  const bounces = partitionedFindings("bounce-easing", samples.motionStatics, (input) => classifyMotionStatic(input, "bounce-easing"));
+  const layouts = partitionedFindings(
+    "layout-transition",
+    samples.motionStatics,
+    (input) => classifyMotionStatic(input, "layout-transition"),
+    capExceeded(samples, "motionStatics"),
+  );
+  const bounces = partitionedFindings(
+    "bounce-easing",
+    samples.motionStatics,
+    (input) => classifyMotionStatic(input, "bounce-easing"),
+    capExceeded(samples, "motionStatics"),
+  );
   runArray(state, () => halos.findings);
   runArray(state, () => spotlights.findings);
   runArray(state, () => stripes.findings);

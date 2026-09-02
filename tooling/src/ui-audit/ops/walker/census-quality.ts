@@ -17,7 +17,13 @@ export const WALKER_CENSUS_QUALITY = `  // ── heading order (impeccable skip
   }
 
   // ── text overflow (impeccable text-overflow — block + inline arms) ───────
+  // Every bound below is a REPRESENTATIVE bound the scan runs past (#1038): \`capPush\` (core.ts) keeps
+  // scanning and tallies what it dropped, so a surface with more spills than the bound is a NO VERDICT
+  // naming the family (lib/evidence.ts \`censusCapGap\`) rather than a clean read of its first N. These
+  // four families are rung-1 WALKER-PROVEN (lib/collect.ts's rung table): every returned sample IS a
+  // finding, so a silent bound did not merely shrink a denominator — it DELETED findings.
   var overflows = [];
+  var OVERFLOW_CAP = 100;
   // ── the TRUNCATION AFFORDANCE test (#825) ────────────────────────────────
   // The rule is "truncated with NO ellipsis AND no full-value affordance" — never the raw
   // scrollWidth > clientWidth, which is what every CORRECTLY truncating label in the app looks like.
@@ -61,7 +67,7 @@ export const WALKER_CENSUS_QUALITY = `  // ── heading order (impeccable skip
   var isScrollRegion = function (s) {
     return /(auto|scroll)/.test(s.overflowX || "") || /(auto|scroll)/.test(s.overflow || "") || /(auto|scroll)/.test(s.overflowY || "");
   };
-  for (var ov = 0; ov < allEls.length && overflows.length < 100; ov += 1) {
+  for (var ov = 0; ov < allEls.length; ov += 1) {
     var ovel = allEls[ov];
     var ovTag = ovel.tagName.toLowerCase();
     if (OVERFLOW_SKIP_TAGS[ovTag] === 1) continue;
@@ -89,7 +95,7 @@ export const WALKER_CENSUS_QUALITY = `  // ── heading order (impeccable skip
     var delta = ovel.scrollWidth - ovel.clientWidth;
     if (ovel.clientWidth > 0 && delta >= 16) {
       if (!truncationAffordance(ovel)) {
-        overflows.push({ selector: describe(ovel), spillPx: Math.round(delta), mode: "block" });
+        capPush("overflows", overflows, OVERFLOW_CAP, { selector: describe(ovel), spillPx: Math.round(delta), mode: "block" });
       }
       continue;
     }
@@ -106,7 +112,7 @@ export const WALKER_CENSUS_QUALITY = `  // ── heading order (impeccable skip
       var cRect = container.getBoundingClientRect();
       var spill = ovRect.right - (cRect.left + container.clientLeft + container.clientWidth);
       if (spill >= 16 && !truncationAffordance(ovel)) {
-        overflows.push({ selector: describe(ovel), spillPx: Math.round(spill), mode: "inline" });
+        capPush("overflows", overflows, OVERFLOW_CAP, { selector: describe(ovel), spillPx: Math.round(spill), mode: "inline" });
       }
     }
   }
@@ -136,7 +142,8 @@ export const WALKER_CENSUS_QUALITY = `  // ── heading order (impeccable skip
     repeatContainers.push(rcel);
     repeatContainerSet.add(rcel);
   }
-  for (var rci = 0; rci < repeatContainers.length && repeatedTexts.length < 40; rci += 1) {
+  var REPEATED_TEXT_CAP = 40;
+  for (var rci = 0; rci < repeatContainers.length; rci += 1) {
     var rcont = repeatContainers[rci];
     if (!isVisible(rcont)) continue;
     var rdesc = rcont.querySelectorAll("*");
@@ -168,7 +175,7 @@ export const WALKER_CENSUS_QUALITY = `  // ── heading order (impeccable skip
       if (sigs.length < 3) continue;
       var distinct = new Set(sigs).size;
       if (distinct < 3) continue;
-      repeatedTexts.push({ containerSelector: describe(rcont), text: gt.slice(0, 40), count: sigs.length, distinctSigs: distinct });
+      capPush("repeatedTexts", repeatedTexts, REPEATED_TEXT_CAP, { containerSelector: describe(rcont), text: gt.slice(0, 40), count: sigs.length, distinctSigs: distinct });
     }
   }
 
@@ -191,6 +198,7 @@ export const WALKER_CENSUS_QUALITY = `  // ── heading order (impeccable skip
   // or CONTAIN a control. In-flow TEXT spilling out of a clip is the text-overflow rule's finding, and
   // widening this one to text would re-report every deliberate truncation.
   var clippedOverflows = [];
+  var CLIPPED_OVERFLOW_CAP = 40;
   var clipsVal = function (v) { return v === "hidden" || v === "clip"; };
   var scrollsVal = function (v) { return v === "auto" || v === "scroll"; };
   // The clip boundary is the PADDING box — that is exactly where overflow:hidden cuts, so a full-bleed
@@ -213,7 +221,7 @@ export const WALKER_CENSUS_QUALITY = `  // ── heading order (impeccable skip
   var DECOR_IDENT_RE = /\\b(art|bg|background|badge|blob|crop|decor|dot|glow|grain|image|mask|ornament|overlay|photo|scrim|shadow|shine|texture)\\b/i;
   var VIEWPORT_IDENT_RE = /\\b(carousel|comparison|compare|fisheye|marquee|preview|scroller|slider|slideshow|split|viewport|demo-area|demo-stage|demo-viewport)\\b/i;
   var CHILD_SUBSTANTIVE_SEL = "a[href],button,input,select,summary,textarea,[tabindex]:not([tabindex='-1']),[role='button'],[role='dialog'],[role='link'],[role='listbox'],[role='menu'],[role='menuitem'],[role='option'],[role='tooltip']";
-  for (var co = 0; co < allEls.length && clippedOverflows.length < 40; co += 1) {
+  for (var co = 0; co < allEls.length; co += 1) {
     var coel = allEls[co];
     var coStyle = getComputedStyle(coel);
     var clipX = clipsVal(coStyle.overflowX) || clipsVal(coStyle.overflow);
@@ -291,7 +299,7 @@ export const WALKER_CENSUS_QUALITY = `  // ── heading order (impeccable skip
         var insets = [ccStyle.top, ccStyle.right, ccStyle.bottom, ccStyle.left].join(" ").toLowerCase();
         if (!(/(^|[\\s(])-+(?:\\d|\\.)/.test(insets) || /(^|[\\s(])100(?:\\.0+)?%/.test(insets))) continue;
       }
-      clippedOverflows.push({
+      capPush("clippedOverflows", clippedOverflows, CLIPPED_OVERFLOW_CAP, {
         selector: describe(coel),
         childSelector: describe(cchild),
         flow: ccPositioned ? "positioned" : "in-flow",
@@ -304,7 +312,8 @@ export const WALKER_CENSUS_QUALITY = `  // ── heading order (impeccable skip
 
   // ── cards flush against a scroller edge at rest (impeccable edge-flush-cards) ──
   var edgeFlushCards = [];
-  for (var ef = 0; ef < allEls.length && edgeFlushCards.length < 20; ef += 1) {
+  var EDGE_FLUSH_CAP = 20;
+  for (var ef = 0; ef < allEls.length; ef += 1) {
     var scroller = allEls[ef];
     var efStyle = getComputedStyle(scroller);
     if (!(/(auto|scroll)/.test(efStyle.overflowX || "") || /(auto|scroll)/.test(efStyle.overflow || ""))) continue;
@@ -346,7 +355,7 @@ export const WALKER_CENSUS_QUALITY = `  // ── heading order (impeccable skip
       }
     }
     if (worst !== null) {
-      edgeFlushCards.push({ scrollerSelector: describe(scroller), cardSelector: worst.cardSelector, edge: worst.edge, gapPx: worst.gapPx, count: flushCount });
+      capPush("edgeFlushCards", edgeFlushCards, EDGE_FLUSH_CAP, { scrollerSelector: describe(scroller), cardSelector: worst.cardSelector, edge: worst.edge, gapPx: worst.gapPx, count: flushCount });
     }
   }
 

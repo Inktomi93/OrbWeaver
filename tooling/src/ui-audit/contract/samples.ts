@@ -9,7 +9,7 @@ import type { ObscuredScanInput, SubjectAccountingInput, ThemeRenderInput } from
 // re-exported below: a bare `export … from` re-exports a name without binding it locally (tsc catches
 // that; biome's type service does not).
 import type { AccessibleNameInput, ActionDoorInput, CensusReachInput, ControlAspectInput, TabIndexInput, TapTargetInput } from "./samples-interactive.ts";
-import type { RelationalSamples } from "./samples-populations.ts";
+import type { CensusCapAccountingInput, RelationalSamples } from "./samples-populations.ts";
 
 export type { Backdrop, GlowShadowInput, RadialGlowInput } from "./backdrop.ts";
 
@@ -420,4 +420,9 @@ export interface RawSamples extends RelationalSamples {
   readonly hoverStates?: readonly import("./samples-hover.ts").HoverContrastInput[];
   readonly hoverScan?: import("./samples-hover.ts").HoverScanInput;
   readonly buriedRasters?: readonly import("./samples-media.ts").BuriedRasterInput[];
+  /** Which capped censuses TRUNCATED, and by how much (#1038). REQUIRED, unlike the optional families
+   *  above, and deliberately so: an absent-reads-as-nothing-dropped field would restore the exact
+   *  silence the ledger exists to end, so a walker that omits it is an instrument error at the seam
+   *  (ops/page-validate.ts) rather than a run that reads uncapped-clean. */
+  readonly censusCaps: CensusCapAccountingInput;
 }

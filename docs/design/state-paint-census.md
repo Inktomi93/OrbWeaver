@@ -85,9 +85,15 @@ one candidate index space, one verify, one join contract (contract/samples-hover
   idiom — `resolveBackdrop` walks ancestors only, ops/walker/resolve.ts:201, and cannot read a
   pseudo's background) are WITHHELD by name (`pseudoElementPaint`), never silently unparseable and
   never judged against a wrong backdrop. Non-`=` attribute operators → `complexStateSelector`
-  withheld. A state attribute reachable only inside `:is()`/`:where()` (the `group-data-[checked]`
-  compiled shape — forcing the painted element would not engage the rule and would publish a FALSE
-  `noHoverChange` exclusion) → withheld by the same named reason. Bare-attribute-first descendant
+  withheld. A state test of EITHER mechanism reachable only inside `:is()`/`:where()` — the compiled
+  group-variant shapes `.cls:is(:where(.group)[data-checked] *)` and
+  `.cls:is(:where(.group):hover *)`, where forcing the painted element would not engage the rule and
+  would publish a FALSE `noHoverChange` exclusion → withheld by the same named reason
+  (`complexStateSelector`). The `:hover` half of that sentence was PROSE-ONLY until #1073: the
+  attribute scanner tracked functional-pseudo depth from birth and the `:hover` side answered one
+  "anywhere" boolean, so every `group-hover:` rule in the product was measured against the wrong
+  subject and excluded as unchanged. Both halves now share `stateHoverScan`/`stateAttrScan`'s depth
+  guard, pinned in `tests/tooling/ui-audit/ops/hover-walker-group-variant.int.test.ts`. Bare-attribute-first descendant
   pairs whose subject cannot be located at rest → `unresolvableStateSubject`. `noHoverPaint` keeps
   its key (pinned by tests/tooling/ui-audit/cli.int.test.ts) and its claim becomes TRUE: excluded
   only when NEITHER mechanism paints the text and the scan was whole

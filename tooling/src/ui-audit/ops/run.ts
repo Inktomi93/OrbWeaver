@@ -27,6 +27,7 @@ import { checkScriptErrors } from "../lib/checks-quality.ts";
 import { collectAudit } from "../lib/collect.ts";
 import {
   actionsFailedGap,
+  censusCapGap,
   censusGap,
   censusThinGap,
   censusTotal,
@@ -71,7 +72,10 @@ const READ_FAILURE_SURFACE_JS = "(document.querySelector('[data-app-failure]') |
  *   • `censusThinGap` — exact subject accounting failed: the pre-walk settle, judged identity snapshot,
  *     classified skips, or final identity set disagree (the arm the three zero-tests cannot express);
  *   • `reachGap`  — it censused plenty of text but reached NOT ONE offered control, so the tap-target,
- *     action-door and silhouette families each folded an empty list into "no findings".
+ *     action-door and silhouette families each folded an empty list into "no findings";
+ *  `censusCapGap` (#1038) is deliberately NOT in this chain: a truncated bound is a partial verdict, not
+ *  an absent walk, so it rides beside `populationEvidenceGap` below — printed AFTER the population table
+ *  rather than instead of it, because the numbers a reader needs to size the truncation are in that table.
  *  Only for a page that LOADED and that the app did not declare a failure surface for — the nav, action and
  *  `data-app-failure` arms are terminal in `runUiAudit` before any of this is reached (#1081). */
 interface EvidenceInputs {
@@ -263,7 +267,23 @@ export async function runUiAudit(opts: Args): Promise<number> {
             detail: `${hover.outcome.reason} — the :hover census was supposed to run and BROKE, so hover-contrast has NO VERDICT on this surface`,
           }
         : null;
-    const evidenceGaps = [populationGap, hoverGap].filter((row): row is EvidenceGap => row !== null);
+    // A FORCED-STATE GROUP THAT THREW IS A GAP EVEN WHEN IT WITHHELD NOTHING (#1031). A failed group's
+    // MEMBERS ride `withheld.forceFailed`, which already reds the run through `populationEvidenceGap` —
+    // but a glow-only group has no members, so its failure contributed a printed `HOVER REFUSED` line
+    // and nothing else, and the run reported a complete verdict over a state-gated glow arm it never
+    // read. The count is the whole one (`forceFailedGroups`), never the three-quote sample.
+    const forceGap: EvidenceGap | null =
+      hover === null || hover.forceFailedGroups === 0
+        ? null
+        : {
+            evidence: "the forced-state pass's per-group completeness",
+            detail: `${String(hover.forceFailedGroups)} state group(s) failed to force or read (${hover.forceFailures.join("; ")}) — their members' hover paint and state-gated glow were never measured, so hover-contrast and the state glow arms are partial on this surface`,
+          };
+    // THE CAP GAP rides here, not in `evidenceGapOf` (#1038): it is the same class as `populationGap` —
+    // the walk RAN and its verdict is partial — so it must not suppress the population table a reader
+    // needs in order to size what was lost.
+    const capGap = pixels.samples === null ? null : censusCapGap(pixels.samples);
+    const evidenceGaps = [populationGap, capGap, hoverGap, forceGap].filter((row): row is EvidenceGap => row !== null);
     findings.push(...checkScriptErrors(session.pageErrors));
     const counts = countBySeverity(findings);
     // Only the findings decide the verdict here: a nav error or a failed action means the scan happened on

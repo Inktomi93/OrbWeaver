@@ -15,6 +15,7 @@ import { collectAudit } from "../../../../tooling/src/ui-audit/lib/collect.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const EMPTY_SAMPLES: RawSamples = {
+  censusCaps: {},
   subjectAccounting: {
     observed: 3,
     settled: 3,

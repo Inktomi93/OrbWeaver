@@ -9,6 +9,7 @@ import type { SettingsShimEvidence, ThemeResolutionEvidence } from "@orb/tooling
 import type { EvidenceGap } from "@orb/tooling/_shared/evidence";
 import type { ThemeRequest } from "@orb/tooling/_shared/theme";
 import type { RawSamples, ThemeRenderInput } from "../contract/samples.ts";
+import { CENSUS_CAP_FAMILIES } from "../contract/samples-populations.ts";
 import type { RelationalSamples } from "../contract/samples-populations.ts";
 import type { DomPopulation } from "../contract/types.ts";
 
@@ -73,6 +74,44 @@ export function censusTotal(samples: RawSamples): number {
     (samples.controlAspects?.length ?? 0) +
     relational
   );
+}
+
+/** THE CAP GAP (#1038) — a census that stopped PUSHING and reads complete.
+ *
+ *  Five walker censuses carried a silent representative bound (`shadowGlows` 200, `accentBorders` 200,
+ *  `radialGlows` 100, `motionStatics` 100, `bgPatterns` 50) and four more carried one whose families are
+ *  rung-1 WALKER-PROVEN (`overflows` 100, `repeatedTexts` 40, `clippedOverflows` 40, `edgeFlushCards` 20 —
+ *  lib/collect.ts's rung table). The bound was applied BEFORE anything downstream could see it, so a page
+ *  past the bound published a truncated `candidates=` that read complete AND, for the WALKER-PROVEN four,
+ *  simply LOST the findings past the bound: the walker returns only findings there, so the 41st clipped
+ *  overflow was not under-counted, it was deleted.
+ *
+ *  The bound stays — an unbounded sample payload is a real risk on a pathological surface — and the SCAN
+ *  now runs past it, so `dropped` is EXACT rather than a floor. This arm is the run-level half of the
+ *  refusal and covers every capped family including the four with no population row at all;
+ *  `partitionedFindings`' `capExceeded` is the per-rule half, and the redundancy is deliberate — a reader
+ *  looking at the rule table and a reader looking at the verdict line must each be told.
+ *
+ *  MEASURED HEADROOM, so the bounds are a judgment and not a guess (2026-09-01, `pnpm design-audit`
+ *  against the live dev stack): Home at 1280x800 (381 walked) censused 16 shadow glows and nothing else;
+ *  `--goto settings:appearance --viewport 1280x2200` (1319 walked — the heaviest surface in the product)
+ *  censused 44 shadow glows, 15 radial washes, 1 accent border, 0 patterns, 0 motion statics. Every family
+ *  sits 4x-200x under its bound, so this refusal is a tripwire rather than a tax every run pays. */
+export function censusCapGap(samples: RawSamples): EvidenceGap | null {
+  // Walked through the CLOSED family tuple rather than the object's own keys: the message order is then
+  // the contract's, not a serialization accident, and the tuple gains the reader that makes it
+  // enforcement instead of a list (constitution §2.3 — a prose-only boundary is a wish).
+  const truncated = CENSUS_CAP_FAMILIES.flatMap((family) => {
+    const row = samples.censusCaps[family];
+    return row === undefined || row.dropped === 0 ? [] : [`${family}: ${String(row.dropped)} past a bound of ${String(row.cap)}`];
+  });
+  if (truncated.length === 0) {
+    return null;
+  }
+  return {
+    evidence: "the capped censuses' completeness",
+    detail: `${truncated.join("; ")} — the in-page census counted more carriers than it could carry out, so every rule over those families judged a representative sample and this run has NO VERDICT for them. Narrow the surface (a smaller viewport, a --goto onto one pane) or raise the family's bound in ops/walker/census-*.ts`,
+  };
 }
 
 /** The walk itself failing is an INSTRUMENT failure, not an app finding — separated from an HTTP nav
