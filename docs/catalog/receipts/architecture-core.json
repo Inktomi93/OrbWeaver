@@ -163,12 +163,12 @@
     },
     {
       "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
-      "assignedSha256": "32ba6324ef05a2f04f7ec21e33a54062a87245fc714ab1f5b7d582f039ce5e01",
+      "assignedSha256": "eb740e6a99dc37c656af17d90315af66844526291bb9d7ab5f3a1cc1adc59cbf",
       "disposition": "current",
       "authority": "operational",
       "fullRead": true,
-      "verifiedSha256": "32ba6324ef05a2f04f7ec21e33a54062a87245fc714ab1f5b7d582f039ce5e01",
-      "verifiedCommit": "a4ae3f6a76e87f01bfb31030f49b20c509e6cdf3",
+      "verifiedSha256": "eb740e6a99dc37c656af17d90315af66844526291bb9d7ab5f3a1cc1adc59cbf",
+      "verifiedCommit": "f01a2375e844904214a3534c4222c27e348d3eff",
       "verifiedAt": "2026-09-01",
       "evidence": [
         "re-attested at 9a4bee47ab1b21cd68c291c80e1704b486200dd8 (#995): the agent-bridge-lock row records the lean production readiness home, shared debug Promise/query, and DEV-only bridge boundary; focused CT passed 6/6, gate conformance passed, and check:structure completed 244/244 active gates clean",
@@ -224,7 +224,8 @@
         "re-attested at 77f0aaad90a75a4e7e437f8fac3f76b7efae0fe6 (#1018/#910): the Layer-3 table registers runner-config-path-liveness (discovered active count 248) and states the description-MIRROR rule — a row copying its descriptor's runtime message declares it with (@mirrors-message) and is held byte-for-byte; the three live mirrors are marked. check:structure ran COMPLETE 248/248 clean, gate conformance 8/8, check-gates.int 8/8, and both gate pins 18/18",
         "re-attested at 8d813c402 — merge of #1018/#968/#910 (77f0aaad9: runner-config-path-liveness row, 247→248, the @mirrors-message preamble + three marked rows) onto the #942-#948 ledger; union read once",
         "re-attested at 171daabb4 (#947): six more rows truth-repaired where the gate's claim changed — tooling-instrument-proof / warning-code-coverage / duplicate-action-doors now RESOLVE their tuples through lib/tuple-read.ts, chat-viewer-plane-canon-reads folds object spreads into its authority matrix, message-kind-policy-coverage counts INHERITED axes, and section-factory-contribution-bundle resolves registry parameters through type aliases (its old alias mustPass, which blessed the false negative, is now a mustFlag). Delta read; verified by check:structure 247/247 run COMPLETE clean, check-gates.int + gate-conformance 16/16, 18 resolver pins, and per-gate red-first receipts (7/7 HEAD readers silent or mis-keyed on the same planted shapes)",
-        "re-attested at a4ae3f6a7 — merge of #947 (171daabb4: six member-gate rows truth-repaired) onto the #1018/#968/#910 ledger; union read once"
+        "re-attested at a4ae3f6a7 — merge of #947 (171daabb4: six member-gate rows truth-repaired) onto the #1018/#968/#910 ledger; union read once",
+        "re-attested at f01a2375e (#1024/#1025, lane p-bus-secret2): the bus-payload-allowlist row now states two more fail-closed arms on the same D16 firewall — an OPEN KEY SPACE (an index signature, which `getProperties()` omits outright, a mapped type, a `Record<…>`, an `unknown`/`any` field) is refused rather than skipped, and the notification zod arm RESOLVES imported schema objects through relative imports (direct arm, `.extend`/`.merge`, `{ ...base.shape }`), with `.loose()`/`.catchall()` refused as the zod spelling of the same open key space. The row also records that only `ChatBusEvent` carries a type-level pin for the invariant, so this gate is the sole enforcer for UserBusEvent/DomainEvent/WiBusEvent/notificationEventSchema. Delta read against the landed descriptor; the registered-gate COUNT is unchanged (arms widened inside an existing descriptor). Re-derivation receipt: a planted index signature on a ChatBusEvent arm REDS tests/contracts/chat/index.test-d.ts (9 type errors, restored). Red-first proved the pre-change gate returned ZERO findings for 11 planted shapes (a wholly-imported notification union scored local=0 inherited=0); two real-file probes — an index signature on the live `UserBusEvent.corpusRecomputed` arm and a relatively-imported notification arm carrying apiKey — both RED at their declaring sites and were removed. check:structure ran COMPLETE 248/248 clean with a byte-identical member census (184/184) before and after, gate-conformance 8/8, check-gates.int 8/8, the gate's pins 24/24, knip clean, types:graph clean"
       ],
       "claims": [
         {
