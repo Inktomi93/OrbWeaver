@@ -35,14 +35,13 @@ import { Avatar } from "@orb/ui/avatar";
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
 import { Icon, Plus } from "@orb/ui/icons";
-import { Row, Stack } from "@orb/ui/layout";
+import { Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import { Popover, PopoverPopup, PopoverTrigger } from "@orb/ui/popover";
-import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
-import { CharacterPicker, LibraryListLayout } from "#components";
+import { CharacterPicker, LibraryListLayout, ListPaneHeader } from "#components";
 import { useOpenRefinery, useTRPC } from "#data";
 import { timeLib, useFocusOnMount } from "#lib";
 import { requestRefineryLandingFocus, selectRefinerySessionFromList, useMobileViewport, useSelectedRefinerySessionId } from "#state";
@@ -267,11 +266,19 @@ export function RefineryListSurface(): ReactElement {
 }
 
 /**
- * The LIST chrome band (D66 A1/A2): the micro-caps title, the count, and — since P1-6 — the START DOOR.
- * Once a session is selected there was NO way back to "start another one" from anywhere in the feature
- * (and the phone list, which IS the whole screen, never had one at all): the only door lived in
- * CONTENT's teaching state, which a selected session replaces.
+ * The LIST chrome band (D66 A1/A2): the shared `ListPaneHeader` cluster — title + count + the START
+ * DOOR since P1-6. Once a session is selected there was NO way back to "start another one" from anywhere
+ * in the feature (and the phone list, which IS the whole screen, never had one at all): the only door
+ * lived in CONTENT's teaching state, which a selected session replaces.
  *
+ * REBUILT ONTO `ListPaneHeader` (#1206): this band was the ONE hand-rolled `Text voice="kicker"`/
+ * `voice="gloss"` pair left after `ListPaneHeader` was minted to retire exactly that duplication
+ * (chat/corpus/analytics) — it also missed the #1136 title-size step (16→24px display) every other
+ * list-bearing section already carries, and left `LIST_PANE_TITLE_ID` unset, so `panel-chrome.tsx`'s
+ * `aria-labelledby` for the LIST `<aside>` resolved to nothing here. The action slot carries the
+ * IDENTICAL `StartSessionDoor` this band already had; only the vehicle changed.
+ *
+
  * ── THE `+` IS A DOOR, NOT A SELECTION-CLEARER (owner ruling, 2026-08-17, #157) ──────────────────────
  * It used to call `clearRefinerySelection()` and nothing else, which meant it did NOTHING at cold open
  * (where the selection is already null) — so it shipped `disabled` there, and the real pick-a-character
@@ -303,11 +310,9 @@ export function RefineryListHeader(): ReactElement {
   const isMobile = useMobileViewport();
   const contentShowsPicker = selectedId === null && !isMobile;
   return (
-    <>
-      <Text voice="kicker">Sessions</Text>
-      <Text voice="gloss">{sessions.data.length}</Text>
-      <Row className="flex-1" gap="field" justify="end">
-        {contentShowsPicker ? null : (
+    <ListPaneHeader
+      action={
+        contentShowsPicker ? undefined : (
           <StartSessionDoor
             trigger={(busy): ReactElement => (
               <Button aria-busy={busy} aria-label="Start a new session" intent="ghost" size="glyph-md" title="Start a new session">
@@ -315,8 +320,10 @@ export function RefineryListHeader(): ReactElement {
               </Button>
             )}
           />
-        )}
-      </Row>
-    </>
+        )
+      }
+      count={sessions.data.length}
+      title="Sessions"
+    />
   );
 }

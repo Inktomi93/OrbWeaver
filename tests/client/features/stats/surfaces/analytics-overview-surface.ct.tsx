@@ -358,3 +358,23 @@ test("the top-character subtitle names the real affordance while collapsed and d
   await expect(component.getByText("Your most-played character", { exact: true })).toBeVisible();
   await expect(component.getByText(SHOW_LIST_PANEL_RE)).toHaveCount(0);
 });
+
+// ── #1200: the CONTENT region carries an inset, the Corpus precedent (`corpus-content.tsx`) ──────────
+// The dashboard shipped with padding NOWHERE in its component tree — a 5-level DOM walk from the content
+// region root read `padding: 0px` at every level, so every row rendered flush into the pane corner. The
+// scroll-owning `[data-slot="analytics-content"]` Stack is where the inset now lives (Analytics' own
+// surfaces own their scroll axis, unlike Corpus's CONTENT-level owner — see the surface's header comment).
+test("the overview dashboard's content region carries a non-zero inset (#1200)", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "stats.freshness": () => ({ computedAt: COMPUTED_AT, stale: false, hasData: true }),
+    "stats.overview": () => OVERVIEW,
+    "stats.wrapped": () => WRAPPED,
+    "stats.momentum": () => MOMENTUM,
+  });
+  const component = await mount(<AnalyticsOverviewSurfaceStory />);
+  await expect(component.getByRole("button", { name: "Recompute now" })).toBeVisible();
+
+  const region = component.locator('[data-slot="analytics-content"]');
+  const padding = await region.evaluate((el) => getComputedStyle(el).paddingTop);
+  expect(padding).not.toBe("0px");
+});

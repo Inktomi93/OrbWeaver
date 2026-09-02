@@ -4,6 +4,14 @@
 // (rising / falling characters over the last two active months). The top-character callout drills into
 // that character's stats; momentum renders as ranked delta bars. With no data the surface teaches a
 // next step (start a chat) instead of showing a wall of zeros.
+//
+// THE INSET LIVES ON THE SCROLLER, ONCE (#1200 — the Corpus precedent, `corpus-content.tsx`). Analytics
+// shipped with padding nowhere in its component tree: a 5-level DOM walk from `analytics-content.tsx`
+// down read `padding: 0px` at every level. Corpus's own fix moved the inset to its CONTENT-level owner
+// because its surfaces carry no scroll of their own — Analytics' two surfaces are the opposite: each owns
+// ITS OWN scroll axis independently (`h-full min-h-0 overflow-y-auto overscroll-contain`), pinned by the
+// containing-block CT below and mounted standalone in CT stories with no `analytics-content.tsx` wrapper
+// at all — so the inset goes on the same element that already owns the scroll here, not one level up.
 
 import { BarList } from "@orb/ui/bar-list";
 import { Button } from "@orb/ui/button";
@@ -65,7 +73,7 @@ function OverviewBody(): ReactElement {
   // guard all three together — no data ⇒ the teaching state instead of a wall of zeros.
   if (!freshness.hasData || overview === null || wrapped === null) {
     return (
-      <Stack className="h-full min-h-0 place-content-center">
+      <Stack className="h-full min-h-0 place-content-center" padding="section">
         <EmptyStateNoData />
       </Stack>
     );
@@ -84,7 +92,7 @@ function OverviewBody(): ReactElement {
     listMode === "collapsed" ? "Your most-played character — Show list panel to drill into any character" : "Your most-played character";
 
   return (
-    <Stack className="relative h-full min-h-0 overflow-y-auto overscroll-contain" gap="section">
+    <Stack className="relative h-full min-h-0 overflow-y-auto overscroll-contain" data-slot="analytics-content" gap="section" padding="section">
       <Row align="center" justify="between" gap="row">
         {/* ONE time vocabulary in this column: relative in the text, the exact stamp in `title=` (P2e). */}
         <Text voice="gloss" {...(freshness.computedAt === null ? {} : { title: timeLib.formatDateTime(freshness.computedAt) })}>
