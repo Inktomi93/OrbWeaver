@@ -984,9 +984,9 @@
     "cite": ["tooling/src/verify/gates/suppressions.ts"]
   },
   "tooling/src/workboard/lib/vocab.ts": {
-    "count": 1,
-    "ratified": 1,
-    "why": "ratified by rule: lint/style/noProcessEnv×1 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_RULES (tooling/src/verify/gates/suppressions.ts)",
+    "count": 2,
+    "ratified": 2,
+    "why": "ratified by rule: lint/style/noProcessEnv×2 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_RULES (tooling/src/verify/gates/suppressions.ts)",
     "cite": ["tooling/src/verify/gates/suppressions.ts"]
   }
 }

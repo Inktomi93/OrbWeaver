@@ -28,6 +28,7 @@ test("WorkCommand is closed over exactly the verbs the dispatcher handles", () =
     | "reverify"
     | "done"
     | "refute"
+    | "dod"
     | "park"
     | "block"
     | "unblock"
@@ -58,4 +59,18 @@ test("every lifecycle verb is batched — the id payload is a LIST on every arm"
   expectTypeOf<Extract<WorkCommand, { kind: "land" }>["evidence"]>().toEqualTypeOf<string>();
   expectTypeOf<Extract<WorkCommand, { kind: "land" }>["lane"]>().toEqualTypeOf<string | null>();
   expectTypeOf<Extract<WorkCommand, { kind: "land" }>["commentFile"]>().toEqualTypeOf<string | null>();
+});
+
+// #923's type-level half: the DoD payloads are per-verb, `string | null` on exactly the arms that carry
+// them — never a bag of optionals a dispatcher could hand to the wrong verb. `override` (the loud
+// --force-close record) exists ONLY on the two closing verbs; a bare `verify` cannot carry one.
+test("the DoD payloads live on exactly the arms that carry them", () => {
+  expectTypeOf<Extract<WorkCommand, { kind: "file" }>["dod"]>().toEqualTypeOf<string | null>();
+  expectTypeOf<Extract<WorkCommand, { kind: "refute" }>["dod"]>().toEqualTypeOf<string | null>();
+  expectTypeOf<Extract<WorkCommand, { kind: "dod" }>["command"]>().toEqualTypeOf<string>();
+  expectTypeOf<Extract<WorkCommand, { kind: "done" }>["override"]>().toEqualTypeOf<string | null>();
+  expectTypeOf<Extract<WorkCommand, { kind: "land" }>["override"]>().toEqualTypeOf<string | null>();
+  // @ts-expect-error — `verify` carries no override; only the closing verbs may record one.
+  const wrong: Extract<WorkCommand, { kind: "verify" }> = { kind: "verify", issues: [1], evidence: "x", override: "y" };
+  void wrong;
 });

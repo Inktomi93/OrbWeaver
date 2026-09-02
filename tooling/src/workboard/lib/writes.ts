@@ -49,7 +49,9 @@ export function encodeWrite(fields: readonly Field[], change: FieldChange): Enco
   }
   const selected = field.options?.find((choice) => choice.name.toLowerCase() === value.toLowerCase());
   if (selected === undefined) {
-    throw new Error(`${field.name} has no option named ${value}`);
+    // Naming the members saves the probe call the bare refusal used to cost (#1043: "Design" is not a
+    // Review option, and the operator had to go ask the board what was).
+    throw new Error(`${field.name} has no option named ${value} — valid: ${(field.options ?? []).map((choice) => choice.name).join(" | ")}`);
   }
   return { kind: "option", fieldId: field.id, fieldName: field.name, value: selected.id, local: selected.name };
 }

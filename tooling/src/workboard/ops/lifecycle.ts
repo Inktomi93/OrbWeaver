@@ -12,6 +12,7 @@ import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { Issue, LifecycleCommand, WorkCommand, WorkItemContext } from "../contract/types.ts";
 import { INGRESS_LABELS, REPOSITORY, REQUIRED_READY_METADATA, TERMINAL_DISPOSITIONS } from "../lib/vocab.ts";
 import { currentValue } from "../lib/writes.ts";
+import { enforceDodAtClose, writeDod } from "./dod.ts";
 import { gh } from "./gh.ts";
 import {
   blockerIssueId,
@@ -138,11 +139,21 @@ function postCommentOnce(work: WorkItemContext, body: string): void {
   }
 }
 
-function done(work: WorkItemContext, evidence: string): void {
+function done(work: WorkItemContext, evidence: string, override: string | null): void {
   requireStatus(work, ["Verify", "Done"], "work item must be Verify before Done");
   requireUnblocked(work.target, "work item cannot be Done while blocked");
   if (currentValue(work.item, "Evidence")?.trim() !== evidence) {
     throw new Error("work item Evidence must match --evidence before Done");
+  }
+  // The DoD gate (#923): runs before the Status write, skipped when Status is ALREADY Done — the only
+  // writer of Done is this function, which passed the gate, so an interrupted close reruns convergently
+  // without re-executing the bar. The override comment (the loud --force-close record) posts through the
+  // same idempotent door as the evidence comment.
+  if (currentValue(work.item, "Status")?.toLowerCase() !== "done") {
+    const overrideComment = enforceDodAtClose(work, override);
+    if (overrideComment !== null) {
+      postCommentOnce(work, overrideComment);
+    }
   }
   postCommentOnce(work, `Verification evidence: ${evidence}`);
   setField(work.item, "Status", "Done");
@@ -174,7 +185,7 @@ function land(work: WorkItemContext, command: Extract<WorkCommand, { readonly ki
   if (command.commentFile !== null) {
     postCommentOnce(work, readFileSync(resolve(command.commentFile), "utf8").trim());
   }
-  done(work, command.evidence);
+  done(work, command.evidence, command.override);
 }
 
 function block(work: WorkItemContext, command: Extract<WorkCommand, { readonly kind: "block" }>): void {
@@ -230,10 +241,18 @@ function runOneLifecycle(command: LifecycleCommand, issue: number): number {
       reverify(work, command.evidence);
       break;
     case "done":
-      done(work, command.evidence);
+      done(work, command.evidence, command.override);
       break;
     case "refute":
+      // `--dod` mints the FAILING command as the row's bar in the same call (#923) — the body/stamp
+      // writes happen BEFORE the status transition (Status last, the commit-marker convention).
+      if (command.dod !== null) {
+        writeDod(work, command.dod);
+      }
       refute(work, command.evidence);
+      break;
+    case "dod":
+      writeDod(work, command.command);
       break;
     case "park":
       transitionStatusLast(work.item, "Parked", [
@@ -254,7 +273,25 @@ function runOneLifecycle(command: LifecycleCommand, issue: number): number {
 /** Fan out over the id list (#870). Rows are walked IN ORDER and a refusal stops the run at that row —
  *  the rows already written keep their transitions (each is committed by its own Status write), so a
  *  rerun of the same command converges exactly as a single-id rerun does. The returned numbers are the
- *  rows that actually transitioned, which is what the cli echoes. */
+ *  rows that actually transitioned, which is what the cli echoes.
+ *
+ *  A MULTI-id refusal names the row that refused, the rows already transitioned, and the rows not
+ *  attempted (#923 ride-along — a DoD gate makes mid-list stops likelier, and a bare error left the
+ *  caller re-deriving which rows still needed the rerun). Single-id messages stay byte-identical. */
 export function runLifecycle(command: LifecycleCommand): readonly number[] {
-  return command.issues.map((issue) => runOneLifecycle(command, issue));
+  const transitioned: number[] = [];
+  for (const [index, issue] of command.issues.entries()) {
+    try {
+      transitioned.push(runOneLifecycle(command, issue));
+    } catch (error) {
+      if (command.issues.length > 1 && error instanceof Error) {
+        const notAttempted = command.issues.slice(index + 1);
+        const doneList = transitioned.length === 0 ? "" : ` (already transitioned: ${transitioned.map((n) => `#${n}`).join(" ")})`;
+        const remaining = notAttempted.length === 0 ? "" : ` (not attempted: ${notAttempted.map((n) => `#${n}`).join(" ")})`;
+        error.message = `#${issue}: ${error.message}${doneList}${remaining}`;
+      }
+      throw error;
+    }
+  }
+  return transitioned;
 }

@@ -1,0 +1,186 @@
+---
+kind: design
+status: active
+updated: 2026-09-01
+---
+
+# work:item --dod — a Definition of Done that is RED at file time and blocks the close
+
+> Design for #923 (owner brief 2026-08-30). The DoD makes a row's close **self-verifying**: the
+> evidence becomes a command plus an expected exit, minted red-first, gated at `done`/`land`, escaped
+> only by a loud recorded override. It rides the #870 verb surface as merged at `ac441d5e5` — the
+> composites (`file`, `land`) gain the DoD without adding a single board call.
+
+## The mechanism (one screen)
+
+- **Mint (red-first):** `file … --dod '<cmd>'` runs the command ONCE, before ANY GitHub call. Exit 0
+  → the row is REFUSED (exit 2) with the command and its output — a green reproduction means no bug
+  or a wrong bar, both worth knowing before the row exists. Non-zero → the command is embedded in the
+  issue body as a ` ```dod ` fenced block and a pairing stamp (`sha256:<16hex>` of the command)
+  is written to the Project's `DoD` text field **inside the metadata write batch `file` already
+  sends** (zero added calls). A command that cannot finish inside the timeout is refused at mint too
+  — an unfinishable bar cannot gate anything.
+- **Close (the gate):** `done` and `land` converge on the one `done()` verb; before the Status→Done
+  write it re-derives the DoD from the issue body, checks the stamp, and RUNS the command. Red (or
+  timeout, or stamp mismatch, or a half-present pair) → the close is refused (exit 2) printing what
+  it RAN, the exit, and the output tail — a rotted bar reads as stale, never as mysterious. Green →
+  close proceeds. A row already at Status Done skips the run (the only writer of Status=Done is
+  `done()` itself, which already passed the gate — this keeps interrupted-close reruns convergent).
+- **Override (loud, never absent):** `land`/`done` `--force-close --reason "<text>"` skips the run,
+  posts `DoD override — <reason>` plus the overridden command as an issue comment (idempotent via
+  the existing `postCommentOnce`), and closes. `--force-close` without `--reason` is misuse;
+  `--force-close` on a row with no DoD is refused (there is nothing to override). #895 is the worked
+  example this replaces.
+- **Later edits are visible:** `dod <n…> --cmd '<cmd>'` re-mints (red-first again), rewrites the body
+  block (GitHub keeps issue-body edit history — the trace), and re-stamps. `set <n> DoD …` is
+  REFUSED (`DoD` joins `LIFECYCLE_FIELDS`): the stamp is only ever written by a path that just
+  watched the command fail.
+- **Refute closes the loop:** `refute … --dod '<cmd>'` lets a verifier mint the FAILING command as
+  the row's bar in the same call that returns it to Ready — red-first is satisfied by the very
+  failure being reported, and the next close must green that exact command (#902's class).
+- **By class, suggested never mandated:** `--dod` on a `decision` or `program` row is refused at
+  parse (they close on an owner ruling / on their children — not machine-checkable); a `bug` filed
+  without one gets a one-line nudge in the success output; nothing is ever required.
+
+## Storage — the chosen shape and the rejected alternatives
+
+**Chosen: the command lives in the issue body (` ```dod ` fenced block); a `sha256:<16hex>`
+stamp of the command lives in a Project text field `DoD`.** The body is where a bug's reproduction
+belongs editorially, GitHub gives body edits a native history (build-note 2: later edits VISIBLE),
+and the Project field rides existing batched writes (build-note 5: zero added calls — the stamp joins
+`file`'s metadata batch at mint and arrives in `fetchIssueContext`'s field values at close).
+
+- **Rejected: Project text field alone.** A field edit is silent — exactly the quiet-rewrite clause 4
+  bans — and the 1024-char text cap would bound the command.
+- **Rejected: issue body alone.** The trust surface (below): the tool would execute whatever the
+  body says, and an issue AUTHOR — including an outside contributor on their own issue — can edit
+  their body at will.
+- **Rejected: a committed repo registry.** Perfect trace (git history) but the board owns mutable
+  work state (D139/§0.1.9), and a per-row file forces a commit to main per filed row.
+- **Rejected: an issue comment as the bar.** Weaker edit visibility, no prominence, and the context
+  query would need author attribution the wire shape doesn't carry.
+
+Both sides must agree before anything runs: block-without-stamp (planted by someone who cannot write
+Project fields) never executes; stamp-without-block (bar deleted) refuses; a mismatch (bar edited
+without re-minting) refuses and names the re-mint path. `--force-close` bypasses the pair check too —
+it executes nothing, and the recorded comment quotes the body's text harmlessly.
+
+## Trust surface (build-note 6 — stated resolution)
+
+A DoD is arbitrary shell run by the tool. It is NOT privilege escalation: it executes as the operator
+who invoked `work:item`, and the mint path (the only writer of the stamp) is the same principal class
+that writes code here. The attack the pairing kills: an outsider files or edits an issue whose body
+carries a ` ```dod ` block — only users with write access to Project 1 (the owner's tooling)
+can mint the stamp, so an unstamped or mismatched block is refused BY NAME, never executed. The repo
+being private today is not load-bearing. Execution discipline: the run rides `runNicedSync` (`nice
+-n 19`, the one subprocess home), cwd = repo root, inherits the ambient env (so the workspace
+NODE\_OPTIONS heap floor reaches node children), and a mint-time spelling guard refuses `npx` inside a
+DoD (npx strips the heap floor and the nice — measured 2026-08-27; `pnpm exec` is the sanctioned
+spelling). Commands containing a ` ``` ` line are refused at mint (they would break the fence).
+
+## Timeout
+
+One constant, `DOD_TIMEOUT_MS = 300_000` (5 min), per DoD run, at mint and at close — so a batched
+`land` of N rows is bounded at N·timeout worst-case and a planted `sleep` provably dies. Env seam
+`WORK_ITEM_DOD_TIMEOUT_MS` (the `WORK_ITEM_CACHE_DIR` precedent) exists for the test harness. A bar
+that needs longer than 5 minutes is a tell it is a verification TIER, not a close gate — the refusal
+message says so; `--force-close --reason` is the recorded escape. Timeout kill lands on the direct
+child (`nice` execs in-process, so the pid is the command); a compound command's grandchildren can
+survive the kill — accepted and documented at the runner.
+
+## Normalization (the CRLF trap)
+
+GitHub returns issue bodies with `\r\n`. The extractor normalizes `\r\n → \n` before parsing and the
+stamp is computed over the trimmed command text — identical at mint and at read, or every close would
+false-mismatch. Two ` ```dod ` blocks in one body is ambiguity → refuse loudly.
+
+## Coupled-site inventory (enumerated before building)
+
+| Site | Change |
+| - | - |
+| `contract/types.ts` | `FileCommand.dod`; `land` arm `override`; `done` split out with `override`; `refute` split out with `dod`; new `dod` arm; `Issue.body` + `RawIssueNode.body` |
+| `lib/vocab.ts` | `DOD_FIELD`, `DOD_TIMEOUT_MS` (+env seam), `DOD_OUTPUT_TAIL`; `LIFECYCLE_FIELDS` += `dod` |
+| `lib/parse.ts` | `--dod` on `file`; `dod` verb; `--force-close/--reason` on `land`/`done`; `--dod` on `refute`; DoD spelling guards; unknown-flag refusal on multi-option verbs (ride-along) |
+| `lib/dod.ts` (new, pure) | fence build/extract/upsert, stamp, normalize, command validation |
+| `ops/dod.ts` (new, I/O) | `runDod` (niced bash, timeout, output cap), `requireRedDodAtMint`, `enforceDodAtClose`, `writeDod` |
+| `lib/queries.ts` | `CONTEXT_QUERY` gains `body` (same request — zero calls) |
+| `ops/project.ts` | map `body` onto `Issue` |
+| `ops/lifecycle.ts` | `done()` gate + override; `land` passes override; `dod`/`refute` arms; batched-refusal message names transitioned/not-attempted rows (ride-along) |
+| `ops/report.ts` | `file` red-first + body compose + stamp write + bug nudge; `help` text |
+| `ops/run.ts` | mint-time red-first for `dod` and `refute --dod` before any board call |
+| `tests/tooling/workboard/cli.test.ts` | fake gh learns `body` (create/edit/context); the DoD behavioral pins |
+| `tests/tooling/workboard/lib/dod.test.ts` (new) | pure mirror: fence/stamp/normalize/validate |
+| `tests/tooling/workboard/contract/types.test-d.ts` | closed-kind list += `dod`; per-arm payload pins |
+| `docs/test-baseline/manifest.json` | regenerated in-lane (new tracked test file; `ledgers:fresh`) |
+| Project 1 itself | **deployment step, orchestrator at merge: add a TEXT field named `DoD`** — until it exists, minting refuses loudly (`Project 1 has no field named DoD`) and rows without DoDs are unaffected |
+
+New workboard test files auto-join the `pnpm test:ratchets` train-gate aggregate
+(`tooling/src/verify/ops/ratchet-gate.ts` — every `tests/tooling/workboard/**` file); the added spawn
+cost is kept lean (parse-level refusals asserted via `parseWorkCommand`, not spawns).
+
+## Test plan (both directions everywhere)
+
+Red-first mint: green DoD refuses with ZERO gh calls recorded / red DoD files with block + stamp.
+Close gate: red DoD refuses printing cmd+exit+output, row stays open at Verify / green closes;
+`done` and `land` both proven. Override: closes + records reason+command, with a planted witness file
+proving the DoD did NOT run / missing `--reason` is misuse / no-DoD row refuses. Timeout: planted
+`sleep` under the env-seam timeout refuses at close AND at mint. Pairing: mismatch, unminted block,
+stamp-without-block — three named refusals. Visibility: `set DoD` refused; `dod` verb re-mints
+(replaces the block, restamps) and refuses green. Convergence: an interrupted close (Status already
+Done) reruns without re-executing the DoD (witness). Realistic sweep-shaped arm: an `rg`-based
+DoD over a scratch file goes red with the needle planted, green after removal, and the close follows.
+CRLF body round-trips. Class guards: `decision`/`program` refuse `--dod`; `bug` nudge present, `work`
+nudge absent. Ride-alongs: unknown-flag refusal; batched `land` refusal names already-transitioned
+and not-attempted rows.
+
+## Ride-alongs built in this lane (survey findings small enough to ride)
+
+1. **Unknown-flag refusal on multi-option verbs** (`file`/`land`/`dod`/`done`/`refute`): flagValue
+   silently ignored a typo'd flag — `file … --prioirty High` filed a row missing its Priority, and a
+   typo'd `--dod` would have silently minted no bar at all. Any `--token` outside the verb's set now
+   refuses as misuse.
+2. **Batched refusal names the remainder**: `land 8 11 12` stopping at #11 now says which rows
+   already transitioned and which were not attempted (only when the list has >1 id — single-row
+   messages stay byte-stable).
+3. **`refute --dod`** (above) — the verifier's failing command becomes the row's bar in the call that
+   files the refutation.
+4. **`file` fails ATOMICALLY on a bad enum, and enum refusals name the valid options** (the #1043
+   live specimen: an invalid `--review Design` created the issue, then aborted the metadata batch —
+   a half-fielded row stranded on the board). `file` now encodes the operator's metadata against the
+   cached, self-healing project context BEFORE the issue exists (fail-closed: a bad value creates
+   NOTHING), and `encodeWrite`'s refusal appends the valid member list so the fix needs no probe
+   call. Zero added calls on the warm-cache path.
+
+## §Proposals (structural — owner picks; not built here)
+
+- **P1 Multi-field `set`.** `set` was the census's most-called verb (1,502). `file` collapsed ingress
+  metadata, but every mid-life edit is still one call per field even though `writeFields` batches N
+  changes into one request. Sketch: `set <n…> <field> <value> [<field> <value>…]` — parse pairs,
+  one batched write. Cost: the `set` arm's pinned shape changes (`{field,value}` → a list; test-d +
+  two cli pins update); medium-small. Benefit: the second-largest remaining call sink.
+- **P2 Evidence overflow auto-comment.** The 1024 cap refuses and tells the operator to post a
+  comment + short receipt — two manual steps. Sketch: over-cap `--evidence` auto-posts the full text
+  as a comment and writes `<head>… (full receipt in comment)` to the field, in the SAME invocation.
+  Cost: the verify/done same-receipt exact-match rule must apply the identical transform on both
+  sides or `done` false-refuses; small but contract-touching.
+- **P3 `--body -` (stdin) for `file`/`create`.** Multi-line bodies today force a scratch file per
+  row (lane-unique naming tax, teardown). Reading stdin is a few lines and removes a whole scratch
+  ritual. Small.
+- **P4 Done-archive sweep.** Done rows accumulate forever; every `list`/`overview` pages through
+  them (the \~250KB dump class). GitHub has `archiveProjectV2Item`. Sketch: `work:item archive [--done-before <date>]`, orchestrator-run at drains. Changes board semantics (archived items leave
+  the default view) — owner call. Small-medium.
+- **P5 Issue-form DoD section.** `.github/ISSUE_TEMPLATE/*.yml` (owner territory) could carry an
+  optional "Definition of Done" textarea whose content `file`-time tooling lifts into the fenced
+  block — ingress forms and the tool would then agree on one spelling. Small, but touches owner-owned
+  forms.
+
+## Memory lessons consulted (by filename)
+
+`check-docs-explicit-args-cover-docs-design.md` (this doc is named explicitly in the floor),
+`committed-ledger-freshness-is-a-static-stage.md` (manifest regen in-lane, `git add` first),
+`test-presence-mirror-not-suite.md` (the pure lib gets its mirror test),
+`shell-fronting-parser-owes-dispatch-tests.md` (refusals asserted through the spawned CLI, not only
+the parser), `near-cap-file-traps-tuple-edits.md` (all touched files audited against the 450 cap —
+max lands \~315), `write-tool-nul-byte-in-template-literal.md` (post-commit `git show --stat` byte
+check), `single-arm-union-seam-shape.md` (`override`/`dod` as `string | null` on their arms, never a
+bag of optionals).

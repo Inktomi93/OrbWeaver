@@ -80,6 +80,7 @@ export function fetchIssueContext(number: number): IssueContext {
     ...(issue.title === undefined ? {} : { title: issue.title }),
     url: issue.url,
     state: issue.state,
+    body: issue.body ?? "",
     comments: issue.comments.nodes,
     // GitHub does NOT remove a blockedBy edge when the blocking issue closes — the edge is a durable
     // relation, not a live-blocker signal — so a closed blocker must be filtered here or every reader

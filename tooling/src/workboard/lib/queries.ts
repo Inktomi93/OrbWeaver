@@ -9,7 +9,7 @@ const FIELD_VALUE_FRAGMENTS = `
 export const CONTEXT_QUERY = `query WorkItemContext($owner: String!, $repo: String!, $number: Int!) {
   repository(owner: $owner, name: $repo) {
     issue(number: $number) {
-      id number title url state
+      id number title url state body
       comments(last: 100) { nodes { body } }
       blockedBy(first: 100) { nodes { number state } }
       projectItems(first: 10) {
