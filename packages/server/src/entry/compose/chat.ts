@@ -410,13 +410,13 @@ export interface ChatComposeResult {
 }
 
 /**
- * Construct the chat `ChatService` + its bus, wiring every {@link ChatContext} op + {@link ChatServiceDeps}
- * collaborator. Returns the service AND the bus emit.
+ * Adapt {@link ToolUseService} into the `ChatToolOps` seam. Chat's opaque `ChatToolSet` IS the
+ * `ResolvedToolSet` this seam minted; the exec frame's `runAsUserId` resolves to the live host
+ * {@link Principal} here (the engine itself stays Principal-blind).
+ *
+ * D152: an in-turn tool therefore executes under the HOST Principal — there is no per-speaker authority
+ * swap at this seam, so attaching a mutating tool to a non-human speak turn is zero-human host authority.
  */
-// chat's opaque ChatToolSet IS the ResolvedToolSet this seam minted; the exec frame's runAsUserId resolves
-// to the live host Principal here (the engine itself stays Principal-blind).
-// D152: an in-turn tool therefore executes under the HOST Principal — there is no per-speaker authority
-// swap at this seam, so attaching a mutating tool to a non-human speak turn is zero-human host authority.
 function buildChatToolOps(toolUse: ToolUseService, resolveHostPrincipal: (userId: UserId) => Promise<Principal>): ChatToolOps {
   // biome-ignore lint/suspicious/noExplicitAny: the opaque ChatToolSet round-trip (see the header note).
   const asResolvedSet = (set: ChatToolSet): ResolvedToolSet => set as any as ResolvedToolSet;
@@ -687,6 +687,10 @@ export function createRunChatTurnBridge(deps: {
   };
 }
 
+/**
+ * Construct the chat `ChatService` + its bus, wiring every {@link ChatContext} op + {@link ChatServiceDeps}
+ * collaborator. Returns the service AND the bus emit.
+ */
 export function buildChatService(input: ChatComposeInput): ChatComposeResult {
   const { db, now, emitChatEvent } = input;
 
