@@ -2229,6 +2229,70 @@
           ]
         }
       ]
+    },
+    {
+      "path": "docs/reviews/side-eye/2026-09-02-home-rail-drive.md",
+      "assignedSha256": "6051b115c8c7d38b33c1ab56ff917941f2f89db205227126a79e5c9a6a609afd",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "6051b115c8c7d38b33c1ab56ff917941f2f89db205227126a79e5c9a6a609afd",
+      "verifiedCommit": "469f6d93528a06909365db9a514d05aee6193776",
+      "verifiedAt": "2026-09-02",
+      "summary": "side-eye Phase 4 rail drive of HOME with the full battery (#1112, lane p-eye-home, tip 7fa019799, ~40 runs at 0 page/console errors): verdict SHIP WITH FIXES, 32/40; two 08-30 findings closed (roadmap kicker voice; the one-item region obsolete at seven items), the boot re-settle unchanged at 0.0229; 20 findings H1-H20 (2 P1: the fold-fade mask drops two live Databank buttons to 1.75:1 at 1280x800 while every contrast instrument reports PASS; notifications carry a live wire and no door on mobile), 5 P2 (two empty inert backdrop-filter panes on a section declaring both panes unavailable, the 0.188px promoted-layer offset they cause, no measure cap at 153ch, no plan above 800px tall, a zero-width hero art accent), five instrument rows (SURFACE-AXIS polarity inverted on declared-unavailable panes; mask-blind contrast family now with a WCAG failure attached; dropped-frame % denominator on suppressed-motion cells; snap --matrix unreachable while a sibling holds the stage; shared-scratchpad log clobber), five self-retractions, a 42-row coverage table with two arms blocked and stated.",
+      "evidence": [
+        "born-reviewed at 469f6d935 (Phase 4 of the overnight plan, fold of the p-eye-home lane): full read by the primary orchestrator — environment/run health and the two mid-run environment faults, the verdict and Nielsen table, Part 0 delta vs 08-30 (16 rows), Part 1 H1-H20 with the framebuffer four-cell table and its positive control, Part 2 I1-I5, Part 3 taste/flow/IA/errands A-H, retractions R-1..R-5, what works, the biggest opportunity, console triage, the 42-row instrument coverage table, artifact slots and state left behind; the orchestrator files the H/I rows and lands #1112"
+      ],
+      "claims": [
+        {
+          "claim": "At the shipped 1280x800 default the content scroller's bottom fade mask paints over the Databank empty state's two live buttons and drops their ink to 1.75:1 by framebuffer decode (the same button above the band and an above-band control both read 17.14:1), while snap --contrast and design-audit's whole contrast family report 61 judged / 0 affected because mask is paint and invisible to getComputedStyle.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1112"
+            },
+            {
+              "kind": "issue",
+              "target": "#1078"
+            }
+          ]
+        },
+        {
+          "claim": "Every mobile boot attaches the notifications stream and reads the inbox, and nothing renders it: the mobile map has no bell, the banner has zero buttons, and the You sheet has no entry — a live consumer with no rendered control.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1112"
+            }
+          ]
+        },
+        {
+          "claim": "Home renders two full-height inert aria-hidden empty panes each carrying backdrop-filter although home-section.tsx declares both panes unavailable; they are the only two backdrop-filter elements on the page and the left one's fractional translate is what makes design-audit file promoted-layer-offset P2 in seven of ten arms.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1112"
+            },
+            {
+              "kind": "code",
+              "target": "packages/client/src/features/home/lib/home-section.tsx:31"
+            }
+          ]
+        },
+        {
+          "claim": "design-audit's SURFACE-AXIS census prints withheld(docked/overlay) and NO-VERDICT panel axes on a section whose definition declares the panes unavailable, while the same tool's --panels both-docked run refuses correctly — the population law's polarity inverted (EXCLUDED, not WITHHELD).",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1112"
+            },
+            {
+              "kind": "issue",
+              "target": "#1059"
+            }
+          ]
+        }
+      ]
     }
   ]
 }

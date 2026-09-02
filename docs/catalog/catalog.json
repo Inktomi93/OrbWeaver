@@ -447,8 +447,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 398,
-      "bytes": 226826,
-      "sha256": "ce63c039fe76bd04afcb0e216e86a726b46bea4d795825f6f7ae7cbda8db89a6",
+      "bytes": 227073,
+      "sha256": "709de28e4116d825c1d67201fa06385e373a70652c8243f0f317f15970be27b6",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -461,12 +461,12 @@
       },
       "receipt": {
         "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
-        "assignedSha256": "196f2157e4e93692e0328e2162d5d635bedadc8d99dabd03a52318b5bce6f205",
+        "assignedSha256": "709de28e4116d825c1d67201fa06385e373a70652c8243f0f317f15970be27b6",
         "disposition": "current",
         "authority": "operational",
         "fullRead": true,
-        "verifiedSha256": "ce63c039fe76bd04afcb0e216e86a726b46bea4d795825f6f7ae7cbda8db89a6",
-        "verifiedCommit": "a4467408ab335513db51c43aab97f7042d29240b",
+        "verifiedSha256": "709de28e4116d825c1d67201fa06385e373a70652c8243f0f317f15970be27b6",
+        "verifiedCommit": "fc5f99e4c42c6aea135881bbbb39d4f5a088da7d",
         "verifiedAt": "2026-09-02",
         "evidence": [
           "re-attested at a4467408a (#971, lane p-argv-lock): `tooling-argv-front-door` row — both read spellings, the shape-derived cli.ts home, the two-sided ARGV_ENTRIES stale sweep, the §4.6 blindness tripwire, and the declared limit; registered-gate count 251 → 252 (a live `pnpm check:structure` reports 252/252).",
@@ -544,7 +544,8 @@
           "re-attested at bb6b9e21a3dcef35b7b890f505749c05fafb6260 — #879 widened two Layer-3 rows in place: json-column-write-parity gained its ARM B (versioned-config write dominance, its fail-closed arms and its APP_SETTINGS_KEY declared limit) and no-raw-zustand-persist gained ARMs B/C (the destructive-reset home and the durable-local blindfold seam). Row text re-derived from the shipped descriptors' own message/fix in the same commit; no other row touched.",
           "re-attested at eb3196c34 — merge of #879 (bb6b9e21a: json-column-write-parity dominance arm over the derived versioned-config column set + no-raw-zustand-persist arms B/C), resolved onto #1035's SchemaColumn record; union read once",
           "re-attested at f92e84640 (#1048, lane p-bus-secret2, owner ruling): the bus-payload-allowlist row records `markerImmune` — no `@orb-gate-ignore` can silence a credential finding or a fail-closed token on the D16 wire firewall, and the ONE exemption door stays a reviewed SANCTIONED_FIELDS row with its D-cite. It is the FIRST NON-AUDITOR occupant of that flag, so GATE-AUTHORING.md §1 (the descriptor table cell) and §4.3a-bis both widen by ONE stated precedent, and both say a third occupant owes the same argument in writing. Delta read; registered-gate COUNT unchanged. Receipts: red-first on the REAL descriptor, two-sided in ONE run — with the flag off the marker suppressed both a planted `apiKey` member and an `unresolved-base:` token (so the marker spelling really bites and the pin is not a lying proof), and with it on neither is suppressed; a live-tree sweep found NO `@orb-gate-ignore bus-payload-allowlist` marker anywhere, so the flip orphaned nothing and gate-ignore-inventory stayed clean. check:structure ran COMPLETE 248/248 clean over 6,509 files (234/234 members), gate-conformance + the gate-ignore resolver pins 20/20, the gate's own pins 32/32, knip clean, types:graph clean, check:docs clean on both edited docs, ledgers-fresh clean. check-gates.int was UNRUN-BY-LOAD (loadavg 22.7 on 24 cores, above the quiet-tree bar).",
-          "re-attested at 9e5c8f6ee — merge of #1048 (f92e84640: bus-payload-allowlist markerImmune; GATE-AUTHORING §1 charter widened by one stated precedent); union read once"
+          "re-attested at 9e5c8f6ee — merge of #1048 (f92e84640: bus-payload-allowlist markerImmune; GATE-AUTHORING §1 charter widened by one stated precedent); union read once",
+          "re-attested at fc5f99e4c — fold of #1097 (cb-axis-drain, 57c0aaecc rebased): the `ui-variant-axes-stamped` row gains its drain note — baseline DRAINED TO `{}` (tranche 2, 2026-09-02), all 15 stamped-axis recipes reach the DOM through the seam, every A1 admission gone, A4 empty, ledger + generator teardown the remaining terminal step. Delta read once against the word-diff; the baseline file in the same commit is `{}` and the lane's planted positive control proves the empty ledger does not blind the gate. No other row moved."
         ],
         "claims": [
           {
@@ -29710,6 +29711,89 @@
               {
                 "kind": "issue",
                 "target": "#1068"
+              }
+            ]
+          }
+        ]
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/side-eye/2026-09-02-home-rail-drive.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 741,
+      "bytes": 60116,
+      "sha256": "6051b115c8c7d38b33c1ab56ff917941f2f89db205227126a79e5c9a6a609afd",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "draft",
+          "updated": "2026-09-02"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/side-eye/2026-09-02-home-rail-drive.md",
+        "assignedSha256": "6051b115c8c7d38b33c1ab56ff917941f2f89db205227126a79e5c9a6a609afd",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "6051b115c8c7d38b33c1ab56ff917941f2f89db205227126a79e5c9a6a609afd",
+        "verifiedCommit": "469f6d93528a06909365db9a514d05aee6193776",
+        "verifiedAt": "2026-09-02",
+        "summary": "side-eye Phase 4 rail drive of HOME with the full battery (#1112, lane p-eye-home, tip 7fa019799, ~40 runs at 0 page/console errors): verdict SHIP WITH FIXES, 32/40; two 08-30 findings closed (roadmap kicker voice; the one-item region obsolete at seven items), the boot re-settle unchanged at 0.0229; 20 findings H1-H20 (2 P1: the fold-fade mask drops two live Databank buttons to 1.75:1 at 1280x800 while every contrast instrument reports PASS; notifications carry a live wire and no door on mobile), 5 P2 (two empty inert backdrop-filter panes on a section declaring both panes unavailable, the 0.188px promoted-layer offset they cause, no measure cap at 153ch, no plan above 800px tall, a zero-width hero art accent), five instrument rows (SURFACE-AXIS polarity inverted on declared-unavailable panes; mask-blind contrast family now with a WCAG failure attached; dropped-frame % denominator on suppressed-motion cells; snap --matrix unreachable while a sibling holds the stage; shared-scratchpad log clobber), five self-retractions, a 42-row coverage table with two arms blocked and stated.",
+        "evidence": [
+          "born-reviewed at 469f6d935 (Phase 4 of the overnight plan, fold of the p-eye-home lane): full read by the primary orchestrator — environment/run health and the two mid-run environment faults, the verdict and Nielsen table, Part 0 delta vs 08-30 (16 rows), Part 1 H1-H20 with the framebuffer four-cell table and its positive control, Part 2 I1-I5, Part 3 taste/flow/IA/errands A-H, retractions R-1..R-5, what works, the biggest opportunity, console triage, the 42-row instrument coverage table, artifact slots and state left behind; the orchestrator files the H/I rows and lands #1112"
+        ],
+        "claims": [
+          {
+            "claim": "At the shipped 1280x800 default the content scroller's bottom fade mask paints over the Databank empty state's two live buttons and drops their ink to 1.75:1 by framebuffer decode (the same button above the band and an above-band control both read 17.14:1), while snap --contrast and design-audit's whole contrast family report 61 judged / 0 affected because mask is paint and invisible to getComputedStyle.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#1112"
+              },
+              {
+                "kind": "issue",
+                "target": "#1078"
+              }
+            ]
+          },
+          {
+            "claim": "Every mobile boot attaches the notifications stream and reads the inbox, and nothing renders it: the mobile map has no bell, the banner has zero buttons, and the You sheet has no entry — a live consumer with no rendered control.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#1112"
+              }
+            ]
+          },
+          {
+            "claim": "Home renders two full-height inert aria-hidden empty panes each carrying backdrop-filter although home-section.tsx declares both panes unavailable; they are the only two backdrop-filter elements on the page and the left one's fractional translate is what makes design-audit file promoted-layer-offset P2 in seven of ten arms.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#1112"
+              },
+              {
+                "kind": "code",
+                "target": "packages/client/src/features/home/lib/home-section.tsx:31"
+              }
+            ]
+          },
+          {
+            "claim": "design-audit's SURFACE-AXIS census prints withheld(docked/overlay) and NO-VERDICT panel axes on a section whose definition declares the panes unavailable, while the same tool's --panels both-docked run refuses correctly — the population law's polarity inverted (EXCLUDED, not WITHHELD).",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#1112"
+              },
+              {
+                "kind": "issue",
+                "target": "#1059"
               }
             ]
           }
