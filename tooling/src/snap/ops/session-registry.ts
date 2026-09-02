@@ -31,25 +31,27 @@ const ROW_SUFFIX = ".json";
 const SOCKET_SUFFIX = ".sock";
 const MS_PER_MINUTE = 60_000;
 
+/** THE ONE env door for the session registry — read once, at module load, because every consumer is a
+ *  FRESH PROCESS (the client cli, the daemon cli, each spawned proof), so a caller that wants different
+ *  knobs sets them in the environment of the CHILD and never mid-process. That is the same posture
+ *  `_shared/load-budget.ts` states for `ORB_BUDGET_CEILING_MS`, and it is why one destructure can serve
+ *  both readers below instead of three scattered `process.env` reads. */
+// biome-ignore lint/style/noProcessEnv: the three ambient TOOLING knobs this file owns — ORB_SNAP_SESSION_HOME (the committed proofs plant a scratch registry; writing the box's REAL one would collide with a live sibling's session) plus the owner-ruled ORB_SESSION_TTL_MIN / ORB_SESSION_CAP overrides (docs/design/1208-instrument-substrate.md §12.2 F5). Same class as this tree's SNAP_BASE_URL/DEBUG_TOKEN/FFMPEG_BIN rows; the env door the rule points at (packages/server/src/foundation/env) sits ABOVE @orb/tooling in the cake and cannot be imported down here.
+const { ORB_SNAP_SESSION_HOME: HOME_OVERRIDE, ORB_SESSION_TTL_MIN: TTL_MIN_ENV, ORB_SESSION_CAP: CAP_ENV } = process.env;
+
 /** `<main>/.cache/snap-session/` — the stage marker's `markerRoot` derivation (#108), so every worktree of
  *  the repo sees ONE registry and a session is reachable from any of them. `ORB_SNAP_SESSION_HOME`
  *  overrides it for the committed proofs: a test that wrote the box's REAL registry would collide with a
  *  live sibling's session (the stage-marker rule — a suite never writes the shared marker). */
 export function sessionRegistryHome(root: string): string {
-  // biome-ignore lint/style/noProcessEnv: ORB_SNAP_SESSION_HOME is a harness knob (the committed session proofs plant a scratch registry instead of the box's real one) — ambient tooling env, not app config; the SNAP_BASE_URL posture in _shared/browser.ts.
-  const override = process.env["ORB_SNAP_SESSION_HOME"];
-  const home = override === undefined || override === "" ? join(markerRoot(root), SESSION_REGISTRY_REL) : override;
+  const home = HOME_OVERRIDE === undefined || HOME_OVERRIDE === "" ? join(markerRoot(root), SESSION_REGISTRY_REL) : HOME_OVERRIDE;
   mkdirSync(home, { recursive: true });
   return home;
 }
 
 /** The owner-ruled calibration knobs (F5): env-overridable TTL and cap, resolved by the pure rule. */
 export function sessionLimitsFromEnv(ttlMinFlag: number | null): { readonly limits: SessionLimits; readonly errors: readonly string[] } {
-  // biome-ignore lint/style/noProcessEnv: ORB_SESSION_TTL_MIN is the owner-ruled TTL override (docs/design/1208-instrument-substrate.md §12.2 F5) — ambient tooling env, not app config.
-  const ttlMinEnv = process.env["ORB_SESSION_TTL_MIN"];
-  // biome-ignore lint/style/noProcessEnv: ORB_SESSION_CAP is the owner-ruled cap override (F5) — same posture.
-  const capEnv = process.env["ORB_SESSION_CAP"];
-  return resolveSessionLimits({ ttlMinEnv, capEnv, ttlMinFlag });
+  return resolveSessionLimits({ ttlMinEnv: TTL_MIN_ENV, capEnv: CAP_ENV, ttlMinFlag });
 }
 
 export function readRow(home: string, name: string): SessionRow | null {

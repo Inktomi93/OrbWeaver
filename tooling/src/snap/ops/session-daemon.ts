@@ -16,10 +16,12 @@ import { createServer } from "node:net";
 import process from "node:process";
 import { errorMessage } from "@orb/kit/error-message";
 import { artifactFile, beginInstrumentRun, finishInstrumentRun } from "../../_shared/artifact-out.ts";
-import { openRunSlot, print, printResult, publishRunSlot } from "../../_shared/artifacts.ts";
+import { openRunSlot, print, publishRunSlot } from "../../_shared/artifacts.ts";
 import type { CapturedRequest, ProbeSession } from "../../_shared/browser.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { printVerdict } from "../../_shared/evidence.ts";
 import { EXIT } from "../../_shared/exit-contract.ts";
+import { budget } from "../../_shared/load-budget.ts";
 import { installOutputSink, warn } from "../../_shared/log.ts";
 import type { SessionEvent, SessionRequest, SessionRow } from "../contract/session.ts";
 import { SESSION_PROTOCOL_VERSION } from "../contract/session.ts";
@@ -35,8 +37,14 @@ import { repoRoot } from "./stage-git.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap --session <name> <route>");
 
-/** A client that connects and never sends its request line is dropped after this — a leak guard, not a budget. */
-const REQUEST_LINE_TIMEOUT_MS = 5000;
+/** A client that connects and never sends its request line is dropped after this — a leak guard, not a
+ *  budget. The BASE is 30 s, not the 5 s this shipped with: a leak guard's only cost when it is GENEROUS is
+ *  a dead client's socket lingering a few seconds, while a FALSE trip kills a live caller's real call. The
+ *  `budget()` factor is 1 below one job per core, so a 5 s base stayed 5 s exactly when it was least safe —
+ *  a sibling suite saturating the box can deschedule a healthy client between `connect` and its first
+ *  write. Generous base + the policy's stretch on top (#1232). */
+const REQUEST_LINE_BASE_MS = 30_000;
+const REQUEST_LINE_TIMEOUT_MS = budget(REQUEST_LINE_BASE_MS);
 const MS_PER_MINUTE = 60_000;
 
 interface DaemonState extends SessionCallState {
@@ -102,13 +110,21 @@ async function exportRings(state: DaemonState, request: SessionRequest): Promise
       writeFileSync(path, `${JSON.stringify(payload, null, 2)}\n`);
       print(`exported     ${path}`);
     }
-    printResult("snap-session-export", [
-      ["name", state.name],
-      ["console", state.session.consoleMessages.length],
-      ["page-errors", state.session.pageErrors.length],
-      ["requests", requests.length],
-    ]);
-    return EXIT.clean;
+    // Through the VERDICT door, not printResult: `files` is the population that cannot honestly be empty —
+    // an export that enumerated the ring set and wrote NOTHING is a broken export, and a bare printResult
+    // would let it read clean (arm F, Core-Tooling-Law.md §4.5). The three ring counts are declared with
+    // `honestEmpty` because a session really can have said nothing on the console — that is a measured
+    // zero, and the pair names it as one instead of hiding it among the numbers.
+    return printVerdict("snap-session-export", {
+      verdict: EXIT.clean,
+      denominators: {
+        files: { value: files.length, refuseWhen: "zero" },
+        console: { value: state.session.consoleMessages.length, refuseWhen: "zero", honestEmpty: "the session logged no console message" },
+        "page-errors": { value: state.session.pageErrors.length, refuseWhen: "zero", honestEmpty: "the session raised no page error" },
+        requests: { value: requests.length, refuseWhen: "zero", honestEmpty: "the session issued no request (an --eval-only drive over a --file fixture)" },
+      },
+      pairs: [["name", state.name]],
+    });
   } finally {
     finishInstrumentRun();
   }
@@ -306,7 +322,9 @@ export async function runSessionDaemon(opts: Args, argv: readonly string[]): Pro
   }
   const slot = openRunSlot(root, SESSION_INSTRUMENT);
   let session: ProbeSession;
-  // @orb-gate-ignore caught-failure-ownership(empty:error): a launch failure settles the session slot (so the marker does not read as a dead session) and RETHROWS — runTool's crash path exits toolError and the client, watching the daemon pid, prints the log. Ends if the rethrow is dropped.
+  // No gate-ignore here on purpose: the catch RETHROWS the caught binding, which IS ownership under
+  // caught-failure-ownership, so a marker would be a dead exemption (gate-ignore-inventory reds those).
+  // The slot is settled first so the marker does not outlive the launch and read as a dead session.
   try {
     session = await launchSnapSession(bootArgs, name, { pages: bootArgs.pages, debuggingEndpoint: true });
   } catch (error) {

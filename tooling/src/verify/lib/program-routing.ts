@@ -21,9 +21,13 @@ const UI_TSCONFIG = "packages/ui/tsconfig.json";
 // `exclude`s (ui + client are dom-typechecked by their own tsconfig — never in the DOM-less graph). So a
 // NODE package's src IS a graph root; a browser package's is not. (Mirror of tsconfig.json include/exclude.)
 export const BROWSER_PACKAGES: ReadonlySet<string> = new Set(["ui", "client"]);
-// The ONE client-owned CT file inside tests/support/ct (it import-pulls @orb/client — upward-cake, so it
+// The client-owned CT files inside tests/support/ct (they import-pull @orb/client — upward-cake, so they
 // can NEVER be in ui's program). Every OTHER tsx under tests/support/ct is ui-owned (ct-providers.tsx).
-const CT_CLIENT_OWNED = "tests/support/ct/ct-data-providers.tsx";
+// TWO of them since #1228 defused the DOM-lib leak by splitting `ct-config-groups.ts` out as
+// `ct-data-providers.tsx`'s non-`.tsx` sibling: `packages/client/tsconfig.json` lists BOTH explicitly and
+// the root graph EXCLUDES both, so a `.tsx`-only rule dropped the `.ts` half through to the graph arm and
+// the routing algebra disagreed with the compiler in both directions (#1231).
+const CT_CLIENT_OWNED: ReadonlySet<string> = new Set(["tests/support/ct/ct-data-providers.tsx", "tests/support/ct/ct-config-groups.ts"]);
 const TESTS_CLIENT_TSX_RE = /^tests\/client\/.*\.tsx$/u;
 const TESTS_UI_TSX_RE = /^tests\/ui\/.*\.tsx$/u;
 const CT_SUPPORT_TSX_RE = /^tests\/support\/ct\/.*\.tsx$/u;
@@ -90,10 +94,10 @@ export function staticPrograms(rel: string): readonly string[] {
     return ["packages/db/tsconfig.json"];
   }
   // 3. the browser reach-back trees (owned by NON-ancestor configs — the editor blind spot §2.1).
-  if (TESTS_CLIENT_TSX_RE.test(rel) || rel === CT_CLIENT_OWNED) {
+  if (TESTS_CLIENT_TSX_RE.test(rel) || CT_CLIENT_OWNED.has(rel)) {
     return [CLIENT_TSCONFIG];
   }
-  if (TESTS_UI_TSX_RE.test(rel) || (CT_SUPPORT_TSX_RE.test(rel) && rel !== CT_CLIENT_OWNED) || PLAYWRIGHT_TSX_DTS_RE.test(rel)) {
+  if (TESTS_UI_TSX_RE.test(rel) || (CT_SUPPORT_TSX_RE.test(rel) && !CT_CLIENT_OWNED.has(rel)) || PLAYWRIGHT_TSX_DTS_RE.test(rel)) {
     return [UI_TSCONFIG];
   }
   // 3b. the repo-root AMBIENT pair → EVERY program (see ROOT_AMBIENT_DTS: they are in every include, and
