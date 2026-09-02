@@ -385,6 +385,7 @@
     "tests/client/features/stats/components/analytics-time-tab.ct.tsx",
     "tests/client/features/stats/lib/analytics-section.ct.tsx",
     "tests/client/features/stats/lib/analytics-view-model.test.ts",
+    "tests/client/features/stats/surfaces/analytics-character-surface.ct.tsx",
     "tests/client/features/stats/surfaces/analytics-list-surface.ct.tsx",
     "tests/client/features/stats/surfaces/analytics-overview-surface.ct.tsx",
     "tests/client/features/tag/components/tag-collection-rows.ct.tsx",
