@@ -120,24 +120,6 @@ catalog:
   # imports `@typescript/native/unstable/sync`; the alias its own error message recommends is never read).
   # The two patches + the four pins + that alias move TOGETHER on any bump, and the planted control below
   # is what proves the sandbox half still works afterwards.
-  # --- rendered instruments (@orb/tooling only — never a product byte) ---
-  # lighthouse: the accessibility/best-practices/SEO audit ENGINE the retiring chrome-devtools MCP wrapped
-  # (docs/design/1195-devtools-mcp-retirement.md §2.3; 41 uses in 14 days, docs/design/1208-instrument-substrate.md §1).
-  # Nothing lighter audits `label-content-name-mismatch` — axe-core (already in the CT harness) does not own
-  # that audit, and the rule is exactly the class that caught real defects here. It runs in `gatherMode:
-  # "snapshot"` over a debugging-port browser we already launched (`_shared/browser.ts` stays the ONE launch
-  # site: lighthouse ATTACHES over CDP, it never spawns Chrome — no chrome-launcher path is taken). Tooling
-  # dependency only, so it ships no product bytes. Ends if snap's `--lighthouse` arm is dropped or an audit
-  # engine we already vendor grows the accessibility audit set.
-  lighthouse: ^13.4.1
-  # puppeteer-core: NOT a second browser driver — it is the TYPE OF PAGE lighthouse's own API takes
-  # (`snapshot(page)` is `LH.Puppeteer.Page`, driven through `page.target().createCDPSession()`), and its
-  # only use here is `connect({ browserURL })` to ATTACH to the debugging port of the Chromium
-  # `_shared/browser.ts` already launched. lighthouse ships it as a dependency, so this pin is a
-  # declaration of what we already install, not new supply chain — but pnpm's isolated node_modules makes a
-  # dependency's dependency unresolvable, so the seam has to be declared to be importable (the
-  # "third-party only in a package's node_modules must be injected" class). Track lighthouse's own range.
-  puppeteer-core: ^25.9.0
   # --- kit (isomorphic libs allowed by the kit-purity ruling) ---
   zod: ^4.4.3
   typeid-js: ^1.2.0
