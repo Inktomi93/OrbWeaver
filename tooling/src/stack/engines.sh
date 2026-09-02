@@ -90,6 +90,97 @@ bootstrap_venv() {
 }
 
 # ── start: the detached spawner (idempotent) ─────────────────────────────────
+#
+# THE BOOT VERDICT MUST BE HONEST (#1165). Measured on main 2026-09-02 ~15:20Z: a cold three-engine boot
+# printed `status=boot-timeout` and exited 1, and all three engines answered /health within ~20s of that
+# exit — `engines:status` then showed every one healthy with the pidfile THIS launcher had written. So the
+# 300s wait was shorter than a real cold boot (the gen model is a 27B W8A8 TP-2 load) and the exit code
+# said "failed" about a fleet that came up. A caller scripting on that code re-bounces a healthy fleet.
+#
+# Three changes, each one an exit-code honesty rule:
+#   1. the wait is sized to the MEASURED cold boot and is env-overridable (ENGINES_BOOT_TIMEOUT);
+#   2. the deadline re-probes ONCE before the verdict — a fleet that is up is `booted-late` (exit 0), and
+#      a real timeout NAMES the engines still down instead of a bare status;
+#   3. per-engine came-up-at seconds ride the RESULT line, so the next boot's sizing is a data question.
+# The launcher-exit arm is fixed with them: `engines.ts --detach` EXITS by design (the ownership
+# inversion above), so its exit is only a boot failure when no detached engine survives it.
+#
+# ENGINES_BOOT_TIMEOUT default: 900s = 3× the 300s the measured cold boot overran. The wait costs nothing
+# when the fleet is up (the loop exits on the first all-healthy probe); it only bounds the FAILURE case.
+BOOT_TIMEOUT="${ENGINES_BOOT_TIMEOUT:-900}"
+ENGINE_NAMES=(embed rerank gen)
+# Per-engine came-up-at, in seconds since the wait began; "" until that engine first answers /health.
+CAME_UP=("" "" "")
+WAITED_S=0
+
+came_up_report() {
+  local i out=""
+  for i in "${!ENGINE_NAMES[@]}"; do
+    out="$out,${ENGINE_NAMES[$i]}=${CAME_UP[$i]:-never}"
+  done
+  echo "${out#,}"
+}
+
+down_engines() {
+  local i out=""
+  for i in "${!ENGINE_NAMES[@]}"; do
+    health_ok "${PORTS[$i]}" || out="$out,${ENGINE_NAMES[$i]}:${PORTS[$i]}"
+  done
+  echo "${out#,}"
+}
+
+# Did the detached boot leave live engines behind? The launcher writes each engine's identity to the
+# pidfile before it exits, so a live pid there means the fleet is BOOTING, not failed (the sed spelling
+# mirrors stack.sh's own pidfile read — one shell, one idiom).
+detached_fleet_pending() {
+  [ -s "$PIDFILE" ] || return 1
+  local pid
+  while read -r pid; do
+    pid_alive "$pid" && return 0
+  done < <(sed -n 's/.*"pid"[[:space:]]*:[[:space:]]*\([0-9][0-9]*\).*/\1/p' "$PIDFILE")
+  return 1
+}
+
+# 0 = every engine answered inside the deadline · 1 = deadline reached · 2 = the launcher died and left
+# nothing booting. Records each engine's came-up-at as it happens; $1 is the launcher pid ("" = none).
+wait_for_fleet() {
+  local launcher="$1" waited=0 i healthy
+  while [ "$waited" -lt "$BOOT_TIMEOUT" ]; do
+    healthy=1
+    for i in "${!PORTS[@]}"; do
+      if [ -z "${CAME_UP[$i]}" ]; then
+        if health_ok "${PORTS[$i]}"; then CAME_UP[i]="${waited}s"; else healthy=""; fi
+      fi
+    done
+    if [ -n "$healthy" ]; then
+      WAITED_S="$waited"
+      return 0
+    fi
+    if [ -n "$launcher" ] && ! pid_alive "$launcher" && ! detached_fleet_pending; then
+      WAITED_S="$waited"
+      return 2
+    fi
+    sleep 1
+    waited=$((waited + 1))
+  done
+  WAITED_S="$waited"
+  return 1
+}
+
+# The ONE re-probe the deadline owes before it calls a boot failed. Fills in the late arrivals as
+# ">${BOOT_TIMEOUT}s" so the RESULT line still says which engine was the slow one.
+reprobe_late() {
+  local i healthy=1
+  for i in "${!PORTS[@]}"; do
+    if health_ok "${PORTS[$i]}"; then
+      [ -z "${CAME_UP[$i]}" ] && CAME_UP[i]=">${BOOT_TIMEOUT}s"
+    else
+      healthy=""
+    fi
+  done
+  [ -n "$healthy" ]
+}
+
 do_start() {
   skip_if_disabled start
   if fleet_healthy; then
@@ -98,39 +189,49 @@ do_start() {
     echo "RESULT engines verb=start status=already-up"
     return 0
   fi
-  bootstrap_venv
-  # Reconcile (orphan-family sweep) before the boot — the VRAM pre-check inside engines.ts then names a REAL
-  # foreign tenant, never our own corpse.
-  "$TSX" "$CTL_TS" reconcile >/dev/null 2>&1 || true
-  # The detached boot: setsid so the LAUNCHER is its own session; engines.ts --detach boots each engine as
-  # its own setsid group, writes the pidfile, and EXITS. The engines survive this shell's death (the
-  # bit-us-twice fix). Run it backgrounded + wait (bounded) for the fleet to come healthy.
-  echo "engines: spawning the fleet (detached) — logs in $LOG_DIR/vllm-*.log"
-  setsid "$TSX" "$REPO/tooling/src/stack/ops/engines.ts" --detach >>"$LOG_DIR/engines-start.log" 2>&1 &
-  local launcher=$!
-  for _ in $(seq 1 300); do
-    if fleet_healthy; then
-      echo "engines: fleet up — embed:$EMBED_PORT rerank:$RERANK_PORT gen:$GEN_PORT"
-      echo ""
-      echo "RESULT engines verb=start status=up pidfile=$PIDFILE"
-      return 0
-    fi
-    if ! pid_alive "$launcher"; then
-      if fleet_healthy; then
-        echo ""
-        echo "RESULT engines verb=start status=up pidfile=$PIDFILE"
-        return 0
-      fi
-      echo "engines: launcher exited before the fleet came healthy — see $LOG_DIR/engines-start.log + vllm-*.log"
-      echo ""
-      echo "RESULT engines verb=start status=boot-failed log=$LOG_DIR/engines-start.log"
-      return 1
-    fi
-    sleep 1
-  done
-  echo "engines: TIMEOUT waiting for the fleet — see $LOG_DIR/vllm-*.log"
+  local launcher=""
+  if [ -n "${ENGINES_START_PROBE:-}" ]; then
+    # The wait/verdict seam (#1165), the shell twin of engines.ts's ENGINES_DISPATCH_PROBE: NO venv
+    # bootstrap, NO reconcile, NO spawn — only the loop below, against whatever the *_PORT env names.
+    # It exists so the boot verdict can be driven both directions without ever touching real hardware
+    # (tests/tooling/stack/ops/engines-start.int.test.ts; the standing ban is lane-standing-facts.md).
+    echo "engines: START PROBE — no spawn; waiting on ${PORTS[*]} only."
+  else
+    bootstrap_venv
+    # Reconcile (orphan-family sweep) before the boot — the VRAM pre-check inside engines.ts then names a REAL
+    # foreign tenant, never our own corpse.
+    "$TSX" "$CTL_TS" reconcile >/dev/null 2>&1 || true
+    # The detached boot: setsid so the LAUNCHER is its own session; engines.ts --detach boots each engine as
+    # its own setsid group, writes the pidfile, and EXITS. The engines survive this shell's death (the
+    # bit-us-twice fix). Run it backgrounded + wait (bounded) for the fleet to come healthy.
+    echo "engines: spawning the fleet (detached) — logs in $LOG_DIR/vllm-*.log"
+    setsid "$TSX" "$REPO/tooling/src/stack/ops/engines.ts" --detach >>"$LOG_DIR/engines-start.log" 2>&1 &
+    launcher=$!
+  fi
+
+  wait_for_fleet "$launcher"
+  local waited_verdict=$?
+  if [ "$waited_verdict" -eq 0 ]; then
+    echo "engines: fleet up in ${WAITED_S}s — embed:$EMBED_PORT rerank:$RERANK_PORT gen:$GEN_PORT"
+    echo ""
+    echo "RESULT engines verb=start status=up waited=${WAITED_S}s came-up=$(came_up_report) pidfile=$PIDFILE"
+    return 0
+  fi
+  if [ "$waited_verdict" -eq 2 ]; then
+    echo "engines: launcher exited after ${WAITED_S}s and no detached engine survives it — see $LOG_DIR/engines-start.log + vllm-*.log"
+    echo ""
+    echo "RESULT engines verb=start status=boot-failed waited=${WAITED_S}s came-up=$(came_up_report) log=$LOG_DIR/engines-start.log"
+    return 1
+  fi
+  if reprobe_late; then
+    echo "engines: fleet came up LATE — healthy on the re-probe after the ${BOOT_TIMEOUT}s wait. Raise ENGINES_BOOT_TIMEOUT if this repeats."
+    echo ""
+    echo "RESULT engines verb=start status=booted-late waited=${WAITED_S}s came-up=$(came_up_report) pidfile=$PIDFILE"
+    return 0
+  fi
+  echo "engines: TIMEOUT after ${BOOT_TIMEOUT}s — still down: $(down_engines) (see $LOG_DIR/vllm-*.log)"
   echo ""
-  echo "RESULT engines verb=start status=boot-timeout"
+  echo "RESULT engines verb=start status=boot-timeout waited=${WAITED_S}s down=$(down_engines) came-up=$(came_up_report)"
   return 1
 }
 

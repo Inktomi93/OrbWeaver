@@ -9,6 +9,7 @@ import { buildUrl, launchProbeSession, settle, withProbeSession } from "@orb/too
 import { instrumentError, printVerdict } from "@orb/tooling/_shared/evidence";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { stageBandRefusalFor } from "../../snap/index.ts";
 import type { Args, MeterData, MeterWindow } from "../contract/types.ts";
 import { NAV_TIMEOUT_MS, TRAILING_SETTLE_MS } from "../lib/budgets.ts";
 import { meterApparatusGap, meterEvidenceGaps } from "../lib/evidence.ts";
@@ -21,8 +22,17 @@ refuseDirectInvocation(import.meta.url, "pnpm perf-meter");
 const CPU_SAMPLING_INTERVAL_US = 100; // 10kHz
 const CLICK_DUR_BREACH_MS = 100;
 
+/** #1186: a `--base`/`--url` at the isolated-stage band is a claim about WHOSE tree answered. A refused
+ *  `snap --isolated` leaves the band with its previous owner, so an instrument chained behind one measures
+ *  a sibling checkout's pixels and prints numbers that look completely normal. Refuse (exit 2 — nothing was
+ *  measured) before the browser launches; the door is snap's, one home (tooling/src/snap/ops/stage-marker.ts). */
 export async function runCpuProfile(opts: Args): Promise<number> {
   const url = buildUrl(opts.base, opts.route);
+  const bandRefusal = stageBandRefusalFor(url);
+  if (bandRefusal !== null) {
+    print(bandRefusal);
+    return EXIT.toolError;
+  }
 
   const session = await launchProbeSession({
     headless: true,

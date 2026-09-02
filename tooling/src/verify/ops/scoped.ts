@@ -47,6 +47,24 @@ function folderMatcher(glob: string): (rel: string) => boolean {
   return (rel) => rel === norm || rel.startsWith(`${norm}/`);
 }
 
+/** `--scope a,b` is the COMMA form (#1185): every lane types it, and before this it was fed WHOLE to
+ *  `folderMatcher`, which matched no path on any tree — 0 files in scope, every gate "✓ scanned 0/0",
+ *  exit 0. A false clean at the lane gate door. The form is now ACCEPTED as a union of folder globs;
+ *  an empty segment (`a,`, `a,,b`) is misuse, because it is a typo and never a scope anyone means.
+ *  The other half of the fix lives in `runScopedCli`: an EMPTY resolved fileset can never be green. */
+function splitScopeGlobs(scope: string): readonly string[] | { readonly error: string } {
+  const parts = scope.split(",").map((p) => p.trim());
+  if (parts.some((p) => p.length === 0)) {
+    return { error: `--scope ${JSON.stringify(scope)} has an empty comma segment — spell each folder glob (tooling/src/verify/ops/scoped.ts)` };
+  }
+  return parts;
+}
+
+/** Narrow `splitScopeGlobs`'s result to its success arm. */
+function isGlobList(v: readonly string[] | { readonly error: string }): v is readonly string[] {
+  return Array.isArray(v);
+}
+
 function selectionFor(args: Args): ScopeSelection {
   if (args.package !== undefined) {
     const dir = packageDir(args.package);
@@ -67,12 +85,14 @@ function selectionFor(args: Args): ScopeSelection {
       label: `changed (${paths.length} file${paths.length === 1 ? "" : "s"})`,
     };
   }
-  // args.scope is guaranteed present by parseArgs when neither package nor changed is set.
-  const glob = args.scope ?? "";
+  // args.scope is guaranteed present by parseArgs when neither package nor changed is set, and parseArgs
+  // has already refused an empty comma segment — so the split here cannot be an error object.
+  const globs = args.scopeGlobs;
+  const matchers = globs.map(folderMatcher);
   return {
-    scope: { kind: "folder", glob },
-    inScope: folderMatcher(glob),
-    label: `folder ${glob}`,
+    scope: { kind: "folder", glob: globs.join(",") },
+    inScope: (rel) => matchers.some((m) => m(rel)),
+    label: `folder ${globs.join(" + ")}`,
   };
 }
 
@@ -80,6 +100,8 @@ interface Args {
   // Explicit `| undefined` (not `?:`) so parseArgs can build the object with the absent selectors set to
   // undefined under exactOptionalPropertyTypes (the flagValue result IS `string | undefined`).
   readonly scope: string | undefined;
+  /** `--scope`'s comma form split into its folder globs (empty when the selector isn't --scope). */
+  readonly scopeGlobs: readonly string[];
   readonly package: string | undefined;
   readonly changed: boolean;
   readonly changedPaths: readonly string[];
@@ -87,7 +109,8 @@ interface Args {
 
 /** This verb's usage line — ONE home, read by the UsageError below and by the front door's pre-dispatch
  *  `--help` answer (cli.ts VERB_HELP, #809). */
-export const SCOPED_USAGE = "usage: node tooling/src/verify/cli.ts scoped (--scope <folder-glob> | --package <name> | --changed [<paths…>|git])";
+export const SCOPED_USAGE =
+  "usage: node tooling/src/verify/cli.ts scoped (--scope <folder-glob>[,<folder-glob>…] | --package <name> | --changed [<paths…>|git])\n  --scope takes one or more comma-separated repo-relative folder globs (union). An ASSERTED selector (--scope/--package) that resolves to 0 files exits 2; a derived --changed set may legitimately be empty.";
 
 /** Reject a selector combination that isn't exactly one non-empty selector — the first failing rule's
  *  message, or undefined when the args are well-formed. */
@@ -108,13 +131,19 @@ function parseArgs(argv: readonly string[]): Args | { readonly error: string } {
   const pkg = flagValue(argv, "--package");
   const changed = argv.includes("--changed");
   const changedPaths = changed ? positionalsAfterChanged(argv) : [];
-  const args: Args = { scope, package: pkg, changed, changedPaths };
-  const error = validateSelectors(args);
+  const error = validateSelectors({ scope, scopeGlobs: [], package: pkg, changed, changedPaths });
   if (error !== undefined) {
     return { error };
   }
+  const split = scope === undefined ? [] : splitScopeGlobs(scope);
+  if (!isGlobList(split)) {
+    return split;
+  }
   const unknown = unknownToken(argv);
-  return unknown === undefined ? args : { error: `unrecognised argument ${JSON.stringify(unknown)}` };
+  if (unknown !== undefined) {
+    return { error: `unrecognised argument ${JSON.stringify(unknown)}` };
+  }
+  return { scope, scopeGlobs: split, package: pkg, changed, changedPaths };
 }
 
 /** The first token this grammar does not know. A valid SELECTOR is already established by the caller, so
@@ -190,6 +219,12 @@ function renderDeferredNotice(deferred: readonly GateDescriptor[]): string {
   return lines.join("\n");
 }
 
+/** The project's source files the selection accepts. ONE home for the scoped fileset, so the CLI's
+ *  empty-scope refusal (#1185) and the pass itself can never disagree about what "in scope" means. */
+function scopedFiles(base: Pick<GateRunCtx, "root" | "project">, inScope: (rel: string) => boolean): SourceFile[] {
+  return base.project.getSourceFiles().filter((sf) => inScope(repoRel(base.root, sf.getFilePath())));
+}
+
 /** The pure scoping core: partition the gates by scope-safety, filter the project's source files to
  *  those the selection accepts, and run ONLY the incremental-safe gates over that fileset. The
  *  whole-project gates are returned as `deferred`, never run. */
@@ -199,29 +234,58 @@ export function runScopedPass(
   selection: Pick<ScopeSelection, "scope" | "inScope">,
 ): ScopedResult {
   const { incremental, deferred } = partitionGates(gates);
-  const files: SourceFile[] = base.project.getSourceFiles().filter((sf) => selection.inScope(repoRel(base.root, sf.getFilePath())));
+  const files = scopedFiles(base, selection.inScope);
   const rawPass = runPass(incremental, { ...base, scope: selection.scope, files });
   // biome-ignore lint/style/noProcessEnv: ORB_GATE_FIXTURES is the check-gates suite's opt-out knob for its own child runs — harness plumbing, not app config.
   const pass = process.env["ORB_GATE_FIXTURES"] === "1" ? rawPass : stripProbeFindings(rawPass);
   return { pass, deferred, files: files.length };
 }
 
-/** The CLI path: build the real full workspace, then scope it. */
-function runScoped(gates: readonly GateDescriptor[], root: string, selection: Pick<ScopeSelection, "scope" | "inScope">): ScopedResult {
-  return runScopedPass(gates, projectCtx(root), selection);
+/** The EMPTY-SCOPE notice (#1185). ONE home so the pin reads the tool's own words. A scoped run over zero
+ *  files is not a clean bill of health: every gate prints `✓ scanned 0/0` and the run exits 0, which at
+ *  the lane gate door reads as "my slice passed" (.claude/rules/gates-and-tooling.md: a bare zero is
+ *  "I couldn't measure", never "it isn't there").
+ *
+ *  THE SELECTOR DECIDES THE EXIT CODE, and the split is deliberate (stated fork, #1185):
+ *   • `--scope` / `--package` ASSERT a fileset. Zero files means the operator's assertion was wrong —
+ *     a typo'd path, a moved folder, the comma form this issue was filed about. Exit 2: nothing was
+ *     checked, and the run is not a verdict.
+ *   • `--changed` DERIVES its set from git. Zero source files there is an ordinary, correct state (a
+ *     docs-only or config-only diff), so failing it would mint exactly the false alarm this fix is
+ *     about. It prints the same "nothing was checked" line and exits CLEAN — honest, not fatal. */
+function emptyScopeNotice(label: string, fatal: boolean): string {
+  const head = fatal ? "SCOPE ERROR  scoped 0 files — nothing was checked" : "SCOPE EMPTY  scoped 0 files — nothing was checked";
+  const tail = fatal
+    ? [
+        "  Every gate would have printed `✓ scanned 0/0`; that is not a verdict, so this run exits 2.",
+        "  Check the path spelling (repo-relative, e.g. packages/ui/src/primitives/switch); several folders",
+        "  are comma-separated (`--scope a,b`) — see tooling/src/verify/ops/scoped.ts.",
+      ]
+    : [
+        "  The changed set holds no source file the gates can read (a docs/config-only diff). No gate ran, so",
+        "  this run judged nothing — see tooling/src/verify/ops/scoped.ts.",
+      ];
+  return [`${head} (${label}).`, ...tail].join("\n");
 }
 
 /** The `scoped` verb: parse the ONE selector, run the incremental-safe gates over the selected fileset,
  *  print the pass + the deferred notice, and RETURN the verdict (the cli's runTool owns the exit — a bare
- *  process.exit here would drop the buffered render). A bad selector is a UsageError → exit 3. */
+ *  process.exit here would drop the buffered render). A bad selector is a UsageError → exit 3; a selector
+ *  that resolves to NO files is exit 2 (#1185), refused BEFORE the gates run so no green wall is printed. */
 export async function runScopedCli(root: string, argv: readonly string[]): Promise<number> {
   const parsed = parseArgs(argv);
   if ("error" in parsed) {
     throw new UsageError(`${parsed.error}\n${SCOPED_USAGE}`);
   }
   const selection = selectionFor(parsed);
+  const base = projectCtx(root);
+  if (scopedFiles(base, selection.inScope).length === 0) {
+    const asserted = selection.scope.kind !== "changed";
+    process.stderr.write(`${emptyScopeNotice(selection.label, asserted)}\n`);
+    return asserted ? EXIT.toolError : EXIT.clean;
+  }
   const gates = await loadGates(root);
-  const { pass, deferred, files } = runScoped(gates, root, selection);
+  const { pass, deferred, files } = runScopedPass(gates, base, selection);
 
   process.stdout.write(`check:scope — ${selection.label} · ${files} file(s) in scope\n\n`);
   process.stdout.write(renderPass(pass, new Map(gates.map((g) => [g.name, g]))));

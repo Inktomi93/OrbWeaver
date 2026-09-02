@@ -12,7 +12,8 @@ import { join } from "node:path";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { runNicedSync } from "../../_shared/proc.ts";
 import type { ActiveStage } from "../contract/stage.ts";
-import { ACTIVE_REL, markerRootFromCommonDir, STAGE_ROOT_REL } from "../lib/stage-plan.ts";
+import { ACTIVE_REL, markerRootFromCommonDir, STAGE_ROOT_REL, stageBandClaim, stageBandRefusal } from "../lib/stage-plan.ts";
+import { repoRoot } from "./stage-git.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
@@ -69,4 +70,15 @@ export function touchActive(markerHome: string, nowIso: string): void {
 
 export function clearActive(markerHome: string): void {
   rmSync(activePath(markerHome), { force: true });
+}
+
+/** The band-ownership door every `--base`/`--url` instrument enters before it measures anything (#1186).
+ *  Returns the refusal text (exit-2 class — nothing was measured) or null when the URL is ours to read.
+ *  Both readers are injectable so a suite can plant a FOREIGN owner without touching the box's real,
+ *  shared marker — writing that file from a test would evict a live sibling stage. */
+export function stageBandRefusalFor(url: string, opts: { readonly checkout?: string; readonly readMarker?: () => ActiveStage | null } = {}): string | null {
+  const checkout = opts.checkout ?? repoRoot();
+  const readMarker = opts.readMarker ?? ((): ActiveStage | null => readActive(markerRoot(checkout)));
+  const active = readMarker();
+  return stageBandRefusal(stageBandClaim(url, checkout, active), url, checkout, active);
 }

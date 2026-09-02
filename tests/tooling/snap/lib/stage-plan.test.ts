@@ -28,6 +28,8 @@ import {
   STAGE_INHERITED_ENV_KEYS,
   STAGE_LAUNCHER_RELS,
   shortSha,
+  stageBandClaim,
+  stageBandRefusal,
   stageBaseUrl,
   stageDecision,
   stageIdleMs,
@@ -38,7 +40,7 @@ import {
   stageSweepVerdict,
   teardownConsent,
 } from "../../../../tooling/src/snap/lib/stage-plan.ts";
-import { readActive, touchActive, writeActive } from "../../../../tooling/src/snap/ops/stage-marker.ts";
+import { readActive, stageBandRefusalFor, touchActive, writeActive } from "../../../../tooling/src/snap/ops/stage-marker.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const SHA = "0123456789abcdef0123456789abcdef01234567";
@@ -478,4 +480,43 @@ test("the isolation tripwire is the exact env var vite.config reads for its prox
   expect(ISOLATION_TRIPWIRE).toBe("VITE_API_TARGET");
   const viteConfig = readFileSync(join(import.meta.dirname, "..", "..", "..", "..", "packages", "client", "vite.config.ts"), "utf8");
   expect(viteConfig).toContain(ISOLATION_TRIPWIRE);
+});
+
+// ── the BAND CLAIM (#1186) ──────────────────────────────────────────────────────────────────────────
+// A refused `snap --isolated` leaves the band with its PREVIOUS owner, and `perf-meter --base
+// http://localhost:5273` chained behind it happily measured that sibling checkout's tree (lane
+// p-home-perf, 2026-09-02: three AFTER receipts taken off another lane's stage, discarded). The claim is
+// exact rather than heuristic — the band is ONE fixed port pair and its owner marker is ONE shared file —
+// so all four arms are pinned, including the two that must stay SILENT: a guard that refuses everything
+// is as useless as one that refuses nothing.
+test("a base at the stage band is judged against the marker's OWNER; anything else is not the band (#1186)", () => {
+  // The two SILENT arms: an ordinary base, and the band this checkout itself owns.
+  expect(stageBandClaim("http://localhost:5173/chat", MAIN_CHECKOUT, active())).toBe("not-the-band");
+  expect(stageBandClaim("file:///tmp/fixture/page.html", MAIN_CHECKOUT, active())).toBe("not-the-band");
+  expect(stageBandClaim("http://localhost:5273", MAIN_CHECKOUT, active())).toBe("ours");
+  // …and the two that must refuse. BOTH band ports count: a `--url` may name the server half directly.
+  expect(stageBandClaim("http://localhost:5273/chat", LANE_CHECKOUT, active())).toBe("foreign");
+  expect(stageBandClaim("http://localhost:8888/api/health", LANE_CHECKOUT, active())).toBe("foreign");
+  // No marker is NOT permission: nothing accounts for whoever is serving that port.
+  expect(stageBandClaim("http://localhost:5273", LANE_CHECKOUT, null)).toBe("unowned");
+});
+
+test("the band refusal names BOTH checkouts — the whole failure was not knowing whose tree answered (#1186)", () => {
+  const refusal = stageBandRefusal("foreign", "http://localhost:5273", LANE_CHECKOUT, active());
+  expect(refusal).toContain(MAIN_CHECKOUT);
+  expect(refusal).toContain(LANE_CHECKOUT);
+  expect(refusal).toContain("nothing was measured");
+  // An unowned band still refuses, and says so in the owner slot rather than inventing one.
+  expect(stageBandRefusal("unowned", "http://localhost:5273", LANE_CHECKOUT, null)).toContain("NOBODY");
+  // The readable claims produce NO text at all — the guard must be silent on the ordinary path.
+  expect(stageBandRefusal("ours", "http://localhost:5273", MAIN_CHECKOUT, active())).toBeNull();
+  expect(stageBandRefusal("not-the-band", "http://localhost:5173", MAIN_CHECKOUT, active())).toBeNull();
+});
+
+test("the marker door refuses a FOREIGN owner and passes our own — a PLANTED marker, never the box's (#1186)", () => {
+  // Both readers are injected on purpose: writing the real shared marker from a suite would evict a live
+  // sibling lane's stage, which is the very failure this guard exists to prevent.
+  expect(stageBandRefusalFor("http://localhost:5273", { checkout: LANE_CHECKOUT, readMarker: () => active() })).toContain(MAIN_CHECKOUT);
+  expect(stageBandRefusalFor("http://localhost:5273", { checkout: MAIN_CHECKOUT, readMarker: () => active() })).toBeNull();
+  expect(stageBandRefusalFor("http://localhost:5173/chat", { checkout: LANE_CHECKOUT, readMarker: () => active() })).toBeNull();
 });

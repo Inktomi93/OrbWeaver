@@ -3,7 +3,16 @@
 // rule, and the DB-bound inherited-env allowlist. The imperative half is ops/stage.ts.
 import { basename, dirname, join } from "node:path";
 import { parseEnv } from "node:util";
-import type { ActiveStage, BandAccess, StageDecision, StagePaths, StagePorts, StageSweepEvidence, StageSweepVerdict } from "../contract/stage.ts";
+import type {
+  ActiveStage,
+  BandAccess,
+  StageBandClaim,
+  StageDecision,
+  StagePaths,
+  StagePorts,
+  StageSweepEvidence,
+  StageSweepVerdict,
+} from "../contract/stage.ts";
 
 // The canonical dev ports (mirrors stack.sh BACKEND_PORT + vite.config strictPort). The stage offsets both.
 export const DEV_SERVER_PORT = 8788;
@@ -312,4 +321,54 @@ export function stageInheritedEnv(envFileContent: string): Record<string, string
     }
   }
   return inherited;
+}
+
+// ── the BAND CLAIM: who owns the port an instrument was pointed at (#1186) ─────────────────────────
+//
+// A `snap --isolated` that REFUSES on band contention does not stop the instruments chained behind it:
+// `perf-meter --base http://localhost:5273` and `motion-audit --base …` then measure whichever lane's
+// stage currently holds the band, and the numbers look completely normal. Lane p-home-perf took three
+// AFTER receipts off a sibling checkout's tree that way (2026-09-02, discarded).
+//
+// The band is ONE fixed port pair for the whole box and the marker naming its owner is ONE shared file
+// (see the header + ops/stage-marker.ts), so "am I allowed to read this?" is answerable EXACTLY, without
+// a heuristic: a base at a band port whose marker names another checkout is a REFUSAL, and so is one no
+// marker accounts for — an unowned band is "I cannot say whose tree this is", which is the same defect
+// (.claude/rules/gates-and-tooling.md: a bare zero is "I couldn't measure", never "it isn't there").
+
+/** Does this URL address the isolated-stage band? Port-keyed, because the band IS its ports — a
+ *  `--base http://localhost:5273` and a `--url http://localhost:5273/chat` are the same claim. */
+export function urlTargetsStageBand(url: string, ports: StagePorts = stagePorts()): boolean {
+  if (!URL.canParse(url)) {
+    return false;
+  }
+  const port = Number(new URL(url).port);
+  return port === ports.server || port === ports.vite;
+}
+
+export function stageBandClaim(url: string, checkout: string, active: ActiveStage | null, ports: StagePorts = stagePorts()): StageBandClaim {
+  if (!urlTargetsStageBand(url, ports)) {
+    return "not-the-band";
+  }
+  if (active === null) {
+    return "unowned";
+  }
+  return active.checkout === checkout ? "ours" : "foreign";
+}
+
+/** The exit-2 copy for a claim that is not ours — it names BOTH checkouts, because the whole failure is
+ *  that the operator could not tell whose tree answered. Returns null for the two readable claims. */
+export function stageBandRefusal(claim: StageBandClaim, url: string, checkout: string, active: ActiveStage | null): string | null {
+  if (claim === "not-the-band" || claim === "ours") {
+    return null;
+  }
+  const owner = active === null ? "NOBODY (no active stage marker)" : `${active.checkout} (stage ${active.shortSha}, started ${active.startedAt})`;
+  return [
+    `STAGE ERROR  ${url} is the isolated-stage band, and this checkout does not own it — nothing was measured.`,
+    `  band owner : ${owner}`,
+    `  invoked by : ${checkout}`,
+    "  A refused `snap --isolated` leaves the band with its previous owner, so an instrument chained behind",
+    "  it would report that tree's numbers as yours. Boot your own stage (`pnpm snap --isolated --ref <sha>`)",
+    "  or measure the live stack instead — tooling/src/snap/lib/stage-plan.ts.",
+  ].join("\n");
 }

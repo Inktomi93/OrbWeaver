@@ -42,6 +42,7 @@ export { formatDispatch, parseStackArgv, STACK_USAGE } from "./lib/argv.ts";
 export { debugConflictMessage, resolveDebugArming, stripDebugEnv } from "./lib/debug-env.ts";
 export {
   captureDevStackIdentity,
+  devStackGroupHasMembers,
   devStackIdentityFilePath,
   parseDevStackIdentity,
   recordedDevStackVerdict,

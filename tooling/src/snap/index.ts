@@ -7,6 +7,7 @@ export type {
   ActiveStage,
   BandAccess,
   EnsureStageOpts,
+  StageBandClaim,
   StageDecision,
   StagePaths,
   StagePorts,
@@ -27,6 +28,7 @@ export { capEvalText } from "./lib/eval-text.ts";
 export { variantOut } from "./lib/out-names.ts";
 export { overflowAssertionLine } from "./lib/overflow-line.ts";
 export { SELECTOR_VALUE_FLAGS, selectorRefusalForFlag, unmatchableSelectorRefusal } from "./lib/selector-shape.ts";
+export { stageBandClaim, stageBandRefusal, urlTargetsStageBand } from "./lib/stage-plan.ts";
 export { NETWORK_PROFILES, NO_CPU_THROTTLE, parseNetworkProfile, throttleResultValue } from "./lib/throttle.ts";
 // The mode surface — the cli's dispatch targets, exported so a caller can drive snap programmatically
 // (and so cli.ts enters through THIS door, per the front-door gate).
@@ -49,4 +51,6 @@ export { parseScenarioSpec, runScenarioDetailed, snapScenario } from "./ops/scen
 // front door — the stage set stays one home in snap/ (docs/architecture/core/Core-Tooling-Law.md §2.4 + §4.2).
 export { ensureStage } from "./ops/stage.ts";
 export { tryResolveRef } from "./ops/stage-git.ts";
+// #1186: the band-ownership door — perf-meter/motion-audit ask it before they trust a `--base`.
+export { stageBandRefusalFor } from "./ops/stage-marker.ts";
 export { hasSnapFailure } from "./ops/verdict.ts";

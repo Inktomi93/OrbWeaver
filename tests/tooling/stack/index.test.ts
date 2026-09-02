@@ -24,6 +24,7 @@ import {
   decideDown,
   decideSpawnLock,
   decideUp,
+  devStackGroupHasMembers,
   formatDispatch,
   lockHolderText,
   mayRemovePidfile,
@@ -92,7 +93,10 @@ test("a dead leader refuses a stable same-group survivor without signaling it", 
       readProcess: (pid) => processTable.get(pid) ?? null,
       kill: (target, signal) => calls.push([target, signal]),
     }),
-  ).toEqual({ verdict: "refused", reason: expect.stringMatching(MANUAL_CLEANUP_RE) });
+    // #1162 renamed this arm from `refused` to `departed` — a distinct verdict, because it is the ONLY
+    // refusal with a remaining answerable question (does the GROUP still hold a member?). The RULING is
+    // untouched: a dead leader still signals nothing, and the reason still demands manual cleanup.
+  ).toEqual({ verdict: "departed", pgid: DEV_IDENTITY.pgid, reason: expect.stringMatching(MANUAL_CLEANUP_RE) });
   expect(calls).toEqual([]);
   expect(verifyDevStackIdentity(DEV_IDENTITY, { readProcess: () => ({ ...DEV_IDENTITY, startTicks: "reused" }) }).verdict).toBe("refused");
 });
@@ -530,4 +534,25 @@ test("/proc start-ticks parse past a comm field containing spaces and parens", (
   const stat = `4242 (node (weird) x) S ${fields.join(" ")}`;
   expect(parseProcStartTicks(stat)).toBe(String(100 + 18));
   expect(parseProcStartTicks("garbage with no paren")).toBeNull();
+});
+
+// ── #1162: the group probe the teardown warning never ran ──────────────────────────────────────────
+// `do_stop`'s "still has verified survivors after KILL" asserted a fact about SURVIVORS from a verdict
+// that only ever spoke about the LEADER. `devStackGroupHasMembers` is the missing question, and it is the
+// same one `pgrep -g` answers: ESRCH = the group is empty, EPERM = a member exists that we may not signal.
+test("the group residue probe reads kill(-pgid, 0) the way pgrep -g does (#1162)", () => {
+  const asked: number[] = [];
+  expect(devStackGroupHasMembers(4242, (target) => void asked.push(target))).toBe(true);
+  // The NEGATIVE pgid is the whole mechanism — a positive one asks about the dead leader instead.
+  expect(asked).toEqual([-4242]);
+  expect(
+    devStackGroupHasMembers(4242, () => {
+      throw Object.assign(new Error("no such process group"), { code: "ESRCH" });
+    }),
+  ).toBe(false);
+  expect(
+    devStackGroupHasMembers(4242, () => {
+      throw Object.assign(new Error("not permitted"), { code: "EPERM" });
+    }),
+  ).toBe(true);
 });

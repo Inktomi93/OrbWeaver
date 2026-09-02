@@ -357,8 +357,14 @@ do_stop() {
     fi
     sleep 1
   fi
-  if ! dev_identity clear-absent >/dev/null; then
-    echo "stack: group $pgid still has verified survivors after KILL — manual cleanup required"
+  # #1162: this line used to CLAIM verified survivors on the strength of a verdict that only ever said
+  # "the leader is gone". clear-absent now asks the group itself (kill -0 on the pgid, the pgrep -g
+  # question) and only refuses when a member really outlived the leader — so we print ITS verdict here
+  # instead of asserting one. See tooling/src/stack/ops/dev-identity-entry.ts.
+  local clear_verdict
+  if ! clear_verdict="$(dev_identity clear-absent)"; then
+    echo "stack: group $pgid could not be cleared after KILL — manual cleanup required"
+    echo "stack: $clear_verdict"
     return 1
   fi
   echo "stack: stopped (pgid $pgid)"

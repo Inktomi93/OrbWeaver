@@ -69,6 +69,15 @@ export interface StageSweepEvidence {
 const BAND_ACCESS = ["ours", "shared-reuse", "take-over", "refuse"] as const;
 export type BandAccess = (typeof BAND_ACCESS)[number];
 
+/** How the INVOKING checkout may read a `--base`/`--url` an instrument was pointed at (#1186). The band
+ *  is one fixed port pair for the whole box and its owner marker is one shared file, so this is exact:
+ *   • `not-the-band` — an ordinary base (the dev stack, a CT server): nothing to arbitrate.
+ *   • `ours`         — the band, and the marker names THIS checkout: measure away.
+ *   • `foreign`      — the band, owned by another checkout: its pixels are not ours to report.
+ *   • `unowned`      — the band, and no marker accounts for it: whose tree is serving is unknowable. */
+const STAGE_BAND_CLAIMS = ["not-the-band", "ours", "foreign", "unowned"] as const;
+export type StageBandClaim = (typeof STAGE_BAND_CLAIMS)[number];
+
 export type StageDecision = "reuse" | "rebuild";
 
 export interface EnsureStageOpts {
