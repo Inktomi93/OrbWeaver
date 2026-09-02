@@ -11,7 +11,7 @@
 // THE MECHANISM IS A SELF-ORACLE (owner ruling 2026-09-01) — no hardcoded slot→token table is invented
 // here. `tiers.css` sets one `--orb-tier-*` custom property per (tier, concept) pair and every consuming
 // rule reads it back, so the SANCTIONED value and the PAINTED value are both already on the page:
-//   sanctioned = getComputedStyle(el).getPropertyValue('--orb-tier-island-pad')
+//   sanctioned = the tier's own `--orb-tier-island-pad`, resolved to a used value (`tierSanctioned`)
 //   painted    = getComputedStyle(el).padding
 // A disagreement between them is the finding. The EPSILON-vs-THRESHOLD decision, and the census's own
 // candidates/judged/withheld/excluded accounting, both live in ../lib/checks-quality.ts
@@ -29,6 +29,25 @@
 // own map to the same standard. Today's set: card-root padding/border-radius, list-row-root|body/markers
 // gap, list-row-title font-size/weight/line-height, list-row-subtitle|subtitle-reveal|meta font-size,
 // input-root|select-trigger font-size/line-height.
+//
+// THE SANCTIONED SIDE IS A TOKEN STREAM, NOT A NUMBER (#1037). A `--orb-tier-*` custom property is
+// UNREGISTERED, so its computed value is the authored token stream verbatim — and every leading token on
+// this tree is a LENGTH written as a math function (theme.css: `--leading-label: round(1rem, 1px)`). The
+// census used to string-parse that value; `parseFloat("round(1rem, 1px)")` is NaN, so ten live row titles
+// and two live fields on the characters surface were withheld as "unresolved" while their paint matched
+// the tier EXACTLY, and the leading arm could never fire in either direction. So the sanctioned value is
+// resolved BY THE BROWSER instead (`tierSanctioned` below): force the property inline from `var(<name>)`,
+// read the computed value back, restore the style attribute verbatim. That is the same self-oracle — the
+// page still states both values — and it is total over every token shape (rem, px, a math function, or a
+// bare ratio) because the engine, not a regex, does the resolution.
+//   TWO MECHANICS ARE LOAD-BEARING THERE. (a) The UNSET CHECK COMES FIRST: an unset custom property
+// computes to "", but forcing an INVALID `var()` inline makes the declaration invalid at computed-value
+// time and the property silently falls back to its inherited/initial value — so resolving first and
+// checking after would compare against a fallback and BLIND the broken-chain class this rule exists to
+// catch. An empty declared value is withheld before anything is forced. (b) The probe is an ATTRIBUTE
+// mutation on an element that already exists, never an injected node: ops/walker/core.ts's `walkObserver`
+// observes `{childList: true, subtree: true}`, so a probe ELEMENT would be counted as walk churn and turn
+// the run's own DOM accounting red, while a style attribute set-and-restored is invisible to it.
 //
 // POLARITY (owner ruling 2026-09-01, corrected across three lanes the same day): a slot with no
 // `[data-surface-tier]` ancestor is CORRECT BY DESIGN — tiers.css states it keeps its own utility
@@ -81,6 +100,20 @@ export const WALKER_CENSUS_TIER = `  // ── density tier resolution: does the
     return Number.isFinite(bareVal) ? bareVal : null;
   }
 
+  // The sanctioned value, resolved by the ENGINE (see the header for why, and for why the unset check
+  // must come first). Returns null when the tier never declared the property at all — the broken-chain
+  // case — and otherwise the declared token stream beside the computed value it resolves to.
+  function tierSanctioned(el, property, varName) {
+    var declared = getComputedStyle(el).getPropertyValue(varName).trim();
+    if (declared === "") return null;
+    var savedStyle = el.getAttribute("style");
+    el.style.setProperty(property, "var(" + varName + ")");
+    var resolved = getComputedStyle(el).getPropertyValue(property);
+    if (savedStyle === null) el.removeAttribute("style");
+    else el.setAttribute("style", savedStyle);
+    return { declared: declared, resolved: resolved };
+  }
+
   function excludeTierCandidate(reason) {
     relationalAccounting["tier-drift"].candidates += 1;
     excludeRelational(relationalAccounting["tier-drift"], reason);
@@ -92,8 +125,13 @@ export const WALKER_CENSUS_TIER = `  // ── density tier resolution: does the
       excludeRelational(relationalAccounting["tier-drift"], "opt-in");
       return;
     }
-    var sanctionedRaw = getComputedStyle(el).getPropertyValue(varName).trim();
-    var sanctionedValue = tierLengthPx(sanctionedRaw);
+    var sanctioned = tierSanctioned(el, property, varName);
+    if (sanctioned === null) {
+      withholdRelational(relationalAccounting["tier-drift"], "unresolved");
+      return;
+    }
+    var sanctionedRaw = sanctioned.declared;
+    var sanctionedValue = tierLengthPx((sanctioned.resolved || "").split(" ")[0]);
     var paintedValue = tierLengthPx((paintedRaw || "").split(" ")[0]);
     if (sanctionedValue === null || paintedValue === null) {
       withholdRelational(relationalAccounting["tier-drift"], "unresolved");
@@ -120,8 +158,13 @@ export const WALKER_CENSUS_TIER = `  // ── density tier resolution: does the
       excludeRelational(relationalAccounting["tier-drift"], "opt-in");
       return;
     }
-    var sanctionedRaw = getComputedStyle(el).getPropertyValue(varName).trim();
-    var sanctionedValue = parseFloat(sanctionedRaw);
+    var sanctioned = tierSanctioned(el, property, varName);
+    if (sanctioned === null) {
+      withholdRelational(relationalAccounting["tier-drift"], "unresolved");
+      return;
+    }
+    var sanctionedRaw = sanctioned.declared;
+    var sanctionedValue = parseFloat(sanctioned.resolved);
     var paintedValue = parseFloat(paintedRaw);
     if (!Number.isFinite(sanctionedValue) || !Number.isFinite(paintedValue)) {
       withholdRelational(relationalAccounting["tier-drift"], "unresolved");
@@ -142,26 +185,32 @@ export const WALKER_CENSUS_TIER = `  // ── density tier resolution: does the
     });
   }
 
-  // LEADING IS A UNITLESS RATIO IN THE TOKEN, PX IN THE COMPUTED STYLE (lib/ramp.ts's own lesson, one
-  // property over): the leading tokens (--leading-label etc) are bare numbers, but CSSOM reports
-  // line-height as a resolved USED value in px regardless of how it was authored. Comparing raw strings
-  // would always mismatch on units, not on drift, so both sides are normalized to the same ratio scale
-  // here (paintedPx / fontSizePx) before the census ever leaves the page.
+  // LEADING IS COMPARED AS A RATIO, and both sides are normalized by the SAME font-size before the census
+  // leaves the page: CSSOM reports line-height as a resolved USED value in px, and so does the sanctioned
+  // probe, so dividing each by the element's own font-size compares leading against leading rather than
+  // px against a token. (The token itself is a length — see the header; it is the browser, not a parse,
+  // that turns it into the px this divides.)
   function judgeTierLeading(el, tier, slot, property, varName, style, optedOut) {
     relationalAccounting["tier-drift"].candidates += 1;
     if (optedOut) {
       excludeRelational(relationalAccounting["tier-drift"], "opt-in");
       return;
     }
-    var sanctionedRaw = getComputedStyle(el).getPropertyValue(varName).trim();
-    var sanctionedValue = parseFloat(sanctionedRaw);
+    var sanctioned = tierSanctioned(el, property, varName);
+    if (sanctioned === null) {
+      withholdRelational(relationalAccounting["tier-drift"], "unresolved");
+      return;
+    }
+    var sanctionedRaw = sanctioned.declared;
+    var sanctionedLinePx = parseFloat(sanctioned.resolved);
     var paintedLinePx = parseFloat(style.lineHeight);
     var paintedFontPx = parseFloat(style.fontSize);
-    if (!Number.isFinite(sanctionedValue) || !Number.isFinite(paintedLinePx) || !Number.isFinite(paintedFontPx) || paintedFontPx === 0) {
+    if (!Number.isFinite(sanctionedLinePx) || !Number.isFinite(paintedLinePx) || !Number.isFinite(paintedFontPx) || paintedFontPx === 0) {
       withholdRelational(relationalAccounting["tier-drift"], "unresolved");
       return;
     }
     relationalAccounting["tier-drift"].judged += 1;
+    var sanctionedValue = Math.round((sanctionedLinePx / paintedFontPx) * 10000) / 10000;
     var paintedValue = Math.round((paintedLinePx / paintedFontPx) * 10000) / 10000;
     tierDrifts.push({
       selector: describe(el),

@@ -15,6 +15,14 @@
 // of vars (a var one tier omits resolves empty and the census withholds), and the declared set is exactly
 // the consumed set.
 //
+// AND THE SANCTIONED SIDE IS PINNED AS A TOKEN STREAM (#1037). The census once `parseFloat`-ed the raw
+// `--orb-tier-*` value; every leading token on this tree is `round(<rem>, 1px)`, so that read was NaN and
+// twelve live candidates were withheld as "unresolved" while their paint matched the tier exactly. The
+// premise is now derived instead of trusted — theme.css is read for the token each tier var points at, a
+// floor guard proves at least one of them is NOT bare-number-shaped, and the walker string is pinned to
+// read the raw value in exactly ONE place (the browser-resolving helper) and never hand it to a number
+// parser. A future lane cannot reintroduce the parse without reddening this file.
+//
 // PARSER BLINDNESS IS THE REAL HAZARD (the roadmap.test.ts lesson): a regex that stops matching returns []
 // and every set comparison passes vacuously. Every derivation is therefore floor-guarded, and each
 // direction carries a PLANTED CONTROL — a fake pair injected into a copy of each source, asserted to be
@@ -207,5 +215,36 @@ describe("density-tier census parity (walker ↔ tiers.css)", () => {
   test("PLANTED CONTROL — a parser that stops matching produces a zero, never a pass", () => {
     expect(parseTierMap("/* nothing but a comment */").consumed).toHaveLength(0);
     expect(parseWalkerTriples("var x = 1;")).toHaveLength(0);
+  });
+});
+
+// ── the sanctioned side is a TOKEN STREAM, never a number (#1037) ────────────
+
+const THEME_CSS_REL = "packages/ui/src/styles/theme.css";
+const THEME_CSS = readFileSync(join(REPO_ROOT, THEME_CSS_REL), "utf-8");
+const TOKEN_DECL_RE = /^\s*(--[a-z0-9-]+)\s*:\s*([^;]+);/gmu;
+const TIER_DECL_RE = /(--orb-tier-[a-z0-9-]+)\s*:\s*var\((--[a-z0-9-]+)\)/gu;
+/** A value a `parseFloat` would have read correctly: a bare number, or a plain px/rem length. */
+const NUMERIC_SHAPE_RE = /^-?[\d.]+(px|rem|em|%)?$/u;
+
+describe("the sanctioned tier value is resolved, never string-parsed (#1037)", () => {
+  test("at least one --orb-tier-* token is NOT numeric-shaped — the parseFloat premise is false on this tree", () => {
+    const tokens = new Map([...blankCssComments(THEME_CSS).matchAll(TOKEN_DECL_RE)].map((m) => [m[1] ?? "", (m[2] ?? "").trim()]));
+    expect(tokens.size, `no token declarations parsed out of ${THEME_CSS_REL}`).toBeGreaterThan(MIN_TRIPLES);
+    const pointedAt = [...blankCssComments(TIERS_CSS).matchAll(TIER_DECL_RE)].map((m) => m[2] ?? "");
+    expect(pointedAt.length, `no "--orb-tier-*: var(--token)" declaration parsed out of ${TIER_MAP_REL}`).toBeGreaterThanOrEqual(MIN_TRIPLES);
+    const values = pointedAt.map((name) => tokens.get(name)).filter((value): value is string => value !== undefined);
+    expect(values.length, "no tier var resolved to a token theme.css declares").toBeGreaterThanOrEqual(MIN_TRIPLES);
+    const unparseable = values.filter((value) => !NUMERIC_SHAPE_RE.test(value));
+    expect(unparseable, "every tier token is numeric-shaped — if that is now true, say WHY before restoring a parse").not.toHaveLength(0);
+  });
+
+  test("the walker reads the raw custom property in ONE place and never hands it to a number parser", () => {
+    const rawReads = [...WALKER_CENSUS_TIER.matchAll(/getPropertyValue\(varName\)/gu)];
+    expect(rawReads, "the raw --orb-tier-* value must be read only inside the browser-resolving helper").toHaveLength(1);
+    expect(WALKER_CENSUS_TIER).toContain("function tierSanctioned(el, property, varName)");
+    for (const parse of ["parseFloat(sanctionedRaw)", "tierLengthPx(sanctionedRaw)", "parseFloat(declared)", "tierLengthPx(declared)"]) {
+      expect(WALKER_CENSUS_TIER, `${parse} is the #1037 defect — a token stream is not a number`).not.toContain(parse);
+    }
   });
 });

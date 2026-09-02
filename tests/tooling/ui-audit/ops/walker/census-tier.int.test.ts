@@ -194,3 +194,62 @@ auditRuleTest(
     expect(code).toBe(0);
   },
 );
+
+// ── the SANCTIONED side is a token stream, not a number (#1037) ──────────────
+//
+// Every leading token on the live tree is a LENGTH written as a math function — theme.css:
+// `--leading-label: round(1rem, 1px)` — and a custom property is unregistered, so its computed value is
+// that stream verbatim. The census used to `parseFloat` it (NaN → withheld "unresolved"), which withheld
+// twelve live candidates on the characters surface and would have compared a ratio against a length the
+// moment a token became parseable. These two fixtures reproduce the real token shape: the sanctioned side
+// must be resolved BY THE BROWSER, so a `round()` token both passes clean when the paint agrees and FIRES
+// when it does not. The tier-less fallback trap is why the whole set of a slot's vars is declared here.
+const LEADING_TIER_CSS = `<style>
+  [data-surface-tier="instrument"] {
+    --orb-tier-row-title-size: 13px;
+    --orb-tier-row-title-weight: 600;
+    --orb-tier-row-title-leading: round(1rem, 1px);
+  }
+  [data-surface-tier] [data-slot="list-row-title"] {
+    font-size: var(--orb-tier-row-title-size);
+    font-weight: var(--orb-tier-row-title-weight);
+    line-height: var(--orb-tier-row-title-leading);
+  }
+</style>`;
+
+auditRuleTest(
+  [
+    {
+      rule: "tier-drift",
+      kind: "silent",
+      reason:
+        "a list-row-title whose leading token is the live tree's own `round(1rem, 1px)` LENGTH shape and whose painted line-height resolves to exactly it — judged clean, never withheld as an unresolvable chain",
+    },
+  ],
+  "a math-function leading token is resolved and judged, not withheld as unresolved",
+  async ({ runCli, scratch }) => {
+    const body = `${LEADING_TIER_CSS}<div data-surface-tier="instrument"><span data-slot="list-row-title" style="display:block;width:160px;height:20px;background:#222"></span></div>`;
+    const { report, code } = await auditFixture({ scratch, runCli, name: "tier-leading-clean", body });
+    expect(report.findings.filter(({ rule }) => rule === "tier-drift")).toHaveLength(0);
+    expect(report.populationAccounting?.["tier-drift"]).toMatchObject({ candidates: 3, judged: 3, affected: 0, withheld: {} });
+    expect(code).toBe(0);
+  },
+);
+
+auditRuleTest(
+  [
+    {
+      rule: "tier-drift",
+      kind: "fires",
+      reason:
+        "an inline line-height of 30px on a list-row-title whose instrument tier sanctions a `round(1rem, 1px)` leading — the arm could never fire at all while the sanctioned side was string-parsed",
+    },
+  ],
+  "a leading that diverges from a math-function tier token is a tier-drift",
+  async ({ runCli, scratch }) => {
+    const body = `${LEADING_TIER_CSS}<div data-surface-tier="instrument"><span data-slot="list-row-title" style="display:block;width:160px;height:40px;background:#222;line-height:30px"></span></div>`;
+    const { report } = await auditFixture({ scratch, runCli, name: "tier-leading-drift", body });
+    expect(report.findings.filter(({ rule }) => rule === "tier-drift")).toHaveLength(1);
+    expect(report.populationAccounting?.["tier-drift"]).toMatchObject({ candidates: 3, judged: 3, emitted: 1, withheld: {} });
+  },
+);
