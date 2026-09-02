@@ -102,7 +102,7 @@ row rather than being double-reported, and a pass that did not run publishes NO 
 clean-looking zero. When re-syncing against upstream, diff the exported MECHANISMS, not just
 `ANTIPATTERNS` — that is the durable lesson this miss paid for.
 
-## Triage — all 59 rules
+## Triage — the full upstream set at the time of this triage
 
 > **Upstream is at 61 as of 2026-09-01.** The two rules minted after this triage are
 > `organic-clip-path` (clip-path polygon ≥10 off-grid vertices, or `path()` with ≥3 curve segments)
@@ -121,8 +121,8 @@ clean-looking zero. When re-syncing against upstream, diff the exported MECHANIS
 > id lacking firing+silence proofs) could not catch a claim made only in prose. It has moved to the
 > deferred table below beside its own container arm. The lesson this row pays for: **an "adopted"
 > table in a doc is a CLAIM about the registry, and the registry is the only denominator** — the
-> live one is `tooling/src/ui-audit/contract/rules.ts` (59 ids today), and every count in this file
-> and in `SKILL.md` is re-derived from it rather than remembered.
+> live one is `DESIGN_AUDIT_RULES` in `tooling/src/ui-audit/contract/rules.ts`, and every count in
+> this file and in `SKILL.md` is re-derived from it rather than remembered.
 
 ### Adapted (28) — now live in `pnpm design-audit`
 
@@ -140,7 +140,7 @@ function named in the collect.ts table.
 | `side-tab` | `side-tab` | P3 | 2 | dominant chromatic edge border (≥2px, ≥2× other sides; L/R any radius or ≥3px; T/B 3–12px band); exempt tab-context, status/alert, safe tags, and the RATIFIED ListRow selection accent (owner 2026-08-22, issue #485 — `[data-slot=list-row-root\|list-row-body][data-selected]`, both halves required: an unselected row or a selected non-row still fires) |
 | `border-accent-on-rounded` | `border-accent-on-rounded` | P3 | 2 | thick chromatic border on ANY edge + border-radius (same sampler as side-tab; a L/R accent on a rounded card fires this AND `side-tab` — issue #188, the live home resume card was a 3px oklch left edge on a 10px radius and the top/bottom-only reach reported neither; shares side-tab's exemptions, incl. the ratified ListRow selection accent — issue #485) |
 | `flat-type-hierarchy` | `flat-type-hierarchy` | P3 | 1 | page font-size census: ≥3 sizes with max/min ratio < 2.0 |
-| `bounce-easing` | `bounce-easing` | P2 | 2 | animation-name /bounce\|elastic\|wobble\|jiggle\|spring/ or overshoot cubic-bezier (y outside [-0.1,1.1]); P2 because motion law §4.3 hard-bans it |
+| `bounce-easing` | `bounce-easing` | P2 | 2 | animation-name /bounce\|elastic\|wobble\|jiggle\|spring/ or overshoot cubic-bezier (y outside \[-0.1,1.1]); P2 because motion law §4.3 hard-bans it |
 | `dark-glow` | `glow-shadow` | P3 | 2 | chromatic box/text-shadow: zero-offset halo anywhere, or blurred chromatic shadow on a dark backdrop; message names the sanctioned carriers (`--shadow-glow` rides `::before`; element-level shadows are never the sanctioned form) |
 | `radial-halo` | `radial-halo` | P2 | 2 | saturated radial wash: fades to transparent, a chromatic stop at alpha ≥ 0.45, surface ≥ 240×160 |
 | `radial-spotlight-glow` | `radial-spotlight-glow` | P3 | 2 | translucent spotlight: ≤2 visible stops all alpha < 0.45, ≥1 chromatic, fades out, large surface; sanctioned carriers exempt (`[data-slot=empty-state-decoration]`, `[data-slot=media-grid-cell]`, `.orb-weave-glow`) |
@@ -151,7 +151,7 @@ function named in the collect.ts table.
 | `edge-flush-cards` | `edge-flush-cards` | P3 | 1 | at-rest horizontal scroller with a decorated card flush one edge + gutter the other (clip-box narrower than panel) |
 | `gray-on-color` | `gray-on-color` | P2 | X | achromatic mid-luminance text over a chromatic backdrop (brief-named blind spot); pure check over the existing contrast samples |
 | `layout-transition` | `layout-transition` | P3 | 2 | computed transition-property names width/height/padding/margin(+longhands) with duration > 0; exempt accordion/collapsible panel slots (motion law §3.7 sanctions their measured-var height) |
-| `line-length` | `line-length` | P3 | 2 | prose-tag element wider than 85 chars/line, measured against the element's OWN `ch` advance from an in-page canvas `measureText` (#464 replaced the `fontSize·0.5` GUESS, which over-estimated Geist by ~15% and indicted the house's ratified `--reading-measure: 75ch`); an unmeasured advance is WITHHELD, never a clean row |
+| `line-length` | `line-length` | P3 | 2 | prose-tag element wider than 85 chars/line, measured against the element's OWN `ch` advance from an in-page canvas `measureText` (#464 replaced the `fontSize·0.5` GUESS, which over-estimated Geist by \~15% and indicted the house's ratified `--reading-measure: 75ch`); an unmeasured advance is WITHHELD, never a clean row |
 | `tight-leading` | `tight-leading` | P3 | 2 | line-height/font-size < 1.25 on 50+ char non-heading text — floor bound to OUR smallest ratified leading step (`leading.label` 1.25), not impeccable's 1.3, so ratified label-voice text stays legal |
 | `skipped-heading` | `skipped-heading` | P2 | 1 | page heading-level walk (h1→h3 with no h2); P2 because UIP §13.10 N7 is law here |
 | `justified-text` | `justified-text` | P3 | 2 | text-align justify without hyphens:auto |
@@ -237,8 +237,8 @@ any gradient background") honestly: it now REFUSES rather than silently passing 
 
 | rule | reason |
 | - | - |
-| `text-occlusion` | ~230 lines of stacked heuristics (opacity walks, decorated-box tests, layer attribution) with a large upstream fixture corpus we did not port. A hasty port ships an unproven instrument (the "30 findings, all false" failure class). Candidate for a dedicated follow-up leg with its own fixture corpus; until then overlap is covered by `snap --expect-no-overflow`, `clipped-overflow`, `text-overflow`, and the driven side-eye pass. |
-| `cramped-padding` (BOTH arms) | **Row corrected 2026-09-01 (#1027).** This file claimed the ELEMENT arm was adapted and only the container arm deferred. Re-derived: neither shipped — no `cramped-padding` id in `contract/rules.ts`, no occurrence anywhere under `tooling/src/` or `tests/tooling/`, and no commit mentioning it. The container arm's original reason (the child-insulation heuristics, ~140 lines, unported) stands; the element arm is simply unbuilt. A rule that is genuinely wanted gets a Project row and a `design-audit-rule-proof` pair, not a table cell. |
+| `text-occlusion` | \~230 lines of stacked heuristics (opacity walks, decorated-box tests, layer attribution) with a large upstream fixture corpus we did not port. A hasty port ships an unproven instrument (the "30 findings, all false" failure class). Candidate for a dedicated follow-up leg with its own fixture corpus; until then overlap is covered by `snap --expect-no-overflow`, `clipped-overflow`, `text-overflow`, and the driven side-eye pass. |
+| `cramped-padding` (BOTH arms) | **Row corrected 2026-09-01 (#1027).** This file claimed the ELEMENT arm was adapted and only the container arm deferred. Re-derived: neither shipped — no `cramped-padding` id in `contract/rules.ts`, no occurrence anywhere under `tooling/src/` or `tests/tooling/`, and no commit mentioning it. The container arm's original reason (the child-insulation heuristics, \~140 lines, unported) stands; the element arm is simply unbuilt. A rule that is genuinely wanted gets a Project row and a `design-audit-rule-proof` pair, not a table cell. |
 
 ## What the adapted set fills (the brief's named blind spots)
 
