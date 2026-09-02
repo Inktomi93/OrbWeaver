@@ -200,6 +200,14 @@ export function __installAgentDebugHandleForTest(queryClient: QueryClient, handl
  *  tri-state in its refusal for a `"docked"` request that never landed. One parser for one attribute — a
  *  second `getAttribute("data-panel-available") === "true"` elsewhere is the drift where the `null` arm
  *  quietly becomes `false` and a shell that published nothing gets accused of declaring nothing. */
+/** The ONE read seam for the installed handle. Readers depend on THIS module rather than on the bare
+ *  `globalThis.__orb`: the global's type is an augmentation declared here, so a reader compiled in a program
+ *  that never pulls this file (the tests-dom closure reached `bug-report-capture.ts` through the lib barrel)
+ *  sees an untyped index and REDs — a value import makes the augmentation part of every closure that reads. */
+export function readAgentDebugHandle(): OrbDebugHandle | undefined {
+  return globalThis.__orb;
+}
+
 export function panelAvailability(panel: Element): boolean | null {
   const declared = panel.getAttribute("data-panel-available");
   return declared === null ? null : declared === "true";
