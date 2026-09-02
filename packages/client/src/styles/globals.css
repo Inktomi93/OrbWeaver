@@ -347,7 +347,22 @@ body {
       z-index: -1;
       pointer-events: none;
       backdrop-filter: blur(var(--blur-strength)) saturate(var(--blur-saturate));
-      background-color: color-mix(in oklab, var(--color-card) var(--blur-fill-chrome), transparent);
+      /* #237/#623's PLATE ARM, INLINE — this rule is ALREADY `[data-has-bg-image]`-gated, so it does not
+       * take a companion rule the way `.shell-panel::before` does; the wallpaper gate that the plate law
+       * asks for IS this selector. The tint mixes over `--color-reading-plate` on the LIGHT arm — D144(b)'s
+       * already-derived, already-polarity-aware over-art backing (`readingPlateAlpha`, #217) — instead of
+       * over `transparent`, which handed 30% of whatever photo the user picked to the ink inside the
+       * reading column. It was MEASURED at 3.69:1 under the light seed (#626's ledger row, the same number
+       * #237 measured on the list pane), and that row is deleted with this adoption rather than re-keyed
+       * onto the carrier: the debt is paid, not moved. NO NEW NUMBER IS INVENTED — both partners of the mix
+       * are at or above the plate's own derived alpha, so the composite is too, at every value of
+       * `--blur-fill-chrome` including the reduced-transparency and prefers-contrast arms' 100%/92%. ONLY
+       * THE LIGHT ARM MOVES (D144(d)): the dark arm re-spells the base verbatim so the sacred dark rooms
+       * render byte-identically. */
+      background-color: light-dark(
+        color-mix(in oklab, var(--color-card) var(--blur-fill-chrome), var(--color-reading-plate)),
+        color-mix(in oklab, var(--color-card) var(--blur-fill-chrome), transparent)
+      );
     }
     html[data-blur-modals] [data-slot="dialog-popup"],
     html[data-blur-modals] [data-slot="alert-dialog-popup"] {
