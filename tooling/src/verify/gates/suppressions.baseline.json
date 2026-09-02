@@ -1447,6 +1447,12 @@
     "why": "ratified by rule: lint/style/noProcessEnv×1 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_RULES (tooling/src/verify/gates/suppressions.ts)",
     "cite": ["tooling/src/verify/gates/suppressions.ts"]
   },
+  "tooling/src/snap/ops/session-registry.ts": {
+    "count": 1,
+    "ratified": 1,
+    "why": "ratified by rule: lint/style/noProcessEnv×1 (ruling) — each rule's ruling/tool-FP reason lives in RATIFIED_RULES (tooling/src/verify/gates/suppressions.ts)",
+    "cite": ["tooling/src/verify/gates/suppressions.ts"]
+  },
   "tooling/src/snap/ops/stage.ts": {
     "count": 1,
     "ratified": 1,
