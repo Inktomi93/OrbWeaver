@@ -2,7 +2,8 @@
 import type { Project } from "ts-morph";
 import { print } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import type { FieldHitClass, Flags, Hit } from "../contract/types.ts";
+import type { FieldHitClass } from "../contract/fields.ts";
+import type { Flags, Hit } from "../contract/types.ts";
 import { emit } from "../lib/emit.ts";
 import { modelProjectedSchemas } from "../lib/field-seeds.ts";
 import { CONTRACTS_SRC, contractFieldsOf, fieldClass, fieldHit, fieldIndexes, isCompositionAlias } from "../lib/fields.ts";
