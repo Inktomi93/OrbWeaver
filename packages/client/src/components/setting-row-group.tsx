@@ -32,10 +32,14 @@ export function SettingRowGroup({ children }: { readonly children: ReactNode }):
   return (
     <Container>
       <FieldLayout align="track" orientation="horizontal">
-        {/* `max-w-(--reading-measure)` caps the BLOCK (the E1 ask). The tracks are intrinsic, so the cap
-            almost never binds on a knob row — what it genuinely bounds is the one-line gloss under each
-            label, which is prose and belongs at a reading measure. `gap-x-block` is the label→control
-            gutter; `gap-y-block` keeps the between-row rhythm the Section's own `gap-block` used to give
+        {/* `max-w-(--reading-measure)` caps the BLOCK (the E1 ask). It stays on the WIDE measure after the
+            #1145 split, deliberately: this cap bounds a track pair of label and CONTROL, and a control row
+            squeezed to a prose measure is a worse row. The prose half of the E1 ask moved to where it
+            belongs — the one-line gloss under each label now carries `--reading-measure-prose` at its own
+            element (`setting-teach-row`, and `Field`'s `description` slot in track mode), so the paragraph
+            is measured in its own font instead of inheriting a block cap computed at another step.
+            `gap-x-block` is the label→control gutter; `gap-y-block` keeps the between-row rhythm the
+            Section's own `gap-block` used to give
             these rows when they were its direct children. */}
         <Grid className="max-w-(--reading-measure) gap-x-block gap-y-block" cols="settingTrack" data-slot="setting-row-group">
           {children}

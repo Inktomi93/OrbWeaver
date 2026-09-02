@@ -151,9 +151,11 @@ function SpanRowBody({ annotation, actions, label, children }: RowBodyProps & { 
       {actions}
       {/* The gloss takes its OWN full-width line, exactly as a `<Field>`'s description does in track mode:
           prose in a label track wraps to four lines and re-inflates the row the track set exists to
-          tighten. The group's `max-w-(--reading-measure)` is what bounds it. */}
+          tighten. The group's `max-w-(--reading-measure)` bounds the BLOCK; this paragraph carries its own
+          `--reading-measure-prose` (#1145), because a `ch` resolves in the element's own font and the
+          group's cap is computed at the label step, not at the gloss's 10.5px one. */}
       {annotation === null ? null : (
-        <Text className="col-span-full min-w-0 max-w-(--reading-measure)" data-slot="setting-row-gloss" voice="gloss">
+        <Text className="col-span-full min-w-0 max-w-(--reading-measure-prose)" data-slot="setting-row-gloss" voice="gloss">
           {annotation.gloss}
         </Text>
       )}

@@ -193,6 +193,7 @@ export const TOKENS = {
   "dimension.panel": { cssVar: "--dimension-panel", value: "clamp(17rem, 24vw, 26rem)" },
   "dimension.panel-context": { cssVar: "--dimension-panel-context", value: "clamp(17rem, 30vw, 30rem)" },
   "reading.measure": { cssVar: "--reading-measure", value: "75ch" },
+  "reading.measure-prose": { cssVar: "--reading-measure-prose", value: "47ch" },
   "reading.measure-min": { cssVar: "--reading-measure-min", value: "65ch" },
   "tracking.micro": { cssVar: "--tracking-micro", value: "0.08em" },
   "dimension.shell-title-floor": { cssVar: "--dimension-shell-title-floor", value: "6ch" },

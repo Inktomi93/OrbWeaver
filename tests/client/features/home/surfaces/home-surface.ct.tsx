@@ -1253,25 +1253,44 @@ for (const polarity of ["dark", "light"] as const) {
 }
 
 // ── #1130 · THE TEACHING PROSE HAD NO MEASURE (side-eye HOME 2026-09-02 H5) ─────────────────────────
+// ── #1145 · …AND THE MEASURE IT TOOK COULD NOT SATISFY THE LAW (owner ruling 2026-09-02) ───────────
 // Two of home's three teaching paragraphs resolved `max-width: none` and took whatever their column gave
 // them: the temp-chat gloss measured 76.7ch at 1280 and **153.2ch at 1920**, over twice the 65-75ch
 // reading band, and the databank one was saved only by the 1920 sub-column split — a layout accident, not
-// a measure. Both now carry the house cap.
+// a measure. #1130 capped both at the house measure. That closed HALF the finding.
 //
-// WHAT THIS PIN CAN AND CANNOT SAY, because the two ways of counting a character disagree and the
-// disagreement IS the finding's second half. CSS `ch` is the advance of "0" (~0.6em); the design law's
-// "65-75 characters per line" is the typographic AVERAGE GLYPH ADVANCE (~0.5em), which is how the review
-// measured it. So `--reading-measure: 75ch` resolves to ~104 REVIEW-characters, and no paragraph capped at
-// the house measure can satisfy the law as the review states it. Closing that gap means moving
-// `--reading-measure` itself (to ~54ch), which moves EVERY reading surface in the app — an owner call,
-// filed separately. This pin therefore asserts the property a lane owns: NO paragraph is uncapped, and
-// every one resolves to the house measure. It PRINTS both counts at every width so that decision has its
-// receipt instead of a re-measurement.
+// THE OTHER HALF, AND WHY THIS PIN'S BAR MOVED. The two ways of counting a character disagree: CSS `ch`
+// is the advance of the "0" glyph — measured 0.6625em in Geist — while the design law's "65-75 characters
+// per line" is the typographic AVERAGE GLYPH ADVANCE, which across this app's own prose runs 0.4248em (the
+// densest real copy is the temp-chat gloss THIS test measures) to 0.4629em (a pangram). One CSS ch is
+// therefore 1.43-1.56 law-characters, `--reading-measure`'s 75ch reads 107-117 of them — the row this test
+// prints at 1920 is exactly 117.0 — and NO paragraph capped at the house measure can meet the law at any
+// font size. #1130's pin said exactly that and deliberately stopped, because closing it meant moving a
+// token that every reading surface in the app takes — an owner call.
+//
+// THE OWNER TOOK IT (#1145, 2026-09-02): SPLIT, don't narrow. `--reading-measure` (75ch) stays the CHAT
+// TRANSCRIPT's — dialogue is short attributed lines, not continuous body copy — and teaching/body prose
+// moved to `--reading-measure-prose`. Its value is 47ch, not the ruling's estimated 48: at 48 the densest
+// copy lands on 74.9, a tenth of a character under the ceiling, and 47ch = 31.14em = 67.3-73.3 law
+// characters — inside the band at both ends, which is what a derived number owes.
+// So the ruling #1130 recorded SURVIVES; its INPUT changed. The bar below is now the LAW's unit, not the
+// token's: every paragraph carrying the prose measure must read ≤ 75 AVERAGE GLYPH ADVANCES, and the two
+// teaching paragraphs must be on that measure rather than the transcript one. Both counts still print.
+//
+// WHAT IS DELIBERATELY NOT JUDGED HERE: the hearth hero's scent line. It is a two-line clamp of the last
+// TRANSCRIPT message, and its cap is `--reading-measure-min` because that token is one half of a
+// GEOMETRIC pair with the art-bleed band inset (#1121, the test directly below this one) — moving it
+// would move the band, not just a line length. It is asserted capped, never asserted narrow.
 const PROSE_WIDTHS = [1280, 1440, 1920] as const;
-/** `--reading-measure`'s own value (theme.css `75ch`), restated as the unit the assertion compares in.
- *  It is NOT a px literal: an unregistered custom property is substituted as a token stream, so the `ch`
- *  resolves in each PARAGRAPH's own font — which is exactly the property "it took the house cap" means. */
-const HOUSE_MEASURE_CSS_CH = 75;
+/** The design law's own ceiling (`.claude/skills/side-eye-design-review/SKILL.md` §2), in the law's own
+ *  unit: AVERAGE GLYPH ADVANCES per line, not CSS `ch`. Never a px literal and never a token value —
+ *  this is the number the prose token was derived to satisfy, so comparing against it is what proves the
+ *  derivation rather than restating it. */
+const LAW_CHARACTERS_PER_LINE = 75;
+/** The two teaching paragraphs #1130 capped, keyed on their first words. A text key, not a `data-*` hook:
+ *  the assertion is about the copy a reader actually meets, and inventing a test-only attribute to find it
+ *  would let the paragraph move off the measure while the hook stayed put. */
+const TEACHING_PROSE_PREFIXES = ["A room that never joins your chats list", "Upload a file, paste text, or pull in a page"] as const;
 
 interface ProseReading {
   readonly text: string;
@@ -1279,9 +1298,15 @@ interface ProseReading {
   readonly maxWidth: string;
   readonly cssCh: number;
   readonly advanceCh: number;
+  /** `--reading-measure-prose` resolved to px INSIDE this paragraph — same inherited font, same `ch`. */
+  readonly proseTokenPx: number;
+  /** `--reading-measure` resolved the same way, so "which measure did it take" is a comparison, not a guess. */
+  readonly houseTokenPx: number;
 }
 
-/** Every rendered paragraph on the surface, measured two ways in its OWN resolved font. */
+/** Every rendered paragraph on the surface, measured two ways in its OWN resolved font, against both
+ *  measures resolved in that same font. The probes are absolutely positioned and removed before layout
+ *  can see them, so nothing they touch perturbs the column they are planted in. */
 function measureProse(page: Page, paneInline: number): Promise<readonly ProseReading[]> {
   return page.evaluate((pane) => {
     (document.querySelector("[data-home-fold-pane]") as HTMLElement | null)?.style.setProperty("inline-size", `${String(pane)}px`);
@@ -1290,6 +1315,16 @@ function measureProse(page: Page, paneInline: number): Promise<readonly ProseRea
     if (context === null) {
       throw new Error("#1130: no 2d context to measure glyph advance through");
     }
+    const resolve = (host: HTMLElement, token: string): number => {
+      const probe = document.createElement("div");
+      probe.style.position = "absolute";
+      probe.style.visibility = "hidden";
+      probe.style.width = `var(${token})`;
+      host.append(probe);
+      const width = probe.getBoundingClientRect().width;
+      probe.remove();
+      return width;
+    };
     return [...document.querySelectorAll("p")].flatMap((paragraph) => {
       const text = (paragraph.textContent ?? "").replace(/\s+/gu, " ").trim();
       const box = paragraph.getBoundingClientRect();
@@ -1300,12 +1335,53 @@ function measureProse(page: Page, paneInline: number): Promise<readonly ProseRea
       context.font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
       const advance = context.measureText(text).width / text.length;
       const zero = context.measureText("0").width;
-      return [{ text: text.slice(0, 34), widthPx: box.width, maxWidth: style.maxWidth, cssCh: box.width / zero, advanceCh: box.width / advance }];
+      return [
+        {
+          text: text.slice(0, 46),
+          widthPx: box.width,
+          maxWidth: style.maxWidth,
+          cssCh: box.width / zero,
+          advanceCh: box.width / advance,
+          proseTokenPx: resolve(paragraph, "--reading-measure-prose"),
+          houseTokenPx: resolve(paragraph, "--reading-measure"),
+        },
+      ];
     });
   }, paneInline);
 }
 
-test("#1130 no teaching paragraph is uncapped — every one resolves the house measure, at every width", async ({ mount, page }) => {
+/** Did this paragraph actually render AT the prose measure? Compared against the token resolved INSIDE the
+ *  paragraph, so it answers at any font scale and names no px. */
+function onProseMeasure(reading: ProseReading): boolean {
+  return Math.abs(reading.widthPx - reading.proseTokenPx) <= 0.5 || Number.parseFloat(reading.maxWidth) === reading.proseTokenPx;
+}
+
+/** One paragraph, judged: the printed row plus every complaint it earns. Lifted out of the width loop so
+ *  the test body stays a walk over widths rather than a nest of conditions. */
+function judgeProse(
+  width: number,
+  reading: ProseReading,
+): { readonly row: string; readonly uncapped: readonly string[]; readonly wrongMeasure: readonly string[]; readonly overrun: readonly string[] } {
+  const at = onProseMeasure(reading);
+  const row = `${String(width)}\t${reading.widthPx.toFixed(0)}px\tcss ${reading.cssCh.toFixed(1)}ch\tlaw ${reading.advanceCh.toFixed(1)}\tmax-width ${reading.maxWidth}\t${at ? "PROSE" : "other"}\t"${reading.text}"`;
+  // THE RE-POINT (#1145). A teaching paragraph must resolve the PROSE token in its own font.
+  const isTeaching = TEACHING_PROSE_PREFIXES.some((prefix) => reading.text.startsWith(prefix));
+  const wrongMeasure =
+    isTeaching && Number.parseFloat(reading.maxWidth) > reading.proseTokenPx + 0.5
+      ? [
+          `${String(width)}: "${reading.text}" caps at ${reading.maxWidth} — the prose measure resolves to ${reading.proseTokenPx.toFixed(1)}px here (the transcript measure is ${reading.houseTokenPx.toFixed(1)}px)`,
+        ]
+      : [];
+  // THE LAW (#1145). Anything rendering AT the prose measure must be inside the band the measure was
+  // derived to hit — the derivation, re-proved at every width instead of trusted.
+  const overrun =
+    at && reading.advanceCh > LAW_CHARACTERS_PER_LINE
+      ? [`${String(width)}: "${reading.text}" reads ${reading.advanceCh.toFixed(1)} characters — the law's ceiling is ${String(LAW_CHARACTERS_PER_LINE)}`]
+      : [];
+  return { overrun, row, uncapped: reading.maxWidth === "none" ? [`${String(width)}: "${reading.text}" has max-width: none`] : [], wrongMeasure };
+}
+
+test("#1145 the teaching paragraphs take the PROSE measure, and it reads inside the law's 65-75 band at every width", async ({ mount, page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   await stubDatabank(
     page,
@@ -1325,33 +1401,134 @@ test("#1130 no teaching paragraph is uncapped — every one resolves the house m
 
   const rows: string[] = [];
   const uncapped: string[] = [];
+  const wrongMeasure: string[] = [];
   const overrun: string[] = [];
   for (const width of PROSE_WIDTHS) {
     await page.setViewportSize({ width, height: 800 });
     const readings = await measureProse(page, width - FOLD_RAIL_PX);
     expect(readings.length, `#1130: no paragraphs found at ${String(width)} — the fixture is not the surface`).toBeGreaterThan(0);
     for (const reading of readings) {
-      rows.push(
-        `${String(width)}\t${reading.widthPx.toFixed(0)}px\tcss ${reading.cssCh.toFixed(1)}ch\tadvance ${reading.advanceCh.toFixed(1)}ch\tmax-width ${reading.maxWidth}\t"${reading.text}"`,
-      );
-      if (reading.maxWidth === "none") {
-        uncapped.push(`${String(width)}: "${reading.text}" has max-width: none`);
-      }
-      // The bar is the TOKEN, expressed in the unit the token is written in: `--reading-measure` is 75 CSS
-      // `ch`, and an unregistered custom property is substituted as a token stream, so its `ch` is
-      // computed at the USING element. A paragraph that took the cap therefore measures <= 75 CSS ch of
-      // ITS OWN font, at every font scale, with no px literal anywhere. (Half a character of sub-pixel
-      // tolerance.)
-      if (reading.cssCh > HOUSE_MEASURE_CSS_CH + 0.5) {
-        overrun.push(`${String(width)}: "${reading.text}" ${reading.cssCh.toFixed(1)} CSS ch > the house measure's ${String(HOUSE_MEASURE_CSS_CH)}ch`);
-      }
+      const verdict = judgeProse(width, reading);
+      rows.push(verdict.row);
+      uncapped.push(...verdict.uncapped);
+      wrongMeasure.push(...verdict.wrongMeasure);
+      overrun.push(...verdict.overrun);
     }
   }
-  // Printed on PASS: the `advance` column is the number the design law is written in, and the gap between
-  // it and `css` is the owner decision this lane deliberately did not take.
-  console.info(`\n#1130 home teaching prose (house measure = ${String(HOUSE_MEASURE_CSS_CH)} CSS ch, per element)\n${rows.join("\n")}\n`);
+  // Printed on PASS: `law` is the design law's unit and `css` is the token's. The gap between them is the
+  // whole of #1145, and printing both is what stops the next lane re-deriving it from a symptom.
+  console.info(`\n#1145 home teaching prose (law ceiling = ${String(LAW_CHARACTERS_PER_LINE)} average glyph advances, per element)\n${rows.join("\n")}\n`);
   expect(uncapped, uncapped.join("\n")).toEqual([]);
+  expect(wrongMeasure, wrongMeasure.join("\n")).toEqual([]);
   expect(overrun, overrun.join("\n")).toEqual([]);
+});
+
+// THE APPEARANCE ARM (#1145). The whole point of stating the measure in `ch` rather than px is that a
+// reader who scales the type keeps the same LINE, not the same width — `--font-scale` re-sizes the root
+// and the paragraph's `ch` re-resolves with it. This is the arm that would catch someone "fixing" the
+// token into a px or rem literal: a px cap would hold its width and the law-character count would balloon
+// with the type. `reading` is the shipped preset's own fontScale (tooling/src/_shared/appearance-presets.json
+// -> presets.reading.fontScale = 1.25); `compact` is a DENSITY arm, spacing-only by construction
+// (tiers.css re-points four spacing vars and no type step), so its law count must not move either.
+/** The tolerance the `ch` unit itself carries, MEASURED: Chromium resolves `ch` from an INTEGER-rounded
+ *  zero advance — 13.59px type gives 9.0px (0.6625em = 9.005) and 16.99px type gives 11.0px (11.256
+ *  rounded DOWN), so one `ch` is worth ~2% less at the larger step while the glyph advances scale exactly.
+ *  The measure therefore reads 73.3 law-characters at scale 1 and 71.8 at the `reading` preset's 1.25 —
+ *  a property of the unit, moving the SAFE way (shorter). A px or rem literal would send the same number
+ *  to ~91, an 18-character jump this tolerance cannot absorb. */
+const CH_QUANTIZATION_SLACK = 2.5;
+
+/** The token's own length in law-characters at this paragraph's type. `advanceCh / widthPx` is one
+ *  law-character in px in that font, so this names no font size and no px literal. */
+function measureLawLength(reading: ProseReading): number {
+  return (reading.proseTokenPx * reading.advanceCh) / reading.widthPx;
+}
+
+/** One complaint, or none, so the arm loop stays a walk rather than a nest of `if`s. */
+function overLaw(what: string, characters: number): readonly string[] {
+  return characters > LAW_CHARACTERS_PER_LINE ? [`${what} ${characters.toFixed(1)} characters — the law's ceiling is ${String(LAW_CHARACTERS_PER_LINE)}`] : [];
+}
+
+const APPEARANCE_ARMS = [
+  { name: "defaults", fontScale: 1, density: "comfortable" },
+  { name: "reading", fontScale: 1.25, density: "comfortable" },
+  { name: "compact", fontScale: 1, density: "compact" },
+] as const;
+
+test("#1145 the prose measure is a LINE, not a width — font scale moves its px and never its character count", async ({ mount, page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await stubDatabank(
+    page,
+    {
+      "chat.listChats": chatListResponder(FIRST_BOOT_ROOMS),
+      "chat.reapTemporaryChats": { reaped: 0 },
+      "character.list": characterListResponder(FIRST_BOOT_FACES),
+      "settings.getUserSettings": { config: DEFAULT_USER_SETTINGS, schemaVersion: 1, updatedAt: 0, userId: "user_ct_measure" },
+    },
+    [],
+  );
+
+  const home = await mount(<HomeFoldStory />);
+  await expect(home.getByText("No documents yet")).toBeVisible();
+  await expect(home.getByRole("button", { name: TEMP_CHAT_CTA })).toBeVisible();
+  await expect(home.locator("[aria-busy]")).toHaveCount(0);
+
+  const rows: string[] = [];
+  const failures: string[] = [];
+  /** The MEASURE's own resolved width per arm, and the MEASURE's own length in law-characters. Judged on
+   *  the token rather than on the rendered box on purpose: at the `reading` scale everything else scales
+   *  too, so the hearth column becomes narrower than the cap and the paragraph is column-bound (495.7px
+   *  against a 529px cap). A box-based assertion would then be measuring the COLUMN and calling it the
+   *  measure. The rendered box still gets the law ceiling below — that arm is unconditional. */
+  const tokenPxByArm = new Map<string, number>();
+  const tokenLawByArm = new Map<string, number>();
+  for (const arm of APPEARANCE_ARMS) {
+    await page.evaluate(
+      ({ fontScale, density }) => {
+        document.documentElement.style.setProperty("--font-scale", String(fontScale));
+        for (const scope of document.querySelectorAll("[data-density]")) {
+          scope.setAttribute("data-density", density);
+        }
+      },
+      { fontScale: arm.fontScale, density: arm.density },
+    );
+    const readings = (await measureProse(page, 1440 - FOLD_RAIL_PX)).filter((reading) =>
+      TEACHING_PROSE_PREFIXES.some((prefix) => reading.text.startsWith(prefix)),
+    );
+    expect(readings.length, `#1145: the teaching paragraphs vanished under the ${arm.name} arm`).toBeGreaterThan(0);
+    for (const reading of readings) {
+      const tokenLaw = measureLawLength(reading);
+      rows.push(
+        `${arm.name}\tscale ${String(arm.fontScale)}\tbox ${reading.widthPx.toFixed(1)}px (law ${reading.advanceCh.toFixed(1)})\tmeasure ${reading.proseTokenPx.toFixed(1)}px (law ${tokenLaw.toFixed(1)})\t"${reading.text}"`,
+      );
+      failures.push(...overLaw(`${arm.name}: "${reading.text}" reads`, reading.advanceCh));
+      failures.push(...overLaw(`${arm.name}: the prose measure at "${reading.text}"'s type is`, tokenLaw));
+    }
+    const first = readings[0];
+    if (first !== undefined) {
+      tokenPxByArm.set(arm.name, first.proseTokenPx);
+      tokenLawByArm.set(arm.name, measureLawLength(first));
+    }
+  }
+  await page.evaluate(() => {
+    document.documentElement.style.removeProperty("--font-scale");
+  });
+
+  console.info(`\n#1145 appearance arms (law ceiling = ${String(LAW_CHARACTERS_PER_LINE)})\n${rows.join("\n")}\n`);
+  expect(failures, failures.join("\n")).toEqual([]);
+  const basePx = tokenPxByArm.get("defaults") ?? 0;
+  const readingPx = tokenPxByArm.get("reading") ?? 0;
+  const baseLaw = tokenLawByArm.get("defaults") ?? 0;
+  // The measure's PX moved with the type — that is the half a px or rem literal would break.
+  expect(readingPx, `the reading preset scaled the type but the measure stayed ${basePx.toFixed(1)}px — it is not in ch`).toBeGreaterThan(basePx * 1.1);
+  // …and its LINE stayed put, to within the quantization the unit itself carries (CH_QUANTIZATION_SLACK
+  // above states the measurement behind that number).
+  expect(Math.abs((tokenLawByArm.get("reading") ?? 0) - baseLaw), `the reading preset moved the measure's LINE, not just its px`).toBeLessThanOrEqual(
+    CH_QUANTIZATION_SLACK,
+  );
+  // Compact is a spacing tier, not a type tier (tiers.css re-points four spacing vars and no type step):
+  // same type, same `ch`, same line — this one IS an equality.
+  expect(tokenLawByArm.get("compact") ?? 0).toBeCloseTo(baseLaw, 0);
 });
 
 // ── #1121 · THE HERO'S ART BAND WAS A RESIDUAL OF THE WRONG MEASURE (H7) ───────────────────────────

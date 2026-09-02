@@ -102,7 +102,7 @@ export function AddDocumentBody(): ReactElement {
           empty, 15px in CONTENT) at the moment it matters most. `reading` is the voice minted for exactly
           this ("THE CONTENT ITSELF", text/variants.ts), and it is paired with the reading measure the
           voice's own doc requires, so the line does not run the width of the dialog. */}
-      <Text className="max-w-(--reading-measure)" voice="reading">
+      <Text className="max-w-(--reading-measure-prose)" voice="reading">
         {DATABANK_INGEST_GLOSS}
       </Text>
       <Stack gap="block">

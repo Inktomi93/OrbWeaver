@@ -147,8 +147,12 @@ export function MasterDetail({
     );
   }
   return (
-    // The reading-measure cap is the FEATURE-precedented spelling (databank/imagery/refinery all cap prose
-    // columns with the same token); the slot names the stage for the styles tier and the CT pin.
+    // The cap stays on the WIDE `--reading-measure` after the #1145 split, deliberately: this is a mixed
+    // COLUMN, and the header above states its second job — bounding the keyValue rows' label→value scan
+    // gap — which a prose measure would over-tighten. The blurb inside it is therefore capped by a column
+    // rather than by its own measure, and reads wider than the law's band; closing that means giving the
+    // renderer's text node its own `--reading-measure-prose`, which is a plugin-surface change, not a
+    // token one. The slot names the stage for the styles tier and the CT pin.
     <Stack className="max-w-(--reading-measure)" data-slot="plugin-detail-stage" gap="block">
       {stage.hero === undefined || heroUrl === undefined ? null : (
         // `max-h-96` (the house big-art cap — the gallery lightbox's own number): an uncapped portrait

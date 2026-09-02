@@ -190,7 +190,8 @@ export const gridVariants = tv({
       // reading shape). Every arm above is auto-FIT: equal tracks, count chosen by width. This one is
       // deliberately UNEQUAL and its two tracks are both required — a lead column you read and a rail you
       // reach into. `fr` on both, no max-width cap, so the pair FILLS its pane instead of centring inside
-      // it; the lead's own prose caps itself at `--reading-measure`, which is where a measure belongs (on
+      // it; the lead's own prose caps itself at `--reading-measure-prose` (#1145 — the teaching/body
+      // measure; the transcript keeps the wider `--reading-measure`), which is where a measure belongs (on
       // the paragraph, not on the page).
       //
       // CONTAINER-query driven, `pair`'s precedent: one column until the pane can genuinely hold two, and

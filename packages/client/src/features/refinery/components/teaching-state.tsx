@@ -100,8 +100,12 @@ export function TeachingState({ onStart, starting }: TeachingStateProps): ReactE
             register this app uses for incidental captions. The measure came with it: `--reading-measure`
             is 75ch resolved at the element's OWN font size, so a 75ch cap inherited from the Stack let a
             10.5px child run to ~87 characters. `reading` is the voice for the content itself, and its own
-            note says the cap belongs on the PARAGRAPH — so it moves here, where the two now agree. */}
-        <Text className="max-w-(--reading-measure) text-center" voice="reading">
+            note says the cap belongs on the PARAGRAPH — so it moves here, where the two now agree.
+            SINCE #1145 the token here is `--reading-measure-prose`, not the house one: 75 CSS `ch` is
+            ~117 of the characters the design law counts, so the wide measure could never satisfy it. The
+            Stack, Card and steps Grid around this paragraph keep `--reading-measure` — they bound a
+            picker and three step cards, which are layout, not a line of prose. */}
+        <Text className="max-w-(--reading-measure-prose) text-center" voice="reading">
           Pick a character to start. Nothing is written to the card until you accept a rewrite field by field.
         </Text>
       </Stack>

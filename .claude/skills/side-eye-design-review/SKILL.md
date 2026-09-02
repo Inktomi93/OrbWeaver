@@ -50,7 +50,25 @@ remembered here).
 
 ## §2 Typography
 
-- Body line length 65–75ch (`max-w-prose`).
+- **Body line length 65–75 characters — counted by AVERAGE GLYPH ADVANCE, and the app has TWO
+  measures for it (#1145, owner ruling 2026-09-02).** CSS `ch` is the zero-glyph advance (0.6625em in
+  Geist) while a character of running prose averages 0.42–0.46em, so one CSS `ch` is ≈1.5 of the
+  characters this rule counts — measure by glyph advance, never by `ch`, and report both.
+  · CHAT TRANSCRIPTS take `--reading-measure` (75ch): the message content column and the streaming
+    ghost row. Dialogue is short attributed lines, not continuous body copy, and the wider measure is
+    deliberate there — a transcript row over 75 law-characters is NOT a finding.
+  · EVERYTHING ELSE YOU READ takes `--reading-measure-prose` (47ch = 67–73 law-characters): teaching
+    copy, glosses, settings-row descriptions, empty-state and welcome explanations, dossier pitches,
+    every non-transcript paragraph. A prose paragraph on the transcript measure IS a finding.
+  · A cap on a BLOCK that also holds controls (a settings track grid, a plugin detail stage, a card of
+    steps) legitimately keeps the wide measure — the paragraph inside it carries its own prose cap.
+    Headings are not body copy and are out of the band. `max-w-prose` is Tailwind's own 65 `ch`
+    (≈98 law-characters), i.e. a third spelling that satisfies neither measure.
+  · The cap rides the PARAGRAPH, never the page: an unregistered custom property is a token stream, so
+    its `ch` resolves at the USING element and a cap inherited from a wrapper is computed at the
+    wrapper's type size. The derivation lives in `reading.measure-prose-ch`'s `$description` in
+    `packages/ui/src/tokens/tokens.json`; the pin is `#1145` in
+    `tests/client/features/home/surfaces/home-surface.ct.tsx`.
 - Pair fonts on a contrast axis (serif+sans, geometric+humanist) or one family in multiple weights;
   two similar sans is a tell.
 - Display heading ceiling ≤ \~6rem; letter-spacing floor ≥ −0.04em (tighter = letters touch).

@@ -184,6 +184,7 @@
   --dimension-panel: clamp(17rem, 24vw, 26rem);
   --dimension-panel-context: clamp(17rem, 30vw, 30rem);
   --reading-measure: 75ch;
+  --reading-measure-prose: 47ch;
   --reading-measure-min: 65ch;
   --tracking-micro: 0.08em;
   --dimension-shell-title-floor: 6ch;
