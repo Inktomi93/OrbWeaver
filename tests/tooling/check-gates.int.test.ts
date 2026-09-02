@@ -332,6 +332,11 @@ function writeFixtures(): void {
   fx("packages/ui/src/primitives/__g_uiprim/index.ts", "export const x = 1;\n");
   // client-structure: a BUILT feature (has code) with a stray root file + no index.ts front door.
   fx("packages/client/src/features/__g_cfeat/stray.ts", "export const x = 1;\n");
+  // query-boundary-reservation: a static-count SkeletonRows fallback with no reserveKey (#885).
+  fx(
+    "packages/client/src/features/__g_qbres/lib/unkeyed.tsx",
+    'export const G = <QueryBoundary fallback={<SkeletonRows count={3} />}>{"b"}</QueryBoundary>;\n',
+  );
   // seed-theme-ink-contrast: a SURFACE token painted as TEXT. `--color-card` as ink on the `--color-card`
   // ground is 1.00:1 by construction in every seed, so this is a real-shape violation of the ink-duty rule
   // (the founding defect's own class: a token whose role is a background doing text duty).

@@ -258,6 +258,7 @@ export function RulePresetPicker({ chatId }: RulePresetPickerProps): ReactElemen
         <QueryBoundary
           fallback={<SkeletonRows count={3} shape="line" />}
           renderError={(_error, retry): ReactElement => <QueryErrorState label="the rules you can add" onRetry={retry} />}
+          reserveKey="automation.rulePresetPicker"
         >
           <RulePresetPickerBody chatId={chatId} selected={selected} onSelect={setSelected} onDone={(): void => setPickerOpen(false)} />
         </QueryBoundary>

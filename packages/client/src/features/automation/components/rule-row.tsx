@@ -248,6 +248,7 @@ export function RuleRow({ chatId, rule }: RuleRowProps): ReactElement {
           <QueryBoundary
             fallback={<SkeletonRows count={2} shape="line" />}
             renderError={(_error, retry): ReactElement => <QueryErrorState label="the recent activity" onRetry={retry} />}
+            reserveKey="automation.rule.activity"
           >
             <RuleFireLog ruleId={rule.id} caps={{ cooldownSeconds: rule.cooldownSeconds, maxFiresPerHour: rule.maxFiresPerHour }} />
           </QueryBoundary>

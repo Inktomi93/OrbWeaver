@@ -9,7 +9,9 @@ import {
   createCollectionSurface,
   createEntityMutation,
   QueryBoundary,
+  SkeletonRows,
   sessionFreshnessAgeMs,
+  skeletonRowCountFor,
   useCarriedAppearance,
   useColorQuotedSpeech,
   useDisplayScripts,
@@ -30,10 +32,12 @@ import type { NotifyInput } from "@orb/client/lib";
 import { bindNotify, renderMessageForDisplay, timeLib, toNotice } from "@orb/client/lib";
 import { AppRootSessionBoundary } from "@orb/client/routes/app-root-session-boundary";
 import {
+  __readSurfaceBoxForTest,
   activeDurableLocalUserId,
   enterCreatedChat,
   goToLanding,
   registerDurableLocalStore,
+  rememberSurfaceBox,
   useActiveChatId,
   useActiveSection,
   useOpenModal,
@@ -89,6 +93,52 @@ function EchoReader(): ReactElement {
   const trpc = useTRPC();
   const { data } = useSuspenseQuery(trpc.echo.queryOptions({ message: "ping" }));
   return <output>{data.message}</output>;
+}
+
+/** The #885 reservation seam under CT — the REAL surface-box store (the #837 lesson: never a double;
+ *  `rememberSurfaceBox` writes through zustand `persist` to localStorage). `seed` plants a remembered box
+ *  + a sentinel key nothing else writes; `toggle` mounts/unmounts the keyed boundary behind a click so a
+ *  test can hold its read open; `probe` stamps the store's CURRENT values and the in-browser
+ *  `skeletonRowCountFor(480, 3)` so the pin compares the DOM against the same arithmetic the fill used
+ *  (tokens resolved in THIS document — a hardcoded bar count would rot with the pitch tokens). */
+const CT_RESERVE_KEY = "ct.reserve.probe";
+const CT_RESERVE_SENTINEL = "zzz.ct.reserve.sentinel";
+
+export function ReservedBoundaryStory(): ReactElement {
+  const [mounted, setMounted] = useState(false);
+  const [probe, setProbe] = useState("unread");
+  return (
+    <CtDataProviders>
+      <button
+        type="button"
+        onClick={(): void => {
+          rememberSurfaceBox(CT_RESERVE_KEY, 480);
+          rememberSurfaceBox(CT_RESERVE_SENTINEL, 999);
+        }}
+      >
+        seed
+      </button>
+      <button type="button" onClick={(): void => setMounted((m) => !m)}>
+        toggle
+      </button>
+      <button
+        type="button"
+        onClick={(): void =>
+          setProbe(
+            `box=${String(__readSurfaceBoxForTest(CT_RESERVE_KEY))} sentinel=${String(__readSurfaceBoxForTest(CT_RESERVE_SENTINEL))} fill=${String(skeletonRowCountFor(480, 3))}`,
+          )
+        }
+      >
+        probe
+      </button>
+      <output data-testid="reserve-probe">{probe}</output>
+      {mounted ? (
+        <QueryBoundary fallback={<SkeletonRows count={3} />} reserveKey={CT_RESERVE_KEY}>
+          <EchoReader />
+        </QueryBoundary>
+      ) : null}
+    </CtDataProviders>
+  );
 }
 
 export function EchoBoundaryStory(): ReactElement {

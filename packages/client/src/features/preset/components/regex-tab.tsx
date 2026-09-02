@@ -62,6 +62,7 @@ export function RegexTab({ presetId, attachable }: { readonly presetId: PresetId
     <QueryBoundary
       fallback={<SkeletonRows count={PICKER_SKELETON_ROWS} shape="line" />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="your regex scripts" onRetry={retry} />}
+      reserveKey="preset.regexScripts"
     >
       <RegexScriptPicker
         scope={{ kind: "preset", presetId }}
