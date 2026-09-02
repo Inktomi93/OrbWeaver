@@ -2,17 +2,17 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 446,
-    "enforced": 443,
+    "sites": 448,
+    "enforced": 445,
     "reported": 2,
     "byVerdict": {
-      "deliberate-absorb": 441,
+      "deliberate-absorb": 443,
       "detached-owned": 3,
       "unproven": 2
     },
     "byGrammar": {
       "promise": 124,
-      "default": 127,
+      "default": 129,
       "empty": 195
     }
   },
@@ -4089,15 +4089,41 @@
     {
       "siteId": "tooling/src/_shared/artifacts.ts::default:catch::4",
       "path": "tooling/src/_shared/artifacts.ts",
-      "line": 282,
+      "line": 281,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
       "ordinal": 4,
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
-      "reason": "this IS an existence predicate — the throw is the negative answer and is returned as `false` to the one caller (publishRunSlot's \"did the run write this artifact?\" check). Ends if the caller starts needing WHY the path is unreadable.",
+      "reason": "an absent or unparseable manifest means \"this slot published nothing a pointer could still resolve into\" — the ONE question the retention reader asks — and the empty list is that answer at its single call site. Ends if a caller starts needing to distinguish \"never published\" from \"manifest lost\".",
       "markerLine": 278
+    },
+    {
+      "siteId": "tooling/src/_shared/artifacts.ts::default:catch::5",
+      "path": "tooling/src/_shared/artifacts.ts",
+      "line": 296,
+      "column": 5,
+      "grammar": "default",
+      "position": "default:catch",
+      "ordinal": 5,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "a removed or replaced alias is the NEGATIVE answer to \"does this pointer still resolve into that slot?\" — null is that answer at the one call site (the retention filter). Ends if the caller starts acting on WHY the alias is unreadable.",
+      "markerLine": 290
+    },
+    {
+      "siteId": "tooling/src/_shared/artifacts.ts::default:catch::6",
+      "path": "tooling/src/_shared/artifacts.ts",
+      "line": 315,
+      "column": 5,
+      "grammar": "default",
+      "position": "default:catch",
+      "ordinal": 6,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "this IS an existence predicate — the throw is the negative answer and is returned as `false` to the one caller (publishRunSlot's \"did the run write this artifact?\" check). Ends if the caller starts needing WHY the path is unreadable.",
+      "markerLine": 311
     },
     {
       "siteId": "tooling/src/_shared/artifacts.ts::empty:catch::1",
@@ -4518,7 +4544,7 @@
     {
       "siteId": "tooling/src/motion-audit/ops/matrix.ts::empty:error::1",
       "path": "tooling/src/motion-audit/ops/matrix.ts",
-      "line": 182,
+      "line": 183,
       "column": 5,
       "grammar": "empty",
       "position": "empty:error",
@@ -4526,12 +4552,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "discovery/planning failures print the exact INSTRUMENT ERROR and return EXIT.toolError; no aggregate verdict is emitted. Ends if this catch stops terminating the command.",
-      "markerLine": 150
+      "markerLine": 151
     },
     {
       "siteId": "tooling/src/motion-audit/ops/matrix.ts::promise:waitFor::1",
       "path": "tooling/src/motion-audit/ops/matrix.ts",
-      "line": 59,
+      "line": 60,
       "column": 25,
       "grammar": "promise",
       "position": "promise:waitFor",
@@ -4539,7 +4565,7 @@
       "snippet": "const ready = await session.page",
       "verdict": "deliberate-absorb",
       "reason": "false is consumed immediately below as an INSTRUMENT ERROR; discovery never proceeds against a cold shell. Ends if `ready` stops gating the return.",
-      "markerLine": 58
+      "markerLine": 59
     },
     {
       "siteId": "tooling/src/motion-audit/ops/run.ts::default:catch::1",
@@ -5051,7 +5077,7 @@
     {
       "siteId": "tooling/src/snap/ops/matrix.ts::empty:error::1",
       "path": "tooling/src/snap/ops/matrix.ts",
-      "line": 349,
+      "line": 350,
       "column": 5,
       "grammar": "empty",
       "position": "empty:error",
@@ -5059,12 +5085,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "every lifecycle/discovery/planning failure is printed as INSTRUMENT ERROR and returned as EXIT.toolError below; cleanup still runs. Ends if this catch stops terminating the command.",
-      "markerLine": 345
+      "markerLine": 346
     },
     {
       "siteId": "tooling/src/snap/ops/matrix.ts::empty:error::2",
       "path": "tooling/src/snap/ops/matrix.ts",
-      "line": 356,
+      "line": 357,
       "column": 7,
       "grammar": "empty",
       "position": "empty:error",
@@ -5072,12 +5098,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "cleanup failure is printed to the operator and forces EXIT.toolError below. Ends if cleanup is delegated to an owner that returns its own verdict.",
-      "markerLine": 353
+      "markerLine": 354
     },
     {
       "siteId": "tooling/src/snap/ops/scenario.ts::empty:error::1",
       "path": "tooling/src/snap/ops/scenario.ts",
-      "line": 323,
+      "line": 324,
       "column": 5,
       "grammar": "empty",
       "position": "empty:error",
@@ -5085,7 +5111,7 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "printed as SCENARIO ERROR and routed through EXIT.misuse, the process's own exit code. Ends if that exit code stops being surfaced.",
-      "markerLine": 320
+      "markerLine": 321
     },
     {
       "siteId": "tooling/src/snap/ops/shot.ts::empty:catch::1",
@@ -5441,7 +5467,7 @@
     {
       "siteId": "tooling/src/ui-audit/ops/matrix.ts::empty:error::1",
       "path": "tooling/src/ui-audit/ops/matrix.ts",
-      "line": 203,
+      "line": 204,
       "column": 5,
       "grammar": "empty",
       "position": "empty:error",
@@ -5449,12 +5475,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "every lifecycle/discovery/planning failure is printed as INSTRUMENT ERROR and returned as EXIT.toolError below; cleanup still runs. Ends if this catch stops terminating the command.",
-      "markerLine": 199
+      "markerLine": 200
     },
     {
       "siteId": "tooling/src/ui-audit/ops/matrix.ts::empty:error::2",
       "path": "tooling/src/ui-audit/ops/matrix.ts",
-      "line": 210,
+      "line": 211,
       "column": 7,
       "grammar": "empty",
       "position": "empty:error",
@@ -5462,7 +5488,7 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "cleanup failure is printed to the operator and forces EXIT.toolError below. Ends if cleanup is delegated to an owner that returns its own verdict.",
-      "markerLine": 207
+      "markerLine": 208
     },
     {
       "siteId": "tooling/src/ui-audit/ops/stage.ts::empty:error::1",
