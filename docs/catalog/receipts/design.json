@@ -4,6 +4,58 @@
   "issue": 5,
   "entries": [
     {
+      "path": "docs/design/1208-instrument-substrate.md",
+      "assignedSha256": "663892b310abbdd581e8e59e800df2fa327e433b911f72ad38eb839f18a345b7",
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "663892b310abbdd581e8e59e800df2fa327e433b911f72ad38eb839f18a345b7",
+      "verifiedCommit": "9d479c4434d9a74fb38491e7e4d888121244c438",
+      "verifiedAt": "2026-09-02",
+      "evidence": [
+        "born-reviewed by the primary orchestrator at 9d479c443 (lane p-substrate-design, forge): all 403 lines read in full at the fold — the 12-row pain-point inventory with code and transcript receipts (3015 instrument invocations over 14 days), the launch/stage-binding map, the four-noun model, the daemon protocol and state machine, the band registry, the slot integration, the grammar inventory and shared families, the op reuse map, the two worked arms, the load model, T1–T13, the alternatives, the phased plan, the cost and F1–F10. Premise refutations recorded in §1 P11 (the brief's stale paths; 'five lanes refused' = discipline refusals, 2 hard errors)."
+      ],
+      "claims": [
+        {
+          "claim": "The substrate is four nouns (stage, session, context, arm), each with one home and a named enforcer; the session daemon hosts the SAME ops (runOnSession, the run.ts split) and the scenario partition becomes the session/call flag partition — one implementation, never a second capture path.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1208"
+            }
+          ]
+        },
+        {
+          "claim": "Stages become N registered bands with a table marker, lazy reap-on-acquire and TTL; #1163 is absorbed as §3.6 and #1202 as §3.8 (the session IS a run slot, so abandonedRuns names a dead session with no new marker machinery).",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1163"
+            }
+          ]
+        },
+        {
+          "claim": "The Lighthouse and request-log arms are designed as substrate arms (§6.1, §6.2) and land first as plain snap arms per the owner's interim ruling; the MCP retires after phase 3.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1198"
+            }
+          ]
+        },
+        {
+          "claim": "Ten open forks (F1–F10) are posed to the owner with the build's defaults; the phased plan is 0 spike → 1 sessions (forge) → (2 stages ∥ 3 arms) → 4 grammar + retirement.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1195"
+            }
+          ]
+        }
+      ],
+      "summary": "The instrument substrate design (owner-directed #1208): stateful snap sessions behind a per-lane daemon, N registered stage bands with TTL and lazy reap, one CLI grammar as shared flag families, an arm registry with Lighthouse and request-log worked, a 13-control test plan, a five-phase build plan and ten owner forks."
+    },
+    {
       "path": "docs/design/1195-devtools-mcp-retirement.md",
       "assignedSha256": "0eb74adabfc2d72c845b73be7399dbf1238901e587ac6139b9aaf73df481e29d",
       "disposition": "current",
