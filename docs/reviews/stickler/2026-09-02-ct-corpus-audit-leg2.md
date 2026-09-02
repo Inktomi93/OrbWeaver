@@ -40,8 +40,8 @@ current as of the newest commit.
 | Leg | Full-read files | Lines | Findings |
 | - | - | - | - |
 | Leg 1 | 24 | \~26,100 | F1 (#1240) · F2 (#1241) · F3 (#1242) |
-| Leg 2 so far | 20 | \~11,670 | none yet |
-| **Total** | **44 / 469** | \~37,770 | ceiling P3 |
+| Leg 2 so far | 26 | \~14,440 | none yet |
+| **Total** | **50 / 469** | \~40,540 | ceiling P3 |
 
 Leg-2 files read and judged (chunk 1): `web-weave.ct.tsx`, `slider.ct.tsx`, `toast.ct.tsx`,
 `sandbox-frame.ct.tsx`, `params-deck.ct.tsx`, `chat-room-surface.ct.tsx`,
@@ -49,7 +49,9 @@ Leg-2 files read and judged (chunk 1): `web-weave.ct.tsx`, `slider.ct.tsx`, `toa
 `character-editor-surface.ct.tsx`, `character-create-actions.ct.tsx`, `preset-structure-tabs.ct.tsx`,
 `section-drill-in.ct.tsx`, `lane-run-control.ct.tsx`, `image-edit-body.ct.tsx`. Chunk 3:
 `theme-scope.ct.tsx`, `tabs.ct.tsx`, `menu.ct.tsx`, `code-editor.ct.tsx`,
-`accessible-name-quality.suite.ct.tsx`, `context-tabs-panel.ct.tsx`.
+`accessible-name-quality.suite.ct.tsx`, `context-tabs-panel.ct.tsx`. Chunk 4:
+`assembly-preview-panel.ct.tsx`, `corpus-content.ct.tsx`, `databank-detail-surface.ct.tsx`,
+`workloads-group.ct.tsx`, `injections-manager.ct.tsx`, `payload-view.ct.tsx`.
 
 ## 2. Findings
 
@@ -246,19 +248,68 @@ block proves the emulation landed before trusting anything; the RV-7 lock pin as
 OFF the cell root (the #874 correction) and defers the pixel half to `context-bracket.ct.tsx` by name.
 Red-first and fence tests are labelled as which they are.
 
+## 3d. Per-file verdicts — chunk 4 (6 files, all CLEAN)
+
+### 3d.1 `tests/client/features/chat/components/assembly-preview-panel.ct.tsx` (569 lines) — CLEAN
+
+Segment-geometry one-shots sit behind the suspense-settled totals-line barrier (`useSuspenseQueries`
+means the data is committed when the totals render); `filledFraction` is polled where the arm is
+conditional. Two-sided coverage: error + retry (with the refetch count polled), zero-rows arm,
+fill-vs-headroom BOTH directions (sliver at 0.4% usage, full-rail on no-window and estimated-window
+arms), and the estimated-ceiling pin asserts the fabricated denominator appears NOWHERE.
+
+### 3d.2 `tests/client/features/discovery/components/corpus-content.ct.tsx` (586 lines) — CLEAN
+
+The `portraitAlignment === 0` ONESHOT-OK carries the strongest settled-by-construction argument in the
+population (single suspense batch via httpBatchLink; the painted portrait proves the batch response
+landed, so the recorder has seen everything the mount will ask). The blob-route stub documents the
+fallback-mimics-join hazard and answers real bytes; the null-hash member exercises the initials arm as
+a positive control; clock frozen; CD3 focal-count pins in every phase; fences labelled as fences.
+
+### 3d.3 `tests/client/features/databank/surfaces/databank-detail-surface.ct.tsx` (494 lines) — CLEAN
+
+The lazy-source-read pin asserts the wire receipt (`includeText: true` fired only on reveal). The
+gap/slack pins measure label TEXT via Range (the box-slack false-clean is documented in-file), derive
+the ceiling from the grid's own construction rather than a literal, and poll every geometry claim.
+The containing-block pin is honestly labelled a FENCE (green pre-fix; the defect proofs are named as
+living in the editor CTs).
+
+### 3d.4 `tests/client/features/workloads/lib/workloads-group.ct.tsx` (461 lines) — CLEAN
+
+The flash-ring test measures padding-against-token and margin-negation via polls, pins the no-reflow
+half (outer height unchanged), and the inline axis deliberately untouched with the reason stated.
+`STREAM_MUTATION_ROUTES` imported from the bus's own fixture module (anti-drift). The populated
+fixture exists specifically to kill the reviewed-an-empty-pane blind spot. CD3 accent-fill pins polled.
+
+### 3d.5 `tests/client/features/chat/components/injections-manager.ct.tsx` (335 lines) — CLEAN
+
+Wire pins ride `expect.poll` on the recorder; the macro roundtrip uses the shared
+`assertTokenRoundtrip` (both halves: stored template paints literally, typed token reaches the wire
+raw). The reserve matrix's one-shot height pair carries the single-settled-frame ONESHOT-OK argument
+(two polls would compare two layout passes) plus a liveness floor before the ratio. The #847 clamp pin
+uses `measureClamp`'s line-grid oracle with the wrong-oracle hazard documented. Host/non-host arms
+both exercised (disabled-with-reason, never omitted).
+
+### 3d.6 `tests/client/features/refinery/components/payload-view.ct.tsx` (320 lines) — CLEAN
+
+The count-up trio drives the LANE, not the component, with the #47 wrong-story lesson recorded
+(the old trio passed against a latch no run-pane render could reach). Frames are collected by
+MutationObserver (nothing races the 360ms ramp); the FABRICATION-OK markers cover page-scratch
+globals only. Valence pins resolve both intent tokens from the live stylesheet through attached
+probes; filtered-array assertions so failures name offenders.
+
 ## 4. Verified clean so far (leg-2 methods)
 
-- Full-read of all 20 files above, whole files, no sampling.
+- Full-read of all 26 files above, whole files, no sampling.
 - Fresh merged-tree Phase A scan (469/469 files, scannedFileCount cross-checked against `git ls-files`).
-- Helper-hoisted site classification against the scan's site list; every site in the 20 files accounted
+- Helper-hoisted site classification against the scan's site list; every site in the 26 files accounted
   for above.
 
 ## 5. Remaining leg-2 queue (state at this commit)
 
-Core helper-await files still to read (\~15): workloads-group (461), assembly-preview-panel (569),
-corpus-content (586), databank-detail-surface (494), analytics-overview-surface (382, ex-fenced),
-injections-manager (335), payload-view (320), image-detail-body (204), message-media-block (161),
-room-overrides-form (146), form-identity.suite (138), web-weave-touch (104).
+Core helper-await files still to read (\~6): analytics-overview-surface (382, ex-fenced),
+image-detail-body (204), message-media-block (161), room-overrides-form (146), form-identity.suite
+(138), web-weave-touch (104).
 Ex-fenced batch:
 appearance-background-section (405), config-teacher (370), config-search-input (234), config-save-footer
 (202), config-list-collection-group (113), config-group-placeholder (101), config-palette-source (57).
