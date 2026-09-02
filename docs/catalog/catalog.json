@@ -443,26 +443,26 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 385,
-      "bytes": 199910,
-      "sha256": "aad653c4c726ac896801cb86404a7314db00671654e9b9c1b6fea643c0a3b092",
+      "bytes": 200434,
+      "sha256": "08c072e404abf543d2abfbe56799e8b1f86718c1c895fd952d23f375b2022e8f",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "law",
           "status": "active",
-          "updated": "2026-08-30"
+          "updated": "2026-09-01"
         },
         "errors": []
       },
       "receipt": {
         "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
-        "assignedSha256": "aad653c4c726ac896801cb86404a7314db00671654e9b9c1b6fea643c0a3b092",
+        "assignedSha256": "08c072e404abf543d2abfbe56799e8b1f86718c1c895fd952d23f375b2022e8f",
         "disposition": "current",
         "authority": "operational",
         "fullRead": true,
-        "verifiedSha256": "aad653c4c726ac896801cb86404a7314db00671654e9b9c1b6fea643c0a3b092",
-        "verifiedCommit": "e85447e4bf2974330f2ed95f8eb94851e77d6d20",
+        "verifiedSha256": "08c072e404abf543d2abfbe56799e8b1f86718c1c895fd952d23f375b2022e8f",
+        "verifiedCommit": "8cab2a0fe34066d54ef0d0e3204ff68ec5df9478",
         "verifiedAt": "2026-09-01",
         "evidence": [
           "re-attested at 9a4bee47ab1b21cd68c291c80e1704b486200dd8 (#995): the agent-bridge-lock row records the lean production readiness home, shared debug Promise/query, and DEV-only bridge boundary; focused CT passed 6/6, gate conformance passed, and check:structure completed 244/244 active gates clean",
@@ -511,7 +511,8 @@
           "re-attested at 5d64aa1c651ddf3681835c4c513544cbc2328545 (#894): agent-bridge-lock records the one sanctioned __orb install door, exhaustive typed capability/ring registries, executable mounted CT proofs, and the 244 active-gate count; focused CT passed 5/5, gate conformance and real-tree gate passed, and the normal static hook was green through every non-catalog stage",
           "docs/architecture/core/Core-Enforcement-Active-Gates.md:1 (delta read at the 2026-09-01 merge: +integer-line-boxes and +seed-theme-ink-contrast rows, count 243->245, merged with main's agent-bridge-lock row edit)",
           "re-attested at a6db3e258 — #1002 registers the rest-transform-grid gate (246→247 active gates; check:structure ran 247/247 on the lane tree); delta read of the added row only",
-          "re-attested at e85447e4b — the #1002 rest-transform-grid row formatted by doc-catalog format (docs:format stage); no wording change"
+          "re-attested at e85447e4b — the #1002 rest-transform-grid row formatted by doc-catalog format (docs:format stage); no wording change",
+          "re-attested at 8cab2a0fe (#948, lane p-bus-secret): the bus-payload-allowlist row now states the TRANSITIVE member reader over the named wire event's own type identity (extends bases, intersection constituents, aliased union arms, followed through imports), the PRESERVED non-transitive boundary for a field's own type, and the two fail-closed arms (unresolved-base/unsupported-shape, and the REAL_CORPUS_MIN-guarded blindness sweep). Delta read against the landed descriptor; red-first proved the pre-change gate returned zero findings for the imported-carrier and aliased-arm shapes; a real planted extends-carrier violation reported apiKey and was removed; check:structure clean at 247/247 COMPLETE, gate-conformance 8/8, check-gates.int 8/8, new pins 11/11"
         ],
         "claims": [
           {
