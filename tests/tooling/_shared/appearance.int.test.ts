@@ -13,13 +13,21 @@ import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
-import { afterAll, beforeAll } from "vitest";
+import { afterAll, beforeAll, vi } from "vitest";
 import { expect, test } from "../../support/tool-fixtures.ts";
+import { scaledBudget } from "../_load-budget.ts";
 
 // 3-up: tests/tooling/_shared → repo root (re-derived at the P2 relocation — the depth-derived-root class).
 const ROOT = fileURLToPath(new URL("../../..", import.meta.url));
 const SNAP_CLI = fileURLToPath(new URL("../../../tooling/src/snap/cli.ts", import.meta.url));
-const RUN_TIMEOUT_MS = 60_000;
+// LOAD-SCALED, not fixed (#1040). This file is a REAL browser drive and it sat on a hard 60s ceiling that
+// took no notice of the box: six drives in one battery (2026-09-01) blew it under sibling-lane load and
+// surfaced as generic timeouts indistinguishable from assertion reds. Load stretches a wall clock roughly
+// linearly, which is exactly the case `scaledBudget` covers — the measured-RATE case it does NOT cover is
+// `withholdMeasurement`, and this file has no rate arms: every assertion here is a DOM/byte fact. Cap 4
+// matches the other heavy tooling suites. The file lives in the `live-drive` project (vitest.config.ts).
+const RUN_TIMEOUT_MS = scaledBudget(60_000, 4);
+vi.setConfig({ testTimeout: RUN_TIMEOUT_MS, hookTimeout: RUN_TIMEOUT_MS });
 
 /** The stub account: reduced motion ON and comfortable density, exactly the shape the owner's row has. */
 const STORED = { reducedMotion: true, density: "comfortable", blurSurfaces: ["panels", "composer", "modals"] };

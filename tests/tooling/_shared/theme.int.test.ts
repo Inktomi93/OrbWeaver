@@ -14,13 +14,18 @@ import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
-import { afterAll, beforeAll } from "vitest";
+import { afterAll, beforeAll, vi } from "vitest";
 import { expect, test } from "../../support/tool-fixtures.ts";
+import { scaledBudget } from "../_load-budget.ts";
 
 // 3-up: tests/tooling/_shared → repo root (re-derived at the P2 relocation — the depth-derived-root class).
 const ROOT = fileURLToPath(new URL("../../..", import.meta.url));
 const SNAP_CLI = fileURLToPath(new URL("../../../tooling/src/snap/cli.ts", import.meta.url));
-const RUN_TIMEOUT_MS = 60_000;
+// LOAD-SCALED, not fixed (#1040) — the same fixed-ceiling defect as its appearance.int sibling, and the
+// same remedy: a real browser drive's wall clock is the box's to set. No rate arms here (every assertion
+// is a DOM/byte fact), so this file scales its budget and never withholds. Lane: `live-drive`.
+const RUN_TIMEOUT_MS = scaledBudget(60_000, 4);
+vi.setConfig({ testTimeout: RUN_TIMEOUT_MS, hookTimeout: RUN_TIMEOUT_MS });
 
 /** The stub account: Hearth selected, exactly the shape `config.theme` has on the wire. */
 const STORED_THEME = { selectedThemeId: "theme_00000000000000000000000001" };

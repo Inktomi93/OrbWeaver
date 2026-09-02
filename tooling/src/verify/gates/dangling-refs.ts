@@ -654,6 +654,9 @@ const ARM4_ALLOW: ExemptionTable = {
   SERIAL_INT: {
     why: "declared in the repo-root `vitest.config.ts` (Spine-Testing.md), outside the gate harness workspace (packages/*/src, tests/, tooling/src/ — harnessGlobs). Ends if arm 4's index widens to root config files.",
   },
+  LIVE_DRIVE: {
+    why: "the SERIAL_INT case exactly, same file and same blind spot: declared in the repo-root `vitest.config.ts` (#1040, cited by Spine-Testing.md) and therefore outside the gate harness workspace. Ends with SERIAL_INT's row, when arm 4's index widens to root config files.",
+  },
   HUB_ADAPTERS: { why: CERD_WHY },
   ANTH_DIRECT_SAMPLING: { why: CERD_WHY },
   TAB_EDGE_CLASSES: { why: CERD_WHY },

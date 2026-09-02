@@ -81,6 +81,14 @@
 //
 // HONESTY: a shard that had to be re-run is announced loudly on stderr AND recorded in the merged report's
 // `orbShards[].wedges` — a green that hides a wedge would read as "fixed" when it is only "contained".
+// The same posture covers the OTHER kind of not-quite-clean green, the #1040 WITHHOLD: a `live-drive`
+// measured-rate arm that declined to vote on a contended box lands as vitest `status:"skipped"`, and a
+// skipped test is INVISIBLE in a batch summary — vitest's json reporter drops the skip reason entirely
+// (measured 2026-09-02: `{status:"skipped", failureMessages:[], meta:{}}`). So a withheld arm stamps its
+// reason into `meta.orbLoadWithheld` (`tests/tooling/_load-budget.ts`, the one field the reporter DOES
+// serialize for a skip), this script counts those stamps per shard into `orbShards[].withheld`, and a run
+// carrying any of them says so on stderr. A green with withheld arms is NOT a clean measurement pass, and
+// it must never read as one.
 //
 // OVERRIDES: `ORB_TEST_HANG_TIMEOUT_MS` raises/lowers the no-output-and-no-CPU limit · `ORB_TEST_HANG_MAX_MS`
 // the absolute silence ceiling · `ORB_VITEST_BIN` the vitest entry (the guard test points it at a fake).
@@ -224,6 +232,30 @@ function verdictFromReport(path) {
   const accountedFor = passed + failed + pending + todo === total; // a crashed worker's test vanishes here.
   const clean = report.success === true && failed === 0 && failedSuites === 0 && total > 0 && accountedFor;
   return clean ? 0 : 1;
+}
+
+/** The `meta` key a withheld live-drive arm stamps on its own task (`tests/tooling/_load-budget.ts`). */
+const WITHHELD_META_KEY = "orbLoadWithheld";
+
+/** Every withheld arm in a shard report, as `<file> › <test title>` lines. Read from `meta` rather than
+ *  from the skip note, because the note is not serialized. A missing/unparseable report yields none —
+ *  that case is already a verdict-level failure via `verdictFromReport`. */
+function withheldFromReport(path) {
+  let report;
+  try {
+    report = JSON.parse(readFileSync(path, "utf-8"));
+  } catch {
+    return [];
+  }
+  const out = [];
+  for (const file of report.testResults ?? []) {
+    for (const assertion of file.assertionResults ?? []) {
+      if (typeof assertion.meta?.[WITHHELD_META_KEY] === "string") {
+        out.push(`${relative(root, file.name ?? "<unknown file>")} › ${assertion.fullName ?? assertion.title}`);
+      }
+    }
+  }
+  return out;
 }
 
 function readProc(pid, file) {
@@ -467,14 +499,14 @@ async function runShard({ args, reportFile, label }) {
   }
   // A run that EXITED mirrors vitest's own exit code (unchanged from #345): vitest finalized, so its code
   // is a verdict. The report is only consulted when the watchdog had to kill a wedged parent.
-  return { label, code: result.code, wedges, reportFile };
+  return { label, code: result.code, wedges, reportFile, withheld: withheldFromReport(reportFile) };
 }
 
 /** Fold the shard reports into the ONE `--outputFile.json` contract the rest of the repo reads. Numeric
  *  `num*` counters sum, `testResults` concatenate, and `success` is true only when every shard's own
  *  verdict is 0 — so the merged file satisfies the SAME predicate a single run's report does. */
 function foldShardInto(merged, shard) {
-  merged.orbShards.push({ project: shard.label, exitCode: shard.code, wedges: shard.wedges });
+  merged.orbShards.push({ project: shard.label, exitCode: shard.code, wedges: shard.wedges, withheld: shard.withheld });
   let report;
   try {
     report = JSON.parse(readFileSync(shard.reportFile, "utf-8"));
@@ -520,6 +552,20 @@ function publish(alias, sharded) {
   log(`report → ${slot.relDir}/${REPORT_NAME} (published at reports/${alias})`);
 }
 
+/** Shout the #1040 withholds. Silence here is a claim that every measured-rate arm actually measured. */
+function announceWithheld(shards) {
+  const all = shards.flatMap((s) => s.withheld.map((row) => `${s.label}: ${row}`));
+  if (all.length === 0) {
+    return;
+  }
+  log(`MEASUREMENT WITHHELD — ${all.length} live-drive arm(s) declined to vote because the box was too loaded to measure:`);
+  for (const row of all) {
+    log(`  · ${row}`);
+  }
+  log("This verdict is INCOMPLETE, not clean: those budgets were not exercised. Re-run them on a quiet tree.");
+  log("(Reasons are in the report's testResults[].assertionResults[].meta.orbLoadWithheld.)");
+}
+
 async function main() {
   const { projects, baseArgs, report } = parseArgs();
   // Forward terminal signals to the running child group (detached children don't receive them automatically).
@@ -546,6 +592,7 @@ async function main() {
     if (shard.wedges > 0) {
       log(`WEDGE CONTAINED: the run was killed ${shard.wedges}× by the watchdog — this green is contained, not clean.`);
     }
+    announceWithheld([shard]);
     publish(alias, false);
     process.exit(shard.code);
   }
@@ -566,6 +613,7 @@ async function main() {
     log(`WEDGE CONTAINED — ${rerun.map((s) => `${s.label} (killed ${s.wedges}×)`).join(", ")}. Evidence: ${slot.relDir}/test-wedge-*.txt.`);
     log("This verdict is CONTAINED, not clean: the shard(s) above hit the vitest #345/#1012 shutdown wedge.");
   }
+  announceWithheld(shards);
   for (const shard of shards) {
     log(`shard ${shard.label}: exit ${shard.code}${shard.wedges > 0 ? ` (after ${shard.wedges} wedge kill(s))` : ""}`);
   }
