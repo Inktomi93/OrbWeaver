@@ -309,37 +309,44 @@ function requiredCompositedBase(background: string, ambient: string): Oklch {
   return base;
 }
 
-test("#939 every accepted OKLCH base emits a contrast-safe, distinguishable custom chart ramp", () => {
-  const ambient = TOKENS["color.background"].value;
-  for (const l of CHART_BASE_LIGHTNESSES) {
-    for (const c of CHART_BASE_CHROMAS) {
-      for (const h of CHART_BASE_HUES) {
-        const baseStr = `oklch(${l} ${c} ${h})`;
-        const base = requiredCompositedBase(baseStr, ambient);
-        const ramp = rampOf(base);
-        const panels = [base, rampSurface(base, ramp.card), rampSurface(base, ramp.surfaceRaised), rampSurface(base, ramp.sidebar)];
-        const { vars } = clampThemeTokens({ background: baseStr });
-        const colors = CUSTOM_CHART_VARS.map((cssVar): Oklch => {
-          const emitted = vars[cssVar];
-          if (emitted === undefined) {
-            throw new Error(`${cssVar} was not emitted @ ${baseStr}`);
+/** The full OKLCH base sweep: measured 6.8s on a loaded box (2026-09-01 barrier), over vitest's 5s default. */
+const CHART_RAMP_BUDGET_MS = 30_000;
+
+test(
+  "#939 every accepted OKLCH base emits a contrast-safe, distinguishable custom chart ramp",
+  () => {
+    const ambient = TOKENS["color.background"].value;
+    for (const l of CHART_BASE_LIGHTNESSES) {
+      for (const c of CHART_BASE_CHROMAS) {
+        for (const h of CHART_BASE_HUES) {
+          const baseStr = `oklch(${l} ${c} ${h})`;
+          const base = requiredCompositedBase(baseStr, ambient);
+          const ramp = rampOf(base);
+          const panels = [base, rampSurface(base, ramp.card), rampSurface(base, ramp.surfaceRaised), rampSurface(base, ramp.sidebar)];
+          const { vars } = clampThemeTokens({ background: baseStr });
+          const colors = CUSTOM_CHART_VARS.map((cssVar): Oklch => {
+            const emitted = vars[cssVar];
+            if (emitted === undefined) {
+              throw new Error(`${cssVar} was not emitted @ ${baseStr}`);
+            }
+            return parseOklch(emitted);
+          });
+          for (const [index, fill] of colors.entries()) {
+            for (const panel of panels) {
+              expect(worstContrast(oklchToRgb(fill), oklchToRgb(panel)), `${CUSTOM_CHART_VARS[index]} on custom host @ ${baseStr}`).toBeGreaterThanOrEqual(
+                UI_COMPONENT_MIN_RATIO,
+              );
+            }
           }
-          return parseOklch(emitted);
-        });
-        for (const [index, fill] of colors.entries()) {
-          for (const panel of panels) {
-            expect(worstContrast(oklchToRgb(fill), oklchToRgb(panel)), `${CUSTOM_CHART_VARS[index]} on custom host @ ${baseStr}`).toBeGreaterThanOrEqual(
-              UI_COMPONENT_MIN_RATIO,
-            );
-          }
+          const [oklab, pixel] = chartPairDistances(colors);
+          expect(oklab, `custom ramp minimum OKLab distance @ ${baseStr}`).toBeGreaterThanOrEqual(0.07);
+          expect(pixel, `custom ramp minimum quantized RGB distance @ ${baseStr}`).toBeGreaterThanOrEqual(30);
         }
-        const [oklab, pixel] = chartPairDistances(colors);
-        expect(oklab, `custom ramp minimum OKLab distance @ ${baseStr}`).toBeGreaterThanOrEqual(0.07);
-        expect(pixel, `custom ramp minimum quantized RGB distance @ ${baseStr}`).toBeGreaterThanOrEqual(30);
       }
     }
-  }
-});
+  },
+  CHART_RAMP_BUDGET_MS,
+);
 
 const ACCEPTED_CHART_BASES = [
   ["named", "red"],
