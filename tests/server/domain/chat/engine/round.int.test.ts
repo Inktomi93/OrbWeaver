@@ -12,7 +12,7 @@ import type { Db } from "@orb/db";
 import type { CharacterId, ChatId, Handle, MessageId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
-import type { CastName } from "../../../../../packages/server/src/domain/chat/contract/arbitration.ts";
+import type { SpeakerCandidate } from "../../../../../packages/server/src/domain/chat/contract/arbitration.ts";
 import { CHAT_OP_CODES, ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors.ts";
 import type { TurnEngine, TurnOutcome, TurnPrep, TurnRequest } from "../../../../../packages/server/src/domain/chat/contract/results.ts";
 import { createTurnEngine } from "../../../../../packages/server/src/domain/chat/engine/engine.ts";
@@ -113,7 +113,7 @@ describe("driveRound — per-speaker round (ONE ctx, N speakers, per-speaker loc
     const chatId = await seedChat(db, "r");
     const requests: TurnRequest[] = [];
     const engine = realEngine(db, requests);
-    const speakers: CastName[] = [
+    const speakers: SpeakerCandidate[] = [
       { ref: charRef("a"), name: "Aria" },
       { ref: charRef("b"), name: "Bran" },
       { ref: charRef("c"), name: "Cara" },
@@ -125,7 +125,7 @@ describe("driveRound — per-speaker round (ONE ctx, N speakers, per-speaker loc
       group: PER_SPEAKER,
       speakers,
       groupCharacterId: null,
-      castName: "Aria, Bran, Cara",
+      narratorSpeakerName: "Aria, Bran, Cara",
       narratorMemberNames: [],
     });
 
@@ -151,7 +151,7 @@ describe("driveRound — per-speaker round (ONE ctx, N speakers, per-speaker loc
         { ref: charRef("b"), name: "Bran" },
       ],
       groupCharacterId: null,
-      castName: "Aria, Bran",
+      narratorSpeakerName: "Aria, Bran",
       narratorMemberNames: [],
     });
     expect(requests).toHaveLength(2);
@@ -174,7 +174,7 @@ describe("driveRound — per-speaker round (ONE ctx, N speakers, per-speaker loc
         { ref: charRef("b"), name: "Bran" },
       ],
       groupCharacterId: null,
-      castName: "Aria, Bran",
+      narratorSpeakerName: "Aria, Bran",
       narratorMemberNames: [],
     });
     expect(requests).toHaveLength(2);
@@ -193,7 +193,7 @@ describe("driveRound — per-speaker round (ONE ctx, N speakers, per-speaker loc
         { ref: charRef("b"), name: "Bran" },
       ],
       groupCharacterId: null,
-      castName: "Aria, Bran",
+      narratorSpeakerName: "Aria, Bran",
       narratorMemberNames: [],
     });
     // The 2nd speaker sees the 1st speaker's committed reply (canon grew between per-speaker turns).
@@ -212,7 +212,7 @@ describe("driveRound — per-speaker round (ONE ctx, N speakers, per-speaker loc
         { ref: charRef("b"), name: "Bran" },
       ],
       groupCharacterId: null,
-      castName: "Aria, Bran",
+      narratorSpeakerName: "Aria, Bran",
       narratorMemberNames: [],
     });
     expect(historyText(requests[0] as TurnRequest)).toContain("only as Aria");
@@ -236,7 +236,7 @@ describe("driveRound — per-speaker round (ONE ctx, N speakers, per-speaker loc
         { ref: charRef("b"), name: "Bran" },
       ],
       groupCharacterId: null,
-      castName: "Aria, Bran",
+      narratorSpeakerName: "Aria, Bran",
       narratorMemberNames: [],
     });
     expect(historyText(requests[0] as TurnRequest)).toContain("[SPEAK AS Aria. Nobody else.]");
@@ -248,14 +248,14 @@ describe("driveRound — per-speaker round (ONE ctx, N speakers, per-speaker loc
     const chatId = await seedChat(db, "rel");
     const requests: TurnRequest[] = [];
     const engine = realEngine(db, requests);
-    const speakers: CastName[] = [{ ref: charRef("a"), name: "Aria" }];
+    const speakers: SpeakerCandidate[] = [{ ref: charRef("a"), name: "Aria" }];
     await driveRound({
       engine,
       base: base(chatId),
       group: PER_SPEAKER,
       speakers,
       groupCharacterId: null,
-      castName: "Aria",
+      narratorSpeakerName: "Aria",
       narratorMemberNames: [],
     });
     await driveRound({
@@ -264,7 +264,7 @@ describe("driveRound — per-speaker round (ONE ctx, N speakers, per-speaker loc
       group: PER_SPEAKER,
       speakers,
       groupCharacterId: null,
-      castName: "Aria",
+      narratorSpeakerName: "Aria",
       narratorMemberNames: [],
     });
     expect((await loadCanonHistory(db, chatId)).map((m) => m.seq)).toEqual([1, 2]);
@@ -281,7 +281,7 @@ describe("driveRound — narrator round (one turn for every character, group-cha
       group: NARRATOR,
       speakers: [], // ignored for narrator
       groupCharacterId: cid("group"),
-      castName: "Aria & Bran",
+      narratorSpeakerName: "Aria & Bran",
       narratorMemberNames: [],
     });
     expect(outcome.messages).toHaveLength(1);
@@ -302,7 +302,7 @@ describe("driveRound — narrator round (one turn for every character, group-cha
       group: NARRATOR,
       speakers: [],
       groupCharacterId: cid("group"),
-      castName: "Aria, Bran",
+      narratorSpeakerName: "Aria, Bran",
       narratorMemberNames: ["Aria", "Bran"],
     });
     const text = historyText(requests[0] as TurnRequest);
@@ -321,7 +321,7 @@ describe("driveRound — narrator round (one turn for every character, group-cha
       group: { ...NARRATOR, speakerTags: false },
       speakers: [],
       groupCharacterId: cid("group"),
-      castName: "Aria, Bran",
+      narratorSpeakerName: "Aria, Bran",
       narratorMemberNames: ["Aria", "Bran"],
     });
     const text = historyText(requests[0] as TurnRequest);
@@ -338,7 +338,7 @@ describe("driveRound — narrator round (one turn for every character, group-cha
       group: NARRATOR,
       speakers: [],
       groupCharacterId: cid("group"),
-      castName: "Aria",
+      narratorSpeakerName: "Aria",
       narratorMemberNames: ["Aria"],
     });
     const text = historyText(requests[0] as TurnRequest);
@@ -358,7 +358,7 @@ describe("driveRound — narrator round (one turn for every character, group-cha
       group: NARRATOR,
       speakers: [],
       groupCharacterId: cid("group"),
-      castName: "Aria, Bran",
+      narratorSpeakerName: "Aria, Bran",
       narratorMemberNames: ["Aria", "Bran"],
     });
     const text = historyText(requests[0] as TurnRequest);
@@ -375,7 +375,7 @@ describe("driveRound — narrator round (one turn for every character, group-cha
         group: NARRATOR,
         speakers: [],
         groupCharacterId: null,
-        castName: "x",
+        narratorSpeakerName: "x",
         narratorMemberNames: [],
       }),
     ).rejects.toThrow("group-character");
@@ -405,7 +405,7 @@ describe("driveRound — locked yields the round (a human send interleaved — �
         { ref: charRef("b"), name: "Bran" },
       ],
       groupCharacterId: null,
-      castName: "Aria, Bran",
+      narratorSpeakerName: "Aria, Bran",
       narratorMemberNames: [],
     });
     expect(outcome.messages).toHaveLength(1);
@@ -428,7 +428,7 @@ describe("driveRound — an engine turn that RETURNS aborted stops the round + p
       group: PER_SPEAKER,
       speakers: [{ ref: charRef("a"), name: "Aria" }],
       groupCharacterId: null,
-      castName: "Aria",
+      narratorSpeakerName: "Aria",
       narratorMemberNames: [],
     });
     expect(outcome.aborted).toBe(true);
@@ -458,7 +458,7 @@ describe("driveRound — an engine turn that RETURNS aborted stops the round + p
         { ref: charRef("b"), name: "Bran" },
       ],
       groupCharacterId: null,
-      castName: "Aria, Bran",
+      narratorSpeakerName: "Aria, Bran",
       narratorMemberNames: [],
     });
     // The whole truth: the row that landed before the abort rides along, AND the round reports aborted.
@@ -482,7 +482,7 @@ describe("driveRound — an engine turn that RETURNS aborted stops the round + p
         { ref: charRef("b"), name: "Bran" },
       ],
       groupCharacterId: null,
-      castName: "Aria, Bran",
+      narratorSpeakerName: "Aria, Bran",
       narratorMemberNames: [],
     });
     expect(outcome.aborted).toBe(true);

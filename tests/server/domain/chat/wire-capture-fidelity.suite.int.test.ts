@@ -227,7 +227,7 @@ async function driveRow(opts: {
     group: DEFAULT_GROUP_CONFIG,
     speakers: [{ ref: { kind: "character", characterId: ARIA }, name: "Aria" }],
     groupCharacterId: null,
-    castName: "Aria",
+    narratorSpeakerName: "Aria",
     narratorMemberNames: [],
   });
   expect(outcome.aborted).toBe(false);

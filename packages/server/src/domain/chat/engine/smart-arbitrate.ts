@@ -20,7 +20,7 @@ import { speakerKey } from "@orb/contracts/chat";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import { resolveProseText } from "@orb/contracts/prose";
 import type { SummarizeOptions } from "@orb/contracts/role-clients";
-import type { ArbiterCandidate, CastName, SmartArbitrationResult } from "../contract/arbitration.ts";
+import type { ArbiterCandidate, SmartArbitrationResult, SpeakerCandidate } from "../contract/arbitration.ts";
 import type { SummarizeOp } from "../contract/context.ts";
 import { isArbiterEligible } from "../persistence/participant.ts";
 import { selectSpeakers } from "./select-speakers.ts";
@@ -32,7 +32,7 @@ interface SmartArbitrateParams {
   /** The present roster's character candidates (the eligible set is derived here). */
   readonly candidates: readonly ArbiterCandidate[];
   /** Display names for the candidates (id → name) — the prompt vocabulary + the roster-validating parse. */
-  readonly castNames: readonly CastName[];
+  readonly speakerCandidates: readonly SpeakerCandidate[];
   /** Recent transcript text the arbiter reads to decide who speaks next. */
   readonly recentHistory: string;
   /** The previous speaker (the fallback's ban-last AND its rotation origin). */
@@ -73,7 +73,7 @@ export async function smartArbitrate(params: SmartArbitrateParams): Promise<Smar
   if (eligible.length === 0) {
     return { speakers: [], degraded: false, aborted: false };
   }
-  const nameByKey = new Map(params.castNames.map((n) => [speakerKey(n.ref), n.name] as const));
+  const nameByKey = new Map(params.speakerCandidates.map((n) => [speakerKey(n.ref), n.name] as const));
   const eligibleNamed = eligible.map((c) => ({ ref: c.ref, name: nameByKey.get(speakerKey(c.ref)) ?? "" })).filter((c) => c.name.length > 0);
   // Single eligible (or none has a resolvable name) — no LLM call needed (solo byte-identical).
   if (eligibleNamed.length <= 1) {

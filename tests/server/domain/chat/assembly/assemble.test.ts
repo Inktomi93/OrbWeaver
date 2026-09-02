@@ -358,7 +358,7 @@ describe("assemblePrompt — merged co-speaker scenario (F6: single emission)", 
 // The shipped default framing says "You are {{char}} … write {{char}}'s perspective only" — true for a
 // per-speaker turn and FALSE for a narrator round, which is ONE generation voicing the whole cast (the
 // 2026-08-07 live drive read "write Charlotte, JFC's perspective only", a self-contradictory instruction).
-// The default now selects on the SAME axis the card-heading slot selects on (`speaker.kind === "cast"`,
+// The default now selects on the SAME axis the card-heading slot selects on (`speaker.kind === "multi-voice"`,
 // `memberHeadingSlot`); every other turn keeps its bytes EXACTLY. Asserted on the assembled bytes — the
 // text the model receives — never on the constant, so the narrator pin is a defect proof.
 describe("assemblePrompt — the factory main_prompt default is MODE-AWARE (narrator vs per-speaker)", () => {

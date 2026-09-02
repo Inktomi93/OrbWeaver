@@ -10,7 +10,7 @@
 import type { GroupConfig } from "@orb/contracts/chat";
 import { resolveProseText } from "@orb/contracts/prose";
 import type { CharacterId } from "@orb/kit/ids";
-import type { CastName } from "../contract/arbitration.ts";
+import type { SpeakerCandidate } from "../contract/arbitration.ts";
 import { CHAT_OP_CODES, ChatOperationError } from "../contract/errors.ts";
 import type { TurnEngine, TurnOutcome, TurnPrep, TurnSpeakerShape } from "../contract/results.ts";
 import { committedOutcome } from "./result.ts";
@@ -25,12 +25,12 @@ interface DriveRoundParams {
   readonly base: RoundBase;
   readonly group: GroupConfig;
   /** The arbitration result, name-resolved + ordered. Ignored for `narrator` (one cast turn). */
-  readonly speakers: readonly CastName[];
+  readonly speakers: readonly SpeakerCandidate[];
   /** The synthetic group character that authors a narrator turn (a real id, never null). Required when
    *  `group.output === "narrator"`; the verb mints it via `ctx.mintSyntheticGroupCharacter`. */
   readonly groupCharacterId: CharacterId | null;
-  /** The joined present-cast name (`{{char}}`-as-cast — collapses to the single name at cast=1) for narrator. */
-  readonly castName: string;
+  /** The name the narrator round's synthetic speaker carries — the joined candidate names (`{{char}}`-as-whole-room), collapsing to the single name at one candidate. Read on the narrator arm only. */
+  readonly narratorSpeakerName: string;
   /** The present, NON-MUTED character names a narrator turn voices — the nudge's `{{names}}` and the
    *  cast-of-one guard. Empty/≤1 ⇒ a narrator round sends no nudge at all (byte-identical single turn). */
   readonly narratorMemberNames: readonly string[];
@@ -56,7 +56,7 @@ function buildNarratorNudge(base: RoundBase, group: GroupConfig, memberNames: re
   return parts.length > 0 ? parts.join(" ") : null;
 }
 
-/** The round-level facts one speaker's prep needs beyond its own `CastName`. */
+/** The round-level facts one speaker's prep needs beyond its own `SpeakerCandidate`. */
 interface RoundShape {
   /** True when the round has MORE THAN ONE speaker — the per-speaker fence's gate. */
   readonly multi: boolean;
@@ -66,7 +66,7 @@ interface RoundShape {
 
 /** The round's trailing nudge for ONE speaker: the narrator arm, the multi-speaker per-speaker fence, or
  *  none. Split out of {@link buildSpeakerPrep} so neither arm nests inside the other's ternary. */
-function buildRoundNudge(base: RoundBase, group: GroupConfig, speaker: CastName, round: RoundShape): string | null {
+function buildRoundNudge(base: RoundBase, group: GroupConfig, speaker: SpeakerCandidate, round: RoundShape): string | null {
   if (group.output === "narrator") {
     return buildNarratorNudge(base, group, round.narratorMemberNames);
   }
@@ -77,7 +77,7 @@ function buildRoundNudge(base: RoundBase, group: GroupConfig, speaker: CastName,
 }
 
 /** Build ONE speaker's two-axis prep off the shared round base. */
-function buildSpeakerPrep(base: RoundBase, group: GroupConfig, speaker: CastName, round: RoundShape): TurnPrep {
+function buildSpeakerPrep(base: RoundBase, group: GroupConfig, speaker: SpeakerCandidate, round: RoundShape): TurnPrep {
   const speakerCharacterId = speaker.ref.characterId;
   const cardScope = group.output === "per-speaker" ? group.cardScope : "merged";
   const scopedTargetId = group.output === "per-speaker" && group.cardScope === "scoped" ? speaker.ref.characterId : null;
@@ -136,7 +136,7 @@ export async function driveRound(params: DriveRoundParams): Promise<TurnOutcome>
 
 /** The round's speaker list: `narrator` is ONE turn authored by the synthetic group character; `per-speaker`
  *  is the arbitration result, in order. */
-function roundSpeakers(params: DriveRoundParams): readonly CastName[] {
+function roundSpeakers(params: DriveRoundParams): readonly SpeakerCandidate[] {
   if (params.group.output === "narrator") {
     if (params.groupCharacterId === null) {
       // A null here is a wiring bug: the verb mints the synthetic group-character id before driving the round.
@@ -145,7 +145,7 @@ function roundSpeakers(params: DriveRoundParams): readonly CastName[] {
     return [
       {
         ref: { kind: "character", characterId: params.groupCharacterId },
-        name: params.castName,
+        name: params.narratorSpeakerName,
       },
     ];
   }

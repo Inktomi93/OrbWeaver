@@ -71,7 +71,7 @@ describe("renderMacros", () => {
     const kai = { name: "Kai", description: "" };
     const ctx = ctxOf({
       characters: [aria, kai],
-      speaker: { kind: "cast", members: [aria, kai], active: aria },
+      speaker: { kind: "multi-voice", members: [aria, kai], active: aria },
     });
     expect(renderMacros("{{char}}", ctx, null)).toBe("Aria, Kai");
   });

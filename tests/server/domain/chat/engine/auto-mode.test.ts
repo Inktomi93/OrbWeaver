@@ -7,7 +7,7 @@ import type { MessageView, SpeakerRef } from "@orb/contracts/chat";
 import type { CharacterId, MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe, vi } from "vitest";
-import type { CastName } from "../../../../../packages/server/src/domain/chat/contract/arbitration.ts";
+import type { SpeakerCandidate } from "../../../../../packages/server/src/domain/chat/contract/arbitration.ts";
 import { CHAT_OP_CODES, ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors.ts";
 import type { TurnOutcome } from "../../../../../packages/server/src/domain/chat/contract/results.ts";
 import { runAutoMode } from "../../../../../packages/server/src/domain/chat/engine/auto-mode.ts";
@@ -15,7 +15,7 @@ import { expect, test } from "../../../../support/fixtures.ts";
 
 const cid = (k: string): CharacterId => castId<CharacterId>(`character_${k}`);
 const charRef = (k: string): SpeakerRef => ({ kind: "character", characterId: cid(k) });
-const sp = (k: string): CastName => ({ ref: charRef(k), name: k });
+const sp = (k: string): SpeakerCandidate => ({ ref: charRef(k), name: k });
 
 let mintCounter = 0;
 function committed(): TurnOutcome {
@@ -34,7 +34,7 @@ describe("runAutoMode — max-turns (the dual-bound cap)", () => {
       maxTurns: 3,
       delayMs: 0,
       delay: noDelay,
-      nextSpeaker: (): Promise<CastName | null> => Promise.resolve(sp("a")),
+      nextSpeaker: (): Promise<SpeakerCandidate | null> => Promise.resolve(sp("a")),
       runTurn,
     });
     expect(result.stopReason).toBe("max-turns");
@@ -51,7 +51,7 @@ describe("runAutoMode — no-eligible", () => {
       maxTurns: 5,
       delayMs: 0,
       delay: noDelay,
-      nextSpeaker: (): Promise<CastName | null> => Promise.resolve(null),
+      nextSpeaker: (): Promise<SpeakerCandidate | null> => Promise.resolve(null),
       runTurn,
     });
     expect(result.stopReason).toBe("no-eligible");
@@ -65,7 +65,7 @@ describe("runAutoMode — no-eligible", () => {
       maxTurns: 5,
       delayMs: 0,
       delay: noDelay,
-      nextSpeaker: (): Promise<CastName | null> => {
+      nextSpeaker: (): Promise<SpeakerCandidate | null> => {
         calls += 1;
         return Promise.resolve(calls <= 2 ? sp("a") : null);
       },
@@ -86,7 +86,7 @@ describe("runAutoMode — interrupt (user abort)", () => {
       delayMs: 0,
       delay: noDelay,
       signal: controller.signal,
-      nextSpeaker: (): Promise<CastName | null> => Promise.resolve(sp("a")),
+      nextSpeaker: (): Promise<SpeakerCandidate | null> => Promise.resolve(sp("a")),
       runTurn,
     });
     expect(result.stopReason).toBe("interrupt");
@@ -101,7 +101,7 @@ describe("runAutoMode — interrupt (user abort)", () => {
       delayMs: 0,
       delay: noDelay,
       signal: controller.signal,
-      nextSpeaker: (): Promise<CastName | null> => Promise.resolve(sp("a")),
+      nextSpeaker: (): Promise<SpeakerCandidate | null> => Promise.resolve(sp("a")),
       runTurn: (): Promise<TurnOutcome> => {
         controller.abort(); // the user interrupts mid-turn
         return Promise.resolve(committed());
@@ -122,7 +122,7 @@ describe("runAutoMode — interrupt (user abort)", () => {
       delayMs: 0,
       delay: noDelay,
       signal: controller.signal,
-      nextSpeaker: (): Promise<CastName | null> => {
+      nextSpeaker: (): Promise<SpeakerCandidate | null> => {
         controller.abort(); // the arbitration was cut mid-flight → no speaker
         return Promise.resolve(null);
       },
@@ -140,7 +140,7 @@ describe("runAutoMode — locked (a concurrent turn holds the lock)", () => {
       maxTurns: 5,
       delayMs: 0,
       delay: noDelay,
-      nextSpeaker: (): Promise<CastName | null> => Promise.resolve(sp("a")),
+      nextSpeaker: (): Promise<SpeakerCandidate | null> => Promise.resolve(sp("a")),
       runTurn: (): Promise<TurnOutcome> => Promise.reject(new ChatOperationError(CHAT_OP_CODES.locked, "in flight")),
     });
     expect(result.stopReason).toBe("locked");
@@ -157,7 +157,7 @@ describe("runAutoMode — re-arbitration + delay + error propagation", () => {
       delayMs: 0,
       delay: noDelay,
       initialLastSpeaker: charRef("seed"),
-      nextSpeaker: (last: SpeakerRef | null): Promise<CastName | null> => {
+      nextSpeaker: (last: SpeakerRef | null): Promise<SpeakerCandidate | null> => {
         seen.push(last);
         calls += 1;
         return Promise.resolve(sp(`spk${calls}`));
@@ -173,7 +173,7 @@ describe("runAutoMode — re-arbitration + delay + error propagation", () => {
       maxTurns: 3,
       delayMs: 1500,
       delay,
-      nextSpeaker: (): Promise<CastName | null> => Promise.resolve(sp("a")),
+      nextSpeaker: (): Promise<SpeakerCandidate | null> => Promise.resolve(sp("a")),
       runTurn: (): Promise<TurnOutcome> => Promise.resolve(committed()),
     });
     expect(delay).toHaveBeenCalledTimes(2);
@@ -186,7 +186,7 @@ describe("runAutoMode — re-arbitration + delay + error propagation", () => {
         maxTurns: 5,
         delayMs: 0,
         delay: noDelay,
-        nextSpeaker: (): Promise<CastName | null> => Promise.resolve(sp("a")),
+        nextSpeaker: (): Promise<SpeakerCandidate | null> => Promise.resolve(sp("a")),
         runTurn: (): Promise<TurnOutcome> => Promise.reject(new Error("model exploded")),
       }),
     ).rejects.toThrow("model exploded");

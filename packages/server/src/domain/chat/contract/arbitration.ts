@@ -24,7 +24,7 @@ export interface ArbiterCandidate {
 
 /** A `{ref, name}` pair — a present speaker's display name (the `@mention` seam + the per-speaker SHAPE
  *  name-stamp). An agent's name arrives from the doc-04 speaker source (AP3); a character's from its card. */
-export interface CastName {
+export interface SpeakerCandidate {
   readonly ref: SpeakerRef;
   readonly name: string;
 }
