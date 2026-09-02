@@ -1,4 +1,4 @@
-// The cast-bar add-member affordance: a trailing "+" (host-only) opening an anchored Popover picker of
+// The character-bar add-member affordance: a trailing "+" (host-only) opening an anchored Popover picker of
 // characters not already in the roster. Picking a row adds it and keeps the popover open for more. A
 // popover, not a modal-slot entry — this is a small anchored picker, not a rail/topbar interrupt. The
 // Command picker body is the shared `CharacterPicker` composite.

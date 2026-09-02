@@ -118,7 +118,7 @@ export const BG_PHOTO_CHROME_PLATE =
 // BAND backing (#229/#237) — the SAME over-art question as the chip above, answered for a full-bleed
 // STRIP rather than a floating chip. The cast bar sits above the transcript inside `.shell-main`, which
 // over a wallpaper is `background: transparent` (shell.css) with only the halo text-shadow, so its chips
-// and names floated on the raw photo — the pass-3 cast-bar finding, and the same class as the list pane's
+// and names floated on the raw photo — the pass-3 character-bar finding, and the same class as the list pane's
 // 3.69:1 under Light. It takes the plate + blur + paired chrome ink and NOTHING ELSE: a band already owns
 // its own padding and spans its column, so the chip's `rounded-card`/`px-field`/`py-row` would fight it
 // (the strip's `px-block` and the chip's `px-field` are the same property at different modifiers — both
