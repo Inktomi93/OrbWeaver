@@ -117,4 +117,20 @@ describe("applyStatsDelta", () => {
     const owner = (await db.select().from(ownerStats).where(eq(ownerStats.ownerId, ownerId)))[0];
     expect(owner?.userTurns).toBe(1);
   });
+
+  // #1147 — the room count is GRAIN-SPLIT: `character_stats.chats` reads `characterChats` and
+  // `owner_stats.chats` reads `chats`, so a two-seat room can credit its second seat's census without
+  // counting the room twice in the owner's library. A single shared field could not express that, and the
+  // live plane simply dropped the second seat. Both directions are pinned: a SEAT-only delta must not move
+  // the owner, and an OWNER-only delta must not move the census.
+  test("the chat count is grain-split: a seat delta credits only the character, an owner delta only the owner", async () => {
+    await apply(makeDelta({ chats: 1, characterChats: 1, forkedChats: 1, characterForkedChats: 1 }));
+    await apply(makeDelta({ characterChats: 1, characterForkedChats: 1 }));
+    const char = (await db.select().from(characterStats).where(eq(characterStats.characterId, characterId)))[0];
+    const owner = (await db.select().from(ownerStats).where(eq(ownerStats.ownerId, ownerId)))[0];
+    // Two seats of the same character-grain event…
+    expect(char).toMatchObject({ chats: 2, forkedChats: 2 });
+    // …and the owner's library still counted the ONE room the first delta carried.
+    expect(owner).toMatchObject({ chats: 1, forkedChats: 1 });
+  });
 });

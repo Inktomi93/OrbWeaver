@@ -190,6 +190,38 @@ describe("forkChat — canon-mutator stats push (stats.md)", () => {
     expect(deltas.filter((d) => d.swipes === 1)).toHaveLength(1);
     expect(new Set(deltas.map((d) => d.ownerId))).toEqual(new Set([host]));
   });
+
+  // #1147 — A FORK IS A NEW ROOM FOR EVERY SEAT IT COPIES. The rebuild credits the forked chat to each of
+  // its character participants, so a two-character source room must leave two census bumps and two
+  // character fork counters behind — while the OWNER's library still gains exactly ONE room. Counting only
+  // the primary seat is how a seated-second character reads 0 chats on every Analytics surface.
+  test("a MULTI-SEAT fork counts the new room for every copied seat, and once for the owner", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const charA = await seedCharacter(db, host, "aria");
+    const charB = await seedCharacter(db, host, "brann");
+    const chatId = await seedChat(db, "src");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    await seedParticipant(db, { chatId, key: "ca", characterId: charA });
+    await seedParticipant(db, { chatId, key: "cb", characterId: charB });
+    const deltas: StatsDelta[] = [];
+    const ctx = makeChatContext(db, {
+      getCard: ownedCard(),
+      applyStatsDelta: (_b, _d, delta) => {
+        deltas.push(delta as StatsDelta);
+      },
+    });
+    const fork = createFork(ctx, { emit, loadParticipantViews });
+
+    await fork.forkChat({ principal: principal(host), chatId });
+
+    // Each seat is credited the room exactly once…
+    expect(deltas.filter((d) => d.characterChats === 1).map((d) => d.characterId)).toEqual([charA, charB]);
+    expect(deltas.filter((d) => d.characterForkedChats === 1)).toHaveLength(2);
+    // …and the owner's library counts the ONE new room, once, on the primary seat's head delta.
+    expect(deltas.filter((d) => d.chats === 1)).toHaveLength(1);
+    expect(deltas.filter((d) => d.forkedChats === 1)).toHaveLength(1);
+    expect(deltas.filter((d) => d.chatsCreated === 1)).toHaveLength(1);
+  });
 });
 
 describe("forkChat — D27 deep copy", () => {

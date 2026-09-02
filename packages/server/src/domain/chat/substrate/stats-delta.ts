@@ -407,14 +407,43 @@ export function swipeVariantDelta(params: { readonly ownerId: UserId; readonly r
 }
 
 /**
- * The chat-created contribution (`start-chat`/`fork`): +1 chats (per-char primary + per-owner), +1 daily
- * chatsCreated, the fork lineage counter, and the firstAt/lastAt extrema candidates. A multi-character room
- * bumps only the primary character's per-char `chats`; a reconcile settles the extra per-char rows.
+ * The chat-created contribution of a room's PRIMARY seat (`start-chat`/`fork`): the owner-grain +1 chats
+ * and +1 daily chatsCreated that the room itself contributes, PLUS that seat's own census bump
+ * ({@link seatChatDelta}'s payload), the fork lineage counters, and the firstAt/lastAt extrema candidates.
+ *
+ * EVERY OTHER SEAT RIDES ONE {@link seatChatDelta} (#1147) — the room counts ONCE for the owner and ONCE
+ * PER SEAT for the census, which is exactly what the rebuild derives
+ * (`rebuild-from-canon.ts::loadChatMeta`, `COUNT(DISTINCT cp.chat_id)` per character).
  *
  * @remarks `newCharacter` is `true` when this creation is the primary character's first chat. A fork is
- *  never a first chat. Additional first-chat founding characters ride one {@link newCharacterDelta} each.
+ *  never a first chat.
  */
 export function chatCreatedDelta(params: {
+  readonly ownerId: UserId;
+  readonly characterId: CharacterId | null;
+  readonly forked: boolean;
+  readonly newCharacter: boolean;
+  readonly now: number;
+}): StatsDelta {
+  return {
+    ...seatChatDelta(params),
+    chats: 1,
+    chatsCreated: 1,
+    ...(params.forked ? { forkedChats: 1 } : {}),
+  };
+}
+
+/**
+ * The contribution of ONE character SEAT in a room: the per-character room census (+1 on the seat's
+ * `chats` column, +1 its fork counter when the room is a fork) and that character's first/last-chat
+ * extrema candidates, plus the `owner_stats.characters` bump when this is the character's first chat.
+ *
+ * It carries NO owner-grain `chats`/`chatsCreated`: the room is one room however many characters sit in it,
+ * so only the primary seat's {@link chatCreatedDelta} counts it for the owner and the day. Used for every
+ * founding seat past the first (`verbs/claim-chat.ts`), every copied seat of a fork (`verbs/fork.ts`), and
+ * a character seated into a live room (`verbs/roster.ts::addCharacterToChat`).
+ */
+export function seatChatDelta(params: {
   readonly ownerId: UserId;
   readonly characterId: CharacterId | null;
   readonly forked: boolean;
@@ -427,30 +456,11 @@ export function chatCreatedDelta(params: {
     day: utcDay(params.now),
     model: null,
     provider: null,
-    chats: 1,
-    chatsCreated: 1,
-    ...(params.forked ? { forkedChats: 1 } : {}),
+    characterChats: 1,
+    ...(params.forked ? { characterForkedChats: 1 } : {}),
     ...(params.newCharacter ? { newCharacter: true } : {}),
     firstAt: params.now,
     lastAt: params.now,
-    now: params.now,
-  };
-}
-
-/**
- * The first-chat contribution of one additional founding character beyond the primary: a pure
- * `owner_stats.characters` +1 rider on the creation batch. `characterId` is deliberately null — the
- * rebuild mints a `character_stats` row only for characters with canon messages, so a per-char zero row
- * here would be manufactured drift.
- */
-export function newCharacterDelta(params: { readonly ownerId: UserId; readonly now: number }): StatsDelta {
-  return {
-    ownerId: params.ownerId,
-    characterId: null,
-    day: utcDay(params.now),
-    model: null,
-    provider: null,
-    newCharacter: true,
     now: params.now,
   };
 }

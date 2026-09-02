@@ -9,9 +9,9 @@
 
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
-import { chats, ownerStats, statsCanonVersions } from "@orb/db";
+import { characterStats, chats, ownerStats, statsCanonVersions } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
-import type { ChatId, Handle, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
@@ -240,5 +240,91 @@ describe("claimChat — the creation-stats replay", () => {
 
     expect(deltas.filter((d) => d.chats === 1)).toHaveLength(1);
     expect(deltas.filter((d) => d.assistantTurns === 1)).toStrictEqual([]);
+  });
+});
+
+/** The per-character room census (`character_stats.chats`) as a writer left it — read straight off the
+ *  rollup so the assertion is over STORED rows, never a builder's return value. */
+async function characterCensus(): Promise<{ characterId: string; chats: number; firstChatAt: number | null }[]> {
+  const rows = await db
+    .select({ characterId: characterStats.characterId, chats: characterStats.chats, firstChatAt: characterStats.firstChatAt })
+    .from(characterStats);
+  return rows
+    .map((r) => ({ chats: r.chats, firstChatAt: r.firstChatAt, characterId: String(r.characterId) }))
+    .sort((a, b) => a.characterId.localeCompare(b.characterId));
+}
+
+/** A husk with a host and TWO character seats — the ordinary group room. `bSpeaks` seeds a greeting for the
+ *  second seat too (a greet-all room); without it the second seat is a SILENT founding member. */
+async function seedTwoSeatHusk(key: string, opts: { readonly bSpeaks: boolean }): Promise<{ host: UserId; chatId: ChatId; a: CharacterId; b: CharacterId }> {
+  const host = await seedUser(db, castId<Handle>(`host_${key}`));
+  const a = await seedCharacter(db, host, `char_${key}_a`);
+  const b = await seedCharacter(db, host, `char_${key}_b`);
+  const chatId = await seedChat(db, key, { startedAt: null });
+  await seedParticipant(db, { chatId, key: `h_${key}`, userId: host, role: "host" });
+  await seedParticipant(db, { chatId, key: `ca_${key}`, characterId: a });
+  await seedParticipant(db, { chatId, key: `cb_${key}`, characterId: b });
+  await seedMessage(db, chatId, 1, { role: "assistant", characterId: a, content: "A greets the room" });
+  if (opts.bSpeaks) {
+    await seedMessage(db, chatId, 2, { role: "assistant", characterId: b, content: "B greets the room" });
+  }
+  return { host, chatId, a, b };
+}
+
+/** Claim through the REAL apply so the census under test is the one a live claim actually stores. */
+async function claimWithRealStats(chatId: ChatId): Promise<void> {
+  await createClaimChat(
+    makeChatContext(db, {
+      applyStatsDelta: (batch, deltaDb, delta) => applyStatsDelta(batch as BatchStmt[], deltaDb, delta),
+      emitChatChanged: () => Promise.resolve(),
+    }),
+  )(chatId);
+}
+
+// #1147 — THE PER-CHARACTER ROOM CENSUS IS A TWO-WRITER CONTRACT, and the SEAT axis is the half a
+// single-character drift gate can never see. `rebuild-from-canon.ts::loadChatMeta` DEFINES
+// `character_stats.chats` as `COUNT(DISTINCT cp.chat_id)` over a character's seats; `apply-delta.ts`'s
+// header binds the live plane to equal that rebuild column-for-column; `verbs/freshness.ts` promises the
+// reader the live rollup is never stale. A two-seat room is the ordinary group chat — so a replay that
+// credits only the founding seat makes every Analytics/leaderboard surface print 0 chats for a
+// seated-second character until somebody runs a reconcile by hand.
+describe("claimChat — the per-character room census (#1147)", () => {
+  test("EVERY founding seat counts the room: a two-character claim leaves the same census a canon rebuild does", async () => {
+    const { host, a, b, chatId } = await seedTwoSeatHusk("census", { bSpeaks: true });
+
+    await claimWithRealStats(chatId);
+    const live = await characterCensus();
+
+    await db.delete(characterStats);
+    await reconcileStats(db, { ownerId: host, now: () => FROZEN_AT });
+    const rebuilt = await characterCensus();
+
+    expect(live).toStrictEqual(rebuilt);
+    // …and not vacuously: BOTH seats hold the one room, each stamped with the room's creation instant.
+    expect(live).toStrictEqual([
+      { characterId: String(a), chats: 1, firstChatAt: FROZEN_AT },
+      { characterId: String(b), chats: 1, firstChatAt: FROZEN_AT },
+    ]);
+  });
+
+  test("a SILENT founding seat is still a census row: a character that never spoke holds the room on both writers", async () => {
+    const { host, a, b, chatId } = await seedTwoSeatHusk("silent", { bSpeaks: false });
+
+    await claimWithRealStats(chatId);
+    const live = await characterCensus();
+
+    await db.delete(characterStats);
+    await reconcileStats(db, { ownerId: host, now: () => FROZEN_AT });
+    const rebuilt = await characterCensus();
+
+    expect(live).toStrictEqual(rebuilt);
+    // "Seated here, never spoke" is a real library state (a greet-less card, an imported cast member) —
+    // the row carries the room and zero economics, it is not an ABSENT character.
+    expect(live).toStrictEqual([
+      { characterId: String(a), chats: 1, firstChatAt: FROZEN_AT },
+      { characterId: String(b), chats: 1, firstChatAt: FROZEN_AT },
+    ]);
+    const [silent] = await db.select().from(characterStats).where(eq(characterStats.characterId, b));
+    expect(silent).toMatchObject({ assistantTurns: 0, contentBytes: 0 });
   });
 });

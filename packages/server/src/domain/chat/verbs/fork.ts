@@ -56,7 +56,7 @@ import { NO_HISTORY_FLOOR, permitsHost } from "../substrate/auth/index.ts";
 import { toChatDetail } from "../substrate/chat-detail.ts";
 import { viewerReadsHidden } from "../substrate/member-visibility.ts";
 import { foldChain } from "../substrate/runtime-variables.ts";
-import { canonMessageDelta, chatCreatedDelta, swipeVariantDelta } from "../substrate/stats-delta.ts";
+import { canonMessageDelta, chatCreatedDelta, seatChatDelta, swipeVariantDelta } from "../substrate/stats-delta.ts";
 
 /** The collaborators not on `ChatContext`. `emit` is the chat bus; `loadParticipantViews` resolves the
  *  roster read-model for the returned `ChatDetail`. */
@@ -305,7 +305,7 @@ function pushForkStatsDeltas(
   stmts: BatchStmt[],
   args: {
     readonly ownerId: UserId;
-    readonly primaryCharacterId: CharacterId | null;
+    readonly characterIds: readonly CharacterId[];
     readonly slots: readonly (typeof messages.$inferSelect)[];
     readonly variants: readonly (typeof messageVariants.$inferSelect)[];
     readonly now: number;
@@ -319,12 +319,20 @@ function pushForkStatsDeltas(
     // already seats every character — a fork is never a character's first chat.
     chatCreatedDelta({
       ownerId,
-      characterId: args.primaryCharacterId,
+      characterId: args.characterIds[0] ?? null,
       forked: true,
       newCharacter: false,
       now,
     }),
   );
+  // The fork is a NEW ROOM FOR EVERY SEAT IT COPIES (#1147) — the rebuild credits the forked chat to each
+  // of its character participants, so each kept seat past the first rides its own census bump. Owner-grain
+  // `chats`/`forkedChats` stay on the head delta above: one new room, however wide its cast.
+  for (const [idx, characterId] of args.characterIds.entries()) {
+    if (idx > 0) {
+      ctx.applyStatsDelta(stmts, ctx.db, seatChatDelta({ ownerId, characterId, forked: true, newCharacter: false, now }));
+    }
+  }
   const variantsByMessage = new Map<string, (typeof messageVariants.$inferSelect)[]>();
   for (const v of args.variants) {
     variantsByMessage.set(v.messageId, [...(variantsByMessage.get(v.messageId) ?? []), v]);
@@ -701,10 +709,10 @@ function createForkChat(ctx: ChatContext, deps: ForkDeps): ChatService["forkChat
     ];
 
     // The rebuild counts the copied canon under the new room, so the live path must too. Owner = the
-    // fork's host. primaryCharacterId is the first kept (forker-owned) cast seat.
+    // fork's host. The census counts EVERY kept (forker-owned) cast seat; the first is the primary.
     pushForkStatsDeltas(ctx, stmts, {
       ownerId: principal.userId,
-      primaryCharacterId: keptCharacterSeats.at(0)?.characterId ?? null,
+      characterIds: keptCharacterSeats.map((r) => r.characterId),
       slots,
       variants,
       now,
