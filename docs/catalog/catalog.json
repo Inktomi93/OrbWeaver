@@ -10914,9 +10914,9 @@
       "path": "docs/design/1208-instrument-substrate.md",
       "lane": "design",
       "issue": 5,
-      "lines": 402,
-      "bytes": 59850,
-      "sha256": "663892b310abbdd581e8e59e800df2fa327e433b911f72ad38eb839f18a345b7",
+      "lines": 456,
+      "bytes": 71876,
+      "sha256": "54c4f521692e5b3e5a40c9cf69da699b6f7816dc1a407841a761a2f48129803b",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -10933,10 +10933,11 @@
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "663892b310abbdd581e8e59e800df2fa327e433b911f72ad38eb839f18a345b7",
-        "verifiedCommit": "9d479c4434d9a74fb38491e7e4d888121244c438",
+        "verifiedSha256": "54c4f521692e5b3e5a40c9cf69da699b6f7816dc1a407841a761a2f48129803b",
+        "verifiedCommit": "f21f7d10c097dd6cb09e8a9e2b46dfabc0254f3e",
         "verifiedAt": "2026-09-02",
         "evidence": [
+          "re-attested at f21f7d10c (forge warm leg, two commits): §7.1 'Timeouts and load: one budget policy' added per the owner's 'also wrap in the timeout design' — inventory with receipts, one load reading, three classes (wall clocks scale via budget(baseMs) with a factor cap + absolute ceiling F11; rates withhold with ORB-LOAD-WITHHOLD; idle/TTL is not a budget), home tooling/src/_shared/load-budget (planned), gate arm J, T14–T17, phase 1b; §12.1 records F1–F4 as owner rulings; the twelve dangling backticked paths de-backticked (stale receipts as plain text, planned files marked '(planned)'); premise correction: motion-audit's mobile arm already carries withholdMeasurement. Read in full at the fold by the primary orchestrator.",
           "born-reviewed by the primary orchestrator at 9d479c443 (lane p-substrate-design, forge): all 403 lines read in full at the fold — the 12-row pain-point inventory with code and transcript receipts (3015 instrument invocations over 14 days), the launch/stage-binding map, the four-noun model, the daemon protocol and state machine, the band registry, the slot integration, the grammar inventory and shared families, the op reuse map, the two worked arms, the load model, T1–T13, the alternatives, the phased plan, the cost and F1–F10. Premise refutations recorded in §1 P11 (the brief's stale paths; 'five lanes refused' = discipline refusals, 2 hard errors)."
         ],
         "claims": [
