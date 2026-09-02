@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-08-30
+updated: 2026-09-01
 ---
 
 # Orbweaver — Constitution (AGENTS)
@@ -151,6 +151,12 @@ is the comment/doc sweep: a crossed word is a drifted-comment defect, fixed on s
   `pnpm check` → `reports/verify.json` + `reports/verify/<stage>.log` + `reports/check-structure.json`;
   `pnpm test` → `reports/test-report.json` + `reports/ct-flaky.json`. Invoke the scripts (a bare
   `npx vitest run` drops the json reporter); never `| tail` live output — it eats the failure list.
+  **Those paths are `latest` POINTERS, not files a run writes in place (#1029, owner ruling "all reports
+  need to be able to be ran concurrently").** Each run writes only inside
+  `reports/runs/<instrument>/<checkout>-<pid>-<timestamp>/` and publishes the pointer atomically when it
+  FINISHES, so concurrent runs on one checkout keep both verdicts and a reader never gets a half-written
+  one. Read the same paths as always; when you need YOUR run specifically, take the slot the run printed.
+  The layout's one home is `UNIFIED-VERIFICATION-DESIGN.md` §3.3b.
 - **The ONE verification surface (`UNIFIED-VERIFICATION-DESIGN.md`):** iterate on `pnpm verify --changed`
   (scoped, fast inner loop); claim "done" only after `pnpm verify` (= `--static`, = `pnpm check`); the
   pre-push bar is `pnpm verify --push` (adds the node tests + CT + e2e-smoke — the behavioral suites a

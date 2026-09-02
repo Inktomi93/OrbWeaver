@@ -3,7 +3,7 @@
 import { createHash } from "node:crypto";
 import { existsSync, globSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { extname, join } from "node:path";
-import { REPO_ROOT } from "../../_shared/artifacts.ts";
+import { REPO_ROOT, runId } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { execNicedSync, execNicedSyncBuffer } from "../../_shared/proc.ts";
 import type { Doc, EvidenceSources, Lane, LaneConfig, Receipt, ReceiptEntry, ReceiptFacts } from "../contract/types.ts";
@@ -37,10 +37,17 @@ function sha256(content: Buffer | string): string {
  *  `pnpm format`. Formats a TEMP FILE inside docs/catalog (so biome.json's maxSize override matches)
  *  with the biome BINARY invoked directly — never `pnpm exec` + stdin: the double-hop with a
  *  synchronous `input` buffer throws ENOBUFS past ~1 MiB, and the stdin route was also the
- *  silent-empty-output path when the payload crossed `files.maxSize` (both measured 2026-08-15). */
+ *  silent-empty-output path when the payload crossed `files.maxSize` (both measured 2026-08-15).
+ *
+ *  THE TEMP NAME IS PER-INVOCATION (#1029). It used to be the fixed `docs/catalog/catalog.tmp.json`, so two
+ *  concurrent `doc-catalog:write`/`--check` runs on one checkout wrote and formatted the SAME scratch file:
+ *  each read back whatever the other had just written, and the `finally` of the first to finish deleted the
+ *  second's input mid-flight. Same class as the `reports/` clobber the run-slot layout closes, one
+ *  directory over — the fix is the same, a name only this run can produce. */
 export function stableJson(value: unknown): string {
   const source = `${JSON.stringify(value, null, 2)}\n`;
-  const tmp = join(root, `${CATALOG_DIR}/catalog.tmp.json`);
+  // Stays INSIDE docs/catalog so biome.json's per-directory `files.maxSize` override still matches it.
+  const tmp = join(root, `${CATALOG_DIR}/catalog.tmp.${runId(root)}.json`);
   try {
     writeFileSync(tmp, source);
     execNicedSync(join(root, "node_modules/.bin/biome"), ["format", "--write", tmp], { cwd: root });

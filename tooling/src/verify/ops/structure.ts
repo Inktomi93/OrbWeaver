@@ -9,7 +9,8 @@
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
-import { ensureReportsDir } from "@orb/tooling/_shared/artifacts";
+import type { RunSlot } from "@orb/tooling/_shared/artifacts";
+import { checkoutName, openRunSlot, publishRunSlot } from "@orb/tooling/_shared/artifacts";
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import type { GateDescriptor } from "../contract/gate.ts";
@@ -84,22 +85,29 @@ function reconcile(corpus: GateCorpus, pass: PassResult): readonly string[] {
   return out;
 }
 
-function writeReport(root: string, report: StructureReport): void {
-  writeFileSync(join(ensureReportsDir(root), "check-structure.json"), `${JSON.stringify(report, null, 2)}\n`);
+/** The artifact's name — inside this run's slot, and the published pointer's basename (#1029). */
+const REPORT_NAME = "check-structure.json";
+
+/** Write into THIS RUN'S slot. Never the published path: `reports/check-structure.json` is a symlink
+ *  publishRunSlot swaps in at completion, so no in-flight write can ever be read as somebody's verdict. */
+function writeReport(slot: RunSlot, report: StructureReport): void {
+  writeFileSync(join(slot.dir, REPORT_NAME), `${JSON.stringify(report, null, 2)}\n`);
 }
 
 /** The IN-FLIGHT stub (#410). Written BEFORE the walk, so a run killed mid-pass leaves an artifact whose
- *  own `run.complete: false` refuses to be read as a verdict — instead of leaving the PREVIOUS run's
- *  complete-looking file on disk for the next reader to mistake for this one's. */
-function writeInFlight(root: string, run: RunManifest): void {
-  writeReport(root, { run, gates: [], toolErrors: [], scanAlarms: [], populationAlarms: [], total: 0, ok: false });
+ *  own `run.complete: false` refuses to be read as a verdict. Since #1029 it lands in the run's own slot
+ *  and the slot's in-flight marker is what surfaces it to a fixed-path reader (`abandonedRuns`). */
+function writeInFlight(slot: RunSlot, run: RunManifest): void {
+  writeReport(slot, { run, gates: [], toolErrors: [], scanAlarms: [], populationAlarms: [], total: 0, ok: false });
 }
 
-function startManifest(): RunManifest {
-  const startedAt = new Date().toISOString();
+function startManifest(root: string, slot: RunSlot): RunManifest {
   return {
-    runId: `${process.pid}-${startedAt}`,
-    startedAt,
+    runId: slot.runId,
+    checkout: checkoutName(root),
+    artifactDir: slot.relDir,
+    concurrent: slot.racing,
+    startedAt: new Date().toISOString(),
     finishedAt: null,
     complete: false,
     corpusFiles: 0,
@@ -111,14 +119,25 @@ function startManifest(): RunManifest {
   };
 }
 
+/** A concurrent writer is NAMED, never silently last-write-wins (#1029). stderr, not stdout: the verdict
+ *  stream stays parseable, and a lane reading only the artifact still finds the same list in `run.concurrent`. */
+function announceRacing(slot: RunSlot): void {
+  if (slot.racing.length > 0) {
+    process.stderr.write(`[check:structure] CONCURRENT RUN(S) of this instrument on this checkout: ${slot.racing.join(", ")}\n`);
+    process.stderr.write(`[check:structure] this run writes to ${slot.relDir} and publishes reports/${REPORT_NAME} only if it finishes last.\n`);
+  }
+}
+
 /** The single-pass run: load the descriptors, run one pass, render, write the JSON, and RETURN the 0/1/2
  *  verdict (2 when any gate threw, read nothing, or the run did not reconcile; 1 on violations; 0 clean).
  *  The cli's `runTool` sets `process.exitCode` from it — never `process.exit`, which drops the buffered
  *  stdout write below and truncates a large report mid-line (the fixture-run report the check-gates
  *  anti-drift test parses). */
 export async function runStructure(root: string): Promise<number> {
-  const started = startManifest();
-  writeInFlight(root, started);
+  const slot = openRunSlot(root, "structure");
+  announceRacing(slot);
+  const started = startManifest(root, slot);
+  writeInFlight(slot, started);
 
   const corpus = await loadGateCorpus(root);
   const gatesByName = new Map(corpus.gates.map((g) => [g.name, g]));
@@ -150,7 +169,7 @@ export async function runStructure(root: string): Promise<number> {
   process.stdout.write(renderPass(pass, gatesByName, { zeroScanAlarm: true }));
   process.stdout.write(`\n${completenessLine(run)}\n`);
 
-  writeReport(root, {
+  writeReport(slot, {
     run,
     gates,
     toolErrors: pass.toolErrors,
@@ -159,6 +178,9 @@ export async function runStructure(root: string): Promise<number> {
     total,
     ok: total === 0 && pass.toolErrors.length === 0 && scanAlarms.length === 0 && populations.length === 0 && incompleteReasons.length === 0,
   });
+  // Published at the END and only here: a reader arriving at reports/check-structure.json therefore always
+  // resolves to a run that FINISHED — its own or a sibling's — never to an in-flight or torn artifact.
+  publishRunSlot(root, slot, [{ alias: REPORT_NAME, target: REPORT_NAME }]);
 
   // A short run, a blind gate, a refused POPULATION receipt and a thrown gate ride the SAME severity: in
   // all four the run is not a verdict. A short run is the worst of them — a throw is loud and a blind gate
@@ -172,7 +194,7 @@ export async function runStructure(root: string): Promise<number> {
 /** The visible half of the #410 guarantee: the console says how many of the corpus actually ran. */
 function completenessLine(run: RunManifest): string {
   if (run.incompleteReasons.length === 0) {
-    return `single-pass: ran ${run.ran}/${run.active} active gate(s) of ${run.corpusFiles} corpus file(s) — run COMPLETE (run ${run.runId})`;
+    return `single-pass: ran ${run.ran}/${run.active} active gate(s) of ${run.corpusFiles} corpus file(s) — run COMPLETE (run ${run.runId} → ${run.artifactDir}/${REPORT_NAME})`;
   }
   return [
     `single-pass: run INCOMPLETE — the report is NOT a verdict (run ${run.runId}):`,

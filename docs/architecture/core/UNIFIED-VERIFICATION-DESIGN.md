@@ -145,6 +145,74 @@ A HARD contract, spoken by every stage and by the run:
 - ARGV is parsed by `node:util` `parseArgs` under a strict schema: an unknown flag, a value option with no
   value, >1 scope selector, or >1 tier are all misuse (3), never a silent-ignore.
 
+### 3.3b The `reports/` layout — one run, one slot, one pointer (#1029)
+
+**This section is the ONE home for the artifact layout.** Every other doc, rule and header cites it rather
+than restating it. Owner ruling 2026-09-01, verbatim: *"all reports need to be able to be ran
+concurrently"* and *"unique markers inherit the worktree name"*.
+
+**The defect it closes.** Every instrument wrote its artifact to one FIXED path, so two runs on one
+checkout — two lanes, a lane and the orchestrator, a `pnpm check` and a sibling's `check:structure` —
+clobbered each other. Measured live that day: three concurrent `check:structure` runs on main, and
+`reports/check-structure.json` flipped from a complete 248-gate verdict to another run's in-flight stub
+inside 30s. The read-the-artifact-never-the-pipe law (AGENTS.md §4) assumes the artifact is YOURS; under
+multi-lane load it silently was not.
+
+**Run identity.** `<checkout>-<pid>-<timestamp>`, minted ONCE per invocation
+(`tooling/src/_shared/artifacts.ts` `runId`). `<checkout>` is `main` for the primary checkout and the
+worktree directory's basename for a lane (`agent-ac04b6aea89a434f7`), derived from the KIND of the `.git`
+entry — a linked worktree's is a FILE, the primary checkout's a DIRECTORY — so it costs one `stat` and
+never shells out to git.
+
+**The layout.**
+
+```
+reports/
+  runs/<instrument>/<runId>/…      ← every byte a run writes, and the ONLY place it writes
+  runs/<instrument>/<runId>/.inflight   the marker: dropped at open, deleted at publish
+  verify.json          → symlink into runs/verify/<runId>/verify.json
+  verify/              → symlink into runs/verify/<runId>/stages/   (per-stage `<stage>.log`)
+  check-structure.json → symlink into runs/structure/<runId>/check-structure.json
+  test-report.json     → symlink into runs/test/<runId>/test-report.json
+  test-shards/         → symlink into runs/test/<runId>/test-shards/
+  ct-flaky.json        → symlink into runs/ct/<runId>/ct-flaky.json
+  verify-history.jsonl   NOT slotted — an append-only multi-writer ledger (below)
+```
+
+- **The well-known paths keep their spelling and become `latest` POINTERS.** Every reader in the repo —
+  `pnpm check:show`, `verify --json`, `debt`, the docs, the rules, a lane's `cat` — opens the same path it
+  always did; it now resolves to a run that FINISHED.
+- **Published at COMPLETION ONLY, atomically**: a relative symlink is created at a temp name in the same
+  directory and `rename`d over the alias (POSIX rename is atomic). A concurrent reader sees the old
+  complete run or the new one, never a torn or in-flight artifact. An artifact the run never wrote is not
+  published at all — a dangling pointer would read as "missing" to everyone, which is worse than leaving
+  the previous complete run's.
+- **A launcher that knows its own run id reads its OWN slot** (`runFile`), never the pointer.
+- **A racing writer is NAMED, never silently last-write-wins**: opening a slot censuses the other slots of
+  that instrument whose `.inflight` marker names a LIVE pid, and the list lands on stderr AND in the
+  artifact (`run.concurrent` / `runManifest.concurrent`).
+- **Retention** is a bounded ring — the 10 newest slots per instrument, pruned at publish. An in-flight
+  slot and the just-published one are never pruned, so `latest` can never point at a removed run.
+
+**What this does to the #410 in-flight stub.** The ruling survives — its INPUT changed. The stub is still
+written before the walk, still says `complete: false`, and is still refused by every reader; it now lands
+in the run's slot instead of over the published path (writing an in-flight stub to a shared path is
+precisely what a concurrent sibling clobbered). The "this run DIED" tell reaches a fixed-path reader
+through `abandonedRuns()` — a slot whose in-flight marker outlived its pid — and `check:show` refuses when
+one is NEWER than the run the pointer resolves to. That is strictly finer than the old signal, which could
+not tell "my run died" from "a sibling lane is mid-run". A LIVE sibling is deliberately not a refusal.
+
+**`verify-history.jsonl` is deliberately NOT slotted.** It is a per-checkout ledger of every run, not one
+run's verdict: appends are `O_APPEND` single-line writes that the kernel does not interleave at this size,
+and slotting it would give each run a one-line history to compare against — destroying the only thing it
+exists for. Each line carries its `runId`, so a reader can still attribute a row.
+
+**Not yet slotted (leftovers, tracked on #1029):** the artifact paths named by `playwright-ct.config.ts`
+(`ct-report.json`, `ct-report/`, `ct-results/`) and `playwright.config.ts` (`e2e-report*`, `e2e-results/`),
+and the instrument output dirs (`design-audit/`, `snaps/`, `traces/`, `baselines/`, `perf-meter/`,
+`recordings/`, `mutation-probe/`, `cpd/`, `coverage/`). Those are `--out`-keyed families where a caller
+names the artifact, not verdict paths a reader is sent to blind.
+
 ### 3.4 The scope model
 
 `tooling/src/verify/lib/selection.ts` is the ONE resolver: a `--changed`/`--file`/`--package`/`--scope` request
@@ -232,7 +300,9 @@ The behavioral suites are ONE `tests` concept expressed as stages with tier + sc
   tree would postpone the backstop forever. (The same capture found `vitest.config.ts`'s `SERIAL_INT` row
   for that suite still spelling its pre-`8931a886c` path, so the heaviest whole-workspace file had been
   running in the PARALLEL lane — repointed in the same commit.) Before
-  the kill it writes `reports/test-wedge-<project>-attempt<n>-<ts>.txt`
+  the kill it writes `<run slot>/test-wedge-<project>-attempt<n>-<ts>.txt` (§3.3b — the shards, the merged
+  report and the wedge dumps all live in the run's own slot; `reports/test-report.json` and
+  `reports/test-shards/` are the published pointers)
   — the wedged pid's `/proc` state/wchan/fds, the surviving worker tree, and the SUSPECT list (files the
   shard's previous report named that this run never announced as finished). A shard the watchdog killed is
   re-run **exactly once**, and only when its own fresh report is not a complete pass: a wedge is a tool

@@ -10,7 +10,7 @@
 // THE FOUR ABNORMAL ARMS ARE THE POINT. Before #410 all four left the PREVIOUS run's complete-looking
 // artifact on disk, which every reader the doctrine sends there ("read the report, never re-run") would
 // consume as this run's clean verdict.
-import { readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
@@ -34,6 +34,8 @@ const SCANNED = { "packages/x/src/y.ts": "export const y = 1;\n" };
 const GATE_DIR = "tooling/src/verify/gates";
 
 interface RunView {
+  /** `<checkout>-<pid>-<timestamp>` (#1029) — the identity the published pointer must resolve to. */
+  readonly runId: string;
   readonly complete: boolean;
   readonly ran: number;
   readonly active: number;
@@ -43,12 +45,32 @@ interface RunView {
   readonly incompleteReasons: readonly string[];
 }
 
+/** THE RUN'S OWN ARTIFACT, not the published pointer (#1029). A run writes into
+ *  `reports/runs/structure/<checkout>-<pid>-<timestamp>/` and publishes `reports/check-structure.json` as a
+ *  symlink into it at COMPLETION ONLY — so the four abnormal arms below, whose whole point is that the run
+ *  DIED, have no pointer to read and must be judged on the slot the dead run left. Each planted root hosts
+ *  exactly one run, so its single slot is that run's. */
+function runArtifact<T>(root: string): T {
+  const runs = join(root, "reports", "runs", "structure");
+  const slots = readdirSync(runs);
+  if (slots.length !== 1) {
+    throw new Error(`expected exactly one run slot under ${runs}, found ${slots.length}: ${slots.join(", ")}`);
+  }
+  return JSON.parse(readFileSync(join(runs, slots[0] ?? "", "check-structure.json"), "utf8")) as T;
+}
+
 function manifest(root: string): RunView {
-  return (JSON.parse(readFileSync(join(root, "reports", "check-structure.json"), "utf8")) as { run: RunView }).run;
+  return runArtifact<{ run: RunView }>(root).run;
 }
 
 function reportOk(root: string): boolean {
-  return (JSON.parse(readFileSync(join(root, "reports", "check-structure.json"), "utf8")) as { ok: boolean }).ok;
+  return runArtifact<{ ok: boolean }>(root).ok;
+}
+
+/** The PUBLISHED pointer's run id — the path every reader in the repo actually opens. Asserted separately
+ *  from the slot so "the run wrote a verdict" and "the pointer resolves to it" stay two facts (#1029). */
+function publishedRunId(root: string): string {
+  return (JSON.parse(readFileSync(join(root, "reports", "check-structure.json"), "utf8")) as { run: RunView }).run.runId;
 }
 
 // ── the POSITIVE control: a healthy planted corpus reconciles and IS a verdict ──────────────────────
@@ -61,6 +83,8 @@ test("a complete run stamps its identity, reconciles ran===active, and exits cle
   expect(run).toMatchObject({ complete: true, ran: 1, active: 1, corpusFiles: 1, registered: 1, unregistered: [], incompleteReasons: [] });
   expect(res.stdout).toContain("run COMPLETE");
   expect(reportOk(root)).toBe(true);
+  // #1029: a COMPLETE run — and only a complete one — becomes what `reports/check-structure.json` names.
+  expect(publishedRunId(root)).toBe(run.runId);
 });
 
 test("`show` reads a complete artifact (the negative control for the refusal below)", async ({ plantedTree, runCli }) => {
@@ -125,6 +149,9 @@ test("a run KILLED mid-pass leaves the in-flight stub, and `show` refuses it", a
   expect(res.timedOut).toBe(true);
   expect(res.code).toBeNull(); // signal-killed — ALWAYS tool-error class, never a verdict
   expect(manifest(root).complete).toBe(false);
+  // #1029: the stub is PRIVATE to the dead run — no pointer was published, so no reader can mistake it for
+  // a verdict, and no concurrent sibling could have clobbered it either.
+  expect(existsSync(join(root, "reports", "check-structure.json"))).toBe(false);
   const shown = await runCli("verify", ["show"], { cwd: root });
   expect(shown.code).toBe(2);
   expect(shown.stdout).toContain("IN-FLIGHT stub");

@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-08-30
+updated: 2026-09-01
 ---
 
 # `@orb/tooling` — tooling-tree law
@@ -54,7 +54,7 @@ The constitution bans `_shared` drawers in `packages/` (`Core-0-Architecture-and
 | - | - |
 | `browser.ts` | the one Playwright bootstrap; the only legal `chromium.launch` site |
 | `ts-workspace.ts` | the one ts-morph loader (`getWorkspace`/`harnessGlobs`/`searchGlobs`/`collectByKinds`); the only legal `new Project(` site |
-| `artifacts.ts` | `reports/<kind>/` artifact filing (`artifactFile`/`artifactKey`) + the RESULT-line convention (`print`/`printResult`) |
+| `artifacts.ts` | `reports/<kind>/` artifact filing (`artifactFile`/`artifactKey`) + the RESULT-line convention (`print`/`printResult`) + the RUN-SLOT layout that makes concurrent runs safe (`runId`/`checkoutName`/`openRunSlot`/`runFile`/`publishRunSlot`/`abandonedRuns`, #1029 — the layout's one home is `UNIFIED-VERIFICATION-DESIGN.md` §3.3b) |
 | `argv.ts` | flag-parsing idioms (`splitFirstEq`/`splitLastEq`/`parseViewport`/`splitPageSuffix`/`parseGotoTarget`) |
 | `appearance.ts` | the settings shim + the curated preset library (its data file lives beside it) |
 | `theme.ts` | the theme arm of the settings shim |
