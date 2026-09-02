@@ -173,6 +173,14 @@ reports/
   verify.json          → symlink into runs/verify/<runId>/verify.json
   verify/              → symlink into runs/verify/<runId>/stages/   (per-stage `<stage>.log`)
   check-structure.json → symlink into runs/structure/<runId>/check-structure.json
+
+The structure record's shape (since #1107, 2026-09-02): `run / gates / toolErrors / scanAlarms /
+populationAlarms / total / ok` **plus `timing: { totalMs, gateMs }`**, and each `gates[]` entry carries
+`timing: { totalMs, phaseMs: { begin, visit, visitFile, run, finalize } }` beside `scan` — measured inside
+the one `guard()` wrapper every hook call passes through, charged even when a gate throws, per-phase
+values floored and the pass total ceiled so `Σ phaseMs === totalMs` and `totalMs ≥ Σ gates` hold
+arithmetically. The console prints the pass cost and the five slowest gates; a gate-cost claim cites the
+artifact, never a scratch profiler.
   test-report.json     → symlink into runs/test/<runId>/test-report.json
   test-shards/         → symlink into runs/test/<runId>/test-shards/
   ct-flaky.json        → symlink into runs/ct/<runId>/ct-flaky.json
