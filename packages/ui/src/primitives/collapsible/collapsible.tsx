@@ -5,6 +5,7 @@ import type {
 } from "@base-ui/react/collapsible";
 import { Collapsible as BaseCollapsible } from "@base-ui/react/collapsible";
 import type { ReactElement } from "react";
+import { variantAttrs } from "#lib";
 import { ChevronDown, Icon } from "#primitives/icons";
 import { collapsibleVariants } from "./variants.ts";
 
@@ -36,7 +37,14 @@ export interface CollapsibleTriggerProps extends Omit<BaseTriggerProps, "classNa
  *  consumer opts out with `chevron={false}` (it renders its own). */
 export function CollapsibleTrigger({ className, chevron = true, size = "control", children, ...rest }: CollapsibleTriggerProps): ReactElement {
   return (
-    <BaseCollapsible.Trigger className={collapsibleVariants({ instant: false, size }).trigger({ className })} data-slot="collapsible-trigger" {...rest}>
+    // STAMP SITE (#1097): the TRIGGER, not the root. `size` IS the trigger's tap box (`text` vs the
+    // `control` floor), and the tap-target census reads the axis off the interactive element itself.
+    <BaseCollapsible.Trigger
+      className={collapsibleVariants({ instant: false, size }).trigger({ className })}
+      data-slot="collapsible-trigger"
+      {...variantAttrs(collapsibleVariants, { size })}
+      {...rest}
+    >
       {children}
       {chevron ? <Icon icon={ChevronDown} size="sm" className={slots.chevron()} /> : null}
     </BaseCollapsible.Trigger>

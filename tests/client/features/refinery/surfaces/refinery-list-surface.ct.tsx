@@ -240,6 +240,16 @@ test("the row folds the readout into its accessible DESCRIPTION — a screen rea
   await expect(row).toHaveAccessibleName("Zephyrine Vale");
   await expect(row).toHaveAccessibleDescription(ITERATION_READOUT);
   await expect(row).toHaveAccessibleDescription(VERDICT_ACCEPT);
+  // The POSITIVE control for the absent-chip pin below: an ANALYZED session DOES wear the chip, and its
+  // render-hint tone now rides `data-hint-tone` (#1097 — `data-tone` became @orb/ui's, stamped by the
+  // `<Text>` recipe through the variant-axis seam, and the ui-audit walker reads it as an authored RECIPE
+  // arm; a feature word there was two vocabularies under one name).
+  const chip = row.getByTestId("refinery-chip");
+  await expect(chip).toHaveCount(1);
+  await expect(chip).toHaveAttribute("data-hint-tone", "good");
+  // …and the seam's own stamp is on that same element, in the RECIPE's vocabulary — the two channels are
+  // readable apart, which is the whole point of the rename.
+  await expect(chip).toHaveAttribute("data-tone", "default");
 });
 
 test("a session with NO verdict wears no chip at all — the state is stated in the quiet subtitle, not shouted over the row's name", async ({ mount, page }) => {
@@ -253,9 +263,12 @@ test("a session with NO verdict wears no chip at all — the state is stated in 
 
   const row = page.getByRole("button", { name: "Zephyrine Vale" });
   await expect(row).toBeVisible();
-  // The absent arm carries NO tone chip: `RefineryChip` always stamps `data-tone`, so its absence under
-  // this row is the rendered proof that a filled, uppercase pill is no longer drawn for "not run yet".
-  await expect(row.locator("[data-tone]"), "no verdict chip on a session that was never analyzed").toHaveCount(0);
+  // The absent arm carries NO tone chip: `RefineryChip` stamps its own typed test id, so its absence
+  // under this row is the rendered proof that a filled, uppercase pill is no longer drawn for "not run
+  // yet". It keyed on a bare `[data-tone]` until #1097: `<Text>` now emits its resolved recipe `tone` arm
+  // as `data-tone` through the @orb/ui variant-axis seam, so that selector matches the row's NAME and
+  // SUBTITLE too and could no longer state anything about the chip.
+  await expect(row.getByTestId("refinery-chip"), "no verdict chip on a session that was never analyzed").toHaveCount(0);
   // …and the fact is not LOST with the chip — it is spoken in the row's description, in the same register
   // as the iteration and the stamp beside it, and in the user's terms rather than the wire field's.
   await expect(row).toHaveAccessibleDescription(NOT_ANALYZED);

@@ -4,7 +4,7 @@
 // consumers) if that plan is ever dropped instead of built.
 import type { ComponentProps, ReactElement } from "react";
 import type { VariantProps } from "tailwind-variants";
-import { cn } from "#lib";
+import { cn, variantAttrs } from "#lib";
 import type { BadgeProps } from "#primitives/badge";
 import { Badge } from "#primitives/badge";
 import { Button } from "#primitives/button";
@@ -53,7 +53,16 @@ export function StatusChip({ className, status, summary, timestamp, onRetry, ret
   const slots = statusChipVariants({ size });
 
   return (
-    <div {...rest} aria-live="polite" className={cn(slots.root(), className)} data-slot="status-chip-root" role="status">
+    // STAMP SITE (#1097): the ROOT. The chip is not interactive (role=status), so identity keys on its
+    // own painted root; the composed Badge/Button carry their OWN stamps from their OWN recipes.
+    <div
+      {...rest}
+      aria-live="polite"
+      className={cn(slots.root(), className)}
+      data-slot="status-chip-root"
+      role="status"
+      {...variantAttrs(statusChipVariants, { size })}
+    >
       <Badge data-slot="status-chip-badge" intent={meta.intent} size={size}>
         {status === "running" ? (
           <WebSpinner label={meta.label} size="sm" />

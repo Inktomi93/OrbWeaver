@@ -185,6 +185,11 @@ export const TEST_IDS = {
    *  the loading arm must barrier on THIS, and one asserting the settled arm on the view. */
   refineryPayloadSkeleton: "refinery-payload-skeleton",
   refineryVerdictBanner: "refinery-verdict-banner",
+  /** The word-primary state/tone chip the refinery surfaces share. It is the chip's OWN identity because
+   *  its `data-tone` is no longer the chip's: `Text` stamps its resolved recipe arm there through the ui
+   *  package's variant-axis seam (#1080/#1097), so a bare `[data-tone]` now matches every Text on the row
+   *  and can no longer state "this row wears no chip". */
+  refineryChip: "refinery-chip",
   refineryHeroGauge: "refinery-hero-gauge",
   /** The hero numeral itself — it COUNTS UP, so a CT reading it must poll to the settled figure. */
   refineryHeroValue: "refinery-hero-value",

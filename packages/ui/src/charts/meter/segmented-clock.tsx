@@ -3,6 +3,7 @@
 // landed (Core-Enforcement-Deferred-Dropped.md §PREBUILT).
 import type { ReactElement } from "react";
 import type { VariantProps } from "tailwind-variants";
+import { variantAttrs } from "#lib";
 import { ICON_XS, Icon, Lock } from "#primitives/icons";
 import { segmentedClockVariants } from "./variants.ts";
 
@@ -81,6 +82,9 @@ export function SegmentedClock({ segments, filled, completed, hidden, label, siz
       viewBox={`0 0 ${CLOCK_SIZE} ${CLOCK_SIZE}`}
       data-completed={isComplete}
       data-hidden={isHidden}
+      // STAMP SITE (#1097): the svg ROOT — the only slot `size` sizes, and the element the meter's own
+      // role/geometry census targets (`segment`/`completedDot` are its interior geometry).
+      {...variantAttrs(segmentedClockVariants, { size })}
       className={slots.root({ className })}
     >
       <title>{label}</title>

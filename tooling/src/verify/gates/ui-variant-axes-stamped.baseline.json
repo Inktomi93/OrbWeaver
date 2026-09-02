@@ -1,13 +1,1 @@
-{
-  "packages/ui/src/charts/meter/variants.ts::segmentedClockVariants": 1,
-  "packages/ui/src/content/theme-swatch/variants.ts::themeSwatchVariants": 1,
-  "packages/ui/src/layout/variants.ts::containerVariants": 1,
-  "packages/ui/src/primitives/avatar/variants.ts::avatarVariants": 1,
-  "packages/ui/src/primitives/collapsible/variants.ts::collapsibleVariants": 1,
-  "packages/ui/src/primitives/dialog/variants.ts::dialogVariants": 1,
-  "packages/ui/src/primitives/number-field/variants.ts::numberFieldVariants": 1,
-  "packages/ui/src/primitives/slider/variants.ts::sliderVariants": 1,
-  "packages/ui/src/primitives/status-chip/variants.ts::statusChipVariants": 1,
-  "packages/ui/src/primitives/switch/variants.ts::switchVariants": 1,
-  "packages/ui/src/primitives/text/variants.ts::textVariants": 1
-}
+{}

@@ -2,7 +2,7 @@ import type { SwitchRootProps } from "@base-ui/react/switch";
 import { Switch as BaseSwitch } from "@base-ui/react/switch";
 import type { ReactElement } from "react";
 import type { VariantProps } from "tailwind-variants";
-import { cn } from "#lib";
+import { cn, variantAttrs } from "#lib";
 import { Icon, Lock } from "#primitives/icons";
 import { switchVariants } from "./variants.ts";
 
@@ -17,7 +17,10 @@ export interface SwitchProps extends SwitchRootProps, VariantProps<typeof switch
 export function Switch({ className, tone, ...rest }: SwitchProps): ReactElement {
   const slots = switchVariants({ tone });
   return (
-    <BaseSwitch.Root className={cn(slots.root(), className)} data-slot="switch-root" {...rest}>
+    // STAMP SITE (#1097): the ROOT. The root IS the switch (role=switch, the tap target); `tone` paints
+    // both root and thumb, and the AUTHORED `data-tone` sits beside Base UI's RUNTIME `data-checked`
+    // without shadowing it — the stamped vocabulary is closed to four names Base UI never emits.
+    <BaseSwitch.Root className={cn(slots.root(), className)} data-slot="switch-root" {...variantAttrs(switchVariants, { tone })} {...rest}>
       <BaseSwitch.Thumb className={slots.thumb()} data-slot="switch-thumb">
         <Icon className={slots.readOnlyIcon()} icon={Lock} size="xs" />
       </BaseSwitch.Thumb>
