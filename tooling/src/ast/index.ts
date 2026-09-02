@@ -39,7 +39,7 @@ export { collectColumnCandidates, rawSqlBlob, scanRowReads } from "./lib/column-
 export { collectSchemaTables, isColumnExempt, scanColumnWrites } from "./lib/columns.ts";
 export { loadProject, parseFlags } from "./lib/emit.ts";
 export { addFileLocalParts, addRegistryValues, contractDeclarations, modelProjectedSchemas } from "./lib/field-seeds.ts";
-export { contractFieldsOf, fieldHit, fieldIndexes } from "./lib/fields.ts";
+export { contractFieldsOf, fieldClass, fieldHit, fieldIndexes, isCompositionAlias } from "./lib/fields.ts";
 export { AstToolError, beginRun, CORPUS_DEPCRUISE, CORPUS_SYNTACTIC, CORPUS_TYPED, CORPUS_WIDE_SYNTACTIC, finishRun, noteToolError } from "./lib/ledger.ts";
 export { buildLiveness } from "./lib/liveness.ts";
 export { isPublicTagged, publicMarkerOf } from "./lib/public-markers.ts";

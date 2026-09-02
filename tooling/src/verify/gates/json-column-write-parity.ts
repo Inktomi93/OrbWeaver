@@ -25,23 +25,74 @@
 // from the `db.update(<tableVar>)` in the chain. An empty derivation on a real tree is a RED blindness
 // tripwire (§4.6), not a silent pass.
 //
+// ARM B — THE DOMINANCE ARM (#879, from the #471 settings-blob wipe). A JSON column whose `$type<T>` is a
+// type a `defineVersionedConfig(...)` OWNS carries a blob whose READ seam DEGRADES an unreadable value to
+// schema defaults; a whole-replace write built on that read persists the stand-in and destroys the real
+// blob silently and permanently. `domain/settings/substrate/stored-config.ts`'s
+// `requireIntactStoredConfig(...)` is the ONE refusal seam, and until this arm its totality over future
+// writers rested on a header sentence (0 of 233 gate files referenced it). So: EVERY whole-replace writer
+// of a versioned-config column must be DOMINATED by that call inside its own function body — dominance,
+// not presence: the guard's own top-level statement must PRECEDE the write's top-level statement in the
+// same function body, so a guard sitting in a sibling branch (or after the write) does not absolve it.
+// A guard nested inside an EARLIER statement is dominance enough and is the live correct shape
+// (`writeUserConfig`'s `if (row !== undefined) { requireIntactStoredConfig(…) }` — an ABSENT row is a
+// legitimate first write with nothing to lose).
+// FAIL-CLOSED (#944 posture): a `.set(<identifier>)` on a versioned-config-owning table is OPAQUE — the
+// gate cannot read which columns it assigns — so it is judged as a whole-replace write rather than skipped.
+// The owned-type derivation reads the EXPLICIT type argument first and falls back to the declaration's
+// resolved `VersionedConfig<T>`; a call it can read neither way is REPORTED and counted `unresolved`.
+//
 // DECLARED LIMITS (each has a mustPass row): a column with ONE writer is never judged (there is nothing to
 // straddle); an `.insert()`/`.values()` is creation, not a patch; a writer reached through more than one
 // helper hop, or through a `db.run(sql\`json_set(...)\`)`, is not classified.
+// AND ARM B'S OWN LIMIT: the AppSettings override blob is NOT reachable by this derivation. It lives in the
+// generic KV column `settings.value`, typed `JsonValue`, and is identified only by the RUNTIME string
+// `APP_SETTINGS_KEY` in a `where(eq(settings.key, …))` — there is no type crossing the seam, so no
+// structural fact links that row to `appSettingsConfig`. Its writer (`writeAppOverride`) is guarded by
+// convention and by its own header. DO NOT "fix" this with a hand-listed key/path table: a hand list is a
+// second home for the ownership fact and rots silently the day the key moves (§3). The end condition is the
+// blob moving to a `$type`d column of its own, at which point this arm covers it with no gate edit.
 // COLUMNS ARE RESOLVED, NOT REQUIRED INLINE (#945): the columns argument is read through
 // `_shared/schema-read.ts`, which follows an imported/aliased object-literal binding (and object spreads)
 // and refuses loudly on any other shape. `sqliteTable("x", importedColumns, …)` used to yield ZERO columns
 // here, erasing this gate's obligations while the schema file scan stayed healthy; findings anchor on the
 // column's DECLARING file and the scan line prints the resolved table/column population.
 import { columnProperties, schemaScan } from "@orb/tooling/_shared/schema-read";
-import type { CallExpression, FunctionDeclaration, ObjectLiteralExpression, SourceFile, Node as TsNode } from "ts-morph";
+import type { Block, CallExpression, FunctionDeclaration, ObjectLiteralExpression, SourceFile, Statement, Node as TsNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import type { ExemptionTable, GateDescriptor } from "../contract/gate.ts";
+import type { ExemptionTable, GateDescriptor, GateRunCtx } from "../contract/gate.ts";
+import { fileLoaded } from "../lib/pass.ts";
 
 /** `<tableVar>.<column>` → why a straddle is correct there, and what would end the exemption. Two-sided: a
- *  row whose column no longer straddles is RED. EMPTY — the founding straddle was fixed in `57fb8595b`, and
- *  the derivation finds no other on the tree today. */
-const ALLOWLIST: ExemptionTable = {};
+ *  row whose column no longer straddles is RED.
+ *
+ *  BOTH ROWS WERE INVISIBLE UNTIL #879 added the SHORTHAND reader: `.set({ behavior, … })` /
+ *  `.set({ config, … })` is a `ShorthandPropertyAssignment`, and a PropertyAssignment-only collector saw
+ *  neither — so this gate reported ✓ over two live straddles, one of them the settings blob the whole
+ *  #471 fix exists to protect. Neither is a defect (each reason below says why); the gate's SILENCE was. */
+const ALLOWLIST: ExemptionTable = {
+  "regexScripts.behavior": {
+    why: "BOTH writers are key-wise in fact: `bulk-set-placement.ts` LOADS each row, spreads `toRow(record)` and re-parses, then hands persistence a precomputed `{ id, behavior }[]` — so the row taint is real but crosses a MODULE boundary through an array element, one hop past this gate's declared one-helper-hop taint reach. Ends when the classifier follows cross-module taint, or if that verb ever stops reading the stored row first (then it is a genuine straddle and this row must go)",
+  },
+  "userSettings.config": {
+    why: "the DELIBERATE #471 design: `writeUserConfig` is a whole-blob write by contract (the service builds the next blob by spreading a guarded read) and the only key-wise sibling is `clearSelectedThemeIds`'s cross-user `json_set` heal, an admin sweep that is not part of any user's read-modify-write. The residual is a race, not a straddle: a heal landing between one user's read and write is undone. Ends if that race is ruled a defect (then the heal moves behind the same seam) — orchestrator-notified at landing, #879",
+  },
+};
+
+/** ARM B: `<repo-relative file>#<enclosing function>` → why this whole-replace writer of a versioned-config
+ *  column may run UNDOMINATED by `requireIntactStoredConfig`. Two-sided: a row whose writer no longer
+ *  violates (it grew the guard, or it left the tree) is RED. */
+const GUARD_EXEMPT: ExemptionTable = {
+  "packages/server/src/domain/preset/persistence/queries.ts#updatePresetRow": {
+    why: "the patch is the CALLER's image and this seam performs no read at all, so there is no degraded read for it to persist HERE — the #471 shape for presets lives one hop further out (the client GETs a leniently-parsed config and PUTs the whole blob back). Ends when issue #1026 rules that path: either the verb reads through `parseOutcome` and this row is deleted, or the guard lands in this function and the row is deleted",
+  },
+  "packages/server/src/domain/preset/persistence/queries.ts#reseedSystemDefault": {
+    why: "the boot reseed of the system-default row writes a PACKAGED registry constant, never a value derived from a read of the stored blob — overwriting a corrupt system default with the packaged one is the repair, not the defect. Ends if the reseed ever starts merging onto the stored value (then it owes the guard), or with issue #1026's ruling",
+  },
+  "packages/server/src/domain/preset/persistence/queries.ts#reseedPackagedPreset": {
+    why: "same boot reseed, one shape over: name/kind/config all come from the packaged template registry, not from a read of the row being replaced. Same two end conditions (a merge-onto-stored rewrite, or issue #1026)",
+  },
+};
 
 const MESSAGE =
   "WHOLE-RECORD REPLACE of a JSON column that ANOTHER writer merges key-wise — the replace silently undoes " +
@@ -49,14 +100,23 @@ const MESSAGE =
   "greetingIndexes across a greeting removal while updateSession rebuilt the whole value from the client's " +
   "image (fixed in 57fb8595b; red-first at " +
   "tests/server/domain/refinery/verbs/update-session.int.test.ts). Neither writer is wrong alone; the " +
-  "STRADDLE is.";
+  "STRADDLE is. ARM B (#879): AND a whole-replace writer of a VERSIONED-CONFIG column (one whose `$type` is " +
+  "a type `defineVersionedConfig(...)` owns) must be DOMINATED in its own function body by " +
+  "`requireIntactStoredConfig(...)` — the read seam degrades an unreadable blob to schema defaults, so a " +
+  "write built on it persists the stand-in and destroys the user's real blob (#471, the proven cause of the " +
+  "#461 settings wipe). Dominance, not presence: a guard in a sibling branch, or after the write, absolves " +
+  "nothing. A `.set(<identifier>)` on such a table is OPAQUE and judged as a whole replace.";
 
 const FIX =
   "make the patch a DELTA and merge it key-wise onto the STORED value — the `mergeSelection` shape in " +
   "packages/server/src/domain/refinery/verbs/update-session.ts (absent = keep, null = clear, value = set), " +
   "with the merge basis read through the domain's ONE read seam. The rpg `patchSheet` / stats `mergeSheet` " +
   "helpers are the other precedents. If the replace is genuinely correct (every writer replaces), the OTHER " +
-  "writer is the one to convert.";
+  "writer is the one to convert. ARM B: read the row and hand its `parseOutcome` to " +
+  "`requireIntactStoredConfig(...)` BEFORE the write, in the same function body — " +
+  "packages/server/src/domain/settings/persistence/queries.ts `writeUserConfig` is the worked shape. If the " +
+  "written value genuinely never derives from a read of that row (a packaged reseed constant), add a cited " +
+  "GUARD_EXEMPT row keyed `<file>#<function>` in the gate.";
 
 const STALE_ENTRY_MESSAGE_PREFIX =
   "ALLOWLIST entry names a JSON column that no longer straddles (its writers agree now, or one of them was " +
@@ -72,48 +132,143 @@ const BLIND_MESSAGE =
 const GATE_SELF = "tooling/src/verify/gates/json-column-write-parity.ts";
 const SCHEMA_DIR = "/packages/db/src/schema/";
 const DOMAIN_DIR = "/packages/server/src/domain/";
+const CONTRACTS_DIR = "/packages/contracts/src/";
 const JSON_MODE_RE = /mode:\s*"json"/u;
+
+// ── ARM B: the versioned-config dominance arm (#879) ───────────────────────────────────────────────────
+const DEFINE_VERSIONED_CONFIG = "defineVersionedConfig";
+const GUARD_CALLEE = "requireIntactStoredConfig";
+const CONFLICT_UPDATE = "onConflictDoUpdate";
+const CONFLICT_SET_KEY = "set";
+/** The exemption-key name for a write with no enclosing function / no readable one. */
+const TOP_LEVEL_SITE = "(top-level)";
+const ANONYMOUS_SITE = "(anonymous)";
+/** How much of an OPAQUE `.set(<expr>)` the finding quotes as its position token. */
+const OPAQUE_TOKEN_CHARS = 40;
+/** The real-tree anchor ARM B's stale sweep guards on (§4.5) — the db schema barrel, present on every real
+ *  run and needed by no example here. */
+const SCHEMA_ANCHOR = "packages/db/src/schema/index.ts";
+/** `$type<UserSettings>()` on a column builder chain — the ONE structural link from a db column to the
+ *  contracts type whose blob it stores. */
+const COLUMN_TYPE_RE = /\$type<([^>]+)>/u;
+/** The resolved declaration type of a `defineVersionedConfig(...)` binding, when no explicit type argument
+ *  was written (`promptConfigConfig` is the live inferred spelling). */
+const VERSIONED_CONFIG_TYPE_RE = /VersionedConfig<([^>]+)>/u;
+
+const UNREADABLE_CONFIG_MESSAGE =
+  "UNREADABLE `defineVersionedConfig(...)` declaration — the gate cannot resolve which TYPE this versioned " +
+  "config owns (no explicit type argument, and the binding's declared type is not a `VersionedConfig<T>`). " +
+  "Its columns therefore carry NO write guard obligation, silently. Write the type argument explicitly " +
+  "(`defineVersionedConfig<PromptConfig>({ … })`) so the ownership is readable without the checker.";
+
+const VERSIONED_BLIND_MESSAGE =
+  "DERIVED NOTHING — no `defineVersionedConfig(...)` call was found in packages/contracts/src on a tree that " +
+  "HAS a contracts package. The owned-type set is ARM B's whole basis, so a green verdict for it would be a " +
+  "placebo (GATE-AUTHORING.md §4.6). Re-point the derivation at the primitive's current spelling: " +
+  "tooling/src/verify/gates/json-column-write-parity.ts";
+
+const STALE_GUARD_EXEMPT_PREFIX =
+  "GUARD_EXEMPT entry names a writer that no longer needs the exemption (it grew the " +
+  "`requireIntactStoredConfig` guard, stopped being a whole-replace writer of a versioned-config column, or " +
+  "left the tree) — a standing exemption for a site that is gone is a loaded gun: delete the stale row in " +
+  "json-column-write-parity.ts: ";
 
 interface Writer {
   readonly node: TsNode;
   readonly wholeReplace: boolean;
 }
 
-/** Every drizzle table variable → the names of its `mode: "json"` columns. Derived from the schema package,
- *  never hand-listed. */
-function jsonColumnsOf(init: TsNode): ReadonlySet<string> {
-  const cols = new Set<string>();
+/** Every drizzle table variable → the names of its `mode: "json"` columns, and the SUBSET whose `$type<T>`
+ *  names a versioned-config-owned type. Derived from the schema package, never hand-listed. */
+function jsonColumnsOf(init: TsNode, versionedTypes: ReadonlySet<string>): { readonly all: Set<string>; readonly versioned: Set<string> } {
+  const all = new Set<string>();
+  const versioned = new Set<string>();
   const columns = Node.isCallExpression(init) ? columnProperties(init.getArguments()[1]) : [];
   for (const column of columns) {
-    if (JSON_MODE_RE.test(column.text)) {
-      cols.add(column.name);
+    if (!JSON_MODE_RE.test(column.text)) {
+      continue;
+    }
+    all.add(column.name);
+    const declared = COLUMN_TYPE_RE.exec(column.text)?.[1]?.trim();
+    if (declared !== undefined && versionedTypes.has(declared)) {
+      versioned.add(column.name);
     }
   }
-  return cols;
+  return { all, versioned };
 }
 
-function deriveJsonColumns(files: readonly SourceFile[]): Map<string, ReadonlySet<string>> {
-  const out = new Map<string, ReadonlySet<string>>();
+interface ColumnIndex {
+  /** table variable → every `mode:"json"` column (ARM A's subject). */
+  readonly all: Map<string, ReadonlySet<string>>;
+  /** table variable → the versioned-config-owned subset (ARM B's subject). */
+  readonly versioned: Map<string, ReadonlySet<string>>;
+}
+
+function deriveJsonColumns(files: readonly SourceFile[], versionedTypes: ReadonlySet<string>): ColumnIndex {
+  const all = new Map<string, ReadonlySet<string>>();
+  const versioned = new Map<string, ReadonlySet<string>>();
   for (const sf of files.filter((f) => f.getFilePath().includes(SCHEMA_DIR))) {
     for (const decl of sf.getVariableDeclarations()) {
       const init = decl.getInitializer();
-      const cols = init === undefined || !init.getText().startsWith("sqliteTable(") ? undefined : jsonColumnsOf(init);
-      if (cols !== undefined && cols.size > 0) {
-        out.set(decl.getName(), cols);
+      const cols = init === undefined || !init.getText().startsWith("sqliteTable(") ? undefined : jsonColumnsOf(init, versionedTypes);
+      if (cols !== undefined && cols.all.size > 0) {
+        all.set(decl.getName(), cols.all);
+      }
+      if (cols !== undefined && cols.versioned.size > 0) {
+        versioned.set(decl.getName(), cols.versioned);
       }
     }
   }
-  return out;
+  return { all, versioned };
 }
 
-/** The table variable a `.set(` call updates — walk the fluent chain back to `.update(<table>)`. */
-function updatedTable(setCallee: TsNode): string | undefined {
+/** The TYPE one `defineVersionedConfig(...)` owns — the EXPLICIT type argument, else the binding's resolved
+ *  `VersionedConfig<T>` (the live inferred `promptConfigConfig` spelling). `undefined` = readable neither
+ *  way, which this gate REPORTS rather than silently dropping the column obligation it carries. */
+function ownedTypeOf(call: CallExpression): string | undefined {
+  const explicit = call.getTypeArguments()[0]?.getText().trim();
+  if (explicit !== undefined && explicit !== "") {
+    return explicit;
+  }
+  const decl = call.getFirstAncestorByKind(SyntaxKind.VariableDeclaration);
+  const inferred = decl === undefined ? undefined : VERSIONED_CONFIG_TYPE_RE.exec(decl.getType().getText(decl))?.[1];
+  // A resolved type prints qualified (`import("…/preset").PromptConfig`); the DECLARED name is the tail.
+  const name = inferred?.trim().split(".").at(-1);
+  return name === undefined || name === "" || name.includes("(") ? undefined : name;
+}
+
+/** Every versioned-config declaration in `contracts`, split into the types it could read and the calls it
+ *  could not (the #944 fail-closed half — a `continue` here would erase obligations silently). */
+function deriveVersionedTypes(files: readonly SourceFile[]): { readonly types: Set<string>; readonly unresolved: CallExpression[]; readonly calls: number } {
+  const types = new Set<string>();
+  const unresolved: CallExpression[] = [];
+  let calls = 0;
+  for (const sf of files.filter((f) => f.getFilePath().includes(CONTRACTS_DIR))) {
+    for (const call of sf.getDescendantsOfKind(SyntaxKind.CallExpression)) {
+      if (call.getExpression().getText() !== DEFINE_VERSIONED_CONFIG) {
+        continue;
+      }
+      calls += 1;
+      const owned = ownedTypeOf(call);
+      if (owned === undefined) {
+        unresolved.push(call);
+      } else {
+        types.add(owned);
+      }
+    }
+  }
+  return { types, unresolved, calls };
+}
+
+/** The table variable a `.set(` call updates — walk the fluent chain back to `.update(<table>)` (or, for an
+ *  upsert's `onConflictDoUpdate`, back to `.insert(<table>)`). */
+function updatedTable(setCallee: TsNode, chainVerb = "update"): string | undefined {
   let cur: TsNode = setCallee;
   let table: string | undefined;
   while (table === undefined && (Node.isCallExpression(cur) || Node.isPropertyAccessExpression(cur))) {
     if (Node.isCallExpression(cur)) {
       const callee = cur.getExpression();
-      table = Node.isPropertyAccessExpression(callee) && callee.getName() === "update" ? (cur.getArguments()[0]?.getText() ?? "") : undefined;
+      table = Node.isPropertyAccessExpression(callee) && callee.getName() === chainVerb ? (cur.getArguments()[0]?.getText() ?? "") : undefined;
       cur = callee;
     } else {
       cur = cur.getExpression();
@@ -150,20 +305,16 @@ function valueRoots(node: TsNode): TsNode[] {
  *  Imports, module consts, function declarations and PARAMETERS — including a destructured parameter
  *  binding (`({ values }: SetVariablesParams)`, the live `chats.variableValues` writer) — are caller-side
  *  or static and never make a write key-wise. */
-function isRowDerived(id: TsNode): boolean {
-  if (!Node.isIdentifier(id)) {
+function isRowDerivedDecl(def: TsNode): boolean {
+  if (def.getFirstAncestorByKind(SyntaxKind.Parameter) !== undefined || Node.isParameterDeclaration(def)) {
     return false;
   }
-  for (const def of id.getDefinitionNodes()) {
-    if (def.getFirstAncestorByKind(SyntaxKind.Parameter) !== undefined || Node.isParameterDeclaration(def)) {
-      continue;
-    }
-    const varDecl = Node.isVariableDeclaration(def) ? def : def.getFirstAncestorByKind(SyntaxKind.VariableDeclaration);
-    if (varDecl !== undefined && varDecl.getFirstAncestorByKind(SyntaxKind.Block) !== undefined) {
-      return true;
-    }
-  }
-  return false;
+  const varDecl = Node.isVariableDeclaration(def) ? def : def.getFirstAncestorByKind(SyntaxKind.VariableDeclaration);
+  return varDecl !== undefined && varDecl.getFirstAncestorByKind(SyntaxKind.Block) !== undefined;
+}
+
+function isRowDerived(id: TsNode): boolean {
+  return Node.isIdentifier(id) && id.getDefinitionNodes().some(isRowDerivedDecl);
 }
 
 /** Every JSON-column assignment reachable from a `.set()` argument, classified. `paramTaint` carries the
@@ -182,6 +333,12 @@ function collectFromObject(obj: ObjectLiteralExpression, sink: Sink, paramTaint:
     } else if (Node.isPropertyAssignment(prop) && sink.cols.has(prop.getName())) {
       const rhs = prop.getInitializer();
       sink.out.push({ node: prop, wholeReplace: rhs === undefined || !isKeyWise(rhs, paramTaint) });
+    } else if (Node.isShorthandPropertyAssignment(prop) && sink.cols.has(prop.getName())) {
+      // `.set({ config, schemaVersion, updatedAt })` — the live `writeUserConfig` spelling, and a writer the
+      // PropertyAssignment-only reader could not see at all. The value's binding is the shorthand's own
+      // VALUE symbol (its name node resolves to the property, not to what it reads).
+      const decls = prop.getValueSymbol()?.getDeclarations() ?? [];
+      sink.out.push({ node: prop, wholeReplace: paramTaint.get(prop.getName()) !== true && !decls.some(isRowDerivedDecl) });
     }
   }
 }
@@ -266,7 +423,7 @@ const EMPTY_TAINT: ReadonlyMap<string, boolean> = new Map();
 /** The column a collected writer assigns — a `metadata: …` property, or a `set.metadata = …` accumulator
  *  assignment (whose LHS is the property access). */
 function columnOf(w: Writer): string {
-  if (Node.isPropertyAssignment(w.node)) {
+  if (Node.isPropertyAssignment(w.node) || Node.isShorthandPropertyAssignment(w.node)) {
     return w.node.getName();
   }
   const lhs = Node.isBinaryExpression(w.node) ? w.node.getLeft() : undefined;
@@ -307,6 +464,213 @@ function collectByColumn(files: readonly SourceFile[], jsonColumns: ReadonlyMap<
   return byColumn;
 }
 
+// ── ARM B: the versioned-config dominance arm ──────────────────────────────────────────────────────────
+
+/** One whole-replace write of a versioned-config column, and the exemption key that would forgive it. */
+interface GuardTarget {
+  readonly node: TsNode;
+  readonly token: string;
+  /** `<repo-relative file>#<enclosing function>` — the GUARD_EXEMPT key. */
+  readonly key: string;
+  readonly dominated: boolean;
+  readonly opaque: boolean;
+}
+
+/** The enclosing function's BODY BLOCK and the name a reader would call it — the unit dominance is judged
+ *  in. A write outside any function body has no place to put a guard and is never dominated. */
+interface EnclosingFunction {
+  readonly body: Block;
+  readonly name: string;
+}
+
+function enclosingBody(node: TsNode): EnclosingFunction | undefined {
+  let found: EnclosingFunction | undefined;
+  for (const a of node.getAncestors()) {
+    const body =
+      Node.isFunctionDeclaration(a) || Node.isMethodDeclaration(a) || Node.isFunctionExpression(a) || Node.isArrowFunction(a) ? a.getBody() : undefined;
+    if (body === undefined || !Node.isBlock(body)) {
+      continue;
+    }
+    const named =
+      Node.isFunctionDeclaration(a) || Node.isMethodDeclaration(a) ? a.getName() : a.getFirstAncestorByKind(SyntaxKind.VariableDeclaration)?.getName();
+    found = { body, name: named === undefined || named === "" ? ANONYMOUS_SITE : named };
+    break;
+  }
+  return found;
+}
+
+/** Which of `statements` this node sits under, by identity — the position dominance compares. */
+function statementIndexIn(node: TsNode, statements: readonly Statement[]): number {
+  for (let cur: TsNode | undefined = node; cur !== undefined; cur = cur.getParent()) {
+    const at = statements.findIndex((s) => s === cur);
+    if (at >= 0) {
+      return at;
+    }
+  }
+  return -1;
+}
+
+/** DOMINANCE, not presence: some `requireIntactStoredConfig(...)` call's own top-level statement must
+ *  PRECEDE the write's top-level statement in the same function body. A guard nested inside an EARLIER
+ *  statement counts (`if (row !== undefined) { guard }` is the live correct shape — an absent row is a
+ *  legitimate first write); a guard in the write's own statement, in a sibling branch, or after it, does not. */
+function isDominatedByGuard(node: TsNode, body: Block): boolean {
+  const statements = body.getStatements();
+  const writeAt = statementIndexIn(node, statements);
+  if (writeAt < 0) {
+    return false;
+  }
+  return body.getDescendantsOfKind(SyntaxKind.CallExpression).some((call) => {
+    if (call.getExpression().getText() !== GUARD_CALLEE) {
+      return false;
+    }
+    const guardAt = statementIndexIn(call, statements);
+    return guardAt >= 0 && guardAt < writeAt;
+  });
+}
+
+/** The unwrapped `.set(...)` / `onConflictDoUpdate({ set })` argument, for the OPAQUE test. */
+function unwrapArg(arg: TsNode | undefined): TsNode | undefined {
+  return arg !== undefined && Node.isParenthesizedExpression(arg) ? unwrapArg(arg.getExpression()) : arg;
+}
+
+/** Every whole-replace write of a versioned-config column reachable from one `set` object, plus the
+ *  fail-closed OPAQUE verdict when the gate cannot read the object at all. */
+function guardTargetsOf(setArg: TsNode | undefined, cols: ReadonlySet<string>, root: string): GuardTarget[] {
+  const arg = unwrapArg(setArg);
+  if (arg === undefined) {
+    return [];
+  }
+  const site = enclosingBody(arg);
+  const key = `${arg.getSourceFile().getFilePath().replace(`${root}/`, "")}#${site === undefined ? TOP_LEVEL_SITE : site.name}`;
+  const dominates = (n: TsNode): boolean => site !== undefined && isDominatedByGuard(n, site.body);
+  if (!Node.isObjectLiteralExpression(arg)) {
+    return [{ node: arg, token: arg.getText().slice(0, OPAQUE_TOKEN_CHARS), key, dominated: dominates(arg), opaque: true }];
+  }
+  const found: Writer[] = [];
+  collectWriters(arg, { cols, out: found }, EMPTY_TAINT, 0);
+  return found
+    .filter((w) => w.wholeReplace && cols.has(columnOf(w)))
+    .map((w) => ({ node: w.node, token: columnOf(w), key, dominated: dominates(w.node), opaque: false }));
+}
+
+/** The `set` object of an `onConflictDoUpdate({ target, set: { … } })` upsert — a whole-blob replace of an
+ *  EXISTING row, so it owes the guard exactly as `.set()` does. */
+function conflictSetObject(call: CallExpression): TsNode | undefined {
+  const arg = unwrapArg(call.getArguments()[0]);
+  const prop = arg !== undefined && Node.isObjectLiteralExpression(arg) ? arg.getProperty(CONFLICT_SET_KEY) : undefined;
+  return Node.isPropertyAssignment(prop) ? prop.getInitializer() : undefined;
+}
+
+/** The write verb → the fluent chain verb that names its table. */
+const WRITE_VERBS: ReadonlyMap<string, string> = new Map([
+  ["set", "update"],
+  [CONFLICT_UPDATE, "insert"],
+]);
+
+/** The `set` object of ONE write call, when that call writes a table owning a versioned-config column. */
+function versionedSetArg(
+  call: CallExpression,
+  versionedColumns: ReadonlyMap<string, ReadonlySet<string>>,
+): { readonly arg: TsNode | undefined; readonly cols: ReadonlySet<string> } | undefined {
+  const callee = call.getExpression();
+  if (!Node.isPropertyAccessExpression(callee)) {
+    return;
+  }
+  const chainVerb = WRITE_VERBS.get(callee.getName());
+  const table = chainVerb === undefined ? undefined : updatedTable(callee.getExpression(), chainVerb);
+  const cols = table === undefined ? undefined : versionedColumns.get(table);
+  if (cols === undefined) {
+    return;
+  }
+  return { arg: callee.getName() === CONFLICT_UPDATE ? conflictSetObject(call) : call.getArguments()[0], cols };
+}
+
+/** Every versioned-config write site in the domain corpus, classified. */
+function collectGuardTargets(files: readonly SourceFile[], versionedColumns: ReadonlyMap<string, ReadonlySet<string>>, root: string): GuardTarget[] {
+  const out: GuardTarget[] = [];
+  for (const sf of files.filter((f) => f.getFilePath().includes(DOMAIN_DIR))) {
+    for (const call of sf.getDescendantsOfKind(SyntaxKind.CallExpression)) {
+      const target = versionedSetArg(call, versionedColumns);
+      if (target !== undefined) {
+        out.push(...guardTargetsOf(target.arg, target.cols, root));
+      }
+    }
+  }
+  return out;
+}
+
+/** ARM B's two instrument-health arms: the owned-type derivation coming back EMPTY on a tree that has a
+ *  contracts package (§4.6), and each declaration whose owned type is unreadable (#944 — a `continue` here
+ *  would erase every column obligation that declaration carries, silently). */
+function reportVersionedTypeHealth(ctx: GateRunCtx, files: readonly SourceFile[], versioned: ReturnType<typeof deriveVersionedTypes>): void {
+  if (versioned.types.size === 0 && files.some((f) => f.getFilePath().includes(CONTRACTS_DIR))) {
+    ctx.report({ file: GATE_SELF, line: 1, column: 0, message: VERSIONED_BLIND_MESSAGE });
+  }
+  for (const call of versioned.unresolved) {
+    const rel = call.getSourceFile().getFilePath().replace(`${ctx.root}/`, "");
+    const binding = call.getFirstAncestorByKind(SyntaxKind.VariableDeclaration)?.getName() ?? "(unbound)";
+    ctx.report({
+      file: GATE_SELF,
+      line: 1,
+      column: 0,
+      message: `${UNREADABLE_CONFIG_MESSAGE} The unreadable declaration is \`${binding}\` in ${rel} — the reader is tooling/src/verify/gates/json-column-write-parity.ts`,
+    });
+  }
+}
+
+/** ARM B proper. Returns the GUARD_EXEMPT keys a live violation actually claimed, for the stale sweep. */
+function reportUndominatedWrites(ctx: GateRunCtx, files: readonly SourceFile[], versionedColumns: ReadonlyMap<string, ReadonlySet<string>>): Set<string> {
+  const claimed = new Set<string>();
+  for (const target of collectGuardTargets(files, versionedColumns, ctx.root)) {
+    if (target.dominated) {
+      continue;
+    }
+    if (target.key in GUARD_EXEMPT) {
+      claimed.add(target.key);
+      continue;
+    }
+    ctx.report(target.node, { token: target.token, offset: 0 });
+  }
+  return claimed;
+}
+
+/** Two-sided (§4.4), guarded on a real-tree ANCHOR so a conformance mini-project — which loads none of the
+ *  exempt writers — cannot red the gate's own self-proof. */
+/** ARM A's stale sweep, on the same real-tree ANCHOR — a conformance mini-project loads none of the
+ *  allowlisted columns' writers, so an unguarded sweep would red the gate's own self-proof (§4.5). */
+function reportStaleAllowlist(ctx: GateRunCtx, seen: ReadonlySet<string>): void {
+  if (!fileLoaded(ctx, SCHEMA_ANCHOR)) {
+    return;
+  }
+  for (const key of Object.keys(ALLOWLIST)) {
+    if (!seen.has(key)) {
+      ctx.report({
+        file: GATE_SELF,
+        line: 1,
+        column: 0,
+        message: `${STALE_ENTRY_MESSAGE_PREFIX}"${key}" — tooling/src/verify/gates/json-column-write-parity.ts`,
+      });
+    }
+  }
+}
+
+function reportStaleGuardExempt(ctx: GateRunCtx, claimed: ReadonlySet<string>): void {
+  if (!fileLoaded(ctx, SCHEMA_ANCHOR)) {
+    return;
+  }
+  for (const key of Object.keys(GUARD_EXEMPT)) {
+    if (!claimed.has(key)) {
+      ctx.report({
+        file: GATE_SELF,
+        line: 1,
+        column: 0,
+        message: `${STALE_GUARD_EXEMPT_PREFIX}"${key}" — tooling/src/verify/gates/json-column-write-parity.ts`,
+      });
+    }
+  }
+}
+
 export const gate: GateDescriptor = {
   name: "json-column-write-parity",
   docRow: "Core-Enforcement-Active-Gates.md (Layer 3)",
@@ -314,12 +678,26 @@ export const gate: GateDescriptor = {
   scopeSafety: "whole-project", // the verdict is a comparison ACROSS a column's writers, which live in different files
   message: MESSAGE,
   fix: FIX,
-  scanRoot: (p) => p.includes("packages/db/src/schema/") || p.includes("packages/server/src/domain/"),
+  // ARM B reads `packages/contracts/src` too — that is where `defineVersionedConfig` names the types whose
+  // columns owe the write guard.
+  scanRoot: (p) => p.includes("packages/db/src/schema/") || p.includes("packages/server/src/domain/") || p.includes("packages/contracts/src/"),
 
   run: (ctx) => {
     ctx.scan(schemaScan(ctx.project));
-    const files = ctx.project.getSourceFiles().filter((f) => f.getFilePath().includes(SCHEMA_DIR) || f.getFilePath().includes(DOMAIN_DIR));
-    const jsonColumns = deriveJsonColumns(files);
+    const files = ctx.project
+      .getSourceFiles()
+      .filter((f) => f.getFilePath().includes(SCHEMA_DIR) || f.getFilePath().includes(DOMAIN_DIR) || f.getFilePath().includes(CONTRACTS_DIR));
+    const versioned = deriveVersionedTypes(files);
+    reportVersionedTypeHealth(ctx, files, versioned);
+    const columns = deriveJsonColumns(files, versioned.types);
+    ctx.scan({
+      population: [
+        { source: "defineVersionedConfig owners", members: versioned.types.size, unresolved: versioned.unresolved.length },
+        { source: "versioned-config columns", members: [...columns.versioned.values()].reduce((n, cols) => n + cols.size, 0) },
+      ],
+    });
+    reportStaleGuardExempt(ctx, reportUndominatedWrites(ctx, files, columns.versioned));
+    const jsonColumns = columns.all;
     if (jsonColumns.size === 0) {
       if (files.some((f) => f.getFilePath().includes(SCHEMA_DIR))) {
         ctx.report({ file: GATE_SELF, line: 1, column: 0, message: BLIND_MESSAGE });
@@ -339,19 +717,11 @@ export const gate: GateDescriptor = {
         continue;
       }
       for (const w of writers.filter((x) => x.wholeReplace)) {
-        ctx.report(w.node);
+        // §4.3a: two arms can now report on one `.set({ a, b })` line, so each finding names its POSITION.
+        ctx.report(w.node, { token: columnOf(w), offset: 0 });
       }
     }
-    for (const key of Object.keys(ALLOWLIST)) {
-      if (!seenAllowlisted.has(key)) {
-        ctx.report({
-          file: GATE_SELF,
-          line: 1,
-          column: 0,
-          message: `${STALE_ENTRY_MESSAGE_PREFIX}"${key}" — tooling/src/verify/gates/json-column-write-parity.ts`,
-        });
-      }
-    }
+    reportStaleAllowlist(ctx, seenAllowlisted);
   },
 
   mustFlag: [
@@ -422,6 +792,80 @@ export const gate: GateDescriptor = {
       expect: { count: 1 },
       why: "the bare `X: input.X` replace beside the rpg `patchSheet` precedent — the taint test, not a name test, is what separates them",
     },
+    {
+      files: {
+        "packages/contracts/src/settings/index.ts":
+          "export const userSettingsConfig = defineVersionedConfig<UserSettings>({ schema: s, version: 1, lifts: {}, default: d });\n",
+        "packages/db/src/schema/settings.ts":
+          'export const userSettings = sqliteTable("user_settings", {\n  config: text("config", { mode: "json" }).$type<UserSettings>().notNull(),\n});\n',
+        "packages/server/src/domain/settings/persistence/queries.ts":
+          "export async function writeUserConfig(db, ownerId, config, at) {\n  await db.update(userSettings).set({ config, updatedAt: at }).where(eq(userSettings.userId, ownerId));\n}\n",
+      },
+      expect: { count: 1, token: "config" },
+      why: "THE #879 ARM-B RED, and the founding #471 shape: a whole-blob writer of a versioned-config column with NO requireIntactStoredConfig anywhere — the read seam degrades, so this write persists the stand-in. It also proves the SHORTHAND spelling (`set({ config, … })`) is seen at all: the PropertyAssignment-only reader could not see the live writer",
+    },
+    {
+      files: {
+        "packages/contracts/src/settings/index.ts":
+          "export const userSettingsConfig = defineVersionedConfig<UserSettings>({ schema: s, version: 1, lifts: {}, default: d });\n",
+        "packages/db/src/schema/settings.ts":
+          'export const userSettings = sqliteTable("user_settings", {\n  config: text("config", { mode: "json" }).$type<UserSettings>().notNull(),\n});\n',
+        "packages/server/src/domain/settings/persistence/queries.ts":
+          "export async function writeUserConfig(db, ownerId, config, at) {\n  const row = await loadRow(db, ownerId);\n  if (row === undefined) {\n    requireIntactStoredConfig(userSettingsConfig.parseOutcome(row.config), 'user_settings');\n  } else {\n    await db.update(userSettings).set({ config, updatedAt: at }).where(eq(userSettings.userId, ownerId));\n  }\n}\n",
+      },
+      expect: { count: 1, token: "config" },
+      why: "DOMINANCE, NOT PRESENCE: the guard is present in the SAME function and even in the same `if` — but in the SIBLING branch, so no execution reaching the write ever runs it. A presence test would pass this; that is the whole reason the arm is a dominance test",
+    },
+    {
+      files: {
+        "packages/contracts/src/preset/index.ts":
+          "export const promptConfigConfig = defineVersionedConfig<PromptConfig>({ schema: s, version: 1, lifts: {}, default: d });\n",
+        "packages/db/src/schema/preset.ts":
+          'export const presets = sqliteTable("presets", {\n  config: text("config", { mode: "json" }).$type<PromptConfig>().notNull(),\n});\n',
+        // Deliberately NOT the live `queries.ts#updatePresetRow` path: an example landing on a GUARD_EXEMPT
+        // key would be absolved by the table and prove nothing (it did, on the first draft of this row).
+        "packages/server/src/domain/preset/persistence/writes.ts":
+          "export async function writePresetRow(db, id, patch) {\n  await db.update(presets).set(patch).where(eq(presets.id, id));\n}\n",
+      },
+      expect: { count: 1 },
+      why: "FAIL-CLOSED (#944 posture): a `.set(<identifier>)` on a versioned-config-owning table is OPAQUE — the gate cannot read which columns it assigns — so it is JUDGED, never skipped. A silent skip is the audited escape verbatim, and this is the live `updatePresetRow` shape",
+    },
+    {
+      files: {
+        "packages/contracts/src/settings/index.ts":
+          "export const userSettingsConfig = defineVersionedConfig<UserSettings>({ schema: s, version: 1, lifts: {}, default: d });\n",
+        "packages/db/src/schema/settings.ts":
+          'export const userSettings = sqliteTable("user_settings", {\n  config: text("config", { mode: "json" }).$type<UserSettings>().notNull(),\n});\n',
+        "packages/server/src/domain/settings/persistence/queries.ts":
+          "export async function seed(db, ownerId, config, at) {\n  await db.insert(userSettings).values({ userId: ownerId, config, updatedAt: at }).onConflictDoUpdate({ target: userSettings.userId, set: { config, updatedAt: at } });\n}\n",
+      },
+      expect: { count: 1, token: "config" },
+      why: "the UPSERT spelling: `onConflictDoUpdate({ set: { config } })` replaces an EXISTING row's blob, so it owes the guard exactly as `.set()` does. A plain `.values()` insert stays creation (a mustPass row below keeps that limit)",
+    },
+    {
+      files: {
+        "packages/contracts/src/preset/index.ts":
+          "export const promptConfigConfig = defineVersionedConfig({ schema: s, version: 1, lifts: {}, default: d });\n",
+        // A READABLE sibling keeps the owned-type derivation non-empty, so this red can only be the
+        // fail-closed arm and never the empty-derivation tripwire (the #945 row's trick, one arm over).
+        "packages/contracts/src/settings/index.ts":
+          "export const userSettingsConfig = defineVersionedConfig<UserSettings>({ schema: s, version: 1, lifts: {}, default: d });\n",
+        "packages/db/src/schema/preset.ts":
+          'export const presets = sqliteTable("presets", {\n  config: text("config", { mode: "json" }).$type<PromptConfig>().notNull(),\n});\n',
+      },
+      expect: { count: 1, messageIncludes: "UNREADABLE" },
+      why: "THE #944 FAIL-CLOSED ROW: a `defineVersionedConfig(...)` with no explicit type argument whose binding type does not resolve is REPORTED, never silently skipped — a skip would erase every column obligation that declaration carries while the file scan stayed healthy. It bit on the real tree at landing: `promptConfigConfig` was inferred, so `presets.config` carried NO guard obligation at all until the type argument was written",
+    },
+    {
+      files: {
+        // The real-tree ANCHOR both stale sweeps guard on, plus a json column so the run gets past the
+        // empty-derivation return — with NO writer for any exempted key, so every row is stale at once.
+        "packages/db/src/schema/index.ts": 'export * from "./notes.ts";\n',
+        "packages/db/src/schema/notes.ts": 'export const notes = sqliteTable("notes", {\n  body: text("body", { mode: "json" }),\n});\n',
+      },
+      expect: { count: 5, messageIncludes: "ALLOWLIST entry names" },
+      why: "BOTH STALE SWEEPS, two-sided (§4.4): the anchor is loaded and NOTHING on this tree claims any ALLOWLIST or GUARD_EXEMPT row, so all five rows red as stale. It is also the mode-B proof — a row whose site left the project is examined, because the sweep is keyed on a `seen` set and never on the row's own file existing",
+    },
   ],
   mustPass: [
     {
@@ -485,6 +929,59 @@ export const gate: GateDescriptor = {
           "export async function clearTheme(ctx, id) {\n  await ctx.db.update(userSettings).set({ config: sql`json_set(\u0024{userSettings.config}, '$.theme', json('null'))` }).where(id);\n}\nexport async function writeAll(ctx, id) {\n  const row = await loadSettings(ctx, id);\n  await ctx.db.update(userSettings).set({ config: { ...row.config } }).where(id);\n}\n",
       },
       why: "the live `userSettings.config` SQL-side merge. Conformance caught the first draft of this row: the taint test cannot see through SQL TEXT, so `json_set` read as a whole-replace and falsely straddled the sibling. The classifier now recognises a `sql` tagged template that interpolates a COLUMN reference as the read it is. DECLARED LIMIT — that is a SHAPE test, not SQL comprehension: a `sql` template that genuinely overwrites the column without reading it would be misread as key-wise",
+    },
+    {
+      files: {
+        "packages/contracts/src/settings/index.ts":
+          "export const userSettingsConfig = defineVersionedConfig<UserSettings>({ schema: s, version: 1, lifts: {}, default: d });\n",
+        "packages/db/src/schema/settings.ts":
+          'export const userSettings = sqliteTable("user_settings", {\n  config: text("config", { mode: "json" }).$type<UserSettings>().notNull(),\n});\n',
+        "packages/server/src/domain/settings/persistence/queries.ts":
+          "export async function writeUserConfig(db, ownerId, config, at) {\n  const row = await loadRow(db, ownerId);\n  if (row !== undefined) {\n    requireIntactStoredConfig(userSettingsConfig.parseOutcome(row.config), 'user_settings');\n  }\n  await db.update(userSettings).set({ config, updatedAt: at }).where(eq(userSettings.userId, ownerId));\n}\n",
+      },
+      why: "THE LIVE CORRECT SHAPE (`writeUserConfig`): the guard is nested inside an EARLIER statement — an ABSENT row is a legitimate first write with nothing to lose — and that still DOMINATES the write. A strict CFG dominance test would red this correct code, which is why the rule is 'the guard's own top-level statement precedes the write's'",
+    },
+    {
+      files: {
+        "packages/contracts/src/settings/index.ts":
+          "export const userSettingsConfig = defineVersionedConfig<UserSettings>({ schema: s, version: 1, lifts: {}, default: d });\n",
+        "packages/db/src/schema/settings.ts":
+          'export const userSettings = sqliteTable("user_settings", {\n  config: text("config", { mode: "json" }).$type<UserSettings>().notNull(),\n});\n',
+        "packages/server/src/domain/settings/persistence/theme-queries.ts":
+          "export async function clearSelectedThemeIds(db, ids, at) {\n  await db.update(userSettings).set({ config: sql`json_set(\u0024{userSettings.config}, '$.theme.selectedThemeId', json('null'))`, updatedAt: at }).where(inArray(sel, ids));\n}\n",
+      },
+      why: "THE BRIEF'S OWN mustPass (theme-queries.ts:154): a key-wise `json_set` heal READS the stored value SQL-side and replaces nothing, so it is not a whole-replace writer and owes no guard. ARM B judges the REPLACE, never the merge",
+    },
+    {
+      files: {
+        "packages/contracts/src/settings/index.ts":
+          "export const userSettingsConfig = defineVersionedConfig<UserSettings>({ schema: s, version: 1, lifts: {}, default: d });\n",
+        "packages/db/src/schema/settings.ts":
+          'export const userSettings = sqliteTable("user_settings", {\n  config: text("config", { mode: "json" }).$type<UserSettings>().notNull(),\n});\n',
+        "packages/server/src/domain/settings/persistence/queries.ts":
+          "export async function ensureUserSettings(db, ownerId, at) {\n  await db.insert(userSettings).values({ userId: ownerId, config: DEFAULT_USER_SETTINGS, updatedAt: at }).onConflictDoNothing();\n}\n",
+      },
+      why: "DECLARED LIMIT, ARM B: a `.values()` insert with `onConflictDoNothing` is CREATION — it cannot overwrite an existing blob, so it owes no guard (the live `ensureUserSettings` seed). Only `onConflictDoUpdate`'s `set` object crosses into replace territory",
+    },
+    {
+      files: {
+        "packages/db/src/schema/character.ts":
+          'export const characters = sqliteTable("characters", {\n  extensions: text("extensions", { mode: "json" }).$type<Record<string, unknown>>(),\n});\n',
+        "packages/contracts/src/settings/index.ts":
+          "export const userSettingsConfig = defineVersionedConfig<UserSettings>({ schema: s, version: 1, lifts: {}, default: d });\n",
+        "packages/server/src/domain/character/persistence/queries.ts":
+          "export async function writeExtensions(db, id, extensions) {\n  await db.update(characters).set({ extensions }).where(eq(characters.id, id));\n}\n",
+      },
+      why: "DECLARED LIMIT, ARM B: an ordinary json column is NOT a versioned-config column — `$type<Record<string, unknown>>` names no `defineVersionedConfig` owner, so its whole-replace writers owe nothing here. The obligation is DERIVED from the primitive, never from a path or a column-name list",
+    },
+    {
+      files: {
+        "packages/db/src/schema/settings.ts":
+          'export const userSettings = sqliteTable("user_settings", {\n  config: text("config", { mode: "json" }).$type<UserSettings>().notNull(),\n});\n',
+        "packages/server/src/domain/settings/persistence/queries.ts":
+          "export async function writeUserConfig(db, ownerId, config, at) {\n  await db.update(userSettings).set({ config, updatedAt: at }).where(eq(userSettings.userId, ownerId));\n}\n",
+      },
+      why: "THE ANCHOR GUARD, ARM B: no contracts package in this mini-project, so the owned-type derivation is legitimately EMPTY (§4.5) — the blindness tripwire stays silent and the same unguarded writer that reds the row above passes here. A `scope.kind` check could not tell these two apart",
     },
   ],
 };

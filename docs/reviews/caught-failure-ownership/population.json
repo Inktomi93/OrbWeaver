@@ -1476,7 +1476,7 @@
     {
       "siteId": "packages/contracts/src/preset/index.ts::default:catch::1",
       "path": "packages/contracts/src/preset/index.ts",
-      "line": 3043,
+      "line": 3048,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -1484,7 +1484,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "ST mirror — JSON.parse of custom_stopping_strings",
-      "markerLine": 3038
+      "markerLine": 3043
     },
     {
       "siteId": "packages/contracts/src/rpg/extraction.ts::default:catch::1",
