@@ -415,6 +415,8 @@ export interface ChatComposeResult {
  */
 // chat's opaque ChatToolSet IS the ResolvedToolSet this seam minted; the exec frame's runAsUserId resolves
 // to the live host Principal here (the engine itself stays Principal-blind).
+// D152: an in-turn tool therefore executes under the HOST Principal — there is no per-speaker authority
+// swap at this seam, so attaching a mutating tool to a non-human speak turn is zero-human host authority.
 function buildChatToolOps(toolUse: ToolUseService, resolveHostPrincipal: (userId: UserId) => Promise<Principal>): ChatToolOps {
   // biome-ignore lint/suspicious/noExplicitAny: the opaque ChatToolSet round-trip (see the header note).
   const asResolvedSet = (set: ChatToolSet): ResolvedToolSet => set as any as ResolvedToolSet;
