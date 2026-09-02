@@ -1443,6 +1443,70 @@
           ]
         }
       ]
+    },
+    {
+      "path": "docs/design/work-item-dod.md",
+      "assignedSha256": "e67115ff99d9c1a15232d9a4464503f058703e02c5c5fc3da785a2e5705ee2a5",
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "e67115ff99d9c1a15232d9a4464503f058703e02c5c5fc3da785a2e5705ee2a5",
+      "verifiedCommit": "99fa2e9f27967ca5683f970828bd09b3f7f7fb0f",
+      "verifiedAt": "2026-09-01",
+      "summary": "Design for the work:item Definition of Done (#923): red-first mint, body fence + Project-field stamp pairing, close gate with a loud recorded override, dod/refute --dod re-mint, 5-min timeout; P1/P2/P3/P5 survey builds landed, P4 archive sweep deferred with a priced sketch.",
+      "evidence": [
+        "born-reviewed at 99fa2e9f2 (#923, claude-b lane cb-dod-forge, 370b92b43 + 7f6c74920 rebased): full read by the primary orchestrator — mechanism (red-first mint, close gate, loud override, dod re-mint, refute --dod, per-class refusals), storage choice + the three rejected shapes, the trust surface (pairing stamp in the Project DoD field vs the body block), 5-min timeout with env seam, CRLF normalization, the coupled-site table, P1/P2/P3/P5 built, P4 deferred with its priced sketch. NOTE: a third commit amending land's gate ORDER (bar first, zero gh calls on red) is announced and will re-attest this doc if it edits it"
+      ],
+      "claims": [
+        {
+          "claim": "A DoD is minted red-first: the command runs once before any GitHub call and a green reproduction refuses the row.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#923"
+            },
+            {
+              "kind": "code",
+              "target": "tooling/src/workboard/ops/dod.ts:37"
+            }
+          ]
+        },
+        {
+          "claim": "The close gate re-derives the DoD from the issue body, checks the sha256 pairing stamp in the Project DoD field, and runs the command before the Status→Done write; a loud --force-close --reason is the only escape.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "tooling/src/workboard/ops/dod.ts:54"
+            },
+            {
+              "kind": "code",
+              "target": "tooling/src/workboard/lib/dod.ts:44"
+            }
+          ]
+        },
+        {
+          "claim": "The bar lives as a ```dod fenced block in the issue body (extracted with CRLF normalization, one block only) and the stamp is the sole pairing authority — an unstamped or mismatched block never executes.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "tooling/src/workboard/lib/dod.ts:64"
+            },
+            {
+              "kind": "code",
+              "target": "tooling/src/workboard/lib/dod.ts:86"
+            }
+          ]
+        },
+        {
+          "claim": "One 5-minute timeout per DoD run at mint and at close, with the WORK_ITEM_DOD_TIMEOUT_MS env seam for the harness.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "tooling/src/workboard/lib/vocab.ts:49"
+            }
+          ]
+        }
+      ]
     }
   ]
 }

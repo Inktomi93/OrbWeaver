@@ -2,18 +2,18 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 443,
-    "enforced": 440,
-    "reported": 0,
+    "sites": 445,
+    "enforced": 442,
+    "reported": 2,
     "byVerdict": {
       "deliberate-absorb": 440,
       "detached-owned": 3,
-      "unproven": 0
+      "unproven": 2
     },
     "byGrammar": {
-      "promise": 124,
+      "promise": 125,
       "default": 127,
-      "empty": 192
+      "empty": 193
     }
   },
   "rows": [
@@ -1745,6 +1745,32 @@
       "verdict": "deliberate-absorb",
       "reason": "documented above (#710) — a throw is",
       "markerLine": 251
+    },
+    {
+      "siteId": "packages/server/src/domain/__g_caught/__g_caught.ts::empty:catch::1",
+      "path": "packages/server/src/domain/__g_caught/__g_caught.ts",
+      "line": 2,
+      "column": 20,
+      "grammar": "empty",
+      "position": "empty:catch",
+      "ordinal": 1,
+      "snippet": "try { risky(); } catch {}",
+      "verdict": "unproven",
+      "reason": null,
+      "markerLine": null
+    },
+    {
+      "siteId": "packages/server/src/domain/__g_detached/__g_detached.ts::promise:onUserCommit::1",
+      "path": "packages/server/src/domain/__g_detached/__g_detached.ts",
+      "line": 2,
+      "column": 8,
+      "grammar": "promise",
+      "position": "promise:onUserCommit",
+      "ordinal": 1,
+      "snippet": "void ctx.rpg.onUserCommit(a, b).catch(() => undefined);",
+      "verdict": "unproven",
+      "reason": null,
+      "markerLine": null
     },
     {
       "siteId": "packages/server/src/domain/admin/guard.ts::default:catch::1",
