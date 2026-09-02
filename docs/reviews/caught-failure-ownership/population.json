@@ -4154,7 +4154,7 @@
     {
       "siteId": "tooling/src/_shared/nav.ts::promise:evaluate::1",
       "path": "tooling/src/_shared/nav.ts",
-      "line": 106,
+      "line": 107,
       "column": 11,
       "grammar": "promise",
       "position": "promise:evaluate",
@@ -4162,7 +4162,7 @@
       "snippet": "await page.evaluate(\"window.__orb && window.__orb.ready\").catch(() => undefined);",
       "verdict": "deliberate-absorb",
       "reason": "a best-effort readiness ping before the real bridge call two lines below — any genuine failure (no bridge, mid-navigation) is caught by the surrounding try and returned as ok:false with the message. Ends if this becomes the only readiness signal checked.",
-      "markerLine": 105
+      "markerLine": 106
     },
     {
       "siteId": "tooling/src/_shared/panel-flags.ts::default:catch::1",
@@ -4388,7 +4388,7 @@
     {
       "siteId": "tooling/src/motion-audit/ops/drive.ts::default:e::1",
       "path": "tooling/src/motion-audit/ops/drive.ts",
-      "line": 45,
+      "line": 49,
       "column": 5,
       "grammar": "default",
       "position": "default:e",
@@ -4396,12 +4396,12 @@
       "snippet": "} catch (e) {",
       "verdict": "deliberate-absorb",
       "reason": "prepare-click failure is printed as STEP FAILED and null prevents measurement from claiming a click. Ends if null can produce a clean verdict.",
-      "markerLine": 35
+      "markerLine": 39
     },
     {
       "siteId": "tooling/src/motion-audit/ops/drive.ts::empty:e::1",
       "path": "tooling/src/motion-audit/ops/drive.ts",
-      "line": 65,
+      "line": 69,
       "column": 9,
       "grammar": "empty",
       "position": "empty:e",
@@ -4409,7 +4409,7 @@
       "snippet": "} catch (e) {",
       "verdict": "deliberate-absorb",
       "reason": "reach failure increments the authoritative failure counter and prints the selector. Ends if the final verdict stops reading failures.",
-      "markerLine": 60
+      "markerLine": 64
     },
     {
       "siteId": "tooling/src/motion-audit/ops/matrix.ts::empty:error::1",
@@ -4635,7 +4635,7 @@
     {
       "siteId": "tooling/src/snap/ops/contrast.ts::promise:evaluate::1",
       "path": "tooling/src/snap/ops/contrast.ts",
-      "line": 281,
+      "line": 282,
       "column": 9,
       "grammar": "promise",
       "position": "promise:evaluate",
@@ -4643,12 +4643,12 @@
       "snippet": "await page",
       "verdict": "deliberate-absorb",
       "reason": "best-effort cleanup — a torn-down page must never fail the contrast verdict already computed. Ends if the trailing comment's rationale stops holding.",
-      "markerLine": 280
+      "markerLine": 281
     },
     {
       "siteId": "tooling/src/snap/ops/drive.ts::empty:e::1",
       "path": "tooling/src/snap/ops/drive.ts",
-      "line": 169,
+      "line": 171,
       "column": 5,
       "grammar": "empty",
       "position": "empty:e",
@@ -4656,12 +4656,12 @@
       "snippet": "} catch (e) {",
       "verdict": "deliberate-absorb",
       "reason": "printed as STEP FAILED and returned as a count the caller sums into stepFailures, the verdict the run reads. Ends if stepFailures stops being read.",
-      "markerLine": 164
+      "markerLine": 166
     },
     {
       "siteId": "tooling/src/snap/ops/drive.ts::empty:e::2",
       "path": "tooling/src/snap/ops/drive.ts",
-      "line": 209,
+      "line": 208,
       "column": 5,
       "grammar": "empty",
       "position": "empty:e",
@@ -4669,12 +4669,12 @@
       "snippet": "} catch (e) {",
       "verdict": "deliberate-absorb",
       "reason": "printed as NAV FAILED and returned as a count the caller sums into navFailures, the verdict the run reads. Ends if navFailures stops being read.",
-      "markerLine": 204
+      "markerLine": 201
     },
     {
       "siteId": "tooling/src/snap/ops/drive.ts::empty:retryErr::1",
       "path": "tooling/src/snap/ops/drive.ts",
-      "line": 180,
+      "line": 182,
       "column": 9,
       "grammar": "empty",
       "position": "empty:retryErr",
@@ -4682,12 +4682,12 @@
       "snippet": "} catch (retryErr) {",
       "verdict": "deliberate-absorb",
       "reason": "the retry's own failure is printed as STEP FAILED (after churn retry) and returned as the same counted failure the outer catch would have produced. Ends if that count stops being read.",
-      "markerLine": 175
+      "markerLine": 177
     },
     {
       "siteId": "tooling/src/snap/ops/drive.ts::promise:evaluate::1",
       "path": "tooling/src/snap/ops/drive.ts",
-      "line": 35,
+      "line": 37,
       "column": 23,
       "grammar": "promise",
       "position": "promise:evaluate",
@@ -4695,12 +4695,12 @@
       "snippet": "const count = await page.evaluate(\"window.__orb ? window.__orb.queries().length : null\").catch(() => null);",
       "verdict": "deliberate-absorb",
       "reason": "probe-whose-failure-is-its-return-value — a build without the __orb bridge, or a probe that throws, returns null and the caller \"makes no claim rather than a false one\" (doc comment above). Ends if a caller starts trusting null as a positive settle.",
-      "markerLine": 34
+      "markerLine": 36
     },
     {
       "siteId": "tooling/src/snap/ops/drive.ts::promise:evaluate::2",
       "path": "tooling/src/snap/ops/drive.ts",
-      "line": 207,
+      "line": 204,
       "column": 11,
       "grammar": "promise",
       "position": "promise:evaluate",
@@ -4708,12 +4708,12 @@
       "snippet": "await page.evaluate(\"window.__orb && window.__orb.ready\").catch(() => undefined);",
       "verdict": "deliberate-absorb",
       "reason": "a fire-and-forget readiness ping whose result is discarded — the very next line's evaluate() runs regardless and its failure IS caught by this try, reported as NAV FAILED. Ends if the next evaluate stops being what reports real failures.",
-      "markerLine": 206
+      "markerLine": 203
     },
     {
       "siteId": "tooling/src/snap/ops/drive.ts::promise:waitFor::1",
       "path": "tooling/src/snap/ops/drive.ts",
-      "line": 42,
+      "line": 44,
       "column": 26,
       "grammar": "promise",
       "position": "promise:waitFor",
@@ -4721,12 +4721,12 @@
       "snippet": "const attached = await flag",
       "verdict": "deliberate-absorb",
       "reason": "failure IS the return value — converts to attached=false, which becomes the \"absent\" readiness arm fed into UNSETTLED_REASON and reported as navError below. Ends if that reporting chain is removed.",
-      "markerLine": 41
+      "markerLine": 43
     },
     {
       "siteId": "tooling/src/snap/ops/drive.ts::promise:waitFor::2",
       "path": "tooling/src/snap/ops/drive.ts",
-      "line": 199,
+      "line": 196,
       "column": 9,
       "grammar": "promise",
       "position": "promise:waitFor",
@@ -4734,12 +4734,12 @@
       "snippet": "await page",
       "verdict": "deliberate-absorb",
       "reason": "gracefully bounded per the comment above — a stuck/absent flag falls through, and any real problem still surfaces via the nav evaluate() below, caught by the try beneath. Ends if that fallthrough evaluate stops being what catches real failures.",
-      "markerLine": 198
+      "markerLine": 195
     },
     {
       "siteId": "tooling/src/snap/ops/drive.ts::promise:waitForLoadState::1",
       "path": "tooling/src/snap/ops/drive.ts",
-      "line": 275,
+      "line": 274,
       "column": 11,
       "grammar": "promise",
       "position": "promise:waitForLoadState",
@@ -4747,12 +4747,12 @@
       "snippet": "await page.waitForLoadState(\"networkidle\", { timeout: NETWORKIDLE_TIMEOUT_MS }).catch(() => {",
       "verdict": "deliberate-absorb",
       "reason": "bounded best-effort settle — a chatty stream must never block the shot, per the trailing comment. Ends if the timeout bound is removed.",
-      "markerLine": 273
+      "markerLine": 272
     },
     {
       "siteId": "tooling/src/snap/ops/evidence.ts::default:catch::1",
       "path": "tooling/src/snap/ops/evidence.ts",
-      "line": 157,
+      "line": 162,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -4760,12 +4760,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "optional-read-as-absent — perf evidence is a nice-to-have from window.__orb, null on any failure (old build, dev-only bridge absent) and the caller treats null as \"no perf evidence\", never a failure. Ends if a caller starts requiring perf evidence to be present.",
-      "markerLine": 144
+      "markerLine": 145
     },
     {
       "siteId": "tooling/src/snap/ops/evidence.ts::empty:e::1",
       "path": "tooling/src/snap/ops/evidence.ts",
-      "line": 44,
+      "line": 45,
       "column": 7,
       "grammar": "empty",
       "position": "empty:e",
@@ -4773,12 +4773,12 @@
       "snippet": "} catch (e) {",
       "verdict": "deliberate-absorb",
       "reason": "captured into the EvalOutcome as `failed: true` + an \"EVAL ERROR\" text, pushed into `results` and returned to the caller that prints/counts it. Ends if `failed`/`text` stop being read from the outcome.",
-      "markerLine": 39
+      "markerLine": 40
     },
     {
       "siteId": "tooling/src/snap/ops/evidence.ts::empty:error::1",
       "path": "tooling/src/snap/ops/evidence.ts",
-      "line": 136,
+      "line": 137,
       "column": 7,
       "grammar": "empty",
       "position": "empty:error",
@@ -4786,12 +4786,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "captured as an ERROR outcome line pushed into the returned outcomes array, which the caller counts as failed and reports. Ends if the outcomes array stops being read.",
-      "markerLine": 133
+      "markerLine": 134
     },
     {
       "siteId": "tooling/src/snap/ops/evidence.ts::promise:isVisible::1",
       "path": "tooling/src/snap/ops/evidence.ts",
-      "line": 121,
+      "line": 122,
       "column": 24,
       "grammar": "promise",
       "position": "promise:isVisible",
@@ -4799,12 +4799,12 @@
       "snippet": "const pass = await locator",
       "verdict": "deliberate-absorb",
       "reason": "probe-whose-failure-is-its-return-value — a locator failure converts to pass=false, which the very next line reports as ASSERT visible … FAIL. Ends if that FAIL line stops being printed/read.",
-      "markerLine": 120
+      "markerLine": 121
     },
     {
       "siteId": "tooling/src/snap/ops/fixture.ts::default:catch::1",
       "path": "tooling/src/snap/ops/fixture.ts",
-      "line": 92,
+      "line": 94,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -4843,7 +4843,7 @@
     {
       "siteId": "tooling/src/snap/ops/map.ts::promise:count::1",
       "path": "tooling/src/snap/ops/map.ts",
-      "line": 199,
+      "line": 200,
       "column": 23,
       "grammar": "promise",
       "position": "promise:count",
@@ -4851,12 +4851,12 @@
       "snippet": "const count = await locator.count().catch(() => 0);",
       "verdict": "deliberate-absorb",
       "reason": "probe-whose-failure-is-its-return-value — a count failure becomes 0, which fails the `=== 1` check below and reports the selector as not executable. Ends if that check stops gating on count.",
-      "markerLine": 198
+      "markerLine": 199
     },
     {
       "siteId": "tooling/src/snap/ops/map.ts::promise:isVisible::1",
       "path": "tooling/src/snap/ops/map.ts",
-      "line": 201,
+      "line": 202,
       "column": 43,
       "grammar": "promise",
       "position": "promise:isVisible",
@@ -4864,12 +4864,12 @@
       "snippet": "return count === 1 && (includeHidden || locator.isVisible().catch(() => false));",
       "verdict": "deliberate-absorb",
       "reason": "probe-whose-failure-is-its-return-value — an isVisible failure becomes false, which is exactly the \"not executable\" verdict this function returns. Ends if the return stops being read as pass/fail.",
-      "markerLine": 200
+      "markerLine": 201
     },
     {
       "siteId": "tooling/src/snap/ops/materialize-devtools.ts::empty:catch::1",
       "path": "tooling/src/snap/ops/materialize-devtools.ts",
-      "line": 188,
+      "line": 191,
       "column": 7,
       "grammar": "empty",
       "position": "empty:catch",
@@ -4877,12 +4877,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "Chrome creates this file only after binding the ephemeral endpoint; the bounded retry loop owns the race and throws when its budget expires. Ends if exhaustion stops throwing.",
-      "markerLine": 181
+      "markerLine": 184
     },
     {
       "siteId": "tooling/src/snap/ops/materialize-devtools.ts::empty:error::1",
       "path": "tooling/src/snap/ops/materialize-devtools.ts",
-      "line": 78,
+      "line": 81,
       "column": 7,
       "grammar": "empty",
       "position": "empty:error",
@@ -4890,12 +4890,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "each failed attempt is retained as `lastError`; retry exhaustion throws it with the asset path below. Ends if exhaustion stops throwing the retained detail.",
-      "markerLine": 67
+      "markerLine": 70
     },
     {
       "siteId": "tooling/src/snap/ops/materialize-devtools.ts::empty:error::2",
       "path": "tooling/src/snap/ops/materialize-devtools.ts",
-      "line": 152,
+      "line": 155,
       "column": 9,
       "grammar": "empty",
       "position": "empty:error",
@@ -4903,12 +4903,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "request failures enter the shared `failures` receipt, return HTTP 502, and abort materialization after discovery. Ends if the post-discovery failures check is removed.",
-      "markerLine": 141
+      "markerLine": 144
     },
     {
       "siteId": "tooling/src/snap/ops/materialize-devtools.ts::promise:promise::1",
       "path": "tooling/src/snap/ops/materialize-devtools.ts",
-      "line": 140,
+      "line": 143,
       "column": 5,
       "grammar": "promise",
       "position": "promise:promise",
@@ -4916,7 +4916,7 @@
       "snippet": "(async (): Promise<void> => {",
       "verdict": "deliberate-absorb",
       "reason": "any escape from the request handler is recorded in `failures`, destroys the response, and aborts materialization after discovery. Ends if the shared failure receipt stops gating installation.",
-      "markerLine": 139
+      "markerLine": 142
     },
     {
       "siteId": "tooling/src/snap/ops/matrix.ts::empty:error::1",

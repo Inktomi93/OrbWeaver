@@ -9,6 +9,7 @@ import { CHURN_LINE, capEvalText, isContextChurn, wrapEvalExpr } from "../lib/ev
 import { HTTP_URL_RE } from "../lib/out-names.ts";
 import { overflowAssertionLine } from "../lib/overflow-line.ts";
 import { probeOverflow } from "./overflow.ts";
+import { perfEvidence } from "./page-validate.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
@@ -143,7 +144,10 @@ export async function runAssertions(page: Page, assertions: readonly Assertion[]
 export async function capturePerfEvidence(page: Page): Promise<PerfEvidence | null> {
   // @orb-gate-ignore caught-failure-ownership(default:catch): optional-read-as-absent — perf evidence is a nice-to-have from window.__orb, null on any failure (old build, dev-only bridge absent) and the caller treats null as "no perf evidence", never a failure. Ends if a caller starts requiring perf evidence to be present.
   try {
-    return (await page.evaluate(`(() => {
+    // #1004 — validated so a malformed payload reaches the `catch → null` arm below (optional read,
+    // absent is fine) instead of landing in the report as fabricated navigation numbers.
+    return perfEvidence(
+      await page.evaluate(`(() => {
       const nav = performance.getEntriesByType("navigation")[0];
       return {
         navigation: nav ? {
@@ -153,7 +157,8 @@ export async function capturePerfEvidence(page: Page): Promise<PerfEvidence | nu
         } : null,
         orb: window.__orb ? window.__orb.snap() : null,
       };
-    })()`)) as PerfEvidence;
+    })()`),
+    );
   } catch {
     return null;
   }
