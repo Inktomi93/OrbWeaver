@@ -4479,7 +4479,7 @@
     {
       "siteId": "tooling/src/motion-audit/lib/verdicts.ts::empty:catch::1",
       "path": "tooling/src/motion-audit/lib/verdicts.ts",
-      "line": 51,
+      "line": 93,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -4487,12 +4487,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "an unparseable sourceURL falls back to the raw string, which the pathname.includes() checks below just won't match — degrading to \"unknown\" attribution rather than throwing, consistent with this function's documented \"veto, not proof\" contract. Ends if callers start requiring pathname to be a real URL path.",
-      "markerLine": 48
+      "markerLine": 90
     },
     {
       "siteId": "tooling/src/motion-audit/ops/drive.ts::default:e::1",
       "path": "tooling/src/motion-audit/ops/drive.ts",
-      "line": 49,
+      "line": 59,
       "column": 5,
       "grammar": "default",
       "position": "default:e",
@@ -4500,12 +4500,12 @@
       "snippet": "} catch (e) {",
       "verdict": "deliberate-absorb",
       "reason": "prepare-click failure is printed as STEP FAILED and null prevents measurement from claiming a click. Ends if null can produce a clean verdict.",
-      "markerLine": 39
+      "markerLine": 49
     },
     {
       "siteId": "tooling/src/motion-audit/ops/drive.ts::empty:e::1",
       "path": "tooling/src/motion-audit/ops/drive.ts",
-      "line": 69,
+      "line": 79,
       "column": 9,
       "grammar": "empty",
       "position": "empty:e",
@@ -4513,7 +4513,7 @@
       "snippet": "} catch (e) {",
       "verdict": "deliberate-absorb",
       "reason": "reach failure increments the authoritative failure counter and prints the selector. Ends if the final verdict stops reading failures.",
-      "markerLine": 64
+      "markerLine": 74
     },
     {
       "siteId": "tooling/src/motion-audit/ops/matrix.ts::empty:error::1",
@@ -4570,7 +4570,7 @@
     {
       "siteId": "tooling/src/motion-audit/ops/trace.ts::empty:e::1",
       "path": "tooling/src/motion-audit/ops/trace.ts",
-      "line": 37,
+      "line": 40,
       "column": 9,
       "grammar": "empty",
       "position": "empty:e",
@@ -4578,12 +4578,12 @@
       "snippet": "} catch (e) {",
       "verdict": "deliberate-absorb",
       "reason": "sets stepFailed, which is returned in the AuditData the caller reads as part of the verdict, and prints STEP FAILED — not dropped. Ends if stepFailed stops being read from the returned AuditData.",
-      "markerLine": 34
+      "markerLine": 36
     },
     {
       "siteId": "tooling/src/motion-audit/ops/trace.ts::promise:evaluate::1",
       "path": "tooling/src/motion-audit/ops/trace.ts",
-      "line": 52,
+      "line": 55,
       "column": 11,
       "grammar": "promise",
       "position": "promise:evaluate",
@@ -4591,7 +4591,7 @@
       "snippet": "await page.evaluate(\"globalThis.__orb?.setMotionAuditDropTrackingPaused(false)\").catch(() => undefined);",
       "verdict": "deliberate-absorb",
       "reason": "best-effort cleanup unpausing an in-page flag in a finally block — the page may already be closed/navigated by the time this runs, and there is nothing further downstream that could act on this failure. Ends if this flag gates behavior a later step depends on.",
-      "markerLine": 51
+      "markerLine": 54
     },
     {
       "siteId": "tooling/src/mutation-probe/ops/probe.ts::empty:catch::1",
