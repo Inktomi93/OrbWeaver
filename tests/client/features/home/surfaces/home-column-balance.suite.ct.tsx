@@ -135,7 +135,29 @@ const BASELINE_VOID_PX: Readonly<Record<string, number>> = {
   "1920/reading": 328,
   "1920/compact": 3,
   "2560/defaults": 11,
-  "2560/reading": 11,
+  // RE-BASELINED 2026-09-02, UPWARD, ONE cell (11 → 15) — a COST being recorded, not a fence loosened,
+  // in the same form as the 1920/defaults row above, and it is TYPE METRICS rather than layout.
+  //
+  // THE RECEIPT THAT SAYS WHICH. Two readings, taken in one run of this instrument with the grid forced
+  // to the PRE-FIX layout (`lead`'s `1.5fr 1.05fr`) beside the shipped one. (1) At 1920/reading the two
+  // layouts are IDENTICAL (`footTracks === 1`, so `lead` and `leadEven` resolve the same tracks) and the
+  // cell measures 279 against this map's recorded 328 — 49px of movement with no layout change at all,
+  // which can only be block heights. (2) At THIS cell the pre-fix layout measures 226 today, against the
+  // header's own "2560/reading 228 → 11" — so the fix is still doing exactly what it was recorded doing
+  // (226 → 15), and the drift is in the 11, not in the fence.
+  //
+  // WHAT MOVED THE HEIGHTS: `ed55bf193` (2026-09-01) put every leading on an integer line box
+  // (docs/design/integer-line-boxes.md) — `--leading-title` from the ratio 1.35 to `round(1.375rem, 1px)`,
+  // `--leading-body` to `round(1.4375rem, 1px)`, plus the newly minted `leading-label-relaxed` the `prose`
+  // modifier now takes. The READING arm multiplies every one of them by `--font-scale: 1.25`, which is why
+  // it moves most and why the same pass also moved `chat.quickPicks`'s declared box (374 → 376, #1144).
+  // Measured identical (975 / 960, void 15) on the UNMODIFIED tree before #1128/#1120/#1130/#1121 landed,
+  // so this is not that lane's cost either.
+  //
+  // THE CELL IS NOT LEFT UNGUARDED, which is the only reason an upward move is legitimate here: it is in
+  // the CLOSED regime (`footTracks === 2`), so `VOID_BUDGET_PX` (120) is the binding fence and 15px sits
+  // an order of magnitude inside it. `VOID_BUDGET_PX` and `AIR_GAP_BUDGET_PX` are untouched.
+  "2560/reading": 15,
   "2560/compact": 3,
 };
 const BASELINE_TOLERANCE_PX = 2;
