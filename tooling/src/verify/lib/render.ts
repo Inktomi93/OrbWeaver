@@ -6,6 +6,7 @@ import { formatSplit } from "@orb/tooling/_shared/ratchet-rows";
 import type { Finding, GateDescriptor } from "../contract/gate.ts";
 import type { GatePassResult, GateScan, PassResult, ToolError } from "../contract/pass.ts";
 import { isBlindScan } from "./pass.ts";
+import { populationAlarmLine, populationAlarms } from "./population.ts";
 
 /** A finding's clickable coordinate: `path:line:col` for a node/token-anchored hit; bare `path` for a
  *  genuinely file-level hit (line/column 0) so the linker never jumps to a phantom `:0:0`. */
@@ -30,6 +31,7 @@ function occurrenceLine(f: Finding): string {
 }
 
 const ZERO_SCAN_MARKER = "SCANNED ZERO FILES";
+const POPULATION_MARKER = "REFUSED POPULATION receipt(s)";
 
 /** The zero-scan explanation, printed on the gate's own line so a blind gate cannot be skimmed past. */
 const ZERO_SCAN_NOTE =
@@ -50,6 +52,11 @@ function scanSuffix(scan: GateScan, alarm: boolean): string {
     for (const [reason, n] of Object.entries(declared.skipReasons)) {
       parts.push(`skipped ${n} (${reason})`);
     }
+  }
+  for (const p of scan.populations) {
+    // The SEMANTIC denominator (#946), printed beside the file one: a coverage gate's verdict rests on
+    // this number, and a shrinking member count is invisible in a healthy file count.
+    parts.push(p.unresolved > 0 ? `${p.source}: ${p.members} member(s), ${p.unresolved} UNRESOLVED` : `${p.source}: ${p.members} member(s)`);
   }
   if (scan.admitted > 0) {
     // SPLIT BY CLASS (#569): a ratified admission is permanent by a recorded ruling / documented tool-FP —
@@ -103,44 +110,74 @@ function renderGateResult(g: GatePassResult, gatesByName: ReadonlyMap<string, Ga
   return [renderGroup(gate, g.findings, suffix)];
 }
 
+/** What the footer summarises — accumulated over the per-gate lines so the summary can never disagree
+ *  with the block above it. */
+interface PassTotals {
+  readonly violations: number;
+  readonly blind: number;
+  readonly admitted: number;
+  readonly ratified: number;
+}
+
+/** The summary footer. Every "the run is not a verdict" class prints its own line and BLOCKS the word
+ *  "clean": a blind gate, a refused population receipt (#946), a thrown gate. */
+function renderFooter(result: PassResult, totals: PassTotals, alarm: boolean): readonly string[] {
+  const out: string[] = [];
+  if (totals.blind > 0) {
+    out.push(`single-pass: ${totals.blind} gate(s) ${ZERO_SCAN_MARKER} — the checker is BLIND, not clean`);
+  }
+  // The population half of the same alarm (#946), same placement rule: only the real-tree entrypoint asks
+  // (a scoped run and a conformance mini-project legitimately resolve zero members).
+  const populations = alarm ? populationAlarms(result) : [];
+  for (const a of populations) {
+    out.push(`  ⚠ ${populationAlarmLine(a)}`);
+  }
+  if (populations.length > 0) {
+    out.push(`single-pass: ${populations.length} ${POPULATION_MARKER} — a coverage gate's member denominator, not its file count`);
+  }
+  if (result.toolErrors.length > 0) {
+    out.push(`single-pass: ${result.toolErrors.length} tool error(s) — the checker is broken`);
+  }
+  if (totals.admitted > 0) {
+    // The DEBT half is the burnable population a board row can claim; the RATIFIED half is permanent by a
+    // recorded ruling or a documented tool false positive (`pnpm debt` lists both, separately).
+    out.push(
+      `single-pass: ${totals.admitted} finding(s) admitted by ratchet baselines ${formatSplit(totals.admitted - totals.ratified, totals.ratified)} — the debt half is a live population, the ratified half is ruled permanent`,
+    );
+  }
+  if (totals.violations > 0) {
+    out.push(`single-pass: ${totals.violations} violation(s)`);
+    return out;
+  }
+  // A blind gate or a refused population must never be summarised as "clean" — that word is the whole
+  // defect (a reader who skims the footer would take a checker that measured nothing for a passing tree).
+  if (totals.blind > 0) {
+    out.push("single-pass: 0 violations — NOT a clean verdict, a gate above read nothing");
+  } else {
+    out.push(populations.length > 0 ? "single-pass: 0 violations — NOT a clean verdict, a gate above resolved no members" : "single-pass: clean");
+  }
+  return out;
+}
+
 export function renderPass(result: PassResult, gatesByName: ReadonlyMap<string, GateDescriptor>, opts?: RenderOptions): string {
   const alarm = opts?.zeroScanAlarm === true;
   const out: string[] = [];
-  let violationTotal = 0;
+  let violations = 0;
   let blind = 0;
-  let admittedTotal = 0;
-  let ratifiedTotal = 0;
+  let admitted = 0;
+  let ratified = 0;
   for (const g of result.gates) {
-    admittedTotal += g.scan.admitted;
-    ratifiedTotal += g.scan.admittedRatified;
+    admitted += g.scan.admitted;
+    ratified += g.scan.admittedRatified;
     const isBlind = alarm && isBlindScan(g.scan);
     blind += isBlind ? 1 : 0;
-    violationTotal += isBlind ? 0 : g.findings.length;
+    violations += isBlind ? 0 : g.findings.length;
     out.push(...renderGateResult(g, gatesByName, alarm));
   }
   for (const e of result.toolErrors) {
     out.push(renderToolError(e));
   }
   out.push("");
-  if (blind > 0) {
-    out.push(`single-pass: ${blind} gate(s) ${ZERO_SCAN_MARKER} — the checker is BLIND, not clean`);
-  }
-  if (result.toolErrors.length > 0) {
-    out.push(`single-pass: ${result.toolErrors.length} tool error(s) — the checker is broken`);
-  }
-  if (admittedTotal > 0) {
-    // The DEBT half is the burnable population a board row can claim; the RATIFIED half is permanent by a
-    // recorded ruling or a documented tool false positive (`pnpm debt` lists both, separately).
-    out.push(
-      `single-pass: ${admittedTotal} finding(s) admitted by ratchet baselines ${formatSplit(admittedTotal - ratifiedTotal, ratifiedTotal)} — the debt half is a live population, the ratified half is ruled permanent`,
-    );
-  }
-  if (violationTotal > 0) {
-    out.push(`single-pass: ${violationTotal} violation(s)`);
-  } else {
-    // A blind gate must never be summarised as "clean" — that word is the whole defect (a reader who
-    // skims the footer would take a checker that read nothing for a passing tree).
-    out.push(blind > 0 ? "single-pass: 0 violations — NOT a clean verdict, a gate above read nothing" : "single-pass: clean");
-  }
+  out.push(...renderFooter(result, { violations, blind, admitted, ratified }, alarm));
   return out.join("\n");
 }

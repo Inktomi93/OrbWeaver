@@ -63,6 +63,14 @@ interface RunManifestView {
   readonly active: number;
   readonly incompleteReasons?: readonly string[];
 }
+/** One refused MEMBER-population receipt (#946), as written into the artifact by ops/structure.ts. */
+interface PopulationAlarmView {
+  readonly gate: string;
+  readonly source: string;
+  readonly reason: string;
+  readonly members: number;
+  readonly unresolved: number;
+}
 interface StructureReport {
   readonly run?: RunManifestView;
   readonly gates: readonly GateReport[];
@@ -73,6 +81,10 @@ interface StructureReport {
    *  same reason toolErrors are: this view is where the doctrine says to LOOK, so a signal missing here is
    *  a signal nobody sees. */
   readonly scanAlarms?: readonly string[];
+  /** Optional: absent in pre-#946 artifacts. A coverage gate whose declared MEMBER population came back
+   *  empty or left declarations unresolved — read here for the same reason as `scanAlarms`: this view is
+   *  where the doctrine says to LOOK, so a signal missing here is a signal nobody sees. */
+  readonly populationAlarms?: readonly PopulationAlarmView[];
   readonly total: number;
   readonly ok: boolean;
 }
@@ -243,12 +255,13 @@ function refuseIncomplete(report: StructureReport): string | null {
 function printVerdictAndToolErrors(report: StructureReport): void {
   const toolErrors = report.toolErrors ?? [];
   const blind = report.scanAlarms ?? [];
-  const evidenceBroken = toolErrors.length + blind.length > 0;
+  const populations = report.populationAlarms ?? [];
+  const evidenceBroken = brokenEvidenceCount(report) > 0;
   print(
     report.ok && !evidenceBroken
       ? ANSI.green("✓ check:structure passed (filter view)\n")
       : ANSI.red(
-          `✗ check:structure FAILED — ${report.total} violation(s)${toolErrors.length > 0 ? ` + ${toolErrors.length} TOOL ERROR(S)` : ""}${blind.length > 0 ? ` + ${blind.length} BLIND GATE(S)` : ""} across its gates\n`,
+          `✗ check:structure FAILED — ${report.total} violation(s)${toolErrors.length > 0 ? ` + ${toolErrors.length} TOOL ERROR(S)` : ""}${blind.length > 0 ? ` + ${blind.length} BLIND GATE(S)` : ""}${populations.length > 0 ? ` + ${populations.length} REFUSED POPULATION(S)` : ""} across its gates\n`,
         ),
   );
   for (const e of toolErrors) {
@@ -259,9 +272,27 @@ function printVerdictAndToolErrors(report: StructureReport): void {
       `${ANSI.red("✗ SCANNED ZERO FILES")} ${ANSI.bold(name)}  the gate ran and read nothing — its verdict is a placebo (tooling/src/verify/gates/GATE-AUTHORING.md §3).`,
     );
   }
-  if (toolErrors.length + blind.length > 0) {
+  for (const a of populations) {
+    print(`${ANSI.red("✗ REFUSED POPULATION")} ${ANSI.bold(a.gate)}  ${populationAlarmText(a)}`);
+  }
+  if (evidenceBroken) {
     print("");
   }
+}
+
+/** The member-population refusal, in the artifact reader's voice (the runner's own spelling lives at
+ *  lib/pass.ts `populationAlarmLine`; this view reads a JSON row, not a typed alarm). */
+function populationAlarmText(a: PopulationAlarmView): string {
+  if (a.reason === "empty") {
+    return `population "${a.source}" resolved ZERO members — the gate's subject derivation came back empty, so its verdict is a placebo (GATE-AUTHORING.md §1).`;
+  }
+  return `population "${a.source}" left ${a.unresolved} declaration(s) UNRESOLVED beside ${a.members} member(s) — the denominator silently shrank (GATE-AUTHORING.md §1).`;
+}
+
+/** How many "the run is not a verdict" signals the artifact carries — thrown gates, blind gates, refused
+ *  populations. ONE spelling, so the header, the exit code and the pass line can never disagree. */
+function brokenEvidenceCount(report: StructureReport): number {
+  return (report.toolErrors?.length ?? 0) + (report.scanAlarms?.length ?? 0) + (report.populationAlarms?.length ?? 0);
 }
 
 /** #644 — the near-cap ADVISORY, never a violation: a file a few lines under its component-size /
@@ -313,7 +344,7 @@ export function runShow(root: string, argv: readonly string[]): number {
     return EXIT.toolError;
   }
   const filtersActive = filter.gate !== null || filter.file !== null;
-  const evidenceBroken = (report.toolErrors?.length ?? 0) + (report.scanAlarms?.length ?? 0) > 0;
+  const evidenceBroken = brokenEvidenceCount(report) > 0;
 
   if (report.ok && !filtersActive && !evidenceBroken) {
     // The admitted total rides the PASS line: a ratchet baseline is declared debt a green run is still
