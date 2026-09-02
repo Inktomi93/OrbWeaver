@@ -166,26 +166,32 @@ export function readFillChannels(image: ContrastPixelImage, geometry: ContrastFi
   const { buckets, core, band, bandPixels } = splitClip(image, geometry);
   if (bandPixels < MIN_BAND_PIXELS) {
     return {
+      kind: "refused",
       refusal: `no surround to measure against — only ${String(bandPixels)} pixel(s) of the clip lie outside the element (it fills the viewport, or its box runs off-screen)`,
     };
   }
   if (core === 0) {
-    return { refusal: "no interior pixels — the element's box is thinner than its own anti-aliased edge" };
+    return { kind: "refused", refusal: "no interior pixels — the element's box is thinner than its own anti-aliased edge" };
   }
   const neighbour = dominantSurround(band, bandPixels);
   if (neighbour.share < MIN_SURROUND_SHARE) {
     return {
+      kind: "refused",
       refusal: `the subject borders more than one surface — its largest neighbour is only ${(neighbour.share * PERCENT).toFixed(0)}% of the band, so any single ratio would average colours nothing on screen paints; measure the specific edge (or a child that sits on one surface)`,
     };
   }
   const surround: Rgb = neighbour.rgb;
   const populations = [...buckets.values()].filter((bucket) => bucket.count / core >= MIN_CHANNEL_SHARE);
   if (populations.length === 0) {
-    return { refusal: `no painted population reaches ${(MIN_CHANNEL_SHARE * PERCENT).toFixed(0)}% of the box — every colour in it is anti-aliasing` };
+    return {
+      kind: "refused",
+      refusal: `no painted population reaches ${(MIN_CHANNEL_SHARE * PERCENT).toFixed(0)}% of the box — every colour in it is anti-aliasing`,
+    };
   }
   const dominant = populations.reduce((most, bucket) => (bucket.count > most.count ? bucket : most));
   const loudest = populations.reduce((best, bucket) => (contrastRatio(meanOf(bucket), surround) > contrastRatio(meanOf(best), surround) ? bucket : best));
   return {
+    kind: "measured",
     ratio: contrastRatio(meanOf(loudest), surround),
     fill: meanOf(loudest),
     surround,

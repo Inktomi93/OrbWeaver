@@ -12,6 +12,7 @@
 // consume as this run's clean verdict.
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { GATE_PHASES } from "../../../../tooling/src/verify/contract/pass.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 /** A minimal, VALID descriptor: scans everything, flags nothing. `scanRoot: () => true` + a `visitFile`
@@ -102,12 +103,15 @@ test("`show` reads a complete artifact (the negative control for the refusal bel
 // The planted hog burns a known ~60ms in its `run` hook: a report that cannot tell it from the free gate
 // beside it is the artifact this arm exists to refuse.
 
-/** A planted gate that spends a KNOWN slice of wall clock in one named phase. Busy-wait, not a timer: the
- *  harness measures the hook's own return, so only real occupied CPU inside it can be attributed. */
-const HOG_MS = 60;
+/** A planted gate that burns a FIXED AMOUNT OF WORK in one named phase. Work, not a wall-clock deadline:
+ *  the case's subject is ATTRIBUTION (which phase of which gate was charged), and a loop of a known size
+ *  proves that without reading an ambient clock from the test — the deadline form spelled `Date.now()`
+ *  here, which is `test-determinism`'s exact ban. The harness times the hook's own return, so only real
+ *  occupied CPU inside it can land on this gate. */
+const HOG_ITERATIONS = 40_000_000;
 const HOG_GATE = OK_GATE.replace(
   "visitFile: () => undefined,",
-  `visitFile: () => undefined,\n  run: () => {\n    const until = Date.now() + ${String(HOG_MS)};\n    while (Date.now() < until) {\n      /* planted cost */\n    }\n  },`,
+  `visitFile: () => undefined,\n  run: () => {\n    let burnt = 0;\n    for (let i = 0; i < ${String(HOG_ITERATIONS)}; i += 1) {\n      burnt += i % 7;\n    }\n    if (burnt < 0) {\n      throw new Error("unreachable — the planted cost must not be optimised away");\n    }\n  },`,
 ).replace('"planted-ok"', '"planted-hog"');
 
 interface TimingView {
@@ -126,17 +130,25 @@ test("the artifact carries per-gate wall-clock, and the summary line names the s
   expect(report.gates).toHaveLength(2);
   for (const gate of report.gates) {
     expect(Number.isFinite(gate.timing.totalMs)).toBe(true);
-    const phases = ["begin", "visit", "visitFile", "run", "finalize"];
+    const phases = GATE_PHASES;
     expect(Object.keys(gate.timing.phaseMs).toSorted()).toEqual([...phases].toSorted());
-    const sum = phases.reduce((total, phase) => total + (gate.timing.phaseMs[phase] ?? 0), 0);
+    const sum = phases.reduce((total: number, phase) => total + (gate.timing.phaseMs[phase] ?? 0), 0);
     expect(gate.timing.totalMs).toBeCloseTo(sum, 3);
   }
 
-  // The hog's cost lands in the phase that spent it, and the free gate is NOT credited with it.
+  // ATTRIBUTION, which is the whole claim: the hog's cost lands in the PHASE that spent it, the free gate
+  // beside it is not credited with any of it, and the two are ordered by what they actually did. No
+  // absolute millisecond is asserted — that would be a claim about the machine, not about the ledger.
   const hog = report.gates.find((gate) => gate.name === "planted-hog");
   const free = report.gates.find((gate) => gate.name === "planted-ok");
-  expect(hog?.timing.phaseMs["run"]).toBeGreaterThanOrEqual(HOG_MS * 0.8);
-  expect(free?.timing.totalMs ?? Number.POSITIVE_INFINITY).toBeLessThan(HOG_MS * 0.8);
+  const hogRun = hog?.timing.phaseMs["run"] ?? 0;
+  const freeTotal = free?.timing.totalMs ?? Number.POSITIVE_INFINITY;
+  expect(hogRun).toBeGreaterThan(0);
+  expect(hogRun).toBeGreaterThan(freeTotal);
+  expect(hog?.timing.totalMs ?? 0).toBeGreaterThan(freeTotal);
+  // The free gate has no `run` hook at all, so its own run phase must be exactly zero — the negative
+  // control that says the hog's number is the HOOK's cost and not a per-gate constant.
+  expect(free?.timing.phaseMs["run"]).toBe(0);
 
   // The ledger adds up: the pass wall clock encloses the sum of its gates, by construction and not by
   // rounding luck (per-gate numbers floor, the pass total ceils).
