@@ -2,11 +2,23 @@
 // worst-longtask ≥250ms in the RESULT line through the real cli (a METER's verdict surface is its
 // report, not its exit — exit reddens only when the interaction breaks); the idle twin must report
 // breach-steps=0 — the long-task observer cannot be blind.
+//
+// LANE (#1040): the `live-drive` vitest project — `fileParallelism:false`, run as the LAST shard of
+// `pnpm test`. This file boots a real Chromium per arm and its clean twin asserts `breach-steps=0`, i.e.
+// that clicking an IDLE page produced no long task. Contention alone can falsify that, so the twin opens
+// with `withholdMeasurement` and declines to vote on a loaded box. The PLANTED 300ms arm does not
+// withhold: contention can only make a real long task longer, never make it vanish.
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { vi } from "vitest";
 import { expect, test } from "../../support/tool-fixtures.ts";
+import { scaledBudget, withholdMeasurement } from "../_load-budget.ts";
 
-const CLI_TIMEOUT_MS = 90_000;
+// LOAD-SCALED (the `check-gates.int` spelling), and the file-level vitest budget is set from the SAME
+// number: before #1040 these arms ran in the parallel lane on vitest's DEFAULT 5s testTimeout while each
+// booted a browser, so the child had 90s and the test itself had five.
+const CLI_TIMEOUT_MS = scaledBudget(90_000, 4);
+vi.setConfig({ testTimeout: CLI_TIMEOUT_MS, hookTimeout: CLI_TIMEOUT_MS });
 
 function page(onClickBody: string): string {
   return `<!doctype html>
@@ -31,7 +43,8 @@ test("a planted 300ms click handler surfaces as a breach step through the real c
   await expect(res).toExitWith(0);
 });
 
-test("the idle twin reports zero breach steps over a REAL step population — the breach above is the plant", async ({ runCli, scratch }) => {
+test("the idle twin reports zero breach steps over a REAL step population — the breach above is the plant", async ({ runCli, scratch, skip, task }) => {
+  withholdMeasurement({ task, skip }, "cpu-profile's long-task breach threshold");
   await writeFile(join(scratch, "idle.html"), page(""));
   const res = await runCli("cpu-profile", ["/idle.html", "--base", `file://${scratch}`, "--settle", "300", "--click", "#target", "--out", "proof-idle"], {
     timeoutMs: CLI_TIMEOUT_MS,

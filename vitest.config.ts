@@ -68,11 +68,13 @@ const SERIAL_INT = [
   // Measured on the stale config: 1,057,996 ms (17.6 min) in `|integration|`, one row failing, and ZERO
   // output for the whole stretch — which is what the `pnpm test` hang watchdog was killing at 300s.
   "tests/tooling/ast/cli.int.test.ts",
-  // test-presence + motion-audit: whole-tree scanners (same class as gate-conformance above) that flaked on
-  // the parallel 5s timeout under verify --push's full-suite load — the plugin train grew the tree past the
-  // edge (each passes alone ~3.4s but exceeds 5s under fork contention). Serial + 30s covers the scan weight.
+  // test-presence: a whole-tree scanner (same class as gate-conformance above) that flaked on the parallel
+  // 5s timeout under verify --push's full-suite load — the plugin train grew the tree past the edge (it
+  // passes alone ~3.4s but exceeds 5s under fork contention). Serial + 30s covers the scan weight.
+  // (`tests/tooling/motion-audit/cli.int.test.ts` sat here until #1040 and now lives in LIVE_DRIVE below —
+  // serial was the right SCHEDULE for it but the wrong lane: its problem is a measured RATE, not scan
+  // weight, and no timeout in this lane can make a dropped-frame percentage honest.)
   "tests/tooling/verify/gates/test-presence.int.test.ts",
-  "tests/tooling/motion-audit/cli.int.test.ts",
   "tests/support/fixtures.int.test.ts",
   "tests/server/transport/cross-tenant-sweep.suite.int.test.ts",
   "tests/server/entry/compose/chat.int.test.ts",
@@ -111,6 +113,45 @@ const SERIAL_INT = [
   // 6/6 isolated, 2026-08-22). Serial removes the contention; the roots themselves are mkdtemp-isolated
   // (tests/support/tool-fixtures.ts `plantedTree`), so this is class 2, not a shared-state tree-writer.
   "tests/tooling/verify/ops/structure.int.test.ts",
+];
+
+// LIVE_DRIVE — the `.int.test.ts` files that DRIVE A REAL BROWSER and whose verdict depends on a quantity
+// the box's contention perturbs. Same routing mechanism as SERIAL_INT (explicit paths, `.int.test.ts`
+// names kept so the structure gates still recognize them); the `integration` and `integration-serial`
+// projects both EXCLUDE this set, and `live-drive` globs exactly it, so a file is in one lane or none.
+//
+// WHY A LANE OF ITS OWN (issue #1040, owner: "withhold, don't red"): these are the only suites in the node
+// battery whose PASS is a MEASUREMENT rather than a structural fact, and a measurement taken on a box
+// carrying three other lanes is not about the code. motion-audit's mobile arm reported 47.54% dropped
+// frames at loadavg ~25 / 24 cores, then 10%, then clean, on IDENTICAL source. The three available arms
+// were: (a) a quiesced slot + a load-aware withhold, (b) a loadavg-scaled budget, (c) a wider budget. (c)
+// is banned — it launders the defect it was supposed to catch. (b) is what `_load-budget.ts` already does
+// and it TRANSFERS TO TIMEOUTS ONLY: load stretches a wall clock roughly linearly, and does nothing of the
+// sort to a percentage. So (a): this project is the QUIET SLOT half (fileParallelism:false, and the
+// supervisor runs it as the LAST shard, after every other project has drained), and
+// `withholdMeasurement` in tests/tooling/_load-budget.ts is the HONESTY half — a measured-rate arm on a
+// contended box skips with a reason instead of voting.
+//
+// TO ADD one: it belongs here iff it drives a real browser/stack AND its verdict turns on a measured rate,
+// a measured duration, or a wall-clock run budget that can kill the drive. A browser suite whose arms are
+// structural (computed style, DOM, pixels, exit codes) does NOT belong — load changes how long it takes,
+// not what it answers, and serializing it would only slow the battery. That line is why
+// tests/tooling/snap/**, tests/tooling/ui-audit/**, tests/tooling/screen-record/** and
+// tests/tooling/_shared/browser.int.test.ts stay in the parallel lane. (snap's ONE measured arm — the
+// `--cpu-throttle` frame-stretch differential — takes the withhold in place instead of dragging its
+// eighteen structural siblings into a serial lane.)
+const LIVE_DRIVE = [
+  // The #1040 case itself: a dropped-frame PERCENTAGE, a CLS total and a LoAF blocking duration, all
+  // measured out of a real headless Chromium's CDP trace and all gated by budgets (lib/verdicts.ts).
+  "tests/tooling/motion-audit/cli.int.test.ts",
+  // The same class one instrument over: the idle twin asserts `breach-steps=0` over a real metered step,
+  // i.e. that a click on an idle page produced NO long task — which contention alone can falsify.
+  "tests/tooling/cpu-profile/cli.int.test.ts",
+  // The two settings-shim proofs: a real snap browser run against an in-process stub origin, held to a
+  // FIXED 60s run budget that was not load-scaled. They are here for the wall-clock half — six of them
+  // timed out in one battery under lane load (2026-09-01) — and their budgets are now `scaledBudget`.
+  "tests/tooling/_shared/appearance.int.test.ts",
+  "tests/tooling/_shared/theme.int.test.ts",
 ];
 
 export default defineConfig({
@@ -197,13 +238,13 @@ export default defineConfig({
         // (freshDb-per-test, tests/support/db.ts) so there is ZERO cross-file state; `pool:'forks'`
         // (inherited) keeps process isolation for the native binding. Measured 6.7× vs serial, 0 failures
         // across 346 domain files (reports/tooling/VITEST-INTEGRATION-SPEEDUP.md). EXCLUDES `SERIAL_INT`
-        // (see the const above) — those run in `integration-serial`. Do NOT switch `pool` to threads and
-        // do NOT set `isolate:false`.
+        // and `LIVE_DRIVE` (see the consts above) — those run in `integration-serial` and `live-drive`.
+        // Do NOT switch `pool` to threads and do NOT set `isolate:false`.
         extends: true,
         test: {
           name: "integration",
           include: ["tests/**/*.int.test.ts"],
-          exclude: [...IGNORE, ...SERIAL_INT],
+          exclude: [...IGNORE, ...SERIAL_INT, ...LIVE_DRIVE],
         },
       },
       {
@@ -214,8 +255,30 @@ export default defineConfig({
         test: {
           name: "integration-serial",
           include: SERIAL_INT,
+          exclude: [...IGNORE, ...LIVE_DRIVE],
           fileParallelism: false,
           testTimeout: 30_000,
+        },
+      },
+      {
+        // live-drive: exactly the `LIVE_DRIVE` files (see the const above for the WHY + how to add one) —
+        // the real-browser suites whose verdict is a MEASUREMENT. fileParallelism:false is half the point:
+        // these files must not contend with each other, and `pnpm test` lists this project LAST so the
+        // shard runs on the quietest box the battery can offer (scripts/vitest-supervised.mjs runs one
+        // `vitest run --project <x>` per project, SEQUENTIALLY, in argv order).
+        //
+        // testTimeout here is a BACKSTOP, not the operative budget: every file in this lane sets its own
+        // `vi.setConfig` from `scaledBudget(...)` (tests/tooling/_load-budget.ts), because a fixed ceiling
+        // is exactly the thing that turned six real drives into opaque timeouts. 120s is above any
+        // unscaled per-file cost here and below the supervisor's 30-min hard ceiling, so a file that
+        // FORGOT its scaled budget fails loudly and early rather than silently inheriting a wrong one.
+        extends: true,
+        test: {
+          name: "live-drive",
+          include: LIVE_DRIVE,
+          fileParallelism: false,
+          testTimeout: 120_000,
+          hookTimeout: 120_000,
         },
       },
       {

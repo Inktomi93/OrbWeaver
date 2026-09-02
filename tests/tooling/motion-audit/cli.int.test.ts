@@ -8,17 +8,31 @@
 // here composites a compositor-only animation and the clean arm asserts a NONZERO frame population.
 // The two absent-evidence arms — no __orb bridge, no composited frame — must exit 2 (instrument error),
 // never a clean 0%.
+//
+// LANE (#1040): this file lives in the `live-drive` vitest project — `fileParallelism:false`, run as the
+// LAST shard of `pnpm test`, on the quietest box the battery can offer. It is here because its PASS arms
+// are MEASUREMENTS: the budget the cli gates is `frames.budgeted.pct > DROPPED_FRAME_BUDGET_PCT`
+// (lib/verdicts.ts), and that percentage read 47.54%, then 10%, then clean on IDENTICAL source as the box
+// quieted. So the arms below that expect PASS/exit 0 open with `withholdMeasurement`: on a contended box
+// they SKIP with a reason instead of voting. The FAIL and INSTRUMENT-ERROR arms do NOT withhold — extra
+// contention can only add reasons to red, never turn a planted breach green, so they stay honest under
+// load and this file's coverage does not evaporate the moment a sibling lane starts.
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { vi } from "vitest";
 import { expect, test } from "../../support/tool-fixtures.ts";
+import { scaledBudget, withholdMeasurement } from "../_load-budget.ts";
 
-const CLI_TIMEOUT_MS = 90_000;
+// LOAD-SCALED, not fixed (the `check-gates.int` / `gate-conformance.int` spelling): a real browser boot +
+// drive costs what the box lets it cost, and a fixed ceiling turns a slow drive into an opaque timeout
+// that reads exactly like an assertion red. Cap 4 matches the other heavy tooling suites.
+const CLI_TIMEOUT_MS = scaledBudget(90_000, 4);
+// The file default covers ONE drive; the two-drive arms below carry an explicit `2 * CLI_TIMEOUT_MS`.
+vi.setConfig({ testTimeout: CLI_TIMEOUT_MS, hookTimeout: CLI_TIMEOUT_MS });
 // 1000ms of a 60fps compositor animation measured 60 frames (probe, 2026-08-21) — a real denominator
 // with headroom: the 5% budget then absorbs the odd stray drop a loaded headless host produces (a 300ms
 // window gave 18 frames, where ONE stray drop is 5.56% and reds the clean twin).
 const FRAME_WINDOW_MS = "1000";
-// The measured-click arm waits out the probe's own 5s actionability timeout — past vitest's default.
-const SLOW_TEST_MS = 30_000;
 
 /** A compositor-only spinner: the fixture's own frame population, so the budget arms judge real evidence. */
 const ANIMATION = `<style>
@@ -117,7 +131,8 @@ test("a planted breaching motion snapshot REDs the audit through the real cli", 
   await expect(res).toExitWith(1);
 });
 
-test("the in-budget twin passes on a REAL frame population — the red above is the plant, not the harness", async ({ runCli, scratch }) => {
+test("the in-budget twin passes on a REAL frame population — the red above is the plant, not the harness", async ({ runCli, scratch, skip, task }) => {
+  withholdMeasurement({ task, skip }, "motion-audit's dropped-frame budget");
   await writeFile(join(scratch, "smooth.html"), page(CLEAN));
   const res = await runCli("motion-audit", args(scratch, "smooth.html"), { timeoutMs: CLI_TIMEOUT_MS });
   expect(res.stdout).toContain("PASS");
@@ -138,7 +153,11 @@ function expectMobileEnvironment(stdout: string): void {
   expect(Number(FRAME_LINE_RE.exec(stdout)?.[1])).toBeGreaterThan(0);
 }
 
-test("mobile normal-motion and reduced-motion arms retain real subjects, windows, frames, and coarse/touch evidence", async ({ runCli, scratch }) => {
+test("mobile normal-motion and reduced-motion arms retain real subjects, windows, frames, and coarse/touch evidence", {
+  timeout: 2 * CLI_TIMEOUT_MS,
+}, async ({ runCli, scratch, skip, task }) => {
+  // Both arms expect exit 0, i.e. EVERY budget in range — the dropped-frame percentage included.
+  withholdMeasurement({ task, skip }, "motion-audit's mobile dropped-frame budget");
   await writeFile(join(scratch, "mobile-normal.html"), page(CLEAN, { expectedReducedMotion: false }));
   const normal = await runCli("motion-audit", args(scratch, "mobile-normal.html", ["--mobile", "--full-motion"]), { timeoutMs: CLI_TIMEOUT_MS });
   expectMobileEnvironment(normal.stdout);
@@ -186,18 +205,14 @@ test("a measured window that composited NO frame is an INSTRUMENT ERROR, never 0
   await expect(res).toExitWith(2);
 });
 
-test(
-  "a failed pre-measurement reset is an INSTRUMENT ERROR, never a verdict over stale reach evidence",
-  async ({ runCli, scratch }) => {
-    await writeFile(join(scratch, "reset-fails.html"), page(CLEAN, { resetThrows: true }));
-    const res = await runCli("motion-audit", args(scratch, "reset-fails.html", ["--selector", "main"]), { timeoutMs: CLI_TIMEOUT_MS });
-    expect(res.stdout).toContain("INSTRUMENT ERROR");
-    expect(res.stdout).toContain("pre-measurement evidence reset");
-    expect(res.stdout).not.toContain("verdict=PASS");
-    await expect(res).toExitWith(2);
-  },
-  SLOW_TEST_MS,
-);
+test("a failed pre-measurement reset is an INSTRUMENT ERROR, never a verdict over stale reach evidence", async ({ runCli, scratch }) => {
+  await writeFile(join(scratch, "reset-fails.html"), page(CLEAN, { resetThrows: true }));
+  const res = await runCli("motion-audit", args(scratch, "reset-fails.html", ["--selector", "main"]), { timeoutMs: CLI_TIMEOUT_MS });
+  expect(res.stdout).toContain("INSTRUMENT ERROR");
+  expect(res.stdout).toContain("pre-measurement evidence reset");
+  expect(res.stdout).not.toContain("verdict=PASS");
+  await expect(res).toExitWith(2);
+});
 
 test("a failed post-reach reset is an INSTRUMENT ERROR, never a verdict over reach evidence", async ({ runCli, scratch }) => {
   await writeFile(join(scratch, "reach-reset-fails.html"), page(CLEAN, { resetThrows: true }));
@@ -217,7 +232,7 @@ test("a failed motion-flagger settle barrier is an INSTRUMENT ERROR", async ({ r
   await expect(res).toExitWith(2);
 });
 
-test("missing reset and settle methods are INSTRUMENT ERROR instead of optional-chain clean", async ({ runCli, scratch }) => {
+test("missing reset and settle methods are INSTRUMENT ERROR instead of optional-chain clean", { timeout: 2 * CLI_TIMEOUT_MS }, async ({ runCli, scratch }) => {
   await writeFile(join(scratch, "missing-reset.html"), page(CLEAN, { missingReset: true }));
   const reach = await runCli("motion-audit", args(scratch, "missing-reset.html", ["--click", "main"]), { timeoutMs: CLI_TIMEOUT_MS });
   expect(reach.stdout).toContain("post-reach evidence reset");
@@ -229,17 +244,13 @@ test("missing reset and settle methods are INSTRUMENT ERROR instead of optional-
   await expect(settleResult).toExitWith(2);
 });
 
-test(
-  "an unreachable --selector fails LOUDLY and names itself in the machine line",
-  async ({ runCli, scratch }) => {
-    await writeFile(join(scratch, "target.html"), page(CLEAN));
-    const res = await runCli("motion-audit", args(scratch, "target.html", ["--selector", "[data-slot=nope]"]), { timeoutMs: CLI_TIMEOUT_MS });
-    expect(res.stdout).toContain("STEP FAILED");
-    expect(res.stdout).toContain("step-failed=1");
-    await expect(res).toExitWith(1);
-  },
-  SLOW_TEST_MS,
-);
+test("an unreachable --selector fails LOUDLY and names itself in the machine line", async ({ runCli, scratch }) => {
+  await writeFile(join(scratch, "target.html"), page(CLEAN));
+  const res = await runCli("motion-audit", args(scratch, "target.html", ["--selector", "[data-slot=nope]"]), { timeoutMs: CLI_TIMEOUT_MS });
+  expect(res.stdout).toContain("STEP FAILED");
+  expect(res.stdout).toContain("step-failed=1");
+  await expect(res).toExitWith(1);
+});
 
 test("an unknown flag is CLI misuse before any browser boots", async ({ runCli }) => {
   const res = await runCli("motion-audit", ["--open-caht", "latest"]);
@@ -260,7 +271,10 @@ test("a dirty transition visible ONLY in the flag ring REDs the audit through th
   await expect(res).toExitWith(1);
 });
 
-test("the ratified Base UI height lifecycle in the flag ring PASSES — the console verdict is not imported", async ({ runCli, scratch }) => {
+test("the ratified Base UI height lifecycle in the flag ring PASSES — the console verdict is not imported", async ({ runCli, scratch, skip, task }) => {
+  // The #953 allowance is what this arm is about, but the run still has to clear every OTHER budget to
+  // reach PASS — so a loaded box could red it for a reason that has nothing to do with the allowance.
+  withholdMeasurement({ task, skip }, "motion-audit's dropped-frame budget");
   // The twin that proves the red above is the plant, not the mechanism: identical shape, `overBudget:true`
   // on the flag, and the #953 allowance still takes it out of the budget because motion-audit re-judges.
   await writeFile(join(scratch, "transient-ratified.html"), page(CLEAN, { flagsJson: TRANSIENT_RATIFIED_FLAG }));

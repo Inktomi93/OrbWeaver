@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-09-01
+updated: 2026-09-02
 ---
 
 <!-- RETRO DRIFT NOTE (2026-07-24): carried from main at promotion. Verified against retro's as-built
@@ -269,7 +269,7 @@ Two live parity gates keep the registry and the scripts honest, both directions:
 The behavioral suites are ONE `tests` concept expressed as stages with tier + scope, not a folklore list:
 
 - **`tests:node`** (tiers `changed`/`push`/`full`) — `pnpm test` = the vitest projects
-  (`unit`/`integration`/`integration-serial`/`contract`) AND `pnpm test:ct --retries=2` (the Playwright
+  (`unit`/`integration`/`integration-serial`/`live-drive`) AND `pnpm test:ct --retries=2` (the Playwright
   component-test suite). **CT rides this merged lane (2026-07-17)** — the CT split existed only for the old
   single-thread constraint; merging it means the green-to-commit ritual (`pnpm check` + `pnpm test`)
   exercises the CT suite too, and the visible `--retries=2` makes parallelism flakes RETRY instead of blocking (the CT\_GATE env it replaced retired 2026-07-17). At
@@ -328,7 +328,7 @@ The behavioral suites are ONE `tests` concept expressed as stages with tier + sc
   - **`tests:coverage`** (`manual` — report-only, no thresholds gate).
 - **`tests:execution-membership`** (`static`/`push`/`full`, #22 — `tooling/src/verify/ops/tests-execution-membership.ts`)
   — `types:tests-membership`'s EXECUTION-lane sibling: BOTH directions of "a test file is run by SOME
-  runner, and a runner glob matches SOME file". Asks each runner its own `--list` view (`vitest list --filesOnly --json` for all five node projects; `playwright test --list --reporter=json` for
+  runner, and a runner glob matches SOME file". Asks each runner its own `--list` view (`vitest list --filesOnly --json` for all six node projects; `playwright test --list --reporter=json` for
   `playwright.config.ts` — run with `E2E_LIVE=1` so `@live`-tagged specs, structurally matched but grep-
   skipped at routine run time, still count — and `playwright-ct.config.ts`), never re-parses glob strings
   (drift-proof). A `tests/**` runner-suffixed file in NO view REDs (never executed); a runner view matching

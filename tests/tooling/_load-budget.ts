@@ -8,8 +8,31 @@
 // kill is legible without archaeology. The pure `computeLoadFactor` is unit-pinned; the child runner is
 // exercised with a planted slow case (tests/tooling/load-budget.int.test.ts). Owner instrument-honesty law
 // (2026-08-22): a load-blown run must be KNOWABLY not-a-verdict, never a silent or misread red.
+//
+// THE THIRD LEVER (#1040, 2026-09-02): a WITHHOLD, for the arms scaling cannot save. A load-scaled budget
+// transfers to a wall-clock TIMEOUT and NOT to a measured PERCENTAGE — load does not stretch a rate
+// linearly, it destroys it. Measured on identical code: motion-audit's mobile arm reported 47.54% dropped
+// frames at loadavg ~25 on 24 cores, then 10%, then clean. There is no multiplier that turns 47.54% back
+// into the truth, so a measured-rate arm on a contended box is NOT A MEASUREMENT and must say so instead
+// of voting. Owner's issue text: "withhold, don't red" — never the third arm, widening the budget. The
+// contention judgment itself is NOT a second number: it is `computeLoadFactor`'s own quiet/contended
+// boundary, so this module holds ONE reading of the box with two consequences —
+//   TIMEOUTS SCALE (`scaledBudget`) · PERCENTAGES WITHHOLD (`withholdMeasurement`).
 import { execFileSync, spawnSync } from "node:child_process";
 import { cpus, loadavg } from "node:os";
+import process from "node:process";
+import type { TaskMeta } from "vitest";
+
+// The reporter-visible channel for a withheld arm, declared where the withhold lives. `TaskMeta` is
+// vitest's own augmentation point and `meta` is the ONLY per-test field its json reporter serializes for a
+// SKIPPED test — so this augmentation is not decoration, it is the whole reason a withhold is legible in
+// `reports/test-report.json` at all (see `withholdMeasurement` + scripts/vitest-supervised.mjs).
+declare module "vitest" {
+  interface TaskMeta {
+    /** The #1040 withhold reason, set by `withholdMeasurement` immediately before `ctx.skip`. */
+    orbLoadWithheld?: string;
+  }
+}
 
 /** The one distinctive token every load-kill error carries. A lane greps for it to classify exit-2. */
 export const LOAD_KILL_MARKER = "ORB-LOAD-KILL";
@@ -42,6 +65,92 @@ export function scaledBudget(baseMs: number, cap?: number): number {
  *  uses to tell an exit-2 load kill apart from a real assertion red. */
 export function isLoadKill(err: unknown): boolean {
   return err instanceof Error && err.message.includes(LOAD_KILL_MARKER);
+}
+
+// ── THE WITHHOLD (#1040) ────────────────────────────────────────────────────────────────────────────
+// Sibling vocabulary to LOAD_KILL_MARKER, deliberately a DIFFERENT token: a kill is a run that broke, a
+// withhold is a run that declined to vote. Conflating them would make "we chose not to measure" read as
+// "the instrument failed", and the supervisor summary has to tell them apart.
+
+/** The one distinctive token every withheld arm carries — in the skip reason, in the test's `meta`, and on
+ *  stderr. `scripts/vitest-supervised.mjs` greps the merged report's `meta` for it. */
+export const LOAD_WITHHOLD_MARKER = "ORB-LOAD-WITHHOLD";
+
+/** The `meta` key a withheld arm stamps on its own task — the same name as the `TaskMeta` member above, as
+ *  a value, so the supervisor's JS side and the TS side cannot drift apart. Measured 2026-09-02:
+ *  `ctx.skip(reason)` alone yields `{status:"skipped", failureMessages:[], meta:{}}` and the reason appears
+ *  NOWHERE in `reports/test-report.json` — i.e. a bare skip-with-reason IS the silent skip #1040 forbids. */
+export const LOAD_WITHHOLD_META_KEY = "orbLoadWithheld";
+
+/** The box's contention inputs, as one value so the reader is injectable (the planted control forces the
+ *  loaded condition instead of spinning the box). */
+export interface BoxLoad {
+  readonly loadavg1: number;
+  readonly cpuCount: number;
+}
+
+export interface MeasurementWithholding {
+  readonly withheld: boolean;
+  /** Populated in BOTH directions — the quiet arm's reason is the receipt that the box WAS read. */
+  readonly reason: string;
+}
+
+/** The live box. Exported so a caller can pass an explicit reading; the pin injects a fake instead. */
+export function readBoxLoad(): BoxLoad {
+  return { loadavg1: loadavg()[0] ?? 0, cpuCount: cpus().length };
+}
+
+/** PURE. Is this box quiet enough for a measured RATE to be about the code? The threshold is not a new
+ *  constant: a measurement is withheld exactly when `computeLoadFactor` leaves 1, i.e. when per-core
+ *  1-minute loadavg reaches 1.0 — the same boundary that starts stretching wall-clock budgets. Derivation
+ *  (#1040): the 47.54% false red was taken at loadavg ~25 on 24 cores = per-core 1.04, the first hair above
+ *  that boundary, and the same code read 10% and then clean as the box quieted. Below the boundary the
+ *  factor is exactly 1 and solo behaviour is untouched, so a quiet box still MEASURES — the withhold can
+ *  never become a way to stop testing. */
+export function judgeMeasurementLoad(box: BoxLoad, what: string): MeasurementWithholding {
+  const factor = computeLoadFactor(box.loadavg1, box.cpuCount);
+  const where = `loadavg ${box.loadavg1.toFixed(1)} / ${box.cpuCount} cores`;
+  if (factor === 1) {
+    return { withheld: false, reason: `${what}: box quiet enough to measure (${where})` };
+  }
+  return {
+    withheld: true,
+    reason:
+      `${LOAD_WITHHOLD_MARKER}: box too loaded to measure (${where}) — WITHHELD, not passed and not failed. ` +
+      `${what} is a measured rate, and load does not scale a rate: the same code has read 47.54%, 10% and ` +
+      "clean across contention levels (#1040), so this run is NOT a verdict. Re-run on a quiet tree.",
+  };
+}
+
+/** The minimum of vitest's test context this module needs — structural on purpose, so the seam does not
+ *  pin itself to a whole `TestContext` (which a planted control could not construct). The real context
+ *  satisfies it: `task` is `Readonly<Test>` whose `meta` is the augmented `TaskMeta`, and `skip`'s
+ *  `(note?: string): never` overload is assignable to the one-arg signature below. */
+export interface WithholdableTest {
+  readonly task: { readonly meta: TaskMeta };
+  readonly skip: (note?: string) => unknown;
+}
+
+/** Withhold a MEASURED-RATE arm when the box is too loaded for the number to mean anything. On a loaded
+ *  box this stamps the reason into `task.meta` (the reporter-visible channel), shouts it on stderr, and
+ *  calls `skip(reason)` — which THROWS, so nothing after the call runs and the arm never votes. On a quiet
+ *  box it returns and the caller measures exactly as before.
+ *
+ *  CALL IT AS `withholdMeasurement({ task, skip }, "…")`, destructuring both members out of the test's own
+ *  argument list. It cannot take the whole context: every suite here runs on a `test.extend` fixture, and
+ *  vitest's fixture parser REFUSES a non-destructured first parameter outright — it throws
+ *  `FixtureParseError: The 1st argument inside a fixture must use object destructuring pattern` — which
+ *  FAILS the test rather than skipping it, i.e. exactly the false red this seam exists to prevent. `task`
+ *  and `skip` are ordinary context members, so naming them alongside the fixtures is free, and `skip` is
+ *  an arrow closed over the task (vitest's own runner chunk) so it survives destructuring. */
+export function withholdMeasurement(ctx: WithholdableTest, what: string, read: () => BoxLoad = readBoxLoad): void {
+  const verdict = judgeMeasurementLoad(read(), what);
+  if (!verdict.withheld) {
+    return;
+  }
+  ctx.task.meta[LOAD_WITHHOLD_META_KEY] = verdict.reason;
+  process.stderr.write(`${verdict.reason}\n`);
+  ctx.skip(verdict.reason);
 }
 
 /** Build the self-identifying error. Its message leads with the marker and spells out the classification in
