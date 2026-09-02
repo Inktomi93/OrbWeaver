@@ -83,7 +83,7 @@ export {
 } from "./tracker-blocks/index.ts";
 export type { TrailingArrowProps } from "./trailing-arrow.tsx";
 export { TrailingArrow } from "./trailing-arrow.tsx";
-export type { ConfigLeafAddress, ConfigLeafValue } from "./use-config-leaf.ts";
-export { useConfigLeaf } from "./use-config-leaf.ts";
+export type { ConfigLeafAddress, ConfigLeafReading, ConfigLeafValue } from "./use-config-leaf.ts";
+export { configLeafKey, useConfigLeaf, useConfigLeafReadings } from "./use-config-leaf.ts";
 export type { UserMacroEditorDialogProps, UserMacrosFormValues } from "./user-macro-editor-dialog.tsx";
 export { UserMacroEditorDialog } from "./user-macro-editor-dialog.tsx";

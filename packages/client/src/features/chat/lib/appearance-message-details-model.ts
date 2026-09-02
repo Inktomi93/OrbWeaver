@@ -9,6 +9,7 @@
 
 import { APPEARANCE_OWNER_KEYS } from "#lib";
 import type { ConfigSubcategory } from "#state";
+import { MESSAGE_ACTIONS_ITEMS } from "./appearance-select-items.ts";
 
 export const APPEARANCE_MESSAGE_DETAILS_SUBCATEGORY: ConfigSubcategory = {
   id: "message-details",
@@ -72,6 +73,7 @@ export const APPEARANCE_MESSAGE_DETAILS_SUBCATEGORY: ConfigSubcategory = {
       id: "message-actions",
       key: "messageActions",
       label: "Action cluster",
+      options: MESSAGE_ACTIONS_ITEMS,
       keywords: ["edit", "delete", "fork", "copy", "hide", "hover"],
       teach: { summary: "Edit/hide/fork/delete/copy — shown on hover (default) or always.", affects: ["every message row's action affordances"] },
     },

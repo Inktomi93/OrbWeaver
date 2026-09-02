@@ -8,27 +8,46 @@
 //   · an OPEN collection member → the head names the member, the Applies tab IS the collection's own
 //     context arm ("Where it's attached", renamed — a member's applies answer), About carries the owning
 //     group's lesson;
-//   · a FOCUSED setting (`configFocus`, written by the `SettingRow` frame) → its leaf's `teach`, falling
-//     back to its section's, falling back to the group's;
-//   · a group with nothing focused → the SECTION the reader is in (the scroll-spy's current row) and its
-//     own lesson, falling back to the group's own. NEVER a jump list: the context pane is not navigation
-//     (`UI-Architecture-and-Layout.md` §4.2), and the LIST already homes every one of those doors (#1101);
+//   · a FOCUSED setting the reader can SEE → its leaf's `teach`, falling back to its section's, falling
+//     back to the group's — the DRILL, the pane's focused state;
+//   · a group at rest → the ROSTER: one entry per setting row currently in the CONTENT viewport
+//     (label · gloss · its value in the control's display words), re-derived as the scroll-spy's window
+//     moves. NEVER a jump list: the context pane is not navigation (`UI-Architecture-and-Layout.md` §4.2),
+//     and the LIST already homes every one of those doors (#1101) — a roster entry carries no door;
+//   · a group at rest whose visible rows are not settings (a jobs table, a collection) → the SECTION the
+//     reader is in and its own lesson, falling back to the group's own;
 //   · nothing at all → the section's `empty` arm (never a blank pane).
 // Focus-follows-content over `contextTab`: a focus change swaps head + body and KEEPS the tab (CP-4 §4.1).
+//
+// THE ROSTER IS THE OWNER'S RULING (#926, 2026-09-01), and it REPLACED this pane's founding premise: the
+// one-setting-at-a-time model was rejected verbatim ("the one at a time thing was lame"). The PS5 shape is
+// the ratified one — the pane lists what you can SEE, and the number of items tracks the viewport. Its
+// population is the scroll-spy's own pass (`computeVisibleSettings`), the SAME measurement that lights the
+// LIST's current row, so the two panes cannot disagree by a frame; there is deliberately no second
+// IntersectionObserver.
+//
+// KEEP-LAST FOCUS NOW HAS A VIEWPORT HORIZON. `configFocus` still never clears on blur, but a leaf is only
+// ELIGIBLE to drill while it is in the visible set: scrolling the row off screen returns the pane to the
+// roster, and scrolling it back re-drills it. That is what makes "returning blur/scroll goes back to the
+// roster" true by construction rather than by a second clearing rule — and it subsumes the group/section
+// predicate, because a row that is off screen cannot be in the set.
 
 import type { ConfigLeafAddress, ConfigLeafValue } from "#components";
-import { useConfigLeaf } from "#components";
+import { configLeafKey, useConfigLeaf, useConfigLeafReadings } from "#components";
 import { useSettingsViewerView } from "#data";
-import type { ConfigContextState, ConfigTeachDoor, ConfigTeachValue, ConfigTeachView, ContextDefinition } from "#lib";
-import { defineContextTabs } from "#lib";
+import type { ConfigContextState, ConfigRosterEntry, ConfigTeachDoor, ConfigTeachValue, ConfigTeachView, ContextDefinition } from "#lib";
+import { defineContextTabs, settingGloss } from "#lib";
 import type {
   CollectionGroupDefinition,
+  ConfigFocus,
   ConfigGroupDefinition,
   ConfigGroupId,
   ConfigGroupRegistry,
   ConfigSectionContribution,
+  ConfigSettingLeaf,
   ConfigSettingRef,
   ConfigSubcategory,
+  ConfigVisibleSetting,
   SettingTeach,
 } from "#state";
 import {
@@ -40,6 +59,7 @@ import {
   useCollectionSelection,
   useConfigFocus,
   useConfigSectionRegistry,
+  useVisibleConfigSettings,
 } from "#state";
 import { CollectionMemberContext, TeacherBand } from "../components/config-teacher.tsx";
 import { CONFIG_CONTEXT_EMPTY, CONFIG_SECTION_LABEL } from "./config-copy.ts";
@@ -155,9 +175,117 @@ function focusedLeafAddress(focus: { readonly group: ConfigGroupId; readonly sub
   return focus === null || focus.setting === null ? null : { group: focus.group, sub: focus.sub, setting: focus.setting };
 }
 
-/** Project the row hook's binding into the state-free teach shape (drop the chrome-only `resetPending`). */
-function projectLeafValue(binding: ConfigLeafValue | null): ConfigTeachValue | null {
-  return binding === null ? null : { current: binding.current, defaultValue: binding.defaultValue, modified: binding.modified, reset: binding.reset };
+/**
+ * A STORED VALUE IN THE CONTROL'S OWN WORDS (#1099 F15 — the pane said "md.", the control said "Medium").
+ *
+ * `options` is the leaf's declared reference to the SAME items array its control renders, so this is a
+ * lookup, never a second label map. The fallbacks are the honest ones for the shapes that have no option
+ * table: booleans as words, an absent value as "None", an option LIST as its members joined, an opaque
+ * object as its JSON (a composite row that declares a `key` — rare, and a wrong-looking blob is a truer
+ * answer than a confident lie).
+ */
+function valueLabel(value: unknown, options: ConfigSettingLeaf["options"]): string {
+  if (typeof value === "boolean") {
+    return value ? "On" : "Off";
+  }
+  if (value === null || value === undefined) {
+    return "None";
+  }
+  if (Array.isArray(value)) {
+    return value.length === 0 ? "None" : value.map((member) => valueLabel(member, options)).join(" · ");
+  }
+  if (typeof value === "object") {
+    return JSON.stringify(value);
+  }
+  const raw = String(value);
+  return options?.find((option) => option.value === raw)?.label ?? raw;
+}
+
+/** Project the row hook's binding into the state-free teach shape (drop the chrome-only `resetPending`).
+ *  The two values cross this seam already LABELLED — the tabs render display data and never re-resolve —
+ *  while `reset` still closes over the RAW default the hook bound, so a label can never decide a write. */
+function projectLeafValue(binding: ConfigLeafValue | null, options: ConfigSettingLeaf["options"]): ConfigTeachValue | null {
+  if (binding === null) {
+    return null;
+  }
+  return {
+    current: valueLabel(binding.current, options),
+    defaultValue: valueLabel(binding.defaultValue, options),
+    modified: binding.modified,
+    reset: binding.reset,
+  };
+}
+
+/** The declared leaf at an address, or `undefined` — the ONE registry walk the roster and the drill share. */
+function findLeaf(sections: readonly ConfigSectionContribution[], group: ConfigGroupId, sub: string, setting: string): ConfigSettingLeaf | undefined {
+  const nav = sections.find((c) => c.anchor === group && c.nav.id === sub)?.nav;
+  return (nav?.settings ?? []).find((leaf) => leaf.id === setting);
+}
+
+/** THE ROSTER (#926): one entry per VISIBLE setting row, in the order the content pane paints them.
+ *
+ *  A visible address that resolves to no declared leaf is DROPPED (a `SettingRow` mounted outside its
+ *  section's declaration — the row itself already renders inert in that case), and a leaf that opted out
+ *  of teaching keeps its row with a null gloss: the count the owner's ruling is written in terms of is
+ *  "the settings you can see", so silently thinning it would make the pane lie about the viewport. */
+function buildRoster(
+  visible: readonly { readonly sub: string; readonly setting: string }[],
+  group: ConfigGroupId,
+  sections: readonly ConfigSectionContribution[],
+  readings: ReadonlyMap<string, { readonly current: unknown; readonly modified: boolean }>,
+): readonly ConfigRosterEntry[] {
+  const entries: ConfigRosterEntry[] = [];
+  for (const row of visible) {
+    const leaf = findLeaf(sections, group, row.sub, row.setting);
+    if (leaf === undefined) {
+      continue;
+    }
+    const reading = readings.get(configLeafKey(row));
+    entries.push({
+      id: configLeafKey(row),
+      label: leaf.label,
+      gloss: isTeachNone(leaf.teach) ? null : settingGloss(leaf.teach.summary),
+      value: reading === undefined ? null : valueLabel(reading.current, leaf.options),
+      modified: reading?.modified ?? false,
+    });
+  }
+  return entries;
+}
+
+/** The DRILL PREDICATE (owner packet 2026-09-01 item 3): the focused leaf's address, but only while the
+ *  reader can SEE that row. Pure, and applied BEFORE `useConfigLeaf` binds anything, so a dormant keep-last
+ *  focus cannot leak a value or a Reset into a resting pane — the address itself is null when the row is off
+ *  screen, which is the one place that can be true for the lesson and the value at once. It subsumes the
+ *  old group/section match: a row outside the active group is never in the active group's visible set. */
+function drillAddressOf(focus: ConfigFocus | null, activeGroup: ConfigGroupId | null, visible: readonly ConfigVisibleSetting[]): ConfigLeafAddress | null {
+  const address = focusedLeafAddress(focus);
+  if (address === null || address.group !== activeGroup) {
+    return null;
+  }
+  return visible.some((row) => row.sub === address.sub && row.setting === address.setting) ? address : null;
+}
+
+interface DrillInput {
+  readonly group: ConfigGroupDefinition;
+  readonly address: ConfigLeafAddress;
+  readonly sections: readonly ConfigSectionContribution[];
+  /** The group's own lesson — what the §7.2 ladder falls back to when the leaf declares no teach. */
+  readonly fallback: ConfigTeachView;
+  readonly binding: ConfigLeafValue | null;
+}
+
+/** The DRILLED state, or `null` when the focused address names a section no contribution renders (a stale
+ *  focus across a registry change — the roster answers instead). */
+function drillState(drill: DrillInput): ConfigContextState | null {
+  const { group, address, sections, fallback, binding } = drill;
+  const sub = sections.find((c) => c.anchor === address.group && c.nav.id === address.sub)?.nav;
+  if (sub === undefined) {
+    return null;
+  }
+  const leafValue = projectLeafValue(binding, findLeaf(sections, address.group, address.sub, address.setting)?.options);
+  // The DRILL empties the roster: About renders one arm, and WHICH arm is a fact about the state rather
+  // than a branch the tab body has to re-derive.
+  return { teach: focusLesson({ group, sub, settingId: address.setting }, sections, fallback, leafValue), member: null, roster: [] };
 }
 
 /** Mint the Settings context definition over a door-frozen groups registry. */
@@ -171,9 +299,11 @@ export function makeConfigContext(groups: ConfigGroupRegistry): ContextDefinitio
     const activeGroup = useActiveConfigGroup();
     const selectionTitle = useConfigSelectionTitle(groups);
     const readingSub = useActiveConfigSub();
-    // The focused leaf's §3.4 value seam — the SAME hook the row chrome reads, so About's block and the
-    // row's stripe cannot disagree. Unconditional (rules of hooks); null wherever there is no bound leaf.
-    const leafValue = projectLeafValue(useConfigLeaf(focusedLeafAddress(focus)));
+    const visible = useVisibleConfigSettings();
+    const drillAddress = drillAddressOf(focus, activeGroup, visible);
+    const drillLeafBinding = useConfigLeaf(drillAddress);
+    const rosterAddresses = activeGroup === null ? [] : visible.map((row) => ({ group: activeGroup, sub: row.sub, setting: row.setting }));
+    const readings = useConfigLeafReadings(rosterAddresses);
     if (activeGroup === null) {
       return null;
     }
@@ -182,17 +312,18 @@ export function makeConfigContext(groups: ConfigGroupRegistry): ContextDefinitio
       return null;
     }
     const lesson = groupLesson(group);
+    // AN OPEN MEMBER HAS NO ROSTER: the content pane is showing that member's editor, not a settings body,
+    // so "the settings currently in view" is the empty set — and About falls back to the owning group's
+    // lesson exactly as before.
     if (selection !== null && isCollectionGroup(group)) {
-      return { teach: lesson, member: memberArm(group, selection.memberId, selectionTitle ?? group.label) };
+      return { teach: lesson, member: memberArm(group, selection.memberId, selectionTitle ?? group.label), roster: [] };
     }
     const sections = registry.list();
-    if (focus !== null && focus.group === group.id) {
-      const sub = sections.find((c) => c.anchor === focus.group && c.nav.id === focus.sub)?.nav;
-      if (sub !== undefined) {
-        return { teach: focusLesson({ group, sub, settingId: focus.setting }, sections, lesson, leafValue), member: null };
-      }
+    const drilled = drillAddress === null ? null : drillState({ address: drillAddress, binding: drillLeafBinding, fallback: lesson, group, sections });
+    if (drilled !== null) {
+      return drilled;
     }
-    return { teach: readingLesson(group, readingSub, sections, lesson), member: null };
+    return { teach: readingLesson(group, readingSub, sections, lesson), member: null, roster: buildRoster(visible, group.id, sections, readings) };
   }
 
   return defineContextTabs<ConfigContextState>({

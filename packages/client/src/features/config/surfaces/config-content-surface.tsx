@@ -54,7 +54,7 @@ import { ConfigSaveFooter } from "../components/config-save-footer.tsx";
 import { ConfigWelcome } from "../components/config-welcome.tsx";
 import { CONFIG_SECTION_LABEL } from "../lib/config-copy.ts";
 import { scrollContentToTop, scrollToAnchor } from "../lib/config-jump.ts";
-import { computeActiveSub } from "../lib/config-scroll-spy.ts";
+import { computeActiveSub, computeVisibleSettings } from "../lib/config-scroll-spy.ts";
 
 const MAX_ANCHOR_POLL_FRAMES = 20;
 
@@ -120,23 +120,67 @@ export function ConfigContentSurface({ groups }: ConfigContentSurfaceProps): Rea
     }
     const prefix = configAnchorId(activeGroup, "");
     let ticking = false;
-    const computeActive = (): void => {
+    let waited = false;
+    let tick = 0;
+    // ONE PASS, TWO READINGS (#926 contract 4): the section crossing the spy line lights the LIST row, and
+    // the rows intersecting the pane's box ARE the teacher's roster. Deriving them from a second observer
+    // would let the pane and the LIST disagree about where the reader is by exactly one frame.
+    const computeActive = (writeSub: boolean): void => {
       const sub = computeActiveSub(container, prefix);
-      if (sub !== null) {
-        setActiveConfigSub(sub);
-      }
+      // ONE STORE WRITE for one measurement (the store's own tri-state doc carries the argument contract):
+      // `undefined` leaves the section alone — either because the pass measured none, or because this tick
+      // waited out a jump and the section the jump NAMED outranks the spy's guess (see `waited` below).
+      setActiveConfigSub(writeSub && sub !== null ? sub : undefined, computeVisibleSettings(container, prefix));
     };
-    const onScroll = (): void => {
-      if (suppressSpyRef.current || ticking) {
+    // ONE rAF-COALESCED ENTRY POINT for all three triggers below, so a burst (a section resolving while the
+    // reader scrolls) still costs one measurement per frame and the teacher cannot flicker per pixel.
+    //
+    // A SUPPRESSED REQUEST IS HELD, NEVER DROPPED, and that is the whole reason this is a loop (#926,
+    // MEASURED as an empty roster in the CT): a jump suppresses the spy for up to `SPY_REARM_FALLBACK_MS`
+    // (`config-jump.ts`) and the group's rows mount during exactly that window, so every mutation burst the
+    // roster needs lands while suppressed — and after the jump re-arms, nothing fires again until the reader
+    // happens to scroll. The LIST's row survived this only because `selectConfigGroup` names its first
+    // section outright. Re-queueing on the next frame keeps the mid-flight frames out (which is what
+    // suppression is for) while guaranteeing exactly one measurement the moment the jump settles.
+    const run = (): void => {
+      if (suppressSpyRef.current) {
+        waited = true;
+        tick = requestAnimationFrame(run);
+        return;
+      }
+      ticking = false;
+      // A TICK THAT WAITED OUT A JUMP MEASURES THE ROSTER ONLY. The jump NAMED the section the reader asked
+      // for, and re-deriving it from the settled geometry overwrites that answer with the spy's own guess:
+      // MEASURED (config-content-surface.ct "a distant section-row click lands on the target") — landing
+      // "Effects" scrolls it to the top, which for the last-but-one section is also the scroller's BOTTOM,
+      // and `computeActiveSub`'s at-bottom arm then lights "Library". The LIST would lie about where the
+      // click just took you. The roster has no such authority to overwrite: nothing else declares it, and
+      // what it reports is a pure fact about the settled viewport.
+      computeActive(!waited);
+      waited = false;
+    };
+    const schedule = (): void => {
+      if (ticking) {
         return;
       }
       ticking = true;
-      requestAnimationFrame((): void => {
-        ticking = false;
-        computeActive();
-      });
+      tick = requestAnimationFrame(run);
     };
-    container.addEventListener("scroll", onScroll, { passive: true });
+    container.addEventListener("scroll", schedule, { passive: true });
+    // A SCROLL LISTENER ALONE IS BLIND TO THE TWO OTHER WAYS THE VISIBLE SET CHANGES (#926), and they need
+    // DIFFERENT observers because they are different facts:
+    //  · the pane RESIZES — the owner's ruling is explicit that the roster's COUNT tracks the viewport, and
+    //    a taller pane shows more rows at the same scrollTop. That is the scroller's own box ⇒ ResizeObserver.
+    //  · the BODY CHANGES under a still scroller — a section's suspense resolving, the advanced fold opening,
+    //    a dependent row appearing. MEASURED (#926 CT, first spelling): a `ResizeObserver` on the scroller
+    //    does NOT fire for this, because the scroller is `h-full` and its own box never moves while
+    //    scrollHeight grows — the roster stayed EMPTY until the reader's first scroll. So the mutation is
+    //    watched as a mutation.
+    // Neither is a second INTERSECTION observer: the viewport measurement itself is still the one spy pass.
+    const resize = new ResizeObserver(schedule);
+    resize.observe(container);
+    const mutations = new MutationObserver(schedule);
+    mutations.observe(container, { childList: true, subtree: true });
     let attempts = 0;
     let raf = 0;
     const initialCompute = (): void => {
@@ -145,13 +189,16 @@ export function ConfigContentSurface({ groups }: ConfigContentSurfaceProps): Rea
         return;
       }
       if (!suppressSpyRef.current) {
-        computeActive();
+        computeActive(true);
       }
     };
     raf = requestAnimationFrame(initialCompute);
     return (): void => {
       cancelAnimationFrame(raf);
-      container.removeEventListener("scroll", onScroll);
+      cancelAnimationFrame(tick);
+      resize.disconnect();
+      mutations.disconnect();
+      container.removeEventListener("scroll", schedule);
     };
   }, [activeGroup]);
 

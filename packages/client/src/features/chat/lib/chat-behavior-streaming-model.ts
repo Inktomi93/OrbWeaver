@@ -5,8 +5,19 @@
 
 import type { ChatSettings } from "@orb/contracts/settings";
 import { STREAM_SCROLL_MODES } from "@orb/contracts/settings";
-import type { SelectItems } from "@orb/ui/select";
+import type { SelectOption } from "@orb/ui/select";
 import type { ConfigSubcategory } from "#state";
+
+const STREAM_SCROLL_MODE_LABELS: Record<ChatSettings["streamScrollMode"], string> = {
+  follow: "Follow the reply",
+  "pin-prompt": "Pin my message to the top",
+};
+
+/** The scroll-mode Select options — pinned to the contract union so a typo'd value is a tsc error. */
+export const STREAM_SCROLL_MODE_ITEMS: readonly SelectOption<string>[] = STREAM_SCROLL_MODES.map((value) => ({
+  value,
+  label: STREAM_SCROLL_MODE_LABELS[value],
+}));
 
 export const CHAT_STREAMING_SUBCATEGORY: ConfigSubcategory = {
   id: "streaming",
@@ -16,6 +27,7 @@ export const CHAT_STREAMING_SUBCATEGORY: ConfigSubcategory = {
     {
       id: "stream-follow",
       key: "streamScrollMode",
+      options: STREAM_SCROLL_MODE_ITEMS,
       label: "While a reply streams",
       keywords: ["follow", "pin", "scroll", "anchor"],
       teach: {
@@ -63,14 +75,3 @@ export const CHAT_STREAMING_KEYS = ["streamScrollMode", "smoothStream", "smoothS
 
 export const SMOOTH_STREAM_CPS_MIN = 15;
 export const SMOOTH_STREAM_CPS_MAX = 300;
-
-const STREAM_SCROLL_MODE_LABELS: Record<ChatSettings["streamScrollMode"], string> = {
-  follow: "Follow the reply",
-  "pin-prompt": "Pin my message to the top",
-};
-
-/** The scroll-mode Select options — pinned to the contract union so a typo'd value is a tsc error. */
-export const STREAM_SCROLL_MODE_ITEMS: SelectItems<string> = STREAM_SCROLL_MODES.map((value) => ({
-  value,
-  label: STREAM_SCROLL_MODE_LABELS[value],
-}));

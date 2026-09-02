@@ -5,6 +5,7 @@
 
 import { APPEARANCE_OWNER_KEYS } from "#lib";
 import type { ConfigSubcategory } from "#state";
+import { BLUR_SURFACE_ITEMS, SURFACE_TEXTURE_ITEMS } from "./appearance-select-items.ts";
 
 export const APPEARANCE_EFFECTS_SUBCATEGORY: ConfigSubcategory = {
   id: "effects",
@@ -13,6 +14,7 @@ export const APPEARANCE_EFFECTS_SUBCATEGORY: ConfigSubcategory = {
     {
       id: "frosted-glass",
       key: "blurSurfaces",
+      options: BLUR_SURFACE_ITEMS,
       label: "Frosted glass",
       keywords: ["blur", "glass", "backdrop"],
       teach: {
@@ -38,6 +40,7 @@ export const APPEARANCE_EFFECTS_SUBCATEGORY: ConfigSubcategory = {
     {
       id: "surface-texture",
       key: "surfaceTexture",
+      options: SURFACE_TEXTURE_ITEMS,
       label: "Surface texture",
       keywords: ["grain", "film", "noise"],
       teach: {

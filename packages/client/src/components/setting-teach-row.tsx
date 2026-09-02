@@ -36,7 +36,7 @@ import { Grid, Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { PointerEvent, ReactElement, ReactNode } from "react";
 import { createContext, use, useEffect, useRef } from "react";
-import { cn } from "#lib";
+import { cn, settingGloss } from "#lib";
 import type { ConfigGroupId, ConfigRowAnnotation, ConfigSubcategory, SettingTeach } from "#state";
 import { ConfigRowAnnotationProvider, isTeachNone, revealContextPanel, setConfigFocus, useConfigSearchMatch } from "#state";
 import { SettingRowActions } from "./setting-row-actions.tsx";
@@ -81,12 +81,6 @@ export interface SettingRowProps {
    */
   readonly details?: ReactNode;
   readonly children: ReactNode;
-}
-
-/** The first sentence of a summary — the row's visible one-line gloss (the pane carries the rest). */
-function firstSentence(summary: string): string {
-  const end = summary.indexOf(". ");
-  return end === -1 ? summary : summary.slice(0, end + 1);
 }
 
 /** The `i` tooltip. The GLOSS already answered "what this is", so the trigger answers what the pane adds
@@ -231,7 +225,7 @@ export function SettingRow({ settingId, span = false, details, children }: Setti
     revealContextPanel();
   };
   const annotation: ConfigRowAnnotation | null =
-    teach === null ? null : { gloss: firstSentence(teach.summary), hint: affectsHint(teach), onHintClick: openTeacher };
+    teach === null ? null : { gloss: settingGloss(teach.summary), hint: affectsHint(teach), onHintClick: openTeacher };
   // THE F-8 PULL REVELATION: a fine pointer that RESTS on a row teaches it; a travel-through never does,
   // and a coarse pointer never does at all (there is no hover to rest). The ref is read INSIDE the
   // handlers, never during render — `react-hooks/refs` rejects even passing it to a helper from here.

@@ -140,7 +140,7 @@ export type {
 export { configAnchorId, isCollectionGroup, isPushingGroup, isTeachNone } from "./config-group-registry.ts";
 export type { ConfigLinkTarget } from "./config-link.ts";
 export { formatConfigLink, parseConfigLink } from "./config-link.ts";
-export type { ConfigTarget } from "./config-nav-store.ts";
+export type { ConfigTarget, ConfigVisibleSetting } from "./config-nav-store.ts";
 export {
   __resetConfigNav,
   clearActiveConfigGroup,
@@ -153,6 +153,7 @@ export {
   useActiveConfigGroup,
   useActiveConfigSub,
   useConfigTarget,
+  useVisibleConfigSettings,
 } from "./config-nav-store.ts";
 export type { ConfigRowAnnotation } from "./config-row-annotation.ts";
 export { ConfigRowAnnotationProvider, useConfigRowAnnotation } from "./config-row-annotation.ts";

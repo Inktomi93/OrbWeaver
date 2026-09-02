@@ -38,14 +38,25 @@ export interface ConfigTarget {
   readonly nonce: number;
 }
 
+/** One setting row the reader can SEE right now — the roster's unit (#926, the owner's PS5 ruling). The
+ *  group is implied: the spy only ever walks `activeGroup`'s body. */
+export interface ConfigVisibleSetting {
+  readonly sub: string;
+  readonly setting: string;
+}
+
 interface ConfigNavState {
   readonly activeGroup: ConfigGroupId | null;
   /** The subcategory the spy has current inside `activeGroup`; `null` while nothing is mounted yet. */
   readonly activeSub: string | null;
+  /** Every setting row intersecting the CONTENT viewport, in document order — the teacher's roster
+   *  population (#926). Written by the SAME spy pass that writes `activeSub`, so the pane and the LIST's
+   *  highlight can never disagree about where the reader is. */
+  readonly visibleSettings: readonly ConfigVisibleSetting[];
   readonly target: ConfigTarget | null;
 }
 
-const EMPTY: ConfigNavState = { activeGroup: null, activeSub: null, target: null };
+const EMPTY: ConfigNavState = { activeGroup: null, activeSub: null, visibleSettings: [], target: null };
 
 const useConfigNavStore = createGatedStore<ConfigNavState>("config-nav", (): ConfigNavState => EMPTY);
 
@@ -88,16 +99,51 @@ export function selectConfigSub(group: ConfigGroupId, sub: string): void {
   land(group, sub, null, "configNav/selectSub");
 }
 
-/** The scroll-spy's write — the section crossing the spy line. Never sets the group. */
-export function setActiveConfigSub(sub: string | null): void {
-  useConfigNavStore.setState({ activeSub: sub }, false, "configNav/setActiveSub");
+/**
+ * The scroll-spy's write — ONE PASS, ONE REPORT: the section crossing the spy line AND the setting rows
+ * that same pass measured as visible (#926's roster population), landed in ONE commit so the LIST's lit
+ * row and the teacher's roster cannot disagree by a frame. Never sets the group.
+ *
+ * BOTH ARGUMENTS ARE TRI-STATE, because the callers know different amounts:
+ *  · `sub` — a section id SETS it, `null` CLEARS it (a group with no visible sections), `undefined` LEAVES
+ *    it. The leave arm is the jump's: a tick that waited out a programmatic scroll must not overwrite the
+ *    section the jump NAMED with the spy's own guess (`config-content-surface.tsx` carries the measurement).
+ *  · `visible` — omitted LEAVES the previous set, which is what a LANDING wants (#549: a band click names
+ *    its first section before any measurement exists, and blanking the roster for that beat would flicker
+ *    the teacher back to the section lesson and out again).
+ *
+ * THE ROW SET IS COALESCED HERE, not at the call site: the spy recomputes on every rAF of a scroll, and a
+ * fresh array identity per frame would re-render the teacher per pixel. Membership is the whole state, so
+ * an unchanged set keeps the previous ARRAY and zustand never notifies.
+ */
+export function setActiveConfigSub(sub: string | null | undefined, visible?: readonly ConfigVisibleSetting[]): void {
+  const current = useConfigNavStore.getState();
+  const activeSub = nextActiveSub(current.activeSub, sub);
+  const rows = visible === undefined || visibleKey(current.visibleSettings) === visibleKey(visible) ? current.visibleSettings : visible;
+  if (current.activeSub === activeSub && current.visibleSettings === rows) {
+    return;
+  }
+  useConfigNavStore.setState({ activeSub, visibleSettings: rows }, false, "configNav/setActiveSub");
+}
+
+/** The tri-state resolve, spelled as branches rather than an operator: `undefined` LEAVES the section,
+ *  `null` CLEARS it. `??` cannot express this — it would fold the clear arm into the leave arm. */
+function nextActiveSub(current: string | null, sub: string | null | undefined): string | null {
+  if (sub === undefined) {
+    return current;
+  }
+  return sub;
+}
+
+function visibleKey(rows: readonly ConfigVisibleSetting[]): string {
+  return rows.map((row) => `${row.sub}/${row.setting}`).join(",");
 }
 
 /** Back to the welcome — the shell's mobile BACK affordance for a pushed group, and what a rail bounce leaves
  *  behind on the next arrival is untouched (transient store, no persist). */
 export function clearActiveConfigGroup(): void {
   clearConfigFocus();
-  useConfigNavStore.setState({ activeGroup: null, activeSub: null, target: null }, false, "configNav/clear");
+  useConfigNavStore.setState({ activeGroup: null, activeSub: null, visibleSettings: [], target: null }, false, "configNav/clear");
 }
 
 /** Test seam: drop every navigation fact (a CT must not inherit another test's active group). */
@@ -125,6 +171,11 @@ export function useActiveConfigGroup(): ConfigGroupId | null {
 /** Reactive: the spy's current subcategory inside the active group. */
 export function useActiveConfigSub(): string | null {
   return useConfigNavStore((s) => s.activeSub);
+}
+
+/** Reactive: the setting rows currently in the CONTENT viewport — the teacher's roster population. */
+export function useVisibleConfigSettings(): readonly ConfigVisibleSetting[] {
+  return useConfigNavStore((s) => s.visibleSettings);
 }
 
 /** Reactive: the pending landing request (`null` = nothing to land). */
