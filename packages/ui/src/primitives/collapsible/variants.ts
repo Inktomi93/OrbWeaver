@@ -13,8 +13,12 @@ export const collapsibleVariants = tv({
     root: "flex flex-col",
     trigger: `group inline-flex cursor-pointer items-center gap-field text-label leading-label font-medium text-foreground outline-none ${DISABLED_STATE} ${FOCUS_RING}`,
     chevron: "shrink-0 text-muted-foreground transition-transform duration-(--motion-base) ease-out-expo group-data-[panel-open]:rotate-180",
+    // `transition-all` was catching inherited non-compositor properties too (`scrollbarColor` —
+    // the app's `[anim]` flagger convicted this panel OVER BUDGET on every fold). The panel only
+    // ever animates `height` (the ratified #953/#1069 lifecycle allowance, guide §4.2 item 3) —
+    // naming it keeps the sanctioned motion and drops everything `all` swept in by accident.
     panel:
-      "h-(--collapsible-panel-height) overflow-hidden text-body leading-body text-muted-foreground transition-all duration-(--motion-layout) ease-out-expo data-starting-style:h-0 data-ending-style:h-0",
+      "h-(--collapsible-panel-height) overflow-hidden text-body leading-body text-muted-foreground transition-[height] duration-(--motion-layout) ease-out-expo data-starting-style:h-0 data-ending-style:h-0",
   },
   variants: {
     // THE TRIGGER'S BOX — DEFAULT INVERTED at #884 C2 (owner program, handoff 2026-08-30 §2; born as

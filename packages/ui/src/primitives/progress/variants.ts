@@ -16,7 +16,10 @@ export const progressVariants = tv({
     label: "text-label font-medium leading-label text-foreground",
     value: "text-label leading-label text-muted-foreground tabular-nums",
     track: "relative h-field w-full overflow-hidden rounded-full bg-muted",
+    // `transition-all` was catching inherited non-compositor properties, never just what this
+    // indicator actually moves: Base UI sizes it via an inline `width`, and `data-complete`
+    // swaps the fill token. Naming both keeps the same visible motion and drops the rest.
     indicator:
-      "h-full rounded-full bg-primary transition-all duration-(--motion-base) ease-out-expo data-indeterminate:w-full data-indeterminate:animate-pulse data-complete:bg-success",
+      "h-full rounded-full bg-primary transition-[width,background-color] duration-(--motion-base) ease-out-expo data-indeterminate:w-full data-indeterminate:animate-pulse data-complete:bg-success",
   },
 });
