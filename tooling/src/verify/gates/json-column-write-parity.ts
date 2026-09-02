@@ -84,9 +84,9 @@ interface Writer {
 function jsonColumnsOf(init: TsNode): ReadonlySet<string> {
   const cols = new Set<string>();
   const columns = Node.isCallExpression(init) ? columnProperties(init.getArguments()[1]) : [];
-  for (const pa of columns) {
-    if (JSON_MODE_RE.test(pa.getInitializer()?.getText() ?? "")) {
-      cols.add(pa.getName());
+  for (const column of columns) {
+    if (JSON_MODE_RE.test(column.text)) {
+      cols.add(column.name);
     }
   }
   return cols;
@@ -356,6 +356,20 @@ export const gate: GateDescriptor = {
 
   mustFlag: [
     {
+      // #1035: the straddling JSON column is a SHORTHAND member; the inline `notes.body` column keeps the
+      // derivation non-empty so the red cannot come from the blindness arm.
+      files: {
+        "packages/db/src/schema/refinery.ts":
+          'const selection = text("selection", { mode: "json" });\nexport const refinerySessions = sqliteTable("refinery_sessions", { selection });\nexport const notes = sqliteTable("notes", {\n  body: text("body", { mode: "json" }),\n});\n',
+        "packages/server/src/domain/refinery/verbs/update-session.ts":
+          "export async function run(ctx, patch, sessionId) {\n  await ctx.db.update(refinerySessions).set({ selection: refinerySelectionSchema.parse(patch.selection) }).where(sessionId);\n}\n",
+        "packages/server/src/domain/refinery/verbs/apply-fields.ts":
+          "export async function apply(ctx, removed, sessionId) {\n  const { session } = await resolveApplyBasis(ctx, sessionId);\n  await ctx.db.update(refinerySessions).set({ selection: remapSelection(session.selection, removed) }).where(sessionId);\n}\n",
+      },
+      expect: { count: 1 },
+      why: "THE #1035 SHORTHAND RED: a JSON column declared as a shorthand member still owes write parity — dropped, the straddle that undid the greeting remap would have been invisible",
+    },
+    {
       // #945: the straddling JSON column is IMPORTED, and a second INLINE json column keeps the derivation
       // non-empty — so the red cannot come from the zero-result blindness arm instead of the real straddle.
       files: {
@@ -410,6 +424,15 @@ export const gate: GateDescriptor = {
     },
   ],
   mustPass: [
+    {
+      files: {
+        "packages/db/src/schema/refinery.ts":
+          'const selection = text("selection", { mode: "json" });\nexport const refinerySessions = sqliteTable("refinery_sessions", { selection });\n',
+        "packages/server/src/domain/refinery/verbs/apply-fields.ts":
+          "export async function apply(ctx, removed, sessionId) {\n  const { session } = await resolveApplyBasis(ctx, sessionId);\n  await ctx.db.update(refinerySessions).set({ selection: remapSelection(session.selection, removed) }).where(sessionId);\n}\n",
+      },
+      why: "the SHORTHAND's green twin: one key-wise writer on the resolved column is not a straddle",
+    },
     {
       files: {
         "packages/db/src/schema/refinery.ts":

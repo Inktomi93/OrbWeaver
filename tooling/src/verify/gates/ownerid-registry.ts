@@ -84,7 +84,7 @@ function ownerIdTableOf(node: Node): string | undefined {
   if (colsArg === undefined) {
     return;
   }
-  const hasOwner = columnProperties(colsArg).some((p) => p.getName() === OWNER_COL);
+  const hasOwner = columnProperties(colsArg).some((column) => column.name === OWNER_COL);
   return hasOwner ? nameArg.getLiteralText() : undefined;
 }
 
@@ -137,6 +137,12 @@ export const gate: GateDescriptor = {
   },
   mustFlag: [
     {
+      files: 'const ownerId = text("owner_id");\nexport const t = sqliteTable("not_allowlisted", { ownerId });\n',
+      at: "packages/db/src/schema/x.ts",
+      expect: { count: 1, messageIncludes: "D23" },
+      why: "THE #1035 SHORTHAND RED: a D23 ownership stamp on an unlisted table, written as a shorthand member — the exact keystroke that used to empty this gate's subject",
+    },
+    {
       files: {
         "packages/db/src/schema/x-columns.ts": 'export const tColumns = { ownerId: text("owner_id") };\n',
         "packages/db/src/schema/x.ts": 'import { tColumns } from "./x-columns";\nexport const t = sqliteTable("not_allowlisted", tColumns);\n',
@@ -155,6 +161,11 @@ export const gate: GateDescriptor = {
   // `fileLoaded`-guarded to the real schema barrel — its coverage moves to the live `pnpm check:structure`
   // run. Only the pure FLAG/PASS branches port as examples below.
   mustPass: [
+    {
+      files: 'const ownerId = text("owner_id");\nexport const t = sqliteTable("characters", { ownerId });\n',
+      at: "packages/db/src/schema/x.ts",
+      why: "the SHORTHAND's green twin: the same resolved stamp on an ALLOWLISTED table — passes, and its allowlist row keeps earning its keep",
+    },
     {
       files: 'export const t = sqliteTable("characters", { ownerId: text("owner_id") });\n',
       at: "packages/db/src/schema/character.ts",

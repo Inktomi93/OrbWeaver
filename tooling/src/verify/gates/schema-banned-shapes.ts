@@ -167,7 +167,7 @@ function tablesIn(sf: SourceFile): Table[] {
 }
 
 function columnKeys(colsObj: Node): string[] {
-  return columnProperties(colsObj).map((p) => p.getName());
+  return columnProperties(colsObj).map((column) => column.name);
 }
 
 function tableBanViolation(found: Table[], rel: string, shape: TableBan): Violation[] {
@@ -300,6 +300,12 @@ export const gate: GateDescriptor = {
   },
   mustFlag: [
     {
+      files: 'const activePresetId = text("active_preset_id");\nexport const t = sqliteTable("chats", { activePresetId });\n',
+      at: "packages/db/src/schema/chat.ts",
+      expect: { count: 1, messageIncludes: "D58" },
+      why: "THE #1035 SHORTHAND RED: a ledger-REJECTED column reintroduced as a shorthand member — the column ban must read the resolved key, not the written member kind",
+    },
+    {
       files: {
         "packages/db/src/schema/x-columns.ts": 'export const chatColumns = { activePresetId: text("active_preset_id") };\n',
         "packages/db/src/schema/x.ts": 'import { chatColumns } from "./x-columns";\nexport const t = sqliteTable("chats", chatColumns);\n',
@@ -351,6 +357,11 @@ export const gate: GateDescriptor = {
     },
   ],
   mustPass: [
+    {
+      files: 'const title = text("title");\nexport const chats = sqliteTable("chats", { title });\n',
+      at: "packages/db/src/schema/chat.ts",
+      why: "the SHORTHAND's green twin: an ordinary column as a shorthand member is not a banned shape",
+    },
     {
       files: 'export const chats = sqliteTable("chats", { title: text("title") });\n',
       at: "packages/db/src/schema/chat.ts",
