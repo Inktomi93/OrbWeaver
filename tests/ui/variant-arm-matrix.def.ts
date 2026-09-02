@@ -84,6 +84,7 @@ import { emptyStateVariants } from "../../packages/ui/src/primitives/empty-state
 import { highlightedTextVariants } from "../../packages/ui/src/primitives/highlighted-text/variants.ts";
 import { inputVariants } from "../../packages/ui/src/primitives/input/variants.ts";
 import { listRowVariants } from "../../packages/ui/src/primitives/list-row/variants.ts";
+import { pickerCellVariants } from "../../packages/ui/src/primitives/picker-cell/variants.ts";
 import { selectVariants } from "../../packages/ui/src/primitives/select/variants.ts";
 import { sliderVariants } from "../../packages/ui/src/primitives/slider/variants.ts";
 import { statusChipVariants } from "../../packages/ui/src/primitives/status-chip/variants.ts";
@@ -172,6 +173,14 @@ export const VARIANT_ARM_STORY_DEFS: readonly VariantArmStoryDef[] = [
     source: "primitives/list-row/variants.ts",
     exportName: "listRowVariants",
     tv: listRowVariants,
+    supportsDisabled: false,
+    expectText: true,
+  }),
+  def({
+    key: "picker-cell",
+    source: "primitives/picker-cell/variants.ts",
+    exportName: "pickerCellVariants",
+    tv: pickerCellVariants,
     supportsDisabled: false,
     expectText: true,
   }),

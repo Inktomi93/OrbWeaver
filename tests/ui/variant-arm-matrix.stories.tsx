@@ -29,6 +29,8 @@ import type { InputProps } from "@orb/ui/input";
 import { Input } from "@orb/ui/input";
 import type { ListRowProps } from "@orb/ui/list-row";
 import { ListRow } from "@orb/ui/list-row";
+import type { PickerCellProps } from "@orb/ui/picker-cell";
+import { PickerCell } from "@orb/ui/picker-cell";
 import type { SelectProps } from "@orb/ui/select";
 import { Select } from "@orb/ui/select";
 import type { SliderProps } from "@orb/ui/slider";
@@ -83,6 +85,9 @@ const RENDERERS = {
   // the storied set; translated here so the plan keeps speaking the tv axis vocabulary.
   "list-row": ({ float, ...props }: ListRowProps & { readonly float?: boolean }): ReactElement => (
     <ListRow {...props} {...(float === undefined ? {} : { actionsFloat: float })} meta="2h" subtitle="Rain again, and she is late" title="Azarael" />
+  ),
+  "picker-cell": (props: PickerCellProps): ReactElement => (
+    <PickerCell {...props} art={<div className="h-full w-full bg-card" />} description="A quiet second line" label="Azarael" />
   ),
   select: (props: SelectProps, ctx: RenderCtx): ReactElement => (
     <Select {...props} aria-label="Model picker" disabled={ctx.disabled} items={SELECT_ITEMS} placeholder="Pick one" />
