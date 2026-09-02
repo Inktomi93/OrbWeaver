@@ -22,7 +22,6 @@ export function genDurationMs(startedAt: number | null, finishedAt: number | nul
  *  `N.Ns` (one decimal). Extracted (#1032) so the `ttftMs` readout beside the timer prints in the SAME
  *  shape as the timer itself — two spellings of "a duration" in one `·`-separated row would read as two
  *  different kinds of number.
- * @public Test-anchored module surface; focused tests pin this production-local behavior.
  */
 export function durationLabel(ms: number): string {
   return ms < SUB_SECOND_MAX_MS ? `${ms}ms` : `${(ms / MS_PER_SECOND).toFixed(1)}s`;

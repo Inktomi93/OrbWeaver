@@ -540,26 +540,6 @@
       }
     },
     {
-      "includes": ["eslint.config.js"],
-      "linter": {
-        "rules": {
-          "correctness": {
-            "noUnresolvedImports": "off"
-          }
-        }
-      }
-    },
-    {
-      "includes": ["packages/client/src/features/app-shell/components/section-content.tsx"],
-      "linter": {
-        "rules": {
-          "correctness": {
-            "noUnresolvedImports": "off"
-          }
-        }
-      }
-    },
-    {
       "includes": [
         "**/*.config.ts",
         "**/*.config.js",
@@ -759,13 +739,10 @@
         "tests/server/entry/import/run-profile-dir-import.test.ts",
         "tests/server/entry/import/st-chat-fidelity.suite.int.test.ts",
         "tests/server/foundation/env/index.test.ts",
-        "tests/server/infra/providers/backends/agent-sdk/agent-runner.test.ts",
-        "tests/server/infra/providers/backends/agent-sdk/runner.test.ts",
         "tests/server/infra/providers/backends/agent-sdk/summarize.test.ts",
         "tests/server/infra/providers/backends/agent-sdk/terminal-tools.test.ts",
         "tests/server/infra/providers/backends/agent-sdk/verify-auth.test.ts",
         "tests/server/infra/providers/backends/custom-byo/runners/chat.test.ts",
-        "tests/server/infra/providers/backends/kit/openai-compat/body.test.ts",
         "tests/server/infra/providers/vllm/engine/build-argv.test.ts",
         "tests/server/kit/serde/card/index.test.ts",
         "tests/server/kit/serde/chat/index.test.ts"
@@ -783,15 +760,51 @@
                     "selector": {
                       "kind": "objectLiteralProperty"
                     },
-                    "match": "_*(.+)",
-                    "formats": ["camelCase", "PascalCase", "snake_case", "CONSTANT_CASE"]
+                    "match": "_*(.+?)_*",
+                    "formats": ["camelCase", "snake_case", "CONSTANT_CASE"]
                   },
                   {
                     "selector": {
                       "kind": "typeProperty"
                     },
-                    "match": "_*(.+)",
-                    "formats": ["camelCase", "PascalCase", "snake_case", "CONSTANT_CASE"]
+                    "match": "_*(.+?)_*",
+                    "formats": ["camelCase", "snake_case", "CONSTANT_CASE"]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": [
+        "tests/server/infra/providers/backends/agent-sdk/agent-runner.test.ts",
+        "tests/server/infra/providers/backends/agent-sdk/runner.test.ts",
+        "tests/server/infra/providers/backends/kit/openai-compat/body.test.ts"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "useNamingConvention": {
+              "level": "error",
+              "options": {
+                "strictCase": false,
+                "requireAscii": true,
+                "conventions": [
+                  {
+                    "selector": {
+                      "kind": "objectLiteralProperty"
+                    },
+                    "match": "_*(.+?)_*",
+                    "formats": ["camelCase", "PascalCase", "snake_case"]
+                  },
+                  {
+                    "selector": {
+                      "kind": "typeProperty"
+                    },
+                    "match": "_*(.+?)_*",
+                    "formats": ["camelCase", "PascalCase", "snake_case"]
                   }
                 ]
               }

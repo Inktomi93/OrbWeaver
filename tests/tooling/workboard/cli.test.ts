@@ -724,47 +724,57 @@ defineTest("ready and unblock clear parked metadata before becoming Ready", () =
   expect(fieldValue(unblocked, "Disposition")).toBe("Action");
 });
 
-defineTest("interrupted and uncertain lifecycle transitions converge when retried", () => {
-  const partialNeedsOwner = createState("Running");
-  const partialItem = partialNeedsOwner.items[0];
-  if (partialItem !== undefined) {
-    partialItem[REVIEW_FIELD] = "Owner";
-    Reflect.deleteProperty(partialItem, "Lane");
-    partialItem[WAKE_CONDITION_FIELD] = "stale wake";
-    partialItem[DISPOSITION_FIELD] = "Action";
-  }
-  expect(drive(partialNeedsOwner, "needs-owner", "11").status).toBe(0);
-  expect(fieldValue(partialNeedsOwner, STATUS_FIELD)).toBe("Needs owner");
-  expect(fieldValue(partialNeedsOwner, WAKE_CONDITION_FIELD)).toBeUndefined();
-  expect(fieldValue(partialNeedsOwner, DISPOSITION_FIELD)).toBe("Untriaged");
-  expect(drive(partialNeedsOwner, "needs-owner", "11").status).toBe(0);
+// EIGHT sequential `drive` spawns, each a full CLI process over the fake `gh` — a SPAWN-COUNT budget, not
+// a compute one, so it scales with load rather than with this box. MEASURED 2026-09-02: 1,393ms alone and
+// 1,294ms beside three co-running suites at --maxWorkers=4 (~170ms per spawn); it timed out at the file's
+// default 5,000ms under a drain battery, which is only ~3.5x that per-spawn cost. Takes the same explicit
+// budget as the other spawn-heavy cases here — `TABLE_DRIVEN_TIMEOUT_MS` is the file's one spawn budget,
+// table-driven or not (the `land` case above already rides it for the same reason).
+defineTest(
+  "interrupted and uncertain lifecycle transitions converge when retried",
+  () => {
+    const partialNeedsOwner = createState("Running");
+    const partialItem = partialNeedsOwner.items[0];
+    if (partialItem !== undefined) {
+      partialItem[REVIEW_FIELD] = "Owner";
+      Reflect.deleteProperty(partialItem, "Lane");
+      partialItem[WAKE_CONDITION_FIELD] = "stale wake";
+      partialItem[DISPOSITION_FIELD] = "Action";
+    }
+    expect(drive(partialNeedsOwner, "needs-owner", "11").status).toBe(0);
+    expect(fieldValue(partialNeedsOwner, STATUS_FIELD)).toBe("Needs owner");
+    expect(fieldValue(partialNeedsOwner, WAKE_CONDITION_FIELD)).toBeUndefined();
+    expect(fieldValue(partialNeedsOwner, DISPOSITION_FIELD)).toBe("Untriaged");
+    expect(drive(partialNeedsOwner, "needs-owner", "11").status).toBe(0);
 
-  const uncertainReady = createState("Ready");
-  addParkedMetadata(uncertainReady);
-  expect(drive(uncertainReady, "ready", "11").status).toBe(0);
-  expect(fieldValue(uncertainReady, WAKE_CONDITION_FIELD)).toBeUndefined();
-  expect(fieldValue(uncertainReady, DISPOSITION_FIELD)).toBe("Action");
+    const uncertainReady = createState("Ready");
+    addParkedMetadata(uncertainReady);
+    expect(drive(uncertainReady, "ready", "11").status).toBe(0);
+    expect(fieldValue(uncertainReady, WAKE_CONDITION_FIELD)).toBeUndefined();
+    expect(fieldValue(uncertainReady, DISPOSITION_FIELD)).toBe("Action");
 
-  const uncertainClaim = createState("Running");
-  const runningItem = uncertainClaim.items[0];
-  if (runningItem !== undefined) {
-    runningItem["Lane"] = "same-lane";
-  }
-  expect(drive(uncertainClaim, "claim", "11", "--lane", "same-lane").status).toBe(0);
-  const wrongLane = drive(uncertainClaim, "claim", "11", "--lane", "other-lane");
-  expect(wrongLane.status).toBe(TOOL_ERROR_EXIT);
-  expect(wrongLane.stderr).toContain("already Running in lane same-lane");
+    const uncertainClaim = createState("Running");
+    const runningItem = uncertainClaim.items[0];
+    if (runningItem !== undefined) {
+      runningItem["Lane"] = "same-lane";
+    }
+    expect(drive(uncertainClaim, "claim", "11", "--lane", "same-lane").status).toBe(0);
+    const wrongLane = drive(uncertainClaim, "claim", "11", "--lane", "other-lane");
+    expect(wrongLane.status).toBe(TOOL_ERROR_EXIT);
+    expect(wrongLane.stderr).toContain("already Running in lane same-lane");
 
-  const uncertainVerify = createState("Verify");
-  const verifyItem = uncertainVerify.items[0];
-  if (verifyItem !== undefined) {
-    verifyItem[EVIDENCE_FIELD] = "receipt-a";
-  }
-  expect(drive(uncertainVerify, "verify", "11", "--evidence", "receipt-a").status).toBe(0);
-  const wrongEvidence = drive(uncertainVerify, "verify", "11", "--evidence", "receipt-b");
-  expect(wrongEvidence.status).toBe(TOOL_ERROR_EXIT);
-  expect(wrongEvidence.stderr).toContain("already Verify with different Evidence");
-});
+    const uncertainVerify = createState("Verify");
+    const verifyItem = uncertainVerify.items[0];
+    if (verifyItem !== undefined) {
+      verifyItem[EVIDENCE_FIELD] = "receipt-a";
+    }
+    expect(drive(uncertainVerify, "verify", "11", "--evidence", "receipt-a").status).toBe(0);
+    const wrongEvidence = drive(uncertainVerify, "verify", "11", "--evidence", "receipt-b");
+    expect(wrongEvidence.status).toBe(TOOL_ERROR_EXIT);
+    expect(wrongEvidence.stderr).toContain("already Verify with different Evidence");
+  },
+  TABLE_DRIVEN_TIMEOUT_MS,
+);
 
 defineTest("closed work items refuse lifecycle mutations", () => {
   const state = createState("Triage");
