@@ -7,11 +7,17 @@
 //
 // Opening a recent is a CROSS-SECTION navigation, so the click must land the chat AND move the rail:
 // asserted against the shell STORE, never a rendered echo.
+//
+// `CHAT_ROOM_ROUTES` is AMBIENT to every mount here since #1126: the hearth tile WARMS the room it offers
+// (`usePrefetchRoom` — the room's own suspending pair, `chat.getChat` + `chat.listMessages`, leaves with
+// the tile's mount rather than with the Resume click), so both keys are requested by every tree in this
+// file. Fed at their honest empty defaults so the warm-up runs for real instead of resolving routeTrpc's
+// null; the last test in the file is the one whose SUBJECT they are.
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import { routeTrpc, trpcHold } from "../../../../support/ct/route-trpc.ts";
 import { ChatRecentsHeroArtStory, ChatRecentsMobileStory, ChatRecentsPairStory, ChatRecentsTileStory } from "../_ct-stories.tsx";
-import { chatListResponder, makeChatSummary, makeSeatPortrait } from "../fixtures.ts";
+import { CHAT_ROOM_ROUTES, chatListResponder, makeChatSummary, makeSeatPortrait } from "../fixtures.ts";
 
 // Since #192 a room's faces ride the ROW (`ChatSummary.participantPortraits`), so a seat is a fixture
 // field rather than an entry in a character-library stub the surface had to fetch and index.
@@ -57,7 +63,7 @@ const PAIR_ROOM = makeChatSummary({
 });
 
 test("renders the HERO room in its own block, and the also-open list in a SECOND peer block", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.listChats": chatListResponder([RECENT, OLDER]) });
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([RECENT, OLDER]) });
 
   const home = await mount(<ChatRecentsPairStory />);
   const hero = home.locator('[data-home-tile="chat.recents"]');
@@ -81,7 +87,7 @@ test("renders the HERO room in its own block, and the also-open list in a SECOND
 // announcing as a child of one of them (measured outline: h1 → h2 → h3 → h2×4 → h3). This asserts through
 // the rendered a11y tree, which is what a screen-reader user actually walks.
 test("#102-F6 the two hearth blocks are PEER h2 regions, neither nested inside the other", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.listChats": chatListResponder([RECENT, OLDER]) });
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([RECENT, OLDER]) });
 
   await mount(<ChatRecentsPairStory />);
 
@@ -100,7 +106,7 @@ test("#102-F6 the two hearth blocks are PEER h2 regions, neither nested inside t
 
 // ── RED-FIRST (#102 review F13): "All chats →" belongs to the also-open band ────────────────────────
 test("#102-F13 the trailing 'All chats' sits on the ALSO-OPEN band, not on the pick-up row", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.listChats": chatListResponder([RECENT, OLDER]) });
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([RECENT, OLDER]) });
 
   await mount(<ChatRecentsPairStory />);
 
@@ -109,7 +115,7 @@ test("#102-F13 the trailing 'All chats' sits on the ALSO-OPEN band, not on the p
 });
 
 test("#102 ONE ROOM OPEN: the hero renders and the also-open BLOCK does not — no band over an empty list", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.listChats": chatListResponder([RECENT]) });
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([RECENT]) });
 
   const home = await mount(<ChatRecentsPairStory />);
 
@@ -120,7 +126,7 @@ test("#102 ONE ROOM OPEN: the hero renders and the also-open BLOCK does not — 
 
 // ── RED-FIRST (#102 review F8/F14): the ramp's `title` step, and a rule between rooms ───────────────
 test("#102-F8/F14 an also-open room title outranks its own gloss, and the rooms are ruled apart", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.listChats": chatListResponder([RECENT, OLDER, GAME]) });
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([RECENT, OLDER, GAME]) });
 
   const home = await mount(<ChatRecentsPairStory />);
   const list = home.locator('[data-home-tile="chat.alsoOpen"]');
@@ -193,7 +199,7 @@ test("#102-F8/F14 an also-open room title outranks its own gloss, and the rooms 
 // `--shadow-glow` on the ::before layer (a chromatic glow on the element's OWN box-shadow is the
 // generated-UI tell the same file names, which is why the halo must stay on the pseudo-element).
 test("#102/P2-5 CD3: the hero's focal is an elevated island + a ::before glow — never an accent border, never accent fill", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.listChats": chatListResponder([RECENT, OLDER]) });
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([RECENT, OLDER]) });
 
   const home = await mount(<ChatRecentsTileStory />);
   const hero = home.locator('[data-home-hearth="chat_recent"]');
@@ -250,7 +256,7 @@ test("#102 RAMP: the hero title is the HEADLINE step — strictly larger than an
   // theme resolves, the one room you would resume outranks the ones you would not. It still holds after
   // F8 promoted the also-open titles to 16px — headline (20) is a step above title (16), which is the
   // whole point of a six-step ramp with one job per step.
-  await routeTrpc(page, { "chat.listChats": chatListResponder([RECENT, OLDER]) });
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([RECENT, OLDER]) });
 
   const home = await mount(<ChatRecentsPairStory />);
 
@@ -271,7 +277,7 @@ test("#102 RAMP: the hero title is the HEADLINE step — strictly larger than an
 // "Sabine Veyra"` — the room name five times over, and a name that is a NOUN on the one control the
 // landing surface exists to offer. Asserted through the accessible name, which is the affordance.
 test("#102-F5 the hero is named 'Resume <room>', arrow and all art excluded", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.listChats": chatListResponder([RECENT, OLDER]) });
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([RECENT, OLDER]) });
 
   const home = await mount(<ChatRecentsTileStory />);
   const hero = home.locator('[data-home-hearth="chat_recent"]');
@@ -290,7 +296,7 @@ test("#102-F5 the hero is named 'Resume <room>', arrow and all art excluded", as
 // "You left off 2w ago in …". Asserted through what is RENDERED — a thumbnail strip and a stamp string —
 // so it compiles and fails against the old source.
 test("P2-6 the hero has NO thumbnail strip and NO recency stamp — one cast rendering, no duplicated instant", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.listChats": chatListResponder([LONG_CAST]) });
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([LONG_CAST]) });
 
   const home = await mount(<ChatRecentsTileStory />);
   const hero = home.locator('[data-home-hearth="chat_long"]');
@@ -307,7 +313,7 @@ test("P2-6 the hero has NO thumbnail strip and NO recency stamp — one cast ren
 // "the link is over there" and the 700px of card beside it as inert. Asserted against the RESOLVED primary
 // colour rather than a literal, so it holds under every palette.
 test("P3-17 the hero's Resume label is not painted as a link", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.listChats": chatListResponder([RECENT]) });
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([RECENT]) });
 
   const home = await mount(<ChatRecentsTileStory />);
   const label = home.locator('[data-home-hearth="chat_recent"]').getByText("Resume");
@@ -346,7 +352,7 @@ test("P3-17 the hero's Resume label is not painted as a link", async ({ mount, p
 
 // ── RED-FIRST (#102 review F12/F15/P1-1): the credit line's register, size and NAME LENGTH ──────────
 test("#102-F12 the hero credit line is caps micro-caps at the label step, with SHORT cast names", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.listChats": chatListResponder([LONG_CAST]) });
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([LONG_CAST]) });
 
   const home = await mount(<ChatRecentsTileStory />);
   const hero = home.locator('[data-home-hearth="chat_long"]');
@@ -391,7 +397,7 @@ test("#102-F12 the hero credit line is caps micro-caps at the label step, with S
 // strip from silently coming back.
 
 test("opening a recent selects the chat AND moves the rail to chats — assert the STORE", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.listChats": chatListResponder([RECENT]) });
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([RECENT]) });
 
   const home = await mount(<ChatRecentsTileStory />);
   const probe = home.locator("output");
@@ -402,7 +408,7 @@ test("opening a recent selects the chat AND moves the rail to chats — assert t
 });
 
 test("the trailing action jumps to the chats section", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.listChats": chatListResponder([RECENT, OLDER]) });
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([RECENT, OLDER]) });
 
   const home = await mount(<ChatRecentsPairStory />);
   await home.getByRole("button", { name: "All chats" }).click();
@@ -411,7 +417,7 @@ test("the trailing action jumps to the chats section", async ({ mount, page }) =
 });
 
 test("the rows are real LIST ITEMS, and the trailing action sits inside its own named region", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.listChats": chatListResponder([RECENT, OLDER]) });
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([RECENT, OLDER]) });
 
   const home = await mount(<ChatRecentsPairStory />);
   const alsoOpen = home.getByRole("region", { name: "Other rooms" });
@@ -431,7 +437,7 @@ test("a game row's marker is INSIDE the row's description, never an orphan besid
   // RECENT leads (it is the newer room), so GAME lands in the ALSO-OPEN list — which is where the shared
   // `ChatSummaryRow` anatomy, and therefore this marker slot, actually applies. The hero has its own
   // "Game" badge and is not a ListRow at all.
-  await routeTrpc(page, { "chat.listChats": chatListResponder([RECENT, GAME]) });
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([RECENT, GAME]) });
 
   const home = await mount(<ChatRecentsPairStory />);
   const marker = home.getByRole("img", { name: "Game chat" });
@@ -465,7 +471,7 @@ test("a game row's marker is INSIDE the row's description, never an orphan besid
 // that reintroduces a portrait read would hang here rather than merely shifting.
 test("#147/#192 an also-open row's faces come from the CHAT page — held-open character.list, settled width anyway", async ({ mount, page }) => {
   const characters = trpcHold();
-  await routeTrpc(page, { "chat.listChats": chatListResponder([RECENT, PAIR_ROOM]), "character.list": characters });
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([RECENT, PAIR_ROOM]), "character.list": characters });
 
   const home = await mount(<ChatRecentsPairStory />);
   const row = home.locator('[data-home-tile="chat.alsoOpen"] [data-slot="list-row-content"]').first();
@@ -477,7 +483,7 @@ test("#147/#192 an also-open row's faces come from the CHAT page — held-open c
 });
 
 test("an empty chats list renders a TEACHING empty state with an action, not a blank tile", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.listChats": chatListResponder([]) });
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([]) });
 
   const home = await mount(<ChatRecentsTileStory />);
   const tile = home.locator('[data-home-tile="chat.recents"]');
@@ -508,7 +514,7 @@ const LONG_CAST_WITH_ART = makeChatSummary({
 const FIRST_SEAT_HASH = /hash_calamity_portrait/u;
 
 test("#205 the hero wears its room's art as a bleed — and it is DECORATION: aria-hidden, no cast datum", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.listChats": chatListResponder([LONG_CAST_WITH_ART]) });
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([LONG_CAST_WITH_ART]) });
 
   const home = await mount(<ChatRecentsHeroArtStory />);
   const art = home.locator('[data-slot="art-bleed"]');
@@ -525,7 +531,7 @@ test("#205 the hero wears its room's art as a bleed — and it is DECORATION: ar
 });
 
 test("#205 the bleed starts where the prose stops — NO ink over art, at either width", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.listChats": chatListResponder([LONG_CAST_WITH_ART]) });
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([LONG_CAST_WITH_ART]) });
 
   const home = await mount(<ChatRecentsHeroArtStory />);
   await expect(home.locator('[data-slot="art-bleed"]')).toBeAttached();
@@ -563,7 +569,7 @@ test("#205 the bleed starts where the prose stops — NO ink over art, at either
 
 test("#205 a room whose cast has NO portrait renders no band at all — never an empty art slot", async ({ mount, page }) => {
   // `LONG_CAST` is the same room with every seat's `avatarHash` null.
-  await routeTrpc(page, { "chat.listChats": chatListResponder([LONG_CAST]) });
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([LONG_CAST]) });
 
   const home = await mount(<ChatRecentsHeroArtStory />);
   await expect(home.getByRole("button", { name: `Resume ${LONG_CAST.title}` })).toBeVisible();
@@ -574,7 +580,7 @@ test("#205 a NARROW island keeps its whole width for the prose — the bleed is 
   // The 720px story pane, i.e. the arm the ruling calls "mobile untouched". There is no media query doing
   // this: `inset-inline-start: min(100%, var(--reading-measure))` collapses the band the moment the island
   // is narrower than the measure, so the phone arm and the docked-narrow arm are the same guarantee.
-  await routeTrpc(page, { "chat.listChats": chatListResponder([LONG_CAST_WITH_ART]) });
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([LONG_CAST_WITH_ART]) });
 
   const home = await mount(<ChatRecentsTileStory />);
   await expect(home.getByRole("button", { name: `Resume ${LONG_CAST.title}` })).toBeVisible();
@@ -588,7 +594,7 @@ test("#205 a NARROW island keeps its whole width for the prose — the bleed is 
 // and the activation + the accessible name (which are what must not). Asserted through the rendered tag and
 // a real keypress, so it compiles and fails against the old source rather than against a new API.
 test("P3-4 the hero is a real <button> — and Enter and Space still activate, with the verb name intact", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.listChats": chatListResponder([RECENT, OLDER]) });
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([RECENT, OLDER]) });
 
   const home = await mount(<ChatRecentsTileStory />);
   const hero = home.locator('[data-home-hearth="chat_recent"]');
@@ -617,7 +623,7 @@ test("P3-4 the hero is a real <button> — and Enter and Space still activate, w
 // those — so an un-reset arm would render the hero's title, excerpt and credit line CENTRED. Read off the
 // resolved style, because the class string could survive a variant change that stopped resetting.
 test("P3-4 the native hero still reads left-aligned — the UA button centring is reset", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.listChats": chatListResponder([RECENT, OLDER]) });
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([RECENT, OLDER]) });
 
   const home = await mount(<ChatRecentsTileStory />);
   await expect
@@ -646,7 +652,7 @@ test.describe("the hero's action row at a phone width", () => {
   test.use({ hasTouch: true, isMobile: true, viewport: { width: 430, height: 932 } });
 
   test("H17 the Resume hint keeps the credit's FIRST line — never centred against a wrapped pair", async ({ mount, page }) => {
-    await routeTrpc(page, { "chat.listChats": chatListResponder([WRAPPING_CREDIT]) });
+    await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([WRAPPING_CREDIT]) });
 
     const home = await mount(<ChatRecentsMobileStory />);
     const hero = home.locator('[data-home-hearth="chat_wrap"]');
@@ -678,4 +684,27 @@ test.describe("the hero's action row at a phone width", () => {
       )
       .toBeLessThanOrEqual(1);
   });
+});
+
+// ── RED-FIRST (#1126, side-eye HOME 2026-09-02 H13): the hero WARMS the room it resumes ─────────────
+// Resume used to enter a room whose two SUSPENDING reads were both cold — `chat.listMessages` +
+// `chat.getChat`, the `useSuspenseQueries` pair in message-list-surface.tsx — so the room painted a
+// skeleton and then MOVED it 52px down once `getChat` landed and `ChatCharacterBar` finally knew it had
+// a roster to draw. Measured on the live stack: the strip settles at 40px and the room stack's gap is
+// 12px (40 + 12 = the reported shift), and a SECOND Resume in the same browser lifetime — same click,
+// warm cache — records no layout shift at all. So the defect is the COLD CACHE, not the layout.
+// Asserted at the NETWORK seam, which is the one place a warm-up is observable: the two keys the room
+// suspends on must have left the client on the hero's MOUNT, before anybody clicks anything.
+test("#1126 the hero warms the room's own suspending reads on mount, before the Resume click", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([RECENT, OLDER]) });
+
+  const home = await mount(<ChatRecentsPairStory />);
+  await expect(home.locator('[data-home-hearth="chat_recent"]')).toBeVisible();
+
+  // The WHOLE input list, not a count: it carries both halves of the claim at once — the hero's room was
+  // warmed, and it is the ONLY room warmed. The also-open rooms are a list you scan, not a room you are
+  // about to open, and warming eight of them would spend this surface's own connection budget on a bet
+  // nobody placed; a `[{chat_recent}, {chat_older}, …]` array simply never equals this one.
+  await expect.poll(() => trpc.inputs("chat.getChat")).toEqual([{ chatId: "chat_recent" }]);
+  await expect.poll(() => trpc.inputs("chat.listMessages")).toEqual([{ chatId: "chat_recent" }]);
 });

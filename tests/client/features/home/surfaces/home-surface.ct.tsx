@@ -12,7 +12,12 @@ import type { Locator, Page } from "@playwright/test";
 import { pixelExtremaContrast } from "../../../../support/ct/pixel-contrast.ts";
 import { trpcHold } from "../../../../support/ct/route-trpc.ts";
 import { characterListResponder, makeCharacterSummary } from "../../character/fixtures.ts";
-import { chatListResponder, makeChatSummary, makeSeatPortrait } from "../../chat/fixtures.ts";
+// `CHAT_ROOM_ROUTES` is AMBIENT to every home mount in this file since #1126: the hearth tile warms the
+// room it offers (`usePrefetchRoom` — `chat.getChat` + `chat.listMessages` leave with the tile's mount, a
+// human reaction time ahead of the Resume click), so both keys are requested by any tree containing the
+// recents tile. Fed at their honest empty defaults, never left to `routeTrpc`'s null, so the warm-up runs
+// for real here instead of resolving a non-view.
+import { CHAT_ROOM_ROUTES, chatListResponder, makeChatSummary, makeSeatPortrait } from "../../chat/fixtures.ts";
 import { READY_DOC, stubDatabank } from "../../databank/fixtures.ts";
 import {
   HomeDormantTileStory,
@@ -638,6 +643,7 @@ test("#129 the shipped first boot reserves the grid a FULL page settles into", a
   const documents = trpcHold();
   const health = trpcHold();
   await stubDatabank(page, {
+    ...CHAT_ROOM_ROUTES,
     "chat.listChats": chats,
     "chat.reapTemporaryChats": { reaped: 0 },
     "character.list": characters,
@@ -710,6 +716,7 @@ test("#835 the read-less jump tile keeps its own box across every neighbour's re
   const documents = trpcHold();
   const health = trpcHold();
   await stubDatabank(page, {
+    ...CHAT_ROOM_ROUTES,
     "chat.listChats": chats,
     "chat.reapTemporaryChats": { reaped: 0 },
     "character.list": characters,
@@ -764,6 +771,7 @@ test("#177 a tile whose settled box is a CONSTANT reserves it exactly — no res
   const documents = trpcHold();
   const health = trpcHold();
   await stubDatabank(page, {
+    ...CHAT_ROOM_ROUTES,
     "chat.listChats": chats,
     "chat.reapTemporaryChats": { reaped: 0 },
     "character.list": characters,
@@ -829,6 +837,7 @@ const SECOND_READ_WATCH_MS = 1500;
 
 test("#188 a sweep that DID reap reconciles the chats list (the arm the fix must not break)", async ({ mount, page }) => {
   const recorder = await stubDatabank(page, {
+    ...CHAT_ROOM_ROUTES,
     "chat.listChats": chatListResponder(REAP_SETTLED_ROOMS),
     "chat.reapTemporaryChats": { reaped: 3 },
     "character.list": characterListResponder(FIRST_BOOT_FACES),
@@ -844,6 +853,7 @@ test("#188 a sweep that DID reap reconciles the chats list (the arm the fix must
 
 test("#188 a sweep that reaped NOTHING costs the landing no second chats read", async ({ mount, page }) => {
   const recorder = await stubDatabank(page, {
+    ...CHAT_ROOM_ROUTES,
     "chat.listChats": chatListResponder(REAP_SETTLED_ROOMS),
     "chat.reapTemporaryChats": { reaped: 0 },
     "character.list": characterListResponder(FIRST_BOOT_FACES),
@@ -995,6 +1005,7 @@ test("#499 the databank empty state's CTAs clear the 1280x800 fold — and the s
   await stubDatabank(
     page,
     {
+      ...CHAT_ROOM_ROUTES,
       "chat.listChats": chatListResponder(FIRST_BOOT_ROOMS),
       "chat.reapTemporaryChats": { reaped: 0 },
       "character.list": characterListResponder(FIRST_BOOT_FACES),
@@ -1165,6 +1176,7 @@ for (const polarity of ["dark", "light"] as const) {
     await stubDatabank(
       page,
       {
+        ...CHAT_ROOM_ROUTES,
         "chat.listChats": chatListResponder(FIRST_BOOT_ROOMS),
         "chat.reapTemporaryChats": { reaped: 0 },
         "character.list": characterListResponder(FIRST_BOOT_FACES),
@@ -1386,6 +1398,7 @@ test("#1145 the teaching paragraphs take the PROSE measure, and it reads inside 
   await stubDatabank(
     page,
     {
+      ...CHAT_ROOM_ROUTES,
       "chat.listChats": chatListResponder(FIRST_BOOT_ROOMS),
       "chat.reapTemporaryChats": { reaped: 0 },
       "character.list": characterListResponder(FIRST_BOOT_FACES),
@@ -1573,6 +1586,7 @@ test("#1121 the hero's art band exists wherever the host can afford one — and 
   await stubDatabank(
     page,
     {
+      ...CHAT_ROOM_ROUTES,
       "chat.listChats": chatListResponder(ART_ROOMS),
       "chat.reapTemporaryChats": { reaped: 0 },
       "character.list": characterListResponder(FIRST_BOOT_FACES),
@@ -1664,6 +1678,7 @@ test("#1130 the jump rail's population is width-invariant — the wrap re-flows,
   await stubDatabank(
     page,
     {
+      ...CHAT_ROOM_ROUTES,
       "chat.listChats": chatListResponder(FIRST_BOOT_ROOMS),
       "chat.reapTemporaryChats": { reaped: 0 },
       "character.list": characterListResponder(FIRST_BOOT_FACES),

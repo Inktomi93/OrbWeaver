@@ -37,6 +37,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useTRPC } from "#data";
 import { openNewChatPicker, selectChatFromList, setActiveSection } from "#state";
+import { usePrefetchRoom } from "../hooks/use-prefetch-room.ts";
 import { HomeHearthRoom } from "./home-hearth-room.tsx";
 
 /** How many recents this tile shows — AND, through the contribution's `skeletonRows`, how many rows its
@@ -51,6 +52,12 @@ function openRecent(chatId: ChatId): void {
 export function HomeRecentsTileBody(): ReactElement {
   const trpc = useTRPC();
   const { data: page } = useSuspenseQuery(trpc.chat.listChats.queryOptions({ limit: RECENTS_LIMIT }));
+  // THE DOOR WARMS THE ROOM (#1126, side-eye HOME H13). "Resume" is this surface's one focal action and it
+  // used to enter a room whose two suspending reads were both cold — ~240ms of nothing, ~360ms of skeleton,
+  // and a 52px jump when the character strip finally learned it had a roster. The warm-up hook carries the
+  // full mechanism and the measurement; here it only has to run BEFORE the early return below, so the hook
+  // order is the same on the empty-hearth arm (which warms nothing).
+  usePrefetchRoom(page.items[0]?.id ?? null);
   // THE HERO'S ART BLEED (#205; the 3-face cover-crop STRIP it replaced stays deleted). It renders one
   // portrait as chroma at the island's far edge — `aria-hidden` art, no cast datum at all. Since #192 the
   // face rides the chat ROW itself, so it costs no network at all: the whole-library `character.list` read
