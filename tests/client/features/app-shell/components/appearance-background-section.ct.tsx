@@ -14,7 +14,7 @@ import {
 } from "../../../../../packages/client/src/features/app-shell/lib/appearance-bounds.ts";
 import type { TrpcRecorder, TrpcResponder } from "../../../../support/ct/route-trpc.ts";
 import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc.ts";
-import { AppearanceBackgroundSectionStory } from "../_ct-stories.tsx";
+import { AppearanceBackgroundSectionCommitTallyStory, AppearanceBackgroundSectionStory } from "../_ct-stories.tsx";
 
 const SETTINGS_VIEW = { userId: "user_ct_background", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 };
 const UPDATE_PROC = "settings.updateUserSettingsSection";
@@ -137,6 +137,88 @@ test("a refused URL surfaces the verb's own leak-free reason inline and writes n
   // The refusal never reaches the persisted blob — no library row, no selected asset.
   await expect.poll(() => lastPatch(trpc)?.["backgroundLibrary"], { intervals: [20, 50, 100] }).toStrictEqual([]);
   expect(lastPatch(trpc)?.["backgroundAssetId"]).toBe("");
+});
+
+// #1194 — the wallpaper-jiggle bug: the picker grid re-rendered continuously (every wallpaper thumbnail
+// visibly jiggling) instead of settling once after mount. Pinned via `<Profiler>` commit tally rather
+// than an exact count (the section legitimately commits more than once while its suspense boundary
+// resolves) — the defect signature is commits that keep arriving with nothing driving them, not a
+// specific N.
+test("the section's commits settle after mount and stay settled with no user interaction", async ({ mount, page }) => {
+  await stub(page);
+  await page.evaluate(() => {
+    (globalThis as unknown as { __ctCommits?: number }).__ctCommits = 0;
+  });
+  await mount(<AppearanceBackgroundSectionCommitTallyStory />);
+  await expect(page.getByRole("grid", { name: "Background image" })).toBeVisible();
+
+  // Let any in-flight settle (suspense resolution, autosave's first server-echo reseed) finish, then
+  // sample the tally twice across an idle window with nothing driving the app. A continuously
+  // re-rendering surface keeps incrementing across that window; a settled one does not. The wait runs
+  // IN-PAGE (not `page.waitForTimeout`) so it is a real elapsed-time read of the tally, not a test-runner
+  // pause the app could commit through unobserved.
+  const firstReading = await page.evaluate(
+    () =>
+      new Promise<number>((resolve) => {
+        setTimeout(() => resolve((globalThis as unknown as { __ctCommits?: number }).__ctCommits ?? 0), 500);
+      }),
+  );
+  const secondReading = await page.evaluate(
+    () =>
+      new Promise<number>((resolve) => {
+        setTimeout(() => resolve((globalThis as unknown as { __ctCommits?: number }).__ctCommits ?? 0), 500);
+      }),
+  );
+
+  expect(secondReading).toBe(firstReading);
+  // A settled mount is a small, bounded number of commits — never an unbounded "still climbing" count.
+  expect(secondReading).toBeLessThan(10);
+
+  // The SECOND arm of the pin: MediaGrid's virtualizer writes row position DIRECTLY to the DOM
+  // (`directDomUpdates`), bypassing React commits entirely — a ResizeObserver feedback loop (the
+  // scrollbar toggling the measured column count back and forth) would jiggle the grid WITHOUT showing
+  // up in the commit tally above. Sample the grid's column count + scroll geometry across the same idle
+  // window; every sample must agree, or the grid is oscillating.
+  interface GridGeometry {
+    readonly colcount: string | null;
+    readonly scrollHeight: number;
+    readonly clientHeight: number;
+    readonly scrollWidth: number;
+    readonly clientWidth: number;
+  }
+  const geometrySamples = await page.evaluate(
+    () =>
+      new Promise<GridGeometry[]>((resolve) => {
+        const el = document.querySelector('[data-slot="media-grid-root"]');
+        const out: GridGeometry[] = [];
+        let n = 0;
+        const tick = (): void => {
+          if (el === null) {
+            resolve(out);
+            return;
+          }
+          out.push({
+            colcount: el.getAttribute("aria-colcount"),
+            scrollHeight: el.scrollHeight,
+            clientHeight: el.clientHeight,
+            scrollWidth: el.scrollWidth,
+            clientWidth: el.clientWidth,
+          });
+          n += 1;
+          if (n >= 10) {
+            resolve(out);
+            return;
+          }
+          setTimeout(tick, 50);
+        };
+        tick();
+      }),
+  );
+  expect(geometrySamples.length).toBeGreaterThan(0);
+  const firstGeometry = geometrySamples[0];
+  for (const sample of geometrySamples) {
+    expect(sample).toStrictEqual(firstGeometry);
+  }
 });
 
 // AU-9 (owner ruling 2026-07-31) — an own UPLOAD saves to the library exactly like the URL twin, so both
