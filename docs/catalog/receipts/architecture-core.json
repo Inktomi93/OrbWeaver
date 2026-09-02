@@ -171,10 +171,11 @@
       "disposition": "current",
       "authority": "operational",
       "fullRead": true,
-      "verifiedSha256": "65d3ade6b6213939dabecdcde82e3820f6f198cbe3e8f25c646cdb99cb2dc518",
-      "verifiedCommit": "da01f7eb917f736024a855fc5afee66109d44a45",
+      "verifiedSha256": "0db6c3e3ca9a81d930f333e0f64b0d99c9e1a226847c9733150e34b6989fe7a8",
+      "verifiedCommit": "921f52d3331ad20735fe7d58df5f0c25e7a8fc12",
       "verifiedAt": "2026-09-02",
       "evidence": [
+        "re-attested at 921f52d33 (#1091, security lane p-matrix-fold): chat-viewer-plane-canon-reads row — foldMatrix total over member kinds (const/import values read through the binding; shorthand/computed keys read; methods/accessors/unresolvable values REFUSE by kind); isViewerPlane takes string",
         "re-attested at da01f7eb9 (#1080 variant axes, claude-b lane cb-variant-axes): new gate row ui-variant-axes-stamped (fail-closed A2, shrink-only 11-row baseline, real-tree arm probes); registered-gate count 249",
         "re-attested at ea1b53fd5 (#1036, lane p-dangling-law): dangling-refs row — corpora derived from the catalog by class (law 31 · living design 22 · law-outside-docs 2, unioned with the prior dirs), frozen classes out by Documentation-Law §Relocation step 5, arm 4 law-only (measured), the population receipt",
         "re-attested at a287baa77 (#933 closure, lane p-933-authority): css-family-ownership row GRADUATED (mustFlag rows named, residual pointed at lockdown §4.7); devtools-frontend-assets, tokens-contract and css-var-defined rows cite pin.json / the pinning test / the gate's own scan line instead of digits",
