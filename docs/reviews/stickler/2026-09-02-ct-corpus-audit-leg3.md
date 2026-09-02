@@ -31,14 +31,38 @@ the external `kill` binary (#1254).
 
 | Leg | Full-read files | Lines | Findings |
 | - | - | - | - |
-| Leg 1 | 24 | ~26,100 | F1 (#1240) · F2 (#1241) · F3 (#1242) |
-| Leg 2 | 45 | ~19,540 | none |
-| Leg 3 (this commit) | 12 | ~8,298 | none confirmed |
-| **Campaign total** | **81 / 469** | ~53,938 | ceiling P3 |
+| Leg 1 | 24 | \~26,100 | F1 (#1240) · F2 (#1241) · F3 (#1242) |
+| Leg 2 | 45 | \~19,540 | none |
+| Leg 3 | 15 | \~12,258 | none confirmed |
+| **Campaign total** | **84 / 469** | \~57,898 | ceiling P3 |
+
+Leg 3 read, in order: `textarea`, `credential-key-row`, `tool-card`, `input`, `notification-bell`,
+`refinery-list-surface` (chunk 1) · `virtual-list`, `composer-guided-cluster`, `design-audit-walker`
+(chunk 2) · `composer`, `character-library-surface`, `chat-list-surface` (chunk 3) · `home-surface`,
+`config-content-surface`, `config-list-surface` (chunk 4). **The HI band (61 files) is now DRAINED.**
 
 ## 2. Findings
 
-None confirmed yet this leg.
+**None.** Fifteen files, \~12,258 lines, every file read whole — zero confirmed defects, and the
+severity ceiling for the whole campaign stays at leg 1's P3. Taxonomy sweep receipts over exactly these
+15 files (`grep` over the file list, printed counts):
+
+- literal `reports/` writes / `screenshot({ path` — **0** (the three `reports/` hits in
+  `character-library-surface.ct.tsx:998,1171,1480` are PROSE citations of review artefacts in comments,
+  not writes). `input.ct.tsx` calls `page.screenshot({ clip })` with no `path` — an in-memory decode,
+  not the #1201 class.
+- `kill` spawns (#1254) — **0** (the single hit,
+  `home-surface.ct.tsx:637`, is the English word in a comment).
+- `as unknown as` double-casts — **4 total, 4 marked**: `notification-bell.ct.tsx:50` (raw wire fixture)
+  and `config-content-surface.ct.tsx:555,577,592` (in-page `globalThis` scaffolding). Every marker sits
+  on the cast's line or the line above it, and every reason is true.
+- `test.skip` / `.fixme` / `.todo` / `.only` — **0**. `biome-ignore` / `eslint-disable` — **0**.
+- ONESHOT-OK adjacency — every marker encountered sits on `expect.line-1`; no wrapped two-line marker
+  found in this shard.
+
+Three sub-finding OBSERVATIONS are recorded inline at §3.2, §3.5 and §3d.2 (two weaker-than-house
+zero-read barriers and one stale constant NAME), plus two style nits at §3.1 and §3b.2. None is a
+defect; none needs a row unless the orchestrator wants the polish.
 
 ## 3. Per-file verdicts — chunk 1 (6 files, all CLEAN)
 
@@ -181,7 +205,7 @@ EventSource-task mechanism is argued in-file.
 
 ### 3b.3 `tests/tooling/design-audit-walker.ct.tsx` (1,027 ln) — CLEAN — the corpus's best instrument suite
 
-Every one of the ~20 walker rules is pinned in BOTH directions in the SAME mount: the defect fires and the
+Every one of the \~20 walker rules is pinned in BOTH directions in the SAME mount: the defect fires and the
 healthy twin stays silent WHILE PRESENT in the census (the "silence is only evidence when the control was
 looked at" law is spelled out and enforced — e.g. the below-fold healthy control must be IN `tapTargets`
 before its non-finding means anything). Withheld verdicts are asserted as COUNTED
@@ -246,7 +270,7 @@ class.
 Two structural strengths worth naming. (a) `ChatListBandAndSurfaceStory` exists BECAUSE the band feeds a
 different shell slot: "a header-only story and a surface-only story each pass while the pair lies" — the
 mount is chosen to make the defect observable, which is the coupled-surface lesson most CTs miss. (b) the
-#1180 warm-up pin asserts the WHOLE input array and says why: one equality carries "the hovered room
+\#1180 warm-up pin asserts the WHOLE input array and says why: one equality carries "the hovered room
 warmed", "no other room warmed" and "mount warmed nothing", and it explicitly rejects the separate
 non-retrying zero-read (named as the DEF-14 class). The eviction proof is the scroll-BACK, again chosen
 against the virtualization blind spot. `evictionPoll()`/`scrollPoll()` are FUNCTIONS with the reason
@@ -258,3 +282,188 @@ fenced with its live-drive provenance. The `aria-pressed` vs `aria-current` dist
 strip (toggles a filter) and the character favorites strip (opens an editor) is asserted with the reason,
 and the P1 trailing-zone split measures the text column against `PANE_WIDTH - LEADING_BUDGET_PX` rather
 than a bare number so it tracks the portrait step.
+
+## 3d. Per-file verdicts — chunk 4, home + the two rewritten config surfaces (3 files, all CLEAN)
+
+### 3d.1 `tests/client/features/home/surfaces/home-surface.ct.tsx` (1,730 ln) — CLEAN — the campaign's most instrument-grade file
+
+Four things in it are the best examples of their kind in the corpus so far.
+
+1. **The polarity is PROVEN, never assumed** (#1128). The light arm resolves `--color-background` and
+   `--color-foreground` through a canvas (oklch-authored, so a regex probe returns nothing) and asserts
+   which of the pair is lighter BEFORE any pixel is judged — with the reason stated: "a light arm whose
+   scope failed to invert is a SECOND DARK ARM wearing a label", i.e. it would retire the demanding half
+   of the matrix and still read as coverage. That is the exact luck-based-coverage class, pre-empted.
+2. **The instrument is chosen against every instrument that would lie.** The fold-fade contrast pin uses
+   `pixelExtremaContrast` because a mask is paint: snap `--contrast`, the whole design-audit contrast
+   family, axe, and even `pixelContrast` (which composites ancestor OPACITY, a property a mask never
+   touches) all report the control PASSING. Its own positive control — `Start a temp chat`, one block
+   above the band, which must read full ink in every cell — is what proves the sampler is reading ink
+   rather than a uniformly dimmed page.
+3. **A biconditional, not a floor** (#1121). The hero art band MUST paint where the host clears
+   `--reading-measure-min` and MUST be zero where it does not, both directions asserted in one loop, with
+   the 1280 arm recorded as a MEASURED REFUSAL (capping the hero's prose at \~54ch to reserve a strip puts
+   the one paragraph the surface exists to show under the minimum measure).
+4. **The must-not-fire poll is the inverted form** (#188): `expect.poll(...).toBe(2).then(() => true,
+   () => false)` watched over a window the POSITIVE arm calibrates, with the reason for not writing
+   `expect.poll(...).toBe(1)` spelled out (it would match on its first sample, before the old code's
+   invalidation had even been raised).
+
+Also: the #835 read-less-tile pin is honestly labelled a FENCE that passes against the unmodified tree,
+with the live mover left unattributed and the three ruled-out hypotheses listed (remembered box, web
+fonts, growing registry); the #177 and #499 tests `console.info` their measurement tables ON PASS as the
+re-measure protocol's own instrument; the #1145 prose pin asserts the LAW's unit (average glyph advance)
+rather than the token's `ch`, re-derives the ratio at three widths and three appearance arms, and its
+`CH_QUANTIZATION_SLACK` carries the measurement behind the number; and H16 is a printed REFUSAL rather
+than a fix, with only the width-invariant property (the wrap may re-flow, it may not drop a destination)
+actually asserted.
+
+### 3d.2 `tests/client/features/config/surfaces/config-content-surface.ct.tsx` (1,006 ln, post-fold) — CLEAN
+
+Fresh subject (the collections fold rewrote it; `config-welcome.ct.tsx` is gone). **This file now carries
+the campaign's own taxonomy exhibit**: the #1203 P0 hook-count crash class — the one leg 1 named as
+"luck-based coverage" because Tags→Regex survived on EQUAL optional-hook counts — is pinned at :857 as a
+class sweep, not a happy path: preview-declaring → rosters and back, then the SAME pair through the other
+declaring library, both directions, with `page.on("pageerror")` collected from the first navigation and
+asserted empty. The reason is stated: "a white-screened shell can still satisfy a naive 'the old text is
+gone' assertion", and the LIST landmark surviving is asserted too because the crash escaped every route
+boundary. That is the correct repair of the exact defect shape this campaign was chartered to hunt.
+
+The rest holds the same bar: the no-row-clips SWEEP walks every settings-shaped group (9 of 13 bands,
+collection groups skipped with the reason) and counts `swept` so a silently-skipping loop cannot pass; the
+click-jump pin uses a MutationObserver to record EVERY row that ever gains `aria-current` and asserts the
+list is exactly `["Effects"]` (an intermediate flicker reds); the scroll-spy pin re-issues its synthetic
+scroll per poll tick and explains why an IDENTICAL `scrollTop` fires no event; the `when`-gated Host
+Claude and Distribute sections are asserted from BOTH sides on the same screen (one predicate, three
+consumers); and the deep-link-to-gated-group race (the viewer probe resolving after the target) is a real
+defect proof.
+
+Naming nit (observation, not a finding): the `EMPTY_BAND` constant is `[data-config-group="regex"]` and
+is now reused by the POPULATED-collection tests at `:789`/`:896`, where regex is stubbed with rows — the
+name says "empty" where the fixture is not. Cosmetic only; the selector is correct in every use.
+
+### 3d.3 `tests/client/features/config/surfaces/config-list-surface.ct.tsx` (1,225 ln, post-fold) — CLEAN
+
+Also a fresh subject. Its founding choice is the right one and is stated as an owner ruling: the tags
+fixture is FOUR HUNDRED rows "because that is the owner's real library and every decision here —
+collapsed by default, the count-driven filter, the windowed rows — exists for that size. A five-row toy
+would pass while the shipped surface stalled."
+
+Strongest shapes: the retired launcher landing (#1210) took SIX tests with it and the file says so and
+what replaced them, rather than leaving orphan pins; the parity anchor at `:1059` is LABELLED
+GREEN-BEFORE with its job stated (make the canonical order a claim about the RENDERED pane rather than a
+literal two tests agree on); the WCAG 2.5.3 band-name pin asserts the MECHANISM (announced string ==
+visible string once whitespace is discounted) instead of three frozen strings, with the receipt for why
+the first fix's comma was wrong (axe `label-content-name-mismatch` 1 node → 4); the two-homes census
+buckets every button/switch by `role|name` across the three panes in ONE `page.evaluate` and is explicit
+that it re-spells the duplicate-action-door lens because that lens is blind at the default collapsed
+state; the band-height sweep resolves `--spacing-control-sm` live (pointer-conditional, so a literal 32
+would ratify one pointer class), proves the pointer arm is active first, drops zero-boxed bands so the
+LENGTH is a real measured count, and asserts `new Set(heights)` is a singleton; and the width claims are
+stated at BOTH ends of the docked range (271px both-panels-open and 307px default) with the one demotion
+(the busiest scent at 271px) recorded as measured rather than quietly dropped.
+
+Premise note: `CONFIG_MODIFIED_MARK` is deliberately RE-SPELLED rather than imported, with the reason
+in-file ("a test may not import a source constant and then assert it against itself") — the correct call,
+and the literal matches `config-copy.ts`'s marker on today's tree.
+
+## 4. Verified clean — what this leg's silence covers
+
+- Full read of all 15 files, whole files, top to bottom, no sampling.
+- The taxonomy sweep receipts in §2 (counts printed over exactly this file list).
+- Premise spot-checks against today's `packages/**/src` for every claim whose truth depended on it:
+  `credential-key-row.tsx:96,110,120,129,166` (names + testids + copy) · `refinery-chip.tsx:43`
+  (`data-hint-tone`) · `lib/list-pane-title-id.ts:25` + `list-pane-header.tsx:92` (the landmark id and
+  its slot) · `virtual-list.tsx:159-160,185,225,231` + `lib/virtual-gap.ts:36-56` (the tripwire message,
+  `data-more`, the viewport slot) · `composer-drop-target.tsx:41` (the focus-within-only shadow that
+  makes composer's #366 ring pin failable).
+- **No test was RUN this leg** — 0 of the 6-run budget, matching legs 1 and 2. Every verdict is
+  read-derived or source-corroborated; nothing here depended on execution, and a CT run in a lane is
+  single-flight per checkout (a second `ct:scoped` into one worktree clobbers the first).
+
+**Not covered:** the 385 un-read files' internals; anything about these 15 files that only a RUN could
+show (flake rates, timing under contention); `tests/e2e/**`.
+
+## 5. Shard map for leg 4 (updated)
+
+**HI band: DRAINED** (61/61 read across legs 1-3). Remaining population:
+
+- **MID band — 74 files.** Leg 1's Appendix A lists them with scores; roughly 20 were already read
+  opportunistically in legs 1-2 because they overlapped the helper-await population (`web-weave-touch`,
+  `code-editor`, `lane-run-control`, `accessible-name-quality.suite`, `context-tabs-panel`,
+  `assembly-preview-panel`, `corpus-content`, `databank-detail-surface`, `workloads-group`,
+  `injections-manager`, `analytics-overview-surface`, `image-detail-body`, `message-media-block`,
+  `room-overrides-form`, `form-identity.suite`, `preset-structure-tabs`, `character-create-actions`,
+  `section-drill-in`, `grid`/`touch-floor`). **Leg 4 should take the MID remainder by AREA, \~15-20 files
+  per chunk**, in this order (largest coupled clusters first, because the cold read of an area is the
+  expensive part): (a) chat components — `settings-context-tab` (1229), `message-list-surface` (1304),
+  `chat-controls-band`, `members-panel`, `message-content`, `ghost-message-row`, `home-recents-tile-body`,
+  `prose-settings-section`, `appearance-message-style-section`, `composer-guided-buttons`,
+  `chats-section`; (b) discovery + databank — `corpus-home-surface` (1127), `corpus-search-results`,
+  `corpus-list-surface`, `databank-library-surface`; (c) ui primitives — `switch` (560), `select`,
+  `macro-textarea`, `toggle`, `text`, `icon`, `command`, `popover`, `drawer`, `table`, `avatar-stack`,
+  `selection-bar`, `stream-text`, `art-bleed`, `weave-veil`, `stack`, `layer`; (d) the rest —
+  `tracker-blocks` (879), `workloads-jobs-section` (770), `actions-view`, `face-strip`, `roster-picker`,
+  `persona-*`, `character-*`, `regex-tab`, `schema-editor-dialog`, `turn-tool-calls-disclosure`,
+  `motion-flaggers`/`motion-stats`/`long-task-tracer`, `plugin-scripted-surface`,
+  `connections-roles-section`, `use-invalidation`, `create-entity-mutation`, `use-orb-socket`,
+  `use-user-bus`.
+- **LO band — 334 files.** Batch by DIRECTORY at low depth, 60-80 per leg (leg 1's recommendation stands
+  and this leg's evidence supports it: the register holds at every score band read so far). Suggested
+  batching: `tests/ui/primitives/**` first (the largest cluster, and the most formulaic — seal CTs),
+  then `tests/client/features/chat/components/**`, then the remaining feature dirs alphabetically.
+
+At the observed rate (leg 1: 24 files, leg 2: 45, leg 3: 15 large ones) a full drain of MID needs \~2 legs
+and LO \~5, i.e. **the campaign is roughly 7 legs from complete**. Lines, not files, are the real cost:
+this leg's 15 files were 12.3k lines against leg 2's 45 files at 19.5k.
+
+## 6. Proposed memory lessons (orchestrator owns the write — do NOT write these from a lane)
+
+1. `- [prove the polarity](contrast-matrix-must-prove-its-polarity-arm.md) — a light-arm contrast matrix
+   that does not ASSERT the scope inverted is a second dark arm wearing a label: it silently retires the
+   demanding half and still reads as coverage` · body: `home-surface.ct.tsx` resolves
+   `--color-background`/`--color-foreground` through a canvas (oklch defeats a regex probe) and asserts
+   which is lighter BEFORE judging a pixel. **Why:** the light arm is the demanding one — a 16.9:1
+   near-black-on-near-white pair needs alpha >= 0.60 to hold 4.5:1 against 0.48 for the dark arm.
+   **How to apply:** any two-polarity rendered matrix owes a polarity assertion in the same test.
+2. `- [instrument-blind by construction](mask-paint-is-invisible-to-every-computed-style-probe.md) — a
+   CSS mask dims live controls while snap --contrast, design-audit, axe AND pixelContrast all report
+   PASS; only a framebuffer extrema read sees it` · body: #1128. `pixelContrast` composites ancestor
+   OPACITY, which a mask never touches, so it is blind here too — the honest question of a gradient is an
+   upper bound over the control's own box. **How to apply:** when a fade/mask/gradient overlaps a
+   control, reach for `pixelExtremaContrast`, and give the decode a positive control OUTSIDE the band.
+3. `- [class sweep, not happy path](hook-count-crash-needs-both-directions-per-pair.md) — the #1203
+   optional-hook P0 hid behind a pair with EQUAL hook counts; the repair pin sweeps every declaring/
+   non-declaring pair in BOTH directions and asserts page errors empty` · body:
+   `config-content-surface.ct.tsx:857`. A white-screened shell satisfies a naive "the old text is gone"
+   assertion, so the claim must be `pageerror` + the surviving LIST landmark, not the pane alone.
+   **How to apply:** any registry whose members declare OPTIONAL hooks needs an N-pair sweep, not one
+   route.
+4. `- [green-before pins get labelled](anchor-pins-must-say-they-are-anchors.md) — a pin that passes
+   against the unmodified tree is an ANCHOR or a FENCE, and saying so in-file is what stops the next
+   reader reading it as a defect proof` · body: three independent files in this shard do it well
+   (`config-list-surface.ct.tsx:1055` parity anchor, `home-surface.ct.tsx:703` read-less-tile fence with
+   its ruled-out hypotheses, `config-content-surface.ct.tsx:468` the #549 fence). **How to apply:** state
+   which of the three a new pin is — defect proof, fence, or anchor — and for a fence, what it is
+   guarding against.
+
+## 7. Issue summary (for #1229 — paste verbatim)
+
+> **CT corpus audit leg 3 (cb-ct-audit-3, stickler): the HI band is DRAINED.** 15 files / \~12,258 lines
+> read whole — the HI-band remainder part 2 (textarea, credential-key-row, tool-card, input,
+> notification-bell, refinery-list-surface, virtual-list, composer-guided-cluster, design-audit-walker,
+> composer, character-library-surface, chat-list-surface, home-surface) plus the two config surfaces the
+> collections fold REWROTE (config-content-surface 1006 ln, config-list-surface 1225 ln — fresh subjects;
+> config-welcome.ct.tsx was deleted by that fold). **Verdict: fifteen CLEAN, zero findings**, campaign
+> ceiling unchanged at leg 1's P3. Sweep receipts over exactly these files: 0 literal `reports/` writes
+> (3 hits are prose citations), 0 `kill` spawns (#1254), 4 `as unknown as` casts all FABRICATION-OK-marked
+> and honest, 0 skip/fixme/only, 0 suppressions, every ONESHOT-OK marker inside the adjacency window.
+> Premises spot-checked against today's src for every claim that depended on one (5 files, path:line in
+> §4). Notable: `config-content-surface.ct.tsx:857` now carries the repair pin for the #1203 luck-based-
+> coverage P0 — a both-directions class sweep with `pageerror` collection, exactly the shape leg 1's
+> taxonomy asked for; `home-surface.ct.tsx` proves its light-polarity arm inverted before judging a pixel
+> and reads the framebuffer because a mask is invisible to every computed-style contrast instrument we
+> own. Three sub-finding observations recorded (two weaker-than-house zero-read barriers, one stale
+> constant name) — none is a defect. Campaign total **84/469 files full-read**; leg-4 shard map (MID 74
+> by area, LO 334 by directory at 60-80/leg, \~7 legs to complete) in §5. Report:
+> `docs/reviews/stickler/2026-09-02-ct-corpus-audit-leg3.md`.
