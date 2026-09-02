@@ -5,6 +5,7 @@
 // consumers — driving the `header`/`listHeader` slots the analytics section supplies.
 
 import {
+  AnalyticsCharacterSurface,
   AnalyticsListAnchor,
   AnalyticsListSurface,
   AnalyticsModelsTab,
@@ -77,6 +78,18 @@ export function AnalyticsOverviewSurfaceListModeStory(): ReactElement {
           <AnalyticsOverviewSurface />
         </div>
       </CtRealSectionRegistry>
+    </CtDataProviders>
+  );
+}
+
+/** The Analytics CHARACTER drill (a single character's turn economics) over the real data layer.
+ *  `onBack` is a no-op here — the CT asserts what renders, not the navigation the shell owns. */
+export function AnalyticsCharacterSurfaceStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ height: 640, width: 720 }}>
+        <AnalyticsCharacterSurface characterId={castId<CharacterId>("character_ct_drill")} onBack={(): void => undefined} />
+      </div>
     </CtDataProviders>
   );
 }
