@@ -700,16 +700,16 @@
       "path": "docs/architecture/core/Core-Path-Registry.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 555,
-      "bytes": 287848,
-      "sha256": "04a07a4a35a22e275077068595a95c77f9711ea8b900153ec5b32b83e0e15b6c",
+      "lines": 569,
+      "bytes": 295278,
+      "sha256": "2d5c4c5cbfb9bdb7e1a214af8cc2a225f022159a1458b5af13c16c709995f968",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "reference",
           "status": "active",
-          "updated": "2026-08-30"
+          "updated": "2026-09-01"
         },
         "errors": []
       },
@@ -719,10 +719,11 @@
         "disposition": "current",
         "authority": "normative",
         "fullRead": true,
-        "verifiedSha256": "04a07a4a35a22e275077068595a95c77f9711ea8b900153ec5b32b83e0e15b6c",
-        "verifiedCommit": "eb01a72ab3606bd78594074e1c1b89690078598e",
-        "verifiedAt": "2026-09-01",
+        "verifiedSha256": "2d5c4c5cbfb9bdb7e1a214af8cc2a225f022159a1458b5af13c16c709995f968",
+        "verifiedCommit": "8ebb7c436a737225786d574a65e5c89682a573e1",
+        "verifiedAt": "2026-09-02",
         "evidence": [
+          "re-attested at 8ebb7c436 (#1057 Phase 2, lane p-truth-p2): D152 chat tools execute as the HOST principal · D153 persona resolution semantics owner-gated · D154 generation settings are preset-owned · D155 spend policing is not ours · D156 customParameters (the D143-amended three-arm state) · D157 NO-LEGACY pre-launch (baseline-single-migration gate + LAUNCHED switch) · D158 custom CSS footgun-allowed (length cap only); header roll + next-free updated",
           "re-attested at eb01a72ab: D140 amended — the recovery-index home is the SessionStart onboard hook over `pnpm work:item overview`; the retro-workboard arm dropped under the 2026-08-22 owner ruling; other three homes unchanged",
           "re-attested at 870473632 under #883 — full D-ledger read; D71 now distinguishes the 4.5 legal/rendered floor from Orb's attainable 4.6 derivation aim and records the 2,060-base, pivot, seed, and custom-CSS-preservation receipts",
           "re-attested at 242bfaecb under #969 — full 545-line read; the D71 rider replaces the rejected-mid-band premise with one total accepted-base foreground contract and points to the derivation, ThemeScope, DTCG, CT, and imported-theme proof homes",
@@ -13016,9 +13017,9 @@
       "path": "docs/design/vocabulary-map.md",
       "lane": "design",
       "issue": 5,
-      "lines": 88,
-      "bytes": 9398,
-      "sha256": "a11a69bebff2145d20a31adf8588904d039f27558ce99ef942128a6e2dd2a20a",
+      "lines": 113,
+      "bytes": 11060,
+      "sha256": "da7e33686b6af7c0040315ca0d6025a6ed385e6ea79276f7c048cdc08bf311fc",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -13035,10 +13036,11 @@
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "a11a69bebff2145d20a31adf8588904d039f27558ce99ef942128a6e2dd2a20a",
-        "verifiedCommit": "15098cdb4232ebf8ce044675a5f2e3370b321320",
-        "verifiedAt": "2026-09-01",
+        "verifiedSha256": "da7e33686b6af7c0040315ca0d6025a6ed385e6ea79276f7c048cdc08bf311fc",
+        "verifiedCommit": "8ebb7c436a737225786d574a65e5c89682a573e1",
+        "verifiedAt": "2026-09-02",
         "evidence": [
+          "re-attested at 8ebb7c436 (#1057): new §The connection register — D109's 6-mode canon + the fail-closed confusion-killers, re-derived against infra/providers/roles/dispatch.ts deriveRunner (six pairings, five refusals match)",
           "docs/design/vocabulary-map.md:1-72 read IN FULL by the orchestrator (claude-b) before the receipt; minted by lane cb-vocab-reconcile at the #914 merge as the ONE living home for the concept→word table, per the owner's ruling that the design doc is the source of truth and everything references it",
           "re-attested at 106e855db — row 4's status corrected from 'landed' to COPY-landed/CODE-not-landed after lane cb-vocab-c2 found ten files still spelling cast; the map's own status column is a tree claim and owes a receipt like any other (#922)",
           "re-attested at 05a109eec — rows 5/6 flipped to landed with their Was-history, three new rows added (kit name axis, regex slice, CarriedAppearance), plus a new section listing four concepts still spelled cast that the map has NO word for; row 4 kept at the orchestrator's #922 truth repair (COPY landed / CODE not landed) — the union resolution at this merge",
