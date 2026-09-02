@@ -1,7 +1,7 @@
 // CONTROL GEOMETRY + navigability: tap targets (pointer-conditional floors) + control silhouette +
 // OBSCURED targets (#816) + accessible names + landmark + tabindex + heading order. Pure; thresholds cited.
 // Provenance: lib/collect.ts header.
-import type { Finding, RulePopulationAccounting, Severity } from "../contract/findings.ts";
+import type { CandidateDisposition, Finding, RulePopulationAccounting, Severity } from "../contract/findings.ts";
 import type {
   AccessibleNameInput,
   ControlAspectInput,
@@ -222,27 +222,41 @@ const CONTROL_ASPECT_FLOOR = 1.4;
  *  Also deliberately absent: `checkbox`/`radio`, which are square BY design and correctly so. */
 const CONTROL_SILHOUETTES = new Map<string, string>([["switch", "a track long enough for the thumb to visibly travel down it"]]);
 
-/** Fires when a track control's rendered box collapses toward square. P2: the control still works, is
- *  named, and meets its tap-target floor — what it loses is RECOGNITION (Nielsen 6), which is a defect of
- *  the affordance rather than of access. */
-export function checkControlAspect(input: ControlAspectInput): Finding | null {
+/** `control-aspect`'s own disposition — the ContrastOutcome posture in checks-color.ts. The census is
+ *  EVERY explicitly-roled visible element (the walker judges nothing), so the overwhelming majority of
+ *  candidates are roles this lens does not govern: that is a closed EXCLUSION, not a silent decline, and
+ *  before the partition existed a clean row was indistinguishable from "the switch census never ran".
+ *  The two remaining declines are genuine WITHHOLDINGS — an animating box and a degenerate one are
+ *  applicable controls the instrument cannot measure, which is exactly what makes a run NO VERDICT. */
+export function classifyControlAspect(input: ControlAspectInput): CandidateDisposition {
   const silhouette = CONTROL_SILHOUETTES.get(input.role);
   if (silhouette === undefined) {
-    return null;
+    return { kind: "excluded", reason: "roleWithoutSilhouette" };
   }
   // A box read mid-animation measures a moment, not a design (the retracted mid-transition travel
   // reading in #420 is the same trap one layer down). DECLARED LIMIT: a control under a PERMANENTLY
   // running animation is permanently unjudged here — the honest direction, since the alternative is
   // minting a verdict from a frame.
   if (input.animating) {
-    return null;
+    return { kind: "withheld", reason: "animating" };
   }
   const shortSide = Math.min(input.width, input.height);
   const longSide = Math.max(input.width, input.height);
   if (shortSide <= 0) {
-    return null; // a degenerate box has no silhouette to judge (and no ratio to compute)
+    return { kind: "withheld", reason: "degenerateBox" }; // no silhouette to judge, and no ratio to compute
   }
-  const aspect = longSide / shortSide;
+  return { kind: "judged", finding: aspectFinding(input, longSide / shortSide, silhouette) };
+}
+
+export function checkControlAspect(input: ControlAspectInput): Finding | null {
+  const disposition = classifyControlAspect(input);
+  return disposition.kind === "judged" ? disposition.finding : null;
+}
+
+/** Fires when a track control's rendered box collapses toward square. P2: the control still works, is
+ *  named, and meets its tap-target floor — what it loses is RECOGNITION (Nielsen 6), which is a defect of
+ *  the affordance rather than of access. */
+function aspectFinding(input: ControlAspectInput, aspect: number, silhouette: string): Finding | null {
   if (aspect >= CONTROL_ASPECT_FLOOR) {
     return null;
   }
