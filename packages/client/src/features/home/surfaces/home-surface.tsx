@@ -65,7 +65,7 @@
 // paying for a track sized as a companion while carrying content that answers to width.
 // `cols="leadEven"` is `lead` with its wide-pane breath taken to EVEN tracks — the rail gets the width its
 // grids need, and the columns end level without either column being padded or a tile being moved.
-// MEASURED (tests/client/features/home/surfaces/home-column-balance.ct.tsx, the 4 widths x 3 appearance
+// MEASURED (tests/client/features/home/surfaces/home-column-balance.suite.ct.tsx, the 4 widths x 3 appearance
 // arms this shipped against): 1920 defaults 180px -> 11px, 1920 compact 192px -> 3px, 2560 reading
 // 228px -> 11px, and the 2560 flip is gone.
 //
