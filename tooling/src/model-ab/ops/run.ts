@@ -8,6 +8,7 @@ import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { ExitCode } from "../../_shared/exit-contract.ts";
 import { EXIT } from "../../_shared/exit-contract.ts";
 import { warn } from "../../_shared/log.ts";
+import { UsageError } from "../../_shared/run-tool.ts";
 import type { CliOptions, Variant } from "../contract/types.ts";
 import { runProbes } from "./probe.ts";
 import { writeSummary } from "./report.ts";
@@ -23,18 +24,48 @@ const STAMP_SEPARATORS = /[:T]/gu;
 /** The REBOOT axis (model × chat template × serve argv) — data beside its consumer (§2.5). */
 const VARIANTS_FILE = path.join(import.meta.dirname, "variants.json");
 
+/** The closed flag vocabulary. Kept beside the reader so a new option cannot be added to one half. */
+const BOOLEAN_FLAGS: readonly string[] = ["--list", "--keep-up"];
+const VALUE_FLAGS: readonly string[] = ["--variants", "--base-url", "--model", "--port", "--vllm-bin", "--hf-home"];
+
+/** REFUSE what we do not recognise (#971). This was an `indexOf` bag: `--varients w8a8` booted EVERY
+ *  variant (a multi-minute GPU run against the wrong set) and `--port abc` produced `NaN`, which then
+ *  became the probe URL. Both read as a normal run. */
+function refuseUnknownArgs(argv: readonly string[]): void {
+  for (let i = 0; i < argv.length; i += 1) {
+    const tok = argv[i] as string;
+    if (BOOLEAN_FLAGS.includes(tok)) {
+      continue;
+    }
+    if (!VALUE_FLAGS.includes(tok)) {
+      throw new UsageError(`model-ab does not recognize ${JSON.stringify(tok)} — flags: ${[...BOOLEAN_FLAGS, ...VALUE_FLAGS].join(" ")}`);
+    }
+    const value = argv[i + 1];
+    if (value === undefined || value.startsWith("--")) {
+      throw new UsageError(`${tok} requires a value`);
+    }
+    i += 1;
+  }
+}
+
 export function parseCli(argv: readonly string[]): CliOptions {
+  refuseUnknownArgs(argv);
   const opt = (n: string): string | undefined => {
     const i = argv.indexOf(n);
     return i >= 0 ? argv[i + 1] : undefined;
   };
+  const rawPort = opt("--port");
+  const port = Number(rawPort ?? DEFAULT_PORT);
+  if (!Number.isSafeInteger(port) || port <= 0) {
+    throw new UsageError(`--port takes a positive integer — got ${JSON.stringify(rawPort)}`);
+  }
   return {
     list: argv.includes("--list"),
     keepUp: argv.includes("--keep-up"),
     variants: opt("--variants"),
     baseUrl: opt("--base-url"),
     model: opt("--model"),
-    port: Number(opt("--port") ?? DEFAULT_PORT),
+    port,
     vllmBin: opt("--vllm-bin") ?? DEFAULT_VLLM_BIN,
     hfHome: opt("--hf-home") ?? DEFAULT_HF_HOME,
   };

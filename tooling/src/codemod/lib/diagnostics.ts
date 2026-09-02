@@ -15,7 +15,7 @@ import { print } from "../../_shared/artifacts.ts";
 //
 // Defaults:
 //   • Threshold: 200 lines
-//   • Override:  --max-output-lines=N  OR  NEO_CODEMOD_MAX_LINES=N
+//   • Override:  --max-output-lines=N (parsed by cli.ts, passed in) OR NEO_CODEMOD_MAX_LINES=N
 //   • File:      /tmp/codemod-<name>-<unix-ms>.txt
 //
 // The output buffer is plain `string[]` and gets flushed at the end of each
@@ -36,8 +36,9 @@ const TRUNCATION_HEAD_FRACTION = 0.6; // bias toward head; first impression is t
 /** Lines consumed by the banner + tip + separator printed before the head/tail split. */
 const RESERVED_BANNER_LINES = 4;
 
-/** Parse the --max-output-lines flag (or env override). Falls back to the
- *  default. Validates positive integer. */
+/** Resolve the spill threshold: an explicit override wins, then the env knob, then the default. The
+ *  `--max-output-lines=N` FLAG is parsed by `codemod/cli.ts` and arrives here as `override` — this module
+ *  is a library and reads no argv of its own (Core-Tooling-Law §4.9). Validates a positive integer. */
 function resolveMaxOutputLines(override?: number): number {
   if (typeof override === "number" && override > 0) {
     return override;
@@ -46,14 +47,6 @@ function resolveMaxOutputLines(override?: number): number {
   const envVal = process.env["NEO_CODEMOD_MAX_LINES"];
   if (envVal !== undefined) {
     const n = Number.parseInt(envVal, 10);
-    if (Number.isFinite(n) && n > 0) {
-      return n;
-    }
-  }
-  const argv = process.argv.slice(2);
-  const flag = argv.find((a) => a.startsWith("--max-output-lines="));
-  if (flag !== undefined) {
-    const n = Number.parseInt(flag.slice("--max-output-lines=".length), 10);
     if (Number.isFinite(n) && n > 0) {
       return n;
     }

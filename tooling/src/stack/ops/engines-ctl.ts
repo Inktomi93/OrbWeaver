@@ -270,10 +270,21 @@ const VERBS: Record<string, () => Promise<number>> = {
 };
 
 async function main(): Promise<number> {
-  const verb = process.argv[2] ?? "status";
+  const argv = process.argv.slice(2);
+  const verb = argv[0] ?? "status";
   const fn = VERBS[verb];
   if (fn === undefined) {
     throw new UsageError(`unknown verb '${verb}' — one of: ${Object.keys(VERBS).join(", ")}`);
+  }
+  // No verb takes an argument. Trailing tokens used to be dropped, so `engines-ctl sleep --level 2`
+  // ran a plain sleep and reported success for a request nobody honoured (#971).
+  if (argv.length > 1) {
+    throw new UsageError(
+      `verb '${verb}' takes no arguments — got ${argv
+        .slice(1)
+        .map((a) => JSON.stringify(a))
+        .join(" ")}`,
+    );
   }
   return await fn();
 }

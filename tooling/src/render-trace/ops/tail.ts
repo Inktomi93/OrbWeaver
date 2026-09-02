@@ -11,6 +11,7 @@ import { errorMessage } from "@orb/kit/error-message";
 import type { RequestTrace } from "@orb/server/foundation/observability";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { EXIT } from "../../_shared/exit-contract.ts";
+import { UsageError } from "../../_shared/run-tool.ts";
 import { renderTrace } from "../lib/render.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm trace:render | pnpm trace:tail | pnpm trace:fire");
@@ -89,6 +90,12 @@ async function poll(token: string | undefined): Promise<void> {
 }
 
 export function tailOp(argv: readonly string[]): Promise<number> {
+  // `--token=` is the whole grammar; anything else used to be silently dropped, so `--token foo`
+  // (space, not `=`) tailed UNAUTHENTICATED and printed the 401 as if it were the server's answer.
+  const unknown = argv.find((a) => !a.startsWith("--token="));
+  if (unknown !== undefined) {
+    throw new UsageError(`trace:tail does not recognize ${JSON.stringify(unknown)} — usage: pnpm trace:tail [--token=<t>]`);
+  }
   const tokenArg = argv.find((a) => a.startsWith("--token="));
   // biome-ignore lint/style/noProcessEnv: DEBUG_TOKEN is the ambient dev debug token the operator already exported for curl loops (optional — single-user dev needs none). Harness plumbing, not app config.
   const tokenEnv = process.env["DEBUG_TOKEN"];
