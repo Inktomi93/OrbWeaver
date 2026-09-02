@@ -35,12 +35,12 @@ import { isAppendedRewrite } from "@orb/contracts/refinery";
 import type { RefinerySessionId } from "@orb/kit/ids";
 import type { CompareDecision } from "@orb/ui/compare-blocks";
 import { Container, Row, Stack, Surface } from "@orb/ui/layout";
-import { Text } from "@orb/ui/text";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
 import type { Trpc } from "#data";
-import { useGatedQuery, useInvalidation, useTRPC } from "#data";
+import { QueryBoundary, QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { testId, useFocusOnMount } from "#lib";
 import {
   clearRefineryWorkbenchDoor,
@@ -64,7 +64,7 @@ import { ScopeEditorDialog } from "../components/scope-editor-dialog.tsx";
 import { SessionMasthead } from "../components/session-masthead.tsx";
 import { useIterateRefinery, useRunRefineryStage, useSubmitManualRewrite, useUpdateRefinerySession } from "../hooks/use-refinery-mutations.ts";
 import { useRefineryPreflight } from "../hooks/use-refinery-schemas.ts";
-import { useRefineryRuns, useRefinerySession } from "../hooks/use-refinery-sessions.ts";
+import { useRefineryRuns } from "../hooks/use-refinery-sessions.ts";
 import { preflightViewOf } from "../lib/preflight-warn.ts";
 import { reviewEntriesOf } from "../lib/review-entries.ts";
 import { scorePayloadOf } from "../lib/run-views.ts";
@@ -82,20 +82,45 @@ export function RefineryContentSurface(): ReactElement {
   useFocusOnMount(surfaceRef);
   return (
     <Container className="relative h-full min-h-0 overflow-y-auto outline-none" name="refinery-content" ref={surfaceRef} tabIndex={-1}>
-      {sessionId === null ? <RefineryStartPane /> : <RefinerySessionPane key={sessionId} sessionId={sessionId} />}
+      {sessionId === null ? (
+        <RefineryStartPane />
+      ) : (
+        // THE #885 SEAM (side-eye class, verbatim to #1133's editor fix): opening a session used to show a
+        // bare "Loading the session…" sentence — no box reserved — while the getSession → character.get
+        // WATERFALL and the dense three-lane workbench's own multi-pass settle ran underneath it, so
+        // everything below the sentence moved when the pipeline finally arrived (#1188). `reserveKey` wraps
+        // the fallback in the box this device saw the workbench settle at last time and re-measures on every
+        // commit, so a keyed mount never moves what sits below it. `SessionPane` (not `RefinerySessionPane`
+        // itself) owns the suspending reads so the boundary's Suspense actually catches them.
+        <QueryBoundary
+          fallback={<SkeletonRows count={REFINERY_SKELETON_ROWS} />}
+          key={sessionId}
+          renderError={(_error, retry): ReactElement => <QueryErrorState label="this session" onRetry={retry} />}
+          reserveKey="refinery.session"
+        >
+          <RefinerySessionPane sessionId={sessionId} />
+        </QueryBoundary>
+      )}
     </Container>
   );
 }
+
+/** The workbench's first-boot guess, in `line` rows: masthead, preflight warn, and the three lanes' own
+ *  run controls. Only the FIRST paint on a device — `reserveKey` replaces it with what this device
+ *  actually measured, and `skeletonRowCountFor` re-fills the count to that box. */
+const REFINERY_SKELETON_ROWS = 10;
 
 function RefinerySessionPane({ sessionId }: { sessionId: RefinerySessionId }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const deps = { trpc, invalidation };
-  const session = useRefinerySession(sessionId);
+  // SUSPENDING — the boundary above is this pane's Suspense: the session gates the whole workbench, and
+  // the character read is a genuine waterfall off it (its id lives on the session), so both throw their
+  // promise instead of a manual `.data === undefined` branch with no reserved box (#1188).
+  const { data: view } = useSuspenseQuery(trpc.refinery.getSession.queryOptions({ sessionId }));
+  const { data: card } = useSuspenseQuery(trpc.character.get.queryOptions({ characterId: view.characterId }));
   const runs = useRefineryRuns(sessionId);
   const preflight = useRefineryPreflight(sessionId);
-  // Cache-first cross-feature read (channel row 2); gated — no key is built until the session landed.
-  const character = useGatedQuery(session.data?.characterId ?? null, (id) => trpc.character.get.queryOptions({ characterId: id }));
 
   const runStage = useRunRefineryStage(deps);
   const iterate = useIterateRefinery(deps);
@@ -120,15 +145,6 @@ function RefinerySessionPane({ sessionId }: { sessionId: RefinerySessionId }): R
   );
   const { sheet, decide } = useRewriteDecisions(lanes.rewriteRunId);
 
-  if (session.data === undefined || character.data === undefined) {
-    return (
-      <Stack gap="row" padding="section">
-        <Text voice="gloss">Loading the session…</Text>
-      </Stack>
-    );
-  }
-  const view = session.data;
-  const card = character.data;
   const running = runStage.isPending || iterate.isPending;
 
   const rewriteEntries = rewriteEntriesFor(lanes.rewriteRun, card, view);
