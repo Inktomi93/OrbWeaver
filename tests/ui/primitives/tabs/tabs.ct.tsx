@@ -355,4 +355,3 @@ test("orientation=vertical mirrors data-orientation onto every part", async ({ m
   await page.keyboard.press("ArrowDown");
   await expect(page.getByRole("tab", { name: "Two" })).toHaveAttribute("aria-selected", "true");
 });
-

@@ -140,7 +140,7 @@ export function stampedNames(sf: SourceFile): readonly string[] {
   });
 }
 
-/** The whole @orb/ui population, derived OUTSIDE the harness — the baseline generator's driver. */
+/** The whole `@orb/ui` population, derived OUTSIDE the harness — the baseline generator's driver. */
 export function scanUiPackage(root: string): { readonly recipes: readonly StampedRecipe[]; readonly stamped: ReadonlySet<string> } {
   // Through the ONE ts-morph bootstrap (`tooling-shared-plumbing` — a second `new Project(` site is the
   // duplication class the tooling package was minted to end), narrowed to the package this reads.
