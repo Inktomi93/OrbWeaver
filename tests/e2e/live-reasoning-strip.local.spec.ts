@@ -25,10 +25,11 @@
 
 import type { CharacterHandle, ChatId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { E2E_FIXTURE_PROVIDER_PORT } from "@orb/tooling/_shared/ports";
 import { expect, test } from "@playwright/test";
 import { addMemberToChat, configureCustomProvider, loginLocal, ownerActor } from "./support/actors.ts";
 import { FIXTURE_COVER_MARKER, FIXTURE_LIE_TRUTH, startFixtureProvider } from "./support/fixture-provider.ts";
-import { FIXTURE_PROVIDER_PORT, LOCAL_MEMBER } from "./support/modes.ts";
+import { LOCAL_MEMBER } from "./support/modes.ts";
 import type { StreamValue } from "./support/sse.ts";
 import { collectChatRoomFrames } from "./support/sse.ts";
 
@@ -73,7 +74,7 @@ test("P3 reasoning host-only: a deception turn's reasoning channel is withheld f
   const origin = baseURL ?? "";
   const host = ownerActor(origin);
 
-  const fixture = await startFixtureProvider(FIXTURE_PROVIDER_PORT);
+  const fixture = await startFixtureProvider(E2E_FIXTURE_PROVIDER_PORT);
 
   // Fresh spec-owned character (idempotent across crashed runs).
   const priorList = await host.query<{ readonly items: readonly { readonly id: string; readonly handle: CharacterHandle }[] }>("character.list", {});

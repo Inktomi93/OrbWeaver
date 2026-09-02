@@ -15,12 +15,13 @@ import { wireProbePage } from "./browser-capture.ts";
 import type { BrowserEnvironmentContract } from "./browser-environment.ts";
 import { resolveBrowserEnvironmentContract } from "./browser-environment.ts";
 import { resolveProbeMedia } from "./browser-media.ts";
+import { DEV_PORTS } from "./ports.ts";
 import type { ThemeRequest } from "./theme.ts";
 
 export type { CapturedConsole, CapturedRequest } from "./browser-capture.ts";
 
 // biome-ignore lint/style/noProcessEnv: SNAP_BASE_URL is a probe-harness knob (where the running dev stack answers; `localhost`, not 127.0.0.1 — vite v8 binds [::1] only) — ambient tooling env, not app config.
-export const DEFAULT_BASE = process.env["SNAP_BASE_URL"] ?? "http://localhost:5173";
+export const DEFAULT_BASE = process.env["SNAP_BASE_URL"] ?? `http://localhost:${DEV_PORTS.vite}`;
 // biome-ignore lint/style/noProcessEnv: DEBUG_TOKEN is the ambient dev-stack debug token the operator already exported for curl loops; snap seeds it into `orb:debug-token` so token-gated routes render real data. Harness plumbing, not app config.
 export const DEFAULT_DEBUG_TOKEN = process.env["DEBUG_TOKEN"] ?? "";
 

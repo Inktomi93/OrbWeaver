@@ -26,6 +26,7 @@ import { print } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { printVerdict } from "../../_shared/evidence.ts";
 import { EXIT } from "../../_shared/exit-contract.ts";
+import { DEV_PORTS } from "../../_shared/ports.ts";
 import { UsageError } from "../../_shared/run-tool.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm sse-tap (node tooling/src/wire-tap/cli.ts <verb>)");
@@ -40,7 +41,7 @@ interface SseEnv {
 
 function readEnv(): SseEnv {
   // biome-ignore lint/style/noProcessEnv: PORT mirrors the server's listen port so the tap hits the right box — ambient tooling env, not app config; probes run outside the foundation/env perimeter.
-  const port = process.env["PORT"] ?? "8788";
+  const port = process.env["PORT"] ?? String(DEV_PORTS.server);
   // biome-ignore lint/style/noProcessEnv: SSE_TAP_BASE points the tap at a non-local server when needed — ambient tooling env, not app config.
   const base = process.env["SSE_TAP_BASE"] ?? `http://127.0.0.1:${port}`;
   // biome-ignore lint/style/noProcessEnv: SSE_TAP_COOKIE carries a browser session for cookie-mode deploys (single-user needs none) — harness plumbing, not app config.

@@ -17,11 +17,12 @@
 
 import type { CharacterHandle, CharacterId, ChatId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { E2E_FIXTURE_PROVIDER_PORT } from "@orb/tooling/_shared/ports";
 import { expect, test } from "@playwright/test";
 import type { ActorClient } from "./support/actors.ts";
 import { addMemberToChat, configureCustomProvider, loginLocal, ownerActor } from "./support/actors.ts";
 import { FIXTURE_COVER_MARKER, startFixtureProvider } from "./support/fixture-provider.ts";
-import { FIXTURE_PROVIDER_PORT, LOCAL_MEMBER } from "./support/modes.ts";
+import { LOCAL_MEMBER } from "./support/modes.ts";
 import { collectChatRoomFrames } from "./support/sse.ts";
 
 const STREAM_TIMEOUT_MS = 20_000;
@@ -423,7 +424,7 @@ test("D122 TRIGGER: a MEMBER-triggered turn ships THEIR persona in the assembled
   test.setTimeout(180_000);
   const origin = baseURL ?? "";
   const host = ownerActor(origin);
-  const fixture = await startFixtureProvider(FIXTURE_PROVIDER_PORT);
+  const fixture = await startFixtureProvider(E2E_FIXTURE_PROVIDER_PORT);
   const characterId = await freshCharacter(host, castId<CharacterHandle>("e2e-d122-trigger"), {
     name: "Marrow",
     description: "e2e member-triggered persona probe",

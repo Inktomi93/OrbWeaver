@@ -28,6 +28,7 @@
 // superRefine) and `LOCAL_INITIAL_PASSWORD` ≥8 (the owner seed).
 
 import process from "node:process";
+import { DEV_PORTS, E2E_PORTS } from "@orb/tooling/_shared/ports";
 import { devTargetAllowed } from "./target-guard.ts";
 
 /** One auth-mode project's boot + seed contract. `webServerEnv` is the exact env its `stack.sh start-fg`
@@ -138,8 +139,8 @@ export const LOCAL_MEMBER = { handle: "member", password: "member-dev-pass" } as
 // NO DATABASE_URL pin, i.e. the operator's real dev stack + dev DB (reused, not booted — see
 // playwright.config.ts). That is the supervised-live-drive escape hatch, and it waives the target guard. ──
 const SINGLE_USER_ON_DEV_STACK = devTargetAllowed(process.env);
-const SINGLE_BACKEND_PORT = SINGLE_USER_ON_DEV_STACK ? "8788" : "8796";
-const SINGLE_VITE_PORT = SINGLE_USER_ON_DEV_STACK ? "5173" : "5181";
+const SINGLE_BACKEND_PORT = String(SINGLE_USER_ON_DEV_STACK ? DEV_PORTS.server : E2E_PORTS.singleUser.server);
+const SINGLE_VITE_PORT = String(SINGLE_USER_ON_DEV_STACK ? DEV_PORTS.vite : E2E_PORTS.singleUser.vite);
 export const SINGLE_USER: ModeProject = {
   name: "single-user",
   baseUrl: `http://localhost:${SINGLE_VITE_PORT}`,
@@ -178,15 +179,11 @@ export const SINGLE_USER: ModeProject = {
  *  (waive the target guard). */
 export const DEV_TARGET_ALLOWED = SINGLE_USER_ON_DEV_STACK;
 
-/** The scripted fixture provider's loopback port (support/fixture-provider.ts) — a fixed port so the LOCAL
- *  stack's egress allowlist can name it and the reasoning-strip spec can start the fixture there. */
-export const FIXTURE_PROVIDER_PORT = 8797;
-
 // ── local (cookie/BFF sessions) — ports 8799/5183, ISOLATED DB/assets under .cache. AUTH_MODE=local +
 // the local-mode secrets; global-setup flips localMultiUser on + seeds a member. adopt-only + WIRE_CAPTURE
 // so the member-strip @live spec can plant a lie AND (optionally) drive a real turn. ──
-const LOCAL_BACKEND_PORT = "8799";
-const LOCAL_VITE_PORT = "5183";
+const LOCAL_BACKEND_PORT = String(E2E_PORTS.local.server);
+const LOCAL_VITE_PORT = String(E2E_PORTS.local.vite);
 // Module-local (fed into MODE_PROJECTS below; only SINGLE_USER is exported — the config's reuse-check needs it).
 const LOCAL: ModeProject = {
   name: "local",
@@ -227,8 +224,8 @@ const LOCAL: ModeProject = {
 // FORWARD_AUTH_VERIFY_JWT=true + a non-empty JWKS allowlist (the signed path refuses an empty one; the JWKS
 // itself rides each request as a literal, so the allowlist gates only remote-URL egress). The actor mints a
 // signed JWT in-test (jose) — no external IdP, no login. ──
-const FWD_BACKEND_PORT = "8798";
-const FWD_VITE_PORT = "5182";
+const FWD_BACKEND_PORT = String(E2E_PORTS.forwardHeader.server);
+const FWD_VITE_PORT = String(E2E_PORTS.forwardHeader.vite);
 const FORWARD_HEADER: ModeProject = {
   name: "forward-header",
   baseUrl: `http://localhost:${FWD_VITE_PORT}`,
