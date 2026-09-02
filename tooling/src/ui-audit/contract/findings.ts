@@ -50,6 +50,18 @@ export interface RulePopulationAccounting {
 
 export type PopulationAccounting = Readonly<Partial<Record<DesignAuditRuleId, RulePopulationAccounting>>>;
 
+/** ONE candidate's disposition under ONE rule — the shape a `checks-*.ts` classifier returns and
+ *  `lib/population-strategies.ts`'s rung-2 `partitionedFindings` tallies. `judged` carries the verdict
+ *  (a Finding, or a clean pass); the other two carry a rule-owned reason string that reaches the report
+ *  and the JSON receipt. The polarity is #987's: `withheld` = the rule APPLIES and the instrument could
+ *  not judge it, which makes the run NO VERDICT; `excluded` = measured facts prove the rule
+ *  inapplicable, which is complete evidence. Homed here beside `RulePopulationAccounting` because five
+ *  `lib/checks-*.ts` files produce it and one strategy consumes it. */
+export type CandidateDisposition =
+  | { readonly kind: "judged"; readonly finding: Finding | null }
+  | { readonly kind: "withheld"; readonly reason: string }
+  | { readonly kind: "excluded"; readonly reason: string };
+
 interface FindingFields {
   readonly selector: string;
   readonly value: string;

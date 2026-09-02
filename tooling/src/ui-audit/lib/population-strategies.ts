@@ -7,8 +7,22 @@
 // | rung | fn                     | adds over the rung below     |
 // | 1 | nullableFindings          | plain map, no accounting     |
 // | 2 | accountedFindings         | census + RulePopulationAccounting |
+// | 2 | partitionedFindings       | same rung, second door: the checker itself names each candidate's
+// |   |                           | disposition (judged / withheld / excluded), so a rule that DECLINES
+// |   |                           | some candidates publishes why instead of a candidates==judged lie |
 // | 3 | cappedRelationalFindings  | + cap, never truncates affected/judged |
 // | 4 | decisionPopulationFindings| + authored-decision grouping (decisionKey) |
+// WHICH RUNG-2 DOOR: `accountedFindings` when the check is a TOTAL judge over its census (every sample
+// gets a verdict — candidates == judged is the truth, not a default); `partitionedFindings` when the
+// check returns `null` for two different reasons and a bare zero would conflate them. The partition's
+// polarity is the one #987 states and `checks-color.ts`'s ContrastOutcome/GrayOutcome demonstrate:
+// EXCLUDED = measured facts prove the rule inapplicable (an owner-sanctioned effect carrier, a role
+// this lens does not govern, a sample owned by a sibling rule) — complete evidence, never a gap;
+// WITHHELD = the rule APPLIES and the instrument could not judge it, which makes the run NO VERDICT.
+// A shape gate the rule itself asks about ("is this wash big enough to be a background glow?") is a
+// JUDGED PASS, not an exclusion — checks-color.ts's `grayOnColorOutcome` header is the precedent, and
+// checks-font-census.ts's four-arm header is the precedent for NOT routing a ubiquitous measured
+// absence to `withheld` and burying every run in NO VERDICT.
 // population.ts's reason maps are NOT interchangeable: withheld = a candidate the instrument COULD
 // NOT JUDGE (+ the presentation-only "cap" reason; non-cap withholding is a NO VERDICT run, see
 // populationEvidenceGap); excluded = measured facts PROVE the rule does not apply; collapsed =
@@ -19,7 +33,7 @@
 // only survivors and accounting bolted on here reports candidates == judged while the real
 // denominator was lost upstream — relational families carry `relationalAccounting` FROM the walker
 // instead (contract/samples-populations.ts); a filtered census keeps its accounting there, not here.
-import type { Finding, RulePopulationAccounting } from "../contract/findings.ts";
+import type { CandidateDisposition, Finding, RulePopulationAccounting } from "../contract/findings.ts";
 import type { DesignAuditRuleId } from "../contract/rules.ts";
 import type { RelationalCensusAccountingInput } from "../contract/samples-populations.ts";
 import { assertCensusAccounting, assertRelationalCensus, settledPopulationAccounting } from "./population.ts";
@@ -98,6 +112,47 @@ export function accountedFindings<T>(
       emitted: findings.length,
       withheld: { ...(census?.withheld ?? {}) },
       excluded: { ...(census?.excluded ?? {}) },
+      collapsed: {},
+    }),
+  };
+}
+
+/** RUNG 2, second door. The per-candidate `CandidateDisposition` a classifier returns is homed in
+ *  contract/findings.ts, beside the accounting row it settles into. Emission is unchanged from `nullableFindings` — every judged finding is
+ *  emitted, ungrouped and uncapped — and the accounting publishes the denominator the bare map threw
+ *  away. `settledPopulationAccounting` throws when the partition does not close, so a classifier that
+ *  forgets a branch is an instrument error rather than a quietly smaller candidate count. */
+export function partitionedFindings<T>(
+  rule: DesignAuditRuleId,
+  items: readonly T[],
+  classify: (item: T) => CandidateDisposition,
+): { readonly accounting: RulePopulationAccounting; readonly findings: readonly Finding[] } {
+  const findings: Finding[] = [];
+  const withheld: Record<string, number> = {};
+  const excluded: Record<string, number> = {};
+  let judged = 0;
+  for (const item of items) {
+    const disposition = classify(item);
+    if (disposition.kind === "judged") {
+      judged += 1;
+      if (disposition.finding !== null) {
+        findings.push(disposition.finding);
+      }
+      continue;
+    }
+    const reasons = disposition.kind === "withheld" ? withheld : excluded;
+    reasons[disposition.reason] = (reasons[disposition.reason] ?? 0) + 1;
+  }
+  return {
+    findings,
+    accounting: settledPopulationAccounting(rule, {
+      candidates: items.length,
+      judged,
+      affected: findings.length,
+      populations: findings.length,
+      emitted: findings.length,
+      withheld,
+      excluded,
       collapsed: {},
     }),
   };

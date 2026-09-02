@@ -1,7 +1,9 @@
 // Typography & copy-surface floors (ramp-bound type/leading/tracking/caps/justify/line-length), one
 // text element at a time. The PAGE-level censuses (off-theme-font, flat-type-hierarchy) live beside
-// this in checks-font-census.ts. Pure. Provenance: lib/collect.ts header.
-import type { Finding } from "../contract/findings.ts";
+// this in checks-font-census.ts, and the CROSS-SAMPLE caveat-outweighed fold in checks-caveat.ts —
+// both split off for the same reason: a different subject needs its own population. Pure.
+// Provenance: lib/collect.ts header.
+import type { CandidateDisposition, Finding } from "../contract/findings.ts";
 import type { TextStyleInput } from "../contract/samples.ts";
 import { INTERACTIVE_TEXT_FLOOR_PX, LEADING_FLOOR, LEADING_FLOOR_EPSILON, RAMP_FLOOR_EPSILON_PX, TEXT_MICRO_PX } from "./ramp.ts";
 
@@ -183,136 +185,64 @@ export function checkTextStyle(input: TextStyleInput): Finding[] {
   return findings;
 }
 
-// ── TYPE-HIERARCHY INVERSION: a caveat outweighed by what it bounds (#652) ───────────────────────────
-//
-// THE DEFECT. On the plugin consent screen the raw egress hostnames rendered at 15px, regular weight,
-// full foreground — the loudest thing on the surface — while *"These exact hostnames, and nothing else."*,
-// the sentence that makes the list an EXHAUSTIVE guarantee and therefore the whole reason it can be
-// trusted, rendered at 10.5px muted: the smallest text on the screen. Verified preset-invariant across
-// four appearance arms, so it is a range property, not a point measurement. The same file carried a
-// second instance — "This plugin asks for N permissions this version of Orbweaver doesn't recognise" at
-// 10.5px with no destructive treatment. The class is not cosmetic: a sentence whose whole job is to BOUND
-// what the loud thing beside it means, set smaller than the thing it bounds, inverts the reading order of
-// a security argument.
-//
-// WHY THIS IS NOT `flat-type-hierarchy`. That rule asks whether a PAGE has enough distinct steps. This
-// one asks whether the steps are assigned to the right content — a page can have a perfect ramp and still
-// hand its loudest step to a machine readout and its quietest to the guarantee.
-//
-// THE HARD PART, STATED HONESTLY. Semantic importance is NOT computable from the DOM, and plenty of good
-// design renders a datum larger than its label. A rule that fires on every label/value pair is a wall,
-// and a wall trains readers to skip the output (#644). So this rule never guesses: it reads the app's OWN
-// AUTHORED CLAIMS about intent, and fires only where the author has said, in the markup, that the small
-// thing is a bounding statement.
-//
-// THE FRAMING WAS CHOSEN BY MEASUREMENT, NOT BY TASTE. The issue offered two candidate anchors — the
-// app's own `voice` axis, or the platform's ARIA roles. The voice arm was BUILT FIRST and REFUSED on its
-// band: anchored on `data-voice="gloss"` it fired 21 times across 18 live surfaces (8 on
-// settings:connections alone, 6 on the chat context tab), and reading them showed why — a gloss sentence
-// under a heading, an accordion trigger, or a `stat-figure-value` is the RATIFIED caption pattern, not an
-// inversion. A caption under a big number is what a caption is for. That rule was a wall, and a wall
-// trains readers to skip the output (#644), so the anchor was narrowed to the one authored claim that
-// admits no such reading.
-//
-// THE ANCHOR IS THE ALERT ROLE. `role=alert|alertdialog|status` is the author saying, in the markup, "this
-// sentence bounds what you are about to do". Nothing in a sane design renders an ALERT as the quietest
-// text in its own block while a neighbour shouts — the caption defence does not apply, because an alert
-// is not a caption. That is what makes this rule narrow enough to be worth reading.
-//
-// THE FOUR CONDITIONS, each a narrowing rather than a heuristic:
-//   1. ANCHOR — the node is inside `role=alert|alertdialog|status`.
-//   2. SENTENCE SHAPE — its own text is a full sentence (>= CAVEAT_MIN_CHARS, terminal punctuation), which
-//      separates a bounding claim from a status fragment ("Saved", "3 of 8").
-//   3. A LARGER PARTNER IN THE SAME BLOCK — a text node sharing an ancestor within four levels, at least
-//      CAVEAT_STEP_RATIO larger. Same-block is the bound that stops this becoming "is anything on the page
-//      bigger than this sentence".
-//   4. THE PARTNER IS NEITHER A HEADING NOR A CHROME LABEL — a heading, `label`, `kicker`,
-//      `interactiveKicker` or `credit` exists to NAME the thing beside it, and naming something larger
-//      than the prose under it is the ratified pattern in every one of those cases.
-//
-// WHAT IT WILL NOT CATCH, deliberately and by construction — this list is the price of not being a wall:
-//   • THE ROW'S OWN HEADLINE EXAMPLE. *"These exact hostnames, and nothing else."* carries no alert role:
-//     it is an ordinary `gloss`, and the only thing separating it from a legitimate caption is that a
-//     human knows it is a completeness GUARANTEE. That is not in the DOM. The second instance the row
-//     names — the unrecognised-permissions sentence at `plugin-grant-list.tsx` — IS `role="alert"` and is
-//     exactly what this rule fires on, which is why the class is still worth a rule.
-//   • An inversion of COLOUR or WEIGHT at the same type step. This rule is size-anchored.
-//   • A warning written with no role at all, at a call site that skipped both vocabularies.
-//   • A partner more than four ancestor levels away.
-//   • Anything outside this design system: the exclusions are bound to @orb/ui's voice axis on purpose.
-/** Long enough to be a bounding SENTENCE rather than a qualifier fragment. */
-const CAVEAT_MIN_CHARS = 28;
-/** One ramp step, with room for rounding: micro 10.5 → label 13 is 1.238, body 15 is 1.43. */
-const CAVEAT_STEP_RATIO = 1.15;
-const SENTENCE_END_RE = /[.!?]["')\]]?$/u;
-/** Voices whose JOB is to name the thing beside them — a label above its caption is the ratified pattern,
- *  not an inversion, and treating one as a "louder partner" fires on every settings row in the product. */
-const CHROME_LABEL_VOICES: ReadonlySet<string> = new Set(["credit", "interactiveKicker", "kicker", "label"]);
+/** The six per-element typography rules that share ONE census — every non-`srOnly` text sample the
+ *  walker gathered. (`text-below-ramp`/`undersized-ui-text` share that census too but ride rung 4: they
+ *  repeat by authored decision, which these six do not.) ONE tuple, derived union: the collect
+ *  dispatcher iterates the same axis rather than re-spelling it. */
+export const TEXT_STYLE_RULE_IDS = ["all-caps-body", "crushed-tracking", "justified-text", "line-length", "tight-leading", "wide-tracking"] as const;
+type TextStyleRuleId = (typeof TEXT_STYLE_RULE_IDS)[number];
 
-/** Does this sample carry an AUTHORED claim that it bounds something? The `gloss` voice was tried here
- *  first and measured as a wall (21 findings / 18 surfaces — see the block comment); the alert role is
- *  the claim that survives, because an alert is never a caption. */
-function isCaveatCarrier(input: TextStyleInput): boolean {
-  return input.alertContext === true;
-}
-
-/** A bounding SENTENCE, not a qualifier fragment: length plus terminal punctuation on the element's OWN
- *  text. `directTextLen` is the length the walker measured; the shape test needs the text itself, which
- *  the sample family does not carry — so length is the proxy and the punctuation test rides `directText`
- *  when present. */
-function isSentenceShaped(input: TextStyleInput): boolean {
-  return input.directTextLen >= CAVEAT_MIN_CHARS && SENTENCE_END_RE.test(input.directText ?? "");
-}
-
-/** Two samples sit in one block when their ancestor-id paths intersect (four levels each, from the
- *  walker). Absent paths decline — comparing globally is the false-positive machine. */
-function sharesBlock(a: TextStyleInput, b: TextStyleInput): boolean {
-  const left = a.blockPath;
-  const right = b.blockPath;
-  if (left === undefined || right === undefined || left.length === 0 || right.length === 0) {
-    return false;
+/** Per-rule disposition over the shared text census. EXCLUDED is reserved for the measured facts that
+ *  put a sample outside a rule's own population — clipped `sr-only` text paints no pixels at all, a
+ *  heading is not body copy, a non-prose tag has no reading measure, an element with no own text has no
+ *  alignment to judge, a `line-height: normal` computed value is no authored leading step to compare
+ *  against the ramp, and RENDERED CAPS are the ratified micro-caps voice `tracking.micro` pairs with
+ *  (`rendersAsCaps` above, issue #148). The rules' own thresholds — short text, zero tracking, a leading
+ *  above the floor — stay JUDGED PASSES (`grayOnColorOutcome`'s precedent in checks-color.ts). The one
+ *  WITHHOLDING is `line-length`'s: the walker measured no `ch` advance, and #464 already ruled that a
+ *  measure computed from a guessed ratio is worse than no verdict — so it fails loud instead of printing
+ *  a clean row over an unmeasured population. */
+export function classifyTextStyle(input: TextStyleInput, rule: TextStyleRuleId): CandidateDisposition {
+  if (input.srOnly) {
+    return { kind: "excluded", reason: "srOnly" };
   }
-  const seen = new Set(left);
-  return right.some((id) => seen.has(id));
+  const excluded = textStyleExclusion(input, rule);
+  if (excluded !== null) {
+    return { kind: "excluded", reason: excluded };
+  }
+  if (rule === "line-length" && input.totalTextLen > LINE_LENGTH_TEXT_MIN && charsPerLine(input) === null) {
+    return { kind: "withheld", reason: "chAdvanceUnmeasured" };
+  }
+  return { kind: "judged", finding: checkTextStyle(input).find((finding) => finding.rule === rule) ?? null };
 }
 
-/** The loudest same-block partner that outweighs this caveat, or null. */
-function outweighingPartner(caveat: TextStyleInput, all: readonly TextStyleInput[]): TextStyleInput | null {
-  let loudest: TextStyleInput | null = null;
-  for (const other of all) {
-    if (other === caveat || other.srOnly || other.codeContext || other.directTextLen === 0) {
-      continue;
+/** The closed exclusion reason for one (sample, rule) pair, or null when the rule owes it a verdict.
+ *  A mapped Record rather than a switch so a new rule in the union is a tsc error here (the house
+ *  string-union dispatch discipline); each arm mirrors ITS OWN checker's guards — `checkAllCaps` and
+ *  `checkJustified` have no type-size gate, so neither arm invents one. */
+const TEXT_STYLE_EXCLUSIONS: Readonly<Record<TextStyleRuleId, (input: TextStyleInput) => string | null>> = {
+  "all-caps-body": (input) => (input.isHeading ? "heading" : null),
+  "crushed-tracking": (input) => noTypeSize(input),
+  "justified-text": (input) => (input.directTextLen === 0 ? "noOwnText" : null),
+  "line-length": (input) => {
+    if (!input.isProseTag) {
+      return "notProseTag";
     }
-    if (other.isHeading || CHROME_LABEL_VOICES.has(other.voice ?? "") || other.fontSizePx < caveat.fontSizePx * CAVEAT_STEP_RATIO) {
-      continue;
+    return input.rectWidth <= 0 ? "noRenderedBox" : noTypeSize(input);
+  },
+  "tight-leading": (input) => {
+    if (input.isHeading) {
+      return "heading";
     }
-    if (sharesBlock(caveat, other) && (loudest === null || other.fontSizePx > loudest.fontSizePx)) {
-      loudest = other;
-    }
-  }
-  return loudest;
+    return input.lineHeightPx === null ? "normalKeywordLeading" : noTypeSize(input);
+  },
+  "wide-tracking": (input) => (rendersAsCaps(input) ? "capsVoice" : noTypeSize(input)),
+};
+
+function noTypeSize(input: TextStyleInput): string | null {
+  return input.fontSizePx <= 0 ? "noTypeSize" : null;
 }
 
-/** The type-hierarchy-inversion lens (#652) — see the block comment above for the framing and its
- *  declared blind spots. A cross-sample fold, so it takes the whole family rather than one input. */
-export function checkCaveatHierarchy(inputs: readonly TextStyleInput[]): Finding[] {
-  const findings: Finding[] = [];
-  for (const input of inputs) {
-    if (input.srOnly || input.codeContext || !isCaveatCarrier(input) || !isSentenceShaped(input)) {
-      continue;
-    }
-    const partner = outweighingPartner(input, inputs);
-    if (partner === null) {
-      continue;
-    }
-    findings.push({
-      rule: "caveat-outweighed",
-      severity: "P2",
-      selector: input.selector,
-      value: `${input.fontSizePx}px alert under a ${partner.fontSizePx}px sibling`,
-      message: `this alert sentence BOUNDS what ${partner.selector} means, and renders ${(partner.fontSizePx / input.fontSizePx).toFixed(2)}× smaller than it — the warning whispers while the thing it qualifies shouts; lift the alert a step (the \`prose\` modifier does exactly this) or quiet its partner`,
-      origin: "orbweaver",
-    });
-  }
-  return findings;
+function textStyleExclusion(input: TextStyleInput, rule: TextStyleRuleId): string | null {
+  return TEXT_STYLE_EXCLUSIONS[rule](input);
 }

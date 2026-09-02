@@ -1,6 +1,6 @@
 // Distorted/stretched + broken images, and buried rasters. Pure; thresholds cited. Provenance:
 // lib/collect.ts header.
-import type { Finding, RulePopulationAccounting } from "../contract/findings.ts";
+import type { CandidateDisposition, Finding, RulePopulationAccounting } from "../contract/findings.ts";
 import type { BrokenImageInput, ImageDistortionInput } from "../contract/samples.ts";
 import type { BuriedRasterInput } from "../contract/samples-media.ts";
 import { settledPopulationAccounting } from "./population.ts";
@@ -13,6 +13,21 @@ const DISTORTION_SEVERE_PCT = 15;
 const PCT_MULTIPLIER = 100;
 
 const NON_STRETCHING_OBJECT_FITS = new Set(["cover", "contain"]);
+
+/** `distorted-image`'s disposition. The census is every rendered image, so the two declines that are not
+ *  the aspect question itself are closed exclusions: an image with no natural or rendered extent has no
+ *  aspect to compare and is `broken-image`'s subject, and `object-fit: cover|contain` crops or letterboxes
+ *  BY DESIGN — a measured fact that proves this rule inapplicable rather than a missing judgment. The
+ *  deviation threshold stays a judged pass. */
+export function classifyImageDistortion(input: ImageDistortionInput): CandidateDisposition {
+  if (input.naturalWidth <= 0 || input.naturalHeight <= 0 || input.renderedWidth <= 0 || input.renderedHeight <= 0) {
+    return { kind: "excluded", reason: "noComparableExtent" };
+  }
+  if (NON_STRETCHING_OBJECT_FITS.has(input.objectFit)) {
+    return { kind: "excluded", reason: "objectFitCropsOrLetterboxes" };
+  }
+  return { kind: "judged", finding: checkImageDistortion(input) };
+}
 
 export function checkImageDistortion(input: ImageDistortionInput): Finding | null {
   const { naturalWidth, naturalHeight, renderedWidth, renderedHeight, selector, objectFit } = input;
