@@ -36,7 +36,7 @@ import { __createBusDevlogFixtureForTest, __recordBusEventForTest } from "../../
 import { __resetLongTaskEvidence, installLongTaskTracer } from "../../../packages/client/src/lib/long-task-tracer.ts";
 import { setFrameDropTrackingPaused } from "../../../packages/client/src/lib/motion-animation-state.ts";
 import { installDeadClassFlagger, motionFlaggersDrain, motionFlaggersSettled } from "../../../packages/client/src/lib/motion-dead-class-flagger.ts";
-import { __resetMotionFlags, installMotionFlaggers, MOTION_BUDGETS } from "../../../packages/client/src/lib/motion-flaggers.ts";
+import { __resetMotionFlags, installMotionFlaggers, MOTION_BUDGETS, motionFlags } from "../../../packages/client/src/lib/motion-flaggers.ts";
 import {
   __resetMotionStats,
   installMotionObservers,
@@ -176,7 +176,12 @@ export function MotionShiftFlaggerStory(): ReactElement {
  *  keys on — and the box is fixed-height/overflow-hidden so nothing OUTSIDE it moves (one non-virtualized
  *  source would flip the record's classification and the story would prove the opposite of its name). The
  *  growth lands 900ms after the click, past the 500ms input window, so it reaches `cls` at all: an
- *  input-adjacent shift never enters the total this arm is about. */
+ *  input-adjacent shift never enters the total this arm is about.
+ *
+ *  "settle rows now" is the #1071 twin: the SAME virtualized shift INSIDE the 500ms window, which the
+ *  spec metric zeroes entirely. It exists to prove `observedVirtualizedCls` accrues there — the field
+ *  motion-audit subtracts before gating an interaction, so a click that settles a message list is not
+ *  charged as an app defect. */
 export function MotionVirtualizedShiftStory(): ReactElement {
   const [pushed, setPushed] = useState(false);
   useEffect(() => {
@@ -197,6 +202,9 @@ export function MotionVirtualizedShiftStory(): ReactElement {
         }}
       >
         settle rows later
+      </button>
+      <button type="button" onClick={(): void => setPushed(true)}>
+        settle rows now
       </button>
       <div data-slot="message-list-viewport" style={{ height: 400, overflow: "hidden" }}>
         <div style={{ height: pushed ? 200 : 0 }} />
@@ -340,6 +348,14 @@ export function MotionFlaggersReducedMotionStory(): ReactElement {
   useEffect(() => {
     installMotionObservers();
     installMotionFlaggers();
+    // The PULL half of the channel, published from the story's own module instance (a page-side dynamic
+    // import would resolve a SECOND instance with an empty ring — the MotionShiftFlaggerStory precedent).
+    // FABRICATION-OK: a browser-context probe slot, written and read by this story's CT alone.
+    const probes = globalThis as unknown as { __motionFlagsRead: typeof motionFlags | undefined };
+    probes.__motionFlagsRead = motionFlags;
+    return (): void => {
+      probes.__motionFlagsRead = undefined;
+    };
   }, []);
   return (
     <div>

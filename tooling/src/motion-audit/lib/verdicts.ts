@@ -1,7 +1,7 @@
 // The budget verdicts over the in-page motion snapshot — pure, unit-tested without a browser
 // (tests/tooling/motion-audit/index.test.ts). CLS gates on the NON-virtualized total (issue #109);
 // LoAF gets the sealed-Select first-entrance allowance with app/unrelated script-attribution vetoes.
-import type { LoafRecord, MotionSnapshot } from "../contract/types.ts";
+import type { ClsBudgetBasis, LoafRecord, MotionSnapshot } from "../contract/types.ts";
 
 // The budget thresholds (documented in cli.ts's header). ms unless noted.
 const BLOCKING_BUDGET_MS = 50;
@@ -24,10 +24,52 @@ export function clsTotals(motion: MotionSnapshot | null): { raw: number; virtual
   return { raw: motion.cls, virtualized, budgeted: motion.nonVirtualizedCls ?? motion.cls - virtualized };
 }
 
-/** THE CLS VERDICT (issue #109): the budget judges the NON-virtualized total only. A shift the in-page
- *  instrument tagged `virtualized` moves `raw` and must never move this. */
-export function clsOverBudget(motion: MotionSnapshot | null): boolean {
-  return clsTotals(motion).budgeted > CLS_BUDGET;
+/** The OBSERVED halves — every shift, input-adjacent included, with the same #109 virtual-row split.
+ *  `null` ⇔ the served bundle predates #1071 and cannot answer. There is deliberately NO fallback to the
+ *  spec totals: on an interaction window that fallback IS the #1071 false PASS. */
+export function observedClsTotals(motion: MotionSnapshot | null): { raw: number; virtualized: number; budgeted: number } | null {
+  if (motion === null || motion.observedCls === undefined) {
+    return null;
+  }
+  const virtualized = motion.observedVirtualizedCls ?? 0;
+  return {
+    raw: motion.observedCls,
+    virtualized,
+    budgeted: motion.observedNonVirtualizedCls ?? motion.observedCls - virtualized,
+  };
+}
+
+/** Which CLS total this run's budget is entitled to judge.
+ *
+ *  ENTRY / navigation windows keep `nonVirtualizedCls` (#109) — no trusted input happened, so the spec
+ *  metric excluded nothing and its polarity is correct (verified in the #1065 mechanism audit, §2 row 5;
+ *  the dev-bridge nav sets only the console-mute flag, never `hadRecentInput`).
+ *
+ *  INTERACTION windows must judge `observedNonVirtualizedCls` (#1071). motion-audit's measured click is a
+ *  REAL CDP dispatch, so Chrome excluded every shift within 500ms of it from `cls` — i.e. from the only
+ *  number the tool printed or gated. The collector's own header records the receipt that paid for this:
+ *  0.207 of observed instability on the docked panel toggle, `cls` 0.0177, budget PASS while the shell
+ *  visibly thrashed.
+ *
+ *  `basis` is reported, never inferred by a reader: which number was judged is part of the verdict. */
+export function clsBudgetBasis(measuredInput: boolean): ClsBudgetBasis {
+  return measuredInput ? "observed-non-virtualized" : "non-virtualized";
+}
+
+/** THE CLS VERDICT. The judged total is chosen by `clsBudgetBasis`; a `null` here means the run measured
+ *  a trusted input against a bundle that cannot report the observed total, which is an EVIDENCE GAP, not
+ *  a pass (`lib/evidence.ts` `observedClsGap` owns the consequence). */
+export function clsBudgeted(motion: MotionSnapshot | null, measuredInput: boolean): number | null {
+  if (!measuredInput) {
+    return clsTotals(motion).budgeted;
+  }
+  const observed = observedClsTotals(motion);
+  return observed === null ? null : observed.budgeted;
+}
+
+export function clsOverBudget(motion: MotionSnapshot | null, measuredInput: boolean): boolean {
+  const budgeted = clsBudgeted(motion, measuredInput);
+  return budgeted !== null && budgeted > CLS_BUDGET;
 }
 
 export function confirmedSelectEntrance(loaf: LoafRecord): NonNullable<LoafRecord["selectEntrance"]> | undefined {

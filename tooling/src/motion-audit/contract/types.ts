@@ -59,6 +59,26 @@ export interface LoafRecord {
     readonly firstForTrigger: boolean;
   };
 }
+/** One attributed layout shift as the collector's ring publishes it (`motion-stats.ts` `ShiftRecord`).
+ *  Diagnostic passthrough: the report names the waves, no budget arm reads it — the ring is CAPPED
+ *  (`SHIFT_RING_CAP`), so deriving a total from it would silently under-count. */
+export interface ShiftRecord {
+  readonly startTime: number;
+  readonly value: number;
+  readonly hadRecentInput: boolean;
+  readonly agentNavigation: boolean;
+  readonly virtualized: boolean;
+  readonly sources: readonly string[];
+}
+
+/** WHICH CLS total a run's budget is entitled to judge — reported on the RESULT line, never inferred by
+ *  a reader. `non-virtualized` is the #109 spec total (an ENTRY/navigation window, where no trusted input
+ *  happened and the spec metric excluded nothing); `observed-non-virtualized` is the #1071 total an
+ *  INTERACTION window is judged on, because Chrome empties `cls` of everything within 500ms of the
+ *  measured click. `lib/verdicts.ts` `clsBudgetBasis` is the ONE selector. */
+const CLS_BUDGET_BASES = ["non-virtualized", "observed-non-virtualized"] as const;
+export type ClsBudgetBasis = (typeof CLS_BUDGET_BASES)[number];
+
 export interface MotionSnapshot {
   readonly loafs: readonly LoafRecord[];
   readonly cls: number;
@@ -66,10 +86,27 @@ export interface MotionSnapshot {
    *  OPTIONAL because this type mirrors whatever bundle is being served: `--isolated --ref <old sha>`
    *  legitimately answers from a page that predates the split. */
   readonly virtualizedCls?: number;
-  /** `cls` − `virtualizedCls` — the total this probe's budget gates on. Optional for the same reason. */
+  /** `cls` − `virtualizedCls` — the total an ENTRY/navigation window's budget gates on. Optional for the
+   *  same reason. */
   readonly nonVirtualizedCls?: number;
+  /** EVERY shift, input-adjacent included. The Layout Instability spec zeroes anything within 500ms of
+   *  real input, and motion-audit's measured click IS real input (`page.mouse.click`) — so for an
+   *  INTERACTION window `cls` is structurally blind to the storm the click caused (#1071; the collector's
+   *  own paid receipt: 0.207 observed, 0.0177 gated, budget PASS while the shell visibly thrashed).
+   *  Optional for the `--ref` reason above — and unlike the #109 fields, absence here CANNOT fall back:
+   *  falling back to `cls` on an interaction run reinstates exactly that false PASS, so `lib/verdicts.ts`
+   *  raises an evidence gap instead (`lib/evidence.ts` `observedClsGap`). */
+  readonly observedCls?: number;
+  /** The virtual-row share of `observedCls`. Required to gate an interaction: the collector accumulates
+   *  `virtualizedCls` only inside the `!hadRecentInput` branch, so `observedCls` alone folds the
+   *  reconciliation #109 removed from the budget back in. */
+  readonly observedVirtualizedCls?: number;
+  /** `observedCls` − `observedVirtualizedCls` — THE INTERACTION BUDGET TOTAL (#1071). */
+  readonly observedNonVirtualizedCls?: number;
   readonly worstBlocking: number;
   readonly worstShift: number;
+  /** The recent attributed shifts — "what moved", which no CLS number carries. Diagnostic only. */
+  readonly shifts?: readonly ShiftRecord[];
 }
 
 export interface AnimationRecord {
@@ -102,6 +139,22 @@ interface AnimationAttribution {
   readonly owner: AnimationOwner;
   readonly mechanism: AnimationMechanism;
   readonly phase?: AnimationPhase;
+}
+
+/** One `__orb.flags()` raise (mirrors `packages/client/src/lib/motion-flaggers.ts` `MotionFlagRecord`).
+ *  motion-audit consumes the `anim` channel ONLY, and consumes the raw `animation` FACTS — never the
+ *  channel's own `overBudget` verdict, which is guide §3.7's console policy and not this tool's
+ *  (#1069's allowance fork is open; importing that verdict would import the fork with it). */
+export interface MotionFlagRecord {
+  readonly tag: string;
+  readonly at: number;
+  readonly offender: string;
+  readonly detail: string;
+  readonly overBudget: boolean;
+  /** Present on `anim` raises from a bundle that postdates #1070. Absent ⇒ the raise cannot be
+   *  sanctioned and is counted as an ordinary unattributed dirty animation, the same posture
+   *  `lib/animations.ts` already takes for a pre-#953 `AnimationRecord`. */
+  readonly animation?: AnimationRecord;
 }
 
 export interface TraceEvent {
@@ -152,7 +205,18 @@ export interface AuditData {
    * not consume it; the rated matrix's STATIC-EXPECTED arm refuses when it is absent. */
   readonly applicationMotion: ApplicationMotionEvidence | null;
   readonly motion: MotionSnapshot | null;
+  /** The END-OF-WINDOW `document.getAnimations()` sample: what is STILL RUNNING when the window closes.
+   *  A sampler answers "continuous loops", never "did a 130ms transition fire" — `flags` is that half. */
   readonly animations: readonly AnimationRecord[];
+  /** The checkpoint-scoped `__orb.flags()` ring for the measured window — the TRANSIENT population
+   *  (#1070): every dirty animation that STARTED inside the window, including the whole 130–360ms house
+   *  band that is over before the sample above is taken.
+   *
+   *  `null` ⇔ the page exposes no `flags` member at all. That is NOT an empty ring: it means the
+   *  transient population could not be observed, which restores the exact blindness #1070 removed — so
+   *  `lib/evidence.ts` raises a gap and the run is not a verdict, the same posture a missing
+   *  `resetEvidence`/`motionFlaggersSettled` already gets. An empty ARRAY is the honest "nothing fired". */
+  readonly flags: readonly MotionFlagRecord[] | null;
   readonly frames: CalibratedFrames;
   readonly pageErrors: readonly string[];
   /** Every CDP trace event the measured window delivered. Diagnostic only: it separates "the trace ran
@@ -161,6 +225,12 @@ export interface AuditData {
   readonly stepFailed: boolean;
   /** Reach actions that did not land — the run is FAILED, because the window measured another surface. */
   readonly reachFailures: number;
+  /** TRUE ⇔ a real trusted CDP input was dispatched INTO the measured window (the prepared click landed).
+   *  This is the fact that decides which CLS total the budget may judge (#1071): Chrome excludes every
+   *  shift within 500ms of trusted input from the spec metric, so on a true here `cls` describes a
+   *  different window than the one the operator watched. Derived at the dispatch site (`ops/trace.ts`),
+   *  never from `opts.selector`: a selector that failed to prepare produces no input at all. */
+  readonly measuredInput: boolean;
 }
 
 export interface MeasuredClick {

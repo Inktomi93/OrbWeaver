@@ -37,9 +37,14 @@ function page(
     missingSettle?: boolean;
     expectedReducedMotion?: boolean;
     runtimeEnvironmentMismatch?: boolean;
+    /** Literal JS for `flags()`'s return; default is an empty ring. */
+    flagsJson?: string;
+    /** OMIT the `flags` member entirely — the #1070 blindness, which must refuse rather than read empty. */
+    missingFlags?: boolean;
   } = {},
 ): string {
   const animated = opts.animated ?? true;
+  const flags = opts.missingFlags === true ? "" : `flags: () => (${opts.flagsJson ?? "[]"}),`;
   const resetEvidence =
     opts.missingReset === true ? "" : `resetEvidence: ${opts.resetThrows === true ? '() => { throw new Error("planted reset failure"); }' : "() => {}"},`;
   const motionFlaggersSettled =
@@ -68,6 +73,7 @@ ${environmentMismatch}
 globalThis.__orb = {
   motion: () => (${motionJson}),
   animations: () => (${animated ? '[{ target: "#spin", properties: ["transform"], compositorClean: true }]' : "[]"}),
+  ${flags}
   ${resetEvidence}
   ${motionFlaggersSettled}
   setMotionAuditDropTrackingPaused: () => {},
@@ -86,6 +92,19 @@ const BREACHING = `{
 const CLEAN = "{ loafs: [], cls: 0, virtualizedCls: 0, nonVirtualizedCls: 0, worstBlocking: 0, worstShift: 0 }";
 /** The report's frame line — group 1 is the DENOMINATOR (the population the % is taken over). */
 const FRAME_LINE_RE = /frames {6}raw \d+\/(\d+) dropped/u;
+
+// #1070 — one `anim` raise carrying the launch record of a dirty transition that is OVER by the time the
+// end-of-window `animations()` sample runs. `animations()` in every fixture above reports only the
+// compositor-clean spinner, so this is a population the sampler structurally cannot contain.
+const TRANSIENT_DIRTY_FLAG = `[{ tag: "anim", at: 40, offender: "#spin", detail: "animating non-compositor width", overBudget: true,
+  animation: { target: "#spin", properties: ["width"], compositorClean: false, attribution: { owner: "application", mechanism: "css-transition" } } }]`;
+// The same raise, but the ratified Base UI height lifecycle the #953 allowance sanctions. The flag still
+// says overBudget:true — motion-audit re-judges the FACTS, so this one must not red.
+const TRANSIENT_RATIFIED_FLAG = `[{ tag: "anim", at: 40, offender: "[data-slot=collapsible-panel]", detail: "animating non-compositor height", overBudget: true,
+  animation: { target: "[data-slot=collapsible-panel]", properties: ["height"], compositorClean: false,
+    targetState: { startingStyle: false, endingStyle: false },
+    lifecycleState: { startingStyle: true, endingStyle: false, observedAt: "transition-run" },
+    attribution: { owner: "base-ui", mechanism: "css-transition", phase: "starting-style" } } }]`;
 
 function args(scratch: string, file: string, extra: readonly string[] = []): string[] {
   return [`/${file}`, "--base", `file://${scratch}`, "--window", FRAME_WINDOW_MS, "--no-throttle", ...extra];
@@ -225,4 +244,42 @@ test(
 test("an unknown flag is CLI misuse before any browser boots", async ({ runCli }) => {
   const res = await runCli("motion-audit", ["--open-caht", "latest"]);
   await expect(res).toExitWith(3);
+});
+
+// @instrument-proof (#1070): the TRANSIENT half of the dirty-animation budget, at the cli tier. The
+// end-of-window `animations()` sample in these fixtures reports only the compositor-clean spinner, so a
+// red here can ONLY have come from the flag ring — which is exactly the population the sampler cannot
+// see (every house duration is 130–360ms; the window is 1s+). Two directions, plus the refusal arm.
+test("a dirty transition visible ONLY in the flag ring REDs the audit through the real cli", async ({ runCli, scratch }) => {
+  await writeFile(join(scratch, "transient-jank.html"), page(CLEAN, { flagsJson: TRANSIENT_DIRTY_FLAG }));
+  const res = await runCli("motion-audit", args(scratch, "transient-jank.html"), { timeoutMs: CLI_TIMEOUT_MS });
+  expect(res.stdout).toContain("transient dirty (started in-window)");
+  expect(res.stdout).toContain("transient-dirty-animations=1");
+  expect(res.stdout).toContain("dirty-animations-budgeted=1");
+  expect(res.stdout).toContain("FAIL");
+  await expect(res).toExitWith(1);
+});
+
+test("the ratified Base UI height lifecycle in the flag ring PASSES — the console verdict is not imported", async ({ runCli, scratch }) => {
+  // The twin that proves the red above is the plant, not the mechanism: identical shape, `overBudget:true`
+  // on the flag, and the #953 allowance still takes it out of the budget because motion-audit re-judges.
+  await writeFile(join(scratch, "transient-ratified.html"), page(CLEAN, { flagsJson: TRANSIENT_RATIFIED_FLAG }));
+  const res = await runCli("motion-audit", args(scratch, "transient-ratified.html"), { timeoutMs: CLI_TIMEOUT_MS });
+  expect(res.stdout).toContain("transient-dirty-animations=1");
+  expect(res.stdout).toContain("library-height-animations=1");
+  expect(res.stdout).toContain("dirty-animations-budgeted=0");
+  expect(res.stdout).toContain("PASS");
+  await expect(res).toExitWith(0);
+});
+
+test("a bridge with NO flags() member is an INSTRUMENT ERROR, never an empty transient population", async ({ runCli, scratch }) => {
+  // The blindness itself, refused loudly instead of read as "nothing fired" — the difference between an
+  // unobservable population and an empty one is the whole #1070 finding.
+  await writeFile(join(scratch, "no-flags.html"), page(CLEAN, { missingFlags: true }));
+  const res = await runCli("motion-audit", args(scratch, "no-flags.html"), { timeoutMs: CLI_TIMEOUT_MS });
+  expect(res.stdout).toContain("INSTRUMENT ERROR");
+  expect(res.stdout).toContain("motion-flag ring");
+  expect(res.stdout).toContain("anim-flags=absent");
+  expect(res.stdout).not.toContain("verdict=PASS");
+  await expect(res).toExitWith(2);
 });

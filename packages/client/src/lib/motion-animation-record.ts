@@ -168,21 +168,28 @@ export function installAnimationLifecycleRecorder(): void {
   document.addEventListener("transitionrun", bindLifecycleToRunningTransitions, true);
 }
 
+/** ONE animation's record — the raw browser facts, no verdict. Exported because the `[anim]` flagger
+ *  attaches it at RAISE time (`motion-flaggers.ts`): `getAnimations()` is a SAMPLER, so a 130–360ms house
+ *  transition is finished long before any end-of-window read, and a launch-time record is the only way a
+ *  consumer can apply the same owner/lifecycle policy to a transition that already ended. Same builder as
+ *  `activeAnimations` on purpose — two builders would drift into two attribution vocabularies, and the
+ *  whole point is that tooling judges both populations with ONE unchanged policy. */
+export function animationRecordOf(animation: Animation): AnimationRecord {
+  const target = animationTarget(animation.effect);
+  const lifecycleState = lifecycleByAnimation.get(animation) ?? null;
+  const properties = animatedProperties(animation.effect);
+  const record: AnimationRecord = {
+    target: target === null ? "(no-element)" : surfaceLabelOf(target),
+    properties,
+    compositorClean: properties.length > 0 && properties.every((property) => COMPOSITOR_SAFE_PROPS.has(property)),
+    targetState: targetState(target),
+    lifecycleState,
+    attribution: attribution(animation, lifecycleState, target),
+  };
+  return animation.id === "" ? record : { ...record, id: animation.id };
+}
+
 /** The currently active animations with owner, mechanism, lifecycle state, and compositor facts. */
 export function activeAnimations(): readonly AnimationRecord[] {
-  return document.getAnimations().map((animation): AnimationRecord => {
-    const target = animationTarget(animation.effect);
-    const state = targetState(target);
-    const lifecycleState = lifecycleByAnimation.get(animation) ?? null;
-    const properties = animatedProperties(animation.effect);
-    const record: AnimationRecord = {
-      target: target === null ? "(no-element)" : surfaceLabelOf(target),
-      properties,
-      compositorClean: properties.length > 0 && properties.every((property) => COMPOSITOR_SAFE_PROPS.has(property)),
-      targetState: state,
-      lifecycleState,
-      attribution: attribution(animation, lifecycleState, target),
-    };
-    return animation.id === "" ? record : { ...record, id: animation.id };
-  });
+  return document.getAnimations().map(animationRecordOf);
 }

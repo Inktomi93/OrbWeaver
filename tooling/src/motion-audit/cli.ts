@@ -14,14 +14,24 @@
 // headless.
 //
 // PASS/FAIL budget (any breach fails the exit code): a budgeted LoAF with style/layout in-frame · a
-// budgeted worst blocking > 50ms · NON-VIRTUALIZED CLS > 0.1 (issue #109 — virtual-row reconciliation
-// is printed, labeled, never gated) · any active animation with compositorClean:false · budgeted
+// budgeted worst blocking > 50ms · CLS > 0.1 on the basis this run is entitled to — the NON-VIRTUALIZED
+// spec total for an ENTRY/navigation window, the OBSERVED non-virtualized total once a `--selector`
+// click actually dispatched (issue #109 keeps virtual-row reconciliation printed, labeled and never
+// gated; #1071 owns the basis switch, and the RESULT line carries `measured-input` + `cls-budget-basis`
+// so the verdict is re-derivable) · any dirty animation in EITHER population — the end-of-window
+// `animations()` sample (still-running loops) or the `__orb.flags()` `anim` ring (every dirty transition
+// that STARTED in the window; #1070, because a 130–360ms house transition is over ~2s before the sample),
+// deduplicated and minus the #953 Base UI height allowance · budgeted
 // dropped-frames > 5% (advisory headless). A failed reach action is a FAILED run: the alternative is a
 // smoothness number for the wrong surface.
 //
 // ZERO HYGIENE (#409): a run that OBSERVED NOTHING is not a verdict. No `__orb` bridge, no in-page
 // motion snapshot, or an empty frame population (nothing composited in the measured window) exits
-// EXIT.toolError naming what was absent — never `0%` / PASS. lib/evidence.ts carries the receipts.
+// EXIT.toolError naming what was absent — never `0%` / PASS. Same posture for a measured CLICK against a
+// bundle with no `observedCls` (`--isolated --ref <pre-#1071 sha> --selector …`): the spec `cls` is not a
+// substitute there, so the run refuses instead of restoring the false PASS. Same for a bridge with no
+// `flags()` member at all: an UNOBSERVABLE transient population is not an empty one, and a clean verdict
+// from the sampler half alone is the #1070 blindness. lib/evidence.ts carries the receipts.
 //
 // Exit: 0 pass · 1 budget breach / failed action / page error · EXIT.toolError when the evidence was
 // absent · EXIT.misuse on a bad CLI.
