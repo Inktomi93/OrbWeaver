@@ -4,7 +4,8 @@
 // `assets`); the IMPORT half POSTs a dropped `.zip` to `/api/import/bundle` (→ `{ workloadId }`), tails the
 // import workload's ROOM on the tab's ONE socket (SSE-1 S5 — `workloads.subscribe` is gone) for progress +
 // the terminal `succeeded`, and renders the count summary. The download + upload are RAW `/api` routes (not
-// tRPC), so they're page.route-d directly.
+// tRPC), so they're page.route-d directly. The import half is a TWO-STEP flow since #1099 F36 — a pick
+// stages, a confirm sends — and this file drives both steps.
 
 import type { WorkloadEvent } from "@orb/contracts/workloads";
 import type { WorkloadId } from "@orb/kit/ids";
@@ -99,7 +100,15 @@ test("export: the all-on Include group spends no accent — every row renders th
   await expect(characters).not.toHaveCSS("background-color", checkedFill);
 });
 
-test("import: dropping a .zip POSTs the bundle, tails the workload, and shows the count summary", async ({ mount, page }) => {
+// IT ASKS BEFORE IT SENDS (#1099 F36, landed in bf7dd6d29). This test used to expect the DROP itself to
+// POST, and #979 moved that: a pick lands in `staged` — pure client state, zero requests — the surface names
+// the file and states the consequence, and `confirm()` is the only caller of either upload seam
+// (`use-library-import.ts`'s own header: "SELECTION IS STAGED, NEVER FIRED"). That commit swept the sibling
+// `import-library-section.ct.tsx` and missed this file, which drives the same dropzone through the zip arm —
+// so the pin has described a flow the product does not have since 2026-09-02 (#1197).
+// The re-pin is STRICTLY STRONGER, not adapted: it now also asserts the ruling's own content — that picking
+// a file touches the network NOT AT ALL — which the old shape structurally could not see.
+test("import: a dropped .zip is STAGED first; confirming POSTs the bundle, tails the workload, and shows the count summary", async ({ mount, page }) => {
   await routeTrpc(page, { ...HOST_VIEWER_ROUTE, ...STREAM_MUTATION_ROUTES });
   let bundlePost: { method: string } | undefined;
   await page.route("**/api/import/bundle", async (route) => {
@@ -127,6 +136,13 @@ test("import: dropping a .zip POSTs the bundle, tails the workload, and shows th
     mimeType: "application/zip",
     buffer: Buffer.from("PK"),
   });
+
+  // NOTHING IS SENT BY PICKING. Barrier on the settled preflight — a named group carrying the file it is
+  // about to send — and only then read the negative: no request has been made.
+  await expect(page.getByRole("group", { name: "Import “backup.zip”?" })).toBeVisible();
+  expect(bundlePost, "staging a file must not touch the network — confirm() is the only upload caller").toBeUndefined();
+
+  await page.getByRole("button", { name: "Import", exact: true }).click();
 
   // The upload fired, and the terminal succeeded event drives the count summary.
   await expect.poll(() => bundlePost?.method, { intervals: [20, 50, 100] }).toBe("POST");
