@@ -11,7 +11,8 @@
 // sampled — an off-screen box, a failed shot — is printed as NO VERDICT and judged by nothing.
 import { writeFile } from "node:fs/promises";
 import type { SettingsShimEvidence } from "@orb/tooling/_shared/appearance";
-import { artifactFile, print, routeSlug } from "@orb/tooling/_shared/artifacts";
+import { artifactFile } from "@orb/tooling/_shared/artifact-out";
+import { print, routeSlug } from "@orb/tooling/_shared/artifacts";
 import { buildUrl, launchProbeSession, withProbeSession } from "@orb/tooling/_shared/browser";
 import { readBrowserEnvironment } from "@orb/tooling/_shared/browser-environment";
 import type { EvidenceGap } from "@orb/tooling/_shared/evidence";

@@ -1,9 +1,10 @@
 // snap — one browser run, many pieces of UI evidence. Argv parse + dispatch ONLY (the five-slot cap):
 // the programmatic surface is ./index.ts; the operator cookbook is `pnpm snap --help` + the ops/ headers.
 // Boots against the running dev stack (`pnpm stack start` first) or an isolated stage (`--isolated`);
-// artifacts land under reports/snaps/ via _shared/artifacts.
+// artifacts land in this run's slot via _shared/artifact-out, published as reports/snaps/… pointers.
 import process from "node:process";
 import { pathToFileURL } from "node:url";
+import { withInstrumentRun } from "../_shared/artifact-out.ts";
 import { print } from "../_shared/artifacts.ts";
 import { EXIT } from "../_shared/exit-contract.ts";
 import { runTool } from "../_shared/run-tool.ts";
@@ -80,7 +81,11 @@ export async function main(opts: Args): Promise<number> {
   if (stageExit !== null) {
     return stageExit;
   }
-  return await runResolvedMode(opts);
+  // Everything this run writes lands in its OWN slot and is published as `reports/snaps/…` pointers when
+  // it finishes (#1164) — two concurrent snaps that took the same `--out` name keep both sets of pixels.
+  // Wrapped HERE, not around `main`: the help/misuse/argv legs above write no artifacts and must not mint
+  // an empty slot.
+  return await withInstrumentRun("snap", async () => await runResolvedMode(opts));
 }
 
 const cliEntry = process.argv[1];

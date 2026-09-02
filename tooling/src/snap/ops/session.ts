@@ -4,7 +4,7 @@ import { existsSync } from "node:fs";
 import { unlink } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { artifactDir } from "../../_shared/artifacts.ts";
+import { artifactDir } from "../../_shared/artifact-out.ts";
 import type { LocalStorageSeed, ProbeLaunchOptions, ProbeSession } from "../../_shared/browser.ts";
 import { closeProbeSession, closeProbeSessionAfterError, launchProbeSession } from "../../_shared/browser.ts";
 import type { BrowserEnvironmentEvidence } from "../../_shared/browser-environment.ts";

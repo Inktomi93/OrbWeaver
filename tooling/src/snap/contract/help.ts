@@ -120,4 +120,10 @@ Failure evidence:
   Red runs retain a Playwright trace under reports/traces/. Use
   --no-failure-evidence only when the trace cost is explicitly unwanted.
 
+Artifacts:
+  Every run writes inside its own slot (reports/runs/snap/<runId>/, printed as the run's first
+  line) and publishes reports/snaps/<name>.png, reports/traces/… etc. as pointers into it when it
+  finishes, so a concurrent snap cannot overwrite yours (#1164). --baseline is the exception: a
+  golden lands in reports/baselines/ directly, because a later --diff reads it.
+
 Run pnpm snap --help from the repository for this contract; the source header contains the full cookbook.`;

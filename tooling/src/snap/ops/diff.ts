@@ -3,7 +3,8 @@
 import { existsSync } from "node:fs";
 import { copyFile } from "node:fs/promises";
 import { join } from "node:path";
-import { artifactDir, print } from "../../_shared/artifacts.ts";
+import { artifactDir } from "../../_shared/artifact-out.ts";
+import { print } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { resolveFfmpeg } from "../../_shared/ffmpeg.ts";
 import { runNicedSync } from "../../_shared/proc.ts";

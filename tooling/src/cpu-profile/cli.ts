@@ -15,6 +15,7 @@
 // Exit: 0 clean · 1 step failure / page error · EXIT.toolError when NOTHING was metered (absent
 // in-page meter, an empty step tape, no long-task observer — #409) · EXIT.misuse on a bad CLI.
 import process from "node:process";
+import { withInstrumentRun } from "../_shared/artifact-out.ts";
 import { print } from "../_shared/artifacts.ts";
 import { EXIT } from "../_shared/exit-contract.ts";
 import { runTool } from "../_shared/run-tool.ts";
@@ -30,7 +31,8 @@ async function main(): Promise<number> {
     print(PERF_METER_HELP);
     return EXIT.misuse;
   }
-  return await runCpuProfile(opts);
+  // The run's own artifact slot; `reports/perf-meter/<out>.json` is its published pointer (#1164).
+  return await withInstrumentRun("cpu-profile", async () => await runCpuProfile(opts));
 }
 
 await runTool(main);

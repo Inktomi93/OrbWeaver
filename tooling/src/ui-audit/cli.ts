@@ -41,6 +41,7 @@
 // on a bad CLI — a typo'd flag silently scans the wrong surface and reports it clean, so it is a hard error,
 // never an ignored line.
 import process from "node:process";
+import { withInstrumentRun } from "../_shared/artifact-out.ts";
 import { print } from "../_shared/artifacts.ts";
 import { EXIT } from "../_shared/exit-contract.ts";
 import { runTool } from "../_shared/run-tool.ts";
@@ -62,7 +63,8 @@ async function main(): Promise<number> {
   if (stageExit !== null) {
     return stageExit;
   }
-  return opts.matrix ? await runUiAuditMatrix(opts) : await runUiAudit(opts);
+  // The run's own artifact slot; `reports/design-audit/<name>.json` becomes its published pointer (#1164).
+  return await withInstrumentRun("ui-audit", async () => (opts.matrix ? await runUiAuditMatrix(opts) : await runUiAudit(opts)));
 }
 
 await runTool(main);

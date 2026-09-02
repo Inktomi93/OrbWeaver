@@ -20,7 +20,11 @@ Preconditions and geography:
   `--context-tab`, never a URL path. Snapping `/some-path` renders the home shell under a
   misleading PNG name.
 - Every artifact lands under `reports/` (gitignored) — snaps, traces, JSON manifests. Never write
-  to the repo root.
+  to the repo root. Since #1164 a run writes them inside its OWN slot
+  (`reports/runs/snap/<runId>/…`, printed as the run's first line) and publishes
+  `reports/snaps/<name>.png` and friends as pointers into it when it finishes: cite the published
+  path, and the slot path when you need the pixels of that exact run. A concurrent snap can no
+  longer overwrite yours.
 
 ## §1 One selector engine per target
 

@@ -2,8 +2,9 @@
 // under the V8 sampling profiler) -> bucket + table + RESULT. A CPU profile's top self-time frame
 // can be the INSTRUMENT — attribute before optimizing.
 import { writeFile } from "node:fs/promises";
+import { artifactFile } from "@orb/tooling/_shared/artifact-out";
 import type { ResultPair } from "@orb/tooling/_shared/artifacts";
-import { artifactFile, print } from "@orb/tooling/_shared/artifacts";
+import { print } from "@orb/tooling/_shared/artifacts";
 import { buildUrl, launchProbeSession, settle, withProbeSession } from "@orb/tooling/_shared/browser";
 import { instrumentError, printVerdict } from "@orb/tooling/_shared/evidence";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";

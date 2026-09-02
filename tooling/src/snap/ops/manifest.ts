@@ -2,7 +2,7 @@
 import { writeFile } from "node:fs/promises";
 import type { AppearancePatch, SettingsShimEvidence } from "../../_shared/appearance.ts";
 import type { Viewport } from "../../_shared/argv.ts";
-import { artifactFile } from "../../_shared/artifacts.ts";
+import { artifactFile } from "../../_shared/artifact-out.ts";
 import type { CapturedConsole, CapturedRequest } from "../../_shared/browser.ts";
 import type { BrowserEnvironmentEvidence } from "../../_shared/browser-environment.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";

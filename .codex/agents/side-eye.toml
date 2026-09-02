@@ -543,10 +543,17 @@ yours. `<checkout>` is `main` or the worktree basename. Consequences for you: ci
 need YOUR run specifically (the pointer may have moved on); a `concurrent` list on stderr/in the artifact
 NAMES a racing writer instead of silently last-write-wins; and an abandoned slot (in-flight marker
 outliving its pid) is a DIED run, which `check:show` refuses — that is an environment-is-lying
-`SendMessage`, not a finding. **Your OWN instrument outputs are deliberately NOT slotted yet** —
-`reports/snaps/`, `design-audit/`, `traces/`, `perf-meter/`, `recordings/`, `baselines/` are `--out`-keyed
-families where the caller names the artifact. So under multi-lane load, NAME YOUR OUTPUTS (`--out
-<lane>-<surface>-<arm>`); an unnamed shot is a filename a sibling probe can overwrite. Layout's one home:
+`SendMessage`, not a finding. **Your OWN instruments are slotted too since #1164** — `snap`,
+`design-audit`, `record`, `motion-audit` and `perf-meter` each write inside
+`reports/runs/<instrument>/<runId>/` and publish ONE POINTER PER ARTIFACT at finish, so
+`reports/snaps/<name>.png`, `design-audit/`, `traces/`, `perf-meter/`, `recordings/` keep the spelling you
+already cite and a sibling lane can no longer overwrite your shot. Each run PRINTS its slot
+(`run slot reports/runs/snap/<runId>`) as its first line and NAMES any racing sibling. Consequences for
+you: cite the published path in a finding (it is the stable name a reader opens), and the SLOT path when
+you need the pixels of that exact run (a later run of the same `--out` name re-aims the pointer).
+`--out <lane>-<surface>-<arm>` is still the good manners that keeps two of YOUR OWN shots apart — it is no
+longer what keeps two LANES apart. `reports/baselines/` is deliberately not slotted (a `--baseline` golden
+is read by a later `--diff`). Layout's one home:
 `docs/architecture/core/UNIFIED-VERIFICATION-DESIGN.md` §3.3b.
 
 **2. `pnpm design-audit` now owes a POPULATION VERDICT, and a partial run is exit 2 — read it before you

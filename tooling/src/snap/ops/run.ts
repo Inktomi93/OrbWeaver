@@ -1,7 +1,8 @@
 // The single-run pass: launch, drive+capture every page, the watch series, report, baseline/diff,
 // the manifest, and the RESULT line. One browser run, many pieces of evidence.
 import type { Page } from "@playwright/test";
-import { artifactFile, artifactKey } from "../../_shared/artifacts.ts";
+import { artifactFile } from "../../_shared/artifact-out.ts";
+import { artifactKey } from "../../_shared/artifacts.ts";
 import type { ProbeSession } from "../../_shared/browser.ts";
 import { closeProbeSessionAfterError } from "../../_shared/browser.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
