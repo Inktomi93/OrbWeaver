@@ -33,7 +33,6 @@ export {
   __resetAppearanceBootHint,
   DATA_THEME_ATTR,
   FONT_SCALE_VAR,
-  isSeedThemeName,
   REDUCED_MOTION_ATTR,
   rememberAppearanceBootHint,
   rememberDataThemeHint,

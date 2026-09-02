@@ -82,10 +82,6 @@ const DEFAULT_STATE: AppearanceBootHintState = { ...DEFAULT_AXES, dataTheme: nul
 
 const PERSIST_VERSION = 1;
 
-// The guard itself lives at the util floor beside `dataThemeOf` (one predicate, one home); this module
-// keeps re-exporting it so every `#state` consumer is untouched by the re-home.
-export { isSeedThemeName } from "#lib";
-
 /** TOTAL: any shape that is not a valid remembered answer degrades to "this device knows nothing". */
 function migrate(persisted: unknown): AppearanceBootHintState {
   if (!isPlainObject(persisted)) {

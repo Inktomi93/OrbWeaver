@@ -8,7 +8,7 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { isSeedThemeName } from "../../../packages/client/src/state/appearance-boot-hint.ts";
+import { isSeedThemeName } from "../../../packages/client/src/lib/resolve-theme-scope-tokens.ts";
 import { AppearanceBootHintProbe } from "./_ct-stories.tsx";
 
 /** The store's own key (`createPersistedStore("appearance-boot")`) on a browser with no identity bound. */
