@@ -15,7 +15,7 @@ import { castId } from "@orb/kit/ids";
 import type { TRPCError } from "@trpc/server";
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import type { ResponseMeta } from "@trpc/server/http";
-import type { MiddlewareHandler } from "hono";
+import type { Context, MiddlewareHandler } from "hono";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import type { ExportService } from "#domain/export";
@@ -422,7 +422,14 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
     // #412: the recorder-state publisher. Spread like rpgTrace so an absent dep leaves the route on its env
     // fallback rather than pinning it to a `false` this app never actually decided.
     ...(deps.wireCapture === undefined ? {} : { wireCaptureEnabled: (): boolean => deps.wireCapture === true }),
-    auth: { expectedToken: env.DEBUG_TOKEN, adminAuth: { isAdmin: deps.seam.isAdmin } },
+    // The admin arm judges the ONE principal the auth middleware above already resolved for this request
+    // (spine invariant #2). It must never re-resolve: the peer-less second resolution this replaced could not
+    // mint the loopback owner arm, so a single-user/dev box's only operator was refused at its own door
+    // (#1193). `?? null` is the fail-closed read for a context this middleware never ran on.
+    auth: {
+      expectedToken: env.DEBUG_TOKEN,
+      adminAuth: { isAdmin: (c: Context): boolean => deps.seam.debugGateAdmits((c as Context<AppEnv>).get("principal") ?? null, c.req.raw.headers) },
+    },
   });
 
   // The SPA static-serve registers LAST — every route above wins by order; only unmatched non-/api GETs

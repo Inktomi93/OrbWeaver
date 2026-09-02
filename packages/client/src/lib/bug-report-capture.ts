@@ -195,8 +195,26 @@ export function captureBugReportBundle(input: BugReportCaptureInput): BugReportC
  *  shows the reason. */
 export type BugReportSubmission = { readonly ok: true; readonly id: string; readonly json: string } | { readonly ok: false; readonly reason: string };
 
-/** POST one captured report. Same-origin, credentialed — the `/api/_debug` gate admits the dev admin session
- *  (or `x-debug-token`), exactly as `readAutomationFires` documents for the read side. */
+/** The gate's own words for WHICH arm refused (`foundation/observability/debug/routes.ts` — it names the
+ *  admin-session arm and the token arm separately). Read from the body because "an admin session or
+ *  x-debug-token" told the owner nothing actionable while the SESSION arm was the one refusing (#1193). A
+ *  non-gate failure (a proxy 502, an HTML error page) has no such body — then the status alone is the honest
+ *  answer, and inventing a cause for it would be worse than saying less. */
+async function refusalReason(response: Response): Promise<string | null> {
+  // @orb-gate-ignore caught-failure-ownership(default:catch): the FAILURE is already owned and surfaced — the caller returns `{ok:false}` and the button's status line renders `HTTP <status> from <route>` either way. This try only asks whether the body ADDS a named arm; a non-JSON error page (proxy 502, HTML) is the expected miss, and `null` means "say only what is true". Ends if a refusal body ever becomes required rather than additive.
+  try {
+    const body = (await response.json()) as { reason?: unknown; error?: unknown };
+    // `reason` names the ARM; `error` is the gate's older one-word shape — take whichever the server sent.
+    const named = [body.reason, body.error].find((value): value is string => typeof value === "string" && value.length > 0);
+    return named ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** POST one captured report. Same-origin, credentialed — the `/api/_debug` gate admits an admin/owner
+ *  session (on the dev box this button lives on, that IS the loopback owner fallback) or `x-debug-token`,
+ *  exactly as `readAutomationFires` documents for the read side. */
 export async function submitBugReport(bundle: BugReportClientBundle): Promise<BugReportSubmission> {
   const response = await fetch(BUG_REPORT_ROUTE, {
     method: "POST",
@@ -205,7 +223,9 @@ export async function submitBugReport(bundle: BugReportClientBundle): Promise<Bu
     body: JSON.stringify({ note: bundle.note, windowMinutes: bundle.window.requestedMinutes, client: bundle }),
   });
   if (!response.ok) {
-    return { ok: false, reason: `HTTP ${response.status} from ${BUG_REPORT_ROUTE} — the debug gate admits an admin session or x-debug-token` };
+    const named = await refusalReason(response);
+    const because = named === null ? "" : ` — ${named}`;
+    return { ok: false, reason: `HTTP ${response.status} from ${BUG_REPORT_ROUTE}${because}` };
   }
   const body = (await response.json()) as { id?: unknown; written?: { json?: unknown } };
   const id = typeof body.id === "string" ? body.id : "";

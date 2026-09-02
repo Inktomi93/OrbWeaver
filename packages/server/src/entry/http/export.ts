@@ -9,9 +9,10 @@
 // `resolvePrincipal`) — and under `AUTH_MODE=single-user` that resolution mints the owner-fallback principal
 // unconditionally (`via:"fallback"`, `infra/auth.resolve`'s `ownerFallbackAllowed`). So a cookie-less request
 // to this door returns 200 in single-user mode, correctly: in that deployment the fallback owner IS the
-// principal. An origin is not a credential, which is why the DEBUG gate refuses `via:"fallback"` explicitly
-// (`seam.ts` `DEBUG_GATE_CREDENTIALED`) — these routes deliberately do not, because they serve the owner
-// their own rows. Do not read "owner-gated" here as an authentication claim.
+// principal. An origin is not a credential, which is why the DEBUG gate treats `via:"fallback"` as one only
+// on a non-production box (`seam.ts` `debugGateCredentialed`, #1193) — these routes deliberately gate on
+// nothing extra, because they serve the owner their own rows. Do not read "owner-gated" here as an
+// authentication claim.
 //
 // The library route iterates the injected `PortabilityRegistry`:
 // for each requested kind it pulls that entity's exportAll(ownerId) and packs each file into one streamed

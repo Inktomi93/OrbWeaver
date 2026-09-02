@@ -18,7 +18,11 @@
 //                                               404s; the SESSION arm still opens the door (that is the
 //                                               designed headless-vs-human split, not a gap). The token is a
 //                                               bearer secret with no expiry and no per-caller identity —
-//                                               its only lifecycle is rotation.
+//                                               its only lifecycle is rotation. WHICH admissions count as
+//                                               "an admin SESSION" is the rule below
+//                                               ({@link resolveOwnerFallbackCredential}) — on a DEV box the
+//                                               operator's session IS the loopback owner fallback, and
+//                                               excluding it closed the door to its only user (#1193).
 //
 //   RETENTION   `WIRE_CAPTURE`, `RPG_TRACE`     WHAT IS BEHIND THE DOOR. Off ⇒ the recorder sink is never
 //               (`debug/wire-capture.ts`,       wired: zero retained bytes, byte-identical turns, and the
@@ -43,6 +47,47 @@
 // A FAIL-CLOSED arm (refuse to wire a capture sink at all while the perimeter is open) is the obvious next
 // tightening and is deliberately NOT taken here: it would silently disable capture on a running deployment
 // that has it on today, which is a posture flip the operator owns. The warning names the exact fix instead.
+
+/** The raw env values the OWNER-FALLBACK credential rule reads — passed in so this file never touches
+ *  `process.env` (the `BindPostureInput` shape). `authFallback` is a LAUNCH-time value, never a `.env` key
+ *  (`foundation/env`'s superRefine refuses one), so a box's answer here is decided by how it was started. */
+export interface OwnerFallbackCredentialInput {
+  readonly nodeEnv: "development" | "production" | "test";
+  readonly authFallback: "owner" | "deny";
+}
+
+/**
+ * IS THE UN-CREDENTIALED LOOPBACK OWNER FALLBACK THIS BOX'S OPERATOR CREDENTIAL, or an acknowledged
+ * SSO-bypass hazard? The one home for that question; `entry/auth/seam.ts` consumes the boolean at the
+ * /api/_debug credential plane and decides nothing about it itself (#1193).
+ *
+ * WHY THE QUESTION EXISTS. `via:"fallback"` is minted only when `AUTH_FALLBACK=owner` AND the raw TCP peer is
+ * LOOPBACK (`infra/auth/dispatch.ts::ownerFallbackAllowed`, #298 f2) — but "loopback peer" means two opposite
+ * things depending on how the box was started. On a DEV stack (vite proxying over 127.0.0.1, loopback-bound
+ * by `bind.ts`'s deploy-mode invariant) it means "the human at this machine", and it is the only way that
+ * human authenticates: they already hold full owner authority on every tRPC surface without presenting
+ * anything, which is why refusing them at the diagnostics door closed it to its only user (#1193). Behind a
+ * same-host reverse proxy in PRODUCTION it means "any request from the internet".
+ *
+ * THE RULE IS PRODUCTION-EXCLUDING, and it reuses the discriminator the SSO-bypass ruling already chose
+ * (NODE_ENV — `foundation/env/index.ts`'s superRefine, #298 owner ruling 2026-08-19) rather than minting a
+ * second flag the two could disagree about. Two production cases are deliberately NOT covered even though
+ * their fallback arm is live:
+ *   • `single-user` in production, where `AUTH_FALLBACK=owner` is forced (deny is boot-fatal there): behind a
+ *     same-host proxy every external request is a loopback peer, and the prod image spec leans on
+ *     "/api/_debug is not exposed regardless" as a belt (containerize-prod-image-spec.md §3.1/§4). The debug
+ *     surface holds more than the app does — RAW PROVIDER REQUEST BODIES with WIRE_CAPTURE=on — so that belt
+ *     stays. The operator of a prod box has `DEBUG_TOKEN`.
+ *   • a prod BREAK-GLASS session: an operator who edited the launch environment to open the recovery door
+ *     holds the token too, and that door is the one the proxy laundering rides.
+ *
+ * WHAT IT DOES NOT WEAKEN: it says nothing about who may reach the socket. A LAN caller never mints
+ * `via:"fallback"` at all (the peer gate), so a `true` here cannot admit anyone the box does not already
+ * serve as the owner. ENFORCER: `tests/server/entry/debug-gate.suite.test.ts` (both postures, both peers).
+ */
+export function resolveOwnerFallbackCredential(input: OwnerFallbackCredentialInput): boolean {
+  return input.authFallback === "owner" && input.nodeEnv !== "production";
+}
 
 /** The composed verdict. Keys on RETENTION × PERIMETER — the credential planes are reported as facts
  *  beside it, because the door has a second credential (an admin session) that no env knob can remove. */
