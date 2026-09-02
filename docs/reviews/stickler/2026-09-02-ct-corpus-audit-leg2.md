@@ -40,8 +40,8 @@ current as of the newest commit.
 | Leg | Full-read files | Lines | Findings |
 | - | - | - | - |
 | Leg 1 | 24 | \~26,100 | F1 (#1240) · F2 (#1241) · F3 (#1242) |
-| Leg 2 so far | 32 | \~15,580 | none yet |
-| **Total** | **56 / 469** | \~41,680 | ceiling P3 |
+| Leg 2 so far | 39 | \~17,060 | none yet |
+| **Total** | **63 / 469** | \~43,160 | ceiling P3 |
 
 Leg-2 files read and judged (chunk 1): `web-weave.ct.tsx`, `slider.ct.tsx`, `toast.ct.tsx`,
 `sandbox-frame.ct.tsx`, `params-deck.ct.tsx`, `chat-room-surface.ct.tsx`,
@@ -53,7 +53,10 @@ Leg-2 files read and judged (chunk 1): `web-weave.ct.tsx`, `slider.ct.tsx`, `toa
 `assembly-preview-panel.ct.tsx`, `corpus-content.ct.tsx`, `databank-detail-surface.ct.tsx`,
 `workloads-group.ct.tsx`, `injections-manager.ct.tsx`, `payload-view.ct.tsx`. Chunk 5:
 `analytics-overview-surface.ct.tsx`, `image-detail-body.ct.tsx`, `message-media-block.ct.tsx`,
-`room-overrides-form.ct.tsx`, `form-identity.suite.ct.tsx`, `web-weave-touch.ct.tsx`.
+`room-overrides-form.ct.tsx`, `form-identity.suite.ct.tsx`, `web-weave-touch.ct.tsx`. Chunk 6
+(ex-fenced batch): `appearance-background-section.ct.tsx`, `config-teacher.ct.tsx`,
+`config-search-input.ct.tsx`, `config-save-footer.ct.tsx`, `config-list-collection-group.ct.tsx`,
+`config-group-placeholder.ct.tsx`, `config-palette-source.ct.tsx`.
 
 ## 2. Findings
 
@@ -352,18 +355,69 @@ range is documented), with the inert-weave instrument control making the verdict
 reduced-motion arm pinning byte-identical pixels AND no extra frame, and the scroll fence keeping
 `touch-action` honest. Emulation-landed control first.
 
+## 3f. Per-file verdicts — chunk 6, the ex-fenced batch (7 files, all CLEAN)
+
+All seven are post-fold on this base (the config batch and app-shell/analytics debt legs landed before
+main @ `0d07eeb2a`).
+
+### 3f.1 `tests/client/features/app-shell/components/appearance-background-section.ct.tsx` (405 lines) — CLEAN
+
+The strongest ex-fenced file. Its header records the #1207 re-pin history (four combobox-shaped tests
+re-pinned STRICTLY STRONGER on the MediaGrid picker — each new claim one the old shape could not make).
+The refusal arm derives its idle window from the form's own `DEFAULT_DEBOUNCE_MS` (never a guessed
+sleep) and asserts the absolute no-write claim with the gate's shape-change reasoning documented. The
+\#1194 jiggle pin runs a commit tally AND a direct-DOM geometry sampler (the tally's blind spot named),
+and the DPR arms plant a positive control on the error recorder in the same invocation. The P1 patch
+pin asserts the key-minimal set exactly.
+
+### 3f.2 `tests/client/features/config/components/config-teacher.ct.tsx` (370 lines) — CLEAN
+
+Supersedes the retired `config-context-body.ct.tsx` with the retirement stated (surface-flip retires
+the CT premise; the say-it-once law re-pinned on the new anatomy). The #926 roster-is-the-viewport pins
+barrier on states that exist in both worlds before absence sweeps (the vacuous-pass hazard named); the
+display-word pin (#1099 F15) reads both the roster and the drill; both default-vs-modified About arms
+planted with the Reset wire receipt.
+
+### 3f.3 `tests/client/features/config/components/config-search-input.ct.tsx` (234 lines) — CLEAN
+
+The one-changed-setting fixture pins leaf-grain `@modified` (the section-grain false-positive class,
+\#1099 F16) with the same-file same-derivation reasoning for why the band/shelf pins live here. Moved/
+absorbed-leaf jump receipts; `when`-parity negative for admin rows.
+
+### 3f.4 `tests/client/features/config/components/config-save-footer.ct.tsx` (202 lines) — CLEAN
+
+`bumpScanDepth` scoping supersedes a workaround with the drift mechanism recorded (the disabled-stepper
+hang). Error/BLOCKED/SAVED arms all driven through the production composition; the geometry and
+type-step receipts RETRY with the still-settling reason stated; locate-don't-retry (D41) pinned in both
+directions.
+
+### 3f.5 `tests/client/features/config/components/config-list-collection-group.ct.tsx` (113 lines) — CLEAN
+
+An extracted module's own coverage decision, with the deliberate non-restatement of sibling coverage
+documented (coverage theatre named). Reserved-gutter pins measure deltas between real siblings via
+polls; visibility-hidden-not-display-none pinned directly.
+
+### 3f.6 `tests/client/features/config/components/config-group-placeholder.ct.tsx` (101 lines) — CLEAN
+
+Scaffolded intent EARNS a live subject rather than being deleted (the unwired-≠-worthless doctrine,
+applied); words-never-colour-alone with the colour delta as the second channel; the one-marker census
+proves the classification.
+
+### 3f.7 `tests/client/features/config/lib/config-palette-source.ct.tsx` (57 lines) — CLEAN
+
+Asserts at the store action via the nav probe with the rendered-echo-would-assert-the-harness reasoning
+stated; `when`-parity rides into the palette.
+
 ## 4. Verified clean so far (leg-2 methods)
 
-- Full-read of all 32 files above, whole files, no sampling.
+- Full-read of all 39 files above, whole files, no sampling.
 - Fresh merged-tree Phase A scan (469/469 files, scannedFileCount cross-checked against `git ls-files`).
-- Helper-hoisted site classification against the scan's site list; every site in the 32 files accounted
+- Helper-hoisted site classification against the scan's site list; every site in the 39 files accounted
   for above.
 
 ## 5. Remaining leg-2 queue (state at this commit)
 
-Core helper-await population: DRAINED except the 3 pre-fold-flagged files (below).
-Ex-fenced batch:
-appearance-background-section (405), config-teacher (370), config-search-input (234), config-save-footer
-(202), config-list-collection-group (113), config-group-placeholder (101), config-palette-source (57).
-Pre-fold-flagged (last, dead-text risk): config-welcome (755), config-content-surface (908),
-config-list-surface (1240). Then the HI-band remainder if budget allows.
+Pre-fold-flagged (parked by design, dead-text risk — `config-welcome.ct.tsx` is DELETED and
+`config-content-surface.ct.tsx` extracted 908→394 in the fold-ready collections batch): config-welcome
+(755), config-content-surface (908), config-list-surface (1240). Then the HI-band remainder as budget
+allows.
