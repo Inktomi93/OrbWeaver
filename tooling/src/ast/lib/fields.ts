@@ -1,7 +1,7 @@
 // contract-field-liveness collectors: producers / consumers / model-projection fences.
 import type { JsxAttribute, Project, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import type { ContractField, FieldReadSites, Hit } from "../contract/types.ts";
+import type { ContractField, FieldHitClass, FieldIndexes, FieldReadSites, Hit, TemplateBracket } from "../contract/types.ts";
 import { relPath } from "../ops/swallowed.ts";
 import { hitOf } from "./emit.ts";
 import { isTestPath } from "./root.ts";
@@ -57,6 +57,25 @@ import { isTestPath } from "./root.ts";
 // STILL REPORTED, deliberately: a wire-INPUT-only schema (a tRPC `.input(…)`, a plugin-guest DTO). Fencing
 // by router input would fence most of `contracts` — the two real defects live in schemas one hop from an
 // import route — so that class stays adjudicable and its hits carry the normal caveat.
+//
+// #879 / Brief 3 §5 — LENS HYGIENE, two changes, both about the reader's HOUR rather than the lens's reach:
+//   • THE SCHEMA-COMPOSITION ALIAS is FENCED. `thresholdPct: generationKnobSchemas.compactionThresholdPct`
+//     (`contracts/src/preset/index.ts`) REUSES a declared schema under a different wire name, so the source
+//     field's own name is spelled by no producer and never will be — a permanent false positive, twice over
+//     at the 2026-08-30 census. The fence is OWNER-MATCHED (`<owner>.<field>` must appear as a property
+//     initializer somewhere in the corpus), not a bare name match, because a bare one would absolve every
+//     `dims: block.dims` pass-through and this lens must never over-fence.
+//   • EVERY HIT CARRIES ITS CLASS, so a run is triage-free and only `unclassified` is worth a human read.
+//     The classes are DERIVED, never declared: `template-key` (a corpus producer BUILDS the key — either a
+//     template literal's own head/tail brackets the name, or a key-BUILDING file's string literal is a name
+//     part, which is what the live `statsDeltaSchema.*Samples` producer needs since its template carries no
+//     literal text of its own), `guest` (the declaration
+//     lives in the plugin key space, whose producer is a guest), `foreign-format` (an ST / character-card
+//     schema, whose producer is a foreign file). `dormant-cited` is DELIBERATELY ABSENT: the 2026-08-30
+//     census called eight hits "cited dormancy", but nothing in `contracts` EXPRESSES dormancy — there is
+//     no marker to read (`INTENTIONAL-DORMANT` matches zero lines on the tree), and inferring it from prose
+//     would be a guess wearing a label. Those hits land in `unclassified`, which is honest. It becomes
+//     derivable the day a dormancy marker exists.
 export const CONTRACTS_SRC = "/packages/contracts/src/";
 
 const ZOD_INIT_RE = /^z\s*\./u;
@@ -262,11 +281,73 @@ function consumedNamesOf(sf: SourceFile, out: Map<string, FieldReadSites>): void
   }
 }
 
+/** `<owner>.<field>` for every SCHEMA-COMPOSITION ALIAS: a property whose initializer is a bare
+ *  `Ident.name` property access, i.e. a declared schema REUSED under another wire name
+ *  (`thresholdPct: generationKnobSchemas.compactionThresholdPct`). Owner-matched on purpose — crediting the
+ *  NAME alone would absolve every `dims: block.dims` pass-through and blind the lens to real hits. */
+function compositionAliasesOf(sf: SourceFile, out: Set<string>): void {
+  for (const pa of sf.getDescendantsOfKind(SyntaxKind.PropertyAssignment)) {
+    const access = pa.getInitializer()?.asKind(SyntaxKind.PropertyAccessExpression);
+    const receiver = access?.getExpression().asKind(SyntaxKind.Identifier);
+    if (access !== undefined && receiver !== undefined) {
+      out.add(`${receiver.getText()}.${access.getName()}`);
+    }
+  }
+}
+
+/** How much literal text a template part must carry before it may bracket a field name. A one-character
+ *  head would match half the corpus. */
+const TEMPLATE_PART_MIN = 3;
+
+/** How long a bare string literal must be before it counts as a name PART. */
+const KEY_PART_MIN = 6;
+
+/** Does this file BUILD property keys — a computed key whose expression is computed
+ *  (`{ [field("TokensIn")]: n }`) or an element-access write through a template (``acc[`tokensIn${k}`]``)?
+ *  Only such a file's string literals are read as name PARTS below; anywhere else a 6-char literal that
+ *  happens to end a field name is a coincidence, not evidence. */
+function buildsKeys(sf: SourceFile): boolean {
+  const computed = sf
+    .getDescendantsOfKind(SyntaxKind.ComputedPropertyName)
+    .some((c) => c.getExpression().getKind() === SyntaxKind.CallExpression || c.getExpression().getKind() === SyntaxKind.TemplateExpression);
+  return (
+    computed || sf.getDescendantsOfKind(SyntaxKind.ElementAccessExpression).some((e) => e.getArgumentExpression()?.getKind() === SyntaxKind.TemplateExpression)
+  );
+}
+
+/** The literal text a corpus producer BRACKETS a built key with — the shape no key index can see. Two
+ *  sources, because the live producers use both: a template EXPRESSION's own head/tail
+ *  (``acc[`tokensIn${kind}`]``), and, inside a key-BUILDING file, its bare string literals used as name
+ *  parts (`const suffix = "MeasuredSamples"` feeding `` `${prefix}${axis}${suffix}` `` — the live
+ *  `statsDeltaSchema.*Samples` producer, whose template has NO literal text of its own at all). */
+function templateBracketsOf(sf: SourceFile, out: TemplateBracket[]): void {
+  for (const tmpl of sf.getDescendantsOfKind(SyntaxKind.TemplateExpression)) {
+    const head = tmpl.getHead().getLiteralText();
+    const tail = tmpl.getTemplateSpans().at(-1)?.getLiteral().getLiteralText() ?? "";
+    if (head.length >= TEMPLATE_PART_MIN || tail.length >= TEMPLATE_PART_MIN) {
+      out.push({ head, tail });
+    }
+  }
+  if (!buildsKeys(sf)) {
+    return;
+  }
+  for (const lit of sf.getDescendantsOfKind(SyntaxKind.StringLiteral)) {
+    const text = lit.getLiteralText();
+    if (text.length >= KEY_PART_MIN && !text.includes(" ") && !text.includes("/")) {
+      out.push({ head: "", tail: text });
+      out.push({ head: text, tail: "" });
+    }
+  }
+}
+
 /** The producer / consumer indexes over the PRODUCTION corpus (tests excluded — a test constructing a
- *  fixture is not a producer, the same rule `testonly` and `regkeys` apply). */
-export function fieldIndexes(project: Project): { readonly produced: Set<string>; readonly consumed: Map<string, FieldReadSites> } {
+ *  fixture is not a producer, the same rule `testonly` and `regkeys` apply). `aliased` and `templates` are
+ *  the #879 hygiene halves: the composition-alias fence and the `template-key` class evidence. */
+export function fieldIndexes(project: Project): FieldIndexes {
   const produced = new Set<string>();
   const consumed = new Map<string, FieldReadSites>();
+  const aliased = new Set<string>();
+  const templates: TemplateBracket[] = [];
   const stringConsts = new Map<string, string>();
   const computedKeys = new Set<string>();
   for (const sf of project.getSourceFiles()) {
@@ -276,6 +357,8 @@ export function fieldIndexes(project: Project): { readonly produced: Set<string>
     producedNamesOf(sf, produced);
     consumedNamesOf(sf, consumed);
     computedKeyEvidenceOf(sf, stringConsts, computedKeys);
+    compositionAliasesOf(sf, aliased);
+    templateBracketsOf(sf, templates);
   }
   for (const ident of computedKeys) {
     const resolved = stringConsts.get(ident);
@@ -283,7 +366,24 @@ export function fieldIndexes(project: Project): { readonly produced: Set<string>
       produced.add(resolved);
     }
   }
-  return { produced, consumed };
+  return { produced, consumed, aliased, templates };
+}
+
+/** An ST (`stPresetSchema`) or character-card schema — a FOREIGN file's key space, produced off-tree. */
+const FOREIGN_FORMAT_OWNER_RE = /^st[A-Z]|[Cc]ardV\d/u;
+/** The plugin key space: a guest authors these keys, so no on-tree producer exists by construction. */
+const GUEST_OWNER_RE = /plugin/iu;
+const GUEST_PATH = "/plugin";
+
+/** ONE hit's CLASS, derived — never declared. `unclassified` is the only one worth a human read. */
+export function fieldClass(field: ContractField, indexes: FieldIndexes): FieldHitClass {
+  if (indexes.templates.some((t) => field.name.startsWith(t.head) && field.name.endsWith(t.tail) && field.name.length > t.head.length + t.tail.length)) {
+    return "template-key";
+  }
+  if (GUEST_OWNER_RE.test(field.owner) || field.node.getSourceFile().getFilePath().includes(GUEST_PATH)) {
+    return "guest";
+  }
+  return FOREIGN_FORMAT_OWNER_RE.test(field.owner) ? "foreign-format" : "unclassified";
 }
 
 /** A zod field whose OWN chain carries `.default(…)` populates itself — the schema is the producer, and the
@@ -321,8 +421,16 @@ function readersOf(field: ContractField, consumed: ReadonlyMap<string, FieldRead
   return readers;
 }
 
+/** Is this field a SCHEMA-COMPOSITION ALIAS — a declared schema REUSED under another wire name (#879)? Its
+ *  own name has no producer BY CONSTRUCTION, so it is a permanent false positive. Fenced in the op (beside
+ *  the model-projection fence) rather than swallowed here, so the excluded COUNT stays visible. */
+export function isCompositionAlias(field: ContractField, indexes: FieldIndexes): boolean {
+  return indexes.aliased.has(`${field.owner}.${field.name}`);
+}
+
 /** ONE field's verdict line, or undefined when a producer spells it (or the schema defaults it itself). */
-export function fieldHit(field: ContractField, produced: ReadonlySet<string>, consumed: ReadonlyMap<string, FieldReadSites>): Hit | undefined {
+export function fieldHit(field: ContractField, indexes: FieldIndexes): Hit | undefined {
+  const { produced, consumed } = indexes;
   if (produced.has(field.name) || isSelfDefaulted(field.node)) {
     return;
   }
@@ -337,6 +445,6 @@ export function fieldHit(field: ContractField, produced: ReadonlySet<string>, co
       ? "and NOTHING spells it either — the declaration is its only occurrence (the activeSpeakerCharacterId class)"
       : `but ${readers.length} site(s) SPELL this NAME as a read (${where}${readers.length > FIELD_READ_SITES_SHOWN ? ", …" : ""}) — the RepetitionDetection class, name-matched not type-resolved`;
   const hit = hitOf(field.node, kind);
-  hit.text = `${field.owner}.${field.name} — NO producer spells this name outside its own declaration, ${tail}`;
+  hit.text = `[${fieldClass(field, indexes)}] ${field.owner}.${field.name} — NO producer spells this name outside its own declaration, ${tail}`;
   return hit;
 }

@@ -32,9 +32,11 @@ import {
   collectTypeOnlyCandidates,
   contractFieldsOf,
   deadEvidenceFor,
+  fieldClass,
   fieldHit,
   fieldIndexes,
   isColumnExempt,
+  isCompositionAlias,
   isNearPairExempt,
   isProdConsumed,
   isPublicTagged,
@@ -1092,8 +1094,8 @@ export const origin = { aliveKnob: 3 };
       "RepetitionDetection.builtHere",
       "AssembleContext.activeSpeakerCharacterId",
     ]);
-    const { produced, consumed } = fieldIndexes(project);
-    const hits = fields.flatMap((f) => fieldHit(f, produced, consumed) ?? []);
+    const indexes = fieldIndexes(project);
+    const hits = fields.flatMap((f) => fieldHit(f, indexes) ?? []);
     expect(hits.map((h) => h.kind)).toEqual(["field-consumed-never-populated", "field-declared-only"]);
     expect(hits[0]?.text).toContain("RepetitionDetection.maxPatternSize");
     expect(hits[0]?.text).toContain("chat-completion.ts");
@@ -1118,12 +1120,12 @@ export const make = (): { imageEmbedModel: string } => ({
 `,
     });
     const contracts = project.getSourceFileOrThrow("/repo/packages/contracts/src/role-clients/index.ts");
-    const { produced, consumed } = fieldIndexes(project);
-    const hits = contractFieldsOf(contracts).flatMap((f) => fieldHit(f, produced, consumed) ?? []);
+    const indexes = fieldIndexes(project);
+    const hits = contractFieldsOf(contracts).flatMap((f) => fieldHit(f, indexes) ?? []);
     // imageEmbedModel is produced by the getter (a key-only index read it as unpopulated — the live shape);
     // `declaredOnly`'s own `z.object` key is a DECLARATION and cannot populate itself.
     expect(hits.map((h) => h.text)).toEqual([
-      "schema.declaredOnly — NO producer spells this name outside its own declaration, and NOTHING spells it either — the declaration is its only occurrence (the activeSpeakerCharacterId class)",
+      "[unclassified] schema.declaredOnly — NO producer spells this name outside its own declaration, and NOTHING spells it either — the declaration is its only occurrence (the activeSpeakerCharacterId class)",
     ]);
   });
 
@@ -1160,10 +1162,10 @@ export const Section = (form: { setFieldValue: (k: string, v: unknown) => void }
 `,
     });
     const contracts = project.getSourceFileOrThrow("/repo/packages/contracts/src/character/index.ts");
-    const { produced, consumed } = fieldIndexes(project);
-    const hits = contractFieldsOf(contracts).flatMap((f) => fieldHit(f, produced, consumed) ?? []);
+    const indexes = fieldIndexes(project);
+    const hits = contractFieldsOf(contracts).flatMap((f) => fieldHit(f, indexes) ?? []);
     // Only the field NO shape populates survives — the other four are live write paths.
-    expect(hits.map((h) => h.text.split(" — ")[0])).toEqual(["cardSchema.neverProduced"]);
+    expect(hits.map((h) => h.text.split(" — ")[0])).toEqual(["[unclassified] cardSchema.neverProduced"]);
   });
 
   test("a SAME-FILE consumer is visible: the fence is the declaration NODE, not the declaring file", () => {
@@ -1177,8 +1179,8 @@ export const importSt = (raw: Record<string, number>): number => raw.injection_d
 `,
     });
     const contracts = project.getSourceFileOrThrow("/repo/packages/contracts/src/preset/index.ts");
-    const { produced, consumed } = fieldIndexes(project);
-    const hits = contractFieldsOf(contracts).flatMap((f) => fieldHit(f, produced, consumed) ?? []);
+    const indexes = fieldIndexes(project);
+    const hits = contractFieldsOf(contracts).flatMap((f) => fieldHit(f, indexes) ?? []);
     expect(hits.map((h) => h.kind)).toEqual(["field-consumed-never-populated"]);
     // The declaring file NAMES ITSELF as the consumer — the whole point: the read is real, it is just local.
     expect(hits[0]?.text).toContain("1 site(s) SPELL this NAME as a read (/repo/packages/contracts/src/preset/index.ts)");
@@ -1195,10 +1197,10 @@ export const chunkParamsSchema = z.object({
 `,
     });
     const contracts = project.getSourceFileOrThrow("/repo/packages/contracts/src/databank/index.ts");
-    const { produced, consumed } = fieldIndexes(project);
-    const hits = contractFieldsOf(contracts).flatMap((f) => fieldHit(f, produced, consumed) ?? []);
+    const indexes = fieldIndexes(project);
+    const hits = contractFieldsOf(contracts).flatMap((f) => fieldHit(f, indexes) ?? []);
     // `overlapPercent` populates itself; `nested` does NOT inherit its child's default; `inner` does.
-    expect(hits.map((h) => h.text.split(" — ")[0])).toEqual(["chunkParamsSchema.nested"]);
+    expect(hits.map((h) => h.text.split(" — ")[0])).toEqual(["[unclassified] chunkParamsSchema.nested"]);
   });
 
   test("an ARRAY destructure is positional and credits NO reader; an OBJECT destructure still does", () => {
@@ -1217,11 +1219,68 @@ export const fire = async (load: () => Promise<[string, string]>, input: { entry
 `,
     });
     const contracts = project.getSourceFileOrThrow("/repo/packages/contracts/src/plugin/manifest.ts");
-    const { produced, consumed } = fieldIndexes(project);
-    const hits = contractFieldsOf(contracts).flatMap((f) => fieldHit(f, produced, consumed) ?? []);
+    const indexes = fieldIndexes(project);
+    const hits = contractFieldsOf(contracts).flatMap((f) => fieldHit(f, indexes) ?? []);
     const byField = new Map(hits.map((h) => [h.text.split(" — ")[0], h.kind]));
-    expect(byField.get("manifestSchema.author")).toBe("field-declared-only");
-    expect(byField.get("manifestSchema.entryKey")).toBe("field-consumed-never-populated");
+    expect(byField.get("[guest] manifestSchema.author")).toBe("field-declared-only");
+    expect(byField.get("[guest] manifestSchema.entryKey")).toBe("field-consumed-never-populated");
+  });
+
+  // -- #879 lens hygiene: the composition-alias fence and the derived hit CLASS ------------------------
+  test("a SCHEMA-COMPOSITION ALIAS is fenced, and a same-named pass-through is NOT (the fence is owner-matched)", () => {
+    const project = projectOf({
+      // The live shape: `generationKnobSchemas.compactionThresholdPct` reused under the wire name
+      // `thresholdPct`, so the source field's own name is spelled by no producer and never will be.
+      "packages/contracts/src/preset/index.ts": `
+import { z } from "zod";
+export const knobSchemas = { compactionThresholdPct: z.number() };
+export const compactionSchema = z.object({ thresholdPct: knobSchemas.compactionThresholdPct });
+export const imageSchema = z.object({ dims: z.string() });
+`,
+      // A pass-through of a SAME-NAMED property. It must NOT absolve `imageSchema.dims`: a bare name match
+      // would, which is exactly the over-fence this lens must never grow.
+      "packages/server/src/domain/imagery/verbs/emit.ts": `
+export const emit = (block: { dims: string }): { d: string } => ({ d: block.dims });
+`,
+    });
+    const contracts = project.getSourceFileOrThrow("/repo/packages/contracts/src/preset/index.ts");
+    const indexes = fieldIndexes(project);
+    const fields = contractFieldsOf(contracts);
+    const aliasFenced = fields.filter((f) => isCompositionAlias(f, indexes)).map((f) => `${f.owner}.${f.name}`);
+    expect(aliasFenced).toEqual(["knobSchemas.compactionThresholdPct"]);
+    // The control, both directions: `dims` still HITS (nothing produces it), so the fence did not widen.
+    const unfenced = fields.filter((f) => !isCompositionAlias(f, indexes) && fieldHit(f, indexes) !== undefined).map((f) => `${f.owner}.${f.name}`);
+    expect(unfenced).toContain("imageSchema.dims");
+  });
+
+  test("every hit carries a DERIVED class: template-key / guest / foreign-format / unclassified", () => {
+    const project = projectOf({
+      "packages/contracts/src/chat/stats.ts": `
+import { z } from "zod";
+export const statsDeltaSchema = z.object({ tokensInMeasuredSamples: z.number(), plainField: z.number() });
+`,
+      "packages/contracts/src/plugin/ui.ts": `
+import { z } from "zod";
+export const pluginNodeSchema = z.object({ confirmBody: z.string() });
+`,
+      "packages/contracts/src/preset/st.ts": `
+import { z } from "zod";
+export const stPresetSchema = z.object({ prompt_order: z.string() });
+`,
+      // The producer a key index cannot see: the key is BUILT. Its head brackets `tokensInMeasuredSamples`.
+      "packages/server/src/domain/stats/write/rebuild.ts": `
+export const acc = (kind: string, bag: Record<string, number>): number => (bag[\`tokensIn\${kind}Samples\`] ?? 0) + 1;
+`,
+    });
+    const indexes = fieldIndexes(project);
+    const classOf = (rel: string, name: string): string => {
+      const field = contractFieldsOf(project.getSourceFileOrThrow(`/repo/${rel}`)).find((f) => f.name === name);
+      return field === undefined ? "(missing)" : fieldClass(field, indexes);
+    };
+    expect(classOf("packages/contracts/src/chat/stats.ts", "tokensInMeasuredSamples")).toBe("template-key");
+    expect(classOf("packages/contracts/src/chat/stats.ts", "plainField")).toBe("unclassified");
+    expect(classOf("packages/contracts/src/plugin/ui.ts", "confirmBody")).toBe("guest");
+    expect(classOf("packages/contracts/src/preset/st.ts", "prompt_order")).toBe("foreign-format");
   });
 
   test("the MODEL-PROJECTED fence takes a tool `argsSchema`, a projected registry's rows, and same-file parts — never a cross-file shared schema", () => {

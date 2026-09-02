@@ -2643,7 +2643,12 @@ export const DEFAULT_PROMPT_CONFIG: PromptConfig = {
   prose: {},
 };
 
-export const promptConfigConfig = defineVersionedConfig({
+// The type argument is EXPLICIT, not inferred: `json-column-write-parity`'s ARM B derives which db columns
+// carry a versioned-config blob from `$type<T>` matched against these owners, and reads that ownership
+// syntactically (a checker round-trip inside a gate is neither cheap nor available in its conformance
+// mini-projects). Inferred here, the ownership was UNREADABLE and `presets.config` silently carried no
+// write-guard obligation at all.
+export const promptConfigConfig = defineVersionedConfig<PromptConfig>({
   schema: promptConfigSchema,
   version: PROMPT_CONFIG_SCHEMA_VERSION,
   lifts: CONFIG_LIFTS,
