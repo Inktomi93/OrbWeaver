@@ -69,50 +69,108 @@ export interface ConfigSectionContribution {
   readonly body: () => ReactNode;
 }
 
-/** A resolved contributed section — the node plus its nav, in declared registry order. `advanced` rides
- *  through so the host can split the fold without a second registry read. */
+/** A resolved contributed section — the node plus its nav. Which PARTITION it landed in is the partition's
+ *  own fact (`ConfigSectionPartition`), never a flag on the item: one home for the fold membership. */
 export interface ResolvedConfigSection {
   readonly id: string;
   readonly nav: ConfigSubcategory;
   readonly node: ReactNode;
-  readonly advanced: boolean;
 }
 
-/** Group every VISIBLE contribution by its own `anchor` into a total `Record<anchor, contributions[]>`, in
- *  declared registry order — one `when` evaluation feeding all three consumers. A KEYED write
- *  (`groups[c.anchor].push`), never an `anchor === "…"` comparison (the
+/** ONE anchor's visible sections, split by FOLD MEMBERSHIP and in canonical order: the plain sections in
+ *  declared registry order, then the `advanced: true` ones in declared registry order.
+ *
+ *  THIS IS THE ORDER CONTRACT, and it has exactly one home (#978 F4). It used to be TWO facts: the LIST
+ *  and the search flattened the raw declaration order while CONTENT re-sorted it by pulling the advanced
+ *  sections into the group's disclosure — so the map advertised "Avatars · Sizing & motion · Message
+ *  details" over a pane that renders "Avatars · Message details" and hides Sizing & motion 2200px down
+ *  behind a fold the map never mentioned (side-eye 2026-09-02 F4, byte-identical to the 08-30 drive). A
+ *  map that lies about the order of the thing it maps is worse than no map.
+ *
+ *  Canonical order is TOTAL, not fold-conditional: a group carrying advanced sections without declaring a
+ *  fold still paints them last, in both panes, because the two panes read the same partition. (That
+ *  supersedes the old "advanced sections without a fold render in plain order" clause on
+ *  `ConfigGroupBase.advancedFold` — the declaration is still the wall, but the WALL is this partition,
+ *  not each consumer's own sort.) */
+export interface ConfigSectionPartition<TSection> {
+  readonly primary: readonly TSection[];
+  readonly advanced: readonly TSection[];
+}
+
+/** The accumulator half of {@link ConfigSectionPartition} — the same two slots, writable, because the
+ *  seed is built by keyed push. Module-local: nothing outside this file may hand out a mutable partition. */
+interface MutablePartition {
+  primary: ConfigSectionContribution[];
+  advanced: ConfigSectionContribution[];
+}
+
+/** Partition every VISIBLE contribution by its own `anchor` into a total `Record<anchor, partition>`, each
+ *  side in declared registry order — one `when` evaluation feeding every consumer. A KEYED write
+ *  (`groups[c.anchor]`), never an `anchor === "…"` comparison (the
  *  single-arm-dispatch-record-not-switch precedent); the seed is total over `CONFIG_GROUP_IDS`. */
 function groupByAnchor(
   registry: ContributorRegistry<ConfigSectionContribution>,
   viewer: SettingsViewerView,
-): Record<ConfigGroupId, readonly ConfigSectionContribution[]> {
-  const groups = Object.fromEntries(CONFIG_GROUP_IDS.map((a) => [a, [] as ConfigSectionContribution[]])) as Record<ConfigGroupId, ConfigSectionContribution[]>;
+): Record<ConfigGroupId, ConfigSectionPartition<ConfigSectionContribution>> {
+  const groups = Object.fromEntries(CONFIG_GROUP_IDS.map((a): readonly [ConfigGroupId, MutablePartition] => [a, { primary: [], advanced: [] }])) as Record<
+    ConfigGroupId,
+    MutablePartition
+  >;
   for (const c of registry.list()) {
     if (c.when?.(viewer) ?? true) {
-      groups[c.anchor].push(c);
+      const bucket = groups[c.anchor];
+      ((c.advanced ?? false) ? bucket.advanced : bucket.primary).push(c);
     }
   }
   return groups;
 }
 
-/** The visible contributed sections for one anchor, in declared registry order — the host group renders
- *  these below its own sections. Zero contributions ⇒ an empty array (the caller renders no wrapper —
- *  byte-identical to today, the `editor-sections` posture). */
+/** Project one anchor's partition through `map`, preserving the split. The ONE place a partition is
+ *  turned into something a consumer renders, so a projection can never re-sort what it projects. */
+function projectSections<TSection>(
+  registry: ContributorRegistry<ConfigSectionContribution>,
+  anchor: ConfigGroupId,
+  viewer: SettingsViewerView,
+  map: (contribution: ConfigSectionContribution) => TSection,
+): ConfigSectionPartition<TSection> {
+  const partition = groupByAnchor(registry, viewer)[anchor];
+  return { primary: partition.primary.map(map), advanced: partition.advanced.map(map) };
+}
+
+function resolveOne(c: ConfigSectionContribution): ResolvedConfigSection {
+  return { id: c.id, nav: c.nav, node: c.body() };
+}
+
+/** The NODE projection (the render half): one anchor's visible sections as mounted nodes, partitioned. The
+ *  host group renders `primary` in flow and `advanced` inside its declared fold. Zero contributions ⇒ two
+ *  empty arrays (the caller renders no wrapper — the `editor-sections` posture). */
 export function resolveConfigSections(
   registry: ContributorRegistry<ConfigSectionContribution>,
   anchor: ConfigGroupId,
   viewer: SettingsViewerView,
-): readonly ResolvedConfigSection[] {
-  return groupByAnchor(registry, viewer)[anchor].map((c) => ({ id: c.id, nav: c.nav, node: c.body(), advanced: c.advanced ?? false }));
+): ConfigSectionPartition<ResolvedConfigSection> {
+  return projectSections(registry, anchor, viewer, resolveOne);
 }
 
-/** The `nav` entries the host merges into a group's subcategory list, for one anchor — same grouping, same
- *  `when`, in declared registry order. Consumed by the LIST + search while `resolveConfigSections` is
- *  consumed by the surface (render), off the SAME keyed group so neither compares an anchor. */
+/** The NAV projection (the map half): the `nav` entries the host merges into a group's subcategory list,
+ *  partitioned the same way and off the same `when`. Consumed by the LIST (which paints the fold cohort as
+ *  a named nested group) and, flattened, by search and the group-only landing. */
+export function configSectionNavParts(
+  registry: ContributorRegistry<ConfigSectionContribution>,
+  anchor: ConfigGroupId,
+  viewer: SettingsViewerView,
+): ConfigSectionPartition<ConfigSubcategory> {
+  return projectSections(registry, anchor, viewer, (c) => c.nav);
+}
+
+/** The nav projection FLATTENED into canonical order — for the consumers that need a sequence rather than
+ *  the split: the search index (one row per section, in the order the reader will meet them) and the
+ *  group-only landing (`[0]` is the first section the pane paints). */
 export function configSectionNavs(
   registry: ContributorRegistry<ConfigSectionContribution>,
   anchor: ConfigGroupId,
   viewer: SettingsViewerView,
 ): readonly ConfigSubcategory[] {
-  return groupByAnchor(registry, viewer)[anchor].map((c) => c.nav);
+  const { primary, advanced } = configSectionNavParts(registry, anchor, viewer);
+  return [...primary, ...advanced];
 }

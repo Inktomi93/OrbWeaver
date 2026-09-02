@@ -167,8 +167,9 @@ export {
 } from "./config-search-store.ts";
 export type { UnclaimedSettingsKey } from "./config-section-partition.ts";
 export { assertSettingsKeyPartition, UNCLAIMED_SETTINGS_KEYS } from "./config-section-partition.ts";
-export type { AppSettingsClaimPath, ConfigSectionContribution, ResolvedConfigSection, SettingsKeyClaim } from "./config-section-registry.ts";
-export { configSectionNavs, resolveConfigSections } from "./config-section-registry.ts";
+// `ResolvedConfigSection` is deliberately absent: no importer outside `state/` reads it by name (#978).
+export type { AppSettingsClaimPath, ConfigSectionContribution, ConfigSectionPartition, SettingsKeyClaim } from "./config-section-registry.ts";
+export { configSectionNavParts, configSectionNavs, resolveConfigSections } from "./config-section-registry.ts";
 export type { ConfigSectionRegistry } from "./config-section-registry-context.ts";
 // The bare context rides out beside the throwing hook for the SANCTIONED nullable read (`use(Context)`,
 // create-registry-context.tsx's own carve-out) — `useConfigLeaf` stays inert without a provider.

@@ -1179,7 +1179,8 @@ const probeSections: ContributorRegistry<ConfigSectionContribution> = createCont
 
 function SettingsSectionRegistryReader({ isAdmin }: { readonly isAdmin: boolean }): ReactElement {
   const registry = useConfigSectionRegistry();
-  const sections = useConfigSections("chat-behavior", { isAdmin, isOwner: isAdmin });
+  const { primary, advanced } = useConfigSections("chat-behavior", { isAdmin, isOwner: isAdmin });
+  const sections = [...primary, ...advanced];
   return (
     <div>
       <output>{`all=${registry

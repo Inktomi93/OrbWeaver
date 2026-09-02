@@ -1,7 +1,7 @@
 ---
 kind: design
 status: active
-updated: 2026-09-01
+updated: 2026-09-02
 ---
 
 # THE VOCABULARY MAP — one concept, one word
@@ -47,6 +47,8 @@ finding: say so rather than minting a word.
 | Your whole character library | **Your characters** | `character` | landed |
 | Any generic "a list of X" | **list** | `XList` — **`roster` is RESERVED for the saved template and may not be spent as English for "a list"** | landed (#905 C3b, #914) |
 | The plugin host's character-seat read | — (plugin authors) | `chat.listCharacters` | landed (#904 C3a) |
+| The per-user background execution engine, and the settings pane that runs/monitors it | **Jobs** (pane) · **Runs** (its first section) — **"workload" is never shown to a user** | `workloads` — the system/code noun everywhere: the `workloads` domain + db table family, the tRPC router key, the `workloads` stream channel, the `UserSettings.workloads` namespace, the `ConfigGroupId`, and the `config-anchor-workloads-*` anchors | **landed, CONFORMING — do not rename either half** (owner 2026-08-02). Receipts: `packages/client/src/features/workloads/lib/workloads-group.tsx` (`id: "workloads"`, `label: "Jobs"`, and the side-eye 2026-08-08 P3 ruling-fork note) · `tests/client/features/workloads/lib/workloads-group.ct.tsx`. Recorded here because #978 G10 read the id as insider drift; the split IS this table's own "code spelling (when different)" pattern, it was simply never written down. |
+| A config GROUP's id, as a vocabulary member | — | the owner's OWN exported id — `worldInfo` / `rosterPreset` stay camelCase beside kebab siblings | **CONFORMING, deliberate — not a casing defect.** `packages/client/src/state/config-group-ids.ts` states it: a collection group "keeps the id its owner already exports … rides the `data-collection` attributes the CTs address, and keys the per-device disclosure store", so a config-local kebab-ification would fork the id from the kind everywhere else. `rosterPreset` is additionally ruled never-renamed by the row above. Raised as drift by #978 G10 and refused with this receipt. |
 | The branded-id type coercion | — | `castId` (`@orb/kit/ids`) | **no action, deliberately.** It is a TYPE cast, not this concept family; 8,056 occurrences, and once the word "cast" leaves chat / roster-preset / rpg it is unambiguous by construction. |
 
 ## Concepts still spelled `cast` that this map has NO word for (found by #903 C2)
