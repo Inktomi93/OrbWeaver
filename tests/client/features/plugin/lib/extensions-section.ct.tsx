@@ -24,8 +24,10 @@ const A_PAST_INSTANT = 1_760_000_000_000;
 const ORACLE_ID = castId<PluginId>("plugin_ct_oracle00000001");
 const CHIPS_ID = castId<PluginId>("plugin_ct_chips000000001");
 
-/** One installed row as `plugin.list` projects it — the join every plugin surface reads its NAME from. */
-function pluginRow(id: PluginId, slug: string, name: string): Record<string, unknown> {
+/** One installed row as `plugin.list` projects it — the join every plugin surface reads its NAME from.
+ *  `lifecycle` is the LIVE half: `status`/`grantedCapabilities`/`reconsentPending` are the three fields the
+ *  Extensions empty resolves its reason from, so an arm states them rather than inheriting a default. */
+function pluginRow(id: PluginId, slug: string, name: string, lifecycle: Record<string, unknown> = {}): Record<string, unknown> {
   return {
     id,
     slug,
@@ -43,8 +45,14 @@ function pluginRow(id: PluginId, slug: string, name: string): Record<string, unk
     lastError: null,
     installedAt: A_PAST_INSTANT,
     updatedAt: A_PAST_INSTANT,
+    ...lifecycle,
   };
 }
+
+/** The FRESH-BOOT lifecycle, verbatim from `entry/boot/seed-example-plugins.ts`: installed, disabled, NOTHING
+ *  granted, with the standing consent ask raised. This is the shape the dev db actually holds for all nine
+ *  seeded examples (#924) — the state the pane used to describe as "install a plugin". */
+const SEEDED_AWAITING_CONSENT = { status: "disabled", grantedCapabilities: [], reconsentPending: true } as const;
 
 /** One `listSurfaces` row (the serializable meta + its pluginId; the `onAction` handle stays server-side). */
 function pageRow(pluginId: PluginId, id: string, title: string, spec: unknown): Record<string, unknown> {
@@ -64,6 +72,27 @@ const NO_PAGES: Readonly<Record<string, unknown>> = {
   // INSTALLED AND ENABLED but registering no `page` surface — the common case for everyone who has a plugin at
   // all, and the arm where a rail entry that only ever showed a full list would teach nothing.
   "plugin.list": () => [pluginRow(ORACLE_ID, "oracle-deck", "Oracle Deck")],
+  "plugin.listSurfaces": () => [],
+};
+
+/** NOTHING INSTALLED — the only account for which "install a plugin" is true guidance. */
+const NONE_INSTALLED: Readonly<Record<string, unknown>> = {
+  "plugin.list": () => [],
+  "plugin.listSurfaces": () => [],
+};
+
+/** THE FRESH BOOT (#924): two installed rows, neither allowed to do anything, both asking. */
+const AWAITING_CONSENT: Readonly<Record<string, unknown>> = {
+  "plugin.list": () => [
+    pluginRow(ORACLE_ID, "oracle-deck", "Oracle Deck", SEEDED_AWAITING_CONSENT),
+    pluginRow(CHIPS_ID, "scene-chips", "Scene Chips", SEEDED_AWAITING_CONSENT),
+  ],
+  "plugin.listSurfaces": () => [],
+};
+
+/** GRANTED, BUT SWITCHED OFF — nothing is asking and nothing is running, so nothing registers. */
+const ALL_OFF: Readonly<Record<string, unknown>> = {
+  "plugin.list": () => [pluginRow(ORACLE_ID, "oracle-deck", "Oracle Deck", { status: "disabled" })],
   "plugin.listSurfaces": () => [],
 };
 
@@ -105,6 +134,58 @@ test.describe("the page switcher", () => {
     // `empty-state-has-action` is the law; this is the RENDERED half of it — a dead-end empty here would make
     // the whole platform undiscoverable for anyone who has never installed a page-bearing plugin.
     await expect(page.getByRole("button", { name: "Open Plugins" })).toBeVisible();
+  });
+});
+
+// #924 — WHICH empty is a fact about the ASKER, and the four facts have four different next steps. One string
+// used to serve all of them, and on a FRESH BOOT (nine seeded plugins, all disabled with an empty grant and a
+// standing ask) that string told a person to install what they already had, while the grant screen that would
+// have made them work went unmentioned. Each arm below pins the FACT and the affordance that resolves it.
+test.describe("the teaching empty names WHICH emptiness", () => {
+  test("NOTHING INSTALLED ⇒ say so, and offer the install screen", async ({ mount, page }) => {
+    await routeTrpc(page, NONE_INSTALLED);
+    await mount(<ExtensionsSwitcherStory />);
+
+    await expect(page.getByText("No plugins installed yet")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Add a plugin" })).toBeVisible();
+    // The old collapse: an account with nothing installed and an account with nine ungranted plugins read
+    // identically. It must not be the page-surfaces line any more.
+    await expect(page.getByText("No extension pages yet")).toHaveCount(0);
+  });
+
+  test("INSTALLED BUT AWAITING CONSENT ⇒ the fresh-boot fact, counted, pointing at the grant", async ({ mount, page }) => {
+    await routeTrpc(page, AWAITING_CONSENT);
+    await mount(<ExtensionsSwitcherStory />);
+
+    await expect(page.getByText("Your plugins are waiting on you")).toBeVisible();
+    // COUNTED, because "some plugins" is the same shrug the old copy was. Two rows asking ⇒ "2 plugins are".
+    await expect(page.getByText(/2 plugins are installed but not allowed to do anything yet/u)).toBeVisible();
+    await expect(page.getByRole("button", { name: "Review what they ask for" })).toBeVisible();
+    // The two lies this arm replaces.
+    await expect(page.getByText("No extension pages yet")).toHaveCount(0);
+    await expect(page.getByText("No plugins installed yet")).toHaveCount(0);
+  });
+
+  test("GRANTED BUT SWITCHED OFF ⇒ turn one on, not install another", async ({ mount, page }) => {
+    await routeTrpc(page, ALL_OFF);
+    await mount(<ExtensionsSwitcherStory />);
+
+    await expect(page.getByText("Your plugins are turned off")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Open Plugins" })).toBeVisible();
+    await expect(page.getByText("No extension pages yet")).toHaveCount(0);
+  });
+
+  test("the CONTENT pane mirrors the SAME reason — two panes never state two facts", async ({ mount, page }) => {
+    // The P3-6 mirror generalized: it is not enough that both panes show *an* empty, they must show the same
+    // one. A LIST saying "waiting on you" beside a CONTENT pane saying "install a plugin" is the original
+    // defect with an extra step.
+    await routeTrpc(page, AWAITING_CONSENT);
+    await mount(<ExtensionsPageStory selectKey={null} />);
+
+    await expect(page.getByText("Your plugins are waiting on you")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Review what they ask for" })).toBeVisible();
+    await expect(page.getByText("No extension pages yet")).toHaveCount(0);
+    await expect(page.getByText("Pick an extension page")).toHaveCount(0);
   });
 });
 
