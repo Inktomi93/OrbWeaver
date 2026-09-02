@@ -1323,8 +1323,8 @@
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "da7e33686b6af7c0040315ca0d6025a6ed385e6ea79276f7c048cdc08bf311fc",
-      "verifiedCommit": "8ebb7c436a737225786d574a65e5c89682a573e1",
+      "verifiedSha256": "fcc31e7607ef1ca53e292731f691deb0d6a4a2e1ea27bd74e5a44ecd72d4df6b",
+      "verifiedCommit": "fd85639f822f0b1145ccd93df8a70a13312146d1",
       "verifiedAt": "2026-09-02",
       "evidence": [
         "re-attested at 8ebb7c436 (#1057): new §The connection register — D109's 6-mode canon + the fail-closed confusion-killers, re-derived against infra/providers/roles/dispatch.ts deriveRunner (six pairings, five refusals match)",
@@ -1332,7 +1332,8 @@
         "re-attested at 106e855db — row 4's status corrected from 'landed' to COPY-landed/CODE-not-landed after lane cb-vocab-c2 found ten files still spelling cast; the map's own status column is a tree claim and owes a receipt like any other (#922)",
         "re-attested at 05a109eec — rows 5/6 flipped to landed with their Was-history, three new rows added (kit name axis, regex slice, CarriedAppearance), plus a new section listing four concepts still spelled cast that the map has NO word for; row 4 kept at the orchestrator's #922 truth repair (COPY landed / CODE not landed) — the union resolution at this merge",
         "re-attested at 8e162cd47 — #922 (claude-b lane cb-cast-code, 45aa4313c rebased): row 4 flipped to landed-with-deletion (chat-cast-bar → chat-character-bar; MembersRow kind:\"character\"); delta read of the row",
-        "re-attested at 15098cdb4 — #1011 (claude-b lane cb-cast-residues, rebased twice over #922's row 4 and the same-day merges): three survivor rows retired to their landed spellings (speakerCandidates family, speaker kind cast→multi-voice with the stored-literal absence proof, ResolvedCharacterIds); delta read of the six rows. Two earlier #1011 evidence lines written before the fold landed were retracted"
+        "re-attested at 15098cdb4 — #1011 (claude-b lane cb-cast-residues, rebased twice over #922's row 4 and the same-day merges): three survivor rows retired to their landed spellings (speakerCandidates family, speaker kind cast→multi-voice with the stored-literal absence proof, ResolvedCharacterIds); delta read of the six rows. Two earlier #1011 evidence lines written before the fold landed were retracted",
+        "re-attested at fd85639f8 — fold of #978 (cb-nav-integrity, claude-b): two rows ADDED recording existing owner rulings — the workloads engine's user-facing names (Jobs pane / Runs section; 'workload' is never shown to a user; `workloads` stays the code noun, 08-02 ruling) and a config GROUP id as a vocabulary member (the owner's own exported id — `worldInfo`/`rosterPreset` stay camelCase beside kebab siblings; conforming, deliberate). No existing row moved; delta read once."
       ],
       "claims": [
         {
