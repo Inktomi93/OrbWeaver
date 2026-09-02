@@ -12,9 +12,12 @@ function errnoIs(error: unknown, code: string): boolean {
   return typeof error === "object" && error !== null && "code" in error && error.code === code;
 }
 
-/** Signal a child's whole process GROUP. Both child doors share it: signalling only the direct child
- *  orphans the real tree (pnpm→node→server, setsid→vllm→EngineCore). */
-function killPidGroup(pid: number | undefined, signal: NodeJS.Signals): void {
+/** Signal a whole process GROUP by its pgid — THE ONE door. Both child doors share it: signalling only the
+ *  direct child orphans the real tree (pnpm→node→server, setsid→vllm→EngineCore). Exported for the stage
+ *  teardowns (#1254): never spell this as the external `kill -SIG -<pgid>` — procps-ng 4.0.4 parses that
+ *  argument by its FIRST DIGIT (`kill -TERM -4570` → `kill(-4)`), so a seven-digit pgid starting in 1
+ *  became `kill(-1)` and logged the owner out (2026-09-02). The syscall takes the real negative pgid. */
+export function killPidGroup(pid: number | undefined, signal: NodeJS.Signals): void {
   if (typeof pid !== "number") {
     return;
   }
