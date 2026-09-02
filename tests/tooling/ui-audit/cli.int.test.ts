@@ -15,8 +15,9 @@ import type { DesignAuditRuleId } from "../../../tooling/src/ui-audit/index.ts";
 import { livingChromiumIdentities, watchChromiumDescendants } from "../../support/chromium-processes.ts";
 import type { ToolFixtures } from "../../support/tool-fixtures.ts";
 import { expect, test } from "../../support/tool-fixtures.ts";
+import { scaledBudget } from "../_load-budget.ts";
 
-const CLI_TIMEOUT_MS = 90_000;
+const CLI_TIMEOUT_MS = scaledBudget(90_000);
 // Every test here boots a real headless chromium, so the SPAWN cap (above) is the meaningful ceiling —
 // vitest's 5s default was always the smaller of the two, and the census-stability window (#808, ~2s per
 // run) made that mismatch bite: a two-run case timed out at 5001ms while its CLI was still healthy.
@@ -438,7 +439,7 @@ const PANEL_WITH_AN_ACTION =
 // spawn, so this one hit 5077ms under load and flaked. Not reducible from the test (the walk is real
 // work in the tool under audit); an explicit budget with headroom is the fix, not a blanket file raise
 // that would also hide the NEXT test that creeps toward the default.
-test("a borderless panel whose class merely contains the card WORD is not a nested card", { timeout: 20_000 }, async ({ runCli, scratch }) => {
+test("a borderless panel whose class merely contains the card WORD is not a nested card", { timeout: scaledBudget(20_000) }, async ({ runCli, scratch }) => {
   await writeFile(join(scratch, "card-word.html"), panelInPanel(CARD_WORD_BORDERLESS_PANEL));
   const res = await runCli("ui-audit", ["/card-word.html", "--base", `file://${scratch}`, "--fail-on", "P3"], { timeoutMs: CLI_TIMEOUT_MS });
   expect(res.stdout).not.toContain("nested-card");
@@ -586,7 +587,7 @@ const SHELL_HTML = `<!doctype html>
 
 // This case deliberately BURNS the readiness wait (the app never announces itself), so it costs the full
 // selector budget on top of the browser spawn — an explicit budget, not a blanket file raise.
-test("an app origin whose app never mounted is an INSTRUMENT ERROR, never a clean audit", { timeout: 30_000 }, async ({ runCli }) => {
+test("an app origin whose app never mounted is an INSTRUMENT ERROR, never a clean audit", { timeout: scaledBudget(30_000) }, async ({ runCli }) => {
   const witness = watchChromiumDescendants(process.pid);
   const server = await serveOnce(SHELL_HTML);
   try {

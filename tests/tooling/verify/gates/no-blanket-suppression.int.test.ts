@@ -17,6 +17,7 @@ import type { Finding, GateRunCtx, GateScanDeclaration } from "../../../../tooli
 import { gate } from "../../../../tooling/src/verify/gates/no-blanket-suppression.ts";
 import { projectCtx, runPass } from "../../../../tooling/src/verify/index.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
+import { scaledBudget } from "../../_load-budget.ts";
 
 /** The gate's own module — its §4.5 real-tree anchor; planting it is how a fixture opts IN to arms B + C. */
 const GATE_SELF_REL = "tooling/src/verify/gates/no-blanket-suppression.ts";
@@ -184,7 +185,7 @@ describe("no-blanket-suppression — a bare zero must be 'I could not measure', 
 describe("no-blanket-suppression — the REAL tree", () => {
   // The harness project is the real cost here (~20s): arm A needs the actual fileset, and a receipt over an
   // empty fileset would be the zero-scan placebo this gate exists to refuse.
-  test("every arm over the actual repo: ZERO findings, non-zero denominators on both sides", { timeout: 180_000 }, ({ repoRoot }) => {
+  test("every arm over the actual repo: ZERO findings, non-zero denominators on both sides", { timeout: scaledBudget(180_000) }, ({ repoRoot }) => {
     const pass = runPass([gate], projectCtx(repoRoot));
     expect(pass.toolErrors).toEqual([]);
     const result = pass.gates[0];

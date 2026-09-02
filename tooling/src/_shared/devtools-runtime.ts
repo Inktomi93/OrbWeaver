@@ -10,6 +10,12 @@ import type { ProbeMedia } from "./browser-media.ts";
 import { applyProbeMedia, readProbeMedia } from "./browser-media.ts";
 import type { DevToolsAssetPin, DevToolsAssetServer } from "./devtools-assets.ts";
 import { startDevToolsAssetServer, verifyDevToolsAssets } from "./devtools-assets.ts";
+import { budget } from "./load-budget.ts";
+
+// A CEILING, load-scaled through the one policy (#1232): the literal is the QUIET-BOX base. The DevTools
+// frontend is a large first-party bundle served off a local revision pin — on a contended box its first
+// paint legitimately runs long, and a fixed 30s made that read as a broken pin.
+const FRONTEND_NAV_BASE_MS = 30_000;
 
 const PROPERTY_RE = /^(?:--[A-Za-z0-9_-]+|-?[A-Za-z][A-Za-z0-9-]*)$/u;
 const MAX_QUERIES = 32;
@@ -347,7 +353,7 @@ async function queryRuntime(args: QueryRuntimeArgs): Promise<readonly DevToolsCa
     (async (): Promise<readonly DevToolsCascadeRawReceipt[]> => {
       await frontend.goto(
         `${server.origin}/serve_rev/@${pin.devtoolsFrontendRevision}/inspector.html?ws=127.0.0.1:${identity.port}/devtools/page/${identity.id}`,
-        { waitUntil: "domcontentloaded", timeout: 30_000 },
+        { waitUntil: "domcontentloaded", timeout: budget(FRONTEND_NAV_BASE_MS) },
       );
       // Attaching DevTools clears the inspected target's emulated-media slate before the SDK reads
       // computed style. Restore the exact pre-attach identity *before* observation as well as after

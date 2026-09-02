@@ -36,6 +36,7 @@ import { join } from "node:path";
 import process from "node:process";
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
+import { budget } from "@orb/tooling/_shared/load-budget";
 import { spawnNiced } from "@orb/tooling/_shared/proc";
 import type { BootChunkFile, BootChunkVerdict } from "../contract/scoped.ts";
 
@@ -61,7 +62,9 @@ const ASSET_JS_REF_RE = /^\/assets\/([A-Za-z0-9._-]+\.js)$/u;
 const ASSET_JS_MENTION_RE = /\/assets\/[A-Za-z0-9._-]+\.js/gu;
 /** A production vite build of the client; the timeout is a ceiling on a WEDGE, not a budget (see the
  *  15.45s measurement above) — generous enough to survive a cold tree under multi-lane load. */
-const BUILD_TIMEOUT_MS = 300_000;
+// A CEILING, load-scaled through the one policy (#1232): the literal is the QUIET-BOX base.
+const BUILD_TIMEOUT_MS_BASE = 300_000;
+const BUILD_TIMEOUT_MS = budget(BUILD_TIMEOUT_MS_BASE);
 
 // ── the ceiling ───────────────────────────────────────────────────────────────────────────────────────
 // CALIBRATION (the `stryker.gate.config.json` `_thresholds_comment` discipline: measured value, headroom,

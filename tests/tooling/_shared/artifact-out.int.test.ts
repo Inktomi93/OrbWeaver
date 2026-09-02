@@ -19,6 +19,7 @@ import { join } from "node:path";
 import process from "node:process";
 import { artifactFile, beginInstrumentRun, finishInstrumentRun } from "@orb/tooling/_shared/artifact-out";
 import { expect, test } from "../../support/tool-fixtures.ts";
+import { scaledBudget } from "../_load-budget.ts";
 
 /** A snap-shaped run: resolve the artifact path up front (snap resolves `out` before it launches the
  *  browser), "capture" for `delayMs`, write the pixels, publish. `--out` is the SAME name in both children
@@ -63,7 +64,10 @@ function slotShots(root: string): Record<string, string> {
   );
 }
 
-test("two concurrent snap-shaped runs that took the SAME --out name both keep their artifacts", { timeout: 60_000 }, async ({ plantedTree, repoRoot }) => {
+test("two concurrent snap-shaped runs that took the SAME --out name both keep their artifacts", { timeout: scaledBudget(60_000) }, async ({
+  plantedTree,
+  repoRoot,
+}) => {
   const root = await plantedTree({ [CHILD]: INSTRUMENT_CHILD });
   const artifacts = join(repoRoot, "tooling", "src", "_shared", "artifact-out.ts");
   const { spawnNiced } = await import("@orb/tooling/_shared/proc");
@@ -90,7 +94,7 @@ test("two concurrent snap-shaped runs that took the SAME --out name both keep th
   expect(readFileSync(join(root, "reports", "traces", "root.zip"), "utf8")).toBe(publishedShot.replace("pixels", "trace"));
 });
 
-test("the 10-run ring never deletes evidence a published pointer still names", { timeout: 120_000 }, async ({ plantedTree, repoRoot }) => {
+test("the 10-run ring never deletes evidence a published pointer still names", { timeout: scaledBudget(120_000) }, async ({ plantedTree, repoRoot }) => {
   // WHY THIS EXISTS: `reports/snaps/` is a CORPUS, not one verdict — file headers across packages/ cite
   // individual shots by path as durable evidence, and one side-eye session takes dozens. A ring that
   // pruned by age alone would delete the pixels a live pointer names inside a single session and leave
@@ -165,7 +169,7 @@ Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, Number(delayMs));
 writeFileSync(out, "pixels-from-" + id);
 `;
 
-test("PLANTED CONTROL: the old fixed-path shot writer loses one of two concurrent runs", { timeout: 60_000 }, async ({ plantedTree }) => {
+test("PLANTED CONTROL: the old fixed-path shot writer loses one of two concurrent runs", { timeout: scaledBudget(60_000) }, async ({ plantedTree }) => {
   const root = await plantedTree({ "old-shot.mjs": OLD_SHOT_WRITER });
   const { spawnNiced } = await import("@orb/tooling/_shared/proc");
   const writer = join(root, "old-shot.mjs");

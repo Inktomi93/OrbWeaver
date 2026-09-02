@@ -104,8 +104,26 @@ HEALTHZ="http://127.0.0.1:$BACKEND_PORT/healthz"
 # still coming up. The wrapper readiness poll must stay AHEAD of the server gate + a
 # cold vite compile (~55s) so it never declares boot-timeout while the leader is
 # legitimately still booting. Override via env for slower/faster hardware.
-SERVER_HEALTHZ_TIMEOUT="${SERVER_HEALTHZ_TIMEOUT:-180}"
-READINESS_TIMEOUT="${READINESS_TIMEOUT:-240}"
+# The DEFAULTS are LOAD-SCALED and derived by node, never spelled here (#1232, docs/design/
+# 1208-instrument-substrate.md section 7.1 — the ONE budget policy lives at
+# tooling/src/_shared/load-budget.ts and the shell half is tooling/src/stack/lib/boot-budgets.ts). A
+# host export still WINS: these two stay empty here and `apply_boot_budgets` fills only what the
+# operator did not set. Derived lazily, on the boot paths alone, so `status`/`down` pay no node spawn.
+SERVER_HEALTHZ_TIMEOUT="${SERVER_HEALTHZ_TIMEOUT:-}"
+READINESS_TIMEOUT="${READINESS_TIMEOUT:-}"
+apply_boot_budgets() {
+  [ -n "${BOOT_BUDGETS_APPLIED:-}" ] && return 0
+  BOOT_BUDGETS_APPLIED=1
+  local out
+  out="$(node "$REPO/tooling/src/stack/ops/prod-entry.ts" boot-budgets)" || exit 2
+  while IFS='=' read -r bk bv; do
+    [ -z "$bk" ] && continue
+    case "$bk" in
+      SERVER_HEALTHZ_TIMEOUT) [ -z "$SERVER_HEALTHZ_TIMEOUT" ] && SERVER_HEALTHZ_TIMEOUT="$bv" ;;
+      READINESS_TIMEOUT) [ -z "$READINESS_TIMEOUT" ] && READINESS_TIMEOUT="$bv" ;;
+    esac
+  done <<<"$out"
+}
 # vLLM fleet ports (embed/rerank/gen) — force teardown polls these free after SIGKILLing the detached
 # fleet. Read through the SAME env vars engines.sh uses (same literal fallbacks, since bash can't import
 # foundation/env): a bare literal list here silently ignored a VLLM_*_PORT override, so teardown polled
@@ -292,6 +310,7 @@ run_leader() {
   bash "$REPO/tooling/src/stack/dev.sh" >"$SERVER_LOG" 2>&1 &
   server_pid=$!
   local up=""
+  apply_boot_budgets
   for _ in $(seq 1 "$SERVER_HEALTHZ_TIMEOUT"); do
     if healthz_ok; then up=1; break; fi
     if ! kill -0 "$server_pid" 2>/dev/null; then
@@ -521,6 +540,7 @@ do_start() {
   # vite-up ⇒ everything-up). Bounded by READINESS_TIMEOUT, which stays ahead of the
   # SERVER_HEALTHZ_TIMEOUT gate + a cold tsx/vite compile (~55s) — otherwise the
   # wrapper false-times-out while the leader is still legitimately booting the fleet.
+  apply_boot_budgets
   for _ in $(seq 1 "$READINESS_TIMEOUT"); do
     sleep 1
     if vite_ok && healthz_ok; then

@@ -22,6 +22,7 @@
 import { errorMessage } from "@orb/kit/error-message";
 import { parseGotoTarget, splitLastEq } from "@orb/tooling/_shared/argv";
 import type { Page } from "@playwright/test";
+import { budget } from "./load-budget.ts";
 import { navResultShape } from "./page-validate.ts";
 
 /** The nav verbs a probe CLI offers, spelled as they appear on the command line (minus the `--`). */
@@ -95,7 +96,9 @@ export function buildNavScript(method: NavMethod, target: string): string {
 /** `{ ok: true }` or a stated reason — the NavResult shape the bridge itself returns. */
 export type NavOutcome = { readonly ok: true } | { readonly ok: false; readonly reason: string };
 
-const READY_TIMEOUT_MS = 10_000;
+// A CEILING, load-scaled through the one policy (#1232): the literal is the QUIET-BOX base.
+const READY_TIMEOUT_MS_BASE = 10_000;
+const READY_TIMEOUT_MS = budget(READY_TIMEOUT_MS_BASE);
 
 /** Await app-readiness + the bridge, then run one nav action. Never throws: a thrown evaluate (no bridge,
  *  a navigation mid-call) comes back as `ok:false` with the message, because the caller's job is to COUNT

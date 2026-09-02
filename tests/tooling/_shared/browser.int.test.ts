@@ -19,6 +19,7 @@ import {
   watchChromiumDescendants,
 } from "../../support/chromium-processes.ts";
 import { expect, test } from "../../support/tool-fixtures.ts";
+import { scaledBudget } from "../_load-budget.ts";
 
 // 3-up: tests/tooling/_shared → repo root (re-derived at the P2 relocation — the depth-derived-root class).
 const ROOT = fileURLToPath(new URL("../../..", import.meta.url));
@@ -38,13 +39,13 @@ function runSnap(args: readonly string[]): SnapRun {
   const result = spawnSync(process.execPath, [SNAP_CLI, ...args], {
     cwd: ROOT,
     encoding: "utf8",
-    timeout: 30_000,
+    timeout: scaledBudget(30_000),
   });
   return { status: result.status, stdout: String(result.stdout), stderr: String(result.stderr) };
 }
 
 async function runSnapAsync(args: readonly string[]): Promise<SnapRun> {
-  const result = await spawnNiced(process.execPath, [SNAP_CLI, ...args], { cwd: ROOT, timeoutMs: 30_000 });
+  const result = await spawnNiced(process.execPath, [SNAP_CLI, ...args], { cwd: ROOT, timeoutMs: scaledBudget(30_000) });
   return { status: result.code, stdout: result.stdout, stderr: result.stderr };
 }
 
@@ -228,7 +229,7 @@ setTimeout(() => process.exit(0), 500);`;
   const witness = watchChromiumDescendants(process.pid);
   let captured: readonly ChromiumIdentity[] = [];
   try {
-    const result = await spawnNiced(process.execPath, ["-e", leakScript, chromium.executablePath(), profile], { cwd: TEMP, timeoutMs: 5000 });
+    const result = await spawnNiced(process.execPath, ["-e", leakScript, chromium.executablePath(), profile], { cwd: TEMP, timeoutMs: scaledBudget(5000) });
     expect(result.code, result.stderr).toBe(0);
     captured = witness.stop();
     const living = livingChromiumIdentities(captured);
@@ -378,7 +379,7 @@ test("--include-hidden computes a real name for a control nested inside an aria-
   expect(capture?.mapResult).toContainEqual(expect.objectContaining({ name: "Visible" }));
 });
 
-test("--wait-for does not treat matching rendered text as a missing CSS selector", { timeout: 15_000 }, () => {
+test("--wait-for does not treat matching rendered text as a missing CSS selector", { timeout: scaledBudget(15_000) }, () => {
   const page = fixture("wait-for-selector-missing", "<p>button</p>");
   const name = `${RUN_ID}_wait_for_selector_missing`;
   const result = runSnap(["--file", page, "--no-shot", "--wait-for", "button", "--json", "--no-failure-evidence", "--out", name]);
@@ -467,7 +468,7 @@ test("a bare prose --wait-for phrase is REFUSED before boot, never a 10-second f
   expect(result.status, result.stdout + result.stderr).toBe(EXIT.misuse);
 });
 
-test("--wait-for text= reaches a tooltip rendered in the TOP LAYER (the portal hypothesis, refuted)", { timeout: 30_000 }, () => {
+test("--wait-for text= reaches a tooltip rendered in the TOP LAYER (the portal hypothesis, refuted)", { timeout: scaledBudget(30_000) }, () => {
   const result = runSnap([
     "--file",
     fixture("wait-for-top-layer", TOP_LAYER_TOOLTIP_HTML),
@@ -481,7 +482,7 @@ test("--wait-for text= reaches a tooltip rendered in the TOP LAYER (the portal h
   expect(result.stdout).toContain("steps-failed=0");
 });
 
-test("--wait-for text= for genuinely ABSENT text still fails — the refusal never blanket-passes prose", { timeout: 30_000 }, () => {
+test("--wait-for text= for genuinely ABSENT text still fails — the refusal never blanket-passes prose", { timeout: scaledBudget(30_000) }, () => {
   const result = runSnap([
     "--file",
     fixture("wait-for-absent-text", TOP_LAYER_TOOLTIP_HTML),
@@ -572,7 +573,7 @@ test("snap dead-CSS scan ignores third-party marker classes without hiding real 
   expect(capture?.deadCss.map((entry) => entry.token)).toEqual(["definitely-dead"]);
 });
 
-test("snap records warnings, fails strict warnings, and always fails console errors", { timeout: 30_000 }, () => {
+test("snap records warnings, fails strict warnings, and always fails console errors", { timeout: scaledBudget(30_000) }, () => {
   const warningPage = fixture("warning", "<main>warning</main>");
   const warningName = `${RUN_ID}_warning`;
   const advisory = runSnap([

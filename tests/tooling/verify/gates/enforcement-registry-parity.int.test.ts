@@ -19,6 +19,7 @@ import { describe } from "vitest";
 import type { Finding, GateRunCtx } from "../../../../tooling/src/verify/contract/gate.ts";
 import { gate } from "../../../../tooling/src/verify/gates/enforcement-registry-parity.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
+import { scaledBudget } from "../../_load-budget.ts";
 
 const DOC_REL = "docs/architecture/core/Core-Enforcement-Active-Gates.md";
 const GATE_REL = "tooling/src/verify/gates/x.ts";
@@ -30,7 +31,7 @@ const MESSAGE_LITERAL = JSON.stringify(MESSAGE);
 const MARKER = "(@mirrors-message)";
 /** The real-tree arm parses all ~250 gate files with ts-morph and evaluates each descriptor message; the
  *  parallel lane default of 5s is a contention flake, not a verdict. */
-const REAL_TREE_TIMEOUT_MS = 30_000;
+const REAL_TREE_TIMEOUT_MS = scaledBudget(30_000);
 
 function runGate(root: string): readonly Finding[] {
   const project = new Project({ useInMemoryFileSystem: true });

@@ -7,6 +7,7 @@
 import { execFileSync, spawn, spawnSync } from "node:child_process";
 import { closeSync, existsSync, openSync } from "node:fs";
 import process from "node:process";
+import { budget } from "./load-budget.ts";
 
 function errnoIs(error: unknown, code: string): boolean {
   return typeof error === "object" && error !== null && "code" in error && error.code === code;
@@ -46,7 +47,11 @@ export interface SpawnNicedResult {
   readonly timedOut: boolean;
 }
 
-const DEFAULT_TIMEOUT_MS = 120_000;
+/** The default child ceiling, LOAD-SCALED through the one policy (#1232, docs/design/1208-instrument-substrate.md
+ *  §7.1): 120s is the QUIET-BOX base, and a caller that names no ceiling gets it stretched by the box's
+ *  contention rather than killed at a number written for an idle machine. Evaluated per CALL (not at module
+ *  load) because a long-lived process spawns children across changing load. */
+const DEFAULT_TIMEOUT_BASE_MS = 120_000;
 
 export interface RunNicedSyncOptions {
   readonly cwd?: string;
@@ -360,7 +365,7 @@ export function spawnNiced(cmd: string, args: readonly string[], opts: SpawnNice
     const timer = setTimeout(() => {
       timedOut = true;
       child.kill("SIGKILL");
-    }, opts.timeoutMs ?? DEFAULT_TIMEOUT_MS);
+    }, opts.timeoutMs ?? budget(DEFAULT_TIMEOUT_BASE_MS));
     child.on("error", (e) => {
       clearTimeout(timer);
       rejectPromise(e);
