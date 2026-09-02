@@ -12,11 +12,21 @@
 // pattern becomes a declared SKIP, never a RED. Arms: DEAD · MISSING-CONFIG · UNPARSEABLE-CONFIG ·
 // UNREADABLE-SHAPE · NO-ROWS (the §4.6 blindness tripwire) · the two-sided EXEMPT arms (shared,
 // empty-but-armed at mint — every live row resolves).
+// PATTERN LIVENESS (#973): the 175 rows the file-exact classifier skips are no longer invisible. A pattern
+// is LIVE when it matches at least one member of a FINITE tracked source — the `git ls-files` corpus, or
+// the declared-dependency module paths (dep-cruiser matches MODULE paths, so `node_modules/echarts/` is
+// live exactly while some package.json still declares echarts). Zero members in either = the same
+// loaded-gun class one level up: import law aimed at nothing, or an exemption for a class that no longer
+// exists. Two families cannot be judged and are RATIFIED with reasons + a no-growth budget: a `$1`
+// BACKREFERENCE (its member set is bound by the paired rule's capture at cruise time, not by the tree) and
+// the two by-design rows below.
 // COMMENT POSTURE: comment-SAFE — extraction is pure AST over node kinds, never a text match.
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import type { ExemptionTable, Finding, GateDescriptor, GateScanDeclaration } from "../contract/gate.ts";
 import { extractRows, readConfigSource } from "../lib/config-static-read.ts";
-import type { GrantExemption, LivenessMessages } from "../lib/grant-liveness.ts";
-import { livenessFindings } from "../lib/grant-liveness.ts";
+import type { GrantExemption, LivenessMessages, PatternLivenessMessages, PatternRow } from "../lib/grant-liveness.ts";
+import { irreducibleBudgetFindings, livenessFindings, memberSources, patternLivenessFindings } from "../lib/grant-liveness.ts";
 
 const CONFIG_REL = ".dependency-cruiser.cjs";
 const UNIT = "grant row";
@@ -35,6 +45,85 @@ const REAL_CONFIG_MIN_CANDIDATES = 80;
  *  measured), so nothing needs forgiving. The two-sided machinery is shared (lib/grant-liveness.ts) and is
  *  proven in both directions by the sibling gates' pins; a row added here inherits both arms automatically. */
 const EXEMPT: ExemptionTable<GrantExemption> = {};
+
+/** A `$1`/`$2` capture BACKREFERENCE: dep-cruiser binds it from the paired `path`'s capture at cruise time,
+ *  so the pattern denotes a different set per matched file and has no member set of its own to test. */
+const BACKREF_RE = /\$\d/u;
+/** The committed count of irreducible backreference rows. Two-sided: growth adds unreviewed authority, and
+ *  an uncommitted shrink leaves a budget nobody can trust (#973 — never a silent counter). */
+const BACKREF_BUDGET = 15;
+
+/** The §4.5 real-tree anchor for the BUDGET arm: this gate's own module, which no planted fixture root
+ *  carries. Paired with a tripwire by construction — if it stops resolving the gate cannot run at all. */
+const GATE_SELF = "tooling/src/verify/gates/depcruise-grant-liveness.ts";
+/** The BUDGET arm's own real-tree anchor — a fact about the REAL config set, so it is judged only where
+ *  the enforcement ledger lives. A planted fixture carries its own rows and would (correctly for itself,
+ *  wrongly for this repo) disagree with a committed budget it knows nothing about. */
+const BUDGET_ANCHOR = "docs/architecture/core/Core-Enforcement-Active-Gates.md";
+
+const GUEST_WORKER = "packages/client/src/features/plugin/lib/ui-guest/ui-guest.worker.ts";
+const GATE_FIXTURE_LAW = "tooling/src/verify/gates/GATE-AUTHORING.md";
+
+/** Patterns whose liveness is NOT decidable from any tracked source — each with the exact reason, the
+ *  owning decision, and an END CONDITION. Two-sided: a row .dependency-cruiser.cjs no longer carries is
+ *  RED, and a cite that stopped resolving is RED. */
+const RATIFIED: ExemptionTable<GrantExemption> = {
+  "(^|/)__g_": {
+    why:
+      "the reserved throwaway-fixture sentinel: check-gates.int materialises `__g_*` files at real-tree " +
+      "paths for milliseconds and reaps them, so the subject is ABSENT from every tracked source by " +
+      "construction — a member test would RED a correct config, and an FS test would depend on whether a " +
+      "suite happened to be mid-run. Delete this row the day the `__g_` sentinel is retired.",
+    cite: GATE_FIXTURE_LAW,
+  },
+  "^packages/[^/]+/dist/": {
+    why:
+      "BUILD OUTPUT: `dist/` is gitignored, so it is absent from the tracked corpus by design and present " +
+      "only after a build — judging it either way makes the verdict depend on machine state. Delete this " +
+      "row the day the packages stop emitting dist/.",
+    cite: ".gitignore",
+  },
+  "^@jitl/quickjs-ng-wasmfile-release-sync/wasm\\?url$": {
+    why:
+      "a vite ASSET QUERY specifier (`?url`), not a module path and not a repo file: its member set is what " +
+      "the bundler emits at build time, which no static tree read can enumerate (dep-cruiser matches it " +
+      "only as an unresolvable-import exemption). The cite is the one importer that makes it live — the " +
+      "row dies with it.",
+    cite: GUEST_WORKER,
+  },
+};
+
+const PATTERN_MESSAGES: PatternLivenessMessages = {
+  deadPattern:
+    "a PATTERN in .dependency-cruiser.cjs matches NOTHING this repo carries — no tracked file and no " +
+    "declared dependency is inside it. Import law aimed at an empty set enforces nothing, and a `pathNot` " +
+    "over an empty set is an exemption nobody can see being over-broad (the loaded-gun class one level up " +
+    "from a dead file-exact row, tooling/src/verify/gates/GATE-AUTHORING.md §4.4 mode B). Re-point the " +
+    "pattern at the tier/package it means, delete the rule, or — if its members genuinely cannot be " +
+    "enumerated from the tree — add a RATIFIED row in " +
+    "tooling/src/verify/gates/depcruise-grant-liveness.ts with its `why` + END CONDITION and a resolving " +
+    "`cite`. The finding token is the pattern.",
+  staleRatified:
+    "a depcruise-grant-liveness RATIFIED row forgives a pattern .dependency-cruiser.cjs no longer carries — " +
+    "a standing allowance for a row that is gone is a LOADED GUN. Delete the row from RATIFIED in " +
+    "tooling/src/verify/gates/depcruise-grant-liveness.ts.",
+  deadCite:
+    "a depcruise-grant-liveness RATIFIED row's `cite` no longer resolves — the decision that justified the " +
+    "allowance moved or was deleted. Re-derive the cite, or delete the row from RATIFIED in " +
+    "tooling/src/verify/gates/depcruise-grant-liveness.ts.",
+  budgetMoved:
+    "the count of IRREDUCIBLE `$1`-backreference patterns in .dependency-cruiser.cjs is {actual}, but the " +
+    "committed budget is {budget}. These are the rows whose member set dep-cruiser binds from the paired " +
+    "rule's capture at cruise time, so no static reader can test them — the budget is what keeps that " +
+    "population from growing silently. GROWTH: justify the new pair or express it without a capture. " +
+    "SHRINK: commit it, by lowering BACKREF_BUDGET in " +
+    "tooling/src/verify/gates/depcruise-grant-liveness.ts.",
+};
+
+const MSG_CORPUS_BLIND =
+  "the tracked-file corpus came back EMPTY on a real-sized .dependency-cruiser.cjs — `git ls-files` failed " +
+  "or this is not a work tree, so every pattern-liveness verdict below is vacuous and a ✓ would be a lie " +
+  "(tooling/src/verify/gates/GATE-AUTHORING.md §4.6). See tooling/src/verify/lib/grant-liveness.ts.";
 
 const MESSAGES: LivenessMessages = {
   dead:
@@ -80,6 +169,23 @@ const MSG_NO_ROWS =
 interface Outcome {
   readonly findings: readonly Finding[];
   readonly declaration: GateScanDeclaration;
+  /** The pattern half's disposition, folded into the gate's scan declaration by `run`. */
+  readonly patterns?: { readonly live: number; readonly ratified: number; readonly irreducible: number };
+}
+
+/** A dep-cruiser pattern is REGEX SOURCE matched against a module path. An unparseable source is treated as
+ *  matching nothing, which makes it DEAD and therefore loud — dep-cruiser would reject it too. */
+function regexMatcher(source: string): (member: string) => boolean {
+  let re: RegExp;
+  // @orb-gate-ignore caught-failure-ownership(empty:catch): an unparseable pattern matches nothing, so it
+  // surfaces through the DEAD arm with its own diagnostic rather than aborting the pass. Ends if this gate
+  // grows a distinct "malformed pattern" arm.
+  try {
+    re = new RegExp(source, "u");
+  } catch {
+    return () => false;
+  }
+  return (member) => re.test(member);
 }
 
 function fileFinding(message: string): Finding {
@@ -123,8 +229,42 @@ function scanDepcruiseGrantLiveness(root: string): Outcome {
   if (rows.exact.length === 0) {
     return { findings: anchorOk ? [fileFinding(MSG_NO_ROWS)] : [], declaration };
   }
-  const findings = livenessFindings({ root, exact: rows.exact, exempt: EXEMPT, exemptAnchorFile: CONFIG_REL, anchorOk, messages: MESSAGES });
-  return { findings, declaration };
+  const exactFindings = livenessFindings({ root, exact: rows.exact, exempt: EXEMPT, exemptAnchorFile: CONFIG_REL, anchorOk, messages: MESSAGES });
+  // The PATTERN half runs only in a scope that carries this gate's OWN module (the §4.5 real-tree anchor
+  // shape). A conformance mini-project and the file-exact fixtures have no work tree to derive a corpus
+  // from, and their handful of rows are not the real population — judging them would red every proof.
+  if (!(anchorOk && existsSync(join(root, GATE_SELF)))) {
+    return { findings: exactFindings, declaration };
+  }
+  const backrefs = rows.skippedRows.filter((row) => BACKREF_RE.test(row.path));
+  const judgeable = rows.skippedRows.filter((row) => !BACKREF_RE.test(row.path));
+  const sources = memberSources(root);
+  if (sources.repoPaths.length === 0) {
+    return { findings: [...exactFindings, fileFinding(MSG_CORPUS_BLIND)], declaration, patterns: { live: 0, ratified: 0, irreducible: backrefs.length } };
+  }
+  const patternRows: readonly PatternRow[] = judgeable.map((row) => ({
+    file: CONFIG_REL,
+    pattern: row.path,
+    line: row.line,
+    matches: regexMatcher(row.path),
+  }));
+  const outcome = patternLivenessFindings({
+    root,
+    rows: patternRows,
+    sources,
+    ratified: RATIFIED,
+    ratifiedAnchorFile: CONFIG_REL,
+    anchorOk,
+    messages: PATTERN_MESSAGES,
+  });
+  const budget = existsSync(join(root, BUDGET_ANCHOR))
+    ? irreducibleBudgetFindings(CONFIG_REL, backrefs.length, BACKREF_BUDGET, PATTERN_MESSAGES.budgetMoved)
+    : [];
+  return {
+    findings: [...exactFindings, ...outcome.findings, ...budget],
+    declaration,
+    patterns: { live: outcome.live, ratified: outcome.ratified, irreducible: backrefs.length },
+  };
 }
 
 // ── self-proof fixtures ───────────────────────────────────────────────────────────────────────────────
@@ -158,7 +298,18 @@ export const gate: GateDescriptor = {
     "tooling/src/verify/gates/depcruise-grant-liveness.ts with its `why` + END CONDITION and a resolving `cite`.",
   run: (ctx) => {
     const outcome = scanDepcruiseGrantLiveness(ctx.root);
-    ctx.scan(outcome.declaration);
+    ctx.scan(
+      outcome.patterns === undefined
+        ? outcome.declaration
+        : {
+            ...outcome.declaration,
+            skipped: {
+              "pattern-live": outcome.patterns.live,
+              "pattern-ratified": outcome.patterns.ratified,
+              "pattern-irreducible-backref": outcome.patterns.irreducible,
+            },
+          },
+    );
     for (const finding of outcome.findings) {
       ctx.report(finding);
     }
@@ -199,6 +350,10 @@ export const gate: GateDescriptor = {
     },
   ],
   mustPass: [
+    {
+      files: { [CONFIG_REL]: 'module.exports = { forbidden: [{ name: "r", from: { path: "^packages/definitely-not-here/" }, to: {} }] };\n' },
+      why: "DECLARED LIMIT — the PATTERN half is scoped to a root carrying this gate's own module (the §4.5 real-tree anchor shape): a mini-project has no git work tree to derive the `git ls-files` corpus from, so a glob with no members here is SILENT. The pattern arms are proven instead by the permanent pin under tests/tooling/verify/gates/, which plants a real throwaway repo (#973).",
+    },
     {
       files: {
         [CONFIG_REL]: `module.exports = { forbidden: [{ name: "r", from: {}, to: { pathNot: ${LIVE_RE} } }] };\n`,

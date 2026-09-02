@@ -2,18 +2,18 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 432,
-    "enforced": 429,
+    "sites": 435,
+    "enforced": 432,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 429,
+      "deliberate-absorb": 432,
       "detached-owned": 3,
       "unproven": 0
     },
     "byGrammar": {
       "promise": 124,
-      "default": 121,
-      "empty": 187
+      "default": 123,
+      "empty": 188
     }
   },
   "rows": [
@@ -5348,6 +5348,19 @@
       "markerLine": 42
     },
     {
+      "siteId": "tooling/src/verify/gates/depcruise-grant-liveness.ts::empty:catch::1",
+      "path": "tooling/src/verify/gates/depcruise-grant-liveness.ts",
+      "line": 185,
+      "column": 5,
+      "grammar": "empty",
+      "position": "empty:catch",
+      "ordinal": 1,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "an unparseable pattern matches nothing, so it",
+      "markerLine": 180
+    },
+    {
       "siteId": "tooling/src/verify/gates/devtools-frontend-assets.ts::empty:error::1",
       "path": "tooling/src/verify/gates/devtools-frontend-assets.ts",
       "line": 104,
@@ -5437,6 +5450,32 @@
       "verdict": "deliberate-absorb",
       "reason": "returns undefined, which measure() routes into `toolError` — a tsgo/config failure is a tool error, not a clean parity verdict (per the doc comment above). Ends if measure() stops reading undefined as a tool error.",
       "markerLine": 50
+    },
+    {
+      "siteId": "tooling/src/verify/lib/grant-liveness.ts::default:catch::1",
+      "path": "tooling/src/verify/lib/grant-liveness.ts",
+      "line": 223,
+      "column": 5,
+      "grammar": "default",
+      "position": "default:catch",
+      "ordinal": 1,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "NOT a swallow — an empty corpus is the",
+      "markerLine": 215
+    },
+    {
+      "siteId": "tooling/src/verify/lib/grant-liveness.ts::default:catch::2",
+      "path": "tooling/src/verify/lib/grant-liveness.ts",
+      "line": 240,
+      "column": 5,
+      "grammar": "default",
+      "position": "default:catch",
+      "ordinal": 2,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "a malformed package.json is the package",
+      "markerLine": 235
     },
     {
       "siteId": "tooling/src/verify/lib/history.ts::empty:catch::1",
