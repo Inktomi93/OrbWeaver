@@ -5454,7 +5454,7 @@
     {
       "siteId": "tooling/src/verify/gates/bus-payload-allowlist.ts::empty:catch::1",
       "path": "tooling/src/verify/gates/bus-payload-allowlist.ts",
-      "line": 390,
+      "line": 427,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -5462,7 +5462,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "the failure IS owned and surfaced — tuple-read THROWS to say \"I cannot establish this vocabulary\", and the empty set returned here makes `literalUnionMembers` answer undefined, which makes `readIndexedAccess` answer `unprovable`, which REPORTS `unsupported-shape:MappedType` at the member. Converting it to a D16 finding rather than an exit-2 tool error is the ruling in this gate's header: an unprovable bus shape is the violation, not a broken checker. Ends if this return value stops feeding a fail-closed report.",
-      "markerLine": 387
+      "markerLine": 424
     },
     {
       "siteId": "tooling/src/verify/gates/depcruise-grant-liveness.ts::empty:catch::1",
