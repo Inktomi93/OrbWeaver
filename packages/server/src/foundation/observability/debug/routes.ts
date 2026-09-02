@@ -17,14 +17,18 @@ import type { DeploymentRenderPolicy } from "@orb/contracts/chat";
 import { DEFAULT_CHAT_MODEL_ID, DEFAULT_OR_CHAT_MODEL_ID } from "@orb/contracts/connection";
 import type { EffectiveAppConfig } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
+import { resolveEvidenceWindow } from "@orb/kit/evidence-window";
 import type { AutomationRuleId, CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { Context, Hono, MiddlewareHandler, Next } from "hono";
+import { z } from "zod";
 import { APP_VERSION } from "#foundation/config";
 import { diagnosticsPostureInput, diagnosticsPostureWarnings, env, resolveDiagnosticsPosture } from "#foundation/env";
 import { getAuditFailureSnapshot } from "../audit.ts";
 import { logRing, recentRequests } from "../logger.ts";
 import { getTraceByRequestId, recentTraces } from "../tracing.ts";
+import type { BugReportRecord } from "./bug-report.ts";
+import { captureNowMs, mintBugReportId, readBuildIdentity, secretLiterals, snapshotServerEvidence, writeBugReport } from "./bug-report.ts";
 import {
   appSettingRows,
   automationFireRows,
@@ -41,52 +45,41 @@ import {
   tableCounts,
   userSettingsRows,
 } from "./inspect/index.ts";
+import { ERROR_LEVEL, levelValue, parseLogRingLine, ringLineLevel } from "./log-ring-read.ts";
 import { isWireCaptureEnabled, recentTurnOutcomes, recentWireCaptures } from "./wire-capture.ts";
 
-const ERROR_LEVEL = 50; // pino numeric level for "error"
 const MAX_RING_READ = 2000;
 const DEFAULT_LOG_LIMIT = 200;
 const DEFAULT_LIST_LIMIT = 100;
 const NOT_FOUND = 404;
 const UNAUTHORIZED = 401;
+const BAD_REQUEST = 400;
+const INTERNAL_ERROR = 500;
+/** Cap on the owner's typed note. Long enough for a paragraph of prose, short enough that a runaway paste
+ *  cannot become the report. */
+const BUG_REPORT_NOTE_MAX = 8000;
+/** A day — beyond it the ask is not a window, and every ring in the process is shallower than that anyway. */
+const BUG_REPORT_WINDOW_MAX_MINUTES = 1440;
 
-const LOG_LEVEL_VALUES: Record<string, number> = {
-  trace: 10,
-  debug: 20,
-  info: 30,
-  warn: 40,
-  error: 50,
-  fatal: 60,
-};
+/** The bug-report POST body. `client` is deliberately `unknown`: the page owns its own bundle shape and this
+ *  tier must not re-spell it (a field allowlist here would be a guess that goes stale silently). It is opaque
+ *  data that gets value-scrubbed with everything else before the write. */
+const bugReportInput = z.object({
+  note: z.string().trim().min(1).max(BUG_REPORT_NOTE_MAX),
+  /** The owner's "~N minutes ago", or null for "everything the rings still hold". */
+  windowMinutes: z.number().positive().max(BUG_REPORT_WINDOW_MAX_MINUTES).nullable().default(null),
+  client: z.unknown().optional(),
+});
 
-function levelValue(name: string | undefined): number {
-  return name === undefined ? 0 : (LOG_LEVEL_VALUES[name] ?? 0);
-}
-
-/**
- * The numeric severity of ONE ring line — and the fix for a total, silent blindness in both readers below.
- *
- * `logger.ts` configures `formatters: { level: (label) => ({ level: label }) }` so every serialized line
- * carries `"level":"error"`, the STRING LABEL, not pino's numeric 50. Both filters here used to do
- * `Number(record["level"] ?? 0)`, and `Number("error")` is **NaN** — every comparison against NaN is false.
- * The consequences ran in opposite directions and only one of them was visible:
- *   • `collectErrors` (`NaN >= 50` → false) returned `[]` for EVERY input. `/api/_debug/errors` was
- *     structurally incapable of ever reporting an error, which is how a live turn produced an ERROR-level
- *     `provider.error` line, an HTTP 500, and a blank panel (docs/design/streaming-shape-churn.md §7.5).
- *   • `collectLogs` (`NaN < minLevel` → false) excluded NOTHING, so `?level=` silently returned every line
- *     and read as a working filter.
- * The ring WRITE was never the problem — pino's multistream fed it correctly the whole time.
- *
- * Reads BOTH spellings on purpose: the label is what our formatter emits, and the number is what pino emits
- * by default — so this stays correct if the formatter is ever removed, rather than swapping which half of
- * the bug is live.
- */
-function recordLevel(record: Record<string, unknown>): number {
-  const raw = record["level"];
-  if (typeof raw === "number") {
-    return raw;
+/** The POSTed body, or `null` when it was not JSON at all — which `safeParse` then reports as invalid. */
+async function readJsonBody(c: Context): Promise<unknown> {
+  // @orb-gate-ignore caught-failure-ownership(default:catch): a malformed body is a 400 the caller sees, and
+  // the null flows straight into the schema's own failure path. Ends if the null stops being validated.
+  try {
+    return await c.req.json();
+  } catch {
+    return null;
   }
-  return typeof raw === "string" ? levelValue(raw) : 0;
 }
 
 /** @internal — pure timing-safe equality (exported for tests; the middleware closes over env.DEBUG_TOKEN). */
@@ -97,17 +90,6 @@ export function tokenMatches(provided: string | undefined, expected: string | un
   const a = Buffer.from(provided);
   const b = Buffer.from(expected);
   return a.length === b.length && timingSafeEqual(a, b);
-}
-
-function parseLine(line: string): Record<string, unknown> | null {
-  // @orb-gate-ignore caught-failure-ownership(default:catch): null is consumed by both collectLogs and
-  // collectErrors as "skip this ring line". Ends if either caller stops filtering out the null.
-  try {
-    const value: unknown = JSON.parse(line);
-    return typeof value === "object" && value !== null ? (value as Record<string, unknown>) : null;
-  } catch {
-    return null;
-  }
 }
 
 function toLimit(raw: string | undefined, fallback: number): number {
@@ -129,11 +111,11 @@ function collectLogs(query: LogQuery): Record<string, unknown>[] {
     if (query.q !== undefined && !line.includes(query.q)) {
       continue;
     }
-    const record = parseLine(line);
+    const record = parseLogRingLine(line);
     if (record === null) {
       continue;
     }
-    if (recordLevel(record) < query.minLevel) {
+    if (ringLineLevel(record) < query.minLevel) {
       continue;
     }
     if (query.requestId !== undefined && record["requestId"] !== query.requestId) {
@@ -150,8 +132,8 @@ function collectLogs(query: LogQuery): Record<string, unknown>[] {
 function collectErrors(limit: number): Record<string, unknown>[] {
   const errors: Record<string, unknown>[] = [];
   for (const line of logRing.recent(MAX_RING_READ)) {
-    const record = parseLine(line);
-    if (record !== null && recordLevel(record) >= ERROR_LEVEL) {
+    const record = parseLogRingLine(line);
+    if (record !== null && ringLineLevel(record) >= ERROR_LEVEL) {
       errors.push(record);
     }
     if (errors.length >= limit) {
@@ -310,6 +292,43 @@ export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions = {})
       },
       diagnostics: { ...diagnostics, warnings: diagnosticsPostureWarnings(diagnostics) },
     });
+  });
+
+  // THE BUG-REPORT CAPTURE (#1095) — the one WRITE on this surface, and the only route here that is not a
+  // read. The owner's dev top-rail button POSTs its in-page bundle; this snapshots the server's own in-memory
+  // flight recorders IN THE SAME TICK (they die on the next `node --watch` respawn — `bug-report.ts`'s header
+  // states why that timing is the whole point), stamps the build identity, scrubs by value, and writes one
+  // gitignored artifact pair. The gate above is its entire boundary, exactly as for every read below.
+  //
+  // THE WINDOW IS RESOLVED TWICE, ON PURPOSE. The page filtered its own rings against ITS clock and ships that
+  // resolution inside `client`; this resolves the same ask against the SERVER's clock for the server's rings.
+  // One shared resolution would silently attribute one machine's clock skew to the other's evidence.
+  app.post("/api/_debug/bug-report", async (c) => {
+    const parsed = bugReportInput.safeParse(await readJsonBody(c));
+    if (!parsed.success) {
+      return c.json({ error: "invalid bug report", issues: z.prettifyError(parsed.error) }, BAD_REQUEST);
+    }
+    const capturedAt = new Date(captureNowMs());
+    const repoRoot = process.cwd();
+    const record: BugReportRecord = {
+      id: mintBugReportId(),
+      capturedAt: capturedAt.toISOString(),
+      build: readBuildIdentity(repoRoot),
+      window: resolveEvidenceWindow(capturedAt.getTime(), parsed.data.windowMinutes),
+      note: parsed.data.note,
+      client: parsed.data.client ?? null,
+      server: snapshotServerEvidence(resolveEvidenceWindow(capturedAt.getTime(), parsed.data.windowMinutes), {
+        ...(rpgTrace === undefined ? {} : { rpgTrace }),
+        ...(memoryRecall === undefined ? {} : { memoryRecall }),
+      }),
+    };
+    const written = await writeBugReport({ repoRoot, record, secrets: secretLiterals(env) });
+    if (written === null) {
+      // The scrub is fail-closed (`redactKnownSecrets` returns "" when a literal survived). A blank file nobody
+      // notices is the worse outcome; refuse loudly and let the owner re-report.
+      return c.json({ error: "report refused — the credential scrub could not guarantee removal, nothing was written" }, INTERNAL_ERROR);
+    }
+    return c.json({ id: record.id, capturedAt: record.capturedAt, build: record.build, written, sources: record.server.sources });
   });
 
   app.get("/api/_debug/logs", (c) =>

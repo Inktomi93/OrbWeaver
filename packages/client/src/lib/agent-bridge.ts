@@ -12,6 +12,7 @@ import { readAutomationFires } from "./agent-plugin-bridge.ts";
 import { appReady, isAppReady } from "./app-ready-signal.ts";
 import type { BusEventRecord } from "./bus-devlog.ts";
 import { __resetBusEventRing, busEventRing, busLiveCount } from "./bus-devlog.ts";
+import { __resetConsoleErrors, consoleErrorRing, installConsoleErrorRing } from "./console-error-ring.ts";
 import { IS_DEV } from "./dev-flag.ts";
 import { __resetLongTaskEvidence } from "./long-task-tracer.ts";
 import type { AnimationRecord } from "./motion-animation-record.ts";
@@ -29,7 +30,18 @@ export type { NavResult, OrbAgentHandles, OrbNavCapabilities, OrbNavHandle, OrbR
 
 const ORB_RING_LIFETIMES = ["checkpoint", "durable", "server-runtime", "session"] as const;
 type OrbRingLifetime = (typeof ORB_RING_LIFETIMES)[number];
-const ORB_RING_NAMES = ["bus-events", "flags", "motion", "renders", "css-merges", "animations", "perf", "plugin-log", "automation-fires"] as const;
+const ORB_RING_NAMES = [
+  "bus-events",
+  "flags",
+  "motion",
+  "renders",
+  "css-merges",
+  "animations",
+  "perf",
+  "plugin-log",
+  "automation-fires",
+  "console-errors",
+] as const;
 type OrbRingName = (typeof ORB_RING_NAMES)[number];
 
 interface OrbRingMetadata {
@@ -64,6 +76,10 @@ interface OrbDebugHandle {
    *  per offender. The pull half of the push channels in `motion-flaggers.ts`: a harness that cannot
    *  read the console still gets the offender list. */
   readonly flags: () => readonly MotionFlagRecord[];
+  /** Every browser-side FAILURE this session: `console.error` calls, uncaught errors, unhandled rejections —
+   *  wall-clock stamped, capped, and counting its own evictions (`dropped`). The one signal this client held
+   *  nowhere before #1095: a caught RENDER error reaches the server's log ring, a bare console.error did not. */
+  readonly consoleErrors: () => ReturnType<typeof consoleErrorRing>;
   /** Clear the flag ring + its per-offender dedupe. Call between the STEPS of a driven flow: without
    *  it, step 1's offenders suppress the identical ones in step 2 and the later steps read clean. */
   readonly resetFlags: () => void;
@@ -119,6 +135,7 @@ const ORB_DEBUG_CAPABILITIES = {
   motion: "read checkpoint LoAF and layout-shift evidence",
   animations: "read currently active animations and compositor classification",
   flags: "read checkpoint motion defect flags",
+  consoleErrors: "read the session console-error, uncaught-error and unhandled-rejection ring",
   resetFlags: "clear the legacy motion-flag checkpoint",
   resetEvidence: "clear every checkpoint-safe client evidence store",
   motionFlaggersSettled: "wait for the initial motion-flagger census",
@@ -148,6 +165,12 @@ const ORB_RING_REGISTRY = {
   perf: { read: "perf()", lifetime: "session", resettable: false, description: "load and session User Timing measures" },
   "plugin-log": { read: "pluginLog(ref)", lifetime: "server-runtime", resettable: false, description: "plugin-host runtime log" },
   "automation-fires": { read: "automationFires(filter)", lifetime: "durable", resettable: false, description: "durable automation dispatch audit" },
+  "console-errors": {
+    read: "consoleErrors()",
+    lifetime: "checkpoint",
+    resettable: true,
+    description: "console errors, uncaught errors and unhandled rejections",
+  },
 } as const satisfies Record<OrbRingName, Omit<OrbRingMetadata, "name">>;
 
 const ORB_RINGS: readonly OrbRingMetadata[] = ORB_RING_NAMES.map((name) => ({ name, ...ORB_RING_REGISTRY[name] }));
@@ -186,6 +209,7 @@ function installAgentDebugHandleImpl(queryClient: QueryClient, handles: OrbAgent
   installAnimationLifecycleRecorder();
   installMotionObservers();
   installMotionFlaggers();
+  installConsoleErrorRing();
   const { nav, seed, rpg, pluginLog, css, durableLocalUserId } = handles;
   const shell = (): ShellSnapshot => ({
     section: document.querySelector('[aria-current="page"]')?.getAttribute("aria-label") ?? null,
@@ -231,6 +255,8 @@ function installAgentDebugHandleImpl(queryClient: QueryClient, handles: OrbAgent
     motion: motionSummary(),
     // Raised motion defects, by channel — a zero here is the only cheap "the surface is clean" read.
     flags: flagCounts(),
+    // Browser-side failures since load — a non-zero here is the first thing to read.
+    consoleErrors: consoleErrorRing().records.length,
   });
   const resetters = {
     "bus-events": __resetBusEventRing,
@@ -240,8 +266,9 @@ function installAgentDebugHandleImpl(queryClient: QueryClient, handles: OrbAgent
       __resetMotionStats();
     },
     renders: __resetRenderStats,
+    "console-errors": __resetConsoleErrors,
     "css-merges": css.reset,
-  } as const satisfies Record<Extract<OrbRingName, "bus-events" | "css-merges" | "flags" | "motion" | "renders">, () => void>;
+  } as const satisfies Record<Extract<OrbRingName, "bus-events" | "console-errors" | "css-merges" | "flags" | "motion" | "renders">, () => void>;
   const resetRing = (name: string): OrbRingResetResult => {
     if (!Object.hasOwn(ORB_RING_REGISTRY, name)) {
       return { ok: false, name, reason: `unknown ring "${name}"; call __orb.rings() for the indexed names` };
@@ -271,6 +298,7 @@ function installAgentDebugHandleImpl(queryClient: QueryClient, handles: OrbAgent
     motion: motionSnapshot,
     animations: activeAnimations,
     flags: motionFlags,
+    consoleErrors: consoleErrorRing,
     resetFlags: __resetMotionFlags,
     resetEvidence,
     motionFlaggersSettled,
@@ -290,7 +318,7 @@ function installAgentDebugHandleImpl(queryClient: QueryClient, handles: OrbAgent
     resetRing,
   };
   console.info(
-    "%c[orb]%c dev introspection ready → %cwindow.__orb%c.capabilities() · .rings()/.resetRing(name) · .snap() · .css.read() · .rpg() · .pluginLog(slug?) · .automationFires({chatId?}) · .queries() · .bus() · .perf() · .renders() · .motion() · .animations() · .flags()/.resetEvidence()/.motionFlaggersSettled()/.motionFlaggersDrain()/.setMotionAuditDropTrackingPaused() · .shell() · .durableLocalUserId() · .nav.capabilities/section/openModal/openConfig/contextTab/openChat/openCharacter/closeModal/panel(name,mode)/focus(on) · .seed.game({profile:'d20'|'freeform'})/richGame;  wait on %chtml[data-app-ready]%c.  Docs: packages/client/src/lib/agent-tools.README.md",
+    "%c[orb]%c dev introspection ready → %cwindow.__orb%c.capabilities() · .rings()/.resetRing(name) · .snap() · .css.read() · .rpg() · .pluginLog(slug?) · .automationFires({chatId?}) · .queries() · .bus() · .perf() · .renders() · .motion() · .animations() · .flags()/.consoleErrors()/.resetEvidence()/.motionFlaggersSettled()/.motionFlaggersDrain()/.setMotionAuditDropTrackingPaused() · .shell() · .durableLocalUserId() · .nav.capabilities/section/openModal/openConfig/contextTab/openChat/openCharacter/closeModal/panel(name,mode)/focus(on) · .seed.game({profile:'d20'|'freeform'})/richGame;  wait on %chtml[data-app-ready]%c.  Docs: packages/client/src/lib/agent-tools.README.md",
     "color:#e0a; font-weight:bold",
     "color:#888",
     "color:#0a7; font-weight:bold",

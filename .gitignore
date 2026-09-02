@@ -83,6 +83,12 @@ Thumbs.db
 # NB search tools that respect ignore files skip this — use /usr/bin/grep -a or `sg --no-ignore`.
 /reference/
 
+# --- the dev bug-found button's durable captures (#1095) ---
+# Root-anchored (the /data/ lesson). One JSON bundle + one markdown note per report, written by
+# /api/_debug/bug-report at capture time. The owner's raw session evidence — read at the review ritual,
+# quoted into an issue, never committed (they carry whatever the page and the flight recorders held).
+/bug-reports/
+
 # --- scratch ---
 scratchpad/
 scratch/
