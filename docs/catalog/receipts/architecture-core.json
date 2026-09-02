@@ -163,14 +163,15 @@
     },
     {
       "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
-      "assignedSha256": "aad653c4c726ac896801cb86404a7314db00671654e9b9c1b6fea643c0a3b092",
+      "assignedSha256": "ec6a1dea450c82ea41c036c52efe0af66bd2d1a662059f4fd9ceb39083f42867",
       "disposition": "current",
       "authority": "operational",
       "fullRead": true,
-      "verifiedSha256": "aad653c4c726ac896801cb86404a7314db00671654e9b9c1b6fea643c0a3b092",
-      "verifiedCommit": "e85447e4bf2974330f2ed95f8eb94851e77d6d20",
+      "verifiedSha256": "ec6a1dea450c82ea41c036c52efe0af66bd2d1a662059f4fd9ceb39083f42867",
+      "verifiedCommit": "77f0aaad90a75a4e7e437f8fac3f76b7efae0fe6",
       "verifiedAt": "2026-09-01",
       "evidence": [
+        "re-attested at 77f0aaad90a75a4e7e437f8fac3f76b7efae0fe6 (#1018/#910): the Layer-3 table registers runner-config-path-liveness (discovered active count 248) and states the description-MIRROR rule — a row copying its descriptor's runtime message declares it with (@mirrors-message) and is held byte-for-byte; the three live mirrors are marked. check:structure ran COMPLETE 248/248 clean, gate conformance 8/8, check-gates.int 8/8, and both gate pins 18/18",
         "re-attested at 9a4bee47ab1b21cd68c291c80e1704b486200dd8 (#995): the agent-bridge-lock row records the lean production readiness home, shared debug Promise/query, and DEV-only bridge boundary; focused CT passed 6/6, gate conformance passed, and check:structure completed 244/244 active gates clean",
         "re-attested at db116d91ee1fcc6ee14ea915f1da0922cb8e84bd (#881/#882): tooling-instrument-proof evidence 8/8, focused UI twins 4/4 and conformance 6/6; design-audit-rule-proof UI audit 106/106, walker 53/53, conformance 8/8 and check-gates 8/8; merged check:structure clean at 243/243",
         "re-attested at 7b7eb54b2 under #950 — devtools-frontend-assets records the exact tuple/hash/MIME/license/inventory/path closure and the discovered active count is 242",
