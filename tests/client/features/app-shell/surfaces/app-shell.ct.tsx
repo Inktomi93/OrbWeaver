@@ -18,7 +18,7 @@ import type { SectionId } from "../../../../../packages/client/src/state/section
 import APPEARANCE_PRESET_FILE from "../../../../../tooling/src/_shared/appearance-presets.json" with { type: "json" };
 import { routeTrpc, trpcHold } from "../../../../support/ct/route-trpc.ts";
 import { makeCharacterSummary } from "../../character/fixtures.ts";
-import { chatListResponder, makeChatSummary } from "../../chat/fixtures.ts";
+import { CHAT_ROOM_ROUTES, chatListResponder, makeChatSummary } from "../../chat/fixtures.ts";
 import { GrainDoublePaintFixture, OverArtGlassCensusFixture, ShellCascadeFixture } from "../_cascade-fixtures.tsx";
 import {
   AppShellChatsProjectionIntentStory,
@@ -79,6 +79,19 @@ const SHELL_AMBIENT_ROUTES: Readonly<Record<string, unknown>> = {
   // Feeding this makes the janitor's real reconcile path run, which is the whole point — it fixes nothing in
   // production because nothing there was broken.
   "chat.reapTemporaryChats": { reaped: 0 },
+  // THE HERO-ROOM WARM (#1205, the same CASCADE shape the `reapTemporaryChats` row above describes). Home's
+  // hearth tile WARMS the room its one focal action opens — `usePrefetchRoom` issues `chat.getChat` on the
+  // tile's MOUNT, a human reaction time ahead of the Resume click (#1126) — and the chats-list rows warm the
+  // same key on hover-rest/press/focus (#1180). The shell IS the composition root, so any mount here that
+  // reaches home or the chats pane requests it. It could not appear in this file's #649 ledger because the
+  // warm did not exist then; the ratchet named it on the first run after #1126 folded.
+  //
+  // Spread rather than respelled: `CHAT_ROOM_ROUTES` is the chat feature's own "room canon reads at their
+  // empty-but-real defaults" map (a partial `ChatDetail` with a solo-less roster + an empty page), so the
+  // shape stays single-homed with the surfaces that read it. Its `chat.listMessages` half rides along
+  // deliberately — the shell does not request it today, and an unrequested stub costs nothing, but a story
+  // that lands the shell IN a room will need it fed rather than nulled.
+  ...CHAT_ROOM_ROUTES,
 };
 
 /** The thumb-reach budget (L6/J12): rendered mobile-bar buttons (`mobile: "tab"` sections + "You") must
