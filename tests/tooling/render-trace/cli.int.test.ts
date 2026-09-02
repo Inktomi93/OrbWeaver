@@ -107,6 +107,21 @@ test("trace:tail refuses an unrecognised token instead of tailing UNAUTHENTICATE
   await expect(res).toExitWith(3);
 });
 
+test("trace:render refuses a SECOND trace instead of rendering only the first", async ({ runCli, scratch }) => {
+  // Red-first receipt (#1116, measured on the unmodified source): `render a.json b.json` printed a's
+  // waterfall and exited 0 — cli.ts passed `rest[0]` and dropped the rest, so b's ✗ badge was never shown
+  // and the operator read a clean run for a trace nobody looked at. ONE trace per invocation is the tool's
+  // own stated grammar (`pnpm trace:render [<file>|-]`), so the second positional is misuse, not a queue.
+  const first = join(scratch, "one.json");
+  const second = join(scratch, "two.json");
+  await writeFile(first, JSON.stringify(trace("ok", 1)));
+  await writeFile(second, JSON.stringify(trace("error", 250)));
+  const res = await runCli("render-trace", ["render", first, second]);
+  await expect(res).toExitWith(3);
+  expect(res.stderr, "the refusal must NAME the dropped trace").toContain(second);
+  expect(res.stdout, "and nothing may be rendered — a partial render is the defect").not.toContain("● ok");
+});
+
 test("trace:fire refuses a flag instead of firing it as a request path", async ({ runCli }) => {
   // A `--flag` used to be parsed as a bare path and fired: the 404 it produced was then reported as a
   // failing request, which reads exactly like a real finding.

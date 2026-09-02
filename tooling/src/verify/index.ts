@@ -72,7 +72,9 @@ export type { Parsed } from "./lib/run-argv.ts";
 export { parse } from "./lib/run-argv.ts";
 export { failReason, printSummary } from "./lib/run-render.ts";
 export { resolveSelection } from "./lib/selection.ts";
+export { refuseVerbTail } from "./lib/verb-tail.ts";
 
+export { BASELINE_HELP, runBaseline } from "./ops/baseline.ts";
 export { BOOT_CHUNK_CEILING_BYTES, measureBootChunk, runBootChunkRatchet } from "./ops/boot-chunk-ratchet.ts";
 export { verifyGateProofs } from "./ops/conformance.ts";
 export { compareSchemaBaseline, runDbBaselineParity } from "./ops/db-baseline-parity.ts";

@@ -124,6 +124,12 @@ export const gate: GateDescriptor = {
 /** The `gate:new` verb — scaffold the gate file, then print every coupled site that lives outside it. */
 export function runNewGate(root: string, argv: readonly string[]): number {
   const name = argv[0];
+  // ONE kebab name is the whole tail (#1117) — refused BEFORE the scaffold is written, because this verb's
+  // silent-ignore leaves a gate file on disk under a name the operator did not mean to be the only one.
+  const stray = argv[1];
+  if (stray !== undefined) {
+    throw new UsageError(`new-gate scaffolds ONE gate per invocation — got ${JSON.stringify(stray)} as well (usage: pnpm gate:new <kebab-name>)`);
+  }
   if (name === undefined || !KEBAB_RE.test(name)) {
     throw new UsageError("usage: pnpm gate:new <kebab-name>\nthe gate NAME must equal its filename (loader-enforced) and be kebab-case.");
   }

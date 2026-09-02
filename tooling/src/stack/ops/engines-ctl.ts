@@ -16,7 +16,7 @@
  */
 import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
-import { engineLaunchEnvFloor } from "@orb/server/foundation/env";
+import { engineLaunchEnvFloor, processEnvSnapshot } from "@orb/server/foundation/env";
 import type { EngineUtilFractions, GpuVram } from "@orb/server/infra/providers/vllm/engine";
 import {
   clearHold,
@@ -43,6 +43,8 @@ const HEALTH_TIMEOUT_MS = 2000;
 // Column pad for the per-engine status line (widest engine name = "rerank").
 const ENGINE_NAME_PAD = 6;
 const STOP_GRACE_TICKS = 30;
+/** The dispatch-probe env var (the `stack.sh` STACK_DISPATCH_PROBE convention) — see `main` below. */
+const DISPATCH_PROBE_VAR = "ENGINES_CTL_DISPATCH_PROBE";
 const STOP_POLL_MS = 500;
 
 function log(msg: string): void {
@@ -285,6 +287,16 @@ async function main(): Promise<number> {
         .map((a) => JSON.stringify(a))
         .join(" ")}`,
     );
+  }
+  // Test seam (tests/tooling/stack/ops/engines-ctl.int.test.ts), the `stack.sh` STACK_DISPATCH_PROBE
+  // convention: print the classification and stop — AFTER the grammar is decided, BEFORE the verb runs.
+  // Every verb here touches the LIVE fleet (reconcile REAPS, status probes, sleep/wake/stop post to the
+  // engines), so without this seam the only thing standing between a red-first plant and production
+  // hardware is the very refusal such a plant removes. Paid 2026-09-02: a bite-proof that neutered the
+  // refusal drove `sleep` and put the live embed + rerank engines to sleep. The probe is the neutering.
+  if (processEnvSnapshot()[DISPATCH_PROBE_VAR] !== undefined) {
+    log(`DISPATCH verb=${verb}`);
+    return 0;
   }
   return await fn();
 }

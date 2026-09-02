@@ -21,7 +21,17 @@ async function readStdin(): Promise<string> {
   return Buffer.concat(chunks).toString("utf-8");
 }
 
-export async function renderOp(arg: string | undefined): Promise<number> {
+export async function renderOp(argv: readonly string[]): Promise<number> {
+  // ONE trace per invocation is the whole grammar (the header's `[<file>|-]`, and this op's own usage
+  // line below). Every positional past the first used to be DROPPED: `pnpm trace:render a.json b.json`
+  // rendered `a` alone and exited 0, so the second waterfall's red badge was never printed and the
+  // operator read a clean run for a trace nobody looked at (#1116). A flag is refused by the same line —
+  // this op takes none, and a swallowed `--token` reads as a tail that was never armed.
+  const extra = argv[1];
+  if (extra !== undefined) {
+    throw new UsageError(`trace:render takes ONE trace per invocation — got ${JSON.stringify(extra)} as well (usage: pnpm trace:render [<file>|-])`);
+  }
+  const arg = argv[0];
   let raw: string;
   if (arg === undefined || arg === "-") {
     if (process.stdin.isTTY === true) {

@@ -13,7 +13,7 @@ import { fireOp, renderOp, tailOp } from "./index.ts";
 async function main(): Promise<number> {
   const [sub, ...rest] = process.argv.slice(2);
   if (sub === "render") {
-    return await renderOp(rest[0]);
+    return await renderOp(rest);
   }
   if (sub === "tail") {
     return await tailOp(rest);

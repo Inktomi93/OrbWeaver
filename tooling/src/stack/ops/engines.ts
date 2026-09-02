@@ -74,6 +74,8 @@ const DETACH = ENGINE_ARGV.includes("--detach");
 // opposite topology (the launcher then owns the fleet and dies with the shell) — a silent mode flip on
 // a multi-minute GPU boot. main() refuses it below (#971).
 const UNKNOWN_ENGINE_ARG = ENGINE_ARGV.find((a) => a !== "--detach");
+/** The dispatch-probe env var (the `stack.sh` STACK_DISPATCH_PROBE convention) — see `main` below. */
+const DISPATCH_PROBE_VAR = "ENGINES_DISPATCH_PROBE";
 const PIDFILE = engineIdentityFilePath(REPO_ROOT);
 const BOOT_LOCK = path.join(fleetRunDir(REPO_ROOT), "engines.boot.lock");
 
@@ -271,6 +273,14 @@ async function launchFleet(launch: EngineLaunchConfig, deployment: ReturnType<ty
 async function main(): Promise<ExitCode> {
   if (UNKNOWN_ENGINE_ARG !== undefined) {
     throw new UsageError(`engines does not recognize ${JSON.stringify(UNKNOWN_ENGINE_ARG)} — usage: engines.ts [--detach]`);
+  }
+  // Test seam (tests/tooling/stack/ops/engines.int.test.ts), the `stack.sh` STACK_DISPATCH_PROBE
+  // convention: print the classification and stop — AFTER the grammar is decided, BEFORE anything runs.
+  // This launcher's job is spawning vLLM, so a red-first plant that removes the refusal above must still
+  // have nothing to fall through TO; the probe is that floor, and it does not depend on VLLM_DISABLED.
+  if (processEnvSnapshot()[DISPATCH_PROBE_VAR] !== undefined) {
+    log(`DISPATCH detach=${DETACH ? 1 : 0}`);
+    return EXIT.clean;
   }
   if (shouldSkip()) {
     return EXIT.clean;

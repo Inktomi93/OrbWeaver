@@ -63,6 +63,7 @@ import { join } from "node:path";
 import process from "node:process";
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
+import { UsageError } from "@orb/tooling/_shared/run-tool";
 import { getWorkspace } from "@orb/tooling/_shared/ts-workspace";
 import type { ApiSurfaceEntry } from "@orb/tooling/ast";
 import { buildLiveness, collectApiSurface, isProdConsumed, isPublicTagged, ownExports, publicMarkerOf } from "@orb/tooling/ast";
@@ -231,6 +232,13 @@ function report(added: readonly Orphan[], stale: readonly string[], staleTags: r
 /** The `orphan-ratchet` verb. ROOT arrives from the cli (the caller's cwd), never a depth-derived
  *  `import.meta.dirname` walk whose up-count silently changes at every move (playbook §9.1-4). */
 export function runOrphanRatchet(root: string, argv: readonly string[]): number {
+  // `--update` is the WHOLE grammar (#1117). A typo used to be dropped: `--updat` ran the CHECK and
+  // reported drift, while the operator had asked to REWRITE the baseline — the two verdicts are opposite
+  // and the run looks identical until you read the last line. Measured red-first on this tree: exit 1.
+  const unknown = argv.find((token) => token !== "--update");
+  if (unknown !== undefined) {
+    throw new UsageError(`orphan-ratchet does not recognize ${JSON.stringify(unknown)} — usage: orphan-ratchet [--update]`);
+  }
   const update = argv.includes("--update");
   let scan: Scan;
   let baseline: Baseline;

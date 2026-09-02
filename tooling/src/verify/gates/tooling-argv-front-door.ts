@@ -3,6 +3,16 @@
 // (dotted or `process["argv"]`) outside a tool `cli.ts` / a censused ARGV_ENTRIES row; (B) the two-sided
 // stale sweep over ARGV_ENTRIES; (C) the §4.6 blindness tripwire — zero cli.ts readers on a real-tree run.
 // Scan-and-allowlist over the entries (GATE-AUTHORING §4). Comment posture: comment-SAFE (node kinds only).
+//
+// DECLARED LIMIT — the RESEARCH ZONE is out of scope, by derivation (#1118, and its own mustPass row
+// below). `scripts/**` is the explicitly throwaway zone where KISS/YAGNI still apply (Core-Tooling-Law
+// §2.7): 13 readers there today (10 `.ts` probes + the three launcher shims `ts7.cjs`,
+// `review-mirror.mjs`, `vitest-supervised.mjs`), none of them a product surface, none of them a LIBRARY a
+// second caller drives — each IS its own program, which is the very shape this gate sanctions in a
+// `cli.ts`. The exclusion is not an allowlist and not a fence bolted on: `scanRoot` admits
+// `tooling/src/` and nothing else, so a research script is never a candidate, and a probe PROMOTED into
+// `tooling/src/<tool>/` (the §2.7 promotion path) enters the gate the moment it lands. That direction —
+// zone in, immediately judged — is what the mustPass pair below writes down.
 import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { ExemptionTable, GateDescriptor } from "../contract/gate.ts";
@@ -180,6 +190,11 @@ export const gate: GateDescriptor = {
       files: "// process.argv is [node, script, verb, ...] — the operator's own argv starts here.\nexport const AFTER_VERB = 3;\n",
       at: "tooling/src/stack/ops/prod.ts",
       why: "comment posture: comment-SAFE. The gate subscribes to node kinds, so a header explaining the argv layout must never be read as a read (the #117/#132 class)",
+    },
+    {
+      files: 'import process from "node:process";\nexport const args = process.argv.slice(2);\n',
+      at: "scripts/probes/some-probe.ts",
+      why: "THE DECLARED LIMIT (#1118): the research zone is outside scanRoot BY DERIVATION, not by an allowlist row — same language, same read, only the ZONE differs from the mustFlag rows above, which is what makes this pair a proof rather than an assertion. `scripts/**` is throwaway probes + launcher shims where KISS applies (Core-Tooling-Law §2.7); a probe PROMOTED into tooling/src/<tool>/ is judged from its first day there. Ends if the research zone ever becomes a product surface.",
     },
     {
       files: "export function pick(opts: { readonly argv: readonly string[] }): string | undefined {\n  return opts.argv[0];\n}\n",
