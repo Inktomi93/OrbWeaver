@@ -96,10 +96,17 @@ function markersIn(sf: SourceFile): readonly Marker[] {
   const raw = sf.getFullText();
   const lines = raw.split("\n");
   const markers: Marker[] = [];
-  const literalSpans = sf
-    .getDescendants()
-    .filter((node) => LITERAL_KINDS.has(node.getKind()))
-    .map((node) => [node.getStart(), node.getEnd()] as const);
+  // `forEachDescendant`, NOT the kind-less `getDescendants()`: every LITERAL_KINDS member is a
+  // `forEachChild` NODE (template head/middle/tail hang off TemplateExpression/TemplateSpan, JsxText off
+  // its element), so the two walks return the SAME spans while the kind-less one takes ts-morph's
+  // token-materialising path — measured 2026-09-02 over all 2,518 `tests/` files: 0 differing files, with a
+  // 4-kind planted control (docs/reviews/research/2026-08-31-gate-pass-unified-walk.md §4).
+  const literalSpans: (readonly [number, number])[] = [];
+  sf.forEachDescendant((node) => {
+    if (LITERAL_KINDS.has(node.getKind())) {
+      literalSpans.push([node.getStart(), node.getEnd()] as const);
+    }
+  });
   let lineStart = 0;
   for (let index = 0; index < lines.length; index += 1) {
     const lineText = lines[index] ?? "";
