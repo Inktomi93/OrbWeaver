@@ -4,6 +4,7 @@
 import { Tabs, TabsIndicator, TabsList, TabsPanel, TabsTab } from "@orb/ui/tabs";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { Page } from "@playwright/test";
 
 function fixture(): ReturnType<typeof Tabs> {
   return (
@@ -82,6 +83,75 @@ test("the indicator is present and tracks the active tab", async ({ mount, page 
   const leftOnOne = await indicator.evaluate((el) => getComputedStyle(el).getPropertyValue("--active-tab-left"));
   await page.getByRole("tab", { name: "Two" }).click();
   await expect.poll(() => indicator.evaluate((el) => getComputedStyle(el).getPropertyValue("--active-tab-left"))).not.toBe(leftOnOne);
+});
+
+/** The transition property names the switch LAUNCHED on the indicator, in launch order. */
+function glideTransitionProperties(page: Page): Promise<readonly string[]> {
+  return page.evaluate(() => (globalThis as { __orbTabGlideProps?: string[] }).__orbTabGlideProps ?? []);
+}
+
+// PERMANENT PIN for the TRANSFORM-ONLY GLIDE (#1069; motion guide §4.2 item 2 — the glide itself is
+// RATIFIED, this pins its MECHANISM). The skin transitioned `left`/`width` straight off Base UI's runtime
+// vars until #1069: a layout animation on every tab switch, which the app's own `[anim]` flagger convicted
+// on the first switch of every tab surface under guide §3.7 (compositor-only is a correctness constraint).
+// The fix is a FLIP — rest geometry stays in layout, the MOVE is an inverse `transform` transitioned back
+// to identity (`tabs.tsx` `glideIndicator`) — so this asserts all three halves, because any one alone
+// passes on a broken bar: the property set the switch actually launches (a channel that went silent is not
+// a pass — the launch tally is the positive control), the resting transition contract, and the SETTLED
+// landing (a transform glide that mis-computes its delta ends up off the tab it is marking).
+test("#1069 a tab switch glides the indicator with a TRANSFORM-only transition, landing on the new tab's box", async ({ mount, page }) => {
+  // Deliberately ASYMMETRIC labels: the bar must both move and RESIZE, so the glide's scale half is under
+  // test too. Two equal-width tabs would leave `width` (and the FLIP's `scaleX`) unexercised.
+  await mount(
+    <Tabs defaultValue="one">
+      <TabsList>
+        <TabsTab value="one">One</TabsTab>
+        <TabsTab value="two">A considerably wider second tab</TabsTab>
+        <TabsIndicator data-testid="tab-indicator" />
+      </TabsList>
+      <TabsPanel value="one">First panel</TabsPanel>
+      <TabsPanel value="two">Second panel</TabsPanel>
+    </Tabs>,
+  );
+  const indicator = page.getByTestId("tab-indicator");
+  await expect(indicator).toBeVisible();
+
+  await page.evaluate(() => {
+    const probe = globalThis as { __orbTabGlideProps?: string[] };
+    probe.__orbTabGlideProps = [];
+    document.addEventListener(
+      "transitionrun",
+      (event) => {
+        const target = event.target;
+        if (target instanceof Element && target.matches('[data-slot="tabs-indicator"]') && event instanceof TransitionEvent) {
+          probe.__orbTabGlideProps?.push(event.propertyName);
+        }
+      },
+      { capture: true },
+    );
+  });
+
+  const tabTwo = page.getByRole("tab", { name: "A considerably wider second tab" });
+  await tabTwo.click();
+  await expect(tabTwo).toHaveAttribute("aria-selected", "true");
+
+  // SETTLED, never mid-flight: poll until the bar has finished gliding onto the second tab's box. A
+  // transform-based glide converges on identity, so the resting bar must measure the tab exactly.
+  await expect
+    .poll(async () => {
+      const [bar, tab] = await Promise.all([indicator.boundingBox(), tabTwo.boundingBox()]);
+      return bar === null || tab === null ? null : Math.abs(bar.x - tab.x) + Math.abs(bar.width - tab.width);
+    })
+    .toBeLessThanOrEqual(1);
+
+  const launched = await glideTransitionProperties(page);
+  // POSITIVE CONTROL: the glide RAN. Silence would pass every assertion below on a bar that just teleports.
+  expect(launched.length, "the tab switch must launch the ratified glide, not teleport the bar").toBeGreaterThan(0);
+  expect([...new Set(launched)], "a tab switch may only animate the compositor — `left`/`width` relayout the list every frame").toEqual(["transform"]);
+  // The slide is the only thing this element may transition — `all` also animates the layout vars.
+  await expect(indicator).toHaveCSS("transition-property", "transform");
+  // …and it ends at identity, so no tab ever RESTS on a transform (rest-transform-grid / Law 2).
+  await expect(indicator).toHaveCSS("transform", "none");
 });
 
 test("the indicator is a 2px primary UNDERLINE and the list is a bordered track, not a pill (D62)", async ({ mount, page }) => {
@@ -285,3 +355,4 @@ test("orientation=vertical mirrors data-orientation onto every part", async ({ m
   await page.keyboard.press("ArrowDown");
   await expect(page.getByRole("tab", { name: "Two" })).toHaveAttribute("aria-selected", "true");
 });
+

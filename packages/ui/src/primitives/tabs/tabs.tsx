@@ -47,8 +47,111 @@ export function TabsTab({ className, layout, ...rest }: TabsTabProps): ReactElem
   return <BaseTabs.Tab className={cn(tabsVariants({ layout }).tab(), className)} data-slot="tabs-tab" {...rest} />;
 }
 
+/** The indicator's resting box, as Base UI writes it onto the node's own inline style. */
+interface IndicatorGeometry {
+  readonly left: number;
+  readonly width: number;
+}
+
+/** Read the geometry off the INLINE style rather than a layout measurement: `--active-tab-left/width` are
+ *  the exact numbers Base UI just computed from the active tab (`TabsIndicator.mjs`), so the glide needs
+ *  no measuring pass of its own. `null` ⇒ no tab is selected yet (Base UI omits the vars and keeps the
+ *  node `hidden` until layout settles) — nothing to glide from or to. */
+function indicatorGeometry(node: HTMLElement): IndicatorGeometry | null {
+  const left = Number.parseFloat(node.style.getPropertyValue("--active-tab-left"));
+  const width = Number.parseFloat(node.style.getPropertyValue("--active-tab-width"));
+  return Number.isFinite(left) && Number.isFinite(width) && width > 0 ? { left, width } : null;
+}
+
+/**
+ * THE GLIDE IS A FLIP, AND IT HAS TO BE (#1069, motion guide §4.2 item 2 — the motion is RATIFIED, this
+ * is its mechanism).
+ *
+ * The skin used to transition `left`/`width` straight off Base UI's runtime vars. That is a LAYOUT
+ * animation: it relayouts the list on every frame of every tab switch, and the app's own `[anim]` flagger
+ * printed `animating non-compositor left, width … OVER BUDGET` on the first switch of every tab surface —
+ * guide §3.7's compositor-only rule, which is a correctness constraint and not a preference.
+ *
+ * The obvious transform spelling is illegal here. A pure-CSS `translateX(var(--active-tab-left))
+ * scaleX(width/base)` never rests at identity — EVERY selected tab is a rest state carrying a
+ * non-identity scale — which the `rest-transform-grid` gate reds (integer-line-boxes §9 Law 2: a resting
+ * scale permanently resamples the subtree's raster), and it would scale the 2px bar's `rounded-full` cap
+ * radius by the same factor for the whole life of the element.
+ *
+ * So the REST geometry stays in layout (`left-(--active-tab-left) w-(--active-tab-width)`, untransitioned
+ * — the resting box and its caps are byte-identical to before) and only the MOVE is a transform: when
+ * Base UI rewrites the vars, invert the delta onto the node, flush it, then drop it and let the slot's
+ * `transition-[transform]` run back to identity. The animated property set is `transform` alone, the
+ * transform is identity at every rest, and the mid-flight `scaleX` converges exactly onto the new box.
+ *
+ * Reduced motion is REMOVE for free (§3.9): under the globals.css `transition-property: none !important`
+ * floor the inverse is applied and cleared inside one microtask, so the bar simply lands.
+ *
+ * JS rather than CSS because CSS cannot express "where this element was one update ago" — the same reason
+ * guide §4.2 item 1's arrival transition is a rAF flip (`use-enter-motion.ts`), and the same posture as
+ * `TabsPanel` below. The animation VALUES stay tokens on the slot; only the delta is JS.
+ */
+function glideIndicator(node: HTMLElement, from: IndicatorGeometry, to: IndicatorGeometry): void {
+  node.style.transitionProperty = "none";
+  node.style.transform = `translateX(${String(from.left - to.left)}px) scaleX(${String(from.width / to.width)})`;
+  // The flush that makes the inverted box the transition's FROM state. Without a forced style read the
+  // browser coalesces both writes into one recalc, the computed transform never leaves identity, and
+  // there is nothing to interpolate across (measured in the CT — all four flush spellings work, a
+  // missing one does not).
+  node.getBoundingClientRect();
+  node.style.transitionProperty = "";
+  node.style.transform = "";
+}
+
+/**
+ * THE TRIGGER IS THE STYLE ATTRIBUTE, not a React commit, and that is not a shortcut.
+ *
+ * `Tabs.Indicator` computes the vars in BASE UI's own component (`TabsIndicator.mjs` — a forced rerender
+ * driven by the list's update listener), so this wrapper does NOT re-render when the active tab changes:
+ * measured, a layout effect here fired exactly once, at mount, with no geometry yet. The move is only ever
+ * observable on the node, so the node is what is observed — `attributeFilter: ["style"]`, which is where
+ * Base UI writes `--active-tab-*`. The callback is a microtask, i.e. still before paint, which is what
+ * keeps the inversion honest. It is also mechanism-agnostic: click, arrow keys, a programmatic value
+ * change and a list resize all arrive the same way.
+ *
+ * The glide's own writes re-enter this observer (they mutate `style` too) and are absorbed by the
+ * geometry comparison: `transform`/`transition-property` leave `--active-tab-*` untouched, so the
+ * observed geometry is unchanged and nothing runs.
+ */
+function observeIndicatorGlide(node: HTMLElement): () => void {
+  let previous = indicatorGeometry(node);
+  const observer = new MutationObserver((): void => {
+    const next = indicatorGeometry(node);
+    const from = previous;
+    previous = next;
+    // A first settle (and a de-selected indicator) has no previous box to glide from — the bar appears
+    // in place, exactly as it always has.
+    if (next === null || from === null || (from.left === next.left && from.width === next.width)) {
+      return;
+    }
+    glideIndicator(node, from, next);
+  });
+  observer.observe(node, { attributes: true, attributeFilter: ["style"] });
+  return (): void => {
+    observer.disconnect();
+  };
+}
+
 export function TabsIndicator({ className, ...rest }: TabsIndicatorProps): ReactElement {
-  return <BaseTabs.Indicator className={cn(tabsVariants().indicator(), className)} data-slot="tabs-indicator" {...rest} />;
+  const indicatorRef = useRef<HTMLSpanElement | null>(null);
+  useLayoutEffect((): (() => void) | undefined => {
+    const node = indicatorRef.current;
+    return node === null ? undefined : observeIndicatorGlide(node);
+  }, []);
+  return (
+    <BaseTabs.Indicator
+      className={cn(tabsVariants().indicator(), className)}
+      data-slot="tabs-indicator"
+      {...rest}
+      // The seal owns this node's ref (the glide above is its only reader). Last, so a spread cannot lose it.
+      ref={indicatorRef}
+    />
+  );
 }
 
 /** Everything the browser puts in the tab sequence on its own. `[tabindex]` is deliberately excluded from
