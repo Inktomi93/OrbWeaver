@@ -129,6 +129,16 @@ export interface ContractField {
   readonly owner: string;
 }
 
+/** ONE examined `*View`/`*Summary` field (the `viewgap` unit): the declared field, the `packages/client/src`
+ *  files that spell its name as a read, and whether it carries a reasoned `@view-server-only:` marker. The
+ *  two verdicts are the two ways those combine — no client reader and no marker is a GAP, a marker with
+ *  client readers is a STALE marker (the two-sided arm). */
+export interface ViewFieldCandidate {
+  readonly field: ContractField;
+  readonly clientReaders: readonly string[];
+  readonly exempt: boolean;
+}
+
 /** Where a name is SPELLED as a read: the file, plus the node offsets when that file is a `contracts` file.
  *  Offsets are tracked ONLY there because the one file whose reads need node-level adjudication is the one
  *  DECLARING the field, and every declaration this lens examines lives under `packages/contracts/src`.

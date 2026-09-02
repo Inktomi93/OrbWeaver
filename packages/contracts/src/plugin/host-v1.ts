@@ -32,6 +32,7 @@ export type PluginLogLevel = (typeof PLUGIN_LOG_LEVELS)[number];
 export interface PluginMessageView {
   readonly id: string;
   readonly role: MessageRole;
+  // @view-server-only: the PluginHostV1 membrane is the GUEST's surface — its reader is the plugin sandbox (infra/plugin-host), never packages/client. Ends if a host UI surface starts rendering guest message projections.
   readonly authorDisplayName: string;
   // @foreign-id-ok(characterId): the plugin SANDBOX wire DTO — an untrusted guest's JSON, branded only after the host parses it; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
   readonly characterId: string | null;
@@ -103,10 +104,12 @@ export const PLUGIN_ASSET_READ_MAX_BYTES = 1_048_576;
  *  existence oracle. */
 export interface PluginAssetView {
   readonly mime: string;
+  // @view-server-only: same membrane — `assets.read` answers the GUEST, and the host UI reads assets through the gallery/asset views instead.
   readonly sizeBytes: number;
   /** The asset's bytes, base64-encoded. Present only when `sizeBytes ≤ PLUGIN_ASSET_READ_MAX_BYTES`; an
    *  over-cap owned asset returns its metadata with `dataBase64: null`, so a guest still learns its own asset
    *  exists + how big it is without the membrane carrying an over-budget blob. */
+  // @view-server-only: same membrane — base64 bytes exist because the guest boundary is JSON-safe; our client reads blobs by hash off the blob route, never as base64.
   readonly dataBase64: string | null;
 }
 

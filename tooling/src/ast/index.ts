@@ -33,6 +33,7 @@ export type {
   SwallowedCandidate,
   TestOnlyClass,
   TypeOnlyCandidate,
+  ViewFieldCandidate,
 } from "./contract/types.ts";
 export { collectColumnCandidates, rawSqlBlob, scanRowReads } from "./lib/column-reads.ts";
 export { collectSchemaTables, isColumnExempt, scanColumnWrites } from "./lib/columns.ts";
@@ -44,6 +45,7 @@ export { buildLiveness } from "./lib/liveness.ts";
 export { isPublicTagged, publicMarkerOf } from "./lib/public-markers.ts";
 export { ownExports } from "./lib/scope.ts";
 export { USAGE } from "./lib/usage.ts";
+export { collectViewFieldCandidates, isViewServerOnly, viewFieldsOf, viewGapHit } from "./lib/view-fields.ts";
 export { collectApiSurface } from "./ops/apisurface.ts";
 export { collectChainAudit, collectChainCandidates } from "./ops/chains.ts";
 export { deadEvidenceFor } from "./ops/dead.ts";
