@@ -1120,6 +1120,45 @@ function writeFixtures(): void {
     "packages/client/src/features/__g_grailzones/lib/hand-rail.ts",
     'export const HAND = [\n  { id: "a", zone: "rail.nav" },\n  { id: "b", zone: "rail.brand" },\n];\n',
   );
+  // ── #944 FAIL-CLOSED DISCOVERY: the permanent IMPORTED-DEFINITION controls, on the REAL tree ─────────
+  // The audited escape (docs/reviews/stickler/2026-08-31-gate-member-discovery-rehome-audit.md) is a
+  // definition that moved behind an import: the file stays at its sanctioned path, every co-location and
+  // path check stays green, and the gate's duplicate-id / reachability / honesty / distinctness arms
+  // silently return. Conformance mini-projects prove the matcher; THESE prove it on the tree the gates
+  // actually run over — the pairs are `__g_` so they vanish with the rest of the fixtures.
+  //
+  // Each pair also exercises the #946 receipt: the gate's line reports `… member(s), 1 UNRESOLVED`. It does
+  // NOT raise a population ALARM here, and that asymmetry is deliberate — the gate REPORTED the
+  // declaration, so it rides the ordinary violation exit (lib/population.ts); an alarm would turn every
+  // legitimate fail-closed finding into an exit-2 "the checker is broken" verdict, and this very suite
+  // would then throw instead of reading its report.
+  //
+  // section-registry-completeness + placeholder-copy-registry (one pair drives BOTH — they share
+  // lib/section-defs.ts, which is the point of the shared discovery).
+  fx(
+    "packages/client/src/features/__g_impsec/lib/__g_impsec-definition.ts",
+    'export const gImpSecDef = { id: "__g_impsec", content: () => null, context: { kind: "none" } };\n',
+  );
+  fx(
+    "packages/client/src/features/__g_impsec/lib/__g_impsec-section.ts",
+    'import { gImpSecDef } from "./__g_impsec-definition.ts";\nexport const gImpSecSection: SectionDefinition = gImpSecDef;\n',
+  );
+  // modal-registry-completeness + modal-body-not-placeholder (one pair drives BOTH).
+  fx(
+    "packages/client/src/features/__g_impmodal/lib/__g_impmodal-definition.tsx",
+    'export const gImpModalDef = { id: "__g_impmodal", body: () => <SectionPlaceholder /> };\n',
+  );
+  fx(
+    "packages/client/src/features/__g_impmodal/lib/__g_impmodal-modal.tsx",
+    'import { gImpModalDef } from "./__g_impmodal-definition.tsx";\nexport const gImpModalModal: ModalDefinition = gImpModalDef;\n',
+  );
+  // config-group-completeness — the collection accumulator (the audit's exact fixture: an imported body
+  // with no `create`, which the create-is-data arm would have caught).
+  fx("packages/client/src/features/__g_impcoll/lib/__g_impcoll-definition.ts", 'export const gImpCollDef = { emptyText: "none" };\n');
+  fx(
+    "packages/client/src/features/__g_impcoll/lib/__g_impcoll-collection.tsx",
+    'import { gImpCollDef } from "./__g_impcoll-definition.ts";\nexport const gImpCollCollection: CollectionContribution = gImpCollDef;\n',
+  );
 }
 
 // Registered gates that CANNOT be driven by an injected `__g_` fixture — whole-corpus ratchets whose

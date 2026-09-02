@@ -6,14 +6,16 @@
 // deterministic.
 //
 // It also tallies PER-GATE SCAN HEALTH (`GateScan`) from that same walk — the denominator behind every
-// verdict, so a gate that read nothing can no longer render ✓ (`zeroScanGates`). The result shapes live in
+// verdict, so a gate that read nothing can no longer render ✓ (`zeroScanGates`) — and folds the optional
+// SEMANTIC-MEMBER populations a coverage gate declares (#946: files visited is not the denominator a
+// coverage gate's verdict rests on; the alarms that read them live in ./population.ts). The result shapes live in
 // ../contract/pass.ts and the marker grammar in ./gate-ignore.ts (five-slot split, P6). BOTH report
 // overloads are suppressible since #828 — the node arm block-scoped, the Finding arm line-adjacent — except
 // for a `markerImmune` gate, which audits the vocabulary and must never be silenced by it.
 import { getWorkspace } from "@orb/tooling/_shared/ts-workspace";
 import type { Node, SourceFile, SyntaxKind } from "ts-morph";
 import type { Finding, GateDescriptor, GateRunCtx, GateScanDeclaration, Scope } from "../contract/gate.ts";
-import type { DeclaredScan, GatePassResult, GateScan, PassResult, ToolError } from "../contract/pass.ts";
+import type { DeclaredScan, GatePassResult, GateScan, PassResult, PopulationScan, ToolError } from "../contract/pass.ts";
 import { findGateIgnore, findGateIgnoreAtLine } from "./gate-ignore.ts";
 
 /** repo-relative posix path for a SourceFile. */
@@ -105,6 +107,8 @@ interface ScanState {
   lastVisited: string;
   admitted: number;
   admittedRatified: number;
+  /** Declared semantic populations, folded by source name (#946). */
+  readonly populations: Map<string, { members: number; unresolved: number }>;
   unit: string | undefined;
   declaredCandidates: number;
   declaredScanned: number;
@@ -128,6 +132,10 @@ function acceptDeclaration(state: ScanState, counts: GateScanDeclaration): void 
   state.admittedRatified += counts.admittedRatified ?? 0;
   state.declaredScanned += counts.scanned ?? 0;
   state.declaredCandidates += counts.candidates ?? counts.scanned ?? 0;
+  for (const p of counts.population ?? []) {
+    const prior = state.populations.get(p.source) ?? { members: 0, unresolved: 0 };
+    state.populations.set(p.source, { members: prior.members + p.members, unresolved: prior.unresolved + (p.unresolved ?? 0) });
+  }
   if (counts.unit !== undefined) {
     state.unit = counts.unit;
   }
@@ -149,6 +157,9 @@ function finishScan(state: ScanState, candidates: number): GateScan {
     scanned: state.declaredScanned,
     skipReasons: state.declaredSkip,
   };
+  const populations: readonly PopulationScan[] = [...state.populations]
+    .map(([source, p]) => ({ source, members: p.members, unresolved: p.unresolved }))
+    .sort((a, b) => compareStrings(a.source, b.source));
   return {
     candidates,
     scanned: state.scanned,
@@ -157,6 +168,7 @@ function finishScan(state: ScanState, candidates: number): GateScan {
     visited: state.visited,
     admitted: state.admitted,
     admittedRatified: state.admittedRatified,
+    populations,
     // exactOptionalPropertyTypes: the key exists only when the gate declared something.
     ...(declaresUnits ? { declared } : {}),
   };
@@ -202,6 +214,7 @@ function makeGateRun(gate: GateDescriptor, ctxBase: Omit<GateRunCtx, "report" | 
     lastVisited: "",
     admitted: 0,
     admittedRatified: 0,
+    populations: new Map(),
     unit: undefined,
     declaredCandidates: 0,
     declaredScanned: 0,

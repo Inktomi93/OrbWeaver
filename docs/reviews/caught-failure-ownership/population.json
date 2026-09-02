@@ -5467,7 +5467,7 @@
     {
       "siteId": "tooling/src/verify/lib/pass.ts::empty:err::1",
       "path": "tooling/src/verify/lib/pass.ts",
-      "line": 264,
+      "line": 277,
       "column": 5,
       "grammar": "empty",
       "position": "empty:err",
@@ -5475,7 +5475,7 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "pushed into the errors array as a ToolError — the exit-contract's tool-error class, never a silent pass. Ends if the errors array stops being read into the run's exit code.",
-      "markerLine": 261
+      "markerLine": 274
     },
     {
       "siteId": "tooling/src/verify/lib/program-routing.ts::empty:catch::1",
