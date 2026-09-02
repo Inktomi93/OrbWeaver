@@ -72,7 +72,8 @@ export function TurnToolCallsDisclosure({ message }: TurnToolCallsDisclosureProp
           `::after` arms — MEASURED at 430×740 DPR3 `pointer:coarse` this row was 406×16 and its centre did
           not resolve to itself under `elementFromPoint`. The floor is a shared `#components` fragment
           because axis-3 device capability is banned from a feature className. */}
-      <CollapsibleTrigger className={`w-full ${DISCLOSURE_TOUCH_FLOOR_AT_COARSE}`}>
+      {/* @sub-floor-ok: recorded ruling (pointer-variants.ts DISCLOSURE_TOUCH_FLOOR_AT_COARSE): coarse takes the 44px floor via the fragment; FINE stays a 16px line in a dense transcript footer — a control box here is the density cost that ruling priced and declined */}
+      <CollapsibleTrigger className={`w-full ${DISCLOSURE_TOUCH_FLOOR_AT_COARSE}`} size="text">
         <Text voice="label">{`Game actions on this turn — ${calls.length}`}</Text>
       </CollapsibleTrigger>
       <CollapsiblePanel>

@@ -23,16 +23,18 @@ export interface CollapsibleTriggerProps extends Omit<BaseTriggerProps, "classNa
   /** Bake the trailing `ChevronDown` that rotates on open (the discovery affordance; default `true`). Set
    *  `false` when the consumer renders its OWN chevron/icon inside the trigger, to avoid a double chevron. */
   chevron?: boolean;
-  /** The trigger's BOX. `inline` (default) is text-height — a disclosure sitting in running content, where a
-   *  control box would shear it off the copy it belongs to. `control` pins the pointer-conditional
-   *  `--spacing-control-sm` row floor for a disclosure that IS a row of its own (see variants.ts for the
-   *  measurement that minted it). */
-  size?: "inline" | "control";
+  /** The trigger's BOX. `control` (the default since #884 C2 — the inversion) pins the pointer-conditional
+   *  `--spacing-control-sm` row floor: a disclosure is the thing you press to reach a whole section, and
+   *  the recurring defect was this arm not taken. `text` is text-height, for a disclosure sitting in
+   *  running content where a control box would shear it off its copy — every `size="text"` mount owes a
+   *  line-adjacent `@sub-floor-ok: <reason>` marker (gate `sub-floor-disclosure`; variants.ts carries the
+   *  measurements). */
+  size?: "text" | "control";
 }
 
 /** Bakes the trailing `ChevronDown` that rotates on `data-panel-open` (the accordion precedent) unless the
  *  consumer opts out with `chevron={false}` (it renders its own). */
-export function CollapsibleTrigger({ className, chevron = true, size = "inline", children, ...rest }: CollapsibleTriggerProps): ReactElement {
+export function CollapsibleTrigger({ className, chevron = true, size = "control", children, ...rest }: CollapsibleTriggerProps): ReactElement {
   return (
     <BaseCollapsible.Trigger className={collapsibleVariants({ instant: false, size }).trigger({ className })} data-slot="collapsible-trigger" {...rest}>
       {children}

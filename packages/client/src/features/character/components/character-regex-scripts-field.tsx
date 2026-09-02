@@ -41,6 +41,7 @@ export function CharacterRegexScriptsField({ characterId }: { readonly character
     <QueryBoundary
       fallback={<SkeletonRows count={PICKER_SKELETON_ROWS} shape="line" />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="your regex scripts" onRetry={retry} />}
+      reserveKey="character.regexScripts"
     >
       <RegexScriptPicker
         scope={{ kind: "character", characterId }}

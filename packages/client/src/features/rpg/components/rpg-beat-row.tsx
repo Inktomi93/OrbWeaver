@@ -148,8 +148,10 @@ function BeatBodyEditor({
             the editor is OPEN the rest line is gone: the editor takes the body's place (expand IN PLACE),
             never sits under a copy of itself. */}
         {open ? null : (
+          // @sub-floor-ok: the box is the rendered Button's own (`render` MERGES the trigger class onto it) — an inline Button carries its ::after touch floor, and a control min-h here would inflate the beat row's compact rest state
           <CollapsibleTrigger
             chevron={false}
+            size="text"
             render={
               <Button intent="ghost" size="inline" className="min-w-0 max-w-full whitespace-normal px-field text-left">
                 <Text as="span" voice="label" className="min-w-0 break-words">

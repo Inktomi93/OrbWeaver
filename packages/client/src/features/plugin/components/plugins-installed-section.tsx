@@ -58,6 +58,7 @@ export function PluginsInstalledSection(): ReactElement {
       <QueryBoundary
         fallback={<SkeletonRows count={2} shape="line" />}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="your plugins" onRetry={retry} />}
+        reserveKey="config.plugins.installed"
       >
         <InstalledPluginsList />
       </QueryBoundary>

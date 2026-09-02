@@ -88,7 +88,7 @@ function QuestObjectives({ quest, dim, edit }: { readonly quest: RpgQuestView; r
     return null;
   }
   return (
-    <Stack gap="field">
+    <Stack gap="field" rows="control">
       {quest.objectives.map((o) => (
         <Row key={o.id} gap="field" align="center">
           {editable ? (

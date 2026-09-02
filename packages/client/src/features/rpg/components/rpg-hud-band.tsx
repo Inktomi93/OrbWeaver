@@ -30,12 +30,10 @@
 // deliberately receives nothing, so a claimant's domain state comes from its own hooks (§3.2). The claim
 // only holds for a committed game chat, so the pointer is present whenever this renders.
 
-import type { ChatId } from "@orb/kit/ids";
 import { Stack, Surface } from "@orb/ui/layout";
 import type { ReactElement } from "react";
-import { useEffect, useRef } from "react";
 import { QueryBoundary } from "#data";
-import { rememberSurfaceBox, useActiveChatId, useSurfaceBox } from "#state";
+import { useActiveChatId } from "#state";
 import { RpgHeaderBand } from "./rpg-header-band.tsx";
 
 /** The box-memory key for the HUD's waystone band (#149) — one band, one remembered height per device. */
@@ -43,56 +41,22 @@ const RPG_HUD_BAND_BOX = "rpg.hud.band";
 /** The FIRST-EVER-open estimate, in CSS px: the top of the band's MEASURED range (side-eye-tracker
  *  2026-08-17 put the async growth at ~120-192px). Deliberately the top, not the middle — an over-tall
  *  reservation shrinks when the read lands, and #129-R1 ruled a shrink beats a push. From the second open
- *  on, this device's own measurement replaces it. */
+ *  on, this device's own measurement replaces it — since #885 both arms ride `QueryBoundary.reserveKey`
+ *  (the `null` fallback reserves the box empty; the settled band is re-measured every commit). */
 const RPG_HUD_BAND_FIRST_OPEN_PX = 192;
 
 export function RpgHudBand(): ReactElement | null {
   const chatId = useActiveChatId();
-  const reserved = useSurfaceBox(RPG_HUD_BAND_BOX);
   if (chatId === null) {
     return null;
   }
   return (
     <Surface tier="instrument">
       <Stack data-slot="rpg-hud-band" gap="row">
-        <QueryBoundary fallback={<RpgHudBandReservation reserved={reserved} />} renderError={(): null => null}>
-          <RpgHudBandBody chatId={chatId} />
+        <QueryBoundary fallback={null} renderError={(): null => null} reserveBlock={RPG_HUD_BAND_FIRST_OPEN_PX} reserveKey={RPG_HUD_BAND_BOX}>
+          <RpgHeaderBand chatId={chatId} />
         </QueryBoundary>
       </Stack>
     </Surface>
-  );
-}
-
-/** THE BAND'S RESERVATION (#149) — see the file header. */
-function RpgHudBandReservation({ reserved }: { readonly reserved: number | null }): ReactElement {
-  const box = reserved ?? RPG_HUD_BAND_FIRST_OPEN_PX;
-  return (
-    <Stack
-      aria-hidden={true}
-      data-slot="rpg-hud-band-reservation"
-      data-band-reserve-source={reserved === null ? "estimate" : "measured"}
-      // A runtime measurement, not a design value — there is no token for "the height this game's waystone
-      // happened to occupy". `overflow: clip` so a stale-too-small memory cannot be pushed open by the
-      // settled band paints into it.
-      style={{ blockSize: `${Math.round(box)}px`, overflow: "clip" }}
-    />
-  );
-}
-
-/** The settled band, wrapped so it REMEMBERS the box it occupies for the next open (#149). It mounts only
- *  once the tracker read has resolved (it is the boundary's child), so the first measurement is already the
- *  settled geometry — the home-tile `TileBody` precedent, same store. */
-function RpgHudBandBody({ chatId }: { readonly chatId: ChatId }): ReactElement {
-  const bodyRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const el = bodyRef.current;
-    if (el !== null) {
-      rememberSurfaceBox(RPG_HUD_BAND_BOX, el.getBoundingClientRect().height);
-    }
-  });
-  return (
-    <Stack ref={bodyRef}>
-      <RpgHeaderBand chatId={chatId} />
-    </Stack>
   );
 }

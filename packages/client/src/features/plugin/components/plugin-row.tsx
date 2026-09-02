@@ -295,6 +295,7 @@ export function PluginRow({ plugin }: PluginRowProps): ReactElement {
             <QueryBoundary
               fallback={<SkeletonRows count={2} shape="line" />}
               renderError={(_error, retry): ReactElement => <QueryErrorState label="this plugin's activity" onRetry={retry} />}
+              reserveKey="plugin.row.activity"
             >
               <PluginLogPanel name={plugin.name} pluginId={plugin.id} />
             </QueryBoundary>

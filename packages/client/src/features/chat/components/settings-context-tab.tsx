@@ -46,15 +46,13 @@ import type { RoomOverrides } from "@orb/contracts/chat";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import type { ChatId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
-import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
-import { Section, Stack } from "@orb/ui/layout";
-import { Text } from "@orb/ui/text";
+import { Stack } from "@orb/ui/layout";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
 import { QueryBoundary, QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import type { ChatSettingsSectionContribution, ChatSettingsSectionState, ContributorRegistry } from "#lib";
-import { setChatContextSectionOpen, useChatContextSectionOpen } from "#state";
 import { ChatBooksSection } from "./chat-books-section.tsx";
+import { DisclosureSection } from "./chat-context-disclosure-section.tsx";
 import { ChatDocumentsSection } from "./chat-documents-section.tsx";
 import { CommittedGroupConfigTab } from "./group-config-form.tsx";
 import { HostDisplayScriptsControl } from "./host-display-scripts-control.tsx";
@@ -150,52 +148,8 @@ function countSetOverrides(overrides: RoomOverrides): number {
 const OPEN_BY_DEFAULT = true;
 const CLOSED_BY_DEFAULT = false;
 
-interface DisclosureSectionProps {
-  /** The disclosure's STABLE key in the remembered-posture store — never the visible label, so a copy edit
-   *  cannot silently forget a host's posture. Grafted sections carry a `graft:` prefix so a contribution can
-   *  never collide with one of this file's own ids. */
-  readonly sectionId: string;
-  readonly kicker: ReactNode;
-  /** Expanded until this host answers for this section (`chat-context-section-open-store.ts`). */
-  readonly defaultOpen: boolean;
-  /** Keep the body in the DOM (hidden) while closed. Needed by the SILENT-CONTRIBUTOR COLLAPSE: the
-   *  `has-[…:empty]:hidden` selector below asks whether the graft's wrapper has element children, and an
-   *  unmounted wrapper answers "no wrapper", which would spend a kicker on a contributor that renders
-   *  nothing — the exact orphan heading that collapse exists to prevent. */
-  readonly keepMounted?: boolean;
-  readonly className?: string;
-  readonly children: ReactNode;
-}
-
-function DisclosureSection({ sectionId, kicker, defaultOpen, keepMounted = false, className, children }: DisclosureSectionProps): ReactElement {
-  const open = useChatContextSectionOpen(sectionId, defaultOpen);
-  return (
-    <Collapsible
-      open={open}
-      onOpenChange={(next: boolean): void => {
-        setChatContextSectionOpen(sectionId, next);
-      }}
-    >
-      <Section
-        className={className}
-        kicker={
-          <CollapsibleTrigger size="control">
-            <Text as="span" voice="interactiveKicker">
-              {kicker}
-            </Text>
-          </CollapsibleTrigger>
-        }
-      >
-        {/* `text-foreground` restores what the pane's body inherited before this wrapper existed — the
-            primitive's panel is spelled for a disclosure holding running PROSE (`text-muted-foreground`),
-            and a section body is controls. */}
-        <CollapsiblePanel className="text-foreground" keepMounted={keepMounted}>
-          {children}
-        </CollapsiblePanel>
-      </Section>
-    </Collapsible>
-  );
-}
+// The disclosure wrapper itself lives in ./chat-context-disclosure-section.tsx (extracted at the
+// `component-size` cap); the defaults above are this tab's law and stay here with their reasons.
 
 // The Injections section reads `listChatInjections` NON-suspending (the same query the body suspends on, so
 // one fetch serves both) and spends that one read TWICE: the heading's count chip paints immediately and
@@ -277,6 +231,7 @@ export function CommittedSettingsTab({ chatId, roomOverrides, isHost, background
         <QueryBoundary
           fallback={<SkeletonRows count={2} shape="line" />}
           renderError={(_error, retry): ReactElement => <QueryErrorState label="this chat's documents" onRetry={retry} />}
+          reserveKey="chat.context.documents"
         >
           <ChatDocumentsSection chatId={chatId} isHost={isHost} />
         </QueryBoundary>
@@ -291,6 +246,7 @@ export function CommittedSettingsTab({ chatId, roomOverrides, isHost, background
         <QueryBoundary
           fallback={<SkeletonRows count={2} shape="line" />}
           renderError={(_error, retry): ReactElement => <QueryErrorState label="this chat's lorebooks" onRetry={retry} />}
+          reserveKey="chat.context.lorebooks"
         >
           <ChatBooksSection chatId={chatId} isHost={isHost} />
         </QueryBoundary>
@@ -309,6 +265,7 @@ export function CommittedSettingsTab({ chatId, roomOverrides, isHost, background
           // for three lines of prose.
           fallback={<SkeletonRows count={MACRO_PICKS_SKELETON_ROWS} shape="datum" />}
           renderError={(_error, retry): ReactElement => <QueryErrorState label="the macro picks" onRetry={retry} />}
+          reserveKey="chat.context.macroPicks"
         >
           <MacroPicksSection chatId={chatId} />
         </QueryBoundary>
@@ -355,6 +312,7 @@ function HostControls({
               // void (house loading law, UIP-309 / UI-Arch §4.3 rule 7). Same idiom every panel section uses.
               fallback={<SkeletonRows count={GROUP_SECTION_SKELETON_ROWS} shape="line" />}
               renderError={(_error, retry): ReactElement => <QueryErrorState label="group settings" onRetry={retry} />}
+              reserveKey="chat.context.groupBehavior"
             >
               <CommittedGroupConfigTab chatId={chatId} />
             </QueryBoundary>
@@ -366,6 +324,7 @@ function HostControls({
           <QueryBoundary
             fallback={<SkeletonRows count={1} shape="line" />}
             renderError={(_error, retry): ReactElement => <QueryErrorState label="the display-script setting" onRetry={retry} />}
+            reserveKey="chat.context.appearance"
           >
             <HostDisplayScriptsControl chatId={chatId} />
           </QueryBoundary>
@@ -379,6 +338,7 @@ function HostControls({
           <QueryBoundary
             fallback={<SkeletonRows count={1} shape="line" />}
             renderError={(_error, retry): ReactElement => <QueryErrorState label="the offer-choices setting" onRetry={retry} />}
+            reserveKey="chat.context.storytelling"
           >
             <OfferChoicesControl chatId={chatId} />
           </QueryBoundary>
@@ -390,6 +350,7 @@ function HostControls({
           <QueryBoundary
             fallback={<SkeletonRows count={2} shape="line" />}
             renderError={(_error, retry): ReactElement => <QueryErrorState label="the reaction settings" onRetry={retry} />}
+            reserveKey="chat.context.reactions"
           >
             <ReactionsEnabledControl chatId={chatId} />
             <CharactersCanReactControl chatId={chatId} />
@@ -401,6 +362,7 @@ function HostControls({
           <QueryBoundary
             fallback={<SkeletonRows count={1} shape="line" />}
             renderError={(_error, retry): ReactElement => <QueryErrorState label="the tool round limit" onRetry={retry} />}
+            reserveKey="chat.context.toolUse"
           >
             <ToolRecurseControl chatId={chatId} />
           </QueryBoundary>

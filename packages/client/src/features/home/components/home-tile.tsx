@@ -24,9 +24,9 @@
 // "Recent chats" tile grew +189px and pushed every tile below it down the grid (CLS 0.0913 at 1440x900 on
 // a 6-chat dev DB; 0.24 on the side-eye's fuller one). The settled box is DATA-dependent (N recents, N
 // quick-picks), so it cannot be reserved by a static height without padding short tiles with dead space —
-// the honest reservation is the one this device MEASURED last time: `TileBody` remembers each tile's
-// settled height (`#state` surface-box-store, localStorage) and `TileFallback` reserves exactly that
-// while the read is in flight.
+// the honest reservation is the one this device MEASURED last time. Since #885 the mechanism lives on
+// `QueryBoundary.reserveKey` itself (query-boundary.tsx — the frame's old `TileFallback`/`TileBody` were
+// lifted there as the ONE home): the frame just keys each tile's boundary by `tile.id`.
 //
 // …AND THE FIRST-EVER BOOT IS NOT "NOTHING TO RESERVE" (#92, measured 2026-08-16). This header used to
 // end "first-ever boot reserves nothing (there is nothing honest to reserve)". That was right about a
@@ -62,12 +62,11 @@ import { Icon } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Separator } from "@orb/ui/separator";
 import { Heading, Text } from "@orb/ui/text";
-import type { CSSProperties, ReactElement, ReactNode } from "react";
-import { useEffect, useId, useRef } from "react";
-import { QueryBoundary, QueryErrorState, SkeletonRows, skeletonRowCountFor } from "#data";
+import type { ReactElement, ReactNode } from "react";
+import { useId } from "react";
+import { QueryBoundary, QueryErrorState, SkeletonRows } from "#data";
 
 import type { DormantDoorway, HomeTileContribution } from "#state";
-import { rememberSurfaceBox, useSurfaceBox } from "#state";
 
 /** The frame's fallback row count for a tile that declares no `skeletonRows` — what shipped before. */
 const TILE_SKELETON_ROWS = 3;
@@ -162,83 +161,24 @@ export function HomeDoorway({ tile, doorway }: { readonly tile: HomeTileContribu
   );
 }
 
-/** The tile's LOADING box (F14 boot CLS). The skeleton sits inside the height this tile SETTLED at on
- *  this device last time (`useSurfaceBox` — localStorage, read synchronously, so the value is already
- *  in the FIRST commit): the tile's box is then the same before and after its read lands, and the tiles
- *  below it in the column never move. No memory (a first-ever boot) ⇒ the tile's own DECLARED row count.
- *
- *  AND THE SKELETON FILLS THE BOX IT IS GIVEN (side-eye R-1). A fixed 3 rows inside a MEASURED box is a
- *  reservation that is honest about the height and dishonest about the content: the recents tile reserved
- *  349px and painted 160px of bars, so 189px of blank sat under three lonely lines for the duration of the
- *  read — the exact 189px the reservation had just stopped SHIFTING, converted into dead space — while the
- *  temp-chat tile reserved 110.89px and had its third bar clipped to a 2.9px hairline. `skeletonRowCountFor`
- *  inverts the skeleton's own layout to fit the box, so `overflow: clip` stops being load-bearing.
- *
- *  `declaredRows` is the tile's own first-boot claim (`HomeTileContribution.skeletonRows`). It sizes the
- *  box when this device has no memory, and stays the fill-count fallback for a box the metrics module
- *  cannot invert (no document to read the pitch from) — the two arms want the same number. */
-function TileFallback({
-  declaredRows,
-  declaredBlock,
-  reserved,
-}: {
-  readonly declaredRows: number;
-  readonly declaredBlock: number | undefined;
-  readonly reserved: number | null;
-}): ReactElement {
-  // THREE SOURCES, ONE MECHANISM (#177). The measured box wins (it is what THIS device saw last boot);
-  // then the tile's declared px box, for a body whose settled height is a constant; then the row count,
-  // whose ~48px pitch quantisation is what left a residual first-boot shift on the three tiles that had
-  // a constant to declare (`HomeTileContribution.skeletonBlock` carries the measurements).
-  const box = reserved ?? declaredBlock ?? null;
-  const rows = box === null ? declaredRows : skeletonRowCountFor(box, declaredRows);
-  const source = reserved === null ? "declared" : "measured";
-  return (
-    <Stack
-      data-tile-reserved={box === null ? undefined : Math.round(box)}
-      // WHICH source held the box open. Two sources now write the same attribute, and "this device has a
-      // MEASURED box" is a different claim from "this tile declared a constant" — a first-boot assertion
-      // that reads only `data-tile-reserved` would silently start passing for the wrong reason.
-      data-tile-reserve-source={box === null ? undefined : source}
-      style={box === null ? undefined : reserveStyle(box)}
-    >
-      <SkeletonRows count={rows} />
-    </Stack>
-  );
-}
-
-/** A measured px reservation — a runtime measurement, not a design value (no token exists for "the height
- *  N chat rows happened to occupy on this viewport"). EXACT (`blockSize`), not a floor: a remembered box
- *  SHORTER than the skeleton's natural height (the temp-chat tile: 168px settled vs a 217px 3-row
- *  skeleton) would otherwise still shrink when the read lands. The skeleton is decorative, so the
- *  overflowing rows clip rather than push the box. */
-function reserveStyle(height: number): CSSProperties {
-  return { blockSize: `${Math.round(height)}px`, overflow: "clip" };
-}
-
-/** Wraps a tile's SETTLED body and remembers the box it occupies, so the next boot's skeleton reserves
- *  it. Measured on mount — this component mounts only once the tile's read has resolved (it is the
- *  QueryBoundary's child), so the first measurement is already the settled geometry. */
-function TileBody({ tileId, children }: { readonly tileId: string; readonly children: ReactNode }): ReactElement {
-  const bodyRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const el = bodyRef.current;
-    if (el !== null) {
-      rememberSurfaceBox(tileId, el.getBoundingClientRect().height);
-    }
-  }, [tileId]);
-  return <Stack ref={bodyRef}>{children}</Stack>;
-}
-
 /** The tile's live body inside its own boundary + its own reservation. Shared by both framed regions and
- *  by the bandless masthead, so the CLS mechanism has ONE home rather than one per region. */
-function TileContent({ tile, reserved }: { readonly tile: HomeTileContribution; readonly reserved: number | null }): ReactElement {
+ *  by the bandless masthead, so the CLS mechanism has ONE home rather than one per region — and since
+ *  #885 that home is `QueryBoundary.reserveKey` itself (query-boundary.tsx carries the mechanism this
+ *  frame used to spell as `TileFallback`/`TileBody`): the boundary reserves the box this device measured
+ *  last boot (or the tile's declared `skeletonBlock` constant before any measurement exists), re-fills
+ *  the skeleton to it (`skeletonRowCountFor` — side-eye R-1: a fixed 3 rows inside a 349px measured box
+ *  left 189px of blank under three lonely lines), and measures the settled body back into
+ *  `surface-box-store`. `skeletonRows` stays the tile's own first-boot claim (#92): it sizes the
+ *  skeleton when nothing is reserved and is the fill fallback when the pitch cannot be inverted. */
+function TileContent({ tile }: { readonly tile: HomeTileContribution }): ReactElement {
   return (
     <QueryBoundary
-      fallback={<TileFallback declaredBlock={tile.skeletonBlock} declaredRows={tile.skeletonRows ?? TILE_SKELETON_ROWS} reserved={reserved} />}
+      fallback={<SkeletonRows count={tile.skeletonRows ?? TILE_SKELETON_ROWS} />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label={tile.title.toLowerCase()} onRetry={retry} />}
+      reserveBlock={tile.skeletonBlock}
+      reserveKey={tile.id}
     >
-      <TileBody tileId={tile.id}>{typeof tile.body === "function" ? tile.body() : null}</TileBody>
+      {typeof tile.body === "function" ? tile.body() : null}
     </QueryBoundary>
   );
 }
@@ -246,7 +186,6 @@ function TileContent({ tile, reserved }: { readonly tile: HomeTileContribution; 
 export function HomeTile({ tile }: { readonly tile: HomeTileContribution }): ReactNode {
   const visible = tile.useVisible?.() ?? true;
   const headingId = useId();
-  const reserved = useSurfaceBox(tile.id);
   if (!visible) {
     return null;
   }
@@ -261,14 +200,14 @@ export function HomeTile({ tile }: { readonly tile: HomeTileContribution }): Rea
   if (tile.region === "masthead") {
     return (
       <Stack data-home-tile={tile.id} gap="row">
-        <TileContent reserved={reserved} tile={tile} />
+        <TileContent tile={tile} />
       </Stack>
     );
   }
   return (
     <Stack aria-labelledby={headingId} data-home-tile={tile.id} gap="row" role="region">
       <TileBand headingId={headingId} tile={tile} trailing={tile.action} />
-      <TileContent reserved={reserved} tile={tile} />
+      <TileContent tile={tile} />
     </Stack>
   );
 }
