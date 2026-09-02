@@ -1398,7 +1398,7 @@
     {
       "siteId": "packages/client/src/main.tsx::promise:mutate::1",
       "path": "packages/client/src/main.tsx",
-      "line": 86,
+      "line": 85,
       "column": 3,
       "grammar": "promise",
       "position": "promise:mutate",
@@ -1406,7 +1406,7 @@
       "snippet": "trpcClient.clientError.mutate(buildClientErrorPayload(error, ownerStack, url)).catch(() => {",
       "verdict": "deliberate-absorb",
       "reason": "a failed error report must never itself throw — there is nowhere left to report that to. Ends if reportClientError gets its own independent error surface.",
-      "markerLine": 85
+      "markerLine": 84
     },
     {
       "siteId": "packages/client/src/state/durable-local.ts::default:catch::1",

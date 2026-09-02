@@ -28,10 +28,18 @@
 // the element population is read around the walk and watched until it holds — and growth past that window
 // is EXIT.toolError too. `dom-walk=` / `dom-settled=` ride the RESULT line beside `census=`.
 //
-// Exit: 0 clean (no finding at/above --fail-on) · 1 findings or a nav error (an audit that never loaded
-// the page has nothing to say) · EXIT.toolError when nothing was censused · EXIT.misuse on a bad CLI —
-// a typo'd flag silently scans the wrong surface and reports it clean, so it is a hard error, never an
-// ignored line.
+// …AND AN ERROR BOUNDARY IS NOT A SURFACE (#1081). `design-audit /__no-such-route__` printed all 48
+// POPULATION rows, filed a P2 against the router's not-found boundary and exited 0: the route RESOLVED, so
+// `data-app-ready` went up, the census was 11 and one control was reached — every arm above passes on a page
+// whose whole message is "there is nothing here". The app therefore DECLARES its two non-surfaces
+// (`data-app-failure` on the not-found boundary and the crash fallback, packages/client/src/lib/
+// app-failure-surface.tsx) and the audit refuses on sight of one. The same ruling covers the two other
+// pre-measurement failures the report used to print tables under: a nav error and a failed reveal action.
+//
+// Exit: 0 clean (no finding at/above --fail-on) · 1 findings · EXIT.toolError when the run is NOT A VERDICT
+// (nothing censused, a nav error, an action that did not land, or a declared failure surface) · EXIT.misuse
+// on a bad CLI — a typo'd flag silently scans the wrong surface and reports it clean, so it is a hard error,
+// never an ignored line.
 import process from "node:process";
 import { print } from "../_shared/artifacts.ts";
 import { EXIT } from "../_shared/exit-contract.ts";

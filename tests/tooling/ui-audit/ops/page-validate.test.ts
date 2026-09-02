@@ -10,7 +10,7 @@
 // REQUIRED field in `RawSamples` reds here (the fixture stops being valid) and in tsc (the table is a
 // `Record<keyof RawSamples, …>`) — the two guards are independent on purpose.
 import { describe } from "vitest";
-import { rawSamples, shellStateSnapshot } from "../../../../tooling/src/ui-audit/ops/page-validate.ts";
+import { appFailureSurface, rawSamples, shellStateSnapshot } from "../../../../tooling/src/ui-audit/ops/page-validate.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 /** Every REQUIRED field of the walk's return object, at its container kind and nothing more. */
@@ -101,5 +101,26 @@ describe("the __orb.shell() bridge seam", () => {
     expect(() => shellStateSnapshot({ ...shell, panels: {} })).toThrow(/INSTRUMENT ERROR.*"panels"/u);
     expect(() => shellStateSnapshot({ ...shell, panels: ["left"] })).toThrow(/INSTRUMENT ERROR.*panel row/u);
     expect(() => shellStateSnapshot({ ...shell, panels: [{ side: 1, mode: "docked" }] })).toThrow(/INSTRUMENT ERROR.*side\/mode/u);
+  });
+});
+
+describe("the [data-app-failure] declare seam (#1081)", () => {
+  test("an absent declare is the healthy case and reads as null, never as a throw", () => {
+    expect(appFailureSurface(null)).toBeNull();
+    expect(appFailureSurface(undefined)).toBeNull();
+  });
+
+  test("a declared kind passes through VERBATIM — including one this instrument has never heard of", () => {
+    expect(appFailureSurface("not-found")).toBe("not-found");
+    expect(appFailureSurface("crashed")).toBe("crashed");
+    // No allow-list: an unknown kind is still the app saying "this is not a surface", and printing the word
+    // it used beats folding it into a verdict because the reader did not recognise it.
+    expect(appFailureSurface("some-future-boundary")).toBe("some-future-boundary");
+  });
+
+  test("a non-string answer is an INSTRUMENT ERROR, never a quiet 'no failure'", () => {
+    expect(() => appFailureSurface(0)).toThrow(/INSTRUMENT ERROR.*not a failure-surface kind/u);
+    expect(() => appFailureSurface({})).toThrow(/INSTRUMENT ERROR.*not a failure-surface kind/u);
+    expect(() => appFailureSurface(["not-found"])).toThrow(/INSTRUMENT ERROR.*not a failure-surface kind/u);
   });
 });

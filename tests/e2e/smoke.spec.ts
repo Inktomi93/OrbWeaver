@@ -27,6 +27,9 @@ const APP_URL = /\/$/u;
 // The root route's notFound copy (`routes/__root.tsx`) — a CURLY apostrophe, as rendered.
 const NOT_FOUND_COPY = "that route doesn’t exist";
 const APP_READY = "html[data-app-ready]";
+// The not-found boundary's FAILURE-SURFACE DECLARE (`lib/app-failure-surface.tsx`) — what design-audit
+// reads to refuse a route that resolved to nothing (#1081).
+const NOT_FOUND_DECLARE = '[data-app-failure="not-found"]';
 
 // `@smoke` — the fast anti-rot subset run by the pre-push lefthook gate (`pnpm e2e:smoke`). Model-free +
 // data-light; proves the stack boots, auth resolves, the SPA mounts, and the drift-prone `/` landing surface
@@ -106,6 +109,12 @@ test("a path that is NOT a section still renders the not-found surface", { tag: 
   // The alias resolves the segment against the SECTION vocabulary and throws notFound on a miss — a typo
   // must never be silently absorbed into the app (that is how a dead link looks like a working one).
   await expect(page.getByText(NOT_FOUND_COPY)).toBeVisible({ timeout: 30_000 });
+  // …AND IT DECLARES ITSELF (#1081). `data-app-failure` is the app telling an instrument that this is not
+  // one of its surfaces: design-audit reads it and refuses (`tooling/src/ui-audit/lib/evidence.ts`
+  // `failureSurfaceGap`), because before the declare existed `design-audit /__no-such-route__` printed a
+  // full population table over this boundary and exited 0. The stamp is a cross-tree contract with no
+  // compiler between its halves, so this is the assertion that keeps them from drifting apart.
+  await expect(page.locator(NOT_FOUND_DECLARE)).toBeVisible();
 });
 
 test("the home page renders the home surface (tRPC query works)", {

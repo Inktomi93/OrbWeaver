@@ -90,7 +90,17 @@ export {
 export { checkAnimatedImgHover, checkGradientText, checkNestedCard, checkZIndex } from "./lib/checks-structure.ts";
 export { checkTextStyle, classifyTextStyle } from "./lib/checks-typography.ts";
 export { collectFindings } from "./lib/collect.ts";
-export { censusGap, censusThinGap, censusTotal, reachGap, readinessGap, themeProvenanceGap } from "./lib/evidence.ts";
+export {
+  actionsFailedGap,
+  censusGap,
+  censusThinGap,
+  censusTotal,
+  failureSurfaceGap,
+  navErrorGap,
+  reachGap,
+  readinessGap,
+  themeProvenanceGap,
+} from "./lib/evidence.ts";
 export { partitionedFindings } from "./lib/population-strategies.ts";
 export { INTERACTIVE_TEXT_FLOOR_PX, LEADING_FLOOR, LEADING_FLOOR_EPSILON, RAMP_FONT_FACES, TEXT_MICRO_PX } from "./lib/ramp.ts";
 export { isAtOrAboveSeverity, isValidSeverity } from "./lib/severity.ts";
