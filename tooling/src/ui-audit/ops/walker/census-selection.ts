@@ -5,6 +5,20 @@
 // cap and made the state-pairing seam impossible to review. ops/walker.ts concatenates both strings into
 // one IIFE, so this split adds no browser boundary or copied machinery.
 //
+// THE COHORT IS AN AUTHORED HOME, NOT A PARENT NODE (#1059). This was the one relational family still
+// keyed on the raw `choice.parentElement`, and a parent node is an INSTANCE — the exact thing
+// `ops/walker/target-identity.ts` exists to stop ("Selector strings are presentation and contain
+// nth-of-type instance positions; grouping them would turn one repeated component into N fake repairs").
+// A VIRTUALIZED grid proves the cost: Settings -> Appearance's Background picker ALWAYS has exactly one
+// selected tile (`appearance-background-section.tsx`'s `selectedTileKey` lights the `none` tile when no
+// background is chosen), but MediaGrid renders its cells under one `[data-slot=media-grid-row]` wrapper
+// PER ROW — so row 0 paired 1 selected against 7 unselected and JUDGED, while row 1 held 7 unselected
+// with no twin and WITHHELD `unmatchedUnselected`, turning a surface whose twin was ON SCREEN into a
+// permanent NO VERDICT. The key is now `claim + home + state` — the same shape census-region.ts's
+// quiet-state cohorts already use — so one authored cohort stays one cohort across presentation
+// wrappers. #987's one-sided ruling is UNCHANGED: a genuinely twin-less cohort of two or more carriers
+// is still withheld. What changed is its INPUT — which carriers ARE one cohort.
+//
 // Raw JS in a template literal (no backticks / dollar-brace — see _shared/browser.ts for why a string,
 // not a function). Provenance + attribution: ops/walker.ts.
 import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
@@ -13,7 +27,7 @@ refuseDirectInvocation(import.meta.url, "pnpm design-audit");
 
 export const WALKER_CENSUS_SELECTION = `  // ── selection idiom: authored STATE DELTAS, surface-wide ────────────────
   // Absolute paint is not a selection idiom: cards have fills, borders, and shadows while unselected.
-  // Pair each selected target with an unselected twin from the same authored claim and parent, then
+  // Pair each selected target with an unselected twin from the same authored claim and HOME, then
   // census only the channels that CHANGE. Aggregate all five Base UI state kinds after pairing; splitting
   // them into one-element buckets makes a surface with three vocabularies look like three clean zeros.
   var selectionIdioms = [];
@@ -84,16 +98,11 @@ export const WALKER_CENSUS_SELECTION = `  // ── selection idiom: authored ST
     if (!isVisible(choice) || choice.parentElement === null) continue;
     var state = selectionState(choice);
     if (state === null) continue;
-    var groupsAtParent = selectionGroups.get(choice.parentElement);
-    if (groupsAtParent === undefined) {
-      groupsAtParent = new Map();
-      selectionGroups.set(choice.parentElement, groupsAtParent);
-    }
-    var groupKey = authoredTargetClaim(choice) + "|state=" + state.kind;
-    var group = groupsAtParent.get(groupKey);
+    var groupKey = authoredTargetClaim(choice) + "|home=" + authoredTargetHome(choice) + "|state=" + state.kind;
+    var group = selectionGroups.get(groupKey);
     if (group === undefined) {
       group = { kind: state.kind, selected: [], unselected: [] };
-      groupsAtParent.set(groupKey, group);
+      selectionGroups.set(groupKey, group);
     }
     if (state.selected) group.selected.push(choice);
     else group.unselected.push(choice);
@@ -102,34 +111,32 @@ export const WALKER_CENSUS_SELECTION = `  // ── selection idiom: authored ST
   var selectionTreatments = new Map();
   var selectionKinds = new Set();
   var selectionTotal = 0;
-  selectionGroups.forEach(function (groupsAtParent) {
-    groupsAtParent.forEach(function (group) {
-      relationalAccounting["selection-idiom"].candidates += 1;
-      if (group.selected.length + group.unselected.length < SELECT_COMPARISON_MIN_MEMBERS) {
-        excludeRelational(relationalAccounting["selection-idiom"], "insufficientPopulation");
-        return;
-      }
-      if (group.selected.length === 0) {
-        withholdRelational(relationalAccounting["selection-idiom"], "unmatchedUnselected");
-        return;
-      }
-      if (group.unselected.length === 0) {
-        withholdRelational(relationalAccounting["selection-idiom"], "unmatchedSelected");
-        return;
-      }
-      relationalAccounting["selection-idiom"].judged += 1;
-      var baseEl = group.unselected[0];
-      for (var selectedIndex = 0; selectedIndex < group.selected.length; selectedIndex += 1) {
-        var selectedEl = group.selected[selectedIndex];
-        var signature = selectionDeltaSignature(selectedEl, baseEl);
-        if (signature === "none") continue;
-        selectionTotal += 1;
-        selectionKinds.add(group.kind);
-        var treatment = selectionTreatments.get(signature);
-        if (treatment === undefined) selectionTreatments.set(signature, { count: 1, selector: describe(selectedEl) });
-        else treatment.count += 1;
-      }
-    });
+  selectionGroups.forEach(function (group) {
+    relationalAccounting["selection-idiom"].candidates += 1;
+    if (group.selected.length + group.unselected.length < SELECT_COMPARISON_MIN_MEMBERS) {
+      excludeRelational(relationalAccounting["selection-idiom"], "insufficientPopulation");
+      return;
+    }
+    if (group.selected.length === 0) {
+      withholdRelational(relationalAccounting["selection-idiom"], "unmatchedUnselected");
+      return;
+    }
+    if (group.unselected.length === 0) {
+      withholdRelational(relationalAccounting["selection-idiom"], "unmatchedSelected");
+      return;
+    }
+    relationalAccounting["selection-idiom"].judged += 1;
+    var baseEl = group.unselected[0];
+    for (var selectedIndex = 0; selectedIndex < group.selected.length; selectedIndex += 1) {
+      var selectedEl = group.selected[selectedIndex];
+      var signature = selectionDeltaSignature(selectedEl, baseEl);
+      if (signature === "none") continue;
+      selectionTotal += 1;
+      selectionKinds.add(group.kind);
+      var treatment = selectionTreatments.get(signature);
+      if (treatment === undefined) selectionTreatments.set(signature, { count: 1, selector: describe(selectedEl) });
+      else treatment.count += 1;
+    }
   });
 
   if (selectionTotal >= SELECT_MIN_ELS) {

@@ -24,6 +24,23 @@ export type PanelModeCandidate = (typeof PANEL_MODE_SPACE)[number];
 export const FOCUS_STATE_SPACE = ["on", "off"] as const;
 export type FocusStateCandidate = (typeof FOCUS_STATE_SPACE)[number];
 
+/** THE DRIVE AXIS (#1059). A surface has two measurable regimes and a run reaches exactly one: the REST
+ *  state a visitor lands on, and the DRIVEN state an argv-ordered action queue puts it in. They are
+ *  different populations, not a detail of one — Characters' library toolbar carries two toggles that are
+ *  both OFF at rest, so `selection-idiom` has no selected twin to judge there and #987 withholds it
+ *  (docs/design/983-984-ui-audit-population-semantics.md :208), while ONE `--click` on "Select multiple"
+ *  gives the same cohort its twin and the rule reaches a verdict. The owner's #1059 ruling keeps BOTH:
+ *  the bare run still measures rest and still withholds, and the driven run is the twin's source.
+ *  So the regime a run measured is DECLARED here, in the same accounting the panel/focus axes already
+ *  use, rather than left for a reader to infer from `actions=` — a driven population and a rest
+ *  population are not comparable, and a report that cannot say which one it holds is the same
+ *  "we never looked" silence this file exists to end.
+ *
+ *  Unlike the panel/focus axes this one is never EXCLUDED: it is an argv fact, not a shell reading, so
+ *  even an unmounted shell was reached in exactly one of these two regimes. */
+export const DRIVE_STATE_SPACE = ["rest", "driven"] as const;
+export type DriveStateCandidate = (typeof DRIVE_STATE_SPACE)[number];
+
 /** One census per surface-state axis — the same relational-census shape a rule's own denominator uses
  *  (`samples-populations.ts`), reused rather than re-spelled so `lib/population.ts`'s
  *  `assertCensusAccounting` settles this exactly as it settles every rule's. */
@@ -31,4 +48,5 @@ export interface SurfaceStateAccounting {
   readonly panelList: RelationalCensusAccountingInput;
   readonly panelContext: RelationalCensusAccountingInput;
   readonly focus: RelationalCensusAccountingInput;
+  readonly drive: RelationalCensusAccountingInput;
 }

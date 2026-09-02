@@ -50,8 +50,8 @@ export type {
 } from "./contract/samples.ts";
 export type { BuriedRasterInput } from "./contract/samples-media.ts";
 export type { RelationalCensusAccountingInput } from "./contract/samples-populations.ts";
-export type { FocusStateCandidate, PanelModeCandidate, SurfaceStateAccounting } from "./contract/surface-state.ts";
-export { FOCUS_STATE_SPACE, PANEL_MODE_SPACE } from "./contract/surface-state.ts";
+export type { DriveStateCandidate, FocusStateCandidate, PanelModeCandidate, SurfaceStateAccounting } from "./contract/surface-state.ts";
+export { DRIVE_STATE_SPACE, FOCUS_STATE_SPACE, PANEL_MODE_SPACE } from "./contract/surface-state.ts";
 export type { Args, AuditAction, BackdropRefusal, CaptureOutcome, DomPopulation, PixelPass, ShellStateSnapshot } from "./contract/types.ts";
 export {
   checkAccessibleName,

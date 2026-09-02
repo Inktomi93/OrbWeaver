@@ -2,8 +2,8 @@
 // `__orb.shell()` read. Never re-derives the DOM query itself — the bridge's own `ShellSnapshot` reader
 // (`packages/client/src/lib/agent-bridge.ts`) is the one home for what a panel's rendered mode is.
 import type { RelationalCensusAccountingInput } from "../contract/samples-populations.ts";
-import type { SurfaceStateAccounting } from "../contract/surface-state.ts";
-import { FOCUS_STATE_SPACE, PANEL_MODE_SPACE } from "../contract/surface-state.ts";
+import type { DriveStateCandidate, SurfaceStateAccounting } from "../contract/surface-state.ts";
+import { DRIVE_STATE_SPACE, FOCUS_STATE_SPACE, PANEL_MODE_SPACE } from "../contract/surface-state.ts";
 import type { ShellStateSnapshot } from "../contract/types.ts";
 import { assertCensusAccounting } from "./population.ts";
 
@@ -50,9 +50,11 @@ function focusObservedState(noShell: boolean, focus: boolean | undefined): strin
   return focus === true ? "on" : "off";
 }
 
-/** `null` (or an unmounted shell — `section: null`/no panels at all) EXCLUDES every axis outright: that
- *  is a PROVEN fact about the route (the landing/auth screen, or a boot still in flight), not a guess. */
-export function buildSurfaceStateAccounting(shell: ShellStateSnapshot | null): SurfaceStateAccounting {
+/** `null` (or an unmounted shell — `section: null`/no panels at all) EXCLUDES every SHELL axis outright:
+ *  that is a PROVEN fact about the route (the landing/auth screen, or a boot still in flight), not a
+ *  guess. The DRIVE axis is exempt from that arm on purpose (contract/surface-state.ts states why): the
+ *  regime is an argv fact this run always knows, so it is judged even when no shell mounted. */
+export function buildSurfaceStateAccounting(shell: ShellStateSnapshot | null, drive: DriveStateCandidate): SurfaceStateAccounting {
   const noShell = shell === null || shell.section === null || shell.panels.length === 0;
   const listPanel = shell?.panels.find((p) => p.side === "list") ?? null;
   const contextPanel = shell?.panels.find((p) => p.side === "context") ?? null;
@@ -61,12 +63,14 @@ export function buildSurfaceStateAccounting(shell: ShellStateSnapshot | null): S
   const panelList = censusOfSpace(PANEL_MODE_SPACE, noShell ? null : (listPanel?.mode ?? null), panelExcludedReason(noShell, listPanel));
   const panelContext = censusOfSpace(PANEL_MODE_SPACE, noShell ? null : (contextPanel?.mode ?? null), panelExcludedReason(noShell, contextPanel));
   const focus = censusOfSpace(FOCUS_STATE_SPACE, focusObserved, noShell ? NO_SHELL_REASON : null);
+  const driveCensus = censusOfSpace(DRIVE_STATE_SPACE, drive, null);
 
   assertCensusAccounting("panel-list", panelList);
   assertCensusAccounting("panel-context", panelContext);
   assertCensusAccounting("focus", focus);
+  assertCensusAccounting("drive", driveCensus);
 
-  return { panelList, panelContext, focus };
+  return { panelList, panelContext, focus, drive: driveCensus };
 }
 
 /** One axis's summary label for the RESULT line — `"complete"` is the space this run genuinely reached

@@ -21,7 +21,7 @@ import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { CensusReachInput, RawSamples } from "../contract/samples.ts";
 import type { RelationalCensusAccountingInput } from "../contract/samples-populations.ts";
-import type { SurfaceStateAccounting } from "../contract/surface-state.ts";
+import type { DriveStateCandidate, SurfaceStateAccounting } from "../contract/surface-state.ts";
 import type { Args, BackdropRefusal, DomPopulation, ShellStateSnapshot } from "../contract/types.ts";
 import { checkScriptErrors } from "../lib/checks-quality.ts";
 import { collectAudit } from "../lib/collect.ts";
@@ -97,7 +97,7 @@ function evidenceGapOf({ url, appReady, samples, population, opts, settingsEvide
  *  run, and — same law as `tap-*`'s own candidates/judged/withheld/populations rows below — an axis
  *  label for every configuration this run did NOT visit, named rather than folded into a clean-looking
  *  silence. `NO-VERDICT` mirrors `population-verdict`'s own hyphenated single-token spelling. */
-function surfaceStateRows(shellState: ShellStateSnapshot | null, accounting: SurfaceStateAccounting): [string, string][] {
+function surfaceStateRows(shellState: ShellStateSnapshot | null, accounting: SurfaceStateAccounting, drive: DriveStateCandidate): [string, string][] {
   const axisVerdict = (census: RelationalCensusAccountingInput): string => (surfaceStateAxisLabel(census) === "complete" ? "complete" : "NO-VERDICT");
   const focusLabel = shellState === null ? "unmounted" : shellFocusOnOff(shellState.focus);
   return [
@@ -108,6 +108,11 @@ function surfaceStateRows(shellState: ShellStateSnapshot | null, accounting: Sur
     ["panel-context-axis", axisVerdict(accounting.panelContext)],
     ["focus-state", focusLabel],
     ["focus-axis", axisVerdict(accounting.focus)],
+    // THE DRIVE AXIS (#1059): which REGIME this run measured. A driven population and a rest population
+    // are not comparable, so the machine line states it rather than leaving it to be inferred from
+    // `actions=` — contract/surface-state.ts carries the why.
+    ["drive-state", drive],
+    ["drive-axis", axisVerdict(accounting.drive)],
   ];
 }
 
@@ -198,8 +203,13 @@ export async function runUiAudit(opts: Args): Promise<number> {
     // guarantee, so a throw here is the same "the run itself is broken" class those calls already are —
     // never a graceful per-request failure like the bridge NAV calls in `_shared/nav.ts`, which a probe
     // legitimately drives against a possibly-stale/prod surface.
+    // THE DRIVE DECLARE (#1059): the regime this run measured, read off the argv-ordered action queue
+    // itself — an empty queue is the REST state a visitor lands on, any action puts the surface in a
+    // DRIVEN one. The two are different populations (contract/surface-state.ts states the ruling), so
+    // the run declares which one it holds instead of leaving a reader to infer it from `actions=`.
+    const drive: DriveStateCandidate = opts.actions.length === 0 ? "rest" : "driven";
     const shellState = shellStateSnapshot(await session.page.evaluate("window.__orb ? window.__orb.shell() : null"));
-    const surfaceStateAccounting = buildSurfaceStateAccounting(shellState);
+    const surfaceStateAccounting = buildSurfaceStateAccounting(shellState, drive);
 
     // Uncaught page exceptions are findings in their own right (script-error, P0) — the probe
     // session's pageerror capture is wired from nav start (_shared/browser.ts wirePage).
@@ -270,6 +280,8 @@ export async function runUiAudit(opts: Args): Promise<number> {
           // dimension up.
           shellState,
           surfaceStateAccounting,
+          // The REGIME this run measured (#1059) — the artifact says what the RESULT line says.
+          drive,
         },
         null,
         2,
@@ -284,7 +296,7 @@ export async function runUiAudit(opts: Args): Promise<number> {
     print("");
     printCensusReach(reach);
     printObscuredScan(pixels.samples?.obscuredScan);
-    printSurfaceState(shellState, surfaceStateAccounting);
+    printSurfaceState(shellState, surfaceStateAccounting, drive);
     printPopulationAccounting(populationAccounting);
     if (evidenceGaps.length > 0) {
       printEvidenceGaps(evidenceGaps);
@@ -325,7 +337,7 @@ export async function runUiAudit(opts: Args): Promise<number> {
         ["hover", browserEnvironment.actual.hover],
         ["touch", browserEnvironment.actual.hasTouch ? "yes" : "no"],
         ["environment-fails", browserEnvironment.mismatches.length],
-        ...surfaceStateRows(shellState, surfaceStateAccounting),
+        ...surfaceStateRows(shellState, surfaceStateAccounting, drive),
         ["population-verdict", populationGap === null ? "complete" : "NO-VERDICT"],
         ["tap-candidates", populationAccounting["tap-target"]?.candidates ?? -1],
         ["tap-judged", populationAccounting["tap-target"]?.judged ?? -1],
