@@ -79,7 +79,8 @@ overflow clause: an operator SWAP needs no sentinel, no delegation, and no bridg
 carry a dated receipt or do not exist — that is why this paragraph is dated and why the rule below is
 preserved as the recorded condition rather than rewritten into a description of today.
 
-- **CLAUDE-B OVERFLOW (owner, 2026-08-22): if — and ONLY if — a WEEKLY-usage sentinel reports ≥85%,
+- **CLAUDE-B OVERFLOW (owner, 2026-08-22): if — and ONLY if — a WEEKLY-usage sentinel labeled `[primary]` reports ≥85%
+  (a `[claude-b]` weekly sentinel is not the trigger; an `[ACCOUNT MISMATCH …]` one is a config fault to fix, not a signal),
   lane-class work may delegate to the second Claude account.** The trigger is exclusively that explicit
   harness sentinel in context — never a self-estimate, never the 5-hour window, never any other signal.
   Spelling (the bashrc `claude-b` function is invisible to non-interactive shells):
@@ -201,7 +202,7 @@ mechanics are here.
 5. **`gh issue comment --body "…`sha`…"` executes the backtick.** Always `--body-file`.
 6. **Mocks are Claude Design canvases** (`/design` → `seed-canvas.mjs` → Artifact, contract 0.1.31, caps self+downloads), never forge-drawn HTML lanes (owner: "just use the artifact creation skill"). Commit the canvas SOURCE under `docs/design/mocks/<name>/` (build.mjs + *.dc.html + canvas.json + true-size renders + DESIGN.md + README row); the README edit needs its OWN re-attest. Render each board's default state and LOOK before publishing (box-sizing, z-order, glyph rules were all caught only on the render).
 7. **Every lane that edits a law doc costs a catalog re-attest at merge** (verifiedCommit = the merge sha) — batch them per train; a report a lane leaves uncommitted needs a FULL READ before its born-reviewed receipt (state its location in the bridge if the window can't afford the read).
-8. **Sentinels can belong to the other account.** A weekly-usage sentinel fired at 96% and 97% while the owner said claude-b was nowhere near max — confirm with the owner before switching to landing-only.
+8. **Sentinels are account-labeled since 2026-09-01** (`context-sentinel [primary]: …` / `[claude-b]`; usage cache per `<config-dir>/rate-limits.json`, stamped, refused when foreign — memory `sentinel-usage-cache-is-per-account.md`). A sentinel without a bracketed account is pre-fix residue. Before that date they could belong to the other account: a 96/97% weekly sentinel fired on claude-b's numbers while the owner said claude-b was nowhere near max — the two accounts' statuslines wrote ONE cache file, last writer wins.
 9. **Four gate-heavy lanes is over the cap in practice:** two lanes hit `ORB-LOAD-KILL` / exit-143 on `check:structure` while a fourth ran. Three, plus browser/docs lanes.
 10. **The bridge inbox monitor pings on your own note edits** — write the bridge note in one shot, or stop the monitor while the other account is dark.
 11. **MEMORY.md hits its 25.6k cap in a long session** — compact labels (they are scan hints; recall keys off `description:`), and fold late lessons into hub files rather than minting new index lines.

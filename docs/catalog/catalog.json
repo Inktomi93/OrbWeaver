@@ -30516,6 +30516,94 @@
       "receiptCurrent": true
     },
     {
+      "path": "docs/reviews/stickler/2026-09-01-law-doc-memory-truth-audit.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 282,
+      "bytes": 59876,
+      "sha256": "285f7bb2eceb2c3de4887ab06bbf8ad1909eda6c69d996531cc2dab607099054",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-01"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/stickler/2026-09-01-law-doc-memory-truth-audit.md",
+        "assignedSha256": "285f7bb2eceb2c3de4887ab06bbf8ad1909eda6c69d996531cc2dab607099054",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "285f7bb2eceb2c3de4887ab06bbf8ad1909eda6c69d996531cc2dab607099054",
+        "verifiedCommit": "ee410490ecbd590d6ec558a1c03e462985c8ea90",
+        "verifiedAt": "2026-09-01",
+        "summary": "Stickler truth audit of the always-loaded agent context (lane p-law-audit, owner ask 2026-09-01): the law/core-doc/skill/memory classification rule, 26 misfiling rows, a 37-row truth table (19 non-TRUE), the per-role boot-load arithmetic (113.6 KB floor → 78.7 KB target), and a four-phase move plan.",
+        "evidence": [
+          "born-reviewed at the fold (ee410490e): full read by the primary orchestrator — §A rule + A1-A26, §B seed dispositions + B-1..B-37, §C load tables, §D phases 0-4, the verification log; the memory half of Phase 0 (step 7) and the three proposed lessons were executed in the shared store the same session; Phases 0/1/2 filed as #1055/#1056/#1057, Phase 4 as decision #1058",
+          "the report is read-only evidence: nothing outside it was edited by the lane (its own verification log states the read-in-full vs partial regions)"
+        ],
+        "claims": [
+          {
+            "claim": "A fact lives in the narrowest home whose readers must obey it unasked, stated once, in that home's shape (law / path-scoped law / core doc / skill / memory / history); 26 corpus rows violate it, mostly memory-as-law and law-as-archaeology.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#1056"
+              },
+              {
+                "kind": "issue",
+                "target": "#1057"
+              }
+            ]
+          },
+          {
+            "claim": "19 of 37 audited claims in the always-loaded set are non-TRUE (8 FALSE, 6 STALE, 3 CONFLICT, 2 INCOMPLETE): the retired retro-workboard is called live in six homes, verify --full names the removed parity stage, the doctrine's tier ladder is wrong three ways and cites a missing path, the onboard hook's MEMORY.md cap is above the harness's real ≈24.4 KiB cap.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#1055"
+              },
+              {
+                "kind": "issue",
+                "target": "#1058"
+              }
+            ]
+          },
+          {
+            "claim": "Every project lane pays a 113.6 KB always-injected floor (+42 KB doctrine; side-eye boots at 263 KB); the proposed budgets bring the floor to 78.7 KB and side-eye to 146 KB.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#1056"
+              },
+              {
+                "kind": "issue",
+                "target": "#1058"
+              }
+            ]
+          },
+          {
+            "claim": "The memory store holds 45 orphan topic files (151 KB) unreachable from the index, including an owner posture and a damage-class ban; the index's tail lines were already being truncated by the harness.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#1057"
+              },
+              {
+                "kind": "issue",
+                "target": "#1058"
+              }
+            ]
+          }
+        ]
+      },
+      "receiptCurrent": true
+    },
+    {
       "path": "docs/reviews/stickler/2026-09-01-ui-audit-population-train.md",
       "lane": "reviews",
       "issue": 7,

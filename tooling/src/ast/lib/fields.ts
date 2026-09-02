@@ -301,7 +301,7 @@ const TEMPLATE_PART_MIN = 3;
 const KEY_PART_MIN = 6;
 
 /** Does this file BUILD property keys — a computed key whose expression is computed
- *  (`{ [field("TokensIn")]: n }`) or an element-access write through a template (``acc[`tokensIn${k}`]``)?
+ *  (`{ [field("TokensIn")]: n }`) or an element-access write through a template (an `acc[…]` write keyed by the template `tokensIn${k}`)?
  *  Only such a file's string literals are read as name PARTS below; anywhere else a 6-char literal that
  *  happens to end a field name is a coincidence, not evidence. */
 function buildsKeys(sf: SourceFile): boolean {
@@ -315,8 +315,8 @@ function buildsKeys(sf: SourceFile): boolean {
 
 /** The literal text a corpus producer BRACKETS a built key with — the shape no key index can see. Two
  *  sources, because the live producers use both: a template EXPRESSION's own head/tail
- *  (``acc[`tokensIn${kind}`]``), and, inside a key-BUILDING file, its bare string literals used as name
- *  parts (`const suffix = "MeasuredSamples"` feeding `` `${prefix}${axis}${suffix}` `` — the live
+ *  (the `acc[…]` write keyed by `tokensIn${kind}`), and, inside a key-BUILDING file, its bare string literals used as name
+ *  parts (`const suffix = "MeasuredSamples"` feeding the template `${prefix}${axis}${suffix}` — the live
  *  `statsDeltaSchema.*Samples` producer, whose template has NO literal text of its own at all). */
 function templateBracketsOf(sf: SourceFile, out: TemplateBracket[]): void {
   for (const tmpl of sf.getDescendantsOfKind(SyntaxKind.TemplateExpression)) {
