@@ -4362,7 +4362,7 @@
     {
       "siteId": "tooling/src/_shared/proc.ts::empty:error::1",
       "path": "tooling/src/_shared/proc.ts",
-      "line": 24,
+      "line": 27,
       "column": 5,
       "grammar": "empty",
       "position": "empty:error",
@@ -4370,12 +4370,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "ESRCH is the desired teardown end state; every other signal error is rethrown. Ends if callers require proof that the signal landed.",
-      "markerLine": 21
+      "markerLine": 24
     },
     {
       "siteId": "tooling/src/_shared/proc.ts::empty:error::2",
       "path": "tooling/src/_shared/proc.ts",
-      "line": 219,
+      "line": 222,
       "column": 9,
       "grammar": "empty",
       "position": "empty:error",
@@ -4383,7 +4383,7 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "ESRCH or an observed child exit makes kill idempotent; every still-live signal failure rethrows. Ends if child exit fields stop being authoritative.",
-      "markerLine": 216
+      "markerLine": 219
     },
     {
       "siteId": "tooling/src/_shared/rated-theme-fixture.ts::empty:cleanupError::1",
