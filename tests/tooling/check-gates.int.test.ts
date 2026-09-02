@@ -1183,6 +1183,13 @@ function writeFixtures(): void {
 // un-plantable without perturbing the live lint/import-law config for every concurrent consumer. Their bite
 // is proven by conformance (dead row · the const/spread/template CODE shapes · unreadable-shape refusal ·
 // absent + unparseable config · zero-rows) and by their own permanent pins under tests/tooling/verify/gates/.
+// runner-config-path-liveness: the fourth of that family — its units are values inside the REPO-ROOT
+// runner configs (vitest.config.ts, playwright.config.ts, playwright-ct.config.ts), which no `__g_` path
+// can express and which cannot be perturbed without changing WHICH TESTS RUN for every concurrent lane
+// (the fixture would rewrite the very config collecting it). Its bite is proven by conformance (dead row ·
+// the SERIAL_INT const-spread shape reporting once per site · unreadable-shape refusal · a missing config ·
+// an unparseable config · zero-rows) and by its own permanent pin,
+// tests/tooling/verify/gates/runner-config-path-liveness.int.test.ts.
 // tokens-contract reads seven exact canonical JSON/schema paths. A throwaway `__g_` file cannot perturb
 // them without mutating the live vault; its invalid-unit mustFlag and full-corpus mustPass are fs-backed.
 // css-family-ownership reads the five exact sanctioned product stylesheets and derives live TS/TSX hook
@@ -1200,6 +1207,7 @@ const UNFIXTURABLE_GATES = new Set([
   "tsconfig-entry-liveness",
   "eslint-grant-liveness",
   "depcruise-grant-liveness",
+  "runner-config-path-liveness",
   "baseui-surface-manifest",
   "warning-code-coverage",
   "verify-registry-parity",

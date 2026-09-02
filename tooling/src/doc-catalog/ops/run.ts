@@ -8,7 +8,7 @@ import { warn } from "../../_shared/log.ts";
 import type { CatalogMode, FormatMode, LaneConfig, State } from "../contract/types.ts";
 import { migrationMetrics } from "../lib/debt.ts";
 import { LANES_PATH, OUTPUT_PATH, STATE_PATH } from "../lib/vocab.ts";
-import { bootstrap, catalogIsStale, expectedCatalog, ratchet, sync, writeCatalog } from "./catalog.ts";
+import { bootstrap, catalogIsStale, expectedCatalog, normalizeAuthoredArtifacts, ratchet, sync, unformattedArtifacts, writeCatalog } from "./catalog.ts";
 import { formatDocs, formatTargets } from "./format.ts";
 import { documents, json, laneAssignments, loadReceipts } from "./tree.ts";
 import { validate } from "./validate.ts";
@@ -41,8 +41,20 @@ export function runCatalog(mode: CatalogMode): ExitCode {
   const errors = [...validate({ config, docs, assignments, receipts, state })];
   if (WRITING_MODES.has(mode)) {
     writeCatalog(expected);
-  } else if (catalogIsStale(expected)) {
-    errors.push(`${OUTPUT_PATH}: generated catalog is stale; run pnpm doc-catalog:write`);
+    // #968: the receipts are HAND-attested, so a lane can leave JSON the repo's own formatter rejects —
+    // and nothing in this tool ever looked at their FORM, so the red surfaced later in `lint:biome`
+    // attributed to whoever next regenerated. The write verbs now land the canonical form; `--check`
+    // (below) reds on drift. This retires the manual `biome check --write docs/catalog/` step.
+    for (const path of normalizeAuthoredArtifacts(config)) {
+      print(`doc-catalog — reformatted ${path}`);
+    }
+  } else {
+    if (catalogIsStale(expected)) {
+      errors.push(`${OUTPUT_PATH}: generated catalog is stale; run pnpm doc-catalog:write`);
+    }
+    for (const path of unformattedArtifacts(config)) {
+      errors.push(`${path}: not in the canonical (biome-formatted) form — run pnpm doc-catalog:write`);
+    }
   }
   if (errors.length > 0) {
     warn(`check:doc-catalog — ${errors.length} violation(s):\n${errors.map((error) => `  ${error}`).join("\n")}`);
