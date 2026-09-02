@@ -13,6 +13,12 @@
 #      newest unacked bridge note's CONTENT inline, not just its filename.
 #   3. The worktree enumeration was the bulk of the 21KB (78 rows at the time) and is re-derivable in
 #      seconds — print a COUNT + the command, never the listing.
+#   4. (2026-09-02, second live regression of lesson 1) The board grew until the total hit 11.9KB →
+#      persisted with a 2KB preview again, and the FIRST ACTIONS block — which sat LAST — never reached
+#      the window: the orchestrator armed no runbook and paid two CLI paper cuts. Two consequences baked
+#      in: FIRST ACTIONS moved directly under IDENTITY (imperatives before evidence — truncation eats
+#      from the back), and the runbook-skill load is a numbered FIRST ACTION, not a pointer aside. The
+#      board is the re-derivable section (lesson 3 applies to it too), so it takes the trims.
 set -uo pipefail
 cd "${CLAUDE_PROJECT_DIR:-/home/inktomi/inktomi-stack/development/orbweaver}" 2>/dev/null || exit 0
 echo "=== AUTO-ONBOARD (SessionStart hook — read, then ACT on it; re-derive nothing below) ==="
@@ -28,14 +34,20 @@ case "${CLAUDE_CONFIG_DIR:-primary}" in
 esac
 echo "!!! IDENTITY: you are ${WHO} (CLAUDE_CONFIG_DIR=${CLAUDE_CONFIG_DIR:-unset}). YOUR inbox is ~/.claude/bridge/${INBOX}/ — read it, ack by MOVE into its done/, and Monitor THAT dir; you WRITE notes to ~/.claude/bridge/${OUTBOX}/. claude-b prefixes lanes cb-, never delegates cross-account, and only PRIMARY commits on main's checkout (bridge protocol 022). MESSAGE FORM is ~/.claude/bridge/PROTOCOL.md — read it before writing a note: NNN monotonic across BOTH directions (max over all four dirs incl. done/), at: in ISO 8601 UTC, kind in re: (plain | QUESTION with stated default | BLOCKED | ANSWER to NNN | ACK of NNN); a QUESTION stays unacked until answered."
 
-# 1) THE DISPATCH MAP FIRST (agentIds + merge order + holds — the un-summarizable state). Both
+# 0b) FIRST ACTIONS — directly under identity so a truncated/persisted firing still delivers them
+#     (lesson 4). The hook cannot invoke tools itself; these are the orders the fresh window executes.
+echo "!!! FIRST ACTIONS, in order: (1) ARM THE BRIDGE MONITOR NOW — first tool call, on YOUR inbox, this exact command (stdbuf is load-bearing: into a pipe inotifywait BLOCK-buffers, paid 2026-09-01; probe with a throwaway file after arming, and TaskStop any pre-compact duplicate the probe exposes):"
+echo "      Monitor persistent: stdbuf -oL inotifywait -m -q -e close_write -e moved_to --format '%e %f' ~/.claude/bridge/${INBOX}/ | stdbuf -oL grep --line-buffered -vE '^\\S+ (\\.|zz-)|done/'"
+echo "    (2) LOAD THE orchestrator-runbook SKILL (Skill tool) BEFORE your first work:item transition, bridge note, or worktree action — a compaction summary carries DIGESTED runbook knowledge, which is exactly what fails on CLI detail (2026-09-02: ready-before-claim + lowercase --kind were both paid for skipping this); (3) honor any MERGE HOLD / sequencing in the bridge note below; (4) the session scratchpad's dispatch-map.md (if it survived) carries the fuller history."
+
+# 1) THE DISPATCH MAP (agentIds + merge order + holds — the un-summarizable state). Both
 #    accounts historically park their dispatch maps in to-primary/, so the newest note is scanned
 #    across BOTH dirs and labeled; the unacked count is YOUR inbox only (only those are yours to ack).
 NEWEST_NOTE=$(ls -t ~/.claude/bridge/to-primary/*.md ~/.claude/bridge/to-b/*.md 2>/dev/null | head -1)
 if [ -n "${NEWEST_NOTE:-}" ]; then
   NOTE_LABEL="${NEWEST_NOTE#"$HOME"/.claude/bridge/}"
   echo "--- newest bridge note (${NOTE_LABEL}) — READ THIS BEFORE TOUCHING LANES OR MERGES:"
-  head -c 3500 "$NEWEST_NOTE"
+  head -c 2800 "$NEWEST_NOTE"
   echo
   UNACKED=$(ls ~/.claude/bridge/${INBOX}/*.md 2>/dev/null | /usr/bin/grep -cv "${NEWEST_NOTE##*/}" || true)
   [ "${UNACKED:-0}" -gt 0 ] && echo "(+$UNACKED unacked note(s) in ~/.claude/bridge/${INBOX}/ — YOUR inbox; ack by MOVE into done/)"
@@ -45,18 +57,16 @@ fi
 
 # 2) THE BOARD (mutable truth; titles capped so the section stays small).
 echo "--- board (pnpm work:item overview, titles capped):"
-timeout 45 pnpm work:item overview 2>/dev/null | /usr/bin/grep -v "^\$" | cut -c1-110 | head -60 \
+timeout 45 pnpm work:item overview 2>/dev/null | /usr/bin/grep -v "^\$" | cut -c1-100 | head -25 \
   || echo "(overview unavailable — run pnpm work:item overview manually)"
+echo "(board capped at 25 lines — pnpm work:item overview for the rest; never track it from memory)"
 
 # 3) POINTERS (each one line; the content is re-derivable on demand).
 WT_COUNT=$(git worktree list 2>/dev/null | tail -n +2 | wc -l | tr -d ' ')
 echo "--- worktrees: ${WT_COUNT:-?} beyond main (run: git worktree list — resume live lanes via SendMessage to the dispatch map's agentIds, NEVER respawn; sweep only under containment proofs)"
 DIRTY=$(git status --short 2>/dev/null | head -5)
 if [ -n "$DIRTY" ]; then echo "--- UNCOMMITTED on main (investigate before merging anything):"; echo "$DIRTY"; else echo "--- main working tree: clean"; fi
-echo "--- standing posture: .claude/rules/orchestration.md (auto-loaded, POLICY only). PROCEDURE lives in the orchestrator-runbook SKILL — load it (Skill tool) before your first work:item transition, claude-b/bridge action, or worktree sweep; it is not auto-loaded. claude-b registry: ~/.claude/bridge/SESSIONS.md (resume, never re-mint)."
-echo "--- FIRST ACTIONS: (1) ARM THE BRIDGE MONITOR NOW — first tool call, on YOUR inbox, this exact command (a hook cannot invoke the Monitor tool itself, so this is the auto-start; the stdbuf is load-bearing — into a pipe inotifywait BLOCK-buffers, paid 2026-09-01; probe with a throwaway file after arming, and TaskStop any pre-compact duplicate the probe exposes):"
-echo "      Monitor persistent: stdbuf -oL inotifywait -m -q -e close_write -e moved_to --format '%e %f' ~/.claude/bridge/${INBOX}/ | stdbuf -oL grep --line-buffered -vE '^\\S+ (\\.|zz-)|done/'"
-echo "    (2) honor any MERGE HOLD / sequencing note above; (3) session scratchpad dispatch-map.md (if this session's scratchpad survived) carries the fuller history."
+echo "--- standing posture: .claude/rules/orchestration.md (auto-loaded, POLICY only); PROCEDURE = the orchestrator-runbook skill (FIRST ACTION 2 above). claude-b registry: ~/.claude/bridge/SESSIONS.md (resume, never re-mint)."
 
 # 4) CONTEXT-BUDGET GUARD (2026-08-24, #638). Two always-on injections have no other signal when they
 #    near their caps — MEMORY.md truncates silently past 200 lines OR the harness's byte cap (whichever
