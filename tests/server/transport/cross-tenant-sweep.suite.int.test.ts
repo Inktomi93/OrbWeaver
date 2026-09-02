@@ -1409,6 +1409,21 @@ const PROBES: readonly Probe[] = [
   { path: "stream.attach", call: (c, i) => c.stream.attach({ socketId: "socket_sweep_probe", ref: { channel: "workloads", workloadId: i.workloadId } }) },
   { path: "stream.detach", call: (c, i) => c.stream.detach({ socketId: "socket_sweep_probe", ref: { channel: "rpg", chatId: i.chatId } }) },
 
+  // ── notifications.presence (#1039) — the presence DISCLOSURE read, PROBED with owner A's OWN userId as the
+  //    stranger. IT IS THE ONE PROC ON THIS LIST WHOSE WIDE ANSWER IS THE RULING, NOT A DEFECT: the owner
+  //    ruled 2026-09-01 that any AUTHENTICATED caller may read online state ("everyone can see who is online
+  //    — for now at least"), so a stranger resolving here is CORRECT and must not be "fixed" by a reader who
+  //    finds this row. What the probe still buys, stated so nobody over-reads it: the answer is the ONLINE
+  //    SUBSET OF THE ASKED IDS — echoed ids only — so a marker NAME appearing in it could only come from a
+  //    future widening of the response shape, which is exactly what this row would then catch. The
+  //    disclosure's real teeth are elsewhere and are named here so they are not re-derived: the wire boundary
+  //    (anonymous refusal, the ask cap, the one-key body) is
+  //    tests/server/transport/trpc/routers/notifications.test.ts, the projection (no `lastSeenAt`, absent ==
+  //    offline-or-withheld) is tests/server/transport/trpc/presence-disclosure.test.ts, and the PD-106 belt is
+  //    trpc.test.ts's `beltSurfaces` table. If the audience ever narrows to room membership, THIS probe flips
+  //    to a leak-free NOT_FOUND/empty expectation. ──
+  { path: "notifications.presence", call: (c) => c.notifications.presence({ userIds: [OWNER_USER_ID] }) },
+
   { path: "rpg.createGame", call: (c, i) => c.rpg.createGame({ chatId: i.chatId, mode: "lite" }) },
   { path: "rpg.updateConfig", call: (c, i) => c.rpg.updateConfig({ chatId: i.chatId, patch: { steeringNote: "hacked" } }) },
   {

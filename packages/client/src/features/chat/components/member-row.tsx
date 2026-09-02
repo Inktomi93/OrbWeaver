@@ -11,9 +11,19 @@
 //
 // Accessible name = identity + state (lib/member-rows.ts `rowAccessibleName`); the character row's "responding…"
 // mark is `aria-hidden` visually (a quiet pulse, never `aria-live` — no per-turn SR chatter) and rides
-// the row's accessible DESCRIPTION instead. Destructive rows (Kick…/Leave…) sit LAST behind an
-// AlertDialog (`ConfirmDialog`); a kick additionally reports itself to the panel
-// (`onRequestRemovalFocus`) so focus lands on a neighbor when the bus echo removes the row.
+// the row's accessible DESCRIPTION instead.
+//
+// THE PRESENCE DOT (#1039) IS DECORATION, AND THAT IS THE A11Y ARGUMENT, NOT A SHORTCUT. The row body is a
+// Button carrying an explicit `aria-label`, so an `aria-label` on anything INSIDE it is never announced —
+// which is why the dot is `aria-hidden` and the word "online"/"offline" rides `rowAccessibleName` instead
+// (`role-status-dot.tsx`'s labelled-dot idiom is for a dot that is its own accname owner; this one is not).
+// It also carries a SHAPE channel beside the colour one — online is FILLED, offline is a hollow ring — so
+// the state survives a colour-blind reader looking at it and a screen reader hearing it. UNKNOWN presence
+// renders NO dot: "we did not ask / the read has not landed" is not "offline".
+//
+// Destructive rows (Kick…/Leave…) sit LAST behind an AlertDialog (`ConfirmDialog`); a kick additionally
+// reports itself to the panel (`onRequestRemovalFocus`) so focus lands on a neighbor when the bus echo
+// removes the row.
 
 import { blobUrl } from "@orb/contracts/assets";
 import { initialsFor } from "@orb/kit/initials";
@@ -85,6 +95,7 @@ export function MemberRow(props: MemberRowProps): ReactElement {
       >
         {initialsFor(row.displayName)}
       </Avatar>
+      {row.kind === "person" ? <PresenceDot online={row.online} /> : null}
       <Text as="span" voice="label" className={row.kind === "character" && row.disabled ? "min-w-0 truncate text-muted-foreground" : "min-w-0 truncate"}>
         {/* Identity ONLY. The ` · ${handle}` suffix that used to sit here rendered the raw login handle —
             an EMAIL under AUTH_MODE=oidc — beside every human's name (#162); `MemberPersonRow` no longer
@@ -146,6 +157,28 @@ export function MemberRow(props: MemberRowProps): ReactElement {
 
       {row.kind === "person" ? <PersonRowConfirms row={row} actions={props} confirm={confirm} setConfirm={setConfirm} /> : null}
     </Row>
+  );
+}
+
+/** The live-presence indicator for a human seat (#1039) — filled = online, hollow ring = offline, ABSENT =
+ *  unknown. Purely visual: the announced state is the row's accessible name (see the file header), so this
+ *  is `aria-hidden` and must never grow a label of its own (it would be swallowed by the row Button's
+ *  `aria-label` anyway, i.e. a label that reads as coverage and announces nothing). */
+function PresenceDot({ online }: { readonly online: boolean | null }): ReactElement | null {
+  if (online === null) {
+    return null;
+  }
+  return (
+    <Text
+      as="span"
+      aria-hidden={true}
+      data-slot="member-presence"
+      data-online={online}
+      // The SHAPE channel: `bg-success` fills the online dot, and the offline one is an unfilled ring of the
+      // same box — two states distinguishable with the colour removed, per the never-colour-alone rule the
+      // sibling `role-status-dot.tsx` states.
+      className={online ? "size-2 shrink-0 rounded-full bg-success" : "size-2 shrink-0 rounded-full border border-muted-foreground"}
+    />
   );
 }
 

@@ -1,4 +1,4 @@
-import type { NotificationEvent, NotificationType, PresenceView } from "@orb/contracts/notifications";
+import type { NotificationEvent, NotificationType, PresenceSnapshot, PresenceView } from "@orb/contracts/notifications";
 import { AUTOMATION_NOTICE_MESSAGE_MAX, NOTIFICATION_RECIPIENTS, notificationEventSchema, PLUGIN_NOTIFICATION_RECIPIENTS } from "@orb/contracts/notifications";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
@@ -181,4 +181,19 @@ test("PresenceView pins the per-user presence shape", () => {
     lastSeenAt: 0,
   };
   expect(offlineView.online).toBe(false);
+});
+
+// PresenceSnapshot shape pin (#1039) — the DISCLOSURE projection, and the whole point of it being a
+// projection rather than `PresenceView[]`. `PresenceView` carries `lastSeenAt` (WHEN a user's last device
+// went dark); the wire shape has no field it could ride on, so widening the disclosure has to be an explicit
+// contract change with its own review rather than a struct that quietly grew a member.
+test("PresenceSnapshot discloses ONE key — ids only, and no seat for the activity timestamp", () => {
+  const snapshot: PresenceSnapshot = { onlineUserIds: [SAMPLE_RECIPIENT] };
+
+  expect(Object.keys(snapshot)).toEqual(["onlineUserIds"]);
+  // A user id that is OFFLINE (or undisclosed) is simply ABSENT — the empty answer is a real answer, not a
+  // per-user `{online:false}` record that a later field could hitch a ride on.
+  const noneOnline: PresenceSnapshot = { onlineUserIds: [] };
+  expect(noneOnline.onlineUserIds).toEqual([]);
+  expect(JSON.stringify(noneOnline)).not.toContain("lastSeenAt");
 });

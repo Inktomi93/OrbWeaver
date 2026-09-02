@@ -13,6 +13,7 @@ import { useInvalidation, useTRPC } from "#data";
 import { goToLanding, openModal, useTurnSpeakerCharacterId } from "#state";
 import { useKickMember, useNominateHostHandoff, useSelfLeave, useSetMemberHistoryVisibility } from "../hooks/use-membership-mutations.ts";
 import { useForceCharacterTurn, useRemoveCharacterFromChat, useSetSeatKnobs } from "../hooks/use-roster-mutations.ts";
+import { useRosterPresence } from "../hooks/use-roster-presence.ts";
 import type { MemberRowActions } from "../lib/member-rows.ts";
 import { toCharacterRows, toPersonRows } from "../lib/member-rows.ts";
 import { filterCharacters, resolveIsGroupChat } from "../lib/roster.ts";
@@ -75,12 +76,18 @@ export function CommittedMembersTab({ chatId, chat, isHost, multiHumanCapable }:
   const [viewCardCharacterId, setViewCardCharacterId] = useState<CharacterId | null>(null);
 
   const respondingCharacterId = useTurnSpeakerCharacterId(chatId);
+  // Live presence for the People rows (#1039). Gated on the deployment's multi-human capability for the same
+  // reason `people` is: the procedure rides the PD-106 belt and is refused as nonexistent below it, and a
+  // single-human box has no other human to be present. A `null` here (unresolved / refused / errored) is
+  // UNKNOWN, not offline — see `useRosterPresence`.
+  const onlineUserIds = useRosterPresence(chat.participants, multiHumanCapable);
   const sources = {
     participants: chat.participants,
     identities: chat.identities,
     viewerUserId: chat.viewerUserId,
     pendingHostUserId: chat.pendingHostUserId,
     respondingCharacterId,
+    onlineUserIds,
   };
   const people = multiHumanCapable ? toPersonRows(sources) : [];
   // No display floor on the characters: the room's characters ARE the roster, and a "worth its own list" threshold

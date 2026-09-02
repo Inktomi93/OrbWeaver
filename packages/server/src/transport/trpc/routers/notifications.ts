@@ -13,11 +13,21 @@
 // the socket itself must stay reachable on a single-user deployment for its user/chat/rpg rooms. The
 // PD-70 presence ref-count and the host-return `drainDeferredTurns` edge moved to the socket with it
 // (`routers/stream.ts`, spec §5.6 — owner-ruled §14.4).
+//
+// `presence` (#1039) is the DISCLOSURE half of that same ref-count, and it homes here because presence was
+// designed as part of the D16 human-to-human invite/notifications system — `PresenceView` already lives in
+// `@orb/contracts/notifications`, so a second router would have split one concept across two front doors. It
+// is the one procedure on this router that does NOT delegate to `ctx.services`: presence is transport-owned
+// state (D16 — "presence → transport"), read through `ctx.presence` exactly as `routers/stream.ts` does.
+// Riding `multiHumanProcedure` with its siblings is deliberate rather than incidental: online-state about
+// OTHER humans is a multi-human surface, so a deployment that cannot seat a second human refuses it as
+// nonexistent, and the client only renders the People section on such a deployment anyway.
 
-import { NOTIFICATIONS_LIST_MAX_LIMIT } from "@orb/contracts/notifications";
-import type { NotificationId } from "@orb/kit/ids";
+import { NOTIFICATIONS_LIST_MAX_LIMIT, PRESENCE_READ_MAX_USER_IDS } from "@orb/contracts/notifications";
+import type { NotificationId, UserId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import { z } from "zod";
+import { readPresenceDisclosure } from "../presence-disclosure.ts";
 import { multiHumanProcedure, t } from "../trpc.ts";
 
 export const notificationsRouter = t.router({
@@ -39,4 +49,12 @@ export const notificationsRouter = t.router({
       notificationId: input.notificationId,
     }),
   ),
+
+  // Presence disclosure (#1039) — "which of these people are online right now". The AUDIENCE decision and
+  // the seam a later membership tightening edits live in `presence-disclosure.ts`; this line is wire
+  // plumbing only, so the policy can never end up half-stated in two places. The `.max()` is the trust
+  // boundary: an over-bound ask is a BAD_REQUEST before the registry is touched.
+  presence: multiHumanProcedure
+    .input(z.object({ userIds: z.array(brandedId<UserId>()).min(1).max(PRESENCE_READ_MAX_USER_IDS) }))
+    .query(({ ctx, input }) => readPresenceDisclosure(ctx.presence, input.userIds)),
 });

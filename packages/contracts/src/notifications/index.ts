@@ -167,6 +167,28 @@ export interface InboxView {
   readonly createdAt: number;
 }
 
+/** The `notifications.presence` ask CEILING, enforced at the transport trust boundary (the
+ *  {@link NOTIFICATIONS_LIST_MAX_LIMIT} precedent) — an over-bound ask is a BAD_REQUEST, never an unbounded
+ *  registry sweep. Sized well past the biggest plausible human roster: the read is a per-id question, so the
+ *  cap is what stops it degenerating into "enumerate the deployment" by brute force. */
+export const PRESENCE_READ_MAX_USER_IDS = 100;
+
+/** The presence DISCLOSURE wire shape (#1039) — the ONLINE SUBSET of the user ids the caller asked about,
+ *  and nothing else.
+ *
+ *  IT IS A PROJECTION OF {@link PresenceView}, NEVER THE VIEW ITSELF, and the shape is the enforcement.
+ *  `PresenceView` also carries `lastSeenAt` — an activity timestamp saying WHEN someone's last device went
+ *  dark, which is a behavioural disclosure the roster dot does not need and nobody asked for. Returning ids
+ *  instead of per-user objects means there is no field for it to ride on: a future widening has to be an
+ *  explicit wire change with its own review, not a struct that quietly grew a member.
+ *
+ *  A user id the caller asked about and does not get back is OFFLINE **or** not disclosable to them — one
+ *  indistinguishable answer, deliberately. That is what keeps a later membership/privacy tightening
+ *  (`transport/trpc/presence-disclosure.ts`) free of an existence oracle. */
+export interface PresenceSnapshot {
+  readonly onlineUserIds: readonly UserId[];
+}
+
 /** The per-user presence shape transport derives from the live SSE connection ref-count. A read-model
  *  view, not an inbound wire schema — presence is never client-asserted (a spoofable heartbeat would be
  *  a prompt-composition attack), so there is deliberately no `presenceSchema` to parse a client claim into. */
