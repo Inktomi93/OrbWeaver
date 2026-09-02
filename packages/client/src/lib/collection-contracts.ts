@@ -53,39 +53,40 @@ export const COLLECTION_LARGE_GROUP = 30;
  *  the exact failure collapsed-by-default groups exist to prevent. */
 export const COLLECTION_WINDOW_MAX_HEIGHT = "max-h-96";
 
-/** How many PREVIEW entries a contribution hands up, and therefore how many the welcome's hero draws —
- *  ONE constant, two readers (the owner slices its ranked list to it; the host draws what it is given and
- *  derives the "+N more" remainder from {@link CollectionContribution.useCount}), the
- *  {@link COLLECTION_LARGE_GROUP} discipline. Twelve is two comfortable chip rows at the docked pane's
- *  real width and three at a narrow one — past that the wall stops being a glance and starts being the
- *  roster, which is the line the preview must not cross (it is a top-N glance plus a door, never a second
- *  sortable list). */
-export const COLLECTION_PREVIEW_LIMIT = 12;
-
-/** ONE entry in a collection's welcome PREVIEW: a member's own name and the ONE datum that earns it a place
- *  in the glance. It homes HERE rather than in the owning feature because the HOST draws it blind for every
- *  contribution that has one — the same reason `blurb` and `emptyText` are contract fields and not host
- *  string tables.
+/** ONE library-level FACT the landing states — what is TRUE OF THE LIBRARY, in the library's own words,
+ *  and (when the fact is about one member) a real door to it.
  *
- *  `detail` IS A STRING, NOT A NUMBER (widened 2026-08-19, when regex and world-info grew previews of their
- *  own). A number can only ever mean "how much", which is the tag library's ranking and nobody else's: the
- *  regex library ranks by RECENCY ("4m ago") and the world-info library by ATTACHMENT ("42 entries ·
- *  attached ×3"). Forcing those through a numeric field would have meant the host inventing a unit for each
- *  — the insider-knowledge naming §3 forbids — so the owner formats its own datum in its own vocabulary and
- *  the host renders it at the `datum` voice. The owner is also the party that already has that spelling
- *  (`bookScent`, `formatRelative`); a second one here would be the drift those single homes exist to
- *  prevent. */
-export interface CollectionPreviewEntry {
-  /** The member's OWN id — the wall's React key, and the reason the wall has one (side-eye 2026-08-19 P1-1).
-   *  The host keyed its chips on `label`, and a name is not an identity: the owner's corpus carries two books
-   *  called "Shitty stories", so every visit logged React's duplicate-key error and left the wall's membership
-   *  to reconciliation — while `+N more` kept deriving the remainder from `shown.length` as though nothing
-   *  could have been dropped. Opaque at the seam, exactly like `CollectionDetailView.memberId`. */
+ *  ═══ WHY THIS REPLACED THE PREVIEW WALL (#1209, owner ruling 2026-09-02) ══════════════════════════
+ *  The landing used to draw a ranked top-N chip WALL. Measured on the live surface: with Tags active,
+ *  CONTENT's only interactive element was "New tag" — the twelve chips were inert text restating the
+ *  twelve rows the LIST already showed in the same order, and "+16 more" named sixteen members reachable
+ *  from nowhere on that pane. Two defects in one anatomy: IA single-homing broken (two renderings of one
+ *  list, free to diverge the moment the sort changes) and affordance-shaped text that is not an
+ *  affordance. The ruling: the landing states what the LIST structurally CANNOT — attachments and scopes,
+ *  what changed recently, what is used nowhere — and every affordance on it is a real door.
+ *
+ *  SO A FACT IS DATA FIRST AND A DOOR ONLY WHEN IT HAS ONE. `label` + `value` are a statement (a census, a
+ *  scope, a date); `open` is present only when the fact is ABOUT a single member, and then it opens that
+ *  member's own editor. A fact with no single subject renders as the statement alone — data is not an
+ *  affordance and must not dress as one, which is the half of the finding a "make the chips clickable" fix
+ *  would have missed.
+ *
+ *  IT IS THE CONTRIBUTION'S KNOWLEDGE, NOT THE HOST'S: only the tag library knows what "used nowhere"
+ *  means, only world-info knows what "attached everywhere" means. The host draws `label · value · door` in
+ *  ONE grammar for every library and learns nothing about members — the `create`/`importFile` posture. */
+export interface CollectionInsight {
+  /** Stable within one library — the row's React key, never rendered. */
   readonly id: string;
-  /** The member's own name, as the library spells it. */
+  /** What the fact is about, in the library's own vocabulary ("Runs in every chat", "Used nowhere"). */
   readonly label: string;
-  /** The ONE datum that ranks this member, in the library's own units and already formatted. */
-  readonly detail: string;
+  /** The fact itself, already formatted by the owner ("3 books", "none", "4m ago"). The host renders it at
+   *  the `datum` voice and never computes or units it. */
+  readonly value: string;
+  /** The DOOR — present ONLY when this fact is about ONE member, and then it opens that member's editor
+   *  (the owner calls its own `selectCollectionMember`; the host never learns which member it was).
+   *  `label` is the control's whole accessible name, so it names what it opens rather than repeating the
+   *  fact. */
+  readonly open?: { readonly label: string; readonly run: () => void };
 }
 
 /** What the host hands a collection's LIST half. */
@@ -139,44 +140,32 @@ export interface CollectionContribution {
    *  the host's filter affordance at {@link COLLECTION_LARGE_GROUP}.
    *
    *  ═══ THE OPTIONAL-HOOK LAW FOR EVERY HOST OF THIS SEAM (#1203 P0, 2026-09-02) ═══════════════════
-   *  This field and {@link preview} are OPTIONAL HOOKS, so a contribution's hook SET is part of its
-   *  identity: tags/regex/world-info declare a preview, rosters does not. "Called unconditionally in a
+   *  This field and {@link insights} are OPTIONAL HOOKS, so a contribution's hook SET is part of its
+   *  identity: a library that has library-level facts to state declares one and its neighbour may not.
+   *  (Measured on the pair that existed when this was minted: tags/regex/world-info declared a preview
+   *  wall and rosters did not.) "Called unconditionally in a
    *  fixed position" is therefore a claim about ONE CONTRIBUTION'S FIBER, never about the component that
    *  draws it. **A host that renders a per-collection component MUST key it by the collection's group id**
    *  — otherwise React reuses one fiber across a switch, the hook count changes mid-fiber, and the
    *  "Rendered fewer/more hooks than expected" invariant violation escapes every route boundary and
    *  white-screens the whole shell (measured: switching Tags→Rosters on the config CONTENT landing; the
    *  Tags→Regex pair survived only because those two happen to declare equal hook counts). Both host sites
-   *  key today: `config-content-surface.tsx`'s landing and `config-welcome.tsx`'s launcher map. */
+   *  key today: `config-content-surface.tsx`'s landing (the only host since the Hearth retired, #1210). */
   readonly useCount?: () => number | undefined;
-  /** The library's own CONTENTS as a ranked top-{@link COLLECTION_PREVIEW_LIMIT} glance, for the welcome's
-   *  HERO (program #102, the owner-picked Hearth variant). It is the one thing NEITHER the roster band nor
-   *  the `blurb` carries: the band says how MANY, the blurb says what the library is FOR, and this says
-   *  what is actually IN it.
+  /** The library's own LANDING FACTS (see {@link CollectionInsight}) — what the CONTENT pane says about a
+   *  populated library, and the one thing neither the band nor the blurb nor the LIST carries: the band
+   *  says how MANY, the blurb says what the library is FOR, the LIST says what is IN it, and this says what
+   *  is TRUE of it.
    *
-   *  THAT IS WHY IT EXISTS, AND WHY IT DOES NOT RE-OPEN THE 2026-08-08 TRIM RULING. A populated launcher
-   *  sheds its count + create because the band already carries them; the hero has to say something the
-   *  band does not, or promoting it is chrome. The preview is that something — and it must stay a top-N
-   *  glance plus a door. The moment it grows into a second full sortable list it IS the roster, which is
-   *  the one-home line the trim ruling drew (`config-welcome.tsx`'s `BuiltLibrary` header states it).
+   *  OPTIONAL, and honestly so: a library with nothing library-level to say declines, and its landing is
+   *  name + blurb + the create verb. `undefined` from `useInsights` takes the same arm as a declined field
+   *  (the read has not landed) — a landing that flashed an empty fact list would be worse than one that
+   *  never drew it.
    *
-   *  DECLARED AS DATA + A HOOK, the `create`/`importFile`/`bulkSelect` grammar exactly, because the RANKING
-   *  IS PART OF THE CLAIM (side-eye 2026-08-19 P1-2). The host used to hardcode "Most used" over whatever a
-   *  contribution handed up, which was true of the one library that had a preview and would have been a lie
-   *  the moment a second ranked by anything else — and both new adopters do: regex ranks by RECENCY,
-   *  world-info by ATTACHMENT. `label` is the wall's kicker and names the rank in the library's own words,
-   *  so a contribution cannot ship a glance whose ordering is unstated.
-   *
-   *  OPTIONAL, unlike `blurb`: a library with nothing rankable has no honest glance to offer, so it simply
-   *  declines and its hero draws label + blurb + the door alone. `undefined` from `useEntries` takes the
-   *  SAME arm as a declined field — the read has not landed, and a hero that flashed an empty chip wall
-   *  would be worse than one that never drew it.
-   *
-   *  `useEntries` MUST be exactly ONE cache-first `useQuery` over the SAME key the collection's other hooks
-   *  read, like {@link useCount}: this is a second reader of a list the roster already has, never a second
-   *  request. All three adopters satisfy that today — the tag/regex/world-info list reads are the ones the
-   *  roster's own rows already loaded. */
-  readonly preview?: { readonly label: string; readonly useEntries: () => readonly CollectionPreviewEntry[] | undefined };
+   *  `useInsights` MUST be exactly ONE cache-first `useQuery` over the SAME key the collection's other hooks
+   *  read, like {@link useCount}: these facts are a second READING of the list the roster already loaded,
+   *  never a second request. It is also an OPTIONAL HOOK — see the keying law on {@link useCount}. */
+  readonly insights?: { readonly useInsights: () => readonly CollectionInsight[] | undefined };
   /** The OPEN member's own name, for the mobile pushed frame's topbar title (the config section's
    *  `useSelectionTitle` — side-eye P2: a pushed detail must name the MEMBER, not the section). A hook over
    *  the member id, same call discipline as {@link useCount}: cache-first, non-suspending, `undefined`

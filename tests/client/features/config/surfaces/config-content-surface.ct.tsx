@@ -802,14 +802,16 @@ test("a POPULATED collection band ENTERS its library in one act — rows open AN
   await expect(content.getByText(REGEX_BLURB)).toBeVisible();
   await expect(content.getByText(LANDING_HINT)).toBeVisible();
   await expect(content.getByRole("button", { name: "New script" })).toBeVisible();
-  // The four-library welcome is NOT what a named library's landing shows (the capability lie, deleted).
+  // The four-library launcher landing is NOT what a named library's landing shows — and since #1210 it is
+  // not what ANYTHING shows.
   await expect(content.locator('[data-slot="config-welcome"]')).toHaveCount(0);
 });
 
 // ── SWITCHING LIBRARIES MUST NOT CRASH THE APP (#1203 P0, side-eye repro on folded main) ─────────────
 // THE DEFECT: the landing is ONE component instance for EVERY collection, and it calls `useCount?.()` and
-// `preview?.useEntries()` — OPTIONAL hooks on per-contribution fields. Tags, regex and world-info declare a
-// `preview`; ROSTERS does not. So switching between a preview-declaring library and rosters changed the
+// its per-library optional hook (measured on `preview.useEntries`, which #1209 replaced with
+// `insights.useInsights` — the same shape and the same hazard). Tags, regex and world-info declared it;
+// ROSTERS did not. So switching between a declaring library and rosters changed the
 // HOOK COUNT on a fiber React was reusing: "Rendered fewer hooks than expected" (or more, the other way),
 // thrown past every route boundary to `CatchBoundaryImpl` — rail, list and content all white-screened, with
 // reload as the only recovery. Tags→Regex survived on LUCK (equal hook counts), which is why this pin sweeps
@@ -904,4 +906,99 @@ test("…and a second click folds the rows away WITHOUT leaving the library", as
   // …and it costs nothing: the location, and therefore the pane, is untouched.
   await expect(band).toHaveAttribute("aria-current", "true");
   await expect(component.getByRole("region", { name: "Settings", exact: true }).getByRole("heading", { level: 2, name: "Regex scripts" })).toBeVisible();
+});
+
+// ── THE LANDING STATES THE LIBRARY, IT DOES NOT RESTATE THE LIST (#1209, owner ruling 2026-09-02) ────
+// THE DEFECT, measured live: with Tags active, CONTENT's only interactive element was "New tag" — twelve
+// inert chips restated the twelve rows the LIST was already showing in the same order, and "+16 more" named
+// sixteen members reachable from nowhere on that pane. The ruling: the landing says what the LIST
+// structurally cannot (scopes, what is used nowhere, what changed), and every affordance on it is a REAL
+// door. The negative half is the acceptance bar and is asserted as such: zero affordance-shaped text.
+
+/** The tag fixture the fact arms need: two tags used on something, one used NOWHERE — the state the tag
+ *  library's own fact is about, and the one a 400-row list sorted by use puts at the far end of the scroll. */
+const INSIGHT_TAGS = [
+  {
+    id: "tag_used_a",
+    name: "used-a",
+    color: null,
+    color2: null,
+    source: null,
+    folderType: "NONE",
+    sortOrder: 0,
+    isHiddenOnCard: false,
+    usage: { characters: 2, chats: 0, worldBooks: 0, personas: 0, presets: 0, total: 2 },
+  },
+  {
+    id: "tag_used_b",
+    name: "used-b",
+    color: null,
+    color2: null,
+    source: null,
+    folderType: "NONE",
+    sortOrder: 1,
+    isHiddenOnCard: false,
+    usage: { characters: 1, chats: 0, worldBooks: 0, personas: 0, presets: 0, total: 1 },
+  },
+  {
+    id: "tag_orphan",
+    name: "orphan-tag",
+    color: null,
+    color2: null,
+    source: null,
+    folderType: "NONE",
+    sortOrder: 2,
+    isHiddenOnCard: false,
+    usage: { characters: 0, chats: 0, worldBooks: 0, personas: 0, presets: 0, total: 0 },
+  },
+];
+
+test("a populated library's landing states its own FACTS — and every affordance on it is a real door", async ({ mount, page }) => {
+  await stub(page, { "tag.listTagsWithUsage": () => INSIGHT_TAGS, "tag.getTag": () => INSIGHT_TAGS[2] });
+  const component = await mount(<ConfigHostStory />);
+
+  await component.locator(TAGS_BAND).click();
+  const content = component.getByRole("region", { name: "Settings", exact: true });
+  const facts = content.locator('[data-slot="config-library-insights"]');
+
+  // THE FACT the list cannot state: how much of the library is doing nothing. Contribution's words, its own
+  // value — the host units nothing.
+  await expect(facts.getByText("Labelling nothing")).toBeVisible();
+  await expect(facts.getByText("1 of 3")).toBeVisible();
+  await expect(facts.getByText("In use")).toBeVisible();
+
+  // EVERY CONTROL ON THIS PANE IS A REAL DOOR. Two of them: the fact's door and the create verb — and the
+  // fact's door OPENS THE MEMBER it is about, which is the whole difference from the chip wall it replaced.
+  await expect(content.getByRole("button")).toHaveCount(2);
+  await content.getByRole("button", { name: "Open orphan-tag" }).click();
+  await expect(component.getByRole("heading", { name: "orphan-tag" })).toBeVisible();
+});
+
+test("…and the wall it replaced is gone: no chip census, no dead +N more", async ({ mount, page }) => {
+  await stub(page, { "tag.listTagsWithUsage": () => INSIGHT_TAGS });
+  const component = await mount(<ConfigHostStory />);
+
+  await component.locator(TAGS_BAND).click();
+  const content = component.getByRole("region", { name: "Settings", exact: true });
+  await expect(content.getByRole("heading", { level: 2, name: "Tags" })).toBeVisible();
+  // The two tells of the retired anatomy, asserted as absences: the ranked kicker and the remainder chip.
+  await expect(content.getByText("Most used")).toHaveCount(0);
+  await expect(content.getByText(/^\+\d+ more$/)).toHaveCount(0);
+  // …and no member NAME is restated on the pane except inside a real door's own label ("Open orphan-tag").
+  await expect(content.getByText("used-a", { exact: true })).toHaveCount(0);
+});
+
+// ── THE EMPTY LANDING TEACHES (#1213) ────────────────────────────────────────────────────────────────
+// The zero arm passed `emptyText` alone, so the reader with NOTHING — the first-timer the empty state exists
+// for — was the only one the surface declined to tell what the library is FOR, while every other surface
+// showing that library carried its blurb.
+test("the empty landing shows the library's blurb AND its empty sentence AND its create verb", async ({ mount, page }) => {
+  await stub(page);
+  const component = await mount(<ConfigHostStory />);
+
+  await component.locator(EMPTY_BAND).click();
+  const content = component.getByRole("region", { name: "Settings", exact: true });
+  await expect(content.getByText(REGEX_BLURB), "the blurb the settling arm and the LIST both show").toBeVisible();
+  await expect(content.getByText("No scripts yet.")).toBeVisible();
+  await expect(content.getByRole("button", { name: "New script" })).toBeVisible();
 });

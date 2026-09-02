@@ -33,22 +33,6 @@ const ANY_BULK_TOGGLE = /^Select /;
 
 const TAG_COUNT = 400;
 
-/** Every collection's create verb, as one pattern — the door array's whole create vocabulary is
- *  `New tag` / `New script` / `New book`. */
-const ANY_CREATE_VERB = /^New /;
-/** The create verbs of the three libraries this story POPULATES — the cast library stays empty here. */
-const POPULATED_CREATE_VERBS = /^New (tag|script|book)$/;
-/** The two launcher DOORS the launcher tests drive. SWEPT 2026-08-19 with the accessible-name fork (see
- *  `config-welcome.tsx`'s `BuiltLibrary` header): the island used to BE the button and was therefore
- *  addressed by its blurb, which made its accessible name the card's whole ~45-word content. It is now a
- *  named region containing a real button, so the control is addressed by the verb it performs. */
-const TAGS_LAUNCHER = "Open Tags →";
-const WORLD_INFO_LAUNCHER = "Open World Info →";
-/** The resting DOOR affordance a built library's island carries and a not-yet-built slot does not — the
- *  same text-arrow register home's hearth uses ("Open <library> →"). */
-const ANY_OPEN_DOOR = /^Open /;
-/** The coarse-pointer tap floor (WCAG 2.5.5 / the house `size-control-md` coarse step). */
-const TOUCH_FLOOR_PX = 44;
 /** The global-scope switch, by what it does — the accessible name is `<script name> runs in every chat`. */
 const GLOBAL_SWITCH = /runs in every chat/i;
 /** Any non-empty accessible name — a labelled list is the claim, whichever noun the collection uses. */
@@ -63,6 +47,8 @@ const PHONE_VIEWPORT_PX = 430;
 // address the region they mean by its slot rather than by a bare name.
 const LIST_PANE = '[data-slot="config-list"]';
 const WELCOME = '[data-slot="config-welcome"]';
+/** The nothing-active arm since #1210 retired the launcher landing — the section's own teaching frame. */
+const TEACHING_FRAME = '[data-slot="config-teaching-frame"]';
 /** The CONTENT scroller — the pane whose ARRIVAL content ruling 4 is about (#925). */
 const CONTENT_PANE = '[data-slot="config-content"]';
 /** The FIRST group in the LIST's canonical `(shelf, order, id)` sequence — `user` shelf, no declared order,
@@ -236,13 +222,13 @@ test("ARRIVAL is an arrival fact — leaving the first group for the landing STA
   // `reset groups` is the CT's spelling of `clearActiveConfigGroup` — the shell's mobile BACK and the rail
   // bounce. A default that re-fired on every render would make that door unusable.
   await workspace.getByRole("button", { name: "reset groups" }).click();
-  await expect(workspace.locator(WELCOME)).toBeVisible();
+  await expect(workspace.locator(TEACHING_FRAME)).toBeVisible();
   await expect(workspace.getByRole("region", { name: `${FIRST_GROUP_LABEL} settings` })).toHaveCount(0);
   // Held across a re-render of the whole LIST (the reset is a store write every group reads). NOT a band
   // click: as of #925 every band — settings or collection — is a door that MOVES the location, so a band
   // click would be leaving the landing rather than testing that it stays.
   await workspace.getByRole("button", { name: "reset groups" }).click();
-  await expect(workspace.locator(WELCOME)).toBeVisible();
+  await expect(workspace.locator(TEACHING_FRAME)).toBeVisible();
 });
 
 // THE PHONE IS THE ONE PLACE THE DEFAULT MUST NOT FIRE (the mobile one-shell rule): an auto-selected pushing
@@ -312,195 +298,28 @@ test("a small group gets NO filter (the affordance is count-driven, not per-coll
   await expect(workspace.getByRole("textbox", { name: "Filter regex scripts" })).toHaveCount(0);
 });
 
-test("no selection renders the host WELCOME with a launcher card per collection", async ({ mount, page }) => {
+// ── THE LANDING LAUNCHER GRID IS RETIRED (#1210, owner ruling 2026-09-02) ───────────────────────────
+// SIX TESTS LIVED HERE and they are gone with the surface they pinned (the launcher card's shed count, its
+// ~45-word accessible name, its resting door, its keyboard reach, its grid column, and the empty card's
+// count+create). None was wrong; all of them were about `ConfigWelcome`, whose whole grid was a second,
+// unreachable rendering of the Collections shelf the LIST already draws — unreachable because the arrival
+// default takes CONTENT before the first paint on the desktop and a phone never paints CONTENT unpushed.
+// What replaces them is the pin that the surface is GONE and that the state it used to hold is honest.
+test("the retired launcher landing is gone, and the nothing-active arm is the section's teaching frame", async ({ mount, page }) => {
   await stub(page);
   const workspace = await mount(<ConfigWorkspaceStory />);
+
+  // Arrival: a real group's settings, no landing grid.
+  await expect(workspace.locator(WELCOME)).toHaveCount(0);
+  // …and after leaving the arrival group (the shell's Back / a rail bounce, spelled here as the story's
+  // nav reset) the pane is the two-line teaching frame, never a blank column and never the launcher grid.
   await workspace.getByRole("button", { name: "reset groups" }).click();
-
-  const welcome = workspace.locator(WELCOME);
-  await expect(welcome.getByRole("heading", { name: "The parts every chat is built from" })).toBeVisible();
-  // Each card is drawn from the CONTRACT (label · icon · count · blurb · create), never a host string table.
-  await expect(welcome.getByText("Color-coded labels for characters, chats, books, personas and presets.")).toBeVisible();
-  await expect(welcome.getByText("Find/replace that runs on input, output, or both; everywhere, or only where you attach it.")).toBeVisible();
-  await expect(welcome.getByText("Keyword-triggered lore your characters draw on, and a book fires where you attach it.")).toBeVisible();
-});
-
-/** One launcher card in the welcome, by its collection id. */
-function launcher(workspace: Locator, collectionId: string): Locator {
-  return workspace.locator(WELCOME).locator(`[data-collection="${collectionId}"]`);
-}
-
-/** SETTLE BARRIER for the launcher arms: each LIST_PANE band prints its own collection's count, off the SAME
- *  cache-first hook the launcher reads. Until a band shows its number that collection's count is
- *  `undefined` — the in-flight state, where a launcher legitimately still draws its create verb — so a
- *  populated-arm assertion made before this barrier would be asserting a flash. */
-async function bandCount(workspace: Locator, collectionId: string, count: number): Promise<void> {
-  await expect(
-    workspace.locator(LIST_PANE).locator(`[data-collection="${collectionId}"] [data-slot="collection-band"]`).getByText(String(count)),
-  ).toBeVisible();
-}
-
-// C7 arm 2 (split-the-class, 2026-08-08): with both panes docked and populated, `Tags · 400 · New tag`
-// rendered in the list band AND in the welcome's launcher card — two homes for one concept on one screen.
-// The fix is per-CHILD (the documented rules-of-hooks trap: a "switch voice when populated" parent would
-// have to read N owner count hooks in a loop), and it sheds ONLY the duplicated half: a populated card keeps
-// the blurb, which is the one thing the band does not carry.
-test("a POPULATED collection's launcher sheds the count + create the list band already carries", async ({ mount, page }) => {
-  await stub(page);
-  const workspace = await mount(<ConfigWorkspaceStory />);
-  await workspace.getByRole("button", { name: "reset groups" }).click();
-
-  await bandCount(workspace, "tags", TAG_COUNT);
-  await bandCount(workspace, "regex", SCRIPTS.length);
-  await bandCount(workspace, "worldInfo", BOOKS.length);
-
-  const welcome = workspace.locator(WELCOME);
-  // The restatement is gone from the LANDING — every CREATE verb on screen is the list's. (This used to
-  // read `welcome.getByRole("button")).toHaveCount(0)`; the card itself is a button now — the launcher of
-  // the test below — so the assertion says what it always meant: no collection's create verb is restated
-  // here. `New tag` / `New script` / `New book` is the door array's whole create vocabulary.)
-  // The three POPULATED libraries shed their verbs; the EMPTY cast library (this story feeds no casts)
-  // legitimately keeps "New cast" on its invitation — the C7 arm-2 first-run teacher, not a restatement.
-  await expect(welcome.getByRole("button", { name: POPULATED_CREATE_VERBS })).toHaveCount(0);
-  await expect(launcher(workspace, "tags").getByText(String(TAG_COUNT))).toHaveCount(0);
-  // …and the teaching sentence the pane exists for stays, on every card.
-  await expect(welcome.getByRole("heading", { name: "The parts every chat is built from" })).toBeVisible();
-  await expect(welcome.getByText("Color-coded labels for characters, chats, books, personas and presets.")).toBeVisible();
-  await expect(welcome.getByText("Keyword-triggered lore your characters draw on, and a book fires where you attach it.")).toBeVisible();
-});
-
-// …AND IT IS STILL A CONTROL (side-eye 2026-08-08 P1, the C7 re-check). Shedding the count + create left a
-// populated card with NO affordance at all — no click target, no keyboard stop, and 62% of its empty
-// sibling's height — so the pane's three cards read as failed-to-load chrome. The card is the LAUNCHER its
-// own name claims: clicking it takes the reader to that library in the LIST, through the same
-// `goToCollection` intent every other cross-surface "manage it over there" door fires.
-//
-// THE CONTROL IS THE DOOR BUTTON as of 2026-08-19, not the island (the fork is stated in full in
-// `config-welcome.tsx`'s `BuiltLibrary` header): naming the whole island made its accessible name its whole
-// content, ~45 words, which hid the blurb and census inside a label instead of exposing them. The island is
-// a named region; the finding below — a populated launcher must be a real, operable, thumb-sized control —
-// is satisfied by the door, and the island keeps a mirroring pointer click as a convenience.
-test("a POPULATED launcher card is a real control — clicking it opens that collection's group in the LIST", async ({ mount, page }) => {
-  await stub(page);
-  const workspace = await mount(<ConfigWorkspaceStory />);
-  await workspace.getByRole("button", { name: "reset groups" }).click();
-  await bandCount(workspace, "tags", TAG_COUNT);
-
-  const listPane = workspace.locator(LIST_PANE);
-  const band = listPane.getByRole("button", { name: TAGS_BAND });
-  await expect(band).toHaveAttribute("aria-expanded", "false");
-
-  const door = workspace.locator(WELCOME).getByRole("button", { name: TAGS_LAUNCHER });
-  await expect(door).toBeVisible();
-  // A launcher a thumb cannot land on is not a launcher. Measured on the ISLAND, which is still the whole
-  // pointer target (the door's own coarse floor rides `Button`'s `::after` touch-target pseudo and is
-  // therefore invisible to a bounding box — the sealed variant owns that, not this surface).
-  const box = await launcher(workspace, "tags").boundingBox();
-  if (box === null) {
-    throw new Error("the populated launcher card did not render a box");
-  }
-  expect(box.height, "the launcher clears the coarse touch floor").toBeGreaterThanOrEqual(TOUCH_FLOOR_PX);
-
-  await door.click();
-  await expect(band).toHaveAttribute("aria-expanded", "true");
-  await expect(firstRow(workspace)).toBeVisible();
-});
-
-// …AND IT SAYS SO AT REST (side-eye 2026-08-08 P2). Hover, focus ring and keyboard operability all require
-// the pointer or the keyboard to have ALREADY arrived; at rest the one operable card was pixel-identical to
-// its two inert siblings, so a sighted scan had no way to learn which one was a door. The pin is the
-// DIFFERENCE — something the populated island renders and the inert ones do not — because "give it an
-// affordance" is only satisfied by something the siblings lack.
-//
-// RETARGETED, NOT WEAKENED (program #102, the Hearth rebuild). The finding stands; its ANATOMY moved. The
-// 2026-08-08 fix was a `ChevronRight` glyph, so this test counted `svg` nodes — and the rebuilt hero
-// carries the home hearth's TEXT arrow instead ("Open <library> →"), which is a deliberate register match,
-// not a regression: the `@orb/ui/icons` export list is a curated seal and one hero does not earn a new
-// glyph. Counting svgs therefore measured the old FIX rather than the finding, and read 1-vs-1 against a
-// surface whose resting difference had in fact grown (the island is boxed, striped and glowing while the
-// inert slot is deliberately un-boxed under a kicker). So the pin is now the DOOR AFFORDANCE ITSELF, which
-// is what the finding was always about and survives whichever glyph draws it.
-test("a POPULATED launcher card carries a resting affordance its inert siblings do not", async ({ mount, page }) => {
-  await stub(page, []);
-  const workspace = await mount(<ConfigWorkspaceStory />);
-  await workspace.getByRole("button", { name: "reset groups" }).click();
-  await bandCount(workspace, "tags", 0);
-  await bandCount(workspace, "worldInfo", BOOKS.length);
-
-  // One frame, both arms: `tags` is empty (the inert slot), `regex`/`worldInfo` are populated (launchers).
-  await expect(launcher(workspace, "worldInfo").getByText(ANY_OPEN_DOOR), "the launchable island names its door at rest").toBeVisible();
-  await expect(launcher(workspace, "tags").getByText(ANY_OPEN_DOOR), "the inert slot draws no door").toHaveCount(0);
-  // …and the difference is addressable, not only visible: the launchable one is a NAMED REGION carrying a
-  // door control; the inert slot is neither. (Swept 2026-08-19 — the island used to be `role=button`
-  // itself; the fork and its receipts are in `config-welcome.tsx`'s `BuiltLibrary` header.)
-  await expect(launcher(workspace, "worldInfo")).toHaveAttribute("role", "region");
-  await expect(launcher(workspace, "worldInfo").getByRole("button", { name: WORLD_INFO_LAUNCHER })).toBeVisible();
-  await expect(launcher(workspace, "tags")).not.toHaveAttribute("role", "region");
-});
-
-// …AND THE CARD GRID READS IN THE SAME COLUMN AS THE COPY ABOVE IT (side-eye 2026-08-08 P3). The grid had no
-// width of its own inside a centered Stack, so its auto-fit tracks shrink-to-fit — measured 473px under a
-// 595px paragraph, giving one block of teaching copy TWO left edges. The pin is the two boxes' left edges.
-test("the launcher grid shares the welcome paragraph's column — one left edge, not two", async ({ mount, page }) => {
-  await stub(page);
-  const workspace = await mount(<ConfigWorkspaceStory />);
-  await workspace.getByRole("button", { name: "reset groups" }).click();
-
-  const welcome = workspace.locator(WELCOME);
-  const paragraph = welcome.getByText("Tags label your library.", { exact: false });
-  await expect(paragraph).toBeVisible();
-  const [paragraphBox, cardBox] = await Promise.all([paragraph.boundingBox(), launcher(workspace, "tags").boundingBox()]);
-  if (paragraphBox === null || cardBox === null) {
-    throw new Error("the welcome paragraph or its first launcher card did not render a box");
-  }
-  expect(Math.abs(cardBox.x - paragraphBox.x), "the grid's first column starts on the paragraph's left edge").toBeLessThanOrEqual(1);
-});
-
-// …AND IT IS REACHABLE WITHOUT A POINTER (same finding). The card was a plain `<div>`: no tab stop, no
-// Enter/Space, no focus ring — the launcher pane was keyboard-dead in full. The pin is the rendered
-// affordance (focus lands, Enter operates), not the attribute that produces it.
-test("the populated launcher card takes keyboard focus and operates on Enter", async ({ mount, page }) => {
-  await stub(page);
-  const workspace = await mount(<ConfigWorkspaceStory />);
-  await workspace.getByRole("button", { name: "reset groups" }).click();
-  await bandCount(workspace, "worldInfo", BOOKS.length);
-
-  const band = workspace.locator(LIST_PANE).getByRole("button", { name: WORLD_INFO_BAND });
-  await expect(band).toHaveAttribute("aria-expanded", "false");
-
-  const card = workspace.locator(WELCOME).getByRole("button", { name: WORLD_INFO_LAUNCHER });
-  await card.focus();
-  await expect(card).toBeFocused();
-  await card.press("Enter");
-  await expect(band).toHaveAttribute("aria-expanded", "true");
-});
-
-// THE EMPTY STATE IS UNTOUCHED (the 2026-08-03 "genuinely good teaching state" verdict, which was the
-// COLD-FIRST-TIMER test): at zero the card's count + create ARE the onboarding next step, and the list
-// band is not a duplicate of them so much as the same first step said where the user is looking. The tags
-// collection is empty here while its two siblings are populated — one frame carrying both arms, so the
-// populated shed cannot be a blanket removal.
-test("an EMPTY collection's launcher keeps its count and create verb — the first-run teacher", async ({ mount, page }) => {
-  await stub(page, []);
-  const workspace = await mount(<ConfigWorkspaceStory />);
-  await workspace.getByRole("button", { name: "reset groups" }).click();
-
-  await bandCount(workspace, "tags", 0);
-  await bandCount(workspace, "regex", SCRIPTS.length);
-
-  const tags = launcher(workspace, "tags");
-  await expect(tags.getByText("0")).toBeVisible();
-  await expect(tags.getByRole("button", { name: "New tag" })).toBeVisible();
-  // The CREATE verb, in the same frame: the populated siblings shed theirs. Stated as the create vocabulary
-  // rather than as "no buttons at all" — since the 2026-08-19 fork a populated island carries exactly one
-  // button, its door, which is not a create verb and never was the thing this test is about.
-  await expect(launcher(workspace, "regex").getByRole("button", { name: ANY_CREATE_VERB })).toHaveCount(0);
-  await expect(launcher(workspace, "worldInfo").getByRole("button", { name: ANY_CREATE_VERB })).toHaveCount(0);
-  await expect(launcher(workspace, "regex").getByRole("button")).toHaveCount(1);
-  // …and the EMPTY card is not a launcher: its create button is the affordance, so it is neither a named
-  // region nor a door — the reader is not offered a way into a library with nothing in it.
-  await expect(tags).not.toHaveAttribute("role", "region");
-  await expect(tags.getByText(ANY_OPEN_DOOR)).toHaveCount(0);
+  const frame = workspace.locator('[data-slot="config-teaching-frame"]');
+  await expect(frame.getByRole("heading", { name: "The parts every chat is built from" })).toBeVisible();
+  await expect(frame.getByText("Tags label your library.", { exact: false })).toBeVisible();
+  await expect(workspace.locator(WELCOME)).toHaveCount(0);
+  // The collections are reachable from the LIST, which is the single home the retirement restores.
+  await expect(workspace.locator(LIST_PANE).getByRole("button", { name: TAGS_BAND })).toBeVisible();
 });
 
 // D121-D's lifecycle anatomy, landed on the group band: IMPORT is host chrome driven by the contribution's
@@ -671,15 +490,16 @@ test("the editor's PRIMARY action no longer touches the pane boundary", async ({
   expect(primaryBox.x + primaryBox.width, "the primary's right edge clears the pane boundary").toBeLessThanOrEqual(paneBox.x + paneBox.width - inset);
 });
 
-// The welcome carried its OWN `p-block` — the reason the missing editor inset read as deliberate rather
-// than as a hole. With the region padding it would double, so it was dropped; this pins that it did not
-// come back (the welcome and an editor must start at the SAME x).
-test("the welcome does not double the region's inset", async ({ mount, page }) => {
+// The retired welcome carried its OWN `p-block` — the reason the missing editor inset read as deliberate
+// rather than as a hole. With the region padding it would double, so it was dropped; the claim survives the
+// retirement (#1210) and is now made of the frame that took its place: whatever CONTENT paints with nothing
+// active must start at the SAME x as an editor does.
+test("the nothing-active frame does not double the region's inset", async ({ mount, page }) => {
   await stub(page);
   const workspace = await mount(<ConfigWorkspaceStory />);
   await workspace.getByRole("button", { name: "reset groups" }).click();
 
-  const welcome = workspace.locator(WELCOME);
+  const welcome = workspace.locator(TEACHING_FRAME);
   await expect(welcome.getByRole("heading", { name: "The parts every chat is built from" })).toBeVisible();
   await expect
     .poll(() =>

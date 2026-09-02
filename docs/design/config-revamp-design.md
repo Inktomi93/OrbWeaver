@@ -775,9 +775,9 @@ facts, so a convergence pass can price each one instead of re-deriving them.
 ### 8.4 The landing redesign (ruling 2) and what it deleted
 
 - The welcome's `<Section kicker="Not built yet">` band is gone, and with it the whole **lead/rail column
-  split** — the split existed only to segregate "not built" from "built". The Hearth is now ONE auto-fit
-  grid, one slot per collection in canonical `(shelf, order, id)` order; population changes what a slot
-  SAYS, never where the surface files it.
+  split** — the split existed only to segregate "not built" from "built". `ConfigWelcome` became ONE
+  auto-fit grid, one slot per collection in canonical `(shelf, order, id)` order; population changed what
+  a slot SAID, never where the surface filed it. (That grid then retired outright — §8.6.)
 - Both ruled anatomies survive as the slot's two ARMS: populated sheds the count and the create verb and
   pays for its promotion with `preview` + a door (2026-08-08 C7 arm 2); empty keeps count(0) + create and no
   box (2026-08-03 · CD1).
@@ -801,7 +801,7 @@ facts, so a convergence pass can price each one instead of re-deriving them.
 
 | Cold arrival at `/config` | Clicks to see a setting | Notes |
 | - | - | - |
-| Before this row (desktop) | **1** | The landing (Hearth) held CONTENT; one band click landed the group AND its first section — the owner's "category then section" was measured against the pre-`fd85639f8` surface; the nav fold had already collapsed the second click. |
+| Before this row (desktop) | **1** | The launcher landing (`ConfigWelcome`) held CONTENT; one band click landed the group AND its first section — the owner's "category then section" was measured against the pre-`fd85639f8` surface; the nav fold had already collapsed the second click. |
 | After (desktop) | **0** | The first group is active in the first painted frame; its band is expanded (the ACTIVE-group rule, unchanged) and its first section row is `aria-current`. |
 | After (phone) | unchanged | The default does NOT fire on a mobile viewport: an active pushing group makes `hasSelection()` true and the one-shell rule would push CONTENT over the map the reader arrived for. |
 
@@ -815,3 +815,55 @@ Two consequences worth knowing: CONTENT no longer takes the section's arrival fo
 (only an open MEMBER means the reader asked for the pane — otherwise the arrival default would re-create the
 2026-08-19 defect by a different route), and every config host mount now exercises the first group's
 section reads, which is why the CT stubs feed them.
+
+### 8.6 The retirement and the library-level landing (#1210 + #1209 + #1213, as built 2026-09-02)
+
+Two owner rulings on the rows, executed in the same lane and the same commit as each other because they are
+one story: what the CONTENT pane says about a library.
+
+**#1210 — `ConfigWelcome` is RETIRED.** The spot lens found it had no reachable door on any viewport: the
+arrival default (§8.5) takes CONTENT before the first paint, every re-entry re-lands on the first group, the
+only `clearActiveConfigGroup` caller sits behind `hasSelection()` (false for a collection with no member
+open), and a phone never paints CONTENT unpushed by design. The component and its CT are deleted; the
+NOTHING-active arm is now the section's own two-line teaching frame (`data-slot="config-teaching-frame"`),
+whose copy is `CONFIG_WELCOME` in `config-copy.ts` — still shared with the phone's LIST header, which is
+untouched. What died with it: the launcher grid, the two population arms, the CD3 sibling-focal treatment
+and the settling census, plus six CTs that pinned them. What survives: `config-library-glance.tsx` (name +
+blurb), because the landing draws it at every arm.
+
+Vocabulary note (orchestrator addendum, and the reason it is worth a line): this surface was informally
+called "the Hearth" in headers and reviews. That word already names the SEED THEME and the HOME lead-column
+region, and the config borrowing was a third collision with no disambiguation row in the vocabulary map — it
+dies with the surface. Also corrected here: `ConfigWelcome` was **not** program #102's owner-picked variant
+(that is the home hearth region); the earlier attribution in this doc's §8.4 and in the file header was
+wrong and is not carried into the retirement record.
+
+**#1209 — the populated landing states LIBRARY-LEVEL FACTS.** Measured live: with Tags active, CONTENT's
+only interactive element was "New tag"; twelve inert chips restated the twelve rows the LIST was already
+showing in the same order, and "+16 more" named sixteen members reachable from nowhere. The `preview` seam
+that fed that wall is RETIRED with it (contract field, the four `use*Preview` hooks, `CollectionPreviewEntry`
+and `COLLECTION_PREVIEW_LIMIT` — a dead field left declared is the half-migration the constitution bans), and
+`CollectionInsight` takes its place: `label · value · optional door`, declared per contribution, drawn blind
+by the host in one grammar. A fact is DATA unless it is about ONE member, and then its door opens that
+member's editor — which is the acceptance bar stated as an assertion in the CT (the pane's control count is
+exactly the fact doors plus the create verb; zero affordance-shaped text).
+
+What the four libraries state today, each from the SAME cached list read its census and rows already use —
+no new server verb was needed for any of them:
+
+| Library | Facts | Door |
+| - | - | - |
+| Tags | "Labelling nothing" (N of M) · "In use" | opens the first unused tag |
+| Regex scripts | "Switched off" (N of M) · "Last edited" | opens that script |
+| World Info | "Fires in every chat" · "Attached to nothing" (N of M) | opens that book |
+| Rosters | "Carry room rules" (N of M) · "Last saved" | opens that roster |
+
+**PRICED GAP, not stubbed (the brief's rule):** the ruling also named IMPORT and EXPORT doors on the landing.
+Import is already DATA on the seam and the host draws it on the group BAND (D121-D `band=Import ·
+kebab=Export`), so a second landing copy would be a third home for one verb — refused, and stated here rather
+than smuggled. A LIBRARY-level export ("export all N scripts") has no server verb on this tree: it is a new
+bulk-export contract per collection, which is a domain change, not a landing change. Neither is stubbed.
+
+**#1213 — the EMPTY landing teaches.** The zero arm rendered `emptyText` alone, so the reader with nothing —
+the first-timer the empty state exists for — was the only one not told what the library is FOR. It now
+renders the group's blurb and the collection's own empty sentence above the create verb.

@@ -235,7 +235,6 @@
     "tests/client/features/config/components/config-save-footer.ct.tsx",
     "tests/client/features/config/components/config-search-input.ct.tsx",
     "tests/client/features/config/components/config-teacher.ct.tsx",
-    "tests/client/features/config/components/config-welcome.ct.tsx",
     "tests/client/features/config/lib/config-palette-source.ct.tsx",
     "tests/client/features/config/lib/config-search.test.ts",
     "tests/client/features/config/surfaces/config-content-surface.ct.tsx",
