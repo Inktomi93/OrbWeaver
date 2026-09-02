@@ -1,5 +1,3 @@
-// biome-ignore-all lint/suspicious/noBitwiseOperators: an independent reference CRC-32 (textbook
-// bit-shift form) is used to cross-check the codec's emitted CRC against the canonical polynomial.
 import { deflateSync } from "node:zlib";
 import { isPng, readCardChunk, writeCardChunk } from "@orb/kit/png-card-chunk";
 import { expect, test } from "../../support/fixtures.ts";
@@ -56,6 +54,7 @@ function v3Json(name: string): string {
   return `{"spec":"chara_card_v3","spec_version":"3.0","data":{"name":${JSON.stringify(name)}}}`;
 }
 
+// biome-ignore-start lint/suspicious/noBitwiseOperators: an independent reference CRC-32 (textbook bit-shift form) is used to cross-check the codec's emitted CRC against the canonical polynomial.
 /** Canonical CRC-32 (reflected, poly 0xEDB88320, init/xorout 0xFFFFFFFF) — independent of the codec. */
 function refCrc32(bytes: Uint8Array): number {
   let c = 0xff_ff_ff_ff;
@@ -67,6 +66,7 @@ function refCrc32(bytes: Uint8Array): number {
   }
   return (c ^ 0xff_ff_ff_ff) >>> 0;
 }
+// biome-ignore-end lint/suspicious/noBitwiseOperators: end of the block above
 
 test("the reference CRC-32 matches the published check value for '123456789'", () => {
   const msg = Uint8Array.from([0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39]);

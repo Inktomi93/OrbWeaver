@@ -1,5 +1,3 @@
-// biome-ignore-all lint/style/useNamingConvention: snake_case routing fixtures (allow_fallbacks) are the
-// real OpenRouter raw-wire shape the contract carries.
 //
 // backends/openrouter chat/shared — the pure wire-shaping helpers: the system-prompt cache split, history
 // assembly, sampling projection, the reasoning request (adaptive/budget guard), the provider-routing pin,
@@ -252,6 +250,7 @@ describe("resolveProviderPreferences", () => {
   });
 
   test("user routing wins, mapped snake_case → camelCase", () => {
+    // biome-ignore lint/style/useNamingConvention: snake_case routing fixtures (allow_fallbacks) are the real OpenRouter raw-wire shape the contract carries.
     expect(resolveProviderPreferences(ANTHROPIC_MODEL, { order: ["Together"], allow_fallbacks: false })).toEqual({
       order: ["Together"],
       allowFallbacks: false,
@@ -262,6 +261,7 @@ describe("resolveProviderPreferences", () => {
     expect(
       resolveProviderPreferences("openai/gpt-5", {
         quantizations: ["fp8", "bf16"],
+        // biome-ignore lint/style/useNamingConvention: snake_case routing fixtures (allow_fallbacks) are the real OpenRouter raw-wire shape the contract carries.
         max_price: { prompt: 3, completion: "9" },
       }),
     ).toEqual({

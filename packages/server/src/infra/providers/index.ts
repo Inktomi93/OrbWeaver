@@ -1,7 +1,3 @@
-// biome-ignore-all lint/performance/noBarrelFile: this IS the providers public surface by design — the
-// `providers-public-surface-only` cruiser rule forbids consumers from reaching into sealed families, so
-// the barrel is load-bearing for the encapsulation + firewall invariants.
-
 // Front door: roles + the sealed-backend contract + the credential firewall. `createProviderExecutor(deps)`
 // binds the wired `BackendRegistry` into the bound role surface. Backend agents each export a
 // `ProviderBackend` factory; `entry/` wires them into the registry without touching this core.

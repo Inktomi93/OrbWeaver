@@ -1,5 +1,3 @@
-// biome-ignore-all lint/style/useNamingConvention: ST theme-file field names (snake_case) appear verbatim in
-// these fixtures — they ARE the format.
 // Mirror test for domain/import/substrate/theme — the ST theme→orb palette converter.
 //
 // The load-bearing thing here is the SAFETY GATE (owner ruling: convert "if we can do it safely"). Each of

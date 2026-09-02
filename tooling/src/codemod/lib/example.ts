@@ -1,4 +1,3 @@
-// biome-ignore-all lint/style/useNamingConvention: the example routes EXPORTED SYMBOL NAMES (routeSymbolsByMap's contract) — its map keys are identifiers, not prose properties.
 // The kit's author conveniences (§16) + the example codemod (§17), exported through the front door so
 // the toolkit's TS compilation guards them against bit-rot. Split from scripts/codemods/codemod-kit.ts
 // (P4 of #393).
@@ -40,9 +39,11 @@ export function exampleRestructureCodemod(argv: readonly string[]): Promise<Code
       // 3. Route a split: types.ts has 3 symbols going to 3 new files.
       ctx.plan(
         routeSymbolsByMap(ctx, "#server/feature/foo", {
+          // biome-ignore-start lint/style/useNamingConvention: the example routes EXPORTED SYMBOL NAMES (routeSymbolsByMap's contract) — its map keys are identifiers, not prose properties.
           FooDetail: "#server/feature/contract/foo-detail",
           FooParams: "#server/feature/contract/foo-params",
           FooError: "#server/feature/contract/foo-error",
+          // biome-ignore-end lint/style/useNamingConvention: end of the block above
         }),
       );
 

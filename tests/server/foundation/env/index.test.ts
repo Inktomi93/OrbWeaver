@@ -1,6 +1,3 @@
-// biome-ignore-all lint/style/useNamingConvention: env var keys (AUTH_MODE, OIDC_*, SESSION_SECRET, …) are
-// SCREAMING_SNAKE_CASE by external convention; the crafted process.env literals must match that shape.
-// biome-ignore-all lint/style/noProcessEnv: this test DRIVES the sole env reader by crafting process.env.
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -222,7 +219,7 @@ describe("foundation/env — the AUTH_MODE superRefine boot-fatality", () => {
   // request arrives on a loopback socket, which `ownerFallbackAllowed` mints owner for. Boot-fatal in prod
   // unless AUTH_BREAK_GLASS acknowledges the on-box-recovery exception. The signal is NODE_ENV=production
   // (a proxy can't be reliably detected at boot); dev is the legit AUTH_FALLBACK=owner home and stays green.
-  const OIDC_REQUIRED = {
+  const oidcRequired = {
     OIDC_ISSUER: "https://idp.example",
     OIDC_CLIENT_ID: "client",
     OIDC_CLIENT_SECRET: "x",
@@ -231,7 +228,7 @@ describe("foundation/env — the AUTH_MODE superRefine boot-fatality", () => {
   } as const;
 
   test("prod + oidc + AUTH_FALLBACK=owner → boot FAILS (the same-host-proxy SSO bypass)", async () => {
-    await expect(reimportEnvWith({ NODE_ENV: "production", AUTH_MODE: "oidc", AUTH_FALLBACK: "owner", ...OIDC_REQUIRED })).rejects.toThrow("SSO BYPASS");
+    await expect(reimportEnvWith({ NODE_ENV: "production", AUTH_MODE: "oidc", AUTH_FALLBACK: "owner", ...oidcRequired })).rejects.toThrow("SSO BYPASS");
   });
 
   test("prod + local + AUTH_FALLBACK=owner → boot FAILS (every SSO mode, not just oidc)", async () => {
@@ -245,18 +242,18 @@ describe("foundation/env — the AUTH_MODE superRefine boot-fatality", () => {
   });
 
   test("prod + oidc + AUTH_FALLBACK=deny boots (the secure prod default — the owner logs in via SSO)", async () => {
-    const { env } = await reimportEnvWith({ NODE_ENV: "production", AUTH_MODE: "oidc", AUTH_FALLBACK: "deny", ...OIDC_REQUIRED });
+    const { env } = await reimportEnvWith({ NODE_ENV: "production", AUTH_MODE: "oidc", AUTH_FALLBACK: "deny", ...oidcRequired });
     expect(env.AUTH_FALLBACK).toBe("deny");
   });
 
   test("prod + oidc + owner + AUTH_BREAK_GLASS=on boots (the deliberate on-box recovery exception)", async () => {
-    const { env } = await reimportEnvWith({ NODE_ENV: "production", AUTH_MODE: "oidc", AUTH_FALLBACK: "owner", AUTH_BREAK_GLASS: "true", ...OIDC_REQUIRED });
+    const { env } = await reimportEnvWith({ NODE_ENV: "production", AUTH_MODE: "oidc", AUTH_FALLBACK: "owner", AUTH_BREAK_GLASS: "true", ...oidcRequired });
     expect(env.AUTH_FALLBACK).toBe("owner");
     expect(env.AUTH_BREAK_GLASS).toBe(true);
   });
 
   test("DEV + oidc + AUTH_FALLBACK=owner boots (the dev-tooling default — the fence is prod-only)", async () => {
-    const { env } = await reimportEnvWith({ AUTH_MODE: "oidc", AUTH_FALLBACK: "owner", ...OIDC_REQUIRED });
+    const { env } = await reimportEnvWith({ AUTH_MODE: "oidc", AUTH_FALLBACK: "owner", ...oidcRequired });
     expect(env.AUTH_FALLBACK).toBe("owner");
     expect(env.AUTH_BREAK_GLASS).toBe(false);
   });

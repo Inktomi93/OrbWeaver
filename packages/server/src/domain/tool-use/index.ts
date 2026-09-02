@@ -1,4 +1,3 @@
-// biome-ignore-all lint/performance/noBarrelFile: this IS the domain front door (one-home-per-concept).
 //
 // domain/tool-use — FRONT DOOR. The one tool registry: every entry a name + description + zod argsSchema
 // + can() ceiling + handler closing over its owning domain's service, registered once at entry/compose,

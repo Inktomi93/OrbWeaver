@@ -15,6 +15,7 @@ import { ctxFor } from "./_support.ts";
 const F = "packages/kit/src/widget.ts";
 const TOOLING_F = "tooling/src/widget.ts";
 const SCRIPT_F = "scripts/widget.tsx";
+const TEST_F = "tests/kit/widget.test.ts";
 const ONE_MARKER = "// biome-ignore lint/foo: reason\nexport const a = 1;\n";
 const TWO_MARKERS = "// biome-ignore lint/foo: reason\nexport const a = 1;\n// eslint-disable-next-line no-unused-vars\nexport const b = 2;\n";
 
@@ -36,14 +37,14 @@ test("a file ABSENT from the baseline has budget 0 (any suppression is RED)", ()
   expect(violations).toHaveLength(1);
 });
 
-test.each([TOOLING_F, SCRIPT_F])("new governed root: %s is budgeted and missing-baseline RED", (file) => {
+test.each([TOOLING_F, SCRIPT_F, TEST_F])("new governed root: %s is budgeted and missing-baseline RED", (file) => {
   const { root, project } = ctxFor({ [file]: ONE_MARKER });
   const { violations } = reconcileSuppressions(root, project.getSourceFiles(), parseBudgetMap({}));
   expect(violations).toHaveLength(1);
   expect(violations[0]?.file).toBe(file);
 });
 
-test.each([TOOLING_F, SCRIPT_F])("new governed root: %s stale baseline rows RED", (file) => {
+test.each([TOOLING_F, SCRIPT_F, TEST_F])("new governed root: %s stale baseline rows RED", (file) => {
   const { root, project } = ctxFor({ [file]: "export const a = 1;\n" });
   const { violations } = reconcileSuppressions(root, project.getSourceFiles(), parseBudgetMap({ [file]: 1 }));
   expect(violations).toHaveLength(1);
@@ -157,4 +158,38 @@ test("PLANTED CONTROL — a row that UNDER-declares its ratified portion is equa
   const { root, project } = ctxFor({ [F]: RATIFIED_MARKER });
   const { violations } = reconcileSuppressions(root, project.getSourceFiles(), parseBudgetMap({ [F]: 1 }));
   expect(violations.some((v) => v.message.includes("the class is DERIVED from RATIFIED_RULES"))).toBe(true);
+});
+
+// #962: the SCOPE partition. A rule the TESTS table ratifies is permanent for a test file and DEBT for a
+// source file, and vice versa — the classification is derived per scope, never from one flag.
+const TEST_ONLY_RATIFIED = "// biome-ignore lint/correctness/noProcessGlobal: the hoisted body runs before the import binds\nexport const g = 1;\n";
+
+test("a rule ratified ONLY for tests admits as RATIFIED under tests/ and as DEBT under packages/", () => {
+  const { root, project } = ctxFor({ [TEST_F]: TEST_ONLY_RATIFIED });
+  const asTest = reconcileSuppressions(
+    root,
+    project.getSourceFiles(),
+    parseBudgetMap({ [TEST_F]: { count: 1, ratified: 1, why: "ruled", cite: ["package.json"] } }),
+  );
+  expect(asTest.violations).toEqual([]);
+  expect(asTest.admittedRatified).toBe(1);
+
+  const { root: r2, project: p2 } = ctxFor({ [F]: TEST_ONLY_RATIFIED });
+  const asSource = reconcileSuppressions(r2, p2.getSourceFiles(), parseBudgetMap({ [F]: 1 }));
+  expect(asSource.violations).toEqual([]);
+  expect(asSource.admittedRatified).toBe(0);
+  // And a source row DECLARING the test-table ratification is the class-drift RED, both directions.
+  const drift = reconcileSuppressions(r2, p2.getSourceFiles(), parseBudgetMap({ [F]: { count: 1, ratified: 1, why: "invented", cite: ["package.json"] } }));
+  expect(drift.violations.some((v) => v.message.includes("the class is DERIVED from RATIFIED_RULES"))).toBe(true);
+});
+
+test("`@ts-nocheck` and `eslint-enable` are directive tokens — counted like every other marker (#962)", () => {
+  const source = "// @ts-nocheck\n/* eslint-disable foo */\nexport const a = 1;\n/* eslint-enable foo */\n";
+  const { root, project } = ctxFor({ [F]: source });
+  const { violations } = reconcileSuppressions(root, project.getSourceFiles(), parseBudgetMap({}));
+  expect(violations.map((v) => v.message)).toEqual([
+    expect.stringContaining("`@ts-nocheck`"),
+    expect.stringContaining("`eslint-disable`"),
+    expect.stringContaining("`eslint-enable`"),
+  ]);
 });

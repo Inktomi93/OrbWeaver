@@ -1,6 +1,3 @@
-// biome-ignore-all lint/performance/noBarrelFile: this IS the contract front door by design — the
-// `providers-public-surface-only` cruiser rule forbids outside callers from reaching `contract/<file>`,
-// so the barrel is load-bearing for the executor's typed surface.
 //
 // infra/providers/contract — THE BARREL. The one front door for the role request/result shapes + the
 // sealed-backend contract. Infra-internal request shapes (ChatRequest variants, AgentTurnRequest, the

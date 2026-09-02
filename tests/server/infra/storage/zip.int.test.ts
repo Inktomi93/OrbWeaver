@@ -1,6 +1,3 @@
-// biome-ignore-all lint/suspicious/noBitwiseOperators: the adversarial fixtures craft zip bytes by hand
-// (CRC-32 unsigned coercion + a payload-byte flip) — intrinsically bitwise, like the impl under test.
-
 // infra/storage/zip — the untrusted-archive belt battery + the pack/extract round-trip (the security
 // integration lane for the portability delivery core, export-import-portability.md §3). The happy-path
 // tests pin that packZip → extractZip round-trips bytes + paths; the ADVERSARIAL tests hand-craft each
@@ -117,6 +114,7 @@ interface CraftSpec {
 }
 
 function crcOf(bytes: Uint8Array): number {
+  // biome-ignore lint/suspicious/noBitwiseOperators: the adversarial fixtures craft zip bytes by hand (CRC-32 unsigned coercion + a payload-byte flip) — intrinsically bitwise, like the impl under test.
   return crc32(bytes) >>> 0;
 }
 
@@ -298,6 +296,7 @@ describe("zip-bomb + lying-header guards", () => {
     const payload = enc.encode("integrity matters");
     const archive = storedArchive("chats/c.jsonl", payload);
     const bodyAt = LFH_SIZE + enc.encode("chats/c.jsonl").length;
+    // biome-ignore lint/suspicious/noBitwiseOperators: the adversarial fixtures craft zip bytes by hand (CRC-32 unsigned coercion + a payload-byte flip) — intrinsically bitwise, like the impl under test.
     archive[bodyAt] = (archive[bodyAt] ?? 0) ^ BYTE_MASK;
     await expect(extractAll(archive)).rejects.toMatchObject({ kind: "bomb" });
   });

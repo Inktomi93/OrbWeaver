@@ -1,4 +1,3 @@
-// biome-ignore-all lint/style/useNamingConvention: SillyTavern wire field names (snake_case) — `min_p` etc.
 // are exactly what an ST preset blob carries (the D68-A import mapping tests below).
 import type { GuidedActionKind, PromptConfig, TemplateDef } from "@orb/contracts/preset";
 import {
@@ -94,9 +93,9 @@ test("the two main_prompt defaults differ ONLY in the perspective framing — th
   // (a default persona's name is a LABEL, so "Goodnight, You.") is a property of `{{user}}`, not of the
   // turn's mode, and the clause is owner-ruled (2026-08-02). WHICH text a turn gets is decided once, in
   // `assembly/assemble.ts` templateFor — nothing here re-derives it.
-  const ADDRESS_CLAUSE = "Address {{user}} in the second person; use their name only when it is one they have chosen for themselves.";
-  expect(DEFAULT_MARKER_TEMPLATES.main_prompt).toContain(ADDRESS_CLAUSE);
-  expect(NARRATOR_MAIN_PROMPT_TEMPLATE).toContain(ADDRESS_CLAUSE);
+  const addressClause = "Address {{user}} in the second person; use their name only when it is one they have chosen for themselves.";
+  expect(DEFAULT_MARKER_TEMPLATES.main_prompt).toContain(addressClause);
+  expect(NARRATOR_MAIN_PROMPT_TEMPLATE).toContain(addressClause);
   // The narrator text carries the joined cast as its VOICES, never as one perspective to write.
   expect(NARRATOR_MAIN_PROMPT_TEMPLATE).toContain("{{char}}");
   expect(NARRATOR_MAIN_PROMPT_TEMPLATE).not.toContain("perspective only");

@@ -1,8 +1,3 @@
-// biome-ignore-all lint/performance/noBarrelFile: the agent-sdk FAMILY barrel — the sealed seam `entry/`
-// uses to obtain the backend factory + the SDK-free tool-server factory, and the surface the family's
-// tests import (deep imports into `backends/agent-sdk/<file>` are RED for everyone else by the
-// `providers-public-surface-only` cruiser rule). Load-bearing for the encapsulation invariant.
-
 // The stateful chat backend: the Max sub (mode-1) + the OpenRouter-Anthropic skin (mode-2) + agent mode.
 // The local vLLM agent path (mode-3) was RETIRED 2026-07-27 (owner ruling): local vLLM chat runs on the
 // chat-completions surface only. Sealed: the SDK is its private dep, never leaks upward.

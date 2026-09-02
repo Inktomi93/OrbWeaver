@@ -3,9 +3,6 @@
 // (no real socket) and the wake gate's I/O is injected where a sleeping fleet is exercised, so nothing shells
 // out to `ps`/`nvidia-smi` and no real engine is ever touched. Engine ports come from foundation/env defaults.
 //
-// biome-ignore-all lint/style/useNamingConvention: `is_sleeping` is vLLM's real /is_sleeping response field —
-// a wire fixture must spell the wire, and renaming it would stop reproducing the endpoint (the gen-window
-// spec carries the same suppression for `max_model_len`).
 
 import { ProviderError } from "@orb/server/infra/providers";
 import type { GpuVram, WakeGateDeps } from "@orb/server/infra/providers/vllm/engine";
@@ -102,6 +99,7 @@ describe("enginePost", () => {
     // hang the PRE-DISPATCH gate instead of the request under test.
     vi.stubGlobal("fetch", (_url: string, init?: RequestInit) => {
       if (init?.method !== "POST") {
+        // biome-ignore lint/style/useNamingConvention: `is_sleeping` is vLLM's real /is_sleeping response field — a wire fixture must spell the wire, and renaming it would stop reproducing the endpoint (the gen-window spec carries the same suppression for `max_model_len`).
         return Promise.resolve(new Response(JSON.stringify({ is_sleeping: false }), { status: 200 }));
       }
       return new Promise((_resolve, reject) => {
@@ -140,6 +138,7 @@ describe("pre-dispatch auto-wake gate at the request seam", () => {
     const calls: string[] = [];
     vi.stubGlobal("fetch", (url: string) => {
       calls.push(url);
+      // biome-ignore lint/style/useNamingConvention: `is_sleeping` is vLLM's real /is_sleeping response field — a wire fixture must spell the wire, and renaming it would stop reproducing the endpoint (the gen-window spec carries the same suppression for `max_model_len`).
       return Promise.resolve(new Response(JSON.stringify({ is_sleeping: false }), { status: 200 }));
     });
     // REAL wake deps on purpose: this test is ABOUT the probe, and its fetch stub answers

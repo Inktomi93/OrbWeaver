@@ -16,7 +16,6 @@
 // 127.0.0.1:22) stays BLOCKED. This does not touch the safeFetch path, whose unconditional private-range
 // denial never consults the allowlist.
 
-// biome-ignore-all lint/style/noProcessEnv: the VLLM_ENGINE_HOST describe DRIVES the sole env reader by crafting process.env (the reimport pattern from tests/server/foundation/env/index.test.ts).
 import process from "node:process";
 import { fetchOpenAiModels, installEgressFirewall } from "@orb/server/infra/network";
 import type { Dispatcher } from "undici";
@@ -120,6 +119,7 @@ describe("installEgressFirewall — VLLM_ENGINE_HOST relocates the internal-back
   let snapshot: Record<string, string | undefined>;
   let original: Dispatcher;
 
+  // biome-ignore-start lint/style/noProcessEnv: the VLLM_ENGINE_HOST describe DRIVES the sole env reader by crafting process.env (the reimport pattern from tests/server/foundation/env/index.test.ts).
   beforeAll(async () => {
     snapshot = { ...process.env };
     for (const k of Object.keys(process.env)) {
@@ -133,7 +133,9 @@ describe("installEgressFirewall — VLLM_ENGINE_HOST relocates the internal-back
     original = getGlobalDispatcher();
     freshNetwork.installEgressFirewall();
   });
+  // biome-ignore-end lint/style/noProcessEnv: end of the block above
 
+  // biome-ignore-start lint/style/noProcessEnv: the VLLM_ENGINE_HOST describe DRIVES the sole env reader by crafting process.env (the reimport pattern from tests/server/foundation/env/index.test.ts).
   afterAll(() => {
     setGlobalDispatcher(original);
     for (const k of Object.keys(process.env)) {
@@ -142,6 +144,7 @@ describe("installEgressFirewall — VLLM_ENGINE_HOST relocates the internal-back
     Object.assign(process.env, snapshot);
     vi.resetModules();
   });
+  // biome-ignore-end lint/style/noProcessEnv: end of the block above
 
   test("the relocated host's exact engine ports pass — connect attempted (ECONNREFUSED), not SSRF-blocked", async () => {
     const results = await Promise.all(

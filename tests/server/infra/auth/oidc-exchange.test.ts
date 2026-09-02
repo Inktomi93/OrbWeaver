@@ -1,5 +1,3 @@
-// biome-ignore-all lint/style/useNamingConvention: OIDC/OAuth2 wire field names (`preferred_username`,
-// `id_token`) are snake_case by spec — the crafted claims + token-response objects must match that shape.
 // infra/auth/oidc-exchange — the injected OIDC code→token exchange (#867).
 //
 // WHAT THIS FILE OWNS, and why it is not ceremony over four lines. The adapter is where the OIDC code
@@ -40,6 +38,7 @@ const TX: OidcTransaction = {
 
 const CALLBACK_URL = new URL("https://app.example/api/auth/oidc/callback?code=auth-code&state=state-aaa");
 const ID_TOKEN = "eyJhbGciOiJSUzI1NiJ9.e30.sig-not-verified-here";
+// biome-ignore lint/style/useNamingConvention: OIDC/OAuth2 wire field names (`preferred_username`, `id_token`) are snake_case by spec — the crafted claims + token-response objects must match that shape.
 const CLAIMS = { sub: "sub-alice", preferred_username: "alice" };
 
 /** The `Configuration` the route resolved from discovery. Nothing in the adapter reads it — it is passed
@@ -59,6 +58,7 @@ interface Captured {
 function fakeGrant(response: { readonly idToken?: string }, capture: (c: Captured) => void): OidcCodeGrant {
   // FABRICATION-OK: openid-client's TokenEndpointResponse carries the RP's access/refresh tokens, which the
   // adapter must never read — supplying them would weaken, not strengthen, this test.
+  // biome-ignore lint/style/useNamingConvention: OIDC/OAuth2 wire field names (`preferred_username`, `id_token`) are snake_case by spec — the crafted claims + token-response objects must match that shape.
   const tokens = { claims: (): typeof CLAIMS => CLAIMS, ...(response.idToken === undefined ? {} : { id_token: response.idToken }) } as unknown as Awaited<
     ReturnType<OidcCodeGrant>
   >;

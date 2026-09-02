@@ -1,5 +1,3 @@
-// biome-ignore-all lint/style/useNamingConvention: ST preset wire field names (snake_case) are the interchange
-// format and appear verbatim in the fixtures.
 // domain/import/verbs/import-presets — the ST chat-completion preset wave. Pins the verb's own contract: it
 // SERIALIZES the already-mapped orb-native file and delegates the write to the preset domain's injected op
 // (owning no serde and no collision rule), isolates a refusal PER PRESET, separates ACCEPTED from NET-NEW, and
@@ -19,10 +17,12 @@ const OWNER = castId<UserId>("usr_owner");
 function stPresetJson(over: Record<string, unknown> = {}): unknown {
   return {
     temperature: 1,
+    // biome-ignore-start lint/style/useNamingConvention: ST preset wire field names (snake_case) are the interchange format and appear verbatim in the fixtures.
     openai_max_tokens: 1200,
     wrap_in_quotes: true,
     prompt_order: [{ character_id: 100_001, order: [{ identifier: "main", enabled: true }] }],
     prompts: [{ identifier: "main", name: "| Prompt", system_prompt: true, role: "system", content: "You are a storyteller." }],
+    // biome-ignore-end lint/style/useNamingConvention: end of the block above
     ...over,
   };
 }
@@ -168,6 +168,7 @@ describe("importPresets", () => {
     const service = createImportService(ctxWith(importPreset, importPresetScripts as ImportProfileDeps["importPresetScripts"]));
 
     const result = await service.importPresets({
+      // biome-ignore lint/style/useNamingConvention: ST preset wire field names (snake_case) are the interchange format and appear verbatim in the fixtures.
       presets: [collected("Marinara (OpenAI)", "OpenAI Settings/Marinara.json", stPresetJson({ extensions: { regex_scripts: [MARINARA_SCRIPT] } }))],
     });
 
@@ -181,6 +182,7 @@ describe("importPresets", () => {
     const service = createImportService(ctxWith(importPreset, undefined));
 
     const result = await service.importPresets({
+      // biome-ignore lint/style/useNamingConvention: ST preset wire field names (snake_case) are the interchange format and appear verbatim in the fixtures.
       presets: [collected("Marinara (OpenAI)", "OpenAI Settings/Marinara.json", stPresetJson({ extensions: { regex_scripts: [MARINARA_SCRIPT] } }))],
     });
 

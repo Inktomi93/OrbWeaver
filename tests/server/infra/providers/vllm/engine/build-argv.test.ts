@@ -3,8 +3,6 @@
 // precedence: admin override ?? env floor. GPU-count drives TP + the util split + rerank pinning. No IO —
 // config is injected, so this is fully deterministic.
 //
-// biome-ignore-all lint/style/useNamingConvention: the FLOOR fixture mirrors the EngineLaunchEnvFloor shape
-// (VLLM_* env-var names verbatim), so the SCREAMING keys are required, not a style choice.
 
 import { buildEngineArgv, engineCudaVisibleDevices, resolveEngineLaunchConfig } from "@orb/server/infra/providers/vllm/engine";
 import { describe } from "vitest";

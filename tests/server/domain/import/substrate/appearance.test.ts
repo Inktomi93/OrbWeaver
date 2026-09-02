@@ -1,5 +1,3 @@
-// biome-ignore-all lint/style/useNamingConvention: ST `power_user` field names (snake_case) appear verbatim
-// in these fixtures — they ARE the format.
 // Mirror test for domain/import/substrate/appearance — the ST `power_user` → orb `appearance` mapper.
 // Pins the two classes a wrong answer inverts silently (ST states two of these as the NEGATIVE of orb's
 // field), the two enum re-spellings taken from ST's own `avatar_styles`/`chat_styles` tables, and the
@@ -32,7 +30,9 @@ describe("stAppearancePatch", () => {
   test("INVERTS the two ST keys stated as the negative of orb's field", () => {
     // ST hides avatars / turns shadows OFF; orb shows avatars / turns the effect ON. A missed flip here is
     // invisible in a type check and produces the exact opposite of the user's ST setup.
+    // biome-ignore lint/style/useNamingConvention: ST `power_user` field names (snake_case) appear verbatim in these fixtures — they ARE the format.
     expect(patchOf({ hideChatAvatars_enabled: true, noShadows: true })).toEqual({ showInChatAvatars: false, shadowEffects: false });
+    // biome-ignore lint/style/useNamingConvention: ST `power_user` field names (snake_case) appear verbatim in these fixtures — they ARE the format.
     expect(patchOf({ hideChatAvatars_enabled: false, noShadows: false })).toEqual({ showInChatAvatars: true, shadowEffects: true });
   });
 

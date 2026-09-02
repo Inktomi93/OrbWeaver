@@ -462,7 +462,7 @@
       }
     },
     {
-      "includes": ["packages/server/src/domain/sessions/substrate/role-policy.ts"],
+      "includes": ["packages/server/src/domain/sessions/substrate/role-policy.ts", "tests/server/foundation/env/index.test.ts"],
       "linter": {
         "rules": {
           "style": {
@@ -477,6 +477,16 @@
         "rules": {
           "style": {
             "useNamingConvention": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["tooling/src/verify/gates/bus-onData-no-store-write.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "useFilenamingConvention": "off"
           }
         }
       }
@@ -735,7 +745,30 @@
         "packages/client/src/features/refinery/lib/reason-copy.ts",
         "packages/client/src/features/refinery/lib/builtin-hints.ts",
         "packages/client/src/features/refinery/components/context-tabs.tsx",
-        "packages/client/src/features/refinery/surfaces/refinery-list-surface.tsx"
+        "packages/client/src/features/refinery/surfaces/refinery-list-surface.tsx",
+        "tests/contracts/preset/index.contract.test.ts",
+        "tests/server/domain/import/substrate/appearance.test.ts",
+        "tests/server/domain/import/substrate/card.test.ts",
+        "tests/server/domain/import/substrate/chat-input.test.ts",
+        "tests/server/domain/import/substrate/persona.test.ts",
+        "tests/server/domain/import/substrate/theme.test.ts",
+        "tests/server/domain/import/verbs/import-character.test.ts",
+        "tests/server/domain/import/verbs/import-chats.test.ts",
+        "tests/server/domain/import/verbs/import-group-chats.test.ts",
+        "tests/server/entry/http/auth-routes.test.ts",
+        "tests/server/entry/import/run-profile-dir-import.test.ts",
+        "tests/server/entry/import/st-chat-fidelity.suite.int.test.ts",
+        "tests/server/foundation/env/index.test.ts",
+        "tests/server/infra/providers/backends/agent-sdk/agent-runner.test.ts",
+        "tests/server/infra/providers/backends/agent-sdk/runner.test.ts",
+        "tests/server/infra/providers/backends/agent-sdk/summarize.test.ts",
+        "tests/server/infra/providers/backends/agent-sdk/terminal-tools.test.ts",
+        "tests/server/infra/providers/backends/agent-sdk/verify-auth.test.ts",
+        "tests/server/infra/providers/backends/custom-byo/runners/chat.test.ts",
+        "tests/server/infra/providers/backends/kit/openai-compat/body.test.ts",
+        "tests/server/infra/providers/vllm/engine/build-argv.test.ts",
+        "tests/server/kit/serde/card/index.test.ts",
+        "tests/server/kit/serde/chat/index.test.ts"
       ],
       "linter": {
         "rules": {
@@ -747,12 +780,18 @@
                 "requireAscii": true,
                 "conventions": [
                   {
-                    "selector": { "kind": "objectLiteralProperty" },
-                    "formats": ["camelCase", "snake_case", "CONSTANT_CASE"]
+                    "selector": {
+                      "kind": "objectLiteralProperty"
+                    },
+                    "match": "_*(.+)",
+                    "formats": ["camelCase", "PascalCase", "snake_case", "CONSTANT_CASE"]
                   },
                   {
-                    "selector": { "kind": "typeProperty" },
-                    "formats": ["camelCase", "snake_case", "CONSTANT_CASE"]
+                    "selector": {
+                      "kind": "typeProperty"
+                    },
+                    "match": "_*(.+)",
+                    "formats": ["camelCase", "PascalCase", "snake_case", "CONSTANT_CASE"]
                   }
                 ]
               }

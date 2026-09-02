@@ -95,6 +95,15 @@ export function blankTsCommentsInText(text: string): string {
   return blankTsCommentsUncached(sf);
 }
 
+/** Parse fs-read JS-family text into the reused scratch SourceFile so a TRIVIA reader (`suppressionSites`)
+ *  can run over a file the workspace walk does not carry (`.js`/`.mjs`/`.cjs`/`.jsx` — `no-blanket-suppression`
+ *  arm B, #962). Same door, same caveat as the blankers above: the SourceFile OBJECT is reused across calls,
+ *  so a caller consumes the result before its next call and never caches on the object. */
+export function parseScratch(text: string): SourceFile {
+  scratchProject ??= new Project({ useInMemoryFileSystem: true, skipFileDependencyResolution: true });
+  return scratchProject.createSourceFile("comment-scan.tsx", text, { overwrite: true, scriptKind: ScriptKind.TSX });
+}
+
 /** The string-prose token kinds: every span whose text is DATA, never a code reference. Template
  *  interpolation EXPRESSIONS are separate AST nodes and are deliberately not here — a real call inside
  *  a `${…}` is code and must survive the blanking. */
@@ -151,8 +160,9 @@ export function codeIncludes(sf: SourceFile, needle: string): boolean {
   return sf.getFullText().includes(needle) && blankTsComments(sf).includes(needle);
 }
 
-/** Index just past the CSS string literal starting at `i` (an unterminated one runs to EOF). */
-function endOfCssString(text: string, i: number): number {
+/** Index just past the quoted string literal starting at `i` (an unterminated one runs to EOF). Shared
+ *  by the CSS and the JSON-with-comments lexers below — both quote with `"`/`'` and escape with `\`. */
+function endOfQuotedString(text: string, i: number): number {
   const quote = text[i];
   let j = i + 1;
   while (j < text.length) {
@@ -168,26 +178,66 @@ function endOfCssString(text: string, i: number): number {
   return j;
 }
 
-/** Every block-comment span in a CSS file's text, blanked. Quote state is tracked so a comment opener
- *  inside a string value is not read as a comment; CSS has no line-comment form, so a `//` (the one in
- *  `url(https://…)`) is deliberately left alone. */
+/** One comment span in a NON-TS text file (CSS, JSON-with-comments): its `[pos, end)` offsets and text. */
+export interface TextCommentSpan {
+  readonly pos: number;
+  readonly end: number;
+  readonly text: string;
+}
+
+/** Every comment span in a text file, in document order, QUOTE-AWARE (a comment opener inside a string
+ *  value is not a comment). Block comments always; `//` line comments only when the language has them —
+ *  JSON-with-comments does (`json.parser.allowComments` is on in this repo's biome.json), CSS does not (the
+ *  `//` in `url(https://…)` is deliberately left alone). The ONE non-TS comment lexer: the CSS blanker and
+ *  the directive readers (`no-blanket-suppression`) both ride it, so they cannot disagree on what a comment is. */
+export function commentSpansInText(text: string, opts: { readonly lineComments: boolean }): readonly TextCommentSpan[] {
+  const out: TextCommentSpan[] = [];
+  let i = 0;
+  while (i < text.length) {
+    const ch = text[i];
+    if (ch === '"' || ch === "'") {
+      i = endOfQuotedString(text, i);
+      continue;
+    }
+    const span = commentSpanAt(text, i, opts.lineComments);
+    if (span === undefined) {
+      i += 1;
+      continue;
+    }
+    out.push(span);
+    i = span.end;
+  }
+  return out;
+}
+
+/** The comment span OPENING at `i`, or undefined when `i` is not a comment opener. */
+function commentSpanAt(text: string, i: number, lineComments: boolean): TextCommentSpan | undefined {
+  const end = commentEndFrom(text, i, lineComments);
+  return end === NOT_A_COMMENT ? undefined : { pos: i, end, text: text.slice(i, end) };
+}
+
+const NOT_A_COMMENT = -1;
+
+/** The end offset of the comment opening at `i`, or NOT_A_COMMENT. An unterminated comment runs to EOF. */
+function commentEndFrom(text: string, i: number, lineComments: boolean): number {
+  const opener = text[i] === "/" ? text[i + 1] : "";
+  if (opener === "*") {
+    const close = text.indexOf(CSS_COMMENT_CLOSE, i + 2);
+    return close === -1 ? text.length : close + CSS_COMMENT_CLOSE.length;
+  }
+  if (lineComments && opener === "/") {
+    const newline = text.indexOf("\n", i + 2);
+    return newline === -1 ? text.length : newline;
+  }
+  return NOT_A_COMMENT;
+}
+
+/** Every block-comment span in a CSS file's text, blanked (length-preserving, newlines kept). Rides the
+ *  shared lexer above; CSS has no line-comment form, so `lineComments` is off. */
 export function blankCssComments(text: string): string {
   let out = text;
-  let i = 0;
-  while (i < out.length) {
-    const ch = out[i];
-    if (ch === '"' || ch === "'") {
-      i = endOfCssString(out, i);
-      continue;
-    }
-    if (ch === "/" && out[i + 1] === "*") {
-      const close = out.indexOf(CSS_COMMENT_CLOSE, i + 2);
-      const end = close === -1 ? out.length : close + CSS_COMMENT_CLOSE.length;
-      out = blankRange(out, i, end);
-      i = end;
-      continue;
-    }
-    i += 1;
+  for (const span of [...commentSpansInText(text, { lineComments: false })].sort((a, b) => b.pos - a.pos)) {
+    out = blankRange(out, span.pos, span.end);
   }
   return out;
 }

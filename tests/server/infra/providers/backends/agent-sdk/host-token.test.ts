@@ -1,5 +1,3 @@
-// biome-ignore-all lint/style/useNamingConvention: OAuth wire + credentials-file fields are snake_case
-// (grant_type/access_token/expires_in/refresh_token) — the SDK/OAuth wire vocab, not our identifiers.
 //
 // host-token — the PROACTIVE Max-sub OAuth refresh (fixes `auth_failed` every few hours when the host
 // access token expires but the spawned runtime's own refresh can't persist through the ephemeral-dir
@@ -68,9 +66,11 @@ function okFetch(body: Record<string, unknown> = {}): FetchMock {
   return vi.fn<typeof fetch>(() =>
     Promise.resolve(
       Response.json({
+        // biome-ignore-start lint/style/useNamingConvention: OAuth wire + credentials-file fields are snake_case (grant_type/access_token/expires_in/refresh_token) — the SDK/OAuth wire vocab, not our identifiers.
         access_token: NEW_ACCESS,
         expires_in: 3600,
         refresh_token: NEW_REFRESH,
+        // biome-ignore-end lint/style/useNamingConvention: end of the block above
         ...body,
       }),
     ),
@@ -109,9 +109,11 @@ describe("ensureFreshHostSubToken — the expired-access + valid-refresh path (t
     expect(url).toBe(OAUTH_TOKEN_URL);
     const sentBody = JSON.parse(String(init?.body)) as Record<string, unknown>;
     expect(sentBody).toMatchObject({
+      // biome-ignore-start lint/style/useNamingConvention: OAuth wire + credentials-file fields are snake_case (grant_type/access_token/expires_in/refresh_token) — the SDK/OAuth wire vocab, not our identifiers.
       grant_type: "refresh_token",
       refresh_token: OLD_REFRESH,
       client_id: CLI_OAUTH_CLIENT_ID,
+      // biome-ignore-end lint/style/useNamingConvention: end of the block above
     });
 
     // The REAL host file now carries the new token + a future expiry (ms), and the rotated refresh token.
@@ -129,6 +131,7 @@ describe("ensureFreshHostSubToken — the expired-access + valid-refresh path (t
   test("keeps the OLD refresh token when the endpoint does not rotate it", async () => {
     writeCreds({ expiresAt: NOW - 1000, refreshTokenExpiresAt: NOW + 2_000_000_000 });
     // No refresh_token in the response ⇒ the stored one is retained.
+    // biome-ignore lint/style/useNamingConvention: OAuth wire + credentials-file fields are snake_case (grant_type/access_token/expires_in/refresh_token) — the SDK/OAuth wire vocab, not our identifiers.
     const fetchImpl = vi.fn<typeof fetch>(() => Promise.resolve(Response.json({ access_token: NEW_ACCESS, expires_in: 3600 })));
 
     await ensureFreshHostSubToken(deps(fetchImpl));
@@ -203,6 +206,7 @@ describe("ensureFreshHostSubToken — best-effort: a failure NEVER throws + neve
 
   test("a malformed token response (missing access_token) is rejected, not written", async () => {
     writeCreds({ expiresAt: NOW - 3_600_000, refreshTokenExpiresAt: NOW + 2_000_000_000 });
+    // biome-ignore lint/style/useNamingConvention: OAuth wire + credentials-file fields are snake_case (grant_type/access_token/expires_in/refresh_token) — the SDK/OAuth wire vocab, not our identifiers.
     const fetchImpl = vi.fn<typeof fetch>(() => Promise.resolve(Response.json({ expires_in: 3600 })));
 
     const refreshed = await ensureFreshHostSubToken(deps(fetchImpl));

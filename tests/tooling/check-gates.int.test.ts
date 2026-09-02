@@ -501,6 +501,9 @@ function writeFixtures(): void {
   fx("tooling/src/verify/gates/__g_dangl.ts", 'const gate = { docRow: "__g_ghost-nowhere.md" };\nexport const stub = gate;\n');
   // suppressions: a marker in a file with NO baseline entry (budget 0) — the exceed arm fires.
   fx(`${D}/hub/__g_suppr.ts`, "// biome-ignore lint/suspicious/noExplicitAny: fixture probe\nexport const g = 1;\n");
+  // no-blanket-suppression (#962): a top-of-file `-all` under tests/ — the founding shape, at the root the
+  // pre-#962 ratchet never governed. The `suppressions` gate fires on it too (tests are governed now).
+  fx("tests/__g_blanket.test.ts", "// biome-ignore-all lint/style/useNamingConvention: fixture blanket\nexport const g = 1;\n");
   // monotonic-tests tooth 1: metadata claims "skipped" but an early return records a passed test.
   fx(
     "tests/tooling/__g_pseudoskip.test.ts",

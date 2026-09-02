@@ -1,5 +1,3 @@
-// biome-ignore-all lint/style/useFilenamingConvention: the gate NAME is `bus-onData-no-store-write`
-// (check-gates.int.test.ts cross-checks the file basename against the gate name report.ts prints).
 // Gate: bus-onData-no-store-write (UI-Gates-and-Lessons.md §11.1). A subscription `onData` /
 // `onConnectionStateChange` body may route into the pure reducer, buffer through the sanctioned
 // chatStream write api, or drive the invalidation/notify seam — and nothing else. A raw Zustand write

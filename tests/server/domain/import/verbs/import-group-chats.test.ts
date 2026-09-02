@@ -1,5 +1,3 @@
-// biome-ignore-all lint/style/useNamingConvention: ST chat-JSONL / group wire field names (snake_case) are the
-// interchange format and appear verbatim in the fixtures.
 // domain/import/verbs/import-group-chats — the ST GROUP wave. Pins the verb's own contract: members resolve by
 // CARD FILENAME (never display name), the first resolved member is the room's primary and the rest are the
 // roster, each assistant slot is attributed to the character that voiced it (`original_avatar` first, a

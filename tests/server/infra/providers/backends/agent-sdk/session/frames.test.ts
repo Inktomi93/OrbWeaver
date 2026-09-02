@@ -1,4 +1,3 @@
-// biome-ignore-all lint/style/useNamingConvention: SDK init-frame wire fixtures use snake_case keys.
 //
 // Seed-frame shape + determinism + the init-frame shape guard (providers.md Esoteric §3). The shape is
 // load-bearing: full frames resume, an assistant-first seed gets a synthetic user stub, and identical
@@ -308,6 +307,7 @@ describe("seedSessionId — deterministic uuid-shaped session ids", () => {
 
 describe("assertInitFrameShape — the SHAPE GUARD", () => {
   test("a well-formed init frame passes", () => {
+    // biome-ignore lint/style/useNamingConvention: SDK init-frame wire fixtures use snake_case keys.
     expect(() => assertInitFrameShape({ session_id: "sess-1", apiKeySource: "oauth" })).not.toThrow();
   });
 
@@ -316,10 +316,12 @@ describe("assertInitFrameShape — the SHAPE GUARD", () => {
   });
 
   test("an empty session_id throws loudly", () => {
+    // biome-ignore lint/style/useNamingConvention: SDK init-frame wire fixtures use snake_case keys.
     expect(() => assertInitFrameShape({ session_id: "", apiKeySource: "oauth" })).toThrow(MISSING_SESSION_ID_RE);
   });
 
   test("a missing apiKeySource throws loudly", () => {
+    // biome-ignore lint/style/useNamingConvention: SDK init-frame wire fixtures use snake_case keys.
     expect(() => assertInitFrameShape({ session_id: "sess-1" })).toThrow(MISSING_API_KEY_SOURCE_RE);
   });
 });

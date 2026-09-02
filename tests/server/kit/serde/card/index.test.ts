@@ -1,5 +1,3 @@
-// biome-ignore-all lint/style/useNamingConvention: ST Character-Card wire field names (snake_case) appear
-// verbatim in these card fixtures — they ARE the format.
 // Mirror test for @orb/server/kit/serde/card — the ONE card serde core: the tolerant IN-flatten
 // (cardFromJson), the shared content hash (cardContentHash, PD-33), and the strict OUT-emitter
 // (buildCardV3 + exportBookEntry, PD-44). Asserts the multi-spec normalize (V3 / V1 / Pygmalion), the

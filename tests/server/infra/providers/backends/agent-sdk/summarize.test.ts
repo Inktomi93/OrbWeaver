@@ -1,5 +1,3 @@
-// biome-ignore-all lint/style/useNamingConvention: synthetic SDK message fixtures use the SDK's snake_case
-// wire fields (session_id, total_cost_usd, is_error, structured_output, input_tokens, …).
 //
 // The agent-sdk SUMMARIZE role (summarize.ts via the backend's `summarize`), driven by a fake `query`.
 // Load-bearing invariants:

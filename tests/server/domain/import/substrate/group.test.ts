@@ -1,4 +1,3 @@
-// biome-ignore-all lint/style/useNamingConvention: ST group-file wire field names (snake_case) appear verbatim in test fixtures.
 // substrate/group — the ST group-definition parser. Pins: a memberless group is null (no room to make), a
 // malformed/non-object JSON never throws (degrades to null), members resolve by FILENAME (never display
 // name — the load-bearing disambiguation the header states), and generation_mode 1 maps to narratorOutput.
@@ -31,7 +30,9 @@ describe("parseStGroupFile", () => {
   });
 
   test("generation_mode 1 maps to narratorOutput: true; anything else is false", () => {
+    // biome-ignore lint/style/useNamingConvention: ST group-file wire field names (snake_case) appear verbatim in test fixtures.
     const append = parseStGroupFile(bytesOf({ name: "G", members: ["a.png"], generation_mode: 1 }), "g");
+    // biome-ignore lint/style/useNamingConvention: ST group-file wire field names (snake_case) appear verbatim in test fixtures.
     const swap = parseStGroupFile(bytesOf({ name: "G", members: ["a.png"], generation_mode: 0 }), "g");
     expect(append?.narratorOutput).toBe(true);
     expect(swap?.narratorOutput).toBe(false);

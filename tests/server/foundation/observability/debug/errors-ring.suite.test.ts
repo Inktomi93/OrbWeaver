@@ -14,11 +14,6 @@
 // parses `LOG_LEVEL=info` here and nowhere else. `info` (not `error`) on purpose: it puts BOTH severities in
 // the ring, which is what makes the "errors excludes the info line" arm a real assertion rather than a
 // tautology over an empty ring.
-// biome-ignore-all lint/style/noProcessEnv: this file DRIVES the env parse by crafting process.env before
-// the module graph loads — the same seam `wire-capture.suite.test.ts` uses.
-// biome-ignore-all lint/correctness/noProcessGlobal: the `vi.hoisted` body below runs before this file's
-// import bindings exist, so the `node:process` import is unreachable from it — `globalThis.process` is the
-// only handle available at that point (the rest of the file uses the import).
 
 import process from "node:process";
 import { getLog } from "@orb/server/foundation/observability";
@@ -30,11 +25,14 @@ import { expect, test } from "../../../../support/fixtures.ts";
 // `globalThis.process`, not the `node:process` import: a `vi.hoisted` body runs BEFORE this file's import
 // bindings are initialized (that is the whole point of it), so touching the imported binding here throws
 // `Cannot access '__vi_import_0__' before initialization`.
+// biome-ignore-start lint/style/noProcessEnv: this file DRIVES the env parse by crafting process.env before the module graph loads — the same seam `wire-capture.suite.test.ts` uses.
+// biome-ignore-start lint/correctness/noProcessGlobal: the `vi.hoisted` body below runs before this file's import bindings exist, so the `node:process` import is unreachable from it — `globalThis.process` is the only handle available at that point (the rest of the file uses the import).
 const PREVIOUS_LOG_LEVEL = vi.hoisted((): string | undefined => {
   const previous = globalThis.process.env["LOG_LEVEL"];
   globalThis.process.env["LOG_LEVEL"] = "info";
   return previous;
 });
+// biome-ignore-end lint/correctness/noProcessGlobal: end of the block above
 
 // `pool: "forks"` reuses a process across FILES, and process.env is process-wide even though the module
 // graph is not — so hand the level back or the next file in this worker inherits an un-silenced logger.
@@ -45,6 +43,7 @@ afterAll(() => {
     process.env["LOG_LEVEL"] = PREVIOUS_LOG_LEVEL;
   }
 });
+// biome-ignore-end lint/style/noProcessEnv: end of the block above
 
 const TOKEN = "debug-secret-token";
 

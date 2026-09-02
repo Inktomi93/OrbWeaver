@@ -1,6 +1,3 @@
-// biome-ignore-all lint/suspicious/noBitwiseOperators: FNV-1a is a byte-defined hash codec — the
-// `^=`/`>>>` ops ARE the algorithm.
-
 // The per-character default tint — a deterministic OKLCH hash so the same speaker always gets the same
 // color with zero storage, the fallback before a real per-character ThemeOverride exists. OKLCH (not
 // HSL) with only hue varying gives roughly equal perceived brightness across the whole hue wheel.
@@ -23,6 +20,7 @@ export interface SpeakerColorTokens {
   readonly dialogueColor: string;
 }
 
+// biome-ignore-start lint/suspicious/noBitwiseOperators: FNV-1a is a byte-defined hash codec — the `^=`/`>>>` ops ARE the algorithm.
 function fnv1aHash(key: string): number {
   let hash = FNV_OFFSET_BASIS;
   for (let index = 0; index < key.length; index += 1) {
@@ -31,6 +29,7 @@ function fnv1aHash(key: string): number {
   }
   return hash >>> 0;
 }
+// biome-ignore-end lint/suspicious/noBitwiseOperators: end of the block above
 
 /**
  * THE HASH DOES NOT COLOUR NARRATION (#212-5, side-eye C2). It used to return the identical hue for

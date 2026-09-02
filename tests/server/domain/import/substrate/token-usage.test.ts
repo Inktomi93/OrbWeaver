@@ -1,4 +1,3 @@
-// biome-ignore-all lint/style/useNamingConvention: the ST wire field `token_count` appears verbatim in test fixtures.
 // substrate/token-usage — the one pure resolver for imported row-text token accounting. Pins: an inspected
 // source count wins and reports 'measured'; absent that, the kit estimator measures the text and reports
 // 'estimated'; and the count lands on the RIGHT side of the role axis (assistant → tokensOut, else tokensIn).
@@ -10,13 +9,16 @@ import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("recordedTokenCountFromMetadata", () => {
   test("a valid non-negative safe integer token_count is read through", () => {
+    // biome-ignore lint/style/useNamingConvention: the ST wire field `token_count` appears verbatim in test fixtures.
     expect(recordedTokenCountFromMetadata({ token_count: 42 })).toBe(42);
   });
 
   test("null metadata, a missing key, a negative, or a non-integer all resolve to null", () => {
     expect(recordedTokenCountFromMetadata(null)).toBeNull();
     expect(recordedTokenCountFromMetadata({})).toBeNull();
+    // biome-ignore lint/style/useNamingConvention: the ST wire field `token_count` appears verbatim in test fixtures.
     expect(recordedTokenCountFromMetadata({ token_count: -1 })).toBeNull();
+    // biome-ignore lint/style/useNamingConvention: the ST wire field `token_count` appears verbatim in test fixtures.
     expect(recordedTokenCountFromMetadata({ token_count: "42" })).toBeNull();
   });
 });

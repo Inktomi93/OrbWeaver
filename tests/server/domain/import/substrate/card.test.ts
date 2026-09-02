@@ -1,5 +1,3 @@
-// biome-ignore-all lint/style/useNamingConvention: ST Character-Card wire field names (snake_case) appear
-// verbatim in these card fixtures — they ARE the format.
 // Mirror test for domain/import/substrate/card — the import-domain card ENTRY: the PNG/JSON parsers (compose
 // the kit codec + the serde), the whole-file importHash, and the flatten-to-create-input validate seam.
 

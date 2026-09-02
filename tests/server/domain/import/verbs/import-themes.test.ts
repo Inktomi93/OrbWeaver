@@ -1,5 +1,3 @@
-// biome-ignore-all lint/style/useNamingConvention: ST theme field names (snake_case) appear verbatim in these
-// fixtures — they ARE the interchange format.
 // domain/import/verbs/import-themes — the ST theme wave. Pins the verb's own contract: it SERIALIZES each
 // converted palette into its OWN orb-native theme-backup file and delegates the write to the settings
 // domain's injected op (owning no serde and no collision rule), isolates a refusal PER THEME, separates
@@ -101,6 +99,7 @@ describe("importThemes", () => {
     });
     const service = createImportService(ctxWith(importTheme));
 
+    // biome-ignore lint/style/useNamingConvention: ST theme field names (snake_case) appear verbatim in these fixtures — they ARE the interchange format.
     await service.importThemes({ themes: [collected("Styled", "themes/Styled.json", { custom_css: "#chat .mes { color: red }" })] });
 
     expect(seen).toEqual([null]);

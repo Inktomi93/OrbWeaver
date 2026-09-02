@@ -105,7 +105,7 @@ export const LEDGERS: readonly Ledger[] = [
     owner: "suppressions",
     rel: SUPPRESSIONS_BASELINE_REL,
     unit: "suppression marker(s)",
-    why: "committed lint/gate suppressions per file. Ends per file when the underlying diagnostic is fixed and the shrink is regenerated.",
+    why: "committed lint/type suppressions per file, source AND tests (#962). Ends per file when the underlying diagnostic is fixed and the shrink is regenerated; a test row under a rule RATIFIED_TEST_RULES does not list is the burnable half.",
   },
   {
     owner: "orphan-export-ratchet (push tier)",

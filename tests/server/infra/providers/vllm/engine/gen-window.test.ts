@@ -3,8 +3,6 @@
 // any failure (non-ok / unreachable / malformed / no positive max_model_len) degrades to null so the caller
 // falls back to the env-owned window.
 //
-// biome-ignore-all lint/style/useNamingConvention: `max_model_len` is vLLM's real /v1/models field name — the
-// fixtures mirror the wire shape verbatim, so the snake_case key is required, not a style choice.
 
 import { fetchEngineMaxModelLen } from "@orb/server/infra/providers/vllm/engine";
 import { afterEach, describe, vi } from "vitest";
@@ -22,11 +20,13 @@ function modelsResponse(body: unknown, status = 200): () => Promise<Response> {
 // gen-engine behavior through the successor directly.
 describe("fetchEngineMaxModelLen (gen engine)", () => {
   test("returns max_model_len from the full-id entry", async () => {
+    // biome-ignore lint/style/useNamingConvention: `max_model_len` is vLLM's real /v1/models field name — the fixtures mirror the wire shape verbatim, so the snake_case key is required, not a style choice.
     vi.stubGlobal("fetch", modelsResponse({ data: [{ id: "Qwen/Qwen3-VL-8B-Instruct", max_model_len: 32_768 }] }));
     await expect(fetchEngineMaxModelLen("gen")).resolves.toBe(32_768);
   });
 
   test("reads max_model_len from the slash-free alias entry too (first positive wins)", async () => {
+    // biome-ignore lint/style/useNamingConvention: `max_model_len` is vLLM's real /v1/models field name — the fixtures mirror the wire shape verbatim, so the snake_case key is required, not a style choice.
     vi.stubGlobal("fetch", modelsResponse({ data: [{ id: "Qwen3-VL-8B-Instruct", max_model_len: 65_536 }] }));
     await expect(fetchEngineMaxModelLen("gen")).resolves.toBe(65_536);
   });
@@ -42,6 +42,7 @@ describe("fetchEngineMaxModelLen (gen engine)", () => {
   });
 
   test("a malformed body (no positive max_model_len) degrades to null", async () => {
+    // biome-ignore lint/style/useNamingConvention: `max_model_len` is vLLM's real /v1/models field name — the fixtures mirror the wire shape verbatim, so the snake_case key is required, not a style choice.
     vi.stubGlobal("fetch", modelsResponse({ data: [{ id: "x", max_model_len: 0 }, { id: "y" }] }));
     await expect(fetchEngineMaxModelLen("gen")).resolves.toBeNull();
   });
@@ -54,11 +55,13 @@ describe("fetchEngineMaxModelLen (gen engine)", () => {
 
 describe("fetchEngineMaxModelLen (embed + rerank self-report, extends the gen seam)", () => {
   test("embed engine reports its pooling window", async () => {
+    // biome-ignore lint/style/useNamingConvention: `max_model_len` is vLLM's real /v1/models field name — the fixtures mirror the wire shape verbatim, so the snake_case key is required, not a style choice.
     vi.stubGlobal("fetch", modelsResponse({ data: [{ id: "Qwen/Qwen3-VL-Embedding-2B", max_model_len: 8192 }] }));
     await expect(fetchEngineMaxModelLen("embed")).resolves.toBe(8192);
   });
 
   test("rerank engine reports its pooling window", async () => {
+    // biome-ignore lint/style/useNamingConvention: `max_model_len` is vLLM's real /v1/models field name — the fixtures mirror the wire shape verbatim, so the snake_case key is required, not a style choice.
     vi.stubGlobal("fetch", modelsResponse({ data: [{ id: "Qwen/Qwen3-VL-Reranker-2B", max_model_len: 16_384 }] }));
     await expect(fetchEngineMaxModelLen("rerank")).resolves.toBe(16_384);
   });

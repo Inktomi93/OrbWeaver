@@ -2,9 +2,6 @@
 // directly. Covers IPv4 + IPv6 incl. IPv4-mapped IPv6 (`::ffff:127.0.0.1`), reduced to its IPv4 value so
 // a mapped loopback matches `127.0.0.0/8`.
 
-// biome-ignore-all lint/suspicious/noBitwiseOperators: IP/CIDR math is fundamentally bitwise — parsing an
-// address packs octets/hextets via shift+OR, and prefix masking is shift+AND on the integer address.
-
 const IPV4_RE = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
 /** A single IPv6 hextet (1–4 hex digits). */
 const HEXTET_RE = /^[0-9a-fA-F]{1,4}$/;
@@ -30,6 +27,7 @@ const DOUBLE_COLON_SPLIT_PARTS = 2;
 const ZERO = 0n;
 const ONE = 1n;
 
+// biome-ignore-start lint/suspicious/noBitwiseOperators: IP/CIDR math is fundamentally bitwise — parsing an address packs octets/hextets via shift+OR, and prefix masking is shift+AND on the integer address.
 /** Parse an IPv4 dotted-quad → 32-bit value, or null. */
 function parseIpv4(ip: string): bigint | null {
   const m = IPV4_RE.exec(ip);
@@ -160,6 +158,7 @@ export function matchesCidr(ip: string, cidr: string): boolean {
   const mask = ((ONE << BigInt(prefix)) - ONE) << BigInt(net.bits - prefix);
   return (net.value & mask) === (addr.value & mask);
 }
+// biome-ignore-end lint/suspicious/noBitwiseOperators: end of the block above
 
 /** True if `ip` matches ANY range in `ranges` (CIDR or bare IP). */
 export function isInRanges(ip: string, ranges: readonly string[]): boolean {

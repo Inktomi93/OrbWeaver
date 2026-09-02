@@ -12,8 +12,6 @@
 // module graph under a controlled `process.env` — the same `vi.resetModules()` + dynamic-reimport pattern
 // `tests/server/foundation/env/index.test.ts` uses, extended to reimport the observability barrel (which
 // transitively reimports env) rather than env alone.
-// biome-ignore-all lint/style/noProcessEnv: this test DRIVES the env reimport by crafting process.env, the
-// same seam `tests/server/foundation/env/index.test.ts` uses.
 
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -34,6 +32,7 @@ afterAll(() => {
 /** Reimport the observability barrel under a controlled env — mirrors `reimportEnvWith` in
  *  `tests/server/foundation/env/index.test.ts`, but reimports the barrel that consumes `env` (wire-capture is
  *  a downstream module of the frozen env singleton, not env itself). */
+// biome-ignore-start lint/style/noProcessEnv: this test DRIVES the env reimport by crafting process.env, the same seam `tests/server/foundation/env/index.test.ts` uses.
 async function reimportWireCaptureWith(wireCapture: "on" | "off"): Promise<typeof import("@orb/server/foundation/observability")> {
   for (const k of Object.keys(process.env)) {
     delete process.env[k];
@@ -49,10 +48,12 @@ async function reimportWireCaptureWith(wireCapture: "on" | "off"): Promise<typeo
     process.chdir(previousCwd);
   }
 }
+// biome-ignore-end lint/style/noProcessEnv: end of the block above
 
 describe("wire-capture OUTCOME arm + spill (WIRE-OUTCOMES)", () => {
   let snapshot: Record<string, string | undefined>;
 
+  // biome-ignore-start lint/style/noProcessEnv: this test DRIVES the env reimport by crafting process.env, the same seam `tests/server/foundation/env/index.test.ts` uses.
   beforeEach(() => {
     snapshot = { ...process.env };
   });
@@ -63,6 +64,7 @@ describe("wire-capture OUTCOME arm + spill (WIRE-OUTCOMES)", () => {
     Object.assign(process.env, snapshot);
     vi.resetModules();
   });
+  // biome-ignore-end lint/style/noProcessEnv: end of the block above
 
   test("with capture ON: an outcome is recorded for a REFUSED (zero-content) turn and reads back", async () => {
     const wc = await reimportWireCaptureWith("on");

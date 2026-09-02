@@ -1,6 +1,3 @@
-// biome-ignore-all lint/performance/noBarrelFile: this IS the `backends/kit/` front door — the shared
-// infra-pure wire helpers the sealed chat backends (openrouter / custom-byo / vllm) import DOWN. One
-// stable surface keeps the strategy-isolation seam intact (no backend reaches into another's folder).
 //
 // infra/providers/backends/kit — SHARED INFRA-PURE wire helpers (NOT a backend; below the backends). No
 // @orb/db, no domain import, no SDK (the agent-sdk's SDK is its private dep, D8). Pure wire/transport:

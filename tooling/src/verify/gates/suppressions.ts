@@ -1,7 +1,10 @@
 // Gate: suppressions — a both-ways per-file ratchet over authored typed source in package source,
-// tooling, and scripts. Detection accepts exact comment directives, including biome start/end ranges;
-// prose and strings do not count. RATIFIED_RULES classifies decided markers, while unlisted rules remain
-// debt. Regenerate only through `verify baseline suppressions`; ordinary changes may only shrink rows.
+// tooling, scripts AND tests (#962: `tests/**` joined 2026-09-02 — a test suppression is budgeted, two-sided,
+// exactly like a source one). Detection accepts exact comment directives, including biome start/end
+// ranges, eslint block enable/disable and `@ts-nocheck`; prose and strings do not count. TWO ratification
+// tables, one per governed SCOPE (RATIFIED_RULES for source, RATIFIED_TEST_RULES for tests — the WHY differs
+// by scope, so one table with a flag would ratify a test marker under a source reason that is false for it);
+// unlisted rules remain debt. Regenerate only through `verify baseline suppressions`; ordinary changes may only shrink rows.
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import type { SourceFile } from "ts-morph";
@@ -16,14 +19,15 @@ export const BASELINE_REL = "tooling/src/verify/gates/suppressions.baseline.json
 const PACKAGE_SOURCE_RE = /^packages\/[^/]+\/src\/.*\.tsx?$/u;
 const TOOLING_SOURCE_RE = /^tooling\/src\/.*\.tsx?$/u;
 const SCRIPT_SOURCE_RE = /^scripts\/.*\.tsx?$/u;
+const TEST_SOURCE_RE = /^tests\/.*\.tsx?$/u;
 const CAPTURED_RUNTIME_PREFIX = "scripts/probes/st-goldens/sillytavern-runtime/";
 const COMMENT_OPEN = String.raw`(?:\/\/|\/\*+|\{\/\*+)`;
-const DIRECTIVE_TOKEN = String.raw`(?:biome-ignore(?:-all|-start|-end)?|eslint-disable(?:-next-line|-line)?|@ts-expect-error|@ts-ignore)`;
+const DIRECTIVE_TOKEN = String.raw`(?:biome-ignore(?:-all|-start|-end)?|eslint-(?:disable(?:-next-line|-line)?|enable)|@ts-expect-error|@ts-ignore|@ts-nocheck)`;
 const SUPPRESSION_RE = new RegExp(String.raw`^\s*${COMMENT_OPEN}\s*(${DIRECTIVE_TOKEN})\b`, "u");
 /** The RULE a marker names — the classification key. `biome-ignore[-all|-start|-end] <rule>:`, an
  *  `eslint-disable*` rule id, or the bare TypeScript directive (which names no rule and is its own key). */
 const RULE_RE = new RegExp(
-  String.raw`^\s*${COMMENT_OPEN}\s*(?:biome-ignore(?:-all|-start|-end)?\s+(\S+?):|eslint-disable(?:-next-line|-line)?\s+([^\s:,]+)|(@ts-expect-error|@ts-ignore)\b)`,
+  String.raw`^\s*${COMMENT_OPEN}\s*(?:biome-ignore(?:-all|-start|-end)?\s+(\S+?):|eslint-(?:disable(?:-next-line|-line)?|enable)\s+([^\s:,*]+)|(@ts-expect-error|@ts-ignore|@ts-nocheck)\b)`,
   "u",
 );
 
@@ -34,8 +38,14 @@ interface RatifiedRule {
   readonly why: string;
 }
 
-/** Ratification is derived by rule class; absent classes remain debt. The per-file exceed arm still rejects
- *  every new marker, while a class matching zero live sites is stale and rejected. */
+/** The governed SCOPE axis — the partition the ratification tables key on. Derived from the SAME predicate
+ *  that admits a file (`governedScope`), never from a second list. */
+const GOVERNED_SCOPES = ["source", "tests"] as const;
+export type GovernedScope = (typeof GOVERNED_SCOPES)[number];
+
+/** Ratification is derived by rule class PER SCOPE; absent classes remain debt. The per-file exceed arm still
+ *  rejects every new marker, while a class matching zero live sites in its scope is stale and rejected.
+ *  This is the SOURCE table (packages/tooling/scripts); tests have their own below. */
 const RATIFIED_RULES: Readonly<Record<string, RatifiedRule>> = {
   "lint/style/useNamingConvention": {
     kind: "ruling",
@@ -50,7 +60,6 @@ const RATIFIED_RULES: Readonly<Record<string, RatifiedRule>> = {
     kind: "tool-fp",
     why: "the cause IS forwarded — biome inspects only the 2nd constructor argument and misses a 3rd-arg ErrorOptions passed to super()",
   },
-  "lint/performance/noBarrelFile": { kind: "ruling", why: "this IS the domain/package front door — one-home-per-concept requires the barrel the rule bans" },
   "lint/suspicious/noDeprecatedImports": {
     kind: "ruling",
     why: "the vendor deprecates an overload we do not use; the supported form is what the call site spells",
@@ -179,10 +188,6 @@ const RATIFIED_RULES: Readonly<Record<string, RatifiedRule>> = {
     kind: "ruling",
     why: "tool and probe launch boundaries own ambient harness knobs and child-process inheritance; they are outside the app configuration perimeter",
   },
-  "lint/style/useFilenamingConvention": {
-    kind: "ruling",
-    why: "the gate filename must byte-match its registered gate name, whose onData spelling names the external callback vocabulary",
-  },
   "lint/suspicious/noTemplateCurlyInString": {
     kind: "tool-fp",
     why: "gate self-proof strings intentionally carry template-literal source text for the synthetic project to parse",
@@ -193,29 +198,66 @@ const RATIFIED_RULES: Readonly<Record<string, RatifiedRule>> = {
   },
 };
 
+/** The TESTS table (#962). A test suppression is permanent for a different reason than a source one: the
+ *  test's SUBJECT is the boundary, the wire, or the codec the rule exists to keep out of product code. Every
+ *  test marker under a rule NOT listed here is DEBT — visible in the ledger and burnable (`pnpm debt`). */
+const RATIFIED_TEST_RULES: Readonly<Record<string, RatifiedRule>> = {
+  "lint/style/useNamingConvention": {
+    kind: "ruling",
+    why: "the fixture mirrors a FOREIGN wire (ST cards/chats/settings, OpenAI-compatible bodies, OIDC claims, SDK frames, env keys) — the snake_case/CONSTANT key IS the format under test; renaming forks the fixture from the wire",
+  },
+  "lint/style/noProcessEnv": {
+    kind: "ruling",
+    why: "the test's SUBJECT is the env boundary — it crafts `process.env` to drive the sole env reader, or reads ONE opt-in gate flag for a hardware-gated suite; there is no other seam to drive",
+  },
+  "lint/correctness/noProcessGlobal": {
+    kind: "ruling",
+    why: "a `vi.hoisted` setup body runs before the file's own `node:process` import binds, so the global is the only handle the hoisted setup has",
+  },
+  "lint/suspicious/noBitwiseOperators": {
+    kind: "ruling",
+    why: "an INDEPENDENT reference codec (a textbook CRC-32, hand-crafted zip/PNG bytes) written in the operators that define it — the test proves the shipped codec against a second implementation",
+  },
+  "lint/suspicious/noExplicitAny": {
+    kind: "ruling",
+    why: "deliberately off-schema / hostile input pushed PAST the wire type to prove the runtime boundary refuses it — the `any` is the test's instrument, never a value the code under test owns",
+  },
+  "@ts-expect-error": {
+    kind: "ruling",
+    why: "a type-level NEGATIVE pin (`.test-d` and inline): the directive IS the assertion that the type refuses the shape, and tsc reds the day it stops; plus an untyped `.cjs` config import whose shape is asserted immediately after",
+  },
+};
+
+/** The table for one scope — the ONE dispatch, so the histogram, the ratified count and the stale sweep can
+ *  never read different tables for the same file. A mapped Record: a new scope fails tsc until it has one. */
+const TABLE_FOR: Readonly<Record<GovernedScope, Readonly<Record<string, RatifiedRule>>>> = {
+  source: RATIFIED_RULES,
+  tests: RATIFIED_TEST_RULES,
+};
+
 /** One file's markers as a per-rule histogram, sorted for a stable ledger diff. */
-function ruleHistogram(sites: readonly SuppressionSite[], ratified: boolean): readonly string[] {
+function ruleHistogram(sites: readonly SuppressionSite[], ratified: boolean, scope: GovernedScope): readonly string[] {
+  const table = TABLE_FOR[scope];
   const byRule = new Map<string, number>();
   for (const site of sites) {
     const key = site.rule ?? "(no rule named)";
-    if ((site.rule !== null && site.rule in RATIFIED_RULES) === ratified) {
+    if ((site.rule !== null && site.rule in table) === ratified) {
       byRule.set(key, (byRule.get(key) ?? 0) + 1);
     }
   }
-  return [...byRule]
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([rule, n]) => (ratified ? `${rule}×${n} (${RATIFIED_RULES[rule]?.kind ?? "ruling"})` : `${rule}×${n}`));
+  return [...byRule].sort(([a], [b]) => a.localeCompare(b)).map(([rule, n]) => (ratified ? `${rule}×${n} (${table[rule]?.kind ?? "ruling"})` : `${rule}×${n}`));
 }
 
 /** The WHY the generator writes into one row — BOTH halves, so the ledger reads as a classification and not
  *  as a number: which rules ratify the permanent portion, and which rules the DEBT portion is still carrying
  *  (the gray zone a burn-down claims). Null only when the file has no markers at all. */
-export function classWhy(sites: readonly SuppressionSite[]): string | null {
-  const ratified = ruleHistogram(sites, true);
-  const debt = ruleHistogram(sites, false);
+export function classWhy(sites: readonly SuppressionSite[], scope: GovernedScope): string | null {
+  const ratified = ruleHistogram(sites, true, scope);
+  const debt = ruleHistogram(sites, false, scope);
   const parts: string[] = [];
   if (ratified.length > 0) {
-    parts.push(`ratified by rule: ${ratified.join(", ")} — each rule's ruling/tool-FP reason lives in RATIFIED_RULES (${GATE_SELF})`);
+    const table = scope === "tests" ? "RATIFIED_TEST_RULES" : "RATIFIED_RULES";
+    parts.push(`ratified by rule: ${ratified.join(", ")} — each rule's ruling/tool-FP reason lives in ${table} (${GATE_SELF})`);
   }
   if (debt.length > 0) {
     parts.push(`burnable debt: ${debt.join(", ")} — no RATIFIED_RULES entry, so these are still a live population`);
@@ -230,14 +272,40 @@ export interface SuppressionSite {
   readonly line: number;
   readonly token: string;
   readonly rule: string | null;
+  /** A `/* … *\/` (or JSX `{/* … *\/}`) comment, as opposed to a `//` line comment — eslint honours its
+   *  BLOCK directives (`eslint-disable`/`eslint-enable`) only in the former (#962's blanket judge). */
+  readonly block: boolean;
+}
+
+/** The one governed authored typed-source set shared by enforcement and baseline generation — the scope
+ *  derivation IS the admission test, so a file cannot be governed without a scope or scoped without being
+ *  governed. `undefined` = not governed (the captured foreign runtime, anything off the four roots). */
+export function governedScope(repoRelPath: string): GovernedScope | undefined {
+  const captured = repoRelPath.startsWith(CAPTURED_RUNTIME_PREFIX);
+  if (!captured && (PACKAGE_SOURCE_RE.test(repoRelPath) || TOOLING_SOURCE_RE.test(repoRelPath) || SCRIPT_SOURCE_RE.test(repoRelPath))) {
+    return "source";
+  }
+  return !captured && TEST_SOURCE_RE.test(repoRelPath) ? "tests" : undefined;
 }
 
 /** The one governed authored typed-source set shared by enforcement and baseline generation. */
 export function isGovernedTypedSource(repoRelPath: string): boolean {
-  if (repoRelPath.startsWith(CAPTURED_RUNTIME_PREFIX)) {
-    return false;
+  return governedScope(repoRelPath) !== undefined;
+}
+
+/** The directive GRAMMAR as one door: a comment's text → its token + the rule it names, or null when the
+ *  comment is not a directive at its OPENER (the mention fence — a quotation mid-sentence, or a spelling
+ *  inside a string, is inert). Shared with `no-blanket-suppression` (#962) so "what is a directive" has
+ *  one home for TS trivia, scratch-parsed JS, and the CSS/JSON comment lexer alike. */
+export function readDirectiveComment(text: string): Pick<SuppressionSite, "token" | "rule"> | null {
+  const match = SUPPRESSION_RE.exec(text);
+  // biome-ignore lint/suspicious/noUnnecessaryConditions: RegExp.exec can return null; Biome narrows this constructed grammar incorrectly.
+  if (match === null) {
+    return null;
   }
-  return PACKAGE_SOURCE_RE.test(repoRelPath) || TOOLING_SOURCE_RE.test(repoRelPath) || SCRIPT_SOURCE_RE.test(repoRelPath);
+  const ruleMatch = RULE_RE.exec(text);
+  // biome-ignore lint/suspicious/noUnnecessaryConditions: RULE_RE is stricter than detection, so a matched directive can still have no parsed rule.
+  return { token: match[1] ?? match[0], rule: ruleMatch?.[1] ?? ruleMatch?.[2] ?? ruleMatch?.[3] ?? null };
 }
 
 /** Every suppression-marker comment in one source file, in source order (line, matched token).
@@ -254,9 +322,8 @@ export function suppressionSites(sf: SourceFile): SuppressionSite[] {
   // range at an adjacent position) — a suppression marker is one-per-line in practice, so line identity is
   // the robust dedupe key (position identity drifts across carriers for the exact same comment).
   const record = (pos: number, text: string): void => {
-    const match = SUPPRESSION_RE.exec(text);
-    // biome-ignore lint/suspicious/noUnnecessaryConditions: RegExp.exec can return null; Biome narrows this constructed grammar incorrectly.
-    if (match === null) {
+    const directive = readDirectiveComment(text);
+    if (directive === null) {
       return;
     }
     const line = sf.getLineAndColumnAtPos(pos).line;
@@ -264,9 +331,7 @@ export function suppressionSites(sf: SourceFile): SuppressionSite[] {
       return;
     }
     seenLines.add(line);
-    const ruleMatch = RULE_RE.exec(text);
-    // biome-ignore lint/suspicious/noUnnecessaryConditions: RULE_RE is stricter than detection, so a matched directive can still have no parsed rule.
-    sites.push({ line, token: match[1] ?? match[0], rule: ruleMatch?.[1] ?? ruleMatch?.[2] ?? ruleMatch?.[3] ?? null });
+    sites.push({ line, token: directive.token, rule: directive.rule, block: !text.startsWith("//") });
   };
   // A TOKEN-carrier walk (never `forEachDescendant`): a same-block trailing suppression — an `else if`
   // arm's last statement — attaches its comment range to a token node (a CloseBraceToken), and a node-only
@@ -297,10 +362,12 @@ function loadBaseline(root: string): ReadonlyMap<string, RatchetRow> {
   return readBudgetRows(root, BASELINE_REL);
 }
 
-/** How many of one file's live markers name a RATIFIED_RULES rule — the DERIVED half of the partition. The
- *  committed row is checked AGAINST this (below), so a hand-edited `ratified` can never out-run the tree. */
-export function ratifiedSiteCount(sites: readonly SuppressionSite[]): number {
-  return sites.filter((s) => s.rule !== null && s.rule in RATIFIED_RULES).length;
+/** How many of one file's live markers name a rule its SCOPE's table ratifies — the DERIVED half of the
+ *  partition. The committed row is checked AGAINST this (below), so a hand-edited `ratified` can never
+ *  out-run the tree. */
+export function ratifiedSiteCount(sites: readonly SuppressionSite[], scope: GovernedScope): number {
+  const table = TABLE_FOR[scope];
+  return sites.filter((s) => s.rule !== null && s.rule in table).length;
 }
 
 const GATE_SELF = "tooling/src/verify/gates/suppressions.ts";
@@ -308,9 +375,9 @@ const CLASS_DRIFT_MESSAGE = (rel: string, declared: number, derived: number): st
   `suppressions.baseline.json row "${rel}" declares ${declared} RATIFIED marker(s) but the rule table classifies ${derived} — ` +
   "the class is DERIVED from RATIFIED_RULES, never hand-declared: fix the row (or add/remove the rule's table entry, with its why). " +
   "A ratified count the tree does not earn is a permanent admission nobody granted (#569).";
-const STALE_RULE_MESSAGE = (rule: string): string =>
-  `stale RATIFIED_RULES entry — \`${rule}\` classifies ZERO live suppression markers under governed typed source, so the ratification ` +
-  "grants nothing while reading as live law. Delete the row (GATE-AUTHORING.md §4.4, every exemption vocabulary is two-sided).";
+const STALE_RULE_MESSAGE = (rule: string, scope: GovernedScope): string =>
+  `stale ${scope === "tests" ? "RATIFIED_TEST_RULES" : "RATIFIED_RULES"} entry — \`${rule}\` classifies ZERO live suppression markers under governed ${scope} ` +
+  "typed source, so the ratification grants nothing while reading as live law. Delete the row (GATE-AUTHORING.md §4.4, every exemption vocabulary is two-sided).";
 const STALE_MESSAGE = (rel: string, baseline: number, live: number): string =>
   `stale suppressions.baseline.json entry — "${rel}" is budgeted ${baseline} but has only ${live} live ` +
   "suppression marker(s): regenerate the baseline (`node tooling/src/verify/cli.ts baseline suppressions`) " +
@@ -334,7 +401,7 @@ export function reconcileSuppressions(
   baseline: ReadonlyMap<string, RatchetRow>,
 ): { readonly violations: Violation[]; readonly admitted: number; readonly admittedRatified: number } {
   const live = scanLive(root, files);
-  const violations = [...judgeFiles(live, baseline), ...judgeRows(live, baseline), ...staleRatifiedRules(root, live.rules)];
+  const violations = [...judgeFiles(live, baseline), ...judgeRows(live, baseline), ...staleRatifiedRules(root, live.rulesByScope)];
   let admitted = 0;
   let admittedRatified = 0;
   for (const [rel, sites] of live.sites) {
@@ -345,30 +412,31 @@ export function reconcileSuppressions(
   return { violations, admitted, admittedRatified };
 }
 
-/** What THIS RUN sees: every scanned file's markers, plus the set of rules any of them names (the rule
- *  table's liveness input). */
+/** What THIS RUN sees: every scanned file's markers, plus — PER SCOPE — the set of rules any of them names
+ *  (each ratification table's liveness input; a rule live only in tests keeps no source row alive). */
 interface LiveScan {
   readonly sites: ReadonlyMap<string, readonly SuppressionSite[]>;
-  readonly rules: ReadonlySet<string>;
+  readonly rulesByScope: Readonly<Record<GovernedScope, ReadonlySet<string>>>;
 }
 
 function scanLive(root: string, files: readonly SourceFile[]): LiveScan {
   const sites = new Map<string, readonly SuppressionSite[]>();
-  const rules = new Set<string>();
+  const rulesByScope: Record<GovernedScope, Set<string>> = { source: new Set(), tests: new Set() };
   for (const sf of files) {
     const rel = governedSourceRel(root, sf.getFilePath());
-    if (rel === undefined) {
+    const scope = rel === undefined ? undefined : governedScope(rel);
+    if (rel === undefined || scope === undefined) {
       continue;
     }
     const found = suppressionSites(sf);
     sites.set(rel, found);
     for (const site of found) {
       if (site.rule !== null) {
-        rules.add(site.rule);
+        rulesByScope[scope].add(site.rule);
       }
     }
   }
-  return { sites, rules };
+  return { sites, rulesByScope };
 }
 
 /** The EXCEED arm: the markers past a file's committed budget, newest-by-source-order first. A ratified row
@@ -397,10 +465,11 @@ function judgeRows(live: LiveScan, baseline: ReadonlyMap<string, RatchetRow>): r
     if (row.count > count) {
       out.push({ file: rel, line: 0, message: STALE_MESSAGE(rel, row.count, count) + classNote(row) });
     }
-    if (sites === undefined) {
+    const scope = governedScope(rel);
+    if (sites === undefined || scope === undefined) {
       continue; // the file was not in this run's fileset — its class cannot be re-derived here
     }
-    const derived = Math.min(ratifiedSiteCount(sites), row.count);
+    const derived = Math.min(ratifiedSiteCount(sites, scope), row.count);
     if (row.ratified !== derived) {
       out.push({ file: rel, line: 0, message: CLASS_DRIFT_MESSAGE(rel, row.ratified, derived) });
     }
@@ -408,18 +477,20 @@ function judgeRows(live: LiveScan, baseline: ReadonlyMap<string, RatchetRow>): r
   return out;
 }
 
-/** TWO-SIDED (GATE-AUTHORING.md §4.4): a RATIFIED_RULES row that classifies ZERO live markers absolves
- *  nothing while reading as live law — the loaded gun the next marker under that rule would inherit.
- *  REAL-TREE ANCHORED on the committed baseline FILE existing (§4.5, the `density-tier` idiom): a conformance
- *  mini-project and the residual unit tests both run against a scratch root with no baseline.json, so a
- *  whole-tree claim ("this rule is live NOWHERE") is never made from a two-file fileset. */
-function staleRatifiedRules(root: string, liveRules: ReadonlySet<string>): readonly Violation[] {
+/** TWO-SIDED (GATE-AUTHORING.md §4.4), PER SCOPE: a ratification row that classifies ZERO live markers in
+ *  ITS scope absolves nothing while reading as live law — the loaded gun the next marker under that rule
+ *  would inherit. REAL-TREE ANCHORED on the committed baseline FILE existing (§4.5, the `density-tier`
+ *  idiom): a conformance mini-project and the residual unit tests both run against a scratch root with no
+ *  baseline.json, so a whole-tree claim ("this rule is live NOWHERE") is never made from a two-file fileset. */
+function staleRatifiedRules(root: string, liveRules: Readonly<Record<GovernedScope, ReadonlySet<string>>>): readonly Violation[] {
   if (!existsSync(join(root, BASELINE_REL))) {
     return [];
   }
-  return Object.keys(RATIFIED_RULES)
-    .filter((rule) => !liveRules.has(rule))
-    .map((rule) => ({ file: GATE_SELF, line: 0, message: STALE_RULE_MESSAGE(rule) }));
+  return GOVERNED_SCOPES.flatMap((scope) =>
+    Object.keys(TABLE_FOR[scope])
+      .filter((rule) => !liveRules[scope].has(rule))
+      .map((rule) => ({ file: GATE_SELF, line: 0, message: STALE_RULE_MESSAGE(rule, scope) })),
+  );
 }
 
 export const gate: GateDescriptor = {
@@ -495,6 +566,24 @@ export const gate: GateDescriptor = {
       expect: { messageIncludes: "biome-ignore" },
       why: "the authored st-goldens generator remains governed despite its captured runtime neighbor",
     },
+    {
+      files: "// biome-ignore lint/foo: reason\nexport const a = 1;\n",
+      at: "tests/tooling/x.test.ts",
+      expect: { messageIncludes: "biome-ignore" },
+      why: "#962 — tests are GOVERNED typed source: a test-side marker with no budget is rejected exactly like a source one",
+    },
+    {
+      files: "// @ts-nocheck\nexport const a: number = 1;\n",
+      at: "packages/kit/src/nocheck.ts",
+      expect: { messageIncludes: "@ts-nocheck" },
+      why: "#962 — `@ts-nocheck` is the type-checker's FILE-WIDE suppression and counts as a directive token",
+    },
+    {
+      files: "/* eslint-disable foo */\nexport const a = 1;\n/* eslint-enable foo */\n",
+      at: "packages/kit/src/enable.ts",
+      expect: { count: 2, messageIncludes: "eslint-" },
+      why: "#962 — an eslint block range is TWO markers, the closer counted like `biome-ignore-end` is",
+    },
   ],
   mustPass: [
     {
@@ -503,9 +592,9 @@ export const gate: GateDescriptor = {
       why: "a STRING LITERAL merely mentioning `biome-ignore` is not a comment — scans comment ranges only, passes",
     },
     {
-      files: "// biome-ignore lint/foo: reason\nexport const a = 1;\n",
-      at: "tests/tooling/x.test.ts",
-      why: "tests are outside the governed typed-source budget — passes",
+      files: "// prose: a biome-ignore-all quotation mid-sentence is a MENTION, not a directive at the opener\nexport const t = 1;\n",
+      at: "tests/support/helper.ts",
+      why: "#962 — a governed test file whose only spelling of a directive is mid-sentence prose has zero markers — passes",
     },
     {
       files: '// This fixture mentions biome-ignore lint/foo: as prose.\nexport const a = "// eslint-disable-next-line no-alert";\n',
