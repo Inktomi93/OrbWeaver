@@ -180,15 +180,31 @@ export const WALKER_RESOLVE = `
     }
     return paintLayerCensus;
   }
+  // WHICH SIDE OF THE SUBJECT DOES THIS LAYER PAINT ON (#1155)? Among positioned elements with an auto
+  // z-index, CSS paints later-in-tree last, so a layer that FOLLOWS the subject in document order is ON
+  // TOP of it and cannot be between it and its base. An explicit z-index on either side reorders that and
+  // resolving it properly means resolving stacking contexts, which this walker will not guess: there the
+  // layer keeps its veto. Measured live on Settings -> Appearance (2026-09-02): the theme cell's own ⋯
+  // menu chip (\`Row absolute top-tight left-tight bg-card/80\`, a following sibling of the picker item —
+  // appearance-looks-section.tsx) is contentless, positioned and painted, so it is a paint layer by this
+  // census's definition, and it held the theme cohort at withheld(unresolved) while sitting VISIBLY over
+  // the very cell whose backdrop it was said to hide.
+  function paintsOverSubject(layerEl, subject) {
+    if (getComputedStyle(layerEl).zIndex !== "auto" || getComputedStyle(subject).zIndex !== "auto") return false;
+    return (subject.compareDocumentPosition(layerEl) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0;
+  }
   // Is the opaque background found at baseNode actually what the eye sees behind el, or does a paint
   // layer sit on top of it? Only layers INSIDE the base's subtree count (a layer outside it paints under
   // the base's own background, not over it), and never one that contains el — that one is an ancestor
-  // and the walk already accounted for it.
-  function paintLayerOver(baseNode, el, elRect) {
+  // and the walk already accounted for it. \`underQuery\` adds the two fences the UNDER/AT questions need
+  // (below): a layer inside the subject, and a layer that paints over the subject, are both above its own
+  // fill rather than between it and the surface beneath it.
+  function paintLayerOver(baseNode, el, elRect, underQuery) {
     var census = paintLayers();
     for (var pi = 0; pi < census.length; pi += 1) {
       var layer = census[pi];
       if (layer.el === el || layer.el.contains(el)) continue;
+      if (underQuery && (el.contains(layer.el) || paintsOverSubject(layer.el, el))) continue;
       if (!baseNode.contains(layer.el) || layer.el === baseNode) continue;
       if (!layer.fixed) {
         var lr = layer.rect;
@@ -198,10 +214,13 @@ export const WALKER_RESOLVE = `
     }
     return null;
   }
-  function resolveBackdrop(el) {
-    var node = el;
+  // TWO QUESTIONS, ONE WALK. \`resolveBackdrop(el)\` asks what is behind EL's OWN BOX starting at el, so
+  // el's own background is the answer when it has one. \`resolveBackdropUnder(el)\` asks what el's fill is
+  // painted ON — the same walk from el's PARENT, still measured against EL's box and EL's subtree.
+  function resolveBackdropFrom(startNode, subject, underQuery) {
+    var node = startNode;
     var layers = [];
-    var elRect = el.getBoundingClientRect();
+    var elRect = subject.getBoundingClientRect();
     while (node) {
       var style = getComputedStyle(node);
       var bgImage = style.backgroundImage;
@@ -217,7 +236,7 @@ export const WALKER_RESOLVE = `
         if (bg.a >= OPAQUE_MIN_ALPHA) {
           var acc = { r: bg.r, g: bg.g, b: bg.b };
           for (var li = layers.length - 1; li >= 0; li -= 1) acc = compositeOver(layers[li], acc);
-          var over = paintLayerOver(node, el, elRect);
+          var over = paintLayerOver(node, subject, elRect, underQuery);
           // fallback is the number the old code returned. It is NOT a verdict — the contrast family
           // refuses it — but the non-verdict consumers (the dark-glow tell) still need a best-effort
           // backdrop, and returning null there would silently drop findings this change never judged.
@@ -234,6 +253,31 @@ export const WALKER_RESOLVE = `
     var white = { r: 255, g: 255, b: 255 };
     for (var wi = layers.length - 1; wi >= 0; wi -= 1) white = compositeOver(layers[wi], white);
     return { kind: "unresolved", reason: "no-opaque-base", fallback: white };
+  }
+
+  function resolveBackdrop(el) {
+    return resolveBackdropFrom(el, el, false);
+  }
+
+  // THE PAINT UNDER A SUBJECT'S OWN BOX (#1155) — for a rule that ranks an element's own FILL and must
+  // therefore not count that fill as its own backdrop. Handing \`resolveBackdrop\` the PARENT is the
+  // obvious spelling and it is wrong twice over, because every veto is then computed against the PARENT's
+  // box and the PARENT's subtree: a layer INSIDE the subject counts (it is painted over the subject, not
+  // beneath it) and so does a sibling that never touches the subject's box. Measured on the live
+  // Settings -> Appearance (2026-09-02): all three quiet-state cohorts returned
+  // unresolved(paint-layer-over-base) naming the checked cell's own \`Radio.Indicator\` — a contentless
+  // absolutely-positioned painted span, exactly what the layer census above collects — which alone kept
+  // every Config design-audit at population-verdict=NO-VERDICT. A layer that genuinely sits between the
+  // resolved base and the subject's box still refuses: only the two false vetoes stopped counting.
+  function resolveBackdropUnder(el) {
+    return resolveBackdropFrom(el.parentElement, el, true);
+  }
+
+  // THE PAINT CONTEXT AT A CONTAINER — its own fill (or the first opaque ancestor's), read as the surface
+  // its contents sit on, so the layers INSIDE it are what it backs rather than vetoes against it. A layer
+  // painted over it from OUTSIDE its own subtree still refuses.
+  function resolveBackdropAt(el) {
+    return resolveBackdropFrom(el, el, true);
   }
 
   // WHO OWNS THE PIXELS AT THIS BOX (snap's occluderOf, #211 — same test, same vocabulary, because the two

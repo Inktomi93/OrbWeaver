@@ -579,3 +579,67 @@ Four controls pin both directions in `tests/tooling/ui-audit/ops/walker/census-r
 sub-part under its own state-painted carrier folds to one judged cohort, a cohort under a selection-tinted
 container folds, a cohort across two genuinely different panel fills still splits and still withholds, and
 a fill-less cohort is an exclusion.
+
+## Amendment — the backdrop query and the checked-only part (#1155, 2026-09-02)
+
+Same shape as #1059 and #1068 once more: both rulings survive verbatim, and what changed is the INPUT.
+After #1150 repaired `selection-idiom`, `quiet-state` was the LAST reason every Config design-audit
+printed `population-verdict=NO-VERDICT`. Measured first, on the live surface
+(`pnpm design-audit / --goto settings:appearance --viewport 1280x2200`, 3 of 3 runs):
+
+```text
+POPULATION   quiet-state candidates=5 judged=2 affected=0 populations=0 representatives=0 withheld(unresolved=3) excluded() collapsed()
+population-verdict=NO-VERDICT
+```
+
+The three cohorts were the `theme-collection` picker cells, the `chat-style-cards` picker cells, and the
+two `radio-group-picker-item-check` indicators. **None of them was the one-sided-cohort class the row was
+filed against.** All three carried the SAME cause, printed by instrumenting the withheld arm: every member
+returned `unresolved(paint-layer-over-base)`.
+
+### 5. A backdrop query names a BOX, and the answer is only about that box
+
+`fillContrast` ranks an element's OWN fill, so it must not read that fill as its own backdrop — it asked
+`resolveBackdrop(el.parentElement)`. That reads the right colour from the wrong box: the paint-layer veto
+is then computed against the PARENT's rect and the PARENT's subtree, so two things that are not backdrops
+refuse the measurement.
+
+| The layer | Where it is | Why it is not the carrier's backdrop |
+| - | - | - |
+| `Radio.Indicator` (`[data-slot=radio-group-picker-item-check]`) | INSIDE the checked cell | painted over the cell's own fill; it cannot be between the cell and the surface under it |
+| the `⋯` row menu (`Row absolute top-tight left-tight bg-card/80`, `appearance-looks-section.tsx`) | a FOLLOWING sibling, parked over the cell's corner | auto z-index + later in document order = CSS paints it ON TOP of the cell |
+
+Both are contentless, positioned and painted, which is exactly the (deliberately narrow) paint-layer
+census in `resolve.ts`. So the walk now names its two questions: `resolveBackdrop(el)` is unchanged for
+every existing caller (text-over-art, contrast, the glow tell), while `resolveBackdropUnder(el)` walks
+from the parent but stays measured against EL's box, ignoring layers inside el and layers that paint over
+it. `resolveBackdropAt(el)` is the container flavour the paint-context partition KEY uses, so a populated
+container is resolvable while its own fill still distinguishes it from a differently-painted one
+(§3 above is intact — two panels are still two contexts).
+
+**The withhold arm is unchanged and still bites.** A layer that genuinely sits between the resolved base
+and the carrier's box — a scrim PRECEDING the cells — still returns `withheld(unresolved)` with
+`INSTRUMENT ERROR` and exit 2, and so does a following layer carrying an explicit `z-index`: resolving a
+reordered stack means resolving stacking contexts, which the walker will not guess.
+
+### 6. A one-sided cohort of component PARTS is a closed fact, not missing evidence
+
+The third cohort is the two `Radio.Indicator` spans. #1150 ruled a component part is not a choice, and
+`isNestedStatePart` is already in scope here (`ops/walker.ts:117` concatenates SELECTION before REGION).
+`quiet-state` reuses the predicate but NOT `selection-idiom`'s blanket exclusion, because the two rules ask
+different questions: this one ranks PAINT, and a part mounted in BOTH states paints two real fills —
+`Switch.Thumb` keeps its own judged cohort, which §3's committed control requires. What closes is the
+ONE-SIDED all-parts case: `Radio.Indicator` defaults `keepMounted:false`, so the OFF twin is never
+rendered and no measurement is being waited for. That is `excluded(nestedStatePart)`. A one-sided cohort
+containing any real CARRIER is still `withheld` (§"Previously silent state cohorts" / #987, intact).
+
+```text
+$ pnpm design-audit / --goto settings:appearance --viewport 1280x2200      # 3 of 3 runs
+POPULATION   quiet-state candidates=5 judged=4 affected=0 populations=0 representatives=0 withheld() excluded(nestedStatePart=1) collapsed()
+population-verdict=complete   (exit 1 — findings 12/p1=1/p2=6/p3=5, byte-identical to the NO-VERDICT runs)
+```
+
+Four new controls in `tests/tooling/ui-audit/ops/walker/census-region.int.test.ts` pin every direction: a
+checked cell whose own indicator is a paint layer is judged while that indicator cohort is
+`excluded(nestedStatePart)`; a scrim painted between the base and the cells still withholds; a chip that
+paints ON TOP of a cell no longer withholds; an explicit z-index keeps the veto.
