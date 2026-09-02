@@ -1,5 +1,3 @@
-// biome-ignore-all lint/style/useNamingConvention: ST wire field names (snake_case) are the interchange
-// format and appear verbatim in the fixtures.
 // domain/import/loader/collect — #763 fault-injection: every best-effort collector arm that swallows a
 // staged-file read failure must distinguish a genuinely MISSING file (`ENOENT`) or a corrupt-FORMAT file
 // (unparseable JSON) — both documented, both preserved as "treat as absent/default" — from an fs
@@ -30,9 +28,11 @@ class FsError extends Error {
 }
 
 const BASE_FILES: Record<string, Uint8Array> = {
+  // biome-ignore lint/style/useNamingConvention: ST wire field names (snake_case) are the interchange format and appear verbatim in the fixtures.
   [SETTINGS_PATH]: ENC.encode(JSON.stringify({ power_user: { personas: { "avatar1.png": "Alice" } } })),
   [AVATAR_PATH]: ENC.encode("avatar-bytes"),
   "root/groups/g1.json": ENC.encode(JSON.stringify({ members: ["a.png"], chats: ["leaf1"] })),
+  // biome-ignore lint/style/useNamingConvention: ST wire field names (snake_case) are the interchange format and appear verbatim in the fixtures.
   [GROUP_LEAF_PATH]: ENC.encode(JSON.stringify({ user_name: "u", character_name: "c", create_date: "2025-07-18@12h00m00s" })),
 };
 

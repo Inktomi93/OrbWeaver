@@ -1,5 +1,3 @@
-// biome-ignore-all lint/style/useNamingConvention: the SDK HookInput fixture uses snake_case wire fields
-// (hook_event_name, session_id, transcript_path).
 //
 // disciplineOptions — THE FIREWALL BASE + the credential-source → env-builder DISPATCH (providers.md
 // §7.1 / Esoteric §1). The load-bearing guarantee: `credential.source` selects the RIGHT env builder
@@ -263,10 +261,12 @@ describe("dynamicContextOptions — the mid-conversation operator-context seam",
     type HookInput = Parameters<NonNullable<typeof hook>>[0];
     // FABRICATION-OK: the callback ignores its input; this probe supplies only the SDK fields relevant to invocation.
     const input = {
+      // biome-ignore-start lint/style/useNamingConvention: the SDK HookInput fixture uses snake_case wire fields (hook_event_name, session_id, transcript_path).
       hook_event_name: "UserPromptSubmit",
       prompt: "hi",
       session_id: "s",
       transcript_path: "/dev/null",
+      // biome-ignore-end lint/style/useNamingConvention: end of the block above
       cwd: "/",
     } satisfies Partial<HookInput> as HookInput;
     const out = await hook?.(input, undefined, { signal: new AbortController().signal });
@@ -302,7 +302,9 @@ function outputHidesMarker(out: string | string[] | undefined): boolean {
 }
 
 describe("buildSystemPrompt — the leak-free joined projection", () => {
+  // biome-ignore lint/style/useNamingConvention: the SDK HookInput fixture uses snake_case wire fields (hook_event_name, session_id, transcript_path).
   const STATIC = "You are a careful roleplay engine.";
+  // biome-ignore lint/style/useNamingConvention: the SDK HookInput fixture uses snake_case wire fields (hook_event_name, session_id, transcript_path).
   const DYNAMIC = "[scene: the tavern is burning]";
 
   test("undefined input → undefined (the SDK uses its own default, nothing to send)", () => {

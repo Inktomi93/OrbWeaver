@@ -1,7 +1,3 @@
-// biome-ignore-all lint/performance/noBarrelFile: the custom-byo FAMILY barrel — the sealed seam `entry/`
-// uses to obtain the backend factory + the inspector (the credentials "Test endpoint" diagnostic path), and
-// the surface the family's tests import (deep imports into `backends/custom-byo/<file>` are RED for everyone
-// else by the `providers-public-surface-only` cruiser rule). Load-bearing for the encapsulation invariant.
 //
 // infra/providers/backends/custom-byo — THE RAW-FETCH BYO CHAT BACKEND: a stateless proxy to a user-wired
 // OpenAI-compatible endpoint whose ENTIRE behaviour is the user's config (§1a — nothing baked: the model

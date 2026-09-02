@@ -1,5 +1,3 @@
-// biome-ignore-all lint/style/useNamingConvention: the SDK hook-input fixtures use the runtime's own
-// snake_case wire fields (hook_event_name, tool_name, tool_input).
 //
 // The agent-sdk TERMINAL-tool channel module (D112 R1) at ITS OWN seam: the three halves in isolation —
 // DECLARE (the JSON-Schema → zod lift → a real in-process MCP server, all-or-nothing), STOP (the PreToolUse

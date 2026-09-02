@@ -1,5 +1,3 @@
-// biome-ignore-all lint/style/useNamingConvention: synthetic SDK message fixtures use the SDK's
-// snake_case wire fields (session_id, stop_reason, num_turns, modelUsage, cache_creation, …).
 //
 // The stream→ChatResult reducer (consumeTurnStream) + the backend factory (createAgentSdkBackend),
 // driven by hand-built message streams + an injected fake `query` — no live spawn. Asserts: a success

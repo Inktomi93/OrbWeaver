@@ -1,5 +1,3 @@
-// biome-ignore-all lint/style/useNamingConvention: OIDC ID-token claim names (preferred_username, …) are
-// wire-fixed snake_case by the OIDC spec; the crafted claims objects must match that external shape.
 // entry/http/auth-routes — the auth mint routes + cookie I/O. Pins: the `__Host-orb_session` cookie shape
 // (Secure + host-only + Path=/ + HttpOnly + SameSite=Lax; Max-Age from the injected clock); local login
 // (verify → sessions.create → set cookie; 401/400 paths); logout (revoke + clear); and the mode-conditional
@@ -297,7 +295,7 @@ describe("local login — registration", () => {
 // force-logout attack: a top-level POST with the session cookie (SameSite=Lax rides it) but NO custom
 // header must NOT revoke.
 describe("logout — CSRF gate", () => {
-  const CSRF = "x-orb-csrf";
+  const csrf = "x-orb-csrf";
 
   test("WITHOUT the CSRF header → 403, does NOT revoke (blocks cross-site force-logout)", async () => {
     const rec = recordingSessions();
@@ -313,7 +311,7 @@ describe("logout — CSRF gate", () => {
   test("WITH the CSRF header + a session cookie → revokes the token + clears the cookie (200, endSessionUrl null)", async () => {
     const rec = recordingSessions();
     const deps: AuthRoutesDeps = { sessions: rec.sessions, sockets: rec.sockets, now: (): number => NOW, db: STUB_DB, resolveLoginLimit: (): number => 10 };
-    const res = await handlerFor(deps, "POST /api/auth/logout")(makeCtx({ headers: { cookie: `${COOKIE}=tok-123`, [CSRF]: "1" } }));
+    const res = await handlerFor(deps, "POST /api/auth/logout")(makeCtx({ headers: { cookie: `${COOKIE}=tok-123`, [csrf]: "1" } }));
     expect(res.status).toBe(200);
     expect(rec.revoked).toBe("tok-123");
     expect(res.headers.get("set-cookie")).toContain("Max-Age=0");
@@ -328,7 +326,7 @@ describe("logout — CSRF gate", () => {
     const rec = recordingSessions();
     const deps: AuthRoutesDeps = { sessions: rec.sessions, sockets: rec.sockets, now: (): number => NOW, db: STUB_DB, resolveLoginLimit: (): number => 10 };
 
-    await handlerFor(deps, "POST /api/auth/logout")(makeCtx({ headers: { cookie: `${COOKIE}=tok-123`, [CSRF]: "1" } }));
+    await handlerFor(deps, "POST /api/auth/logout")(makeCtx({ headers: { cookie: `${COOKIE}=tok-123`, [csrf]: "1" } }));
 
     expect(rec.evictedSessions).toEqual([REVOKED_SESSION_ID]);
     // Never the user-wide sweep: that arm belongs to admin revoke / disable, where killing every device is
@@ -341,7 +339,7 @@ describe("logout — CSRF gate", () => {
     const sessions: AuthSessionsPort = { ...rec.sessions, revokeByToken: (): Promise<RevokedSessionStub | null> => Promise.resolve(null) };
     const deps: AuthRoutesDeps = { sessions, sockets: rec.sockets, now: (): number => NOW, db: STUB_DB, resolveLoginLimit: (): number => 10 };
 
-    const res = await handlerFor(deps, "POST /api/auth/logout")(makeCtx({ headers: { cookie: `${COOKIE}=tok-123`, [CSRF]: "1" } }));
+    const res = await handlerFor(deps, "POST /api/auth/logout")(makeCtx({ headers: { cookie: `${COOKIE}=tok-123`, [csrf]: "1" } }));
 
     expect(res.status).toBe(200); // still clears the cookie — logout is idempotent for the caller
     expect(rec.evictedSessions).toEqual([]);
@@ -360,7 +358,7 @@ describe("logout — CSRF gate", () => {
   test("WITH the CSRF header but no cookie → still clears, does not revoke (200)", async () => {
     const rec = recordingSessions();
     const deps: AuthRoutesDeps = { sessions: rec.sessions, sockets: rec.sockets, now: (): number => NOW, db: STUB_DB, resolveLoginLimit: (): number => 10 };
-    const res = await handlerFor(deps, "POST /api/auth/logout")(makeCtx({ headers: { [CSRF]: "1" } }));
+    const res = await handlerFor(deps, "POST /api/auth/logout")(makeCtx({ headers: { [csrf]: "1" } }));
     expect(res.status).toBe(200);
     expect(rec.revoked).toBeNull();
     expect(res.headers.get("set-cookie")).toContain("Max-Age=0");
@@ -382,7 +380,7 @@ describe("logout — CSRF gate", () => {
       resolveLoginLimit: (): number => 10,
       oidc,
     };
-    const res = await handlerFor(deps, "POST /api/auth/logout")(makeCtx({ headers: { cookie: `${COOKIE}=tok-123`, [CSRF]: "1" } }));
+    const res = await handlerFor(deps, "POST /api/auth/logout")(makeCtx({ headers: { cookie: `${COOKIE}=tok-123`, [csrf]: "1" } }));
     expect(res.status).toBe(200);
     // No forwarded-host on this ctx ⇒ the origin is unresolvable ⇒ no post_logout param, just the bare endpoint.
     expect(((await res.json()) as { endSessionUrl: string | null }).endSessionUrl).toBe(endSession);
@@ -411,10 +409,10 @@ describe("logout — CSRF gate", () => {
     }),
   });
   /** fakeOidcDeps.redirectAllowlist = ["https://app.example/api/auth/oidc/callback"], so this origin resolves. */
-  const ALLOWLISTED_ORIGIN = { "x-forwarded-proto": "https", "x-forwarded-host": "app.example" };
+  const allowlistedOrigin = { "x-forwarded-proto": "https", "x-forwarded-host": "app.example" };
 
   async function logoutEndSessionUrl(deps: AuthRoutesDeps, origin: Record<string, string> = {}): Promise<string | null> {
-    const res = await handlerFor(deps, "POST /api/auth/logout")(makeCtx({ headers: { cookie: `${COOKIE}=tok-123`, [CSRF]: "1", ...origin } }));
+    const res = await handlerFor(deps, "POST /api/auth/logout")(makeCtx({ headers: { cookie: `${COOKIE}=tok-123`, [csrf]: "1", ...origin } }));
     expect(res.status).toBe(200);
     return ((await res.json()) as { endSessionUrl: string | null }).endSessionUrl;
   }
@@ -423,7 +421,7 @@ describe("logout — CSRF gate", () => {
     const rec = recordingSessions();
     rec.revokedIdToken = ID_TOKEN;
     const deps = endSessionDeps(rec, "https://idp.example/application/o/orb/end-session/");
-    const res = await handlerFor(deps, "POST /api/auth/logout")(makeCtx({ headers: { cookie: `${COOKIE}=tok-123`, [CSRF]: "1", ...ALLOWLISTED_ORIGIN } }));
+    const res = await handlerFor(deps, "POST /api/auth/logout")(makeCtx({ headers: { cookie: `${COOKIE}=tok-123`, [csrf]: "1", ...allowlistedOrigin } }));
     // The body now carries the id_token inside the end-session URL, so it must never be cached anywhere.
     expect(res.headers.get("cache-control")).toBe("no-store");
   });
@@ -432,7 +430,7 @@ describe("logout — CSRF gate", () => {
     const rec = recordingSessions();
     rec.revokedIdToken = ID_TOKEN; // this session was minted by the OIDC callback and carried an id_token
     const endSession = "https://idp.example/application/o/orb/end-session/";
-    const url = new URL((await logoutEndSessionUrl(endSessionDeps(rec, endSession), ALLOWLISTED_ORIGIN)) ?? "");
+    const url = new URL((await logoutEndSessionUrl(endSessionDeps(rec, endSession), allowlistedOrigin)) ?? "");
 
     expect(url.origin + url.pathname).toBe(endSession);
     // The hint is the row's id_token VERBATIM — a mangled hint is one authentik rejects.
@@ -483,7 +481,7 @@ describe("logout — CSRF gate", () => {
     const rec = recordingSessions();
     rec.revokedIdToken = null; // a local login, a pre-#141 row, or a rotated SESSION_SECRET
     const endSession = "https://idp.example/application/o/orb/end-session/";
-    const endSessionUrl = await logoutEndSessionUrl(endSessionDeps(rec, endSession), ALLOWLISTED_ORIGIN);
+    const endSessionUrl = await logoutEndSessionUrl(endSessionDeps(rec, endSession), allowlistedOrigin);
 
     // Byte-identical to the discovery value. THIS is the fence: the origin WOULD have resolved, so a
     // hint-less build that still appended the redirect param is exactly the 400 that left the SSO session
@@ -497,7 +495,7 @@ describe("logout — CSRF gate", () => {
     const endSession = "https://idp.example/application/o/orb/end-session/";
     const deps = endSessionDeps(rec, endSession);
     const sessions: AuthSessionsPort = { ...rec.sessions, revokeByToken: (): Promise<RevokedSessionStub | null> => Promise.resolve(null) };
-    const endSessionUrl = await logoutEndSessionUrl({ ...deps, sessions }, ALLOWLISTED_ORIGIN);
+    const endSessionUrl = await logoutEndSessionUrl({ ...deps, sessions }, allowlistedOrigin);
 
     // A second logout on a dead cookie cannot resurrect the hint (the row's blob was cleared), so it gets
     // the bare URL — and never the unpaired redirect param.
@@ -875,23 +873,23 @@ describe("OIDC route registration", () => {
 });
 
 describe("deriveRedirectUri — origin-flexible, allowlist-gated (open-redirect guard)", () => {
-  const FQDN = "https://chat.example.com/api/auth/oidc/callback";
-  const LAN = "https://192.168.1.10/api/auth/oidc/callback";
-  const LOCAL = "https://localhost:8788/api/auth/oidc/callback";
-  const allow = [FQDN, LAN, LOCAL];
+  const fqdn = "https://chat.example.com/api/auth/oidc/callback";
+  const lan = "https://192.168.1.10/api/auth/oidc/callback";
+  const local = "https://localhost:8788/api/auth/oidc/callback";
+  const allow = [fqdn, lan, local];
   const h = (init: Record<string, string>): Headers => new Headers(init);
 
   test("public FQDN via X-Forwarded-Proto/Host → the allowlisted callback", () => {
     const derived = deriveRedirectUri(h({ "x-forwarded-proto": "https", "x-forwarded-host": "chat.example.com" }), allow);
-    expect(derived).toBe(FQDN);
+    expect(derived).toBe(fqdn);
   });
 
   test("a LAN-IP origin (raw Host, no proxy headers) derives + matches", () => {
-    expect(deriveRedirectUri(h({ host: "192.168.1.10" }), allow)).toBe(LAN);
+    expect(deriveRedirectUri(h({ host: "192.168.1.10" }), allow)).toBe(lan);
   });
 
   test("a localhost origin derives + matches", () => {
-    expect(deriveRedirectUri(h({ host: "localhost:8788" }), allow)).toBe(LOCAL);
+    expect(deriveRedirectUri(h({ host: "localhost:8788" }), allow)).toBe(local);
   });
 
   test("proto is NEVER downgraded to http on an unknown origin (CVE-2024-52289 posture)", () => {
@@ -914,7 +912,7 @@ describe("deriveRedirectUri — origin-flexible, allowlist-gated (open-redirect 
       }),
       allow,
     );
-    expect(derived).toBe(FQDN);
+    expect(derived).toBe(fqdn);
   });
 
   test("no Host header at all → null (fails closed)", () => {
@@ -986,10 +984,10 @@ describe("OIDC login — the redirect_uri allowlist gate", () => {
 // and audience validation, nonce/PKCE binding. That is the audited primitive's job; this seam proves we
 // present it the right inputs and fail closed on everything it rejects.
 describe("OIDC callback — single-use state consume (replay/forgery/TTL gate)", () => {
-  const CALLBACK_BASE = "https://app.example/api/auth/oidc/callback";
+  const callbackBase = "https://app.example/api/auth/oidc/callback";
   // Build a callback URL with a query so no long literal trips the noSecrets entropy heuristic.
   const callbackUrl = (query: Record<string, string>): string => {
-    const u = new URL(CALLBACK_BASE);
+    const u = new URL(callbackBase);
     for (const [k, v] of Object.entries(query)) {
       u.searchParams.set(k, v);
     }
@@ -1024,7 +1022,7 @@ describe("OIDC callback — single-use state consume (replay/forgery/TTL gate)",
         exchange: neverExchange(() => {
           exchangeCalls += 1;
         }),
-        redirectAllowlist: [CALLBACK_BASE],
+        redirectAllowlist: [callbackBase],
         scope: "openid profile email",
         claims: {
           usernameClaim: "preferred_username",
@@ -1082,10 +1080,10 @@ describe("OIDC callback — single-use state consume (replay/forgery/TTL gate)",
 // reached and no cookie mints. The token-exchange THROW path (replayed/expired code, mismatch, transient
 // IdP fault) shares the SAME fail-closed handler and is pinned directly in the #867 describe below.
 describe("OIDC callback — IdP error param fails closed (declined consent / access_denied)", () => {
-  const CALLBACK_BASE = "https://app.example/api/auth/oidc/callback";
-  const tx: OidcTransaction = { state: "s1", codeVerifier: "cv1", nonce: "n1", redirectUri: CALLBACK_BASE, createdAt: NOW };
+  const callbackBase = "https://app.example/api/auth/oidc/callback";
+  const tx: OidcTransaction = { state: "s1", codeVerifier: "cv1", nonce: "n1", redirectUri: callbackBase, createdAt: NOW };
   const callbackUrl = (query: Record<string, string>): string => {
-    const u = new URL(CALLBACK_BASE);
+    const u = new URL(callbackBase);
     for (const [k, v] of Object.entries(query)) {
       u.searchParams.set(k, v);
     }
@@ -1118,7 +1116,7 @@ describe("OIDC callback — IdP error param fails closed (declined consent / acc
         exchange: neverExchange(() => {
           exchangeCalls += 1;
         }),
-        redirectAllowlist: [CALLBACK_BASE],
+        redirectAllowlist: [callbackBase],
         scope: "openid profile email",
         claims: { usernameClaim: "preferred_username", uidClaim: "sub", groupsClaim: "groups", emailClaim: "email" },
         groupsSeparator: ";",
@@ -1180,14 +1178,14 @@ describe("OIDC callback — IdP error param fails closed (declined consent / acc
 // NOT re-asserted, deliberately: the grant's CRYPTOGRAPHY (JWKS signature, issuer/audience, nonce/PKCE
 // binding). That is `openid-client`'s job; ours is to hand it the right inputs and fail closed.
 describe("OIDC callback — the injected code→token exchange (#867)", () => {
-  const CALLBACK_BASE = "https://app.example/api/auth/oidc/callback";
+  const callbackBase = "https://app.example/api/auth/oidc/callback";
   /** The URL the request actually arrives on behind a proxy — a DIFFERENT origin from the allowlisted one
    *  the transaction stored. The exchange must be presented the STORED one (see the mint-arm test). */
-  const PROXY_CALLBACK = "https://proxy.internal/api/auth/oidc/callback";
-  const TX: OidcTransaction = { state: "s1", codeVerifier: "cv1", nonce: "n1", redirectUri: CALLBACK_BASE, createdAt: NOW };
+  const proxyCallback = "https://proxy.internal/api/auth/oidc/callback";
+  const storedTx: OidcTransaction = { state: "s1", codeVerifier: "cv1", nonce: "n1", redirectUri: callbackBase, createdAt: NOW };
   /** A verified-claims stand-in: a usable username AND the stable subject `oidcSessionIdentity` requires. */
-  const CLAIMS: Record<string, unknown> = { preferred_username: "alice", sub: "sub-alice", email: "alice@corp.example", groups: ["staff"] };
-  const AUTHED_USER = castId<UserId>("usr_x");
+  const verifiedClaims: Record<string, unknown> = { preferred_username: "alice", sub: "sub-alice", email: "alice@corp.example", groups: ["staff"] };
+  const authedUser = castId<UserId>("usr_x");
 
   const arriveAt = (base: string, query: Record<string, string>): string => {
     const u = new URL(base);
@@ -1218,7 +1216,7 @@ describe("OIDC callback — the injected code→token exchange (#867)", () => {
       resolveLoginLimit: (): number => 10,
       oidc: fakeOidcDeps({
         getConfig: (): Promise<OidcConfig> => Promise.resolve(fakeConfig({ issuer: "https://idp.example" })),
-        redirectAllowlist: [CALLBACK_BASE],
+        redirectAllowlist: [callbackBase],
         exchange: (config: OidcConfig, url: URL, tx: OidcTransaction): Promise<OidcVerifiedTokens> => {
           seen = { url, tx };
           return exchange(config, url, tx);
@@ -1227,7 +1225,7 @@ describe("OIDC callback — the injected code→token exchange (#867)", () => {
           mint: (): Promise<void> => Promise.resolve(),
           consume: (): Promise<OidcTransaction | null> => {
             consumed += 1;
-            return Promise.resolve(TX);
+            return Promise.resolve(storedTx);
           },
         },
       }),
@@ -1253,13 +1251,13 @@ describe("OIDC callback — the injected code→token exchange (#867)", () => {
   // THE #141 HOP. This is the assertion the whole seam exists for: `createdIdToken` is what
   // `sessions.create` was handed, and the domain seals exactly that value against the new row id.
   test("a verified grant mints the session and threads the id_token to sessions.create VERBATIM", async () => {
-    const h = harness(grants(CLAIMS, ID_TOKEN));
-    const res = await drive(h, arriveAt(CALLBACK_BASE, { state: "s1", code: "grant" }));
+    const h = harness(grants(verifiedClaims, ID_TOKEN));
+    const res = await drive(h, arriveAt(callbackBase, { state: "s1", code: "grant" }));
 
     expect(res.status).toBe(302);
     expect(res.headers.get("location")).toBe("/");
     expect(res.headers.get("set-cookie")).toContain(`${COOKIE}=tok-123`);
-    expect(h.session.createdFor).toBe(AUTHED_USER);
+    expect(h.session.createdFor).toBe(authedUser);
     expect(h.session.createdIdToken).toBe(ID_TOKEN); // #141 — the hop that had no pin before #867
     expect(h.consumed()).toBe(1); // the PKCE txn is still spent exactly once
   });
@@ -1268,33 +1266,33 @@ describe("OIDC callback — the injected code→token exchange (#867)", () => {
   // transaction, never the origin the request happened to arrive on — otherwise a proxy (or an attacker
   // who can influence the arrival URL) changes the value the IdP is asked to match.
   test("the exchange is handed the STORED redirect_uri (not the arrival origin) and the consumed transaction", async () => {
-    const h = harness(grants(CLAIMS, ID_TOKEN));
-    await drive(h, arriveAt(PROXY_CALLBACK, { state: "s1", code: "grant" }));
+    const h = harness(grants(verifiedClaims, ID_TOKEN));
+    await drive(h, arriveAt(proxyCallback, { state: "s1", code: "grant" }));
 
     const seen = h.seen();
     expect(seen).not.toBeNull();
-    expect(`${seen?.url.origin}${seen?.url.pathname}`).toBe(CALLBACK_BASE);
+    expect(`${seen?.url.origin}${seen?.url.pathname}`).toBe(callbackBase);
     expect(seen?.url.href).not.toContain("proxy.internal");
     expect(seen?.url.searchParams.get("code")).toBe("grant"); // the incoming query still rides
     // The whole transaction crosses the seam, so the PKCE verifier + nonce + state are all presented.
-    expect(seen?.tx).toEqual(TX);
+    expect(seen?.tx).toEqual(storedTx);
   });
 
   // An IdP that returns no ID token must still log the user in — the DEGRADE #141 documents (that
   // session's logout gets a bare end-session URL) — and must store nothing rather than sealing "".
   test("a grant with no id_token still mints the session, carrying null (the documented #141 degrade)", async () => {
-    const h = harness(grants(CLAIMS, null));
-    const res = await drive(h, arriveAt(CALLBACK_BASE, { state: "s1", code: "grant" }));
+    const h = harness(grants(verifiedClaims, null));
+    const res = await drive(h, arriveAt(callbackBase, { state: "s1", code: "grant" }));
 
     expect(res.status).toBe(302);
     expect(res.headers.get("location")).toBe("/");
-    expect(h.session.createdFor).toBe(AUTHED_USER);
+    expect(h.session.createdFor).toBe(authedUser);
     expect(h.session.createdIdToken).toBeNull();
   });
 
   test("a THROWING exchange (replayed/expired code) mints no session, sets no cookie, and 302s with the sanitized code", async () => {
     const h = harness(rejects({ error: "invalid_grant" }));
-    const res = await drive(h, arriveAt(CALLBACK_BASE, { state: "s1", code: "replayed" }));
+    const res = await drive(h, arriveAt(callbackBase, { state: "s1", code: "replayed" }));
 
     expect(res.status).toBe(302); // fail-closed, not a 500 leaking a stack through onError
     expect(res.headers.get("location")).toBe("/login?authError=invalid_grant");
@@ -1305,7 +1303,7 @@ describe("OIDC callback — the injected code→token exchange (#867)", () => {
 
   test("an exchange error carrying FREE TEXT is not reflected — the generic marker rides instead", async () => {
     const h = harness(rejects({ error: "<script>alert(1)</script>" }));
-    const res = await drive(h, arriveAt(CALLBACK_BASE, { state: "s1", code: "grant" }));
+    const res = await drive(h, arriveAt(callbackBase, { state: "s1", code: "grant" }));
 
     const location = res.headers.get("location") ?? "";
     expect(location).not.toContain("<script>");
@@ -1318,7 +1316,7 @@ describe("OIDC callback — the injected code→token exchange (#867)", () => {
   // body may echo it.
   test("nothing from the thrown error's message reaches the redirect or the body", async () => {
     const h = harness(rejects(new Error(`token endpoint said: ${ID_TOKEN}`)));
-    const res = await drive(h, arriveAt(CALLBACK_BASE, { state: "s1", code: "grant" }));
+    const res = await drive(h, arriveAt(callbackBase, { state: "s1", code: "grant" }));
 
     expect(res.status).toBe(302);
     expect(res.headers.get("location")).toBe("/login?authError=token_exchange_failed");
@@ -1332,7 +1330,7 @@ describe("OIDC callback — the injected code→token exchange (#867)", () => {
   // whatever row holds that handle.
   test("a verified grant with NO stable subject is refused fail-closed — no session (#699)", async () => {
     const h = harness(grants({ preferred_username: "alice" }, ID_TOKEN));
-    const res = await drive(h, arriveAt(CALLBACK_BASE, { state: "s1", code: "grant" }));
+    const res = await drive(h, arriveAt(callbackBase, { state: "s1", code: "grant" }));
 
     expect(res.status).toBe(302);
     expect(res.headers.get("location")).toBe("/login?authError=no_identity");
@@ -1342,15 +1340,15 @@ describe("OIDC callback — the injected code→token exchange (#867)", () => {
 
   test("a grant with NO usable username is refused too (the pre-existing null-identity arm)", async () => {
     const h = harness(grants({ sub: "sub-only" }, ID_TOKEN));
-    const res = await drive(h, arriveAt(CALLBACK_BASE, { state: "s1", code: "grant" }));
+    const res = await drive(h, arriveAt(callbackBase, { state: "s1", code: "grant" }));
 
     expect(res.headers.get("location")).toBe("/login?authError=no_identity");
     expect(h.session.createdFor).toBeNull();
   });
 
   test("a DENIED provision (login gate refused) mints nothing — generic not_authorized", async () => {
-    const h = harness(grants(CLAIMS, ID_TOKEN), () => Promise.resolve({ outcome: "denied" as const }));
-    const res = await drive(h, arriveAt(CALLBACK_BASE, { state: "s1", code: "grant" }));
+    const h = harness(grants(verifiedClaims, ID_TOKEN), () => Promise.resolve({ outcome: "denied" as const }));
+    const res = await drive(h, arriveAt(callbackBase, { state: "s1", code: "grant" }));
 
     expect(res.headers.get("location")).toBe("/login?authError=not_authorized");
     expect(res.headers.get("set-cookie")).toBeNull();
@@ -1360,8 +1358,8 @@ describe("OIDC callback — the injected code→token exchange (#867)", () => {
   // MS-W1 — the collision hard-deny gets its OWN operator-actionable code so the login surface can say
   // "ask an admin to link the account" instead of the generic refusal.
   test("an ACCOUNT-EXISTS collision deny surfaces its distinct code, still with no session", async () => {
-    const h = harness(grants(CLAIMS, ID_TOKEN), () => Promise.resolve({ outcome: "denied" as const, reason: "account-exists" as const }));
-    const res = await drive(h, arriveAt(CALLBACK_BASE, { state: "s1", code: "grant" }));
+    const h = harness(grants(verifiedClaims, ID_TOKEN), () => Promise.resolve({ outcome: "denied" as const, reason: "account-exists" as const }));
+    const res = await drive(h, arriveAt(callbackBase, { state: "s1", code: "grant" }));
 
     expect(res.headers.get("location")).toBe("/login?authError=account_exists");
     expect(h.session.createdFor).toBeNull();
@@ -1369,10 +1367,10 @@ describe("OIDC callback — the injected code→token exchange (#867)", () => {
 
   // A2 — provisioned-but-awaiting-approval (or admin-disabled). Provisioning SUCCEEDS; the mint must not.
   test("a provisioned but DISABLED account mints no session", async () => {
-    const h = harness(grants(CLAIMS, ID_TOKEN), () =>
-      Promise.resolve({ outcome: "provisioned" as const, userId: AUTHED_USER, enabled: false, role: "user" as const, identityChanged: false }),
+    const h = harness(grants(verifiedClaims, ID_TOKEN), () =>
+      Promise.resolve({ outcome: "provisioned" as const, userId: authedUser, enabled: false, role: "user" as const, identityChanged: false }),
     );
-    const res = await drive(h, arriveAt(CALLBACK_BASE, { state: "s1", code: "grant" }));
+    const res = await drive(h, arriveAt(callbackBase, { state: "s1", code: "grant" }));
 
     expect(res.headers.get("location")).toBe("/login?authError=account_disabled");
     expect(res.headers.get("set-cookie")).toBeNull();
@@ -1384,9 +1382,9 @@ describe("OIDC callback — the injected code→token exchange (#867)", () => {
 // (unit-tested there against a locally-signed token); HERE we prove the route wiring: registration gating,
 // the verify→revoke path, and the fail-closed 400s. The verifier is a stub so the route logic is isolated.
 describe("OIDC back-channel logout route (A5)", () => {
-  const CLIENT_ID = "orb-client";
-  const JWKS_URI = "https://idp.example/jwks";
-  const ISSUER = "https://idp.example";
+  const clientId = "orb-client";
+  const jwksUri = "https://idp.example/jwks";
+  const issuer = "https://idp.example";
 
   interface BclRecorder {
     revokedExternalId: string | null;
@@ -1414,14 +1412,14 @@ describe("OIDC back-channel logout route (A5)", () => {
       },
     };
     const backchannelLogout: Bcl = over.verify ?? {
-      clientId: CLIENT_ID,
+      clientId,
       verify: () => {
         rec.verifyCalls += 1;
         return Promise.resolve({ sub: "authentik|alice", sid: null });
       },
     };
     const oidc = fakeOidcDeps({
-      getConfig: () => Promise.resolve(fakeConfig({ issuer: ISSUER, jwks_uri: JWKS_URI })),
+      getConfig: () => Promise.resolve(fakeConfig({ issuer, jwks_uri: jwksUri })),
       backchannelLogout,
     });
     return { deps: { sessions, sockets, now: (): number => NOW, db: STUB_DB, resolveLoginLimit: (): number => 10, oidc }, rec };
@@ -1488,7 +1486,7 @@ describe("OIDC back-channel logout route (A5)", () => {
   });
 
   test("a logout_token that FAILS validation (verify → null) → 400, no revoke", async () => {
-    const failing: Bcl = { clientId: CLIENT_ID, verify: () => Promise.resolve(null) };
+    const failing: Bcl = { clientId, verify: () => Promise.resolve(null) };
     const { deps, rec } = bclDeps({ verify: failing });
     const res = await handlerFor(deps, "POST /api/auth/oidc/backchannel-logout")(makeCtx({ parseBody: { logout_token: "forged.jwt" } }));
     expect(res.status).toBe(400);
@@ -1496,7 +1494,7 @@ describe("OIDC back-channel logout route (A5)", () => {
   });
 
   test("a sid-only token is explicitly refused while sessions have no issuer/sid binding", async () => {
-    const sidOnly: Bcl = { clientId: CLIENT_ID, verify: () => Promise.resolve({ sub: null, sid: "sess-1" }) };
+    const sidOnly: Bcl = { clientId, verify: () => Promise.resolve({ sub: null, sid: "sess-1" }) };
     const { deps, rec } = bclDeps({ verify: sidOnly });
     const res = await handlerFor(deps, "POST /api/auth/oidc/backchannel-logout")(makeCtx({ parseBody: { logout_token: "sid.only.jwt" } }));
     expect(res.status).toBe(400);

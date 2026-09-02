@@ -1,5 +1,3 @@
-// biome-ignore-all lint/style/useNamingConvention: these assertions check OpenAI-compatible wire field
-// names (snake_case) + HTTP header names (PascalCase) verbatim.
 //
 // backends/kit/openai-compat/body — snake_case wire field emission (only when set), header redaction (by
 // name), and the include/exclude body transform (exclude wins, applied last).

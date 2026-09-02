@@ -1,6 +1,3 @@
-// biome-ignore-all lint/suspicious/noBitwiseOperators: a PNG/CRC byte codec is defined in terms of
-// shift/mask/xor — the base64 packer and the CRC-32 are intrinsically bitwise.
-
 // The ONE PNG character-card text-chunk codec — a pure string engine shared by import (read) and export
 // (write). Character cards stash their JSON in a PNG `tEXt` chunk, base64-encoded, under a keyword
 // (`ccv3` = V3, `chara` = V2). This module owns the byte surgery — chunk walk, CRC-32, the PNG
@@ -331,6 +328,7 @@ function swallow(): void {
 
 // --- encoding primitives (pure ES2025; no node, no DOM) ---------------------------------------------
 
+// biome-ignore-start lint/suspicious/noBitwiseOperators: a PNG/CRC byte codec is defined in terms of shift/mask/xor — the base64 packer and the CRC-32 are intrinsically bitwise.
 /** latin1 string → bytes (each char's low byte). Used for ASCII chunk types + the `keyword\0value`. */
 function latin1ToBytes(s: string): Uint8Array {
   return Uint8Array.from(s, (ch) => ch.charCodeAt(0) & BYTE_MASK);
@@ -458,3 +456,4 @@ function crc32(bytes: Uint8Array): number {
   }
   return (c ^ CRC32_INIT) >>> 0;
 }
+// biome-ignore-end lint/suspicious/noBitwiseOperators: end of the block above

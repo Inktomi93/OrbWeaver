@@ -1,5 +1,3 @@
-// biome-ignore-all lint/style/useNamingConvention: ST settings.json field names (snake_case) appear
-// verbatim in these fixtures — they ARE the format.
 // Mirror test for domain/import/substrate/persona — the ST settings.json persona parser. Pins the
 // position→placement normalization (in_prompt default drops metadata; NONE / AT_DEPTH map through), the
 // default-persona flag, the name-keyed identity, and the never-throws empty contract.

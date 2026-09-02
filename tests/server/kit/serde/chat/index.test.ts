@@ -1,5 +1,3 @@
-// biome-ignore-all lint/style/useNamingConvention: ST chat-JSONL wire field names (snake_case) appear
-// verbatim in these fixtures — they ARE the format.
 // Mirror test for @orb/server/kit/serde/chat — the ONE chat-JSONL serde core (W0a). Pins BOTH directions:
 // the parser esoterica (filename-date-wins, empty-swipe drop + active-index remap, the 4-bucket classifier,
 // branch ref, null-on-unparseable-header), the builder esoterica (human UTC date, the >1-variant swipe gate,
@@ -55,25 +53,25 @@ describe("parseStDate", () => {
   // Defect proof (each of these read 6-7h early before the fix, which is exactly the owner-reported
   // "times come out wrong"): both human forms resolve in the CALLER'S zone, and the ABSOLUTE encodings
   // must stay immovable by it.
-  const DENVER = "America/Denver";
+  const denver = "America/Denver";
 
   test("both wall-clock forms resolve in the supplied zone, not UTC", () => {
     // MST (UTC-7) — the winter arm; 231 corpus files measured at exactly +7h.
-    expect(parseStDate("2025-11-30@11h47m20s989ms", DENVER)).toBe(Date.UTC(2025, 10, 30, 18, 47, 20));
-    expect(parseStDate("December 28, 2025 12:55pm", DENVER)).toBe(Date.UTC(2025, 11, 28, 19, 55));
+    expect(parseStDate("2025-11-30@11h47m20s989ms", denver)).toBe(Date.UTC(2025, 10, 30, 18, 47, 20));
+    expect(parseStDate("December 28, 2025 12:55pm", denver)).toBe(Date.UTC(2025, 11, 28, 19, 55));
     // MDT (UTC-6) — the summer arm, resolved PER INSTANT (a fixed offset could not express both).
-    expect(parseStDate("August 27, 2025 6:36pm", DENVER)).toBe(Date.UTC(2025, 7, 28, 0, 36));
+    expect(parseStDate("August 27, 2025 6:36pm", denver)).toBe(Date.UTC(2025, 7, 28, 0, 36));
   });
 
   test("absolute encodings ignore the zone (epoch + ISO are already instants)", () => {
-    expect(parseStDate(1_690_000_000, DENVER)).toBe(1_690_000_000_000);
-    expect(parseStDate("2025-11-30T18:47:20.993Z", DENVER)).toBe(Date.parse("2025-11-30T18:47:20.993Z"));
+    expect(parseStDate(1_690_000_000, denver)).toBe(1_690_000_000_000);
+    expect(parseStDate("2025-11-30T18:47:20.993Z", denver)).toBe(Date.parse("2025-11-30T18:47:20.993Z"));
   });
 
   test("formatStDate is the exact inverse in the same zone (round trip cannot drift)", () => {
     const ms = Date.UTC(2025, 11, 28, 19, 55);
-    expect(formatStDate(ms, DENVER)).toBe("December 28, 2025 12:55pm");
-    expect(parseStDate(formatStDate(ms, DENVER), DENVER)).toBe(ms);
+    expect(formatStDate(ms, denver)).toBe("December 28, 2025 12:55pm");
+    expect(parseStDate(formatStDate(ms, denver), denver)).toBe(ms);
   });
 
   test("ST's spaced / single-digit @-date spellings parse (76 of 1097 corpus files carry one)", () => {

@@ -11,11 +11,6 @@
 // parsed at import. `vi.hoisted` runs before this file's imports and `isolate: true` gives the file its own
 // module graph, so `WIRE_CAPTURE=on` applies here and nowhere else. It also has no single-source mirror,
 // which the `test-layout` property-suite exemption covers.
-// biome-ignore-all lint/style/noProcessEnv: this file DRIVES the env parse by crafting process.env before
-// the module graph loads — the same seam `tests/server/foundation/observability/debug/wire-capture.suite.test.ts` uses.
-// biome-ignore-all lint/correctness/noProcessGlobal: the `vi.hoisted` body below runs before this file's
-// import bindings exist, so the `node:process` import is unreachable from it — `globalThis.process` is the
-// only handle available at that point (the rest of the file uses the import).
 
 import process from "node:process";
 import type { AssembleContext, ChatBusEvent } from "@orb/contracts/chat";
@@ -33,11 +28,14 @@ import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { fakeRecallResult, makeChatContext, seedChat, stubRunCompaction, testConnection } from "../_support.ts";
 
+// biome-ignore-start lint/style/noProcessEnv: this file DRIVES the env parse by crafting process.env before the module graph loads — the same seam `tests/server/foundation/observability/debug/wire-capture.suite.test.ts` uses.
+// biome-ignore-start lint/correctness/noProcessGlobal: the `vi.hoisted` body below runs before this file's import bindings exist, so the `node:process` import is unreachable from it — `globalThis.process` is the only handle available at that point (the rest of the file uses the import).
 const PREVIOUS_WIRE_CAPTURE = vi.hoisted((): string | undefined => {
   const previous = globalThis.process.env["WIRE_CAPTURE"];
   globalThis.process.env["WIRE_CAPTURE"] = "on";
   return previous;
 });
+// biome-ignore-end lint/correctness/noProcessGlobal: end of the block above
 
 // NOT PINNED HERE, deliberately: that `captureTurnFault`'s recorder call is wrapped so a ring failure can
 // never mask the turn's own error (emits-are-total). The recorder is a module singleton with NO composition
@@ -56,6 +54,7 @@ afterAll(() => {
     process.env["WIRE_CAPTURE"] = PREVIOUS_WIRE_CAPTURE;
   }
 });
+// biome-ignore-end lint/style/noProcessEnv: end of the block above
 
 const HOST = castId<UserId>("user_host");
 

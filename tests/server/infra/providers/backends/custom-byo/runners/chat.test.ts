@@ -1,5 +1,3 @@
-// biome-ignore-all lint/style/useNamingConvention: synthetic OpenAI-compatible wire fixtures + the user's
-// customParameters use snake_case (finish_reason, prompt_tokens, reasoning_effort, …) — the real wire.
 //
 // backends/custom-byo/runners/chat — the raw-fetch BYO chat runner: request mapping (customParameters
 // overlay + credential headers + bearer auth), the user-declared model PROFILE (read from the capability,
@@ -480,8 +478,8 @@ describe("createCustomByoBackend — streaming + non-streaming + the user-declar
 // literals (the apiKey + any secret-valued header) out of the CAPTURED body by value — while the body actually
 // SENT to the endpoint keeps the plaintext (the endpoint needs it). Credential-leak-by-value class.
 describe("createCustomByoBackend — captured wire scrubs credential literals (F4)", () => {
-  const REDACTED = "█";
-  const HEADER_SECRET = "hdr-secret-abcdef123456";
+  const redacted = "█";
+  const headerSecret = "hdr-secret-abcdef123456";
 
   test("an includeBody-embedded apiKey is REDACTED in the capture but PLAINTEXT on the sent body", async () => {
     let sentBody: Record<string, unknown> = {};
@@ -494,16 +492,16 @@ describe("createCustomByoBackend — captured wire scrubs credential literals (F
     const cred = makeCustomOpenAiCredential({
       ...CRED_BASE,
       apiKey: SECRET_KEY,
-      headers: { "x-team": "alpha", "x-api-key": HEADER_SECRET },
-      includeBody: { auth_token: SECRET_KEY, note: `bearer ${HEADER_SECRET}` },
+      headers: { "x-team": "alpha", "x-api-key": headerSecret },
+      includeBody: { auth_token: SECRET_KEY, note: `bearer ${headerSecret}` },
     });
     await runTurnWith({ ...DEPS, captureWire: (e): void => void captured.push(e.body) }, makeRequest({ credential: cred }));
 
     // The capture redacted BOTH secrets by value — nothing plaintext lands in the ring.
     const wire = captured.at(0);
-    expect(wire?.["auth_token"]).toBe(REDACTED);
+    expect(wire?.["auth_token"]).toBe(redacted);
     expect(JSON.stringify(wire)).not.toContain(SECRET_KEY);
-    expect(JSON.stringify(wire)).not.toContain(HEADER_SECRET);
+    expect(JSON.stringify(wire)).not.toContain(headerSecret);
     // But the endpoint still receives the plaintext key-in-body (scrub is capture-only, never on the real send).
     expect(sentBody["auth_token"]).toBe(SECRET_KEY);
   });

@@ -1,7 +1,3 @@
-// biome-ignore-all lint/suspicious/noBitwiseOperators: a zip container is a byte format — little-endian
-// header reads, general-purpose bit-flag masks, unsigned-32 coercions, and the CRC-32 are intrinsically
-// shift/mask/xor (the same exemption the PNG card codec + the IP/CIDR math carry).
-
 // Streaming zip codec (packZip for download, extractZip for upload). extractZip is the hostile-input
 // boundary: buffers the compressed archive under a cap, parses the central directory (never the local
 // headers, which a crafted archive can desync), validates each entry before inflating, then stages inflated bytes to disk.
@@ -221,6 +217,7 @@ function parseCentralRecord(buf: Uint8Array, at: number, index: number, maxEntry
   if (compressedSize === U32_MAX || uncompressedSize === U32_MAX) {
     throw new ZipRejectedError("unsupported", "ZIP64 entry size is not supported");
   }
+  // biome-ignore lint/suspicious/noBitwiseOperators: a zip container is a byte format — little-endian header reads, general-purpose bit-flag masks, unsigned-32 coercions, and the CRC-32 are intrinsically shift/mask/xor (the same exemption the PNG card codec + the IP/CIDR math carry).
   if ((flags & GP_ENCRYPTED) !== 0) {
     throw new ZipRejectedError("bad-method", `entry ${index} is encrypted`);
   }
@@ -286,6 +283,7 @@ function inflateEntry(buf: Uint8Array, rec: CentralRecord): Uint8Array {
   if (out.length !== rec.uncompressedSize) {
     throw new ZipRejectedError("bomb", `entry ${rec.name} produced ${out.length} bytes, declared ${rec.uncompressedSize}`);
   }
+  // biome-ignore lint/suspicious/noBitwiseOperators: a zip container is a byte format — little-endian header reads, general-purpose bit-flag masks, unsigned-32 coercions, and the CRC-32 are intrinsically shift/mask/xor (the same exemption the PNG card codec + the IP/CIDR math carry).
   if (crc32(out) >>> 0 !== rec.crc) {
     throw new ZipRejectedError("bomb", `entry ${rec.name} failed its CRC-32 integrity check`);
   }
@@ -367,6 +365,7 @@ const STAGING_PREFIX = "orb-import-stage-";
 
 // O_CREAT|O_EXCL|O_NOFOLLOW: never open an existing path, so a pre-planted symlink can't be followed or clobbered.
 async function writeStaged(path: string, bytes: Uint8Array): Promise<void> {
+  // biome-ignore lint/suspicious/noBitwiseOperators: a zip container is a byte format — little-endian header reads, general-purpose bit-flag masks, unsigned-32 coercions, and the CRC-32 are intrinsically shift/mask/xor (the same exemption the PNG card codec + the IP/CIDR math carry).
   const flags = fsConstants.O_WRONLY | fsConstants.O_CREAT | fsConstants.O_EXCL | fsConstants.O_NOFOLLOW;
   const handle = await open(path, flags);
   try {
@@ -377,6 +376,7 @@ async function writeStaged(path: string, bytes: Uint8Array): Promise<void> {
 }
 
 async function readStaged(path: string): Promise<Uint8Array> {
+  // biome-ignore lint/suspicious/noBitwiseOperators: a zip container is a byte format — little-endian header reads, general-purpose bit-flag masks, unsigned-32 coercions, and the CRC-32 are intrinsically shift/mask/xor (the same exemption the PNG card codec + the IP/CIDR math carry).
   const handle = await open(path, fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW);
   try {
     const data = await handle.readFile();
@@ -513,6 +513,7 @@ function emitEntry(controller: ReadableStreamDefaultController<Uint8Array>, entr
   if (entry.bytes.length >= U32_MAX || localOffset >= U32_MAX) {
     throw new ZipRejectedError("unsupported", "ZIP64 entry sizes and offsets are not supported");
   }
+  // biome-ignore lint/suspicious/noBitwiseOperators: a zip container is a byte format — little-endian header reads, general-purpose bit-flag masks, unsigned-32 coercions, and the CRC-32 are intrinsically shift/mask/xor (the same exemption the PNG card codec + the IP/CIDR math carry).
   const crc = crc32(entry.bytes) >>> 0;
   const deflated = deflateRawSync(entry.bytes);
   const stored = deflated.length >= entry.bytes.length;

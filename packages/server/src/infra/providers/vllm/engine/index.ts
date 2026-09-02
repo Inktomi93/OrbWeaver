@@ -1,6 +1,3 @@
-// biome-ignore-all lint/performance/noBarrelFile: the engine sub-barrel — the ONE seam surfaces register
-// against; surfaces import engine pieces through here, never each other (`vllm-surface-isolation`).
-
 export type { EngineArgvContext, EngineLaunchConfig, EngineLaunchEnvFloor, EngineLaunchOverride } from "./build-argv.ts";
 export { buildEngineArgv, engineCudaVisibleDevices, resolveEngineLaunchConfig } from "./build-argv.ts";
 export type {

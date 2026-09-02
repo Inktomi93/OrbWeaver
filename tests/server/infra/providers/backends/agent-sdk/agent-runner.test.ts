@@ -1,5 +1,3 @@
-// biome-ignore-all lint/style/useNamingConvention: synthetic SDK message fixtures use snake_case wire
-// fields (session_id, stop_reason, num_turns, modelUsage, cache_creation, …).
 //
 // runAgentTurn — AGENT MODE: a turn that STARTS from the same firewall base as the roleplay turn
 // (disciplineOptions: tools:[] + cowork denylist + strict MCP + credential-scoped env) and ADDS exactly
@@ -306,18 +304,18 @@ describe("runAgentTurn — external MCP servers (sealed optional seam; caller ow
 });
 
 describe("runAgentTurn — structured output (responseFormat → outputFormat)", () => {
-  const SCHEMA = wireSchema({ type: "object", properties: { verdict: { type: "string" } } });
+  const schema = wireSchema({ type: "object", properties: { verdict: { type: "string" } } });
 
   test("maps responseFormat.schema to the SDK outputFormat json_schema (schema only)", async () => {
     const { run, lastOptions } = harness();
     await run(
       buildReq({
-        responseFormat: { name: "verdict", schema: SCHEMA, strict: true, description: "d" },
+        responseFormat: { name: "verdict", schema, strict: true, description: "d" },
         supportsStructuredOutput: true,
       }),
     );
     const opts = lastOptions() as CapturedOptions & { outputFormat?: Record<string, unknown> };
-    expect(opts.outputFormat).toEqual({ type: "json_schema", schema: SCHEMA });
+    expect(opts.outputFormat).toEqual({ type: "json_schema", schema });
     // name/strict/description are caller-side validator metadata — no SDK slot, dropped.
     expect(opts.outputFormat).not.toHaveProperty("name");
   });
@@ -333,7 +331,7 @@ describe("runAgentTurn — structured output (responseFormat → outputFormat)",
     await expect(
       run(
         buildReq({
-          responseFormat: { name: "v", schema: SCHEMA },
+          responseFormat: { name: "v", schema },
           supportsStructuredOutput: false,
         }),
       ),
@@ -342,7 +340,7 @@ describe("runAgentTurn — structured output (responseFormat → outputFormat)",
 
   test("also fails closed when supportsStructuredOutput is omitted (must be explicitly true)", async () => {
     const { run } = harness();
-    await expect(run(buildReq({ responseFormat: { name: "v", schema: SCHEMA } }))).rejects.toMatchObject({ kind: "invalid" });
+    await expect(run(buildReq({ responseFormat: { name: "v", schema } }))).rejects.toMatchObject({ kind: "invalid" });
   });
 });
 

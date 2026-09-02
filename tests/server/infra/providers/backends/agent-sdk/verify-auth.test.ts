@@ -1,5 +1,3 @@
-// biome-ignore-all lint/style/useNamingConvention: synthetic SDK message fixtures use the SDK's
-// snake_case wire fields (session_id, total_cost_usd, is_error, …).
 //
 // The host-Claude auth verify (verify-auth.ts via the backend's `verifyAuth`), driven by a fake `query`.
 // Load-bearing: the spawn goes through the FIREWALL BASE (tools disabled, strict MCP, no settings — the

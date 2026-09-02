@@ -1,5 +1,3 @@
-// biome-ignore-all lint/style/useNamingConvention: ST Character-Card wire field names (snake_case) appear
-// verbatim in these card fixtures — they ARE the format.
 // PD-127 — the REAL DB-mediated import→export round-trip for `residualData`. Wave 4 proved the serde
 // halves in isolation (`cardFromJson`/`buildCardV3` unit tests, `tests/server/kit/serde/card/index.test.ts`);
 // this proves the actual flow a user hits: `runProfileImport` (the entry composition driver) wired to the
@@ -28,6 +26,7 @@ import { makeHarness as makeExportHarness } from "../../domain/export/_support.t
 // gap), the now-TYPED-column fields (`source`/`nickname` — promoted out of residual, V3 promotion Phase A),
 // and `group_only_greetings` (folded into the greetings array as a `groupOnly:true` entry — V3 promotion
 // Phase B, re-split on export). No PNG, so no avatar store fires.
+// biome-ignore-start lint/style/useNamingConvention: ST Character-Card wire field names (snake_case) appear verbatim in these card fixtures — they ARE the format.
 const CARD_WITH_RESIDUALS = JSON.stringify({
   spec: "chara_card_v3",
   spec_version: "3.0",
@@ -41,6 +40,7 @@ const CARD_WITH_RESIDUALS = JSON.stringify({
     custom_x: { note: "keep me" },
   },
 });
+// biome-ignore-end lint/style/useNamingConvention: end of the block above
 
 function principalOf(userId: UserId): Principal {
   return { userId, role: "user", handle: castId<Handle>(userId), externalId: null, via: "cookie" };
@@ -81,6 +81,7 @@ describe("residualData survives the DB-mediated import→export round-trip (PD-1
     // Only the GENUINELY-unknown key lands in residualData — `source`/`nickname` are typed columns now
     // (Phase A) and `group_only_greetings` folds into the greetings array (Phase B), so neither double-rides.
     const detail = await characterSvc.get({ principal, characterId });
+    // biome-ignore lint/style/useNamingConvention: ST Character-Card wire field names (snake_case) appear verbatim in these card fixtures — they ARE the format.
     expect(detail.residualData).toEqual({ custom_x: { note: "keep me" } });
     // The group-only greeting folded into the greetings array, flagged; first_mes stays at [0].
     expect(detail.greetings[0]).toEqual({ text: "Hello there!" });
@@ -116,6 +117,7 @@ describe("residualData survives the DB-mediated import→export round-trip (PD-1
 
     const plainCard = JSON.stringify({
       spec: "chara_card_v3",
+      // biome-ignore lint/style/useNamingConvention: ST Character-Card wire field names (snake_case) appear verbatim in these card fixtures — they ARE the format.
       spec_version: "3.0",
       data: { name: "Bram", description: "A blacksmith." },
     });

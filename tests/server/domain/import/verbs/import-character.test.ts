@@ -1,5 +1,3 @@
-// biome-ignore-all lint/style/useNamingConvention: ST Character-Card wire field names (snake_case) appear
-// verbatim in the card fixture — they ARE the format.
 // Mirror test for domain/import/verbs/import-character — the card-import verb (test-presence). Asserts the
 // end-to-end card path over the injected fakes: a real ST card → flatten + provenance into the create op,
 // the PNG-card avatar store, the bare-JSON no-avatar path, the importHash dedup oracle, the raw card-tag
@@ -148,8 +146,8 @@ describe("importCharacter", () => {
 
   // ── PD-144 — carried attached-book references ───────────────────────────────────────────────────────
 
-  const BOOK_A = castId<WorldBookId>("world_book_0000000000000000000000000a");
-  const BOOK_B = castId<WorldBookId>("world_book_0000000000000000000000000b");
+  const bookA = castId<WorldBookId>("world_book_0000000000000000000000000a");
+  const bookB = castId<WorldBookId>("world_book_0000000000000000000000000b");
   const cardWithRefs = (refs: { worldBookId: WorldBookId; role: string }[], includeEmbeddedBook = false): string =>
     JSON.stringify({
       spec: "chara_card_v3",
@@ -168,8 +166,8 @@ describe("importCharacter", () => {
     const h = makeHarness();
     const svc = createImportService(h.ctx);
     const card = cardWithRefs([
-      { worldBookId: BOOK_A, role: "primary" },
-      { worldBookId: BOOK_B, role: "auxiliary" },
+      { worldBookId: bookA, role: "primary" },
+      { worldBookId: bookB, role: "auxiliary" },
     ]);
 
     const result = await svc.importCharacter({ card: { bytes: encoder.encode(card), filename: "aria.json" } });
@@ -182,8 +180,8 @@ describe("importCharacter", () => {
     expect(call.ownerId).toBe(h.ownerId);
     expect(call.characterId).toBe(result.characterId);
     expect(call.refs).toEqual([
-      { worldBookId: BOOK_A, role: "primary" },
-      { worldBookId: BOOK_B, role: "auxiliary" },
+      { worldBookId: bookA, role: "primary" },
+      { worldBookId: bookB, role: "auxiliary" },
     ]);
     expect(result.attachedBooksLinked).toBe(2);
     expect(result.attachedBooksSkipped).toBe(0);
@@ -193,7 +191,7 @@ describe("importCharacter", () => {
     const h = makeHarness();
     const svc = createImportService(h.ctx);
     // The card carries BOTH an embedded book AND references; the default fake links every ref.
-    const card = cardWithRefs([{ worldBookId: BOOK_A, role: "primary" }], true);
+    const card = cardWithRefs([{ worldBookId: bookA, role: "primary" }], true);
 
     const result = await svc.importCharacter({ card: { bytes: encoder.encode(card), filename: "aria.json" } });
 
@@ -207,7 +205,7 @@ describe("importCharacter", () => {
     const svc = createImportService(h.ctx);
     // Foreign install: none of the carried ids exist here → the re-link links nothing, skips all.
     h.setLinkOutcome((refs) => ({ linked: 0, skipped: refs.length }));
-    const card = cardWithRefs([{ worldBookId: BOOK_A, role: "primary" }], true);
+    const card = cardWithRefs([{ worldBookId: bookA, role: "primary" }], true);
 
     const result = await svc.importCharacter({ card: { bytes: encoder.encode(card), filename: "aria.json" } });
 
@@ -222,8 +220,8 @@ describe("importCharacter", () => {
     const svc = createImportService(h.ctx);
     h.setLinkOutcome(() => ({ linked: 1, skipped: 1 }));
     const card = cardWithRefs([
-      { worldBookId: BOOK_A, role: "primary" },
-      { worldBookId: BOOK_B, role: "auxiliary" },
+      { worldBookId: bookA, role: "primary" },
+      { worldBookId: bookB, role: "auxiliary" },
     ]);
 
     const result = await svc.importCharacter({ card: { bytes: encoder.encode(card), filename: "aria.json" } });

@@ -1,6 +1,3 @@
-// biome-ignore-all lint/suspicious/noBitwiseOperators: the security test crafts a zip-slip archive by hand
-// (the CRC-32 unsigned coercion) — intrinsically bitwise, like the fixtures in zip.int.test.ts.
-
 // entry/import/run-bundle-import — the entity-agnostic bundle driver. Pins the load-bearing behavior with a
 // TEST-DOUBLE registry (the real descriptors are injected at entry/compose): dependency ORDER (persona
 // imports before character, per PORTABLE_IMPORT_ORDER), owner-scoping (every importFile sees the caller's
@@ -163,6 +160,7 @@ describe("runBundleImport", () => {
     const name = "characters/../../etc/passwd";
     const nameBytes = enc.encode(name);
     const payload = enc.encode("owned");
+    // biome-ignore lint/suspicious/noBitwiseOperators: the security test crafts a zip-slip archive by hand (the CRC-32 unsigned coercion) — intrinsically bitwise, like the fixtures in zip.int.test.ts.
     const crc = (await import("node:zlib")).crc32(payload) >>> 0;
     const local = new Uint8Array(30 + nameBytes.length);
     const lv = new DataView(local.buffer);

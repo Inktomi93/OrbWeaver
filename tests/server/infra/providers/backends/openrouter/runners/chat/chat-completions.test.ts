@@ -1,4 +1,3 @@
-// biome-ignore-all lint/style/useNamingConvention: snake_case fixtures (top_a) are the real OpenRouter wire.
 //
 // backends/openrouter chat-completions — the wire shaping (Anthropic per-block system cache + the rolling
 // history breakpoint + the provider-routing pin), the sampling/reasoning projection, the customParameters
@@ -214,6 +213,7 @@ describe("runChatCompletionTurn — wire shaping", () => {
       client,
       makeRequest({
         params: { temperature: 0.3, effort: "low", topP: 0.9 },
+        // biome-ignore lint/style/useNamingConvention: snake_case fixtures (top_a) are the real OpenRouter wire.
         customParameters: { model: "evil/override", top_a: 0.5 },
       }),
       DEPS,
@@ -240,6 +240,7 @@ describe("runChatCompletionTurn — wire shaping", () => {
         model: castId<ModelId>(OPENAI_MODEL),
         capability: { ...CAPABILITY, sampling: { ...CAPABILITY.sampling, topA: { min: 0, max: 1 } } },
         params: { temperature: 0.3, effort: "low", topP: 0.9, topA: 0.4, maxOutputTokens: 64 },
+        // biome-ignore lint/style/useNamingConvention: snake_case fixtures (top_a) are the real OpenRouter wire.
         customParameters: { model: "evil/override", top_a: 0.9 },
       }),
       { ...DEPS, captureWire: (e): void => void wires.push(e.body) },
@@ -649,6 +650,7 @@ describe("the history cache breakpoint placement", () => {
 describe("the history cache breakpoint is invariant across a within-turn tool exchange", () => {
   const longText = "word ".repeat(1500);
   // The conversational boundary every case below must land on: the last stable assistant turn.
+  // biome-ignore lint/style/useNamingConvention: snake_case fixtures (top_a) are the real OpenRouter wire.
   const BOUNDARY = `A2 ${longText}`;
 
   interface WireRow {
@@ -668,6 +670,7 @@ describe("the history cache breakpoint is invariant across a within-turn tool ex
 
   // canon: u1 a1 u2 A2 u3 — exactly the 5-row shape SHAPE delivers, with the volatile user turn last. Its
   // safe offset is 1 (one step back from the tail), which is the boundary row `A2`.
+  // biome-ignore lint/style/useNamingConvention: snake_case fixtures (top_a) are the real OpenRouter wire.
   const CANON: readonly WireRow[] = [
     { role: "user", content: `U1 ${longText}` },
     { role: "assistant", content: `A1 ${longText}` },

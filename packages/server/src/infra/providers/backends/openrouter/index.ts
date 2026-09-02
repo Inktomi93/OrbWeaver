@@ -1,8 +1,3 @@
-// biome-ignore-all lint/performance/noBarrelFile: the openrouter FAMILY barrel — the sealed seam `entry/`
-// uses to obtain the backend factory + the diagnostic verbs (catalog-fetch / account / probe), and the
-// surface the family's tests import (deep imports into `backends/openrouter/<file>` are RED for everyone
-// else by the `providers-public-surface-only` cruiser rule). Load-bearing for the encapsulation invariant.
-
 // The stateless remote chat backend + the non-chat roles OpenRouter serves (embed/rerank/imageEmbed/
 // generateImage) + the summarize shaper over chat. No `runAgentTurn` (agent mode is agent-sdk's).
 

@@ -1,4 +1,3 @@
-// biome-ignore-all lint/style/useNamingConvention: SDK init-frame wire fixtures use snake_case keys.
 //
 // assertInitFrameShape — the init-frame SHAPE GUARD (providers.md Esoteric §3). The SDK's system/init
 // frame carries the `session_id` every later resume lookup is keyed by + `apiKeySource` (the sub-vs-key
@@ -15,6 +14,7 @@ const MISSING_API_KEY_SOURCE_RE = /missing apiKeySource/u;
 
 describe("assertInitFrameShape", () => {
   test("a well-formed init frame passes", () => {
+    // biome-ignore lint/style/useNamingConvention: SDK init-frame wire fixtures use snake_case keys.
     expect(() => assertInitFrameShape({ session_id: "sess-1", apiKeySource: "oauth" })).not.toThrow();
   });
 
@@ -23,18 +23,22 @@ describe("assertInitFrameShape", () => {
   });
 
   test("an empty-string session_id throws loudly (an empty id can't key a resume lookup)", () => {
+    // biome-ignore lint/style/useNamingConvention: SDK init-frame wire fixtures use snake_case keys.
     expect(() => assertInitFrameShape({ session_id: "", apiKeySource: "oauth" })).toThrow(MISSING_SESSION_ID_RE);
   });
 
   test("a non-string session_id throws loudly (the type, not just presence, is guarded)", () => {
+    // biome-ignore lint/style/useNamingConvention: SDK init-frame wire fixtures use snake_case keys.
     expect(() => assertInitFrameShape({ session_id: 42, apiKeySource: "oauth" })).toThrow(MISSING_SESSION_ID_RE);
   });
 
   test("a missing apiKeySource throws loudly (the sub-vs-key canary is required)", () => {
+    // biome-ignore lint/style/useNamingConvention: SDK init-frame wire fixtures use snake_case keys.
     expect(() => assertInitFrameShape({ session_id: "sess-1" })).toThrow(MISSING_API_KEY_SOURCE_RE);
   });
 
   test("a non-string apiKeySource throws loudly", () => {
+    // biome-ignore lint/style/useNamingConvention: SDK init-frame wire fixtures use snake_case keys.
     expect(() => assertInitFrameShape({ session_id: "sess-1", apiKeySource: 1 })).toThrow(MISSING_API_KEY_SOURCE_RE);
   });
 

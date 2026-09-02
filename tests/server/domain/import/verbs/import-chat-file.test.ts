@@ -1,4 +1,3 @@
-// biome-ignore-all lint/style/useNamingConvention: ST chat-JSONL wire field names (snake_case) are the format.
 // Unit test for domain/import/verbs/importChatFile — the ONE single-transcript path (F8: this body used to
 // live inline at `entry/compose/portability.ts`, outside every domain test mirror, so its refusal copy and
 // its handle derivation had no coverage at all).
@@ -26,9 +25,11 @@ const ENC = new TextEncoder();
 /** A real_conversation transcript (a greeting + a user turn) as raw bundle bytes. */
 function transcript(): Uint8Array {
   const lines = [
+    // biome-ignore-start lint/style/useNamingConvention: ST chat-JSONL wire field names (snake_case) are the format.
     JSON.stringify({ user_name: "Nate", character_name: "Aria", create_date: "2025-07-18@12h00m00s", chat_metadata: {} }),
     JSON.stringify({ is_user: false, mes: "Hello traveller.", send_date: "2025-07-18@12h00m01s" }),
     JSON.stringify({ is_user: true, mes: "Hi Aria!", send_date: "2025-07-18@12h00m02s" }),
+    // biome-ignore-end lint/style/useNamingConvention: end of the block above
   ].join("\n");
   return ENC.encode(lines);
 }

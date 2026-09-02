@@ -1,5 +1,3 @@
-// biome-ignore-all lint/style/useNamingConvention: ST settings.json field names (snake_case) appear
-// verbatim in these fixtures — they ARE the format.
 // Mirror test for domain/import/substrate/tags — the ST tags/tag_map parser. Pins the id→name resolution
 // (tag_map ids become names), the per-entity key (the character's card/avatar filename), order-preserving
 // de-dupe, the drop of unknown/blank ids and name-less tags, and the never-throws empty contract.
@@ -13,6 +11,7 @@ describe("parseStTags", () => {
     expect(parseStTags(null).byEntityKey.size).toBe(0);
     expect(parseStTags({}).byEntityKey.size).toBe(0);
     // tag_map present but no tags array → nothing to resolve against.
+    // biome-ignore lint/style/useNamingConvention: ST settings.json field names (snake_case) appear verbatim in these fixtures — they ARE the format.
     expect(parseStTags({ tag_map: { "a.png": ["1"] } }).byEntityKey.size).toBe(0);
     // tags present but no tag_map → no assignments.
     expect(parseStTags({ tags: [{ id: "1", name: "Fantasy" }] }).byEntityKey.size).toBe(0);
@@ -24,6 +23,7 @@ describe("parseStTags", () => {
         { id: "10", name: "Fantasy", color: "rgba(1,2,3,1)" },
         { id: "20", name: "Romance" },
       ],
+      // biome-ignore lint/style/useNamingConvention: ST settings.json field names (snake_case) appear verbatim in these fixtures — they ARE the format.
       tag_map: { "Seraphina.png": ["10", "20"], "empty.png": [] },
     });
     expect(byEntityKey.get("Seraphina.png")).toEqual(["Fantasy", "Romance"]);
@@ -38,6 +38,7 @@ describe("parseStTags", () => {
         { id: "20", name: "" }, // name-less → not resolvable
         { name: "NoId" }, // id-less → not resolvable
       ],
+      // biome-ignore lint/style/useNamingConvention: ST settings.json field names (snake_case) appear verbatim in these fixtures — they ARE the format.
       tag_map: { "a.png": ["20", "10", "999", "10"] }, // 20 name-less, 999 unknown, 10 twice
     });
     expect(byEntityKey.get("a.png")).toEqual(["Fantasy"]);
@@ -46,6 +47,7 @@ describe("parseStTags", () => {
   test("a key whose ids all fail to resolve is absent (not an empty array)", () => {
     const { byEntityKey } = parseStTags({
       tags: [{ id: "10", name: "Fantasy" }],
+      // biome-ignore lint/style/useNamingConvention: ST settings.json field names (snake_case) appear verbatim in these fixtures — they ARE the format.
       tag_map: { "b.png": ["999"] },
     });
     expect(byEntityKey.has("b.png")).toBe(false);
@@ -59,6 +61,7 @@ describe("parseStTags", () => {
         { id: 10, name: "Fantasy" }, // numeric tag id
         { id: "20", name: "Romance" },
       ],
+      // biome-ignore lint/style/useNamingConvention: ST settings.json field names (snake_case) appear verbatim in these fixtures — they ARE the format.
       tag_map: { "c.png": [10, "20"], "d.png": ["10"] }, // numeric + string map ids cross-resolve
     });
     expect(byEntityKey.get("c.png")).toEqual(["Fantasy", "Romance"]);

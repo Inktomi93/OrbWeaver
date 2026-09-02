@@ -1,5 +1,3 @@
-// biome-ignore-all lint/style/noProcessEnv: this gated E2E reads ONE opt-in env flag to decide whether
-// to download real ONNX weights from the Hugging Face Hub. Default-OFF keeps the suite offline-green.
 //
 // REAL-MODEL integration test for the local-light IMAGE-EMBED role — downloads the default jina-clip-v2
 // ONNX (the unified text + image encoders) on first run, so it is GATED behind ORB_LOCAL_LIGHT_E2E=1
@@ -19,6 +17,7 @@ import { describe } from "vitest";
 import { makeResolvedCredential } from "../../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../../support/fixtures.ts";
 
+// biome-ignore lint/style/noProcessEnv: this gated E2E reads ONE opt-in env flag to decide whether to download real ONNX weights from the Hugging Face Hub. Default-OFF keeps the suite offline-green.
 const RUN = process.env["ORB_LOCAL_LIGHT_E2E"] === "1";
 
 const CRED = makeResolvedCredential("local-light");

@@ -1,5 +1,3 @@
-// biome-ignore-all lint/style/useNamingConvention: ST card/chat/settings wire field names (snake_case) are
-// the interchange format and appear verbatim in the fixtures.
 // entry/import/run-profile-dir-import — the ST profile-DIRECTORY bulk importer the `import-st` workload runs
 // (`ctx.env.import.importAll`). Pins the load-bearing composition over an in-memory ImportFsPort fixture +
 // recording/stateful fake ports (fake-at-the-edges, inject-at-the-root): personas import BEFORE chats (the

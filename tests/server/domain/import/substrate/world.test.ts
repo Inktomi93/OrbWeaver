@@ -1,5 +1,3 @@
-// biome-ignore-all lint/style/useNamingConvention: ST native world-file field names (`insertion_order`,
-// `use_regex`) appear verbatim in these fixtures — they ARE the format.
 // Mirror test for domain/import/substrate/world — the ST-NATIVE `worlds/*.json` parser: the field-spelling
 // adaptation onto the shared entry mapper, and the ONE native-only divergence, delimited-key regex detection
 // (owner ruling 2026-08-19, #268 arm (a)).
@@ -48,6 +46,7 @@ describe("parseStWorldFile — ST-native world-info", () => {
 
   test("an explicit use_regex / keyMode on the entry still wins over the derivation", () => {
     // The flag door stays open on this format too, and a re-import of an orb export is a fixpoint.
+    // biome-ignore lint/style/useNamingConvention: ST native world-file field names (`insertion_order`, `use_regex`) appear verbatim in these fixtures — they ARE the format.
     expect(parseStWorldFile(stWorldBytes(["he(llo|y)"], { use_regex: true }), "w")?.entries[0]?.metadata?.["keyMode"]).toBe("regex");
     expect(parseStWorldFile(stWorldBytes(["/x/"], { keyMode: "literal" }), "w")?.entries[0]?.metadata?.["keyMode"]).toBe("literal");
   });

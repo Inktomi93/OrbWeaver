@@ -2097,6 +2097,7 @@
     "tests/tooling/verify/gates/integer-line-boxes.int.test.ts",
     "tests/tooling/verify/gates/knob-wire-coverage.test.ts",
     "tests/tooling/verify/gates/message-kind-policy-coverage.test.ts",
+    "tests/tooling/verify/gates/no-blanket-suppression.int.test.ts",
     "tests/tooling/verify/gates/no-tailwind-dark-variant.int.test.ts",
     "tests/tooling/verify/gates/over-art-plate-arm.int.test.ts",
     "tests/tooling/verify/gates/owner-scoped-reads.test.ts",
