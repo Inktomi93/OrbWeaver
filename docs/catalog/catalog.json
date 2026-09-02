@@ -31033,9 +31033,9 @@
       "path": "docs/reviews/verifier/2026-09-02-941-semantic-denominator-closure.md",
       "lane": "reviews",
       "issue": 7,
-      "lines": 249,
-      "bytes": 20074,
-      "sha256": "9ba37b0ab6328cf3e424a8a2b7cd01b6dd13043e6a6173f01434fd28f320e717",
+      "lines": 341,
+      "bytes": 26116,
+      "sha256": "4ad50d79d7ad96001589d6eca8e7da9a7ccf14c7f00353cb0dd8305ce3b3251e",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -31052,11 +31052,12 @@
         "disposition": "current",
         "authority": "review",
         "fullRead": true,
-        "verifiedSha256": "9ba37b0ab6328cf3e424a8a2b7cd01b6dd13043e6a6173f01434fd28f320e717",
-        "verifiedCommit": "574da5a05006861c23737de3e03b3d8feba6df81",
+        "verifiedSha256": "4ad50d79d7ad96001589d6eca8e7da9a7ccf14c7f00353cb0dd8305ce3b3251e",
+        "verifiedCommit": "fbf068c7f3d5973099a817f283314533b6578ab6",
         "verifiedAt": "2026-09-02",
         "summary": "Verifier closure check of the #941 semantic-denominator program on 718e97ab3: REFUTED narrowly — the three named escapes are closed with planted regressions and all 24 gates declare a semantic population, but four paired controls show two gates still silently under-read a sanctioned composition shape (chat-viewer-plane-canon-reads non-literal matrix values; knob-wire-coverage arms A/B/B2/C inheritance and spreads).",
         "evidence": [
+          "re-attested at fbf068c7f: the Re-verification section — CONFIRMED on 3b38d5b84 after #1091 + #1094; both residual gaps closed with the paired controls re-planted in one batch (census moving per arm), 43/43 pins, 251/251 gates clean",
           "born-reviewed at 574da5a05: full read by the primary orchestrator — the verdict, the three planted-regression receipts, the 24-row table across tiers A/B/C/D, the four GAP rows with their paired inline-vs-composed controls, the environment notes; residual rows filed from §GAP"
         ],
         "claims": [
