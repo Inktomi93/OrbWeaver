@@ -2,8 +2,9 @@
 // timeline + console transcript + RESULT. Red only when the interaction itself broke.
 import { copyFile, rm } from "node:fs/promises";
 import { join } from "node:path";
+import { artifactDir } from "@orb/tooling/_shared/artifact-out";
 import type { ResultPair } from "@orb/tooling/_shared/artifacts";
-import { artifactDir, print, printResult } from "@orb/tooling/_shared/artifacts";
+import { print, printResult } from "@orb/tooling/_shared/artifacts";
 import { resolveFfmpeg } from "@orb/tooling/_shared/ffmpeg";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { Args, Rendered } from "../contract/types.ts";

@@ -184,6 +184,10 @@ artifact, never a scratch profiler.
   test-report.json     → symlink into runs/test/<runId>/test-report.json
   test-shards/         → symlink into runs/test/<runId>/test-shards/
   ct-flaky.json        → symlink into runs/ct/<runId>/ct-flaky.json
+  snaps/<name>.png     → symlink into runs/snap/<runId>/snaps/<name>.png   (one pointer per ARTIFACT)
+  design-audit/…       → symlink into runs/ui-audit/<runId>/design-audit/…
+  traces/ recordings/ perf-meter/ motion-audit/  → the same, per artifact, from their instrument's slot
+  baselines/             NOT slotted — a persistent CORPUS one run writes and a later run reads (below)
   verify-history.jsonl   NOT slotted — an append-only multi-writer ledger (below)
 ```
 
@@ -199,8 +203,13 @@ artifact, never a scratch profiler.
 - **A racing writer is NAMED, never silently last-write-wins**: opening a slot censuses the other slots of
   that instrument whose `.inflight` marker names a LIVE pid, and the list lands on stderr AND in the
   artifact (`run.concurrent` / `runManifest.concurrent`).
-- **Retention** is a bounded ring — the 10 newest slots per instrument, pruned at publish. An in-flight
-  slot and the just-published one are never pruned, so `latest` can never point at a removed run.
+- **Retention** is a bounded ring — the 10 newest slots per instrument, pruned at publish — and it is
+  REFERENCE-AWARE: an in-flight slot, the just-published one, and any slot a published pointer still
+  resolves into are never pruned, so `latest` can never point at a removed run. The reference half is what
+  the `--out`-keyed families need (below): each run publishes one pointer per artifact NAME, so pointers
+  from many runs are live at once and age alone would delete evidence a live pointer names. Each slot
+  records the aliases it published in its own `.published` file, so the check is a readlink per alias, not
+  a walk of `reports/`.
 
 **What this does to the #410 in-flight stub.** The ruling survives — its INPUT changed. The stub is still
 written before the walk, still says `complete: false`, and is still refused by every reader; it now lands
@@ -215,11 +224,35 @@ run's verdict: appends are append-mode single-line writes that the kernel does n
 and slotting it would give each run a one-line history to compare against — destroying the only thing it
 exists for. Each line carries its `runId`, so a reader can still attribute a row.
 
-**Not yet slotted (leftovers, tracked on #1029):** the artifact paths named by `playwright-ct.config.ts`
+**The RENDERED instruments (#1164).** `snap`, `design-audit` (`ui-audit`), `record` (`screen-record`),
+`motion-audit` and `perf-meter` (`cpu-profile`) were the leftovers #1029 deferred, on the reasoning that a
+caller NAMES those artifacts with `--out`. That reasoning did not survive contact: lane-unique `--out`
+names are a BRIEF CONVENTION, not a mechanism, and on 2026-09-02 two side-eye lanes on one checkout both
+took the default name and produced a `root.png` neither could claim (a third read a sibling's
+`design-audit` report as its own, #1114 R-3). They are now slotted, with ONE difference the `--out` keying
+forces: a verdict instrument publishes a FIXED alias set known before the run, while a rendered
+instrument's alias set is whatever it wrote — so `finishInstrumentRun` ENUMERATES the slot and publishes
+one pointer PER ARTIFACT FILE. `reports/snaps/` therefore stays a real DIRECTORY of per-artifact pointers
+rather than one directory symlink, which is required and not cosmetic: CT and e2e specs write PNGs
+straight into it with Playwright, and file headers across `packages/` cite individual shots as durable
+evidence.
+
+- **The door is `withInstrumentRun(instrument, main)`** (`tooling/src/_shared/artifacts.ts`), called by the
+  instrument's `cli.ts` around its RUN leg only — the help/misuse legs write nothing and must not mint an
+  empty slot. It NAMES the slot on stdout at the start (`run slot reports/runs/<instrument>/<runId>`) plus
+  the racing census; the publish is silent so the `RESULT` line stays last.
+- **Enforcer: gate `tooling-shared-plumbing` arm G** — a tool that calls `artifactDir`/`artifactFile` and
+  whose `cli.ts` does not open a run slot is RED, so the next instrument cannot regress into the shared dir.
+- **A RED run publishes normally** (a failing verdict is still a complete artifact, and the failure shot is
+  the receipt the reviewer came for); a CRASHED one publishes nothing and leaves the `.inflight` marker —
+  the `abandonedRuns` tell.
+- **`baselines/` is deliberately NOT slotted**: it is a persistent corpus `snap --baseline` writes and a
+  LATER `snap --diff` reads, so filing it in a pruning ring would turn the next diff into NO-BASELINE.
+
+**Still not slotted (tracked on #1029):** the artifact paths named by `playwright-ct.config.ts`
 (`ct-report.json`, `ct-report/`, `ct-results/`) and `playwright.config.ts` (`e2e-report*`, `e2e-results/`),
-and the instrument output dirs (`design-audit/`, `snaps/`, `traces/`, `baselines/`, `perf-meter/`,
-`recordings/`, `mutation-probe/`, `cpd/`, `coverage/`). Those are `--out`-keyed families where a caller
-names the artifact, not verdict paths a reader is sent to blind.
+and `mutation-probe/`, `cpd/`, `coverage/` — runner-owned or tool-owned output directories whose writer is
+not one of ours.
 
 ### 3.4 The scope model
 

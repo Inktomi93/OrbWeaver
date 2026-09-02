@@ -1,9 +1,13 @@
 // Tool output lands under `<repo>/reports/<kind>/` (root-anchor gitignored) + the RESULT-line
 // convention: report lines to stdout via `print`; the LAST line is a stable `RESULT <tool> key=value …`
 // machine line (`tail -1` / `grep ^RESULT`). Exit codes are the CALLER's (_shared/exit-contract.ts).
-import { lstatSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
-import { mkdir } from "node:fs/promises";
-import { basename, dirname, isAbsolute, join, resolve, sep } from "node:path";
+// Since #1029 a RUN writes into its own slot and publishes those `reports/…` paths as `latest`
+// pointers when it finishes — the layout's one home is
+// docs/architecture/core/UNIFIED-VERIFICATION-DESIGN.md §3.3b, and the slot machinery below is its
+// mechanism. The `--out`-keyed FILING doors that ride on it live in ./artifact-out.ts (one layer up,
+// so this module never imports back down).
+import { lstatSync, mkdirSync, readdirSync, readFileSync, readlinkSync, renameSync, rmSync, statSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
+import { basename, dirname, isAbsolute, join, resolve } from "node:path";
 import process from "node:process";
 
 // _shared lives at tooling/src/_shared/ — three levels up is the repo root.
@@ -20,13 +24,6 @@ export function printResult(tool: string, pairs: readonly ResultPair[]): void {
   const kv = pairs.map(([k, v]) => `${k}=${v}`).join(" ");
   print("");
   print(`RESULT ${tool} ${kv}`);
-}
-
-/** Resolve (and create) `reports/<kind>/` from the repo root. */
-export async function artifactDir(kind: string): Promise<string> {
-  const dir = join(REPO_ROOT, "reports", kind);
-  await mkdir(dir, { recursive: true });
-  return dir;
 }
 
 // ── the verify harness's ROOT-LEVEL artifacts ────────────────────────────────────────────────────────
@@ -80,6 +77,9 @@ export function ensureReportsDir(root: string, ...segments: readonly string[]): 
 /** The marker a slot carries while its run is in flight; deleted at publish. Its presence + a DEAD pid is
  *  the killed-run tell (`abandonedRuns`); its presence + a LIVE pid is a concurrent writer. */
 const INFLIGHT_MARKER = ".inflight";
+/** The alias list a publish leaves in its slot, so `pruneRuns` can ask "does any pointer still resolve
+ *  here?" without walking `reports/`. Dot-prefixed: the `--out` layer's alias enumerator skips it. */
+const PUBLISHED_MANIFEST = ".published";
 /** Run slots retained per instrument. Older ones are pruned at publish; the published run is never pruned. */
 const RETAINED_RUNS = 10;
 const RUNS_SEGMENT = "runs";
@@ -268,8 +268,41 @@ export function publishRunSlot(root: string, slot: RunSlot, aliases: readonly Ru
     publishSymlink(absAlias, target === "." ? rel : join(rel, target));
     published.push(alias);
   }
+  writeFileSync(join(slot.dir, PUBLISHED_MANIFEST), `${JSON.stringify(published, null, 2)}\n`);
   pruneRuns(root, slot);
   return published;
+}
+
+/** The aliases a slot published, or an empty list for a slot that never got that far. */
+function publishedAliases(dir: string): readonly string[] {
+  // @orb-gate-ignore caught-failure-ownership(default:catch): an absent or unparseable manifest means "this slot published nothing a pointer could still resolve into" — the ONE question the retention reader asks — and the empty list is that answer at its single call site. Ends if a caller starts needing to distinguish "never published" from "manifest lost".
+  try {
+    return JSON.parse(readFileSync(join(dir, PUBLISHED_MANIFEST), "utf-8")) as readonly string[];
+  } catch {
+    return [];
+  }
+}
+
+/** The run id a published pointer currently resolves into (`../runs/<instrument>/<runId>/…`), or null
+ *  when nothing readable is at the alias. Read as a LINK — never followed — so a pointer a later run
+ *  re-aimed answers with that later run's id, which is exactly the retention question. */
+function pointerRunId(root: string, alias: string, instrument: string): string | null {
+  // @orb-gate-ignore caught-failure-ownership(default:catch): a removed or replaced alias is the NEGATIVE answer to "does this pointer still resolve into that slot?" — null is that answer at the one call site (the retention filter). Ends if the caller starts acting on WHY the alias is unreadable.
+  try {
+    const target = readlinkSync(reportsPath(root, alias)).replaceAll("\\", "/");
+    const marker = `${RUNS_SEGMENT}/${instrument}/`;
+    const at = target.indexOf(marker);
+    return at === -1 ? null : (target.slice(at + marker.length).split("/")[0] ?? null);
+  } catch {
+    return null;
+  }
+}
+
+/** Is any `latest` pointer still resolving INTO this slot? The `--out`-keyed families publish one pointer
+ *  per artifact NAME, so pointers from many runs are live at once — pruning by age alone would delete the
+ *  evidence a live pointer names and leave it dangling (#1164). */
+function slotIsReferenced(root: string, instrument: string, runIdOfSlot: string, dir: string): boolean {
+  return publishedAliases(dir).some((alias) => pointerRunId(root, alias, instrument) === runIdOfSlot);
 }
 
 /** Does this path exist (without following a link)? `existsSync` answers FALSE for a dangling symlink, and
@@ -284,8 +317,9 @@ function exists(path: string): boolean {
   }
 }
 
-/** Keep the `RETAINED_RUNS` newest slots for this instrument. A slot that is still in flight (live marker)
- *  and the one just published are never pruned — `latest` can therefore never point at a removed run. */
+/** Keep the `RETAINED_RUNS` newest slots for this instrument. A slot that is still in flight (live
+ *  marker), the one just published, and any slot a published pointer still resolves into are never pruned
+ *  — `latest` can therefore never point at a removed run. */
 function pruneRuns(root: string, slot: RunSlot): void {
   const base = instrumentRunsDir(root, slot.instrument);
   const candidates = runDirs(root, slot.instrument)
@@ -294,6 +328,7 @@ function pruneRuns(root: string, slot: RunSlot): void {
       const marker = readMarker(join(base, name));
       return marker === null || !pidAlive(marker.pid);
     })
+    .filter((name) => !slotIsReferenced(root, slot.instrument, name, join(base, name)))
     .map((name) => ({ name, at: statSync(join(base, name)).mtimeMs }))
     .sort((a, b) => b.at - a.at);
   for (const stale of candidates.slice(RETAINED_RUNS - 1)) {
@@ -347,22 +382,17 @@ export function artifactFilePath(baseDir: string, out: string, ext: string): str
 }
 
 /** A bare-relative `--out` ALREADY spelled from the repo root INTO this kind's dir (`reports/snaps/foo.png`)
- *  names the very file the prefixing would produce — so it passes through instead of being prefixed AGAIN
- *  into `reports/snaps/reports/snaps/foo.png` (#209, 2026-08-18; a lane pasted back the path snap itself
- *  had just printed). `baseDir` is `<root>/reports/<kind>`, so two levels up is the root the caller spelled
- *  from — the check stays PURE, with no `process.cwd()` in it. A bare name that lands anywhere else
- *  (`home/tiles`) is still an artifact BASE and keeps the prefix. */
+ *  names the very file the prefixing would produce — so its `reports/<kind>/` prefix is STRIPPED instead of
+ *  being prefixed AGAIN into `reports/snaps/reports/snaps/foo.png` (#209, 2026-08-18; a lane pasted back the
+ *  path snap itself had just printed). The check is a prefix strip rather than a `resolve(baseDir, "..", "..")`
+ *  because since #1164 `baseDir` may be a RUN SLOT (`reports/runs/snap/<runId>/snaps`), where two levels up is
+ *  not the repo root and the old form silently stopped recognizing the very path snap prints. It stays PURE —
+ *  no `process.cwd()`. A bare name that lands anywhere else (`home/tiles`, another kind's dir) is still an
+ *  artifact BASE and keeps the prefix. */
 function baseAnchoredOut(baseDir: string, out: string): string | null {
-  const anchored = resolve(baseDir, "..", "..", out);
-  return anchored.startsWith(`${baseDir}${sep}`) ? anchored : null;
-}
-
-/** `artifactFilePath` + the directory it needs. `kind` is the `reports/<kind>/` family the artifact
- *  belongs to; a path-shaped `out` escapes it by design, and gets its own parent dir created. */
-export async function artifactFile(kind: string, out: string, ext: string): Promise<string> {
-  const path = artifactFilePath(await artifactDir(kind), out, ext);
-  await mkdir(dirname(path), { recursive: true });
-  return path;
+  const prefix = `reports/${basename(baseDir)}/`;
+  const spelled = out.replaceAll("\\", "/");
+  return spelled.startsWith(prefix) ? join(baseDir, spelled.slice(prefix.length)) : null;
 }
 
 /** The `reports/<kind>/` KEY for an `--out` value: identity for a bare name, and the sanitized basename

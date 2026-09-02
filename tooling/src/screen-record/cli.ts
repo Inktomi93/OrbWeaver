@@ -10,6 +10,7 @@
 // Exit: 0 recorded · 1 step failure / page error · EXIT.misuse on a bad CLI (promotion refinement:
 // record was the fleet's last lenient parser).
 import process from "node:process";
+import { withInstrumentRun } from "../_shared/artifact-out.ts";
 import { print } from "../_shared/artifacts.ts";
 import { EXIT } from "../_shared/exit-contract.ts";
 import { runTool } from "../_shared/run-tool.ts";
@@ -25,7 +26,8 @@ async function main(): Promise<number> {
     print(RECORD_HELP);
     return EXIT.misuse;
   }
-  return await runScreenRecord(opts);
+  // The run's own artifact slot; the webm/gif/strips publish as `reports/recordings/…` pointers (#1164).
+  return await withInstrumentRun("screen-record", async () => await runScreenRecord(opts));
 }
 
 await runTool(main);

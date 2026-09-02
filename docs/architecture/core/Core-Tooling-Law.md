@@ -220,6 +220,8 @@ incremental-safe, `kinds: [CallExpression, NewExpression, ImportDeclaration]` + 
 
 One arm per capability: **(A)** `new Project(` outside `_shared/ts-workspace.ts` · **(B)** a playwright `.launch(` outside `_shared/browser.ts` · **(C)** an artifact-dir respell (a `reports`/`reports/…` literal fed to `join`/`resolve`/`mkdir`) outside `_shared/artifacts.ts` · **(D)** a bare `process.exit(` outside `_shared/run-tool.ts` (it drops the stdout pipe AND dodges the exit-honesty runner) · **(E)** a tool `cli.ts` that does not import AND call `runTool` · **(F)** a `node:child_process` import outside `_shared/proc.ts` · **(F2)** a call to any member of the full-priority DOOR SET outside the `FULL_PRIORITY_CALLERS` census.
 
+**(G)** a tool that FILES an artifact (a call to `artifactDir`/`artifactFile` anywhere under `tooling/src/<tool>/`) whose `cli.ts` never opens a run slot (`withInstrumentRun`) — an unslotted instrument writes into the shared `reports/<kind>/`, where a concurrent run of the same instrument destroys its artifacts (#1164; the layout's one home is `UNIFIED-VERIFICATION-DESIGN.md` §3.3b). Cross-file, and adjudicated BEFORE the anchor guard so a conformance mini-project is judged too.
+
 **Arm F2 matches a door SET, never one callee name** — a second detached full-priority door added later would otherwise be an unguarded loophole.
 
 The homes and the census rows are SCANNED and carried as cited allowlist rows with two-sided stale sweeps — scanRoot-exclusion is NOT the mechanism (scan-and-allowlist beats it, per `GATE-AUTHORING.md` §4), so a moved home or a row whose file stopped spawning goes RED.

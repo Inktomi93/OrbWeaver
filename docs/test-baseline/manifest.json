@@ -1933,6 +1933,7 @@
     "tests/tooling/_shared/appearance.int.test.ts",
     "tests/tooling/_shared/appearance.test.ts",
     "tests/tooling/_shared/argv.test.ts",
+    "tests/tooling/_shared/artifact-out.int.test.ts",
     "tests/tooling/_shared/artifacts.int.test.ts",
     "tests/tooling/_shared/artifacts.test.ts",
     "tests/tooling/_shared/browser.int.test.ts",

@@ -5,7 +5,8 @@
 import { writeFile } from "node:fs/promises";
 import { errorMessage } from "@orb/kit/error-message";
 import { appearanceReachReceipt, readRuntimeAppearanceContract } from "../../_shared/appearance-matrix.ts";
-import { artifactFile, print, routeSlug } from "../../_shared/artifacts.ts";
+import { artifactFile } from "../../_shared/artifact-out.ts";
+import { print, routeSlug } from "../../_shared/artifacts.ts";
 import { buildUrl, launchProbeSession, settle, withProbeSession } from "../../_shared/browser.ts";
 import { readBrowserEnvironment } from "../../_shared/browser-environment.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";

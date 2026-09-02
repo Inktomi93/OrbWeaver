@@ -2,7 +2,8 @@
 // FIXTURE stack (never the shared single-user dev pair) — host-vs-member truth in one run.
 
 import type { Page } from "@playwright/test";
-import { artifactFile, artifactKey, print, routeSlug } from "../../_shared/artifacts.ts";
+import { artifactFile } from "../../_shared/artifact-out.ts";
+import { artifactKey, print, routeSlug } from "../../_shared/artifacts.ts";
 import type { ProbeSession } from "../../_shared/browser.ts";
 import { buildUrl, closeProbeSessionAfterError } from "../../_shared/browser.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";

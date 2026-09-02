@@ -5,7 +5,9 @@
 // pipe AND dodges the exit-honesty runner); (E) a tool cli.ts that does not enter through runTool;
 // (F) a `node:child_process` import outside _shared/proc.ts (a direct spawn bypasses the nice -19
 // homelab floor), with full-priority-door callers allowlisted in FULL_PRIORITY_CALLERS and the
-// NON-WORKSPACE ts-morph constructions censused in PROJECT_SITES.
+// NON-WORKSPACE ts-morph constructions censused in PROJECT_SITES; (G) a tool that FILES an artifact
+// (artifactDir/artifactFile) whose cli.ts never opens a run slot (withInstrumentRun) — the #1164
+// concurrency class, where two runs of one instrument overwrite each other's artifacts.
 // Scan-and-allowlist: the HOMES are SCANNED and carried as cited rows with a stale sweep (GATE-AUTHORING §4). Comment posture: comment-SAFE (node kinds + literal args).
 import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
@@ -80,6 +82,20 @@ const seenFullPriorityCallers = new Set<string>();
 const seenProjectSites = new Set<string>();
 const CLI_RE = /^tooling\/src\/[^/]+\/cli\.ts$/u;
 
+/** Arm G's two halves: the tools that FILE an artifact, and the tools whose cli.ts opens a run slot for
+ *  it. A tool in the first set and not the second writes into the shared `reports/<kind>/` with no run
+ *  identity — the #1164 clobber class, where two lanes' default `--out` names destroy each other. */
+const ARTIFACT_FILERS = new Set(["artifactDir", "artifactFile"]);
+const filingTools = new Map<string, string>();
+const slottedTools = new Set<string>();
+/** The plumbing's own home files are not a tool with a cli — they DEFINE the filing doors. */
+const SHARED_DIR = "_shared";
+
+/** `tooling/src/<tool>/…` → `<tool>`. */
+function toolOf(rel: string): string {
+  return rel.split("/")[2] ?? "";
+}
+
 function relOf(abs: string): string | null {
   const norm = abs.replace(/\\/gu, "/");
   const i = norm.indexOf(`/${TOOLING_PREFIX}`);
@@ -136,19 +152,25 @@ export const gate: GateDescriptor = {
   status: "active",
   scopeSafety: "whole-project",
   message:
-    "a second home for _shared plumbing — ts-morph Project construction, Playwright launch, reports/<kind> artifact filing, process.exit, and child_process spawning each have ONE sanctioned module (and every tool cli.ts enters through runTool — the exit-honesty runner); a respell here is the duplication class the tooling package was minted to end (docs/architecture/core/Core-Tooling-Law.md §2.4/§4.4).",
-  fix: "call the _shared home (ts-workspace getWorkspace / browser launchProbeSession / artifacts artifactFile / run-tool runTool / proc spawnNiced-runNicedSync) instead of respelling it.",
+    "a second home for _shared plumbing — ts-morph Project construction, Playwright launch, reports/<kind> artifact filing, process.exit, and child_process spawning each have ONE sanctioned module (and every tool cli.ts enters through runTool — the exit-honesty runner — and opens a run slot for the artifacts it files); a respell here is the duplication class the tooling package was minted to end (docs/architecture/core/Core-Tooling-Law.md §2.4/§4.4).",
+  fix: "call the _shared home (ts-workspace getWorkspace / browser launchProbeSession / artifacts artifactFile inside artifacts withInstrumentRun / run-tool runTool / proc spawnNiced-runNicedSync) instead of respelling it.",
   scanRoot: (p) => p.startsWith(TOOLING_PREFIX),
   kinds: [SyntaxKind.CallExpression, SyntaxKind.NewExpression, SyntaxKind.ImportDeclaration],
   begin: () => {
     seenHomes.clear();
     seenFullPriorityCallers.clear();
     seenProjectSites.clear();
+    filingTools.clear();
+    slottedTools.clear();
   },
   visit: (node, sf, ctx) => {
     const rel = relOf(sf.getFilePath());
     if (rel === null) {
       return;
+    }
+    // Arm G's first half: this file files an artifact, so its TOOL owes a run slot (checked in run()).
+    if (node.isKind(SyntaxKind.CallExpression) && ARTIFACT_FILERS.has(node.getExpression().getText()) && toolOf(rel) !== SHARED_DIR) {
+      filingTools.set(toolOf(rel), rel);
     }
     // Arm F2: an un-niced spawn door call — legal only for a census'd row.
     if (node.isKind(SyntaxKind.CallExpression) && FULL_PRIORITY_DOORS.has(node.getExpression().getText())) {
@@ -180,8 +202,13 @@ export const gate: GateDescriptor = {
     if (rel === null || !CLI_RE.test(rel)) {
       return;
     }
+    const calls = sf.getDescendantsOfKind(SyntaxKind.CallExpression);
+    // Arm G's second half — recorded for every cli, adjudicated in run() against the filing set.
+    if (calls.some((c) => c.getExpression().getText() === "withInstrumentRun")) {
+      slottedTools.add(toolOf(rel));
+    }
     const importsRunner = sf.getImportDeclarations().some((d) => d.getModuleSpecifierValue().endsWith("_shared/run-tool.ts"));
-    const callsRunner = sf.getDescendantsOfKind(SyntaxKind.CallExpression).some((c) => c.getExpression().getText() === "runTool");
+    const callsRunner = calls.some((c) => c.getExpression().getText() === "runTool");
     if (!(importsRunner && callsRunner)) {
       ctx.report({
         file: rel,
@@ -193,6 +220,18 @@ export const gate: GateDescriptor = {
     }
   },
   run: (ctx) => {
+    // Arm G — BEFORE the anchor guard: it is a cross-file check over whatever corpus ran, not a sweep of
+    // this gate's own allowlist rows, so it must adjudicate a conformance mini-project too.
+    for (const [tool, site] of filingTools) {
+      if (!slottedTools.has(tool)) {
+        ctx.report({
+          file: `${TOOLING_PREFIX}${tool}/cli.ts`,
+          line: 0,
+          column: 0,
+          message: `${site} files an artifact, so ${tool}'s cli.ts must open its artifact run slot (withInstrumentRun, _shared/artifacts.ts) — an unslotted instrument writes into the shared reports/<kind>/ where a concurrent run of the same instrument destroys its artifacts (#1164; docs/architecture/core/UNIFIED-VERIFICATION-DESIGN.md §3.3b).`,
+        });
+      }
+    }
     // The two-sided sweep, anchored on the real tree (never a row's own path — GATE-AUTHORING §4.5).
     if (!fileLoaded(ctx, ANCHOR)) {
       return;
@@ -282,6 +321,16 @@ export const gate: GateDescriptor = {
       expect: { messageIncludes: "must enter through runTool" },
       why: "a tool cli.ts that never enters the exit-honesty runner (arm E)",
     },
+    {
+      files: {
+        "tooling/src/unslotted/cli.ts": 'import { runTool } from "../_shared/run-tool.ts";\nimport { shoot } from "./ops/shoot.ts";\nawait runTool(shoot);\n',
+        "tooling/src/unslotted/ops/shoot.ts":
+          'import { artifactFile } from "../../_shared/artifact-out.ts";\nexport async function shoot(): Promise<number> {\n  await artifactFile("snaps", "root", ".png");\n  return 0;\n}\n',
+        "tooling/src/_shared/run-tool.ts": "export function runTool(main: () => number): Promise<void> {\n  return Promise.resolve(void main());\n}\n",
+      },
+      expect: { messageIncludes: "must open its artifact run slot" },
+      why: "an instrument that files artifacts with no run slot — the #1164 shared-path clobber (arm G)",
+    },
   ],
   mustPass: [
     {
@@ -305,6 +354,16 @@ export const gate: GateDescriptor = {
       files: 'export const help = "artifacts land under reports/snaps/";\n',
       at: "tooling/src/snap/ops/help.ts",
       why: "the literal in PROSE (not a path-call argument) — help text must not trip the respell arm",
+    },
+    {
+      files: {
+        "tooling/src/slotted/cli.ts":
+          'import { withInstrumentRun } from "../_shared/artifact-out.ts";\nimport { runTool } from "../_shared/run-tool.ts";\nimport { shoot } from "./ops/shoot.ts";\nawait runTool(async () => await withInstrumentRun("slotted", shoot));\n',
+        "tooling/src/slotted/ops/shoot.ts":
+          'import { artifactFile } from "../../_shared/artifact-out.ts";\nexport async function shoot(): Promise<number> {\n  await artifactFile("snaps", "root", ".png");\n  return 0;\n}\n',
+        "tooling/src/_shared/run-tool.ts": "export function runTool(main: () => number): Promise<void> {\n  return Promise.resolve(void main());\n}\n",
+      },
+      why: "the sanctioned instrument shape — files artifacts INSIDE a run slot (arm G's pass half)",
     },
   ],
 };
