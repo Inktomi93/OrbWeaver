@@ -48,6 +48,11 @@ const ROW_COPY: {
   "plugin-disabled": () => "A plugin was disabled",
 };
 
+/** The sheet lens's heading id — the block points its `aria-labelledby` at it, so the group and the heading
+ *  are one mint of one name (the You sheet's own `MORE_HEADING_ID` precedent). Static: a document has exactly
+ *  one You sheet, and the bar lens renders no heading at all. */
+const SHEET_HEADING_ID = "notifications-inbox-heading";
+
 function rowCopy(payload: NotificationEvent): string {
   const handler = ROW_COPY[payload.type] as (p: NotificationEvent) => string;
   return handler(payload);
@@ -131,8 +136,20 @@ export function NotificationBell({ presentation = "bar" }: NotificationBellProps
     // everything else looking for it — heading navigation could not reach it. `Section` renders exactly this
     // voice on a real `<h3>` (`@orb/ui/layout` — "Still a real <h3>, so the document outline survives"), so
     // the fix is the house primitive, not a hand-rolled role/aria-labelledby pair.
+    //
+    // …and it is a NAMED GROUP, not a heading with loose siblings (#1129). The You sheet's two other blocks
+    // are named containers ("Account and settings", "More"), so an inventory of the sheet — a group/landmark
+    // walk, or `snap --mobile --map`, which lists containers and controls and never headings — named every
+    // block in the sheet EXCEPT the phone's ONLY notifications door, and a reader who landed on an invite
+    // row was inside nothing. `aria-labelledby` at the heading rather than a second copy of the string: one
+    // mint of the name, and the group and its heading can never drift.
     return (
-      <Section data-testid={testId("notificationsInbox")} kicker={bellLabel}>
+      <Section
+        aria-labelledby={SHEET_HEADING_ID}
+        data-testid={testId("notificationsInbox")}
+        kicker={<span id={SHEET_HEADING_ID}>{bellLabel}</span>}
+        role="group"
+      >
         {inbox}
       </Section>
     );

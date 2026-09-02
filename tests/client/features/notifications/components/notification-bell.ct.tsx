@@ -304,6 +304,48 @@ test("the sheet block's name is a real HEADING, not a styled span", async ({ mou
   await expect(component.getByRole("heading", { name: "Notifications" })).toBeVisible();
 });
 
+// ── THE PHONE'S INBOX IS A NAMED BLOCK, NOT A LOOSE HEADING (#1129) ──────────────────────────────────
+// The sheet lens is the inbox's ONLY door at a coarse pointer (`notificationsChrome.mobile: "sheet"`), and
+// it rendered its rows as bare siblings of a heading: the You sheet's two other blocks are named
+// `role="group"`s ("Account and settings", "More"), so an inventory of the sheet — a landmark/group walk, or
+// `snap --mobile --map`, which lists containers and controls and not headings — named every block in it
+// EXCEPT the inbox, and a reader who landed on an invite row was inside nothing. The claim under test is the
+// rendered CONTAINER, at the real coarse pointer the lens exists for.
+test.describe("the phone's inbox block", () => {
+  test.use({ viewport: { width: 320, height: 800 }, hasTouch: true });
+
+  test("the inbox is a group named by its own heading, and the rows are inside it", async ({ mount, page }) => {
+    await routeTrpc(page, {
+      ...STREAM_MUTATION_ROUTES,
+      "notifications.list": () => ({ items: [inviteRow()], nextCursor: null }),
+      "notifications.markAllRead": () => ({ markedCount: 1 }),
+    });
+    await routeInboxStream(page, []);
+
+    const component = await mount(<NotificationBellSheetStory />);
+
+    // The name leads with the STABLE word and carries the count, exactly as the bar lens's bell does.
+    const inbox = component.getByRole("group", { name: "Notifications (1 unread)" });
+    await expect(inbox).toBeVisible();
+    // The heading that NAMES the group is inside it, and so is the row — the block is a container, not a
+    // label floating above unowned content.
+    await expect(inbox.getByRole("heading", { name: "Notifications (1 unread)" })).toBeVisible();
+    await expect(inbox.getByText("nate invited you to a chat")).toBeVisible();
+    await expect(inbox.getByRole("button", { name: "Accept invitation from nate" })).toBeVisible();
+  });
+
+  test("an empty inbox still names its block — the door exists before anything is in it", async ({ mount, page }) => {
+    await routeTrpc(page, { ...STREAM_MUTATION_ROUTES, "notifications.list": () => ({ items: [], nextCursor: null }) });
+    await routeInboxStream(page, []);
+
+    const component = await mount(<NotificationBellSheetStory />);
+
+    const inbox = component.getByRole("group", { name: "Notifications" });
+    await expect(inbox).toBeVisible();
+    await expect(inbox.getByText("No notifications.")).toBeVisible();
+  });
+});
+
 /** A handoff-nominated inbox row (the two-party host handoff, step 1's delivery). */
 function handoffRow(): Record<string, unknown> {
   return {
