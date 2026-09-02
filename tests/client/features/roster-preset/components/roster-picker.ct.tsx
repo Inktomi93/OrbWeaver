@@ -271,10 +271,27 @@ test("the row's apply doors announce the member and rule counts; a rules-free ro
 
   await mount(<RosterPickerStory />);
 
-  await expect(page.getByRole("button", { name: "Start a chat with Adventuring Cast — 2 members, 2 rules", exact: true })).toBeVisible();
+  // #1032 adds the THIRD carried thing: CAST_A has `hasGroupConfig: true`, so its apply also rewrites the
+  // room's reply mode / speaker labels / card visibility, and the door that does it now says so. CAST_B
+  // carries neither rules nor group config and still announces only its members.
+  await expect(page.getByRole("button", { name: "Start a chat with Adventuring Cast — 2 members, 2 rules, group behavior", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Start a chat with Book Club — 1 member", exact: true })).toBeVisible();
   // Delete stays a bare name: the counts inform CONSENT at the apply doors, not the destructive one.
   await expect(page.getByRole("button", { name: "Delete Adventuring Cast", exact: true })).toBeVisible();
+});
+
+// #1032 — the badge half of the same fact. A `<span>` badge carries no accessible name, which is exactly
+// why the fact ALSO rides the door names above; this pins that the visual signal exists and is per-row.
+test("the group-behavior badge shows on the roster that carries one, and only on that roster", async ({ mount, page }) => {
+  await routeTrpc(page, { "rosterPreset.list": [CAST_A, CAST_B], "automation.listRulePresets": [PACING_PRESET], "automation.listRules": [] });
+
+  await mount(<RosterPickerStory />);
+
+  const rows = page.locator('[data-slot="roster-row"]');
+  await expect(rows).toHaveCount(2);
+  await expect(rows.nth(0)).toContainText("group behavior");
+  await expect(rows.nth(1)).toContainText("Book Club");
+  await expect(rows.nth(1)).not.toContainText("group behavior");
 });
 
 // ── #811 — the Start door REPORTS, and the started room takes the roster's name (#813 P3-4) ────────────

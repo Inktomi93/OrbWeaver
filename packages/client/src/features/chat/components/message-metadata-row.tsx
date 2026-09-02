@@ -26,6 +26,24 @@
 // PD-130 (generation timer): the turn engine writes `message_variants.gen_started_at`/`gen_finished_at`
 // on the real turn path (live since eb5d6b3c) and the read seam surfaces them as `genStartedAt`/
 // `genFinishedAt`. Its readout was already quiet micro-mono text — untouched here.
+//
+// #1032 (the viewgap WIRE batch) — THREE MORE READS, ON THE EXISTING TOGGLES, NO NEW APPEARANCE KEY.
+// `MessageView` served `cacheReadTokens`/`cacheWriteTokens`/`ttftMs`/`finishReason`/`stopReason`/
+// `terminalReason`/`editedAt` and no client file spelled any of them. Each new datum joins the toggle whose
+// SUBJECT it already shares rather than minting a seventh appearance key (a new key is ten coupled sites
+// across the settings section, the carrier manifest and the registry — it is a settings change, not a wire
+// change, and this row is not the place to spend one):
+//   · CACHE ECONOMICS → `showTokenCount`. It is the number that explains the token number beside it.
+//   · TIME-TO-FIRST-TOKEN → `showGenerationTimer`. Same subject as the duration, same `durationLabel` shape.
+//   · The EDITED marker → `showTimestamps`, in the NAME ROW beside the timestamp ({@link MessageTimestamp}) —
+//     it is a fact about WHEN this text became what it is.
+// The OUTCOME notice ("cut off — length cap") is the one datum on NO toggle: a reply the model truncated is
+// a correctness fact about the text you are reading, not a preference, and a host who turned the numbers off
+// still needs to know the answer was clipped. It is also self-limiting — `message-readout.ts` speaks only
+// for the arms that name a real problem, so a healthy transcript never grows a datum from it.
+//
+// EVERYTHING HERE STAYS OFF THE PROSE BLOCK (the reading-surface law). These are chrome data in the metadata
+// footer and the name row; not one of them touches the message body.
 
 import type { MessageView } from "@orb/contracts/chat";
 import { Row } from "@orb/ui/layout";
@@ -33,7 +51,8 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { Fragment } from "react";
 import { cn, timeLib } from "#lib";
-import { genDurationLabel } from "../lib/gen-duration.ts";
+import { durationLabel, genDurationLabel } from "../lib/gen-duration.ts";
+import { cacheTokensLabel, messageOutcomeNotice } from "../lib/message-readout.ts";
 import { MessageCostReadout } from "./message-cost-readout.tsx";
 
 /** The metadata-datum subset of the appearance prefs (mirrors `useMessageAppearance`'s row-display
@@ -64,9 +83,19 @@ export function MessageTimestamp({ message, show }: { readonly message: MessageV
     return null;
   }
   return (
-    <Text as="span" voice="gloss" className="font-mono" data-slot="message-metadata-timestamp">
-      {timeLib.formatTime(message.createdAt)}
-    </Text>
+    <>
+      <Text as="span" voice="gloss" className="font-mono" data-slot="message-metadata-timestamp">
+        {timeLib.formatTime(message.createdAt)}
+      </Text>
+      {/* #1032 — the EDITED marker. `editedAt` was stamped by the edit verb and read by nobody, so a
+          rewritten reply was indistinguishable from the one the model actually produced. The word is the
+          load-bearing part; the exact edit time rides the `title` as detail. */}
+      {message.editedAt === null ? null : (
+        <Text as="span" voice="gloss" data-slot="message-metadata-edited" title={`Edited at ${timeLib.formatTime(message.editedAt)}`}>
+          edited
+        </Text>
+      )}
+    </>
   );
 }
 
@@ -99,12 +128,30 @@ export function MessageMetadataRow({ message, visibility, backingClass }: Messag
     const prefix = message.tokenProvenance === "estimated" ? "~" : "";
     items.push(<Fragment key="tokens">{metadatum("message-metadata-tokens", `${prefix}${tokens} tok`)}</Fragment>);
   }
+  // #1032 — cache economics ride the TOKEN toggle (they are what explains the token number) and gate
+  // independently on presence: a backend that reported no cache columns adds nothing, and a turn that
+  // neither read nor wrote cache has no economics to state.
+  const cacheLabel = visibility.showTokenCount ? cacheTokensLabel(message.cacheReadTokens, message.cacheWriteTokens) : null;
+  if (cacheLabel !== null) {
+    items.push(<Fragment key="cache">{metadatum("message-metadata-cache", cacheLabel)}</Fragment>);
+  }
   if (visibility.showMessageId) {
     items.push(<Fragment key="id">{metadatum("message-metadata-id", message.id)}</Fragment>);
   }
   const genLabel = visibility.showGenerationTimer ? genDurationLabel(message.genStartedAt, message.genFinishedAt) : null;
   if (genLabel !== null) {
     items.push(<Fragment key="gen-duration">{metadatum("message-metadata-gen-duration", genLabel)}</Fragment>);
+  }
+  // #1032 — time to FIRST token, beside the duration and in the same `durationLabel` shape. It is the half
+  // of the timer a reader actually feels (how long the reply sat blank), and it is recorded per variant.
+  if (visibility.showGenerationTimer && message.ttftMs !== null) {
+    items.push(<Fragment key="ttft">{metadatum("message-metadata-ttft", `${durationLabel(message.ttftMs)} to first token`)}</Fragment>);
+  }
+  // #1032 — the OUTCOME notice, on no toggle (see this file's header): a truncated or filtered reply is a
+  // fact about the text, not a preference. `null` on every clean finish, which is nearly all of them.
+  const outcome = messageOutcomeNotice(message);
+  if (outcome !== null) {
+    items.push(<Fragment key="outcome">{metadatum("message-metadata-outcome", outcome.text, outcome.title)}</Fragment>);
   }
   // PD-137 — the on-demand settled-cost readout (renders its own null-guard for a non-OR row); the paid
   // fetch fires only on the user's reveal click, never here.

@@ -130,8 +130,20 @@ export function applyNotice(args: {
 }
 
 /** The row controls' accessible names carry what the badges only SHOW (side-eye P2-1: nine tab stops and
- *  not one announced that applying this roster switches automation on in the room). */
-export function rosterCountsSuffix(memberCount: number, ruleCount: number): string {
-  const members = `${memberCount} member${memberCount === 1 ? "" : "s"}`;
-  return ruleCount === 0 ? ` — ${members}` : ` — ${members}, ${ruleCount} rule${ruleCount === 1 ? "" : "s"}`;
+ *  not one announced that applying this roster switches automation on in the room).
+ *
+ *  #1032 adds the THIRD thing an apply carries. `RosterPresetSummary.hasGroupConfig` was served by
+ *  `rosterPreset.list` and read by no client file, so a roster whose apply also rewrites the room's reply
+ *  mode, speaker labels and card visibility looked identical to one that only adds seats — the same
+ *  under-report P2-1 filed for the rules, one field over. "Group behavior" is the SETTINGS SECTION's own
+ *  word for that blob (`settings-context-tab.tsx`), so a host reads the same name in both places. */
+export function rosterCountsSuffix(memberCount: number, ruleCount: number, hasGroupConfig: boolean): string {
+  const parts = [`${memberCount} member${memberCount === 1 ? "" : "s"}`];
+  if (ruleCount > 0) {
+    parts.push(`${ruleCount} rule${ruleCount === 1 ? "" : "s"}`);
+  }
+  if (hasGroupConfig) {
+    parts.push("group behavior");
+  }
+  return ` — ${parts.join(", ")}`;
 }

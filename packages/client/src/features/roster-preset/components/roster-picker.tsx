@@ -70,7 +70,7 @@ function RosterRow(props: {
 }): ReactElement {
   const { cast, canAddToChat, busy, onStart, onAddToChat, onDelete } = props;
   const memberNames = cast.members.map((m) => m.name).join(", ");
-  const counts = rosterCountsSuffix(cast.memberCount, cast.rules.length);
+  const counts = rosterCountsSuffix(cast.memberCount, cast.rules.length, cast.hasGroupConfig);
   return (
     <Stack gap="tight" padding="block" className="@container border-border border-b last:border-b-0" data-slot="roster-row">
       <Row align="center" gap="field" className="@max-md:flex-col @max-md:items-stretch">
@@ -82,6 +82,16 @@ function RosterRow(props: {
             {cast.rules.length > 0 ? (
               <Badge className="shrink-0" intent="neutral" tone="soft">
                 {cast.rules.length} rule{cast.rules.length === 1 ? "" : "s"}
+              </Badge>
+            ) : null}
+            {/* #1032 — the THIRD thing an apply carries. `hasGroupConfig` was served and never read, so a
+                roster that also rewrites the room's reply mode / speaker labels / card visibility wore the
+                same face as one that only adds seats. Same badge grammar as the rules pill; the word is the
+                settings section's own ("Group behavior"), and the fact rides the apply doors' accessible
+                names through `rosterCountsSuffix` — a `<span>` badge has no name to carry it. */}
+            {cast.hasGroupConfig ? (
+              <Badge className="shrink-0" intent="neutral" tone="soft">
+                group behavior
               </Badge>
             ) : null}
           </Row>

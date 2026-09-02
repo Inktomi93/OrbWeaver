@@ -87,6 +87,53 @@ test("the generation timer renders a duration label from gen start/finish stamps
   await expect(component.locator('[data-slot="message-metadata-gen-duration"]')).toBeVisible();
 });
 
+// ── #1032, the viewgap WIRE batch: three MessageView fields the row served and never read ──────────────
+
+test("cache economics ride the TOKEN toggle — present datum, token toggle on", async ({ mount }) => {
+  const component = await mount(
+    <MessageMetadataRowStory visibility={{ ...ALL_OFF, showTokenCount: true }} message={{ cacheReadTokens: 1024, cacheWriteTokens: 512 }} />,
+  );
+  await expect(component.locator('[data-slot="message-metadata-cache"]')).toHaveText("cache 1024 read / 512 written");
+});
+
+test("cache economics stay hidden with the token toggle OFF (they are the token number's own explanation)", async ({ mount }) => {
+  const component = await mount(<MessageMetadataRowStory visibility={ALL_OFF} message={{ cacheReadTokens: 1024, cacheWriteTokens: 512 }} />);
+  await expect(component.locator('[data-slot="message-metadata-cache"]')).toHaveCount(0);
+  await expect(component.locator(ROW)).toHaveCount(0);
+});
+
+test("a turn with no cache activity adds no datum — presence gates, not just the toggle", async ({ mount }) => {
+  const component = await mount(
+    <MessageMetadataRowStory visibility={{ ...ALL_OFF, showTokenCount: true }} message={{ cacheReadTokens: 0, cacheWriteTokens: 0 }} />,
+  );
+  await expect(component.locator('[data-slot="message-metadata-cache"]')).toHaveCount(0);
+});
+
+test("time-to-first-token rides the TIMER toggle, in the timer's own duration shape", async ({ mount }) => {
+  const component = await mount(<MessageMetadataRowStory visibility={{ ...ALL_OFF, showGenerationTimer: true }} message={{ ttftMs: 820 }} />);
+  await expect(component.locator('[data-slot="message-metadata-ttft"]')).toHaveText("820ms to first token");
+});
+
+test("time-to-first-token stays hidden with the timer toggle off", async ({ mount }) => {
+  const component = await mount(<MessageMetadataRowStory visibility={ALL_OFF} message={{ ttftMs: 820 }} />);
+  await expect(component.locator('[data-slot="message-metadata-ttft"]')).toHaveCount(0);
+});
+
+// THE ONE UNGATED DATUM. A reply the model truncated is a fact about the text on screen, not a preference —
+// a reader with every number turned off still has to be told the answer was clipped mid-sentence.
+test("a CUT-OFF reply says so with EVERY toggle off — the outcome notice is not an appearance datum", async ({ mount }) => {
+  const component = await mount(<MessageMetadataRowStory visibility={ALL_OFF} message={{ finishReason: "length", stopReason: "max_tokens" }} />);
+  await expect(component.locator('[data-slot="message-metadata-outcome"]')).toHaveText("cut off — length cap");
+  // The raw provider word is provenance beside the copy, never instead of it.
+  await expect(component.locator('[data-slot="message-metadata-outcome"]')).toHaveAttribute("title", "max_tokens");
+});
+
+test("a CLEAN reply grows nothing from the outcome arm — no notice, no empty shell", async ({ mount }) => {
+  const component = await mount(<MessageMetadataRowStory visibility={ALL_OFF} message={{ finishReason: "stop", stopReason: "end_turn" }} />);
+  await expect(component.locator('[data-slot="message-metadata-outcome"]')).toHaveCount(0);
+  await expect(component.locator(ROW)).toHaveCount(0);
+});
+
 test("timestamps never render here even when showTimestamps is on (they live in the name row)", async ({ mount }) => {
   const component = await mount(<MessageMetadataRowStory visibility={{ ...ALL_OFF, showTimestamps: true }} />);
   await expect(component.locator('[data-slot="message-metadata-timestamp"]')).toHaveCount(0);
