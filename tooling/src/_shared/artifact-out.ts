@@ -4,7 +4,7 @@
 // real, not cosmetic: `artifacts.ts` answers "where do runs live", this answers "where does THIS artifact go".
 import { readdirSync } from "node:fs";
 import { mkdir } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { basename, dirname, join, relative } from "node:path";
 import type { RunAlias, RunSlot } from "./artifacts.ts";
 import { artifactFilePath, openRunSlot, print, publishRunSlot, REPO_ROOT, reportsPath } from "./artifacts.ts";
 
@@ -40,20 +40,44 @@ const UNSLOTTED_KINDS = new Set(["baselines"]);
 interface ActiveRun {
   readonly slot: RunSlot;
   readonly root: string;
+  /** An ADOPTED slot belongs to ANOTHER process (the session client that opened it): this process resolves
+   *  its artifacts into it and never publishes it — the owner does, at its own finish. */
+  readonly adopted: boolean;
 }
 
 let activeRun: ActiveRun | null = null;
 
+export interface InstrumentRunOptions {
+  /** The explicit-slot form (docs/design/1208-instrument-substrate.md §3.7): adopt a slot dir another
+   *  process opened instead of opening one. The session daemon's per-call shape. */
+  readonly slotDir?: string;
+}
+
+/** A slot descriptor for a dir ANOTHER process opened — no marker written, nothing censused: the OPENER
+ *  owns both. Two callers: the daemon's per-call adoption, and the session sweep settling a dead
+ *  session's slot through `publishRunSlot(root, slot, [])`. */
+export function adoptRunSlot(root: string, instrument: string, slotDir: string): RunSlot {
+  return { instrument, runId: basename(slotDir), dir: slotDir, relDir: relative(root, slotDir), racing: [] };
+}
+
 /** Open THIS process's instrument run. Every `artifactDir`/`artifactFile` call after it lands in the
  *  run's own slot instead of the shared `reports/<kind>/`. `root` is the checkout the artifacts belong
- *  to — the repo root for a real invocation, a planted tree for a test. */
-export function beginInstrumentRun(instrument: string, root: string = REPO_ROOT): RunSlot {
+ *  to — the repo root for a real invocation, a planted tree for a test. With `slotDir` the run is an
+ *  ADOPTION of a slot the caller's client opened (one slot per call, whoever writes into it). */
+export function beginInstrumentRun(instrument: string, root: string = REPO_ROOT, options: InstrumentRunOptions = {}): RunSlot {
   if (activeRun !== null) {
     throw new Error(`INSTRUMENT ERROR: a run of "${activeRun.slot.instrument}" is already open — one process is one run (${activeRun.slot.relDir})`);
   }
-  const slot = openRunSlot(root, instrument);
-  activeRun = { slot, root };
+  const slotDir = options.slotDir;
+  const slot = slotDir === undefined ? openRunSlot(root, instrument) : adoptRunSlot(root, instrument, slotDir);
+  activeRun = { slot, root, adopted: slotDir !== undefined };
   return slot;
+}
+
+/** The slot this process is writing into right now, or null outside a run — what a session client hands
+ *  the daemon to adopt. */
+export function activeRunSlot(): RunSlot | null {
+  return activeRun?.slot ?? null;
 }
 
 /** The directory `artifactDir(kind)` creates — split out so `artifactFilePath` and the run layer agree
@@ -95,6 +119,11 @@ export function finishInstrumentRun(): readonly string[] {
     return [];
   }
   activeRun = null;
+  // An adopted slot is published by its OWNER when ITS main returns — publishing here would race the
+  // owner's own enumeration and mint pointers mid-run.
+  if (run.adopted) {
+    return [];
+  }
   return publishRunSlot(run.root, run.slot, slotArtifactAliases(run.slot));
 }
 

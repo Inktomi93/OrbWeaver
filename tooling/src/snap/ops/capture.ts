@@ -125,11 +125,13 @@ export async function capture(page: Page, opts: Args, plan: PagePlan, evidence: 
   return outcome;
 }
 
-export async function capturePages(session: ProbeSession, opts: Args, plan: ShotPlan): Promise<CaptureOutcome[]> {
+/** `navigate: false` is a session call driving the LIVE page (the scenario's `keepLivePage` shape) — every
+ *  tab keeps its URL and the pass starts at the drive queue. */
+export async function capturePages(session: ProbeSession, opts: Args, plan: ShotPlan, navigatePage = true): Promise<CaptureOutcome[]> {
   const outcomes: CaptureOutcome[] = [];
   for (let index = 0; index < opts.pages; index += 1) {
     const page = session.pages[index] as Page;
-    outcomes.push(await capture(page, opts, { ...plan, pageIndex: index, totalPages: opts.pages }, session));
+    outcomes.push(await capture(page, opts, { ...plan, pageIndex: index, totalPages: opts.pages, navigatePage }, session));
   }
   return outcomes;
 }

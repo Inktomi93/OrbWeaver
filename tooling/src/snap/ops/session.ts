@@ -9,9 +9,12 @@ import type { LocalStorageSeed, ProbeLaunchOptions, ProbeSession } from "../../_
 import { closeProbeSession, closeProbeSessionAfterError, launchProbeSession } from "../../_shared/browser.ts";
 import type { BrowserEnvironmentEvidence } from "../../_shared/browser-environment.ts";
 import { readBrowserEnvironment } from "../../_shared/browser-environment.ts";
+import type { DebuggingProfile } from "../../_shared/debugging-endpoint.ts";
+import { createDebuggingProfile, readDebuggingEndpoint } from "../../_shared/debugging-endpoint.ts";
 import type { DevToolsCascadeRuntime } from "../../_shared/devtools-runtime.ts";
 import { prepareDevToolsCascadeRuntime } from "../../_shared/devtools-runtime.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import type { FailureArtifacts } from "../contract/run.ts";
 import type { Args } from "../contract/types.ts";
 import { NETWORK_PROFILES, NO_CPU_THROTTLE } from "../lib/throttle.ts";
 
@@ -23,6 +26,8 @@ const PROBE_MODE_KEY = "orb:probe-mode";
 const DEBUG_TOKEN_KEY = "orb:debug-token";
 const DEVTOOLS_ASSET_ROOT = fileURLToPath(new URL("../lib/devtools-frontend", import.meta.url));
 const CASCADE_RUNTIMES = new WeakMap<ProbeSession, DevToolsCascadeRuntime>();
+/** The profile dir whose `DevToolsActivePort` names a session's debugging endpoint (cascade or bare). */
+const DEBUG_PROFILES = new WeakMap<ProbeSession, string>();
 // Harness-side determinism for --probe: floor every animation/transition and hide the
 // caret from FIRST PAINT (screenshot-time `animations:"disabled"` only rewinds at capture;
 // this kills mid-run flicker during steps too). Raw string — see _shared/browser.ts header.
@@ -63,11 +68,6 @@ async function finishFailureTraces(session: ProbeSession, failed: boolean, name:
   return paths.filter((path): path is string => path !== null);
 }
 
-interface FailureArtifacts {
-  readonly traces: readonly string[];
-  readonly hars: readonly string[];
-}
-
 export async function finishSession(session: ProbeSession, failed: boolean, name: string, enabled: boolean): Promise<FailureArtifacts> {
   let traces: string[];
   try {
@@ -86,6 +86,10 @@ export async function finishSession(session: ProbeSession, failed: boolean, name
 
 type LaunchExtras = Partial<Pick<ProbeLaunchOptions, "pages" | "contexts" | "contextCookies" | "cookieDomain">> & {
   readonly requireCascadeRuntime?: boolean;
+  /** A stateful session's browser publishes its debugging endpoint (docs/design/1208-instrument-substrate.md
+   *  §3.4 — the sibling attach door). The cascade runtime's profile already does; a plain session gets the
+   *  bare debugging profile, so no second launch shape exists. */
+  readonly debuggingEndpoint?: boolean;
 };
 
 /** `--scale <n>` reaches the pixels by raising the CONTEXT's DPR (#915) — Playwright's
@@ -95,36 +99,68 @@ function scaleLaunchOverride(opts: Args): { readonly deviceScaleFactor?: number 
   return opts.scale.deviceScaleFactor === null ? {} : { deviceScaleFactor: opts.scale.deviceScaleFactor };
 }
 
-export async function launchSnapSession(opts: Args, name: string, extras: LaunchExtras = {}): Promise<ProbeSession> {
-  const { requireCascadeRuntime = false, ...launchExtras } = extras;
-  const traceDir = opts.failureEvidence ? await artifactDir("traces") : null;
+/** The persistent-profile launch a run may need: the DevTools-SDK cascade runtime (its profile publishes
+ *  the debugging endpoint AND serves the SDK) or the bare debugging profile (a session with no cascade).
+ *  Never both — one profile, one endpoint. */
+interface LaunchProfile {
+  readonly cascade: DevToolsCascadeRuntime | null;
+  readonly debugging: DebuggingProfile | null;
+}
+
+async function prepareLaunchProfile(opts: Args, requireCascadeRuntime: boolean, debuggingEndpoint: boolean): Promise<LaunchProfile> {
   const cascade = opts.cascade.length === 0 && !requireCascadeRuntime ? null : await prepareDevToolsCascadeRuntime(DEVTOOLS_ASSET_ROOT);
+  const debugging = cascade === null && debuggingEndpoint ? await createDebuggingProfile() : null;
+  return { cascade, debugging };
+}
+
+function profileOf(profile: LaunchProfile): DevToolsCascadeRuntime | DebuggingProfile | null {
+  return profile.cascade ?? profile.debugging;
+}
+
+async function closeLaunchProfile(profile: LaunchProfile): Promise<void> {
+  await profile.cascade?.close();
+  await profile.debugging?.close();
+}
+
+function buildLaunchOptions(opts: Args, name: string, traceDir: string | null, profile: LaunchProfile): ProbeLaunchOptions {
+  const persistent = profileOf(profile);
+  return {
+    headless: !opts.vnc,
+    viewport: opts.viewport,
+    colorScheme: opts.colorScheme,
+    reducedMotion: opts.reducedMotion || opts.probe,
+    contrast: opts.browserContrast ?? null,
+    reducedTransparency: opts.reducedTransparency ?? false,
+    appearance: opts.appearance,
+    theme: opts.theme,
+    localStorage: buildSeeds(opts),
+    device: opts.device,
+    ...scaleLaunchOverride(opts),
+    trace: opts.failureEvidence,
+    ...(traceDir === null ? {} : { harPathPrefix: join(traceDir, name) }),
+    ...(persistent === null ? {} : { persistentProfileDir: persistent.profileDir, browserArgs: persistent.browserArgs }),
+  };
+}
+
+export async function launchSnapSession(opts: Args, name: string, extras: LaunchExtras = {}): Promise<ProbeSession> {
+  const { requireCascadeRuntime = false, debuggingEndpoint = false, ...launchExtras } = extras;
+  const traceDir = opts.failureEvidence ? await artifactDir("traces") : null;
+  const profile = await prepareLaunchProfile(opts, requireCascadeRuntime, debuggingEndpoint);
   let launched: ProbeSession;
   try {
-    launched = await launchProbeSession({
-      headless: !opts.vnc,
-      viewport: opts.viewport,
-      colorScheme: opts.colorScheme,
-      reducedMotion: opts.reducedMotion || opts.probe,
-      contrast: opts.browserContrast ?? null,
-      reducedTransparency: opts.reducedTransparency ?? false,
-      appearance: opts.appearance,
-      theme: opts.theme,
-      localStorage: buildSeeds(opts),
-      device: opts.device,
-      ...scaleLaunchOverride(opts),
-      trace: opts.failureEvidence,
-      ...(traceDir === null ? {} : { harPathPrefix: join(traceDir, name) }),
-      ...(cascade === null ? {} : { persistentProfileDir: cascade.profileDir, browserArgs: cascade.browserArgs }),
-      ...launchExtras,
-    });
+    launched = await launchProbeSession({ ...buildLaunchOptions(opts, name, traceDir, profile), ...launchExtras });
   } catch (error) {
-    await cascade?.close();
+    await closeLaunchProfile(profile);
     throw error;
   }
-  const session: ProbeSession = cascade === null ? launched : { ...launched, cleanup: [cascade.close] };
-  if (cascade !== null) {
-    CASCADE_RUNTIMES.set(session, cascade);
+  const cleanup = [...(profile.cascade === null ? [] : [profile.cascade.close]), ...(profile.debugging === null ? [] : [profile.debugging.close])];
+  const session: ProbeSession = cleanup.length === 0 ? launched : { ...launched, cleanup };
+  if (profile.cascade !== null) {
+    CASCADE_RUNTIMES.set(session, profile.cascade);
+  }
+  const persistent = profileOf(profile);
+  if (persistent !== null) {
+    DEBUG_PROFILES.set(session, persistent.profileDir);
   }
   if (opts.probe) {
     try {
@@ -164,6 +200,13 @@ export function snapEnvironmentMismatchCount(evidence: readonly BrowserEnvironme
 
 export function cascadeRuntimeFor(session: ProbeSession): DevToolsCascadeRuntime | null {
   return CASCADE_RUNTIMES.get(session) ?? null;
+}
+
+/** The session browser's `http://127.0.0.1:<port>` debugging endpoint — the sibling attach door (design
+ *  §3.4) — or null for a plain launch that published none. */
+export async function debuggingEndpointFor(session: ProbeSession): Promise<string | null> {
+  const profileDir = DEBUG_PROFILES.get(session);
+  return profileDir === undefined ? null : await readDebuggingEndpoint(profileDir);
 }
 
 // ── CDP load emulation (#826) ───────────────────────────────────────────────

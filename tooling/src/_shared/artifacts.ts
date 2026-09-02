@@ -9,12 +9,15 @@
 import { lstatSync, mkdirSync, readdirSync, readFileSync, readlinkSync, renameSync, rmSync, statSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
 import { basename, dirname, isAbsolute, join, resolve } from "node:path";
 import process from "node:process";
+import { emitLine } from "./log.ts";
 
 // _shared lives at tooling/src/_shared/ — three levels up is the repo root.
 export const REPO_ROOT = resolve(import.meta.dirname, "..", "..", "..");
 
+/** The stdout payload channel. Routed through log.ts's tee so a session daemon can stream a request's
+ *  lines to its caller without a second print path (the daemon's own stdout — its log — still gets them). */
 export function print(s: string): void {
-  process.stdout.write(`${s}\n`);
+  emitLine(s);
 }
 
 export type ResultPair = readonly [key: string, value: string | number];
@@ -157,8 +160,9 @@ function readMarker(dir: string): InflightMarker | null {
 }
 
 /** Is this pid still running? `kill(pid, 0)` signals nothing and throws ESRCH when it is gone. Only ever
- *  asked about a marker from THIS checkout, so a pid from another machine can never be misread as live. */
-function pidAlive(pid: number): boolean {
+ *  asked about a marker from THIS box (a run slot's, a session row's daemon), so a pid from another machine
+ *  can never be misread as live. */
+export function pidAlive(pid: number): boolean {
   // @orb-gate-ignore caught-failure-ownership(default:catch): ESRCH from a signal-0 probe IS the answer — the pid is gone — and `false` is that answer at every call site (the racing census, the prune filter, the abandoned-run scan). Ends if this needs to distinguish EPERM (a live pid this user may not signal) from ESRCH.
   try {
     process.kill(pid, 0);

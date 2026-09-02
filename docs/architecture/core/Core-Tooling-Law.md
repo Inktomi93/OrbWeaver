@@ -70,6 +70,7 @@ The constitution bans `_shared` drawers in `packages/` (`Core-0-Architecture-and
 | `instruments.ts` | the `INSTRUMENT_TOOLS` registry (§4.5) |
 | `devtools-assets.ts` | exact-tuple/hash/license validation + the manifest-closed loopback asset server |
 | `devtools-runtime.ts` | ephemeral debugging profile/endpoint + official DevTools SDK cascade bridge and cleanup |
+| `debugging-endpoint.ts` | the ephemeral Chromium debugging ENDPOINT — the persistent-profile launch args + the ONE reader of `DevToolsActivePort`; a stateful snap session, the cascade runtime and a sibling attach all share it (#1231) |
 
 **A module joins this floor by IMPORTER CENSUS, never by classification.** "Tool-specific" is a hypothesis; `rg --files-with-matches '<module>' scripts/ tooling/ tests/` is the verdict. Genuinely tool-specific plumbing stays in its tool (`snap/ops/fixture.ts`, the snap stage set).
 
@@ -222,6 +223,8 @@ incremental-safe, `kinds: [CallExpression, NewExpression, ImportDeclaration]` + 
 One arm per capability: **(A)** `new Project(` outside `_shared/ts-workspace.ts` · **(B)** a playwright `.launch(` outside `_shared/browser.ts` · **(C)** an artifact-dir respell (a `reports`/`reports/…` literal fed to `join`/`resolve`/`mkdir`) outside `_shared/artifacts.ts` · **(D)** a bare `process.exit(` outside `_shared/run-tool.ts` (it drops the stdout pipe AND dodges the exit-honesty runner) · **(E)** a tool `cli.ts` that does not import AND call `runTool` · **(F)** a `node:child_process` import outside `_shared/proc.ts` · **(F2)** a call to any member of the full-priority DOOR SET outside the `FULL_PRIORITY_CALLERS` census.
 
 **(G)** a tool that FILES an artifact (a call to `artifactDir`/`artifactFile` anywhere under `tooling/src/<tool>/`) whose `cli.ts` never opens a run slot (`withInstrumentRun`) — an unslotted instrument writes into the shared `reports/<kind>/`, where a concurrent run of the same instrument destroys its artifacts (#1164; the layout's one home is `UNIFIED-VERIFICATION-DESIGN.md` §3.3b). Cross-file, and adjudicated BEFORE the anchor guard so a conformance mini-project is judged too.
+
+**(H)** a playwright ATTACH — `<engine>.connectOverCDP(` or `<engine>.connect(` — outside `_shared/browser.ts` (`attachProbeSession` is the one door onto a stateful session daemon's browser, `docs/design/1208-instrument-substrate.md` §3.4; a raw attach elsewhere is a second `ProbeSession` shape and a shim-leak). Matched as the attach SET on arm B's engine receivers; puppeteer's `connect` (the Lighthouse engine's own page seam, phase 3) is a declared limit with its own `mustPass` row. Test-owned attaches under `tests/**` are outside the gate's `tooling/src/` scan by derivation.
 
 **Arm F2 matches a door SET, never one callee name** — a second detached full-priority door added later would otherwise be an unguarded loophole.
 

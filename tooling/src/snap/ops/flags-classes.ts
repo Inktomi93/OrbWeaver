@@ -59,9 +59,20 @@ export const REQUIRED_VALUE_FLAGS = new Set([
   "--expect-url",
   "--expect-focus",
   "--ref",
+  "--session",
+  "--session-daemon",
+  "--session-close",
+  "--session-export",
+  "--session-ttl",
 ]);
 
 export const OPTIONAL_SELECTOR_FLAGS = new Set(["--aria", "--text", "--map", "--expect-no-overflow"]);
+
+/** Flags whose optional inline value is a NAME, never a selector — consumed when the next token is not a
+ *  flag (ops/flags-session.ts `consumeOptionalName` is the handler-side twin of the scanner's rule). Kept
+ *  apart from OPTIONAL_SELECTOR_FLAGS on purpose: that set is containment-pinned against
+ *  lib/selector-shape.ts's SELECTOR_VALUE_FLAGS, and a session name is not a selector to refuse. */
+export const OPTIONAL_NAME_FLAGS = new Set(["--session-status"]);
 
 export const PAGE_TARGET_FLAGS = new Set([
   "--click",

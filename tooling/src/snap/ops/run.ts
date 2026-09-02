@@ -8,8 +8,8 @@ import { closeProbeSessionAfterError } from "../../_shared/browser.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { printVerdict } from "../../_shared/evidence.ts";
 import type { AppearanceInvariantResult } from "../contract/appearance-invariants.ts";
-import type { SnapDetailedPlan, SnapDetailedResult } from "../contract/run.ts";
-import type { Args, ReportCtx, ShotPlan } from "../contract/types.ts";
+import type { EvidenceWindow, SessionRunHooks, SessionRunTarget, SnapDetailedPlan, SnapDetailedResult } from "../contract/run.ts";
+import type { Args, CaptureOutcome, ReportCtx, ShotPlan } from "../contract/types.ts";
 import { pageOut, shouldProduceShot } from "../lib/out-names.ts";
 import { throttleResultValue } from "../lib/throttle.ts";
 import { captureAppearanceInvariantRows } from "./appearance-invariant-runtime.ts";
@@ -62,24 +62,38 @@ function hasAppearanceInvariantPlan(detailedPlan: SnapDetailedPlan | undefined):
   return detailedPlan !== undefined && detailedPlan.appearanceRows.length > 0;
 }
 
-export async function runSnapDetailed(opts: Args, detailedPlan?: SnapDetailedPlan): Promise<SnapDetailedResult> {
-  const { url, name } = snapDestination(opts);
-  // `name` may be a PATH the caller chose (`--out /tmp/shot.png`): the shot lands exactly there, while the
-  // kind-dir siblings (trace/HAR/baseline) key off its sanitized basename and stay under reports/.
-  const out = await artifactFile("snaps", name, ".png");
-  const key = artifactKey(name);
-  // Whether we write a PNG. --no-shot/--text suppress it, but --baseline/--diff
-  // need pixels to compare, and --shot-of is itself a shot — so those force it on.
-  const produceShot = shouldProduceShot(opts);
-  const totalPages = opts.pages;
-  const session = await launchSnapSession(opts, key, {
-    pages: totalPages,
-    requireCascadeRuntime: hasAppearanceInvariantPlan(detailedPlan),
-  });
+/** A session call's evidence window: an outcome that did not ask for `--checkpoint` gets the window as its
+ *  range, so the console/page-error verdicts and the report's scoping read THIS call's slice of the daemon's
+ *  rings. The one-shot host passes null and stays byte-identical. */
+function windowOutcomes(outcomes: readonly CaptureOutcome[], session: ProbeSession, window: EvidenceWindow | null): void {
+  if (window === null) {
+    return;
+  }
+  for (const outcome of outcomes) {
+    if (outcome.evidenceRange === null) {
+      outcome.evidenceRange = {
+        consoleStart: window.consoleStart,
+        consoleEnd: session.consoleMessages.length,
+        pageErrorStart: window.pageErrorStart,
+        pageErrorEnd: session.pageErrors.length,
+      };
+    }
+  }
+}
 
-  try {
+/** THE ONE CAPTURE PASS (docs/design/1208-instrument-substrate.md §5, invariant 4 — "one implementation"):
+ *  capture → css evidence → appearance → report → baseline/diff → manifest → verdict, against a session
+ *  somebody else launched. `runSnapDetailed` hosts it for the one-shot path (launch + run + finish); the
+ *  session daemon hosts it per call (ops/session-daemon-call.ts). The two seams that legitimately differ —
+ *  the evidence window and what "finish" means — ride `hooks`; nothing else forks. */
+export async function runOnSession(session: ProbeSession, opts: Args, target: SessionRunTarget, hooks: SessionRunHooks): Promise<SnapDetailedResult> {
+  const { url, name, out, key, produceShot } = target;
+  const { detailedPlan } = hooks;
+  const totalPages = opts.pages;
+  {
     const plan: ShotPlan = { url, out, produceShot };
-    const outcomes = await capturePages(session, opts, plan);
+    const outcomes = await capturePages(session, opts, plan, target.navigate);
+    windowOutcomes(outcomes, session, hooks.window);
     await captureCssEvidence(session, opts, outcomes);
     const appearance = await captureAppearanceResults(session, opts, detailedPlan);
     const evidenceSession = sessionForEvidence(session, outcomes);
@@ -119,7 +133,7 @@ export async function runSnapDetailed(opts: Args, detailedPlan?: SnapDetailedPla
       appearance: appearance.filter((result) => result.evaluation.status !== "ok").length,
     });
     const red = hasSnapFailure(failureSummary);
-    const artifacts = await finishSession(session, red, key, opts.failureEvidence);
+    const artifacts = await hooks.finish(red);
     const manifestPath = await writeManifestIfRequested(opts, name, {
       status: red ? "fail" : "pass",
       target: { url, name },
@@ -221,6 +235,34 @@ export async function runSnapDetailed(opts: Args, detailedPlan?: SnapDetailedPla
         scenario: null,
       },
     };
+  }
+}
+
+/** The one-shot host: launch, run the one capture pass, finish (close) — every path closes the browser. */
+export async function runSnapDetailed(opts: Args, detailedPlan?: SnapDetailedPlan): Promise<SnapDetailedResult> {
+  const { url, name } = snapDestination(opts);
+  // `name` may be a PATH the caller chose (`--out /tmp/shot.png`): the shot lands exactly there, while the
+  // kind-dir siblings (trace/HAR/baseline) key off its sanitized basename and stay under reports/.
+  const out = await artifactFile("snaps", name, ".png");
+  const key = artifactKey(name);
+  // Whether we write a PNG. --no-shot/--text suppress it, but --baseline/--diff
+  // need pixels to compare, and --shot-of is itself a shot — so those force it on.
+  const produceShot = shouldProduceShot(opts);
+  const session = await launchSnapSession(opts, key, {
+    pages: opts.pages,
+    requireCascadeRuntime: hasAppearanceInvariantPlan(detailedPlan),
+  });
+  try {
+    return await runOnSession(
+      session,
+      opts,
+      { url, name, out, key, produceShot, navigate: true },
+      {
+        window: null,
+        finish: async (red) => await finishSession(session, red, key, opts.failureEvidence),
+        ...(detailedPlan === undefined ? {} : { detailedPlan }),
+      },
+    );
   } catch (error) {
     return await closeProbeSessionAfterError(session, error);
   }

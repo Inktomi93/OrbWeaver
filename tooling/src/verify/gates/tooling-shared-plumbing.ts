@@ -7,7 +7,12 @@
 // homelab floor), with full-priority-door callers allowlisted in FULL_PRIORITY_CALLERS and the
 // NON-WORKSPACE ts-morph constructions censused in PROJECT_SITES; (G) a tool that FILES an artifact
 // (artifactDir/artifactFile) whose cli.ts never opens a run slot (withInstrumentRun) — the #1164
-// concurrency class, where two runs of one instrument overwrite each other's artifacts.
+// concurrency class, where two runs of one instrument overwrite each other's artifacts; (H) a playwright
+// `<engine>.connectOverCDP(` / `<engine>.connect(` outside _shared/browser.ts — a second ATTACH site
+// (docs/design/1208-instrument-substrate.md §3.4: `attachProbeSession` is the one door onto a session
+// daemon's browser; a raw attach elsewhere is a shim-leak and a second ProbeSession shape). Declared
+// limit: puppeteer's `connect` (the Lighthouse engine's own seam, phase 3) is not this arm's — its row
+// is the mustPass below.
 // Scan-and-allowlist: the HOMES are SCANNED and carried as cited rows with a stale sweep (GATE-AUTHORING §4). Comment posture: comment-SAFE (node kinds + literal args).
 import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
@@ -76,6 +81,9 @@ const PROJECT_SITES: ExemptionTable = {
 
 const PATH_CALLEES = new Set(["join", "resolve", "mkdir", "mkdirSync"]);
 const LAUNCH_ENGINES = new Set(["chromium", "firefox", "webkit"]);
+/** Arm H's door set — Playwright's two attach verbs on a browser type. Matched as a SET with arm B's
+ *  engines as receivers, so a third attach spelling on the same receiver is a loophole only until it joins. */
+const ATTACH_METHODS = new Set(["connectOverCDP", "connect"]);
 
 const seenHomes = new Set<string>();
 const seenFullPriorityCallers = new Set<string>();
@@ -138,7 +146,11 @@ function capability(node: Node): string | null {
       return "process.exit(";
     }
     const engine = callee.getExpression().getText();
-    return callee.getName() === "launch" && LAUNCH_ENGINES.has(engine) ? `${engine}.launch(` : null;
+    if (!LAUNCH_ENGINES.has(engine)) {
+      return null;
+    }
+    // Arm B (launch) and arm H (attach) share the receiver set: a browser type is reached ONE way each.
+    return callee.getName() === "launch" || ATTACH_METHODS.has(callee.getName()) ? `${engine}.${callee.getName()}(` : null;
   }
   if (callee.isKind(SyntaxKind.Identifier) && PATH_CALLEES.has(callee.getText())) {
     return reportsPathArg(node, callee.getText());
@@ -152,8 +164,8 @@ export const gate: GateDescriptor = {
   status: "active",
   scopeSafety: "whole-project",
   message:
-    "a second home for _shared plumbing — ts-morph Project construction, Playwright launch, reports/<kind> artifact filing, process.exit, and child_process spawning each have ONE sanctioned module (and every tool cli.ts enters through runTool — the exit-honesty runner — and opens a run slot for the artifacts it files); a respell here is the duplication class the tooling package was minted to end (docs/architecture/core/Core-Tooling-Law.md §2.4/§4.4).",
-  fix: "call the _shared home (ts-workspace getWorkspace / browser launchProbeSession / artifacts artifactFile inside artifacts withInstrumentRun / run-tool runTool / proc spawnNiced-runNicedSync) instead of respelling it.",
+    "a second home for _shared plumbing — ts-morph Project construction, Playwright launch AND attach (connectOverCDP/connect), reports/<kind> artifact filing, process.exit, and child_process spawning each have ONE sanctioned module (and every tool cli.ts enters through runTool — the exit-honesty runner — and opens a run slot for the artifacts it files); a respell here is the duplication class the tooling package was minted to end (docs/architecture/core/Core-Tooling-Law.md §2.4/§4.4).",
+  fix: "call the _shared home (ts-workspace getWorkspace / browser launchProbeSession or attachProbeSession / artifacts artifactFile inside artifacts withInstrumentRun / run-tool runTool / proc spawnNiced-runNicedSync) instead of respelling it.",
   scanRoot: (p) => p.startsWith(TOOLING_PREFIX),
   kinds: [SyntaxKind.CallExpression, SyntaxKind.NewExpression, SyntaxKind.ImportDeclaration],
   begin: () => {
@@ -293,6 +305,18 @@ export const gate: GateDescriptor = {
       why: "a hand-rolled reports/<kind> path outside _shared/artifacts.ts — the artifact-dir respell",
     },
     {
+      files: 'import { chromium } from "@playwright/test";\nexport const b = chromium.connectOverCDP("http://127.0.0.1:9222");\n',
+      at: "tooling/src/ui-audit/ops/run.ts",
+      expect: { count: 1, token: "chromium.connectOverCDP(" },
+      why: "a second CDP attach outside _shared/browser.ts — a sibling instrument reaching a session daemon's browser around attachProbeSession (arm H; docs/design/1208-instrument-substrate.md §3.4)",
+    },
+    {
+      files: 'import { chromium } from "@playwright/test";\nexport const b = chromium.connect("ws://127.0.0.1:9222/x");\n',
+      at: "tooling/src/motion-audit/ops/run.ts",
+      expect: { count: 1, token: "chromium.connect(" },
+      why: "Playwright's websocket attach is the SAME door class — the design's refused alternative must not be a loophole (arm H matches the attach SET)",
+    },
+    {
       files: "export function bail(): never {\n  process.exit(2);\n}\n",
       at: "tooling/src/ast/ops/bail.ts",
       expect: { count: 1, token: "process.exit(" },
@@ -354,6 +378,16 @@ export const gate: GateDescriptor = {
       files: 'export const help = "artifacts land under reports/snaps/";\n',
       at: "tooling/src/snap/ops/help.ts",
       why: "the literal in PROSE (not a path-call argument) — help text must not trip the respell arm",
+    },
+    {
+      files: 'import { chromium } from "@playwright/test";\nexport const b = chromium.connectOverCDP("http://127.0.0.1:9222");\n',
+      at: "tooling/src/_shared/browser.ts",
+      why: "the sanctioned attach home (attachProbeSession) — scanned AND allowlisted, the scan-and-allowlist shape arm B already uses for launch (arm H's pass half)",
+    },
+    {
+      files: 'import puppeteer from "puppeteer-core";\nexport const b = puppeteer.connect({ browserURL: "http://127.0.0.1:9222" });\n',
+      at: "tooling/src/snap/ops/arms/lighthouse.ts",
+      why: "THE DECLARED LIMIT: puppeteer's `connect` is the Lighthouse engine's own page seam (the #1226 spike measured that snapshot mode needs the puppeteer handle) and is not a Playwright browser type — arm H keys on the engine RECEIVERS; the puppeteer door is phase 3's to place",
     },
     {
       files: {

@@ -29,6 +29,7 @@ import {
   stageSweepVerdict,
   teardownConsent,
 } from "../lib/stage-plan.ts";
+import { sessionStatusSummary } from "./session-registry.ts";
 import { removeStageDir, stopStage } from "./stage.ts";
 import { repoRoot } from "./stage-git.ts";
 import { clearActive, markerRoot, readActive } from "./stage-marker.ts";
@@ -62,6 +63,8 @@ export function stageStatus(): string {
     lines.push("WARNING     : stage ports are bound but NO marker — a lost-marker stage; `--stage-down` will kill by port + sweep dirs.");
   }
   lines.push(`sweep       : ${sweepReport(root).join(" · ")}`);
+  // The session substrate's third reader (design §3.8): a dead session is loud on every status read.
+  lines.push(`sessions    : ${sessionStatusSummary(root, Date.now())}`);
   return lines.join("\n");
 }
 
