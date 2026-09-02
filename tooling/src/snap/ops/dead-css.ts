@@ -7,6 +7,7 @@ import { CLASS_SELECTOR_TOKEN_PATTERN, CLASS_TOKEN_ESCAPE_PATTERN, DEAD_CSS_MARK
 import type { Page } from "@playwright/test";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { DeadCssEvidence } from "../contract/dead-css.ts";
+import { deadCssCensus, deadCssDrain } from "./page-validate.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
@@ -23,8 +24,11 @@ refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 //      block (style.length === 0). Canonical case: v3 var syntax `w-[--foo]`
 //      compiling under v4 to `width: --foo` (bare ident, no var()). Mode 1
 //      can't see it because the SELECTOR exists.
+// #1004 — the in-page guard below throws on a bad GENERATION; this settles the SHAPE, and keeps
+// `null` (a --file fixture with no bridge) distinguishable from an unreadable answer.
 async function settleDeadCssDrain(page: Page): Promise<DeadCssEvidence["drain"]> {
-  return (await page.evaluate(`(async () => {
+  return deadCssDrain(
+    await page.evaluate(`(async () => {
     const drain = globalThis.__orb?.motionFlaggersDrain;
     if (typeof drain !== "function") return null;
     const receipt = await drain();
@@ -33,7 +37,8 @@ async function settleDeadCssDrain(page: Page): Promise<DeadCssEvidence["drain"]>
       throw new Error("INSTRUMENT ERROR: motionFlaggersDrain returned an invalid generation receipt");
     }
     return receipt;
-  })()`)) as DeadCssEvidence["drain"];
+  })()`),
+  );
 }
 
 export async function scanDeadCss(page: Page, includeHidden: boolean): Promise<DeadCssEvidence> {
@@ -44,7 +49,8 @@ export async function scanDeadCss(page: Page, includeHidden: boolean): Promise<D
   // browser context; a serialized IIFE evaluates untransformed. (Also the root
   // tsconfig that checks scripts/ is DOM-less — a function body wouldn't compile.)
   const drain = await settleDeadCssDrain(page);
-  const census = (await page.evaluate(`(() => {
+  const census = deadCssCensus(
+    await page.evaluate(`(() => {
     const used = new Map();
     for (const el of document.querySelectorAll("*")) {
       if (!${JSON.stringify(includeHidden)}) {
@@ -129,6 +135,7 @@ export async function scanDeadCss(page: Page, includeHidden: boolean): Promise<D
       dead,
       empty: emptyUsed.sort(),
     };
-  })()`)) as Omit<DeadCssEvidence, "drain">;
+  })()`),
+  );
   return { ...census, drain };
 }

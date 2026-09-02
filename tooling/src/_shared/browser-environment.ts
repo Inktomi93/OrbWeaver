@@ -3,6 +3,7 @@
 // name echoed from argv is not proof that touch/pointer/mobile emulation reached the page.
 import type { Page } from "@playwright/test";
 import type { Viewport } from "./argv.ts";
+import { pageBooleanFields, pageNumberFields, pageObject, pageString } from "./page-validate.ts";
 
 /** One canonical full Playwright descriptor. Snap, design-audit, and motion-audit import this identity. */
 export const MOBILE_DEVICE = "iPhone 14 Pro Max";
@@ -257,6 +258,39 @@ function mediaMismatches(applied: BrowserEnvironmentApplied, runtime: RuntimeObs
   return mismatches;
 }
 
+/** THE LIVE ENVIRONMENT READ, settled at the page boundary (#1004, `_shared/page-validate.ts`). This
+ *  read is the one that decides whether the probe measured the environment it ASKED for, so a malformed
+ *  answer is the worst possible silent failure here: `mediaMismatches` compares `=== true`, so an absent
+ *  boolean reads as "the page says no" and either invents a mismatch or — for the arms whose contract
+ *  side is also false — agrees with the contract for the wrong reason and certifies an environment
+ *  nobody verified. The viewport pair is checked as an object because `innerViewport`/`screen` are
+ *  copied straight into the evidence record every consumer prints. */
+function runtimeObservation(value: unknown): RuntimeObservation {
+  const label = "the runtime environment read";
+  const record = pageObject(value, label);
+  pageObject(record["innerViewport"], `${label} field "innerViewport"`);
+  pageObject(record["screen"], `${label} field "screen"`);
+  pageString(record["userAgent"], `${label} field "userAgent"`);
+  pageNumberFields(record, ["deviceScaleFactor", "maxTouchPoints"], label);
+  pageBooleanFields(
+    record,
+    [
+      "pointerCoarse",
+      "pointerFine",
+      "hoverHover",
+      "hoverNone",
+      "colorSchemeLight",
+      "colorSchemeDark",
+      "reducedMotion",
+      "contrastMore",
+      "contrastLess",
+      "reducedTransparency",
+    ],
+    label,
+  );
+  return record as unknown as RuntimeObservation;
+}
+
 function environmentMismatches(contract: BrowserEnvironmentContract, viewport: Viewport | null, runtime: RuntimeObservation): string[] {
   return [
     ...identityMismatches(contract.applied, viewport, runtime),
@@ -269,7 +303,7 @@ function environmentMismatches(contract: BrowserEnvironmentContract, viewport: V
  *  stays in `mismatches`; callers turn any entry into INSTRUMENT ERROR. */
 export async function readBrowserEnvironment(page: Page, contract: BrowserEnvironmentContract): Promise<BrowserEnvironmentEvidence> {
   const viewport = page.viewportSize();
-  const runtime = (await page.evaluate(READ_RUNTIME_ENVIRONMENT)) as RuntimeObservation;
+  const runtime = runtimeObservation(await page.evaluate(READ_RUNTIME_ENVIRONMENT));
   const mismatches = environmentMismatches(contract, viewport, runtime);
   const matched = mismatches.length === 0;
   const actual: BrowserEnvironmentActual = {

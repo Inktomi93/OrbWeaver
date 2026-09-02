@@ -8,14 +8,30 @@
 // tripwire: an anchor-sized set deriving zero exact entries means the glob/exact classifier rotted), and the
 // two-sided EXEMPT arms. DECLARED LIMITS: glob rows (`packages/*/src`, `**/*.tsx`, `${configDir}/...`) are
 // declared skips; a dead INCLUDE may be a deliberate not-yet-created path, so both include and exclude entries
+// PATTERN LIVENESS (#973): the glob entries are judged too. A glob is LIVE when node's own
+// `path.matchesGlob` puts at least one TRACKED file inside it — after the entry is resolved against ITS
+// OWN CONFIG'S DIRECTORY, which is the trap this family exists around (`../../tests/client/**/*.tsx` in
+// packages/client/tsconfig.json is `tests/client/**/*.tsx` at the root, and expanding it against the wrong
+// root is a silent false verdict either way). Zero members = a program including nothing, or an exclude
+// carrying dead weight. Two families cannot be judged: `${configDir}` entries (TypeScript expands them per
+// INHERITING config, so the entry has no single root to expand against — budgeted, not guessed) and the
+// by-design rows in RATIFIED below.
 // route through the same two-sided EXEMPT table (not a hard fail). COMMENT POSTURE: n/a — parsed as JSONC via
 // the TypeScript config reader, so comments are structurally out of scope.
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { ts } from "ts-morph";
 import type { ExemptionTable, Finding, GateDescriptor, GateScanDeclaration } from "../contract/gate.ts";
-import type { ExactRow, GrantExemption, LivenessMessages } from "../lib/grant-liveness.ts";
-import { isFileExact, lineFinder, livenessFindings } from "../lib/grant-liveness.ts";
+import type { ExactRow, GrantExemption, LivenessMessages, PatternLivenessMessages, PatternRow } from "../lib/grant-liveness.ts";
+import {
+  globMatcher,
+  irreducibleBudgetFindings,
+  isFileExact,
+  lineFinder,
+  livenessFindings,
+  memberSources,
+  patternLivenessFindings,
+} from "../lib/grant-liveness.ts";
 
 const PRIMARY_REL = "tsconfig.json";
 const UNIT = "tsconfig entry";
@@ -44,6 +60,76 @@ const EXEMPT: ExemptionTable<GrantExemption> = {
     cite: ST_GOLDENS_README,
   },
 };
+
+/** The committed count of `${configDir}` entries — irreducible because TypeScript expands the token per
+ *  INHERITING config, so the entry denotes a different path in each extender and has no single member set.
+ *  Two-sided: growth adds unreviewed authority, an uncommitted shrink leaves a budget nobody can trust. */
+const CONFIG_DIR_BUDGET = 3;
+
+/** The §4.5 real-tree anchor for the BUDGET arm: this gate's own module, which no planted fixture root carries. */
+const GATE_SELF = "tooling/src/verify/gates/tsconfig-entry-liveness.ts";
+/** The BUDGET arm's own real-tree anchor — a fact about the REAL config set, so it is judged only where
+ *  the enforcement ledger lives. A planted fixture carries its own rows and would (correctly for itself,
+ *  wrongly for this repo) disagree with a committed budget it knows nothing about. */
+const BUDGET_ANCHOR = "docs/architecture/core/Core-Enforcement-Active-Gates.md";
+
+const GATE_FIXTURE_LAW = "tooling/src/verify/gates/GATE-AUTHORING.md";
+
+/** Glob entries whose members are absent from the tracked corpus BY DESIGN, each with its END CONDITION.
+ *  Keyed by the entry AS AUTHORED (the same spelling the config carries), two-sided on both halves. */
+const RATIFIED: ExemptionTable<GrantExemption> = {
+  "**/node_modules": {
+    why:
+      "INSTALLED DEPENDENCIES: node_modules is gitignored, so it is absent from the tracked corpus by " +
+      "design and present only after an install — judging it either way makes the verdict depend on " +
+      "machine state. Delete this row the day the type programs stop needing to exclude installed packages.",
+    cite: ".gitignore",
+  },
+  "**/__g_*": {
+    why:
+      "the reserved throwaway-fixture sentinel: check-gates.int materialises `__g_*` files at real-tree " +
+      "paths for milliseconds and reaps them, so the subject is ABSENT from every tracked source by " +
+      "construction — an exclude that must PRE-EXIST the fixture it excludes. Delete this row the day the " +
+      "`__g_` sentinel is retired.",
+    cite: GATE_FIXTURE_LAW,
+  },
+  "**/__g_*/**": {
+    why:
+      "the directory half of the `__g_` sentinel exclude — same construction, same END CONDITION (delete " +
+      "with its sibling the day the sentinel is retired).",
+    cite: GATE_FIXTURE_LAW,
+  },
+};
+
+const PATTERN_MESSAGES: PatternLivenessMessages = {
+  deadPattern:
+    "a GLOB `include`/`exclude` entry in a tsconfig matches NO tracked file, after resolving it against its " +
+    "OWN config's directory. A dead include silently drops the coverage it was carrying (a whole program " +
+    "checking nothing); a dead exclude is stale weight that the next file created under it inherits " +
+    "(tooling/src/verify/gates/GATE-AUTHORING.md §4.4 mode B). Re-point the entry, delete it, or — if its " +
+    "members are absent by design (a gitignored tree, the `__g_` fixture sentinel) — add a RATIFIED row in " +
+    "tooling/src/verify/gates/tsconfig-entry-liveness.ts with its `why` + END CONDITION and a resolving " +
+    "`cite`. The finding token is the entry as authored.",
+  staleRatified:
+    "a tsconfig-entry-liveness RATIFIED row forgives a glob entry no scanned tsconfig carries — a standing " +
+    "allowance for a row that is gone is a LOADED GUN. Delete the row from RATIFIED in " +
+    "tooling/src/verify/gates/tsconfig-entry-liveness.ts.",
+  deadCite:
+    "a tsconfig-entry-liveness RATIFIED row's `cite` no longer resolves — the decision that justified the " +
+    "allowance moved or was deleted. Re-derive the cite, or delete the row from RATIFIED in " +
+    "tooling/src/verify/gates/tsconfig-entry-liveness.ts.",
+  budgetMoved:
+    "the count of `${configDir}` tsconfig entries is {actual}, but the committed budget is {budget}. " +
+    "TypeScript expands that token per INHERITING config, so the entry has no single root to expand " +
+    "against and no member set a static reader can test — the budget is what keeps that population from " +
+    "growing silently. GROWTH: justify the new entry or spell it as a real path. SHRINK: commit it, by " +
+    "lowering CONFIG_DIR_BUDGET in tooling/src/verify/gates/tsconfig-entry-liveness.ts.",
+};
+
+const MSG_CORPUS_BLIND =
+  "the tracked-file corpus came back EMPTY on a real-sized tsconfig set — `git ls-files` failed or this is " +
+  "not a work tree, so every glob-liveness verdict below is vacuous and a ✓ would be a lie " +
+  "(tooling/src/verify/gates/GATE-AUTHORING.md §4.6). See tooling/src/verify/lib/grant-liveness.ts.";
 
 const MESSAGES: LivenessMessages = {
   dead:
@@ -103,7 +189,9 @@ function toStringArray(value: unknown): readonly string[] {
 interface Accumulated {
   readonly exact: readonly ExactRow[];
   readonly candidates: number;
-  readonly globs: number;
+  readonly globs: readonly PatternRow[];
+  /** `${configDir}` entries — irreducible, counted against CONFIG_DIR_BUDGET. */
+  readonly templates: number;
   readonly unparseable: readonly Finding[];
 }
 
@@ -119,22 +207,31 @@ function foldConfig(root: string, rel: string, acc: Accumulated): Accumulated {
   const lineOf = lineFinder(text);
   const configDir = dirname(rel);
   const exact: ExactRow[] = [];
-  let globs = 0;
+  const globs: PatternRow[] = [];
+  let templates = 0;
   for (const entry of entries) {
-    if (isFileExact(entry) && !TEMPLATE_RE.test(entry)) {
+    if (TEMPLATE_RE.test(entry)) {
+      templates += 1;
+    } else if (!isFileExact(entry)) {
+      // Resolve the glob against ITS OWN config's directory before matching — the entry is authored
+      // relative to the config, and expanding it against the repo root is the silent-wrong-answer trap
+      // BOTH ways (packages/client/tsconfig.json's `../../tests/client/**/*.tsx` is `tests/client/**/*.tsx`
+      // at the root; the naive concatenation leaves a `..` segment that matches nothing at all).
+      const rooted = relative(root, join(root, configDir, entry));
+      globs.push({ file: rel, pattern: entry, line: lineOf(entry), matches: globMatcher(rooted) });
+    } else if (isFileExact(entry) && !TEMPLATE_RE.test(entry)) {
       // tsconfig include/exclude paths are relative to the CONFIG FILE's directory, not the repo root —
       // resolve to a repo-relative path so existsSync + the EXEMPT table + the finding token all agree
       // (`tooling/tsconfig.json`'s `src` is `tooling/src`; its `../reset.d.ts` is repo-root `reset.d.ts`).
       const resolved = relative(root, join(root, configDir, entry));
       exact.push({ file: rel, path: resolved, line: lineOf(entry) });
-    } else {
-      globs += 1;
     }
   }
   return {
     exact: [...acc.exact, ...exact],
     candidates: acc.candidates + entries.length,
-    globs: acc.globs + globs,
+    globs: [...acc.globs, ...globs],
+    templates: acc.templates + templates,
     unparseable: acc.unparseable,
   };
 }
@@ -142,13 +239,15 @@ function foldConfig(root: string, rel: string, acc: Accumulated): Accumulated {
 interface Outcome {
   readonly findings: readonly Finding[];
   readonly declaration: GateScanDeclaration;
+  /** The glob half's disposition, folded into the gate's scan declaration by `run`. */
+  readonly patterns?: { readonly live: number; readonly ratified: number; readonly irreducible: number };
 }
 
 function scanTsconfigEntryLiveness(root: string): Outcome {
   if (!existsSync(join(root, PRIMARY_REL))) {
     return { findings: [{ file: PRIMARY_REL, line: 0, column: 0, message: MSG_MISSING }], declaration: { unit: UNIT, candidates: 0, scanned: 0 } };
   }
-  let acc: Accumulated = { exact: [], candidates: 0, globs: 0, unparseable: [] };
+  let acc: Accumulated = { exact: [], candidates: 0, globs: [], templates: 0, unparseable: [] };
   for (const rel of discoverConfigs(root)) {
     acc = foldConfig(root, rel, acc);
   }
@@ -156,7 +255,7 @@ function scanTsconfigEntryLiveness(root: string): Outcome {
     unit: UNIT,
     candidates: acc.candidates,
     scanned: acc.exact.length,
-    skipped: { glob: acc.globs },
+    skipped: { glob: acc.globs.length + acc.templates },
   };
   if (acc.unparseable.length > 0) {
     return { findings: acc.unparseable, declaration };
@@ -165,8 +264,37 @@ function scanTsconfigEntryLiveness(root: string): Outcome {
   if (acc.exact.length === 0) {
     return { findings: anchorOk ? [{ file: PRIMARY_REL, line: 0, column: 0, message: MSG_NO_ROWS }] : [], declaration };
   }
-  const findings = livenessFindings({ root, exact: acc.exact, exempt: EXEMPT, exemptAnchorFile: PRIMARY_REL, anchorOk, messages: MESSAGES });
-  return { findings, declaration };
+  const exactFindings = livenessFindings({ root, exact: acc.exact, exempt: EXEMPT, exemptAnchorFile: PRIMARY_REL, anchorOk, messages: MESSAGES });
+  // The PATTERN half runs only in a scope that carries this gate's OWN module (the §4.5 real-tree anchor
+  // shape). A conformance mini-project and the file-exact fixtures have no work tree to derive a corpus
+  // from, and their handful of rows are not the real population — judging them would red every proof.
+  if (!(anchorOk && existsSync(join(root, GATE_SELF)))) {
+    return { findings: exactFindings, declaration };
+  }
+  const sources = memberSources(root);
+  if (sources.repoPaths.length === 0) {
+    return { findings: [...exactFindings, { file: PRIMARY_REL, line: 0, column: 0, message: MSG_CORPUS_BLIND }], declaration };
+  }
+  const outcome = patternLivenessFindings({
+    root,
+    rows: acc.globs,
+    sources,
+    ratified: RATIFIED,
+    ratifiedAnchorFile: PRIMARY_REL,
+    anchorOk,
+    messages: PATTERN_MESSAGES,
+  });
+  // The BUDGET is a fact about the REAL config set, guarded by a real-tree ANCHOR per §4.5 — a planted
+  // anchor-sized fixture carries its own entries, and judging its `${configDir}` count against this repo's
+  // committed budget would red every proof that ever plants one.
+  const budget = existsSync(join(root, BUDGET_ANCHOR))
+    ? irreducibleBudgetFindings(PRIMARY_REL, acc.templates, CONFIG_DIR_BUDGET, PATTERN_MESSAGES.budgetMoved)
+    : [];
+  return {
+    findings: [...exactFindings, ...outcome.findings, ...budget],
+    declaration,
+    patterns: { live: outcome.live, ratified: outcome.ratified, irreducible: acc.templates },
+  };
 }
 
 // ── self-proof fixtures ───────────────────────────────────────────────────────────────────────────────
@@ -201,7 +329,18 @@ export const gate: GateDescriptor = {
     "tooling/src/verify/gates/tsconfig-entry-liveness.ts with its `why` + END CONDITION and a resolving `cite`.",
   run: (ctx) => {
     const outcome = scanTsconfigEntryLiveness(ctx.root);
-    ctx.scan(outcome.declaration);
+    ctx.scan(
+      outcome.patterns === undefined
+        ? outcome.declaration
+        : {
+            ...outcome.declaration,
+            skipped: {
+              "glob-live": outcome.patterns.live,
+              "glob-ratified": outcome.patterns.ratified,
+              "glob-irreducible-configdir": outcome.patterns.irreducible,
+            },
+          },
+    );
     for (const finding of outcome.findings) {
       ctx.report(finding);
     }
@@ -247,6 +386,10 @@ export const gate: GateDescriptor = {
     },
   ],
   mustPass: [
+    {
+      files: { [PRIMARY_REL]: JSON.stringify({ include: ["packages/definitely-not-here/**/*.ts"] }) },
+      why: "DECLARED LIMIT — the PATTERN half is scoped to a root carrying this gate's own module (the §4.5 real-tree anchor shape): a mini-project has no git work tree to derive the `git ls-files` corpus from, so a glob with no members here is SILENT. The pattern arms are proven instead by the permanent pin under tests/tooling/verify/gates/, which plants a real throwaway repo (#973).",
+    },
     {
       files: { "tsconfig.json": '{\n  "exclude": ["packages/client/src/live.ts"]\n}\n', [LIVE_REL]: LIVE_SOURCE },
       why: "a file-exact exclude whose file is on the tree — the sanctioned shape, silent",

@@ -22,6 +22,7 @@
 import { errorMessage } from "@orb/kit/error-message";
 import { parseGotoTarget, splitLastEq } from "@orb/tooling/_shared/argv";
 import type { Page } from "@playwright/test";
+import { navResultShape } from "./page-validate.ts";
 
 /** The nav verbs a probe CLI offers, spelled as they appear on the command line (minus the `--`). */
 export const NAV_METHODS = ["goto", "open-chat", "open-character", "context-tab", "panel", "focus"] as const;
@@ -104,7 +105,9 @@ export async function runNav(page: Page, method: NavMethod, target: string): Pro
     await page.locator("html[data-app-ready]").waitFor({ state: "attached", timeout: READY_TIMEOUT_MS });
     // @orb-gate-ignore caught-failure-ownership(promise:evaluate): a best-effort readiness ping before the real bridge call two lines below — any genuine failure (no bridge, mid-navigation) is caught by the surrounding try and returned as ok:false with the message. Ends if this becomes the only readiness signal checked.
     await page.evaluate("window.__orb && window.__orb.ready").catch(() => undefined);
-    const result = (await page.evaluate(buildNavScript(method, target))) as { ok: boolean; reason?: string };
+    // #1004: the bridge's answer is VALIDATED at the seam, not asserted. An absent `ok` used to read as
+    // falsy and report a nav failure that never happened; a truthy non-boolean read as success.
+    const result = navResultShape(await page.evaluate(buildNavScript(method, target)), `nav ${method} ${target}`);
     return result.ok ? { ok: true } : { ok: false, reason: result.reason ?? "rejected" };
   } catch (e) {
     return { ok: false, reason: errorMessage(e) };

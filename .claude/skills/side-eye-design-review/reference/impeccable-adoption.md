@@ -20,7 +20,7 @@
 
 Impeccable is **Copyright 2025 Paul Bakaus, Apache License 2.0** (upstream `LICENSE`). Apache-2.0
 permits derivative works with attribution; the adapted detector logic in
-`design-audit-walker.ts` / `design-audit-checks.ts` carries a per-file attribution header naming
+`tooling/src/ui-audit/ops/walker.ts` and `lib/collect.ts` carries a per-file attribution header naming
 the upstream project, license, and the fact of modification (Apache-2.0 §4b "prominent notices
 stating that You changed the files"). Upstream's `NOTICE.md` covers only its `ios.md`/`android.md`
 platform references (MIT, ehmo/platform-design-skills) — nothing from those files was adapted, so
@@ -94,8 +94,13 @@ deterministic, and fires at `pnpm check` instead of needing a browser and a driv
 **A rule that emits an existing id has NO registry row, and a rule-by-rule diff cannot see it.**
 `checkHoverContrast` — hover-state WCAG contrast, catching a broader selector winning the
 specificity fight and swapping in a failing colour — emits `low-contrast`, so it never appeared in
-the 59 ids triaged here and was missed entirely. We carry no hover-contrast check of any kind.
-When re-syncing against upstream, diff the exported MECHANISMS, not just `ANTIPATTERNS`.
+the 59 ids triaged here and was missed entirely. **CLOSED 2026-09-01: we now carry `hover-contrast`
+(P1, `origin: "orbweaver"`)** — a CDP forced-state pass (`ops/hover.ts`, `ops/hover-walker.ts`) that
+forces each subject, re-reads the paint and releases the state, judged in `lib/checks-hover.ts` and
+accounted by its own `hoverContrastPopulations`; a control already failing at REST stays `contrast`'s
+row rather than being double-reported, and a pass that did not run publishes NO row instead of a
+clean-looking zero. When re-syncing against upstream, diff the exported MECHANISMS, not just
+`ANTIPATTERNS` — that is the durable lesson this miss paid for.
 
 ## Triage — all 59 rules
 
@@ -103,44 +108,63 @@ When re-syncing against upstream, diff the exported MECHANISMS, not just `ANTIPA
 > `organic-clip-path` (clip-path polygon ≥10 off-grid vertices, or `path()` with ≥3 curve segments)
 > — tested inapplicable: our only polygon is `code-editor.tsx:94` at three vertices — and
 > `buried-raster` (a raster under a ≥0.9-alpha wash, or at `opacity < 0.15`), which IS applicable
-> here and is being adapted (runtime arm only; their CSS-text arm needs the stylesheet scanner we
-> deliberately do not have).
+> here and HAS BEEN adapted (runtime arm only; their CSS-text arm needs the stylesheet scanner we
+> deliberately do not have) — it is registered, live, and carries its own bespoke accounting
+> (`checkBuriedRasterPopulations`, `lib/checks-media.ts`).
 
-**Counts: 29 ADAPTED · 4 DEDUPED (ours already covers — keep ours) · 26 REJECTED.**
+**Counts: 28 ADAPTED · 4 DEDUPED (ours already covers — keep ours) · 27 REJECTED-or-DEFERRED.**
 
-### Adapted (29) — now live in `pnpm design-audit`
+> **CORRECTED 2026-09-01 (#1027): `cramped-padding` was listed here as ADAPTED and is NOT BUILT.**
+> Re-derived against the tree: the string `cramped-padding` appears nowhere under `tooling/src/` or
+> `tests/tooling/`, it has no row in `contract/rules.ts`, and `git log --all --grep=cramped-padding`
+> is empty — so it never shipped, and the `design-audit-rule-proof` gate (which reds any registered
+> id lacking firing+silence proofs) could not catch a claim made only in prose. It has moved to the
+> deferred table below beside its own container arm. The lesson this row pays for: **an "adopted"
+> table in a doc is a CLAIM about the registry, and the registry is the only denominator** — the
+> live one is `tooling/src/ui-audit/contract/rules.ts` (59 ids today), and every count in this file
+> and in `SKILL.md` is re-derived from it rather than remembered.
 
-| impeccable id | our rule id | P | mechanism (as adapted) |
-| - | - | - | - |
-| `side-tab` | `side-tab` | P3 | dominant chromatic edge border (≥2px, ≥2× other sides; L/R any radius or ≥3px; T/B 3–12px band); exempt tab-context, status/alert, safe tags, and the RATIFIED ListRow selection accent (owner 2026-08-22, issue #485 — `[data-slot=list-row-root\|list-row-body][data-selected]`, both halves required: an unselected row or a selected non-row still fires) |
-| `border-accent-on-rounded` | `border-accent-on-rounded` | P3 | thick chromatic border on ANY edge + border-radius (same sampler as side-tab; a L/R accent on a rounded card fires this AND `side-tab` — issue #188, the live home resume card was a 3px oklch left edge on a 10px radius and the top/bottom-only reach reported neither; shares side-tab's exemptions, incl. the ratified ListRow selection accent — issue #485) |
-| `flat-type-hierarchy` | `flat-type-hierarchy` | P3 | page font-size census: ≥3 sizes with max/min ratio < 2.0 |
-| `bounce-easing` | `bounce-easing` | P2 | animation-name /bounce\|elastic\|wobble\|jiggle\|spring/ or overshoot cubic-bezier (y outside [-0.1,1.1]); P2 because motion law §4.3 hard-bans it |
-| `dark-glow` | `glow-shadow` | P3 | chromatic box/text-shadow: zero-offset halo anywhere, or blurred chromatic shadow on a dark backdrop; message names the sanctioned carriers (`--shadow-glow` rides `::before`; element-level shadows are never the sanctioned form) |
-| `radial-halo` | `radial-halo` | P2 | saturated radial wash: fades to transparent, a chromatic stop at alpha ≥ 0.45, surface ≥ 240×160 |
-| `radial-spotlight-glow` | `radial-spotlight-glow` | P3 | translucent spotlight: ≤2 visible stops all alpha < 0.45, ≥1 chromatic, fades out, large surface; sanctioned carriers exempt (`[data-slot=empty-state-decoration]`, `[data-slot=media-grid-cell]`, `.orb-weave-glow`) |
-| `icon-tile-stack` | `icon-tile-stack` | P3 | 32–128px squarish decorated tile containing a smaller icon, stacked above a heading (brief-named blind spot) |
-| `extreme-negative-tracking` | `crushed-tracking` | P3 | letter-spacing ≤ −0.045em on 20+ chars (skill §2 floor is −0.04em; fire strictly below it) |
-| `broken-image` | `broken-image` | P1 | `<img>` with empty/missing src, or complete with naturalWidth 0 |
-| `script-error` | `script-error` | P0 | runner-side: the probe session's `pageerror` capture (deduped, capped 3) |
-| `edge-flush-cards` | `edge-flush-cards` | P3 | at-rest horizontal scroller with a decorated card flush one edge + gutter the other (clip-box narrower than panel) |
-| `gray-on-color` | `gray-on-color` | P2 | achromatic mid-luminance text over a chromatic backdrop (brief-named blind spot); pure check over the existing contrast samples |
-| `layout-transition` | `layout-transition` | P3 | computed transition-property names width/height/padding/margin(+longhands) with duration > 0; exempt accordion/collapsible panel slots (motion law §3.7 sanctions their measured-var height) |
-| `line-length` | `line-length` | P3 | prose-tag element wider than ~85 estimated chars/line (est = width / (fontSize·0.5)) |
-| `cramped-padding` | `cramped-padding` | P3 | direct-text element with a visible boundary and padding under max(4, fs·0.3) vertical / max(8, fs·0.5) horizontal (impeccable's element arm; the flush-children container arm NOT ported — see rejected notes) |
-| `tight-leading` | `tight-leading` | P3 | line-height/font-size < 1.25 on 50+ char non-heading text — floor bound to OUR smallest ratified leading step (`leading.label` 1.25), not impeccable's 1.3, so ratified label-voice text stays legal |
-| `skipped-heading` | `skipped-heading` | P2 | page heading-level walk (h1→h3 with no h2); P2 because UIP §13.10 N7 is law here |
-| `justified-text` | `justified-text` | P3 | text-align justify without hyphens:auto |
-| `tiny-text` | `text-below-ramp` | P2 | any rendered text (≥2 chars) below the resolved `text.micro` token (10.5px) — bound to the LIVE ramp via `@orb/ui/tokens`, replaces impeccable's fixed 12px body floor (which would false-red the ratified micro voice) |
-| `undersized-ui-text` | `undersized-ui-text` | P2 | an interactive control's PRIMARY label below 11px — deliberately ABOVE the micro step, keeping impeccable's "being on the ramp doesn't launder legibility" clause for control labels. Refined vs upstream after the first live run: upstream fires on ANY text inside an interactive ancestor, which produced 12 same-class hits on ratified micro-voice captions inside large clickable cards; ours gates on primary-label (direct text ≈ the control's whole text) |
-| `all-caps-body` | `all-caps-body` | P3 | uppercase on 30+ chars of non-heading text (the ratified micro-caps voice is short labels; long caps runs are off-law anyway) |
-| `wide-tracking` | `wide-tracking` | P3 | letter-spacing > 0.05em on 20+ chars of non-uppercase text (uppercase exemption keeps `tracking.micro` 0.08em caps voice legal) |
-| `text-overflow` | `text-overflow` | P1 | direct-text owner spilling ≥16px past its box (scrollWidth arm) or an inline owner spilling past its block container (inline arm); scroll-region/self-ancestor + sr-only + transform-path exemptions ported |
-| `repeated-container-text` | `repeated-container-text` | P3 | same 4–48-char literal at 3+ structurally distinct positions inside one decorated container (structural-signature grouping ported) |
-| `clipped-overflow-container` | `clipped-overflow` | P2 | overflow-hidden/clip container (not a scroll region, not an intentional viewport) clipping a non-decorative positioned descendant that escapes or declares escape geometry. Refined vs upstream: a `position:fixed` child of the ROOT clip (html/body) is viewport-anchored and NOT clipped by root overflow — toasts/portals live there; only non-root clips flag fixed children |
-| `design-system-font` | `off-theme-font` | P2 | page font census vs the token stacks (`font.sans`/`font.mono` from `@orb/ui/tokens` + generic/system fallbacks) — our DESIGN.md-equivalent binding |
-| `repeating-stripes-gradient` | `stripe-background` | P3 | repeating-linear-gradient used as surface decoration |
-| `codex-grid-background` | `grid-line-background` | P3 | two-axis linear-gradient layers tiled by a fixed px background-size cell |
+### Adapted (28) — now live in `pnpm design-audit`
+
+The **rung** column is the rule's population-collection strategy. It is a DERIVED mirror: the one home
+for the rung assignment AND its reason is the table in `tooling/src/ui-audit/lib/collect.ts`'s header
+(owner ruling 2026-09-01 — a table, not a gate), pinned to the registry by
+`tests/tooling/ui-audit/lib/collect-families.test.ts`. That table wins on any conflict with this one.
+Rungs: **1** no population row (a page singleton, or a walker-proven carrier where the finding IS the
+census) · **2** a full census with candidates/judged/withheld/excluded · **3** a walker relational
+census plus a representative cap · **4** grouped by authored decision · **X** a bespoke accounting
+function named in the collect.ts table.
+
+| impeccable id | our rule id | P | rung | mechanism (as adapted) |
+| - | - | - | - | - |
+| `side-tab` | `side-tab` | P3 | 2 | dominant chromatic edge border (≥2px, ≥2× other sides; L/R any radius or ≥3px; T/B 3–12px band); exempt tab-context, status/alert, safe tags, and the RATIFIED ListRow selection accent (owner 2026-08-22, issue #485 — `[data-slot=list-row-root\|list-row-body][data-selected]`, both halves required: an unselected row or a selected non-row still fires) |
+| `border-accent-on-rounded` | `border-accent-on-rounded` | P3 | 2 | thick chromatic border on ANY edge + border-radius (same sampler as side-tab; a L/R accent on a rounded card fires this AND `side-tab` — issue #188, the live home resume card was a 3px oklch left edge on a 10px radius and the top/bottom-only reach reported neither; shares side-tab's exemptions, incl. the ratified ListRow selection accent — issue #485) |
+| `flat-type-hierarchy` | `flat-type-hierarchy` | P3 | 1 | page font-size census: ≥3 sizes with max/min ratio < 2.0 |
+| `bounce-easing` | `bounce-easing` | P2 | 2 | animation-name /bounce\|elastic\|wobble\|jiggle\|spring/ or overshoot cubic-bezier (y outside [-0.1,1.1]); P2 because motion law §4.3 hard-bans it |
+| `dark-glow` | `glow-shadow` | P3 | 2 | chromatic box/text-shadow: zero-offset halo anywhere, or blurred chromatic shadow on a dark backdrop; message names the sanctioned carriers (`--shadow-glow` rides `::before`; element-level shadows are never the sanctioned form) |
+| `radial-halo` | `radial-halo` | P2 | 2 | saturated radial wash: fades to transparent, a chromatic stop at alpha ≥ 0.45, surface ≥ 240×160 |
+| `radial-spotlight-glow` | `radial-spotlight-glow` | P3 | 2 | translucent spotlight: ≤2 visible stops all alpha < 0.45, ≥1 chromatic, fades out, large surface; sanctioned carriers exempt (`[data-slot=empty-state-decoration]`, `[data-slot=media-grid-cell]`, `.orb-weave-glow`) |
+| `icon-tile-stack` | `icon-tile-stack` | P3 | 2 | 32–128px squarish decorated tile containing a smaller icon, stacked above a heading (brief-named blind spot) |
+| `extreme-negative-tracking` | `crushed-tracking` | P3 | 2 | letter-spacing ≤ −0.045em on 20+ chars (skill §2 floor is −0.04em; fire strictly below it) |
+| `broken-image` | `broken-image` | P1 | 1 | `<img>` with empty/missing src, or complete with naturalWidth 0 |
+| `script-error` | `script-error` | P0 | X | runner-side: the probe session's `pageerror` capture (deduped, capped 3) |
+| `edge-flush-cards` | `edge-flush-cards` | P3 | 1 | at-rest horizontal scroller with a decorated card flush one edge + gutter the other (clip-box narrower than panel) |
+| `gray-on-color` | `gray-on-color` | P2 | X | achromatic mid-luminance text over a chromatic backdrop (brief-named blind spot); pure check over the existing contrast samples |
+| `layout-transition` | `layout-transition` | P3 | 2 | computed transition-property names width/height/padding/margin(+longhands) with duration > 0; exempt accordion/collapsible panel slots (motion law §3.7 sanctions their measured-var height) |
+| `line-length` | `line-length` | P3 | 2 | prose-tag element wider than 85 chars/line, measured against the element's OWN `ch` advance from an in-page canvas `measureText` (#464 replaced the `fontSize·0.5` GUESS, which over-estimated Geist by ~15% and indicted the house's ratified `--reading-measure: 75ch`); an unmeasured advance is WITHHELD, never a clean row |
+| `tight-leading` | `tight-leading` | P3 | 2 | line-height/font-size < 1.25 on 50+ char non-heading text — floor bound to OUR smallest ratified leading step (`leading.label` 1.25), not impeccable's 1.3, so ratified label-voice text stays legal |
+| `skipped-heading` | `skipped-heading` | P2 | 1 | page heading-level walk (h1→h3 with no h2); P2 because UIP §13.10 N7 is law here |
+| `justified-text` | `justified-text` | P3 | 2 | text-align justify without hyphens:auto |
+| `tiny-text` | `text-below-ramp` | P2 | 4 | any rendered text (≥2 chars) below the resolved `text.micro` token (10.5px) — bound to the LIVE ramp via `@orb/ui/tokens`, replaces impeccable's fixed 12px body floor (which would false-red the ratified micro voice) |
+| `undersized-ui-text` | `undersized-ui-text` | P2 | 4 | an interactive control's PRIMARY label below 11px — deliberately ABOVE the micro step, keeping impeccable's "being on the ramp doesn't launder legibility" clause for control labels. Refined vs upstream after the first live run: upstream fires on ANY text inside an interactive ancestor, which produced 12 same-class hits on ratified micro-voice captions inside large clickable cards; ours gates on primary-label (direct text ≈ the control's whole text) |
+| `all-caps-body` | `all-caps-body` | P3 | 2 | uppercase on 30+ chars of non-heading text (the ratified micro-caps voice is short labels; long caps runs are off-law anyway) |
+| `wide-tracking` | `wide-tracking` | P3 | 2 | letter-spacing > 0.05em on 20+ chars of non-uppercase text (uppercase exemption keeps `tracking.micro` 0.08em caps voice legal) |
+| `text-overflow` | `text-overflow` | P1 | 1 | direct-text owner spilling ≥16px past its box (scrollWidth arm) or an inline owner spilling past its block container (inline arm); scroll-region/self-ancestor + sr-only + transform-path exemptions ported |
+| `repeated-container-text` | `repeated-container-text` | P3 | 1 | same 4–48-char literal at 3+ structurally distinct positions inside one decorated container (structural-signature grouping ported) |
+| `clipped-overflow-container` | `clipped-overflow` | P2 | 1 | overflow-hidden/clip container (not a scroll region, not an intentional viewport) clipping a non-decorative positioned descendant that escapes or declares escape geometry. Refined vs upstream: a `position:fixed` child of the ROOT clip (html/body) is viewport-anchored and NOT clipped by root overflow — toasts/portals live there; only non-root clips flag fixed children |
+| `design-system-font` | `off-theme-font` | P2 | X | page font census vs the token stacks (`font.sans`/`font.mono` from `@orb/ui/tokens` + generic/system fallbacks) — our DESIGN.md-equivalent binding |
+| `repeating-stripes-gradient` | `stripe-background` | P3 | 2 | repeating-linear-gradient used as surface decoration |
+| `codex-grid-background` | `grid-line-background` | P3 | 2 | two-axis linear-gradient layers tiled by a fixed px background-size cell |
 
 **Walker-wide hygiene minted from the first live run:** dev-only tooling chrome (TanStack devtools
 trigger/panel, react-query devtools, the vite error overlay — `DEV_CHROME_SEL` in the walker) is
@@ -162,7 +186,7 @@ any gradient background") honestly: it now REFUSES rather than silently passing 
 | `gradient-text` | `gradient-text` | same background-clip:text detection |
 | `image-hover-transform` | `animated-img-hover` | ours covers Tailwind hover classes + stylesheet :hover rules |
 
-### Rejected (26) — with reasons
+### Rejected or deferred (27) — with reasons
 
 **Conflicts with owner law (the D-ledger / ratified specs win):**
 
@@ -214,7 +238,7 @@ any gradient background") honestly: it now REFUSES rather than silently passing 
 | rule | reason |
 | - | - |
 | `text-occlusion` | ~230 lines of stacked heuristics (opacity walks, decorated-box tests, layer attribution) with a large upstream fixture corpus we did not port. A hasty port ships an unproven instrument (the "30 findings, all false" failure class). Candidate for a dedicated follow-up leg with its own fixture corpus; until then overlap is covered by `snap --expect-no-overflow`, `clipped-overflow`, `text-overflow`, and the driven side-eye pass. |
-| `cramped-padding` container arm (flush children) | same cost/honesty call — the child-insulation heuristics (~140 lines) were not ported; the element arm was. Documented here, not silently dropped. |
+| `cramped-padding` (BOTH arms) | **Row corrected 2026-09-01 (#1027).** This file claimed the ELEMENT arm was adapted and only the container arm deferred. Re-derived: neither shipped — no `cramped-padding` id in `contract/rules.ts`, no occurrence anywhere under `tooling/src/` or `tests/tooling/`, and no commit mentioning it. The container arm's original reason (the child-insulation heuristics, ~140 lines, unported) stands; the element arm is simply unbuilt. A rule that is genuinely wanted gets a Project row and a `design-audit-rule-proof` pair, not a table cell. |
 
 ## What the adapted set fills (the brief's named blind spots)
 

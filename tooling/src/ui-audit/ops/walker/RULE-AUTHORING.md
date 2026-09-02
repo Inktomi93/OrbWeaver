@@ -72,7 +72,10 @@ that fixed them and can drift.
 
 `cb-baseui-rule-audit.md` and `cb-baseui-catalogue.md` (the full read-only audit of all 55
 `tooling/src/ui-audit` rules against the Base UI handbook + all 37 component pages) named four BLIND
-findings. Re-derived against the tree at this doc's landing commit:
+findings. **Its denominator was 55; `contract/rules.ts` carries 59 today** (re-derive it — never cite
+a remembered count), so every rule minted after that pass has NO mechanism verdict from it, and the
+audit's scratchpad files were session-local and are not in the repository. Re-derived against the
+tree:
 
 - **FIXED** — `hover-contrast` (finding #1, M1 vs. M1-evil-twin: the `:hover`-substring prefilter blind
   to `data-*` state paint). Landed by the state-paint program (tasks #18/#22); table row 3 above.
@@ -80,15 +83,15 @@ findings. Re-derived against the tree at this doc's landing commit:
   in `census-decor.ts`). Same program; table row 4 above.
 - **FIXED** — `glow-shadow`/`radial-halo`/`radial-spotlight-glow`'s transient-state blindness (finding
   \#4, no forced-state read existed for the glow census at all). Same program; table row 5 above.
-- **STANDS** — `aria-name` (finding #3, M6: native `<label for="id">` association). Verified live at
-  this doc's landing commit: `tooling/src/ui-audit/ops/walker/census-interactive.ts:174-191` computes
-  `hasVisibleText`/`labelledbyText`/`altText` but performs no `<label for>`/`document.getElementById`
-  lookup keyed off the CONTROL's own id, and `checks-a11y.ts:296-301`'s `checkAccessibleName` never
-  receives such a channel. The real site named by the audit (`packages/client/src/components/
-  setting-switch-row.tsx`, every `Field label={…}` call wrapping a Base UI `Switch`/`Checkbox`/`Radio`)
-  is unchanged. This finding is UNFIXED and is not folded into any live lane — it is a new row for
-  Project 1, not a mechanism-table entry (the table records landed lessons; an open finding belongs on
-  the board).
+- **FIXED** — `aria-name` (finding #3, M6: native `<label for="id">` association). This entry read
+  "STANDS … UNFIXED … a new row for Project 1" and was true when written; it is stale on the current
+  tree. Re-derived 2026-09-01 (#1027): the census now carries `nativeLabelText` off the browser's own
+  `HTMLElement.labels` list (`ops/walker/census-interactive.ts`), `AccessibleNameInput` declares it
+  REQUIRED rather than optional so a fixture cannot silently omit the name source, and
+  `checks-a11y.ts`'s `checkAccessibleName` accepts it as a name. Landed by #1009 with a four-arm proof
+  at `tests/tooling/ui-audit/ops/walker/census-interactive.int.test.ts`; it is table row 8 above, and
+  the measured scope is a LATENT false-positive class (Base UI belts every association with
+  `aria-labelledby`, so no live surface relied on the native association alone).
 
 The audit's remaining EXPOSED/CLEAR verdicts (every other rule) and its UNKNOWN items (the exact
 false-negative rate of the two fixed color-axis-dependent gaps, and `duplicate-action-door`'s chained

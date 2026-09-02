@@ -1,6 +1,7 @@
 // Live browser owner for #953's literal row receipts: reach the named surface, take checkpoint-scoped
 // subject/pixel/cascade/merge evidence, then hand the complete receipt to the pure strict reconciler.
 
+import { navResultShape } from "@orb/tooling/_shared/page-validate";
 import type { Page, Route } from "@playwright/test";
 import type { RuntimeAppearanceHistoricalRow } from "../../_shared/appearance-matrix.ts";
 import { appearanceReachReceipt, readRuntimeAppearanceContract } from "../../_shared/appearance-matrix.ts";
@@ -22,37 +23,39 @@ import { evaluateAppearancePrepaint } from "./appearance-prepaint.ts";
 import { capturePageCssEvidence } from "./cascade.ts";
 import { captureContrastEvidence } from "./contrast.ts";
 import { scanDeadCss } from "./dead-css.ts";
+import { animationEvidence as animationEvidenceShape, checkpointReset, resetFailures } from "./page-validate.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap --matrix");
-
-interface NavResult {
-  readonly ok: boolean;
-  readonly reason?: string;
-}
 
 function instrumentError(message: string): never {
   throw new Error(`INSTRUMENT ERROR: ${message}`);
 }
 
 async function resetCheckpoint(page: Page): Promise<void> {
-  const reset = (await page.evaluate(`(() => {
+  // #1004 — each read below already had an INSTRUMENT ERROR arm for a FALSE answer and none for a
+  // wrong SHAPE, which is the arm that reads as success (a non-boolean is truthy).
+  const reset = checkpointReset(
+    await page.evaluate(`(() => {
     if (typeof globalThis.__orb?.resetEvidence !== "function") return false;
     globalThis.__orb.resetEvidence();
     return true;
-  })()`)) as boolean;
+  })()`),
+  );
   if (!reset) {
     instrumentError("Appearance row cannot reset checkpoint evidence");
   }
 }
 
 async function resetMeasuredEvidence(page: Page): Promise<void> {
-  const failures = (await page.evaluate(`(() => {
+  const failures = resetFailures(
+    await page.evaluate(`(() => {
     if (typeof globalThis.__orb?.resetRing !== "function") return ["resetRing unavailable"];
     return ["bus-events", "flags", "motion", "renders"]
       .map((name) => globalThis.__orb.resetRing(name))
       .filter((result) => result?.ok !== true)
       .map((result) => String(result?.reason ?? result?.name ?? "unknown reset failure"));
-  })()`)) as readonly string[];
+  })()`),
+  );
   if (failures.length > 0) {
     instrumentError(`Appearance row cannot reset measured evidence: ${failures.join(", ")}`);
   }
@@ -82,7 +85,7 @@ async function driveSurface(page: Page, row: RuntimeAppearanceHistoricalRow): Pr
     nav = ["goto", "home", ".shell-grid"];
   }
   const [kind, target, waitSelector] = nav;
-  const result = (await page.evaluate(buildNavScript(kind, target))) as NavResult;
+  const result = navResultShape(await page.evaluate(buildNavScript(kind, target)), `nav ${kind} ${target}`);
   if (!result.ok) {
     instrumentError(`Appearance row ${row.id} navigation refused: ${result.reason ?? "unknown"}`);
   }
@@ -121,7 +124,7 @@ async function driveSurface(page: Page, row: RuntimeAppearanceHistoricalRow): Pr
 async function openPortalDialog(page: Page, row: RuntimeAppearanceHistoricalRow): Promise<void> {
   // #866 retired the settings overlay. The registered command dialog is the real current popup carrier;
   // R6 closes/reopens it around the real sizing control so popup tokens cannot inherit the draft preview.
-  const result = (await page.evaluate(buildNavScript("goto", "modal:command"))) as NavResult;
+  const result = navResultShape(await page.evaluate(buildNavScript("goto", "modal:command")), "nav goto modal:command");
   if (!result.ok) {
     instrumentError(`Appearance row ${row.id} dialog navigation refused: ${result.reason ?? "unknown"}`);
   }
@@ -311,11 +314,13 @@ async function pixelEvidence(
 }
 
 async function animationEvidence(page: Page): Promise<{ readonly total: number; readonly dirty: number; readonly properties: readonly string[] }> {
-  const evidence = (await page.evaluate(`(() => {
+  const evidence = animationEvidenceShape(
+    await page.evaluate(`(() => {
     if (typeof globalThis.__orb?.animations !== "function") return null;
     const rows = globalThis.__orb.animations();
     return { total: rows.length, dirty: rows.filter((row) => !row.compositorClean).length, properties: [...new Set(rows.flatMap((row) => row.properties))] };
-  })()`)) as { readonly total: number; readonly dirty: number; readonly properties: readonly string[] } | null;
+  })()`),
+  );
   return evidence ?? instrumentError("Appearance row cannot read active-animation evidence");
 }
 

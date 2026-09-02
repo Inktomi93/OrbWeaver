@@ -3,6 +3,15 @@
 // expose it. Runtime truth is read separately by browser-environment.ts through matchMedia.
 
 import type { Page } from "@playwright/test";
+import { pageBooleanFields, pageObject } from "./page-validate.ts";
+
+/** The live matchMedia read, settled at the page boundary (`_shared/page-validate.ts`). */
+function probeMediaObservation(value: unknown): ProbeMediaObservation {
+  const label = "the probe media read";
+  const record = pageObject(value, label);
+  pageBooleanFields(record, ["dark", "light", "reducedMotion", "contrastMore", "reducedTransparency"], label);
+  return record as unknown as ProbeMediaObservation;
+}
 
 export interface ProbeMedia {
   readonly colorScheme?: "light" | "dark";
@@ -46,7 +55,9 @@ export function resolveProbeMedia(opts: ProbeMediaOptions): ProbeMedia {
 /** Snapshot the page's live media identity before a browser observer attaches. Chromium's DevTools
  *  frontend resets emulated media on the inspected target, so the observer must restore what it read. */
 export async function readProbeMedia(page: Page): Promise<ProbeMedia> {
-  const actual = (await page.evaluate(READ_PROBE_MEDIA)) as ProbeMediaObservation;
+  // #1004 — validated, not asserted: every field below is read as `=== true`, so a MISSING one silently
+  // reads as "not dark / no reduced motion" and the probe restores a media identity the page never had.
+  const actual = probeMediaObservation(await page.evaluate(READ_PROBE_MEDIA));
   let colorScheme: ProbeMedia["colorScheme"];
   if (actual.dark === true) {
     colorScheme = "dark";

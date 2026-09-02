@@ -1,6 +1,14 @@
 // ui-audit's programmatic front door — what tests and sibling tools import; the cli fronts this surface.
 // One tool, one API (docs/architecture/core/Core-Tooling-Law.md §2.5).
-export type { Finding, FindingPopulation, PopulationAccounting, RuleOrigin, RulePopulationAccounting, Severity } from "./contract/findings.ts";
+export type {
+  CandidateDisposition,
+  Finding,
+  FindingPopulation,
+  PopulationAccounting,
+  RuleOrigin,
+  RulePopulationAccounting,
+  Severity,
+} from "./contract/findings.ts";
 export { SEVERITIES } from "./contract/findings.ts";
 export type { DesignAuditRuleFamily, DesignAuditRuleId, DesignAuditSeverity } from "./contract/rules.ts";
 export { DESIGN_AUDIT_RULE_FAMILIES, DESIGN_AUDIT_RULE_IDS, DESIGN_AUDIT_RULES, DESIGN_AUDIT_SEVERITIES } from "./contract/rules.ts";
@@ -54,12 +62,22 @@ export {
   checkTabIndexSmell,
   checkTapTarget,
   checkTapTargetPopulations,
+  classifyControlAspect,
 } from "./lib/checks-a11y.ts";
+export { checkCaveatHierarchy, classifyCaveatHierarchy } from "./lib/checks-caveat.ts";
 export { checkContrast, checkGrayOnColor } from "./lib/checks-color.ts";
-export { checkAccentBorder, checkGlowShadow } from "./lib/checks-decor.ts";
+export { checkAccentBorder, checkGlowShadow, classifyAccentBorder, classifyGlowShadow } from "./lib/checks-decor.ts";
 export { checkFontCensus, fontCensusPopulations } from "./lib/checks-font-census.ts";
-export { checkBrokenImage, checkBuriedRaster, checkBuriedRasterPopulations, checkImageDistortion } from "./lib/checks-media.ts";
-export { checkBgPattern, checkIconTile, checkMotionStatic, checkRadialGlow } from "./lib/checks-ornament.ts";
+export { checkBrokenImage, checkBuriedRaster, checkBuriedRasterPopulations, checkImageDistortion, classifyImageDistortion } from "./lib/checks-media.ts";
+export {
+  checkBgPattern,
+  checkIconTile,
+  checkMotionStatic,
+  checkRadialGlow,
+  classifyBgPattern,
+  classifyMotionStatic,
+  classifyRadialGlow,
+} from "./lib/checks-ornament.ts";
 export {
   checkClippedOverflow,
   checkDuplicateDoors,
@@ -70,9 +88,10 @@ export {
   checkTruncatedText,
 } from "./lib/checks-quality.ts";
 export { checkAnimatedImgHover, checkGradientText, checkNestedCard, checkZIndex } from "./lib/checks-structure.ts";
-export { checkCaveatHierarchy, checkTextStyle } from "./lib/checks-typography.ts";
+export { checkTextStyle, classifyTextStyle } from "./lib/checks-typography.ts";
 export { collectFindings } from "./lib/collect.ts";
 export { censusGap, censusThinGap, censusTotal, reachGap, readinessGap, themeProvenanceGap } from "./lib/evidence.ts";
+export { partitionedFindings } from "./lib/population-strategies.ts";
 export { INTERACTIVE_TEXT_FLOOR_PX, LEADING_FLOOR, LEADING_FLOOR_EPSILON, RAMP_FONT_FACES, TEXT_MICRO_PX } from "./lib/ramp.ts";
 export { isAtOrAboveSeverity, isValidSeverity } from "./lib/severity.ts";
 export {

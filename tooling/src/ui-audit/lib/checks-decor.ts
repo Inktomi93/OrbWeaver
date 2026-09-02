@@ -3,7 +3,7 @@
 
 import type { Rgb } from "@orb/tooling/_shared/wcag";
 import { relativeLuminance, rgbChroma } from "@orb/tooling/_shared/wcag";
-import type { Finding } from "../contract/findings.ts";
+import type { CandidateDisposition, Finding } from "../contract/findings.ts";
 import type { AccentBorderInput, GlowShadowInput } from "../contract/samples.ts";
 import { findColorToken } from "./css-color.ts";
 import { REM_PX } from "./ramp.ts";
@@ -67,6 +67,22 @@ function classifyHorizontalEdge(input: AccentBorderInput, w: number): readonly A
     return ["side-tab"];
   }
   return [];
+}
+
+/** The two accent-border rules' shared disposition. The census is every visible element carrying a
+ *  >=2px border (ops/walker/census-decor.ts), so both declines below are RATIFIED EXEMPTIONS — measured
+ *  facts that put the candidate outside the rule's semantic population — and both are counted rather
+ *  than dropped, so widening one is visible in the denominator instead of arriving as a quieter clean
+ *  run. Everything else is judged: the width/chroma/dominance gates are the rule's own question, and a
+ *  "no" to them is a pass (the `grayOnColorOutcome` precedent in checks-color.ts). */
+export function classifyAccentBorder(input: AccentBorderInput, rule: AccentBorderRuleId): CandidateDisposition {
+  if (input.statusContext) {
+    return { kind: "excluded", reason: "statusRegionAccent" };
+  }
+  if (input.listRowSelected) {
+    return { kind: "excluded", reason: "ratifiedListRowSelection" };
+  }
+  return { kind: "judged", finding: checkAccentBorder(input).find((finding) => finding.rule === rule) ?? null };
 }
 
 export function checkAccentBorder(input: AccentBorderInput): Finding[] {
@@ -188,6 +204,18 @@ function scanShadowValue(value: string, prop: string, onDark: boolean, selector:
     };
   }
   return null;
+}
+
+/** `glow-shadow`'s disposition. The census is every visible shadow-carrying layer including
+ *  `::before`/`::after` (ops/walker/census-glow.ts), and the ONE decline that is not the rule's own
+ *  question is the sanctioned carrier — an owner effect axis or the structurally-recognised dedicated
+ *  glow layer. Counting it keeps the exemption's REACH visible: a widening `isDedicatedGlowLayer` shows
+ *  up as a growing `excluded(sanctionedGlowCarrier)`, where before it only showed up as more silence. */
+export function classifyGlowShadow(input: GlowShadowInput): CandidateDisposition {
+  if (input.sanctioned === true) {
+    return { kind: "excluded", reason: "sanctionedGlowCarrier" };
+  }
+  return { kind: "judged", finding: checkGlowShadow(input) };
 }
 
 export function checkGlowShadow(input: GlowShadowInput): Finding | null {

@@ -100,7 +100,10 @@ preserved as the recorded condition rather than rewritten into a description of 
   one markdown file `NNN-<slug>.md` (frontmatter: from/at/re + body); the reader ACKS BY MOVE into
   the inbox's `done/` subdir after acting. Check your inbox at session start and at every merge
   window; never edit another message, only move it. REALTIME (primary side): keep a persistent
-  Monitor (`inotifywait -m` on `~/.claude/bridge/to-primary/`) so claude-b messages arrive as live
+  Monitor (`stdbuf -oL inotifywait -m -q -e close_write -e moved_to --format '%e %f'
+  ~/.claude/bridge/to-primary/ | stdbuf -oL grep --line-buffered -v done/` — the `stdbuf -oL` is
+  LOAD-BEARING: into a pipe inotifywait BLOCK-buffers, so the first note sat unseen until a second event
+  flushed it, paid 2026-09-01; probe with a throwaway file after arming) so claude-b messages arrive as live
   events instead of polls.
   **LIVENESS CAVEAT (2026-08-24): the bridge is DORMANT while the primary account is out of usage.**
   `to-primary/` messages have nobody reading them — the protocol is correct machinery and primary will
@@ -187,7 +190,7 @@ mechanics are here.
 1. **Pipe exit codes lied for four merges.** `pnpm check:ledgers-fresh | tail -2; echo $?` prints TAIL's exit; a STALE manifest sat on main for an hour. Spelling: `pnpm -s <cmd> > "$S/x.log" 2>&1; echo EXIT=$?` then read the log — or `echo "EXIT=${PIPESTATUS[0]}"`. Never `$?` after a pipe.
 2. **`pkill -f <pattern>` matches the shell issuing it** (exit 144, the merge never ran). Bracket the pattern: `pkill -f "verify/cli\.[t]s"`.
 3. **A merge under a running whole-tree check skews the check** (it reads the working tree). Per train: kill the check, merge, `ledgers-fresh` (real exit), restart the check on the new tip. A check that finished on an older tip is not the tip's verdict.
-4. **Claim at dispatch.** A row set Ready but never `claim`ed fails at `review` later ("must be Running") — the lifecycle is `ready → claim → review → verify → done`, `block/unblock` need `--by <n>`, `ready` refuses a Blocked row. Until #870 lands the one-shot verbs, chain them in ONE Bash call and never a lone board call (census: board choreography = 7.3% of orchestrator context; 49% of board calls carried one invocation).
+4. **Claim at dispatch.** A row set Ready but never `claim`ed fails at `review` later ("must be Running") — the lifecycle is `ready → claim → review → verify → done`, `block/unblock` need `--by <n>`, `ready` refuses a Blocked row. TRUTH-REPAIR 2026-09-01: #870's one-shot verbs LANDED (ac441d5e5) — `file` opens a row (create+metadata+ready+claim) and `land <issue…>` closes rows (claim-if-needed→review→verify→done, multi-id), so the old "chain the primitives in ONE Bash call" workaround is RETIRED; reach for `file`/`land` first, primitives only for the transitions the composites don't cover (the census that motivated this: board choreography = 7.3% of orchestrator context; 49% of board calls carried one invocation — and it was re-paid on 2026-09-01 by an orchestrator chaining primitives for 24 closes with the composite verbs already on the tree: re-read `--help` when a tool you drive daily is announced changed).
 5. **`gh issue comment --body "…`sha`…"` executes the backtick.** Always `--body-file`.
 6. **Mocks are Claude Design canvases** (`/design` → `seed-canvas.mjs` → Artifact, contract 0.1.31, caps self+downloads), never forge-drawn HTML lanes (owner: "just use the artifact creation skill"). Commit the canvas SOURCE under `docs/design/mocks/<name>/` (build.mjs + *.dc.html + canvas.json + true-size renders + DESIGN.md + README row); the README edit needs its OWN re-attest. Render each board's default state and LOOK before publishing (box-sizing, z-order, glyph rules were all caught only on the render).
 7. **Every lane that edits a law doc costs a catalog re-attest at merge** (verifiedCommit = the merge sha) — batch them per train; a report a lane leaves uncommitted needs a FULL READ before its born-reviewed receipt (state its location in the bridge if the window can't afford the read).

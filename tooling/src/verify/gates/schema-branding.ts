@@ -9,8 +9,9 @@
 // and refuses loudly on any other shape. `sqliteTable("x", importedColumns, …)` used to yield ZERO columns
 // here, erasing this gate's obligations while the schema file scan stayed healthy; findings anchor on the
 // column's DECLARING file and the scan line prints the resolved table/column population.
+import type { SchemaColumn } from "@orb/tooling/_shared/schema-read";
 import { columnProperties, schemaScan } from "@orb/tooling/_shared/schema-read";
-import type { CallExpression, Project, PropertyAssignment } from "ts-morph";
+import type { CallExpression, Project } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract/gate.ts";
 import type { Violation } from "../contract/harness.ts";
@@ -35,29 +36,25 @@ function relPath(root: string, abs: string): string {
   return abs.startsWith(root) ? abs.slice(root.length + 1) : abs;
 }
 
-function toColumn(pa: PropertyAssignment, table: string, constName: string, file: string): Column | undefined {
-  const init = pa.getInitializer();
-  if (init === undefined) {
-    return;
-  }
-  const chain = init.getText();
+function toColumn(column: SchemaColumn, table: string, constName: string, file: string): Column | undefined {
+  const chain = column.text;
   if (!chain.startsWith("text(")) {
     return;
   }
-  const leading = pa
+  const leading = column.node
     .getLeadingCommentRanges()
     .map((c) => c.getText())
     .join("\n");
   return {
     table,
     constName,
-    prop: pa.getName(),
+    prop: column.name,
     hasType: chain.includes(".$type<"),
     isPk: chain.includes(".primaryKey("),
     refTarget: chain.match(REF_RE)?.[1],
     plainMarked: PLAIN_ID_RE.test(leading),
     file,
-    line: pa.getStartLineNumber(),
+    line: column.node.getStartLineNumber(),
   };
 }
 
@@ -69,9 +66,10 @@ function columnsFromTable(call: CallExpression, root: string): Column[] {
   }
   const constName = call.getFirstAncestorByKind(SyntaxKind.VariableDeclaration)?.getName() ?? table;
   const out: Column[] = [];
-  for (const pa of columnProperties(colsArg)) {
-    // The DECLARING file, which differs from the table's once the columns object is imported (#945).
-    const col = toColumn(pa, table, constName, relPath(root, pa.getSourceFile().getFilePath()));
+  for (const column of columnProperties(colsArg)) {
+    // The DECLARING file, which differs from the table's once the columns object is imported (#945) or the
+    // member is a SHORTHAND pointing at a const one hop away (#1035).
+    const col = toColumn(column, table, constName, relPath(root, column.node.getSourceFile().getFilePath()));
     if (col !== undefined) {
       out.push(col);
     }
@@ -150,6 +148,12 @@ export const gate: GateDescriptor = {
   },
   mustFlag: [
     {
+      files: 'const id = text("id").primaryKey();\nexport const t = sqliteTable("t", { id });\n',
+      at: "packages/db/src/schema/x.ts",
+      expect: { count: 1, messageIncludes: "primary-key id with no" },
+      why: "THE #1035 SHORTHAND RED: an unbranded primary-key id written as a shorthand member produced ZERO Column records, so the branding judgement had nothing to judge",
+    },
+    {
       files: {
         "packages/db/src/schema/x-columns.ts": 'export const tColumns = { id: text("id").primaryKey() };\n',
         "packages/db/src/schema/x.ts": 'import { tColumns } from "./x-columns";\nexport const t = sqliteTable("t", tColumns);\n',
@@ -181,6 +185,11 @@ export const gate: GateDescriptor = {
     },
   ],
   mustPass: [
+    {
+      files: 'const id = text("id").primaryKey().$type<TId>();\nexport const t = sqliteTable("t", { id });\n',
+      at: "packages/db/src/schema/x.ts",
+      why: "the SHORTHAND's green twin: the resolved column carries its brand — passes",
+    },
     {
       files: 'export const t = sqliteTable("t", { id: text("id").primaryKey().$type<TId>() });\n',
       at: "packages/db/src/schema/y.ts",

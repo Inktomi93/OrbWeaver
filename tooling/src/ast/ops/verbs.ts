@@ -18,6 +18,7 @@ import { cmdSubsetCallers } from "./subset-callers.ts";
 import { cmdSwallowed } from "./swallowed.ts";
 import { cmdCallers, cmdExports, cmdIdent, cmdImporters, cmdJsx, cmdLiteral, cmdRefs } from "./symbols.ts";
 import { cmdTypeOnly } from "./typeonly.ts";
+import { cmdViewGap } from "./viewgap.ts";
 import { cmdClientGap, cmdUnwired } from "./wiring.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm ast <lens>");
@@ -39,6 +40,7 @@ export const VERBS: Record<string, (project: Project, arg: string, flags: Flags)
   aliases: cmdAliases,
   unwired: cmdUnwired,
   clientgap: cmdClientGap,
+  viewgap: cmdViewGap,
   swallowed: cmdSwallowed,
   respell: cmdRespell,
   "typeonly-alive": cmdTypeOnly,
@@ -82,6 +84,7 @@ export const WIDE_SYNTACTIC_VERBS = new Set(["literal"]);
 export const ARGLESS_VERBS = new Set([
   "unwired",
   "clientgap",
+  "viewgap",
   "swallowed",
   "respell",
   "typeonly-alive",

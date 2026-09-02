@@ -4,6 +4,7 @@ import { errorMessage } from "@orb/kit/error-message";
 import type { Page } from "@playwright/test";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { MapEntry, RawMapEntry } from "../contract/types.ts";
+import { rawMapEntries } from "./page-validate.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
@@ -225,7 +226,9 @@ async function validateMapEntry(page: Page, entry: RawMapEntry, includeHidden: b
 
 export async function captureMap(page: Page, selector: string, includeHidden: boolean): Promise<{ entries: MapEntry[] | null; error: string | null }> {
   try {
-    const result = (await page.evaluate(buildMapScript(selector, includeHidden))) as RawMapEntry[] | null;
+    // #1004 — settled here rather than inside `validateMapEntry`'s per-row selector walk, where a
+    // malformed row throws with no mention of the page read that produced it.
+    const result = rawMapEntries(await page.evaluate(buildMapScript(selector, includeHidden)));
     if (result === null) {
       return { entries: null, error: `no element matches "${selector}"` };
     }
