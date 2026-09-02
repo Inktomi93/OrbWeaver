@@ -9,10 +9,11 @@
 // The FILTER half (`filterConfigEntries`) is pure over a parsed query + the derived modified map, so the
 // token semantics are unit-testable without a browser: `@shelf:`/`@in:` narrow by address, `@ext:` narrows
 // to the plugins group and searches the slug, `@advanced` FLIPS the advanced axis (advanced rows are hidden
-// by default — the D107 progressive-disclosure arm), `@modified` keeps only sections whose owned keys
-// differ from their defaults (`use-modified-sections.ts` derives the map; this file only consumes it).
+// by default — the D107 progressive-disclosure arm), `@modified` keeps only entries that differ from their
+// defaults AT THEIR OWN GRAIN — a leaf answers for its own key, never for its section's (#1099 F16)
+// (`use-modified-sections.ts` derives both grains; this file only consumes them).
 
-import type { ConfigGroupDefinition, ConfigGroupId, ConfigGroupRegistry, ConfigShelf, ConfigSubcategory, ModifiedSubIds } from "#state";
+import type { ConfigGroupDefinition, ConfigGroupId, ConfigGroupRegistry, ConfigModifiedMap, ConfigShelf, ConfigSubcategory } from "#state";
 
 /** One flattened, fuzzy-searchable entry. `subId: null` = a group-level hit (open the group, no scroll);
  *  a non-null `subId` jumps to that section's anchor; a `settingId` additionally names the leaf. */
@@ -110,18 +111,28 @@ export interface ConfigEntryFilter {
   readonly ext?: string;
 }
 
-function isModified(entry: ConfigSearchEntry, modified: ModifiedSubIds): boolean {
-  const subs = modified.get(entry.groupId);
+/** THE VERDICT IS READ AT THE ENTRY'S OWN GRAIN (#1099 F16). A LEAF answers for ITSELF — the section grain
+ *  used to answer for it, so `@modified` returned every sibling of a changed setting and three of five rows
+ *  were unmodified. A section answers for its own sub; a group-level hit for any of its sections. Exported
+ *  because the results list marks every row it renders with the SAME verdict the filter applies. */
+export function isConfigEntryModified(entry: ConfigSearchEntry, modified: ConfigModifiedMap): boolean {
+  if (entry.settingId !== null) {
+    return modified.settings.has(entry.id);
+  }
+  const subs = modified.subs.get(entry.groupId);
   if (subs === undefined || subs.size === 0) {
     return false;
   }
-  // A group-level hit is modified when ANY of its sections is; a section/leaf answers for its own sub.
   return entry.subId === null ? true : subs.has(entry.subId);
 }
 
 /** Apply the `@` filters. `@advanced` FLIPS the axis (hidden by default, only-advanced when asked — the
  *  VS Code `@tag:advanced` posture); an unknown `@shelf:`/`@in:` value matches nothing, which is honest. */
-export function filterConfigEntries(entries: readonly ConfigSearchEntry[], filter: ConfigEntryFilter, modified: ModifiedSubIds): readonly ConfigSearchEntry[] {
+export function filterConfigEntries(
+  entries: readonly ConfigSearchEntry[],
+  filter: ConfigEntryFilter,
+  modified: ConfigModifiedMap,
+): readonly ConfigSearchEntry[] {
   return entries.filter((entry) => {
     if (entry.advanced !== filter.advanced) {
       return false;
@@ -135,7 +146,7 @@ export function filterConfigEntries(entries: readonly ConfigSearchEntry[], filte
     if (filter.ext !== undefined && entry.groupId !== "plugins") {
       return false;
     }
-    if (filter.modified && !isModified(entry, modified)) {
+    if (filter.modified && !isConfigEntryModified(entry, modified)) {
       return false;
     }
     return true;

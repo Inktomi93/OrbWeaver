@@ -9,6 +9,10 @@
 //
 // Both FEEDERS are driven: `setInputFiles` (the picker) and a real drag-and-drop (`dropFiles`). The drop
 // arm is the P1 guard — a dropped card used to be swallowed inside the dropzone with ZERO requests made.
+//
+// EVERY FEEDER NOW STAGES (#1099 F36): a pick lands in the PREFLIGHT and the request is the confirm's. The
+// two ends of that seam are pinned below (zero requests before the answer; the same requests after it), and
+// the flows above press `Import` where they used to rely on the drop being the send.
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import { dropFiles } from "../../../../support/ct/drop-files.ts";
@@ -45,6 +49,7 @@ test("a REJECTED card import shows NO success ✓ and a non-success toast (0 imp
 
   await mount(<BackupSettingsStory />);
   await page.getByTestId("backup-import-dropzone").setInputFiles(A_CARD);
+  await page.getByRole("button", { name: "Import", exact: true }).click();
 
   // The honest count summary renders the failure…
   await expect(page.getByTestId("import-report")).toBeVisible();
@@ -73,6 +78,7 @@ test("DRAGGING a card onto the dropzone fires the same POST /api/import the pick
 
   await mount(<BackupSettingsStory />);
   await dropFiles(page.locator(DROPZONE_ROOT), [A_DROPPED_CARD]);
+  await page.getByRole("button", { name: "Import", exact: true }).click();
 
   await expect.poll(() => uploads, { intervals: [20, 50, 100] }).toEqual(["POST"]);
   await expect(page.getByTestId("import-report")).toBeVisible();
@@ -100,6 +106,7 @@ test("a CLEAN card import shows the success ✓ and a success toast", async ({ m
 
   await mount(<BackupSettingsStory />);
   await page.getByTestId("backup-import-dropzone").setInputFiles(A_CARD);
+  await page.getByRole("button", { name: "Import", exact: true }).click();
 
   await expect(page.getByTestId("import-report")).toBeVisible();
   await expect(page.getByText("1 imported")).toBeVisible();
@@ -118,8 +125,10 @@ test("an older import completion cannot replace the newer batch outcome", async 
 
   const story = await mount(<LibraryImportEpochStory />);
   await story.getByRole("button", { name: "Import old batch" }).click();
+  await story.getByRole("button", { name: "Confirm import" }).click();
   await expect.poll(() => held.length).toBe(1);
   await story.getByRole("button", { name: "Import new batch" }).click();
+  await story.getByRole("button", { name: "Confirm import" }).click();
   await expect.poll(() => held.length).toBe(2);
 
   await held[1]?.fulfill({
@@ -153,6 +162,7 @@ test("reset revokes an in-flight import instead of letting its completion resurr
 
   const story = await mount(<LibraryImportEpochStory />);
   await story.getByRole("button", { name: "Import old batch" }).click();
+  await story.getByRole("button", { name: "Confirm import" }).click();
   await expect.poll(() => held !== undefined).toBe(true);
   await story.getByRole("button", { name: "Reset import" }).click();
   await expect(story.getByTestId("import-outcome")).toHaveText("idle");
@@ -191,11 +201,13 @@ test("a stale workload terminal callback cannot replace a later card-import resu
 
   const story = await mount(<LibraryImportEpochStory />);
   await story.getByRole("button", { name: "Start old workload" }).click();
+  await story.getByRole("button", { name: "Confirm import" }).click();
   await expect(story.getByTestId("import-outcome")).toHaveText("running");
   await story.getByRole("button", { name: "Capture current workload" }).click();
   await expect(story.getByRole("button", { name: "Complete captured workload" })).toBeEnabled();
 
   await story.getByRole("button", { name: "Import new batch" }).click();
+  await story.getByRole("button", { name: "Confirm import" }).click();
   await expect.poll(() => cardRoute !== undefined).toBe(true);
   if (cardRoute === undefined) {
     throw new Error("the card import never reached the held route");
@@ -216,4 +228,66 @@ test("a stale workload terminal callback cannot replace a later card-import resu
   );
 
   await expect(story.getByTestId("import-outcome")).toHaveText("new.png");
+});
+
+// ── THE PREFLIGHT (#1099 F36) ─────────────────────────────────────────────────────────────────────────
+// The finding: "Import offers no warning about what it does to existing data… no confirm and no
+// merge/overwrite statement." Both halves are pinned by REQUEST COUNT, which is the only honest measure of
+// "nothing has happened yet" — a rendered panel proves nothing about the network.
+
+test("a picked file makes ZERO requests: the preflight states the consequence and waits", async ({ mount, page }) => {
+  await routeTrpc(page, { ...HOST_VIEWER_ROUTE });
+  const uploads: string[] = [];
+  await page.route("**/api/import", (route) => {
+    uploads.push(route.request().url());
+    return route.abort();
+  });
+  await page.route("**/api/import/bundle", (route) => {
+    uploads.push(route.request().url());
+    return route.abort();
+  });
+
+  await mount(<BackupSettingsStory />);
+  await page.getByTestId("backup-import-dropzone").setInputFiles(A_CARD);
+
+  const preflight = page.locator('[data-slot="import-preflight"]');
+  await expect(preflight).toBeVisible();
+  // It names the FILE it is about to send, and says what an import does to what you already own.
+  await expect(preflight).toContainText("villain.png");
+  await expect(preflight).toContainText("nothing you already have is deleted");
+  await expect(preflight).toContainText("updated in place");
+  // …and nothing has been sent.
+  expect(uploads).toEqual([]);
+});
+
+test("CANCEL sends nothing and returns to the resting dropzone", async ({ mount, page }) => {
+  await routeTrpc(page, { ...HOST_VIEWER_ROUTE });
+  const uploads: string[] = [];
+  await page.route("**/api/import", (route) => {
+    uploads.push(route.request().url());
+    return route.abort();
+  });
+
+  await mount(<BackupSettingsStory />);
+  await page.getByTestId("backup-import-dropzone").setInputFiles(A_CARD);
+  await page.getByRole("button", { name: "Cancel" }).click();
+
+  await expect(page.locator('[data-slot="import-preflight"]')).toHaveCount(0);
+  await expect(page.locator(DROPZONE_ROOT)).toBeVisible();
+  expect(uploads).toEqual([]);
+});
+
+test("a DROPPED file stages too — the drop is a pick, never a send", async ({ mount, page }) => {
+  await routeTrpc(page, { ...HOST_VIEWER_ROUTE });
+  const uploads: string[] = [];
+  await page.route("**/api/import", (route) => {
+    uploads.push(route.request().url());
+    return route.abort();
+  });
+
+  await mount(<BackupSettingsStory />);
+  await dropFiles(page.locator(DROPZONE_ROOT), [A_DROPPED_CARD]);
+
+  await expect(page.locator('[data-slot="import-preflight"]')).toBeVisible();
+  expect(uploads).toEqual([]);
 });

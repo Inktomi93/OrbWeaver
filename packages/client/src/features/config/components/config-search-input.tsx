@@ -26,9 +26,10 @@ import type { ConfigQueryToken, ParsedConfigQuery } from "#lib";
 import { applyConfigToken, CONFIG_QUERY_TOKENS, findHighlightRanges, parseConfigQuery, partialConfigToken } from "#lib";
 import type { ConfigGroupDefinition, ConfigGroupRegistry, ConfigSearchRow } from "#state";
 import { openConfigTo, selectCollectionMember, setConfigSearchMatch, setConfigSearchQuery, useConfigSearchQuery } from "#state";
-import { useModifiedSubIds } from "../hooks/use-modified-sections.ts";
+import { useConfigModified } from "../hooks/use-modified-sections.ts";
+import { CONFIG_MODIFIED_MARKER } from "../lib/config-copy.ts";
 import type { ConfigSearchEntry } from "../lib/config-search.ts";
-import { buildConfigSearchEntries, filterConfigEntries } from "../lib/config-search.ts";
+import { buildConfigSearchEntries, filterConfigEntries, isConfigEntryModified } from "../lib/config-search.ts";
 import { useConfigSubcategories } from "../lib/config-subcategories.ts";
 import { CommandRow } from "./config-search-row.tsx";
 
@@ -154,7 +155,7 @@ export function ConfigSearchInput({ groups }: ConfigSearchInputProps): ReactElem
   const query = useConfigSearchQuery();
   const viewer = useSettingsViewerView();
   const subcategoriesFor = useConfigSubcategories();
-  const modified = useModifiedSubIds();
+  const modified = useConfigModified();
 
   const parsed = parseConfigQuery(query);
   const partial = partialConfigToken(query);
@@ -199,12 +200,17 @@ export function ConfigSearchInput({ groups }: ConfigSearchInputProps): ReactElem
             ) : (
               <>
                 {hits.length === 0 && rowGroups.length === 0 ? <Text voice="gloss">{`No settings match “${query.trim()}”.`}</Text> : null}
+                {/* EVERY MODIFIED HIT SAYS SO, in every query — not only under `@modified` (#1099 F16: the
+                    filter returned five rows and not one of them carried a mark, so the reader hunting the
+                    setting they changed had nothing to steer by). The mark is the SAME verdict the filter
+                    applies, read at the row's own grain. */}
                 {hits.map((entry) => (
                   <CommandRow
                     key={entry.id}
                     onSelect={(): void => selectEntry(entry)}
                     value={entry.id}
                     {...(entry.kind === "group" ? {} : { context: entry.groupLabel })}
+                    {...(isConfigEntryModified(entry, modified) ? { mark: CONFIG_MODIFIED_MARKER } : {})}
                   >
                     <HighlightedText ranges={findHighlightRanges(entry.label, terms)} text={entry.label} />
                   </CommandRow>

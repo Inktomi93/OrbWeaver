@@ -438,7 +438,9 @@ test("a SUB-level deep link lands on the section's anchor (contributed sections 
 
   await expect(component.getByRole("region", { name: "Chat behavior settings" })).toBeVisible();
   await expect(component.locator("#config-anchor-chat-behavior-world-info")).toBeInViewport();
-  await expect(component.getByRole("button", { name: "World info" })).toHaveAttribute("aria-current", "true");
+  // `exact` because the World Info COLLECTION band ("World Info 0") is a button too since #1099 F5, and the
+  // default role-name match is a case-insensitive substring. This assertion is about the section ROW.
+  await expect(component.getByRole("button", { name: "World info", exact: true })).toHaveAttribute("aria-current", "true");
 });
 
 test("a group-only deep link still lands at the TOP of the group (no phantom jump)", async ({ mount, page }) => {
@@ -663,10 +665,11 @@ test("no section row clips at the LIST column, in ANY group", async ({ mount, pa
   await expect(component.getByRole("button", { name: "Admin" })).toBeVisible();
 
   const bands = list.locator(BAND);
-  // The band roster is door-frozen: 13 groups, 9 of them settings-shaped — and with every library EMPTY (the
-  // stub) a collection renders its identity cluster, not a disclosure BUTTON, so nine `config-band` buttons
-  // is the settled LIST. Read the ids ONCE off it (the Admin band above is the settle barrier), then sweep.
-  await expect(bands).toHaveCount(9);
+  // The band roster is door-frozen: 13 groups, 9 of them settings-shaped — and since #1099 F5 a ZERO-member
+  // collection draws a band too (a selecting button, never a disclosure), so all 13 are here even with every
+  // library empty. The sweep still visits the nine settings-shaped ones; collections have no section rows.
+  // Read the ids ONCE off it (the Admin band above is the settle barrier), then sweep.
+  await expect(bands).toHaveCount(13);
   const groupIds = await bands.evaluateAll((els) => els.map((el) => el.getAttribute("data-config-group") ?? ""));
   let swept = 0;
   for (const groupId of groupIds) {
@@ -690,4 +693,51 @@ test("no section row clips at the LIST column, in ANY group", async ({ mount, pa
     swept += 1;
   }
   expect(swept).toBe(9);
+});
+
+// ── AN EMPTY LIBRARY IS STILL A DOOR (#1099 F5) ───────────────────────────────────────────────────────
+// The finding: `snap --aria` read `button "Tags 28"` for a populated collection and `text: Regex scripts 0`
+// for an empty one — the row was not a control at all, so population decided INTERACTIVITY and a first-run
+// reader could neither click nor TAB to the library they came for. Every collection is EMPTY in this file's
+// ambient stub, which is exactly the first-run arm. The 2026-08-06 "nothing to disclose" ruling is preserved
+// and pinned here too: the band selects, it never discloses.
+
+const EMPTY_BAND = '[data-config-group="regex"] [data-slot="config-band"]';
+
+test("a zero-member collection band is a real control — a button, in the tab order, with its count in its name", async ({ mount, page }) => {
+  await stub(page);
+  const component = await mount(<ConfigHostStory />);
+
+  const band = component.locator(EMPTY_BAND);
+  await expect(band).toHaveRole("button");
+  // The count rides the NAME with a real separator — never welded, the way its populated twin already is.
+  await expect(band).toHaveAccessibleName(/ 0$/);
+  // Keyboard-reachable: a plain text row cannot take focus at all.
+  await band.focus();
+  await expect(band).toBeFocused();
+});
+
+test("the zero-member band SELECTS, it does not disclose — the 2026-08-06 ruling survives", async ({ mount, page }) => {
+  await stub(page);
+  const component = await mount(<ConfigHostStory />);
+
+  const band = component.locator(EMPTY_BAND);
+  // No panel, no chevron state: there is still nothing to disclose.
+  await expect(band).not.toHaveAttribute("aria-expanded", /.*/);
+  await band.click();
+  // It is the current location instead.
+  await expect(band).toHaveAttribute("aria-current", "true");
+});
+
+test("clicking it LANDS on the library's own empty surface — the collection's copy and its create verb", async ({ mount, page }) => {
+  await stub(page);
+  const component = await mount(<ConfigHostStory />);
+
+  await component.locator(EMPTY_BAND).click();
+  // The pane is no longer the generic welcome: it is this library, saying it is empty, with the one act.
+  const content = component.getByRole("region", { name: "Settings", exact: true });
+  await expect(content.getByText("No scripts yet.")).toBeVisible();
+  await expect(content.getByRole("button", { name: "New script" })).toBeVisible();
+  // The landing is the pane's whole content, so it carries the pane's heading.
+  await expect(content.getByRole("heading", { level: 2 })).toBeVisible();
 });

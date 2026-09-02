@@ -1,7 +1,15 @@
 // The Settings CONTENT — in priority: the open collection MEMBER's own editor, MOUNTED in the pane
 // (config-rail-spec.md C-7: never a dialog) · the ACTIVE settings group's body (the `sections`
 // skimmer over the contributed sections — every settings-shaped group, §6.8 — or the honest placeholder) with the ONE aggregate
-// save-status footer below the scroller (SET-SEAMS §3) · the designed welcome, never null.
+// save-status footer below the scroller (SET-SEAMS §3) · an ACTIVE, EMPTY collection's own landing · the
+// designed welcome, never null.
+//
+// THE EMPTY-COLLECTION LANDING (#1099 F5) is what makes the LIST's zero-member band a DOOR rather than a
+// caption: population decided INTERACTIVITY there because activating an empty library had nowhere to go.
+// It renders ONLY the contribution's own declared fields (`emptyText` + the required `create` verb) in the
+// world-book empty state's shape — icon · sentence · the verb — so it invents no copy for any library and a
+// new collection gets its landing for free. A POPULATED collection with no member open is untouched: the
+// welcome still owns that arm, exactly as before.
 //
 // The host routes by KIND and renders whatever the owning definition hands back — it never learns what a
 // member IS or what a section writes. The registry is door-frozen and a selection can only be written by a
@@ -16,7 +24,10 @@
 // so it runs the selection's landing — the spy's own initial compute against a still-mounting body used to
 // light the LAST section).
 
+import { Button } from "@orb/ui/button";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
+import { EmptyState } from "@orb/ui/empty-state";
+import { Icon } from "@orb/ui/icons";
 import { Container, Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
@@ -24,7 +35,7 @@ import { Fragment, useEffect, useId, useRef, useState } from "react";
 import { QueryBoundary, QueryErrorState, useSettingsViewerView } from "#data";
 import { SaveStatusHostContext } from "#forms";
 import { useFocusOnMount } from "#lib";
-import type { ConfigGroupDefinition, ConfigGroupId, ConfigGroupRegistry, KindedSelection } from "#state";
+import type { CollectionGroupDefinition, ConfigGroupDefinition, ConfigGroupId, ConfigGroupRegistry, KindedSelection } from "#state";
 import {
   configAnchorId,
   configSectionNavs,
@@ -71,6 +82,9 @@ export function ConfigContentSurface({ groups }: ConfigContentSurfaceProps): Rea
   // region label, the footer and the arm all read.
   const shownGroup = selection === null && active !== null && isPushingGroup(active) ? active : null;
   const showsGroup = shownGroup !== null;
+  // The ACTIVE collection with nothing open — the arm the zero-member band selects into (F5). Derived here
+  // beside `shownGroup` so the two arms are one decision, and passed down rather than re-derived.
+  const landedCollection = selection === null && active !== null && isCollectionGroup(active) ? active : null;
 
   // LAND A DEEP LINK / A LIST CLICK THE WAY A CLICK LANDS (#549; SET-SEAMS §10 Q4 for the SUB arm). Keyed on
   // the TARGET (its nonce changes per request), never on `active`, so a later user switch can't re-fire a
@@ -148,22 +162,31 @@ export function ConfigContentSurface({ groups }: ConfigContentSurfaceProps): Rea
     // book is ~3600px — would simply have its tail unreachable. The footer sits BELOW the scroller and never
     // scrolls away (the settings shell's column, re-homed).
     <Container className="h-full min-h-0">
-      <Stack className="h-full min-h-0" gap="row">
+      {/* ONE GOVERNED INLINE GRID FOR THE COLUMN (#1099 F25 / N52). The footer was a bare SIBLING of the
+          padded scroller, so the only save receipt on the surface rendered 24px OUTSIDE the content
+          column — the reader's eye is on the control they just moved, and the answer arrived off-grid at
+          the bottom-left corner. The INLINE inset is now declared ONCE, on the column both
+          children live in, so neither child re-spells the measure and they cannot drift apart again. The
+          BLOCK inset stays INSIDE the scroller on purpose: it is scroll EXTENT, which the jump and the
+          scroll-spy read — hoisting it shortened the scrollable tail and a distant section-row click
+          landed on an intermediate section (caught by that CT, not by the eye). */}
+      <Stack className="h-full min-h-0 px-section" data-slot="config-pane" gap="row">
         {/* `relative` is LOAD-BEARING (owner dogfood 2026-08-13 — "the settings screen scrolls past the end
             of its results"): Base UI form primitives park `sr-only` boxes at `position:absolute`, and an
-            `overflow` scroller only clips descendants whose CONTAINING BLOCK is inside it. THE REGION PADS,
-            NOT THE EDITORS (side-eye 2026-08-03 P1): `section` is the mock's editor-pane inset on the token
-            scale, and a per-editor inset is the same defect waiting for the next group. */}
+            `overflow` scroller only clips descendants whose CONTAINING BLOCK is inside it. THE COLUMN PADS,
+            NOT THE EDITORS (side-eye 2026-08-03 P1, as amended by #1099 F25): `section` is the mock's
+            editor-pane inset on the token scale, and a per-editor inset is the same defect waiting for the
+            next group. The INLINE half of that inset now belongs to the column above (so the receipt shares
+            it); this box keeps the block half, which is scroll geometry and nobody else's. */}
         <Stack
           aria-label={regionLabel}
-          className="relative h-full min-h-0 flex-1 overflow-y-auto outline-none"
+          className="relative h-full min-h-0 flex-1 overflow-y-auto py-section outline-none"
           data-slot="config-content"
-          padding="section"
           ref={contentRef}
           role="region"
           tabIndex={-1}
         >
-          <ContentArm active={shownGroup} groups={groups} selection={selection} />
+          <ContentArm active={shownGroup} collection={landedCollection} groups={groups} selection={selection} />
         </Stack>
         {showsGroup ? <ConfigSaveFooter /> : null}
       </Stack>
@@ -176,10 +199,13 @@ interface ContentArmProps {
   readonly selection: KindedSelection | null;
   /** The active PUSHING group, or `null` when the pane shows the member or the welcome. */
   readonly active: ConfigGroupDefinition | null;
+  /** The active COLLECTION with no member open — its landing renders only when the library is empty. */
+  readonly collection: CollectionGroupDefinition | null;
 }
 
-/** The three arms, in priority: the open member's editor · the active group's body · the welcome. */
-function ContentArm({ groups, selection, active }: ContentArmProps): ReactNode {
+/** The four arms, in priority: the open member's editor · the active group's body · an ACTIVE EMPTY
+ *  collection's landing · the welcome. */
+function ContentArm({ groups, selection, active, collection }: ContentArmProps): ReactNode {
   if (selection !== null) {
     const group = groups.get(selection.kind as ConfigGroupId);
     return (
@@ -198,7 +224,40 @@ function ContentArm({ groups, selection, active }: ContentArmProps): ReactNode {
       </SaveStatusHostContext>
     );
   }
+  if (collection !== null) {
+    return <CollectionLanding fallback={<ConfigWelcome groups={groups} />} group={collection} />;
+  }
   return <ConfigWelcome groups={groups} />;
+}
+
+/** An ACTIVE collection's landing. Its own component so `useCount` runs unconditionally in a fixed position
+ *  (the `BuiltLibrary` shape); a library with members — or one whose count has not landed — is not this
+ *  pane's subject and falls through to the `fallback` it was handed, so nothing about the populated surface
+ *  changes. The copy is the CONTRIBUTION's (`emptyText`, `create.label`): the host authors none of it. */
+function CollectionLanding({ group, fallback }: { readonly group: CollectionGroupDefinition; readonly fallback: ReactNode }): ReactNode {
+  const collection = group.body.collection;
+  const count = collection.useCount?.();
+  const create = collection.create.useRun();
+  if (count !== 0) {
+    return fallback;
+  }
+  return (
+    <EmptyState
+      action={
+        <Button intent="primary" onClick={create} type="button">
+          {collection.create.label}
+        </Button>
+      }
+      description={collection.emptyText}
+      icon={<Icon icon={group.icon} size="lg" />}
+      measure="wide"
+      title={group.label}
+      // The pane's ONLY content, so its title is the pane's heading — a landing that left `main` headingless
+      // dead-ends heading navigation (the primitive's own `titleAs` note).
+      titleAs="h2"
+      titleStep="focal"
+    />
+  );
 }
 
 /** The open member's editor — the owning collection's `detail`, mounted. A selection can only name a

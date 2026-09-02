@@ -23,19 +23,30 @@ export interface CommandRowProps {
   /** The muted trailing context — the group label for a hit, the hint for a token. Absent for a group row
    *  (its label IS the group). */
   readonly context?: string;
+  /** A state MARK on the row — today only "Modified" (#1099 F16 / Errand A). A THIRD named slot, not a
+   *  decoration: it joins the accessible name after the context, so a reader who cannot see the token still
+   *  hears which hits are the changed ones. Absent = the row has nothing to declare. */
+  readonly mark?: string;
   readonly children: ReactNode;
 }
 
-export function CommandRow({ value, onSelect, context, children }: CommandRowProps): ReactElement {
+export function CommandRow({ value, onSelect, context, mark, children }: CommandRowProps): ReactElement {
   const ids = useId();
   const labelId = `${ids}-label`;
   const contextId = `${ids}-context`;
+  const markId = `${ids}-mark`;
+  const named = [labelId, ...(context === undefined ? [] : [contextId]), ...(mark === undefined ? [] : [markId])];
   return (
-    <CommandItem aria-labelledby={context === undefined ? labelId : `${labelId} ${contextId}`} onSelect={onSelect} value={value}>
+    <CommandItem aria-labelledby={named.join(" ")} onSelect={onSelect} value={value}>
       <span id={labelId}>{children}</span>
       {context === undefined ? null : (
         <Text id={contextId} voice="gloss">
           {context}
+        </Text>
+      )}
+      {mark === undefined ? null : (
+        <Text data-slot="config-search-mark" id={markId} voice="kicker">
+          {mark}
         </Text>
       )}
     </CommandItem>

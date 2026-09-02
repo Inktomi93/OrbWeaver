@@ -12,7 +12,7 @@
 // THE SEARCH (S2) rides the top of this scroller as a `role="search"` block, not the 48px LIST band
 // (fork F-11 — the corpus omnibox precedent).
 
-import { Container, Stack } from "@orb/ui/layout";
+import { Container, Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useRef } from "react";
@@ -31,6 +31,8 @@ import {
 import { ConfigListGroup } from "../components/config-list-group.tsx";
 import { ConfigMobileTeaching } from "../components/config-mobile-teaching.tsx";
 import { ConfigSearchInput } from "../components/config-search-input.tsx";
+import { useConfigModified } from "../hooks/use-modified-sections.ts";
+import { CONFIG_MODIFIED_MARKER } from "../lib/config-copy.ts";
 import { CONFIG_SHELF_LABELS, configShelfLabelId } from "../lib/config-nav-model.ts";
 import { useConfigSubcategoryParts } from "../lib/config-subcategories.ts";
 import { orderConfigGroups } from "../lib/order-groups.ts";
@@ -55,6 +57,12 @@ export function ConfigListSurface({ groups }: ConfigListSurfaceProps): ReactElem
   // The failing sections' rows (§3): the aggregate footer is read-only, so the LOCATION of a failure is
   // carried by a marker on the section's own row (and its own inline retry at its anchor).
   const sectionRegistry = useConfigSectionRegistry();
+  // MODIFIED PROPAGATES UP (#1099 Errand A): one changed setting used to be announced by a 2px rail beside
+  // its own row and by NOTHING at any level above it, so restoring a setting you regret started with a
+  // blind hunt through nine collapsed groups. The verdict is already derived per section for `@modified`;
+  // the band and the shelf simply read the same map, so the three marks cannot disagree.
+  const modified = useConfigModified();
+  const isGroupModified = (groupId: ConfigGroupId): boolean => (modified.subs.get(groupId)?.size ?? 0) > 0;
   const erroredSectionIds = useErroredSaveSections();
   const erroredSubIds = new Set(erroredSectionIds.filter((id) => sectionRegistry.has(id)).map((id) => sectionRegistry.get(id).nav.id));
 
@@ -100,9 +108,19 @@ export function ConfigListSurface({ groups }: ConfigListSurfaceProps): ReactElem
             // THE SHELVES ARE NAMED GROUPS, NOT BARE PARAGRAPHS (side-eye 2026-08-16 ARIA rider): the
             // visible kicker IS the announced name (`aria-labelledby`), so the two cannot drift.
             <Stack aria-labelledby={configShelfLabelId(shelf)} data-config-shelf={shelf} gap="field" key={shelf} role="group">
-              <Text id={configShelfLabelId(shelf)} voice="kicker">
-                {CONFIG_SHELF_LABELS[shelf]}
-              </Text>
+              {/* The shelf's kicker keeps being the shelf's NAME (`aria-labelledby` still points at it
+                  alone); the mark is content beside it, so the group's name does not change under the
+                  reader as they edit. */}
+              <Row align="center" gap="tight">
+                <Text id={configShelfLabelId(shelf)} voice="kicker">
+                  {CONFIG_SHELF_LABELS[shelf]}
+                </Text>
+                {members.some((group) => isGroupModified(group.id)) ? (
+                  <Text data-slot="config-shelf-modified" voice="kicker">
+                    {CONFIG_MODIFIED_MARKER}
+                  </Text>
+                ) : null}
+              </Row>
               {members.map((group) => (
                 <ConfigListGroup
                   active={activeGroup === group.id}
@@ -113,6 +131,7 @@ export function ConfigListSurface({ groups }: ConfigListSurfaceProps): ReactElem
                   onSelectGroup={onSelectGroup}
                   onSelectSub={onSelectSub}
                   saveFailedMarker={SAVE_FAILED_MARKER}
+                  {...(isGroupModified(group.id) ? { modifiedMarker: CONFIG_MODIFIED_MARKER } : {})}
                   subcategories={subcategoriesFor(group)}
                 />
               ))}

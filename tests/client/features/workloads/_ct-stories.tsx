@@ -100,12 +100,15 @@ export function BackupSettingsStory(): ReactElement {
 }
 
 /** Direct hook driver for the request-ownership boundary. Production UI prevents a second ordinary pick
- *  while uploading; these buttons reproduce a programmatic overlap without faking the fetch seam. */
+ *  while uploading; these buttons reproduce a programmatic overlap without faking the fetch seam.
+ *
+ *  A PICK AND A SEND ARE TWO ACTS since #1099 F36 (`stageFiles` → `confirm`), so the drivers stage and the
+ *  CT presses "Confirm import" — which is the production sequence, not a test-only shortcut. */
 function LibraryImportEpochBody(): ReactElement {
   const libraryImport = useLibraryImport();
   const [capturedSucceeded, setCapturedSucceeded] = useState<LibraryImport["track"]["onSucceeded"] | null>(null);
   const start = (name: "old" | "new"): void => {
-    libraryImport.importFiles([new File([name], `${name}.png`, { type: "image/png" })]);
+    libraryImport.stageFiles([new File([name], `${name}.png`, { type: "image/png" })]);
   };
   const outcome = libraryImport.state.status === "done" ? (libraryImport.state.summary.outcomes[0]?.path ?? "done") : libraryImport.state.status;
 
@@ -117,8 +120,11 @@ function LibraryImportEpochBody(): ReactElement {
       <button type="button" onClick={(): void => start("new")}>
         Import new batch
       </button>
-      <button type="button" onClick={(): void => libraryImport.importFiles([new File(["zip"], "old.zip", { type: "application/zip" })])}>
+      <button type="button" onClick={(): void => libraryImport.stageFiles([new File(["zip"], "old.zip", { type: "application/zip" })])}>
         Start old workload
+      </button>
+      <button type="button" onClick={libraryImport.confirm}>
+        Confirm import
       </button>
       <button
         type="button"
