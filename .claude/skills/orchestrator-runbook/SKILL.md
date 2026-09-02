@@ -40,13 +40,13 @@ named by its exact filename. Assume the index, never the body.
 ## §1 Work control quick path
 
 - **Existing mutable work?** Scan it with `pnpm work:item list --status <status>`, inspect it with
-  `pnpm work:item show <issue>`, and update that issue; do not
+  `pnpm work:item show <issue…>`, and update that issue; do not
   create a duplicate. **New work?** Create exactly one class: `work` for an executable build,
   operations, or documentation outcome; `bug` for a reproducible contract violation; `decision` for an
   owner fork; `program` for one committed future sprint; or `evidence` for a
   re-derived finding routed to one of those classes. Use `pnpm work:item create <class> --title <title> --body-file <file>`; the matching `.github/ISSUE_TEMPLATE/*.yml` is the canonical issue body.
 - **Project is the only mutable lifecycle home.** Never mirror Triage, Ready, Running, Blocked, Verify,
-  or Done into docs. Decisions enter **Needs owner**. The lifecycle is `ready <issue>` → `claim <issue> --lane <lane>` → `review <issue>` → `verify <issue> --evidence <receipt>` → `done <issue> --evidence <same-receipt>`; set Kind, Priority, Area, and Review before Ready. Use `needs-owner <issue>` for raw
+  or Done into docs. Decisions enter **Needs owner**. The lifecycle is `ready <issue…>` → `claim <issue…> --lane <lane>` → `review <issue…>` → `verify <issue…> --evidence <receipt>` → `done <issue…> --evidence <same-receipt>`; set Kind, Priority, Area, and Review before Ready. **Prefer the two COMPOSITE verbs (#870) — they are the same guarded verbs in one call:** `file --title <t> --kind <class> [--priority P] [--area A] [--review R] [--body-file f] [--ready] [--claim <lane>]` opens a row (create + metadata + ready + claim), and `land <issue…> --evidence <receipt> [--lane <lane>] [--comment-file f]` closes it (claim-if-needed → review → verify → done, resuming from wherever each row already is). Every lifecycle verb and `show` accept a LIST of ids. Use `needs-owner <issue>` for raw
   decision ingress, `block`/`unblock`, and `park --wake` for exceptions. `pnpm work:item --help` prints
   the complete cookbook. Lifecycle commands write Status last and accept an identical retry after an
   interrupted or uncertain GitHub response; rerun the operator command instead of repairing fields with

@@ -126,6 +126,12 @@ parameterized actions.
   backdrop. A line reading `match k/N, first in-viewport` is telling you it skipped some.
 - **`--crop` reports its path** — `crop=<path>` on the RESULT line and a `crop  <path>` report
   line. It is not a no-op just because the main PNG path is unchanged.
+- **`--scale <css|device|n>` and the css default is DELIBERATE.** One image pixel per CSS pixel ≈
+  half the image tokens on a hi-dpi context, which is the whole point for an agent reader — do not
+  "fix" it. Raise it only when a HUMAN is the reader (a committed design-mock render): `device` uses
+  the context's own DPR (1 desktop, 3 under `--mobile`), a number raises the context DPR and does
+  not combine with `--mobile`. Past the 16 000 000 px budget the run REFUSES rather than writing a
+  huge PNG, and `scale=<ask>/<WxH>` on the RESULT line states what it actually produced.
 - **`--probe` VOIDS every motion/CLS number in the run** — it floors all animations/transitions
   from first paint, which kills the FLIP animations that make track changes CLS-free, so the
   harness manufactures layout-shift findings. Such a run prints `PROBE-NEUTERED-MOTION` and stamps

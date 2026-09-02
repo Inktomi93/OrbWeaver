@@ -170,6 +170,12 @@ undelivered through twenty minutes of merges.
   issue. Decisions enter **Needs owner**. Re-derive before you claim.
 - **CLAIM FIRST, ALWAYS: the issue exists and is claimed BEFORE the fixing work starts.** An issue
   minted after its fixing commit is retrospective paperwork, not tracking.
+- **NEVER a lone board call, and never one call per row (#870).** `pnpm work:item file --title <t>
+  --kind <class> --priority P --area A --review R [--claim <lane>]` opens a row in ONE call and
+  `land <issue…> --evidence <sha> [--lane <x>]` closes N of them in one; every lifecycle verb and
+  `show` take a LIST of ids. Fold board writes into the merge chain and brief lanes with the issue
+  TEXT rather than sending them to `gh issue view`. The measured cost of the old choreography was a
+  median of 3 calls per row, 7.3% of the orchestrator's tool-turn context.
 - The `pnpm work:item` cookbook (classes, the `ready → claim → review → verify → done` lifecycle, the
   retry semantics) and the other three lifecycle-hygiene rules are in the **`orchestrator-runbook`
   skill**; `pnpm work:item --help` prints the complete command reference.

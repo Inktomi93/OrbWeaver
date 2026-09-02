@@ -25,8 +25,8 @@ export interface SliderProps<Value extends number | readonly number[] = number>
    *
    * IGNORED for a single thumb whenever `label` is rendered, and that is the point (§13.10 N1 — visible
    * text beats `aria-label`). Base UI drops the label association the instant ANY `aria-label` reaches
-   * the thumb (`SliderThumb.js`: `'aria-labelledby': ariaLabelledByProp ?? (ariaLabel == null ? labelId
-   * : undefined)`), so a seal that passed both shipped two independent name sources over one control —
+   * the thumb (`SliderThumb.js`, the aria-labelledby prop falls back to the label id ONLY while
+   * aria-label is null), so a seal that passed both shipped two independent name sources over one control —
    * the pixels said one thing and the accessibility tree announced the other, with nothing to keep them
    * in step (#1019). A range keeps its per-thumb names because one visible label cannot name two ends.
    */
