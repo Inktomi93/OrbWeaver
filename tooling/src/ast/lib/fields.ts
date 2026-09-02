@@ -1,7 +1,8 @@
 // contract-field-liveness collectors: producers / consumers / model-projection fences.
 import type { JsxAttribute, Project, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import type { ContractField, FieldHitClass, FieldIndexes, FieldReadSites, Hit, TemplateBracket } from "../contract/types.ts";
+import type { FieldHitClass, FieldIndexes, TemplateBracket } from "../contract/fields.ts";
+import type { ContractField, FieldReadSites, Hit } from "../contract/types.ts";
 import { relPath } from "../ops/swallowed.ts";
 import { hitOf } from "./emit.ts";
 import { isTestPath } from "./root.ts";
@@ -66,16 +67,13 @@ import { isTestPath } from "./root.ts";
 //     initializer somewhere in the corpus), not a bare name match, because a bare one would absolve every
 //     `dims: block.dims` pass-through and this lens must never over-fence.
 //   • EVERY HIT CARRIES ITS CLASS, so a run is triage-free and only `unclassified` is worth a human read.
-//     The classes are DERIVED, never declared: `template-key` (a corpus producer BUILDS the key — either a
-//     template literal's own head/tail brackets the name, or a key-BUILDING file's string literal is a name
-//     part, which is what the live `statsDeltaSchema.*Samples` producer needs since its template carries no
-//     literal text of its own), `guest` (the declaration
-//     lives in the plugin key space, whose producer is a guest), `foreign-format` (an ST / character-card
-//     schema, whose producer is a foreign file). `dormant-cited` is DELIBERATELY ABSENT: the 2026-08-30
-//     census called eight hits "cited dormancy", but nothing in `contracts` EXPRESSES dormancy — there is
-//     no marker to read (`INTENTIONAL-DORMANT` matches zero lines on the tree), and inferring it from prose
-//     would be a guess wearing a label. Those hits land in `unclassified`, which is honest. It becomes
-//     derivable the day a dormancy marker exists.
+//     DERIVED, never declared: `template-key` (a corpus producer BUILDS the key — a template's own head/tail
+//     brackets the name, or a key-BUILDING file's string literal is a name part, which is what the live
+//     `statsDeltaSchema.*Samples` producer needs since its template carries no literal text at all), `guest`
+//     (the plugin key space), `foreign-format` (an ST / character-card schema). `dormant-cited` is
+//     DELIBERATELY ABSENT: the 2026-08-30 census called eight hits "cited dormancy", but nothing in
+//     `contracts` EXPRESSES dormancy (`INTENTIONAL-DORMANT` matches zero lines), and inferring it from prose
+//     would be a guess wearing a label — they land in `unclassified`, which is honest.
 export const CONTRACTS_SRC = "/packages/contracts/src/";
 
 const ZOD_INIT_RE = /^z\s*\./u;
