@@ -16,9 +16,11 @@
 // accept or three, so the Discard half of the grammar would be unfalsifiable — green by absence. The
 // recorded input is asserted beside the rendered outcome for the same reason.
 //
-// Every barrier is a SETTLED rendered state. The loading arm ("Loading the session…") is deliberately NOT
-// asserted: it exists only while a query is in flight, so pinning it passes where the flash is catchable
-// and flakes where it is not.
+// Every barrier is a SETTLED rendered state. The pending arm (the `QueryBoundary` `reserveKey="refinery.
+// session"` skeleton — #1188, replacing the old unkeyed "Loading the session…" sentence that reserved no
+// box and let the workbench's whole settle move under it) is deliberately NOT asserted: it exists only
+// while `refinery.getSession`/`character.get` are in flight, so pinning it passes where the flash is
+// catchable and flakes where it is not.
 //
 // THE CLOCK IS FROZEN on every mount: the masthead's credit line renders an elapsed-since stamp off the
 // session's `createdAt`, and `FROZEN_AT` here IS `tests/support/clock.ts`'s `FROZEN_AT_MS`, so the stamp
@@ -31,7 +33,7 @@ import type { Page } from "@playwright/test";
 import { testId } from "../../../../../packages/client/src/lib/test-ids.ts";
 import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import type { TrpcRoutes } from "../../../../support/ct/route-trpc.ts";
-import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc, trpcHold } from "../../../../support/ct/route-trpc.ts";
 import { characterListResponder, makeCharacterDetail, makeCharacterSummary } from "../../character/fixtures.ts";
 import { RefineryContentStory, RefineryStartStory } from "../_ct-stories.tsx";
 import { makeRefinerySessionSummary } from "../fixtures.ts";
@@ -437,6 +439,37 @@ test("the session pane JOINS its reads: the masthead's card name, the roster sta
   // The scope strip is derived from `selection.fields`, in canonical order, one chip each.
   await expect(page.getByText("Description", { exact: true })).toBeVisible();
   await expect(page.getByText("Personality", { exact: true })).toBeVisible();
+});
+
+// ── THE #885 RESERVATION SEAM, AT THIS MOUNT (#1188) ─────────────────────────────────────────────────
+// Opening a session used to paint a bare, unreserved "Loading the session…" sentence while the
+// `getSession` → `character.get` waterfall and the dense workbench's own settle ran underneath it — a
+// couple-second flash-and-shift on every rail landing (owner-felt, 2026-09-02). `trpcHold` pins the
+// PENDING render as a stable, indefinitely-held state (never a race against a real flash) so the fallback
+// itself is assertable: the reserved `SkeletonRows` busy region, never the surface's own content testid.
+
+test("#1188 a HELD session read shows the reserved skeleton, never the surface's content testid — and settles into the real workbench on release", async ({
+  mount,
+  page,
+}) => {
+  await freeze(page);
+  const hold = trpcHold();
+  await routeTrpc(page, { ...baseRoutes(), "refinery.getSession": hold });
+  const component = await mount(<RefineryContentStory sessionId={SESSION_ID} />);
+
+  // THE BARRIER: the query is in flight and held — a stable state, not a caught flash.
+  await hold.requested;
+  await expect(component.getByTestId(testId("refineryContent"))).toHaveCount(0);
+  // A real busy region (the shared `SkeletonRows`, #885's fallback shape), never the old bare sentence.
+  await expect(page.locator('[aria-busy="true"] [data-slot="skeleton"]').first()).toBeVisible();
+  await expect(page.getByText("Loading the session")).toHaveCount(0);
+
+  hold.release(sessionView());
+
+  // …and the SETTLED workbench replaces the skeleton — the join this pane exists to prove still holds.
+  await expect(component.getByTestId(testId("refineryContent"))).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Zephyrine Vale" })).toBeVisible();
+  await expect(page.locator('[aria-busy="true"] [data-slot="skeleton"]')).toHaveCount(0);
 });
 
 // ── THE CREDIT LINE NAMES THE MODEL (side-eye 2026-08-17, finding b) ─────────────────────────────────
