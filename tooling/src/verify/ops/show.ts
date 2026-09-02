@@ -17,7 +17,7 @@
  */
 import { readFileSync } from "node:fs";
 import process from "node:process";
-import { reportsPath } from "@orb/tooling/_shared/artifacts";
+import { abandonedRuns, reportsPath } from "@orb/tooling/_shared/artifacts";
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { formatSplit } from "@orb/tooling/_shared/ratchet-rows";
@@ -31,6 +31,16 @@ const POSITIVE_INTEGER = /^\d+$/;
 /** The artifact this view reads. ROOT arrives from the cli (the caller's cwd) — never a depth-derived
  *  `import.meta.dirname` walk, whose up-count silently changes at every move (playbook §9.1-4). */
 const REPORT_NAME = "check-structure.json";
+/** The run-slot family this view reads (`reports/runs/<instrument>/…`, #1029). */
+const INSTRUMENT = "structure";
+
+/** How a run identifies itself to a reader: the id, and the slot it wrote when it carries one. */
+function describeRun(run: RunManifestView | undefined): string {
+  if (run === undefined) {
+    return "<pre-#410 artifact — no run manifest>";
+  }
+  return run.artifactDir === undefined ? run.runId : `${run.runId} → ${run.artifactDir}`;
+}
 
 interface Violation {
   readonly file: string;
@@ -62,6 +72,9 @@ interface RunManifestView {
   readonly ran: number;
   readonly active: number;
   readonly incompleteReasons?: readonly string[];
+  /** Absent in pre-#1029 artifacts: the run's own slot and when it started. */
+  readonly startedAt?: string;
+  readonly artifactDir?: string;
 }
 /** One refused MEMBER-population receipt (#946), as written into the artifact by ops/structure.ts. */
 interface PopulationAlarmView {
@@ -103,16 +116,44 @@ function print(s: string): void {
   process.stdout.write(`${s}\n`);
 }
 
-function readReport(root: string): StructureReport {
+function readReport(root: string): StructureReport | null {
   const path = reportsPath(root, REPORT_NAME);
   let raw: string;
   try {
     raw = readFileSync(path, "utf-8");
   } catch (err) {
+    // A missing pointer with a DEAD run behind it is a killed run, not misuse — the caller checks
+    // `abandonedRuns` first and only falls through to this when nothing ran here at all.
+    if (abandonedRuns(root, INSTRUMENT).length > 0) {
+      return null;
+    }
     // A missing report is MISUSE (3): run `pnpm check:structure` first to generate it.
     throw new UsageError(`check:show — couldn't read ${path}\n  Run \`pnpm check:structure\` first to generate it.`, { cause: err });
   }
   return JSON.parse(raw) as StructureReport;
+}
+
+/** #410 AFTER #1029 — the killed-run refusal, re-rooted. The in-flight stub no longer sits at the fixed
+ *  path (concurrent runs clobbered it; that was the defect #1029 closed), so the tell a fixed-path reader
+ *  needs is an ABANDONED SLOT: an in-flight marker whose pid is gone. One is refused whenever it is NEWER
+ *  than the run the pointer resolves to — that is exactly "your last run died and you are about to read
+ *  somebody else's (or an older) verdict as its result". A LIVE sibling run is deliberately not a refusal:
+ *  it has not died, and the pointer it will publish is still a complete verdict. */
+function refuseAbandoned(root: string, report: StructureReport | null): string | null {
+  const dead = abandonedRuns(root, INSTRUMENT)[0];
+  if (dead === undefined) {
+    return null;
+  }
+  const publishedAt = report?.run?.startedAt;
+  if (publishedAt !== undefined && publishedAt >= dead.startedAt) {
+    return null; // a later run finished after that death — the pointer is the newer fact
+  }
+  return ANSI.red(
+    `✗ reports/${REPORT_NAME} is NOT a verdict for this checkout's last run (run ${dead.runId})\n` +
+      `      ‼ that run never finished — it left the IN-FLIGHT stub at ${dead.dir}/${REPORT_NAME}; it was killed, OOM-aborted or timed out\n` +
+      `      ‼ ${report === null ? "no completed run has published a pointer here at all" : `the pointer resolves to the OLDER run ${describeRun(report.run)}`}\n` +
+      "      Re-run `pnpm check:structure`. See tooling/src/verify/contract/run-manifest.ts (#410/#1029).",
+  );
 }
 
 interface Filter {
@@ -338,11 +379,22 @@ export function runShow(root: string, argv: readonly string[]): number {
     return EXIT.clean;
   }
   const report = readReport(root);
+  const abandoned = refuseAbandoned(root, report);
+  if (abandoned !== null) {
+    print(abandoned);
+    return EXIT.toolError;
+  }
+  if (report === null) {
+    throw new UsageError(`check:show — couldn't read ${reportsPath(root, REPORT_NAME)}\n  Run \`pnpm check:structure\` first to generate it.`);
+  }
   const incomplete = refuseIncomplete(report);
   if (incomplete !== null) {
     print(incomplete);
     return EXIT.toolError;
   }
+  // WHOSE run this is, always — the pointer is a `latest` alias under concurrency (#1029), so a reader who
+  // does not know the run identity does not know whether the verdict is theirs.
+  print(ANSI.dim(`(run ${describeRun(report.run)})`));
   const filtersActive = filter.gate !== null || filter.file !== null;
   const evidenceBroken = brokenEvidenceCount(report) > 0;
 

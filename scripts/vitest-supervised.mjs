@@ -29,7 +29,7 @@
 //
 // MECHANISM:
 //   1. SHARDING. `--project a --project b …` is split into one `vitest run --project <x>` process per
-//      project, run SEQUENTIALLY, each writing its own `reports/test-shards/<project>.json`. The shard
+//      project, run SEQUENTIALLY, each writing its own `test-shards/<project>.json`. The shard
 //      reports are merged into the ONE `--outputFile.json` path the rest of the repo reads. A wedge is a
 //      per-process race, so a wedge now costs ONE shard instead of the whole run's verdict.
 //   2. WATCHDOG — PROGRESS, NOT SILENCE. Each shard is spawned via `nice -19` as a process-group leader and
@@ -51,18 +51,25 @@
 //      AND the whole tree burned no CPU across that window — which is precisely the true wedge, where every
 //      process sits idle in `ep_poll` at zero CPU. `ORB_TEST_HANG_MAX_MS` (default 30 min) is the absolute
 //      ceiling: past it the group dies even if something is still spinning.
-//   3. WEDGE DUMP. Before the kill, `reports/test-wedge-<project>-<attempt>-<timestamp>.txt` records the
+//   3. WEDGE DUMP. Before the kill, `<slot>/test-wedge-<project>-<attempt>-<timestamp>.txt` records the
 //      parent pid, its `/proc` state/wchan/threads, the whole surviving descendant tree with the same per
 //      pid detail, the open-fd listing, the count + tail of files that COMPLETED, and — the only root-cause
 //      lead an intermittent wedge leaves — the SUSPECT list: files the PREVIOUS run of this shard reported
-//      that this run never announced as finished. (Each shard's prior report is moved to `<name>.prev.json`
-//      rather than deleted, purely to feed that diff; the live path is still removed, so freshness holds.)
-//      Attempt-suffixed, so a re-run never overwrites the first wedge's evidence.
+//      that this run never announced as finished. The previous run's report is read through the published
+//      `reports/test-shards/<project>.json` pointer; since #1029 this run writes into its OWN slot, so the
+//      old rotate-to-`.prev.json` dance is unnecessary (and would have corrupted a concurrent run's
+//      evidence). Attempt-suffixed, so a re-run never overwrites the first wedge's evidence.
 //   4. ONE RE-RUN. A shard the watchdog killed is re-run EXACTLY ONCE — and only when its own fresh report
 //      is NOT a complete pass. (A wedge whose report is already a complete pass has self-healed; re-running
 //      it would just buy another wedge lottery ticket.) A wedge is a TOOL ERROR, not a verdict, so this is
 //      not "retry until green": a shard that FAILS tests is never re-run, and the second attempt's verdict
 //      is final.
+//
+//   ARTIFACT LAYOUT (#1029, owner ruling "all reports need to be able to be ran concurrently"): every file
+//   this run writes lands in `reports/runs/test/<checkout>-<pid>-<timestamp>/`; `reports/test-report.json`
+//   and `reports/test-shards/` are symlinks published at the END, so a reader at either path always
+//   resolves to a run that FINISHED. A `--outputFile.json` pointing outside `reports/` is honored where
+//   NAMED and takes no part in the pointer layout.
 //
 // VERDICT — never a false green (#345 non-negotiable, unchanged): each shard's report is deleted before its
 // run, so its presence means THAT attempt wrote it. exit 0 is returned ONLY for a clean, COMPLETE pass: a
@@ -78,9 +85,10 @@
 // OVERRIDES: `ORB_TEST_HANG_TIMEOUT_MS` raises/lowers the no-output-and-no-CPU limit · `ORB_TEST_HANG_MAX_MS`
 // the absolute silence ceiling · `ORB_VITEST_BIN` the vitest entry (the guard test points it at a fake).
 import { spawn } from "node:child_process";
-import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
-import { dirname, isAbsolute, join } from "node:path";
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { dirname, isAbsolute, join, relative } from "node:path";
 import process from "node:process";
+import { openRunSlot, publishRunSlot, reportsPath, runFile } from "@orb/tooling/_shared/artifacts";
 
 const DEFAULT_HANG_MS = 300_000;
 const MS_PER_SEC = 1000;
@@ -99,6 +107,12 @@ const CPU_PROGRESS_JIFFIES = 5;
 const DEFAULT_HARD_CEILING_MS = 1_800_000;
 
 const root = process.cwd();
+/** THIS invocation's private artifact slot (#1029, `_shared/artifacts.ts`). Every shard report, the merged
+ *  report and every wedge dump land under `reports/runs/test/<runId>/`; `reports/test-report.json` and
+ *  `reports/test-shards/` are `latest` symlinks published at the END of the run. Two `pnpm test` runs on one
+ *  checkout therefore cannot overwrite each other's verdict — before this, both wrote the same three paths
+ *  and the second run's merge silently became the first run's evidence. */
+const slot = openRunSlot(root, "test");
 const vitestArgs = process.argv.slice(2);
 
 /** The inactivity limit (ms). A non-finite or non-positive override falls back to the 5-min default. */
@@ -143,6 +157,18 @@ function resolveUnder(p) {
   return isAbsolute(p) ? p : join(root, p);
 }
 
+/** The merged report's published name, and the shard directory's. */
+const REPORT_NAME = "test-report.json";
+const SHARDS_DIR = "test-shards";
+
+/** The `reports/`-relative alias a caller-named report path publishes as, or null when the caller pointed
+ *  the report OUTSIDE `reports/` — an explicit path is honored where NAMED (the `artifactFilePath`
+ *  precedent), and only paths inside `reports/` take part in the `latest` pointer layout. */
+function aliasFor(reportPath) {
+  const rel = relative(reportsPath(root, "."), reportPath);
+  return rel.startsWith("..") || isAbsolute(rel) ? null : rel;
+}
+
 function log(line) {
   process.stderr.write(`[vitest-supervised] ${line}\n`);
 }
@@ -177,7 +203,7 @@ function parseArgs() {
     }
     baseArgs.push(a);
   }
-  return { projects, baseArgs, report: report ?? resolveUnder("reports/test-report.json") };
+  return { projects, baseArgs, report: report ?? reportsPath(root, REPORT_NAME) };
 }
 
 /** Read a json report and return the process exit code it implies. Missing / unparseable / an incomplete
@@ -262,7 +288,7 @@ function procBlock(pid, label) {
 function writeWedgeDump(ctx) {
   const { label, attempt, pid, completed, previousFiles, reportFile, sinceOutput, sinceProgress, startedAt } = ctx;
   const stamp = new Date().toISOString().replaceAll(/[:.]/gu, "-");
-  const path = resolveUnder(join("reports", `test-wedge-${label}-attempt${attempt}-${stamp}.txt`));
+  const path = runFile(slot, `test-wedge-${label}-attempt${attempt}-${stamp}.txt`);
   const tree = descendants(pid);
   // The only root-cause lead an intermittent wedge leaves: files the PREVIOUS run of this shard reported
   // that this run never announced as finished. `Pool.run`'s unbounded await is per FILE, so the wedge is
@@ -413,19 +439,13 @@ function runOnce({ args, reportFile, label, attempt, previousFiles }) {
   });
 }
 
-/** Every test file the previous run of this shard reported, used for the wedge dump's suspect diff. The
- *  previous report is MOVED aside (not read in place) so the freshness guarantee is untouched. */
-function rotatePrevious(reportFile) {
-  const prev = reportFile.replace(/\.json$/u, ".prev.json");
-  if (existsSync(reportFile)) {
-    try {
-      renameSync(reportFile, prev);
-    } catch {
-      /* a rotate failure only costs the suspect diff */
-    }
-  }
+/** Every test file the PREVIOUS run of this shard reported, for the wedge dump's suspect diff. Read through
+ *  the published `reports/test-shards/<label>.json` pointer (#1029): this run writes into its own slot, so
+ *  the previous run's report is a different file — the rotate-aside dance that used to protect freshness is
+ *  structurally unnecessary now, and rotating would have corrupted a concurrent run's evidence. */
+function previousShardFiles(label) {
   try {
-    const parsed = JSON.parse(readFileSync(prev, "utf-8"));
+    const parsed = JSON.parse(readFileSync(reportsPath(root, SHARDS_DIR, `${label}.json`), "utf-8"));
     return (parsed.testResults ?? []).map((r) => r.name).filter((n) => typeof n === "string");
   } catch {
     return [];
@@ -435,7 +455,7 @@ function rotatePrevious(reportFile) {
 /** Run one shard, with ONE automatic re-run if the watchdog had to kill it AND its report is not a complete
  *  pass. A shard that FAILS TESTS is never re-run — a wedge is a tool error, a red is a verdict. */
 async function runShard({ args, reportFile, label }) {
-  const previousFiles = rotatePrevious(reportFile);
+  const previousFiles = previousShardFiles(label);
   let result = await runOnce({ args, reportFile, label, attempt: 1, previousFiles });
   let wedges = result.wedged ? 1 : 0;
   if (result.wedged && result.code !== 0) {
@@ -485,6 +505,21 @@ function mergeReports(shards, out) {
   writeFileSync(out, JSON.stringify(merged));
 }
 
+/** Publish this run's `latest` pointers — at the END, so a reader at `reports/test-report.json` always
+ *  resolves to a run that FINISHED. `alias === null` means the caller named a path outside `reports/` and
+ *  the merged report already landed there. */
+function publish(alias, sharded) {
+  if (alias === null) {
+    return;
+  }
+  const aliases = [{ alias, target: REPORT_NAME }];
+  if (sharded) {
+    aliases.push({ alias: SHARDS_DIR, target: SHARDS_DIR });
+  }
+  publishRunSlot(root, slot, aliases);
+  log(`report → ${slot.relDir}/${REPORT_NAME} (published at reports/${alias})`);
+}
+
 async function main() {
   const { projects, baseArgs, report } = parseArgs();
   // Forward terminal signals to the running child group (detached children don't receive them automatically).
@@ -495,30 +530,40 @@ async function main() {
   process.on("SIGINT", onSignal);
   process.on("SIGTERM", onSignal);
 
-  // Fewer than two projects: nothing to shard. Run once, at the caller's own report path.
+  const alias = aliasFor(report);
+  // Inside `reports/`: write into this run's slot and publish the caller's path as the `latest` pointer.
+  // Outside it (an explicit path the caller chose): land where NAMED, with no pointer.
+  const mergedFile = alias === null ? report : runFile(slot, REPORT_NAME);
+  if (slot.racing.length > 0) {
+    log(`CONCURRENT test run(s) on this checkout: ${slot.racing.join(", ")}`);
+    log(`this run writes to ${slot.relDir}; reports/${REPORT_NAME} is published by whichever finishes last.`);
+  }
+
+  // Fewer than two projects: nothing to shard. Run once, at this run's own report path.
   if (projects.length < 2) {
-    const args = [...baseArgs, ...projects.flatMap((p) => ["--project", p]), `--outputFile.json=${report}`];
-    const shard = await runShard({ args, reportFile: report, label: projects[0] ?? "all" });
+    const args = [...baseArgs, ...projects.flatMap((p) => ["--project", p]), `--outputFile.json=${mergedFile}`];
+    const shard = await runShard({ args, reportFile: mergedFile, label: projects[0] ?? "all" });
     if (shard.wedges > 0) {
       log(`WEDGE CONTAINED: the run was killed ${shard.wedges}× by the watchdog — this green is contained, not clean.`);
     }
+    publish(alias, false);
     process.exit(shard.code);
   }
 
-  const shardDir = join(dirname(report), "test-shards");
   const shards = [];
   for (const project of projects) {
-    const reportFile = join(shardDir, `${project}.json`);
+    const reportFile = alias === null ? join(dirname(report), SHARDS_DIR, `${project}.json`) : runFile(slot, SHARDS_DIR, `${project}.json`);
     const args = [...baseArgs, "--project", project, `--outputFile.json=${reportFile}`];
     log(`shard ${shards.length + 1}/${projects.length}: ${project}`);
     // Sequential ON PURPOSE: one vitest process at a time is the whole containment mechanism (a wedge is a
     // per-process shutdown race), and the projects share one worker budget on a co-hosted box.
     shards.push(await runShard({ args, reportFile, label: project }));
   }
-  mergeReports(shards, report);
+  mergeReports(shards, mergedFile);
+  publish(alias, true);
   const rerun = shards.filter((s) => s.wedges > 0);
   if (rerun.length > 0) {
-    log(`WEDGE CONTAINED — ${rerun.map((s) => `${s.label} (killed ${s.wedges}×)`).join(", ")}. Evidence: reports/test-wedge-*.txt.`);
+    log(`WEDGE CONTAINED — ${rerun.map((s) => `${s.label} (killed ${s.wedges}×)`).join(", ")}. Evidence: ${slot.relDir}/test-wedge-*.txt.`);
     log("This verdict is CONTAINED, not clean: the shard(s) above hit the vitest #345/#1012 shutdown wedge.");
   }
   for (const shard of shards) {

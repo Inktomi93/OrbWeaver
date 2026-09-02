@@ -51,7 +51,7 @@
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import process from "node:process";
-import { reportsPath } from "@orb/tooling/_shared/artifacts";
+import { openRunSlot, publishRunSlot } from "@orb/tooling/_shared/artifacts";
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { readBudgetRows } from "@orb/tooling/_shared/ratchet-rows";
 import type { FullResult, Reporter, Suite, TestCase } from "@playwright/test/reporter";
@@ -62,7 +62,15 @@ import { ACTIVE_MARKER, BASELINE_REL, judgeUnfedReads, owesActiveMarker } from "
 
 refuseDirectInvocation(import.meta.url, "pnpm test:ct (playwright loads this module as a reporter)");
 
-const ARTIFACT_PATH = reportsPath(process.cwd(), "ct-flaky.json");
+const ARTIFACT_NAME = "ct-flaky.json";
+/** THIS CT run's private slot (#1029). The artifact is written inside it and `reports/ct-flaky.json` is
+ *  published as a symlink at the END of `onEnd` — two concurrent CT runs on one checkout used to write the
+ *  same file, so the second run's flake census silently became the first's. The slot is opened when
+ *  Playwright constructs the reporter (main process, once per run), which is also when a racing sibling is
+ *  detectable. NOTE (leftover, #1029 scope 3): `ct-report.json` / `ct-report/` / `ct-results/` are named by
+ *  playwright-ct.config.ts and are NOT yet slotted. */
+const slot = openRunSlot(process.cwd(), "ct");
+const ARTIFACT_PATH = join(slot.dir, ARTIFACT_NAME);
 
 interface CtFlakyReporterOptions {
   readonly strict?: boolean;
@@ -84,6 +92,12 @@ function writeArtifact(flaky: readonly CtFlakyTest[], strict: boolean): void {
   };
   mkdirSync(dirname(ARTIFACT_PATH), { recursive: true });
   writeFileSync(ARTIFACT_PATH, `${JSON.stringify(artifact, undefined, 2)}\n`);
+  // Published only now, with the run over: `reports/ct-flaky.json` therefore always resolves to a FINISHED
+  // CT run's census — its own, or a concurrent sibling's, never a half-written one (#1029).
+  publishRunSlot(process.cwd(), slot, [{ alias: ARTIFACT_NAME, target: ARTIFACT_NAME }]);
+  if (slot.racing.length > 0) {
+    process.stderr.write(`[ct-flaky] CONCURRENT CT run(s) on this checkout: ${slot.racing.join(", ")} — this census is ${slot.relDir}/${ARTIFACT_NAME}\n`);
+  }
 }
 
 function announce(flaky: readonly CtFlakyTest[], strict: boolean): void {
