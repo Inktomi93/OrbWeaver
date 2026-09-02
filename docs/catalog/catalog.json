@@ -31388,6 +31388,68 @@
       "receiptCurrent": true
     },
     {
+      "path": "docs/reviews/stickler/2026-09-02-ct-corpus-audit-leg1.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 931,
+      "bytes": 82106,
+      "sha256": "25c5dbed4daeef8ff14a77a9e1c16fde889116d3dfefafcccf5f658c844cc385",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-02"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/stickler/2026-09-02-ct-corpus-audit-leg1.md",
+        "assignedSha256": "25c5dbed4daeef8ff14a77a9e1c16fde889116d3dfefafcccf5f658c844cc385",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "25c5dbed4daeef8ff14a77a9e1c16fde889116d3dfefafcccf5f658c844cc385",
+        "verifiedCommit": "e55c7b6991dfcf8eb31229ead7e8ce6254e1d756",
+        "verifiedAt": "2026-09-02",
+        "summary": "CT corpus audit leg 1 (#1229, lane cb-ct-audit): Phase A structural sweeps over all 469 .ct.tsx files (16 defect classes, planted positive controls, second-method corroboration) + full-reads of the 24 highest-risk files (~26k lines). 2 confirmed findings (P3 reports/snaps literal screenshot write; P4 racy zero-count negative pin), 1 half-tracked product note (bare-Button CTA ring), 0 stale selectors, 0 assertion-free/tautological tests. Shard map + 149-site helper-await triage list for legs 2+.",
+        "evidence": [
+          "born-reviewed at e55c7b6991dfcf8eb31229ead7e8ce6254e1d756: authored and full-read by lane cb-ct-audit (stickler) in the same session — Phase A table, F1-F3, 24 shard verdicts, Appendix A band map, Appendix B helper-await sites"
+        ],
+        "claims": [
+          {
+            "claim": "rules-section.ct.tsx writes a CT screenshot into the snap instrument's published reports/snaps/ family via a template literal the #1201 sweep missed — the same file uses storyShot at five sibling sites.",
+            "evidence": [
+              {
+                "kind": "test",
+                "target": "tests/client/features/automation/components/rules-section.ct.tsx:1088"
+              }
+            ]
+          },
+          {
+            "claim": "The unchanged-commit zero-count pin races the async fetch it forbids — a node-side recorder read microseconds after blur() with no rendered barrier, downstream ordering proof, or inverted poll.",
+            "evidence": [
+              {
+                "kind": "test",
+                "target": "tests/client/features/automation/components/owner-automation-sections.ct.tsx:223"
+              }
+            ]
+          },
+          {
+            "claim": "A bare <Button> (omitted intent) paints the primary skin without its data-cta ring; 9 live call sites; the 'documented, not repainted' disposition lives only on the frozen 2026-08-03 board.",
+            "evidence": [
+              {
+                "kind": "code",
+                "target": "packages/ui/src/primitives/button/button.tsx:54"
+              }
+            ]
+          }
+        ]
+      },
+      "receiptCurrent": true
+    },
+    {
       "path": "docs/reviews/stickler/2026-09-02-motion-perf-mechanism-audit.md",
       "lane": "reviews",
       "issue": 7,
