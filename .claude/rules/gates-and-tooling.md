@@ -23,7 +23,7 @@ paths:
   spelling bypasses the workspace-wide heap floor (`nodeOptions: --max-old-space-size=16384` in
   `pnpm-workspace.yaml`) and dies at node's ~4GB self-cap. Paid 2026-08-23: two exit-134 OOMs on a bare
   structure run; `pnpm check:structure` picked up the floor and ran clean. Read the verdict from
-  `reports/check-structure.json`, never from scrollback.
+  `reports/check-structure.json`, never from scrollback. `reports/check-structure.json` is a symlink to the last run that FINISHED; `pnpm check:show` prints the run id it read, and refuses when this checkout's last run DIED (its in-flight slot outlived its pid).
 - **A committed SINGLE-WRITER ledger's freshness belongs on the static bar, not in a vitest suite** (#817).
   `ledgers:fresh` (`pnpm check:ledgers-fresh`, `tooling/src/verify/ops/ledgers-fresh.ts`) re-derives the
   caught-failure census and the test-baseline manifest on every `pnpm check` and names the drifting rows —

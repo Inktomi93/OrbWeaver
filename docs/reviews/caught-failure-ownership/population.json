@@ -1983,7 +1983,7 @@
     {
       "siteId": "packages/server/src/domain/chat/verbs/turn.ts::default:catch::1",
       "path": "packages/server/src/domain/chat/verbs/turn.ts",
-      "line": 1215,
+      "line": 1218,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -1991,12 +1991,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "documented above — non-fatal, mirrors neo: the",
-      "markerLine": 1209
+      "markerLine": 1212
     },
     {
       "siteId": "packages/server/src/domain/chat/verbs/turn.ts::empty:err::1",
       "path": "packages/server/src/domain/chat/verbs/turn.ts",
-      "line": 2446,
+      "line": 2449,
       "column": 5,
       "grammar": "empty",
       "position": "empty:err",
@@ -2004,7 +2004,7 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "fully classified below — a permanent verdict",
-      "markerLine": 2440
+      "markerLine": 2443
     },
     {
       "siteId": "packages/server/src/domain/connection/verbs/get-models-for-source.ts::empty:err::1",
