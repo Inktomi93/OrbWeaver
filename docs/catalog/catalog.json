@@ -443,8 +443,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 394,
-      "bytes": 212681,
-      "sha256": "6be2b9c457c28415d2c533bc41cd46788cac03591707ff4f4e01d25085eaf284",
+      "bytes": 213015,
+      "sha256": "8b4def3bc51f0fc139040bdc641cb2edee98bbfec382ce535a6ab217f09f3deb",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -457,12 +457,12 @@
       },
       "receipt": {
         "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
-        "assignedSha256": "6be2b9c457c28415d2c533bc41cd46788cac03591707ff4f4e01d25085eaf284",
+        "assignedSha256": "8b4def3bc51f0fc139040bdc641cb2edee98bbfec382ce535a6ab217f09f3deb",
         "disposition": "current",
         "authority": "operational",
         "fullRead": true,
-        "verifiedSha256": "6be2b9c457c28415d2c533bc41cd46788cac03591707ff4f4e01d25085eaf284",
-        "verifiedCommit": "75559ae1564c193c5856cbcd9584f9cce015384d",
+        "verifiedSha256": "8b4def3bc51f0fc139040bdc641cb2edee98bbfec382ce535a6ab217f09f3deb",
+        "verifiedCommit": "f92e84640b9fe6ca229452bc4976b37f69c86dee",
         "verifiedAt": "2026-09-01",
         "evidence": [
           "re-attested at 9a4bee47ab1b21cd68c291c80e1704b486200dd8 (#995): the agent-bridge-lock row records the lean production readiness home, shared debug Promise/query, and DEV-only bridge boundary; focused CT passed 6/6, gate conformance passed, and check:structure completed 244/244 active gates clean",
@@ -527,7 +527,8 @@
           "re-attested at bdd7cf82d (#1030 F2/F3/F4, lane p-bus-secret2): the row records three more arms on the same gate. F2 — a MERGED (same-named, twice-declared) carrier is walked in EVERY declaration, not just the first. F3 — a root that still RESOLVES but yields ZERO wire members REDs its own empty-denominator arm, the hole the §4.6 blindness sweep structurally cannot see because the name is still there. F4 — the POPULATION widened from the founding four to every live wire-event union: the rpg ROOM stream (`RpgBusEvent`, fanned to every subscriber of an open room exactly like ChatBusEvent) and `AutomationBusEvent` had been outside BOTH D16 arms, and the paired dep-cruiser `bus-contract-no-credentials` path scope (which had also been missing world-info) now reads chat|user-bus|notifications|events|world-info|rpg|automation|workloads. `WorkloadEvent` is FORKED to the owner rather than dropped or exempted: it declares `succeeded.result?: unknown` deliberately, with a written per-kind argument, so admitting it to the field-name arm is a ruling; its resolve-time arm is closed by the widened cruiser scope. Delta read; registered-gate COUNT unchanged. Receipts: red-first — the F2 and F3 pins failed against the pre-change gate, while F1's intersection-carrier case already passed under the #1024 arm and is labelled a fence rather than a defect proof; a planted `ResolvedCredential` type-import in packages/contracts/src/rpg/bus.ts REDs the widened cruiser rule and was restored; check:structure ran COMPLETE 248/248 clean at 234/234 members (up from 184 — the +50 the widened population made visible, with zero findings), depcruise clean over 3,471 modules, gate-conformance 8/8, the gate's pins 29/29, knip clean, types:graph clean. check-gates.int was NOT a verdict on this tree: two runs hit the ORB-LOAD-KILL budget at loadavg ~26 on 24 cores (exit-2 class, #606) — it passed 8/8 earlier in the same series and is left to the orchestrator's quiet-tree barrier",
           "re-attested at b398e8838 — merge of #1024/#1025/#1030 (f01a2375e + bdd7cf82d: bus-payload-allowlist open-key-space refusal, imported-zod resolution, merged carriers, per-root zero-contribution alarm, population widened to rpg/automation) onto the #973 ledger; union read once",
           "re-attested at 1120e060b (#1035): three rows narrowed further — fk-columns-indexed / lifecycle-portability / json-column-write-parity now record that the shared drizzle reader answers every MEMBER KIND (a shorthand resolves through its binding, a computed key when it is a string literal) and refuses the rest, plus the #946 population receipt on the column set. Delta read; verified by check:structure 248/248 run COMPLETE clean, 24 reader pins, eight single-gate conformance runs, an 8/8 shorthand red-first replay against the HEAD reader, and a planted empty-population control that raised all eight alarms. check-gates.int was ORB-LOAD-KILLED twice at loadavg 17-25 (exit-2 class, not a verdict) and is the orchestrator's to run on the quiesced tree",
-          "re-attested at 75559ae15 — merge of #1035 (1120e060b: schema-read answers every member kind, drizzle population receipt on the eight gates) onto the #1024-#1030 ledger; union read once"
+          "re-attested at 75559ae15 — merge of #1035 (1120e060b: schema-read answers every member kind, drizzle population receipt on the eight gates) onto the #1024-#1030 ledger; union read once",
+          "re-attested at f92e84640 (#1048, lane p-bus-secret2, owner ruling): the bus-payload-allowlist row records `markerImmune` — no `@orb-gate-ignore` can silence a credential finding or a fail-closed token on the D16 wire firewall, and the ONE exemption door stays a reviewed SANCTIONED_FIELDS row with its D-cite. It is the FIRST NON-AUDITOR occupant of that flag, so GATE-AUTHORING.md §1 (the descriptor table cell) and §4.3a-bis both widen by ONE stated precedent, and both say a third occupant owes the same argument in writing. Delta read; registered-gate COUNT unchanged. Receipts: red-first on the REAL descriptor, two-sided in ONE run — with the flag off the marker suppressed both a planted `apiKey` member and an `unresolved-base:` token (so the marker spelling really bites and the pin is not a lying proof), and with it on neither is suppressed; a live-tree sweep found NO `@orb-gate-ignore bus-payload-allowlist` marker anywhere, so the flip orphaned nothing and gate-ignore-inventory stayed clean. check:structure ran COMPLETE 248/248 clean over 6,509 files (234/234 members), gate-conformance + the gate-ignore resolver pins 20/20, the gate's own pins 32/32, knip clean, types:graph clean, check:docs clean on both edited docs, ledgers-fresh clean. check-gates.int was UNRUN-BY-LOAD (loadavg 22.7 on 24 cores, above the quiet-tree bar)."
         ],
         "claims": [
           {
