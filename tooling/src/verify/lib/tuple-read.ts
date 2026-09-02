@@ -19,10 +19,25 @@ import { readStringValue, unwrapExpression } from "./ast-read.ts";
 /** How many characters of an unsupported expression the diagnostic quotes. */
 const DIAGNOSTIC_PREVIEW_CHARS = 120;
 
+/** One resolved member, with the provenance a diagnostic needs: an imported member's node lives in the
+ *  declaration that CONTRIBUTED it, not in the tuple that spread it in. Reached STRUCTURALLY through
+ *  `TupleVocabulary.entries` — not exported by name, because no consumer has ever needed to spell it and an
+ *  unused export beside a one-home claim is the dead-export archetype (GATE-AUTHORING.md §9). */
+interface TupleMember {
+  readonly value: string;
+  /** The element expression itself — its own file and line. */
+  readonly node: Node;
+  /** `<repo-relative file>#<CONST>` of the declaration this member was written in. */
+  readonly source: string;
+}
+
 /** A resolved vocabulary tuple: its members, and every declaration that contributed one. */
 export interface TupleVocabulary {
   /** The member strings, in first-seen order across every contributing declaration. */
   readonly members: ReadonlySet<string>;
+  /** The same members WITH declaring-node provenance, in resolution order. A consumer that reports at a
+   *  member's site reads this; one that only asks "is X a member" reads `members`. */
+  readonly entries: readonly TupleMember[];
   /** `<repo-relative file>#<CONST>` per contributing declaration — the semantic SOURCE manifest, printed by
    *  the calling gate so a shrunken denominator cannot look clean. */
   readonly sources: readonly string[];
@@ -70,45 +85,53 @@ function spreadSource(owner: SourceFile, localName: string): VariableDeclaration
 interface Collector {
   readonly tupleConst: string;
   readonly members: Set<string>;
+  readonly entries: TupleMember[];
   readonly sources: string[];
 }
 
+/** Resolve ONE spread element into the accumulator. Every shape the source law does not sanction — a
+ *  spread of a call, an identifier nothing binds, a cycle, a contribution of zero members — refuses here. */
+function collectSpread(element: Node, owner: { readonly decl: VariableDeclaration; readonly key: string }, out: Collector, nested: ReadonlySet<string>): void {
+  const key = owner.key;
+  if (!TsNode.isSpreadElement(element)) {
+    throw new Error(`tuple-read: unsupported element in "${out.tupleConst}" at ${key}: ${element.getText().slice(0, DIAGNOSTIC_PREVIEW_CHARS)}`);
+  }
+  const spread = unwrapExpression(element.getExpression());
+  if (!TsNode.isIdentifier(spread)) {
+    throw new Error(`tuple-read: unsupported spread in "${out.tupleConst}" at ${key}: ${spread.getText().slice(0, DIAGNOSTIC_PREVIEW_CHARS)}`);
+  }
+  const source = spreadSource(owner.decl.getSourceFile(), spread.getText());
+  if (source === undefined) {
+    throw new Error(`tuple-read: "${out.tupleConst}" at ${key} spreads "${spread.getText()}", which no local declaration or named import binds`);
+  }
+  const before = out.members.size;
+  collect(source, out, nested);
+  if (out.members.size === before) {
+    throw new Error(`tuple-read: "${out.tupleConst}" at ${key} spreads "${spread.getText()}", which resolved to zero members`);
+  }
+}
+
 function collect(decl: VariableDeclaration, out: Collector, seen: ReadonlySet<string>): void {
-  const tupleConst = out.tupleConst;
-  const into = out.members;
-  const sources = out.sources;
   const key = `${rel(decl.getSourceFile())}#${decl.getName()}`;
   if (seen.has(key)) {
-    throw new Error(`tuple-read: composition cycle resolving "${tupleConst}" at ${key}`);
+    throw new Error(`tuple-read: composition cycle resolving "${out.tupleConst}" at ${key}`);
   }
   const arr = tupleArray(decl);
   if (arr === undefined || !TsNode.isArrayLiteralExpression(arr)) {
-    throw new Error(`tuple-read: "${tupleConst}" source ${key} is not an array-literal tuple — the vocabulary cannot be established`);
+    throw new Error(`tuple-read: "${out.tupleConst}" source ${key} is not an array-literal tuple — the vocabulary cannot be established`);
   }
-  sources.push(key);
+  out.sources.push(key);
   const nested: ReadonlySet<string> = new Set([...seen, key]);
   for (const element of arr.getElements()) {
     const value = readStringValue(element);
-    if (value !== undefined) {
-      into.add(value);
+    if (value === undefined) {
+      collectSpread(element, { decl, key }, out, nested);
       continue;
     }
-    if (!TsNode.isSpreadElement(element)) {
-      throw new Error(`tuple-read: unsupported element in "${tupleConst}" at ${key}: ${element.getText().slice(0, DIAGNOSTIC_PREVIEW_CHARS)}`);
+    if (!out.members.has(value)) {
+      out.entries.push({ value, node: element, source: key });
     }
-    const spread = unwrapExpression(element.getExpression());
-    if (!TsNode.isIdentifier(spread)) {
-      throw new Error(`tuple-read: unsupported spread in "${tupleConst}" at ${key}: ${spread.getText().slice(0, DIAGNOSTIC_PREVIEW_CHARS)}`);
-    }
-    const source = spreadSource(decl.getSourceFile(), spread.getText());
-    if (source === undefined) {
-      throw new Error(`tuple-read: "${tupleConst}" at ${key} spreads "${spread.getText()}", which no local declaration or named import binds`);
-    }
-    const before = into.size;
-    collect(source, out, nested);
-    if (into.size === before) {
-      throw new Error(`tuple-read: "${tupleConst}" at ${key} spreads "${spread.getText()}", which resolved to zero members`);
-    }
+    out.members.add(value);
   }
 }
 
@@ -121,12 +144,20 @@ function collect(decl: VariableDeclaration, out: Collector, seen: ReadonlySet<st
  *  unresolvable binding, a cycle, a spread resolving to nothing — THROWS, because each of them is a
  *  denominator this reader cannot establish and a silently smaller set is the defect it exists to kill. */
 export function readTupleVocabulary(project: Project, tupleConst: string): TupleVocabulary {
-  const out: Collector = { tupleConst, members: new Set<string>(), sources: [] };
+  const out: Collector = { tupleConst, members: new Set<string>(), entries: [], sources: [] };
   for (const sf of project.getSourceFiles()) {
     const decl = sf.getVariableDeclaration(tupleConst);
     if (decl !== undefined && decl.getInitializer() !== undefined) {
       collect(decl, out, new Set());
     }
   }
-  return { members: out.members, sources: out.sources };
+  return { members: out.members, entries: out.entries, sources: out.sources };
+}
+
+/** The same resolution rooted at ONE declaration — for a gate that already located the tuple's home by its
+ *  own path law and must not widen to a project-wide symbol search. Same sanctioned shapes, same refusals. */
+export function readTupleDeclaration(decl: VariableDeclaration): TupleVocabulary {
+  const out: Collector = { tupleConst: decl.getName(), members: new Set<string>(), entries: [], sources: [] };
+  collect(decl, out, new Set());
+  return { members: out.members, entries: out.entries, sources: out.sources };
 }

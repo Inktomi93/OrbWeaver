@@ -37,7 +37,13 @@
 //  • a banned reader name not declared anywhere in the project → RED (the reader was renamed past the gate)
 //  • a viewer-plane verb with no discoverable `ChatService["<verb>"]`-annotated factory → RED (the verb moved
 //    out of scanRoot, or lost the annotation this gate resolves implementations through)
-import type { Node, SourceFile } from "ts-morph";
+//
+// THE MATRIX IS RESOLVED, NOT READ FLAT (#947): its object literal is read through the local resolver below,
+// which follows object SPREADS of local/imported sibling matrices. `{...BASE_AUTHORITY, listMessages:"member"}`
+// used to yield ONE verb while staying non-empty — so the blindness arm was satisfied, the gate reported a
+// live matrix, and every spread-in viewer-plane verb was simply not judged. Composition shapes the matrix's
+// own law does not sanction (a spread of a call, an unresolvable binding, a cycle) refuse loudly instead.
+import type { Node, ObjectLiteralExpression, SourceFile, VariableDeclaration } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { GateDescriptor, GateRunCtx } from "../contract/gate.ts";
 
@@ -116,24 +122,113 @@ function unwrap(node: Node | undefined): Node | undefined {
   return cur;
 }
 
-/** `CHAT_VERB_AUTHORITY` as verb → authority, found by NAME anywhere in the project (not by path, so the
- *  matrix can move); `undefined` when no readable declaration exists. */
-function matrixFromFile(sf: SourceFile): ReadonlyMap<string, string> | undefined {
-  const decl = sf.getVariableDeclaration(MATRIX_CONST);
-  const obj = unwrap(decl?.getInitializer())?.asKind(SyntaxKind.ObjectLiteralExpression);
-  const out = new Map<string, string>();
-  for (const prop of obj?.getProperties() ?? []) {
+/** How many characters of an unsupported matrix expression a refusal quotes. */
+const DIAGNOSTIC_PREVIEW_CHARS = 120;
+
+/** A source-manifest key: `<repo-relative file>#<CONST>`, so the scan line reads the same as every other
+ *  gate's rather than leaking an absolute worktree path. */
+function sourceKey(node: Node, name: string): string {
+  const path = node.getSourceFile().getFilePath();
+  const idx = path.indexOf("/packages/");
+  return `${idx === -1 ? path : path.slice(idx + 1)}#${name}`;
+}
+
+/** The declaration an identifier names — the same file's own const, or the one a named import points at.
+ *  Undefined when nothing in reach binds it, which the caller turns into a loud refusal. */
+function matrixBinding(owner: SourceFile, localName: string): VariableDeclaration | undefined {
+  const local = owner.getVariableDeclaration(localName);
+  if (local !== undefined) {
+    return local;
+  }
+  const imported = owner
+    .getImportDeclarations()
+    .flatMap((declaration) => declaration.getNamedImports().map((specifier) => ({ declaration, specifier })))
+    .find(({ specifier }) => (specifier.getAliasNode()?.getText() ?? specifier.getName()) === localName);
+  return imported === undefined ? undefined : imported.declaration.getModuleSpecifierSourceFile()?.getVariableDeclaration(imported.specifier.getName());
+}
+
+/** The object literal an expression denotes, following identifier/alias hops into local and imported
+ *  declarations. THE NARROW MATRIX RESOLVER (#947) — object semantics, deliberately not shared with the
+ *  tuple resolver: it throws on any other shape, on an unresolvable binding, and on a cycle, because a
+ *  matrix this reader cannot establish must never read as a SMALLER matrix. */
+function matrixObject(expression: Node, seen: ReadonlySet<string>): ObjectLiteralExpression {
+  const node = unwrap(expression);
+  if (node?.isKind(SyntaxKind.ObjectLiteralExpression) === true) {
+    return node;
+  }
+  if (node?.isKind(SyntaxKind.Identifier) !== true) {
+    throw new Error(
+      `chat-viewer-plane-canon-reads: unsupported ${MATRIX_CONST} expression in ${expression.getSourceFile().getFilePath()}: ${expression.getText().slice(0, DIAGNOSTIC_PREVIEW_CHARS)}`,
+    );
+  }
+  const declaration = matrixBinding(node.getSourceFile(), node.getText());
+  if (declaration === undefined) {
+    throw new Error(`chat-viewer-plane-canon-reads: ${MATRIX_CONST} binding "${node.getText()}" resolves to no local declaration or named import`);
+  }
+  const key = sourceKey(declaration, declaration.getName());
+  if (seen.has(key)) {
+    throw new Error(`chat-viewer-plane-canon-reads: ${MATRIX_CONST} composition cycle at ${key}`);
+  }
+  const initializer = declaration.getInitializer();
+  if (initializer === undefined) {
+    throw new Error(`chat-viewer-plane-canon-reads: ${MATRIX_CONST} source ${key} has no initializer`);
+  }
+  return matrixObject(initializer, new Set([...seen, key]));
+}
+
+/** The fold's accumulator: the resolved verb→authority map and the SOURCE manifest behind it. */
+interface MatrixFold {
+  readonly verbs: Map<string, string>;
+  readonly sources: string[];
+}
+
+/** Fold one matrix object's rows into the accumulator, resolving object spreads first so a locally-written
+ *  row always WINS over the base it overrides (the live `{...BASE, listMessages:"member"}` precedence).
+ *
+ *  `seen` is threaded ACROSS the fold/resolve boundary, not re-seeded per spread: a cycle runs
+ *  fold → resolve → fold, so a per-call seed detects nothing and the recursion blows the stack instead of
+ *  refusing (caught by this gate's own committed pin before it could ever ship). */
+function foldMatrix(obj: ObjectLiteralExpression, out: MatrixFold, seen: ReadonlySet<string>): void {
+  const key = sourceKey(obj, obj.getFirstAncestorByKind(SyntaxKind.VariableDeclaration)?.getName() ?? MATRIX_CONST);
+  if (seen.has(key)) {
+    throw new Error(`chat-viewer-plane-canon-reads: ${MATRIX_CONST} composition cycle at ${key}`);
+  }
+  out.sources.push(key);
+  const nested: ReadonlySet<string> = new Set([...seen, key]);
+  for (const prop of obj.getProperties()) {
+    const spread = prop.asKind(SyntaxKind.SpreadAssignment);
+    if (spread !== undefined) {
+      const before = out.verbs.size;
+      foldMatrix(matrixObject(spread.getExpression(), nested), out, nested);
+      if (out.verbs.size === before) {
+        throw new Error(`chat-viewer-plane-canon-reads: ${MATRIX_CONST} at ${key} spreads "${spread.getExpression().getText()}", which resolved to zero verbs`);
+      }
+      continue;
+    }
     const assign = prop.asKind(SyntaxKind.PropertyAssignment);
     const value = unwrap(assign?.getInitializer())?.asKind(SyntaxKind.StringLiteral);
     if (assign !== undefined && value !== undefined) {
-      out.set(assign.getName().replace(/^["']|["']$/gu, ""), value.getLiteralText());
+      out.verbs.set(assign.getName().replace(/^["']|["']$/gu, ""), value.getLiteralText());
     }
   }
-  return out.size > 0 ? out : undefined;
 }
 
-function readMatrix(ctx: GateRunCtx): ReadonlyMap<string, string> | undefined {
-  let found: ReadonlyMap<string, string> | undefined;
+/** `CHAT_VERB_AUTHORITY` as verb → authority, found by NAME anywhere in the project (not by path, so the
+ *  matrix can move), RESOLVED through object spreads of local/imported sibling matrices (#947);
+ *  `undefined` when no readable declaration exists. */
+function matrixFromFile(sf: SourceFile): { readonly verbs: ReadonlyMap<string, string>; readonly sources: readonly string[] } | undefined {
+  const decl = sf.getVariableDeclaration(MATRIX_CONST);
+  const obj = unwrap(decl?.getInitializer())?.asKind(SyntaxKind.ObjectLiteralExpression);
+  if (obj === undefined) {
+    return;
+  }
+  const fold: MatrixFold = { verbs: new Map<string, string>(), sources: [] };
+  foldMatrix(obj, fold, new Set());
+  return fold.verbs.size > 0 ? { verbs: fold.verbs, sources: fold.sources } : undefined;
+}
+
+function readMatrix(ctx: GateRunCtx): { readonly verbs: ReadonlyMap<string, string>; readonly sources: readonly string[] } | undefined {
+  let found: { readonly verbs: ReadonlyMap<string, string>; readonly sources: readonly string[] } | undefined;
   for (const sf of ctx.project.getSourceFiles()) {
     found = matrixFromFile(sf);
     if (found !== undefined) {
@@ -419,7 +514,13 @@ export const gate: GateDescriptor = {
   fix: FIX,
   scanRoot: (p) => CHAT_DOMAIN_RE.test(`/${p}`),
   run: (ctx) => {
-    const matrix = readMatrix(ctx);
+    const resolved = readMatrix(ctx);
+    ctx.scan({
+      unit: `authority matrix [${MATRIX_CONST}=${resolved?.verbs.size ?? 0} from ${resolved === undefined || resolved.sources.length === 0 ? "<none>" : resolved.sources.join("+")}]`,
+      candidates: resolved?.sources.length ?? 0,
+      scanned: resolved?.sources.length ?? 0,
+    });
+    const matrix = resolved?.verbs;
     if (matrix === undefined) {
       fileLevel(
         ctx,
@@ -450,6 +551,22 @@ export const gate: GateDescriptor = {
     checkStaleAllowlist(ctx, covered, usedAllowlist);
   },
   mustFlag: [
+    {
+      // THE #947 SPLIT: `{...BASE_AUTHORITY, listMessages: "member"}` — the viewer-plane verb under test
+      // reaches the matrix only through the imported spread. Unresolved, the matrix held ONE verb, stayed
+      // non-empty (so the blindness arm was satisfied) and `replayChatEvents` was simply never judged.
+      files: {
+        "packages/server/src/domain/chat/substrate/auth/base-matrix.ts": 'export const BASE_AUTHORITY = { replayChatEvents: "member" } as const;\n',
+        "packages/server/src/domain/chat/substrate/auth/matrix.ts":
+          'import { BASE_AUTHORITY } from "./base-matrix";\nexport const CHAT_VERB_AUTHORITY = { ...BASE_AUTHORITY, listMessages: "member" } as const;\n',
+        "packages/server/src/domain/chat/persistence/queries.ts":
+          "export async function loadCanonHistory(): Promise<number[]> {\n  return [];\n}\nexport async function loadCanonHistoryAfter(): Promise<number[]> {\n  return [];\n}\nexport async function loadChatEventReplay(): Promise<number[]> {\n  return [];\n}\n",
+        "packages/server/src/domain/chat/verbs/read.ts":
+          'import { loadChatEventReplay } from "../persistence/queries";\nimport type { ChatService } from "../contract/service";\nfunction createReplayChatEvents(): ChatService["replayChatEvents"] {\n  return async () => await loadChatEventReplay();\n}\nfunction createListMessages(): ChatService["listMessages"] {\n  return async () => [];\n}\nexport const x = [createReplayChatEvents, createListMessages];\n',
+      },
+      expect: { count: 1, token: "replayChatEvents:loadChatEventReplay" },
+      why: "THE #947 SPLIT RED: a spread-in viewer-plane verb reads a bulk canon reader with no floor clamp and no allowlist row — the exact leak class, invisible while the matrix was read flat",
+    },
     {
       files: {
         "packages/server/src/domain/chat/substrate/auth/matrix.ts":
@@ -543,6 +660,18 @@ export const gate: GateDescriptor = {
     },
   ],
   mustPass: [
+    {
+      files: {
+        "packages/server/src/domain/chat/substrate/auth/base-matrix.ts": 'export const BASE_AUTHORITY = { replayChatEvents: "member" } as const;\n',
+        "packages/server/src/domain/chat/substrate/auth/matrix.ts":
+          'import { BASE_AUTHORITY } from "./base-matrix";\nexport const CHAT_VERB_AUTHORITY = { ...BASE_AUTHORITY, listMessages: "member" } as const;\n',
+        "packages/server/src/domain/chat/persistence/queries.ts":
+          "export async function loadCanonHistory(): Promise<number[]> {\n  return [];\n}\nexport async function loadCanonHistoryAfter(): Promise<number[]> {\n  return [];\n}\nexport async function loadChatEventReplay(): Promise<number[]> {\n  return [];\n}\n",
+        "packages/server/src/domain/chat/verbs/read.ts":
+          'import { loadChatEventReplay } from "../persistence/queries";\nimport { isBelowHistoryFloor } from "../substrate/auth";\nimport type { ChatService } from "../contract/service";\nfunction createReplayChatEvents(): ChatService["replayChatEvents"] {\n  return async (_params, floor: number) => (await loadChatEventReplay()).filter((event) => !isBelowHistoryFloor(event, floor));\n}\nfunction createListMessages(): ChatService["listMessages"] {\n  return async () => [];\n}\nexport const x = [createReplayChatEvents, createListMessages];\n',
+      },
+      why: "the SPLIT's green half: the spread-in verb DISCHARGES structurally (its rows are filtered through the one floor verdict) — resolving the spread widens the judged set without widening the accusation",
+    },
     {
       files: {
         "packages/server/src/domain/chat/substrate/auth/matrix.ts":
