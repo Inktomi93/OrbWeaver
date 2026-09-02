@@ -494,3 +494,70 @@ Both directions are pinned in `tests/tooling/ui-audit/ops/walker/census-selectio
 twin in a SIBLING presentation wrapper is one judged cohort, and a cohort that is genuinely one-sided
 across those same wrappers is still withheld with `INSTRUMENT ERROR` and exit 2 — §"Previously silent
 state cohorts" survives the regrouping intact.
+
+## Amendment — the quiet-state partition and the fill-less cohort (#1068, 2026-09-02)
+
+This section amends the two rulings above the same way #1059 did: the RULE each states survives verbatim,
+and what changed is the INPUT it is applied to.
+
+### 3. A partition may not be a restatement of the axis it partitions
+
+`census-region.ts`'s quiet-state census groups carriers into an authored cohort (`claim + authoredTargetHome`,
+\#1059's key) and then splits that cohort a second time by RESOLVED BACKDROP, "so the comparison never
+crosses paint contexts". The second split was derived from `resolveBackdrop(el.parentElement)` — and on
+exactly the components this rule exists for, that context is painted BY THE STATE. So the split restated
+the ON/OFF axis and the cohort could only ever come out one-sided, with both twins on screen. Measured on
+the isolated stage at `718e97ab3`, replicated with the walker's own `core`+`target-identity`+`resolve`
+segments through `snap --eval`:
+
+| Surface | Cohort | Partition backdrop | on / off | Old verdict |
+| - | - | - | - | - |
+| `settings:appearance` | `span slot=switch-root` under `div@field-control-col` | `15,12,10` | 3 / 7 | judged |
+| `settings:appearance` | `span slot=switch-thumb` under `span@switch-root` | `247,127,32` (the ON track) | 3 / 0 | `withheld(unmatchedOn)` |
+| `settings:appearance` | same cohort | `44,42,39` (the OFF track) | 0 / 7 | `withheld(unmatchedOff)` |
+| `characters` (driven) | `span slot=checkbox-root` under `div@list-row-actions` | `35,20,9` (the selected row tint) | 1 / 0 | `withheld(unmatchedOn)` |
+| `characters` (driven) | same cohort | `11,8,7` | 0 / 9 | `withheld(unmatchedOff)` |
+| `characters` (driven) | `span slot=checkbox-indicator` under `span@switch-root`-shaped home | own fill `rgba(0,0,0,0)` | 1 / 0 | `withheld(unresolved)` |
+
+A switch thumb's nearest opaque ancestor IS its own track; a bulk-mode row checkbox sits on a
+`[data-slot=list-row-root][data-selected]` whose 10%-alpha ember tint is the selection. Neither is a
+different paint CONTEXT — both are the same authored surface wearing the state the rule is asking about.
+
+So the partition now resolves the backdrop ABOVE every state carrier in the subject's own ancestor chain
+(the context the whole component sits in), while the CONTRAST stays measured against the real resolved
+backdrop a user sees, state tint included. §"Previously silent state cohorts" is unchanged and still fires:
+the same authored component in two differently-painted panels is still two contexts, and a genuinely
+twin-less cohort of two or more carriers is still `withheld` with `INSTRUMENT ERROR` and exit 2.
+
+### 4. No own fill is a closed negative, not a missing measurement
+
+`fillContrast` returned one `null` for two different facts: an element with no own fill (nothing to rank)
+and a backdrop that would not resolve (a measurement that failed). Under §"Polarity" only the second is
+`withheld`; the first is a candidate "whose measured facts close the question by proving the rule does not
+apply", which is `excluded`. A cohort every member of which paints no fill is now `excluded(noOwnFill)`.
+A cohort only SOME of whose members paint stays `withheld(unresolved)` deliberately — ranking a measured
+loudness against an unmeasured one is the fabricated comparison #987 refuses.
+
+Both surfaces now publish a complete verdict, and Appearance's repaired cohort immediately asked its
+question and answered it — the finding below is real product output, not instrument noise:
+
+```text
+$ pnpm design-audit characters --click '[aria-label="Select multiple"]' --click '[data-slot="checkbox-root"]'
+POPULATION   quiet-state candidates=2 judged=1 affected=0 populations=0 representatives=0 withheld() excluded(noOwnFill=1) collapsed()
+population-verdict=complete   (exit 0)
+
+$ pnpm design-audit config --goto settings:appearance
+POPULATION   quiet-state candidates=2 judged=2 affected=1 populations=1 representatives=1 withheld() excluded() collapsed()
+P2  quiet-state  the OFF state is louder than the ON state … (OFF 12.58:1 vs ON 7.06:1)
+population-verdict=complete   (exit 1)
+```
+
+The BARE `characters` run is untouched and still NO VERDICT — for `selection-idiom`
+(`withheld(unmatchedUnselected=1)`), the rest-regime withholding amendment 1 above ruled correct, never for
+`quiet-state` (`candidates=0` at rest). `/` and bare `config` are byte-identical before and after
+(`quiet-state candidates=0`, `population-verdict=complete`, findings 3 and 8 respectively).
+
+Four controls pin both directions in `tests/tooling/ui-audit/ops/walker/census-region.int.test.ts`: a
+sub-part under its own state-painted carrier folds to one judged cohort, a cohort under a selection-tinted
+container folds, a cohort across two genuinely different panel fills still splits and still withholds, and
+a fill-less cohort is an exclusion.
