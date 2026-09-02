@@ -21,6 +21,7 @@
 import type { EvidenceSlice } from "@orb/kit/evidence-window";
 import { resolveEvidenceWindow, sliceByWindow, wholeSource } from "@orb/kit/evidence-window";
 import { prefersReducedMotionNow } from "@orb/ui/lib";
+import { readAgentDebugHandle } from "./agent-bridge.ts";
 import { APPEARANCE_CARRIER_OBSERVABLES, THEME_CARRIER_OBSERVABLES } from "./appearance-carrier-manifest.ts";
 import type { BugReportClientBundle, BugReportEnvironment, BugReportRoute } from "./bug-report-bundle.ts";
 import { buildBugReportClientBundle, FLAGS_UNFILTERABLE_REASON, RENDERS_UNFILTERABLE_REASON } from "./bug-report-bundle.ts";
@@ -113,7 +114,7 @@ function absentSource(source: string): EvidenceSlice<unknown> {
 /** Assemble the client bundle from whatever the page can actually see. */
 export function captureBugReportBundle(input: BugReportCaptureInput): BugReportClientBundle {
   const window = resolveEvidenceWindow(input.now ?? captureClockMs(), input.windowMinutes);
-  const orb = globalThis.__orb;
+  const orb = readAgentDebugHandle();
   const consoleErrors = consoleErrorRing();
   const slices: Record<string, EvidenceSlice<unknown>> = {
     consoleErrors: sliceByWindow({

@@ -36,15 +36,19 @@ interface NavResult {
 }
 
 /** The slice of the dev debug handle this module drives, declared LOCALLY (the e2e-support tree stays
- *  import-free of the package trees, so the client's `OrbDebugHandle` is not importable here). Every member
- *  is OPTIONAL, which is what lets `globalThis` be narrowed with a SINGLE cast: a double-cast through
- *  `unknown` would fabricate a typed value that survives the real handle renaming a method, and the
- *  `no-test-fabrication` gate rejects it (correctly — it is exactly the "silently stops matching reality"
- *  shape). With everything optional, `typeof globalThis` is assignable to this type, so no `unknown` hop is
- *  needed and a renamed method surfaces as the runtime refusal `nav()` already throws on. */
+ *  import-free of the package trees, so the client's `OrbDebugHandle` is not importable here). Two worlds
+ *  compile this file: a closure WITHOUT the client's `globalThis.__orb` augmentation (every member here is
+ *  optional, so `typeof globalThis` narrows with a single cast) and — since #1095 routed the lib barrel's
+ *  bug-report capture through `agent-bridge.ts`'s read seam — a closure WITH it, where `__orb` is the real
+ *  handle. `nav` is typed as the bare `object` the real `OrbNavHandle` (fixed-arity methods, no index
+ *  signature) is assignable to; the method table is then cast at the call, never through `unknown` — a
+ *  double-cast through `unknown` would fabricate a typed value that survives the real handle renaming a
+ *  method, and the `no-test-fabrication` gate rejects it (correctly). A renamed method still surfaces as
+ *  the runtime refusal `nav()` throws on. */
 interface OrbNavGlobal {
-  readonly __orb?: { readonly nav?: Readonly<Record<string, (arg: string) => NavResult | Promise<NavResult>>> };
+  readonly __orb?: { readonly nav?: object };
 }
+type OrbNavMethods = Readonly<Record<string, (arg: string) => NavResult | Promise<NavResult>>>;
 
 const APP_READY = "html[data-app-ready]";
 // The wire-fixed CSRF header name, declared LOCALLY (the e2e-support tree stays import-free of the package
@@ -85,7 +89,7 @@ async function nav(page: Page, method: string, arg: string): Promise<void> {
   await page.locator(APP_READY).waitFor({ state: "attached", timeout: READY_TIMEOUT_MS });
   await page.waitForFunction(() => (globalThis as OrbNavGlobal).__orb?.nav !== undefined, undefined, { timeout: READY_TIMEOUT_MS });
   const result = (await page.evaluate<NavResult | undefined, [string, string]>(
-    async ([m, a]) => await (globalThis as OrbNavGlobal).__orb?.nav?.[m]?.(a),
+    async ([m, a]) => await ((globalThis as OrbNavGlobal).__orb?.nav as OrbNavMethods | undefined)?.[m]?.(a),
     [method, arg],
   )) ?? { ok: false, reason: `__orb.nav.${method} is unavailable (not a dev build, or the method was renamed)` };
   if (!result.ok) {
