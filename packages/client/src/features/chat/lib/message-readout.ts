@@ -45,7 +45,6 @@ function rawProvenance(message: OutcomeInput): string | undefined {
 }
 
 /** How this reply ended, when that is worth saying — `null` on a clean finish (the overwhelming majority).
- * @public Test-anchored module surface; focused tests pin this production-local behavior.
  */
 export function messageOutcomeNotice(message: OutcomeInput): MessageOutcomeNotice | null {
   const title = rawProvenance(message);
@@ -65,7 +64,6 @@ export function messageOutcomeNotice(message: OutcomeInput): MessageOutcomeNotic
 
 /** The per-turn CACHE economics beside the token count — `null` when the backend reported none (both
  *  columns absent, or both zero: a turn that neither read nor wrote cache has no economics to show).
- * @public Test-anchored module surface; focused tests pin this production-local behavior.
  */
 export function cacheTokensLabel(readTokens: number | null, writeTokens: number | null): string | null {
   const parts: string[] = [];
