@@ -457,12 +457,12 @@
       },
       "receipt": {
         "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
-        "assignedSha256": "79335d0d1aa0e66caf2a8c182654fc3f25a550a6217e4d0923f38f074cb5e090",
+        "assignedSha256": "bd1a6553bf9aa2963781ffaffcaf8a0dbff49f8e31a6b6fbedd157850d217ec2",
         "disposition": "current",
         "authority": "operational",
         "fullRead": true,
-        "verifiedSha256": "79335d0d1aa0e66caf2a8c182654fc3f25a550a6217e4d0923f38f074cb5e090",
-        "verifiedCommit": "8d93d820f47ef844f97f84ee1aa69ac5127bdcad",
+        "verifiedSha256": "bd1a6553bf9aa2963781ffaffcaf8a0dbff49f8e31a6b6fbedd157850d217ec2",
+        "verifiedCommit": "32161441d36289e71feb5e3b432daf1b0c1b4cc5",
         "verifiedAt": "2026-09-01",
         "evidence": [
           "re-attested at 9a4bee47ab1b21cd68c291c80e1704b486200dd8 (#995): the agent-bridge-lock row records the lean production readiness home, shared debug Promise/query, and DEV-only bridge boundary; focused CT passed 6/6, gate conformance passed, and check:structure completed 244/244 active gates clean",
@@ -513,7 +513,8 @@
           "re-attested at a6db3e258 — #1002 registers the rest-transform-grid gate (246→247 active gates; check:structure ran 247/247 on the lane tree); delta read of the added row only",
           "re-attested at e85447e4b — the #1002 rest-transform-grid row formatted by doc-catalog format (docs:format stage); no wording change",
           "re-attested at 8d93d820f (#942/#943/#945): six rows truth-repaired where the gate's own claim changed — chrome-registry-completeness now DERIVES its zone vocabulary through the `[...RAIL_ZONES]` spread (the copied list had dropped `rail.brand`), no-parallel-section-map resolves every vocabulary tuple, contract-verb-presence counts INHERITED interface members, and fk-columns-indexed / lifecycle-portability / json-column-write-parity record that an imported drizzle columns object keeps its obligations. Delta read; verified by check:structure 247/247 run COMPLETE clean, check-gates.int + gate-conformance 16/16, and per-gate red-first receipts (HEAD readers silent on the same planted shapes)",
-          "re-attested at 8cab2a0fe (#948, lane p-bus-secret): the bus-payload-allowlist row now states the TRANSITIVE member reader over the named wire event's own type identity (extends bases, intersection constituents, aliased union arms, followed through imports), the PRESERVED non-transitive boundary for a field's own type, and the two fail-closed arms (unresolved-base/unsupported-shape, and the REAL_CORPUS_MIN-guarded blindness sweep). Delta read against the landed descriptor; red-first proved the pre-change gate returned zero findings for the imported-carrier and aliased-arm shapes; a real planted extends-carrier violation reported apiKey and was removed; check:structure clean at 247/247 COMPLETE, gate-conformance 8/8, check-gates.int 8/8, new pins 11/11"
+          "re-attested at 8cab2a0fe (#948, lane p-bus-secret): the bus-payload-allowlist row now states the TRANSITIVE member reader over the named wire event's own type identity (extends bases, intersection constituents, aliased union arms, followed through imports), the PRESERVED non-transitive boundary for a field's own type, and the two fail-closed arms (unresolved-base/unsupported-shape, and the REAL_CORPUS_MIN-guarded blindness sweep). Delta read against the landed descriptor; red-first proved the pre-change gate returned zero findings for the imported-carrier and aliased-arm shapes; a real planted extends-carrier violation reported apiKey and was removed; check:structure clean at 247/247 COMPLETE, gate-conformance 8/8, check-gates.int 8/8, new pins 11/11",
+          "re-attested at 32161441d — merge of #942/#943/#945 (8d93d820f) and #948 (8cab2a0fe) row repairs into one ledger; both lanes' evidence lines kept, the union read once"
         ],
         "claims": [
           {
@@ -550,7 +551,7 @@
         ],
         "summary": "Active enforcement registry re-attested for #995: agent-bridge-lock pins the lean readiness home, shared readiness identity, and DEV-only instrumentation boundary."
       },
-      "receiptCurrent": false
+      "receiptCurrent": true
     },
     {
       "path": "docs/architecture/core/Core-Enforcement-Deferred-Dropped.md",
