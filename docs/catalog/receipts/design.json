@@ -1691,6 +1691,88 @@
           ]
         }
       ]
+    },
+    {
+      "path": "docs/design/pane-standardization-design.md",
+      "assignedSha256": "66af20c34c9c7b563eb72cf671621966845814234bc1e71d20dfc60ec9f8b5de",
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "66af20c34c9c7b563eb72cf671621966845814234bc1e71d20dfc60ec9f8b5de",
+      "verifiedCommit": "6a437c76c5dcd7f37c4c65424b2cf9a67112348f",
+      "verifiedAt": "2026-09-02",
+      "claims": [
+        {
+          "claim": "The pane axes that never drifted are exactly the structural/type-forced ones (band presence, shell-panel-body padding, required content/context/useSelectionTitle); every optional slot and prose convention drifted (listHeader, CONTENT padding, band anatomy, empty/loading arms) — so each axis moves to the highest enforcement tier its variance allows.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1191"
+            },
+            {
+              "kind": "code",
+              "target": "packages/client/src/state/section-registry.ts:107"
+            },
+            {
+              "kind": "code",
+              "target": "packages/client/src/features/app-shell/components/panel-chrome.tsx:101"
+            }
+          ]
+        },
+        {
+          "claim": "SectionPanelAvailability is fully derivable from the definition shape (list slot absence / context kind none), and its one uncoupled case is a live capability lie: Extensions ships a detail-panel toggle onto a kind:none pane rendering the generic pick-something placeholder.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/client/src/features/plugin/lib/extensions-section.tsx:48"
+            },
+            {
+              "kind": "code",
+              "target": "packages/client/src/features/app-shell/hooks/use-shell-layout.ts:111"
+            },
+            {
+              "kind": "code",
+              "target": "packages/client/src/features/app-shell/components/section-context-host.tsx:27"
+            }
+          ]
+        },
+        {
+          "claim": "Refinery's hand-rolled LIST band suspends (useSuspenseQuery) with no boundary inside the pane, against an explicit non-suspending-count contract in all seven ListPaneHeader callers.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/client/src/features/refinery/surfaces/refinery-list-surface.tsx:301"
+            },
+            {
+              "kind": "code",
+              "target": "packages/client/src/features/chat/components/chat-list-header.tsx:8"
+            }
+          ]
+        },
+        {
+          "claim": "The build program is dispatched from this doc's section 6 (S1+S2 atomic registry/chrome lane, S3 list-body species, S4 context band + instruments); #1200 and #1206 conform to the CURRENT standard and only analytics' wrapper is knowingly re-touched.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1191"
+            },
+            {
+              "kind": "issue",
+              "target": "#1200"
+            },
+            {
+              "kind": "issue",
+              "target": "#1206"
+            }
+          ]
+        }
+      ],
+      "summary": "The #1191 convergence design: per-axis standards for the rail pane system (LIST band structural-via-data, shell-owned CONTENT inset with a reason-carrying edge arm, derived panel availability, 3-class empty floor, skeleton loading), each with its enforcement tier named, a designed-divergence grammar, per-section migration deltas and the sweep order.",
+      "evidence": [
+        "born-reviewed by lane cb-pane-design (author, forge) 2026-09-02 at 6a437c76c: full source read of all ten SectionDefinitions, the shell consumers (app-shell/panel-chrome/section-content/section-context-host/use-shell-layout/region-anchor), the shared composites (list-pane-header, library-surface, create-collection-surface) and every LIST surface; the measured matrix (#1191 second comment) re-verified against tip 0e1b33e11 receipts",
+        "docs/design/config-revamp-design.md:724-817 (the section 8 species contract this design's divergence grammar generalizes)",
+        "docs/architecture/core/client-architecture-lockdown.md sections 6a/6b/11/14 (the registry law, three-states law and browse adjudication the standards extend)"
+      ]
     }
   ]
 }
