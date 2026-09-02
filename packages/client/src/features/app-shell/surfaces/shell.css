@@ -166,6 +166,17 @@
  * Where the deficit outlives both floors (≲1280px, both docked) the content track simply stays short:
  * a shell-grid limit, stated rather than faked.
  *
+ * RE-DERIVED POST-GEIST, ARITHMETIC UNCHANGED (#1204, 2026-09-02). The ruling survives; its INPUT moved.
+ * Geist has a wide zero and narrower lowercase, so it pushed the two floors in OPPOSITE directions: 65 CSS
+ * `ch` went 557.7 → 650px while 65 characters of the room's own prose went the other way, to 462px
+ * measured in the bubble's 15px prose font. Track → line here is −60.6 (track to pane) −88 (the 40px
+ * avatar gutter + the flat inner's two `--spacing-section` insets), so the REAL-CHARACTER floor this
+ * squeeze answers now needs 610.6px of track and the ruled 40rem clears it by 29px of line. Nothing below
+ * changes and `--dimension-content-reading-floor` keeps its value — lowering it would only buy back panel
+ * at the cost of reading width. The 65 `ch` floor is still unmet in this state and is still the stated
+ * residual here; where it IS answered is the reader's own dial, whose clamp floor is now
+ * `--dimension-shell-content-floor`, derived from that same 650 (app-shell.tsx).
+ *
  * THE CONTEXT TOGGLE NOW MOVES THE CONTENT PANE'S LEFT EDGE TOO (~49px at 1360), and it is unanimated —
  * stated because it is a real consequence of the ruled behaviour, not an oversight. Docking the context
  * pane already re-laid the whole content column instantly (there is no context FLIP; only the LIST track

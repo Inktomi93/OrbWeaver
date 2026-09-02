@@ -145,22 +145,22 @@ export const gate: GateDescriptor = {
       why: "an attribute value cannot counterfeit shell ancestry inside :where()",
     },
     {
-      files: censusControlFiles({ themeDirect: 194, themeRules: 103, ui: 190, tiers: 45, client: 125, shell: 337 }),
+      files: censusControlFiles({ themeDirect: 195, themeRules: 103, ui: 190, tiers: 45, client: 125, shell: 337 }),
       expect: { count: 2, token: "census:ui-globals" },
       why: "adding one otherwise legal declaration makes both the UI-home and total ratchets stale",
     },
     {
-      files: censusControlFiles({ themeDirect: 194, themeRules: 103, ui: 189, tiers: 45, client: 125, shell: 336 }),
+      files: censusControlFiles({ themeDirect: 195, themeRules: 103, ui: 189, tiers: 45, client: 125, shell: 336 }),
       expect: { count: 2, token: "census:shell" },
       why: "deleting one otherwise legal declaration makes both the shell-home and total ratchets stale",
     },
     {
-      files: censusControlFiles({ themeDirect: 194, themeRules: 103, ui: 188, tiers: 45, client: 126, shell: 337 }),
+      files: censusControlFiles({ themeDirect: 195, themeRules: 103, ui: 188, tiers: 45, client: 126, shell: 337 }),
       expect: { count: 2, token: "census:ui-globals" },
       why: "moving one declaration preserves the total but makes both source and destination home ratchets stale",
     },
     {
-      files: censusControlFiles({ themeDirect: 193, themeRules: 104, ui: 189, tiers: 45, client: 125, shell: 337 }),
+      files: censusControlFiles({ themeDirect: 194, themeRules: 104, ui: 189, tiers: 45, client: 125, shell: 337 }),
       expect: { count: 1, token: "census:theme-direct" },
       why: "moving one generated declaration out of direct @theme keeps every home total stable but trips the generated-output ratchet",
     },
@@ -416,7 +416,7 @@ export const gate: GateDescriptor = {
       why: "className and data-shell properties are live structural writers when their object is actually spread into JSX",
     },
     {
-      files: censusControlFiles({ themeDirect: 194, themeRules: 103, ui: 189, tiers: 45, client: 125, shell: 337 }),
+      files: censusControlFiles({ themeDirect: 195, themeRules: 103, ui: 189, tiers: 45, client: 125, shell: 337 }),
       why: "the exact post-#938 declaration manifest, including direct generated @theme declarations, is the clean control",
     },
     {

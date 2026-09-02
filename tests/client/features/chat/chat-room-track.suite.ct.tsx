@@ -387,6 +387,9 @@ interface EchoGeometry {
   readonly measureMin: number;
   readonly artWidth: number;
   readonly blockPx: number;
+  /** The FLAT skin's own text-side inset (`px-section` on its inner) — the undecorated line this pin
+   *  compares against is flat's, so it is measured with flat's spacing step, never echo's. */
+  readonly sectionPx: number;
   readonly shellContent: number;
 }
 
@@ -402,18 +405,30 @@ interface EchoGeometry {
 // measured in this very stage `65ch` is **650px** under the bubble's inherited stack against
 // **557.703125px** under the pre-Geist fallback — which is, to the digit, the "557.70 floor" the paragraph
 // below recorded on 2026-08-24. The floor moved +92px; the row did not. `.orb-echo-track` caps the row at
-// `--width-shell-content` (680px, the dial's clamp FLOOR) + the 192px art pane = 872px, the row spends 40px
-// on its avatar gutter, and the column's 832px leaves 628px of prose against the bubble's own declared
+// `--width-shell-content` (then 680px, the dial's clamp FLOOR) + the 192px art pane = 872px, the row spent
+// 40px on its avatar gutter, and the column's 832px left 628px of prose against the bubble's own declared
 // 854px box.
 //
-// AND THE 22px IS NOT THE ART'S. Measured on the same mount, the art is additive by exactly one
-// `--spacing-block`: the flat skin's line at this pane is `--width-shell-content − gutter − 2×block`, and
-// echo's is one block WIDER. The absolute floor is unmeetable post-Geist for EVERY skin at the dial floor
-// (echo 628, flat 616, floor 650) — i.e. it is the shell-grid question this file has always said it is
-// ("no rule in the transcript can widen a pane"; #242 answered the REAL-character floor, not the 65ch one),
-// and `--width-shell-content`'s 680px literal and `--dimension-content-reading-floor`'s 40rem were both
-// sized before the font pass. Filed as its own row; a transcript CT may not answer it and may not keep a
-// pin whose number describes a font we no longer ship.
+// THAT DIAL FLOOR HAS SINCE BEEN RE-DERIVED (#1204, 2026-09-02), so the paragraph above is the BEFORE and
+// the numbers below are the NOW. At 680px no skin held 65ch — measured on this very stage, flat read 592px
+// of prose (the track less its 40px gutter and the flat inner's two `--spacing-section` insets) and echo
+// 628px, against a 650px floor. The clamp's floor is now `--dimension-shell-content-floor` (46.125rem =
+// 738px), derived from exactly that 650 plus the row's furniture, and at it BOTH skins read 650px: flat by
+// that arithmetic, echo because its declared `measure-min + art-width + block` box (854px) at last fits
+// inside the column the wider track hands it. The pin is SPLIT by which property owns which half: the
+// CLAMP's own resolution (floor / crossover / above) is `app-shell.ct.tsx`'s dial width matrix, because the
+// clamp is stamped by the shell; the READING LINE at that floor is the loop at the bottom of this file,
+// because the line is the transcript's. This paragraph's own test keeps only the relative claim the SKIN
+// owns — that the art is additive.
+//
+// AND THE PROXY FOR FLAT IS ITS OWN INSET, NOT ECHO'S (corrected #1204, 2026-09-02). This test mounts echo
+// only, so the undecorated line it compares against is COMPUTED — and it used to compute it with
+// `2 × --spacing-block` (24px), which is the ECHO bubble's text-side inset, not flat's. The flat inner is
+// `px-section py-row`, so its insets are `2 × --spacing-section` (48px): measured on this stage at the old
+// 680px track, flat read 592px and the wrong formula claimed 616. It went unnoticed because it made the
+// bound LOOSER by 24px at a track where echo was 12px clear of it; at the re-derived 738px floor, where
+// echo's declared box caps its prose at exactly the same 650px flat gets, the 24px of slop is the whole
+// margin and the pin would have red-ed on a layout that is correct. The formula now names flat's own inset.
 //
 // IT BARRIERS ON THE DECORATED FRAME, NOT THE FIRST ONE (2026-08-24, #608's lane). `toBeVisible()` on the
 // content column is true one frame BEFORE echo's `bubbleDecoration` lands, and on that frame the bubble is
@@ -470,6 +485,7 @@ test("an immersive skin's art is ADDITIVE — it is reserved outside the reading
         measureMin: token("--reading-measure-min"),
         artWidth: token("--immersive-echo-art-width"),
         blockPx: token("--spacing-block"),
+        sectionPx: token("--spacing-section"),
         shellContent: token("--width-shell-content"),
       };
     });
@@ -494,12 +510,14 @@ test("an immersive skin's art is ADDITIVE — it is reserved outside the reading
     .toBeLessThanOrEqual(AXIS_TOLERANCE_PX);
 
   // ADDITIVE: the flat skin's track at this same pane IS `--width-shell-content`, so its reading line is
-  // that minus the row's gutter and the bubble's two insets. Echo's line may not be shorter — the portrait
-  // pane costs extra room on top of the reader's dial, it is never taken out of the line.
+  // that minus the row's gutter and flat's OWN two `px-section` insets (see the correction above — this
+  // used to spell echo's `--spacing-block` here and quietly loosened the bound by 24px). Echo's line may
+  // not be shorter — the portrait pane costs extra room on top of the reader's dial, it is never taken
+  // out of the line.
   await expect
     .poll(async () => {
       const geometry = await readGeometry();
-      return geometry.textWidth - (geometry.shellContent - geometry.gutter - 2 * geometry.blockPx);
+      return geometry.textWidth - (geometry.shellContent - geometry.gutter - 2 * geometry.sectionPx);
     })
     .toBeGreaterThanOrEqual(-AXIS_TOLERANCE_PX);
 
@@ -508,7 +526,7 @@ test("an immersive skin's art is ADDITIVE — it is reserved outside the reading
   // against this very layout, that geometry lands far under the additive floor the assertion above holds —
   // so the pin is not one any layout satisfies by accident.
   const settled = await readGeometry();
-  const undecoratedLine = settled.shellContent - settled.gutter - 2 * settled.blockPx;
+  const undecoratedLine = settled.shellContent - settled.gutter - 2 * settled.sectionPx;
   const preFeatherLine = (settled.shellContent - settled.gutter) * 0.45 - settled.blockPx;
   expect(preFeatherLine, "the pre-#212-2 feather geometry must violate the floor this test holds").toBeLessThan(undecoratedLine - AXIS_TOLERANCE_PX);
 });
@@ -622,4 +640,114 @@ for (const chatStyle of ["flat", "bubble"] as const) {
       expect(Math.abs(cancelled.height - read.height)).toBeLessThanOrEqual(AXIS_TOLERANCE_PX);
     });
   }
+}
+
+// ── #1204: THE READING LINE AT THE DIAL'S FLOOR — EVERY SKIN, NOT JUST THE ONE MEASURED ─────────────
+//
+// `--width-shell-content` is `clamp(--dimension-shell-content-floor, <chatWidthPct>dvw, 100dvw)`, so the
+// floor is the narrowest the READER can make the thread. Before #1204 that floor was a `680px` literal in
+// `app-shell.tsx` sized against the pre-Geist fallback stack; after `ed55bf193` shipped Geist, 65 CSS `ch`
+// stepped 557.7 -> 650px and the floor position held 592px of flat prose and 628px of echo — under the
+// transcript's own band floor for EVERY skin, which is a state the reader can reach with a slider.
+//
+// WHAT THIS LOOP PINS is the property the retune bought: at the floor, the reading line is at least
+// `--reading-measure-min` and still under `--reading-measure`. It lives here rather than in the shell CTs
+// because the LINE is the transcript's — it is what survives the row's identity gutter and the skin's own
+// insets, which no shell test can see. The clamp's own resolution (that the floor binds below the
+// crossover, hands over at it, and yields above it) is the shell's half, in `app-shell.ct.tsx`.
+//
+// BOTH SKINS, BECAUSE THEY REACH THE SAME NUMBER BY DIFFERENT ROUTES and a one-skin pin would miss either:
+// flat's line is the track less the gutter and its two `px-section` insets; echo's is its declared
+// `measure-min + art-width + block` box less the art pane it reserves — a box that only starts binding
+// once the track is wide enough to contain it. A regression in the floor breaks flat; a regression in
+// echo's declared box breaks echo; neither is visible from the other.
+//
+// THE VIEWPORT IS BELOW THE CROSSOVER ON PURPOSE (1280 x 50dvw = 640 < the floor), so the clamp really
+// resolves to its floor term and this measures the dial's worst case rather than a viewport-lucky one.
+const FLOOR_STAGE = { width: 1280, height: 900 };
+/** The pane must be wide enough that the TRACK, not the pane, is what bounds the row — otherwise this
+ *  measures a pane deficit (which is #242's question) instead of the dial floor (which is this one). */
+const FLOOR_STAGE_PANE = 1212;
+/** The dial's default percentage, the one the crossover above is computed against. */
+const DEFAULT_CHAT_WIDTH_PCT = 50;
+/** The pre-#1204 literal, replayed onto the same mount as the planted control: at the floor it replaced,
+ *  the identical measurement is SHORT for both skins. Without it "the line clears the measure" would pass
+ *  on any track that happens to be generous. */
+const PRE_1204_DIAL_FLOOR_PX = 680;
+
+interface FloorGeometry {
+  readonly track: number;
+  readonly floorToken: number;
+  readonly measureMin: number;
+  readonly measure: number;
+  readonly line: number;
+}
+
+for (const skin of ["flat", "echo"] as const) {
+  test(`#1204 ${skin}: at the dial's FLOOR the reading line still holds --reading-measure-min`, async ({ mount, page }) => {
+    await page.setViewportSize(FLOOR_STAGE);
+    await routeRoom(page, skin);
+    await mount(<ChatRoomTrackStory paneWidth={FLOOR_STAGE_PANE} />);
+    await expect(page.locator(CONTENT_COLUMN).first()).toBeVisible();
+    // Echo's decoration lands one frame after the column is visible, and its art pane is what makes its
+    // declared box binding — barrier on that settled tell (see the echo pin above). Flat reserves no pane,
+    // so its own bound is vacuous by construction and the barrier is the column's visibility alone.
+    await expect
+      .poll(async () =>
+        page.evaluate(() => {
+          const bubble = document.querySelector('[data-slot="message-bubble"]');
+          return bubble instanceof HTMLElement ? Number.parseFloat(getComputedStyle(bubble).paddingRight) : 0;
+        }),
+      )
+      .toBeGreaterThan(skin === "echo" ? ECHO_ART_PANE_MIN_PX : -1);
+
+    /** Track, line and both band ends in ONE evaluate, all resolved in the BUBBLE's own font — a `ch` read
+     *  anywhere else is a different number, and reads across frames are reads of different layouts. */
+    const readFloorGeometry = async (): Promise<FloorGeometry> =>
+      await page.evaluate((): FloorGeometry => {
+        const bubble = document.querySelector('[data-slot="message-bubble"]');
+        if (!(bubble instanceof HTMLElement)) {
+          throw new Error("no bubble mounted");
+        }
+        const token = (name: string): number => {
+          const probe = document.createElement("div");
+          probe.style.position = "absolute";
+          probe.style.visibility = "hidden";
+          probe.style.width = `var(${name})`;
+          bubble.append(probe);
+          const width = probe.getBoundingClientRect().width;
+          probe.remove();
+          return width;
+        };
+        const style = getComputedStyle(bubble);
+        return {
+          track: token("--width-shell-content"),
+          floorToken: token("--dimension-shell-content-floor"),
+          measureMin: token("--reading-measure-min"),
+          measure: token("--reading-measure"),
+          line: bubble.getBoundingClientRect().width - Number.parseFloat(style.paddingLeft) - Number.parseFloat(style.paddingRight),
+        };
+      });
+
+    const settled = await readFloorGeometry();
+    // THE PROPERTY, ASSERTED FIRST because it is the one a reader can see: the line they get at the
+    // narrowest dial position is still inside the transcript's band, at its floor…
+    await expect.poll(async () => (await readFloorGeometry()).line).toBeGreaterThanOrEqual(settled.measureMin - AXIS_TOLERANCE_PX);
+    // …and under the band's other end, which is what makes it a BAND rather than a race upward.
+    await expect.poll(async () => (await readFloorGeometry()).line).toBeLessThanOrEqual(settled.measure + AXIS_TOLERANCE_PX);
+    // AND THE STAGE WAS THE ONE CLAIMED: the clamp resolved to its FLOOR term, not to the viewport term,
+    // so the two assertions above measured the dial's narrowest position rather than a comfortable one.
+    expect(settled.floorToken).toBeGreaterThan((FLOOR_STAGE.width * DEFAULT_CHAT_WIDTH_PCT) / 100);
+    expect(settled.track).toBeCloseTo(settled.floorToken, 0);
+
+    // PLANTED CONTROL: the pre-#1204 floor, on this same mount. The measurement must go SHORT — otherwise
+    // the assertion above is satisfied by the stage rather than by the retune.
+    await page.evaluate((floorPx) => {
+      const pane = document.querySelector('[data-testid="room-pane"]');
+      if (pane instanceof HTMLElement) {
+        pane.style.setProperty("--width-shell-content", `${floorPx}px`);
+      }
+    }, PRE_1204_DIAL_FLOOR_PX);
+    await expect.poll(async () => (await readFloorGeometry()).line).toBeLessThan(settled.measureMin - AXIS_TOLERANCE_PX);
+  });
 }

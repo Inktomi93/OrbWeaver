@@ -168,8 +168,14 @@ export function AppShell(): ReactElement {
     preload(bgUrl, { as: "image" });
   }
   const hasBgImage = bgUrl !== null;
+  // THE DIAL'S FLOOR IS A TOKEN, NOT A LITERAL (#1204). It was `680px` here, sized before `ed55bf193`
+  // shipped Geist — after which 65 CSS `ch` stepped 557.7 -> 650px and the narrowest dial position held
+  // 592px of flat prose / 628px of echo, i.e. under the transcript's own band floor for EVERY skin. The
+  // floor is now derived from that measure (dimension.shell-content-floor's $description carries the
+  // arithmetic) and lives in the vault, because a portable value is not a feature's to spell
+  // (client-architecture-lockdown.md §4). The middle term stays here: it is the reader's own percentage.
   const shellVars: CSSProperties = {
-    "--width-shell-content": `clamp(680px, ${appearance.chatWidthPct}dvw, 100dvw)`,
+    "--width-shell-content": `clamp(var(--dimension-shell-content-floor), ${appearance.chatWidthPct}dvw, 100dvw)`,
   } as CSSProperties;
   const activeDef = registry.get(layout.activeSection);
   const placeholderCopy = activeDef.placeholder;
