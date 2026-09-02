@@ -340,13 +340,18 @@ test("resolveSelection: a tests/ file flags the graph-only trees (types:graph ru
 });
 
 test("resolveSelection: an import-pulled src file DOES flag the graph (the TS2584 overlay, rule 5)", () => {
-  // button/variants.ts is transitively imported by the DOM-less root graph (confirmed via tsgo
+  // tokens/index.ts is transitively imported by the DOM-less root graph (confirmed via tsgo
   // --listFilesOnly) — so it belongs to TWO programs (packages/ui WITH dom AND the graph DOM-less). Editing
   // it must run types:graph, or the TS2584-class break (a graph consumer of a dom-typed export) escapes at
   // verify --file. Its per-package owner stays ui (the graph is a separate stage, not a tsc -p owner).
+  // THE SUBJECT MOVED (#1231, #1243 fallout): this pinned `primitives/button/variants.ts` until #1243
+  // excluded `tests/ui` from the root program — those two specs were its ONLY graph-rooted importers, so
+  // the file silently left the overlay and this proof went red while `structure:full` stayed clean (a node
+  // suite, not a gate). The token vault is the durable choice: `tooling/src` reads it directly, so the
+  // overlay membership does not depend on which test tree is in the graph this month.
   const sel = resolveSelection({
     kind: "file",
-    paths: ["packages/ui/src/primitives/button/variants.ts"],
+    paths: ["packages/ui/src/tokens/index.ts"],
   });
   expect(sel.touchesGraphOnlyTrees).toBe(true);
   expect(sel.tsconfigs).toEqual(["packages/ui/tsconfig.json"]);
