@@ -47,11 +47,33 @@ export function requireRedDodAtMint(command: string): void {
   print(`work-item — DoD red at mint (exit ${run.status}), as required`);
 }
 
+/** `land`'s green pre-flight marks the row's context so done's gate does not EXECUTE the bar twice in
+ *  the same process (owner amendment 2026-09-01). Keyed on the per-row WorkItemContext object — a
+ *  direct `done` invocation builds its own context, never carries the memo, and stays authoritative. */
+const preflighted = new WeakSet<WorkItemContext>();
+
+/** LAND'S PRE-FLIGHT (owner amendment 2026-09-01): when the walk will reach done and no override was
+ *  given, the bar (and its pairing) is proven BEFORE any board mutation — a red bar refuses with the
+ *  row exactly as it was, instead of spending claim/review/verify writes on a close that could never
+ *  happen. Skipped when Status is already Done (done's gate is skipped there too — convergence). */
+export function preflightDodAtLand(work: WorkItemContext): void {
+  if (currentValue(work.item, "Status")?.toLowerCase() === "done") {
+    return;
+  }
+  enforceDodAtClose(work, null);
+  preflighted.add(work);
+}
+
 /** The close gate. Returns the override COMMENT BODY when `--force-close --reason` was given (the caller
  *  posts it through the one idempotent comment door), null when the close may proceed silently; throws on
  *  every refusal. Both pairing sides must agree before anything executes: an unstamped block (an issue
  *  author cannot write Project fields) is never run, and a stamped-but-edited block refuses by name. */
 export function enforceDodAtClose(work: WorkItemContext, override: string | null): string | null {
+  // A green land pre-flight already proved this exact context seconds ago in this process — running
+  // the bar again would double-execute it on every happy-path land.
+  if (override === null && preflighted.has(work)) {
+    return null;
+  }
   const issue = work.target.number;
   const command = extractDod(work.target.body);
   const stamp = currentValue(work.item, DOD_FIELD);

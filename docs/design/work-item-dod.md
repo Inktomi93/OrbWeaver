@@ -21,7 +21,15 @@ updated: 2026-09-01
   sends** (zero added calls). A command that cannot finish inside the timeout is refused at mint too
   — an unfinishable bar cannot gate anything.
 - **Close (the gate):** `done` and `land` converge on the one `done()` verb; before the Status→Done
-  write it re-derives the DoD from the issue body, checks the stamp, and RUNS the command. Red (or
+  write it re-derives the DoD from the issue body, checks the stamp, and RUNS the command. **`land`
+  additionally PRE-FLIGHTS the bar before its FIRST board mutation** (owner amendment 2026-09-01): a
+  red bar exits with the row exactly as it was — zero writes, one context read (a row-borne bar
+  structurally cannot be known without it) — and a green pre-flight marks the row's in-process context
+  so done's gate does not execute the bar twice; direct `done` invocations carry no memo and stay
+  authoritative. *Rejected (the original shape, moved by the amendment): gating ONLY inside `done()` —
+  `land` spent real claim/review/verify mutations before meeting the gate, leaving a red-barred row
+  transitioned to Verify with Evidence written: board writes for a close that could never happen, and a
+  status claiming more than the bar supports.* Red (or
   timeout, or stamp mismatch, or a half-present pair) → the close is refused (exit 2) printing what
   it RAN, the exit, and the output tail — a rotted bar reads as stale, never as mysterious. Green →
   close proceeds. A row already at Status Done skips the run (the only writer of Status=Done is
