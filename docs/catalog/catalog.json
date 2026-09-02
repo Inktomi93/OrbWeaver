@@ -446,16 +446,16 @@
       "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 394,
-      "bytes": 219606,
-      "sha256": "a16cd316696c38473a21ae2ce341faffcf45e87fa1e574e193cbc858e026c59b",
+      "lines": 395,
+      "bytes": 221205,
+      "sha256": "65d3ade6b6213939dabecdcde82e3820f6f198cbe3e8f25c646cdb99cb2dc518",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "law",
           "status": "active",
-          "updated": "2026-09-01"
+          "updated": "2026-09-02"
         },
         "errors": []
       },
@@ -465,10 +465,11 @@
         "disposition": "current",
         "authority": "operational",
         "fullRead": true,
-        "verifiedSha256": "a16cd316696c38473a21ae2ce341faffcf45e87fa1e574e193cbc858e026c59b",
-        "verifiedCommit": "ea1b53fd5ef734a9dceed9914bc9bd0c232d8ddf",
+        "verifiedSha256": "65d3ade6b6213939dabecdcde82e3820f6f198cbe3e8f25c646cdb99cb2dc518",
+        "verifiedCommit": "da01f7eb917f736024a855fc5afee66109d44a45",
         "verifiedAt": "2026-09-02",
         "evidence": [
+          "re-attested at da01f7eb9 (#1080 variant axes, claude-b lane cb-variant-axes): new gate row ui-variant-axes-stamped (fail-closed A2, shrink-only 11-row baseline, real-tree arm probes); registered-gate count 249",
           "re-attested at ea1b53fd5 (#1036, lane p-dangling-law): dangling-refs row — corpora derived from the catalog by class (law 31 · living design 22 · law-outside-docs 2, unioned with the prior dirs), frozen classes out by Documentation-Law §Relocation step 5, arm 4 law-only (measured), the population receipt",
           "re-attested at a287baa77 (#933 closure, lane p-933-authority): css-family-ownership row GRADUATED (mustFlag rows named, residual pointed at lockdown §4.7); devtools-frontend-assets, tokens-contract and css-var-defined rows cite pin.json / the pinning test / the gate's own scan line instead of digits",
           "re-attested at c41d8df2a (#1066, security lane p-field-walker): bus-payload-allowlist row — both walker positions fail closed (the FIELD walker refuses every unmodelled kind by name; tuple elements walked), the four declared limits listed complete with their mustPass rows",
