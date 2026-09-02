@@ -16,17 +16,16 @@ import {
   useRegexBulkMode,
   useRegexCount,
   useRegexMemberTitle,
-  useRegexPreview,
+  useRegexInsights,
 } from "../hooks/use-regex-collection.ts";
 import { RegexMemberSurface } from "../surfaces/regex-member-surface.tsx";
 
 export const regexCollection: CollectionContribution = {
   emptyText: "No scripts yet.",
   useCount: useRegexCount,
-  // The welcome hero's chip wall (side-eye 2026-08-19 P1-2 — this library used to declare no preview at
-  // all, so its launcher rendered as a 106px hollow shell beside the tag hero's 198px census and the lead
-  // column's "a hero has a preview" grammar was true 1/3). The rank is RECENCY, named by the kicker.
-  preview: { label: "Recently edited", useEntries: useRegexPreview },
+  // The landing's library-level FACTS (#1209): how much of the library is switched OFF and when it was
+  // last touched — two questions a rules library answers and its LIST of rows cannot.
+  insights: { useInsights: useRegexInsights },
   useMemberTitle: useRegexMemberTitle,
   create: { label: "New script", useRun: useCreateRegexMember },
   // The two REGX2 band affordances, declared as DATA the host renders in its own chrome grammar (C-4).

@@ -22,7 +22,7 @@ import {
   useImportWorldInfoMember,
   useWorldInfoCount,
   useWorldInfoMemberTitle,
-  useWorldInfoPreview,
+  useWorldInfoInsights,
 } from "../hooks/use-world-info-collection.ts";
 import { WorldInfoMemberSurface } from "../surfaces/world-info-member-surface.tsx";
 
@@ -31,7 +31,7 @@ export const worldInfoCollection: CollectionContribution = {
   useCount: useWorldInfoCount,
   // The welcome hero's chip wall (side-eye 2026-08-19 P1-2 — this library used to declare no preview, so its
   // launcher rendered as a hollow shell in the lead column). The rank is ATTACHMENT, named by the kicker.
-  preview: { label: "Most attached", useEntries: useWorldInfoPreview },
+  insights: { useInsights: useWorldInfoInsights },
   useMemberTitle: useWorldInfoMemberTitle,
   create: { label: "New book", useRun: useCreateWorldInfoMember },
   importFile: { label: "Import a world-info book", accept: "application/json", useRun: useImportWorldInfoMember },
