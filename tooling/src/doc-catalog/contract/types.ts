@@ -64,6 +64,16 @@ export interface State {
   readonly allowed?: DebtPaths;
 }
 
+/** One HAND-AUTHORED catalog artifact's bytes on disk beside its canonical (biome-formatted) form (#968).
+ *  `current !== canonical` is exactly "the repo's own formatter would rewrite this file" — the signal
+ *  `check:doc-catalog` used to lack, which is how a receipt could be attested in a shape `lint:biome`
+ *  rejects and red an unrelated stage hours later. */
+export interface ArtifactForm {
+  readonly path: string;
+  readonly current: string;
+  readonly canonical: string;
+}
+
 export interface Frontmatter {
   readonly present: boolean;
   readonly malformed: boolean;

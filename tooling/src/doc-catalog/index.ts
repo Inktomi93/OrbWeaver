@@ -2,6 +2,7 @@
 // receipt per document, one markdown formatter. Fronts `pnpm doc-catalog:*`, `check:doc-catalog`,
 // `format:docs`, `check:docs`.
 export type {
+  ArtifactForm,
   CatalogMode,
   DebtPaths,
   Doc,
@@ -20,6 +21,7 @@ export { CATALOG_MODES, FORMAT_MODES } from "./contract/types.ts";
 export { debtPathErrors, migrationDebt, migrationMetrics } from "./lib/debt.ts";
 export { countLines, frontmatterErrors, parseFrontmatter } from "./lib/frontmatter.ts";
 export { catalogReceipt, validateReceiptEntry } from "./lib/receipt-rules.ts";
+export { authoredArtifacts, offCanonicalPaths, unformattedArtifacts } from "./ops/catalog.ts";
 export type { FormatOutcome } from "./ops/format.ts";
 export { formatDocs, formatTargets } from "./ops/format.ts";
 export { runCatalog, runFormat } from "./ops/run.ts";
