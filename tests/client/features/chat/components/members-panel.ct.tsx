@@ -1,9 +1,9 @@
 // CT: the Members panel (members-panel.tsx + member-row-menu.tsx — the §7.1 Roster+People merge and
 // its BINDING row-interaction contract). Tested as the PURE source-agnostic component it is (fixed
 // rows in, actions observed via the `members-last-action` readout). Proves:
-//   • the two sections in ONE list (People above Cast) with the identity+state accessible names
+//   • the two sections in ONE list (People above Characters) with the identity+state accessible names
 //     ("Riley — host, you" · "Bryn — character, muted") and the state chips (Host/you/Nominated/Muted);
-//   • the roving tabindex: ONE tab stop, ArrowUp/Down cross the People→Cast boundary, Home/End,
+//   • the roving tabindex: ONE tab stop, ArrowUp/Down cross the People→Characters boundary, Home/End,
 //     typeahead-by-name;
 //   • the per-row Menu as the canonical action home (Enter opens; items fire the callbacks; the
 //     destructive Kick sits behind an AlertDialog);
@@ -28,14 +28,14 @@ const REMOVE_ARIA_RE = /Remove Aria from chat/u;
 const CHIP_50_RE = /Talkativeness: Aria — talks at level 50 of 100/u;
 const CHIP_80_RE = /Talkativeness: Aria — talks at level 80 of 100/u;
 
-test("People + Cast render in one list with identity+state accessible names and chips", async ({ mount }) => {
+test("People + Characters render in one list with identity+state accessible names and chips", async ({ mount }) => {
   const component = await mount(<MembersPanelStory withPeople={true} />);
 
   // People rows: viewer-host Riley ("you") + pending-nominated Kestrel.
   await expect(component.getByRole("button", { name: "Riley — host, you" })).toBeVisible();
   await expect(component.getByRole("button", { name: "Kestrel — member, nominated as host" })).toBeVisible();
   await expect(component.getByText("Nominated", { exact: true })).toBeVisible();
-  // Cast rows: responding Aria (visual mark aria-hidden) + muted Bryn.
+  // Character rows: responding Aria (visual mark aria-hidden) + muted Bryn.
   await expect(component.getByRole("button", { name: "Aria — character" })).toBeVisible();
   await expect(component.getByRole("button", { name: "Bryn — character, muted" })).toBeVisible();
   await expect(component.getByText("Muted", { exact: true })).toBeVisible();
@@ -43,7 +43,7 @@ test("People + Cast render in one list with identity+state accessible names and 
   await expect(component.getByText("responding…")).toHaveAttribute("aria-hidden", "true");
 });
 
-test("roving tabindex: one tab stop; arrows cross the People→Cast boundary; Home/End; typeahead", async ({ mount, page }) => {
+test("roving tabindex: one tab stop; arrows cross the People→Characters boundary; Home/End; typeahead", async ({ mount, page }) => {
   const component = await mount(<MembersPanelStory withPeople={true} />);
 
   // Exactly ONE row body in the tab order.
@@ -70,7 +70,7 @@ test("roving tabindex: one tab stop; arrows cross the People→Cast boundary; Ho
 
 // ── #208: the roving composite is ANNOUNCED, and its trailing controls answer to a key ─────────────────
 // The defect these pin, measured live on 2026-08-18 by Tab-walking the open context panel: Tab reached the
-// first PERSON row and then left the panel — the CAST rows were reachable only by ArrowDown, which nothing
+// first PERSON row and then left the panel — the CHARACTER_SECTION rows were reachable only by ArrowDown, which nothing
 // in the DOM advertised (the list carried no container role at all). And the per-row trailing controls (the
 // ⋯ menu shortcut, the inline mute/force-turn, the talkativeness chip) are `tabIndex={-1}` siblings with no
 // arrow handler, so they answered to a POINTER ONLY. Both assert through user-visible affordances (roles,
@@ -89,7 +89,7 @@ test("#208: the roster announces as a vertical toolbar, with People and Characte
   await expect(component.locator('[data-slot="member-row"] button[tabindex="0"]')).toHaveCount(1);
 });
 
-test("#208: ArrowRight/ArrowLeft reach a cast row's trailing controls and clamp at both ends", async ({ mount, page }) => {
+test("#208: ArrowRight/ArrowLeft reach a character row's trailing controls and clamp at both ends", async ({ mount, page }) => {
   const component = await mount(<MembersPanelStory />);
   const row = component.getByRole("button", { name: "Aria — character" });
 
@@ -136,7 +136,7 @@ test("Enter opens the per-row Menu (the canonical action home); Mute fires the c
   await expect(component.locator(LAST_ACTION)).toHaveText("disabled:character_aria:true");
 });
 
-test("Remove from chat sits LAST on a cast row and dispatches with the character id (host)", async ({ mount, page }) => {
+test("Remove from chat sits LAST on a character row and dispatches with the character id (host)", async ({ mount, page }) => {
   const component = await mount(<MembersPanelStory />);
 
   await component.getByRole("button", { name: "Aria — character" }).focus();
@@ -145,7 +145,7 @@ test("Remove from chat sits LAST on a cast row and dispatches with the character
   const menu = page.getByRole("menu");
   const remove = menu.getByRole("menuitem", { name: "Remove Aria from chat" });
   await expect(remove).toBeVisible();
-  // Destructive row LAST (the symmetric drop for the cast-bar add).
+  // Destructive row LAST (the symmetric drop for the character-bar add).
   await expect(menu.getByRole("menuitem").last()).toHaveText(REMOVE_ARIA_RE);
 
   // Reversible (leftSeq-stamp) → a direct action, no AlertDialog; the seam fires with the exact id
@@ -154,7 +154,7 @@ test("Remove from chat sits LAST on a cast row and dispatches with the character
   await expect(component.locator(LAST_ACTION)).toHaveText("remove:character_aria");
 });
 
-test("a MEMBER view has no Remove from chat item on a cast row (host-only seam absent, §8.1)", async ({ mount, page }) => {
+test("a MEMBER view has no Remove from chat item on a character row (host-only seam absent, §8.1)", async ({ mount, page }) => {
   const component = await mount(<MembersPanelStory memberView={true} />);
 
   await component.getByRole("button", { name: "Aria — character" }).focus();
@@ -263,10 +263,10 @@ test("post-destructive focus: the bus echo removes the kicked row and focus land
   await expect(component.getByRole("button", { name: "Aria — character" })).toBeFocused();
 });
 
-test("a MEMBER view exposes only View character on cast rows and no menu on other humans", async ({ mount, page }) => {
+test("a MEMBER view exposes only View character on character rows and no menu on other humans", async ({ mount, page }) => {
   const component = await mount(<MembersPanelStory withPeople={true} memberView={true} />);
 
-  // A cast row's menu: only the cross-section View character remains (host controls absent — §8.1).
+  // A character row's menu: only the cross-section View character remains (host controls absent — §8.1).
   await component.getByRole("button", { name: "Aria — character" }).focus();
   await page.keyboard.press("Enter");
   await expect(page.getByRole("menuitem", { name: "View character" })).toBeVisible();
@@ -306,32 +306,32 @@ test("a human row renders IDENTITY ONLY — no login handle beside the name", as
   await expect(people).not.toContainText("@");
 });
 
-test("a SOLO-character room still renders its Cast section (the >=2 floor hid the whole roster)", async ({ mount }) => {
-  const component = await mount(<MembersPanelStory soloCast={true} />);
+test("a SOLO-character room still renders its Characters section (the >=2 floor hid the whole roster)", async ({ mount }) => {
+  const component = await mount(<MembersPanelStory soloCharacters={true} />);
 
-  await expect(component.locator('[data-slot="members-cast"]')).toBeVisible();
+  await expect(component.locator('[data-slot="members-characters"]')).toBeVisible();
   await expect(component.getByRole("button", { name: "Aria — character" })).toBeVisible();
 });
 
-test("the Cast header carries the ADD-CHARACTER door — the roster's other add arm", async ({ mount }) => {
-  const component = await mount(<MembersPanelStory soloCast={true} withAddCharacter={true} />);
-  const cast = component.locator('[data-slot="members-cast"]');
+test("the Characters header carries the ADD-CHARACTER door — the roster's other add arm", async ({ mount }) => {
+  const component = await mount(<MembersPanelStory soloCharacters={true} withAddCharacter={true} />);
+  const characterSection = component.locator('[data-slot="members-characters"]');
 
-  await cast.getByRole("button", { name: "Add a character" }).click();
+  await characterSection.getByRole("button", { name: "Add a character" }).click();
   await expect(component.locator(LAST_ACTION)).toHaveText("add-character");
 });
 
-test("with NO cast the section survives for its add door and states the empty room honestly", async ({ mount }) => {
-  const component = await mount(<MembersPanelStory emptyCast={true} withAddCharacter={true} />);
-  const cast = component.locator('[data-slot="members-cast"]');
+test("with no characters the section survives for its add door and states the empty room honestly", async ({ mount }) => {
+  const component = await mount(<MembersPanelStory emptyCharacters={true} withAddCharacter={true} />);
+  const characterSection = component.locator('[data-slot="members-characters"]');
 
-  await expect(cast).toContainText("No characters in this chat yet");
-  await expect(cast.getByRole("button", { name: "Add a character" })).toBeVisible();
+  await expect(characterSection).toContainText("No characters in this chat yet");
+  await expect(characterSection.getByRole("button", { name: "Add a character" })).toBeVisible();
 });
 
-test("a viewer with no add door and no cast sees no Cast section at all", async ({ mount }) => {
-  const component = await mount(<MembersPanelStory emptyCast={true} />);
-  await expect(component.locator('[data-slot="members-cast"]')).toHaveCount(0);
+test("a viewer with no add door and no characters sees no Characters section at all", async ({ mount }) => {
+  const component = await mount(<MembersPanelStory emptyCharacters={true} />);
+  await expect(component.locator('[data-slot="members-characters"]')).toHaveCount(0);
 });
 
 test("Talkativeness… opens the anchored popover; the slider commits on release", async ({ mount, page }) => {

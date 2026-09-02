@@ -7,7 +7,7 @@
 // ── THE COMPOSITE IS ANNOUNCED (#208, 2026-08-18) ───────────────────────────────────────────────────
 // The roving tabindex above is the RIGHT mechanism and it was INVISIBLE. MEASURED live on 2026-08-18,
 // Tab-walking the open context panel from the Members tab: tabpanel → "Invite people" → the first PERSON
-// row → "Add a character" → out of the panel. The CAST rows are never reached by Tab; ArrowDown does reach
+// row → "Add a character" → out of the panel. The CHARACTER rows are never reached by Tab; ArrowDown does reach
 // them, but the list carried no container role at all, so nothing — not AT, not a sighted keyboard user —
 // was ever told that arrows do anything here. A roving tabindex outside a composite widget is a keyboard
 // model with no way to learn it.
@@ -20,15 +20,15 @@
 //     arrow sweep of every member would be a worse affordance than the convention buys. The ROWS are the
 //     single roving stop the convention is actually about.
 //   · each section is a `role="group"` named BY ITS OWN VISIBLE KICKER (`aria-labelledby`, never a second
-//     copy of the word) — so "People" and "Cast" reach AT as groups instead of as decoration.
+//     copy of the word) — so "People" and "Characters" reach AT as groups instead of as decoration.
 //   · ArrowLeft/Right reach the row's TRAILING controls — the ⋯ menu shortcut, the fine-pointer inline
 //     mute/force-turn, the talkativeness chip. Those are `tabIndex={-1}` siblings by §7.1 ruling (one tab
 //     stop per row) and, until now, had no arrow handler either: they were reachable by POINTER ONLY. The
 //     row's canonical Menu still carries every one of those verbs, so this is a shortcut, not the only
 //     door — but a toolbar whose controls answer only to a mouse is not a toolbar.
-// What did NOT change, deliberately: the roving index is still ONE index over People+Cast, so ArrowUp/Down
+// What did NOT change, deliberately: the roving index is still ONE index over People+Characters, so ArrowUp/Down
 // still cross the section boundary (§7.1), and the post-kick focus restore still lands on whatever row took
-// the removed index — including a cast row.
+// the removed index — including a character row.
 //
 // ── THE SECTION-HEADER WIDTH BUDGET (#912, owner-ruled 2026-08-30) ──────────────────────────────────
 // PRICE A WORD HERE BEFORE YOU WRITE IT. A section header is a kicker plus that section's door(s), and
@@ -65,15 +65,15 @@ import { MemberRow } from "./member-row.tsx";
 
 export interface MembersPanelProps extends MemberRowActions {
   readonly people: readonly MemberPersonRow[];
-  readonly cast: readonly MemberCharacterRow[];
+  readonly characters: readonly MemberCharacterRow[];
   readonly onInvitePeople?: (() => void) | undefined;
-  /** The CAST section header's add door — the character half of the roster's one add/invite affordance
+  /** The CHARACTERS section header's add door — the character half of the roster's one add/invite affordance
    *  (#162: the tab offered a way to invite humans and no way to add a character, though "add more characters
    *  or add people into it" is one feature). A rendered SLOT rather than a callback because the committed
    *  surface's door is an anchored Popover picker (`AddMemberPopover`) that must own its own trigger; the
    *  panel stays source-agnostic and simply gives it the header seat. Absent ⇒ a non-host view, where the
    *  section is a read-only list exactly as before. */
-  readonly castAction?: ReactElement | undefined;
+  readonly charactersAction?: ReactElement | undefined;
 }
 
 const TYPEAHEAD_RESET_MS = 700;
@@ -190,8 +190,8 @@ function typeaheadTarget(rows: readonly MembersRow[], buffer: string, start: num
  *  leading at 320, trailing again at 256 once the cluster wrapped internally). An auto inline-start margin
  *  trails them on a shared line AND on their own, at every width.
  *
- *  The action is WRAPPED rather than given the margin directly because the cast door is a consumer-owned
- *  SLOT (`castAction`) — a panel invariant that depended on the slot remembering a class would be a
+ *  The action is WRAPPED rather than given the margin directly because the characters door is a consumer-owned
+ *  SLOT (`charactersAction`) — a panel invariant that depended on the slot remembering a class would be a
  *  prose-only boundary, which is not a placement. */
 function SectionHeader({
   labelId,
@@ -219,8 +219,8 @@ function SectionHeader({
 }
 
 export function MembersPanel(props: MembersPanelProps): ReactElement {
-  const { people, cast, onInvitePeople } = props;
-  const rows: readonly MembersRow[] = [...people, ...cast];
+  const { people, characters, onInvitePeople } = props;
+  const rows: readonly MembersRow[] = [...people, ...characters];
 
   const rowRefs = useRef(new Map<string, HTMLButtonElement>());
   const inviteRef = useRef<HTMLButtonElement | null>(null);
@@ -230,7 +230,7 @@ export function MembersPanel(props: MembersPanelProps): ReactElement {
   // Each section's GROUP name is its own on-screen kicker (#208) — one string, so the announced name and
   // the printed word cannot drift.
   const peopleLabelId = useId();
-  const castLabelId = useId();
+  const charactersLabelId = useId();
 
   const effectiveActiveKey = rows.some((r) => r.key === activeKey) ? activeKey : (rows[0]?.key ?? null);
 
@@ -278,7 +278,7 @@ export function MembersPanel(props: MembersPanelProps): ReactElement {
   };
 
   useEffect(() => {
-    const currentRows: readonly MembersRow[] = [...people, ...cast];
+    const currentRows: readonly MembersRow[] = [...people, ...characters];
     const pending = pendingFocusRef.current;
     if (pending === null || currentRows.some((r) => r.key === pending.key)) {
       return;
@@ -297,7 +297,7 @@ export function MembersPanel(props: MembersPanelProps): ReactElement {
     if (el !== null) {
       focusWithReassert(el);
     }
-  }, [people, cast]);
+  }, [people, characters]);
 
   const onRequestRemovalFocus = (key: string): void => {
     pendingFocusRef.current = {
@@ -329,9 +329,9 @@ export function MembersPanel(props: MembersPanelProps): ReactElement {
   );
 
   const showPeople = people.length > 0 || onInvitePeople !== undefined;
-  // The Cast section renders whenever the room HAS a cast, or whenever this viewer can give it one — the
+  // The Characters section renders whenever the room HAS characters, or whenever this viewer can give it one — the
   // People section's own rule, so the add door can never be the thing its own empty state hides.
-  const showCast = cast.length > 0 || props.castAction !== undefined;
+  const showCharacters = characters.length > 0 || props.charactersAction !== undefined;
 
   return (
     <Stack gap="row" className="h-full min-h-0" data-testid={testId("membersPanel")}>
@@ -341,12 +341,12 @@ export function MembersPanel(props: MembersPanelProps): ReactElement {
       <ScrollArea className="min-h-0 flex-1" contentClassName="w-full !min-w-0">
         {/* THE ANNOUNCED COMPOSITE (#208 — see the header). `toolbar` + a vertical orientation is what the
             roving tabindex below has always BEHAVED as; until today it said nothing, so the arrow keys that
-            are the only route to the Cast rows were undiscoverable by AT and by sighted keyboard users
+            are the only route to the Character rows were undiscoverable by AT and by sighted keyboard users
             alike. The name is the one word the tab that owns this pane does not already say. */}
         <Stack gap="section" role="toolbar" aria-orientation="vertical" aria-label="Members and characters" onKeyDownCapture={handleKeyDownCapture}>
           {showPeople ? (
             // The section is a GROUP named by its OWN visible kicker (`aria-labelledby`, never a second
-            // copy of the word) — "People" and "Cast" are the list's structure, not decoration.
+            // copy of the word) — "People" and "Characters" are the list's structure, not decoration.
             <Stack gap="row" data-slot="members-people" role="group" aria-labelledby={peopleLabelId}>
               <SectionHeader
                 labelId={peopleLabelId}
@@ -364,10 +364,10 @@ export function MembersPanel(props: MembersPanelProps): ReactElement {
             </Stack>
           ) : null}
 
-          {showCast ? (
-            <Stack gap="row" data-slot="members-cast" role="group" aria-labelledby={castLabelId}>
-              <SectionHeader labelId={castLabelId} kicker="Characters" action={props.castAction} />
-              {cast.length === 0 ? <Text>No characters in this chat yet — add one.</Text> : cast.map(rowProps)}
+          {showCharacters ? (
+            <Stack gap="row" data-slot="members-characters" role="group" aria-labelledby={charactersLabelId}>
+              <SectionHeader labelId={charactersLabelId} kicker="Characters" action={props.charactersAction} />
+              {characters.length === 0 ? <Text>No characters in this chat yet — add one.</Text> : characters.map(rowProps)}
             </Stack>
           ) : null}
         </Stack>

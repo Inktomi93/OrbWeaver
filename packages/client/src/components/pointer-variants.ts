@@ -20,10 +20,10 @@ export const HIDE_AT_COARSE = "pointer-coarse:hidden";
  *  correct only for decoration/echo. This one is for a label whose SIGHTED job is taken over by an adjacent
  *  glyph or avatar on a phone while its SPOKEN job is not taken over by anything.
  *
- *  Live: the chat cast strip's member names (#511) — a crowded roster wrapped that strip to 5 rows / 160px
+ *  Live: the chat character strip's member names (#511) — a crowded roster wrapped that strip to 5 rows / 160px
  *  at 320px, and the wrap tax GREW as the screen narrowed, all of it taken from the transcript. Collapsed,
  *  the strip is one 40px row at every width and every roster size, and a screen-reader user still hears the
- *  whole cast. CT: tests/client/features/chat/components/chat-cast-bar.ct.tsx. */
+ *  whole set of names. CT: tests/client/features/chat/components/chat-character-bar.ct.tsx. */
 export const LABEL_TO_SR_ONLY_AT_COARSE = "pointer-coarse:sr-only";
 
 /** Reveal an opacity/pointer-events reveal cluster PERMANENTLY at a coarse pointer (there is no hover to

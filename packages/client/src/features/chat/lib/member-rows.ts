@@ -35,9 +35,9 @@ export interface MemberPersonRow {
   readonly historyVisibility: JoinHistoryVisibility;
 }
 
-/** A CAST (character) row view — source-agnostic (committed roster OR draft founding cards). */
+/** A CHARACTER-SEAT row view — source-agnostic (committed roster OR draft founding cards). */
 export interface MemberCharacterRow {
-  readonly kind: "cast";
+  readonly kind: "character";
   readonly key: string;
   readonly characterId: CharacterId;
   readonly displayName: string;
@@ -78,7 +78,7 @@ export interface MemberRowActions {
   readonly onSetDisabled?: ((characterId: CharacterId, disabled: boolean) => void) | undefined;
   readonly onSetTalkativeness?: ((characterId: CharacterId, talkativeness: number) => void) | undefined;
   readonly onForceTurn?: ((characterId: CharacterId) => void) | undefined;
-  /** Peel a cast member out of the roster (host-only; the symmetric drop for the cast-bar add).
+  /** Peel a character seat out of the roster (host-only; the symmetric drop for the character-bar add).
    *  leftSeq-stamps the seat out server-side — reversible via a re-add, so no hard-delete confirm. */
   readonly onRemoveCharacter?: ((characterId: CharacterId) => void) | undefined;
   readonly onViewCharacter?: ((characterId: CharacterId) => void) | undefined;
@@ -94,7 +94,7 @@ export function rowAccessibleName(row: MemberPersonRow | MemberCharacterRow): st
     const role = row.isHost ? "host" : "member";
     const you = row.isViewer ? ", you" : "";
     const nominated = row.pendingNominee ? ", nominated as host" : "";
-    // The non-default D16 posture is state, so it rides the accessible NAME (the cast ", muted" precedent).
+    // The non-default D16 posture is state, so it rides the accessible NAME (the character row's ", muted" precedent).
     const history = row.historyVisibility === "from-join" ? ", limited history" : "";
     return `${row.displayName} — ${role}${you}${nominated}${history}`;
   }
@@ -161,7 +161,7 @@ export function toPersonRows(sources: MemberRowSources): MemberPersonRow[] {
   return rows;
 }
 
-/** THE CHARACTER-SEAT PROJECTION — the room's cast, in roster order. */
+/** THE CHARACTER-SEAT PROJECTION — the room's characters, in roster order. */
 export function toCharacterRows(sources: MemberRowSources): MemberCharacterRow[] {
   const rows: MemberCharacterRow[] = [];
   for (const p of sources.participants) {
@@ -169,7 +169,7 @@ export function toCharacterRows(sources: MemberRowSources): MemberCharacterRow[]
       continue;
     }
     rows.push({
-      kind: "cast",
+      kind: "character",
       key: p.id,
       characterId: p.characterId,
       displayName: p.displayName,

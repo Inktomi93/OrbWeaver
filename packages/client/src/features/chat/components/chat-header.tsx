@@ -38,7 +38,7 @@ export interface ChatHeaderSurfaceProps {
 type CharacterParticipant = ReturnType<typeof filterCharacters>[number];
 
 interface CommittedIdentity {
-  readonly cast: readonly CharacterParticipant[];
+  readonly characters: readonly CharacterParticipant[];
   readonly title: string;
   /** Every PRESENT seat, humans + characters — the number on the roster chip. */
   readonly memberCount: number;
@@ -56,12 +56,12 @@ function useCommittedIdentity(chatId: ChatId): CommittedIdentity {
   const trpc = useTRPC();
   const { data: chat } = useQuery(trpc.chat.getChat.queryOptions({ chatId }));
   const participants = chat?.participants ?? [];
-  const cast = filterCharacters(participants);
+  const characters = filterCharacters(participants);
   return {
-    cast,
+    characters,
     title: deriveChatTitle(
       chat?.title ?? null,
-      cast.map((c) => c.displayName),
+      characters.map((c) => c.displayName),
     ),
     memberCount: participants.filter((p) => p.leftSeq === null).length,
     resolved: chat !== undefined,
@@ -108,7 +108,7 @@ function ChatIdentityCluster({ avatars, title }: { readonly avatars: ReactNode; 
  * frame — `useStartChat` seeds this exact key from `startChat`'s own response.
  */
 export function ChatHeaderSurface({ chatId }: ChatHeaderSurfaceProps): ReactElement {
-  const { cast, title, memberCount, resolved, viewerIsHost } = useCommittedIdentity(chatId);
+  const { characters, title, memberCount, resolved, viewerIsHost } = useCommittedIdentity(chatId);
 
   if (!resolved) {
     return (
@@ -122,7 +122,7 @@ export function ChatHeaderSurface({ chatId }: ChatHeaderSurfaceProps): ReactElem
 
   return (
     <Row gap="row" align="center" className="min-w-0">
-      <ChatIdentityCluster avatars={<CastAvatars cast={cast} />} title={title} />
+      <ChatIdentityCluster avatars={<CharacterAvatars characters={characters} />} title={title} />
       <ChatRosterEntry memberCount={memberCount} />
       {/* The memory-recall slot — a STABLE topbar control beside the members chip (#313), reflecting the
           current turn's recall phase (idle / recalling… / retrieved N), never a per-message chip. */}
@@ -188,7 +188,7 @@ function openMembersTab(): void {
  * (owner ruling 2026-07-25). That popover existed for one reason: the Members tab was SIZE-GATED and did not
  * exist for a 1:1 room, so the roster had nowhere else to live. The size gate is what produced the owner's
  * "Chat Members lost detail" report, and it is gone (`lib/roster.ts::membersTabJustified` — the floor is now
- * zero for a host, and the tab carries the cast, the add-character door and the invite door in one place).
+ * zero for a host, and the tab carries the characters, the add-character door and the invite door in one place).
  * With one roster surface for every room state, a second one in the topbar is not a fallback, it is a fork —
  * so the popover, its seat rows and their imports were deleted here rather than left beside the new home.
  */
@@ -196,12 +196,12 @@ function ChatRosterEntry({ memberCount }: { readonly memberCount: number }): Rea
   return <RosterChipButton count={memberCount} onClick={openMembersTab} />;
 }
 
-function CastAvatars({ cast }: { readonly cast: readonly CharacterParticipant[] }): ReactElement | null {
-  if (cast.length === 0) {
+function CharacterAvatars({ characters }: { readonly characters: readonly CharacterParticipant[] }): ReactElement | null {
+  if (characters.length === 0) {
     return null;
   }
-  const lead = cast[0];
-  if (cast.length === 1 && lead !== undefined) {
+  const lead = characters[0];
+  if (characters.length === 1 && lead !== undefined) {
     return (
       <Avatar size="sm" fallbackDelay={0} hueSeed={lead.characterId} {...(lead.avatarHash === null ? {} : { src: blobUrl(lead.avatarHash) })}>
         {initialsFor(lead.displayName)}
@@ -211,11 +211,11 @@ function CastAvatars({ cast }: { readonly cast: readonly CharacterParticipant[] 
   return (
     <AvatarStack
       size="sm"
-      items={cast.map((c) => ({
+      items={characters.map((c) => ({
         name: c.displayName,
         ...(c.avatarHash === null ? {} : { src: blobUrl(c.avatarHash) }),
       }))}
-      aria-label={`${cast.length} characters`}
+      aria-label={`${characters.length} characters`}
     />
   );
 }
@@ -224,7 +224,7 @@ function CastAvatars({ cast }: { readonly cast: readonly CharacterParticipant[] 
 // header de-dup (the topbar owns identity; the band reduces to neutral chrome — Context-Panel-Program.md
 // §1 Q3). CP-4's scene banner is a NEW component, not a resurrection — git history holds the old one.
 //
-// `DraftChatHeader` (the pre-send twin: founding-card avatars, `draftChatTitle`, a `1 + cast` seat count,
+// `DraftChatHeader` (the pre-send twin: founding-card avatars, `draftChatTitle`, a `1 + characters` seat count,
 // and a list-first card peek to beat the ~2s "? | ? | ? | New chat" placebo window) was DELETED 2026-08-14
 // with draft mode — the room has a roster from the creation click, and `useStartChat` seeds this exact
 // `getChat` key from `startChat`'s own response, so the committed header is correct on the first frame with

@@ -9,7 +9,7 @@
 // coarse it never renders; the ≥44px-floor touch path is row-tap → Menu). The reveal is PAINT-only
 // (`ROW_REVEAL`): the cluster holds its box at rest, so hovering the row never moves layout.
 //
-// Accessible name = identity + state (lib/member-rows.ts `rowAccessibleName`); the cast "responding…"
+// Accessible name = identity + state (lib/member-rows.ts `rowAccessibleName`); the character row's "responding…"
 // mark is `aria-hidden` visually (a quiet pulse, never `aria-live` — no per-turn SR chatter) and rides
 // the row's accessible DESCRIPTION instead. Destructive rows (Kick…/Leave…) sit LAST behind an
 // AlertDialog (`ConfirmDialog`); a kick additionally reports itself to the panel
@@ -53,7 +53,7 @@ export function MemberRow(props: MemberRowProps): ReactElement {
 
   const menuItems = buildMenuItems(props, { setConfirm, openWeight: () => setWeightOpen(true) });
   const hasMenu = menuItems.length > 0;
-  const responding = row.kind === "cast" && row.responding;
+  const responding = row.kind === "character" && row.responding;
 
   const body = (
     <Button
@@ -79,13 +79,13 @@ export function MemberRow(props: MemberRowProps): ReactElement {
       <Avatar
         size="sm"
         fallbackDelay={0}
-        // Hue-seed: character id for cast (matches transcript/library); participant id for a human seat.
-        hueSeed={row.kind === "cast" ? row.characterId : row.key}
+        // Hue-seed: character id for a character seat (matches transcript/library); participant id for a human seat.
+        hueSeed={row.kind === "character" ? row.characterId : row.key}
         {...(row.avatarHash === null ? {} : { src: blobUrl(row.avatarHash) })}
       >
         {initialsFor(row.displayName)}
       </Avatar>
-      <Text as="span" voice="label" className={row.kind === "cast" && row.disabled ? "min-w-0 truncate text-muted-foreground" : "min-w-0 truncate"}>
+      <Text as="span" voice="label" className={row.kind === "character" && row.disabled ? "min-w-0 truncate text-muted-foreground" : "min-w-0 truncate"}>
         {/* Identity ONLY. The ` · ${handle}` suffix that used to sit here rendered the raw login handle —
             an EMAIL under AUTH_MODE=oidc — beside every human's name (#162); `MemberPersonRow` no longer
             carries a handle at all, so the suffix has nothing to come back from. */}
@@ -120,12 +120,12 @@ export function MemberRow(props: MemberRowProps): ReactElement {
         body
       )}
 
-      {row.kind === "cast" ? <CastInlineCluster row={row} actions={props} /> : null}
+      {row.kind === "character" ? <CharacterInlineCluster row={row} actions={props} /> : null}
 
       {/* The talkativeness weight chip — the glance readout AND the anchored popover's trigger (§7.1:
           "Talkativeness… opens an anchored popover with the labeled slider"). Menu item + chip both
           open it; pointer users can tap the chip directly. */}
-      {row.kind === "cast" && props.onSetTalkativeness !== undefined ? (
+      {row.kind === "character" && props.onSetTalkativeness !== undefined ? (
         <TalkativenessPopover row={row} open={weightOpen} onOpenChange={setWeightOpen} onSetTalkativeness={props.onSetTalkativeness} />
       ) : null}
 
@@ -151,7 +151,7 @@ export function MemberRow(props: MemberRowProps): ReactElement {
 
 /** The quiet state chips beside the name: host crown · "you" · pending nomination · muted. */
 function RowStateBadges({ row }: { readonly row: MemberPersonRow | MemberCharacterRow }): ReactElement | null {
-  if (row.kind === "cast") {
+  if (row.kind === "character") {
     return row.disabled ? (
       <Badge size="sm" intent="neutral" tone="soft">
         Muted
@@ -189,7 +189,7 @@ function RowStateBadges({ row }: { readonly row: MemberPersonRow | MemberCharact
 
 /** Fine-pointer inline shortcut cluster (mute · force-turn) — duplicates two Menu items with identical
  *  labels/icons; NEVER rendered at a coarse pointer (§7.1: row tap opens the Menu there). */
-function CastInlineCluster({ row, actions }: { readonly row: MemberCharacterRow; readonly actions: MemberRowActions }): ReactElement | null {
+function CharacterInlineCluster({ row, actions }: { readonly row: MemberCharacterRow; readonly actions: MemberRowActions }): ReactElement | null {
   if (actions.onSetDisabled === undefined) {
     return null;
   }
