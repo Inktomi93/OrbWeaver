@@ -17,17 +17,19 @@ export const collapsibleVariants = tv({
       "h-(--collapsible-panel-height) overflow-hidden text-body leading-body text-muted-foreground transition-all duration-(--motion-layout) ease-out-expo data-starting-style:h-0 data-ending-style:h-0",
   },
   variants: {
-    // THE TRIGGER'S BOX (side-eye 2026-08-22 P2-4). `inline` is the shipped shape and stays the default: a
-    // disclosure that sits in running content is text-height, and a control box there would shear it away
-    // from the copy it belongs to. `control` is for a disclosure that is a ROW of its own — the thing you
-    // press to reach a whole section — and pins the pointer-conditional `--spacing-control-sm` floor (44px
-    // coarse / 32px fine), the same token every other tap-floor control rides. Measured before: the params
-    // deck's `Advanced` was a 544×16 box with no hit expansion (`::after` resolves `content: none` here, so
-    // the touch pseudo is not in play), below WCAG 2.5.8's 24×24 on ANY pointer. It is a VARIANT and not a
-    // call-site `min-h-*` because tailwind-merge cannot classify custom-token utilities, so an override
-    // would win or lose by stylesheet order (gate `ui-size-via-variant`).
+    // THE TRIGGER'S BOX — DEFAULT INVERTED at #884 C2 (owner program, handoff 2026-08-30 §2; born as
+    // side-eye 2026-08-22 P2-4). `control` is the BASE now: a disclosure is the thing you press to reach a
+    // whole section, and the recurring defect was the opt-IN floor arm not taken (the this-chat 411×40
+    // collapsible; the params deck's `Advanced` at 544×16 — below WCAG 2.5.8's 24×24 on ANY pointer, with
+    // no hit expansion because `::after` resolves `content: none` here). It pins the pointer-conditional
+    // `--spacing-control-sm` floor (44px coarse / 32px fine), the same token every other tap-floor control
+    // rides. `text` (the renamed `inline` arm) is the OPT-OUT for a disclosure sitting in running content,
+    // where a control box would shear it off the copy it belongs to — and every `size="text"` mount owes a
+    // line-adjacent `@sub-floor-ok: <reason>` marker (gate `sub-floor-disclosure`, two-sided). It is a
+    // VARIANT and not a call-site `min-h-*` because tailwind-merge cannot classify custom-token utilities,
+    // so an override would win or lose by stylesheet order (gate `ui-size-via-variant`).
     size: {
-      inline: {},
+      text: {},
       control: { trigger: "min-h-control-sm" },
     },
     // `instant` snaps the panel to its target height with no perceptible fold. 0.01ms, not 0s, so the
@@ -45,6 +47,6 @@ export const collapsibleVariants = tv({
   },
   defaultVariants: {
     instant: false,
-    size: "inline",
+    size: "control",
   },
 });

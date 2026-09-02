@@ -432,7 +432,7 @@ export function PackBody({
     );
   }
   return (
-    <Stack gap="field">
+    <Stack gap="field" rows="control">
       {items.map((item) => (
         <PackListRow key={item.id} item={item} {...(edit === undefined ? {} : { edit })} />
       ))}

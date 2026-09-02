@@ -2,6 +2,7 @@
 // (Base UI owns the open state + the --collapsible-panel-height measurement; we only skin it).
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { Page } from "@playwright/test";
 
 const ROTATE_ON_OPEN_RE = /group-data-\[panel-open\]:rotate-180/;
 
@@ -111,26 +112,14 @@ test("chevron={false} suppresses the baked chevron (a consumer renders its own)"
   await expect(page.locator('[data-slot="collapsible-trigger"] svg')).toHaveCount(0);
 });
 
-// The `size` axis (side-eye 2026-08-22 P2-4). A disclosure that IS a row of its own — the thing you press to
-// reach a whole section — has to clear the pointer floor, and the shipped trigger is text-height by design
-// (right for a disclosure sitting in running content, wrong for a row). `inline` stays the default so no
-// existing consumer moves; `control` pins `--spacing-control-sm`, read LIVE off the token because it is
+// The `size` axis — DEFAULT INVERTED at #884 C2 (born side-eye 2026-08-22 P2-4). A bare trigger is a row
+// of its own — the thing you press to reach a whole section — so the BASE now pins the pointer floor; the
+// recurring defect was the opt-in floor arm not taken (the this-chat 411×40 collapsible). `text` is the
+// renamed opt-OUT for a disclosure in running content, and it owes a `@sub-floor-ok` marker at the mount
+// (gate `sub-floor-disclosure`). `--spacing-control-sm` is read LIVE off the token because it is
 // pointer-conditional (44px coarse / 32px fine) and a literal here would be wrong on one of the two.
-test("size: `control` clears the pointer's control floor and `inline` (the default) does not claim it", async ({ mount, page }) => {
-  await mount(
-    <>
-      <Collapsible>
-        <CollapsibleTrigger>Running text</CollapsibleTrigger>
-        <CollapsiblePanel>Hidden details</CollapsiblePanel>
-      </Collapsible>
-      <Collapsible>
-        <CollapsibleTrigger size="control">Its own row</CollapsibleTrigger>
-        <CollapsiblePanel>Hidden details</CollapsiblePanel>
-      </Collapsible>
-    </>,
-  );
-
-  const floor = await page.evaluate(() => {
+const readControlFloor = (page: Page): Promise<number> =>
+  page.evaluate(() => {
     const probe = document.createElement("div");
     probe.style.height = "var(--spacing-control-sm)";
     document.body.append(probe);
@@ -138,15 +127,51 @@ test("size: `control` clears the pointer's control floor and `inline` (the defau
     probe.remove();
     return resolved;
   });
+
+const SIZE_FIXTURE = (
+  <>
+    <Collapsible>
+      <CollapsibleTrigger>Its own row</CollapsibleTrigger>
+      <CollapsiblePanel>Hidden details</CollapsiblePanel>
+    </Collapsible>
+    <Collapsible>
+      <CollapsibleTrigger size="text">Running text</CollapsibleTrigger>
+      <CollapsiblePanel>Hidden details</CollapsiblePanel>
+    </Collapsible>
+  </>
+);
+
+test("size: the DEFAULT clears the pointer's control floor and `text` (the marked opt-out) does not claim it", async ({ mount, page }) => {
+  await mount(SIZE_FIXTURE);
+
+  const floor = await readControlFloor(page);
   expect(floor, "the control-sm token must resolve, or this assertion is vacuous").toBeGreaterThan(0);
 
-  const inlineBox = await page.getByRole("button", { name: "Running text" }).boundingBox();
-  const controlBox = await page.getByRole("button", { name: "Its own row" }).boundingBox();
+  const textBox = await page.getByRole("button", { name: "Running text" }).boundingBox();
+  const defaultBox = await page.getByRole("button", { name: "Its own row" }).boundingBox();
   // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
-  expect(controlBox?.height).toBeGreaterThanOrEqual(floor);
-  // The default is UNCHANGED — this variant may not silently re-box every disclosure already shipped.
+  expect(defaultBox?.height).toBeGreaterThanOrEqual(floor);
+  // The opt-out stays text-height: the inversion must not re-box a disclosure that sits in running copy.
   // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
-  expect(inlineBox?.height).toBeLessThan(floor);
+  expect(textBox?.height).toBeLessThan(floor);
+});
+
+test.describe("size at a COARSE pointer", () => {
+  test.use({ hasTouch: true });
+
+  test("the default's floor is the 44px coarse arm — the token is pointer-conditional, not a constant", async ({ mount, page }) => {
+    await mount(SIZE_FIXTURE);
+
+    // Positive control that coarse emulation actually fired (a fine-pointer run makes the 44 unreachable
+    // and this pin would green at 32 for the wrong reason).
+    // ONESHOT-OK: pointer capability is a context-level constant for the page's whole life — nothing transitions it.
+    expect(await page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
+    const floor = await readControlFloor(page);
+    expect(floor).toBeGreaterThanOrEqual(44);
+    const defaultBox = await page.getByRole("button", { name: "Its own row" }).boundingBox();
+    // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+    expect(defaultBox?.height).toBeGreaterThanOrEqual(floor);
+  });
 });
 
 test("disabled on the root disables the trigger and blocks toggling", async ({ mount, page }) => {

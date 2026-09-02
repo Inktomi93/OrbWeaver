@@ -69,7 +69,7 @@ function isSuggestionGone(error: unknown): boolean {
 function RewriteDetail({ before, after }: { readonly before: string; readonly after: string }): ReactNode {
   return (
     <Collapsible>
-      <CollapsibleTrigger size="inline">Show the change</CollapsibleTrigger>
+      <CollapsibleTrigger>Show the change</CollapsibleTrigger>
       <CollapsiblePanel>
         {/* Capped and scrolled: a rewrite may be a whole long reply, and an uncapped panel would push the
             transcript out of the room to show it. `wrapContent` because the diff is a prose column whose

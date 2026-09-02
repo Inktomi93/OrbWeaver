@@ -4,6 +4,73 @@
   "issue": 5,
   "entries": [
     {
+      "path": "docs/design/885-884-boundary-reservation-and-touch-floor.md",
+      "assignedSha256": "e3e7d004690f3bbdda8790517b676401ee4c7bf230c5c95133815926943ff912",
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "e3e7d004690f3bbdda8790517b676401ee4c7bf230c5c95133815926943ff912",
+      "verifiedCommit": "720f4439316842c7c1fb62c60901d9a93070502e",
+      "verifiedAt": "2026-09-02",
+      "summary": "Design for #885 QueryBoundary.reserveKey (the one measure-then-remember reservation seam: chosen shape, rejected alternatives, keying tranche, gate arms, the counted tail) and #884 collapsible touch-floor defaults (the size inversion, the sub-floor marker gate, Stack rows=control + the vertical-pitch arm). Authored born-reviewed by the building lane (cb-reserve-floor).",
+      "evidence": [
+        "born-reviewed at 720f4439316 (lane cb-reserve-floor, the commit that authored it): full read; premise re-verification in §0 measured on the same tree; §1.4/§2.2 tables mirror the landed edits"
+      ],
+      "claims": [
+        {
+          "claim": "QueryBoundary carries the one measure-then-remember reservation seam (reserveKey/reserveBlock): the remembered box reserves the fallback, skeletonRowCountFor re-fills a static-count SkeletonRows, and the settled child re-measures into surface-box-store.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/client/src/data/query-boundary.tsx:130"
+            },
+            {
+              "kind": "test",
+              "target": "tests/client/data/query-boundary.ct.tsx:126"
+            },
+            {
+              "kind": "issue",
+              "target": "#885"
+            }
+          ]
+        },
+        {
+          "claim": "The SkeletonRows-static-count class is gated: no reserveKey and no @first-boot-only marker is RED, duplicate literal keys are RED, and the marker vocabulary is two-sided.",
+          "evidence": [
+            {
+              "kind": "gate",
+              "target": "tooling/src/verify/gates/query-boundary-reservation.ts:1"
+            },
+            {
+              "kind": "issue",
+              "target": "#885"
+            }
+          ]
+        },
+        {
+          "claim": "The collapsible trigger default is inverted to the control floor; size=\"text\" is the marked sub-floor opt-out and the Stack rows=\"control\" variant plus the vertical-pitch arm close the #850 row-pitch class.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/ui/src/primitives/collapsible/variants.ts:31"
+            },
+            {
+              "kind": "gate",
+              "target": "tooling/src/verify/gates/sub-floor-disclosure.ts:1"
+            },
+            {
+              "kind": "gate",
+              "target": "tooling/src/verify/gates/no-floorless-control-in-wrap.ts:1"
+            },
+            {
+              "kind": "issue",
+              "target": "#884"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "path": "docs/design/951-css-family-semantic-provenance.md",
       "assignedSha256": "0ceecbfde36383977417f1ba15beaba7b7b6900feaaa45336c16260a55be7284",
       "disposition": "current",
@@ -577,6 +644,46 @@
       ]
     },
     {
+      "path": "docs/design/integer-line-boxes.md",
+      "assignedSha256": "daf687deab3973e974628dba540ccb07344e491123985c2e2d425f69b2321d81",
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "daf687deab3973e974628dba540ccb07344e491123985c2e2d425f69b2321d81",
+      "verifiedCommit": "a6db3e258a5bf5de3d280dc796b5c509d97cc81e",
+      "verifiedAt": "2026-09-01",
+      "evidence": [
+        "docs/design/integer-line-boxes.md:1 (full read; measured defect, multiplier cross, snapped-dimension architecture, re-pairing sweep, four-arm gate, ramp coherence, declared residuals)",
+        "git:ed55bf1933c4d653f75d1117c50894b7612805a1 (integrated #997 Law-1 design and implementation bytes)",
+        "re-attested at a6db3e258 — #1002 lands Laws 2-4: intro/title truth-repaired (Laws 2-4 no longer 'out of scope'), §9-§12 appended (rest-transform-grid gate; off-grid-transform / promoted-layer-offset / off-grid-text runtime rules; DPR 1/1.25/2 corpus table; reading-surface exemption mirrored). Delta read against the lane report; status stays active until the program closes"
+      ],
+      "summary": "Active #997 Law-1 design: leadings re-authored as snapped rem dimensions (orb.output snapped -> round(rem,1px)), the SNAPPED_LENGTH_BASE_PX numeric surface, the re-pairing sweep, and the four-arm integer-line-boxes gate, with the reading-surface residual and non-integer-root spacing declared honestly.",
+      "claims": [
+        {
+          "claim": "Every leading token except none is a snapped rem dimension resolving to integer px at the 16px root, belted by round(rem,1px) across the continuous font-scale range.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#997"
+            },
+            {
+              "kind": "gate",
+              "target": "tooling/src/verify/gates/integer-line-boxes.ts:1"
+            }
+          ]
+        },
+        {
+          "claim": "The reading surface (--reading-line-height, user-authored continuous knob) is a declared residual carried as the gate's typed exemption, not silently passed.",
+          "evidence": [
+            {
+              "kind": "gate",
+              "target": "tooling/src/verify/gates/integer-line-boxes.ts:1"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "path": "docs/design/interaction-direction-spec.md",
       "assignedSha256": "b3adde87080b9d3c2bc8ecec3384848ae01bfd20b099562ed77e337ffc0c6561",
       "disposition": "current",
@@ -643,6 +750,25 @@
           ]
         }
       ]
+    },
+    {
+      "path": "docs/design/mocks/README.md",
+      "assignedSha256": "b83b79c02687e190319454701cc16357428c814a2d334868187fbf97c681272d",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "b83b79c02687e190319454701cc16357428c814a2d334868187fbf97c681272d",
+      "verifiedCommit": "c41bcfa25fbe49071aa47cc952f96fb80af3069f",
+      "verifiedAt": "2026-08-30",
+      "evidence": [
+        "docs/design/mocks/README.md:1 (design; unheaded)",
+        "git log --oneline -1 -- docs/design/mocks/README.md: a2fb3d950 docs(codex): the 58-finding documentation cleanup — 15 fixed, 33 archive-no-action, 10 needs-owner",
+        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
+        "docs/design/mocks/README.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)",
+        "docs/design/mocks/README.md: re-attested at 1f5e25c00ec2ee921bc70591bf84e8268b255030 — the #876/#873 citer sweep: doc-path repoints from the tooling-package → Core-Tooling-Law.md and density-pass-spec → UI-Density-Law.md relocations and the seven mock-set retirements. Comment/link lines only; no claim moved.",
+        "docs/design/mocks/README.md: re-attested at c41bcfa25fbe49071aa47cc952f96fb80af3069f — config-revamp row appended"
+      ],
+      "summary": "docs/design/mocks — frozen design drawings: full content read against frozen tree; landed-state record retained as historical evidence."
     },
     {
       "path": "docs/design/mocks/characters-landing/DESIGN.md",
@@ -738,25 +864,6 @@
         }
       ],
       "summary": "Context bracket mock (#860): the context panel as ONE head+foot chrome for chats, game rooms and characters — the canvas source (build.mjs → seven .dc.html + canvas.json), true-size default-state renders, the ruling, the slot table, the rulings that survive with a changed input, and the coupled sites for the build lane."
-    },
-    {
-      "path": "docs/design/mocks/README.md",
-      "assignedSha256": "b83b79c02687e190319454701cc16357428c814a2d334868187fbf97c681272d",
-      "disposition": "archive",
-      "authority": "historical",
-      "fullRead": true,
-      "verifiedSha256": "b83b79c02687e190319454701cc16357428c814a2d334868187fbf97c681272d",
-      "verifiedCommit": "c41bcfa25fbe49071aa47cc952f96fb80af3069f",
-      "verifiedAt": "2026-08-30",
-      "evidence": [
-        "docs/design/mocks/README.md:1 (design; unheaded)",
-        "git log --oneline -1 -- docs/design/mocks/README.md: a2fb3d950 docs(codex): the 58-finding documentation cleanup — 15 fixed, 33 archive-no-action, 10 needs-owner",
-        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
-        "docs/design/mocks/README.md: re-attested at 774231540214ff0322f9884872c0c0588ed54f8a — retired to docs/history/design per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass, #872)",
-        "docs/design/mocks/README.md: re-attested at 1f5e25c00ec2ee921bc70591bf84e8268b255030 — the #876/#873 citer sweep: doc-path repoints from the tooling-package → Core-Tooling-Law.md and density-pass-spec → UI-Density-Law.md relocations and the seven mock-set retirements. Comment/link lines only; no claim moved.",
-        "docs/design/mocks/README.md: re-attested at c41bcfa25fbe49071aa47cc952f96fb80af3069f — config-revamp row appended"
-      ],
-      "summary": "docs/design/mocks — frozen design drawings: full content read against frozen tree; landed-state record retained as historical evidence."
     },
     {
       "path": "docs/design/motion-audit-mobile-environment-977.md",
@@ -1165,6 +1272,51 @@
       ]
     },
     {
+      "path": "docs/design/state-paint-census.md",
+      "assignedSha256": "5c42e095216d9f3f9789c6645cd65848ff06e52db2f78ab86aa14cbcce0f6b0a",
+      "disposition": "archive",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "5c42e095216d9f3f9789c6645cd65848ff06e52db2f78ab86aa14cbcce0f6b0a",
+      "verifiedCommit": "489967ae993e09d7e93197cbc68ce302c440aac9",
+      "verifiedAt": "2026-09-01",
+      "evidence": [
+        "docs/design/state-paint-census.md:1 (full read; defect class, one-segment architecture, attribute classification, rejected alternatives, coupled sites, two-direction test plan, ratified CTA-glow exemption)",
+        "git:ed55bf1933c4d653f75d1117c50894b7612805a1 (integrated #996 design and implementation bytes)",
+        "docs/design/state-paint-census.md:203 (delta read at the F1 landing: the fork bullet now states the per-element WeakMap cache granularity and the currentColor twin pin)",
+        "docs/design/state-paint-census.md:3 (frontmatter status active -> archived at program close, #996 Done)"
+      ],
+      "summary": "Active #996 design for the state-paint census: one escape-aware :hover predicate + classified Base UI attribute-state vocabulary replacing three blind walker sites, attribute forcing riding the existing forced-state pass, population polarity named per withheld class, and the owner-ratified token-derivation CTA-glow exemption.",
+      "claims": [
+        {
+          "claim": "One shared walker segment (ops/walker/state-paint.ts) is the single home for the escape-aware :hover predicate, the state-attribute vocabulary, and the glow-layer vocabulary, composed into both page programs.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#996"
+            },
+            {
+              "kind": "code",
+              "target": "tooling/src/ui-audit/ops/walker/state-paint.ts:1"
+            }
+          ]
+        },
+        {
+          "claim": "The CTA-glow exemption is a measured token-derivation mechanism (computed box-shadow equals the resolved --shadow-cta-glow on that element), ratified with a fresh composition receipt, never a name list.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "tooling/src/ui-audit/ops/walker/state-paint.ts:1"
+            },
+            {
+              "kind": "test",
+              "target": "tests/tooling/ui-audit/ops/walker/state-paint.int.test.ts:1"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "path": "docs/design/streaming-shape-churn.md",
       "assignedSha256": "04b9e754cc269e77beb1d4fd4b29ef85596f8852dea2025d65fd50e1b55fc629",
       "disposition": "current",
@@ -1359,91 +1511,6 @@
         }
       ],
       "summary": "The living concept→word map: room seats are Characters, the saved template is a Roster (code rosterPreset, conforming), roster is reserved and never spent as English for a list, the rpg register is fenced with the chat word winning at the boundary, and castId is deliberately no-action. Prose-enforced by owner ruling with no gate; the enforcement section records the wave-union defect that produced it."
-    },
-    {
-      "path": "docs/design/state-paint-census.md",
-      "assignedSha256": "5c42e095216d9f3f9789c6645cd65848ff06e52db2f78ab86aa14cbcce0f6b0a",
-      "disposition": "archive",
-      "authority": "design",
-      "fullRead": true,
-      "verifiedSha256": "5c42e095216d9f3f9789c6645cd65848ff06e52db2f78ab86aa14cbcce0f6b0a",
-      "verifiedCommit": "489967ae993e09d7e93197cbc68ce302c440aac9",
-      "verifiedAt": "2026-09-01",
-      "evidence": [
-        "docs/design/state-paint-census.md:1 (full read; defect class, one-segment architecture, attribute classification, rejected alternatives, coupled sites, two-direction test plan, ratified CTA-glow exemption)",
-        "git:ed55bf1933c4d653f75d1117c50894b7612805a1 (integrated #996 design and implementation bytes)",
-        "docs/design/state-paint-census.md:203 (delta read at the F1 landing: the fork bullet now states the per-element WeakMap cache granularity and the currentColor twin pin)",
-        "docs/design/state-paint-census.md:3 (frontmatter status active -> archived at program close, #996 Done)"
-      ],
-      "summary": "Active #996 design for the state-paint census: one escape-aware :hover predicate + classified Base UI attribute-state vocabulary replacing three blind walker sites, attribute forcing riding the existing forced-state pass, population polarity named per withheld class, and the owner-ratified token-derivation CTA-glow exemption.",
-      "claims": [
-        {
-          "claim": "One shared walker segment (ops/walker/state-paint.ts) is the single home for the escape-aware :hover predicate, the state-attribute vocabulary, and the glow-layer vocabulary, composed into both page programs.",
-          "evidence": [
-            {
-              "kind": "issue",
-              "target": "#996"
-            },
-            {
-              "kind": "code",
-              "target": "tooling/src/ui-audit/ops/walker/state-paint.ts:1"
-            }
-          ]
-        },
-        {
-          "claim": "The CTA-glow exemption is a measured token-derivation mechanism (computed box-shadow equals the resolved --shadow-cta-glow on that element), ratified with a fresh composition receipt, never a name list.",
-          "evidence": [
-            {
-              "kind": "code",
-              "target": "tooling/src/ui-audit/ops/walker/state-paint.ts:1"
-            },
-            {
-              "kind": "test",
-              "target": "tests/tooling/ui-audit/ops/walker/state-paint.int.test.ts:1"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "path": "docs/design/integer-line-boxes.md",
-      "assignedSha256": "daf687deab3973e974628dba540ccb07344e491123985c2e2d425f69b2321d81",
-      "disposition": "current",
-      "authority": "design",
-      "fullRead": true,
-      "verifiedSha256": "daf687deab3973e974628dba540ccb07344e491123985c2e2d425f69b2321d81",
-      "verifiedCommit": "a6db3e258a5bf5de3d280dc796b5c509d97cc81e",
-      "verifiedAt": "2026-09-01",
-      "evidence": [
-        "docs/design/integer-line-boxes.md:1 (full read; measured defect, multiplier cross, snapped-dimension architecture, re-pairing sweep, four-arm gate, ramp coherence, declared residuals)",
-        "git:ed55bf1933c4d653f75d1117c50894b7612805a1 (integrated #997 Law-1 design and implementation bytes)",
-        "re-attested at a6db3e258 — #1002 lands Laws 2-4: intro/title truth-repaired (Laws 2-4 no longer 'out of scope'), §9-§12 appended (rest-transform-grid gate; off-grid-transform / promoted-layer-offset / off-grid-text runtime rules; DPR 1/1.25/2 corpus table; reading-surface exemption mirrored). Delta read against the lane report; status stays active until the program closes"
-      ],
-      "summary": "Active #997 Law-1 design: leadings re-authored as snapped rem dimensions (orb.output snapped -> round(rem,1px)), the SNAPPED_LENGTH_BASE_PX numeric surface, the re-pairing sweep, and the four-arm integer-line-boxes gate, with the reading-surface residual and non-integer-root spacing declared honestly.",
-      "claims": [
-        {
-          "claim": "Every leading token except none is a snapped rem dimension resolving to integer px at the 16px root, belted by round(rem,1px) across the continuous font-scale range.",
-          "evidence": [
-            {
-              "kind": "issue",
-              "target": "#997"
-            },
-            {
-              "kind": "gate",
-              "target": "tooling/src/verify/gates/integer-line-boxes.ts:1"
-            }
-          ]
-        },
-        {
-          "claim": "The reading surface (--reading-line-height, user-authored continuous knob) is a declared residual carried as the gate's typed exemption, not silently passed.",
-          "evidence": [
-            {
-              "kind": "gate",
-              "target": "tooling/src/verify/gates/integer-line-boxes.ts:1"
-            }
-          ]
-        }
-      ]
     },
     {
       "path": "docs/design/work-item-dod.md",

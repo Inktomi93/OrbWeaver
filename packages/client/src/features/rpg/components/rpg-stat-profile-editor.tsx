@@ -144,41 +144,46 @@ export function RpgStatProfileEditor({ chatId, config }: { readonly chatId: Chat
       {attrs.length === 0 ? (
         <RpgDoorwayLine>No attributes yet — this game steers on prose. Name one below and every character sheet grows it.</RpgDoorwayLine>
       ) : null}
-      {attrs.map((attr, i) => (
-        <AttributeRow
-          key={attr.key}
-          attr={attr}
-          index={i}
-          onCommit={(next): void => commitAttrs(attrs.map((a, j) => (j === i ? next : a)))}
-          onRemove={(): void => commitAttrs(attrs.filter((_, j) => j !== i))}
-        />
-      ))}
-      <AddRow
-        ariaLabel="New attribute name"
-        placeholder="name it first (e.g. Grace)"
-        {...(atCap ? { refusal: `A profile carries at most ${RPG_PROFILE_MAX_ATTRIBUTES} attributes — remove one to add another.` } : {})}
-        actions={[
-          {
-            key: "attribute",
-            label: "Add attribute",
-            icon: Plus,
-            onAdd: (label: string): void =>
-              commitAttrs([
-                ...attrs,
-                {
-                  key: mintDefKey(
+      {/* The ROW band takes its own Stack so `rows="control"` floors the attribute/add/range rows
+          (#884 C3 — the #850 pitch class: "Strength hint" measured 312×18 against the 24px fine floor)
+          without inflating the kicker above them. */}
+      <Stack gap="field" rows="control">
+        {attrs.map((attr, i) => (
+          <AttributeRow
+            key={attr.key}
+            attr={attr}
+            index={i}
+            onCommit={(next): void => commitAttrs(attrs.map((a, j) => (j === i ? next : a)))}
+            onRemove={(): void => commitAttrs(attrs.filter((_, j) => j !== i))}
+          />
+        ))}
+        <AddRow
+          ariaLabel="New attribute name"
+          placeholder="name it first (e.g. Grace)"
+          {...(atCap ? { refusal: `A profile carries at most ${RPG_PROFILE_MAX_ATTRIBUTES} attributes — remove one to add another.` } : {})}
+          actions={[
+            {
+              key: "attribute",
+              label: "Add attribute",
+              icon: Plus,
+              onAdd: (label: string): void =>
+                commitAttrs([
+                  ...attrs,
+                  {
+                    key: mintDefKey(
+                      label,
+                      attrs.map((a) => a.key),
+                      "attribute",
+                    ),
                     label,
-                    attrs.map((a) => a.key),
-                    "attribute",
-                  ),
-                  label,
-                  hint: "",
-                },
-              ]),
-          },
-        ]}
-      />
-      <RangeRow profile={profile} onCommit={commit} />
+                    hint: "",
+                  },
+                ]),
+            },
+          ]}
+        />
+        <RangeRow profile={profile} onCommit={commit} />
+      </Stack>
     </Stack>
   );
 }
