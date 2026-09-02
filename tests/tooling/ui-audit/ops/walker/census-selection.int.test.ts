@@ -120,3 +120,81 @@ test("a cohort that is genuinely one-sided ACROSS those wrappers is still withhe
   expect(res.stdout).toContain("INSTRUMENT ERROR");
   await expect(res).toExitWith(2);
 });
+
+// ── the component-PART controls (#1150), all three directions ────────────────
+
+/** The RATIFIED picture picker (#981) as it ACTUALLY renders, copied attribute-for-attribute off the live
+ *  Appearance settings surface: Base UI's `Radio.Root` renders AS `PickerCell` through `render`, so ONE
+ *  span carries `role=radio` + `aria-checked` + `data-checked`/`data-unchecked`, and the CHECKED cell alone
+ *  mounts `Radio.Indicator` — a role-less span that republishes `data-checked` and whose `keepMounted`
+ *  defaults to false (docs/vendor/base-ui/components/radio.md :492), so it can never have an unselected
+ *  twin. Measured live: those indicators formed a 2-selected/0-unselected cohort and withheld
+ *  `unmatchedSelected`, turning every Config audit into a NO VERDICT.
+ *
+ *  THE SELECTED PAINT IS AUTHORED PER GROUP HERE, NOT THE APP'S `ring-inset`. The shipped cell paints
+ *  selection with a 2px INSET ring plus a 1px border-colour change, and this census vetoes inset box-shadow
+ *  (#1076, open) while `SELECT_BAR_MIN_PX` rejects a 1px border — so the real cell judges to signature
+ *  "none". These fixtures pin THIS rule's part/carrier partition and that a picker cell's channels are
+ *  counted at all; they deliberately do not depend on the vetoed channel. */
+function radioGroupPicker(slot: string, selectedPaint: string): string {
+  const cell = (state: string, check: string, paint: string): string =>
+    `<span data-slot="picker-cell" role="radio" ${state} style="position:relative;display:block;width:120px;height:60px;background:#111;${paint}"><span data-slot="picker-cell-body">theme</span>${check}</span>`;
+  const indicator = `<span data-slot="radio-group-picker-item-check" data-checked style="display:block;width:12px;height:12px;background:#fff"></span>`;
+  return `<div data-slot="${slot}" role="radiogroup" aria-label="${slot}">
+${cell('data-checked aria-checked="true"', indicator, selectedPaint)}
+${cell('data-unchecked aria-checked="false"', "", "")}</div>`;
+}
+
+test("a radiogroup picker's own delta channels are counted while its checked-only INDICATOR is a closed exclusion, not a phantom missing twin", async ({
+  runCli,
+  scratch,
+}) => {
+  const pickers = [
+    radioGroupPicker("theme-collection", "outline:2px solid orange"),
+    radioGroupPicker("chat-style-cards", "background:#402000"),
+    radioGroupPicker("elevation-cards", "border-left:3px solid orange"),
+  ].join("");
+  await writeFile(join(scratch, "radiogroup-picker-selection.html"), relationalDocument(pickers));
+  const res = await runCli("ui-audit", ["/radiogroup-picker-selection.html", "--base", `file://${scratch}`], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+  // Three picker cohorts (one per radiogroup home) are JUDGED; the three indicators share ONE cohort — a
+  // component part cannot own a choice, so it is excluded with a closed reason rather than withheld.
+  expect(res.stdout).toContain(
+    "POPULATION   selection-idiom candidates=4 judged=3 affected=1 populations=1 representatives=1 withheld() excluded(nestedStatePart=1)",
+  );
+  expect(res.stdout, "the ratified picker's own delta is measured, not swallowed by the part").toContain("ringx1 · fillx1 · bar-leftx1");
+  expect(res.stdout).not.toContain("unmatchedSelected");
+  // THIS RULE leaves the NO-VERDICT reason list. The run still carries one: `quiet-state` (census-region.ts)
+  // reads the SAME indicator as an ON state with no OFF twin and withholds `unmatchedOn` — the identical
+  // part/carrier blindness one rule over, filed separately rather than fixed under this row's receipt.
+  expect(res.stdout).not.toContain("selection-idiom: unmatched");
+});
+
+test("a NESTED control that owns its own aria state is a carrier, not a part — only the state-less part is excluded", async ({ runCli, scratch }) => {
+  const tile = (state: string, checked: string, tick: string, selectedPaint: string): string =>
+    `<div data-slot="tile" ${state} style="color:#fff;width:140px;height:70px;background:#111;${selectedPaint}">${tick}<button data-slot="tile-lock" role="checkbox" ${state} aria-checked="${checked}" style="color:#fff;background:#111;width:48px;height:48px">lock</button></div>`;
+  const mark = `<span data-slot="tile-mark" data-checked style="display:inline-block;width:12px;height:12px;background:#fff"></span>`;
+  await writeFile(
+    join(scratch, "nested-aria-carrier-selection.html"),
+    relationalDocument(
+      `<section data-slot="tile-group">${tile("data-checked", "true", mark, "outline:2px solid orange")}${tile("data-unchecked", "false", "", "")}</section>`,
+    ),
+  );
+  const res = await runCli("ui-audit", ["/nested-aria-carrier-selection.html", "--base", `file://${scratch}`], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+  // Two judged cohorts: the tiles, AND the nested lock buttons — a real control inside a selected ancestor
+  // keeps its own aria state and therefore its own comparison. Only the paint-hook-only mark is excluded.
+  expect(res.stdout).toContain(
+    "POPULATION   selection-idiom candidates=3 judged=2 affected=0 populations=0 representatives=0 withheld() excluded(nestedStatePart=1)",
+  );
+  expect(res.stdout).not.toContain("selection-idiom: unmatched");
+});
+
+test("the aria-pressed toolbar idiom keeps registering after the part partition", async ({ runCli, scratch }) => {
+  const toggle = (pressed: boolean, paint: string): string =>
+    `<button data-slot="toolbar-toggle" aria-pressed="${pressed}" style="color:#fff;width:80px;height:48px;background:#111;${paint}">B</button>`;
+  const toolbar = `<section data-slot="toolbar">${toggle(true, "outline:2px solid orange")}${toggle(false, "")}${toggle(true, "background:#402000")}${toggle(false, "")}${toggle(true, "border-left:3px solid orange")}${toggle(false, "")}</section>`;
+  await writeFile(join(scratch, "pressed-toolbar-selection.html"), relationalDocument(toolbar));
+  const res = await runCli("ui-audit", ["/pressed-toolbar-selection.html", "--base", `file://${scratch}`], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+  expect(res.stdout).toContain("POPULATION   selection-idiom candidates=1 judged=1 affected=1 populations=1 representatives=1 withheld() excluded()");
+  expect(res.stdout).toContain("ringx1 · fillx1 · bar-leftx1");
+  expect(res.stdout).not.toContain("INSTRUMENT ERROR");
+});

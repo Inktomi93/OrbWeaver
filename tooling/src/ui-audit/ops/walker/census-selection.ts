@@ -19,6 +19,26 @@
 // wrappers. #987's one-sided ruling is UNCHANGED: a genuinely twin-less cohort of two or more carriers
 // is still withheld. What changed is its INPUT — which carriers ARE one cohort.
 //
+// A COMPONENT PART IS NOT A CHOICE (#1150) — the same ruling, the same shape of correction, one layer
+// down. Base UI publishes its state vocabulary on EVERY PART of a component, not only on the root that
+// owns the decision: `Radio.Indicator` republishes the root's `data-checked`/`data-unchecked`
+// (docs/vendor/base-ui/components/radio.md, Root :433 vs Indicator :492) and its `keepMounted` defaults
+// to FALSE, so the indicator EXISTS ONLY WHILE CHECKED and can never have an unselected twin. Measured on
+// the live Settings -> Appearance: the two `[data-slot=radio-group-picker-item-check]` spans formed a
+// 2-selected/0-unselected cohort and withheld `unmatchedSelected`, which made EVERY Config design-audit
+// print population-verdict=NO-VERDICT — while the ratified picker cells they sit inside (#981) were paired
+// and judged correctly all along. `Switch.Thumb` is the same defect from the other side: it duplicated the
+// `switch-root` cohort and got judged TWICE for one authored decision, as did `list-row-body` inside
+// `list-row-root`.
+//
+// THE TELL IS THE ARIA STATE, NOT THE NESTING. The element that owns the choice publishes it to the
+// accessibility tree — role=radio/switch/checkbox + `aria-checked`, `aria-selected`, `aria-pressed`,
+// `aria-current`; a PART carries only the `data-*` paint hook it needs for `data-checked:` selectors. So a
+// carrier with no aria selection state of its own, whose NEAREST state-carrying ancestor asserts the SAME
+// state kind, is that ancestor's presentation and is EXCLUDED (`nestedStatePart` — closed, printed, still
+// in the denominator), never withheld. A genuinely nested INDEPENDENT control keeps its own aria state and
+// keeps its own cohort; a genuinely one-sided cohort of real carriers is still withheld (#987 :208 intact).
+//
 // Raw JS in a template literal (no backticks / dollar-brace — see _shared/browser.ts for why a string,
 // not a function). Provenance + attribution: ops/walker.ts.
 import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
@@ -52,6 +72,30 @@ export const WALKER_CENSUS_SELECTION = `  // ── selection idiom: authored ST
     if (el.hasAttribute("data-active")) return { kind: "active", selected: true };
     if (el.hasAttribute("data-inactive")) return { kind: "active", selected: false };
     return null;
+  }
+
+  // The four ARIA state attributes that publish "this one is chosen" to the a11y tree. Presence alone is
+  // the test — an \`aria-checked="false"\` is still the element ASSERTING it owns the choice. Base UI puts
+  // these on the root only; its parts get the data-* hook and nothing else.
+  var ARIA_SELECTION_STATE_ATTRS = ["aria-checked", "aria-selected", "aria-pressed", "aria-current"];
+
+  function ownsAriaSelectionState(el) {
+    for (var ariaIndex = 0; ariaIndex < ARIA_SELECTION_STATE_ATTRS.length; ariaIndex += 1) {
+      if (el.hasAttribute(ARIA_SELECTION_STATE_ATTRS[ariaIndex])) return true;
+    }
+    return false;
+  }
+
+  // NEAREST state-carrying ancestor, not any ancestor: a picker cell inside a selected list row is still a
+  // choice of its own, and only the ancestor that owns the SAME state kind can be re-publishing itself.
+  function isNestedStatePart(el, state) {
+    if (ownsAriaSelectionState(el)) return false;
+    for (var partAnc = el.parentElement; partAnc !== null && partAnc !== document.body; partAnc = partAnc.parentElement) {
+      var carrier = selectionState(partAnc);
+      if (carrier === null) continue;
+      return carrier.kind === state.kind;
+    }
+    return false;
   }
 
   function samePaintColor(a, b) {
@@ -101,10 +145,11 @@ export const WALKER_CENSUS_SELECTION = `  // ── selection idiom: authored ST
     var groupKey = authoredTargetClaim(choice) + "|home=" + authoredTargetHome(choice) + "|state=" + state.kind;
     var group = selectionGroups.get(groupKey);
     if (group === undefined) {
-      group = { kind: state.kind, selected: [], unselected: [] };
+      group = { kind: state.kind, selected: [], unselected: [], parts: 0 };
       selectionGroups.set(groupKey, group);
     }
-    if (state.selected) group.selected.push(choice);
+    if (isNestedStatePart(choice, state)) group.parts += 1;
+    else if (state.selected) group.selected.push(choice);
     else group.unselected.push(choice);
   }
 
@@ -113,6 +158,13 @@ export const WALKER_CENSUS_SELECTION = `  // ── selection idiom: authored ST
   var selectionTotal = 0;
   selectionGroups.forEach(function (group) {
     relationalAccounting["selection-idiom"].candidates += 1;
+    // A cohort with no carriers at all is a component's parts republishing their root's state — closed
+    // evidence that the rule does not apply here, and it is checked FIRST so a part cohort can never be
+    // mistaken for a thin population (list-row-body) or for missing twin evidence (Radio.Indicator).
+    if (group.selected.length + group.unselected.length === 0) {
+      excludeRelational(relationalAccounting["selection-idiom"], "nestedStatePart");
+      return;
+    }
     if (group.selected.length + group.unselected.length < SELECT_COMPARISON_MIN_MEMBERS) {
       excludeRelational(relationalAccounting["selection-idiom"], "insufficientPopulation");
       return;
