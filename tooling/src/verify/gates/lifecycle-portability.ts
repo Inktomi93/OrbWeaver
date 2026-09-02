@@ -331,7 +331,7 @@ function readSchema(sf: SourceFile): void {
       // imported columns object carries no `text("owner_id")` in this file, and reading text alone made an
       // owner-stamped table look unowned — i.e. carried no portability obligation at all (#945).
       const columns = initializer.isKind(SyntaxKind.CallExpression) ? columnProperties(initializer.getArguments()[1]) : [];
-      if (columns.some((column) => OWNER_COLUMN_RE.test(column.getInitializer()?.getText() ?? ""))) {
+      if (columns.some((column) => OWNER_COLUMN_RE.test(column.text))) {
         ownerStamped.add(decl.getName());
       }
     }
@@ -511,6 +511,14 @@ export const gate: GateDescriptor = {
   mustFlag: [
     {
       files: {
+        "packages/db/src/schema/journal.ts":
+          'const ownerId = text("owner_id");\nexport const journalEntries = sqliteTable("journal_entries", { ownerId, body: text("body") });\n',
+      },
+      expect: { count: 1, messageIncludes: "OWNER-STAMPED canon that no portable kind carries" },
+      why: "THE #1035 SHORTHAND RED: the ownership stamp arrives as a shorthand member, so arm A must still see an owner-stamped table — dropped, the table read as unowned and carried no portability obligation",
+    },
+    {
+      files: {
         "packages/db/src/schema/journal-columns.ts": 'export const journalColumns = { ownerId: text("owner_id"), body: text("body") };\n',
         "packages/db/src/schema/journal.ts":
           'import { journalColumns } from "./journal-columns";\nexport const journalEntries = sqliteTable("journal_entries", journalColumns);\n',
@@ -528,6 +536,12 @@ export const gate: GateDescriptor = {
     },
   ],
   mustPass: [
+    {
+      files: {
+        "packages/db/src/schema/character.ts": 'const ownerId = text("owner_id");\nexport const characters = sqliteTable("characters", { ownerId });\n',
+      },
+      why: "the SHORTHAND's green twin: the same resolved stamp on a table a portable kind DOES carry — passes",
+    },
     {
       files: {
         "packages/db/src/schema/gallery.ts": 'export const galleryItems = sqliteTable("gallery_items", { assetId: text("asset_id") });\n',

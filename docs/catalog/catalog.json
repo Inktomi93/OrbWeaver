@@ -443,8 +443,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 394,
-      "bytes": 212111,
-      "sha256": "b8a0e7494b403df5942c021c3576fc11938fa374581a72fe21a4fc3c4af9dbbe",
+      "bytes": 212681,
+      "sha256": "6be2b9c457c28415d2c533bc41cd46788cac03591707ff4f4e01d25085eaf284",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -525,7 +525,8 @@
           "re-attested at b7e824597 — merge of #973 (12b8c524f: the four grant-liveness rows learn their pattern half — 261 live / 17 ratified / 18 irreducible / 2 removed = 298) onto the #944/#946 ledger; union read once",
           "re-attested at f01a2375e (#1024/#1025, lane p-bus-secret2): the bus-payload-allowlist row now states two more fail-closed arms on the same D16 firewall — an OPEN KEY SPACE (an index signature, which `getProperties()` omits outright, a mapped type, a `Record<…>`, an `unknown`/`any` field) is refused rather than skipped, and the notification zod arm RESOLVES imported schema objects through relative imports (direct arm, `.extend`/`.merge`, `{ ...base.shape }`), with `.loose()`/`.catchall()` refused as the zod spelling of the same open key space. The row also records that only `ChatBusEvent` carries a type-level pin for the invariant, so this gate is the sole enforcer for UserBusEvent/DomainEvent/WiBusEvent/notificationEventSchema. Delta read against the landed descriptor; the registered-gate COUNT is unchanged (arms widened inside an existing descriptor). Re-derivation receipt: a planted index signature on a ChatBusEvent arm REDS tests/contracts/chat/index.test-d.ts (9 type errors, restored). Red-first proved the pre-change gate returned ZERO findings for 11 planted shapes (a wholly-imported notification union scored local=0 inherited=0); two real-file probes — an index signature on the live `UserBusEvent.corpusRecomputed` arm and a relatively-imported notification arm carrying apiKey — both RED at their declaring sites and were removed. check:structure ran COMPLETE 248/248 clean with a byte-identical member census (184/184) before and after, gate-conformance 8/8, check-gates.int 8/8, the gate's pins 24/24, knip clean, types:graph clean",
           "re-attested at bdd7cf82d (#1030 F2/F3/F4, lane p-bus-secret2): the row records three more arms on the same gate. F2 — a MERGED (same-named, twice-declared) carrier is walked in EVERY declaration, not just the first. F3 — a root that still RESOLVES but yields ZERO wire members REDs its own empty-denominator arm, the hole the §4.6 blindness sweep structurally cannot see because the name is still there. F4 — the POPULATION widened from the founding four to every live wire-event union: the rpg ROOM stream (`RpgBusEvent`, fanned to every subscriber of an open room exactly like ChatBusEvent) and `AutomationBusEvent` had been outside BOTH D16 arms, and the paired dep-cruiser `bus-contract-no-credentials` path scope (which had also been missing world-info) now reads chat|user-bus|notifications|events|world-info|rpg|automation|workloads. `WorkloadEvent` is FORKED to the owner rather than dropped or exempted: it declares `succeeded.result?: unknown` deliberately, with a written per-kind argument, so admitting it to the field-name arm is a ruling; its resolve-time arm is closed by the widened cruiser scope. Delta read; registered-gate COUNT unchanged. Receipts: red-first — the F2 and F3 pins failed against the pre-change gate, while F1's intersection-carrier case already passed under the #1024 arm and is labelled a fence rather than a defect proof; a planted `ResolvedCredential` type-import in packages/contracts/src/rpg/bus.ts REDs the widened cruiser rule and was restored; check:structure ran COMPLETE 248/248 clean at 234/234 members (up from 184 — the +50 the widened population made visible, with zero findings), depcruise clean over 3,471 modules, gate-conformance 8/8, the gate's pins 29/29, knip clean, types:graph clean. check-gates.int was NOT a verdict on this tree: two runs hit the ORB-LOAD-KILL budget at loadavg ~26 on 24 cores (exit-2 class, #606) — it passed 8/8 earlier in the same series and is left to the orchestrator's quiet-tree barrier",
-          "re-attested at b398e8838 — merge of #1024/#1025/#1030 (f01a2375e + bdd7cf82d: bus-payload-allowlist open-key-space refusal, imported-zod resolution, merged carriers, per-root zero-contribution alarm, population widened to rpg/automation) onto the #973 ledger; union read once"
+          "re-attested at b398e8838 — merge of #1024/#1025/#1030 (f01a2375e + bdd7cf82d: bus-payload-allowlist open-key-space refusal, imported-zod resolution, merged carriers, per-root zero-contribution alarm, population widened to rpg/automation) onto the #973 ledger; union read once",
+          "re-attested at 1120e060b (#1035): three rows narrowed further — fk-columns-indexed / lifecycle-portability / json-column-write-parity now record that the shared drizzle reader answers every MEMBER KIND (a shorthand resolves through its binding, a computed key when it is a string literal) and refuses the rest, plus the #946 population receipt on the column set. Delta read; verified by check:structure 248/248 run COMPLETE clean, 24 reader pins, eight single-gate conformance runs, an 8/8 shorthand red-first replay against the HEAD reader, and a planted empty-population control that raised all eight alarms. check-gates.int was ORB-LOAD-KILLED twice at loadavg 17-25 (exit-2 class, not a verdict) and is the orchestrator's to run on the quiesced tree"
         ],
         "claims": [
           {
@@ -562,7 +563,7 @@
         ],
         "summary": "Active enforcement registry re-attested for #995: agent-bridge-lock pins the lean readiness home, shared readiness identity, and DEV-only instrumentation boundary."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/architecture/core/Core-Enforcement-Deferred-Dropped.md",

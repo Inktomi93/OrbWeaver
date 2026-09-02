@@ -7,8 +7,9 @@
 // any other shape — `sqliteTable("x", importedColumns, …)` used to yield ZERO columns here, silently
 // erasing every obligation in this gate while the schema file scan stayed healthy. Findings anchor on the
 // column's DECLARING file, and the scan line prints the resolved table/column population.
+import type { SchemaColumn } from "@orb/tooling/_shared/schema-read";
 import { columnProperties, schemaScan } from "@orb/tooling/_shared/schema-read";
-import type { ArrayLiteralExpression, CallExpression, Expression, Identifier, PropertyAssignment, SourceFile } from "ts-morph";
+import type { ArrayLiteralExpression, CallExpression, Expression, Identifier, Node, PropertyAssignment, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract/gate.ts";
 import type { CheckContext } from "../contract/harness.ts";
@@ -51,13 +52,13 @@ function isAssetsTableIdentifier(id: Identifier): boolean {
 }
 
 // Includes `init` itself if it's a CallExpression — getDescendantsOfKind only returns descendants.
-function callChain(init: Expression): CallExpression[] {
+function callChain(init: Node): CallExpression[] {
   const descendants = init.getDescendantsOfKind(SyntaxKind.CallExpression);
   return init.isKind(SyntaxKind.CallExpression) ? [init, ...descendants] : descendants;
 }
 
-function referencesAssetsId(prop: PropertyAssignment): boolean {
-  const init = prop.getInitializer();
+function referencesAssetsId(column: SchemaColumn): boolean {
+  const init = column.initializer;
   if (init === undefined) {
     return false;
   }
@@ -82,7 +83,7 @@ function referencesAssetsId(prop: PropertyAssignment): boolean {
   return false;
 }
 
-function findColumnSqlName(init: Expression): string {
+function findColumnSqlName(init: Node): string {
   for (const call of callChain(init)) {
     const callee = call.getExpression();
     if (callee.isKind(SyntaxKind.Identifier) && BUILDER_FNS.has(callee.getText())) {
@@ -95,19 +96,19 @@ function findColumnSqlName(init: Expression): string {
   return "";
 }
 
-function fkColumnsOfTable(tableJs: string, tableSql: string, columns: readonly PropertyAssignment[]): FkColumn[] {
+function fkColumnsOfTable(tableJs: string, tableSql: string, columns: readonly SchemaColumn[]): FkColumn[] {
   const out: FkColumn[] = [];
-  for (const prop of columns) {
-    if (!referencesAssetsId(prop)) {
+  for (const column of columns) {
+    if (!referencesAssetsId(column)) {
       continue;
     }
     out.push({
       tableJs,
       tableSql,
-      columnJs: prop.getName(),
-      columnSql: findColumnSqlName(prop.getInitializerOrThrow()),
-      file: prop.getSourceFile().getFilePath(),
-      line: prop.getStartLineNumber(),
+      columnJs: column.name,
+      columnSql: column.initializer === undefined ? "" : findColumnSqlName(column.initializer),
+      file: column.node.getSourceFile().getFilePath(),
+      line: column.node.getStartLineNumber(),
     });
   }
   return out;
@@ -255,6 +256,18 @@ export const gate: GateDescriptor = {
   },
   mustFlag: [
     {
+      // #1035: the FK column is a SHORTHAND member pointing at a const one hop away. Dropped, the table
+      // read as owing nothing and this unregistered asset FK escaped GC and portability bundling.
+      files: {
+        "packages/db/src/schema/x.ts":
+          'import { assets } from "./assets";\nconst assetId = text("asset_id").references(() => assets.id);\nexport const t = sqliteTable("thing", { assetId });\n',
+        "packages/db/src/schema/assets.ts": 'export const assets = sqliteTable("assets", { id: text("id").primaryKey() });\n',
+        "packages/server/src/domain/assets/persistence/asset-refs.ts": "export const ASSET_REFS = [];\nexport const DERIVED_ASSET_COLUMNS = [];\n",
+      },
+      expect: { messageIncludes: "registered in NEITHER" },
+      why: "THE #1035 SHORTHAND RED: `{ assetId }` is the same asset FK one binding hop away — an editor refactor, and before the resolver answered shorthand members the column left the set silently",
+    },
+    {
       // #945: the FK column lives in an IMPORTED columns object. Before the reader resolved it the table
       // read as ZERO columns and this unregistered asset FK escaped both GC and portability bundling.
       files: {
@@ -288,6 +301,16 @@ export const gate: GateDescriptor = {
     },
   ],
   mustPass: [
+    {
+      files: {
+        "packages/db/src/schema/x.ts":
+          'import { assets } from "./assets";\nconst assetId = text("asset_id").references(() => assets.id);\nexport const t = sqliteTable("thing", { assetId });\n',
+        "packages/db/src/schema/assets.ts": 'export const assets = sqliteTable("assets", { id: text("id").primaryKey() });\n',
+        "packages/server/src/domain/assets/persistence/asset-refs.ts":
+          'export const ASSET_REFS = [];\nexport const DERIVED_ASSET_COLUMNS = ["thing.asset_id"];\n',
+      },
+      why: "the SHORTHAND's green twin: the same resolved column, classified DERIVED — answering the member kind widens the obligation set, never the accusation",
+    },
     {
       files: {
         "packages/db/src/schema/x.ts":
