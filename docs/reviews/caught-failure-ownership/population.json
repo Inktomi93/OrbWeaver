@@ -1580,7 +1580,7 @@
     {
       "siteId": "packages/kit/src/png-card-chunk/index.ts::default:catch::1",
       "path": "packages/kit/src/png-card-chunk/index.ts",
-      "line": 139,
+      "line": 138,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -1588,12 +1588,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "documented — this module's shared fail-soft",
-      "markerLine": 134
+      "markerLine": 133
     },
     {
       "siteId": "packages/kit/src/png-card-chunk/index.ts::default:catch::2",
       "path": "packages/kit/src/png-card-chunk/index.ts",
-      "line": 320,
+      "line": 319,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -1601,12 +1601,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "documented — corrupt zlib payload returns",
-      "markerLine": 307
+      "markerLine": 306
     },
     {
       "siteId": "packages/kit/src/png-card-chunk/index.ts::empty:catch::1",
       "path": "packages/kit/src/png-card-chunk/index.ts",
-      "line": 255,
+      "line": 254,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -1614,12 +1614,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "documented — falls back to the original string",
-      "markerLine": 250
+      "markerLine": 249
     },
     {
       "siteId": "packages/kit/src/png-card-chunk/index.ts::promise:close::1",
       "path": "packages/kit/src/png-card-chunk/index.ts",
-      "line": 303,
+      "line": 302,
       "column": 8,
       "grammar": "promise",
       "position": "promise:close",
@@ -1627,12 +1627,12 @@
       "snippet": "void writer.close().catch(swallow);",
       "verdict": "deliberate-absorb",
       "reason": "same reasoning as the write above — the",
-      "markerLine": 301
+      "markerLine": 300
     },
     {
       "siteId": "packages/kit/src/png-card-chunk/index.ts::promise:write::1",
       "path": "packages/kit/src/png-card-chunk/index.ts",
-      "line": 300,
+      "line": 299,
       "column": 8,
       "grammar": "promise",
       "position": "promise:write",
@@ -1640,7 +1640,7 @@
       "snippet": "void writer.write(compressed).catch(swallow);",
       "verdict": "deliberate-absorb",
       "reason": "documented above — the reader is the sole",
-      "markerLine": 297
+      "markerLine": 296
     },
     {
       "siteId": "packages/kit/src/regex/index.ts::empty:err::1",
