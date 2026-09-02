@@ -11,6 +11,32 @@ import type { HeadlineOverhangInput, InlinePaddingLeakInput } from "./samples-oc
 // imported locally above because this file also USES it — a bare `export … from` would not bind it.
 export type { RelationalCensusAccountingInput } from "./findings.ts";
 
+/** Every walker census that stops PUSHING at a representative bound (#1038). The tuple is the closed
+ *  home; a bound added to `ops/walker/census-*.ts` without a member here has no reader and no refusal,
+ *  which is the exact silence this ledger exists to end. */
+export const CENSUS_CAP_FAMILIES = [
+  "accentBorders",
+  "bgPatterns",
+  "clippedOverflows",
+  "edgeFlushCards",
+  "motionStatics",
+  "overflows",
+  "radialGlows",
+  "repeatedTexts",
+  "shadowGlows",
+] as const;
+export type CensusCapFamily = (typeof CENSUS_CAP_FAMILIES)[number];
+
+/** ONE capped family's ledger row. `dropped > 0` means the census TRUNCATED: the scan completed (so
+ *  `dropped` is exact, not a floor) but only `cap` rows were carried out of the page, which makes every
+ *  verdict over that family partial. Absent family = the census never reached its push site at all. */
+interface CensusCapRow {
+  readonly cap: number;
+  readonly dropped: number;
+}
+
+export type CensusCapAccountingInput = Readonly<Partial<Record<CensusCapFamily, CensusCapRow>>>;
+
 interface RelationalPopulationAccountingInput {
   readonly "cohort-anatomy": RelationalCensusAccountingInput;
   readonly "double-empty-state"?: RelationalCensusAccountingInput;

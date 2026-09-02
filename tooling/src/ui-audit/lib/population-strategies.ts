@@ -122,13 +122,23 @@ export function accountedFindings<T>(
  *  emitted, ungrouped and uncapped — and the accounting publishes the denominator the bare map threw
  *  away. `settledPopulationAccounting` throws when the partition does not close, so a classifier that
  *  forgets a branch is an instrument error rather than a quietly smaller candidate count. */
+/** THE WALKER'S CAP IS A CANDIDATE THE CHECK NEVER SAW (#1038). `capExceeded` is how many carriers the
+ *  in-page census counted and could not carry out (contract/samples-populations.ts `CensusCapRow`), so
+ *  `items` is short by exactly that many and `candidates: items.length` would report a truncated
+ *  denominator as the whole page. It is added to BOTH the candidate count and `withheld` — under the
+ *  house polarity a bound the instrument hit is the absence of a measurement, never proof of
+ *  inapplicability, so a truncated family makes the run NO VERDICT (`populationEvidenceGap`). It is
+ *  deliberately NOT spelled `cap`: that reason is the Node-side REPRESENTATIVE cap, which withholds a
+ *  finding from the printed list after judging it, and `assertCensusAccounting` refuses a walker that
+ *  supplies it. */
 export function partitionedFindings<T>(
   rule: DesignAuditRuleId,
   items: readonly T[],
   classify: (item: T) => CandidateDisposition,
+  capExceeded = 0,
 ): { readonly accounting: RulePopulationAccounting; readonly findings: readonly Finding[] } {
   const findings: Finding[] = [];
-  const withheld: Record<string, number> = {};
+  const withheld: Record<string, number> = capExceeded > 0 ? { capExceeded } : {};
   const excluded: Record<string, number> = {};
   let judged = 0;
   for (const item of items) {
@@ -146,7 +156,7 @@ export function partitionedFindings<T>(
   return {
     findings,
     accounting: settledPopulationAccounting(rule, {
-      candidates: items.length,
+      candidates: items.length + capExceeded,
       judged,
       affected: findings.length,
       populations: findings.length,

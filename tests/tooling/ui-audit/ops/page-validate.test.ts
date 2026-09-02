@@ -41,6 +41,7 @@ function validSamples(): Record<string, unknown> {
   ];
   return {
     ...Object.fromEntries(arrays.map((key) => [key, []])),
+    censusCaps: {},
     fontCensus: {},
     mainLandmarkPresent: true,
     pointerCoarse: false,

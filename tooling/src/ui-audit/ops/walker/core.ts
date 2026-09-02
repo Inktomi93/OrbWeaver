@@ -105,6 +105,33 @@ export const WALKER_CORE = `  var INTERACTIVE_SELECTOR = "a,button,[role=button]
   // predicate are load-bearing: the slot identity says it is the primitive, \`[data-selected]\` says it is
   // the selection state. Without the state half an unselected row's hardcoded accent would go unjudged.
   var LIST_ROW_SELECTED_SEL = "[data-slot='list-row-root'][data-selected],[data-slot='list-row-body'][data-selected]";
+  // ── THE CAP LEDGER (#1038) ────────────────────────────────────────────────
+  // A census that stops PUSHING at a representative bound must not stop COUNTING: the pre-#1038 loops
+  // were guarded \`for (…; i < allEls.length && list.length < 200; …)\`, so the walk abandoned the scan at
+  // the bound and every downstream denominator — \`candidates=\` on the rule's population row, the
+  // per-family sample count, the run's clean verdict — described the first 200 carriers as if they were
+  // the whole page. A truncated census that reads COMPLETE is the false-clean class #409 exists for.
+  //
+  // So the bound stays (an unbounded sample payload is a real risk on a pathological surface, and every
+  // other census here is bounded for the same reason) and the SCAN no longer stops: \`capPush\` pushes
+  // while there is room and TALLIES what it had to drop. Node reads the tally two ways — the rule's own
+  // \`withheld.capExceeded\` (lib/population-strategies.ts) and the run-level refusal
+  // (lib/evidence.ts \`censusCapGap\`) — so a truncated family is a NO VERDICT with a number, never a
+  // quiet clean. A family absent from this ledger was never capped; a family present with dropped 0 was
+  // capped and had room, which is the receipt that the bound has headroom on real surfaces.
+  var censusCaps = {};
+  function capPush(family, list, limit, row) {
+    var ledger = censusCaps[family];
+    if (ledger === undefined) {
+      ledger = { cap: limit, dropped: 0 };
+      censusCaps[family] = ledger;
+    }
+    if (list.length < limit) {
+      list.push(row);
+      return;
+    }
+    ledger.dropped += 1;
+  }
   var HEADING_TAGS = { h1: 1, h2: 1, h3: 1, h4: 1, h5: 1, h6: 1 };
   var BORDER_SAFE_TAGS = { a: 1, button: 1, input: 1, select: 1, textarea: 1, option: 1, hr: 1, table: 1, thead: 1, tbody: 1, tr: 1, td: 1, th: 1, fieldset: 1 };
   var QUALITY_TEXT_TAGS = { p: 1, li: 1, td: 1, th: 1, dd: 1, blockquote: 1, figcaption: 1 };

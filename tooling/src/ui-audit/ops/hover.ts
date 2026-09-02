@@ -70,7 +70,7 @@ export function hoverPassLabel(pass: HoverPass | null): string {
 }
 
 function notRunPass(samples: RawSamples, outcome: HoverPassOutcome, wallMs: number): HoverPass {
-  return { samples, wallMs, outcome, subjectsForced: 0, forceFailures: [] };
+  return { samples, wallMs, outcome, subjectsForced: 0, forceFailures: [], forceFailedGroups: 0 };
 }
 
 /** subject index → protocol nodeId, resolved once and reused: a subject is forced by every group whose
@@ -164,22 +164,36 @@ const FORCE_FAILURE_QUOTES = 3;
 interface ForcedReads {
   readonly reads: ReadonlyMap<number, HoverForcedReadRow>;
   readonly failures: readonly string[];
+  /** Every group that threw, not just the three quoted in `failures` — and not just the ones with
+   *  members, which is the arm `forceFailedMembers` is structurally blind to (#1031). */
+  readonly failedGroups: number;
   readonly forceFailedMembers: number;
   readonly subjectsForced: number;
   readonly shadows: readonly GlowShadowInput[];
   readonly radials: readonly RadialGlowInput[];
 }
 
-/** Every group, one at a time. A group whose force or read threw contributes its members to
- *  `forceFailed` — a named withholding, which makes the run a NO VERDICT rather than a quiet partial.
- *  A group with zero contrast members but a non-zero glow count is still driven — skipping it would
- *  silently drop the state-gated glow arm. */
+/** Every group, one at a time.
+ *
+ *  THE DIVERGENCE, STATED (#1031, reviewed 2026-09-01 and KEPT). The other five seams of this pass turn a
+ *  throw into a whole-run `broke` outcome; this one demotes a throw to a per-group withholding. That is
+ *  deliberate and it is not a weaker verdict: `withheld.forceFailed` is a non-cap reason, so
+ *  `populationEvidenceGap` makes the run NO VERDICT exactly as `broke` would — while the groups that DID
+ *  force keep their measurements, which a whole-run abort would throw away for no gain in honesty. One
+ *  bad CDP node is a bad node, not a broken instrument.
+ *
+ *  WHAT THAT REASONING MISSED, and what `failedGroups` closes: `forceFailedMembers` counts MEMBERS, and a
+ *  group with zero contrast members but a non-zero glow count — driven precisely so the state-gated glow
+ *  arm is not silently dropped — contributes ZERO on failure. Its reason was printed as a `HOVER REFUSED`
+ *  line that reddened nothing, so the run read complete. The count is now published whole and ops/run.ts
+ *  raises it as its own evidence gap. */
 async function forceEveryGroup(session: HoverSession, groups: readonly HoverGroupRow[]): Promise<ForcedReads> {
   const reads = new Map<number, HoverForcedReadRow>();
   const failures: string[] = [];
   const shadows: GlowShadowInput[] = [];
   const radials: RadialGlowInput[] = [];
   let forceFailedMembers = 0;
+  let failedGroups = 0;
   let subjectsForced = 0;
   for (const [groupIndex, group] of groups.entries()) {
     if (group.members.length === 0 && group.glows === 0) {
@@ -198,11 +212,12 @@ async function forceEveryGroup(session: HoverSession, groups: readonly HoverGrou
       continue;
     }
     forceFailedMembers += group.members.length;
+    failedGroups += 1;
     if (failures.length < FORCE_FAILURE_QUOTES) {
       failures.push(outcome.failure);
     }
   }
-  return { reads, failures, forceFailedMembers, subjectsForced, shadows, radials };
+  return { reads, failures, failedGroups, forceFailedMembers, subjectsForced, shadows, radials };
 }
 
 interface AttrForcedReads extends ForcedReads {
@@ -235,6 +250,7 @@ async function forceEveryAttrGroup(page: Page, groups: readonly HoverAttrGroupRo
   const radials: RadialGlowInput[] = [];
   const stuckMembers = new Set<number>();
   let forceFailedMembers = 0;
+  let failedGroups = 0;
   let subjectsForced = 0;
   for (const [groupIndex, group] of groups.entries()) {
     if (group.members.length === 0 && group.glows === 0) {
@@ -243,6 +259,7 @@ async function forceEveryAttrGroup(page: Page, groups: readonly HoverAttrGroupRo
     const outcome = await readAttrGroup(page, groupIndex, group, candidates);
     if (outcome.failure !== null) {
       forceFailedMembers += group.members.length;
+      failedGroups += 1;
       if (failures.length < FORCE_FAILURE_QUOTES) {
         failures.push(outcome.failure);
       }
@@ -258,7 +275,7 @@ async function forceEveryAttrGroup(page: Page, groups: readonly HoverAttrGroupRo
     shadows.push(...outcome.shadows);
     radials.push(...outcome.radials);
   }
-  return { reads, failures, forceFailedMembers, subjectsForced, shadows, radials, stuckMembers };
+  return { reads, failures, failedGroups, forceFailedMembers, subjectsForced, shadows, radials, stuckMembers };
 }
 
 /** Joins each candidate's rest facts to its forced reading. A candidate with no reading was already
@@ -378,6 +395,7 @@ export async function resolveHoverStates(page: Page, samples: RawSamples, hoverC
       outcome: { kind: "ran" },
       subjectsForced: forced.subjectsForced,
       forceFailures: [...forced.failures, ...attrForced.failures],
+      forceFailedGroups: forced.failedGroups + attrForced.failedGroups,
     };
   } catch (e) {
     // A CHECKER THAT BROKE IS NOT A CLEAN SURFACE (#953). The reason is printed here at the moment it

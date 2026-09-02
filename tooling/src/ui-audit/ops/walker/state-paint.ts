@@ -32,6 +32,36 @@ export const WALKER_STATE_PAINT = `  // ── shared interaction-state-paint pr
   var STATE_PSEUDO_ELEMENT_RE = /(?<!\\\\)::[a-zA-Z-]+(\\([^)]*\\))?/;
   var STATE_PSEUDO_ELEMENT_STRIP_RE = /(?<!\\\\)::[a-zA-Z-]+(\\([^)]*\\))?/g;
   function hasStateHover(text) { return STATE_HOVER_RE.test(text); }
+  /** WHERE a selector's unescaped \`:hover\` occurrences sit — the depth guard \`stateAttrScan\` has
+   *  carried since birth and this side did not (#1073). \`topLevel\`: at the selector's own depth, so
+   *  the subject IS the compound and CDP can force it. \`nested\`: inside a functional pseudo —
+   *  Tailwind's compiled group variant \`.group-hover\\\\:bg-x:is(:where(.group):hover *)\`, whose true
+   *  subject is an ANCESTOR the compound never names. With only \`hasStateHover\`'s one "anywhere"
+   *  boolean, that shape built a pair whose subject resolved to the PAINTED element; the forcer held
+   *  \`:hover\` there, nothing repainted, and the pass published \`excluded(noHoverChange)\` — a
+   *  measurement claim about a rule it never engaged. docs/design/state-paint-census.md, Polarity. */
+  function stateHoverScan(text) {
+    var depth = 0;
+    var quote = "";
+    var result = { topLevel: false, nested: false };
+    for (var shi = 0; shi < text.length; shi += 1) {
+      var shc = text.charAt(shi);
+      if (quote !== "") {
+        if (shc === quote && text.charAt(shi - 1) !== "\\\\") quote = "";
+        continue;
+      }
+      if (shc === "'" || shc === '"') { quote = shc; continue; }
+      if (shc === "(") { depth += 1; continue; }
+      if (shc === ")") { depth -= 1; continue; }
+      if (shc !== ":" || text.charAt(shi - 1) === "\\\\") continue;
+      if (text.slice(shi, shi + 6) !== ":hover") continue;
+      if (/[-\\w]/.test(text.charAt(shi + 6))) continue;
+      if (depth === 0) result.topLevel = true;
+      else result.nested = true;
+      shi += 5;
+    }
+    return result;
+  }
   function stripStateHover(sel) { return sel.replace(STATE_HOVER_STRIP_RE, "").trim(); }
   function hasStatePseudoElement(sel) { return STATE_PSEUDO_ELEMENT_RE.test(sel); }
   function stripStatePseudoElements(sel) { return sel.replace(STATE_PSEUDO_ELEMENT_STRIP_RE, "").trim(); }
@@ -142,7 +172,13 @@ export const WALKER_STATE_PAINT = `  // ── shared interaction-state-paint pr
     return found;
   }
   function stateAttrAnywhere(text) { return stateAttrScan(text).length > 0; }
-  /** The selector with every functional pseudo-class whose ARGUMENT carries a state attribute
+  /** Does this functional-pseudo ARGUMENT carry an interaction-state test of EITHER mechanism? Both
+   *  spellings of the compiled group variant land here — \`:where(.group)[data-checked] *\` and
+   *  \`:where(.group):hover *\` — and the \`:hover\` arm was added with #1073: the stripper below is what
+   *  resolves such a rule's rest HOST, so a predicate blind to one mechanism left that half with no
+   *  host to mark and therefore no way to withhold it. */
+  function stateTestAnywhere(text) { return stateAttrAnywhere(text) || hasStateHover(text); }
+  /** The selector with every functional pseudo-class whose ARGUMENT carries a state test
    *  removed — the rest-resolvable HOST of a compiled Tailwind group-variant rule
    *  (\`.cls:is(:where(.group)[data-checked] *)\` → \`.cls\`), used only to MARK those hosts withheld
    *  (\`complexStateSelector\`): the true subject is an ancestor the compound does not name, so the
@@ -164,7 +200,7 @@ export const WALKER_STATE_PAINT = `  // ── shared interaction-state-paint pr
             else if (sel.charAt(end2) === ")") depth2 -= 1;
             end2 += 1;
           }
-          if (stateAttrAnywhere(sel.slice(ni2 + 1, end2 - 1))) {
+          if (stateTestAnywhere(sel.slice(ni2 + 1, end2 - 1))) {
             i2 = end2;
             continue;
           }
