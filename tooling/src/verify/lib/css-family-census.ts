@@ -61,7 +61,14 @@ export const EXPECTED_DECLARATION_CENSUS: Readonly<Record<ProductStylesheet, num
   // knob is now proportional AND inset on four sides — three direct tokens + their three fine-pointer arms
   // with `--spacing-switch-thumb`, which gained its pointer arm) and `--reading-measure-prose` (the ruled
   // 47ch prose measure; `--reading-measure` stays the transcript's 75ch).
-  [THEME]: 297,
+  // +2 more (2026-09-02, #1110): the `--color-selection-quiet` PAIR — the opaque, polarity-aware ground a
+  // bulk-default selection control paints when it is ON, and the mark on it. Minted because the first cut
+  // (`bg-foreground/55` + `text-background`) forced an INVERTED ink whose ground is the control's own fill,
+  // which `seed-theme-ink-contrast` can only judge against the eight surface GROUNDS — 48 findings,
+  // unpassable by tuning. A `-foreground` pair is the shape that census can read (tokens.json).
+  // +1 (2026-09-02, #1204): `--dimension-shell-content-floor` — the chat-width dial's floor derived from the
+  // Geist reading measure (650 + 40 gutter + 48 flat insets = 738px) instead of the pre-Geist 680px literal.
+  [THEME]: 300,
   // +2 (2026-09-02, #1128): `--scroll-fade-depth` / `--scroll-fade-floor` on `.scroll-fade-y`. The block
   // -axis fade ramped to ZERO alpha over 10% of the pane and measured two live buttons at 1.75:1 at the
   // shipped 1280x800 default; a bounded band plus an alpha floor needs two locals, and they deliberately
@@ -90,8 +97,8 @@ export const EXPECTED_DECLARATION_CENSUS: Readonly<Record<ProductStylesheet, num
   // overrides are one declaration each before and after — they now answer their own stop, not the property.
   [SHELL]: 337,
 };
-export const EXPECTED_DECLARATION_TOTAL = 993;
-export const EXPECTED_DIRECT_THEME_DECLARATIONS = 194;
+export const EXPECTED_DECLARATION_TOTAL = 996;
+export const EXPECTED_DIRECT_THEME_DECLARATIONS = 197;
 export const CENSUS_TOKEN: Readonly<Record<ProductStylesheet, string>> = {
   [THEME]: "census:theme",
   [UI_GLOBALS]: "census:ui-globals",

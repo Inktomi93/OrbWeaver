@@ -15,16 +15,22 @@
 //     folds", stats-delta.ts header) + `applyStatsDelta` upserting into the four rollup tables.
 // If either writer drifts on ANY column — for the agent row or any other — `toEqual` fails. This is the
 // backstop stats.md inv #3 names, and the AP2 checkpoint (07 §2) requires.
+//
+// THE SEED IS MULTI-CHARACTER FOR A REASON (#1147): a one-character canon cannot tell "per room" from "per
+// SEAT", so this gate ran green for months over a live plane that credited a room only to its FIRST
+// founding seat. Any arm added here that touches the chat/character grains carries a second seat, or it
+// re-opens the blind spot.
 
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
-import { characterStats, dailyStats, modelStats, ownerStats } from "@orb/db";
+import { characterStats, chatParticipants, dailyStats, modelStats, ownerStats } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany } from "@orb/db/kit";
-import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, ChatParticipantId, UserId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
-import { canonMessageDelta, chatCreatedDelta, swipeVariantDelta } from "../../../../../packages/server/src/domain/chat/substrate/stats-delta.ts";
+import { canonMessageDelta, chatCreatedDelta, seatChatDelta, swipeVariantDelta } from "../../../../../packages/server/src/domain/chat/substrate/stats-delta.ts";
 import { applyStatsDelta } from "../../../../../packages/server/src/domain/stats/write/apply-delta.ts";
 import { reconcileStats } from "../../../../../packages/server/src/domain/stats/write/rebuild-from-canon.ts";
 import { createFrozenClock } from "../../../../support/clock.ts";
@@ -401,5 +407,45 @@ describe("stats drift gate — live deltas vs a canon rebuild agree column-for-c
     expect(reconciled.chars).toHaveLength(1);
     expect(reconciled.chars[0]).toMatchObject({ chats: 1, assistantTurns: 2 });
     expect(reconciled.owner).toMatchObject({ chats: 1, assistantTurns: 3 });
+  });
+
+  // #1147 — THE SEAT AXIS. Every arm above seeds exactly ONE character, and that is precisely why this gate
+  // ran green for months while the live plane credited the room only to a room's FIRST founding seat: with
+  // one seat, "per room" and "per seat" are the same number. A room with two character seats is the ordinary
+  // group chat, and it is the smallest canon that can tell the two apart — the rebuild counts the room ONCE
+  // for the owner and ONCE PER SEAT for the census (`loadChatMeta`), so the live plane must too. The second
+  // seat here is deliberately SILENT: it also pins the census POPULATION (a seat with no canon is still a
+  // row), which is the other half of what a single-character seed could never see.
+  test("a SECOND SEAT moves BOTH writers identically: the room counts once for the owner and once per seat", async () => {
+    const second = await seedCharacter(db, ownerId, { id: "character_b", name: "Bryn" });
+    await db.insert(chatParticipants).values({
+      id: castId<ChatParticipantId>("chat_participant_second_seat"),
+      chatId,
+      kind: "character",
+      characterId: second,
+      role: "member",
+      joinSeq: 0,
+    });
+
+    const clock = createFrozenClock(T0 + 5000);
+    await reconcileStats(db, { ownerId, now: clock.now });
+    const reconciled = await snapshotRollups(db, ownerId);
+
+    await wipeRollups(db);
+    const batch: BatchStmt[] = [];
+    // The live replay a two-seat claim produces: the head `chatCreatedDelta` for the primary seat, ONE
+    // `seatChatDelta` for the second (`verbs/claim-chat.ts`), then the canon folds unchanged.
+    for (const delta of [...liveDeltas(), seatChatDelta({ ownerId, characterId: second, forked: false, newCharacter: true, now: T0 })]) {
+      applyStatsDelta(batch, db, delta);
+    }
+    await db.batch(batchMany(batch));
+    const live = await snapshotRollups(db, ownerId);
+
+    expect(live).toEqual(reconciled);
+    // …and not vacuously: two census rows, each holding the ONE room, while the OWNER's library still
+    // counts that room once (the whole reason the two grains had to be split).
+    expect(live.chars).toHaveLength(2);
+    expect(live.chars.map((c) => c["chats"])).toStrictEqual([1, 1]);
+    expect(live.owner).toMatchObject({ chats: 1, characters: 2 });
   });
 });

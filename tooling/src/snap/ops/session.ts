@@ -13,6 +13,7 @@ import type { DevToolsCascadeRuntime } from "../../_shared/devtools-runtime.ts";
 import { prepareDevToolsCascadeRuntime } from "../../_shared/devtools-runtime.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { Args } from "../contract/types.ts";
+import { reserveLoopbackPort } from "../lib/loopback-port.ts";
 import { NETWORK_PROFILES, NO_CPU_THROTTLE } from "../lib/throttle.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
@@ -23,6 +24,10 @@ const PROBE_MODE_KEY = "orb:probe-mode";
 const DEBUG_TOKEN_KEY = "orb:debug-token";
 const DEVTOOLS_ASSET_ROOT = fileURLToPath(new URL("../lib/devtools-frontend", import.meta.url));
 const CASCADE_RUNTIMES = new WeakMap<ProbeSession, DevToolsCascadeRuntime>();
+// `--lighthouse` needs a REAL Chrome debugging endpoint on the browser this run drives (ops/lighthouse.ts
+// explains why an adapter is not an option). The port is a LAUNCH ARGUMENT, so it is reserved before the
+// browser exists and remembered here — the same shape the cascade runtime uses for its own attachment.
+const LIGHTHOUSE_PORTS = new WeakMap<ProbeSession, number>();
 // Harness-side determinism for --probe: floor every animation/transition and hide the
 // caret from FIRST PAINT (screenshot-time `animations:"disabled"` only rewinds at capture;
 // this kills mid-run flicker during steps too). Raw string — see _shared/browser.ts header.
@@ -95,9 +100,29 @@ function scaleLaunchOverride(opts: Args): { readonly deviceScaleFactor?: number 
   return opts.scale.deviceScaleFactor === null ? {} : { deviceScaleFactor: opts.scale.deviceScaleFactor };
 }
 
+/** The `--lighthouse` debugging endpoint, resolved TOTALLY: the arm-is-off case returns an empty launch
+ *  patch and a no-op, so the launcher below gains no branch for an optional arm. Mutually exclusive with
+ *  the cascade runtime's own persistent-profile endpoint by parse-time refusal (ops/parse.ts). */
+async function lighthouseEndpoint(opts: Args): Promise<{
+  readonly launch: Partial<Pick<ProbeLaunchOptions, "browserArgs">>;
+  readonly remember: (session: ProbeSession) => void;
+}> {
+  if (opts.lighthouse === null) {
+    return { launch: {}, remember: (): void => undefined };
+  }
+  const port = await reserveLoopbackPort();
+  return {
+    launch: { browserArgs: [`--remote-debugging-port=${port}`] },
+    remember: (session: ProbeSession): void => {
+      LIGHTHOUSE_PORTS.set(session, port);
+    },
+  };
+}
+
 export async function launchSnapSession(opts: Args, name: string, extras: LaunchExtras = {}): Promise<ProbeSession> {
   const { requireCascadeRuntime = false, ...launchExtras } = extras;
   const traceDir = opts.failureEvidence ? await artifactDir("traces") : null;
+  const endpoint = await lighthouseEndpoint(opts);
   const cascade = opts.cascade.length === 0 && !requireCascadeRuntime ? null : await prepareDevToolsCascadeRuntime(DEVTOOLS_ASSET_ROOT);
   let launched: ProbeSession;
   try {
@@ -116,6 +141,7 @@ export async function launchSnapSession(opts: Args, name: string, extras: Launch
       trace: opts.failureEvidence,
       ...(traceDir === null ? {} : { harPathPrefix: join(traceDir, name) }),
       ...(cascade === null ? {} : { persistentProfileDir: cascade.profileDir, browserArgs: cascade.browserArgs }),
+      ...endpoint.launch,
       ...launchExtras,
     });
   } catch (error) {
@@ -126,6 +152,7 @@ export async function launchSnapSession(opts: Args, name: string, extras: Launch
   if (cascade !== null) {
     CASCADE_RUNTIMES.set(session, cascade);
   }
+  endpoint.remember(session);
   if (opts.probe) {
     try {
       await Promise.all(session.contexts.map(({ context }) => context.addInitScript({ content: PROBE_CSS_SCRIPT })));
@@ -164,6 +191,12 @@ export function snapEnvironmentMismatchCount(evidence: readonly BrowserEnvironme
 
 export function cascadeRuntimeFor(session: ProbeSession): DevToolsCascadeRuntime | null {
   return CASCADE_RUNTIMES.get(session) ?? null;
+}
+
+/** The Chrome debugging port this session's browser was launched with, or null when `--lighthouse` was
+ *  off. A null here is what makes the arm REFUSE rather than attach to somebody else's browser. */
+export function lighthousePortFor(session: ProbeSession): number | null {
+  return LIGHTHOUSE_PORTS.get(session) ?? null;
 }
 
 // ── CDP load emulation (#826) ───────────────────────────────────────────────

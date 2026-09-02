@@ -1,6 +1,9 @@
+import { budget } from "@orb/tooling/_shared/load-budget";
 import type { EngineAdoptionEvidence, EngineRole } from "../contract/types.ts";
 
-const IDENTITY_PROBE_TIMEOUT_MS = 2000;
+// A CEILING, load-scaled through the one policy (#1232): the literal is the QUIET-BOX base.
+const IDENTITY_PROBE_TIMEOUT_MS_BASE = 2000;
+const IDENTITY_PROBE_TIMEOUT_MS = budget(IDENTITY_PROBE_TIMEOUT_MS_BASE);
 
 const CAPABILITY_PATH: Record<EngineRole, string> = {
   embed: "/v1/embeddings",

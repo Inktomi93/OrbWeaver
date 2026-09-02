@@ -1,7 +1,10 @@
 // FullPriorityChild signal ownership: an already-exited/ESRCH child is idempotent teardown; every other
 // child.kill failure stays loud so invalid signals and permission failures cannot masquerade as success.
 import { EventEmitter } from "node:events";
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import process from "node:process";
+import { fileURLToPath } from "node:url";
 import { vi } from "vitest";
 import { expect, test } from "../../support/tool-fixtures.ts";
 
@@ -46,7 +49,7 @@ vi.mock("node:child_process", () => ({
   },
 }));
 
-const { spawnFullPriorityChild } = await import("@orb/tooling/_shared/proc");
+const { killPidGroup, spawnFullPriorityChild } = await import("@orb/tooling/_shared/proc");
 
 test("kill rethrows a non-ESRCH child.kill failure", () => {
   fake.exitCode = null;
@@ -87,4 +90,44 @@ test("killGroup absorbs only ESRCH from process-group signalling", () => {
   });
   expect(() => child.killGroup("SIGTERM")).not.toThrow();
   signalGroup.mockRestore();
+});
+
+// The external `kill` binary is BANNED as a process-group door (#1254, 2026-09-02): procps-ng 4.0.4 parses
+// `kill -TERM -4570` as `kill(-4, SIGTERM)` — the pgid's FIRST DIGIT — so with seven-digit pids starting
+// in 1 the stage teardown became `kill(-1)`, every process the user owns, and logged the owner out twice
+// (strace receipts on the row). `kill -TERM -- -4570` parses correctly, but the repo has ONE door for a
+// group signal: `killPidGroup` → `process.kill(-pgid)`, a syscall no shell parser touches.
+test("killPidGroup signals the NEGATIVE pgid through the syscall, never a shell", () => {
+  const spy = vi.spyOn(process, "kill").mockImplementation(() => true);
+  try {
+    killPidGroup(4570, "SIGTERM");
+    expect(spy).toHaveBeenCalledWith(-4570, "SIGTERM");
+  } finally {
+    spy.mockRestore();
+  }
+});
+
+const EXTERNAL_KILL =
+  /\b(?:runNicedSync|spawnNiced|spawnNicedChild|spawnNicedTranscript|execNicedSync|execNicedSyncBuffer|spawnFullPrioritySync|spawnFullPriorityChild)\(\s*"kill"/;
+
+function walkTs(dir: string, out: string[]): string[] {
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const path = join(dir, entry.name);
+    if (entry.isDirectory()) {
+      if (entry.name !== "node_modules") {
+        walkTs(path, out);
+      }
+    } else if (entry.name.endsWith(".ts")) {
+      out.push(path);
+    }
+  }
+  return out;
+}
+
+test("no tooling source spawns the external kill binary (planted control: the old spelling is caught)", () => {
+  expect(EXTERNAL_KILL.test('runNicedSync("kill", ["-TERM", `-${pgid}`], { stdio: "ignore" });')).toBe(true);
+  const files = walkTs(fileURLToPath(new URL("../../../tooling/src/", import.meta.url)), []);
+  expect(files.length).toBeGreaterThan(100);
+  const offenders = files.filter((file) => EXTERNAL_KILL.test(readFileSync(file, "utf8")));
+  expect(offenders, "signal a process group through killPidGroup (tooling/src/_shared/proc.ts), never `kill -SIG -<pgid>`").toEqual([]);
 });

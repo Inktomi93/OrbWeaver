@@ -28,6 +28,7 @@ import type { ExitCode } from "../../_shared/exit-contract.ts";
 import { EXIT } from "../../_shared/exit-contract.ts";
 import { warn } from "../../_shared/log.ts";
 import { formatDispatch, parseStackArgv, STACK_USAGE } from "../lib/argv.ts";
+import { bootBudgetLines } from "../lib/boot-budgets.ts";
 import { debugConflictMessage, resolveDebugArming } from "../lib/debug-env.ts";
 import { doDown, doStatus } from "./prod-down.ts";
 import { readEnvFile, TOKEN_PATH } from "./prod-state.ts";
@@ -62,6 +63,17 @@ function doDebugEnv(): ExitCode {
   return EXIT.clean;
 }
 
+/** `boot-budgets` — the internal verb stack.sh calls before a DEV boot, for the load-scaled `/healthz` and
+ *  readiness ceilings (#1232 section 7.1). Same shape and same reason as `debug-env`: the shell is a front
+ *  door and every number it acts on is node's, so the boot ceilings are not a second formula written in
+ *  bash. Prints `KEY=<seconds>` lines on stdout; the caller reads them with `read`, never `eval`. */
+function doBootBudgets(): ExitCode {
+  for (const line of bootBudgetLines()) {
+    print(line);
+  }
+  return EXIT.clean;
+}
+
 /** `classify` — the internal verb stack.sh calls FIRST, for EVERY invocation, before it does anything at
  *  all. The shell used to re-implement the grammar in bash and only look for a mode in argument position
  *  2; anything it did not recognise fell through to DEV. That is how `restart --force prod` became
@@ -82,6 +94,9 @@ function doClassify(argv: readonly string[]): ExitCode {
 export async function runStackProd(argv: readonly string[]): Promise<ExitCode> {
   if (argv[0] === "debug-env") {
     return doDebugEnv();
+  }
+  if (argv[0] === "boot-budgets") {
+    return doBootBudgets();
   }
   if (argv[0] === "served-probe") {
     // The DEV mode's served-vs-disk freshness probe (#524), routed here for the same reason `debug-env` is:

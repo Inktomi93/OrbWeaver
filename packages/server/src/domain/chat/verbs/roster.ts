@@ -78,12 +78,12 @@ import {
   setPendingHostStatement,
 } from "../persistence/participant.ts";
 import { loadHasUserMessage, loadMaxMessageSeq, loadPendingHandoff } from "../persistence/queries.ts";
-import { loadRoster } from "../persistence/roster.ts";
+import { characterEverSeatedInChat, characterSeatedInAnotherChat, loadRoster } from "../persistence/roster.ts";
 import { buildGreetingSeed } from "../substrate/greeting-seed.ts";
 import { resolveHandoffCopyPlan } from "../substrate/handoff-copy.ts";
 import { REMOVED_CHARACTER_LABEL } from "../substrate/participant-name.ts";
 import { hostUserIdOf } from "../substrate/roster-host.ts";
-import { canonMessageDelta } from "../substrate/stats-delta.ts";
+import { canonMessageDelta, seatChatDelta } from "../substrate/stats-delta.ts";
 
 /** The emit op the mutating roster verbs close over. Production returns `false` only when the total bus
  * classified and dropped its durable append; direct verb tests historically return no value. */
@@ -626,7 +626,7 @@ async function seedJoinGreeting(
  *  idiom (and the D60 design's still-unbuilt agent seat verb) — a re-add is a no-op, never a coded refusal. */
 function createAddCharacterToChat(ctx: ChatContext, emit: EmitChatEvent, claimChat: ClaimChatOp): ChatService["addCharacterToChat"] {
   return async ({ principal, chatId, characterId }: AddCharacterToChatParams) => {
-    await requireHost(ctx, principal, chatId);
+    const { chat } = await requireHost(ctx, principal, chatId);
     await claimChat(chatId);
     // The character must be the host's (owner-scoped read — foreign == missing, leak-free). A roster
     // character is always host-owned, keeping the stats rebuild's ownerId attribution consistent.
@@ -648,7 +648,30 @@ function createAddCharacterToChat(ctx: ChatContext, emit: EmitChatEvent, claimCh
     const participantId = ctx.newParticipantId();
     assertForcedCharacterMember({ kind: "character", role: "member" });
     const versionStatements: BatchStmt[] = [];
-    ctx.bumpStatsCanonVersion(versionStatements, ctx.db, principal.userId);
+    // A LATER SEAT COUNTS THE ROOM TOO (#1147). The rebuild's per-character census is
+    // `COUNT(DISTINCT cp.chat_id)` over seats, so a character joining a live room owes a `+1` here or the
+    // live rollup reads 0 chats for it until somebody reconciles. Asked BEFORE the seat row commits and
+    // over PAST seats too: a removed character keeps its `leftSeq`-stamped row, so a re-add mints a second
+    // row for a pair the rebuild still counts ONCE. The stamps mirror the rebuild's own columns — the
+    // room's `createdAt` is its `MIN(chats.created_at)` first-chat candidate, and a fork credits the
+    // character's fork counter. `applyStatsDelta` carries the canon-version fence, so it replaces the bare
+    // bump on this arm.
+    const seated = await characterEverSeatedInChat(ctx.db, characterId, chatId);
+    if (seated) {
+      ctx.bumpStatsCanonVersion(versionStatements, ctx.db, principal.userId);
+    } else {
+      ctx.applyStatsDelta(
+        versionStatements,
+        ctx.db,
+        seatChatDelta({
+          ownerId: principal.userId,
+          characterId,
+          forked: chat.parentChatId !== null,
+          newCharacter: !(await characterSeatedInAnotherChat(ctx.db, characterId, chatId)),
+          now: chat.createdAt,
+        }),
+      );
+    }
     await insertParticipants(
       ctx.db,
       [

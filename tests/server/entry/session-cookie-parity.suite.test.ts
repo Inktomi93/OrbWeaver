@@ -173,7 +173,7 @@ function appDeps(): AppDeps {
         req?.onSessionSlide?.(FROZEN_NOW + SLIDE_MS);
         return Promise.resolve({ principal: null, sessionId: null, csrfHeaderPresent: false });
       },
-      isAdmin: (): Promise<boolean> => Promise.resolve(false),
+      debugGateAdmits: (): boolean => false,
     },
     services,
     rateLimit: { enforce: (): Promise<void> => Promise.resolve() },

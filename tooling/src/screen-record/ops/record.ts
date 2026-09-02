@@ -3,13 +3,16 @@
 import { rm } from "node:fs/promises";
 import { join } from "node:path";
 import { buildUrl, launchProbeSession, settle, withProbeSession } from "@orb/tooling/_shared/browser";
+import { budget } from "@orb/tooling/_shared/load-budget";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { Args, Recording, StepRun, TimedLine } from "../contract/types.ts";
 import { MARKER_INIT_JS, runSteps } from "./drive.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm record");
 
-const NAV_TIMEOUT_MS = 20_000;
+// A CEILING, load-scaled through the one policy (#1232): the literal is the quiet-box BASE.
+const NAV_TIMEOUT_BASE_MS = 20_000;
+const NAV_TIMEOUT_MS = budget(NAV_TIMEOUT_BASE_MS);
 const TRAILING_SETTLE_MS = 900;
 // The console channels a motion recording transcribes. `[perf]` = render-profiler's slow REACT
 // COMMIT; the rest are the motion flagger pack's (motion-flaggers.ts + long-task-tracer.ts). Adding

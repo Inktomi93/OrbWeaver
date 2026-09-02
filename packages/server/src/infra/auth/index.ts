@@ -101,6 +101,7 @@ export { MODE_RESOLVERS, ownerFallbackAllowed } from "./dispatch.ts";
 export { normalizeHost } from "./host.ts";
 export { createForwardJwtVerifier, jwksCacheSize, jwksFor, resetJwksCache } from "./jwks.ts";
 export { SESSION_COOKIE_NAME } from "./modes/cookie-session.ts";
+export { selectSignedForwardJwt } from "./modes/forward-header.ts";
 export { createOidcConfigCache } from "./oidc-discovery.ts";
 export { createOidcExchange } from "./oidc-exchange.ts";
 export {

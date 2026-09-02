@@ -8,11 +8,8 @@
 import type { ReactElement } from "react";
 import type { CollectionContribution, CollectionDetailView, CollectionListView } from "#lib";
 import { RosterCollectionRows } from "../components/roster-collection-rows.tsx";
-import { useCreateRosterMember, useRosterCount, useRosterMemberTitle } from "../hooks/use-roster-collection.ts";
+import { useCreateRosterMember, useRosterCount, useRosterInsights, useRosterMemberTitle } from "../hooks/use-roster-collection.ts";
 import { RosterMemberSurface } from "../surfaces/roster-member-surface.tsx";
-
-/** The collection KIND — the `rosterPreset` config group id (registry key + the selection store's kind axis). */
-export const ROSTER_COLLECTION_ID = "rosterPreset";
 
 function renderList(view: CollectionListView): ReactElement {
   return <RosterCollectionRows view={view} />;
@@ -25,6 +22,9 @@ function renderDetail(view: CollectionDetailView): ReactElement {
 export const rosterCollection: CollectionContribution = {
   emptyText: "No saved rosters yet.",
   useCount: useRosterCount,
+  // The landing's library-level FACTS (#1209): what these casts CARRY (B10's automation-rules rider) and
+  // when the library last changed — the two things a row cannot state about the library.
+  insights: { useInsights: useRosterInsights },
   useMemberTitle: useRosterMemberTitle,
   create: { label: "New roster", useRun: useCreateRosterMember },
   list: renderList,

@@ -4,11 +4,18 @@ import type { CharacterId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { utcDay, wordCount } from "@orb/kit/stats-tally";
 import { describe } from "vitest";
-import { assistantTurnDelta, canonMessageDelta, userMessageDelta } from "../../../../../packages/server/src/domain/chat/substrate/stats-delta.ts";
+import {
+  assistantTurnDelta,
+  canonMessageDelta,
+  chatCreatedDelta,
+  seatChatDelta,
+  userMessageDelta,
+} from "../../../../../packages/server/src/domain/chat/substrate/stats-delta.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const OWNER = castId<UserId>("user_host");
 const ARIA = castId<CharacterId>("character_aria");
+const BRANN = castId<CharacterId>("character_brann");
 const NOW = 1_750_000_000_000;
 
 describe("assistantTurnDelta", () => {
@@ -247,5 +254,33 @@ describe("userMessageDelta", () => {
     expect(d.userWords).toBe(wordCount("hello there"));
     expect(d.model).toBeNull();
     expect(d.day).toBe(utcDay(NOW));
+  });
+});
+
+// #1147 — the room count is carried at TWO GRAINS by two fields, because one room with N character seats
+// is +1 to the owner's library and +1 to EACH seat's census. `chatCreatedDelta` is the room's head delta
+// (both grains); `seatChatDelta` is every other seat (character grain only). A seat delta that leaked
+// `chats`/`chatsCreated` would count the same room N times in `owner_stats` and the daily histogram.
+describe("chatCreatedDelta / seatChatDelta — the two chat grains", () => {
+  test("the head delta carries BOTH grains; the seat delta carries ONLY the character census", () => {
+    const head = chatCreatedDelta({ ownerId: OWNER, characterId: ARIA, forked: false, newCharacter: true, now: NOW });
+    const seat = seatChatDelta({ ownerId: OWNER, characterId: BRANN, forked: false, newCharacter: false, now: NOW });
+
+    expect(head).toMatchObject({ chats: 1, chatsCreated: 1, characterChats: 1, newCharacter: true, firstAt: NOW, lastAt: NOW });
+    expect(seat).toMatchObject({ characterId: BRANN, characterChats: 1, firstAt: NOW, lastAt: NOW });
+    expect(seat.chats).toBeUndefined();
+    expect(seat.chatsCreated).toBeUndefined();
+    // Sparse patch: a non-first, non-forked seat claims nothing it did not earn.
+    expect(seat.newCharacter).toBeUndefined();
+    expect(seat.characterForkedChats).toBeUndefined();
+  });
+
+  test("a FORK splits the lineage counter the same way — owner grain on the head, character grain per seat", () => {
+    const head = chatCreatedDelta({ ownerId: OWNER, characterId: ARIA, forked: true, newCharacter: false, now: NOW });
+    const seat = seatChatDelta({ ownerId: OWNER, characterId: BRANN, forked: true, newCharacter: false, now: NOW });
+
+    expect(head).toMatchObject({ forkedChats: 1, characterForkedChats: 1 });
+    expect(seat.characterForkedChats).toBe(1);
+    expect(seat.forkedChats).toBeUndefined();
   });
 });

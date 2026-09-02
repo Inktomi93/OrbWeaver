@@ -23,6 +23,7 @@ import { gate as noManualMemoGate } from "../../../../tooling/src/verify/gates/n
 import type { GateRunCtx, Scope } from "../../../../tooling/src/verify/index.ts";
 import { runPass, runScopedPass } from "../../../../tooling/src/verify/index.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
+import { scaledBudget } from "../../_load-budget.ts";
 
 const ROOT = "/repo";
 
@@ -212,7 +213,7 @@ test("stale-arm ISOLATION: a scoped run whose fileset excludes the rows' files m
 // The misuse arm (an empty comma segment) is the third: a typo'd scope is refused at exit 3 before any
 // project is built. Every arm is a PLANTED CONTROL for the others — a fix that refused everything would
 // fail A, and a fix that accepted everything would fail B and C.
-const SCOPED_CLI_TIMEOUT_MS = 240_000;
+const SCOPED_CLI_TIMEOUT_MS = scaledBudget(240_000);
 const SCOPE_A = "packages/ui/src/primitives/switch";
 const SCOPE_B = "packages/ui/src/tokens";
 const IN_SCOPE_COUNT = /·\s+(\d+) file\(s\) in scope/u;

@@ -149,9 +149,23 @@ function resolveUnsignedHeader(headers: Headers, config: AuthConfig, peerIp: str
   return identity;
 }
 
+/**
+ * WHICH SUB-PATH a forward-header request selects: the forwarded JWT when the deployment verifies signatures
+ * AND the request carries one (⇒ `resolveSignedJwt`, which never falls through to the unsigned path), else
+ * `null` (⇒ the raw-header path, gated on the trusted-proxy peer).
+ *
+ * Exported because the /api/_debug credential rule (`entry/auth/seam.ts`) has to tell the two apart on a
+ * principal that records only `via:"header"`: a CRYPTOGRAPHICALLY verified SSO identity is a credential at
+ * that door, a proxy-ASSERTED one is the trusted-proxy allowlist's word. One home so the two readers can
+ * never drift into disagreeing about which path a request took.
+ */
+export function selectSignedForwardJwt(headers: Headers, config: AuthConfig): string | null {
+  return config.verifyForwardJwt ? headers.get("x-authentik-jwt") : null;
+}
+
 export function resolveForwardHeader(headers: Headers, config: AuthConfig, deps: ResolveDeps): Promise<ResolvedIdentity | null> {
-  const jwt = headers.get("x-authentik-jwt");
-  if (config.verifyForwardJwt && jwt !== null) {
+  const jwt = selectSignedForwardJwt(headers, config);
+  if (jwt !== null) {
     return resolveSignedJwt(jwt, headers.get("x-authentik-meta-jwks"), config, deps);
   }
   return Promise.resolve(resolveUnsignedHeader(headers, config, deps.peerIp));

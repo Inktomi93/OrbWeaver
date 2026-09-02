@@ -11,6 +11,7 @@ import { launchProbeSession, withProbeSession } from "@orb/tooling/_shared/brows
 import type { DevToolsCascadeRawDeclaration, DevToolsCascadeRawReceipt } from "@orb/tooling/_shared/devtools-runtime";
 import { prepareDevToolsCascadeRuntime } from "@orb/tooling/_shared/devtools-runtime";
 import { expect, test } from "../../support/tool-fixtures.ts";
+import { scaledBudget } from "../_load-budget.ts";
 
 const ASSET_ROOT = fileURLToPath(new URL("../../../tooling/src/snap/lib/devtools-frontend", import.meta.url));
 const FIXTURE = fileURLToPath(new URL("./ops/fixtures/cascade.html", import.meta.url));
@@ -51,7 +52,7 @@ function declaration(receipt: DevToolsCascadeRawReceipt, value: string): DevTool
   return candidate;
 }
 
-test("the official DevTools SDK reports the planted cascade matrix without mutating the product page", { timeout: 60_000 }, async () => {
+test("the official DevTools SDK reports the planted cascade matrix without mutating the product page", { timeout: scaledBudget(60_000) }, async () => {
   const [runtime, fixture] = await Promise.all([prepareDevToolsCascadeRuntime(ASSET_ROOT), startFixture()]);
   try {
     const session = await launchProbeSession({
@@ -134,7 +135,7 @@ test("the official DevTools SDK reports the planted cascade matrix without mutat
   }
 });
 
-test("an ordinary zero-declaration query fails loud", { timeout: 60_000 }, async () => {
+test("an ordinary zero-declaration query fails loud", { timeout: scaledBudget(60_000) }, async () => {
   const [runtime, fixture] = await Promise.all([prepareDevToolsCascadeRuntime(ASSET_ROOT), startFixture()]);
   try {
     const session = await launchProbeSession({
@@ -175,7 +176,7 @@ test("an ordinary zero-declaration query fails loud", { timeout: 60_000 }, async
   }
 });
 
-test("the DevTools cascade observer preserves the rated page media identity", { timeout: 60_000 }, async () => {
+test("the DevTools cascade observer preserves the rated page media identity", { timeout: scaledBudget(60_000) }, async () => {
   const [runtime, fixture] = await Promise.all([prepareDevToolsCascadeRuntime(ASSET_ROOT), startFixture()]);
   try {
     const session = await launchProbeSession({
@@ -217,7 +218,7 @@ test("the DevTools cascade observer preserves the rated page media identity", { 
   }
 });
 
-test("a disconnected browser and runtime cleanup fail visibly", { timeout: 60_000 }, async () => {
+test("a disconnected browser and runtime cleanup fail visibly", { timeout: scaledBudget(60_000) }, async () => {
   const [runtime, fixture] = await Promise.all([prepareDevToolsCascadeRuntime(ASSET_ROOT), startFixture()]);
   try {
     const session = await launchProbeSession({

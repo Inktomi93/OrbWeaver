@@ -217,10 +217,19 @@ test("committing an UNCHANGED value writes nothing — the belt only saves a rea
   // the guard writes nothing. No optimistic patch and no phantom save on a bare focus/blur.
   await field.focus();
   await field.blur();
-  // Settled: a count of ZERO is the assertion. It can only be falsified by a call that has ALREADY happened
-  // by the time this line runs, so polling a zero would wait for something that must never arrive.
-  // ONESHOT-OK: the guard skips the mutate synchronously when settled === ceiling, so a settled count of ZERO after blur has no positive call to poll for.
-  expect(trpc.count("automation.setOwnerBudgets")).toBe(0);
+
+  // A bare node-side zero-read here races the guard's own async chain — it can green whether the guard
+  // fired-and-was-swallowed or genuinely never fired, which makes it no test of the guard at all. The
+  // decisive receipt: follow the no-op blur with a REAL edit that DOES commit, then assert the recorded
+  // input LIST has exactly the one call the real edit produced — if the no-op blur had phantom-fired, the
+  // list would carry two entries (or the wrong first value), not one.
+  await field.focus();
+  await field.press("ControlOrMeta+a");
+  await field.pressSequentially("9");
+  await field.blur();
+  await expect.poll(() => trpc.count("automation.setOwnerBudgets")).toBe(1);
+  // ONESHOT-OK: the poll above already barriered on exactly one call having been recorded; the input list cannot change after that.
+  expect(trpc.inputs("automation.setOwnerBudgets")).toEqual([{ maxFiresPerHour: 9 }]);
 });
 
 test("an empty lane says what to do about it — the empty state is the teaching copy", async ({ mount, page }) => {

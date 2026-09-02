@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
+import { budget } from "@orb/tooling/_shared/load-budget";
 import { defineConfig, devices } from "@playwright/experimental-ct-react";
 import tailwindcss from "@tailwindcss/vite";
 
@@ -19,6 +20,16 @@ import tailwindcss from "@tailwindcss/vite";
 // imports resolve through the workspace — no aliases needed.
 
 const CT_PORT = 3100;
+// THE CT WALL CLOCKS, LOAD-SCALED (#1232, docs/design/1208-instrument-substrate.md section 7.1). All three
+// were Playwright DEFAULTS this config pinned NOWHERE — which is how "at loadavg 170 the CT default times
+// out every test at `mount()` on pure contention, ZERO signal, indistinguishable from a real red"
+// (.claude/rules/browser-and-instruments.md) became a standing fact instead of a fixed defect. The literals
+// are the QUIET-BOX bases (Playwright's own numbers), so a quiet run is byte-identical to before; a
+// contended one stretches by the box's per-core contention through the ONE policy, capped at
+// ORB_BUDGET_CEILING_MS so a genuinely wedged mount still surfaces. Read ONCE at config load.
+const BASE_TEST_TIMEOUT_MS = 30_000;
+const BASE_EXPECT_TIMEOUT_MS = 5000;
+const BASE_ACTION_TIMEOUT_MS = 15_000;
 const CLIENT_GLOBALS_CSS = path.resolve(import.meta.dirname, "packages/client/src/styles/globals.css");
 const CT_CSS_EXTENSION = path.resolve(import.meta.dirname, "playwright/index.css");
 
@@ -39,6 +50,8 @@ export default defineConfig({
   // CLI `--workers=N` still overrides UPWARD for a dedicated box. The co-hosted homelab shares this
   // machine — a 2026-08-21 uncapped run drove load-avg to 103 and errored Authentik for the owner.
   workers: 4,
+  timeout: budget(BASE_TEST_TIMEOUT_MS),
+  expect: { timeout: budget(BASE_EXPECT_TIMEOUT_MS) },
   forbidOnly: process.env.CI !== undefined,
   // retries:0 is the DEFAULT (ad-hoc `pnpm test:ct` / scoped verify runs show a real flake raw while
   // debugging). The GATE lane retries instead of blocking — the drawer/chart/lightbox focus/ResizeObserver
@@ -68,6 +81,7 @@ export default defineConfig({
     // re-run) keeps retain-on-failure in its own config.
     trace: "on-first-retry",
     screenshot: "only-on-failure",
+    actionTimeout: budget(BASE_ACTION_TIMEOUT_MS),
     // Determinism: component date/locale rendering must not depend on the host machine (bisect-cleared
     // of the trace interaction above).
     timezoneId: "UTC",

@@ -28,6 +28,7 @@ import { afterAll, beforeAll } from "vitest";
 import type { Finding, PassResult } from "../../tooling/src/verify/index.ts";
 import { loadGates, projectCtx, runPass } from "../../tooling/src/verify/index.ts";
 import { expect, test } from "../support/tool-fixtures.ts";
+import { scaledBudget } from "./_load-budget.ts";
 
 const ROOT = join(import.meta.dirname, "..", "..");
 const DIR = "packages/ui/src/__g_gi";
@@ -139,6 +140,19 @@ function plant(): void {
   }
 }
 
+// THE HOOK BUDGET IS LOAD-SCALED (#1174 -> #1232 section 7.1). The fixed 300s here ran ~60s on a quiet
+// box and 470-485s at load 40+ with five lanes live, so the SAME code was red on both sides of any change
+// and the red read as a broken gate corpus rather than as contention. The base is MEASURED, not guessed:
+// 120_000 was tried first and timed out at exactly its budget on 2026-09-02 while this suite ran beside
+// ui-audit's CLI tests at --maxWorkers=4, loadavg 11.7 on 24 cores — per-core 0.49, so `computeLoadFactor`
+// classified the box QUIET and applied no stretch at all, and the hook needed >120s anyway. The scaling
+// threshold (per-core >= 1) is about a SATURATED box; a half-loaded box still slows a single-threaded
+// whole-corpus pass. So the base covers the contended-but-unsaturated case that the factor cannot see,
+// and the factor stretches it for the saturated one (#1174 measured 470-485s at load 40+, which
+// 300_000 x that factor covers). A hook that STILL blows this is a genuinely wedged pass — which is
+// exactly what the ceiling exists to surface.
+const HOOK_BUDGET_MS = scaledBudget(300_000);
+
 let pass: PassResult;
 
 // One real-tree pass over the whole gate corpus (~1min); every case reads from it.
@@ -151,7 +165,7 @@ beforeAll(async () => {
   } finally {
     clean();
   }
-}, 300_000);
+}, HOOK_BUDGET_MS);
 
 afterAll(() => {
   clean();

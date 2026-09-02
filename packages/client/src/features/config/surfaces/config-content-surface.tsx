@@ -1,16 +1,16 @@
 // The Settings CONTENT — in priority: the open collection MEMBER's own editor, MOUNTED in the pane
 // (config-rail-spec.md C-7: never a dialog) · the ACTIVE settings group's body (the `sections`
 // skimmer over the contributed sections — every settings-shaped group, §6.8 — or the honest placeholder) with the ONE aggregate
-// save-status footer below the scroller (SET-SEAMS §3) · an ACTIVE collection's own landing · the designed
-// welcome, never null.
+// save-status footer below the scroller (SET-SEAMS §3) · an ACTIVE collection's own landing · the section's
+// teaching frame, never null.
 //
 // THE COLLECTION LANDING (#1099 F5, extended by #925's species contract) is what makes a collection band a
 // DOOR rather than a caption: activating a library used to have nowhere to go at zero, and at any other
 // population it fell through to the four-library WELCOME — a pane that talks about every library except by
 // name the one the reader just opened. It now answers for ITS library at every population, out of the
-// contribution's own declared fields (`label` · `description` · `preview` · `emptyText` · `create`) plus one
+// contribution's own declared fields (`label` · `description` · `insights` · `emptyText` · `create`) plus one
 // host sentence about where the members are, so it invents no copy for any library and a new collection gets
-// its landing for free. `CollectionLanding` below states the three arms.
+// its landing for free. `components/config-collection-landing.tsx` states the three arms.
 //
 // The host routes by KIND and renders whatever the owning definition hands back — it never learns what a
 // member IS or what a section writes. The registry is door-frozen and a selection can only be written by a
@@ -25,12 +25,9 @@
 // so it runs the selection's landing — the spy's own initial compute against a still-mounting body used to
 // light the LAST section).
 
-import { Button } from "@orb/ui/button";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
-import { EmptyState } from "@orb/ui/empty-state";
-import { Icon } from "@orb/ui/icons";
 import { Container, Row, Stack } from "@orb/ui/layout";
-import { Text } from "@orb/ui/text";
+import { Heading, Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { Fragment, useEffect, useId, useRef, useState } from "react";
 import { QueryBoundary, QueryErrorState, useSettingsViewerView } from "#data";
@@ -51,11 +48,10 @@ import {
   useConfigSections,
   useConfigTarget,
 } from "#state";
+import { ConfigCollectionLanding } from "../components/config-collection-landing.tsx";
 import { ConfigGroupPlaceholder } from "../components/config-group-placeholder.tsx";
-import { ConfigLibraryGlance } from "../components/config-library-glance.tsx";
 import { ConfigSaveFooter } from "../components/config-save-footer.tsx";
-import { ConfigWelcome } from "../components/config-welcome.tsx";
-import { CONFIG_COLLECTION_LANDING, CONFIG_SECTION_LABEL } from "../lib/config-copy.ts";
+import { CONFIG_SECTION_LABEL, CONFIG_WELCOME } from "../lib/config-copy.ts";
 import { scrollContentToTop, scrollToAnchor } from "../lib/config-jump.ts";
 import { computeActiveSub, computeVisibleSettings } from "../lib/config-scroll-spy.ts";
 
@@ -90,7 +86,7 @@ export function ConfigContentSurface({ groups }: ConfigContentSurfaceProps): Rea
   useFocusOnMount(contentRef, selection !== null);
 
   const active = activeGroup === null ? null : groups.get(activeGroup);
-  // The active PUSHING group, or `null` when the pane shows the member or the welcome — ONE derivation the
+  // The active PUSHING group, or `null` when the pane shows the member or the teaching frame — ONE derivation the
   // region label, the footer and the arm all read.
   const shownGroup = selection === null && active !== null && isPushingGroup(active) ? active : null;
   const showsGroup = shownGroup !== null;
@@ -256,14 +252,14 @@ export function ConfigContentSurface({ groups }: ConfigContentSurfaceProps): Rea
 interface ContentArmProps {
   readonly groups: ConfigGroupRegistry;
   readonly selection: KindedSelection | null;
-  /** The active PUSHING group, or `null` when the pane shows the member or the welcome. */
+  /** The active PUSHING group, or `null` when the pane shows the member or the teaching frame. */
   readonly active: ConfigGroupDefinition | null;
   /** The active COLLECTION with no member open — the state its own landing answers for (#925). */
   readonly collection: CollectionGroupDefinition | null;
 }
 
 /** The four arms, in priority: the open member's editor · the active group's body · an ACTIVE collection's
- *  own landing · the welcome (nothing active at all). */
+ *  own landing · the teaching frame (nothing active at all). */
 function ContentArm({ groups, selection, active, collection }: ContentArmProps): ReactNode {
   if (selection !== null) {
     const group = groups.get(selection.kind as ConfigGroupId);
@@ -285,92 +281,29 @@ function ContentArm({ groups, selection, active, collection }: ContentArmProps):
   }
   if (collection !== null) {
     // KEYED BY THE COLLECTION (#1203 P0). A `CollectionContribution` declares OPTIONAL hooks (`useCount`,
-    // `preview.useEntries`), so its hook SET is a property of the contribution — tags/regex/world-info
-    // declare a preview, rosters does not. Without a key React reuses ONE fiber for every library, so a
+    // `insights.useInsights`), so its hook SET is a property of the contribution — a library with facts to
+    // state declares one and its neighbour may not. Without a key React reuses ONE fiber for every library, so a
     // switch changed the hook count mid-fiber and threw "Rendered fewer/more hooks than expected" straight
     // past every route boundary: the whole shell white-screened, reload-only. The key is the correct
     // identity statement — a different library is a different component instance, not the same one with new
     // props — and it is what makes "unconditional in a fixed position" true for each contribution's own
     // fiber. The seam states this law for every future host (`collection-contracts.ts`, `useCount`).
-    return <CollectionLanding group={collection} key={collection.id} />;
+    return <ConfigCollectionLanding group={collection} key={collection.id} />;
   }
-  return <ConfigWelcome groups={groups} />;
-}
-
-/**
- * AN ACTIVE COLLECTION'S LANDING — the CONTENT a library shows while it is the reader's location and no
- * member is open. The copy is the CONTRIBUTION's (`label`, `description`, `preview`, `emptyText`,
- * `create.label`) and the ONE host sentence about the host's own geometry (`CONFIG_COLLECTION_LANDING.hint`).
- *
- * ITS HOOKS ARE UNCONDITIONAL FOR ONE CONTRIBUTION'S FIBER, WHICH IS WHY THE MOUNT IS KEYED (#1203 P0 —
- * this clause used to say "its own component so `useCount` runs unconditionally in a fixed position", which
- * was FALSE the moment two contributions shared this component's fiber). `useCount?.()` and
- * `preview?.useEntries()` are optional-hook calls: their COUNT is fixed per contribution and varies BETWEEN
- * contributions (rosters declares no preview), so the invariant holds only while each library gets its own
- * instance. A component is not a fiber — the `key` at the mount site above is what makes that true.
- *
- * ═══ THE SPECIES CONTRACT, LANDED (#925 owner rulings 2026-09-02) ═══════════════════════════════════
- *
- * A collection is a GENUINELY DISTINCT species from a settings group and that distinctness is legitimate —
- * what is not legitimate is a door that leads nowhere. A settings group's CONTENT is its own body; a
- * collection's CONTENT is a MEMBER, so "the collection is active and no member is open" is a state the
- * settings species does not have, and it is the state this component owes an honest answer for.
- *
- * IT USED TO ANSWER ONLY THE EMPTY HALF (#1099 F5, landed): at zero it drew the library's own empty state,
- * and a POPULATED collection fell through to the four-library WELCOME — so activating Tags painted a pane
- * that talked about Tags, Regex, World Info and Rosters, and (before the arrival default) could equally
- * paint whatever OTHER group was still active. Both readings are the capability lie the ruling names. The
- * fallback is gone: this pane now answers for its library at every population, and the welcome is the
- * NOTHING-active arm alone.
- *
- * THE THREE ARMS:
- *  · zero — the library's own empty state, VERBATIM from F5 (icon · title · `emptyText` · the create verb).
- *  · populated — the library's GLANCE (its name, what it is for, and what is in it — the same anatomy the
- *    welcome's launcher draws, so the two cannot drift) plus the host's one line about where the members
- *    are, plus the create verb. No door: the reader is already here, and a door to the pane you are in is
- *    the dead end this ruling is about.
- *  · settling — the name, the blurb and the hint, with no action row: the arm is not yet known, and the
- *    band's own `+` is on screen throughout, so nothing is unreachable during that beat.
- */
-function CollectionLanding({ group }: { readonly group: CollectionGroupDefinition }): ReactNode {
-  const collection = group.body.collection;
-  const count = collection.useCount?.();
-  const entries = collection.preview?.useEntries();
-  const create = collection.create.useRun();
-  if (count === 0) {
-    return (
-      <EmptyState
-        action={
-          <Button intent="primary" onClick={create} type="button">
-            {collection.create.label}
-          </Button>
-        }
-        description={collection.emptyText}
-        icon={<Icon icon={group.icon} size="lg" />}
-        measure="wide"
-        title={group.label}
-        // The pane's ONLY content, so its title is the pane's heading — a landing that left `main` headingless
-        // dead-ends heading navigation (the primitive's own `titleAs` note).
-        titleAs="h2"
-        titleStep="focal"
-      />
-    );
-  }
+  // NOTHING ACTIVE — the ONE state left after the Hearth retired (#1210). The arrival default makes a group
+  // active before the first paint and a phone never paints CONTENT unpushed, so this arm is reached only by
+  // an explicit `clearActiveConfigGroup` (the shell's mobile Back, a rail bounce). It is the section's own
+  // teaching frame and nothing else: the retired welcome's launcher grid was a second, unreachable rendering
+  // of the LIST's own collections shelf. The copy is `config-copy`'s, shared with the phone's frame, so the
+  // two panes cannot drift into two openings for one surface.
   return (
-    <Stack data-collection={group.id} data-slot="config-collection-landing" gap="section">
-      {/* `level={2}`: this glance IS the pane, so its name is the pane's heading — the same rule the empty
-          arm's `titleAs="h2"` follows one branch up. */}
-      <ConfigLibraryGlance count={count ?? 0} entries={entries ?? []} group={group} level={2} />
-      <Text className="max-w-(--reading-measure)" voice="gloss">
-        {CONFIG_COLLECTION_LANDING.hint}
+    <Stack data-slot="config-teaching-frame" gap="tight">
+      <Heading level={2} voice="masthead">
+        {CONFIG_WELCOME.title}
+      </Heading>
+      <Text className="max-w-(--reading-measure-prose)" voice="reading">
+        {CONFIG_WELCOME.teaching}
       </Text>
-      {count === undefined ? null : (
-        <Row>
-          <Button intent="secondary" onClick={create} size="sm" type="button">
-            {collection.create.label}
-          </Button>
-        </Row>
-      )}
     </Stack>
   );
 }

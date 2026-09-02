@@ -212,9 +212,20 @@ test("with a bridge present: the window FILTERS the timestamped censuses and the
   expect(byName.get("motion().shifts")?.truncatedAt).toBeNull();
 });
 
-test("a refused capture SAYS SO — a silent failure would be indistinguishable from a silent success", async ({ mount, page }) => {
+test("a refused capture SAYS SO, and names WHICH ARM refused (#1193)", async ({ mount, page }) => {
+  // The gate's real 401 shape: `reason` names the arm that said no. The old line said "the debug gate admits
+  // an admin session or x-debug-token" for EVERY failure — unactionable, and it hid a live defect where the
+  // session arm was refusing the owner's own dev session. A silent failure would be worse still: it is
+  // indistinguishable from a silent success.
   await page.route(ROUTE, async (route) => {
-    await route.fulfill({ status: 401, contentType: "application/json", body: JSON.stringify({ error: "unauthorized" }) });
+    await route.fulfill({
+      status: 401,
+      contentType: "application/json",
+      body: JSON.stringify({
+        error: "unauthorized",
+        reason: "the admin-session arm refused this request (no admin or owner session on it), and no x-debug-token header was sent",
+      }),
+    });
   });
 
   await mount(<BugReportButton />);
@@ -222,5 +233,23 @@ test("a refused capture SAYS SO — a silent failure would be indistinguishable 
   await page.getByRole("textbox", { name: "What happened?" }).fill("this one will be refused");
   await page.getByRole("button", { name: "Capture report" }).click();
 
-  await expect(page.locator('[data-slot="bug-report-status"]')).toHaveText(/Capture failed: HTTP 401/u);
+  const status = page.locator('[data-slot="bug-report-status"]');
+  await expect(status).toHaveText(/Capture failed: HTTP 401/u);
+  await expect(status).toContainText("the admin-session arm refused this request");
+  await expect(status).toContainText("no x-debug-token header was sent");
+});
+
+test("a refusal with NO gate body says only the status — no invented cause", async ({ mount, page }) => {
+  // A proxy 502 / an HTML error page has no `reason`. Naming an arm here would be a guess, and a guessed
+  // cause on a diagnostics failure is how an owner spends an evening on the wrong thing.
+  await page.route(ROUTE, async (route) => {
+    await route.fulfill({ status: 502, contentType: "text/html", body: "<html><body>Bad Gateway</body></html>" });
+  });
+
+  await mount(<BugReportButton />);
+  await page.getByRole("button", { name: "Report a bug" }).click();
+  await page.getByRole("textbox", { name: "What happened?" }).fill("the proxy is down");
+  await page.getByRole("button", { name: "Capture report" }).click();
+
+  await expect(page.locator('[data-slot="bug-report-status"]')).toHaveText("Capture failed: HTTP 502 from /api/_debug/bug-report");
 });

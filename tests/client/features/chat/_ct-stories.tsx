@@ -1907,7 +1907,7 @@ export function ChatRoomTrackStory({ paneWidth }: { readonly paneWidth: number }
   // this csstype version does not admit --custom-property keys natively.
   const paneStyle: CSSProperties & { "--width-shell-content": string } = {
     width: paneWidth,
-    "--width-shell-content": "clamp(680px, 50dvw, 100dvw)",
+    "--width-shell-content": "clamp(var(--dimension-shell-content-floor), 50dvw, 100dvw)",
   };
   return (
     <CtDataProviders>

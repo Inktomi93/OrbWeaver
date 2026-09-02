@@ -691,8 +691,19 @@ function ownerExtrema(owner: OwnerAccum, meta: ChatMeta): void {
   owner.firstChatAt = first;
 }
 
+/** THE CENSUS POPULATION IS SEATS ∪ AUTHORSHIP (#1147): a character that HOLDS A SEAT in a started room
+ *  gets a row even when it never spoke (a greet-less card, an imported cast member, a member added but not
+ *  yet prompted) — "seated here, never spoke" is a real library state and its zero-economics row is the
+ *  honest answer, not an absent character. The authorship half stays because a character can author canon in
+ *  a room it has since LEFT with its seat row dropped by an old write. Sorted so the emitted row order (and
+ *  therefore the minted-id order) is a pure function of the canon. */
+function censusPopulation(charMap: Map<string, CharAccum>, meta: ChatMeta): string[] {
+  return [...new Set([...charMap.keys(), ...meta.chatByChar.keys()])].sort();
+}
+
 function buildCharRows(charMap: Map<string, CharAccum>, meta: ChatMeta, now: number): (typeof characterStats.$inferInsert)[] {
-  return [...charMap.entries()].map(([characterId, c]) => {
+  return censusPopulation(charMap, meta).map((characterId) => {
+    const c = charMap.get(characterId) ?? freshChar();
     const m = meta.chatByChar.get(characterId);
     const lastActivityAt = Math.max(c.lastMsgAt, m?.maxChatUpdated ?? 0) || null;
     return {
