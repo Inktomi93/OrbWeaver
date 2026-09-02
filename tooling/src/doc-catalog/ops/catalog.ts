@@ -4,7 +4,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import type { DebtPaths, Doc, Lane, LaneConfig, Receipt, ReceiptEntry, State } from "../contract/types.ts";
+import type { ArtifactForm, DebtPaths, Doc, Lane, LaneConfig, Receipt, ReceiptEntry, State } from "../contract/types.ts";
 import { migrationDebt, migrationMetrics, newDebtPathErrors } from "../lib/debt.ts";
 import { catalogReceipt } from "../lib/receipt-rules.ts";
 import { OUTPUT_PATH, RECEIPTS_DIR, SCHEMA_VERSION, STATE_PATH } from "../lib/vocab.ts";
@@ -55,6 +55,52 @@ export function expectedCatalog(docs: readonly Doc[], assignments: ReadonlyMap<s
 
 export function writeCatalog(contents: string): void {
   writeFileSync(join(root, OUTPUT_PATH), contents);
+}
+
+/** The catalog artifacts written BY HAND — every lane receipt (a lane attests its rows straight into the
+ *  file) plus the debt state. `catalog.json` is excluded because it is GENERATED and already two-sided
+ *  through `catalogIsStale`, which compares the tree against `stableJson` output. Exported as the
+ *  DENOMINATOR: a formatter arm that examined zero artifacts is "I could not measure", never "clean". */
+export function authoredArtifacts(config: LaneConfig): readonly string[] {
+  return [...config.lanes.map(receiptPath), STATE_PATH];
+}
+
+/** Each authored artifact's bytes ON DISK beside its CANONICAL form (#968). `stableJson` is the ONE
+ *  serializer — it round-trips the value through the repo's own biome formatter — so "current !==
+ *  canonical" is exactly "the repo's formatter would rewrite this file". */
+function authoredArtifactForms(config: LaneConfig): readonly ArtifactForm[] {
+  return authoredArtifacts(config).map((path) => ({
+    path,
+    current: readFileSync(join(root, path), "utf8"),
+    canonical: stableJson(json<unknown>(path)),
+  }));
+}
+
+/** The reconciliation core (exported for a proof test): the artifacts whose bytes are not canonical. */
+export function offCanonicalPaths(forms: readonly ArtifactForm[]): readonly string[] {
+  return forms.filter((form) => form.current !== form.canonical).map((form) => form.path);
+}
+
+/** #968: `check:doc-catalog` validated receipt CONTENT and never FORM, so a hand-attested receipt could
+ *  carry JSON the repo's own formatter rejects — `lint:biome` then went red in an unrelated stage,
+ *  attributed to whoever next regenerated the catalog, and the hand-fix was undone by the next attest.
+ *  This is the CHECK half; `normalizeAuthoredArtifacts` is the write half. */
+export function unformattedArtifacts(config: LaneConfig): readonly string[] {
+  return offCanonicalPaths(authoredArtifactForms(config));
+}
+
+/** The write half of #968: land every authored artifact in its canonical (biome-formatted) form. Content
+ *  is untouched — the value is re-serialized through the same writer the generator uses — so this can
+ *  never turn a lane's attestation into a different fact, only into the form both tools agree on. */
+export function normalizeAuthoredArtifacts(config: LaneConfig): readonly string[] {
+  const forms = authoredArtifactForms(config);
+  const dirty = new Set(offCanonicalPaths(forms));
+  for (const form of forms) {
+    if (dirty.has(form.path)) {
+      writeFileSync(join(root, form.path), form.canonical);
+    }
+  }
+  return [...dirty];
 }
 
 /** True when the tree's generated catalog does not match what the current inputs produce (missing counts

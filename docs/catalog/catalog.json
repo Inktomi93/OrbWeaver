@@ -442,9 +442,9 @@
       "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 385,
-      "bytes": 199910,
-      "sha256": "aad653c4c726ac896801cb86404a7314db00671654e9b9c1b6fea643c0a3b092",
+      "lines": 394,
+      "bytes": 202035,
+      "sha256": "ec6a1dea450c82ea41c036c52efe0af66bd2d1a662059f4fd9ceb39083f42867",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -548,7 +548,7 @@
         ],
         "summary": "Active enforcement registry re-attested for #995: agent-bridge-lock pins the lean readiness home, shared readiness identity, and DEV-only instrumentation boundary."
       },
-      "receiptCurrent": true
+      "receiptCurrent": false
     },
     {
       "path": "docs/architecture/core/Core-Enforcement-Deferred-Dropped.md",
