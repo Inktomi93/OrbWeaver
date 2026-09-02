@@ -63,9 +63,18 @@ echo "    (2) honor any MERGE HOLD / sequencing note above; (3) session scratchp
 #    binds first; bytes bind in practice), and every un-path-scoped .claude/rules/*.md is rent every lane
 #    pays, budgeted at 200 lines. Quiet when healthy; loud only when something is at risk. Never fail.
 {
-  MEM_LINK="$(find .claude/agent-memory -maxdepth 1 -type l 2>/dev/null | head -1)"
-  if [ -n "$MEM_LINK" ]; then
-    MEM_FILE="$(readlink -f "$MEM_LINK" 2>/dev/null)/MEMORY.md"
+  # ORB_ONBOARD_MEMORY_FILE overrides the discovered path — the ONLY seam for a planted control (#1061),
+  # since the real seam (the first symlink under .claude/agent-memory) always resolves to the live shared
+  # index. Undocumented elsewhere; this comment is its one home.
+  if [ -n "${ORB_ONBOARD_MEMORY_FILE:-}" ]; then
+    MEM_FILE="$ORB_ONBOARD_MEMORY_FILE"
+  else
+    MEM_LINK="$(find .claude/agent-memory -maxdepth 1 -type l 2>/dev/null | head -1)"
+    if [ -n "$MEM_LINK" ]; then
+      MEM_FILE="$(readlink -f "$MEM_LINK" 2>/dev/null)/MEMORY.md"
+    fi
+  fi
+  if [ -n "${MEM_FILE:-}" ]; then
     if [ -f "$MEM_FILE" ]; then
       MEM_BYTES=$(wc -c <"$MEM_FILE" 2>/dev/null | tr -d ' ')
       MEM_LINES=$(wc -l <"$MEM_FILE" 2>/dev/null | tr -d ' ')
@@ -83,6 +92,21 @@ echo "    (2) honor any MERGE HOLD / sequencing note above; (3) session scratchp
           echo "!!! MEMORY.md at ${BYTE_PCT}% of the BYTE cap (${MEM_BYTES}/${BYTE_CAP} bytes; ${MEM_LINES}/${LINE_CAP} lines) — the byte cap binds. Past it, agents get a TRUNCATED index and no other signal (only the orchestrator may write it)."
         else
           echo "!!! MEMORY.md at ${LINE_PCT}% of the LINE cap (${MEM_LINES}/${LINE_CAP} lines; ${MEM_BYTES}/${BYTE_CAP} bytes) — the line cap binds. Past it, agents get a TRUNCATED index and no other signal (only the orchestrator may write it)."
+        fi
+      fi
+      # Past either cap, the harness truncates the INJECTED index at the byte cap, dropping tail
+      # (newest) lines first, silently — the percentage line above says "at risk", this says WHICH
+      # lessons actually vanished. KEEP_BYTES = how many head lines fit under BYTE_CAP (cumulative
+      # byte count, +1 per line for the newline); KEEP = the tighter of that and the line cap.
+      if [ "$MEM_BYTES" -gt "$BYTE_CAP" ] || [ "$MEM_LINES" -gt "$LINE_CAP" ]; then
+        KEEP_BYTES=$(awk -v cap="$BYTE_CAP" '{b+=length($0)+1; if(b>cap){print NR-1; exit}} END{if(b<=cap) print NR}' "$MEM_FILE")
+        KEEP=$KEEP_BYTES
+        [ "$LINE_CAP" -lt "$KEEP" ] && KEEP=$LINE_CAP
+        [ "$KEEP" -lt 0 ] && KEEP=0
+        if [ "$KEEP" -lt "$MEM_LINES" ]; then
+          INVISIBLE=$((MEM_LINES - KEEP))
+          echo "!!! MEMORY.md TRUNCATED: ${INVISIBLE} tail line(s) invisible to every agent —"
+          tail -n +"$((KEEP + 1))" "$MEM_FILE" | cut -c1-60
         fi
       fi
     fi
