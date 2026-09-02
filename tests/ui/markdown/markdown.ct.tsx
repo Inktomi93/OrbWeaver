@@ -672,3 +672,101 @@ test("issue 490: inline code renders at the CODE token size with the tight verti
   // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(Number.parseFloat(measured.fontSize)).toBeLessThan(measured.proseFontSize);
 });
+
+// ── #1085: a markdown LIST must render as a list ──────────────────────────────────────────────────
+// The third instance of the #238/#490 family, and the one a reader hits daily: Streamdown stamps its own
+// utilities on the ul/ol/li it renders, its dist is deliberately NOT a Tailwind source, and Tailwind's
+// preflight zeroes list-style/margin/padding — so every chat list rendered as FLAT, unmarked,
+// unindented text (owner-observed live, 2026-09-01). The seal now OWNS those three elements
+// (`list-components.tsx`) instead of paying descendant variants over the vendor's, because unlike the
+// fenced-code branch there is no vendor logic to re-implement — see the ruling in markdown.tsx.
+//
+// ⚑ The assertions are RENDERED GEOMETRY pinned to OUR tokens, never class strings, and never a bare
+// "greater than zero" where a token equality is available (#490's un-failable-fence lesson: this CT
+// harness scans `tests/` + `packages/{ui,client}/src`, so a class literal spelled anywhere in that set
+// compiles HERE even when it is dead in the app bundle).
+const LIST_MARKDOWN = "Intro paragraph.\n\n- alpha\n- beta\n    - nested under beta\n\n1. first\n2. second\n";
+
+test("issue 1085: an unordered list renders a marker, a hanging indent and inter-item rhythm", async ({ mount }) => {
+  const cmp = await mount(
+    <Markdown trust="untrusted" mode="static">
+      {LIST_MARKDOWN}
+    </Markdown>,
+  );
+  const list = cmp.locator("ul").first();
+  await expect(list).toBeVisible();
+  // The token values are READ from the document, never assumed: `fontScale` moves the rem base, so a
+  // hardcoded 16 would make every equality below a lie for a reader who scales their type.
+  const box = await list.evaluate((el) => {
+    const own = getComputedStyle(el);
+    const item = el.querySelector("li");
+    const root = getComputedStyle(document.documentElement);
+    const remPx = Number.parseFloat(root.fontSize);
+    const token = (name: string): number => Number.parseFloat(root.getPropertyValue(name).trim()) * remPx;
+    return {
+      marker: own.listStyleType,
+      markerPosition: own.listStylePosition,
+      paddingLeft: Number.parseFloat(own.paddingLeft),
+      paddingTop: Number.parseFloat(own.paddingTop),
+      itemPaddingTop: item === null ? -1 : Number.parseFloat(getComputedStyle(item).paddingTop),
+      itemDisplay: item === null ? "" : getComputedStyle(item).display,
+      fontSize: Number.parseFloat(own.fontSize),
+      tokens: { tight: token("--spacing-tight"), row: token("--spacing-row"), section: token("--spacing-section") },
+    };
+  });
+  const tokens = box.tokens;
+  // The tokens must actually resolve, or every equality below is a vacuous NaN comparison (the same
+  // positive-control discipline a planted fixture gives a gate).
+  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  expect(tokens.section).toBeGreaterThan(0);
+  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  expect(tokens.tight).toBeGreaterThan(0);
+  // Preflight's `list-style: none` was the whole defect — a bullet, not bare text.
+  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  expect(box.marker).not.toBe("none");
+  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  expect(box.itemDisplay).toBe("list-item");
+  // A HANGING indent: the marker sits outside the text column (so a wrapped line aligns under the text,
+  // not under the bullet) and the list's own padding is what keeps that marker inside the bubble.
+  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  expect(box.markerPosition).toBe("outside");
+  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  expect(box.paddingLeft).toBeCloseTo(tokens.section, 1);
+  // …and that indent is wide enough to HOLD an outside marker at any list length — a two-digit ordered
+  // marker is about 1.3× the prose font, so a padding under 1.5em would spill it past the list's own
+  // left edge once a list reaches ten items. A point measurement on a three-item list cannot see that.
+  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  expect(box.paddingLeft).toBeGreaterThanOrEqual(box.fontSize * 1.5);
+  // Vertical rhythm: separation from the surrounding prose (padding, not margin — the seal root's own
+  // trim out-specifies any sibling margin a descendant could set, the #238 mechanism) and between items.
+  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  expect(box.paddingTop).toBeCloseTo(tokens.row, 1);
+  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  expect(box.itemPaddingTop).toBeCloseTo(tokens.tight, 1);
+});
+
+test("issue 1085: an ordered list numbers, and a nested list indents past its parent item", async ({ mount }) => {
+  const cmp = await mount(
+    <Markdown trust="untrusted" mode="static">
+      {LIST_MARKDOWN}
+    </Markdown>,
+  );
+  const ordered = cmp.locator("ol").first();
+  await expect(ordered).toBeVisible();
+  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  expect(await ordered.evaluate((el) => getComputedStyle(el).listStyleType)).toBe("decimal");
+  const nested = cmp.locator("ul ul").first();
+  await expect(nested).toBeVisible();
+  // Geometry, not a class: the nested item's text must start strictly to the RIGHT of its parent item's
+  // text, which is the whole reader-visible point of a sub-list.
+  const lefts = await cmp.evaluate(() => {
+    const inner = document.querySelector("ul ul > li");
+    const outer = document.querySelector("ul > li");
+    return {
+      inner: inner === null ? 0 : inner.getBoundingClientRect().left,
+      outer: outer === null ? 0 : outer.getBoundingClientRect().left,
+    };
+  });
+  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  expect(lefts.inner).toBeGreaterThan(lefts.outer);
+});

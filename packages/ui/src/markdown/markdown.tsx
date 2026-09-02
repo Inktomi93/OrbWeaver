@@ -4,12 +4,17 @@ import type { StreamdownProps } from "streamdown";
 import { defaultRehypePlugins, Streamdown } from "streamdown";
 import { cn, usePrefersReducedMotion } from "#lib";
 import { DIALOGUE_COMPONENTS } from "./dialogue-paragraph.tsx";
+import { MARKDOWN_LIST_COMPONENTS } from "./list-components.tsx";
 import { MARKDOWN_MATH_PLUGIN } from "./math.ts";
 import { MARKDOWN_MERMAID_OPTIONS } from "./mermaid.tsx";
 import { MARKDOWN_REMARK_PLUGINS, TIER_A_UNTRUSTED_ELEMENTS, TRUSTED_ALLOWED_TAGS, TRUSTED_LITERAL_TAG_CONTENT, untrustedUrlTransform } from "./policy.ts";
 import { createRevealPlugin } from "./reveal-plugin.ts";
 import { MARKDOWN_SHIKI_PLUGIN } from "./shiki-plugin.ts";
 import { holdAmbiguousTail } from "./tail-hold.ts";
+
+// The two stable `components` maps. Both are module-level constants because Streamdown's Block memo
+// reference-compares the map key by key — a per-render object would re-render every settled block.
+const LIST_COMPONENTS_WITH_DIALOGUE: NonNullable<StreamdownProps["components"]> = { ...MARKDOWN_LIST_COMPONENTS, ...DIALOGUE_COMPONENTS };
 
 const TRUSTS = ["trusted", "untrusted"] as const;
 const MODES = ["static", "streaming"] as const;
@@ -171,6 +176,14 @@ export function Markdown({ trust, mode, children, className, colorQuotes = false
   // same reason: `text-code` (13px, the token) and `py-tight` (4px, matching the `px-tight` already here),
   // never the vendor's `text-sm`/`0.125rem`.
   //
+  // #1085 — THE SAME FAMILY'S THIRD AND WORST CASE, PAID A DIFFERENT WAY, ON PURPOSE. Streamdown's
+  // list elements carry the same never-compiled utilities, and preflight zeroes list-style/margin/padding
+  // on `ul`/`ol`, so every chat list rendered as flat unmarked text (owner-observed live). Here the seal
+  // takes the ELEMENTS over (`components`, see `list-components.tsx` for the full ruling) instead of
+  // out-painting them from this root: unlike the code element there is no vendor branch to re-implement,
+  // and owning them means our tokens are the ONLY classes on the element rather than a compiled layer
+  // over dead vendor residue. The unscanned-dist ruling is untouched — the values are house tokens.
+  //
   // WHAT THIS DOES *NOT* DO: it does not move `snap --deadcss`, which still reports the vendor's three
   // uncompiled literals (`text-sm`/`py-0.5`/`px-1.5`) because they stay in the class attribute — the
   // element is Streamdown's, and taking it over would mean re-implementing its whole fenced-code branch
@@ -191,9 +204,11 @@ export function Markdown({ trust, mode, children, className, colorQuotes = false
         {...mermaidProp}
         // Incomplete-markdown repair is a streaming concern only; a settled body must render as-authored.
         parseIncompleteMarkdown={mode === "streaming"}
-        // Omitted (not passed as undefined) when off: Streamdown's Block memo compares `components` key
-        // by key, so a stable absent value keeps the settled render byte-identical to the pre-knob one.
-        {...(colorQuotes ? { components: DIALOGUE_COMPONENTS } : {})}
+        // ALWAYS passed since #1085 — the seal owns the three list elements (`list-components.tsx`), and
+        // the dialogue paragraph joins that map rather than replacing it. Both arms are module-level
+        // constants: Streamdown's Block memo compares `components` key by key, so a stable identity is
+        // what keeps a settled block from re-rendering on every commit.
+        components={colorQuotes ? LIST_COMPONENTS_WITH_DIALOGUE : MARKDOWN_LIST_COMPONENTS}
         className={
           cn(
             "space-y-0 whitespace-normal break-words [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_em]:text-narration",
