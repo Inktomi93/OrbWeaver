@@ -14,8 +14,18 @@
 import { fileURLToPath } from "node:url";
 import { Project } from "ts-morph";
 import { describe } from "vitest";
-import type { ApiSurfaceEntry, ChainCandidate, DeadEvidence, Hit, Liveness, NearPairCandidate, SwallowedCandidate } from "../../../tooling/src/ast/index.ts";
+import type {
+  ApiSurfaceEntry,
+  ChainCandidate,
+  DeadEvidence,
+  Hit,
+  Liveness,
+  NearPairCandidate,
+  SwallowedCandidate,
+  ViewFieldCandidate,
+} from "../../../tooling/src/ast/index.ts";
 import {
+  AstToolError,
   assignabilityChecker,
   buildLiveness,
   collectApiSurface,
@@ -30,6 +40,7 @@ import {
   collectStringyAudit,
   collectSwallowedCandidates,
   collectTypeOnlyCandidates,
+  collectViewFieldCandidates,
   contractFieldsOf,
   deadEvidenceFor,
   fieldHit,
@@ -42,6 +53,7 @@ import {
   isTypeOnlyExempt,
   isUnwiredExempt,
   modelProjectedSchemas,
+  parseFlags,
   qualifiedAccessIndex,
   regKeyHitsFor,
   respellHitsFor,
@@ -56,6 +68,9 @@ import {
   spellingIndex,
   testOnlyClassOf,
   toolingConfigNames,
+  VERBS,
+  viewFieldsOf,
+  viewGapHit,
 } from "../../../tooling/src/ast/index.ts";
 import { expect, test } from "../../support/tool-fixtures.ts";
 
@@ -2069,5 +2084,113 @@ describe("ast rot composite (shared collectors, no re-derivation)", () => {
     const rot = rotSwallowedHits(project, live, inDb).map((h: Hit) => h.text.split("  ←")[0]?.trim());
     expect(rot).toEqual(direct);
     expect(direct).toEqual(["usersRelations"]);
+  });
+});
+
+// ── viewgap: the FIELD tier of clientgap (tier 6 — a projected view field the client never reads) ────
+// The fixture plants ONE positive control per READ NODE KIND, because a dot-only sweep is this repo's
+// standard false clean: `view.dot`, `maybe?.opt`, `view["index"]`, and `const { destructured } = view`
+// must each absolve their field, while `unread` (spelled nowhere in the client) is the hit. The
+// `declaredOnly` control is the other direction: a client file that merely DECLARES the name in an
+// interface is not a READER, and crediting it would silently absolve the whole MessageView economics set.
+const VIEWGAP_OWNER = `
+export interface ProbeGapView {
+  unreadField: string;
+  declaredOnlyField: string;
+  dotField: string;
+  optField: string;
+  indexField: string;
+  destructuredField: string;
+}
+`;
+
+const VIEWGAP_CLIENT_READER = `
+interface Shape {
+  declaredOnlyField: string;
+  dotField: string;
+  optField: string;
+  indexField: string;
+  destructuredField: string;
+}
+export function render(view: Shape, maybe: Shape | undefined): string {
+  const { destructuredField } = view;
+  return \`\${view.dotField}\${maybe?.optField ?? ""}\${view["indexField"]}\${destructuredField}\`;
+}
+`;
+
+const VIEWGAP_FILES: Record<string, string> = {
+  "packages/contracts/src/probe/views.ts": VIEWGAP_OWNER,
+  "packages/client/src/features/probe/panel.ts": VIEWGAP_CLIENT_READER,
+  // A TEST reading the field is NOT the UI rendering it (the testonly/regkeys rule) — `unreadField` stays a hit.
+  "tests/client/features/probe/panel.test.ts":
+    "export const fixture = { unreadField: 'x' };\nexport const read = (v: { unreadField: string }): string => v.unreadField;\n",
+};
+
+const gapNamesOf = (project: Project): string[] => {
+  const owner = project.getSourceFileOrThrow("/repo/packages/contracts/src/probe/views.ts");
+  const { consumed } = fieldIndexes(project);
+  return collectViewFieldCandidates(viewFieldsOf(owner), consumed)
+    .filter((c) => c.clientReaders.length === 0 && !c.exempt)
+    .map((c) => `${c.field.owner}.${c.field.name}`);
+};
+
+describe("ast viewgap lens (view fields the client never reads)", () => {
+  test("every property-read SHAPE absolves its field; a client-side declaration and a test read do not", () => {
+    const project = projectOf(VIEWGAP_FILES);
+    // Only the two fields no client file READS survive — the four read kinds each dropped their own.
+    expect(gapNamesOf(project)).toEqual(["ProbeGapView.unreadField", "ProbeGapView.declaredOnlyField"]);
+  });
+
+  test("owners are the *View/*Summary names only — a sibling shape in the same file is out of scope", () => {
+    const project = projectOf({
+      "packages/contracts/src/probe/views.ts":
+        "export interface ProbeGapView { a: string; }\nexport interface ProbeParams { b: string; }\nexport interface ProbeGapSummary { c: string; }\n",
+      "packages/client/src/features/probe/panel.ts": "export const noop = 1;\n",
+    });
+    const owner = project.getSourceFileOrThrow("/repo/packages/contracts/src/probe/views.ts");
+    expect(viewFieldsOf(owner).map((f) => `${f.owner}.${f.name}`)).toEqual(["ProbeGapView.a", "ProbeGapSummary.c"]);
+  });
+
+  test("the marker is TWO-SIDED: a reasoned one on an unread field exempts, a bare one does not, and one on a READ field is stale", () => {
+    const project = projectOf({
+      ...VIEWGAP_FILES,
+      "packages/contracts/src/probe/views.ts": `
+export interface ProbeGapView {
+  // @view-server-only: the guest reads this, our client never will
+  unreadField: string;
+  // @view-server-only:
+  declaredOnlyField: string;
+  /** @view-server-only: a marker that has gone stale — the client reads it now */
+  dotField: string;
+  optField: string;
+  indexField: string;
+  destructuredField: string;
+}
+`,
+    });
+    const owner = project.getSourceFileOrThrow("/repo/packages/contracts/src/probe/views.ts");
+    const candidates = collectViewFieldCandidates(viewFieldsOf(owner), fieldIndexes(project).consumed);
+    const named = (name: string): ViewFieldCandidate => candidates.find((c) => c.field.name === name) as ViewFieldCandidate;
+    // A REASONED marker on a genuinely unread field exempts it; a marker with no reason states nothing.
+    expect(named("unreadField").exempt).toBe(true);
+    expect(named("declaredOnlyField").exempt).toBe(false);
+    expect(gapNamesOf(project)).toEqual(["ProbeGapView.declaredOnlyField"]);
+    // The STALE side: the marker survives on a field the client now reads, and that is the exit-1 arm.
+    const stale = candidates.filter((c) => c.exempt && c.clientReaders.length > 0);
+    expect(stale.map((c) => c.field.name)).toEqual(["dotField"]);
+    expect(viewGapHit(stale[0] as ViewFieldCandidate).kind).toBe("stale-view-server-only");
+  });
+
+  test("an EMPTY client reader corpus REFUSES — every field would read as unread, which is a broken run, not a clean sweep", () => {
+    // The blind-zero arm: same owner file, no `packages/client/src` file at all.
+    const project = projectOf({ "packages/contracts/src/probe/views.ts": VIEWGAP_OWNER });
+    const runViewGap = VERBS["viewgap"];
+    // Doubles as the REGISTRATION pin: an unregistered verb would make the refusal below unfailable.
+    if (runViewGap === undefined) {
+      throw new Error("the viewgap verb is not registered in VERBS");
+    }
+    expect(() => {
+      runViewGap(project, "", parseFlags([]));
+    }).toThrow(AstToolError);
   });
 });
