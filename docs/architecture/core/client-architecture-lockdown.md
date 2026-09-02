@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-08-30
+updated: 2026-09-01
 ---
 
 # Client Architecture Lockdown
@@ -161,7 +161,9 @@ array/object/template and false-positive matrix; the grouped CSS-train barrier g
 
 ### 4.7 Enforcement and honest holes
 
-The enforcement ledger has three categories; never count one as another:
+Every row below is ENFORCED TODAY — the CSS-prevention program's REPORTED-BUT-UNREAD and OPEN categories are
+empty as of #953. A named boundary (the last paragraph of this section) is still not a category: never count
+one as enforcement, and never promote a row here without its gate, floor, or test.
 
 - **ENFORCED TODAY:** the colour/value/motion gates constrain authored values; `playwright-css-topology`
   makes production and CT share the ordered product CSS graph while keeping the CT-only source explicit; G14
@@ -191,17 +193,26 @@ The enforcement ledger has three categories; never count one as another:
 - **ENFORCED TODAY:** `tokens-contract` validates the hash-pinned DTCG 2025.10 Format/Resolver schemas,
   structured portable values, exact Light/Mocha seed membership, bounded Hearth/Light/Mocha Resolver,
   explicit `orb.cssValues` output roles and `theme|root` placement, removed portable paths, and exact CSS
-  target identity. It reports 272 scanned entries and fails loud on schema/hash/zero-population/Git-history
-  blindness. The type-directed emitter preserves ThemeScope, polarity, carried palettes, runtime formulas,
+  target identity. Its scanned-entry denominator is the base/Light/Mocha constituent sum pinned by
+  `tests/tooling/token-contract.test.ts` and printed on the gate's own scan line, and it fails loud on
+  schema/hash/zero-population/Git-history blindness. The type-directed emitter preserves ThemeScope, polarity, carried palettes, runtime formulas,
   and owner custom CSS; #936's frontier cold review is the implementation receipt.
-- **REPORTED BUT UNREAD:** `pnpm snap --dead-css` and the dev-only `motion-dead-class-flagger` emit dead/empty CSS findings, but no blocking floor consumes those warning reports today. An instrument nobody reads is not enforcement.
+- **ENFORCED TODAY:** #953 wired the dead/empty CSS census into a blocking floor. `pnpm snap --dead-css`
+  evidence is no longer a warning report nobody reads: the appearance-invariant evaluator
+  (`tooling/src/snap/ops/appearance-invariants.ts`) reddens a cell on any dead or empty CSS identity, and
+  treats a zero denominator, an unreadable sheet, or an unsettled `motion-dead-class-flagger` drain as
+  INSTRUMENT ERROR. Matrix cells compare identities rather than totals, so a same-count replacement cannot
+  pass.
+- **ENFORCED TODAY:** #953's rated appearance floors. One policy-neutral planner
+  (`tooling/src/_shared/variant-matrix.ts`) feeds three thin verdict consumers — `tooling/src/snap`,
+  `tooling/src/ui-audit` (the `design-audit` script), `tooling/src/motion-audit` — and the literal R1–R7 invariant policy has one home
+  at `packages/client/src/lib/appearance-invariant-manifest.ts`. Route mode is the only R1–R7 verdict
+  owner; scenario mode publishes `not-applicable: scenario-owned-drive` rather than counterfeiting one.
+  \#976's exact settled-subject and requested/resolved/actual theme accounting and #977's
+  requested/applied/actual browser identity are its trustworthy inputs. The full contract, the rejected
+  alternatives, and the cold graduation receipts live in `docs/design/953-appearance-invariant-matrix.md`.
 
-The runtime prerequisites for the remaining scenario-floor work are now explicit. #976 makes design-audit
-account every settled subject exactly and reports requested/resolved/actual theme polarity; #977 makes
-motion-audit report requested/applied/actual browser identity and refuse viewport-only mobile counterfeits.
-These instruments are trustworthy inputs to #953, not substitutes for #953's matrix and floor wiring.
-
-After the static gates and scenario-floor wiring close those holes, runtime-assembled class strings remain outside static proof. Their named backstop is the rendered side-eye sweep. These are named gaps, not permission to widen the set.
+Runtime-assembled class strings remain outside static proof. Their named backstop is the rendered side-eye sweep. That is a named boundary, not permission to widen the set.
 
 **Auto-overlay is REAL committed behavior (ratified O6 — build to the law, never amend the law down):** UI-Arch §4.1's "docked panels auto-`overlay` below a width breakpoint (the one app-shell `@media`)" is BUILT at M10 (`de513984`) — the shell gains the desktop auto-overlay. Below the 64rem shell breakpoint a docked-default side panel becomes a **CLOSED slide-over** (renders `collapsed` — content reclaims the width), **openable on demand** (it slides over with a scrim); `overlay` is the OPEN state, `collapsed` the CLOSED state (§4.1's "zero width closed, slides over on demand"). It restores to docked on re-widen. The "which slide-over is open" tracker is the regime-agnostic device-transient `openOverlayPanel`; ONE shared `resolvePanelMode` algebra in `#state` is consumed by BOTH `resolvePanel` and `useListDocked` so they cannot drift. `togglePanel`/`collapsePanel`/`toggleFocus` write `openOverlayPanel` (ephemeral) in the overlay regime and the persisted `panelOverrides` only when wide — so a resize NEVER mutates the stored preference; Escape closes the open slide-over (yielding to an open modal). The 64rem breakpoint is a second `matchMedia` signal (`narrowViewport`) in the `no-raw-matchmedia` legal home — overlay is MODE-gated rendering, not `@media`-gated, so the one app-shell CSS `@media` (the 48rem mobile column flip) stays the only one. **User override wins inside each regime:** an explicit `overlay`/`collapsed` override passes through unchanged in BOTH regimes; only a `docked` resolution auto-closes, and only while narrow — and an explicit `docked` override is ALSO slide-over-closed while narrow (docked is unavailable there by definition; the override's intent is honored by restore-on-widen). The mobile regime (`<48rem`) is the SEPARATE, narrower regime below it and is unchanged (the same `openOverlayPanel` tracker, renamed from `mobileSheet`, byte-identical behavior).
 

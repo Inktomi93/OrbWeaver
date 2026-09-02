@@ -1,7 +1,7 @@
 ---
 kind: review
 status: active
-updated: 2026-08-31
+updated: 2026-09-01
 ---
 
 # stickler — the CSS tier: full census, doctrine, game plan, doc reconciliation, and an enforcement probe sweep
@@ -36,7 +36,9 @@ measurements. Current main has five sanctioned stylesheets totalling **3,174 lin
   ownership gate, leaving 508 genuinely runtime-assembled observations and a zero `cva` population. #975
   repaired the live cascade denominator and same-revision DevTools closure. #976 made design-audit's settled
   subject and requested/resolved/actual theme evidence exact. #977 made motion-audit's requested/applied/actual
-  browser environment fail loud on a viewport-only mobile counterfeit.
+  browser environment fail loud on a viewport-only mobile counterfeit. #953 then consumed all three: the rated
+  appearance matrix, its R1–R7 route floors, and the dead/empty CSS blocking floor graduated at `78788014d`,
+  which empties this plan's OPEN and REPORTED-BUT-UNREAD categories. #962 alone remains deferred and live.
 
 The 2026-08-31 graduation receipt is deliberately split rather than rerunning five minutes of unchanged
 code for generated line offsets: one full `pnpm check` made 16/17 static stages green, including 242/242
@@ -1215,9 +1217,11 @@ Three tiers, and a fourth category that is neither:
   (363 walked/judged + 18 explicit document-head skips) and reports requested/resolved/actual theme polarity;
   \#977 reports requested/applied/actual mobile environment and rejects a same-viewport desktop counterfeit.
   Neither replaces #953's matrix or scenario-floor verdict.
-- **REPORTED BUT UNREAD:** `snap --dead-css` (`deadcss=`/`emptycss=` on every RESULT line) and its dev-only
-  `motion-dead-class-flagger` twin still emit findings that no mandatory scenario floor consumes. They answer
-  existence/parsing, not value resolution, class-list merge, or browser cascade.
+- **NOW A BLOCKING FLOOR (#953):** `snap --dead-css` (`deadcss=`/`emptycss=` on every RESULT line) and its
+  dev-only `motion-dead-class-flagger` twin are consumed by the appearance-invariant evaluator — a dead or
+  empty identity reddens the cell, and a zero denominator, unreadable sheet, or unsettled flagger drain is
+  INSTRUMENT ERROR. They still answer existence/parsing only, not value resolution, class-list merge, or
+  browser cascade; those remain #949's and #950's tiers.
 - **THE POSITIVE PATTERN, worth generalising past CSS:** `@orb/kit/dead-css` owns the DEFINITION — the
   tokenizer and the marker tables — and its two consumers differ only on the DOM half (which sheets, which
   elements, on what clock). snap serialises the regex SOURCE into the page rather than re-typing it. **Two
@@ -1262,15 +1266,15 @@ pre-launch removes the user risk, not the verification bar.**
 | 2.6 | **§3.2b / #955 — IMPLEMENTED, GROUP BARRIER PASSED:** re-derived all 20 non-structural shell residues, reused existing tokens, added only the missing portable values/runtime outputs, and left the declared structural mechanisms alone | shell + token source/generated artifacts | code + gate + rendered | `e07b79b2d`; focused gate 8/8 and token contract/index 51/51; selected browser assertions 4/4, wrapper no-verdict; grouped 242/242 barrier green |
 | 2.7 | **DONE IN #957; GROUP BARRIER PASSED:** repaired the three stale comments and coupled `.ctx-tab-strip` residue | 3 product/harness comments + gate residue | prose + focused gate | integrated at `aa8cf0d53`; grouped 242/242 barrier green |
 
-### Wave 3 — the enforcement the doctrine promises but cannot yet keep
+### Wave 3 — the enforcement the doctrine promised (3.1–3.4 kept; 3.0 deferred, still live)
 
 | # | step | blast radius | tier | mech/judgment |
 | - | - | - | - | - |
-| 3.0 | **#962 — eliminate file-wide Biome disables before more gate work lands.** Current exhaustive census: 70 files carry 74 `biome-ignore-all` directives across six rules; the suppression ratchet explicitly excludes `tests/**`, and a rejected #954 index briefly carried a whole-file complexity bypass. Migrate every directive to an exact line/range or centrally governed, stale-armed path grant; extend governance to tests; plant an index-vs-working-tree control | 70 files + suppression governance | lint + gate + affected behavioral suites | no baseline/allowlist increase; zero file-wide directives is the contract |
+| 3.0 | **#962 — eliminate file-wide Biome disables. DEFERRED AND STILL LIVE, never a precondition:** the gate work of Waves 3–5 landed and graduated without it, so this row does not block anything; it is scheduled on its own. Census against base `28d526c99`: 70 files carried 74 `biome-ignore-all` directives across six rules; the suppression ratchet explicitly excludes `tests/**`, and a rejected #954 index briefly carried a whole-file complexity bypass. Migrate every directive to an exact line/range or centrally governed, stale-armed path grant; extend governance to tests; plant an index-vs-working-tree control | suppression governance | lint + gate + affected behavioral suites | no baseline/allowlist increase; zero file-wide directives is the contract |
 | 3.1 | **#955 / `css-length-tokens` — IMPLEMENTED, GROUP BARRIER PASSED:** the LENGTH twin over shell declarations/queries plus #961-resolved static class carriers; structural rows are reasoned and count-pinned, missing shell fails loud, and populations print | 1 gate + planted integration arms | **gate** | `e07b79b2d`; 8/8 conformance, 51/51 token contract/index, no discovered-ignore list; grouped 242/242 barrier green |
-| 3.2 | **OPEN under #935/#953:** wire reported-but-unread dead/empty CSS results into rated scenario floors, not every ad-hoc probe | snap contract + scenario floor | **instrument → floor** | appearance-matrix work owns scenario selection; a per-probe hard fail remains too noisy |
-| 3.3 | **Merge-precedence assertions per AXIS, not per call site** — extend `class-merge.test.ts` to assert, for every registered namespace derived from `TOKENS`, that two classes on one axis resolve to one. Bounded by the token vault, not by the app | 1 test file | vitest | mechanical once 2.5 lands |
-| 3.4 | **State the residual honestly in §4.7**: after 3.1–3.3, the remaining uncovered class is a runtime-ASSEMBLED class string, which no static tier can read. The named sweep that keeps it honest is the side-eye rendered pass | prose | **prose + a named sweep** | — this is the clause that must say out loud that it is prose |
+| 3.2 | **DONE #953:** dead/empty CSS is a blocking floor, not a warning report — `tooling/src/snap/ops/appearance-invariants.ts` reddens a cell on any dead/empty identity and calls a zero denominator, an unreadable sheet, or an unsettled flagger drain INSTRUMENT ERROR. Matrix cells compare identities, so a same-count replacement cannot pass; no per-probe hard fail was added | snap contract + scenario floor | **instrument → floor** | `78788014d`; the rated matrix owns cell selection |
+| 3.3 | **DONE:** merge-precedence is asserted per AXIS, not per call site — `tests/ui/lib/class-merge.test.ts` derives every `--<namespace>-*` token from `TOKENS` for the seven registered namespaces (spacing/radius/container/width/aspect/blur/ease) and requires each to defeat the core class on its own axis, plus a non-empty-namespace guard so the assertion cannot prove nothing. Bounded by the token vault, not by the app | 1 test file | vitest | a new token cannot silently re-open the defect |
+| 3.4 | **DONE:** §4.7 states the residual out loud — after 3.1–3.3 the remaining uncovered class is a runtime-ASSEMBLED class string, which no static tier can read, and its named backstop is the side-eye rendered pass. Every other §4.7 row is now ENFORCED TODAY | prose | **prose + a named sweep** | the clause says out loud that it is prose |
 
 ### Wave 4 — make the value source a real contract (#936; blocks token-changing pixel fixes)
 
@@ -1290,8 +1294,8 @@ pre-launch removes the user risk, not the verification bar.**
 | 5.1 | **GRADUATED #949; EXTENDED #972:** compiler-positive/negative namespace set equality, aspect/blur/ease only, sole `createTV` seal, and 413 declaration-proven `tv` observations in each ownership gate | merge front door + tests/gate | compiler/unit/gate | 508 runtime-assembled observations remain explicit; `cva` population is zero |
 | 5.2 | **GRADUATED #949:** one Orb merge plus bounded occurrence-aware loser→final-winner replay at dev/test `__orb.css` | merge instrumentation | unit + instrument controls | duplicate/asymmetric/modifier/arbitrary/custom-family cases; zero population is instrument error |
 | 5.3 | **GRADUATED #950; REPAIRED #975:** revision-pinned official DevTools frontend SDK cascade provenance for bounded property/selector queries | Snap/official SDK | rendered instrument | 479-resource / 9,853,687-byte closure; null SDK rows skipped before the denominator; Vite header provenance; six live nonzero queries and planted zero/missing-worker failures |
-| 5.4 | **STATIC CARRIER PROGRAM CLOSED #935; RENDERED MATRIX REMAINS #953:** prove the 41-key Appearance carrier graph and interaction arms across ThemeScope, grid, portals, background layers, message props, and mobile/desktop shell regimes | gate + Snap matrix | static carrier + rendered scenarios | static writer/carrier/consumer closure is enforced; composed visible states and incompatible arms remain matrix obligations |
-| 5.5 | **OPEN #953:** promote stable Snap measurements into rated floors (contrast, overflow/containment, cascade/merge, density, polarity, scrim/art, mobile geometry) while keeping exploratory matrices available | scenario/rating harness | preflight + scenario floor | #976/#977 now make theme/subject/mobile inputs trustworthy; side-eye remains final taste/a11y verification |
+| 5.4 | **STATIC CARRIER PROGRAM CLOSED #935; RENDERED MATRIX GRADUATED #953:** prove the 41-key Appearance carrier graph and interaction arms across ThemeScope, grid, portals, background layers, message props, and mobile/desktop shell regimes | gate + Snap matrix | static carrier + rendered scenarios | static writer/carrier/consumer closure is enforced; composed visible states and incompatible arms are matrix cells at `78788014d` |
+| 5.5 | **GRADUATED #953:** stable Snap measurements are rated floors (contrast, overflow/containment, cascade/merge, density, polarity, scrim/art, mobile geometry) and exploratory matrices remain available. One policy-neutral planner (`tooling/src/_shared/variant-matrix.ts`) feeds Snap, design-audit, and motion-audit; the literal R1–R7 policy has one home at `packages/client/src/lib/appearance-invariant-manifest.ts` and route mode is its only verdict owner | scenario/rating harness | preflight + scenario floor | `78788014d`; cold receipts in `docs/design/953-appearance-invariant-matrix.md`; #976/#977 supply trustworthy theme/subject/mobile inputs; side-eye remains final taste/a11y verification |
 
 ### What must land TOGETHER
 
@@ -1767,5 +1771,6 @@ a local cascade evaluator are rejected; its official-SDK runtime matrix is 3/3. 
 9,853,687 bytes; all six live cascade queries returned structured nonzero results with zero unexpected
 requests. #976 now accounts for 381 settled design subjects exactly and proves requested/resolved/actual
 theme polarity, including a same-count mutation plant. #977 proves requested/applied/actual mobile identity,
-both normal/reduced-motion nonzero populations, and refusal of a same-viewport counterfeit. `deadcss`/
-`emptycss` remain reported-but-unread by mandatory floors; rated scenario integration remains #953.
+both normal/reduced-motion nonzero populations, and refusal of a same-viewport counterfeit. #953 then
+graduated at `78788014d`: `deadcss`/`emptycss` are consumed by the appearance-invariant floor, and the rated
+matrix and its R1–R7 route verdicts are live.
