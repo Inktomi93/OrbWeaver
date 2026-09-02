@@ -170,7 +170,7 @@ const MSG_DEAD_RULE_PREFIX =
   "(tooling/src/verify/gates/GATE-AUTHORING.md §4.4 mode B, one level up from a dead path: the subject is " +
   "alive, the promise is not). Delete the rule from that override in biome.json — and delete the whole " +
   "override when it carried nothing else. If the rule is off REPO-WIDE, the row was redundant from birth. " +
-  "The finding token is the granted rule. See tooling/src/verify/lib/biome-rule-liveness.ts. Grant: ";
+  "The finding token is the granted rule. Grant: ";
 
 const MSG_DEAD_CITE =
   "a biome-grant-liveness EXEMPT row's `cite` no longer resolves — the producer that justified the exemption " +
@@ -246,7 +246,7 @@ function ruleLivenessFindings(root: string, text: string, isExact: (path: string
     line: firstLineOf(grant.anchor),
     column: 0,
     token: `${grant.group}/${grant.rule}`,
-    message: `${MSG_DEAD_RULE_PREFIX}${grant.group}/${grant.rule} over ${grant.files.join(", ")}`,
+    message: `${MSG_DEAD_RULE_PREFIX}${grant.group}/${grant.rule} over ${grant.files.join(", ")}. See tooling/src/verify/lib/biome-rule-liveness.ts.`,
   }));
   return { findings, live: outcome.live, files: outcome.filesProbed, deadFilePairs: outcome.deadFilePairs, skippedMixed: outcome.skippedMixed };
 }
