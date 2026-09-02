@@ -201,6 +201,13 @@ is absent (`null`) is never guessed into `true`: the census refuses the run (exi
 "never guess into excluded" ruling survives — its input became a measured fact. On the RESULT line
 `NO-VERDICT` belongs to WITHHELD alone; an excluded axis prints `excluded` (its own label — `complete`
 would claim the run visited a space with no members), which also corrected the unmounted-shell arm.
+
+`off-grid-text` (Law 4 of the integer-line-box law) carries a closed reason set since #1156 (2026-09-02):
+`excluded(srOnly, readingSurface, snapped)` · `withheld(srOnlyUnreadable, unmeasurable)`. `srOnly` is the
+second rule-owned reason shared across two families (the typography and caveat rules already emit it) and
+is read from ONE in-page predicate (`srOnlyText`, `walker/core.ts`), tri-state: a screen-reader-only node
+paints no pixels and is excluded; a node whose box cannot be read is withheld and the run has NO VERDICT;
+never a silent drop — `candidates` is unchanged by the exclusion.
 An authored target already adjudicated by the same ancestor decision is not unjudged; it is recorded in
 a separate `collapsed` reason map. This keeps a legitimate same-owner collapse from turning a complete
 audit into a false partial result while preserving exact arithmetic for every rendered target.
