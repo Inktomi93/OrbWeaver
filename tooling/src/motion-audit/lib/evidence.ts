@@ -31,7 +31,7 @@ export function appReadyTimeoutGap(url: string, timeoutMs: number): EvidenceGap 
   };
 }
 
-/** THE LOAD WITHHOLD (#1040 -> #1232 section 7.1). motion-audit's ONLY verdict member is a measured RATE
+/** THE LOAD WITHHOLD (#1040, carried into #1232 section 7.1). motion-audit's ONLY verdict member is a measured RATE
  *  (dropped frames / total), and load does not scale a rate - it destroys it: identical code read 47.54%
  *  at per-core 1.04, then 10%, then clean. So on a contended box this instrument does not vote at all. It
  *  is deliberately the SAME evidence-gap shape as a missing bridge: "the run is not a verdict" is one
