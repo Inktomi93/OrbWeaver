@@ -2000,6 +2000,118 @@
           ]
         }
       ]
+    },
+    {
+      "path": "docs/reviews/stickler/2026-09-02-motion-perf-mechanism-audit.md",
+      "assignedSha256": "030f2ef984aaf6d535ced016b7cd55e168d560793c04f170f026416ff048ae91",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "030f2ef984aaf6d535ced016b7cd55e168d560793c04f170f026416ff048ae91",
+      "verifiedCommit": "c2bca04eefe45eb121678b921adfc02809ba9f42",
+      "verifiedAt": "2026-09-02",
+      "summary": "Stickler mechanism audit of the motion/perf instrument fleet vs Base UI 1.7.0 (docs + vendored source) and the house motion law (#1065, lane cb-motion-mechanism, static-only): 8 findings (three P2 lying-instrument class), a 20-row mechanism-match table, the vendored animating-component population, proposed fix rows.",
+      "evidence": [
+        "born-reviewed at c2bca04ee: full read by the primary orchestrator — §0 inventory, F1-F8 + L1-L3, the §2 table, §3 population, §4 verified-clean, §5 suspicions, §6 fix rows; claude-b filed the finding rows (#1069-#1072) and re-scoped #991"
+      ],
+      "claims": [
+        {
+          "claim": "The [anim] console flagger convicts guide-ratified motion (tabs indicator left/width glide, accordion/collapsible height lifecycle) because the #953 sanctioned-height allowance exists only on the motion-audit side.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1069"
+            }
+          ]
+        },
+        {
+          "claim": "motion-audit's dirty-animation budget samples getAnimations() once at window end and is structurally blind to the 130-360ms band; __orb.flags() is checkpoint-scoped and read nowhere in tooling.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1070"
+            }
+          ]
+        },
+        {
+          "claim": "The interaction-cell CLS budget gates on the input-excluded number and observedCls is never consumed by the tool — the false-PASS the collector's own header documents.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1071"
+            }
+          ]
+        },
+        {
+          "claim": "#991's swipe-dismiss wedge is statically refuted (useAnimationsFinished resolves immediately on an empty population; the release path re-arms the transform transition); gesture-driven motion has no instrument coverage.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#991"
+            },
+            {
+              "kind": "issue",
+              "target": "#1072"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/reviews/stickler/2026-09-02-uiaudit-orbui-mechanism-audit.md",
+      "assignedSha256": "b716ccddae165f5b42a12b2234f37d747f3e4f41e36e2aecab4f161614283877",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "b716ccddae165f5b42a12b2234f37d747f3e4f41e36e2aecab4f161614283877",
+      "verifiedCommit": "c2bca04eefe45eb121678b921adfc02809ba9f42",
+      "verifiedAt": "2026-09-02",
+      "summary": "Stickler mechanism audit of the 54 in-scope ui-audit rules with @orb/ui as the oracle (#1064, lane cb-orbui-mechanism, static-only): 8 confirmed blind-class findings (F1 hover-contrast publishes a FALSE excluded on group-variant hover paint), 14 verified-MATCHED intersections, 0 overclaims, each shaped as a RULE-AUTHORING mechanism-match row.",
+      "evidence": [
+        "born-reviewed at c2bca04ee: full read by the primary orchestrator — the denominators, F1-F8 with both-side receipts, the 14 MATCHED rows, the unconfirmed probes, the scope statement; claude-b filed #1073-#1079 + decision #1080; memory hover-force-cannot-engage-group-variant-rules written"
+      ],
+      "claims": [
+        {
+          "claim": "The forced-state hover pass forces the painted element, so compiled group-variant rules never engage and the pair is published excluded(noHoverChange) — a false measurement claim the attribute twin already withholds by name.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1073"
+            }
+          ]
+        },
+        {
+          "claim": "INTERACTIVE_SELECTOR omits textarea and summary, so Textarea/MacroTextarea/ToolCallBlock are invisible to tap-target, aria-name, duplicate-action-door and obscured-target while five sibling fleet vocabularies include both.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1074"
+            }
+          ]
+        },
+        {
+          "claim": "selection-idiom vetoes any box-shadow containing 'inset', blinding it to the ratified inset-ring state channel; animated-img-hover is triple-blind to the MediaTileGrid group-hover:scale-105 idiom; mask-image paint and ECharts canvas ink have zero fleet handling.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1075"
+            },
+            {
+              "kind": "issue",
+              "target": "#1076"
+            }
+          ]
+        },
+        {
+          "claim": "TARGET_VARIANT_ATTRS contributes nothing on house primitives (no data-variant/size/intent/tone stamping), so distinct tv() arms collapse into one authored-decision row — an owner fork.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#1080"
+            }
+          ]
+        }
+      ]
     }
   ]
 }

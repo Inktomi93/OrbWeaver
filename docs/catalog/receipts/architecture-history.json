@@ -1093,6 +1093,34 @@
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
       ],
       "summary": "Historical architecture record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
+    },
+    {
+      "path": "docs/architecture/history/Core-STATUS-2026-07-13.md",
+      "assignedSha256": "fb4adacb9092f461dbe46efe4503f240ba6f95b4e1948be5f58c3b62d9717828",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "fb4adacb9092f461dbe46efe4503f240ba6f95b4e1948be5f58c3b62d9717828",
+      "verifiedCommit": "c2bca04eefe45eb121678b921adfc02809ba9f42",
+      "verifiedAt": "2026-09-02",
+      "summary": "The frozen build-status cursor (ledger cursor D106, six-backend era) — archived by #1056; its rider had admitted the drift since 2026-07-13.",
+      "evidence": [
+        "archived at c2bca04ee (#1056): moved verbatim from docs/architecture/core/Core-STATUS.md with status: archived; the AGENTS.md §7 row dropped; frozen provenance, not live law"
+      ]
+    },
+    {
+      "path": "docs/architecture/history/agent-doctrine-accretion-2026-08.md",
+      "assignedSha256": "9540ba7ee11447a70c41bd6dbbae38073f8aa4f9030400e26437367450909b4d",
+      "disposition": "archive",
+      "authority": "historical",
+      "fullRead": true,
+      "verifiedSha256": "9540ba7ee11447a70c41bd6dbbae38073f8aa4f9030400e26437367450909b4d",
+      "verifiedCommit": "c2bca04eefe45eb121678b921adfc02809ba9f42",
+      "verifiedAt": "2026-09-02",
+      "summary": "The dated narrative removed from the always-loaded law by #1056 (doctrine §s 61-487, the pre-trim orchestration/lane-standing-facts/browser/db-schema bodies, §L) — VERBATIM in bare fences, each section headed with its former file:line range.",
+      "evidence": [
+        "archived at c2bca04ee (#1056, lane p-truth-p1): 963 lines / 78 KB of removed text, fenced so the doc formatter is idempotent over it (it mangles quoted backticks in loose markdown — memory doc-formatter-mangles-quoted-backticks); every demoted section left one rule line + a pointer in its law file; mapping table in the lane report on #1056"
+      ]
     }
   ]
 }

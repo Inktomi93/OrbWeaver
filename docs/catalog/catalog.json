@@ -189,9 +189,9 @@
       "path": "docs/architecture/core/AGENTS.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 379,
-      "bytes": 34569,
-      "sha256": "5232a88c20b6318a921e257d1feeda9878801e3a4779da791f76bd39da6720b6",
+      "lines": 347,
+      "bytes": 31766,
+      "sha256": "d403d3fadb28e04041f9c4eb42f4253000fd04abed8a2b25111cf1498650f016",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -208,10 +208,11 @@
         "disposition": "current",
         "authority": "normative",
         "fullRead": true,
-        "verifiedSha256": "5232a88c20b6318a921e257d1feeda9878801e3a4779da791f76bd39da6720b6",
-        "verifiedCommit": "eb01a72ab3606bd78594074e1c1b89690078598e",
-        "verifiedAt": "2026-09-01",
+        "verifiedSha256": "d403d3fadb28e04041f9c4eb42f4253000fd04abed8a2b25111cf1498650f016",
+        "verifiedCommit": "c2bca04eefe45eb121678b921adfc02809ba9f42",
+        "verifiedAt": "2026-09-02",
         "evidence": [
+          "re-attested at c2bca04ee (#1056 Phase 1, lane p-truth-p1): header supersession map, §6 'open calls' and §8 archaeology moved to history (one §7 resolver row survives for the ~18 live AGENTS-n citations); §4 is the ONE full home of the #1029 pointer paragraph and the probe rule; Core-STATUS row dropped (archived to history)",
           "re-attested at eb01a72ab (#1055 Phase 0 truth repairs, lane p-truth-p0): §0.1.9/§7 recovery index → the board + orchestration.md + the onboard hook; §4 tier ladder → `pnpm verify --list`; §0 count dropped; §L.5 → worktree:bootstrap; §5.5 names the real enforcer",
           "delta re-verify 2026-09-01 (#1029, content commit b2b74c97343aa257aabed4ac61dd3ef39d39d128): §4's harness-artifacts bullet now states that reports/verify.json, reports/check-structure.json, reports/verify/<stage>.log and reports/test-report.json are `latest` POINTERS published atomically at completion by a run that writes only inside reports/runs/<instrument>/<checkout>-<pid>-<timestamp>/, and routes the layout to its one home (UNIFIED-VERIFICATION-DESIGN.md §3.3b). Re-derived against tooling/src/_shared/artifacts.ts:59-300 and the landed publishers.",
           "re-attested at b8eb66f00 — the CSS constitution pointer now distinguishes portable DTCG values from validated runtime CSS outputs while keeping the exact six-home law in client-architecture-lockdown.md §4",
@@ -853,43 +854,6 @@
       "receiptCurrent": true
     },
     {
-      "path": "docs/architecture/core/Core-STATUS.md",
-      "lane": "architecture-core",
-      "issue": 2,
-      "lines": 36,
-      "bytes": 2594,
-      "sha256": "cdbc3d0914c7c052ec6e2659bfc78ee325a58c96612890169f0e12863f500a62",
-      "frontmatter": {
-        "present": true,
-        "malformed": false,
-        "fields": {
-          "kind": "reference",
-          "status": "active",
-          "updated": "2026-07-13"
-        },
-        "errors": []
-      },
-      "receipt": {
-        "path": "docs/architecture/core/Core-STATUS.md",
-        "assignedSha256": "cdbc3d0914c7c052ec6e2659bfc78ee325a58c96612890169f0e12863f500a62",
-        "disposition": "archive",
-        "authority": "historical",
-        "fullRead": true,
-        "verifiedSha256": "cdbc3d0914c7c052ec6e2659bfc78ee325a58c96612890169f0e12863f500a62",
-        "verifiedCommit": "bbecbfc78be417b6aab44609d3d4f0d484d8c87b",
-        "verifiedAt": "2026-08-31",
-        "evidence": [
-          "re-attested at bbecbfc78 — full-file read under #930; the D66 program reference is explicitly historical and carries no current lifecycle authority",
-          "docs/architecture/core/Core-STATUS.md:1 full read; current edit is a provenance/lifecycle or repaired historical citation, not present implementation authority",
-          "docs/architecture/core/Core-Path-Registry.md:523-533 (D139-D141 authority boundary)",
-          "git:68271889b1746b513defea44b0787bab7a89176f contains the exact archived blob",
-          "docs/architecture/core/Core-STATUS.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
-        ],
-        "summary": "Full-read historical artifact retained for provenance; relocated citations were semantically re-derived and it is not current work or implementation authority."
-      },
-      "receiptCurrent": true
-    },
-    {
       "path": "docs/architecture/core/Core-Shared-Dissolution.md",
       "lane": "architecture-core",
       "issue": 2,
@@ -1395,9 +1359,9 @@
       "path": "docs/architecture/core/Tier-1-DB.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 189,
-      "bytes": 22477,
-      "sha256": "ca786e243c8361e17e11463b6450c08684db603d03d7970d26113c45c24e4473",
+      "lines": 197,
+      "bytes": 23274,
+      "sha256": "f9ecfa360252924f776170a07c37242b6170d9fa7bfef1e76a7d098ed53f4c31",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -1414,10 +1378,11 @@
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "ca786e243c8361e17e11463b6450c08684db603d03d7970d26113c45c24e4473",
-        "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
-        "verifiedAt": "2026-08-30",
+        "verifiedSha256": "f9ecfa360252924f776170a07c37242b6170d9fa7bfef1e76a7d098ed53f4c31",
+        "verifiedCommit": "c2bca04eefe45eb121678b921adfc02809ba9f42",
+        "verifiedAt": "2026-09-02",
         "evidence": [
+          "re-attested at c2bca04ee (#1056): the baseline-squash mechanics + two-lane sequencing promoted here from .claude/rules/db-schema.md (the rule file keeps the DROP warning, the pin step and the merge-window rule)",
           "docs/architecture/core/Tier-1-DB.md:1 (full read; header/status evaluated)",
           "re-attested at bba98a18b (#534): the regime-1 section gained the dev-db drop tripwire + backup-pin rider after the #533 data loss",
           "pnpm check:docs (2026-08-23: 104 file(s) formatted)",
@@ -2450,6 +2415,39 @@
       "receiptCurrent": true
     },
     {
+      "path": "docs/architecture/history/Core-STATUS-2026-07-13.md",
+      "lane": "architecture-history",
+      "issue": 3,
+      "lines": 40,
+      "bytes": 2903,
+      "sha256": "fb4adacb9092f461dbe46efe4503f240ba6f95b4e1948be5f58c3b62d9717828",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "history",
+          "status": "archived",
+          "updated": "2026-09-01"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/architecture/history/Core-STATUS-2026-07-13.md",
+        "assignedSha256": "fb4adacb9092f461dbe46efe4503f240ba6f95b4e1948be5f58c3b62d9717828",
+        "disposition": "archive",
+        "authority": "historical",
+        "fullRead": true,
+        "verifiedSha256": "fb4adacb9092f461dbe46efe4503f240ba6f95b4e1948be5f58c3b62d9717828",
+        "verifiedCommit": "c2bca04eefe45eb121678b921adfc02809ba9f42",
+        "verifiedAt": "2026-09-02",
+        "summary": "The frozen build-status cursor (ledger cursor D106, six-backend era) — archived by #1056; its rider had admitted the drift since 2026-07-13.",
+        "evidence": [
+          "archived at c2bca04ee (#1056): moved verbatim from docs/architecture/core/Core-STATUS.md with status: archived; the AGENTS.md §7 row dropped; frozen provenance, not live law"
+        ]
+      },
+      "receiptCurrent": true
+    },
+    {
       "path": "docs/architecture/history/D62-Prefold-Design-Enforcement-2026-07-05.md",
       "lane": "architecture-history",
       "issue": 3,
@@ -2941,6 +2939,39 @@
           "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
         ],
         "summary": "Historical architecture record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/architecture/history/agent-doctrine-accretion-2026-08.md",
+      "lane": "architecture-history",
+      "issue": 3,
+      "lines": 975,
+      "bytes": 77982,
+      "sha256": "9540ba7ee11447a70c41bd6dbbae38073f8aa4f9030400e26437367450909b4d",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "history",
+          "status": "archived",
+          "updated": "2026-09-01"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/architecture/history/agent-doctrine-accretion-2026-08.md",
+        "assignedSha256": "9540ba7ee11447a70c41bd6dbbae38073f8aa4f9030400e26437367450909b4d",
+        "disposition": "archive",
+        "authority": "historical",
+        "fullRead": true,
+        "verifiedSha256": "9540ba7ee11447a70c41bd6dbbae38073f8aa4f9030400e26437367450909b4d",
+        "verifiedCommit": "c2bca04eefe45eb121678b921adfc02809ba9f42",
+        "verifiedAt": "2026-09-02",
+        "summary": "The dated narrative removed from the always-loaded law by #1056 (doctrine §s 61-487, the pre-trim orchestration/lane-standing-facts/browser/db-schema bodies, §L) — VERBATIM in bare fences, each section headed with its former file:line range.",
+        "evidence": [
+          "archived at c2bca04ee (#1056, lane p-truth-p1): 963 lines / 78 KB of removed text, fenced so the doc formatter is idempotent over it (it mangles quoted backticks in loose markdown — memory doc-formatter-mangles-quoted-backticks); every demoted section left one rule line + a pointer in its law file; mapping table in the lane report on #1056"
+        ]
       },
       "receiptCurrent": true
     },
@@ -30651,6 +30682,156 @@
               {
                 "kind": "provenance",
                 "target": "git:53437ec8fee76bd7a0ff68328924c65d121dbbe7"
+              }
+            ]
+          }
+        ]
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/stickler/2026-09-02-motion-perf-mechanism-audit.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 394,
+      "bytes": 34892,
+      "sha256": "030f2ef984aaf6d535ced016b7cd55e168d560793c04f170f026416ff048ae91",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-02"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/stickler/2026-09-02-motion-perf-mechanism-audit.md",
+        "assignedSha256": "030f2ef984aaf6d535ced016b7cd55e168d560793c04f170f026416ff048ae91",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "030f2ef984aaf6d535ced016b7cd55e168d560793c04f170f026416ff048ae91",
+        "verifiedCommit": "c2bca04eefe45eb121678b921adfc02809ba9f42",
+        "verifiedAt": "2026-09-02",
+        "summary": "Stickler mechanism audit of the motion/perf instrument fleet vs Base UI 1.7.0 (docs + vendored source) and the house motion law (#1065, lane cb-motion-mechanism, static-only): 8 findings (three P2 lying-instrument class), a 20-row mechanism-match table, the vendored animating-component population, proposed fix rows.",
+        "evidence": [
+          "born-reviewed at c2bca04ee: full read by the primary orchestrator — §0 inventory, F1-F8 + L1-L3, the §2 table, §3 population, §4 verified-clean, §5 suspicions, §6 fix rows; claude-b filed the finding rows (#1069-#1072) and re-scoped #991"
+        ],
+        "claims": [
+          {
+            "claim": "The [anim] console flagger convicts guide-ratified motion (tabs indicator left/width glide, accordion/collapsible height lifecycle) because the #953 sanctioned-height allowance exists only on the motion-audit side.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#1069"
+              }
+            ]
+          },
+          {
+            "claim": "motion-audit's dirty-animation budget samples getAnimations() once at window end and is structurally blind to the 130-360ms band; __orb.flags() is checkpoint-scoped and read nowhere in tooling.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#1070"
+              }
+            ]
+          },
+          {
+            "claim": "The interaction-cell CLS budget gates on the input-excluded number and observedCls is never consumed by the tool — the false-PASS the collector's own header documents.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#1071"
+              }
+            ]
+          },
+          {
+            "claim": "#991's swipe-dismiss wedge is statically refuted (useAnimationsFinished resolves immediately on an empty population; the release path re-arms the transform transition); gesture-driven motion has no instrument coverage.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#991"
+              },
+              {
+                "kind": "issue",
+                "target": "#1072"
+              }
+            ]
+          }
+        ]
+      },
+      "receiptCurrent": true
+    },
+    {
+      "path": "docs/reviews/stickler/2026-09-02-uiaudit-orbui-mechanism-audit.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 259,
+      "bytes": 28838,
+      "sha256": "b716ccddae165f5b42a12b2234f37d747f3e4f41e36e2aecab4f161614283877",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "active",
+          "updated": "2026-09-01"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/stickler/2026-09-02-uiaudit-orbui-mechanism-audit.md",
+        "assignedSha256": "b716ccddae165f5b42a12b2234f37d747f3e4f41e36e2aecab4f161614283877",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "b716ccddae165f5b42a12b2234f37d747f3e4f41e36e2aecab4f161614283877",
+        "verifiedCommit": "c2bca04eefe45eb121678b921adfc02809ba9f42",
+        "verifiedAt": "2026-09-02",
+        "summary": "Stickler mechanism audit of the 54 in-scope ui-audit rules with @orb/ui as the oracle (#1064, lane cb-orbui-mechanism, static-only): 8 confirmed blind-class findings (F1 hover-contrast publishes a FALSE excluded on group-variant hover paint), 14 verified-MATCHED intersections, 0 overclaims, each shaped as a RULE-AUTHORING mechanism-match row.",
+        "evidence": [
+          "born-reviewed at c2bca04ee: full read by the primary orchestrator — the denominators, F1-F8 with both-side receipts, the 14 MATCHED rows, the unconfirmed probes, the scope statement; claude-b filed #1073-#1079 + decision #1080; memory hover-force-cannot-engage-group-variant-rules written"
+        ],
+        "claims": [
+          {
+            "claim": "The forced-state hover pass forces the painted element, so compiled group-variant rules never engage and the pair is published excluded(noHoverChange) — a false measurement claim the attribute twin already withholds by name.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#1073"
+              }
+            ]
+          },
+          {
+            "claim": "INTERACTIVE_SELECTOR omits textarea and summary, so Textarea/MacroTextarea/ToolCallBlock are invisible to tap-target, aria-name, duplicate-action-door and obscured-target while five sibling fleet vocabularies include both.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#1074"
+              }
+            ]
+          },
+          {
+            "claim": "selection-idiom vetoes any box-shadow containing 'inset', blinding it to the ratified inset-ring state channel; animated-img-hover is triple-blind to the MediaTileGrid group-hover:scale-105 idiom; mask-image paint and ECharts canvas ink have zero fleet handling.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#1075"
+              },
+              {
+                "kind": "issue",
+                "target": "#1076"
+              }
+            ]
+          },
+          {
+            "claim": "TARGET_VARIANT_ATTRS contributes nothing on house primitives (no data-variant/size/intent/tone stamping), so distinct tv() arms collapse into one authored-decision row — an owner fork.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#1080"
               }
             ]
           }

@@ -9,10 +9,11 @@
       "disposition": "current",
       "authority": "normative",
       "fullRead": true,
-      "verifiedSha256": "5232a88c20b6318a921e257d1feeda9878801e3a4779da791f76bd39da6720b6",
-      "verifiedCommit": "eb01a72ab3606bd78594074e1c1b89690078598e",
-      "verifiedAt": "2026-09-01",
+      "verifiedSha256": "d403d3fadb28e04041f9c4eb42f4253000fd04abed8a2b25111cf1498650f016",
+      "verifiedCommit": "c2bca04eefe45eb121678b921adfc02809ba9f42",
+      "verifiedAt": "2026-09-02",
       "evidence": [
+        "re-attested at c2bca04ee (#1056 Phase 1, lane p-truth-p1): header supersession map, §6 'open calls' and §8 archaeology moved to history (one §7 resolver row survives for the ~18 live AGENTS-n citations); §4 is the ONE full home of the #1029 pointer paragraph and the probe rule; Core-STATUS row dropped (archived to history)",
         "re-attested at eb01a72ab (#1055 Phase 0 truth repairs, lane p-truth-p0): §0.1.9/§7 recovery index → the board + orchestration.md + the onboard hook; §4 tier ladder → `pnpm verify --list`; §0 count dropped; §L.5 → worktree:bootstrap; §5.5 names the real enforcer",
         "delta re-verify 2026-09-01 (#1029, content commit b2b74c97343aa257aabed4ac61dd3ef39d39d128): §4's harness-artifacts bullet now states that reports/verify.json, reports/check-structure.json, reports/verify/<stage>.log and reports/test-report.json are `latest` POINTERS published atomically at completion by a run that writes only inside reports/runs/<instrument>/<checkout>-<pid>-<timestamp>/, and routes the layout to its one home (UNIFIED-VERIFICATION-DESIGN.md §3.3b). Re-derived against tooling/src/_shared/artifacts.ts:59-300 and the landed publishers.",
         "re-attested at b8eb66f00 — the CSS constitution pointer now distinguishes portable DTCG values from validated runtime CSS outputs while keeping the exact six-home law in client-architecture-lockdown.md §4",
@@ -443,24 +444,6 @@
       "summary": "Historical/parked record retained for provenance; assessed against its stated lifecycle rather than as current implementation law."
     },
     {
-      "path": "docs/architecture/core/Core-STATUS.md",
-      "assignedSha256": "cdbc3d0914c7c052ec6e2659bfc78ee325a58c96612890169f0e12863f500a62",
-      "disposition": "archive",
-      "authority": "historical",
-      "fullRead": true,
-      "verifiedSha256": "cdbc3d0914c7c052ec6e2659bfc78ee325a58c96612890169f0e12863f500a62",
-      "verifiedCommit": "bbecbfc78be417b6aab44609d3d4f0d484d8c87b",
-      "verifiedAt": "2026-08-31",
-      "evidence": [
-        "re-attested at bbecbfc78 — full-file read under #930; the D66 program reference is explicitly historical and carries no current lifecycle authority",
-        "docs/architecture/core/Core-STATUS.md:1 full read; current edit is a provenance/lifecycle or repaired historical citation, not present implementation authority",
-        "docs/architecture/core/Core-Path-Registry.md:523-533 (D139-D141 authority boundary)",
-        "git:68271889b1746b513defea44b0787bab7a89176f contains the exact archived blob",
-        "docs/architecture/core/Core-STATUS.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
-      ],
-      "summary": "Full-read historical artifact retained for provenance; relocated citations were semantically re-derived and it is not current work or implementation authority."
-    },
-    {
       "path": "docs/architecture/core/Core-Shared-Dissolution.md",
       "assignedSha256": "02cd1379fe114f3aa087a2ad831e9a7515c909c80cb18f252e12e983a1a0cdfb",
       "disposition": "archive",
@@ -797,10 +780,11 @@
       "disposition": "current",
       "authority": "current-reference",
       "fullRead": true,
-      "verifiedSha256": "ca786e243c8361e17e11463b6450c08684db603d03d7970d26113c45c24e4473",
-      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
-      "verifiedAt": "2026-08-30",
+      "verifiedSha256": "f9ecfa360252924f776170a07c37242b6170d9fa7bfef1e76a7d098ed53f4c31",
+      "verifiedCommit": "c2bca04eefe45eb121678b921adfc02809ba9f42",
+      "verifiedAt": "2026-09-02",
       "evidence": [
+        "re-attested at c2bca04ee (#1056): the baseline-squash mechanics + two-lane sequencing promoted here from .claude/rules/db-schema.md (the rule file keeps the DROP warning, the pin step and the merge-window rule)",
         "docs/architecture/core/Tier-1-DB.md:1 (full read; header/status evaluated)",
         "re-attested at bba98a18b (#534): the regime-1 section gained the dev-db drop tripwire + backup-pin rider after the #533 data loss",
         "pnpm check:docs (2026-08-23: 104 file(s) formatted)",
