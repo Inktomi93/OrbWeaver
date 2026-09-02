@@ -5,11 +5,12 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import type { SourceFile } from "ts-morph";
-import { Node } from "ts-morph";
+import { ts } from "ts-morph";
 import type { RatchetRow } from "../../_shared/ratchet-rows.ts";
 import { admissionFor, classNote, readBudgetRows } from "../../_shared/ratchet-rows.ts";
 import type { GateDescriptor } from "../contract/gate.ts";
 import type { Violation } from "../contract/harness.ts";
+import { forEachTriviaCarrier } from "../lib/comment-spans.ts";
 
 export const BASELINE_REL = "tooling/src/verify/gates/suppressions.baseline.json";
 const PACKAGE_SOURCE_RE = /^packages\/[^/]+\/src\/.*\.tsx?$/u;
@@ -267,20 +268,20 @@ export function suppressionSites(sf: SourceFile): SuppressionSite[] {
     // biome-ignore lint/suspicious/noUnnecessaryConditions: RULE_RE is stricter than detection, so a matched directive can still have no parsed rule.
     sites.push({ line, token: match[1] ?? match[0], rule: ruleMatch?.[1] ?? ruleMatch?.[2] ?? ruleMatch?.[3] ?? null });
   };
-  // getDescendants() (not forEachDescendant) — it includes token nodes (e.g. CloseBraceToken), which is
-  // where a same-block trailing suppression (an `else if` arm's last statement) actually attaches its
-  // comment range; forEachDescendant's traversal misses those token-only carriers.
-  for (const node of sf.getDescendants()) {
-    for (const range of node.getLeadingCommentRanges()) {
-      record(range.getPos(), range.getText());
+  // A TOKEN-carrier walk (never `forEachDescendant`): a same-block trailing suppression — an `else if`
+  // arm's last statement — attaches its comment range to a token node (a CloseBraceToken), and a node-only
+  // traversal misses those carriers entirely, in the permissive direction. `forEachTriviaCarrier` is that
+  // walk over RAW compiler nodes: the same carrier set and the same document order as the kind-less
+  // `getDescendants()` it replaced, without wrapping every token (#967).
+  const fullText = sf.getFullText();
+  forEachTriviaCarrier(sf, (node) => {
+    for (const range of [...(ts.getLeadingCommentRanges(fullText, node.pos) ?? []), ...(ts.getTrailingCommentRanges(fullText, node.end) ?? [])]) {
+      record(range.pos, fullText.slice(range.pos, range.end));
     }
-    for (const range of node.getTrailingCommentRanges()) {
-      record(range.getPos(), range.getText());
+    if (ts.isJsxExpression(node) && node.expression === undefined) {
+      record(node.pos, fullText.slice(node.getStart(sf.compilerNode), node.end));
     }
-    if (Node.isJsxExpression(node) && node.getExpression() === undefined) {
-      record(node.getPos(), node.getText());
-    }
-  }
+  });
   sites.sort((a, b) => a.line - b.line);
   return sites;
 }

@@ -221,7 +221,21 @@ interface EscapeMarker {
   consumed: boolean;
 }
 
+/** The ONESHOT-OK markers in one file, with the ts-morph node each is attached to — the report anchor, so
+ *  the finding stays node-anchored and `@orb-gate-ignore`-suppressible (GATE-AUTHORING.md §1).
+ *
+ *  THE CANDIDATE FENCE IS WHY THIS IS AFFORDABLE, and it is the same decision `comment-spans.ts`
+ *  `codeTextForScan` records: the walk below is the kind-less `getDescendants()`, which materialises a
+ *  ts-morph wrapper for every TOKEN in the file — and it has to be, because a marker written above a `}`
+ *  attaches to that token and `forEachDescendant` never reaches it (measured 2026-09-02: the node-only walk
+ *  loses 41 comment ranges across 20 real `*.ct.tsx`, in the PERMISSIVE direction — a blind escape
+ *  vocabulary, #967). So the fix is not a cheaper walk, it is not walking at all: a marker's own text must
+ *  appear literally in the raw file, so a file whose text lacks `ONESHOT-OK` cannot carry one and is
+ *  skipped. SOUND in one direction only — the fence may only ever SKIP work, never decide a verdict. */
 function escapeMarkers(sf: SourceFile): EscapeMarker[] {
+  if (!sf.getFullText().includes(ESCAPE)) {
+    return [];
+  }
   const seen = new Set<number>();
   const markers: EscapeMarker[] = [];
   for (const node of [sf, ...sf.getDescendants()]) {

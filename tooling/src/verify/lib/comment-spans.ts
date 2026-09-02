@@ -4,7 +4,7 @@
 // SAME LENGTH with comment characters replaced by spaces and newlines preserved, so a caller's
 // `split("\n")` line numbers and column offsets stay exact.
 import type { SourceFile } from "ts-morph";
-import { Project, ScriptKind, SyntaxKind } from "ts-morph";
+import { Project, ScriptKind, SyntaxKind, ts } from "ts-morph";
 
 const SPACE = " ";
 const CSS_COMMENT_CLOSE = "*/";
@@ -16,10 +16,10 @@ function blankRange(text: string, start: number, end: number): string {
 }
 
 /** Every comment span in a parsed TS/TSX file, blanked. Comments are TRIVIA: they attach as leading
- *  ranges of some token, and ts-morph's `getDescendants()` walks tokens (not just the `forEachChild`
- *  nodes), so a comment before a `)` / `}` / EOF is covered too — which a node-only walk misses. Using the
- *  real parse rather than a hand-rolled scanner is what keeps a `//` inside a string or a regex literal
- *  from being mistaken for a comment opener.
+ *  ranges of some TOKEN, so the walk behind this (`forEachTriviaCarrier`) visits tokens and not just the
+ *  `forEachChild` nodes — a comment before a `)` / `}` / EOF is covered too, which a node-only walk
+ *  misses. Using the real parse rather than a hand-rolled scanner is what keeps a `//` inside a string or
+ *  a regex literal from being mistaken for a comment opener.
  *
  *  BOTH SIDES, and the second one is not optional (issue #132): TypeScript classifies a comment on the
  *  SAME LINE as the code before it as TRAILING trivia of that node, and `getLeadingCommentRanges` never
@@ -40,19 +40,43 @@ export function blankTsComments(sf: SourceFile): string {
  *  project. Gates are read-only by contract, so a cached blanking cannot go stale under one. */
 const blanked = new WeakMap<SourceFile, string>();
 
+/** Visit EVERY trivia carrier in a file — the SourceFile, every node, and every TOKEN — in document
+ *  (pre-)order, as RAW compiler nodes. The ONE walk behind the blanker and the trivia-reading gates.
+ *
+ *  WHY TOKENS AND NOT `forEachDescendant`: a comment attaches as leading/trailing trivia of whatever token
+ *  follows or precedes it, and that is routinely a `)` / `}` / EOF that a node-only walk never reaches.
+ *  Measured 2026-09-02 over 1,712 real files (462 `*.ct.tsx` + 1,250 `packages/client/src`),
+ *  `forEachDescendant` lost 41 and 831 comment ranges respectively — in the PERMISSIVE direction, which is
+ *  the dangerous one (GATE-AUTHORING.md §5; issue #117 is the incident).
+ *
+ *  WHY RAW AND NOT ts-morph's kind-less `getDescendants()`: identical carrier set — `getDescendants()`
+ *  routes through this same `ExtendedParser.getCompilerChildren` path — minus the wrapper allocation for
+ *  every token, which is the entire cost. Same measurement, same 1,712 files: byte-identical comment-range
+ *  sets (0 lost, 0 extra) at 3,517ms to 192ms and 5,288ms to 122ms
+ *  (docs/reviews/research/2026-08-31-gate-pass-unified-walk.md §4, #967). */
+export function forEachTriviaCarrier(sf: SourceFile, visit: (node: ts.Node) => void): void {
+  const root = sf.compilerNode;
+  const walk = (node: ts.Node): void => {
+    visit(node);
+    for (const child of node.getChildren(root)) {
+      walk(child);
+    }
+  };
+  walk(root);
+}
+
 function blankTsCommentsUncached(sf: SourceFile): string {
   let text = sf.getFullText();
   const seen = new Set<number>();
   const spans: { readonly pos: number; readonly end: number }[] = [];
-  for (const node of [sf, ...sf.getDescendants()]) {
-    for (const range of [...node.getLeadingCommentRanges(), ...node.getTrailingCommentRanges()]) {
-      const pos = range.getPos();
-      if (!seen.has(pos)) {
-        seen.add(pos);
-        spans.push({ pos, end: range.getEnd() });
+  forEachTriviaCarrier(sf, (node) => {
+    for (const range of [...(ts.getLeadingCommentRanges(text, node.pos) ?? []), ...(ts.getTrailingCommentRanges(text, node.end) ?? [])]) {
+      if (!seen.has(range.pos)) {
+        seen.add(range.pos);
+        spans.push({ pos: range.pos, end: range.end });
       }
     }
-  }
+  });
   // Descending so an earlier blank can never move a later span's offsets (lengths are preserved anyway;
   // the order makes that independent of the invariant).
   for (const span of spans.sort((a, b) => b.pos - a.pos)) {
