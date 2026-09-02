@@ -18,6 +18,16 @@
 // LOUD (throws ⇒ a ToolError attributed to the calling gate, exit 2) on every other shape, on an
 // unresolvable binding, and on a cycle. Columns keep their DECLARING node, so a gate's finding lands on the
 // column's real home rather than on the table that composed it.
+//
+// EVERY MEMBER KIND IS ANSWERED, NONE IS SKIPPED (#1035). The first cut accepted PropertyAssignment and
+// SpreadAssignment and silently DROPPED the rest, so one editor refactor — `const ownerId = text("owner_id")
+// .references(...); sqliteTable("x", { id, ownerId })` — made `fk-columns-indexed` green where the
+// byte-identical inline column REDs, with no alarm anywhere (v-gates, measured: resolvedColumns 3 -> 2).
+// SHORTHAND resolves through the same local/imported binding an identifier does; a COMPUTED key resolves
+// when its expression is a string literal; every other member kind, an unresolvable shorthand, a
+// non-literal computed key, and a binding that resolves to ZERO columns REFUSE. The columns are also
+// declared as a #946 POPULATION, so an empty or shrinking set is loud at the entrypoint even if some future
+// shape slips the refusals.
 import type { CallExpression, Node, ObjectLiteralExpression, Project, PropertyAssignment, SourceFile, VariableDeclaration } from "ts-morph";
 import { SyntaxKind, Node as TsNode } from "ts-morph";
 
@@ -32,12 +42,20 @@ const SCHEMA_BARREL_SUFFIX = "/schema/index.ts";
 /** How many characters of an unsupported columns expression the refusal quotes. */
 const DIAGNOSTIC_PREVIEW_CHARS = 120;
 
-/** One column property of the columns object literal. `text` is the whole `text("x")…` builder chain — the
- *  modifiers (`.references(`/`.primaryKey(`/`.unique(`) are read off it. */
+/** One RESOLVED column of a `sqliteTable(...)` columns object — the reader's member record, whatever
+ *  authoring shape declared it (an inline property, a shorthand pointing at a const, a computed literal
+ *  key, or a member spread in from another object). */
 export interface SchemaColumn {
+  /** The column's KEY as drizzle sees it — a shorthand's binding name, a computed key's literal value. */
   readonly name: string;
-  readonly node: PropertyAssignment;
+  /** Where a consumer REPORTS: the property itself, or (for a shorthand) the binding that declares it, so
+   *  the finding lands where the fix goes. */
+  readonly node: Node;
+  /** The whole `text("x")…` builder chain — the modifiers (`.references(`/`.primaryKey(`/`.unique(`) are
+   *  read off it. Empty when the member has no initializer to read. */
   readonly text: string;
+  /** The builder EXPRESSION, for the consumers that walk the call chain rather than its text. */
+  readonly initializer: Node | undefined;
 }
 
 /** One `sqliteTable(...)` declaration. */
@@ -59,11 +77,27 @@ function schemaSources(project: Project): SourceFile[] {
 
 /** The resolved schema POPULATION as a gate scan declaration: how many tables the schema sources yield and
  *  how many columns those tables actually RESOLVED to. A denominator that collapsed behind an imported
- *  columns object is then visible on the consuming gate's own row instead of reading as a clean ✓ (#945). */
-export function schemaScan(project: Project): { readonly unit: string; readonly candidates: number; readonly scanned: number } {
+ *  columns object is then visible on the consuming gate's own row instead of reading as a clean ✓ (#945),
+ *  and the COLUMNS ride the #946 `population` receipt so an empty set is refused at the entrypoint rather
+ *  than merely printed (#1035 — the reader's refusals are the first wall, this is the backstop).
+ *
+ *  `_shared` is the plumbing floor BELOW `verify`, so the return shape is spelled STRUCTURALLY rather than
+ *  imported from the gate contract — an upward import would invert the tooling layering. It is assignable
+ *  to `GateScanDeclaration` by construction, and `ctx.scan(schemaScan(project))` is where tsc proves it. */
+export function schemaScan(project: Project): {
+  readonly unit: string;
+  readonly candidates: number;
+  readonly scanned: number;
+  readonly population: readonly { readonly source: string; readonly members: number }[];
+} {
   const tables = schemaSources(project).flatMap((sf) => schemaTables(sf));
   const columns = tables.reduce((total, table) => total + table.columns.length, 0);
-  return { unit: `schema table [tables=${tables.length} resolvedColumns=${columns}]`, candidates: tables.length, scanned: tables.length };
+  return {
+    unit: `schema table [tables=${tables.length} resolvedColumns=${columns}]`,
+    candidates: tables.length,
+    scanned: tables.length,
+    population: [{ source: "drizzle columns", members: columns }],
+  };
 }
 
 /** Is this repo-relative path a table-bearing schema SOURCE (the barrel is re-exports only)? */
@@ -121,7 +155,14 @@ function objectLiteralFor(expression: Node, seen: ReadonlySet<string>): ObjectLi
   if (initializer === undefined) {
     throw new Error(`schema-read: columns binding ${key} has no initializer`);
   }
-  return objectLiteralFor(initializer, new Set([...seen, key]));
+  const resolved = objectLiteralFor(initializer, new Set([...seen, key]));
+  // A binding hop that lands on an EMPTY object is the silent-shrink shape wearing a resolution: the table
+  // would read as owing nothing at all. An INLINE `sqliteTable("x", {})` is a different claim (an authored
+  // empty table, which the table gates already fail closed on) and stays readable (#1035).
+  if (resolved.getProperties().length === 0) {
+    throw new Error(`schema-read: columns binding ${key} resolves to an EMPTY object — the table's column set cannot be established`);
+  }
+  return resolved;
 }
 
 /** The `sqliteTable(…)` columns argument as an object literal, resolved through local/imported bindings.
@@ -130,30 +171,82 @@ export function resolveColumnsObject(columnsArg: Node | undefined): ObjectLitera
   return columnsArg === undefined ? undefined : objectLiteralFor(columnsArg, new Set());
 }
 
-/** Every column PropertyAssignment of a resolved columns object, flattening object spreads (`{...base, x}`)
- *  into the same list. Each property keeps its own declaring node, so a consumer reports at the column's
- *  real home. */
-export function columnProperties(columnsArg: Node | undefined): PropertyAssignment[] {
+/** A property's KEY: its written name, or — for a COMPUTED key — the string literal it evaluates to. A
+ *  computed key whose expression is not a literal cannot be named, and naming it `[k]` (what `getName()`
+ *  returns) would hand every consumer a column that matches nothing: refuse instead. */
+function propertyKey(prop: PropertyAssignment): string {
+  const nameNode = prop.getNameNode();
+  if (!TsNode.isComputedPropertyName(nameNode)) {
+    return prop.getName();
+  }
+  const expression = unwrap(nameNode.getExpression());
+  if (TsNode.isStringLiteral(expression) || TsNode.isNoSubstitutionTemplateLiteral(expression)) {
+    return expression.getLiteralText();
+  }
+  throw new Error(
+    `schema-read: computed column key in ${prop.getSourceFile().getFilePath()} is not a string literal: ${nameNode.getText().slice(0, DIAGNOSTIC_PREVIEW_CHARS)}`,
+  );
+}
+
+/** A SHORTHAND member (`{ id, ownerId }`) is the same column one hop away: resolve the binding it names —
+ *  local or imported, the same hop an identifier columns object takes — and report at THAT declaration. An
+ *  unresolvable shorthand refuses; before #1035 it was dropped, and the column's whole obligation with it. */
+function shorthandColumn(prop: Node): SchemaColumn {
+  const name = prop.asKindOrThrow(SyntaxKind.ShorthandPropertyAssignment).getName();
+  const declaration = bindingFor(prop.getSourceFile(), name);
+  if (declaration === undefined) {
+    throw new Error(`schema-read: shorthand column "${name}" in ${prop.getSourceFile().getFilePath()} resolves to no local declaration or named import`);
+  }
+  const initializer = declaration.getInitializer();
+  if (initializer === undefined) {
+    throw new Error(`schema-read: shorthand column "${name}" resolves to ${declaration.getSourceFile().getFilePath()}#${name}, which has no initializer`);
+  }
+  return { name, node: declaration, text: initializer.getText(), initializer };
+}
+
+/** Every RESOLVED column of a columns object, flattening object spreads (`{...base, x}`) into one list.
+ *  ANSWERS every member kind: an inline property, a computed literal key, a shorthand (through its
+ *  binding), a spread (recursively) — and REFUSES on anything else, because a member this reader cannot
+ *  establish must never leave the set quietly (#1035). */
+export function columnProperties(columnsArg: Node | undefined): readonly SchemaColumn[] {
   const object = resolveColumnsObject(columnsArg);
   if (object === undefined) {
     return [];
   }
-  const properties: PropertyAssignment[] = [];
+  const columns: SchemaColumn[] = [];
   for (const prop of object.getProperties()) {
     if (prop.isKind(SyntaxKind.PropertyAssignment)) {
-      properties.push(prop);
+      const initializer = prop.getInitializer();
+      columns.push({ name: propertyKey(prop), node: prop, text: initializer?.getText() ?? "", initializer });
+      continue;
+    }
+    if (prop.isKind(SyntaxKind.ShorthandPropertyAssignment)) {
+      columns.push(shorthandColumn(prop));
       continue;
     }
     if (prop.isKind(SyntaxKind.SpreadAssignment)) {
-      properties.push(...columnProperties(prop.getExpression()));
+      const spread = columnProperties(prop.getExpression());
+      if (spread.length === 0) {
+        throw new Error(
+          `schema-read: columns spread "${prop.getExpression().getText().slice(0, DIAGNOSTIC_PREVIEW_CHARS)}" in ${prop.getSourceFile().getFilePath()} resolved to zero columns`,
+        );
+      }
+      columns.push(...spread);
+      continue;
     }
+    throw new Error(
+      `schema-read: unsupported columns member kind ${prop.getKindName()} in ${prop.getSourceFile().getFilePath()}: ${prop.getText().slice(0, DIAGNOSTIC_PREVIEW_CHARS)}`,
+    );
   }
-  return properties;
+  if (columns.length === 0 && object.getProperties().length > 0) {
+    throw new Error(`schema-read: columns object in ${object.getSourceFile().getFilePath()} has members but resolved to ZERO columns`);
+  }
+  return columns;
 }
 
-/** The columns object literal's property assignments, read into `SchemaColumn`s. */
-function columnsOf(columnsArg: Node | undefined): SchemaColumn[] {
-  return columnProperties(columnsArg).map((prop) => ({ name: prop.getName(), node: prop, text: prop.getInitializer()?.getText() ?? "" }));
+/** The columns object literal's members, read into `SchemaColumn`s. */
+function columnsOf(columnsArg: Node | undefined): readonly SchemaColumn[] {
+  return columnProperties(columnsArg);
 }
 
 /** The `sqliteTable(...)` initializer of a variable declaration, or undefined. */
