@@ -2763,7 +2763,7 @@
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::default:catch::1",
       "path": "packages/server/src/entry/compose/chat.ts",
-      "line": 973,
+      "line": 977,
       "column": 9,
       "grammar": "default",
       "position": "default:catch",
@@ -2771,12 +2771,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "FAIL-CLOSED — documented above: a gone card fail-closes to `[]` rather than throwing into the member-card read. Ends if a gone card needs to surface distinctly from an infra failure.",
-      "markerLine": 969
+      "markerLine": 973
     },
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::empty:catch::1",
       "path": "packages/server/src/entry/compose/chat.ts",
-      "line": 920,
+      "line": 924,
       "column": 9,
       "grammar": "empty",
       "position": "empty:catch",
@@ -2784,12 +2784,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "best-effort cleanup — the trailing comment",
-      "markerLine": 903
+      "markerLine": 907
     },
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::empty:catch::2",
       "path": "packages/server/src/entry/compose/chat.ts",
-      "line": 1006,
+      "line": 1010,
       "column": 9,
       "grammar": "empty",
       "position": "empty:catch",
@@ -2797,12 +2797,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "FAIL-CLOSED — the comment block above states",
-      "markerLine": 995
+      "markerLine": 999
     },
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::empty:catch::3",
       "path": "packages/server/src/entry/compose/chat.ts",
-      "line": 1043,
+      "line": 1047,
       "column": 11,
       "grammar": "empty",
       "position": "empty:catch",
@@ -2810,12 +2810,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "optional-read-as-absent — a persona/handle",
-      "markerLine": 1035
+      "markerLine": 1039
     },
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::empty:err::1",
       "path": "packages/server/src/entry/compose/chat.ts",
-      "line": 751,
+      "line": 755,
       "column": 9,
       "grammar": "empty",
       "position": "empty:err",
@@ -2823,7 +2823,7 @@
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "narrow rethrow — documented below: only a",
-      "markerLine": 746
+      "markerLine": 750
     },
     {
       "siteId": "packages/server/src/entry/compose/chat.ts::promise:runChatTurn::1",
