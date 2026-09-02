@@ -10985,6 +10985,114 @@
       "receiptCurrent": true
     },
     {
+      "path": "docs/design/1238-plugin-distribution.md",
+      "lane": "design",
+      "issue": 5,
+      "lines": 108,
+      "bytes": 26666,
+      "sha256": "98e67c7d343b70208ee41a66f3a9794dead2069f2a0bb7453931df1753878474",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "design",
+          "status": "draft",
+          "updated": "2026-09-02"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/design/1238-plugin-distribution.md",
+        "assignedSha256": "98e67c7d343b70208ee41a66f3a9794dead2069f2a0bb7453931df1753878474",
+        "disposition": "current",
+        "authority": "design",
+        "fullRead": true,
+        "verifiedSha256": "98e67c7d343b70208ee41a66f3a9794dead2069f2a0bb7453931df1753878474",
+        "verifiedCommit": "fe7e41eed47b0c25da3fb215c05b7cb1b0f976b1",
+        "verifiedAt": "2026-09-02",
+        "claims": [
+          {
+            "claim": "The teaching plugins live in the server package's entry tier and their guest .js sources are typechecked by NO program (allowJs is false repo-wide); only the SDK mirror is pinned, and the seeds ride the image's whole-src copy — the rot and reachability the ruling names are structural.",
+            "evidence": [
+              {
+                "kind": "code",
+                "target": "packages/server/src/entry/boot/seed-example-plugins.ts:42"
+              },
+              {
+                "kind": "code",
+                "target": "tsconfig.base.json:72"
+              },
+              {
+                "kind": "code",
+                "target": "packages/server/src/entry/boot/seed-assets/index.ts:82"
+              },
+              {
+                "kind": "test",
+                "target": "tests/contracts/plugin/host-v1.test-d.ts:1"
+              }
+            ]
+          },
+          {
+            "claim": "The bundle-validate funnel is source-agnostic by design and the origin axis is additive — every new door is a byte source for the ONE funnel, never a second install path, and a URL-carrying git origin passes the existing db CHECK unchanged.",
+            "evidence": [
+              {
+                "kind": "code",
+                "target": "packages/contracts/src/plugin/lifecycle.ts:7"
+              },
+              {
+                "kind": "code",
+                "target": "packages/server/src/domain/plugin/substrate/manifest.ts:2"
+              },
+              {
+                "kind": "code",
+                "target": "packages/db/src/schema/plugin.ts:113"
+              }
+            ]
+          },
+          {
+            "claim": "The authority and consent model is settled and reused unchanged: per-user install under the caller, deployment-wide as the admin fan-out of per-user consent-first rows, enable as the second explicit act — no door in this design adds a consent surface.",
+            "evidence": [
+              {
+                "kind": "ruling",
+                "target": "D147"
+              },
+              {
+                "kind": "code",
+                "target": "packages/server/src/domain/plugin/substrate/distribution.ts:5"
+              }
+            ]
+          },
+          {
+            "claim": "The doors reuse live machinery: the FolderPicker primitive and the client-side fflate bundle reader exist, and the URL-install verb family (preview/install/upgrade-from-stored/check-for-updates) is the template the git family mirrors.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#1238"
+              },
+              {
+                "kind": "code",
+                "target": "packages/ui/src/primitives/file-dropzone/folder-picker.tsx:20"
+              },
+              {
+                "kind": "code",
+                "target": "packages/client/src/features/plugin/lib/plugin-bundle.ts:29"
+              },
+              {
+                "kind": "code",
+                "target": "packages/server/src/domain/plugin/verbs/install-from-url.ts:23"
+              }
+            ]
+          }
+        ],
+        "summary": "The #1238 distribution design (lane cb-plugin-dist-design, forge, 2026-09-02): the teaching set becomes @orb/showcase-plugins under packages/* (server-dep, node-resolved seeding — no image-copy mechanism, per the owner's container ruling), guest sources enter a checkJs type program against the published host-v1.d.ts, and three doors land on the one funnel: dev-gated load-unpacked, client-packed folder upload, and install-from-git via an infra/git adapter (isomorphic-git over the egress-guarded transport, ephemeral clone, git origin + source_commit receipt). Owner rulings recorded verbatim incl. disclaimer-text-no-extra-click; three forks with defaults; three build lanes dispatched from section 9.",
+        "evidence": [
+          "authored born-reviewed by the designing lane at fe7e41eed: full reads of the plugin domain's install/upgrade/url-verb family, the substrate funnel, the seeder + packer, the contracts manifest/lifecycle homes, the db CHECKs, the client install card + bundle reader, and the SillyTavern reference (src/endpoints/extensions.js install/update/branches flow) — receipts inline in the doc",
+          "owner rulings 2026-09-02 quoted verbatim in the doc's commission block (new package; no forced zips; app-does-the-clone; disclaimer text without a separate click; no container-build asset moving)"
+        ]
+      },
+      "receiptCurrent": true
+    },
+    {
       "path": "docs/design/885-884-boundary-reservation-and-touch-floor.md",
       "lane": "design",
       "issue": 5,
