@@ -7,11 +7,25 @@
 //
 // The mode/focus SPACES below are the full set of resolved values a panel/the focus flag can ever render
 // as (`PanelMode`/`useShellLayout.ts`'s `focusMode`) — not a claim about which are reachable from the
-// active section. EXCLUDED is reserved for a PROVEN inapplicability: no shell mounted at all
-// (`__orb.shell()` itself already states it — `section: null`, `panels: []`, the landing/auth screen or a
-// boot still in flight). A section's PER-PANE availability (`ShellLayout.listAvailable`/`contextAvailable`,
-// `use-shell-layout.ts`) is NOT reachable from here — it lives in a React context this probe never reads —
-// so every unvisited MODE on a MOUNTED shell is WITHHELD, never guessed into excluded.
+// active section. EXCLUDED is reserved for a PROVEN inapplicability, never a guess.
+//
+// THE RULING SURVIVES — ITS INPUT CHANGED (#1122). The original ruling read: "A section's PER-PANE
+// availability (`ShellLayout.listAvailable`/`contextAvailable`, `use-shell-layout.ts`) is NOT reachable
+// from here — it lives in a React context this probe never reads — so every unvisited MODE on a MOUNTED
+// shell is WITHHELD, never guessed into excluded." The MECHANISM (excluded requires proof) is untouched;
+// what changed is that the proof now exists: the shell PUBLISHES the active section's declaration as
+// `data-panel-available` (`panel-chrome.tsx`, fed by the same `layout.listAvailable`/`contextAvailable`
+// the app-shell renders from), `__orb.shell()` carries it on every panel row, and an absent declaration
+// is an exit-2 refusal (`ops/page-validate.ts`), not a default. So the two PROVEN exclusion arms are now:
+//   • no shell mounted at all (`section: null`, `panels: []` — the landing/auth screen, or a boot in
+//     flight) — the whole surface-state dimension is inapplicable;
+//   • the ACTIVE SECTION declares the pane unavailable (`available: false`) — no mode in that pane's space
+//     is reachable on this surface by any arm, which is exactly what `--panels both-docked` already
+//     refused loudly about while this census called the same fact WITHHELD.
+// FOCUS follows the panes: focus mode IS "hide every panel", and `fullscreen-chrome.tsx` does not render
+// the toggle at all when `anyPanelAvailable` is false — so a section declaring BOTH panes unavailable
+// excludes the focus axis too, while one available pane leaves it WITHHELD.
+// Everything else on a mounted shell is still WITHHELD, never guessed into excluded.
 import type { RelationalCensusAccountingInput } from "./samples-populations.ts";
 
 /** The full resolved-mode space a side panel can render as (`PanelMode`, `#state`). `"overlay"` is a

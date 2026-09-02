@@ -10,6 +10,35 @@ const BLOCKING_BUDGET_MS = 50;
 const FIRST_SELECT_BLOCKING_ALLOWANCE_MS = 140;
 export const CLS_BUDGET = 0.1;
 export const DROPPED_FRAME_BUDGET_PCT = 5;
+/** Percentage-point base — one place, so the floor below and the report's per-frame weight agree. */
+export const PERCENT = 100;
+
+/** THE FRAME-POPULATION RESOLUTION FLOOR (#1127 I3) — DERIVED from the budget above, never a chosen
+ *  number: at `total` frames one dropped frame is worth `100/total` percentage points, so below
+ *  `100 / DROPPED_FRAME_BUDGET_PCT` frames a SINGLE frame already exceeds the entire budget and the
+ *  percentage stops separating "this surface drops frames" from "one frame slipped".
+ *
+ *  It exists because the % is a DENOMINATOR ARTEFACT on any suppressed-motion cell, measured on the live
+ *  app 2026-09-02 (`--matrix`, side-eye retraction R-2): v02 `appReducedMotion` read `30.77% of 13` and
+ *  v03 `osReducedMotion` `36.36% of 11`, against full-motion twins at `5.45% of 55` and `3.39% of 59`.
+ *  The motion is suppressed BY DESIGN there, so the population collapses and four slow frames become a
+ *  third of the run — a reader who saw only the percentages filed a P1 that the twins refuted. The twin
+ *  machinery caught it; a lone cell has no twin, so the collapse is stated on the cell's own line. */
+export const FRAME_POPULATION_RESOLUTION_FLOOR = Math.ceil(PERCENT / DROPPED_FRAME_BUDGET_PCT);
+/** A rate needs two observations to be a rate. Below this the % is not small — it does not exist. */
+export const RATE_MINIMUM_POPULATION = 2;
+
+/** How much this run's frame population can support. `uncomputable` — a rate needs two frames to be a
+ *  rate at all, so `0% of 1` is a smoothness claim over nothing; `collapsed` — computable but below the
+ *  resolution floor, so the number is real and the VERDICT it looks like is not; `verdict` — the
+ *  ordinary case. `total === 0` never reaches here: it is already a hard evidence gap (lib/evidence.ts). */
+export function framePopulationBasis(total: number): "uncomputable" | "collapsed" | "verdict" {
+  if (total < RATE_MINIMUM_POPULATION) {
+    return "uncomputable";
+  }
+  return total < FRAME_POPULATION_RESOLUTION_FLOOR ? "collapsed" : "verdict";
+}
+
 const RELATED_REACT_SCRIPT_PATH = /\/node_modules\/(?:\.vite\/deps\/)?react(?:-dom)?(?:[./_-]|$)/u;
 
 /** The three CLS numbers a report must show. Split from `report` so the verdict rule is unit-testable

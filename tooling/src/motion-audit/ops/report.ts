@@ -6,7 +6,7 @@ import type { EvidenceGap } from "@orb/tooling/_shared/evidence";
 import { INSTRUMENT_ERROR_VERDICT, printEvidenceGaps, printVerdict } from "@orb/tooling/_shared/evidence";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import type { AnimationRecord, Args, AuditData, LoafRecord, MotionFlagRecord, ReachAction } from "../contract/types.ts";
+import type { AnimationRecord, Args, AuditData, FrameTotals, LoafRecord, MotionFlagRecord, ReachAction } from "../contract/types.ts";
 import { animationTotals } from "../lib/animations.ts";
 import { CPU_THROTTLE_RATE } from "../lib/budgets.ts";
 import { motionEvidenceGaps } from "../lib/evidence.ts";
@@ -18,10 +18,14 @@ import {
   clsTotals,
   confirmedSelectEntrance,
   DROPPED_FRAME_BUDGET_PCT,
+  FRAME_POPULATION_RESOLUTION_FLOOR,
+  framePopulationBasis,
   hasUnrelatedScriptAttribution,
   loafOverBudget,
   loafTotals,
   observedClsTotals,
+  PERCENT,
+  RATE_MINIMUM_POPULATION,
 } from "../lib/verdicts.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm motion-audit");
@@ -144,6 +148,30 @@ function pct(value: number | null): string {
   return value === null ? "n/a" : `${value}%`;
 }
 
+/** ONE DROPPED-FRAME NUMBER, WITH THE POPULATION IT WAS COMPUTED OVER (#1127 I3). A percentage printed
+ *  bare is read as a verdict; over a COLLAPSED population it is a denominator artefact, and over a
+ *  single frame it is not a rate at all. `verdicts.ts` owns the classification and derives its floor
+ *  from the budget — this only renders it, and it always prints the denominator so the reader never has
+ *  to go find it on another line. */
+/** The same fact as a SINGLE token, for the space-joined RESULT line. An UNCOMPUTABLE population reports
+ *  `n/a` rather than the arithmetic `0%`: a reader quoting one cell out of a --matrix sweep must not be
+ *  handed a smoothness number computed over one frame. A COLLAPSED population keeps its percentage — the
+ *  number is real — and `frames-population-*` beside it says what it can support. */
+function droppedFrameToken(totals: FrameTotals): string {
+  return framePopulationBasis(totals.total) === "uncomputable" ? "n/a" : pct(totals.pct);
+}
+
+function droppedFrameText(totals: FrameTotals): string {
+  const basis = framePopulationBasis(totals.total);
+  if (basis === "uncomputable") {
+    return `n/a (${totals.total} frame${totals.total === 1 ? "" : "s"} — a rate needs at least ${RATE_MINIMUM_POPULATION})`;
+  }
+  const measured = `${pct(totals.pct)} of ${totals.total}`;
+  return basis === "collapsed"
+    ? `${measured} (POPULATION COLLAPSED below ${FRAME_POPULATION_RESOLUTION_FLOOR} — one frame is worth ${(PERCENT / totals.total).toFixed(2)}pp against a ${DROPPED_FRAME_BUDGET_PCT}% budget, so this is not a frames verdict)`
+    : measured;
+}
+
 function viewportText(viewport: { readonly width: number; readonly height: number } | null): string {
   return viewport === null ? "unavailable" : `${viewport.width}x${viewport.height}`;
 }
@@ -255,7 +283,7 @@ export function report(url: string, opts: Args, data: AuditData): number {
   );
   printCls(motion, data.measuredInput);
   print(
-    `frames      raw ${frames.raw.dropped}/${frames.raw.total} dropped (${pct(frames.raw.pct)}) · Select entrance ${frames.classified.dropped}/${frames.classified.total} classified · budgeted ${frames.budgeted.dropped}/${frames.budgeted.total} (${pct(frames.budgeted.pct)})`,
+    `frames      raw ${frames.raw.dropped}/${frames.raw.total} dropped (${droppedFrameText(frames.raw)}) · Select entrance ${frames.classified.dropped}/${frames.classified.total} classified · budgeted ${frames.budgeted.dropped}/${frames.budgeted.total} (${droppedFrameText(frames.budgeted)})`,
   );
   printAnimations(data);
   for (const l of layoutInFrame) {
@@ -293,9 +321,16 @@ export function report(url: string, opts: Args, data: AuditData): number {
       // The measured interaction never happened — invisible in the machine line before #409, so a FAIL
       // over all-zero budgets was unattributable.
       ["step-failed", stepFailed ? 1 : 0],
-      ["dropped-frames-raw", pct(frames.raw.pct)],
+      ["dropped-frames-raw", droppedFrameToken(frames.raw)],
       ["dropped-frames-classified", frames.classified.dropped],
-      ["dropped-frames", pct(frames.budgeted.pct)],
+      ["dropped-frames", droppedFrameToken(frames.budgeted)],
+      // #1127 I3: WHAT THE PERCENTAGES ABOVE CAN SUPPORT, as its own single-token declare — the RESULT
+      // line is space-joined `k=v`, so the human `frames` line carries the prose and this carries the
+      // fact a machine (or a reader quoting a cell out of a `--matrix` sweep) needs to not read a
+      // denominator artefact as a smoothness verdict. Both populations, because the exemption can
+      // collapse `budgeted` while `raw` still resolves.
+      ["frames-population-raw", framePopulationBasis(frames.raw.total)],
+      ["frames-population-budgeted", framePopulationBasis(frames.budgeted.total)],
       ["worst-blocking-raw", `${loaf.rawWorstBlocking}ms`],
       ["first-select-entrances", loaf.classifiedInitializations],
       ["worst-blocking-budgeted", `${loaf.budgetedWorstBlocking}ms`],

@@ -169,6 +169,14 @@ export function __installAgentDebugHandleForTest(queryClient: QueryClient, handl
   installAgentDebugHandleImpl(queryClient, handles);
 }
 
+/** `data-panel-available` → the tri-state a reader needs: the declaration, or `null` for "the shell did
+ *  not publish one". Never defaults to `true`: a missing declare that read as "available" would be the
+ *  exact silent-guess this attribute exists to end. */
+function panelAvailability(panel: Element): boolean | null {
+  const declared = panel.getAttribute("data-panel-available");
+  return declared === null ? null : declared === "true";
+}
+
 function installAgentDebugHandleImpl(queryClient: QueryClient, handles: OrbAgentHandles): void {
   installAnimationLifecycleRecorder();
   installMotionObservers();
@@ -179,6 +187,11 @@ function installAgentDebugHandleImpl(queryClient: QueryClient, handles: OrbAgent
     panels: [...document.querySelectorAll(".shell-panel")].map((p) => ({
       side: p.getAttribute("data-panel-side"),
       mode: p.getAttribute("data-panel-mode"),
+      // The section's PANE DECLARATION, not a resolved mode: an unavailable pane and a merely-collapsed
+      // one both render `data-panel-mode="collapsed"`, and every probe outside React could only guess
+      // between them (#1122). `null` = the attribute was absent, which readers must treat as a broken
+      // publish rather than as "unavailable".
+      available: panelAvailability(p),
     })),
     chatOpen: document.querySelectorAll('[role="article"]').length > 0,
     focus: document.querySelector(".shell-grid")?.getAttribute("data-focus-mode") === "true",

@@ -4394,6 +4394,15 @@ test("a section with NO panes ships NO panel chrome: no list toggle, no detail-p
   // parked off-screen behind a toggle nothing can reach).
   await expect(page.locator('.shell-panel[data-panel-side="context"]')).toHaveAttribute("data-panel-mode", "collapsed");
   await expect(page.locator('.shell-panel[data-panel-side="context"] .shell-panel-body')).toBeEmpty();
+  // …AND THE SECTION'S DECLARATION IS PUBLISHED, not merely obeyed (#1122). An unavailable pane and a
+  // merely-collapsed one render the SAME `data-panel-mode="collapsed"`, so every probe outside React could
+  // only guess between them: `agent-nav/panel-request.ts` infers it from a write that failed to land ("the
+  // active section LIKELY declares no pane"), and design-audit's SURFACE-AXIS census had to call a
+  // structurally-unreachable mode WITHHELD — publishing three NO-VERDICT axes no arm can close, beside
+  // `population-verdict=complete`. `data-panel-available` is that declaration, read straight off
+  // `layout.listAvailable`/`contextAvailable`; the DOCKED-section test below is its positive control.
+  await expect(page.locator('.shell-panel[data-panel-side="list"]')).toHaveAttribute("data-panel-available", "false");
+  await expect(page.locator('.shell-panel[data-panel-side="context"]')).toHaveAttribute("data-panel-available", "false");
 });
 
 test("a section WITH panes still ships both toggles — the gate is per-section capability, not a global removal", async ({ mount }) => {
@@ -4402,6 +4411,10 @@ test("a section WITH panes still ships both toggles — the gate is per-section 
   await expect(shell.getByRole("button", { name: LIST_TOGGLE_RE })).toBeVisible();
   await expect(shell.getByRole("button", { name: CONTEXT_TOGGLE_RE })).toBeVisible();
   await expect(shell.getByRole("button", { name: FOCUS_TOGGLE_RE })).toBeVisible();
+  // The #1122 control in the other polarity: a section that DOES declare its panes publishes `true`, so
+  // "false everywhere" cannot pass on a tree where the attribute was hardcoded or dropped.
+  await expect(shell.locator('.shell-panel[data-panel-side="list"]')).toHaveAttribute("data-panel-available", "true");
+  await expect(shell.locator('.shell-panel[data-panel-side="context"]')).toHaveAttribute("data-panel-available", "true");
 });
 
 test("MOBILE: a collapsed drawer is the FULL viewport wide and entirely off-screen — never a dead slab over content", async ({ mount, page }) => {

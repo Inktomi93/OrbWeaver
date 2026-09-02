@@ -81,6 +81,11 @@ test("the mounted bridge publishes every typed capability and every evidence lif
       allAnswer: Object.values(answers).every(Boolean),
       descriptions: Object.values(capabilities),
       rings: orb.rings(),
+      // #1122: the panel rows carry the section's PANE DECLARATION, tri-state. An UNDECLARED row reads
+      // `null` and NEVER `true` — a defaulted declaration is exactly the silent guess design-audit's
+      // SURFACE-AXIS census used to make (calling a structurally unreachable mode WITHHELD instead of
+      // EXCLUDED), and `null` is what lets the instrument refuse the run instead.
+      panelDeclarations: orb.shell().panels.map((panel) => ({ side: panel.side, available: panel.available })),
     };
   });
   await expect
@@ -91,6 +96,7 @@ test("the mounted bridge publishes every typed capability and every evidence lif
       capabilityCount: receipt.capabilityKeys.length,
       descriptionsPresent: receipt.descriptions.every((description) => description.trim().length > 0),
       rings: receipt.rings,
+      panelDeclarations: receipt.panelDeclarations,
     }))
     .toEqual({
       capabilityKeys: receipt.handleKeys,
@@ -108,6 +114,11 @@ test("the mounted bridge publishes every typed capability and every evidence lif
         expect.objectContaining({ name: "perf", lifetime: "session", resettable: false }),
         expect.objectContaining({ name: "plugin-log", lifetime: "server-runtime", resettable: false }),
         expect.objectContaining({ name: "automation-fires", lifetime: "durable", resettable: false }),
+      ],
+      panelDeclarations: [
+        { side: "list", available: true },
+        { side: "context", available: false },
+        { side: "undeclared", available: null },
       ],
     });
 });

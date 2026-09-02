@@ -18,7 +18,18 @@ export type {
 export { animationTotals } from "./lib/animations.ts";
 export { apparatusGap, appReadyTimeoutGap, flagRingGap, motionEvidenceGaps, observedClsGap, orbBridgeGap } from "./lib/evidence.ts";
 export { calibratedDroppedFramePct, droppedFramePct } from "./lib/frames.ts";
-export { clsBudgetBasis, clsBudgeted, clsOverBudget, clsTotals, loafOverBudget, loafTotals, observedClsTotals } from "./lib/verdicts.ts";
+export {
+  clsBudgetBasis,
+  clsBudgeted,
+  clsOverBudget,
+  clsTotals,
+  DROPPED_FRAME_BUDGET_PCT,
+  FRAME_POPULATION_RESOLUTION_FLOOR,
+  framePopulationBasis,
+  loafOverBudget,
+  loafTotals,
+  observedClsTotals,
+} from "./lib/verdicts.ts";
 export { runMotionAuditMatrix } from "./ops/matrix.ts";
 export { MOTION_AUDIT_HELP, parseMotionArgs } from "./ops/parse.ts";
 export { evaluateMotionAudit } from "./ops/report.ts";

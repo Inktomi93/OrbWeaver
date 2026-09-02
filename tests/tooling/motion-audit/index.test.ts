@@ -14,8 +14,11 @@ import {
   clsBudgeted,
   clsOverBudget,
   clsTotals,
+  DROPPED_FRAME_BUDGET_PCT,
   droppedFramePct,
   evaluateMotionAudit,
+  FRAME_POPULATION_RESOLUTION_FLOOR,
+  framePopulationBasis,
   loafOverBudget,
   loafTotals,
   MOTION_AUDIT_HELP,
@@ -749,4 +752,40 @@ test("a counterfeit Base UI tuple in the TRANSIENT population is an attribution 
     },
   });
   expect(animationTotals([], [counterfeit]).gaps.map((gap) => gap.evidence)).toEqual(["Base UI animation attribution"]);
+});
+
+// -- #1127 I3 - A PERCENTAGE IS ONLY A VERDICT OVER A POPULATION THAT CAN CARRY ONE -----------------
+// side-eye retraction R-2, measured on the live app 2026-09-02 via `motion-audit --matrix`: the
+// suppressed-motion cells printed `dropped-frames=30.77%` (of 13 frames) and `36.36%` (of 11) while
+// their FULL-MOTION twins read `5.45% of 55` and `3.39% of 59`. Nothing was wrong with the arithmetic --
+// the motion is suppressed by design there, so the population collapses and four slow frames become a
+// third of the run. A reviewer with the twins refuted it; a lone cell has no twin, which is why the
+// collapse now rides the cell's own line. The floor is DERIVED from the budget, so it can never drift
+// away from the number it protects, and the controls below prove both directions.
+test("#1127 the resolution floor is derived from the dropped-frame budget, not chosen", () => {
+  // One dropped frame is worth 100/N points; below this N a SINGLE frame already exceeds the whole
+  // budget, so the percentage stops separating "drops frames" from "one frame slipped".
+  expect(FRAME_POPULATION_RESOLUTION_FLOOR).toBe(Math.ceil(100 / DROPPED_FRAME_BUDGET_PCT));
+  expect(100 / (FRAME_POPULATION_RESOLUTION_FLOOR - 1)).toBeGreaterThan(DROPPED_FRAME_BUDGET_PCT);
+  expect(100 / FRAME_POPULATION_RESOLUTION_FLOOR).toBeLessThanOrEqual(DROPPED_FRAME_BUDGET_PCT);
+});
+
+test("#1127 the measured suppressed-motion cells are COLLAPSED and their full-motion twins are VERDICTS", () => {
+  // The exact populations from the two matrix cells and their twins -- the fixture IS the receipt.
+  expect(framePopulationBasis(13)).toBe("collapsed");
+  expect(framePopulationBasis(11)).toBe("collapsed");
+  // THE PLANTED CONTROL IN THE OTHER DIRECTION: without it, "collapsed" would also pass on a tree where
+  // the classifier had been wired to return it unconditionally.
+  expect(framePopulationBasis(55)).toBe("verdict");
+  expect(framePopulationBasis(59)).toBe("verdict");
+});
+
+test("#1127 a single frame is UNCOMPUTABLE, not 0% -- `raw-frames=1` never prints a smoothness number", () => {
+  // The single-run tell from the same drive: `motion-audit /` printed `0%` beside `raw-frames=1`.
+  // A rate needs two observations; one frame is a sample, not a rate.
+  expect(framePopulationBasis(1)).toBe("uncomputable");
+  // ...and the boundaries either side, so an off-by-one in the classifier cannot pass.
+  expect(framePopulationBasis(2)).toBe("collapsed");
+  expect(framePopulationBasis(FRAME_POPULATION_RESOLUTION_FLOOR - 1)).toBe("collapsed");
+  expect(framePopulationBasis(FRAME_POPULATION_RESOLUTION_FLOOR)).toBe("verdict");
 });

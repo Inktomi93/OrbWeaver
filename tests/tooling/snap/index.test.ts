@@ -403,6 +403,33 @@ test("the rated matrix composes with a scenario instead of refusing the old capa
   expect(args.scenario).toBe("walk.json");
 });
 
+// @instrument-proof: #1127 I4 - THE STAGE REFUSAL MUST SAY WHY NO SUBSET ESCAPES IT, AND WHERE TO LOOK.
+// A lane whose sibling held the single band read the old one-liner ("rated custom themes and
+// density-preview drafts are stage-scoped") as an invitation to pick the cells that do not need the
+// stage, and had no way to learn there are none: ops/matrix-contract.ts pins custom-light/custom-dark as
+// REQUIRED theme-axis values (representativeMatrixThemes refuses outright without a rated custom theme
+// carrying custom CSS) and riskTwins pins the density-preview pair, so every planned cell is stage-scoped.
+// The refusal therefore has to carry two facts: EVERY cell needs it, and --stage-status names the holder.
+test("#1127 the --matrix stage refusal states that every cell is stage-scoped and names the holder probe", () => {
+  const refusal = parseSnapArgs(["/", "--matrix"]).errors.find((error) => error.startsWith("--matrix requires"));
+
+  expect(refusal).toBeDefined();
+  expect(refusal).toContain("EVERY cell is stage-scoped, not just some");
+  expect(refusal).toContain("--stage-status");
+  // ...and the two REQUIREMENT families are named, so a reader can check the claim against the plan
+  // rather than taking the refusal's word for it.
+  expect(refusal).toContain("custom-light/custom-dark");
+  expect(refusal).toContain("density-preview");
+});
+
+// THE PLANTED CONTROL: the refusal is about the STAGE, not about --matrix, so the sanctioned spelling
+// still parses clean. Without this, "the refusal exists" would also pass on a tree that refused always.
+test("#1127 CONTROL: --matrix with a stage arm raises no stage refusal at all", () => {
+  for (const stageArm of ["--isolated", "--dirty"]) {
+    expect(parseSnapArgs(["/", "--matrix", stageArm]).errors.filter((error) => error.startsWith("--matrix requires"))).toEqual([]);
+  }
+});
+
 test("terminal console reports preserve failures before spending the remaining cap on recent noise", () => {
   const messages = Array.from({ length: 205 }, (_, index) => ({
     type: ["info", "error", "warning"][index] ?? "info",
