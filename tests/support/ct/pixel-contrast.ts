@@ -23,7 +23,7 @@
 
 import { ringBackdrop } from "@orb/tooling/_shared/pixel-backdrop";
 import type { Rgb } from "@orb/tooling/_shared/wcag";
-import { compositeForeground, contrastRatio, FOREGROUND_OPACITY_EPS, MEASURABLE_OPACITY_MIN } from "@orb/tooling/_shared/wcag";
+import { compositeForeground, contrastRatio, FOREGROUND_OPACITY_EPS, MEASURABLE_OPACITY_MIN, relativeLuminance } from "@orb/tooling/_shared/wcag";
 import type { Locator, Page } from "@playwright/test";
 import sharp from "sharp";
 
@@ -348,4 +348,80 @@ export async function auditRenderedTextContrast(
       }
     }, marker);
   }
+}
+
+/** The two extreme pixels of one clip, plus the WCAG ratio between them. */
+export interface PixelExtremaReceipt {
+  /** The most luminous pixel in the box — the ink, on any polarity where ink is the lighter partner. */
+  readonly brightest: Rgb;
+  /** The least luminous pixel in the box — the backdrop, on that same polarity. */
+  readonly darkest: Rgb;
+  /** `contrastRatio(brightest, darkest)`: the BEST ratio the box achieves anywhere inside itself. */
+  readonly ratio: number;
+  readonly describe: string;
+}
+
+/**
+ * The best contrast one rendered box achieves ANYWHERE inside itself, read straight off the framebuffer.
+ *
+ * WHY THIS AND NOT {@link pixelContrast} — the whole point of the instrument. `pixelContrast` resolves the
+ * ink from `getComputedStyle().color` and composites the ACCUMULATED ANCESTOR OPACITY over a perimeter
+ * ring. A `mask-image` is neither: it is PAINT, it does not appear on any computed property of the glyph's
+ * element, and it dims the ink and its own backdrop at DIFFERENT rates across the box (a gradient). So
+ * `pixelContrast` reports a masked control at its UNMASKED ratio — the same blindness `snap --contrast`,
+ * axe and design-audit's whole contrast family carry (memory `mask-is-paint-invisible-to-computed-style`,
+ * #1078). This asks the only question a mask can be asked: of the pixels actually on screen inside this
+ * control, how far apart are the two furthest?
+ *
+ * It is an UPPER BOUND on legibility and that is deliberate: it cannot mistake a partly-faded control for
+ * a failing one (the unfaded half still supplies both extremes), so a RED from it is unarguable. A caller
+ * owes it a positive control — a box outside the effect, decoded in the same run — or the number is
+ * arithmetic rather than evidence.
+ *
+ * REFUSES rather than fabricating, on {@link pixelContrast}'s terms: no box, an off-viewport box, or a
+ * decode failure throws.
+ */
+export async function pixelExtremaContrast(page: Page, target: Locator): Promise<PixelExtremaReceipt> {
+  const box = await target.boundingBox();
+  if (box === null) {
+    throw new Error("pixelExtremaContrast: the target has no box (not rendered)");
+  }
+  const viewport = page.viewportSize();
+  if (viewport === null) {
+    throw new Error("pixelExtremaContrast: the page has no viewport size");
+  }
+  const x = Math.max(0, Math.floor(box.x));
+  const y = Math.max(0, Math.floor(box.y));
+  const width = Math.min(Math.ceil(box.width), viewport.width - x);
+  const height = Math.min(Math.ceil(box.height), viewport.height - y);
+  if (width < 1 || height < 1) {
+    throw new Error(`pixelExtremaContrast: the target box is empty or off-screen (${JSON.stringify(box)})`);
+  }
+  const shot = await page.screenshot({ clip: { x, y, width, height }, animations: "disabled" });
+  const { data, info } = await rawPixels(shot);
+  let brightest: Rgb = { r: 0, g: 0, b: 0 };
+  let darkest: Rgb = { r: 255, g: 255, b: 255 };
+  let high = Number.NEGATIVE_INFINITY;
+  let low = Number.POSITIVE_INFINITY;
+  for (let i = 0; i + info.channels - 1 < data.length; i += info.channels) {
+    const pixel: Rgb = { r: data[i] ?? 0, g: data[i + 1] ?? 0, b: data[i + 2] ?? 0 };
+    const luminance = relativeLuminance(pixel);
+    if (luminance > high) {
+      high = luminance;
+      brightest = pixel;
+    }
+    if (luminance < low) {
+      low = luminance;
+      darkest = pixel;
+    }
+  }
+  if (high === Number.NEGATIVE_INFINITY) {
+    throw new Error("pixelExtremaContrast: the clip decoded to zero pixels");
+  }
+  return {
+    brightest,
+    darkest,
+    ratio: contrastRatio(brightest, darkest),
+    describe: `brightest ${show(brightest)} vs darkest ${show(darkest)} in ${String(width)}x${String(height)}`,
+  };
 }

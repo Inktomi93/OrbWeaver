@@ -8,10 +8,11 @@ import type { HomeTileContribution } from "@orb/client/state";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { Clock } from "@orb/ui/icons";
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
+import { pixelExtremaContrast } from "../../../../support/ct/pixel-contrast.ts";
 import { trpcHold } from "../../../../support/ct/route-trpc.ts";
 import { characterListResponder, makeCharacterSummary } from "../../character/fixtures.ts";
-import { chatListResponder, makeChatSummary } from "../../chat/fixtures.ts";
+import { chatListResponder, makeChatSummary, makeSeatPortrait } from "../../chat/fixtures.ts";
 import { READY_DOC, stubDatabank } from "../../databank/fixtures.ts";
 import {
   HomeDormantTileStory,
@@ -1024,4 +1025,455 @@ test("#455 the fold's trigger is a CONTROL, not a kicker — it clears the 24×2
 test("a duplicate tile id THROWS at door construction — the seam never silently shadows a tile", () => {
   const dup: HomeTileContribution = { id: "same", title: "T", icon: Clock, body: () => null };
   expect(() => createContributorRegistry<HomeTileContribution>("home-tiles", [dup, { ...dup, title: "Other" }])).toThrow(DUPLICATE_ID_RE);
+});
+
+// ── #1128 · THE FOLD FADE PAINTED OVER LIVE CONTROLS (side-eye HOME 2026-09-02 H1) ──────────────────
+// The block-axis fade that #455/P2-1 landed as the below-fold CUE was `--fade-edge-stop` (10%) deep — 75px
+// of a 752px scroller — and it ramped to ZERO alpha. The databank empty state's two buttons sit at y
+// 773..805 at the shipped 1280x800 default, i.e. 27px inside that band at ~36% alpha, and were measured
+// LIVE at 1.75:1 while a button one block up read 17.14:1. A mask is paint, so the buttons stay fully
+// hit-testable: a user can click a primary door they cannot read.
+//
+// WHY IT IS A PIXEL PIN AND WHY IT NEEDS `pixelExtremaContrast` RATHER THAN `pixelContrast`. Every
+// contrast instrument we own resolves the subject through `getComputedStyle` — snap --contrast,
+// design-audit's whole contrast family, axe, and `pixelContrast` itself (which composites ancestor
+// OPACITY, a property a mask never touches). All of them report this control PASSING. Only the
+// framebuffer sees it, so this reads the framebuffer: the two extreme pixels inside the control's own
+// box. See the helper's header for why an upper bound is the honest question to ask of a gradient.
+//
+// ITS OWN POSITIVE CONTROL, in the same decode: `Start a temp chat` — the shelf's other peer-rank CTA,
+// one block ABOVE the band — must read at the full ink ratio in every cell. Pre-fix it did (17.14:1)
+// while the two subjects read 1.75:1, which is what proves the sampler honest rather than uniformly dim.
+//
+// A POINT MEASUREMENT NEVER PROVES A RANGE PROPERTY: the matrix is three viewports x both POLARITIES.
+// The light arm is a `background`-derived scope (the whole surface/foreground ramp derives from it), and
+// it is not decoration — the alpha a fade may bottom out at is polarity-dependent arithmetic, and the
+// LIGHT arm is the demanding one (a 16.9:1 near-black-on-near-white pair needs alpha >= 0.60 to hold
+// 4.5:1, against 0.48 for the dark arm's near-white-on-near-black).
+const FADE_CELLS = [
+  { width: 1280, height: 800 },
+  { width: 1440, height: 900 },
+  { width: 1920, height: 1080 },
+] as const;
+/** The desktop shell's own chrome, subtracted from the viewport to get home's real content box. */
+const FADE_PANE_INSET = { inline: FOLD_RAIL_PX, block: 48 };
+/** A light scope by DERIVATION, never a hand-listed palette — `background` grows the whole ramp. */
+const LIGHT_SCOPE_BACKGROUND = "oklch(0.98 0.004 75)";
+/** WCAG 1.4.3 normal text. The CTAs are 13px/500, so the large-text 3:1 relaxation does not apply. */
+const FADE_INK_FLOOR = 4.5;
+/** DIAGNOSTIC ONLY (it labels a printed row, it gates no assertion): the deepest block-axis band this
+ *  recipe has ever resolved — the pre-fix `--fade-edge-stop` 10% of a 752px scroller. A control whose box
+ *  reaches within this of the cut is reported `IN BAND` so the table says WHICH rows the fade could touch. */
+const FADE_BAND_PROBE_PX = 80;
+
+interface FadeCellReading {
+  readonly cta: string;
+  readonly ratio: number;
+  readonly inBand: boolean;
+  readonly describe: string;
+}
+
+/** Every control this cell must decode, measured against the scroller's own resolved fade band. */
+async function readFadeCell(page: Page, home: Locator, names: readonly string[]): Promise<readonly FadeCellReading[]> {
+  const band = await page.evaluate(() => {
+    const scroller = document.querySelector(".scroll-fade-y");
+    if (scroller === null) {
+      return null;
+    }
+    const rect = scroller.getBoundingClientRect();
+    return { bottom: rect.top + scroller.clientHeight, faded: scroller.hasAttribute("data-fade-bottom") };
+  });
+  if (band === null) {
+    throw new Error("#1128: no .scroll-fade-y scroller — the fixture is not the surface under test");
+  }
+  const readings: FadeCellReading[] = [];
+  for (const cta of names) {
+    const target = home.getByRole("button", { name: cta });
+    const box = await target.boundingBox();
+    const receipt = await pixelExtremaContrast(page, target);
+    readings.push({
+      cta,
+      ratio: receipt.ratio,
+      // "Inside the band" is the FADED region only: an unfaded scroller paints no gradient at all.
+      inBand: band.faded && box !== null && box.y + box.height > band.bottom - FADE_BAND_PROBE_PX,
+      describe: receipt.describe,
+    });
+  }
+  return readings;
+}
+
+for (const polarity of ["dark", "light"] as const) {
+  test(`#1128 the fold fade never takes a live control below AA — ${polarity} polarity, the width matrix`, async ({ mount, page }) => {
+    await page.setViewportSize({ width: FADE_CELLS[0].width, height: FADE_CELLS[0].height });
+    await stubDatabank(
+      page,
+      {
+        "chat.listChats": chatListResponder(FIRST_BOOT_ROOMS),
+        "chat.reapTemporaryChats": { reaped: 0 },
+        "character.list": characterListResponder(FIRST_BOOT_FACES),
+        "settings.getUserSettings": { config: DEFAULT_USER_SETTINGS, schemaVersion: 1, updatedAt: 0, userId: "user_ct_fade" },
+      },
+      [],
+    );
+
+    // An EMPTY bank is the arm that renders the two CTAs at all — the first-run user's arm, and the one
+    // the live receipt was taken on.
+    const home = await mount(<HomeFoldStory />, polarity === "light" ? { hooksConfig: { theme: { background: LIGHT_SCOPE_BACKGROUND } } } : undefined);
+    // SETTLED, never "not busy": the decode must not land between two tiles' commits.
+    await expect(home.getByText("No documents yet")).toBeVisible();
+    await expect(home.getByRole("button", { name: ADD_DOCUMENT_CTA })).toBeVisible();
+    await expect(home.locator("[aria-busy]")).toHaveCount(0);
+
+    // THE POLARITY IS PROVEN, NEVER ASSUMED. A "light arm" whose scope failed to invert is a SECOND DARK
+    // ARM wearing a label — it would retire the demanding half of this matrix and read as coverage. The
+    // engine resolves both tokens (oklch authored; a regex here would return nothing — memory
+    // `oklch-kills-rgb-regex-probes`), and the arm asserts which of the pair is the lighter one.
+    const polarityLuminance = await page.evaluate(() => {
+      const scroller = document.querySelector(".scroll-fade-y");
+      if (scroller === null) {
+        return null;
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = 1;
+      canvas.height = 1;
+      const context = canvas.getContext("2d");
+      if (context === null) {
+        return null;
+      }
+      const style = getComputedStyle(scroller);
+      const read = (token: string): number => {
+        context.fillStyle = style.getPropertyValue(token).trim();
+        context.fillRect(0, 0, 1, 1);
+        const [r, g, b] = context.getImageData(0, 0, 1, 1).data;
+        const channel = (value: number): number => {
+          const unit = value / 255;
+          return unit <= 0.040_45 ? unit / 12.92 : ((unit + 0.055) / 1.055) ** 2.4;
+        };
+        return 0.2126 * channel(r ?? 0) + 0.7152 * channel(g ?? 0) + 0.0722 * channel(b ?? 0);
+      };
+      return { background: read("--color-background"), foreground: read("--color-foreground") };
+    });
+    if (polarityLuminance === null) {
+      throw new Error("#1128: could not resolve the surface's own polarity tokens");
+    }
+    const inverted = polarityLuminance.background > polarityLuminance.foreground;
+    expect(inverted, `${polarity} arm resolved bg L=${polarityLuminance.background.toFixed(3)} fg L=${polarityLuminance.foreground.toFixed(3)}`).toBe(
+      polarity === "light",
+    );
+
+    const rows: string[] = [];
+    const failures: string[] = [];
+    for (const cell of FADE_CELLS) {
+      await page.setViewportSize({ width: cell.width, height: cell.height });
+      await page.evaluate(
+        ({ inline, block }) => {
+          const pane = document.querySelector("[data-home-fold-pane]") as HTMLElement | null;
+          pane?.style.setProperty("inline-size", `${String(inline)}px`);
+          pane?.style.setProperty("block-size", `${String(block)}px`);
+        },
+        { inline: cell.width - FADE_PANE_INSET.inline, block: cell.height - FADE_PANE_INSET.block },
+      );
+      // The scroller re-syncs its fade attributes from a ResizeObserver, so the resize must land before
+      // a pixel is read — poll the RENDERED state rather than sampling the frame the resize was queued in.
+      await expect
+        .poll(async () => await page.evaluate(() => document.querySelector(".scroll-fade-y")?.clientWidth ?? 0))
+        .toBe(cell.width - FADE_PANE_INSET.inline);
+      const readings = await readFadeCell(page, home, [ADD_DOCUMENT_CTA, OPEN_DATABANK_CTA, TEMP_CHAT_CTA]);
+      for (const reading of readings) {
+        rows.push(
+          `${String(cell.width)}x${String(cell.height)}\t${polarity}\t${reading.cta}\t${reading.ratio.toFixed(2)}:1\t${reading.inBand ? "IN BAND" : "clear"}\t${reading.describe}`,
+        );
+        if (reading.ratio < FADE_INK_FLOOR) {
+          failures.push(`${String(cell.width)}x${String(cell.height)} ${polarity}: "${reading.cta}" ${reading.ratio.toFixed(2)}:1 — ${reading.describe}`);
+        }
+      }
+    }
+    // Printed on PASS as well as fail — this table IS #1128's closing receipt, and the `clear` rows are
+    // the positive control that says the sampler is reading ink and not a uniformly dimmed page.
+    console.info(`\n#1128 fold-fade ink (framebuffer extrema inside each control's own box)\n${rows.join("\n")}\n`);
+    expect(failures, failures.join("\n")).toEqual([]);
+  });
+}
+
+// ── #1130 · THE TEACHING PROSE HAD NO MEASURE (side-eye HOME 2026-09-02 H5) ─────────────────────────
+// Two of home's three teaching paragraphs resolved `max-width: none` and took whatever their column gave
+// them: the temp-chat gloss measured 76.7ch at 1280 and **153.2ch at 1920**, over twice the 65-75ch
+// reading band, and the databank one was saved only by the 1920 sub-column split — a layout accident, not
+// a measure. Both now carry the house cap.
+//
+// WHAT THIS PIN CAN AND CANNOT SAY, because the two ways of counting a character disagree and the
+// disagreement IS the finding's second half. CSS `ch` is the advance of "0" (~0.6em); the design law's
+// "65-75 characters per line" is the typographic AVERAGE GLYPH ADVANCE (~0.5em), which is how the review
+// measured it. So `--reading-measure: 75ch` resolves to ~104 REVIEW-characters, and no paragraph capped at
+// the house measure can satisfy the law as the review states it. Closing that gap means moving
+// `--reading-measure` itself (to ~54ch), which moves EVERY reading surface in the app — an owner call,
+// filed separately. This pin therefore asserts the property a lane owns: NO paragraph is uncapped, and
+// every one resolves to the house measure. It PRINTS both counts at every width so that decision has its
+// receipt instead of a re-measurement.
+const PROSE_WIDTHS = [1280, 1440, 1920] as const;
+/** `--reading-measure`'s own value (theme.css `75ch`), restated as the unit the assertion compares in.
+ *  It is NOT a px literal: an unregistered custom property is substituted as a token stream, so the `ch`
+ *  resolves in each PARAGRAPH's own font — which is exactly the property "it took the house cap" means. */
+const HOUSE_MEASURE_CSS_CH = 75;
+
+interface ProseReading {
+  readonly text: string;
+  readonly widthPx: number;
+  readonly maxWidth: string;
+  readonly cssCh: number;
+  readonly advanceCh: number;
+}
+
+/** Every rendered paragraph on the surface, measured two ways in its OWN resolved font. */
+function measureProse(page: Page, paneInline: number): Promise<readonly ProseReading[]> {
+  return page.evaluate((pane) => {
+    (document.querySelector("[data-home-fold-pane]") as HTMLElement | null)?.style.setProperty("inline-size", `${String(pane)}px`);
+    const canvas = document.createElement("canvas");
+    const context = canvas.getContext("2d");
+    if (context === null) {
+      throw new Error("#1130: no 2d context to measure glyph advance through");
+    }
+    return [...document.querySelectorAll("p")].flatMap((paragraph) => {
+      const text = (paragraph.textContent ?? "").replace(/\s+/gu, " ").trim();
+      const box = paragraph.getBoundingClientRect();
+      if (text.length < 40 || box.width === 0) {
+        return [];
+      }
+      const style = getComputedStyle(paragraph);
+      context.font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+      const advance = context.measureText(text).width / text.length;
+      const zero = context.measureText("0").width;
+      return [{ text: text.slice(0, 34), widthPx: box.width, maxWidth: style.maxWidth, cssCh: box.width / zero, advanceCh: box.width / advance }];
+    });
+  }, paneInline);
+}
+
+test("#1130 no teaching paragraph is uncapped — every one resolves the house measure, at every width", async ({ mount, page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await stubDatabank(
+    page,
+    {
+      "chat.listChats": chatListResponder(FIRST_BOOT_ROOMS),
+      "chat.reapTemporaryChats": { reaped: 0 },
+      "character.list": characterListResponder(FIRST_BOOT_FACES),
+      "settings.getUserSettings": { config: DEFAULT_USER_SETTINGS, schemaVersion: 1, updatedAt: 0, userId: "user_ct_measure" },
+    },
+    [],
+  );
+
+  const home = await mount(<HomeFoldStory />);
+  await expect(home.getByText("No documents yet")).toBeVisible();
+  await expect(home.getByRole("button", { name: TEMP_CHAT_CTA })).toBeVisible();
+  await expect(home.locator("[aria-busy]")).toHaveCount(0);
+
+  const rows: string[] = [];
+  const uncapped: string[] = [];
+  const overrun: string[] = [];
+  for (const width of PROSE_WIDTHS) {
+    await page.setViewportSize({ width, height: 800 });
+    const readings = await measureProse(page, width - FOLD_RAIL_PX);
+    expect(readings.length, `#1130: no paragraphs found at ${String(width)} — the fixture is not the surface`).toBeGreaterThan(0);
+    for (const reading of readings) {
+      rows.push(
+        `${String(width)}\t${reading.widthPx.toFixed(0)}px\tcss ${reading.cssCh.toFixed(1)}ch\tadvance ${reading.advanceCh.toFixed(1)}ch\tmax-width ${reading.maxWidth}\t"${reading.text}"`,
+      );
+      if (reading.maxWidth === "none") {
+        uncapped.push(`${String(width)}: "${reading.text}" has max-width: none`);
+      }
+      // The bar is the TOKEN, expressed in the unit the token is written in: `--reading-measure` is 75 CSS
+      // `ch`, and an unregistered custom property is substituted as a token stream, so its `ch` is
+      // computed at the USING element. A paragraph that took the cap therefore measures <= 75 CSS ch of
+      // ITS OWN font, at every font scale, with no px literal anywhere. (Half a character of sub-pixel
+      // tolerance.)
+      if (reading.cssCh > HOUSE_MEASURE_CSS_CH + 0.5) {
+        overrun.push(`${String(width)}: "${reading.text}" ${reading.cssCh.toFixed(1)} CSS ch > the house measure's ${String(HOUSE_MEASURE_CSS_CH)}ch`);
+      }
+    }
+  }
+  // Printed on PASS: the `advance` column is the number the design law is written in, and the gap between
+  // it and `css` is the owner decision this lane deliberately did not take.
+  console.info(`\n#1130 home teaching prose (house measure = ${String(HOUSE_MEASURE_CSS_CH)} CSS ch, per element)\n${rows.join("\n")}\n`);
+  expect(uncapped, uncapped.join("\n")).toEqual([]);
+  expect(overrun, overrun.join("\n")).toEqual([]);
+});
+
+// ── #1121 · THE HERO'S ART BAND WAS A RESIDUAL OF THE WRONG MEASURE (H7) ───────────────────────────
+// `@orb/ui/art-bleed`'s geometry is a RESIDUAL: the band starts one reading measure plus a padding
+// clearance in from the host's start, and the host is the hero card. At `--reading-measure` (75ch) that
+// start landed past the hero's own end edge at every width anyone runs — the live measurement was
+// `[773, 175, 0, 132]` at 1280 (zero) and a 33px face-slice at 1920, so #205's owner ruling ("the hero
+// gets its room's art") effectively never fired. Both halves of the pair now name `--reading-measure-min`
+// (65ch): the band's start AND the hero column's own cap, which keeps the no-ink-over-art guarantee
+// byte-for-byte and hands the accent 42px at 1440 and 143px at 1920 (this fixture; 35px before).
+//
+// AND THE 1280 ARM IS A MEASURED REFUSAL, NOT A GAP — it is pinned here so nobody re-opens it by eye.
+// At 1280 the hero card is 686px wide while `--reading-measure-min` resolves to 715px in the card's own
+// type: the HOST IS ALREADY NARROWER THAN THE DESIGN LAW'S MINIMUM READING MEASURE. Any band at that
+// width is width taken from prose that is already under the floor, so the recipe's own "a narrow surface
+// gets no band, by construction" clause is not a shortfall there — it is the law being obeyed. The
+// alternative (cap the hero's prose at ~54ch to reserve an art strip) was measured and refused: it puts
+// the one paragraph the surface exists to show below `--reading-measure-min`.
+//
+// IT IS A PAIR, SO THIS PIN IS A PAIR: a band exactly where the host can afford one, none where it
+// cannot, and no ink inside it at ANY width. Asserting only the first would ratify a band that eats the
+// prose, which is the exact trade the guarantee forbids; asserting only a lower bound would let the
+// residual drift back to zero everywhere and still read green.
+/** The hash is the point: a seat WITHOUT one gives the hero nothing to bleed, and every assertion below
+ *  would pass vacuously against a room that simply has no art. */
+const HERO_SEAT = makeSeatPortrait("char_hearth", "Wren", "hash_hearth_portrait");
+const ART_ROOMS = [
+  makeChatSummary({
+    id: "chat_hearth_art",
+    lastMessageAt: 1_750_000_000_000,
+    participantCharacterIds: ["char_hearth"],
+    participantNames: ["Wren"],
+    participantPortraits: [HERO_SEAT],
+    title: "The Ashen Spire",
+    updatedAt: 1_750_000_000_000,
+  }),
+  ...FIRST_BOOT_ROOMS.slice(1),
+];
+
+test("#1121 the hero's art band exists wherever the host can afford one — and holds no ink at any width", async ({ mount, page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await stubDatabank(
+    page,
+    {
+      "chat.listChats": chatListResponder(ART_ROOMS),
+      "chat.reapTemporaryChats": { reaped: 0 },
+      "character.list": characterListResponder(FIRST_BOOT_FACES),
+      "settings.getUserSettings": { config: DEFAULT_USER_SETTINGS, schemaVersion: 1, updatedAt: 0, userId: "user_ct_bleed" },
+    },
+    [],
+  );
+
+  const home = await mount(<HomeFoldStory />);
+  await expect(home.locator('[data-slot="art-bleed"]')).toBeAttached();
+  await expect(home.locator("[aria-busy]")).toHaveCount(0);
+
+  const rows: string[] = [];
+  const absent: string[] = [];
+  const overlapping: string[] = [];
+  for (const width of PROSE_WIDTHS) {
+    await page.setViewportSize({ width, height: 800 });
+    const cell = await page.evaluate((pane) => {
+      (document.querySelector("[data-home-fold-pane]") as HTMLElement | null)?.style.setProperty("inline-size", `${String(pane)}px`);
+      const island = document.querySelector("[data-home-hearth]");
+      const band = island?.querySelector('[data-slot="art-bleed"]')?.getBoundingClientRect();
+      const inks = [...(island?.querySelectorAll("span,p") ?? [])]
+        .map((el) => ({ text: (el.textContent ?? "").trim().slice(0, 24), right: el.getBoundingClientRect().right }))
+        .filter((ink) => ink.text.length > 0);
+      const worst = inks.reduce((max, ink) => (ink.right > max.right ? ink : max), { text: "", right: 0 });
+      const islandBox = island?.getBoundingClientRect();
+      // The measure resolved in the BAND's own font, which is the only place the recipe's `ch` means
+      // anything — a literal here would lie the moment `--font-scale` moved.
+      const probe = document.createElement("div");
+      probe.style.inlineSize = "var(--reading-measure-min)";
+      (island ?? document.body).append(probe);
+      const measure = probe.getBoundingClientRect().width;
+      probe.remove();
+      return { left: band?.left ?? 0, width: band?.width ?? 0, height: band?.height ?? 0, worst, island: islandBox?.width ?? 0, measure };
+    }, width - FOLD_RAIL_PX);
+    rows.push(
+      `${String(width)}\tband ${cell.width.toFixed(0)}x${cell.height.toFixed(0)} @ x=${cell.left.toFixed(0)}\tisland ${cell.island.toFixed(0)}px\tmeasure-min ${cell.measure.toFixed(0)}px\tworst ink right=${cell.worst.right.toFixed(0)} "${cell.worst.text}"`,
+    );
+    // WHICH SIDE OF THE MEASURE the host sits on decides whether a band is owed at all — so this is a
+    // biconditional, not a floor: a host wider than the minimum measure MUST paint one, a host narrower
+    // than it MUST NOT.
+    const affordsBand = cell.island > cell.measure;
+    if (affordsBand && cell.width < 1) {
+      absent.push(
+        `${String(width)}: island ${cell.island.toFixed(0)}px clears the ${cell.measure.toFixed(0)}px measure, so a band is owed — it is ${cell.width.toFixed(1)}px`,
+      );
+    }
+    if (!affordsBand && cell.width > 0) {
+      absent.push(
+        `${String(width)}: island ${cell.island.toFixed(0)}px is under the ${cell.measure.toFixed(0)}px minimum measure, so the band must be ZERO — it is ${cell.width.toFixed(1)}px`,
+      );
+    }
+    // Sub-pixel tolerance only: the trailing hint ends AT the measure, which is the band's own start.
+    if (cell.worst.right > cell.left + 1) {
+      overlapping.push(`${String(width)}: "${cell.worst.text}" runs ${(cell.worst.right - cell.left).toFixed(1)}px into the art band`);
+    }
+  }
+  console.info(`\n#1121 hero art bleed at the shipped widths\n${rows.join("\n")}\n`);
+  expect(absent, absent.join("\n")).toEqual([]);
+  expect(overlapping, overlapping.join("\n")).toEqual([]);
+});
+
+// ── #1130 · THE CHIP RAIL'S WRAP IS NOT A LAYOUT CHOICE (side-eye HOME 2026-09-02 H16) ──────────────
+// H16 asked for "no orphan chip at 1280 / 1440 / 1920". That is REFUSED, and this pin is the refusal's
+// receipt rather than its fix. `SectionJumpRail` derives its pills FROM THE SECTION REGISTRY (a section
+// that ships gets a pill with no home edit — the `no-parallel-section-map` rule), so N is whatever the app
+// has sections; the pills are content-width; and "the last row is never an orphan" is not a property a
+// wrap layout can hold for an unknown N against three column widths. The only construction that holds it
+// is a fixed-column grid, which reverses the recorded register the rail was built on: "a wrapping row of
+// destinations — a rail you skim, not a directory you read" (section-jump-rail.tsx). The owner decides
+// against numbers, so the numbers are printed here on every run.
+//
+// WHAT IS ASSERTED is the property the wrap must never be allowed to eat: the POPULATION is
+// width-invariant. A narrow pane may re-wrap the rail; it may not drop a destination. That is the real
+// regression this row can own, and it is the same fact that makes the orphan undesignable — the row is a
+// projection of the registry, not a layout with a chosen cell count.
+//
+// The other two things H6 filed at 1920 are deliberately NOT re-asserted here, and the reason is the
+// trap this file could otherwise walk into. COLUMN BALANCE is #226's, ruled ("no shell game — self-balance
+// by construction") and pinned on its OWN fixture by `home-column-balance.suite.ct.tsx`; a second
+// ceiling measured on THIS fixture would be a second oracle for one property, and the two disagree by
+// construction because the fixtures carry different content mixes (measured: 51px apart at 1280/1440 and
+// 221px at 1920 here, against the balance instrument's 11px at 1920 — same law, different page). WHICH
+// BLOCK LANDS IN WHICH QUADRANT is a composition decision whose two costed arms are already recorded as
+// measured-and-refused in `home-surface.tsx`'s own header. Both are printed, neither is judged.
+
+test("#1130 the jump rail's population is width-invariant — the wrap re-flows, the destinations do not", async ({ mount, page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await stubDatabank(
+    page,
+    {
+      "chat.listChats": chatListResponder(FIRST_BOOT_ROOMS),
+      "chat.reapTemporaryChats": { reaped: 0 },
+      "character.list": characterListResponder(FIRST_BOOT_FACES),
+      "settings.getUserSettings": { config: DEFAULT_USER_SETTINGS, schemaVersion: 1, updatedAt: 0, userId: "user_ct_wide" },
+    },
+    [],
+  );
+
+  const home = await mount(<HomeFoldStory />);
+  await expect(home.getByText("No documents yet")).toBeVisible();
+  await expect(home.getByRole("list", { name: "Character quick-picks" })).toBeVisible();
+  await expect(home.locator("[aria-busy]")).toHaveCount(0);
+
+  const rows: string[] = [];
+  const populations: number[] = [];
+  for (const width of PROSE_WIDTHS) {
+    await page.setViewportSize({ width, height: 800 });
+    const cell = await page.evaluate((pane) => {
+      (document.querySelector("[data-home-fold-pane]") as HTMLElement | null)?.style.setProperty("inline-size", `${String(pane)}px`);
+      const grid = document.querySelector("[data-home-grid]");
+      const hearth = grid?.firstElementChild?.getBoundingClientRect();
+      const shelf = document.querySelector("[data-home-shelf]")?.getBoundingClientRect();
+      // The wrap, counted by DISTINCT ROW TOPS — the only honest reading of a flex-wrap row.
+      const chips = [...(document.querySelector('[data-home-tile="home.jump"]')?.querySelectorAll("button") ?? [])].map((chip) =>
+        Math.round(chip.getBoundingClientRect().top),
+      );
+      const perRow = [...new Set(chips)].sort((a, b) => a - b).map((top) => chips.filter((chipTop) => chipTop === top).length);
+      // Which quadrant of the PANE each region's own box centres in — H6's "alone in a quadrant" read.
+      const paneBox = document.querySelector("[data-home-fold-pane]")?.getBoundingClientRect();
+      const quadrants = [...(grid?.querySelectorAll('[role="region"]') ?? [])].map((region) => {
+        const box = region.getBoundingClientRect();
+        const centre = { x: box.left + box.width / 2 - (paneBox?.left ?? 0), y: box.top + box.height / 2 - (paneBox?.top ?? 0) };
+        const half = { x: (paneBox?.width ?? 1) / 2, y: (paneBox?.height ?? 1) / 2 };
+        return `${centre.y < half.y ? "top" : "bottom"}-${centre.x < half.x ? "left" : "right"}`;
+      });
+      const tally = quadrants.reduce<Record<string, number>>((acc, key) => ({ ...acc, [key]: (acc[key] ?? 0) + 1 }), {});
+      return { hearthBottom: hearth?.bottom ?? 0, shelfBottom: shelf?.bottom ?? 0, chips: chips.length, perRow, tally };
+    }, width - FOLD_RAIL_PX);
+    populations.push(cell.chips);
+    rows.push(
+      `${String(width)}\tchips ${String(cell.chips)} as ${cell.perRow.join("+")}\thearth ends ${cell.hearthBottom.toFixed(0)}\tshelf ends ${cell.shelfBottom.toFixed(0)}\tdelta ${Math.abs(cell.hearthBottom - cell.shelfBottom).toFixed(0)}px\tregions ${JSON.stringify(cell.tally)}`,
+    );
+  }
+  console.info(`\n#1130 wide-pane composition (chips = pills, then pills per wrapped row; regions = per-quadrant count)\n${rows.join("\n")}\n`);
+  expect(populations.at(0) ?? 0, "the rail must render at least two destinations, or the invariance below is vacuous").toBeGreaterThan(1);
+  expect(new Set(populations).size, `the rail dropped destinations across widths: ${populations.join(", ")}`).toBe(1);
 });

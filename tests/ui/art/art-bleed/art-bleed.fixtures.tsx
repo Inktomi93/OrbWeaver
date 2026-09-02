@@ -18,7 +18,7 @@ function Host({ width }: { readonly width: number }): ReactElement {
   );
 }
 
-/** Comfortably wider than `--reading-measure` (75ch) plus the section clearance. */
+/** Comfortably wider than `--reading-measure-min` (65ch) plus the section clearance. */
 export function ArtBleedWideStory(): ReactElement {
   return <Host width={1200} />;
 }

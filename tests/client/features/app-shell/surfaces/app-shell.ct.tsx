@@ -3400,6 +3400,84 @@ test("glass beats elevation: ramp + blur-panels still leaves .shell-panel transl
   await expect.poll(() => backdropFilterOf(panel), { intervals: [20, 50, 100] }).toContain("saturate(");
 });
 
+// ── #1120 · A CLOSED PANE PAYS FOR NO GLASS, AND THE TRACK LANDS ON THE PIXEL GRID ─────────────────
+// side-eye HOME 2026-09-02 H3/H4. Home declares BOTH panes `"unavailable"`, and the ruled mechanism for
+// that (owner decision H3 / arm L-b, `section-registry.ts`) is that the panel still renders and resolves
+// `collapsed` — its track is already zero-width and the topbar offers no toggle. What was never ruled is
+// that the off-screen box keeps its `backdrop-filter`: measured on the live app, home's two inert,
+// aria-hidden, 80-byte asides were the ONLY two backdrop-filter elements on the page — the most expensive
+// paint primitive in the browser, twice, blurring nothing, on the surface whose whole job is to appear
+// instantly. It is not a home fact either: every section pays it for whichever pane it leaves closed.
+//
+// AND IT IS THE SAME FINDING TWICE. design-audit filed P2 `promoted-layer-offset` on that node in 7 of 10
+// arms — "this element promotes itself to its own composited layer (backdrop-filter), which disables text
+// snapping … lands −0.188 device px off the grid" — plus P3 `off-grid-transform` on its resting
+// `matrix(1, 0, 0, 1, -363.188, 0)`. The promotion dies with the glass; the 0.188 is a SECOND cause
+// (`24vw` of 1280 is 307.1875) and dies with the track rounding, which is why both are pinned here.
+//
+// THE POSITIVE CONTROLS ARE THE POINT: the DOCKED case below is the collapsed case's control (one axis
+// apart on one fixture — without it, "no backdrop-filter" would also pass on a tree where the glass rule
+// had simply been deleted), and an UNROUNDED probe on the raw `--dimension-panel` token is the grid
+// assertion's (without it, "integral" would also pass at a viewport that happens to divide evenly). The
+// two glass arms are separate tests because a CT mount owns its container — two mounts in one test throw
+// "a container that already has a React root".
+const OFF_GRID_VIEWPORTS = [1280, 1440, 1920] as const;
+
+test("#1120 a COLLAPSED pane carries no backdrop-filter", async ({ mount }) => {
+  const shell = await mount(<ShellCascadeFixture blurSurfaces={["panels"]} panelMode="collapsed" />);
+  await expect.poll(() => backdropFilterOf(shell.getByTestId("panel-probe")), { intervals: [20, 50, 100] }).toBe("none");
+  await expect.poll(() => backdropFilterOf(shell.getByTestId("context-panel-probe")), { intervals: [20, 50, 100] }).toBe("none");
+});
+
+test("#1120 …and an OPEN pane still does — the collapsed arm's control", async ({ mount }) => {
+  const open = await mount(<ShellCascadeFixture blurSurfaces={["panels"]} panelMode="docked" />);
+  await expect.poll(() => backdropFilterOf(open.getByTestId("panel-probe")), { intervals: [20, 50, 100] }).toContain("blur(");
+  await expect.poll(() => backdropFilterOf(open.getByTestId("context-panel-probe")), { intervals: [20, 50, 100] }).toContain("saturate(");
+});
+
+test("#1120 the shell's panel tracks resolve to whole CSS pixels at every width — with the raw token as the control", async ({ mount, page }) => {
+  const shell = await mount(<ShellCascadeFixture />);
+  const grid = shell.getByTestId("shell-grid");
+
+  const rows: string[] = [];
+  const fractional: string[] = [];
+  let controlSawAFraction = false;
+  for (const width of OFF_GRID_VIEWPORTS) {
+    await page.setViewportSize({ width, height: 900 });
+    const cell = await grid.evaluate((host) => {
+      // A probe per expression: an unregistered custom property's COMPUTED value is the substituted token
+      // stream (`round(var(--dimension-panel), 1px)`), not a length — so the only way to read what the
+      // track actually resolves to is to lay a box out with it.
+      const measure = (expression: string): number => {
+        const probe = host.ownerDocument.createElement("div");
+        probe.style.inlineSize = expression;
+        host.append(probe);
+        const width_ = probe.getBoundingClientRect().width;
+        probe.remove();
+        return width_;
+      };
+      return { list: measure("var(--panel-w)"), context: measure("var(--panel-context-w)"), raw: measure("var(--dimension-panel)") };
+    });
+    rows.push(`${String(width)}\tlist ${cell.list.toFixed(4)}\tcontext ${cell.context.toFixed(4)}\traw token ${cell.raw.toFixed(4)}`);
+    for (const [side, resolved] of [
+      ["list", cell.list],
+      ["context", cell.context],
+    ] as const) {
+      if (!Number.isInteger(resolved)) {
+        fractional.push(`${String(width)}: the ${side} track resolved ${resolved.toFixed(4)}px — off the device-pixel grid at DPR 1`);
+      }
+    }
+    if (!Number.isInteger(cell.raw)) {
+      controlSawAFraction = true;
+    }
+  }
+  console.info(`\n#1120 shell panel track resolution (px)\n${rows.join("\n")}\n`);
+  // The PLANTED CONTROL: the raw token is what the tracks used to name, and it is fractional at these
+  // widths. If it ever comes back integral everywhere, this test proves nothing and must say so.
+  expect(controlSawAFraction, "the unrounded token is integral at every probed width — this test can no longer detect the defect it pins").toBe(true);
+  expect(fractional, fractional.join("\n")).toEqual([]);
+});
+
 test("glass beats elevation on composer and both dialog popup slots", async ({ mount }) => {
   const shell = await mount(<ShellCascadeFixture elevation="ramp" blurSurfaces={["composer", "modals"]} />);
   const composer = shell.getByTestId("composer-probe");

@@ -4,10 +4,22 @@
 .shell-grid {
   /* rail (fixed) | list track | content (fluid) | context track; a collapsed/overlay track is 0. */
   --rail-w: var(--dimension-rail);
-  --panel-w: var(--dimension-panel);
+  /* SNAPPED TO WHOLE CSS PIXELS (#1120, side-eye HOME 2026-09-02 H4). Both panel dimensions are
+   * viewport-derived clamps (`clamp(17rem, 24vw, 26rem)`), so at any viewport whose vw fraction is not an
+   * integer the track lands off the device-pixel grid — 24vw of 1280 resolves 307.1875, and the panel's own
+   * resting `translateX(calc(-100% - var(--rail-w)))` inherits it as `matrix(1, 0, 0, 1, -363.188, 0)`.
+   * design-audit filed that as P3 `off-grid-transform` (plus P2 `promoted-layer-offset` while the pane still
+   * promoted itself) in 7 of 10 arms on home, and it is not a home fact: it is every section's panel at most
+   * widths. `docs/design/integer-line-boxes.md` Laws 2 and 3.
+   *
+   * The rounding is HERE, at the shell's own track declaration, and NOT in the token: `--dimension-panel` is
+   * a generated theme value with other readers, and the thing that must land on the grid is the TRACK this
+   * grid resolves. A whole CSS pixel is also a whole DEVICE pixel at DPR 1 and an even one at DPR 2, so one
+   * rounding serves both. */
+  --panel-w: round(var(--dimension-panel), var(--dimension-device-pixel));
   /* The CONTEXT panel is wider than the list panel on desktop (its own token; same floor) — the rpg takeover
    * runs a 120px Waystone plus the orb row, and at the list panel's clamp that band is cramped. */
-  --panel-context-w: var(--dimension-panel-context);
+  --panel-context-w: round(var(--dimension-panel-context), var(--dimension-device-pixel));
   --list-track: 0px;
   --context-track: 0px;
 

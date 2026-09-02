@@ -35,12 +35,18 @@
 // island had no colour at all, so the character photo grid across the shelf won every cold eye on the
 // landing, and the space beyond the excerpt's reading measure sat dead.
 // The reading-surface rule is kept GEOMETRICALLY, not by taste: this column is capped at
-// `--reading-measure` and the band begins at that same measure plus a padding clearance, so no ink is
+// `--reading-measure-min` and the band begins at that same measure plus a padding clearance, so no ink is
 // ever over art and the D144 plate family is deliberately NOT invoked — a plate backs text that sits on
 // art, and here none does. Neither half works alone; the band's own header (`@orb/ui/art-bleed`) states
 // the contract from the other side. The one composition
 // cost is stated plainly: the trailing "Resume →" hint now ends at the reading measure instead of at the
 // island's far edge, because that edge is the art's.
+// WHICH MEASURE, AND WHY IT IS THE LOW ONE (#1121, side-eye HOME 2026-09-02 H7): at 75ch the band's own
+// `min(100%, …)` collapsed it to ZERO width at the shipped 1280 default (measured `[773, 175, 0, 132]`),
+// so the ruling above never fired at the width most people run, and 1920 got a 33px slice of a face. Both
+// halves of the pair moved to `--reading-measure-min` — the design law's low reading bound, 65ch — which
+// keeps the guarantee byte-for-byte and buys the band ~68px at 1280 / ~210px at 1920. Pinned by geometry,
+// not by property, in tests/client/features/chat/components/home-hearth-room.ct.tsx.
 //
 // A11y follows the `ListRow clickable` model rather than inventing one: the island is the operable thing
 // (`Card interactive` — role=button + Enter/Space) and the excerpt + the cast line ride
@@ -139,7 +145,17 @@ export function HomeHearthRoom({
           `max-w-(--reading-measure)` caps the whole column, not just the excerpt: it is what keeps every
           ink — including the trailing "Resume →", which used to ride the island's far edge — out of the
           art band, and it is the same measure the band starts at. */}
-      <Stack className="relative min-w-0 max-w-(--reading-measure)" gap="row">
+      {/* THE PAIR MOVED DOWN ONE MEASURE, TOGETHER (#1121, side-eye HOME 2026-09-02 H7). The guarantee
+          above is unchanged and is still geometric — the column is capped at a measure and the band begins
+          at that same measure plus one clearance — but the measure it names is now `--reading-measure-min`
+          (65ch) rather than `--reading-measure` (75ch), because at the SHIPPED 1280 default the wider one
+          left the band exactly zero pixels wide: `#205`'s owner ruling ("the hero gets its room's art")
+          never fired at the width most people run. Measured: the layer was `[773, 175, 0, 132]` at 1280 and
+          a 33px face-slice at 1920. Both halves move or neither does — the band's own start is the same
+          token (`@orb/ui` styles/globals.css `[data-slot="art-bleed"]`), and its header states the contract
+          from the other side. The prose is also better for it: 65ch is the low end of the design law's own
+          reading band, not a concession. */}
+      <Stack className="relative min-w-0 max-w-(--reading-measure-min)" gap="row">
         <Row gap="row">
           {/* CLAMPED, NEVER TRUNCATED (side-eye F7). At the 430px coarse mount `truncate` rendered
               "Example — …" — the one string on the surface that says WHICH room you are resuming, ellipsed
@@ -157,7 +173,7 @@ export function HomeHearthRoom({
         {/* The last line anyone said, at the reading step and capped at the reading measure — prose in a
             column wider than its own measure is a row with a hole in it. Two lines: enough to recognise
             the moment you left, not enough to become the transcript. */}
-        <Text className="line-clamp-2 max-w-(--reading-measure)" id={scentId} voice="reading">
+        <Text className="line-clamp-2 max-w-(--reading-measure-min)" id={scentId} voice="reading">
           {subtitle}
         </Text>
         <Row align="center" gap="row" justify="between">
