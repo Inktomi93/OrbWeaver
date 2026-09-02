@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 import { budget } from "@orb/tooling/_shared/load-budget";
+import { CT_VITE_PORT } from "@orb/tooling/_shared/ports";
 import { defineConfig, devices } from "@playwright/experimental-ct-react";
 import tailwindcss from "@tailwindcss/vite";
 
@@ -19,7 +20,6 @@ import tailwindcss from "@tailwindcss/vite";
 // `#` subpath imports resolve via package.json `imports` (vite ≥6 reads them); cross-package
 // imports resolve through the workspace — no aliases needed.
 
-const CT_PORT = 3100;
 // THE CT WALL CLOCKS, LOAD-SCALED (#1232, docs/design/1208-instrument-substrate.md section 7.1). All three
 // were Playwright DEFAULTS this config pinned NOWHERE — which is how "at loadavg 170 the CT default times
 // out every test at `mount()` on pure contention, ZERO signal, indistinguishable from a real red"
@@ -88,7 +88,7 @@ export default defineConfig({
     locale: "en-US",
 
     // Parameterized so parallel CI port-shards don't collide on the CT dev server.
-    ctPort: Number(process.env.CT_PORT ?? CT_PORT),
+    ctPort: Number(process.env.CT_PORT ?? CT_VITE_PORT),
     ctViteConfig: {
       // CT applies its OWN @vitejs/plugin-react internally — adding a second one double-transforms.
       // Cast: @tailwindcss/vite resolves vite@8 types; CT viteConfig expects vite@6 — structurally compatible.

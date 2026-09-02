@@ -4232,7 +4232,7 @@
     {
       "siteId": "tooling/src/_shared/browser.ts::empty:error::1",
       "path": "tooling/src/_shared/browser.ts",
-      "line": 324,
+      "line": 325,
       "column": 5,
       "grammar": "empty",
       "position": "empty:error",
@@ -4240,12 +4240,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "closeProbeSessionAfterError is typed Promise<never> — it always rethrows the primary error (wrapped with any cleanup failure), never returns. Ends if that function stops rethrowing unconditionally.",
-      "markerLine": 310
+      "markerLine": 311
     },
     {
       "siteId": "tooling/src/_shared/browser.ts::empty:error::2",
       "path": "tooling/src/_shared/browser.ts",
-      "line": 394,
+      "line": 395,
       "column": 5,
       "grammar": "empty",
       "position": "empty:error",
@@ -4253,7 +4253,7 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "collected into failures[] which the two checks below rethrow as-is or as an AggregateError — never silently dropped. Ends if the failures array stops being surfaced after this block.",
-      "markerLine": 391
+      "markerLine": 392
     },
     {
       "siteId": "tooling/src/_shared/debugging-endpoint.ts::empty:catch::1",
@@ -5558,7 +5558,7 @@
     {
       "siteId": "tooling/src/stack/ops/prod-state.ts::empty:catch::1",
       "path": "tooling/src/stack/ops/prod-state.ts",
-      "line": 83,
+      "line": 84,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -5566,12 +5566,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "health fetch failure is the explicit unhealthy observation consumed by identity classification. Ends if unhealthy can authorize ownership.",
-      "markerLine": 75
+      "markerLine": 76
     },
     {
       "siteId": "tooling/src/stack/ops/prod-state.ts::empty:catch::2",
       "path": "tooling/src/stack/ops/prod-state.ts",
-      "line": 108,
+      "line": 109,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -5579,7 +5579,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "credential-free debug probe failure returns unknown posture, which prevents token-bearing identity claims. Ends if unknown can authorize control.",
-      "markerLine": 104
+      "markerLine": 105
     },
     {
       "siteId": "tooling/src/stack/ops/prod-support.ts::default:catch::1",
@@ -5636,7 +5636,7 @@
     {
       "siteId": "tooling/src/stack/ops/served-probe.ts::default:catch::1",
       "path": "tooling/src/stack/ops/served-probe.ts",
-      "line": 60,
+      "line": 61,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -5644,12 +5644,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "probe JSON parse failure returns null and the caller reports the service as unverified. Ends if null can satisfy the served probe.",
-      "markerLine": 56
+      "markerLine": 57
     },
     {
       "siteId": "tooling/src/stack/ops/served-probe.ts::default:catch::2",
       "path": "tooling/src/stack/ops/served-probe.ts",
-      "line": 69,
+      "line": 70,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -5657,7 +5657,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "probe request failure returns null and the caller reports the service as unreachable. Ends if null can satisfy the served probe.",
-      "markerLine": 66
+      "markerLine": 67
     },
     {
       "siteId": "tooling/src/ui-audit/ops/drive.ts::empty:e::1",
@@ -6039,7 +6039,7 @@
     {
       "siteId": "tooling/src/wire-tap/ops/trpc.ts::empty:catch::1",
       "path": "tooling/src/wire-tap/ops/trpc.ts",
-      "line": 87,
+      "line": 88,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -6047,7 +6047,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "a non-JSON response body just prints the raw text as-is (the comment states this directly) — the response body itself is never lost, only the pretty-print step is skipped. Ends if the raw text stops being printed on this path.",
-      "markerLine": 84
+      "markerLine": 85
     },
     {
       "siteId": "tooling/src/workboard/ops/gh.ts::empty:catch::1",

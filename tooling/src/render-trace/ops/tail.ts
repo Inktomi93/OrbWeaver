@@ -11,13 +11,14 @@ import { errorMessage } from "@orb/kit/error-message";
 import type { RequestTrace } from "@orb/server/foundation/observability";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { EXIT } from "../../_shared/exit-contract.ts";
+import { DEV_PORTS } from "../../_shared/ports.ts";
 import { UsageError } from "../../_shared/run-tool.ts";
 import { renderTrace } from "../lib/render.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm trace:render | pnpm trace:tail | pnpm trace:fire");
 
 // biome-ignore lint/style/noProcessEnv: PORT mirrors the server's own listen port so the tail hits the right box — ambient tooling env, not app config; probes run outside the foundation/env perimeter.
-const PORT = process.env["PORT"] ?? "8788";
+const PORT = process.env["PORT"] ?? String(DEV_PORTS.server);
 // biome-ignore lint/style/noProcessEnv: TRACE_TAIL_HOST points the tail at a non-local server when needed — ambient tooling env, not app config.
 const HOST = process.env["TRACE_TAIL_HOST"] ?? `http://127.0.0.1:${PORT}`;
 const DEFAULT_INTERVAL_MS = 2000;
