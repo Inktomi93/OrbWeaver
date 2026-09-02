@@ -447,8 +447,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 394,
-      "bytes": 217434,
-      "sha256": "a251cc94ef14ca349f76512d50a4155a55b063ffef1226d9aed99d08911f91d4",
+      "bytes": 218416,
+      "sha256": "9ab563b9059b6e4beb97a825aff66d4b4085921722186bf8b215dc0d4b2c3e5d",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -465,10 +465,11 @@
         "disposition": "current",
         "authority": "operational",
         "fullRead": true,
-        "verifiedSha256": "a251cc94ef14ca349f76512d50a4155a55b063ffef1226d9aed99d08911f91d4",
-        "verifiedCommit": "c41d8df2ac1e9098c0c54cbb3d54b4771cd2ba04",
+        "verifiedSha256": "9ab563b9059b6e4beb97a825aff66d4b4085921722186bf8b215dc0d4b2c3e5d",
+        "verifiedCommit": "a287baa771fcc3337aea6196b73a54151714dc8d",
         "verifiedAt": "2026-09-02",
         "evidence": [
+          "re-attested at a287baa77 (#933 closure, lane p-933-authority): css-family-ownership row GRADUATED (mustFlag rows named, residual pointed at lockdown §4.7); devtools-frontend-assets, tokens-contract and css-var-defined rows cite pin.json / the pinning test / the gate's own scan line instead of digits",
           "re-attested at c41d8df2a (#1066, security lane p-field-walker): bus-payload-allowlist row — both walker positions fail closed (the FIELD walker refuses every unmodelled kind by name; tuple elements walked), the four declared limits listed complete with their mustPass rows",
           "re-attested at 12a08302d (#1047 admission, security lane p-workload-admit): bus-payload-allowlist's Layer-3 row — EIGHT bus homes, WorkloadEvent admitted with no exemption, the mapped-type distribution resolved (constraint → finite literal set; template walked once; referenced named types contribute their name and stop), the old fork sentence retired",
           "re-attested at 9a4bee47ab1b21cd68c291c80e1704b486200dd8 (#995): the agent-bridge-lock row records the lean production readiness home, shared debug Promise/query, and DEV-only bridge boundary; focused CT passed 6/6, gate conformance passed, and check:structure completed 244/244 active gates clean",
@@ -2006,16 +2007,16 @@
       "path": "docs/architecture/core/client-architecture-lockdown.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 816,
-      "bytes": 140366,
-      "sha256": "3950e22be462465ad3d8402a18b9f676beb50e00e65cae04a0c77641d87c0a84",
+      "lines": 827,
+      "bytes": 141365,
+      "sha256": "11950199ae3feac8d32dd55a65263a9964dcbe388192f887f88e4442dec3ccdc",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "law",
           "status": "active",
-          "updated": "2026-08-30"
+          "updated": "2026-09-01"
         },
         "errors": []
       },
@@ -2025,10 +2026,11 @@
         "disposition": "current",
         "authority": "current-reference",
         "fullRead": true,
-        "verifiedSha256": "3950e22be462465ad3d8402a18b9f676beb50e00e65cae04a0c77641d87c0a84",
-        "verifiedCommit": "1d90455b6a515aa517d59934fcb4fa260babb476",
-        "verifiedAt": "2026-09-01",
+        "verifiedSha256": "11950199ae3feac8d32dd55a65263a9964dcbe388192f887f88e4442dec3ccdc",
+        "verifiedCommit": "a287baa771fcc3337aea6196b73a54151714dc8d",
+        "verifiedAt": "2026-09-02",
         "evidence": [
+          "re-attested at a287baa77 (#933 closure): §4.7 — the REPORTED-BUT-UNREAD bullet replaced by two ENFORCED TODAY bullets (dead/empty-CSS blocking floor; the rated R1-R7 floors + the one planner and its three matrix consumers, #953 Done); token count cites the pinning test",
           "re-attested at 1d90455b6 (#1039 presence disclosure, claude-b lane cb-presence-surface): law 6 truth-repaired — a client READ now exists (`notifications.presence`, poll-driven, cited in query-freshness-coverage) and still no client WRITE; the sentence matches the contract's declared procedures on the folded tree",
           "re-attested at 9a4bee47ab1b21cd68c291c80e1704b486200dd8 (#995): the ownership and registration tables plus §7 name app-ready-signal.ts as the one production readiness home and retain agent-bridge.ts solely behind the literal DEV dynamic handle door; the mounted bridge CT proved Promise identity and readiness behavior",
           "re-attested at cb3e51ca6 under #974 — full-file read; §4 records the graduated static CSS provenance boundary, #975's fail-loud live cascade/closure repair, and #976/#977 as trustworthy inputs rather than substitutes for #953",
@@ -30130,16 +30132,16 @@
       "path": "docs/reviews/stickler/2026-08-30-css-census-doctrine-and-enforcement.md",
       "lane": "reviews",
       "issue": 7,
-      "lines": 1771,
-      "bytes": 149888,
-      "sha256": "bae86eaa629e8a8f738c21d19a8e0f2b17178339a42adb896a326902ae0a247d",
+      "lines": 1776,
+      "bytes": 151309,
+      "sha256": "0cc4233b011dd436bd85c18aee446bf419d13b5d69c01126750d47e6fe8f96be",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "review",
           "status": "active",
-          "updated": "2026-08-31"
+          "updated": "2026-09-01"
         },
         "errors": []
       },
@@ -30149,10 +30151,11 @@
         "disposition": "current",
         "authority": "review",
         "fullRead": true,
-        "verifiedSha256": "bae86eaa629e8a8f738c21d19a8e0f2b17178339a42adb896a326902ae0a247d",
-        "verifiedCommit": "cb3e51ca640a1b04feb4f2148ed25d54a51eaa47",
-        "verifiedAt": "2026-08-31",
+        "verifiedSha256": "0cc4233b011dd436bd85c18aee446bf419d13b5d69c01126750d47e6fe8f96be",
+        "verifiedCommit": "a287baa771fcc3337aea6196b73a54151714dc8d",
+        "verifiedAt": "2026-09-02",
         "evidence": [
+          "re-attested at a287baa77 (#933 closure): Wave 3 heading + row 3.0 (#962 deferred-and-live, never a precondition), rows 3.2/3.3/5.4/5.5 and the closing lines flipped to DONE/GRADUATED; the frozen Wave-4 numeric receipts against base 28d526c99 deliberately untouched (claims about a commit)",
           "re-attested at cb3e51ca6 under #974 — standing full read plus the #972/#975/#976/#977 current-state settlement, portal and data-has-bg-image scope rulings, motion settle/reset boundary, and preserved historical census baselines",
           "re-attested at f5a722468 after cold grouped refutation and repair — devtools-frontend-assets is explicitly classified as exact-root/unfixturable, its dedicated fs-backed red/green proof is the bite, the live anti-drift suite is 8/8 over 242 active gates in 343.12s, and the current five-stylesheet census is corrected to 3,174 lines",
           "re-attested at 4279b996f after grouped CSS-train graduation — standing full-file read plus the status reconciliation; 242/242 structural gates over 6,337 files, 965/965 declarations, 64/64 affected tooling tests, 21/21 rendered contrast cases, 3/3 official-SDK cascade cases, and fresh 2,202-test/421-caught-site ledgers with zero unproven",
