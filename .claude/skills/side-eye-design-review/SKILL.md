@@ -10,7 +10,9 @@ heuristics, and the Orbweaver constitution. A checklist you APPLY. When a findin
 these, name the rule. Companion reference files in this skill dir: `reference/design-context.md`
 (the DESIGN.md-equivalent map to our generated/ratified design truth + the OWNER-RATIFIED product
 voice — audience/voice/anti-references/references/the-one-feeling, citable in reviews since
-2026-08-16) and `reference/impeccable-adoption.md` (the 59-rule detector triage + attribution).
+2026-08-16) and `reference/impeccable-adoption.md` (the upstream 59-rule detector triage +
+attribution; the LIVE ruleset is `tooling/src/ui-audit/contract/rules.ts` — 59 rules today, and that
+registry is the denominator, never a number remembered here).
 
 ## §0 Our laws (repo-specific — check these first; where we actually fail)
 
@@ -225,10 +227,43 @@ keyboard walk**):
   `pointer: coarse`, so hover-reveals go always-visible and the rail becomes the bottom tab bar) ·
   `--desktop` (the 1280×800 default, explicit) · last of `--mobile`/`--desktop`/`--wide`/`--viewport` wins.
 - `pnpm perf-meter` (responsiveness + CPU profile) · `pnpm design-audit` (the deterministic defect
-  scanner — \~40 rules across two origin-tagged families: the house rules plus the impeccable-adapted
-  set (gradient-decoration tells, type-ramp legibility floors, text overflow, clipped positioned
-  children, script errors, taste tells like icon-tile-stack/gray-on-color); triage table:
+  scanner — **59 rules** in eight families as of 2026-09-01 (a11y 7 · color 6 · decor 3 · media 3 ·
+  ornament 7 · quality 13 · structure 8 · typography 12), each carrying one of two ORIGIN tags: the
+  house rules (`origin: "orbweaver"`) plus the impeccable-adapted set (`origin: "impeccable"` —
+  gradient-decoration tells, type-ramp legibility floors, text overflow, clipped positioned children,
+  script errors, taste tells like icon-tile-stack/gray-on-color). **Re-derive the count from
+  `tooling/src/ui-audit/contract/rules.ts` before citing it**; adoption triage:
   `reference/impeccable-adoption.md` in this skill dir).
+- **Every rule also has a DECIDED POPULATION RUNG, and a clean row is not the same claim as a clean
+  verdict.** `pnpm design-audit` prints a `POPULATION <rule> candidates=… judged=… affected=…
+  withheld(…) excluded(…)` line per rule, and the run's `population-verdict=` is `complete` only when
+  nothing was withheld. `withheld` = the rule applied and the instrument could not judge it → the run
+  is **NO VERDICT** and its findings are partial; `excluded` = measured facts proved the rule
+  inapplicable (a sanctioned glow carrier, a role this lens does not govern, an `object-fit: cover`
+  crop) → complete evidence. Which rule sits at which rung, and WHY, is one table in
+  `tooling/src/ui-audit/lib/collect.ts`'s header (owner ruling 2026-09-01: a table, not a gate) with
+  the mechanics in `lib/population-strategies.ts`; a rule with no population row is a rung-1
+  page-singleton or a walker-proven carrier, which that table names individually. **Never read a
+  `findings=0` as clean without reading `population-verdict=`.**
+- **What the 2026-09-01 wave added, so you do not re-file it by hand.** Machine-checked now:
+  **state paint** under force (`hover-contrast`, and the glow census reading `::before`/`::after`
+  layers while the subject is held in its forced state); the **device-pixel grid / crispness laws**
+  (`off-grid-text` Law 4, `promoted-layer-offset` Law 3, `off-grid-transform` Law 2 — see
+  `docs/design/integer-line-boxes.md`); **density-tier parity** (`tier-drift` — the resolved pixel vs
+  what `packages/ui/src/styles/tiers.css` sanctions for the surface's declared tier, a divergence no
+  source-side scan can see); the **accessible-name source set** (`aria-name` reads the browser's own
+  `el.labels` association, so a control named only by `<label for>` is no longer a false P1); and the
+  **placement-collision arms** (`truncated-to-nothing`, `obscured-target`, `headline-overhang`,
+  `inline-padding-leak`). Per-SEED ink contrast is NOT a design-audit rule and never was: the
+  `seed-theme-ink-contrast` gate proves every text token clears AA-normal in every shipped seed
+  palette statically, with no browser — so a driven audit only ever sees the seed it rendered.
+- **The three unmeasured axes (2026-09-01, `ops/walker/RULE-AUTHORING.md` §"#19").** One rendered
+  verdict is a function of three independent axes and a pass on one is not a pass on the others:
+  the **panel** axis (`--panels`, `tooling/src/_shared/panel-presets.json` — which surface was
+  visited), the **variant** axis (`tests/ui/variant-arm-matrix.*` — which `tv()` arm rendered), and
+  the **mechanism** axis (does the rule's SELECTOR match how this codebase expresses the thing —
+  the mechanism-match table in `RULE-AUTHORING.md`, which is the doc to read before trusting or
+  authoring any detector rule).
 
 Read `__orb` and any computed value via `snap --eval` / `snap --contrast` — a **Bash** call, no MCP.
 
@@ -285,17 +320,23 @@ Read `__orb` and any computed value via `snap --eval` / `snap --contrast` — a 
   `role="article"` message nodes in the DOM showed ZERO articles in its tree (children rendered flat).
   Never report "missing grouping/landmark" from a devtools snapshot alone — `snap --aria` (Playwright's
   ARIA snapshot) is the trustworthy structure receipt; cross-check the DOM via `--eval` when in doubt.
-- **KNOWN GAP, we carry no hover-state contrast check.** impeccable's own detector set includes
-  `checkHoverContrast` (a broader selector's rule can win the specificity fight on `:hover` and swap in
-  a failing text/background color even when the rest state passes); we adopted none of it. This was
-  missed by the 59-rule adoption triage BY CONSTRUCTION, not by oversight: the rule reuses the existing
-  `low-contrast` finding id, so it carries no separate registry row and a rule-by-rule diff against our
-  ruleset could never surface it. Proven feasible 2026-09-01: `CSS.forcePseudoState` (CDP) works in our
-  Chromium, forcing `:hover` swapped a CTA's text color from `rgb(255,255,255)` to `rgb(107,114,128)`,
-  and releasing the forced state restored it exactly; `tooling/src/_shared/browser-media.ts:65` already
-  opens a CDP session this could ride. Until this ships as a rule, a reviewer covers hover-state
-  contrast BY HAND on any surface with hover-styled text (forced-hover + `--contrast`, or a manual
-  `:hover` drive plus `getComputedStyle`); a clean `design-audit` pass says nothing about it.
+- **CLOSED 2026-09-01 — hover-state contrast IS checked now (`hover-contrast`, P1).** This bullet used
+  to read "KNOWN GAP, we carry no hover-state contrast check"; that is false on the current tree. The
+  gap was real and it was missed by the upstream 59-rule adoption triage BY CONSTRUCTION rather than by
+  oversight — impeccable's `checkHoverContrast` reuses the existing `low-contrast` finding id, so it
+  carried no separate registry row and a rule-by-rule id diff could never surface it (the durable
+  lesson: **when re-syncing against upstream, diff the exported MECHANISMS, not just the id registry**).
+  What shipped: a dedicated CDP forced-state pass (`ops/hover.ts` + `ops/hover-walker.ts`) that forces
+  each subject, re-reads the paint, and RELEASES the state, with `lib/checks-hover.ts` judging the
+  forced pair only when it differs from rest — so a control already failing at rest stays `contrast`'s
+  row and is not double-reported. It carries its own denominator (`hoverContrastPopulations`), so an
+  absent pass (coarse pointer, a break) publishes NO row rather than a clean-looking zero, and a
+  subject whose `:hover` could not be forced is WITHHELD out loud. **The mechanism lesson generalises:**
+  Base UI drives its own interaction state through `data-*` attributes, not CSS pseudo-classes, so the
+  state-paint census recognises BOTH spellings through one shared predicate
+  (`ops/walker/state-paint.ts`) — a `:hover`-substring scan is blind to most of this app's state paint,
+  and an escaped Tailwind class name (`.dark\:hover\:bg-*`) contains the substring `:hover` without
+  being a pseudo. Row 3/4/5/7 of `RULE-AUTHORING.md`'s mechanism-match table are the receipts.
 - **The general lesson behind two corrections of 2026-09-01 (the `--shadow-glow` rationale in §11's
   effect-axes list BELOW, and the glow/radial parser note in `side-eye.md`, not in this file): a
   documented reason why an instrument skips something is a CLAIM, and a claim decays.** Both were written down once

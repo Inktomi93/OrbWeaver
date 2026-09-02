@@ -105,8 +105,8 @@ function unresolvedShape(n: Node): string {
 }
 
 /** The object literal an initializer expression denotes — through any `as`/`satisfies`/paren wrapper
- *  (`unwrapExpression`) and through SAME-FILE identifier indirection (`const def = {…}; export const x: T =
- *  def;` — still co-located, so still readable). An IMPORTED identifier, a builder call, or anything else
+ *  (`unwrapExpression`) and through SAME-FILE identifier indirection (a `const def = {...}` consumed by an
+ *  exported `const x: T = def` — still co-located, so still readable). An IMPORTED identifier, a builder call, or anything else
  *  comes back `unresolved` WITH the shape named: that is the value a gate fails closed on. */
 export function readObjectLiteral(node: Node | undefined): ObjectLiteralRead {
   if (node === undefined) {
