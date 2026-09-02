@@ -27,7 +27,7 @@ import { diagnosticsPostureInput, diagnosticsPostureWarnings, env, resolveDiagno
 import { getAuditFailureSnapshot } from "../audit.ts";
 import { logRing, recentRequests } from "../logger.ts";
 import { getTraceByRequestId, recentTraces } from "../tracing.ts";
-import type { BugReportRecord } from "./bug-report.ts";
+import type { BugReportRecord } from "@orb/kit/bug-report";
 import { captureNowMs, mintBugReportId, readBuildIdentity, secretLiterals, snapshotServerEvidence, writeBugReport } from "./bug-report.ts";
 import {
   appSettingRows,

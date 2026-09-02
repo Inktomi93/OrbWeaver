@@ -26,6 +26,11 @@
 // post-condition — "no known literal survives" — so a scrubber regression can only ever produce a REFUSAL, never
 // a file with a credential in it (`serializeScrubbed`).
 //
+// THE ARTIFACT SHAPE IS NOT DECLARED HERE. `BUG_REPORT_DIR`, the file-stem grammar and `BugReportRecord`
+// live in `@orb/kit/bug-report` because the READER (`pnpm bug:reports`, #1184) needs the same three facts
+// and cannot import this tier — a re-spelled directory name in the reader turns a rename here into a
+// lister that silently finds nothing.
+//
 // BUILD IDENTITY IS STAMPED AT CAPTURE (owner amendment 3): in dev the served client IS the working tree (HMR),
 // so `git rev-parse HEAD` + a dirty flag is the honest build identity, and a report from a dirty tree says so
 // rather than pretending to be a commit.
@@ -34,17 +39,15 @@ import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { EvidenceSlice, EvidenceSourceMeta, EvidenceWindow } from "@orb/kit/evidence-window";
+import type { BugReportBuildIdentity, BugReportRecord } from "@orb/kit/bug-report";
+import { BUG_REPORT_DIR, bugReportStem } from "@orb/kit/bug-report";
+import type { EvidenceSlice, EvidenceWindow } from "@orb/kit/evidence-window";
 import { sliceByWindow } from "@orb/kit/evidence-window";
 import { redactKnownSecrets } from "#kit/secret-redaction";
 import { logRing, recentRequests } from "../logger.ts";
 import { recentTraces } from "../tracing.ts";
 import { ERROR_LEVEL, parseLogRingLine, ringLineLevel, ringLineTime } from "./log-ring-read.ts";
 import { isWireCaptureEnabled, recentTurnOutcomes, recentWireCaptures } from "./wire-capture.ts";
-
-/** The durable home, relative to the process cwd (the repo root in every launch — `entry/lifecycle.ts`'s own
- *  `repoRoot: process.cwd()` derivation). Gitignored: these are the owner's raw session evidence, not artifacts. */
-const BUG_REPORT_DIR = "bug-reports";
 
 /** How deep each ring is read before the window filter — the ring capacities, so the filter sees everything the
  *  process still holds and `truncatedAt` can tell the truth about what it does not. */
@@ -55,42 +58,15 @@ const STATUS_HEAD_LINES = 40;
 const SECRET_KEY_RE = /(KEY|TOKEN|SECRET|PASSWORD|CREDENTIAL)/iu;
 /** Below this length a "secret" is a common substring and scrubbing it by value would shred the report. */
 const MIN_SECRET_LENGTH = 8;
-
-/** The build the report was taken against. `dirty` is the honest half: dev serves the working tree. */
-export interface BugReportBuildIdentity {
-  /** `git rev-parse HEAD`, or `null` when git could not answer (not a checkout, git absent). */
-  readonly sha: string | null;
-  /** true ⇒ `git status --short` was non-empty at capture: this report is NOT the commit it names. */
-  readonly dirty: boolean;
-  /** The head of `git status --short` when dirty — what was uncommitted, so a later reader can reconstruct. */
-  readonly statusHead: readonly string[];
-}
+/** How much of a report id the markdown quotes as a lookup key — enough to be unique among a session's
+ *  reports without making the reader retype a whole uuid (the lister resolves any unambiguous prefix). */
+const ID_PREFIX_HINT = 8;
 
 /** The optional domain-owned flight recorders, as the debug registrar already receives them. Absent ⇒ that
  *  source reports itself absent in the bundle rather than silently contributing nothing. */
 export interface BugReportInspectors {
   readonly rpgTrace?: { readonly recent: (filter: { limit?: number }) => readonly object[] };
   readonly memoryRecall?: { readonly recent: (filter: { limit?: number }) => readonly object[] };
-}
-
-/** One captured report, as it is written to disk and echoed to the caller. */
-export interface BugReportRecord {
-  /** The correlation id — also the file stem's tail, so a bundle and its files name each other. */
-  readonly id: string;
-  /** ISO-8601 of the capture. */
-  readonly capturedAt: string;
-  readonly build: BugReportBuildIdentity;
-  readonly window: EvidenceWindow;
-  /** The owner's typed note, verbatim. */
-  readonly note: string;
-  /** Whatever the page assembled — opaque here by design (the client owns its own bundle shape). */
-  readonly client: unknown;
-  readonly server: {
-    readonly sources: readonly EvidenceSourceMeta[];
-    readonly evidence: Readonly<Record<string, readonly unknown[]>>;
-    /** Whether the provider wire recorder was even on — an empty capture list means nothing without it. */
-    readonly wireCaptureEnabled: boolean;
-  };
 }
 
 function gitOutput(repoRoot: string, args: readonly string[]): string | null {
@@ -242,14 +218,6 @@ function recorderSlice(
   });
 }
 
-/** `2026-09-02T08-19-59` — a filesystem-safe, sortable stem. */
-function timestampSlug(capturedAt: Date): string {
-  return capturedAt
-    .toISOString()
-    .replace(/\.\d+Z$/u, "")
-    .replaceAll(":", "-");
-}
-
 /** The owner's note as the markdown companion — the half a human reads first, pointing at the JSON for the
  *  rest. Deliberately tiny: the bundle is the evidence, this is the index card. */
 function noteMarkdown(record: BugReportRecord, stem: string): string {
@@ -275,6 +243,13 @@ function noteMarkdown(record: BugReportRecord, stem: string): string {
     "",
     record.note,
     "",
+    // THE ARTIFACT NAMES ITS OWN READER (#1184). These files are gitignored, so nothing on the tree points at
+    // them and a cold investigator who stumbles on one has no way to find its siblings. One line here is the
+    // cheapest of the three discoverability homes and the only one that travels WITH the evidence.
+    "---",
+    "",
+    "Every report in this directory: `pnpm bug:reports` · this one: `pnpm bug:reports " + record.id.slice(0, ID_PREFIX_HINT) + "`",
+    "",
   ]
     .filter((line, index, lines) => !(line === "" && lines[index - 1] === ""))
     .join("\n");
@@ -291,7 +266,7 @@ export async function writeBugReport(args: {
   if (json === null) {
     return null;
   }
-  const stem = `${timestampSlug(new Date(args.record.capturedAt))}-${args.record.id}`;
+  const stem = bugReportStem(new Date(args.record.capturedAt), args.record.id);
   const dir = join(args.repoRoot, BUG_REPORT_DIR);
   await mkdir(dir, { recursive: true });
   const jsonPath = join(dir, `${stem}.json`);

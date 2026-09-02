@@ -21,6 +21,7 @@
     "snap": "node tooling/src/snap/cli.ts",
     "snap:devtools-assets": "node tooling/src/snap/cli.ts --materialize-devtools-assets",
     "ast": "node tooling/src/ast/cli.ts",
+    "bug:reports": "node tooling/src/bug-reports/cli.ts",
     "codemod": "node tooling/src/codemod/cli.ts",
     "knip": "knip --cache",
     "knip:prod": "knip --cache --production --strict",
