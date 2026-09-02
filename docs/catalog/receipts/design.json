@@ -1316,13 +1316,14 @@
       "authority": "design",
       "fullRead": true,
       "verifiedSha256": "2924fc5e5d67946eb7bff68ea16db5124321901a6eff7195437f6aef1c173740",
-      "verifiedCommit": "8e162cd47ecf0a10d7a7f418ab0ce092c917d76c",
+      "verifiedCommit": "c663bbeded16ef2a1f2d8b49d84d849cdc7c9c82",
       "verifiedAt": "2026-09-01",
       "evidence": [
         "docs/design/vocabulary-map.md:1-72 read IN FULL by the orchestrator (claude-b) before the receipt; minted by lane cb-vocab-reconcile at the #914 merge as the ONE living home for the concept→word table, per the owner's ruling that the design doc is the source of truth and everything references it",
         "re-attested at 106e855db — row 4's status corrected from 'landed' to COPY-landed/CODE-not-landed after lane cb-vocab-c2 found ten files still spelling cast; the map's own status column is a tree claim and owes a receipt like any other (#922)",
         "re-attested at 05a109eec — rows 5/6 flipped to landed with their Was-history, three new rows added (kit name axis, regex slice, CarriedAppearance), plus a new section listing four concepts still spelled cast that the map has NO word for; row 4 kept at the orchestrator's #922 truth repair (COPY landed / CODE not landed) — the union resolution at this merge",
-        "re-attested at 8e162cd47 — #922 (claude-b lane cb-cast-code, 45aa4313c rebased): row 4 flipped to landed-with-deletion (chat-cast-bar → chat-character-bar; MembersRow kind:\"character\"); delta read of the row"
+        "re-attested at 8e162cd47 — #922 (claude-b lane cb-cast-code, 45aa4313c rebased): row 4 flipped to landed-with-deletion (chat-cast-bar → chat-character-bar; MembersRow kind:\"character\"); delta read of the row",
+        "re-attested at c663bbede — #1011 (claude-b lane cb-cast-residues, 55852c3d6 rebased): three survivor rows deleted, three landed rows added (speakerCandidates family, kind cast→multi-voice with the stored-literal absence proof, ResolvedCharacterIds); delta read of the six rows"
       ],
       "claims": [
         {
