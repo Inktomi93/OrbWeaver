@@ -13,7 +13,7 @@ import { Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { CollectionListGroup } from "../../../../packages/client/src/features/config/components/config-list-group.tsx";
+import { CollectionListGroup } from "../../../../packages/client/src/features/config/components/config-list-collection-group.tsx";
 import { RegexBulkBar } from "../../../../packages/client/src/features/regex/components/regex-bulk-bar.tsx";
 import { RegexContextBody } from "../../../../packages/client/src/features/regex/components/regex-context-body.tsx";
 import { regexGroup } from "../../../../packages/client/src/features/regex/lib/regex-group.tsx";
