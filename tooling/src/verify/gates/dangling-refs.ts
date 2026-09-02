@@ -2,12 +2,12 @@
 // leads nowhere is drift the amnesiac reader can't tell from a real home. Four arms:
 //   arm 1 — every gate descriptor's docRow/message/fix string that names a `*.md` path must resolve to a
 //           real file (the UNIFIED-VERIFICATION ghost — cited by four sites, never committed — was this class).
-//   arm 2 — every markdown LINK `[text](x.md)` in docs/architecture/{core,proposed}/**/*.md must resolve.
-//   arm 3 — 2026-08-03 core-docs truth audit: every backticked token in docs/architecture/core/**/*.md that
+//   arm 2 — every markdown LINK `[text](x.md)` in the LINK corpus must resolve.
+//   arm 3 — 2026-08-03 core-docs truth audit: every backticked token in the AUDIT corpus that
 //           PARSES AS A REPO PATH (a known-prefix shorthand — packages/·docs/·scripts/·tests/·domain/·
 //           entry/·infra/·transport/·foundation/·kit/·@orb/<pkg>) must resolve on disk. Unresolvable shapes
 //           (no recognized prefix, a `<placeholder>`/glob) skip — never guessed. Two-sided allowlist.
-//   arm 4 — same audit: a backticked STRICT UPPER_SNAKE token (`[A-Z][A-Z0-9]*(_[A-Z0-9]+)+` — ≥1
+//   arm 4 — same audit, same corpus: a backticked STRICT UPPER_SNAKE token (`[A-Z][A-Z0-9]*(_[A-Z0-9]+)+` — ≥1
 //           underscore, no lowercase) must resolve in the shared ts-morph project's declaration-name index
 //           (packages/*/src + tests + gate corpus). Precision over recall (err quiet): a bare single
 //           ALL-CAPS word (prose emphasis / this gate corpus's own exemption vocabulary) and a bare
@@ -22,8 +22,10 @@
 //           `GITIGNORED_ABSENT` skips those paths and is THREE-SIDED: the row reds when the docs stop
 //           referencing it, when its `cite` stops resolving, and when the path stops being named by a
 //           literal `.gitignore` rule (the moment "absent by design" becomes false).
-// Arms 3/4 are DOC-PATHS-ONLY siblings of arms 1/2, scoped to docs/architecture/core/** only (the law corpus;
-// proposed/ and history/ legitimately name dead code in prose). Both carry a two-sided allowlist (`why`
+// THE TWO CORPORA ARE DERIVED FROM THE DOC CATALOG, never hand-named (#1036) — `corpora()` below states the
+// class rule and its receipts. Arms 3/4 are DOC-PATHS-ONLY siblings of arms 1/2 over the AUDIT corpus (living
+// law + the living design homes + the law markdown that sits outside docs/); the parked design sets, frozen
+// history and dated reviews are OUT by class, not by a path list. Both carry a two-sided allowlist (`why`
 // mandatory; a row matching no live phantom is itself RED — a stale exemption is a loaded gun).
 //
 // SYMBOL / code-pointer refs beyond arm 4's narrow casing fence are still OUT OF SCOPE (a bare lowercase
@@ -199,9 +201,8 @@ function scanGateDescriptors(root: string): Violation[] {
   return out;
 }
 
-// ── arm 2: markdown links in core/ + proposed/ ────────────────────────────────────────────────────────
+// ── arm 2: markdown links ─────────────────────────────────────────────────────────────────────────────
 // history/** is EXEMPT as a scan SOURCE (archaeology cites the dead); a link INTO history from here resolves.
-const SCAN_DIRS: readonly string[] = ["docs/architecture/core", "docs/architecture/proposed"];
 const MD_EXT_RE = /\.md$/u;
 
 const ARM2_MSG = (ref: string): string =>
@@ -219,18 +220,140 @@ function walkMd(root: string, relDir: string, out: string[]): void {
   }
 }
 
-/** The markdown corpus arms 2–4 read. Returned to the caller so the gate can DECLARE its scan denominator:
- *  this gate's units are docs on disk, and the harness — which only sees the ts-morph workspace — would
- *  otherwise report a file count it never read (pass.ts `GateScan`). */
-function docCorpus(root: string): readonly string[] {
+// ── the DERIVED doc corpora (#1036) ───────────────────────────────────────────────────────────────────
+// Hand-naming the scanned directories is what let `GATE-AUTHORING.md` — the law every gate author reads —
+// rot a cite with nothing watching: arms 2–4 read only `docs/architecture/{core,proposed}`, so law outside
+// that pair (the two AUTHORING.md files beside their tools) and the living design homes the constitution
+// cites (`docs/design/vocabulary-map.md`, …) sat outside the net entirely.
+//
+// THE CLASS RULE, stated once and derived from `docs/catalog/catalog.json` (the catalog IS the census of
+// tracked docs; its freshness is already a `pnpm check` stage): a document owes citation integrity when it
+// is a LIVING HOME — `status: active` AND a receipt `authority` of `normative` / `current-reference` /
+// `operational` (law) or `design` (a living design home). Three classes are OUT, each for its own reason:
+//   - authority `historical` / `review` / `vendor` — FROZEN EVIDENCE. Documentation-Law.md §"Relocation &
+//     retirement" step 5 rules that dated reviews and history keep the path that was true then and are NOT
+//     repointed, so resolving their cites would red a doc for obeying the law. (`history/**` was already
+//     exempt as a scan source; this states the same exemption as a CLASS rather than a directory.)
+//   - `status` other than `active` — a draft/parked/complete/archived/superseded doc is not a home a reader
+//     is sent to.
+//   - the PARKED DESIGN SETS (`docs/architecture/proposed/**` + `docs/architecture/*.md`, the catalog's
+//     `architecture-proposed` lane) — they name the homes their unbuilt subject WILL have, which is the
+//     ruling this gate's header has always carried ("proposed/ legitimately names dead code in prose").
+//     They keep arm 2 (a LINK is navigation to a doc that must exist NOW) and stay out of arms 3/4.
+// AND THE LIVING DESIGN HOMES TAKE ARM 3 BUT NOT ARM 4, measured rather than assumed: their PATH cites are
+// the review evidence idiom (`path.ts:120-134`) and every survivor of the widening was real drift, but their
+// UPPER_SNAKE cites are as often a name the doc is PROPOSING for unbuilt work (`SPIKE_NUDGE`, `TWIST_CAP`,
+// `PROTECT_TAIL`, `CREW_ACTIVE_GAME`, `BAKE_MODELS` — 13 of them at the widening) as a live declaration.
+// Arm 4's founding tuning is precision over recall / err quiet, so its corpus stays LAW-only.
+// Both corpora UNION the directories the gate scanned before, so the widening can only add: arm 2 keeps the
+// whole core+proposed trees, arms 3/4 keep the whole core tree (incl. the historical-authority core docs).
+const CATALOG_REL = "docs/catalog/catalog.json";
+const LAW_AUTHORITIES: ReadonlySet<string> = new Set(["normative", "current-reference", "operational"]);
+const DESIGN_AUTHORITY = "design";
+const LIVING_STATUS = "active";
+const PARKED_SET_LANE = "architecture-proposed";
+const LINK_SCAN_DIRS: readonly string[] = ["docs/architecture/core", "docs/architecture/proposed"];
+const AUDIT_SCAN_DIRS: readonly string[] = ["docs/architecture/core"];
+
+/** LAW THAT LIVES OUTSIDE `docs/`. The constitution's §7 index names both of these as the law for their
+ *  tool, but they sit beside the code they govern, and the catalog's corpus is tracked markdown under
+ *  `docs/` — so no derivation can reach them and they are named literally. §4.6: a name-keyed gate detects
+ *  its own blindness, so a path here that stops resolving is REPORTED and counted `unresolved`. */
+const LAW_OUTSIDE_DOCS: readonly string[] = ["tooling/src/verify/gates/GATE-AUTHORING.md", "tooling/src/ui-audit/ops/walker/RULE-AUTHORING.md"];
+
+/** One catalogued document, read narrowly — only the three coordinates the class rule judges. */
+interface CatalogDoc {
+  readonly path?: unknown;
+  readonly lane?: unknown;
+  readonly frontmatter?: { readonly fields?: Readonly<Record<string, unknown>> };
+  readonly receipt?: { readonly authority?: unknown };
+}
+
+/** The three derived corpora plus the per-class counts the gate declares as its scan receipt. */
+interface Corpora {
+  readonly links: readonly string[];
+  readonly audit: readonly string[];
+  readonly symbols: readonly string[];
+  readonly law: number;
+  readonly design: number;
+  readonly lawOutsideDocs: number;
+  readonly lawOutsideDocsMissing: readonly string[];
+  readonly catalogued: number;
+}
+
+function walkDirs(root: string, dirs: readonly string[]): readonly string[] {
   const files: string[] = [];
-  for (const dir of SCAN_DIRS) {
+  for (const dir of dirs) {
     if (existsSync(join(root, dir))) {
       walkMd(root, dir, files);
     }
   }
   return files;
 }
+
+function fieldOf(doc: CatalogDoc, key: string): string | undefined {
+  const value = doc.frontmatter?.fields?.[key];
+  return typeof value === "string" ? value : undefined;
+}
+
+/** The catalogued LIVING homes, split by class. A missing catalog yields two empty sets (a conformance
+ *  mini-project has no catalog); on a real tree an empty census is REPORTED by the anchor-guarded
+ *  `BLIND_CATALOG_MSG` arm in `run`, never passed off as a clean corpus. */
+function catalogued(root: string): { readonly law: readonly string[]; readonly design: readonly string[] } {
+  const file = join(root, CATALOG_REL);
+  if (!existsSync(file)) {
+    return { law: [], design: [] };
+  }
+  // A malformed catalog THROWS (the harness turns it into a ToolError for this gate): the gate cannot
+  // derive its own subject, and a silently empty corpus is the exact placebo this widening exists to end.
+  const docs = (JSON.parse(readFileSync(file, "utf8")) as { readonly documents?: readonly CatalogDoc[] }).documents ?? [];
+  const law: string[] = [];
+  const design: string[] = [];
+  for (const doc of docs) {
+    const path = typeof doc.path === "string" ? doc.path : undefined;
+    const authority = typeof doc.receipt?.authority === "string" ? doc.receipt.authority : undefined;
+    if (path === undefined || authority === undefined || fieldOf(doc, "status") !== LIVING_STATUS || !existsSync(join(root, path))) {
+      continue;
+    }
+    if (LAW_AUTHORITIES.has(authority)) {
+      law.push(path);
+    } else if (authority === DESIGN_AUTHORITY && doc.lane !== PARKED_SET_LANE) {
+      design.push(path);
+    }
+  }
+  return { law, design };
+}
+
+/** The markdown corpora arms 2–4 read. Returned to the caller so the gate can DECLARE its scan denominator:
+ *  this gate's units are docs on disk, and the harness — which only sees the ts-morph workspace — would
+ *  otherwise report a file count it never read (pass.ts `GateScan`). */
+function corpora(root: string): Corpora {
+  const { law, design } = catalogued(root);
+  const outside = LAW_OUTSIDE_DOCS.filter((rel) => existsSync(join(root, rel)));
+  const symbols = [...new Set([...walkDirs(root, AUDIT_SCAN_DIRS), ...law, ...outside])].sort();
+  const audit = [...new Set([...symbols, ...design])].sort();
+  const links = [...new Set([...walkDirs(root, LINK_SCAN_DIRS), ...audit])].sort();
+  return {
+    links,
+    audit,
+    symbols,
+    law: law.length,
+    design: design.length,
+    lawOutsideDocs: outside.length,
+    lawOutsideDocsMissing: LAW_OUTSIDE_DOCS.filter((rel) => !existsSync(join(root, rel))),
+    catalogued: law.length + design.length,
+  };
+}
+
+const BLIND_CATALOG_MSG =
+  `the doc-catalog census (${CATALOG_REL}) resolved ZERO living law/design documents, so arms 2-4 would judge only the ` +
+  "hand-named directories — the blindness this gate's derived corpus exists to prevent (GATE-AUTHORING.md §4.6). Re-run " +
+  "`pnpm doc-catalog:write`, or fix the class rule in tooling/src/verify/gates/dangling-refs.ts `catalogued`.";
+
+const LAW_OUTSIDE_MISSING_MSG = (rel: string): string =>
+  `\`${rel}\` is named by LAW_OUTSIDE_DOCS in tooling/src/verify/gates/dangling-refs.ts (law the constitution's §7 index ` +
+  "cites, living outside docs/ where the catalog cannot see it) and no longer resolves — the widened corpus lost a member " +
+  "silently. Repoint the constant to the doc's new home, or delete the row if the doc is gone.";
 
 function scanDocLinks(root: string, files: readonly string[]): Violation[] {
   const out: Violation[] = [];
@@ -251,7 +374,9 @@ function scanDocLinks(root: string, files: readonly string[]): Violation[] {
   return out;
 }
 
-// ── arm 3: backticked-PATH existence in docs/architecture/core/**/*.md ────────────────────────────────
+// ── arm 3: backticked-PATH existence across the AUDIT corpus ─────────────────────────────────────────
+// The corpus anchor: where a corpus-level finding (a stale allowlist row, an absent-by-design verdict)
+// is filed, since those findings belong to no single doc.
 const ARM34_SCAN_DIR = "docs/architecture/core";
 const BACKTICK_TOKEN_RE = /`([^`\n]+)`/gu;
 const STRIKETHROUGH_RE = /~~[^~\n]*~~/gu;
@@ -293,9 +418,16 @@ const PATH_PREFIXES: readonly string[] = [
 ];
 
 const TRIM_ANCHOR_RE = /#[^)\s]*$/u;
-const TRIM_LINEREF_RE = /:\d+$/u;
+// THE LINE-REF SUFFIX, in every spelling the corpus actually writes (#1036 — the single-`:N` form was the
+// matcher's blind spot, and it stayed invisible while arm 3 read only `core/`, which cites bare paths; the
+// review/design corpus writes RANGES): `:12` · `:12-30` · `:12,18` · `:12-30,44-50` · the multi-anchor
+// `:6/:18`. A blind trimmer here is a false-POSITIVE factory over a corpus that cites evidence by line.
+const TRIM_LINEREF_RE = /:\d+(?:-\d+)?(?:[,/]:?\d+(?:-\d+)?)*$/u;
 const TRIM_PUNCT_RE = /[:.,;)]+$/u;
-const TRIM_CROSSREF_RE = /::[A-Za-z_][A-Za-z0-9_]*(\(\))?$/u;
+// The `path::<code pointer>` idiom, read as "everything from the first `::`" rather than as an identifier:
+// the pointer half is also written as a CSS/var expression (`globals.css::var(--reading-line-height)`), and
+// a path segment can never contain `::` anyway.
+const TRIM_CROSSREF_RE = /::.*$/u;
 
 /** Strip trailing prose punctuation / line-ref / anchor a backtick token commonly carries in these docs.
  *  The corpus's `path::Symbol` cross-reference idiom (`entry/compose/chat.ts::activePersonaIdFor`) is a
@@ -387,7 +519,7 @@ function orbPkgModExists(root: string, target: string, pkg: string, mod: string)
 }
 
 const ARM3_MSG = (ref: string): string =>
-  `backticked path \`${ref}\` in a core doc resolves to no file/dir on disk (shorthand: domain·entry·infra·` +
+  `backticked path \`${ref}\` in a living law/design doc resolves to no file/dir on disk (shorthand: domain·entry·infra·` +
   "transport·foundation → packages/server/src/…; kit/<x> → packages/kit/src/<x>; @orb/<pkg>/<mod> → " +
   "packages/<pkg>/src/<mod>, and @orb/tooling/<mod> → tooling/src/<mod>). A phantom path is drift the " +
   "amnesiac reader can't tell from a real home — " +
@@ -397,17 +529,6 @@ const ARM3_MSG = (ref: string): string =>
  *  yield a token — struck content is the corpus's other dead-mention convention (alongside rider lines). */
 function maskStrikethrough(line: string): string {
   return line.replace(STRIKETHROUGH_RE, (m) => " ".repeat(m.length));
-}
-
-/** Every core doc's relative path, in a stable order. */
-function listCoreDocs(root: string): readonly string[] {
-  if (!existsSync(join(root, ARM34_SCAN_DIR))) {
-    return [];
-  }
-  return readdirSync(join(root, ARM34_SCAN_DIR))
-    .filter((f) => f.endsWith(".md"))
-    .sort()
-    .map((f) => `${ARM34_SCAN_DIR}/${f}`);
 }
 
 /** True when this doc's opening lines carry the corpus's head-rider convention — the whole file (or "rows
@@ -481,12 +602,13 @@ function pathTokensInLine({ root, rel, rawLine, lineNo, allow, hitRefs, referenc
 
 function scanPathTokens(
   root: string,
+  docs: readonly string[],
   allow: ExemptionTable,
 ): { readonly violations: Violation[]; readonly hitRefs: Set<string>; readonly referencedRefs: Set<string> } {
   const violations: Violation[] = [];
   const hitRefs = new Set<string>();
   const referencedRefs = new Set<string>();
-  for (const rel of listCoreDocs(root)) {
+  for (const rel of docs) {
     const lines = readFileSync(join(root, rel), "utf8").split("\n");
     if (hasHeadRider(lines)) {
       continue; // the whole doc is declared historical/frozen — every mention below is covered by it
@@ -498,7 +620,7 @@ function scanPathTokens(
   return { violations, hitRefs, referencedRefs };
 }
 
-// ── arm 4: backticked-SYMBOL existence in docs/architecture/core/**/*.md ──────────────────────────────
+// ── arm 4: backticked-SYMBOL existence across the AUDIT corpus ────────────────────────────────────────
 // STRICT UPPER_SNAKE only (`[A-Z][A-Z0-9]*(_[A-Z0-9]+)+` — at least one underscore, no lowercase): the
 // tuple/const class the audit's founding phantoms (`REATTRIBUTE_WINDOW`, `ANTH_DIRECT_SAMPLING`,
 // `RAIL_SLOTS`/`MODAL_SLOTS`) all share. A bare single ALL-CAPS word (`FLAG`, `BUILT`, `OUT` — prose
@@ -569,7 +691,7 @@ function declaredNameIndex(ctx: GateRunCtx): Set<string> {
 }
 
 const ARM4_MSG = (ref: string): string =>
-  `backticked symbol \`${ref}\` in a core doc has no declaration anywhere in the workspace (packages/*/src, ` +
+  `backticked symbol \`${ref}\` in a living law/design doc has no declaration anywhere in the workspace (packages/*/src, ` +
   "tests/, the gate corpus). A phantom symbol cite is drift — repoint it to the real name, or strike/rider " +
   "it as deliberate history if the code is gone.";
 
@@ -604,11 +726,16 @@ function symbolTokensInLine({ rel, rawLine, lineNo, index, allow, hitRefs }: Sym
   return out;
 }
 
-function scanSymbolTokens(root: string, ctx: GateRunCtx, allow: ExemptionTable): { readonly violations: Violation[]; readonly hitRefs: Set<string> } {
+function scanSymbolTokens(
+  root: string,
+  docs: readonly string[],
+  ctx: GateRunCtx,
+  allow: ExemptionTable,
+): { readonly violations: Violation[]; readonly hitRefs: Set<string> } {
   const index = declaredNameIndex(ctx);
   const violations: Violation[] = [];
   const hitRefs = new Set<string>();
-  for (const rel of listCoreDocs(root)) {
+  for (const rel of docs) {
     const lines = readFileSync(join(root, rel), "utf8").split("\n");
     if (hasHeadRider(lines)) {
       continue; // the whole doc is declared historical/frozen — every mention below is covered by it
@@ -703,6 +830,15 @@ interface AbsentByDesign {
 const GITIGNORE_REL = ".gitignore";
 
 const GITIGNORED_ABSENT: ExemptionTable<AbsentByDesign> = {
+  "packages/client/dist": {
+    why:
+      "the client BUILD OUTPUT — present after a build, absent on a clean checkout, gitignored by the `dist/` rule. " +
+      "`docs/design/containerize-build-plan.md` quotes the `.dockerignore` entry VERBATIM, and judging that quote with " +
+      "existsSync makes this gate's verdict a property of whether THIS checkout happens to have built the client — the " +
+      "#775 environment-dependence class, one directory over. Delete this row the day the containerize plan stops " +
+      "quoting the .dockerignore entry.",
+    cite: ".dockerignore",
+  },
   "scripts/probes/st-goldens/sillytavern-runtime": {
     why:
       "a GITIGNORED captured SillyTavern install — present on a full checkout, absent by design on a clean one. " +
@@ -713,13 +849,17 @@ const GITIGNORED_ABSENT: ExemptionTable<AbsentByDesign> = {
 };
 
 /** Is `path` named by a literal `.gitignore` rule? Read literally — a rule this reader cannot prove is a
- *  MISSING justification, never an assumed one, so the row reds rather than passing on a guess. */
+ *  MISSING justification, never an assumed one, so the row reds rather than passing on a guess.
+ *  TWO literal shapes, both straight out of gitignore's own grammar: the whole path (anchored or not), and
+ *  a rule carrying NO slash, which matches a basename AT ANY DEPTH (`dist/` names `packages/client/dist`).
+ *  A root-anchored `/dist/` is deliberately NOT accepted for a nested path — it does not name it. */
 function gitignoredLiterally(root: string, path: string): boolean {
   const file = join(root, GITIGNORE_REL);
   if (!existsSync(file)) {
     return false;
   }
-  const wanted = new Set([path, `${path}/`, `/${path}`, `/${path}/`]);
+  const basename = path.split("/").pop() ?? path;
+  const wanted = new Set([path, `${path}/`, `/${path}`, `/${path}/`, basename, `${basename}/`]);
   return readFileSync(file, "utf8")
     .split("\n")
     .map((line) => line.trim())
@@ -778,26 +918,40 @@ export const gate: GateDescriptor = {
   fsBacked: true,
   message:
     "a doc-path pointer leads nowhere — a gate descriptor's docRow/message/fix names a `*.md` that resolves " +
-    "to no file, a markdown link in docs/architecture/{core,proposed}/**/*.md targets a missing doc, a " +
-    "backticked path in docs/architecture/core/**/*.md resolves to no file/dir, or a backticked UPPER_SNAKE/" +
-    "PascalCase-tailed/`name()` symbol in a core doc has no declaration in the workspace. A ghost cite is " +
-    "drift the reader can't distinguish from a real home. Rider lines and `~~struck~~` text are exempt " +
-    "structurally (deliberate history). See Core-Enforcement-Active-Gates.md.",
+    "to no file, a markdown link in the LINK corpus targets a missing doc, or a backticked path / " +
+    "UPPER_SNAKE symbol in the AUDIT corpus resolves to no file/dir/declaration. Both corpora are DERIVED " +
+    "from docs/catalog/catalog.json — every LIVING home (status active + a law or design authority), plus " +
+    "the law markdown outside docs/ (tooling/src/verify/gates/GATE-AUTHORING.md, " +
+    "tooling/src/ui-audit/ops/walker/RULE-AUTHORING.md); frozen history, dated reviews " +
+    "and the parked design sets are out by class. A ghost cite is drift the reader can't distinguish from " +
+    "a real home. Rider lines and `~~struck~~` text are exempt structurally (deliberate history). " +
+    "See Core-Enforcement-Active-Gates.md.",
   fix: "repoint the cite to the doc's real home (bare names resolve against core/ then history/ then proposed/ then repo root; a markdown link resolves relative to its own file first; a backtick path/symbol repoints to the live name or rewords as history), or delete a dead link; never delete surrounding prose.",
   run: (ctx) => {
-    const docs = docCorpus(ctx.root);
-    // This gate reads DOCS off disk, not the shared ts-morph fileset — so it declares its own denominator.
-    // Left undeclared, its scan-health row would carry the workspace file count (a number it never read)
-    // and the zero-scan alarm could not tell a real blindness from a gate that scans no `.ts` at all.
-    ctx.scan({ unit: "doc", scanned: docs.length });
-    for (const v of [...scanGateDescriptors(ctx.root), ...scanDocLinks(ctx.root, docs)]) {
+    const docs = corpora(ctx.root);
+    // This gate reads DOCS off disk, not the shared ts-morph fileset — so it declares its own denominator,
+    // BY CLASS. Left undeclared, its scan-health row would carry the workspace file count (a number it never
+    // read) and the zero-scan alarm could not tell a real blindness from a gate that scans no `.ts` at all;
+    // left unsplit, a class silently emptying (the catalog stops resolving, a law doc outside docs/ moves)
+    // would hide inside one healthy-looking total — the #946 denominator-loss shape, which is judged at
+    // ops/structure.ts, never here.
+    ctx.scan({
+      unit: "doc",
+      scanned: docs.links.length,
+      population: [
+        { source: "citation-corpus:law", members: docs.law },
+        { source: "citation-corpus:design", members: docs.design },
+        { source: "citation-corpus:law-outside-docs", members: docs.lawOutsideDocs, unresolved: docs.lawOutsideDocsMissing.length },
+      ],
+    });
+    for (const v of [...scanGateDescriptors(ctx.root), ...scanDocLinks(ctx.root, docs.links)]) {
       ctx.report({ file: v.file, line: v.line, column: 0, message: v.message });
     }
     // Arm 3's allow set is the reasoned rows PLUS the absent-by-design ones (#775) — one lookup, so a
     // gitignored path is skipped by the same branch every other exemption uses.
     const arm3Allow: ExemptionTable = { ...ARM3_ALLOW, ...GITIGNORED_ABSENT };
-    const arm3 = scanPathTokens(ctx.root, arm3Allow);
-    const arm4 = scanSymbolTokens(ctx.root, ctx, ARM4_ALLOW);
+    const arm3 = scanPathTokens(ctx.root, docs.audit, arm3Allow);
+    const arm4 = scanSymbolTokens(ctx.root, docs.symbols, ctx, ARM4_ALLOW);
     for (const v of [...arm3.violations, ...arm4.violations]) {
       ctx.report({ file: v.file, line: v.line, column: 0, message: v.message });
     }
@@ -812,6 +966,13 @@ export const gate: GateDescriptor = {
         ...staleAllowlistViolations("arm 3 path", ARM3_ALLOW, arm3.hitRefs),
         ...staleAllowlistViolations("arm 4 symbol", ARM4_ALLOW, arm4.hitRefs),
         ...absentByDesignViolations(ctx.root, arm3.referencedRefs),
+        // §4.6, both halves, and BOTH are real-tree-anchored for the same reason every stale arm is: a
+        // conformance mini-project legitimately has neither the catalog nor the law docs outside docs/.
+        // A name-keyed member that stopped resolving is REPORTED, never merely counted (the population's
+        // `unresolved` is the receipt beside it), and a derived corpus that came back EMPTY is a blind
+        // checker rather than a clean one.
+        ...docs.lawOutsideDocsMissing.map((rel) => ({ file: GATE_REL("dangling-refs.ts"), line: 0, message: LAW_OUTSIDE_MISSING_MSG(rel) })),
+        ...(docs.catalogued === 0 ? [{ file: CATALOG_REL, line: 0, message: BLIND_CATALOG_MSG }] : []),
       ]) {
         ctx.report({ file: v.file, line: v.line, column: 0, message: v.message });
       }
@@ -861,6 +1022,48 @@ export const gate: GateDescriptor = {
       },
       expect: { messageIncludes: "no longer named by a literal" },
       why: "arm 5 two-sidedness (#775): the ONLY thing making the path absent-by-design is its ignore rule — with the rule gone the row would forgive a REAL phantom, so it must red rather than keep skipping",
+    },
+    {
+      files: {
+        // The DERIVED corpus (#1036): a catalogued LIVING DESIGN home is inside arm 3, though it lives in
+        // no hand-named scan directory. Without the catalog entry this doc is invisible to every arm.
+        "docs/catalog/catalog.json":
+          '{"documents":[{"path":"docs/design/__probe6.md","lane":"design","frontmatter":{"fields":{"status":"active"}},"receipt":{"authority":"design"}}]}\n',
+        "docs/design/__probe6.md": "---\nkind: design\n---\n\nThe write boundary is `domain/__ghost_domain__/x.ts`.\n",
+      },
+      expect: { messageIncludes: "resolves to no file/dir" },
+      why: "the derived corpus: a living design home (catalog authority `design` + status active) owes path-citation integrity, though it sits in no hand-named scan dir",
+    },
+    {
+      files: {
+        // LAW OUTSIDE docs/: the constitution's §7 index makes GATE-AUTHORING.md law, and the catalog
+        // (tracked markdown under docs/) structurally cannot see it — so it is named literally and scanned.
+        "tooling/src/verify/gates/GATE-AUTHORING.md": "---\nkind: law\n---\n\nThe controls live at `tests/tooling/__ghost_controls__.test.ts`.\n",
+      },
+      expect: { messageIncludes: "resolves to no file/dir" },
+      why: "the founding #1036 defect: GATE-AUTHORING.md — the law every gate author reads — sat outside the net, and its cite rotted with nothing watching",
+    },
+    {
+      files: {
+        // §4.6 for the ONE hand-named member set: the anchor is planted, so a LAW_OUTSIDE_DOCS path that
+        // resolves to nothing must RED rather than shrink the corpus in silence.
+        "docs/architecture/core/AGENTS.md": "---\nkind: law\n---\n\nplanted anchor.\n",
+      },
+      expect: { messageIncludes: "named by LAW_OUTSIDE_DOCS" },
+      why: "§4.6 blindness tripwire: a literally-named law doc that stops resolving is REPORTED, never silently dropped from the corpus",
+    },
+    {
+      files: {
+        // The other blindness half: a catalog that resolves ZERO living homes would silently return arms
+        // 2-4 to the hand-named directories — a placebo with a healthy-looking file count.
+        "docs/architecture/core/AGENTS.md": "---\nkind: law\n---\n\nplanted anchor.\n",
+        "tooling/src/verify/gates/GATE-AUTHORING.md": "---\nkind: law\n---\n\nplanted.\n",
+        "tooling/src/ui-audit/ops/walker/RULE-AUTHORING.md": "---\nkind: law\n---\n\nplanted.\n",
+        "docs/catalog/catalog.json":
+          '{"documents":[{"path":"docs/history/x.md","lane":"history","frontmatter":{"fields":{"status":"active"}},"receipt":{"authority":"historical"}}]}\n',
+      },
+      expect: { messageIncludes: "resolved ZERO living law/design documents" },
+      why: "the derived corpus must fail LOUD when its census comes back empty — a silently empty derivation is the blind-gate placebo, not a clean tree",
     },
   ],
   mustPass: [
@@ -920,6 +1123,30 @@ export const gate: GateDescriptor = {
           "---\nkind: law\n---\n\n**BUILD-STATE RIDER:** `domain/__g_dead__/x.ts` and `GHOST_RIDER_CONST` are purged.\n\n~~`ANOTHER_GHOST_CONST`~~ struck as dead.\n",
       },
       why: "rider line + struck-through text: deliberately-dead path/symbol mentions must not red (structural skip, not an allowlist row)",
+    },
+    {
+      // THE LINE-REF SUFFIX in every spelling the corpus writes (#1036). Arm 3 read only `core/`, which
+      // cites bare paths, so the single-`:N` trimmer looked total; the review/design corpus cites evidence
+      // by RANGE, and every one of those was a false positive the day the corpus widened.
+      files: {
+        "docs/architecture/core/__probe7.md":
+          "---\nkind: law\n---\n\nSee `domain/__g_ok/x.ts:19`, `domain/__g_ok/x.ts:12-30`, `domain/__g_ok/x.ts:201,207`,\n`domain/__g_ok/x.ts:33-39,257-282`, `domain/__g_ok/x.ts:6/:18` and `domain/__g_ok/x.ts::readIt()`.\n",
+        "packages/server/src/domain/__g_ok/x.ts": "export const x = 1;\n",
+      },
+      why: "arm 3's trimmer: a `path:line` suffix in ANY house spelling (single · range · comma list · multi-anchor · a `::pointer`) is trimmed before resolution — none of these is a phantom",
+    },
+    {
+      // FROZEN EVIDENCE stays out by CLASS, not by directory (Documentation-Law.md §"Relocation &
+      // retirement" step 5: a dated review or a history doc keeps the path that was true then).
+      files: {
+        "docs/catalog/catalog.json":
+          '{"documents":[{"path":"docs/history/__probe8.md","lane":"history","frontmatter":{"fields":{"status":"active"}},"receipt":{"authority":"historical"}},{"path":"docs/design/__probe9.md","lane":"design","frontmatter":{"fields":{"status":"active"}},"receipt":{"authority":"design"}}]}\n',
+        "docs/history/__probe8.md": "---\nkind: history\n---\n\nIt used to live at `domain/__ghost_domain__/x.ts`.\n",
+        // …and arm 4 does NOT ride the design corpus: a design doc's UPPER_SNAKE cite is as often a name it
+        // is PROPOSING as a live declaration, and arm 4's tuning is precision over recall.
+        "docs/design/__probe9.md": "---\nkind: design\n---\n\nThe cap would be `GHOST_PROPOSED_CONST`.\n",
+      },
+      why: "frozen-evidence authorities are out of the corpus by class, and arm 4 stays LAW-only — a design doc naming a constant it proposes is not a phantom cite",
     },
   ],
 };

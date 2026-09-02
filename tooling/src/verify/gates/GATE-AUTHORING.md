@@ -170,7 +170,7 @@ ctx.scan({ population: [{ source: "SectionDefinition", members: 10, unresolved: 
   SHRINKING denominator loud, it says nothing about whether the members it resolved are the right ones.
   Every gate declaring a population still owes the per-shape planted controls its source law sanctions
   (imported initializer · tuple/object spread · interface inheritance · builder) — §5, and the
-  four permanent runner controls live at `tests/tooling/verify/ops/population.int.test.ts`.
+  permanent runner controls live at `tests/tooling/verify/lib/population.int.test.ts`.
 - **Live occupants** (each with its own imported-definition control): `section-registry-completeness`,
   `placeholder-copy-registry`, `modal-registry-completeness`, `modal-body-not-placeholder`,
   `config-group-completeness` (three sources — three accumulators that shrink independently, so three

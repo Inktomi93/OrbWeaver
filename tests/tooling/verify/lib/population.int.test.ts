@@ -7,7 +7,7 @@
 // (a scoped run and a conformance mini-project both legitimately resolve zero members, GATE-AUTHORING §4.5).
 // A planted root also keeps each case ~1s: the corpus under it is the planted gate, not the real 247.
 //
-// The four controls are the four things the receipt has to get right, and each is the direct counterfactual
+// The controls are the things the receipt has to get right, and each is the direct counterfactual
 // of the next: a HEALTHY nonzero population is a verdict; a ZERO population is not; an UNRESOLVED
 // declaration beside healthy members is not; and a population deliberately SHRUNK by moving a member behind
 // an authoring shape the gate cannot read is not — that last one is the audited defect itself, reproduced.
