@@ -17,6 +17,9 @@ import { RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "../../../../suppo
 
 interface GridReport {
   readonly findings: readonly { readonly rule: string; readonly value: string; readonly selector: string }[];
+  readonly populationAccounting?: Readonly<
+    Record<string, { readonly candidates: number; readonly judged: number; readonly excluded: Readonly<Record<string, number>> }>
+  >;
 }
 
 /** One promoted host holding one text element, offset by a quarter CSS pixel — 16/64, so Chromium's
@@ -49,6 +52,47 @@ test("Law 4 judges promoted text and counts BOTH exclusions into the same denomi
   // DPR — the repair address is the promoting ancestor, not the text.
   expect(law4[0]?.value).toContain("inside a will-change layer");
   expect(law4[0]?.value).toContain("at DPR 1");
+});
+
+/** ONE promoted layer, THREE text nodes, at the SAME quarter-pixel landing — the only difference between
+ *  them is whether the browser paints them. `.painted` is ordinary 13px text; `.clipped` is the app-wide
+ *  `sr-only` posture (a real box the clip collapses); `.plumbing` is the sub-2px live-region box. Both
+ *  sr-only shapes are the ones `srOnlyText` (ops/walker/core.ts) names, and both must leave the
+ *  population as EXCLUDED — a node with no pixels cannot land off the device-pixel grid — while the
+ *  painted twin in the SAME layer at the SAME offset still fires. The pair IS the control: a fix that
+ *  merely stopped judging text in this layer would take the painted one with it. */
+const SR_ONLY_FIXTURE = `<style>
+  .promo { will-change: transform; position: relative; top: 10.25px; }
+  .promo p { margin: 0; }
+  .clipped { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .plumbing { display: block; width: 1px; height: 1px; overflow: hidden; }
+</style>
+<div class="promo" data-slot="promoted-host">
+  <p class="painted">painted text in the promoted layer</p>
+  <span class="clipped">screen-reader-only status text</span>
+  <span class="plumbing">x</span>
+</div>`;
+
+test("Law 4 EXCLUDES screen-reader-only text and still judges its painted twin in the same layer", async ({ runCli, scratch }) => {
+  const reportPath = join(scratch, "sr-only.json");
+  await writeFile(join(scratch, "sr-only.html"), relationalDocument(SR_ONLY_FIXTURE));
+  const res = await runCli("ui-audit", ["/sr-only.html", "--base", `file://${scratch}`, "--out", reportPath], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+
+  // PRINTED, never a silent drop: the two excluded candidates stay in the denominator under their own
+  // reason, and the identity candidates = judged + withheld + excluded still closes.
+  expect(res.stdout).toMatch(/POPULATION\s+off-grid-text candidates=3 judged=1 .*excluded\(srOnly=2\)/u);
+  expect(res.stdout).not.toContain("INSTRUMENT ERROR");
+
+  const report = JSON.parse(await readFile(reportPath, "utf8")) as GridReport;
+  // SERIALIZED, not only printed — the JSON is what a consumer reads.
+  const row = report.populationAccounting?.["off-grid-text"];
+  expect(row?.excluded["srOnly"], "the exclusion is carried in the report, not only in stdout").toBe(2);
+  expect(row?.judged).toBe(1);
+
+  const law4 = report.findings.filter((finding) => finding.rule === "off-grid-text");
+  expect(law4, "the painted twin at the same landing is still a finding").toHaveLength(1);
+  expect(law4[0]?.value).toContain("14px text");
+  expect(law4[0]?.selector, "the sr-only nodes must not be the subject").not.toContain("clipped");
 });
 
 /** The three shapes Law 3 names, one host each, so the KIND is proved by the emitted value rather than by

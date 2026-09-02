@@ -780,6 +780,61 @@ test("#1127 the measured suppressed-motion cells are COLLAPSED and their full-mo
   expect(framePopulationBasis(59)).toBe("verdict");
 });
 
+// -- #1148 - AND A POPULATION THAT CANNOT CARRY THE RATE MINTS NEITHER ARM OF IT ------------------
+// #1127 taught the PRINTER that `36.36% of 11` is "not a frames verdict"; the VERDICT kept gating on it,
+// so the same eleven-frame suppressed-motion cell still minted a FAIL off four slow frames -- the tool
+// contradicting its own receipt on the same page of output. The frames arm is now skipped over a
+// collapsed/uncomputable population and the RESULT says `frames-budget=unjudged`; every OTHER budget
+// still gates the run, which is what keeps this a narrowing of one dishonest arm rather than an amnesty.
+// The fixture populations are the measured R-2 cells and their twins (11/13 collapsed, 55/59 verdict).
+function framesOf(total: number, dropped: number): AuditData["frames"] {
+  const pct = total === 0 ? null : Number(((dropped / total) * 100).toFixed(2));
+  return { raw: { total, dropped, pct }, classified: { total: 0, dropped: 0 }, budgeted: { total, dropped, pct } };
+}
+
+test("#1148 a COLLAPSED frame population cannot mint a frames FAIL — the measured 36.36%-of-11 cell", () => {
+  // 4 dropped of 11 = 36.36%, seven times the 5% budget, and NOT a verdict: one frame is worth 9.09pp.
+  const collapsed = evaluateMotionAudit(auditData({ frames: framesOf(11, 4) }), 2500);
+  // THE DEFECT, stated first: on the unmodified tool this read `false` — a FAIL minted off a percentage
+  // the same run printed as "not a frames verdict".
+  expect(collapsed.budgetsPass, "the run is clean on every budget that COULD speak").toBe(true);
+  expect(collapsed.framesBudgetJudged, "11 frames is below the derived resolution floor").toBe(false);
+  expect(collapsed.gaps, "a collapsed population is not an absent one — the run keeps its verdict").toEqual([]);
+  // The other measured cell, same ruling.
+  expect(evaluateMotionAudit(auditData({ frames: framesOf(13, 4) }), 2500).budgetsPass).toBe(true);
+});
+
+test("#1148 PLANTED CONTROL — a full population over the same budget still FAILS", () => {
+  // 2 of 55 is 3.64%, under budget (the R-2 twin's neighbourhood); 6 of 55 is 10.91% and must still
+  // fire, or the fix would have deleted the frames budget rather than narrowed it. NOTE the twin's own
+  // measured 5.45% is itself OVER the 5% budget — a full population is judged on its merits either way.
+  expect(evaluateMotionAudit(auditData({ frames: framesOf(55, 2) }), 2500)).toMatchObject({ framesBudgetJudged: true, budgetsPass: true });
+  expect(evaluateMotionAudit(auditData({ frames: framesOf(55, 3) }), 2500).budgetsPass, "5.45% of 55 is a real over-budget verdict").toBe(false);
+  expect(evaluateMotionAudit(auditData({ frames: framesOf(55, 6) }), 2500)).toMatchObject({ framesBudgetJudged: true, budgetsPass: false });
+  // ...and at the exact floor, where a collapse must NOT be claimed.
+  expect(evaluateMotionAudit(auditData({ frames: framesOf(FRAME_POPULATION_RESOLUTION_FLOOR, 2) }), 2500)).toMatchObject({
+    framesBudgetJudged: true,
+    budgetsPass: false,
+  });
+});
+
+test("#1148 an unjudged frames budget silences ONLY the frames arm — every other budget still gates", () => {
+  // The collapse must not become an amnesty: the same eleven-frame cell with a real page error, a failed
+  // step, or a dirty animation still fails. Without this arm the fix would read as "collapsed = clean".
+  const frames = framesOf(11, 4);
+  expect(evaluateMotionAudit(auditData({ frames, pageErrors: ["TypeError: boom"] }), 2500).budgetsPass).toBe(false);
+  expect(evaluateMotionAudit(auditData({ frames, stepFailed: true }), 2500).budgetsPass).toBe(false);
+  expect(evaluateMotionAudit(auditData({ frames, animations: [dirtyAnimation()] }), 2500).budgetsPass).toBe(false);
+});
+
+test("#1148 an EMPTY population keeps its hard evidence gap — the zero-frame law is untouched", () => {
+  // The ruled zero-frame arm (#409) and the matrix STATIC-EXPECTED contract both rest on this gap being
+  // raised exactly once; narrowing the FAIL must not have swallowed it.
+  const empty = evaluateMotionAudit(auditData({ frames: framesOf(0, 0) }), 2500);
+  expect(empty.gaps.map((gap) => gap.evidence)).toEqual(["the frame population"]);
+  expect(empty.framesBudgetJudged).toBe(false);
+});
+
 test("#1127 a single frame is UNCOMPUTABLE, not 0% -- `raw-frames=1` never prints a smoothness number", () => {
   // The single-run tell from the same drive: `motion-audit /` printed `0%` beside `raw-frames=1`.
   // A rate needs two observations; one frame is a sample, not a rate.

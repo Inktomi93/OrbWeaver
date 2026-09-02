@@ -177,9 +177,12 @@ export const WALKER_CENSUS_TEXT = `
       isHeading: HEADING_TAGS[tag] === 1,
       interactive: interactivePrimary,
       codeContext: !!el.closest(CODE_CTX),
-      // Screen-reader-only text, either shape: the CLIPPED state (isVisuallyHidden — the real
-      // \`sr-only\` posture, which keeps a full-size box) or a sub-2px plumbing box.
-      srOnly: textHidden || (rect.width <= 2 && rect.height <= 2),
+      // Screen-reader-only text, from the ONE predicate (core.ts's \`srOnlyText\`, #1156) — both shapes,
+      // one spelling, shared with the grid census's Law-4 population. \`=== true\` is deliberate: this
+      // sample field is a BOOLEAN by contract and the typography rules read it as an EXCLUSION, so an
+      // unreadable box (null) must stay in the judged population here rather than silently leave it.
+      // The refusing arm belongs to the rules whose whole population turns on the predicate.
+      srOnly: srOnlyText(el, rect) === true,
       ariaHidden: ariaHidden,
       // #652 — the app's own authored INTENT plus enough tree to compare two nodes in one block.
       voice: voiceOf(el),

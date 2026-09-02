@@ -22,8 +22,11 @@
 // `animations()` sample (still-running loops) or the `__orb.flags()` `anim` ring (every dirty transition
 // that STARTED in the window; #1070, because a 130–360ms house transition is over ~2s before the sample),
 // deduplicated and minus the #953 Base UI height allowance · budgeted
-// dropped-frames > 5% (advisory headless). A failed reach action is a FAILED run: the alternative is a
-// smoothness number for the wrong surface.
+// dropped-frames > 5% (advisory headless) OVER A POPULATION THAT CAN CARRY THAT RATE — below the derived
+// resolution floor (#1127) the percentage is a denominator artefact, so since #1148 the dropped-frame arm
+// is simply NOT JUDGED there and `frames-budget=unjudged` says so on the RESULT line; every other budget
+// still gates the run, and an EMPTY population remains the hard evidence gap below. A failed reach action
+// is a FAILED run: the alternative is a smoothness number for the wrong surface.
 //
 // ZERO HYGIENE (#409): a run that OBSERVED NOTHING is not a verdict. No `__orb` bridge, no in-page
 // motion snapshot, or an empty frame population (nothing composited in the measured window) exits
