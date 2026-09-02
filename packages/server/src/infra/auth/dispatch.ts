@@ -45,9 +45,11 @@ export const MODE_RESOLVERS: Record<AuthConfig["mode"], ModeResolver> = {
 /**
  * Whether the request's PEER permits the un-credentialed owner fallback: true iff the raw TCP peer socket
  * address is loopback — ONE rule for every mode (`single-user` included; there is no origin/mode branch any
- * more). `undefined` peer (the seam's `isAdmin`, which threads none, or a transport that can't resolve one)
- * fails closed. The `AUTH_FALLBACK` knob is the caller's (`resolve`, index.ts), which short-circuits on
- * `fallback !== "owner"` before consulting this.
+ * more). An `undefined` peer FAILS CLOSED — a transport that cannot resolve one gets no fallback. (Until
+ * #1193 this parenthetical also named the debug gate's own `isAdmin`, which re-resolved identity without a
+ * peer; that second resolution is gone — the gate now judges the principal the request middleware already
+ * minted WITH the peer, which is why it had been refusing the box operator.) The `AUTH_FALLBACK` knob is the
+ * caller's (`resolve`, index.ts), which short-circuits on `fallback !== "owner"` before consulting this.
  */
 export function ownerFallbackAllowed(peerIp: string | undefined): boolean {
   return peerIp !== undefined && isInRanges(peerIp, LOOPBACK_RANGES);
