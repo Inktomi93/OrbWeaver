@@ -443,8 +443,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 394,
-      "bytes": 208502,
-      "sha256": "7ccf1ffdec1830cf1711f95e27b0fbf7d2e703c1e0807794ba0f3bc0dd57bd2c",
+      "bytes": 210575,
+      "sha256": "02e8f0d9c9aa007a464c983d40f8b8c81c641d1c9e2e931c0c6ea80cbb44e813",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -457,12 +457,12 @@
       },
       "receipt": {
         "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
-        "assignedSha256": "7ccf1ffdec1830cf1711f95e27b0fbf7d2e703c1e0807794ba0f3bc0dd57bd2c",
+        "assignedSha256": "02e8f0d9c9aa007a464c983d40f8b8c81c641d1c9e2e931c0c6ea80cbb44e813",
         "disposition": "current",
         "authority": "operational",
         "fullRead": true,
-        "verifiedSha256": "7ccf1ffdec1830cf1711f95e27b0fbf7d2e703c1e0807794ba0f3bc0dd57bd2c",
-        "verifiedCommit": "b8baf68dc0148c62cfff4aa5054382082c2098bf",
+        "verifiedSha256": "02e8f0d9c9aa007a464c983d40f8b8c81c641d1c9e2e931c0c6ea80cbb44e813",
+        "verifiedCommit": "bb6b9e21a3dcef35b7b890f505749c05fafb6260",
         "verifiedAt": "2026-09-01",
         "evidence": [
           "re-attested at 9a4bee47ab1b21cd68c291c80e1704b486200dd8 (#995): the agent-bridge-lock row records the lean production readiness home, shared debug Promise/query, and DEV-only bridge boundary; focused CT passed 6/6, gate conformance passed, and check:structure completed 244/244 active gates clean",
@@ -520,7 +520,8 @@
           "re-attested at 171daabb4 (#947): six more rows truth-repaired where the gate's claim changed — tooling-instrument-proof / warning-code-coverage / duplicate-action-doors now RESOLVE their tuples through lib/tuple-read.ts, chat-viewer-plane-canon-reads folds object spreads into its authority matrix, message-kind-policy-coverage counts INHERITED axes, and section-factory-contribution-bundle resolves registry parameters through type aliases (its old alias mustPass, which blessed the false negative, is now a mustFlag). Delta read; verified by check:structure 247/247 run COMPLETE clean, check-gates.int + gate-conformance 16/16, 18 resolver pins, and per-gate red-first receipts (7/7 HEAD readers silent or mis-keyed on the same planted shapes)",
           "re-attested at a4ae3f6a7 — merge of #947 (171daabb4: six member-gate rows truth-repaired) onto the #1018/#968/#910 ledger; union read once",
           "re-attested at e0c1ebe83 + 9055cfe6a (#944/#946, lane p-gates-closed): SIX Layer-3 rows changed, no gate added or removed, so the 247 count line is untouched. Each row now states its fail-closed discovery arm (an initializer not resolvable to a co-located object literal REDs instead of being skipped) and its declared MEMBER POPULATION; the section rows additionally state the widened subject (the `make<X>Section(): SectionDefinition` FACTORY, read through the shared lib/section-defs.ts). Delta read at the edited bytes. RED-FIRST on the real tree: six planted imported-definition probes under packages/client/src/features/refinery/lib/ were measured against the HEAD gate sources first — all six gates rendered ✓ over them (chrome with a fully healthy `CHROME_ZONES=4` vocabulary line) — then RED with `N member(s), 1 UNRESOLVED` after the fix; probes rm'd, `git status --short` clean. check:structure ran 247/247 COMPLETE and clean on the final tree; gate conformance, check-gates.int, and the four new runner controls (tests/tooling/verify/lib/population.int.test.ts) all pass.",
-          "re-attested at b8baf68dc — merge of #944/#946 (e0c1ebe83 + 9055cfe6a: six definition-gate rows fail-closed + population receipt) onto the #947 ledger; the adjacent section-factory (#947) / config-group (#944) rows resolved per side; union read once"
+          "re-attested at b8baf68dc — merge of #944/#946 (e0c1ebe83 + 9055cfe6a: six definition-gate rows fail-closed + population receipt) onto the #947 ledger; the adjacent section-factory (#947) / config-group (#944) rows resolved per side; union read once",
+          "re-attested at bb6b9e21a3dcef35b7b890f505749c05fafb6260 — #879 widened two Layer-3 rows in place: json-column-write-parity gained its ARM B (versioned-config write dominance, its fail-closed arms and its APP_SETTINGS_KEY declared limit) and no-raw-zustand-persist gained ARMs B/C (the destructive-reset home and the durable-local blindfold seam). Row text re-derived from the shipped descriptors' own message/fix in the same commit; no other row touched."
         ],
         "claims": [
           {
