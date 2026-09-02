@@ -10,6 +10,7 @@ import { EmptyState } from "@orb/ui/empty-state";
 import { Icon, Sparkles } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
 import type { ReactElement } from "react";
+import { CONFIG_UNBUILT_MARKER } from "../lib/config-copy.ts";
 
 export interface ConfigGroupPlaceholderProps {
   readonly title: string;
@@ -34,8 +35,10 @@ export function ConfigGroupPlaceholder({ title, description }: ConfigGroupPlaceh
           the PRIMITIVE (`empty-state/variants.ts` root `w-full`, gap-audit 2026-08-08 fence #2) so no consumer
           has to remember it; align="center" just centers the Badge below. */}
       <EmptyState icon={<Icon icon={Sparkles} size="lg" />} title={title} description={description} />
+      {/* ONE SPELLING, TWO SURFACES (#925 ruling 2): the LIST row that opens this body wears the same phrase
+          from the same home, so the map and the pane cannot drift into two claims about one arm. */}
       <Badge intent="neutral" size="sm">
-        Not built yet
+        {CONFIG_UNBUILT_MARKER}
       </Badge>
     </Stack>
   );

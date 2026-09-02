@@ -10,6 +10,12 @@
 // This drives the PRODUCTION path: the host resolves the deferred group, hits the placeholder branch,
 // and mounts the teaching copy — the group's own label + distinct description + the "Not built yet" chip
 // ([[empty-states-are-load-bearing]] — a status, never a generic sparkle, and never a dead-end CTA).
+//
+// AND IT DRIVES THE OTHER HALF OF THE SAME ARM (#925 owner ruling 2026-09-02, #1043): feature status lives
+// in the LIST — a genuinely unbuilt group is a GREYED row there that still works as a door — and there is no
+// status region in CONTENT any more. The two halves are one claim about one arm, so they are pinned in one
+// file: the band says "Not built yet" in WORDS (never colour alone), it is quieter than its live siblings,
+// and it opens the coming-soon body on activation.
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
@@ -21,6 +27,10 @@ const SETTINGS_VIEW = { userId: "user_ct_placeholder", schemaVersion: 1, config:
 const VIEWER_ROUTE: Readonly<Record<string, unknown>> = {
   "sessions.me": { userId: SETTINGS_VIEW.userId, handle: "ct_placeholder", globalRole: "user" },
   "settings.getUserSettings": () => SETTINGS_VIEW,
+  // THE ARRIVAL DEFAULT MOUNTS A REAL GROUP (#925): a host mounted with no deep link now lands on the first
+  // group (Appearance), whose Looks section reads the theme library — so this file's mounts exercise that
+  // pipeline whether or not they are about it, and an unfed read would run it inert.
+  "settings.listThemes": () => [],
   // The LIST paints every shelf, so the four collection bands read their rosters for the counts — fed empty
   // (the honest fresh-library arm) rather than left to routeTrpc's inert null.
   "tag.listTagsWithUsage": [],
@@ -44,4 +54,47 @@ test("a deferred category renders the teaching placeholder: its distinct copy + 
   await expect(region.getByText("Provider credentials and the per-role model connections.")).toBeVisible();
   // …titled by the group's own label (scoped to the region — the LIST band carries the same word).
   await expect(region.getByText("Connections", { exact: true })).toBeVisible();
+});
+
+/** The LIST band of the deferred group, and of a LIVE sibling on the same shelf — the pair the greyed
+ *  treatment is a claim about (a "quieter" row is only quieter than something). */
+const DEFERRED_BAND = '[data-slot="config-band"][data-config-group="connections"]';
+const LIVE_BAND = '[data-slot="config-band"][data-config-group="automation"]';
+/** The LIST landmark, named by the host. */
+const LIST_REGION = '[data-slot="config-list"]';
+
+test("the LIST says a group is unbuilt — in WORDS, on a row that still works as a door", async ({ mount, page }) => {
+  await routeTrpc(page, VIEWER_ROUTE);
+  const component = await mount(<ConfigHostStory placeholder={true} />);
+
+  const band = component.locator(DEFERRED_BAND);
+  // IN WORDS, and inside the band's own accessible NAME: a status a screen reader cannot hear is half a
+  // status, and this row is the only place the surface still says "Not built yet" at all (#1043 — the
+  // CONTENT-side band that used the same phrase for a library the user simply had not FILLED is gone).
+  await expect(band).toHaveAccessibleName(/Not built yet/);
+  await expect(band.getByText("Not built yet")).toBeVisible();
+  // NEVER COLOUR ALONE, but colour too: the row is quieter than a live sibling, and the pin is the DELTA
+  // between two real bands rather than a remembered token value.
+  const [deferred, live] = await Promise.all([
+    band.evaluate((el: Element) => getComputedStyle(el).color),
+    component.locator(LIVE_BAND).evaluate((el: Element) => getComputedStyle(el).color),
+  ]);
+  expect(deferred, "the unbuilt row is not painted like a live one").not.toBe(live);
+  // AND IT IS STILL A DOOR (the whole ruling): clicking it lands the coming-soon body in CONTENT.
+  await band.click();
+  const region = component.getByRole("region", { name: "Connections settings" });
+  await expect(region.getByText("Not built yet")).toBeVisible();
+  await expect(region.getByText("Provider credentials and the per-role model connections.")).toBeVisible();
+});
+
+test("a BUILT group's row says nothing about readiness — the LIST greys only the unbuilt arm", async ({ mount, page }) => {
+  await routeTrpc(page, VIEWER_ROUTE);
+  const component = await mount(<ConfigHostStory placeholder={true} />);
+
+  // The classification receipt in one assertion (#1043): every other group in the registry is BUILT, so
+  // exactly ONE row in the whole LIST wears the marker — including the four collections, whose EMPTY
+  // libraries are the misread this row exists to prevent.
+  await expect(component.locator(LIST_REGION).getByText("Not built yet")).toHaveCount(1);
+  await expect(component.locator('[data-slot="config-band"][data-config-group="regex"]')).toHaveAccessibleName(/^Regex scripts/);
+  await expect(component.locator('[data-slot="config-band"][data-config-group="regex"]')).not.toHaveAccessibleName(/Not built yet/);
 });

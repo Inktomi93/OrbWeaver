@@ -32,8 +32,11 @@ import { useConfigSelectionTitle } from "./config-selection-title.ts";
 
 /** The section's `SectionSelection` seam — the shell's mobile ONE-SHELL input, composed from the TWO facts
  *  this workspace has: an open MEMBER (the kinded selection) or an active PUSHING group (a settings group
- *  whose body is the screen — config-revamp-design.md §3.6). A collection group's activation is only its
- *  disclosure, so it never pushes; its members do. Back pops the member first, then the group. */
+ *  whose body is the screen — config-revamp-design.md §3.6). A collection group NEVER PUSHES, whatever its
+ *  band's click also does: its CONTENT is a member, so a member is what pushes. (#925 made both collection
+ *  band arms select as well as disclose — that changed the desktop's CONTENT, not this seam: `isPushingGroup`
+ *  is false for the whole species, which is what keeps a phone on the LIST after a band tap.) Back pops the
+ *  member first, then the group. */
 function makeSelectionSeam(groups: ConfigGroupRegistry): SectionSelection {
   const groupPushes = (): boolean => {
     const active = getActiveConfigGroup();

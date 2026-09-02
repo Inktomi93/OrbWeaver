@@ -220,6 +220,15 @@ export function isCollectionGroup(def: ConfigGroupDefinition): def is Collection
   return "kind" in def.body && def.body.kind === "collection";
 }
 
+/** A group whose surface has NOT been built — the DECLARED-PLANNED arm. ONE home for the narrowing, because
+ *  as of #925 it has two readers that must agree: CONTENT renders the coming-soon body, and the LIST paints
+ *  the row that opens it as a quiet, marked, still-clickable door. Feature READINESS is a fact about this
+ *  arm and nothing else — a library the user has simply not filled is a `collection` group with a count of
+ *  zero, and conflating the two is the defect #1043 was filed on. */
+export function isPlaceholderGroup(def: ConfigGroupDefinition): boolean {
+  return "placeholder" in def.body;
+}
+
 /** A group's LIST-visible identity, read blind by the host: `true` for the arms that render a body of their
  *  own — from the section registry (`sections`), their feature (`surface`) or the honest placeholder — the
  *  arms whose activation PUSHES CONTENT on a phone (the shell's one-shell rule). A `collection` group's rows

@@ -34,6 +34,10 @@ const SHELL_VIEWER_ROUTE: Readonly<Record<string, unknown>> = {
   "regex.listScripts": [],
   "worldInfo.listBooksWithUsage": [],
   "rosterPreset.list": [],
+  // THE ARRIVAL DEFAULT MOUNTS A REAL GROUP (#925 ruling 4): a host with no deep link now lands on the first
+  // group (Appearance) before these tests click their way to Chat behavior, and its Looks section reads the
+  // theme library — so this file's mounts exercise that pipeline whether or not they are about it.
+  "settings.listThemes": [],
 };
 
 /** The host at the chat-behavior group, whose contributed sections (memory ① · world-info ② · databank ④)

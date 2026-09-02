@@ -63,6 +63,15 @@ const PHONE_VIEWPORT_PX = 430;
 // address the region they mean by its slot rather than by a bare name.
 const LIST_PANE = '[data-slot="config-list"]';
 const WELCOME = '[data-slot="config-welcome"]';
+/** The CONTENT scroller — the pane whose ARRIVAL content ruling 4 is about (#925). */
+const CONTENT_PANE = '[data-slot="config-content"]';
+/** The FIRST group in the LIST's canonical `(shelf, order, id)` sequence — `user` shelf, no declared order,
+ *  so the id tiebreak puts Appearance at the top. Named here as the ARRIVAL DEFAULT's subject, and derived
+ *  the same way the surface derives it (never a hardcoded id in the source: `orderConfigGroups`'s head). */
+const FIRST_GROUP_LABEL = "Appearance";
+/** The phone's cold teaching frame — its presence is the proof that NOTHING was auto-selected (it renders
+ *  only while `activeGroup === null` on a mobile viewport). */
+const MOBILE_TEACHING = '[data-slot="config-mobile-teaching"]';
 
 function tagRow(index: number): Record<string, unknown> {
   return {
@@ -195,6 +204,58 @@ function stub(page: Page, tags: readonly unknown[] = MANY_TAGS): Promise<TrpcRec
     "worldInfo.importFile": () => ({ created: true }),
   });
 }
+
+// ── THE ARRIVAL DEFAULT (#925 owner amendment 2026-09-02: "when clicking onto config I then have to click a
+// category and then a section before I can see settings") ────────────────────────────────────────────────
+//
+// THE CLICK COST IS THE CLAIM, so these three tests are the only ones in this file that do NOT press "reset
+// groups" first: every other test wants the LANDING, which is now a state the reader LEAVES rather than the
+// state they arrive in. Arriving is one act with zero clicks; leaving it is one click and it STICKS.
+test("ARRIVAL: Config opens on the FIRST group's settings — zero clicks to a setting", async ({ mount, page }) => {
+  await stub(page);
+  const workspace = await mount(<ConfigWorkspaceStory />);
+
+  // Nothing is pressed above this line. The pane the reader lands on is the first group's own body…
+  await expect(workspace.getByRole("region", { name: `${FIRST_GROUP_LABEL} settings` })).toBeVisible();
+  await expect(workspace.locator(CONTENT_PANE).getByRole("heading", { name: "Looks", exact: true })).toBeVisible();
+  // …not the landing, which is the whole point of the amendment.
+  await expect(workspace.locator(WELCOME)).toHaveCount(0);
+  // AND THE MAP SAYS WHERE YOU ARE — the arrival is a real selection, not a CONTENT-only default: the band
+  // is expanded (the active group always is) and exactly one section row is current, exactly as a band
+  // CLICK leaves the LIST. One mechanism, two entrances.
+  const band = workspace.locator(LIST_PANE).getByRole("button", { name: FIRST_GROUP_LABEL, exact: true });
+  await expect(band).toHaveAttribute("aria-expanded", "true");
+  await expect(workspace.locator(LIST_PANE).locator('[aria-current="true"]')).toHaveCount(1);
+});
+
+test("ARRIVAL is an arrival fact — leaving the first group for the landing STAYS on the landing", async ({ mount, page }) => {
+  await stub(page);
+  const workspace = await mount(<ConfigWorkspaceStory />);
+  await expect(workspace.getByRole("region", { name: `${FIRST_GROUP_LABEL} settings` })).toBeVisible();
+
+  // `reset groups` is the CT's spelling of `clearActiveConfigGroup` — the shell's mobile BACK and the rail
+  // bounce. A default that re-fired on every render would make that door unusable.
+  await workspace.getByRole("button", { name: "reset groups" }).click();
+  await expect(workspace.locator(WELCOME)).toBeVisible();
+  await expect(workspace.getByRole("region", { name: `${FIRST_GROUP_LABEL} settings` })).toHaveCount(0);
+  // Held across a re-render of the whole LIST (the reset is a store write every group reads). NOT a band
+  // click: as of #925 every band — settings or collection — is a door that MOVES the location, so a band
+  // click would be leaving the landing rather than testing that it stays.
+  await workspace.getByRole("button", { name: "reset groups" }).click();
+  await expect(workspace.locator(WELCOME)).toBeVisible();
+});
+
+// THE PHONE IS THE ONE PLACE THE DEFAULT MUST NOT FIRE (the mobile one-shell rule): an auto-selected pushing
+// group makes `hasSelection()` true, so the shell pushes CONTENT over the LIST — and the reader arrives on a
+// settings body having never chosen one, with the map they came for behind a Back button.
+test("ARRIVAL on a phone leaves the LIST as the screen — no group is auto-selected", async ({ mount, page }) => {
+  await stub(page);
+  const workspace = await mount(<ConfigHostStory mobile={true} />);
+
+  await expect(workspace.locator(MOBILE_TEACHING)).toBeVisible();
+  await expect(workspace.locator(LIST_PANE).locator('[aria-current="true"]')).toHaveCount(0);
+  await expect(workspace.getByRole("region", { name: `${FIRST_GROUP_LABEL} settings` })).toHaveCount(0);
+});
 
 test("every group starts COLLAPSED, showing its band, count and create verb — never its rows", async ({ mount, page }) => {
   await stub(page);

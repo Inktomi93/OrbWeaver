@@ -33,6 +33,22 @@ export const CONFIG_CONTEXT_EMPTY = {
   description: "Pick something from the list and this panel shows where it applies.",
 } as const;
 
+/** THE ONE PHRASE FOR "this part of the app does not exist yet" (#925 ruling 2 · #1043). It marks the LIST
+ *  row of a `{ placeholder: true }` group and the chip on the body that row opens — two surfaces, one claim,
+ *  one spelling. It is a statement about the APP, never about the reader's data: a library with nothing in
+ *  it is a built feature with an empty count, and the welcome band that used these words for that state was
+ *  the misread this ruling deletes. Nothing outside the placeholder arm may borrow the phrase. */
+export const CONFIG_UNBUILT_MARKER = "Not built yet";
+
+/** THE HOST'S ONE SENTENCE ABOUT ITS OWN GEOMETRY — CONTENT for an ACTIVE collection with no member open
+ *  (#925's species contract). The pane belongs to the library, so everything ABOUT the library is the
+ *  contribution's (`label` · `description` · `preview` · `emptyText` · `create.label`); where its members
+ *  live is the HOST's fact, and this is the one line that states it. Same division as
+ *  {@link CONFIG_CONTEXT_EMPTY}, which is why it homes beside it rather than in the collection contract. */
+export const CONFIG_COLLECTION_LANDING = {
+  hint: "Pick one from the list to open its editor.",
+} as const;
+
 /** THE ONE WORD FOR "this differs from its default" (#1099 F16 / Errand A). Every surface that marks the
  *  state spells it from here — the search result row, the LIST's group band, the shelf — so the marks a
  *  reader meets while hunting one changed setting cannot read as three different claims. It is the word

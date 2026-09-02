@@ -167,7 +167,12 @@ test("renders the four shelves as NAMED groups, labelled by their own kicker, wi
   // The kicker is the shelf's NAME, so it has to be wired as one (side-eye 2026-08-16 ARIA rider): a bare
   // paragraph would announce one flat run of rows and a reader navigating by structure could not tell where
   // the user shelf ended and the app shelf began.
-  await expect(list.getByRole("group")).toHaveCount(4);
+  //
+  // COUNTED AS SHELVES, not as "every `role=group` in the pane" (#925). The arrival default now opens the
+  // first group at mount, and an expanded group with an advanced fold draws a NESTED `role="group"` of its
+  // own (#978 F4's fold rows, deliberately) — so the loose count measured "four shelves" by accident and
+  // read 5 the moment anything was open. The claim was always about the shelves.
+  await expect(list.locator("[data-config-shelf]")).toHaveCount(4);
   await expect(list.getByRole("group", { name: "User" })).toBeVisible();
   await expect(list.getByRole("group", { name: "App" })).toBeVisible();
   await expect(list.getByRole("group", { name: "Collections" })).toBeVisible();
@@ -178,12 +183,16 @@ test("renders the four shelves as NAMED groups, labelled by their own kicker, wi
   await expect(list.getByRole("group", { name: "Extensions" }).getByRole("button", { name: "Plugins" })).toBeVisible();
 });
 
-test("nothing active ⇒ the welcome; a band click activates the group and lands on its FIRST section", async ({ mount, page }) => {
+// PREMISE RETIRED, TEST KEPT (#925 ruling 4). This used to open "nothing active ⇒ the welcome": the arrival
+// default now lands the FIRST group's settings, so that half is a lie about the product and its replacement
+// (the zero-click arrival, and the landing as a state you LEAVE) is pinned in `config-list-surface.ct.tsx`.
+// What survives here is the half that is still true and still load-bearing: a band click switches the pane to
+// THAT group and lands on its first section.
+test("a band click activates the group and lands on its FIRST section", async ({ mount, page }) => {
   await stub(page);
-  const component = await mount(<ConfigHostStory />);
+  const component = await mount(<ConfigHostStory target="automation" />);
 
-  // The CONTENT region is the host's own (the welcome), named by the section label — no group's.
-  await expect(component.getByRole("region", { name: "Settings", exact: true })).toBeVisible();
+  await expect(component.getByRole("region", { name: "Automation settings" })).toBeVisible();
   await expect(component.getByRole("region", { name: "Appearance settings" })).toHaveCount(0);
 
   await component.getByRole("button", { name: "Appearance" }).click();
@@ -740,4 +749,76 @@ test("clicking it LANDS on the library's own empty surface — the collection's 
   await expect(content.getByRole("button", { name: "New script" })).toBeVisible();
   // The landing is the pane's whole content, so it carries the pane's heading.
   await expect(content.getByRole("heading", { level: 2 })).toBeVisible();
+});
+
+// ── …AND SO IS A FULL ONE (#925 species contract, 2026-09-02) ─────────────────────────────────────────
+// The owner's ruling: collections are a genuinely distinct SPECIES inside config and the bar is that THEY
+// MUST WORK — no dead ends, no capability lies. The populated arm was the remaining lie: its band DISCLOSED
+// only, so clicking "Regex scripts" opened its rows under a CONTENT pane still showing something else
+// entirely — and once the arrival default made a settings group active from the first frame, "something else
+// entirely" became the guaranteed case. So the populated band ENTERS the library on the first click and
+// TOGGLES its rows once the reader is already inside: the disclosure survives as a capability, and the
+// landing is the library's own.
+
+/** One regex fixture row — the shape `regex.listScripts` returns; a fixed edit stamp so the recency-ranked
+ *  preview is deterministic. */
+const POPULATED_SCRIPTS = [
+  {
+    id: "regex_script_stripooc",
+    name: "strip ooc",
+    findRegex: "/^\\s*ooc:.*$/gim",
+    placement: ["AI_OUTPUT"],
+    replaceString: "",
+    enabled: true,
+    markdownOnly: false,
+    promptOnly: false,
+    runOnEdit: false,
+    trimStrings: [],
+    updatedAt: 1_760_000_000_000,
+    substituteRegex: "none",
+  },
+];
+/** The regex group's own blurb, from its `ConfigGroupDefinition` — the landing draws the CONTRIBUTION's copy,
+ *  never a host string, which is the claim this literal is here to hold. */
+const REGEX_BLURB = "Find/replace that runs on input, output, or both; everywhere, or only where you attach it.";
+/** The HOST's one sentence about its own geometry (features/config/lib/config-copy.ts). */
+const LANDING_HINT = "Pick one from the list to open its editor.";
+
+test("a POPULATED collection band ENTERS its library in one act — rows open AND its landing takes CONTENT", async ({ mount, page }) => {
+  await stub(page, { "regex.listScripts": () => POPULATED_SCRIPTS });
+  const component = await mount(<ConfigHostStory />);
+
+  const band = component.locator(EMPTY_BAND);
+  await expect(band).toHaveAttribute("aria-expanded", "false");
+  await band.click();
+
+  // The disclosure still happens — the rows are what a collection band opens…
+  await expect(band).toHaveAttribute("aria-expanded", "true");
+  // …AND the reader's location moved with it: the band marks itself, and CONTENT is this library's landing,
+  // drawn from the contribution's own fields plus the host's one line about where the members are.
+  await expect(band).toHaveAttribute("aria-current", "true");
+  const content = component.getByRole("region", { name: "Settings", exact: true });
+  await expect(content.getByRole("heading", { level: 2, name: "Regex scripts" })).toBeVisible();
+  await expect(content.getByText(REGEX_BLURB)).toBeVisible();
+  await expect(content.getByText(LANDING_HINT)).toBeVisible();
+  await expect(content.getByRole("button", { name: "New script" })).toBeVisible();
+  // The four-library welcome is NOT what a named library's landing shows (the capability lie, deleted).
+  await expect(content.locator('[data-slot="config-welcome"]')).toHaveCount(0);
+});
+
+test("…and a second click folds the rows away WITHOUT leaving the library", async ({ mount, page }) => {
+  await stub(page, { "regex.listScripts": () => POPULATED_SCRIPTS });
+  const component = await mount(<ConfigHostStory />);
+
+  const band = component.locator(EMPTY_BAND);
+  await band.click();
+  await expect(band).toHaveAttribute("aria-expanded", "true");
+  await band.click();
+
+  // The one place this species diverges from a settings group, whose active band cannot collapse itself: a
+  // library's rows are its CONTENTS, and folding contents away is a thing a reader does.
+  await expect(band).toHaveAttribute("aria-expanded", "false");
+  // …and it costs nothing: the location, and therefore the pane, is untouched.
+  await expect(band).toHaveAttribute("aria-current", "true");
+  await expect(component.getByRole("region", { name: "Settings", exact: true }).getByRole("heading", { level: 2, name: "Regex scripts" })).toBeVisible();
 });
