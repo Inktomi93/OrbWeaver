@@ -1171,6 +1171,26 @@ function writeFixtures(): void {
     "packages/client/src/features/__g_impchrome/lib/__g_impchrome-chrome.tsx",
     'import { gImpChromeDef } from "./__g_impchrome-definition.ts";\nexport const gImpChromeChrome: ChromeEntry = gImpChromeDef;\n',
   );
+  // json-column-write-parity ARM B (#879): a whole-replace writer of `user_settings.config` — a
+  // VERSIONED-CONFIG column, derived from `defineVersionedConfig<UserSettings>` — with no
+  // `requireIntactStoredConfig` dominating it. The #471 wipe, planted at a real domain path so the real
+  // schema and the real contracts derivation are both in scope.
+  fx(
+    `${D}/settings/__g_undominated.ts`,
+    'import { userSettings } from "@orb/db";\nexport async function gClobberConfig(ctx: { db: { update: (t: unknown) => { set: (v: unknown) => { where: (w: unknown) => Promise<void> } } } }, config: unknown, at: number): Promise<void> {\n  await ctx.db.update(userSettings).set({ config, updatedAt: at }).where(1);\n}\n',
+  );
+  // no-raw-zustand-persist ARM B (#879, from #837): a destructive persist-through reset outside the two
+  // mint factories — `persist` patches `setState`, so this writes the emptied state to the real key.
+  fx(
+    "packages/client/src/features/__g_persistreset/lib/__g_reset.ts",
+    "declare const gStore: { setState: (s: unknown, replace: boolean) => void; getInitialState: () => unknown };\nexport function gWipe(): void {\n  gStore.setState(gStore.getInitialState(), true);\n}\n",
+  );
+  // no-raw-zustand-persist ARM C: a registry file (it declares `registerDurableLocalStore`) whose
+  // `reset()` caller never installs the storage blindfold — #837 one layer up.
+  fx(
+    "packages/client/src/features/__g_durablereg/lib/__g_registry.ts",
+    "const gRegistry: { reset: () => void }[] = [];\nexport function registerDurableLocalStore(entry: { reset: () => void }): void {\n  gRegistry.push(entry);\n}\nexport function gForget(entry: { reset: () => void }): void {\n  entry.reset();\n}\n",
+  );
 }
 
 // Registered gates that CANNOT be driven by an injected `__g_` fixture — whole-corpus ratchets whose
