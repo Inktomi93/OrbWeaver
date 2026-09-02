@@ -33,8 +33,8 @@ the external `kill` binary (#1254).
 | - | - | - | - |
 | Leg 1 | 24 | ~26,100 | F1 (#1240) · F2 (#1241) · F3 (#1242) |
 | Leg 2 | 45 | ~19,540 | none |
-| Leg 3 (this commit) | 9 | ~3,366 | none confirmed |
-| **Campaign total** | **78 / 469** | ~49,006 | ceiling P3 |
+| Leg 3 (this commit) | 12 | ~8,298 | none confirmed |
+| **Campaign total** | **81 / 469** | ~53,938 | ceiling P3 |
 
 ## 2. Findings
 
@@ -193,3 +193,68 @@ scoping is pinned as a two-halved predicate with BOTH negative halves (slot-only
 row; state-only would licence any selected box). The two-unit reading-measure test (#1183) asserts the
 ratio band 1.2–2.0 with the measured provenance, so a rule reading one unit for the other cannot pass. No
 `reports/` write, no double-cast, no stale premise found.
+
+## 3c. Per-file verdicts — chunk 3, the three big chat/character surfaces (3 files, all CLEAN)
+
+### 3c.1 `tests/client/features/chat/components/composer.ct.tsx` (1,426 ln) — CLEAN
+
+The #531 phone-composer pins are the strongest RANGE-property work in the campaign: the expected row count
+is DERIVED from the measured home widths (`needed <= barWidth ? 1 : 2`) rather than restated as a pixel
+budget, and the file records WHY the obvious derivation is wrong — packing against the bar's own resolved
+`column-gap` (24px `section`) rated the two-row render correct and "went green on the defect (measured: it
+did)", so the packing gap is the homes' own `field` gap. Three widths x the live-drafting Stop arm, each
+re-measuring the whole geometry contract (44px floor, painted-centre ownership via `elementFromPoint`,
+containment in composer AND viewport, pairwise non-overlap, row-major order, one truthful nearest
+`role="group"` owner per control, no horizontal scroll on the composer or the document). #206's mechanism is
+preserved verbatim while its ROW-COUNT clause is retired — the "the ruling survives, its INPUT changed"
+idiom, stated in-file. The reason-carrier move (native `title` to the Base UI tooltip popup) is the #1207
+stale-premise class handled correctly: same four controls, same four strings, re-pointed at the surviving
+carrier with the `focusableWhenDisabled` mechanism recorded. Clear-on-commit is proven in all four windows
+(held send + driven commit signal; failure keeps the draft; POST-commit failure does NOT resurrect it;
+in-flight send idles the wand). Drag/paste gestures assert the honest refusal BY NAME and the
+mixed-batch-is-not-all-or-nothing arm, and the both-text-and-image paste proves `!defaultPrevented` — the
+only observable of a synthetic paste's default action.
+
+Verified premise for the one assertion that could have been un-failable: #366's
+`expect(focused.carrierShadow).not.toBe("none")` discriminates only if the carrier has no resting shadow —
+`composer-drop-target.tsx:41` puts `shadow-glow`/`ring-2` behind `focus-within:` exclusively, so at rest the
+computed `box-shadow` is `none` and the pin is failable.
+
+### 3c.2 `tests/client/features/character/surfaces/character-library-surface.ct.tsx` (1,951 ln) — CLEAN — the campaign's best surface suite
+
+Its founding premise is the one that matters: the stub is INPUT-AWARE (`characterListResponder` decodes
+cursor/search/chips) precisely because "a fixed-array responder would let every search/filter assertion pass
+while the client filtered a <=150-row window, which is precisely the defect that shipped". Every server-lens
+pin is therefore a real defect proof — a match placed BEYOND the loaded page is found; the chip narrows the
+REQUEST (asserted on the decoded wire, with `lastCollectionInput` telling the paged read apart from the
+favorites `starred` page and the band's `limit: 1` census). The eviction pin's detector is chosen against
+its own blind spot ("is row 1 in the DOM" cannot tell eviction from virtualization, so the oracle is the
+foot-of-list `N of M loaded` readout). The two chrome fences (264px resting / 300px open) carry their
+MEASURED provenance AND record an owner-ruled REFUSAL (ARM B, the reserved glyph cell, 262.5 to 293.4) so a
+future "fix" reds instead of silently spending the budget — a fence documenting a refusal is the rarest and
+most useful shape in the corpus. The #502 gated-read pin is the model for a zero: the settled-by-
+construction argument names the last two things the pane paints, and the POSITIVE CONTROL (open the
+disclosure, the read fires) is in the same mount. Persisted-state pins seed localStorage via
+`addInitScript` + `reload()` (the correct recipe — an effect-landed seed cannot pin first-commit behavior)
+and the W5 arm distinguishes the FIRST request (may legally carry the dead id) from the settled one.
+`resolvedPx`/`resolvedColor` probes resolve tokens from the same document, never literals — including
+`--spacing-touch-target`, which is pointer-conditional by construction so a literal would pin one pointer
+class.
+
+### 3c.3 `tests/client/features/chat/surfaces/chat-list-surface.ct.tsx` (1,555 ln) — CLEAN
+
+Two structural strengths worth naming. (a) `ChatListBandAndSurfaceStory` exists BECAUSE the band feeds a
+different shell slot: "a header-only story and a surface-only story each pass while the pair lies" — the
+mount is chosen to make the defect observable, which is the coupled-surface lesson most CTs miss. (b) the
+#1180 warm-up pin asserts the WHOLE input array and says why: one equality carries "the hovered room
+warmed", "no other room warmed" and "mount warmed nothing", and it explicitly rejects the separate
+non-retrying zero-read (named as the DEF-14 class). The eviction proof is the scroll-BACK, again chosen
+against the virtualization blind spot. `evictionPoll()`/`scrollPoll()` are FUNCTIONS with the reason
+recorded (Playwright's `pollAgainstDeadline` shifts the interval array it is handed, so a shared const is
+drained by its first use and later polls silently fall back to 1000ms) — a harness trap most files would
+have hit. Empty-state honesty is pinned per AXIS (#541a: search+month offers both exits and each one really
+widens the scope, verified by the copy that follows), and the search-empty vs library-empty confusion is
+fenced with its live-drive provenance. The `aria-pressed` vs `aria-current` distinction between the chats
+strip (toggles a filter) and the character favorites strip (opens an editor) is asserted with the reason,
+and the P1 trailing-zone split measures the text column against `PANE_WIDTH - LEADING_BUDGET_PX` rather
+than a bare number so it tracks the portrait step.
