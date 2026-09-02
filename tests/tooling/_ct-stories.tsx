@@ -591,12 +591,64 @@ export function WalkerReadingMeasureStory(): ReactElement {
     "The narrator leans in and keeps talking, because a line-length rule needs more than eighty characters of running text before it will judge the measure at all.";
   return (
     <div style={{ padding: 16, backgroundColor: "rgb(16, 16, 20)", color: "rgb(240, 240, 245)", fontSize: 15 }}>
-      <p data-testid="measure-75ch" style={{ width: "75ch" }}>
+      {/* The boxes are sized in `ch`, so the BROWSER supplies the ground truth in whatever font resolves —
+          and the two arms are the two ratified tokens: 47ch is `--reading-measure-prose`, 75ch is
+          `--reading-measure` (the transcript's). The same 75ch box appears TWICE, once as teaching copy and
+          once inside a message bubble, because after the #1145 split its verdict depends on which. */}
+      <p data-testid="measure-47ch-prose" style={{ width: "47ch" }}>
         {prose}
       </p>
-      <p data-testid="measure-110ch" style={{ width: "110ch" }}>
+      <p data-testid="measure-75ch-prose" style={{ width: "75ch" }}>
         {prose}
       </p>
+      <div data-slot="message-bubble" style={{ width: "75ch" }}>
+        <p data-testid="measure-75ch-transcript">{prose}</p>
+      </div>
+      {/* The POPULATION half of #1183: a settings-row description is a `<Text as="span" voice="gloss">`,
+          which is prose by the reading-surface law and invisible to a prose-TAG census. Its chrome twin
+          (`voice="label"`, the name of a datum) is the control that the widening is not "everything". */}
+      <span data-testid="measure-gloss-voice" data-voice="gloss" style={{ display: "block", width: "75ch" }}>
+        {prose}
+      </span>
+      <span data-testid="measure-label-voice" data-voice="label" style={{ display: "block", width: "75ch" }}>
+        {prose}
+      </span>
+    </div>
+  );
+}
+
+/** THE PSEUDO-CARRIED PROMOTION stage (#1172). `promoted-layer-offset` walked ELEMENTS only, so when the
+ *  shell panes moved their glass onto a `::before` fill layer (#1154) the whole cohort left the census
+ *  silently — `candidates=1` became `candidates=0`, which reads exactly like a surface with nothing to
+ *  judge. Three subjects, one per arm:
+ *   - `pseudo-promoted` — an absolutely-positioned host on a HALF PIXEL whose `::before` carries the
+ *     backdrop-filter. Its layer is real and its landing is derivable (host border box + the pseudo's own
+ *     resolved inset), so it must be JUDGED and must fire.
+ *   - `element-promoted` — the original arm, unchanged: the element carries the filter itself.
+ *   - `pseudo-inflow` — a promotion on an IN-FLOW pseudo, whose box cannot be derived from the host's rect.
+ *     It must be WITHHELD by name, never judged off the wrong box: a false measurement is the other half of
+ *     the same lie the missing cohort was.
+ *  Inline styles cannot express a pseudo-element, so the three rules ride a `<style>` tag (the
+ *  `cb-hit-extent` precedent above). */
+export function WalkerPseudoPromotionStory(): ReactElement {
+  const css = [
+    ".cbpp-host{position:absolute;top:10.5px;left:10.5px;width:200px;height:60px}",
+    ".cbpp-host::before{content:'';position:absolute;inset:0;backdrop-filter:blur(4px)}",
+    ".cbpp-inflow{position:relative;width:200px;height:40px}",
+    ".cbpp-inflow::before{content:'x';display:block;backdrop-filter:blur(4px)}",
+  ].join("");
+  return (
+    <div style={{ position: "relative", height: 260, backgroundColor: "rgb(16, 16, 20)", color: "rgb(240, 240, 245)" }}>
+      <style>{css}</style>
+      <div className="cbpp-host" data-testid="pseudo-promoted">
+        carried by a pseudo
+      </div>
+      <div data-testid="element-promoted" style={{ position: "absolute", top: 120.5, left: 10.5, width: 200, height: 60, backdropFilter: "blur(4px)" }}>
+        carried by the element
+      </div>
+      <div className="cbpp-inflow" data-testid="pseudo-inflow" style={{ marginTop: 200 }}>
+        an in-flow pseudo
+      </div>
     </div>
   );
 }

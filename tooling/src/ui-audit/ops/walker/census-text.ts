@@ -5,6 +5,7 @@
 // _shared/browser.ts for why a string, not a function). Provenance + attribution: ops/walker.ts.
 import { refuseDirectInvocation } from "../../../_shared/entrypoint.ts";
 import { INACTIVE_KIND_EXPR } from "../../../_shared/wcag.ts";
+import { TRANSCRIPT_SURFACE_SELECTOR_JS } from "../../lib/checks-typography.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm design-audit");
 
@@ -35,6 +36,23 @@ export const WALKER_CENSUS_TEXT = `
     }
     chWidthCache[fontShorthand] = width;
     return width;
+  };
+  // THE DESIGN LAW'S OWN UNIT, which is NOT the CSS \`ch\` above (#1183/#1145). \`ch\` is the '0' advance
+  // (0.6625em in Geist); a character of running prose averages 0.42-0.46em, so one \`ch\` is ~1.5 of the
+  // characters skill §2 counts and a 75ch box holds ~117 of them. Measuring the ELEMENT'S OWN TEXT rather
+  // than a font-wide constant is what makes this the honest number: the average depends on the copy (a
+  // line of capitals and a line of lowercase are different populations of glyph), and the browser's canvas
+  // is the same rasterizer that will paint it. Capped so one enormous node cannot dominate the walk; the
+  // rule needs >80 characters before it judges at all, so the cap never starves a real measure.
+  var GLYPH_SAMPLE_MAX = 400;
+  var GLYPH_SAMPLE_MIN = 20;
+  var glyphAdvanceOf = function (fontShorthand, text) {
+    if (text.length < GLYPH_SAMPLE_MIN) return 0;
+    if (measureCtx === null) measureCtx = document.createElement("canvas").getContext("2d") || false;
+    if (!measureCtx) return 0;
+    var sample = text.slice(0, GLYPH_SAMPLE_MAX);
+    measureCtx.font = fontShorthand;
+    return measureCtx.measureText(sample).width / sample.length;
   };
   // ── BLOCK IDENTITY + INTENT, for the type-hierarchy-inversion rule (#652) ────────────────────────
   // "Semantic importance" is not computable from the DOM, so the rule does not guess it: it reads the
@@ -137,6 +155,7 @@ export const WALKER_CENSUS_TEXT = `
     // ancestor: a micro-voice caption inside a large clickable card is the RATIFIED gloss voice
     // (density spec §2.3), while a control whose whole label is this text owes the 11px floor.
     // Primary ≈ this element's direct text is (nearly) all the text the control has.
+    var textFont = (style.fontStyle || "normal") + " " + (style.fontWeight || "400") + " " + style.fontSize + " " + style.fontFamily;
     var interactiveAnc = el.closest(INTERACTIVE_CTX);
     var interactivePrimary = false;
     if (interactiveAnc) {
@@ -172,7 +191,14 @@ export const WALKER_CENSUS_TEXT = `
       rectWidth: rect.width,
       // The rendered advance of one '0' in THIS element's font — the CSS \`ch\` unit, measured. 0 means
       // the canvas refused (no 2d context), which the check reads as "no verdict", never as "narrow".
-      chWidthPx: chWidthOf((style.fontStyle || "normal") + " " + (style.fontWeight || "400") + " " + style.fontSize + " " + style.fontFamily),
+      chWidthPx: chWidthOf(textFont),
+      // The law-character denominator, over the element's WHOLE rendered run (its own text nodes plus its
+      // inline children's — that is what wraps inside the box), whitespace-collapsed the same way.
+      glyphAdvancePx: glyphAdvanceOf(textFont, (el.textContent || "").replace(/\\s+/g, " ").trim()),
+      // The transcript takes the WIDER of the two reading measures (#1145) and is judged in its token's
+      // own unit; every other reading surface takes the prose measure. Interpolated from the ONE home in
+      // lib/checks-typography.ts, never re-spelled here.
+      readingSurface: !!el.closest(${TRANSCRIPT_SURFACE_SELECTOR_JS}),
       isProseTag: QUALITY_TEXT_TAGS[tag] === 1,
       isHeading: HEADING_TAGS[tag] === 1,
       interactive: interactivePrimary,
@@ -186,6 +212,9 @@ export const WALKER_CENSUS_TEXT = `
       ariaHidden: ariaHidden,
       // #652 — the app's own authored INTENT plus enough tree to compare two nodes in one block.
       voice: voiceOf(el),
+      // The element's OWN voice, uninherited — line-length's prose population widens on it (#1183) and an
+      // inherited voice would enrol every nested span of a voiced paragraph as its own reading line.
+      ownVoice: el.getAttribute("data-voice") || "",
       alertContext: !!el.closest(CAVEAT_ROLE_CTX),
       blockPath: blockPathOf(el),
     });

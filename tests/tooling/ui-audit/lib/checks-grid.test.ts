@@ -226,6 +226,28 @@ describe("design-audit promoted-layer-offset (crispness Law 3)", () => {
       expect(checkPromotedLayerOffset(promotedLayer({ dpr }))).toBeNull();
     }
   });
+
+  // #1172 — a promotion carried by a ::before is the SAME defect with a DIFFERENT repair site. The pseudo
+  // has no box of its own to move, so a message telling the reader to "give the layer an integer offset"
+  // names a thing they cannot edit. Both arms are pinned because getting only one right is how the pseudo
+  // cohort ended up invisible in the first place.
+  test("a pseudo-carried promotion names its carrier and sends the repair to the HOST", () => {
+    const carried = checkPromotedLayerOffset(promotedLayer({ pseudo: "::before", topDeviceFrac: 0.5 }));
+    expect(carried?.rule).toBe("promoted-layer-offset");
+    expect(carried?.message).toContain("this element's ::before promotes itself");
+    expect(carried?.message, "the pseudo cannot be nudged — the host's landing is the repair").toContain("Give the HOST an integer landing");
+  });
+
+  test("the element arm is unchanged by the pseudo arm — no carrier, no pseudo language", () => {
+    const element = checkPromotedLayerOffset(promotedLayer({ topDeviceFrac: 0.5 }));
+    expect(element?.message).toContain("this element promotes itself");
+    expect(element?.message).not.toContain("::before");
+    expect(element?.message).toContain("Give the layer an integer offset");
+  });
+
+  test("a pseudo-carried promotion ON the grid is still silent — the carrier is not the defect", () => {
+    expect(checkPromotedLayerOffset(promotedLayer({ pseudo: "::after" }))).toBeNull();
+  });
 });
 
 describe("design-audit off-grid-transform (crispness Law 2, resolved arm)", () => {

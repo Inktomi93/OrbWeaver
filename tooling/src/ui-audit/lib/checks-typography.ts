@@ -9,11 +9,44 @@ import { INTERACTIVE_TEXT_FLOOR_PX, LEADING_FLOOR, LEADING_FLOOR_EPSILON, RAMP_F
 
 const LINE_LENGTH_TEXT_MIN = 80;
 
-/** Chars per line above which the line-return gets hard to find. The house measure is
- *  `--reading-measure: 75ch`, so the floor sits ABOVE it deliberately — an instrument that indicts the
- *  ratified measure is measuring wrong, which is precisely what happened while this number was compared
- *  against a GUESSED character width (#464: a 75.0-real-char paragraph was filed as 85.9). */
-const LINE_LENGTH_MAX_CHARS = 85;
+/** LAW-CHARACTERS per line above which the line-return gets hard to find — the design law's own unit
+ *  (skill §2: "65-75 characters, counted by AVERAGE GLYPH ADVANCE"), not the CSS `ch` unit. The two are
+ *  NOT the same number: a `0` advance is 0.6625em in Geist while running prose averages 0.42-0.46em, so
+ *  one CSS ch is ~1.5 law-characters (#1145, owner ruling 2026-09-02) and a rule denominated in `ch`
+ *  passes a 117-character paragraph under a "75" ceiling — the #1183 blindness.
+ *
+ *  The ceiling still sits ABOVE the ratified token, which is #464's surviving principle: the ratified
+ *  PROSE measure is `--reading-measure-prose: 47ch` = 67-73 law-characters at both ends of the Geist
+ *  ratio, so 80 leaves the house token ~10% of headroom and an instrument that fires here is never
+ *  indicting a correctly-capped paragraph. */
+const LINE_LENGTH_MAX_CHARS = 80;
+
+/** The TRANSCRIPT arm's ceiling, in CSS `ch` — the unit `--reading-measure: 75ch` is authored in. The
+ *  transcript is deliberately the WIDE measure (#1145: dialogue is short attributed lines, not continuous
+ *  body copy), so it is judged against its OWN token in its own unit rather than against the law band;
+ *  75 law-characters there would fire on every correctly-capped message bubble. */
+const TRANSCRIPT_MAX_CH = 75;
+
+/** The chat transcript's reading surface — the subject of `--reading-measure` (#1145's split).
+ *  DELIBERATELY NOT `GRID_EXEMPTIONS.readingSurface` (lib/checks-grid.ts), even though both resolve to the
+ *  same DOM node today: that row is the `integer-line-boxes` gate's ARM C mirror (a user-owned CONTINUOUS
+ *  line-height multiplier is exempt from the line-box law) and this one is the measure SPLIT (the transcript
+ *  takes the wider of two reading measures). Two axes that happen to share a member need two spellings —
+ *  collapsing them would make one law's exemption move when the other's does. */
+const TRANSCRIPT_SURFACE = '[data-slot="message-bubble"]';
+
+/** The page-side expression the walker interpolates, so the transcript surface is spelled EXACTLY ONCE
+ *  across the Node verdict layer and the in-page census (the `INACTIVE_KIND_EXPR` precedent). */
+export const TRANSCRIPT_SURFACE_SELECTOR_JS = JSON.stringify(TRANSCRIPT_SURFACE);
+
+/** The `<Text>` voices that ARE body prose — the app's own authored claim about what a block IS, which is
+ *  the only thing that widens the population beyond the prose TAGS. `reading` is the content itself,
+ *  `gloss` the quiet explanatory second line, `quiet` the muted body line: all three are copy a user reads
+ *  in lines, all three take `--reading-measure-prose`. Every other voice names CHROME (a section's name, a
+ *  datum and its label, a credit, a promoted item's title) or a display statement (`hero`/`masthead`/
+ *  `focal`), and a heading is out of the band by law — those are `chromeVoice`, a measured exclusion.
+ *  The vocabulary's home is `packages/ui/src/primitives/text/variants.ts`; this is the prose SUBSET. */
+const PROSE_VOICES: ReadonlySet<string> = new Set(["gloss", "quiet", "reading"]);
 
 const TIGHT_LEADING_TEXT_MIN = 50;
 
@@ -53,12 +86,11 @@ function checkTypeFloor(input: TextStyleInput): Finding | null {
   return null;
 }
 
-/** Characters that fit on one rendered line: the box width over the MEASURED `ch` advance plus this
- *  element's tracking, which is what actually decides how many glyphs land before the wrap. With
- *  tracking 0 — every prose surface here — it is the CSS `ch` count exactly, so the number a finding
- *  prints and the number `--reading-measure: 75ch` states are the same unit. Null when the walker could
- *  not measure the advance: NO VERDICT beats a verdict from a guessed ratio (#464). */
-function charsPerLine(input: TextStyleInput): number | null {
+/** CSS `ch` per rendered line: the box width over the MEASURED `0` advance plus this element's tracking.
+ *  This is the unit the TOKENS are authored in (`--reading-measure: 75ch`), so the transcript arm judges
+ *  in it. Null when the walker could not measure the advance: NO VERDICT beats a verdict from a guessed
+ *  ratio (#464). */
+function chPerLine(input: TextStyleInput): number | null {
   const chWidthPx = input.chWidthPx ?? 0;
   if (chWidthPx <= 0) {
     return null;
@@ -67,20 +99,77 @@ function charsPerLine(input: TextStyleInput): number | null {
   return advance > 0 ? input.rectWidth / advance : null;
 }
 
-function checkLineLength(input: TextStyleInput): Finding | null {
-  if (!input.isProseTag || input.totalTextLen <= LINE_LENGTH_TEXT_MIN || input.rectWidth <= 0 || input.fontSizePx <= 0) {
+/** LAW-CHARACTERS per rendered line: the box width over the AVERAGE GLYPH ADVANCE of this element's own
+ *  running text, measured on the page's own canvas in the element's own font (ops/walker/census-text.ts).
+ *  This is the unit skill §2 counts in, and it is NOT the `ch` count above — the average advance of real
+ *  prose is ~2/3 of a `0`, so the same box holds ~1.5x as many law-characters as it does `ch` (#1183). */
+function lawCharsPerLine(input: TextStyleInput): number | null {
+  const glyphAdvancePx = input.glyphAdvancePx ?? 0;
+  if (glyphAdvancePx <= 0) {
     return null;
   }
-  const chars = charsPerLine(input);
-  if (chars === null || chars <= LINE_LENGTH_MAX_CHARS) {
+  const advance = glyphAdvancePx + input.letterSpacingPx;
+  return advance > 0 ? input.rectWidth / advance : null;
+}
+
+/** IS THIS SAMPLE BODY PROSE? The tags are the structural half (`p`/`li`/`td`/…) and the VOICE is the
+ *  authored half: `<Text as="span" voice="gloss">` renders a settings-row description that every reader
+ *  reads in lines and no prose TAG covers, and excluding it is how a rule reporting `notProseTag=55` over
+ *  64 text samples reached `affected=0` on a surface with a 117-character paragraph on it (#1183). */
+function isProse(input: TextStyleInput): boolean {
+  return input.isProseTag || PROSE_VOICES.has(input.ownVoice ?? "");
+}
+
+/** ONE line's measure under the arm that governs it. `measured`/`ceiling` share a unit; the companion
+ *  number rides `report` because the two units are the exact confusion this rule was blind to, and a
+ *  finding that prints only one of them cannot be checked against the token it names. */
+interface LineMeasure {
+  readonly measured: number;
+  readonly ceiling: number;
+  readonly unit: string;
+  readonly report: string;
+  readonly token: string;
+}
+
+function lineMeasure(input: TextStyleInput): LineMeasure | null {
+  const cssCh = chPerLine(input);
+  const lawChars = lawCharsPerLine(input);
+  if (input.readingSurface === true) {
+    return cssCh === null
+      ? null
+      : {
+          measured: cssCh,
+          ceiling: TRANSCRIPT_MAX_CH,
+          unit: "CSS ch",
+          report: `${Math.round(cssCh)} CSS ch (${lawChars === null ? "glyph advance unmeasured" : `${Math.round(lawChars)} characters`})`,
+          token: "--reading-measure (75ch, the transcript measure)",
+        };
+  }
+  return lawChars === null
+    ? null
+    : {
+        measured: lawChars,
+        ceiling: LINE_LENGTH_MAX_CHARS,
+        unit: "characters",
+        report: `${Math.round(lawChars)} characters (${cssCh === null ? "ch advance unmeasured" : `${Math.round(cssCh)} CSS ch`})`,
+        token: "--reading-measure-prose (47ch = 67-73 characters)",
+      };
+}
+
+function checkLineLength(input: TextStyleInput): Finding | null {
+  if (!isProse(input) || input.totalTextLen <= LINE_LENGTH_TEXT_MIN || input.rectWidth <= 0 || input.fontSizePx <= 0) {
+    return null;
+  }
+  const measure = lineMeasure(input);
+  if (measure === null || measure.measured <= measure.ceiling) {
     return null;
   }
   return {
     rule: "line-length",
     severity: "P3",
     selector: input.selector,
-    value: `${Math.round(chars)} chars/line`,
-    message: `prose line measures ${Math.round(chars)} chars — beyond ~80 the eye loses the line-return; cap the measure (65–75ch, skill §2)`,
+    value: `${measure.report}/line`,
+    message: `this line measures ${measure.report} — past the ${String(measure.ceiling)} ${measure.unit} ceiling, beyond which the eye loses the line-return. Cap the measure at ${measure.token} (skill §2, the #1145 split); CSS ch and law-characters are different units, which is why both are printed`,
     origin: "impeccable",
   };
 }
@@ -194,14 +283,15 @@ type TextStyleRuleId = (typeof TEXT_STYLE_RULE_IDS)[number];
 
 /** Per-rule disposition over the shared text census. EXCLUDED is reserved for the measured facts that
  *  put a sample outside a rule's own population — clipped `sr-only` text paints no pixels at all, a
- *  heading is not body copy, a non-prose tag has no reading measure, an element with no own text has no
+ *  heading is not body copy, a node that is neither a prose tag nor a prose VOICE has no reading measure
+ *  (`notProseTag` unlabelled · `chromeVoice` authored-as-chrome, #1183), an element with no own text has no
  *  alignment to judge, a `line-height: normal` computed value is no authored leading step to compare
  *  against the ramp, and RENDERED CAPS are the ratified micro-caps voice `tracking.micro` pairs with
  *  (`rendersAsCaps` above, issue #148). The rules' own thresholds — short text, zero tracking, a leading
  *  above the floor — stay JUDGED PASSES (`grayOnColorOutcome`'s precedent in checks-color.ts). The one
- *  WITHHOLDING is `line-length`'s: the walker measured no `ch` advance, and #464 already ruled that a
- *  measure computed from a guessed ratio is worse than no verdict — so it fails loud instead of printing
- *  a clean row over an unmeasured population. */
+ *  WITHHOLDING is `line-length`'s: the walker measured no advance for the arm that governs the sample, and
+ *  #464 already ruled that a measure computed from a guessed ratio is worse than no verdict — so it fails
+ *  loud instead of printing a clean row over an unmeasured population. */
 export function classifyTextStyle(input: TextStyleInput, rule: TextStyleRuleId): CandidateDisposition {
   if (input.srOnly) {
     return { kind: "excluded", reason: "srOnly" };
@@ -210,8 +300,11 @@ export function classifyTextStyle(input: TextStyleInput, rule: TextStyleRuleId):
   if (excluded !== null) {
     return { kind: "excluded", reason: excluded };
   }
-  if (rule === "line-length" && input.totalTextLen > LINE_LENGTH_TEXT_MIN && charsPerLine(input) === null) {
-    return { kind: "withheld", reason: "chAdvanceUnmeasured" };
+  if (rule === "line-length" && input.totalTextLen > LINE_LENGTH_TEXT_MIN && lineMeasure(input) === null) {
+    // ONE reason per DENOMINATOR, never one label over two different failures: the transcript arm needs the
+    // `0` advance and the prose arm needs the average glyph advance, and a run that cannot measure one of
+    // them has a different blindness from a run that cannot measure the other.
+    return { kind: "withheld", reason: input.readingSurface === true ? "chAdvanceUnmeasured" : "glyphAdvanceUnmeasured" };
   }
   return { kind: "judged", finding: checkTextStyle(input).find((finding) => finding.rule === rule) ?? null };
 }
@@ -225,8 +318,12 @@ const TEXT_STYLE_EXCLUSIONS: Readonly<Record<TextStyleRuleId, (input: TextStyleI
   "crushed-tracking": (input) => noTypeSize(input),
   "justified-text": (input) => (input.directTextLen === 0 ? "noOwnText" : null),
   "line-length": (input) => {
-    if (!input.isProseTag) {
-      return "notProseTag";
+    if (!isProse(input)) {
+      // TWO LABELS, NOT ONE (#1183): an element carrying an authored CHROME voice is PROVED out of the
+      // reading population by the app's own vocabulary, while an untagged, unvoiced node is merely markup
+      // this rule cannot claim. Collapsing them printed `notProseTag=55` — a number that says nothing
+      // about whether the census is right or the surface is unlabelled.
+      return (input.ownVoice ?? "") === "" ? "notProseTag" : "chromeVoice";
     }
     return input.rectWidth <= 0 ? "noRenderedBox" : noTypeSize(input);
   },

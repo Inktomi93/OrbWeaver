@@ -231,6 +231,8 @@ export function decisionPopulationFindings<T extends { readonly selector: string
       withheld,
       excluded: { ...(census?.excluded ?? {}) },
       collapsed: {},
+      // The walker's route tag travels to the printed row unchanged (#1172) — Node adds no route of its own.
+      ...(census?.carried === undefined ? {} : { carried: { ...census.carried } }),
     }),
   };
 }

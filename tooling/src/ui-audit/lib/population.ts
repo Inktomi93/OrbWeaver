@@ -21,9 +21,23 @@ function sumCounts(rule: string, kind: string, counts: Readonly<Record<string, n
   return total;
 }
 
+/** `carried` is a TAG over candidates, not a disposition (#1172), so it is settled against `candidates`
+ *  rather than inside the judged/withheld/excluded identity. A route tag exceeding the census it tags is
+ *  the same class of broken counter as a negative one: the walk counted something it never censused. */
+function assertCarried(rule: string, carried: Readonly<Record<string, number>> | undefined, candidates: number): void {
+  if (carried === undefined) {
+    return;
+  }
+  const total = sumCounts(rule, "carried", carried);
+  if (total > candidates) {
+    throw new Error(`INSTRUMENT ERROR: ${rule} carried ${String(total)} exceeds candidates ${String(candidates)}`);
+  }
+}
+
 export function assertCensusAccounting(rule: string, census: RelationalCensusAccountingInput): void {
   assertCount(`${rule} candidates`, census.candidates);
   assertCount(`${rule} judged`, census.judged);
+  assertCarried(rule, census.carried, census.candidates);
   if (Object.hasOwn(census.withheld, "cap")) {
     throw new Error(`INSTRUMENT ERROR: ${rule} walker supplied Node-owned cap accounting`);
   }
@@ -54,6 +68,7 @@ function assertPopulationAccounting(rule: string, row: RulePopulationAccounting)
   ] as const) {
     assertCount(`${rule} ${label}`, value);
   }
+  assertCarried(rule, row.carried, row.candidates);
   const cap = row.withheld["cap"] ?? 0;
   const unjudged = sumCounts(rule, "withheld", row.withheld, new Set(["cap"]));
   const excluded = sumCounts(rule, "excluded", row.excluded);

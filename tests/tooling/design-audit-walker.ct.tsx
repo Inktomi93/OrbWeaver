@@ -35,6 +35,7 @@ import {
   WalkerPaintLayerStory,
   WalkerProgrammaticFocusDoorStory,
   WalkerPseudoCarriedIsolatedGlyphStory,
+  WalkerPseudoPromotionStory,
   WalkerReadingMeasureStory,
   WalkerRowWrappedGlyphStory,
   WalkerScreenReaderOnlyStory,
@@ -665,30 +666,107 @@ test("an in-flow control cut by its clipping container is a P1 finding naming th
 // against the home resume snippet — a paragraph that is 75.0 REAL characters, i.e. exactly
 // `--reading-measure: 75ch`. The instrument was indicting the house's own ratified measure. The boxes
 // below are sized in `ch`, so the browser itself supplies the ground truth in whatever font resolves.
-test("the walker measures a real character advance — a 75ch box reads as 75 characters, not 86", async ({ mount, page }) => {
+// …AND THE UNIT IT IS MEASURED IN IS NOT THE UNIT THE LAW COUNTS (#1183, the #1145 owner ruling). CSS `ch`
+// is the '0' advance; a character of running prose is ~2/3 of one, so a 75ch box holds ~113 law-characters
+// and a "75" ceiling compared against a `ch` count passed a 117-character paragraph on the home surface
+// while the rule printed `affected=0`. Both numbers are real; the rule now measures BOTH and judges each
+// arm against the token that governs it.
+test("the walker measures BOTH units, and a law-character is narrower than a CSS ch", async ({ mount, page }) => {
   await mount(<WalkerReadingMeasureStory />);
   const samples = await samplesOf(page);
-  const sample = samples.textStyles.find((s) => s.selector.includes("measure-75ch"));
+  const sample = samples.textStyles.find((s) => s.selector.includes("measure-75ch-prose"));
 
   expect(sample, `censused: ${samples.textStyles.map((s) => s.selector).join(" | ")}`).toBeDefined();
   const chWidthPx = sample?.chWidthPx ?? 0;
+  const glyphAdvancePx = sample?.glyphAdvancePx ?? 0;
   expect(chWidthPx, "a zero advance means the canvas measurement never happened").toBeGreaterThan(0);
-  // The whole defect in one number: the real advance is WIDER than the guessed half-em, so the guess
-  // over-counted characters. Geist measures 0.573em.
-  expect(chWidthPx / (sample?.fontSizePx ?? 1), `measured advance ratio was ${chWidthPx / (sample?.fontSizePx ?? 1)}`).toBeGreaterThan(0.5);
+  expect(glyphAdvancePx, "the law-character denominator must be measured too, not defaulted").toBeGreaterThan(0);
   expect(Math.round((sample?.rectWidth ?? 0) / chWidthPx), "the box is 75ch by construction").toBe(75);
+  // The ruling's measured range on Geist is 1.43–1.56; the band is wide enough for whatever face the CT
+  // harness resolves and still narrow enough that a rule reading one unit for the other cannot pass it.
+  const ratio = chWidthPx / glyphAdvancePx;
+  expect(ratio, `one CSS ch must be MORE than one law-character (measured ${String(ratio)})`).toBeGreaterThan(1.2);
+  expect(ratio, `…and not absurdly more (measured ${String(ratio)})`).toBeLessThan(2);
 });
 
-test("a line at the ratified 75ch measure is clean while a genuinely over-long one still fires", async ({ mount, page }) => {
+test("the prose measure is judged in characters and the transcript in ch — the same 75ch box, two verdicts", async ({ mount, page }) => {
   await mount(<WalkerReadingMeasureStory />);
   const findings = collectFindings(await samplesOf(page)).filter((f) => f.rule === "line-length");
+  const named = findings.map((f) => `${f.selector} => ${f.value}`).join(" | ");
 
-  expect(findings.map((f) => f.selector).join(" | "), "the ratified reading measure must never be a finding — that was the #464 defect").not.toContain(
-    "measure-75ch",
+  expect(findings.map((f) => f.selector).join(" | "), `the ratified PROSE measure must never be a finding (#464's surviving half). got ${named}`).not.toContain(
+    "measure-47ch-prose",
   );
-  const long = findings.find((f) => f.selector.includes("measure-110ch"));
-  expect(long, `the rule must stay alive: got ${JSON.stringify(findings)}`).toBeDefined();
-  expect(long?.value, "and it reports REAL characters now").toBe("110 chars/line");
+  expect(
+    findings.map((f) => f.selector).join(" | "),
+    `a message bubble at its own ratified token is not a finding — the transcript keeps the wide measure. got ${named}`,
+  ).not.toContain("measure-75ch-transcript");
+
+  const prose = findings.find((f) => f.selector.includes("measure-75ch-prose"));
+  expect(prose, `a 75ch TEACHING paragraph is ~113 characters and IS the finding. got ${named}`).toBeDefined();
+  expect(prose?.value, "both units print, because confusing them is the defect").toMatch(/^\d+ characters \(75 CSS ch\)\/line$/u);
+});
+
+test("a prose VOICE on a non-prose tag is judged, while its chrome twin is excluded by name", async ({ mount, page }) => {
+  await mount(<WalkerReadingMeasureStory />);
+  const samples = await samplesOf(page);
+  const findings = collectFindings(samples).filter((f) => f.rule === "line-length");
+  const named = findings.map((f) => f.selector).join(" | ");
+
+  expect(
+    findings.find((f) => f.selector.includes("measure-gloss-voice")),
+    `a gloss is copy read in lines. got ${named}`,
+  ).toBeDefined();
+  expect(named, "the widening is the reading voices, not every voiced node — a datum's label is chrome").not.toContain("measure-label-voice");
+  // The walker's half of it: the voice must be read from the element ITSELF, never inherited, or every
+  // nested span of a voiced paragraph enrols as its own reading line.
+  const gloss = samples.textStyles.find((s) => s.selector.includes("measure-gloss-voice"));
+  expect(gloss?.ownVoice).toBe("gloss");
+  expect(samples.textStyles.find((s) => s.selector.includes("measure-75ch-transcript"))?.readingSurface).toBe(true);
+  expect(samples.textStyles.find((s) => s.selector.includes("measure-75ch-prose"))?.readingSurface).toBe(false);
+});
+
+// ── A PROMOTION CARRIED BY A PSEUDO (#1172) ───────────────────────────────────────────────────────
+// `promoted-layer-offset` called getComputedStyle with no pseudo argument, so the #1154 shell-pane glass —
+// a `::before` fill layer — left the census silently: `candidates=1` became `candidates=0`, which prints
+// exactly like a surface that has nothing to promote. jsdom cannot answer any of this; the pseudo's
+// generated content, its resolved inset and the host's containing-block status are all real-browser facts.
+test("a pseudo-carried promotion is censused, judged and named — and the element arm is untouched", async ({ mount, page }) => {
+  await mount(<WalkerPseudoPromotionStory />);
+  const samples = await samplesOf(page);
+  const census = samples.relationalAccounting?.["promoted-layer-offset"];
+  const seen = samples.promotedLayerOffsets?.map((p) => p.selector).join(" | ") ?? "";
+
+  expect(census, "the census row must exist at all").toBeDefined();
+  expect(census?.carried?.["pseudo"], `the pseudo cohort must be COUNTED, not merely present. census=${JSON.stringify(census)}`).toBe(2);
+  const carried = samples.promotedLayerOffsets?.find((p) => p.selector.includes("pseudo-promoted"));
+  expect(carried, `the pseudo-carried layer must be judged. saw: ${seen}`).toBeDefined();
+  expect(carried?.selector, "the subject is the HOST with the pseudo named — that is where the repair goes").toContain("::before");
+  expect(carried?.promotion).toBe("backdrop-filter");
+  expect(Math.abs(carried?.topDeviceFrac ?? 0), "the host sits on a half pixel by construction").toBeGreaterThan(0.4);
+  // The element arm, unchanged: the same defect carried the original way is still judged the original way.
+  const element = samples.promotedLayerOffsets?.find((p) => p.selector.includes("element-promoted"));
+  expect(element, `the element arm must not have moved. saw: ${seen}`).toBeDefined();
+  expect(element?.pseudo, "an element-carried promotion names no pseudo").toBeUndefined();
+
+  const findings = collectFindings(samples).filter((f) => f.rule === "promoted-layer-offset");
+  expect(findings.length, `both layers land off the grid and both are findings. got ${JSON.stringify(findings.map((f) => f.selector))}`).toBeGreaterThan(0);
+});
+
+test("an in-flow pseudo whose box cannot be derived is WITHHELD by name, never judged off the host's rect", async ({ mount, page }) => {
+  await mount(<WalkerPseudoPromotionStory />);
+  const samples = await samplesOf(page);
+  const census = samples.relationalAccounting?.["promoted-layer-offset"];
+
+  expect(census?.withheld["pseudoBoxUnmeasurable"], `an underivable pseudo box fails loud. census=${JSON.stringify(census)}`).toBe(1);
+  expect(
+    samples.promotedLayerOffsets?.map((p) => p.selector).join(" | "),
+    "and it is NOT in the judged set — a landing measured off the wrong box is the other half of the lie",
+  ).not.toContain("pseudo-inflow");
+  // #987's settlement identity still closes over the widened census.
+  expect(census?.candidates).toBe(
+    (census?.judged ?? 0) + Object.values(census?.withheld ?? {}).reduce((a, b) => a + b, 0) + Object.values(census?.excluded ?? {}).reduce((a, b) => a + b, 0),
+  );
 });
 
 // ── BELOW THE FOLD IS NOT UNREACHABLE (issue #653) ────────────────────────────────────────────────

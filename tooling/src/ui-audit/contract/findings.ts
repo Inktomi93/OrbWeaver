@@ -31,6 +31,14 @@ export interface RelationalCensusAccountingInput {
   readonly judged: number;
   readonly withheld: Readonly<Record<string, number>>;
   readonly excluded: Readonly<Record<string, number>>;
+  /** How many CANDIDATES arrived by a named non-default route (#1172: `pseudo` — a promotion carried by a
+   *  `::before`/`::after` rather than by the element the walk visits). A TAG, never a disposition: every
+   *  tagged candidate is still judged, withheld or excluded exactly once, so this sits outside the
+   *  settlement arithmetic and is bounded only by `candidates`. It exists so a route's whole cohort cannot
+   *  enter or leave a denominator invisibly — a census that silently stopped seeing pseudo carriers reads
+   *  identically to a surface that has none, which is the blindness #1172 named. Absent = the census has
+   *  no alternate route. */
+  readonly carried?: Readonly<Record<string, number>>;
 }
 
 export interface RulePopulationAccounting {
@@ -46,6 +54,9 @@ export interface RulePopulationAccounting {
   /** Affected rendered targets already adjudicated by the same authored decision. These are not missing
    * judgments and therefore never make the run partial. */
   readonly collapsed: Readonly<Record<string, number>>;
+  /** The walker's `carried` tag, carried through to the printed row — see
+   * `RelationalCensusAccountingInput.carried`. Outside the settlement arithmetic by construction. */
+  readonly carried?: Readonly<Record<string, number>>;
 }
 
 export type PopulationAccounting = Readonly<Partial<Record<DesignAuditRuleId, RulePopulationAccounting>>>;
