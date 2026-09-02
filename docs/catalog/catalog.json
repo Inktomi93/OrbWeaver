@@ -12968,32 +12968,33 @@
       "path": "docs/design/vocabulary-map.md",
       "lane": "design",
       "issue": 5,
-      "lines": 89,
-      "bytes": 9799,
-      "sha256": "e09949b4144599d5513f2cb8785dab563b75c5cd05611d4bfd8edf8a15d0036f",
+      "lines": 88,
+      "bytes": 9514,
+      "sha256": "2924fc5e5d67946eb7bff68ea16db5124321901a6eff7195437f6aef1c173740",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "design",
           "status": "active",
-          "updated": "2026-08-30"
+          "updated": "2026-09-01"
         },
         "errors": []
       },
       "receipt": {
         "path": "docs/design/vocabulary-map.md",
-        "assignedSha256": "e09949b4144599d5513f2cb8785dab563b75c5cd05611d4bfd8edf8a15d0036f",
+        "assignedSha256": "2924fc5e5d67946eb7bff68ea16db5124321901a6eff7195437f6aef1c173740",
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "e09949b4144599d5513f2cb8785dab563b75c5cd05611d4bfd8edf8a15d0036f",
-        "verifiedCommit": "05a109eecbec92d771e039cf7319684bc76de808",
-        "verifiedAt": "2026-08-30",
+        "verifiedSha256": "2924fc5e5d67946eb7bff68ea16db5124321901a6eff7195437f6aef1c173740",
+        "verifiedCommit": "8e162cd47ecf0a10d7a7f418ab0ce092c917d76c",
+        "verifiedAt": "2026-09-01",
         "evidence": [
           "docs/design/vocabulary-map.md:1-72 read IN FULL by the orchestrator (claude-b) before the receipt; minted by lane cb-vocab-reconcile at the #914 merge as the ONE living home for the concept→word table, per the owner's ruling that the design doc is the source of truth and everything references it",
           "re-attested at 106e855db — row 4's status corrected from 'landed' to COPY-landed/CODE-not-landed after lane cb-vocab-c2 found ten files still spelling cast; the map's own status column is a tree claim and owes a receipt like any other (#922)",
-          "re-attested at 05a109eec — rows 5/6 flipped to landed with their Was-history, three new rows added (kit name axis, regex slice, CarriedAppearance), plus a new section listing four concepts still spelled cast that the map has NO word for; row 4 kept at the orchestrator's #922 truth repair (COPY landed / CODE not landed) — the union resolution at this merge"
+          "re-attested at 05a109eec — rows 5/6 flipped to landed with their Was-history, three new rows added (kit name axis, regex slice, CarriedAppearance), plus a new section listing four concepts still spelled cast that the map has NO word for; row 4 kept at the orchestrator's #922 truth repair (COPY landed / CODE not landed) — the union resolution at this merge",
+          "re-attested at 8e162cd47 — #922 (claude-b lane cb-cast-code, 45aa4313c rebased): row 4 flipped to landed-with-deletion (chat-cast-bar → chat-character-bar; MembersRow kind:\"character\"); delta read of the row"
         ],
         "claims": [
           {
