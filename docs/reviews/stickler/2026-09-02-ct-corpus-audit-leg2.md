@@ -40,8 +40,8 @@ current as of the newest commit.
 | Leg | Full-read files | Lines | Findings |
 | - | - | - | - |
 | Leg 1 | 24 | \~26,100 | F1 (#1240) · F2 (#1241) · F3 (#1242) |
-| Leg 2 so far | 39 | \~17,060 | none yet |
-| **Total** | **63 / 469** | \~43,160 | ceiling P3 |
+| Leg 2 so far | 45 | \~19,540 | none yet |
+| **Total** | **69 / 469** | \~45,640 | ceiling P3 |
 
 Leg-2 files read and judged (chunk 1): `web-weave.ct.tsx`, `slider.ct.tsx`, `toast.ct.tsx`,
 `sandbox-frame.ct.tsx`, `params-deck.ct.tsx`, `chat-room-surface.ct.tsx`,
@@ -408,16 +408,52 @@ proves the classification.
 Asserts at the store action via the nav probe with the rendered-echo-would-assert-the-harness reasoning
 stated; `when`-parity rides into the palette.
 
+## 3g. Per-file verdicts — chunk 7, HI-band remainder part 1 (6 files, all CLEAN)
+
+Chunk 7 (HI-band remainder, score order): `appearance-looks-section.ct.tsx` (353),
+`refinery-content-surface.ct.tsx` (741), `color-field.ct.tsx` (247), `number-field.ct.tsx` (330),
+`plugin-surface-renderer.ct.tsx` (658), `use-slash-commands.ct.tsx` (250). All six full-read, all
+CLEAN — one-line receipts (usage-window stop cut the long form; the judgment was completed for each):
+
+- **appearance-looks-section**: every one-shot count carries a settled-barrier ONESHOT-OK argument
+  (the still-open-confirm impossibility at `:268` is the model); the #1100 CLS pin holds a parked
+  second read with a measured-reservation attribute and a two-genuine-reads control; #920 plants are
+  contract-driven with a positive control on the slot-set equality.
+- **refinery-content-surface**: pane-cannot-paint-until-resolved barriers for every wire one-shot;
+  INPUT-AWARE responders with the unfalsifiability reasoning in the header; typed recording list to
+  avoid double-casts; held-pending skeleton arm; server-gate honesty (tier-collapse refusal stated).
+- **color-field**: real-keyboard `:focus-visible` probe with the modality-heuristic control; inked
+  box-shadow-layer counting with the transparent-slot trap named; clamp both directions;
+  unset-is-not-invalid and seed-not-black arms with commits-nothing riders.
+- **number-field**: read-only force-click proves the HANDLER, not the aria hint; description
+  composition asserted exactly; the one-name-owner group regression guard; inline-size arm resolves
+  pointer-conditional tokens live.
+- **plugin-surface-renderer**: stateful state reads make every barrier a post-invoke repaint;
+  owner-scope image gate with an owned-arm positive control; region-scoped glyph absence (page-wide
+  false-negative reasoning); fences vs defect proofs labelled.
+- **use-slash-commands**: all zero-post ONESHOT-OKs ride the same-submit single-arm exclusivity with
+  the fired/refused testid as the barrier; caret-sacred arrow test reads selection before/after;
+  zero-registrant baseline both directions.
+
 ## 4. Verified clean so far (leg-2 methods)
 
-- Full-read of all 39 files above, whole files, no sampling.
+- Full-read of all 45 files above, whole files, no sampling.
 - Fresh merged-tree Phase A scan (469/469 files, scannedFileCount cross-checked against `git ls-files`).
 - Helper-hoisted site classification against the scan's site list; every site in the 39 files accounted
   for above.
 
 ## 5. Remaining leg-2 queue (state at this commit)
 
-Pre-fold-flagged (parked by design, dead-text risk — `config-welcome.ct.tsx` is DELETED and
-`config-content-surface.ct.tsx` extracted 908→394 in the fold-ready collections batch): config-welcome
-(755), config-content-surface (908), config-list-surface (1240). Then the HI-band remainder as budget
-allows.
+**LEG 2 STOPPED HERE (usage-window stop, coordinator order 2026-09-02).** What remains for a leg 3,
+exactly:
+
+- HI-band remainder part 2 (13 files, score order): character-library-surface (1952, 11.5),
+  notification-bell (407, 10.4), composer (1427, 10.3), composer-guided-cluster (514, 9.5),
+  chat-list-surface (1556, 9.4), virtual-list (432, 9.1), textarea (113, 9.1), tool-card (199, 8.9),
+  credential-key-row (98, 8.7), design-audit-walker (1028, 8.3), home-surface (1731, 8.2),
+  refinery-list-surface (327, 8.1), input (256, 11.7).
+- Pre-fold-flagged (parked by design, dead-text risk — `config-welcome.ct.tsx` is DELETED and
+  `config-content-surface.ct.tsx` extracted 908→394 in the fold-ready collections batch):
+  config-welcome (755), config-content-surface (908), config-list-surface (1240). Audit these ONLY
+  after the collections batch folds, on the post-fold text.
+- Then the MID band (74 files) / LO band (334) as future legs if the campaign continues.
