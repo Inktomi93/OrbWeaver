@@ -25,10 +25,12 @@ import { PROSE_COUNTER_AT, PROSE_MAX_CHARS, PROSE_SLOTS } from "@orb/contracts/p
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { PresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { SCROLL_FADE_X_CLASS } from "@orb/ui/lib";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { assertTokenRoundtrip } from "../../../../support/ct/assert-token-roundtrip.ts";
 import { beginAutosaveStatusTranscript, readAutosaveStatusTranscript } from "../../../../support/ct/autosave-status-transcript.ts";
+import { pixelExtremaContrast, pixelSurface } from "../../../../support/ct/pixel-contrast.ts";
 import { resolvedTokenColor } from "../../../../support/ct/resolved-token-color.ts";
 import type { TrpcRecorder } from "../../../../support/ct/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "../../../../support/ct/route-trpc.ts";
@@ -37,6 +39,7 @@ import { makeModelCapability, makeResolvedChatCapability } from "../../../../sup
 import {
   PresetEditorCapabilityFreshnessStory,
   PresetEditorNarrowStory,
+  PresetEditorStripFadeStory,
   PresetEditorSurfaceStory,
   PresetEditorSwitchStory,
   PresetEditorWidePaneStory,
@@ -1683,3 +1686,260 @@ test("#483 the editor header renames the open preset — one name-only update ag
     .poll(() => (trpc.inputs("preset.update") as RenameCall[]).filter((call) => call.name !== undefined))
     .toEqual([{ id: PRESET_A, name: "Renamed in the editor" }]);
 });
+
+// ── #1140 · THE VIEW STRIP'S EDGE FADE DISSOLVED LIVE TABS (the INLINE twin of #1128) ───────────────
+// `.scroll-fade-x` is the recipe the strip above wears (P1-1 — "degrade to a SCROLL, never an ellipsis"),
+// and it ramped to ZERO alpha over `--fade-edge-stop` (10%) of the strip's own box. So the tab that
+// straddles a scrolled edge — the one whose word is half the reason to scroll — dissolves into the header
+// band behind it, while a mask keeps it fully hit-testable: a user can click a view they cannot read.
+// RED on the unmodified recipe, this exact matrix: at 360px the trailing 13px of `Transforms` decoded
+// 2.01:1 dark and 1.91:1 light, and at 390px the leading 22px of the ACTIVE `Params` tab decoded 3.24:1
+// light — against 7.75:1 dark / 11.55:1 light for every tab clear of the band in the same run. With the
+// floor those three cells read 4.82 / 5.33 / 7.55:1 and the clear rows do not move.
+//
+// WHY THE SAMPLER NEEDS A REGION HERE AND DID NOT ON THE BLOCK AXIS. #1128's band was 75px deep and its
+// subjects sat WHOLLY inside it, so the whole box was the honest clip. An inline edge band reaches only the
+// trailing slice of the tab that straddles it, and the unfaded rest of that same tab supplies both extremes
+// — `pixelExtremaContrast` over the whole box comes back at the tab's FULL ratio while its last characters
+// are gone. The clip is therefore the tab's OWN overlap with the RESOLVED band, computed per width off the
+// element, never a fraction chosen by eye or restated from the stylesheet. Everything else is #1128's
+// instrument unchanged, for its stated reason: a mask is PAINT, invisible to `getComputedStyle`, so
+// snap --contrast, axe, design-audit and `pixelContrast` itself all report this strip clean.
+//
+// A POINT MEASUREMENT NEVER PROVES A RANGE PROPERTY, and this band is a fraction of a box that moves: the
+// matrix is a pane sweep x BOTH scrolled edges x both POLARITIES. The light arm is the demanding one (the
+// alpha a fade may bottom out at is polarity-dependent arithmetic — 0.60 against the dark arm's 0.48) and
+// it is derived from `background`, so the whole ramp inverts with it rather than a hand-listed palette.
+//
+// ITS OWN POSITIVE CONTROL, in the same decode: every tab CLEAR of the band is measured over its whole
+// visible box in the same run and must read the full ink ratio. A uniformly dim page takes those down too.
+// Both ends AND the crossover: 320/360 are real phone panes, 390 is the narrowest DESKTOP content pane
+// (a 1280 viewport with both panels docked — the P1-1 measurement above), and 450 is past the strip's own
+// overflow, where the recipe must paint no band at all and every row reads `clear`.
+const STRIP_FADE_PANES = [320, 360, 390, 450] as const;
+/** WCAG 1.4.3 normal text — the tabs are 13px/500, so the 3:1 large-text relaxation does not apply. */
+const STRIP_FADE_INK_FLOOR = 4.5;
+/** A light scope by DERIVATION, never a hand-listed palette — `background` grows the whole ramp. */
+const STRIP_LIGHT_SCOPE_BACKGROUND = "oklch(0.98 0.004 75)";
+/** Below this a clip is sub-pixel noise, not a slice of a tab anyone reads. */
+const STRIP_CLIP_MIN_PX = 3;
+/** sRGB midpoint — the polarity arm proves itself off the strip's COMPOSITED surface, not a token string. */
+const STRIP_POLARITY_MIDPOINT = 128;
+
+interface StripBand {
+  /** Viewport-space x of the CLIPPING box's edges (the scroller's client box, not the tablist's). */
+  readonly left: number;
+  readonly right: number;
+  /** The resolved band depth in px at each edge — 0 where that edge currently hides nothing. */
+  readonly startDepth: number;
+  readonly endDepth: number;
+}
+
+/** The strip's own resolved fade geometry, read off the element rather than restated from the stylesheet:
+ *  the two sanctioned stop properties resolve to whatever the recipe currently says (a percentage of the
+ *  box or a length) AND to 0 on an edge that hides nothing, so this pin keeps measuring the REAL band
+ *  across a change to the recipe itself and needs no second read of the data-attribute seam. */
+async function readStripBand(page: Page): Promise<StripBand> {
+  const band = await page.evaluate((hook) => {
+    const strip = document.querySelector(`.${hook}`);
+    if (strip === null) {
+      return null;
+    }
+    const rect = strip.getBoundingClientRect();
+    const style = getComputedStyle(strip);
+    const depth = (token: string): number => {
+      const raw = style.getPropertyValue(token).trim();
+      const value = Number.parseFloat(raw);
+      if (Number.isNaN(value)) {
+        return 0;
+      }
+      return raw.endsWith("%") ? (strip.clientWidth * value) / 100 : value;
+    };
+    return { left: rect.left, right: rect.left + strip.clientWidth, startDepth: depth("--fade-start-stop"), endDepth: depth("--fade-end-stop") };
+  }, SCROLL_FADE_X_CLASS);
+  if (band === null) {
+    throw new Error("#1140: no .scroll-fade-x scroller — the fixture is not the surface under test");
+  }
+  return band;
+}
+
+interface StripTabReading {
+  readonly label: string;
+  readonly ratio: number;
+  readonly inBand: boolean;
+  readonly describe: string;
+}
+
+interface StripClip {
+  readonly from: number;
+  readonly to: number;
+  readonly inBand: boolean;
+}
+
+/** Which slice of one tab's VISIBLE span the fade actually reaches. A tab the band misses entirely reports
+ *  its whole visible span and `inBand: false` — that row is the run's positive control, not a skip. */
+function stripClip(visibleFrom: number, visibleTo: number, band: StripBand): StripClip {
+  const leadingTo = Math.min(visibleTo, band.left + band.startDepth);
+  if (leadingTo - visibleFrom >= STRIP_CLIP_MIN_PX) {
+    return { from: visibleFrom, to: leadingTo, inBand: true };
+  }
+  const trailingFrom = Math.max(visibleFrom, band.right - band.endDepth);
+  if (visibleTo - trailingFrom >= STRIP_CLIP_MIN_PX) {
+    return { from: trailingFrom, to: visibleTo, inBand: true };
+  }
+  return { from: visibleFrom, to: visibleTo, inBand: false };
+}
+
+/** The inline span of one tab's own rendered TEXT — the Range rects, not the padded box.
+ *
+ *  THE POPULATION IS TEXT, and saying so is what keeps the pin honest in both directions. WCAG 1.4.3 is a
+ *  claim about text, and a tab scrolled down to a 4px sliver shows no glyph at all: measuring its box there
+ *  decodes the accent INDICATOR against the strip's fill and reports a 3.46:1 "failure" that names nothing
+ *  a reader could have read (measured, before this narrowing). Clipping to the label's own rects makes
+ *  every row a real ink-on-its-surface reading, and a cell with no glyph left inside the band drops out of
+ *  the declared population instead of fabricating one. */
+async function readStripText(tab: Locator): Promise<{ readonly left: number; readonly right: number } | null> {
+  return await tab.evaluate((element) => {
+    const range = element.ownerDocument.createRange();
+    range.selectNodeContents(element);
+    const rects = [...range.getClientRects()].filter((rect) => rect.width > 0 && rect.height > 0);
+    return rects.length === 0 ? null : { left: Math.min(...rects.map((rect) => rect.left)), right: Math.max(...rects.map((rect) => rect.right)) };
+  });
+}
+
+/** Every tab whose LABEL is still painted inside the scroller's client box, clipped by {@link stripClip}
+ *  and then narrowed to the glyphs themselves. */
+async function readStripTabs(page: Page, tablist: Locator, band: StripBand): Promise<readonly StripTabReading[]> {
+  const readings: StripTabReading[] = [];
+  for (const tab of await tablist.getByRole("tab").all()) {
+    const box = await tab.boundingBox();
+    const text = await readStripText(tab);
+    if (box === null || text === null) {
+      continue;
+    }
+    const clip = stripClip(Math.max(box.x, band.left), Math.min(box.x + box.width, band.right), band);
+    const from = Math.max(clip.from, text.left);
+    const to = Math.min(clip.to, text.right);
+    if (to - from < STRIP_CLIP_MIN_PX) {
+      continue;
+    }
+    const receipt = await pixelExtremaContrast(page, tab, { region: { x0: (from - box.x) / box.width, x1: (to - box.x) / box.width, y0: 0, y1: 1 } });
+    readings.push({ label: (await tab.textContent())?.trim() ?? "?", ratio: receipt.ratio, inBand: clip.inBand, describe: receipt.describe });
+  }
+  return readings;
+}
+
+/** The scroller's SETTLED fade state as one word — what the stylesheet is currently painting, not what the
+ *  scroll offset implies it should be. */
+async function readStripFadeState(scroller: Locator): Promise<string> {
+  return await scroller.evaluate((el) => {
+    const armed = ["start", "end"].filter((edge) => el.hasAttribute(`data-fade-${edge}`));
+    return armed.length === 0 ? "none" : armed.join("+");
+  });
+}
+
+/** One cell of the matrix: park the strip at one edge, let the DRIVER settle, and decode every tab.
+ *
+ *  THE BARRIER IS THE RENDERED FADE STATE, NEVER `scrollLeft`. Assigning `el.scrollLeft` updates the
+ *  property SYNCHRONOUSLY while the `scroll` event that drives `useScrollFadeX` fires on a later task, so a
+ *  poll on the offset returns while the stylesheet is still painting the PREVIOUS cell's band — measured:
+ *  a `trailing` cell decoded with `data-fade-start` still set from the leading cell before it, which put a
+ *  leading-edge clip and a leading-edge label on the wrong tab. Polling the attributes waits for the state
+ *  the paint actually keys on, and re-reading it after the decode catches a cell that moved mid-sample —
+ *  an unusable measurement, so it throws rather than reporting a row nobody can trust. */
+async function readStripCell(page: Page, scroller: Locator, tablist: Locator, edge: "leading" | "trailing"): Promise<readonly StripTabReading[]> {
+  const overflow = await scroller.evaluate((el) => el.scrollWidth - el.clientWidth);
+  const target = Math.round(edge === "leading" ? overflow : 0);
+  await scroller.evaluate((el, left) => {
+    el.scrollLeft = left;
+  }, target);
+  // A strip that FITS arms no edge at all — the scroll-aware half of the recipe, asserted rather than
+  // special-cased away.
+  const armedEdge = edge === "leading" ? "start" : "end";
+  const expected = overflow <= STRIP_CLIP_MIN_PX ? "none" : armedEdge;
+  await expect.poll(async () => await readStripFadeState(scroller)).toBe(expected);
+  const readings = await readStripTabs(page, tablist, await readStripBand(page));
+  const settled = await readStripFadeState(scroller);
+  if (settled !== expected) {
+    throw new Error(`#1140: the strip's fade went ${expected} -> ${settled} while the ${edge} cell was being decoded`);
+  }
+  return readings;
+}
+
+for (const polarity of ["dark", "light"] as const) {
+  test(`#1140 the view strip's edge fade never takes a tab below AA — ${polarity} polarity, the pane sweep`, async ({ mount, page }) => {
+    await routeTrpc(page, {
+      ...PRESET_EDITOR_AMBIENT_ROUTES,
+      "preset.get": () => PRESET_A_DETAIL,
+      "preset.list": () => [PRESET_A_DETAIL],
+      "settings.getUserSettings": () => SETTINGS_VIEW,
+    });
+    const component = await mount(
+      <PresetEditorStripFadeStory />,
+      polarity === "light" ? { hooksConfig: { theme: { background: STRIP_LIGHT_SCOPE_BACKGROUND } } } : undefined,
+    );
+    // SETTLED, never "not busy": the decode must not land between the strip's mount and its first sync.
+    const tablist = component.getByRole("tablist", { name: TABLIST_NAME });
+    await expect(tablist).toBeVisible();
+    await expect(component.getByRole("tab", { name: "Transforms" })).toBeVisible();
+    const scroller = component.locator(`.${SCROLL_FADE_X_CLASS}`);
+
+    // THE POLARITY IS PROVEN, NEVER ASSUMED — a "light arm" whose scope failed to invert is a second dark
+    // arm wearing a label, and it would retire the demanding half of this matrix while reading as coverage.
+    // Proven from the FRAMEBUFFER (the same place every ratio below comes from) rather than a token string.
+    const surface = await pixelSurface(page, scroller);
+    const mean = (surface.rgb.r + surface.rgb.g + surface.rgb.b) / 3;
+    expect(mean > STRIP_POLARITY_MIDPOINT, `${polarity} arm composited the strip's surface at ${surface.describe}`).toBe(polarity === "light");
+
+    const rows: string[] = [];
+    const failures: string[] = [];
+    const banded: number[] = [];
+    const clear: number[] = [];
+    let bandedCells = 0;
+    for (const pane of STRIP_FADE_PANES) {
+      await page.evaluate((inline) => {
+        const box = document.querySelector("[data-preset-fade-pane]");
+        if (box instanceof HTMLElement) {
+          box.style.setProperty("inline-size", `${String(inline)}px`);
+        }
+      }, pane);
+      // The driver re-syncs its attributes from a ResizeObserver, so the resize must LAND before a pixel is
+      // read — poll the RENDERED pane to the exact width. An inequality here is not a barrier at all: every
+      // width in this sweep is wider than the last, so `<= pane` is already true of the PREVIOUS pane and
+      // the poll returns on the frame the resize was queued in (measured — it decoded one cell's tabs under
+      // another cell's geometry).
+      await expect
+        .poll(async () => await page.evaluate(() => Math.round(document.querySelector("[data-preset-fade-pane]")?.getBoundingClientRect().width ?? 0)))
+        .toBe(pane);
+      for (const edge of ["trailing", "leading"] as const) {
+        const readings = await readStripCell(page, scroller, tablist, edge);
+        bandedCells += readings.some((reading) => reading.inBand) ? 1 : 0;
+        banded.push(...readings.filter((reading) => reading.inBand).map((reading) => reading.ratio));
+        clear.push(...readings.filter((reading) => !reading.inBand).map((reading) => reading.ratio));
+        rows.push(
+          ...readings.map(
+            (reading) =>
+              `${String(pane)}px\t${polarity}\t${edge}\t${reading.label}\t${reading.ratio.toFixed(2)}:1\t${reading.inBand ? "IN BAND" : "clear"}\t${reading.describe}`,
+          ),
+        );
+        failures.push(
+          ...readings
+            .filter((reading) => reading.ratio < STRIP_FADE_INK_FLOOR)
+            .map((reading) => `${String(pane)}px ${polarity} ${edge}: "${reading.label}" ${reading.ratio.toFixed(2)}:1 — ${reading.describe}`),
+        );
+      }
+    }
+    // Printed on PASS as well as fail — this table IS #1140's closing receipt, and the `clear` rows are the
+    // positive control that says the sampler reads ink rather than a uniformly dimmed page.
+    console.info(`\n#1140 strip-fade ink (framebuffer extrema inside each tab's own band overlap)\n${rows.join("\n")}\n`);
+    // A sweep that never armed a band would pass vacuously — the premise is asserted, not assumed.
+    expect(bandedCells, "no pane in the sweep put a tab under the fade — the matrix proves nothing").toBeGreaterThan(0);
+    expect(failures, failures.join("\n")).toEqual([]);
+    // THE CUE MUST STILL BE A CUE. A floor of 1.0 is a recipe that paints no fade at all, and it would
+    // satisfy every assertion above — this is the other side of the same fence: the dimmest thing the band
+    // reaches still reads DIMMER than the dimmest thing outside it, so "more — scroll" survives the fix.
+    const dimmest = Math.min(...banded);
+    const unfaded = Math.min(...clear);
+    expect(dimmest, `the band dims nothing: faded floor ${dimmest.toFixed(2)}:1 vs unfaded floor ${unfaded.toFixed(2)}:1`).toBeLessThan(unfaded);
+  });
+}

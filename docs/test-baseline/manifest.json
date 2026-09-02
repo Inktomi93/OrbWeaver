@@ -2,6 +2,7 @@
   "testFiles": [
     "tests/client/a11y/accessible-name-quality.suite.ct.tsx",
     "tests/client/agent-nav/index.test.ts",
+    "tests/client/agent-nav/panel-request.ct.tsx",
     "tests/client/agent-plugin/index.test.ts",
     "tests/client/agent-rpg/index.test.ts",
     "tests/client/agent-seed/index.test.ts",
