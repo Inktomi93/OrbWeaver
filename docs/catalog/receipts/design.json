@@ -1583,6 +1583,66 @@
           ]
         }
       ]
+    },
+    {
+      "path": "docs/design/962-blanket-suppression-control-plane.md",
+      "assignedSha256": "de1734db144b7187369f75e21e814eba9bc540880e29b0399339b09eef3423c1",
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "de1734db144b7187369f75e21e814eba9bc540880e29b0399339b09eef3423c1",
+      "verifiedCommit": "5253ba772ac23ac77d60ebf78e864f0bb9aaa9da",
+      "verifiedAt": "2026-09-02",
+      "summary": "#962 design record (lane p-biome-zero, forge, 2026-09-02): file-wide lint suppression made structurally unavailable in authored code AND tests — the law (one home for a whole-file suppression = a biome.json override row stale-armed by biome-grant-liveness; inside a file a suppression is a named line or closed range, counted by the suppressions ledger in tests exactly as in source), the new no-blanket-suppression gate (spelling census incl. biome 2.5.1's hidden-warning behaviours; three arms — harness fileset, tracked non-TS corpus derived from git ls-files minus biome's ignores, the INDEX via git grep --cached + git show :path with the #954 wording; markerImmune argued per GATE-AUTHORING §1; blindness tripwires), the per-rule-class migration decision procedure (74 directives: 10 dead barrels deleted, 1 filename grant, 23 file-subject naming tests moved under a CORRECTED conventions override that had been silently stricter than biome's default, ranges/lines elsewhere, 23 describe-scoped CONSTANT_CASE consts renamed), tests joining the suppressions ledger with RATIFIED_TEST_RULES, the deferred dead-bounded-directive arm (--error-on-warnings cannot resurrect a level-filtered warning), and the enumerated coupled sites.",
+      "evidence": [
+        "born-reviewed at 5253ba772 (fold of the p-biome-zero lane): full read by the primary orchestrator — §0 premise re-derivation (four premises, one refuted for 10/74, one amended), §1 the law and its three enforcers, §2 the gate (spelling census, three arms, why an arm and not a stage, markerImmune, proof plan), §3 the migration table, §4 the ledger widening, §5 deferrals, §6 coupled sites. The doc's line 11 says the probe transcripts 'were reproduced by the orchestrator's verifier' — that verification (lane p-verify-962) was dispatched at this fold and its verdict lands on #962; the receipt here is for the design text, not for the verifier's outcome."
+      ],
+      "claims": [
+        {
+          "claim": "A whole-file suppression has exactly one home (a biome.json override row, stale-armed by biome-grant-liveness); inside a file a suppression is a line or a closed range that does not enclose the file's every statement, counted by the suppressions ledger in tests exactly as in source.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#962"
+            },
+            {
+              "kind": "code",
+              "target": "tooling/src/verify/gates/no-blanket-suppression.ts:1"
+            }
+          ]
+        },
+        {
+          "claim": "biome 2.5.1 rejects a mid-file or JSX biome-ignore-all with a WARNING that --diagnostic-level=error hides, extends an unclosed biome-ignore-start to EOF with only a warning, and emits no warning at all for an unused -all — so those spellings sat looking like protection.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#962"
+            }
+          ]
+        },
+        {
+          "claim": "The index arm judges the whole staged index (git grep --cached fence, git show :path blobs through the same directive readers) and reports a blanket only when the working tree does not also carry it — the #954 shape — so a stale staged blob cannot commit a blanket the working file removed.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#962"
+            },
+            {
+              "kind": "issue",
+              "target": "#954"
+            }
+          ]
+        },
+        {
+          "claim": "Ten of the 74 blankets (noBarrelFile under packages/server/src/**/index.ts) suppressed nothing because biome.json already granted the path, and the useNamingConvention conventions override was silently STRICTER than biome's default (it dropped PascalCase and the _-prefix trim) — corrected to a strict superset.",
+          "evidence": [
+            {
+              "kind": "issue",
+              "target": "#962"
+            }
+          ]
+        }
+      ]
     }
   ]
 }
