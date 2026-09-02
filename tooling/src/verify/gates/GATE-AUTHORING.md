@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-08-30
+updated: 2026-09-01
 ---
 
 # Authoring a structural gate
@@ -30,7 +30,7 @@ updated: 2026-08-30
 `tooling/src/verify/contract/gate.ts` is the whole interface. A gate never walks anything itself: it declares the
 SyntaxKinds it wants and the runner (`pass.ts`) feeds it from ONE shared walk over the shared workspace
 (`tooling/src/_shared/ts-workspace.ts` `harnessGlobs` — `packages/*/src`, `tests/`, `tooling/src/verify/gates/`,
-and `tooling/src/` since the @orb/tooling P1 widening, docs/architecture/core/Core-Tooling-Law.md §3.2).
+and `tooling/src/` since the @orb/tooling P1 widening, docs/architecture/core/Core-Tooling-Law\.md §3.2).
 
 | Field | Required | Meaning / trap |
 | - | - | - |
@@ -129,6 +129,53 @@ each gate's line (`✓ own-tables-only · scanned 915/4796 files`), in `reports/
   - `unit`/`candidates`/`scanned`/`skipped` — for a gate whose units are NOT workspace source files
     (`dangling-refs` reads markdown: `ctx.scan({ unit: "doc", scanned: docs.length })`). Without it such a
     gate's row reports a file count it never read, and it cannot distinguish itself from a blind gate.
+  - `population` — **the SEMANTIC-MEMBER receipt (#946, 2026-09-01).** See below; it is the one part of
+    scan health that is about the gate's SUBJECT rather than its fileset.
+
+**SEMANTIC-MEMBER POPULATION — files visited is NOT the denominator a COVERAGE gate's verdict rests on**
+(#946, from `docs/reviews/stickler/2026-08-31-gate-member-discovery-rehome-audit.md`). Twenty-four active
+gates were shown to stay GREEN after supported members move behind an import, a spread, an inherited
+interface, or a builder: the gate still visits its files, still has a subject, still renders a healthy
+`scanned N/M files` — and judges a shrunken set. `admitted` closed this class one level up for ratchet debt;
+this closes it for the population itself.
+
+```ts
+// the smallest optional contract — one field on the declaration a gate already makes
+ctx.scan({ population: [{ source: "SectionDefinition", members: 10, unresolved: 1 }] });
+```
+
+| Field | Means |
+| - | - |
+| `source` | the stable name a reader DIFFS run over run (`"SectionDefinition"`, `"CHROME_ZONES"`). Declarations accumulate per source, so a gate may declare per discovery site or once in `finalize` |
+| `members` | what the gate RESOLVED and actually judged |
+| `unresolved` | declarations it SAW and could not resolve into members — an authoring shape outside its reader |
+
+- **DECLARING IS THE OPT-IN. There is no descriptor flag beside it, deliberately** — a stored "judge me"
+  boolean next to the call that produces the number is two facts that can disagree, the same argument §4's
+  ratchet-class PARTITION makes. A gate that must not be judged simply does not declare.
+- **Both refusals are exit-2, judged ONLY at `ops/structure.ts`** (`lib/population.ts` `populationAlarms`),
+  the same placement and the same reason as the zero-SCAN alarm: a scoped run and a conformance
+  mini-project both legitimately resolve zero members, so `scope.kind` cannot tell them apart.
+  `members === 0` ⇒ the subject derivation came back EMPTY (the §4.6 blindness tripwire, in numbers) —
+  unconditional. `unresolved > 0` **behind a GREEN verdict** ⇒ DENOMINATOR LOSS: a ✓ over a shrunken member
+  set is the audited defect verbatim. A gate that already REPORTED the unreadable declaration (a #944
+  fail-closed arm) rides the ordinary violation exit instead — one cause must not produce both a violation
+  and a "the checker is broken" verdict, and the count still prints on its line as the receipt.
+  Both alarms land in `reports/check-structure.json` `populationAlarms`,
+  on the gate's console line (`SectionDefinition: 10 member(s), 1 UNRESOLVED`), and in `pnpm check:show`.
+- **The corollary for the gate itself: never `continue` past a declaration you cannot read.** Report the
+  finding, or count it `unresolved`, or both. A silent skip is the whole defect — see the six definition
+  gates hardened by #944, whose readers all used to `return` on a non-literal initializer.
+- **A COUNT NEVER PROVES CORRECTNESS.** A confidently wrong number is still wrong: this receipt makes a
+  SHRINKING denominator loud, it says nothing about whether the members it resolved are the right ones.
+  Every gate declaring a population still owes the per-shape planted controls its source law sanctions
+  (imported initializer · tuple/object spread · interface inheritance · builder) — §5, and the
+  four permanent runner controls live at `tests/tooling/verify/ops/population.int.test.ts`.
+- **Live occupants** (each with its own imported-definition control): `section-registry-completeness`,
+  `placeholder-copy-registry`, `modal-registry-completeness`, `modal-body-not-placeholder`,
+  `config-group-completeness` (three sources — three accumulators that shrink independently, so three
+  declarations, never one summed number) and `chrome-registry-completeness` (whose ENTRY population sits
+  beside its zone-VOCABULARY count for the same reason).
 
 **AND THE PHASE MATTERS: a node-anchored report must not happen in `finalize`.** `gate-ignore-inventory`'s
 STALE sweep also runs in `finalize`, and gates finalize in load (filename) order — so a marker consumed
@@ -310,7 +357,7 @@ re-litigated every sweep. The row shape and every reader of it live at ONE home,
 
 - **The class is a PARTITION, never a stored label.** A row is `3` (a bare count — class DEBT, the default
   spelling) or `{ "count": 3, "ratified": 3, "why": "…", "cite": ["<repo-relative path>", …] }`. `debt` is
-  the remainder; `classOf` reads back `debt` \| `ratified` \| `mixed`. A stored class beside a count is two
+  the remainder; `classOf` reads back `debt` | `ratified` | `mixed`. A stored class beside a count is two
   facts that can disagree — a partition cannot.
 - **RATIFIED owes a `why` AND a resolving `cite`, and the promise is two-sided.** `ratchet-row-integrity`
   REDs a ratified row with no why, and REDs the STALE-WHY case: a cite naming a path that is no longer on
@@ -343,6 +390,28 @@ Probe the engine/tool directly for spelling variants; docs under-report.
   defect this gate was minted from" is the useful register.
 - A `mustPass` row is how a DECLARED LIMIT becomes a written baseline instead of an assumption. Write one per
   known blind spot (`own-tables-only`'s namespace-import row; `no-hover-display-swap`'s `@media (hover:hover)` row).
+
+**A DEFINITION-DISCOVERY GATE OWES ONE ROW PER AUTHORING SHAPE ITS LAW SANCTIONS, AND A FAIL-CLOSED ROW FOR
+THE REST** (#944, 2026-09-01). A gate whose subject is "the definition at the co-located path" has three
+answers available for an initializer it cannot read, and only two of them are legal:
+
+| Shape | The gate's answer |
+| - | - |
+| an object literal, incl. a whole-literal `as`/`satisfies` wrapper, and same-file indirection (`const d = {…}; export const x: T = d;`) | RESOLVE — still co-located, so the law is still establishable (`lib/ast-read.ts` `readObjectLiteral`) |
+| an authoring shape the SOURCE LAW ratifies (the section FACTORY, `make<X>Section(…): SectionDefinition` — §6b/M3, live on four sections) | RESOLVE, with its own planted control (`readReturnedObjectLiteral`) |
+| an IMPORTED identifier, a builder call, anything else | **FAIL CLOSED** — report it. The path check stays green through a re-home, so this finding is the only thing between the move and silence |
+| *silently returning* | **never a valid third arm.** It is the audited escape verbatim |
+
+Two traps this cost, both worth copying:
+
+- **`getVariableDeclarations()` is not "every definition."** `section-registry-completeness` and
+  `placeholder-copy-registry` read only annotated consts, so the four FACTORY sections
+  (chats/characters/home/config) were outside every arm — a distinctness gate comparing 6 of 10 pairs and
+  reporting a full file count. The shared discovery is now `lib/section-defs.ts`, one home, so the two
+  subjects cannot drift apart again.
+- **`startsWith("<Type>")` on an annotation also matches `<Type>[]`** — an ARRAY of definitions is an
+  assembler's derivation, not a definition, and a fail-closed arm keyed on the loose prefix would accuse it.
+  Match the head exactly (`=== "X"` or `startsWith("X<")`).
 
 **A MARKER-EXEMPT GATE OWES THE SIX-CASE REAL-TREE PROBE.** Copy this shape, do not re-derive it — the
 conformance mini-projects prove the matcher, this proves the EXEMPTION VOCABULARY on the actual tree
@@ -544,7 +613,7 @@ const vocabulary = passVocabulary.size > 0 ? passVocabulary : derive(sf.getProje
 **Why it is a rule and not a preference.** A Project-keyed memo is correct only for as long as the
 CONFORMANCE SUBSTRATE happens to throw the key away between examples — i.e. its correctness depends on how
 often something unrelated to the gate is discarded. `ops/conformance.ts` now reuses ONE in-memory Project
-across every pure-AST example (~105ms/example of lib.d.ts parsing, ~1500 examples, 27.6s → 7.9s on the
+across every pure-AST example (\~105ms/example of lib.d.ts parsing, \~1500 examples, 27.6s → 7.9s on the
 bite-proof), so such a memo silently serves a PREVIOUS example's derivation. That is not a red conformance
 run — the gate keeps passing its own proofs while judging the wrong facts. `detached-work-traced` held
 exactly this memo and three of its own rows changed verdict (#751).
