@@ -37,5 +37,6 @@ The D-ledger (`docs/architecture/core/Core-Laws-and-Precedents.md`) wins on ANY 
 - **Agent-file authoring** (all 17 frontmatter fields, what a subagent inherits): the `agent-authoring`
   skill — invoke before writing or editing any `.claude/agents/*.md`.
 - **Mutable work state:** [GitHub Project 1](https://github.com/users/Inktomi93/projects/1).
-- **Session recovery index:** `docs/retro-workboard.md`. Agent operations live in
-  `.claude/rules/orchestration.md`; the frozen board is `docs/history/retro-workboard-2026-08-14.md`.
+- **Session recovery:** the board (`pnpm work:item overview`) + `.claude/rules/orchestration.md`
+  (agent operations) + `.claude/hooks/session-onboard.sh`. `docs/retro-workboard.md` is RETIRED; the
+  frozen board is `docs/history/retro-workboard-2026-08-14.md`.

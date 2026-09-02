@@ -15,7 +15,7 @@ updated: 2026-09-01
 
 ## 0. First 90 seconds (read this before you touch anything)
 
-> **You are a cold amnesiac agent. §0.1 is the set of mistakes you WILL make in your first five minutes — know it. §0.2 is the structure you keep forgetting and misfiling against. Then jump to YOUR reading set (§0.3) and read ONLY those docs — reading all 34 measurably LOWERS task success (`Documentation-Law.md`).**
+> **You are a cold amnesiac agent. §0.1 is the set of mistakes you WILL make in your first five minutes — know it. §0.2 is the structure you keep forgetting and misfiling against. Then jump to YOUR reading set (§0.3) and read ONLY those docs — reading the whole of `core/` measurably LOWERS task success (`Documentation-Law.md`).**
 
 ### 0.1 Tripwires (operational — every session)
 
@@ -32,10 +32,10 @@ updated: 2026-09-01
    `Core-Enforcement-Active-Gates`).
 9. **GitHub Project 1 owns MUTABLE WORK STATE.** An issue carries status, priority, dependencies,
    disposition, lane, and verification progress; durable law/design/review/evidence stays in the repo and
-   links the issue. Before starting, re-derive then claim the issue. `docs/retro-workboard.md` is the
-   session-recovery index; agent operations live in `.claude/rules/orchestration.md` (directly imported
-   by root `AGENTS.md` for Codex), and the dated board
-   is archived under `docs/history/`. Agent flow + invariants live in the
+   links the issue. Before starting, re-derive then claim the issue. Session recovery is the board
+   (`pnpm work:item overview`) + `.claude/rules/orchestration.md` (directly imported by root
+   `AGENTS.md` for Codex) + the SessionStart auto-onboard hook; `docs/retro-workboard.md` is RETIRED
+   and the dated boards are archived under `docs/history/`. Agent flow + invariants live in the
    [Project README](https://github.com/users/Inktomi93/projects/1); ingress forms live under
    `.github/ISSUE_TEMPLATE/`.
 
@@ -160,7 +160,8 @@ is the comment/doc sweep: a crossed word is a drifted-comment defect, fixed on s
 - **The ONE verification surface (`UNIFIED-VERIFICATION-DESIGN.md`):** iterate on `pnpm verify --changed`
   (scoped, fast inner loop); claim "done" only after `pnpm verify` (= `--static`, = `pnpm check`); the
   pre-push bar is `pnpm verify --push` (adds the node tests + CT + e2e-smoke — the behavioral suites a
-  bare `pnpm check` does NOT run); `pnpm verify --full` is the works (cpd + full e2e + parity + mutation).
+  bare `pnpm check` does NOT run); `pnpm verify --full` is the works. **Tier membership is DATA, never prose — read it from
+  `pnpm verify --list`.**
   Exit codes are a hard contract: 0 clean · 1 violations · 2 tool error (a checker BROKE — the run is not
   a verdict) · 3 misuse (bad args). `pnpm verify --list` prints every stage + its tier. **A SCOPED green
   (`--changed`/`--scope`) is NOT done:** it DEFERS every whole-project gate (registry / coverage / parity /
@@ -220,8 +221,9 @@ the house TS style live there.
 
 **Canonical: [`Spine-TypeScript-and-Patterns.md`](Spine-TypeScript-and-Patterns.md)** §"String-union
 dispatch discipline" (moved there 2026-07-03). Every axis: ONE importable union + a mapped-type Record
-or `assertNever` dispatch — a new member fails `tsc` (`no-inline-union-redecl` + `exhaustive-dispatch`
-gates). The measured neo touch-count table and the `RUNNERS` gold standard are in that section.
+or `assertNever` dispatch — a new member fails `tsc`. Enforcers: the `no-inline-union-redecl` gate owns
+the "one importable union, never re-spelled" half; exhaustiveness itself is compile-time by
+construction (the mapped `Record`/`assertNever` shape), not a gate file. The measured neo touch-count table and the `RUNNERS` gold standard are in that section.
 
 ## 6. Domain Map (neo-tavern's 20 → orbweaver)
 
@@ -331,7 +333,7 @@ the agent-principal design set (parked in `../proposed/`), or the built code. Li
 | structural search — USE THIS, NOT GREP, for code questions | `pnpm ast` (tooling/src/ast — refs/callers/importers/exports/jsx/ident + rot lenses orphans/testonly/cycles/aliases + module-graph flow/reaches; run bare for usage). Codemods: `tooling/src/codemod` (`pnpm codemod`). Import-boundary law: `pnpm depcruise` (.dependency-cruiser.cjs) |
 | task → reading-set router (backend + frontend) | §0.3 above |
 | mutable work state | [GitHub Project 1](https://github.com/users/Inktomi93/projects/1) (status · priority · dependencies · disposition · lane · verification); issue ingress: `../../../.github/ISSUE_TEMPLATE/` |
-| session recovery + agent operations | `docs/retro-workboard.md` (cold-start index) · `.claude/rules/orchestration.md` (machine-loaded source; root `AGENTS.md` imports every Claude Markdown rule for Codex) · `../history/retro-workboard-2026-08-14.md` (frozen provenance); committed programs live at `../proposed/`, mapped by `../proposed/INDEX.md` and Project 1 |
+| session recovery + agent operations | the board (`pnpm work:item overview`) · `.claude/rules/orchestration.md` (machine-loaded source; root `AGENTS.md` imports every Claude Markdown rule for Codex) · `.claude/hooks/session-onboard.sh` (the SessionStart ritual) · `../history/retro-workboard-2026-08-14.md` (frozen provenance; `docs/retro-workboard.md` is RETIRED); committed programs live at `../proposed/`, mapped by `../proposed/INDEX.md` and Project 1 |
 | resolved archeology (reference only, not live law) | `../history/`: `Pain-Ledger.md` · `Grounded-Intelligence-AST-Scan.md` · `Core-Debt-Cleared-Ledger.md` · `Core-Doc-Inconsistency-Audit-2026-06-26.md` · `Core-Doc-Review-Punchlist-2026-06-28.md` · `Core-Event-Bus-Parity-Audit.md` · `Shared-Drawer-Dissolution-Map.md` |
 
 ## 8. Archeology (moved to history/)
@@ -364,8 +366,9 @@ Every dispatched worktree lane obeys these or its work gets refused at the merge
    2-minute-timeout trap.
 4. **Merging main into your branch:** same hook rule (`-c core.hooksPath=/dev/null`), then run the
    scoped gates on the merged tree yourself.
-5. **Recreated a worktree manually?** `git worktree add` does NOT fire the install hook —
-   `pnpm install --prefer-offline` (\~3s) or every gate lies.
+5. **Recreated a worktree manually?** `git worktree add` does NOT fire the install hook — run
+   `pnpm worktree:bootstrap` (install + the agent-memory link) or every gate lies and the lane
+   boots with an empty memory index.
 6. **Rendered proof from a worktree:** `:5173` serves MAIN, never your tree. Use
    `snap --isolated --ref <your-sha>` (a detached worktree of your commit on offset ports) or
    screenshot from the CT browser.

@@ -59,8 +59,8 @@ echo "      Monitor persistent: stdbuf -oL inotifywait -m -q -e close_write -e m
 echo "    (2) honor any MERGE HOLD / sequencing note above; (3) session scratchpad dispatch-map.md (if this session's scratchpad survived) carries the fuller history."
 
 # 4) CONTEXT-BUDGET GUARD (2026-08-24, #638). Two always-on injections have no other signal when they
-#    near their caps — MEMORY.md truncates silently past 200 lines OR 25600 bytes (whichever binds
-#    first; bytes bind in practice), and every un-path-scoped .claude/rules/*.md is rent every lane
+#    near their caps — MEMORY.md truncates silently past 200 lines OR the harness's byte cap (whichever
+#    binds first; bytes bind in practice), and every un-path-scoped .claude/rules/*.md is rent every lane
 #    pays, budgeted at 200 lines. Quiet when healthy; loud only when something is at risk. Never fail.
 {
   MEM_LINK="$(find .claude/agent-memory -maxdepth 1 -type l 2>/dev/null | head -1)"
@@ -69,7 +69,12 @@ echo "    (2) honor any MERGE HOLD / sequencing note above; (3) session scratchp
     if [ -f "$MEM_FILE" ]; then
       MEM_BYTES=$(wc -c <"$MEM_FILE" 2>/dev/null | tr -d ' ')
       MEM_LINES=$(wc -l <"$MEM_FILE" 2>/dev/null | tr -d ' ')
-      BYTE_CAP=25600
+      # 24.4 KiB. MEASURED from the harness's own truncation warning, 2026-09-01: "MEMORY.md is
+      # 24.6KB (limit: 24.4KB) ... Only part of it was loaded". The old 25600 was ABOVE the real cap,
+      # so tail index lines were already vanishing while this guard reported 99%. RE-PIN if that
+      # warning's number ever changes — the harness emits it at session start and nothing here can
+      # invoke it, so this constant is only as fresh as the last sighting.
+      BYTE_CAP=24985
       LINE_CAP=200
       BYTE_PCT=$(( MEM_BYTES * 100 / BYTE_CAP ))
       LINE_PCT=$(( MEM_LINES * 100 / LINE_CAP ))
@@ -89,7 +94,8 @@ echo "    (2) honor any MERGE HOLD / sequencing note above; (3) session scratchp
     RL=$(wc -l <"$f" 2>/dev/null | tr -d ' ')
     if [ "${RL:-0}" -gt 200 ]; then
       if [ "$f" = ".claude/rules/orchestration.md" ] && [ "$RL" -le 230 ]; then
-        : # ACKNOWLEDGED-OVER (owner-ruled, #638): trimmed 389->290->224 deliberately; every remaining
+        : # TEMPORARY — this exemption goes when the orchestration.md trim (#1056) lands it under 200.
+          # ACKNOWLEDGED-OVER (owner-ruled, #638): trimmed 389->290->224 deliberately; every remaining
           # line is decision-shaping policy or a damage-class — going lower means relocating the role
           # table or the dispatch rules. Silent, not a recurring nag.
       else

@@ -232,15 +232,15 @@ The rot mode is a concept with no single home. Each of these has exactly one, up
 | `kit/` = pure primitives + isomorphic engines; **no `node:*`/domain/contracts/db import** (isomorphic npm OK) | `kit-purity` |
 | **No exported `type`/`interface`/`z.object`/structural-cast outside `db` schema / `contracts` / a domain's `contract/` / `kit`** (incl. `context.ts` = explicit interface, not `ReturnType<>`) | `no-inline-types` (§7.4 spine) |
 | **Every string-union axis has ONE importable union — no inline re-spelling** | `no-inline-union-redecl` (§7.5 spine) |
-| **Every union dispatch is a mapped-type Record or `assertNever` — a new member fails `tsc`** | `exhaustive-dispatch` (§7.5 spine) |
+| **Every union dispatch is a mapped-type Record or `assertNever` — a new member fails `tsc`** | `tsc` itself — compile-time by construction, no gate file (house label: `exhaustive-dispatch`; §7.5 spine) |
 | **`persistence/` is queries only — no `fetch`/`http`/`node:*` I/O** | `persistence-no-io` |
 | **`persistence/` holds no module-scope `Map`/`Set` (in-memory state lives in a named subsystem)** | `persistence-no-in-memory-state` |
 
 When these hold, **the structure is the documentation**: a new feature is "copy the template,"
 finding anything is a path derivation, and "where does this go?" has exactly one answer.
 
-> All 13 are IMPLEMENTED (dep-cruiser rules and the ts-morph gates in
-> `tooling/src/verify/gates/`); `no-internal-mocks` stays advisory in `Spine-Testing.md §3`, not a hard gate.
+> All 13 are ENFORCED (dep-cruiser rules and the ts-morph gates in `tooling/src/verify/gates/`, plus
+> `tsc` for the union-dispatch row, which has no gate file); `no-internal-mocks` stays advisory in `Spine-Testing.md §3`, not a hard gate.
 > **This table is the constitution; the full live-gate catalog is `Core-Enforcement-Active-Gates.md`**
 > (the single enforcement source of truth; deferred/rejected gates: `Core-Enforcement-Deferred-Dropped.md`).
 

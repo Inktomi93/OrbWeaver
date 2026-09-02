@@ -1,7 +1,7 @@
 # Orbweaver executor doctrine (build-process hard rules)
 
-Every doctrine-aware role (`mech-executor`, `executor`, `verifier`, `security-executor`) reads this
-BEFORE touching code. These are the recurring gotchas that break this repo's gates or ship broken
+Every role reads this BEFORE touching code (all seven role bodies order the full read). These are the
+recurring gotchas that break this repo's gates or ship broken
 pixels — they are not optional, and "I didn't know" is not a valid outcome. The *architecture* law is
 separate and higher: `docs/architecture/core/AGENTS.md` (the constitution) wins on any conflict.
 
@@ -24,8 +24,9 @@ Do not skim. You are an amnesiac agent; these docs are your memory.
 - **Lane verification is SCOPED (owner ruling 2026-07-25). Whole-tree `pnpm check`, `structure:full`,
   and the full `pnpm test` battery are BANNED in a lane** — on a shared multi-lane tree they only show
   sibling churn and burn your time attributing it. Your DONE bar: run exactly the test files you touched
-  (`pnpm vitest run <paths>`, single-file playwright CT), typecheck your surface (scoped tsc / the fast
-  per-package stages), biome+eslint on your files. The ORCHESTRATOR runs the big gates once on the
+  (`pnpm test:scoped <paths> --maxWorkers=4`, `pnpm ct:scoped <paths> --workers=2` — the niced scripts,
+  never raw `npx`), typecheck your surface (scoped tsc / the fast per-package stages), biome+eslint on
+  your files. The ORCHESTRATOR runs the big gates once on the
   quiesced tree; anything it catches comes back to you to fix.
 - **The harness AUTO-WRITES artifacts — READ them, never pipe or re-run to rediscover a failure.**
   `pnpm check` → `reports/verify.json` + per-stage `reports/verify/<stage>.log` +
@@ -171,10 +172,10 @@ don't write memory yourself.
 
 ## Lane invariants (accreted 2026-08-03 — every worktree lane, every dispatch; briefs no longer repeat these)
 - `git -C <your-worktree>` on EVERY git call (cwd silently resets/dies across notification boundaries).
-- Commit with PATHSPEC (`git commit -m … -- <paths>`); lane-unique scratchpad filenames; verify your own
-  commits with `git show --stat` before reporting; `git status --short` empty before READY.
-  **NEW files must be `git add`ed first — a pathspec commit silently drops untracked files** (a lane
-  shipped a fix without its brand-new proving CT this way; check for residual `??` lines after).
+- Staging is ruled in `.claude/rules/lane-standing-facts.md` §Staging and commits — pathspec on `main`
+  or any SHARED tree, `git add -A` in your own isolated worktree (a pathspec commit silently drops
+  untracked files). Lane-unique scratchpad filenames; verify your own commits with `git show --stat`
+  before reporting; `git status --short` empty before READY.
 - **ONE COMMIT per lane (owner law, 2026-08-03): all your work lands as a SINGLE commit at READY.**
   Intermediate checkpoints only when the orchestrator orders a pause. The message is TERSE — subject
   + a few what/why body lines, drafted in SECONDS (an agent was observed drafting a commit message
@@ -183,9 +184,9 @@ don't write memory yourself.
 - Your own `git merge main` runs `-c core.hooksPath=/dev/null` (the `-c` goes BEFORE the subcommand),
   then re-run gates manually. The orchestrator's merges keep the hook.
 - **Verification floor** (scoped green is NOT done): your suites + scoped tsc + biome/eslint PLUS
-  `pnpm check:structure` (test-file rules — test-layout mirror, ct-no-oneshot, no-test-fabrication,
-  testid-typed — are invisible to every source-scoped tool) PLUS whole-tree `npx knip --cache`
-  (last-importer removals) PLUS `npx depcruise packages --config .dependency-cruiser.cjs` whenever
+  `pnpm check:structure` (test-file rules — test-layout mirror, ct-no-oneshot-live-read-assert,
+  no-test-fabrication, testid-typed-only — are invisible to every source-scoped tool) PLUS whole-tree
+  `pnpm knip` (last-importer removals) PLUS `pnpm depcruise` whenever
   you added/moved a FILE or changed any import path (layer/subsystem-mediation rules are whole-graph —
   a scoped floor missed a verbs→named-subsystem edge once, 08-03) PLUS `pnpm typecheck:graph` when
   you touched anything under tests/.
@@ -198,7 +199,8 @@ don't write memory yourself.
   (per-package) caught 18 `tests/client` errors the graph program could not see; and a floor naming
   `typecheck` + `typecheck:graph` shipped **170 errors** in 20 e2e `.spec` files, because only
   `typecheck:tests-dom` compiles `tsconfig.tests-dom.json` — **`tsconfig.json`'s program does not include
-  `tests/e2e/*.spec.ts` at all** (only the support tree + `.int.test`/`.test-d`), so the graph program is
+  `tests/e2e/` at all** (its program is all of `tests/` MINUS the excludes — `tests/e2e` whole, plus the
+  `tests/{ui,client,support/ct}/**/*.tsx` directories), so the graph program is
   structurally incapable of seeing a spec. **A floor that names only some of them is a floor with holes** — and the hole is invisible until the orchestrator's consolidated check finds it.
 - **Your floor NAMES its playwright CT files, by path.** `check:structure` never executes one, and a
   LANE is banned from running the whole battery — so a CT file nobody named is a file nobody ran. A lane
@@ -206,16 +208,13 @@ don't write memory yourself.
   because its scoped floor was vitest-only. List the paths in your report beside their results.
   **CORRECTED 2026-08-03 — the old reason given here was FALSE and had propagated for weeks:** it is not
   that `pnpm verify --push` skips CTs. It does NOT. `tests:node` (push + full tiers) runs `pnpm test`,
-  which is `vitest run --project …` **`&&` `pnpm test:ct --retries=2`** — ONE behavioral lane since the
-  2026-07-17 merge, stated in `scripts/verify/registry.ts:304`'s own comment.
-  **The precise ladder, from the registry (which is the only authority — every stage, tier and argv is
-  data in that one file):** `pnpm check` = the 14 STATIC stages, NO runtime tests — but note it DOES run
-  `types:testd`, so the `.test-d.ts` type lane rides the static bar, not the battery. `verify --push`
-  adds `deps:orphan-ratchet` + `tests:node` (unit · integration · integration-serial · contract · CT) +
-  `e2e-smoke`; ~16-17 min, so BACKGROUND it. `--full` adds `quality:cpd`, the full `e2e`, `tests:parity`
-  and `quality:mutation-gate`. Manual-only: `e2e-live`, `mutation-report`, `coverage`.
-  So `--push` is **every vitest RUNTIME lane plus CT plus smoke e2e** — not "everything", and not
-  "no CTs". Both of those were in circulation; check `registry.ts` before repeating either.
+  which is `vitest run --project …` **`&&` `pnpm test:ct --retries=2`** — ONE behavioral lane, stated in
+  the `tests:node` row of `tooling/src/verify/lib/registry.ts`.
+  **The tier ladder is DATA, never prose — every restatement of it here has drifted. Read it from
+  `pnpm verify --list`** (every stage, tier and argv is data in that one registry file). The two
+  standing facts that are NOT in the listing: `pnpm check` = the static tier, NO runtime tests — but it
+  DOES run `types:testd`, so the `.test-d.ts` type lane rides the static bar, not the battery; and
+  `--push` takes ~16-17 min, so BACKGROUND it.
 - **A landed change to a shared READ or a11y ATTRIBUTE must SWEEP every test that asserts the old one.**
   Three sightings of one class in one night: `aria-current`→`aria-pressed` left two stale CTs green-
   looking and red-running; a component reading a NEW field of an existing stub shape (`chatDetail.group`)
@@ -264,7 +263,7 @@ a result that disagreed with something someone could see, chased instead of expl
 - **`biome.json` is STRICT JSON. A `//` comment anywhere is a parse error — and biome does NOT fail
   loudly, it falls back to BUILT-IN DEFAULTS** (tabs, 80 cols, every rule on, `node_modules` walked). It
   ran that way for ~9 hours. Tells: phantom TAB indentation diffs on files nobody touched; rules firing
-  that the repo has off; absurd file counts (73,518 vs the healthy 4,564). **Probe: `npx biome check
+  that the repo has off; absurd file counts (73,518 vs the healthy 4,564). **Probe: `pnpm exec biome check
   <one-known-clean-file>` — clean config prints `Checked 1 file`, broken prints a `parse` diagnostic
   naming `biome.json`.** Two lanes misdiagnosed this as "biome is broken in worktrees"; it is not, and
   worktrees are fine.
@@ -290,9 +289,10 @@ a result that disagreed with something someone could see, chased instead of expl
 **A negative result is only as good as the pattern that produced it.** Both failures below returned a
 confident zero and neither search had actually run.
 
-- `find . -name "*.tsbuildinfo"` → zero. The real filename is **`tsbuildinfo.json`**, under
-  `packages/*/node_modules/.cache/`. Both arms of an A/B then read the same stale cache, so the
-  experiment was structurally incapable of returning anything but the wrong answer.
+- `find . -name "*.tsbuildinfo"` → zero, back when `incremental` was still on: the real filename WAS
+  **`tsbuildinfo.json`**, under `packages/*/node_modules/.cache/`, so both arms of an A/B read the same
+  stale cache and the experiment could not return anything but the wrong answer. (`incremental` is off
+  repo-wide today — there is no such file now; the LESSON is the wrong-glob silent zero.)
 - **A bare JSX-attribute pattern is unmatchable in ast-grep and returns a silent zero.** Both
   `-p 'absoluteStrokeWidth'` and `-p 'absoluteStrokeWidth={$V}'` returned 0 at `scannedFileCount=99`
   against a file that provably contains it. **Only a full-element pattern matches.** For name-presence,
