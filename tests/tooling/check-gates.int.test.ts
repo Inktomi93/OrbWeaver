@@ -1159,6 +1159,18 @@ function writeFixtures(): void {
     "packages/client/src/features/__g_impcoll/lib/__g_impcoll-collection.tsx",
     'import { gImpCollDef } from "./__g_impcoll-definition.ts";\nexport const gImpCollCollection: CollectionContribution = gImpCollDef;\n',
   );
+  // chrome-registry-completeness — the imported ChromeEntry. Its `rail.nav` zone with no `mobile` is what
+  // the rail-mobile arm would have caught; before the fail-closed arm the discovery returned silently at a
+  // sanctioned `*-chrome.tsx` path. This pair lands AFTER the #942 vocabulary work, so the zone axis it
+  // fails closed in front of is the DERIVED one.
+  fx(
+    "packages/client/src/features/__g_impchrome/lib/__g_impchrome-definition.ts",
+    'export const gImpChromeDef = { id: "__g_impchrome", zone: "rail.nav", label: "G", behavior: { kind: "widget", body: () => null } };\n',
+  );
+  fx(
+    "packages/client/src/features/__g_impchrome/lib/__g_impchrome-chrome.tsx",
+    'import { gImpChromeDef } from "./__g_impchrome-definition.ts";\nexport const gImpChromeChrome: ChromeEntry = gImpChromeDef;\n',
+  );
 }
 
 // Registered gates that CANNOT be driven by an injected `__g_` fixture — whole-corpus ratchets whose

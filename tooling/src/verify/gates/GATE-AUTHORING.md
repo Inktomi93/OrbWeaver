@@ -174,7 +174,8 @@ ctx.scan({ population: [{ source: "SectionDefinition", members: 10, unresolved: 
 - **Live occupants** (each with its own imported-definition control): `section-registry-completeness`,
   `placeholder-copy-registry`, `modal-registry-completeness`, `modal-body-not-placeholder`,
   `config-group-completeness` (three sources — three accumulators that shrink independently, so three
-  declarations, never one summed number).
+  declarations, never one summed number) and `chrome-registry-completeness` (whose ENTRY population sits
+  beside its zone-VOCABULARY count for the same reason).
 
 **AND THE PHASE MATTERS: a node-anchored report must not happen in `finalize`.** `gate-ignore-inventory`'s
 STALE sweep also runs in `finalize`, and gates finalize in load (filename) order — so a marker consumed
