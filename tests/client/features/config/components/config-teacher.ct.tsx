@@ -195,7 +195,7 @@ test("About states 'Using the default' on an unmodified leaf — and offers NO R
   const workspace = await mount(<ConfigWorkspaceStory />);
   await workspace.getByRole("button", { name: "reset groups" }).click();
   await workspace
-    .locator('[data-slot="config-roster"]')
+    .locator('[data-slot="config-list"]')
     .getByRole("button", { name: /Appearance/ })
     .click();
 
@@ -210,7 +210,7 @@ test("About shows Current vs Default on a MODIFIED leaf, and its Reset fires the
   const workspace = await mount(<ConfigWorkspaceStory />);
   await workspace.getByRole("button", { name: "reset groups" }).click();
   await workspace
-    .locator('[data-slot="config-roster"]')
+    .locator('[data-slot="config-list"]')
     .getByRole("button", { name: /Appearance/ })
     .click();
 
