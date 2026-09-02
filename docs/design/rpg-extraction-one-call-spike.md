@@ -138,7 +138,8 @@ is lost by collapsing it.
 - **"Interleaved thinking" is not reachable on our wire, and is empirically moot for this shape.**
   *Correction to an earlier draft:* interleaved thinking **is** a real API feature — on Anthropic's native
   Messages API, `thinking: {type:"adaptive"}` enables it (it used to need the
-  `interleaved-thinking-2025-05-14` beta header). `@orb/sdk` has zero `interleave` because **OpenRouter's
+  `interleaved-thinking-2025-05-14` beta header). Our wire (`infra/providers`) carries no
+  interleaved-thinking support at all because **OpenRouter's
   chat-completions wire doesn't expose Anthropic's `thinking` object at all** — it gives us
   `reasoning: {effort}` and nothing more. So the conclusion stands but the reason is wire scope, not
   non-existence.
@@ -677,8 +678,9 @@ ground-truth game (12 turns, 5 scripted retirements, 4 explicit damage beats), *
 \~200 completions, $0**. Harness: `local-8b-vehicles.ts` — it drives the REAL exported builders
 (`constrainExtractionSchema` · `buildRpgToolDescriptions` · `composePlaneTeaching` · `buildTrackerWriteGroups`
 · the production `buildLiteReminder` · `extractionToStateDelta` · `salvageExtraction`), not the frozen
-pre-unification capture `run-coverage.mjs` still speaks. Raw: `scripts/probes/rpg-extraction/v2/`
-(`wire-surface.json` is the receipt of exactly what the builders hand the model).
+pre-unification capture `run-coverage.mjs` still speaks. Raw: `scripts/probes/rpg-extraction/` — the run's
+own `v2/` capture subtree (its `wire-surface.json` receipt of exactly what the builders hand the model) was
+never committed and exists only where the probe ran.
 
 | | **folded** | **cheap** | **reliable** | Sonnet §4c | stale 8B baseline |
 | - | - | - | - | - | - |

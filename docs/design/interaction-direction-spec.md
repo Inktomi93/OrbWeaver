@@ -113,7 +113,7 @@ the D17 consent wall and the rate budget INSIDE the turn pipeline.
    World-info content is fully macro-rendered at assembly with a persisted op-log
    (`assembly/context.ts:225`; `engine/engine.ts:249`) while message rows are not — every
    model→lore route (C2, rumor mill) and plugin→lore write applies the house primitive
-   (`kit/src/macro/content.ts:19`) at the write boundary.
+   (`kit/macro/content.ts:19`) at the write boundary.
 
 ## §3 The substrate — S1–S5 + the platform arm surface, final form
 
@@ -539,7 +539,7 @@ is REFERENCE; where it and this record differ, this record is what was built.
    CHARACTER seats' names.** The fitness suite (`tests/kit/speaker-label/anchoring.suite.test.ts`, df18b191f)
    ruled the parser FIT with no grouping layer — line-level spans ARE the index space (narration
    occupies indices; consecutive same-speaker lines are distinct targets). *(Rejected: the mini-spec's
-   `@orb/kit/speaker-segments` port — a second recognizer over the ONE parser.)* The anchor substrate
+   `speaker-segments` port into `@orb/kit` — a second recognizer over the ONE parser, never built.)* The anchor substrate
    is canon bytes, NEVER display text: the client renderer parses `renderMessageForDisplay` output
    (`message-content.tsx:135-140`), which regex/macros/plugins can reshape, so display indices are not
    shared truth. Character-name mirror: `speakerThemesByName` keys client-side (`lib/attribution.ts:286` —
