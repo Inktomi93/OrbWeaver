@@ -42,9 +42,9 @@ import {
   workloadsTuningSection,
 } from "@orb/client/features/workloads";
 import { worldInfoSettingsSection } from "@orb/client/features/world-info";
-import { createContributorRegistry } from "@orb/client/lib";
-import type { ConfigSectionContribution } from "@orb/client/state";
-import { assertSettingsKeyPartition, assertTeachHonesty, UNCLAIMED_SETTINGS_KEYS } from "@orb/client/state";
+import { createContributorRegistry } from "@orb/client/lib/pure";
+import type { ConfigSectionContribution } from "@orb/client/state/pure";
+import { assertSettingsKeyPartition, assertTeachHonesty, UNCLAIMED_SETTINGS_KEYS } from "@orb/client/state/pure";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { describe } from "vitest";
 import { expect, test } from "../../support/fixtures.ts";

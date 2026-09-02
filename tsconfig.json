@@ -182,6 +182,24 @@
     // packages/client/tsconfig.json beside its `.tsx` sibling (its only two consumers are both
     // client-owned; this is the correct home per the ct-data-providers.tsx upward-cake precedent, not
     // the generic tests-dom.json escapee list).
-    "tests/support/ct/ct-config-groups.ts"
+    "tests/support/ct/ct-config-groups.ts",
+    // #1243, Arm A-prime — the fork ledger for #1228's residual (types:graph 454/45 → 0/0). Most of the
+    // residual was tests bare-importing a client barrel (`@orb/client/{data,lib,state}`) for a pure
+    // symbol — those got RE-POINTED at the new `@orb/client/*/pure` subpath
+    // (packages/client/src/{data,lib,state}/pure.ts + the package.json exports-map entry), never listed
+    // here. These 8 are the residual's OTHER shape: a test that deep-imports a client SOURCE file
+    // directly (the pre-existing "Deep import the PURE module, not the barrel" convention) whose OWN
+    // code (or whose one needed symbol's OWN file) is genuinely DOM-coupled — no pure surface is
+    // possible, so tsconfig.tests-dom.json is their home instead (see its matching comment there).
+    "tests/client/data/auth-bootstrap.test.ts",
+    "tests/client/data/auth-config.test.ts",
+    "tests/client/data/stale-session.test.ts",
+    "tests/client/features/chat/lib/message-actions-reveal.test.ts",
+    "tests/client/features/auth/lib/route-guards.test.ts",
+    "tests/client/agent-nav/index.test.ts",
+    "tests/client/features/character/lib/character-draft-store.test.ts",
+    "tests/client/features/preset/lib/preset-draft-store.test.ts",
+    "tests/client/features/world-info/lib/entry-draft-store.test.ts",
+    "tests/client/forms/create-autosave-entity-form-model.test-d.ts"
   ]
 }

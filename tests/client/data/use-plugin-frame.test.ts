@@ -11,8 +11,8 @@
 //      here is what makes `PluginFrame` render NOTHING (§4.9). A throw or a rejected promise would blank a
 //      surface into an error instead of collapsing it cleanly.
 
-import type { PluginFrameRequest } from "@orb/client/data";
-import { mintPluginFrame, pluginFrameMintBody } from "@orb/client/data";
+import type { PluginFrameRequest } from "@orb/client/data/pure";
+import { mintPluginFrame, pluginFrameMintBody } from "@orb/client/data/pure";
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import type { PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

@@ -9,9 +9,9 @@
 // sorts that drifted (the LIST used to advertise "Sizing & motion" fourth over a pane that paints it ninth,
 // behind a collapsed disclosure the map never mentioned).
 
-import { createContributorRegistry } from "@orb/client/lib";
-import type { ConfigSectionContribution, SettingsViewerView } from "@orb/client/state";
-import { configSectionNavParts, configSectionNavs, resolveConfigSections } from "@orb/client/state";
+import { createContributorRegistry } from "@orb/client/lib/pure";
+import type { ConfigSectionContribution, SettingsViewerView } from "@orb/client/state/pure";
+import { configSectionNavParts, configSectionNavs, resolveConfigSections } from "@orb/client/state/pure";
 import { describe } from "vitest";
 import { expect, test } from "../../support/fixtures.ts";
 

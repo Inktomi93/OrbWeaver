@@ -7,7 +7,7 @@ import {
   requestRefineryWorkbenchDoor,
   setRefineryArmedRewrite,
   setRefineryViewedRun,
-} from "@orb/client/state";
+} from "@orb/client/state/pure";
 import { expect, test } from "../../support/fixtures.ts";
 
 test("viewed-run and armed-rewrite pointers move independently and clear to latest", () => {

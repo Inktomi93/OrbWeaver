@@ -15,7 +15,7 @@ import {
   regexRowScent,
   regexScriptScent,
   regexScriptTitle,
-} from "@orb/client/lib";
+} from "@orb/client/lib/pure";
 import { REGEX_PLACEMENTS } from "@orb/kit/regex";
 import { describe } from "vitest";
 import { expect, test } from "../../support/fixtures.ts";

@@ -430,7 +430,7 @@
       }
     },
     {
-      "includes": ["packages/*/src/**/index.ts", "tooling/src/*/index.ts"],
+      "includes": ["packages/*/src/**/index.ts", "packages/*/src/**/pure.ts", "tooling/src/*/index.ts"],
       "linter": {
         "rules": {
           "performance": {

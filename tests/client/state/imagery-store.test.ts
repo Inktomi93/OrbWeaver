@@ -15,7 +15,7 @@
 // exposes no non-hook read; `openModal` is shell-store's own one-line surface and the CT stories
 // (tests/client/features/imagery/) exercise the opener→body path end-to-end through the real slot.
 
-import type { ImageSubject, ImagineSeed } from "@orb/client/state";
+import type { ImageSubject, ImagineSeed } from "@orb/client/state/pure";
 import {
   __readImageryIntentForTest,
   __resetImageryIntent,
@@ -25,7 +25,7 @@ import {
   openImageDetail,
   openImageEdit,
   openImagine,
-} from "@orb/client/state";
+} from "@orb/client/state/pure";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
 import { expect, test } from "../../support/fixtures.ts";

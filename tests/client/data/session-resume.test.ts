@@ -2,7 +2,7 @@
 // contract is "survive exactly one redirect round trip, then be gone" — a snapshot that outlived its trip
 // would yank a user into a chat they left days ago, which is the staleness class this design exists to end.
 
-import { takeSessionResume, writeSessionResume } from "@orb/client/data";
+import { takeSessionResume, writeSessionResume } from "@orb/client/data/pure";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { afterEach, describe, vi } from "vitest";

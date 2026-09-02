@@ -8,7 +8,7 @@
 // Pins the side-eye P1-2 fix: stored titles are EMPTY STRINGS until renamed (not just null), so the fallback
 // must TRIM — `?? "Untitled chat"` was defeated by "" and rendered blank rows/options everywhere.
 
-import { deriveChatTitle, UNTITLED_CHAT_TITLE } from "@orb/client/lib";
+import { deriveChatTitle, UNTITLED_CHAT_TITLE } from "@orb/client/lib/pure";
 import { expect, test } from "../../support/fixtures.ts";
 
 test("deriveChatTitle: an authored title wins, trimmed", () => {

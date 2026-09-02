@@ -7,9 +7,9 @@
 // toast wiring silently stops firing) breaks every read/write in the app; this is the "load-bearing
 // invariant" test class (Spine-Testing §6), not a tautology over a constructor call.
 
-import { createAppQueryClient } from "@orb/client/data";
-import type { Notify, NotifyInput } from "@orb/client/lib";
-import { bindNotify, toNotice } from "@orb/client/lib";
+import { createAppQueryClient } from "@orb/client/data/pure";
+import type { Notify, NotifyInput } from "@orb/client/lib/pure";
+import { bindNotify, toNotice } from "@orb/client/lib/pure";
 import { MutationObserver } from "@tanstack/react-query";
 import { afterEach, describe, vi } from "vitest";
 import { expect, test } from "../../support/fixtures.ts";

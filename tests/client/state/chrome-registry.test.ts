@@ -5,8 +5,8 @@
 // their `body("sheet")` lens, the You tab badges their `useBadge` count). `mobileBarCuration` decides who
 // is a TAB right now: the current section always holds a bar slot (#484), borrowing the last standing one.
 
-import type { ChromeEntry, SectionId } from "@orb/client/state";
-import { mobileBarCuration, sheetOverflowChrome } from "@orb/client/state";
+import type { ChromeEntry, SectionId } from "@orb/client/state/pure";
+import { mobileBarCuration, sheetOverflowChrome } from "@orb/client/state/pure";
 import { expect, test } from "../../support/fixtures.ts";
 
 function entry(id: string, zone: ChromeEntry["zone"], mobile?: ChromeEntry["mobile"]): ChromeEntry {
