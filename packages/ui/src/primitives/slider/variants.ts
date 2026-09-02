@@ -34,6 +34,28 @@ export const sliderVariants = tv({
       // the ring off the nested input's own focus-visible via :has() so EVERY slider rings on keyboard
       // focus (WCAG 2.4.7), Field-wrapped or not (focus-ring.ts _HAS is exactly this shape).
       "size-slider-thumb rounded-full border border-border",
+      // THE KNOB'S CENTERING IS LAYOUT, NOT A RESTING TRANSFORM (#1187, design-audit `off-grid-transform`
+      // P3 on settings:chat-behavior --mobile). Base UI positions each thumb with an INLINE
+      // `inset-inline-start: <pct>%; top: 50%; translate: -50% -50%` (slider/thumb/SliderThumb.js) — a
+      // transform that is live at REST, which integer-line-boxes.md §9 Law 2 refuses: a transformed box is
+      // composited from its own raster at whatever sub-pixel offset it resolves to, instead of being
+      // snapped by the paint. The rule's own prescribed repair is "express rest geometry as layout
+      // instead", and that is exactly this: the SAME half-a-thumb, spent as margin.
+      //
+      // MECHANISM CORRECTION, recorded rather than silently followed: #1187 proposed quantizing the
+      // translate with `--dimension-device-pixel` (the #1120 family). That cannot be the fix — `-50%` of a
+      // 24px knob IS 12px, an integer at every DPR, so the −0.078 device-px landing the audit measured is
+      // the vendor's PERCENTAGE inset resolving against a fractional control width, which no round() on
+      // the translate can reach. Taking the transform out is the fix that holds: the box lands in the same
+      // place, and the browser snaps a laid-out edge where it resamples a transformed raster.
+      //
+      // `-ms-slider-inset` IS the half-thumb, not a second number: `--spacing-slider-inset` is defined as
+      // half of `--spacing-slider-thumb` (the Control's own `mx-slider-inset` above rides the same fact),
+      // and margin-inline-START is direction-correct — under RTL the inline start edge is the right one and
+      // a negative start margin shifts the box the way Base UI's mirrored `translate: 50%` did. The block
+      // axis is physical `-mt` because `orientation` is narrowed OUT of this seal (slider.tsx), so the
+      // vendor's cross offset is always `top: 50%`.
+      "translate-none! -ms-slider-inset -mt-slider-inset",
       "transition-shadow duration-(--motion-fast) ease-out-expo",
       "outline-none",
       FOCUS_RING_HAS,

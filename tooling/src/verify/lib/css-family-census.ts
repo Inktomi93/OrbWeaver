@@ -77,14 +77,20 @@ export const EXPECTED_DECLARATION_CENSUS: Readonly<Record<ProductStylesheet, num
   // the carrier the five that GENERATE it (`content`/`position`/`inset`/`z-index`/`pointer-events`, the
   // grain overlay's own shape one screen down), the two glass declarations, and `box-shadow: inherit` so
   // the pane's elevation highlight is not blurred away by the carrier's backdrop-filter.
-  [CLIENT_GLOBALS]: 119,
+  // +6 more (2026-09-02, #1173): `.shell-main`'s reading-surface glass took the SAME carrier move, one
+  // surface over — it promotes and it contains the reading column's text (Law 3/4), and only escaped
+  // #1154's own measurement because the audited arm carries no wallpaper. One 2-declaration rule became
+  // two rules of 1 + 7: `background: none` on the pane, and on the carrier the five that GENERATE it plus
+  // the two glass declarations. No `box-shadow: inherit` on this one — `.shell-main` authors no elevation
+  // and clips nothing, so the pane rule's shadow clause has no subject here (stated at the rule).
+  [CLIENT_GLOBALS]: 125,
   // +2 (2026-09-02, #1154): the band's separator moved from `border-block-end` to two composed box-shadow
   // stops (`--shell-band-rule` / `--shell-band-ember` + the `box-shadow` that reads them), so the 48px band
   // stops being a 47px CONTENT box that lands every occupant on a half pixel. The ramp / floating-context
   // overrides are one declaration each before and after — they now answer their own stop, not the property.
   [SHELL]: 337,
 };
-export const EXPECTED_DECLARATION_TOTAL = 987;
+export const EXPECTED_DECLARATION_TOTAL = 993;
 export const EXPECTED_DIRECT_THEME_DECLARATIONS = 194;
 export const CENSUS_TOKEN: Readonly<Record<ProductStylesheet, string>> = {
   [THEME]: "census:theme",

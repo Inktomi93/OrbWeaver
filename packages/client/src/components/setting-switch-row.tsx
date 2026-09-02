@@ -10,6 +10,7 @@
 // needs a STABLE id (a deep link, a test selector) passes it to the control, deliberately and with a
 // reason; nothing here does.
 
+import type { CheckboxProps } from "@orb/ui/checkbox";
 import { Checkbox } from "@orb/ui/checkbox";
 import { Field } from "@orb/ui/field";
 import { Switch } from "@orb/ui/switch";
@@ -69,11 +70,21 @@ export function SettingSwitchRow({ label, description, checked, onChange, onBlur
   );
 }
 
-export function SettingCheckboxRow({ label, description, checked, onChange, onBlur, disabled, disabledReason }: SettingRowControlProps): ReactElement {
+/** The checkbox arm additionally carries the control's `tone` axis, because a checkbox row is the one
+ *  that gets used in BULK: a group whose default is all-selected picks `quiet` ONCE for the whole
+ *  fieldset so the accent is not spent per row on the unremarkable default (#1110, owner ruling
+ *  2026-09-02). It is deliberately NOT on the shared props type — a prop the switch arm advertised and
+ *  dropped is the trap this file's own header records. */
+interface SettingCheckboxRowProps extends SettingRowControlProps {
+  readonly tone?: CheckboxProps["tone"];
+}
+
+export function SettingCheckboxRow({ label, description, checked, onChange, onBlur, disabled, disabledReason, tone }: SettingCheckboxRowProps): ReactElement {
   return (
     <Field label={label} orientation="horizontal" {...describeRow(description, disabledReason)}>
       <Checkbox
         checked={checked}
+        tone={tone}
         onCheckedChange={(next): void => onChange(next === true)}
         {...(onBlur === undefined ? {} : { onBlur })}
         {...(disabled === undefined ? {} : { disabled })}

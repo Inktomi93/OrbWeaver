@@ -5,6 +5,7 @@
 // routeTrpc's recorder — the mutation count/input, never a UI reaction, per assert-the-mutation-fired); the
 // "Use default" arms UNSET a stored pick (select item / button); the no-declarations empty state teaches.
 
+import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { MacroPicksSectionStory } from "../_ct-stories.tsx";
@@ -123,6 +124,24 @@ test("a stored pick renders as the picked option (not the default)", async ({ mo
   await expect(component.getByRole("checkbox", { name: "Storm" })).toBeChecked();
   await expect(component.getByRole("checkbox", { name: "Clear" })).not.toBeChecked();
   await expect(component.getByText("Draws one of the checked options each reply.")).toBeVisible();
+});
+
+// #1110's COUNTER-PIN. The quiet checked skin is scoped to groups whose default is ALL-ON (Backup's
+// "Include" fieldset); a random-pick pool is a DELIBERATE choice per option, so its checked rows keep the
+// ember. Without this, "quiet" could spread across every checkbox group in the app and the ruling's whole
+// point — spend the accent on a decision — would be lost with every assertion still green.
+test("a deliberate-choice pool keeps the ACCENT checked skin — quiet is Backup's group only (#1110)", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "chat.getUserMacroPicks": () => ({ macros: [MOOD_MACRO], values: { mood: { tone: "grim", weather: ["storm"] } } }),
+    "chat.getVariablePicks": () => NO_VARIABLES,
+  });
+
+  const component = await mount(<MacroPicksSectionStory />);
+
+  const storm = component.getByRole("checkbox", { name: "Storm" });
+  await expect(storm).toBeChecked();
+  await expect(storm).toHaveAttribute("data-tone", "accent");
+  await expect(storm).toHaveCSS("background-color", TOKENS["color.primary"].value);
 });
 
 test("picking a single-select option fires setUserMacroValues with the rebuilt bag", async ({ mount, page }) => {

@@ -9,6 +9,7 @@
 import type { WorkloadEvent } from "@orb/contracts/workloads";
 import type { WorkloadId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import type { OrbSocketRecorder } from "../../../../support/ct/route-orb-socket.ts";
@@ -66,6 +67,36 @@ test("export: a full selection downloads the whole library (no kinds param); unc
   expect(kinds).not.toContain("chat");
   expect(kinds.split(",")).toContain("character");
   expect(kinds.split(",")).toContain("assets");
+});
+
+// #1110 (owner ruling 2026-09-02): the "Include" fieldset is a BULK DEFAULT — every offered kind starts
+// checked, so the accent skin painted eleven saturated squares to mark the state the user has not chosen
+// yet. The group picks `tone="quiet"` ONCE for all of its rows. This is the surface the finding was filed
+// against, so the pin lives here and not only on the primitive; the counter-pin (a deliberate-choice group
+// still carries the ember) is in tests/client/features/chat/components/macro-picks-section.ct.tsx.
+test("export: the all-on Include group spends no accent — every row renders the quiet checked skin (#1110)", async ({ mount, page }) => {
+  await routeTrpc(page, { ...HOST_VIEWER_ROUTE, ...STREAM_MUTATION_ROUTES });
+  await mount(<BackupSettingsStory />);
+
+  const characters = page.getByRole("checkbox", { name: "Characters" });
+  await expect(characters).toBeChecked();
+  const boxes = await page.getByRole("checkbox").all();
+  // The whole group, not a sampled row: a per-row tone would be exactly the defect (one group-level
+  // decision is the ruling's own words), and a single-row assertion could not tell the two apart.
+  expect(boxes.length).toBeGreaterThan(1);
+  for (const box of boxes) {
+    await expect(box).toHaveAttribute("data-tone", "quiet");
+  }
+  // RENDERED, not the class list: the checked fill must not be `--color-primary`. The accent count in this
+  // pane drops from one-per-kind to zero, which is the receipt the ruling asked for.
+  await expect(characters).not.toHaveCSS("background-color", TOKENS["color.primary"].value);
+  // …and the polarity survives: the ON state still carries its OWN ink, so unchecking a row VISIBLY
+  // changes its fill. A quiet arm that merely dropped the accent without replacing it would pass every
+  // assertion above and leave a checkbox whose two states paint identically.
+  const checkedFill = await characters.evaluate((element) => getComputedStyle(element).backgroundColor);
+  await characters.click();
+  await expect(characters).not.toBeChecked();
+  await expect(characters).not.toHaveCSS("background-color", checkedFill);
 });
 
 test("import: dropping a .zip POSTs the bundle, tails the workload, and shows the count summary", async ({ mount, page }) => {

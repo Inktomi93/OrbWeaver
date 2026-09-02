@@ -80,6 +80,7 @@ import type { DesignAuditRuleId } from "@orb/tooling/ui-audit";
 import { badgeVariants } from "../../packages/ui/src/primitives/badge/variants.ts";
 import { buttonVariants } from "../../packages/ui/src/primitives/button/variants.ts";
 import { cardVariants } from "../../packages/ui/src/primitives/card/variants.ts";
+import { checkboxVariants } from "../../packages/ui/src/primitives/checkbox/variants.ts";
 import { emptyStateVariants } from "../../packages/ui/src/primitives/empty-state/variants.ts";
 import { highlightedTextVariants } from "../../packages/ui/src/primitives/highlighted-text/variants.ts";
 import { inputVariants } from "../../packages/ui/src/primitives/input/variants.ts";
@@ -151,6 +152,17 @@ export const VARIANT_ARM_STORY_DEFS: readonly VariantArmStoryDef[] = [
   def({ key: "badge", source: "primitives/badge/variants.ts", exportName: "badgeVariants", tv: badgeVariants, supportsDisabled: false, expectText: true }),
   def({ key: "button", source: "primitives/button/variants.ts", exportName: "buttonVariants", tv: buttonVariants, supportsDisabled: true, expectText: false }),
   def({ key: "card", source: "primitives/card/variants.ts", exportName: "cardVariants", tv: cardVariants, supportsDisabled: false, expectText: true }),
+  // STORIED FROM #1110, the run that gave it a variants block at all. Its `tone` axis is COLOUR-BEARING
+  // (the quiet arm swaps the checked fill off the accent onto `foreground/55`), which is exactly the class
+  // this matrix exists to judge before a surface adopts it — the Switch `tone` precedent one row down.
+  def({
+    key: "checkbox",
+    source: "primitives/checkbox/variants.ts",
+    exportName: "checkboxVariants",
+    tv: checkboxVariants,
+    supportsDisabled: true,
+    expectText: false,
+  }),
   def({
     key: "empty-state",
     source: "primitives/empty-state/variants.ts",
