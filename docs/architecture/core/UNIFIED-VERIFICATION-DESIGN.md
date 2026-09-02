@@ -203,7 +203,7 @@ one is NEWER than the run the pointer resolves to. That is strictly finer than t
 not tell "my run died" from "a sibling lane is mid-run". A LIVE sibling is deliberately not a refusal.
 
 **`verify-history.jsonl` is deliberately NOT slotted.** It is a per-checkout ledger of every run, not one
-run's verdict: appends are `O_APPEND` single-line writes that the kernel does not interleave at this size,
+run's verdict: appends are append-mode single-line writes that the kernel does not interleave at this size,
 and slotting it would give each run a one-line history to compare against — destroying the only thing it
 exists for. Each line carries its `runId`, so a reader can still attribute a row.
 

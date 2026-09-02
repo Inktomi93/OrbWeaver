@@ -106,7 +106,9 @@ test("a run names the LIVE sibling holding a slot — the racing-writer census, 
   mkdirSync(sibling, { recursive: true });
   writeFileSync(
     join(sibling, ".inflight"),
-    JSON.stringify({ runId: "planted-sibling", pid: process.pid, checkout: "planted", startedAt: new Date().toISOString() }),
+    // A FROZEN startedAt: the census keys off the marker's pid liveness, never its age, so a literal keeps
+    // the fixture deterministic (test-determinism bans the ambient clock).
+    JSON.stringify({ runId: "planted-sibling", pid: process.pid, checkout: "planted", startedAt: "2026-09-01T00:00:00.000Z" }),
   );
 
   expect((await runCli("verify", ["structure"], { cwd: root })).code).toBe(0);

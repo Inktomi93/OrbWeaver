@@ -29,8 +29,14 @@ const NEGATION_PREFIX = "!";
 const REAL_CONFIG_MIN_INCLUDES = 30;
 
 /** The one transient grant subject + the producer that makes it transient. Both hard-coded, both paired with
- *  a tripwire per §3: the key with the STALE arm, the cite with the DEAD-CITE arm. */
-const TRANSIENT_CATALOG_TMP = "docs/catalog/catalog.tmp.json";
+ *  a tripwire per §3: the key with the STALE arm, the cite with the DEAD-CITE arm.
+ *
+ *  A GLOB since #1029: the serializer's scratch name carries the run identity so two concurrent catalog runs
+ *  cannot format each other's file, so the grant it needs is `catalog.tmp.<runId>.json`. The STALE arm
+ *  therefore tests membership in ALL carried includes, not only the file-exact ones — the exemption is about
+ *  a GRANT ROW biome.json carries, and a glob row is one. (The dead-grant arm above is unchanged: a glob is
+ *  still never resolved as a path — that is this gate's v1 declared limit, with its own mustPass row.) */
+const TRANSIENT_CATALOG_TMP = "docs/catalog/catalog.tmp.*.json";
 const CATALOG_SERIALIZER = "tooling/src/doc-catalog/ops/tree.ts";
 
 /** A grant row this gate deliberately does not judge. Two-sided (§4.4): a key biome.json no longer carries is
@@ -142,9 +148,11 @@ interface Outcome {
   readonly declaration: GateScanDeclaration;
 }
 
-/** The two-sided arms on EXEMPT. The caller owns the real-tree anchor. */
-function exemptionArms(root: string, exactRows: readonly string[]): readonly Finding[] {
-  const carried = new Set(exactRows);
+/** The two-sided arms on EXEMPT. The caller owns the real-tree anchor. `carriedRows` is EVERY positive
+ *  include biome.json holds (exact and glob, #1029), because an exemption forgives a grant ROW — a row
+ *  spelled as a glob is still carried, and reading only the exact rows would red a live exemption. */
+function exemptionArms(root: string, carriedRows: readonly string[]): readonly Finding[] {
+  const carried = new Set(carriedRows);
   const out: Finding[] = [];
   for (const [path, row] of Object.entries(EXEMPT)) {
     if (!carried.has(path)) {
@@ -186,7 +194,7 @@ function scanBiomeGrantLiveness(root: string): Outcome {
     .map((path) => ({ path, line: lineOf(path) }))
     .filter((row) => EXEMPT[row.path] === undefined && !existsSync(join(root, row.path)))
     .map((row) => ({ file: CONFIG_REL, line: row.line, column: 0, token: row.path }));
-  return { findings: [...dead, ...(isRealConfig ? exemptionArms(root, exact) : [])], declaration };
+  return { findings: [...dead, ...(isRealConfig ? exemptionArms(root, positive) : [])], declaration };
 }
 
 // ── self-proof fixtures ───────────────────────────────────────────────────────────────────────────────
@@ -266,7 +274,12 @@ export const gate: GateDescriptor = {
       why: "§4.4 two-sidedness: an EXEMPT row forgiving a grant biome.json does not carry is a loaded gun — it must RED, not sit silent",
     },
     {
-      files: { "biome.json": overridesJson(`${ANCHOR_FILLER}, "${TRANSIENT_CATALOG_TMP}"`) },
+      // The exempt key is a GLOB since #1029, so a LIVE exact row rides along — without one the fixture
+      // derives zero exact rows and trips the NO-ROWS blindness tripwire instead of the arm under proof.
+      files: {
+        "biome.json": overridesJson(`${ANCHOR_FILLER}, "${TRANSIENT_CATALOG_TMP}", "${LIVE_REL}"`),
+        [LIVE_REL]: LIVE_SOURCE,
+      },
       expect: { count: 1, token: CATALOG_SERIALIZER, messageIncludes: "`cite` no longer resolves" },
       why: "the §3 path-constant tripwire: the exemption's justification MOVED, so the promise outlived its evidence and must RED",
     },
@@ -281,10 +294,11 @@ export const gate: GateDescriptor = {
     },
     {
       files: {
-        "biome.json": overridesJson(`${ANCHOR_FILLER}, "${TRANSIENT_CATALOG_TMP}"`),
+        "biome.json": overridesJson(`${ANCHOR_FILLER}, "${TRANSIENT_CATALOG_TMP}", "${LIVE_REL}"`),
         [CATALOG_SERIALIZER]: "export const serializer = 1;\n",
+        [LIVE_REL]: LIVE_SOURCE,
       },
-      why: "the exemption HONOURED: an absent-by-design transient subject whose cited producer still resolves is silent on all three arms",
+      why: "the exemption HONOURED: an absent-by-design transient subject (a glob row since #1029) whose cited producer still resolves is silent on all three arms",
     },
     {
       files: {
