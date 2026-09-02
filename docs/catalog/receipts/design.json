@@ -9,8 +9,8 @@
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "ffd79f398334f5addebdfb1ea2c9f9d48c7c1a4f3fbe783a015ee83cc7efed14",
-      "verifiedCommit": "06267c252b787fdced74e2f86a401e10e460a117",
+      "verifiedSha256": "81e4808155fbece0f43884583acd87646367fb31a0e6b7d2f02553b4dff37682",
+      "verifiedCommit": "5c8025a9b51005938999eee6757c22a6350ec8d2",
       "verifiedAt": "2026-09-02",
       "evidence": [
         "re-attested at 06267c252 (#1226, lane p-substrate-spike, merged by hand into the forge's later table): the §10 phase-0 receipt paragraph — F3 arm (a) CONFIRMED (context-scoped shims reach a second CDP client; page-scoped do not), the Lighthouse seam is snapshot(page) over an attached puppeteer page with defaultViewport:null, the category score is not a verdict, dependency shape (root devDeps: lighthouse ^13.4.1 + puppeteer-core), the test-layout naming deviation (.suite.int). Union read at the fold by the primary orchestrator.",
