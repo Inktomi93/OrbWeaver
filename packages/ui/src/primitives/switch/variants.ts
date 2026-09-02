@@ -30,6 +30,38 @@ import { DISABLED_STATE, FOCUS_RING, FOCUS_RING_DESTRUCTIVE, TOUCH_TARGET_PSEUDO
 // inset 0) while now sitting a border in from each end horizontally. Inset-ing it vertically would mean
 // shrinking the display thumb, a size decision this fix has no mandate for.
 //
+// THE QUIET STATE IS THE QUIET ONE — the OFF THUMB's ink, not its geometry (#1090; side-eye F10/E3
+// 2026-08-30, re-measured 2026-09-02 and machine-detected by `design-audit`'s `quiet-state` P2 in every
+// appearance/theme/pane arm: "OFF 12.58:1 vs ON 7.06:1"). The thumb was `bg-foreground` — the page's
+// brightest ink, opaque, 32 of the track's 48px — while the track is a 12% overlay compositing to
+// 1.41:1. So the OFF switch's loudest object measured 11.118:1 (CT framebuffer, Hearth over `bg-card`)
+// against a 7.056:1 ON state: the surface spent its loudest register on the state that carries NO
+// information — six near-white pills that mean "off". NOT snap's number: `snap --contrast` on
+// `[data-slot=switch-thumb]` reads the element's INK (`getComputedStyle().color`), which on the thumb is
+// the inherited `--color-foreground` and paints nothing — it read 16.26:1 both before and after this
+// change, and only matched the fill before because the fill was that same token.
+//
+// `muted-foreground/80` is the value BOUNDED FROM BOTH SIDES, which is what makes it a measurement
+// rather than a taste. CEILING: it must sit under the ON state's loudest member on every seed and both
+// pane hosts — including the `quiet` tone, whose deliberately dim checked track has only 3.69:1 to
+// spend under Light. FLOOR: WCAG 1.4.11 asks 3:1 of the visual information that identifies a control's
+// state, and the OFF knob IS that information. The alpha rides over the TRACK, so the knob composites
+// polarity-correctly on a light theme instead of needing a second hand-picked value. Measured
+// (theme/pane → OFF loudest, ON accent, ON quiet, and the read-only lock glyph against the thumb):
+//   Hearth/bg   4.563 (was 12.701) · 7.437 · 5.610 · 6.157   Hearth/card 4.137 (was 11.235) · 7.056 · 5.967 · 6.311
+//   Mocha /bg   4.415 (was 12.351) · 7.375 · 5.562 · 6.070   Mocha /card 3.824 (was 10.425) · 7.285 · 6.008 · 6.229
+//   Light /bg   3.560 (was 11.153) · 6.193 · 3.693 · 4.968   Light /card 3.651 (was 11.606) · 6.292 · 3.750 · 4.895
+// Both bounds are pinned from the FRAMEBUFFER in tests/ui/primitives/switch/switch.ct.tsx, in all three
+// seeds — computed style can see neither the compositing nor the oklch, and a polarity fix proven on
+// the dark arm alone is this tree's recorded failure family.
+//
+// NOT CHANGED HERE, deliberately: the ON skin (the accent track IS the ON signal and already carries
+// it), the thumb's SIZE (E3 also asked for "~55% of track height"; `--spacing-switch-thumb` is one
+// token doing two jobs — the fine-pointer TRACK HEIGHT and the thumb size — so that is a token split
+// plus a second pointer-conditional pair, i.e. its own row, and the RESIDUAL ruling above stands), and
+// the `quiet` tone's `foreground/55` checked track (raising it was the other way to fix quiet's Light
+// arm; unnecessary once the OFF knob is bounded, so the /70 rejection recorded below survives intact).
+//
 // `tone` rations the accent (north-star §5 rule 0.5, PP1's Badge `tone` precedent; owner-sanctioned
 // 2026-07-16): `accent` (default) is the byte-identical ember-on-checked skin — the ONE sanctioned
 // accent toggle per surface. `quiet` swaps the CHECKED track onto the derived neutral ramp
@@ -51,7 +83,7 @@ export const switchVariants = tv({
       TOUCH_TARGET_PSEUDO,
     ],
     thumb: [
-      "group relative flex aspect-square h-switch-thumb items-center justify-center rounded-full bg-foreground",
+      "group relative flex aspect-square h-switch-thumb items-center justify-center rounded-full bg-muted-foreground/80",
       "transition-transform duration-(--motion-fast) ease-out-expo",
       "data-checked:translate-x-[calc(var(--spacing-switch-track)_-_var(--spacing-switch-thumb)_-_2_*_var(--border-width-control))]",
     ],
