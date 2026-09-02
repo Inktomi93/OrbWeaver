@@ -6,7 +6,7 @@
 //
 // RED-FIRST: every `extends`/aliased-arm case here returned ZERO findings against the pre-#948 gate — that
 // was the leak (docs/reviews/stickler/2026-08-31-gate-member-discovery-rehome-audit.md).
-import type { Finding } from "../../../../tooling/src/verify/contract/gate.ts";
+import type { Finding, GateDescriptor } from "../../../../tooling/src/verify/contract/gate.ts";
 import type { GatePassResult } from "../../../../tooling/src/verify/contract/pass.ts";
 import { gate } from "../../../../tooling/src/verify/gates/bus-payload-allowlist.ts";
 import { runPass } from "../../../../tooling/src/verify/lib/pass.ts";
@@ -25,9 +25,9 @@ const AUTOMATION = "packages/contracts/src/automation/index.ts";
 const LIVE_USER_BUS = 'export type UserBusEvent = { type: "credentialsChanged"; credentialId?: string };\n';
 const LIVE_WORLD_INFO = 'export type WiBusEvent = { type: "wi.updated"; bookId: string };\n';
 
-function result(files: Readonly<Record<string, string>>): GatePassResult {
+function resultFor(descriptor: GateDescriptor, files: Readonly<Record<string, string>>): GatePassResult {
   const { project, root } = ctxFor(files);
-  const pass = runPass([gate], {
+  const pass = runPass([descriptor], {
     root,
     project,
     scope: { kind: "project" },
@@ -41,8 +41,18 @@ function result(files: Readonly<Record<string, string>>): GatePassResult {
   return first;
 }
 
+function result(files: Readonly<Record<string, string>>): GatePassResult {
+  return resultFor(gate, files);
+}
+
 function findings(files: Readonly<Record<string, string>>): readonly Finding[] {
   return result(files).findings;
+}
+
+/** The #1048 markerImmune control needs the SAME source judged by the same descriptor with the flag
+ *  flipped — a two-sided proof the flag, not the marker spelling, is what changes the verdict. */
+function findingsFor(descriptor: GateDescriptor, files: Readonly<Record<string, string>>): readonly Finding[] {
+  return resultFor(descriptor, files).findings;
 }
 
 test("a credential inherited from an IMPORTED carrier is reported at its declaring site", () => {
@@ -334,4 +344,32 @@ test("F3: a root whose members all live on OTHER named roots does not trip the z
       'export interface CharacterUpdatedEvent {\n  readonly type: "character.updated";\n}\nexport interface AssetCreatedEvent {\n  readonly type: "asset.created";\n}\nexport type DomainEvent = CharacterUpdatedEvent | AssetCreatedEvent;\n',
   });
   expect(found).toEqual([]);
+});
+
+// ── #1048: markerImmune — the D16 backstop cannot be silenced by the exemption vocabulary ─────────────
+// The reviewed door for a genuinely safe credential-word field is SANCTIONED_FIELDS with its D-cite; a
+// line-adjacent marker is not a door, it is a per-site opt-out written by the same hand as the violation.
+// Both directions are proven HERE on the real descriptor: immune ⇒ the marker absolves nothing; the SAME
+// marker over the SAME source with the flag off still suppresses (so this is not a lying proof — the
+// marker spelling really does suppress, and it is the flag that stops it). The resolver-level twins live
+// in tests/tooling/verify/lib/gate-ignore.test.ts.
+const MARKED_CREDENTIAL_MEMBER =
+  'export type ChatBusEvent = {\n  type: "x";\n  chatId: string;\n  // @orb-gate-ignore bus-payload-allowlist: probe — a marker must never absolve a credential\n  apiKey: string;\n};\n';
+
+test("markerImmune: an @orb-gate-ignore marker can NEVER silence a credential finding", () => {
+  const found = findingsFor(gate, { [CHAT_BUS]: MARKED_CREDENTIAL_MEMBER });
+  expect(found.map((f) => f.token)).toEqual(["apiKey"]);
+});
+
+test("the control: that SAME marker on the same source DOES suppress when the flag is off", () => {
+  const found = findingsFor({ ...gate, markerImmune: false }, { [CHAT_BUS]: MARKED_CREDENTIAL_MEMBER });
+  expect(found).toEqual([]);
+});
+
+test("markerImmune reaches the FAIL-CLOSED tokens too — an unresolvable base cannot be marked away", () => {
+  const found = findingsFor(gate, {
+    [EVENTS]:
+      '// @orb-gate-ignore bus-payload-allowlist: probe — a marker must never absolve an unreadable wire shape\nexport interface CharacterUpdatedEvent extends UnknowableBase {\n  readonly type: "character.updated";\n}\n',
+  });
+  expect(found.map((f) => f.token)).toEqual(["unresolved-base:UnknowableBase"]);
 });

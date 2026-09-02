@@ -59,6 +59,11 @@
 //   the wrong members and hand back a confident green) and do NOT add an exemption row. Spell the member
 //   inline, or import the base RELATIVELY so its declaration is provable.
 //
+// THE ONE DOOR IS THE TABLE, NOT A MARKER (#1048): this gate is `markerImmune`, so no
+// `@orb-gate-ignore` can silence a credential finding or a fail-closed token. Both directions are pinned
+// in tests/tooling/verify/gates/bus-payload-allowlist.test.ts — the same marker over the same source
+// suppresses with the flag off, so it is the FLAG that decides, not a marker spelling that never bit.
+//
 // SANCTIONED FIELDS: `credentialId` (user-bus `credentialsChanged`) is a branded `UserCredentialId` — an
 // ID, not a secret. D16's SAFE pattern is exactly id-only re-read: the subscriber re-reads canon by id,
 // never trusting event-carried data. It is listed below with its cite, NOT excused by weakening the word
@@ -646,6 +651,13 @@ export const gate: GateDescriptor = {
   // over only the changed files cannot answer this gate's question (a carrier edited alone would read
   // GREEN). `whole-project` makes `scoped.ts` skip it outright instead of returning a vacuous pass.
   scopeSafety: "whole-project",
+  // MARKER-IMMUNE (#1048, owner ruling 2026-09-01). `pass.ts` offers this gate no suppression on either
+  // arm: a line-adjacent marker can never absolve a credential finding, nor a fail-closed token. The
+  // charter widening is written in GATE-AUTHORING.md §1 — this is the first NON-auditor occupant, admitted
+  // because it is the D16 security backstop whose findings are two-sided BY DESIGN. The reviewed door for
+  // a genuinely safe credential-word field stays SANCTIONED_FIELDS with its D-cite: a table row is read by
+  // a reviewer, a marker is written by the same hand as the violation and read by nobody.
+  markerImmune: true,
   message: MESSAGE,
   fix: "carry a branded id (re-read canon by id) instead of a secret; or, for a proven-safe id/scalar, add the field to SANCTIONED_FIELDS in bus-payload-allowlist.ts with its D-cite. For an `unresolved-base:`/`unresolved-schema:`/`unsupported-shape:` token, spell the bus member as a closed object literal with named keys (or a base/schema declared RELATIVELY in this workspace) so the wire shape is readable — never an index signature, a `Record<…>`, an `unknown` field, or a `.loose()`/`.catchall()` schema arm.",
   scanRoot: (p) => BUS_FILES.has(p),
