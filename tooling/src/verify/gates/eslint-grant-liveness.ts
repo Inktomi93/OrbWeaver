@@ -10,11 +10,19 @@
 // blindness tripwire) · the two-sided EXEMPT arms (shared, empty-but-armed at mint — every live row resolves).
 // DECLARED LIMITS: glob rows (`packages/ui/src/**/*.{ts,tsx}`) are counted as declared skips; only `files`
 // and `ignores` are judged (a rule OPTION naming a path is that rule's business, not a grant).
+// PATTERN LIVENESS (#973): the 78 glob rows the file-exact classifier skips are judged too. A glob is LIVE
+// when node's own `path.matchesGlob` puts at least one TRACKED file inside it (never an FS walk — a glob
+// judged against the filesystem answers differently depending on whether node_modules/dist/reports exist).
+// Zero members = a rule block aimed at nothing, or an `ignores` for a file class this repo does not carry.
+// The by-design rows below are RATIFIED with reasons; there is no irreducible family here (every eslint
+// glob is repo-root-relative and fully expandable).
 // COMMENT POSTURE: comment-SAFE — extraction is pure AST over node kinds, never a text match.
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import type { ExemptionTable, Finding, GateDescriptor, GateScanDeclaration } from "../contract/gate.ts";
 import { extractRows, readConfigSource } from "../lib/config-static-read.ts";
-import type { GrantExemption, LivenessMessages } from "../lib/grant-liveness.ts";
-import { isFileExact, livenessFindings } from "../lib/grant-liveness.ts";
+import type { GrantExemption, LivenessMessages, PatternLivenessMessages, PatternRow } from "../lib/grant-liveness.ts";
+import { globMatcher, isFileExact, livenessFindings, memberSources, patternLivenessFindings } from "../lib/grant-liveness.ts";
 
 const CONFIG_REL = "eslint.config.js";
 const UNIT = "grant row";
@@ -29,6 +37,60 @@ const REAL_CONFIG_MIN_CANDIDATES = 40;
  *  nothing needs forgiving. The two-sided machinery is shared (lib/grant-liveness.ts) and is proven in both
  *  directions by the sibling gates' pins; a row added here inherits both arms automatically. */
 const EXEMPT: ExemptionTable<GrantExemption> = {};
+
+/** The §4.5 real-tree anchor for the PATTERN half: this gate's own module. */
+const GATE_SELF = "tooling/src/verify/gates/eslint-grant-liveness.ts";
+const GATE_FIXTURE_LAW = "tooling/src/verify/gates/GATE-AUTHORING.md";
+
+/** Globs whose members are absent from every tracked source BY DESIGN — each with its reason and END
+ *  CONDITION. Two-sided: a row eslint.config.js no longer carries is RED, and a dead cite is RED. */
+const RATIFIED: ExemptionTable<GrantExemption> = {
+  "**/node_modules/**": {
+    why:
+      "INSTALLED DEPENDENCIES: node_modules is gitignored, so it is absent from the tracked corpus by " +
+      "design and present only after an install — judging it either way makes the verdict depend on " +
+      "machine state. Delete this row the day the linter stops needing to ignore installed packages.",
+    cite: ".gitignore",
+  },
+  "**/dist/**": {
+    why:
+      "BUILD OUTPUT: gitignored, present only after a build — same machine-state problem as node_modules. " +
+      "Delete this row the day the packages stop emitting dist/.",
+    cite: ".gitignore",
+  },
+  "**/__g_*": {
+    why:
+      "the reserved throwaway-fixture sentinel: check-gates.int materialises `__g_*` files at real-tree " +
+      "paths for milliseconds and reaps them, so the subject is ABSENT from every tracked source by " +
+      "construction. Delete this row the day the `__g_` sentinel is retired.",
+    cite: GATE_FIXTURE_LAW,
+  },
+};
+
+const PATTERN_MESSAGES: PatternLivenessMessages = {
+  deadPattern:
+    "a GLOB in an `eslint.config.js` block's `files`/`ignores` matches NO tracked file — the block it aims " +
+    "is enforcing nothing, or the `ignores` is excusing a file class this repo does not carry. That is the " +
+    "loaded-gun class one level up from a dead file-exact grant (tooling/src/verify/gates/GATE-AUTHORING.md " +
+    "§4.4 mode B): the next tree that grows such a file inherits a rule posture nobody re-approved. " +
+    "Re-point the glob, delete the block, or — if its members are absent by design (a gitignored or " +
+    "generated tree) — add a RATIFIED row in tooling/src/verify/gates/eslint-grant-liveness.ts with its " +
+    "`why` + END CONDITION and a resolving `cite`. The finding token is the glob.",
+  staleRatified:
+    "an eslint-grant-liveness RATIFIED row forgives a glob eslint.config.js no longer carries — a standing " +
+    "allowance for a row that is gone is a LOADED GUN. Delete the row from RATIFIED in " +
+    "tooling/src/verify/gates/eslint-grant-liveness.ts.",
+  deadCite:
+    "an eslint-grant-liveness RATIFIED row's `cite` no longer resolves — the decision that justified the " +
+    "allowance moved or was deleted. Re-derive the cite, or delete the row from RATIFIED in " +
+    "tooling/src/verify/gates/eslint-grant-liveness.ts.",
+  budgetMoved: "",
+};
+
+const MSG_CORPUS_BLIND =
+  "the tracked-file corpus came back EMPTY on a real-sized eslint.config.js — `git ls-files` failed or this " +
+  "is not a work tree, so every glob-liveness verdict below is vacuous and a ✓ would be a lie " +
+  "(tooling/src/verify/gates/GATE-AUTHORING.md §4.6). See tooling/src/verify/lib/grant-liveness.ts.";
 
 const MESSAGES: LivenessMessages = {
   dead:
@@ -73,6 +135,8 @@ const MSG_NO_ROWS =
 interface Outcome {
   readonly findings: readonly Finding[];
   readonly declaration: GateScanDeclaration;
+  /** The glob half's disposition, folded into the gate's scan declaration by `run`. */
+  readonly patterns?: { readonly live: number; readonly ratified: number };
 }
 
 function fileFinding(message: string, token?: string): Finding {
@@ -111,8 +175,33 @@ function scanEslintGrantLiveness(root: string): Outcome {
   if (rows.exact.length === 0) {
     return { findings: anchorOk ? [fileFinding(MSG_NO_ROWS)] : [], declaration };
   }
-  const findings = livenessFindings({ root, exact: rows.exact, exempt: EXEMPT, exemptAnchorFile: CONFIG_REL, anchorOk, messages: MESSAGES });
-  return { findings, declaration };
+  const exactFindings = livenessFindings({ root, exact: rows.exact, exempt: EXEMPT, exemptAnchorFile: CONFIG_REL, anchorOk, messages: MESSAGES });
+  // The PATTERN half runs only in a scope that carries this gate's OWN module (the §4.5 real-tree anchor
+  // shape). A conformance mini-project and the file-exact fixtures have no work tree to derive a corpus
+  // from, and their handful of rows are not the real population — judging them would red every proof.
+  if (!(anchorOk && existsSync(join(root, GATE_SELF)))) {
+    return { findings: exactFindings, declaration };
+  }
+  const sources = memberSources(root);
+  if (sources.repoPaths.length === 0) {
+    return { findings: [...exactFindings, fileFinding(MSG_CORPUS_BLIND)], declaration };
+  }
+  const patternRows: readonly PatternRow[] = rows.skippedRows.map((row) => ({
+    file: CONFIG_REL,
+    pattern: row.path,
+    line: row.line,
+    matches: globMatcher(row.path),
+  }));
+  const outcome = patternLivenessFindings({
+    root,
+    rows: patternRows,
+    sources,
+    ratified: RATIFIED,
+    ratifiedAnchorFile: CONFIG_REL,
+    anchorOk,
+    messages: PATTERN_MESSAGES,
+  });
+  return { findings: [...exactFindings, ...outcome.findings], declaration, patterns: { live: outcome.live, ratified: outcome.ratified } };
 }
 
 // ── self-proof fixtures ───────────────────────────────────────────────────────────────────────────────
@@ -143,7 +232,11 @@ export const gate: GateDescriptor = {
     "+ END CONDITION and the `cite` that proves it.",
   run: (ctx) => {
     const outcome = scanEslintGrantLiveness(ctx.root);
-    ctx.scan(outcome.declaration);
+    ctx.scan(
+      outcome.patterns === undefined
+        ? outcome.declaration
+        : { ...outcome.declaration, skipped: { "glob-live": outcome.patterns.live, "glob-ratified": outcome.patterns.ratified } },
+    );
     for (const finding of outcome.findings) {
       ctx.report(finding);
     }
@@ -191,6 +284,10 @@ export const gate: GateDescriptor = {
     },
   ],
   mustPass: [
+    {
+      files: { [CONFIG_REL]: 'export default [{ ignores: ["packages/definitely-not-here/**/*.ts"] }];\n' },
+      why: "DECLARED LIMIT — the PATTERN half is scoped to a root carrying this gate's own module (the §4.5 real-tree anchor shape): a mini-project has no git work tree to derive the `git ls-files` corpus from, so a glob with no members here is SILENT. The pattern arms are proven instead by the permanent pin under tests/tooling/verify/gates/, which plants a real throwaway repo (#973).",
+    },
     {
       files: { [CONFIG_REL]: `export default [{ ignores: ["${LIVE_REL}"] }];\n`, [LIVE_REL]: LIVE_SOURCE },
       why: "a file-exact grant whose file is on the tree — the sanctioned shape, silent",
