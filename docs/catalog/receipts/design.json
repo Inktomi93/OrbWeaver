@@ -4,6 +4,19 @@
   "issue": 5,
   "entries": [
     {
+      "path": "docs/design/1195-devtools-mcp-retirement.md",
+      "assignedSha256": "0eb74adabfc2d72c845b73be7399dbf1238901e587ac6139b9aaf73df481e29d",
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "0eb74adabfc2d72c845b73be7399dbf1238901e587ac6139b9aaf73df481e29d",
+      "verifiedCommit": "33d7067f059e4fcbf43c672d8a2e967479aa68f2",
+      "verifiedAt": "2026-09-02",
+      "evidence": [
+        "born-reviewed by the primary orchestrator (author) 2026-09-02 at 33d7067f0: the two-account, 14-day transcript census of chrome-devtools MCP tool calls (176 calls, 719 jsonl files) mapped to snap arms; two gaps named (a Lighthouse arm, a request log) and the retirement step; owner-directed program (#1195)."
+      ]
+    },
+    {
       "path": "docs/design/951-css-family-semantic-provenance.md",
       "assignedSha256": "0ceecbfde36383977417f1ba15beaba7b7b6900feaaa45336c16260a55be7284",
       "disposition": "current",
