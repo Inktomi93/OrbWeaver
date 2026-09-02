@@ -23,6 +23,20 @@
 // whole-graph type crawler with no natural edge. What a field SPELLS INLINE is on the near side of that
 // line and IS read: an inline `{ … }` literal's keys ride the wire under the event's own name.
 //
+// A MAPPED-TYPE DISTRIBUTION IS RESOLVED, NOT REFUSED (#1047, 2026-09-01). `{ [K in <union>]: <template>
+// }[<union>]` is the house §5.5 spelling of a per-key arm set (`WorkloadEvent`'s `succeeded`), and the
+// INDEX ERASES THE MAPPED KEYS: the wire fields are the TEMPLATE's own members, identical for every arm.
+// So the reader resolves the constraint into its finite member set and walks the template ONCE; the
+// mapped key itself is never a field. It distributes ONLY when both the constraint and the index resolve
+// to finite string-literal sets (an inline union, an alias chain, or `(typeof <TUPLE>)[number]` read
+// through `lib/tuple-read.ts` — the one home for that question, #942) and the index is a non-empty SUBSET
+// of the constraint. Everything else keeps the open-key-space refusal: a `string`/`keyof`/generic
+// constraint, an `as` key remapping, an out-of-constraint index, and — one level down, by its own
+// unmodelled-shape arm — a CONDITIONAL template, the one shape that would make reading the template once
+// a lie about the other arms. THE NON-TRANSITIVE BOUNDARY IS UNCHANGED BY THIS: the template's
+// `readonly result: WorkloadResultByKind[K]` contributes the field name `result` and STOPS — an indexed
+// access into a NAMED map is a shape the field REFERENCES, separately homed, exactly like `MessageView`.
+//
 // AN OPEN KEY SPACE IS REFUSED, NOT SKIPPED (#1024, 2026-09-01). The contract headers this gate backs
 // (`contracts/chat/bus.ts`, `contracts/user-bus/index.ts`) state the invariant as "no `unknown`/`Record`/
 // index field". ONLY `ChatBusEvent` has a type-level pin for it (`tests/contracts/chat/index.test-d.ts` —
@@ -81,27 +95,38 @@
 // ROOM stream (`RpgBusEvent` — fanned to every subscriber of an open room exactly like `ChatBusEvent`) and
 // `AutomationBusEvent` were outside BOTH D16 arms: not in this gate's population AND not in the
 // dep-cruiser `bus-contract-no-credentials` rule's path scope, which also missed world-info. The gate now
-// scans seven homes (+50 members on the live tree, still zero findings) and the cruiser rule's `from` path
-// covers chat|user-bus|notifications|events|world-info|rpg|automation|workloads.
-//   FORKED, NOT SILENTLY DROPPED — `WorkloadEvent` (`contracts/workloads/events.ts`) is the one live union
-//   still outside this gate's population, because it declares `succeeded.result?: unknown` DELIBERATELY,
-//   with a written argument (the per-kind shapes are `WorkloadResultByKind`, resolved by the reader that
-//   knows the kind). Admitting it would RED the open-value arm on that field, and the two honest answers —
-//   discriminate `result` per kind, or grant a cited exemption row — are both owner/architecture calls, not
-//   a gate lane's. Its resolve-time arm IS closed (the cruiser rule now covers `workloads/`). Ends when the
-//   owner rules on `result`.
+// scans EIGHT homes and the cruiser rule's `from` path covers
+// chat|user-bus|notifications|events|world-info|rpg|automation|workloads.
+//   THE FORK IS CLOSED (#1047, owner ruling 2026-09-01). `WorkloadEvent` (`contracts/workloads/events.ts`)
+//   was the one live union outside this population, because `succeeded.result?: unknown` would have RED the
+//   open-value arm and the two honest answers — discriminate per kind, or grant a cited exemption row —
+//   were owner calls. The owner ruled DISCRIMINATE: `result` is now `WorkloadResultByKind[K]` under the
+//   §5.5 distribution, so the union is ADMITTED to the field-name arm with no exemption row and no marker.
+//   Its resolve-time arm was already closed (the cruiser rule covers `workloads/`).
 //
 // DECLARED LIMITS, each with a `mustPass` row: (1) a NAMED alias of an open shape (`type Meta =
 // Record<string, string>` used as a field type) is not resolved — that is the non-transitive boundary
 // above, and reversing it is a ruling, not an omission; `Record` itself is matched BY NAME because the
 // name is global and unambiguous. (2) A notification property VALUE that is a bare imported identifier is
 // the same referenced-payload case and is not descended. (3) An arms ARRAY that is not spelled as an array
-// literal is reported rather than resolved.
-import type { InterfaceDeclaration, Node, PropertyAccessExpression, TypeAliasDeclaration, VariableDeclaration } from "ts-morph";
+// literal is reported rather than resolved. (4) A distributed template's indexed access into a NAMED map
+// (`WorkloadResultByKind[K]`) contributes the field name and stops — the same boundary as (1), reached
+// through the mapped-type reader.
+import type {
+  IndexedAccessTypeNode,
+  InterfaceDeclaration,
+  Node,
+  PropertyAccessExpression,
+  TypeAliasDeclaration,
+  TypeReferenceNode,
+  UnionTypeNode,
+  VariableDeclaration,
+} from "ts-morph";
 import { Node as N, SyntaxKind } from "ts-morph";
 import type { ExemptionTable, GateDescriptor, GateRunCtx } from "../contract/gate.ts";
 import { unwrapExpression } from "../lib/ast-read.ts";
 import { fileLoaded } from "../lib/pass.ts";
+import { readTupleDeclaration } from "../lib/tuple-read.ts";
 
 // The bus event UNION declarations, by their one-home paths. The gate reads these files and picks out the
 // named declarations below — it does NOT flag every property in these large contract files.
@@ -116,6 +141,9 @@ const BUS_FILES = new Set([
   // automation bus. Both were outside this population AND outside the dep-cruiser tier-1 arm.
   "packages/contracts/src/rpg/bus.ts",
   "packages/contracts/src/automation/index.ts",
+  // #1047: the workloads lifecycle stream, admitted once its `succeeded.result` stopped being `unknown`
+  // (the fork that kept it out is in the header, now closed).
+  "packages/contracts/src/workloads/events.ts",
 ]);
 
 // The type-alias / interface declaration names that ARE bus event payload shapes (the ROOTS of the member
@@ -132,6 +160,7 @@ const BUS_DECL_NAMES = new Set([
   "AssetCreatedEvent",
   "RpgBusEvent",
   "AutomationBusEvent",
+  "WorkloadEvent",
 ]);
 const NOTIFICATION_SCHEMA_NAME = "notificationEventSchema";
 
@@ -182,8 +211,10 @@ const seenMembers = new Set<string>();
 /** The per-pass member census — the semantic denominator this gate declares through `ctx.scan`, so a drop
  *  is visible even when the file count is unchanged (the audit's prevention program #1). `revisits` counts
  *  identity references to a declaration ALREADY walked this pass (a carrier two roots share) — a real
- *  contribution for the per-root alarm below, even though it adds no new member. */
-const census = { events: 0, local: 0, inherited: 0, carriers: new Set<string>(), refPayloads: 0, namedArms: 0, revisits: 0 };
+ *  contribution for the per-root alarm below, even though it adds no new member. `distributions` counts
+ *  the §5.5 mapped-type arms this reader RESOLVED (#1047): the day that number falls to zero while the
+ *  spelling is still on the tree, the reader stopped reaching a live union's members. */
+const census = { events: 0, local: 0, inherited: 0, carriers: new Set<string>(), refPayloads: 0, namedArms: 0, revisits: 0, distributions: 0 };
 
 /** Fail-closed reports made this pass. THE PER-ROOT ALARM READS THIS (#1030 F3): a root that yielded no
  *  member, deferred to no other named root, and produced no refusal taught the reader NOTHING — a schema or
@@ -226,9 +257,11 @@ const MESSAGE =
   "`unresolved-schema:<Name>` or `unsupported-shape:<Kind>` is the " +
   "FAIL-CLOSED arm: the reader could not resolve that part of the event's identity, so it cannot prove no " +
   "credential hides behind it — keep a bus member a closed object literal (or a base declared in this " +
-  "workspace). AN OPEN KEY SPACE IS ALSO REFUSED: an index signature, a mapped type, a `Record<…>` or an " +
-  "`unknown`/`any` field declares no key vocabulary at all, so nothing anywhere can scan what rides " +
-  "inside it — spell the keys out. See Core-Laws-and-Precedents.md D16 and " +
+  "workspace). AN OPEN KEY SPACE IS ALSO REFUSED: an index signature, a `Record<…>`, an `unknown`/`any` " +
+  "field, or a mapped type whose key space is not a finite string-literal union declares no key " +
+  "vocabulary at all, so nothing anywhere can scan what rides inside it — spell the keys out. The house " +
+  "`{ [K in <union>]: <template> }[<union>]` distribution IS read (its index erases the keys, so the wire " +
+  "fields are the template's), provided the union resolves. See Core-Laws-and-Precedents.md D16 and " +
   "tooling/src/verify/gates/bus-payload-allowlist.ts.";
 
 function relPath(root: string, abs: string): string {
@@ -333,6 +366,153 @@ function resolveNamedTypes(nameNode: Node, root: string): readonly NamedTypeDecl
   });
 }
 
+/** How many alias hops the constraint resolver follows before refusing — a cycle/pathology fence. */
+const CONSTRAINT_HOPS = 6;
+
+/** Strip parentheses off a type node so the shape underneath is reachable (the type-node twin of
+ *  `ast-read.ts`'s `unwrapExpression`). */
+function unwrapType(typeNode: Node): Node {
+  let current = typeNode;
+  while (N.isParenthesizedTypeNode(current)) {
+    current = current.getTypeNode();
+  }
+  return current;
+}
+
+/** The tuple's members, or an EMPTY set when `tuple-read` refuses it. Its THROW becomes THIS gate's own
+ *  loud refusal (the caller reports a fail-closed token on a zero-member vocabulary) rather than an
+ *  exit-2 tool error: under D16 a wire shape the reader cannot establish IS the violation, not a broken
+ *  checker. Nothing is swallowed — the empty set is a refusal the caller must act on. */
+function tupleMembersOrEmpty(decl: VariableDeclaration): ReadonlySet<string> {
+  // @orb-gate-ignore caught-failure-ownership(empty:catch): the failure IS owned and surfaced — tuple-read THROWS to say "I cannot establish this vocabulary", and the empty set returned here makes `literalUnionMembers` answer undefined, which makes `readIndexedAccess` answer `unprovable`, which REPORTS `unsupported-shape:MappedType` at the member. Converting it to a D16 finding rather than an exit-2 tool error is the ruling in this gate's header: an unprovable bus shape is the violation, not a broken checker. Ends if this return value stops feeding a fail-closed report.
+  try {
+    return readTupleDeclaration(decl).members;
+  } catch {
+    return new Set<string>();
+  }
+}
+
+/** `(typeof <TUPLE>)[number]` — the house spelling of a vocabulary union (§5.5). Resolved through
+ *  `tuple-read.ts`, the ONE home for "which string members does this `as const` tuple actually have"
+ *  (#942), so a member that moved behind a spread is still counted. */
+function tupleUnionMembers(node: IndexedAccessTypeNode, root: string): ReadonlySet<string> | undefined {
+  if (node.getIndexTypeNode().getKind() !== SyntaxKind.NumberKeyword) {
+    return;
+  }
+  const query = unwrapType(node.getObjectTypeNode());
+  if (!N.isTypeQuery(query)) {
+    return;
+  }
+  const name = query.getExprName();
+  if (!N.isIdentifier(name)) {
+    return;
+  }
+  const decl = name.getDefinitionNodes().find((def): def is VariableDeclaration => {
+    if (!N.isVariableDeclaration(def)) {
+      return false;
+    }
+    const path = def.getSourceFile().getFilePath();
+    return path.startsWith(root) && !path.includes("/node_modules/") && def.getInitializer() !== undefined;
+  });
+  if (decl === undefined) {
+    return;
+  }
+  const members = tupleMembersOrEmpty(decl);
+  return members.size > 0 ? members : undefined;
+}
+
+/** Every arm of a union position, merged — undefined the moment ONE arm is unreadable, because a
+ *  partially-read vocabulary is a smaller denominator wearing a resolved answer's clothes. */
+function unionMembers(node: UnionTypeNode, root: string, hops: number): ReadonlySet<string> | undefined {
+  const members = new Set<string>();
+  for (const part of node.getTypeNodes()) {
+    const partMembers = literalUnionMembers(part, root, hops + 1);
+    if (partMembers === undefined) {
+      return;
+    }
+    for (const member of partMembers) {
+      members.add(member);
+    }
+  }
+  return members.size > 0 ? members : undefined;
+}
+
+/** The alias a NAME resolves to, when it resolves to exactly ONE type alias in this workspace. One or
+ *  nothing: two same-named declarations is the ambiguity a reader must not silently pick from (#1030 F2,
+ *  in the direction where a wrong guess WIDENS the green). */
+function soleAliasFor(node: TypeReferenceNode, root: string): TypeAliasDeclaration | undefined {
+  const decls = resolveNamedTypes(node.getTypeName(), root);
+  const [only] = decls;
+  return decls.length === 1 && only !== undefined && N.isTypeAliasDeclaration(only) ? only : undefined;
+}
+
+/** The FINITE set of string members a type position enumerates, or undefined when this reader cannot
+ *  establish it. Sanctioned spellings and no others: an inline string-literal union, an alias chain of
+ *  them, and `(typeof <TUPLE>)[number]`. A `string`/`keyof X`/generic-parameter constraint, or a name that
+ *  resolves ambiguously, comes back undefined — which the caller turns into a fail-closed refusal. */
+function literalUnionMembers(typeNode: Node | undefined, root: string, hops: number): ReadonlySet<string> | undefined {
+  if (typeNode === undefined || hops > CONSTRAINT_HOPS) {
+    return;
+  }
+  const node = unwrapType(typeNode);
+  if (N.isLiteralTypeNode(node)) {
+    const literal = node.getLiteral();
+    return N.isStringLiteral(literal) ? new Set([literal.getLiteralText()]) : undefined;
+  }
+  if (N.isUnionTypeNode(node)) {
+    return unionMembers(node, root, hops);
+  }
+  if (N.isIndexedAccessTypeNode(node)) {
+    return tupleUnionMembers(node, root);
+  }
+  return N.isTypeReference(node) ? literalUnionMembers(soleAliasFor(node, root)?.getTypeNode(), root, hops + 1) : undefined;
+}
+
+/** What an `X[I]` type node in a member position IS, for this reader. */
+type IndexedRead =
+  /** `Named[K]` — a shape the position REFERENCES, so the non-transitive boundary decides it. */
+  | { readonly kind: "referenced" }
+  /** A mapped type whose key space this reader cannot enumerate — an open key space, fail closed. */
+  | { readonly kind: "unprovable" }
+  /** `{ [K in <finite union>]: T }[<subset>]` — the arms are provable and T is their shared shape. */
+  | { readonly kind: "distributed"; readonly template: Node };
+
+/** Read the §5.5 MAPPED-TYPE DISTRIBUTION `{ [K in <union>]: <template> }[<union>]` (#1047, the
+ *  `WorkloadEvent` succeeded arm). The INDEX ERASES THE MAPPED KEYS, so the wire fields are the
+ *  template's own members — identical for every arm, which is why the template is walked ONCE and the
+ *  mapped key itself is never a field.
+ *
+ *  It distributes only when BOTH the constraint and the index resolve to finite string-literal sets and
+ *  the index is a non-empty SUBSET of the constraint. Everything else is UNPROVABLE and fails closed: a
+ *  `string`/`keyof`/generic constraint declares no key vocabulary at all, an `as` key remapping changes
+ *  which arms the index selects, and an index outside the constraint selects arms never enumerated.
+ *
+ *  AND A CONDITIONAL TEMPLATE IS REFUSED HERE, not one level down. `K extends … ? A : B` is the one shape
+ *  whose FIELD NAMES vary per arm, which is exactly what makes reading the template once sound; the
+ *  identity walker would refuse it by kind, but the FIELD walker is permissive about unmodelled type
+ *  nodes, so the only place the refusal holds for BOTH positions is the decision to distribute at all. */
+function readIndexedAccess(node: IndexedAccessTypeNode, root: string): IndexedRead {
+  const object = unwrapType(node.getObjectTypeNode());
+  if (!N.isMappedTypeNode(object)) {
+    return { kind: "referenced" };
+  }
+  const template = object.getTypeNode();
+  if (template === undefined || object.getNameTypeNode() !== undefined || N.isConditionalTypeNode(unwrapType(template))) {
+    return { kind: "unprovable" };
+  }
+  const constraint = literalUnionMembers(object.getTypeParameter().getConstraint(), root, 0);
+  const index = literalUnionMembers(node.getIndexTypeNode(), root, 0);
+  if (constraint === undefined || index === undefined || index.size === 0) {
+    return { kind: "unprovable" };
+  }
+  for (const member of index) {
+    if (!constraint.has(member)) {
+      return { kind: "unprovable" };
+    }
+  }
+  return { kind: "distributed", template };
+}
+
 /** One frame of the identity walk: who is asking, and where a shapeless verdict is anchored. There is no
  *  depth cap and none is needed — `walkedDecls` makes every declaration walkable exactly once per pass, so
  *  a cycle terminates and a long chain costs one visit per link. */
@@ -383,6 +563,33 @@ function walkMembers(members: readonly Node[], frame: WalkFrame): void {
   }
 }
 
+/** The two MAPPED-TYPE shapes a field's own type can spell, judged together; true when this node was one
+ *  of them and has been handled. A BARE mapped type puts its KEYS on the wire under this field, and this
+ *  reader cannot judge a key vocabulary it did not author, so it stays refused (unchanged). The INDEXED
+ *  form erases those keys, so a provable distribution is DESCENDED — its template is spelled inline
+ *  inside the event, exactly like an inline `{ … }` literal, and its keys ride the wire under the event's
+ *  own name. `Named[K]` — the live `result: WorkloadResultByKind[K]` — is a shape the field REFERENCES
+ *  and stops at the non-transitive boundary, contributing the field name `result` and nothing more. */
+function walkFieldMappedShape(typeNode: Node, frame: WalkFrame): boolean {
+  if (N.isMappedTypeNode(typeNode)) {
+    reportShape(frame.ctx, typeNode, `${UNSUPPORTED_TOKEN}MappedType`);
+    return true;
+  }
+  if (!N.isIndexedAccessTypeNode(typeNode)) {
+    return false;
+  }
+  const read = readIndexedAccess(typeNode, frame.ctx.root);
+  if (read.kind === "distributed") {
+    census.distributions += 1;
+    walkFieldType(read.template, frame);
+    return true;
+  }
+  if (read.kind === "unprovable") {
+    reportShape(frame.ctx, typeNode, `${UNSUPPORTED_TOKEN}MappedType`);
+  }
+  return true;
+}
+
 /** Judge a wire field's OWN spelled type: refuse an open key space, and descend an INLINE object literal
  *  (spelled inside the event, so its keys ride the wire under the event's own name). A NAMED reference is
  *  never resolved — that is the non-transitive boundary, and `Record` is the one name matched literally. */
@@ -412,8 +619,7 @@ function walkFieldType(typeNode: Node | undefined, frame: WalkFrame): void {
     walkMembers(typeNode.getMembers(), frame);
     return;
   }
-  if (N.isMappedTypeNode(typeNode)) {
-    reportShape(frame.ctx, typeNode, `${UNSUPPORTED_TOKEN}MappedType`);
+  if (walkFieldMappedShape(typeNode, frame)) {
     return;
   }
   if (N.isTypeReference(typeNode)) {
@@ -452,10 +658,28 @@ function walkTypeNode(typeNode: Node | undefined, frame: WalkFrame): void {
     followIdentityRef(typeNode.getTypeName(), typeNode, frame.ctx);
     return;
   }
+  if (N.isIndexedAccessTypeNode(typeNode)) {
+    walkDistributionNode(typeNode, frame);
+    return;
+  }
   if (MEMBERLESS_KINDS.has(typeNode.getKind())) {
     return;
   }
   reportShape(frame.ctx, typeNode, `${UNSUPPORTED_TOKEN}${typeNode.getKindName()}`);
+}
+
+/** The §5.5 distribution in an IDENTITY position — `WorkloadEvent`'s succeeded arm (#1047). A provable
+ *  one is walked through its template; anything else keeps the fail-closed verdict it always had, named
+ *  by its cause: `MappedType` for a key space this reader cannot enumerate, `IndexedAccessType` for an
+ *  indexed NAMED shape (no mapped type to enumerate — the union arm should be spelled out). */
+function walkDistributionNode(typeNode: IndexedAccessTypeNode, frame: WalkFrame): void {
+  const read = readIndexedAccess(typeNode, frame.ctx.root);
+  if (read.kind === "distributed") {
+    census.distributions += 1;
+    walkTypeNode(read.template, frame);
+    return;
+  }
+  reportShape(frame.ctx, typeNode, `${UNSUPPORTED_TOKEN}${read.kind === "unprovable" ? "MappedType" : typeNode.getKindName()}`);
 }
 
 /** Walk one declaration's members + its identity references. Deduped so a shared carrier is walked once. */
@@ -691,12 +915,13 @@ export const gate: GateDescriptor = {
     census.refPayloads = 0;
     census.namedArms = 0;
     census.revisits = 0;
+    census.distributions = 0;
     shapeReports = 0;
     emptyRoots.clear();
   },
   finalize: (ctx) => {
     ctx.scan({
-      unit: `wire-event member [events=${census.events} local=${census.local} inherited=${census.inherited} carriers=${census.carriers.size} refPayloadsNotFollowed=${census.refPayloads}]`,
+      unit: `wire-event member [events=${census.events} local=${census.local} inherited=${census.inherited} carriers=${census.carriers.size} refPayloadsNotFollowed=${census.refPayloads} distributions=${census.distributions}]`,
       candidates: census.local + census.inherited,
       scanned: census.local + census.inherited,
       skipped: { "arm scanned at its own named root": census.namedArms },
@@ -855,6 +1080,25 @@ export const gate: GateDescriptor = {
       expect: { count: 1, messageIncludes: "ZERO wire members" },
       why: "THE EMPTY-DENOMINATOR ARM (#1030 F3): the name still resolves, so the §4.6 blindness sweep stays quiet by construction — a refactor that hollows a root out is invisible to every other arm, and a gate scanning nothing reports a healthy green forever",
     },
+    {
+      files:
+        'export type WorkloadEvent = { [K in "index" | "assets-gc"]: { readonly type: "succeeded"; readonly kind: K; readonly apiKey: string } }["index" | "assets-gc"];\n',
+      at: "packages/contracts/src/workloads/events.ts",
+      expect: { count: 1, token: "apiKey" },
+      why: "THE MAPPED-TYPE DISTRIBUTION IS READ, NOT WAVED THROUGH (#1047): the reader resolves the arm set and scans the TEMPLATE's members, so a credential spelled inside the §5.5 distribution is reported. Without this row the admission of the workloads home would be a green that scanned nothing",
+    },
+    {
+      files: 'export type ChatBusEvent = { [K in string]: { readonly type: "x" } }[string];\n',
+      at: "packages/contracts/src/chat/bus.ts",
+      expect: { count: 1, token: "unsupported-shape:MappedType" },
+      why: "THE FAIL-CLOSED HALF of the same arm: a constraint that is not a finite string-literal union enumerates no arms, so the reader cannot prove the template it would read is the whole wire shape — it refuses instead of distributing",
+    },
+    {
+      files: 'export type ChatBusEvent = { type: "x"; payload: { [K in "a" | "b"]: { readonly apiKey: string } }["a" | "b"] };\n',
+      at: "packages/contracts/src/chat/bus.ts",
+      expect: { count: 1, token: "apiKey" },
+      why: "the FIELD-position twin: an inline distribution's keys ride the wire under the event's own name exactly like an inline object literal's, and this position passed SILENTLY before #1047 — no refusal, no member, nothing to see",
+    },
   ],
   mustPass: [
     {
@@ -918,6 +1162,17 @@ export const gate: GateDescriptor = {
           'import { z } from "zod";\nimport { inboxBase } from "./base.ts";\nexport const notificationEventSchema = z.discriminatedUnion("type", [inboxBase.extend({ inviteId: z.string() })]);\n',
       },
       why: "THE GREEN TWIN of the imported-initializer arm: an imported base carrying only ids is RESOLVED, counted as an inherited member with its carrier, and passes — the resolver widens what is SEEN, never what is flagged",
+    },
+    {
+      files: {
+        "packages/contracts/src/workloads/axes.ts":
+          'export const WORKLOAD_KINDS = ["index", "assets-gc"] as const;\nexport type WorkloadKind = (typeof WORKLOAD_KINDS)[number];\n',
+        "packages/contracts/src/workloads/result.ts":
+          'export interface WorkloadResultByKind {\n  index: { readonly apiKey: string };\n  "assets-gc": { readonly scanned: number };\n}\n',
+        "packages/contracts/src/workloads/events.ts":
+          'import type { WorkloadKind } from "./axes.ts";\nimport type { WorkloadResultByKind } from "./result.ts";\nexport type WorkloadEvent = {\n  [K in WorkloadKind]: { readonly type: "succeeded"; readonly kind: K; readonly result: WorkloadResultByKind[K] };\n}[WorkloadKind];\n',
+      },
+      why: "A DECLARED LIMIT (#1047), the live `WorkloadEvent` shape: the constraint is resolved through the `(typeof TUPLE)[number]` axis and the template's members are scanned, but `result`'s indexed access into the NAMED `WorkloadResultByKind` is a shape the field REFERENCES — its `apiKey` belongs to that map's own home, exactly like `MessageView`'s. Reversing this is the same whole-graph-crawler ruling #948 declined; the boundary is measured as `refPayloadsNotFollowed`",
     },
   ],
 };

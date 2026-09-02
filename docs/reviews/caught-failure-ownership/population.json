@@ -2,18 +2,18 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 443,
-    "enforced": 440,
+    "sites": 444,
+    "enforced": 441,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 440,
+      "deliberate-absorb": 441,
       "detached-owned": 3,
       "unproven": 0
     },
     "byGrammar": {
       "promise": 124,
       "default": 127,
-      "empty": 192
+      "empty": 193
     }
   },
   "rows": [
@@ -5450,6 +5450,19 @@
       "verdict": "deliberate-absorb",
       "reason": "the stage boot failure is printed via stageBootRefusal and returned as EXIT.toolError — propagated through both the message and the exit code. Ends if either is dropped.",
       "markerLine": 42
+    },
+    {
+      "siteId": "tooling/src/verify/gates/bus-payload-allowlist.ts::empty:catch::1",
+      "path": "tooling/src/verify/gates/bus-payload-allowlist.ts",
+      "line": 390,
+      "column": 5,
+      "grammar": "empty",
+      "position": "empty:catch",
+      "ordinal": 1,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "the failure IS owned and surfaced — tuple-read THROWS to say \"I cannot establish this vocabulary\", and the empty set returned here makes `literalUnionMembers` answer undefined, which makes `readIndexedAccess` answer `unprovable`, which REPORTS `unsupported-shape:MappedType` at the member. Converting it to a D16 finding rather than an exit-2 tool error is the ruling in this gate's header: an unprovable bus shape is the violation, not a broken checker. Ends if this return value stops feeding a fail-closed report.",
+      "markerLine": 387
     },
     {
       "siteId": "tooling/src/verify/gates/depcruise-grant-liveness.ts::empty:catch::1",

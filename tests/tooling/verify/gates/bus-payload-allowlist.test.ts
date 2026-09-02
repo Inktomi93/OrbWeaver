@@ -143,6 +143,9 @@ const HEALTHY_CORPUS: Readonly<Record<string, string>> = {
   // how this fixture caught the widening the moment it landed.
   [RPG_BUS]: 'export type RpgBusEvent = { type: "gameChanged"; chatId: string };\n',
   [AUTOMATION]: 'export type AutomationBusEvent = { type: "ruleFired"; chatId: string; ruleId: string };\n',
+  // #1047: the workloads home, admitted once its `succeeded.result` was discriminated per kind. It is a
+  // root name now, so the blindness arm reds unless this corpus declares it.
+  "packages/contracts/src/workloads/events.ts": 'export type WorkloadEvent = { type: "started"; workloadId: string };\n',
 };
 
 test("a healthy real-sized corpus is CLEAN — the blindness sweep is not a standing false positive", () => {
@@ -372,4 +375,111 @@ test("markerImmune reaches the FAIL-CLOSED tokens too — an unresolvable base c
       '// @orb-gate-ignore bus-payload-allowlist: probe — a marker must never absolve an unreadable wire shape\nexport interface CharacterUpdatedEvent extends UnknowableBase {\n  readonly type: "character.updated";\n}\n',
   });
   expect(found.map((f) => f.token)).toEqual(["unresolved-base:UnknowableBase"]);
+});
+
+// ── #1047: the §5.5 MAPPED-TYPE DISTRIBUTION `{ [K in <union>]: <template> }[<union>]` ────────────────
+// `WorkloadEvent`'s succeeded arm is spelled this way, and admitting the workloads home to the population
+// is what these pins protect. RED-FIRST against the pre-#1047 gate: the workloads home was not in
+// `BUS_FILES` at all (census `events=0`, zero findings — a whole live wire union unscanned), an
+// identity-position distribution REFUSED as `unsupported-shape:IndexedAccessType`, and a FIELD-position
+// one passed SILENTLY (`walkFieldType` modelled no indexed access, so an inline distribution's keys rode
+// the wire unread).
+const WORKLOADS = "packages/contracts/src/workloads/events.ts";
+const WORKLOAD_AXES = "packages/contracts/src/workloads/axes.ts";
+const WORKLOAD_RESULT = "packages/contracts/src/workloads/result.ts";
+
+/** The live `WorkloadEvent` shape in miniature: a `(typeof TUPLE)[number]` kind axis in its own file, a
+ *  per-kind result map in another, and the succeeded arm spelled as the distribution over both. The
+ *  template body is spliced in so one fixture drives the clean case and the leaking case. */
+function workloadsProject(template: string): Record<string, string> {
+  return {
+    [WORKLOAD_AXES]: 'export const WORKLOAD_KINDS = ["index", "assets-gc"] as const;\nexport type WorkloadKind = (typeof WORKLOAD_KINDS)[number];\n',
+    [WORKLOAD_RESULT]: 'export interface WorkloadResultByKind {\n  index: { readonly apiKey: string };\n  "assets-gc": { readonly scanned: number };\n}\n',
+    [WORKLOADS]:
+      'import type { WorkloadKind } from "./axes.ts";\n' +
+      'import type { WorkloadResultByKind } from "./result.ts";\n' +
+      "interface WorkloadEventRow {\n  readonly workloadId: string;\n  readonly at: number;\n}\n" +
+      `type WorkloadSucceededEvent = {\n  [K in WorkloadKind]: WorkloadEventRow & {\n${template}  };\n}[WorkloadKind];\n` +
+      'export type WorkloadEvent = (WorkloadEventRow & { readonly type: "started" }) | WorkloadSucceededEvent;\n',
+  };
+}
+
+/** The real template: a literal discriminant, the mapped KEY under its own field name, and the per-kind
+ *  result reached by indexed access into a NAMED map. */
+const CLEAN_TEMPLATE = '    readonly type: "succeeded";\n    readonly kind: K;\n    readonly result: WorkloadResultByKind[K];\n';
+
+/** The findings' tokens, for the multi-assertion shape rows below. */
+function tokens(files: Readonly<Record<string, string>>): readonly (string | undefined)[] {
+  return findings(files).map((f) => f.token);
+}
+
+test("the distribution over a `(typeof TUPLE)[number]` axis RESOLVES, and the result map it REFERENCES stays undescended", () => {
+  // `WorkloadResultByKind.index` carries `apiKey`. It is a NAMED type the `result` FIELD references, so the
+  // non-transitive boundary holds and this passes — the reader resolved the arm set without widening what
+  // it flags into a whole-graph crawl.
+  const gateResult = result(workloadsProject(CLEAN_TEMPLATE));
+  expect(gateResult.findings).toEqual([]);
+  expect(gateResult.scan.declared?.unit).toContain("events=1 local=1 inherited=5 carriers=1");
+  expect(gateResult.scan.declared?.unit).toContain("distributions=1");
+});
+
+test("the reader READS the distributed template's members — a credential spelled there is reported", () => {
+  // Without this the pass above would be vacuous: a reader that merely stops refusing, and scans nothing,
+  // is the false green the whole gate exists to prevent.
+  const found = findings(workloadsProject(`${CLEAN_TEMPLATE}    readonly apiKey: string;\n`));
+  expect(found.map((f) => f.token)).toEqual(["apiKey"]);
+  expect(found[0]?.file).toBe(WORKLOADS);
+});
+
+test("a distribution whose key space the reader cannot ENUMERATE still fails closed", () => {
+  // A `string` constraint declares no vocabulary at all — the pre-#1024 open-key-space verdict is unchanged.
+  expect(tokens({ [CHAT_BUS]: 'export type ChatBusEvent = { [K in string]: { readonly type: "x" } }[string];\n' })).toEqual(["unsupported-shape:MappedType"]);
+  // …and it cannot be laundered through an alias: the constraint is resolved, not pattern-matched.
+  expect(tokens({ [CHAT_BUS]: 'type Anything = string;\nexport type ChatBusEvent = { [K in Anything]: { readonly type: "x" } }[Anything];\n' })).toEqual([
+    "unsupported-shape:MappedType",
+  ]);
+  // A key REMAPPING clause changes which arms the index selects, so the reader refuses rather than guess.
+  expect(tokens({ [CHAT_BUS]: 'export type ChatBusEvent = { [K in "a" | "b" as Uppercase<K>]: { readonly type: "x" } }["A" | "B"];\n' })).toEqual([
+    "unsupported-shape:MappedType",
+  ]);
+  // An index that is not a subset of the constraint selects arms this reader never enumerated.
+  expect(tokens({ [CHAT_BUS]: 'export type ChatBusEvent = { [K in "a" | "b"]: { readonly type: "x" } }["a" | "c"];\n' })).toEqual([
+    "unsupported-shape:MappedType",
+  ]);
+  // A CONDITIONAL template makes the field names vary per arm — the one shape that would make reading the
+  // template once a lie — so the distribution is refused rather than descended. It is refused at the
+  // DECISION, not by the identity walker's kind arm, because the FIELD walker is permissive about
+  // unmodelled type nodes and would otherwise let `{ payload: <that> }` through in silence (asserted next).
+  const conditional = 'export type ChatBusEvent = { [K in "a" | "b"]: K extends "a" ? { readonly apiKey: string } : { readonly type: "x" } }["a" | "b"];\n';
+  expect(tokens({ [CHAT_BUS]: conditional })).toEqual(["unsupported-shape:MappedType"]);
+  expect(
+    tokens({
+      [CHAT_BUS]:
+        'export type ChatBusEvent = { type: "x"; payload: { [K in "a" | "b"]: K extends "a" ? { readonly apiKey: string } : { readonly type: "y" } }["a" | "b"] };\n',
+    }),
+  ).toEqual(["unsupported-shape:MappedType"]);
+  // And a NAMED object type indexed in an identity position is untouched by the widening: there is no
+  // mapped type to enumerate, so the fail-closed verdict stands exactly as before.
+  expect(tokens({ [CHAT_BUS]: 'interface Bag {\n  readonly a: { readonly apiKey: string };\n}\nexport type ChatBusEvent = Bag["a"];\n' })).toEqual([
+    "unsupported-shape:IndexedAccessType",
+  ]);
+});
+
+test("an INLINE distribution in a FIELD position is read, and an unreadable one is refused", () => {
+  // A field's inline shape rides the wire under the event's own name, so its keys are scanned — this
+  // passed SILENTLY before, which is a credential on a room-public event that nothing anywhere could see.
+  expect(
+    tokens({
+      [CHAT_BUS]: 'export type ChatBusEvent = { type: "x"; chatId: string; payload: { [K in "a" | "b"]: { readonly apiKey: string } }["a" | "b"] };\n',
+    }),
+  ).toEqual(["apiKey"]);
+  // The same position with an unenumerable key space is refused rather than passed over.
+  expect(tokens({ [CHAT_BUS]: 'export type ChatBusEvent = { type: "x"; payload: { [K in string]: string }[string] };\n' })).toEqual([
+    "unsupported-shape:MappedType",
+  ]);
+  // A nested mapped type inside a distributed template is NOT itself a distribution — it declares keys of
+  // its own and is refused where it sits.
+  expect(tokens(workloadsProject(`${CLEAN_TEMPLATE}    readonly nested: { [P in "a"]: string };\n`))).toEqual(["unsupported-shape:MappedType"]);
+  // An index signature intersected into the template reaches the open-key-space arm through the new path.
+  expect(tokens(workloadsProject(`${CLEAN_TEMPLATE}  } & {\n    readonly [k: string]: unknown;\n`))).toEqual(["unsupported-shape:IndexSignature"]);
 });
