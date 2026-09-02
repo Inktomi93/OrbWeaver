@@ -138,7 +138,8 @@ the precedents, and the cell + `contract/gate.ts`'s comment are updated to name 
   working clean → silent; working carries it → arm A/B reports it as working-tree); an anchored root with
   no git → refuses loudly; and the REAL tree through `projectCtx` + `runPass` → zero findings with a
   non-zero denominator (the post-migration receipt in test form, so it keeps proving).
-- `check-gates.int` fixture: `tests/__g_blanket.test.ts` carrying a top-of-file `-all`.
+- `check-gates.int` fixture: a runtime-planted `__g_blanket` test file under the tests root (never on disk —
+  the harness plants and removes it) carrying a top-of-file `-all`.
 
 ## 3. The migration (per rule class; live-diagnostic counts from `probe:diags`, line numbers in stripped-file coordinates)
 
