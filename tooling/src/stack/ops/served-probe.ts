@@ -24,6 +24,7 @@ import { print, REPO_ROOT } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { ExitCode } from "../../_shared/exit-contract.ts";
 import { EXIT } from "../../_shared/exit-contract.ts";
+import { DEV_PORTS } from "../../_shared/ports.ts";
 import type { ServedVerdict } from "../contract/types.ts";
 import { newestSourceEntries } from "../lib/source-scan.ts";
 import { classifyServedTransform } from "../lib/verdicts.ts";
@@ -41,7 +42,7 @@ const CANDIDATE_DEPTH = 5;
 // A CEILING, load-scaled through the one policy (#1232): the literal is the QUIET-BOX base.
 const FETCH_TIMEOUT_MS_BASE = 3000;
 const FETCH_TIMEOUT_MS = budget(FETCH_TIMEOUT_MS_BASE);
-const DEFAULT_VITE_PORT = 5173;
+const DEFAULT_VITE_PORT = DEV_PORTS.vite;
 const HTTP_OK = 200;
 
 function vitePort(): number {

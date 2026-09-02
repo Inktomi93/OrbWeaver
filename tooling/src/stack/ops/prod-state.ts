@@ -7,6 +7,7 @@ import { parseEnv } from "node:util";
 import { budget } from "@orb/tooling/_shared/load-budget";
 import { print, REPO_ROOT } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { DEV_PORTS } from "../../_shared/ports.ts";
 import { runNicedSync } from "../../_shared/proc.ts";
 import type { DebugPosture, InstanceClassification, ObservedInstance, ProdRecord } from "../contract/types.ts";
 import { classifyInstance } from "../lib/identity.ts";
@@ -16,7 +17,7 @@ import { classifyDebugPosture } from "../lib/verdicts.ts";
 
 refuseDirectInvocation(import.meta.url, "bash tooling/src/stack/stack.sh <verb>");
 
-const DEFAULT_PORT = 8788;
+const DEFAULT_PORT = DEV_PORTS.server;
 // A CEILING, load-scaled through the one policy (#1232): the literal is the QUIET-BOX base.
 const PROBE_TIMEOUT_MS_BASE = 2000;
 const PROBE_TIMEOUT_MS = budget(PROBE_TIMEOUT_MS_BASE);
