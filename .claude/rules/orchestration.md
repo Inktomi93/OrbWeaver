@@ -54,9 +54,10 @@ mid-run and act on them.
 - **Identify a lane by CONTENT ANCHOR + the dispatch map, never by role name.** Briefs tell lanes to state
   their LANE NAME in every back-channel message; you keep a lane-name→agentId map at dispatch time and
   ALWAYS reply by agentId — with N same-role lanes live, the role name is not an address.
-- **Briefs owe the wrapper-hygiene line** (the Bash guard classifies UNTRACKED script bodies). Also:
-  `tests/tooling/check-gates.int.test.ts` is NOT concurrency-safe with itself — never let a lane floor and
-  a drain battery overlap it.
+- **Briefs owe the wrapper-hygiene line** (the Bash guard classifies UNTRACKED script bodies).
+- **A pipeline's exit code is the LAST stage's** — `$?` after `<cmd> | tail` is tail's, so a red run reads
+  green. Redirect to a log and read it; never judge a run through a pipe.
+- **`gh` executes backticks inside `--body`** — every board/issue write uses `--body-file`, never `--body`.
 - **CODEX PROJECT ROLES USE `gpt-5.6-sol`** (owner, 2026-08-20), preserving each role's explicit reasoning
   effort; Claude uses its own explicit role models. Any ad-hoc agent or workflow fan-out **MUST set
   `model` explicitly** — it defaults to `inherit`, which makes routing unverifiable.
@@ -90,7 +91,11 @@ mid-run and act on them.
   constraint is the gate-heavy ceiling below.
 - **Overnight / finish / keep-going means autonomous queue execution** — re-derive, claim, dispatch,
   merge, verify and continue while safe work exists. Stop only for destructive or irreversible action,
-  owner-sacred product choices, a genuine scope pivot, or an origin push.
+  owner-sacred product choices, a genuine scope pivot, or an origin push. **Never emit a blocking prompt
+  for a PRE-AUTHORIZED op (the vLLM engines and the dev stack are ours to start/stop/restart), and a
+  stuck decision runs the ESCALATION LADDER — stickler pass → read the code with `pnpm ast` → search the
+  docs/ledger → judge against maximal/right-once/past-burns — before it may become a question that sits
+  till morning.**
 - **STANDING (owner, 2026-08-22): overnight mode IS the default posture** until the owner returns. The
   goal is a DRAINED Ready column: lanes filled to the cap, merge trains as lanes drain, barrier per train,
   refill from Ready, file-and-claim new findings, quiet holds only when Ready is empty and no lane is
@@ -102,6 +107,9 @@ mid-run and act on them.
   names (prefix `cb-`), report on stdout and check the bridge. Since 2026-08-24 claude-b is the DRIVING
   account, which needs no usage sentinel, no delegation and no bridge hop. The overflow clause, the
   `claude -p` spelling, the `~/.claude/bridge/` protocol and `SESSIONS.md` resume-never-re-mint: runbook.
+  **On main's checkout only ONE account commits** — a pathspec commit takes the whole working-tree file,
+  so the other account lands through a worktree branch → announce → ff, or hands its patch over in a
+  bridge note.
 - **POST-COMPACT / SESSION-START the AUTO-ONBOARD hook does the ritual** (`.claude/hooks/session-onboard.sh`
   injects the board, the bridge inbox, the claude-b registry pointer and the worktree count). ACT on that
   context instead of re-deriving it, and **never track the board from memory: `pnpm work:item overview`
@@ -147,9 +155,11 @@ it into the linked Project issue — no lane touches `work:item`.
 
 ## Merge / load discipline
 
-- **Cap concurrent GATE-HEAVY lanes at ~3 and stagger dispatches by minutes** — 5+ synchronize their
-  verification into load spikes that flake gates and starve the foreground. This is a FLAKE ceiling, not
-  a usage one; the overall lane cap lives on the board.
+- **MAX 3 CONCURRENT LANES OVERALL** (owner, 2026-08-28) — let over-cap lanes FINISH, never refill above
+  3. Gate-heavy lanes are ≤3 within that cap and staggered by minutes: 4+ synchronize their verification
+  into load spikes that flake gates and starve the foreground. This paragraph is the cap's home.
+- **A merge landed while a whole-tree check is running VOIDS that check** — its verdict describes a tree
+  that no longer exists. Barrier first, merge second.
 - **Under load:** merge with `--no-verify` on branch-side green receipts and run ONE consolidated check
   when lanes drain; track the debt on the board. Never chain board edits behind a possibly-conflicting
   merge in one command — a conflict mid-chain bakes markers into committed files.

@@ -134,6 +134,12 @@ have not seen its rule yet, READ IT BY PATH before you edit:
   consistent; a clean restart fixed it, zero code changes). Tells: a registry/composition page error the
   source refutes, plus a vite pid (`ps -o lstart`) older than the merge train. After a merge train, check
   the pid's age before taking rendered receipts; a receipt off a pre-train vite is void.
+- **NEVER execute `scripts/dev/engines.ts` — or any engine launcher, `--help` included — to "verify" it
+  while the live stack runs.** There is no dry-run and no help guard: the invocation spawns real vLLM
+  against the live ports and its pidfile reconciler reaps every engine process it does not own. A
+  launcher/config DIFF is verified by typecheck + unit tests + argv snapshots (`buildEngineArgv` exists
+  for exactly that). Bringing engines UP for a live drive when they are DOWN is separately authorized
+  (`pnpm engines`); the ban is on spawning to inspect.
 - **A log tail is NEVER a liveness check** — `.cache/stack/client.log`'s tail can belong to a DIFFERENT
   since-exited vite. Probe the served app (`data-app-ready` + page errors on a bare snap).
 - **`:5173` serves MAIN, never your worktree** (§L.6) — rendered proof from a lane comes from

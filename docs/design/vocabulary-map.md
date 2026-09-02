@@ -77,6 +77,31 @@ on-stage set is **the present characters**.
 **False stems — not this vocabulary:** `third-party` / `first-party`, `broadcast` / `forecast` /
 `podcast`, and `castId`. Any sweep or gate over these stems must fence them explicitly.
 
+## The connection register (D109's 6-mode canon)
+
+A connection is named by its `(api × source)` pair, never by a marketing word. `deriveRunner`
+(`infra/providers/roles/dispatch.ts`) IS the authority — it is exhaustive and fail-closed, so an
+unlisted pairing is a typed `ProviderError`, not a mode. These are the words to use in a brief, an
+issue or a review when naming which mode a receipt was taken on; the runner/backend column is
+infra-internal vocabulary and **never appears inside the server domain tier or in user-facing copy**
+(`Tier-3b-Providers.md` — `runner`/`family` stay sealed in infra).
+
+| The spoken name | `api` | `source` | backend (infra-internal) |
+| - | - | - | - |
+| claude code sub | `agent-sdk` | `max-pro-sub` | `agent-sdk` |
+| claude code via openrouter key | `agent-sdk` | `openrouter` | `agent-sdk` |
+| chat complete openrouter | `chat-completions` | `openrouter` | `openrouter` |
+| vllm chat complete | `chat-completions` | `vllm` | `vllm` |
+| custom byo endpoint | `chat-completions` | `custom_openai` | `custom-openai` |
+| openrouter responses | `responses` | `openrouter` | `openrouter` |
+
+Standing confusion-killers, all fail-closed in the same switch: `agent-sdk` is the only stateful
+backend and the only `max-pro-sub` path; `responses` is OpenRouter-only; `local-light` never serves a
+chat turn; `max-pro-sub` never speaks chat-completions; and **local vLLM is chat-completions-ONLY**
+(the `agent-sdk × vllm` loopback skin was retired by owner ruling 2026-07-27 and now throws). The
+purged `anthropic-messages` api and the first-party `anthropic` source are not members of either
+axis — do not resurrect either word.
+
 ## Enforcement
 
 **Prose-enforced by owner ruling — there is no gate** (`AGENTS.md` §3 states this for the register
