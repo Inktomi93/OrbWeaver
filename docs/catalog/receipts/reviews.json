@@ -2447,6 +2447,32 @@
           ]
         }
       ]
+    },
+    {
+      "path": "docs/reviews/stickler/2026-09-02-ct-corpus-audit-leg2.md",
+      "assignedSha256": "e2453ea4d3608ac9c31ab477f5048aca252bd52b9893498e5dea8f30dbad06ad",
+      "disposition": "current",
+      "authority": "review",
+      "fullRead": true,
+      "verifiedSha256": "e2453ea4d3608ac9c31ab477f5048aca252bd52b9893498e5dea8f30dbad06ad",
+      "verifiedCommit": "323f3d68b82033eac8056599529e2f8eb71f5b60",
+      "verifiedAt": "2026-09-02",
+      "summary": "CT corpus audit leg 2 (#1229, lane cb-ct-audit): full-read of 45 more CT files (~19.5k lines) in 7 incrementally-committed chunks — the whole reachable helper-hoisted-assert core population (32 files/69 sites), the 7 ex-fenced config files, and 6 of the 19 HI-band remainder files. Zero new findings; every helper-hoisted non-retrying assert judged barriered-by-construction; F1 (#1240) confirmed still live on the merged base. Running campaign total 69/469 full-read. Stop marker + exact leg-3 queue recorded (usage-window stop).",
+      "evidence": [
+        "born-reviewed at 323f3d68b82033eac8056599529e2f8eb71f5b60: authored and full-read by lane cb-ct-audit (stickler) in the same session — chunks 1-7 per-file verdicts, updated shard map, leg-3 queue"
+      ],
+      "claims": [
+        {
+          "claim": "The leg-2 core helper-await population (35 files minus 3 pre-fold-parked) contains zero racing (F2-shaped) one-shot asserts; every site is barriered by construction.",
+          "evidence": [
+            {
+              "kind": "test",
+              "target": "tests/client/features/preset/surfaces/preset-editor-surface.ct.tsx:460",
+              "note": "the model windowed zero-read: explicit browser-side settle window + ONESHOT-OK mechanism note; every sibling site in the 32 read files carries an equivalent barrier (report §3-§3g)"
+            }
+          ]
+        }
+      ]
     }
   ]
 }
