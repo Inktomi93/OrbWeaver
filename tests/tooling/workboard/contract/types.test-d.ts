@@ -17,6 +17,8 @@ test("WorkCommand is closed over exactly the verbs the dispatcher handles", () =
     | "show"
     | "list"
     | "create"
+    | "file"
+    | "land"
     | "claim"
     | "ready"
     | "review"
@@ -35,9 +37,25 @@ test("WorkCommand is closed over exactly the verbs the dispatcher handles", () =
 });
 
 test("each lifecycle verb carries its OWN payload, never a bag of optionals", () => {
-  expectTypeOf<Extract<WorkCommand, { kind: "claim" }>>().toEqualTypeOf<{ readonly kind: "claim"; readonly issue: number; readonly lane: string }>();
+  expectTypeOf<Extract<WorkCommand, { kind: "claim" }>>().toEqualTypeOf<{
+    readonly kind: "claim";
+    readonly issues: readonly number[];
+    readonly lane: string;
+  }>();
   expectTypeOf<Extract<WorkCommand, { kind: "block" }>["blocker"]>().toEqualTypeOf<number>();
   // @ts-expect-error — `ready` carries no evidence; a verb may not be handed another verb's payload.
-  const wrong: Extract<WorkCommand, { kind: "ready" }> = { kind: "ready", issue: 1, evidence: "x" };
+  const wrong: Extract<WorkCommand, { kind: "ready" }> = { kind: "ready", issues: [1], evidence: "x" };
   void wrong;
+});
+
+// #870's own type-level half: EVERY lifecycle arm carries a LIST, so a new arm added with a single
+// `issue: number` cannot compile — that asymmetry is exactly how a verb would quietly opt out of the
+// batching and reintroduce the per-row call cost the census measured.
+test("every lifecycle verb is batched — the id payload is a LIST on every arm", () => {
+  expectTypeOf<LifecycleCommand["issues"]>().toEqualTypeOf<readonly number[]>();
+  expectTypeOf<Extract<WorkCommand, { kind: "show" }>["issues"]>().toEqualTypeOf<readonly number[]>();
+  // `land` carries the closing sequence's whole payload: one receipt, an optional lane, an optional comment.
+  expectTypeOf<Extract<WorkCommand, { kind: "land" }>["evidence"]>().toEqualTypeOf<string>();
+  expectTypeOf<Extract<WorkCommand, { kind: "land" }>["lane"]>().toEqualTypeOf<string | null>();
+  expectTypeOf<Extract<WorkCommand, { kind: "land" }>["commentFile"]>().toEqualTypeOf<string | null>();
 });

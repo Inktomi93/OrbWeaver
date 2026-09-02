@@ -59,20 +59,44 @@ export interface IssueClassConfig {
   readonly status: string;
 }
 
+/** EVERY lifecycle verb takes a LIST of issues (#870). One call per row was the cost the census measured:
+ *  a median of 3 separate board calls to walk ONE row through its lifecycle, re-billing the caller's whole
+ *  context each time. The verb SEMANTICS are per-issue and unchanged — runLifecycle fans out and each row
+ *  is guarded, written and reported exactly as it was when the list was always length 1. */
 export type LifecycleCommand =
-  | { readonly kind: "claim"; readonly issue: number; readonly lane: string }
-  | { readonly kind: "ready" | "review" | "needs-owner"; readonly issue: number }
-  | { readonly kind: "set"; readonly issue: number; readonly field: string; readonly value: string }
-  | { readonly kind: "verify" | "reverify" | "done" | "refute"; readonly issue: number; readonly evidence: string }
-  | { readonly kind: "park"; readonly issue: number; readonly wake: string }
-  | { readonly kind: "block"; readonly issue: number; readonly blocker: number }
-  | { readonly kind: "unblock"; readonly issue: number; readonly blocker: number };
+  | { readonly kind: "claim"; readonly issues: readonly number[]; readonly lane: string }
+  | { readonly kind: "ready" | "review" | "needs-owner"; readonly issues: readonly number[] }
+  | { readonly kind: "set"; readonly issues: readonly number[]; readonly field: string; readonly value: string }
+  | { readonly kind: "verify" | "reverify" | "done" | "refute"; readonly issues: readonly number[]; readonly evidence: string }
+  | { readonly kind: "park"; readonly issues: readonly number[]; readonly wake: string }
+  | { readonly kind: "block"; readonly issues: readonly number[]; readonly blocker: number }
+  | { readonly kind: "unblock"; readonly issues: readonly number[]; readonly blocker: number }
+  /** `land` = the closing half of a row's lifecycle in ONE call: claim-if-needed → review → verify → done,
+   *  with ONE `--evidence` satisfying the same-receipt rule `done` already enforces. It composes the
+   *  EXISTING verbs (never a parallel path), so every guard, refusal and rerun property still holds. */
+  | { readonly kind: "land"; readonly issues: readonly number[]; readonly lane: string | null; readonly evidence: string; readonly commentFile: string | null };
 
 export interface CreateCommand {
   readonly kind: "create";
   readonly issueClass: IssueClass;
   readonly title: string;
   readonly bodyFile: string;
+}
+
+/** `file` = the opening half in ONE call: create → Kind/Priority/Area/Review → ready → claim. Everything
+ *  past the class and title is optional, so it is exactly `create` plus the writes the caller supplied —
+ *  an omitted `--priority` is not a silent default, it simply is not written, and `ready`'s own metadata
+ *  guard is what refuses an incomplete row. */
+export interface FileCommand {
+  readonly kind: "file";
+  readonly issueClass: IssueClass;
+  readonly title: string;
+  readonly bodyFile: string | null;
+  readonly priority: string | null;
+  readonly area: string | null;
+  readonly review: string | null;
+  readonly ready: boolean;
+  readonly lane: string | null;
 }
 
 export interface ListCommand {
@@ -83,9 +107,10 @@ export interface ListCommand {
 export type WorkCommand =
   | { readonly kind: "help" }
   | { readonly kind: "overview" }
-  | { readonly kind: "show"; readonly issue: number }
+  | { readonly kind: "show"; readonly issues: readonly number[] }
   | ListCommand
   | CreateCommand
+  | FileCommand
   | LifecycleCommand;
 
 export type GraphqlVariables = Readonly<Record<string, string | number>>;

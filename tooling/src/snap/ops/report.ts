@@ -3,6 +3,7 @@
 // probe-motion voiding marker. --json remains the lossless record (ops/manifest.ts).
 import { print } from "../../_shared/artifacts.ts";
 import type { CapturedConsole, CapturedRequest, ProbeSession } from "../../_shared/browser.ts";
+import type { BrowserEnvironmentEvidence } from "../../_shared/browser-environment.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { CssEvidenceReceipt } from "../contract/cascade.ts";
 import type {
@@ -18,6 +19,7 @@ import type {
   WatchTick,
 } from "../contract/types.ts";
 import { CROP_RE, PNG_EXT_RE } from "../lib/out-names.ts";
+import { shotScaleResultValue } from "../lib/shot-scale.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
@@ -55,6 +57,14 @@ export function printProbeMotionWarning(opts: Args): void {
 
 export function motionResultValue(opts: Args): string {
   return opts.probe ? PROBE_MOTION_MARKER : "live";
+}
+
+/** `scale=<ask>/<WxH>` on the RESULT line: what the run ACTUALLY produced, not what it asked for (#915
+ *  item 2). The APPLIED contract is the source because a device descriptor supplies its own viewport and
+ *  DPR — reading `opts` alone would state a density the pixels do not have. */
+export function scaleResultValue(opts: Args, environment: readonly BrowserEnvironmentEvidence[]): string {
+  const applied = environment[0]?.applied;
+  return shotScaleResultValue(opts.scale, applied?.viewport ?? opts.viewport, applied?.deviceScaleFactor ?? 1);
 }
 
 export function consoleForEvidence(messages: readonly CapturedConsole[], outcomes: readonly CaptureOutcome[]): readonly CapturedConsole[] {

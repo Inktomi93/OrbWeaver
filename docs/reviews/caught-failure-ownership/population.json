@@ -4050,7 +4050,7 @@
     {
       "siteId": "tooling/src/_shared/browser.ts::empty:error::1",
       "path": "tooling/src/_shared/browser.ts",
-      "line": 302,
+      "line": 314,
       "column": 5,
       "grammar": "empty",
       "position": "empty:error",
@@ -4058,12 +4058,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "closeProbeSessionAfterError is typed Promise<never> — it always rethrows the primary error (wrapped with any cleanup failure), never returns. Ends if that function stops rethrowing unconditionally.",
-      "markerLine": 288
+      "markerLine": 300
     },
     {
       "siteId": "tooling/src/_shared/browser.ts::empty:error::2",
       "path": "tooling/src/_shared/browser.ts",
-      "line": 328,
+      "line": 340,
       "column": 5,
       "grammar": "empty",
       "position": "empty:error",
@@ -4071,7 +4071,7 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "collected into failures[] which the two checks below rethrow as-is or as an AggregateError — never silently dropped. Ends if the failures array stops being surfaced after this block.",
-      "markerLine": 325
+      "markerLine": 337
     },
     {
       "siteId": "tooling/src/_shared/devtools-runtime.ts::empty:catch::1",
@@ -4843,7 +4843,7 @@
     {
       "siteId": "tooling/src/snap/ops/map.ts::promise:count::1",
       "path": "tooling/src/snap/ops/map.ts",
-      "line": 184,
+      "line": 199,
       "column": 23,
       "grammar": "promise",
       "position": "promise:count",
@@ -4851,12 +4851,12 @@
       "snippet": "const count = await locator.count().catch(() => 0);",
       "verdict": "deliberate-absorb",
       "reason": "probe-whose-failure-is-its-return-value — a count failure becomes 0, which fails the `=== 1` check below and reports the selector as not executable. Ends if that check stops gating on count.",
-      "markerLine": 183
+      "markerLine": 198
     },
     {
       "siteId": "tooling/src/snap/ops/map.ts::promise:isVisible::1",
       "path": "tooling/src/snap/ops/map.ts",
-      "line": 186,
+      "line": 201,
       "column": 43,
       "grammar": "promise",
       "position": "promise:isVisible",
@@ -4864,7 +4864,7 @@
       "snippet": "return count === 1 && (includeHidden || locator.isVisible().catch(() => false));",
       "verdict": "deliberate-absorb",
       "reason": "probe-whose-failure-is-its-return-value — an isVisible failure becomes false, which is exactly the \"not executable\" verdict this function returns. Ends if the return stops being read as pass/fail.",
-      "markerLine": 185
+      "markerLine": 200
     },
     {
       "siteId": "tooling/src/snap/ops/materialize-devtools.ts::empty:catch::1",

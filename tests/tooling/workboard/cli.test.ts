@@ -333,7 +333,7 @@ function mutationCalls(state: FakeState): readonly (readonly string[])[] {
 }
 
 defineTest("claim requires a lane and produces the mutation intent", () => {
-  expect(parseWorkCommand(["claim", "11", "--lane", "docs-catalog"])).toEqual({ kind: "claim", issue: 11, lane: "docs-catalog" });
+  expect(parseWorkCommand(["claim", "11", "--lane", "docs-catalog"])).toEqual({ kind: "claim", issues: [11], lane: "docs-catalog" });
   expect(() => parseWorkCommand(["claim", "11"])).toThrow("--lane requires a value");
   expect(() => parseWorkCommand(["claim", "11", "--lane", "docs-catalog", "extra"])).toThrow("--lane accepts exactly one value");
 });
@@ -341,7 +341,7 @@ defineTest("claim requires a lane and produces the mutation intent", () => {
 defineTest("reverify requires replacement evidence", () => {
   expect(parseWorkCommand(["reverify", "11", "--evidence", "replacement receipt"])).toEqual({
     kind: "reverify",
-    issue: 11,
+    issues: [11],
     evidence: "replacement receipt",
   });
   expect(() => parseWorkCommand(["reverify", "11"])).toThrow("--evidence requires a value");
@@ -970,6 +970,156 @@ defineTest("secondary rate limits report GitHub's documented backoff, not the pr
   expect(result.stderr).not.toContain("GraphQL:");
   expect(state.calls.some((call) => call[0] === "api" && call[1] === "rate_limit")).toBe(false);
 });
+
+// ── #870: the call count IS the cost ────────────────────────────────────────────────────────────────
+// A transcript census measured a MEDIAN of 3 separate board calls to walk one row, re-billing the
+// caller's whole context each time. These four pins are about CALLS, not new lifecycle semantics: every
+// composite below must be provably identical to the sequence it replaces, or it is a second lifecycle.
+
+defineTest("every lifecycle verb takes a LIST of issues, and one refusal stops the run at that row", () => {
+  const state = createState("Triage");
+  state.items.push({
+    id: "item-8",
+    content: { number: 8, url: "https://example.test/issues/8" },
+    [STATUS_FIELD]: "Triage",
+    [DISPOSITION_FIELD]: "Untriaged",
+    [KIND_FIELD]: "Work",
+    [PRIORITY_FIELD]: "High",
+    [AREA_FIELD]: "Docs",
+    [REVIEW_FIELD]: "Technical",
+  });
+  const result = drive(state, "ready", "8", "11");
+  expect(result.status).toBe(0);
+  // The receipt names every row that moved — a batched call is not vaguer than a single one.
+  expect(result.stdout).toContain("#8 #11 ready");
+  expect(itemFieldValue(state, 8, STATUS_FIELD)).toBe("Ready");
+  expect(fieldValue(state, STATUS_FIELD)).toBe("Ready");
+
+  // A field name is never swallowed as an id: the run of numbers stops at the first non-numeric token.
+  expect(parseWorkCommand(["set", "11", "12", "Priority", "High"])).toEqual({ kind: "set", issues: [11, 12], field: "Priority", value: "High" });
+  expect(parseWorkCommand(["set", "11", "Priority", "High"])).toEqual({ kind: "set", issues: [11], field: "Priority", value: "High" });
+
+  // A refusal mid-list stops there. #8 is already Ready (a no-op rerun); #11 is Review and refuses.
+  const partial = createState("Review");
+  partial.items.push({
+    id: "item-8",
+    content: { number: 8, url: "https://example.test/issues/8" },
+    [STATUS_FIELD]: "Triage",
+    [DISPOSITION_FIELD]: "Untriaged",
+    [KIND_FIELD]: "Work",
+    [PRIORITY_FIELD]: "High",
+    [AREA_FIELD]: "Docs",
+    [REVIEW_FIELD]: "Technical",
+  });
+  const stopped = drive(partial, "ready", "8", "11");
+  expect(stopped.status).toBe(TOOL_ERROR_EXIT);
+  expect(stopped.stderr).toContain("must be Triage, Needs owner, Blocked, Parked, or Ready before Ready");
+  // The row BEFORE the refusal keeps its transition — each row is committed by its own Status write.
+  expect(itemFieldValue(partial, 8, STATUS_FIELD)).toBe("Ready");
+});
+
+defineTest("show batches N rows into ONE call and leaves the single-row shape byte-identical", () => {
+  const state = createState("Running");
+  state.items.push({
+    id: "item-8",
+    content: { number: 8, url: "https://example.test/issues/8" },
+    [STATUS_FIELD]: "Ready",
+    [DISPOSITION_FIELD]: "Action",
+  });
+  const result = drive(state, "show", "8", "11");
+  expect(result.status).toBe(0);
+  const shown = JSON.parse(result.stdout) as { readonly items: readonly Record<string, unknown>[] };
+  expect(shown.items).toHaveLength(2);
+  expect(shown.items[0]?.["Status"]).toBe("Ready");
+  expect(shown.items[1]?.["Status"]).toBe("Running");
+  // Still never an enumeration: one targeted context query per row, no WorkItemList.
+  expect(operationCalls(state, "WorkItemList")).toHaveLength(0);
+});
+
+defineTest(
+  "file creates, writes the four metadata fields, readies and claims in ONE invocation",
+  () => {
+    const state = createState("Triage");
+    const result = drive(
+      state,
+      "file",
+      "--title",
+      "One-call row",
+      "--kind",
+      "work",
+      "--priority",
+      "High",
+      "--area",
+      "Docs",
+      "--review",
+      "Technical",
+      "--claim",
+      "p-snap-board",
+    );
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain(`created #${CREATED_ISSUE}`);
+    expect(result.stdout).toContain("claimed by p-snap-board");
+    expect(itemFieldValue(state, CREATED_ISSUE, KIND_FIELD)).toBe("Work");
+    expect(itemFieldValue(state, CREATED_ISSUE, PRIORITY_FIELD)).toBe("High");
+    expect(itemFieldValue(state, CREATED_ISSUE, AREA_FIELD)).toBe("Docs");
+    expect(itemFieldValue(state, CREATED_ISSUE, REVIEW_FIELD)).toBe("Technical");
+    expect(itemFieldValue(state, CREATED_ISSUE, STATUS_FIELD)).toBe("Running");
+    expect(itemFieldValue(state, CREATED_ISSUE, "Lane")).toBe("p-snap-board");
+    // With no --body-file the body IS the title — the one-line row this verb exists for.
+    const createCall = state.calls.find((args) => args[0] === "issue" && args[1] === "create");
+    expect(createCall).toEqual(expect.arrayContaining(["--body", "One-call row"]));
+
+    // A decision enters Needs owner: --ready is refused rather than walking past the owner gate.
+    expect(() => parseWorkCommand(["file", "--title", "A fork", "--kind", "decision", "--ready"])).toThrow("resolve the owner decision");
+    // ready's OWN metadata guard is what refuses an incomplete row — the rule is not re-spelled in file.
+    const thin = drive(createState("Triage"), "file", "--title", "Thin row", "--kind", "work", "--ready");
+    expect(thin.status).toBe(TOOL_ERROR_EXIT);
+    expect(thin.stderr).toContain("must set Priority, Area, Review before Ready");
+  },
+  TABLE_DRIVEN_TIMEOUT_MS,
+);
+
+// One `land` spawn walks four transitions, so this file's default 5s budget is the wrong unit for it —
+// the same reason the create table above carries an explicit one.
+defineTest(
+  "land walks claim → review → verify → done on one receipt, and resumes from wherever a row is",
+  () => {
+    const ready = createState("Ready");
+    const landed = drive(ready, "land", "11", "--lane", "p-snap-board", "--evidence", "abc1234");
+    expect(landed.status).toBe(0);
+    expect(fieldValue(ready, STATUS_FIELD)).toBe("Done");
+    expect(fieldValue(ready, EVIDENCE_FIELD)).toBe("abc1234");
+    expect(fieldValue(ready, "Lane")).toBe("p-snap-board");
+    expect(targetIssue(ready).state).toBe("CLOSED");
+    // The same-receipt rule survives: done's evidence comment is posted exactly once, from the one string.
+    expect(targetIssue(ready).comments).toEqual(["Verification evidence: abc1234"]);
+
+    // RESUMABLE: a row already at Verify skips the earlier steps instead of refusing at review.
+    const midway = createState("Verify");
+    const verifyItem = midway.items[0];
+    if (verifyItem !== undefined) {
+      verifyItem[EVIDENCE_FIELD] = "abc1234";
+    }
+    expect(drive(midway, "land", "11", "--evidence", "abc1234").status).toBe(0);
+    expect(fieldValue(midway, STATUS_FIELD)).toBe("Done");
+
+    // A Ready row with no --lane refuses: land never invents a claim the caller did not make.
+    const unclaimed = drive(createState("Ready"), "land", "11", "--evidence", "abc1234");
+    expect(unclaimed.status).toBe(TOOL_ERROR_EXIT);
+    expect(unclaimed.stderr).toContain("requires --lane");
+
+    // A row that has not reached Ready refuses loudly rather than silently doing nothing.
+    const early = drive(createState("Triage"), "land", "11", "--lane", "p-snap-board", "--evidence", "abc1234");
+    expect(early.status).toBe(TOOL_ERROR_EXIT);
+    expect(early.stderr).toContain("must be Ready or later before land");
+
+    // land inherits the evidence cap, so an over-cap receipt is misuse (exit 3) BEFORE any write.
+    const overCap = drive(createState("Ready"), "land", "11", "--lane", "x", "--evidence", "x".repeat(1025));
+    expect(overCap.status).toBe(MISUSE_EXIT);
+    expect(overCap.stderr).toContain("cap is 1024");
+  },
+  TABLE_DRIVEN_TIMEOUT_MS,
+);
 
 defineTest("primary and secondary rate-limit failures produce two distinct operator messages", () => {
   const primary = createState("Running");

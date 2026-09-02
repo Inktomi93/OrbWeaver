@@ -75,16 +75,19 @@ async function waitForPaintSettle(page: Page): Promise<void> {
 
 export async function captureShot(page: Page, opts: Args, out: string, mask: Locator[]): Promise<void> {
   await waitForPaintSettle(page);
+  // `--scale` reaches the pixels HERE, at SHOT_BASE's CONSUMER — the shared const is never mutated
+  // (#915), so an invocation that does not ask for a scale is byte-identical to every pre-#915 run.
+  const base = { ...SHOT_BASE, scale: opts.scale.mode };
   if (opts.shotOf !== null) {
     // Just the element — Playwright auto-crops to its bounding box. The
     // no-pixel-math crop: the cheapest pixels that still show the thing.
     await page
       .locator(opts.shotOf)
       .first()
-      .screenshot({ path: out, ...SHOT_BASE, mask });
+      .screenshot({ path: out, ...base, mask });
     return;
   }
-  await page.screenshot({ path: out, fullPage: opts.fullPage, ...SHOT_BASE, mask });
+  await page.screenshot({ path: out, fullPage: opts.fullPage, ...base, mask });
   // Native crop via clip (WxH+X+Y) → <out>-crop.png. No ffmpeg, and the cropped
   // PNG is itself a smaller (cheaper) image to read than the full viewport.
   if (opts.crop !== null) {
@@ -99,7 +102,7 @@ export async function captureShot(page: Page, opts: Args, out: string, mask: Loc
           width: Number(g["w"]),
           height: Number(g["h"]),
         },
-        ...SHOT_BASE,
+        ...base,
         mask,
       });
     }

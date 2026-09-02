@@ -63,6 +63,12 @@ export interface ProbeLaunchOptions {
    *  emulation folded into the context, not just a viewport. When set it supersedes `viewport`/emulateMedia
    *  DPR (the descriptor carries its own). An unknown name throws (loud, never silent-desktop). */
   readonly device?: string | null;
+  /** Raise the CONTEXT's devicePixelRatio (snap's `--scale <n>`, #915). Absent = 1 on a plain context,
+   *  or whatever a `device` descriptor carries. Playwright's `screenshot({ scale })` accepts only
+   *  "css" | "device", so THIS is the only route to an arbitrary render density — and it is declared to
+   *  the environment contract (resolveBrowserEnvironmentContract) rather than applied behind its back,
+   *  or the DPR identity check would report a mismatch the caller deliberately asked for. */
+  readonly deviceScaleFactor?: number;
   /** How many pages (tabs) to open in the ONE shared context (shared auth/localStorage). Default 1. */
   readonly pages?: number;
   /** How many ISOLATED browser contexts to open (`--contexts N`) — each gets its OWN cookies/localStorage,
@@ -158,7 +164,10 @@ interface BuildContextArgs {
 
 async function openRecordedContext(args: BuildContextArgs): Promise<{ readonly context: BrowserContext; readonly harPath: string | null }> {
   const { browser, opts, deviceDescriptor, contextIndex, ownedContexts, persistentContext } = args;
-  const sizing = deviceDescriptor ?? { viewport: opts.viewport };
+  const sizing = {
+    ...(deviceDescriptor ?? { viewport: opts.viewport }),
+    ...(opts.deviceScaleFactor === undefined ? {} : { deviceScaleFactor: opts.deviceScaleFactor }),
+  };
   const harPath = opts.harPathPrefix === undefined ? null : `${opts.harPathPrefix}${(opts.contexts ?? 1) > 1 ? `-u${contextIndex}` : ""}.har`;
   const context =
     persistentContext ??
@@ -252,7 +261,10 @@ async function launchOwnedBrowser(opts: ProbeLaunchOptions, deviceDescriptor: (t
   if (opts.persistentProfileDir === undefined) {
     return { browser: await chromium.launch({ headless: opts.headless, ...(browserArgs === undefined ? {} : { args: browserArgs }) }) };
   }
-  const sizing = deviceDescriptor ?? { viewport: opts.viewport };
+  const sizing = {
+    ...(deviceDescriptor ?? { viewport: opts.viewport }),
+    ...(opts.deviceScaleFactor === undefined ? {} : { deviceScaleFactor: opts.deviceScaleFactor }),
+  };
   const harPath = opts.harPathPrefix === undefined ? null : `${opts.harPathPrefix}.har`;
   const persistentContext = await chromium.launchPersistentContext(opts.persistentProfileDir, {
     ...sizing,

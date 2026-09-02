@@ -30,6 +30,7 @@ import {
   printPageReport,
   printProbeMotionWarning,
   printWatchBlock,
+  scaleResultValue,
   sessionForEvidence,
 } from "./report.ts";
 import { finishSession, launchSnapSession, readSnapEnvironmentEvidence, snapEnvironmentMismatchCount } from "./session.ts";
@@ -194,6 +195,7 @@ export async function runSnapDetailed(opts: Args, detailedPlan?: SnapDetailedPla
         ["har", artifacts.hars[0] ?? "none"],
         ["json", manifestPath ?? "none"],
         ["crop", cropOutcome(opts, { ...plan, out: pageOut(out, 0, totalPages), failed, totalPages }) ?? "none"],
+        ["scale", scaleResultValue(opts, browserEnvironment)],
         ["motion", motionResultValue(opts)],
         ["throttle", throttleResultValue(opts.cpuThrottle, opts.network)],
         ["nav", navResultVerdict(totals.navigation, totals.navActions)],

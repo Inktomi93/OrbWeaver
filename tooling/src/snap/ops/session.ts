@@ -88,6 +88,13 @@ type LaunchExtras = Partial<Pick<ProbeLaunchOptions, "pages" | "contexts" | "con
   readonly requireCascadeRuntime?: boolean;
 };
 
+/** `--scale <n>` reaches the pixels by raising the CONTEXT's DPR (#915) — Playwright's
+ *  `screenshot({ scale })` takes only "css" | "device". Absent unless a numeric scale was asked for, so
+ *  every other run launches a byte-identical context. */
+function scaleLaunchOverride(opts: Args): { readonly deviceScaleFactor?: number } {
+  return opts.scale.deviceScaleFactor === null ? {} : { deviceScaleFactor: opts.scale.deviceScaleFactor };
+}
+
 export async function launchSnapSession(opts: Args, name: string, extras: LaunchExtras = {}): Promise<ProbeSession> {
   const { requireCascadeRuntime = false, ...launchExtras } = extras;
   const traceDir = opts.failureEvidence ? await artifactDir("traces") : null;
@@ -105,6 +112,7 @@ export async function launchSnapSession(opts: Args, name: string, extras: Launch
       theme: opts.theme,
       localStorage: buildSeeds(opts),
       device: opts.device,
+      ...scaleLaunchOverride(opts),
       trace: opts.failureEvidence,
       ...(traceDir === null ? {} : { harPathPrefix: join(traceDir, name) }),
       ...(cascade === null ? {} : { persistentProfileDir: cascade.profileDir, browserArgs: cascade.browserArgs }),

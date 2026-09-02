@@ -64,9 +64,19 @@ function buildMapScript(selector: string, includeHidden: boolean): string {
         }).join(" ").trim();
         if (text) return text;
       }
-      // aria-hidden avatar initials/decorative glyphs are rendered text but absent from the
-      // accessible name. Excluding their entire subtree keeps the map's fallback aligned with
-      // the accessibility tree rather than manufacturing names like "DDiana".
+      // TEXT ALTERNATIVE COMPUTATION step 2A: a node that is NOT RENDERED contributes NOTHING to the
+      // accessible name. Two families are excluded, and both are load-bearing:
+      //   aria-hidden — avatar initials/decorative glyphs are rendered text the a11y tree drops
+      //     ("DDiana" was the manufactured name that motivated this arm);
+      //   display:none / visibility:hidden / the hidden attribute (#877) — a container-query TWO-ARM
+      //     label (@md:hidden beside hidden @md:flex) ships BOTH arms in the DOM and paints one. Welding
+      //     them produced "Pick a characterPick a character to start", a name no Playwright
+      //     toHaveAccessibleName can ever match, and a reviewer filed a product defect on that reading.
+      // The visibility arm is judged RELATIVE to el: with --include-hidden the map deliberately reports
+      // hidden controls, and visibility INHERITS, so a visibility:hidden root must keep its own name
+      // rather than blanking it. display:none does not inherit (only the styled element computes "none"),
+      // so it needs no such relativisation.
+      var rootVisibilityHidden = getComputedStyle(el).visibility === "hidden";
       var textNodes = [];
       var walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
       var node;
@@ -79,6 +89,11 @@ function buildMapScript(selector: string, includeHidden: boolean): string {
             break;
           }
           if (cur === el) break;
+          var curStyle = getComputedStyle(cur);
+          if (cur.hidden || curStyle.display === "none" || (!rootVisibilityHidden && curStyle.visibility === "hidden")) {
+            hidden = true;
+            break;
+          }
           cur = cur.parentElement;
         }
         if (!hidden) textNodes.push(node.textContent || "");
