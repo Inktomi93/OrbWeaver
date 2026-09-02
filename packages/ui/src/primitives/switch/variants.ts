@@ -1,45 +1,75 @@
 import { DISABLED_STATE, FOCUS_RING, FOCUS_RING_DESTRUCTIVE, TOUCH_TARGET_PSEUDO, tv } from "#lib";
 
-// The track is generous rather than collapsing toward a near-square toggle — and BOTH of its dimensions
-// are pointer-conditional, because only the pair keeps the silhouette. At a coarse pointer the root grows
-// to the ≥44px touch floor on its HEIGHT (`pointer-coarse:h-touch-target`) and `--spacing-switch-track`
-// widens to 64px to match (the token's own @media(pointer:fine) override narrows it back to 48 on the
-// desktop arm). Height alone was the shipped defect: a 48-wide track around a 32px thumb at 44 tall is a
-// 1.091-aspect near-circle with track painting on all four sides of the knob, which side-eye #420 measured
-// and read as a crescent moon rather than a switch. The thumb stays on its pointer-independent display
-// token, so travel = track − thumb scales with the width (32px coarse / 16px fine) and stays legible at
-// both. The pseudo stays as the unknown-pointer fallback, but coarse target geometry no longer depends on
-// invisible overflow. Both arms are pinned in tests/ui/primitives/switch/switch.ct.tsx (the fine aspect +
-// travel pins, and the `at a COARSE pointer` describe block).
+// FOUR DIMENSIONS, FOUR TOKENS, ALL POINTER-CONDITIONAL (#1109, owner ruling 2026-09-02). The track's
+// WIDTH is `--spacing-switch-track` (64 coarse / 48 fine), its HEIGHT is `--spacing-switch-track-height`
+// (44 / 32), the knob is `--spacing-switch-thumb` (24 / 18) — ~55% of the height at each pointer — and
+// the gap between them is `--spacing-switch-inset` (9 / 6).
+// Until #1109 there were only TWO tokens, because `--spacing-switch-thumb` was doing two jobs: the
+// fine-pointer TRACK HEIGHT (`h-switch-thumb` on the root, with `pointer-coarse:h-touch-target` bolted on
+// for the coarse arm) AND the thumb size at every pointer. A token cannot be both, so the knob could not
+// scale with the pointer: at fine it was 100% of the track height — flush with the root's OUTER box top
+// and bottom, a slab in a slot rather than a knob in a track — and at coarse the same 32px sat in a 64x44
+// field. The root now spells its height from ONE token whose own @media(pointer:fine) override carries the
+// arm, so the unknown-pointer case (which used to get the coarse WIDTH and the fine HEIGHT) is coherent
+// 64x44 too. `TOUCH_TARGET_PSEUDO` stays as the unknown-pointer HIT fallback; the ≥44px coarse floor on
+// the VISIBLE box is pinned in tests/ui/touch-target-floor.suite.ct.tsx.
 //
-// THE BORDER IS ARITHMETIC, NOT JUST PAINT (#424, closing side-eye #420 P3). The root is `border-box`,
-// so its CONTENT box — the box the thumb is laid out and translated in — is 2× the border narrower than
-// `--spacing-switch-track`. A travel of `track − thumb` spends the FULL token and parked the checked
-// thumb one border-width PAST the right rim (measured insetRight −1 at both pointers). So the travel
-// subtracts the border twice, and the root spells its own border WIDTH from the same
-// `--border-width-control` token that the calc reads — geometry and paint cannot drift apart. Arithmetic:
-// fine 48 − 32 − 2×1 = 14, coarse 64 − 32 − 2×1 = 30 (the coarse pin computes exactly that). The root's
-// border COLOUR is untouched: `border-border` and the `data-invalid:` / `data-checked:` colour variants
-// (and the CT that reads `border-top-color`) ride the colour axis, which the width spelling never names.
-// Pinned both ways in tests/ui/primitives/switch/switch.ct.tsx — the rim pin asserts the thumb's gap to
-// each rim EQUALS the root's own rendered border width, at both pointers, so a border retune moves the
-// expectation with the design instead of freezing 1px.
+// #420's CRESCENT RULING SURVIVES — ITS INPUT CHANGED. That ruling read a 48x44 root as "a 1.091-aspect
+// near-circle with track painting on all four sides of the knob … a crescent moon, not a switch", and the
+// fix was to widen the coarse track. #1109 deliberately reintroduces track on all four sides of the knob,
+// which is the surface form #420 named. The MEASURED quantity #420 actually moved is the ASPECT, and that
+// floor is untouched and still pinned at both pointers (>1.4; 1.5 fine, 1.455 coarse): a four-sided track
+// gap at 1.09 aspect is a crescent, and at 1.5 aspect it is what every switch on earth looks like. What
+// #420 could not distinguish, because the thumb was welded to the track height, is now two independent
+// dials. Recorded, not silently reversed — the aspect pin is the enforcer, the prose is not.
 //
-// RESIDUAL, deliberately unchanged: the thumb is exactly as tall as the root at a fine pointer
-// (`h-switch-thumb` both), so it is flush with the root's OUTER box vertically (measured top/bottom
-// inset 0) while now sitting a border in from each end horizontally. Inset-ing it vertically would mean
-// shrinking the display thumb, a size decision this fix has no mandate for.
+// THE BORDER IS ARITHMETIC, NOT JUST PAINT (#424, closing side-eye #420 P3) — ALSO SURVIVING A CHANGED
+// INPUT. The root is `border-box`, so its CONTENT box is 2× the border narrower than the track width, and
+// a travel of `track − thumb` parked the checked thumb one border-width PAST the right rim (measured
+// insetRight −1 at both pointers). #424 subtracted the border twice. The knob is now inset EQUALLY on all
+// four sides instead: the BLOCK inset falls out of `items-center` inside the content box, and the root
+// spends the SAME quantity as INLINE padding — `px-switch-inset`, which is
+// `(track-height − 2×border − thumb) / 2` = 9px coarse, 6px fine. That token is a LITERAL, not a calc
+// (the `--spacing-slider-inset` precedent: DTCG $values carry no references), and the first spelling here
+// WAS the calc — `no-raw-spacing-in-features` refused it, correctly: this repo spells spacing as intent
+// tokens. The sync a literal costs is bought back by the CT, which asserts the RENDERED inline gap EQUALS
+// the RENDERED block gap at both pointers, so an unmirrored retune of any of the other three tokens goes
+// red on geometry instead of drifting. Substitute the inset into `trackW − 2×border − 2×inset − thumb`
+// and both the border and the thumb cancel:
+//
+//     travel = trackWidth − trackHeight        (20px coarse, 16px fine)
+//
+// which is what the translate calc spells. The border has NOT stopped being subtracted — it is subtracted
+// twice inside the inset, once at each end — so #424's defect cannot return; do not "simplify" the
+// padding away on the grounds that the travel no longer names the border. Pinned as a RELATION against the
+// rendered boxes at both pointers in tests/ui/primitives/switch/switch.ct.tsx. The root's border COLOUR is
+// untouched: `border-border` and the `data-invalid:` / `data-checked:` colour variants ride the colour
+// axis, which the width spelling never names.
+//
+// THE RESIDUAL THIS HEADER USED TO RECORD IS CLOSED. It read: "the thumb is exactly as tall as the root at
+// a fine pointer … inset-ing it vertically would mean shrinking the display thumb, a size decision this fix
+// has no mandate for." #1109 IS that mandate. Closing it also closed #1170, which was the same geometry
+// seen through an instrument: a knob with no track above or below it has no track in the BAND a fill probe
+// samples, so `snap --contrast '[data-slot=switch-thumb]'` on settings:chat-behavior resolved the ON knob
+// (`--color-primary-foreground`, 31,16,7) against a band that was 72% PAGE (`--color-background`, 15,12,10)
+// and printed FILL 1.05:1 FAIL for a knob measuring ~7:1 against the ember track it actually sits on. The
+// instrument was right and the geometry was the defect; the surround clause is pinned from the framebuffer
+// in switch.ct.tsx, in both states and all three seeds.
 //
 // THE QUIET STATE IS THE QUIET ONE — the OFF THUMB's ink, not its geometry (#1090; side-eye F10/E3
 // 2026-08-30, re-measured 2026-09-02 and machine-detected by `design-audit`'s `quiet-state` P2 in every
 // appearance/theme/pane arm: "OFF 12.58:1 vs ON 7.06:1"). The thumb was `bg-foreground` — the page's
-// brightest ink, opaque, 32 of the track's 48px — while the track is a 12% overlay compositing to
+// brightest ink, opaque, 32 of the track's 48px (the knob's SIZE then; #1109 has since made it 18) —
+// while the track is a 12% overlay compositing to
 // 1.41:1. So the OFF switch's loudest object measured 11.118:1 (CT framebuffer, Hearth over `bg-card`)
 // against a 7.056:1 ON state: the surface spent its loudest register on the state that carries NO
-// information — six near-white pills that mean "off". NOT snap's number: `snap --contrast` on
-// `[data-slot=switch-thumb]` reads the element's INK (`getComputedStyle().color`), which on the thumb is
-// the inherited `--color-foreground` and paints nothing — it read 16.26:1 both before and after this
-// change, and only matched the fill before because the fill was that same token.
+// information — six near-white pills that mean "off". NOT snap's number AS IT STOOD THEN: `snap
+// --contrast` on `[data-slot=switch-thumb]` read the element's INK (`getComputedStyle().color`), which on
+// the thumb is the inherited `--color-foreground` and paints nothing — it read 16.26:1 both before and
+// after this change, and only matched the fill before because the fill was that same token. TRUTH-REPAIR
+// 2026-09-02: that caveat expired when #1111 gave `--contrast` a FILL arm for fill-only subjects, which
+// is exactly the instrument that then filed #1170 against this control. Snap's number on this selector is
+// now the knob's painted fill against its band, and it is quotable.
 //
 // `muted-foreground/80` is the value BOUNDED FROM BOTH SIDES, which is what makes it a measurement
 // rather than a taste. CEILING: it must sit under the ON state's loudest member on every seed and both
@@ -55,12 +85,12 @@ import { DISABLED_STATE, FOCUS_RING, FOCUS_RING_DESTRUCTIVE, TOUCH_TARGET_PSEUDO
 // seeds — computed style can see neither the compositing nor the oklch, and a polarity fix proven on
 // the dark arm alone is this tree's recorded failure family.
 //
-// NOT CHANGED HERE, deliberately: the ON skin (the accent track IS the ON signal and already carries
-// it), the thumb's SIZE (E3 also asked for "~55% of track height"; `--spacing-switch-thumb` is one
-// token doing two jobs — the fine-pointer TRACK HEIGHT and the thumb size — so that is a token split
-// plus a second pointer-conditional pair, i.e. its own row, and the RESIDUAL ruling above stands), and
-// the `quiet` tone's `foreground/55` checked track (raising it was the other way to fix quiet's Light
-// arm; unnecessary once the OFF knob is bounded, so the /70 rejection recorded below survives intact).
+// The thumb's SIZE was the one item #1090 deferred out of E3's ask ("~55% of track height") as its own
+// row; that row is #1109 above, and the measured ratios in the table are UNCHANGED by it — the knob's
+// colour tokens did not move, only its box. NOT changed here, still deliberately: the ON skin (the accent
+// track IS the ON signal and already carries it), and the `quiet` tone's `foreground/55` checked track
+// (raising it was the other way to fix quiet's Light arm; unnecessary once the OFF knob is bounded, so
+// the /70 rejection recorded below survives intact).
 //
 // `tone` rations the accent (north-star §5 rule 0.5, PP1's Badge `tone` precedent; owner-sanctioned
 // 2026-07-16): `accent` (default) is the byte-identical ember-on-checked skin — the ONE sanctioned
@@ -72,7 +102,7 @@ import { DISABLED_STATE, FOCUS_RING, FOCUS_RING_DESTRUCTIVE, TOUCH_TARGET_PSEUDO
 export const switchVariants = tv({
   slots: {
     root: [
-      "relative inline-flex h-switch-thumb w-switch-track shrink-0 cursor-pointer items-center rounded-full border-(length:--border-width-control) border-border bg-input p-0 pointer-coarse:h-touch-target",
+      "relative inline-flex h-switch-track-height w-switch-track shrink-0 cursor-pointer items-center justify-start rounded-full border-(length:--border-width-control) border-border bg-input py-0 px-switch-inset",
       "transition-colors duration-(--motion-fast) ease-out-expo",
       "outline-none",
       FOCUS_RING,
@@ -85,7 +115,7 @@ export const switchVariants = tv({
     thumb: [
       "group relative flex aspect-square h-switch-thumb items-center justify-center rounded-full bg-muted-foreground/80",
       "transition-transform duration-(--motion-fast) ease-out-expo",
-      "data-checked:translate-x-[calc(var(--spacing-switch-track)_-_var(--spacing-switch-thumb)_-_2_*_var(--border-width-control))]",
+      "data-checked:translate-x-[calc(var(--spacing-switch-track)_-_var(--spacing-switch-track-height))]",
     ],
     // Hidden by default, shown only via data-readonly. Color inverts against whichever thumb bg is live.
     readOnlyIcon: "hidden text-background group-data-[readonly]:block",

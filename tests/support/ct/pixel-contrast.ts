@@ -141,9 +141,10 @@ export interface PixelSurfaceRegion {
 
 export interface PixelSurfaceOptions {
   /** Sample only part of the box. A COMPOSITE control's own fill can be mostly covered by a child —
-   *  a Switch TRACK is 48px wide with a 32px thumb parked in it, so 2/3 of the root's pixels are the
-   *  THUMB and the whole-box median silently returns the child's colour rather than the track's. Name
-   *  the strip the parent actually paints (for the switch: the end the thumb is NOT parked at). */
+   *  a Switch TRACK is 48px wide with an 18px thumb parked in it, and the whole-box median can return
+   *  the child's colour rather than the track's (before #1109 shrank the knob it was a 32px thumb over
+   *  2/3 of the root's pixels, and the median silently DID). Name the strip the parent actually paints
+   *  (for the switch: the end the thumb is NOT parked at). */
   readonly region?: PixelSurfaceRegion;
 }
 

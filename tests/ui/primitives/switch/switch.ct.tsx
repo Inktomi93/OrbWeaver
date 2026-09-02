@@ -14,12 +14,24 @@ import { resolvedTokenColor } from "../../../support/ct/resolved-token-color.ts"
 
 const NON_EMPTY = /.+/u;
 
+interface SwitchGeometry {
+  readonly left: number;
+  readonly right: number;
+  readonly top: number;
+  readonly bottom: number;
+  readonly border: number;
+  readonly rootWidth: number;
+  readonly rootHeight: number;
+  readonly thumbHeight: number;
+}
+
 /**
- * The thumb's gap to each rim of the ROOT's border box, plus the root's own rendered border width —
- * the #424 measurement. Read in ONE evaluate so both rects come from the same layout, and returned as
- * rounded px because the only defect this can express is a whole-border-width overhang.
+ * The thumb's gap to each rim of the ROOT's border box, the root's own rendered border width — the #424
+ * measurement — and the two boxes themselves, which is what #1109's proportional knob is stated in. Read
+ * in ONE evaluate so every number comes from the same layout, and returned as rounded px because the
+ * defects these express (a whole-border overhang, a flush slab, a travel off by the border) are whole-px.
  */
-async function thumbRims(control: Locator): Promise<{ left: number; right: number; top: number; bottom: number; border: number }> {
+async function thumbRims(control: Locator): Promise<SwitchGeometry> {
   return await control.evaluate((el) => {
     const knob = el.querySelector('[data-slot="switch-thumb"]');
     if (knob === null) {
@@ -33,8 +45,61 @@ async function thumbRims(control: Locator): Promise<{ left: number; right: numbe
       top: Math.round(rect.top - root.top),
       bottom: Math.round(root.bottom - rect.bottom),
       border: Math.round(Number.parseFloat(getComputedStyle(el).borderRightWidth)),
+      rootWidth: Math.round(root.width),
+      rootHeight: Math.round(root.height),
+      thumbHeight: Math.round(rect.height),
     };
   });
+}
+
+// ── #1109: THE THUMB IS PROPORTIONAL, NOT THE TRACK HEIGHT WEARING A SECOND HAT (owner ruling
+// 2026-09-02, "~55% of track height with visible travel"). `--spacing-switch-thumb` used to be ONE
+// token doing two jobs — the fine-pointer TRACK HEIGHT and the thumb size at EVERY pointer — so the
+// knob could not scale with the pointer: at a fine pointer it was 100% of the track height (flush with
+// the root's outer box, top and bottom), and at a coarse one 32px sat in a 64x44 field. #1109 splits
+// the height out to `--spacing-switch-track-height` and makes the thumb its own pointer-conditional
+// pair. Stated as RATIOS and RELATIONS against the RENDERED boxes, never against the token values: a
+// pin that reads the new token would be green on any tree that merely declares it.
+const MIN_THUMB_SHARE = 0.45;
+const MAX_THUMB_SHARE = 0.65;
+
+/** Every gap the knob leaves is the SAME gap — the geometry that makes a knob read as a knob in a track
+ *  rather than a slab in a slot, and (the #1170 half) the reason the band a fill probe measures the
+ *  thumb against is the TRACK on all four sides instead of the page above and below it. */
+/** How long two agreeing rect reads must be apart to mean "stopped": longer than the thumb's own 130ms
+ *  transform transition. */
+const SETTLE_INTERVAL_MS = 200;
+
+/**
+ * The thumb's geometry once it has SETTLED, without assuming where it parks.
+ *
+ * A barrier is not an assertion. The predicate this replaced was `the parked gap === the root's border`
+ * — true of the pre-#1109 geometry and false of this one, so every pin that merely NEEDED a settled
+ * thumb went red at the barrier instead of at its own claim, and a red-first receipt that never reaches
+ * its assertion proves nothing. Two rect reads that agree across a window longer than the transition are
+ * a settle in EITHER geometry.
+ */
+async function settledThumb(control: Locator): Promise<SwitchGeometry> {
+  let previous = Number.NaN;
+  await expect
+    .poll(
+      async () => {
+        const now = (await thumbRims(control)).left;
+        const stable = now === previous;
+        previous = now;
+        return stable;
+      },
+      { intervals: [SETTLE_INTERVAL_MS, SETTLE_INTERVAL_MS, SETTLE_INTERVAL_MS, SETTLE_INTERVAL_MS] },
+    )
+    .toBe(true);
+  return await thumbRims(control);
+}
+
+function expectEqualInset(geometry: SwitchGeometry, when: string): void {
+  expect(geometry.border, `[${when}] the root must actually paint a border, or the rim relations are vacuous`).toBeGreaterThan(0);
+  expect(geometry.top, `[${when}] the thumb is inset from the root's TOP rim, not flush with it (#1109)`).toBeGreaterThan(geometry.border);
+  expect(geometry.bottom, `[${when}] top and bottom insets match — the knob is centred in the track`).toBe(geometry.top);
+  expect(geometry.left, `[${when}] the parked knob's END gap equals its top gap — one inset on all four sides`).toBe(geometry.top);
 }
 
 test("click toggles aria-checked", async ({ mount, page }) => {
@@ -81,12 +146,12 @@ test("the track is a generous rectangle and the thumb travels a substantial dist
   expect((track?.width ?? 0) / (track?.height ?? 1)).toBeGreaterThan(1.4);
   await control.click();
   await expect(control).toHaveAttribute("aria-checked", "true");
-  // Travel = switch-track − switch-thumb − 2×border = 48 − 32 − 2 = 14px (thumb raised to 32px for the
-  // tap-target floor, Task #76; the two borders subtracted at #424 — the root is border-box, so the thumb
-  // travels inside a content box narrower than the track token). The old fine travel was ~4px; assert
-  // well past that so a regression toward
-  // a near-square track fails here. Poll past the 130ms transform transition (the thumb slides,
-  // boundingBox tracks the transform mid-animation).
+  // Travel = trackWidth − trackHeight = 48 − 32 = 16px at a fine pointer (#1109: with the knob inset
+  // equally on all four sides, the border and the inset cancel out of `trackW − 2b − 2·inset − thumb`
+  // and the travel is exactly the difference of the two track dimensions — see the dedicated relation
+  // pin below). The old fine travel was ~4px; assert well past that so a regression toward a near-square
+  // track fails here. Poll past the 130ms transform transition (the thumb slides, boundingBox tracks the
+  // transform mid-animation).
   await expect.poll(async () => (await thumb.boundingBox())?.x ?? 0, { intervals: [20, 50, 100] }).toBeGreaterThan(offX + 12);
 });
 
@@ -95,22 +160,39 @@ test("the track is a generous rectangle and the thumb travels a substantial dist
 // token and pushes the checked knob one border-width PAST the right rim (measured −1 at both pointers
 // before the fix; side-eye #420 P3). Asserted as a RELATION against the root's own rendered
 // border-width, so a border-width retune moves the expectation with the design instead of pinning 1.
-test("the thumb sits INSIDE the root's border at both ends of its travel (#424)", async ({ mount, page }) => {
+// #1109 SUPERSEDES THE RESIDUAL THIS CASE USED TO PIN, AND THE MECHANISM SURVIVES ITS CHANGED INPUT.
+// Until 2026-09-02 this case asserted `top === 0 && bottom === 0` — the thumb flush with the root's
+// OUTER box — and said so honestly: "inset-ing it would mean shrinking the display thumb, a size
+// decision this fix has no mandate for". The owner gave that mandate (#1109). #424's own ruling is
+// UNCHANGED: the root is border-box, so the thumb's travel must not spend the border. It is now
+// satisfied through the inset rather than through a bare `− 2×border` term, because the padding that
+// creates the inset absorbs it — `trackW − 2b − 2·inset − thumb` with `inset = (trackH − 2b − thumb)/2`
+// reduces to `trackW − trackH`, a relation with no free border in it. Both halves are asserted below
+// against the RENDERED boxes, so neither can be satisfied by a token that merely exists.
+test("the thumb is a PROPORTIONAL knob, inset equally on all four sides, at both ends of its travel (#1109 / #424)", async ({ mount, page }) => {
   await mount(<Switch aria-label="Streaming" />);
   const control = page.getByRole("switch");
   const parked = await thumbRims(control);
-  expect(parked.border, "the root must actually paint a border, or this pin is vacuous").toBeGreaterThan(0);
-  // The RESIDUAL this fix deliberately leaves (measured, so a later change to it is visible here): the
-  // thumb is exactly as tall as the root at a fine pointer, so it stays flush with the root's OUTER box
-  // vertically. Inset-ing it would mean shrinking the display thumb — a size decision, not this defect.
-  expect(parked.top, "the thumb stays vertically flush with the root's OUTER box (unchanged by #424)").toBe(0);
-  expect(parked.bottom, "the thumb stays vertically flush with the root's OUTER box (unchanged by #424)").toBe(0);
-  expect(parked.left, "unchecked: the thumb starts at the content box's left edge, not on the border").toBe(parked.border);
+  const share = parked.thumbHeight / parked.rootHeight;
+  expect(
+    share,
+    `the knob is ~55% of the track height, not the track height itself (thumb ${String(parked.thumbHeight)} in root ${String(parked.rootHeight)})`,
+  ).toBeGreaterThanOrEqual(MIN_THUMB_SHARE);
+  expect(
+    share,
+    `the knob is ~55% of the track height, not a dot in a field (thumb ${String(parked.thumbHeight)} in root ${String(parked.rootHeight)})`,
+  ).toBeLessThanOrEqual(MAX_THUMB_SHARE);
+  expectEqualInset(parked, "fine · unchecked");
   await control.click();
   await expect(control).toHaveAttribute("aria-checked", "true");
   // SETTLED, not mid-transition: the thumb has a 130ms transform transition (the same false negative
   // the side-eye retracted on this control), so poll the rim rather than reading it same-tick.
-  await expect.poll(async () => (await thumbRims(control)).right, { intervals: [20, 50, 100, 150] }).toBe(parked.border);
+  await expect.poll(async () => (await thumbRims(control)).right, { intervals: [20, 50, 100, 150] }).toBe(parked.top);
+  // The travel relation itself, measured end-to-end: an equally-inset knob crosses exactly the
+  // difference of the track's two dimensions. Red on the pre-#1109 source, which travelled 14 (= 48 − 32
+  // − 2×border) against the 16 this asserts.
+  const travelled = await thumbRims(control);
+  expect(travelled.left - parked.left, "travel = trackWidth − trackHeight").toBe(parked.rootWidth - parked.rootHeight);
 });
 
 // ── THE COARSE-POINTER SHAPE PIN (side-eye #420, 2026-08-22). The two pins that existed before this
@@ -156,15 +238,13 @@ test.describe("at a COARSE pointer", () => {
     ).toBeGreaterThan(MIN_ASPECT);
 
     // Travel is the other half of the read: the thumb must cross the track, not shuffle inside it.
-    // Measured against the TOKENS' own static literals (which ARE the coarse values — the generator is
-    // coarse-first and narrows fine in an @media block, tokens.build.ts:104), so a retune moves the
-    // expectation with the design instead of pinning a constant.
-    const rem = await page.evaluate(() => Number.parseFloat(getComputedStyle(document.documentElement).fontSize));
-    const remPx = (value: string): number => Number.parseFloat(value) * rem;
-    // MINUS the two borders (#424): the root is border-box, so the thumb travels inside a content box
-    // 2×--border-width-control narrower than the track token. Coarse arithmetic: 64 − 32 − 2×1 = 30.
-    const borders = 2 * Number.parseFloat(TOKENS["border-width.control"].value);
-    const expectedTravel = Math.round(remPx(TOKENS["spacing.switch-track"].value) - remPx(TOKENS["spacing.switch-thumb"].value) - borders);
+    // Asserted as the #1109 RELATION between the two RENDERED track dimensions — `trackW − trackH`,
+    // which is what an equally-inset knob crosses at any pointer (64 − 44 = 20 here) — rather than
+    // against the token literals. Reading `TOKENS["spacing.switch-thumb"]` was sound while that token
+    // WAS the fine track height doing double duty; now that the thumb is its own pointer-conditional
+    // pair, a token-derived expectation would need the fine/coarse arm the static export cannot name,
+    // and would go green on a tree that declared the split without rendering it.
+    const expectedTravel = Math.round(width - height);
     const offX = (await thumb.boundingBox())?.x ?? 0;
     await control.click();
     await expect(control).toHaveAttribute("aria-checked", "true");
@@ -173,16 +253,20 @@ test.describe("at a COARSE pointer", () => {
     await expect.poll(async () => Math.round(((await thumb.boundingBox())?.x ?? 0) - offX), { intervals: [20, 50, 100, 150] }).toBe(expectedTravel);
   });
 
-  // #424 is pointer-INDEPENDENT (the overhang is the border-box arithmetic, not a token value), so the
-  // rim pin runs in the coarse context too — the wider track must not put the knob back over the rim.
-  test("the thumb sits INSIDE the root's border here too (#424)", async ({ mount, page }) => {
+  // #424 is pointer-INDEPENDENT (the overhang is the border-box arithmetic, not a token value) and so
+  // is #1109's proportion — the whole point of the split is that the knob scales WITH the pointer, so
+  // the ratio has to hold in BOTH contexts or one arm ships a dot in a 64x44 field.
+  test("the knob is proportional and equally inset here too (#1109 / #424)", async ({ mount, page }) => {
     await mount(<Switch aria-label="Streaming" />);
     const control = page.getByRole("switch");
     const parked = await thumbRims(control);
-    expect(parked.left, "unchecked: the thumb starts at the content box's left edge").toBe(parked.border);
+    const share = parked.thumbHeight / parked.rootHeight;
+    expect(share, `coarse: thumb ${String(parked.thumbHeight)} in root ${String(parked.rootHeight)}`).toBeGreaterThanOrEqual(MIN_THUMB_SHARE);
+    expect(share, `coarse: thumb ${String(parked.thumbHeight)} in root ${String(parked.rootHeight)}`).toBeLessThanOrEqual(MAX_THUMB_SHARE);
+    expectEqualInset(parked, "coarse · unchecked");
     await control.click();
     await expect(control).toHaveAttribute("aria-checked", "true");
-    await expect.poll(async () => (await thumbRims(control)).right, { intervals: [20, 50, 100, 150] }).toBe(parked.border);
+    await expect.poll(async () => (await thumbRims(control)).right, { intervals: [20, 50, 100, 150] }).toBe(parked.top);
   });
 });
 
@@ -282,6 +366,23 @@ const TRACK_BEHIND_PARKED_THUMB: Readonly<Record<"off" | "on", PixelSurfaceRegio
   on: { x0: 0.04, x1: 0.2, y0: 0.35, y1: 0.65 },
 };
 
+/** The strip of track directly ABOVE the parked thumb — across the knob's OWN x-span, below the root's
+ *  1px border and above the knob's top edge. This is the band a fill probe resolves a fill-only subject
+ *  against (`snap --contrast`'s fill arm shoots a 4px margin around the box and takes its MODAL colour),
+ *  and it is the whole of #1170: while the thumb was as tall as the track it had no track above or below
+ *  it, so on `settings:chat-behavior` the ON knob's band came back 72% PAGE (15,12,10) and the arm
+ *  measured `--color-primary-foreground` against the page instead of against its ember track — 1.05:1
+ *  FAIL for a knob that is 7:1 against the thing it actually sits on. Fractions of the ROOT's box: at a
+ *  fine pointer 0.09..0.18 of 32px is y 2.9..5.8, inside a track whose knob now starts at y 7. */
+const TRACK_ABOVE_PARKED_THUMB: Readonly<Record<"off" | "on", PixelSurfaceRegion>> = {
+  off: { x0: 0.2, x1: 0.42, y0: 0.09, y1: 0.18 },
+  on: { x0: 0.58, x1: 0.8, y0: 0.09, y1: 0.18 },
+};
+
+/** Two samples of one surface differ only by anti-aliasing; 1.1:1 is far below the 3:1 the same pair
+ *  reaches when one of them is actually the knob (measured 4.1:1 OFF / 7.1:1 ON on Hearth). */
+const SAME_SURFACE_MAX_RATIO = 1.1;
+
 /** All three seeds side by side in ONE mount. playwright-ct refuses a second `mount()` in a test
  *  ("Attempting to mount a component into a container that already has a React root"), and `hearth` IS
  *  the base `@theme` at `:root` — theme.css emits `[data-theme]` blocks for light + mocha only — so the
@@ -309,8 +410,7 @@ async function stateLoudness(page: Page, name: string, state: "off" | "on", pane
   const thumb = root.locator('[data-slot="switch-thumb"]');
   // SETTLED, not mid-transition: the thumb has a 130ms transform transition and the track strip is
   // addressed relative to where the thumb has PARKED — a same-tick read samples the knob instead.
-  const border = (await thumbRims(root)).border;
-  await expect.poll(async () => (await thumbRims(root))[state === "on" ? "right" : "left"], { intervals: [20, 50, 100, 150] }).toBe(border);
+  await settledThumb(root);
   const track = await pixelSurface(page, root, { region: TRACK_BEHIND_PARKED_THUMB[state] });
   const knob = await pixelSurface(page, thumb);
   const trackRatio = contrastRatio(track.rgb, pane.rgb);
@@ -346,19 +446,36 @@ test("the OFF state is measurably QUIETER than the ON state, on both tones and e
   }
 });
 
-test("the OFF thumb still clears the WCAG 1.4.11 3:1 floor against its own track, in every seed theme (#1090)", async ({ mount, page }) => {
-  // The other side of the polarity fix: quieting the knob may not erase it. 1.4.11 asks 3:1 of the
-  // visual information that identifies a control's state, and the OFF knob IS that information — so the
-  // fix has a floor as well as a ceiling, and the pair together is what makes the value non-arbitrary.
-  // HONESTLY LABELLED: this is a FENCE, not a defect proof. It was GREEN on the pre-#1090 source by
-  // construction (an 11.118:1 knob clears 3:1 trivially); what it locks out is the next tune-down.
+// ── #1170: THE SURROUND A FILL PROBE FINDS AROUND THE KNOB IS THE TRACK, ON EVERY SIDE.
+//
+// TWO CLAUSES, and only the pair is the fix. The FLOOR half (#1090's other side) is a FENCE, honestly
+// labelled: quieting the knob may not erase it — 1.4.11 asks 3:1 of the visual information that
+// identifies a control's state and the knob IS that information — but it was green on the pre-#1090
+// source by construction (an 11.118:1 knob clears 3:1 trivially), so what it locks out is the next
+// tune-down. The SURROUND half is the actual #1170 defect proof and is RED on the pre-#1109 source: a
+// knob as tall as its track has no track above or below it, so `snap --contrast`'s fill arm resolved
+// `[data-slot=switch-thumb]` against a band that was 72% PAGE and printed FILL 1.05:1 FAIL —
+// `--color-primary-foreground` (31,16,7) measured against `--color-background` (15,12,10) instead of
+// against the ember track it sits on. The instrument was right; the geometry was the defect.
+//
+// BOTH STATES, because the ON knob is the one the live route reported and the OFF knob is the one #1090
+// re-toned — and the SURROUND clause is what makes the FLOOR clause meaningful, since a floor measured
+// against a strip that is not the real neighbour is the unquotable number this family keeps producing.
+test("the knob is surrounded by TRACK on every side, and clears 3:1 against it — OFF and ON, every seed (#1170 / #1090)", async ({ mount, page }) => {
   await mount(seedThemePanes());
   for (const theme of SEED_THEMES) {
-    const root = page.getByRole("switch", { name: `${theme} accent off` });
-    const track = await pixelSurface(page, root, { region: TRACK_BEHIND_PARKED_THUMB.off });
-    const knob = await pixelSurface(page, root.locator('[data-slot="switch-thumb"]'));
-    const ratio = contrastRatio(knob.rgb, track.rgb);
-    expect(ratio, `[${theme}] OFF thumb ${knob.describe} on track ${track.describe}`).toBeGreaterThanOrEqual(3);
+    for (const state of ["off", "on"] as const) {
+      const root = page.getByRole("switch", { name: `${theme} accent ${state}` });
+      await settledThumb(root);
+      const track = await pixelSurface(page, root, { region: TRACK_BEHIND_PARKED_THUMB[state] });
+      const above = await pixelSurface(page, root, { region: TRACK_ABOVE_PARKED_THUMB[state] });
+      const knob = await pixelSurface(page, root.locator('[data-slot="switch-thumb"]'));
+      expect(
+        contrastRatio(above.rgb, track.rgb),
+        `[${theme}/${state}] the strip ABOVE the knob (${above.describe}) must be the same surface as the track beside it (${track.describe}) — if it is the pane, a fill probe measures the knob against the page`,
+      ).toBeLessThan(SAME_SURFACE_MAX_RATIO);
+      expect(contrastRatio(knob.rgb, track.rgb), `[${theme}/${state}] knob ${knob.describe} on track ${track.describe}`).toBeGreaterThanOrEqual(3);
+    }
   }
 });
 

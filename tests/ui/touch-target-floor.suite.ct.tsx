@@ -107,9 +107,11 @@ test("icon Button is a square control meeting the floor on both axes", async ({ 
   await expect.poll(() => shortSide(button), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(FLOOR);
 });
 
-// The Switch's coarse floor is ROOT-CARRIED (`pointer-coarse:h-touch-target`, switch/variants.ts:18,
-// landed 382e46d83) — the visible track itself grows to 44 at a coarse pointer while the thumb stays on
-// its 32px display token so the travel stays legible. This case used to open with the opposite
+// The Switch's coarse floor is ROOT-CARRIED (landed 382e46d83 as `pointer-coarse:h-touch-target`; since
+// #1109 the root spells its height from the ONE pointer-conditional `--spacing-switch-track-height`,
+// whose coarse arm is that same 44px, so this floor is now a token VALUE rather than a variant) — the
+// visible track itself grows to 44 at a coarse pointer while the thumb rides its own pointer-conditional
+// pair at ~55% of that height, so the travel stays legible. This case used to open with the opposite
 // precondition (`visible < 44`, proving the ::before union was doing the lifting); that assertion was
 // true of the OLD mechanism and became a lie the moment the root started carrying the floor, which is
 // how this file went red. It is replaced, not dropped: asserting the VISIBLE box clears the floor is
