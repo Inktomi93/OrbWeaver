@@ -4,8 +4,8 @@
 // The load-bearing assertions are the two WARNING arms: they are the standing OWNER OPS items made
 // self-announcing, and a warning that stops firing is exactly as silent as the exposure it names.
 
-import type { DiagnosticsPostureInput } from "@orb/server/foundation/env";
-import { diagnosticsPostureWarnings, resolveDiagnosticsPosture } from "@orb/server/foundation/env";
+import type { DiagnosticsPostureInput, OwnerFallbackCredentialInput } from "@orb/server/foundation/env";
+import { diagnosticsPostureWarnings, resolveDiagnosticsPosture, resolveOwnerFallbackCredential } from "@orb/server/foundation/env";
 import { describe } from "vitest";
 import { expect, test } from "../../../support/fixtures.ts";
 
@@ -70,5 +70,33 @@ describe("resolveDiagnosticsPosture", () => {
   test("the posture NEVER carries the token value — it is reduced to a boolean before it leaves foundation/env", () => {
     // The whole object is what the boot log and /api/_debug/info print.
     expect(JSON.stringify(posture({ debugToken: "s3cret-do-not-log" }))).not.toContain("s3cret");
+  });
+});
+
+// The CREDENTIAL plane's third arm (#1193). This resolver decides whether the un-credentialed LOOPBACK owner
+// fallback is the box operator's session or an acknowledged SSO-bypass, and `entry/auth/seam.ts` carries the
+// answer to the /api/_debug door. Its polarity is the whole security property, so both directions are pinned
+// against the ruled hazard it is the negation of (`foundation/env/index.ts`'s production superRefine).
+describe("resolveOwnerFallbackCredential", () => {
+  const credential = (over: Partial<OwnerFallbackCredentialInput> = {}): boolean =>
+    resolveOwnerFallbackCredential({ nodeEnv: "development", authFallback: "owner", ...over });
+
+  test("a DEV box: the loopback owner IS the operator (this is the #1193 fix)", () => {
+    expect(credential()).toBe(true);
+    expect(credential({ nodeEnv: "test" })).toBe(true);
+  });
+
+  test("PRODUCTION is refused — a same-host proxy makes every external request a loopback peer there", () => {
+    // This holds for EVERY mode, `single-user` included: prod single-user is forced to AUTH_FALLBACK=owner
+    // (deny is boot-fatal there), so it is exactly the box where a proxied caller would otherwise inherit
+    // the diagnostics surface — which holds more than the app does (raw provider request bodies). The prod
+    // image spec leans on that belt (containerize-prod-image-spec.md §3.1/§4), and a break-glass session is
+    // refused for the same reason: whoever opened that door holds DEBUG_TOKEN.
+    expect(credential({ nodeEnv: "production" })).toBe(false);
+  });
+
+  test("AUTH_FALLBACK=deny is false everywhere — there is no arm to credential", () => {
+    expect(credential({ authFallback: "deny" })).toBe(false);
+    expect(credential({ nodeEnv: "production", authFallback: "deny" })).toBe(false);
   });
 });

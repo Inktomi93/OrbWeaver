@@ -27,15 +27,19 @@
 //
 // CSRF is a SIGNAL here, not a gate: the seam surfaces `csrfHeaderPresent` + `via`; the transport ladder
 // enforces it.
+//
+// The seam also owns ONE verdict beside the mint: `debugGateAdmits` — whether the /api/_debug door opens for
+// the principal this file already minted for the request. It RESOLVES NOTHING (#1193): a second, peer-less
+// resolution at that door is what closed it to the owner's own dev session.
 
 import type { Principal } from "@orb/contracts/identity";
 import type { Handle, SessionId, SessionToken, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { requireAdmin } from "#domain/admin";
+import { isAdmin } from "#domain/admin";
 import type { SessionsService, UserPrincipalFields } from "#domain/sessions";
 import { ownerHandles } from "#domain/sessions";
 import type { AuthConfig, ForwardJwtVerifier, IdentityResolution, OidcTransactionStore } from "#infra/auth";
-import { authConfigFromEnv, hasCsrfHeader, resolve, SESSION_COOKIE_NAME } from "#infra/auth";
+import { authConfigFromEnv, hasCsrfHeader, resolve, SESSION_COOKIE_NAME, selectSignedForwardJwt } from "#infra/auth";
 import { publishUserEvent } from "../../transport/trpc/index.ts";
 
 /** The boot-time deps the seam binds once. `config` is the test/override seam — production parses
@@ -46,6 +50,16 @@ export interface AuthSeamDeps {
   readonly verifyForwardJwt?: ForwardJwtVerifier;
   readonly oidcStore?: OidcTransactionStore;
   readonly config?: AuthConfig;
+  /**
+   * Does THIS deployment's un-credentialed loopback owner fallback count as the operator's credential at the
+   * /api/_debug door (#1193)? The RULE is not decided here and has one home —
+   * `foundation/env::resolveOwnerFallbackCredential` — because it is a fact about how the box was launched
+   * (NODE_ENV × AUTH_FALLBACK), not about a request. `entry/lifecycle.ts` passes the resolved
+   * value; a seam constructed without it (unit tests, the int harness, any future embedder) gets the STRICT
+   * arm. Absent ⇒ `false` is deliberate: a construction site that forgets this dep loses a dev convenience,
+   * never a control.
+   */
+  readonly ownerFallbackIsOperatorCredential?: boolean;
 }
 
 /** Per-request knobs. `peerIp` is the raw TCP peer socket address that TWO gates match against — the
@@ -73,12 +87,13 @@ export interface SeamResult {
   readonly csrfHeaderPresent: boolean;
 }
 
-/** The constructed seam — bound at boot, called per request. `isAdmin` is the DEBUG-GATE verdict only (and
- *  carries an OPEN finding — read its doc before touching it); it must never throw — a transport/db error
- *  resolves to `false` so a misbehaving seam can't open the debug gate. */
+/** The constructed seam — bound at boot, called per request. `debugGateAdmits` is the DEBUG-GATE verdict
+ *  only — never a general "is this caller an admin" test (that is `can()`/`requireAdmin`, D17) — and it
+ *  judges the principal `resolvePrincipal` ALREADY minted for the request rather than resolving a second
+ *  time; read its doc before touching it. */
 export interface AuthSeam {
   readonly resolvePrincipal: (headers: Headers, req?: PerRequestSeamDeps) => Promise<SeamResult>;
-  readonly isAdmin: (headers: Headers) => Promise<boolean>;
+  readonly debugGateAdmits: (principal: Principal | null, headers: Headers) => boolean;
 }
 
 /**
@@ -285,41 +300,49 @@ function createFallbackPrincipalResolver(sessions: Pick<SessionsService, "loadUs
 }
 
 /**
- * Which `Principal.via` provenances count as a CREDENTIAL at the debug gate (AUTHFIX-2, closed 2026-08-07).
+ * Which `Principal.via` provenances count as a CREDENTIAL at the debug gate (AUTHFIX-2, closed 2026-08-07;
+ * amended for the fallback and header arms 2026-09-02, #1193).
  *
  * A POSITIVE allow-list, deliberately not a `via === "fallback"` negative check: the mapped `Record` is
  * exhaustive over the union, so a fourth provenance added later is a `tsc` ERROR here rather than silently
- * defaulting to ADMITTED. Fail-closed by construction beats fail-closed by vigilance (spine §5.5).
+ * defaulting to ADMITTED. Fail-closed by construction beats fail-closed by vigilance (spine §5.5). It is
+ * built PER REQUEST rather than frozen at module scope because two of the three arms are facts about the
+ * request/deployment, not about the word `via`.
  *
- * `fallback` is `false` because that arm is precisely the caller who presented NOTHING: `infra/auth.resolve`
- * mints it whenever `ownerFallbackAllowed` says the raw TCP peer is LOOPBACK — one rule across all four
- * modes since #298 f2 (it used to key on the client-supplied `Host` header, which is not a fact about the
- * network). A network position is not a credential, however unspoofable the socket is.
+ * `fallback` — THE #1193 AMENDMENT. AUTHFIX-2's absolute ("an ORIGIN is not a credential") closed a hole
+ * where anyone who could reach the port and forge `Host: 127.0.0.1` read the whole db; #298 f2 then re-based
+ * the arm on the raw LOOPBACK TCP PEER, which a forged header cannot reach. What was left was a door closed
+ * to its only user: on a DEV box the fallback IS how the operator authenticates — the same request this gate
+ * refused was already being served as `role:"owner"` on every tRPC surface (proven live 2026-09-02: an
+ * un-credentialed loopback GET of `sessions.me` answered `globalRole: "owner"` while `/api/_debug/info`
+ * answered 401). The rule that decides WHERE that holds is not spelled here: it is
+ * `foundation/env::resolveOwnerFallbackCredential`, arriving as `deps.ownerFallbackIsOperatorCredential`.
+ * PRODUCTION always resolves `false` — `single-user` and break-glass included — because a same-host proxy
+ * makes every external request a loopback peer there, and this door holds more than the app does.
  *
- * STANDING NOTE — the `header:true` arm is safe HERE by a CALL-SITE OMISSION, not by its own logic. `isAdmin`
- * calls `resolvePrincipal(headers)` with no `PerRequestSeamDeps`, so `peerIp` is `undefined`, and
- * `resolveUnsignedHeader` rejects on `peerIp === undefined` (`infra/auth/modes/forward-header.ts`). Only the
- * signed-JWT arm can therefore mint `via:"header"` at this gate. The per-request middleware (`entry/app.ts`)
- * DOES thread `peerIp`, so tRPC admits a wider set than this gate in an unsigned `forward-header` deployment.
- * If `isAdmin` is ever given `peerIp`, `header:true` would start meaning "a raw `Remote-User:` header from an
- * allowlisted TCP peer", and the gate's whole strength would collapse onto `FORWARD_AUTH_TRUSTED_PROXIES`.
- * Thread `peerIp` into `isAdmin` only with that trade understood.
+ * `header` — a verified SSO identity, and ONLY a verified one. It used to be an unconditional `true` that was
+ * safe by a CALL-SITE OMISSION (the old `isAdmin(headers)` re-resolved with no `peerIp`, so
+ * `resolveUnsignedHeader` fail-closed and only the signed-JWT arm could mint `via:"header"` here). The gate
+ * now judges the REQUEST's principal, which does carry a peer, so that accident is gone and the condition is
+ * stated: `selectSignedForwardJwt` is the same predicate `resolveForwardHeader` branches on (one home), so
+ * this admits exactly the JWT-verified caller and still refuses a raw `Remote-User:` from an allowlisted TCP
+ * peer. Deliberate: the strength of this door must not collapse onto `FORWARD_AUTH_TRUSTED_PROXIES`, and an
+ * unsigned forward-header deployment's admin keeps using `x-debug-token`.
  */
-const DEBUG_GATE_CREDENTIALED = {
-  /** A session cookie that `sessions.validate` accepted (peppered-hash lookup, fails closed on a forgery). */
-  cookie: true,
-  /** A verified SSO identity. At THIS gate only a signed JWT reaches it: `isAdmin` passes no `peerIp`, so the
-   *  raw-header (allowlisted-TCP-peer) arm is unreachable here — see the STANDING NOTE above. */
-  header: true,
-  /** The un-credentialed loopback-peer-gated owner fallback. NOT a credential — see above. (Since #298 f2
-   *  `isAdmin`'s missing `peerIp` also makes this arm unmintable HERE; this entry is the belt that survives
-   *  if `peerIp` is ever threaded in — the same call-site-omission caveat the `header` arm carries.) */
-  fallback: false,
-} as const satisfies Record<Principal["via"], boolean>;
+function debugGateCredentialed(config: AuthConfig, headers: Headers, ownerFallbackIsOperatorCredential: boolean): Record<Principal["via"], boolean> {
+  return {
+    /** A session cookie that `sessions.validate` accepted (peppered-hash lookup, fails closed on a forgery). */
+    cookie: true,
+    header: selectSignedForwardJwt(headers, config) !== null,
+    fallback: ownerFallbackIsOperatorCredential,
+  };
+}
 
 /** Construct the auth seam. Parses the auth config ONCE (production) and returns the per-request resolver. */
 export function createAuthSeam(deps: AuthSeamDeps): AuthSeam {
   const config = deps.config ?? authConfigFromEnv();
+  // FAIL-CLOSED default: an omitted dep is the STRICT debug gate, never a widened one (see the dep's doc).
+  const ownerFallbackIsOperatorCredential = deps.ownerFallbackIsOperatorCredential ?? false;
   const isCookieMode = config.mode === "local" || config.mode === "oidc";
   // Bound once: the owner-fallback arm and the frozen-host bridge map the SAME row fields (D135); this arm
   // adds the request-path `enabled` gate its two sibling arms already apply.
@@ -351,38 +374,38 @@ export function createAuthSeam(deps: AuthSeamDeps): AuthSeam {
   /**
    * The debug-gate admin verdict — its ONE consumer is `createDebugAuthMiddleware`'s `adminAuth` arm
    * (`entry/app.ts`), which SHORT-CIRCUITS the `DEBUG_TOKEN` check when this returns true. TWO conditions,
-   * both required: the caller PRESENTED a credential (`DEBUG_GATE_CREDENTIALED`), and that credential's
-   * principal satisfies `can(p,'admin',global)` — i.e. `role` is `owner` or `admin` (D17).
+   * both required: the caller PRESENTED a credential (`debugGateCredentialed`, read its doc — that is where
+   * every arm's WHY lives), and that credential's principal satisfies `can(p,'admin',global)` — i.e. `role`
+   * is `owner` or `admin` (D17), asked through the ONE kernel's boolean form.
+   *
+   * IT JUDGES, IT DOES NOT RESOLVE (#1193). The principal is the one `resolvePrincipal` already minted for
+   * this request in `entry/app.ts`'s middleware — spine invariant #2, "resolve once". The old shape re-ran
+   * the whole resolution from bare headers with NO `PerRequestSeamDeps`, so the gate silently asked a
+   * DIFFERENT question than the rest of the app: with no `peerIp`, `ownerFallbackAllowed` fail-closed and the
+   * loopback owner arm could not even be minted here, which (with `fallback:false`) is why the owner's own
+   * dev session got 401 from a door meant for exactly that human. Keeping this a pure verdict over a
+   * principal is what stops a second, peer-less resolution from ever growing back.
    *
    * THE CREDENTIAL CONDITION IS LOAD-BEARING, NOT BELT-AND-BRACES (AUTHFIX-2, closed 2026-08-07). Without
-   * it this returned `true` for the un-credentialed `via:"fallback"` principal, and since the arm runs
-   * BEFORE the token check, `/api/_debug/*` served with no cookie and no `DEBUG_TOKEN` — unconditionally
-   * under `single-user`, and under an SSO mode to anyone who could reach the port and send
-   * `Host: 127.0.0.1` (that second reach was itself closed later by #298 f2's move to the raw loopback peer,
-   * so the counterfactual today would be loopback callers only). Note what that means for the token: because
-   * the admin arm short-circuits the `expectedToken === undefined` → 404 branch too, UNSETTING `DEBUG_TOKEN`
-   * did not close it either.
+   * any credential test this returned `true` for ANY resolvable principal, and since the arm runs BEFORE the
+   * token check, `/api/_debug/*` served with no cookie and no `DEBUG_TOKEN` to anyone who could reach the
+   * port and send `Host: 127.0.0.1`. Note what that means for the token: because the admin arm short-circuits
+   * the `expectedToken === undefined` → 404 branch too, UNSETTING `DEBUG_TOKEN` did not close it either.
    * Behind the gate sit principal-blind whole-db reads whose `@owner-scope-ok` exemption
    * (`foundation/observability/debug/inspect/config.ts`) rests entirely on this verdict.
    *
-   * The enforcer is `tests/server/entry/debug-gate.suite.test.ts` — every AUTH_MODE × Host × token state,
-   * asserted through the REAL registrar. Do not weaken this without turning that suite red first.
+   * The enforcer is `tests/server/entry/debug-gate.suite.test.ts` — every AUTH_MODE × peer × posture × token
+   * state, asserted through the REAL registrar. Do not weaken this without turning that suite red first.
    *
-   * Never throws — a transport/db error resolves to `false` so a misbehaving seam can't open the gate.
+   * TOTAL — no throw, no await, no I/O: a record lookup plus the kernel's own caught verdict. The gate's
+   * `try`/`catch` (`routes.ts`) stays as the port's belt, not because this function has a failure mode.
    */
-  async function isAdmin(headers: Headers): Promise<boolean> {
-    // @orb-gate-ignore caught-failure-ownership(default:catch): FAIL-CLOSED, and this function's own JSDoc above is the contract — a transport/db fault resolves to `false` so a misbehaving seam can never OPEN the debug gate. Propagating here would turn an infra blip into a 500 on a gate whose only correct failure mode is "denied". Ends if the debug gate gains a distinct unavailable state.
-    try {
-      const { principal } = await resolvePrincipal(headers);
-      if (principal === null || !DEBUG_GATE_CREDENTIALED[principal.via]) {
-        return false;
-      }
-      requireAdmin(principal);
-      return true;
-    } catch {
+  function debugGateAdmits(principal: Principal | null, headers: Headers): boolean {
+    if (principal === null || !debugGateCredentialed(config, headers, ownerFallbackIsOperatorCredential)[principal.via]) {
       return false;
     }
+    return isAdmin(principal);
   }
 
-  return { resolvePrincipal, isAdmin };
+  return { resolvePrincipal, debugGateAdmits };
 }

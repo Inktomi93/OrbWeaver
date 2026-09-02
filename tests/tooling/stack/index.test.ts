@@ -292,9 +292,12 @@ test("the debug posture is read off the gate's STATUS CODE — a 200 is not proo
   //
   // POSTSCRIPT (AUTHFIX-2, 2026-08-07): that measured 200 was not merely a probe-design trap — it was an
   // un-credentialed read of the whole debug surface, and it is now closed at the seam
-  // (`entry/auth/seam.ts::DEBUG_GATE_CREDENTIALED`). The three postures stay: `classifyDebugPosture` maps
+  // (`entry/auth/seam.ts::debugGateCredentialed`). The three postures stay: `classifyDebugPosture` maps
   // status codes and must keep an arm for a 200 precisely so the tooling can still SAY so if one ever comes
   // back. What changed is the meaning — a 200 to this un-credentialed probe is now an alarm, not dev comfort.
+  // Still true after #1193: this probe's only callers are the `prod-*` ops, which observe a PRODUCTION
+  // process (`NODE_ENV=production` in `buildProdSpawnPlan`), and the loopback-owner arm that #1193 opened is
+  // production-EXCLUDING. A dev stack answering 200 to a loopback probe is not this instrument's subject.
   expect(classifyDebugPosture(404)).toBe("off");
   expect(classifyDebugPosture(401)).toBe("token");
   expect(classifyDebugPosture(200)).toBe("open");
