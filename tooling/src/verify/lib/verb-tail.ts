@@ -12,6 +12,7 @@
 //   show         ops/show.ts      (its parse switch defaults to UsageError)
 //   debt         ops/debt.ts      (same shape)
 //   scoped       ops/scoped.ts    (selector validation + the unknown-token sweep)
+//   scoped-test  ops/scoped-test.ts (the runner name, then the caller's path claims + runner flags)
 //   baseline     cli.ts runBaseline (the kind table + `--check`)
 //   new-gate     ops/new-gate.ts  (exactly one kebab name)
 //   orphan-ratchet ops/orphan-export-ratchet.ts (`--update`, and nothing else)
@@ -26,6 +27,7 @@ const VERB_TAIL: Readonly<Record<VerifyVerb, TailGrammar>> = {
   structure: "none",
   show: "own",
   scoped: "own",
+  "scoped-test": "own",
   "new-gate": "own",
   baseline: "own",
   "tests-membership": "none",

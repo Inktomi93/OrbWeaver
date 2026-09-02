@@ -23,7 +23,8 @@ export const MANUAL_ONLY_STAGES: readonly StageDef[] = [
     tiers: ["manual"],
     argv: ["pnpm", "test:scoped"],
     classify: asViolations,
-    manualReason: "the niced scoped lane-run wrapper (paths + --maxWorkers supplied per call) — an invocation surface, not a verification stage",
+    manualReason:
+      "the niced scoped lane-run wrapper (paths + --maxWorkers supplied per call) — an invocation surface, not a verification stage. Since #1192 it enters through `cli.ts scoped-test node`, which REFUSES a path operand that does not exist (3) or that the runner would collect nothing from (2) instead of running the rest and printing a pass",
   },
   {
     name: "tests:ct-scoped",
@@ -31,7 +32,8 @@ export const MANUAL_ONLY_STAGES: readonly StageDef[] = [
     tiers: ["manual"],
     argv: ["pnpm", "ct:scoped"],
     classify: asViolations,
-    manualReason: "the niced scoped CT wrapper (carries the cache-clear; paths + --workers per call) — an invocation surface, not a verification stage",
+    manualReason:
+      "the niced scoped CT wrapper (still carries the cache-clear, now inside `cli.ts scoped-test ct`; paths + --workers per call) — an invocation surface, not a verification stage. Since #1192 it REFUSES a path operand that does not exist (3) or that playwright would collect nothing from (2), the class that let a floor certify a CT file it never opened",
   },
   {
     name: "browser:e2e-live",
