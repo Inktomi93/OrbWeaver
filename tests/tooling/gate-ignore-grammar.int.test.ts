@@ -142,11 +142,16 @@ function plant(): void {
 
 // THE HOOK BUDGET IS LOAD-SCALED (#1174 -> #1232 section 7.1). The fixed 300s here ran ~60s on a quiet
 // box and 470-485s at load 40+ with five lanes live, so the SAME code was red on both sides of any change
-// and the red read as a broken gate corpus rather than as contention. 120s base with the shared scaling
-// (and the absolute ORB_BUDGET_CEILING_MS above it) covers the quiet case with headroom and stretches to
-// cover the contended one, and a hook that STILL blows it is a genuinely wedged pass — which is exactly
-// what the ceiling exists to surface.
-const HOOK_BUDGET_MS = scaledBudget(120_000);
+// and the red read as a broken gate corpus rather than as contention. The base is MEASURED, not guessed:
+// 120_000 was tried first and timed out at exactly its budget on 2026-09-02 while this suite ran beside
+// ui-audit's CLI tests at --maxWorkers=4, loadavg 11.7 on 24 cores — per-core 0.49, so `computeLoadFactor`
+// classified the box QUIET and applied no stretch at all, and the hook needed >120s anyway. The scaling
+// threshold (per-core >= 1) is about a SATURATED box; a half-loaded box still slows a single-threaded
+// whole-corpus pass. So the base covers the contended-but-unsaturated case that the factor cannot see,
+// and the factor stretches it for the saturated one (#1174 measured 470-485s at load 40+, which
+// 300_000 x that factor covers). A hook that STILL blows this is a genuinely wedged pass — which is
+// exactly what the ceiling exists to surface.
+const HOOK_BUDGET_MS = scaledBudget(300_000);
 
 let pass: PassResult;
 
