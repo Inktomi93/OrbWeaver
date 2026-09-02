@@ -10,6 +10,7 @@ export const STORY_KEYS = [
   "highlighted-text",
   "input",
   "list-row",
+  "picker-cell",
   "select",
   "slider",
   "status-chip",
