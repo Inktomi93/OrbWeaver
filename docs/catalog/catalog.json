@@ -29636,6 +29636,98 @@
       "receiptCurrent": true
     },
     {
+      "path": "docs/reviews/side-eye/2026-09-02-characters-rail-drive.md",
+      "lane": "reviews",
+      "issue": 7,
+      "lines": 766,
+      "bytes": 61430,
+      "sha256": "56a0136c3176a37234cecee873a56845155a64219de3877b997625a0fe08aa36",
+      "frontmatter": {
+        "present": true,
+        "malformed": false,
+        "fields": {
+          "kind": "review",
+          "status": "draft",
+          "updated": "2026-09-02"
+        },
+        "errors": []
+      },
+      "receipt": {
+        "path": "docs/reviews/side-eye/2026-09-02-characters-rail-drive.md",
+        "assignedSha256": "56a0136c3176a37234cecee873a56845155a64219de3877b997625a0fe08aa36",
+        "disposition": "current",
+        "authority": "review",
+        "fullRead": true,
+        "verifiedSha256": "56a0136c3176a37234cecee873a56845155a64219de3877b997625a0fe08aa36",
+        "verifiedCommit": "eaa6b7edffb059b31c6eba45e0265d6a50a1cdba",
+        "verifiedAt": "2026-09-02",
+        "summary": "side-eye Phase 4 rail drive of CHARACTERS with the full battery (#1114, lane p-eye-characters, tip 97a110dff, ~35 runs at 0 page/console errors, stage band held by a sibling so every receipt is off live :5173): verdict DO NOT SHIP AS IS; six 08-30 findings verifiably FIXED (import-dialog exit, 44x44 coarse import, the 28 dead tag facets, the Field junk drawer rebuilt as toolbar + aria-current + roving tabindex with History its own tab, honest provenance, #1067's checkbox ladder); three P1s (the Recently-chatted card renders the Added date under a sorted-by-last-chat heading and a chat count that disagrees across three homes; the four-way Opening selector carries no ARIA state and a 1.189:1 border; opening a character drops 25.45% of frames behind a bare loading line with an 84px post-fill jump); 11 P2s (seven character.list round-trips + 16 region:list commits + 14% entry drop, the boot splash 4/4, shipped-default glass panels putting 8-13 text elements off the device grid with compact's blurSurfaces=[] arm reporting 0 as the proof, no display voice with a 10.5px list h2, the bulk bar's filled Delete and orphaned dismiss, the unlabelled token datum, the 917x752 landing holding one 136px card, ungrouped suggested-tag stops, position-only Overview pairs); 17 receipted nits; six self-retractions; the rest-regime NO-VERDICT recorded as structural on this surface.",
+        "evidence": [
+          "born-reviewed at eaa6b7edffb059b31c6eba45e0265d6a50a1cdba (Phase 4 of the overnight plan, fold of the p-eye-characters lane): full read by the primary orchestrator — environment/run health incl. the probed appearance state and the shared-scratchpad fault, the verdict, Part 0 delta (six fixed with receipts, one changed, nine standing/not-re-measured, the inherited-accepted row, the killed skip-link claim), Part 1 F1-F14 with receipts and nits 15-31, Part 2 instrument notes, Part 3 taste/IA/errands/cognitive load/console triage, the ARIA recommendations, six retractions, what works, the biggest opportunity, the coverage table, artifact slots and state left behind; the orchestrator files the F rows and lands #1114"
+        ],
+        "claims": [
+          {
+            "claim": "The CONTENT landing's Recently-chatted card prints chatted 2d ago · 0 chats for a character whose context pane in the same session prints 1 chat and Last chat: Aug 2, 2026 with Added: 2d ago — the card renders the Added field under a heading annotated sorted by last chat, and the chat count has three homes that disagree (0 / 1 / 1).",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#1114"
+              }
+            ]
+          },
+          {
+            "claim": "All four Opening buttons carry role/aria-pressed/aria-current/aria-selected null with tabIndex 0, and the only visual state is a 1px border that composites to rgb(34,31,28) on rgb(15,12,10) = 1.189:1 against the WCAG 1.4.11 3:1 floor.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#1114"
+              }
+            ]
+          },
+          {
+            "claim": "Opening a character drops 14 of 55 frames (25.45%) under motion-audit, shows a bare Loading character… line over an empty pane for ~240ms, then shifts the greeting block 84px after fill (observed non-virtualized CLS 0.0233, input-adjacent so no gate catches it).",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#1114"
+              },
+              {
+                "kind": "issue",
+                "target": "#885"
+              }
+            ]
+          },
+          {
+            "claim": "The shipped-default glass panels put 8-13 text elements on a fractional device-pixel grid inside a backdrop-filter layer (off-grid-text P2 in the owner, defaults, maximal, diagnostics, Light, reading and driven arms) and --appearance-preset compact, the only arm with blurSurfaces: [], reports 0 — the arm sweep is the causal proof.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#1114"
+              },
+              {
+                "kind": "code",
+                "target": "tooling/src/_shared/appearance-presets.json:1"
+              }
+            ]
+          },
+          {
+            "claim": "A rest-regime design-audit of Characters is structurally NO-VERDICT (selection-idiom unmatchedUnselected) because the surface's selection cohort only exists once driven; only the driven run publishes population-verdict=complete — correct per #1059 and stated as a coverage fact, not filed.",
+            "evidence": [
+              {
+                "kind": "issue",
+                "target": "#1114"
+              },
+              {
+                "kind": "issue",
+                "target": "#1059"
+              }
+            ]
+          }
+        ]
+      },
+      "receiptCurrent": true
+    },
+    {
       "path": "docs/reviews/side-eye/2026-09-02-config-surface-live-drive-2.md",
       "lane": "reviews",
       "issue": 7,
