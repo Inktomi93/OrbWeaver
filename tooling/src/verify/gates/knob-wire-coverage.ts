@@ -6,17 +6,23 @@
 // (sanctioned-indefinite rebuild seam, cited) and DEFERRED (tracked debt, cited) — both self-cleaning in
 // BOTH directions (the D50 bus-coverage discipline): a member absent from both maps with no wire is
 // MISSING-RED; a member that GAINED its wire but still carries an entry is STALE-RED; an entry naming a
-// member that no longer exists is ORPHAN-RED. Arm C derives inline leaves from the settings contract and
-// follows a precise imported semantic-source manifest for sanctioned sub-schema modules; missing bindings,
-// unsupported composition, cycles, and zero leaves fail loud, and the scan line prints the semantic counts.
-// The other member sources retain paired-anchor rename tripwires. Whole-project ts-morph run; full spec:
-// docs/history/reviews/stickler/2026-07-25-knob-drift-gates.md; ruling: Core-Path-Registry.md D107;
-// Spine-Config-and-Serialization.md §"Settings / config".
-import type { ObjectLiteralExpression, Project, SourceFile, Type } from "ts-morph";
+// member that no longer exists is ORPHAN-RED. EVERY ARM FOLLOWS THE COMPOSITION ITS SOURCE LAW SANCTIONS OR
+// REFUSES LOUDLY (#1094; arms A/B/B2/C/E/F were left local-only when #934 re-homed arm C's imported axis):
+// A reads the interface's RESOLVED type, so an INHERITED `EffectiveAppConfig` field is a subject and an
+// `extends` binding nothing refuses; B reads `lib/tuple-read.ts`, so a spread section member counts; B2/C/E/F
+// share ONE authored-object reader that follows object spreads, `.shape` spreads, `.extend`/`.merge` and
+// local/imported bindings, and throws on every other member kind, unbound binding, cycle, or zero-member
+// contribution. Arm C also follows a precise imported semantic-source manifest for sanctioned sub-schema
+// modules. The scan line prints every arm's member count and each is a declared population, so a shrunken
+// denominator is loud instead of clean; the member sources keep their paired-anchor rename tripwires.
+// Whole-project ts-morph run; full spec: docs/history/reviews/stickler/2026-07-25-knob-drift-gates.md;
+// ruling: Core-Path-Registry.md D107; Spine-Config-and-Serialization.md §"Settings / config".
+import type { InterfaceDeclaration, ObjectLiteralExpression, Project, SourceFile, Type, VariableDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { ExemptionTable, GateDescriptor, GateRunCtx } from "../contract/gate.ts";
 import type { Violation } from "../contract/harness.ts";
-import { unwrapExpression } from "../lib/ast-read.ts";
+import { readStringValue, unwrapExpression } from "../lib/ast-read.ts";
+import { readTupleDeclaration } from "../lib/tuple-read.ts";
 
 // ── the two-map registry (keyed "<arm>:<member>") ───────────────────────────────────────────────────────
 // DOORWAY = a SANCTIONED, indefinitely-dormant rebuild seam a purged/future domain will graft onto (never
@@ -132,120 +138,254 @@ function identifierPresent(project: Project, ident: string): boolean {
   return false;
 }
 
-/** The property names of the object literal passed to the LAST `z.object({...})` chain a declaration owns,
- *  by variable OR interface name. Used to read appSettingsSchema keys + the metadata schema keys. */
-function zObjectKeys(sf: SourceFile, varName: string): string[] {
-  const decl = sf.getVariableDeclaration(varName);
-  if (decl === undefined) {
-    return [];
+// ── the ONE authored-object member reader (arms B2 · C · E · F) ─────────────────────────────────────────
+// ONE resolver, never a fourth: arms B2/C/F read zod object schemas and arm E reads an `as const` map, and
+// both questions are "which top-level members does this authored object DECLARE". A reader that keeps only
+// direct `PropertyAssignment`s drops a spread, a shorthand and an imported schema argument SILENTLY, which
+// is a denominator that shrinks behind a green ✓ (#1094 G4; the `_shared/schema-read.ts` #1035 rule —
+// EVERY MEMBER KIND IS ANSWERED, NONE IS SKIPPED). Sanctioned shapes are followed; everything else THROWS
+// (⇒ a ToolError attributed to this gate, exit 2), because a knob population this reader cannot establish
+// must never read as a smaller one. Deliberately NOT shared with `bus-payload-allowlist`'s walker: that one
+// REPORTS its unreadable shapes as D16 findings against a per-field frame, an inverted contract.
+
+/** Chain methods that leave a schema's top-level KEY SET untouched — the receiver's members are the answer.
+ *  `.pick`/`.omit`/`.transform` and every unlisted builder REFUSE: they change or erase the key set, and an
+ *  unmodelled builder is exactly the composition this reader cannot establish. */
+const KEY_NEUTRAL_SCHEMA_METHODS: ReadonlySet<string> = new Set([
+  "brand",
+  "catch",
+  "catchall",
+  "check",
+  "default",
+  "describe",
+  "loose",
+  "meta",
+  "nullable",
+  "nullish",
+  "optional",
+  "partial",
+  "passthrough",
+  "prefault",
+  "readonly",
+  "refine",
+  "required",
+  "strict",
+  "strip",
+  "superRefine",
+]);
+
+/** The mutable half of a walk: how many members the walk has DECLARED so far (duplicates included, so an
+ *  override never reads as a zero contribution). A spread that leaves it unmoved contributed nothing. */
+interface MemberTally {
+  declared: number;
+}
+
+/** One walk's context: the member source being read (for diagnostics), the declaration keys already on the
+ *  stack (the cycle domain), and the shared tally. */
+interface SchemaWalk {
+  readonly label: string;
+  readonly seen: ReadonlySet<string>;
+  readonly tally: MemberTally;
+}
+
+function preview(node: Node): string {
+  return node.getText().slice(0, DIAGNOSTIC_PREVIEW_CHARS);
+}
+
+/** The declaration a schema identifier names: this file's own const, or the one a named import points at —
+ *  the local-or-named-import hop, spelled per member source so each keeps its own refusal vocabulary
+ *  (`lib/tuple-read.ts` `spreadSource` and `chat-viewer-plane-canon-reads`'s `matrixBinding` are the twins). */
+function schemaBinding(owner: SourceFile, localName: string): VariableDeclaration | undefined {
+  const local = owner.getVariableDeclaration(localName);
+  if (local !== undefined) {
+    return local;
   }
-  for (const call of decl.getDescendantsOfKind(SyntaxKind.CallExpression)) {
-    const ex = call.getExpression();
-    if (Node.isPropertyAccessExpression(ex) && ex.getName() === "object") {
-      const arg = call.getArguments()[0];
-      if (arg !== undefined && Node.isObjectLiteralExpression(arg)) {
-        return arg.getProperties().flatMap((p) => (Node.isPropertyAssignment(p) ? [p.getName()] : []));
+  const imported = owner
+    .getImportDeclarations()
+    .flatMap((declaration) => declaration.getNamedImports().map((specifier) => ({ declaration, specifier })))
+    .find(({ specifier }) => (specifier.getAliasNode()?.getText() ?? specifier.getName()) === localName);
+  return imported === undefined ? undefined : imported.declaration.getModuleSpecifierSourceFile()?.getVariableDeclaration(imported.specifier.getName());
+}
+
+/** A member's KEY: an identifier / quoted name read through any wrapper, or a COMPUTED key whose expression
+ *  is a string literal. A computed key this reader cannot NAME would enter the population as bracket text
+ *  and match no wire — refuse (the #1091 precedent). */
+function memberKey(name: Node, walk: SchemaWalk): string {
+  if (Node.isComputedPropertyName(name)) {
+    const computed = readStringValue(name.getExpression());
+    if (computed === undefined) {
+      throw new Error(`knob-wire-coverage: computed ${walk.label} key in ${name.getSourceFile().getFilePath()} is not a string literal: ${preview(name)}`);
+    }
+    return computed;
+  }
+  return readStringValue(name) ?? name.getText();
+}
+
+/** Fold one object literal's members into `out` (key → its value expression, `undefined` for a shorthand).
+ *  A later member overrides an earlier one, which is the runtime's own precedence. */
+function collectObjectMembers(object: ObjectLiteralExpression, out: Map<string, Node | undefined>, walk: SchemaWalk): void {
+  for (const property of object.getProperties()) {
+    const spread = property.asKind(SyntaxKind.SpreadAssignment);
+    if (spread !== undefined) {
+      const before = walk.tally.declared;
+      collectSchemaMembers(spread.getExpression(), out, walk);
+      if (walk.tally.declared === before) {
+        throw new Error(`knob-wire-coverage: ${walk.label} spreads "${spread.getExpression().getText()}", which contributed zero members`);
       }
+      continue;
+    }
+    const assignment = property.asKind(SyntaxKind.PropertyAssignment);
+    if (assignment !== undefined) {
+      out.set(memberKey(assignment.getNameNode(), walk), assignment.getInitializer());
+      walk.tally.declared += 1;
+      continue;
+    }
+    // A SHORTHAND member (`{ trustHtml }`) names its key and carries no readable schema expression — the
+    // key is the population, so it counts; the value stays `undefined` for the caller that needs one.
+    const shorthand = property.asKind(SyntaxKind.ShorthandPropertyAssignment);
+    if (shorthand !== undefined) {
+      out.set(shorthand.getName(), undefined);
+      walk.tally.declared += 1;
+      continue;
+    }
+    throw new Error(`knob-wire-coverage: unsupported ${walk.label} member kind ${property.getKindName()}: ${preview(property)}`);
+  }
+}
+
+/** Follow an identifier to the members of the declaration it binds — local or named import, cycle-fenced. */
+function collectBoundMembers(identifier: Node, out: Map<string, Node | undefined>, walk: SchemaWalk): void {
+  const declaration = schemaBinding(identifier.getSourceFile(), identifier.getText());
+  if (declaration === undefined) {
+    throw new Error(`knob-wire-coverage: ${walk.label} binding "${identifier.getText()}" resolves to no local declaration or named import`);
+  }
+  const key = `${declaration.getSourceFile().getFilePath()}#${declaration.getName()}`;
+  if (walk.seen.has(key)) {
+    throw new Error(`knob-wire-coverage: ${walk.label} composition cycle at ${key}`);
+  }
+  const initializer = declaration.getInitializer();
+  if (initializer === undefined) {
+    throw new Error(`knob-wire-coverage: ${walk.label} source ${key} has no initializer`);
+  }
+  collectSchemaMembers(initializer, out, { ...walk, seen: new Set([...walk.seen, key]) });
+}
+
+/** Dispatch one `<recv>.<method>(…)` builder in a schema position. */
+function collectCallMembers(call: Node, out: Map<string, Node | undefined>, walk: SchemaWalk): void {
+  const callee = Node.isCallExpression(call) ? call.getExpression() : undefined;
+  if (callee === undefined || !Node.isPropertyAccessExpression(callee)) {
+    throw new Error(`knob-wire-coverage: unsupported ${walk.label} expression: ${preview(call)}`);
+  }
+  const method = callee.getName();
+  const args = Node.isCallExpression(call) ? call.getArguments() : [];
+  const first = args[0];
+  if (method === "object") {
+    if (first === undefined) {
+      throw new Error(`knob-wire-coverage: ${walk.label} declares z.object() with no shape argument`);
+    }
+    collectSchemaMembers(first, out, walk);
+    return;
+  }
+  if (method === "extend" || method === "merge") {
+    collectSchemaMembers(callee.getExpression(), out, walk);
+    if (first === undefined) {
+      throw new Error(`knob-wire-coverage: ${walk.label} declares .${method}() with no argument`);
+    }
+    collectSchemaMembers(first, out, walk);
+    return;
+  }
+  if (KEY_NEUTRAL_SCHEMA_METHODS.has(method)) {
+    collectSchemaMembers(callee.getExpression(), out, walk);
+    return;
+  }
+  throw new Error(`knob-wire-coverage: unsupported ${walk.label} schema method .${method}(): ${preview(call)}`);
+}
+
+/** Walk one authored-object expression, recording every top-level member it contributes. */
+function collectSchemaMembers(expression: Node, out: Map<string, Node | undefined>, walk: SchemaWalk): void {
+  const node = unwrapExpression(expression);
+  if (Node.isObjectLiteralExpression(node)) {
+    collectObjectMembers(node, out, walk);
+    return;
+  }
+  if (Node.isIdentifier(node)) {
+    collectBoundMembers(node, out, walk);
+    return;
+  }
+  // `{ ...base.shape }` — the sanctioned zod spelling for "every key of that schema".
+  if (Node.isPropertyAccessExpression(node) && node.getName() === "shape") {
+    collectSchemaMembers(node.getExpression(), out, walk);
+    return;
+  }
+  if (Node.isCallExpression(node)) {
+    collectCallMembers(node, out, walk);
+    return;
+  }
+  throw new Error(`knob-wire-coverage: unsupported ${walk.label} expression: ${preview(node)}`);
+}
+
+/** Every top-level member an authored object shape declares — a `z.object` schema chain or an `as const`
+ *  map — key → its value expression, resolving object spreads, `.shape` spreads, `.extend`/`.merge`
+ *  composition and local/imported bindings. Every other shape throws. */
+function schemaMembers(expression: Node, label: string): Map<string, Node | undefined> {
+  const out = new Map<string, Node | undefined>();
+  collectSchemaMembers(expression, out, { label, seen: new Set(), tally: { declared: 0 } });
+  return out;
+}
+
+/** The members of the authored object a NAMED declaration owns. EMPTY when the file declares no such name:
+ *  a conformance mini-tree legitimately omits a member source, and the paired-anchor tripwire owns the
+ *  "the real source was renamed away" direction. */
+function declaredMembers(sf: SourceFile, varName: string): Map<string, Node | undefined> {
+  const initializer = sf.getVariableDeclaration(varName)?.getInitializer();
+  return initializer === undefined ? new Map<string, Node | undefined>() : schemaMembers(initializer, varName);
+}
+
+/** The keys of the authored object a NAMED declaration owns (arms B2 · E · F). */
+function declaredKeys(sf: SourceFile, varName: string): string[] {
+  return [...declaredMembers(sf, varName).keys()];
+}
+
+/** Every `extends` clause of the member-source interface must RESOLVE. A base binding no interface
+ *  declaration would silently contribute zero fields — the shrunken-denominator failure verbatim — so it is
+ *  a tool error instead (the `contract-verb-presence` #943 / `message-kind-policy-coverage` #947 precedent). */
+function assertHeritageResolves(iface: InterfaceDeclaration): void {
+  for (const clause of iface.getExtends()) {
+    const symbol = clause.getExpression().getSymbol();
+    const declarations = (symbol?.getAliasedSymbol() ?? symbol)?.getDeclarations() ?? [];
+    if (!declarations.some((declaration) => Node.isInterfaceDeclaration(declaration))) {
+      throw new Error(
+        `knob-wire-coverage: ${iface.getName()} in ${iface.getSourceFile().getFilePath()} extends "${clause.getText()}", which resolves to no interface declaration — its inherited fields cannot be enumerated`,
+      );
     }
   }
-  return [];
 }
 
-/** The string-array-literal members of an `as const` tuple declaration (USER_SETTINGS_SECTIONS). */
-function tupleMembers(sf: SourceFile, varName: string): string[] {
-  const decl = sf.getVariableDeclaration(varName);
-  const arr = decl?.getFirstDescendantByKind(SyntaxKind.ArrayLiteralExpression);
-  if (arr === undefined) {
-    return [];
-  }
-  return arr.getElements().flatMap((el) => (Node.isStringLiteral(el) ? [el.getLiteralText()] : []));
-}
-
-/** The property names of an exported `interface` declaration (EffectiveAppConfig). */
+/** The property names an `interface` EXPOSES (arm A) — the RESOLVED type's properties, not the local
+ *  declaration list, so a field inherited through `extends` is still a knob that owes a consumer (#1094 G2).
+ *  A property resolving to no declaration at all is unsupported composition, and refuses. */
 function interfaceKeys(sf: SourceFile, name: string): string[] {
   const iface = sf.getInterface(name);
   if (iface === undefined) {
     return [];
   }
-  return iface.getProperties().map((p) => p.getName());
+  assertHeritageResolves(iface);
+  return iface
+    .getType()
+    .getProperties()
+    .map((property) => {
+      if (property.getDeclarations().length === 0) {
+        throw new Error(`knob-wire-coverage: member "${property.getName()}" of ${name} resolves to no declaration — its field shape cannot be established`);
+      }
+      return property.getName();
+    });
 }
 
-/** The property names of the const object literal a variable declaration owns (DEFAULT_FORMAT_STRINGS). */
-function constObjectKeys(sf: SourceFile, varName: string): string[] {
+/** The members of the `<CONST> = [...] as const` section tuple (arm B) — through `lib/tuple-read.ts`, the
+ *  ONE home for that question, so a member arriving through a local/imported SPREAD counts and every other
+ *  element shape refuses (#1094 G3; six sibling gates already read it this way). */
+function tupleMembers(sf: SourceFile, varName: string): string[] {
   const decl = sf.getVariableDeclaration(varName);
-  const obj = decl?.getFirstDescendantByKind(SyntaxKind.ObjectLiteralExpression);
-  if (obj === undefined) {
-    return [];
-  }
-  return obj.getProperties().flatMap((p) => (Node.isPropertyAssignment(p) ? [p.getName()] : []));
-}
-
-interface SchemaBinding {
-  readonly file: SourceFile;
-  readonly symbol: string;
-}
-
-function importedBinding(sf: SourceFile, localName: string): SchemaBinding | undefined {
-  const matches = sf.getImportDeclarations().flatMap((declaration) =>
-    declaration.getNamedImports().flatMap((specifier) => {
-      const local = specifier.getAliasNode()?.getText() ?? specifier.getName();
-      const target = declaration.getModuleSpecifierSourceFile();
-      return local === localName && target !== undefined ? [{ file: target, symbol: specifier.getName() }] : [];
-    }),
-  );
-  if (matches.length > 1) {
-    throw new Error(`knob-wire-coverage Arm C: ambiguous imported schema binding "${localName}" in ${sf.getFilePath()}`);
-  }
-  return matches[0];
-}
-
-function schemaObjectForBinding(binding: SchemaBinding, seen: ReadonlySet<string>): ObjectLiteralExpression {
-  const key = `${binding.file.getFilePath()}#${binding.symbol}`;
-  if (seen.has(key)) {
-    throw new Error(`knob-wire-coverage Arm C: settings schema composition cycle at ${key}`);
-  }
-  const declaration = binding.file.getVariableDeclaration(binding.symbol);
-  const initializer = declaration?.getInitializer();
-  if (initializer === undefined) {
-    throw new Error(`knob-wire-coverage Arm C: settings schema source ${key} is missing or has no initializer`);
-  }
-  return schemaObjectForExpression(initializer, binding.file, new Set([...seen, key]));
-}
-
-function schemaObjectForExpression(expression: Node, owner: SourceFile, seen: ReadonlySet<string>): ObjectLiteralExpression {
-  const node = unwrapExpression(expression);
-  if (Node.isIdentifier(node)) {
-    const imported = importedBinding(owner, node.getText());
-    if (imported !== undefined) {
-      return schemaObjectForBinding(imported, seen);
-    }
-    return schemaObjectForBinding({ file: owner, symbol: node.getText() }, seen);
-  }
-  if (Node.isCallExpression(node)) {
-    const object = zObjectArg(node);
-    if (object !== undefined) {
-      return object;
-    }
-    const callee = node.getExpression();
-    if (Node.isPropertyAccessExpression(callee)) {
-      return schemaObjectForExpression(callee.getExpression(), owner, seen);
-    }
-  }
-  throw new Error(
-    `knob-wire-coverage Arm C: unsupported settings schema expression in ${owner.getFilePath()}: ${node.getText().slice(0, DIAGNOSTIC_PREVIEW_CHARS)}`,
-  );
-}
-
-function propertyInitializer(object: ObjectLiteralExpression, name: string): Node {
-  const matches = object.getProperties().filter((property) => Node.isPropertyAssignment(property) && property.getName() === name);
-  if (matches.length !== 1 || !Node.isPropertyAssignment(matches[0])) {
-    throw new Error(`knob-wire-coverage Arm C: userSettingsSchema must compose exactly one "${name}" property`);
-  }
-  const initializer = matches[0].getInitializer();
-  if (initializer === undefined) {
-    throw new Error(`knob-wire-coverage Arm C: userSettingsSchema.${name} has no schema initializer`);
-  }
-  return initializer;
+  return decl === undefined || decl.getInitializer() === undefined ? [] : [...readTupleDeclaration(decl).members];
 }
 
 // ── reader corpora ──────────────────────────────────────────────────────────────────────────────────────
@@ -468,14 +608,23 @@ const SETTINGS_REPORT = "packages/contracts/src/settings/index.ts";
 const PRESET_REPORT = "packages/contracts/src/preset/index.ts";
 const METADATA_REPORT = "packages/server/src/domain/chat/contract/metadata.ts";
 
+/** The per-arm member counts the settings contract yields — the semantic denominator every settings arm's
+ *  verdict rests on. Printed on the scan line AND declared as populations, so an arm that silently stops
+ *  resolving a composed member is loud instead of clean (GATE-AUTHORING.md §1, #946). */
+interface SettingsCounts {
+  readonly fields: number;
+  readonly sections: number;
+  readonly appKeys: number;
+}
+
 /** Arms A/B/B2/C — rooted at the settings contract; Arm C also follows its declared imported sources. */
 function settingsArms(
   project: Project,
   settings: SourceFile,
-): ArmResult & { readonly tripwires: readonly Violation[]; readonly leafPopulation: SettingsLeafPopulation } {
+): ArmResult & { readonly tripwires: readonly Violation[]; readonly leafPopulation: SettingsLeafPopulation; readonly counts: SettingsCounts } {
   const fields = interfaceKeys(settings, EFFECTIVE_APP_CONFIG);
   const sections = tupleMembers(settings, USER_SETTINGS_SECTIONS);
-  const appKeys = zObjectKeys(settings, APP_SETTINGS_SCHEMA);
+  const appKeys = declaredKeys(settings, APP_SETTINGS_SCHEMA);
   const leafPopulation = settingsLeaves(settings, new Set(sections));
   const leaves = leafPopulation.leaves;
 
@@ -533,12 +682,13 @@ function settingsArms(
     liveKeys: arms.flatMap((a) => a.liveKeys),
     tripwires,
     leafPopulation,
+    counts: { fields: fields.length, sections: sections.length, appKeys: appKeys.length },
   };
 }
 
 /** Arm E — DEFAULT_FORMAT_STRINGS read coverage. */
-function presetArm(project: Project, preset: SourceFile): ArmResult & { readonly tripwires: readonly Violation[] } {
-  const keys = constObjectKeys(preset, DEFAULT_FORMAT_STRINGS);
+function presetArm(project: Project, preset: SourceFile): ArmResult & { readonly tripwires: readonly Violation[]; readonly members: number } {
+  const keys = declaredKeys(preset, DEFAULT_FORMAT_STRINGS);
   // Read-shaped (PropertyAccess) OR string-literal (catches DEFAULT_FORMAT_STRINGS[key] dynamic reads).
   const read = readShapedNames(project, (fp) => SERVER_SRC.test(fp) && !CONTRACTS_SRC.test(fp) && !isTest(fp));
   const arm = runArm({
@@ -550,6 +700,7 @@ function presetArm(project: Project, preset: SourceFile): ArmResult & { readonly
   });
   return {
     ...arm,
+    members: keys.length,
     tripwires: tripwireViolation(project, {
       sourceMissing: keys.length === 0,
       anchor: ANCHOR_PRESET_SCHEMA,
@@ -560,8 +711,8 @@ function presetArm(project: Project, preset: SourceFile): ArmResult & { readonly
 }
 
 /** Arm F — chatMetadataSchema write+read coverage (two directions). */
-function metadataArm(project: Project, metadata: SourceFile): ArmResult & { readonly tripwires: readonly Violation[] } {
-  const keys = zObjectKeys(metadata, CHAT_METADATA_SCHEMA);
+function metadataArm(project: Project, metadata: SourceFile): ArmResult & { readonly tripwires: readonly Violation[]; readonly members: number } {
+  const keys = declaredKeys(metadata, CHAT_METADATA_SCHEMA);
   const written = anyNameOccurrences(project, (fp) => CHAT_WRITE_SCOPE.test(fp) && !isTest(fp));
   const read = readShapedNames(project, (fp) => SERVER_SRC.test(fp) && !METADATA_PARSER.test(fp) && !CHAT_WRITE_SCOPE.test(fp) && !isTest(fp));
   const write = runArm({
@@ -581,6 +732,7 @@ function metadataArm(project: Project, metadata: SourceFile): ArmResult & { read
   return {
     violations: [...write.violations, ...readBelt.violations],
     liveKeys: [...write.liveKeys, ...readBelt.liveKeys],
+    members: keys.length,
     tripwires: tripwireViolation(project, {
       sourceMissing: keys.length === 0,
       anchor: ANCHOR_PARSE_METADATA,
@@ -602,10 +754,18 @@ function reconcile(ctx: Pick<GateRunCtx, "project" | "scan">): Violation[] {
 
   if (settings !== undefined) {
     const r = settingsArms(project, settings);
+    // EVERY ARM'S DENOMINATOR IS ON THE LINE, not just arm C's: each arm reads its own member source, so a
+    // count for one says nothing about the others (#1094 — arm C was re-homed while A/B/B2 under-read).
     ctx.scan({
-      unit: `settings graph [contracts=1 sources=${r.leafPopulation.sourceCount} leaves=${r.leafPopulation.leaves.length} appearanceLeaves=${r.leafPopulation.importedLeafCounts["appearance"] ?? 0}]`,
+      unit: `settings graph [contracts=1 sources=${r.leafPopulation.sourceCount} fields=${r.counts.fields} sections=${r.counts.sections} appKeys=${r.counts.appKeys} leaves=${r.leafPopulation.leaves.length} appearanceLeaves=${r.leafPopulation.importedLeafCounts["appearance"] ?? 0}]`,
       candidates: r.leafPopulation.sourceCount,
       scanned: r.leafPopulation.sourceCount,
+      population: [
+        { source: EFFECTIVE_APP_CONFIG, members: r.counts.fields },
+        { source: USER_SETTINGS_SECTIONS, members: r.counts.sections },
+        { source: APP_SETTINGS_SCHEMA, members: r.counts.appKeys },
+        { source: "userSettingsSchema leaves", members: r.leafPopulation.leaves.length },
+      ],
     });
     violations.push(...r.violations, ...r.tripwires);
     for (const k of r.liveKeys) {
@@ -660,10 +820,11 @@ function localSettingsLeaves(settings: SourceFile, sections: ReadonlySet<string>
     if (obj === undefined) {
       continue;
     }
-    for (const p of obj.getProperties()) {
-      const n = Node.isPropertyAssignment(p) ? p.getName() : undefined;
-      if (n !== undefined && !sections.has(n) && n !== "schemaVersion") {
-        leaves.add(n);
+    // Through the shared member reader, so a leaf reaching a LOCAL z.object through an object spread is in
+    // the denominator instead of dropped (#1094 G4 — the same key was silently missing from arms B2 AND C).
+    for (const name of schemaMembers(obj, "settings schema leaf").keys()) {
+      if (!sections.has(name) && name !== "schemaVersion") {
+        leaves.add(name);
       }
     }
   }
@@ -673,17 +834,26 @@ function localSettingsLeaves(settings: SourceFile, sections: ReadonlySet<string>
 function importedSettingsLeaves(settings: SourceFile): { readonly leaves: Set<string>; readonly counts: Readonly<Record<string, number>> } {
   const leaves = new Set<string>();
   const importedLeafCounts: Record<string, number> = {};
-  const userSettings = schemaObjectForBinding({ file: settings, symbol: "userSettingsSchema" }, new Set());
+  const userSettings = declaredMembers(settings, "userSettingsSchema");
   for (const source of IMPORTED_SETTINGS_SCHEMA_SOURCES) {
-    const composed = propertyInitializer(userSettings, source.section);
+    if (!userSettings.has(source.section)) {
+      throw new Error(
+        `knob-wire-coverage Arm C: userSettingsSchema composes no "${source.section}" property — the semantic source ${source.symbol} is unreachable`,
+      );
+    }
+    const composed = userSettings.get(source.section);
+    if (composed === undefined) {
+      throw new Error(
+        `knob-wire-coverage Arm C: userSettingsSchema.${source.section} carries no readable schema expression (a shorthand member names no source)`,
+      );
+    }
     const localName = unwrapExpression(composed);
     if (!Node.isIdentifier(localName) || localName.getText() !== source.symbol) {
       throw new Error(
         `knob-wire-coverage Arm C: userSettingsSchema.${source.section} must compose the semantic source ${source.symbol}, got ${localName.getText()}`,
       );
     }
-    const object = schemaObjectForExpression(localName, settings, new Set());
-    const importedLeaves = object.getProperties().flatMap((property) => (Node.isPropertyAssignment(property) ? [property.getName()] : []));
+    const importedLeaves = [...schemaMembers(localName, source.symbol).keys()];
     if (importedLeaves.length === 0) {
       throw new Error(`knob-wire-coverage Arm C: semantic source ${source.symbol} resolved to zero leaves`);
     }
@@ -778,6 +948,76 @@ export const gate: GateDescriptor = {
       why: "arm C imported-schema red: a leaf moved behind the sanctioned appearance module boundary remains in the semantic consumer-liveness denominator",
     },
     {
+      // Arm A (#1094 G2): an INHERITED EffectiveAppConfig field is a subject. PAIRED — the inline field IS
+      // consumed and passes in this same tree, so only the composed half can produce the finding.
+      files: {
+        "packages/contracts/src/settings/index.ts":
+          "export interface GhostBaseProbe {\n  ghostInheritedA: number;\n}\nexport interface EffectiveAppConfig extends GhostBaseProbe {\n  wiredInlineA: number;\n}\n",
+        "packages/server/src/entry/compose/x.ts":
+          'import type { EffectiveAppConfig } from "@orb/contracts/settings";\nexport const getEffectiveConfig = (): EffectiveAppConfig => ({ ghostInheritedA: 1, wiredInlineA: 1 });\nexport const use = getEffectiveConfig().wiredInlineA;\n',
+      },
+      expect: { messageIncludes: "ghostInheritedA" },
+      why: "arm A inherited-field red: a field EffectiveAppConfig inherits through `extends` is resolved config that owes a consumer — a local getProperties() read dropped it silently while the inline twin RED'd (#1094 G2)",
+    },
+    {
+      // Arm B (#1094 G3): a section member arriving through a tuple SPREAD. PAIRED — the inline member has
+      // its writer in this same tree.
+      files: {
+        "packages/contracts/src/settings/index.ts":
+          'export const GHOST_SECTIONS_PROBE = ["ghostSpreadSection"] as const;\nexport const USER_SETTINGS_SECTIONS = [...GHOST_SECTIONS_PROBE, "wiredInlineSection"] as const;\n',
+        "packages/client/src/features/x/components/x.tsx":
+          'export const updateUserSettingsSection = 1;\nexport const w = { section: "wiredInlineSection", patch: {} };\n',
+      },
+      expect: { messageIncludes: "ghostSpreadSection" },
+      why: "arm B spread red: a USER_SETTINGS_SECTIONS member composed through a spread is still an editor door that owes a write path — the direct-element reader dropped it while the inline twin RED'd (#1094 G3)",
+    },
+    {
+      // Arm B2 (#1094 G4): an appSettingsSchema key arriving through an object SPREAD. Arm C flags both
+      // keys here too (a bare identifier is not a read-shaped occurrence) — the B2 needle is the point.
+      files: {
+        "packages/contracts/src/settings/index.ts":
+          'import { z } from "zod";\nexport const USER_SETTINGS_SECTIONS = [] as const;\nconst GHOST_APP_SHAPE_PROBE = { ghostSpreadAppKey: z.boolean() };\nexport const appSettingsSchema = z.object({ ...GHOST_APP_SHAPE_PROBE, wiredInlineAppKey: z.boolean() });\n',
+        "packages/client/src/features/settings/lib/x.ts": "export const wiredInlineAppKey = 1;\n",
+      },
+      expect: { messageIncludes: "ghostSpreadAppKey" },
+      why: "arm B2 spread red: an AppSettings key composed through an object spread still owes an admin write field — the PropertyAssignment-only reader dropped it from arms B2 AND C while the inline twin RED'd (#1094 G4)",
+    },
+    {
+      // Arm C: a LOCAL settings leaf arriving through an object SPREAD (the same #1094 G4 miss, one arm
+      // over: arm C was re-homed for the IMPORTED-MODULE axis and still under-read its own local spread).
+      files: {
+        "packages/contracts/src/settings/index.ts":
+          'import { z } from "zod";\nexport const USER_SETTINGS_SECTIONS = [] as const;\nconst GHOST_LEAF_SHAPE_PROBE = { ghostSpreadLeaf: z.number() };\nexport const s = z.object({ ...GHOST_LEAF_SHAPE_PROBE, wiredInlineLeaf: z.number() });\n',
+        "packages/client/src/features/x/x.tsx": "declare const settings: { wiredInlineLeaf?: number };\nexport const consumed = settings.wiredInlineLeaf;\n",
+      },
+      expect: { messageIncludes: "ghostSpreadLeaf" },
+      why: "arm C local-spread red: a leaf spread into a local z.object is in the semantic denominator — the inline twin is READ and passes in the same tree, so only the composed half can produce this finding",
+    },
+    {
+      // Arm E: a DEFAULT_FORMAT_STRINGS key arriving through an object SPREAD (the same member-kind class —
+      // arm E reads an `as const` map through the same authored-object reader).
+      files: {
+        "packages/contracts/src/preset/index.ts":
+          'export const presetSchema = 1;\nconst GHOST_FORMATS_PROBE = { ghostSpreadNudge: "x" } as const;\nexport const DEFAULT_FORMAT_STRINGS = { ...GHOST_FORMATS_PROBE, wiredInlineNudge: "y" } as const;\n',
+        "packages/server/src/domain/chat/x.ts":
+          "declare const cfg: { formatStrings?: { wiredInlineNudge?: string } };\nexport const v = cfg.formatStrings?.wiredInlineNudge;\n",
+      },
+      expect: { messageIncludes: "ghostSpreadNudge" },
+      why: "arm E spread red: a format string composed through a spread is still editable/importable and owes a reader — the inline twin is read and passes in the same tree",
+    },
+    {
+      // Arm F: a chatMetadataSchema key arriving through an object SPREAD, behind a `.loose()` chain (the
+      // live spelling). PAIRED — the inline key has both its write verb and its reader here.
+      files: {
+        "packages/server/src/domain/chat/contract/metadata.ts":
+          'import { z } from "zod";\nexport const parseChatMetadata = 1;\nconst GHOST_META_SHAPE_PROBE = { ghostSpreadMeta: z.number() };\nconst chatMetadataSchema = z.object({ ...GHOST_META_SHAPE_PROBE, wiredInlineMeta: z.number() }).loose();\nexport const s = chatMetadataSchema;\n',
+        "packages/server/src/domain/chat/verbs/x.ts": "export const write = { wiredInlineMeta: 1 };\n",
+        "packages/server/src/domain/chat/engine/x.ts": "declare const meta: { wiredInlineMeta?: number };\nexport const r = meta.wiredInlineMeta;\n",
+      },
+      expect: { messageIncludes: "ghostSpreadMeta" },
+      why: "arm F spread red: a metadata field composed through a spread (under the live `.loose()` chain) still owes a writer and a reader — the inline twin satisfies both belts in the same tree",
+    },
+    {
       // Arm E: a DEFAULT_FORMAT_STRINGS key read by no server behavior.
       files: {
         "packages/contracts/src/preset/index.ts": 'export const presetSchema = 1;\nexport const DEFAULT_FORMAT_STRINGS = { ghostNudge: "x" } as const;\n',
@@ -831,6 +1071,39 @@ export const gate: GateDescriptor = {
           'import type { EffectiveAppConfig } from "@orb/contracts/settings";\nexport const getEffectiveConfig = (): EffectiveAppConfig => ({ wiredA: 1 });\nexport const use = getEffectiveConfig().wiredA;\n',
       },
       why: "arm A: a compose consumer reads the field off an EffectiveAppConfig-typed receiver — real consumption, passes",
+    },
+    {
+      // Arm A: an INHERITED field WITH a typed consumer → passes. The value-fidelity half of the #1094 G2
+      // pair: resolving the base must widen the subject set, never manufacture an accusation.
+      files: {
+        "packages/contracts/src/settings/index.ts":
+          "export interface GhostBaseProbe {\n  inheritedWiredA: number;\n}\nexport interface EffectiveAppConfig extends GhostBaseProbe {}\n",
+        "packages/server/src/entry/compose/x.ts":
+          'import type { EffectiveAppConfig } from "@orb/contracts/settings";\nexport const getEffectiveConfig = (): EffectiveAppConfig => ({ inheritedWiredA: 1 });\nexport const use = getEffectiveConfig().inheritedWiredA;\n',
+      },
+      why: "arm A inherited-field green: a base's field read off an EffectiveAppConfig-typed receiver is real consumption — the resolved-type reader must not accuse an inherited field that IS wired",
+    },
+    {
+      // Arm B: a section member reached ONLY through a tuple spread, WITH its write path → passes.
+      files: {
+        "packages/contracts/src/settings/index.ts":
+          'export const SPREAD_SECTIONS_PROBE = ["wiredSpreadSection"] as const;\nexport const USER_SETTINGS_SECTIONS = [...SPREAD_SECTIONS_PROBE] as const;\n',
+        "packages/client/src/features/x/components/x.tsx":
+          'export const updateUserSettingsSection = 1;\nexport const w = { section: "wiredSpreadSection", patch: {} };\n',
+      },
+      why: "arm B spread green: the spread member resolves to its own NAME (not the spread's text), so its section-patch writer satisfies it — a reader returning anything else would accuse a wired section",
+    },
+    {
+      // Arms B2 + C: the composed zod spellings the source law sanctions — an IMPORTED base schema reached
+      // through `.extend`, and a `{ ...base.shape }` spread — with every key wired → passes.
+      files: {
+        "packages/contracts/src/settings/base-app.ts": 'import { z } from "zod";\nexport const baseAppSchema = z.object({ wiredBaseKey: z.boolean() });\n',
+        "packages/contracts/src/settings/index.ts":
+          'import { z } from "zod";\nimport { baseAppSchema } from "./base-app.ts";\nexport const USER_SETTINGS_SECTIONS = [] as const;\nexport const appSettingsSchema = baseAppSchema.extend({ ...baseAppSchema.shape, wiredExtendKey: z.boolean() });\n',
+        "packages/client/src/features/settings/lib/x.ts":
+          "declare const view: { wiredBaseKey?: boolean; wiredExtendKey?: boolean };\nexport const a = view.wiredBaseKey;\nexport const b = view.wiredExtendKey;\n",
+      },
+      why: "arms B2/C composed green: an imported base through `.extend` plus a `{ ...base.shape }` re-spread resolves to exactly its two keys, and a spread that only RE-declares the base's key is a contribution (the tally counts declared members, not new ones) — never a zero-contribution refusal",
     },
     {
       // Arm B: a client section-patch writes the member → passes.
