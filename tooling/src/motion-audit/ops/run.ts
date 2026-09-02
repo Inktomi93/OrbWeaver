@@ -4,13 +4,15 @@ import type { ProbeSession } from "@orb/tooling/_shared/browser";
 import { buildUrl, launchProbeSession, settle, withProbeSession } from "@orb/tooling/_shared/browser";
 import { readBrowserEnvironment } from "@orb/tooling/_shared/browser-environment";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
+import { withholdRate } from "@orb/tooling/_shared/load-budget";
+import type { Page } from "@playwright/test";
 import { readRuntimeAppearanceContract } from "../../_shared/appearance-matrix.ts";
 import { print } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { stageBandRefusalFor } from "../../snap/index.ts";
 import type { ApplicationMotionEvidence, Args, AuditData } from "../contract/types.ts";
 import { CPU_THROTTLE_RATE, MOUNT_SETTLE_MS, NAV_TIMEOUT_MS, READY_TIMEOUT_MS } from "../lib/budgets.ts";
-import { apparatusGap, reportInstrumentError } from "../lib/evidence.ts";
+import { apparatusGap, loadWithholdGap, reportInstrumentError } from "../lib/evidence.ts";
 import { driveReach, hasOrbBridge, prepareMeasuredClick } from "./drive.ts";
 import { report } from "./report.ts";
 import { runAudit } from "./trace.ts";
@@ -44,6 +46,24 @@ const RESET_AFTER_GEOMETRY = `new Promise((resolve, reject) => {
 
 /** The outcome of one ordered evidence barrier — a value, or the terminal instrument-error exit. */
 type Barrier<T> = { readonly ok: true; readonly value: T } | { readonly ok: false };
+
+/** The pre-measurement evidence reset, hoisted out of the drive so the drive stays inside one reader's
+ *  head. Preparation forced all Playwright geometry before this checkpoint; the next browser work is the
+ *  native click itself, so no measurement-owned actionability/layout can enter the product window. FALSE =
+ *  the barrier failed and the caller must refuse — measuring against stale reach evidence FABRICATES a
+ *  verdict rather than producing none. A run with no `--selector` has nothing to reset and passes. */
+async function resetBeforeMeasuredClick(page: Page, url: string, selector: string | null): Promise<boolean> {
+  if (selector === null) {
+    return true;
+  }
+  const reset = await barrier(
+    url,
+    "the pre-measurement evidence reset",
+    (m) => `resetEvidence failed before the measured click — stale reach evidence could fabricate the verdict, so this run refuses: ${m}`,
+    () => page.evaluate(RESET_AFTER_GEOMETRY),
+  );
+  return reset.ok;
+}
 
 export interface MotionAuditRunResult {
   readonly code: number;
@@ -174,21 +194,27 @@ export async function runMotionAuditDetailed(opts: Args): Promise<MotionAuditRun
       return { code: EXIT.toolError, data: null };
     }
     const measuredClick = await prepareMeasuredClick(page, opts.selector);
-    if (opts.selector !== null) {
-      // Preparation forced all Playwright geometry before this checkpoint. The next browser work is the
-      // native click itself; no measurement-owned actionability/layout can enter the product window.
-      const reset = await barrier(
-        url,
-        "the pre-measurement evidence reset",
-        (m) => `resetEvidence failed before the measured click — stale reach evidence could fabricate the verdict, so this run refuses: ${m}`,
-        () => page.evaluate(RESET_AFTER_GEOMETRY),
-      );
-      if (!reset.ok) {
-        return { code: EXIT.toolError, data: null };
-      }
+    if (!(await resetBeforeMeasuredClick(page, url, opts.selector))) {
+      return { code: EXIT.toolError, data: null };
     }
 
     const data = await runAudit(page, cdp, opts, measuredClick);
+    // THE RATE WITHHOLD (#1232 §7.1), judged HERE — after every apparatus barrier, immediately before the
+    // verdict. This instrument's only verdict members are measured RATES (dropped-frame %, CLS, LoAF), and
+    // load does not scale a rate, it destroys it: identical code read 47.54% at per-core 1.04, then 10%,
+    // then clean (#1040). So on a contended box it declines to vote — exit 2, "could not measure", naming
+    // the box.
+    //
+    // WHY NOT BEFORE THE BROWSER (which would be cheaper): the apparatus refusals above are facts about the
+    // PAGE — no `__orb` bridge, no composited frame, a failed evidence reset — and each is strictly more
+    // specific than "the box was busy". Withholding first would replace every one of them with a load
+    // message on a contended box, which is the same information loss as the false verdict this prevents.
+    // The page's own refusal wins; the box only gets to speak when the page had nothing wrong with it.
+    const load = withholdRate("motion-audit's dropped-frame rate");
+    if (load.withheld) {
+      reportInstrumentError(url, loadWithholdGap(load.reason));
+      return { code: EXIT.toolError, data: null };
+    }
     const applicationMotion = await readApplicationMotion(page, opts, session.contexts[0]?.settingsEvidence.appearanceApplied ?? null);
     const withErrors: AuditData = {
       ...data,

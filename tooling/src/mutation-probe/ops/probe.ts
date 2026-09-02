@@ -9,6 +9,7 @@
 // kill to NAMED tests.
 import { readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { budget } from "@orb/tooling/_shared/load-budget";
 import { ensureReportsDir, print, REPO_ROOT, reportsRelPath } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { runNicedSync } from "../../_shared/proc.ts";
@@ -24,7 +25,9 @@ refuseDirectInvocation(import.meta.url, "pnpm mutation:probe");
 
 /** Matches the standing lane cap — a probe never gets the dedicated-box worker count. */
 const MAX_WORKERS = "4";
-const SUITE_TIMEOUT_MS = 180_000;
+// A CEILING, load-scaled through the one policy (#1232): the literal is the QUIET-BOX base.
+const SUITE_TIMEOUT_MS_BASE = 180_000;
+const SUITE_TIMEOUT_MS = budget(SUITE_TIMEOUT_MS_BASE);
 
 interface VitestAssertion {
   readonly status?: string;

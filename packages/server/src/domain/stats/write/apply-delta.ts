@@ -12,6 +12,11 @@
 //
 // character_stats has no ownerId (owner derives via characterId→characters.ownerId), so its conflict
 // target is the `characterId` unique index.
+//
+// THE ROOM COUNT IS GRAIN-SPLIT (#1147): `character_stats.chats` reads `delta.characterChats` and
+// `owner_stats.chats` reads `delta.chats`. They are the same event counted at two grains — one room with N
+// character seats is +1 to the owner's library and +1 to EACH seat's census — and one shared field made the
+// second seat uncountable without inflating the owner. Same shape as the `daily*`/`model*` slices.
 
 import type { ApplyStatsDelta, BumpStatsCanonVersion, StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
@@ -64,7 +69,7 @@ export const applyStatsDelta: ApplyStatsDelta<BatchStmt[], Db> = (batch: BatchSt
           .values({
             id: mintTypeId(ID_PREFIX.characterStat),
             characterId: delta.characterId,
-            chats: n(delta.chats),
+            chats: n(delta.characterChats),
             userTurns: n(delta.userTurns),
             assistantTurns: n(delta.assistantTurns),
             systemTurns: n(delta.systemTurns),
@@ -86,7 +91,7 @@ export const applyStatsDelta: ApplyStatsDelta<BatchStmt[], Db> = (batch: BatchSt
             reasoningMs: n(delta.reasoningMs),
             activeIdxSum: n(delta.activeIdxSum),
             variantMessages: n(delta.variantMessages),
-            forkedChats: n(delta.forkedChats),
+            forkedChats: n(delta.characterForkedChats),
             contentBytes: n(delta.contentBytes),
             firstChatAt: firstAt,
             lastActivityAt: lastAt,

@@ -2429,9 +2429,13 @@ async function expectPagerUsable(component: Locator): Promise<void> {
 async function readPagerGeometry(component: Locator): Promise<{
   readonly bubble: number;
   readonly chip: number;
+  readonly chipIntrinsic: number;
+  readonly chipGap: number;
   readonly column: number;
   readonly chevron: { readonly w: number; readonly h: number };
   readonly counterLines: number;
+  readonly counterWidth: number;
+  readonly counterClipped: boolean;
   readonly labelInFlow: boolean;
   readonly rightDelta: number;
   readonly leftDelta: number;
@@ -2441,15 +2445,36 @@ async function readPagerGeometry(component: Locator): Promise<{
   const columnBox = await component.locator(CONTENT_COLUMN).boundingBox();
   const chevronBox = await component.getByRole("button", { name: "Previous variant" }).boundingBox();
   const labelBox = await component.getByText(PAGER_LABEL, { exact: true }).boundingBox();
-  const counter = await component
-    .getByText(PAGER_COUNTER_TEXT)
-    .evaluate((el) => ({ height: el.getBoundingClientRect().height, lineHeight: Number.parseFloat(getComputedStyle(el).lineHeight) }));
+  const counter = await component.getByText(PAGER_COUNTER_TEXT).evaluate((el) => ({
+    height: el.getBoundingClientRect().height,
+    width: el.getBoundingClientRect().width,
+    lineHeight: Number.parseFloat(getComputedStyle(el).lineHeight),
+    clipped: el.scrollWidth > el.clientWidth + 1,
+  }));
+  // The chip's INTRINSIC width, read from the chip itself rather than pinned as a px literal: the sum of
+  // its IN-FLOW children plus one gap between each pair. `sr-only` children are absolutely positioned, so
+  // they are neither flex items nor gap-bearing (`PAGER_LABEL_QUIET_WHEN_TIGHT`) and must not be counted.
+  // The test is the COMPUTED position, not `offsetParent` (which is null only for fixed/detached boxes,
+  // so it calls an `sr-only` child in-flow and inflates the floor by a pixel and a gap — measured).
+  const intrinsic = await component.locator(SWIPE_STRIP).evaluate((chip: HTMLElement) => {
+    const gap = Number.parseFloat(getComputedStyle(chip).columnGap) || 0;
+    const flowed = [...chip.children].filter((kid) => {
+      const position = getComputedStyle(kid).position;
+      return position !== "absolute" && position !== "fixed";
+    });
+    const sum = flowed.reduce((total, kid) => total + kid.getBoundingClientRect().width, 0);
+    return { gap, width: sum + gap * Math.max(flowed.length - 1, 0) };
+  });
   return {
     bubble: bubbleBox?.width ?? 0,
     chip: chipBox?.width ?? 0,
+    chipIntrinsic: intrinsic.width,
+    chipGap: intrinsic.gap,
     column: columnBox?.width ?? 0,
     chevron: { w: chevronBox?.width ?? 0, h: chevronBox?.height ?? 0 },
     counterLines: Math.round(counter.height / counter.lineHeight),
+    counterWidth: counter.width,
+    counterClipped: counter.clipped,
     labelInFlow: (labelBox?.width ?? 0) > 1,
     rightDelta: (chipBox?.x ?? 0) + (chipBox?.width ?? 0) - ((bubbleBox?.x ?? 0) + (bubbleBox?.width ?? 0)),
     leftDelta: (chipBox?.x ?? 0) - (bubbleBox?.x ?? 0),
@@ -2544,10 +2569,19 @@ test("#598 even the narrowest bubble the row can produce still contains its page
 // compact floor (127.48px measured) and hangs past the bubble instead — WCAG 2.5.5 outranks flushness, and a
 // crushed 41px target is the defect this issue was filed for. The assertion is therefore `chip ≤ max(bubble,
 // floor)`: flush wherever flushness is reachable, and the touch floor exactly where it is not.
+//
+// THE FLOOR IS MEASURED, NOT PINNED (#1050, 2026-09-02). This block used to carry `COARSE_CHIP_FLOOR =
+// 127.48` — 2 × 48px chevron + the compact counter + 2 × 4px `gap-tight`, i.e. two device constants and ONE
+// FONT METRIC. `ed55bf193` vendored Geist, the datum-voice counter went 23.48 → 24.00px, the chip went
+// 127.48 → 128.00, and a 0.52px drift red a 0.5px `toBeCloseTo` tolerance with no product code changed
+// (measured both ways in ONE evaluate: with the inherited stack and with the pre-Geist
+// `ui-monospace, SFMono-Regular, monospace` fallback forced, which reproduces 127.484375 exactly).
+// A pin whose expected value is a glyph advance is a pin on the font, so the floor is now READ OFF THE CHIP
+// (`chipIntrinsic` = its in-flow children + their gaps) and the LAW is asserted against device constants
+// only: two full `COARSE_TOUCH_BOX` targets plus the gaps between them, a counter that is neither wrapped
+// nor clipped, and a chip that is exactly its own content — no crush, no stretch. That is strictly stronger
+// than the literal: it fails on a stretched chip too, and it cannot flip on a font change.
 const COARSE_TOUCH_BOX = 48;
-/** The compact chip's own width at a coarse pointer: 2 × 48px chevron + 23.48px compact counter + 3 × 4px
- *  `gap-tight` (measured 127.48). Below a bubble this wide, flushness is unreachable — see the note above. */
-const COARSE_CHIP_FLOOR = 127.48;
 
 test.describe("#608 coarse pager", () => {
   test.use({ hasTouch: true });
@@ -2569,8 +2603,8 @@ test.describe("#608 coarse pager", () => {
         expect(g.counterLines).toBe(1);
         // #598's first law still holds at this pointer: the column is the bubble's.
         expect(g.column).toBeCloseTo(g.bubble, 1);
-        // …and the chip is flush where flushness is reachable, at the touch floor where it is not.
-        expect(g.chip).toBeLessThanOrEqual(Math.max(g.bubble, COARSE_CHIP_FLOOR) + 1);
+        // …and the chip is flush where flushness is reachable, at its own content width where it is not.
+        expect(g.chip).toBeLessThanOrEqual(Math.max(g.bubble, g.chipIntrinsic) + 1);
         expectPagerAlignment(g);
       });
     }
@@ -2584,10 +2618,23 @@ test.describe("#608 coarse pager", () => {
     const component = await mount(<MessageRowStory chatStyle="bubble" messageRole="assistant" showSwipes={true} content="Ok" width={360} />);
     await expectPagerUsable(component);
     const g = await readPagerGeometry(component);
-    expect(g.bubble).toBeLessThan(COARSE_CHIP_FLOOR);
-    expect(g.chip).toBeCloseTo(COARSE_CHIP_FLOOR, 0);
+    // THE LEGAL FLOOR, derived here rather than remembered: two whole touch targets, the counter's OWN
+    // measured width, and the gaps between the chip's three in-flow items. Nothing in it is a font
+    // constant, and nothing in it is read off a box the defect would have shrunk.
+    const legalFloor = 2 * COARSE_TOUCH_BOX + g.counterWidth + 2 * g.chipGap;
+    // THE PREMISE: this bubble cannot hold a legal chip at all, so flushness is unreachable here and the
+    // floor is what decides the width. (Stated against the floor, not against the chip — a crushed chip
+    // would make a chip-relative premise vacuously true.)
+    expect(g.bubble, "the narrowest bubble cannot hold a legal chip").toBeLessThan(legalFloor);
+    // THE DEFECT, both halves, before anything else is trusted: a squeezed target and a wrapped counter.
     expect(g.chevron.w).toBeCloseTo(COARSE_TOUCH_BOX, 0);
     expect(g.counterLines).toBe(1);
+    // The counter is not clipped either — the other way a chip can look the right size and lie.
+    expect(g.counterClipped).toBe(false);
+    // …so the chip is AT its floor, and is exactly its own content: neither squeezed by the bubble nor
+    // stretched by the track.
+    expect(g.chip, "the chip holds the legal floor").toBeGreaterThanOrEqual(legalFloor - 0.5);
+    expect(g.chip).toBeCloseTo(g.chipIntrinsic, 0);
     // The column is STILL the bubble's — the chip overflows the track it cannot fit, and the track is
     // contained, so nothing about the message's own box moves.
     expect(g.column).toBeCloseTo(g.bubble, 1);

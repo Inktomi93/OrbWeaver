@@ -2,13 +2,16 @@
 // per-probe ms meaningless on a single engine) and every failure — HTTP, transport, or a verify defect —
 // becomes a ProbeResult, never a thrown harness error.
 
+import { budget } from "@orb/tooling/_shared/load-budget";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { ChatResponse, Probe, ProbeResult } from "../contract/types.ts";
 import { PROBES } from "./probes.ts";
 
 refuseDirectInvocation(import.meta.url, "node tooling/src/model-ab/cli.ts <verb>");
 
-const PROBE_TIMEOUT_MS = 180_000;
+// A CEILING, load-scaled through the one policy (#1232): the literal is the QUIET-BOX base.
+const PROBE_TIMEOUT_MS_BASE = 180_000;
+const PROBE_TIMEOUT_MS = budget(PROBE_TIMEOUT_MS_BASE);
 const HEAD_CHARS = 160;
 const ERROR_CHARS = 200;
 

@@ -4,13 +4,17 @@
 import { errorMessage } from "@orb/kit/error-message";
 import { print } from "@orb/tooling/_shared/artifacts";
 import { settle } from "@orb/tooling/_shared/browser";
+import { budget } from "@orb/tooling/_shared/load-budget";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { Step, StepRun } from "../contract/types.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm record");
 
 const DEFAULT_STEP_SETTLE_MS = 600;
-const STEP_TIMEOUT_MS = 5000;
+// A CEILING, load-scaled through the one policy (#1232): the literal is the quiet-box BASE. The settle
+// above is a sleep the run always pays and is never scaled.
+const STEP_TIMEOUT_BASE_MS = 5000;
+const STEP_TIMEOUT_MS = budget(STEP_TIMEOUT_BASE_MS);
 
 // Marker palette — high-contrast cycle so consecutive clicks are tellable apart.
 const MARKER_COLORS = ["#ff2020", "#20ff20", "#20d0ff", "#ff20ff", "#ffd020", "#ffffff"];

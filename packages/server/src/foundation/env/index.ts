@@ -14,14 +14,14 @@ import { AGENT_SDK_CONCURRENCY_MAX, LOG_LEVELS } from "@orb/contracts/settings";
 import { z } from "zod";
 import type { BindPostureInput } from "./bind.ts";
 import { resolveBindPosture } from "./bind.ts";
-import type { DiagnosticsPostureInput } from "./diagnostics.ts";
+import type { DiagnosticsPostureInput, OwnerFallbackCredentialInput } from "./diagnostics.ts";
 import type { EnginesPosture } from "./posture.ts";
 import { ENGINES_POSTURES } from "./posture.ts";
 
 export type { BindPosture, BindPostureInput } from "./bind.ts";
 export { bindPostureWarnings, resolveBindPosture } from "./bind.ts";
-export type { DiagnosticsExposure, DiagnosticsPosture, DiagnosticsPostureInput } from "./diagnostics.ts";
-export { DIAGNOSTICS_EXPOSURES, diagnosticsPostureWarnings, resolveDiagnosticsPosture } from "./diagnostics.ts";
+export type { DiagnosticsExposure, DiagnosticsPosture, DiagnosticsPostureInput, OwnerFallbackCredentialInput } from "./diagnostics.ts";
+export { DIAGNOSTICS_EXPOSURES, diagnosticsPostureWarnings, resolveDiagnosticsPosture, resolveOwnerFallbackCredential } from "./diagnostics.ts";
 export type { EnginesPosture } from "./posture.ts";
 export { ENGINES_POSTURES, effectiveVllmDisabled, postureManages, postureRegistersBackend, resolveEnginesPosture } from "./posture.ts";
 
@@ -708,6 +708,13 @@ export function bindPostureInput(): BindPostureInput {
  *  boolean immediately), so no caller of the posture can echo the secret. */
 export function diagnosticsPostureInput(): DiagnosticsPostureInput {
   return { debugToken: env.DEBUG_TOKEN, ipAllowlist: env.IP_ALLOWLIST, wireCapture: env.WIRE_CAPTURE, rpgTrace: env.RPG_TRACE };
+}
+
+/** The raw inputs the OWNER-FALLBACK credential rule reads (`diagnostics.ts::resolveOwnerFallbackCredential`
+ *  holds the rule and the WHY). Same seam shape as `bindPostureInput`: this file stays the pure `process.env`
+ *  reader; `entry/lifecycle` composes it into the auth seam, which owns no copy of the rule. */
+export function ownerFallbackCredentialInput(): OwnerFallbackCredentialInput {
+  return { nodeEnv: env.NODE_ENV, authFallback: env.AUTH_FALLBACK };
 }
 
 /** The DEPLOYMENT-fact env slice the engine spawner reads (binary + cache stores). All optional — unset ⇒

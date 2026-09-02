@@ -14,12 +14,21 @@ import {
 } from "../../../../tooling/src/snap/ops/page-validate.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
+/** A COMPLETE measured arm — every field `contrastFacts` declares it will refuse without. Kept in field
+ *  order with the reader (`tooling/src/snap/ops/page-validate.ts`) so a new required field shows up here as
+ *  a gap rather than as a mystery throw: `hasIconInk` and `radii` were added to the read at 881c70701
+ *  (#1111) and this fixture was not swept, so the arm this test exists to prove PASSES was throwing the
+ *  refusal the arm below exists to prove it throws (#1246). The two fields are the ICON-INK and SHAPE
+ *  channels of #1111's fill arm — an `<svg>` subtree paints with `currentColor`, and a background is
+ *  clipped to the rounded border box — so a fixture without them is not a measured subject at all. */
 const MEASURED = {
   color: "rgb(1, 2, 3)",
   fontSizePx: 16,
   fontWeight: 400,
   backdrop: { kind: "flat", color: "rgb(255, 255, 255)" },
   hasText: true,
+  hasIconInk: false,
+  radii: { tl: 0, tr: 0, br: 0, bl: 0 },
   inactive: false,
   role: "",
   tag: "P",

@@ -27,6 +27,7 @@ import { consoleFailureCounts, isSandboxTraceNoise, partitionFailedRequests } fr
 import { parseSnapArgs } from "./parse.ts";
 import { consoleForEvidence, pageErrorsForEvidence, printCaptureLog, printCheckpointScope, printPageReport, sessionForEvidence } from "./report.ts";
 import { finishSession, launchSnapSession, readSnapEnvironmentEvidence, snapEnvironmentMismatchCount } from "./session.ts";
+import { themeStampExit } from "./theme-stamp.ts";
 import { evidenceFailureCounts, hasSnapFailure } from "./verdict.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
@@ -142,6 +143,9 @@ function scenarioFailureSummary(
     emptyCss: outcomes.reduce((count, outcome) => count + outcome.emptyCss.length, 0),
     environment: 0,
     appearance: 0,
+    // A scenario checkpoint runs the DRIVE path, not the single-run evidence pass — the Lighthouse arm
+    // never fires there, so its member is structurally zero rather than "unmeasured".
+    lighthouse: 0,
   };
 }
 
@@ -183,7 +187,15 @@ async function captureScenarioCheckpoints(
     if (keepLivePage) {
       await resetScenarioEvidence(session.page);
     }
-    const outcome = await capture(session.page, checkpoint, { ...plan, pageIndex: 0, totalPages: 1, navigatePage: !keepLivePage }, session);
+    const outcome = await capture(
+      session.page,
+      checkpoint,
+      { ...plan, pageIndex: 0, totalPages: 1, navigatePage: !keepLivePage },
+      {
+        ...session,
+        settingsEvidence: session.contexts[0]?.settingsEvidence,
+      },
+    );
     await captureCssEvidence(session, checkpoint, [outcome]);
     outcomes.push(outcome);
     evidenceRanges.push({
@@ -340,7 +352,7 @@ export async function runScenarioDetailed(opts: Args): Promise<SnapDetailedResul
         })),
       },
     });
-    const code = printVerdict("snap-scenario", {
+    const scenarioCode = printVerdict("snap-scenario", {
       verdict: red ? 1 : 0,
       denominators: { checkpoints: { value: outcomes.length, refuseWhen: "zero" } },
       pairs: [
@@ -363,7 +375,8 @@ export async function runScenarioDetailed(opts: Args): Promise<SnapDetailedResul
       ],
     });
     return {
-      code,
+      // #1227: a checkpoint whose requested THEME never stamped sampled the default palette — exit 2.
+      code: themeStampExit(outcomes, scenarioCode),
       receipt: {
         failures: failureSummary,
         captures: outcomes,

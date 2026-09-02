@@ -11,6 +11,7 @@
 // minted, which is the only shape that would have caught #809 (a code path nobody exercised).
 import { VERIFY_VERBS } from "@orb/tooling/verify";
 import { expect, test } from "../../support/tool-fixtures.ts";
+import { scaledBudget } from "../_load-budget.ts";
 
 /** A deliberately small heap: enough to load the module graph and print a line, far too small to build the
  *  ts-morph project. It rides NODE_OPTIONS because runCli spawns `process.execPath` with the script first,
@@ -22,7 +23,7 @@ const SMALL_HEAP_ENV: Readonly<Record<string, string>> = Object.fromEntries([
   ["NODE_OPTIONS", "--max-old-space-size=512"],
 ]);
 /** Generous next to the ~0.5s a real help answer takes, and multiples of the ~5s the OOM took to abort. */
-const HELP_TIMEOUT_MS = 30_000;
+const HELP_TIMEOUT_MS = scaledBudget(30_000);
 
 // The explicit timeout is part of the pin: without it a regressed verb aborts at ~5s and vitest's own 5s
 // default reports a TIMEOUT, hiding the 134 that names the defect (observed on the red-first run).

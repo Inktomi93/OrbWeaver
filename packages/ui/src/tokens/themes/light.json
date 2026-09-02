@@ -105,6 +105,18 @@
         "alpha": 0.16
       }
     },
+    "selection-quiet": {
+      "$value": {
+        "colorSpace": "oklch",
+        "components": [0.54, 0.008, 70]
+      }
+    },
+    "selection-quiet-foreground": {
+      "$value": {
+        "colorSpace": "oklch",
+        "components": [0.98, 0.004, 75]
+      }
+    },
     "ring": {
       "$value": {
         "colorSpace": "oklch",

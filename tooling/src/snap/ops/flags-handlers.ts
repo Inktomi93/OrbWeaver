@@ -11,6 +11,7 @@ import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { applyPanelPresetFlag, loadPanelPreset } from "../../_shared/panel-flags.ts";
 import { applyThemeFlag, parseThemeFlag } from "../../_shared/theme.ts";
 import type { Args } from "../contract/types.ts";
+import { parseLighthouseDevice, parseLighthouseMode } from "../lib/lighthouse-report.ts";
 import { parseShotScale } from "../lib/shot-scale.ts";
 import { NO_CPU_THROTTLE, parseNetworkProfile } from "../lib/throttle.ts";
 import { SESSION_FLAG_HANDLERS } from "./flags-session.ts";
@@ -299,6 +300,29 @@ export const FLAG_HANDLERS: Record<string, FlagHandler> = {
   },
   "--network": (a, rest) => {
     a.network = parseNetworkProfile(rest.shift() ?? "");
+  },
+  // ── The two arms that retired the chrome-devtools MCP (#1198/#1199) ──
+  // `--lighthouse mobile` COMPOSES over --mobile rather than re-emulating: it fills the same device slot
+  // the flag does (the --panels precedent), so touch/coarse-pointer/DPR3 are real for the audit AND the
+  // pixels. A bad value keeps the arm off here and is REFUSED in ops/parse.ts, so a run never audits a
+  // device it was not asked for.
+  "--lighthouse": (a, rest) => {
+    const device = parseLighthouseDevice(rest.shift() ?? "");
+    a.lighthouse = device ?? a.lighthouse;
+    if (device === "mobile") {
+      a.device = MOBILE_DEVICE;
+    }
+  },
+  "--lighthouse-mode": (a, rest) => {
+    a.lighthouseMode = parseLighthouseMode(rest.shift() ?? "") ?? a.lighthouseMode;
+  },
+  "--requests": (a, rest) => {
+    a.requests = true;
+    a.requestsFilter = consumeOptionalSelector(rest) ?? a.requestsFilter;
+  },
+  "--request-body": (a, rest) => {
+    a.requestBody = rest.shift() ?? null;
+    a.requests = true;
   },
   "--eval": (a, rest, page) => {
     const expr = rest.shift();

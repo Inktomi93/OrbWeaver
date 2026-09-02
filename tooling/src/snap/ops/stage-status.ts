@@ -12,7 +12,7 @@ import { rmSync } from "node:fs";
 import { join } from "node:path";
 import { errorMessage } from "@orb/kit/error-message";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import { runNicedSync } from "../../_shared/proc.ts";
+import { killPidGroup, runNicedSync } from "../../_shared/proc.ts";
 import type { ActiveStage, StageSweepVerdict } from "../contract/stage.ts";
 import {
   ACTIVE_REL,
@@ -176,7 +176,7 @@ function teardownStageMarkerless(root: string): string {
     if (pid !== null) {
       const pgid = runNicedSync("ps", ["-o", "pgid=", "-p", String(pid)]).stdout.trim();
       if (pgid.length > 0) {
-        runNicedSync("kill", ["-TERM", `-${pgid}`], { stdio: "ignore" });
+        killPidGroup(Number(pgid), "SIGTERM");
         killed.push(pid);
       }
     }

@@ -75,6 +75,7 @@ interface FailureSummaryInput {
   readonly diff?: number;
   readonly environment?: number;
   readonly appearance?: number;
+  readonly lighthouse?: number;
 }
 
 export function buildFailureSummary(input: FailureSummaryInput): SnapFailureSummary {
@@ -101,5 +102,6 @@ export function buildFailureSummary(input: FailureSummaryInput): SnapFailureSumm
     emptyCss: totals.emptyCss,
     environment: input.environment ?? 0,
     appearance: input.appearance ?? 0,
+    lighthouse: input.lighthouse ?? 0,
   };
 }

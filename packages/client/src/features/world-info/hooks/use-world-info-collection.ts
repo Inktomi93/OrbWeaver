@@ -2,13 +2,12 @@
 // create verb, and the IMPORT verb (D121-D's band half, now the group band's). All three are hooks because a
 // definition is a module-level value — the host calls each unconditionally, once, per rendered affordance.
 
-import type { BookWithUsage } from "@orb/contracts/world-info";
 import { useQuery } from "@tanstack/react-query";
 import { useInvalidation, useTRPC } from "#data";
-import type { CollectionPreviewEntry } from "#lib";
-import { COLLECTION_PREVIEW_LIMIT, notify } from "#lib";
+import type { CollectionInsight } from "#lib";
+import { notify } from "#lib";
 import { selectCollectionMember } from "#state";
-import { bookScent, WORLD_INFO_COLLECTION_ID } from "../lib/world-info-model.ts";
+import { WORLD_INFO_COLLECTION_ID } from "../lib/world-info-model.ts";
 import { useCreateWorldBook, useImportWorldBookFile } from "./use-world-info-mutations.ts";
 
 const NEW_BOOK_NAME = "New book";
@@ -19,30 +18,45 @@ export function useWorldInfoCount(): number | undefined {
   return useQuery(trpc.worldInfo.listBooksWithUsage.queryOptions()).data?.length;
 }
 
-/** One ranked row → the host-facing preview entry. The datum is `bookScent` VERBATIM — the same
- *  "42 entries · attached ×3" the list row's subtitle carries — because a book's two facts do not change
- *  between the glance and the list, and a second spelling here is exactly the drift that single home exists
- *  to prevent (it also owns the `unattached` word and the entry singular). */
-function previewEntry(book: BookWithUsage): CollectionPreviewEntry {
-  return { id: book.id, label: book.name, detail: bookScent(book) };
-}
-
-/** The welcome hero's chip wall (the `preview` seam): the most ATTACHED books.
+/**
+ * THE WORLD-INFO LIBRARY'S OWN LANDING FACTS (the `insights` seam — #1209 replaced the preview wall).
  *
- *  ATTACHMENT IS THE RANK because it is the one thing that separates a book that is doing work from a book
- *  you wrote and never wired up — the state `bookScent` calls out as `unattached` on the list row for the
- *  same reason. Size does not rank: a 200-entry book attached nowhere is not what the library is FOR.
- *  Sorted on a COPY: the query's array is react-query cache state.
+ * WHAT THE LIST CANNOT SAY. Each row scents its own book ("42 entries · attached ×3"); what no row states
+ * is the library's ATTACHMENT SHAPE — how many books fire in every chat (a global book is the one that can
+ * surprise you) and how many are written and wired to nothing. `bookScent` already calls the second state
+ * `unattached` on a single row; these facts are that judgement counted across the library, which is the one
+ * form of it a reader cannot get by scrolling.
  *
- *  THE SAME CACHED LIST the census and the rows read, so this is a cache hit and never a second request. */
-export function useWorldInfoPreview(): readonly CollectionPreviewEntry[] | undefined {
+ * ONE CACHED READ — the same `listBooksWithUsage` key the census, the rows and the member title share.
+ */
+export function useWorldInfoInsights(): readonly CollectionInsight[] | undefined {
   const trpc = useTRPC();
   const rows = useQuery(trpc.worldInfo.listBooksWithUsage.queryOptions()).data;
   if (rows === undefined) {
     return rows;
   }
-  const mostAttached = [...rows].sort((left, right) => right.usage.total - left.usage.total);
-  return mostAttached.slice(0, COLLECTION_PREVIEW_LIMIT).map(previewEntry);
+  const everywhere = rows.filter((book) => book.usage.global);
+  const unattached = rows.filter((book) => book.usage.total === 0);
+  const firstGlobal = everywhere[0];
+  const firstUnattached = unattached[0];
+  return [
+    {
+      id: "global",
+      label: "Fires in every chat",
+      value: String(everywhere.length),
+      ...(firstGlobal === undefined
+        ? {}
+        : { open: { label: `Open ${firstGlobal.name}`, run: (): void => selectCollectionMember(WORLD_INFO_COLLECTION_ID, firstGlobal.id) } }),
+    },
+    {
+      id: "unattached",
+      label: "Attached to nothing",
+      value: `${String(unattached.length)} of ${String(rows.length)}`,
+      ...(firstUnattached === undefined
+        ? {}
+        : { open: { label: `Open ${firstUnattached.name}`, run: (): void => selectCollectionMember(WORLD_INFO_COLLECTION_ID, firstUnattached.id) } }),
+    },
+  ];
 }
 
 /** The OPEN member's name for the mobile pushed frame's topbar (the `useMemberTitle` seam) — the SAME

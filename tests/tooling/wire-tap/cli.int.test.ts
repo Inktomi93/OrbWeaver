@@ -9,8 +9,9 @@ import type { Server } from "node:http";
 import { createServer } from "node:http";
 import type { CliResult, ToolFixtures } from "../../support/tool-fixtures.ts";
 import { expect, test } from "../../support/tool-fixtures.ts";
+import { scaledBudget } from "../_load-budget.ts";
 
-const CLI_TIMEOUT_MS = 30_000;
+const CLI_TIMEOUT_MS = scaledBudget(30_000);
 // Bare node 26.5 has NO EventSource global (measured at the move — the reason `pnpm sse-tap` carries
 // the flag); the child gets it via NODE_OPTIONS, exactly like the front-door script.
 // biome-ignore lint/style/useNamingConvention: NODE_OPTIONS is node's own env-var spelling, not an identifier.

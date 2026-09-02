@@ -23,12 +23,12 @@ import { scaledBudget, spawnNodeWithBudget } from "../_load-budget.ts";
 
 const REPO_ROOT = fileURLToPath(new URL("../../../", import.meta.url));
 const AST_CLI = fileURLToPath(new URL("../../../tooling/src/ast/cli.ts", import.meta.url));
-const SPAWN_TIMEOUT_MS = 120_000;
+const SPAWN_TIMEOUT_MS = scaledBudget(120_000);
 /** The two TYPED whole-workspace rows (`columns --all`, `rot ui`) genuinely exceed the default spawn cap
  *  on a loaded box — measured 2026-08-22 at load-avg ~20: 122s and 175s, both exiting 0. A spawn killed by
  *  its own wall clock returns `status: null`, which reads as a lens failure and is NOT a verdict (the
  *  exit-2 discipline), so those rows get a budget that matches what they actually cost. */
-const HEAVY_TIMEOUT_MS = 300_000;
+const HEAVY_TIMEOUT_MS = scaledBudget(300_000);
 
 interface AstRun {
   stdout: string;

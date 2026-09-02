@@ -226,9 +226,15 @@ body {
      * `transparent`/`none`/`rgba(…,0)` as a `no-fill` site, the marker absolves it, and a no-fill whose
      * subject carries a `::before`/`::after` fill carrier in the same stylesheet is proved out of the
      * population as the counted skip `fill-moved-to-pseudo-carrier` — which is exactly this rule and the
-     * `.shell-main` pair below (measured on that lane: glassRules=10, skipped
-     * {"fill-moved-to-pseudo-carrier":1}, findings=0, live=5). The spelling is unchanged and was already
-     * the right one; only its stated reason moved from "reported gap" to "counted exclusion". */
+     * `.shell-main` pair below. The spelling is unchanged and was already the right one; only its stated
+     * reason moved from "reported gap" to "counted exclusion".
+     * TRUTH-REPAIR 2026-09-02 (#1247): the numbers this paragraph quoted — glassRules=10, skipped
+     * {"fill-moved-to-pseudo-carrier":1}, findings=0, live=5 — were the #1154 lane's snapshot and had
+     * ALREADY drifted when written: the sentence names TWO carriers ("this rule and the `.shell-main` pair
+     * below") beside a count of one. Re-derived from `judgeStylesheets` on this tree: glassRules=11,
+     * skipped {"fill-moved-to-pseudo-carrier":2}, findings=0, live=4 (`.shell-main` left the live set at
+     * a743e4799, which gave its carrier D144's plate arm). A quoted census is a snapshot with a shelf life;
+     * the pin that must hold is in tests/tooling/verify/gates/over-art-plate-arm.int.test.ts. */
     html[data-blur-panels] .shell-panel {
       background: none;
     }
@@ -347,7 +353,22 @@ body {
       z-index: -1;
       pointer-events: none;
       backdrop-filter: blur(var(--blur-strength)) saturate(var(--blur-saturate));
-      background-color: color-mix(in oklab, var(--color-card) var(--blur-fill-chrome), transparent);
+      /* #237/#623's PLATE ARM, INLINE — this rule is ALREADY `[data-has-bg-image]`-gated, so it does not
+       * take a companion rule the way `.shell-panel::before` does; the wallpaper gate that the plate law
+       * asks for IS this selector. The tint mixes over `--color-reading-plate` on the LIGHT arm — D144(b)'s
+       * already-derived, already-polarity-aware over-art backing (`readingPlateAlpha`, #217) — instead of
+       * over `transparent`, which handed 30% of whatever photo the user picked to the ink inside the
+       * reading column. It was MEASURED at 3.69:1 under the light seed (#626's ledger row, the same number
+       * #237 measured on the list pane), and that row is deleted with this adoption rather than re-keyed
+       * onto the carrier: the debt is paid, not moved. NO NEW NUMBER IS INVENTED — both partners of the mix
+       * are at or above the plate's own derived alpha, so the composite is too, at every value of
+       * `--blur-fill-chrome` including the reduced-transparency and prefers-contrast arms' 100%/92%. ONLY
+       * THE LIGHT ARM MOVES (D144(d)): the dark arm re-spells the base verbatim so the sacred dark rooms
+       * render byte-identically. */
+      background-color: light-dark(
+        color-mix(in oklab, var(--color-card) var(--blur-fill-chrome), var(--color-reading-plate)),
+        color-mix(in oklab, var(--color-card) var(--blur-fill-chrome), transparent)
+      );
     }
     html[data-blur-modals] [data-slot="dialog-popup"],
     html[data-blur-modals] [data-slot="alert-dialog-popup"] {

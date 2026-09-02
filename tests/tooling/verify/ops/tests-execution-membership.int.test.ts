@@ -16,6 +16,7 @@
 // actual CLI (`runCli`, process-spawning — `.int.test.ts`), not a fixture.
 import { findMultiMembershipFiles, findUnrunFiles } from "@orb/tooling/verify";
 import { expect, test } from "../../../support/tool-fixtures.ts";
+import { scaledBudget } from "../../_load-budget.ts";
 
 test("a file claimed by two runtime views REDs naming both views (fixture)", () => {
   const membership = new Map<string, readonly string[]>([
@@ -43,7 +44,7 @@ test("no test file is matched by no runner (fixture, direction 2 unchanged)", ()
 });
 
 test("the real tree is clean: every runtime view is non-empty, every test file is run, and no file is claimed by two runtime views", async ({ runCli }) => {
-  const res = await runCli("verify", ["tests-execution-membership"], { timeoutMs: 110_000 });
+  const res = await runCli("verify", ["tests-execution-membership"], { timeoutMs: scaledBudget(110_000) });
   await expect(res).toExitWith(0);
   expect(res.stdout).toContain("every claimed test file is claimed by exactly one runtime view");
   // The per-project counts this pin's own header + the design doc's §tests-execution-membership cite are

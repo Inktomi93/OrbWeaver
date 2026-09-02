@@ -182,6 +182,10 @@ export function ConfigSearchInput({ groups }: ConfigSearchInputProps): ReactElem
       <Command label="Search settings" shouldFilter={false}>
         <Row align="center" gap="tight">
           <Stack className="min-w-0 flex-1">
+            {/* NO CALLER REF HERE (#1218's rejected arm, stated so nobody re-tries it): `CommandInput` keeps
+                its own internal ref to correct cmdk's `aria-expanded`, and a `ref` passed through its props
+                replaces that one — the correction then reads `null` and the box claims an expanded listbox
+                that does not exist. The arrival focus lands on the active group's BAND instead. */}
             <CommandInput aria-label="Search settings" expanded={expanded} onValueChange={setConfigSearchQuery} placeholder="Search settings…" value={query} />
           </Stack>
           {/* The FUNNEL — inserts `@` and the token menu opens, so the grammar teaches itself (§3.3). */}

@@ -1,6 +1,9 @@
-// `--expect-no-overflow`'s shapes: the scroll-delta arm AND the child-rect sweep. Split from ./types.ts at
-// the tooling size cap (#1231) — a self-contained family with three consumers (ops/overflow.ts,
-// lib/overflow-line.ts, the front door).
+// `--expect-no-overflow`'s shapes: the scroll-delta arm AND the child-rect sweep. Their own contract
+// module rather than ./types.ts because the argv-heavy Args door sits within a handful of lines of the
+// tooling-size cap, and this trio is a self-contained capability that already has its own ops/ half (the
+// sweep) and lib/ half (the assertion line). Two lanes reached that cap independently and made the SAME
+// split — the arms (#1198/#1199) and the session flags (#1231) — which is the tell that the door was over
+// its budget on the shapes alone, not on either feature.
 //
 // `scrollWidth - clientWidth` is a POSITIVE-ONLY measure: content pushed off the LEFT or TOP edge of a
 // clipping box does not grow the scroll box at all, so the delta reads 0 on a frame where a control is

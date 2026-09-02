@@ -213,6 +213,54 @@ test.each(
   }
 });
 
+// ── #1110: THE QUIET SELECTION PAIR — bounded from BOTH sides, in every seed ────────────────────────
+// `--color-selection-quiet` is the opaque ground a bulk-default selection control paints when it is ON
+// (Backup & Restore's eleven-row all-selected "Include" fieldset — checkbox/variants.ts `tone: quiet`),
+// and `--color-selection-quiet-foreground` is the check glyph on it. Two bounds, and only the PAIR of
+// bounds is the design:
+//   CEILING — it must stay QUIETER than the accent checked fill, or the arm has no reason to exist. That
+//     is the whole owner ruling: spend the ember on a deliberate choice, not on the unremarkable default.
+//   FLOOR   — the glyph must stay legible on its own fill (judged at the TEXT bar, though a checkmark
+//     would only owe 1.4.11's 3:1), and the fill must stay discernible against every ground a control
+//     can sit on — including the `bg-accent` an interactive row paints on hover, which is its worst.
+// A one-sided pin would pass on a fill tuned all the way to the accent's loudness, or all the way down
+// into the surface it sits on. Both directions are live here.
+test.each(
+  PALETTES.map((palette) => [palette.name, palette] as const),
+)("#1110 %s: the quiet selection pair is legible AND quieter than the accent", (_name, palette) => {
+  const fill = resolveTokenRgb("color.selection-quiet", palette);
+  const mark = resolveTokenRgb("color.selection-quiet-foreground", palette);
+
+  // FLOOR 1 — the mark on its own fill, at AA-NORMAL.
+  expect(contrastRatio(mark, fill), `color.selection-quiet-foreground on color.selection-quiet @ ${palette.name}`).toBeGreaterThanOrEqual(NORMAL_MIN_RATIO);
+
+  // FLOOR 2 — the fill against every ground a selection control rests on, at 1.4.11's 3:1. `accent` is
+  // the interactive ground (hover/selected on ListRow + Card) and is the binding one.
+  const grounds: ReadonlyArray<keyof typeof TOKENS> = [
+    "color.background",
+    "color.card",
+    "color.popover",
+    "color.surface-raised",
+    "color.sidebar",
+    "color.muted",
+    "color.secondary",
+    "color.accent",
+  ];
+  for (const ground of grounds) {
+    expect(contrastRatio(fill, resolveTokenRgb(ground, palette)), `color.selection-quiet on ${ground} @ ${palette.name}`).toBeGreaterThanOrEqual(
+      UI_COMPONENT_MIN_RATIO,
+    );
+  }
+
+  // CEILING — quieter than the accent checked fill on the surface both are judged against.
+  const card = resolveTokenRgb("color.card", palette);
+  const accent = contrastRatio(resolveTokenRgb("color.primary", palette), card);
+  expect(accent, `color.primary on color.card @ ${palette.name} must be a real painted fill, or the ceiling is vacuous`).toBeGreaterThan(
+    UI_COMPONENT_MIN_RATIO,
+  );
+  expect(contrastRatio(fill, card), `color.selection-quiet must undercut color.primary on color.card @ ${palette.name}`).toBeLessThan(accent);
+});
+
 // ── #697: THE TRACK RAMP FILL — a non-text UI component (WCAG 1.4.11), floored at 3:1 on the LIGHT panel ──
 // The 6-step categorical ramp (--color-track-N) fills pool/meter/clock gauges (TrackBar/SegmentBar/RingGauge/
 // CoinFigure). The FILL is itself a graphical UI component conveying the reading, so 1.4.11's 3:1 applies even

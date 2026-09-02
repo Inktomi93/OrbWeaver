@@ -28,6 +28,7 @@ import { afterAll, beforeAll } from "vitest";
 import type { Finding, PassResult } from "../../tooling/src/verify/index.ts";
 import { loadGates, projectCtx, runPass } from "../../tooling/src/verify/index.ts";
 import { expect, test } from "../support/tool-fixtures.ts";
+import { scaledBudget } from "./_load-budget.ts";
 
 const ROOT = join(import.meta.dirname, "..", "..");
 const DIR = "packages/ui/src/__g_gi";
@@ -139,6 +140,14 @@ function plant(): void {
   }
 }
 
+// THE HOOK BUDGET IS LOAD-SCALED (#1174 -> #1232 section 7.1). The fixed 300s here ran ~60s on a quiet
+// box and 470-485s at load 40+ with five lanes live, so the SAME code was red on both sides of any change
+// and the red read as a broken gate corpus rather than as contention. 120s base with the shared scaling
+// (and the absolute ORB_BUDGET_CEILING_MS above it) covers the quiet case with headroom and stretches to
+// cover the contended one, and a hook that STILL blows it is a genuinely wedged pass — which is exactly
+// what the ceiling exists to surface.
+const HOOK_BUDGET_MS = scaledBudget(120_000);
+
 let pass: PassResult;
 
 // One real-tree pass over the whole gate corpus (~1min); every case reads from it.
@@ -151,7 +160,7 @@ beforeAll(async () => {
   } finally {
     clean();
   }
-}, 300_000);
+}, HOOK_BUDGET_MS);
 
 afterAll(() => {
   clean();

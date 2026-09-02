@@ -14,6 +14,7 @@ import { pageOut, shouldProduceShot } from "../lib/out-names.ts";
 import { throttleResultValue } from "../lib/throttle.ts";
 import { captureAppearanceInvariantRows } from "./appearance-invariant-runtime.ts";
 import { evaluateAppearanceInvariantCell } from "./appearance-invariants.ts";
+import { attachSnapArms } from "./arms.ts";
 import { capturePages } from "./capture.ts";
 import { captureCssEvidence } from "./cascade.ts";
 import { runBaselineOrDiff } from "./diff.ts";
@@ -35,6 +36,7 @@ import {
   sessionForEvidence,
 } from "./report.ts";
 import { finishSession, launchSnapSession, readSnapEnvironmentEvidence, snapEnvironmentMismatchCount } from "./session.ts";
+import { themeStampExit } from "./theme-stamp.ts";
 import { buildFailureSummary, evidenceFailureCounts, hasSnapFailure, mapOutputSummary, outcomeTotals } from "./verdict.ts";
 import { runWatchSeries } from "./watch.ts";
 
@@ -91,11 +93,18 @@ export async function runOnSession(session: ProbeSession, opts: Args, target: Se
   const { detailedPlan } = hooks;
   const totalPages = opts.pages;
   {
+    // BEFORE anything navigates — a request log wired after `page.goto` silently starts mid-stream (#1199).
+    // Bound HERE rather than in `runSnapDetailed` (where the pre-split code had it) so a session call gets
+    // the arms on exactly the same terms as a one-shot: one implementation, two hosts.
+    const arms = attachSnapArms(session, opts);
     const plan: ShotPlan = { url, out, produceShot };
     const outcomes = await capturePages(session, opts, plan, target.navigate);
     windowOutcomes(outcomes, session, hooks.window);
     await captureCssEvidence(session, opts, outcomes);
     const appearance = await captureAppearanceResults(session, opts, detailedPlan);
+    // The audit runs on the SETTLED page, after the drive queue and the settled-surface captures — that
+    // page IS the subject (ops/lighthouse.ts). A refusal is not a finding: it exits 2 through arms.exit.
+    await arms.audit(session, opts, key);
     const evidenceSession = sessionForEvidence(session, outcomes);
     // --watch: a timed series on PAGE 0 after everything settled (a streaming turn reflow, transient states).
     const watchTicks = opts.watchMs > 0 ? await runWatchSeries(session.pages[0] as Page, opts, pageOut(out, 0, totalPages)) : [];
@@ -108,6 +117,7 @@ export async function runOnSession(session: ProbeSession, opts: Args, target: Se
     printWatchBlock(watchTicks);
     printCheckpointScope(session, evidenceSession);
     printCaptureLog(evidenceSession, failed, viteChurn);
+    await arms.finishLog(opts, key);
     printCropNote(opts, { ...plan, failed, totalPages });
     printProbeMotionWarning(opts);
     // Baseline/diff compares PAGE 0's shot (the canonical surface); multi-page baselines aren't a use case yet.
@@ -131,6 +141,7 @@ export async function runOnSession(session: ProbeSession, opts: Args, target: Se
       diff: Number(ssimFailed),
       environment: environmentFailures,
       appearance: appearance.filter((result) => result.evaluation.status !== "ok").length,
+      lighthouse: arms.failedAudits(),
     });
     const red = hasSnapFailure(failureSummary);
     const artifacts = await hooks.finish(red);
@@ -178,7 +189,7 @@ export async function runOnSession(session: ProbeSession, opts: Args, target: Se
     const mapSummary = mapOutputSummary(opts.map, outcomes);
     const code = printVerdict("snap", {
       verdict: red ? 1 : 0,
-      denominators: { pages: { value: totalPages, refuseWhen: "zero" } },
+      denominators: { pages: { value: totalPages, refuseWhen: "zero" }, ...arms.denominators() },
       pairs: [
         ["out", produceShot ? pageOut(out, 0, totalPages) : "(none)"],
         ["pages", totalPages],
@@ -221,11 +232,15 @@ export async function runOnSession(session: ProbeSession, opts: Args, target: Se
         ["vite-dep-churn", viteChurn.length],
         ["deadcss", totals.deadCss],
         ["emptycss", totals.emptyCss],
+        ...arms.resultPairs(),
         ...diffPairs,
       ],
     });
     return {
-      code,
+      // TWO ways this run can turn out not to be a verdict about the app at all (the zero-hygiene law,
+      // _shared/evidence.ts): a REFUSED Lighthouse audit, and a requested THEME whose stamp never landed
+      // (#1227). Either exits 2 regardless of what else the run found.
+      code: arms.exit(themeStampExit(outcomes, code)),
       receipt: {
         failures: failureSummary,
         captures: outcomes,

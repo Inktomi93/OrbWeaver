@@ -236,6 +236,10 @@ export function checkpointArgErrors(inherited: Args, raw: Args, label: string): 
       [inherited.watchMs > 0 || inherited.baseline || inherited.diff, "scenario checkpoints do not support --watch/--baseline/--diff"],
       [inherited.scenario !== null || inherited.matrix, "scenario checkpoints cannot nest --scenario/--matrix"],
       [
+        inherited.lighthouse !== null || inherited.requests,
+        "scenario checkpoints do not run the --lighthouse/--requests arms (this path drives its own session and would ignore them) — take those receipts in their own snap run",
+      ],
+      [
         inherited.isolated || inherited.stageDown || inherited.stageStatus,
         "scenario checkpoint args cannot manage stages; put stage flags on the outer command",
       ],
@@ -390,6 +394,15 @@ export function sessionModeValidationPairs(args: Args, contextsMode: boolean): r
     [
       driving && (args.matrix || args.scenario !== null || contextsMode),
       "--session does not combine with --matrix/--scenario/--contexts/--as in phase 1 — the appearance matrix rides a session in phase 3 (docs/design/1208-instrument-substrate.md §12.2 F10)",
+    ],
+    [
+      // NOT a taste call: both features write `--remote-debugging-port` onto ONE browser. The arm RESERVES
+      // a port and passes it; a session lets Chrome pick (port 0) and reads `DevToolsActivePort` back. Two
+      // such args on one launch is last-wins, and whichever reader lost then attaches to nothing or to the
+      // wrong endpoint — silently. Refusing the pair is the honest phase-1 answer; unifying the two onto the
+      // one debugging-endpoint reader is phase 3's job, alongside the arm registry (ops/arms/lighthouse.ts).
+      driving && args.lighthouse !== null,
+      "--session does not combine with --lighthouse in phase 1: both claim the browser's --remote-debugging-port (the arm reserves one, a session reads Chrome's own back) and one launch cannot carry both — take the audit in its own one-shot snap run, or attach to the session over its endpoint in phase 3",
     ],
     [
       (driving || admin) && (args.stageDown || args.stageStatus || args.stageSweep),

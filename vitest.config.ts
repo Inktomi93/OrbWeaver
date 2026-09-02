@@ -1,3 +1,4 @@
+import { budget } from "@orb/tooling/_shared/load-budget";
 import { defineConfig } from "vitest/config";
 
 // ONE config, lanes by SUFFIX via test.projects (the modern "workspace" — vitest.workspace.ts was
@@ -19,6 +20,17 @@ import { defineConfig } from "vitest/config";
 // mid-lifecycle (it's written then rm'd inside check-gates.int); ignore keeps every lane hermetic.
 const IGNORE = ["**/node_modules/**", "**/dist/**", "**/.stryker-tmp/**", "reports/**", "**/__g_*"];
 const inCI = process.env["CI"] !== undefined;
+
+// The QUIET-BOX bases every wall clock below is derived from (`budget()` stretches them by the box's
+// per-core contention and caps the stretch at ORB_BUDGET_CEILING_MS). They are BASES, never ceilings a
+// suite may read: a file that needs longer says so with its own `vi.setConfig(scaledBudget(...))`.
+const BASE_TEST_TIMEOUT_MS = 5000;
+const BASE_HOOK_TIMEOUT_MS = 10_000;
+// integration-serial: whole-tree scanners + heavy full-`createServices` composition files.
+const BASE_SERIAL_TIMEOUT_MS = 30_000;
+// live-drive: a BACKSTOP above any unscaled per-file cost here, so a file that FORGOT its own scaled
+// budget fails loudly and early rather than silently inheriting a wrong one.
+const BASE_LIVE_DRIVE_TIMEOUT_MS = 120_000;
 
 // SERIAL_INT — the `.int.test.ts` files that CANNOT run in the parallel `integration` lane, routed by
 // EXPLICIT PATH (not a filename suffix — a `*.serial.int.test.ts` rename trips the test-layout /
@@ -163,6 +175,17 @@ export default defineConfig({
   test: {
     exclude: IGNORE,
 
+    // WALL CLOCKS ARE LOAD-SCALED (#1232, docs/design/1208-instrument-substrate.md section 7.1). These two
+    // used to be vitest's own DEFAULTS (5s test / 10s hook) — invisible numbers written for an idle box,
+    // and the single largest source of "reds" that were really contention: the parallel integration lane
+    // took five timeouts at loadavg 41 on 2026-09-02 with nothing wrong in the code, and a hook timeout
+    // reads IDENTICALLY to a real assertion failure in a batch report. Stated out loud here and stretched
+    // by the box's per-core contention through the ONE policy, so a quiet run is byte-identical to the old
+    // default (factor 1) and a contended one finishes instead of dying as an opaque red. Evaluated ONCE at
+    // config load, which is also when the supervisor decides the shard order.
+    testTimeout: budget(BASE_TEST_TIMEOUT_MS),
+    hookTimeout: budget(BASE_HOOK_TIMEOUT_MS),
+
     // Tests default the search-corpus auto-index OFF (the production env floor is ON). With the no-GPU
     // derive-role fallback live, an ON indexer would turn every `character.create` in a test into a real
     // local-light jina embed (multi-GB model load) on the fire-and-forget bus. OFF keeps unit/integration
@@ -257,7 +280,7 @@ export default defineConfig({
           include: SERIAL_INT,
           exclude: [...IGNORE, ...LIVE_DRIVE],
           fileParallelism: false,
-          testTimeout: 30_000,
+          testTimeout: budget(BASE_SERIAL_TIMEOUT_MS),
         },
       },
       {
@@ -277,8 +300,8 @@ export default defineConfig({
           name: "live-drive",
           include: LIVE_DRIVE,
           fileParallelism: false,
-          testTimeout: 120_000,
-          hookTimeout: 120_000,
+          testTimeout: budget(BASE_LIVE_DRIVE_TIMEOUT_MS),
+          hookTimeout: budget(BASE_LIVE_DRIVE_TIMEOUT_MS),
         },
       },
       {

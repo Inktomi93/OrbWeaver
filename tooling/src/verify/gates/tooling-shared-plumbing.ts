@@ -13,14 +13,25 @@
 // daemon's browser; a raw attach elsewhere is a shim-leak and a second ProbeSession shape). Declared
 // limit: puppeteer's `connect` (the Lighthouse engine's own seam, phase 3) is not this arm's — its row
 // is the mustPass below.
+// (J) a WALL-CLOCK LITERAL outside the ONE budget policy (_shared/load-budget.ts): a numeric literal fed
+// to a `timeout`/`timeoutMs`/`testTimeout`/`hookTimeout`/`actionTimeout` option, a `setTimeout(fn, N)` at
+// ceiling scale, or a `*_TIMEOUT_MS` const with a bare numeric initializer. A budget written for a quiet
+// box reads as a RED on a contended one; every ceiling is `budget(<X>_BASE_MS)` (#1232,
+// docs/design/1208-instrument-substrate.md §7.1). Arm J's jurisdiction is WIDER than the others'
+// (tests/tooling/** too, plus the two root runner configs read off disk in run()); arms A-H stay fenced to
+// tooling/src/ exactly as before (arm H included — `visit` applies the TOOLING_PREFIX fence before
+// `capability()` ever runs, which is what keeps test-owned browsers out of the substrate, §2.1).
 // Scan-and-allowlist: the HOMES are SCANNED and carried as cited rows with a stale sweep (GATE-AUTHORING §4). Comment posture: comment-SAFE (node kinds + literal args).
 import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
-import type { ExemptionTable, GateDescriptor } from "../contract/gate.ts";
+import type { ExemptionTable, GateDescriptor, GateRunCtx } from "../contract/gate.ts";
 import { readStringValue } from "../lib/ast-read.ts";
+import { readStaticSource } from "../lib/config-static-read.ts";
 import { fileLoaded } from "../lib/pass.ts";
 
 const TOOLING_PREFIX = "tooling/src/";
+/** Arm J ONLY — arms A-G fence themselves to TOOLING_PREFIX inside `visit`. */
+const TESTS_TOOLING_PREFIX = "tests/tooling/";
 const ANCHOR = "tooling/src/_shared/exit-contract.ts";
 
 /** capability → its ONE sanctioned home (repo-relative). The stale sweep reds a row whose home was never
@@ -85,6 +96,64 @@ const LAUNCH_ENGINES = new Set(["chromium", "firefox", "webkit"]);
  *  engines as receivers, so a third attach spelling on the same receiver is a loophole only until it joins. */
 const ATTACH_METHODS = new Set(["connectOverCDP", "connect"]);
 
+/** Arm J's ONE sanctioned home plus the CENSUSED exceptions (scan-and-allowlist, GATE-AUTHORING §4.4 mode
+ *  B: this table IS the current census and it is SHRINK-ONLY — a new fixed clock is RED, never a new row).
+ *  Every row states why the clock is deliberately fixed AND what ends the exemption; the stale sweep in
+ *  run() reds a row that no longer carries a wall-clock literal, so a fixed clock that gets scaled must
+ *  delete its row in the same commit. */
+const CLOCK_SITES: ExemptionTable = {
+  "tests/tooling/tool-guard.int.test.ts": {
+    why: "the `timeout` here is the guard's INPUT UNDER TEST — an agent-chosen value handed to `runBatch` so the suite can assert the guard does not override it. It is fixture data, not a clock this run pays, and scaling it would make the fixture describe a box instead of an agent. Ends if the suite stops feeding a literal timeout to the guard.",
+  },
+  "tests/tooling/verify/ops/structure.int.test.ts": {
+    why: "ONE deliberate SHORT kill (line ~215): a planted-hang gate is run under a 4s ceiling and the assertion IS `timedOut === true`. Scaling it would stretch the proof of the timeout path itself — the budget is the subject, not the tolerance. The file's other ceilings ARE scaled. Ends if the hang probe stops asserting its own kill.",
+  },
+  "tooling/src/snap/lib/budgets.ts": {
+    why: "SCOPE FENCE dated 2026-09-02 (#1232 landing lane): tooling/src/snap/** is the concurrent session-substrate lane's tree (#1231) and this lane was fenced out of it, so snap's nav/ready/step/stage/throttle ceilings are the ONE part of the fleet still fixed. The obligation is INHERITED, not waived — they become budget(<X>_BASE_MS) when the session daemon consumes budget(). Ends the day snap's budgets are scaled; delete this row then.",
+  },
+  "tooling/src/snap/ops/appearance-invariant-runtime.ts": {
+    why: "SCOPE FENCE dated 2026-09-02, same lane split as the row above (three 5s in-page waits). Ends with the same landing.",
+  },
+  "tooling/src/snap/ops/materialize-devtools.ts": {
+    why: "SCOPE FENCE dated 2026-09-02, same lane split (the DevTools resource fetch + frontend nav ceilings). Ends with the same landing.",
+  },
+  "tooling/src/snap/ops/shot.ts": {
+    why: "SCOPE FENCE dated 2026-09-02, same lane split (the per-frame paint-settle ceiling, which is arguably a settle rather than a budget — the owning lane decides). Ends with the same landing.",
+  },
+};
+
+/** Property names whose numeric value IS a wall clock. A nested option object reaches this list through its
+ *  INNER property (playwright's expect-timeout and the use-block action timeout both land here), which is
+ *  the point — the arm reads the LEAF, never the wrapper. */
+const CLOCK_KEYS = new Set(["timeout", "timeoutMs", "testTimeout", "hookTimeout", "actionTimeout", "navigationTimeout"]);
+
+/** A `setTimeout(fn, N)` below this is a SETTLE — a sleep the run always pays — and a settle is not a
+ *  budget (it is never scaled, §7.1). At or above it, the literal is a ceiling wearing a sleep's clothes. */
+const SETTLE_CEILING_MS = 5000;
+
+/** A const NAMED as a wall clock. The name-shaped arm exists because a literal moved ONE LINE UP — declare
+ *  `STEP_TIMEOUT_MS` as a bare 5000, then hand the identifier to the timeout option — dodges the property
+ *  arm entirely; it is exactly how screen-record's two ceilings sat unscaled outside any lib/budgets.ts.
+ *  A name carrying BASE is the SANCTIONED shape (declare `NAV_TIMEOUT_BASE_MS`, export the ceiling as
+ *  `budget(NAV_TIMEOUT_BASE_MS)`) and is not flagged.
+ *  `*_BUDGET_MS` is DELIBERATELY NOT in the pattern. The first draft included it and the census caught
+ *  motion-audit's `BLOCKING_BUDGET_MS = 50` — a VERDICT THRESHOLD, not a wall clock. Scaling a threshold
+ *  would WIDEN THE VERDICT on a loaded box, which is precisely the third arm #1040 forbids ("withhold,
+ *  don't red" — never widen); a rate-shaped threshold's answer to load is the WITHHOLD, not a multiplier.
+ *  THE ARM'S DECLARED LIMIT: it judges SPELLING, not data flow — a BASE const handed straight to a
+ *  `timeout` option without `budget()` passes. Proving that would need the type checker on every call
+ *  site; the cheap half is enforced here and the expensive half is the reviewer's. */
+const CLOCK_NAME_RE = /(?:_TIMEOUT_MS|TimeoutMs)$/u;
+const BASE_NAME_RE = /BASE|Base/u;
+
+/** The two ROOT runner configs. They are outside `harnessGlobs` (which covers packages/*​/src, tests/,
+ *  tooling/src/, scripts/), so no gate's node walk can ever see them — and they carry the two clocks that
+ *  cost the most: the CT `mount()` timeout and the vitest lane timeouts. Read off disk through the ONE
+ *  scratch parser instead (the config-static-read precedent), guarded by the real-tree anchor so a
+ *  conformance mini-project never reaches for them. */
+const ROOT_CONFIGS: readonly string[] = ["vitest.config.ts", "playwright-ct.config.ts"];
+
+const seenClockSites = new Set<string>();
 const seenHomes = new Set<string>();
 const seenFullPriorityCallers = new Set<string>();
 const seenProjectSites = new Set<string>();
@@ -104,10 +173,19 @@ function toolOf(rel: string): string {
   return rel.split("/")[2] ?? "";
 }
 
+/** Absolute path to repo-relative, for the TWO roots this gate judges. It must know about both: the
+ *  original single-prefix form returned null for every `tests/tooling/**` file, so arm J's widened
+ *  `scanRoot` admitted them and `visit` silently dropped every one — a green arm over a jurisdiction it
+ *  never read. Caught by the planted control, not by the zero (2026-09-02). */
 function relOf(abs: string): string | null {
   const norm = abs.replace(/\\/gu, "/");
-  const i = norm.indexOf(`/${TOOLING_PREFIX}`);
-  return i === -1 ? null : norm.slice(i + 1);
+  for (const prefix of [TOOLING_PREFIX, TESTS_TOOLING_PREFIX]) {
+    const i = norm.indexOf(`/${prefix}`);
+    if (i !== -1) {
+      return norm.slice(i + 1);
+    }
+  }
+  return null;
 }
 
 /** Arm C: a "reports"/"reports/…" string literal among a path-call's arguments. */
@@ -130,6 +208,47 @@ function childProcessImport(node: Node): string | null {
     return null;
   }
   return node.getModuleSpecifierValue() === "node:child_process" ? 'import "node:child_process"' : null;
+}
+
+/** Arm J: this node is a fixed wall clock, or null. Three shapes, one rule. */
+function fixedClock(node: Node): string | null {
+  if (node.isKind(SyntaxKind.PropertyAssignment)) {
+    const name = node.getName().replaceAll(/['"]/gu, "");
+    const init = node.getInitializer();
+    return CLOCK_KEYS.has(name) && init?.isKind(SyntaxKind.NumericLiteral) === true ? `${name}: ${init.getText()}` : null;
+  }
+  if (node.isKind(SyntaxKind.VariableDeclaration)) {
+    const name = node.getName();
+    const init = node.getInitializer();
+    if (!CLOCK_NAME_RE.test(name) || BASE_NAME_RE.test(name) || init === undefined || !init.isKind(SyntaxKind.NumericLiteral)) {
+      return null;
+    }
+    return `${name} = ${init.getText()}`;
+  }
+  if (!node.isKind(SyntaxKind.CallExpression) || node.getExpression().getText() !== "setTimeout") {
+    return null;
+  }
+  const delay = node.getArguments()[1];
+  if (delay === undefined || !delay.isKind(SyntaxKind.NumericLiteral)) {
+    return null;
+  }
+  return Number(delay.getLiteralText().replaceAll("_", "")) >= SETTLE_CEILING_MS ? `setTimeout(…, ${delay.getText()})` : null;
+}
+
+/** Arm J's adjudication: TRUE when this node was a wall clock (reported, or absolved by a censused row),
+ *  so the caller stops. Extracted from `visit` because the arm is the only one whose jurisdiction spans two
+ *  roots and the branch belongs with the detector, not in the dispatch. */
+function judgeClock(node: Node, rel: string, ctx: GateRunCtx): boolean {
+  const clock = fixedClock(node);
+  if (clock === null) {
+    return false;
+  }
+  if (rel in CLOCK_SITES) {
+    seenClockSites.add(rel);
+    return true;
+  }
+  ctx.report(node, { token: clock, offset: 0 });
+  return true;
 }
 
 /** Arm A/B/C/D dispatch: the offending capability's name, or null. */
@@ -158,17 +277,60 @@ function capability(node: Node): string | null {
   return null;
 }
 
+/** THE ONE STALE SWEEP for this gate's four path-keyed tables (GATE-AUTHORING §4.4: every exemption
+ *  vocabulary is two-sided from birth — a row matching zero live sites must be RED, never silence). The
+ *  `seen` set is populated ONLY by a live match during the scan, so BOTH staleness modes collapse into one
+ *  test here: the file that stopped violating, and the file that is gone entirely. Callers guard it on the
+ *  real-tree ANCHOR, never on a row's own path. */
+function staleSweep(ctx: GateRunCtx, table: ExemptionTable, seen: ReadonlySet<string>, message: (key: string, why: string) => string): void {
+  for (const [key, row] of Object.entries(table)) {
+    if (!seen.has(key)) {
+      ctx.report({ file: key, line: 0, column: 0, message: message(key, row.why) });
+    }
+  }
+}
+
+/** Arm J's ROOT-CONFIG half. The two runner configs carry the clocks that cost the most (the CT `mount()`
+ *  timeout; the vitest lane timeouts) and no gate's node walk can reach them, so they are read off disk
+ *  through the ONE scratch parser. An unreadable config is REPORTED, never skipped: a rename would
+ *  otherwise retire the arm in silence, which is the "gate keyed on an exact name detects its own
+ *  blindness" rule (GATE-AUTHORING §4.6). Called only past the real-tree anchor. */
+function sweepRootConfigs(ctx: GateRunCtx): void {
+  for (const rel of ROOT_CONFIGS) {
+    const read = readStaticSource(ctx.root, rel);
+    if (read.kind !== "ok") {
+      // @finding-overload-ok: a BLINDNESS TRIPWIRE with no node to report — the config is unreadable, so there is nothing parsed to anchor on, and a suppressible tripwire would be a way to silence the arm's own retirement. Ends if the root configs join harnessGlobs and the shared walk can see them.
+      ctx.report({
+        file: rel,
+        line: 0,
+        column: 0,
+        message: `arm J cannot read ${rel} (${read.kind === "missing" ? "not on the tree" : read.detail}) — the CT/vitest wall clocks sit outside harnessGlobs, so this read is the ONLY way any gate sees them. Re-key ROOT_CONFIGS (docs/design/1208-instrument-substrate.md §7.1).`,
+      });
+      continue;
+    }
+    const nodes = [...read.sf.getDescendantsOfKind(SyntaxKind.PropertyAssignment), ...read.sf.getDescendantsOfKind(SyntaxKind.VariableDeclaration)];
+    for (const node of nodes) {
+      const clock = fixedClock(node);
+      if (clock !== null) {
+        // @finding-overload-ok: the node lives in the ONE scratch parser (config-static-read), NOT in the shared workspace project, so `ctx.report(node, …)` cannot anchor it to a repo-relative path — the file/line have to be stated. The token is carried, so an `@orb-gate-ignore` can still name its position. Ends if the root configs join harnessGlobs.
+        ctx.report({ file: rel, line: node.getStartLineNumber(), column: 1, token: clock });
+      }
+    }
+  }
+}
+
 export const gate: GateDescriptor = {
   name: "tooling-shared-plumbing",
   docRow: "Core-Enforcement-Active-Gates.md (docs/architecture/core/Core-Tooling-Law.md §4.4)",
   status: "active",
   scopeSafety: "whole-project",
   message:
-    "a second home for _shared plumbing — ts-morph Project construction, Playwright launch AND attach (connectOverCDP/connect), reports/<kind> artifact filing, process.exit, and child_process spawning each have ONE sanctioned module (and every tool cli.ts enters through runTool — the exit-honesty runner — and opens a run slot for the artifacts it files); a respell here is the duplication class the tooling package was minted to end (docs/architecture/core/Core-Tooling-Law.md §2.4/§4.4).",
-  fix: "call the _shared home (ts-workspace getWorkspace / browser launchProbeSession or attachProbeSession / artifacts artifactFile inside artifacts withInstrumentRun / run-tool runTool / proc spawnNiced-runNicedSync) instead of respelling it.",
-  scanRoot: (p) => p.startsWith(TOOLING_PREFIX),
-  kinds: [SyntaxKind.CallExpression, SyntaxKind.NewExpression, SyntaxKind.ImportDeclaration],
+    "a second home for _shared plumbing — ts-morph Project construction, Playwright launch AND attach (connectOverCDP/connect), reports/<kind> artifact filing, process.exit, and child_process spawning each have ONE sanctioned module (and every tool cli.ts enters through runTool — the exit-honesty runner — and opens a run slot for the artifacts it files); a respell here is the duplication class the tooling package was minted to end (docs/architecture/core/Core-Tooling-Law.md §2.4/§4.4). And every WALL CLOCK is derived from the one load-budget policy (arm J): a fixed ceiling written for a quiet box is a false RED on a contended one, and the fleet carried four unrelated answers to that before #1232.",
+  fix: "call the _shared home (ts-workspace getWorkspace / browser launchProbeSession or attachProbeSession / artifacts artifactFile inside artifacts withInstrumentRun / run-tool runTool / proc spawnNiced-runNicedSync) instead of respelling it; for a wall clock, name the quiet-box literal `<X>_BASE_MS` and derive the ceiling with `budget(<X>_BASE_MS)` (_shared/load-budget.ts).",
+  scanRoot: (p) => p.startsWith(TOOLING_PREFIX) || p.startsWith(TESTS_TOOLING_PREFIX),
+  kinds: [SyntaxKind.CallExpression, SyntaxKind.NewExpression, SyntaxKind.ImportDeclaration, SyntaxKind.PropertyAssignment, SyntaxKind.VariableDeclaration],
   begin: () => {
+    seenClockSites.clear();
     seenHomes.clear();
     seenFullPriorityCallers.clear();
     seenProjectSites.clear();
@@ -178,6 +340,14 @@ export const gate: GateDescriptor = {
   visit: (node, sf, ctx) => {
     const rel = relOf(sf.getFilePath());
     if (rel === null) {
+      return;
+    }
+    // Arm J — judged FIRST because it is the only arm whose jurisdiction includes tests/tooling/**.
+    if (judgeClock(node, rel, ctx)) {
+      return;
+    }
+    // Every arm below is fenced to tooling/src/ — the jurisdiction they had before arm J widened scanRoot.
+    if (!rel.startsWith(TOOLING_PREFIX)) {
       return;
     }
     // Arm G's first half: this file files an artifact, so its TOOL owes a run slot (checked in run()).
@@ -211,7 +381,7 @@ export const gate: GateDescriptor = {
   // Arm E: every tool cli.ts enters through runTool — the argv front door may not hand-roll its exit.
   visitFile: (sf, ctx) => {
     const rel = relOf(sf.getFilePath());
-    if (rel === null || !CLI_RE.test(rel)) {
+    if (rel === null || !rel.startsWith(TOOLING_PREFIX) || !CLI_RE.test(rel)) {
       return;
     }
     const calls = sf.getDescendantsOfKind(SyntaxKind.CallExpression);
@@ -248,36 +418,38 @@ export const gate: GateDescriptor = {
     if (!fileLoaded(ctx, ANCHOR)) {
       return;
     }
-    for (const [home, row] of Object.entries(HOMES)) {
-      if (!seenHomes.has(home)) {
-        ctx.report({
-          file: home,
-          line: 0,
-          column: 0,
-          message: `stale HOMES row — "${home}" no longer carries its capability (row why: ${row.why}). Re-key or delete the row (docs/architecture/core/Core-Tooling-Law.md §4.4).`,
-        });
-      }
-    }
-    for (const [site, row] of Object.entries(PROJECT_SITES)) {
-      if (!seenProjectSites.has(site)) {
-        ctx.report({
-          file: site,
-          line: 0,
-          column: 0,
-          message: `stale PROJECT_SITES row — "${site}" no longer constructs a ts-morph Project (row why: ${row.why}). Delete the row (docs/architecture/core/Core-Tooling-Law.md §4.4).`,
-        });
-      }
-    }
-    for (const [caller, row] of Object.entries(FULL_PRIORITY_CALLERS)) {
-      if (!seenFullPriorityCallers.has(caller)) {
-        ctx.report({
-          file: caller,
-          line: 0,
-          column: 0,
-          message: `stale FULL_PRIORITY_CALLERS row — "${caller}" no longer calls a full-priority door (row why: ${row.why}). Delete the row (docs/architecture/core/Core-Tooling-Law.md §4.4).`,
-        });
-      }
-    }
+    // Arm J's root-config half. `missing` is silent BY DESIGN only past the anchor: on a real tree the
+    // anchor proves this is the repo, so a config that vanished is a rename the arm must announce rather
+    // than a file it may skip — the "gate keyed on an exact name detects its own blindness" rule.
+    sweepRootConfigs(ctx);
+    staleSweep(
+      ctx,
+      CLOCK_SITES,
+      seenClockSites,
+      (key, why) =>
+        `stale CLOCK_SITES row — "${key}" no longer carries a fixed wall clock (row why: ${why}). Delete the row; this census is shrink-only (docs/design/1208-instrument-substrate.md §7.1).`,
+    );
+    staleSweep(
+      ctx,
+      HOMES,
+      seenHomes,
+      (key, why) =>
+        `stale HOMES row — "${key}" no longer carries its capability (row why: ${why}). Re-key or delete the row (docs/architecture/core/Core-Tooling-Law.md §4.4).`,
+    );
+    staleSweep(
+      ctx,
+      PROJECT_SITES,
+      seenProjectSites,
+      (key, why) =>
+        `stale PROJECT_SITES row — "${key}" no longer constructs a ts-morph Project (row why: ${why}). Delete the row (docs/architecture/core/Core-Tooling-Law.md §4.4).`,
+    );
+    staleSweep(
+      ctx,
+      FULL_PRIORITY_CALLERS,
+      seenFullPriorityCallers,
+      (key, why) =>
+        `stale FULL_PRIORITY_CALLERS row — "${key}" no longer calls a full-priority door (row why: ${why}). Delete the row (docs/architecture/core/Core-Tooling-Law.md §4.4).`,
+    );
   },
   mustFlag: [
     {
@@ -355,8 +527,46 @@ export const gate: GateDescriptor = {
       expect: { messageIncludes: "must open its artifact run slot" },
       why: "an instrument that files artifacts with no run slot — the #1164 shared-path clobber (arm G)",
     },
+    {
+      files: "export const opts = { timeout: 30_000 };\n",
+      at: "tooling/src/ui-audit/ops/walk.ts",
+      expect: { count: 1, token: "timeout: 30_000" },
+      why: "a fixed wall clock at a timeout option — the false-red-under-load class arm J exists to end (arm J)",
+    },
+    {
+      files: "const STEP_TIMEOUT_MS = 5000;\nexport const x = STEP_TIMEOUT_MS;\n",
+      at: "tests/tooling/ui-audit/cli.int.test.ts",
+      expect: { count: 1, token: "STEP_TIMEOUT_MS = 5000" },
+      why: "the NAMED-CONST dodge — a literal moved one line up is still a fixed clock — AND the proof arm J's jurisdiction reaches tests/tooling/**, which no other arm judges (arm J)",
+    },
+    {
+      files: "export const wait = (): void => {\n  setTimeout(() => undefined, 30_000);\n};\n",
+      at: "tooling/src/motion-audit/ops/drive.ts",
+      expect: { count: 1, token: "setTimeout(…, 30_000)" },
+      why: "a ceiling wearing a sleep's clothes: a setTimeout at or above the settle ceiling is a budget (arm J)",
+    },
   ],
   mustPass: [
+    {
+      files: "export const budgets = { timeout: budget(NAV_BASE_MS) };\ndeclare function budget(n: number): number;\ndeclare const NAV_BASE_MS: number;\n",
+      at: "tooling/src/ui-audit/lib/budgets.ts",
+      why: "the SANCTIONED wall-clock shape — a derived ceiling, not a literal (arm J's pass half)",
+    },
+    {
+      files: "const NAV_TIMEOUT_BASE_MS = 15_000;\nexport const x = NAV_TIMEOUT_BASE_MS;\n",
+      at: "tooling/src/motion-audit/lib/budgets.ts",
+      why: "a quiet-box BASE declares itself in its NAME and is the literal every budget is derived from — flagging it would leave no legal way to state a base (arm J)",
+    },
+    {
+      files: "export const settle = (): void => {\n  setTimeout(() => undefined, 400);\n};\n",
+      at: "tooling/src/snap/ops/drive.ts",
+      why: "a SETTLE is a sleep the run always pays, not a ceiling — settles are never scaled (§7.1), so a short setTimeout must not trip the arm",
+    },
+    {
+      files: "export const opts = { timeout: 5000 };\n",
+      at: "tooling/src/snap/lib/budgets.ts",
+      why: "a CENSUSED CLOCK_SITES row (the 2026-09-02 scope fence: snap is the concurrent session-substrate lane's tree) — absolved by cited row, never ambient",
+    },
     {
       files: 'import { Project } from "ts-morph";\nexport const p = new Project({});\n',
       at: "tooling/src/_shared/ts-workspace.ts",

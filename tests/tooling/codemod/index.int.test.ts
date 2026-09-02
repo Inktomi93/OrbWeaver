@@ -25,6 +25,7 @@ import { describe, vi } from "vitest";
 import type { CodemodContext, CodemodResult, Plan, RunCodemodOptions } from "../../../tooling/src/codemod/index.ts";
 import { applyTextReplacements, composePlans, deleteFiles, moveFiles, renameExportedSymbol, runCodemod } from "../../../tooling/src/codemod/index.ts";
 import { expect, test } from "../../support/tool-fixtures.ts";
+import { scaledBudget } from "../_load-budget.ts";
 
 const TRAILING_NEWLINE_RE = /\n$/u;
 
@@ -328,19 +329,19 @@ describe("the cli front door (`pnpm codemod`)", () => {
   const cliPath = join(process.cwd(), "tooling/src/codemod/cli.ts");
 
   test("bare run prints the overview and exits 0 (the help door)", () => {
-    const res = spawnSync("node", [cliPath], { encoding: "utf8", timeout: 60_000 });
+    const res = spawnSync("node", [cliPath], { encoding: "utf8", timeout: scaledBudget(60_000) });
     expect(res.status).toBe(0);
     expect(res.stdout).toContain("quick reference");
   });
 
   test("an unknown subcommand is CLI misuse (exit 3), never a silent overview", () => {
-    const res = spawnSync("node", [cliPath, "refactorize"], { encoding: "utf8", timeout: 60_000 });
+    const res = spawnSync("node", [cliPath, "refactorize"], { encoding: "utf8", timeout: scaledBudget(60_000) });
     expect(res.status).toBe(3);
     expect(res.stderr).toContain("unknown subcommand");
   });
 
   test("`search <q>` answers and exits 0", () => {
-    const res = spawnSync("node", [cliPath, "search", "rename"], { encoding: "utf8", timeout: 60_000 });
+    const res = spawnSync("node", [cliPath, "search", "rename"], { encoding: "utf8", timeout: scaledBudget(60_000) });
     expect(res.status).toBe(0);
     expect(res.stdout).toContain("renameNamedImport");
   });

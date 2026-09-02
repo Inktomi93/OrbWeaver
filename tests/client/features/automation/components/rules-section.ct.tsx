@@ -1085,7 +1085,7 @@ for (const theme of THEMES) {
       expect(await hitExtent(more, "x")).toBeGreaterThanOrEqual(floor);
 
       // The rendered receipt for the side-eye re-pass (reports/ is ephemera, never a committed artifact).
-      await component.screenshot({ path: `reports/snaps/cb-rules-${theme}-${width}.png` });
+      await component.screenshot({ path: storyShot(`cb-rules-${theme}-${width}`) });
     });
   }
 }

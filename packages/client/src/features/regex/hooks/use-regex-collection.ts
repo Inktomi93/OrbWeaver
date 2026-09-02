@@ -2,11 +2,10 @@
 // verb, the IMPORT door's runner and the BULK-SELECT mode. All are hooks because a definition is a
 // module-level value — the host calls each unconditionally, once, per rendered affordance.
 
-import type { RegexScriptRow } from "@orb/contracts/regex";
 import { useQuery } from "@tanstack/react-query";
 import { useInvalidation, useTRPC } from "#data";
-import type { CollectionPreviewEntry } from "#lib";
-import { COLLECTION_PREVIEW_LIMIT, notify, regexScriptTitle, timeLib } from "#lib";
+import type { CollectionInsight } from "#lib";
+import { notify, regexScriptTitle, timeLib } from "#lib";
 import { selectCollectionMember, toggleRegexBulkMode, useRegexBulkActive } from "#state";
 import { REGEX_COLLECTION_ID } from "../lib/regex-model.ts";
 import { useCreateRegexScript, useImportRegexScriptFile } from "./use-regex-library.ts";
@@ -18,36 +17,49 @@ export function useRegexCount(): number | undefined {
   return useQuery(trpc.regex.listScripts.queryOptions()).data?.length;
 }
 
-/** One ranked row → the host-facing preview entry. The datum is the EDIT STAMP, which is the same field
- *  X-16 put at the end of the list row's scent and for the same reason: `Add script` mints every row named
- *  "New script", so a wall of names is unreadable without the one datum that tells them apart.
+/**
+ * THE REGEX LIBRARY'S OWN LANDING FACTS (the `insights` seam — #1209 replaced the preview wall with these).
  *
- *  NO PLACEMENT/CHANNEL GLYPH, deliberately (deviation from the 2026-08-19 brief, stated): no icon
- *  vocabulary for `RegexPlacement` exists anywhere on this tree — the editor's chips, the pipeline readout
- *  and the list scent all name a stage with `REGEX_PLACEMENT_LABELS` — so minting one HERE would be a
- *  second vocabulary for one pipeline stage, which is the exact defect that map was created to end (side-eye
- *  F-23). A script bites on a SET of stages besides, so a single glyph would have to pick one and drop the
- *  rest silently. The stage phrase stays where it is legible: the list row's subtitle. */
-function previewEntry(script: RegexScriptRow): CollectionPreviewEntry {
-  return { id: script.id, label: regexScriptTitle(script), detail: timeLib.formatRelative(script.updatedAt) };
-}
-
-/** The welcome hero's chip wall (the `preview` seam): the most recently EDITED slice of the library.
+ * WHAT THE LIST CANNOT SAY. A script's row carries its name and its find pattern; what it cannot state is
+ * the shape of the LIBRARY — how much of it is armed everywhere, how much of it is switched OFF (a disabled
+ * script looks like a live one at a glance and silently does nothing), and when it was last touched. Those
+ * are the three questions a reader returning to a rules library actually arrives with, and none of them is
+ * answerable by scrolling rows.
  *
- *  RECENCY IS THE HONEST RANK HERE, not usage. A script has no usage total that rides its list row (the
- *  "attached by" rollup is the queued REGROSTER read, and it is not on this key), and ranking a library you
- *  are actively authoring by what you touched last is what the list's own newest-first order already does
- *  — this is that order, in a glance. Sorted on a COPY: the query's array is react-query cache state.
- *
- *  THE SAME CACHED LIST the census and the rows read, so this is a cache hit and never a second request. */
-export function useRegexPreview(): readonly CollectionPreviewEntry[] | undefined {
+ * ONE CACHED READ, the same key the census, the rows and the member title share — never a second request.
+ * The scope fact reads `enabled`+`runsGlobally` off those same rows rather than the `listGlobal` key, so the
+ * landing costs nothing beyond what the pane has already loaded. Sorted on a COPY: the query's array is
+ * react-query cache state.
+ */
+export function useRegexInsights(): readonly CollectionInsight[] | undefined {
   const trpc = useTRPC();
   const rows = useQuery(trpc.regex.listScripts.queryOptions()).data;
   if (rows === undefined) {
     return rows;
   }
-  const newestFirst = [...rows].sort((left, right) => right.updatedAt - left.updatedAt);
-  return newestFirst.slice(0, COLLECTION_PREVIEW_LIMIT).map(previewEntry);
+  const off = rows.filter((row) => !row.enabled);
+  const firstOff = off[0];
+  const newest = [...rows].sort((left, right) => right.updatedAt - left.updatedAt)[0];
+  return [
+    {
+      id: "disabled",
+      label: "Switched off",
+      value: `${String(off.length)} of ${String(rows.length)}`,
+      ...(firstOff === undefined
+        ? {}
+        : { open: { label: `Open ${regexScriptTitle(firstOff)}`, run: (): void => selectCollectionMember(REGEX_COLLECTION_ID, firstOff.id) } }),
+    },
+    ...(newest === undefined
+      ? []
+      : [
+          {
+            id: "last-edited",
+            label: "Last edited",
+            value: timeLib.formatRelative(newest.updatedAt),
+            open: { label: `Open ${regexScriptTitle(newest)}`, run: (): void => selectCollectionMember(REGEX_COLLECTION_ID, newest.id) },
+          },
+        ]),
+  ];
 }
 
 /** The OPEN member's name for the mobile pushed frame's topbar (the `useMemberTitle` seam) — the SAME
