@@ -74,7 +74,7 @@ sized by **its own model**, not yours.
 
 > **Amended 2026-08-24 — the auto-memory line above is now only half true here.** Every Orbweaver role
 > sets `memory: project` and its directory is SYMLINKED at the same store the main session writes to,
-> so a role DOES boot with that store's `MEMORY.md` index (first 200 lines / 25KB) in its system prompt
+> so a role DOES boot with that store's `MEMORY.md` index (truncated at the harness's line/byte cap — the live constants are `LINE_CAP`/`BYTE_CAP` in `.claude/hooks/session-onboard.sh`) in its system prompt
 > and can `Read` any topic file by name. What it still never gets is the topic-file BODIES at launch and
 > the reasoning the orchestrator did around them. See §5.
 
