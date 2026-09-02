@@ -138,6 +138,26 @@
     "tests/client/features/preset/lib/preset-draft-store.test.ts",
     "tests/client/features/world-info/lib/entry-draft-store.test.ts",
     "tests/client/forms/create-autosave-entity-form-model.test-d.ts",
+    // #1243 final leg (owner-accepted plan change, bridge 178): STOP minting pure surfaces for the
+    // tail — the ledger below can shrink later; a red types:graph taxes every lane now. Same shape as
+    // agent-nav above: buildAgentNav-style barrels whose ONE export is defined in the barrel file
+    // itself, which imports lib/agent-bridge.ts (DOM-coupled) at module scope.
+    "tests/client/agent-rpg/index.test.ts",
+    "tests/client/agent-seed/index.test.ts",
+    // Same final leg, SOURCE-internal-`#data` flavor (route-guards.ts precedent above): each of these
+    // deep-imports a client feature lib/ file that itself imports the internal `#data` alias (always
+    // index.ts, never the pure subpath) for reasons unrelated to what the test exercises.
+    "tests/client/features/workloads/lib/workloads-model.test.ts",
+    "tests/client/features/workloads/lib/portability-model.test.ts",
+    "tests/client/features/chat/lib/chat-documents-model.test.ts",
+    "tests/client/features/persona/lib/persona-editor-model.test.ts",
+    "tests/client/features/discovery/lib/corpus-faces.test.ts",
+    "tests/client/features/chat/lib/chat-books-model.test.ts",
+    "tests/client/features/character/lib/character-card-form-model.test.ts",
+    "tests/client/features/chat/lib/chat-summary-row.test.ts",
+    // The plain `.test.ts` sibling of the already-homed `.test-d.ts` above — same entity-form-base.ts
+    // chain (create-autosave-entity-form-model.ts -> use-app-form.ts -> bound-fields/*.tsx).
+    "tests/client/forms/create-autosave-entity-form-model.test.ts",
     "tests/e2e/**/*.ts"
   ]
 }
