@@ -15,6 +15,7 @@
 import { basename, extname, join } from "node:path";
 import { splitPageSuffix } from "../../_shared/argv.ts";
 import { routeSlug } from "../../_shared/artifacts.ts";
+import { budget } from "../../_shared/load-budget.ts";
 import type { SessionAccess, SessionCallTarget, SessionLimits, SessionRow, SessionSweepVerdict } from "../contract/session.ts";
 import type { Args } from "../contract/types.ts";
 import { describeStageAgePhrase } from "./stage-plan.ts";
@@ -55,9 +56,11 @@ export const DEFAULT_SESSION_TTL_MIN = 30;
 export const DEFAULT_SESSION_CAP = 3;
 const MS_PER_SECOND = 1000;
 const MS_PER_MINUTE = 60_000;
-/** How long the client waits for a booting daemon to answer `ping` — the launcher's own readiness ceiling
- *  (`stack.sh` READINESS_TIMEOUT 240 s) plus a browser boot; a BASE for phase 1b's `budget()`. */
-export const SESSION_BOOT_TIMEOUT_MS = 240_000;
+/** How long the client waits for a booting daemon to answer `ping`, on a QUIET box — the launcher's own
+ *  readiness ceiling (`stack.sh` READINESS_TIMEOUT 240 s) plus a browser boot. The BASE the ceiling below
+ *  derives from; phase 1b's policy (#1232) now owns the stretch this comment used to only promise. */
+const SESSION_BOOT_BASE_MS = 240_000;
+export const SESSION_BOOT_TIMEOUT_MS = budget(SESSION_BOOT_BASE_MS);
 export const SESSION_READY_POLL_MS = 200;
 /** How long `--session-close`/`--session-sweep` wait for a signalled daemon to leave before SIGKILL. */
 export const SESSION_CLOSE_GRACE_MS = 10_000;
