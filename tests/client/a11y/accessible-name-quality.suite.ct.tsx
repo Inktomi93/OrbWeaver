@@ -54,6 +54,10 @@ const VIEWER_IDENTITY_ROUTES: Readonly<Record<string, unknown>> = {
   "rosterPreset.list": [],
   "sessions.me": { userId: "user_ct_namecraft", globalRole: "user", handle: "namecraft" },
   "persona.list": [],
+  // The config host's appearance target mounts `appearance-looks-section.tsx`, whose
+  // `useSuspenseQuery(trpc.settings.listThemes…)` would otherwise run inert on routeTrpc's null fulfil
+  // (the unfed-read ratchet, #1052/0040bebae) — fed empty per the "no themes yet" default.
+  "settings.listThemes": [],
 };
 
 /** The empty `chat.listChats` page (`ChatListPage` wire shape) — the honest "no chats yet" default the
