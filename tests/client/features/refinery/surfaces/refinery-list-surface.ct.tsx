@@ -307,3 +307,20 @@ test("two sessions on ONE card are distinguishable — the start stamp differs t
   expect(first.length, "the row carries a description at all").toBeGreaterThan(0);
   expect(first).not.toBe(second);
 });
+
+// ── #1206: the LIST band rides the shared `ListPaneHeader`, not a hand-rolled `Text` pair ───────────────
+// Refinery's own band was the ONE holdout after `ListPaneHeader` was minted (chat/corpus/analytics), which
+// also meant it never carried the `LIST_PANE_TITLE_ID` landmark `panel-chrome.tsx`'s `aria-labelledby`
+// expects for the LIST `<aside>`. Pinning both: the composite's own title heading resolves the id, and the
+// title/count read as the shared band would render them (`ListPaneHeader`'s own CT owns the generic shape).
+test("the LIST band renders through ListPaneHeader and resolves the LIST_PANE_TITLE_ID landmark (#1206)", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "refinery.listSessions": () => [makeRefinerySessionSummary({ characterName: "Zephyrine Vale", name: null, iterationCount: 3, latestVerdict: "ACCEPT" })],
+    "character.list": emptyCharacterPage,
+  });
+  const component = await mount(<RefineryRosterStory />);
+
+  const title = component.locator('[data-slot="list-pane-title"]');
+  await expect(title).toHaveText(/Sessions.*1/s);
+  await expect(title).toHaveAttribute("id", "orb-list-pane-title");
+});

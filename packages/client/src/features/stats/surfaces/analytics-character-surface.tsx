@@ -2,6 +2,9 @@
 // economics. Reads `character` (the single-character rollup: turns, words, tokens, cost, gen figures)
 // and `latency` scoped to that character (on-read TTFT/gen percentiles the rollup can't store). Its
 // ONE affordance is Back to the dashboard; there is no primary action (Analytics is read-only).
+//
+// THE INSET RIDES THIS SURFACE'S OWN SCROLLER (#1200) — see `analytics-overview-surface.tsx`'s header for
+// why Analytics' twin surfaces each carry their own inset rather than a shared one at `analytics-content.tsx`.
 
 import type { CharacterId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
@@ -76,7 +79,7 @@ function CharacterBody({ characterId, onBack }: { readonly characterId: Characte
   }
 
   return (
-    <Stack className="relative h-full min-h-0 overflow-y-auto overscroll-contain" gap="section">
+    <Stack className="relative h-full min-h-0 overflow-y-auto overscroll-contain" data-slot="analytics-content" gap="section" padding="section">
       <Button intent="ghost" size="sm" onClick={onBack} className="self-start">
         <Icon icon={ArrowLeft} size="sm" />
         Back
