@@ -17,6 +17,7 @@ import type { DeploymentRenderPolicy } from "@orb/contracts/chat";
 import { DEFAULT_CHAT_MODEL_ID, DEFAULT_OR_CHAT_MODEL_ID } from "@orb/contracts/connection";
 import type { EffectiveAppConfig } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
+import type { BugReportRecord } from "@orb/kit/bug-report";
 import { resolveEvidenceWindow } from "@orb/kit/evidence-window";
 import type { AutomationRuleId, CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -27,7 +28,6 @@ import { diagnosticsPostureInput, diagnosticsPostureWarnings, env, resolveDiagno
 import { getAuditFailureSnapshot } from "../audit.ts";
 import { logRing, recentRequests } from "../logger.ts";
 import { getTraceByRequestId, recentTraces } from "../tracing.ts";
-import type { BugReportRecord } from "@orb/kit/bug-report";
 import { captureNowMs, mintBugReportId, readBuildIdentity, secretLiterals, snapshotServerEvidence, writeBugReport } from "./bug-report.ts";
 import {
   appSettingRows,
