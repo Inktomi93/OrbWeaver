@@ -163,14 +163,15 @@
     },
     {
       "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
-      "assignedSha256": "bd1a6553bf9aa2963781ffaffcaf8a0dbff49f8e31a6b6fbedd157850d217ec2",
+      "assignedSha256": "1dd7b642aa5e2e0afbe804c499e990e972b9b8d4e35cbc8b6dc01e00815a39ed",
       "disposition": "current",
       "authority": "operational",
       "fullRead": true,
-      "verifiedSha256": "bd1a6553bf9aa2963781ffaffcaf8a0dbff49f8e31a6b6fbedd157850d217ec2",
-      "verifiedCommit": "32161441d36289e71feb5e3b432daf1b0c1b4cc5",
+      "verifiedSha256": "1dd7b642aa5e2e0afbe804c499e990e972b9b8d4e35cbc8b6dc01e00815a39ed",
+      "verifiedCommit": "9055cfe6a",
       "verifiedAt": "2026-09-01",
       "evidence": [
+        "re-attested at e0c1ebe83 + 9055cfe6a (#944/#946, lane p-gates-closed): SIX Layer-3 rows changed, no gate added or removed, so the 247 count line is untouched. Each row now states its fail-closed discovery arm (an initializer not resolvable to a co-located object literal REDs instead of being skipped) and its declared MEMBER POPULATION; the section rows additionally state the widened subject (the `make<X>Section(): SectionDefinition` FACTORY, read through the shared lib/section-defs.ts). Delta read at the edited bytes. RED-FIRST on the real tree: six planted imported-definition probes under packages/client/src/features/refinery/lib/ were measured against the HEAD gate sources first — all six gates rendered ✓ over them (chrome with a fully healthy `CHROME_ZONES=4` vocabulary line) — then RED with `N member(s), 1 UNRESOLVED` after the fix; probes rm'd, `git status --short` clean. check:structure ran 247/247 COMPLETE and clean on the final tree; gate conformance, check-gates.int, and the four new runner controls (tests/tooling/verify/lib/population.int.test.ts) all pass.",
         "re-attested at 9a4bee47ab1b21cd68c291c80e1704b486200dd8 (#995): the agent-bridge-lock row records the lean production readiness home, shared debug Promise/query, and DEV-only bridge boundary; focused CT passed 6/6, gate conformance passed, and check:structure completed 244/244 active gates clean",
         "re-attested at db116d91ee1fcc6ee14ea915f1da0922cb8e84bd (#881/#882): tooling-instrument-proof evidence 8/8, focused UI twins 4/4 and conformance 6/6; design-audit-rule-proof UI audit 106/106, walker 53/53, conformance 8/8 and check-gates 8/8; merged check:structure clean at 243/243",
         "re-attested at 7b7eb54b2 under #950 — devtools-frontend-assets records the exact tuple/hash/MIME/license/inventory/path closure and the discovered active count is 242",
