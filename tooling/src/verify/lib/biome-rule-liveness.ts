@@ -4,10 +4,10 @@
 // grants from a COPY of biome.json, run the real biome binary over the granted files, and read which
 // grants suppressed nothing. Refuses LOUDLY (throws ⇒ exit 2) rather than calling a grant dead on a run
 // it could not trust — a truncated, unparseable or config-broken report is "I could not measure".
-import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
+import { runNicedSync } from "../../_shared/proc.ts";
 
 /** The probe config lives AT THE REPO ROOT, never in a temp dir. MEASURED 2026-09-02: with
  *  `--config-path` pointing outside the repo, biome moves its PROJECT ROOT to the config's directory —
@@ -170,21 +170,16 @@ function runBiomeJson(root: string, configRel: string, files: readonly string[])
     );
   }
   const args = ["check", ...files, "--config-path", configRel, "--reporter=json", "--diagnostic-level=warn"];
-  try {
-    // stderr is CAPTURED, never inherited: biome prints an "--json is unstable" banner on every run and
-    // it would land in the middle of the gate harness's own report.
-    return execFileSync(bin, args, { cwd: root, encoding: "utf-8", maxBuffer: STDOUT_BUFFER_BYTES, stdio: ["ignore", "pipe", "pipe"] });
-  } catch (error) {
-    const status = isRecord(error) ? error["status"] : undefined;
-    const stdout = isRecord(error) ? error["stdout"] : undefined;
-    if (status === LINT_EXIT_DIAGNOSTICS && typeof stdout === "string") {
-      return stdout;
-    }
-    throw new Error(
-      `biome-grant-liveness rule arm: biome exited outside its lint contract (expected ${String(LINT_EXIT_CLEAN)} or ${String(LINT_EXIT_DIAGNOSTICS)}, got ${String(status)}) — the run is NOT a verdict.`,
-      { cause: error },
-    );
+  // stderr is CAPTURED (runNicedSync's collect mode), never inherited: biome prints an "--json is unstable"
+  // banner on every run and it would land in the middle of the gate harness's own report.
+  const res = runNicedSync(bin, args, { cwd: root, maxBuffer: STDOUT_BUFFER_BYTES });
+  if (res.status === LINT_EXIT_CLEAN || res.status === LINT_EXIT_DIAGNOSTICS) {
+    return res.stdout;
   }
+  const stderr = res.stderr.trim();
+  throw new Error(
+    `biome-grant-liveness rule arm: biome exited outside its lint contract (expected ${String(LINT_EXIT_CLEAN)} or ${String(LINT_EXIT_DIAGNOSTICS)}, got ${String(res.status)}) — the run is NOT a verdict.${stderr === "" ? "" : `\n${stderr}`}`,
+  );
 }
 
 function parseReport(stdout: string): BiomeReport {
