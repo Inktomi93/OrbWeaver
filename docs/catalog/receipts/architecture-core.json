@@ -1159,10 +1159,11 @@
       "disposition": "current",
       "authority": "current-reference",
       "fullRead": true,
-      "verifiedSha256": "2507aa17927dc271c3d882409e3037d6477925ed6fcb3377fd5d01bb21bf1cde",
-      "verifiedCommit": "d7109893d0c403b3db2cdd4e608519704c461a4a",
+      "verifiedSha256": "62e3b5d97f1bbe96ebece3c9e42ac60b5371c05e447cabf3e98d1d78ee80e03c",
+      "verifiedCommit": "a6a27c943b05631f9aa11264f8b52f0e4441090d",
       "verifiedAt": "2026-09-02",
       "evidence": [
+        "re-attested at a6a27c943 (#1096, lane p-membership-one): §tests:execution-membership restated as three directions — union, non-empty views, and EXACTLY ONE runtime project per test file (the vitest `types` project excluded as typecheck-only); real tree 2309 files, 0 multi-membership",
         "re-attested at d7109893d (#1040): §tests:node — the live-drive shard runs LAST and WITHHOLDS under contention (ORB-LOAD-WITHHOLD, skipped + task.meta, the supervisor announces the green as INCOMPLETE); tests-execution-membership counts six node projects",
         "delta re-verify 2026-09-01 (#1029, content commit 393e0d85485e2b844c4a6fd0c6036cbc9b4526d7): new §3.3b is the ONE home for the reports/ layout — run identity `<checkout>-<pid>-<timestamp>`, the per-run slot, completion-only atomic symlink publishing, the racing-writer census, the 10-slot retention ring, why verify-history.jsonl stays unslotted, and the not-yet-slotted leftovers. §3.7's wedge-dump path is truth-repaired to the run slot. Derived from the landed publishers (tooling/src/verify/ops/run.ts + structure.ts + ct-flaky-reporter.ts, scripts/vitest-supervised.mjs) and pinned by tests/tooling/_shared/artifacts.int.test.ts. Re-pinned at the follow-up commit that struck the `O_APPEND` symbol cite (dangling-refs: a backticked symbol a core doc names must resolve in the workspace).",
         "delta re-verify 2026-09-01 (#995, content commit 9a4bee47ab1b21cd68c291c80e1704b486200dd8): quality:boot-chunk retains the summed boot-set definition and records the owner-authorized 859,000-byte ceiling derived from the clean 818,188-byte post-split production payload plus 4.99% measured headroom; the real ratchet passed with 40,812 bytes free",
