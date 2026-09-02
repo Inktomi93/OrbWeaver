@@ -10941,16 +10941,16 @@
       "path": "docs/design/983-984-ui-audit-population-semantics.md",
       "lane": "design",
       "issue": 5,
-      "lines": 430,
-      "bytes": 33216,
-      "sha256": "6179f99261eb3972e2999d29e9c339af4ac05cff13efa2d79e6c7e9f2bca2129",
+      "lines": 496,
+      "bytes": 37825,
+      "sha256": "4e19c612748be0f2281b5a62f7815f0d16f8124573f3beaa4d75e2b08ee5fc65",
       "frontmatter": {
         "present": true,
         "malformed": false,
         "fields": {
           "kind": "design",
           "status": "active",
-          "updated": "2026-09-01"
+          "updated": "2026-09-02"
         },
         "errors": []
       },
@@ -10960,10 +10960,11 @@
         "disposition": "current",
         "authority": "design",
         "fullRead": true,
-        "verifiedSha256": "6179f99261eb3972e2999d29e9c339af4ac05cff13efa2d79e6c7e9f2bca2129",
-        "verifiedCommit": "36c6a9101c0f00a2e27c3a487defdbb2a4c13a67",
+        "verifiedSha256": "4e19c612748be0f2281b5a62f7815f0d16f8124573f3beaa4d75e2b08ee5fc65",
+        "verifiedCommit": "66184817323bb40ac630dcbf6f6482ed4e6550db",
         "verifiedAt": "2026-09-01",
         "evidence": [
+          "re-attested at 661848173 (#1059, owner ruling arm C — lane p-characters-verdict): the DRIVE-axis amendment — the driven run (--click / --goto, declared drive=driven in the surface state) is the selected twin's source; :208's one-sided-cohort rule survives verbatim; :365's appearance selection claim was a grouping artifact (parentElement split a virtualized cohort — now keyed on the authored home), its quiet-state half stays live",
           "docs/design/983-984-ui-audit-population-semantics.md:1 (full read; #989 premise verdicts, authored population architecture, rejected alternatives, coupled sites, two-sided plants, and final live receipts)",
           "git:36c6a9101c0f00a2e27c3a487defdbb2a4c13a67 (#989 F1/F3 repair; F2 correctly refused after its live singleton premise was refuted)",
           "pnpm test:scoped tests/tooling/ui-audit --maxWorkers=4 (12/12 files, 250/250 tests, zero type errors); graph types and error-level Biome green",
