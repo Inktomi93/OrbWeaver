@@ -12,8 +12,9 @@ import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { vi } from "vitest";
 import { REQUEST_BODY_CAP_BYTES } from "../../../../tooling/src/snap/index.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
+import { scaledBudget } from "../../_load-budget.ts";
 
-const CLI_TIMEOUT_MS = 120_000;
+const CLI_TIMEOUT_MS = scaledBudget(120_000);
 vi.setConfig({ testTimeout: CLI_TIMEOUT_MS, hookTimeout: CLI_TIMEOUT_MS });
 
 const PAGE = `<!doctype html><html lang="en" data-app-ready="settled"><head><title>request log fixture</title>

@@ -28,6 +28,7 @@ import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { EvidenceGap } from "../../_shared/evidence.ts";
 import { printEvidenceGaps } from "../../_shared/evidence.ts";
 import { EXIT } from "../../_shared/exit-contract.ts";
+import { budget } from "../../_shared/load-budget.ts";
 import type { ThemeStampExpectation, ThemeStampReceipt } from "../contract/theme-stamp.ts";
 import type { CaptureOutcome } from "../contract/types.ts";
 
@@ -36,7 +37,8 @@ refuseDirectInvocation(import.meta.url, "pnpm snap <route> --theme <name>");
 const STAMP_ATTRIBUTE = "data-theme";
 /** Poll budget for the stamp. It follows the settings read the readiness flag already waited for, so this
  *  is a short tail, not a second boot wait — and it is a REFUSAL when it expires, never a shrug. */
-const STAMP_TIMEOUT_MS = 15_000;
+const STAMP_BASE_MS = 15_000;
+const STAMP_TIMEOUT_MS = budget(STAMP_BASE_MS);
 const STAMP_POLL_MS = 100;
 
 /** PURE — the decision, so both arms are unit-provable without a browser. */
