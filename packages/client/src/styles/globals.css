@@ -179,9 +179,63 @@ body {
  * tests/ui/styles/css-structure.suite.test.ts. */
 @media (width > 48rem) {
   @supports (backdrop-filter: blur(1px)) {
+    /* THE PANE'S GLASS PAINTS ON A CARRIER PSEUDO, NOT ON THE PANE (#1154). `backdrop-filter` on
+     * `.shell-panel` made the whole pane one composited layer, which turns OFF per-paint baseline snapping
+     * for every text node inside it (integer-line-boxes.md Law 3/4 — measured on driven Characters:
+     * `off-grid-text candidates=54 judged=33 affected=9`, all nine attributed to `aside.shell-panel`, and
+     * half of them structurally unfixable by layout because a glyph advance is fractional: the count span
+     * starts at 155.406px, the advance of the title run before it). The fix moves BOTH glass declarations
+     * onto a `::before` fill layer at `z-index: -1` — above the pane's own background, below every in-flow
+     * child — and takes the pane's own fill to transparent so the composite is BYTE-IDENTICAL: exactly one
+     * translucent tint over exactly one filtered backdrop, in that order. Keeping the fill on the pane
+     * would put the tint INSIDE the carrier's backdrop, and `saturate()` would then be applied to it too.
+     *
+     * THE CARRIER IS A PSEUDO AND NOT A RENDERED `<div>`, MEASURED, NOT PREFERRED. The element arm was
+     * built first and withdrawn on its receipts: with an extra abs-positioned child in every pane,
+     * `app-shell.ct.tsx` recorded a 0.187 layout-shift on the docked LIST toggle (budget 0.1 — the F-14
+     * defect the counter-translate FLIP exists to prevent) and lost the #846 topbar-yield pin, both
+     * reproduced against an otherwise identical tree. A pseudo adds no node for the shift attribution to
+     * name, no `:has()` shape, and no mount timing. Its known cost is stated at #1154 and routed, not
+     * hidden: `promoted-layer-offset` walks ELEMENTS only (ui-audit `census-grid.ts` calls
+     * `getComputedStyle(el)` with no pseudo argument), so that census now reports `candidates=0` on a pane
+     * surface where it used to report 1 — a real instrument gap, filed as such.
+     *
+     * ITS GEOMETRY IS HERE, WITH ITS PAINT, on the grain overlay's precedent (`html[data-texture="grain"]
+     * .shell-grid::after` ~200 lines down declares `content`/`position`/`inset`/`z-index`/`pointer-events`
+     * in this file): an appearance-gated paint carrier exists only where its paint does, so nothing is
+     * generated at all below the breakpoint or with the glass off. What CONTAINS it is shell.css's
+     * `container-type: inline-size` on `.shell-panel` (layout containment ⇒ stacking context + containing
+     * block in every panel mode); that file's comment carries the same coupling.
+     *
+     * `box-shadow: inherit` re-paints the pane's own elevation on the fill layer. `--shadow-overlay`
+     * (elevation=glow, and every FLOATING pane) carries an `inset 0 1px 0` top highlight painted in the
+     * pane's own background phase — i.e. BELOW this carrier, where its backdrop-filter would blur it away.
+     * Inheriting reproduces it at the same position; the recipe's three OUTER stops are clipped by
+     * `.shell-panel`'s own `overflow: hidden`, so nothing is doubled and no value is re-spelt here. A pane
+     * with no elevation inherits `none`.
+     *
+     * THE PANE PAINTS NO BACKGROUND AT ALL under the glass — `background: none`, the shorthand counterpart
+     * of shell.css's own `background: var(--color-sidebar)`, not a `background-color: transparent`. It is
+     * the same rendered result stated as the fact it is: the pane's whole fill (including D144's
+     * `[data-has-bg-image]` plate arm, which travelled with it) is now the carrier's, and an element with no
+     * background of its own is not a translucent surface the over-art plate law has anything to say about.
+     * It also keeps this rule OUT of that gate's population by classification rather than by exemption: the
+     * reader buckets an alpha-0 `transparent` as UNREADABLE (lib/over-art-plate.ts `ALPHA_SHAPE_RE`) and its
+     * marker escape cannot absolve an unreadable site at all (`judgeMarkers` only exempts `plateless` ones,
+     * while the finding's own fix text prescribes exactly that marker) — a two-part reader gap reported at
+     * #1154, not worked around here: this spelling would be the right one even if the marker worked. */
     html[data-blur-panels] .shell-panel {
+      background: none;
+    }
+    html[data-blur-panels] .shell-panel::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: -1;
+      pointer-events: none;
       backdrop-filter: blur(var(--blur-strength)) saturate(var(--blur-saturate));
       background-color: color-mix(in oklab, var(--color-sidebar) var(--blur-fill-chrome), transparent);
+      box-shadow: inherit;
     }
     /* #237 — THE CHROME PANES TAKE D144'S POLARITY FLOOR OVER ART. The rule above mixes the pane's own
      * tint at a FIXED 70%, so over a room wallpaper 30% of the art lands inside the pane. Under the dark
@@ -206,7 +260,7 @@ body {
      * translucency composites over the shell's own opaque base and nothing unknown is behind it.
      * Rendered pin: the two `#237:` cases in tests/client/features/app-shell/surfaces/app-shell.ct.tsx
      * (the derived-alpha floor + the kicker ink over worst-case black art). */
-    html[data-blur-panels] .shell-grid[data-has-bg-image] .shell-panel {
+    html[data-blur-panels] .shell-grid[data-has-bg-image] .shell-panel::before {
       background-color: light-dark(
         color-mix(in oklab, var(--color-sidebar) var(--blur-fill-chrome), var(--color-reading-plate)),
         color-mix(in oklab, var(--color-sidebar) var(--blur-fill-chrome), transparent)
@@ -227,11 +281,13 @@ body {
      * closed (chats' context pane, config's, the whole mobile arm). The gate is the panel's own resolved
      * mode, which is the one fact that means "this box is off-screen".
      *
-     * Higher specificity than the glass rule above (0,3,1 vs 0,2,1) so it is order-proof across sheets, and
+     * Higher specificity than the glass rule above (0,3,2 vs 0,2,2) so it is order-proof across sheets, and
      * it deliberately does NOT touch `background-color`: an off-screen fill costs nothing, and leaving it
-     * keeps the docked/overlay arms byte-identical. The reduced-transparency arm below is unaffected — it
-     * asks for exactly this on every surface. */
-    html[data-blur-panels] .shell-panel[data-panel-mode="collapsed"] {
+     * keeps the docked/overlay arms byte-identical. Both rules moved onto the pane's own `::before` glass
+     * carrier at #1154 — same subject, one level down, and the specificity RELATIONSHIP is unchanged (the
+     * pseudo-element adds one to the type count on BOTH sides). The reduced-transparency arm below is
+     * unaffected — it asks for exactly this on every surface. */
+    html[data-blur-panels] .shell-panel[data-panel-mode="collapsed"]::before {
       backdrop-filter: none;
     }
     html[data-blur-composer] [data-slot="composer"] {
@@ -336,8 +392,12 @@ body {
      order; that order is asserted, not assumed (tests/ui/styles/css-structure.suite.test.ts). The bubble
      therefore has to carry the ROLE ancestor the glass rules key on (`[data-role="user"] …`) — without
      it the selector is one attribute short and LOSES, which is why the old arm never killed a bubble's
-     backdrop-filter either, a hole the alpha bug hid. */
-  html[data-blur-panels] .shell-panel,
+     backdrop-filter either, a hole the alpha bug hid. The panel arm names the pane's `::before` glass
+     carrier for the same reason (#1154 moved the glass one level down): the tie is with the rule that
+     actually paints, and a selector stopping at `.shell-panel` would now be one pseudo-element short —
+     which is a LOSS, not a near-miss, because the property it would set is on a box that no longer has
+     it. Both sides read (0,2,2). */
+  html[data-blur-panels] .shell-panel::before,
   html[data-blur-composer] [data-slot="composer"],
   html[data-blur-panels] .shell-grid[data-has-bg-image][data-section]:not([data-section="chats"]) .shell-main,
   html[data-blur-modals] [data-slot="dialog-popup"],

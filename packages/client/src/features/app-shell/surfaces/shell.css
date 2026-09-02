@@ -92,8 +92,13 @@
 .shell-grid[data-elevation="ramp"] .shell-panel[data-panel-side="context"] {
   border-inline: none;
 }
+/* Ramp drops the band's bottom hairline. It answers the RULE STOP of the band's composed box-shadow and
+ * not the whole property (#1154): the band's separator moved from `border-block-end` to an inset shadow so
+ * the 48px box stops being a 47px CONTENT box, and the context band's 2px ember edge rides the SAME
+ * property. Killing `box-shadow` here would take the ember with it — which ramp never did and must not
+ * start doing — so each stop is a variable and this rule answers exactly the one it always answered. */
 .shell-grid[data-elevation="ramp"] .shell-panel-header {
-  border-block-end: none;
+  --shell-band-rule: 0 0 0 transparent;
 }
 /* The rail brand is on the same chrome horizon as the panel headers, so ramp drops its hairline too — the
  * region hairlines all disappear together for the seamless ramp look. */
@@ -459,7 +464,15 @@
    * and silently never matched. The PANEL is the box the band actually gets, so the panel is what the
    * band's steps interrogate. Costless: the panel's inline size comes from the grid track /
    * `--panel-context-w`, never from its contents. Body descendants are unaffected because their region
-   * container is nearer. */
+   * container is nearer.
+   *
+   * IT IS ALSO WHAT CONTAINS THE GLASS (#1154). `container-type: inline-size` carries LAYOUT containment,
+   * which makes this box a stacking context AND the containing block for absolutely positioned
+   * descendants in every panel mode (`position: relative` is only on the docked arm). The pane's glass is
+   * a `.shell-panel::before` at `z-index: -1` — declared with its paint in the client-globals glass block,
+   * the grain overlay's precedent — so the pane's TEXT is no longer inside a `backdrop-filter` layer
+   * (docs/design/integer-line-boxes.md Law 3/4). Dropping this declaration would let that fill escape the
+   * pane and paint behind the shell; the #237 framebuffer pin in app-shell.ct.tsx is what says so. */
   container-type: inline-size;
 }
 .shell-panel[data-panel-side="list"] {
@@ -540,10 +553,27 @@
  * band only: a CLAIMED pane's band is childless (collapsed out, see the `:empty` rule) and the claimant
  * paints its own top edge inside the body, so this cannot reach it. */
 .shell-panel[data-panel-side="context"][data-panel-mode="overlay"] .shell-panel-header {
-  box-shadow: none;
+  --shell-band-ember: 0 0 0 transparent;
 }
 
+/* THE BAND'S SEPARATOR IS AN INSET SHADOW, NOT A BORDER, AND THAT IS ARITHMETIC (#1154, side-eye
+ * Characters F8 addendum / #1136). `height: 3rem` + `border-block-end: 1px` is a 48px BORDER box with a
+ * 47px CONTENT box, and `align-items: center` halves the odd remainder: the display-voice heading landed
+ * at top 8.5, the label-voice count at 15.5, the 32px icon buttons at 7.5 — every occupant permanently off
+ * the device-pixel grid at DPR 1, and unfixable by re-voicing anything, because every leading token at or
+ * above 21px is EVEN (display 30 · headline 26 · title 22). A display-voice band title (#1136) and an
+ * integer landing are mutually exclusive while the box is 47. An inset shadow paints the same hairline
+ * without consuming box height, so the content box is 48 and the same three occupants land at 9 / 16 / 8.
+ * The idiom is the CONTEXT band's own, one rule down — "identical over glass" — now shared by both stops.
+ *
+ * TWO STOPS, TWO VARIABLES, because two different rules answer them independently and always did:
+ * elevation=ramp drops the RULE (and must not take the ember with it), and a FLOATING context band drops
+ * the EMBER (and must keep the rule). A single `box-shadow: none` override would answer both. The `0 0 0
+ * transparent` sentinel is the "off" value — a box-shadow list has no empty item, and an invalid stop
+ * would make the whole property IACVT and delete the other one too. */
 .shell-panel-header {
+  --shell-band-ember: 0 0 0 transparent;
+  --shell-band-rule: inset 0 calc(var(--border-width-control) * -1) 0 var(--color-sidebar-border);
   flex: none;
   display: flex;
   align-items: center;
@@ -551,7 +581,7 @@
   gap: var(--spacing-row);
   height: var(--dimension-chrome-row);
   padding-inline: var(--spacing-block);
-  border-block-end: var(--border-width-control) solid var(--color-sidebar-border);
+  box-shadow: var(--shell-band-ember), var(--shell-band-rule);
 }
 /* Content↔Context binding (north-star §4 N4 / P4): the Context band carries a 2px ember top edge as an
  * INSET box-shadow (not a border) — identical over glass, and unaffected by ramp's `.shell-panel-header`
@@ -562,7 +592,7 @@
  * own. The takeover now CLAIMS the pane and paints its own band, so this one is a one-line label again and
  * keeps the D66 A1 chrome-row horizon it shares with the LIST band and the topbar. */
 .shell-panel[data-panel-side="context"] .shell-panel-header {
-  box-shadow: inset 0 var(--dimension-shell-accent-edge) 0 color-mix(in oklab, var(--color-primary) 55%, transparent);
+  --shell-band-ember: inset 0 var(--dimension-shell-accent-edge) 0 color-mix(in oklab, var(--color-primary) 55%, transparent);
 }
 /* A CLAIMED context pane (HUD-1 §3.1 / §5.2 — D66 A1 SUSPENDED for this one case): the claimant owns the
  * pane's TOP EDGE, including the 2px ember binding, which it paints itself. `SectionContextHeader` returns
