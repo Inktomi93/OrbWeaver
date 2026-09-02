@@ -54,8 +54,16 @@ export const statsDeltaSchema = z.object({
   contentBytes: z.number().optional(),
   cacheReadTokens: z.number().optional(),
   cacheWriteTokens: z.number().optional(),
-  // per-character + per-owner chat count (chat created / forked / deleted).
+  // per-OWNER chat count (chat created / forked). The per-CHARACTER half is `characterChats` below.
   chats: z.number().optional(),
+  // The per-CHARACTER room census: +1 for each SEAT this write creates (#1147). Split off `chats`/
+  // `forkedChats` because those two feed `owner_stats` AND `character_stats` from one field, so a
+  // multi-seat room could not credit its second seat without double-counting the owner's library. The
+  // rebuild defines this column as `COUNT(DISTINCT cp.chat_id)` per character seat
+  // (`rebuild-from-canon.ts::loadChatMeta`), so a room with N character seats emits ONE `chats` and N
+  // `characterChats`. Same grain split as `daily*`/`model*`.
+  characterChats: z.number().optional(),
+  characterForkedChats: z.number().optional(),
   // per-day chats-created (the `daily_stats` column; bucketed on `day`).
   chatsCreated: z.number().optional(),
   // `daily_stats` flag — set when a migrated chat clobbers a message day (OR-merged in the upsert).
