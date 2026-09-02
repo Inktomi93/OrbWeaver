@@ -151,13 +151,22 @@ export const WALKER_CENSUS_REGION = `  // ── pane ink: a region that does no
   // unresolvable BACKDROP is the missing measurement WITHHELD is reserved for (#987 polarity). The two
   // used to share one null return, so every fill-less cohort published as withheld(unresolved) — which
   // alone is enough to make a whole run NO VERDICT.
+  //
+  // AND THE QUESTION IS THE PAINT *UNDER* THE CARRIER (#1155). Asking resolveBackdrop about the carrier's
+  // PARENT reads the right colour and the WRONG box: the paint-layer veto then runs against the parent's
+  // rect and the parent's subtree, so the carrier's own indicator — and any sibling that never touches
+  // the carrier — counted as paint between the carrier and its base. Measured live on Settings ->
+  // Appearance (2026-09-02): all three surviving cohorts came back unresolved(paint-layer-over-base)
+  // naming the checked cell's own contentless absolute Radio.Indicator, and that alone held every Config
+  // design-audit at population-verdict=NO-VERDICT. resolveBackdropUnder asks the question the rule means;
+  // a layer genuinely between the base and the carrier's box still refuses.
   var QUIET_NO_OWN_FILL = "no-own-fill";
   function fillContrast(el) {
     var own = parseRgb(getComputedStyle(el).backgroundColor);
     if (own === null || own.a <= 0) return QUIET_NO_OWN_FILL;
-    // resolveBackdrop keeps every translucent ancestor in the stack before producing the flat color
-    // actually beneath this state. Skipping those layers would compare against a color nobody sees.
-    var backdrop = resolveBackdrop(el.parentElement || el);
+    // The walk keeps every translucent ancestor in the stack before producing the flat color actually
+    // beneath this state. Skipping those layers would compare against a color nobody sees.
+    var backdrop = resolveBackdropUnder(el);
     if (backdrop.kind !== "flat") return null;
     var visibleOwn = compositeOver(own, backdrop.color);
     var ownLum = relLum(visibleOwn);
@@ -199,7 +208,11 @@ export const WALKER_CENSUS_REGION = `  // ── pane ink: a region that does no
   function contextBackdropKey(el) {
     var context = stateIndependentContext(el);
     if (context === null) return null;
-    var backdrop = resolveBackdrop(context);
+    // resolveBackdropAt, not resolveBackdrop: a partition key describes the surface the whole component
+    // sits on, and the painted things INSIDE that container are what it backs — vetoing on them made
+    // every populated context unresolvable (#1155). Its own fill stays in the key, so two
+    // differently-painted panels are still two contexts (#1068's anti-collapse fence).
+    var backdrop = resolveBackdropAt(context);
     if (backdrop.kind !== "flat") return null;
     return [backdrop.color.r, backdrop.color.g, backdrop.color.b, backdrop.color.a].join(",");
   }
@@ -207,6 +220,9 @@ export const WALKER_CENSUS_REGION = `  // ── pane ink: a region that does no
   var onEls = document.querySelectorAll("[data-checked]");
   var offEls = document.querySelectorAll("[data-unchecked]");
   var quietAuthoredCohorts = new Map();
+  // This census only ever reads data-checked/data-unchecked, so every subject's state KIND is "checked" —
+  // the shape census-selection.ts's isNestedStatePart compares its nearest state-carrying ancestor to.
+  var QUIET_CHECKED_STATE = { kind: "checked" };
   function addQuietState(el, state) {
     if (!isVisible(el)) return;
     var contrast = fillContrast(el);
@@ -216,7 +232,13 @@ export const WALKER_CENSUS_REGION = `  // ── pane ink: a region that does no
       cohort = [];
       quietAuthoredCohorts.set(key, cohort);
     }
-    cohort.push({ state: state, contrast: contrast, context: contextBackdropKey(el), selector: describe(el) });
+    cohort.push({
+      state: state,
+      part: isNestedStatePart(el, QUIET_CHECKED_STATE),
+      contrast: contrast,
+      context: contextBackdropKey(el),
+      selector: describe(el),
+    });
   }
   for (var oi2 = 0; oi2 < onEls.length; oi2 += 1) {
     addQuietState(onEls[oi2], "on");
@@ -260,13 +282,26 @@ export const WALKER_CENSUS_REGION = `  // ── pane ink: a region that does no
       var on = 0;
       var off = 0;
       var offSelector = null;
+      var parts = 0;
       for (var quietMember = 0; quietMember < cohort.length; quietMember += 1) {
         var member = cohort[quietMember];
+        if (member.part) parts += 1;
         if (member.state === "on" && member.contrast.contrast > on) on = member.contrast.contrast;
         if (member.state === "off" && member.contrast.contrast > off) {
           off = member.contrast.contrast;
           offSelector = member.selector;
         }
+      }
+      // A ONE-SIDED COHORT OF COMPONENT PARTS IS A CLOSED FACT, NOT MISSING EVIDENCE (#1155, the #1150
+      // vocabulary one rule over). A part carries no aria state of its own and republishes its root's, and
+      // Base UI's Radio.Indicator defaults keepMounted:false — the OFF twin is never rendered, so there is
+      // nothing withholding could ever be waiting for. This is deliberately NOT census-selection.ts's
+      // blanket part exclusion: quiet-state ranks PAINT, and a part that mounts in BOTH states paints two
+      // real fills, so Switch.Thumb keeps its own judged cohort (#1068's control). Only the one-sided,
+      // all-parts case closes. A one-sided cohort with any real CARRIER in it is still withheld (#987).
+      if ((on === 0 || off === 0) && parts === cohort.length) {
+        excludeRelational(relationalAccounting["quiet-state"], "nestedStatePart");
+        return;
       }
       if (on === 0) {
         withholdRelational(relationalAccounting["quiet-state"], "unmatchedOff");

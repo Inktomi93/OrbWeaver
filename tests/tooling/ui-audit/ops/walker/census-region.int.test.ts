@@ -141,6 +141,103 @@ test("quiet-state records a cohort that paints no fill of its own as a closed ex
   await expect(res).toExitWith(0);
 });
 
+// ── #1155: the paint UNDER a state carrier, and the checked-only PART cohort ────────────────────────
+// Measured on the live Settings -> Appearance (2026-09-02, `pnpm design-audit / --goto settings:appearance
+// --viewport 1280x2200`): all three surviving quiet-state cohorts came back `withheld(unresolved)` with
+// ONE cause — `resolveBackdrop` refused `paint-layer-over-base`, and the layer it named was the checked
+// cell's own `Radio.Indicator`: a contentless, absolutely-positioned, painted span, which is precisely
+// what resolve.ts's paint-layer census collects. `fillContrast` asks for the paint UNDER a carrier by
+// handing `resolveBackdrop` the carrier's PARENT, so the veto was computed against the PARENT's box and
+// the PARENT's subtree — a layer inside the carrier itself, and a sibling that never touches the
+// carrier's box, both counted as intervening paint. Three withheld cohorts is what kept EVERY Config
+// design-audit at `population-verdict=NO-VERDICT`.
+
+/** The ratified picture picker (#981) as it renders on the Settings Appearance surface: one `role=radio` cell per
+ *  choice carrying `aria-checked` + `data-checked`/`data-unchecked`, and the CHECKED cell alone mounting
+ *  its `Radio.Indicator` — a role-less, text-less, absolutely-positioned painted span whose `keepMounted`
+ *  defaults to false (docs/vendor/base-ui/components/radio.md :492), so it can never have an OFF twin.
+ *  `aria-label` names the cells so this fixture pins the quiet-state family alone. */
+const PICKER_INDICATOR = `<span data-slot="picker-item-check" data-checked style="position:absolute;top:4px;right:4px;width:12px;height:12px;background:#fff"></span>`;
+
+function pickerGroup(scrim: string, chip = ""): string {
+  const cell = (state: string, checked: string, fill: string, inner: string): string =>
+    `<span data-slot="picker-cell" role="radio" ${state} aria-checked="${checked}" aria-label="theme ${checked}" style="position:relative;display:inline-block;width:120px;height:60px;background:${fill}">${inner}</span>`;
+  return `<div data-slot="theme-collection" role="radiogroup" aria-label="Theme" style="position:relative">${scrim}${cell("data-checked", "true", "#1d4ed8", PICKER_INDICATOR)}${cell("data-unchecked", "false", "#222", "")}${chip}</div>`;
+}
+
+/** The live `⋯` row menu (appearance-looks-section.tsx): a painted, text-less, absolutely-positioned
+ *  FOLLOWING sibling of the picker item, parked over the cell's own corner. Contentless + positioned +
+ *  painted is exactly the paint-layer census's definition, so it was refusing the cells' backdrop while
+ *  sitting visibly ON TOP of them. */
+const PICKER_CHIP = `<span data-slot="picker-chip" style="position:absolute;top:4px;left:4px;width:16px;height:16px;background:#555"></span>`;
+
+test("quiet-state resolves the paint under a checked cell whose own indicator is a contentless paint layer", async ({ runCli, scratch }) => {
+  await writeFile(
+    join(scratch, "carrier-own-indicator.html"),
+    relationalDocument(`<section role="region" aria-label="Pickers" style="background:#000;padding:12px">${pickerGroup("")}</section>`),
+  );
+  const res = await runCli("ui-audit", ["/carrier-own-indicator.html", "--base", `file://${scratch}`], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+  // The cells are JUDGED — a layer inside a carrier is painted OVER that carrier's own fill and can never
+  // be between it and the surface beneath it. The indicator cohort is a checked-only component PART, so
+  // its missing OFF twin is a closed component fact (`keepMounted:false`), not missing evidence: the
+  // #1150 vocabulary, one rule over.
+  expect(res.stdout).toContain(
+    "POPULATION   quiet-state candidates=2 judged=1 affected=0 populations=0 representatives=0 withheld() excluded(nestedStatePart=1)",
+  );
+  expect(res.stdout).not.toContain("INSTRUMENT ERROR");
+  await expect(res).toExitWith(0);
+});
+
+test("quiet-state still withholds when a real layer is painted between the carrier and its base", async ({ runCli, scratch }) => {
+  // ANTI-WIDENING FENCE (withheld before and after #1155's fix, deliberately): a contentless painted scrim
+  // that is a SIBLING of the cells does sit between them and the section's fill and does cover their
+  // boxes, so the paint under the CELLS is genuinely unmeasured and their cohort is still withheld.
+  // #987's polarity is intact — only the two false vetoes (the carrier's own subtree, and a sibling that
+  // misses the carrier's box) stopped counting. The indicator's own base is the cell it sits on, which the
+  // scrim is not inside, so that cohort resolves and closes as the checked-only part it is.
+  const scrim = `<span data-slot="picker-scrim" style="position:absolute;inset:0;background:rgba(255,255,255,0.2)"></span>`;
+  await writeFile(
+    join(scratch, "scrim-over-carrier.html"),
+    relationalDocument(`<section role="region" aria-label="Pickers" style="background:#000;padding:12px">${pickerGroup(scrim)}</section>`),
+  );
+  const res = await runCli("ui-audit", ["/scrim-over-carrier.html", "--base", `file://${scratch}`], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+  expect(res.stdout).toContain(
+    "POPULATION   quiet-state candidates=2 judged=0 affected=0 populations=0 representatives=0 withheld(unresolved=1) excluded(nestedStatePart=1)",
+  );
+  expect(res.stdout).toContain("INSTRUMENT ERROR");
+  await expect(res).toExitWith(2);
+});
+
+test("quiet-state judges a carrier whose overlapping layer paints ON TOP of it, not beneath it", async ({ runCli, scratch }) => {
+  await writeFile(
+    join(scratch, "chip-over-carrier.html"),
+    relationalDocument(`<section role="region" aria-label="Pickers" style="background:#000;padding:12px">${pickerGroup("", PICKER_CHIP)}</section>`),
+  );
+  const res = await runCli("ui-audit", ["/chip-over-carrier.html", "--base", `file://${scratch}`], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+  expect(res.stdout).toContain(
+    "POPULATION   quiet-state candidates=2 judged=1 affected=0 populations=0 representatives=0 withheld() excluded(nestedStatePart=1)",
+  );
+  expect(res.stdout).not.toContain("INSTRUMENT ERROR");
+  await expect(res).toExitWith(0);
+});
+
+test("quiet-state will not guess the paint order when the author set an explicit z-index", async ({ runCli, scratch }) => {
+  // The document-order tell only holds for auto z-index; deciding a reordered stack means resolving
+  // stacking contexts, which the walker does not do. It refuses in the safe direction — the layer keeps
+  // its veto and the cohort is withheld — rather than assuming the chip is on top.
+  const zChip = PICKER_CHIP.replace("position:absolute", "position:absolute;z-index:2");
+  await writeFile(
+    join(scratch, "z-indexed-chip.html"),
+    relationalDocument(`<section role="region" aria-label="Pickers" style="background:#000;padding:12px">${pickerGroup("", zChip)}</section>`),
+  );
+  const res = await runCli("ui-audit", ["/z-indexed-chip.html", "--base", `file://${scratch}`], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+  expect(res.stdout).toContain(
+    "POPULATION   quiet-state candidates=2 judged=0 affected=0 populations=0 representatives=0 withheld(unresolved=1) excluded(nestedStatePart=1)",
+  );
+  expect(res.stdout).toContain("INSTRUMENT ERROR");
+  await expect(res).toExitWith(2);
+});
+
 test("independent labelled regions do not become one contradictory double-empty surface", async ({ runCli, scratch }) => {
   const empty = (label: string): string => `<section role="region" aria-label="${label}">
   <div data-slot="empty-state-root"><p>${label} is empty</p><div data-slot="empty-state-action"><button style="height:32px">Create</button></div></div>
