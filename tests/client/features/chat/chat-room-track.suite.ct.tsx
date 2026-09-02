@@ -376,25 +376,53 @@ test("#242 both open: the reading line holds the REAL-CHARACTER floor and stays 
  *  above this says the decoration has landed, and nothing in between exists. */
 const ECHO_ART_PANE_MIN_PX = 100;
 
-// THE BAND'S FLOOR (#213/#212-2). `--reading-measure` is a MAX; the floor is `--reading-measure-min`, and
-// the only thing inside the transcript that can push a line under it is an immersive skin's decoration
-// (echo spent 55% of its own box on `padding-right`, leaving 28 chars/line). The floor is therefore pinned
-// where it BINDS: echo's prose box must still hold the min measure, with the art living outside it.
+/** Every number the echo pin reads, in ONE page evaluate — a second evaluate can straddle a font swap or a
+ *  style recalc and mix two frames' geometry into one comparison. */
+interface EchoGeometry {
+  readonly artPane: number;
+  readonly textInset: number;
+  readonly declaredBox: number;
+  readonly textWidth: number;
+  readonly gutter: number;
+  readonly measureMin: number;
+  readonly artWidth: number;
+  readonly blockPx: number;
+  readonly shellContent: number;
+}
+
+// THE ART IS ADDITIVE (#213/#212-2, RE-PINNED 2026-09-02 for #1178). What this pin exists to fence is the
+// pre-#212-2 skin: echo spent `--immersive-echo-feather: 55%` of its own box on `padding-right`, so the art
+// ate the reading line down to 28 characters. The claim is therefore that the decoration lives OUTSIDE the
+// prose — the pane is exactly the declared art width, and the line that survives is no shorter than the
+// same pane's UNDECORATED line — plus the box's own declared arithmetic.
 //
-// The token-strict floor is STILL not pinned at the both-open pane (#242 bought the real-character one,
-// not the 65ch one — see the test above), and no rule in the transcript can widen a pane: that half of
-// the fork stays where it was answered, in the shell grid.
+// WHAT IT USED TO SAY, AND WHY THAT PREMISE IS DEAD. It asserted an absolute floor: echo's prose ≥
+// `--reading-measure-min`. That token is 65 CSS `ch`, and `ch` resolves in the element's own FONT — so the
+// number was never a length, it was a bet on the metrics. `ed55bf193` (2026-09-01) shipped Geist, and
+// measured in this very stage `65ch` is **650px** under the bubble's inherited stack against
+// **557.703125px** under the pre-Geist fallback — which is, to the digit, the "557.70 floor" the paragraph
+// below recorded on 2026-08-24. The floor moved +92px; the row did not. `.orb-echo-track` caps the row at
+// `--width-shell-content` (680px, the dial's clamp FLOOR) + the 192px art pane = 872px, the row spends 40px
+// on its avatar gutter, and the column's 832px leaves 628px of prose against the bubble's own declared
+// 854px box.
+//
+// AND THE 22px IS NOT THE ART'S. Measured on the same mount, the art is additive by exactly one
+// `--spacing-block`: the flat skin's line at this pane is `--width-shell-content − gutter − 2×block`, and
+// echo's is one block WIDER. The absolute floor is unmeetable post-Geist for EVERY skin at the dial floor
+// (echo 628, flat 616, floor 650) — i.e. it is the shell-grid question this file has always said it is
+// ("no rule in the transcript can widen a pane"; #242 answered the REAL-character floor, not the 65ch one),
+// and `--width-shell-content`'s 680px literal and `--dimension-content-reading-floor`'s 40rem were both
+// sized before the font pass. Filed as its own row; a transcript CT may not answer it and may not keep a
+// pin whose number describes a font we no longer ship.
 //
 // IT BARRIERS ON THE DECORATED FRAME, NOT THE FIRST ONE (2026-08-24, #608's lane). `toBeVisible()` on the
 // content column is true one frame BEFORE echo's `bubbleDecoration` lands, and on that frame the bubble is
-// an ordinary box: `padding-right: 12px`, `max-width: 557.70px` — no art pane reserved. Measured through it,
-// the reading line reads 533.70px (= 557.70 − its own two 12px insets), i.e. 24px UNDER the floor, and the
-// pin fails describing a geometry that does not exist a tick later (sampled 5× at 120ms: frame 0 undecorated,
-// frames 1-4 the settled 761.70 / 192px art pane, textWidth exactly the 557.70 floor). It sat latent because
-// nothing had perturbed style recalc here; a container-query rule added to the swipe chip was enough to move
-// which frame the pin caught, which is how it surfaced. The barrier is the settled arm's OWN tell — the art
-// pane is reserved as padding — never a sleep and never a poll of the assertion itself.
-test("an immersive skin's art does not eat the reading line below the min measure (echo)", async ({ mount, page }) => {
+// an ordinary box with no art pane reserved, so the pin would describe a geometry that does not exist a
+// tick later. It sat latent because nothing had perturbed style recalc here; a container-query rule added
+// to the swipe chip was enough to move which frame the pin caught, which is how it surfaced. The barrier is
+// the settled arm's OWN tell — the art pane is reserved as padding — never a sleep and never a poll of the
+// assertion itself.
+test("an immersive skin's art is ADDITIVE — it is reserved outside the reading line, never out of it (echo)", async ({ mount, page }) => {
   await page.setViewportSize({ width: 1360, height: 900 });
   await routeRoom(page, "echo");
   await mount(<ChatRoomTrackStory paneWidth={1212} />);
@@ -408,44 +436,81 @@ test("an immersive skin's art does not eat the reading line below the min measur
     )
     .toBeGreaterThan(ECHO_ART_PANE_MIN_PX);
 
-  const readLineAtAssertion = async (): Promise<typeof line> =>
-    await page.evaluate((): { readonly textWidth: number; readonly floorPx: number } => {
+  /** Every number in ONE evaluate, re-read per poll: a second evaluate can straddle a style recalc, and a
+   *  comparison built from two frames is a comparison of nothing. */
+  const readGeometry = async (): Promise<EchoGeometry> =>
+    await page.evaluate((): EchoGeometry => {
       const bubble = document.querySelector('[data-slot="message-bubble"]');
-      if (!(bubble instanceof HTMLElement)) {
-        throw new Error("no bubble mounted");
+      const column = document.querySelector('[data-slot="message-content-column"]');
+      const body = document.querySelector('[data-slot="message-row-body"]');
+      if (!(bubble instanceof HTMLElement && column instanceof HTMLElement && body instanceof HTMLElement)) {
+        throw new Error("the echo row did not mount its bubble, column and body");
       }
-      const probe = document.createElement("div");
-      probe.style.position = "absolute";
-      probe.style.visibility = "hidden";
-      probe.style.width = "var(--reading-measure-min)";
-      bubble.append(probe);
-      const floorPx = probe.getBoundingClientRect().width;
-      probe.remove();
+      /** One token, resolved in the BUBBLE's own font — the only honest way to read a `ch`-denominated one. */
+      const token = (name: string): number => {
+        const probe = document.createElement("div");
+        probe.style.position = "absolute";
+        probe.style.visibility = "hidden";
+        probe.style.width = `var(${name})`;
+        bubble.append(probe);
+        const width = probe.getBoundingClientRect().width;
+        probe.remove();
+        return width;
+      };
       const style = getComputedStyle(bubble);
-      // The reading line is the bubble's CONTENT box: its own width minus the art pane it reserves as padding.
-      const textWidth = bubble.getBoundingClientRect().width - Number.parseFloat(style.paddingLeft) - Number.parseFloat(style.paddingRight);
-      return { textWidth, floorPx };
+      const bubbleWidth = bubble.getBoundingClientRect().width;
+      return {
+        artPane: Number.parseFloat(style.paddingRight),
+        textInset: Number.parseFloat(style.paddingLeft),
+        declaredBox: Number.parseFloat(style.maxWidth),
+        // The reading line is the bubble's CONTENT box: its own width minus the art pane it reserves as padding.
+        textWidth: bubbleWidth - Number.parseFloat(style.paddingLeft) - Number.parseFloat(style.paddingRight),
+        // The row's non-prose furniture, measured rather than assumed: the avatar gutter + its gap.
+        gutter: body.getBoundingClientRect().width - column.getBoundingClientRect().width,
+        measureMin: token("--reading-measure-min"),
+        artWidth: token("--immersive-echo-art-width"),
+        blockPx: token("--spacing-block"),
+        shellContent: token("--width-shell-content"),
+      };
     });
-  const line = await page.evaluate((): { readonly textWidth: number; readonly floorPx: number } => {
-    const bubble = document.querySelector('[data-slot="message-bubble"]');
-    if (!(bubble instanceof HTMLElement)) {
-      throw new Error("no bubble mounted");
-    }
-    const probe = document.createElement("div");
-    probe.style.position = "absolute";
-    probe.style.visibility = "hidden";
-    probe.style.width = "var(--reading-measure-min)";
-    bubble.append(probe);
-    const floorPx = probe.getBoundingClientRect().width;
-    probe.remove();
-    const style = getComputedStyle(bubble);
-    // The reading line is the bubble's CONTENT box: its own width minus the art pane it reserves as padding.
-    const textWidth = bubble.getBoundingClientRect().width - Number.parseFloat(style.paddingLeft) - Number.parseFloat(style.paddingRight);
-    return { textWidth, floorPx };
-  });
 
-  await expect.poll(async () => (await readLineAtAssertion()).floorPx).toBeGreaterThan(0);
-  await expect.poll(async () => (await readLineAtAssertion()).textWidth).toBeGreaterThanOrEqual(line.floorPx - AXIS_TOLERANCE_PX);
+  // THE DECLARED BOX IS HONOURED (message-row-variants.ts `ECHO_MAX_WIDTH_STYLE`): the skin asks for the
+  // measure floor PLUS its art pane PLUS its own text-side inset, and nothing re-spells that arithmetic.
+  await expect
+    .poll(async () => {
+      const geometry = await readGeometry();
+      return Math.abs(geometry.declaredBox - (geometry.measureMin + geometry.artWidth + geometry.blockPx));
+    })
+    .toBeLessThanOrEqual(AXIS_TOLERANCE_PX);
+
+  // THE PANE IS THE DECLARED ART WIDTH — a fixed column, never a percentage of a box that grows with the
+  // message. That percentage is the half of #212-2 which made a three-screen turn paint a 4.94x upscale, and
+  // the half that says the decoration lives OUTSIDE the prose rather than inside its measure.
+  await expect
+    .poll(async () => {
+      const geometry = await readGeometry();
+      return Math.max(Math.abs(geometry.artPane - geometry.artWidth), Math.abs(geometry.textInset - geometry.blockPx));
+    })
+    .toBeLessThanOrEqual(AXIS_TOLERANCE_PX);
+
+  // ADDITIVE: the flat skin's track at this same pane IS `--width-shell-content`, so its reading line is
+  // that minus the row's gutter and the bubble's two insets. Echo's line may not be shorter — the portrait
+  // pane costs extra room on top of the reader's dial, it is never taken out of the line.
+  await expect
+    .poll(async () => {
+      const geometry = await readGeometry();
+      return geometry.textWidth - (geometry.shellContent - geometry.gutter - 2 * geometry.blockPx);
+    })
+    .toBeGreaterThanOrEqual(-AXIS_TOLERANCE_PX);
+
+  // NON-VACUITY, planted from THIS mount's own numbers: the pre-#212-2 skin spent
+  // `--immersive-echo-feather: 55%` of the bubble's box on `padding-right` INSIDE the flat track. Recomputed
+  // against this very layout, that geometry lands far under the additive floor the assertion above holds —
+  // so the pin is not one any layout satisfies by accident.
+  const settled = await readGeometry();
+  const undecoratedLine = settled.shellContent - settled.gutter - 2 * settled.blockPx;
+  const preFeatherLine = (settled.shellContent - settled.gutter) * 0.45 - settled.blockPx;
+  expect(preFeatherLine, "the pre-#212-2 feather geometry must violate the floor this test holds").toBeLessThan(undecoratedLine - AXIS_TOLERANCE_PX);
 });
 
 // ── #245: ENTERING EDIT MUST NOT RESHAPE THE ROW (owner-reported, 2026-08-18) ───────────────────────

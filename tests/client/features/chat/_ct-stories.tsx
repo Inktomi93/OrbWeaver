@@ -103,6 +103,7 @@ import { castId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 import { AriaAnnouncer } from "@orb/ui/aria-announcer";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
+import { Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -120,6 +121,7 @@ import { ChatMessageHandlingSection } from "../../../../packages/client/src/feat
 import { ChatStreamingSection } from "../../../../packages/client/src/features/chat/components/chat-behavior-streaming-section.tsx";
 import { ChatBooksSection } from "../../../../packages/client/src/features/chat/components/chat-books-section.tsx";
 import { ChatCharacterBar } from "../../../../packages/client/src/features/chat/components/chat-character-bar.tsx";
+import { DisclosureSection } from "../../../../packages/client/src/features/chat/components/chat-context-disclosure-section.tsx";
 import { ChatDocumentsSection } from "../../../../packages/client/src/features/chat/components/chat-documents-section.tsx";
 import { ChatHeaderSurface } from "../../../../packages/client/src/features/chat/components/chat-header.tsx";
 import { ChatImportDialog } from "../../../../packages/client/src/features/chat/components/chat-import-dialog.tsx";
@@ -3637,4 +3639,59 @@ export function RpgDiceAskStory(): ReactElement {
 export function RpgDiceToolResultStory({ record }: { readonly record: ToolCallRecord }): ReactElement {
   const renderers = createContributorRegistry<ToolRenderer>("tool-renderers", [rpgDiceToolRenderer]);
   return <MessageToolCalls records={[record]} renderers={renderers} />;
+}
+
+// ── #1153: the This-chat tab's DISCLOSURE SECTION, in isolation ────────────────────────────────────────
+/** The chat CONTEXT tab's `DisclosureSection` (chat-context-disclosure-section.tsx) with the four arms the
+ *  tab actually mounts: an open-by-default section, a closed-by-default one, and the two GRAFT shapes —
+ *  `keepMounted` + the silent-contributor collapse selector, over an EMPTY body wrapper and over a live one.
+ *  The ids are story-local so the persisted posture store can never collide with a real section's.
+ *
+ *  IT CAN REMOUNT ITSELF. The component's whole reason to exist is that the open/closed answer is remembered
+ *  per host in `chat-context-section-open-store.ts` rather than held in the tab's render — which is only
+ *  observable ACROSS a mount. The button re-keys the subtree, so the CT drives a real unmount/remount
+ *  without a page reload (a reload would take the store's in-memory state with it and prove nothing about
+ *  the seam). */
+export function ChatContextDisclosureSectionStory(): ReactElement {
+  const [generation, setGeneration] = useState(0);
+  return (
+    <div style={{ width: 380 }}>
+      <button
+        onClick={(): void => {
+          setGeneration((current) => current + 1);
+        }}
+        type="button"
+      >
+        remount the pane
+      </button>
+      <Stack gap="section" key={generation}>
+        <DisclosureSection defaultOpen={true} kicker="Field overrides" sectionId="ct-open-by-default">
+          <Text>the open section's body</Text>
+        </DisclosureSection>
+        <DisclosureSection defaultOpen={false} kicker="Host controls" sectionId="ct-closed-by-default">
+          <Text>the closed section's body</Text>
+        </DisclosureSection>
+        <DisclosureSection
+          className="has-[[data-slot=chat-settings-graft-body]:empty]:hidden"
+          defaultOpen={false}
+          keepMounted={true}
+          kicker="Silent plugin"
+          sectionId="graft:ct-silent"
+        >
+          <Stack className="contents" data-slot="chat-settings-graft-body" />
+        </DisclosureSection>
+        <DisclosureSection
+          className="has-[[data-slot=chat-settings-graft-body]:empty]:hidden"
+          defaultOpen={false}
+          keepMounted={true}
+          kicker="Loud plugin"
+          sectionId="graft:ct-loud"
+        >
+          <Stack className="contents" data-slot="chat-settings-graft-body">
+            <Text>a contribution that renders something</Text>
+          </Stack>
+        </DisclosureSection>
+      </Stack>
+    </div>
+  );
 }

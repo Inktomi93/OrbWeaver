@@ -51,7 +51,21 @@ export const textVariants = tv({
       kicker: "font-sans text-micro leading-micro tracking-micro font-semibold uppercase text-muted-foreground",
       // A kicker that is itself the visible label of a control. Interactive copy needs the readable label
       // step (13px) while retaining the compact, tracked instrument register of the band it belongs to.
-      interactiveKicker: "font-sans text-label leading-label tracking-micro font-semibold uppercase text-muted-foreground",
+      //
+      // IT GIVES BACK ITS TRAILING TRACKING COLUMN (#1106, 2026-09-02). `letter-spacing` is added AFTER the
+      // last glyph too, so a tracked label's inline box reserves one `--tracking-micro` (1.04px at this
+      // step) of space that paints nothing — and this voice's label is a CONTROL label inside a `truncate`
+      // box competing for width with siblings, so that dead column is charged against the text. MEASURED on
+      // the config LIST band at the 271px both-panels pane: "Regex scripts" needs 115.53px of a 115.109px
+      // content box — a real 0.42px clip, i.e. an ellipsis on a group NAME. The term that grew is this
+      // label's own: the same string measures 115.52px in Geist against 110.06px in the pre-`ed55bf193`
+      // fallback stack, so the font pass cost it 5.5px and the compression debt is the tracking's, not a
+      // sibling's (memory: label-compression-must-be-remeasured-after — name which term grew).
+      // Returning the 1.04px is font-INDEPENDENT and typographically correct; it is scoped to THIS voice
+      // because only here is the tracked label a control's own name in a width-contended flex row (the
+      // `kicker` twin sits in a Section heading row and has the identical dead column with no reported
+      // symptom — flagged, deliberately not swept here).
+      interactiveKicker: "font-sans text-label leading-label tracking-micro -me-(--tracking-micro) font-semibold uppercase text-muted-foreground",
       // The name of ONE datum (the mocks' `.meter .mline` label half).
       label: "font-sans text-label leading-label tracking-normal font-medium text-foreground",
       // The VALUE — the thing you came to read. mono + tabular so columns of numbers align and digits stop
