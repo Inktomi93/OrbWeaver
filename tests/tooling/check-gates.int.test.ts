@@ -1141,7 +1141,11 @@ function writeFixtures(): void {
 // which a throwaway `__g_` file can't add to the single-home `CHAT_BUS_EVENT_TYPES`. Its bite stays proven by
 // its conformance mustFlag (a synthetic un-emitted member) + the `user-bus-coverage` twin's live STALE fixture.
 // bus-payload-allowlist: scopes to 5 EXACT bus-contract file paths (BUS_FILES) — a __g_ sentinel path
-// can't match. Bite proven by gate-conformance's mustFlag + the D16 real-file backup-pattern proof
+// can't match. STILL UNFIXTURABLE after #948 made the member walk TRANSITIVE over the named event's own
+// type identity: a `__g_` carrier is only reached if a REAL bus file `extends`/aliases it, which a
+// throwaway file cannot make it do. Bite proven by gate-conformance's mustFlag (incl. the imported-carrier,
+// aliased-arm, unresolved-base and blindness rows) + the committed pins in
+// tests/tooling/verify/gates/bus-payload-allowlist.test.ts + the D16 real-file backup-pattern proof
 // (apiKey planted on user-bus settingsChanged → RED → restored).
 // knob-wire-coverage (D107): a whole-corpus coverage ratchet over its semantic member sources
 // (EffectiveAppConfig / USER_SETTINGS_SECTIONS / appSettingsSchema / imported Appearance schema /
