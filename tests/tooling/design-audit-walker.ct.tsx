@@ -25,6 +25,7 @@ import {
   WalkerDimmedContrastStory,
   WalkerDuplicateDoorStory,
   WalkerDuplicateSlotStory,
+  WalkerFinePointerFloorStory,
   WalkerForwardingLabelStory,
   WalkerGradientBackdropStory,
   WalkerListRowCardStory,
@@ -90,6 +91,29 @@ test("a slider's effective target is its whole control row, not the box the sibl
   // itself) was the reported number, and it minted a fine-pointer P1 on a control that is 32px tall.
   expect(measured).toBeGreaterThan(22);
   expect(measured).toBeGreaterThanOrEqual(FINE_POINTER_FLOOR);
+});
+
+// ── #1067: the ladder must be able to CONFIRM the floor it judges ───────────────────────────────────
+// `HIT_PROBE_RADII` grows the extent outward one radius at a time, so the numbers it can publish are
+// exactly `2 x radius`. With `[11, 16, 22]` the reachable verdicts were 22 / 32 / 44 — and the
+// fine-pointer floor the checks judge against is 24, which is not on that list. A control owning 24–31px
+// (every @orb/ui selection control at `pointer: fine`: an 18px box under a 28px `::before`) therefore
+// measured 22 and minted a P1 it could never clear at any size short of 32. Measured on the character
+// library's bulk mode: `10 affected of 10 judged; short side 22px`, on rows whose compositor ring answers
+// `self` to +/-13px. The rung at 12 is what makes the floor expressible; the negative arm is what keeps a
+// genuine 22px control failing.
+test("#1067: a 28px pseudo-carried selection control measures its real extent, and a 22px box still fails", async ({ mount, page }) => {
+  await mount(<WalkerFinePointerFloorStory />);
+  const targets = await tapTargets(page);
+
+  expect(
+    smallestSide(targets, "checkbox-root"),
+    "a checkbox's fine-pointer ::before is 28px — the ladder must be able to say so instead of capping at the 22px rung",
+  ).toBeGreaterThanOrEqual(FINE_POINTER_FLOOR);
+  expect(
+    smallestSide(targets, "under-floor-box"),
+    "a plain 22px box-carried button is genuinely under the floor — the new rung must not credit it",
+  ).toBeLessThan(FINE_POINTER_FLOOR);
 });
 
 test("two genuine neighbours stay sub-targets — the widening is per composite, never a blanket", async ({ mount, page }) => {

@@ -35,7 +35,17 @@ export const WALKER_HIT_EXTENT = `  // ── the compositor hit-extent probe �
   // a 45x45 hit area. Probe what the COMPOSITOR says: sample points on the ring the ::after would cover
   // and ask elementFromPoint whether this control still owns them. The measured extent is what WCAG
   // 2.5.5/2.5.8 are about — "target size", not "border-box size".
-  var HIT_PROBE_RADII = [11, 16, 22]; // half-extents probed outward: 22 → a 44px target
+  // THE LADDER MUST BE ABLE TO CONFIRM EVERY FLOOR THIS RULE JUDGES (#1067). The walk publishes
+  // \`2 x radius\`, so the rungs ARE the vocabulary of answers — and the floors in lib/checks-a11y.ts are
+  // 24 (TAP_FINE_MIN_PX), 32 (TAP_COARSE_FAIL_PX) and 44 (TAP_COARSE_WARN_PX). The ladder was
+  // [11, 16, 22] = 22 / 32 / 44: the fine floor was NOT expressible, so a control owning 24-31px could
+  // only ever be published as 22 and failed a rule it already satisfied — for the whole @orb/ui selection
+  // family, whose hit area is an 18px box under a 28px \`::before size-touch-target\` at pointer:fine
+  // (packages/ui/src/lib/selection-control.ts + the @media(pointer:fine) override in styles/theme.css).
+  // Measured on the character library's bulk mode: 10 of 10 rows "short side 22px", on a compositor ring
+  // that answers \`self\` out to +/-13px. 11 stays as the rung BELOW the floor — it is what keeps a genuine
+  // 22px control reporting 22 rather than rounding down to its box.
+  var HIT_PROBE_RADII = [11, 12, 16, 22]; // half-extents probed outward: 12 → 24px (AA), 16 → 32, 22 → 44
   var HIT_PROBE_MAX = HIT_PROBE_RADII[HIT_PROBE_RADII.length - 1];
   // THE PROBE FRAME (#797). Every point the widest probe needs must EXIST in the viewport, or the
   // measurement is not a measurement — see the file header. This is a question about the frame, not

@@ -6,6 +6,7 @@
 // packages/ui would resolve a second module instance and mount blank.
 
 import { Button } from "@orb/ui/button";
+import { Checkbox } from "@orb/ui/checkbox";
 import { Slider } from "@orb/ui/slider";
 import type { ReactElement } from "react";
 import { useId } from "react";
@@ -948,6 +949,55 @@ export function WalkerTruncationAffordanceStory(): ReactElement {
           Spire Trio
         </span>
         <span style={{ flex: "0 0 auto", width: 220, height: 24, backgroundColor: "rgb(52, 52, 60)" }}>actions</span>
+      </div>
+    </div>
+  );
+}
+
+/** The FINE-POINTER FLOOR stage (#1067) — the shape every selection control in this app wears, and the one
+ *  the probe ladder could not measure.
+ *
+ *  `@orb/ui`'s Checkbox/Radio keep an 18px visible box at every pointer and lift the hit area onto a centred
+ *  `::before size-touch-target` (packages/ui/src/lib/selection-control.ts): 44px at a coarse pointer, **28px**
+ *  under the emitted `@media (pointer: fine)` override (packages/ui/src/styles/theme.css). 28 clears WCAG
+ *  2.5.8's 24px AA floor, and the compositor agrees — measured on the character library's bulk row, the
+ *  four-cardinal `elementFromPoint` ring answers `self` out to +/-13px.
+ *
+ *  The ladder was `[11, 16, 22]`: the widest radius it could confirm was 11 (22px) and the next rung it tried
+ *  was 16 (32px), which this control legitimately fails. So every checkbox on every fine-pointer surface
+ *  published exactly 22px against a 24px floor — a whole control family that could not pass a rule it already
+ *  satisfied (10 of 10 rows on `design-audit --goto characters --click '[aria-label="Select multiple"]'`).
+ *
+ *  THE STAGE IS A LIST, NOT A LONE CONTROL, and that is the whole fidelity of it. A checkbox ALONE inside a
+ *  padded wrapper is credited with the wrapper's extent (the #662/#665 declared limit — nothing else can
+ *  answer at those pixels), so it measures 44 and hides the defect completely. In the character library the
+ *  checkbox sits in a row with a label beside it and other rows above and below: every point at +/-16px is
+ *  another element's PROSE, which forwards nothing (#807), so the extent caps at the widest rung the control
+ *  owns by itself. That is the population the run measured.
+ *
+ *  BOTH ARMS ARE HERE ON PURPOSE. The negative control is a plain 22x22 button in the same list — genuinely
+ *  under the floor, box-carried, so no ancestor may speak for it — and it must keep failing: a ladder rung
+ *  that credited it would trade the false positive for a false clean. The stage is inset from the viewport
+ *  edges so `probeFrameFits` never withholds a verdict. */
+export function WalkerFinePointerFloorStory(): ReactElement {
+  const row = { alignItems: "center", display: "flex", gap: 24, height: 32 } as const;
+  return (
+    <div style={{ padding: 120, position: "static", width: 520 }}>
+      <div style={row}>
+        <span>a neighbouring row of prose</span>
+      </div>
+      <div style={row}>
+        <Checkbox aria-label="Select the row" />
+        <span>the selected row's label</span>
+      </div>
+      <div style={row}>
+        <button data-testid="under-floor-box" style={{ display: "block", height: 22, padding: 0, width: 22 }} type="button">
+          x
+        </button>
+        <span>the under-floor row's label</span>
+      </div>
+      <div style={row}>
+        <span>another neighbouring row of prose</span>
       </div>
     </div>
   );
