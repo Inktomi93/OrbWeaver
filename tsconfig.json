@@ -165,10 +165,15 @@
     // program (tsconfig.tests-dom.json), matching the tests/e2e precedent above (a directory glob by
     // ruling, not a per-file ledger). Per-file escapee comments for `tests/client/**` are RETIRED as of
     // this line — new client escapees need no entry here at all, they ride the directory exclude.
-    // Genuinely node-context PURE-LOGIC tests inside tests/client/** (most of them — see
-    // tsconfig.tests-dom.json's matching note for the coverage-cost accounting) lose the DOM-less
-    // program's guard against an accidental `document`/`window` reference creeping into their subject;
-    // that is the price, paid once, of ending the whack-a-mole.
+    // The guard MOVES, it does not vanish — from TYPE time to RUN time, not to another
+    // type program (`pnpm typecheck`'s per-package client program CARRIES lib.dom, so it structurally
+    // cannot catch a stray `document`/`window`; see tsconfig.tests-dom.json's matching note for the
+    // full correction and the run-time mechanism — no vitest project sets `environment`, no jsdom/
+    // happy-dom is installed, so an accidental DOM reference throws `ReferenceError` the instant a
+    // node-context test EXECUTES). And this aggregator's own header above (its DOM-LESS-on-purpose
+    // note, `tsconfig.json:17-22`) states its actual motivating purpose: protecting SERVER/node typing
+    // from lib.dom's overrides, never policing stray `document` in tests — this move relocated only
+    // TEST files, so that purpose is fully intact.
     "tests/client",
     // #1243, packages/ui HALF: the identical "wholesale by directory" fix, one level later. Per-file
     // ui/lib/data escapees (variant-arm-matrix's family, _ct-stories.tsx's chain, clamp.ts's, several
