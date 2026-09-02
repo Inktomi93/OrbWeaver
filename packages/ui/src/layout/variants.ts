@@ -137,6 +137,46 @@ export const gridVariants = tv({
       // narrow pane, so the row answers to the pane it lives in; an ancestor `<Container>` is required
       // (an element cannot query itself).
       pair: "grid-cols-1 @md:grid-cols-2",
+      // THE SETTINGS-ROW TRACK SET (#932) — four tracks a whole SECTION of rows shares by subgrid:
+      // [label+gloss | control | reserved action cell | slack]. It is not a tiling and not a ratio, so no
+      // arm above can express it, and the SIZING IS THE FIX: a settings row's control starts at a column
+      // the TOKEN decides, so the distance from a name to its control stops being a function of the PANE.
+      // That distance was the defect — `row-void` fired 8x on Config at 63-77% of the row in every pane
+      // state EXCEPT the one that narrowed the content column to ~520px (#1099 G6), i.e. it was
+      // `justify-between` against a window width. MEASURED after: 0 row-void findings in ALL FOUR pane
+      // states, and the label-to-control gap on the Appearance pane went 557px -> 34px.
+      //
+      // FIXED tracks at `width.control-col`, not intrinsic ones — and the three arms were all measured,
+      // so do not "improve" this back:
+      //   · a bare `max-content` label track has a max-content BASE size, so every item spanning it dumps
+      //     its full intrinsic contribution there. With a real section attached the tracks resolved to
+      //     `855px 0px 16px 0px` inside a 545px group: the label track swallowed a textarea row's
+      //     max-content, the control track collapsed to ZERO, its number input measured 0px wide, and the
+      //     row overflowed its own group by 362px.
+      //   · `fit-content(width.label-col)` (9.5rem, the knob deck's column) clamps the blow-out but is too
+      //     narrow for a settings row's NAME: it wrapped five of fifteen Chat-behavior labels to two lines
+      //     ("Send continues the reply", "Empty Enter generates a reply", "Auto-swipe short replies",
+      //     "Custom stopping strings", "Offer choices in new chats"). A track set that tightens a row must
+      //     not do it by breaking the row's name.
+      //   · `fit-content(width.control-col)` fixes the wrapping but sizes each SECTION to its own longest
+      //     label, so the Appearance pane still showed three control edges (799 x10 / 788 x5 / 747 x1) and
+      //     its canvas section's action cells sat 278px left of every knob row's.
+      //   · FIXED — this arm — gives the Appearance pane ONE control edge (799 x16) and ONE action edge
+      //     (827 x20), and Chat behavior 799 x15 / 827 x15, against the re-drive's five and four. A fixed
+      //     track also contributes nothing to intrinsic sizing, so the blow-out above is unrepresentable.
+      // The cost is stated rather than hidden: the LONGEST LABEL no longer sets the column, the token
+      // does. That is sound only while the token is wider than every converted label — verified on both
+      // converted panes — and a label that outgrows it wraps rather than pushing its neighbours.
+      //
+      // The FOURTH track is the `minmax(0,1fr)` SLACK: it absorbs the block's leftover width so the three
+      // real tracks stay LEFT-PACKED, and it gives a full-span row — a canvas, a picker, a composite's
+      // dependents — a real width to lay out in.
+      //
+      // Below the container step the whole thing drops to ONE column and every subgrid in the chain (row,
+      // then Field) inherits that — the narrow arm is a container query on the group, never a per-row flip
+      // and never a viewport media query. Requires an ancestor `<Container>`; `SettingRowGroup` renders one
+      // (an element cannot query itself).
+      settingTrack: "grid-cols-1 @lg:grid-cols-[var(--width-control-col)_var(--width-control-col)_auto_minmax(0,1fr)]",
       // `pair`'s THREE-column sibling, same contract and same reason (added 2026-08-19, the refinery
       // teaching flow). Three cells that are ONE sequence — Score → Rewrite → Analyze — must be equal
       // bases: as a wrapping flex row of content-sized cards they measured 279/384/482px, i.e. the three

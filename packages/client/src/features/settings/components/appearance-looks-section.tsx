@@ -23,7 +23,7 @@ import { ThemeSwatchCard, ThemeSwatchStrip } from "@orb/ui/theme-swatch";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { ConfigTeachScope, SettingRow } from "#components";
+import { ConfigTeachScope, SettingRow, SettingRowGroup } from "#components";
 import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import { downloadTextFile, notify, timeLib } from "#lib";
 import { configAnchorId } from "#state";
@@ -149,12 +149,14 @@ function LooksBody(): ReactElement {
         </Stack>
       ) : (
         <ConfigTeachScope value={{ group: "appearance", sub: APPEARANCE_LOOKS_SUBCATEGORY }}>
-          <Stack gap="block">
-            <SettingRow settingId="shipped-looks">
+          {/* #932: the three Looks rows are CANVAS rows — a card shelf, a theme list, a builder door — so
+              each takes `span`, which draws the registry lead (name · `i` · gloss) above the canvas. That
+              retires the three different hand-rolled leads this section used to carry (a `gloss` line, a
+              `kicker` + import button row, and a `label` beside a Button), which the re-drive counted as
+              three label voices in one section. */}
+          <SettingRowGroup>
+            <SettingRow settingId="shipped-looks" span={true}>
               <Stack gap="field">
-                <Text as="span" voice="gloss">
-                  Shipped · picking applies it
-                </Text>
                 <Row gap="row" className="flex-wrap">
                   {shipped.map((theme) => (
                     <ThemeSwatchCard
@@ -170,11 +172,11 @@ function LooksBody(): ReactElement {
               </Stack>
             </SettingRow>
 
-            <SettingRow settingId="your-themes">
+            <SettingRow settingId="your-themes" span={true}>
               <Stack gap="field">
                 <Row align="center" gap="row" className="justify-between">
-                  <Text as="span" voice="kicker">
-                    {own.length === 0 ? "Your themes" : `Your themes · ${own.length}`}
+                  <Text as="span" voice="gloss">
+                    {own.length === 0 ? "None yet" : `${String(own.length)} saved`}
                   </Text>
                   <FileTrigger
                     accept="application/json"
@@ -220,18 +222,15 @@ function LooksBody(): ReactElement {
               </Stack>
             </SettingRow>
 
-            <SettingRow settingId="theme-builder">
-              <Row align="center" gap="row" className="justify-between">
-                <Text as="span" voice="label">
-                  Theme builder
-                </Text>
+            <SettingRow settingId="theme-builder" span={true}>
+              <Row align="center" gap="row">
                 <Button intent="secondary" onClick={openBuilderFromCurrent}>
                   <Icon icon={Plus} size="sm" />
                   {`New theme from ${current?.name ?? HEARTH_NAME}…`}
                 </Button>
               </Row>
             </SettingRow>
-          </Stack>
+          </SettingRowGroup>
         </ConfigTeachScope>
       )}
     </Section>

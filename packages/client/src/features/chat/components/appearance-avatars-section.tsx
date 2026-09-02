@@ -10,12 +10,11 @@
 import type { AppearanceSettings } from "@orb/contracts/settings";
 import { DEFAULT_APPEARANCE_SETTINGS } from "@orb/contracts/settings";
 import { pickKeys } from "@orb/kit/objects";
-import { FieldLayout } from "@orb/ui/field";
 import { Row, Section } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { ConfigTeachScope, SettingRow } from "#components";
+import { ConfigTeachScope, SettingRow, SettingRowGroup } from "#components";
 import { createEntityMutation, QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms";
@@ -79,7 +78,7 @@ function AvatarsBody({ sectionId, session }: { readonly sectionId: string; reado
     >
       {/* THE TEACHER LAW (#866 S3): rows are label + control — the prose lives on each leaf's `teach`. */}
       <ConfigTeachScope value={{ group: "appearance", sub: APPEARANCE_AVATARS_SUBCATEGORY }}>
-        <FieldLayout orientation="horizontal">
+        <SettingRowGroup>
           <SettingRow settingId="show-avatars">
             <form.AppField name="showInChatAvatars">{(field): ReactElement => <field.SwitchField label="Show avatars in chat" />}</form.AppField>
           </SettingRow>
@@ -116,7 +115,7 @@ function AvatarsBody({ sectionId, session }: { readonly sectionId: string; reado
               </>
             )}
           </form.Subscribe>
-        </FieldLayout>
+        </SettingRowGroup>
       </ConfigTeachScope>
       <Row gap="field" align="center">
         <SectionSaveStatus id={sectionId} state={saveState} onRetry={retrySave} />

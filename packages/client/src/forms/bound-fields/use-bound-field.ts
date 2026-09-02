@@ -16,6 +16,7 @@
 // Pinned by tests/client/forms/bound-fields/use-bound-field.ct.tsx (attributes read off the rendered DOM).
 
 import type { ReactNode } from "react";
+import { useConfigRowAnnotation } from "#state";
 import { useFieldContext } from "../contexts.ts";
 import { touchedFieldError } from "./field-error.ts";
 
@@ -36,6 +37,7 @@ interface BoundField<T> {
     readonly label: ReactNode;
     readonly description: ReactNode;
     readonly hint: ReactNode;
+    readonly onHintClick?: () => void;
     readonly error: string | null;
     readonly disabled: boolean;
     readonly name: string;
@@ -44,16 +46,32 @@ interface BoundField<T> {
   };
 }
 
-/** Read the bound field context + assemble its `<Field>` props (touch-gated error included). */
+/**
+ * Read the bound field context + assemble its `<Field>` props (touch-gated error included).
+ *
+ * THE CONFIG-ROW ANNOTATION (#932/#927) is merged HERE, and here only, because this is the one home for
+ * the `<Field>` prop bundle (the `bound-field-via-hook` gate seals the raw `useFieldContext(` door): a
+ * `SettingRow` publishes its leaf's registry gloss + teacher door, and every bound field inside one picks
+ * it up without its section author threading prose it does not own. Outside a `SettingRow` the read is
+ * `null` and every field renders byte-identically to before.
+ *
+ * THE CALL SITE WINS on both slots. A section that spells its own `description` has already said what the
+ * row means in the words it chose, and a section that spells its own `hint` owns that tooltip — the
+ * registry gloss is the FALLBACK for the 16-of-24 rows that said nothing at rest, never an override.
+ */
 export function useBoundField<T>(shell: BoundFieldShellProps): BoundField<T> {
   const field = useFieldContext<T>();
+  const annotation = useConfigRowAnnotation();
   const error = touchedFieldError(field.state.meta);
   return {
     field,
     fieldProps: {
       label: shell.label,
-      description: shell.description,
-      hint: shell.hint,
+      description: shell.description ?? annotation?.gloss,
+      hint: shell.hint ?? annotation?.hint,
+      // The `i` is a DOOR only where the row published one; a plain hinted field keeps the
+      // hover/focus-only atom it always was (`Field`'s own `onHintClick` contract).
+      ...(annotation === null || shell.hint !== undefined ? {} : { onHintClick: annotation.onHintClick }),
       error,
       disabled: shell.disabled ?? false,
       name: field.name,

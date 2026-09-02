@@ -12,12 +12,11 @@
 // a FRAGMENT inside the chat-behavior pane, which owns containment + focus.
 
 import { DEFAULT_CHAT_SETTINGS } from "@orb/contracts/settings";
-import { FieldLayout } from "@orb/ui/field";
 import { Row, Section } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { ConfigTeachScope, SettingRow } from "#components";
+import { ConfigTeachScope, SettingRow, SettingRowGroup } from "#components";
 import { createEntityMutation, QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms";
@@ -89,7 +88,7 @@ function MessageHandlingBody({ sectionId, session }: { readonly sectionId: strin
       {/* THE TEACHER LAW (#866 S3): rows are label + control — the prose (incl. the B1/B7 inherit-shape
           caveats and the reapTemporaryChats copy) lives on each leaf's `teach`. */}
       <ConfigTeachScope value={{ group: "chat-behavior", sub: CHAT_MESSAGE_HANDLING_SUBCATEGORY }}>
-        <FieldLayout orientation="horizontal">
+        <SettingRowGroup>
           <SettingRow settingId="enter-sends">
             <form.AppField name="enterSends">{(field): ReactElement => <field.SwitchField label="Enter to send" />}</form.AppField>
           </SettingRow>
@@ -116,27 +115,33 @@ function MessageHandlingBody({ sectionId, session }: { readonly sectionId: strin
               </SettingRow>
             )}
           </form.Subscribe>
-          <SettingRow settingId="auto-swipe">
+          {/* ONE ADDRESS, ONE ROW (#932). These three fields all name the leaf `auto-swipe` — its declared
+              `key` is the TOP-LEVEL `autoSwipe` object, so all three of the old rows' Resets wrote the
+              same patch — yet each mounted its own `SettingRow`, which painted three modified rails, three
+              action cells and three `i`s for one setting. The dependents ride `details` now: they are
+              inside the same DOM row, below the master's control, and the gloss + teacher door are stated
+              exactly once. */}
+          <SettingRow
+            settingId="auto-swipe"
+            details={
+              <form.Subscribe selector={(state): boolean => state.values.autoSwipeEnabled}>
+                {(enabled): ReactElement | null =>
+                  enabled ? (
+                    <>
+                      <form.AppField name="autoSwipeMinLength">
+                        {(field): ReactElement => <field.NumberField label="Minimum reply length" min={AUTO_SWIPE_MIN_LENGTH_MIN} />}
+                      </form.AppField>
+                      <form.AppField name="autoSwipeBlacklist">
+                        {(field): ReactElement => <field.TextareaField label="Blacklisted phrases" placeholder="As an AI language model" rows={3} />}
+                      </form.AppField>
+                    </>
+                  ) : null
+                }
+              </form.Subscribe>
+            }
+          >
             <form.AppField name="autoSwipeEnabled">{(field): ReactElement => <field.SwitchField label="Auto-swipe short replies" />}</form.AppField>
           </SettingRow>
-          <form.Subscribe selector={(state): boolean => state.values.autoSwipeEnabled}>
-            {(enabled): ReactElement | null =>
-              enabled ? (
-                <>
-                  <SettingRow settingId="auto-swipe">
-                    <form.AppField name="autoSwipeMinLength">
-                      {(field): ReactElement => <field.NumberField label="Minimum reply length" min={AUTO_SWIPE_MIN_LENGTH_MIN} />}
-                    </form.AppField>
-                  </SettingRow>
-                  <SettingRow settingId="auto-swipe">
-                    <form.AppField name="autoSwipeBlacklist">
-                      {(field): ReactElement => <field.TextareaField label="Blacklisted phrases" placeholder="As an AI language model" rows={3} />}
-                    </form.AppField>
-                  </SettingRow>
-                </>
-              ) : null
-            }
-          </form.Subscribe>
           <SettingRow settingId="custom-stopping-strings">
             <form.AppField name="customStoppingStrings">
               {(field): ReactElement => <field.TextareaField label="Custom stopping strings" placeholder="###" rows={3} />}
@@ -158,7 +163,7 @@ function MessageHandlingBody({ sectionId, session }: { readonly sectionId: strin
               )}
             </form.AppField>
           </SettingRow>
-        </FieldLayout>
+        </SettingRowGroup>
       </ConfigTeachScope>
       <Row gap="field" align="center">
         <SectionSaveStatus id={sectionId} state={saveState} onRetry={retrySave} />

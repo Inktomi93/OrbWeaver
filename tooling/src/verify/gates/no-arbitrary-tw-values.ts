@@ -26,7 +26,9 @@ const ALLOWLIST: ExemptionTable = {
       "(`1.55fr_1fr` / `1.5fr_1.05fr` at `@min-[100rem]`) — a deliberately UNEQUAL lead-plus-rail split, " +
       "which is a ratio and not a length, so no token can express it — and `cellFixed` " +
       "(`repeat(auto-fill,8.5rem)`), a fixed-track auto-fill; both are grid track templates, the same " +
-      "class of value as the rows above.",
+      "class of value as the rows above. Since 2026-09-02 (#932) also `settingTrack` " +
+      "(`max-content minmax(0,max-content) auto`) — the settings-row track set a whole section shares by " +
+      "subgrid; intrinsic sizing keywords, which no length token can express.",
   },
 };
 

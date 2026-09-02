@@ -13,7 +13,6 @@ import type { AppearanceSettings, BackgroundLibraryEntry } from "@orb/contracts/
 import { DEFAULT_APPEARANCE_SETTINGS } from "@orb/contracts/settings";
 import { pickKeys } from "@orb/kit/objects";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
-import { FieldLayout } from "@orb/ui/field";
 import { Icon, Trash2 } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
@@ -23,7 +22,7 @@ import { MenuItem } from "@orb/ui/menu";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { ConfigTeachScope, RowActionsMenu, SettingRow } from "#components";
+import { ConfigTeachScope, RowActionsMenu, SettingRow, SettingRowGroup } from "#components";
 import { createEntityMutation, QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms";
@@ -143,11 +142,15 @@ function BackgroundBody({ sectionId, session }: { readonly sectionId: string; re
           from the tap and is never a user-facing control. */}
       <ConfigTeachScope value={{ group: "appearance", sub: APPEARANCE_BACKGROUND_SUBCATEGORY }}>
         <Stack gap="block">
-          <SettingRow settingId="background-image">
-            <form.Subscribe selector={(state): BackgroundForm => state.values}>
-              {(values): ReactElement => <BackgroundPickGrid form={form} values={values} />}
-            </form.Subscribe>
-          </SettingRow>
+          {/* `span` (#932): a thumbnail grid is a CANVAS, so the row draws the registry lead (name · `i` ·
+              gloss) above it instead of pretending to be a two-column knob row with an empty label. */}
+          <SettingRowGroup>
+            <SettingRow settingId="background-image" span={true}>
+              <form.Subscribe selector={(state): BackgroundForm => state.values}>
+                {(values): ReactElement => <BackgroundPickGrid form={form} values={values} />}
+              </form.Subscribe>
+            </SettingRow>
+          </SettingRowGroup>
 
           {/* MANAGE — the library rows (the Your-themes grammar): name · age-free meta · ⋯ Remove. */}
           <form.Subscribe selector={(state): readonly BackgroundLibraryEntry[] => state.values.backgroundLibrary}>
@@ -201,7 +204,7 @@ function BackgroundBody({ sectionId, session }: { readonly sectionId: string; re
                 return null;
               }
               return (
-                <FieldLayout orientation="horizontal">
+                <SettingRowGroup>
                   <SettingRow settingId="background-fit">
                     <form.AppField name="backgroundFit">
                       {(field): ReactElement => <field.SelectField label="Fit" items={BACKGROUND_FIT_ITEMS} />}
@@ -219,7 +222,7 @@ function BackgroundBody({ sectionId, session }: { readonly sectionId: string; re
                       {(field): ReactElement => <field.SliderField label="Image blur" min={BACKGROUND_BLUR_MIN} max={BACKGROUND_BLUR_MAX} />}
                     </form.AppField>
                   </SettingRow>
-                </FieldLayout>
+                </SettingRowGroup>
               );
             }}
           </form.Subscribe>

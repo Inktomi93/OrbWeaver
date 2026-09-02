@@ -16,12 +16,11 @@
 import type { AppearanceSettings, BlurSurface } from "@orb/contracts/settings";
 import { DEFAULT_APPEARANCE_SETTINGS } from "@orb/contracts/settings";
 import { pickKeys } from "@orb/kit/objects";
-import { FieldLayout } from "@orb/ui/field";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { ConfigTeachScope, SettingRow, SettingSwitchRow } from "#components";
+import { ConfigTeachScope, SettingRow, SettingRowGroup, SettingSwitchRow } from "#components";
 import { createEntityMutation, QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms";
@@ -86,10 +85,13 @@ function EffectsBody({ sectionId, session }: { readonly sectionId: string; reado
     >
       {/* THE TEACHER LAW (#866 S3): rows are label + control — the prose lives on each leaf's `teach`. */}
       <ConfigTeachScope value={{ group: "appearance", sub: APPEARANCE_EFFECTS_SUBCATEGORY }}>
-        <FieldLayout orientation="horizontal">
-          <SettingRow settingId="frosted-glass">
+        <SettingRowGroup>
+          {/* `span` (#932): the four surface switches are a SET under one leaf, not a two-column knob row,
+              so the row draws the registry lead (name · `i` · full-width gloss) and the switches sit below
+              it. The hand-rolled `<Text voice="label">Frosted glass</Text>` is gone — it duplicated the
+              leaf's own name and carried neither the `i` nor the gloss. */}
+          <SettingRow settingId="frosted-glass" span={true}>
             <Stack gap="field">
-              <Text voice="label">Frosted glass</Text>
               <form.AppField name="blurSurfaces">
                 {(field): ReactElement => (
                   <Stack gap="field">
@@ -143,7 +145,7 @@ function EffectsBody({ sectionId, session }: { readonly sectionId: string; reado
               )}
             </form.AppField>
           </SettingRow>
-        </FieldLayout>
+        </SettingRowGroup>
       </ConfigTeachScope>
       <Row gap="field" align="center">
         <SectionSaveStatus id={sectionId} state={saveState} onRetry={retrySave} />

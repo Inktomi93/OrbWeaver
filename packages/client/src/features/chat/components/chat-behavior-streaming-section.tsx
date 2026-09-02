@@ -11,12 +11,11 @@
 import type { ChatSettings } from "@orb/contracts/settings";
 import { DEFAULT_CHAT_SETTINGS } from "@orb/contracts/settings";
 import { pickKeys } from "@orb/kit/objects";
-import { FieldLayout } from "@orb/ui/field";
 import { Row, Section } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { ConfigTeachScope, SettingRow } from "#components";
+import { ConfigTeachScope, SettingRow, SettingRowGroup } from "#components";
 import { createEntityMutation, QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms";
@@ -85,7 +84,7 @@ function StreamingBody({ sectionId, session }: { readonly sectionId: string; rea
     >
       {/* THE TEACHER LAW (#866 S3): rows are label + control — the prose lives on each leaf's `teach`. */}
       <ConfigTeachScope value={{ group: "chat-behavior", sub: CHAT_STREAMING_SUBCATEGORY }}>
-        <FieldLayout orientation="horizontal">
+        <SettingRowGroup>
           <SettingRow settingId="stream-follow">
             <form.AppField name="streamScrollMode">
               {(field): ReactElement => <field.SelectField label="While a reply streams" items={STREAM_SCROLL_MODE_ITEMS} />}
@@ -108,7 +107,7 @@ function StreamingBody({ sectionId, session }: { readonly sectionId: string; rea
           <SettingRow settingId="reasoning-auto-collapse">
             <form.AppField name="reasoningAutoCollapse">{(field): ReactElement => <field.SwitchField label="Auto-collapse reasoning" />}</form.AppField>
           </SettingRow>
-        </FieldLayout>
+        </SettingRowGroup>
       </ConfigTeachScope>
       <Row gap="field" align="center">
         <SectionSaveStatus id={sectionId} state={saveState} onRetry={retrySave} />

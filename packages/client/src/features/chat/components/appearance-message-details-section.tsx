@@ -10,12 +10,11 @@
 import type { AppearanceSettings } from "@orb/contracts/settings";
 import { DEFAULT_APPEARANCE_SETTINGS } from "@orb/contracts/settings";
 import { pickKeys } from "@orb/kit/objects";
-import { FieldLayout } from "@orb/ui/field";
 import { Row, Section } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { ConfigTeachScope, SettingRow } from "#components";
+import { ConfigTeachScope, SettingRow, SettingRowGroup } from "#components";
 import { createEntityMutation, QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms";
@@ -84,7 +83,7 @@ function MessageDetailsBody({ sectionId, session }: { readonly sectionId: string
       {/* THE TEACHER LAW (#866 S3): rows are label + control — the prose lives on each leaf's `teach`
           (incl. the #167 "where to look" line for Show model). */}
       <ConfigTeachScope value={{ group: "appearance", sub: APPEARANCE_MESSAGE_DETAILS_SUBCATEGORY }}>
-        <FieldLayout orientation="horizontal">
+        <SettingRowGroup>
           <SettingRow settingId="show-timestamps">
             <form.AppField name="showTimestamps">{(field): ReactElement => <field.SwitchField label="Show timestamps" />}</form.AppField>
           </SettingRow>
@@ -111,7 +110,7 @@ function MessageDetailsBody({ sectionId, session }: { readonly sectionId: string
               {(field): ReactElement => <field.SelectField label="Action cluster" items={MESSAGE_ACTIONS_ITEMS} />}
             </form.AppField>
           </SettingRow>
-        </FieldLayout>
+        </SettingRowGroup>
       </ConfigTeachScope>
       <Row gap="field" align="center">
         <SectionSaveStatus id={sectionId} state={saveState} onRetry={retrySave} />
