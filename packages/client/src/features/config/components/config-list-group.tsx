@@ -39,7 +39,7 @@ import { QueryBoundary, QueryErrorState } from "#data";
 import type { CollectionContribution } from "#lib";
 import { COLLECTION_LARGE_GROUP } from "#lib";
 import type { CollectionGroupDefinition, ConfigGroupDefinition, ConfigGroupId, ConfigSectionPartition, ConfigSubcategory } from "#state";
-import { isCollectionGroup, selectCollectionMemberFromList, toggleConfigGroup, useCollectionSelection, useConfigGroupOpen } from "#state";
+import { isCollectionGroup, selectCollectionMemberFromList, selectConfigGroup, toggleConfigGroup, useCollectionSelection, useConfigGroupOpen } from "#state";
 
 export interface ConfigListGroupProps {
   readonly group: ConfigGroupDefinition;
@@ -55,6 +55,9 @@ export interface ConfigListGroupProps {
   /** Subcategory ids whose section failed to save — the row wears the marker (SET-SEAMS §3). */
   readonly erroredSubIds: ReadonlySet<string>;
   readonly saveFailedMarker: string;
+  /** Present when ANY section inside this group differs from its default — the band says so (#1099 Errand
+   *  A). The host passes the WORD, exactly like `saveFailedMarker`, so the band owns no copy. */
+  readonly modifiedMarker?: string;
   readonly onSelectGroup: (group: ConfigGroupDefinition) => void;
   readonly onSelectSub: (groupId: ConfigGroupId, subId: string) => void;
 }
@@ -63,7 +66,7 @@ export interface ConfigListGroupProps {
 export function ConfigListGroup(props: ConfigListGroupProps): ReactNode {
   const { group } = props;
   if (isCollectionGroup(group)) {
-    return <CollectionListGroup group={group} />;
+    return <CollectionListGroup active={props.active} group={group} />;
   }
   return <SectionsListGroup {...props} />;
 }
@@ -77,6 +80,7 @@ function SectionsListGroup({
   activeSub,
   erroredSubIds,
   saveFailedMarker,
+  modifiedMarker,
   onSelectGroup,
   onSelectSub,
 }: ConfigListGroupProps): ReactElement {
@@ -117,6 +121,14 @@ function SectionsListGroup({
         <Text as="span" voice="interactiveKicker" className="truncate">
           {group.label}
         </Text>
+        {/* THE GROUP SAYS WHEN SOMETHING INSIDE IT CHANGED (#1099 Errand A). It rides INSIDE the band
+            button, so it is part of the band's accessible name — a mark only the sighted reader gets is
+            half a mark. `kicker` is a text voice, not a box: the band's height is untouched. */}
+        {modifiedMarker === undefined ? null : (
+          <Text as="span" data-slot="config-group-modified" voice="kicker">
+            {modifiedMarker}
+          </Text>
+        )}
       </Button>
       <div id={bodyId} hidden={!(open && hasRows)}>
         {open && hasRows ? (
@@ -215,9 +227,12 @@ function SubcategoryRow({ sub, groupId, active, activeSub, erroredSubIds, saveFa
 
 interface CollectionListGroupProps {
   readonly group: CollectionGroupDefinition;
+  /** The EFFECTIVE active group is this one — the zero-member band is the only arm that can BE the current
+   *  location (a populated band discloses instead of selecting), so it is the only arm that marks itself. */
+  readonly active: boolean;
 }
 
-export function CollectionListGroup({ group }: CollectionListGroupProps): ReactNode {
+export function CollectionListGroup({ group, active }: CollectionListGroupProps): ReactNode {
   const collection = group.body.collection;
   // Every hook runs UNCONDITIONALLY over the door-frozen registry (the `useVisible` contract) — the
   // visibility verdict gates the RENDER, never the hook call.
@@ -240,32 +255,11 @@ export function CollectionListGroup({ group }: CollectionListGroupProps): ReactN
           bands were map-dom-fallbacks — addressable only as a descendant of the group, which is a path, not
           an identity). A slot names a KIND; the pair names THIS band. */}
       <Row align="center" className="gap-0" data-collection={group.id} data-slot="collection-band" gap="tight">
-        {/* A ZERO-MEMBER GROUP HAS NOTHING TO DISCLOSE (side-eye 2026-08-06 P2), so it renders no chevron and
-            no body: the old band kept a live toggle whose panel opened onto nothing, one row above the empty
-            card that had already said so. The identity cluster stays — same glyph, same kicker, same
-            horizon — it just stops pretending to be a door. */}
+        {/* A ZERO-MEMBER GROUP HAS NOTHING TO DISCLOSE (side-eye 2026-08-06 P2) — so the empty arm is a
+            different band, not this one with pieces missing: no chevron, no panel, and an act of SELECTION
+            rather than disclosure. Its own component states that ruling and what #1099 F5 changed about it. */}
         {isEmpty ? (
-          <Row align="center" className="min-w-0 flex-1 px-tight" gap="tight">
-            {/* THE DISCLOSURE GUTTER IS RESERVED, NOT RECLAIMED (side-eye 2026-08-08 P3). Dropping the
-                chevron also dropped its 16px box and the 4px joint, so a zero-member band's glyph started
-                20px left of every sibling's and the LIST's left edge became data-dependent — a ragged
-                column that reads as a rendering bug, not as a stood-down door. The spacer is the SAME
-                `Icon` at the SAME size, merely `invisible` (visibility:hidden keeps the box, drops the
-                paint, and the glyph is already decorative/aria-hidden), so the gutter cannot drift from the
-                chevron it stands in for the way a re-spelled width would. */}
-            <Icon className="invisible" icon={ChevronRight} size="sm" />
-            <Icon icon={group.icon} size="sm" />
-            <Text as="span" voice="interactiveKicker" className="truncate">
-              {group.label}
-            </Text>
-            {/* AND IT SAYS ZERO (same finding). Every other band carries its count, so the one band with
-                nothing in it was also the one band that declined to say how much — leaving "empty" and
-                "the count hasn't loaded" indistinguishable at exactly the moment the number is the point.
-                `isEmpty` IS `count === 0`, so the datum is known here by construction. */}
-            <Text as="span" voice="datum">
-              {count}
-            </Text>
-          </Row>
+          <CollectionEmptyBand active={active} count={count} group={group} />
         ) : (
           <Button
             aria-controls={bodyId}
@@ -287,6 +281,7 @@ export function CollectionListGroup({ group }: CollectionListGroupProps): ReactN
             // minted for exactly this (glyph↔text inside an island); the padding drops one step for the
             // same reason. Pinned by the narrow-pane CT.
             className="min-w-0 flex-1 justify-start gap-tight px-tight"
+            data-config-group={group.id}
             data-slot="config-band"
             intent="ghost"
             onClick={(): void => toggleConfigGroup(group.id)}
@@ -336,6 +331,77 @@ export function CollectionListGroup({ group }: CollectionListGroupProps): ReactN
           once expanded would read as a library the user has to open to learn is empty. */}
       {isEmpty ? <CollectionGroupEmpty collection={collection} /> : null}
     </Stack>
+  );
+}
+
+/** A ZERO-MEMBER collection's band. Its own component for the same reason every other arm here is one —
+ *  the group frame reads as a dispatch, not as a pile of ternaries — and because this arm is the ONE band
+ *  whose act is selection rather than disclosure, which is a fact worth reading in one place. */
+function CollectionEmptyBand({
+  group,
+  count,
+  active,
+}: {
+  readonly group: CollectionGroupDefinition;
+  readonly count: number | undefined;
+  readonly active: boolean;
+}): ReactElement {
+  return (
+    // ── THE RULING FORK, STATED (#1099 F5 · the 2026-08-06 P2 ruling in this file, preserved) ──
+    // This band was a plain <Row> because "A ZERO-MEMBER GROUP HAS NOTHING TO DISCLOSE": the old band
+    // kept a live toggle whose panel opened onto nothing. That ruling was right and it survives
+    // INTACT — there is still no chevron, no `aria-expanded`, no panel. Its INPUT changed: the new
+    // finding is that the row was not merely undisclosing, it was not a CONTROL at all — `snap --aria`
+    // read `text: Regex scripts 0` while a populated sibling read `button "Tags 28"`, so a first-run
+    // reader could neither click nor TAB to the library they came for, and interactivity was decided
+    // by population. So the band becomes a button whose act is SELECTION, never disclosure: it makes
+    // the group active and the CONTENT pane lands on its empty surface (config-content-surface.tsx),
+    // which is the only reading under which "a row is a door" is literally true.
+    //
+    // SCOPE, so nobody generalises this by accident (owner ruling 2026-09-02, recorded on #925): a
+    // collection is a GENUINELY DISTINCT species from a settings group, and that distinctness is
+    // legitimate — what was illegitimate was a band that did nothing at all. This arm fixes THAT, and
+    // says nothing about the POPULATED band, whose activation is still its disclosure (the ruling above,
+    // intact). Whether a populated collection keeps disclosure-primary is #925's design call.
+    <Button
+      aria-current={active ? "true" : undefined}
+      // UNGLUED, exactly like its populated twin above (side-eye 2026-08-19 ARIA): the label and the
+      // count are adjacent inline nodes, so a computed name welds them into "Regex scripts0". The
+      // separator is a SPACE, not a comma, because the visible band reads "Regex scripts 0" and a name
+      // must CONTAIN what it shows (WCAG 2.5.3).
+      aria-label={`${group.label} ${String(count)}`}
+      className="min-w-0 flex-1 justify-start gap-tight px-tight"
+      // A BAND NAMES ITS OWN GROUP (side-eye 2026-08-19: a band addressable only as a descendant of
+      // its group is a path, not an identity). Every settings band carries the pair; a collection
+      // band carried it on the wrapper alone, so a sweep reading ids off `[data-slot=config-band]`
+      // got an empty string for it — which is how the LIST sweep hung on a selector matching nothing.
+      data-config-group={group.id}
+      data-slot="config-band"
+      intent="ghost"
+      onClick={(): void => selectConfigGroup(group.id, null)}
+      size="sm"
+      type="button"
+    >
+      {/* THE DISCLOSURE GUTTER IS RESERVED, NOT RECLAIMED (side-eye 2026-08-08 P3). Dropping the
+          chevron also dropped its 16px box and the 4px joint, so a zero-member band's glyph started
+          20px left of every sibling's and the LIST's left edge became data-dependent — a ragged column
+          that reads as a rendering bug, not as a stood-down door. The spacer is the SAME `Icon` at the
+          SAME size, merely `invisible` (visibility:hidden keeps the box, drops the paint, and the glyph
+          is already decorative/aria-hidden), so the gutter cannot drift from the chevron it stands in
+          for the way a re-spelled width would. */}
+      <Icon className="invisible" icon={ChevronRight} size="sm" />
+      <Icon icon={group.icon} size="sm" />
+      <Text as="span" voice="interactiveKicker" className="truncate">
+        {group.label}
+      </Text>
+      {/* AND IT SAYS ZERO (same finding). Every other band carries its count, so the one band with
+          nothing in it was also the one band that declined to say how much — leaving "empty" and "the
+          count hasn't loaded" indistinguishable at exactly the moment the number is the point.
+          `isEmpty` IS `count === 0`, so the datum is known here by construction. */}
+      <Text as="span" voice="datum">
+        {count}
+      </Text>
+    </Button>
   );
 }
 

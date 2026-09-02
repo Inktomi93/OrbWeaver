@@ -18,6 +18,15 @@ import { ConfigHostStory } from "../_ct-stories.tsx";
 
 const USER_SETTINGS_VIEW = { userId: "user_ct_search", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 };
 
+/** EXACTLY ONE SETTING CHANGED, the live drive's own case (#1099 F16): `appearance.chatStyle` off its
+ *  `bubble` default. Its section (Message style) owns two other leaves that are still at their defaults —
+ *  which is the whole point: the defect was that a section-grain verdict answered for every leaf under it,
+ *  so one changed setting returned five rows and three of them were untouched. */
+const MODIFIED_SETTINGS_VIEW = {
+  ...USER_SETTINGS_VIEW,
+  config: { ...DEFAULT_USER_SETTINGS, appearance: { ...DEFAULT_USER_SETTINGS.appearance, chatStyle: "flat" } },
+};
+
 /** One tag, so a MEMBER row exists for the dynamic-rows pin. */
 const TAG = {
   id: "tag_ct_search00000001",
@@ -154,4 +163,71 @@ test("`when` parity: a plain viewer's search has NO admin hits — one predicate
 
   await component.getByRole("combobox", { name: "Search settings" }).fill("engines");
   await expect(component.getByRole("option", { name: /Engines/ })).toHaveCount(0);
+});
+
+// ── `@modified`: the honest answer, and the mark that makes it findable (#1099 F16 + Errand A) ───────────
+// The LIST-band and shelf pins ride in THIS file rather than the list surface's own CT because they read the
+// SAME derivation as the search filter (`useConfigModified`) off the SAME one-changed-setting stub: split
+// across two files, the two halves could drift into disagreeing about which sections are modified, which is
+// exactly the failure the one-map derivation exists to prevent.
+
+test("@modified returns ONLY what differs — an unmodified sibling leaf of a modified section is not a hit", async ({ mount, page }) => {
+  await stub(page, { "settings.getUserSettings": () => MODIFIED_SETTINGS_VIEW });
+  const component = await mount(<ConfigHostStory />);
+
+  await component.getByRole("combobox", { name: "Search settings" }).fill("@modified ");
+  const options = component.getByRole("listbox").getByRole("option");
+  await expect(options).toHaveCount(3);
+  // The group that holds it, the section that owns the key, and the leaf itself — nothing else.
+  await expect(component.getByRole("option", { name: /^Appearance/ })).toHaveCount(1);
+  await expect(component.getByRole("option", { name: /^Message style/ })).toHaveCount(1);
+  await expect(component.getByRole("option", { name: /^Chat display/ })).toHaveCount(1);
+  // The two leaves that ride the same section and were never touched.
+  await expect(component.getByRole("option", { name: /Color quoted speech/ })).toHaveCount(0);
+  await expect(component.getByRole("option", { name: /Auto-fix unfinished formatting/ })).toHaveCount(0);
+});
+
+test("every @modified hit CARRIES the mark — in its visible row and in its accessible name", async ({ mount, page }) => {
+  await stub(page, { "settings.getUserSettings": () => MODIFIED_SETTINGS_VIEW });
+  const component = await mount(<ConfigHostStory />);
+
+  await component.getByRole("combobox", { name: "Search settings" }).fill("@modified ");
+  const options = component.getByRole("listbox").getByRole("option");
+  await expect(options).toHaveCount(3);
+  for (const option of await options.all()) {
+    // The name is label (+ group) + the mark, joined with spaces by `aria-labelledby` — the visible token IS
+    // the announced one, so a screen-reader user is told which hits are the changed ones too.
+    await expect(option).toHaveAccessibleName(/ Modified$/);
+    await expect(option.locator('[data-slot="config-search-mark"]')).toBeVisible();
+  }
+});
+
+test("a modified setting is findable from a PLAIN query too: the hit says so without the token", async ({ mount, page }) => {
+  await stub(page, { "settings.getUserSettings": () => MODIFIED_SETTINGS_VIEW });
+  const component = await mount(<ConfigHostStory />);
+
+  await component.getByRole("combobox", { name: "Search settings" }).fill("chat display");
+  await expect(component.getByRole("option", { name: /^Chat display/ }).first()).toHaveAccessibleName(/ Modified$/);
+});
+
+test("modified PROPAGATES UP: the group band and its shelf say so, at rest, with nothing typed", async ({ mount, page }) => {
+  await stub(page, { "settings.getUserSettings": () => MODIFIED_SETTINGS_VIEW });
+  const component = await mount(<ConfigHostStory />);
+
+  // The band carries the word INSIDE the button, so it is part of the band's own accessible name.
+  await expect(component.getByRole("button", { name: "Appearance Modified" })).toBeVisible();
+  await expect(component.locator('[data-config-group="appearance"] [data-slot="config-group-modified"]')).toBeVisible();
+  await expect(component.locator('[data-config-shelf="user"] [data-slot="config-shelf-modified"]')).toBeVisible();
+  // A group with nothing changed inside it stays unmarked — the mark is a verdict, not decoration.
+  await expect(component.locator('[data-config-group="connections"] [data-slot="config-group-modified"]')).toHaveCount(0);
+});
+
+test("nothing modified ⇒ no marks anywhere, and @modified is an honest empty", async ({ mount, page }) => {
+  await stub(page);
+  const component = await mount(<ConfigHostStory />);
+
+  await expect(component.locator('[data-slot="config-group-modified"]')).toHaveCount(0);
+  await expect(component.locator('[data-slot="config-shelf-modified"]')).toHaveCount(0);
+  await component.getByRole("combobox", { name: "Search settings" }).fill("@modified ");
+  await expect(component.getByRole("listbox").getByRole("option")).toHaveCount(0);
 });

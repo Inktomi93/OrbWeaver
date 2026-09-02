@@ -5,10 +5,10 @@
 // `@` filter semantics — including `@modified` over a planted changed key and the `@advanced` flip.
 // DOM-free pure logic → a browser-free unit test (Spine-Testing.md §7); deep-imports the lib module.
 
-import type { ConfigGroupDefinition, ConfigGroupId, ConfigGroupRegistry, ConfigSubcategory, ModifiedSubIds } from "@orb/client/state";
+import type { ConfigGroupDefinition, ConfigGroupId, ConfigGroupRegistry, ConfigModifiedMap, ConfigSubcategory } from "@orb/client/state";
 import { Settings } from "@orb/ui/icons";
 import type { ConfigSearchEntry } from "../../../../../packages/client/src/features/config/lib/config-search.ts";
-import { buildConfigSearchEntries, filterConfigEntries } from "../../../../../packages/client/src/features/config/lib/config-search.ts";
+import { buildConfigSearchEntries, filterConfigEntries, isConfigEntryModified } from "../../../../../packages/client/src/features/config/lib/config-search.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 function group(id: ConfigGroupId, shelf: ConfigGroupDefinition["shelf"], label: string): ConfigGroupDefinition {
@@ -47,7 +47,7 @@ function registryOf(groups: readonly ConfigGroupDefinition[]): ConfigGroupRegist
 }
 
 const NO_FILTER = { modified: false, advanced: false } as const;
-const NO_MODIFIED: ModifiedSubIds = new Map();
+const NO_MODIFIED: ConfigModifiedMap = { subs: new Map(), settings: new Set() };
 
 function build(visible: (id: ConfigGroupId) => boolean = () => true): readonly ConfigSearchEntry[] {
   return buildConfigSearchEntries(registryOf([APPEARANCE, CONNECTIONS, ADMIN]), visible, (g) => ROWS[g.id] ?? []);
@@ -98,13 +98,42 @@ test("@advanced FLIPS the axis: advanced leaves are hidden by default and are th
   expect(advanced.map((e) => e.settingId)).toEqual(["debug-grid"]);
 });
 
-test("@modified keeps a section (and its leaves, and its group row) only when its OWNED keys differ", () => {
+test("@modified reads the verdict at the entry's OWN grain — a leaf answers for itself, never for its section", () => {
   const entries = build();
-  // The planted verdict: appearance/message-details differs from default; nothing else does.
-  const modified: ModifiedSubIds = new Map([["appearance", new Set(["message-details"])]]);
+  // The planted verdict: appearance/message-details differs from default, and `avatar-size` is the leaf that
+  // differs. `debug-grid` rides the SAME section and is untouched — before #1099 F16 the section grain
+  // answered for it too, which is how one changed setting returned five rows with three unmodified.
+  const modified: ConfigModifiedMap = {
+    subs: new Map([["appearance", new Set(["message-details"])]]),
+    settings: new Set(["appearance::message-details::avatar-size"]),
+  };
   const hits = filterConfigEntries(entries, { ...NO_FILTER, modified: true }, modified);
   expect(hits.map((e) => e.id)).toEqual(["appearance", "appearance::message-details", "appearance::message-details::avatar-size"]);
+  // The advanced axis is orthogonal, so ask for the sibling on its own axis: it is NOT modified either way.
+  const advancedHits = filterConfigEntries(entries, { ...NO_FILTER, advanced: true, modified: true }, modified);
+  expect(advancedHits).toEqual([]);
   expect(filterConfigEntries(entries, { ...NO_FILTER, modified: true }, NO_MODIFIED)).toEqual([]);
+});
+
+test("a MODIFIED SECTION does not launder its untouched leaves (the F16 defect, pinned)", () => {
+  const entries = build();
+  // Same section, verdict present at the SECTION grain only — no leaf is claimed modified.
+  const sectionOnly: ConfigModifiedMap = { subs: new Map([["appearance", new Set(["message-details"])]]), settings: new Set() };
+  const hits = filterConfigEntries(entries, { ...NO_FILTER, modified: true }, sectionOnly);
+  expect(hits.map((e) => e.id)).toEqual(["appearance", "appearance::message-details"]);
+  expect(hits.some((e) => e.kind === "setting")).toBe(false);
+});
+
+test("isConfigEntryModified is the ONE verdict the filter applies, so a rendered mark cannot disagree with it", () => {
+  const entries = build();
+  const modified: ConfigModifiedMap = {
+    subs: new Map([["appearance", new Set(["message-details"])]]),
+    settings: new Set(["appearance::message-details::avatar-size"]),
+  };
+  const filtered = filterConfigEntries(entries, { ...NO_FILTER, modified: true }, modified);
+  expect(filtered.every((e) => isConfigEntryModified(e, modified))).toBe(true);
+  const leaf = entries.find((e) => e.id === "appearance::message-details::debug-grid");
+  expect(leaf === undefined ? null : isConfigEntryModified(leaf, modified)).toBe(false);
 });
 
 test("@ext: narrows to the plugins group (the slug rides the TERMS, not this filter)", () => {

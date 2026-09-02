@@ -67,7 +67,9 @@ export function RegexLibraryGroupStory(): ReactElement {
         reset
       </button>
       <div style={{ overflow: "auto", width: 330 }}>
-        <CollectionListGroup group={REGEX_COLLECTION_GROUP} />
+        {/* Mounted OUTSIDE the config host, so nothing is the current location — the zero-member band's
+            `aria-current` arm (#1099 F5) is the host's verdict, not this story's subject. */}
+        <CollectionListGroup active={false} group={REGEX_COLLECTION_GROUP} />
       </div>
     </CtDataProviders>
   );

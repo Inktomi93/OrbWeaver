@@ -32,3 +32,9 @@ export const CONFIG_CONTEXT_EMPTY = {
   title: "Nothing selected",
   description: "Pick something from the list and this panel shows where it applies.",
 } as const;
+
+/** THE ONE WORD FOR "this differs from its default" (#1099 F16 / Errand A). Every surface that marks the
+ *  state spells it from here — the search result row, the LIST's group band, the shelf — so the marks a
+ *  reader meets while hunting one changed setting cannot read as three different claims. It is the word
+ *  the `@modified` token already teaches ("only settings that differ from their default"). */
+export const CONFIG_MODIFIED_MARKER = "Modified";

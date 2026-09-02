@@ -513,6 +513,11 @@ test("selecting a member routes CONTENT to its owner's editor and CONTEXT to its
 // a per-editor inset is the same defect waiting for the fourth collection.
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────
 const CONTENT = '[data-slot="config-content"]';
+/** The pane COLUMN the scroller and the save receipt both live in — since #1099 F25 it owns the INLINE
+ *  inset for both of them (the receipt used to render 24px outside the content column because the scroller
+ *  padded itself and the footer was a bare sibling). The block inset stays on the scroller: it is scroll
+ *  extent. So "the pane pads, not the editors" is intact — it is spelled one level up on one axis. */
+const PANE = '[data-slot="config-pane"]';
 /** The world-info editor's primary verb — the affordance the report measured ON the pane boundary. */
 const NEW_ENTRY = /New entry/;
 
@@ -541,26 +546,38 @@ test("a mounted member editor is INSET from the CONTENT region on all four sides
   await expect(heading).toBeVisible();
 
   const content = workspace.locator(CONTENT);
+  const pane = workspace.locator(PANE);
   const inset = await resolvedSectionPx(content);
   expect(inset).toBeGreaterThan(0);
+  // ONE token, all four sides, TWO declarations by axis: the column pads inline (so the save receipt below
+  // the scroller shares the measure), the scroller pads block (so the inset is part of the scroll extent
+  // the jump and the spy read). Both are asserted, so neither can quietly go missing.
+  await expect
+    .poll(() =>
+      pane.evaluate((el: HTMLElement) => {
+        const style = getComputedStyle(el);
+        return [style.paddingRight, style.paddingLeft];
+      }),
+    )
+    .toEqual([`${inset}px`, `${inset}px`]);
   await expect
     .poll(() =>
       content.evaluate((el: HTMLElement) => {
         const style = getComputedStyle(el);
-        return [style.paddingTop, style.paddingRight, style.paddingBottom, style.paddingLeft];
+        return [style.paddingTop, style.paddingBottom];
       }),
     )
-    .toEqual([`${inset}px`, `${inset}px`, `${inset}px`, `${inset}px`]);
+    .toEqual([`${inset}px`, `${inset}px`]);
 
-  // …and the editor's own content actually STARTS inside it — the region's origin is no longer the
-  // heading's origin (the report's `heading box → x=363, y=48` against `region origin x=363, y=48`).
-  const regionBox = await content.boundingBox();
+  // …and the editor's own content actually STARTS inside it — the PANE's origin is no longer the heading's
+  // origin (the report's `heading box → x=363, y=48` against `region origin x=363, y=48`).
+  const paneBox = await pane.boundingBox();
   const headingBox = await heading.boundingBox();
-  if (regionBox === null || headingBox === null) {
-    throw new Error("the content region or its editor heading did not render a box");
+  if (paneBox === null || headingBox === null) {
+    throw new Error("the content pane or its editor heading did not render a box");
   }
-  expect(headingBox.x, "the editor heading clears the region's left edge").toBeGreaterThanOrEqual(regionBox.x + inset);
-  expect(headingBox.y, "the editor heading clears the region's top edge").toBeGreaterThanOrEqual(regionBox.y + inset);
+  expect(headingBox.x, "the editor heading clears the pane's left edge").toBeGreaterThanOrEqual(paneBox.x + inset);
+  expect(headingBox.y, "the editor heading clears the pane's top edge").toBeGreaterThanOrEqual(paneBox.y + inset);
 });
 
 test("the editor's PRIMARY action no longer touches the pane boundary", async ({ mount, page }) => {
@@ -576,14 +593,17 @@ test("the editor's PRIMARY action no longer touches the pane boundary", async ({
   await expect(primary).toBeVisible();
 
   const content = workspace.locator(CONTENT);
+  const pane = workspace.locator(PANE);
   const inset = await resolvedSectionPx(content);
-  const regionBox = await content.boundingBox();
+  // Measured against the PANE, which owns the inline inset since #1099 F25 — the scroller's own box now
+  // starts inside it, so the region's right edge would be the boundary AFTER the clearance, not before it.
+  const paneBox = await pane.boundingBox();
   const primaryBox = await primary.boundingBox();
-  if (regionBox === null || primaryBox === null) {
-    throw new Error("the content region or its primary did not render a box");
+  if (paneBox === null || primaryBox === null) {
+    throw new Error("the content pane or its primary did not render a box");
   }
   // The reported state was `content.right === "New entry".right`. A full token of clearance now.
-  expect(primaryBox.x + primaryBox.width, "the primary's right edge clears the pane boundary").toBeLessThanOrEqual(regionBox.x + regionBox.width - inset);
+  expect(primaryBox.x + primaryBox.width, "the primary's right edge clears the pane boundary").toBeLessThanOrEqual(paneBox.x + paneBox.width - inset);
 });
 
 // The welcome carried its OWN `p-block` — the reason the missing editor inset read as deliberate rather

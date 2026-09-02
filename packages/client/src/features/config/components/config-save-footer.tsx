@@ -9,6 +9,14 @@
 // READ-ONLY by ruling (D41): retry belongs to the session that owns the edit, so on `error` this offers to
 // JUMP to the failing section (which renders its own inline retry at its anchor) — never a retry-all.
 // Nothing reported ⇒ renders NOTHING, so a pane whose sections don't report is byte-identical to before.
+//
+// IT SPEAKS AT THE READING STEP, NOT THE SMALLEST ONE (#1099 F25). Every arm used to be the `gloss` voice —
+// 10.5px, muted, the bottom of the type ramp — for the sentence that says whether the thing you just
+// changed is SAFE. `label` is the step for a fact you are meant to read (13px, foreground), and it is one
+// voice across all three arms so the receipt does not shrink when it turns out to be good news. The
+// ALIGNMENT half of the same finding is the column's, not this component's: `config-content-surface.tsx`
+// now puts the scroller and this row on ONE inline grid, so the receipt lands under the content it is
+// about instead of 24px outside it.
 
 import { Button } from "@orb/ui/button";
 import { Row } from "@orb/ui/layout";
@@ -80,7 +88,7 @@ export function ConfigSaveFooter(): ReactElement | null {
     const count = erroredIds.length === 1 ? "A section" : `${erroredIds.length} sections`;
     return (
       <LocateRow role="alert" sectionId={firstErrored} {...locate}>
-        <Text voice="gloss">{`${count} failed to save${canJumpToSection(firstErrored) ? " —" : "."}`}</Text>
+        <Text voice="label">{`${count} failed to save${canJumpToSection(firstErrored) ? " —" : "."}`}</Text>
       </LocateRow>
     );
   }
@@ -96,10 +104,10 @@ export function ConfigSaveFooter(): ReactElement | null {
     const count = blockedIds.length === 1 ? "a section needs a fix" : `${blockedIds.length} sections need a fix`;
     return (
       <LocateRow role="status" sectionId={firstBlocked} {...locate}>
-        <Text className="text-destructive" voice="gloss">
+        <Text className="text-destructive" voice="label">
           Not saved
         </Text>
-        <Text voice="gloss">{`— ${count}${canJumpToSection(firstBlocked) ? "" : "."}`}</Text>
+        <Text voice="label">{`— ${count}${canJumpToSection(firstBlocked) ? "" : "."}`}</Text>
       </LocateRow>
     );
   }
@@ -109,7 +117,7 @@ export function ConfigSaveFooter(): ReactElement | null {
   // device exists to sync to. The word "Saved" is the whole true statement.
   return (
     <Row gap="field" align="center" data-slot="config-save-footer" role="status" aria-live="polite">
-      <Text voice="gloss">{aggregate === "saving" ? "Saving…" : "Saved"}</Text>
+      <Text voice="label">{aggregate === "saving" ? "Saving…" : "Saved"}</Text>
     </Row>
   );
 }

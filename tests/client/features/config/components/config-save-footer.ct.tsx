@@ -76,7 +76,9 @@ test("ERROR: the aggregate flips to the failure, the failing section keeps its O
   await expect(inline).toContainText("Save failed");
   await expect(inline.getByRole("button", { name: "Retry" })).toBeVisible();
   // …and its nav row carries the marker (the row's accessible description, not a bare icon).
-  await expect(page.getByRole("button", { name: "World info" })).toContainText("Save failed");
+  // `exact`: the World Info collection BAND ("World Info 0") is a button too since #1099 F5, and the default
+  // role-name match is a case-insensitive substring. The marker rides the section ROW.
+  await expect(page.getByRole("button", { name: "World info", exact: true })).toContainText("Save failed");
   // The aggregate NEVER offers a retry — it locates (D41).
   await expect(footer.getByRole("button", { name: "Retry" })).toHaveCount(0);
 });
@@ -141,4 +143,55 @@ test("BLOCKED: a section holding its write flips the footer off 'Saved' and stay
   await page.getByRole("button", { name: "Message handling" }).click();
   await footer.getByRole("button", { name: "Show me" }).click();
   await expect(page.locator(PROSE_ANCHOR)).toBeInViewport();
+});
+
+// ── THE RECEIPT LANDS WHERE THE EYE IS (#1099 F25 / N52) ──────────────────────────────────────────────
+// The footer was a bare SIBLING of the padded content scroller, so the one save receipt on the surface
+// rendered 24px OUTSIDE the content column at the smallest step in the type ramp. Both halves are measured
+// here, on the REAL column, against RESOLVED tokens — a hardcoded px would pin the accident, not the rule.
+
+test("SAVED: the receipt is on the content grid — same inline start as the sections it reports on", async ({ mount, page }) => {
+  await openChatBehavior(mount, page, false);
+  await bumpScanDepth(page);
+
+  const footer = page.locator('[data-slot="config-save-footer"]');
+  await expect(footer).toContainText("Saved");
+  // ONE inline grid: the column declares the inset once, so both children start at the same x. RETRYING,
+  // because a box read taken the instant the receipt appears samples a pane that is still settling.
+  await expect
+    .poll(async () => {
+      const receipt = await footer.boundingBox();
+      const section = await page.locator("#config-anchor-chat-behavior-world-info").boundingBox();
+      return receipt === null || section === null ? Number.POSITIVE_INFINITY : Math.abs(receipt.x - section.x);
+    })
+    .toBeLessThanOrEqual(0.5);
+});
+
+test("SAVED: the receipt is at the READING step, not the bottom of the ramp", async ({ mount, page }) => {
+  await openChatBehavior(mount, page, false);
+  await bumpScanDepth(page);
+
+  const footer = page.locator('[data-slot="config-save-footer"]');
+  await expect(footer).toContainText("Saved");
+  // Both verdicts are computed against the RESOLVED tokens inside the page (a rem→px conversion by hand
+  // would drift with the root size), and the whole read RETRIES — the footer's own text step is settled by
+  // the barrier above, but the surrounding pane is still mounting sections.
+  await expect
+    .poll(
+      async () =>
+        await page.evaluate(() => {
+          const resolve = (token: string): number => {
+            const probe = document.createElement("div");
+            probe.style.fontSize = `var(${token})`;
+            document.body.append(probe);
+            const px = Number.parseFloat(getComputedStyle(probe).fontSize);
+            probe.remove();
+            return px;
+          };
+          const node = document.querySelector('[data-slot="config-save-footer"] p');
+          const actual = node === null ? 0 : Number.parseFloat(getComputedStyle(node).fontSize);
+          return { atTheLabelStep: Math.abs(actual - resolve("--text-label")) < 0.5, aboveTheSmallestStep: actual > resolve("--text-micro") };
+        }),
+    )
+    .toEqual({ atTheLabelStep: true, aboveTheSmallestStep: true });
 });
