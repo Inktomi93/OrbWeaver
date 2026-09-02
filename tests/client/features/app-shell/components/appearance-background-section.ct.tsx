@@ -225,7 +225,7 @@ test("a refused URL surfaces the verb's own leak-free reason inline, writes noth
 test("the section's commits settle after mount and stay settled with no user interaction", async ({ mount, page }) => {
   await stub(page);
   await page.evaluate(() => {
-    (globalThis as unknown as { __ctCommits?: number }).__ctCommits = 0;
+    globalThis.__ctCommits = 0;
   });
   await mount(<AppearanceBackgroundSectionCommitTallyStory />);
   await expect(page.getByRole("grid", { name: "Background image" })).toBeVisible();
@@ -238,13 +238,13 @@ test("the section's commits settle after mount and stay settled with no user int
   const firstReading = await page.evaluate(
     () =>
       new Promise<number>((resolve) => {
-        setTimeout(() => resolve((globalThis as unknown as { __ctCommits?: number }).__ctCommits ?? 0), 500);
+        setTimeout(() => resolve(globalThis.__ctCommits ?? 0), 500);
       }),
   );
   const secondReading = await page.evaluate(
     () =>
       new Promise<number>((resolve) => {
-        setTimeout(() => resolve((globalThis as unknown as { __ctCommits?: number }).__ctCommits ?? 0), 500);
+        setTimeout(() => resolve(globalThis.__ctCommits ?? 0), 500);
       }),
   );
 
