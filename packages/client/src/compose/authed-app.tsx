@@ -17,7 +17,7 @@
 // lands here instead of in `main.tsx`.
 
 import type { ReactElement } from "react";
-import { contextToggleChrome, fullscreenChrome, youModal } from "#features/app-shell";
+import { bugReportChrome, contextToggleChrome, fullscreenChrome, youModal } from "#features/app-shell";
 import { reauthModal } from "#features/auth";
 import {
   automationActivityTab,
@@ -330,7 +330,10 @@ const chrome = createContributorRegistry(
     sections: sections.list(),
     modals: modals.list(),
     // U5 (#679, §4.5): the "Plugins" wand — SILENT when a person's plugins register no commands.
-    widgets: [notificationsChrome, pluginCommandsChrome, fullscreenChrome, contextToggleChrome, personaChrome],
+    // `bugReportChrome` (#1095) is registered unconditionally and gates itself on IS_DEV in `useVisible` — the
+    // registry's own no-gap contract, and the same shape every other capability-gated widget here uses. It
+    // renders nothing in a production build.
+    widgets: [notificationsChrome, pluginCommandsChrome, fullscreenChrome, contextToggleChrome, personaChrome, bugReportChrome],
   }),
 );
 

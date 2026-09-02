@@ -23,6 +23,8 @@ export {
   Bone,
   BookOpen,
   BrainCircuit,
+  // The dev bug-found capture's affordance (#1095) — grown per consumer chunk, per this file's header.
+  Bug,
   Cable,
   ChartColumn,
   Check,

@@ -26,6 +26,11 @@ export {
   THEME_CARRIER_OBSERVABLES,
 } from "./appearance-carrier-manifest.ts";
 export { setBootReadPending } from "./boot-reads.ts";
+// The dev bug-report capture (#1095). The BUNDLE builder and the CONSOLE-ERROR RING are deliberately NOT
+// re-exported here — they are dev-instrument internals the bridge installs (the `motion-flaggers.ts` rule);
+// what a feature needs is exactly the capture + the submit.
+export type { BugReportSubmission } from "./bug-report-capture.ts";
+export { captureBugReportBundle, submitBugReport } from "./bug-report-capture.ts";
 export { busDupCheck, busInvalidate, busSubscribe, busUnsubscribe } from "./bus-devlog.ts";
 export { deriveChatTitle, UNTITLED_CHAT_TITLE } from "./chat-title.ts";
 export type { ClientErrorPayload } from "./client-error-report.ts";

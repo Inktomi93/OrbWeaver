@@ -53,6 +53,9 @@ test("the mounted bridge publishes every typed capability and every evidence lif
       motion: Array.isArray(orb.motion().loafs),
       animations: Array.isArray(orb.animations()),
       flags: Array.isArray(orb.flags()),
+      // #1095 — the browser-failure ring. Asserted through its OWN shape (records + the drop tally), because a
+      // capped ring that does not count its evictions reads complete when it is not.
+      consoleErrors: Array.isArray(orb.consoleErrors().records) && typeof orb.consoleErrors().dropped === "number",
       resetFlags: true,
       resetEvidence: true,
       motionFlaggersSettled: true,
@@ -102,7 +105,7 @@ test("the mounted bridge publishes every typed capability and every evidence lif
       capabilityKeys: receipt.handleKeys,
       answerKeys: receipt.handleKeys,
       allAnswer: true,
-      capabilityCount: 27,
+      capabilityCount: 28,
       descriptionsPresent: true,
       rings: [
         expect.objectContaining({ name: "bus-events", read: "bus().events", lifetime: "checkpoint", resettable: true }),
@@ -114,6 +117,7 @@ test("the mounted bridge publishes every typed capability and every evidence lif
         expect.objectContaining({ name: "perf", lifetime: "session", resettable: false }),
         expect.objectContaining({ name: "plugin-log", lifetime: "server-runtime", resettable: false }),
         expect.objectContaining({ name: "automation-fires", lifetime: "durable", resettable: false }),
+        expect.objectContaining({ name: "console-errors", read: "consoleErrors()", lifetime: "checkpoint", resettable: true }),
       ],
       panelDeclarations: [
         { side: "list", available: true },

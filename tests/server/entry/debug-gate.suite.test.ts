@@ -41,6 +41,7 @@ import { describe } from "vitest";
 import { expect, test } from "../../support/fixtures.ts";
 
 const OK = 200;
+const BAD_REQUEST = 400;
 const UNAUTHORIZED = 401;
 const NOT_FOUND = 404;
 
@@ -284,5 +285,58 @@ describe("the two real credentials still open the gate", () => {
   test("a plain USER session cookie is still refused (the role gate is unchanged)", async () => {
     const app = gateApp({ config: baseConfig({ mode: "local" }), sessions: cookieSessions("user"), expectedToken: OPERATOR_TOKEN });
     expect(await outcomes(app, { cookie: "__Host-orb_session=t" })).toEqual(allRefused(true));
+  });
+});
+
+// THE WRITE ROUTE (#1095 — `POST /api/_debug/bug-report`, the dev bug-found button's capture). It is the one
+// non-GET on this surface and the only one that touches the filesystem, so it gets its OWN admission rows here
+// rather than riding `PROBE_PATHS`, which drives GETs. This suite is the route's declared enforcer: the
+// cross-tenant sweep enumerates `appRouter._def.procedures` and is structurally blind to a hono route (owner
+// ruling 2026-09-02), so the gate — and this file — ARE its boundary.
+describe("the bug-report WRITE route is behind the same gate", () => {
+  const bugReport = (app: GateApp, headers: Record<string, string> = {}): Promise<Response> =>
+    Promise.resolve(
+      app.fetch(
+        new Request("http://host-does-not-matter/api/_debug/bug-report", {
+          method: "POST",
+          headers: { "content-type": "application/json", ...headers },
+          body: JSON.stringify({ note: "an un-credentialed caller must never reach the writer", windowMinutes: null }),
+        }),
+      ),
+    );
+
+  test("no token configured → 404 (surface off), and NOTHING is written", async () => {
+    const app = gateApp({ config: baseConfig({ mode: "single-user" }), sessions: ownerRowSessions() });
+    const res = await bugReport(app);
+    expect(res.status).toBe(NOT_FOUND);
+    expect(await res.json()).toEqual(DISABLED_BODY);
+  });
+
+  test("token configured, none sent → 401, and NOTHING is written", async () => {
+    const app = gateApp({ config: baseConfig({ mode: "single-user" }), sessions: ownerRowSessions(), expectedToken: OPERATOR_TOKEN });
+    const res = await bugReport(app);
+    expect(res.status).toBe(UNAUTHORIZED);
+    expect(await res.json()).toEqual(UNAUTHORIZED_BODY);
+  });
+
+  test("a plain USER session cookie is refused on the WRITE too", async () => {
+    const app = gateApp({ config: baseConfig({ mode: "local" }), sessions: cookieSessions("user"), expectedToken: OPERATOR_TOKEN });
+    const res = await bugReport(app, { cookie: "__Host-orb_session=t" });
+    expect(res.status).toBe(UNAUTHORIZED);
+  });
+
+  // POSITIVE CONTROL — without it the three refusals above could pass because the route never registered.
+  // A credentialed caller sending an EMPTY note reaches the handler and is refused by the SCHEMA (400), which
+  // proves admission without writing a file into the repo from a unit lane.
+  test("the operator's token reaches the handler (400 from the schema, not 401/404 from the gate)", async () => {
+    const app = gateApp({ config: baseConfig({ mode: "single-user" }), sessions: ownerRowSessions(), expectedToken: OPERATOR_TOKEN });
+    const res = await app.fetch(
+      new Request("http://host-does-not-matter/api/_debug/bug-report", {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-debug-token": OPERATOR_TOKEN },
+        body: JSON.stringify({ note: "   ", windowMinutes: null }),
+      }),
+    );
+    expect(res.status).toBe(BAD_REQUEST);
   });
 });
