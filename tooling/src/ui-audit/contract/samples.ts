@@ -151,6 +151,18 @@ export interface TextStyleInput {
    *  `--reading-measure: 75ch`. `0` means the measurement did not happen — read as NO VERDICT, never as
    *  a narrow line. Optional because this type also describes samples from an older walker string. */
   readonly chWidthPx?: number;
+  /** The AVERAGE advance of one character of THIS element's own running text, canvas-measured in its own
+   *  font (#1183). It is the design law's unit — skill §2 counts "65-75 characters" by average glyph
+   *  advance — and it is NOT `chWidthPx`: a `0` is 0.6625em in Geist while running prose averages
+   *  0.42-0.46em, so a box holds ~1.5x as many law-characters as CSS `ch` and a ceiling denominated in the
+   *  wrong one passes a 117-character paragraph (#1145's ruling). `0` means the measurement did not
+   *  happen — read as NO VERDICT. Optional: absent in sample sets from an older walker string. */
+  readonly glyphAdvancePx?: number;
+  /** This text sits inside the chat TRANSCRIPT (`[data-slot="message-bubble"]`), which takes the wider
+   *  `--reading-measure` (75ch) by owner ruling and is therefore judged in CSS `ch` against its own token
+   *  rather than against the 65-75 law-character band (#1145). Optional: absent reads as ordinary prose,
+   *  i.e. the STRICTER arm — a missing fact never buys a wider ceiling. */
+  readonly readingSurface?: boolean;
   /** p/li/td/th/dd/blockquote/figcaption — the prose tags line-length judges. */
   readonly isProseTag: boolean;
   readonly isHeading: boolean;
@@ -179,6 +191,11 @@ export interface TextStyleInput {
    *  the caveat rule (#652) anchors on it rather than trying to infer importance from pixels. Optional:
    *  absent in the fixture sample sets that predate it, where it reads as un-voiced. */
   readonly voice?: string;
+  /** The `data-voice` stamped on THIS element only — never inherited from a carrier. `line-length` widens
+   *  its prose population by voice (#1183) and an inherited voice would drag every nested `<span>` of a
+   *  `voice="reading"` paragraph into the census as its own measurable line, each with a wrap-box width
+   *  that is not a reading measure. Optional: absent in sample sets that predate it. */
+  readonly ownVoice?: string;
   /** Inside `role="alert" | "alertdialog" | "status"` — the platform's own "this bounds what you are about
    *  to do". The second anchor the caveat rule accepts, so a warning written without a voice is still
    *  judged. Optional: absent in older fixture sample sets. */

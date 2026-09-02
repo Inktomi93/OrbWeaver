@@ -643,3 +643,74 @@ Four new controls in `tests/tooling/ui-audit/ops/walker/census-region.int.test.t
 checked cell whose own indicator is a paint layer is judged while that indicator cohort is
 `excluded(nestedStatePart)`; a scrim painted between the base and the cells still withholds; a chip that
 paints ON TOP of a cell no longer withholds; an explicit z-index keeps the veto.
+
+## Amendment — the reading-measure population and the pseudo-carried route (#1183, #1172, 2026-09-02)
+
+Two rules were reporting complete, well-formed rows over a population or a unit that could not produce the
+defect. The counters settled; the semantics under them did not.
+
+### 7. `line-length` — a closed reason set, in the unit the LAW counts
+
+`line-length` carries a closed reason set: `excluded(srOnly, notProseTag, chromeVoice, noRenderedBox,
+noTypeSize)` · `withheld(glyphAdvanceUnmeasured, chAdvanceUnmeasured)`.
+
+Two members are new and both are #1183. The first is a UNIT correction, not an accounting one: the rule
+compared a 65-75 **law-character** band against a CSS `ch` count. CSS `ch` is the `0` advance (0.6625em in
+Geist) while a character of running prose averages 0.42-0.46em, so one `ch` is ~1.5 law-characters (owner
+ruling 2026-09-02, #1145) and a 75ch paragraph passed a "75" ceiling at 117 real characters. The rule now
+judges by the AVERAGE GLYPH ADVANCE of the element's own text, canvas-measured in its own font, and prints
+BOTH numbers in every finding — the two units are the defect, so a row naming one of them cannot be checked
+against the token it cites. The two reading measures are two ARMS: the chat transcript
+(`[data-slot="message-bubble"]`) keeps `--reading-measure` (75ch) and is judged in `ch` against its own
+token, so #464's ruling — an instrument may not indict the ratified measure — survives verbatim in the arm
+where 75ch is still ratified; everything else takes `--reading-measure-prose` and is judged against 80
+law-characters, ~10% above the token's 67-73. Each arm withholds under its OWN denominator's name, because
+"the `0` advance was unreadable" and "the prose advance was unreadable" are different blindnesses.
+
+The second is a POPULATION correction. `notProseTag` was one label over two different facts and covered 55
+of 64 candidates on the Home surface, so the rule reported `affected=0` beside a 91-character paragraph.
+The prose population is now the prose TAGS plus the app's own prose VOICES (`reading`, `gloss`, `quiet` —
+the reading-surface law's teaching copy, glosses and settings-row descriptions, read from the element's own
+`data-voice` and never an inherited one), and the remainder splits: `chromeVoice` is an authored claim that
+the node is a kicker/label/datum/credit/display line — measured evidence of inapplicability — while
+`notProseTag` keeps its original meaning of unlabelled markup this rule cannot claim.
+
+```text
+$ pnpm design-audit / --isolated --ref <sha>                                   # Home, same warm stage
+BEFORE  POPULATION line-length candidates=64 judged=6 affected=0 withheld() excluded(srOnly=3 notProseTag=55)
+AFTER   POPULATION line-length candidates=64 judged=6 affected=1 withheld() excluded(srOnly=3 notProseTag=33 chromeVoice=22)
+AFTER   P3 line-length  this line measures 91 characters (65 CSS ch) — past the 80 characters ceiling
+```
+
+### 8. `carried` — a route TAG over candidates, outside the settlement arithmetic
+
+`promoted-layer-offset` walked ELEMENTS and called `getComputedStyle` with no pseudo argument, so when the
+shell panes moved their glass onto a `::before` fill layer (#1154) the whole cohort left the census in
+silence: `candidates=1` became `candidates=0`, which prints exactly like a surface with nothing to promote
+(#987's shape, one rule over). The census now has a pseudo arm whose subject is the HOST with the pseudo
+named, sharing ONE promotion vocabulary with the element pass.
+
+A cohort that can enter or leave a denominator invisibly needs a name in the row, and neither `withheld`
+nor `excluded` can hold it — those are dispositions and every pseudo candidate still receives one. So a
+rule-owned population may carry a fifth map, `carried`, counting how many CANDIDATES arrived by a named
+non-default route (`pseudo`). It is a TAG: it never participates in `candidates = judged + withheld +
+excluded`, and its only settlement rule is `sum(carried) <= candidates`. It prints last and ONLY where a
+census has an alternate route — an empty `carried()` on the other rows would read as "this rule has a route
+and saw none of it", which is the silence being fixed.
+
+The landing is DERIVED, never guessed: only an absolutely positioned pseudo whose host provably establishes
+its containing block has a box the walk can compute (host border box + border width + the pseudo's own
+resolved inset). An in-flow pseudo, an `auto` inset or a host that is not the containing block is
+`withheld(pseudoBoxUnmeasurable)` — a landing measured off the wrong box is the false-measurement half of
+the same lie the missing cohort was.
+
+```text
+$ pnpm design-audit / --goto characters --panel list=docked --isolated --ref <sha>
+BEFORE  POPULATION promoted-layer-offset candidates=0 judged=0 affected=0 withheld() excluded() collapsed()
+AFTER   POPULATION promoted-layer-offset candidates=1 judged=1 affected=0 withheld() excluded() collapsed() carried(pseudo=1)
+```
+
+Controls in both directions: `tests/tooling/design-audit-walker.ct.tsx` mounts a pseudo-carried promotion on
+a half-pixel host (judged, fires), an element-carried twin (unchanged), and an in-flow pseudo (withheld by
+name); `tests/tooling/ui-audit/lib/checks-grid.test.ts` pins the two message shapes, since a pseudo has no
+box of its own and "give the layer an integer offset" names a thing nobody can edit.

@@ -52,6 +52,7 @@ import {
   checkTextStyle,
   checkTruncatedText,
   checkZIndex,
+  classifyTextStyle,
   collectFindings,
   DESIGN_AUDIT_RULES,
   fontCensusPopulations,
@@ -999,13 +1000,19 @@ test("code contexts and sr-only text are exempt from the type floors", () => {
   expect(checkTextStyle({ ...TEXT_STYLE_BASE, fontSizePx: 8, codeContext: true }).map((f) => f.rule)).not.toContain("text-below-ramp");
   expect(checkTextStyle({ ...TEXT_STYLE_BASE, fontSizePx: 8, srOnly: true })).toEqual([]);
 });
-
-// #464: this rule used to divide by a GUESSED character width (fontSize × 0.5). Geist's real '0'
-// advance is 0.573em, so every measure came out ~15% long and the rule filed an "86 chars" P3 against
-// the home resume snippet, which is 75.0 REAL characters — the house's own ratified
-// `--reading-measure: 75ch`. The denominator is now the MEASURED ch advance, and the arms below are
-// pinned in real characters at the real Geist ratio (15px × 0.573 = 8.6px/ch).
-const GEIST_CH_15PX = 8.6;
+// #464 (kept, because it is the FIRST half of the same lesson): this rule once divided by a GUESSED
+// character width (fontSize × 0.5), so every measure came out ~15% long and it filed an "86 chars" P3
+// against a paragraph that was 75.0 CSS ch — the house's own ratified measure at the time. The fix was to
+// MEASURE the denominator instead of guessing it. #1183 is the second half: measuring the wrong denominator
+// is the same defect wearing a receipt.
+//
+// #1183/#1145 — THE TWO UNITS. `ch` is the '0' advance (0.6625em in Geist); a character of running prose
+// averages ~0.44em, so one CSS ch is ~1.5 law-characters and the SAME BOX has two legitimate numbers. The
+// pair below is measured Geist at 15px: 9.94px per `ch`, 6.6px per average glyph. Every arm here pins which
+// unit its ceiling is in, because the whole #1183 defect was a law-character ceiling compared to a `ch`
+// count — 75ch read as "75", passed, and the paragraph was 117 characters wide.
+const GEIST_CH_15PX_TRUE = 9.94;
+const GEIST_GLYPH_15PX = 6.6;
 
 auditRuleTest(
   [
@@ -1014,53 +1021,119 @@ auditRuleTest(
   ],
   "an over-wide prose block fires line-length; a normal measure passes",
   () => {
-    // 900px / 8.6px ≈ 105 real chars — past the 85 gate.
-    const wide = checkTextStyle({ ...TEXT_STYLE_BASE, totalTextLen: 200, rectWidth: 900, chWidthPx: GEIST_CH_15PX });
+    // 900px / 6.6px ≈ 136 law-characters — well past the 80 ceiling.
+    const wide = checkTextStyle({ ...TEXT_STYLE_BASE, totalTextLen: 200, rectWidth: 900, glyphAdvancePx: GEIST_GLYPH_15PX });
     expect(wide.map((f) => f.rule)).toContain("line-length");
-    // 500px / 8.6px ≈ 58 real chars.
-    const normal = checkTextStyle({ ...TEXT_STYLE_BASE, totalTextLen: 200, rectWidth: 500, chWidthPx: GEIST_CH_15PX });
+    // 47ch at 15px Geist = 467px = ~71 law-characters: the ratified PROSE measure, and it must stay clean.
+    const normal = checkTextStyle({ ...TEXT_STYLE_BASE, totalTextLen: 200, rectWidth: 47 * GEIST_CH_15PX_TRUE, glyphAdvancePx: GEIST_GLYPH_15PX });
     expect(normal.map((f) => f.rule)).not.toContain("line-length");
   },
 );
 
-test("a line AT the ratified 75ch reading measure is clean — the instrument may not indict the house measure", () => {
-  const atMeasure = checkTextStyle({ ...TEXT_STYLE_BASE, totalTextLen: 200, rectWidth: 75 * GEIST_CH_15PX, chWidthPx: GEIST_CH_15PX });
-  const reported = checkTextStyle({ ...TEXT_STYLE_BASE, totalTextLen: 200, rectWidth: 75 * GEIST_CH_15PX, chWidthPx: GEIST_CH_15PX }).find(
-    (f) => f.rule === "line-length",
-  );
-
+// #464's ruling SURVIVES — ITS INPUT CHANGED (owner ruling 2026-09-02, #1145). "The instrument may not
+// indict the ratified measure" is still law; what moved is WHICH token is ratified for WHICH surface. The
+// transcript keeps `--reading-measure: 75ch` and is judged in `ch`, so the original pin holds verbatim in
+// that arm. Everything else takes `--reading-measure-prose: 47ch`, so a 75ch TEACHING paragraph is 117
+// law-characters and IS the finding — the exact paragraph #1183 was filed over.
+test("the 75ch transcript measure stays clean, while the same box as PROSE fires at its real character count", () => {
+  const box = 75 * GEIST_CH_15PX_TRUE;
+  const transcript = checkTextStyle({
+    ...TEXT_STYLE_BASE,
+    totalTextLen: 200,
+    rectWidth: box,
+    chWidthPx: GEIST_CH_15PX_TRUE,
+    glyphAdvancePx: GEIST_GLYPH_15PX,
+    readingSurface: true,
+  });
   expect(
-    atMeasure.map((f) => f.rule),
-    `75ch is the ratified measure; the old 0.5 guess reported it as ~86 chars and filed it. got ${JSON.stringify(reported)}`,
+    transcript.map((f) => f.rule),
+    "a message bubble at its own ratified token is not a finding (#464's surviving half)",
   ).not.toContain("line-length");
-  // The pre-fix arithmetic, kept as the explicit regression this test exists for: the same box under
-  // the guessed ratio reads 86 chars and fires.
-  expect(Math.round((75 * GEIST_CH_15PX) / (TEXT_STYLE_BASE.fontSizePx * 0.5))).toBe(86);
+
+  const prose = checkTextStyle({
+    ...TEXT_STYLE_BASE,
+    totalTextLen: 200,
+    rectWidth: box,
+    chWidthPx: GEIST_CH_15PX_TRUE,
+    glyphAdvancePx: GEIST_GLYPH_15PX,
+  }).find((f) => f.rule === "line-length");
+  expect(prose, "a 75ch teaching paragraph is 113 characters — the #1183 blindness").toBeDefined();
+  expect(prose?.value, "BOTH units print, because confusing them is the defect").toBe("113 characters (75 CSS ch)/line");
 });
 
 test("line-length reports REAL characters, and refuses a verdict when the advance was not measured", () => {
-  const measured = checkTextStyle({ ...TEXT_STYLE_BASE, totalTextLen: 200, rectWidth: 100 * GEIST_CH_15PX, chWidthPx: GEIST_CH_15PX }).find(
-    (f) => f.rule === "line-length",
-  );
-  expect(measured?.value).toBe("100 chars/line");
+  const measured = checkTextStyle({
+    ...TEXT_STYLE_BASE,
+    totalTextLen: 200,
+    rectWidth: 100 * GEIST_GLYPH_15PX,
+    glyphAdvancePx: GEIST_GLYPH_15PX,
+  }).find((f) => f.rule === "line-length");
+  expect(measured?.value).toContain("100 characters");
 
   // A zero advance is "the canvas refused", not "a narrow line" — a bare number from an unmeasured
   // instrument is exactly the class of lie this fix exists to stop.
-  const unmeasured = checkTextStyle({ ...TEXT_STYLE_BASE, totalTextLen: 200, rectWidth: 5000, chWidthPx: 0 });
+  const unmeasured = checkTextStyle({ ...TEXT_STYLE_BASE, totalTextLen: 200, rectWidth: 5000, glyphAdvancePx: 0 });
   expect(unmeasured.map((f) => f.rule)).not.toContain("line-length");
+  // …and the transcript arm refuses on ITS OWN denominator: a measured glyph advance does not license a
+  // verdict about a box whose `ch` advance was never read.
+  const transcriptUnmeasured = checkTextStyle({
+    ...TEXT_STYLE_BASE,
+    totalTextLen: 200,
+    rectWidth: 5000,
+    chWidthPx: 0,
+    glyphAdvancePx: GEIST_GLYPH_15PX,
+    readingSurface: true,
+  });
+  expect(transcriptUnmeasured.map((f) => f.rule)).not.toContain("line-length");
 });
 
-test("tracking counts toward the measure — a tracked line fits fewer characters than its ch count", () => {
-  const tracked = checkTextStyle({ ...TEXT_STYLE_BASE, totalTextLen: 200, rectWidth: 90 * GEIST_CH_15PX, chWidthPx: GEIST_CH_15PX, letterSpacingPx: 2 });
-  const untracked = checkTextStyle({ ...TEXT_STYLE_BASE, totalTextLen: 200, rectWidth: 90 * GEIST_CH_15PX, chWidthPx: GEIST_CH_15PX });
+// #1183 — THE POPULATION, not just the ceiling. `<Text as="span" voice="gloss">` is a settings-row
+// description: prose by the reading-surface law, invisible to a prose-TAG census, and 55 of 64 samples on
+// the surface that produced the row left as `notProseTag`.
+test("a prose VOICE on a non-prose tag is judged, and an authored chrome voice is excluded by its own name", () => {
+  const wide = { ...TEXT_STYLE_BASE, tag: "span", isProseTag: false, totalTextLen: 200, rectWidth: 900, glyphAdvancePx: GEIST_GLYPH_15PX };
+
+  expect(
+    checkTextStyle({ ...wide, ownVoice: "gloss" }).map((f) => f.rule),
+    "a gloss is copy a user reads in lines",
+  ).toContain("line-length");
+  expect(checkTextStyle({ ...wide, ownVoice: "reading" }).map((f) => f.rule)).toContain("line-length");
+  expect(checkTextStyle({ ...wide, ownVoice: "quiet" }).map((f) => f.rule)).toContain("line-length");
+  // The population did not widen to everything: a datum's label is chrome, not a reading measure.
+  expect(checkTextStyle({ ...wide, ownVoice: "label" }).map((f) => f.rule)).not.toContain("line-length");
+  expect(checkTextStyle({ ...wide, ownVoice: "kicker" }).map((f) => f.rule)).not.toContain("line-length");
+
+  expect(classifyTextStyle({ ...wide, ownVoice: "label" }, "line-length")).toEqual({ kind: "excluded", reason: "chromeVoice" });
+  expect(classifyTextStyle({ ...wide, ownVoice: "" }, "line-length")).toEqual({ kind: "excluded", reason: "notProseTag" });
+  expect(classifyTextStyle({ ...wide, ownVoice: "gloss" }, "line-length").kind).toBe("judged");
+});
+
+test("each measure arm withholds under its OWN name, so a blind denominator is nameable", () => {
+  const base = { ...TEXT_STYLE_BASE, totalTextLen: 200, rectWidth: 900 };
+  expect(classifyTextStyle({ ...base, glyphAdvancePx: 0 }, "line-length")).toEqual({ kind: "withheld", reason: "glyphAdvanceUnmeasured" });
+  expect(classifyTextStyle({ ...base, chWidthPx: 0, readingSurface: true }, "line-length")).toEqual({
+    kind: "withheld",
+    reason: "chAdvanceUnmeasured",
+  });
+});
+
+test("tracking counts toward the measure — a tracked line fits fewer characters than its glyph count", () => {
+  const tracked = checkTextStyle({
+    ...TEXT_STYLE_BASE,
+    totalTextLen: 200,
+    rectWidth: 85 * GEIST_GLYPH_15PX,
+    glyphAdvancePx: GEIST_GLYPH_15PX,
+    letterSpacingPx: 2,
+  });
+  const untracked = checkTextStyle({ ...TEXT_STYLE_BASE, totalTextLen: 200, rectWidth: 85 * GEIST_GLYPH_15PX, glyphAdvancePx: GEIST_GLYPH_15PX });
 
   expect(
     untracked.map((f) => f.rule),
-    "90 bare ch is past the gate",
+    "85 bare law-characters is past the 80 ceiling",
   ).toContain("line-length");
   expect(
     tracked.map((f) => f.rule),
-    "the same box with 2px tracking fits ~73 glyphs — not an over-long line",
+    "the same box with 2px tracking fits ~65 glyphs — not an over-long line",
   ).not.toContain("line-length");
 });
 

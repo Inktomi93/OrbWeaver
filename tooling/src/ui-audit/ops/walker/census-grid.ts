@@ -59,17 +59,22 @@ export const WALKER_CENSUS_GRID = `  // ── device-pixel grid landings (crisp
   // THE THREE PROMOTION SHAPES Law 3 names, and only those. A composited layer is rasterized once at its
   // own sub-pixel position, so the browser cannot re-snap the baselines inside it per paint.
   var gridPromotionCache = new WeakMap();
+  // ONE promotion vocabulary for BOTH walks. The element pass and the pseudo pass (#1172) read the same
+  // three shapes off a computed style; a pseudo-only list would be a second decision about what "promoted"
+  // means, and the two would drift the first time Law 3 gains a shape.
+  function gridPromotionKindOf(style) {
+    var backdrop = style.backdropFilter || style.webkitBackdropFilter || "none";
+    var willChange = (style.willChange || "auto").trim();
+    if (backdrop !== "none" && backdrop !== "") return "backdrop-filter";
+    if (willChange !== "auto" && willChange !== "") return "will-change";
+    if (style.transformStyle === "preserve-3d") return "3d";
+    if ((style.transform || "none").indexOf("matrix3d") === 0) return "3d";
+    return null;
+  }
   function gridPromotionKind(el) {
     var known = gridPromotionCache.get(el);
     if (known !== undefined) return known;
-    var style = getComputedStyle(el);
-    var kind = null;
-    var backdrop = style.backdropFilter || style.webkitBackdropFilter || "none";
-    var willChange = (style.willChange || "auto").trim();
-    if (backdrop !== "none" && backdrop !== "") kind = "backdrop-filter";
-    else if (willChange !== "auto" && willChange !== "") kind = "will-change";
-    else if (style.transformStyle === "preserve-3d") kind = "3d";
-    else if ((style.transform || "none").indexOf("matrix3d") === 0) kind = "3d";
+    var kind = gridPromotionKindOf(getComputedStyle(el));
     gridPromotionCache.set(el, kind);
     return kind;
   }
@@ -203,6 +208,76 @@ export const WALKER_CENSUS_GRID = `  // ── device-pixel grid landings (crisp
       leftDeviceFrac: gpLanding.leftDeviceFrac,
       promotion: gpKind,
     });
+  }
+
+  // ── LAW 3, THE PSEUDO ARM: a promotion carried by ::before / ::after ──────
+  // A COHORT THAT LEFT THE DENOMINATOR SILENTLY (#1172, the #987 shape). The pass above walks ELEMENTS and
+  // calls getComputedStyle with no pseudo argument, so when the shell panes moved their glass onto a
+  // \`::before\` fill layer (#1154) the Characters census went candidates=1 -> candidates=0 and read like a
+  // surface with nothing to judge. A pseudo composites exactly like an element: its raster inherits the
+  // layer's fractional offset, and Law 4's text sits above it.
+  //
+  // THE SUBJECT IS THE HOST WITH THE PSEUDO NAMED, because the host is where the repair lands (a pseudo
+  // has no box of its own to move). THE LANDING IS DERIVED, NOT GUESSED: only an ABSOLUTELY POSITIONED
+  // pseudo whose host provably establishes its containing block has a box this walk can compute
+  // (host border-box + border width + the pseudo's own resolved inset). Every other shape — an in-flow
+  // pseudo, an \`auto\` inset, a host that is not the containing block — is WITHHELD by name, never judged
+  // from the host's own rect: a landing measured off the wrong box is the false-measurement half of the
+  // same lie the missing cohort was.
+  var GRID_PSEUDOS = ["::before", "::after"];
+  function gridHostIsContainingBlock(style) {
+    if ((style.position || "static") !== "static") return true;
+    if ((style.transform || "none") !== "none" || (style.filter || "none") !== "none") return true;
+    if ((style.backdropFilter || style.webkitBackdropFilter || "none") !== "none") return true;
+    if ((style.perspective || "none") !== "none") return true;
+    if ((style.containerType || "normal") !== "normal") return true;
+    var contain = style.contain || "none";
+    return contain.indexOf("layout") !== -1 || contain.indexOf("paint") !== -1 || contain.indexOf("strict") !== -1 || contain.indexOf("content") !== -1;
+  }
+  function gridPseudoLanding(el, hostStyle, pseudoStyle) {
+    if ((pseudoStyle.position || "static") !== "absolute" || !gridHostIsContainingBlock(hostStyle)) return null;
+    var insetTop = parseFloat(pseudoStyle.top);
+    var insetLeft = parseFloat(pseudoStyle.left);
+    if (!Number.isFinite(insetTop) || !Number.isFinite(insetLeft)) return null;
+    var hostRect = el.getBoundingClientRect();
+    // The abs containing block is the host's PADDING box, so the border width is part of the offset.
+    var top = hostRect.top + (parseFloat(hostStyle.borderTopWidth) || 0) + insetTop;
+    var left = hostRect.left + (parseFloat(hostStyle.borderLeftWidth) || 0) + insetLeft;
+    if (!gridUsableDpr() || !Number.isFinite(top) || !Number.isFinite(left)) return null;
+    return { dpr: gridDpr, topDeviceFrac: gridDeviceFrac(top), leftDeviceFrac: gridDeviceFrac(left) };
+  }
+  for (var gs = 0; gs < allEls.length; gs += 1) {
+    var gsEl = allEls[gs];
+    if (!isVisible(gsEl)) continue;
+    var gsHostStyle = getComputedStyle(gsEl);
+    for (var gsp = 0; gsp < GRID_PSEUDOS.length; gsp += 1) {
+      var gsPseudo = GRID_PSEUDOS[gsp];
+      var gsStyle = getComputedStyle(gsEl, gsPseudo);
+      var gsContent = gsStyle.content || "none";
+      // An ungenerated pseudo is not a subject at all — it has no box and paints nothing.
+      if (gsContent === "none" || gsContent === "normal" || gsContent === "") continue;
+      if ((gsStyle.display || "none") === "none" || (gsStyle.visibility || "visible") === "hidden") continue;
+      var gsKind = gridPromotionKindOf(gsStyle);
+      if (gsKind === null) continue;
+      relationalAccounting["promoted-layer-offset"].candidates += 1;
+      carryRelational(relationalAccounting["promoted-layer-offset"], "pseudo");
+      var gsLanding = gridPseudoLanding(gsEl, gsHostStyle, gsStyle);
+      if (gsLanding === null) {
+        withholdRelational(relationalAccounting["promoted-layer-offset"], "pseudoBoxUnmeasurable");
+        continue;
+      }
+      relationalAccounting["promoted-layer-offset"].judged += 1;
+      promotedLayerOffsets.push({
+        selector: describe(gsEl) + gsPseudo,
+        authoredTarget: authoredTargetClaim(gsEl),
+        authoredHome: authoredTargetHome(gsEl),
+        dpr: gsLanding.dpr,
+        topDeviceFrac: gsLanding.topDeviceFrac,
+        leftDeviceFrac: gsLanding.leftDeviceFrac,
+        promotion: gsKind,
+        pseudo: gsPseudo,
+      });
+    }
   }
 
   // ── LAW 2 (resolved arm): non-identity transforms at rest ─────────────────

@@ -266,6 +266,9 @@ const TEXT_BASE: TextStyleInput = {
   hyphens: "manual",
   rectWidth: 400,
   chWidthPx: 8,
+  // The law-character denominator the prose arm judges in (#1183) — a `ch` is ~1.5 of these, which is why
+  // the two live side by side rather than one being derived from the other.
+  glyphAdvancePx: 5.3,
   isProseTag: true,
   isHeading: false,
   interactive: false,
@@ -273,15 +276,26 @@ const TEXT_BASE: TextStyleInput = {
   srOnly: false,
 };
 
-test("line-length excludes a non-prose tag and WITHHOLDS an unmeasured ch advance rather than passing it", () => {
+// Each reason gets its OWN label, and each measure ARM its own withholding (#1183): an unlabelled node and
+// an authored chrome voice are different facts about the population, and a blind `ch` advance and a blind
+// glyph advance are different facts about the instrument.
+test("line-length partitions its whole census — two exclusion labels, and each arm withholds under its own denominator", () => {
   const rows = rowsFor({
     textStyles: [
       { ...TEXT_BASE, totalTextLen: 900, rectWidth: 900 },
       { ...TEXT_BASE, selector: "span.s", isProseTag: false },
-      { ...TEXT_BASE, selector: "p.u", totalTextLen: 900, chWidthPx: 0 },
+      { ...TEXT_BASE, selector: "span.v", isProseTag: false, ownVoice: "kicker" },
+      { ...TEXT_BASE, selector: "p.u", totalTextLen: 900, glyphAdvancePx: 0 },
+      { ...TEXT_BASE, selector: "p.b", totalTextLen: 900, readingSurface: true, chWidthPx: 0 },
     ],
   });
-  expect(rows["line-length"]).toMatchObject({ candidates: 3, judged: 1, affected: 1, excluded: { notProseTag: 1 }, withheld: { chAdvanceUnmeasured: 1 } });
+  expect(rows["line-length"]).toMatchObject({
+    candidates: 5,
+    judged: 1,
+    affected: 1,
+    excluded: { notProseTag: 1, chromeVoice: 1 },
+    withheld: { glyphAdvanceUnmeasured: 1, chAdvanceUnmeasured: 1 },
+  });
 });
 
 test("tight-leading excludes a heading and a `line-height: normal` computed value, and judges the rest", () => {

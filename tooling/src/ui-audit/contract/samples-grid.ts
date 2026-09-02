@@ -37,6 +37,11 @@ export interface PromotedLayerOffsetInput {
   readonly topDeviceFrac: number;
   readonly leftDeviceFrac: number;
   readonly promotion: string;
+  /** `"::before"` / `"::after"` when the promotion is carried by a PSEUDO of the subject rather than by the
+   *  subject itself (#1172). The selector already names it; this carries the fact separately so the finding
+   *  can say WHERE the repair goes — a pseudo has no box to move, so the host's landing is the thing that
+   *  has to change. Absent = an element-carried promotion, the original arm. */
+  readonly pseudo?: string;
 }
 
 /** One element carrying a non-identity transform AT REST — the Law-2 resolved arm. `scaleX`/`scaleY` are

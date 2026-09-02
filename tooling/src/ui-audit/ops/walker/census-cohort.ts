@@ -40,6 +40,15 @@ export const WALKER_CENSUS_COHORT = `  // ── sibling cohort anatomy ──�
     accounting.excluded[reason] = (accounting.excluded[reason] || 0) + 1;
   }
 
+  // A TAG OVER CANDIDATES, NEVER A DISPOSITION (#1172). Some censuses reach a subject through more than one
+  // route — an element, or the same element's ::before — and the routes have different blindnesses. This
+  // says HOW MANY candidates arrived by a named non-default route, so a cohort cannot enter (or leave) a
+  // denominator invisibly; judged/withheld/excluded still account for every one of them exactly once.
+  function carryRelational(accounting, label) {
+    if (!accounting.carried) accounting.carried = {};
+    accounting.carried[label] = (accounting.carried[label] || 0) + 1;
+  }
+
   // Two members prove nothing: a pair that differs is as likely a header-plus-row as a defect. Three is
   // the smallest population where "most of them agree and one does not" is a statement.
   var COHORT_MIN_MEMBERS = 3;

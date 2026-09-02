@@ -84,12 +84,20 @@ export function checkPromotedLayerOffset(input: PromotedLayerOffsetInput): Findi
   if (!offGrid(input)) {
     return null;
   }
+  // A PSEUDO-CARRIED promotion is the same defect with a different repair site: the layer is generated
+  // content with no box of its own to move, so the fix is the HOST's landing (or the pseudo's own inset),
+  // never "nudge the ::before". #1154's shell panes are the shape that made this arm exist (#1172).
+  const carrier = input.pseudo === undefined ? "this element promotes itself" : `this element's ${input.pseudo} promotes itself`;
+  const repair =
+    input.pseudo === undefined
+      ? "Give the layer an integer offset (an integer line box above it, an integer-resolving spacing step, or a layout that does not divide an odd length), or drop the promotion."
+      : `Give the HOST an integer landing, or the ${input.pseudo} an inset that resolves to one — the pseudo has no box of its own to move — or drop the promotion.`;
   return {
     rule: "promoted-layer-offset",
     severity: "P2",
     selector: input.selector,
     value: `${input.promotion} layer lands ${landingText(input)}`,
-    message: `this element promotes itself to its own composited layer (${input.promotion}), which disables baseline snapping for its whole subtree — and it lands off the device-pixel grid, so every glyph and edge inside it is resampled at that same fraction. Give the layer an integer offset (an integer line box above it, an integer-resolving spacing step, or a layout that does not divide an odd length), or drop the promotion. See docs/design/integer-line-boxes.md §10`,
+    message: `${carrier} to its own composited layer (${input.promotion}), which disables baseline snapping for its whole subtree — and it lands off the device-pixel grid, so every glyph and edge inside it is resampled at that same fraction. ${repair} See docs/design/integer-line-boxes.md §10`,
     origin: "orbweaver",
   };
 }

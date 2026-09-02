@@ -171,3 +171,69 @@ describe("over-art-plate-arm — planted controls on a throwaway tree", () => {
     expect(run.declarations[0]?.skipped?.["mix-partner-is-another-token"]).toBe(1);
   });
 });
+
+// #1171 — THE PERMANENT PIN for the reader that bucketed "no fill" as "an alpha I cannot compute". Two
+// different claims wore one label: `background-color: transparent` under a glass gate landed in the
+// UNREADABLE arm, which `judgeMarkers` cannot exempt (it only ever saw `plateless` sites), so the marker
+// the finding's OWN fix text prescribed REDded a second time as STALE and there was no legal way to be
+// green in CSS. Every arm below is a planted control, in both directions.
+describe("over-art-plate-arm — alpha 0 is READ, not unreadable (#1171)", () => {
+  const noFillSpellings = ["background-color: transparent", "background: none", "background-color: rgba(0, 0, 0, 0)", "background-color: oklch(0.2 0 0 / 0)"];
+
+  test("every spelling of alpha 0 under a glass gate is the SAME finding — the gate is not dodgeable by keyword", ({ scratch }) => {
+    for (const declaration of noFillSpellings) {
+      plant(scratch, SHEET, `html[data-blur-panels] .shell-panel {\n  ${declaration};\n}\n`);
+      expect(messages(runGate(scratch)), `${declaration} paints nothing and must read as such`).toContain("paints NO FILL");
+    }
+  });
+
+  test("a well-formed marker ABSOLVES a no-fill site — the exact case that had no legal green", ({ scratch }) => {
+    plant(
+      scratch,
+      SHEET,
+      "/* @over-art-plate-ok: this pane can never sit over the art. */\nhtml[data-blur-panels] .shell-panel {\n  background-color: transparent;\n}\n",
+    );
+    const run = runGate(scratch);
+    expect(messages(run), "neither the plate finding…").not.toContain("paints NO FILL");
+    expect(messages(run), "…nor the STALE arm, which is how it REDded twice").not.toContain("STALE");
+  });
+
+  test("a fill PROVED to have moved to the subject's own pseudo carrier leaves as a counted skip, not an exemption", ({ scratch }) => {
+    plant(
+      scratch,
+      SHEET,
+      "html[data-blur-panels] .shell-panel {\n  background: none;\n}\n" +
+        `html[data-blur-panels] .shell-panel::before {\n  content: "";\n  background-color: ${BASE("--color-sidebar")};\n}\n` +
+        `html[data-blur-panels] .shell-grid[data-has-bg-image] .shell-panel::before {\n  background-color: ${PLATED("--color-sidebar")};\n}\n`,
+    );
+    const run = runGate(scratch);
+    expect(run.findings, "#1154's shipped shape must be green with no marker at all").toEqual([]);
+    expect(run.declarations[0]?.skipped?.["fill-moved-to-pseudo-carrier"]).toBe(1);
+  });
+
+  test("the carrier proof does not widen: a pseudo that carries NO fill leaves the host in the population", ({ scratch }) => {
+    plant(
+      scratch,
+      SHEET,
+      'html[data-blur-panels] .shell-panel {\n  background: none;\n}\nhtml[data-blur-panels] .shell-panel::before {\n  content: "";\n  backdrop-filter: blur(8px);\n}\n',
+    );
+    expect(messages(runGate(scratch)), "a blur carrier is not a FILL carrier — nothing plates the ink").toContain("paints NO FILL");
+  });
+
+  test("an UNREADABLE shape stays unreadable, and its marker does NOT absolve it", ({ scratch }) => {
+    plant(
+      scratch,
+      SHEET,
+      "/* @over-art-plate-ok: I would like this to go away please. */\nhtml[data-blur-panels] .shell-panel {\n  background-color: oklch(0.2 0 0 / 0.7);\n}\n",
+    );
+    const run = runGate(scratch);
+    expect(messages(run), "a missing MEASUREMENT is not a declarable exemption").toContain("UNREADABLE translucent background");
+    expect(messages(run), "…and the marker that cannot apply is itself a finding").toContain("STALE");
+  });
+
+  test("the real tree's shell pane leaves by CLASSIFICATION — the #1154 carrier, counted", ({ repoRoot }) => {
+    const judged = judgeStylesheets(repoRoot);
+    expect(judged.skipped["fill-moved-to-pseudo-carrier"], "`.shell-panel { background: none }` hands its fill to its ::before").toBe(1);
+    expect(judged.findings, "and nothing on the real tree reads as unreadable or dark-arm-moved").toEqual([]);
+  });
+});

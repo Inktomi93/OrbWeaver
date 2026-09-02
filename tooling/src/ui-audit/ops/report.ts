@@ -136,8 +136,13 @@ export function printPopulationAccounting(accounting: PopulationAccounting): voi
     const excluded = Object.entries(row.excluded)
       .map(([reason, count]) => `${reason}=${String(count)}`)
       .join(" ");
+    // `carried` prints ONLY where a census has an alternate route (#1172), and it is deliberately last:
+    // an empty `carried()` on the other ~47 rows would read as "this rule has a route and saw none of it".
+    const carried = Object.entries(row.carried ?? {})
+      .map(([route, count]) => ` carried(${route}=${String(count)})`)
+      .join("");
     print(
-      `POPULATION   ${rule} candidates=${String(row.candidates)} judged=${String(row.judged)} affected=${String(row.affected)} populations=${String(row.populations)} representatives=${String(row.emitted)} withheld(${withheld}) excluded(${excluded}) collapsed(${collapsed})`,
+      `POPULATION   ${rule} candidates=${String(row.candidates)} judged=${String(row.judged)} affected=${String(row.affected)} populations=${String(row.populations)} representatives=${String(row.emitted)} withheld(${withheld}) excluded(${excluded}) collapsed(${collapsed})${carried}`,
     );
   }
   if (Object.keys(accounting).length > 0) {
