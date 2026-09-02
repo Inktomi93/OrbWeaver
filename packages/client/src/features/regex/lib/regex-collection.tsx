@@ -15,8 +15,8 @@ import {
   useImportRegexMember,
   useRegexBulkMode,
   useRegexCount,
-  useRegexMemberTitle,
   useRegexInsights,
+  useRegexMemberTitle,
 } from "../hooks/use-regex-collection.ts";
 import { RegexMemberSurface } from "../surfaces/regex-member-surface.tsx";
 
