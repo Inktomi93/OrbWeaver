@@ -49,10 +49,40 @@ dominating — the period before snap grew its drive arms.
    truncates. Planted positive control in `tests/tooling/snap/…`: a fixture carrying a
    `label-content-name-mismatch` node must be reported; a clean fixture prints `failed-audits=0` with the
    audited count. The mobile arm rides the existing `--mobile` device (touch, coarse pointer, DPR 3).
+
+   **BUILT (#1198).** `tooling/src/snap/ops/lighthouse.ts` (the arm + the liftable `auditSettledPage`),
+   `lib/lighthouse-report.ts` (the pure LHR readers + the accounting block), `contract/lighthouse.ts`.
+   THE SEAM: snap's own chromium is launched with `--remote-debugging-port`, puppeteer-core attaches to
+   THAT browser and hands Lighthouse the handle for the exact target Playwright is driving (matched by CDP
+   target id) — one browser, one page, one device story. Findings RED the run (exit 1) like `--contrast`;
+   a not-ready page, a Lighthouse throw or a truncated report REFUSE with exit 2. Pins:
+   `tests/tooling/snap/ops/lighthouse.int.test.ts` (planted `label-content-name-mismatch` reported by name
+
+   - clean twin at `failed-audits=0` over `audited=19` + the not-ready refusal),
+     `tests/tooling/snap/lib/lighthouse-report.test.ts`. Live receipt (isolated stage, plugins pane,
+     2026-09-02): desktop `audited=36 failed-audits=1`, the ONE failed audit
+     `label-content-name-mismatch` with 4 nodes and their selectors — the same finding §1 records the MCP
+     producing; mobile `audited=33 failed-audits=0`.
+     TWO MEASURED TRAPS, both closed with an A/B: puppeteer's `connect()` applies its OWN 800x600
+     `defaultViewport` to a page it did not create (it replaced the emulated device mid-run —
+     `defaultViewport: null` is load-bearing), and Lighthouse's full-page-screenshot gatherer resizes the
+     viewport and restores it "best effort" (`disableFullPageScreenshot: true`). Snap's environment contract
+     is read AFTER the arm, so a future leak REDs instead of hiding.
 2. **A request-log arm on snap** (`--requests [url-substring]` for method, url, status, type, size and
    timing per request of the run; `--request-body <url-substring>` for one response body), from
    Playwright's request events, printed and written into the run slot. Small; the three uses were "which
    reads did this surface issue" questions that `__orb.queries()` half-answers.
+
+   **BUILT (#1199).** `tooling/src/snap/ops/request-log.ts` (the recorder, wired to every page BEFORE the
+   first navigation), `lib/request-log.ts` (filter, body cap, block), `contract/request-log.ts`. It is a
+   SECOND, ordered log rather than a widening of `_shared/browser-capture.ts`'s URL-keyed map: the question
+   is "which reads did this surface issue", and a re-read of the same route is the answer. An undeclared
+   `content-length` prints `size=unknown` and an unfinished request `ms=unfinished` — never 0. Pins:
+   `tests/tooling/snap/ops/request-log.int.test.ts` (a fixture whose requests are known by name, the filter
+   arm, the no-match arms, and a body cut at `truncatedAt=16384`),
+   `tests/tooling/snap/lib/request-log.test.ts`. Live receipt (same stage run): `requests=2445`, 18 of them
+   matching `--requests trpc`, with per-request status/size/timing and the aborted vite-dep re-reads shown
+   as `size=unknown ms=unfinished`.
 3. **Retire:** remove the MCP tools from `side-eye.md` (`agent-authoring` skill), drop the plugin from the
    main session, delete the `chrome-mcp-headless-patch` ritual from the memory store, and re-point the
    side-eye skill's Lighthouse row (its §4 instrument table, row 5) at the snap arm. The rule

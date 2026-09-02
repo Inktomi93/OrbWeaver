@@ -4,7 +4,7 @@ import { errorMessage } from "@orb/kit/error-message";
 import type { Page } from "@playwright/test";
 import type { ProbeSession } from "../../_shared/browser.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import type { PagePlan } from "../contract/plan.ts";
+import type { CaptureEvidence, PagePlan } from "../contract/plan.ts";
 import type { Args, CaptureOutcome, EvidencePass, ShotPlan } from "../contract/types.ts";
 import { planOut } from "../lib/out-names.ts";
 import { captureContrasts } from "./contrast.ts";
@@ -13,6 +13,7 @@ import { driveActions, navigate, settlePage, splitTrailingEvals } from "./drive.
 import { captureAria, captureEvals, capturePerfEvidence, runAssertions } from "./evidence.ts";
 import { captureMap } from "./map.ts";
 import { captureShot } from "./shot.ts";
+import { awaitThemeStamp } from "./theme-stamp.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
@@ -49,7 +50,7 @@ async function captureEvidence(page: Page, opts: Args, outcome: CaptureOutcome, 
   outcome.perf = await capturePerfEvidence(page);
 }
 
-export async function capture(page: Page, opts: Args, plan: PagePlan, evidence: Pick<ProbeSession, "consoleMessages" | "pageErrors">): Promise<CaptureOutcome> {
+export async function capture(page: Page, opts: Args, plan: PagePlan, evidence: CaptureEvidence): Promise<CaptureOutcome> {
   const { pageIndex, totalPages } = plan;
   const outcome: CaptureOutcome = {
     pageIndex,
@@ -69,6 +70,7 @@ export async function capture(page: Page, opts: Args, plan: PagePlan, evidence: 
     perf: null,
     cssEvidence: null,
     evidenceRange: null,
+    themeStampGap: null,
   };
   const out = planOut(plan, pageIndex, totalPages);
   // Volatile-region masks (pink overlay) shared by the main shot, --shot-of, and crop.
@@ -76,6 +78,10 @@ export async function capture(page: Page, opts: Args, plan: PagePlan, evidence: 
   // @orb-gate-ignore caught-failure-ownership(empty:e): captured into outcome.navError, which the caller counts into the verdict's navigation total and prints as NAV ERROR. Ends if navError stops being read.
   try {
     outcome.navError = plan.navigatePage === false ? null : await navigate(page, opts, plan.url);
+    // #1227: `data-app-ready` is not the whole readiness contract when a THEME was requested — the stamp
+    // lands one settings hop later, and everything below (the drive queue, every capture, the shot) would
+    // otherwise sample the default palette under a themed label.
+    outcome.themeStampGap = await awaitThemeStamp(page, evidence.settingsEvidence);
     if (opts.checkpoint) {
       // Raw string, not a function — the tooling program is DOM-less and carries no __orb ambient.
       await page.evaluate("window.__orb && window.__orb.resetEvidence()");
@@ -129,7 +135,10 @@ export async function capturePages(session: ProbeSession, opts: Args, plan: Shot
   const outcomes: CaptureOutcome[] = [];
   for (let index = 0; index < opts.pages; index += 1) {
     const page = session.pages[index] as Page;
-    outcomes.push(await capture(page, opts, { ...plan, pageIndex: index, totalPages: opts.pages }, session));
+    // `--pages` tabs all live in context 0, so its settings-shim evidence is theirs (#1227).
+    outcomes.push(
+      await capture(page, opts, { ...plan, pageIndex: index, totalPages: opts.pages }, { ...session, settingsEvidence: session.contexts[0]?.settingsEvidence }),
+    );
   }
   return outcomes;
 }

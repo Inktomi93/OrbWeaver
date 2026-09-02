@@ -13,7 +13,7 @@
 // 2026-08-22-verify-271-334.md). The healthy twin in the same story is the false-positive fence.
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import type { OverflowProbe } from "../../../../tooling/src/snap/contract/types.ts";
+import type { OverflowProbe } from "../../../../tooling/src/snap/contract/overflow.ts";
 import { OVERFLOW_MAX_ESCAPES, OVERFLOW_TOLERANCE_PX, sweepOverflowEscapes } from "../../../../tooling/src/snap/ops/overflow.ts";
 import { WalkerClippedInflowControlStory } from "../../_ct-stories.tsx";
 

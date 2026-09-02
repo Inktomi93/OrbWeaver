@@ -48,6 +48,9 @@ export const REQUIRED_VALUE_FLAGS = new Set([
   "--scale",
   "--cpu-throttle",
   "--network",
+  "--lighthouse",
+  "--lighthouse-mode",
+  "--request-body",
   ...APPEARANCE_VALUE_FLAGS,
   ...THEME_VALUE_FLAGS,
   "--eval",
@@ -62,6 +65,13 @@ export const REQUIRED_VALUE_FLAGS = new Set([
 ]);
 
 export const OPTIONAL_SELECTOR_FLAGS = new Set(["--aria", "--text", "--map", "--expect-no-overflow"]);
+
+/** Flags that take an OPTIONAL inline value which is NOT a selector, so the scanner must consume it
+ *  without handing it to the unmatchable-selector refusal. Kept apart from OPTIONAL_SELECTOR_FLAGS on
+ *  purpose: `--requests trpc` is a URL substring, and lib/selector-shape.ts would read the bare word as a
+ *  type-selector chain and refuse the run (the #550 predicate, applied to the wrong vocabulary). The
+ *  containment pin in tests/tooling/snap/lib/selector-shape.test.ts governs the selector set only. */
+export const OPTIONAL_VALUE_FLAGS = new Set(["--requests"]);
 
 export const PAGE_TARGET_FLAGS = new Set([
   "--click",
