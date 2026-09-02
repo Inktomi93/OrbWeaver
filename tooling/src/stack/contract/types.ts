@@ -118,6 +118,10 @@ export interface DevStackIdentity extends ObservedStackProcess {
 export type DevStackIdentityVerdict =
   | { readonly verdict: "owned"; readonly pgid: number; readonly witness: ObservedStackProcess }
   | { readonly verdict: "absent"; readonly reason: string }
+  /** The record is well-formed and ours, and the recorded LEADER has exited (#1162). Distinct from
+   *  `refused` because it is the ONLY refusal whose remaining question is answerable: ask the group
+   *  whether anything survived the leader. Empty group → nothing to clean; populated → a true alarm. */
+  | { readonly verdict: "departed"; readonly pgid: number; readonly reason: string }
   | { readonly verdict: "refused"; readonly reason: string };
 
 const SPAWN_LOCK_ACTIONS = ["retake", "refuse", "break-stale"] as const;

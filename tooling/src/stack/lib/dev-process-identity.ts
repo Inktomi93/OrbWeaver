@@ -6,6 +6,7 @@ import path from "node:path";
 import process from "node:process";
 import { readObservedEngineProcess } from "@orb/server/infra/providers/vllm/engine";
 import type { DevStackIdentity, DevStackIdentityVerdict, ObservedStackProcess } from "../contract/types.ts";
+import { pidIsAlive } from "./spawn-lock.ts";
 
 const VERSION = 1 as const;
 const NUMERIC_RE = /^\d+$/;
@@ -75,7 +76,8 @@ export function verifyDevStackIdentity(
   const leader = readProcess(identity.pid);
   if (leader === null) {
     return {
-      verdict: "refused",
+      verdict: "departed",
+      pgid: identity.pgid,
       reason: `recorded dev-stack leader pid ${identity.pid} is absent; survivor ownership is unknowable, so manual cleanup or relaunch is required`,
     };
   }
@@ -139,4 +141,17 @@ export function recordedDevStackVerdict(repoRoot: string): DevStackIdentityVerdi
       : { verdict: "absent", reason: "no dev-stack launch identity exists" };
   }
   return verifyDevStackIdentity(identity);
+}
+
+/** Does the recorded process GROUP still hold any member? (#1162 — the honesty half of the teardown.)
+ *
+ *  `kill(-pgid, 0)` is the same question `pgrep -g <pgid>` answers, minus the parse: ESRCH means the
+ *  group has NO members, EPERM means it has at least one this user may not signal. It assumes no
+ *  ownership — an empty group is empty for everyone — so it is safe to ask after the leader is gone,
+ *  which is exactly when `verifyDevStackIdentity` can no longer witness ownership.
+ *
+ *  This is what `do_stop` was missing: it printed "still has verified survivors after KILL" on the
+ *  strength of a verdict that only ever said "I can no longer verify the leader" (tooling/src/stack/stack.sh). */
+export function devStackGroupHasMembers(pgid: number, signal: (pid: number, signal: 0) => void = process.kill): boolean {
+  return pidIsAlive(-pgid, signal);
 }

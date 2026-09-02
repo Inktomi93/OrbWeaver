@@ -4622,7 +4622,7 @@
     {
       "siteId": "tooling/src/motion-audit/ops/matrix.ts::empty:error::1",
       "path": "tooling/src/motion-audit/ops/matrix.ts",
-      "line": 183,
+      "line": 190,
       "column": 5,
       "grammar": "empty",
       "position": "empty:error",
@@ -4630,12 +4630,12 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "discovery/planning failures print the exact INSTRUMENT ERROR and return EXIT.toolError; no aggregate verdict is emitted. Ends if this catch stops terminating the command.",
-      "markerLine": 151
+      "markerLine": 158
     },
     {
       "siteId": "tooling/src/motion-audit/ops/matrix.ts::promise:waitFor::1",
       "path": "tooling/src/motion-audit/ops/matrix.ts",
-      "line": 60,
+      "line": 67,
       "column": 25,
       "grammar": "promise",
       "position": "promise:waitFor",
@@ -4643,12 +4643,12 @@
       "snippet": "const ready = await session.page",
       "verdict": "deliberate-absorb",
       "reason": "false is consumed immediately below as an INSTRUMENT ERROR; discovery never proceeds against a cold shell. Ends if `ready` stops gating the return.",
-      "markerLine": 59
+      "markerLine": 66
     },
     {
       "siteId": "tooling/src/motion-audit/ops/run.ts::default:catch::1",
       "path": "tooling/src/motion-audit/ops/run.ts",
-      "line": 84,
+      "line": 86,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -4656,12 +4656,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "null is preserved in AuditData and the only consumer, matrix STATIC-EXPECTED, rejects it as instrument error; ordinary legacy-ref runs never claim this field. Ends if null becomes an accepted matrix identity.",
-      "markerLine": 73
+      "markerLine": 75
     },
     {
       "siteId": "tooling/src/motion-audit/ops/run.ts::promise:waitFor::1",
       "path": "tooling/src/motion-audit/ops/run.ts",
-      "line": 118,
+      "line": 129,
       "column": 25,
       "grammar": "promise",
       "position": "promise:waitFor",
@@ -4669,7 +4669,7 @@
       "snippet": "const ready = await page",
       "verdict": "deliberate-absorb",
       "reason": "false feeds apparatusGap, which emits INSTRUMENT ERROR instead of a motion verdict. Ends if readiness stops gating measurement.",
-      "markerLine": 117
+      "markerLine": 128
     },
     {
       "siteId": "tooling/src/motion-audit/ops/trace.ts::empty:e::1",
@@ -5181,7 +5181,7 @@
     {
       "siteId": "tooling/src/snap/ops/stage-marker.ts::default:catch::1",
       "path": "tooling/src/snap/ops/stage-marker.ts",
-      "line": 47,
+      "line": 48,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -5189,7 +5189,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "optional-read-as-absent — a truncated/garbage marker is treated as \"no active stage\", triggering the same clean-rebuild path a missing marker takes. Ends if the sweep/status readers stop tolerating a null marker.",
-      "markerLine": 35
+      "markerLine": 36
     },
     {
       "siteId": "tooling/src/snap/ops/stage-status.ts::empty:catch::1",
@@ -5233,7 +5233,7 @@
     {
       "siteId": "tooling/src/stack/lib/dev-process-identity.ts::default:catch::1",
       "path": "tooling/src/stack/lib/dev-process-identity.ts",
-      "line": 39,
+      "line": 40,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -5241,12 +5241,12 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "malformed identity JSON returns null and recordedDevStackVerdict refuses the existing file. Ends if null can authorize a signal.",
-      "markerLine": 18
+      "markerLine": 19
     },
     {
       "siteId": "tooling/src/stack/lib/dev-process-identity.ts::default:catch::2",
       "path": "tooling/src/stack/lib/dev-process-identity.ts",
-      "line": 49,
+      "line": 50,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -5254,7 +5254,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "an unreadable identity returns null and the existing-path check produces a manual-cleanup refusal. Ends if null can authorize a signal.",
-      "markerLine": 45
+      "markerLine": 46
     },
     {
       "siteId": "tooling/src/stack/lib/port-health.ts::empty:error::1",
@@ -5324,7 +5324,7 @@
     {
       "siteId": "tooling/src/stack/ops/dev-identity-entry.ts::empty:error::1",
       "path": "tooling/src/stack/ops/dev-identity-entry.ts",
-      "line": 70,
+      "line": 76,
       "column": 5,
       "grammar": "empty",
       "position": "empty:error",
@@ -5332,7 +5332,7 @@
       "snippet": "} catch (error) {",
       "verdict": "deliberate-absorb",
       "reason": "ENOENT means the already-absent identity file needs no deletion; every other unlink failure surfaces and prevents a cleared verdict. Ends if another absence code is supported.",
-      "markerLine": 67
+      "markerLine": 73
     },
     {
       "siteId": "tooling/src/stack/ops/engines-ctl.ts::default:catch::1",

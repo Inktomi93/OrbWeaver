@@ -17,7 +17,8 @@
 // they SKIP with a reason instead of voting. The FAIL and INSTRUMENT-ERROR arms do NOT withhold — extra
 // contention can only add reasons to red, never turn a planted breach green, so they stay honest under
 // load and this file's coverage does not evaporate the moment a sibling lane starts.
-import { writeFile } from "node:fs/promises";
+import { spawnSync } from "node:child_process";
+import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { vi } from "vitest";
 import { expect, test } from "../../support/tool-fixtures.ts";
@@ -296,4 +297,61 @@ test("a bridge with NO flags() member is an INSTRUMENT ERROR, never an empty tra
   expect(res.stdout).toContain("anim-flags=absent");
   expect(res.stdout).not.toContain("verdict=PASS");
   await expect(res).toExitWith(2);
+});
+
+// ── #1186: a `--base` at the stage band asserts OWNERSHIP before it measures ────────────────────────
+//
+// A `snap --isolated --ref <sha>` that REFUSES on band contention does not stop what is chained behind
+// it: this instrument measured whichever lane's stage held :5273 and printed normal-looking numbers.
+// Red-first on the unmodified source, measured with the fixture below: the FOREIGN-marker arm launched a
+// browser and exited on a nav failure, never once naming the owner.
+//
+// The fixture plants the marker in a DISPOSABLE git repo and runs the cli with `cwd` there — the marker
+// home is derived from `git rev-parse --git-common-dir`, so a temp repo owns a temp marker. The box's
+// real, SHARED marker is never written: doing so from a test would evict a live sibling's stage.
+const STAGE_BAND_SERVER_BASE = "http://localhost:8888";
+
+/** A disposable checkout whose shared stage marker names `owner`. Returns the repo's own root as git
+ *  reports it, so an "ours" arm can plant an EXACT match rather than a hopeful string. */
+async function plantedStageMarker(dir: string, owner: string | null): Promise<string> {
+  await mkdir(dir, { recursive: true });
+  spawnSync("git", ["init", "-q"], { cwd: dir });
+  const root = spawnSync("git", ["rev-parse", "--show-toplevel"], { cwd: dir, encoding: "utf8" }).stdout.trim();
+  if (owner !== null) {
+    await mkdir(join(dir, ".cache", "snap-stage"), { recursive: true });
+    await writeFile(
+      join(dir, ".cache", "snap-stage", "active.json"),
+      JSON.stringify({
+        sha: "0".repeat(40),
+        shortSha: "000000000000",
+        dir: join(owner, ".cache", "snap-stage", "000000000000"),
+        serverPort: 8888,
+        vitePort: 5273,
+        baseUrl: "http://localhost:5273",
+        checkout: owner === "SELF" ? root : owner,
+        ownerPid: null,
+        startedAt: "2026-09-02T10:00:00.000Z",
+        lastUsedAt: "2026-09-02T10:00:00.000Z",
+      }),
+    );
+  }
+  return root;
+}
+
+test("a --base at the stage band owned by ANOTHER checkout refuses (exit 2) and names both (#1186)", async ({ runCli, scratch }) => {
+  const dir = join(scratch, "band-foreign");
+  await plantedStageMarker(dir, "/some/other/checkout");
+  const res = await runCli("motion-audit", ["/", "--base", STAGE_BAND_SERVER_BASE, "--window", "200"], { cwd: dir, timeoutMs: CLI_TIMEOUT_MS });
+  await expect(res).toExitWith(2);
+  expect(res.stdout + res.stderr).toContain("/some/other/checkout");
+  expect(res.stdout + res.stderr).toContain("nothing was measured");
+});
+
+test("the SAME band base is measured normally when this checkout owns the marker (#1186 control)", async ({ runCli, scratch }) => {
+  const dir = join(scratch, "band-ours");
+  await plantedStageMarker(dir, "SELF");
+  const res = await runCli("motion-audit", ["/", "--base", STAGE_BAND_SERVER_BASE, "--window", "200"], { cwd: dir, timeoutMs: CLI_TIMEOUT_MS });
+  // The guard is SILENT: whatever this run then reports, it is not a band-ownership refusal. (Nothing
+  // serves that port for a disposable checkout, so the run still fails — on its own nav/meter terms.)
+  expect(res.stdout + res.stderr).not.toContain("is the isolated-stage band");
 });

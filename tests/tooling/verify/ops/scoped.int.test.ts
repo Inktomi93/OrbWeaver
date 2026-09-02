@@ -196,3 +196,73 @@ test("stale-arm ISOLATION: a scoped run whose fileset excludes the rows' files m
   });
   expect(memoStaleFindings(base, folderScope(MEMO_SCOPE_FOLDER))).toEqual([]);
 });
+
+// ── 5. THE SELECTOR'S HONESTY (#1185) ────────────────────────────────────────────────────────────────
+// The lane gate door is `cli.ts scoped --scope <dir>`, and lanes type the COMMA form for a multi-folder
+// slice. Red-first on the unmodified source, measured on this tree:
+//   `--scope packages/ui/src/primitives/switch,packages/ui/src/tokens` → "0 file(s) in scope", every gate
+//   "✓ scanned 0/0", EXIT 0. The whole string was handed to the single-glob matcher, which matches no path
+//   on any tree — so the door answered "your slice is clean" about a slice it never opened.
+//
+// Two properties, both proven at the CLI (the exit code IS the contract, and these assertions compile
+// against the pre-fix source — they read stdout/stderr and the exit code, never the new parse):
+//   A. the comma form is ACCEPTED as a UNION — adding a folder can only ADD files, never zero them out;
+//   B. a selector that resolves to NO files is EXIT 2 ("nothing was checked"), never a green wall —
+//      .claude/rules/gates-and-tooling.md: a bare zero is "I couldn't measure", never "it isn't there".
+// The misuse arm (an empty comma segment) is the third: a typo'd scope is refused at exit 3 before any
+// project is built. Every arm is a PLANTED CONTROL for the others — a fix that refused everything would
+// fail A, and a fix that accepted everything would fail B and C.
+const SCOPED_CLI_TIMEOUT_MS = 240_000;
+const SCOPE_A = "packages/ui/src/primitives/switch";
+const SCOPE_B = "packages/ui/src/tokens";
+const IN_SCOPE_COUNT = /·\s+(\d+) file\(s\) in scope/u;
+
+/** The `N file(s) in scope` the run printed — the tool's own count, never a re-derivation. */
+function inScopeCount(stdout: string): number {
+  const m = IN_SCOPE_COUNT.exec(stdout);
+  if (m?.[1] === undefined) {
+    throw new Error(`scoped run printed no file count — stdout was:\n${stdout}`);
+  }
+  return Number(m[1]);
+}
+
+test("the COMMA form is a UNION of folder globs, never a silent zero (#1185)", { timeout: SCOPED_CLI_TIMEOUT_MS }, async ({ runCli }) => {
+  const single = await runCli("verify", ["scoped", "--scope", SCOPE_A], { timeoutMs: SCOPED_CLI_TIMEOUT_MS });
+  const union = await runCli("verify", ["scoped", "--scope", `${SCOPE_A},${SCOPE_B}`], { timeoutMs: SCOPED_CLI_TIMEOUT_MS });
+
+  // The single-dir control: a real, non-zero slice. Without it the union claim below proves nothing.
+  expect(inScopeCount(single.stdout), "the single-dir control must scope a non-zero fileset").toBeGreaterThan(0);
+  // The lie: pre-fix this was 0 with exit 0. A union can only be LARGER than one of its members.
+  expect(inScopeCount(union.stdout)).toBeGreaterThan(inScopeCount(single.stdout));
+  expect(union.stdout, "the header names both folders so the operator can see what was judged").toContain(SCOPE_B);
+  // A verdict (0 clean / 1 violations), never the tool-error class — the run really ran.
+  expect([0, 1]).toContain(union.code);
+});
+
+/** A folder that exists in no checkout — the selector resolves to zero files. */
+const ABSENT_SCOPE = "packages/ui/src/primitives/no-such-primitive";
+
+test("a selector that resolves to ZERO files exits 2 (#1185)", { timeout: SCOPED_CLI_TIMEOUT_MS }, async ({ runCli }) => {
+  const res = await runCli("verify", ["scoped", "--scope", ABSENT_SCOPE], { timeoutMs: SCOPED_CLI_TIMEOUT_MS });
+  await expect(res).toExitWith(2);
+  expect(res.stderr).toContain("scoped 0 files — nothing was checked");
+  // And it must not have printed the green wall it used to: no gate report at all.
+  expect(res.stdout).not.toContain("file(s) in scope");
+});
+
+test("an empty comma segment is MISUSE (exit 3), refused before any work", { timeout: SCOPED_CLI_TIMEOUT_MS }, async ({ runCli }) => {
+  const res = await runCli("verify", ["scoped", "--scope", `${SCOPE_A},`], { timeoutMs: SCOPED_CLI_TIMEOUT_MS });
+  await expect(res).toExitWith(3);
+  expect(res.stderr).toContain("empty comma segment");
+});
+
+test("a DERIVED --changed set with no source file says so and stays CLEAN (#1185 stated fork)", { timeout: SCOPED_CLI_TIMEOUT_MS }, async ({ runCli }) => {
+  // The other half of the empty-scope rule, and the reason it is not one rule: `--scope`/`--package`
+  // ASSERT a fileset (zero means the operator was wrong → exit 2), while `--changed` DERIVES one from
+  // git, where a docs-only diff legitimately holds no source file. Failing that would mint exactly the
+  // false alarm this issue is about — so it prints "nothing was checked" and exits clean.
+  const res = await runCli("verify", ["scoped", "--changed", "docs/Mission.md"], { timeoutMs: SCOPED_CLI_TIMEOUT_MS });
+  await expect(res).toExitWith(0);
+  expect(res.stderr).toContain("scoped 0 files — nothing was checked");
+  expect(res.stdout, "and no gate wall may be printed over an empty set").not.toContain("file(s) in scope");
+});

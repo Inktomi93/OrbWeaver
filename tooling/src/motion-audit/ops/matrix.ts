@@ -12,6 +12,7 @@ import { readBrowserEnvironment } from "../../_shared/browser-environment.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { printVerdict } from "../../_shared/evidence.ts";
 import { EXIT } from "../../_shared/exit-contract.ts";
+import { stageBandRefusalFor } from "../../snap/index.ts";
 import type { Args } from "../contract/types.ts";
 import { MOUNT_SETTLE_MS, NAV_TIMEOUT_MS, READY_TIMEOUT_MS } from "../lib/budgets.ts";
 import { hasOrbBridge } from "./drive.ts";
@@ -44,6 +45,12 @@ function aggregateVerdict(toolErrors: number, violations: number): number {
 
 async function discoverMatrix(opts: Args): Promise<MatrixDiscovery> {
   const url = opts.url ?? buildUrl(opts.base, opts.route);
+  // #1186 — see runMotionAuditDetailed: the matrix reaches the band through the same two flags, so it
+  // owes the same ownership claim. The throw lands in runMotionAuditMatrix's INSTRUMENT ERROR arm (exit 2).
+  const bandRefusal = stageBandRefusalFor(url);
+  if (bandRefusal !== null) {
+    throw new Error(bandRefusal);
+  }
   const session = await launchProbeSession({
     headless: !opts.vnc,
     viewport: opts.viewport,
