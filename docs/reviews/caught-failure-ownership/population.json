@@ -2,18 +2,18 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 448,
-    "enforced": 445,
-    "reported": 2,
+    "sites": 446,
+    "enforced": 443,
+    "reported": 0,
     "byVerdict": {
       "deliberate-absorb": 443,
       "detached-owned": 3,
-      "unproven": 2
+      "unproven": 0
     },
     "byGrammar": {
       "promise": 124,
       "default": 129,
-      "empty": 195
+      "empty": 193
     }
   },
   "rows": [
@@ -4763,32 +4763,6 @@
       "markerLine": 76
     },
     {
-      "siteId": "tooling/src/snap/ops/contrast-fill.ts::empty:error::1",
-      "path": "tooling/src/snap/ops/contrast-fill.ts",
-      "line": 62,
-      "column": 5,
-      "grammar": "empty",
-      "position": "empty:error",
-      "ordinal": 1,
-      "snippet": "} catch (error) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
-    },
-    {
-      "siteId": "tooling/src/snap/ops/contrast-fill.ts::empty:error::2",
-      "path": "tooling/src/snap/ops/contrast-fill.ts",
-      "line": 87,
-      "column": 5,
-      "grammar": "empty",
-      "position": "empty:error",
-      "ordinal": 2,
-      "snippet": "} catch (error) {",
-      "verdict": "unproven",
-      "reason": null,
-      "markerLine": null
-    },
-    {
       "siteId": "tooling/src/snap/ops/contrast.ts::promise:evaluate::1",
       "path": "tooling/src/snap/ops/contrast.ts",
       "line": 68,
@@ -5675,15 +5649,15 @@
     {
       "siteId": "tooling/src/verify/lib/pass.ts::empty:err::1",
       "path": "tooling/src/verify/lib/pass.ts",
-      "line": 318,
-      "column": 5,
+      "line": 280,
+      "column": 7,
       "grammar": "empty",
       "position": "empty:err",
       "ordinal": 1,
       "snippet": "} catch (err) {",
       "verdict": "deliberate-absorb",
       "reason": "pushed into the errors array as a ToolError — the exit-contract's tool-error class, never a silent pass. Ends if the errors array stops being read into the run's exit code.",
-      "markerLine": 315
+      "markerLine": 277
     },
     {
       "siteId": "tooling/src/verify/lib/program-routing.ts::empty:catch::1",
