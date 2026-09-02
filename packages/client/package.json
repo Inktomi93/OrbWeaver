@@ -18,6 +18,7 @@
     "./*": "./src/*/index.ts"
   },
   "imports": {
+    "#*/pure": "./src/*/pure.ts",
     "#*": "./src/*/index.ts"
   },
   "dependencies": {
