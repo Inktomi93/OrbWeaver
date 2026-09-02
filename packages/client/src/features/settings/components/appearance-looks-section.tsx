@@ -26,6 +26,16 @@
 // section's editing state. There is NO freestanding color knob anywhere — a color decision always saves as
 // a named theme.
 //
+// THE SECTION CHROME IS OUTSIDE THE READ, AND THE READ RESERVES ITS BOX (#1100, the re-drive's G1). This
+// was the last config section still rendering its `<Section>` INSIDE the suspending body behind a one-line
+// "Loading your themes…" gloss: clicking the Appearance group painted a pane with no Looks heading and no
+// anchor, then dropped 337px of collection into it ~230ms later and shoved everything below down — a 0.1624
+// input-adjacent shift, measured again on this tree after the picker rebuild (`<section> moved 0px,365px`).
+// So the heading + `configAnchorId` anchor now render immediately (a jump target that does not exist until
+// a query lands is not a jump target), and the body rides the #885 reservation seam — `reserveKey` holds
+// the box this device last saw the collection settle at, with the authored skeleton count as the first-boot
+// guess. It is the same shape every other anchored config section already used (plugins, automation).
+//
 // Export/Import are CLIENT-SIDE over the row's own bytes ({name, override, css} JSON — the same values the
 // theme renders from).
 
@@ -36,12 +46,11 @@ import { FileTrigger } from "@orb/ui/file-trigger";
 import { Icon, Plus, Upload } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { RadioGroupPicker, RadioGroupPickerItem } from "@orb/ui/radio-group";
-import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useId, useState } from "react";
 import { ConfigTeachScope, SettingRow, SettingRowGroup } from "#components";
-import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
+import { QueryBoundary, QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { downloadTextFile, notify } from "#lib";
 import { configAnchorId } from "#state";
 import { useCreateTheme, useDuplicateTheme, useRemoveTheme, useSelectTheme } from "../hooks/use-theme-mutations.ts";
@@ -93,14 +102,24 @@ function parseThemeFile(text: string): CreateThemeInput {
   };
 }
 
+/** How many skeleton bars the loading box paints on a device that has never seen this section settle
+ *  (#885's "the authored count survives as the first-boot guess"). MEASURED, not guessed: the settled
+ *  `setting-row-group` is 337px at the 869px content-pane width with the three seed themes, and the
+ *  `line` arm's pitch inverts to `16 + 48N` px, so seven bars is the nearest honest box. Every later open
+ *  reserves what THIS device actually measured. */
+const LOOKS_SKELETON_ROWS = 7;
+
 export function AppearanceLooksSection(): ReactElement {
   return (
-    <QueryBoundary
-      fallback={<Text voice="gloss">Loading your themes…</Text>}
-      renderError={(_error, retry): ReactElement => <QueryErrorState label="your themes" onRetry={retry} />}
-    >
-      <LooksBody />
-    </QueryBoundary>
+    <Section divider={true} heading={APPEARANCE_LOOKS_SUBCATEGORY.label} id={configAnchorId("appearance", APPEARANCE_LOOKS_SUBCATEGORY.id)}>
+      <QueryBoundary
+        fallback={<SkeletonRows count={LOOKS_SKELETON_ROWS} shape="line" />}
+        renderError={(_error, retry): ReactElement => <QueryErrorState label="your themes" onRetry={retry} />}
+        reserveKey="config.appearance.looks"
+      >
+        <LooksBody />
+      </QueryBoundary>
+    </Section>
   );
 }
 
@@ -151,7 +170,7 @@ function LooksBody(): ReactElement {
   };
 
   return (
-    <Section divider={true} heading={APPEARANCE_LOOKS_SUBCATEGORY.label} id={configAnchorId("appearance", APPEARANCE_LOOKS_SUBCATEGORY.id)}>
+    <>
       {editing !== null ? (
         <Stack gap="block">
           <Row>
@@ -236,6 +255,6 @@ function LooksBody(): ReactElement {
           </SettingRowGroup>
         </ConfigTeachScope>
       )}
-    </Section>
+    </>
   );
 }

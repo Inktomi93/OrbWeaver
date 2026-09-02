@@ -6,6 +6,7 @@
 
 import { TooltipProvider } from "@orb/ui/tooltip";
 import type { ReactElement } from "react";
+import { useState } from "react";
 import { AppearanceLooksSection } from "../../../../packages/client/src/features/settings/components/appearance-looks-section.tsx";
 import { CtDataProviders } from "../../../support/ct/ct-data-providers.tsx";
 import { ConfigHostStory } from "../config/_ct-stories.tsx";
@@ -36,6 +37,29 @@ export function LooksSectionNarrowStory(): ReactElement {
         </div>
       </TooltipProvider>
     </CtDataProviders>
+  );
+}
+
+/** The LOOKS section OPENED TWICE (#1100). `reopen` re-keys the provider stack, so the second open gets a
+ *  FRESH QueryClient and genuinely re-reads `listThemes` — the shape of a user leaving the Appearance group
+ *  and coming back. The tail sentinel sits directly under the section: whatever the section does while its
+ *  read is in flight, it does to that sentinel's y. */
+export function LooksSectionReopenStory(): ReactElement {
+  const [open, setOpen] = useState(0);
+  return (
+    <>
+      <button type="button" onClick={(): void => setOpen((n) => n + 1)}>
+        reopen
+      </button>
+      <CtDataProviders key={open}>
+        <TooltipProvider>
+          <div style={{ width: 760 }}>
+            <AppearanceLooksSection />
+            <div data-testid="looks-tail" style={{ height: 8 }} />
+          </div>
+        </TooltipProvider>
+      </CtDataProviders>
+    </>
   );
 }
 
