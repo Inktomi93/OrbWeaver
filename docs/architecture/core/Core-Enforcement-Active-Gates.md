@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-08-30
+updated: 2026-09-01
 ---
 
 # Orbweaver — Enforcement Registry: Active Gates
@@ -271,7 +271,7 @@ lands) and **pinned by `tests/tooling/check-gates.int.test.ts`** — it derives 
 | `no-manual-autosave-flush` | a single `features/**` function body calling BOTH a structural array op (push/remove/insert/moveFieldValues) AND `handleSubmit` — the retired §7-trap call-site flush; the D78 session-boundary factory's store driver autosaves structural array ops (autosave-form-doctrine.md §7 G-A; armed at the SEAL 2026-07-16) | | | | | |
 | `assets-single-writer` | only `domain/assets` writes the `assets` table + calls `storeBlob` — the one CAS+row coherence site (D21 context); an importer of `storeBlob` or a raw `.insert/.update/.delete(assets)` outside the sanctioned home is RED | | | | | |
 | `audit-client-tests` | AST audit of every `tests/**/*.test.ts(x)` for anti-patterns grep can't see: an assertion-less test, a missing `await` on an async test, an empty `describe()`/hook body (Spine-Testing.md §5) | | | | | |
-| `bus-payload-allowlist` | the FIELD-NAME arm of the bus-payload firewall (D16) — a bus-event payload field name that smells like a credential/secret is RED; credentials/secrets are TYPE-LEVEL UNREPRESENTABLE on the wire, carry a branded id instead and have the subscriber re-read canon | | | | | |
+| `bus-payload-allowlist` | the FIELD-NAME arm of the bus-payload firewall (D16) — a bus-event payload field name that smells like a credential/secret is RED; credentials/secrets are TYPE-LEVEL UNREPRESENTABLE on the wire, carry a branded id instead and have the subscriber re-read canon. Members are read TRANSITIVELY over the named event's own type IDENTITY (#948): `extends` bases, intersection constituents and aliased union arms are followed through imports, so a credential inherited from an imported carrier is reported at its declaring site; a field's TYPE is deliberately NOT descended (a referenced payload like `MessageView` is separately homed). Fail-closed: an unresolvable base/shape REDs, and a root declaration name that resolves to nothing across the five bus homes REDs the §4.6 blindness arm | | | | | |
 | `component-size-ui` | the `@orb/ui` twin of `component-size` — a hard LOC ceiling (450) on `packages/ui/src` sources (UI-Primitives-and-Reuse.md §13.7); a god-primitive splits into sub-files/parts or extracts pure logic to a lib | | | | | |
 | `ct-no-oneshot-live-read-assert` | a HARD invariant (Spine-Testing.md §7, the DEF-14 flake class) — a component test (`*.ct.tsx`) never reads mutable async state with a non-retrying `expect()`, including when a captured local is consumed through property/element access or a value transform; use a web-first assertion or genuinely re-read inside `expect.poll`. A settled atomic snapshot may use exactly one adjacent `// ONESHOT-OK: <concrete reason>` marker; bare, malformed, overbroad, and stale markers RED | | | | | |
 | `fetch-fn-in-features` | a client feature must NEVER hand-write a global `fetch(` — HTTP-route egress gets ONE `data/` fetch fn each (the `upload-asset.ts`/`auth-session.ts` precedent), imported via `#data`; everything else is tRPC (client-architecture-lockdown.md §16 R5) | | | | | |
