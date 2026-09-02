@@ -1,7 +1,7 @@
 ---
 kind: design
 status: active
-updated: 2026-09-01
+updated: 2026-09-02
 ---
 
 # UI-audit population semantics (#983 and #984)
@@ -428,3 +428,69 @@ POPULATION   text-below-ramp candidates=98 judged=98 affected=0 populations=0 re
 POPULATION   undersized-ui-text candidates=98 judged=98 affected=9 populations=2 representatives=6 withheld(cap=3) excluded() collapsed()
 RESULT design-audit stage=live findings=14 p0=0 p1=2 p2=11 p3=1 fail-on=P1 actions=1 actions-failed=0 device-request=desktop device-actual=desktop viewport-actual=1280x2000 pointer=fine hover=hover touch=no environment-fails=0 population-verdict=NO-VERDICT tap-candidates=117 tap-judged=117 tap-affected=29 tap-populations=2 tap-representatives=10 tap-collapsed-same-owner=0 tap-withheld-cap=19 dom-walk=1082 dom-settled=1082 dom-judged=1064 dom-skip-head=18 dom-skip-dev=0 dom-inaccessible=0 dom-added=0 dom-detached=0 dom-mutations=0 dom-settle-mutations=0 theme-request=account theme-id=account theme-source=account theme-root=default theme-light=4 theme-dark=1060 theme-polarity-unknown=0 reached=117 skipped-offviewport=0 no-probe-frame=0 reveal-budget=ok obscured-scanned=189 obscured-recentred=0 obscured-unaskable=0 px-backdrops=0 no-verdict=0 nav=OK out=/home/inktomi/inktomi-stack/development/orbweaver/reports/design-audit/config.json census=763 scanned-a11y=7 scanned-color=3 scanned-decor=2 scanned-media=2 scanned-ornament=4 scanned-quality=7 scanned-structure=8 scanned-typography=3
 ```
+
+## Amendment — the DRIVE axis and the cohort key (#1059, owner ruling 2026-09-01)
+
+This section amends the two rulings above. Neither is withdrawn: the RULE each states survives verbatim,
+and what changed is the INPUT it is applied to.
+
+### 1. A one-sided cohort stays withheld — and a driven run is where its twin comes from
+
+The ruling in "Previously silent state cohorts" holds unchanged: a group with at least two state carriers
+but only selected or only unselected members is large enough to assert an authored cohort, so its missing
+opposite twin remains withheld and the run is NO VERDICT.
+
+What #1059 adds is that a surface has TWO measurable regimes, and a bare invocation only ever reaches one
+of them. The Characters library toolbar carries two `<Toggle>`s ("Group by tag", "Select multiple") that
+are both OFF at rest, so at rest there is genuinely no selected twin to judge and the withholding above is
+correct. Driving the surface produces the twin in the same mount:
+
+```text
+$ pnpm design-audit characters                       # the REST regime — unchanged, still withheld
+POPULATION   selection-idiom candidates=3 judged=0 affected=0 populations=0 representatives=0 withheld(unmatchedUnselected=1) excluded(insufficientPopulation=2) collapsed()
+
+$ pnpm design-audit characters \
+    --click '[aria-label="Select multiple"]' --click '[data-slot="checkbox-root"]'
+POPULATION   selection-idiom candidates=7 judged=2 affected=0 populations=0 representatives=0 withheld() excluded(insufficientPopulation=5) collapsed()
+```
+
+BOTH runs are real evidence and neither replaces the other — the bare one is the state a visitor lands on.
+So the regime is DECLARED rather than inferred, in the same surface-state accounting the panel and focus
+axes already use (`contract/surface-state.ts`'s `DRIVE_STATE_SPACE`): `drive=` on the SHELL STATE line, a
+`SURFACE-AXIS drive` row, and `drive-state=`/`drive-axis=` on the RESULT line. It is the one axis that is
+never EXCLUDED — the regime is an argv fact the run always knows, even when no shell mounted. A driven
+population and a rest population are not comparable, and a report that cannot say which one it holds is
+the same "we never looked" silence the panel axis exists to end.
+
+TWO clicks, not one, and the second is not decoration: the first toggle gives the toolbar cohort its twin,
+and bulk mode then renders one checkbox per row — a twelve-carrier cohort that is itself one-sided until
+one row is checked. Both are pure client state; neither writes a setting.
+
+### 2. `unmatchedUnselected=1` on `settings:appearance` was a GROUPING ARTIFACT, not a missing twin
+
+The graduation paragraph above records that Appearance "independently retains `unmatchedUnselected=1`" and
+that a complete verdict there is incompatible with preserving a real #987 withholding. The withholding was
+not real. The Background picker ALWAYS has exactly one selected tile — `appearance-background-section.tsx`'s
+`selectedTileKey` lights the `none` tile when no background is chosen — so the twin was on screen the whole
+time. `census-selection.ts` was the one relational family still keyed on the raw `parentElement`, and
+`MediaGrid` renders its cells under one `[data-slot=media-grid-row]` wrapper PER ROW: row 0 paired 1
+selected against 7 unselected and was judged, while row 1 held 7 unselected with no twin and was withheld.
+
+The key is now `claim + authoredTargetHome + state`, the same shape `census-region.ts`'s quiet-state
+cohorts already use, from the walker's own shared identity module — whose header states the reason
+directly: "Selector strings are presentation and contain nth-of-type instance positions; grouping them
+would turn one repeated component into N fake repairs." A parent node IS that instance. One authored
+cohort now stays one cohort across presentation wrappers:
+
+```text
+$ pnpm design-audit config --goto settings:appearance
+POPULATION   selection-idiom candidates=10 judged=5 affected=0 populations=0 representatives=0 withheld() excluded(insufficientPopulation=5) collapsed()
+```
+
+The `quiet-state` half of that graduation paragraph is untouched and still live
+(`withheld(unmatchedOn=1 unmatchedOff=1)`), so Appearance remains NO VERDICT for that separate rule.
+
+Both directions are pinned in `tests/tooling/ui-audit/ops/walker/census-selection.int.test.ts`: a selected
+twin in a SIBLING presentation wrapper is one judged cohort, and a cohort that is genuinely one-sided
+across those same wrappers is still withheld with `INSTRUMENT ERROR` and exit 2 — §"Previously silent
+state cohorts" survives the regrouping intact.

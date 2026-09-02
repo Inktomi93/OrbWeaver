@@ -3,7 +3,7 @@ import { print } from "@orb/tooling/_shared/artifacts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { Finding, PopulationAccounting, Severity } from "../contract/findings.ts";
 import type { CensusReachInput, ObscuredScanInput } from "../contract/samples.ts";
-import type { SurfaceStateAccounting } from "../contract/surface-state.ts";
+import type { DriveStateCandidate, SurfaceStateAccounting } from "../contract/surface-state.ts";
 import type { BackdropRefusal, ShellStateSnapshot } from "../contract/types.ts";
 import { surfaceStateAxisLabel } from "../lib/surface-state.ts";
 
@@ -156,14 +156,17 @@ function shellFocusLabel(shell: ShellStateSnapshot | null): string {
   return shell.focus ? "on" : "off";
 }
 
-export function printSurfaceState(shell: ShellStateSnapshot | null, accounting: SurfaceStateAccounting): void {
+export function printSurfaceState(shell: ShellStateSnapshot | null, accounting: SurfaceStateAccounting, drive: DriveStateCandidate): void {
   const listMode = shell?.panels.find((p) => p.side === "list")?.mode ?? "unmounted";
   const contextMode = shell?.panels.find((p) => p.side === "context")?.mode ?? "unmounted";
-  print(`SHELL STATE  section=${shell?.section ?? "unmounted"} panel-list=${listMode} panel-context=${contextMode} focus=${shellFocusLabel(shell)}`);
+  print(
+    `SHELL STATE  section=${shell?.section ?? "unmounted"} panel-list=${listMode} panel-context=${contextMode} focus=${shellFocusLabel(shell)} drive=${drive}`,
+  );
   for (const [axis, census] of [
     ["panel-list", accounting.panelList],
     ["panel-context", accounting.panelContext],
     ["focus", accounting.focus],
+    ["drive", accounting.drive],
   ] as const) {
     const withheld = Object.entries(census.withheld)
       .map(([reason, count]) => `${reason}=${String(count)}`)

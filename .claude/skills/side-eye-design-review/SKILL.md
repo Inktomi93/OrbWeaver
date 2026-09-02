@@ -264,6 +264,13 @@ keyboard walk**):
   the **mechanism** axis (does the rule's SELECTOR match how this codebase expresses the thing —
   the mechanism-match table in `RULE-AUTHORING.md`, which is the doc to read before trusting or
   authoring any detector rule).
+- **The DRIVE axis (#1059): a bare run measures the REST state, and some cohorts only exist once you
+  drive the surface.** Characters' library toolbar carries two toggles that are both OFF at rest, so
+  `selection-idiom` has no selected twin there and the run is honestly NO VERDICT; the driven run
+  `pnpm design-audit characters --click '[aria-label="Select multiple"]'` gives that cohort its twin and
+  the rule reaches a verdict. Both runs are real — the bare one is what a visitor lands on — so the
+  report DECLARES which regime it measured (`drive=` on the SHELL STATE line, `SURFACE-AXIS drive`,
+  `drive-state=`/`drive-axis=` on the RESULT line). Never compare a driven population to a rest one.
 
 Read `__orb` and any computed value via `snap --eval` / `snap --contrast` — a **Bash** call, no MCP.
 

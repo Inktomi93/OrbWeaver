@@ -1406,8 +1406,13 @@ auditRuleTest(
     await writeFile(join(scratch, "one-idiom.html"), selectionPage([RING, RING, RING, RING]));
     const res = await runCli("ui-audit", ["/one-idiom.html", "--base", `file://${scratch}`], { timeoutMs: CLI_TIMEOUT_MS });
     expect(res.stdout).not.toMatch(/^P2\s+selection-idiom/mu);
-    expect(res.stdout, "all four compatible state cohorts must have reached the detector").toContain(
-      "POPULATION   selection-idiom candidates=4 judged=4 affected=0 populations=0 representatives=0",
+    // ONE cohort, not four (#1059): the four regions are four instances of the same authored component in
+    // the same authored home, and the cohort key is `claim + home + state` now rather than the raw parent
+    // node. Every one of the four selected carriers is still compared against the cohort's unselected
+    // base — the vocabulary count this test fences is unchanged — so what moved is the denominator, which
+    // stopped reporting one repeated component as four separate decisions.
+    expect(res.stdout, "the repeated cohort must have reached the detector as ONE judged population").toContain(
+      "POPULATION   selection-idiom candidates=1 judged=1 affected=0 populations=0 representatives=0",
     );
   },
 );
