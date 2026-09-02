@@ -83,7 +83,7 @@ have not seen its rule yet, READ IT BY PATH before you edit:
   THE RUN IS NOT A VERDICT, and "probably contention" is a hypothesis you prove by a quiet re-run.
 - **The heap floor is WORKSPACE-WIDE but only through pnpm:** `pnpm-workspace.yaml`
   `nodeOptions: --max-old-space-size=16384` reaches every `pnpm run` / `pnpm exec` child (node's own
-  default self-cap is ~4GB even on the 128GB box); `ts7.cjs` carries the flag internally. **`npx` NEVER
+  default self-cap is \~4GB even on the 128GB box); `ts7.cjs` carries the flag internally. **`npx` NEVER
   carries it — that is the whole tool family, not a list of two** — and neither does a bare
   `node tooling/src/<tool>/cli.ts`.
 - **The spellings: a named pnpm script when one exists, else `pnpm exec <tool> …` — never `npx`.** Scoped
@@ -111,7 +111,7 @@ have not seen its rule yet, READ IT BY PATH before you edit:
 - **Lanes NEVER busy-wait on a long run** (every sleep-loop poll re-bills cache reads on the lane's ENTIRE
   context). A lane that launches a >10-min detached run REPORTS AND STOPS, naming its log/exit-file; the
   orchestrator resumes it by SendMessage. **A finished subagent turn is NOT re-invoked by its own
-  background jobs** — a run under ~10 min is redirected to a log and READ in a later call in the same
+  background jobs** — a run under \~10 min is redirected to a log and READ in a later call in the same
   turn, never backgrounded-and-waited-on.
 - **The harness AUTO-WRITES its artifacts — read them, never pipe or re-run to find a failure**
   (`reports/verify.json`, `reports/verify/<stage>.log`, `reports/test-report.json`), and those paths are
@@ -150,6 +150,12 @@ have not seen its rule yet, READ IT BY PATH before you edit:
 
 ## Tool hazards
 
+- **`vitest list --filesOnly --json <path>` OVERWRITES `<path>`.** `--json`'s value is OPTIONAL, so the next
+  positional is consumed as the JSON OUTPUT path rather than as a filter — a lane probing with
+  `--json tests/tooling/smoke.test.ts` replaced that TRACKED TEST FILE with a JSON array (recovered via
+  `git show HEAD:<path> > <path>`). Always `=`-join it to an absolute scratch path
+  (`--json=/tmp/.../out.json`). Same shape as the `rg -r` hazard below: an optional-value flag turns the
+  next argument into a destination.
 - **rg flag discipline is a standing hazard:** `-r` + a shorthand cluster (`-rln`) silently REPLACES match
   text. Spell `--files-with-matches` / `-n` out.
 - **Wrapper scripts are classified by BODY** — the Bash guard reads UNTRACKED script bodies, so a helper
