@@ -2,7 +2,7 @@ import type { ButtonProps as BaseButtonProps } from "@base-ui/react/button";
 import { Button as BaseButton } from "@base-ui/react/button";
 import type { ReactElement } from "react";
 import type { VariantProps } from "tailwind-variants";
-import { cn } from "#lib";
+import { variantProps } from "#lib";
 import { buttonVariants } from "./variants.ts";
 
 /** Every Button prop EXCEPT the accessible-name requirement — the shape a wrapper seal extends. */
@@ -53,7 +53,8 @@ export function Button(props: ButtonProps): ReactElement {
       // The gradient-border accent ring keys off this attr, painting on the primary CTA only.
       data-cta={intent === "primary" ? "" : undefined}
       aria-busy={loading ? true : undefined}
-      className={cn(buttonVariants({ intent, size, shape, selection }), className)}
+      // The className AND the `data-intent`/`data-size` axis stamp, from ONE selection object (#1080).
+      {...variantProps(buttonVariants, { intent, size, shape, selection }, className)}
       disabled={disabled || loading}
       // Loading is a transient busy state, not a real disablement — stay in the tab sequence for AT.
       focusableWhenDisabled={focusableWhenDisabled ?? loading}

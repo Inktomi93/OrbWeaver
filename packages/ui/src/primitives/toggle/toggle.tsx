@@ -2,7 +2,7 @@ import type { ToggleProps as BaseToggleProps } from "@base-ui/react/toggle";
 import { Toggle as BaseToggle } from "@base-ui/react/toggle";
 import type { ReactElement } from "react";
 import type { VariantProps } from "tailwind-variants";
-import { cn } from "#lib";
+import { variantProps } from "#lib";
 import { toggleVariants } from "./variants.ts";
 
 export interface ToggleProps extends BaseToggleProps<string>, VariantProps<typeof toggleVariants> {
@@ -33,5 +33,8 @@ export interface ToggleProps extends BaseToggleProps<string>, VariantProps<typeo
  */
 export function Toggle({ className, intent, size, shape, semantics = "toggle", checked, ...rest }: ToggleProps): ReactElement {
   const radioAria = semantics === "radio" ? { role: "radio", "aria-checked": checked === true, "aria-pressed": undefined } : {};
-  return <BaseToggle data-slot="toggle" className={cn(toggleVariants({ intent, size, shape }), className)} {...rest} {...radioAria} />;
+  // The className AND the `data-intent`/`data-size` axis stamp, from ONE selection object (#1080). The
+  // AUTHORED choice sits beside Base UI's RUNTIME `data-pressed` without shadowing it — the stamped
+  // vocabulary is closed to four names Base UI never emits (lib/variant-attrs.ts).
+  return <BaseToggle data-slot="toggle" {...variantProps(toggleVariants, { intent, size, shape }, className)} {...rest} {...radioAria} />;
 }
