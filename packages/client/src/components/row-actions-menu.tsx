@@ -13,6 +13,7 @@
 import { Button } from "@orb/ui/button";
 import type { LucideIcon } from "@orb/ui/icons";
 import { Icon, MoreHorizontal, Trash2 } from "@orb/ui/icons";
+import { RECEDED_INK } from "@orb/ui/lib";
 import { Menu, MenuItem, MenuPopup, MenuSeparator, MenuTrigger } from "@orb/ui/menu";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { ReactElement, ReactNode } from "react";
@@ -58,19 +59,19 @@ export interface RowActionsMenuProps {
   readonly destructive?: RowDestructiveAction;
 }
 
-/** The trigger's RECEDING ink, stated HERE rather than by the `Button` primitive (#1244, 2026-09-02 — the
- *  #1141 fork, second instance). This composite IS the demoted-actions door: every consumer puts it at the
- *  quiet end of a row whose primary action sits beside it, and side-eye #621's ruling for exactly such a row
- *  is "three affordances at three weights". It got the recession for free while `Button`'s `ghost` intent
- *  painted `text-muted-foreground`; 242bfaecb (#969, `docs/design/theme-pivot-foreground-contract.md`)
- *  flipped every transparent intent to `text-current` so a transparent action inherits its host's paired
- *  ink, and the two weights collapsed onto one colour — the automation rule row's Test and its ⋯ measured
- *  IDENTICAL, which is the pin #621 minted to stop that exact reading.
- *  BOTH RULINGS SURVIVE, resolved the way #1141 was: the primitive keeps inheriting (#969's mechanism and
- *  its button CT are untouched), and the component whose whole identity is "demoted" states its own ink.
- *  Unprefixed, so `hover:text-accent-foreground` (a variant key twMerge keeps, and a more specific
- *  selector) still wins on hover — the trigger recedes at REST, which is the only state the ruling is about. */
-const TRIGGER_INK = "text-muted-foreground";
+// ── THE TRIGGER RECEDES, AND THIS COMPOSITE SAYS SO (#1244, 2026-09-02 — the #1141 fork, second instance;
+// converted to the shared `RECEDED_INK` spelling by #1249, third instance) ────────────────────────────────
+// This composite IS the demoted-actions door: every consumer puts it at the quiet end of a row whose primary
+// action sits beside it, and side-eye #621's ruling for exactly such a row is "three affordances at three
+// weights". It got the recession for free while `Button`'s `ghost` intent painted `text-muted-foreground`;
+// 242bfaecb (#969, `docs/design/theme-pivot-foreground-contract.md`) flipped every transparent intent to
+// `text-current` so a transparent action inherits its host's paired ink, and the two weights collapsed onto
+// one colour — the automation rule row's Test and its ⋯ measured IDENTICAL, which is the pin #621 minted to
+// stop that exact reading.
+// BOTH RULINGS SURVIVE, resolved the way #1141 was: the primitive keeps inheriting (#969's mechanism and its
+// button CT are untouched), and the component whose whole identity is "demoted" states its own ink at the
+// two trigger sites below. `RECEDED_INK`'s module header owns the full fork and the unprefixed-so-hover-
+// still-wins reasoning.
 
 /**
  * The one row/entity actions menu — ghost ⋯ trigger, a popup of `children` items, and an optional
@@ -96,7 +97,7 @@ export function RowActionsMenu({
         {tooltip === undefined ? (
           <MenuTrigger
             render={
-              <Button aria-label={label} className={reveal ? `${TRIGGER_INK} ${ROW_REVEAL}` : TRIGGER_INK} intent="ghost" size={triggerSize}>
+              <Button aria-label={label} className={reveal ? `${RECEDED_INK} ${ROW_REVEAL}` : RECEDED_INK} intent="ghost" size={triggerSize}>
                 <Icon icon={icon} size="sm" />
               </Button>
             }
@@ -107,7 +108,7 @@ export function RowActionsMenu({
               render={
                 <MenuTrigger
                   render={
-                    <Button aria-label={label} className={reveal ? `${TRIGGER_INK} ${ROW_REVEAL}` : TRIGGER_INK} intent="ghost" size={triggerSize}>
+                    <Button aria-label={label} className={reveal ? `${RECEDED_INK} ${ROW_REVEAL}` : RECEDED_INK} intent="ghost" size={triggerSize}>
                       <Icon icon={icon} size="sm" />
                     </Button>
                   }

@@ -34,6 +34,7 @@ import { Avatar } from "@orb/ui/avatar";
 import { Button } from "@orb/ui/button";
 import { Icon, Images, MessagesSquare } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
+import { RECEDED_INK } from "@orb/ui/lib";
 import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
@@ -155,10 +156,29 @@ export function DiscoverHitRow({ hit, rank }: { readonly hit: DiscoverHit; reado
 }
 
 /** One room a passage came from, as the door it is. The `title` tooltip fires only on a numbered room name,
- *  which is the one case the label cannot explain itself (P3-6 — see `roomNumberingHint`). */
+ *  which is the one case the label cannot explain itself (P3-6 — see `roomNumberingHint`).
+ *
+ *  THE DOOR'S RECEDING INK IS STATED HERE, not by the `ghost` intent (#1249, 2026-09-02 — the #1141/#1244
+ *  fork, third instance). P2-2 ruled this room reads as a DOOR and not as the section heading it used to
+ *  look like: "left-aligned, muted, arrowed", and it got the muted half for free while `Button`'s `ghost`
+ *  intent painted `text-muted-foreground`. 242bfaecb (#969,
+ *  `docs/design/theme-pivot-foreground-contract.md`) flipped every transparent intent to `text-current` so a
+ *  transparent action inherits its host surface's paired ink — correct, and untouched here — and the door's
+ *  own box went back to the body ink the ruling exists to keep it off (its CT's "is not painted in the body
+ *  ink that made it read as a heading" went red on main).
+ *  BOTH RULINGS SURVIVE, resolved the way #1141 and #1244 were: the primitive keeps inheriting, and the
+ *  composite whose whole identity is "a quiet door" states its own ink — through the one shared spelling,
+ *  {@link RECEDED_INK}, whose module header owns the full fork. The two `Text` children keep their own muted
+ *  class: `voice="label"` paints `text-foreground` itself, so inheritance alone would not reach them. */
 function RoomDoor({ room }: { readonly room: EvidenceRoom }): ReactElement {
   return (
-    <Button className="max-w-full justify-start" intent="ghost" onClick={(): void => openChat(room.chatId)} size="sm" title={roomNumberingHint(room.title)}>
+    <Button
+      className={`max-w-full justify-start ${RECEDED_INK}`}
+      intent="ghost"
+      onClick={(): void => openChat(room.chatId)}
+      size="sm"
+      title={roomNumberingHint(room.title)}
+    >
       <Text as="span" className="min-w-0 truncate text-muted-foreground" voice="label">
         {room.title}
       </Text>
