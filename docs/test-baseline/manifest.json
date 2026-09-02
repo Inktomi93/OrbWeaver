@@ -2155,6 +2155,7 @@
     "tests/tooling/verify/ops/show.int.test.ts",
     "tests/tooling/verify/ops/structure.int.test.ts",
     "tests/tooling/verify/ops/tests-execution-membership.int.test.ts",
+    "tests/tooling/verify/ops/tests-type-membership.test.ts",
     "tests/tooling/vitest-coverage-scope.test.ts",
     "tests/tooling/vitest-supervised.test.ts",
     "tests/tooling/vllm-gen-window-parity.int.test.ts",

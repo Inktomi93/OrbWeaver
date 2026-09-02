@@ -109,6 +109,11 @@
     // `requestAnimationFrame`/`cancelAnimationFrame` (lib.dom globals) → phantom lib.dom errors in this
     // DOM-less node program. The hook SOURCE stays dom-typechecked by packages/client/tsconfig.
     "tests/client/features/chat/hooks/use-message-items.test.ts",
+    // #1228: same DOM-barrel-hazard class — value-imports `@orb/client/features/chat` (2 pure
+    // functions), whose barrel re-exports `chat-list-surface.tsx` (DOM-coupled) → phantom lib.dom
+    // errors in this DOM-less node program. The barrel SOURCE stays dom-typechecked by
+    // packages/client/tsconfig; this test lives in tsconfig.tests-dom.json.
+    "tests/client/features/chat/lib/join-token.test.ts",
     // CT plumbing that is itself DOM-COUPLED: `dropFiles` builds a `DataTransfer` + `File` INSIDE the page
     // (an `evaluateHandle` callback), so its body needs lib.dom even though it is `.ts` node-side glue —
     // the one exception to the "tests/support/ct/*.ts stays here" note above. Home: tsconfig.tests-dom.json.
@@ -138,6 +143,45 @@
     // program, and `public/global.d.ts` declares ST's browser globals into OUR global scope. Verified by
     // planting a file: closure hits go 1 → 0. The rig's own five scripts DO typecheck here (2026-08-06);
     // this excludes the third-party runtime beneath them, never our code.
-    "scripts/probes/st-goldens/sillytavern-runtime"
+    "scripts/probes/st-goldens/sillytavern-runtime",
+    // #1228, the DOM-lib-leak defuse: this script's `page.evaluate` callbacks read `document`/
+    // `HTMLElement` inside the browser and formerly carried a program-scoping `/// <reference lib="dom"
+    // />` that silently supplied lib.dom to this WHOLE aggregator, masking every other DOM-coupled
+    // escapee below. Removed the directive; the script now typechecks under tsconfig.tests-dom.json.
+    "scripts/probes/st-goldens/generate-goldens.ts",
+    // Same #1228 leak, ct-support flavor: these `tests/support/ct/*.ts` files reach `document`/
+    // `HTMLElement`/`getComputedStyle`/`requestAnimationFrame` inside `page.evaluate`/`locator.evaluate`
+    // callbacks — DOM-coupled non-`.tsx` escapees, same class as the pre-existing drop-files/
+    // settings-geometry/tier-liveness trio just below. Homed at tsconfig.tests-dom.json.
+    "tests/support/ct/accessible-names.ts",
+    "tests/support/ct/autosave-status-transcript.ts",
+    "tests/support/ct/canvas-ink.ts",
+    "tests/support/ct/held-portrait-image.ts",
+    "tests/support/ct/measure-clamp.ts",
+    "tests/support/ct/part-vs-surface.ts",
+    "tests/support/ct/pixel-contrast.ts",
+    "tests/support/ct/scroll-containing-block.ts",
+    "tests/support/ct/touch-floor.ts",
+    "tests/support/ct/weave-drive.ts",
+    // Same #1228 leak, tests/tooling flavor: these int/CT tests drive a REAL chromium directly
+    // (`@playwright/test` `chromium.launch`/`@playwright/experimental-ct-react`) rather than importing a
+    // package's DOM-typed source, so no other program's reach-back claims them. Homed at
+    // tsconfig.tests-dom.json.
+    "tests/tooling/_shared/browser.int.test.ts",
+    "tests/tooling/design-audit-walker.ct.tsx",
+    "tests/tooling/snap/cascade.suite.int.test.ts",
+    "tests/tooling/snap/ops/contrast.int.test.ts",
+    // Same #1228 leak, node-fetch-lib flavor: this file's planted `fetch` stand-in types against
+    // `RequestInfo` (the whatwg fetch surface tsc sources from lib.dom, not `@types/node`). Homed at
+    // tsconfig.tests-dom.json.
+    "tests/tooling/stack/lib/engine-launch.test.ts",
+    // Same #1228 leak, TRANSITIVE-barrel flavor: this file imports every `@orb/client/features/*`
+    // config-group barrel (a non-component sibling of ct-data-providers.tsx, which is ALREADY excluded
+    // above and homed at packages/client/tsconfig.json) — a `.ts` file no `.tsx` directory reach-back
+    // claims, so its DOM-coupled component chain used to reach dom lib ONLY through the leak. Homed at
+    // packages/client/tsconfig.json beside its `.tsx` sibling (its only two consumers are both
+    // client-owned; this is the correct home per the ct-data-providers.tsx upward-cake precedent, not
+    // the generic tests-dom.json escapee list).
+    "tests/support/ct/ct-config-groups.ts"
   ]
 }

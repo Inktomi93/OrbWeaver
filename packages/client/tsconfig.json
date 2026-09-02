@@ -7,6 +7,13 @@
   // hardening) and the client-side CT provider stack (ct-data-providers.tsx — it imports @orb/client,
   // so it can NEVER be swept into ui's program: upward-cake; packages/ui/tsconfig.json includes only
   // ct-providers.tsx).
+  //
+  // #1228, the DOM-lib-leak defuse: ct-config-groups.ts is ct-data-providers.tsx's NON-`.tsx` sibling
+  // (the "a non-component module beside ct-data-providers.tsx" its own header names) — it imports
+  // every `@orb/client/features/*` config-group barrel, so it is DOM-coupled by the same transitive
+  // chain, but being `.ts` (not `.tsx`) no directory-glob reach-back above claims it. It used to reach
+  // this program's dom lib ONLY via the root aggregator's leaked `/// <reference lib="dom" />`
+  // (scripts/probes/st-goldens/generate-goldens.ts); the root aggregator now excludes it explicitly.
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     // VITE is this package's resolver, so it stays on the bundler pair while the base went nodenext
@@ -22,5 +29,13 @@
   },
   // `../../platform.d.ts` = the root ambient pair's second half (node-26 adoption program §1.2) — see
   // tsconfig.base.json's include note: this array overrides the base's, which carries both.
-  "include": ["src", "vite.config.ts", "../../reset.d.ts", "../../platform.d.ts", "../../tests/client/**/*.tsx", "../../tests/support/ct/ct-data-providers.tsx"]
+  "include": [
+    "src",
+    "vite.config.ts",
+    "../../reset.d.ts",
+    "../../platform.d.ts",
+    "../../tests/client/**/*.tsx",
+    "../../tests/support/ct/ct-data-providers.tsx",
+    "../../tests/support/ct/ct-config-groups.ts"
+  ]
 }

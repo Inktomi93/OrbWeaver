@@ -1,4 +1,3 @@
-/// <reference lib="dom" />
 /**
  * generate-goldens.ts
  *
@@ -13,6 +12,12 @@
  *
  * Fixtures: scripts/probes/st-goldens/fixtures/<id>.json
  * Output:   scripts/probes/st-goldens/output/<id>.json
+ *
+ * DOM-typed home: this script's `page.evaluate` callbacks read `document`/`HTMLElement` inside the
+ * browser, so it is typechecked by tsconfig.tests-dom.json, NOT the DOM-less root aggregator
+ * (tsconfig.json excludes it explicitly). A `/// <reference lib="dom" />` here used to supply lib.dom
+ * to that triple-slash directive's whole PROGRAM (root aggregator included) — the fix for #1228 is to
+ * declare DOM typing per-program via tsconfig, never via a source-level reference.
  */
 
 import { spawn } from "node:child_process";
