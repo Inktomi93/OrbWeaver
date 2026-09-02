@@ -43,6 +43,10 @@ const SERIAL_INT = [
   // sentinel space check-gates.int owns, so the two MUST never run concurrently.
   "tests/tooling/gate-ignore-grammar.int.test.ts",
   "tests/tooling/dependency-cruiser.int.test.ts",
+  // #968's pin drives `stableJson`, the doc-catalog's ONE canonical serializer, which round-trips a value
+  // through the biome BINARY via a temp file at the FIXED path docs/catalog/catalog.tmp.json — two
+  // concurrent callers clobber each other's tmp, so it is a class-1 tree-writer.
+  "tests/tooling/doc-catalog/ops/catalog.int.test.ts",
   // #949 compiler parity: whole UI/client source graph → #961 provenance → Oxide → Tailwind compile.
   "tests/tooling/css-merge-parity.int.test.ts",
   "tests/server/entry/lifecycle.int.test.ts",
