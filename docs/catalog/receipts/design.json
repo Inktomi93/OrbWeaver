@@ -99,8 +99,8 @@
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "5842dbd0d94bf4de161955cacacb750063e7df7d72f0996996bb23b565fe6c3a",
-      "verifiedCommit": "95c4f97a51d23167722cac2353664056a5f9ed66",
+      "verifiedSha256": "9baa86f24e35035d916c418f2c3605a2b5062af9cda260c5c58a353d694d52b3",
+      "verifiedCommit": "7ff42cde92011ed33fbe3877c942a359b7457bcc",
       "verifiedAt": "2026-09-02",
       "evidence": [
         "re-attested at 95c4f97a5 (#1068, lane p-quiet-cohorts): the quiet-state amendment — the backdrop partition resolves above every state carrier in the subject's chain (it was restating the ON/OFF axis on switches and selected rows); fill-less cohorts excluded(noOwnFill) vs partially fill-less withheld(unresolved); :208 survives verbatim; characters driven + settings:appearance reach complete",
@@ -108,7 +108,8 @@
         "docs/design/983-984-ui-audit-population-semantics.md:1 (full read; #989 premise verdicts, authored population architecture, rejected alternatives, coupled sites, two-sided plants, and final live receipts)",
         "git:36c6a9101c0f00a2e27c3a487defdbb2a4c13a67 (#989 F1/F3 repair; F2 correctly refused after its live singleton premise was refuted)",
         "pnpm test:scoped tests/tooling/ui-audit --maxWorkers=4 (12/12 files, 250/250 tests, zero type errors); graph types and error-level Biome green",
-        "cold Config receipts embedded in the design: default exit 1 complete; Appearance at 1280x800 and 1280x2000 exit 2 with invariant obscured unaskable=0 and two real #987 withholding cohorts"
+        "cold Config receipts embedded in the design: default exit 1 complete; Appearance at 1280x800 and 1280x2000 exit 2 with invariant obscured unaskable=0 and two real #987 withholding cohorts",
+        "re-attested at 7ff42cde9 — #1122 fold (a87e241f7): the population-law section gains the surface-state axes' proven-exclusion paragraph (the published `data-panel-available` declaration, `sectionDeclaresNoPane`/`sectionDeclaresNoPanes`, the tri-state refusal, and `excluded` printed as its own RESULT label with NO-VERDICT reserved for WITHHELD). Delta read once against the live receipt taken on Home and Characters after the fold; no other section moved."
       ],
       "summary": "Implemented #983/#984/#987/#989 authored UI-audit populations with re-centred obscuration evidence, grouped typography repairs, exact settled accounting, bounded representatives, and fail-loud partial-population verdicts.",
       "claims": [
