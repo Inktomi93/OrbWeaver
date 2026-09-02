@@ -61,3 +61,30 @@ export function usePrefetchRoom(chatId: ChatId | null): void {
     void queryClient.ensureQueryData(trpc.chat.getChat.queryOptions({ chatId })).catch(() => undefined);
   }, [queryClient, trpc, chatId]);
 }
+
+/**
+ * The IMPERATIVE twin of {@link usePrefetchRoom}, for a door the reader ARRIVES AT rather than one the
+ * surface mounts (#1180): a chats-LIST row warms on hover-rest / press / focus, not on mount.
+ *
+ * Why a second shape rather than the hook: the list is N rows and only one of them is the room you are
+ * about to open. `usePrefetchRoom` fires on MOUNT, which is right for home's single hero and wrong here —
+ * warming every rendered row would spend the pane's connection budget on a bet nobody placed (the #1126
+ * ruling, same words). So the caller decides WHEN, and this returns the stable "warm that one" callback.
+ *
+ * Same key, same ruling: `chat.getChat` only. `chat.listMessages` is deliberately not warmed — the owner
+ * refused the both-reads arm because it moves the transcript render into the click step
+ * (`usePrefetchRoom`'s header carries the measured trade).
+ *
+ * Idempotent by construction: `ensureQueryData` resolves from cache for a warm key and de-duplicates an
+ * in-flight one, so a reader sweeping back over the same row costs nothing after the first.
+ */
+export function useWarmRoomOnIntent(): (chatId: ChatId) => void {
+  const trpc = useTRPC();
+  const queryClient = useQueryClient();
+  // A PLAIN closure, deliberately not `useCallback` — the React Compiler full-compiles this tree and
+  // memoizes it already (`no-manual-memo`, D54). Nothing here depends on referential stability anyway:
+  // the callback is invoked from an event handler, never passed as an effect dependency.
+  return (chatId: ChatId): void => {
+    void queryClient.ensureQueryData(trpc.chat.getChat.queryOptions({ chatId })).catch(() => undefined);
+  };
+}

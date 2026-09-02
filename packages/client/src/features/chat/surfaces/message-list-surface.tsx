@@ -46,9 +46,26 @@ import type { MESSAGE_ROW_SKINS } from "../lib/message-row-variants.ts";
 import { buildParticipantsById } from "../lib/roster.ts";
 
 /** Initial row-height model. A flat 96px guess made a 3k-character RPG turn look like a one-line bubble,
- *  so the bottom-anchored virtualizer mounted and parsed too many multi-KB rows before measurement caught up. */
+ *  so the bottom-anchored virtualizer mounted and parsed too many multi-KB rows before measurement caught up.
+ *
+ *  THE COEFFICIENT IS CALIBRATED, NOT CHOSEN (#1181). A row's settled height is genuinely UNKNOWABLE before
+ *  layout — it depends on wrapping, markdown structure, code blocks and inline media, and measured across 16
+ *  rows in 5 rooms this model over-estimates 6 of them and under-estimates 10. That residual error is
+ *  irreducible and is NOT the defect. The defect was that the error had a SIGN: at 0.24px/char the model came
+ *  in 16% low in aggregate (7077px predicted against 8216px measured), and in a BOTTOM-ANCHORED list a
+ *  one-directional bias is exactly what turns unavoidable per-row error into one visible downward settle —
+ *  `[cls] 0.1131 · [data-slot=message-list-row] moved 0px,112px · observed 0.1355 OVER BUDGET` on room entry.
+ *  The same sample puts the real slope at 0.283px/char over prose rows. 0.28 takes the aggregate bias to
+ *  roughly zero, which leaves the residual TWO-DIRECTIONAL so it cancels instead of accumulating.
+ *  Over-estimating is also the safe side of this file's own original hazard: a taller guess mounts FEWER rows
+ *  before measurement catches up, never more. Attributed against the two alternatives first and ruled out by
+ *  measurement, not by argument: `document.fonts.status` was `loaded` and every in-row image `complete` at the
+ *  moment of the settle, so neither font swap nor image decode moves these rows.
+ *
+ *  The number is a CALIBRATION against a corpus, so it is pinned by a test that re-derives the bias rather
+ *  than by asserting the literal — see `tests/client/features/chat/surfaces/message-list-surface.ct.tsx`. */
 const ESTIMATED_ROW_BASE_PX = 96;
-const ESTIMATED_ROW_PX_PER_CHARACTER = 0.24;
+const ESTIMATED_ROW_PX_PER_CHARACTER = 0.28;
 const ESTIMATED_ROW_MAX_PX = 1200;
 const CHAT_TRANSCRIPT_PROFILER_ID = "chat:transcript";
 

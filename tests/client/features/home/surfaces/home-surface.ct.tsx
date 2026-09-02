@@ -1474,6 +1474,7 @@ test("#1145 the prose measure is a LINE, not a width — font scale moves its px
   await stubDatabank(
     page,
     {
+      ...CHAT_ROOM_ROUTES,
       "chat.listChats": chatListResponder(FIRST_BOOT_ROOMS),
       "chat.reapTemporaryChats": { reaped: 0 },
       "character.list": characterListResponder(FIRST_BOOT_FACES),
