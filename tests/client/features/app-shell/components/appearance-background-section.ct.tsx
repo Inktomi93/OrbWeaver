@@ -248,8 +248,14 @@ test("the section's commits settle after mount and stay settled with no user int
       }),
   );
 
+  // firstReading/secondReading are already-captured numbers, not a live read — each came out of its OWN
+  // sequential in-page `page.evaluate` that barriers on a 500ms idle window before resolving, so by the time
+  // either is compared below the settle already happened inside the read itself; polling would just
+  // re-compare the same two frozen numbers forever.
+  // ONESHOT-OK: settled — secondReading is a frozen number captured after its own 500ms in-page idle wait.
   expect(secondReading).toBe(firstReading);
   // A settled mount is a small, bounded number of commits — never an unbounded "still climbing" count.
+  // ONESHOT-OK: settled — same frozen secondReading as the comparison above.
   expect(secondReading).toBeLessThan(10);
 
   // The SECOND arm of the pin: MediaGrid's virtualizer writes row position DIRECTLY to the DOM
@@ -292,6 +298,7 @@ test("the section's commits settle after mount and stay settled with no user int
         tick();
       }),
   );
+  // ONESHOT-OK: settled — geometrySamples is the array an in-page tick() loop already fully collected (10 ticks over its own idle window) before resolving; nothing left in flight to poll.
   expect(geometrySamples.length).toBeGreaterThan(0);
   const firstGeometry = geometrySamples[0];
   for (const sample of geometrySamples) {
