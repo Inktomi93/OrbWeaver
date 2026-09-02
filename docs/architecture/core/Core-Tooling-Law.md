@@ -96,6 +96,7 @@ Every row is reached by the pnpm script name in the last column, never by path.
 
 | tooling/src/ | owns | pnpm scripts |
 | - | - | - |
+| `bug-reports/` | the READER for the dev bug button's gitignored captures (list + show) — the artifacts have no tree presence, so the script name IS their discoverability | `bug:reports` |
 | `snap/` | rendered-surface capture + evidence (map/contrast/eval/aria, scenarios, the isolated stage) | `snap` |
 | `ui-audit/` | the design/a11y walker + its rule families | `design-audit` |
 | `motion-audit/` | motion budgets, frame verdicts, traces | `motion-audit` |

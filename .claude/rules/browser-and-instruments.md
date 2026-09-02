@@ -68,3 +68,12 @@ paths:
   never tear a sibling's stage down. Stage mechanics: the `snap-driving` skill §8.
 - **`:5173` serves MAIN, never your worktree** (§L.6). From a lane, use `snap --isolated --ref <sha>`
   or screenshot from the CT browser.
+
+## The owner's own bug reports
+
+- **`pnpm bug:reports` lists what the owner captured with the dev top-rail bug button** — each report is a
+  route + browser + appearance snapshot, every `__orb` census, a console-error ring, and the server's
+  flight-recorder tails at that instant, stamped with the sha + dirty flag it happened on. `pnpm
+  bug:reports <id-or-unique-prefix>` prints one. **You will not find these by grepping**: they are
+  gitignored per the #1095 contract (raw session evidence, never committed), so the script name is the only
+  pointer that exists — check it when investigating anything the owner reported by hand.

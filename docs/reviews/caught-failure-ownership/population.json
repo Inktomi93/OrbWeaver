@@ -2,17 +2,17 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 449,
-    "enforced": 446,
+    "sites": 452,
+    "enforced": 449,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 446,
+      "deliberate-absorb": 449,
       "detached-owned": 3,
       "unproven": 0
     },
     "byGrammar": {
       "promise": 124,
-      "default": 131,
+      "default": 134,
       "empty": 194
     }
   },
@@ -3114,7 +3114,7 @@
     {
       "siteId": "packages/server/src/foundation/observability/debug/bug-report.ts::default:catch::1",
       "path": "packages/server/src/foundation/observability/debug/bug-report.ts",
-      "line": 102,
+      "line": 78,
       "column": 5,
       "grammar": "default",
       "position": "default:catch",
@@ -3122,7 +3122,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "git being absent, or the cwd not being a",
-      "markerLine": 97
+      "markerLine": 73
     },
     {
       "siteId": "packages/server/src/foundation/observability/debug/log-ring-read.ts::default:catch::1",
@@ -4423,6 +4423,45 @@
       "verdict": "deliberate-absorb",
       "reason": "the verb's thrown error is mapped to a typed exit code via mapKnownError, not dropped — the return value is main()'s own contract, propagated to the process exit code. Ends if mapKnownError stops covering a real error class and silently returns clean.",
       "markerLine": 123
+    },
+    {
+      "siteId": "tooling/src/bug-reports/lib/read.ts::default:catch::1",
+      "path": "tooling/src/bug-reports/lib/read.ts",
+      "line": 159,
+      "column": 5,
+      "grammar": "default",
+      "position": "default:catch",
+      "ordinal": 1,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "an absent directory IS the answer here — it",
+      "markerLine": 154
+    },
+    {
+      "siteId": "tooling/src/bug-reports/lib/read.ts::default:catch::2",
+      "path": "tooling/src/bug-reports/lib/read.ts",
+      "line": 172,
+      "column": 5,
+      "grammar": "default",
+      "position": "default:catch",
+      "ordinal": 2,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "the null is consumed as an `unreadable` ROW in",
+      "markerLine": 166
+    },
+    {
+      "siteId": "tooling/src/bug-reports/lib/read.ts::default:catch::3",
+      "path": "tooling/src/bug-reports/lib/read.ts",
+      "line": 187,
+      "column": 5,
+      "grammar": "default",
+      "position": "default:catch",
+      "ordinal": 3,
+      "snippet": "} catch {",
+      "verdict": "deliberate-absorb",
+      "reason": "a missing companion degrades the SHOW output to",
+      "markerLine": 182
     },
     {
       "siteId": "tooling/src/codemod/lib/diagnostics.ts::default:err::1",
