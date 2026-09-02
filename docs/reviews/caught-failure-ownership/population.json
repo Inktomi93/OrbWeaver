@@ -4479,7 +4479,7 @@
     {
       "siteId": "tooling/src/motion-audit/lib/verdicts.ts::empty:catch::1",
       "path": "tooling/src/motion-audit/lib/verdicts.ts",
-      "line": 93,
+      "line": 122,
       "column": 5,
       "grammar": "empty",
       "position": "empty:catch",
@@ -4487,7 +4487,7 @@
       "snippet": "} catch {",
       "verdict": "deliberate-absorb",
       "reason": "an unparseable sourceURL falls back to the raw string, which the pathname.includes() checks below just won't match — degrading to \"unknown\" attribution rather than throwing, consistent with this function's documented \"veto, not proof\" contract. Ends if callers start requiring pathname to be a real URL path.",
-      "markerLine": 90
+      "markerLine": 119
     },
     {
       "siteId": "tooling/src/motion-audit/ops/drive.ts::default:e::1",
