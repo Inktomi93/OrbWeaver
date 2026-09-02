@@ -6,6 +6,7 @@ export const STORY_KEYS = [
   "badge",
   "button",
   "card",
+  "checkbox",
   "empty-state",
   "highlighted-text",
   "input",

@@ -20,6 +20,8 @@ import type { ButtonProps } from "@orb/ui/button";
 import { Button } from "@orb/ui/button";
 import type { CardProps } from "@orb/ui/card";
 import { Card } from "@orb/ui/card";
+import type { CheckboxProps } from "@orb/ui/checkbox";
+import { Checkbox } from "@orb/ui/checkbox";
 import type { EmptyStateProps } from "@orb/ui/empty-state";
 import { EmptyState } from "@orb/ui/empty-state";
 import type { HighlightedTextProps } from "@orb/ui/highlighted-text";
@@ -78,6 +80,11 @@ const RENDERERS = {
       </Button>
     ),
   card: (props: CardProps): ReactElement => <Card {...props}>Quiet island copy</Card>,
+  // CHECKED, deliberately: the `tone` axis paints ONLY the checked/indeterminate fill (#1110), so an
+  // unchecked cell would render both arms identically and judge the shared rest frame twice.
+  checkbox: (props: CheckboxProps, ctx: RenderCtx): ReactElement => (
+    <Checkbox {...props} aria-label="Include chats" defaultChecked={true} disabled={ctx.disabled} />
+  ),
   "empty-state": (props: EmptyStateProps): ReactElement => <EmptyState {...props} description="Import a character to begin." title="Nothing here yet" />,
   "highlighted-text": (props: HighlightedTextProps): ReactElement => <HighlightedText {...props} ranges={[{ start: 4, end: 9 }]} text="The quick brown fox" />,
   input: (props: InputProps, ctx: RenderCtx): ReactElement => <Input {...props} aria-label="Name" defaultValue="Azarael" disabled={ctx.disabled} />,

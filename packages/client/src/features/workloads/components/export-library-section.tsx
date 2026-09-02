@@ -14,6 +14,14 @@ import { SettingCheckboxRow } from "#components";
 import { downloadUrl, testId } from "#lib";
 import { buildLibraryExportHref, EXPORTABLE_KINDS, PORTABLE_KIND_LABELS } from "../lib/portability-model.ts";
 
+/** THE "INCLUDE" GROUP IS A BULK DEFAULT, SO IT SPENDS NO ACCENT (#1110, owner ruling 2026-09-02).
+ *  Every exportable kind starts SELECTED — that is the useState seed below and it is the right default —
+ *  so the accent skin painted eleven saturated squares before the user had decided anything, making the
+ *  unremarkable default the loudest ink in the pane. The tone is chosen ONCE, here, for the whole
+ *  fieldset (not per row): one group-level decision, applied to every row it owns. Polarity is unchanged
+ *  — checked still carries its own ink (`checkbox/variants.ts`'s `quiet` arm), just not the ember. */
+const INCLUDE_GROUP_TONE = "quiet";
+
 /** The export controls: per-kind checkboxes + the download button. */
 export function ExportLibrarySection(): ReactElement {
   const [selected, setSelected] = useState<ReadonlySet<PortableKind>>(() => new Set(EXPORTABLE_KINDS));
@@ -42,7 +50,13 @@ export function ExportLibrarySection(): ReactElement {
       <Fieldset>
         <FieldsetLegend>Include</FieldsetLegend>
         {EXPORTABLE_KINDS.map((kind) => (
-          <SettingCheckboxRow key={kind} label={PORTABLE_KIND_LABELS[kind]} checked={selected.has(kind)} onChange={(next): void => toggle(kind, next)} />
+          <SettingCheckboxRow
+            key={kind}
+            label={PORTABLE_KIND_LABELS[kind]}
+            checked={selected.has(kind)}
+            tone={INCLUDE_GROUP_TONE}
+            onChange={(next): void => toggle(kind, next)}
+          />
         ))}
       </Fieldset>
       <Row justify="end">

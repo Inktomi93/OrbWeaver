@@ -330,3 +330,67 @@ test("a label-less slider is still named by thumbLabels", async ({ mount, page }
   await expect(page.locator('[data-slot="slider-label"]')).toHaveCount(0);
   await expect(page.getByRole("slider")).toHaveAccessibleName("Max output tokens");
 });
+
+// ── #1187: THE KNOB SPENDS NO RESTING TRANSFORM ───────────────────────────────────────────────────
+// design-audit filed `off-grid-transform` P3 on `[data-slot=slider-thumb]`: Base UI centres each thumb with
+// an INLINE `translate: -50% -50%`, a transform that is live at REST (integer-line-boxes.md §9 Law 2). The
+// fix moves the same half-a-thumb onto margins — the box does not move, but a laid-out edge is snapped by
+// the paint where a transformed raster is resampled at whatever fraction it resolves to.
+//
+// THE DPR ARITHMETIC IS THE AUDIT'S OWN. The walker computes `gridDeviceFrac(rect.left)` = the fractional
+// part of `rect * dpr` (ui-audit ops/walker/census-grid.ts) and judges it at the live DPR. A CT context has
+// ONE deviceScaleFactor, so the three DPRs are evaluated the same way the rule would — from the measured
+// CSS-pixel rect — rather than by re-launching a browser per DPR.
+//
+// MEASURED RELATIVE TO THE CONTROL, deliberately: the thumb's ABSOLUTE landing also carries the vendor's
+// percentage inset resolved against the control's own (possibly fractional) width and the page's own
+// placement, neither of which this seal owns. What it owns is the CENTERING, and after this change the
+// centering contributes an exact integer at every DPR instead of a transform.
+const DEVICE_PIXEL_RATIOS = [1, 2, 3] as const;
+const GRID_EPSILON_DEVICE_PX = 0.001;
+
+test("#1187: the thumb carries NO transform at rest, and its centering lands on the device grid at DPR 1/2/3", async ({ mount, page }) => {
+  await mount(
+    <div style={{ width: 320 }}>
+      <Slider label="Floor" max={100} min={0} value={0} />
+      <Slider label="Middle" max={100} min={0} value={50} />
+      <Slider label="Ceiling" max={100} min={0} value={100} />
+    </div>,
+  );
+  const thumbs = page.locator(THUMB);
+  const controls = page.locator('[data-slot="slider-control"]');
+  await expect(thumbs).toHaveCount(3);
+
+  for (let index = 0; index < 3; index += 1) {
+    const thumb = thumbs.nth(index);
+    // The rule's subject: an element carrying a non-identity transform AT REST. With `translate: none` and
+    // no `transform`, the thumb is not a candidate at all — which is what "express rest geometry as layout"
+    // means, not a narrower threshold.
+    await expect(thumb).toHaveCSS("translate", "none");
+    await expect(thumb).toHaveCSS("transform", "none");
+
+    const offsets = await thumb.evaluate((element) => {
+      const control = element.closest('[data-slot="slider-control"]');
+      if (control === null) {
+        throw new Error("#1187 pin: the thumb must be a child of the slider control");
+      }
+      const box = element.getBoundingClientRect();
+      const host = control.getBoundingClientRect();
+      return { left: box.left - host.left, top: box.top - host.top, height: box.height, width: box.width };
+    });
+    for (const dpr of DEVICE_PIXEL_RATIOS) {
+      const leftFraction = Math.abs(offsets.left * dpr - Math.round(offsets.left * dpr));
+      const topFraction = Math.abs(offsets.top * dpr - Math.round(offsets.top * dpr));
+      expect(topFraction, `slider ${String(index)}: thumb top offset ${String(offsets.top)} at DPR ${String(dpr)}`).toBeLessThan(GRID_EPSILON_DEVICE_PX);
+      expect(leftFraction, `slider ${String(index)}: thumb left offset ${String(offsets.left)} at DPR ${String(dpr)}`).toBeLessThan(GRID_EPSILON_DEVICE_PX);
+    }
+    // THE GEOMETRY IS UNCHANGED — the margin spends exactly the half-thumb the translate used to. Without
+    // this clause, deleting the centering entirely would satisfy every assertion above.
+    const host = await controls.nth(index).boundingBox();
+    const box = await thumb.boundingBox();
+    const centre = (box?.x ?? 0) + (box?.width ?? 0) / 2;
+    const position = (host?.x ?? 0) + ((host?.width ?? 0) * index) / 2;
+    expect(Math.abs(centre - position), `slider ${String(index)}: thumb centre ${String(centre)} vs value position ${String(position)}`).toBeLessThan(0.5);
+    expect((box?.y ?? 0) + (box?.height ?? 0) / 2 - ((host?.y ?? 0) + (host?.height ?? 0) / 2)).toBeCloseTo(0, 5);
+  }
+});

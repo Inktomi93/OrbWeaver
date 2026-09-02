@@ -219,11 +219,16 @@ body {
      * the same rendered result stated as the fact it is: the pane's whole fill (including D144's
      * `[data-has-bg-image]` plate arm, which travelled with it) is now the carrier's, and an element with no
      * background of its own is not a translucent surface the over-art plate law has anything to say about.
-     * It also keeps this rule OUT of that gate's population by classification rather than by exemption: the
-     * reader buckets an alpha-0 `transparent` as UNREADABLE (lib/over-art-plate.ts `ALPHA_SHAPE_RE`) and its
-     * marker escape cannot absolve an unreadable site at all (`judgeMarkers` only exempts `plateless` ones,
-     * while the finding's own fix text prescribes exactly that marker) — a two-part reader gap reported at
-     * #1154, not worked around here: this spelling would be the right one even if the marker worked. */
+     * It also keeps this rule OUT of that gate's population by classification rather than by exemption.
+     * TRUTH-REPAIR 2026-09-02: the two-part reader gap this paragraph reported at #1154 — an alpha-0 fill
+     * bucketed as UNREADABLE, and a marker escape that could not absolve an unreadable site — is CLOSED by
+     * #1171, so the sentence describing it has been replaced rather than left to rot. The reader now reads
+     * `transparent`/`none`/`rgba(…,0)` as a `no-fill` site, the marker absolves it, and a no-fill whose
+     * subject carries a `::before`/`::after` fill carrier in the same stylesheet is proved out of the
+     * population as the counted skip `fill-moved-to-pseudo-carrier` — which is exactly this rule and the
+     * `.shell-main` pair below (measured on that lane: glassRules=10, skipped
+     * {"fill-moved-to-pseudo-carrier":1}, findings=0, live=5). The spelling is unchanged and was already
+     * the right one; only its stated reason moved from "reported gap" to "counted exclusion". */
     html[data-blur-panels] .shell-panel {
       background: none;
     }
@@ -295,8 +300,52 @@ body {
       background-color: color-mix(in oklab, var(--color-sidebar) var(--blur-fill-chrome), transparent);
     }
     /* The reading/document content backing upgrades to glass in lock-step with the side panels, so a
-     * frosted look carries through instead of leaving it an opaque slab beside glass panels. */
+     * frosted look carries through instead of leaving it an opaque slab beside glass panels.
+     *
+     * ON A CARRIER PSEUDO, FOR THE PANE'S OWN REASON (#1173 — the #1154 defect ONE SURFACE OVER). This
+     * rule promotes (`backdrop-filter`) and it CONTAINS TEXT, which is integer-line-boxes.md Law 3/4
+     * exactly: a composited layer is rasterized once at its own sub-pixel offset, so the browser's
+     * per-paint baseline snapping is off for every glyph in the reading column beneath it. It did not
+     * show up in #1154's own measurement only because the audited arm (Characters) carries no wallpaper
+     * and this rule is gated on `[data-has-bg-image]`. Same fix, same shape: both glass declarations move
+     * onto a `::before` fill layer at `z-index: -1` — above `.shell-main`'s own background, below every
+     * in-flow child — and the pane's own fill goes to `background: none`, so the composite is
+     * BYTE-IDENTICAL (exactly one translucent tint over exactly one filtered backdrop, in that order).
+     * Keeping the fill on the pane would put the tint INSIDE the carrier's backdrop and `saturate()` would
+     * be applied to it too.
+     *
+     * WHAT CONTAINS IT is shell.css's `container: shell-main / inline-size` on `.shell-main` — inline-size
+     * containment implies layout containment, i.e. a stacking context AND a containing block for the
+     * absolutely-positioned pseudo. The pane rule 70 lines up depends on the identical fact about
+     * `.shell-panel`; this is one mechanism, not two.
+     *
+     * NO `box-shadow: inherit` HERE, and that is a DEVIATION FROM #1154 WITH A REASON, not an omission.
+     * That clause exists because `.shell-panel` paints `--shadow-overlay`, whose `inset 0 1px 0` highlight
+     * would be blurred away under the carrier, and because the pane's own `overflow: hidden` clips the
+     * recipe's three OUTER stops so nothing doubles. `.shell-main` authors NO elevation in either sheet
+     * and clips nothing, so inheriting here would resolve to `none` today and DOUBLE an outer shadow the
+     * day one is added. The pseudo carries only what it paints.
+     *
+     * THE PANE'S OWN FILL GOES TO `background: none`, the shorthand counterpart of shell.css's
+     * `background: var(--color-card)` on this same selector. Written in the POST-#1171 tense from the
+     * start: the over-art plate reader buckets that as a `no-fill` site, and a no-fill whose subject
+     * carries a `::before` fill carrier in the same stylesheet is proved out of the population as the
+     * counted skip `fill-moved-to-pseudo-carrier` — the same classification the pane rule above now
+     * carries, not an exemption and not a marker.
+     *
+     * Its known cost is the same one #1154 stated and routed: `promoted-layer-offset` walks ELEMENTS only
+     * (ui-audit census-grid.ts calls `getComputedStyle(el)` with no pseudo argument), so that census now
+     * reports one fewer candidate on a wallpapered reading surface — a real instrument gap, filed at
+     * #1154, not hidden here. */
     html[data-blur-panels] .shell-grid[data-has-bg-image][data-section]:not([data-section="chats"]) .shell-main {
+      background: none;
+    }
+    html[data-blur-panels] .shell-grid[data-has-bg-image][data-section]:not([data-section="chats"]) .shell-main::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: -1;
+      pointer-events: none;
       backdrop-filter: blur(var(--blur-strength)) saturate(var(--blur-saturate));
       background-color: color-mix(in oklab, var(--color-card) var(--blur-fill-chrome), transparent);
     }
@@ -396,10 +445,14 @@ body {
      carrier for the same reason (#1154 moved the glass one level down): the tie is with the rule that
      actually paints, and a selector stopping at `.shell-panel` would now be one pseudo-element short —
      which is a LOSS, not a near-miss, because the property it would set is on a box that no longer has
-     it. Both sides read (0,2,2). */
+     it. Both sides read (0,2,2). #1173 moved `.shell-main`'s reading-surface glass one level down for the
+     same reason, so its selector here names the same `::before`: the pseudo-element adds one to the type
+     count on BOTH sides of that pair, so the tie is preserved rather than restated, and a selector
+     stopping at `.shell-main` would now be setting `backdrop-filter: none` on a box that no longer has
+     one. */
   html[data-blur-panels] .shell-panel::before,
   html[data-blur-composer] [data-slot="composer"],
-  html[data-blur-panels] .shell-grid[data-has-bg-image][data-section]:not([data-section="chats"]) .shell-main,
+  html[data-blur-panels] .shell-grid[data-has-bg-image][data-section]:not([data-section="chats"]) .shell-main::before,
   html[data-blur-modals] [data-slot="dialog-popup"],
   html[data-blur-modals] [data-slot="alert-dialog-popup"],
   html[data-blur-messages] [data-role] [data-slot="message-bubble"] {

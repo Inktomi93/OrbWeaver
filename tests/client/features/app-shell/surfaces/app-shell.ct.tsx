@@ -3354,8 +3354,11 @@ interface GlassBox {
   readonly pseudo: string;
 }
 
-function paneGlass(pane: Locator): GlassBox {
-  return { host: pane, pseudo: "::before" };
+/** TWO SURFACES SHARE IT since #1173: `.shell-panel` (#1154) and `.shell-main`'s reading-surface glass,
+ *  which is the same Law 3/4 defect one surface over and took the same carrier. Hence the name is the
+ *  MECHANISM (`glassCarrier`), not the pane it was first written for. */
+function glassCarrier(surface: Locator): GlassBox {
+  return { host: surface, pseudo: "::before" };
 }
 
 function boxOf(target: Locator | GlassBox): { readonly host: Locator; readonly pseudo: string | null } {
@@ -3396,7 +3399,7 @@ test("baseline (flat, no glass, no bg-image): surfaces are opaque, no backdrop-f
   await expect.poll(() => bgAlpha(shell.getByTestId("topbar-probe")), { intervals: [20, 50, 100] }).toBe(1);
   // Asked of the pane's glass CARRIER (#1154), which is where a backdrop-filter can now exist at all —
   // asking the pane would be trivially true on any tree and prove nothing.
-  await expect.poll(() => backdropFilterOf(paneGlass(shell.getByTestId("panel-probe"))), { intervals: [20, 50, 100] }).toBe("none");
+  await expect.poll(() => backdropFilterOf(glassCarrier(shell.getByTestId("panel-probe"))), { intervals: [20, 50, 100] }).toBe("none");
 });
 
 test("Surface glow has one valid painted carrier without turning Surface into a box", async ({ mount }) => {
@@ -3423,7 +3426,7 @@ test("glass beats elevation: ramp + blur-panels still leaves .shell-panel transl
   // and it still is after #1154: the glass rule that has to beat ramp on the PANE is now the one taking
   // the pane's fill to `transparent`, so ramp winning would read as alpha 1 here exactly as it always did.
   await expect.poll(() => bgAlpha(panel), { intervals: [20, 50, 100] }).toBeLessThan(1);
-  const glass = paneGlass(panel);
+  const glass = glassCarrier(panel);
   await expect.poll(() => bgAlpha(glass), { intervals: [20, 50, 100] }).toBeLessThan(1);
   await expect.poll(() => backdropFilterOf(glass), { intervals: [20, 50, 100] }).toContain("blur(");
   await expect.poll(() => backdropFilterOf(glass), { intervals: [20, 50, 100] }).toContain("saturate(");
@@ -3454,14 +3457,14 @@ const OFF_GRID_VIEWPORTS = [1280, 1440, 1920] as const;
 
 test("#1120 a COLLAPSED pane carries no backdrop-filter", async ({ mount }) => {
   const shell = await mount(<ShellCascadeFixture blurSurfaces={["panels"]} panelMode="collapsed" />);
-  await expect.poll(() => backdropFilterOf(paneGlass(shell.getByTestId("panel-probe"))), { intervals: [20, 50, 100] }).toBe("none");
-  await expect.poll(() => backdropFilterOf(paneGlass(shell.getByTestId("context-panel-probe"))), { intervals: [20, 50, 100] }).toBe("none");
+  await expect.poll(() => backdropFilterOf(glassCarrier(shell.getByTestId("panel-probe"))), { intervals: [20, 50, 100] }).toBe("none");
+  await expect.poll(() => backdropFilterOf(glassCarrier(shell.getByTestId("context-panel-probe"))), { intervals: [20, 50, 100] }).toBe("none");
 });
 
 test("#1120 …and an OPEN pane still does — the collapsed arm's control", async ({ mount }) => {
   const open = await mount(<ShellCascadeFixture blurSurfaces={["panels"]} panelMode="docked" />);
-  await expect.poll(() => backdropFilterOf(paneGlass(open.getByTestId("panel-probe"))), { intervals: [20, 50, 100] }).toContain("blur(");
-  await expect.poll(() => backdropFilterOf(paneGlass(open.getByTestId("context-panel-probe"))), { intervals: [20, 50, 100] }).toContain("saturate(");
+  await expect.poll(() => backdropFilterOf(glassCarrier(open.getByTestId("panel-probe"))), { intervals: [20, 50, 100] }).toContain("blur(");
+  await expect.poll(() => backdropFilterOf(glassCarrier(open.getByTestId("context-panel-probe"))), { intervals: [20, 50, 100] }).toContain("saturate(");
 });
 
 // ── #1154 · THE PANE IS NOT THE PROMOTED LAYER — ITS GLASS IS, ONE BOX DOWN ────────────────────────
@@ -3497,7 +3500,7 @@ test("#1154 the pane carries none of Law 3's promotion shapes while its glass ca
     willChange: "auto",
   });
   // THE CONTROL — the glass is on and painting, one box down.
-  await expect.poll(() => backdropFilterOf(paneGlass(pane)), { intervals: [20, 50, 100] }).toContain("blur(");
+  await expect.poll(() => backdropFilterOf(glassCarrier(pane)), { intervals: [20, 50, 100] }).toContain("blur(");
 });
 
 test("#1120 the shell's panel tracks resolve to whole CSS pixels at every width — with the raw token as the control", async ({ mount, page }) => {
@@ -3586,7 +3589,7 @@ test("at a mobile viewport the glass is not emitted: the panel keeps its own OPA
   const panel = shell.getByTestId("panel-probe");
   // The pane's CARRIER is the node a glass rule would paint down here (#1154) — asking the pane itself
   // could no longer fail.
-  await expect.poll(() => backdropFilterOf(paneGlass(panel)), { intervals: [20, 50, 100] }).toBe("none");
+  await expect.poll(() => backdropFilterOf(glassCarrier(panel)), { intervals: [20, 50, 100] }).toBe("none");
   await expect.poll(() => backdropFilterOf(shell.getByTestId("bubble-probe")), { intervals: [20, 50, 100] }).toBe("none");
   // FULLY opaque, which is the second half of the fix: the deleted shell.css override paired
   // `backdrop-filter: none` with `background-color: revert`, and `revert` in the author origin rolls back
@@ -3599,7 +3602,7 @@ test("at a mobile viewport the glass is not emitted: the panel keeps its own OPA
 test("above the shell breakpoint the same fixture DOES get glass — the exclusion is scoped, not a kill", async ({ mount, page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   const shell = await mount(<ShellCascadeFixture blurSurfaces={["panels", "messages"]} />);
-  const glass = paneGlass(shell.getByTestId("panel-probe"));
+  const glass = glassCarrier(shell.getByTestId("panel-probe"));
   await expect.poll(() => backdropFilterOf(glass), { intervals: [20, 50, 100] }).toContain("blur(");
   await expect.poll(() => bgAlpha(glass), { intervals: [20, 50, 100] }).toBeLessThan(1);
   await expect.poll(() => backdropFilterOf(shell.getByTestId("bubble-probe")), { intervals: [20, 50, 100] }).toContain("blur(");
@@ -3655,11 +3658,11 @@ const ALL_BLUR_SURFACES = ["panels", "composer", "messages", "modals"] as const;
 const GLASS_PROBES = ["panel-probe", "composer-probe", "dialog-probe", "alert-dialog-probe", "bubble-probe"] as const;
 
 /** The node the glass block actually PAINTS for a probe. Four of the five surfaces are painted on the slot
- *  itself; the pane's is painted on its `::before` glass carrier (#1154 — see `paneGlass`). Routing it
+ *  itself; the pane's is painted on its `::before` glass carrier (#1154 — see `glassCarrier`). Routing it
  *  here keeps both loops below a single census over the same five surfaces, with every assertion unchanged. */
 function glassSubjectOf(shell: Locator, probe: (typeof GLASS_PROBES)[number]): Locator | GlassBox {
   const node = shell.getByTestId(probe);
-  return probe === "panel-probe" ? paneGlass(node) : node;
+  return probe === "panel-probe" ? glassCarrier(node) : node;
 }
 
 test("reduced-transparency turns every glass surface SOLID (alpha 1) and drops backdrop-filter", async ({ mount, page }) => {
@@ -3680,7 +3683,7 @@ test("the same fixture under no-preference still gets the glass — reduce is a 
   await page.setViewportSize({ width: 1280, height: 800 });
   await emulateReducedTransparency(page, "no-preference");
   const shell = await mount(<ShellCascadeFixture blurSurfaces={ALL_BLUR_SURFACES} />);
-  const glass = paneGlass(shell.getByTestId("panel-probe"));
+  const glass = glassCarrier(shell.getByTestId("panel-probe"));
   await expect.poll(() => bgAlpha(glass), { intervals: [20, 50, 100] }).toBeLessThan(1);
   await expect.poll(() => backdropFilterOf(glass), { intervals: [20, 50, 100] }).toContain("blur(");
 });
@@ -3703,8 +3706,12 @@ test("reduced-transparency reaches the reading-surface backing too (the arm used
   // The glass block has SIX rules; the reduce arm hand-listed five and left `.shell-main`'s
   // reading-surface glass out, so a non-Chats section over a photo kept both its 70% fill and a live
   // backdrop-filter under the preference. Driving the fill token covers every rule by construction.
-  await expect.poll(() => bgAlpha(shell.getByTestId("main-probe")), { intervals: [20, 50, 100] }).toBe(1);
-  await expect.poll(() => backdropFilterOf(shell.getByTestId("main-probe")), { intervals: [20, 50, 100] }).toBe("none");
+  //
+  // ASKED OF THE CARRIER since #1173 — byte-identical assertions, one box down. `.shell-main` itself now
+  // paints `background: none` whenever the glass rule fires, so asking IT for an opaque fill would read
+  // the absence of a fill as a failure of the preference.
+  await expect.poll(() => bgAlpha(glassCarrier(shell.getByTestId("main-probe"))), { intervals: [20, 50, 100] }).toBe(1);
+  await expect.poll(() => backdropFilterOf(glassCarrier(shell.getByTestId("main-probe"))), { intervals: [20, 50, 100] }).toBe("none");
 });
 
 // ── #138: the contrast block was spelled `high`, which matches NOTHING, so it had never rendered ────
@@ -3907,7 +3914,7 @@ test("contrast: more raises the glass fill to 92% — each surface keeping its O
   await page.setViewportSize({ width: 1280, height: 800 });
   await emulateContrast(page, "more");
   const shell = await mount(<ShellCascadeFixture blurSurfaces={ALL_BLUR_SURFACES} />);
-  const panel = paneGlass(shell.getByTestId("panel-probe"));
+  const panel = glassCarrier(shell.getByTestId("panel-probe"));
   // The opacity half, through the glass's fill knob: chrome 70% → 92%, dense (bubbles) 88% → 92%. The old
   // hand-written arm bumped no bubble fill at all, and covered neither `.shell-main` nor the breakpoint.
   await expect.poll(() => bgAlpha(panel), { intervals: [20, 50, 100] }).toBeCloseTo(CONTRAST_FILL_ALPHA, 2);
@@ -3991,7 +3998,7 @@ test("the same fixture under contrast: no-preference keeps the plain glass — t
   await expect.poll(() => borderInlineEndWidthOf(panel), { intervals: [20, 50, 100] }).toBe("1px");
   // The token defaults (--blur-fill-chrome 70% / --blur-fill-dense 88%), i.e. strictly more translucent
   // than the contrast arm — which is the whole claim "more opacity" makes.
-  await expect.poll(() => bgAlpha(paneGlass(panel)), { intervals: [20, 50, 100] }).toBeLessThan(CONTRAST_FILL_ALPHA);
+  await expect.poll(() => bgAlpha(glassCarrier(panel)), { intervals: [20, 50, 100] }).toBeLessThan(CONTRAST_FILL_ALPHA);
   await expect.poll(() => bgAlpha(shell.getByTestId("bubble-probe")), { intervals: [20, 50, 100] }).toBeLessThan(CONTRAST_FILL_ALPHA);
 });
 
@@ -4136,7 +4143,7 @@ test("the contrast fill is per-surface in the LIGHT theme too — the modal trac
   // mix was an instance of.
   const popoverMix = await resolveMixedFill(page, "--color-popover", CONTRAST_FILL);
   await expect.poll(() => bgColorOf(shell.getByTestId("dialog-probe")), { intervals: [20, 50, 100] }).toBe(popoverMix);
-  await expect.poll(() => bgAlpha(paneGlass(shell.getByTestId("panel-probe"))), { intervals: [20, 50, 100] }).toBeCloseTo(CONTRAST_FILL_ALPHA, 2);
+  await expect.poll(() => bgAlpha(glassCarrier(shell.getByTestId("panel-probe"))), { intervals: [20, 50, 100] }).toBeCloseTo(CONTRAST_FILL_ALPHA, 2);
 });
 
 test("background-image beats elevation: .shell-main goes transparent, .shell-topbar stays opaque", async ({ mount }) => {
@@ -4168,9 +4175,48 @@ test("bg-image + a non-Chats section: .shell-main gets a SOLID reading backing, 
 
 test("bg-image + a non-Chats section + blur-panels: the reading backing upgrades to glass (panel parity)", async ({ mount }) => {
   const shell = await mount(<ShellCascadeFixture hasBgImage={true} section="characters" blurSurfaces={["panels"]} />);
-  const main = shell.getByTestId("main-probe");
+  // The reading surface's glass moved onto its own `::before` carrier at #1173 (the #1154 mechanism, one
+  // surface over) — same two assertions, asked of the box that now paints them.
+  const main = glassCarrier(shell.getByTestId("main-probe"));
   await expect.poll(() => bgAlpha(main), { intervals: [20, 50, 100] }).toBeLessThan(1);
+  await expect.poll(() => bgAlpha(main), { intervals: [20, 50, 100] }).toBeGreaterThan(0);
   await expect.poll(() => backdropFilterOf(main), { intervals: [20, 50, 100] }).toContain("blur(");
+  // …and the pane it belongs to paints NO fill of its own, so the composite is exactly one tint over one
+  // filtered backdrop — the byte-identity clause of the carrier move.
+  await expect.poll(() => bgAlpha(shell.getByTestId("main-probe")), { intervals: [20, 50, 100] }).toBe(0);
+});
+
+// ── #1173 · THE READING SURFACE IS NOT THE PROMOTED LAYER EITHER ──────────────────────────────────
+// The #1154 mechanism pin, one surface over. `.shell-main` promotes (`backdrop-filter`) and it CONTAINS
+// the reading column's text, which is Law 3/4 exactly (integer-line-boxes.md §10/§11): the layer is
+// rasterized once at its own sub-pixel offset, so per-paint baseline snapping is off for every glyph in
+// the content column. It escaped #1154's own measurement only because the audited arm (Characters) carried
+// no wallpaper and this rule is gated on `[data-has-bg-image]` — the fixture below supplies exactly that.
+//
+// Red-first against the unmodified source: `.shell-main` reports `blur(14px) saturate(1.4)` there, which
+// is what the panel-parity test above asserted OF THE PANE before this moved. The control is the same one
+// #1154 uses — the carrier must be painting, or "the surface is not promoted" would also pass on a tree
+// where the glass had simply stopped being emitted.
+test("#1173 the reading surface carries none of Law 3's promotion shapes while its glass carrier carries the blur", async ({ mount, page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  const shell = await mount(<ShellCascadeFixture blurSurfaces={["panels"]} hasBgImage={true} section="characters" />);
+  const main = shell.getByTestId("main-probe");
+
+  const promotion = await main.evaluate((el) => {
+    const style = getComputedStyle(el);
+    return {
+      backdrop: style.backdropFilter,
+      threeD: style.transformStyle === "preserve-3d" || style.transform.startsWith("matrix3d"),
+      willChange: style.willChange,
+    };
+  });
+  expect(promotion, "any of these three makes every glyph in the reading column inherit the layer's sub-pixel offset").toMatchObject({
+    backdrop: "none",
+    threeD: false,
+    willChange: "auto",
+  });
+  // THE CONTROL — the glass is on and painting, one box down.
+  await expect.poll(() => backdropFilterOf(glassCarrier(main)), { intervals: [20, 50, 100] }).toContain("blur(");
 });
 
 test("bg-image + the Chats section stays IMMERSIVE: .shell-main transparent (photo behind the thread)", async ({ mount }) => {
@@ -5154,10 +5200,10 @@ test("#237: over a wallpaper a LIGHT palette's panes take the derived plate floo
   // promoted layer, or its text loses baseline snapping). The subject of every read below moved with it;
   // not one assertion changed, and the plate rule is the same `light-dark()` one rule, one level down.
   const dark = await mount(<ShellCascadeFixture blurSurfaces={OVER_ART_BLUR} hasBgImage={true} omitMainRegion={true} />);
-  const darkFill = await bgColorOf(paneGlass(dark.getByTestId("panel-probe")));
+  const darkFill = await bgColorOf(glassCarrier(dark.getByTestId("panel-probe")));
   await dark.unmount();
   const light = await mount(<ShellCascadeFixture blurSurfaces={OVER_ART_BLUR} dataTheme="light" hasBgImage={true} omitMainRegion={true} />);
-  const lightFill = await bgColorOf(paneGlass(light.getByTestId("panel-probe")));
+  const lightFill = await bgColorOf(glassCarrier(light.getByTestId("panel-probe")));
   // The LIGHT arm clears the polarity-derived reading-plate alpha for a light base (#217: 0.921 at the
   // owner-ruled reference ink). Pre-#237 it was the flat 0.7 that produced the 3.69:1 reading.
   const plateAlpha = await light.getByTestId("panel-probe").evaluate((el) => getComputedStyle(el).getPropertyValue("--color-reading-plate").trim());
@@ -5166,7 +5212,7 @@ test("#237: over a wallpaper a LIGHT palette's panes take the derived plate floo
   // The DARK arm is byte-identical to the pane WITHOUT a wallpaper — the rule cannot touch it at all.
   await light.unmount();
   const darkPlain = await mount(<ShellCascadeFixture blurSurfaces={OVER_ART_BLUR} omitMainRegion={true} />);
-  expect(darkFill).toBe(await bgColorOf(paneGlass(darkPlain.getByTestId("panel-probe"))));
+  expect(darkFill).toBe(await bgColorOf(glassCarrier(darkPlain.getByTestId("panel-probe"))));
 });
 
 test("#237: the LIGHT pane's SECONDARY ink clears AA against what LANDS over worst-case (black) art", async ({ mount, page }) => {
