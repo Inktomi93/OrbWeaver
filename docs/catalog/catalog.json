@@ -447,8 +447,8 @@
       "lane": "architecture-core",
       "issue": 2,
       "lines": 399,
-      "bytes": 229959,
-      "sha256": "41c9f5e788b952358b3a2af2e0f0f8e6206a1d8bdc89bd9dc042ea7af31a2936",
+      "bytes": 231425,
+      "sha256": "e59deac821071ae0daf2ddc9140ef28254cbf8910bdc0937bba26de6af154e67",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -461,12 +461,12 @@
       },
       "receipt": {
         "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
-        "assignedSha256": "41c9f5e788b952358b3a2af2e0f0f8e6206a1d8bdc89bd9dc042ea7af31a2936",
+        "assignedSha256": "e59deac821071ae0daf2ddc9140ef28254cbf8910bdc0937bba26de6af154e67",
         "disposition": "current",
         "authority": "operational",
         "fullRead": true,
-        "verifiedSha256": "41c9f5e788b952358b3a2af2e0f0f8e6206a1d8bdc89bd9dc042ea7af31a2936",
-        "verifiedCommit": "f20da4c3037482422ad23db329b508f6dba96c01",
+        "verifiedSha256": "e59deac821071ae0daf2ddc9140ef28254cbf8910bdc0937bba26de6af154e67",
+        "verifiedCommit": "7dcb31b0e0f04e0f3868e126205879bd46cdc00a",
         "verifiedAt": "2026-09-02",
         "evidence": [
           "re-attested at a4467408a (#971, lane p-argv-lock): `tooling-argv-front-door` row — both read spellings, the shape-derived cli.ts home, the two-sided ARGV_ENTRIES stale sweep, the §4.6 blindness tripwire, and the declared limit; registered-gate count 251 → 252 (a live `pnpm check:structure` reports 252/252).",
@@ -548,7 +548,8 @@
           "re-attested at fc5f99e4c — fold of #1097 (cb-axis-drain, 57c0aaecc rebased): the `ui-variant-axes-stamped` row gains its drain note — baseline DRAINED TO `{}` (tranche 2, 2026-09-02), all 15 stamped-axis recipes reach the DOM through the seam, every A1 admission gone, A4 empty, ledger + generator teardown the remaining terminal step. Delta read once against the word-diff; the baseline file in the same commit is `{}` and the lane's planted positive control proves the empty ledger does not blind the gate. No other row moved.",
           "re-attested at 5253ba772 — fold of #962 (p-biome-zero): the `suppressions` row now governs `tests/**` (two ratification tables, two-sided per scope), a new `no-blanket-suppression` row (three arms: harness fileset, tracked non-TS corpus derived from git ls-files minus biome's ignores, the INDEX via git grep --cached + git show :path; markerImmune; no allowlist/baseline), and the registered-gate count 252 → 253 cited from the scan line. Delta read once; no other row moved.",
           "re-attested at 7f51cd1b5 — the no-blanket-suppression row's renamed describe-scoped CONSTANT_CASE count corrected 24 → 21 (the diff's `- const` removals under tests/, per the cold verifier); one number, no other text moved.",
-          "re-attested at f20da4c30 — fold of #1164 (cb-instrument-slots, claude-b): the rendered instruments (snap/design-audit/record/motion-audit/perf-meter) take per-run artifact slots with atomic per-FILE pointers, reference-aware retention, the tooling-shared-plumbing arm G, and the artifact-out.ts layer split; §3.3b's 'deliberately not slotted' ruling retired with both texts preserved. Delta read once at the fold; no other text moved."
+          "re-attested at f20da4c30 — fold of #1164 (cb-instrument-slots, claude-b): the rendered instruments (snap/design-audit/record/motion-audit/perf-meter) take per-run artifact slots with atomic per-FILE pointers, reference-aware retention, the tooling-shared-plumbing arm G, and the artifact-out.ts layer split; §3.3b's 'deliberately not slotted' ruling retired with both texts preserved. Delta read once at the fold; no other text moved.",
+          "re-attested at 7dcb31b0e — merge of #1157/#1158/#1166/#1167 (p-lint-hygiene, aeece9396): the biome-grant-liveness row gains the rule-liveness arm (one biome invocation on a root-placed probe config with every exact-path rule-off grant stripped; pure-exact rows judged, mixed rows a declared limit; 6.4 s wall stated). Union with the #1164 re-attest read once; no other row moved."
         ],
         "claims": [
           {
