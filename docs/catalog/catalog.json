@@ -10880,7 +10880,6 @@
           {
             "claim": "Lighthouse (41 calls, snapshot-mode dominant) is the one MCP use that produced findings snap could not (axe label-content-name-mismatch, target-size); it becomes a snap arm before the MCP retires.",
             "evidence": [
-              "re-attested at 2642a54df (#1198 #1199 #1227, lane p-snap-arms): §2 items 1-2 marked BUILT with the seam (snap's own chromium on --remote-debugging-port, puppeteer-core attaches to THAT browser, the target matched by CDP id; defaultViewport:null and disableFullPageScreenshot measured as load-bearing), the pins and the live plugins-pane receipt (desktop audited=36 failed-audits=1 label-content-name-mismatch ×4 — the MCP's own finding reproduced in-house; requests=2445). Read in full at the fold by the primary orchestrator.",
               {
                 "kind": "issue",
                 "target": "#1198"
@@ -10908,6 +10907,7 @@
         ],
         "summary": "Census of every chrome-devtools MCP tool call across both accounts for 14 days (176 calls) mapped to snap arms; the Lighthouse arm and a request log are the gaps to build before the MCP retires (owner-directed #1195).",
         "evidence": [
+          "re-attested at 2642a54df (#1198 #1199 #1227, lane p-snap-arms): §2 items 1-2 marked BUILT with the seam (snap's own chromium on --remote-debugging-port, puppeteer-core attaches to THAT browser, the target matched by CDP id; defaultViewport:null and disableFullPageScreenshot measured as load-bearing), the pins and the live plugins-pane receipt (desktop audited=36 failed-audits=1 label-content-name-mismatch ×4 — the MCP's own finding reproduced in-house; requests=2445). Read in full at the fold by the primary orchestrator.",
           "born-reviewed by the primary orchestrator (author) 2026-09-02 at 33d7067f0: the two-account, 14-day transcript census of chrome-devtools MCP tool calls (176 calls, 719 jsonl files) mapped to snap arms; two gaps named (a Lighthouse arm, a request log) and the retirement step; owner-directed program (#1195)."
         ]
       },
