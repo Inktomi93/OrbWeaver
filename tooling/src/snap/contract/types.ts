@@ -7,6 +7,15 @@ import type { ThemeRequest } from "../../_shared/theme.ts";
 import type { CssCascadeQuery, CssEvidenceReceipt } from "./cascade.ts";
 import type { DeadCssEvidence } from "./dead-css.ts";
 
+/** `--scale`'s resolved shape. `mode` is what Playwright's `screenshot({ scale })` receives — it accepts
+ *  ONLY "css" | "device", so a numeric ask reaches the pixels through `deviceScaleFactor`, which raises
+ *  the browser CONTEXT's DPR (null = leave the context's own, which a device descriptor supplies). The
+ *  parse/budget/dimension logic is ../lib/shot-scale.ts. */
+export interface ShotScale {
+  readonly mode: "css" | "device";
+  readonly deviceScaleFactor: number | null;
+}
+
 // `page` = the target page index for --pages multi-tab mode (0 when unprefixed / single-page). Every
 // step/capture carries it so one flat argv-ordered list can drive N tabs in one shared context.
 type StepAction =
@@ -209,6 +218,9 @@ export interface Args {
   shotOf: string | null;
   /** Selectors painted over (#FF00FF) before the shot — volatile regions. */
   mask: string[];
+  /** `--scale <css|device|n>` — how many IMAGE pixels one CSS pixel becomes. Defaults to `css`, which is
+   *  what every pre-#915 invocation produced; the WHY (image-token cost) lives in ../lib/shot-scale.ts. */
+  scale: ShotScale;
   /** emulateMedia colorScheme — exercise the app's dark/light surfaces. */
   colorScheme: "light" | "dark" | null;
   /** emulateMedia reducedMotion:"reduce" (also implied by --probe). THE OS MEDIA QUERY — a DIFFERENT gate

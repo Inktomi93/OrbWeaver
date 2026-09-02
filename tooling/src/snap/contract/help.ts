@@ -3,6 +3,7 @@
 import { appearanceHelpBlock } from "../../_shared/appearance-flags.ts";
 import { panelPresetHelpBlock } from "../../_shared/panel-flags.ts";
 import { themeHelpBlock } from "../../_shared/theme.ts";
+import { SHOT_PIXEL_BUDGET } from "../lib/shot-scale.ts";
 import { NETWORK_PROFILE_SPELLINGS } from "../lib/throttle.ts";
 import { SNAP_SCENARIO_PRESET_NAMES } from "./scenario-presets.ts";
 
@@ -82,6 +83,14 @@ Pixels:
   --shot-of <selector>    capture one element
   --crop <WxH+X+Y>        capture a bounded region
   --baseline | --diff     save or compare a visual baseline (mutually exclusive)
+  --scale <css|device|n>  image pixels per CSS pixel. DEFAULT css, and that default is DELIBERATE: one
+                          image pixel per CSS pixel HALVES the pixel count on a hi-dpi context, so an
+                          agent pays ~half the image tokens to read the PNG. Raise it only when a HUMAN
+                          is the reader — a committed design-mock render, which is a durable visual
+                          record. \`device\` uses the context's own DPR (1 desktop, 3 under --mobile);
+                          a number raises the context DPR and does not combine with --mobile. Over the
+                          ${SHOT_PIXEL_BUDGET}px image budget the run REFUSES instead of writing a huge
+                          PNG, and the RESULT line's \`scale=\` states what it actually produced.
 
 Sessions:
   --pages <N>             shared-context tabs

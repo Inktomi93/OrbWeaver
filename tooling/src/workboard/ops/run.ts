@@ -3,7 +3,7 @@ import { print } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { WorkCommand } from "../contract/types.ts";
 import { runLifecycle } from "./lifecycle.ts";
-import { create, help, list, overview, show } from "./report.ts";
+import { create, file, help, list, overview, show } from "./report.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm work:item <command>");
 
@@ -13,7 +13,7 @@ export function runWorkCommand(command: WorkCommand): void {
     return;
   }
   if (command.kind === "show") {
-    show(command.issue);
+    show(command.issues);
     return;
   }
   if (command.kind === "list") {
@@ -28,5 +28,15 @@ export function runWorkCommand(command: WorkCommand): void {
     create(command);
     return;
   }
-  print(`work-item — #${runLifecycle(command)} ${command.kind}`);
+  if (command.kind === "file") {
+    file(command);
+    return;
+  }
+  // One line naming every row that transitioned — `#1003 #1004 #1005 review` — so a batched call's
+  // receipt is as specific as a single-row one's.
+  print(
+    `work-item — ${runLifecycle(command)
+      .map((issue) => `#${issue}`)
+      .join(" ")} ${command.kind}`,
+  );
 }

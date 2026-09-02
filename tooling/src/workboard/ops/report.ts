@@ -5,32 +5,35 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { print } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import type { CreateCommand, GraphqlVariables, ListRow, RawListPage } from "../contract/types.ts";
+import type { CreateCommand, FileCommand, GraphqlVariables, IssueClass, ListRow, RawListPage } from "../contract/types.ts";
 import { issueNumber } from "../lib/parse.ts";
 import { LIST_QUERY } from "../lib/queries.ts";
 import { EVIDENCE_MAX_LENGTH, ISSUE_CLASSES, ISSUE_URL_RE, PROJECT_NUMBER, REPOSITORY } from "../lib/vocab.ts";
 import { fieldOf, itemFields } from "../lib/writes.ts";
 import { gh, graphql } from "./gh.ts";
+import { runLifecycle } from "./lifecycle.ts";
 import { ensureItem, fetchIssueContext, setField, withProjectContext, writeFields } from "./project.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm work:item <command>");
 
-export function show(issue: number): void {
+function showRow(issue: number): Record<string, unknown> {
   const context = fetchIssueContext(issue);
   if (context.item === undefined) {
     throw new Error(`#${issue} is not in Project ${PROJECT_NUMBER}`);
   }
-  print(
-    JSON.stringify(
-      {
-        id: context.item.id,
-        content: { number: context.target.number, title: context.target.title, url: context.target.url },
-        ...context.item.fields,
-      },
-      null,
-      2,
-    ),
-  );
+  return {
+    id: context.item.id,
+    content: { number: context.target.number, title: context.target.title, url: context.target.url },
+    ...context.item.fields,
+  };
+}
+
+/** BATCHED (#870): `show 1003 1004 1005` reads N rows in ONE tool call. A single id keeps the exact
+ *  object it always printed — the batching is the saving, and a caller (or a test) parsing one row must
+ *  not have to learn a new shape for it; N ids print the same rows inside `{ items: [...] }`. */
+export function show(issues: readonly number[]): void {
+  const rows = issues.map((issue) => showRow(issue));
+  print(JSON.stringify(rows.length === 1 ? rows[0] : { items: rows }, null, 2));
 }
 
 function listItems(projectId: string): readonly ListRow[] {
@@ -139,25 +142,13 @@ function createdIssueNumber(output: string): number {
   return issueNumber(number);
 }
 
-/** The issue is created FIRST and its URL printed IMMEDIATELY: if Project setup then fails, the operator
- *  holds a resumable receipt instead of an orphaned issue they cannot name. */
-export function create(command: CreateCommand): void {
-  const bodyFile = resolve(command.bodyFile);
-  if (readFileSync(bodyFile, "utf8").trim() === "") {
-    throw new Error("body file must not be empty");
-  }
+/** The ingress write shared by `create` and `file`: the issue is created FIRST and its URL printed
+ *  IMMEDIATELY, so if Project setup then fails the operator holds a resumable receipt instead of an
+ *  orphaned issue they cannot name. `bodyFile` null (the `file` one-liner) makes the TITLE the body. */
+function createIssue(command: { readonly issueClass: IssueClass; readonly title: string; readonly bodyFile: string | null }): number {
   const issueConfig = ISSUE_CLASSES[command.issueClass];
-  const output = gh([
-    "issue",
-    "create",
-    "--repo",
-    REPOSITORY,
-    "--title",
-    command.title,
-    "--body-file",
-    bodyFile,
-    ...issueConfig.labels.flatMap((label) => ["--label", label]),
-  ]);
+  const body = command.bodyFile === null ? ["--body", command.title] : ["--body-file", resolveNonEmptyBodyFile(command.bodyFile)];
+  const output = gh(["issue", "create", "--repo", REPOSITORY, "--title", command.title, ...body, ...issueConfig.labels.flatMap((label) => ["--label", label])]);
   const number = createdIssueNumber(output);
   print(`created #${number} ${output}`);
   const context = fetchIssueContext(number);
@@ -168,21 +159,70 @@ export function create(command: CreateCommand): void {
   }
   writeFields(item, changes, "WorkItemFields");
   setField(item, "Status", issueConfig.status);
+  return context.target.number;
+}
+
+function resolveNonEmptyBodyFile(path: string): string {
+  const bodyFile = resolve(path);
+  if (readFileSync(bodyFile, "utf8").trim() === "") {
+    throw new Error("body file must not be empty");
+  }
+  return bodyFile;
+}
+
+export function create(command: CreateCommand): void {
+  const number = createIssue(command);
   const next = command.issueClass === "decision" ? "set Priority, Area, and resolve the owner decision before ready" : "set Priority, Area, Review, then ready";
-  print(`work-item — #${context.target.number} Project metadata initialized; ${next}`);
+  print(`work-item — #${number} Project metadata initialized; ${next}`);
+}
+
+/** `file` (#870): create → Kind/Priority/Area/Review → ready → claim, in ONE invocation instead of the
+ *  six-to-seven the census measured. It COMPOSES create and the lifecycle verbs — the metadata is one
+ *  batched field write, and `ready`/`claim` are the same guarded functions, so an incomplete row is
+ *  refused by ready's own metadata guard rather than by a second copy of that rule living here. */
+export function file(command: FileCommand): void {
+  const number = createIssue(command);
+  const context = fetchIssueContext(number);
+  const item = ensureItem(context.target, context.item);
+  const changes = [
+    { name: "Priority", value: command.priority },
+    { name: "Area", value: command.area },
+    { name: "Review", value: command.review },
+  ].flatMap((change) => (change.value === null ? [] : [{ name: change.name, value: change.value }]));
+  writeFields(item, changes, "WorkItemFields");
+  if (!command.ready) {
+    print(`work-item — #${number} filed; ready it when Kind, Priority, Area and Review are set`);
+    return;
+  }
+  runLifecycle({ kind: "ready", issues: [number] });
+  if (command.lane !== null) {
+    runLifecycle({ kind: "claim", issues: [number], lane: command.lane });
+  }
+  print(`work-item — #${number} filed and ${command.lane === null ? "Ready" : `claimed by ${command.lane}`}`);
 }
 
 export function help(): void {
   print(`work:item — Project 1 operator path
-show <issue>
+
+ONE CALL PER ROW, NOT SIX. Every lifecycle verb takes a LIST of issues, and the two composite verbs
+cover the whole opening and closing sequence. Reach for these first — a lone board call is the cost:
+file --title <title> --kind <work|bug|decision|program|evidence> [--priority P] [--area A] [--review R]
+     [--body-file <file>] [--ready] [--claim <lane>]
+       create + the metadata writes + ready + claim in ONE call. With no --body-file the body IS the
+       title (the one-line row). A decision enters Needs owner and refuses --ready/--claim.
+land <issue…> --evidence <receipt> [--lane <lane>] [--comment-file <file>]
+       claim-if-needed → review → verify → done in ONE call, per row, with ONE receipt. Resumes from
+       wherever each row already is; --lane is required only for a row still Ready.
+
+show <issue…>   (batched — one call reads N rows)
 overview  (the whole board: every status, counts + numbered rows — the board-read ritual verb)
 list [--status <status>]
 create <work|bug|decision|program|evidence> --title <title> --body-file <file>
-ready <issue> | claim <issue> --lane <lane> | review <issue> | needs-owner <issue> | set <issue> <field> <value>
-block <issue> --by <blocker> | unblock <issue> --by <blocker> | park <issue> --wake <condition>
-verify <issue> --evidence <receipt> | reverify <issue> --evidence <replacement-receipt> | done <issue> --evidence <same-receipt>
-refute <issue> --evidence <refutation-receipt> — Verify only; returns the row to Ready with Evidence replaced (outcome stands, rework is claimable)
+ready <issue…> | claim <issue…> --lane <lane> | review <issue…> | needs-owner <issue…> | set <issue…> <field> <value>
+block <issue…> --by <blocker> | unblock <issue…> --by <blocker> | park <issue…> --wake <condition>
+verify <issue…> --evidence <receipt> | reverify <issue…> --evidence <replacement-receipt> | done <issue…> --evidence <same-receipt>
+refute <issue…> --evidence <refutation-receipt> — Verify only; returns the row to Ready with Evidence replaced (outcome stands, rework is claimable)
 --evidence is capped at ${EVIDENCE_MAX_LENGTH} chars (GitHub's Project text-column limit) — post the full receipt as an issue comment and keep --evidence short
 
-Lifecycle: Triage → Ready → Running → Review → Verify → Done. Set Kind, Priority, Area, and Review before Ready. Decisions enter Needs owner. Interrupted transitions are safe to rerun. Use .github/ISSUE_TEMPLATE/*.yml for canonical issue bodies; Project holds mutable lifecycle state.`);
+Lifecycle: Triage → Ready → Running → Review → Verify → Done. Set Kind, Priority, Area, and Review before Ready. Decisions enter Needs owner. Interrupted transitions are safe to rerun — including a composite verb, which resumes at the row's current status. Use .github/ISSUE_TEMPLATE/*.yml for canonical issue bodies; Project holds mutable lifecycle state.`);
 }

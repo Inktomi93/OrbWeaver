@@ -6,6 +6,7 @@ import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { Args } from "../contract/types.ts";
 import { CROP_RE } from "../lib/out-names.ts";
 import { selectorRefusalForFlag } from "../lib/selector-shape.ts";
+import { CSS_SHOT_SCALE, parseShotScale, shotScaleBudgetRefusal } from "../lib/shot-scale.ts";
 import { NETWORK_PROFILE_SPELLINGS, NO_CPU_THROTTLE, parseNetworkProfile } from "../lib/throttle.ts";
 import { OPTIONAL_SELECTOR_FLAGS, PAGE_TARGET_FLAGS, REQUIRED_VALUE_FLAGS } from "./flags-classes.ts";
 import { FLAG_HANDLERS } from "./flags-handlers.ts";
@@ -53,6 +54,11 @@ function validateEvidenceFlagValue(flag: string, raw: string, errors: string[]):
   }
   if (flag === "--ls" && splitFirstEq(raw) === null) {
     errors.push(`--ls expects key=value with a non-empty key, got ${JSON.stringify(raw)}`);
+  }
+  // A rejected --scale must REFUSE, never fall back to the css default: a run that asked for device
+  // pixels and silently produced CSS pixels is the same false-receipt class as the load-arm flags above.
+  if (flag === "--scale" && parseShotScale(raw) === null) {
+    errors.push(`--scale expects css | device | a number >= 1, got ${JSON.stringify(raw)}`);
   }
 }
 
@@ -236,6 +242,12 @@ function sessionValidationPairs(args: Args, contextsMode: boolean): ValidationPa
 function evidenceValidationPairs(args: Args, producesShot: boolean): ValidationPair[] {
   return [
     [args.crop !== null && !producesShot, "--crop requires a screenshot; drop --no-shot/--text or request --shot-of/baseline/diff"],
+    // A numeric --scale overrides the CONTEXT's DPR; a device descriptor CARRIES one (--mobile = DPR3).
+    // Honouring both would silently pick a winner, so the ask is refused and the composing spelling named.
+    [
+      args.scale.deviceScaleFactor !== null && args.device !== null,
+      "--scale <n> and --mobile are mutually exclusive (the device descriptor carries its own DPR) — use --scale device",
+    ],
     [args.crop !== null && args.shotOf !== null, "--crop and --shot-of are mutually exclusive"],
     [args.mask.length > 0 && !producesShot, "--mask requires a screenshot; drop --no-shot/--text"],
     [args.fullPage && !producesShot, "--full requires a screenshot; drop --no-shot/--text"],
@@ -249,7 +261,14 @@ function validateParsedArgs(args: Args): string[] {
   const contextsMode = args.contexts > 1 || args.as !== null;
   const producesShot = args.shotOf !== null || args.shot || args.baseline || args.diff;
   const invalidModes = [...sessionValidationPairs(args, contextsMode), ...evidenceValidationPairs(args, producesShot)];
-  return [...validatePageTargets(args, contextsMode), ...invalidModes.filter(([invalid]) => invalid).map(([, message]) => message)];
+  // The image budget is checked against the RAW viewport, which is the one a numeric --scale can reach
+  // (the device arm is refused above, so a descriptor's own viewport is never the multiplicand here).
+  const budget = args.device === null ? shotScaleBudgetRefusal(args.scale, args.viewport) : null;
+  return [
+    ...validatePageTargets(args, contextsMode),
+    ...invalidModes.filter(([invalid]) => invalid).map(([, message]) => message),
+    ...(budget === null ? [] : [budget]),
+  ];
 }
 
 /** Combinations that are LEGAL but do less than the argv asked for. A parse error refuses the run; a
@@ -320,6 +339,7 @@ export function parseSnapArgs(argv: string[]): Args {
     shot: true,
     shotOf: null,
     mask: [],
+    scale: CSS_SHOT_SCALE,
     colorScheme: null,
     reducedMotion: false,
     appearance: null,

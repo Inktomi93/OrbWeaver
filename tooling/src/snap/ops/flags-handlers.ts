@@ -11,6 +11,7 @@ import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { applyPanelPresetFlag, loadPanelPreset } from "../../_shared/panel-flags.ts";
 import { applyThemeFlag, parseThemeFlag } from "../../_shared/theme.ts";
 import type { Args } from "../contract/types.ts";
+import { parseShotScale } from "../lib/shot-scale.ts";
 import { NO_CPU_THROTTLE, parseNetworkProfile } from "../lib/throttle.ts";
 import { STAGE_FLAG_HANDLERS } from "./flags-stage.ts";
 import { ariaFlag, consumeOptionalSelector, DEFAULT_VIEWPORT, MS_PER_SECOND, mapFlag, pushEval, pushNav, pushStep, WIDE_VIEWPORT } from "./flags-support.ts";
@@ -249,6 +250,12 @@ export const FLAG_HANDLERS: Record<string, FlagHandler> = {
   },
   "--crop": (a, rest) => {
     a.crop = rest.shift() ?? null;
+  },
+  // The css default is DELIBERATE (image-token cost — lib/shot-scale.ts states why); this is its opt-in
+  // escape hatch. A bad value keeps the default here and is REFUSED by ops/parse.ts, so a run never
+  // silently renders at a density its argv did not ask for.
+  "--scale": (a, rest) => {
+    a.scale = parseShotScale(rest.shift() ?? "") ?? a.scale;
   },
   "--probe": (a) => {
     a.probe = true;

@@ -150,6 +150,11 @@ export function resolveBrowserEnvironmentContract(
   input: {
     readonly viewport: Viewport;
     readonly device?: string | null;
+    /** A caller-raised context DPR (snap's `--scale <n>`, #915). The APPLIED contract must carry it, or
+     *  identityMismatches reports "DPR expected 1 but observed 2" for a density the caller asked for —
+     *  blinding that check instead would be the banned direction. A `device` descriptor supersedes it
+     *  (snap refuses the combination at parse time rather than picking a winner here). */
+    readonly deviceScaleFactor?: number;
     readonly colorScheme?: "light" | "dark" | null;
     readonly reducedMotion?: boolean;
     readonly contrast?: "more" | "no-preference" | null;
@@ -173,7 +178,7 @@ export function resolveBrowserEnvironmentContract(
         ...media,
         screen: input.viewport,
         userAgent: null,
-        deviceScaleFactor: 1,
+        deviceScaleFactor: input.deviceScaleFactor ?? 1,
         isMobile: false,
         hasTouch: false,
       },
