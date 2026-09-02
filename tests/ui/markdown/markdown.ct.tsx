@@ -770,3 +770,43 @@ test("issue 1085: an ordered list numbers, and a nested list indents past its pa
   // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(lefts.inner).toBeGreaterThan(lefts.outer);
 });
+
+// ── H19 (side-eye HOME 2026-09-02): the THEMATIC BREAK — the family's fourth case ──────────────────
+// Measured live in a chat room: `[css] dead class — no rule defines it, so the style never applied ·
+// .my-6`. Streamdown's `hr` is `cn("my-6 border-border", …)`, its dist is not a Tailwind source (#238's
+// ruling), and preflight zeroes margins — so a `---` in a message drew a rule flush against the prose on
+// both sides AND left a class in the DOM that no rule defines. The element is OWNED now
+// (`rule-component.tsx`), which is #1085's arm: the vendor class leaves the DOM rather than being
+// out-painted. Both halves are asserted through what RENDERS — the gap as geometry, the dead class as an
+// absence from the class attribute, which is exactly what the live flagger reads.
+const RULED_MARKDOWN = "Before the break.\n\n---\n\nAfter the break.\n";
+
+test("H19: a thematic break renders a real gap either side, and carries no uncompiled vendor class", async ({ mount }) => {
+  const cmp = await mount(
+    <Markdown trust="untrusted" mode="static">
+      {RULED_MARKDOWN}
+    </Markdown>,
+  );
+  const rule = cmp.locator("hr");
+  await expect(rule).toHaveCount(1);
+
+  // THE DEAD CLASS IS GONE FROM THE DOM — not merely out-painted. `my-6` is what the live flagger named.
+  await expect.poll(async () => await rule.evaluate((el) => el.className)).not.toContain("my-6");
+  // …and it is still a visible rule.
+  await expect.poll(async () => await rule.evaluate((el) => Number.parseFloat(getComputedStyle(el).borderTopWidth))).toBeGreaterThan(0);
+
+  // THE GAP, as geometry: the rule sits between its two paragraphs with real space on BOTH sides.
+  // Measured 0/0 before this landed — the whole defect.
+  const gaps = await cmp.evaluate(() => {
+    const paragraphs = [...document.querySelectorAll("p")];
+    const line = document.querySelector("hr");
+    const before = paragraphs[0]?.getBoundingClientRect();
+    const after = paragraphs[1]?.getBoundingClientRect();
+    const box = line?.getBoundingClientRect();
+    return { above: (box?.top ?? 0) - (before?.bottom ?? 0), below: (after?.top ?? 0) - (box?.bottom ?? 0) };
+  });
+  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  expect(gaps.above).toBeGreaterThan(0);
+  // ONESHOT-OK: the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
+  expect(gaps.below).toBeGreaterThan(0);
+});

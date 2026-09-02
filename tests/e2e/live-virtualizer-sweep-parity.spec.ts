@@ -47,7 +47,7 @@ test("collectVirtualRows sweeps a transcript longer than the viewport and matche
   await trpcMutation("chat.updateTitle", { chatId, title: chatTitle });
 
   await gotoChatsList(page);
-  const targetRow = page.getByRole("list", { name: "Chats" }).getByRole("button", { name: new RegExp(chatTitle, "u") });
+  const targetRow = page.getByRole("list", { name: "Chats list" }).getByRole("button", { name: new RegExp(chatTitle, "u") });
   await expect(targetRow).toBeVisible({ timeout: 15_000 });
   await targetRow.click();
   await expect(page.getByRole("textbox", { name: "Message" })).toBeVisible({ timeout: 15_000 });

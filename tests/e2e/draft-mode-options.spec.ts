@@ -74,7 +74,7 @@ test("start click mounts the real room surface and the first row write claims th
     // Rename is explicit activity: it claims the husk, after which ordinary library navigation must reveal it.
     await renameOpenChat(page, claimedTitle);
     await gotoChatsList(page);
-    await expect(page.getByRole("list", { name: "Chats" }).getByRole("button", { name: claimedTitle }).first()).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("list", { name: "Chats list" }).getByRole("button", { name: claimedTitle }).first()).toBeVisible({ timeout: 15_000 });
   } finally {
     await removeCharacter(characterId);
   }

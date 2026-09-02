@@ -10,7 +10,7 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import { routeTrpc, trpcHold } from "../../../../support/ct/route-trpc.ts";
-import { ChatRecentsHeroArtStory, ChatRecentsPairStory, ChatRecentsTileStory } from "../_ct-stories.tsx";
+import { ChatRecentsHeroArtStory, ChatRecentsMobileStory, ChatRecentsPairStory, ChatRecentsTileStory } from "../_ct-stories.tsx";
 import { chatListResponder, makeChatSummary, makeSeatPortrait } from "../fixtures.ts";
 
 // Since #192 a room's faces ride the ROW (`ChatSummary.participantPortraits`), so a seat is a fixture
@@ -623,4 +623,59 @@ test("P3-4 the native hero still reads left-aligned — the UA button centring i
   await expect
     .poll(async () => home.locator('[data-home-hearth="chat_recent"]').evaluate((el) => globalThis.getComputedStyle(el).textAlign))
     .not.toBe("center");
+});
+
+// ── RED-FIRST (side-eye HOME 2026-09-02 H17): the ACTION never sits between two lines of text ───────
+// At the 430x932 coarse mount the credit line wraps ("SABINE VEYRA · CALAMITY ·" / "MORGATHA") and the
+// row centred `RESUME →` against the PAIR, so the one affordance on the island rendered in the gutter
+// between two lines of its own credit. The row aligns to START now: the action keeps the first line's
+// box, the credit wraps under it, and NO name is dropped — which is the arm this takes over truncating
+// the cast, because the credit line is the island's ONE cast rendering (rail sweep P2-6) and the hero's
+// own title ruling (side-eye F7) is that this island clamps rather than ellipses.
+// Asserted as GEOMETRY (the action's top box against the credit's first line), so it fails against the
+// old source and cannot be satisfied by a class string.
+const WRAPPING_CREDIT = makeChatSummary({
+  id: "chat_wrap",
+  title: "A grand adventure",
+  participantNames: ["Sabine Veyra", "Calamity, Doomblade of the Ninth Epoch", "Morgatha, the Undying Dark"],
+  participantCharacterIds: ["char_sabine", "char_calamity", "char_morgatha"],
+  participantPortraits: [CALAMITY_SEAT, MORGATHA_SEAT],
+});
+
+test.describe("the hero's action row at a phone width", () => {
+  test.use({ hasTouch: true, isMobile: true, viewport: { width: 430, height: 932 } });
+
+  test("H17 the Resume hint keeps the credit's FIRST line — never centred against a wrapped pair", async ({ mount, page }) => {
+    await routeTrpc(page, { "chat.listChats": chatListResponder([WRAPPING_CREDIT]) });
+
+    const home = await mount(<ChatRecentsMobileStory />);
+    const hero = home.locator('[data-home-hearth="chat_wrap"]');
+    // Voice-scoped: the fixture's SUBTITLE also contains the cast names, so a bare text match resolves
+    // two elements. The credit line is the `credit`-voiced span (the island's ONE cast rendering).
+    const credit = hero.locator('[data-slot="text"][data-voice="credit"]').first();
+
+    // The premise, or everything below passes for the wrong reason: at this width the credit really does
+    // wrap — its box is taller than one line of its own leading.
+    await expect
+      .poll(
+        async () =>
+          await credit.evaluate((el) => {
+            const box = el.getBoundingClientRect();
+            return box.height / Number.parseFloat(globalThis.getComputedStyle(el).lineHeight);
+          }),
+      )
+      .toBeGreaterThan(1.5);
+    // The action's box starts where the credit's does — i.e. on the credit's FIRST line, not centred
+    // against both of them. One device pixel of tolerance for sub-pixel line-box rounding.
+    await expect
+      .poll(
+        async () =>
+          await hero.evaluate((island) => {
+            const lines = island.querySelector('[data-slot="text"][data-voice="credit"]')?.getBoundingClientRect().top ?? 0;
+            const hint = island.querySelectorAll('[data-slot="text"][data-voice="credit"]')[1]?.getBoundingClientRect().top ?? 0;
+            return Math.abs(hint - lines);
+          }),
+      )
+      .toBeLessThanOrEqual(1);
+  });
 });

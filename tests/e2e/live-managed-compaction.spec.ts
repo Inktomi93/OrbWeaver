@@ -78,7 +78,7 @@ test("managed compaction fires on the local model, the divider carries the compa
 
     // ── The DOM divider shows the MEMORY FACT + a working PEEK. ──
     await gotoChatsList(page);
-    await page.getByRole("list", { name: "Chats" }).getByRole("button").first().click();
+    await page.getByRole("list", { name: "Chats list" }).getByRole("button").first().click();
     await expect(page.getByRole("textbox", { name: "Message" })).toBeVisible({ timeout: 15_000 });
     const divider = page.locator('[data-slot="context-boundary-divider"]');
     await expect(divider).toHaveCount(1, { timeout: 15_000 });

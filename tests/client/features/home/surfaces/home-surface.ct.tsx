@@ -156,7 +156,20 @@ test("#834 the fold lists the committed roadmap — a derived count on the band,
 
   // The count is the band's TRAILING chip and it is DERIVED — asserted against the rows that actually
   // open, so a tuple that grows while the chip does not (or the reverse) fails here rather than lying.
-  await expect(region.locator('[data-slot="badge"]')).toHaveText(String(ROADMAP_ROW_NAMES.length));
+  //
+  // RED-FIRST (side-eye HOME 2026-09-02 H10): the chip used to reach AT as a BARE "7" — `snap --aria`
+  // rendered `button "What's coming"` and then an unattributed `text: "7"`, so a screen-reader user heard
+  // "What's coming, collapsed… seven". The unit word is real text INSIDE the chip, screen-reader-only, so
+  // the chip names itself. What it is NOT is the review's other suggestion — folding the count into the
+  // trigger's accessible name — because #482 and #833 both ruled on that exact string, and the chip sits
+  // outside the button precisely so nothing concatenates into it. The trigger assertion below is the
+  // other half of this pin: the name is still EXACTLY the group's one name.
+  await expect(region.locator('[data-slot="badge"]')).toHaveText(`${String(ROADMAP_ROW_NAMES.length)} items`);
+  // …and the unit word costs the band NOTHING: it is clipped to the screen-reader box, so the chip still
+  // paints the bare figure the mock draws in the trailing slot.
+  await expect
+    .poll(async () => await region.locator('[data-slot="badge"] [data-slot="text"]').evaluate((el) => el.getBoundingClientRect().width))
+    .toBeLessThanOrEqual(1);
   // …and the chip is BESIDE the trigger, never inside it: the accessible name is still exactly the group's
   // one name, which is the string #482 and #833 both ruled on.
   const trigger = home.getByRole("button", { exact: true, name: GROUP_LABEL });
@@ -549,6 +562,40 @@ test("a DORMANT tile RECEDES: a muted-gloss teaser, and the dev citation a mono/
       ),
     )
     .toBe(1);
+});
+
+// ── RED-FIRST (side-eye HOME 2026-09-02 H8 + H9): ONE VOICE NAME, ONE SPELLING ──────────────────────
+// The doorway rendered TWO typographic spellings under ONE `data-voice="gloss"`, stacked 4px apart: the
+// teaser at `Geist 13px/20px` and the state line at `"Geist Mono" 10.5px/13px`, the same colour. The
+// voice grammar exists precisely so a role has one spelling, and the second spelling was only reachable
+// by re-spelling `gloss` with a `font-mono` className at the call site. H9 is the same defect measured
+// from the reader's side: a 95-character SENTENCE ("Partly built — the table runs; …") set at the 10.5px
+// stamp step with a 13px line box.
+// The state line carries its own RATIFIED voice now (`datumMono` — the muted mono readout at the code
+// step). The rail-sweep P1-3 ruling it was set under is UNTOUCHED and is what this asserts: the
+// separation between teaser and state is carried by the MONO FACE, which costs no contrast. Asserted
+// through rendered attributes + computed type, so it compiles and fails against the old source.
+test("H8/H9 the doorway's two lines are two NAMED voices at the readable step, separated by the face alone", async ({ mount }) => {
+  const dormant = await mount(<HomeDormantTileStory />);
+  await dormant.getByRole("button", { name: GROUP_LABEL }).click();
+  const tile = dormant.locator('[data-home-tile="dormant"]');
+  const readType = async (locator: Locator): Promise<{ family: string; size: number; voice: string | null }> =>
+    await locator.evaluate((el) => ({
+      family: globalThis.getComputedStyle(el).fontFamily.toLowerCase(),
+      size: Number.parseFloat(globalThis.getComputedStyle(el).fontSize),
+      voice: el.getAttribute("data-voice"),
+    }));
+
+  // ONE NAME, ONE SPELLING: the two lines no longer share a voice name.
+  await expect.poll(async () => (await readType(tile.getByText(REASON_RE))).voice).not.toBe((await readType(tile.getByText(TEASER_RE))).voice);
+  // …and both name a voice — a bare `null` here would mean a call site spelling type by className again.
+  await expect.poll(async () => (await readType(tile.getByText(REASON_RE))).voice).not.toBeNull();
+  // H9: the state line is a SENTENCE, so it reads at the same step as the teaser beside it, never two
+  // steps below it. Compared against the teaser rather than a literal px, so the ramp owns the number.
+  await expect.poll(async () => (await readType(tile.getByText(REASON_RE))).size).toBe((await readType(tile.getByText(TEASER_RE))).size);
+  // The MONO FACE is what separates them (rail sweep P1-3) — that ruling survives the step change.
+  await expect.poll(async () => (await readType(tile.getByText(REASON_RE))).family).toContain("mono");
+  await expect.poll(async () => (await readType(tile.getByText(TEASER_RE))).family).not.toContain("mono");
 });
 
 test("the grid aligns tiles to START — a short tile never stretches to its row-mate's height", async ({ mount }) => {

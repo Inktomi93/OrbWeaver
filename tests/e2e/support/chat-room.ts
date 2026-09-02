@@ -102,19 +102,19 @@ function chatsRailButton(page: Page): Locator {
   return page.getByRole("navigation", { name: "Primary" }).getByRole("button", { name: "Chats", exact: true });
 }
 
-/** Land on the Chats SECTION and wait for its list to settle. The `aria-label="Chats"` list surface
+/** Land on the Chats SECTION and wait for its list to settle. The `aria-label="Chats list"` list surface
  *  (chat-list-surface.tsx) MOVED OFF `/` in the owner-approved variant-C home rework (program #102): `/`
  *  is now the Hearth Room hero (masthead + "Pick up where you left off" + "Other rooms" + face shelf), and
  *  the full Chats list lives on the Chats section (`main "Chats content"` + `complementary "Chats list"`),
  *  reached via the Primary rail. Every list-driven helper below routes through here rather than reading a
- *  list off `/` that no longer exists. Waits for the `aria-label="Chats"` list OR the "No chats yet"
+ *  list off `/` that no longer exists. Waits for the `aria-label="Chats list"` list OR the "No chats yet"
  *  empty-state to settle BEFORE the caller counts rows — reading the count while the suspense query is in
  *  flight races a false 0. globalSetup guarantees >=1 chat, so the list branch is the normal path. */
 export async function gotoChatsList(page: Page): Promise<void> {
   await page.goto("/");
   await waitForAppReady(page);
   const chatsRail = chatsRailButton(page);
-  const chatsList = page.getByRole("list", { name: "Chats" });
+  const chatsList = page.getByRole("list", { name: "Chats list" });
   const emptyState = page.getByText("No chats yet");
   // COLD-BOOT RESILIENCE (the reason this is a retry loop, not a bare click). The FIRST navigation into the
   // lazy Chats route can trigger a Vite dependency re-optimization that RELOADS the page AFTER `data-app-ready`
@@ -159,14 +159,14 @@ async function createChatViaSend(page: Page): Promise<void> {
  *  DB already has any (cheap); otherwise bootstraps one via the real send flow (one turn). Leaves the page
  *  in the open room with a live composer. */
 export async function openOrCreateChat(page: Page): Promise<void> {
-  // The Chats SECTION owns the `aria-label="Chats"` list surface (chat-list-surface.tsx), suspense-loaded
+  // The Chats SECTION owns the `aria-label="Chats list"` list surface (chat-list-surface.tsx), suspense-loaded
   // from `chat.listChats` — it moved off `/` in the variant-C home rework (see `gotoChatsList`).
   // `gotoChatsList` settles the list-or-empty-state BEFORE we count rows, so a false 0 can't drop us into
   // the expensive create-via-send path while a chat already exists. globalSetup guarantees ≥1 chat, so the
   // reuse branch is the normal path.
   await gotoChatsList(page);
 
-  const rows = page.getByRole("list", { name: "Chats" }).getByRole("button");
+  const rows = page.getByRole("list", { name: "Chats list" }).getByRole("button");
   if ((await rows.count()) === 0) {
     await createChatViaSend(page);
     return;
@@ -226,7 +226,7 @@ export async function typeAndSend(composer: ReturnType<Page["getByRole"]>, messa
  *  ALL its rows (no virtualization), so DOM↔canon full-length parity is deterministic. */
 export async function openNewestChat(page: Page): Promise<void> {
   await gotoChatsList(page);
-  const rows = page.getByRole("list", { name: "Chats" }).getByRole("button");
+  const rows = page.getByRole("list", { name: "Chats list" }).getByRole("button");
   await expect(rows.first()).toBeVisible({ timeout: COLD_CHAT_SURFACE_TIMEOUT });
   await rows.first().click();
   await expect(page.getByRole("textbox", { name: "Message" })).toBeVisible({ timeout: 15_000 });
@@ -297,7 +297,7 @@ const CHARACTER_CHIP = '[data-slot="character-chip"]';
  *  unambiguous on the shared DB. */
 export async function openChatByTitle(page: Page, title: string): Promise<void> {
   await gotoChatsList(page);
-  const row = page.getByRole("list", { name: "Chats" }).getByRole("button", { name: title }).first();
+  const row = page.getByRole("list", { name: "Chats list" }).getByRole("button", { name: title }).first();
   await expect(row).toBeVisible({ timeout: COLD_CHAT_SURFACE_TIMEOUT });
   await row.click();
   await expect(page.getByRole("textbox", { name: "Message" })).toBeVisible({ timeout: 15_000 });
@@ -389,7 +389,7 @@ export async function openMemberRowMenu(page: Page, displayName: string): Promis
  *  and re-opening reads DB truth. Returns once the room's composer is live again. */
 export async function reopenFirstChat(page: Page): Promise<void> {
   await gotoChatsList(page);
-  const rows = page.getByRole("list", { name: "Chats" }).getByRole("button");
+  const rows = page.getByRole("list", { name: "Chats list" }).getByRole("button");
   await expect(rows.first()).toBeVisible({ timeout: 15_000 });
   await rows.first().click();
   await expect(page.getByRole("textbox", { name: "Message" })).toBeVisible({ timeout: 15_000 });

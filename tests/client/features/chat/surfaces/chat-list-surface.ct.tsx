@@ -191,7 +191,7 @@ test("jumping to a month resets loaded pages and lands its newest old row withou
   const trpc = await routeTrpc(page, { "chat.listChats": datedChatListResponder([...recent, ...old]), "character.list": { items: [], nextCursor: null } });
   const component = await mount(<ChatListSurfaceStory />);
 
-  const list = component.getByRole("list", { name: "Chats" });
+  const list = component.getByRole("list", { name: "Chats list" });
   await list.hover();
   await expect
     .poll(async () => {
@@ -1175,7 +1175,7 @@ for (const axis of ["character", "search"] as const) {
     // The poll IS the scroll loop (the eviction-walk precedent): each attempt wheels one step, which also
     // lets the tail-fetch guard pull the next page, and reports the live offset.
     const scroll = component.locator('[data-slot="virtual-list-scroll"]');
-    await component.getByRole("list", { name: "Chats" }).hover();
+    await component.getByRole("list", { name: "Chats list" }).hover();
     await expect
       .poll(async () => {
         await page.mouse.wheel(0, EVICTION_SCROLL_STEP_PX);
@@ -1231,7 +1231,7 @@ test("the head page is NEVER evicted — a deep scroll and back still lands on t
   await expect(component.getByText(HEAD_CHAT)).toBeVisible();
 
   // Walk to the tail the way a user does — each step lets the tail-fetch guard pull the next page.
-  const list = component.getByRole("list", { name: "Chats" });
+  const list = component.getByRole("list", { name: "Chats list" });
   await list.hover();
   const tail = component.getByText(TAIL_CHAT);
   await expect

@@ -274,9 +274,23 @@ export function HomeSurface({ tiles, onNewChat }: HomeSurfaceProps): ReactElemen
                                 the trigger's accessible name is exactly the group's one name (#482/#833 both
                                 ruled on that string), and a chip inside the button would concatenate into it.
                                 It is DERIVED, never declared — the fold says how much it is holding, so a
-                                roadmap entry landing or a doorway going live moves this number by itself. */}
+                                roadmap entry landing or a doorway going live moves this number by itself.
+                                …AND IT NAMES ITSELF NOW (side-eye HOME 2026-09-02 H10). It reached AT as a
+                                bare figure — `snap --aria` rendered `button "What's coming"` and then an
+                                unattributed `text: "7"`, so a screen-reader user heard "What's coming,
+                                collapsed… seven" with nothing saying seven WHAT. The review's first
+                                suggested arm was to fold the count into the trigger's accessible name, and
+                                that is the one thing the paragraph above forbids: #482 and #833 both ruled
+                                on that exact string. So the unit word rides INSIDE the chip instead, as
+                                real screen-reader-only text — the chip announces "7 items", the trigger's
+                                name is untouched, and the band still paints the bare figure the mock draws
+                                (`sr-only` clips it to a 1px box, asserted in the CT). */}
                             <Badge size="sm" tone="ghost">
                               {doorways.length}
+                              <Text as="span" className="sr-only">
+                                {" "}
+                                items
+                              </Text>
                             </Badge>
                           </Row>
                           <CollapsiblePanel>
