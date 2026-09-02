@@ -327,12 +327,19 @@ The behavioral suites are ONE `tests` concept expressed as stages with tier + sc
   credits), **`quality:mutation-gate`** (`full`), **`quality:mutation-report`**
   - **`tests:coverage`** (`manual` — report-only, no thresholds gate).
 - **`tests:execution-membership`** (`static`/`push`/`full`, #22 — `tooling/src/verify/ops/tests-execution-membership.ts`)
-  — `types:tests-membership`'s EXECUTION-lane sibling: BOTH directions of "a test file is run by SOME
-  runner, and a runner glob matches SOME file". Asks each runner its own `--list` view (`vitest list --filesOnly --json` for all six node projects; `playwright test --list --reporter=json` for
-  `playwright.config.ts` — run with `E2E_LIVE=1` so `@live`-tagged specs, structurally matched but grep-
-  skipped at routine run time, still count — and `playwright-ct.config.ts`), never re-parses glob strings
-  (drift-proof). A `tests/**` runner-suffixed file in NO view REDs (never executed); a runner view matching
-  ZERO files REDs (the marinara silent-no-op disease — its server `pnpm test` globs matched nothing).
+  — `types:tests-membership`'s EXECUTION-lane sibling: THREE directions of "a test file is run by SOME
+  runner, a runner glob matches SOME file, and no file is run by MORE than one runner". Asks each runner its
+  own `--list` view (`vitest list --filesOnly --json` for all six node projects — each entry carries a
+  `projectName`, which direction 3 reads; `playwright test --list --reporter=json` for `playwright.config.ts`
+  — run with `E2E_LIVE=1` so `@live`-tagged specs, structurally matched but grep-skipped at routine run time,
+  still count — and `playwright-ct.config.ts`), never re-parses glob strings (drift-proof). A `tests/**`
+  runner-suffixed file in NO view REDs (never executed, direction 2); a runner view matching ZERO files REDs
+  (the marinara silent-no-op disease — its server `pnpm test` globs matched nothing, direction 1); a file
+  claimed by TWO OR MORE runtime views REDs naming every colliding view (direction 3, #1096) — one-lane-ness
+  used to be an unverified construction property of the include/exclude sets (read by hand off `vitest
+  list --json`'s per-entry `projectName`), now a checked invariant. Direction 3's runtime-view set is every
+  vitest project EXCEPT `types` (typecheck-only, `test.include: []` — no runtime pass, so it cannot be a
+  second EXECUTOR of anything) plus the two playwright configs, each counted separately.
 - **`structure:db-baseline`** (`static`/`push`/`full` — `tooling/src/verify/ops/db-baseline-parity.ts`) — the
   committed squashed migration (`packages/db/src/migrations/0000_baseline.sql`) vs what the live
   `@orb/db/schema` generates, statement-set equal after whitespace/semicolon normalization
