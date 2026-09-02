@@ -366,10 +366,21 @@ export default tseslint.config(
     // The tests-dom escapees (#473) — `tests/e2e/**` plus the three `tests/support/ct/*.ts` files the
     // root program excludes. The parser gets BOTH configs and uses whichever one owns the file, so this
     // block never has to restate tsconfig.tests-dom.json's include list (a copy of it would rot).
-    files: TESTS_DOM_OWNED,
+    // `tests/tooling/**` joins them (#1231): tsconfig.tests-dom.json also claims SIX files under that
+    // tree, and they were the one escapee class still routed to `projectService` above — which searches
+    // UPWARD, lands on the root tsconfig, and finds them in its `exclude`, so they answered "was not
+    // found by the project service" (measured: 3 parse errors on the tree at d7f91a3ae). Handing the
+    // whole tree BOTH configs keeps the no-restatement property: whichever program owns a given file
+    // wins, and tests-dom's list can grow another tooling entry without touching this file.
+    files: [...TESTS_DOM_OWNED, TOOLING_TESTS],
     languageOptions: {
       parser: tseslint.parser,
-      parserOptions: { project: ["tsconfig.json", "tsconfig.tests-dom.json"], tsconfigRootDir: ROOT, sourceType: "module" },
+      // `projectService: false` is LOAD-BEARING, not tidiness: flat-config `languageOptions` MERGE, so the
+      // earlier PROJECT_SERVICE_SURFACE block's `projectService: true` survives into this one for any file
+      // both match (every `tests/tooling/**/*.ts`), and typescript-eslint then refuses the pair outright
+      // ("Enabling \"project\" does nothing when \"projectService\" is enabled") — a PARSE error, so the
+      // whole file goes unlinted exactly like the gap this block closes.
+      parserOptions: { project: ["tsconfig.json", "tsconfig.tests-dom.json"], projectService: false, tsconfigRootDir: ROOT, sourceType: "module" },
     },
   },
   {

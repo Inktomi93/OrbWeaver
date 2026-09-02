@@ -271,7 +271,7 @@ test("T5 — a tiny TTL reaps an idle daemon; a call inside the window resets it
     const pidA = rowOf(r.home, a).daemonPid;
     expect(pidAlive(pidA)).toBe(true);
     expect(await until(() => !pidAlive(pidA))).toBe(true);
-    expect(await until(() => !existsSync(join(r.home, `${a}.json`))));
+    expect(await until(() => !existsSync(join(r.home, `${a}.json`))), "the reaped session's row must be removed by its own shutdown").toBe(true);
 
     // B: TTL 8 s. A call at ~4 s resets the clock; alive at ~4 s after THAT call (past the boot's window
     // end), then gone within one more TTL — the positive control that the reap is idleness, not age.
