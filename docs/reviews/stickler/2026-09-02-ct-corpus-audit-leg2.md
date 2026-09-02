@@ -40,8 +40,8 @@ current as of the newest commit.
 | Leg | Full-read files | Lines | Findings |
 | - | - | - | - |
 | Leg 1 | 24 | \~26,100 | F1 (#1240) · F2 (#1241) · F3 (#1242) |
-| Leg 2 so far | 26 | \~14,440 | none yet |
-| **Total** | **50 / 469** | \~40,540 | ceiling P3 |
+| Leg 2 so far | 32 | \~15,580 | none yet |
+| **Total** | **56 / 469** | \~41,680 | ceiling P3 |
 
 Leg-2 files read and judged (chunk 1): `web-weave.ct.tsx`, `slider.ct.tsx`, `toast.ct.tsx`,
 `sandbox-frame.ct.tsx`, `params-deck.ct.tsx`, `chat-room-surface.ct.tsx`,
@@ -51,7 +51,9 @@ Leg-2 files read and judged (chunk 1): `web-weave.ct.tsx`, `slider.ct.tsx`, `toa
 `theme-scope.ct.tsx`, `tabs.ct.tsx`, `menu.ct.tsx`, `code-editor.ct.tsx`,
 `accessible-name-quality.suite.ct.tsx`, `context-tabs-panel.ct.tsx`. Chunk 4:
 `assembly-preview-panel.ct.tsx`, `corpus-content.ct.tsx`, `databank-detail-surface.ct.tsx`,
-`workloads-group.ct.tsx`, `injections-manager.ct.tsx`, `payload-view.ct.tsx`.
+`workloads-group.ct.tsx`, `injections-manager.ct.tsx`, `payload-view.ct.tsx`. Chunk 5:
+`analytics-overview-surface.ct.tsx`, `image-detail-body.ct.tsx`, `message-media-block.ct.tsx`,
+`room-overrides-form.ct.tsx`, `form-identity.suite.ct.tsx`, `web-weave-touch.ct.tsx`.
 
 ## 2. Findings
 
@@ -298,18 +300,68 @@ MutationObserver (nothing races the 360ms ramp); the FABRICATION-OK markers cove
 globals only. Valence pins resolve both intent tokens from the live stylesheet through attached
 probes; filtered-array assertions so failures name offenders.
 
+## 3e. Per-file verdicts — chunk 5 (6 files, all CLEAN — the core helper-await population is DRAINED)
+
+With this chunk every reachable file of the leg-2 core population (35 files / 69 sites) is judged
+except the 3 pre-fold-flagged config files deliberately parked last (§0). Every helper-hoisted
+non-retrying assert in the 32 read files is BARRIERED-BY-CONSTRUCTION; zero racing (F2-shaped) sites
+found in leg 2.
+
+### 3e.1 `tests/client/features/stats/surfaces/analytics-overview-surface.ct.tsx` (382 lines) — CLEAN
+
+Ex-fenced; read post-fold (the analytics pin lane's content is on this base). The one raw
+`setTimeout(400)` is the ECharts first-resize-swallow settle (#263, the known instrument lesson) with
+the mechanism cited and a `risingBar > 0` positive control after it; the shared-scale claim uses the
+framebuffer (`readCanvasBandInk`/`solidColumns`) with a deliberately loose floor for axis rounding.
+In-flight-disabled arm via a parked-promise route hold; CONFLICT arm proves a refusal is not a broken
+surface; the unmeasured-figure arm pins em-dashes AND the teaching line. ONESHOT-OK markers carry
+static-CSS arguments.
+
+### 3e.2 `tests/client/features/imagery/components/image-detail-body.ct.tsx` (204 lines) — CLEAN
+
+Same #654 reservation shape as the edit body (pre-decode box behind `toBeVisible`, release + poll on
+`naturalWidth`, geometry-equality). #623 toast pins count the outlet (`toHaveCount(1)`) in BOTH
+directions — refused write shows only the failure, settled write only the success naming the revert
+home. ONESHOT-OK input read barriered by the count poll.
+
+### 3e.3 `tests/client/features/chat/components/message-media-block.ct.tsx` (161 lines) — CLEAN
+
+The #618 chat-binding pin proves the open-time chatId pin BEHAVIOURALLY (the write names the seeded
+room, with the minted-id-not-literal hazard documented at the seed). Page-scoped-locator traps (the
+component IS the root node) documented twice. Degradation arm (placeholder, never a broken img) and
+the video-mime arm both exercised.
+
+### 3e.4 `tests/client/features/chat/components/room-overrides-form.ct.tsx` (146 lines) — CLEAN
+
+The F1 SWITCH pin uses the untouched-field tell (`mainPrompt` never edited — the live seed's
+fingerprint). The #847 clamp pin notes the exiting-textarea strict-mode trap and targets the
+paragraph. The full-row tap-target probe polls `elementFromPoint`; the coarse-floor pin asserts the
+resolved token clears WCAG's 44 FIRST so a fine-pointer run cannot read as a pass.
+
+### 3e.5 `tests/client/forms/form-identity.suite.ct.tsx` (138 lines) — CLEAN
+
+The suite pins Chrome's real predicate (four measured probes documented: CDP GenericIssue not console;
+bundled chromium emits none; aria-label does not satisfy; fires outside `<form>`), with a planted
+negative control and a passing-arm control. Page-wide scope for portal coverage, offender markup in
+the failure message.
+
+### 3e.6 `tests/ui/art/web-weave/web-weave-touch.ct.tsx` (104 lines) — CLEAN
+
+Every ring verdict is judged against `ambientCeiling` (max over repeated spans — the 16k–136k idle
+range is documented), with the inert-weave instrument control making the verdict falsifiable, the
+reduced-motion arm pinning byte-identical pixels AND no extra frame, and the scroll fence keeping
+`touch-action` honest. Emulation-landed control first.
+
 ## 4. Verified clean so far (leg-2 methods)
 
-- Full-read of all 26 files above, whole files, no sampling.
+- Full-read of all 32 files above, whole files, no sampling.
 - Fresh merged-tree Phase A scan (469/469 files, scannedFileCount cross-checked against `git ls-files`).
-- Helper-hoisted site classification against the scan's site list; every site in the 26 files accounted
+- Helper-hoisted site classification against the scan's site list; every site in the 32 files accounted
   for above.
 
 ## 5. Remaining leg-2 queue (state at this commit)
 
-Core helper-await files still to read (\~6): analytics-overview-surface (382, ex-fenced),
-image-detail-body (204), message-media-block (161), room-overrides-form (146), form-identity.suite
-(138), web-weave-touch (104).
+Core helper-await population: DRAINED except the 3 pre-fold-flagged files (below).
 Ex-fenced batch:
 appearance-background-section (405), config-teacher (370), config-search-input (234), config-save-footer
 (202), config-list-collection-group (113), config-group-placeholder (101), config-palette-source (57).
