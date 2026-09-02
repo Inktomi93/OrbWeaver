@@ -369,6 +369,18 @@ container). The old critical (`Host`-spoof → owner) is closed at the source. T
 (b) — a same-host loopback proxy paired with `AUTH_FALLBACK=owner` — which the prod boot guard makes
 unrepresentable.
 
+**THE RESIDUAL'S PRICE ROSE ON 2026-09-02 (#1193) — re-read it before accepting it again.** The one accepted
+gap is a hand-rolled launch that OMITS `NODE_ENV` (a bare `node entry/index.ts`; both supported prod
+launchers set it in `buildProdSpawnPlan`) behind a loopback proxy with the default `AUTH_FALLBACK=owner`.
+That used to cost exactly the SSO bypass: every external request resolves as the owner. It now costs
+`/api/_debug/*` as well — the debug gate's fallback arm is credentialed by
+`resolveOwnerFallbackCredential`, which reads the SAME omitted `NODE_ENV`, so a box that lies about being
+production hands the diagnostics surface (whole-db reads, and with `WIRE_CAPTURE=on` the RAW PROVIDER REQUEST
+BODIES) to the same laundered callers, with no `DEBUG_TOKEN` needed. One missing env var, two doors instead
+of one. The mitigation is unchanged and now doubly load-bearing: **use the supported launchers** (`pnpm stack
+up prod` / `start-fg prod`), and set `IP_ALLOWLIST` — it is the only control that bounds either door when the
+process is lying about its own posture.
+
 **What is NOT exposed regardless:** `/api/_debug/*`. AUTHFIX-2 (`entry/auth/seam.ts`) keeps the fallback out
 of the debug gate — and since #1193 that exclusion is stated as a POSTURE rather than an absolute:
 `debugGateCredentialed().fallback` is `resolveOwnerFallbackCredential`, false whenever
