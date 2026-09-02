@@ -33,7 +33,7 @@ import { getLog, withRequestSpan } from "#foundation/observability";
 import type { WireTool } from "#infra/providers";
 import type { ChatContext } from "../context.ts";
 import type { ActiveTurns } from "../contract/active-turns.ts";
-import type { ArbiterCandidate, AutoModeResult, CastName } from "../contract/arbitration.ts";
+import type { ArbiterCandidate, AutoModeResult, SpeakerCandidate } from "../contract/arbitration.ts";
 import type { TurnUserMacros } from "../contract/assembly-macros.ts";
 import type { ChatRpgGatherResult, ClaimChatOp } from "../contract/context.ts";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors.ts";
@@ -194,7 +194,7 @@ const nudgeOf = (
 interface Room {
   readonly hostUserId: UserId;
   readonly candidates: readonly ArbiterCandidate[];
-  readonly castNames: readonly CastName[];
+  readonly speakerCandidates: readonly SpeakerCandidate[];
   readonly characterIds: readonly CharacterId[];
   /** The `speakerKey`s of the present MUTED seats (character + agent) — the `unmutedCharacters` producer, keyed on
    *  the same seat `disabled` axis arbitration reads. Empty ⇒ nothing muted. */
@@ -266,12 +266,15 @@ async function loadRoom(ctx: ChatContext, chatId: ChatId): Promise<Room> {
     leftSeq: r.leftSeq,
   }));
 
-  const charCastNames: CastName[] = charRows.map((r, i) => ({ ref: { kind: "character", characterId: r.characterId }, name: cards[i]?.name ?? "" }));
+  const charSpeakerCandidates: SpeakerCandidate[] = charRows.map((r, i) => ({
+    ref: { kind: "character", characterId: r.characterId },
+    name: cards[i]?.name ?? "",
+  }));
   const candidates: ArbiterCandidate[] = [...charCandidates];
   return {
     hostUserId,
     candidates,
-    castNames: [...charCastNames],
+    speakerCandidates: [...charSpeakerCandidates],
     characterIds: charRows.map((r) => r.characterId),
     mutedSpeakerKeys: new Set(candidates.filter((c) => c.disabled).map((c) => speakerKey(c.ref))),
     personaIds,
@@ -282,7 +285,7 @@ async function loadRoom(ctx: ChatContext, chatId: ChatId): Promise<Room> {
 /** The primary character id (roster's first cast seat), the solo/single-speaker default. Null only for an
  *  empty cast. */
 function primaryCharacterId(room: Room): CharacterId | null {
-  const first = room.castNames[0]?.ref;
+  const first = room.speakerCandidates[0]?.ref;
   return first !== undefined ? first.characterId : null;
 }
 
@@ -290,15 +293,15 @@ function primaryCharacterId(room: Room): CharacterId | null {
  *  and its cast-of-one guard. Muted seats are excluded on the same `disabled` axis arbitration reads: a muted
  *  member's card still informs the merged turn, but the nudge must not name them as a voice. */
 function narratorMemberNamesOf(room: Room): readonly string[] {
-  return room.castNames
+  return room.speakerCandidates
     .filter((c) => !room.mutedSpeakerKeys.has(speakerKey(c.ref)))
     .map((c) => c.name)
     .filter((n) => n.length > 0);
 }
 
-/** The joined present-cast name (narrator `{{char}}`-as-cast); collapses to the single name at cast=1. */
-function joinedCastName(castNames: readonly CastName[]): string {
-  return castNames
+/** The joined candidate names (narrator `{{char}}`-as-whole-room); collapses to the single name at one candidate. */
+function joinedCandidateName(speakerCandidates: readonly SpeakerCandidate[]): string {
+  return speakerCandidates
     .map((c) => c.name)
     .filter((n) => n.length > 0)
     .join(", ");
@@ -542,11 +545,11 @@ async function buildTurnContext(
      *  so the re-generation resolves the identical draw. Absent (send/generate/impersonate) ⇒ a fresh draw. */
     readonly frozenUserMacroDraws?: UserMacroDraws | undefined;
     /** The Ruling-B `{{char}}` for a HOST-authored / null-speaker context (Chat-Macro-Resolution.md ruling B):
-     *  the JOINED CAST names (multi-character room, == `{{group}}`) / the single character (solo). Chat is the
+     *  the JOINED CANDIDATE names (multi-character room, == `{{group}}`) / the single character (solo). Chat is the
      *  authority on this identity resolution — threaded into the rpg gather so the host `steeringNote`'s
      *  `{{char}}` follows the SAME value every other human-authored `{{char}}` uses (never a re-derived
-     *  protagonist). Empty for an empty cast. */
-    readonly castCharForHostRow: string;
+     *  protagonist). Empty for a room with no characters. */
+    readonly candidateCharForHostRow: string;
     /** THIS chat's parsed `metadata` blob — the room half of the B1 offer-choices knob (the host half rides
      *  `foreign.chatBehavior`). Threaded from the CALLER rather than re-read here because every caller already
      *  holds the row (`requireHost`/`requireParticipant` loaded it, or the drain path read it), so the turn
@@ -574,7 +577,7 @@ async function buildTurnContext(
   // The host `steeringNote`'s identity-macro binding, both computed CHAT-SIDE (chat owns identity resolution):
   //   `{{user}}` = `foreign.personas.active?.name` — the active/triggering persona (NOT the pinned anchor; a
   //      steeringNote is a current-action steer, exactly like the guided/nudge path).
-  //   `{{char}}` = `args.castCharForHostRow` — the Ruling-B host/null-speaker `{{char}}` (the JOINED CAST in a
+  //   `{{char}}` = `args.candidateCharForHostRow` — the Ruling-B host/null-speaker `{{char}}` (the JOINED CANDIDATE NAMES in a
   //      multi-character room, the single character in solo), so the steeringNote's `{{char}}` matches every
   //      other human-authored `{{char}}` (rpg splices chat's value, never re-derives a protagonist).
   // Threaded so rpg renders the steeringNote's macros (guided-safe) instead of shipping literal braces.
@@ -582,7 +585,7 @@ async function buildTurnContext(
   // gather and the S2 teaching collection resolve prose slots from them — and they must resolve the SAME
   // bytes or the choices-teach containment check below cannot see a game's teach (`teaching-contribution.ts`).
   const turnProse = composeProse({ preset: foreign.promptConfig.prose });
-  const teachIdentity = { user: foreign.personas.active?.name, char: args.castCharForHostRow };
+  const teachIdentity = { user: foreign.personas.active?.name, char: args.candidateCharForHostRow };
   const rpg =
     ctx.rpg !== null
       ? await ctx.rpg.gatherTurnContext({
@@ -751,7 +754,7 @@ async function persistUserMessage(
  *  arbitration (the side-LLM call saw the turn's signal fire). File-local — the callers pass it straight to
  *  their own outcome, nothing outside this verb reads it. `aborted:true` ⇒ `speakers: []`. */
 interface ArbitrationOutcome {
-  readonly speakers: readonly CastName[];
+  readonly speakers: readonly SpeakerCandidate[];
   readonly aborted: boolean;
   /** True when the result came from the FORCED hard-override (a `@mention`/explicit target that resolved to
    *  an eligible seat), not from a policy. The caller uses it to coerce a narrator room to a per-speaker
@@ -774,7 +777,7 @@ async function arbitrate(
     readonly chatId: ChatId;
     readonly group: GroupConfig;
     readonly candidates: readonly ArbiterCandidate[];
-    readonly castNames: readonly CastName[];
+    readonly speakerCandidates: readonly SpeakerCandidate[];
     readonly forcedIds?: readonly CharacterId[] | undefined;
     readonly lastSpeaker: SpeakerRef | null;
     /** Whether the last speaker is banned from this round's pool (the room's `allowSelfResponses`,
@@ -804,7 +807,7 @@ async function arbitrate(
     const smart = await smartArbitrateVia({
       summarize: ctx.summarize,
       candidates: args.candidates,
-      castNames: args.castNames,
+      speakerCandidates: args.speakerCandidates,
       recentHistory: args.recentHistory,
       lastSpeaker: args.lastSpeaker,
       ...(args.banLast !== undefined ? { banLast: args.banLast } : {}),
@@ -832,7 +835,7 @@ async function arbitrate(
       maxSpeakers: args.maxSpeakers,
     });
   }
-  const byKey = new Map(args.castNames.map((c) => [speakerKey(c.ref), c] as const));
+  const byKey = new Map(args.speakerCandidates.map((c) => [speakerKey(c.ref), c] as const));
   const speakers = refs.flatMap((ref) => {
     const c = byKey.get(speakerKey(ref));
     return c !== undefined ? [c] : [];
@@ -877,7 +880,7 @@ async function runChain(
     readonly group: GroupConfig;
     readonly room: Room;
     readonly groupCharacterId: CharacterId | null;
-    readonly castName: string;
+    readonly narratorSpeakerName: string;
     readonly signal: AbortSignal;
     readonly initialLastSpeaker: SpeakerRef | null;
   },
@@ -904,7 +907,7 @@ async function runChain(
         chatId: args.base.chatId,
         group: args.group,
         candidates: args.room.candidates,
-        castNames: args.room.castNames,
+        speakerCandidates: args.room.speakerCandidates,
         // `allowSelfResponses` lifts the BAN, nothing else: `last` still rides as the arbitration's rotation
         // origin, or `pooled` (the "Round-robin" room) re-picks the first roster seat every beat and the
         // chain becomes one character monologuing under a control that promises a rotation.
@@ -942,7 +945,7 @@ async function runChain(
         group: args.group,
         speakers: [speaker],
         groupCharacterId: args.groupCharacterId,
-        castName: args.castName,
+        narratorSpeakerName: args.narratorSpeakerName,
         narratorMemberNames: narratorMemberNamesOf(args.room),
       }),
   });
@@ -994,7 +997,7 @@ async function runAiRound(
     chatId: args.base.chatId,
     group: args.group,
     candidates: args.room.candidates,
-    castNames: args.room.castNames,
+    speakerCandidates: args.room.speakerCandidates,
     forcedIds: args.forcedIds,
     lastSpeaker: facts.lastSpeaker,
     recentHistory: facts.recentHistory,
@@ -1028,7 +1031,7 @@ async function runAiRound(
           })
         ).characterId
       : null;
-  const castName = joinedCastName(args.room.castNames);
+  const narratorSpeakerName = joinedCandidateName(args.room.speakerCandidates);
   // Whether the round will drive ANY engine turn: narrator always voices one synthetic turn; per-speaker
   // drives exactly the arbitration result. When arbitration yields NO eligible per-speaker responder the engine
   // never runs, so it emits neither `turnStarted` nor a terminal — and the `turnAccepted` slot above would
@@ -1044,7 +1047,7 @@ async function runAiRound(
     group: roundGroup,
     speakers,
     groupCharacterId,
-    castName,
+    narratorSpeakerName,
     narratorMemberNames: narratorMemberNamesOf(args.room),
   });
   const committed: MessageView[] = [...round.messages];
@@ -1057,7 +1060,7 @@ async function runAiRound(
       group: args.group,
       room: args.room,
       groupCharacterId,
-      castName,
+      narratorSpeakerName,
       signal: args.signal,
       initialLastSpeaker: lastSpeakerRef(round.messages.findLast((m) => m.role === "assistant")),
     });
@@ -1434,8 +1437,8 @@ async function commitUserTurn(
       // player's queued d20 feeds its first skill check. Always true for a send.
       respondsToLatestUserTurn: true,
       guided,
-      // The Ruling-B host `{{char}}` (joined cast / solo single) for the rpg steeringNote render (chat owns it).
-      castCharForHostRow: joinedCastName(room.castNames),
+      // The Ruling-B host `{{char}}` (joined candidate names / solo single) for the rpg steeringNote render (chat owns it).
+      candidateCharForHostRow: joinedCandidateName(room.speakerCandidates),
       chatMetadata: membership.chat.metadata,
     },
     sendOut,
@@ -1543,7 +1546,7 @@ function createSend(ctx: ChatContext, deps: TurnDeps, auto: AutoBehaviorDeps): C
       group,
       room,
       signal: handle.signal,
-      forcedIds: resolveMentionsVia(content, room.castNames),
+      forcedIds: resolveMentionsVia(content, room.speakerCandidates),
     });
     // §3.6 RETURN PROJECTION: the assistant reply in `round.messages` carries the model's hidden spans; a
     // NON-HOST member who ran this turn must not receive the truth bytes in the HTTP return (the bus + list
@@ -1593,7 +1596,7 @@ function createForceCharacterTurn(ctx: ChatContext, deps: TurnDeps): ChatService
       principalUserId: principal.userId,
       hostUserId: room.hostUserId,
     });
-    const target = room.castNames.find((c) => c.ref.characterId === characterId);
+    const target = room.speakerCandidates.find((c) => c.ref.characterId === characterId);
     // Presence-only (leftSeq === null), not the stricter isArbiterEligible: a host can force-turn a muted member.
     const present = room.candidates.some((c) => c.ref.characterId === characterId && c.leftSeq === null);
     if (target === undefined || !present) {
@@ -1619,8 +1622,8 @@ function createForceCharacterTurn(ctx: ChatContext, deps: TurnDeps): ChatService
           anchorPersonaId: membership.chat.anchorPersonaId,
           trigger: humanTrigger(principal.userId, membership.activePersonaId),
           guided,
-          // The Ruling-B host `{{char}}` (joined cast / solo single) for the rpg steeringNote render (chat owns it).
-          castCharForHostRow: joinedCastName(room.castNames),
+          // The Ruling-B host `{{char}}` (joined candidate names / solo single) for the rpg steeringNote render (chat owns it).
+          candidateCharForHostRow: joinedCandidateName(room.speakerCandidates),
           chatMetadata: membership.chat.metadata,
         }),
       };
@@ -1654,7 +1657,7 @@ function createForceCharacterTurn(ctx: ChatContext, deps: TurnDeps): ChatService
       group,
       speakers: [target],
       groupCharacterId: null,
-      castName: target.name,
+      narratorSpeakerName: target.name,
       // A FORCED single speaker rides the `asPerSpeaker`-coerced config — never the narrator arm, so
       // there is no cast to name.
       narratorMemberNames: [],
@@ -1797,8 +1800,8 @@ async function resolveTurnBase(
     ...(args.regenSlotMessageId !== undefined ? { regenSlotMessageId: args.regenSlotMessageId } : {}),
     guided: args.guided,
     ...(args.frozenUserMacroDraws !== undefined ? { frozenUserMacroDraws: args.frozenUserMacroDraws } : {}),
-    // The Ruling-B host `{{char}}` (joined cast / solo single) for the rpg steeringNote render (chat owns it).
-    castCharForHostRow: joinedCastName(room.castNames),
+    // The Ruling-B host `{{char}}` (joined candidate names / solo single) for the rpg steeringNote render (chat owns it).
+    candidateCharForHostRow: joinedCandidateName(room.speakerCandidates),
     chatMetadata: args.chatMetadata,
   });
   return {
@@ -1841,7 +1844,7 @@ function speakerShapeFor(room: Room, characterId: CharacterId | null): TurnPrep[
   if (characterId === null) {
     return; // a non-character slot has no per-speaker character shape.
   }
-  const name = room.castNames.find((c) => c.ref.characterId === characterId)?.name;
+  const name = room.speakerCandidates.find((c) => c.ref.characterId === characterId)?.name;
   if (name === undefined || name.length === 0) {
     return;
   }
@@ -2174,7 +2177,7 @@ function createImpersonateStream(ctx: ChatContext, deps: TurnDeps): ChatService[
           // group arm, script.js:3010-3029 — one stop per present member). Measured need: the voice-lock
           // nudge alone leaves 28% character bleed on the local 8B (scripts/probes/impersonate). Rides the
           // host's own custom stops; a stop-less model drops them capability-gated + loud (resolveChat).
-          extraStopSequences: [...chatBehavior.customStoppingStrings, ...foreignLabelStops(room.castNames.map((c) => c.name))],
+          extraStopSequences: [...chatBehavior.customStoppingStrings, ...foreignLabelStops(room.speakerCandidates.map((c) => c.name))],
           memoryConfig,
           ...(memoryRecall !== null ? { memoryRecall } : {}),
           attachedToolNames,
@@ -2400,8 +2403,8 @@ async function runDeferredRound(
       // A deferred drain is the FIRST AI response to the offline-host's committed user send (rpg-design/05 §6) —
       // it directly responds to that user message, so its queued d20 still feeds (the die wasn't lost to the defer).
       respondsToLatestUserTurn: true,
-      // The Ruling-B host `{{char}}` (joined cast / solo single) for the rpg steeringNote render (chat owns it).
-      castCharForHostRow: joinedCastName(room.castNames),
+      // The Ruling-B host `{{char}}` (joined candidate names / solo single) for the rpg steeringNote render (chat owns it).
+      candidateCharForHostRow: joinedCandidateName(room.speakerCandidates),
       chatMetadata: chat.metadata,
     });
   using handle = deps.activeTurns.register(row.chatId, row.triggeredBy);
@@ -2592,8 +2595,8 @@ export function createRequestTurn(ctx: ChatContext, deps: TurnDeps): RequestTurn
         // No live triggering human — {{user}} binds to the chat anchor, not a presence-order human.
         trigger: { kind: "none" },
         ...(guided !== undefined ? { guided } : {}),
-        // The Ruling-B host `{{char}}` (joined cast / solo single) for the rpg steeringNote render (chat owns it).
-        castCharForHostRow: joinedCastName(room.castNames),
+        // The Ruling-B host `{{char}}` (joined candidate names / solo single) for the rpg steeringNote render (chat owns it).
+        candidateCharForHostRow: joinedCandidateName(room.speakerCandidates),
         chatMetadata: chat.metadata,
       });
     using handle = deps.activeTurns.register(chatId, identity.triggeredBy);

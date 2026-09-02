@@ -10,7 +10,7 @@
 // loop is policy-free orchestration.
 
 import type { MessageView, SpeakerRef } from "@orb/contracts/chat";
-import type { AutoModeResult, AutoModeStopReason, CastName } from "../contract/arbitration.ts";
+import type { AutoModeResult, AutoModeStopReason, SpeakerCandidate } from "../contract/arbitration.ts";
 import { CHAT_OP_CODES, ChatOperationError } from "../contract/errors.ts";
 import type { TurnOutcome } from "../contract/results.ts";
 
@@ -21,8 +21,8 @@ interface AutoModeParams {
   readonly delay: (ms: number) => Promise<void>;
   readonly signal?: AbortSignal | undefined;
   /** Resolve the next single speaker given the previous one. `null` ⇒ no eligible speaker → stop. */
-  readonly nextSpeaker: (lastSpeaker: SpeakerRef | null) => Promise<CastName | null>;
-  readonly runTurn: (speaker: CastName) => Promise<TurnOutcome>;
+  readonly nextSpeaker: (lastSpeaker: SpeakerRef | null) => Promise<SpeakerCandidate | null>;
+  readonly runTurn: (speaker: SpeakerCandidate) => Promise<TurnOutcome>;
   /** The speaker immediately before the chain (ban-last seed); null at chain start. */
   readonly initialLastSpeaker?: SpeakerRef | null | undefined;
 }

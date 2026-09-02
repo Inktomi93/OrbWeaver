@@ -55,7 +55,7 @@ const GROUP_OF_ONE: GroupConfig = {
 };
 
 /** Posture C — the NARRATOR arm at cast=1. Its round is authored by the synthetic group character and its
- *  card shape takes a different branch entirely (`{kind:"cast"}` speaker + whole-cast co-speakers), so it is
+ *  card shape takes a different branch entirely (`{kind:"multi-voice"}` speaker + whole-cast co-speakers), so it is
  *  the posture most able to break D16 — and the one the suite could not see before, because the shared ctx
  *  carried no cast at all. `speakerTags` rides ON (its narrator default) to pin the config-carrying room. */
 //  Spelled out rather than spread from the default: the narrator arm is `z.strictObject` and OMITS
@@ -129,10 +129,10 @@ async function runPosture(
     group,
     speakers: [{ ref: { kind: "character", characterId: ARIA }, name: "Aria" }],
     // A narrator round is authored by the synthetic group character (`roundSpeakers` THROWS on a null here);
-    // every other posture ignores it. `castName` is the joined present characters, which at cast=1 IS "Aria" — the
+    // every other posture ignores it. `narratorSpeakerName` is the joined present characters, which at one character IS "Aria" — the
     // same label the per-speaker postures stamp, which is exactly what makes the byte comparison meaningful.
     groupCharacterId: group.output === "narrator" ? GROUP_CHAR : null,
-    castName: "Aria",
+    narratorSpeakerName: "Aria",
     // The nudge's own cast-of-one guard: `narratorMemberNames.length <= 1` ⇒ no narrator nudge at all, the
     // twin of `multi` for the per-speaker fence. Passing the REAL one-member list drives that guard instead
     // of dodging it with `[]`.
@@ -211,7 +211,7 @@ describe("D16 solo ≡ group-of-one (the byte-identical property)", () => {
   // READ THIS BEFORE "RESTORING" THE OLD FORM. The original assertion was
   // `wireBytes(narrator.req) === wireBytes(solo.req)`, whole. It no longer holds, by design and by exactly
   // ONE section: the factory `main_prompt` default now resolves per turn MODE (`assembly/assemble`
-  // templateFor, keyed on `speaker.kind === "cast"` — the same axis `memberHeadingSlot` uses), because
+  // templateFor, keyed on `speaker.kind === "multi-voice"` — the same axis `memberHeadingSlot` uses), because
   // "write {{char}}'s perspective only" is an instruction a narrator round cannot obey.
   //   1. D16 bans branching on group-NESS/SIZE ("no `if (isGroup)`; solo = roster-of-1, byte-identical").
   //      Gating the framing on `members.length > 1` to keep this line green IS that forbidden shape — a

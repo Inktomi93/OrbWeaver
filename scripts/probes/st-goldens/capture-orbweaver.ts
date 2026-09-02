@@ -335,7 +335,7 @@ async function runCapture() {
           group: DEFAULT_GROUP_CONFIG,
           speakers: [{ ref: { kind: "character", characterId: Aria }, name: "Sabine Veyra" }],
           groupCharacterId: null,
-          castName: "Sabine Veyra",
+          narratorSpeakerName: "Sabine Veyra",
           narratorMemberNames: [],
         });
       } catch (err) {

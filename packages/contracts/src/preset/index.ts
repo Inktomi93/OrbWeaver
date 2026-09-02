@@ -1991,7 +1991,7 @@ export const DEFAULT_MARKER_TEMPLATES: Record<TemplatedMarker, string> = {
  *  cannot survive.
  *
  *  WHICH text a turn gets is decided ONCE, where the default resolves (`assembly/assemble.ts` templateFor,
- *  keyed on `speaker.kind === "cast"` — the same axis `memberHeadingSlot` already selects the co-speaker
+ *  keyed on `speaker.kind === "multi-voice"` — the same axis `memberHeadingSlot` already selects the co-speaker
  *  card frame on). There is deliberately NO second resolution home and NO mode-keyed record here: this file
  *  owns the BYTES, the assembler owns the pick.
  *

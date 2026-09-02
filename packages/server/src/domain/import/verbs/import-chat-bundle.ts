@@ -9,7 +9,7 @@
 // fabricates library canon from a transcript) and it does not land a characterless room.
 //
 // THE RE-LINK LADDER, all BY NAME because no id survives a cross-box move:
-//   • the room's cast — `characterHandles`, then the DIRECTORY handle as the fallback (a file whose seat list
+//   • the room's characters — `characterHandles`, then the DIRECTORY handle as the fallback (a file whose seat list
 //     was lost still knows where it lived). The first resolvable one is the PRIMARY (the voice a slot naming
 //     no speaker falls back to); the rest seat as roster members. An unresolvable handle is simply not seated.
 //   • the anchor persona + each user turn's persona — `(ownerId, name)`, the persona domain's own dedup key,
@@ -45,7 +45,7 @@ function candidateHandles(bundle: PortableChat, filename: string): readonly Char
   return [...new Set([...bundle.characterHandles, ...fromPath])].flatMap((h) => (h.trim().length === 0 ? [] : [castId<CharacterHandle>(h)]));
 }
 
-interface ResolvedCast {
+interface ResolvedCharacterIds {
   readonly primary: CharacterId;
   /** Every seat, primary FIRST — the shape `BulkImportChatInput.roster` expects to be a superset of. */
   readonly seats: readonly CharacterId[];
@@ -54,7 +54,7 @@ interface ResolvedCast {
 
 /** Resolve the carried handles against the importer's own library. Null = the owner-ruled refusal case:
  *  nothing this account holds, so there is no character to import the transcript against. */
-async function resolveCast(ctx: ImportContext, handles: readonly CharacterHandle[]): Promise<ResolvedCast | null> {
+async function resolveCharacterIds(ctx: ImportContext, handles: readonly CharacterHandle[]): Promise<ResolvedCharacterIds | null> {
   // Resolved in PARALLEL but consumed in the file's declared ORDER: `characterHandles[0]` is the room's
   // primary (the voice a slot naming no speaker falls back to), so the order is load-bearing even though the
   // lookups are independent.
@@ -103,10 +103,10 @@ async function resolvePersonas(
 
 function toMessageInput(
   message: PortableChat["messages"][number],
-  cast: ResolvedCast,
+  characterIds: ResolvedCharacterIds,
   personaIdByName: ReadonlyMap<string, PersonaId>,
 ): BulkImportMessageInput {
-  const speaker = message.speakerHandle === null ? undefined : cast.idByHandle.get(message.speakerHandle);
+  const speaker = message.speakerHandle === null ? undefined : characterIds.idByHandle.get(message.speakerHandle);
   const personaId = message.personaName === null ? null : (personaIdByName.get(message.personaName) ?? null);
   return {
     role: message.role,
@@ -145,12 +145,12 @@ function isRealConversation(bundle: PortableChat): boolean {
 
 function toChatInput(args: {
   readonly bundle: PortableChat;
-  readonly cast: ResolvedCast;
+  readonly characterIds: ResolvedCharacterIds;
   readonly personaIdByName: ReadonlyMap<string, PersonaId>;
   readonly filename: string;
   readonly importHash: string;
 }): BulkImportChatInput {
-  const { bundle, cast, personaIdByName, filename, importHash } = args;
+  const { bundle, characterIds, personaIdByName, filename, importHash } = args;
   return {
     title: bundle.title,
     importedFrom: filename,
@@ -166,8 +166,8 @@ function toChatInput(args: {
     // converted single note rides through.
     injections: bundle.injections,
     isRealConversation: isRealConversation(bundle),
-    messages: bundle.messages.map((m) => toMessageInput(m, cast, personaIdByName)),
-    roster: cast.seats,
+    messages: bundle.messages.map((m) => toMessageInput(m, characterIds, personaIdByName)),
+    roster: characterIds.seats,
     ...(bundle.metadata === null ? {} : { metadata: bundle.metadata }),
     starred: bundle.starred,
     archived: bundle.archived,
@@ -183,7 +183,7 @@ function toChatInput(args: {
  *  disagrees with the input it was handed — an internal contradiction, not untrusted data. Such a row is
  *  dropped rather than written against the wrong turn: a silently-misanchored snapshot is worse than a
  *  missing one, because it LOOKS like history. */
-function remapRpg(game: PortableRpgGame, identity: ImportedChatIdentity, cast: ResolvedCast): RpgPortableGame {
+function remapRpg(game: PortableRpgGame, identity: ImportedChatIdentity, characterIds: ResolvedCharacterIds): RpgPortableGame {
   const messageAt = (i: number | null): MessageId | null => (i === null ? null : (identity.messageIds[i] ?? null));
   const variantAt = (messageIndex: number | null, variantIdx: number | null): MessageVariantId | null =>
     messageIndex === null || variantIdx === null ? null : (identity.variantIds[messageIndex]?.[variantIdx] ?? null);
@@ -199,7 +199,7 @@ function remapRpg(game: PortableRpgGame, identity: ImportedChatIdentity, cast: R
     // rather than dropping the sheet, because the sheet's CONTENT (class, level, tracker exceptions) is
     // authored game state that outlives which card happens to be seated.
     sheets: game.sheets.map((sheet) => ({
-      characterId: sheet.characterHandle === null ? null : (cast.idByHandle.get(sheet.characterHandle) ?? null),
+      characterId: sheet.characterHandle === null ? null : (characterIds.idByHandle.get(sheet.characterHandle) ?? null),
       sheet: sheet.sheet,
     })),
     snapshots: game.snapshots.map((snapshot) => {
@@ -252,9 +252,9 @@ async function restoreOverlays(args: {
   readonly ownerId: ImportContext["ownerId"];
   readonly bundle: PortableChat;
   readonly identity: ImportedChatIdentity;
-  readonly cast: ResolvedCast;
+  readonly characterIds: ResolvedCharacterIds;
 }): Promise<void> {
-  const { profile, ownerId, bundle, identity, cast } = args;
+  const { profile, ownerId, bundle, identity, characterIds } = args;
   const { attachChatTagByName, importRpgGame } = profile;
   if (attachChatTagByName !== undefined) {
     // SEQUENTIAL by construction — a promise CHAIN, not an await-in-loop (the `POST /api/import/chat`
@@ -266,7 +266,7 @@ async function restoreOverlays(args: {
     }, Promise.resolve());
   }
   if (bundle.rpg !== null && importRpgGame !== undefined) {
-    await importRpgGame({ chatId: identity.chatId, hostUserId: ownerId, game: remapRpg(bundle.rpg, identity, cast) });
+    await importRpgGame({ chatId: identity.chatId, hostUserId: ownerId, game: remapRpg(bundle.rpg, identity, characterIds) });
   }
 }
 
@@ -279,14 +279,14 @@ export function createImportChatBundle(ctx: ImportContext): ImportService["impor
     const bundle = parsed.value;
     const profile = requireProfile(ctx);
     const handles = candidateHandles(bundle, filename);
-    const cast = await resolveCast(ctx, handles);
-    if (cast === null) {
+    const characterIds = await resolveCharacterIds(ctx, handles);
+    if (characterIds === null) {
       // THE OWNER-RULED REFUSAL. Named handles, so the operator can create/import the card and
       // re-run rather than guessing which one this room wanted.
       const looked = handles.length === 0 ? "the file names none" : handles.map((h) => `"${h}"`).join(", ");
       return { ok: false, error: `no character on this account matches this chat (${looked}) — import the character first, then the chat` };
     }
-    return await writeBundle({ ctx, profile, bundle, cast, filename, bytes });
+    return await writeBundle({ ctx, profile, bundle, characterIds, filename, bytes });
   };
 }
 
@@ -295,16 +295,16 @@ async function writeBundle(args: {
   readonly ctx: ImportContext;
   readonly profile: ImportProfileDeps;
   readonly bundle: PortableChat;
-  readonly cast: ResolvedCast;
+  readonly characterIds: ResolvedCharacterIds;
   readonly filename: string;
   readonly bytes: Uint8Array;
 }): Promise<ImportChatFileOutcome> {
-  const { ctx, profile, bundle, cast, filename, bytes } = args;
+  const { ctx, profile, bundle, characterIds, filename, bytes } = args;
   const personaIdByName = await resolvePersonas(profile, ctx.ownerId, referencedPersonaNames(bundle));
   const result = await profile.bulkImportChats({
     ownerId: ctx.ownerId,
-    characterId: cast.primary,
-    chats: [toChatInput({ bundle, cast, personaIdByName, filename, importHash: sha256Hex(bytes) })],
+    characterId: characterIds.primary,
+    chats: [toChatInput({ bundle, characterIds, personaIdByName, filename, importHash: sha256Hex(bytes) })],
   });
   // PD-78, the same clause `importChats` runs: a chat canon-write always OFFERS the downstream index sweep,
   // and the workloads door decides whether it is admissible (#156). This arm reports no enqueue flag, so the
@@ -318,6 +318,6 @@ async function writeBundle(args: {
     // silently declaring success while leaving every carried overlay dark.
     return { ok: false, error: "chat import resolved no canonical identity for the bundle" };
   }
-  await restoreOverlays({ profile, ownerId: ctx.ownerId, bundle, identity, cast });
+  await restoreOverlays({ profile, ownerId: ctx.ownerId, bundle, identity, characterIds });
   return { ok: true, created: result.chatsImported > 0 };
 }

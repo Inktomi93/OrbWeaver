@@ -82,8 +82,8 @@ type TemplatedMarkerSection = Extract<MarkerSection, { marker: keyof typeof DEFA
  *
  * The `main_prompt` DEFAULT is MODE-AWARE, and this is its ONE resolution home. A narrator round is one
  * generation voicing the whole cast, so the per-speaker default — `You are {{char}} … write {{char}}'s perspective only`,
- * with `{{char}}` bound to the JOINED cast on that arm — instructs the model to do something the round
- * cannot do (a live drive once read it back as "write Charlotte, JFC's perspective only"). Keyed on `speaker.kind === "cast"`, the same axis {@link memberHeadingSlot} picks the
+ * with `{{char}}` bound to the JOINED member names on that arm — instructs the model to do something the round
+ * cannot do (a live drive once read it back as "write Charlotte, JFC's perspective only"). Keyed on `speaker.kind === "multi-voice"`, the same axis {@link memberHeadingSlot} picks the
  * co-speaker card frame on, and for the same reason: the SHAPE already decided what this turn voices, so
  * nothing here re-derives it from `cardScope`/`isGroup`. Every other arm — solo, per-speaker, and a FORCED
  * speaker in a narrator room (`verbs/turn` asPerSpeaker coerces it to the single arm) — reads the same
@@ -97,7 +97,7 @@ function templateFor(section: TemplatedMarkerSection, ctx: AssembleContext): str
   if (section.template !== undefined) {
     return section.template;
   }
-  return section.marker === "main_prompt" && ctx.speaker?.kind === "cast" ? NARRATOR_MAIN_PROMPT_TEMPLATE : DEFAULT_MARKER_TEMPLATES[section.marker];
+  return section.marker === "main_prompt" && ctx.speaker?.kind === "multi-voice" ? NARRATOR_MAIN_PROMPT_TEMPLATE : DEFAULT_MARKER_TEMPLATES[section.marker];
 }
 
 /** Memoized preset render of each overridable section's preset `template`, keyed by section id. */
@@ -132,7 +132,7 @@ interface BuildEnv {
  * A card's description/personality/scenario/examples/systemPrompt is written BY that character's author ABOUT
  * that character — `{{char}}` inside it means "me". That is already true for co-speakers, whose fields render
  * through {@link renderMemberField}'s `{kind:"single", character: member}` sub-ctx; the PRIMARY member's
- * fields had no such rebind, so the narrator arm's `{kind:"cast"}` speaker leaked the joined cast into them
+ * fields had no such rebind, so the narrator arm's `{kind:"multi-voice"}` speaker leaked the joined member names into them
  * ("Charlotte, JFC is a tired archivist" for a card that reads `{{char}} is a tired archivist`). The
  * asymmetry was the defect: one member of the same merged section rendered under a different rule than the
  * rest of it.
@@ -155,7 +155,7 @@ interface BuildEnv {
  * Returned BY REFERENCE unless the arm is `cast`, so every solo and per-speaker turn is byte-identical.
  */
 function cardOwnerCtx(ctx: AssembleContext): AssembleContext {
-  return ctx.speaker?.kind === "cast" ? { ...ctx, speaker: { kind: "single", character: ctx.character } } : ctx;
+  return ctx.speaker?.kind === "multi-voice" ? { ...ctx, speaker: { kind: "single", character: ctx.character } } : ctx;
 }
 
 /** A room/card override "counts" only with non-whitespace content — blank means "inherit." */
@@ -227,12 +227,12 @@ function resolveScopeFallback(field: MemberField, ctx: AssembleContext, activeVa
 
 /** WHICH frame opens a co-speaker's card block — the ONE thing that differs between the two turns that merge
  *  other members' cards, and it differs because the two say opposite things. A per-speaker merged turn voices
- *  ONE member, so the rest are bystanders ("[Also present — X]"). A NARRATOR turn (`speaker.kind === "cast"`)
+ *  ONE member, so the rest are bystanders ("[Also present — X]"). A NARRATOR turn (`speaker.kind === "multi-voice"`)
  *  is one generation voicing the whole cast, so the same cards are its VOICES — framing them as bystanders
  *  contradicts the round's own nudge. Keyed on the speaker arm, never on a `cardScope`/`isGroup` re-derive:
  *  the arm is what the SHAPE already decided. */
 function memberHeadingSlot(ctx: AssembleContext): ProseSlotId {
-  return ctx.speaker?.kind === "cast" ? "chat.group.castMember" : "chat.group.alsoPresent";
+  return ctx.speaker?.kind === "multi-voice" ? "chat.group.castMember" : "chat.group.alsoPresent";
 }
 
 /** ONE present roster member's merged card block, or "" when they contribute nothing. */

@@ -532,7 +532,7 @@ export interface AssembleContext {
    *  speaker is the SYNTHETIC group character and is deliberately NOT in `speakerRefs`, so this arm can never
    *  be derived from the ref. `active` is the member whose card fills the character section (the primary);
    *  the rest ride as `coSpeakers`. */
-  speaker?: { kind: "single"; character: AssembleCharacter } | { kind: "cast"; members: AssembleCharacter[]; active: AssembleCharacter };
+  speaker?: { kind: "single"; character: AssembleCharacter } | { kind: "multi-voice"; members: AssembleCharacter[]; active: AssembleCharacter };
   /** Other present characters whose cards merge into THIS turn's character section — the OTHER members under
    *  `cardScope: "merged"`, and every non-primary member under a NARRATOR round (one call voices them all, so
    *  it needs them all). The frame each block opens with differs by arm (`assembly/assemble` memberHeadingSlot):

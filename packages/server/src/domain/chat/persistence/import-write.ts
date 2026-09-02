@@ -60,9 +60,9 @@ async function assertOwnedCharacters(db: Db, ownerId: UserId, characterIds: read
   }
 }
 
-/** The DISTINCT seated cast for one imported chat: the run's primary first (it is the header character —
+/** The DISTINCT seated character ids for one imported chat: the run's primary first (it is the header character —
  *  `loadExistingHashes`/`resolveBranches` scope on it), then this chat's extra roster seats in order. */
-function seatedCast(primary: CharacterId, roster: readonly CharacterId[] | undefined): readonly CharacterId[] {
+function seatedCharacterIds(primary: CharacterId, roster: readonly CharacterId[] | undefined): readonly CharacterId[] {
   return [primary, ...(roster ?? []).filter((id) => id !== primary)];
 }
 
@@ -77,7 +77,7 @@ function namedSpeaker(m: BulkImportChatInput["messages"][number]): CharacterId |
  *  (transcript speaker names, member cards, the group arbitration feed) would then resolve to a ghost. */
 function assertSeatedSpeakers(ci: BulkImportChatInput, primary: CharacterId): void {
   // @orb-gate-ignore persistence-no-in-memory-state: call-local membership Set over one input's seats (a pure precondition check, no state survives the call)
-  const seated = new Set(seatedCast(primary, ci.roster));
+  const seated = new Set(seatedCharacterIds(primary, ci.roster));
   for (const m of ci.messages) {
     const named = namedSpeaker(m);
     if (named !== null && !seated.has(named)) {
@@ -182,12 +182,12 @@ function healPersonaAttribution(ctx: ChatImportContext, existing: ExistingImport
 }
 
 /** The founding roster for an imported chat (host human + every seated character); `joinSeq=0` (born here).
- *  A single-character `cast` is byte-identically the pre-roster two-row shape. */
+ *  A single-character `characterIds` is byte-identically the pre-roster two-row shape. */
 function rosterRows(args: {
   readonly ctx: ChatImportContext;
   readonly chatId: ChatId;
   readonly ownerId: UserId;
-  readonly cast: readonly CharacterId[];
+  readonly characterIds: readonly CharacterId[];
   readonly anchorPersonaId: BulkImportChatInput["anchorPersonaId"];
   readonly now: number;
 }): (typeof chatParticipants.$inferInsert)[] {
@@ -202,7 +202,7 @@ function rosterRows(args: {
       joinedAt: args.now,
       joinSeq: 0,
     },
-    ...args.cast.map((characterId): typeof chatParticipants.$inferInsert => ({
+    ...args.characterIds.map((characterId): typeof chatParticipants.$inferInsert => ({
       id: args.ctx.newParticipantId(),
       chatId: args.chatId,
       kind: "character",
@@ -480,7 +480,7 @@ function chatHeaderStmts({ ctx, chatId, ci, ownerId, characterId }: OneChatArgs)
       ctx,
       chatId,
       ownerId,
-      cast: seatedCast(characterId, ci.roster),
+      characterIds: seatedCharacterIds(characterId, ci.roster),
       anchorPersonaId: ci.anchorPersonaId,
       now: ci.createdAt,
     }).map((r) => batchStmt(db.insert(chatParticipants).values(r))),

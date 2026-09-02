@@ -186,7 +186,7 @@ test("Ruling B: a MULTI-character game's steeringNote {{char}} renders the JOINE
   const { chatId, h } = await seedLiteGame(db);
   await h.service.updateConfig({ principal: principal(castId<Handle>("host")), chatId, patch: { steeringNote: "Keep {{char}} distinct in voice." } });
 
-  // Chat threads the Ruling-B joined cast (`joinedCastName(room.castNames)` — roster order): "Niko, Aria".
+  // Chat threads the Ruling-B joined candidate names (`joinedCandidateName(room.speakerCandidates)` — roster order): "Niko, Aria".
   const out = await h.chatOps.gatherTurnContext({
     chatId,
     pendingUserText: undefined,

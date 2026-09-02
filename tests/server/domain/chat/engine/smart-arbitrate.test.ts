@@ -43,7 +43,7 @@ function summarizeReturning(text: string): SummarizeOp {
   );
 }
 
-const CAST = [
+const SPEAKER_CANDIDATES = [
   { ref: charRef("aria"), name: "Aria" },
   { ref: charRef("bran"), name: "Bran" },
   { ref: charRef("cara"), name: "Cara" },
@@ -59,7 +59,7 @@ describe("smartArbitrate — the validated side-LLM pick", () => {
     const out = await smartArbitrate({
       summarize,
       candidates: CANDIDATES,
-      castNames: CAST,
+      speakerCandidates: SPEAKER_CANDIDATES,
       recentHistory: "...",
       lastSpeaker: null,
       rng,
@@ -74,7 +74,7 @@ describe("smartArbitrate — the validated side-LLM pick", () => {
     const out = await smartArbitrate({
       summarize: summarizeReturning("The next speaker should be Cara."),
       candidates: CANDIDATES,
-      castNames: CAST,
+      speakerCandidates: SPEAKER_CANDIDATES,
       recentHistory: "...",
       lastSpeaker: null,
       rng,
@@ -90,7 +90,7 @@ describe("smartArbitrate — the deterministic fallback", () => {
     const out = await smartArbitrate({
       summarize: summarizeReturning("Gandalf"), // not on the roster
       candidates: CANDIDATES,
-      castNames: CAST,
+      speakerCandidates: SPEAKER_CANDIDATES,
       recentHistory: "...",
       lastSpeaker: null,
       rng,
@@ -111,7 +111,7 @@ describe("smartArbitrate — the deterministic fallback", () => {
     const out = await smartArbitrate({
       summarize,
       candidates: CANDIDATES,
-      castNames: CAST,
+      speakerCandidates: SPEAKER_CANDIDATES,
       recentHistory: "...",
       lastSpeaker: null,
       rng,
@@ -133,7 +133,7 @@ describe("smartArbitrate — the deterministic fallback", () => {
     const out = await smartArbitrate({
       summarize,
       candidates: CANDIDATES,
-      castNames: CAST,
+      speakerCandidates: SPEAKER_CANDIDATES,
       recentHistory: "...",
       lastSpeaker: null,
       rng,
@@ -150,7 +150,7 @@ describe("smartArbitrate — the deterministic fallback", () => {
     const out = await smartArbitrate({
       summarize: empty,
       candidates: CANDIDATES,
-      castNames: CAST,
+      speakerCandidates: SPEAKER_CANDIDATES,
       recentHistory: "...",
       lastSpeaker: null,
       rng,
@@ -168,7 +168,7 @@ describe("smartArbitrate — the deterministic fallback", () => {
     const out = await smartArbitrate({
       summarize: summarizeReturning("Cara"),
       candidates: [candidate("aria"), candidate("bran"), candidate("cara", { disabled: true })],
-      castNames: CAST,
+      speakerCandidates: SPEAKER_CANDIDATES,
       recentHistory: "...",
       lastSpeaker: null,
       rng,
@@ -185,7 +185,7 @@ describe("smartArbitrate — the deterministic fallback", () => {
     const out = await smartArbitrate({
       summarize: summarizeReturning("nonsense"),
       candidates: CANDIDATES,
-      castNames: CAST,
+      speakerCandidates: SPEAKER_CANDIDATES,
       recentHistory: "...",
       lastSpeaker: charRef("aria"),
       rng,
@@ -199,7 +199,7 @@ describe("smartArbitrate — the deterministic fallback", () => {
 describe("smartArbitrate — whole-word roster match (F9)", () => {
   // "Ari" is eligible; a reply of "Arianna" (a DIFFERENT, off-roster name) must NOT false-positive on the
   // embedded substring — the parse is whole-word, so it falls back to the deterministic pick.
-  const ariCast = [
+  const ariSpeakerCandidates = [
     { ref: charRef("ari"), name: "Ari" },
     { ref: charRef("bran"), name: "Bran" },
   ];
@@ -209,7 +209,7 @@ describe("smartArbitrate — whole-word roster match (F9)", () => {
     const out = await smartArbitrate({
       summarize: summarizeReturning("Arianna"),
       candidates: ariCandidates,
-      castNames: ariCast,
+      speakerCandidates: ariSpeakerCandidates,
       recentHistory: "...",
       lastSpeaker: charRef("ari"), // ban-last → the fallback avoids Ari, proving no substring match
       rng,
@@ -223,7 +223,7 @@ describe("smartArbitrate — whole-word roster match (F9)", () => {
     const out = await smartArbitrate({
       summarize: summarizeReturning("Next: Ari."),
       candidates: ariCandidates,
-      castNames: ariCast,
+      speakerCandidates: ariSpeakerCandidates,
       recentHistory: "...",
       lastSpeaker: null,
       rng,
@@ -240,7 +240,7 @@ describe("smartArbitrate — short-circuits (no LLM call)", () => {
     const out = await smartArbitrate({
       summarize,
       candidates: [candidate("aria"), candidate("bran", { disabled: true }), candidate("cara", { leftSeq: 3 })],
-      castNames: CAST,
+      speakerCandidates: SPEAKER_CANDIDATES,
       recentHistory: "...",
       lastSpeaker: null,
       rng,
@@ -257,7 +257,7 @@ describe("smartArbitrate — short-circuits (no LLM call)", () => {
     const out = await smartArbitrate({
       summarize,
       candidates: [candidate("aria", { disabled: true })],
-      castNames: CAST,
+      speakerCandidates: SPEAKER_CANDIDATES,
       recentHistory: "...",
       lastSpeaker: null,
       rng,
@@ -282,7 +282,7 @@ describe("smartArbitrate — cancellation (a HANG is not a failure)", () => {
     const out = await smartArbitrate({
       summarize,
       candidates: CANDIDATES,
-      castNames: CAST,
+      speakerCandidates: SPEAKER_CANDIDATES,
       recentHistory: "...",
       lastSpeaker: null,
       rng,
@@ -311,7 +311,7 @@ describe("smartArbitrate — cancellation (a HANG is not a failure)", () => {
     const pending = smartArbitrate({
       summarize,
       candidates: CANDIDATES,
-      castNames: CAST,
+      speakerCandidates: SPEAKER_CANDIDATES,
       recentHistory: "...",
       lastSpeaker: null,
       rng,
@@ -334,7 +334,7 @@ describe("smartArbitrate — cancellation (a HANG is not a failure)", () => {
     const out = await smartArbitrate({
       summarize,
       candidates: CANDIDATES,
-      castNames: CAST,
+      speakerCandidates: SPEAKER_CANDIDATES,
       recentHistory: "...",
       lastSpeaker: null,
       rng,
@@ -355,7 +355,7 @@ describe("smartArbitrate — cancellation (a HANG is not a failure)", () => {
     const out = await smartArbitrate({
       summarize,
       candidates: CANDIDATES,
-      castNames: CAST,
+      speakerCandidates: SPEAKER_CANDIDATES,
       recentHistory: "...",
       lastSpeaker: null,
       rng,
@@ -378,7 +378,7 @@ describe("the arbiter prompt is a prose slot", () => {
     await smartArbitrate({
       summarize,
       candidates: CANDIDATES,
-      castNames: CAST,
+      speakerCandidates: SPEAKER_CANDIDATES,
       recentHistory: "...",
       lastSpeaker: null,
       rng,
@@ -393,7 +393,7 @@ describe("the arbiter prompt is a prose slot", () => {
     await smartArbitrate({
       summarize,
       candidates: CANDIDATES,
-      castNames: CAST,
+      speakerCandidates: SPEAKER_CANDIDATES,
       recentHistory: "...",
       lastSpeaker: null,
       rng,

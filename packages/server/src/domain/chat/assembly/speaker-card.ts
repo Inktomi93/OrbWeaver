@@ -5,8 +5,8 @@
 //   • per-speaker × merged (default) → co-speakers = the OTHER present characters (the "[Also present — X]" block renders them).
 //   • per-speaker × scoped           → co-speakers = [] (own card only; best isolation).
 //   • narrator                       → ONE call voices the WHOLE cast: the primary is the character section, EVERY
-//                                      other present member is a co-speaker, and `speaker` is the `cast` arm, which
-//                                      is what binds `{{char}}` to the joined cast (`assembly/macros` charForSpeaker).
+//                                      other present member is a co-speaker, and `speaker` is the `multi-voice` arm, which
+//                                      is what binds `{{char}}` to the joined member names (`assembly/macros` charForSpeaker).
 // PURE — never mutates the input ctx (§5: per-speaker is a fresh shape, not a mutation). A ctx with no
 // `speakerRefs` (solo / hand-built / preview) returns UNCHANGED → byte-identical (D16, no `if(isGroup)`).
 //
@@ -32,9 +32,9 @@ type CardScope = Extract<GroupConfig, { output: "per-speaker" }>["cardScope"];
 
 /** NARRATOR: one call voices the whole cast. The primary card is the character section and every OTHER
  *  present member rides as a co-speaker — the SAME breadth `cardScope:"merged"` produces, because the cards
- *  a narrator turn needs are exactly "everyone in the room". `speaker` takes the `cast` arm so `{{char}}`
- *  resolves to the joined cast rather than to whichever member happens to be primary. */
-function shapeContextForCast(ctx: AssembleContext, characters: readonly AssembleCharacter[]): AssembleContext {
+ *  a narrator turn needs are exactly "everyone in the room". `speaker` takes the `multi-voice` arm so `{{char}}`
+ *  resolves to the joined member names rather than to whichever member happens to be primary. */
+function shapeContextForMultiVoice(ctx: AssembleContext, characters: readonly AssembleCharacter[]): AssembleContext {
   const active = characters[0] ?? ctx.character;
   // An EMPTY-but-defined cast is reachable, so `members` needs the same floor `active` gets: `getCard` returning
   // falsy for every seated id drops the whole roster (`assembly/context` buildAssembleContext) while a narrator
@@ -42,12 +42,12 @@ function shapeContextForCast(ctx: AssembleContext, characters: readonly Assemble
   // unfloored `members: []` joins to "" and ships "…voicing  and the world around them" — `{{char}}` with no
   // value at all (the narrator default, `assembly/assemble` templateFor; it read "You are  in an immersive…"
   // before the framing became mode-aware).
-  // Flooring to `[active]` degrades to exactly the pre-cast-arm binding (the primary's name).
+  // Flooring to `[active]` degrades to exactly the pre-multi-voice-arm binding (the primary's name).
   const members = characters.length > 0 ? [...characters] : [active];
   return {
     ...ctx,
     character: active,
-    speaker: { kind: "cast", members, active },
+    speaker: { kind: "multi-voice", members, active },
     coSpeakers: characters.slice(1),
   };
 }
@@ -91,7 +91,7 @@ export function shapeContextForSpeaker(
   }
   switch (speaker.output) {
     case "narrator":
-      return shapeContextForCast(ctx, characters);
+      return shapeContextForMultiVoice(ctx, characters);
     case "per-speaker":
       return shapeContextForSingle(ctx, characters, speakerRefs, speaker);
     default:

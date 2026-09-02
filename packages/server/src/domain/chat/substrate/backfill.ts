@@ -70,38 +70,38 @@ async function loadAllChatIds(ctx: ChatContext, hostUserId?: UserId | null): Pro
 
 /** A chat's present characters + its host + the projected macro-name context (the summarizer transcript labels
  *  resolve by character/persona name, not the raw id). One roster read serves all three. */
-async function loadCastAndHost(
+async function loadCharacterIdsAndHost(
   ctx: ChatContext,
   chatId: ChatId,
 ): Promise<{
-  cast: CharacterId[];
+  characterIds: CharacterId[];
   hostUserId: UserId | null;
   macroNames: RowMacroNameContext;
 }> {
   const roster = await loadRoster(ctx.db, chatId);
-  const cast = roster.flatMap((r) => {
+  const characterIds = roster.flatMap((r) => {
     const actor = classifyParticipant(r);
     return actor?.kind === "character" ? [actor.characterId] : [];
   });
   const hostUserId = hostUserIdOf(roster);
   const macroNames: RowMacroNameContext = buildIdentityNameContext(await loadChatIdentityProducer(ctx.db, { participants: roster }));
-  return { cast, hostUserId, macroNames };
+  return { characterIds, hostUserId, macroNames };
 }
 
 /** The digest scope buckets for one chat — mirrors the engine's post-turn enumeration: the shared group
- *  bucket gated on cast size (no-op for solo), then every cast character's bucket. A hostless group has
+ *  bucket gated on the character count (no-op for solo), then every seated character's bucket. A hostless group has
  *  no funding owner to mint under, so its shared bucket is skipped (per-character buckets still build). */
-async function scopesFor(ctx: ChatContext, chatId: ChatId, cast: readonly CharacterId[], hostUserId: UserId | null): Promise<MemoryScope[]> {
+async function scopesFor(ctx: ChatContext, chatId: ChatId, characterIds: readonly CharacterId[], hostUserId: UserId | null): Promise<MemoryScope[]> {
   const scopes: MemoryScope[] = [];
-  if (cast.length > 1 && hostUserId !== null) {
+  if (characterIds.length > 1 && hostUserId !== null) {
     const scopedCharacterId = await resolveGroupBucketCharacterId(ctx, {
       ownerId: hostUserId,
       chatId,
     });
-    scopes.push({ chatId, scopedCharacterId, isGroup: cast.length > 1 });
+    scopes.push({ chatId, scopedCharacterId, isGroup: characterIds.length > 1 });
   }
-  for (const scopedCharacterId of cast) {
-    scopes.push({ chatId, scopedCharacterId, isGroup: cast.length > 1 });
+  for (const scopedCharacterId of characterIds) {
+    scopes.push({ chatId, scopedCharacterId, isGroup: characterIds.length > 1 });
   }
   return scopes;
 }
@@ -135,7 +135,7 @@ interface PlanDeps {
 /** Plan ONE chat: COLLECT its segment chunks (no embed), then tier-0 COLLECT each of its scope buckets into
  *  `sweep`. No summarize, no vector write — both are corpus-wide phases of their own. */
 async function planOneChat(ctx: ChatContext, deps: PlanDeps, chatId: ChatId, sweep: PlanSweep): Promise<void> {
-  const { cast, hostUserId, macroNames } = await loadCastAndHost(ctx, chatId);
+  const { characterIds, hostUserId, macroNames } = await loadCharacterIdsAndHost(ctx, chatId);
   // Resolved inside the per-chat try (the caller's) so a settings-read failure is counted + continues.
   const config = hostUserId === null ? null : await deps.resolveMemoryConfig(hostUserId);
   if (config?.mode === "off") {
@@ -146,12 +146,12 @@ async function planOneChat(ctx: ChatContext, deps: PlanDeps, chatId: ChatId, swe
   // asks for: batch by phase, never one awaited embed per block interleaved with db reads.
   sweep.segments.push(await collectSegments(ctx, { chatId, config, macroNames, signal: deps.signal }));
   sweep.segmentsScanned += 1;
-  const castSet = new Set<CharacterId>(cast);
-  for (const scope of await scopesFor(ctx, chatId, cast, hostUserId)) {
+  const characterIdSet = new Set<CharacterId>(characterIds);
+  for (const scope of await scopesFor(ctx, chatId, characterIds, hostUserId)) {
     if (deps.signal.aborted) {
       break;
     }
-    const witnessing = castSet.has(scope.scopedCharacterId) ? await loadWitnessHorizons(ctx.db, chatId, scope.scopedCharacterId) : undefined;
+    const witnessing = characterIdSet.has(scope.scopedCharacterId) ? await loadWitnessHorizons(ctx.db, chatId, scope.scopedCharacterId) : undefined;
     const plan = await planDigests(ctx, { scope, config, macroNames, signal: deps.signal, ...(witnessing !== undefined ? { witnessing } : {}) });
     sweep.digestsScanned += 1; // each (chat × scope) bucket is one scanned unit, planned or a no-op
     if (plan !== null) {
@@ -519,9 +519,9 @@ export async function backfillGroupCharacters(
       break;
     }
     const roster = await loadRoster(ctx.db, chatId);
-    const cast = roster.filter((r) => classifyParticipant(r)?.kind === "character");
+    const characterIds = roster.filter((r) => classifyParticipant(r)?.kind === "character");
     const hostUserId = hostUserIdOf(roster);
-    if (cast.length <= 1 || hostUserId === null) {
+    if (characterIds.length <= 1 || hostUserId === null) {
       continue; // solo/empty rooms need no group character; a hostless room has no funding owner
     }
     counts.scanned += 1;

@@ -22,7 +22,7 @@
 import type { GroupConfig, SpeakerRef } from "@orb/contracts/chat";
 import { speakerKey } from "@orb/contracts/chat";
 import type { CharacterId } from "@orb/kit/ids";
-import type { ArbiterCandidate, CastName } from "../contract/arbitration.ts";
+import type { ArbiterCandidate, SpeakerCandidate } from "../contract/arbitration.ts";
 import { isArbiterEligible } from "../persistence/participant.ts";
 
 /** The arbitration inputs (file-local — callers pass a literal). */
@@ -189,12 +189,12 @@ function cap(refs: SpeakerRef[], maxSpeakers: number | undefined): SpeakerRef[] 
  * never an AI reply). Matches `@Name` against the present characters' display names (longest-name-first so
  * `@Aria Stormborn` wins over `@Aria`), word-boundary-anchored, case-insensitive.
  */
-export function resolveMentions(triggerText: string, cast: readonly CastName[]): CharacterId[] {
-  if (triggerText.length === 0 || cast.length === 0) {
+export function resolveMentions(triggerText: string, candidates: readonly SpeakerCandidate[]): CharacterId[] {
+  if (triggerText.length === 0 || candidates.length === 0) {
     return [];
   }
   // @mention is character-only: only character seats resolve to a forced characterId.
-  const characters = cast.map((c) => ({ characterId: c.ref.characterId, name: c.name }));
+  const characters = candidates.map((c) => ({ characterId: c.ref.characterId, name: c.name }));
   const byLongest = characters.toSorted((a, b) => b.name.length - a.name.length);
   // Longest-first with overlap masking: a longer name that matched CONSUMES its spans, so a shorter name
   // nested inside one (`@Aria` within `@Aria Stormborn`) cannot fire off it. EVERY free span of a matched

@@ -62,9 +62,9 @@ describe("shapeContextForSpeaker — per-speaker card selection", () => {
 // NOT in `speakerRefs`: before this arm existed the round fell through the off-cast guard above and assembled
 // as a solo turn for the primary, so the co-speakers' cards never reached the model at all.
 describe("shapeContextForSpeaker — narrator (one turn voices every present character)", () => {
-  test("the `cast` speaker arm is produced, with EVERY present member on it", () => {
+  test("the `multi-voice` speaker arm is produced, with EVERY present member on it", () => {
     const out = shapeContextForSpeaker(ctx(), { ref: charRef("group_synthetic"), output: "narrator", cardScope: "merged" });
-    expect(out.speaker).toEqual({ kind: "cast", members: [card("Aria"), card("Bran")], active: card("Aria") });
+    expect(out.speaker).toEqual({ kind: "multi-voice", members: [card("Aria"), card("Bran")], active: card("Aria") });
   });
 
   test("the primary is the character section and every OTHER member is a co-speaker", () => {
