@@ -163,12 +163,12 @@
     },
     {
       "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
-      "assignedSha256": "0c2805823ccc9ea8fefef99084959a20de675ab4dff5b681c3bc9e5d5e156063",
+      "assignedSha256": "19e262353dacf2708c7bac280369f0432be5578d791862fac21e8bb1fc8c05d1",
       "disposition": "current",
       "authority": "operational",
       "fullRead": true,
-      "verifiedSha256": "0c2805823ccc9ea8fefef99084959a20de675ab4dff5b681c3bc9e5d5e156063",
-      "verifiedCommit": "b7e824597528570d70eac59fbc553e7e0ccf8a06",
+      "verifiedSha256": "19e262353dacf2708c7bac280369f0432be5578d791862fac21e8bb1fc8c05d1",
+      "verifiedCommit": "1120e060ba3885a9f5ac0ec7095ecaeba4c309df",
       "verifiedAt": "2026-09-01",
       "evidence": [
         "re-attested at 9a4bee47ab1b21cd68c291c80e1704b486200dd8 (#995): the agent-bridge-lock row records the lean production readiness home, shared debug Promise/query, and DEV-only bridge boundary; focused CT passed 6/6, gate conformance passed, and check:structure completed 244/244 active gates clean",
@@ -228,7 +228,8 @@
         "re-attested at e0c1ebe83 + 9055cfe6a (#944/#946, lane p-gates-closed): SIX Layer-3 rows changed, no gate added or removed, so the 247 count line is untouched. Each row now states its fail-closed discovery arm (an initializer not resolvable to a co-located object literal REDs instead of being skipped) and its declared MEMBER POPULATION; the section rows additionally state the widened subject (the `make<X>Section(): SectionDefinition` FACTORY, read through the shared lib/section-defs.ts). Delta read at the edited bytes. RED-FIRST on the real tree: six planted imported-definition probes under packages/client/src/features/refinery/lib/ were measured against the HEAD gate sources first — all six gates rendered ✓ over them (chrome with a fully healthy `CHROME_ZONES=4` vocabulary line) — then RED with `N member(s), 1 UNRESOLVED` after the fix; probes rm'd, `git status --short` clean. check:structure ran 247/247 COMPLETE and clean on the final tree; gate conformance, check-gates.int, and the four new runner controls (tests/tooling/verify/lib/population.int.test.ts) all pass.",
         "re-attested at b8baf68dc — merge of #944/#946 (e0c1ebe83 + 9055cfe6a: six definition-gate rows fail-closed + population receipt) onto the #947 ledger; the adjacent section-factory (#947) / config-group (#944) rows resolved per side; union read once",
         "re-attested at 12b8c524f6e463708292ac17ecb0c2aaa9ceb767 (#973): the four grant-liveness rows record the PATTERN half — 298 previously-unjudged glob/pattern grants partitioned into 261 verified-live, 17 ratified with reason+cite, 18 irreducible under a two-sided no-growth budget, and 2 stale-and-removed. check:structure ran COMPLETE 248/248 clean, gate conformance 8/8, and the four gate pins 61/61",
-        "re-attested at b7e824597 — merge of #973 (12b8c524f: the four grant-liveness rows learn their pattern half — 261 live / 17 ratified / 18 irreducible / 2 removed = 298) onto the #944/#946 ledger; union read once"
+        "re-attested at b7e824597 — merge of #973 (12b8c524f: the four grant-liveness rows learn their pattern half — 261 live / 17 ratified / 18 irreducible / 2 removed = 298) onto the #944/#946 ledger; union read once",
+        "re-attested at 1120e060b (#1035): three rows narrowed further — fk-columns-indexed / lifecycle-portability / json-column-write-parity now record that the shared drizzle reader answers every MEMBER KIND (a shorthand resolves through its binding, a computed key when it is a string literal) and refuses the rest, plus the #946 population receipt on the column set. Delta read; verified by check:structure 248/248 run COMPLETE clean, 24 reader pins, eight single-gate conformance runs, an 8/8 shorthand red-first replay against the HEAD reader, and a planted empty-population control that raised all eight alarms. check-gates.int was ORB-LOAD-KILLED twice at loadavg 17-25 (exit-2 class, not a verdict) and is the orchestrator's to run on the quiesced tree"
       ],
       "claims": [
         {
