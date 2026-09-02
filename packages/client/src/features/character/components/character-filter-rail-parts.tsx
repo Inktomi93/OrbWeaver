@@ -10,6 +10,7 @@ import type { LucideIcon } from "@orb/ui/icons";
 import { Check, Icon, Minus } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
 import { Row } from "@orb/ui/layout";
+import { RECEDED_INK } from "@orb/ui/lib";
 import { ScrollArea } from "@orb/ui/scroll-area";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
@@ -50,7 +51,7 @@ interface TagChipPresentation {
   /** THE RESTING INK, DECLARED BY THE RAIL RATHER THAN BY THE PRIMITIVE (#1141, 2026-09-02 — and this is
    *  a FORK between two live rulings, resolved, not reversed). #102 ruled the rail carries THREE registers
    *  and that a filter chip "recedes to muted" against the command's foreground; it got that for free
-   *  because `Button`'s `outline` intent painted `text-muted-foreground`. #969
+   *  because `Button`'s `outline` intent painted the receding ink itself. #969
    *  (`docs/design/theme-pivot-foreground-contract.md`, 242bfaecb) then ruled the opposite half —
    *  "Transparent `Button` actions inherit their host surface's paired ink; they do not substitute the
    *  low-emphasis `muted-foreground` semantic for an action label" — and flipped all three transparent
@@ -65,7 +66,7 @@ interface TagChipPresentation {
 }
 
 const TAG_CHIP_PRESENTATION: Record<TagFilterState, TagChipPresentation> = {
-  off: { announced: "off", next: "activate to include", selection: "none", icon: null, restingInk: "text-muted-foreground" },
+  off: { announced: "off", next: "activate to include", selection: "none", icon: null, restingInk: RECEDED_INK },
   include: { announced: "included", next: "activate to exclude", selection: "on", icon: Check, restingInk: undefined },
   exclude: { announced: "excluded", next: "activate to clear", selection: "negated", icon: Minus, restingInk: undefined },
 };
@@ -292,7 +293,7 @@ export function RailAction({
       aria-label={accessibleName}
       // The receding ink is the RAIL's to state, not `ghost`'s — see {@link TagChipPresentation.restingInk}
       // for the #102/#969 fork this resolves. This affordance has no selected arm, so it carries it flat.
-      className="text-muted-foreground underline decoration-dotted"
+      className={`${RECEDED_INK} underline decoration-dotted`}
       intent="ghost"
       onClick={onClick}
       size="chip"
