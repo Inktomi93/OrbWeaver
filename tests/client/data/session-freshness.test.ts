@@ -9,7 +9,7 @@
 //   • UNREACHABLE ≠ DEAD — a thrown probe leaves the clock untouched and signals nothing. Signing a user
 //     out because their wifi blinked is a worse defect than the one being fixed.
 
-import { __resetSessionFreshness, markSessionFresh, sessionFreshnessAgeMs, startSessionFreshness } from "@orb/client/data/pure";
+import { __resetSessionFreshness, markSessionFresh, sessionFreshnessAgeMs, startSessionFreshness } from "@orb/client/data";
 import { describe, vi } from "vitest";
 import { expect, test } from "../../support/fixtures.ts";
 

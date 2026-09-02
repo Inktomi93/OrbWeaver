@@ -3,8 +3,8 @@
 // map (only rail.end maps; topbar.trail/surface/mobile-tab do NOT), the dupe-id and
 // zone-validation throws, and the canonical `(order, id)` per-zone order.
 
-import type { ChromeEntry, ChromeZone, ModalDefinition, SectionDefinition } from "@orb/client/state/pure";
-import { assembleChrome, NO_SELECTION_TITLE } from "@orb/client/state/pure";
+import type { ChromeEntry, ChromeZone, ModalDefinition, SectionDefinition } from "@orb/client/state";
+import { assembleChrome, NO_SELECTION_TITLE } from "@orb/client/state";
 import { Command } from "@orb/ui/icons";
 import { describe } from "vitest";
 import { expect, test } from "../../support/fixtures.ts";

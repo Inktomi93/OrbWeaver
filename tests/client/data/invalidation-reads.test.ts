@@ -9,7 +9,7 @@
 // `query-freshness-coverage` gate exists for. A test over the SETS fails at the cause; the map test fails at
 // twelve symptoms.
 
-import { createTrpcClient, createTrpcProxy } from "@orb/client/data/pure";
+import { createTrpcClient, createTrpcProxy } from "@orb/client/data";
 import { ROOM_ENTITY_KINDS } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

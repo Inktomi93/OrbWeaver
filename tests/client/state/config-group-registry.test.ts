@@ -3,8 +3,8 @@
 // function), and the `collection` narrowing the host's welcome, mobile teaching, context routing and
 // selection title all read (config-revamp-design.md §3.1 / §6.8).
 
-import type { ConfigGroupDefinition } from "@orb/client/state/pure";
-import { configAnchorId, isCollectionGroup, isPushingGroup } from "@orb/client/state/pure";
+import type { ConfigGroupDefinition } from "@orb/client/state";
+import { configAnchorId, isCollectionGroup, isPushingGroup } from "@orb/client/state";
 import { Settings } from "@orb/ui/icons";
 import { describe } from "vitest";
 import { expect, test } from "../../support/fixtures.ts";

@@ -9,7 +9,7 @@
 // with no active observer (only the optional refetch needs one) — so this needs no mounted query,
 // no network: `createTrpcClient()` never fires a request until something actually queries.
 
-import { createInvalidation, createTrpcClient, createTrpcProxy } from "@orb/client/data/pure";
+import { createInvalidation, createTrpcClient, createTrpcProxy } from "@orb/client/data";
 import type { ChatBusEvent, MessageView } from "@orb/contracts/chat";
 import type { RpgBusEvent } from "@orb/contracts/rpg";
 import { RPG_BUS_EVENT_TYPES } from "@orb/contracts/rpg";
